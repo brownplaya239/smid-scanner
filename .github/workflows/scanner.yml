@@ -1,0 +1,33 @@
+name: Breakout Scanner
+
+on:
+  schedule:
+    # 9:31 AM ET = 13:31 UTC (adjust for daylight saving: 14:31 UTC in winter)
+    - cron: '31 13 * * 1-5'
+    # 3:55 PM ET = 19:55 UTC (adjust for daylight saving: 20:55 UTC in winter)
+    - cron: '55 19 * * 1-5'
+  workflow_dispatch:  # allows manual trigger from GitHub UI
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install yfinance anthropic requests pytz
+
+      - name: Run scanner
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scanner.py
