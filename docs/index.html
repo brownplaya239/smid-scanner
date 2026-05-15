@@ -120,6 +120,8 @@
     <button data-tab="iwm-scanner">IWM Scanner</button>
     <button data-tab="smid-setup">SMID Setup Builder</button>
     <button data-tab="iwm-setup">IWM Setup Builder</button>
+    <button data-tab="qm-monthly">QM Monthly Gainers</button>
+    <button data-tab="stockbee-weekly">Stockbee Weekly</button>
   </nav>
 
   <main>
@@ -169,6 +171,18 @@
       <p class="tab-sub">Russell 2000 EOD pre-breakout VCP watchlist &mdash; 4:15 PM ET weekdays.</p>
       <div class="report-list" id="list-iwm-setup"></div>
     </section>
+    <section class="panel" id="panel-qm-monthly">
+      <h2 class="tab-title">QM Monthly Gainers</h2>
+      <p class="tab-sub">Qullamaggie's biggest one-month gainers &mdash; top 2% of the
+        market by 1-month gain, ADR% &ge; 5, $100M+ dollar volume. 4:30 PM ET weekdays.</p>
+      <div class="report-list" id="list-qm-monthly"></div>
+    </section>
+    <section class="panel" id="panel-stockbee-weekly">
+      <h2 class="tab-title">Stockbee Weekly 20%</h2>
+      <p class="tab-sub">Stockbee's "20% Plus in a Week" &mdash; every liquid name up
+        20%+ over the last 5 trading days. 4:30 PM ET weekdays.</p>
+      <div class="report-list" id="list-stockbee-weekly"></div>
+    </section>
   </main>
 
   <footer>
@@ -216,12 +230,12 @@
     .then(function (r) { return r.ok ? r.json() : { reports: {} }; })
     .then(function (m) {
       const reps = m.reports || {};
-      ["adhoc","smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
+      ["adhoc","smid-scanner","iwm-scanner","smid-setup","iwm-setup","qm-monthly","stockbee-weekly"].forEach(function (k) {
         renderList(k, reps[k]);
       });
     })
     .catch(function () {
-      ["adhoc","smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
+      ["adhoc","smid-scanner","iwm-scanner","smid-setup","iwm-setup","qm-monthly","stockbee-weekly"].forEach(function (k) {
         renderList(k, []);
       });
     });

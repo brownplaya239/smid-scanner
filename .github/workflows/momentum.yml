@@ -1,0 +1,54 @@
+name: Momentum Scans
+
+on:
+  schedule:
+    # 4:30 PM ET weekdays — EOD, after the setup builders; daily candle complete
+    # EDT: 20:30 UTC  |  EST: 21:30 UTC
+    - cron: '30 20 * * 1-5'   # summer (EDT)
+    - cron: '30 21 * * 1-5'   # winter (EST)
+
+  workflow_dispatch:           # manual trigger from GitHub UI anytime
+
+jobs:
+  momentum:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # allow committing archived report PDFs back
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run momentum scans
+        env:
+          DISCORD_MOMENTUM_WEBHOOK_URL: ${{ secrets.DISCORD_MOMENTUM_WEBHOOK_URL }}
+        run: python momentum_scanner.py
+
+      - name: Publish reports to site archive
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/reports/ || true
+          if git diff --staged --quiet; then
+            echo "No new reports to publish"
+          else
+            git pull --rebase --autostash origin master || true
+            git commit -m "Archive momentum scans $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push origin master
+            echo "Reports published to site"
+          fi
