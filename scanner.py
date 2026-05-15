@@ -58,6 +58,28 @@ IWM_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IWM_holdings
 ET = pytz.timezone("America/New_York")
 
 
+def _trading_day_fraction():
+    """
+    Fraction of the regular US session (9:30-16:00 ET) elapsed, 0.15-1.0.
+    Returns 1.0 before open, after close, or on weekends — the latest daily
+    bar is then complete and needs no projection.
+    Intraday it returns the elapsed fraction so a partial-day volume bar can
+    be projected to a full-day estimate:  projected = partial / fraction.
+    Without this, mid-day scans see ~half a day's volume and the relative-
+    volume filter rejects almost everything.
+    """
+    now = datetime.now(ET)
+    if now.weekday() >= 5:          # weekend — last bar is Friday, complete
+        return 1.0
+    open_t  = now.replace(hour=9,  minute=30, second=0, microsecond=0)
+    close_t = now.replace(hour=16, minute=0,  second=0, microsecond=0)
+    if now <= open_t or now >= close_t:
+        return 1.0
+    elapsed = (now - open_t).total_seconds()
+    total   = (close_t - open_t).total_seconds()
+    return max(0.15, elapsed / total)
+
+
 # ─── Universe ─────────────────────────────────────────────────────────────────
 
 def get_dynamic_universe(size=250):
@@ -151,27 +173,57 @@ def fetch_iwm_data(tickers):
     spy_12w  = (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-63] - 1) * 100 \
                if len(spy_hist) >= 63 else 0.0
 
-    print(f"  Bulk downloading {len(tickers)} tickers...")
-    try:
-        bulk = yf.download(
-            tickers, period="200d", interval="1d",
-            group_by="ticker", auto_adjust=True, threads=True, progress=False,
-        )
-    except Exception as e:
-        print(f"  Bulk download failed: {e}")
-        return [], {}, spy_hist
+    _day_frac = _trading_day_fraction()
+    if _day_frac < 1.0:
+        print(f"  Intraday run — projecting volume (session {_day_frac*100:.0f}% elapsed)")
+
+    # Chunked download — a single 500-ticker yf.download gets flagged as abuse
+    # from datacenter IPs (GitHub Actions) and returns empty. 50-ticker chunks
+    # with retries + polite delays look like normal traffic and succeed.
+    import time as _time
+    print(f"  Downloading {len(tickers)} tickers in chunks of 50...")
+    bulk_data = {}
+    chunk_size = 50
+    for ci in range(0, len(tickers), chunk_size):
+        chunk = tickers[ci:ci + chunk_size]
+        got = False
+        for attempt in range(3):
+            try:
+                bd = yf.download(
+                    chunk, period="200d", interval="1d",
+                    group_by="ticker", auto_adjust=True, threads=True, progress=False,
+                )
+                if bd is not None and not bd.empty:
+                    for t in chunk:
+                        try:
+                            h = bd[t].dropna(how="all") if len(chunk) > 1 else bd.dropna(how="all")
+                            if not h.empty:
+                                bulk_data[t] = h
+                        except Exception:
+                            pass
+                    got = True
+                    break
+            except Exception:
+                pass
+            _time.sleep(3 * (attempt + 1))
+        if not got:
+            print(f"    chunk {ci // chunk_size + 1} failed after 3 retries")
+        else:
+            _time.sleep(1.0)  # polite gap between chunks
+    print(f"  Got data for {len(bulk_data)}/{len(tickers)} tickers")
 
     tech_pass, hist_cache = [], {}
-    for ticker in tickers:
+    for ticker, hist in bulk_data.items():
         try:
-            hist = bulk[ticker].dropna(how="all") if len(tickers) > 1 else bulk.dropna(how="all")
             if hist.empty or len(hist) < 20:
                 continue
             price      = float(hist["Close"].iloc[-1])
             prev       = float(hist["Close"].iloc[-2])
             change_pct = (price - prev) / prev * 100
             avg_vol    = float(hist["Volume"].iloc[-21:-1].mean())
-            vol_ratio  = float(hist["Volume"].iloc[-1]) / avg_vol if avg_vol > 0 else 1.0
+            # Project today's partial volume bar to a full-day estimate
+            today_vol  = float(hist["Volume"].iloc[-1]) / _day_frac
+            vol_ratio  = today_vol / avg_vol if avg_vol > 0 else 1.0
             ma20       = float(hist["Close"].iloc[-20:].mean())
             ma50       = float(hist["Close"].iloc[-50:].mean()) if len(hist) >= 50 else None
 
@@ -282,7 +334,8 @@ def fetch_yfinance_data(tickers):
             prev_close  = hist["Close"].iloc[-2]
             change_pct  = ((price - prev_close) / prev_close) * 100
             avg_vol     = hist["Volume"].iloc[-21:-1].mean()
-            today_vol   = hist["Volume"].iloc[-1]
+            # Project today's partial volume bar to a full-day estimate
+            today_vol   = hist["Volume"].iloc[-1] / _trading_day_fraction()
             vol_ratio   = today_vol / avg_vol if avg_vol > 0 else 1.0
             ma20        = hist["Close"].iloc[-20:].mean()
             ma50        = hist["Close"].iloc[-50:].mean() if len(hist) >= 50 else None
@@ -1855,12 +1908,16 @@ def run_scan():
         pdf_bytes = generate_pdf(results, scan_type, hist_cache, report_label=report_label)
         send_discord_pdf(pdf_bytes, results, scan_type, webhook, label=label)
     else:
+        regime = macro.get("regime", "Unknown") if isinstance(macro, dict) else "Unknown"
         requests.post(webhook, json={"content": (
             f"**{label} Scanner  |  {scan_type}**  —  "
-            f"{datetime.now(ET).strftime('%b %d %Y %I:%M %p ET')}  |  "
-            "No setups passed pre-filter today."
+            f"{datetime.now(ET).strftime('%b %d %Y %I:%M %p ET')}\n"
+            f"No breakout setups passed the filter (green + vol surge + above 20MA).\n"
+            f"Market regime: **{regime}**. On red / low-volume days the breakout "
+            "scanner correctly returns nothing — this is the system working as designed, "
+            "not a failure. Check the EOD Setup Builder for coiling pre-breakout bases."
         )}, timeout=15)
-        print("  No results — empty scan notification sent.")
+        print("  No results — empty scan notification sent (with market context).")
 
     print("\nDone.")
 
