@@ -16,11 +16,13 @@ _BASE       = os.path.dirname(os.path.abspath(__file__))
 REPORTS_DIR = os.path.join(_BASE, "docs", "reports")
 
 TYPE_LABELS = {
-    "smid-scanner": "SMID Scanner",
-    "iwm-scanner":  "IWM Scanner",
-    "smid-setup":   "SMID Setup Builder",
-    "iwm-setup":    "IWM Setup Builder",
-    "adhoc":        "Ad-Hoc Lookups",
+    "smid-scanner":    "SMID Scanner",
+    "iwm-scanner":     "IWM Scanner",
+    "smid-setup":      "SMID Setup Builder",
+    "iwm-setup":       "IWM Setup Builder",
+    "qm-monthly":      "QM Monthly Gainers",
+    "stockbee-weekly": "Stockbee Weekly 20%",
+    "adhoc":           "Ad-Hoc Lookups",
 }
 
 
@@ -40,10 +42,12 @@ def save_report(pdf_bytes, filename):
 
 def _classify(fn):
     """Map a report filename to (type_key, ticker_or_None)."""
-    if fn.startswith("smid_scanner_"): return "smid-scanner", None
-    if fn.startswith("iwm_scanner_"):  return "iwm-scanner",  None
-    if fn.startswith("smid_setup_"):   return "smid-setup",   None
-    if fn.startswith("iwm_setup_"):    return "iwm-setup",    None
+    if fn.startswith("smid_scanner_"):    return "smid-scanner",    None
+    if fn.startswith("iwm_scanner_"):     return "iwm-scanner",     None
+    if fn.startswith("smid_setup_"):      return "smid-setup",      None
+    if fn.startswith("iwm_setup_"):       return "iwm-setup",       None
+    if fn.startswith("qm_monthly_"):      return "qm-monthly",      None
+    if fn.startswith("stockbee_weekly_"): return "stockbee-weekly", None
     if fn.startswith("ticker_"):
         m = re.match(r"ticker_([A-Za-z.\-]+)_", fn)
         return "adhoc", (m.group(1).upper() if m else None)
