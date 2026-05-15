@@ -86,6 +86,24 @@
   .empty { color:var(--muted); font-size:13px; padding:24px; text-align:center;
     border:1px dashed var(--line); border-radius:8px; }
 
+  /* ── Inline PDF viewer ── */
+  #viewer { margin-bottom:24px; display:none; }
+  #viewer.show { display:block; }
+  #viewer .vbar {
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--navy2); border:1px solid var(--line); border-bottom:0;
+    border-radius:8px 8px 0 0; padding:10px 16px; font-size:12px;
+  }
+  #viewer .vbar .vname { font-weight:700; color:var(--gold); }
+  #viewer .vbar a {
+    color:#cdd6ee; text-decoration:none; font-size:11px; font-weight:600;
+    border:1px solid var(--line); border-radius:5px; padding:5px 11px;
+  }
+  #viewer iframe {
+    width:100%; height:88vh; min-height:560px;
+    border:1px solid var(--line); border-radius:0 0 8px 8px; background:#fff;
+  }
+
   footer { padding:16px 28px; font-size:10.5px; color:var(--muted);
     border-top:1px solid #1a2548; text-align:center; }
 </style>
@@ -122,6 +140,9 @@
         </div>
         <div id="status"></div>
       </div>
+
+      <div id="viewer"></div>
+
       <h2 class="tab-title">Recent Ad-Hoc Reports</h2>
       <p class="tab-sub">Most recent first. Click to open the PDF.</p>
       <div class="report-list" id="list-adhoc"></div>
@@ -205,11 +226,60 @@
       });
     });
 
-  /* ── Ad-hoc lookup ── */
-  const input = document.getElementById("ticker");
+  /* ── Ad-hoc lookup with inline result ── */
+  const input  = document.getElementById("ticker");
   const button = document.getElementById("go");
   const status = document.getElementById("status");
+  const viewer = document.getElementById("viewer");
   function setStatus(cls, html) { status.className = "show " + cls; status.innerHTML = html; }
+
+  async function fetchManifest() {
+    try {
+      const r = await fetch("./reports/manifest.json?t=" + Date.now());
+      return r.ok ? await r.json() : { reports: {} };
+    } catch (e) { return { reports: {} }; }
+  }
+
+  function embedReport(ticker, entry) {
+    viewer.className = "show";
+    viewer.innerHTML =
+      '<div class="vbar">' +
+        '<span class="vname">' + ticker + ' &mdash; ' + (entry.label || entry.file) + '</span>' +
+        '<a href="./reports/' + entry.file + '" target="_blank">Open in new tab &rarr;</a>' +
+      '</div>' +
+      '<iframe src="./reports/' + entry.file + '"></iframe>';
+    viewer.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function pollForReport(ticker, baseline, startedAt) {
+    const deadlineMs = 7 * 60 * 1000;   // 7-minute cap
+    async function tick() {
+      const elapsed = Math.round((Date.now() - startedAt) / 1000);
+      if (Date.now() - startedAt > deadlineMs) {
+        setStatus("err", "&#10007; Timed out waiting for the report. It may still arrive &mdash; " +
+          "check <strong>#onepager-adhoc</strong> on Discord, or reload this page shortly.");
+        button.disabled = false;
+        return;
+      }
+      const m = await fetchManifest();
+      const adhoc = (m.reports && m.reports.adhoc) || [];
+      const fresh = adhoc.find(function (e) {
+        return e.ticker === ticker && !baseline.has(e.file);
+      });
+      if (fresh) {
+        setStatus("ok", "&#10003; <strong>" + ticker + "</strong> report ready &mdash; shown below. " +
+          "Also delivered to <strong>#onepager-adhoc</strong> on Discord.");
+        embedReport(ticker, fresh);
+        button.disabled = false;
+        renderList("adhoc", adhoc);   // refresh the recent-list too
+        return;
+      }
+      setStatus("working", "Researching <strong>" + ticker + "</strong> &mdash; generating the " +
+        "5-page report&hellip; (" + elapsed + "s elapsed; typically 2&ndash;3 min)");
+      setTimeout(tick, 10000);
+    }
+    setTimeout(tick, 15000);   // first check after 15s
+  }
 
   async function submit() {
     const ticker = input.value.toUpperCase().trim();
@@ -218,7 +288,16 @@
       setStatus("err", "Invalid ticker format: <strong>" + ticker + "</strong>"); return;
     }
     button.disabled = true;
+    viewer.className = "";
+    viewer.innerHTML = "";
     setStatus("working", "Researching <strong>" + ticker + "</strong> &mdash; triggering analysis&hellip;");
+
+    // Snapshot existing ad-hoc files so we can detect the NEW one
+    const baseManifest = await fetchManifest();
+    const baseline = new Set(
+      ((baseManifest.reports && baseManifest.reports.adhoc) || []).map(function (e) { return e.file; })
+    );
+
     try {
       const resp = await fetch(WORKER_URL, {
         method:"POST", headers:{ "Content-Type":"application/json" },
@@ -226,16 +305,14 @@
       });
       const data = await resp.json();
       if (data.ok) {
-        setStatus("ok", "&#10003; <strong>" + ticker + "</strong> research started.<br>" +
-          "PDF arrives in <strong>#onepager-adhoc</strong> on Discord and in this tab " +
-          "in ~60&ndash;90s. Refresh the page to see it appear.");
+        pollForReport(ticker, baseline, Date.now());
       } else {
         setStatus("err", "&#10007; " + (data.error || "Unknown error"));
+        button.disabled = false;
       }
     } catch (e) {
       setStatus("err", "&#10007; Request failed: " + e.message);
-    } finally {
-      setTimeout(function () { button.disabled = false; }, 3000);
+      button.disabled = false;
     }
   }
   button.addEventListener("click", submit);
