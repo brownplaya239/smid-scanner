@@ -60,22 +60,21 @@ jobs:
           MIN=$(date -u +%M)
           TIME_UTC="${HOUR}${MIN}"
 
+          # Run SMID then IWM SEQUENTIALLY — not parallel.
+          # Parallel runs hammer Yahoo Finance from the same runner IP and the
+          # heavier IWM scan (500 tickers) gets rate-limited to 0 results.
           # 4:15 PM ET window (EDT: 2015 UTC, EST: 2115 UTC) → setup builders
           if [ "$TIME_UTC" -ge "2010" ] && [ "$TIME_UTC" -le "2020" ] || \
              [ "$TIME_UTC" -ge "2110" ] && [ "$TIME_UTC" -le "2120" ]; then
-            echo "Running setup builders (EOD base scan) — SMID + IWM in parallel"
-            python setup_builder.py & PID1=$!
-            python setup_builder.py --iwm & PID2=$!
+            echo "Running setup builders (EOD base scan) — SMID then IWM"
+            python setup_builder.py;       R1=$?
+            python setup_builder.py --iwm; R2=$?
           else
-            echo "Running breakout scanners — SMID + IWM in parallel"
-            python scanner.py & PID1=$!
-            python scanner.py --iwm & PID2=$!
+            echo "Running breakout scanners — SMID then IWM"
+            python scanner.py;       R1=$?
+            python scanner.py --iwm; R2=$?
           fi
 
-          # Capture each process's exit code so a crash fails the job loudly
-          # (a bare `wait` always returns 0 and silently masks failures)
-          wait $PID1; R1=$?
-          wait $PID2; R2=$?
           echo "SMID exit: $R1  |  IWM exit: $R2"
           if [ $R1 -ne 0 ] || [ $R2 -ne 0 ]; then
             echo "::error::A scan process failed (SMID=$R1 IWM=$R2)"
