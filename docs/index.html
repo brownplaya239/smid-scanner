@@ -3,163 +3,151 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SMID Scanner — Ad-Hoc Ticker Research</title>
+<title>SMID Scanner — Research Hub</title>
 <style>
   :root {
-    --navy:   #0c1430;
-    --navy2:  #162246;
-    --gold:   #ffc800;
-    --green:  #27ae60;
-    --red:    #c0392b;
-    --ink:    #0f1432;
-    --muted:  #8a93a8;
-    --bg:     #0a0f24;
-    --card:   #111a38;
+    --navy:#0c1430; --navy2:#162246; --gold:#ffc800;
+    --green:#27ae60; --red:#c0392b; --muted:#8a93a8;
+    --bg:#0a0f24; --card:#111a38; --line:#20305e;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    background: var(--bg);
-    color: #e8ecf6;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    background:var(--bg); color:#e8ecf6; min-height:100vh;
+    display:flex; flex-direction:column;
   }
-  header {
-    background: var(--navy);
-    border-bottom: 3px solid var(--gold);
-    padding: 22px 28px;
-  }
-  header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.3px; }
-  header p  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  header { background:var(--navy); border-bottom:3px solid var(--gold); padding:22px 28px; }
+  header h1 { font-size:20px; font-weight:700; letter-spacing:.3px; }
+  header p  { font-size:12px; color:var(--muted); margin-top:4px; }
 
-  nav {
-    background: var(--navy2);
-    display: flex;
-    gap: 2px;
-    padding: 0 20px;
-    overflow-x: auto;
+  nav { background:var(--navy2); display:flex; gap:2px; padding:0 16px; overflow-x:auto; }
+  nav button {
+    background:none; border:0; color:var(--muted); cursor:pointer;
+    font-size:12.5px; font-weight:600; padding:13px 15px; white-space:nowrap;
+    border-bottom:2px solid transparent; font-family:inherit;
   }
-  nav a {
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 12.5px;
-    font-weight: 600;
-    padding: 12px 16px;
-    white-space: nowrap;
-    border-bottom: 2px solid transparent;
-  }
-  nav a.active { color: var(--gold); border-bottom-color: var(--gold); }
-  nav a.disabled { opacity: 0.4; cursor: not-allowed; }
+  nav button:hover { color:#cdd6ee; }
+  nav button.active { color:var(--gold); border-bottom-color:var(--gold); }
 
-  main {
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 48px 20px;
-  }
+  main { flex:1; padding:34px 22px; display:flex; justify-content:center; }
+  .panel { display:none; width:100%; max-width:760px; }
+  .panel.active { display:block; }
+
+  /* ── Ad-hoc form ── */
   .card {
-    background: var(--card);
-    border: 1px solid #20305e;
-    border-radius: 10px;
-    padding: 36px;
-    width: 100%;
-    max-width: 520px;
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:32px; margin-bottom:24px;
   }
-  .card h2 { font-size: 17px; margin-bottom: 6px; }
-  .card .sub { font-size: 12.5px; color: var(--muted); margin-bottom: 24px; line-height: 1.55; }
-
-  .input-row { display: flex; gap: 10px; }
+  .card h2 { font-size:17px; margin-bottom:6px; }
+  .card .sub { font-size:12.5px; color:var(--muted); margin-bottom:22px; line-height:1.55; }
+  .input-row { display:flex; gap:10px; }
   input[type=text] {
-    flex: 1;
-    background: #0a1024;
-    border: 1px solid #2a3a6e;
-    border-radius: 6px;
-    color: #fff;
-    font-size: 16px;
-    padding: 13px 14px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    outline: none;
+    flex:1; background:#0a1024; border:1px solid #2a3a6e; border-radius:6px;
+    color:#fff; font-size:16px; padding:13px 14px; text-transform:uppercase;
+    letter-spacing:1px; outline:none;
   }
-  input[type=text]:focus { border-color: var(--gold); }
-  button {
-    background: var(--gold);
-    color: var(--navy);
-    border: 0;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 700;
-    padding: 0 22px;
-    cursor: pointer;
-    white-space: nowrap;
+  input[type=text]:focus { border-color:var(--gold); }
+  button.go {
+    background:var(--gold); color:var(--navy); border:0; border-radius:6px;
+    font-size:14px; font-weight:700; padding:0 22px; cursor:pointer;
+    white-space:nowrap; font-family:inherit;
   }
-  button:disabled { opacity: 0.5; cursor: wait; }
-
+  button.go:disabled { opacity:.5; cursor:wait; }
   #status {
-    margin-top: 22px;
-    font-size: 13px;
-    line-height: 1.6;
-    padding: 14px 16px;
-    border-radius: 6px;
-    display: none;
+    margin-top:20px; font-size:13px; line-height:1.6; padding:14px 16px;
+    border-radius:6px; display:none;
   }
-  #status.show    { display: block; }
-  #status.working { background: #1a2548; color: #cdd6ee; border: 1px solid #2a3a6e; }
-  #status.ok      { background: #123524; color: #7fe0a8; border: 1px solid var(--green); }
-  #status.err     { background: #361717; color: #f0a0a0; border: 1px solid var(--red); }
+  #status.show { display:block; }
+  #status.working { background:#1a2548; color:#cdd6ee; border:1px solid #2a3a6e; }
+  #status.ok  { background:#123524; color:#7fe0a8; border:1px solid var(--green); }
+  #status.err { background:#361717; color:#f0a0a0; border:1px solid var(--red); }
 
-  .hint { margin-top: 26px; font-size: 11.5px; color: var(--muted); line-height: 1.6; }
-  .hint code { background: #0a1024; padding: 2px 6px; border-radius: 3px; color: #cdd6ee; }
-
-  footer {
-    padding: 16px 28px;
-    font-size: 10.5px;
-    color: var(--muted);
-    border-top: 1px solid #1a2548;
-    text-align: center;
+  /* ── Report lists ── */
+  .panel h2.tab-title { font-size:18px; margin-bottom:4px; }
+  .panel p.tab-sub { font-size:12.5px; color:var(--muted); margin-bottom:20px; }
+  .report-list { display:flex; flex-direction:column; gap:8px; }
+  .report-item {
+    background:var(--card); border:1px solid var(--line); border-radius:8px;
+    padding:14px 18px; display:flex; align-items:center; justify-content:space-between;
+    gap:14px; text-decoration:none; color:#e8ecf6;
   }
+  .report-item:hover { border-color:var(--gold); }
+  .report-item .meta { display:flex; flex-direction:column; gap:2px; }
+  .report-item .label { font-size:13.5px; font-weight:600; }
+  .report-item .file  { font-size:10.5px; color:var(--muted); }
+  .report-item .open  {
+    font-size:11px; font-weight:700; color:var(--gold);
+    border:1px solid var(--gold); border-radius:5px; padding:6px 12px; white-space:nowrap;
+  }
+  .report-item .tk {
+    font-size:11px; font-weight:700; color:var(--navy); background:var(--gold);
+    border-radius:5px; padding:3px 9px; margin-right:4px;
+  }
+  .empty { color:var(--muted); font-size:13px; padding:24px; text-align:center;
+    border:1px dashed var(--line); border-radius:8px; }
+
+  footer { padding:16px 28px; font-size:10.5px; color:var(--muted);
+    border-top:1px solid #1a2548; text-align:center; }
 </style>
 </head>
 <body>
   <header>
-    <h1>SMID BREAKOUT SCANNER</h1>
+    <h1>SMID BREAKOUT SCANNER &mdash; RESEARCH HUB</h1>
     <p>Institutional-grade SMID-cap research &mdash; Qullamaggie methodology</p>
   </header>
 
-  <nav>
-    <a class="active" href="#adhoc">Ad-Hoc Lookup</a>
-    <a class="disabled" title="Coming soon">SMID Scanner</a>
-    <a class="disabled" title="Coming soon">IWM Scanner</a>
-    <a class="disabled" title="Coming soon">SMID Setup Builder</a>
-    <a class="disabled" title="Coming soon">IWM Setup Builder</a>
+  <nav id="nav">
+    <button data-tab="adhoc" class="active">Ad-Hoc Lookup</button>
+    <button data-tab="smid-scanner">SMID Scanner</button>
+    <button data-tab="iwm-scanner">IWM Scanner</button>
+    <button data-tab="smid-setup">SMID Setup Builder</button>
+    <button data-tab="iwm-setup">IWM Setup Builder</button>
   </nav>
 
   <main>
-    <div class="card">
-      <h2>Ad-Hoc Ticker Research</h2>
-      <p class="sub">
-        Enter any ticker for a full institutional one-pager: setup analysis,
-        12-month insider transactions, institutional ownership, and price/volume
-        intelligence. The PDF is delivered to the <strong>#onepager-adhoc</strong>
-        Discord channel in ~60&ndash;90 seconds.
-      </p>
-
-      <div class="input-row">
-        <input type="text" id="ticker" placeholder="NVDA" maxlength="8"
-               autocomplete="off" autocapitalize="characters" />
-        <button id="go">Generate</button>
+    <!-- Ad-Hoc -->
+    <section class="panel active" id="panel-adhoc">
+      <div class="card">
+        <h2>Ad-Hoc Ticker Research</h2>
+        <p class="sub">
+          Enter any US-listed ticker for a full institutional one-pager: setup
+          analysis, 12-month insider transactions, institutional ownership, and
+          price/volume intelligence. PDF is delivered to <strong>#onepager-adhoc</strong>
+          on Discord and archived below in ~60&ndash;90 seconds.
+        </p>
+        <div class="input-row">
+          <input type="text" id="ticker" placeholder="NVDA" maxlength="8"
+                 autocomplete="off" autocapitalize="characters" />
+          <button class="go" id="go">Generate</button>
+        </div>
+        <div id="status"></div>
       </div>
+      <h2 class="tab-title">Recent Ad-Hoc Reports</h2>
+      <p class="tab-sub">Most recent first. Click to open the PDF.</p>
+      <div class="report-list" id="list-adhoc"></div>
+    </section>
 
-      <div id="status"></div>
-
-      <div class="hint">
-        Works for any US-listed symbol. One report at a time &mdash; wait for the
-        PDF to land before requesting another. Triggered via GitHub Actions;
-        delivery is to Discord.
-      </div>
-    </div>
+    <!-- Report tabs -->
+    <section class="panel" id="panel-smid-scanner">
+      <h2 class="tab-title">SMID Scanner</h2>
+      <p class="tab-sub">Live breakout scans &mdash; 10:00, 11:30, 3:00 PM ET weekdays.</p>
+      <div class="report-list" id="list-smid-scanner"></div>
+    </section>
+    <section class="panel" id="panel-iwm-scanner">
+      <h2 class="tab-title">IWM Scanner</h2>
+      <p class="tab-sub">Russell 2000 breakout scans &mdash; 10:00, 11:30, 3:00 PM ET weekdays.</p>
+      <div class="report-list" id="list-iwm-scanner"></div>
+    </section>
+    <section class="panel" id="panel-smid-setup">
+      <h2 class="tab-title">SMID Setup Builder</h2>
+      <p class="tab-sub">EOD pre-breakout VCP watchlist &mdash; 4:15 PM ET weekdays.</p>
+      <div class="report-list" id="list-smid-setup"></div>
+    </section>
+    <section class="panel" id="panel-iwm-setup">
+      <h2 class="tab-title">IWM Setup Builder</h2>
+      <p class="tab-sub">Russell 2000 EOD pre-breakout VCP watchlist &mdash; 4:15 PM ET weekdays.</p>
+      <div class="report-list" id="list-iwm-setup"></div>
+    </section>
   </main>
 
   <footer>
@@ -167,41 +155,80 @@
   </footer>
 
 <script>
-  // Cloudflare Worker endpoint — update if the worker URL changes
   const WORKER_URL = "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev";
 
-  const input  = document.getElementById("ticker");
+  /* ── Tab switching ── */
+  const nav = document.getElementById("nav");
+  nav.addEventListener("click", function (e) {
+    if (e.target.tagName !== "BUTTON") return;
+    const tab = e.target.dataset.tab;
+    document.querySelectorAll("nav button").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.tab === tab);
+    });
+    document.querySelectorAll(".panel").forEach(function (p) {
+      p.classList.toggle("active", p.id === "panel-" + tab);
+    });
+  });
+
+  /* ── Load report manifest and render lists ── */
+  function renderList(typeKey, entries) {
+    const el = document.getElementById("list-" + typeKey);
+    if (!el) return;
+    if (!entries || entries.length === 0) {
+      el.innerHTML = '<div class="empty">No reports archived yet. ' +
+        'The next scheduled scan will populate this tab.</div>';
+      return;
+    }
+    el.innerHTML = entries.map(function (r) {
+      const tk = r.ticker ? '<span class="tk">' + r.ticker + '</span>' : '';
+      return '<a class="report-item" href="./reports/' + r.file + '" target="_blank">' +
+        '<span class="meta">' +
+          '<span class="label">' + tk + (r.label || r.file) + '</span>' +
+          '<span class="file">' + r.file + '</span>' +
+        '</span>' +
+        '<span class="open">OPEN PDF &rarr;</span>' +
+      '</a>';
+    }).join("");
+  }
+
+  fetch("./reports/manifest.json?t=" + Date.now())
+    .then(function (r) { return r.ok ? r.json() : { reports: {} }; })
+    .then(function (m) {
+      const reps = m.reports || {};
+      ["adhoc","smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
+        renderList(k, reps[k]);
+      });
+    })
+    .catch(function () {
+      ["adhoc","smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
+        renderList(k, []);
+      });
+    });
+
+  /* ── Ad-hoc lookup ── */
+  const input = document.getElementById("ticker");
   const button = document.getElementById("go");
   const status = document.getElementById("status");
-
-  function setStatus(cls, html) {
-    status.className = "show " + cls;
-    status.innerHTML = html;
-  }
+  function setStatus(cls, html) { status.className = "show " + cls; status.innerHTML = html; }
 
   async function submit() {
     const ticker = input.value.toUpperCase().trim();
     if (!ticker) { setStatus("err", "Enter a ticker symbol."); return; }
     if (!/^[A-Z.\-]{1,8}$/.test(ticker)) {
-      setStatus("err", "Invalid ticker format: <strong>" + ticker + "</strong>");
-      return;
+      setStatus("err", "Invalid ticker format: <strong>" + ticker + "</strong>"); return;
     }
-
     button.disabled = true;
     setStatus("working", "Researching <strong>" + ticker + "</strong> &mdash; triggering analysis&hellip;");
-
     try {
       const resp = await fetch(WORKER_URL, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ ticker: ticker }),
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ ticker: ticker }),
       });
       const data = await resp.json();
       if (data.ok) {
-        setStatus("ok",
-          "&#10003; <strong>" + ticker + "</strong> research started.<br>" +
-          "The one-pager PDF will arrive in <strong>#onepager-adhoc</strong> on Discord " +
-          "in ~60&ndash;90 seconds.");
+        setStatus("ok", "&#10003; <strong>" + ticker + "</strong> research started.<br>" +
+          "PDF arrives in <strong>#onepager-adhoc</strong> on Discord and in this tab " +
+          "in ~60&ndash;90s. Refresh the page to see it appear.");
       } else {
         setStatus("err", "&#10007; " + (data.error || "Unknown error"));
       }
@@ -211,11 +238,8 @@
       setTimeout(function () { button.disabled = false; }, 3000);
     }
   }
-
   button.addEventListener("click", submit);
-  input.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") submit();
-  });
+  input.addEventListener("keydown", function (e) { if (e.key === "Enter") submit(); });
 </script>
 </body>
 </html>
