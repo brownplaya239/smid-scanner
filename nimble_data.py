@@ -150,25 +150,95 @@ def fetch_stocktwits(ticker, max_msgs=30):
 
 
 def fetch_reddit(ticker, max_items=10):
-    """Recent Reddit mentions. Tries the public JSON; falls back to Nimble /extract."""
+    """Recent Reddit mentions. Routes through Nimble /extract (Reddit blocks
+    datacenter IPs — direct fetch fails from CI); direct request is fallback."""
     items = []
     url = (f"https://www.reddit.com/search.json?q=%24{ticker}"
-           f"&sort=new&limit={max_items}&t=week")
+           f"&sort=new&limit={max_items * 3}&t=month")
+
+    raw = nimble_extract(url, fmt="html").strip()
+    if not raw or not raw.startswith("{"):
+        try:
+            r = requests.get(url, headers={"User-Agent": "smid-scanner/1.0 alt-data"},
+                             timeout=25)
+            if r.ok:
+                raw = r.text
+        except Exception as e:
+            print(f"  reddit direct fallback failed: {e}")
+
+    if not raw or not raw.startswith("{"):
+        return items
     try:
-        r = requests.get(url, headers={"User-Agent": "smid-scanner/1.0 alt-data"}, timeout=25)
-        if r.ok:
-            for c in r.json().get("data", {}).get("children", []):
-                d = c.get("data", {})
-                items.append({
-                    "title":     (d.get("title", "") or "")[:200],
-                    "subreddit": d.get("subreddit", ""),
-                    "score":     d.get("score", 0),
-                    "comments":  d.get("num_comments", 0),
-                    "url":       "https://reddit.com" + d.get("permalink", ""),
-                })
-    except Exception as e:
-        print(f"  reddit fetch failed: {e}")
+        data = json.loads(raw)
+    except Exception:
+        return items
+
+    for c in data.get("data", {}).get("children", []):
+        d = c.get("data", {})
+        title = (d.get("title", "") or "").strip()
+        low   = title.lower()
+        # skip obvious self-promo / spam
+        if not title or low.startswith(("start for free", "free ", "join ")) \
+           or "promo" in low or ".io" in low[:25]:
+            continue
+        items.append({
+            "title":     title[:200],
+            "subreddit": d.get("subreddit", ""),
+            "score":     d.get("score", 0),
+            "comments":  d.get("num_comments", 0),
+            "created":   d.get("created_utc", 0),
+            "url":       "https://reddit.com" + d.get("permalink", ""),
+        })
+        if len(items) >= max_items:
+            break
     return items
+
+
+# ─── Price context — for sentiment-vs-tape divergence ─────────────────────────
+
+def fetch_price_context(ticker):
+    """yfinance price action + analyst consensus — used to flag whether the
+    chatter CONFIRMS or DIVERGES from the actual tape."""
+    out = {"price": 0.0, "chg_1w": 0.0, "chg_1m": 0.0, "vol_ratio": 0.0,
+           "analyst_rating": "", "target_price": 0.0, "num_analysts": 0,
+           "price_available": False}
+    try:
+        import yfinance as yf
+        t = yf.Ticker(ticker)
+        h = t.history(period="2mo", interval="1d")
+        if not h.empty and len(h) >= 6:
+            close = h["Close"]
+            price = float(close.iloc[-1])
+            out["price"]  = round(price, 2)
+            out["chg_1w"] = round((price / float(close.iloc[-6]) - 1) * 100, 1)
+            if len(close) >= 22:
+                out["chg_1m"] = round((price / float(close.iloc[-22]) - 1) * 100, 1)
+            avgv = float(h["Volume"].iloc[-21:-1].mean())
+            if avgv > 0:
+                out["vol_ratio"] = round(float(h["Volume"].iloc[-1]) / avgv, 2)
+            out["price_available"] = True
+        try:
+            info = t.info
+            out["analyst_rating"] = info.get("recommendationKey", "") or ""
+            out["target_price"]   = round(info.get("targetMeanPrice", 0) or 0, 2)
+            out["num_analysts"]   = info.get("numberOfAnalystOpinions", 0) or 0
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"  price context failed: {e}")
+    return out
+
+
+def _dedup_news(items):
+    """Drop near-duplicate headlines (same story across outlets)."""
+    seen, out = set(), []
+    for n in items:
+        words = re.sub(r"[^a-z0-9 ]", "", n["title"].lower()).split()
+        key = " ".join(words[:6])
+        if key and key not in seen:
+            seen.add(key)
+            out.append(n)
+    return out
 
 
 # ─── Web / SERP context — Nimble /extract ─────────────────────────────────────
@@ -186,20 +256,39 @@ def fetch_web_context(ticker, company="", max_chars=6000):
 # ─── Aggregate ────────────────────────────────────────────────────────────────
 
 def gather_alt_data(ticker, company=""):
-    """Run all four signals for a ticker. Returns a dict for the report + Claude."""
+    """Run every signal for a ticker. Each source is independent — a failure
+    in one degrades gracefully, the rest still populate the report."""
     ticker = ticker.upper().strip()
     print(f"  Alt-data for {ticker}...")
-    news   = fetch_news(ticker, company)
-    social = fetch_stocktwits(ticker)
-    reddit = fetch_reddit(ticker)
-    web    = fetch_web_context(ticker, company)
 
-    # Attention proxy — mention volume across sources
+    def _safe_call(fn, default):
+        try:
+            return fn()
+        except Exception as e:
+            print(f"  {fn} failed: {e}")
+            return default
+
+    news   = _dedup_news(_safe_call(lambda: fetch_news(ticker, company), []))
+    social = _safe_call(lambda: fetch_stocktwits(ticker),
+                        {"messages": [], "bull": 0, "bear": 0, "total": 0,
+                         "watchers": 0, "available": False})
+    reddit = _safe_call(lambda: fetch_reddit(ticker), [])
+    web    = _safe_call(lambda: fetch_web_context(ticker, company), "")
+    price  = _safe_call(lambda: fetch_price_context(ticker),
+                        {"price_available": False})
+
     attention = len(news) + social.get("total", 0) + len(reddit)
-
+    coverage  = {
+        "news":   bool(news),
+        "social": social.get("available", False) and social.get("total", 0) > 0,
+        "reddit": bool(reddit),
+        "web":    bool(web),
+        "price":  price.get("price_available", False),
+    }
     print(f"    news={len(news)}  stocktwits={social.get('total',0)} "
           f"(bull {social.get('bull',0)}/bear {social.get('bear',0)})  "
-          f"reddit={len(reddit)}  web_ctx={'yes' if web else 'no'}")
+          f"reddit={len(reddit)}  web_ctx={'yes' if web else 'no'}  "
+          f"price={'yes' if coverage['price'] else 'no'}")
 
     return {
         "ticker":    ticker,
@@ -207,7 +296,9 @@ def gather_alt_data(ticker, company=""):
         "social":    social,
         "reddit":    reddit,
         "web":       web,
+        "price":     price,
         "attention": attention,
+        "coverage":  coverage,
     }
 
 

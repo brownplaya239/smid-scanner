@@ -33,7 +33,9 @@ for attempt in 1 2 3 4 5; do
   git fetch origin master
 
   if ! git rebase origin/master; then
-    # The only file that can conflict is the generated manifest — rebuild it.
+    # manifest.json and altdata_history.json are generated/append-only — on a
+    # concurrent-run conflict, take the incoming copy and regenerate the manifest.
+    git checkout --theirs docs/reports/altdata_history.json 2>/dev/null || true
     python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || true
     git add docs/reports/
     if ! GIT_EDITOR=true git rebase --continue; then
