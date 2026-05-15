@@ -9,10 +9,14 @@
  * This replaces the earlier Discord-slash-command design — no ed25519
  * signature verification needed for a plain web form.
  *
- * Required environment variables (Cloudflare dashboard → Settings → Variables):
+ * Required environment variable (Cloudflare dashboard → Settings → Variables):
  *   PAT  — GitHub fine-grained PAT with Actions: read/write on the repo
- *   REPO — "brownplaya239/smid-scanner"
+ *
+ * REPO is hardcoded below — it is not secret, and hardcoding eliminates the
+ * "REPO secret missing/wrong -> 404" failure mode.
  */
+
+const REPO = "brownplaya239/smid-scanner";
 
 export default {
   async fetch(request, env) {
@@ -53,9 +57,15 @@ export default {
                            { status: 400, headers: cors });
     }
 
-    // Trigger the GitHub workflow_dispatch — note ref is "master" (this repo's branch)
+    if (!env.PAT) {
+      return Response.json(
+        { ok: false, error: "Worker misconfigured: PAT secret is not set in Cloudflare." },
+        { status: 500, headers: cors });
+    }
+
+    // Trigger the GitHub workflow_dispatch — ref is "master" (this repo's branch)
     const ghResp = await fetch(
-      `https://api.github.com/repos/${env.REPO}/actions/workflows/ticker-lookup.yml/dispatches`,
+      `https://api.github.com/repos/${REPO}/actions/workflows/ticker-lookup.yml/dispatches`,
       {
         method: "POST",
         headers: {
@@ -73,8 +83,15 @@ export default {
       return Response.json({ ok: true, ticker }, { headers: cors });
     }
     const detail = await ghResp.text();
+    let hint = "";
+    if (ghResp.status === 404) {
+      hint = " — 404 means the PAT cannot access the repo or lacks Actions:write. " +
+             "Regenerate a fine-grained PAT scoped to smid-scanner with Actions: Read and write.";
+    } else if (ghResp.status === 401) {
+      hint = " — 401 means the PAT value is wrong or expired.";
+    }
     return Response.json(
-      { ok: false, error: `GitHub dispatch failed (${ghResp.status}): ${detail}` },
+      { ok: false, error: `GitHub dispatch failed (${ghResp.status})${hint}` },
       { status: 502, headers: cors }
     );
   },
