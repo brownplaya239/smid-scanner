@@ -1,17 +1,34 @@
-name: Breakout Scanner
+name: SMID Breakout Scanner
 
 on:
   schedule:
-    # 9:31 AM ET = 13:31 UTC (adjust for daylight saving: 14:31 UTC in winter)
-    - cron: '31 13 * * 1-5'
-    # 3:55 PM ET = 19:55 UTC (adjust for daylight saving: 20:55 UTC in winter)
-    - cron: '55 19 * * 1-5'
-  workflow_dispatch:  # allows manual trigger from GitHub UI
+    # ── Scanner (3 runs/day, weekdays) ────────────────────────────────────────
+    # 10:00 AM ET — post-open: opening range resolved, real breakouts visible
+    # EDT: 14:00 UTC  |  EST: 15:00 UTC
+    - cron: '0 14 * * 1-5'    # summer (EDT)
+    - cron: '0 15 * * 1-5'    # winter (EST)
+
+    # 11:30 AM ET — first-hour continuation: Qullamaggie's prime entry window
+    # EDT: 15:30 UTC  |  EST: 16:30 UTC
+    - cron: '30 15 * * 1-5'   # summer (EDT)
+    - cron: '30 16 * * 1-5'   # winter (EST)
+
+    # 3:00 PM ET — power hour begins: full hour left to size and enter
+    # EDT: 19:00 UTC  |  EST: 20:00 UTC
+    - cron: '0 19 * * 1-5'    # summer (EDT)
+    - cron: '0 20 * * 1-5'    # winter (EST)
+
+    # ── Setup Builder (1 run/day, after close) ────────────────────────────────
+    # 4:15 PM ET — daily candle complete, VCP volume dry-up data is valid
+    # EDT: 20:15 UTC  |  EST: 21:15 UTC
+    - cron: '15 20 * * 1-5'   # summer (EDT)
+    - cron: '15 21 * * 1-5'   # winter (EST)
+
+  workflow_dispatch:           # manual trigger from GitHub UI anytime
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
 
     steps:
       - name: Checkout repo
@@ -20,14 +37,39 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        run: pip install yfinance anthropic requests pytz
+        run: pip install -r requirements.txt
 
-      - name: Run scanner
+      - name: Determine scan type and run
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python scanner.py
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_SETUP_WEBHOOK_URL: ${{ secrets.DISCORD_SETUP_WEBHOOK_URL }}
+          DISCORD_IWM_WEBHOOK_URL: ${{ secrets.DISCORD_IWM_WEBHOOK_URL }}
+        run: |
+          HOUR=$(date -u +%H)
+          MIN=$(date -u +%M)
+          TIME_UTC="${HOUR}${MIN}"
+
+          # 4:15 PM ET window (EDT: 2015 UTC, EST: 2115 UTC) → setup builders
+          if [ "$TIME_UTC" -ge "2010" ] && [ "$TIME_UTC" -le "2020" ] || \
+             [ "$TIME_UTC" -ge "2110" ] && [ "$TIME_UTC" -le "2120" ]; then
+            echo "Running setup builders (EOD base scan) — SMID + IWM in parallel"
+            python setup_builder.py &
+            python setup_builder.py --iwm &
+            wait
+          else
+            echo "Running breakout scanners — SMID + IWM in parallel"
+            python scanner.py &
+            python scanner.py --iwm &
+            wait
+          fi

@@ -28,6 +28,9 @@ import requests
 import yfinance as yf
 import anthropic
 from fpdf import FPDF
+
+from macro_context import fetch_macro_context
+from insider_activity import enrich_candidates_with_insiders
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
@@ -230,8 +233,8 @@ def fetch_setup_data(tickers):
             avg_vol   = hist["Volume"].iloc[-21:-1].mean()
             vol_ratio = round(hist["Volume"].iloc[-1] / avg_vol, 2) if avg_vol > 0 else 1.0
 
-            # Earnings check
-            earnings_flag, earnings_days = "", None
+            # Earnings check — capture the verified date so Claude doesn't hallucinate
+            earnings_flag, earnings_days, earnings_date_iso = "", None, ""
             try:
                 cal = t.calendar
                 if isinstance(cal, dict):
@@ -242,6 +245,7 @@ def fetch_setup_data(tickers):
                         if ed_date:
                             delta = (ed_date - datetime.now(ET).date()).days
                             earnings_days = delta
+                            earnings_date_iso = ed_date.strftime("%Y-%m-%d")
                             if 0 <= delta <= 7:
                                 earnings_flag = f"EARNINGS IN {delta}D"
                             elif delta < 0:
@@ -293,6 +297,7 @@ def fetch_setup_data(tickers):
                 "industry_yf":      info.get("industry", ""),
                 "earnings_flag":    earnings_flag,
                 "earnings_days":    earnings_days,
+                "earnings_date_verified": earnings_date_iso,  # ground truth from yfinance
                 # Fundamentals
                 "trailing_pe":      _r1(info.get("trailingPE")),
                 "forward_pe":       _r1(info.get("forwardPE")),
@@ -377,23 +382,15 @@ def score_setups(data):
         scored.append(d)
 
     scored.sort(key=lambda x: x["setup_score"], reverse=True)
-    return scored[:20]
+    return scored[:12]  # trimmed from 20 — top 12 are the actionable watchlist
 
 
 # ─── Claude analysis ──────────────────────────────────────────────────────────
 
-def run_claude_setup_analysis(setups):
-    if not setups:
-        return []
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    today  = datetime.now(ET).strftime("%B %d, %Y")
-
-    prompt = f"""You are a Wharton-educated hedge fund analyst specializing in SMID-cap momentum with deep expertise in identifying niche alpha opportunities before institutional consensus catches up. Today is {today}.
+# Static prompt — cacheable across calls within 5 min (parallel SMID/IWM runs)
+SETUP_BUILDER_STATIC_PROMPT = """You are a Wharton-educated hedge fund analyst specializing in SMID-cap momentum with deep expertise in identifying niche alpha opportunities before institutional consensus catches up.
 
 These stocks have passed a strict VCP filter: volume is genuinely contracting week-over-week, base is tight, and price is within 8% of the pivot — the breakout has NOT occurred. Your task: produce institutional-quality research on each setup.
-
-Candidates (all have confirmed vol dry-up + Stage 2 base):
-{json.dumps(setups, indent=2)}
 
 For each candidate, think rigorously across six dimensions:
 
@@ -408,7 +405,9 @@ For each candidate, think rigorously across six dimensions:
    - Peer read-throughs: what has similar-category stock action told us?
 
 3. EARNINGS & FINANCIAL CATALYST
-   - Next earnings date (exact: "May 14 BMO" or "May 14 AMC") — if unknown say ""
+   - Use the `earnings_date_verified` field (ISO YYYY-MM-DD) as the SOLE source of truth for the next earnings date. Do NOT generate a date from your own knowledge — yfinance has the live calendar; your training data is stale.
+   - If `earnings_date_verified` is empty (""), set `earningsDate` to "" — never invent a date.
+   - Format `earningsDate` as "Month DD" (e.g. "May 14"). Append " BMO" or " AMC" ONLY if you have explicit, recent confirmation from the company's stated reporting time convention. If you are not certain about BMO/AMC, omit it — return just the date.
    - Street consensus: EPS estimate and revenue estimate if known
    - Last 4 quarters beat/miss pattern — is this a serial beater?
    - Recent guidance trend (raised/maintained/cut)
@@ -423,9 +422,18 @@ For each candidate, think rigorously across six dimensions:
 
 5. INSTITUTIONAL & SMART MONEY ANGLE
    - Is there evidence of institutional accumulation in the base? (vol dry-up with price holding = quiet accumulation)
+   - **INSIDER ACTIVITY (the strongest single alpha factor):** check the `insider_count`, `insider_value`, `insider_senior`, `insider_summary` fields. These are open-market BUYS from SEC Form 4 filings in the last 60 days — option exercises and 10b5-1 sales are excluded. A cluster (multiple insiders, especially C-suite) is a top-tier conviction signal that materially upgrades the setup. State this explicitly in `institutionalAngle`. ZERO insider activity is the baseline for most names — note the absence only if the setup needs additional confirmation.
    - Known activist investors, growth fund holders (Dragoneer, Tiger, Coatue etc.)
    - ETF flow exposure — which funds hold this and are growing?
    - Float rotation dynamics
+
+GRADE UPGRADE RULE: If a setup has `insider_cluster >= 5` (multiple insiders OR senior officer buys, AND meaningful dollar size) AND macro is risk-on, upgrade by one tier (B → A, C → B). Note the upgrade explicitly in reasoning. If insider buying is present but cluster is low (e.g. one $50K buy by a director), mention it but do not upgrade the grade.
+
+DATA QUALITY GUARDRAILS (avoid these hallucinations):
+1. TICKER PRESERVATION: Use the ticker symbol EXACTLY as provided in input candidates. Do NOT modify, abbreviate, transliterate, or "correct" any ticker — return character-for-character identical to input.
+2. INSTITUTIONAL OWNERSHIP: If `inst_own` reads "0%", "0.0%", or "—", that's a yfinance data gap — DO NOT call it "0% institutional ownership" or flag it as a red flag. State the data is unavailable from this feed.
+3. INSIDER TIME WINDOW: `insider_count` covers only the last 60 days. Do not extrapolate "zero insider activity" beyond that window without saying so.
+4. NEGATIVE P/E: For pre-revenue / unprofitable companies, negative forward P/E is meaningless — use Price/Sales (`ps_ratio`) or note "valuation reflects growth-stage premium; P/E inapplicable."
 
 6. RISK ASSESSMENT
    - The single most important bear case (be specific: dilution risk at $X, binary FDA event, customer concentration, etc.)
@@ -437,30 +445,73 @@ VCP GRADING:
 - "B - Building Setup": Strong base quality, most VCP criteria met, catalyst developing, 1-3 weeks from potential trigger
 - "C - Monitoring": Early stage VCP, worth watching, needs more time or a catalyst to develop
 
+VCP GRADING EXAMPLES (be consistent with these):
+A-grade example: Volume contracts cleanly week-over-week (4.2M -> 3.1M -> 2.0M), price within 2% of pivot, RS line at 52W high, base_tight 1.5, earnings catalyst in 7 days with strong beat history. Textbook setup — institutional buyers are quietly accumulating into the dry-up.
+A-grade example: Vol dry-up confirmed across all three weeks, base_tight 1.4, prox_52w 96%, rs_vs_spy +35%, recent FDA milestone or major contract win positions catalyst within 14 days. A-grade for both structural quality AND alpha asymmetry.
+B-grade example: Vol_w1 < vol_w2 but vol_w2 ~= vol_w3 (partial dry-up), base_tight 2.1, pivot 5% away, no imminent catalyst but Stage 2 with rs_vs_spy +12. Strong setup but trigger is 2-3 weeks out and structural quality is one tier below A.
+B-grade example: Soft vol dry-up (recent week below 4-week avg but not perfectly stair-stepping), base_tight 2.3, RS line at 52W high — institutional accumulation visible but base needs another week to tighten before A consideration.
+C-grade example: Volume dry-up exists but base is loose (base_tight 3.5), prox_52w 82%, rs_vs_spy positive but flat. Early setup, monitor for tightening over next 2 weeks before promoting grade.
+C-grade example: Within 8% of pivot but RS line nowhere near new high, sector lagging, no catalyst in sight. Worth tracking but no alpha angle today — pure C monitoring status.
+
+OUTPUT EFFICIENCY: For A and B grades, populate ALL analytical fields below in full. For C grades, set businessDescription, factorExposure, newsFlow, institutionalAngle, earningsContext, and keyRisk to "" (empty string) — only ticker, company, price, pivot, pctToPivot, baseTight, volDryup, rsVsSpy, rsLineNewHigh, industry, theme, earningsDate, triggerCondition, watchTarget, stopLevel, grade, and a 1-sentence reasoning are required for C-grade rows.
+
 Return ONLY a raw JSON array. No markdown, no preamble.
 Every object must include ALL fields:
   ticker, company, price, pivot, pctToPivot, baseTight, volDryup, rsVsSpy, rsLineNewHigh,
   industry (precise: e.g. "Satellite Imagery & Defense Geospatial Analytics"),
   theme (2-5 words: e.g. "Defense AI Infrastructure Spend"),
-  businessDescription (2 sentences: what they do and their competitive position),
-  factorExposure (1-2 sentences: which themes + sentiment direction),
+  businessDescription (2 sentences for A/B, "" for C),
+  factorExposure (1-2 sentences for A/B, "" for C),
   earningsDate (e.g. "May 14 BMO" or ""),
-  earningsContext (consensus EPS, revenue, beat/miss history — 1-2 sentences or ""),
-  newsFlow (2-3 sentences: specific recent catalysts, contracts, FDA, partnerships — be precise),
-  institutionalAngle (1-2 sentences: accumulation evidence, known holders, ETF exposure),
-  keyRisk (1 sentence: the specific bear case that kills the trade),
+  earningsContext (consensus EPS/rev + beat history for A/B, "" for C),
+  newsFlow (2-3 sentences for A/B, "" for C),
+  institutionalAngle (1-2 sentences for A/B, "" for C),
+  keyRisk (1 sentence for A/B, "" for C),
   triggerCondition (exact: "Close above $X.XX on volume >Y% of 20-day avg"),
   watchTarget (measured move price target with basis),
   stopLevel (invalidation level with basis),
   grade,
-  reasoning (2 sentences: structural setup quality + what makes this an alpha opportunity vs. generic momentum)."""
+  reasoning (1-2 sentences: structural setup quality + alpha angle)."""
 
-    print("  ✅ Sending to Claude...")
+
+def run_claude_setup_analysis(setups, macro=None):
+    if not setups:
+        return []
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    today  = datetime.now(ET).strftime("%B %d, %Y")
+
+    macro_block = ""
+    if macro:
+        macro_block = f"""
+MARKET REGIME CONTEXT (factor this into your conviction):
+- Regime: {macro.get('regime', 'Unknown')} — {macro.get('regime_description', '')}
+- SPY 20d return: {macro.get('spy_20d_pct', 0):+.1f}%
+- IWM 20d return: {macro.get('iwm_20d_pct', 0):+.1f}%
+- IWM/SPY relative trend (small-cap leadership): {macro.get('iwm_spy_trend', 0):+.1f}%
+- VIX: {macro.get('vix', 0)} ({macro.get('vix_change_20d', 0):+.1f} vs 20d avg)
+- Leading sectors: {', '.join(macro.get('leading_sectors', []))}
+- Lagging sectors: {', '.join(macro.get('lagging_sectors', []))}
+
+Reduce conviction in Risk-Off regimes. In risk-on regimes with small-cap leadership, A-grade setups have full historical edge. In risk-off, even strong technical setups fail >50% of the time — downgrade aggressive grades or note the macro headwind in reasoning.
+"""
+    full_prompt = f"""{SETUP_BUILDER_STATIC_PROMPT}
+
+Today is {today}.
+{macro_block}
+Candidates (all have confirmed vol dry-up + Stage 2 base; some have insider activity in last 60d):
+{json.dumps(setups, indent=2)}"""
+
+    print("  ✅ Sending to Claude (Opus 4.7)...")
     response = client.messages.create(
         model="claude-opus-4-7",
-        max_tokens=20000,
-        messages=[{"role": "user", "content": prompt}]
+        max_tokens=16000,
+        messages=[{"role": "user", "content": full_prompt}],
     )
+    usage = getattr(response, "usage", None)
+    if usage:
+        it = getattr(usage, "input_tokens", 0) or 0
+        ot = getattr(usage, "output_tokens", 0) or 0
+        print(f"  Tokens — input:{it}  output:{ot}")
     raw = response.content[0].text.strip().replace("```json", "").replace("```", "").strip()
     print(f"  Raw response length: {len(raw)} chars")
     try:
@@ -502,7 +553,7 @@ def generate_setup_chart(ticker, hist, pivot):
         avg_vol        = data["Volume"].rolling(20).mean()
         data["RelVol"] = data["Volume"] / avg_vol.where(avg_vol > 0, float("nan"))
 
-        plot_data = data.tail(60).copy()
+        plot_data = data.tail(90).copy()
         for col in ["SMA9", "SMA21", "SMA50", "SMA200"]:
             plot_data[col] = plot_data[col].ffill().bfill()
 
@@ -541,7 +592,7 @@ def generate_setup_chart(ticker, hist, pivot):
         fig, axes = mpf.plot(
             plot_data, type="candle", style=style, addplot=apds,
             volume=True, figsize=(14, 9),
-            title=f"\n{ticker} — 60D Base Setup  |  Pivot: ${pivot:.2f} (gold)  |  SMA: 9(blue) 21(orange) 50(green) 200(red)",
+            title=f"\n{ticker} — 90D Base Setup  |  Pivot: ${pivot:.2f} (gold)  |  SMA: 9(blue) 21(orange) 50(green) 200(red)",
             panel_ratios=(4, 1.2, 1.8), returnfig=True,
         )
 
@@ -568,7 +619,7 @@ def _safe(text):
     return re.sub(r'[^\x00-\xFF]', '', s).strip()
 
 
-def generate_setup_pdf(results, hist_cache=None):
+def generate_setup_pdf(results, hist_cache=None, macro=None):
     now    = datetime.now(ET)
     grades = {"A": [], "B": [], "C": []}
     for r in results:
@@ -599,9 +650,40 @@ def generate_setup_pdf(results, hist_cache=None):
     pdf.set_fill_color(255, 200, 0)
     pdf.rect(0, 38, 210, 2, "F")
 
+    # ── Macro regime banner ──────────────────────────────────────────────────
+    macro_y = 41
+    if macro:
+        regime = _safe(macro.get("regime", "Unknown"))
+        regime_rgb = (39, 174, 96)
+        if "Risk-Off" in regime:    regime_rgb = (192, 57, 43)
+        elif "Mixed" in regime:     regime_rgb = (200, 130, 20)
+        elif "Risk-On" in regime:   regime_rgb = (39, 174, 96)
+
+        pdf.set_fill_color(*regime_rgb)
+        pdf.rect(0, macro_y, 210, 14, "F")
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_xy(10, macro_y + 1.5)
+        pdf.cell(0, 5, f"MACRO REGIME: {regime}")
+        pdf.set_font("Helvetica", "", 7)
+        pdf.set_xy(10, macro_y + 6.5)
+        line2 = (f"VIX {macro.get('vix', 0):.1f}  "
+                 f"({macro.get('vix_change_20d', 0):+.1f} vs 20d)  |  "
+                 f"SPY 20d {macro.get('spy_20d_pct', 0):+.1f}%  |  "
+                 f"IWM 20d {macro.get('iwm_20d_pct', 0):+.1f}%  |  "
+                 f"IWM/SPY trend {macro.get('iwm_spy_trend', 0):+.1f}%")
+        pdf.cell(0, 4, _safe(line2))
+        leaders = ", ".join(macro.get("leading_sectors", [])[:3])
+        if leaders:
+            pdf.set_xy(10, macro_y + 10.5)
+            pdf.cell(0, 4, _safe(f"Leaders: {leaders}"))
+        macro_y += 16
+    else:
+        macro_y = 50
+
     # Grade buckets
     pdf.set_text_color(0, 0, 0)
-    pdf.set_xy(10, 50)
+    pdf.set_xy(10, macro_y)
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(0, 6, "Setup Grades")
     pdf.ln(6)
@@ -674,7 +756,8 @@ def generate_setup_pdf(results, hist_cache=None):
             pdf.cell(w, 5, val, border=1, fill=True, align="C")
         pdf.ln()
 
-    # Disclaimer on cover
+    # Disclaimer on cover — disable auto-page-break so the footer doesn't trigger a phantom page
+    pdf.set_auto_page_break(auto=False)
     pdf.set_xy(10, 287)
     pdf.set_font("Helvetica", "I", 5.5)
     pdf.set_text_color(150, 150, 150)
@@ -767,8 +850,9 @@ def generate_setup_pdf(results, hist_cache=None):
         # ── VCP Base Analysis (left, x=10, y=41, w=92) ──────────────────────
         MX, MY, MW = 10, 41, 92
 
-        def _v(val, fmt=None, default="-"):
-            if val is None or val == 0 or val == "0" or val == "0.0" or val == "0%":
+        def _v(val, fmt=None, default="—"):
+            # Treat 0/null/0.0%/0%/N/A as missing data, not real zeros (yfinance gaps)
+            if val is None or val == 0 or val == "0" or val == "0.0" or val == "0%" or val == "0.0%" or val == "":
                 return default
             return fmt.format(val) if fmt else str(val)
 
@@ -941,6 +1025,20 @@ def generate_setup_pdf(results, hist_cache=None):
 
         # ── Chart (full width, below both panels) ────────────────────────────
         chart_y = max(metrics_end_y, cat_y) + 4
+        # If columns ran tall, push chart to page 2 instead of squeezing it
+        avail_h = 291 - chart_y
+        if avail_h < 80:
+            pdf.add_page()
+            pdf.set_fill_color(12, 20, 48)
+            pdf.rect(0, 0, 210, 14, "F")
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.set_xy(10, 4)
+            pdf.cell(0, 6, _safe(f"{ticker} - Technical Chart"))
+            pdf.set_fill_color(255, 200, 0)
+            pdf.rect(0, 14, 210, 1.2, "F")
+            chart_y = 18
+            avail_h = 291 - chart_y
 
         hist = (hist_cache or {}).get(ticker)
         if hist is None or hist.empty:
@@ -952,7 +1050,6 @@ def generate_setup_pdf(results, hist_cache=None):
         if hist is not None and not hist.empty and pivot > 0:
             chart = generate_setup_chart(ticker, hist, pivot)
             if chart:
-                avail_h = 291 - chart_y
                 # figsize=(14,9) → aspect 1.556; at w=190 → h=122mm
                 chart_h = min(avail_h, round(190 / 1.556, 1))
                 if avail_h >= 50:
@@ -1017,12 +1114,23 @@ def run_setup_builder():
     print("\n[2/5] Fetching setup data...")
     raw, hist_cache = fetch_setup_data(universe)
 
-    print(f"\n[3/5] Scoring VCP setups ({len(raw)} candidates)...")
+    print(f"\n[3/6] Scoring VCP setups ({len(raw)} candidates)...")
     top_setups = score_setups(raw)
     print(f"  Top {len(top_setups)} setups selected")
 
-    print("\n[4/5] Claude analysis...")
-    results = run_claude_setup_analysis(top_setups)
+    print("\n[4/6] Fetching macro regime + insider activity (SEC EDGAR)...")
+    macro = fetch_macro_context()
+    print(f"  Regime: {macro['regime']}  |  VIX {macro['vix']}  |  IWM/SPY trend {macro['iwm_spy_trend']:+.1f}%")
+    enrich_candidates_with_insiders(top_setups, days_back=60)
+    insider_hits = [s for s in top_setups if s.get("insider_count", 0) > 0]
+    if insider_hits:
+        print(f"  Insider buys detected on {len(insider_hits)} of {len(top_setups)}: " +
+              ", ".join(f"{s['ticker']}({s['insider_summary']})" for s in insider_hits[:5]))
+    else:
+        print(f"  No open-market insider buys in last 60d across {len(top_setups)} candidates")
+
+    print("\n[5/6] Claude analysis...")
+    results = run_claude_setup_analysis(top_setups, macro=macro)
 
     setup_by_ticker = {d["ticker"]: d for d in top_setups}
     for r in results:
@@ -1034,9 +1142,9 @@ def run_setup_builder():
     results.sort(key=lambda r: {"A": 0, "B": 1, "C": 2}.get(str(r.get("grade", ""))[:1], 9))
     print(f"  -> {len(results)} watchlist setups")
 
-    print("\n[5/5] Generating PDF and sending to Discord...")
+    print("\n[6/6] Generating PDF and sending to Discord...")
     if results:
-        pdf_bytes = generate_setup_pdf(results, hist_cache)
+        pdf_bytes = generate_setup_pdf(results, hist_cache, macro=macro)
         send_setup_pdf(pdf_bytes, results, webhook, label=label)
     else:
         requests.post(webhook, json={
