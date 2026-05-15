@@ -23,6 +23,7 @@ TYPE_LABELS = {
     "qm-monthly":      "QM Monthly Gainers",
     "stockbee-weekly": "Stockbee Weekly 20%",
     "adhoc":           "Ad-Hoc Lookups",
+    "alt-data":        "Alt-Data Intel",
 }
 
 
@@ -51,6 +52,9 @@ def _classify(fn):
     if fn.startswith("ticker_"):
         m = re.match(r"ticker_([A-Za-z.\-]+)_", fn)
         return "adhoc", (m.group(1).upper() if m else None)
+    if fn.startswith("altdata_"):
+        m = re.match(r"altdata_([A-Za-z.\-]+)_", fn)
+        return "alt-data", (m.group(1).upper() if m else None)
     return None, None
 
 

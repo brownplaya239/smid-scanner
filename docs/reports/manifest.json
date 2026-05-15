@@ -1,5 +1,5 @@
 {
-  "generated": "2026-05-15T20:46:55+00:00",
+  "generated": "2026-05-15T21:36:34+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -116,6 +116,13 @@
         "file": "ticker_AAPL_2026-05-15_1459.pdf",
         "label": "May 15, 2026  -  2:59 PM ET",
         "ticker": "AAPL"
+      }
+    ],
+    "alt-data": [
+      {
+        "file": "altdata_NVDA_2026-05-15_1716.pdf",
+        "label": "May 15, 2026  -  5:16 PM ET",
+        "ticker": "NVDA"
       }
     ]
   }
