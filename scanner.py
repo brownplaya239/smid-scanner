@@ -1851,6 +1851,13 @@ def send_discord_pdf(pdf_bytes, results, scan_type, webhook_url, label="SMID"):
     else:
         print(f"  ❌ Discord error {resp.status_code}: {resp.text}")
 
+    # Publish to the GitHub Pages report archive
+    try:
+        from report_archive import archive
+        archive(pdf_bytes, filename)
+    except Exception as e:
+        print(f"  ⚠️  Archive step skipped: {e}")
+
 
 # ─── Main scan ────────────────────────────────────────────────────────────────
 
@@ -2151,6 +2158,13 @@ def run_single_ticker_lookup(ticker):
         print(f"  ✅ Sent: {filename}")
     else:
         print(f"  ❌ Discord error {resp.status_code}: {resp.text[:200]}")
+
+    # Publish to the GitHub Pages report archive
+    try:
+        from report_archive import archive
+        archive(pdf_bytes, filename)
+    except Exception as e:
+        print(f"  ⚠️  Archive step skipped: {e}")
     print("\nDone.")
 
 

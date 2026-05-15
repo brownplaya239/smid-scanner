@@ -11,6 +11,9 @@ on:
 jobs:
   lookup:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write          # allow committing the archived report PDF back
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -35,3 +38,17 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISCORD_TICKER_WEBHOOK_URL: ${{ secrets.DISCORD_TICKER_WEBHOOK_URL }}
         run: python scanner.py --ticker "${{ inputs.ticker }}"
+
+      - name: Publish report to site archive
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/reports/ || true
+          if git diff --staged --quiet; then
+            echo "No new report to publish"
+          else
+            git pull --rebase --autostash origin master || true
+            git commit -m "Archive ad-hoc report $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push origin master
+            echo "Report published to site"
+          fi

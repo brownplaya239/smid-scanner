@@ -1098,6 +1098,13 @@ def send_setup_pdf(pdf_bytes, results, webhook, label="SMID"):
     else:
         print(f"  ❌ Discord error {resp.status_code}: {resp.text}")
 
+    # Publish to the GitHub Pages report archive
+    try:
+        from report_archive import archive
+        archive(pdf_bytes, filename)
+    except Exception as e:
+        print(f"  ⚠️  Archive step skipped: {e}")
+
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
