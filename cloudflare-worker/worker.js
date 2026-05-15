@@ -63,6 +63,31 @@ export default {
         { status: 500, headers: cors });
     }
 
+    // Best-effort fast validity check — reject obviously-invalid tickers
+    // instantly, before spending a GitHub Actions run. If the probe itself
+    // fails (Yahoo blocks the edge IP), fall through — scanner.py still
+    // produces a clean "ticker not found" report as the backstop.
+    try {
+      const probe = await fetch(
+        "https://query1.finance.yahoo.com/v8/finance/chart/" +
+          encodeURIComponent(ticker) + "?range=5d&interval=1d",
+        { headers: { "User-Agent": "Mozilla/5.0" } }
+      );
+      if (probe.ok) {
+        const pj = await probe.json();
+        const res = pj && pj.chart && pj.chart.result;
+        const hasData = res && res[0] && res[0].timestamp && res[0].timestamp.length > 0;
+        if (!hasData) {
+          return Response.json(
+            { ok: false, error: `"${ticker}" is not a valid ticker — no price ` +
+              `data found. Check the symbol and try again.` },
+            { status: 400, headers: cors });
+        }
+      }
+    } catch (e) {
+      // probe failed — proceed; the workflow handles invalid tickers too
+    }
+
     // Trigger the GitHub workflow_dispatch — ref is "master" (this repo's branch)
     const ghResp = await fetch(
       `https://api.github.com/repos/${REPO}/actions/workflows/ticker-lookup.yml/dispatches`,
