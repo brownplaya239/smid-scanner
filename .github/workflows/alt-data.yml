@@ -1,0 +1,44 @@
+name: Alt-Data Intelligence Lookup
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: 'Ticker symbol (e.g. NVDA, ALAB, IONQ)'
+        required: true
+        type: string
+
+jobs:
+  altdata:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # allow committing the archived report PDF back
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run alt-data lookup
+        env:
+          ANTHROPIC_API_KEY:           ${{ secrets.ANTHROPIC_API_KEY }}
+          NIMBLE_API_KEY:              ${{ secrets.NIMBLE_API_KEY }}
+          DISCORD_ALTDATA_WEBHOOK_URL: ${{ secrets.DISCORD_ALTDATA_WEBHOOK_URL }}
+        run: python alt_data.py --ticker "${{ inputs.ticker }}"
+
+      - name: Publish report to site archive
+        run: bash scripts/publish_reports.sh

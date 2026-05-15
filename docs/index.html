@@ -87,19 +87,19 @@
     border:1px dashed var(--line); border-radius:8px; }
 
   /* ── Inline PDF viewer ── */
-  #viewer { margin-bottom:24px; display:none; }
-  #viewer.show { display:block; }
-  #viewer .vbar {
+  [id^="viewer"] { margin-bottom:24px; display:none; }
+  [id^="viewer"].show { display:block; }
+  [id^="viewer"] .vbar {
     display:flex; justify-content:space-between; align-items:center;
     background:var(--navy2); border:1px solid var(--line); border-bottom:0;
     border-radius:8px 8px 0 0; padding:10px 16px; font-size:12px;
   }
-  #viewer .vbar .vname { font-weight:700; color:var(--gold); }
-  #viewer .vbar a {
+  [id^="viewer"] .vbar .vname { font-weight:700; color:var(--gold); }
+  [id^="viewer"] .vbar a {
     color:#cdd6ee; text-decoration:none; font-size:11px; font-weight:600;
     border:1px solid var(--line); border-radius:5px; padding:5px 11px;
   }
-  #viewer iframe {
+  [id^="viewer"] iframe {
     width:100%; height:88vh; min-height:560px;
     border:1px solid var(--line); border-radius:0 0 8px 8px; background:#fff;
   }
@@ -116,6 +116,7 @@
 
   <nav id="nav">
     <button data-tab="adhoc" class="active">Ad-Hoc Lookup</button>
+    <button data-tab="alt-data">Alt-Data Intel</button>
     <button data-tab="smid-scanner">SMID Scanner</button>
     <button data-tab="iwm-scanner">IWM Scanner</button>
     <button data-tab="smid-setup">SMID Setup Builder</button>
@@ -148,6 +149,29 @@
       <h2 class="tab-title">Recent Ad-Hoc Reports</h2>
       <p class="tab-sub">Most recent first. Click to open the PDF.</p>
       <div class="report-list" id="list-adhoc"></div>
+    </section>
+
+    <!-- Alt-Data Intel -->
+    <section class="panel" id="panel-alt-data">
+      <div class="card">
+        <h2>Alt-Data Intelligence</h2>
+        <p class="sub">
+          Real-time alt-data for any ticker &mdash; news flow, StockTwits social
+          sentiment, Reddit chatter, and Nimble-extracted web context, synthesized
+          by Claude into a sentiment + narrative read. PDF arrives here and in
+          <strong>#alt-data</strong> on Discord in ~1&ndash;2 minutes.
+        </p>
+        <div class="input-row">
+          <input type="text" id="ticker-alt" placeholder="NVDA" maxlength="8"
+                 autocomplete="off" autocapitalize="characters" />
+          <button class="go" id="go-alt">Generate</button>
+        </div>
+        <div id="status-alt"></div>
+      </div>
+      <div id="viewer-alt"></div>
+      <h2 class="tab-title">Recent Alt-Data Reports</h2>
+      <p class="tab-sub">Most recent first. Click to open the PDF.</p>
+      <div class="report-list" id="list-alt-data"></div>
     </section>
 
     <!-- Report tabs -->
@@ -230,23 +254,17 @@
     .then(function (r) { return r.ok ? r.json() : { reports: {} }; })
     .then(function (m) {
       const reps = m.reports || {};
-      ["adhoc","smid-scanner","iwm-scanner","smid-setup","iwm-setup","qm-monthly","stockbee-weekly"].forEach(function (k) {
+      ["adhoc","alt-data","smid-scanner","iwm-scanner","smid-setup","iwm-setup","qm-monthly","stockbee-weekly"].forEach(function (k) {
         renderList(k, reps[k]);
       });
     })
     .catch(function () {
-      ["adhoc","smid-scanner","iwm-scanner","smid-setup","iwm-setup","qm-monthly","stockbee-weekly"].forEach(function (k) {
+      ["adhoc","alt-data","smid-scanner","iwm-scanner","smid-setup","iwm-setup","qm-monthly","stockbee-weekly"].forEach(function (k) {
         renderList(k, []);
       });
     });
 
-  /* ── Ad-hoc lookup with inline result ── */
-  const input  = document.getElementById("ticker");
-  const button = document.getElementById("go");
-  const status = document.getElementById("status");
-  const viewer = document.getElementById("viewer");
-  function setStatus(cls, html) { status.className = "show " + cls; status.innerHTML = html; }
-
+  /* ── Ticker lookup — shared by the Ad-Hoc and Alt-Data tabs ── */
   async function fetchManifest() {
     try {
       const r = await fetch("./reports/manifest.json?t=" + Date.now());
@@ -254,83 +272,93 @@
     } catch (e) { return { reports: {} }; }
   }
 
-  function embedReport(ticker, entry) {
-    viewer.className = "show";
-    viewer.innerHTML =
-      '<div class="vbar">' +
-        '<span class="vname">' + ticker + ' &mdash; ' + (entry.label || entry.file) + '</span>' +
-        '<a href="./reports/' + entry.file + '" target="_blank">Open in new tab &rarr;</a>' +
-      '</div>' +
-      '<iframe src="./reports/' + entry.file + '"></iframe>';
-    viewer.scrollIntoView({ behavior: "smooth", block: "start" });
+  function setupLookup(cfg) {
+    const input  = document.getElementById(cfg.inputId);
+    const button = document.getElementById(cfg.btnId);
+    const status = document.getElementById(cfg.statusId);
+    const viewer = document.getElementById(cfg.viewerId);
+    if (!input || !button) return;
+
+    function setStatus(cls, html) { status.className = "show " + cls; status.innerHTML = html; }
+
+    function embedReport(ticker, entry) {
+      viewer.className = "show";
+      viewer.innerHTML =
+        '<div class="vbar">' +
+          '<span class="vname">' + ticker + ' &mdash; ' + (entry.label || entry.file) + '</span>' +
+          '<a href="./reports/' + entry.file + '" target="_blank">Open in new tab &rarr;</a>' +
+        '</div>' +
+        '<iframe src="./reports/' + entry.file + '"></iframe>';
+      viewer.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function poll(ticker, baseline, startedAt) {
+      const deadlineMs = 7 * 60 * 1000;
+      async function tick() {
+        const elapsed = Math.round((Date.now() - startedAt) / 1000);
+        if (Date.now() - startedAt > deadlineMs) {
+          setStatus("err", "&#10007; Timed out waiting for the report. It may still arrive &mdash; " +
+            "check <strong>" + cfg.channel + "</strong> on Discord, or reload shortly.");
+          button.disabled = false;
+          return;
+        }
+        const m = await fetchManifest();
+        const list = (m.reports && m.reports[cfg.listKey]) || [];
+        const fresh = list.find(function (e) {
+          return e.ticker === ticker && !baseline.has(e.file);
+        });
+        if (fresh) {
+          setStatus("ok", "&#10003; <strong>" + ticker + "</strong> report ready &mdash; shown below.");
+          embedReport(ticker, fresh);
+          button.disabled = false;
+          renderList(cfg.listKey, list);
+          return;
+        }
+        setStatus("working", "Researching <strong>" + ticker + "</strong>&hellip; (" +
+          elapsed + "s elapsed; typically " + cfg.runtime + ")");
+        setTimeout(tick, 10000);
+      }
+      setTimeout(tick, 15000);
+    }
+
+    async function submit() {
+      const ticker = input.value.toUpperCase().trim();
+      if (!ticker) { setStatus("err", "Enter a ticker symbol."); return; }
+      if (!/^[A-Z.\-]{1,8}$/.test(ticker)) {
+        setStatus("err", "Invalid ticker format: <strong>" + ticker + "</strong>"); return;
+      }
+      button.disabled = true;
+      viewer.className = ""; viewer.innerHTML = "";
+      setStatus("working", "Researching <strong>" + ticker + "</strong> &mdash; triggering&hellip;");
+      const base = await fetchManifest();
+      const baseline = new Set(
+        ((base.reports && base.reports[cfg.listKey]) || []).map(function (e) { return e.file; })
+      );
+      try {
+        const resp = await fetch(WORKER_URL, {
+          method:"POST", headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ ticker: ticker, report: cfg.reportType }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+          poll(ticker, baseline, Date.now());
+        } else {
+          setStatus("err", "&#10007; " + (data.error || "Unknown error"));
+          button.disabled = false;
+        }
+      } catch (e) {
+        setStatus("err", "&#10007; Request failed: " + e.message);
+        button.disabled = false;
+      }
+    }
+    button.addEventListener("click", submit);
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") submit(); });
   }
 
-  function pollForReport(ticker, baseline, startedAt) {
-    const deadlineMs = 7 * 60 * 1000;   // 7-minute cap
-    async function tick() {
-      const elapsed = Math.round((Date.now() - startedAt) / 1000);
-      if (Date.now() - startedAt > deadlineMs) {
-        setStatus("err", "&#10007; Timed out waiting for the report. It may still arrive &mdash; " +
-          "check <strong>#onepager-adhoc</strong> on Discord, or reload this page shortly.");
-        button.disabled = false;
-        return;
-      }
-      const m = await fetchManifest();
-      const adhoc = (m.reports && m.reports.adhoc) || [];
-      const fresh = adhoc.find(function (e) {
-        return e.ticker === ticker && !baseline.has(e.file);
-      });
-      if (fresh) {
-        setStatus("ok", "&#10003; <strong>" + ticker + "</strong> report ready &mdash; shown below. " +
-          "Also delivered to <strong>#onepager-adhoc</strong> on Discord.");
-        embedReport(ticker, fresh);
-        button.disabled = false;
-        renderList("adhoc", adhoc);   // refresh the recent-list too
-        return;
-      }
-      setStatus("working", "Researching <strong>" + ticker + "</strong> &mdash; generating the " +
-        "5-page report&hellip; (" + elapsed + "s elapsed; typically 2&ndash;3 min)");
-      setTimeout(tick, 10000);
-    }
-    setTimeout(tick, 15000);   // first check after 15s
-  }
-
-  async function submit() {
-    const ticker = input.value.toUpperCase().trim();
-    if (!ticker) { setStatus("err", "Enter a ticker symbol."); return; }
-    if (!/^[A-Z.\-]{1,8}$/.test(ticker)) {
-      setStatus("err", "Invalid ticker format: <strong>" + ticker + "</strong>"); return;
-    }
-    button.disabled = true;
-    viewer.className = "";
-    viewer.innerHTML = "";
-    setStatus("working", "Researching <strong>" + ticker + "</strong> &mdash; triggering analysis&hellip;");
-
-    // Snapshot existing ad-hoc files so we can detect the NEW one
-    const baseManifest = await fetchManifest();
-    const baseline = new Set(
-      ((baseManifest.reports && baseManifest.reports.adhoc) || []).map(function (e) { return e.file; })
-    );
-
-    try {
-      const resp = await fetch(WORKER_URL, {
-        method:"POST", headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ ticker: ticker }),
-      });
-      const data = await resp.json();
-      if (data.ok) {
-        pollForReport(ticker, baseline, Date.now());
-      } else {
-        setStatus("err", "&#10007; " + (data.error || "Unknown error"));
-        button.disabled = false;
-      }
-    } catch (e) {
-      setStatus("err", "&#10007; Request failed: " + e.message);
-      button.disabled = false;
-    }
-  }
-  button.addEventListener("click", submit);
-  input.addEventListener("keydown", function (e) { if (e.key === "Enter") submit(); });
+  setupLookup({ inputId:"ticker", btnId:"go", statusId:"status", viewerId:"viewer",
+    listKey:"adhoc", reportType:"adhoc", channel:"#onepager-adhoc", runtime:"2-3 min" });
+  setupLookup({ inputId:"ticker-alt", btnId:"go-alt", statusId:"status-alt", viewerId:"viewer-alt",
+    listKey:"alt-data", reportType:"altdata", channel:"#alt-data", runtime:"1-2 min" });
 </script>
 </body>
 </html>

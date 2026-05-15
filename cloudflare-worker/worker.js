@@ -43,11 +43,12 @@ export default {
       return new Response("Method not allowed", { status: 405, headers: cors });
     }
 
-    // Parse + validate ticker
-    let ticker = "";
+    // Parse + validate ticker; pick the workflow by report type
+    let ticker = "", report = "adhoc";
     try {
       const data = await request.json();
       ticker = String(data.ticker || "").toUpperCase().trim();
+      report = String(data.report || "adhoc").toLowerCase();
     } catch {
       return Response.json({ ok: false, error: "Invalid JSON body" },
                            { status: 400, headers: cors });
@@ -56,6 +57,8 @@ export default {
       return Response.json({ ok: false, error: `Invalid ticker symbol: "${ticker}"` },
                            { status: 400, headers: cors });
     }
+    const WORKFLOWS = { adhoc: "ticker-lookup.yml", altdata: "alt-data.yml" };
+    const workflow = WORKFLOWS[report] || WORKFLOWS.adhoc;
 
     if (!env.PAT) {
       return Response.json(
@@ -90,7 +93,7 @@ export default {
 
     // Trigger the GitHub workflow_dispatch — ref is "master" (this repo's branch)
     const ghResp = await fetch(
-      `https://api.github.com/repos/${REPO}/actions/workflows/ticker-lookup.yml/dispatches`,
+      `https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`,
       {
         method: "POST",
         headers: {
