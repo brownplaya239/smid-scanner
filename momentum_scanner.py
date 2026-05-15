@@ -213,27 +213,32 @@ def generate_table_pdf(title, subtitle, blurb_lines, rows, change_label):
     pdf.set_fill_color(255, 200, 0)
     pdf.rect(0, 34, 210, 1.5, "F")
 
-    # Methodology blurb box
+    # Methodology section — navy header strip + wrapped text.
+    # Text is rendered first and the cursor tracked, so the table is placed
+    # below the TRUE end of the (multi-line-wrapping) blurb — no overlap.
     by = 41
-    blurb_h = 7 + 4.4 * len(blurb_lines)
-    pdf.set_fill_color(244, 246, 251)
-    pdf.rect(10, by, 190, blurb_h, "F")
-    pdf.set_draw_color(12, 20, 48)
-    pdf.rect(10, by, 190, blurb_h, "D")
-    pdf.set_text_color(12, 20, 48)
-    pdf.set_font("Helvetica", "B", 8.5)
-    pdf.set_xy(13, by + 2)
-    pdf.cell(0, 5, "METHODOLOGY")
-    pdf.set_text_color(35, 42, 66)
-    pdf.set_font("Helvetica", "", 7.6)
-    ly = by + 7.5
+    pdf.set_fill_color(12, 20, 48)
+    pdf.rect(10, by, 190, 6, "F")
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.set_xy(13, by + 1.2)
+    pdf.cell(0, 4, "METHODOLOGY")
+
+    pdf.set_text_color(38, 45, 70)
+    pdf.set_font("Helvetica", "", 7.7)
+    ly = by + 9
     for line in blurb_lines:
         pdf.set_xy(13, ly)
-        pdf.multi_cell(184, 4.0, line)
-        ly = pdf.get_y() + 0.4
+        pdf.multi_cell(184, 4.3, line)
+        ly = pdf.get_y() + 2.0
+    blurb_bottom = ly
 
-    # Table
-    ty = by + blurb_h + 6
+    # Gold divider between methodology and the table
+    pdf.set_fill_color(255, 200, 0)
+    pdf.rect(10, blurb_bottom + 1, 190, 0.7, "F")
+
+    # Table — clear gap below the divider
+    ty = blurb_bottom + 7
     cols = [
         ("#",          10, "C"),
         ("Symbol",     22, "L"),
