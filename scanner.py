@@ -1937,6 +1937,81 @@ def run_scan():
     print("\nDone.")
 
 
+def generate_error_pdf(ticker, reason):
+    """A clean one-page 'ticker not found' report for invalid/N/A symbols."""
+    now = datetime.now(ET)
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+
+    pdf.set_fill_color(12, 20, 48)
+    pdf.rect(0, 0, 210, 50, "F")
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 30)
+    pdf.set_xy(10, 13)
+    pdf.cell(190, 14, _safe(ticker), align="C")
+    pdf.set_font("Helvetica", "", 9.5)
+    pdf.set_xy(10, 30)
+    pdf.cell(190, 6, _safe(now.strftime("%B %d, %Y  -  %I:%M %p ET")), align="C")
+    pdf.set_fill_color(192, 57, 43)
+    pdf.rect(0, 50, 210, 3, "F")
+
+    pdf.set_text_color(192, 57, 43)
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.set_xy(10, 84)
+    pdf.cell(190, 12, "TICKER NOT FOUND", align="C")
+
+    pdf.set_text_color(40, 45, 70)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.set_xy(25, 104)
+    pdf.multi_cell(160, 6, _safe(reason), align="C")
+
+    pdf.set_text_color(110, 116, 135)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_xy(25, 134)
+    pdf.multi_cell(160, 5, _safe(
+        "Check the symbol and try again. The ad-hoc lookup supports US-listed "
+        "equities with at least 60 trading days of price history. Ticker symbols "
+        "are 1-8 characters - e.g. NVDA, BRK-B, ALAB."), align="C")
+
+    pdf.set_xy(10, 287)
+    pdf.set_font("Helvetica", "I", 5.5)
+    pdf.set_text_color(150, 150, 150)
+    pdf.cell(0, 4, "SMID Scanner ad-hoc lookup. Not financial advice.", align="C")
+    return bytes(pdf.output())
+
+
+def _abort_invalid_ticker(ticker, hist, webhook):
+    """Kill the lookup immediately for an N/A ticker — clear error to Discord + site."""
+    if hist is None or getattr(hist, "empty", True):
+        reason = ("No price data found. The symbol may be invalid, delisted, "
+                  "or not a US-listed equity.")
+    else:
+        reason = (f"Only {len(hist)} trading days of price history available - "
+                  "too new or illiquid for a full analysis (60+ days required).")
+    print(f"  N/A ticker '{ticker}': {reason}")
+
+    now      = datetime.now(ET)
+    filename = f"ticker_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
+    err_pdf  = generate_error_pdf(ticker, reason)
+    try:
+        requests.post(
+            webhook,
+            data={"payload_json": json.dumps(
+                {"content": f"**{ticker} - Ticker Not Found**\n{reason}"})},
+            files={"files[0]": (filename, err_pdf, "application/pdf")},
+            timeout=60,
+        )
+    except Exception as e:
+        print(f"  Discord post failed: {e}")
+    try:
+        from report_archive import archive
+        archive(err_pdf, filename)
+    except Exception as e:
+        print(f"  Archive failed: {e}")
+    print("\nDone (invalid ticker - lookup aborted before pipeline).")
+
+
 def run_single_ticker_lookup(ticker):
     """
     On-demand one-pager for a single ticker. Skips universe/pre-filter entirely;
@@ -1951,16 +2026,23 @@ def run_single_ticker_lookup(ticker):
 
     print(f"\n{'='*50}\nTICKER LOOKUP: {ticker}\n{'='*50}")
 
-    print("[1/5] Fetching OHLCV + fundamentals...")
+    print("[1/5] Validating ticker + fetching data...")
+    # Validate BEFORE the pipeline. An invalid / delisted / data-less symbol is
+    # killed here with a clear error report — no macro, insider, institutional,
+    # volume, or Claude work is attempted on a ticker that has no data.
     try:
-        t = yf.Ticker(ticker)
-        info = t.info
+        t    = yf.Ticker(ticker)
         hist = t.history(period="200d", interval="1d")
-        if hist.empty or len(hist) < 50:
-            print(f"  ❌ Insufficient history for {ticker}")
-            requests.post(webhook, json={"content": f"**{ticker}** — insufficient price history (yfinance returned <50 days)."}, timeout=15)
-            return
+    except Exception as e:
+        print(f"  Data fetch error: {e}")
+        hist = None
 
+    if hist is None or hist.empty or len(hist) < 50:
+        _abort_invalid_ticker(ticker, hist, webhook)
+        return
+
+    try:
+        info = t.info
         spy_hist = yf.Ticker("SPY").history(period="200d", interval="1d")
 
         price    = float(hist["Close"].iloc[-1])
