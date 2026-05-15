@@ -40,18 +40,26 @@ from volume_intelligence import (
 
 load_dotenv(override=True)
 
-IWM_MODE = "--iwm" in sys.argv
+IWM_MODE    = "--iwm" in sys.argv
+TICKER_MODE = "--ticker" in sys.argv
 
-ANTHROPIC_API_KEY     = os.environ.get("ANTHROPIC_API_KEY", "")
-DISCORD_WEBHOOK_URL   = os.environ.get("DISCORD_WEBHOOK_URL", "")
-DISCORD_IWM_WEBHOOK   = os.environ.get("DISCORD_IWM_WEBHOOK_URL", "")
+ANTHROPIC_API_KEY      = os.environ.get("ANTHROPIC_API_KEY", "")
+DISCORD_WEBHOOK_URL    = os.environ.get("DISCORD_WEBHOOK_URL", "")
+DISCORD_IWM_WEBHOOK    = os.environ.get("DISCORD_IWM_WEBHOOK_URL", "")
+DISCORD_TICKER_WEBHOOK = os.environ.get("DISCORD_TICKER_WEBHOOK_URL", "")
 
+# Mode-aware validation — each mode only needs its own webhook.
 if not ANTHROPIC_API_KEY:
     raise EnvironmentError("Missing: ANTHROPIC_API_KEY")
-if IWM_MODE and not DISCORD_IWM_WEBHOOK:
-    raise EnvironmentError("Missing: DISCORD_IWM_WEBHOOK_URL")
-if not IWM_MODE and not DISCORD_WEBHOOK_URL:
-    raise EnvironmentError("Missing: DISCORD_WEBHOOK_URL")
+if TICKER_MODE:
+    if not DISCORD_TICKER_WEBHOOK:
+        raise EnvironmentError("Missing: DISCORD_TICKER_WEBHOOK_URL")
+elif IWM_MODE:
+    if not DISCORD_IWM_WEBHOOK:
+        raise EnvironmentError("Missing: DISCORD_IWM_WEBHOOK_URL")
+else:
+    if not DISCORD_WEBHOOK_URL:
+        raise EnvironmentError("Missing: DISCORD_WEBHOOK_URL")
 
 IWM_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IWM_holdings.csv")
 
