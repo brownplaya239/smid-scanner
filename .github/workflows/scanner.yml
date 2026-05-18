@@ -4,25 +4,26 @@ on:
   schedule:
     # ── Scanner (3 runs/day, weekdays) ────────────────────────────────────────
     # 10:00 AM ET — post-open: opening range resolved, real breakouts visible
-    # EDT: 14:00 UTC  |  EST: 15:00 UTC
-    - cron: '0 14 * * 1-5'    # summer (EDT)
-    - cron: '0 15 * * 1-5'    # winter (EST)
+    # Crons run :07 past the hour — GitHub heavily delays top-of-hour schedules.
+    # EDT: 14:07 UTC  |  EST: 15:07 UTC
+    - cron: '7 14 * * 1-5'    # summer (EDT)
+    - cron: '7 15 * * 1-5'    # winter (EST)
 
     # 11:30 AM ET — first-hour continuation: Qullamaggie's prime entry window
-    # EDT: 15:30 UTC  |  EST: 16:30 UTC
-    - cron: '30 15 * * 1-5'   # summer (EDT)
-    - cron: '30 16 * * 1-5'   # winter (EST)
+    # EDT: 15:37 UTC  |  EST: 16:37 UTC
+    - cron: '37 15 * * 1-5'   # summer (EDT)
+    - cron: '37 16 * * 1-5'   # winter (EST)
 
     # 3:00 PM ET — power hour begins: full hour left to size and enter
-    # EDT: 19:00 UTC  |  EST: 20:00 UTC
-    - cron: '0 19 * * 1-5'    # summer (EDT)
-    - cron: '0 20 * * 1-5'    # winter (EST)
+    # EDT: 19:07 UTC  |  EST: 20:07 UTC
+    - cron: '7 19 * * 1-5'    # summer (EDT)
+    - cron: '7 20 * * 1-5'    # winter (EST)
 
     # ── Setup Builder (1 run/day, after close) ────────────────────────────────
     # 4:15 PM ET — daily candle complete, VCP volume dry-up data is valid
-    # EDT: 20:15 UTC  |  EST: 21:15 UTC
-    - cron: '15 20 * * 1-5'   # summer (EDT)
-    - cron: '15 21 * * 1-5'   # winter (EST)
+    # EDT: 20:17 UTC  |  EST: 21:17 UTC
+    - cron: '17 20 * * 1-5'   # summer (EDT)
+    - cron: '17 21 * * 1-5'   # winter (EST)
 
   workflow_dispatch:           # manual trigger from GitHub UI anytime
 

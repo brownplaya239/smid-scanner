@@ -3,9 +3,10 @@ name: Momentum Scans
 on:
   schedule:
     # 4:30 PM ET weekdays — EOD, after the setup builders; daily candle complete
-    # EDT: 20:30 UTC  |  EST: 21:30 UTC
-    - cron: '30 20 * * 1-5'   # summer (EDT)
-    - cron: '30 21 * * 1-5'   # winter (EST)
+    # Cron runs :33 past — GitHub heavily delays top/half-hour schedules.
+    # EDT: 20:33 UTC  |  EST: 21:33 UTC
+    - cron: '33 20 * * 1-5'   # summer (EDT)
+    - cron: '33 21 * * 1-5'   # winter (EST)
 
   workflow_dispatch:           # manual trigger from GitHub UI anytime
 
