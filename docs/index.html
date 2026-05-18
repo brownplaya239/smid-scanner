@@ -124,7 +124,8 @@
   .uoa-edge .ev.neutral { color:#cdd6ee; }
   .uoa-edge .es { font-size:10.5px; color:var(--muted); margin-top:3px; line-height:1.4; }
 
-  .uoa-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; align-items:center; }
+  .uoa-filters { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+  .uoa-filter-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   .uoa-filters input[type=text], .uoa-filters select {
     background:#0a1024; border:1px solid #2a3a6e; border-radius:6px; color:#fff;
     font-size:12.5px; padding:8px 10px; font-family:inherit; outline:none;
@@ -198,7 +199,13 @@
   .sent-bear  { background:#a8442d; color:#fff; }
   .sent-sell  { background:#5a3d8a; color:#fff; }
   .sent-mixed { background:#33405e; color:#9aa3bb; }
-  .uoa-why { color:#aab3c8; font-size:11px; white-space:normal; min-width:230px; }
+  .uoa-why { color:#aab3c8; font-size:11px; max-width:250px; cursor:help;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .uoa-tip { position:fixed; z-index:60; display:none; max-width:330px;
+    background:#0c1430; border:1px solid var(--gold); border-radius:7px;
+    padding:9px 12px; font-size:11.5px; color:#e8ecf6; line-height:1.5;
+    box-shadow:0 6px 20px rgba(0,0,0,.5); pointer-events:none; }
+  .uoa-tip.show { display:block; }
 
   /* ── UOA Phase B — opening likelihood + liquidity ── */
   .uoa-open { display:inline-block; font-size:9px; font-weight:700;
@@ -266,6 +273,10 @@
   .uoa-preset { background:var(--gold); color:var(--navy); border:0; border-radius:6px;
     font-family:inherit; font-size:12px; font-weight:700; padding:8px 12px; cursor:pointer; }
   .uoa-preset:hover { filter:brightness(1.08); }
+  .uoa-reset { background:none; border:1px solid var(--line); color:#cdd6ee;
+    border-radius:6px; font-family:inherit; font-size:12px; font-weight:600;
+    padding:7px 12px; cursor:pointer; }
+  .uoa-reset:hover { border-color:var(--gold); color:#fff; }
 
   .uoa-bias { display:inline-block; font-size:9px; font-weight:700;
     border-radius:4px; padding:2px 6px; white-space:nowrap; }
@@ -462,8 +473,7 @@
       <div class="uoa-clusters" id="uoa-clusters"></div>
 
       <div class="uoa-filters">
-        <button class="uoa-preset" id="uoa-preset"
-          title="Score 80+ - likely open - liquid A/B - $300k+ - sellers hidden">&#9733; High Conviction</button>
+        <div class="uoa-filter-row">
         <input type="text" id="uoa-q" placeholder="Ticker..." autocomplete="off" />
         <select id="uoa-type">
           <option value="">Calls + Puts</option>
@@ -503,6 +513,11 @@
           <option value="500000">$500k+ (high conv.)</option>
           <option value="1000000">$1M+</option>
         </select>
+        </div>
+        <div class="uoa-filter-row">
+        <button class="uoa-preset" id="uoa-preset"
+          title="Score 80+ - likely open - liquid A/B - $300k+ - sellers hidden">&#9733; High Conviction</button>
+        <button class="uoa-reset" id="uoa-reset">Reset filters</button>
         <label><input type="checkbox" id="uoa-golden" /> Golden</label>
         <label><input type="checkbox" id="uoa-otm" /> OTM only</label>
         <label><input type="checkbox" id="uoa-open" /> Likely open</label>
@@ -511,6 +526,7 @@
         <label><input type="checkbox" id="uoa-ern" /> Into earnings</label>
         <label><input type="checkbox" id="uoa-noseller" /> Hide sellers</label>
         <label><input type="checkbox" id="uoa-univ" /> My universe</label>
+        </div>
       </div>
 
       <div class="uoa-chips" id="uoa-chips"></div>
@@ -554,6 +570,7 @@
       </div>
 
       <div class="uoa-detail" id="uoa-detail"></div>
+      <div class="uoa-tip" id="uoa-tip"></div>
     </section>
   </main>
 
@@ -909,7 +926,9 @@
           '<td>'+r.vol_oi+'</td>'+
           '<td><span class="uoa-liq liq-'+(r.liquidity||"C").toLowerCase()+'">'+(r.liquidity||"C")+'</span></td>'+
           '<td class="'+(r.premium>=1e6?"uoa-prem-big":"")+'">$'+fmtNum(r.premium)+'</td>'+
-          '<td class="uoa-why">'+(r.why||"&mdash;")+'</td>'+
+          '<td class="uoa-why" data-why="'+
+            (r.why||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;")+
+            '">'+(r.why||"&mdash;")+'</td>'+
         '</tr>';
       }).join("");
     }
@@ -1221,6 +1240,35 @@
       renderBody();
     }
     $("uoa-preset").addEventListener("click", applyPreset);
+    function resetFilters() {
+      $("uoa-q").value = "";
+      ["uoa-type","uoa-side","uoa-dte","uoa-cap","uoa-sector"].forEach(function (id) {
+        $(id).value = "";
+      });
+      $("uoa-score").value = "0"; $("uoa-prem").value = "0";
+      ["uoa-golden","uoa-otm","uoa-open","uoa-liqab","uoa-repeat","uoa-ern",
+       "uoa-noseller","uoa-univ"].forEach(function (id) { $(id).checked = false; });
+      renderBody();
+    }
+    $("uoa-reset").addEventListener("click", resetFilters);
+
+    /* ── Why-flagged hover tooltip ── */
+    (function () {
+      const tip = $("uoa-tip");
+      $("uoa-body").addEventListener("mouseover", function (e) {
+        const td = e.target.closest(".uoa-why");
+        if (!td || !td.dataset.why) return;
+        tip.textContent = td.dataset.why;
+        tip.classList.add("show");
+        const rc = td.getBoundingClientRect();
+        tip.style.left = Math.max(8,
+          Math.min(rc.left, window.innerWidth - 344)) + "px";
+        tip.style.top = (rc.bottom + 6) + "px";
+      });
+      $("uoa-body").addEventListener("mouseout", function (e) {
+        if (e.target.closest(".uoa-why")) tip.classList.remove("show");
+      });
+    })();
 
     $("uoa-body").addEventListener("click", function (e) {
       const tr = e.target.closest("tr");
