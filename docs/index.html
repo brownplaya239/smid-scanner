@@ -109,6 +109,57 @@
     border:1px solid var(--line); border-radius:0 0 8px 8px; background:#fff;
   }
 
+  /* ── Unusual Options Activity dashboard ── */
+  #panel-uoa { max-width:1180px; }
+  .uoa-edge { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
+  .uoa-edge .ecard {
+    background:var(--card); border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; flex:1; min-width:155px;
+  }
+  .uoa-edge .et { font-size:10px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.4px; margin-bottom:5px; }
+  .uoa-edge .ev { font-size:19px; font-weight:700; }
+  .uoa-edge .ev.pos { color:var(--green); }
+  .uoa-edge .ev.neg { color:#e8736a; }
+  .uoa-edge .ev.neutral { color:#cdd6ee; }
+  .uoa-edge .es { font-size:10.5px; color:var(--muted); margin-top:3px; line-height:1.4; }
+
+  .uoa-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; align-items:center; }
+  .uoa-filters input[type=text], .uoa-filters select {
+    background:#0a1024; border:1px solid #2a3a6e; border-radius:6px; color:#fff;
+    font-size:12.5px; padding:8px 10px; font-family:inherit; outline:none;
+  }
+  .uoa-filters input[type=text]:focus, .uoa-filters select:focus { border-color:var(--gold); }
+  .uoa-filters label { font-size:12px; color:#cdd6ee; display:flex; align-items:center; gap:5px; }
+
+  .uoa-table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+  table.uoa { width:100%; border-collapse:collapse; font-size:12px; }
+  table.uoa th {
+    background:var(--navy2); color:#cdd6ee; font-size:10px; text-transform:uppercase;
+    letter-spacing:.3px; padding:9px 8px; text-align:right; cursor:pointer;
+    white-space:nowrap; border-bottom:1px solid var(--line);
+  }
+  table.uoa th:first-child, table.uoa th:nth-child(2), table.uoa th:last-child { text-align:left; }
+  table.uoa th.sorted { color:var(--gold); }
+  table.uoa td { padding:8px; text-align:right; border-bottom:1px solid #1a2548; white-space:nowrap; }
+  table.uoa td:first-child, table.uoa td:nth-child(2), table.uoa td:last-child { text-align:left; }
+  table.uoa tr:hover td { background:#16213f; }
+
+  .uoa-score { display:inline-block; min-width:28px; text-align:center; font-weight:700;
+    border-radius:5px; padding:3px 6px; font-size:11.5px; }
+  .s-hi  { background:#1d6b3a; color:#eafff0; }
+  .s-mid { background:#7a5e12; color:#fff6da; }
+  .s-lo  { background:#33405e; color:#cdd6ee; }
+  .uoa-call { color:var(--green); font-weight:700; }
+  .uoa-put  { color:#e8736a; font-weight:700; }
+  .uoa-badge { display:inline-block; font-size:9px; font-weight:700; border-radius:4px;
+    padding:2px 5px; margin-left:3px; vertical-align:middle; }
+  .b-golden { background:var(--gold); color:var(--navy); }
+  .b-block  { background:#2d5fa8; color:#fff; }
+  .b-univ   { border:1px solid var(--gold); color:var(--gold); }
+  .uoa-prem-big { font-weight:700; color:var(--gold); }
+  .uoa-empty { padding:30px; text-align:center; color:var(--muted); font-size:13px; }
+
   footer { padding:16px 28px; font-size:10.5px; color:var(--muted);
     border-top:1px solid #1a2548; text-align:center; }
 
@@ -156,6 +207,7 @@
   <nav id="nav">
     <button data-tab="adhoc" class="active">Ad-Hoc Lookup</button>
     <button data-tab="alt-data">Alt-Data Intel</button>
+    <button data-tab="uoa">Unusual Options</button>
     <button data-tab="smid-scanner">SMID Scanner</button>
     <button data-tab="iwm-scanner">IWM Scanner</button>
     <button data-tab="smid-setup">SMID Setup Builder</button>
@@ -245,6 +297,46 @@
       <p class="tab-sub">Stockbee's "20% Plus in a Week" &mdash; every liquid name up
         20%+ over the last 5 trading days. 4:30 PM ET weekdays.</p>
       <div class="report-list" id="list-stockbee-weekly"></div>
+    </section>
+
+    <!-- Unusual Options Activity -->
+    <section class="panel" id="panel-uoa">
+      <h2 class="tab-title">Unusual Options Activity</h2>
+      <p class="tab-sub">Smart-money options flow &mdash; sweeps, blocks &amp; golden sweeps
+        across the liquid optionable market, ranked by Trade Score.
+        <span id="uoa-updated"></span></p>
+
+      <div class="uoa-edge" id="uoa-edge"></div>
+
+      <div class="uoa-filters">
+        <input type="text" id="uoa-q" placeholder="Ticker..." autocomplete="off" />
+        <select id="uoa-type">
+          <option value="">Calls + Puts</option>
+          <option value="call">Calls only</option>
+          <option value="put">Puts only</option>
+        </select>
+        <select id="uoa-score">
+          <option value="0">Any score</option>
+          <option value="80">Score 80+</option>
+          <option value="65">Score 65+</option>
+          <option value="55">Score 55+</option>
+        </select>
+        <select id="uoa-prem">
+          <option value="0">Any premium</option>
+          <option value="1000000">$1M+ premium</option>
+          <option value="250000">$250k+ premium</option>
+          <option value="100000">$100k+ premium</option>
+        </select>
+        <label><input type="checkbox" id="uoa-golden" /> Golden Sweeps only</label>
+        <label><input type="checkbox" id="uoa-univ" /> My universe only</label>
+      </div>
+
+      <div class="uoa-table-wrap">
+        <table class="uoa" id="uoa-table">
+          <thead><tr id="uoa-head"></tr></thead>
+          <tbody id="uoa-body"></tbody>
+        </table>
+      </div>
     </section>
   </main>
 
@@ -398,6 +490,150 @@
     listKey:"adhoc", reportType:"adhoc", channel:"#onepager-adhoc", runtime:"2-3 min" });
   setupLookup({ inputId:"ticker-alt", btnId:"go-alt", statusId:"status-alt", viewerId:"viewer-alt",
     listKey:"alt-data", reportType:"altdata", channel:"#alt-data", runtime:"1-2 min" });
+
+  /* ── Unusual Options Activity dashboard ── */
+  (function () {
+    const COLS = [
+      { k:"trade_score", t:"Score" }, { k:"ticker", t:"Ticker" },
+      { k:"type", t:"C/P" }, { k:"strike", t:"Strike" }, { k:"expiry", t:"Expiry" },
+      { k:"dte", t:"DTE" }, { k:"pct_otm", t:"%OTM" }, { k:"volume", t:"Volume" },
+      { k:"vol_oi", t:"Vol/OI" }, { k:"premium", t:"Premium" }, { k:"sweeps", t:"Sweeps" },
+      { k:"ask_pct", t:"Ask%" }, { k:"tags", t:"Flags" },
+    ];
+    let DATA = [], sortKey = "trade_score", sortDir = -1;
+    const $ = function (id) { return document.getElementById(id); };
+    function fmtNum(n) {
+      n = n || 0;
+      if (n >= 1e9) return (n/1e9).toFixed(1)+"B";
+      if (n >= 1e6) return (n/1e6).toFixed(2)+"M";
+      if (n >= 1e3) return (n/1e3).toFixed(0)+"k";
+      return String(Math.round(n));
+    }
+    function scoreCls(s) { return s>=75 ? "s-hi" : s>=55 ? "s-mid" : "s-lo"; }
+
+    function edgeCard(label, stat, fallback) {
+      if (!stat || stat.n === 0 || stat.avg === null)
+        return '<div class="ecard"><div class="et">'+label+'</div>'+
+          '<div class="ev neutral">&mdash;</div><div class="es">'+
+          (fallback||"not enough matured signals yet")+'</div></div>';
+      const cls = stat.avg>0 ? "pos" : stat.avg<0 ? "neg" : "neutral";
+      const sign = stat.avg>0 ? "+" : "";
+      return '<div class="ecard"><div class="et">'+label+'</div>'+
+        '<div class="ev '+cls+'">'+sign+stat.avg+'%</div>'+
+        '<div class="es">'+stat.hit_rate+'% hit &middot; '+stat.n+' signals'+
+        (stat.avg_excess!=null ? ' &middot; '+(stat.avg_excess>0?"+":"")+stat.avg_excess+'% vs SPY' : '')+
+        '</div></div>';
+    }
+    function renderEdge(edge) {
+      const el = $("uoa-edge"); if (!el) return;
+      if (!edge || !edge.total_signals) {
+        el.innerHTML = '<div class="ecard"><div class="et">Track Record</div>'+
+          '<div class="ev neutral">Building</div><div class="es">Signals are logging now. '+
+          'Realized +5d edge stats appear here as they mature (~2 weeks).</div></div>';
+        return;
+      }
+      const cards = [];
+      cards.push(edgeCard("Overall +5d", (edge.overall||{})["5"]));
+      const bt = edge.by_type || {};
+      if (bt.golden_sweep && bt.golden_sweep.h) cards.push(edgeCard("Golden Sweeps +5d", bt.golden_sweep.h["5"]));
+      if (bt.sweep && bt.sweep.h) cards.push(edgeCard("Sweeps +5d", bt.sweep.h["5"]));
+      cards.push('<div class="ecard"><div class="et">Signals Tracked</div>'+
+        '<div class="ev neutral">'+edge.total_signals+'</div>'+
+        '<div class="es">'+edge.matured_5d+' matured to +5d</div></div>');
+      el.innerHTML = cards.join("");
+    }
+
+    function renderHead() {
+      $("uoa-head").innerHTML = COLS.map(function (c) {
+        return '<th data-k="'+c.k+'"'+(c.k===sortKey?' class="sorted"':'')+'>'+c.t+'</th>';
+      }).join("");
+      $("uoa-head").querySelectorAll("th").forEach(function (th) {
+        th.onclick = function () {
+          const k = th.dataset.k;
+          if (k === sortKey) sortDir *= -1; else { sortKey = k; sortDir = -1; }
+          renderHead(); renderBody();
+        };
+      });
+    }
+    function passFilters(r) {
+      const q = $("uoa-q").value.trim().toUpperCase();
+      if (q && r.ticker.indexOf(q) < 0) return false;
+      const tp = $("uoa-type").value;
+      if (tp && r.type !== tp) return false;
+      if (r.trade_score < +$("uoa-score").value) return false;
+      if (r.premium < +$("uoa-prem").value) return false;
+      if ($("uoa-golden").checked && !r.golden) return false;
+      if ($("uoa-univ").checked && !r.in_universe) return false;
+      return true;
+    }
+    function renderBody() {
+      const tb = $("uoa-body");
+      if (!DATA.length) {
+        tb.innerHTML = '<tr><td colspan="13" class="uoa-empty">Awaiting the first UOA scan '+
+          '&mdash; scheduled runs at ~11:00 AM, 1:30 PM &amp; 3:45 PM ET will populate this.</td></tr>';
+        return;
+      }
+      const rows = DATA.filter(passFilters).slice().sort(function (a, b) {
+        let x = a[sortKey], y = b[sortKey];
+        if (typeof x === "string" || typeof y === "string") {
+          x = x||""; y = y||""; return sortDir*(x<y?-1:x>y?1:0);
+        }
+        return sortDir*(((x==null?-1:x)) - ((y==null?-1:y)));
+      });
+      if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="13" class="uoa-empty">No flow matches these filters.</td></tr>';
+        return;
+      }
+      tb.innerHTML = rows.slice(0, 300).map(function (r) {
+        const tags = (r.tags||[]).map(function (t) {
+          if (t === "Golden Sweep") return '<span class="uoa-badge b-golden">GOLDEN</span>';
+          if (t === "Block")        return '<span class="uoa-badge b-block">BLOCK</span>';
+          if (t === "In Universe")  return '<span class="uoa-badge b-univ">UNIV</span>';
+          return "";
+        }).join("");
+        return '<tr>'+
+          '<td><span class="uoa-score '+scoreCls(r.trade_score)+'">'+r.trade_score+'</span></td>'+
+          '<td><strong>'+r.ticker+'</strong></td>'+
+          '<td class="'+(r.type==="call"?"uoa-call":"uoa-put")+'">'+(r.type==="call"?"CALL":"PUT")+'</td>'+
+          '<td>$'+r.strike+'</td>'+
+          '<td>'+r.expiry+'</td>'+
+          '<td>'+(r.dte!=null?r.dte+"d":"&mdash;")+'</td>'+
+          '<td>'+(r.pct_otm!=null?r.pct_otm+"%":"&mdash;")+'</td>'+
+          '<td>'+fmtNum(r.volume)+'</td>'+
+          '<td>'+r.vol_oi+'</td>'+
+          '<td class="'+(r.premium>=1e6?"uoa-prem-big":"")+'">$'+fmtNum(r.premium)+'</td>'+
+          '<td>'+(r.sweeps||0)+'</td>'+
+          '<td>'+(r.side_method&&r.side_method!=="none"?r.ask_pct+"%":"&mdash;")+'</td>'+
+          '<td>'+(tags||"&mdash;")+'</td>'+
+        '</tr>';
+      }).join("");
+    }
+    function loadUoa() {
+      fetch("./reports/uoa_latest.json?t="+Date.now())
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (d) {
+            DATA = d.rows || [];
+            const dt = d.generated ? new Date(d.generated) : null;
+            $("uoa-updated").textContent = dt
+              ? ("Updated "+dt.toLocaleString()+" — "+DATA.length+" flagged contracts")
+              : "";
+          } else { DATA = []; $("uoa-updated").textContent = "First scan pending."; }
+          renderHead(); renderBody();
+        })
+        .catch(function () { DATA = []; renderHead(); renderBody(); });
+      fetch("./reports/uoa_edge.json?t="+Date.now())
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(renderEdge).catch(function () { renderEdge(null); });
+    }
+    ["uoa-q","uoa-type","uoa-score","uoa-prem","uoa-golden","uoa-univ"].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener(
+        (el.tagName === "INPUT" && el.type === "text") ? "input" : "change", renderBody);
+    });
+    loadUoa();
+    setInterval(loadUoa, 90000);   // auto-refresh every 90s
+  })();
 </script>
 </body>
 </html>
