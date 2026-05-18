@@ -29,6 +29,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 import polygon_data as pg
+import themes
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 LEDGER_PATH = os.path.join(_BASE, "docs", "reports", "uoa_signals.jsonl")
@@ -677,6 +678,7 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
             row["mkt_cap"]    = _m.get("mkt_cap")
             row["cap_bucket"] = _cap_bucket(_m.get("mkt_cap"))
             row["sector"]     = _m.get("sector", "Other")
+            row["themes"]     = themes.themes_for(row["underlying"])
             # bias / opening / liquidity / trade-plan — all are score inputs,
             # so they must be computed BEFORE trade_score()
             row["flow_side"], row["direction"] = _bias(row["type"], flow.get("side"))
@@ -748,6 +750,7 @@ def append_ledger(rows, min_score=55):
                 "liquidity":   r.get("liquidity", "C"),
                 "cap_bucket":  r.get("cap_bucket", "unknown"),
                 "sector":      r.get("sector", "Other"),
+                "themes":      r.get("themes", []),
                 "volume":      r["volume"],          # flag-day contract volume
                 "open_interest": r["open_interest"], # flag-day OI — baseline for
                                                      # next-day OI-retention check
@@ -784,6 +787,7 @@ def emit_latest(rows):
             "cap_bucket":    r.get("cap_bucket", "unknown"),
             "mkt_cap":       r.get("mkt_cap"),
             "sector":        r.get("sector", "Other"),
+            "themes":        r.get("themes", []),
             "iv":            r.get("iv"),
             "sweeps":        flow.get("sweeps", 0),
             "blocks":        flow.get("blocks", 0),
