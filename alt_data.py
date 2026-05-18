@@ -196,8 +196,12 @@ Return ONLY a raw JSON object (no markdown) with these fields:
   bullCase           : 1-2 sentences - what the bulls in the chatter argue.
   bearCase           : 1-2 sentences - what the bears argue.
   catalysts          : array of 2-6 short strings - SPECIFIC upcoming events the
-                       chatter references (earnings date, launch, FDA date,
-                       conference, index event). [] if none clear.
+                       chatter references, each tagged with TYPE and IMPACT, e.g.
+                       "Q2 earnings ~Aug 5 (Earnings, High)", "GTC keynote
+                       (Industry, Med)", "lockup expiry (Corporate, Low)".
+                       Types: Earnings / Corporate / Industry / Macro.
+                       Think weeks-to-months out, not the day's headline.
+                       [] if none clear.
   manipulationFlag   : CLEAN / CAUTION / HIGH-RISK - scan for pump-and-dump
                        language and coordinated promotion. Also weigh the
                        account-quality data: bot/pump accounts were already
@@ -210,8 +214,12 @@ Return ONLY a raw JSON object (no markdown) with these fields:
                        rating actions (use the provided analyst data + news).
   attentionRead      : 1-2 sentences - is retail attention building or fading?
                        Use the baseline deltas and watcher count as evidence.
-  actionRead         : 2 sentences - the bottom-line measured take: what the
-                       alt-data picture means for someone researching this stock."""
+  actionRead         : 2-3 sentences - the bottom-line measured take on what the
+                       alt-data picture means for someone researching this stock.
+                       Weigh disconfirming evidence as rigorously as confirming.
+                       MUST end with an explicit conviction tag and a falsifiable
+                       invalidation: "Conviction: High/Medium/Low; this read flips
+                       if [specific event / price / data point]." """
 
 
 def synthesize(alt, scores):
