@@ -26,6 +26,9 @@ except Exception:
 _BASE = "https://api.polygon.io"
 
 
+_quotes_blocked = False   # set True after the first /v3/quotes 403
+
+
 def _key():
     """Read POLYGON_API_KEY fresh each call — avoids import-order bugs."""
     return os.environ.get("POLYGON_API_KEY", "")
@@ -55,7 +58,14 @@ def _get(path, params=None, retries=2, timeout=30):
                 time.sleep(2 * (attempt + 1))
                 continue
             if r.status_code in (401, 403):          # not entitled — don't retry
-                print(f"  polygon {r.status_code}: not entitled — {path}")
+                if "/v3/quotes/" in url:
+                    global _quotes_blocked
+                    if not _quotes_blocked:
+                        print("  polygon: quotes endpoint not entitled yet — "
+                              "skipping at/above-ask classification this run")
+                    _quotes_blocked = True
+                else:
+                    print(f"  polygon {r.status_code}: not entitled — {path}")
                 return None
             print(f"  polygon {r.status_code}: {r.text[:120]}")
         except Exception as e:
@@ -173,6 +183,8 @@ def option_quotes(contract, day=None, limit=50000, max_pages=4):
     Used to classify each trade as at/above-ask (bullish conviction) vs
     at/below-bid. Requires the quotes entitlement — returns [] until the
     Developer quotes endpoint is active for the key."""
+    if _quotes_blocked:                      # short-circuit after first 403
+        return []
     day = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     params = {
         "timestamp.gte": day,
