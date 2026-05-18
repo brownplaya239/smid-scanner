@@ -1,6 +1,6 @@
 {
- "generated": "2026-05-18T19:20:19+00:00",
- "total_signals": 950,
+ "generated": "2026-05-18T20:07:25+00:00",
+ "total_signals": 1603,
  "matured_5d": 0,
  "horizons": [
   1,
@@ -46,9 +46,14 @@
    "avg_excess": null
   }
  },
+ "excursion": {
+  "avg_mfe": null,
+  "avg_mae": null,
+  "n": 0
+ },
  "by_type": {
   "golden_sweep": {
-   "signals": 218,
+   "signals": 343,
    "h": {
     "1": {
      "n": 0,
@@ -88,7 +93,7 @@
    }
   },
   "sweep": {
-   "signals": 608,
+   "signals": 1041,
    "h": {
     "1": {
      "n": 0,
@@ -128,7 +133,7 @@
    }
   },
   "voloi": {
-   "signals": 124,
+   "signals": 219,
    "h": {
     "1": {
      "n": 0,
@@ -170,7 +175,7 @@
  },
  "by_score": {
   "80-100": {
-   "signals": 154,
+   "signals": 360,
    "h": {
     "1": {
      "n": 0,
@@ -210,7 +215,7 @@
    }
   },
   "65-79": {
-   "signals": 426,
+   "signals": 700,
    "h": {
     "1": {
      "n": 0,
@@ -250,7 +255,7 @@
    }
   },
   "55-64": {
-   "signals": 370,
+   "signals": 543,
    "h": {
     "1": {
      "n": 0,
@@ -290,9 +295,245 @@
    }
   }
  },
+ "by_dte": {
+  "urgent": {
+   "signals": 1087,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   }
+  },
+  "swing": {
+   "signals": 369,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   }
+  },
+  "positioning": {
+   "signals": 135,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   }
+  },
+  "leaps": {
+   "signals": 12,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   }
+  }
+ },
+ "by_tag": {
+  "Golden Sweep": {
+   "signals": 343,
+   "h5": {
+    "n": 0,
+    "hit_rate": null,
+    "avg": null,
+    "median": null,
+    "avg_excess": null
+   }
+  },
+  "Sweep": {
+   "signals": 1041,
+   "h5": {
+    "n": 0,
+    "hit_rate": null,
+    "avg": null,
+    "median": null,
+    "avg_excess": null
+   }
+  },
+  "Block": {
+   "signals": 1044,
+   "h5": {
+    "n": 0,
+    "hit_rate": null,
+    "avg": null,
+    "median": null,
+    "avg_excess": null
+   }
+  },
+  "Size>OI": {
+   "signals": 335,
+   "h5": {
+    "n": 0,
+    "hit_rate": null,
+    "avg": null,
+    "median": null,
+    "avg_excess": null
+   }
+  },
+  "Repeat": {
+   "signals": 846,
+   "h5": {
+    "n": 0,
+    "hit_rate": null,
+    "avg": null,
+    "median": null,
+    "avg_excess": null
+   }
+  },
+  "Into ERN": {
+   "signals": 123,
+   "h5": {
+    "n": 0,
+    "hit_rate": null,
+    "avg": null,
+    "median": null,
+    "avg_excess": null
+   }
+  },
+  "In Universe": {
+   "signals": 1261,
+   "h5": {
+    "n": 0,
+    "hit_rate": null,
+    "avg": null,
+    "median": null,
+    "avg_excess": null
+   }
+  }
+ },
  "oi_confirmation": {
   "checked": 0,
   "confirmed": 0,
+  "weak": 0,
+  "closed": 0,
   "confirm_rate": null
  }
 }
