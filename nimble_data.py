@@ -18,7 +18,8 @@ import time
 import requests
 import xml.etree.ElementTree as ET
 from urllib.parse import quote
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 
 try:
     from dotenv import load_dotenv
@@ -77,11 +78,17 @@ def _unescape_markdown_json(md):
 
 # ─── News flow — Google News RSS ──────────────────────────────────────────────
 
-def fetch_news(ticker, company="", max_items=12):
+def fetch_news(ticker, company="", max_items=12, max_age_days=45):
+    """Recent news headlines for a ticker via Google News RSS.
+
+    Recency filter: headlines older than `max_age_days` are dropped — a stale
+    story presented as current news misleads the read. Items are date-sorted
+    newest-first so the freshest catalysts surface."""
     q = f"{ticker} {company} stock".strip()
     url = (f"https://news.google.com/rss/search?q={quote(q)}"
            f"&hl=en-US&gl=US&ceid=US:en")
     items = []
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
     try:
         r = requests.get(url, headers={"User-Agent": _UA}, timeout=25)
         if r.ok:
@@ -92,13 +99,29 @@ def fetch_news(ticker, company="", max_items=12):
                 pub   = (it.findtext("pubDate") or "").strip()
                 src_el = it.find("{*}source")
                 src = src_el.text.strip() if src_el is not None and src_el.text else ""
-                if title:
-                    items.append({"title": title, "link": link, "date": pub, "source": src})
-                if len(items) >= max_items:
-                    break
+                if not title:
+                    continue
+                # recency filter — drop headlines older than the window
+                pub_dt = None
+                if pub:
+                    try:
+                        pub_dt = parsedate_to_datetime(pub)
+                        if pub_dt.tzinfo is None:
+                            pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+                        if pub_dt < cutoff:
+                            continue
+                    except Exception:
+                        pub_dt = None
+                items.append({"title": title, "link": link, "date": pub,
+                              "source": src, "_ts": pub_dt})
     except Exception as e:
         print(f"  news fetch failed: {e}")
-    return items
+    # newest-first; undated items sort last
+    items.sort(key=lambda n: n["_ts"] or datetime.min.replace(tzinfo=timezone.utc),
+               reverse=True)
+    for n in items:
+        n.pop("_ts", None)
+    return items[:max_items]
 
 
 # ─── Social sentiment — StockTwits + Reddit ───────────────────────────────────
