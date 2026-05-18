@@ -139,6 +139,64 @@ def _premium_tier(premium):
     return "live"
 
 
+def _tier(score, golden):
+    """Same-day CONVICTION tier (A+/A/B/C). Distinct from next-day OI
+    confirmation (uoa_alpha) — this rates the flow's quality as flagged."""
+    if score >= 88 or (golden and score >= 80):
+        return "A+"
+    if score >= 75:
+        return "A"
+    if score >= 60:
+        return "B"
+    return "C"
+
+
+def _sentiment(ctype, side):
+    """Directional read from option type + aggressor side:
+    bullish (ask calls) / bearish (ask puts) / seller (premium selling on
+    the bid) / mixed (no clear side). Approximate until the quotes
+    entitlement makes side classification exact."""
+    if (side or {}).get("method", "none") == "none":
+        return "mixed"
+    ask = side.get("ask_pct", 0)
+    bid = side.get("bid_pct", 0)
+    if ctype == "call":
+        if ask >= 55: return "bullish"
+        if bid >= 55: return "seller"
+    else:                                  # put
+        if ask >= 55: return "bearish"
+        if bid >= 55: return "seller"
+    return "mixed"
+
+
+def _why(row, flow):
+    """Plain-language thesis — why this contract is flagged."""
+    bits = []
+    if row.get("golden"):
+        bits.append("Golden sweep")
+    elif flow.get("sweeps", 0) > 0:
+        n = flow["sweeps"]
+        bits.append(f"{n} sweep" + ("s" if n > 1 else ""))
+    if flow.get("blocks", 0) > 0:
+        n = flow["blocks"]
+        bits.append(f"{n} block" + ("s" if n > 1 else ""))
+    prem = row.get("premium", 0)
+    bits.append(f"${prem/1e6:.1f}M premium" if prem >= 1e6
+                else f"${prem/1e3:.0f}k premium")
+    bits.append(f"{row.get('vol_oi', 0):.1f}x OI")
+    if row.get("size_gt_oi"):
+        bits.append("sweep > OI")
+    if row.get("repeat_count", 0) > 0:
+        bits.append(f"repeat x{row['repeat_count']}")
+    ed = row.get("earnings_days")
+    if ed is not None and 0 <= ed <= EARNINGS_WINDOW:
+        bits.append(f"earnings {ed}d")
+    otm = row.get("pct_otm")
+    if otm is not None and otm >= 10:
+        bits.append(f"{otm:.0f}% OTM")
+    return "  -  ".join(bits)
+
+
 def screen_snapshot(underlying):
     """Pull an underlying's option chain and return the contracts that are
     statistically unusual on snapshot metrics alone (vol/OI, premium, OTM)."""
@@ -265,19 +323,23 @@ def classify_trades(trades, snapshot_row):
 
 
 def _classify_approx(trades, snapshot_row):
-    """Approximate side classification from the single snapshot bid/ask.
-    Imprecise for older trades — labelled method='approx' so the dashboard
-    can flag the confidence."""
+    """Approximate side classification — until the quotes entitlement is live
+    we lack the NBBO at each trade's timestamp. Heuristic: split trades by the
+    contract's bid/ask midpoint (fallback: day VWAP). Trades above the mid
+    lean buyer-aggressive, below lean seller-aggressive. Labelled
+    method='approx' so the dashboard flags it as an estimate."""
     bid = snapshot_row.get("_bid") or 0
     ask = snapshot_row.get("_ask") or 0
-    if not (bid and ask):
+    mid = (bid + ask) / 2 if (bid and ask) else (snapshot_row.get("px") or 0)
+    if not mid:
         return {"ask_pct": 0, "bid_pct": 0, "mid_pct": 0, "method": "approx"}
     a = b = m = 0
     for t in trades:
         p = t.get("price", 0) or 0
-        if p >= ask:   a += 1
-        elif p <= bid: b += 1
-        else:          m += 1
+        if not p:        m += 1
+        elif p > mid:    a += 1
+        elif p < mid:    b += 1
+        else:            m += 1
     n = max(a + b + m, 1)
     return {"ask_pct": round(100 * a / n), "bid_pct": round(100 * b / n),
             "mid_pct": round(100 * m / n), "method": "approx"}
@@ -493,6 +555,10 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
                 tags.append("Into ERN")
             if row["in_universe"]:       tags.append("In Universe")
             row["tags"] = tags
+            # interpretation layer
+            row["tier"]      = _tier(row["trade_score"], row["golden"])
+            row["sentiment"] = _sentiment(row["type"], flow.get("side"))
+            row["why"]       = _why(row, flow)
             return row
         except Exception as e:
             print(f"  flow analysis failed for {row.get('contract')}: {e}")
@@ -576,6 +642,9 @@ def emit_latest(rows):
             "golden":        r["golden"],
             "in_universe":   r["in_universe"],
             "trade_score":   r["trade_score"],
+            "tier":          r.get("tier", "C"),
+            "sentiment":     r.get("sentiment", "mixed"),
+            "why":           r.get("why", ""),
             "tags":          r["tags"],
         })
     payload = {

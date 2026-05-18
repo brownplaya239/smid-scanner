@@ -132,13 +132,20 @@
   .uoa-filters input[type=text]:focus, .uoa-filters select:focus { border-color:var(--gold); }
   .uoa-filters label { font-size:12px; color:#cdd6ee; display:flex; align-items:center; gap:5px; }
 
-  .uoa-table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+  .uoa-table-wrap { max-height:70vh; overflow:auto;
+    border:1px solid var(--line); border-radius:8px; }
   table.uoa { width:100%; border-collapse:collapse; font-size:12px; }
   table.uoa th {
     background:var(--navy2); color:#cdd6ee; font-size:10px; text-transform:uppercase;
     letter-spacing:.3px; padding:9px 8px; text-align:right; cursor:pointer;
     white-space:nowrap; border-bottom:1px solid var(--line);
   }
+  /* freeze header row + ticker column */
+  table.uoa thead th { position:sticky; top:0; z-index:3; }
+  table.uoa td:first-child, table.uoa th:first-child { position:sticky; left:0; z-index:2; }
+  table.uoa th:first-child { z-index:4; }
+  table.uoa td:first-child { background:#111a38; }
+  table.uoa tr:hover td:first-child { background:#16213f; }
   table.uoa th:first-child, table.uoa th:nth-child(2), table.uoa th:last-child { text-align:left; }
   table.uoa th.sorted { color:var(--gold); }
   table.uoa td { padding:8px; text-align:right; border-bottom:1px solid #1a2548; white-space:nowrap; }
@@ -161,6 +168,37 @@
   .b-size   { background:#5a3d8a; color:#fff; }
   .b-repeat { background:#1d6b3a; color:#eafff0; }
   .b-ern    { background:#a8442d; color:#fff; }
+
+  /* ── UOA Phase A — clusters, tier, sentiment ── */
+  .uoa-clusters { margin-bottom:16px; }
+  .uoa-clabel { font-size:11px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.4px; margin-bottom:7px; }
+  .uoa-crow { display:flex; flex-wrap:wrap; gap:8px; }
+  .uoa-cluster {
+    background:var(--card); border:1px solid var(--line);
+    border-left:3px solid var(--gold); border-radius:7px;
+    padding:8px 12px; min-width:158px;
+  }
+  .uoa-cluster .ct { font-size:13px; font-weight:700; color:#e8ecf6; }
+  .uoa-cluster .cv { font-size:14px; font-weight:700; color:var(--gold); margin-top:2px; }
+  .uoa-cluster .cd { font-size:10px; color:var(--muted); margin-top:2px; }
+  .cdir { font-size:8.5px; font-weight:700; padding:1px 5px; border-radius:3px;
+    margin-left:5px; vertical-align:middle; }
+
+  .uoa-tier { display:inline-block; min-width:24px; text-align:center;
+    font-weight:800; border-radius:5px; padding:3px 5px; font-size:11px; }
+  .t-ap { background:#1d6b3a; color:#eafff0; }
+  .t-a  { background:#3a7d4e; color:#eafff0; }
+  .t-b  { background:#7a5e12; color:#fff6da; }
+  .t-c  { background:#33405e; color:#9aa3bb; }
+
+  .uoa-sent { display:inline-block; font-size:9px; font-weight:700;
+    border-radius:4px; padding:2px 6px; }
+  .sent-bull  { background:#1d6b3a; color:#eafff0; }
+  .sent-bear  { background:#a8442d; color:#fff; }
+  .sent-sell  { background:#5a3d8a; color:#fff; }
+  .sent-mixed { background:#33405e; color:#9aa3bb; }
+  .uoa-why { color:#aab3c8; font-size:11px; white-space:normal; min-width:230px; }
   .uoa-prem-big { font-weight:700; color:var(--gold); }
   .uoa-empty { padding:30px; text-align:center; color:var(--muted); font-size:13px; }
 
@@ -311,6 +349,8 @@
         <span id="uoa-updated"></span></p>
 
       <div class="uoa-edge" id="uoa-edge"></div>
+
+      <div class="uoa-clusters" id="uoa-clusters"></div>
 
       <div class="uoa-filters">
         <input type="text" id="uoa-q" placeholder="Ticker..." autocomplete="off" />
@@ -514,11 +554,11 @@
   /* ── Unusual Options Activity dashboard ── */
   (function () {
     const COLS = [
-      { k:"trade_score", t:"Score" }, { k:"ticker", t:"Ticker" },
+      { k:"ticker", t:"Ticker" }, { k:"tier", t:"Tier" },
+      { k:"trade_score", t:"Score" }, { k:"sentiment", t:"Bias" },
       { k:"type", t:"C/P" }, { k:"strike", t:"Strike" }, { k:"expiry", t:"Expiry" },
       { k:"dte", t:"DTE" }, { k:"pct_otm", t:"%OTM" }, { k:"volume", t:"Volume" },
-      { k:"vol_oi", t:"Vol/OI" }, { k:"premium", t:"Premium" }, { k:"sweeps", t:"Sweeps" },
-      { k:"ask_pct", t:"Ask%" }, { k:"tags", t:"Flags" },
+      { k:"vol_oi", t:"Vol/OI" }, { k:"premium", t:"Premium" }, { k:"why", t:"Why Flagged" },
     ];
     let DATA = [], sortKey = "trade_score", sortDir = -1;
     const $ = function (id) { return document.getElementById(id); };
@@ -530,6 +570,40 @@
       return String(Math.round(n));
     }
     function scoreCls(s) { return s>=75 ? "s-hi" : s>=55 ? "s-mid" : "s-lo"; }
+    function tierCls(t) {
+      return t==="A+" ? "t-ap" : t==="A" ? "t-a" : t==="B" ? "t-b" : "t-c";
+    }
+    function sentPill(s) {
+      if (s==="bullish") return '<span class="uoa-sent sent-bull">BULLISH</span>';
+      if (s==="bearish") return '<span class="uoa-sent sent-bear">BEARISH</span>';
+      if (s==="seller")  return '<span class="uoa-sent sent-sell">SELLER</span>';
+      return '<span class="uoa-sent sent-mixed">MIXED</span>';
+    }
+    function renderClusters() {
+      const el = $("uoa-clusters"); if (!el) return;
+      if (!DATA.length) { el.innerHTML = ""; return; }
+      const by = {};
+      DATA.forEach(function (r) {
+        const c = by[r.ticker] ||
+          (by[r.ticker] = { prem:0, n:0, calls:0, puts:0, dte:0, score:0 });
+        c.prem += r.premium||0; c.n++;
+        if (r.type==="call") c.calls++; else c.puts++;
+        c.dte += r.dte||0; c.score = Math.max(c.score, r.trade_score||0);
+      });
+      const arr = Object.keys(by).map(function (t) {
+        const c = by[t]; c.ticker = t; c.avgDte = Math.round(c.dte/c.n); return c;
+      }).sort(function (a, b) { return b.prem - a.prem; });
+      el.innerHTML = '<div class="uoa-clabel">Top Flow Clusters &mdash; repetition is the signal</div>' +
+        '<div class="uoa-crow">' + arr.slice(0, 8).map(function (c) {
+          const dir = c.calls > c.puts*1.5 ? '<span class="cdir sent-bull">CALLS</span>'
+                    : c.puts > c.calls*1.5 ? '<span class="cdir sent-bear">PUTS</span>'
+                    : '<span class="cdir sent-mixed">MIXED</span>';
+          return '<div class="uoa-cluster"><div class="ct">'+c.ticker+dir+'</div>'+
+            '<div class="cv">$'+fmtNum(c.prem)+'</div>'+
+            '<div class="cd">'+c.n+' contracts &middot; avg '+c.avgDte+'d &middot; top '+c.score+'</div>'+
+          '</div>';
+        }).join("") + '</div>';
+    }
 
     function edgeCard(label, stat, fallback) {
       if (!stat || stat.n === 0 || stat.avg === null)
@@ -575,7 +649,8 @@
 
     function renderHead() {
       $("uoa-head").innerHTML = COLS.map(function (c) {
-        return '<th data-k="'+c.k+'"'+(c.k===sortKey?' class="sorted"':'')+'>'+c.t+'</th>';
+        const arrow = c.k===sortKey ? (sortDir<0 ? " ▼" : " ▲") : "";
+        return '<th data-k="'+c.k+'"'+(c.k===sortKey?' class="sorted"':'')+'>'+c.t+arrow+'</th>';
       }).join("");
       $("uoa-head").querySelectorAll("th").forEach(function (th) {
         th.onclick = function () {
@@ -624,19 +699,11 @@
         return;
       }
       tb.innerHTML = rows.slice(0, 300).map(function (r) {
-        const tags = (r.tags||[]).map(function (t) {
-          if (t === "Golden Sweep") return '<span class="uoa-badge b-golden">GOLDEN</span>';
-          if (t === "Sweep")        return '<span class="uoa-badge b-sweep">SWEEP</span>';
-          if (t === "Block")        return '<span class="uoa-badge b-block">BLOCK</span>';
-          if (t === "Size>OI")      return '<span class="uoa-badge b-size">SIZE&gt;OI</span>';
-          if (t === "Repeat")       return '<span class="uoa-badge b-repeat">REPEAT</span>';
-          if (t === "Into ERN")     return '<span class="uoa-badge b-ern">ERN</span>';
-          if (t === "In Universe")  return '<span class="uoa-badge b-univ">UNIV</span>';
-          return "";
-        }).join("");
         return '<tr>'+
-          '<td><span class="uoa-score '+scoreCls(r.trade_score)+'">'+r.trade_score+'</span></td>'+
           '<td><strong>'+r.ticker+'</strong></td>'+
+          '<td><span class="uoa-tier '+tierCls(r.tier)+'">'+(r.tier||"C")+'</span></td>'+
+          '<td><span class="uoa-score '+scoreCls(r.trade_score)+'">'+r.trade_score+'</span></td>'+
+          '<td>'+sentPill(r.sentiment)+'</td>'+
           '<td class="'+(r.type==="call"?"uoa-call":"uoa-put")+'">'+(r.type==="call"?"CALL":"PUT")+'</td>'+
           '<td>$'+r.strike+'</td>'+
           '<td>'+r.expiry+'</td>'+
@@ -645,9 +712,7 @@
           '<td>'+fmtNum(r.volume)+'</td>'+
           '<td>'+r.vol_oi+'</td>'+
           '<td class="'+(r.premium>=1e6?"uoa-prem-big":"")+'">$'+fmtNum(r.premium)+'</td>'+
-          '<td>'+(r.sweeps||0)+'</td>'+
-          '<td>'+(r.side_method&&r.side_method!=="none"?r.ask_pct+"%":"&mdash;")+'</td>'+
-          '<td>'+(tags||"&mdash;")+'</td>'+
+          '<td class="uoa-why">'+(r.why||"&mdash;")+'</td>'+
         '</tr>';
       }).join("");
     }
@@ -662,9 +727,9 @@
               ? ("Updated "+dt.toLocaleString()+" — "+DATA.length+" flagged contracts")
               : "";
           } else { DATA = []; $("uoa-updated").textContent = "First scan pending."; }
-          renderHead(); renderBody();
+          renderHead(); renderClusters(); renderBody();
         })
-        .catch(function () { DATA = []; renderHead(); renderBody(); });
+        .catch(function () { DATA = []; renderHead(); renderClusters(); renderBody(); });
       fetch("./reports/uoa_edge.json?t="+Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(renderEdge).catch(function () { renderEdge(null); });
