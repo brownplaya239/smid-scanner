@@ -517,6 +517,14 @@
         <div class="uoa-filter-row">
         <button class="uoa-preset" id="uoa-preset"
           title="Score 80+ - likely open - liquid A/B - $300k+ - sellers hidden">&#9733; High Conviction</button>
+        <select id="uoa-subpreset">
+          <option value="">Sub-presets&hellip;</option>
+          <option value="weeklies">Momentum weeklies (0-14d)</option>
+          <option value="swing">Swing flow (14-90d)</option>
+          <option value="earnings">Earnings flow</option>
+          <option value="leaps">LEAPS / positioning (365d+)</option>
+        </select>
+        <label class="grp-toggle"><input type="checkbox" id="uoa-group" /> Group by ticker</label>
         <button class="uoa-reset" id="uoa-reset">Reset filters</button>
         <label><input type="checkbox" id="uoa-golden" /> Golden</label>
         <label><input type="checkbox" id="uoa-otm" /> OTM only</label>
@@ -736,6 +744,12 @@
       { k:"volume", t:"Volume" }, { k:"vol_oi", t:"Vol/OI" }, { k:"liquidity", t:"Liq" },
       { k:"premium", t:"Premium" }, { k:"why", t:"Why Flagged" },
     ];
+    const GROUP_COLS = [
+      { k:"ticker", t:"Ticker" }, { k:"net", t:"Net Bias" }, { k:"n", t:"Signals" },
+      { k:"prem", t:"Total Premium" }, { k:"topExp", t:"Top Expiry" },
+      { k:"topStrk", t:"Top Strike" }, { k:"bestStr", t:"Best Contract" },
+      { k:"topScore", t:"Top Score" },
+    ];
     let DATA = [], sortKey = "trade_score", sortDir = -1;
     const $ = function (id) { return document.getElementById(id); };
     function fmtNum(n) {
@@ -840,14 +854,16 @@
           '<div class="es">'+oc.confirmed+' of '+oc.checked+
           ' positions stuck (OI retained next day)</div></div>');
       }
-      cards.push('<div class="ecard"><div class="et">Signals Tracked</div>'+
+      cards.push('<div class="ecard"><div class="et">Tracked History</div>'+
         '<div class="ev neutral">'+edge.total_signals+'</div>'+
-        '<div class="es">'+edge.matured_5d+' matured to +5d</div></div>');
+        '<div class="es">cumulative signals logged &middot; '+
+        edge.matured_5d+' matured to +5d</div></div>');
       el.innerHTML = cards.join("");
     }
 
     function renderHead() {
-      $("uoa-head").innerHTML = COLS.map(function (c) {
+      const cols = $("uoa-group").checked ? GROUP_COLS : COLS;
+      $("uoa-head").innerHTML = cols.map(function (c) {
         const arrow = c.k===sortKey ? (sortDir<0 ? " ▼" : " ▲") : "";
         return '<th data-k="'+c.k+'"'+(c.k===sortKey?' class="sorted"':'')+'>'+c.t+arrow+'</th>';
       }).join("");
@@ -858,6 +874,57 @@
           renderHead(); renderBody();
         };
       });
+    }
+    function renderGrouped() {
+      const tb = $("uoa-body");
+      const filtered = DATA.filter(passFilters);
+      if (!filtered.length) {
+        tb.innerHTML = '<tr><td colspan="8" class="uoa-empty">No flow matches these filters.</td></tr>';
+        return;
+      }
+      const by = {};
+      filtered.forEach(function (r) {
+        const g = by[r.ticker] || (by[r.ticker] = { ticker:r.ticker, n:0, prem:0,
+          bull:0, bear:0, exp:{}, strk:{}, best:null });
+        g.n++; g.prem += r.premium||0;
+        if (r.flow_side==="call_buyer" || r.flow_side==="put_seller") g.bull += r.premium||0;
+        else if (r.flow_side==="put_buyer" || r.flow_side==="call_seller") g.bear += r.premium||0;
+        if (r.expiry) g.exp[r.expiry] = (g.exp[r.expiry]||0) + (r.premium||0);
+        const sk = (r.type==="call"?"C":"P")+"$"+r.strike;
+        g.strk[sk] = (g.strk[sk]||0) + (r.premium||0);
+        if (!g.best || (r.trade_score||0) > (g.best.trade_score||0)) g.best = r;
+      });
+      function topKey(o) { let k="",v=-1; for (const x in o) if (o[x]>v){v=o[x];k=x;} return k; }
+      const groups = Object.keys(by).map(function (t) {
+        const g = by[t];
+        g.net = g.bull > g.bear*1.4 ? "BULLISH" : g.bear > g.bull*1.4 ? "BEARISH" : "MIXED";
+        g.topExp = topKey(g.exp); g.topStrk = topKey(g.strk);
+        g.topScore = g.best ? g.best.trade_score : 0;
+        g.bestStr = g.best ? ((g.best.type==="call"?"C ":"P ")+"$"+g.best.strike) : "-";
+        return g;
+      });
+      const gk = ["ticker","net","n","prem","topExp","topStrk","bestStr","topScore"]
+        .indexOf(sortKey) >= 0 ? sortKey : "prem";
+      groups.sort(function (a, b) {
+        let x=a[gk], y=b[gk];
+        if (typeof x==="string" || typeof y==="string") {
+          x=x||""; y=y||""; return sortDir*(x<y?-1:x>y?1:0);
+        }
+        return sortDir*((x||0) - (y||0));
+      });
+      tb.innerHTML = groups.map(function (g) {
+        const ncls = g.net==="BULLISH" ? "bias-bull" : g.net==="BEARISH" ? "bias-bear" : "bias-hedge";
+        return '<tr data-grp="'+g.ticker+'">'+
+          '<td><strong>'+g.ticker+'</strong></td>'+
+          '<td><span class="uoa-bias '+ncls+'">'+g.net+'</span></td>'+
+          '<td>'+g.n+'</td>'+
+          '<td class="'+(g.prem>=1e6?"uoa-prem-big":"")+'">$'+fmtNum(g.prem)+'</td>'+
+          '<td>'+(g.topExp||"-")+'</td>'+
+          '<td>'+(g.topStrk||"-")+'</td>'+
+          '<td>'+g.bestStr+'</td>'+
+          '<td><span class="uoa-score '+scoreCls(g.topScore)+'">'+g.topScore+'</span></td>'+
+        '</tr>';
+      }).join("");
     }
     function passFilters(r) {
       const q = $("uoa-q").value.trim().toUpperCase();
@@ -896,6 +963,7 @@
           '&mdash; scheduled runs at ~11:00 AM, 1:30 PM &amp; 3:45 PM ET will populate this.</td></tr>';
         return;
       }
+      if ($("uoa-group").checked) { renderGrouped(); return; }
       const rows = DATA.filter(passFilters).slice().sort(function (a, b) {
         let x = a[sortKey], y = b[sortKey];
         if (typeof x === "string" || typeof y === "string") {
@@ -950,7 +1018,7 @@
             DATA = d.rows || [];
             const dt = d.generated ? new Date(d.generated) : null;
             $("uoa-updated").textContent = dt
-              ? ("Updated "+dt.toLocaleString()+" — "+DATA.length+" flagged contracts")
+              ? ("Updated "+dt.toLocaleString()+"  ·  Live flagged: "+DATA.length)
               : "";
           } else { DATA = []; $("uoa-updated").textContent = "First scan pending."; }
           populateSectors();
@@ -1115,9 +1183,17 @@
     }
     function renderPerf() {
       const el = $("perf-body");
-      if (!EDGE || !EDGE.total_signals) {
-        el.innerHTML = '<div class="uoa-empty">Performance attribution builds as '+
-          'signals mature (~2 weeks of scans).</div>';
+      const matured = EDGE && EDGE.matured_5d;
+      if (!EDGE || !matured) {
+        let msg = "Performance attribution builds as signals mature.";
+        const dates = (SCORED||[]).map(function (s) { return s.flagged_at; })
+          .filter(Boolean).sort();
+        if (dates.length) {
+          const ready = new Date(new Date(dates[0]).getTime() + 7*864e5);
+          msg = "First +5d outcomes available after " + ready.toLocaleDateString() +
+            " — " + SCORED.length + " signals tracked so far, none matured to +5d yet.";
+        }
+        el.innerHTML = '<div class="uoa-empty">'+msg+'</div>';
         return;
       }
       const cards = [
@@ -1166,6 +1242,15 @@
           (r.be_distance_pct>0?"+":"")+r.be_distance_pct+"%":"&mdash;")+
         drow("Expected move (IV)", r.expected_move_pct!=null?
           "±"+r.expected_move_pct+"%":"&mdash;")+
+        drow("Current spot", r.spot!=null?"$"+r.spot:"&mdash;")+
+        drow("Invalidation (1&sigma; adverse)", (function () {
+          if (r.spot==null || r.expected_move_pct==null) return "&mdash;";
+          const lvl = r.type==="call"
+            ? r.spot*(1-r.expected_move_pct/100)
+            : r.spot*(1+r.expected_move_pct/100);
+          return "$"+lvl.toFixed(2)+
+            ' <span style="color:var(--muted);font-weight:400">heuristic</span>';
+        })())+
         drow("Implied vol", r.iv!=null?Math.round(r.iv*100)+"%":"&mdash;")+
         drow("Liquidity", '<span class="uoa-liq liq-'+(r.liquidity||"C").toLowerCase()+
           '">'+(r.liquidity||"C")+'</span>')+
@@ -1252,6 +1337,28 @@
     }
     $("uoa-reset").addEventListener("click", resetFilters);
 
+    $("uoa-group").addEventListener("change", function () {
+      sortKey = $("uoa-group").checked ? "prem" : "trade_score";
+      sortDir = -1;
+      renderHead(); renderBody();
+    });
+    $("uoa-subpreset").addEventListener("change", function () {
+      const v = this.value; this.value = "";
+      if (!v) return;
+      resetFilters();
+      if (v === "weeklies") {
+        $("uoa-dte").value = "urgent"; $("uoa-score").value = "65";
+        $("uoa-open").checked = true;
+      } else if (v === "swing") {
+        $("uoa-dte").value = "swing"; $("uoa-score").value = "65";
+      } else if (v === "earnings") {
+        $("uoa-ern").checked = true; $("uoa-score").value = "55";
+      } else if (v === "leaps") {
+        $("uoa-dte").value = "leaps"; $("uoa-score").value = "55";
+      }
+      renderBody();
+    });
+
     /* ── Why-flagged hover tooltip ── */
     (function () {
       const tip = $("uoa-tip");
@@ -1272,7 +1379,15 @@
 
     $("uoa-body").addEventListener("click", function (e) {
       const tr = e.target.closest("tr");
-      if (tr && tr.dataset.idx != null && shownRows[tr.dataset.idx])
+      if (!tr) return;
+      if (tr.dataset.grp) {                     // grouped row -> drill into ticker
+        $("uoa-q").value = tr.dataset.grp;
+        $("uoa-group").checked = false;
+        sortKey = "trade_score"; sortDir = -1;
+        renderHead(); renderBody();
+        return;
+      }
+      if (tr.dataset.idx != null && shownRows[tr.dataset.idx])
         openDetail(shownRows[tr.dataset.idx]);
     });
     document.addEventListener("keydown", function (e) {
