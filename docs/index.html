@@ -125,13 +125,15 @@
   .uoa-edge .es { font-size:10.5px; color:var(--muted); margin-top:3px; line-height:1.4; }
 
   .uoa-filters { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
-  .uoa-filter-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .uoa-filter-row { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
   .uoa-filters input[type=text], .uoa-filters select {
     background:#0a1024; border:1px solid #2a3a6e; border-radius:6px; color:#fff;
-    font-size:12.5px; padding:8px 10px; font-family:inherit; outline:none;
+    font-size:11.5px; padding:6px 8px; font-family:inherit; outline:none;
   }
   .uoa-filters input[type=text]:focus, .uoa-filters select:focus { border-color:var(--gold); }
-  .uoa-filters label { font-size:12px; color:#cdd6ee; display:flex; align-items:center; gap:5px; }
+  .uoa-filters input[type=text] { flex:0 0 120px; width:120px; }
+  .uoa-filters select { max-width:150px; }
+  .uoa-filters label { font-size:11px; color:#cdd6ee; display:flex; align-items:center; gap:5px; }
 
   .uoa-table-wrap { max-height:70vh; overflow:auto;
     border:1px solid var(--line); border-radius:8px; }
@@ -271,12 +273,12 @@
 
   /* ── UOA Batch 1/4 — preset, bias pills, chips, cluster cols, toggles ── */
   .uoa-preset { background:var(--gold); color:var(--navy); border:0; border-radius:6px;
-    font-family:inherit; font-size:12px; font-weight:700; padding:8px 12px; cursor:pointer; }
+    font-family:inherit; font-size:11.5px; font-weight:700; padding:6px 10px; cursor:pointer; }
   .uoa-preset:hover { filter:brightness(1.08); }
-  .uoa-reset { background:none; border:1px solid var(--line); color:#cdd6ee;
-    border-radius:6px; font-family:inherit; font-size:12px; font-weight:600;
-    padding:7px 12px; cursor:pointer; }
-  .uoa-reset:hover { border-color:var(--gold); color:#fff; }
+  .uoa-reset { background:#c0392b; border:0; color:#fff; margin-left:auto;
+    border-radius:6px; font-family:inherit; font-size:11.5px; font-weight:700;
+    padding:6px 14px; cursor:pointer; }
+  .uoa-reset:hover { filter:brightness(1.12); }
 
   .uoa-bias { display:inline-block; font-size:9px; font-weight:700;
     border-radius:4px; padding:2px 6px; white-space:nowrap; }
@@ -302,8 +304,8 @@
   .dbtn:hover { border-color:var(--gold); color:#fff; }
 
   /* pill-toggle filter checkboxes */
-  .uoa-filters label { border:1px solid #2a3a6e; border-radius:13px;
-    padding:6px 11px; cursor:pointer; }
+  .uoa-filters label { border:1px solid #2a3a6e; border-radius:12px;
+    padding:4px 7px; cursor:pointer; white-space:nowrap; }
   .uoa-filters label:hover { border-color:#3f5290; }
   .uoa-filters label:has(input:checked) {
     background:var(--gold); color:var(--navy); border-color:var(--gold); }
@@ -482,35 +484,35 @@
         </select>
         <select id="uoa-side">
           <option value="">Any side</option>
-          <option value="ask">Ask-side (buyers)</option>
-          <option value="bid">Bid-side (sellers)</option>
+          <option value="ask">Ask (buy)</option>
+          <option value="bid">Bid (sell)</option>
         </select>
         <select id="uoa-dte">
           <option value="">Any DTE</option>
-          <option value="urgent">Urgent 0-14d</option>
-          <option value="swing">Swing 14-90d</option>
-          <option value="positioning">Positioning 90-365d</option>
-          <option value="leaps">LEAPS 365d+</option>
+          <option value="urgent">0-14d</option>
+          <option value="swing">14-90d</option>
+          <option value="positioning">90-365d</option>
+          <option value="leaps">365d+</option>
         </select>
         <select id="uoa-cap">
           <option value="">Any cap</option>
-          <option value="mega">Mega ($200B+)</option>
-          <option value="large">Large ($10-200B)</option>
-          <option value="mid">Mid ($2-10B)</option>
-          <option value="small">Small (&lt;$2B)</option>
+          <option value="mega">Mega</option>
+          <option value="large">Large</option>
+          <option value="mid">Mid</option>
+          <option value="small">Small</option>
         </select>
         <select id="uoa-sector"><option value="">Any sector</option></select>
         <select id="uoa-score">
           <option value="0">Any score</option>
-          <option value="80">Score 80+</option>
-          <option value="65">Score 65+</option>
-          <option value="55">Score 55+</option>
+          <option value="80">80+</option>
+          <option value="65">65+</option>
+          <option value="55">55+</option>
         </select>
         <select id="uoa-prem">
           <option value="0">Any premium</option>
-          <option value="100000">$100k+ (live)</option>
-          <option value="300000">$300k+ (clean)</option>
-          <option value="500000">$500k+ (high conv.)</option>
+          <option value="100000">$100k+</option>
+          <option value="300000">$300k+</option>
+          <option value="500000">$500k+</option>
           <option value="1000000">$1M+</option>
         </select>
         </div>
@@ -518,22 +520,22 @@
         <button class="uoa-preset" id="uoa-preset"
           title="Score 80+ - likely open - liquid A/B - $300k+ - sellers hidden">&#9733; High Conviction</button>
         <select id="uoa-subpreset">
-          <option value="">Sub-presets&hellip;</option>
-          <option value="weeklies">Momentum weeklies (0-14d)</option>
-          <option value="swing">Swing flow (14-90d)</option>
+          <option value="">Sub-preset&hellip;</option>
+          <option value="weeklies">Weeklies (0-14d)</option>
+          <option value="swing">Swing (14-90d)</option>
           <option value="earnings">Earnings flow</option>
-          <option value="leaps">LEAPS / positioning (365d+)</option>
+          <option value="leaps">LEAPS (365d+)</option>
         </select>
         <label class="grp-toggle"><input type="checkbox" id="uoa-group" /> Group by ticker</label>
-        <button class="uoa-reset" id="uoa-reset">Reset filters</button>
         <label><input type="checkbox" id="uoa-golden" /> Golden</label>
-        <label><input type="checkbox" id="uoa-otm" /> OTM only</label>
-        <label><input type="checkbox" id="uoa-open" /> Likely open</label>
-        <label><input type="checkbox" id="uoa-liqab" /> Liquid (A-B)</label>
-        <label><input type="checkbox" id="uoa-repeat" /> Repeat flow</label>
-        <label><input type="checkbox" id="uoa-ern" /> Into earnings</label>
-        <label><input type="checkbox" id="uoa-noseller" /> Hide sellers</label>
-        <label><input type="checkbox" id="uoa-univ" /> My universe</label>
+        <label><input type="checkbox" id="uoa-otm" /> OTM</label>
+        <label><input type="checkbox" id="uoa-open" /> Open</label>
+        <label><input type="checkbox" id="uoa-liqab" /> Liquid</label>
+        <label><input type="checkbox" id="uoa-repeat" /> Repeat</label>
+        <label><input type="checkbox" id="uoa-ern" /> Earnings</label>
+        <label><input type="checkbox" id="uoa-noseller" /> No sellers</label>
+        <label><input type="checkbox" id="uoa-univ" /> Universe</label>
+        <button class="uoa-reset" id="uoa-reset">Reset</button>
         </div>
       </div>
 
