@@ -315,7 +315,8 @@ def _emit_scored(scored):
     """Per-signal scorecard JSON for the dashboard's Tracked-Signals view."""
     rows = []
     for s in scored:
-        r5 = (s.get("returns") or {}).get(5) or {}
+        ret = s.get("returns") or {}
+        r1, r3, r5 = ret.get(1) or {}, ret.get(3) or {}, ret.get(5) or {}
         exc = s.get("excursion") or {}
         oi  = s.get("oi") or {}
         rows.append({
@@ -328,6 +329,8 @@ def _emit_scored(scored):
             "premium":      s.get("premium"),
             "dte":          s.get("dte"),
             "tags":         s.get("tags", []),
+            "ret_1d":       r1.get("ret"),
+            "ret_3d":       r3.get("ret"),
             "ret_5d":       r5.get("ret"),
             "excess_5d":    r5.get("excess"),
             "mfe":          exc.get("mfe"),

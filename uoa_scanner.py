@@ -139,34 +139,41 @@ def _premium_tier(premium):
     return "live"
 
 
-def _tier(score, golden):
-    """Same-day CONVICTION tier (A+/A/B/C). Distinct from next-day OI
-    confirmation (uoa_alpha) — this rates the flow's quality as flagged."""
-    if score >= 88 or (golden and score >= 80):
+def _tier(score, golden=False):
+    """Same-day CONVICTION tier (A+/A/B/C) from the recalibrated Trade Score.
+    Thresholds calibrated so A+ is genuinely rare flow, not routine mega-cap
+    prints. Distinct from next-day OI confirmation (uoa_alpha)."""
+    if score >= 90:
         return "A+"
-    if score >= 75:
+    if score >= 76:
         return "A"
-    if score >= 60:
+    if score >= 58:
         return "B"
     return "C"
 
 
-def _sentiment(ctype, side):
-    """Directional read from option type + aggressor side:
-    bullish (ask calls) / bearish (ask puts) / seller (premium selling on
-    the bid) / mixed (no clear side). Approximate until the quotes
-    entitlement makes side classification exact."""
+def _bias(ctype, side):
+    """Two-axis bias read — who did what, and what it implies.
+
+      flow_side : call_buyer / put_buyer / call_seller / put_seller /
+                  mixed / unknown
+      direction : bullish / bearish / income / hedge
+
+    A call BUYER is bullish; a call SELLER is selling premium (income, not a
+    directional bet). Approximate until the quotes entitlement makes the
+    aggressor-side classification exact."""
     if (side or {}).get("method", "none") == "none":
-        return "mixed"
+        return "unknown", "hedge"
     ask = side.get("ask_pct", 0)
     bid = side.get("bid_pct", 0)
     if ctype == "call":
-        if ask >= 55: return "bullish"
-        if bid >= 55: return "seller"
+        if ask >= 55: return "call_buyer",  "bullish"
+        if bid >= 55: return "call_seller", "income"
+        return "mixed", "hedge"
     else:                                  # put
-        if ask >= 55: return "bearish"
-        if bid >= 55: return "seller"
-    return "mixed"
+        if ask >= 55: return "put_buyer",  "bearish"
+        if bid >= 55: return "put_seller", "income"
+        return "mixed", "hedge"
 
 
 def _why(row, flow):
@@ -470,48 +477,56 @@ def is_golden_sweep(row, flow):
 
 # ─── Trade Score ──────────────────────────────────────────────────────────────
 
-def trade_score(row, flow, in_universe):
-    """0-100 trade-worthiness. Flow conviction (45) + directional clarity
-    (25) + underlying confluence (20) + structure (10)."""
+def trade_score(row, flow):
+    """0-100 trade-worthiness. Seven capped components + quality penalties,
+    recalibrated so 90+ is genuinely RARE flow — not just a big mega-cap
+    print. Components (max): premium 20 | vol/OI 20 | opening 15 | repeat 15
+    | liquidity 10 | catalyst 10 | directional 10.
+
+    Requires row to already carry opening / liquidity / direction / flow_side."""
     import math
-    score = 0.0
 
-    # Flow conviction — premium (log-scaled), sweeps, vol/OI
-    prem = max(row["premium"], flow["sweep_premium"], flow["biggest_print"])
-    score += min(25, 25 * math.log10(max(prem, 1) / 50_000) / math.log10(40))
-    score += min(12, flow["sweeps"] * 4)
-    score += min(8, (row["vol_oi"] - 2) * 1.5)
+    # Premium (0-20) — log-scaled on the biggest of aggregate / sweep / print
+    prem = max(row.get("premium", 0), flow.get("sweep_premium", 0),
+               flow.get("biggest_print", 0))
+    premium_pts = max(0, min(20, 20 * math.log10(max(prem, 1) / 100_000) / math.log10(50)))
 
-    # Directional clarity — OTM with sane DTE
-    if row.get("pct_otm") is not None and 0 < row["pct_otm"] < 25:
-        score += 14
-    if row["dte"] is not None and 7 <= row["dte"] <= 60:
-        score += 11
+    # Vol/OI (0-20) — capped log curve so huge mega-cap ratios don't re-saturate
+    voi = row.get("vol_oi", 0) or 0
+    voi_pts = max(0, min(20, 20 * math.log10(max(voi, 1)) / math.log10(12)))
 
-    # Underlying confluence — in the scanner universe (hybrid boost)
-    if in_universe:
-        score += 12
-    # aggressor agreement: ask-side calls / bid-side puts = conviction
-    side = flow["side"]
-    if side["method"] != "none":
-        lean = side["ask_pct"] if row["type"] == "call" else side["bid_pct"]
-        score += min(8, lean / 12.5)
+    # Opening likelihood (0-15) — new positions, not closing
+    opening = row.get("opening", "mixed")
+    open_pts = 15 if opening == "likely_open" else 6 if opening == "mixed" else 0
 
-    # Structure — block confirmation
-    if flow["blocks"] > 0:
-        score += 10
+    # Repeat / aggregated flow (0-15) — a campaign beats a one-off
+    repeat_pts = min(15, row.get("repeat_count", 0) * 7)
 
-    # Catalyst — flow positioned into an earnings window
+    # Liquidity (0-10) — is the contract actually followable
+    liq = row.get("liquidity", "C")
+    liq_pts = {"A": 10, "B": 7, "C": 4, "D": 0}.get(liq, 4)
+
+    # Catalyst (0-10) — flow positioned into an earnings window
     ed = row.get("earnings_days")
-    if ed is not None and 0 <= ed <= EARNINGS_WINDOW:
-        score += 6
+    cat_pts = 10 if (ed is not None and 0 <= ed <= EARNINGS_WINDOW) else 0
 
-    # Repeat / aggregated flow — a campaign reads stronger than a one-off
-    rc = row.get("repeat_count", 0)
-    if rc > 0:
-        score += min(8, rc * 4)
+    # Directional alignment (0-10) — clean buy-side conviction
+    direction = row.get("direction", "hedge")
+    dir_pts = 10 if direction in ("bullish", "bearish") else 4 if direction == "income" else 0
 
-    return round(min(100, max(0, score)))
+    base = (premium_pts + voi_pts + open_pts + repeat_pts +
+            liq_pts + cat_pts + dir_pts)
+
+    # Penalties — keep low-quality flow out of the top tier
+    penalty = 0
+    if liq == "D":                                  penalty += 5    # illiquid
+    if direction == "hedge":                        penalty += 5    # mixed / ambiguous
+    otm = row.get("pct_otm")
+    if otm is not None and otm > 25:                penalty += 5    # deep-OTM lotto
+    if row.get("flow_side") in ("call_seller", "put_seller"):
+        penalty += 4                                                # premium sale, not a buy
+
+    return round(max(0, min(100, base - penalty)))
 
 
 def _load_repeat_map(lookback_days=REPEAT_LOOKBACK_DAYS):
@@ -603,7 +618,22 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
             row["size_gt_oi"]   = flow["max_sweep_size"] > (row["open_interest"] or 0)
             row["repeat_count"] = repeat_map.get(row["contract"], 0)
             row["earnings_days"] = earnings_map.get(row["underlying"])
-            row["trade_score"]  = trade_score(row, flow, row["in_universe"])
+            # bias / opening / liquidity / trade-plan — all are score inputs,
+            # so they must be computed BEFORE trade_score()
+            row["flow_side"], row["direction"] = _bias(row["type"], flow.get("side"))
+            row["opening"]   = _opening(row)
+            sp, lg = _liquidity(row)
+            row["spread_pct"] = sp
+            row["liquidity"]  = lg
+            be, bd, em, cat = _trade_plan(row)
+            row["break_even"]        = be
+            row["be_distance_pct"]   = bd
+            row["expected_move_pct"] = em
+            row["catalyst"]          = cat
+            # score + tier
+            row["trade_score"] = trade_score(row, flow)
+            row["tier"]        = _tier(row["trade_score"], row["golden"])
+            # tags + plain-language thesis
             tags = []
             if row["golden"]:            tags.append("Golden Sweep")
             elif flow["sweeps"] > 0:     tags.append("Sweep")
@@ -615,20 +645,7 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
                 tags.append("Into ERN")
             if row["in_universe"]:       tags.append("In Universe")
             row["tags"] = tags
-            # interpretation layer
-            row["tier"]      = _tier(row["trade_score"], row["golden"])
-            row["sentiment"] = _sentiment(row["type"], flow.get("side"))
-            row["why"]       = _why(row, flow)
-            # opening likelihood + liquidity + trade-plan context
-            row["opening"]   = _opening(row)
-            sp, lg = _liquidity(row)
-            row["spread_pct"] = sp
-            row["liquidity"]  = lg
-            be, bd, em, cat = _trade_plan(row)
-            row["break_even"]        = be
-            row["be_distance_pct"]   = bd
-            row["expected_move_pct"] = em
-            row["catalyst"]          = cat
+            row["why"]  = _why(row, flow)
             return row
         except Exception as e:
             print(f"  flow analysis failed for {row.get('contract')}: {e}")
@@ -665,6 +682,11 @@ def append_ledger(rows, min_score=55):
                 "trade_score": r["trade_score"],
                 "premium":     r["premium"],
                 "dte":         r["dte"],
+                "type":        r["type"],
+                "flow_side":   r.get("flow_side", "unknown"),
+                "direction":   r.get("direction", "hedge"),
+                "opening":     r.get("opening", "mixed"),
+                "liquidity":   r.get("liquidity", "C"),
                 "volume":      r["volume"],          # flag-day contract volume
                 "open_interest": r["open_interest"], # flag-day OI — baseline for
                                                      # next-day OI-retention check
@@ -713,7 +735,8 @@ def emit_latest(rows):
             "in_universe":   r["in_universe"],
             "trade_score":   r["trade_score"],
             "tier":          r.get("tier", "C"),
-            "sentiment":     r.get("sentiment", "mixed"),
+            "flow_side":     r.get("flow_side", "unknown"),
+            "direction":     r.get("direction", "hedge"),
             "why":           r.get("why", ""),
             "opening":       r.get("opening", "mixed"),
             "liquidity":     r.get("liquidity", "C"),
