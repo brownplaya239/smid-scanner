@@ -35,6 +35,8 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
+import polygon_data
+
 IWM_MODE              = "--iwm" in sys.argv
 
 ANTHROPIC_API_KEY     = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -148,12 +150,35 @@ def load_iwm_universe(top_n=500):
 
 # ─── Data + VCP scoring ───────────────────────────────────────────────────────
 
+def _history_df(ticker, days=200, min_bars=50):
+    """Daily OHLCV as a yfinance-shaped DataFrame (Open/High/Low/Close/Volume,
+    indexed by date). Polygon is the primary feed — reliable from CI where
+    yfinance's scraper rate-limits; yfinance is the automatic fallback.
+    Returns None on failure."""
+    if polygon_data.available():
+        bars = polygon_data.daily_bars(ticker, days=days)
+        if bars and len(bars) >= min_bars:
+            idx = pd.to_datetime([b["t"] for b in bars], unit="ms")
+            return pd.DataFrame({
+                "Open":   [b.get("o") for b in bars],
+                "High":   [b.get("h") for b in bars],
+                "Low":    [b.get("l") for b in bars],
+                "Close":  [b.get("c") for b in bars],
+                "Volume": [b.get("v") for b in bars],
+            }, index=idx)
+    try:
+        df = yf.Ticker(ticker).history(period=f"{days}d", interval="1d")
+        return df if df is not None and not df.empty else None
+    except Exception:
+        return None
+
+
 def fetch_setup_data(tickers):
     """Returns list of candidates with VCP metrics. No green-on-day or vol requirements."""
     spy_ret = 0.0
     spy_hist = None
     try:
-        spy_hist = yf.Ticker("SPY").history(period="200d", interval="1d")
+        spy_hist = _history_df("SPY")
         spy_ret  = (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-63] - 1) * 100
     except Exception:
         pass
@@ -164,8 +189,8 @@ def fetch_setup_data(tickers):
         try:
             t    = yf.Ticker(ticker)
             info = t.info
-            hist = t.history(period="200d", interval="1d")
-            if hist.empty or len(hist) < 50:
+            hist = _history_df(ticker)
+            if hist is None or hist.empty or len(hist) < 50:
                 continue
 
             price    = hist["Close"].iloc[-1]
@@ -1062,7 +1087,7 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         hist = (hist_cache or {}).get(ticker)
         if hist is None or hist.empty:
             try:
-                hist = yf.Ticker(ticker).history(period="200d", interval="1d")
+                hist = _history_df(ticker)
             except Exception:
                 hist = None
 
