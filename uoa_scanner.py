@@ -40,9 +40,13 @@ UNIVERSE_MIN_DOLLAR_VOL = 25_000_000   # underlying liquidity floor
 MIN_VOL_OI        = 2.0       # day volume / open interest — new positions
 MIN_DAY_VOLUME    = 500       # contracts — liquidity floor
 MIN_OPEN_INTEREST = 50        # avoid divide-by-tiny noise
-MIN_PREMIUM       = 50_000    # $ aggregate day premium — filters retail lottos
+MIN_PREMIUM       = 100_000   # $ aggregate day premium — "live" floor
 MIN_DTE           = 2         # skip expiry-day noise
-MAX_DTE           = 400
+MAX_DTE           = 730       # include LEAPS (365+)
+DEEP_ITM_PCT      = -15.0     # exclude contracts this far in-the-money (noise)
+
+PREMIUM_CLEAN     = 300_000   # $ — "clean signal" tier
+PREMIUM_HIGH      = 500_000   # $ — "high conviction" tier
 
 SWEEP_WINDOW_NS   = 2_000_000_000   # 2s — trades of one parent order
 SWEEP_MIN_EXCH    = 2               # distinct exchanges = a sweep
@@ -51,6 +55,24 @@ BLOCK_MIN_PREMIUM = 100_000         # $ — single large print = a block
 
 GOLDEN_PREMIUM    = 1_000_000       # $ — Golden Sweep premium floor
 GOLDEN_MAX_DTE    = 30
+EARNINGS_WINDOW   = 10              # flag flow into earnings within N days
+REPEAT_LOOKBACK_DAYS = 5            # ledger window for repeat-flow detection
+
+# Major ETF / index products — excluded. Hedging vehicles, not directional
+# single-name smart-money flow (your spec: single-name equities preferred).
+EXCLUDE_ETFS = {
+    "SPY","QQQ","DIA","IWM","VOO","VTI","RSP","MDY","VXX","UVXY","SVXY","VIXY",
+    "XLK","XLF","XLE","XLV","XLI","XLY","XLP","XLU","XLB","XLC","XLRE",
+    "TQQQ","SQQQ","SOXL","SOXS","TNA","TZA","SPXL","SPXS","UPRO","SPXU","SDOW",
+    "UDOW","TMF","TMV","LABU","LABD","FAS","FAZ","YINN","YANG","NUGT","DUST",
+    "TLT","IEF","SHY","HYG","LQD","AGG","BND","TIP","MUB","BIL",
+    "GLD","SLV","USO","UNG","GDX","GDXJ","IAU","DBC","CPER",
+    "EEM","EFA","FXI","EWZ","VEA","VWO","INDA","EWJ","EWT","EWY",
+    "ARKK","ARKG","ARKW","SMH","SOXX","IGV","XBI","IBB","KRE","KBE",
+    "ITB","XHB","XOP","OIH","XME","JETS","TAN","ICLN","HACK","BOTZ",
+    "SCHD","DGRO","VYM","JEPI","JEPQ","QYLD","VIG","VT","ACWI","EFV",
+    "BITO","IBIT","FBTC","GBTC","ETHE","KWEB","FXY","UUP","FXE",
+}
 
 
 # ─── Universe ─────────────────────────────────────────────────────────────────
@@ -74,7 +96,7 @@ def build_universe(min_dollar_vol=UNIVERSE_MIN_DOLLAR_VOL, ref_date=None):
     grouped = pg.grouped_daily(ref_date)
     universe = []
     for tk, bar in grouped.items():
-        if "." in tk or len(tk) > 5:
+        if "." in tk or len(tk) > 5 or tk in EXCLUDE_ETFS:
             continue
         dollar_vol = (bar.get("c", 0) or 0) * (bar.get("v", 0) or 0)
         if dollar_vol >= min_dollar_vol:
@@ -99,6 +121,22 @@ def _dte(expiration):
         return (exp - datetime.now(timezone.utc).date()).days
     except Exception:
         return None
+
+
+def _dte_bucket(dte):
+    """Group days-to-expiry into trader-meaningful buckets."""
+    if dte is None:  return "unknown"
+    if dte <= 14:    return "urgent"        # 0-14   urgent / speculative
+    if dte <= 90:    return "swing"         # 14-90  swing flow
+    if dte <= 365:   return "positioning"   # 90-365 institutional positioning
+    return "leaps"                          # 365+   LEAPS / high-conviction
+
+
+def _premium_tier(premium):
+    """Premium conviction tier — live / clean / high."""
+    if premium >= PREMIUM_HIGH:   return "high"
+    if premium >= PREMIUM_CLEAN:  return "clean"
+    return "live"
 
 
 def screen_snapshot(underlying):
@@ -141,6 +179,10 @@ def screen_snapshot(underlying):
             elif ctype == "put":
                 pct_otm = round((1 - strike / spot) * 100, 1)
 
+        # exclude deep in-the-money noise
+        if pct_otm is not None and pct_otm < DEEP_ITM_PCT:
+            continue
+
         flagged.append({
             "underlying": underlying,
             "contract":   det.get("ticker", ""),
@@ -148,12 +190,15 @@ def screen_snapshot(underlying):
             "strike":     strike,
             "expiry":     exp,
             "dte":        dte,
+            "dte_bucket": _dte_bucket(dte),
             "spot":       round(spot, 2) if spot else None,
             "pct_otm":    pct_otm,
+            "is_otm":     (pct_otm is not None and pct_otm >= 0),
             "volume":     vol,
             "open_interest": oi,
             "vol_oi":     round(vol_oi, 2),
             "premium":    round(premium),
+            "premium_tier": _premium_tier(premium),
             "iv":         c.get("implied_volatility"),
             "px":         round(px, 2),
             "_bid":       lq.get("bid"),
@@ -274,13 +319,15 @@ def analyze_flow(row):
     for t in trades:
         biggest = max(biggest, (t.get("price", 0) or 0) * (t.get("size", 0) or 0) * 100)
     sweep_prem = sum(s["premium"] for s in sweeps)
+    max_sweep_size = max((s["size"] for s in sweeps), default=0)
     return {
-        "trade_count":   len(trades),
-        "sweeps":        len(sweeps),
-        "sweep_premium": round(sweep_prem),
-        "blocks":        len(blocks),
-        "biggest_print": round(biggest),
-        "side":          side,
+        "trade_count":    len(trades),
+        "sweeps":         len(sweeps),
+        "sweep_premium":  round(sweep_prem),
+        "blocks":         len(blocks),
+        "biggest_print":  round(biggest),
+        "max_sweep_size": max_sweep_size,
+        "side":           side,
     }
 
 
@@ -332,16 +379,77 @@ def trade_score(row, flow, in_universe):
     if flow["blocks"] > 0:
         score += 10
 
+    # Catalyst — flow positioned into an earnings window
+    ed = row.get("earnings_days")
+    if ed is not None and 0 <= ed <= EARNINGS_WINDOW:
+        score += 6
+
+    # Repeat / aggregated flow — a campaign reads stronger than a one-off
+    rc = row.get("repeat_count", 0)
+    if rc > 0:
+        score += min(8, rc * 4)
+
     return round(min(100, max(0, score)))
+
+
+def _load_repeat_map(lookback_days=REPEAT_LOOKBACK_DAYS):
+    """Count recent ledger appearances per contract — repeat flow = a campaign."""
+    from collections import Counter
+    counts = Counter()
+    if not os.path.exists(LEDGER_PATH):
+        return counts
+    cutoff = datetime.now(timezone.utc).date().toordinal() - lookback_days
+    try:
+        with open(LEDGER_PATH, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                    d = datetime.strptime(rec["flagged_at"][:10], "%Y-%m-%d").date()
+                    if d.toordinal() >= cutoff:
+                        counts[rec.get("contract", "")] += 1
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return counts
+
+
+def _earnings_days(ticker):
+    """Calendar days until the next earnings date (yfinance calendar — the
+    fixed date/datetime parse). None if unavailable."""
+    try:
+        import yfinance as yf
+        from datetime import date as _date
+        cal = yf.Ticker(ticker).calendar
+        dates = cal.get("Earnings Date", []) if isinstance(cal, dict) else []
+        if not dates:
+            return None
+        ed = dates[0]
+        if isinstance(ed, datetime):
+            ed = ed.date()
+        elif not isinstance(ed, _date):
+            return None
+        return (ed - datetime.now(timezone.utc).date()).days
+    except Exception:
+        return None
 
 
 # ─── Orchestration ────────────────────────────────────────────────────────────
 
-def scan(universe=None, boost=None, max_underlyings=None, workers=10):
+def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, workers=10):
     """Run the full UOA screen. Returns ranked rows (highest Trade Score first)."""
     if universe is None:
         universe, boost = build_universe()
     boost = boost or set()
+    if large_caps is None:
+        try:
+            import momentum_scanner as ms
+            large_caps = set(ms.LARGE_CAPS)
+        except Exception:
+            large_caps = set()
     if max_underlyings:
         universe = universe[:max_underlyings]
 
@@ -352,19 +460,37 @@ def scan(universe=None, boost=None, max_underlyings=None, workers=10):
             flagged.extend(hits)
     print(f"  Snapshot flagged {len(flagged)} unusual contracts")
 
+    # Repeat-flow map (recent ledger) + earnings dates for the flagged shortlist
+    repeat_map = _load_repeat_map()
+    uniq = sorted({r["underlying"] for r in flagged})
+    print(f"  Fetching earnings dates for {len(uniq)} underlyings...")
+    earnings_map = {}
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for tk, ed in ex.map(lambda t: (t, _earnings_days(t)), uniq):
+            earnings_map[tk] = ed
+
     print(f"  Trade-tape analysis on {len(flagged)} contracts...")
     rows = []
     def _enrich(row):
         try:
             flow = analyze_flow(row)
-            row["flow"]    = flow
-            row["golden"]  = is_golden_sweep(row, flow)
-            row["in_universe"] = row["underlying"] in boost
-            row["trade_score"] = trade_score(row, flow, row["in_universe"])
+            row["flow"]         = flow
+            row["golden"]       = is_golden_sweep(row, flow)
+            row["in_universe"]  = row["underlying"] in boost
+            row["cap_class"]    = "large" if row["underlying"] in large_caps else "smid"
+            row["size_gt_oi"]   = flow["max_sweep_size"] > (row["open_interest"] or 0)
+            row["repeat_count"] = repeat_map.get(row["contract"], 0)
+            row["earnings_days"] = earnings_map.get(row["underlying"])
+            row["trade_score"]  = trade_score(row, flow, row["in_universe"])
             tags = []
             if row["golden"]:            tags.append("Golden Sweep")
             elif flow["sweeps"] > 0:     tags.append("Sweep")
             if flow["blocks"] > 0:       tags.append("Block")
+            if row["size_gt_oi"]:        tags.append("Size>OI")
+            if row["repeat_count"] > 0:  tags.append("Repeat")
+            ed = row["earnings_days"]
+            if ed is not None and 0 <= ed <= EARNINGS_WINDOW:
+                tags.append("Into ERN")
             if row["in_universe"]:       tags.append("In Universe")
             row["tags"] = tags
             return row
@@ -403,6 +529,9 @@ def append_ledger(rows, min_score=55):
                 "trade_score": r["trade_score"],
                 "premium":     r["premium"],
                 "dte":         r["dte"],
+                "volume":      r["volume"],          # flag-day contract volume
+                "open_interest": r["open_interest"], # flag-day OI — baseline for
+                                                     # next-day OI-retention check
                 "tags":        r["tags"],
             }) + "\n")
             n += 1
@@ -423,18 +552,26 @@ def emit_latest(rows):
             "strike":        r["strike"],
             "expiry":        r["expiry"],
             "dte":           r["dte"],
+            "dte_bucket":    r.get("dte_bucket", "unknown"),
             "spot":          r["spot"],
             "pct_otm":       r.get("pct_otm"),
+            "is_otm":        r.get("is_otm", False),
             "volume":        r["volume"],
             "open_interest": r["open_interest"],
             "vol_oi":        r["vol_oi"],
             "premium":       r["premium"],
+            "premium_tier":  r.get("premium_tier", "live"),
+            "cap_class":     r.get("cap_class", "smid"),
             "iv":            r.get("iv"),
             "sweeps":        flow.get("sweeps", 0),
             "blocks":        flow.get("blocks", 0),
             "sweep_premium": flow.get("sweep_premium", 0),
             "biggest_print": flow.get("biggest_print", 0),
+            "size_gt_oi":    r.get("size_gt_oi", False),
+            "repeat_count":  r.get("repeat_count", 0),
+            "earnings_days": r.get("earnings_days"),
             "ask_pct":       side.get("ask_pct", 0),
+            "bid_pct":       side.get("bid_pct", 0),
             "side_method":   side.get("method", "none"),
             "golden":        r["golden"],
             "in_universe":   r["in_universe"],

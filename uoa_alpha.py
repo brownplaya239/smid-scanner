@@ -116,6 +116,55 @@ def _group(scored):
     return {str(h): _agg(rets, h) for h in HORIZONS}
 
 
+def _oi_now(ticker):
+    """{contract_ticker: open_interest} from the current option chain."""
+    out = {}
+    for c in pg.option_chain(ticker):
+        ct = (c.get("details", {}) or {}).get("ticker")
+        if ct:
+            out[ct] = c.get("open_interest", 0) or 0
+    return out
+
+
+def oi_confirmation(ledger):
+    """Next-day OI-retention check — the second provable-alpha axis.
+
+    A signal flagged on day D recorded the contract's flag-day OI and volume.
+    Once a day has passed, pull the contract's current OI: if it rose by more
+    than half the flag-day volume, the flow opened NEW positions that STUCK
+    (not day-traded out) — the position is real. Returns a confirm rate."""
+    today = datetime.now(timezone.utc).date()
+    pending = []
+    for s in ledger:
+        if s.get("open_interest") is None or s.get("volume") is None:
+            continue                      # pre-v2 signal — no baseline
+        try:
+            fd = datetime.strptime(s["flagged_at"][:10], "%Y-%m-%d").date()
+        except Exception:
+            continue
+        if (today - fd).days >= 1:
+            pending.append(s)
+    if not pending:
+        return {"checked": 0, "confirmed": 0, "confirm_rate": None}
+
+    oi_cache, confirmed, checked = {}, 0, 0
+    for s in pending:
+        tk = s["ticker"]
+        if tk not in oi_cache:
+            oi_cache[tk] = _oi_now(tk)
+        cur = oi_cache[tk].get(s["contract"])
+        if cur is None:
+            continue                      # contract expired / not found
+        checked += 1
+        if cur - s["open_interest"] > 0.5 * s["volume"]:
+            confirmed += 1
+    return {
+        "checked":      checked,
+        "confirmed":    confirmed,
+        "confirm_rate": round(100 * confirmed / checked) if checked else None,
+    }
+
+
 def compute_edge():
     """Score the whole ledger and aggregate the realized edge."""
     ledger = load_ledger()
@@ -155,6 +204,7 @@ def compute_edge():
         "overall":       _group(scored),
         "by_type":       by_type,
         "by_score":      by_score,
+        "oi_confirmation": oi_confirmation(ledger),
     }
     return edge
 
@@ -168,6 +218,7 @@ def _empty_edge():
         "overall":       {str(h): _agg([], h) for h in HORIZONS},
         "by_type":       {},
         "by_score":      {},
+        "oi_confirmation": {"checked": 0, "confirmed": 0, "confirm_rate": None},
     }
 
 

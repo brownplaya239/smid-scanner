@@ -157,6 +157,10 @@
   .b-golden { background:var(--gold); color:var(--navy); }
   .b-block  { background:#2d5fa8; color:#fff; }
   .b-univ   { border:1px solid var(--gold); color:var(--gold); }
+  .b-sweep  { background:#33405e; color:#cdd6ee; }
+  .b-size   { background:#5a3d8a; color:#fff; }
+  .b-repeat { background:#1d6b3a; color:#eafff0; }
+  .b-ern    { background:#a8442d; color:#fff; }
   .uoa-prem-big { font-weight:700; color:var(--gold); }
   .uoa-empty { padding:30px; text-align:center; color:var(--muted); font-size:13px; }
 
@@ -315,6 +319,18 @@
           <option value="call">Calls only</option>
           <option value="put">Puts only</option>
         </select>
+        <select id="uoa-side">
+          <option value="">Any side</option>
+          <option value="ask">Ask-side (buyers)</option>
+          <option value="bid">Bid-side (sellers)</option>
+        </select>
+        <select id="uoa-dte">
+          <option value="">Any DTE</option>
+          <option value="urgent">Urgent 0-14d</option>
+          <option value="swing">Swing 14-90d</option>
+          <option value="positioning">Positioning 90-365d</option>
+          <option value="leaps">LEAPS 365d+</option>
+        </select>
         <select id="uoa-score">
           <option value="0">Any score</option>
           <option value="80">Score 80+</option>
@@ -323,12 +339,16 @@
         </select>
         <select id="uoa-prem">
           <option value="0">Any premium</option>
-          <option value="1000000">$1M+ premium</option>
-          <option value="250000">$250k+ premium</option>
-          <option value="100000">$100k+ premium</option>
+          <option value="100000">$100k+ (live)</option>
+          <option value="300000">$300k+ (clean)</option>
+          <option value="500000">$500k+ (high conv.)</option>
+          <option value="1000000">$1M+</option>
         </select>
-        <label><input type="checkbox" id="uoa-golden" /> Golden Sweeps only</label>
-        <label><input type="checkbox" id="uoa-univ" /> My universe only</label>
+        <label><input type="checkbox" id="uoa-golden" /> Golden</label>
+        <label><input type="checkbox" id="uoa-otm" /> OTM only</label>
+        <label><input type="checkbox" id="uoa-repeat" /> Repeat flow</label>
+        <label><input type="checkbox" id="uoa-ern" /> Into earnings</label>
+        <label><input type="checkbox" id="uoa-univ" /> My universe</label>
       </div>
 
       <div class="uoa-table-wrap">
@@ -537,6 +557,16 @@
       const bt = edge.by_type || {};
       if (bt.golden_sweep && bt.golden_sweep.h) cards.push(edgeCard("Golden Sweeps +5d", bt.golden_sweep.h["5"]));
       if (bt.sweep && bt.sweep.h) cards.push(edgeCard("Sweeps +5d", bt.sweep.h["5"]));
+      const oc = edge.oi_confirmation || {};
+      if (oc.checked > 0) {
+        const ocls = oc.confirm_rate >= 50 ? "pos"
+                   : oc.confirm_rate != null ? "neg" : "neutral";
+        cards.push('<div class="ecard"><div class="et">Next-Day OI Held</div>'+
+          '<div class="ev '+ocls+'">'+
+          (oc.confirm_rate!=null?oc.confirm_rate+"%":"&mdash;")+'</div>'+
+          '<div class="es">'+oc.confirmed+' of '+oc.checked+
+          ' positions stuck (OI retained next day)</div></div>');
+      }
       cards.push('<div class="ecard"><div class="et">Signals Tracked</div>'+
         '<div class="ev neutral">'+edge.total_signals+'</div>'+
         '<div class="es">'+edge.matured_5d+' matured to +5d</div></div>');
@@ -560,9 +590,18 @@
       if (q && r.ticker.indexOf(q) < 0) return false;
       const tp = $("uoa-type").value;
       if (tp && r.type !== tp) return false;
+      const sd = $("uoa-side").value;
+      if (sd === "ask" && !(r.side_method !== "none" && r.ask_pct >= 50)) return false;
+      if (sd === "bid" && !(r.side_method !== "none" && (r.bid_pct || 0) >= 50)) return false;
+      const dte = $("uoa-dte").value;
+      if (dte && r.dte_bucket !== dte) return false;
       if (r.trade_score < +$("uoa-score").value) return false;
       if (r.premium < +$("uoa-prem").value) return false;
       if ($("uoa-golden").checked && !r.golden) return false;
+      if ($("uoa-otm").checked && !r.is_otm) return false;
+      if ($("uoa-repeat").checked && !(r.repeat_count > 0)) return false;
+      if ($("uoa-ern").checked &&
+          !(r.earnings_days != null && r.earnings_days >= 0 && r.earnings_days <= 10)) return false;
       if ($("uoa-univ").checked && !r.in_universe) return false;
       return true;
     }
@@ -587,7 +626,11 @@
       tb.innerHTML = rows.slice(0, 300).map(function (r) {
         const tags = (r.tags||[]).map(function (t) {
           if (t === "Golden Sweep") return '<span class="uoa-badge b-golden">GOLDEN</span>';
+          if (t === "Sweep")        return '<span class="uoa-badge b-sweep">SWEEP</span>';
           if (t === "Block")        return '<span class="uoa-badge b-block">BLOCK</span>';
+          if (t === "Size>OI")      return '<span class="uoa-badge b-size">SIZE&gt;OI</span>';
+          if (t === "Repeat")       return '<span class="uoa-badge b-repeat">REPEAT</span>';
+          if (t === "Into ERN")     return '<span class="uoa-badge b-ern">ERN</span>';
           if (t === "In Universe")  return '<span class="uoa-badge b-univ">UNIV</span>';
           return "";
         }).join("");
@@ -626,7 +669,8 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(renderEdge).catch(function () { renderEdge(null); });
     }
-    ["uoa-q","uoa-type","uoa-score","uoa-prem","uoa-golden","uoa-univ"].forEach(function (id) {
+    ["uoa-q","uoa-type","uoa-side","uoa-dte","uoa-score","uoa-prem",
+     "uoa-golden","uoa-otm","uoa-repeat","uoa-ern","uoa-univ"].forEach(function (id) {
       const el = document.getElementById(id);
       if (el) el.addEventListener(
         (el.tagName === "INPUT" && el.type === "text") ? "input" : "change", renderBody);
