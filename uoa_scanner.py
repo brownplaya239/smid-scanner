@@ -574,6 +574,61 @@ def _earnings_days(ticker):
         return None
 
 
+def _cap_bucket(mkt_cap):
+    """Market-cap bucket — UOA reads very differently across cap tiers."""
+    if not mkt_cap:           return "unknown"
+    if mkt_cap >= 200e9:      return "mega"     # Mag-7-scale
+    if mkt_cap >= 10e9:       return "large"
+    if mkt_cap >= 2e9:        return "mid"
+    return "small"
+
+
+def _sic_sector(sic):
+    """Coarse sector from a Polygon SIC code — SIC is granular, this rolls it
+    up into ~16 trader-meaningful buckets for the dashboard filter."""
+    try:
+        c = int(sic)
+    except (TypeError, ValueError):
+        return "Other"
+    if c == 3674:                              return "Semiconductors"
+    if 7370 <= c <= 7379:                      return "Tech / Software"
+    if c in (3571, 3572, 3576, 3577) or 3661 <= c <= 3679:
+        return "Tech / Hardware"
+    if 2833 <= c <= 2836 or c == 8731:         return "Healthcare / Biotech"
+    if 8000 <= c <= 8099:                      return "Healthcare / Services"
+    if 1310 <= c <= 1389 or c == 2911:         return "Energy"
+    if 6000 <= c <= 6199:                      return "Financials / Banks"
+    if 6200 <= c <= 6499:                      return "Financials"
+    if 6500 <= c <= 6799:                      return "Real Estate"
+    if 4900 <= c <= 4999:                      return "Utilities"
+    if 4800 <= c <= 4899:                      return "Communications"
+    if 1000 <= c <= 1099 or 3300 <= c <= 3399: return "Materials / Metals"
+    if 2800 <= c <= 2899:                      return "Materials / Chemicals"
+    if 3700 <= c <= 3799:                      return "Industrials / Transport Eq"
+    if 3400 <= c <= 3599:                      return "Industrials / Machinery"
+    if 1500 <= c <= 1799 or 4000 <= c <= 4799: return "Industrials"
+    if 5200 <= c <= 5999:                      return "Consumer / Retail"
+    if 2000 <= c <= 2199:                      return "Consumer / Food & Bev"
+    if 7000 <= c <= 7299 or 7800 <= c <= 7999: return "Consumer / Services"
+    return "Other"
+
+
+def _underlying_meta(ticker):
+    """Per-underlying metadata: next-earnings days (yfinance calendar),
+    market cap + coarse sector (Polygon ticker reference)."""
+    meta = {"earnings_days": _earnings_days(ticker),
+            "mkt_cap": None, "sector": "Other"}
+    try:
+        d = pg.ticker_details(ticker) or {}
+        mc = d.get("market_cap")
+        if mc:
+            meta["mkt_cap"] = mc
+        meta["sector"] = _sic_sector(d.get("sic_code"))
+    except Exception:
+        pass
+    return meta
+
+
 # ─── Orchestration ────────────────────────────────────────────────────────────
 
 def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, workers=10):
@@ -600,11 +655,11 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
     # Repeat-flow map (recent ledger) + earnings dates for the flagged shortlist
     repeat_map = _load_repeat_map()
     uniq = sorted({r["underlying"] for r in flagged})
-    print(f"  Fetching earnings dates for {len(uniq)} underlyings...")
-    earnings_map = {}
+    print(f"  Fetching metadata (earnings, market cap, sector) for {len(uniq)} underlyings...")
+    meta_map = {}
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        for tk, ed in ex.map(lambda t: (t, _earnings_days(t)), uniq):
-            earnings_map[tk] = ed
+        for tk, m in ex.map(lambda t: (t, _underlying_meta(t)), uniq):
+            meta_map[tk] = m
 
     print(f"  Trade-tape analysis on {len(flagged)} contracts...")
     rows = []
@@ -617,7 +672,11 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
             row["cap_class"]    = "large" if row["underlying"] in large_caps else "smid"
             row["size_gt_oi"]   = flow["max_sweep_size"] > (row["open_interest"] or 0)
             row["repeat_count"] = repeat_map.get(row["contract"], 0)
-            row["earnings_days"] = earnings_map.get(row["underlying"])
+            _m = meta_map.get(row["underlying"], {})
+            row["earnings_days"] = _m.get("earnings_days")
+            row["mkt_cap"]    = _m.get("mkt_cap")
+            row["cap_bucket"] = _cap_bucket(_m.get("mkt_cap"))
+            row["sector"]     = _m.get("sector", "Other")
             # bias / opening / liquidity / trade-plan — all are score inputs,
             # so they must be computed BEFORE trade_score()
             row["flow_side"], row["direction"] = _bias(row["type"], flow.get("side"))
@@ -687,6 +746,8 @@ def append_ledger(rows, min_score=55):
                 "direction":   r.get("direction", "hedge"),
                 "opening":     r.get("opening", "mixed"),
                 "liquidity":   r.get("liquidity", "C"),
+                "cap_bucket":  r.get("cap_bucket", "unknown"),
+                "sector":      r.get("sector", "Other"),
                 "volume":      r["volume"],          # flag-day contract volume
                 "open_interest": r["open_interest"], # flag-day OI — baseline for
                                                      # next-day OI-retention check
@@ -720,6 +781,9 @@ def emit_latest(rows):
             "premium":       r["premium"],
             "premium_tier":  r.get("premium_tier", "live"),
             "cap_class":     r.get("cap_class", "smid"),
+            "cap_bucket":    r.get("cap_bucket", "unknown"),
+            "mkt_cap":       r.get("mkt_cap"),
+            "sector":        r.get("sector", "Other"),
             "iv":            r.get("iv"),
             "sweeps":        flow.get("sweeps", 0),
             "blocks":        flow.get("blocks", 0),
