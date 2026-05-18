@@ -19,7 +19,7 @@ import sys
 import csv
 import json
 import time
-from datetime import datetime
+from datetime import datetime, date
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -158,6 +158,51 @@ def fetch_metrics(tickers):
     return rows
 
 
+# ─── Earnings dates ───────────────────────────────────────────────────────────
+
+def fetch_earnings_dates(tickers):
+    """Next earnings date per ticker via yfinance calendar.
+
+    Names up 20-100% are very often reacting to (or running into) earnings —
+    knowing whether the catalyst is AHEAD or already BEHIND is the key risk
+    fact for a momentum mover. Fetched only for the handful of screened names."""
+    today = datetime.now(ET).date()
+    out = {}
+    for t in tickers:
+        try:
+            cal = yf.Ticker(t).calendar
+            dates = cal.get("Earnings Date", []) if isinstance(cal, dict) else []
+            if not dates:
+                continue
+            ed = dates[0]
+            # yfinance returns plain datetime.date (no .date() method)
+            if isinstance(ed, datetime):
+                ed = ed.date()
+            elif not isinstance(ed, date):
+                continue
+            out[t] = {
+                "date":  ed,
+                "delta": (ed - today).days,
+                "est":   len(dates) > 1 and dates[-1] != dates[0],
+            }
+        except Exception:
+            pass
+        time.sleep(0.25)
+    return out
+
+
+def _ern_str(info):
+    """Compact earnings cell: 'May 20', 'May 20*' (estimated), 'Reported', '--'."""
+    if not info:
+        return "--"
+    delta = info["delta"]
+    if delta < -10:                       # last report is stale, next not set
+        return "--"
+    if delta < 0:
+        return "Reported"
+    return info["date"].strftime("%b %d") + ("*" if info["est"] else "")
+
+
 # ─── Screens ──────────────────────────────────────────────────────────────────
 
 MIN_DOLLAR_VOL = 100_000_000   # $100M liquidity floor
@@ -242,12 +287,13 @@ def generate_table_pdf(title, subtitle, blurb_lines, rows, change_label):
     cols = [
         ("#",          10, "C"),
         ("Symbol",     22, "L"),
-        (change_label, 26, "R"),
-        ("$ Vol",      26, "R"),
-        ("ADR%",       22, "R"),
-        ("Price",      28, "R"),
+        (change_label, 24, "R"),
+        ("$ Vol",      24, "R"),
+        ("ADR%",       20, "R"),
+        ("Price",      24, "R"),
+        ("Next Ern",   28, "C"),
     ]
-    # center the 134mm-wide table
+    # center the table
     tx = 10 + (190 - sum(c[1] for c in cols)) / 2
     pdf.set_xy(tx, ty)
     pdf.set_fill_color(12, 20, 48)
@@ -270,13 +316,16 @@ def generate_table_pdf(title, subtitle, blurb_lines, rows, change_label):
             pdf.set_fill_color(*bg)
             chg = r.get("_chg", 0)
             chg_str = f"+{chg:.1f}%" if chg >= 0 else f"{chg:.1f}%"
+            ern = r.get("_ern", "--")
+            ern_rgb = (190, 50, 45) if ern not in ("--", "Reported") else (90, 96, 116)
             vals = [
                 (str(i + 1),                10, "C", (90, 96, 116), ""),
                 (r["ticker"],               22, "L", (15, 20, 50),  "B"),
-                (chg_str,                   26, "R", (22, 130, 60) if chg >= 0 else (190, 50, 45), "B"),
-                (f"${_dvol(r['dollar_vol'])}", 26, "R", (15, 20, 50), ""),
-                (f"{r['adr_pct']:.2f}",     22, "R", (15, 20, 50),  ""),
-                (f"${r['price']:.2f}",      28, "R", (15, 20, 50),  ""),
+                (chg_str,                   24, "R", (22, 130, 60) if chg >= 0 else (190, 50, 45), "B"),
+                (f"${_dvol(r['dollar_vol'])}", 24, "R", (15, 20, 50), ""),
+                (f"{r['adr_pct']:.2f}",     20, "R", (15, 20, 50),  ""),
+                (f"${r['price']:.2f}",      24, "R", (15, 20, 50),  ""),
+                (ern,                       28, "C", ern_rgb,       "B" if ern not in ("--", "Reported") else ""),
             ]
             for txt, w, align, rgb, style in vals:
                 pdf.set_text_color(*rgb)
@@ -335,6 +384,16 @@ def run():
 
     # ── Screen 1: QM Monthly Gainers ──
     qm = screen_qm_monthly(rows)
+    # ── Screen 2: Stockbee Weekly 20% ──
+    sb = screen_stockbee_weekly(rows)
+
+    # Earnings dates for the union of screened names (small list — fast)
+    screened_tickers = sorted({r["ticker"] for r in qm} | {r["ticker"] for r in sb})
+    print(f"  Fetching earnings dates for {len(screened_tickers)} screened names...")
+    ern_map = fetch_earnings_dates(screened_tickers)
+    for r in qm + sb:
+        r["_ern"] = _ern_str(ern_map.get(r["ticker"]))
+
     for r in qm:
         r["_chg"] = r["chg_1mo"]
     qm_blurb = [
@@ -347,6 +406,9 @@ def run():
         "ADR% = average of (daily High / daily Low) over the last 20 sessions, minus 1. "
         "It measures how much room a stock moves intraday -- Qullamaggie targets high-ADR "
         "names because they travel far enough to be worth trading. Sorted by dollar volume.",
+        "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
+        "'Reported' = reported within the last 10 days). A move running INTO earnings "
+        "carries binary event risk; a move just AFTER a report is reacting to known news.",
     ]
     qm_pdf = generate_table_pdf(
         "QM -- BIGGEST ONE-MONTH GAINERS",
@@ -359,7 +421,6 @@ def run():
     print(f"  QM Monthly: {len(qm)} names")
 
     # ── Screen 2: Stockbee Weekly 20% ──
-    sb = screen_stockbee_weekly(rows)
     for r in sb:
         r["_chg"] = r["chg_1wk"]
     sb_blurb = [
@@ -371,6 +432,9 @@ def run():
         "names appear).",
         "A large list signals a strong, broad momentum environment; a short list signals a "
         "narrow or risk-off tape. Sorted by dollar volume -- the most liquid movers first.",
+        "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
+        "'Reported' = reported within the last 10 days). A 20%+ week running INTO earnings "
+        "carries binary event risk; a 20%+ week just AFTER a report is reacting to news.",
     ]
     sb_pdf = generate_table_pdf(
         "STOCKBEE -- 20%+ IN A WEEK",

@@ -199,8 +199,13 @@ Return ONLY a raw JSON object (no markdown) with these fields:
                        chatter references (earnings date, launch, FDA date,
                        conference, index event). [] if none clear.
   manipulationFlag   : CLEAN / CAUTION / HIGH-RISK - scan for pump-and-dump
-                       language, coordinated promotion, spam-account surges.
-  manipulationNote   : 1 sentence on the manipulation read.
+                       language and coordinated promotion. Also weigh the
+                       account-quality data: bot/pump accounts were already
+                       filtered out, but a high bot_ratio (>0.25) or a large
+                       junk_accounts_filtered count is itself evidence of a
+                       coordinated spam surge - escalate the flag accordingly.
+  manipulationNote   : 1 sentence on the manipulation read, citing bot_ratio
+                       / junk_accounts_filtered when they drove the verdict.
   analystRead        : 1-2 sentences - synthesize the analyst consensus / recent
                        rating actions (use the provided analyst data + news).
   attentionRead      : 1-2 sentences - is retail attention building or fading?
@@ -221,6 +226,11 @@ def synthesize(alt, scores):
             "messages_sampled": s.get("total", 0),
             "self_tagged_bull": s.get("bull", 0),
             "self_tagged_bear": s.get("bear", 0),
+            # account-quality filter results — bot/pump accounts already
+            # removed from the sample below; ratios kept for the manip read
+            "junk_accounts_filtered": s.get("junk_filtered", 0),
+            "bot_ratio": s.get("bot_ratio", 0.0),
+            "low_credibility_kept": s.get("low_cred", 0),
             "messages": [m["body"] for m in s.get("messages", [])[:30]],
         },
         "reddit_posts": [f"r/{r['subreddit']}: {r['title']} ({r['score']}u/{r['comments']}c)"

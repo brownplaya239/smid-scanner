@@ -13,7 +13,7 @@ import io
 import csv
 import json
 import re
-from datetime import datetime
+from datetime import datetime, date
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -241,15 +241,25 @@ def fetch_setup_data(tickers):
                     dates = cal.get("Earnings Date", [])
                     if dates:
                         ed = dates[0]
-                        ed_date = ed.date() if hasattr(ed, "date") else None
+                        # yfinance returns plain datetime.date (no .date()
+                        # method); datetime/Timestamp do. The old
+                        # hasattr(ed,"date") check silently dropped every date.
+                        if isinstance(ed, datetime):
+                            ed_date = ed.date()
+                        elif isinstance(ed, date):
+                            ed_date = ed
+                        else:
+                            ed_date = None
                         if ed_date:
+                            estimated = len(dates) > 1 and dates[-1] != dates[0]
+                            est = " (est.)" if estimated else ""
                             delta = (ed_date - datetime.now(ET).date()).days
                             earnings_days = delta
                             earnings_date_iso = ed_date.strftime("%Y-%m-%d")
-                            if 0 <= delta <= 7:
-                                earnings_flag = f"EARNINGS IN {delta}D"
-                            elif delta < 0:
+                            if delta < 0:
                                 earnings_flag = "REPORTED"
+                            else:
+                                earnings_flag = f"EARNINGS IN {delta}D{est}"
             except Exception:
                 pass
 
