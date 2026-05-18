@@ -445,10 +445,19 @@ DATA QUALITY GUARDRAILS (avoid these hallucinations):
 3. INSIDER TIME WINDOW: `insider_count` covers only the last 60 days. Do not extrapolate "zero insider activity" beyond that window without saying so.
 4. NEGATIVE P/E: For pre-revenue / unprofitable companies, negative forward P/E is meaningless — use Price/Sales (`ps_ratio`) or note "valuation reflects growth-stage premium; P/E inapplicable."
 
-6. RISK ASSESSMENT
-   - The single most important bear case (be specific: dilution risk at $X, binary FDA event, customer concentration, etc.)
-   - Short interest % and days-to-cover
-   - Key support level that invalidates the setup
+6. RISK & FALSIFIABILITY
+   - `keyRisk` MUST name the SPECIFIC invalidation — the price, event, or data point that proves the setup wrong (e.g. "thesis invalid on a close back below the $X.XX base low, or on a guidance cut at the [date] print"). A risk that cannot be disproven is not a risk.
+   - The single most important bear case: dilution risk at $X, binary FDA event, customer concentration, etc.
+   - Short interest % and days-to-cover.
+
+7. CROWDING & POSITIONING
+   - Assess crowding from `inst_own`, `short_pct` + days-to-cover, and how consensus-loved the name is. A heavily-owned, universally-liked name has limited incremental-buyer fuel; the asymmetric edge is in under-owned, under-followed names not yet connected to the theme.
+   - A clean VCP coil with NO identifiable forward catalyst is a watch, not a buy — being early without a catalyst is the same as being wrong.
+
+RESEARCH DISCIPLINE (institutional equity-research standard — applies across every field):
+- CATALYST IMPACT: tag the key forward catalyst with its type (Earnings / Corporate / Industry / Macro) and impact (High / Med / Low) in `newsFlow` or `earningsContext`.
+- DISCONFIRMING EVIDENCE: weigh the bear case as rigorously as the bull — in `reasoning`, name the strongest single argument AGAINST the setup.
+- CONVICTION: `reasoning` must end with an explicit "Conviction: High/Medium/Low" tag, earned by the weight of evidence.
 
 VCP GRADING:
 - "A - Prime Setup": Textbook VCP coil, vol_w1 < vol_w2 < vol_w3 confirmed, RS line at new high, pivot within 3%, institutional-quality catalyst within 2 weeks, base_tight < 2.0
@@ -476,12 +485,12 @@ Every object must include ALL fields:
   earningsContext (consensus EPS/rev + beat history for A/B, "" for C),
   newsFlow (2-3 sentences for A/B, "" for C),
   institutionalAngle (1-2 sentences for A/B, "" for C),
-  keyRisk (1 sentence for A/B, "" for C),
+  keyRisk (1 sentence for A/B naming the SPECIFIC invalidation level/price/event, "" for C),
   triggerCondition (exact: "Close above $X.XX on volume >Y% of 20-day avg"),
   watchTarget (measured move price target with basis),
   stopLevel (invalidation level with basis),
   grade,
-  reasoning (1-2 sentences: structural setup quality + alpha angle)."""
+  reasoning (1-2 sentences: structural setup quality + alpha angle + the strongest disconfirming argument, ending with an explicit "Conviction: High/Medium/Low" tag)."""
 
 
 def run_claude_setup_analysis(setups, macro=None):

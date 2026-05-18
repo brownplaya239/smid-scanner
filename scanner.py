@@ -571,8 +571,18 @@ DATA QUALITY GUARDRAILS (avoid these hallucinations):
    - When citing the date, format as "Month DD" (e.g. "May 14"). Append " BMO" or " AMC" ONLY if you have explicit confirmation; if uncertain, omit the time-of-day designator.
    - EPS/revenue consensus, beat/miss history (last 4 quarters), is this a serial beater that re-rates higher on each beat?
 
-6. RISK — What kills the trade?
-   - Specific bear case: binary event risk, dilution at $X, single customer, competitive threat, technical failure level?
+6. RISK & FALSIFIABILITY — what kills the trade, stated as a testable invalidation
+   - `keyRisk` MUST name the SPECIFIC invalidation level — the price, event, or data point that proves the setup wrong (e.g. "thesis invalid on a close back below the $X.XX pivot, or on any guidance cut at the [date] print"). A risk that cannot be disproven is not a risk.
+   - Specific bear case: binary event risk, dilution at $X, single-customer concentration, competitive threat, technical failure level.
+
+7. CROWDING & POSITIONING — is the incremental-buyer fuel still there?
+   - Assess crowding from `inst_own`, `short_pct` + `short_ratio` (days-to-cover), and how consensus-loved the name already is. A name ~90%+ institutionally owned, heavily covered and universally liked has limited incremental-buyer fuel even on a good print. The asymmetric edge is in under-owned, under-followed names the market has not fully connected to the theme.
+   - Being early without a catalyst is the same as being wrong — a clean technical base with NO identifiable forward catalyst is a watch, not a buy.
+
+RESEARCH DISCIPLINE (institutional equity-research standard — applies across every field):
+- CATALYST IMPACT: when naming the forward catalyst, tag its type (Earnings / Corporate / Industry / Macro) and impact (High / Med / Low).
+- DISCONFIRMING EVIDENCE: weigh the bear case as rigorously as the bull case — in `reasoning`, state the single strongest piece of disconfirming evidence (the best argument AGAINST the trade), not only why it works.
+- CONVICTION: `reasoning` must end with an explicit "Conviction: High/Medium/Low" tag, earned by the weight of evidence — not the size of the move.
 
 GRADING (Qullamaggie methodology):
 - "A - Breakout": 4+ of: vol >2x, prox_52w >85, rs_line_new_high, rs_vs_spy >+10, base_tight <2.0, durable catalyst. Pure technical breakouts with rs_line_new_high + vol surge ARE valid A setups even without same-day news.
@@ -602,12 +612,12 @@ Each object must include ALL fields:
   factorExposure (1-2 sentences for A/B, "" for C),
   institutionalAngle (1-2 sentences for A/B, "" for C),
   earningsContext (consensus EPS/rev + beat history, or ""),
-  keyRisk (1 sentence for A/B, "" for C),
+  keyRisk (1 sentence for A/B naming the SPECIFIC invalidation level/price/event, "" for C),
   signal (exact technical condition: "Close above $X.XX on vol >Y% of 20d avg"),
   volumeVsAvg (e.g. "2.4x"),
   rs,
   score (MUST be exactly one of: "A", "B", or "C" — the letter grade only, no numbers),
-  reasoning (1-2 sentences: why this is or isn't a high-conviction follow-through)."""
+  reasoning (1-2 sentences: the strongest disconfirming evidence + why this is or isn't a high-conviction follow-through, ending with an explicit "Conviction: High/Medium/Low" tag)."""
 
 
 def run_claude_analysis(candidates, scan_type, sector_leaders=None, macro=None, force_full_descriptives=False):
