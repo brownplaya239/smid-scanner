@@ -275,35 +275,55 @@ def fetch_reddit(ticker, max_items=10):
 # ─── Price context — for sentiment-vs-tape divergence ─────────────────────────
 
 def fetch_price_context(ticker):
-    """yfinance price action + analyst consensus — used to flag whether the
-    chatter CONFIRMS or DIVERGES from the actual tape."""
+    """Price action + analyst consensus — used to flag whether the chatter
+    CONFIRMS or DIVERGES from the actual tape. Price/volume come from Polygon
+    (reliable from CI), with a yfinance fallback; analyst consensus stays on
+    yfinance (Polygon has no analyst-rating feed on this tier)."""
     out = {"price": 0.0, "chg_1w": 0.0, "chg_1m": 0.0, "vol_ratio": 0.0,
            "analyst_rating": "", "target_price": 0.0, "num_analysts": 0,
            "price_available": False}
-    try:
-        import yfinance as yf
-        t = yf.Ticker(ticker)
-        h = t.history(period="2mo", interval="1d")
-        if not h.empty and len(h) >= 6:
-            close = h["Close"]
-            price = float(close.iloc[-1])
-            out["price"]  = round(price, 2)
-            out["chg_1w"] = round((price / float(close.iloc[-6]) - 1) * 100, 1)
-            if len(close) >= 22:
-                out["chg_1m"] = round((price / float(close.iloc[-22]) - 1) * 100, 1)
-            avgv = float(h["Volume"].iloc[-21:-1].mean())
-            if avgv > 0:
-                out["vol_ratio"] = round(float(h["Volume"].iloc[-1]) / avgv, 2)
-            out["price_available"] = True
+
+    closes, vols = None, None
+    try:                                       # Polygon primary
+        import polygon_data as pg
+        if pg.available():
+            bars = pg.daily_bars(ticker, days=60)
+            if bars and len(bars) >= 6:
+                closes = [b.get("c", 0) for b in bars]
+                vols   = [b.get("v", 0) for b in bars]
+    except Exception:
+        pass
+    if closes is None:                         # yfinance fallback
         try:
-            info = t.info
-            out["analyst_rating"] = info.get("recommendationKey", "") or ""
-            out["target_price"]   = round(info.get("targetMeanPrice", 0) or 0, 2)
-            out["num_analysts"]   = info.get("numberOfAnalystOpinions", 0) or 0
-        except Exception:
-            pass
-    except Exception as e:
-        print(f"  price context failed: {e}")
+            import yfinance as yf
+            h = yf.Ticker(ticker).history(period="3mo", interval="1d")
+            if h is not None and not h.empty and len(h) >= 6:
+                closes = [float(x) for x in h["Close"]]
+                vols   = [float(x) for x in h["Volume"]]
+        except Exception as e:
+            print(f"  price context failed: {e}")
+
+    if closes and len(closes) >= 6:
+        price = float(closes[-1])
+        out["price"]  = round(price, 2)
+        if closes[-6]:
+            out["chg_1w"] = round((price / closes[-6] - 1) * 100, 1)
+        if len(closes) >= 22 and closes[-22]:
+            out["chg_1m"] = round((price / closes[-22] - 1) * 100, 1)
+        if vols and len(vols) >= 21:
+            avgv = sum(vols[-21:-1]) / 20
+            if avgv > 0:
+                out["vol_ratio"] = round(vols[-1] / avgv, 2)
+        out["price_available"] = True
+
+    try:                                       # analyst consensus — yfinance
+        import yfinance as yf
+        info = yf.Ticker(ticker).info
+        out["analyst_rating"] = info.get("recommendationKey", "") or ""
+        out["target_price"]   = round(info.get("targetMeanPrice", 0) or 0, 2)
+        out["num_analysts"]   = info.get("numberOfAnalystOpinions", 0) or 0
+    except Exception:
+        pass
     return out
 
 
