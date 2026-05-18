@@ -147,6 +147,43 @@ def option_chain(underlying, contract_type=None, spot=None,
     return rows
 
 
+def option_trades(contract, day=None, limit=50000, max_pages=12):
+    """Every executed trade for one option contract on a given day.
+
+    contract : full OCC ticker, e.g. 'O:NVDA260518C00225000'
+    day      : 'YYYY-MM-DD' (default = today UTC)
+    Each trade dict carries: price, size, exchange, conditions,
+    sip_timestamp (ns epoch), sequence_number. This is the raw feed for
+    sweep / block / per-trade-premium detection. Requires Options
+    Developer tier (Starter returns NOT_AUTHORIZED). Returns [] on failure."""
+    day = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    params = {
+        "timestamp.gte": day,
+        "timestamp.lte": day,
+        "limit": limit,
+        "order": "asc",
+        "sort": "timestamp",
+    }
+    return _paginate(f"/v3/trades/{contract}", params, max_pages=max_pages)
+
+
+def option_quotes(contract, day=None, limit=50000, max_pages=4):
+    """NBBO quote history for one option contract on a given day.
+
+    Used to classify each trade as at/above-ask (bullish conviction) vs
+    at/below-bid. Requires the quotes entitlement — returns [] until the
+    Developer quotes endpoint is active for the key."""
+    day = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    params = {
+        "timestamp.gte": day,
+        "timestamp.lte": day,
+        "limit": limit,
+        "order": "asc",
+        "sort": "timestamp",
+    }
+    return _paginate(f"/v3/quotes/{contract}", params, max_pages=max_pages)
+
+
 if __name__ == "__main__":
     import sys
     if hasattr(sys.stdout, "reconfigure"):
