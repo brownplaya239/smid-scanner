@@ -11,16 +11,20 @@
     --bg:#0a0f24; --card:#111a38; --line:#20305e;
   }
   * { box-sizing:border-box; margin:0; padding:0; }
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   body {
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
     background:var(--bg); color:#e8ecf6; min-height:100vh;
     display:flex; flex-direction:column;
+    overflow-x:hidden;
   }
   header { background:var(--navy); border-bottom:3px solid var(--gold); padding:22px 28px; }
   header h1 { font-size:20px; font-weight:700; letter-spacing:.3px; }
   header p  { font-size:12px; color:var(--muted); margin-top:4px; }
 
-  nav { background:var(--navy2); display:flex; gap:2px; padding:0 16px; overflow-x:auto; }
+  nav { background:var(--navy2); display:flex; gap:2px; padding:0 16px;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  nav::-webkit-scrollbar { display:none; }
   nav button {
     background:none; border:0; color:var(--muted); cursor:pointer;
     font-size:12.5px; font-weight:600; padding:13px 15px; white-space:nowrap;
@@ -72,9 +76,10 @@
     gap:14px; text-decoration:none; color:#e8ecf6;
   }
   .report-item:hover { border-color:var(--gold); }
-  .report-item .meta { display:flex; flex-direction:column; gap:2px; }
+  .report-item .meta { display:flex; flex-direction:column; gap:2px; min-width:0; }
   .report-item .label { font-size:13.5px; font-weight:600; }
-  .report-item .file  { font-size:10.5px; color:var(--muted); }
+  .report-item .file  { font-size:10.5px; color:var(--muted);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .report-item .open  {
     font-size:11px; font-weight:700; color:var(--gold);
     border:1px solid var(--gold); border-radius:5px; padding:6px 12px; white-space:nowrap;
@@ -106,6 +111,40 @@
 
   footer { padding:16px 28px; font-size:10.5px; color:var(--muted);
     border-top:1px solid #1a2548; text-align:center; }
+
+  /* ── Mobile (phones — iPhone 17 Pro is ~402px CSS width) ── */
+  @media (max-width: 640px) {
+    header { padding:16px 18px; }
+    header h1 { font-size:16px; line-height:1.3; }
+    header p  { font-size:11px; }
+
+    nav { padding:0 6px; }
+    nav button { font-size:12px; padding:12px 11px; }
+
+    main { padding:20px 13px; }
+
+    .card { padding:20px 17px; border-radius:9px; margin-bottom:18px; }
+    .card h2 { font-size:16px; }
+    .card .sub { font-size:12px; }
+
+    /* stack the ticker input above a full-width button */
+    .input-row { flex-direction:column; gap:10px; }
+    button.go { padding:13px 22px; width:100%; }
+    input[type=text] { width:100%; }
+
+    .panel h2.tab-title { font-size:16px; }
+
+    .report-item { padding:12px 14px; gap:10px; }
+    .report-item .label { font-size:12.5px; }
+    .report-item .open  { padding:6px 9px; font-size:10.5px; }
+
+    /* inline PDF viewer — shorter so it fits a phone screen, and
+       iOS Safari handles tall PDF iframes poorly */
+    [id^="viewer"] iframe { height:72vh; min-height:0; }
+    [id^="viewer"] .vbar { flex-wrap:wrap; gap:6px; padding:9px 12px; }
+
+    footer { padding:14px 18px; }
+  }
 </style>
 </head>
 <body>
