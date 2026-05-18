@@ -1,0 +1,56 @@
+name: Unusual Options Activity
+
+on:
+  schedule:
+    # 3 runs/day on weekdays — off-the-hour so GitHub doesn't delay them.
+    # ~11:00 AM ET
+    - cron: '7 15 * * 1-5'    # summer (EDT)
+    - cron: '7 16 * * 1-5'    # winter (EST)
+    # ~1:30 PM ET
+    - cron: '37 17 * * 1-5'   # summer (EDT)
+    - cron: '37 18 * * 1-5'   # winter (EST)
+    # ~3:45 PM ET — late-session flow before the close
+    - cron: '47 19 * * 1-5'   # summer (EDT)
+    - cron: '47 20 * * 1-5'   # winter (EST)
+
+  workflow_dispatch:           # manual trigger anytime
+
+jobs:
+  uoa:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # commit the UOA JSON back to the site
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run UOA scan + alpha tracker
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: |
+          python uoa_scanner.py;  R1=$?
+          python uoa_alpha.py;    R2=$?
+          echo "scanner exit: $R1  |  alpha exit: $R2"
+          if [ $R1 -ne 0 ]; then
+            echo "::error::UOA scan failed (exit $R1)"
+            exit 1
+          fi
+
+      - name: Publish UOA data to site
+        run: bash scripts/publish_reports.sh

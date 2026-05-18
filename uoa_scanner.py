@@ -32,6 +32,7 @@ import polygon_data as pg
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 LEDGER_PATH = os.path.join(_BASE, "docs", "reports", "uoa_signals.jsonl")
+LATEST_PATH = os.path.join(_BASE, "docs", "reports", "uoa_latest.json")
 
 # ─── Screen thresholds (tunable) ──────────────────────────────────────────────
 
@@ -408,13 +409,63 @@ def append_ledger(rows, min_score=55):
     print(f"  Ledger: appended {n} signals (score >= {min_score})")
 
 
+def emit_latest(rows):
+    """Write the ranked UOA rows as JSON for the dashboard tab to render."""
+    os.makedirs(os.path.dirname(LATEST_PATH), exist_ok=True)
+    out = []
+    for r in rows:
+        flow = r.get("flow", {}) or {}
+        side = flow.get("side", {}) or {}
+        out.append({
+            "ticker":        r["underlying"],
+            "contract":      r["contract"],
+            "type":          r["type"],
+            "strike":        r["strike"],
+            "expiry":        r["expiry"],
+            "dte":           r["dte"],
+            "spot":          r["spot"],
+            "pct_otm":       r.get("pct_otm"),
+            "volume":        r["volume"],
+            "open_interest": r["open_interest"],
+            "vol_oi":        r["vol_oi"],
+            "premium":       r["premium"],
+            "iv":            r.get("iv"),
+            "sweeps":        flow.get("sweeps", 0),
+            "blocks":        flow.get("blocks", 0),
+            "sweep_premium": flow.get("sweep_premium", 0),
+            "biggest_print": flow.get("biggest_print", 0),
+            "ask_pct":       side.get("ask_pct", 0),
+            "side_method":   side.get("method", "none"),
+            "golden":        r["golden"],
+            "in_universe":   r["in_universe"],
+            "trade_score":   r["trade_score"],
+            "tags":          r["tags"],
+        })
+    payload = {
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "count":     len(out),
+        "rows":      out,
+    }
+    with open(LATEST_PATH, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=1)
+    print(f"  Wrote uoa_latest.json ({len(out)} rows)")
+
+
+def run():
+    """Production entry point — scan, publish JSON, append the signal ledger."""
+    rows = scan()
+    emit_latest(rows)
+    append_ledger(rows)
+    return rows
+
+
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     if args:                                  # quick test: explicit tickers
         uni = [a.upper() for a in args]
         rows = scan(universe=uni, boost=set(uni))
     else:
-        rows = scan()
+        rows = run()
     for r in rows[:15]:
         f = r["flow"]
         print(f"  {r['trade_score']:3}  {r['underlying']:6} {r['type'][:1].upper()} "
