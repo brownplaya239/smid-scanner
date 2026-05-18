@@ -174,8 +174,17 @@
 
   /* ── UOA Phase A — clusters, tier, sentiment ── */
   .uoa-clusters { margin-bottom:16px; }
+  .uoa-cluster-mode { margin-bottom:9px; }
+  .uoa-cluster-mode select {
+    background:#0a1024; border:1px solid #2a3a6e; border-radius:6px; color:#fff;
+    font-size:11.5px; padding:6px 8px; font-family:inherit; outline:none;
+  }
+  .uoa-cluster-mode select:focus { border-color:var(--gold); }
   .uoa-clabel { font-size:11px; color:var(--muted); text-transform:uppercase;
     letter-spacing:.4px; margin-bottom:7px; }
+  .uoa-cluster .cl { font-size:10px; color:#aab3cc; margin-top:3px;
+    line-height:1.45; word-break:break-word; }
+  .uoa-cluster .cl b { color:#cdd6ee; font-weight:600; }
   .uoa-crow { display:flex; flex-wrap:wrap; gap:8px; }
   .uoa-cluster {
     background:var(--card); border:1px solid var(--line);
@@ -795,18 +804,25 @@
         const by = {};
         DATA.forEach(function (r) {
           (r.themes || []).forEach(function (th) {
-            const c = by[th] || (by[th] = { theme:th, prem:0, n:0, bull:0, bear:0, tk:{} });
+            const c = by[th] || (by[th] =
+              { theme:th, prem:0, n:0, bull:0, bear:0, tk:{}, exp:{}, con:{} });
             const p = r.premium || 0;
             c.prem += p; c.n++;
             if (r.flow_side==="call_buyer" || r.flow_side==="put_seller") c.bull += p;
             else if (r.flow_side==="put_buyer" || r.flow_side==="call_seller") c.bear += p;
             c.tk[r.ticker] = (c.tk[r.ticker]||0) + p;
+            if (r.expiry) c.exp[r.expiry] = (c.exp[r.expiry]||0) + p;
+            const ck = r.ticker+" $"+r.strike+(r.type==="call"?"C":"P");
+            c.con[ck] = (c.con[ck]||0) + p;
           });
         });
         const arr = Object.keys(by).map(function (k) {
           const c = by[k];
           c.tickers = Object.keys(c.tk).length;
-          c.topTk = topKey(c.tk);
+          c.topTk = Object.keys(c.tk).sort(function (a,b) {
+            return c.tk[b]-c.tk[a]; }).slice(0, 6);
+          c.topExp = topKey(c.exp);
+          c.topCon = topKey(c.con);
           return c;
         }).sort(function (a, b) { return b.prem - a.prem; });
         if (!arr.length) {
@@ -820,9 +836,12 @@
                        : c.bear > c.bull*1.4 ? '<span class="cdir bias-bear">BEARISH</span>'
                        : '<span class="cdir bias-hedge">MIXED</span>';
             return '<div class="uoa-cluster"><div class="ct">'+c.theme+ndir+'</div>'+
-              '<div class="cv">$'+fmtNum(c.prem)+'</div>'+
-              '<div class="cd">'+c.tickers+' tickers &middot; '+c.n+' contracts &middot; top '+
-                (c.topTk||"-")+'</div>'+
+              '<div class="ccol cc-bull">&#9650; Bullish $'+fmtNum(c.bull)+'</div>'+
+              '<div class="ccol cc-bear">&#9660; Bearish $'+fmtNum(c.bear)+'</div>'+
+              '<div class="cl">'+c.topTk.join(", ")+
+                (c.tickers>6?' +'+(c.tickers-6):'')+'</div>'+
+              '<div class="cd">Top exp '+(c.topExp||"-")+
+                ' &middot; top contract <b>'+(c.topCon||"-")+'</b></div>'+
             '</div>';
           }).join("") + '</div>';
         return;
