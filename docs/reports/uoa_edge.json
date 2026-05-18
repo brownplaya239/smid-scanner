@@ -1,6 +1,6 @@
 {
- "generated": "2026-05-18T22:05:54+00:00",
- "total_signals": 3615,
+ "generated": "2026-05-18T22:18:18+00:00",
+ "total_signals": 4118,
  "matured_5d": 0,
  "horizons": [
   1,
@@ -53,7 +53,7 @@
  },
  "by_type": {
   "golden_sweep": {
-   "signals": 839,
+   "signals": 963,
    "h": {
     "1": {
      "n": 0,
@@ -93,7 +93,7 @@
    }
   },
   "sweep": {
-   "signals": 2265,
+   "signals": 2571,
    "h": {
     "1": {
      "n": 0,
@@ -133,7 +133,7 @@
    }
   },
   "voloi": {
-   "signals": 511,
+   "signals": 584,
    "h": {
     "1": {
      "n": 0,
@@ -175,7 +175,7 @@
  },
  "by_score": {
   "80-100": {
-   "signals": 526,
+   "signals": 568,
    "h": {
     "1": {
      "n": 0,
@@ -215,7 +215,7 @@
    }
   },
   "65-79": {
-   "signals": 1747,
+   "signals": 2030,
    "h": {
     "1": {
      "n": 0,
@@ -255,7 +255,7 @@
    }
   },
   "55-64": {
-   "signals": 1342,
+   "signals": 1520,
    "h": {
     "1": {
      "n": 0,
@@ -297,7 +297,7 @@
  },
  "by_dte": {
   "urgent": {
-   "signals": 2503,
+   "signals": 2857,
    "h": {
     "1": {
      "n": 0,
@@ -337,7 +337,7 @@
    }
   },
   "swing": {
-   "signals": 773,
+   "signals": 874,
    "h": {
     "1": {
      "n": 0,
@@ -377,7 +377,7 @@
    }
   },
   "positioning": {
-   "signals": 299,
+   "signals": 340,
    "h": {
     "1": {
      "n": 0,
@@ -417,7 +417,7 @@
    }
   },
   "leaps": {
-   "signals": 40,
+   "signals": 47,
    "h": {
     "1": {
      "n": 0,
@@ -459,7 +459,7 @@
  },
  "by_tag": {
   "Golden Sweep": {
-   "signals": 839,
+   "signals": 963,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -469,7 +469,7 @@
    }
   },
   "Sweep": {
-   "signals": 2265,
+   "signals": 2571,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -479,7 +479,7 @@
    }
   },
   "Block": {
-   "signals": 2412,
+   "signals": 2754,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -489,7 +489,7 @@
    }
   },
   "Size>OI": {
-   "signals": 915,
+   "signals": 1060,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -499,7 +499,7 @@
    }
   },
   "Repeat": {
-   "signals": 2845,
+   "signals": 3348,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -509,7 +509,7 @@
    }
   },
   "Into ERN": {
-   "signals": 383,
+   "signals": 448,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -519,7 +519,7 @@
    }
   },
   "In Universe": {
-   "signals": 2881,
+   "signals": 3286,
    "h5": {
     "n": 0,
     "hit_rate": null,
