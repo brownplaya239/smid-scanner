@@ -13,11 +13,11 @@ the theme explains the flow better than the GICS sector would.
 """
 
 THEME_MAP = {
-    "Memory & Storage": [
+    "Memory": [
         "MU", "SNDK", "STX", "WDC"],
-    "Fiber Optics": [
+    "Photonics / Optical Networking": [
         "LITE", "CIEN", "COHR", "AXTI", "TSEM", "APH", "VICR", "LASR",
-        "OPTX", "AAOI", "LPTH", "VIAV", "COMM", "VSAT"],
+        "OPTX", "AAOI", "LPTH", "VIAV", "COMM", "VSAT", "AVGO", "MRVL"],
     "Aerospace & Defense": [
         "FTAI", "KRMN", "ATI", "GE", "HWM", "ATRO", "CRS", "MRCY",
         "LMT", "RTX", "NOC", "GD", "LHX"],
@@ -96,6 +96,20 @@ THEME_MAP = {
         "HAL", "CVX", "XOM", "SLB", "FTI", "WFRD", "FRO", "INSW"],
     "Airlines": [
         "DAL", "AAL", "LUV", "UAL", "ALK"],
+    "AI Infrastructure": [
+        "NVDA", "AVGO", "MRVL", "AMD", "TSM", "SMCI", "ANET", "DELL",
+        "CRWV", "NBIS", "ALAB", "CRDO", "VRT", "MU", "AMAT"],
+    "Semiconductor Equipment": [
+        "LRCX", "AMAT", "KLAC", "ASML", "ONTO", "MKSI", "ACMR", "AEHR",
+        "PLAB", "KLIC", "UCTT", "COHU", "AEIS", "ICHR", "NVMI", "CAMT"],
+    "Power Semis": [
+        "NVTS", "MCHP", "ADI", "ON", "WOLF", "POWI", "MPWR", "DIOD", "SLAB"],
+    "Crypto Infrastructure": [
+        "COIN", "MSTR", "HOOD", "GLXY", "MARA", "RIOT", "CLSK", "BITF",
+        "IREN", "WULF", "CIFR", "HUT", "BMNR"],
+    "Defense Tech": [
+        "PLTR", "AVAV", "KTOS", "RKLB", "ONDS", "RCAT", "AXON", "BBAI",
+        "MRCY", "DRS", "KRMN", "AIRO"],
 }
 
 # ── reverse index: ticker -> set(themes) ─────────────────────────────────────
