@@ -482,6 +482,14 @@
           <option value="positioning">Positioning 90-365d</option>
           <option value="leaps">LEAPS 365d+</option>
         </select>
+        <select id="uoa-cap">
+          <option value="">Any cap</option>
+          <option value="mega">Mega ($200B+)</option>
+          <option value="large">Large ($10-200B)</option>
+          <option value="mid">Mid ($2-10B)</option>
+          <option value="small">Small (&lt;$2B)</option>
+        </select>
+        <select id="uoa-sector"><option value="">Any sector</option></select>
         <select id="uoa-score">
           <option value="0">Any score</option>
           <option value="80">Score 80+</option>
@@ -844,6 +852,10 @@
       if (sd === "bid" && !(r.side_method !== "none" && (r.bid_pct || 0) >= 50)) return false;
       const dte = $("uoa-dte").value;
       if (dte && r.dte_bucket !== dte) return false;
+      const cap = $("uoa-cap").value;
+      if (cap && r.cap_bucket !== cap) return false;
+      const sec = $("uoa-sector").value;
+      if (sec && r.sector !== sec) return false;
       if (r.trade_score < +$("uoa-score").value) return false;
       if (r.premium < +$("uoa-prem").value) return false;
       if ($("uoa-golden").checked && !r.golden) return false;
@@ -901,6 +913,16 @@
         '</tr>';
       }).join("");
     }
+    function populateSectors() {
+      const sel = $("uoa-sector"); if (!sel) return;
+      const cur = sel.value;
+      const secs = Array.from(new Set(DATA.map(function (r) {
+        return r.sector || "Other";
+      }))).sort();
+      sel.innerHTML = '<option value="">Any sector</option>' +
+        secs.map(function (s) { return '<option value="'+s+'">'+s+'</option>'; }).join("");
+      sel.value = cur;          // preserve the selection across auto-refresh
+    }
     function loadUoa() {
       fetch("./reports/uoa_latest.json?t="+Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -912,6 +934,7 @@
               ? ("Updated "+dt.toLocaleString()+" — "+DATA.length+" flagged contracts")
               : "";
           } else { DATA = []; $("uoa-updated").textContent = "First scan pending."; }
+          populateSectors();
           renderHead(); renderClusters(); renderBody();
         })
         .catch(function () { DATA = []; renderHead(); renderClusters(); renderBody(); });
@@ -1159,7 +1182,8 @@
       const chips = [], clears = [];
       const q = $("uoa-q").value.trim();
       if (q) { chips.push("Ticker: "+q.toUpperCase()); clears.push(function(){ $("uoa-q").value=""; }); }
-      [["uoa-type"],["uoa-side"],["uoa-dte"],["uoa-score"],["uoa-prem"]].forEach(function (p) {
+      [["uoa-type"],["uoa-side"],["uoa-dte"],["uoa-cap"],["uoa-sector"],
+       ["uoa-score"],["uoa-prem"]].forEach(function (p) {
         const e = $(p[0]);
         if (e && e.value && e.value !== "0") {
           chips.push(e.options[e.selectedIndex].text);
@@ -1187,7 +1211,8 @@
     });
     function applyPreset() {
       $("uoa-q").value = ""; $("uoa-type").value = ""; $("uoa-side").value = "";
-      $("uoa-dte").value = ""; $("uoa-score").value = "80"; $("uoa-prem").value = "300000";
+      $("uoa-dte").value = ""; $("uoa-cap").value = ""; $("uoa-sector").value = "";
+      $("uoa-score").value = "80"; $("uoa-prem").value = "300000";
       ["uoa-golden","uoa-otm","uoa-repeat","uoa-ern","uoa-univ"].forEach(function (id) {
         $(id).checked = false;
       });
@@ -1205,9 +1230,9 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closeDetail();
     });
-    ["uoa-q","uoa-type","uoa-side","uoa-dte","uoa-score","uoa-prem",
-     "uoa-golden","uoa-otm","uoa-open","uoa-liqab","uoa-repeat","uoa-ern",
-     "uoa-noseller","uoa-univ"].forEach(function (id) {
+    ["uoa-q","uoa-type","uoa-side","uoa-dte","uoa-cap","uoa-sector",
+     "uoa-score","uoa-prem","uoa-golden","uoa-otm","uoa-open","uoa-liqab",
+     "uoa-repeat","uoa-ern","uoa-noseller","uoa-univ"].forEach(function (id) {
       const el = document.getElementById(id);
       if (el) el.addEventListener(
         (el.tagName === "INPUT" && el.type === "text") ? "input" : "change", renderBody);
