@@ -40,6 +40,8 @@ from volume_intelligence import (
 
 load_dotenv(override=True)
 
+import polygon_data
+
 IWM_MODE    = "--iwm" in sys.argv
 TICKER_MODE = "--ticker" in sys.argv
 
@@ -174,50 +176,82 @@ def load_iwm_universe(top_n=500):
     return tickers
 
 
+def _history_df(ticker, days=200, min_bars=20):
+    """Daily OHLCV as a yfinance-shaped DataFrame (Open/High/Low/Close/Volume,
+    date-indexed). Polygon is the primary feed — reliable from CI where the
+    yfinance scraper rate-limits; yfinance is the automatic fallback.
+    Returns None on failure."""
+    if polygon_data.available():
+        bars = polygon_data.daily_bars(ticker, days=days)
+        if bars and len(bars) >= min_bars:
+            idx = pd.to_datetime([b["t"] for b in bars], unit="ms")
+            return pd.DataFrame({
+                "Open":   [b.get("o") for b in bars],
+                "High":   [b.get("h") for b in bars],
+                "Low":    [b.get("l") for b in bars],
+                "Close":  [b.get("c") for b in bars],
+                "Volume": [b.get("v") for b in bars],
+            }, index=idx)
+    try:
+        df = yf.Ticker(ticker).history(period=f"{days}d", interval="1d")
+        return df if df is not None and not df.empty else None
+    except Exception:
+        return None
+
+
+def _bulk_history(tickers, days=200):
+    """OHLCV DataFrames for many tickers — Polygon primary (concurrent),
+    yfinance chunked fallback for any names Polygon misses. {ticker: DataFrame}."""
+    import time as _time
+    from concurrent.futures import ThreadPoolExecutor
+    out = {}
+    if polygon_data.available():
+        with ThreadPoolExecutor(max_workers=12) as ex:
+            for t, df in ex.map(lambda tk: (tk, _history_df(tk, days=days)), tickers):
+                if df is not None and not df.empty:
+                    out[t] = df
+    missing = [t for t in tickers if t not in out]
+    if missing:
+        # yfinance fallback — 50-ticker chunks look like normal traffic
+        for ci in range(0, len(missing), 50):
+            chunk = missing[ci:ci + 50]
+            for attempt in range(3):
+                try:
+                    bd = yf.download(chunk, period=f"{days}d", interval="1d",
+                                     group_by="ticker", auto_adjust=True,
+                                     threads=True, progress=False)
+                    if bd is not None and not bd.empty:
+                        for t in chunk:
+                            try:
+                                h = bd[t].dropna(how="all") if len(chunk) > 1 else bd.dropna(how="all")
+                                if not h.empty:
+                                    out[t] = h
+                            except Exception:
+                                pass
+                        break
+                except Exception:
+                    pass
+                _time.sleep(3 * (attempt + 1))
+            _time.sleep(0.5)
+    return out
+
+
 def fetch_iwm_data(tickers):
     """Bulk-download OHLCV for all IWM tickers, pre-filter technically,
     then fetch .info only for survivors. Much faster than individual calls."""
-    spy_hist = yf.Ticker("SPY").history(period="200d", interval="1d")
+    spy_hist = _history_df("SPY")
     spy_12w  = (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-63] - 1) * 100 \
-               if len(spy_hist) >= 63 else 0.0
+               if spy_hist is not None and len(spy_hist) >= 63 else 0.0
 
     _day_frac = _trading_day_fraction()
     if _day_frac < 1.0:
         print(f"  Intraday run — projecting volume (session {_day_frac*100:.0f}% elapsed)")
 
-    # Chunked download — a single 500-ticker yf.download gets flagged as abuse
-    # from datacenter IPs (GitHub Actions) and returns empty. 50-ticker chunks
-    # with retries + polite delays look like normal traffic and succeed.
-    import time as _time
-    print(f"  Downloading {len(tickers)} tickers in chunks of 50...")
-    bulk_data = {}
-    chunk_size = 50
-    for ci in range(0, len(tickers), chunk_size):
-        chunk = tickers[ci:ci + chunk_size]
-        got = False
-        for attempt in range(3):
-            try:
-                bd = yf.download(
-                    chunk, period="200d", interval="1d",
-                    group_by="ticker", auto_adjust=True, threads=True, progress=False,
-                )
-                if bd is not None and not bd.empty:
-                    for t in chunk:
-                        try:
-                            h = bd[t].dropna(how="all") if len(chunk) > 1 else bd.dropna(how="all")
-                            if not h.empty:
-                                bulk_data[t] = h
-                        except Exception:
-                            pass
-                    got = True
-                    break
-            except Exception:
-                pass
-            _time.sleep(3 * (attempt + 1))
-        if not got:
-            print(f"    chunk {ci // chunk_size + 1} failed after 3 retries")
-        else:
-            _time.sleep(1.0)  # polite gap between chunks
+    # Polygon primary (official keyed API — reliable from datacenter IPs),
+    # yfinance chunked fallback. Replaces the old chunk-and-pray bulk download
+    # that got flagged as abuse and returned empty frames from GitHub Actions.
+    print(f"  Fetching {len(tickers)} tickers (Polygon primary, yfinance fallback)...")
+    bulk_data = _bulk_history(tickers)
     print(f"  Got data for {len(bulk_data)}/{len(tickers)} tickers")
 
     tech_pass, hist_cache = [], {}
@@ -321,8 +355,8 @@ def fetch_yfinance_data(tickers):
     # Fetch SPY once for relative strength calculation
     spy_12w_return = 0.0
     try:
-        spy_hist = yf.Ticker("SPY").history(period="200d", interval="1d")
-        if len(spy_hist) >= 63:
+        spy_hist = _history_df("SPY")
+        if spy_hist is not None and len(spy_hist) >= 63:
             spy_12w_return = (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-63] - 1) * 100
     except Exception:
         pass
@@ -334,8 +368,8 @@ def fetch_yfinance_data(tickers):
         try:
             t = yf.Ticker(ticker)
             info = t.info
-            hist = t.history(period="200d", interval="1d")
-            if hist.empty or len(hist) < 20:
+            hist = _history_df(ticker)
+            if hist is None or hist.empty or len(hist) < 20:
                 continue
 
             price       = hist["Close"].iloc[-1]
@@ -455,8 +489,8 @@ def get_sector_leaders(spy_hist):
         leaders = []
         for sector, etf in SECTOR_ETFS.items():
             try:
-                h = yf.Ticker(etf).history(period="60d", interval="1d")
-                if len(h) >= 20:
+                h = _history_df(etf, days=60)
+                if h is not None and len(h) >= 20:
                     ret = (h["Close"].iloc[-1] / h["Close"].iloc[-20] - 1) * 100
                     leaders.append((sector, round(ret - spy_ret, 1)))
             except Exception:
@@ -2052,7 +2086,7 @@ def run_single_ticker_lookup(ticker):
     # volume, or Claude work is attempted on a ticker that has no data.
     try:
         t    = yf.Ticker(ticker)
-        hist = t.history(period="200d", interval="1d")
+        hist = _history_df(ticker)
     except Exception as e:
         print(f"  Data fetch error: {e}")
         hist = None
@@ -2063,7 +2097,7 @@ def run_single_ticker_lookup(ticker):
 
     try:
         info = t.info
-        spy_hist = yf.Ticker("SPY").history(period="200d", interval="1d")
+        spy_hist = _history_df("SPY")
 
         price    = float(hist["Close"].iloc[-1])
         prev     = float(hist["Close"].iloc[-2])
