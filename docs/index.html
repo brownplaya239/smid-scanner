@@ -472,6 +472,12 @@
       <div class="uoa-sub" id="sub-live">
       <div class="uoa-edge" id="uoa-edge"></div>
 
+      <div class="uoa-cluster-mode">
+        <select id="uoa-cluster-mode">
+          <option value="ticker">Clusters: by ticker</option>
+          <option value="theme">Clusters: by theme</option>
+        </select>
+      </div>
       <div class="uoa-clusters" id="uoa-clusters"></div>
 
       <div class="uoa-filters">
@@ -502,6 +508,7 @@
           <option value="small">Small</option>
         </select>
         <select id="uoa-sector"><option value="">Any sector</option></select>
+        <select id="uoa-theme"><option value="">Any theme</option></select>
         <select id="uoa-score">
           <option value="0">Any score</option>
           <option value="80">80+</option>
@@ -781,6 +788,47 @@
     function renderClusters() {
       const el = $("uoa-clusters"); if (!el) return;
       if (!DATA.length) { el.innerHTML = ""; return; }
+      function topKey(o) { let k="",v=-1; for (const x in o) if (o[x]>v){v=o[x];k=x;} return k; }
+      const mode = ($("uoa-cluster-mode") || {}).value || "ticker";
+
+      if (mode === "theme") {                    // ── cluster by trade theme ──
+        const by = {};
+        DATA.forEach(function (r) {
+          (r.themes || []).forEach(function (th) {
+            const c = by[th] || (by[th] = { theme:th, prem:0, n:0, bull:0, bear:0, tk:{} });
+            const p = r.premium || 0;
+            c.prem += p; c.n++;
+            if (r.flow_side==="call_buyer" || r.flow_side==="put_seller") c.bull += p;
+            else if (r.flow_side==="put_buyer" || r.flow_side==="call_seller") c.bear += p;
+            c.tk[r.ticker] = (c.tk[r.ticker]||0) + p;
+          });
+        });
+        const arr = Object.keys(by).map(function (k) {
+          const c = by[k];
+          c.tickers = Object.keys(c.tk).length;
+          c.topTk = topKey(c.tk);
+          return c;
+        }).sort(function (a, b) { return b.prem - a.prem; });
+        if (!arr.length) {
+          el.innerHTML = '<div class="uoa-clabel">Top Flow Clusters &mdash; by theme</div>'+
+            '<div class="cd" style="padding:4px 2px">No themed flow in this scan.</div>';
+          return;
+        }
+        el.innerHTML = '<div class="uoa-clabel">Top Flow Clusters &mdash; by theme</div>' +
+          '<div class="uoa-crow">' + arr.slice(0, 10).map(function (c) {
+            const ndir = c.bull > c.bear*1.4 ? '<span class="cdir bias-bull">BULLISH</span>'
+                       : c.bear > c.bull*1.4 ? '<span class="cdir bias-bear">BEARISH</span>'
+                       : '<span class="cdir bias-hedge">MIXED</span>';
+            return '<div class="uoa-cluster"><div class="ct">'+c.theme+ndir+'</div>'+
+              '<div class="cv">$'+fmtNum(c.prem)+'</div>'+
+              '<div class="cd">'+c.tickers+' tickers &middot; '+c.n+' contracts &middot; top '+
+                (c.topTk||"-")+'</div>'+
+            '</div>';
+          }).join("") + '</div>';
+        return;
+      }
+
+      // ── cluster by ticker (default) ──
       const by = {};
       DATA.forEach(function (r) {
         const c = by[r.ticker] ||
@@ -795,7 +843,6 @@
         const sk = (r.type==="call"?"C":"P")+"$"+r.strike;
         c.strk[sk] = (c.strk[sk]||0) + p;
       });
-      function topKey(o) { let k="",v=-1; for (const x in o) if (o[x]>v){v=o[x];k=x;} return k; }
       const arr = Object.keys(by).map(function (t) {
         const c = by[t]; c.ticker = t;
         c.bull = c.cb + c.ps;            // calls bought + puts sold
@@ -804,7 +851,7 @@
         c.topExp = topKey(c.exp); c.topStrk = topKey(c.strk);
         return c;
       }).sort(function (a, b) { return b.total - a.total; });
-      el.innerHTML = '<div class="uoa-clabel">Top Flow Clusters &mdash; net directional read</div>' +
+      el.innerHTML = '<div class="uoa-clabel">Top Flow Clusters &mdash; by ticker</div>' +
         '<div class="uoa-crow">' + arr.slice(0, 8).map(function (c) {
           const ndir = c.bull > c.bear*1.4 ? '<span class="cdir bias-bull">BULLISH</span>'
                      : c.bear > c.bull*1.4 ? '<span class="cdir bias-bear">BEARISH</span>'
@@ -942,6 +989,8 @@
       if (cap && r.cap_bucket !== cap) return false;
       const sec = $("uoa-sector").value;
       if (sec && r.sector !== sec) return false;
+      const th = ($("uoa-theme")||{}).value;
+      if (th && !(r.themes||[]).includes(th)) return false;
       if (r.trade_score < +$("uoa-score").value) return false;
       if (r.premium < +$("uoa-prem").value) return false;
       if ($("uoa-golden").checked && !r.golden) return false;
@@ -1012,6 +1061,18 @@
         secs.map(function (s) { return '<option value="'+s+'">'+s+'</option>'; }).join("");
       sel.value = cur;          // preserve the selection across auto-refresh
     }
+    function populateThemes() {
+      const sel = $("uoa-theme"); if (!sel) return;
+      const cur = sel.value;
+      const set = {};
+      DATA.forEach(function (r) {
+        (r.themes||[]).forEach(function (t) { set[t] = 1; });
+      });
+      const ths = Object.keys(set).sort();
+      sel.innerHTML = '<option value="">Any theme</option>' +
+        ths.map(function (t) { return '<option value="'+t+'">'+t+'</option>'; }).join("");
+      sel.value = cur;          // preserve the selection across auto-refresh
+    }
     function loadUoa() {
       fetch("./reports/uoa_latest.json?t="+Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -1023,7 +1084,7 @@
               ? ("Updated "+dt.toLocaleString()+"  ·  Live flagged: "+DATA.length)
               : "";
           } else { DATA = []; $("uoa-updated").textContent = "First scan pending."; }
-          populateSectors();
+          populateSectors(); populateThemes();
           renderHead(); renderClusters(); renderBody();
         })
         .catch(function () { DATA = []; renderHead(); renderClusters(); renderBody(); });
@@ -1288,7 +1349,7 @@
       const chips = [], clears = [];
       const q = $("uoa-q").value.trim();
       if (q) { chips.push("Ticker: "+q.toUpperCase()); clears.push(function(){ $("uoa-q").value=""; }); }
-      [["uoa-type"],["uoa-side"],["uoa-dte"],["uoa-cap"],["uoa-sector"],
+      [["uoa-type"],["uoa-side"],["uoa-dte"],["uoa-cap"],["uoa-sector"],["uoa-theme"],
        ["uoa-score"],["uoa-prem"]].forEach(function (p) {
         const e = $(p[0]);
         if (e && e.value && e.value !== "0") {
@@ -1318,6 +1379,7 @@
     function applyPreset() {
       $("uoa-q").value = ""; $("uoa-type").value = ""; $("uoa-side").value = "";
       $("uoa-dte").value = ""; $("uoa-cap").value = ""; $("uoa-sector").value = "";
+      if ($("uoa-theme")) $("uoa-theme").value = "";
       $("uoa-score").value = "80"; $("uoa-prem").value = "300000";
       ["uoa-golden","uoa-otm","uoa-repeat","uoa-ern","uoa-univ"].forEach(function (id) {
         $(id).checked = false;
@@ -1329,8 +1391,8 @@
     $("uoa-preset").addEventListener("click", applyPreset);
     function resetFilters() {
       $("uoa-q").value = "";
-      ["uoa-type","uoa-side","uoa-dte","uoa-cap","uoa-sector"].forEach(function (id) {
-        $(id).value = "";
+      ["uoa-type","uoa-side","uoa-dte","uoa-cap","uoa-sector","uoa-theme"].forEach(function (id) {
+        if ($(id)) $(id).value = "";
       });
       $("uoa-score").value = "0"; $("uoa-prem").value = "0";
       ["uoa-golden","uoa-otm","uoa-open","uoa-liqab","uoa-repeat","uoa-ern",
@@ -1395,13 +1457,17 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closeDetail();
     });
-    ["uoa-q","uoa-type","uoa-side","uoa-dte","uoa-cap","uoa-sector",
+    ["uoa-q","uoa-type","uoa-side","uoa-dte","uoa-cap","uoa-sector","uoa-theme",
      "uoa-score","uoa-prem","uoa-golden","uoa-otm","uoa-open","uoa-liqab",
      "uoa-repeat","uoa-ern","uoa-noseller","uoa-univ"].forEach(function (id) {
       const el = document.getElementById(id);
       if (el) el.addEventListener(
         (el.tagName === "INPUT" && el.type === "text") ? "input" : "change", renderBody);
     });
+    (function () {
+      const cm = $("uoa-cluster-mode");
+      if (cm) cm.addEventListener("change", renderClusters);
+    })();
     loadUoa();
     setInterval(loadUoa, 90000);   // auto-refresh every 90s
   })();
