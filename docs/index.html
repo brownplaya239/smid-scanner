@@ -212,6 +212,55 @@
   .liq-b { background:#3a7d4e; color:#eafff0; }
   .liq-c { background:#7a5e12; color:#fff6da; }
   .liq-d { background:#5e2b2b; color:#e8a0a0; }
+
+  /* ── UOA Phase C — sub-tabs, tracked, performance, detail ── */
+  .uoa-subnav { display:flex; gap:3px; margin-bottom:16px;
+    border-bottom:1px solid var(--line); }
+  .uoa-subnav button {
+    background:none; border:0; color:var(--muted); cursor:pointer;
+    font-family:inherit; font-size:12.5px; font-weight:600; padding:8px 14px;
+    border-bottom:2px solid transparent;
+  }
+  .uoa-subnav button:hover { color:#cdd6ee; }
+  .uoa-subnav button.active { color:var(--gold); border-bottom-color:var(--gold); }
+  .uoa-subnote { font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.5; }
+
+  .st { display:inline-block; font-size:9px; font-weight:700;
+    border-radius:4px; padding:2px 6px; }
+  .st-confirmed { background:#1d6b3a; color:#eafff0; }
+  .st-weak      { background:#7a5e12; color:#fff6da; }
+  .st-closed    { background:#5e2b2b; color:#e8a0a0; }
+  .st-pending   { background:#33405e; color:#9aa3bb; }
+
+  .perf-grid { display:flex; flex-wrap:wrap; gap:14px; }
+  .perf-card { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:14px 16px; flex:1; min-width:300px; }
+  .perf-card h4 { font-size:11px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.4px; margin-bottom:9px; }
+  .perf-card table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  .perf-card td, .perf-card th { padding:5px 6px; text-align:right; }
+  .perf-card th { color:var(--muted); font-size:10px; }
+  .perf-card td:first-child, .perf-card th:first-child { text-align:left; }
+  .perf-pos { color:var(--green); }
+  .perf-neg { color:#e8736a; }
+
+  table.uoa tbody tr { cursor:pointer; }
+  .uoa-detail { display:none; position:fixed; inset:0; z-index:50;
+    background:rgba(4,8,20,.74); align-items:center; justify-content:center; padding:20px; }
+  .uoa-detail.show { display:flex; }
+  .uoa-detail .dcard { background:var(--card); border:1px solid var(--line);
+    border-radius:12px; max-width:470px; width:100%; max-height:86vh;
+    overflow:auto; padding:22px; }
+  .uoa-detail .dhead { display:flex; justify-content:space-between;
+    align-items:flex-start; margin-bottom:12px; }
+  .uoa-detail .dhead .dt { font-size:16px; font-weight:700; }
+  .uoa-detail .dclose { background:none; border:1px solid var(--line);
+    color:#cdd6ee; border-radius:6px; cursor:pointer; font-size:15px; padding:2px 10px; }
+  .uoa-detail .drow { display:flex; justify-content:space-between; gap:14px;
+    font-size:12px; padding:6px 0; border-bottom:1px solid #1a2548; }
+  .uoa-detail .drow .dk { color:var(--muted); }
+  .uoa-detail .drow .dv { font-weight:600; text-align:right; }
+  .uoa-detail .dwhy { font-size:11.5px; color:#aab3c8; margin-top:12px; line-height:1.5; }
   .uoa-prem-big { font-weight:700; color:var(--gold); }
   .uoa-empty { padding:30px; text-align:center; color:var(--muted); font-size:13px; }
 
@@ -361,6 +410,13 @@
         across the liquid optionable market, ranked by Trade Score.
         <span id="uoa-updated"></span></p>
 
+      <div class="uoa-subnav" id="uoa-subnav">
+        <button data-sub="live" class="active">Live Flow</button>
+        <button data-sub="tracked">Tracked Signals</button>
+        <button data-sub="perf">Performance</button>
+      </div>
+
+      <div class="uoa-sub" id="sub-live">
       <div class="uoa-edge" id="uoa-edge"></div>
 
       <div class="uoa-clusters" id="uoa-clusters"></div>
@@ -412,6 +468,38 @@
           <tbody id="uoa-body"></tbody>
         </table>
       </div>
+      </div><!-- /sub-live -->
+
+      <div class="uoa-sub" id="sub-tracked" style="display:none">
+        <p class="uoa-subnote">Every flagged signal, scored as it ages &mdash;
+          next-day OI status (did the position stick?) and realized forward
+          return. Builds up over the days following each scan.</p>
+        <div class="uoa-filters">
+          <select id="trk-status">
+            <option value="">All statuses</option>
+            <option value="confirmed">OI Confirmed</option>
+            <option value="weak">OI Weak</option>
+            <option value="closed">Closed / Failed</option>
+            <option value="pending">Pending</option>
+          </select>
+          <input type="text" id="trk-q" placeholder="Ticker..." autocomplete="off" />
+        </div>
+        <div class="uoa-table-wrap">
+          <table class="uoa" id="trk-table">
+            <thead><tr id="trk-head"></tr></thead>
+            <tbody id="trk-body"></tbody>
+          </table>
+        </div>
+      </div><!-- /sub-tracked -->
+
+      <div class="uoa-sub" id="sub-perf" style="display:none">
+        <p class="uoa-subnote">Realized edge attribution &mdash; which signal
+          types, DTE buckets and flags actually predict moves. Honest by
+          design; benchmarked against SPY. Fills in as signals mature.</p>
+        <div id="perf-body"></div>
+      </div>
+
+      <div class="uoa-detail" id="uoa-detail"></div>
     </section>
   </main>
 
@@ -722,9 +810,10 @@
         tb.innerHTML = '<tr><td colspan="16" class="uoa-empty">No flow matches these filters.</td></tr>';
         return;
       }
-      tb.innerHTML = rows.slice(0, 300).map(function (r) {
+      shownRows = rows.slice(0, 300);
+      tb.innerHTML = shownRows.map(function (r, i) {
         const bem = r.be_distance_pct;
-        return '<tr>'+
+        return '<tr data-idx="'+i+'">'+
           '<td><strong>'+r.ticker+'</strong></td>'+
           '<td><span class="uoa-tier '+tierCls(r.tier)+'">'+(r.tier||"C")+'</span></td>'+
           '<td><span class="uoa-score '+scoreCls(r.trade_score)+'">'+r.trade_score+'</span></td>'+
@@ -760,8 +849,186 @@
         .catch(function () { DATA = []; renderHead(); renderClusters(); renderBody(); });
       fetch("./reports/uoa_edge.json?t="+Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(renderEdge).catch(function () { renderEdge(null); });
+        .then(function (e) { EDGE = e; renderEdge(e); })
+        .catch(function () { renderEdge(null); });
+      fetch("./reports/uoa_signals_scored.json?t="+Date.now())
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { SCORED = (d && d.signals) ? d.signals : []; })
+        .catch(function () { SCORED = []; });
     }
+
+    /* ── Phase C — sub-tabs, tracked signals, performance, detail ── */
+    let EDGE = null, SCORED = [], shownRows = [];
+
+    document.getElementById("uoa-subnav").addEventListener("click", function (e) {
+      if (e.target.tagName !== "BUTTON") return;
+      const sub = e.target.dataset.sub;
+      document.querySelectorAll("#uoa-subnav button").forEach(function (b) {
+        b.classList.toggle("active", b.dataset.sub === sub);
+      });
+      ["live","tracked","perf"].forEach(function (s) {
+        document.getElementById("sub-"+s).style.display = (s===sub) ? "" : "none";
+      });
+      if (sub === "tracked") renderTracked();
+      if (sub === "perf") renderPerf();
+    });
+
+    const TRK_COLS = [
+      {k:"ticker",t:"Ticker"},{k:"flagged_at",t:"Flagged"},{k:"trade_score",t:"Score"},
+      {k:"oi_status",t:"OI Status"},{k:"oi_change",t:"OI Δ"},{k:"retained_pct",t:"Retain%"},
+      {k:"ret_5d",t:"+5d %"},{k:"mfe",t:"MFE%"},{k:"mae",t:"MAE%"},{k:"signal_type",t:"Type"},
+    ];
+    let trkSort = "flagged_at", trkDir = -1;
+    function stBadge(s) {
+      s = s || "pending";
+      return '<span class="st st-'+s+'">'+s.toUpperCase()+'</span>';
+    }
+    function renderTrackedHead() {
+      $("trk-head").innerHTML = TRK_COLS.map(function (c) {
+        const ar = c.k===trkSort ? (trkDir<0?" ▼":" ▲") : "";
+        return '<th data-k="'+c.k+'"'+(c.k===trkSort?' class="sorted"':'')+'>'+c.t+ar+'</th>';
+      }).join("");
+      $("trk-head").querySelectorAll("th").forEach(function (th) {
+        th.onclick = function () {
+          const k = th.dataset.k;
+          if (k===trkSort) trkDir*=-1; else { trkSort=k; trkDir=-1; }
+          renderTrackedHead(); renderTrackedBody();
+        };
+      });
+    }
+    function renderTrackedBody() {
+      const tb = $("trk-body");
+      if (!SCORED.length) {
+        tb.innerHTML = '<tr><td colspan="10" class="uoa-empty">No tracked signals yet '+
+          '&mdash; the ledger fills as scans run, then scores them over the following days.</td></tr>';
+        return;
+      }
+      const stf = $("trk-status").value, q = $("trk-q").value.trim().toUpperCase();
+      const rows = SCORED.filter(function (r) {
+        if (stf && r.oi_status !== stf) return false;
+        if (q && (r.ticker||"").indexOf(q) < 0) return false;
+        return true;
+      }).slice().sort(function (a, b) {
+        let x=a[trkSort], y=b[trkSort];
+        if (typeof x==="string" || typeof y==="string") {
+          x=x||""; y=y||""; return trkDir*(x<y?-1:x>y?1:0);
+        }
+        return trkDir*(((x==null?-1e9:x)) - ((y==null?-1e9:y)));
+      });
+      if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="10" class="uoa-empty">No signals match.</td></tr>';
+        return;
+      }
+      function pct(v) { return v==null ? "&mdash;" : (v>0?"+":"")+v+"%"; }
+      function cls(v) { return v==null ? "" : v>0?"perf-pos":v<0?"perf-neg":""; }
+      tb.innerHTML = rows.slice(0,400).map(function (r) {
+        return '<tr>'+
+          '<td><strong>'+r.ticker+'</strong></td>'+
+          '<td>'+(r.flagged_at||"").slice(0,10)+'</td>'+
+          '<td><span class="uoa-score '+scoreCls(r.trade_score)+'">'+r.trade_score+'</span></td>'+
+          '<td>'+stBadge(r.oi_status)+'</td>'+
+          '<td>'+(r.oi_change==null?"&mdash;":(r.oi_change>0?"+":"")+fmtNum(r.oi_change))+'</td>'+
+          '<td>'+(r.retained_pct==null?"&mdash;":r.retained_pct+"%")+'</td>'+
+          '<td class="'+cls(r.ret_5d)+'">'+pct(r.ret_5d)+'</td>'+
+          '<td class="'+cls(r.mfe)+'">'+pct(r.mfe)+'</td>'+
+          '<td class="'+cls(r.mae)+'">'+pct(r.mae)+'</td>'+
+          '<td>'+((r.signal_type||"").replace("_"," "))+'</td>'+
+        '</tr>';
+      }).join("");
+    }
+    function renderTracked() { renderTrackedHead(); renderTrackedBody(); }
+    ["trk-status","trk-q"].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener(el.tagName==="INPUT"?"input":"change", renderTrackedBody);
+    });
+
+    function perfTable(title, groups, keyLabel) {
+      const keys = Object.keys(groups||{});
+      if (!keys.length) return "";
+      const rows = keys.map(function (g) {
+        const st = (groups[g].h && groups[g].h["5"]) || groups[g].h5 || {};
+        const c = st.avg>0 ? "perf-pos" : st.avg<0 ? "perf-neg" : "";
+        return '<tr><td>'+g.replace("_"," ")+'</td>'+
+          '<td>'+(groups[g].signals||st.n||0)+'</td>'+
+          '<td>'+(st.hit_rate!=null?st.hit_rate+"%":"&mdash;")+'</td>'+
+          '<td class="'+c+'">'+(st.avg!=null?(st.avg>0?"+":"")+st.avg+"%":"&mdash;")+'</td></tr>';
+      }).join("");
+      return '<div class="perf-card"><h4>'+title+'</h4><table>'+
+        '<tr><th>'+keyLabel+'</th><th>N</th><th>+5d Hit</th><th>+5d Avg</th></tr>'+
+        rows+'</table></div>';
+    }
+    function renderPerf() {
+      const el = $("perf-body");
+      if (!EDGE || !EDGE.total_signals) {
+        el.innerHTML = '<div class="uoa-empty">Performance attribution builds as '+
+          'signals mature (~2 weeks of scans).</div>';
+        return;
+      }
+      const cards = [
+        perfTable("Edge by signal type", EDGE.by_type, "Type"),
+        perfTable("Edge by DTE bucket", EDGE.by_dte, "Bucket"),
+        perfTable("Edge by score bucket", EDGE.by_score, "Score"),
+        perfTable("Edge by flag", EDGE.by_tag, "Flag"),
+      ];
+      const ex = EDGE.excursion||{}, oc = EDGE.oi_confirmation||{};
+      cards.push('<div class="perf-card"><h4>Excursion &amp; OI confirmation</h4><table>'+
+        '<tr><td>Avg max favorable (+20d)</td><td class="perf-pos">'+
+          (ex.avg_mfe!=null?"+"+ex.avg_mfe+"%":"&mdash;")+'</td></tr>'+
+        '<tr><td>Avg max adverse (+20d)</td><td class="perf-neg">'+
+          (ex.avg_mae!=null?ex.avg_mae+"%":"&mdash;")+'</td></tr>'+
+        '<tr><td>OI confirmed / checked</td><td>'+(oc.confirmed||0)+' / '+(oc.checked||0)+'</td></tr>'+
+        '<tr><td>OI confirm rate</td><td>'+
+          (oc.confirm_rate!=null?oc.confirm_rate+"%":"&mdash;")+'</td></tr>'+
+        '</table></div>');
+      el.innerHTML = '<div class="perf-grid">'+cards.filter(Boolean).join("")+'</div>';
+    }
+
+    function drow(k,v) {
+      return '<div class="drow"><span class="dk">'+k+'</span><span class="dv">'+v+'</span></div>';
+    }
+    function openDetail(r) {
+      if (!r) return;
+      const d = $("uoa-detail");
+      d.innerHTML = '<div class="dcard">'+
+        '<div class="dhead"><div><div class="dt">'+r.ticker+' '+
+        (r.type==="call"?"CALL":"PUT")+' $'+r.strike+'</div>'+
+        '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+r.expiry+
+        ' &middot; '+(r.dte!=null?r.dte+"d":"")+'</div></div>'+
+        '<button class="dclose" id="dclose">&times;</button></div>'+
+        drow("Tier / Score", '<span class="uoa-tier '+tierCls(r.tier)+'">'+r.tier+
+          '</span> &nbsp; '+r.trade_score)+
+        drow("Bias", sentPill(r.sentiment))+
+        drow("Opening", openPill(r.opening))+
+        drow("Premium", "$"+fmtNum(r.premium))+
+        drow("Volume / OI", fmtNum(r.volume)+" / "+fmtNum(r.open_interest)+
+          " ("+r.vol_oi+"x)")+
+        drow("Sweeps / Blocks", (r.sweeps||0)+" / "+(r.blocks||0))+
+        drow("%OTM", r.pct_otm!=null?r.pct_otm+"%":"&mdash;")+
+        drow("Break-even", r.break_even!=null?"$"+r.break_even:"&mdash;")+
+        drow("Move to break-even", r.be_distance_pct!=null?
+          (r.be_distance_pct>0?"+":"")+r.be_distance_pct+"%":"&mdash;")+
+        drow("Expected move (IV)", r.expected_move_pct!=null?
+          "±"+r.expected_move_pct+"%":"&mdash;")+
+        drow("Implied vol", r.iv!=null?Math.round(r.iv*100)+"%":"&mdash;")+
+        drow("Liquidity", '<span class="uoa-liq liq-'+(r.liquidity||"C").toLowerCase()+
+          '">'+(r.liquidity||"C")+'</span>')+
+        drow("Catalyst", r.catalyst||"&mdash;")+
+        '<div class="dwhy">'+(r.why||"")+'</div>'+
+      '</div>';
+      d.classList.add("show");
+      $("dclose").onclick = closeDetail;
+      d.onclick = function (e) { if (e.target===d) closeDetail(); };
+    }
+    function closeDetail() { $("uoa-detail").classList.remove("show"); }
+
+    $("uoa-body").addEventListener("click", function (e) {
+      const tr = e.target.closest("tr");
+      if (tr && tr.dataset.idx != null && shownRows[tr.dataset.idx])
+        openDetail(shownRows[tr.dataset.idx]);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeDetail();
+    });
     ["uoa-q","uoa-type","uoa-side","uoa-dte","uoa-score","uoa-prem",
      "uoa-golden","uoa-otm","uoa-open","uoa-liqab","uoa-repeat","uoa-ern",
      "uoa-univ"].forEach(function (id) {
