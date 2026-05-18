@@ -20,6 +20,7 @@ import csv
 import json
 import time
 from datetime import datetime, date
+from concurrent.futures import ThreadPoolExecutor
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -32,6 +33,8 @@ from fpdf import FPDF
 from dotenv import load_dotenv
 
 load_dotenv()
+
+import polygon_data
 
 ET = pytz.timezone("America/New_York")
 DISCORD_MOMENTUM_WEBHOOK = os.environ.get("DISCORD_MOMENTUM_WEBHOOK_URL", "")
@@ -93,18 +96,69 @@ def get_market_universe():
 
 # ─── Data + metrics ───────────────────────────────────────────────────────────
 
-def fetch_metrics(tickers):
-    """
-    Chunked bulk download, then compute per ticker:
-      price, dollar_vol (20d avg), adr_pct (20d), chg_1mo, chg_1wk
-    """
-    print(f"  Downloading {len(tickers)} tickers in chunks of 50...")
-    bulk = {}
+def _metrics_from_series(ticker, close, high, low, vol):
+    """Compute the momentum metrics from raw daily series — source-agnostic
+    (Polygon or yfinance both feed plain lists here)."""
+    n = len(close)
+    if n < 25:
+        return None
+    price = float(close[-1])
+    if price <= 0:
+        return None
+
+    # ADR% — Qullamaggie volatility metric: avg(High/Low) over last 20d - 1
+    pairs = [(h, l) for h, l in zip(high[-20:], low[-20:]) if l and l > 0]
+    adr_pct = (sum(h / l for h, l in pairs) / len(pairs) - 1) * 100 if pairs else 0.0
+
+    # 20-day average dollar volume
+    last20 = list(zip(close[-20:], vol[-20:]))
+    dollar_vol = sum(c * v for c, v in last20) / len(last20) if last20 else 0.0
+
+    # Returns
+    chg_1mo = (price / float(close[-22]) - 1) * 100 if n >= 22 and close[-22] else 0.0
+    chg_1wk = (price / float(close[-6])  - 1) * 100 if n >= 6  and close[-6]  else 0.0
+
+    return {
+        "ticker":     ticker,
+        "price":      round(price, 2),
+        "adr_pct":    round(adr_pct, 2),
+        "dollar_vol": dollar_vol,
+        "chg_1mo":    round(chg_1mo, 2),
+        "chg_1wk":    round(chg_1wk, 2),
+    }
+
+
+def _series_via_polygon(tickers, workers=12):
+    """Per-ticker daily bars from Polygon, fetched concurrently.
+    {ticker: (close[], high[], low[], vol[])}. Polygon Starter has no
+    per-minute rate cap, so a thread pool is safe and ~12x faster."""
+    def _one(t):
+        bars = polygon_data.daily_bars(t, days=130)
+        if bars and len(bars) >= 25:
+            return t, (
+                [b.get("c", 0) for b in bars],
+                [b.get("h", 0) for b in bars],
+                [b.get("l", 0) for b in bars],
+                [b.get("v", 0) for b in bars],
+            )
+        return t, None
+
+    out = {}
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for t, series in ex.map(_one, tickers):
+            if series:
+                out[t] = series
+    return out
+
+
+def _series_via_yfinance(tickers):
+    """Chunked yf.download fallback. {ticker: (close[], high[], low[], vol[])}."""
+    out = {}
     for ci in range(0, len(tickers), 50):
         chunk = tickers[ci:ci + 50]
         for attempt in range(3):
             try:
-                bd = yf.download(chunk, period="120d", interval="1d",
+                bd = yf.download(chunk, period="130d", interval="1d",
                                  group_by="ticker", auto_adjust=True,
                                  threads=True, progress=False)
                 if bd is not None and not bd.empty:
@@ -112,7 +166,12 @@ def fetch_metrics(tickers):
                         try:
                             h = bd[t].dropna(how="all") if len(chunk) > 1 else bd.dropna(how="all")
                             if not h.empty:
-                                bulk[t] = h
+                                out[t] = (
+                                    [float(x) for x in h["Close"]],
+                                    [float(x) for x in h["High"]],
+                                    [float(x) for x in h["Low"]],
+                                    [float(x) for x in h["Volume"]],
+                                )
                         except Exception:
                             pass
                     break
@@ -120,37 +179,39 @@ def fetch_metrics(tickers):
                 pass
             time.sleep(3 * (attempt + 1))
         time.sleep(1.0)
-    print(f"  Got data for {len(bulk)}/{len(tickers)} tickers")
+    return out
+
+
+def fetch_metrics(tickers):
+    """Per-ticker price metrics (price, dollar_vol, adr_pct, chg_1mo, chg_1wk).
+
+    Polygon is the primary feed — an official keyed API, reliable from the
+    GitHub Actions datacenter IPs that routinely got rate-limited / empty
+    frames from yfinance's chunked bulk download. yfinance is kept as an
+    automatic per-ticker fallback for anything Polygon misses."""
+    series = {}
+    if polygon_data.available():
+        print(f"  Fetching {len(tickers)} tickers via Polygon...")
+        series = _series_via_polygon(tickers)
+        print(f"  Polygon: {len(series)}/{len(tickers)} tickers")
+    else:
+        print("  POLYGON_API_KEY not set — using yfinance only")
+
+    missing = [t for t in tickers if t not in series]
+    if missing:
+        print(f"  yfinance fallback for {len(missing)} tickers...")
+        fb = _series_via_yfinance(missing)
+        series.update(fb)
+        print(f"  yfinance recovered {len(fb)}/{len(missing)}")
+
+    print(f"  Got data for {len(series)}/{len(tickers)} tickers")
 
     rows = []
-    for ticker, h in bulk.items():
+    for ticker, (close, high, low, vol) in series.items():
         try:
-            if h.empty or len(h) < 25:
-                continue
-            close = h["Close"]
-            price = float(close.iloc[-1])
-            if price <= 0:
-                continue
-
-            # ADR% — Qullamaggie volatility metric: avg(High/Low) over 20d - 1
-            hi, lo = h["High"].tail(20), h["Low"].tail(20)
-            adr_pct = float((hi / lo.where(lo > 0)).mean() - 1) * 100
-
-            # 20-day average dollar volume
-            dollar_vol = float((h["Close"] * h["Volume"]).tail(20).mean())
-
-            # Returns
-            chg_1mo = (price / float(close.iloc[-22]) - 1) * 100 if len(close) >= 22 else 0.0
-            chg_1wk = (price / float(close.iloc[-6])  - 1) * 100 if len(close) >= 6  else 0.0
-
-            rows.append({
-                "ticker":     ticker,
-                "price":      round(price, 2),
-                "adr_pct":    round(adr_pct, 2),
-                "dollar_vol": dollar_vol,
-                "chg_1mo":    round(chg_1mo, 2),
-                "chg_1wk":    round(chg_1wk, 2),
-            })
+            m = _metrics_from_series(ticker, close, high, low, vol)
+            if m:
+                rows.append(m)
         except Exception:
             pass
 
