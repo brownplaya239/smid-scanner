@@ -197,6 +197,65 @@ def _why(row, flow):
     return "  -  ".join(bits)
 
 
+def _opening(row):
+    """Likelihood the flow is OPENING new positions vs closing existing ones.
+    Same-day estimate from vol/OI, sweep-size>OI and repeat flow; next-day OI
+    (uoa_alpha) confirms it. likely_open / mixed / likely_close."""
+    vol_oi = row.get("vol_oi", 0) or 0
+    if vol_oi >= 3.5 or row.get("size_gt_oi") or row.get("repeat_count", 0) > 0:
+        return "likely_open"
+    if vol_oi < 2.5:
+        return "likely_close"
+    return "mixed"
+
+
+def _liquidity(row):
+    """(spread_pct, grade) — how followable/tradeable the contract is.
+    Graded on open interest + day volume (always available). Bid/ask spread%
+    is included only once the quotes entitlement is live; when present a wide
+    spread can knock an otherwise-liquid grade down."""
+    oi  = row.get("open_interest", 0) or 0
+    vol = row.get("volume", 0) or 0
+    bid = row.get("_bid") or 0
+    ask = row.get("_ask") or 0
+    spread_pct = None
+    if bid and ask and (bid + ask) > 0:
+        spread_pct = round((ask - bid) / ((bid + ask) / 2) * 100, 1)
+
+    if   oi >= 2000 and vol >= 2000: grade = "A"
+    elif oi >= 500  and vol >= 1000: grade = "B"
+    elif oi >= 100:                  grade = "C"
+    else:                            grade = "D"
+    if spread_pct is not None and spread_pct > 20 and grade in ("A", "B"):
+        grade = "C"
+    return spread_pct, grade
+
+
+def _trade_plan(row):
+    """Objective trade-context math (no prescriptive entry/exit levels):
+    break-even price, % the stock must move to break even, the option-implied
+    1-sigma expected move over the contract's life, and the catalyst."""
+    import math
+    px     = row.get("px", 0) or 0
+    strike = row.get("strike", 0) or 0
+    spot   = row.get("spot") or 0
+    ctype  = row.get("type", "")
+    be = row.get("be_snap")                       # Polygon-computed break-even
+    if not be and strike and px:                   # fallback: strike +/- premium
+        be = round(strike + px, 2) if ctype == "call" else round(strike - px, 2)
+    be_dist = None
+    if be and spot:
+        be_dist = round((be / spot - 1) * 100, 1) if ctype == "call" \
+                  else round((1 - be / spot) * 100, 1)
+    em = None
+    iv, dte = row.get("iv"), row.get("dte")
+    if iv and dte and dte > 0:
+        em = round(iv * math.sqrt(dte / 365) * 100, 1)
+    ed = row.get("earnings_days")
+    catalyst = f"Earnings in {ed}d" if (ed is not None and 0 <= ed <= 21) else ""
+    return be, be_dist, em, catalyst
+
+
 def screen_snapshot(underlying):
     """Pull an underlying's option chain and return the contracts that are
     statistically unusual on snapshot metrics alone (vol/OI, premium, OTM)."""
@@ -259,8 +318,9 @@ def screen_snapshot(underlying):
             "premium_tier": _premium_tier(premium),
             "iv":         c.get("implied_volatility"),
             "px":         round(px, 2),
-            "_bid":       lq.get("bid"),
-            "_ask":       lq.get("ask"),
+            "be_snap":    c.get("break_even_price"),   # Polygon-computed BE
+            "_bid":       lq.get("bid"),               # populates when the
+            "_ask":       lq.get("ask"),               # quotes entitlement lands
         })
     return flagged
 
@@ -559,6 +619,16 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
             row["tier"]      = _tier(row["trade_score"], row["golden"])
             row["sentiment"] = _sentiment(row["type"], flow.get("side"))
             row["why"]       = _why(row, flow)
+            # opening likelihood + liquidity + trade-plan context
+            row["opening"]   = _opening(row)
+            sp, lg = _liquidity(row)
+            row["spread_pct"] = sp
+            row["liquidity"]  = lg
+            be, bd, em, cat = _trade_plan(row)
+            row["break_even"]        = be
+            row["be_distance_pct"]   = bd
+            row["expected_move_pct"] = em
+            row["catalyst"]          = cat
             return row
         except Exception as e:
             print(f"  flow analysis failed for {row.get('contract')}: {e}")
@@ -645,6 +715,13 @@ def emit_latest(rows):
             "tier":          r.get("tier", "C"),
             "sentiment":     r.get("sentiment", "mixed"),
             "why":           r.get("why", ""),
+            "opening":       r.get("opening", "mixed"),
+            "liquidity":     r.get("liquidity", "C"),
+            "spread_pct":    r.get("spread_pct"),
+            "break_even":    r.get("break_even"),
+            "be_distance_pct":   r.get("be_distance_pct"),
+            "expected_move_pct": r.get("expected_move_pct"),
+            "catalyst":      r.get("catalyst", ""),
             "tags":          r["tags"],
         })
     payload = {

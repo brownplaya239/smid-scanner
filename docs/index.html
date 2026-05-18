@@ -199,6 +199,19 @@
   .sent-sell  { background:#5a3d8a; color:#fff; }
   .sent-mixed { background:#33405e; color:#9aa3bb; }
   .uoa-why { color:#aab3c8; font-size:11px; white-space:normal; min-width:230px; }
+
+  /* ── UOA Phase B — opening likelihood + liquidity ── */
+  .uoa-open { display:inline-block; font-size:9px; font-weight:700;
+    border-radius:4px; padding:2px 6px; }
+  .o-open  { background:#1d6b3a; color:#eafff0; }
+  .o-close { background:#5e2b2b; color:#e8a0a0; }
+  .o-mixed { background:#33405e; color:#9aa3bb; }
+  .uoa-liq { display:inline-block; min-width:18px; text-align:center;
+    font-weight:800; border-radius:4px; padding:2px 5px; font-size:10px; }
+  .liq-a { background:#1d6b3a; color:#eafff0; }
+  .liq-b { background:#3a7d4e; color:#eafff0; }
+  .liq-c { background:#7a5e12; color:#fff6da; }
+  .liq-d { background:#5e2b2b; color:#e8a0a0; }
   .uoa-prem-big { font-weight:700; color:var(--gold); }
   .uoa-empty { padding:30px; text-align:center; color:var(--muted); font-size:13px; }
 
@@ -386,6 +399,8 @@
         </select>
         <label><input type="checkbox" id="uoa-golden" /> Golden</label>
         <label><input type="checkbox" id="uoa-otm" /> OTM only</label>
+        <label><input type="checkbox" id="uoa-open" /> Likely open</label>
+        <label><input type="checkbox" id="uoa-liqab" /> Liquid (A-B)</label>
         <label><input type="checkbox" id="uoa-repeat" /> Repeat flow</label>
         <label><input type="checkbox" id="uoa-ern" /> Into earnings</label>
         <label><input type="checkbox" id="uoa-univ" /> My universe</label>
@@ -556,9 +571,11 @@
     const COLS = [
       { k:"ticker", t:"Ticker" }, { k:"tier", t:"Tier" },
       { k:"trade_score", t:"Score" }, { k:"sentiment", t:"Bias" },
+      { k:"opening", t:"Opening" },
       { k:"type", t:"C/P" }, { k:"strike", t:"Strike" }, { k:"expiry", t:"Expiry" },
-      { k:"dte", t:"DTE" }, { k:"pct_otm", t:"%OTM" }, { k:"volume", t:"Volume" },
-      { k:"vol_oi", t:"Vol/OI" }, { k:"premium", t:"Premium" }, { k:"why", t:"Why Flagged" },
+      { k:"dte", t:"DTE" }, { k:"pct_otm", t:"%OTM" }, { k:"be_distance_pct", t:"→B/E" },
+      { k:"volume", t:"Volume" }, { k:"vol_oi", t:"Vol/OI" }, { k:"liquidity", t:"Liq" },
+      { k:"premium", t:"Premium" }, { k:"why", t:"Why Flagged" },
     ];
     let DATA = [], sortKey = "trade_score", sortDir = -1;
     const $ = function (id) { return document.getElementById(id); };
@@ -578,6 +595,11 @@
       if (s==="bearish") return '<span class="uoa-sent sent-bear">BEARISH</span>';
       if (s==="seller")  return '<span class="uoa-sent sent-sell">SELLER</span>';
       return '<span class="uoa-sent sent-mixed">MIXED</span>';
+    }
+    function openPill(o) {
+      if (o==="likely_open")  return '<span class="uoa-open o-open">OPEN</span>';
+      if (o==="likely_close") return '<span class="uoa-open o-close">CLOSE</span>';
+      return '<span class="uoa-open o-mixed">MIXED</span>';
     }
     function renderClusters() {
       const el = $("uoa-clusters"); if (!el) return;
@@ -674,6 +696,8 @@
       if (r.premium < +$("uoa-prem").value) return false;
       if ($("uoa-golden").checked && !r.golden) return false;
       if ($("uoa-otm").checked && !r.is_otm) return false;
+      if ($("uoa-open").checked && r.opening !== "likely_open") return false;
+      if ($("uoa-liqab").checked && !(r.liquidity === "A" || r.liquidity === "B")) return false;
       if ($("uoa-repeat").checked && !(r.repeat_count > 0)) return false;
       if ($("uoa-ern").checked &&
           !(r.earnings_days != null && r.earnings_days >= 0 && r.earnings_days <= 10)) return false;
@@ -683,7 +707,7 @@
     function renderBody() {
       const tb = $("uoa-body");
       if (!DATA.length) {
-        tb.innerHTML = '<tr><td colspan="13" class="uoa-empty">Awaiting the first UOA scan '+
+        tb.innerHTML = '<tr><td colspan="16" class="uoa-empty">Awaiting the first UOA scan '+
           '&mdash; scheduled runs at ~11:00 AM, 1:30 PM &amp; 3:45 PM ET will populate this.</td></tr>';
         return;
       }
@@ -695,22 +719,26 @@
         return sortDir*(((x==null?-1:x)) - ((y==null?-1:y)));
       });
       if (!rows.length) {
-        tb.innerHTML = '<tr><td colspan="13" class="uoa-empty">No flow matches these filters.</td></tr>';
+        tb.innerHTML = '<tr><td colspan="16" class="uoa-empty">No flow matches these filters.</td></tr>';
         return;
       }
       tb.innerHTML = rows.slice(0, 300).map(function (r) {
+        const bem = r.be_distance_pct;
         return '<tr>'+
           '<td><strong>'+r.ticker+'</strong></td>'+
           '<td><span class="uoa-tier '+tierCls(r.tier)+'">'+(r.tier||"C")+'</span></td>'+
           '<td><span class="uoa-score '+scoreCls(r.trade_score)+'">'+r.trade_score+'</span></td>'+
           '<td>'+sentPill(r.sentiment)+'</td>'+
+          '<td>'+openPill(r.opening)+'</td>'+
           '<td class="'+(r.type==="call"?"uoa-call":"uoa-put")+'">'+(r.type==="call"?"CALL":"PUT")+'</td>'+
           '<td>$'+r.strike+'</td>'+
           '<td>'+r.expiry+'</td>'+
           '<td>'+(r.dte!=null?r.dte+"d":"&mdash;")+'</td>'+
           '<td>'+(r.pct_otm!=null?r.pct_otm+"%":"&mdash;")+'</td>'+
+          '<td>'+(bem!=null?(bem>0?"+":"")+bem+"%":"&mdash;")+'</td>'+
           '<td>'+fmtNum(r.volume)+'</td>'+
           '<td>'+r.vol_oi+'</td>'+
+          '<td><span class="uoa-liq liq-'+(r.liquidity||"C").toLowerCase()+'">'+(r.liquidity||"C")+'</span></td>'+
           '<td class="'+(r.premium>=1e6?"uoa-prem-big":"")+'">$'+fmtNum(r.premium)+'</td>'+
           '<td class="uoa-why">'+(r.why||"&mdash;")+'</td>'+
         '</tr>';
@@ -735,7 +763,8 @@
         .then(renderEdge).catch(function () { renderEdge(null); });
     }
     ["uoa-q","uoa-type","uoa-side","uoa-dte","uoa-score","uoa-prem",
-     "uoa-golden","uoa-otm","uoa-repeat","uoa-ern","uoa-univ"].forEach(function (id) {
+     "uoa-golden","uoa-otm","uoa-open","uoa-liqab","uoa-repeat","uoa-ern",
+     "uoa-univ"].forEach(function (id) {
       const el = document.getElementById(id);
       if (el) el.addEventListener(
         (el.tagName === "INPUT" && el.type === "text") ? "input" : "change", renderBody);
