@@ -103,14 +103,54 @@ def fetch_news(ticker, company="", max_items=12):
 
 # ─── Social sentiment — StockTwits + Reddit ───────────────────────────────────
 
+def _account_quality(user):
+    """Heuristic credibility for a StockTwits account — pump-and-dump rings run
+    swarms of brand-new, zero-follower, zero-history accounts to fake a buzz.
+    Returns one of 'ok' | 'low' | 'junk'.
+
+      followers  : audience size
+      ideas      : lifetime post count (real users accumulate history)
+      join_date  : account age — fresh accounts are the classic bot tell
+      official   : verified company/brand account
+    """
+    followers = user.get("followers", 0) or 0
+    ideas     = user.get("ideas", 0) or 0
+    official  = bool(user.get("official"))
+    join      = (user.get("join_date", "") or "")[:10]
+    age_days  = None
+    if join:
+        try:
+            age_days = (datetime.utcnow().date()
+                        - datetime.strptime(join, "%Y-%m-%d").date()).days
+        except Exception:
+            pass
+    # established / real account — keep at full weight
+    if official or followers >= 75 or ideas >= 300:
+        return "ok"
+    # hard junk: no audience AND negligible history AND (young or unknown age)
+    young = age_days is None or age_days < 45
+    if followers < 8 and ideas < 25 and young:
+        return "junk"
+    # thin but not obviously fake — keep, but flag as low-credibility
+    if followers < 25 and ideas < 100:
+        return "low"
+    return "ok"
+
+
 def fetch_stocktwits(ticker, max_msgs=30):
     """StockTwits stream — recent messages with built-in Bullish/Bearish tags.
 
     StockTwits blocks datacenter IPs / the `requests` TLS fingerprint, so the
     primary path routes the API call through Nimble's residential proxy
-    (/extract). Direct request is the fallback."""
+    (/extract). Direct request is the fallback.
+
+    Account-quality filter: messages from likely bot / pump accounts (brand-new,
+    zero-follower, zero-history) are dropped from the sample and the bull/bear
+    tally so they don't poison the sentiment read. The share of dropped junk is
+    returned as `bot_ratio` — a high ratio is itself a manipulation signal."""
     out = {"messages": [], "bull": 0, "bear": 0, "tagged": 0, "total": 0,
-           "watchers": 0, "available": False}
+           "watchers": 0, "available": False,
+           "junk_filtered": 0, "bot_ratio": 0.0, "low_cred": 0}
     api_url = f"https://api.stocktwits.com/api/2/streams/symbol/{ticker}.json"
 
     # Primary: Nimble /extract with fmt='html' returns the raw JSON body verbatim.
@@ -134,7 +174,18 @@ def fetch_stocktwits(ticker, max_msgs=30):
 
     out["available"] = True
     out["watchers"]  = data.get("symbol", {}).get("watchlist_count", 0)
-    for m in data.get("messages", [])[:max_msgs]:
+    seen_total = 0
+    for m in data.get("messages", []):
+        if len(out["messages"]) >= max_msgs:
+            break
+        seen_total += 1
+        user = m.get("user") or {}
+        quality = _account_quality(user)
+        if quality == "junk":
+            out["junk_filtered"] += 1
+            continue                      # drop bot/pump account entirely
+        if quality == "low":
+            out["low_cred"] += 1
         ent  = (m.get("entities") or {}).get("sentiment") or {}
         sent = ent.get("basic", "") or ""
         if sent == "Bullish":   out["bull"] += 1; out["tagged"] += 1
@@ -143,9 +194,13 @@ def fetch_stocktwits(ticker, max_msgs=30):
             "body":      (m.get("body", "") or "")[:240],
             "sentiment": sent,
             "created":   m.get("created_at", ""),
-            "user":      (m.get("user") or {}).get("username", ""),
+            "user":      user.get("username", ""),
+            "followers": user.get("followers", 0) or 0,
+            "quality":   quality,
         })
     out["total"] = len(out["messages"])
+    scanned = seen_total or 1
+    out["bot_ratio"] = round(out["junk_filtered"] / scanned, 2)
     return out
 
 
@@ -286,7 +341,9 @@ def gather_alt_data(ticker, company=""):
         "price":  price.get("price_available", False),
     }
     print(f"    news={len(news)}  stocktwits={social.get('total',0)} "
-          f"(bull {social.get('bull',0)}/bear {social.get('bear',0)})  "
+          f"(bull {social.get('bull',0)}/bear {social.get('bear',0)}; "
+          f"junk-filtered {social.get('junk_filtered',0)}, "
+          f"bot-ratio {social.get('bot_ratio',0)})  "
           f"reddit={len(reddit)}  web_ctx={'yes' if web else 'no'}  "
           f"price={'yes' if coverage['price'] else 'no'}")
 

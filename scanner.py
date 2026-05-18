@@ -12,7 +12,7 @@ import io
 import csv
 import json
 import re
-from datetime import datetime
+from datetime import datetime, date
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -415,19 +415,28 @@ def enrich_with_earnings(candidates, ticker_objs):
             if not dates:
                 continue
             ed = dates[0]
-            ed_date = ed.date() if hasattr(ed, "date") else None
+            # yfinance returns plain datetime.date here (no .date() method);
+            # datetime / pandas.Timestamp do have .date(). Handle both — the
+            # old hasattr(ed,"date") check silently dropped every plain date.
+            if isinstance(ed, datetime):
+                ed_date = ed.date()
+            elif isinstance(ed, date):
+                ed_date = ed
+            else:
+                ed_date = None
             if ed_date:
+                # Two differing dates = an unconfirmed estimated window
+                estimated = len(dates) > 1 and dates[-1] != dates[0]
+                est = " (est.)" if estimated else ""
                 delta = (ed_date - now).days
                 d["earnings_date"] = str(ed_date)
                 d["earnings_days"] = delta
                 if delta < 0:
                     d["earnings_flag"] = "REPORTED"
                 elif delta == 0:
-                    d["earnings_flag"] = "EARNINGS TODAY"
-                elif delta <= 3:
-                    d["earnings_flag"] = f"EARNINGS IN {delta}D"
-                elif delta <= 7:
-                    d["earnings_flag"] = f"EARNINGS IN {delta}D"
+                    d["earnings_flag"] = f"EARNINGS TODAY{est}"
+                else:
+                    d["earnings_flag"] = f"EARNINGS IN {delta}D{est}"
         except Exception:
             pass
     return candidates
@@ -522,9 +531,10 @@ Key fields:
 
 For each candidate, analyze rigorously across these dimensions:
 
-1. TODAY'S CATALYST — What is actually driving this move RIGHT NOW?
-   - Earnings beat/guidance raise, FDA/regulatory approval, contract win, partnership, analyst upgrade, sector rotation, sympathy play, short squeeze, technical breakout from base?
-   - Is the catalyst durable or a one-day event?
+1. CATALYST — the driver of the move AND, more importantly, the forward catalyst path
+   - What is driving the breakout (earnings beat, guidance raise, FDA/regulatory approval, contract win, partnership, analyst upgrade, sector rotation, short squeeze, technical breakout from base)?
+   - CRITICAL — think like a hedge fund positioning AHEAD of events, not chasing a one-day pop. What catalysts lie ahead over the next WEEKS TO MONTHS that can extend this move: the next earnings date (use `earnings_date`), guidance or investor/analyst day, product launch, FDA/PDUFA date, CMS decision, major contract or government-award decision, index rebalance (Russell/S&P), lockup expiry?
+   - A breakout with a live forward-catalyst path is durable and worth owning; a breakout that has already fully discounted its only catalyst is exhausted — say which this is.
 
 2. BUSINESS & INDUSTRY POSITION — What does this company do and what is its competitive edge?
    - Category leader, fast follower, or niche disruptor in what specific market?
@@ -587,7 +597,7 @@ Each object must include ALL fields:
   rsLineNewHigh, earningsFlag,
   theme (2-4 words),
   industry (precise label),
-  catalyst (1-2 sentences: what is specifically driving today's move),
+  catalyst (1-2 sentences: the driver of the current move PLUS the key forward catalyst over the next weeks-to-months that can extend it — name the specific event and approximate timing),
   businessDescription (2 sentences for A/B, "" for C),
   factorExposure (1-2 sentences for A/B, "" for C),
   institutionalAngle (1-2 sentences for A/B, "" for C),
