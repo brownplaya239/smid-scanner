@@ -261,6 +261,46 @@
   .uoa-detail .drow .dk { color:var(--muted); }
   .uoa-detail .drow .dv { font-weight:600; text-align:right; }
   .uoa-detail .dwhy { font-size:11.5px; color:#aab3c8; margin-top:12px; line-height:1.5; }
+
+  /* ── UOA Batch 1/4 — preset, bias pills, chips, cluster cols, toggles ── */
+  .uoa-preset { background:var(--gold); color:var(--navy); border:0; border-radius:6px;
+    font-family:inherit; font-size:12px; font-weight:700; padding:8px 12px; cursor:pointer; }
+  .uoa-preset:hover { filter:brightness(1.08); }
+
+  .uoa-bias { display:inline-block; font-size:9px; font-weight:700;
+    border-radius:4px; padding:2px 6px; white-space:nowrap; }
+  .bias-bull  { background:#1d6b3a; color:#eafff0; }
+  .bias-bear  { background:#a8442d; color:#fff; }
+  .bias-inc   { background:#5a3d8a; color:#fff; }
+  .bias-hedge { background:#33405e; color:#9aa3bb; }
+
+  .uoa-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .uoa-chips:empty { display:none; }
+  .uoa-chip { background:#1a2548; border:1px solid var(--line); color:#cdd6ee;
+    border-radius:12px; font-size:10.5px; padding:3px 9px; cursor:pointer; }
+  .uoa-chip:hover { border-color:var(--gold); color:#fff; }
+
+  .uoa-cluster .ccol { font-size:9.5px; margin-top:2px; }
+  .cc-bull { color:#7fe0a8; }
+  .cc-bear { color:#e8a0a0; }
+
+  .dbtns { display:flex; gap:6px; }
+  .dbtn { background:none; border:1px solid var(--line); color:#cdd6ee;
+    border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;
+    padding:3px 10px; font-family:inherit; }
+  .dbtn:hover { border-color:var(--gold); color:#fff; }
+
+  /* pill-toggle filter checkboxes */
+  .uoa-filters label { border:1px solid #2a3a6e; border-radius:13px;
+    padding:6px 11px; cursor:pointer; }
+  .uoa-filters label:hover { border-color:#3f5290; }
+  .uoa-filters label:has(input:checked) {
+    background:var(--gold); color:var(--navy); border-color:var(--gold); }
+  .uoa-filters label input { display:none; }
+
+  /* stronger liquidity / opening cues */
+  .o-open  { box-shadow:inset 0 0 0 1px #2fae6a55; }
+  .liq-a, .liq-b { box-shadow:inset 0 0 0 1px #ffffff22; }
   .uoa-prem-big { font-weight:700; color:var(--gold); }
   .uoa-empty { padding:30px; text-align:center; color:var(--muted); font-size:13px; }
 
@@ -422,6 +462,8 @@
       <div class="uoa-clusters" id="uoa-clusters"></div>
 
       <div class="uoa-filters">
+        <button class="uoa-preset" id="uoa-preset"
+          title="Score 80+ - likely open - liquid A/B - $300k+ - sellers hidden">&#9733; High Conviction</button>
         <input type="text" id="uoa-q" placeholder="Ticker..." autocomplete="off" />
         <select id="uoa-type">
           <option value="">Calls + Puts</option>
@@ -459,8 +501,11 @@
         <label><input type="checkbox" id="uoa-liqab" /> Liquid (A-B)</label>
         <label><input type="checkbox" id="uoa-repeat" /> Repeat flow</label>
         <label><input type="checkbox" id="uoa-ern" /> Into earnings</label>
+        <label><input type="checkbox" id="uoa-noseller" /> Hide sellers</label>
         <label><input type="checkbox" id="uoa-univ" /> My universe</label>
       </div>
+
+      <div class="uoa-chips" id="uoa-chips"></div>
 
       <div class="uoa-table-wrap">
         <table class="uoa" id="uoa-table">
@@ -483,6 +528,7 @@
             <option value="pending">Pending</option>
           </select>
           <input type="text" id="trk-q" placeholder="Ticker..." autocomplete="off" />
+          <label><input type="checkbox" id="trk-group" /> Group by ticker</label>
         </div>
         <div class="uoa-table-wrap">
           <table class="uoa" id="trk-table">
@@ -658,7 +704,7 @@
   (function () {
     const COLS = [
       { k:"ticker", t:"Ticker" }, { k:"tier", t:"Tier" },
-      { k:"trade_score", t:"Score" }, { k:"sentiment", t:"Bias" },
+      { k:"trade_score", t:"Score" }, { k:"flow_side", t:"Bias" },
       { k:"opening", t:"Opening" },
       { k:"type", t:"C/P" }, { k:"strike", t:"Strike" }, { k:"expiry", t:"Expiry" },
       { k:"dte", t:"DTE" }, { k:"pct_otm", t:"%OTM" }, { k:"be_distance_pct", t:"→B/E" },
@@ -678,11 +724,13 @@
     function tierCls(t) {
       return t==="A+" ? "t-ap" : t==="A" ? "t-a" : t==="B" ? "t-b" : "t-c";
     }
-    function sentPill(s) {
-      if (s==="bullish") return '<span class="uoa-sent sent-bull">BULLISH</span>';
-      if (s==="bearish") return '<span class="uoa-sent sent-bear">BEARISH</span>';
-      if (s==="seller")  return '<span class="uoa-sent sent-sell">SELLER</span>';
-      return '<span class="uoa-sent sent-mixed">MIXED</span>';
+    function biasPill(fs, dir) {
+      const lbl = { call_buyer:"CALL BUY", put_buyer:"PUT BUY",
+        call_seller:"CALL SELL", put_seller:"PUT SELL",
+        mixed:"MIXED", unknown:"?" }[fs] || "?";
+      const cls = dir==="bullish" ? "bias-bull" : dir==="bearish" ? "bias-bear"
+                : dir==="income" ? "bias-inc" : "bias-hedge";
+      return '<span class="uoa-bias '+cls+'" title="'+(dir||"")+'">'+lbl+'</span>';
     }
     function openPill(o) {
       if (o==="likely_open")  return '<span class="uoa-open o-open">OPEN</span>';
@@ -695,22 +743,38 @@
       const by = {};
       DATA.forEach(function (r) {
         const c = by[r.ticker] ||
-          (by[r.ticker] = { prem:0, n:0, calls:0, puts:0, dte:0, score:0 });
-        c.prem += r.premium||0; c.n++;
-        if (r.type==="call") c.calls++; else c.puts++;
-        c.dte += r.dte||0; c.score = Math.max(c.score, r.trade_score||0);
+          (by[r.ticker] = { cb:0, pb:0, cs:0, ps:0, n:0, exp:{}, strk:{} });
+        const p = r.premium || 0;
+        if      (r.flow_side==="call_buyer")  c.cb += p;
+        else if (r.flow_side==="put_buyer")   c.pb += p;
+        else if (r.flow_side==="call_seller") c.cs += p;
+        else if (r.flow_side==="put_seller")  c.ps += p;
+        c.n++;
+        if (r.expiry) c.exp[r.expiry] = (c.exp[r.expiry]||0) + p;
+        const sk = (r.type==="call"?"C":"P")+"$"+r.strike;
+        c.strk[sk] = (c.strk[sk]||0) + p;
       });
+      function topKey(o) { let k="",v=-1; for (const x in o) if (o[x]>v){v=o[x];k=x;} return k; }
       const arr = Object.keys(by).map(function (t) {
-        const c = by[t]; c.ticker = t; c.avgDte = Math.round(c.dte/c.n); return c;
-      }).sort(function (a, b) { return b.prem - a.prem; });
-      el.innerHTML = '<div class="uoa-clabel">Top Flow Clusters &mdash; repetition is the signal</div>' +
+        const c = by[t]; c.ticker = t;
+        c.bull = c.cb + c.ps;            // calls bought + puts sold
+        c.bear = c.pb + c.cs;            // puts bought + calls sold
+        c.total = c.cb + c.pb + c.cs + c.ps;
+        c.topExp = topKey(c.exp); c.topStrk = topKey(c.strk);
+        return c;
+      }).sort(function (a, b) { return b.total - a.total; });
+      el.innerHTML = '<div class="uoa-clabel">Top Flow Clusters &mdash; net directional read</div>' +
         '<div class="uoa-crow">' + arr.slice(0, 8).map(function (c) {
-          const dir = c.calls > c.puts*1.5 ? '<span class="cdir sent-bull">CALLS</span>'
-                    : c.puts > c.calls*1.5 ? '<span class="cdir sent-bear">PUTS</span>'
-                    : '<span class="cdir sent-mixed">MIXED</span>';
-          return '<div class="uoa-cluster"><div class="ct">'+c.ticker+dir+'</div>'+
-            '<div class="cv">$'+fmtNum(c.prem)+'</div>'+
-            '<div class="cd">'+c.n+' contracts &middot; avg '+c.avgDte+'d &middot; top '+c.score+'</div>'+
+          const ndir = c.bull > c.bear*1.4 ? '<span class="cdir bias-bull">BULLISH</span>'
+                     : c.bear > c.bull*1.4 ? '<span class="cdir bias-bear">BEARISH</span>'
+                     : '<span class="cdir bias-hedge">MIXED</span>';
+          return '<div class="uoa-cluster"><div class="ct">'+c.ticker+ndir+'</div>'+
+            '<div class="ccol cc-bull">&#9650; $'+fmtNum(c.cb)+' calls bot &middot; $'+
+              fmtNum(c.ps)+' puts sold</div>'+
+            '<div class="ccol cc-bear">&#9660; $'+fmtNum(c.pb)+' puts bot &middot; $'+
+              fmtNum(c.cs)+' calls sold</div>'+
+            '<div class="cd">'+c.n+' contracts &middot; top exp '+(c.topExp||"-")+
+              ' &middot; '+(c.topStrk||"-")+'</div>'+
           '</div>';
         }).join("") + '</div>';
     }
@@ -790,9 +854,13 @@
       if ($("uoa-ern").checked &&
           !(r.earnings_days != null && r.earnings_days >= 0 && r.earnings_days <= 10)) return false;
       if ($("uoa-univ").checked && !r.in_universe) return false;
+      if ($("uoa-noseller").checked &&
+          (r.flow_side==="call_seller" || r.flow_side==="put_seller" ||
+           r.flow_side==="mixed" || r.flow_side==="unknown")) return false;
       return true;
     }
     function renderBody() {
+      renderChips();
       const tb = $("uoa-body");
       if (!DATA.length) {
         tb.innerHTML = '<tr><td colspan="16" class="uoa-empty">Awaiting the first UOA scan '+
@@ -817,7 +885,7 @@
           '<td><strong>'+r.ticker+'</strong></td>'+
           '<td><span class="uoa-tier '+tierCls(r.tier)+'">'+(r.tier||"C")+'</span></td>'+
           '<td><span class="uoa-score '+scoreCls(r.trade_score)+'">'+r.trade_score+'</span></td>'+
-          '<td>'+sentPill(r.sentiment)+'</td>'+
+          '<td>'+biasPill(r.flow_side, r.direction)+'</td>'+
           '<td>'+openPill(r.opening)+'</td>'+
           '<td class="'+(r.type==="call"?"uoa-call":"uoa-put")+'">'+(r.type==="call"?"CALL":"PUT")+'</td>'+
           '<td>$'+r.strike+'</td>'+
@@ -876,7 +944,8 @@
     const TRK_COLS = [
       {k:"ticker",t:"Ticker"},{k:"flagged_at",t:"Flagged"},{k:"trade_score",t:"Score"},
       {k:"oi_status",t:"OI Status"},{k:"oi_change",t:"OI Δ"},{k:"retained_pct",t:"Retain%"},
-      {k:"ret_5d",t:"+5d %"},{k:"mfe",t:"MFE%"},{k:"mae",t:"MAE%"},{k:"signal_type",t:"Type"},
+      {k:"ret_1d",t:"+1d %"},{k:"ret_3d",t:"+3d %"},{k:"ret_5d",t:"+5d %"},
+      {k:"mfe",t:"MFE%"},{k:"mae",t:"MAE%"},{k:"signal_type",t:"Type"},
     ];
     let trkSort = "flagged_at", trkDir = -1;
     function stBadge(s) {
@@ -899,28 +968,71 @@
     function renderTrackedBody() {
       const tb = $("trk-body");
       if (!SCORED.length) {
-        tb.innerHTML = '<tr><td colspan="10" class="uoa-empty">No tracked signals yet '+
+        tb.innerHTML = '<tr><td colspan="12" class="uoa-empty">No tracked signals yet '+
           '&mdash; the ledger fills as scans run, then scores them over the following days.</td></tr>';
         return;
       }
       const stf = $("trk-status").value, q = $("trk-q").value.trim().toUpperCase();
-      const rows = SCORED.filter(function (r) {
+      const grouped = $("trk-group").checked;
+      let rows = SCORED.filter(function (r) {
         if (stf && r.oi_status !== stf) return false;
         if (q && (r.ticker||"").indexOf(q) < 0) return false;
         return true;
-      }).slice().sort(function (a, b) {
+      });
+      function pct(v) { return v==null ? "&mdash;" : (v>0?"+":"")+v+"%"; }
+      function cls(v) { return v==null ? "" : v>0?"perf-pos":v<0?"perf-neg":""; }
+      function avg(a) {
+        const x = a.filter(function (v) { return v!=null; });
+        return x.length ? Math.round(x.reduce(function (s,v){return s+v;},0)/x.length*10)/10 : null;
+      }
+      if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="12" class="uoa-empty">No signals match.</td></tr>';
+        return;
+      }
+
+      if (grouped) {                       // one summary row per ticker
+        const by = {};
+        rows.forEach(function (r) {
+          const g = by[r.ticker] || (by[r.ticker] = { t:r.ticker, n:0, sc:[],
+            oc:0, rp:[], r1:[], r3:[], r5:[], mfe:[], mae:[], st:{} });
+          g.n++; g.sc.push(r.trade_score); g.oc += r.oi_change||0;
+          g.rp.push(r.retained_pct); g.r1.push(r.ret_1d);
+          g.r3.push(r.ret_3d); g.r5.push(r.ret_5d);
+          g.mfe.push(r.mfe); g.mae.push(r.mae);
+          g.st[r.oi_status] = (g.st[r.oi_status]||0) + 1;
+        });
+        const garr = Object.keys(by).map(function (k){ return by[k]; })
+          .sort(function (a,b){ return b.n - a.n; });
+        tb.innerHTML = garr.map(function (g) {
+          const stAbbr = { confirmed:"C", weak:"W", closed:"F", pending:"P" };
+          const stsum = ["confirmed","weak","closed","pending"]
+            .filter(function (s){ return g.st[s]; })
+            .map(function (s){ return g.st[s]+stAbbr[s]; }).join(" ");
+          return '<tr>'+
+            '<td><strong>'+g.t+'</strong></td>'+
+            '<td>'+g.n+' signals</td>'+
+            '<td><span class="uoa-score '+scoreCls(avg(g.sc)||0)+'">'+(avg(g.sc)||0)+'</span></td>'+
+            '<td>'+stsum+'</td>'+
+            '<td>'+(g.oc>0?"+":"")+fmtNum(g.oc)+'</td>'+
+            '<td>'+(avg(g.rp)==null?"&mdash;":avg(g.rp)+"%")+'</td>'+
+            '<td class="'+cls(avg(g.r1))+'">'+pct(avg(g.r1))+'</td>'+
+            '<td class="'+cls(avg(g.r3))+'">'+pct(avg(g.r3))+'</td>'+
+            '<td class="'+cls(avg(g.r5))+'">'+pct(avg(g.r5))+'</td>'+
+            '<td class="'+cls(avg(g.mfe))+'">'+pct(avg(g.mfe))+'</td>'+
+            '<td class="'+cls(avg(g.mae))+'">'+pct(avg(g.mae))+'</td>'+
+            '<td>&mdash;</td>'+
+          '</tr>';
+        }).join("");
+        return;
+      }
+
+      rows = rows.slice().sort(function (a, b) {
         let x=a[trkSort], y=b[trkSort];
         if (typeof x==="string" || typeof y==="string") {
           x=x||""; y=y||""; return trkDir*(x<y?-1:x>y?1:0);
         }
         return trkDir*(((x==null?-1e9:x)) - ((y==null?-1e9:y)));
       });
-      if (!rows.length) {
-        tb.innerHTML = '<tr><td colspan="10" class="uoa-empty">No signals match.</td></tr>';
-        return;
-      }
-      function pct(v) { return v==null ? "&mdash;" : (v>0?"+":"")+v+"%"; }
-      function cls(v) { return v==null ? "" : v>0?"perf-pos":v<0?"perf-neg":""; }
       tb.innerHTML = rows.slice(0,400).map(function (r) {
         return '<tr>'+
           '<td><strong>'+r.ticker+'</strong></td>'+
@@ -929,6 +1041,8 @@
           '<td>'+stBadge(r.oi_status)+'</td>'+
           '<td>'+(r.oi_change==null?"&mdash;":(r.oi_change>0?"+":"")+fmtNum(r.oi_change))+'</td>'+
           '<td>'+(r.retained_pct==null?"&mdash;":r.retained_pct+"%")+'</td>'+
+          '<td class="'+cls(r.ret_1d)+'">'+pct(r.ret_1d)+'</td>'+
+          '<td class="'+cls(r.ret_3d)+'">'+pct(r.ret_3d)+'</td>'+
           '<td class="'+cls(r.ret_5d)+'">'+pct(r.ret_5d)+'</td>'+
           '<td class="'+cls(r.mfe)+'">'+pct(r.mfe)+'</td>'+
           '<td class="'+cls(r.mae)+'">'+pct(r.mae)+'</td>'+
@@ -937,7 +1051,7 @@
       }).join("");
     }
     function renderTracked() { renderTrackedHead(); renderTrackedBody(); }
-    ["trk-status","trk-q"].forEach(function (id) {
+    ["trk-status","trk-q","trk-group"].forEach(function (id) {
       const el = document.getElementById(id);
       if (el) el.addEventListener(el.tagName==="INPUT"?"input":"change", renderTrackedBody);
     });
@@ -994,10 +1108,11 @@
         (r.type==="call"?"CALL":"PUT")+' $'+r.strike+'</div>'+
         '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+r.expiry+
         ' &middot; '+(r.dte!=null?r.dte+"d":"")+'</div></div>'+
-        '<button class="dclose" id="dclose">&times;</button></div>'+
+        '<div class="dbtns"><button class="dbtn" id="dcopy" title="Copy trade idea">Copy</button>'+
+        '<button class="dbtn" id="dclose">&times;</button></div></div>'+
         drow("Tier / Score", '<span class="uoa-tier '+tierCls(r.tier)+'">'+r.tier+
           '</span> &nbsp; '+r.trade_score)+
-        drow("Bias", sentPill(r.sentiment))+
+        drow("Bias", biasPill(r.flow_side, r.direction))+
         drow("Opening", openPill(r.opening))+
         drow("Premium", "$"+fmtNum(r.premium))+
         drow("Volume / OI", fmtNum(r.volume)+" / "+fmtNum(r.open_interest)+
@@ -1017,9 +1132,70 @@
       '</div>';
       d.classList.add("show");
       $("dclose").onclick = closeDetail;
+      $("dcopy").onclick = function () {
+        const txt = r.ticker+" "+(r.type==="call"?"CALL":"PUT")+" $"+r.strike+
+          " "+r.expiry+"  ("+(r.dte!=null?r.dte+"d":"")+")\n"+
+          "Tier "+r.tier+" / Score "+r.trade_score+"  |  "+
+          (r.flow_side||"")+" / "+(r.direction||"")+"\n"+
+          "Premium $"+fmtNum(r.premium)+"  |  Vol/OI "+r.vol_oi+"  |  "+(r.opening||"")+"\n"+
+          "Break-even $"+(r.break_even!=null?r.break_even:"-")+
+          " ("+(r.be_distance_pct!=null?(r.be_distance_pct>0?"+":"")+r.be_distance_pct+"%":"-")+
+          ")  |  Expected move +/-"+(r.expected_move_pct!=null?r.expected_move_pct+"%":"-")+"\n"+
+          (r.why||"");
+        navigator.clipboard.writeText(txt).then(function () {
+          $("dcopy").textContent = "Copied";
+          setTimeout(function () {
+            const b = document.getElementById("dcopy"); if (b) b.textContent = "Copy";
+          }, 1500);
+        }).catch(function () {});
+      };
       d.onclick = function (e) { if (e.target===d) closeDetail(); };
     }
     function closeDetail() { $("uoa-detail").classList.remove("show"); }
+
+    /* ── filter chips + High-Conviction preset ── */
+    function renderChips() {
+      const el = $("uoa-chips"); if (!el) return;
+      const chips = [], clears = [];
+      const q = $("uoa-q").value.trim();
+      if (q) { chips.push("Ticker: "+q.toUpperCase()); clears.push(function(){ $("uoa-q").value=""; }); }
+      [["uoa-type"],["uoa-side"],["uoa-dte"],["uoa-score"],["uoa-prem"]].forEach(function (p) {
+        const e = $(p[0]);
+        if (e && e.value && e.value !== "0") {
+          chips.push(e.options[e.selectedIndex].text);
+          clears.push(function(){ e.value = e.options[0].value; });
+        }
+      });
+      [["uoa-golden","Golden"],["uoa-otm","OTM only"],["uoa-open","Likely open"],
+       ["uoa-liqab","Liquid A-B"],["uoa-repeat","Repeat"],["uoa-ern","Into earnings"],
+       ["uoa-noseller","Sellers hidden"],["uoa-univ","My universe"]].forEach(function (p) {
+        const e = $(p[0]);
+        if (e && e.checked) { chips.push(p[1]); clears.push(function(){ e.checked=false; }); }
+      });
+      el._clear = clears;
+      el.innerHTML = chips.length
+        ? chips.map(function (c,i) {
+            return '<span class="uoa-chip" data-ci="'+i+'">'+c+' &times;</span>';
+          }).join("")
+        : "";
+    }
+    $("uoa-chips").addEventListener("click", function (e) {
+      const c = e.target.closest(".uoa-chip"); if (!c) return;
+      const fns = $("uoa-chips")._clear || [];
+      const fn = fns[+c.dataset.ci];
+      if (fn) { fn(); renderBody(); }
+    });
+    function applyPreset() {
+      $("uoa-q").value = ""; $("uoa-type").value = ""; $("uoa-side").value = "";
+      $("uoa-dte").value = ""; $("uoa-score").value = "80"; $("uoa-prem").value = "300000";
+      ["uoa-golden","uoa-otm","uoa-repeat","uoa-ern","uoa-univ"].forEach(function (id) {
+        $(id).checked = false;
+      });
+      $("uoa-open").checked = true; $("uoa-liqab").checked = true;
+      $("uoa-noseller").checked = true;
+      renderBody();
+    }
+    $("uoa-preset").addEventListener("click", applyPreset);
 
     $("uoa-body").addEventListener("click", function (e) {
       const tr = e.target.closest("tr");
@@ -1031,7 +1207,7 @@
     });
     ["uoa-q","uoa-type","uoa-side","uoa-dte","uoa-score","uoa-prem",
      "uoa-golden","uoa-otm","uoa-open","uoa-liqab","uoa-repeat","uoa-ern",
-     "uoa-univ"].forEach(function (id) {
+     "uoa-noseller","uoa-univ"].forEach(function (id) {
       const el = document.getElementById(id);
       if (el) el.addEventListener(
         (el.tagName === "INPUT" && el.type === "text") ? "input" : "change", renderBody);
