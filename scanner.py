@@ -833,118 +833,119 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
     # ════════════════════════════════════════════════════════════════════════════
     # COVER PAGE
     # ════════════════════════════════════════════════════════════════════════════
-    pdf.add_page()
+    if len(results) != 1:        # single-ticker one-pager skips the multi-name scan cover
+        pdf.add_page()
 
-    # Header
-    pdf.set_fill_color(*NAVY)
-    pdf.rect(0, 0, 210, 44, "F")
-    pdf.set_text_color(*WHITE)
-    pdf.set_font("Helvetica", "B", 21)
-    pdf.set_xy(0, 7)
-    pdf.cell(210, 11, _safe(report_label), align="C")
-    pdf.set_font("Helvetica", "", 9)
-    pdf.set_xy(0, 20)
-    pdf.cell(210, 6, _safe(scan_type), align="C")
-    pdf.set_xy(0, 28)
-    pdf.cell(210, 6, _safe(ts), align="C")
-    pdf.set_xy(0, 36)
-    pdf.cell(210, 5,
-        f"{len(results)} setups identified  |  {len(buckets['A'])} A-Grade  |  "
-        f"{len(buckets['B'])} B-Grade  |  {len(buckets['C'])} C-Grade",
-        align="C")
-    pdf.set_fill_color(*GOLD)
-    pdf.rect(0, 43, 210, 1.5, "F")
-
-    # Grade buckets
-    pdf.set_text_color(*INK)
-    pdf.set_xy(10, 51)
-    pdf.set_font("Helvetica", "B", 9)
-    pdf.cell(0, 5, "Grade Summary")
-    pdf.ln(5)
-
-    col_w = 62
-    grade_meta = [
-        ("A - Breakout Setup", buckets["A"], (34, 153, 84),  (220, 245, 230)),
-        ("B - Strong Setup",   buckets["B"], (41, 128, 185), (220, 235, 250)),
-        ("C - Watch List",     buckets["C"], (194, 120, 3),  (250, 240, 215)),
-    ]
-    pdf.set_font("Helvetica", "B", 8)
-    for label, tickers, hdr_rgb, _ in grade_meta:
-        pdf.set_fill_color(*hdr_rgb)
+        # Header
+        pdf.set_fill_color(*NAVY)
+        pdf.rect(0, 0, 210, 44, "F")
         pdf.set_text_color(*WHITE)
-        pdf.cell(col_w, 6, f"  {label} ({len(tickers)})", border=1, fill=True)
-    pdf.ln()
-    max_r = max(len(gm[1]) for gm in grade_meta) or 1
-    for i in range(max_r):
-        for _, tickers, _, bg in grade_meta:
-            val = tickers[i] if i < len(tickers) else ""
-            pdf.set_fill_color(*bg)
-            pdf.set_text_color(*INK)
-            pdf.set_font("Helvetica", "B" if val else "", 8)
-            pdf.cell(col_w, 5, val, border=1, fill=True, align="C")
-        pdf.ln()
+        pdf.set_font("Helvetica", "B", 21)
+        pdf.set_xy(0, 7)
+        pdf.cell(210, 11, _safe(report_label), align="C")
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_xy(0, 20)
+        pdf.cell(210, 6, _safe(scan_type), align="C")
+        pdf.set_xy(0, 28)
+        pdf.cell(210, 6, _safe(ts), align="C")
+        pdf.set_xy(0, 36)
+        pdf.cell(210, 5,
+            f"{len(results)} setups identified  |  {len(buckets['A'])} A-Grade  |  "
+            f"{len(buckets['B'])} B-Grade  |  {len(buckets['C'])} C-Grade",
+            align="C")
+        pdf.set_fill_color(*GOLD)
+        pdf.rect(0, 43, 210, 1.5, "F")
 
-    # Summary table
-    # Cols: Gr(7)+Ticker(13)+Company(28)+Theme(26)+Price(13)+Chg%(12)+Cap(14)+Float(13)+RS/SPY(14)+52W Hi(13)+Catalyst(37) = 190
-    pdf.ln(5)
-    pdf.set_font("Helvetica", "B", 9)
-    pdf.set_text_color(*INK)
-    pdf.cell(0, 5, "All Setups")
-    pdf.ln(5)
+        # Grade buckets
+        pdf.set_text_color(*INK)
+        pdf.set_xy(10, 51)
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.cell(0, 5, "Grade Summary")
+        pdf.ln(5)
 
-    CAT_W = 37
-    cols = [
-        ("Gr", 7), ("Ticker", 13), ("Company", 28), ("Theme", 26),
-        ("Price", 13), ("Chg %", 12), ("Cap", 14), ("Float", 13),
-        ("RS/SPY", 14), ("52W Hi", 13), ("Catalyst", CAT_W),
-    ]
-    pdf.set_fill_color(*NAVY)
-    pdf.set_text_color(*WHITE)
-    pdf.set_font("Helvetica", "B", 7)
-    for name, w in cols:
-        pdf.cell(w, 6, name, border=1, fill=True, align="C")
-    pdf.ln()
-
-    pdf.set_text_color(*INK)
-    for i, r in enumerate(results):
-        grade = str(r.get("score", ""))[:1]
-        chg   = r.get("changePercent", 0) or 0
-        rs    = r.get("rsVsSpy", r.get("rs_vs_spy", 0)) or 0
-        prox  = r.get("prox52w", r.get("prox_52w", 0)) or 0
-        chg_s = f"+{chg:.1f}%" if chg >= 0 else f"{chg:.1f}%"
-        rs_s  = f"+{rs:.1f}" if rs >= 0 else f"{rs:.1f}"
-        theme = _safe(r.get("theme", r.get("sector", "")))
-        cat   = _safe(r.get("catalyst", ""))[:22]
-
-        bg = (220,245,230) if grade=="A" else (220,235,250) if grade=="B" else (250,240,215) if grade=="C" \
-             else ((248,248,252) if i%2==0 else (255,255,255))
-        pdf.set_fill_color(*bg)
-        pdf.set_font("Helvetica", "B" if grade=="A" else "", 7)
-        row = [
-            (grade,                                  7),
-            (r.get("ticker", ""),                   13),
-            (_safe(r.get("company", ""))[:16],       28),
-            (theme[:17],                             26),
-            (f"${r.get('price', 0):.2f}",           13),
-            (chg_s,                                  12),
-            (f"${r.get('marketCapB', 0):.1f}B",     14),
-            (f"{r.get('floatM', 0):.0f}M",          13),
-            (rs_s,                                   14),
-            (f"{prox:.0f}%",                         13),
-            (cat,                                    CAT_W),
+        col_w = 62
+        grade_meta = [
+            ("A - Breakout Setup", buckets["A"], (34, 153, 84),  (220, 245, 230)),
+            ("B - Strong Setup",   buckets["B"], (41, 128, 185), (220, 235, 250)),
+            ("C - Watch List",     buckets["C"], (194, 120, 3),  (250, 240, 215)),
         ]
-        for val, w in row:
-            pdf.cell(w, 5, val, border=1, fill=True, align="C")
+        pdf.set_font("Helvetica", "B", 8)
+        for label, tickers, hdr_rgb, _ in grade_meta:
+            pdf.set_fill_color(*hdr_rgb)
+            pdf.set_text_color(*WHITE)
+            pdf.cell(col_w, 6, f"  {label} ({len(tickers)})", border=1, fill=True)
+        pdf.ln()
+        max_r = max(len(gm[1]) for gm in grade_meta) or 1
+        for i in range(max_r):
+            for _, tickers, _, bg in grade_meta:
+                val = tickers[i] if i < len(tickers) else ""
+                pdf.set_fill_color(*bg)
+                pdf.set_text_color(*INK)
+                pdf.set_font("Helvetica", "B" if val else "", 8)
+                pdf.cell(col_w, 5, val, border=1, fill=True, align="C")
+            pdf.ln()
+
+        # Summary table
+        # Cols: Gr(7)+Ticker(13)+Company(28)+Theme(26)+Price(13)+Chg%(12)+Cap(14)+Float(13)+RS/SPY(14)+52W Hi(13)+Catalyst(37) = 190
+        pdf.ln(5)
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_text_color(*INK)
+        pdf.cell(0, 5, "All Setups")
+        pdf.ln(5)
+
+        CAT_W = 37
+        cols = [
+            ("Gr", 7), ("Ticker", 13), ("Company", 28), ("Theme", 26),
+            ("Price", 13), ("Chg %", 12), ("Cap", 14), ("Float", 13),
+            ("RS/SPY", 14), ("52W Hi", 13), ("Catalyst", CAT_W),
+        ]
+        pdf.set_fill_color(*NAVY)
+        pdf.set_text_color(*WHITE)
+        pdf.set_font("Helvetica", "B", 7)
+        for name, w in cols:
+            pdf.cell(w, 6, name, border=1, fill=True, align="C")
         pdf.ln()
 
-    # Cover footer — disable auto page break so the footer cell doesn't trigger a phantom page 2
-    pdf.set_auto_page_break(auto=False)
-    pdf.set_xy(10, 287)
-    pdf.set_font("Helvetica", "I", 5.5)
-    pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 4,
-        "Not financial advice. For informational purposes only. Do your own due diligence.",
-        align="C")
+        pdf.set_text_color(*INK)
+        for i, r in enumerate(results):
+            grade = str(r.get("score", ""))[:1]
+            chg   = r.get("changePercent", 0) or 0
+            rs    = r.get("rsVsSpy", r.get("rs_vs_spy", 0)) or 0
+            prox  = r.get("prox52w", r.get("prox_52w", 0)) or 0
+            chg_s = f"+{chg:.1f}%" if chg >= 0 else f"{chg:.1f}%"
+            rs_s  = f"+{rs:.1f}" if rs >= 0 else f"{rs:.1f}"
+            theme = _safe(r.get("theme", r.get("sector", "")))
+            cat   = _safe(r.get("catalyst", ""))[:22]
+
+            bg = (220,245,230) if grade=="A" else (220,235,250) if grade=="B" else (250,240,215) if grade=="C" \
+                 else ((248,248,252) if i%2==0 else (255,255,255))
+            pdf.set_fill_color(*bg)
+            pdf.set_font("Helvetica", "B" if grade=="A" else "", 7)
+            row = [
+                (grade,                                  7),
+                (r.get("ticker", ""),                   13),
+                (_safe(r.get("company", ""))[:16],       28),
+                (theme[:17],                             26),
+                (f"${r.get('price', 0):.2f}",           13),
+                (chg_s,                                  12),
+                (f"${r.get('marketCapB', 0):.1f}B",     14),
+                (f"{r.get('floatM', 0):.0f}M",          13),
+                (rs_s,                                   14),
+                (f"{prox:.0f}%",                         13),
+                (cat,                                    CAT_W),
+            ]
+            for val, w in row:
+                pdf.cell(w, 5, val, border=1, fill=True, align="C")
+            pdf.ln()
+
+        # Cover footer — disable auto page break so the footer cell doesn't trigger a phantom page 2
+        pdf.set_auto_page_break(auto=False)
+        pdf.set_xy(10, 287)
+        pdf.set_font("Helvetica", "I", 5.5)
+        pdf.set_text_color(150, 150, 150)
+        pdf.cell(0, 4,
+            "Not financial advice. For informational purposes only. Do your own due diligence.",
+            align="C")
 
     # ════════════════════════════════════════════════════════════════════════════
     # PER-TICKER ONE-PAGER  (A-grade; same layout as setup_builder)
@@ -1103,12 +1104,39 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.cell(CW, 5, "  ANALYSIS", fill=True)
 
         cat_y = CY + 5
+        analysis_spilled = False
+
+        def _new_analysis_page():
+            # Verbose single-ticker analysis overflows one column — continue
+            # full-width on a fresh page rather than clipping at the page edge.
+            nonlocal cat_y, CX, CW, analysis_spilled
+            pdf.add_page()
+            pdf.set_fill_color(*NAVY)
+            pdf.rect(0, 0, 210, 14, "F")
+            pdf.set_text_color(*WHITE)
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.set_xy(10, 4)
+            pdf.cell(0, 6, _safe(f"{ticker} - Analysis (continued)"))
+            pdf.set_fill_color(*GOLD)
+            pdf.rect(0, 14, 210, 1.2, "F")
+            CX, CW = 10, 190
+            cat_y = 19
+            analysis_spilled = True
+
+        def _measure(txt, w):
+            """Approx wrapped height (mm) of body text — used to decide page
+            breaks. Slightly over-estimates so a section breaks early, not late."""
+            cpl = max(1, int(w / 1.5))
+            n = sum(max(1, -(-len(ln) // cpl)) for ln in txt.split("\n"))
+            return n * 3.8
 
         def _section(label, text, hdr_rgb=(30, 50, 90)):
             nonlocal cat_y
             txt = _safe(str(text or "")).strip()
             if not txt or txt == "-":
                 return
+            if cat_y + 3.5 + _measure(txt, CW) + 1.5 > 288:
+                _new_analysis_page()
             pdf.set_fill_color(*hdr_rgb)
             pdf.set_text_color(200, 220, 255)
             pdf.set_font("Helvetica", "B", 5.5)
@@ -1131,7 +1159,9 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         _section("Key Risk",                 s.get("keyRisk", ""),              (110, 25, 25))
         _section("Analysis",                 s.get("reasoning", ""),            (30, 50, 90))
 
-        # Entry / Stop box
+        # Entry / Stop box — break to a fresh page if it would overflow
+        if cat_y + 15 > 288:
+            _new_analysis_page()
         cat_y += 1
         pdf.set_fill_color(220, 245, 230)
         pdf.rect(CX, cat_y, CW, 13, "F")
@@ -1148,9 +1178,10 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
 
         # ── Chart ────────────────────────────────────────────────────────────
         chart_y = max(metrics_end_y, cat_y + 14) + 3
-        # If columns ran tall, push chart to page 2 instead of squeezing it
+        # If columns ran tall (or the analysis spilled to its own page),
+        # give the chart a dedicated page instead of squeezing/overlapping it
         avail_h = 291 - chart_y
-        if avail_h < 80:
+        if avail_h < 80 or analysis_spilled:
             pdf.add_page()
             pdf.set_fill_color(12, 20, 48)
             pdf.rect(0, 0, 210, 14, "F")
@@ -1555,7 +1586,8 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
             pdf.cell(28, 4.5, label)
             pdf.set_font("Helvetica", "", 7.5)
             pdf.set_xy(40, line_y)
-            pdf.multi_cell(168, 4.5, _safe(text))
+            # keep text inside the box (right edge x=200; was 168 -> ran to 208)
+            pdf.multi_cell(156, 4.5, _safe(text))
             line_y = pdf.get_y() + 1.5
 
         # Footer
@@ -1841,7 +1873,8 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
             pdf.cell(28, 4.5, label)
             pdf.set_font("Helvetica", "", 7.5)
             pdf.set_xy(40, line_y)
-            pdf.multi_cell(168, 4.5, _safe(text))
+            # keep text inside the box (right edge x=200; was 168 -> ran to 208)
+            pdf.multi_cell(156, 4.5, _safe(text))
             line_y = pdf.get_y() + 1.5
 
         # Action chip at bottom of panel
