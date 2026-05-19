@@ -21,35 +21,40 @@
 const REPO = "brownplaya239/smid-scanner";
 
 /** One Yahoo Finance quote — current price, % change vs the prior close, and
- *  the intraday (5-min) close series for the dashboard's hover sparkline. */
+ *  the intraday 5-min OHLC bars for the dashboard's candlestick cards. */
 async function fetchYahooQuote(sym) {
+  const r2 = function (x) { return Math.round(x * 100) / 100; };
   try {
     const r = await fetch(
       "https://query1.finance.yahoo.com/v8/finance/chart/" +
         encodeURIComponent(sym) + "?range=1d&interval=5m",
       { headers: { "User-Agent": "Mozilla/5.0" }, cf: { cacheTtl: 30 } }
     );
-    if (!r.ok) return { symbol: sym, price: null, change: null, spark: [] };
+    if (!r.ok) return { symbol: sym, price: null, change: null, bars: [] };
     const j = await r.json();
     const res = j && j.chart && j.chart.result && j.chart.result[0];
     const m = res && res.meta;
-    if (!m) return { symbol: sym, price: null, change: null, spark: [] };
+    if (!m) return { symbol: sym, price: null, change: null, bars: [] };
     const price = typeof m.regularMarketPrice === "number"
       ? m.regularMarketPrice : null;
     const prev = m.chartPreviousClose || m.previousClose || null;
     const change = (price != null && prev)
       ? Math.round((price / prev - 1) * 10000) / 100 : null;
-    let spark = [];
-    const closes = res.indicators && res.indicators.quote &&
-                   res.indicators.quote[0] && res.indicators.quote[0].close;
-    if (Array.isArray(closes)) {
-      spark = closes.filter(function (v) { return typeof v === "number"; })
-                    .map(function (v) { return Math.round(v * 100) / 100; });
+    let bars = [];
+    const q = res.indicators && res.indicators.quote && res.indicators.quote[0];
+    if (q && Array.isArray(q.close)) {
+      for (let i = 0; i < q.close.length; i++) {
+        const o = q.open[i], h = q.high[i], l = q.low[i], c = q.close[i];
+        if (typeof o === "number" && typeof h === "number" &&
+            typeof l === "number" && typeof c === "number") {
+          bars.push({ o: r2(o), h: r2(h), l: r2(l), c: r2(c) });
+        }
+      }
     }
     return { symbol: sym, price: price, change: change,
-             prevClose: prev, spark: spark };
+             prevClose: prev, bars: bars };
   } catch (e) {
-    return { symbol: sym, price: null, change: null, spark: [] };
+    return { symbol: sym, price: null, change: null, bars: [] };
   }
 }
 

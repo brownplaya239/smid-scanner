@@ -89,23 +89,23 @@
   .tape-chg.up   { color:var(--green); }
   .tape-chg.down { color:var(--red); }
   .tape-chg.flat { color:var(--muted); }
-  .tape-item { cursor:default; }
 
-  /* hover intraday-chart popup */
-  .tape-pop { position:fixed; z-index:60; display:none; width:236px;
-    background:var(--card); border:1px solid var(--border2); border-radius:8px;
-    padding:9px 11px; box-shadow:0 8px 24px rgba(0,0,0,.5); pointer-events:none; }
-  .tape-pop.show { display:block; }
-  .tape-pop .tp-head { display:flex; gap:6px; align-items:baseline;
+  /* ── Market candlestick cards (row under the tape) ── */
+  .market-cards { display:flex; gap:8px; padding:10px 16px; overflow-x:auto;
+    background:var(--bg); border-bottom:1px solid var(--line);
+    scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  .market-cards::-webkit-scrollbar { display:none; }
+  .mcard { flex:0 0 224px; background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:9px 11px; }
+  .mcard .mc-head { display:flex; align-items:baseline; gap:6px;
     font-size:12px; margin-bottom:5px; }
-  .tape-pop .tp-sym { font-weight:700; color:var(--text); }
-  .tape-pop .tp-px  { color:var(--textdim); font-variant-numeric:tabular-nums; }
-  .tape-pop .tp-head .tape-chg { margin-left:auto; }
-  .tape-pop svg { display:block; width:100%; height:auto; }
-  .tape-pop .tp-foot { font-size:9px; color:var(--muted); margin-top:5px;
-    text-transform:uppercase; letter-spacing:.3px; }
-  .tape-pop .tp-empty { font-size:11px; color:var(--muted);
-    text-align:center; padding:16px 0; }
+  .mcard .mc-sym { font-weight:700; color:var(--text); }
+  .mcard .mc-head .tape-chg { margin-left:auto; }
+  .mcard svg { display:block; width:100%; height:auto; }
+  .mcard .mc-foot { text-align:right; font-size:12.5px; font-weight:700;
+    color:var(--text); font-variant-numeric:tabular-nums; margin-top:4px; }
+  .mcard .mc-empty { font-size:10.5px; color:var(--muted);
+    text-align:center; padding:26px 0; }
 
   /* ── Momentum screen tables (QM / Stockbee) ── */
   .mom-bar { display:flex; gap:10px; align-items:center; justify-content:center;
@@ -496,6 +496,7 @@
   </nav>
 
   <div class="tape" id="tape"></div>
+  <div class="market-cards" id="market-cards"></div>
 
   <main>
     <!-- Ad-Hoc -->
@@ -786,9 +787,10 @@
 <script>
   const WORKER_URL = "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev";
 
-  /* ── Market ticker tape + hover intraday charts (polls the worker every 60s) ── */
+  /* ── Market ticker tape + candlestick cards (polls the worker every 60s) ── */
   (function () {
-    const tape = document.getElementById("tape");
+    const tape  = document.getElementById("tape");
+    const cards = document.getElementById("market-cards");
     if (!tape) return;
     const SYMS = [
       { y: "SPY",     label: "SPY"   },
@@ -800,13 +802,7 @@
       { y: "BTC-USD", label: "BTC"   },
       { y: "CL=F",    label: "Crude" },
     ];
-    const LABEL = {};
-    SYMS.forEach(function (s) { LABEL[s.y] = s.label; });
     let QMAP = {};
-
-    const pop = document.createElement("div");
-    pop.className = "tape-pop";
-    document.body.appendChild(pop);
 
     function fmtPx(p) {
       if (p == null) return "—";
@@ -821,70 +817,75 @@
       return '<span class="tape-chg ' + cls + '">' + arrow +
         (c == null ? "" : (c > 0 ? "+" : "") + c.toFixed(2) + "%") + '</span>';
     }
-    function sparkSVG(q) {
-      const data = (q.spark || []).slice();
-      if (data.length < 2) return '<div class="tp-empty">No intraday data.</div>';
-      const W = 212, H = 56;
+    // bucket the 5-min bars down to ~36 candles for a clean small chart
+    function aggregate(bars, target) {
+      if (bars.length <= target) return bars;
+      const grp = Math.ceil(bars.length / target), out = [];
+      for (let i = 0; i < bars.length; i += grp) {
+        const sl = bars.slice(i, i + grp);
+        out.push({
+          o: sl[0].o, c: sl[sl.length - 1].c,
+          h: Math.max.apply(null, sl.map(function (b) { return b.h; })),
+          l: Math.min.apply(null, sl.map(function (b) { return b.l; })),
+        });
+      }
+      return out;
+    }
+    function candleSVG(q) {
+      const bars = aggregate(q.bars || [], 36);
+      if (bars.length < 2) return '<div class="mc-empty">No intraday data.</div>';
+      const W = 210, H = 74;
       const base = (typeof q.prevClose === "number") ? q.prevClose : null;
-      let lo = Math.min.apply(null, data), hi = Math.max.apply(null, data);
+      let lo = Infinity, hi = -Infinity;
+      bars.forEach(function (b) { if (b.l < lo) lo = b.l; if (b.h > hi) hi = b.h; });
       if (base != null) { lo = Math.min(lo, base); hi = Math.max(hi, base); }
       const span = (hi - lo) || 1;
-      const xc = function (i) { return (i / (data.length - 1)) * W; };
-      const yc = function (v) { return H - ((v - lo) / span) * H; };
-      const pts = data.map(function (v, i) {
-        return xc(i).toFixed(1) + "," + yc(v).toFixed(1);
-      }).join(" ");
-      const up = (q.change == null) ? true : q.change >= 0;
-      const col = up ? "var(--green)" : "var(--red)";
+      const yv = function (v) { return H - ((v - lo) / span) * H; };
+      const n = bars.length, cw = W / n, bw = Math.max(1.4, cw * 0.62);
+      let body = "";
+      bars.forEach(function (b, i) {
+        const cx = (i + 0.5) * cw;
+        const col = b.c >= b.o ? "var(--green)" : "var(--red)";
+        const top = Math.min(yv(b.o), yv(b.c));
+        const bh = Math.max(1, Math.abs(yv(b.c) - yv(b.o)));
+        body +=
+          '<line x1="' + cx.toFixed(1) + '" y1="' + yv(b.h).toFixed(1) +
+            '" x2="' + cx.toFixed(1) + '" y2="' + yv(b.l).toFixed(1) +
+            '" stroke="' + col + '" stroke-width="1"/>' +
+          '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + top.toFixed(1) +
+            '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) +
+            '" fill="' + col + '"/>';
+      });
       let baseLine = "";
       if (base != null) {
-        const by = yc(base).toFixed(1);
+        const by = yv(base).toFixed(1);
         baseLine = '<line x1="0" y1="' + by + '" x2="' + W + '" y2="' + by +
           '" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" ' +
-          'opacity="0.55"/>';
+          'opacity="0.5"/>';
       }
-      return '<svg viewBox="0 0 ' + W + ' ' + H + '">' +
-        '<polygon points="0,' + H + ' ' + pts + ' ' + W + ',' + H + '" ' +
-          'fill="' + col + '" opacity="0.12"/>' + baseLine +
-        '<polyline points="' + pts + '" fill="none" stroke="' + col +
-          '" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+      return '<svg viewBox="0 0 ' + W + ' ' + H + '">' + baseLine + body + '</svg>';
     }
-    function showPop(sym, item) {
-      const q = QMAP[sym];
-      if (!q) return;
-      pop.innerHTML =
-        '<div class="tp-head"><span class="tp-sym">' + (LABEL[sym] || sym) +
-        '</span><span class="tp-px">' + fmtPx(q.price) + '</span>' +
-        chgSpan(typeof q.change === "number" ? q.change : null) + '</div>' +
-        sparkSVG(q) +
-        '<div class="tp-foot">' + (sym === "BTC-USD" ? "Last 24h" : "Intraday") +
-        ' &middot; 5-min</div>';
-      pop.classList.add("show");
-      const r = item.getBoundingClientRect(), pw = 236;
-      let left = r.left + r.width / 2 - pw / 2;
-      left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
-      pop.style.left = left + "px";
-      pop.style.top  = (r.bottom + 6) + "px";
-    }
-    function hidePop() { pop.classList.remove("show"); }
-
-    function render() {
+    function renderTape() {
       tape.innerHTML = SYMS.map(function (s) {
         const q = QMAP[s.y] || {};
-        return '<div class="tape-item" data-sym="' + s.y + '">' +
-          '<span class="tape-sym">' + s.label + '</span>' +
-          '<span class="tape-px">' + fmtPx(q.price) + '</span>' +
+        return '<div class="tape-item"><span class="tape-sym">' + s.label +
+          '</span><span class="tape-px">' + fmtPx(q.price) + '</span>' +
           chgSpan(typeof q.change === "number" ? q.change : null) + '</div>';
       }).join("");
-      Array.prototype.forEach.call(tape.querySelectorAll(".tape-item"),
-        function (item) {
-          item.addEventListener("mouseenter", function () {
-            showPop(item.dataset.sym, item);
-          });
-          item.addEventListener("mouseleave", hidePop);
-        });
     }
-    render();
+    function renderCards() {
+      if (!cards) return;
+      cards.innerHTML = SYMS.map(function (s) {
+        const q = QMAP[s.y] || {};
+        return '<div class="mcard"><div class="mc-head">' +
+          '<span class="mc-sym">' + s.label + '</span>' +
+          chgSpan(typeof q.change === "number" ? q.change : null) + '</div>' +
+          candleSVG(q) +
+          '<div class="mc-foot">' + fmtPx(q.price) + '</div></div>';
+      }).join("");
+    }
+    function renderAll() { renderTape(); renderCards(); }
+    renderAll();
     function load() {
       fetch(WORKER_URL + "?quotes=" +
             encodeURIComponent(SYMS.map(function (s) { return s.y; }).join(",")))
@@ -893,7 +894,7 @@
           if (!d || !d.quotes) return;
           QMAP = {};
           d.quotes.forEach(function (q) { QMAP[q.symbol] = q; });
-          render();
+          renderAll();
         })
         .catch(function () {});
     }
