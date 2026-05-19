@@ -254,6 +254,35 @@
   .conf-row .cr-narr .tag-grade   { color:var(--gold); font-weight:600; }
   .conf-row .cr-narr .tag-rep     { color:var(--gold); }
 
+  /* Market Health — compact stats line + 4-column performers table */
+  .mh-stats { font-size:11.5px; color:var(--textdim); margin-bottom:10px;
+    line-height:1.6; }
+  .mh-stats b { color:var(--text); font-weight:700; }
+  .mh-stats .pos { color:var(--green); font-weight:700; }
+  .mh-stats .neg { color:var(--red); font-weight:700; }
+  .mh-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+  .mh-col { border:1px solid var(--line); border-radius:5px; overflow:hidden; }
+  .mh-col h4 { font-size:10px; text-transform:uppercase; letter-spacing:.4px;
+    color:#fff; text-align:center; padding:3px 0; font-weight:700;
+    text-shadow:0 1px 2px rgba(0,0,0,.55); }
+  .mh-col h4.bull { background:rgba(31,179,99,0.85); }
+  .mh-col h4.bear { background:rgba(214,68,68,0.85); }
+  .mh-tk-row { display:flex; justify-content:space-between; gap:5px;
+    padding:2px 6px; font-size:10.5px; white-space:nowrap; cursor:default; }
+  .mh-tk-row .mh-tk { font-weight:700; color:var(--text); }
+  .mh-tk-row .mh-pct { font-variant-numeric:tabular-nums; }
+  .mh-tk-row .mh-pct.up   { color:var(--green); }
+  .mh-tk-row .mh-pct.down { color:var(--red); }
+
+  /* Upcoming Earnings card */
+  .earn-row { display:grid; grid-template-columns:64px 1fr; gap:10px;
+    padding:5px 0; font-size:11px; align-items:baseline; }
+  .earn-row + .earn-row { border-top:1px solid var(--line); }
+  .earn-row .er-date { color:var(--muted); font-weight:700; font-size:10.5px;
+    text-transform:uppercase; letter-spacing:.3px; }
+  .earn-row .er-tickers span { display:inline-block; font-weight:700;
+    color:var(--text); margin-right:9px; cursor:default; font-size:11px; }
+
   /* Density: compact preset */
   html[data-density="dense"] .desk-card { padding:9px 12px; }
   html[data-density="dense"] .desk-card h3 { font-size:10px; margin-bottom:7px; }
@@ -1351,29 +1380,61 @@
         return desk("Market Health", empty("No swing report yet."));
       const r = swing.runs[swing.runs.length - 1];
       const aplus = (r.counts || {})["A+"] || 0;
+      const a     = (r.counts || {})["A"]  || 0;
+      const gplus = (r.counts || {})["G+"] || 0;
       const g     = (r.counts || {})["G"]  || 0;
-      return desk("Market Health",
-        '<div class="desk-stats">' +
-        '<div class="desk-stat pos"><b>' + r.bullish_pct + '%</b>Bullish</div>' +
-        '<div class="desk-stat neg"><b>' + r.bearish_pct + '%</b>Bearish</div>' +
-        '<div class="desk-stat"><b>' + r.total + '</b>Universe</div>' +
-        '<div class="desk-stat pos"><b>' + aplus + '</b>A+ names</div>' +
-        '<div class="desk-stat neg"><b>' + g + '</b>G names</div>' +
-        '</div>');
+      const tkRow = function (c) {
+        const v = (typeof c.chg === "number") ? c.chg : null;
+        const cls = v == null ? "" : v > 0 ? "up" : v < 0 ? "down" : "";
+        const sign = v != null && v > 0 ? "+" : "";
+        return '<div class="mh-tk-row">' +
+          '<span class="mh-tk" data-t="' + c.t + '">' + c.t + '</span>' +
+          '<span class="mh-pct ' + cls + '">' +
+            (v != null ? sign + v.toFixed(1) + "%" : "—") + '</span></div>';
+      };
+      const pick = function (grade, dir) {
+        const arr = (r.grades[grade] || []).slice()
+          .filter(function (c) { return typeof c.chg === "number"; })
+          .sort(function (a, b) {
+            return dir === "asc" ? a.chg - b.chg : b.chg - a.chg;
+          })
+          .slice(0, 20);
+        return arr;
+      };
+      const cols = [
+        { label: "A+ Top",   cls: "bull", cells: pick("A+", "desc") },
+        { label: "A Top",    cls: "bull", cells: pick("A",  "desc") },
+        { label: "G+ Worst", cls: "bear", cells: pick("G+", "asc")  },
+        { label: "G Worst",  cls: "bear", cells: pick("G",  "asc")  },
+      ];
+      const stats = '<div class="mh-stats">' +
+        '<span class="pos">' + r.bullish_pct + '% bullish</span> &middot; ' +
+        '<span class="neg">' + r.bearish_pct + '% bearish</span> &middot; ' +
+        '<b>' + r.total + '</b> names &middot; ' +
+        '<b>' + aplus + '</b> A+ &middot; <b>' + a + '</b> A &middot; ' +
+        '<b>' + gplus + '</b> G+ &middot; <b>' + g + '</b> G' +
+        '</div>';
+      const grid = '<div class="mh-grid">' + cols.map(function (c) {
+        return '<div class="mh-col"><h4 class="' + c.cls + '">' + c.label +
+          '</h4>' + (c.cells.length
+            ? c.cells.map(tkRow).join("")
+            : '<div class="desk-empty">—</div>') + '</div>';
+      }).join("") + '</div>';
+      return desk("Market Health", stats + grid);
     }
 
     function cardTopFlow(uoa) {
       if (!uoa || !uoa.rows) return desk("Top Options Flow", empty("No flow data yet."));
       const top = uoa.rows.slice()
         .sort(function (a, b) { return (b.trade_score || 0) - (a.trade_score || 0); })
-        .slice(0, 8);
+        .slice(0, 20);
       if (!top.length) return desk("Top Options Flow", empty("No flow today."));
       return desk("Top Options Flow", top.map(function (r) {
         const dir = r.direction || "";
         const cls = dir === "bullish" ? "sc-up" : dir === "bearish" ? "sc-down" : "";
         const tag = (r.type || "").toUpperCase() + " $" + r.strike + " · " + r.expiry;
         return '<div class="desk-row">' +
-          '<span class="dr-tk">' + r.ticker + '</span>' +
+          '<span class="dr-tk" data-t="' + r.ticker + '">' + r.ticker + '</span>' +
           '<span class="dr-meta">' + tag + '</span>' +
           '<span class="dr-val ' + cls + '">' + (r.trade_score || 0) +
             ' · ' + fmtVol(r.premium) + '</span></div>';
@@ -1428,9 +1489,9 @@
       });
       if (!cands.length) return desk("Top Breakout Candidates",
         empty("No clean A-tier candidates today."));
-      return desk("Top Breakout Candidates", cands.slice(0, 8).map(function (c) {
+      return desk("Top Breakout Candidates", cands.slice(0, 20).map(function (c) {
         return '<div class="desk-row">' +
-          '<span class="dr-tk">' + c.t + '</span>' +
+          '<span class="dr-tk" data-t="' + c.t + '">' + c.t + '</span>' +
           '<span class="dr-meta">' + c.g + ' · ' + (c.n || "").slice(0, 38) + '</span>' +
           '<span class="dr-val">' + (c.ext != null ? c.ext + "× ATR" : "—") + '</span></div>';
       }).join(""));
@@ -1478,7 +1539,7 @@
           !swing.runs[swing.runs.length - 1].themes)
         return desk("Strongest / Weakest Themes", empty("No theme data."));
       const T = swing.runs[swing.runs.length - 1].themes;
-      const strong = T.slice(0, 5), weak = T.slice(-5).reverse();
+      const strong = T.slice(0, 10), weak = T.slice(-10).reverse();
       const row = function (t, cls) {
         return '<div class="desk-row">' +
           '<span class="dr-tk">' + t.theme + '</span>' +
@@ -1556,7 +1617,7 @@
           return ga.localeCompare(gb);
         });
       if (!list.length) return desk("Top Confluence Names",
-        empty("No names appear in 2+ tools today."), "span2");
+        empty("No names appear in 2+ tools today."));
 
       function narrative(e) {
         const parts = [];
@@ -1582,12 +1643,110 @@
           parts.push('<span class="tag-conf">bearish flow conflict</span>');
         return parts.join(' &middot; ');
       }
-      return desk("Top Confluence Names", list.slice(0, 14).map(function (x) {
+      return desk("Top Confluence Names", list.slice(0, 20).map(function (x) {
         return '<div class="conf-row">' +
-          '<span class="cr-tk">' + x.t + '</span>' +
+          '<span class="cr-tk" data-t="' + x.t + '">' + x.t + '</span>' +
           '<span class="cr-narr">' + narrative(x.e) + '</span></div>';
-      }).join(""), "span2");
+      }).join(""));
     }
+
+    function cardEarnings(meta, todayISO) {
+      if (!meta) return desk("Upcoming Earnings (BMO / AMC)",
+        empty("No earnings data yet."));
+      // Build a map date(YYYY-MM-DD) -> [tickers]
+      const today = new Date(todayISO + "T00:00:00");
+      const horizon = new Date(today.getTime() + 14 * 86400 * 1000);
+      const byDate = {};
+      Object.keys(meta).forEach(function (t) {
+        const e = meta[t];
+        const d = e && e.earnings_date;
+        if (!d) return;
+        // Filter weird YYYY-MM-DD only
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+        const dt = new Date(d + "T00:00:00");
+        if (isNaN(dt.getTime())) return;
+        if (dt < today || dt > horizon) return;
+        (byDate[d] = byDate[d] || []).push(t);
+      });
+      const dates = Object.keys(byDate).sort();
+      if (!dates.length) return desk("Upcoming Earnings (BMO / AMC)",
+        empty("No earnings within the next 14 days."));
+      const dayLbl = function (iso) {
+        const dt = new Date(iso + "T00:00:00");
+        const dow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dt.getDay()];
+        const mo  = ["Jan","Feb","Mar","Apr","May","Jun",
+                     "Jul","Aug","Sep","Oct","Nov","Dec"][dt.getMonth()];
+        return dow + " " + mo + " " + dt.getDate();
+      };
+      return desk("Upcoming Earnings (BMO / AMC)",
+        dates.slice(0, 10).map(function (d) {
+          const tks = byDate[d].slice().sort();
+          return '<div class="earn-row">' +
+            '<span class="er-date">' + dayLbl(d) + '</span>' +
+            '<span class="er-tickers">' +
+              tks.map(function (t) {
+                return '<span data-t="' + t + '">' + t + '</span>';
+              }).join("") +
+            '</span></div>';
+        }).join(""));
+    }
+
+    // ── Hover popup (security info card, mirrors Swing Report Card) ──
+    const pop = document.createElement("div");
+    pop.className = "src-pop";
+    document.body.appendChild(pop);
+    let DESK_TKMAP = {}, DESK_DATE = "";
+    function popSparkDesk(spark) {
+      if (!spark || spark.length < 2) return "";
+      const W = 252, H = 40;
+      let lo = Math.min.apply(null, spark), hi = Math.max.apply(null, spark);
+      const span = (hi - lo) || 1;
+      const up = spark[spark.length - 1] >= spark[0];
+      const col = up ? "var(--green)" : "var(--red)";
+      const pts = spark.map(function (v, i) {
+        return ((i / (spark.length - 1)) * W).toFixed(1) + "," +
+               (H - ((v - lo) / span) * H).toFixed(1);
+      }).join(" ");
+      return '<div class="sp-chart"><svg viewBox="0 0 ' + W + ' ' + H + '">' +
+        '<polyline points="' + pts + '" fill="none" stroke="' + col +
+        '" stroke-width="1.5"/></svg></div>';
+    }
+    function showPopDesk(tkr, anchor) {
+      const c = DESK_TKMAP[tkr];
+      if (!c) return;
+      const dc = (typeof c.chg === "number") ? c.chg : null;
+      const cls = dc == null ? "flat" : dc > 0 ? "up" : dc < 0 ? "down" : "flat";
+      const arrow = dc == null ? "" : dc > 0 ? "▲ " : dc < 0 ? "▼ " : "";
+      const row2 = [c.ctry, c.mcb && (c.mcb + " cap"), c.xch].filter(Boolean).join(" · ");
+      const row1 = [c.sec, c.ind].filter(Boolean).join(" · ");
+      pop.innerHTML =
+        '<div class="sp-head"><span class="sp-sym">' + c.t + '</span>' +
+        '<span class="tape-chg ' + cls + '">' + arrow +
+          (dc == null ? "" : (dc > 0 ? "+" : "") + dc.toFixed(2) + "%") +
+          '</span></div>' +
+        '<div class="sp-name">' + (c.n || c.t) + '</div>' +
+        '<div><span class="sp-px">$' + (c.p != null ? c.p.toFixed(2) : "—") +
+          '</span><span class="sp-pxs">Close · ' + DESK_DATE + '</span></div>' +
+        (row1 ? '<div class="sp-row">' + row1 + '</div>' : '') +
+        (row2 ? '<div class="sp-row muted">' + row2 + '</div>' : '') +
+        popSparkDesk(c.spark);
+      pop.classList.add("show");
+      const r = anchor.getBoundingClientRect(), pw = 280, ph = pop.offsetHeight || 200;
+      let left = r.left + r.width / 2 - pw / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+      let top = r.bottom + 6;
+      if (top + ph > window.innerHeight - 8) top = r.top - ph - 6;
+      pop.style.left = left + "px";
+      pop.style.top  = Math.max(8, top) + "px";
+    }
+    function hidePopDesk() { pop.classList.remove("show"); }
+    grid.addEventListener("mouseover", function (e) {
+      const t = e.target.closest("[data-t]");
+      if (t && t.dataset.t) showPopDesk(t.dataset.t, t);
+    });
+    grid.addEventListener("mouseout", function (e) {
+      if (e.target.closest("[data-t]")) hidePopDesk();
+    });
 
     const fetchJSON = function (path) {
       return fetch(path + "?t=" + Date.now())
@@ -1601,12 +1760,22 @@
       fetchJSON("./reports/momentum_stockbee.json"),
       fetchJSON("./reports/manifest.json"),
       fetchJSON("./reports/economic_calendar.json"),
+      fetchJSON("./reports/uoa_meta_cache.json"),
     ]).then(function (arr) {
       const uoa = arr[0], swing = arr[1], qm = arr[2], sb = arr[3];
-      const manifest = arr[4], cal = arr[5];
+      const manifest = arr[4], cal = arr[5], uoaMeta = arr[6];
       const today = (swing && swing.runs && swing.runs.length)
         ? swing.runs[swing.runs.length - 1].date
         : new Date().toISOString().slice(0, 10);
+      DESK_DATE = today;
+      // Build hover lookup from every cell across grades
+      DESK_TKMAP = {};
+      if (swing && swing.runs && swing.runs.length) {
+        const r = swing.runs[swing.runs.length - 1];
+        Object.keys(r.grades || {}).forEach(function (g) {
+          (r.grades[g] || []).forEach(function (c) { DESK_TKMAP[c.t] = c; });
+        });
+      }
       grid.innerHTML = [
         cardMarketHealth(swing),
         cardTopFlow(uoa),
@@ -1615,6 +1784,7 @@
         cardCalendar(cal, today),
         cardThemes(swing),
         cardTopConfluence(uoa, swing, qm, sb, manifest, today),
+        cardEarnings(uoaMeta, today),
       ].join("");
     });
   }
