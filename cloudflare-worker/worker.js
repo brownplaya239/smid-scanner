@@ -5,6 +5,12 @@
  * and triggers the ticker-lookup.yml GitHub Actions workflow. The workflow
  * generates the research PDF and archives it to the GitHub Pages report site.
  *
+ * Also serves GET ?quotes=SPY,QQQ,... — a CORS-enabled proxy returning
+ * live-ish Yahoo Finance quotes for the dashboard's market ticker tape.
+ * The fetch is done server-side here because Yahoo's endpoints send no
+ * CORS headers, so a browser cannot call them directly. Responses are
+ * edge-cached ~30s so rapid polling doesn't hammer Yahoo.
+ *
  * Required environment variable (Cloudflare dashboard → Settings → Variables):
  *   PAT  — GitHub fine-grained PAT with Actions: read/write on the repo
  *
@@ -14,11 +20,35 @@
 
 const REPO = "brownplaya239/smid-scanner";
 
+/** One Yahoo Finance quote — current price + % change vs the prior close. */
+async function fetchYahooQuote(sym) {
+  try {
+    const r = await fetch(
+      "https://query1.finance.yahoo.com/v8/finance/chart/" +
+        encodeURIComponent(sym) + "?range=1d&interval=1d",
+      { headers: { "User-Agent": "Mozilla/5.0" }, cf: { cacheTtl: 30 } }
+    );
+    if (!r.ok) return { symbol: sym, price: null, change: null };
+    const j = await r.json();
+    const m = j && j.chart && j.chart.result && j.chart.result[0] &&
+              j.chart.result[0].meta;
+    if (!m) return { symbol: sym, price: null, change: null };
+    const price = typeof m.regularMarketPrice === "number"
+      ? m.regularMarketPrice : null;
+    const prev = m.chartPreviousClose || m.previousClose || null;
+    const change = (price != null && prev)
+      ? Math.round((price / prev - 1) * 10000) / 100 : null;
+    return { symbol: sym, price: price, change: change };
+  } catch (e) {
+    return { symbol: sym, price: null, change: null };
+  }
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const cors = {
       "Access-Control-Allow-Origin":  "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
 
@@ -27,8 +57,23 @@ export default {
       return new Response(null, { headers: cors });
     }
 
-    // Health check
+    // GET — market-quote proxy (?quotes=SPY,QQQ,...), or health check
     if (request.method === "GET") {
+      const quotesParam = new URL(request.url).searchParams.get("quotes");
+      if (quotesParam) {
+        const cache = caches.default;
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const syms = quotesParam.split(",")
+          .map(function (s) { return s.trim(); })
+          .filter(Boolean).slice(0, 12);
+        const quotes = await Promise.all(syms.map(fetchYahooQuote));
+        const resp = Response.json({ quotes: quotes }, {
+          headers: { ...cors, "Cache-Control": "public, max-age=30" },
+        });
+        ctx.waitUntil(cache.put(request, resp.clone()));
+        return resp;
+      }
       return new Response(
         "OK - ad-hoc ticker worker alive. POST {\"ticker\":\"NVDA\"} to trigger a lookup.",
         { headers: { ...cors, "Content-Type": "text/plain" } }
