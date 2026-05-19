@@ -353,6 +353,7 @@ def run():
             "p":     round(m["price"], 2),
             "chg":   round(m["chg_day"], 2) if m["chg_day"] is not None else None,
             "spark": m["spark"],
+            "th":    themes.themes_for(m["ticker"]),
         })
 
     bull = sum(len(grades[g]) for g in GRADES[:10])     # A+ .. D+
