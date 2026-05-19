@@ -1,6 +1,6 @@
 {
- "generated": "2026-05-19T16:27:12+00:00",
- "total_signals": 4710,
+ "generated": "2026-05-19T16:44:43+00:00",
+ "total_signals": 4831,
  "matured_5d": 0,
  "horizons": [
   1,
@@ -12,10 +12,10 @@
  "overall": {
   "1": {
    "n": 4622,
-   "hit_rate": 29,
-   "avg": -1.12,
-   "median": -1.02,
-   "avg_excess": -0.46
+   "hit_rate": 34,
+   "avg": -0.74,
+   "median": -1.1,
+   "avg_excess": -0.16
   },
   "3": {
    "n": 0,
@@ -47,20 +47,20 @@
   }
  },
  "excursion": {
-  "avg_mfe": 1.1,
-  "avg_mae": -3.3,
+  "avg_mfe": 1.3,
+  "avg_mae": -3.4,
   "n": 4622
  },
  "by_type": {
   "golden_sweep": {
-   "signals": 1113,
+   "signals": 1154,
    "h": {
     "1": {
      "n": 1087,
-     "hit_rate": 32,
-     "avg": -0.92,
-     "median": -1.05,
-     "avg_excess": -0.25
+     "hit_rate": 37,
+     "avg": -0.27,
+     "median": -1.17,
+     "avg_excess": 0.3
     },
     "3": {
      "n": 0,
@@ -93,14 +93,14 @@
    }
   },
   "sweep": {
-   "signals": 2921,
+   "signals": 2973,
    "h": {
     "1": {
      "n": 2877,
-     "hit_rate": 26,
-     "avg": -1.32,
-     "median": -1.16,
-     "avg_excess": -0.65
+     "hit_rate": 31,
+     "avg": -1.02,
+     "median": -1.2,
+     "avg_excess": -0.44
     },
     "3": {
      "n": 0,
@@ -133,14 +133,14 @@
    }
   },
   "voloi": {
-   "signals": 676,
+   "signals": 704,
    "h": {
     "1": {
      "n": 658,
-     "hit_rate": 35,
-     "avg": -0.61,
-     "median": -0.6,
-     "avg_excess": 0.06
+     "hit_rate": 40,
+     "avg": -0.3,
+     "median": -0.21,
+     "avg_excess": 0.27
     },
     "3": {
      "n": 0,
@@ -175,14 +175,14 @@
  },
  "by_score": {
   "80-100": {
-   "signals": 612,
+   "signals": 614,
    "h": {
     "1": {
      "n": 610,
-     "hit_rate": 27,
-     "avg": -0.76,
-     "median": -0.81,
-     "avg_excess": -0.1
+     "hit_rate": 33,
+     "avg": -0.38,
+     "median": -0.76,
+     "avg_excess": 0.19
     },
     "3": {
      "n": 0,
@@ -215,14 +215,14 @@
    }
   },
   "65-79": {
-   "signals": 2343,
+   "signals": 2412,
    "h": {
     "1": {
      "n": 2313,
-     "hit_rate": 29,
-     "avg": -1.19,
-     "median": -1.06,
-     "avg_excess": -0.53
+     "hit_rate": 34,
+     "avg": -0.78,
+     "median": -1.13,
+     "avg_excess": -0.2
     },
     "3": {
      "n": 0,
@@ -255,14 +255,14 @@
    }
   },
   "55-64": {
-   "signals": 1755,
+   "signals": 1805,
    "h": {
     "1": {
      "n": 1699,
-     "hit_rate": 30,
-     "avg": -1.16,
-     "median": -1.05,
-     "avg_excess": -0.49
+     "hit_rate": 33,
+     "avg": -0.81,
+     "median": -1.12,
+     "avg_excess": -0.24
     },
     "3": {
      "n": 0,
@@ -297,14 +297,14 @@
  },
  "by_dte": {
   "urgent": {
-   "signals": 3267,
+   "signals": 3345,
    "h": {
     "1": {
      "n": 3211,
-     "hit_rate": 27,
-     "avg": -1.1,
-     "median": -1.05,
-     "avg_excess": -0.43
+     "hit_rate": 32,
+     "avg": -0.67,
+     "median": -1.18,
+     "avg_excess": -0.1
     },
     "3": {
      "n": 0,
@@ -337,14 +337,14 @@
    }
   },
   "swing": {
-   "signals": 999,
+   "signals": 1029,
    "h": {
     "1": {
      "n": 976,
-     "hit_rate": 34,
-     "avg": -1.1,
-     "median": -0.72,
-     "avg_excess": -0.43
+     "hit_rate": 38,
+     "avg": -0.81,
+     "median": -0.44,
+     "avg_excess": -0.23
     },
     "3": {
      "n": 0,
@@ -377,14 +377,14 @@
    }
   },
   "positioning": {
-   "signals": 389,
+   "signals": 399,
    "h": {
     "1": {
      "n": 381,
-     "hit_rate": 31,
-     "avg": -1.41,
-     "median": -1.56,
-     "avg_excess": -0.75
+     "hit_rate": 37,
+     "avg": -1.06,
+     "median": -1.15,
+     "avg_excess": -0.48
     },
     "3": {
      "n": 0,
@@ -417,14 +417,14 @@
    }
   },
   "leaps": {
-   "signals": 55,
+   "signals": 58,
    "h": {
     "1": {
      "n": 54,
-     "hit_rate": 50,
-     "avg": -1.09,
-     "median": 0.0,
-     "avg_excess": -0.43
+     "hit_rate": 46,
+     "avg": -1.13,
+     "median": -0.09,
+     "avg_excess": -0.56
     },
     "3": {
      "n": 0,
@@ -459,7 +459,7 @@
  },
  "by_tag": {
   "Golden Sweep": {
-   "signals": 1113,
+   "signals": 1154,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -469,7 +469,7 @@
    }
   },
   "Sweep": {
-   "signals": 2921,
+   "signals": 2973,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -479,7 +479,7 @@
    }
   },
   "Block": {
-   "signals": 3153,
+   "signals": 3230,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -489,7 +489,7 @@
    }
   },
   "Size>OI": {
-   "signals": 1225,
+   "signals": 1252,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -499,7 +499,7 @@
    }
   },
   "Repeat": {
-   "signals": 3892,
+   "signals": 3994,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -509,7 +509,7 @@
    }
   },
   "Into ERN": {
-   "signals": 533,
+   "signals": 558,
    "h5": {
     "n": 0,
     "hit_rate": null,
@@ -519,7 +519,7 @@
    }
   },
   "In Universe": {
-   "signals": 3761,
+   "signals": 3858,
    "h5": {
     "n": 0,
     "hit_rate": null,
