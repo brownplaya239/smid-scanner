@@ -110,6 +110,9 @@ THEME_MAP = {
     "Defense Tech": [
         "PLTR", "AVAV", "KTOS", "RKLB", "ONDS", "RCAT", "AXON", "BBAI",
         "MRCY", "DRS", "KRMN", "AIRO"],
+    "Insurance": [
+        "PGR", "TRV", "ALL", "AIG", "MET", "PRU", "CB", "MMC",
+        "AON", "AJG", "AFL", "HIG", "WTW", "CINF", "RGA"],
 }
 
 # ── reverse index: ticker -> set(themes) ─────────────────────────────────────
