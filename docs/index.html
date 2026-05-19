@@ -177,6 +177,42 @@
   .src-pop .sp-chart { margin-top:9px; }
   .src-pop .sp-chart svg { display:block; width:100%; height:auto; }
 
+  /* ── Today's Desk — daily command center ── */
+  #panel-desk { max-width:1180px; }
+  .desk-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .desk-card { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:14px 16px; }
+  .desk-card h3 { font-size:11px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.4px; margin-bottom:10px; font-weight:700; }
+  .desk-stats { display:flex; flex-wrap:wrap; gap:12px 22px; }
+  .desk-stat { font-size:10.5px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.3px; }
+  .desk-stat b { display:block; color:var(--text); font-size:20px; font-weight:800;
+    margin-bottom:2px; font-variant-numeric:tabular-nums; }
+  .desk-stat.pos b { color:var(--green); }
+  .desk-stat.neg b { color:var(--red); }
+  .desk-row { display:flex; align-items:center; gap:8px; padding:5px 0;
+    font-size:12px; }
+  .desk-row + .desk-row { border-top:1px solid var(--line); }
+  .desk-row .dr-tk { font-weight:700; color:var(--text); min-width:56px; }
+  .desk-row .dr-meta { color:var(--muted); font-size:10.5px; flex:1;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .desk-row .dr-val { color:var(--textdim); font-variant-numeric:tabular-nums;
+    white-space:nowrap; font-weight:600; }
+  .desk-row .dr-val.sc-up   { color:var(--green); }
+  .desk-row .dr-val.sc-down { color:var(--red); }
+  .desk-row .dr-val a { color:var(--gold); text-decoration:none; }
+  .desk-sub { font-size:9.5px; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--muted); font-weight:700; margin:10px 0 3px; }
+  .desk-sub:first-child { margin-top:0; }
+  .desk-sub.pos { color:var(--green); }
+  .desk-sub.neg { color:var(--red); }
+  .desk-empty { color:var(--muted); font-size:11px; text-align:center;
+    padding:14px; }
+  @media (max-width:760px) {
+    .desk-grid { grid-template-columns:1fr; }
+  }
+
   main { flex:1; padding:34px 22px; display:flex; justify-content:center; }
   .panel { display:none; width:100%; max-width:760px; }
   .panel.active { display:block; }
@@ -536,7 +572,8 @@
   </header>
 
   <nav id="nav">
-    <button data-tab="uoa" class="active">Options Flow</button>
+    <button data-tab="desk" class="active">Today&apos;s Desk</button>
+    <button data-tab="uoa">Options Flow</button>
     <button data-tab="adhoc">Ticker Research</button>
     <button data-tab="alt-data">Alternative Data</button>
     <button data-tab="breakout">Breakout Scans</button>
@@ -549,6 +586,17 @@
   <div class="market-cards" id="market-cards"></div>
 
   <main>
+    <!-- Today's Desk -->
+    <section class="panel active" id="panel-desk">
+      <h2 class="tab-title">Today&apos;s Desk</h2>
+      <p class="tab-sub">A daily command center &mdash; market health, the top
+        flow / setups / momentum across every TickerDesk tool, and the names
+        that appear in more than one of them.</p>
+      <div class="desk-grid" id="desk-grid">
+        <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
+      </div>
+    </section>
+
     <!-- Ad-Hoc -->
     <section class="panel" id="panel-adhoc">
       <div class="card">
@@ -658,7 +706,7 @@
     </section>
 
     <!-- Unusual Options Activity -->
-    <section class="panel active" id="panel-uoa">
+    <section class="panel" id="panel-uoa">
       <h2 class="tab-title">Unusual Options Activity</h2>
       <p class="tab-sub">Smart-money options flow &mdash; sweeps, blocks &amp; golden sweeps
         across the liquid optionable market, ranked by Trade Score.
@@ -1194,6 +1242,237 @@
                   countId:"qm-count", chgLabel:"1-Mo %" });
   setupMomentum({ file:"momentum_stockbee.json", dateId:"sb-date", tableId:"sb-table",
                   countId:"sb-count", chgLabel:"1-Wk %" });
+
+  /* ── Today's Desk — daily command center ── */
+  function setupDesk() {
+    const grid = document.getElementById("desk-grid");
+    if (!grid) return;
+    function fmtVol(v) {
+      if (v == null) return "—";
+      if (v >= 1e9) return "$" + (v / 1e9).toFixed(2) + "B";
+      if (v >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
+      if (v >= 1e3) return "$" + Math.round(v / 1e3) + "k";
+      return "$" + Math.round(v);
+    }
+    function desk(title, body) {
+      return '<div class="desk-card"><h3>' + title + '</h3>' + body + '</div>';
+    }
+    function empty(msg) { return '<div class="desk-empty">' + msg + '</div>'; }
+
+    function cardMarketHealth(swing) {
+      if (!swing || !swing.runs || !swing.runs.length)
+        return desk("Market Health", empty("No swing report yet."));
+      const r = swing.runs[swing.runs.length - 1];
+      const aplus = (r.counts || {})["A+"] || 0;
+      const g     = (r.counts || {})["G"]  || 0;
+      return desk("Market Health",
+        '<div class="desk-stats">' +
+        '<div class="desk-stat pos"><b>' + r.bullish_pct + '%</b>Bullish</div>' +
+        '<div class="desk-stat neg"><b>' + r.bearish_pct + '%</b>Bearish</div>' +
+        '<div class="desk-stat"><b>' + r.total + '</b>Universe</div>' +
+        '<div class="desk-stat pos"><b>' + aplus + '</b>A+ names</div>' +
+        '<div class="desk-stat neg"><b>' + g + '</b>G names</div>' +
+        '</div>');
+    }
+
+    function cardTopFlow(uoa) {
+      if (!uoa || !uoa.rows) return desk("Top Options Flow", empty("No flow data yet."));
+      const top = uoa.rows.slice()
+        .sort(function (a, b) { return (b.trade_score || 0) - (a.trade_score || 0); })
+        .slice(0, 8);
+      if (!top.length) return desk("Top Options Flow", empty("No flow today."));
+      return desk("Top Options Flow", top.map(function (r) {
+        const dir = r.direction || "";
+        const cls = dir === "bullish" ? "sc-up" : dir === "bearish" ? "sc-down" : "";
+        const tag = (r.type || "").toUpperCase() + " $" + r.strike + " · " + r.expiry;
+        return '<div class="desk-row">' +
+          '<span class="dr-tk">' + r.ticker + '</span>' +
+          '<span class="dr-meta">' + tag + '</span>' +
+          '<span class="dr-val ' + cls + '">' + (r.trade_score || 0) +
+            ' · ' + fmtVol(r.premium) + '</span></div>';
+      }).join(""));
+    }
+
+    function cardSwingUpgrades(swing) {
+      if (!swing || !swing.runs)
+        return desk("Top Swing Upgrades", empty("No swing data yet."));
+      const runs = swing.runs;
+      if (runs.length < 2) return desk("Top Swing Upgrades",
+        empty("Upgrades light up tomorrow — needs a prior session to diff."));
+      const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
+                  "D","D-","E+","E","E-","F+","F","F-","G+","G"];
+      const gm = function (run) {
+        const m = {};
+        GR.forEach(function (g, gi) {
+          (run.grades[g] || []).forEach(function (c) { m[c.t] = gi; });
+        });
+        return m;
+      };
+      const now = gm(runs[runs.length - 1]);
+      const was = gm(runs[runs.length - 2]);
+      const moves = [];
+      Object.keys(now).forEach(function (t) {
+        if (!(t in was)) { if (now[t] <= 2) moves.push({t:t,d:99,to:GR[now[t]]}); return; }
+        const d = was[t] - now[t];
+        if (d >= 2) moves.push({t:t, d:d, from:GR[was[t]], to:GR[now[t]]});
+      });
+      moves.sort(function (a, b) { return b.d - a.d; });
+      if (!moves.length) return desk("Top Swing Upgrades",
+        empty("No grade upgrades vs the prior session."));
+      return desk("Top Swing Upgrades", moves.slice(0, 8).map(function (m) {
+        const label = (m.d === 99) ? "new entry to " + m.to : (m.from + " → " + m.to);
+        return '<div class="desk-row">' +
+          '<span class="dr-tk">' + m.t + '</span>' +
+          '<span class="dr-meta">' + label + '</span>' +
+          '<span class="dr-val sc-up">+' + (m.d === 99 ? "★" : m.d) + '</span></div>';
+      }).join(""));
+    }
+
+    function cardBreakouts(swing) {
+      if (!swing || !swing.runs || !swing.runs.length)
+        return desk("Top Breakout Candidates", empty("No swing data yet."));
+      const r = swing.runs[swing.runs.length - 1];
+      const cands = [];
+      ["A+", "A", "A-"].forEach(function (g) {
+        (r.grades[g] || []).forEach(function (c) {
+          if (c.ext == null || c.ext < 5)         // not extended -> tradeable
+            cands.push({t:c.t, g:g, ext:c.ext, n:c.n});
+        });
+      });
+      if (!cands.length) return desk("Top Breakout Candidates",
+        empty("No clean A-tier candidates today."));
+      return desk("Top Breakout Candidates", cands.slice(0, 8).map(function (c) {
+        return '<div class="desk-row">' +
+          '<span class="dr-tk">' + c.t + '</span>' +
+          '<span class="dr-meta">' + c.g + ' · ' + (c.n || "").slice(0, 38) + '</span>' +
+          '<span class="dr-val">' + (c.ext != null ? c.ext + "× ATR" : "—") + '</span></div>';
+      }).join(""));
+    }
+
+    function cardMomentum(qm, sb) {
+      const pull = function (d) {
+        return (d && d.runs && d.runs.length)
+          ? (d.runs[d.runs.length - 1].rows || []) : [];
+      };
+      const Q = pull(qm).slice(0, 5), S = pull(sb).slice(0, 5);
+      if (!Q.length && !S.length)
+        return desk("Top Momentum", empty("No momentum hits today."));
+      const fmtRow = function (r) {
+        const c = (typeof r.chg === "number") ? r.chg : null;
+        const cls = c == null ? "" : c > 0 ? "sc-up" : c < 0 ? "sc-down" : "";
+        const sign = c != null && c > 0 ? "+" : "";
+        return '<div class="desk-row">' +
+          '<span class="dr-tk">' + r.ticker + '</span>' +
+          '<span class="dr-meta">$' + (r.price != null ? r.price.toFixed(2) : "—") + '</span>' +
+          '<span class="dr-val ' + cls + '">' +
+            (c != null ? sign + c.toFixed(1) + "%" : "—") + '</span></div>';
+      };
+      let body = "";
+      if (Q.length) body += '<div class="desk-sub">QM Monthly · 1-month gainers</div>' +
+        Q.map(fmtRow).join("");
+      if (S.length) body += '<div class="desk-sub">Stockbee · 5-day gainers</div>' +
+        S.map(fmtRow).join("");
+      return desk("Top Momentum", body);
+    }
+
+    function cardThemes(swing) {
+      if (!swing || !swing.runs || !swing.runs.length ||
+          !swing.runs[swing.runs.length - 1].themes)
+        return desk("Strongest / Weakest Themes", empty("No theme data."));
+      const T = swing.runs[swing.runs.length - 1].themes;
+      const strong = T.slice(0, 5), weak = T.slice(-5).reverse();
+      const row = function (t, cls) {
+        return '<div class="desk-row">' +
+          '<span class="dr-tk">' + t.theme + '</span>' +
+          '<span class="dr-meta">' + t.n + ' names</span>' +
+          '<span class="dr-val ' + cls + '">' + t.avg + '</span></div>';
+      };
+      return desk("Strongest / Weakest Themes",
+        '<div class="desk-sub pos">Strongest</div>' + strong.map(function (t) { return row(t,"sc-up"); }).join("") +
+        '<div class="desk-sub neg">Weakest</div>'   + weak.map(function (t)   { return row(t,"sc-down"); }).join(""));
+    }
+
+    function cardConfluence(uoa, swing, qm, sb) {
+      const sets = {};
+      const add = function (t, tag) {
+        if (!t) return;
+        if (!sets[t]) sets[t] = {};
+        sets[t][tag] = 1;
+      };
+      if (uoa && uoa.rows) {
+        uoa.rows.slice()
+          .sort(function (a, b) { return (b.trade_score || 0) - (a.trade_score || 0); })
+          .slice(0, 30).forEach(function (r) { add(r.ticker, "Flow"); });
+      }
+      if (swing && swing.runs && swing.runs.length) {
+        const r = swing.runs[swing.runs.length - 1];
+        ["A+", "A", "A-"].forEach(function (g) {
+          (r.grades[g] || []).forEach(function (c) { add(c.t, "A-tier"); });
+        });
+      }
+      if (qm && qm.runs && qm.runs.length)
+        (qm.runs[qm.runs.length - 1].rows || []).forEach(function (r) { add(r.ticker, "QM"); });
+      if (sb && sb.runs && sb.runs.length)
+        (sb.runs[sb.runs.length - 1].rows || []).forEach(function (r) { add(r.ticker, "Stockbee"); });
+      const conf = Object.keys(sets)
+        .map(function (t) { return {t:t, tags:Object.keys(sets[t])}; })
+        .filter(function (x) { return x.tags.length >= 2; })
+        .sort(function (a, b) { return b.tags.length - a.tags.length; });
+      if (!conf.length) return desk("Confluence — Multi-Tool",
+        empty("No names appear in 2+ tools today."));
+      return desk("Confluence — Multi-Tool", conf.slice(0, 10).map(function (c) {
+        return '<div class="desk-row">' +
+          '<span class="dr-tk">' + c.t + '</span>' +
+          '<span class="dr-meta">' + c.tags.join(" · ") + '</span>' +
+          '<span class="dr-val sc-up">' + c.tags.length + ' tools</span></div>';
+      }).join(""));
+    }
+
+    function cardReports(manifest, today) {
+      if (!manifest || !manifest.reports)
+        return desk("Reports Today", empty("Manifest not loaded."));
+      const found = [];
+      Object.keys(manifest.reports).forEach(function (k) {
+        (manifest.reports[k] || []).forEach(function (r) {
+          if ((r.file || "").indexOf(today) >= 0) found.push({k:k, r:r});
+        });
+      });
+      if (!found.length) return desk("Reports Today",
+        empty("No PDFs archived today yet."));
+      return desk("Reports Today", found.slice(0, 12).map(function (x) {
+        const label = x.r.ticker ? x.r.ticker : x.k.replace(/-/g, " ");
+        return '<div class="desk-row">' +
+          '<span class="dr-tk">' + label + '</span>' +
+          '<span class="dr-meta">' + (x.r.label || x.r.file) + '</span>' +
+          '<span class="dr-val"><a href="./reports/' + x.r.file +
+            '" target="_blank">open</a></span></div>';
+      }).join(""));
+    }
+
+    Promise.all([
+      fetch("./reports/uoa_latest.json?t="+Date.now()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+      fetch("./reports/swing_report.json?t="+Date.now()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+      fetch("./reports/momentum_qm.json?t="+Date.now()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+      fetch("./reports/momentum_stockbee.json?t="+Date.now()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+      fetch("./reports/manifest.json?t="+Date.now()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+    ]).then(function (arr) {
+      const uoa = arr[0], swing = arr[1], qm = arr[2], sb = arr[3], manifest = arr[4];
+      const today = (swing && swing.runs && swing.runs.length)
+        ? swing.runs[swing.runs.length - 1].date
+        : new Date().toISOString().slice(0, 10);
+      grid.innerHTML = [
+        cardMarketHealth(swing),
+        cardTopFlow(uoa),
+        cardSwingUpgrades(swing),
+        cardBreakouts(swing),
+        cardMomentum(qm, sb),
+        cardThemes(swing),
+        cardConfluence(uoa, swing, qm, sb),
+        cardReports(manifest, today),
+      ].join("");
+    });
+  }
+  setupDesk();
 
   /* ── Swing Report Card ── */
   function setupSwing() {
