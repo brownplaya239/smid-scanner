@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SMID Scanner — Research Hub</title>
+<title>TickerDesk</title>
 <style>
   :root, html[data-theme="mid"] {           /* MID — navy / gold (default) */
     --bg:#0a0f24; --navy:#0c1430; --navy2:#162246; --card:#111a38;
@@ -404,8 +404,8 @@
 <body>
   <header>
     <div class="hgroup">
-      <h1>SMID BREAKOUT SCANNER &mdash; RESEARCH HUB</h1>
-      <p>Institutional-grade SMID-cap research &mdash; Qullamaggie methodology</p>
+      <h1>TickerDesk</h1>
+      <p>Your daily equity research desk for flow, breakouts, catalysts, and watchlists.</p>
     </div>
     <div class="theme-toggle" id="theme-toggle" title="Color scheme">
       <button data-theme="light">L</button>
@@ -415,13 +415,11 @@
   </header>
 
   <nav id="nav">
-    <button data-tab="uoa" class="active">Unusual Options</button>
-    <button data-tab="adhoc">Ad-Hoc Lookup</button>
-    <button data-tab="alt-data">Alt-Data Intel</button>
-    <button data-tab="smid-scanner">SMID Scanner</button>
-    <button data-tab="iwm-scanner">IWM Scanner</button>
-    <button data-tab="smid-setup">SMID Setup Builder</button>
-    <button data-tab="iwm-setup">IWM Setup Builder</button>
+    <button data-tab="uoa" class="active">Options Flow</button>
+    <button data-tab="adhoc">Ticker Research</button>
+    <button data-tab="alt-data">Alternative Data</button>
+    <button data-tab="breakout">Breakout Scans</button>
+    <button data-tab="setup">Setup Builder</button>
     <button data-tab="qm-monthly">QM Monthly Gainers</button>
     <button data-tab="stockbee-weekly">Stockbee Weekly</button>
   </nav>
@@ -476,25 +474,25 @@
     </section>
 
     <!-- Report tabs -->
-    <section class="panel" id="panel-smid-scanner">
-      <h2 class="tab-title">SMID Scanner</h2>
+    <section class="panel" id="panel-breakout">
+      <h2 class="tab-title">Breakout Scans</h2>
       <p class="tab-sub">Live breakout scans &mdash; 10:00, 11:30, 3:00 PM ET weekdays.</p>
+      <div class="uoa-subnav" id="breakout-subnav">
+        <button data-sub="smid-scanner" class="active">SMID</button>
+        <button data-sub="iwm-scanner">Russell 2000 (IWM)</button>
+      </div>
       <div class="report-list" id="list-smid-scanner"></div>
+      <div class="report-list" id="list-iwm-scanner" style="display:none"></div>
     </section>
-    <section class="panel" id="panel-iwm-scanner">
-      <h2 class="tab-title">IWM Scanner</h2>
-      <p class="tab-sub">Russell 2000 breakout scans &mdash; 10:00, 11:30, 3:00 PM ET weekdays.</p>
-      <div class="report-list" id="list-iwm-scanner"></div>
-    </section>
-    <section class="panel" id="panel-smid-setup">
-      <h2 class="tab-title">SMID Setup Builder</h2>
-      <p class="tab-sub">EOD pre-breakout VCP watchlist &mdash; 4:15 PM ET weekdays.</p>
+    <section class="panel" id="panel-setup">
+      <h2 class="tab-title">Setup Builder</h2>
+      <p class="tab-sub">EOD pre-breakout VCP watchlists &mdash; 4:15 PM ET weekdays.</p>
+      <div class="uoa-subnav" id="setup-subnav">
+        <button data-sub="smid-setup" class="active">SMID</button>
+        <button data-sub="iwm-setup">Russell 2000 (IWM)</button>
+      </div>
       <div class="report-list" id="list-smid-setup"></div>
-    </section>
-    <section class="panel" id="panel-iwm-setup">
-      <h2 class="tab-title">IWM Setup Builder</h2>
-      <p class="tab-sub">Russell 2000 EOD pre-breakout VCP watchlist &mdash; 4:15 PM ET weekdays.</p>
-      <div class="report-list" id="list-iwm-setup"></div>
+      <div class="report-list" id="list-iwm-setup" style="display:none"></div>
     </section>
     <section class="panel" id="panel-qm-monthly">
       <h2 class="tab-title">QM Monthly Gainers</h2>
@@ -732,6 +730,25 @@
       p.classList.toggle("active", p.id === "panel-" + tab);
     });
   });
+
+  /* ── Sub-toggles inside consolidated tabs (Breakout Scans, Setup Builder) ── */
+  function wireSubnav(navId, keys) {
+    const sn = document.getElementById(navId);
+    if (!sn) return;
+    sn.addEventListener("click", function (e) {
+      if (e.target.tagName !== "BUTTON") return;
+      const sub = e.target.dataset.sub;
+      sn.querySelectorAll("button").forEach(function (b) {
+        b.classList.toggle("active", b.dataset.sub === sub);
+      });
+      keys.forEach(function (k) {
+        const el = document.getElementById("list-" + k);
+        if (el) el.style.display = (k === sub) ? "" : "none";
+      });
+    });
+  }
+  wireSubnav("breakout-subnav", ["smid-scanner", "iwm-scanner"]);
+  wireSubnav("setup-subnav", ["smid-setup", "iwm-setup"]);
 
   /* ── Load report manifest and render lists ── */
   function renderList(typeKey, entries) {
