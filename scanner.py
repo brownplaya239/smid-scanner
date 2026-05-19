@@ -3,7 +3,7 @@ scanner.py – SMID / IWM Russell 2000 Breakout Scanner
 Usage:
   python scanner.py          # SMID mode (default)
   python scanner.py --iwm    # IWM Russell 2000 mode
-Env vars required: ANTHROPIC_API_KEY, DISCORD_WEBHOOK_URL (SMID) or DISCORD_IWM_WEBHOOK_URL (IWM)
+Env vars required: ANTHROPIC_API_KEY
 """
 
 import os
@@ -46,22 +46,9 @@ IWM_MODE    = "--iwm" in sys.argv
 TICKER_MODE = "--ticker" in sys.argv
 
 ANTHROPIC_API_KEY      = os.environ.get("ANTHROPIC_API_KEY", "")
-DISCORD_WEBHOOK_URL    = os.environ.get("DISCORD_WEBHOOK_URL", "")
-DISCORD_IWM_WEBHOOK    = os.environ.get("DISCORD_IWM_WEBHOOK_URL", "")
-DISCORD_TICKER_WEBHOOK = os.environ.get("DISCORD_TICKER_WEBHOOK_URL", "")
 
-# Mode-aware validation — each mode only needs its own webhook.
 if not ANTHROPIC_API_KEY:
     raise EnvironmentError("Missing: ANTHROPIC_API_KEY")
-if TICKER_MODE:
-    if not DISCORD_TICKER_WEBHOOK:
-        raise EnvironmentError("Missing: DISCORD_TICKER_WEBHOOK_URL")
-elif IWM_MODE:
-    if not DISCORD_IWM_WEBHOOK:
-        raise EnvironmentError("Missing: DISCORD_IWM_WEBHOOK_URL")
-else:
-    if not DISCORD_WEBHOOK_URL:
-        raise EnvironmentError("Missing: DISCORD_WEBHOOK_URL")
 
 IWM_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IWM_holdings.csv")
 
@@ -1908,42 +1895,19 @@ def _fmt_money(v):
     return f"{sign}${v:.0f}"
 
 
-# ─── Discord ──────────────────────────────────────────────────────────────────
+# ─── Report output ────────────────────────────────────────────────────────────
 
-def send_discord_pdf(pdf_bytes, results, scan_type, webhook_url, label="SMID"):
+def publish_report(pdf_bytes, label="SMID"):
+    """Archive the scan PDF to the GitHub Pages report site."""
     now      = datetime.now(ET)
     prefix   = "iwm" if "IWM" in label else "smid"
     filename = f"{prefix}_scanner_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
-    buckets  = {"A": 0, "B": 0, "C": 0}
-    for r in results:
-        g = str(r.get("score", ""))[:1]
-        if g in buckets:
-            buckets[g] += 1
-
-    content = (
-        f"**{label} Breakout Scanner  |  {scan_type}**\n"
-        f"{now.strftime('%B %d, %Y  |  %I:%M %p ET')}  "
-        f"|  {len(results)} setups  "
-        f"|  {buckets['A']}A  {buckets['B']}B  {buckets['C']}C"
-    )
-
-    resp = requests.post(
-        webhook_url,
-        data={"payload_json": json.dumps({"content": content})},
-        files={"files[0]": (filename, pdf_bytes, "application/pdf")},
-        timeout=60,
-    )
-    if resp.status_code in (200, 204):
-        print(f"  ✅ PDF sent to Discord: {filename}")
-    else:
-        print(f"  ❌ Discord error {resp.status_code}: {resp.text}")
-
-    # Publish to the GitHub Pages report archive
     try:
         from report_archive import archive
         archive(pdf_bytes, filename)
+        print(f"  PDF archived to site: {filename}")
     except Exception as e:
-        print(f"  ⚠️  Archive step skipped: {e}")
+        print(f"  Archive step failed: {e}")
 
 
 # ─── Main scan ────────────────────────────────────────────────────────────────
@@ -1952,7 +1916,6 @@ def run_scan():
     scan_type    = get_scan_type()
     label        = "IWM Russell 2000" if IWM_MODE else "SMID"
     report_label = "IWM RUSSELL 2000 SCANNER" if IWM_MODE else "SMID BREAKOUT SCANNER"
-    webhook      = DISCORD_IWM_WEBHOOK if IWM_MODE else DISCORD_WEBHOOK_URL
 
     print(f"\n{'='*50}\n{label.upper()} BREAKOUT SCANNER -- {scan_type}")
     print(f"{datetime.now(ET).strftime('%Y-%m-%d %H:%M:%S ET')}\n{'='*50}")
@@ -2004,22 +1967,13 @@ def run_scan():
     print(f"  -> {len(results)} setups  |  {a_count} A-grades")
 
     print("\n[6/7] Generating PDF...")
-    # step [7/7] happens inside send_discord_pdf
-    print("\n[7/7] Sending to Discord...")
     if results:
         pdf_bytes = generate_pdf(results, scan_type, hist_cache, report_label=report_label)
-        send_discord_pdf(pdf_bytes, results, scan_type, webhook, label=label)
+        print("\n[7/7] Archiving report to site...")
+        publish_report(pdf_bytes, label=label)
     else:
-        regime = macro.get("regime", "Unknown") if isinstance(macro, dict) else "Unknown"
-        requests.post(webhook, json={"content": (
-            f"**{label} Scanner  |  {scan_type}**  —  "
-            f"{datetime.now(ET).strftime('%b %d %Y %I:%M %p ET')}\n"
-            f"No breakout setups passed the filter (green + vol surge + above 20MA).\n"
-            f"Market regime: **{regime}**. On red / low-volume days the breakout "
-            "scanner correctly returns nothing — this is the system working as designed, "
-            "not a failure. Check the EOD Setup Builder for coiling pre-breakout bases."
-        )}, timeout=15)
-        print("  No results — empty scan notification sent (with market context).")
+        print("\n[7/7] No breakout setups passed the filter — nothing to archive. "
+              "On red / low-volume days the scanner correctly returns nothing.")
 
     print("\nDone.")
 
@@ -2068,8 +2022,8 @@ def generate_error_pdf(ticker, reason):
     return bytes(pdf.output())
 
 
-def _abort_invalid_ticker(ticker, hist, webhook):
-    """Kill the lookup immediately for an N/A ticker — clear error to Discord + site."""
+def _abort_invalid_ticker(ticker, hist):
+    """Kill the lookup immediately for an N/A ticker — clean error report to the site."""
     if hist is None or getattr(hist, "empty", True):
         reason = ("No price data found. The symbol may be invalid, delisted, "
                   "or not a US-listed equity.")
@@ -2082,16 +2036,6 @@ def _abort_invalid_ticker(ticker, hist, webhook):
     filename = f"ticker_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     err_pdf  = generate_error_pdf(ticker, reason)
     try:
-        requests.post(
-            webhook,
-            data={"payload_json": json.dumps(
-                {"content": f"**{ticker} - Ticker Not Found**\n{reason}"})},
-            files={"files[0]": (filename, err_pdf, "application/pdf")},
-            timeout=60,
-        )
-    except Exception as e:
-        print(f"  Discord post failed: {e}")
-    try:
         from report_archive import archive
         archive(err_pdf, filename)
     except Exception as e:
@@ -2103,13 +2047,9 @@ def run_single_ticker_lookup(ticker):
     """
     On-demand one-pager for a single ticker. Skips universe/pre-filter entirely;
     builds candidate dict directly from yfinance + macro + insider, runs Claude,
-    generates a one-page PDF, and posts to DISCORD_TICKER_WEBHOOK_URL.
+    generates a one-page PDF, and archives it to the report site.
     """
     ticker = ticker.upper().strip()
-    webhook = os.environ.get("DISCORD_TICKER_WEBHOOK_URL", "")
-    if not webhook:
-        print("  ❌ DISCORD_TICKER_WEBHOOK_URL not set in env")
-        return
 
     print(f"\n{'='*50}\nTICKER LOOKUP: {ticker}\n{'='*50}")
 
@@ -2125,7 +2065,7 @@ def run_single_ticker_lookup(ticker):
         hist = None
 
     if hist is None or hist.empty or len(hist) < 50:
-        _abort_invalid_ticker(ticker, hist, webhook)
+        _abort_invalid_ticker(ticker, hist)
         return
 
     try:
@@ -2199,7 +2139,6 @@ def run_single_ticker_lookup(ticker):
 
     except Exception as e:
         print(f"  ❌ Data fetch failed: {e}")
-        requests.post(webhook, json={"content": f"**{ticker}** — data fetch failed: {e}"}, timeout=15)
         return
 
     print("[2/5] Macro context + insider activity (90d signal + 12mo transaction log)...")
@@ -2260,7 +2199,7 @@ def run_single_ticker_lookup(ticker):
     )
 
     if not results:
-        requests.post(webhook, json={"content": f"**{ticker}** — Claude returned no analysis."}, timeout=15)
+        print(f"  Claude returned no analysis for {ticker}.")
         return
 
     # Merge yfinance fields back so PDF has full data
@@ -2312,28 +2251,15 @@ def run_single_ticker_lookup(ticker):
         },
     )
 
-    print("[5/5] Sending to Discord...")
+    print("[5/5] Archiving one-pager to site...")
     now      = datetime.now(ET)
     filename = f"ticker_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
-    grade    = str(results[0].get("score", ""))[:1] or "?"
-    content  = f"**{ticker} — On-Demand One-Pager**\n{now.strftime('%B %d, %Y · %I:%M %p ET')}  |  Grade: **{grade}**  |  Macro: {macro.get('regime', 'Unknown')}"
-    resp = requests.post(
-        webhook,
-        data={"payload_json": json.dumps({"content": content})},
-        files={"files[0]": (filename, pdf_bytes, "application/pdf")},
-        timeout=60,
-    )
-    if resp.status_code in (200, 204):
-        print(f"  ✅ Sent: {filename}")
-    else:
-        print(f"  ❌ Discord error {resp.status_code}: {resp.text[:200]}")
-
-    # Publish to the GitHub Pages report archive
     try:
         from report_archive import archive
         archive(pdf_bytes, filename)
+        print(f"  Archived: {filename}")
     except Exception as e:
-        print(f"  ⚠️  Archive step skipped: {e}")
+        print(f"  Archive step failed: {e}")
     print("\nDone.")
 
 

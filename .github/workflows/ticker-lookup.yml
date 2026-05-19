@@ -36,7 +36,6 @@ jobs:
       - name: Run ticker lookup
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DISCORD_TICKER_WEBHOOK_URL: ${{ secrets.DISCORD_TICKER_WEBHOOK_URL }}
         run: python scanner.py --ticker "${{ inputs.ticker }}"
 
       - name: Publish report to site archive

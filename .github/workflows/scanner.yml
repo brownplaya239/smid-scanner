@@ -55,9 +55,6 @@ jobs:
       - name: Determine scan type and run
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          DISCORD_SETUP_WEBHOOK_URL: ${{ secrets.DISCORD_SETUP_WEBHOOK_URL }}
-          DISCORD_IWM_WEBHOOK_URL: ${{ secrets.DISCORD_IWM_WEBHOOK_URL }}
         run: |
           HOUR=$(date -u +%H)
           MIN=$(date -u +%M)

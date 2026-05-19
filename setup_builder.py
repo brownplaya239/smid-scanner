@@ -4,7 +4,7 @@ Spots VCP bases FORMING before the trigger fires.
 Usage:
   python setup_builder.py          # SMID mode (default)
   python setup_builder.py --iwm    # IWM Russell 2000 mode
-Env: ANTHROPIC_API_KEY, DISCORD_SETUP_WEBHOOK_URL (SMID) or DISCORD_IWM_WEBHOOK_URL (IWM)
+Env: ANTHROPIC_API_KEY
 """
 
 import os
@@ -40,15 +40,9 @@ import polygon_data
 IWM_MODE              = "--iwm" in sys.argv
 
 ANTHROPIC_API_KEY     = os.environ.get("ANTHROPIC_API_KEY", "")
-DISCORD_SETUP_WEBHOOK = os.environ.get("DISCORD_SETUP_WEBHOOK_URL", "")
-DISCORD_IWM_WEBHOOK   = os.environ.get("DISCORD_IWM_WEBHOOK_URL", "")
 
 if not ANTHROPIC_API_KEY:
     raise EnvironmentError("Missing: ANTHROPIC_API_KEY")
-if IWM_MODE and not DISCORD_IWM_WEBHOOK:
-    raise EnvironmentError("Missing: DISCORD_IWM_WEBHOOK_URL")
-if not IWM_MODE and not DISCORD_SETUP_WEBHOOK:
-    raise EnvironmentError("Missing: DISCORD_SETUP_WEBHOOK_URL")
 
 IWM_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IWM_holdings.csv")
 
@@ -1111,50 +1105,25 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
     return bytes(pdf.output())
 
 
-# ─── Discord ──────────────────────────────────────────────────────────────────
+# ─── Report output ────────────────────────────────────────────────────────────
 
-def send_setup_pdf(pdf_bytes, results, webhook, label="SMID"):
+def publish_setup_pdf(pdf_bytes, label="SMID"):
+    """Archive the Setup Builder PDF to the GitHub Pages report site."""
     now      = datetime.now(ET)
     prefix   = "iwm" if "IWM" in label else "smid"
     filename = f"{prefix}_setup_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
-    grades   = {"A": 0, "B": 0, "C": 0}
-    for r in results:
-        g = str(r.get("grade", ""))[:1]
-        if g in grades:
-            grades[g] += 1
-
-    content = (
-        f"**{label} Setup Builder  |  EOD Pre-Breakout Watchlist**\n"
-        f"{now.strftime('%B %d, %Y  --  %I:%M %p ET')}  "
-        f"|  {len(results)} setups building  "
-        f"|  {grades['A']}A  {grades['B']}B  {grades['C']}C\n"
-        f"_These have NOT triggered yet. Watch for vol expansion above pivot._"
-    )
-
-    resp = requests.post(
-        webhook,
-        data={"payload_json": json.dumps({"content": content})},
-        files={"files[0]": (filename, pdf_bytes, "application/pdf")},
-        timeout=60,
-    )
-    if resp.status_code in (200, 204):
-        print(f"  ✅ Setup Builder PDF sent: {filename}")
-    else:
-        print(f"  ❌ Discord error {resp.status_code}: {resp.text}")
-
-    # Publish to the GitHub Pages report archive
     try:
         from report_archive import archive
         archive(pdf_bytes, filename)
+        print(f"  PDF archived to site: {filename}")
     except Exception as e:
-        print(f"  ⚠️  Archive step skipped: {e}")
+        print(f"  Archive step failed: {e}")
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def run_setup_builder():
     label   = "IWM Russell 2000" if IWM_MODE else "SMID"
-    webhook = DISCORD_IWM_WEBHOOK if IWM_MODE else DISCORD_SETUP_WEBHOOK
 
     print(f"\n{'='*50}\n{label.upper()} SETUP BUILDER -- EOD VCP WATCHLIST")
     print(f"{datetime.now(ET).strftime('%Y-%m-%d %H:%M:%S ET')}\n{'='*50}")
@@ -1193,14 +1162,12 @@ def run_setup_builder():
     results.sort(key=lambda r: {"A": 0, "B": 1, "C": 2}.get(str(r.get("grade", ""))[:1], 9))
     print(f"  -> {len(results)} watchlist setups")
 
-    print("\n[6/6] Generating PDF and sending to Discord...")
+    print("\n[6/6] Generating PDF and archiving to site...")
     if results:
         pdf_bytes = generate_setup_pdf(results, hist_cache, macro=macro)
-        send_setup_pdf(pdf_bytes, results, webhook, label=label)
+        publish_setup_pdf(pdf_bytes, label=label)
     else:
-        requests.post(webhook, json={
-            "content": f"**{label} Setup Builder  |  {datetime.now(ET).strftime('%b %d %Y')}**  |  No qualifying bases found today."
-        }, timeout=15)
+        print("  No qualifying bases found today — nothing to archive.")
 
     print("\nDone.")
 
