@@ -34,13 +34,19 @@ load_dotenv(override=True)
 
 import polygon_data
 import themes
-from uoa_scanner import EXCLUDE_ETFS
+from uoa_scanner import EXCLUDE_ETFS, _sic_sector
 
 ET = pytz.timezone("America/New_York")
 _BASE = os.path.dirname(os.path.abspath(__file__))
 OUT_PATH = os.path.join(_BASE, "docs", "reports", "swing_report.json")
+META_CACHE_PATH = os.path.join(_BASE, "docs", "reports", "swing_meta_cache.json")
+META_REFRESH_DAYS = 30           # company name/sector/exchange change slowly
 
 MIN_DOLLAR_VOL = 50_000_000
+EXCHANGE_NAME = {
+    "XNAS": "NASDAQ", "XNYS": "NYSE",   "XASE": "AMEX",
+    "ARCX": "NYSE Arca", "BATS": "BATS", "IEXG": "IEX",
+}
 GRADES = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+",
           "D", "D-", "E+", "E", "E-", "F+", "F", "F-", "G+", "G"]
 # lower composite edge of each grade (A+ .. G). A+ is open-ended at the top,
@@ -49,6 +55,63 @@ GRADE_MIN = [88, 84, 80, 76, 72, 68, 64, 60, 56, 52,
              48, 44, 40, 36, 32, 28, 24, 20, 16, -1]
 EXT_OVEREXTENDED = 7.0     # ATR-to-SMA50 — red font
 EXT_EXTENDED     = 5.0     # ATR-to-SMA50 — purple font
+
+
+# ─── Security meta (name/sector/industry/country/mcap/exchange) ─────────────
+
+def _swing_cap_bucket(mc):
+    if not mc:           return "Unknown"
+    if mc >= 200e9:      return "Mega"
+    if mc >=  10e9:      return "Large"
+    if mc >=   2e9:      return "Mid"
+    if mc >=   3e8:      return "Small"
+    if mc >=   5e7:      return "Micro"
+    return "Nano"
+
+
+def _load_meta_cache():
+    try:
+        with open(META_CACHE_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_meta_cache(cache):
+    try:
+        os.makedirs(os.path.dirname(META_CACHE_PATH), exist_ok=True)
+        with open(META_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=0, sort_keys=True)
+    except Exception as e:
+        print(f"  swing_meta_cache save failed: {e}")
+
+
+def _meta_is_fresh(entry, today):
+    try:
+        fetched = datetime.strptime(entry["fetched"], "%Y-%m-%d").date()
+    except (KeyError, ValueError, TypeError):
+        return False
+    return (today - fetched).days <= META_REFRESH_DAYS
+
+
+def _fetch_one_meta(ticker):
+    """Polygon ticker_details -> { name, sector, industry, country, exchange,
+    mcap_bucket, fetched } for the dashboard hover card."""
+    try:
+        d = polygon_data.ticker_details(ticker) or {}
+    except Exception:
+        d = {}
+    loc = (d.get("locale") or "").lower()
+    pex = d.get("primary_exchange") or ""
+    return {
+        "name":        d.get("name") or ticker,
+        "sector":      _sic_sector(d.get("sic_code")),
+        "industry":    d.get("sic_description") or "",
+        "country":     "USA" if loc == "us" else loc.upper(),
+        "exchange":    EXCHANGE_NAME.get(pex, pex),
+        "mcap_bucket": _swing_cap_bucket(d.get("market_cap")),
+        "fetched":     datetime.now(ET).strftime("%Y-%m-%d"),
+    }
 
 
 # ─── Universe ────────────────────────────────────────────────────────────────
@@ -154,6 +217,7 @@ def metrics(ticker, s):
     dollar_vol = sum(x * y for x, y in last20) / len(last20) if last20 else 0
     pairs = [(hh, ll) for hh, ll in zip(h[-20:], l[-20:]) if ll > 0]
     adr_pct = (sum(hh / ll for hh, ll in pairs) / len(pairs) - 1) * 100 if pairs else 0
+    chg_day = ((c[-1] / c[-2] - 1) * 100) if n >= 2 and c[-2] else None
     return {
         "ticker":     ticker,
         "price":      price,
@@ -166,6 +230,8 @@ def metrics(ticker, s):
         "hi52":  max(c[-252:]) if n >= 252 else max(c),
         "r21":   _ret(c, 21),  "r63":  _ret(c, 63),
         "r126":  _ret(c, 126), "r252": _ret(c, 252),
+        "chg_day": chg_day,
+        "spark":   [round(x, 2) for x in c[-30:]],   # last 30 daily closes
     }
 
 
@@ -239,6 +305,20 @@ def run():
         return
     print(f"  Final universe: {len(universe)} names")
 
+    # Security meta — name, sector, industry, country, mcap bucket, exchange.
+    # 30-day cache so subsequent runs are near-instant.
+    today_d = datetime.now(ET).date()
+    meta_cache = _load_meta_cache()
+    stale = [m["ticker"] for m in universe
+             if not _meta_is_fresh(meta_cache.get(m["ticker"], {}), today_d)]
+    if stale:
+        print(f"  Fetching ticker details for {len(stale)} names "
+              f"(cache hits: {len(universe) - len(stale)})...")
+        with ThreadPoolExecutor(max_workers=24) as ex:
+            for t, info in ex.map(lambda t: (t, _fetch_one_meta(t)), stale):
+                meta_cache[t] = info
+        _save_meta_cache(meta_cache)
+
     # Relative Strength = percentile rank of the blended return
     for m in universe:
         m["_blend"] = _blended_return(m)
@@ -260,7 +340,20 @@ def run():
     universe.sort(key=lambda m: m["composite"], reverse=True)
     grades = {g: [] for g in GRADES}
     for m in universe:
-        grades[m["grade"]].append({"t": m["ticker"], "ext": m["ext"]})
+        meta = meta_cache.get(m["ticker"], {})
+        grades[m["grade"]].append({
+            "t":     m["ticker"],
+            "ext":   m["ext"],
+            "n":     meta.get("name", m["ticker"]),
+            "sec":   meta.get("sector", ""),
+            "ind":   meta.get("industry", ""),
+            "ctry":  meta.get("country", ""),
+            "xch":   meta.get("exchange", ""),
+            "mcb":   meta.get("mcap_bucket", ""),
+            "p":     round(m["price"], 2),
+            "chg":   round(m["chg_day"], 2) if m["chg_day"] is not None else None,
+            "spark": m["spark"],
+        })
 
     bull = sum(len(grades[g]) for g in GRADES[:10])     # A+ .. D+
     total = len(universe)

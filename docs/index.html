@@ -148,9 +148,34 @@
     font-weight:600; color:var(--text); white-space:nowrap; }
   .ext-over { color:#ff6a6a; }       /* >=7x ATR-to-SMA50 — over-extended */
   .ext-ext  { color:#bb86fc; }       /* 5-7x ATR-to-SMA50 — extended */
-  .src-themes { margin-top:14px; font-size:11.5px; color:var(--textdim);
+  .src-themes { margin-bottom:10px; font-size:11.5px; color:var(--textdim);
     line-height:1.75; }
   .src-themes b { color:var(--text); }
+  .src-legend { font-size:11px; color:var(--muted); margin-bottom:14px;
+    line-height:1.55; }
+  .src-tk { cursor:default; }
+
+  /* hover card */
+  .src-pop { position:fixed; z-index:60; display:none; width:280px;
+    background:var(--card); border:1px solid var(--border2); border-radius:8px;
+    padding:12px 14px; box-shadow:0 10px 28px rgba(0,0,0,.55);
+    pointer-events:none; }
+  .src-pop.show { display:block; }
+  .src-pop .sp-head { display:flex; align-items:baseline; gap:6px; margin-bottom:2px; }
+  .src-pop .sp-sym { font-size:14px; font-weight:800; color:var(--text);
+    letter-spacing:.3px; }
+  .src-pop .sp-head .tape-chg { margin-left:auto; font-size:11px; }
+  .src-pop .sp-name { font-size:11.5px; color:var(--textdim); margin-bottom:8px;
+    line-height:1.3; }
+  .src-pop .sp-px { font-size:18px; font-weight:700; color:var(--text);
+    font-variant-numeric:tabular-nums; }
+  .src-pop .sp-pxs { font-size:9px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.4px; margin-left:5px; vertical-align:middle; }
+  .src-pop .sp-row { font-size:10.5px; color:var(--textdim); margin-top:5px;
+    line-height:1.4; }
+  .src-pop .sp-row.muted { color:var(--muted); }
+  .src-pop .sp-chart { margin-top:9px; }
+  .src-pop .sp-chart svg { display:block; width:100%; height:auto; }
 
   main { flex:1; padding:34px 22px; display:flex; justify-content:center; }
   .panel { display:none; width:100%; max-width:760px; }
@@ -604,10 +629,6 @@
         <span class="mom-count" id="swing-meta"></span>
       </div>
       <div id="swing-body"></div>
-      <p class="uoa-subnote" style="margin-top:14px">
-        <span class="ext-over">Red font</span> &mdash; over-extended (&ge;7&times;
-        ATR-to-SMA50) &middot; <span class="ext-ext">purple font</span> &mdash;
-        extended (&ge;5&times;). Grade changes compare to the prior session.</p>
     </section>
     <section class="panel" id="panel-qm-monthly">
       <h2 class="tab-title">QM Monthly Gainers</h2>
@@ -1180,7 +1201,13 @@
     if (!sel || !body) return;
     const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
                 "D","D-","E+","E","E-","F+","F","F-","G+","G"];
-    let RUNS = [];
+    let RUNS = [], TKMAP = {}, RUN_DATE = "";
+
+    // hover popup (created once)
+    const pop = document.createElement("div");
+    pop.className = "src-pop";
+    document.body.appendChild(pop);
+
     function gradeMap(run) {
       const m = {};
       GR.forEach(function (g, gi) {
@@ -1197,22 +1224,91 @@
         ? "rgba(31,179,99," + (1 - (i/9)*0.68).toFixed(2) + ")"
         : "rgba(214,68,68," + (0.32 + ((i-10)/9)*0.68).toFixed(2) + ")";
     }
+    function popSpark(spark) {
+      if (!spark || spark.length < 2) return "";
+      const W = 252, H = 40;
+      let lo = Math.min.apply(null, spark), hi = Math.max.apply(null, spark);
+      const span = (hi - lo) || 1;
+      const up = spark[spark.length - 1] >= spark[0];
+      const col = up ? "var(--green)" : "var(--red)";
+      const pts = spark.map(function (v, i) {
+        return ((i / (spark.length - 1)) * W).toFixed(1) + "," +
+               (H - ((v - lo) / span) * H).toFixed(1);
+      }).join(" ");
+      return '<div class="sp-chart"><svg viewBox="0 0 ' + W + ' ' + H + '">' +
+        '<polyline points="' + pts + '" fill="none" stroke="' + col +
+        '" stroke-width="1.5"/></svg></div>';
+    }
+    function showPop(tkr, anchor) {
+      const c = TKMAP[tkr];
+      if (!c) return;
+      const dc = (typeof c.chg === "number") ? c.chg : null;
+      const cls = dc == null ? "flat" : dc > 0 ? "up" : dc < 0 ? "down" : "flat";
+      const arrow = dc == null ? "" : dc > 0 ? "▲ " : dc < 0 ? "▼ " : "";
+      const row2 = [c.ctry, c.mcb && (c.mcb + " cap"), c.xch].filter(Boolean).join(" · ");
+      const row1 = [c.sec, c.ind].filter(Boolean).join(" · ");
+      pop.innerHTML =
+        '<div class="sp-head"><span class="sp-sym">' + c.t + '</span>' +
+        '<span class="tape-chg ' + cls + '">' + arrow +
+          (dc == null ? "" : (dc > 0 ? "+" : "") + dc.toFixed(2) + "%") +
+          '</span></div>' +
+        '<div class="sp-name">' + (c.n || c.t) + '</div>' +
+        '<div><span class="sp-px">$' + (c.p != null ? c.p.toFixed(2) : "—") +
+          '</span><span class="sp-pxs">Close · ' + RUN_DATE + '</span></div>' +
+        (row1 ? '<div class="sp-row">' + row1 + '</div>' : '') +
+        (row2 ? '<div class="sp-row muted">' + row2 + '</div>' : '') +
+        popSpark(c.spark);
+      pop.classList.add("show");
+      const r = anchor.getBoundingClientRect(), pw = 280, ph = pop.offsetHeight || 200;
+      let left = r.left + r.width / 2 - pw / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+      let top = r.bottom + 6;
+      if (top + ph > window.innerHeight - 8) top = r.top - ph - 6;   // flip above
+      pop.style.left = left + "px";
+      pop.style.top  = Math.max(8, top) + "px";
+    }
+    function hidePop() { pop.classList.remove("show"); }
+
     function render(idx) {
       const run = RUNS[idx];
       if (!run) { body.innerHTML = '<div class="uoa-empty">No report yet.</div>'; return; }
       meta.textContent = run.total + " names graded";
-      let html = '<div class="src-bar">' +
-        '<div class="bull" style="flex:' + run.bullish_pct + '">BULLISH ' +
-          run.bullish_pct + '%</div>' +
-        '<div class="bear" style="flex:' + run.bearish_pct + '">BEARISH ' +
-          run.bearish_pct + '%</div></div>';
-      const prior = RUNS[idx + 1];                 // RUNS is newest-first
+      RUN_DATE = run.date;
+      // build fast lookup for hover
+      TKMAP = {};
+      GR.forEach(function (g) {
+        (run.grades[g] || []).forEach(function (c) { TKMAP[c.t] = c; });
+      });
+
+      let html = "";
+      // 1) Themes rollup (on top, per request)
+      if (run.themes && run.themes.length) {
+        const fmt = function (t) { return t.theme + ' (' + t.avg + ')'; };
+        html += '<div class="src-themes"><div><b>Strongest themes</b> &mdash; ' +
+          run.themes.slice(0, 6).map(fmt).join(" &middot; ") +
+          '</div><div><b>Weakest themes</b> &mdash; ' +
+          run.themes.slice(-6).reverse().map(fmt).join(" &middot; ") +
+          '</div></div>';
+      }
+      // 2) Legend (also on top)
+      html += '<div class="src-legend">' +
+        '<span class="ext-over">Red font</span> &mdash; over-extended (&ge;7&times; ' +
+        'ATR-to-SMA50) &middot; <span class="ext-ext">purple font</span> &mdash; ' +
+        'extended (&ge;5&times;). Grade changes compare to the prior session. ' +
+        'Hover any ticker for security info.</div>';
+      // 3) Bullish/bearish header — split 50/50 to align with the D+/D
+      //    grade boundary; the percentage is the count proportion.
+      html += '<div class="src-bar">' +
+        '<div class="bull" style="flex:1">BULLISH ' + run.bullish_pct + '%</div>' +
+        '<div class="bear" style="flex:1">BEARISH ' + run.bearish_pct + '%</div></div>';
+      // 4) Grade-change strip (vs prior session)
+      const prior = RUNS[idx + 1];
       if (prior) {
         const now = gradeMap(run), was = gradeMap(prior);
         let ups = 0, downs = 0; const fresh = [];
         Object.keys(now).forEach(function (t) {
           if (!(t in was)) { if (now[t] <= 2) fresh.push(t); return; }
-          const d = was[t] - now[t];               // + = improved (lower index)
+          const d = was[t] - now[t];
           if (now[t] <= 2 && was[t] > 2) fresh.push(t);
           else if (d >= 3) ups++;
           else if (d <= -3) downs++;
@@ -1223,25 +1319,27 @@
           (fresh.length ? '<span class="sc-new">&#9733; new A-tier: ' +
             fresh.slice(0, 14).join(", ") + '</span>' : '') + '</div>';
       }
+      // 5) Grid — each ticker gets data-t for hover lookup
       html += '<div class="src-grid">' + GR.map(function (g, gi) {
         const cells = run.grades[g] || [];
         return '<div class="src-col">' +
           '<div class="src-head" style="background:' + headBg(gi) + '">' + g +
             '</div><div class="src-cnt">' + cells.length + '</div>' +
           '<div class="src-bodycol">' + cells.map(function (c) {
-            return '<span class="src-tk' + tkCls(c.ext) + '">' + c.t + '</span>';
+            return '<span class="src-tk' + tkCls(c.ext) +
+              '" data-t="' + c.t + '">' + c.t + '</span>';
           }).join("") + '</div></div>';
       }).join("") + '</div>';
-      if (run.themes && run.themes.length) {
-        const fmt = function (t) { return t.theme + ' (' + t.avg + ')'; };
-        html += '<div class="src-themes"><div><b>Strongest themes</b> &mdash; ' +
-          run.themes.slice(0, 6).map(fmt).join(" &middot; ") +
-          '</div><div><b>Weakest themes</b> &mdash; ' +
-          run.themes.slice(-6).reverse().map(fmt).join(" &middot; ") +
-          '</div></div>';
-      }
       body.innerHTML = html;
     }
+    body.addEventListener("mouseover", function (e) {
+      const t = e.target.closest(".src-tk");
+      if (t && t.dataset.t) showPop(t.dataset.t, t);
+    });
+    body.addEventListener("mouseout", function (e) {
+      if (e.target.closest(".src-tk")) hidePop();
+    });
+
     fetch("./reports/swing_report.json?t=" + Date.now())
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
