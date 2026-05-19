@@ -432,6 +432,15 @@ def _emit_scored(scored):
             "premium":      s.get("premium"),
             "dte":          s.get("dte"),
             "tags":         s.get("tags", []),
+            # pass-through fields so the Tracked-Signals tab can offer the
+            # same filters as Live Flow
+            "type":         s.get("type"),
+            "cap_bucket":   s.get("cap_bucket"),
+            "sector":       s.get("sector"),
+            "themes":       s.get("themes", []),
+            "opening":      s.get("opening"),
+            "liquidity":    s.get("liquidity"),
+            "flow_side":    s.get("flow_side"),
             "ret_1d":       r1.get("ret"),
             "ret_3d":       r3.get("ret"),
             "ret_5d":       r5.get("ret"),
