@@ -247,6 +247,21 @@ def _excursion_avg(scored):
     }
 
 
+def _oi_summary(items):
+    """Next-day OI-confirmation rate for a group of scored signals. This is
+    an INTERIM quality read — available the day after the flag, long before
+    price returns mature — so the Performance tab has something real to show
+    while the +5d window is still filling."""
+    oc = [s["oi"]["status"] for s in items
+          if s.get("oi") and s["oi"].get("status") not in (None, "pending")]
+    confirmed = sum(1 for x in oc if x == "confirmed")
+    return {
+        "checked":      len(oc),
+        "confirmed":    confirmed,
+        "confirm_rate": round(100 * confirmed / len(oc)) if oc else None,
+    }
+
+
 def compute_edge():
     """Score the ledger; build aggregates + per-signal scorecards. Signals
     older than FINAL_AGE_DAYS are frozen in uoa_alpha_cache.json — every
@@ -328,29 +343,35 @@ def compute_edge():
 
     matured_5d = sum(1 for s in scored if s["returns"].get(5))
 
+    # Each group carries per-horizon return stats (h) AND an OI-confirmation
+    # summary (oi) — the latter is meaningful before any price horizon matures.
     by_type = {}
     for typ in SIGNAL_TYPES:
         items = [s for s in scored if s.get("signal_type") == typ]
         if items:
-            by_type[typ] = {"signals": len(items), "h": _group(items)}
+            by_type[typ] = {"signals": len(items), "h": _group(items),
+                            "oi": _oi_summary(items)}
 
     by_score = {}
     for label, lo, hi in SCORE_BUCKETS:
         items = [s for s in scored if lo <= s.get("trade_score", 0) < hi]
         if items:
-            by_score[label] = {"signals": len(items), "h": _group(items)}
+            by_score[label] = {"signals": len(items), "h": _group(items),
+                               "oi": _oi_summary(items)}
 
     by_dte = {}
     for b in DTE_BUCKETS:
         items = [s for s in scored if _dte_bucket(s.get("dte")) == b]
         if items:
-            by_dte[b] = {"signals": len(items), "h": _group(items)}
+            by_dte[b] = {"signals": len(items), "h": _group(items),
+                         "oi": _oi_summary(items)}
 
     by_tag = {}
     for tag in ATTRIB_TAGS:
         items = [s for s in scored if tag in (s.get("tags") or [])]
         if items:
-            by_tag[tag] = {"signals": len(items), "h5": _agg([x["returns"] for x in items], 5)}
+            by_tag[tag] = {"signals": len(items), "h": _group(items),
+                           "oi": _oi_summary(items)}
 
     oc = [s["oi"]["status"] for s in scored if s["oi"]["status"] != "pending"]
     edge = {

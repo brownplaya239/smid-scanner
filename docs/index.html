@@ -261,6 +261,10 @@
   .perf-card td:first-child, .perf-card th:first-child { text-align:left; }
   .perf-pos { color:var(--green); }
   .perf-neg { color:#e8736a; }
+  .perf-na  { color:#566087; }
+  .perf-card td .perf-hit { display:block; font-size:9px; color:var(--muted);
+    font-weight:400; margin-top:1px; }
+  .perf-card tr:not(:first-child):hover { background:#0f1733; }
 
   table.uoa tbody tr { cursor:pointer; }
   .uoa-detail { display:none; position:fixed; inset:0; z-index:50;
@@ -899,19 +903,35 @@
         (stat.avg_excess!=null ? ' &middot; '+(stat.avg_excess>0?"+":"")+stat.avg_excess+'% vs SPY' : '')+
         '</div></div>';
     }
+    function bestHorizon(hobj) {
+      // newest horizon that has actually matured; falls back to +5d
+      const order = ["5", "3", "1"];
+      for (let i = 0; i < order.length; i++) {
+        const st = hobj && hobj[order[i]];
+        if (st && st.n > 0 && st.avg != null) return {h: order[i], st: st};
+      }
+      return {h: "5", st: (hobj && hobj["5"]) || null};
+    }
     function renderEdge(edge) {
       const el = $("uoa-edge"); if (!el) return;
       if (!edge || !edge.total_signals) {
         el.innerHTML = '<div class="ecard"><div class="et">Track Record</div>'+
           '<div class="ev neutral">Building</div><div class="es">Signals are logging now. '+
-          'Realized +5d edge stats appear here as they mature (~2 weeks).</div></div>';
+          'Realized edge stats appear here as they mature.</div></div>';
         return;
       }
       const cards = [];
-      cards.push(edgeCard("Overall +5d", (edge.overall||{})["5"]));
+      const ov = bestHorizon(edge.overall || {});
+      cards.push(edgeCard("Overall +"+ov.h+"d", ov.st));
       const bt = edge.by_type || {};
-      if (bt.golden_sweep && bt.golden_sweep.h) cards.push(edgeCard("Golden Sweeps +5d", bt.golden_sweep.h["5"]));
-      if (bt.sweep && bt.sweep.h) cards.push(edgeCard("Sweeps +5d", bt.sweep.h["5"]));
+      if (bt.golden_sweep && bt.golden_sweep.h) {
+        const g = bestHorizon(bt.golden_sweep.h);
+        cards.push(edgeCard("Golden Sweeps +"+g.h+"d", g.st));
+      }
+      if (bt.sweep && bt.sweep.h) {
+        const s = bestHorizon(bt.sweep.h);
+        cards.push(edgeCard("Sweeps +"+s.h+"d", s.st));
+      }
       const oc = edge.oi_confirmation || {};
       if (oc.checked > 0) {
         const ocls = oc.confirm_rate >= 50 ? "pos"
@@ -1248,35 +1268,54 @@
       if (el) el.addEventListener(el.tagName==="INPUT"?"input":"change", renderTrackedBody);
     });
 
+    function perfHCell(st) {
+      // one horizon cell: avg return (coloured) with hit-rate beneath
+      if (!st || !st.n || st.avg == null) return '<td class="perf-na">&mdash;</td>';
+      const c = st.avg>0 ? "perf-pos" : st.avg<0 ? "perf-neg" : "";
+      return '<td class="'+c+'">'+(st.avg>0?"+":"")+st.avg+'%'+
+        '<span class="perf-hit">'+st.hit_rate+'% hit &middot; n'+st.n+'</span></td>';
+    }
     function perfTable(title, groups, keyLabel) {
       const keys = Object.keys(groups||{});
       if (!keys.length) return "";
       const rows = keys.map(function (g) {
-        const st = (groups[g].h && groups[g].h["5"]) || groups[g].h5 || {};
-        const c = st.avg>0 ? "perf-pos" : st.avg<0 ? "perf-neg" : "";
-        return '<tr><td>'+g.replace("_"," ")+'</td>'+
-          '<td>'+(groups[g].signals||st.n||0)+'</td>'+
-          '<td>'+(st.hit_rate!=null?st.hit_rate+"%":"&mdash;")+'</td>'+
-          '<td class="'+c+'">'+(st.avg!=null?(st.avg>0?"+":"")+st.avg+"%":"&mdash;")+'</td></tr>';
+        const h  = groups[g].h || {};
+        const oi = groups[g].oi || {};
+        const ocls = oi.confirm_rate>=50 ? "perf-pos"
+                   : oi.confirm_rate!=null ? "perf-neg" : "";
+        return '<tr><td>'+g.replace(/_/g," ")+'</td>'+
+          '<td>'+(groups[g].signals||0)+'</td>'+
+          '<td class="'+ocls+'">'+(oi.confirm_rate!=null
+             ? oi.confirm_rate+'%<span class="perf-hit">'+oi.confirmed+'/'+oi.checked+'</span>'
+             : "&mdash;")+'</td>'+
+          perfHCell(h["1"])+perfHCell(h["3"])+perfHCell(h["5"])+'</tr>';
       }).join("");
       return '<div class="perf-card"><h4>'+title+'</h4><table>'+
-        '<tr><th>'+keyLabel+'</th><th>N</th><th>+5d Hit</th><th>+5d Avg</th></tr>'+
+        '<tr><th>'+keyLabel+'</th><th>N</th><th>OI&nbsp;held</th>'+
+        '<th>+1d</th><th>+3d</th><th>+5d</th></tr>'+
         rows+'</table></div>';
     }
     function renderPerf() {
       const el = $("perf-body");
-      const matured = EDGE && EDGE.matured_5d;
-      if (!EDGE || !matured) {
-        let msg = "Performance attribution builds as signals mature.";
-        const dates = (SCORED||[]).map(function (s) { return s.flagged_at; })
-          .filter(Boolean).sort();
-        if (dates.length) {
-          const ready = new Date(new Date(dates[0]).getTime() + 7*864e5);
-          msg = "First +5d outcomes available after " + ready.toLocaleDateString() +
-            " — " + SCORED.length + " signals tracked so far, none matured to +5d yet.";
-        }
-        el.innerHTML = '<div class="uoa-empty">'+msg+'</div>';
+      if (!EDGE || !EDGE.total_signals) {
+        el.innerHTML = '<div class="uoa-empty">Performance attribution builds '+
+          'as signals log and mature.</div>';
         return;
+      }
+      let note = "";
+      if (!EDGE.matured_5d) {
+        const ov = EDGE.overall || {};
+        const live = ["1","3","5"].filter(function (h) {
+          return (ov[h]||{}).n > 0; }).map(function (h) { return "+"+h+"d"; });
+        const liveTxt = live.length
+          ? "<strong>"+live.join(" / ")+" outcomes are live now</strong> "+
+            "&mdash; short-dated plays are already measurable. "
+          : "";
+        note = '<p class="uoa-subnote">'+liveTxt+
+          'Longer horizons fill in as signals age (+3d, +5d, +10d, +20d). '+
+          '<strong>OI&nbsp;held</strong> is the share of flow whose open interest '+
+          'stuck the next day &mdash; a same-day read on whether the smart money '+
+          'actually held, before any price horizon matures.</p>';
       }
       const cards = [
         perfTable("Edge by signal type", EDGE.by_type, "Type"),
@@ -1294,7 +1333,8 @@
         '<tr><td>OI confirm rate</td><td>'+
           (oc.confirm_rate!=null?oc.confirm_rate+"%":"&mdash;")+'</td></tr>'+
         '</table></div>');
-      el.innerHTML = '<div class="perf-grid">'+cards.filter(Boolean).join("")+'</div>';
+      el.innerHTML = note +
+        '<div class="perf-grid">'+cards.filter(Boolean).join("")+'</div>';
     }
 
     function drow(k,v) {
