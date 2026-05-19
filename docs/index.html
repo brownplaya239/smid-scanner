@@ -137,7 +137,7 @@
   .src-grid { display:flex; gap:2px; overflow-x:auto; align-items:flex-start;
     scrollbar-width:none; }
   .src-grid::-webkit-scrollbar { display:none; }
-  .src-col { flex:0 0 60px; display:flex; flex-direction:column;
+  .src-col { flex:1 1 60px; min-width:60px; display:flex; flex-direction:column;
     border:1px solid var(--line); border-radius:4px; overflow:hidden; }
   .src-head { text-align:center; font-weight:800; font-size:12px; padding:3px 0;
     color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.55); }
@@ -148,11 +148,11 @@
     font-weight:600; color:var(--text); white-space:nowrap; }
   .ext-over { color:#ff6a6a; }       /* >=7x ATR-to-SMA50 — over-extended */
   .ext-ext  { color:#bb86fc; }       /* 5-7x ATR-to-SMA50 — extended */
-  .src-themes { margin-bottom:10px; font-size:11.5px; color:var(--textdim);
-    line-height:1.75; }
+  .src-themes { margin-bottom:8px; font-size:11.5px; color:var(--textdim);
+    line-height:1.75; text-align:center; }
   .src-themes b { color:var(--text); }
-  .src-legend { font-size:11px; color:var(--muted); margin-bottom:14px;
-    line-height:1.55; }
+  .src-legend { font-size:11px; color:var(--muted); margin-bottom:6px;
+    line-height:1.55; text-align:center; }
   .src-tk { cursor:default; }
 
   /* hover card */
@@ -624,8 +624,10 @@
         graded A+ &rarr; G on Relative Strength <em>and</em> price-structure
         Trend Strength. A+ = highest RS and strongest trend. Universe:
         above-average ATR, $50M+ daily dollar volume. 4:30 PM ET weekdays.</p>
+      <div id="swing-top"></div>
       <div class="mom-bar">
         <select id="swing-date"></select>
+        <select id="swing-theme"><option value="">All themes</option></select>
         <span class="mom-count" id="swing-meta"></span>
       </div>
       <div id="swing-body"></div>
@@ -1196,6 +1198,8 @@
   /* ── Swing Report Card ── */
   function setupSwing() {
     const sel  = document.getElementById("swing-date");
+    const tsel = document.getElementById("swing-theme");
+    const top  = document.getElementById("swing-top");
     const body = document.getElementById("swing-body");
     const meta = document.getElementById("swing-meta");
     if (!sel || !body) return;
@@ -1269,41 +1273,75 @@
     }
     function hidePop() { pop.classList.remove("show"); }
 
+    function populateThemes(run) {
+      if (!tsel) return;
+      const set = {};
+      GR.forEach(function (g) {
+        (run.grades[g] || []).forEach(function (c) {
+          (c.th || []).forEach(function (th) { set[th] = 1; });
+        });
+      });
+      const cur = tsel.value;
+      tsel.innerHTML = '<option value="">All themes</option>' +
+        Object.keys(set).sort().map(function (t) {
+          return '<option value="' + t + '">' + t + '</option>';
+        }).join("");
+      tsel.value = cur;
+    }
     function render(idx) {
       const run = RUNS[idx];
-      if (!run) { body.innerHTML = '<div class="uoa-empty">No report yet.</div>'; return; }
-      meta.textContent = run.total + " names graded";
+      if (!run) {
+        top.innerHTML = ""; body.innerHTML =
+          '<div class="uoa-empty">No report yet.</div>'; return;
+      }
       RUN_DATE = run.date;
-      // build fast lookup for hover
+      populateThemes(run);
+      const themeF = tsel ? tsel.value : "";
+      // hover lookup uses the full set so even filtered-out cells work
       TKMAP = {};
       GR.forEach(function (g) {
         (run.grades[g] || []).forEach(function (c) { TKMAP[c.t] = c; });
       });
 
-      let html = "";
-      // 1) Themes rollup (on top, per request)
+      // filter cells by theme (if active) and recount per grade
+      const passes = function (c) {
+        return !themeF || (c.th || []).indexOf(themeF) >= 0;
+      };
+      const fg = {};
+      let total = 0, bull = 0;
+      GR.forEach(function (g, gi) {
+        fg[g] = (run.grades[g] || []).filter(passes);
+        total += fg[g].length;
+        if (gi < 10) bull += fg[g].length;
+      });
+      const bull_pct = total ? Math.round(100 * bull / total * 10) / 10 : 0;
+      const bear_pct = total ? Math.round(100 * (total - bull) / total * 10) / 10 : 0;
+      meta.textContent = total + (themeF ? " names · " + themeF : " names graded");
+
+      // ── Top: themes rollup + legend (under the description, centered) ──
+      let topHtml = "";
       if (run.themes && run.themes.length) {
         const fmt = function (t) { return t.theme + ' (' + t.avg + ')'; };
-        html += '<div class="src-themes"><div><b>Strongest themes</b> &mdash; ' +
+        topHtml += '<div class="src-themes"><div><b>Strongest themes</b> &mdash; ' +
           run.themes.slice(0, 6).map(fmt).join(" &middot; ") +
           '</div><div><b>Weakest themes</b> &mdash; ' +
           run.themes.slice(-6).reverse().map(fmt).join(" &middot; ") +
           '</div></div>';
       }
-      // 2) Legend (also on top)
-      html += '<div class="src-legend">' +
+      topHtml += '<div class="src-legend">' +
         '<span class="ext-over">Red font</span> &mdash; over-extended (&ge;7&times; ' +
         'ATR-to-SMA50) &middot; <span class="ext-ext">purple font</span> &mdash; ' +
         'extended (&ge;5&times;). Grade changes compare to the prior session. ' +
         'Hover any ticker for security info.</div>';
-      // 3) Bullish/bearish header — split 50/50 to align with the D+/D
-      //    grade boundary; the percentage is the count proportion.
-      html += '<div class="src-bar">' +
-        '<div class="bull" style="flex:1">BULLISH ' + run.bullish_pct + '%</div>' +
-        '<div class="bear" style="flex:1">BEARISH ' + run.bearish_pct + '%</div></div>';
-      // 4) Grade-change strip (vs prior session)
+      top.innerHTML = topHtml;
+
+      // ── Body: bar + grade-change + grid ──
+      let html = '<div class="src-bar">' +
+        '<div class="bull" style="flex:1">BULLISH ' + bull_pct + '%</div>' +
+        '<div class="bear" style="flex:1">BEARISH ' + bear_pct + '%</div></div>';
+      // grade-change strip (only meaningful on the unfiltered view)
       const prior = RUNS[idx + 1];
-      if (prior) {
+      if (prior && !themeF) {
         const now = gradeMap(run), was = gradeMap(prior);
         let ups = 0, downs = 0; const fresh = [];
         Object.keys(now).forEach(function (t) {
@@ -1319,9 +1357,8 @@
           (fresh.length ? '<span class="sc-new">&#9733; new A-tier: ' +
             fresh.slice(0, 14).join(", ") + '</span>' : '') + '</div>';
       }
-      // 5) Grid — each ticker gets data-t for hover lookup
       html += '<div class="src-grid">' + GR.map(function (g, gi) {
-        const cells = run.grades[g] || [];
+        const cells = fg[g];
         return '<div class="src-col">' +
           '<div class="src-head" style="background:' + headBg(gi) + '">' + g +
             '</div><div class="src-cnt">' + cells.length + '</div>' +
@@ -1353,7 +1390,8 @@
           return '<option value="' + i + '">' + r.date + '</option>';
         }).join("");
         render(0);
-        sel.onchange = function () { render(+sel.value); };
+        sel.onchange  = function () { render(+sel.value); };
+        if (tsel) tsel.onchange = function () { render(+sel.value); };
       })
       .catch(function () {
         body.innerHTML = '<div class="uoa-empty">Could not load the report.</div>';
