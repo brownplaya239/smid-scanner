@@ -265,11 +265,19 @@
   .conf-row .cr-narr .tag-rep     { color:var(--gold); }
 
   /* Market Health — compact stats line + 4-column performers table */
-  .mh-stats { font-size:10.5px; color:var(--textdim); margin-bottom:8px;
+  .mh-stats { font-size:10.5px; color:var(--textdim); margin-bottom:6px;
     line-height:1.6; }
   .mh-stats b { color:var(--text); font-weight:700; }
   .mh-stats .pos { color:var(--green); font-weight:700; }
   .mh-stats .neg { color:var(--red); font-weight:700; }
+  /* All-grades count strip (20 cells, A+..G with diverging colour) */
+  .mh-gstrip { display:grid; grid-template-columns:repeat(20, 1fr);
+    gap:1px; margin-bottom:8px; }
+  .mh-gstrip .mh-gc { text-align:center; padding:3px 1px; border-radius:2px;
+    font-size:9px; line-height:1.25; color:#fff; cursor:default;
+    text-shadow:0 1px 1px rgba(0,0,0,.5); }
+  .mh-gstrip .mh-gc b { display:block; font-size:10.5px; font-weight:800;
+    font-variant-numeric:tabular-nums; }
   .mh-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:5px; }
   .mh-col { border:1px solid var(--line); border-radius:5px; overflow:hidden; }
   .mh-col h4 { font-size:9px; text-transform:uppercase; letter-spacing:.4px;
@@ -283,6 +291,48 @@
   .mh-tk-row .mh-pct { font-variant-numeric:tabular-nums; }
   .mh-tk-row .mh-pct.up   { color:var(--green); }
   .mh-tk-row .mh-pct.down { color:var(--red); }
+
+  /* Top Breakout Candidates mini-table (Ticker | Theme | Mcap | RVol | Ext) */
+  .brk-row { display:grid;
+    grid-template-columns:54px 1fr 56px 44px 56px;
+    align-items:center; gap:6px; padding:3px 0; font-size:10px; }
+  .brk-row + .brk-row { border-top:1px solid var(--line); }
+  .brk-row.brk-hdr { padding-bottom:4px; margin-bottom:2px;
+    border-bottom:1px solid var(--line); }
+  .brk-row.brk-hdr span { font-size:8.5px; text-transform:uppercase;
+    letter-spacing:.4px; color:var(--muted); font-weight:700; }
+  .brk-row .bk-tk   { font-weight:800; color:var(--text); font-size:11px;
+    cursor:default; }
+  .brk-row .bk-th   { color:var(--gold); font-size:9.5px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  .brk-row .bk-mc   { color:var(--textdim); text-align:right;
+    font-variant-numeric:tabular-nums; }
+  .brk-row .bk-rv   { color:var(--textdim); text-align:right;
+    font-variant-numeric:tabular-nums; font-weight:700; }
+  .brk-row .bk-rv.hot { color:var(--green); }
+  .brk-row .bk-ex   { color:var(--textdim); text-align:right;
+    font-variant-numeric:tabular-nums; }
+  .brk-row .bk-ex.ext-ext  { color:#a87cff; }
+  .brk-row .bk-ex.ext-over { color:var(--red); }
+
+  /* Strongest / Weakest Themes — denser variant */
+  .th-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+  .th-grid .th-col { display:flex; flex-direction:column; }
+  .th-grid .th-row { display:flex; align-items:center; gap:6px;
+    padding:2px 0; font-size:9.5px; }
+  .th-grid .th-row + .th-row { border-top:1px solid var(--line); }
+  .th-grid .th-row .tr-name { font-weight:700; color:var(--text);
+    flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .th-grid .th-row .tr-n    { color:var(--muted); font-size:8.5px; }
+  .th-grid .th-row .tr-avg  { font-variant-numeric:tabular-nums;
+    font-weight:700; }
+  .th-grid .th-row.up   .tr-avg { color:var(--green); }
+  .th-grid .th-row.down .tr-avg { color:var(--red); }
+  .th-grid .th-head { font-size:9px; text-transform:uppercase;
+    letter-spacing:.4px; font-weight:700; padding:2px 0 4px;
+    margin-bottom:2px; border-bottom:1px solid var(--line); }
+  .th-grid .th-head.pos { color:var(--green); }
+  .th-grid .th-head.neg { color:var(--red); }
 
   /* Upcoming Earnings card */
   .earn-row { display:grid; grid-template-columns:68px 1fr; gap:9px;
@@ -1394,14 +1444,53 @@
     }
     function empty(msg) { return '<div class="desk-empty">' + msg + '</div>'; }
 
+    // Strip boilerplate from Polygon company names so popups and rows show
+    // "ABC Tech" not "ABC Tech, Inc. Common Stock". Iterative — handles
+    // chained suffixes like "Class A Common Stock American Depositary Shares".
+    function cleanName(n) {
+      if (!n) return "";
+      let s = String(n);
+      const tails = [
+        /\s*-?\s*American Depositary Shares?$/i,
+        /\s*-?\s*American Depositary Receipts?$/i,
+        /\s*-?\s*Ordinary Shares?$/i,
+        /\s*-?\s*Ord(inary)? Shares?$/i,
+        /\s*-?\s*Class [A-Z]\s*(Common Stock|Ordinary Shares?)?$/i,
+        /\s*-?\s*Common Stock$/i,
+        /\s*-?\s*Common Shares?$/i,
+        /\s*-?\s*Beneficial Interest$/i,
+        /,?\s*(Inc|Corp|Corporation|Ltd|Limited|plc|S\.A|N\.V)\.?$/i,
+        /\s*\(.*?\)\s*$/,
+      ];
+      let last = "";
+      while (s && s !== last) {
+        last = s;
+        for (const re of tails) s = s.replace(re, "").trim();
+      }
+      return s.replace(/\s{2,}/g, " ").trim() || n;
+    }
+    function fmtRvol(v) {
+      if (v == null || !isFinite(v)) return "—";
+      return v.toFixed(1) + "x";
+    }
+    function extCls(ext) {
+      if (ext == null) return "";
+      return ext >= 7 ? "ext-over" : ext >= 5 ? "ext-ext" : "";
+    }
+
     function cardMarketHealth(swing) {
       if (!swing || !swing.runs || !swing.runs.length)
         return desk("Market Health", empty("No swing report yet."));
       const r = swing.runs[swing.runs.length - 1];
-      const aplus = (r.counts || {})["A+"] || 0;
-      const a     = (r.counts || {})["A"]  || 0;
-      const gplus = (r.counts || {})["G+"] || 0;
-      const g     = (r.counts || {})["G"]  || 0;
+      const counts = r.counts || {};
+      const ALL_GRADES = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
+                          "D","D-","E+","E","E-","F+","F","F-","G+","G"];
+      // Diverging green→red palette across the 20-grade ladder
+      const gradeBg = function (i) {
+        return i < 10
+          ? "rgba(31,179,99," + (0.85 - (i / 9) * 0.55).toFixed(2) + ")"
+          : "rgba(214,68,68," + (0.30 + ((i - 10) / 9) * 0.55).toFixed(2) + ")";
+      };
       const tkRow = function (c) {
         const v = (typeof c.chg === "number") ? c.chg : null;
         const cls = v == null ? "" : v > 0 ? "up" : v < 0 ? "down" : "";
@@ -1417,7 +1506,7 @@
           .sort(function (a, b) {
             return dir === "asc" ? a.chg - b.chg : b.chg - a.chg;
           })
-          .slice(0, 20);
+          .slice(0, 25);
         return arr;
       };
       const cols = [
@@ -1429,17 +1518,20 @@
       const stats = '<div class="mh-stats">' +
         '<span class="pos">' + r.bullish_pct + '% bullish</span> &middot; ' +
         '<span class="neg">' + r.bearish_pct + '% bearish</span> &middot; ' +
-        '<b>' + r.total + '</b> names &middot; ' +
-        '<b>' + aplus + '</b> A+ &middot; <b>' + a + '</b> A &middot; ' +
-        '<b>' + gplus + '</b> G+ &middot; <b>' + g + '</b> G' +
+        '<b>' + r.total + '</b> names graded' +
         '</div>';
-      const grid = '<div class="mh-grid">' + cols.map(function (c) {
+      const gstrip = '<div class="mh-gstrip">' + ALL_GRADES.map(function (g, i) {
+        return '<div class="mh-gc" style="background:' + gradeBg(i) +
+          '" title="' + g + ': ' + (counts[g] || 0) + ' names">' +
+          g + '<b>' + (counts[g] || 0) + '</b></div>';
+      }).join("") + '</div>';
+      const tkgrid = '<div class="mh-grid">' + cols.map(function (c) {
         return '<div class="mh-col"><h4 class="' + c.cls + '">' + c.label +
           '</h4>' + (c.cells.length
             ? c.cells.map(tkRow).join("")
             : '<div class="desk-empty">—</div>') + '</div>';
       }).join("") + '</div>';
-      return desk("Market Health", stats + grid);
+      return desk("Market Health", stats + gstrip + tkgrid);
     }
 
     function cardTopFlow(uoa) {
@@ -1500,7 +1592,7 @@
       }).join(""));
     }
 
-    function cardBreakouts(swing) {
+    function cardBreakouts(swing, uoaMeta) {
       if (!swing || !swing.runs || !swing.runs.length)
         return desk("Top Breakout Candidates", empty("No swing data yet."));
       const r = swing.runs[swing.runs.length - 1];
@@ -1508,17 +1600,34 @@
       ["A+", "A", "A-"].forEach(function (g) {
         (r.grades[g] || []).forEach(function (c) {
           if (c.ext == null || c.ext < 5)         // not extended -> tradeable
-            cands.push({t:c.t, g:g, ext:c.ext, n:c.n});
+            cands.push(c);
         });
       });
       if (!cands.length) return desk("Top Breakout Candidates",
         empty("No clean A-tier candidates today."));
-      return desk("Top Breakout Candidates", cands.slice(0, 20).map(function (c) {
-        return '<div class="desk-row">' +
-          '<span class="dr-tk" data-t="' + c.t + '">' + c.t + '</span>' +
-          '<span class="dr-meta">' + c.g + ' · ' + (c.n || "").slice(0, 38) + '</span>' +
-          '<span class="dr-val">' + (c.ext != null ? c.ext + "× ATR" : "—") + '</span></div>';
-      }).join(""));
+      const hdr = '<div class="brk-row brk-hdr">' +
+        '<span>Ticker</span><span>Theme</span>' +
+        '<span style="text-align:right">Mcap</span>' +
+        '<span style="text-align:right">RVol</span>' +
+        '<span style="text-align:right">Ext</span></div>';
+      const body = cands.slice(0, 25).map(function (c) {
+        const th = (c.th && c.th.length) ? c.th[0] : "—";
+        const rawMcap = (typeof c.mcap === "number") ? c.mcap
+                      : (uoaMeta && uoaMeta[c.t] && uoaMeta[c.t].mkt_cap);
+        const mcap = fmtMcap(rawMcap) || "—";
+        const rvol = fmtRvol(c.rvol);
+        const rvCls = (typeof c.rvol === "number" && c.rvol >= 1.5) ? " hot" : "";
+        const xCls = extCls(c.ext);
+        return '<div class="brk-row" title="' +
+            cleanName(c.n).replace(/"/g, "&quot;") + '">' +
+          '<span class="bk-tk" data-t="' + c.t + '">' + c.t + '</span>' +
+          '<span class="bk-th">' + th + '</span>' +
+          '<span class="bk-mc">' + mcap + '</span>' +
+          '<span class="bk-rv' + rvCls + '">' + rvol + '</span>' +
+          '<span class="bk-ex ' + xCls + '">' +
+            (c.ext != null ? c.ext + "×" : "—") + '</span></div>';
+      }).join("");
+      return desk("Top Breakout Candidates", hdr + body);
     }
 
     function cardCalendar(cal, todayISO) {
@@ -1563,16 +1672,21 @@
           !swing.runs[swing.runs.length - 1].themes)
         return desk("Strongest / Weakest Themes", empty("No theme data."));
       const T = swing.runs[swing.runs.length - 1].themes;
-      const strong = T.slice(0, 10), weak = T.slice(-10).reverse();
+      const strong = T.slice(0, 15), weak = T.slice(-15).reverse();
       const row = function (t, cls) {
-        return '<div class="desk-row">' +
-          '<span class="dr-tk">' + t.theme + '</span>' +
-          '<span class="dr-meta">' + t.n + ' names</span>' +
-          '<span class="dr-val ' + cls + '">' + t.avg + '</span></div>';
+        return '<div class="th-row ' + cls + '">' +
+          '<span class="tr-name">' + t.theme + '</span>' +
+          '<span class="tr-n">' + t.n + '</span>' +
+          '<span class="tr-avg">' + t.avg + '</span></div>';
       };
+      const strongCol = '<div class="th-col">' +
+        '<div class="th-head pos">Strongest</div>' +
+        strong.map(function (t) { return row(t, "up"); }).join("") + '</div>';
+      const weakCol   = '<div class="th-col">' +
+        '<div class="th-head neg">Weakest</div>' +
+        weak.map(function (t) { return row(t, "down"); }).join("") + '</div>';
       return desk("Strongest / Weakest Themes",
-        '<div class="desk-sub pos">Strongest</div>' + strong.map(function (t) { return row(t,"sc-up"); }).join("") +
-        '<div class="desk-sub neg">Weakest</div>'   + weak.map(function (t)   { return row(t,"sc-down"); }).join(""));
+        '<div class="th-grid">' + strongCol + weakCol + '</div>');
     }
 
     // Build per-ticker context map from every data source. Used by both
@@ -1817,7 +1931,7 @@
         '<span class="tape-chg ' + cls + '">' + arrow +
           (dc == null ? "" : (dc > 0 ? "+" : "") + dc.toFixed(2) + "%") +
           '</span></div>' +
-        '<div class="sp-name">' + (c.n || c.t) + '</div>' +
+        '<div class="sp-name">' + cleanName(c.n || c.t) + '</div>' +
         '<div><span class="sp-px">$' + (c.p != null ? c.p.toFixed(2) : "—") +
           '</span><span class="sp-pxs">Close · ' + DESK_DATE + '</span></div>' +
         (row1 ? '<div class="sp-row">' + row1 + '</div>' : '') +
@@ -1900,7 +2014,7 @@
         cardMarketHealth(swing),
         cardTopFlow(uoa),
         cardSwingUpgrades(swing),
-        cardBreakouts(swing),
+        cardBreakouts(swing, uoaMeta),
         calEarnStack,
         cardThemes(swing),
         cardTopBullish(ctx),
@@ -1985,12 +2099,31 @@
                       (c.mcb ? (c.mcb + " cap") : null);
       const row2 = [c.ctry, mcapStr, c.xch].filter(Boolean).join(" · ");
       const row1 = [c.sec, c.ind].filter(Boolean).join(" · ");
+      // Reuse the same name-cleaning helper used on Today's Desk so the popup
+      // shows "ABC Tech" not "ABC Tech, Inc. Common Stock"
+      const clean = function (n) {
+        if (!n) return "";
+        const re = [
+          /\s*-?\s*American Depositary (Shares?|Receipts?)$/i,
+          /\s*-?\s*Ord(inary)? Shares?$/i,
+          /\s*-?\s*Class [A-Z]\s*(Common Stock|Ordinary Shares?)?$/i,
+          /\s*-?\s*Common (Stock|Shares?)$/i,
+          /\s*-?\s*Beneficial Interest$/i,
+          /,?\s*(Inc|Corp|Corporation|Ltd|Limited|plc|S\.A|N\.V)\.?$/i,
+        ];
+        let s = String(n), last = "";
+        while (s && s !== last) {
+          last = s;
+          for (const r of re) s = s.replace(r, "").trim();
+        }
+        return s || n;
+      };
       pop.innerHTML =
         '<div class="sp-head"><span class="sp-sym">' + c.t + '</span>' +
         '<span class="tape-chg ' + cls + '">' + arrow +
           (dc == null ? "" : (dc > 0 ? "+" : "") + dc.toFixed(2) + "%") +
           '</span></div>' +
-        '<div class="sp-name">' + (c.n || c.t) + '</div>' +
+        '<div class="sp-name">' + clean(c.n || c.t) + '</div>' +
         '<div><span class="sp-px">$' + (c.p != null ? c.p.toFixed(2) : "—") +
           '</span><span class="sp-pxs">Close · ' + RUN_DATE + '</span></div>' +
         (row1 ? '<div class="sp-row">' + row1 + '</div>' : '') +

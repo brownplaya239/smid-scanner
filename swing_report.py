@@ -226,11 +226,19 @@ def metrics(ticker, s):
     pairs = [(hh, ll) for hh, ll in zip(h[-20:], l[-20:]) if ll > 0]
     adr_pct = (sum(hh / ll for hh, ll in pairs) / len(pairs) - 1) * 100 if pairs else 0
     chg_day = ((c[-1] / c[-2] - 1) * 100) if n >= 2 and c[-2] else None
+    # Relative volume: today's bar volume vs the prior 30-day average.
+    # A standard breakout-confirmation metric: 1.0 = average, 2.0 = 2x normal.
+    rvol = None
+    if n >= 31:
+        prior_avg = sum(v[-31:-1]) / 30
+        if prior_avg > 0:
+            rvol = v[-1] / prior_avg
     return {
         "ticker":     ticker,
         "price":      price,
         "dollar_vol": dollar_vol,
         "adr_pct":    adr_pct,
+        "rvol":       rvol,
         "sma10":  _sma(c, 10),  "sma20":  _sma(c, 20),
         "sma50":  _sma(c, 50),  "sma200": _sma(c, 200),
         "sma50_prev": _sma(c[:-20], 50) if n >= 70 else None,
@@ -361,6 +369,7 @@ def run():
             "mcap":  meta.get("market_cap"),    # raw value (for popup formatting)
             "p":     round(m["price"], 2),
             "chg":   round(m["chg_day"], 2) if m["chg_day"] is not None else None,
+            "rvol":  round(m["rvol"], 2) if m.get("rvol") is not None else None,
             "spark": m["spark"],
             "th":    themes.themes_for(m["ticker"]),
         })
