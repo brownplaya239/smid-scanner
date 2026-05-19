@@ -415,6 +415,42 @@ def publish(pdf_bytes, filename):
         print(f"  Archive failed: {e}")
 
 
+def emit_screen_json(key, rows, change_field):
+    """Append today's screen result to a dated history JSON the dashboard
+    renders as a live, date-filterable table. Same-day re-runs overwrite the
+    day's entry; the file keeps the most recent ~60 runs."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "docs", "reports", f"momentum_{key}.json")
+    now = datetime.now(ET)
+    out_rows = [{
+        "ticker":     r["ticker"],
+        "price":      r.get("price"),
+        "chg":        r.get(change_field),
+        "adr_pct":    r.get("adr_pct"),
+        "dollar_vol": round(r.get("dollar_vol", 0) or 0),
+        "ern":        r.get("_ern", ""),
+    } for r in rows]
+    run = {"date": now.strftime("%Y-%m-%d"),
+           "generated": now.isoformat(timespec="seconds"),
+           "count": len(out_rows), "rows": out_rows}
+    data = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        pass
+    runs = [r for r in data.get("runs", []) if r.get("date") != run["date"]]
+    runs.append(run)
+    runs = runs[-60:]
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"updated": run["generated"], "runs": runs}, f, indent=1)
+        print(f"  Wrote momentum_{key}.json ({len(out_rows)} names)")
+    except Exception as e:
+        print(f"  momentum_{key}.json write failed: {e}")
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def run():
@@ -464,6 +500,7 @@ def run():
         qm_blurb, qm, "1-Mo %",
     )
     publish(qm_pdf, f"qm_monthly_{stamp}.pdf")
+    emit_screen_json("qm", qm, "chg_1mo")
     print(f"  QM Monthly: {len(qm)} names")
 
     # ── Screen 2: Stockbee Weekly 20% ──
@@ -488,6 +525,7 @@ def run():
         sb_blurb, sb, "1-Wk %",
     )
     publish(sb_pdf, f"stockbee_weekly_{stamp}.pdf")
+    emit_screen_json("stockbee", sb, "chg_1wk")
     print(f"  Stockbee Weekly: {len(sb)} names")
 
     print("\nDone.")
