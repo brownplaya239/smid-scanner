@@ -77,8 +77,8 @@
   nav button.active { color:var(--gold); border-bottom-color:var(--gold); }
 
   /* ── Market ticker tape ── */
-  .tape { display:flex; align-items:stretch; overflow-x:auto;
-    background:var(--navy); border-bottom:1px solid var(--line);
+  .tape { display:flex; align-items:stretch; justify-content:safe center;
+    overflow-x:auto; background:var(--navy); border-bottom:1px solid var(--line);
     scrollbar-width:none; -webkit-overflow-scrolling:touch; }
   .tape::-webkit-scrollbar { display:none; }
   .tape-item { display:flex; align-items:center; gap:6px; white-space:nowrap;
