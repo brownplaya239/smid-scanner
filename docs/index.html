@@ -275,12 +275,21 @@
   .mh-tk-row .mh-pct.down { color:var(--red); }
 
   /* Upcoming Earnings card */
-  .earn-row { display:grid; grid-template-columns:64px 1fr; gap:10px;
-    padding:5px 0; font-size:11px; align-items:baseline; }
+  .earn-row { display:grid; grid-template-columns:74px 1fr; gap:10px;
+    padding:6px 0; font-size:11px; align-items:baseline; }
   .earn-row + .earn-row { border-top:1px solid var(--line); }
   .earn-row .er-date { color:var(--muted); font-weight:700; font-size:10.5px;
     text-transform:uppercase; letter-spacing:.3px; }
-  .earn-row .er-tickers span { display:inline-block; font-weight:700;
+  .er-sessions { display:flex; flex-direction:column; gap:4px; }
+  .earn-sess { display:grid; grid-template-columns:34px 1fr; gap:8px;
+    align-items:baseline; }
+  .earn-sess .es-tag { font-size:9px; font-weight:800; letter-spacing:.3px;
+    color:#fff; text-align:center; padding:1px 0; border-radius:3px;
+    text-shadow:0 1px 2px rgba(0,0,0,.5); }
+  .earn-sess .es-tag.es-bmo { background:rgba(31,179,99,0.85); }
+  .earn-sess .es-tag.es-amc { background:rgba(214,68,68,0.85); }
+  .earn-sess .es-tag.es-tbd { background:var(--muted); }
+  .earn-sess .es-tk span { display:inline-block; font-weight:700;
     color:var(--text); margin-right:9px; cursor:default; font-size:11px; }
 
   /* Density: compact preset */
@@ -1653,22 +1662,22 @@
     function cardEarnings(meta, todayISO) {
       if (!meta) return desk("Upcoming Earnings (BMO / AMC)",
         empty("No earnings data yet."));
-      // Build a map date(YYYY-MM-DD) -> [tickers]
+      // Group by (date, session) — BMO, AMC, or TBD if time unknown
       const today = new Date(todayISO + "T00:00:00");
       const horizon = new Date(today.getTime() + 14 * 86400 * 1000);
-      const byDate = {};
+      // groups: { "YYYY-MM-DD": { BMO: [...], AMC: [...], TBD: [...] } }
+      const groups = {};
       Object.keys(meta).forEach(function (t) {
         const e = meta[t];
         const d = e && e.earnings_date;
-        if (!d) return;
-        // Filter weird YYYY-MM-DD only
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+        if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
         const dt = new Date(d + "T00:00:00");
-        if (isNaN(dt.getTime())) return;
-        if (dt < today || dt > horizon) return;
-        (byDate[d] = byDate[d] || []).push(t);
+        if (isNaN(dt.getTime()) || dt < today || dt > horizon) return;
+        const s = e.earnings_session || "TBD";
+        if (!groups[d]) groups[d] = { BMO: [], AMC: [], TBD: [] };
+        groups[d][s].push(t);
       });
-      const dates = Object.keys(byDate).sort();
+      const dates = Object.keys(groups).sort();
       if (!dates.length) return desk("Upcoming Earnings (BMO / AMC)",
         empty("No earnings within the next 14 days."));
       const dayLbl = function (iso) {
@@ -1678,16 +1687,26 @@
                      "Jul","Aug","Sep","Oct","Nov","Dec"][dt.getMonth()];
         return dow + " " + mo + " " + dt.getDate();
       };
+      const tkSpan = function (t) {
+        return '<span data-t="' + t + '">' + t + '</span>';
+      };
+      const sessionRow = function (label, cls, tks) {
+        if (!tks.length) return "";
+        return '<div class="earn-sess">' +
+          '<span class="es-tag ' + cls + '">' + label + '</span>' +
+          '<span class="es-tk">' + tks.sort().map(tkSpan).join("") + '</span>' +
+          '</div>';
+      };
       return desk("Upcoming Earnings (BMO / AMC)",
         dates.slice(0, 10).map(function (d) {
-          const tks = byDate[d].slice().sort();
+          const g = groups[d];
           return '<div class="earn-row">' +
             '<span class="er-date">' + dayLbl(d) + '</span>' +
-            '<span class="er-tickers">' +
-              tks.map(function (t) {
-                return '<span data-t="' + t + '">' + t + '</span>';
-              }).join("") +
-            '</span></div>';
+            '<div class="er-sessions">' +
+              sessionRow("BMO", "es-bmo", g.BMO) +
+              sessionRow("AMC", "es-amc", g.AMC) +
+              sessionRow("TBD", "es-tbd", g.TBD) +
+            '</div></div>';
         }).join(""));
     }
 

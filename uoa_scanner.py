@@ -558,24 +558,63 @@ def _load_repeat_map(lookback_days=REPEAT_LOOKBACK_DAYS):
 
 
 def _earnings_date(ticker):
-    """Next earnings date as 'YYYY-MM-DD' (yfinance calendar), or None.
-    Stored as an absolute date so a cached entry stays valid until the
-    earnings actually passes — not just for the day it was fetched."""
+    """Next earnings date + session as (YYYY-MM-DD, session) where session is
+    'BMO' (before market open), 'AMC' (after market close), or None when the
+    time-of-day is unknown / a midnight placeholder.
+
+    yfinance exposes the announcement window two ways: `Ticker.calendar` gives
+    only the date, while `Ticker.get_earnings_dates()` returns a DataFrame
+    whose index includes the timestamp. We use the latter when available so
+    BMO/AMC can be derived from the ET hour (<9:30 = BMO, >=16:00 = AMC)."""
     try:
         import yfinance as yf
         from datetime import date as _date
-        cal = yf.Ticker(ticker).calendar
+        tk = yf.Ticker(ticker)
+
+        # First try get_earnings_dates() for the timestamp (gives session)
+        try:
+            df = tk.get_earnings_dates(limit=12)
+        except Exception:
+            df = None
+        if df is not None and not df.empty:
+            # The DataFrame is indexed by tz-aware Timestamps, newest first.
+            # Walk from oldest to newest to find the next future event.
+            today_utc = datetime.now(timezone.utc).date()
+            future = []
+            for ts in df.index:
+                try:
+                    ts_et = ts.tz_convert("America/New_York")
+                except Exception:
+                    continue
+                if ts_et.date() >= today_utc:
+                    future.append(ts_et)
+            if future:
+                ts_et = min(future)             # nearest upcoming
+                hh, mm = ts_et.hour, ts_et.minute
+                # yfinance uses placeholder 00:00 when session is unknown
+                if hh == 0 and mm == 0:
+                    session = None
+                elif hh < 9 or (hh == 9 and mm < 30):
+                    session = "BMO"
+                elif hh >= 16:
+                    session = "AMC"
+                else:
+                    session = None
+                return ts_et.date().isoformat(), session
+
+        # Fallback: calendar (date only, no session)
+        cal = tk.calendar
         dates = cal.get("Earnings Date", []) if isinstance(cal, dict) else []
         if not dates:
-            return None
+            return None, None
         ed = dates[0]
         if isinstance(ed, datetime):
             ed = ed.date()
         elif not isinstance(ed, _date):
-            return None
-        return ed.isoformat()
+            return None, None
+        return ed.isoformat(), None
     except Exception:
-        return None
+        return None, None
 
 
 def _load_meta_cache():
@@ -641,12 +680,17 @@ def _sic_sector(sic):
 def _meta_is_fresh(entry, today):
     """A cached metadata entry is reusable if it was fetched recently AND its
     earnings date hasn't already passed (a passed date means a newer one
-    should be picked up)."""
+    should be picked up). Entries missing required schema fields are also
+    considered stale so a schema upgrade auto-refreshes the cache."""
     try:
         fetched = datetime.strptime(entry["fetched"], "%Y-%m-%d").date()
     except (KeyError, ValueError, TypeError):
         return False
     if (today - fetched).days > META_REFRESH_DAYS:
+        return False
+    # Schema-upgrade safety: re-fetch legacy entries that pre-date the
+    # earnings_session field so BMO/AMC populates without a manual cache wipe.
+    if "earnings_session" not in entry:
         return False
     ed = entry.get("earnings_date")
     if ed:
@@ -659,10 +703,12 @@ def _meta_is_fresh(entry, today):
 
 
 def _fetch_underlying_meta(ticker):
-    """Cold metadata fetch for one ticker: earnings date (yfinance) plus
-    market cap and coarse sector (Polygon ticker reference)."""
+    """Cold metadata fetch for one ticker: earnings date + session (yfinance)
+    plus market cap and coarse sector (Polygon ticker reference)."""
+    ed, session = _earnings_date(ticker)
     entry = {
-        "earnings_date": _earnings_date(ticker),
+        "earnings_date": ed,
+        "earnings_session": session,    # "BMO" / "AMC" / None
         "mkt_cap": None,
         "sector": "Other",
         "fetched": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
