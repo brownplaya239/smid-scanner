@@ -47,17 +47,35 @@
 "mkt_cap": 69471330485.76001,
 "sector": "Utilities"
 },
+"AEVA": {
+"earnings_date": "2026-07-30",
+"fetched": "2026-05-19",
+"mkt_cap": 1226143968.45,
+"sector": "Industrials / Transport Eq"
+},
 "AFL": {
 "earnings_date": "2026-04-29",
 "fetched": "2026-05-19",
 "mkt_cap": 60401238557.68,
 "sector": "Financials"
 },
+"AKAM": {
+"earnings_date": "2026-08-06",
+"fetched": "2026-05-19",
+"mkt_cap": 21919764447.27,
+"sector": "Other"
+},
 "ALAB": {
 "earnings_date": "2026-08-04",
 "fetched": "2026-05-19",
 "mkt_cap": 36952123489.62,
 "sector": "Semiconductors"
+},
+"ALK": {
+"earnings_date": "2026-04-20",
+"fetched": "2026-05-19",
+"mkt_cap": 4162986618.08,
+"sector": "Industrials"
 },
 "AMAT": {
 "earnings_date": "2026-08-13",
@@ -75,6 +93,18 @@
 "earnings_date": null,
 "fetched": "2026-05-19",
 "mkt_cap": null,
+"sector": "Other"
+},
+"AMPG": {
+"earnings_date": null,
+"fetched": "2026-05-19",
+"mkt_cap": 93753556.30000001,
+"sector": "Tech / Hardware"
+},
+"AMPX": {
+"earnings_date": "2026-08-06",
+"fetched": "2026-05-19",
+"mkt_cap": 2247623187.9,
 "sector": "Other"
 },
 "AMZN": {
@@ -221,6 +251,12 @@
 "mkt_cap": 120160399070.51999,
 "sector": "Industrials"
 },
+"BLDR": {
+"earnings_date": "2026-07-30",
+"fetched": "2026-05-19",
+"mkt_cap": 7548552097.68,
+"sector": "Consumer / Retail"
+},
 "BMNR": {
 "earnings_date": "2026-07-02",
 "fetched": "2026-05-19",
@@ -243,6 +279,12 @@
 "earnings_date": "2026-08-04",
 "fetched": "2026-05-19",
 "mkt_cap": 22468766589.85,
+"sector": "Other"
+},
+"BRUN": {
+"earnings_date": null,
+"fetched": "2026-05-19",
+"mkt_cap": null,
 "sector": "Other"
 },
 "BRZE": {
@@ -317,6 +359,12 @@
 "mkt_cap": 19237457690.28,
 "sector": "Materials / Chemicals"
 },
+"CHWY": {
+"earnings_date": "2026-06-10",
+"fetched": "2026-05-19",
+"mkt_cap": 9012722731.32,
+"sector": "Consumer / Retail"
+},
 "CIFR": {
 "earnings_date": "2026-08-06",
 "fetched": "2026-05-19",
@@ -335,11 +383,23 @@
 "mkt_cap": 3448819664.64,
 "sector": "Financials / Banks"
 },
+"CMBT": {
+"earnings_date": "2026-05-19",
+"fetched": "2026-05-19",
+"mkt_cap": 4369956721.14,
+"sector": "Other"
+},
 "CMCSA": {
 "earnings_date": "2026-07-30",
 "fetched": "2026-05-19",
 "mkt_cap": 89055657926.01,
 "sector": "Communications"
+},
+"CMG": {
+"earnings_date": "2026-07-29",
+"fetched": "2026-05-19",
+"mkt_cap": 43292272500.0,
+"sector": "Consumer / Retail"
 },
 "CNM": {
 "earnings_date": "2026-06-09",
@@ -377,6 +437,12 @@
 "mkt_cap": 28182507955.699997,
 "sector": "Consumer / Retail"
 },
+"CR": {
+"earnings_date": "2026-07-27",
+"fetched": "2026-05-19",
+"mkt_cap": 9861230798.220001,
+"sector": "Industrials / Machinery"
+},
 "CRCL": {
 "earnings_date": "2026-08-11",
 "fetched": "2026-05-19",
@@ -412,6 +478,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 56613834804.42,
 "sector": "Tech / Software"
+},
+"CSCO": {
+"earnings_date": "2026-08-12",
+"fetched": "2026-05-19",
+"mkt_cap": 469563284832.95996,
+"sector": "Tech / Hardware"
 },
 "CTAS": {
 "earnings_date": "2026-03-25",
@@ -569,6 +641,12 @@
 "mkt_cap": 19374083000.0,
 "sector": "Other"
 },
+"EOG": {
+"earnings_date": "2026-05-05",
+"fetched": "2026-05-19",
+"mkt_cap": 76160553504.70001,
+"sector": "Energy"
+},
 "EQIX": {
 "earnings_date": "2026-07-29",
 "fetched": "2026-05-19",
@@ -610,6 +688,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 23552080184.05,
 "sector": "Energy"
+},
+"EXPE": {
+"earnings_date": "2026-08-06",
+"fetched": "2026-05-19",
+"mkt_cap": 25803546334.23,
+"sector": "Industrials"
 },
 "F": {
 "earnings_date": "2026-07-29",
@@ -683,6 +767,12 @@
 "mkt_cap": 14741856259.16,
 "sector": "Tech / Software"
 },
+"GEV": {
+"earnings_date": "2026-07-29",
+"fetched": "2026-05-19",
+"mkt_cap": 272011814938.75,
+"sector": "Other"
+},
 "GFS": {
 "earnings_date": "2026-08-04",
 "fetched": "2026-05-19",
@@ -737,6 +827,12 @@
 "mkt_cap": 4236492740.87,
 "sector": "Tech / Software"
 },
+"GUSH": {
+"earnings_date": null,
+"fetched": "2026-05-19",
+"mkt_cap": null,
+"sector": "Other"
+},
 "HAL": {
 "earnings_date": "2026-07-21",
 "fetched": "2026-05-19",
@@ -748,6 +844,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 7999260720.0,
 "sector": "Healthcare / Biotech"
+},
+"HAS": {
+"earnings_date": "2026-05-20",
+"fetched": "2026-05-19",
+"mkt_cap": 13260507654.24,
+"sector": "Other"
 },
 "HD": {
 "earnings_date": "2026-05-19",
@@ -785,6 +887,12 @@
 "mkt_cap": 43786184937.0,
 "sector": "Industrials / Machinery"
 },
+"HPQ": {
+"earnings_date": "2026-05-27",
+"fetched": "2026-05-19",
+"mkt_cap": 19132390163.08,
+"sector": "Industrials / Machinery"
+},
 "HUBS": {
 "earnings_date": "2026-08-05",
 "fetched": "2026-05-19",
@@ -796,6 +904,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 36738819000.0,
 "sector": "Financials"
+},
+"HUT": {
+"earnings_date": "2026-08-06",
+"fetched": "2026-05-19",
+"mkt_cap": 10831553574.4,
+"sector": "Financials / Banks"
 },
 "IBM": {
 "earnings_date": "2026-07-22",
@@ -815,6 +929,12 @@
 "mkt_cap": 543662420000.0,
 "sector": "Semiconductors"
 },
+"INTU": {
+"earnings_date": "2026-05-20",
+"fetched": "2026-05-19",
+"mkt_cap": 111493898000.0,
+"sector": "Tech / Software"
+},
 "IONQ": {
 "earnings_date": "2026-08-05",
 "fetched": "2026-05-19",
@@ -832,6 +952,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": null,
 "sector": "Other"
+},
+"ITT": {
+"earnings_date": "2026-07-30",
+"fetched": "2026-05-19",
+"mkt_cap": 17431727917.079998,
+"sector": "Industrials / Machinery"
 },
 "JCI": {
 "earnings_date": "2026-07-28",
@@ -857,6 +983,12 @@
 "mkt_cap": 805809468735.14,
 "sector": "Financials / Banks"
 },
+"KEYS": {
+"earnings_date": "2026-05-19",
+"fetched": "2026-05-19",
+"mkt_cap": 58393169497.600006,
+"sector": "Other"
+},
 "KHC": {
 "earnings_date": "2026-07-29",
 "fetched": "2026-05-19",
@@ -880,6 +1012,18 @@
 "fetched": "2026-05-19",
 "mkt_cap": 75154614071.46,
 "sector": "Utilities"
+},
+"KNX": {
+"earnings_date": "2026-07-22",
+"fetched": "2026-05-19",
+"mkt_cap": 11255959380.0,
+"sector": "Industrials"
+},
+"KO": {
+"earnings_date": "2026-07-21",
+"fetched": "2026-05-19",
+"mkt_cap": 349361572341.60004,
+"sector": "Consumer / Food & Bev"
 },
 "KR": {
 "earnings_date": "2026-03-05",
@@ -911,6 +1055,12 @@
 "mkt_cap": 881120765854.54,
 "sector": "Healthcare / Biotech"
 },
+"LOW": {
+"earnings_date": "2026-05-20",
+"fetched": "2026-05-19",
+"mkt_cap": 122104911931.86,
+"sector": "Consumer / Retail"
+},
 "LRCX": {
 "earnings_date": "2026-07-29",
 "fetched": "2026-05-19",
@@ -935,6 +1085,12 @@
 "mkt_cap": 33257767341.75,
 "sector": "Consumer / Services"
 },
+"LW": {
+"earnings_date": "2026-04-01",
+"fetched": "2026-05-19",
+"mkt_cap": 6026877850.95,
+"sector": "Consumer / Food & Bev"
+},
 "M": {
 "earnings_date": "2026-06-03",
 "fetched": "2026-05-19",
@@ -952,6 +1108,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 26521943910.0,
 "sector": "Tech / Software"
+},
+"MDT": {
+"earnings_date": "2026-06-03",
+"fetched": "2026-05-19",
+"mkt_cap": 99269985416.48,
+"sector": "Other"
 },
 "META": {
 "earnings_date": "2026-07-29",
@@ -1049,6 +1211,12 @@
 "mkt_cap": 7006020736.4,
 "sector": "Industrials"
 },
+"NE": {
+"earnings_date": "2026-04-26",
+"fetched": "2026-05-19",
+"mkt_cap": 8674512975.279999,
+"sector": "Energy"
+},
 "NEE": {
 "earnings_date": "2026-07-22",
 "fetched": "2026-05-19",
@@ -1060,6 +1228,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 117270671125.4,
 "sector": "Materials / Metals"
+},
+"NET": {
+"earnings_date": "2026-07-30",
+"fetched": "2026-05-19",
+"mkt_cap": 71311815332.25,
+"sector": "Tech / Software"
 },
 "NFLX": {
 "earnings_date": "2026-07-16",
@@ -1109,6 +1283,12 @@
 "mkt_cap": 5384707168022.0,
 "sector": "Semiconductors"
 },
+"NVDL": {
+"earnings_date": null,
+"fetched": "2026-05-19",
+"mkt_cap": null,
+"sector": "Other"
+},
 "NXPI": {
 "earnings_date": "2026-07-27",
 "fetched": "2026-05-19",
@@ -1132,6 +1312,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 42546733191.130005,
 "sector": "Semiconductors"
+},
+"ONDS": {
+"earnings_date": "2026-08-12",
+"fetched": "2026-05-19",
+"mkt_cap": 4808897705.0,
+"sector": "Tech / Hardware"
 },
 "ORCL": {
 "earnings_date": "2026-06-10",
@@ -1169,6 +1355,12 @@
 "mkt_cap": 33854905345.69,
 "sector": "Other"
 },
+"PBR": {
+"earnings_date": "2026-08-06",
+"fetched": "2026-05-19",
+"mkt_cap": 133398384086.7,
+"sector": "Other"
+},
 "PCG": {
 "earnings_date": "2026-04-23",
 "fetched": "2026-05-19",
@@ -1180,6 +1372,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 2320479346.5,
 "sector": "Materials / Chemicals"
+},
+"PDD": {
+"earnings_date": "2026-05-27",
+"fetched": "2026-05-19",
+"mkt_cap": 135179961996.14,
+"sector": "Other"
 },
 "PEG": {
 "earnings_date": "2026-08-04",
@@ -1199,17 +1397,41 @@
 "mkt_cap": 144366920800.77,
 "sector": "Healthcare / Biotech"
 },
+"PINS": {
+"earnings_date": "2026-05-04",
+"fetched": "2026-05-19",
+"mkt_cap": 11163935527.11,
+"sector": "Tech / Software"
+},
 "PLTR": {
 "earnings_date": "2026-08-03",
 "fetched": "2026-05-19",
 "mkt_cap": 323972740571.77997,
 "sector": "Tech / Software"
 },
+"PLUG": {
+"earnings_date": "2026-08-10",
+"fetched": "2026-05-19",
+"mkt_cap": 4812988332.900001,
+"sector": "Other"
+},
 "POET": {
 "earnings_date": "2026-08-11",
 "fetched": "2026-05-19",
 "mkt_cap": 2170025896.2200003,
 "sector": "Other"
+},
+"PSKY": {
+"earnings_date": "2026-08-03",
+"fetched": "2026-05-19",
+"mkt_cap": 10990279429.56,
+"sector": "Communications"
+},
+"PURR": {
+"earnings_date": "2026-08-05",
+"fetched": "2026-05-19",
+"mkt_cap": 859094830.4399999,
+"sector": "Financials / Banks"
 },
 "QBTS": {
 "earnings_date": "2026-08-06",
@@ -1222,6 +1444,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 214636560000.0,
 "sector": "Tech / Hardware"
+},
+"QQQI": {
+"earnings_date": null,
+"fetched": "2026-05-19",
+"mkt_cap": null,
+"sector": "Other"
 },
 "QQQM": {
 "earnings_date": null,
@@ -1252,6 +1480,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 67743369493.020004,
 "sector": "Industrials"
+},
+"RH": {
+"earnings_date": "2026-06-11",
+"fetched": "2026-05-19",
+"mkt_cap": 2281700833.68,
+"sector": "Consumer / Retail"
 },
 "RIG": {
 "earnings_date": "2026-08-03",
@@ -1295,6 +1529,18 @@
 "mkt_cap": 67999031079.840004,
 "sector": "Consumer / Retail"
 },
+"RUN": {
+"earnings_date": "2026-08-05",
+"fetched": "2026-05-19",
+"mkt_cap": 3218029881.63,
+"sector": "Other"
+},
+"RXO": {
+"earnings_date": "2026-08-06",
+"fetched": "2026-05-19",
+"mkt_cap": 3149977959.2000003,
+"sector": "Industrials"
+},
 "SATS": {
 "earnings_date": "2026-07-30",
 "fetched": "2026-05-19",
@@ -1319,6 +1565,12 @@
 "mkt_cap": 8312575765.39,
 "sector": "Consumer / Retail"
 },
+"SG": {
+"earnings_date": "2026-08-06",
+"fetched": "2026-05-19",
+"mkt_cap": 1027859233.0500001,
+"sector": "Consumer / Retail"
+},
 "SHEL": {
 "earnings_date": "2026-07-30",
 "fetched": "2026-05-19",
@@ -1336,6 +1588,18 @@
 "fetched": "2026-05-19",
 "mkt_cap": 7143862861.8,
 "sector": "Semiconductors"
+},
+"SMCI": {
+"earnings_date": "2026-08-04",
+"fetched": "2026-05-19",
+"mkt_cap": 18553760169.7,
+"sector": "Tech / Hardware"
+},
+"SMR": {
+"earnings_date": "2026-08-06",
+"fetched": "2026-05-19",
+"mkt_cap": 3627188626.8,
+"sector": "Industrials / Machinery"
 },
 "SNDK": {
 "earnings_date": "2026-04-30",
@@ -1402,6 +1666,12 @@
 "fetched": "2026-05-19",
 "mkt_cap": 1954899660.0,
 "sector": "Semiconductors"
+},
+"TENB": {
+"earnings_date": "2026-07-29",
+"fetched": "2026-05-19",
+"mkt_cap": 2549488015.76,
+"sector": "Tech / Software"
 },
 "TGT": {
 "earnings_date": "2026-05-20",
@@ -1535,6 +1805,12 @@
 "mkt_cap": 4347685800.0,
 "sector": "Other"
 },
+"V": {
+"earnings_date": "2026-07-28",
+"fetched": "2026-05-19",
+"mkt_cap": 632596057632.0,
+"sector": "Other"
+},
 "VALE": {
 "earnings_date": "2026-04-28",
 "fetched": "2026-05-19",
@@ -1547,11 +1823,29 @@
 "mkt_cap": 6608437863.27,
 "sector": "Other"
 },
+"VG": {
+"earnings_date": "2026-08-12",
+"fetched": "2026-05-19",
+"mkt_cap": 35203353285.1,
+"sector": "Utilities"
+},
+"VIK": {
+"earnings_date": "2026-05-14",
+"fetched": "2026-05-19",
+"mkt_cap": 38396282091.44,
+"sector": "Other"
+},
 "VKTX": {
 "earnings_date": "2026-07-29",
 "fetched": "2026-05-19",
 "mkt_cap": 3331070897.67,
 "sector": "Healthcare / Biotech"
+},
+"VOYA": {
+"earnings_date": "2026-08-04",
+"fetched": "2026-05-19",
+"mkt_cap": 7379331377.85,
+"sector": "Financials"
 },
 "VRT": {
 "earnings_date": "2026-07-29",
@@ -1571,6 +1865,12 @@
 "mkt_cap": 46109702499.0,
 "sector": "Utilities"
 },
+"VZ": {
+"earnings_date": "2026-07-21",
+"fetched": "2026-05-19",
+"mkt_cap": 195249134631.6,
+"sector": "Communications"
+},
 "W": {
 "earnings_date": "2026-04-30",
 "fetched": "2026-05-19",
@@ -1581,6 +1881,12 @@
 "earnings_date": "2026-07-29",
 "fetched": "2026-05-19",
 "mkt_cap": 3558129128.05,
+"sector": "Tech / Software"
+},
+"WDAY": {
+"earnings_date": "2026-05-21",
+"fetched": "2026-05-19",
+"mkt_cap": 32179473812.879997,
 "sector": "Tech / Software"
 },
 "WDC": {

@@ -1,6 +1,6 @@
 {
- "generated": "2026-05-19T17:42:54+00:00",
- "total_signals": 4993,
+ "generated": "2026-05-19T19:54:08+00:00",
+ "total_signals": 5219,
  "matured_5d": 0,
  "horizons": [
   1,
@@ -12,10 +12,10 @@
  "overall": {
   "1": {
    "n": 4622,
-   "hit_rate": 51,
-   "avg": 0.53,
-   "median": 0.07,
-   "avg_excess": 0.73
+   "hit_rate": 39,
+   "avg": -0.13,
+   "median": -0.6,
+   "avg_excess": 0.45
   },
   "3": {
    "n": 0,
@@ -47,20 +47,20 @@
   }
  },
  "excursion": {
-  "avg_mfe": 1.9,
+  "avg_mfe": 2.0,
   "avg_mae": -3.5,
   "n": 4622
  },
  "by_type": {
   "golden_sweep": {
-   "signals": 1209,
+   "signals": 1278,
    "h": {
     "1": {
      "n": 1087,
-     "hit_rate": 48,
-     "avg": 1.19,
-     "median": -0.55,
-     "avg_excess": 1.39
+     "hit_rate": 37,
+     "avg": 0.1,
+     "median": -0.76,
+     "avg_excess": 0.68
     },
     "3": {
      "n": 0,
@@ -98,14 +98,14 @@
    }
   },
   "sweep": {
-   "signals": 3047,
+   "signals": 3156,
    "h": {
     "1": {
      "n": 2877,
-     "hit_rate": 50,
-     "avg": 0.27,
-     "median": -0.01,
-     "avg_excess": 0.47
+     "hit_rate": 37,
+     "avg": -0.31,
+     "median": -0.68,
+     "avg_excess": 0.28
     },
     "3": {
      "n": 0,
@@ -143,14 +143,14 @@
    }
   },
   "voloi": {
-   "signals": 737,
+   "signals": 785,
    "h": {
     "1": {
      "n": 658,
-     "hit_rate": 60,
-     "avg": 0.57,
-     "median": 0.2,
-     "avg_excess": 0.77
+     "hit_rate": 53,
+     "avg": 0.24,
+     "median": 0.21,
+     "avg_excess": 0.83
     },
     "3": {
      "n": 0,
@@ -190,14 +190,14 @@
  },
  "by_score": {
   "80-100": {
-   "signals": 625,
+   "signals": 648,
    "h": {
     "1": {
      "n": 610,
-     "hit_rate": 51,
-     "avg": 0.8,
-     "median": 0.12,
-     "avg_excess": 1.0
+     "hit_rate": 37,
+     "avg": 0.08,
+     "median": -0.5,
+     "avg_excess": 0.66
     },
     "3": {
      "n": 0,
@@ -235,14 +235,14 @@
    }
   },
   "65-79": {
-   "signals": 2505,
+   "signals": 2621,
    "h": {
     "1": {
      "n": 2313,
-     "hit_rate": 51,
-     "avg": 0.52,
-     "median": 0.11,
-     "avg_excess": 0.72
+     "hit_rate": 40,
+     "avg": -0.11,
+     "median": -0.59,
+     "avg_excess": 0.48
     },
     "3": {
      "n": 0,
@@ -280,14 +280,14 @@
    }
   },
   "55-64": {
-   "signals": 1863,
+   "signals": 1950,
    "h": {
     "1": {
      "n": 1699,
-     "hit_rate": 50,
-     "avg": 0.45,
-     "median": 0.01,
-     "avg_excess": 0.65
+     "hit_rate": 39,
+     "avg": -0.25,
+     "median": -0.69,
+     "avg_excess": 0.34
     },
     "3": {
      "n": 0,
@@ -327,14 +327,14 @@
  },
  "by_dte": {
   "urgent": {
-   "signals": 3454,
+   "signals": 3619,
    "h": {
     "1": {
      "n": 3211,
-     "hit_rate": 49,
-     "avg": 0.61,
-     "median": -0.15,
-     "avg_excess": 0.82
+     "hit_rate": 38,
+     "avg": -0.08,
+     "median": -0.76,
+     "avg_excess": 0.51
     },
     "3": {
      "n": 0,
@@ -372,14 +372,14 @@
    }
   },
   "swing": {
-   "signals": 1065,
+   "signals": 1103,
    "h": {
     "1": {
      "n": 976,
-     "hit_rate": 56,
-     "avg": 0.43,
-     "median": 0.15,
-     "avg_excess": 0.63
+     "hit_rate": 43,
+     "avg": -0.15,
+     "median": -0.27,
+     "avg_excess": 0.44
     },
     "3": {
      "n": 0,
@@ -417,14 +417,14 @@
    }
   },
   "positioning": {
-   "signals": 414,
+   "signals": 436,
    "h": {
     "1": {
      "n": 381,
-     "hit_rate": 53,
-     "avg": 0.18,
-     "median": 0.11,
-     "avg_excess": 0.39
+     "hit_rate": 42,
+     "avg": -0.53,
+     "median": -0.64,
+     "avg_excess": 0.06
     },
     "3": {
      "n": 0,
@@ -462,14 +462,14 @@
    }
   },
   "leaps": {
-   "signals": 60,
+   "signals": 61,
    "h": {
     "1": {
      "n": 54,
-     "hit_rate": 74,
-     "avg": -0.08,
-     "median": 0.55,
-     "avg_excess": 0.12
+     "hit_rate": 54,
+     "avg": -0.19,
+     "median": 0.16,
+     "avg_excess": 0.4
     },
     "3": {
      "n": 0,
@@ -509,14 +509,14 @@
  },
  "by_tag": {
   "Golden Sweep": {
-   "signals": 1209,
+   "signals": 1278,
    "h": {
     "1": {
      "n": 1087,
-     "hit_rate": 48,
-     "avg": 1.19,
-     "median": -0.55,
-     "avg_excess": 1.39
+     "hit_rate": 37,
+     "avg": 0.1,
+     "median": -0.76,
+     "avg_excess": 0.68
     },
     "3": {
      "n": 0,
@@ -554,14 +554,14 @@
    }
   },
   "Sweep": {
-   "signals": 3047,
+   "signals": 3156,
    "h": {
     "1": {
      "n": 2877,
-     "hit_rate": 50,
-     "avg": 0.27,
-     "median": -0.01,
-     "avg_excess": 0.47
+     "hit_rate": 37,
+     "avg": -0.31,
+     "median": -0.68,
+     "avg_excess": 0.28
     },
     "3": {
      "n": 0,
@@ -599,14 +599,14 @@
    }
   },
   "Block": {
-   "signals": 3336,
+   "signals": 3482,
    "h": {
     "1": {
      "n": 3097,
-     "hit_rate": 55,
-     "avg": 0.84,
-     "median": 0.14,
-     "avg_excess": 1.04
+     "hit_rate": 42,
+     "avg": 0.02,
+     "median": -0.49,
+     "avg_excess": 0.61
     },
     "3": {
      "n": 0,
@@ -644,14 +644,14 @@
    }
   },
   "Size>OI": {
-   "signals": 1284,
+   "signals": 1334,
    "h": {
     "1": {
      "n": 1205,
-     "hit_rate": 52,
-     "avg": 0.18,
-     "median": 0.09,
-     "avg_excess": 0.39
+     "hit_rate": 36,
+     "avg": -0.39,
+     "median": -0.6,
+     "avg_excess": 0.2
     },
     "3": {
      "n": 0,
@@ -689,14 +689,14 @@
    }
   },
   "Repeat": {
-   "signals": 4125,
+   "signals": 4306,
    "h": {
     "1": {
      "n": 3852,
-     "hit_rate": 49,
-     "avg": 0.41,
-     "median": -0.06,
-     "avg_excess": 0.61
+     "hit_rate": 37,
+     "avg": -0.26,
+     "median": -0.7,
+     "avg_excess": 0.33
     },
     "3": {
      "n": 0,
@@ -734,14 +734,14 @@
    }
   },
   "Into ERN": {
-   "signals": 584,
+   "signals": 616,
    "h": {
     "1": {
      "n": 513,
-     "hit_rate": 86,
-     "avg": 1.01,
-     "median": 0.55,
-     "avg_excess": 1.21
+     "hit_rate": 56,
+     "avg": 0.63,
+     "median": 0.18,
+     "avg_excess": 1.22
     },
     "3": {
      "n": 0,
@@ -779,14 +779,14 @@
    }
   },
   "In Universe": {
-   "signals": 3991,
+   "signals": 4176,
    "h": {
     "1": {
      "n": 3691,
-     "hit_rate": 49,
-     "avg": 0.64,
-     "median": -0.1,
-     "avg_excess": 0.85
+     "hit_rate": 39,
+     "avg": 0.0,
+     "median": -0.6,
+     "avg_excess": 0.59
     },
     "3": {
      "n": 0,
