@@ -60,8 +60,9 @@ others run scanners.
 
 ## The website
 
-GitHub Pages, served from `docs/` on `master`:
-**https://brownplaya239.github.io/smid-scanner/**
+GitHub Pages, served from `docs/` on `master`, at the custom domain
+**https://tickerdesk.io** (the `docs/CNAME` file binds it). The old
+`brownplaya239.github.io/smid-scanner` URL 301-redirects here automatically.
 
 - Tabs for each report type, each listing timestamped PDFs from `docs/reports/manifest.json`
 - Ad-Hoc tab: a form that POSTs to the Cloudflare Worker, which triggers the
