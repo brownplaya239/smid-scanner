@@ -90,6 +90,26 @@
   .tape-chg.down { color:var(--red); }
   .tape-chg.flat { color:var(--muted); }
 
+  /* ── Momentum screen tables (QM / Stockbee) ── */
+  .mom-bar { display:flex; gap:10px; align-items:center; justify-content:center;
+    margin-bottom:14px; }
+  .mom-bar select { background:var(--inp); border:1px solid var(--border2);
+    border-radius:6px; color:var(--text); font-size:12px; padding:6px 9px;
+    font-family:inherit; outline:none; }
+  .mom-bar select:focus { border-color:var(--gold); }
+  .mom-count { font-size:11.5px; color:var(--muted); }
+  table.mom-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.mom-table th { background:var(--navy2); color:var(--muted); font-size:10px;
+    text-transform:uppercase; letter-spacing:.3px; padding:9px 10px; text-align:right;
+    border-bottom:1px solid var(--line); position:sticky; top:0; }
+  table.mom-table th:first-child { text-align:left; }
+  table.mom-table td { padding:8px 10px; text-align:right; white-space:nowrap;
+    border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  table.mom-table td:first-child { text-align:left; font-weight:700; color:var(--text); }
+  table.mom-table tr:hover td { background:var(--rowhov); }
+  .mom-pos { color:var(--green); }
+  .mom-neg { color:var(--red); }
+
   main { flex:1; padding:34px 22px; display:flex; justify-content:center; }
   .panel { display:none; width:100%; max-width:760px; }
   .panel.active { display:block; }
@@ -534,13 +554,25 @@
       <h2 class="tab-title">QM Monthly Gainers</h2>
       <p class="tab-sub">Qullamaggie's biggest one-month gainers &mdash; top 2% of the
         market by 1-month gain, ADR% &ge; 5, $100M+ dollar volume. 4:30 PM ET weekdays.</p>
-      <div class="report-list" id="list-qm-monthly"></div>
+      <div class="mom-bar">
+        <select id="qm-date"></select>
+        <span class="mom-count" id="qm-count"></span>
+      </div>
+      <div class="uoa-table-wrap">
+        <table class="mom-table" id="qm-table"></table>
+      </div>
     </section>
     <section class="panel" id="panel-stockbee-weekly">
       <h2 class="tab-title">Stockbee Weekly 20%</h2>
       <p class="tab-sub">Stockbee's "20% Plus in a Week" &mdash; every liquid name up
         20%+ over the last 5 trading days. 4:30 PM ET weekdays.</p>
-      <div class="report-list" id="list-stockbee-weekly"></div>
+      <div class="mom-bar">
+        <select id="sb-date"></select>
+        <span class="mom-count" id="sb-count"></span>
+      </div>
+      <div class="uoa-table-wrap">
+        <table class="mom-table" id="sb-table"></table>
+      </div>
     </section>
 
     <!-- Unusual Options Activity -->
@@ -862,12 +894,12 @@
     .then(function (r) { return r.ok ? r.json() : { reports: {} }; })
     .then(function (m) {
       const reps = m.reports || {};
-      ["adhoc","alt-data","smid-scanner","iwm-scanner","smid-setup","iwm-setup","qm-monthly","stockbee-weekly"].forEach(function (k) {
+      ["adhoc","alt-data","smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
         renderList(k, reps[k]);
       });
     })
     .catch(function () {
-      ["adhoc","alt-data","smid-scanner","iwm-scanner","smid-setup","iwm-setup","qm-monthly","stockbee-weekly"].forEach(function (k) {
+      ["adhoc","alt-data","smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
         renderList(k, []);
       });
     });
@@ -967,6 +999,66 @@
     listKey:"adhoc", reportType:"adhoc", runtime:"2-3 min" });
   setupLookup({ inputId:"ticker-alt", btnId:"go-alt", statusId:"status-alt", viewerId:"viewer-alt",
     listKey:"alt-data", reportType:"altdata", runtime:"1-2 min" });
+
+  /* ── Momentum screen tables (QM Monthly / Stockbee Weekly) ── */
+  function setupMomentum(cfg) {
+    const sel = document.getElementById(cfg.dateId);
+    const tbl = document.getElementById(cfg.tableId);
+    const cnt = document.getElementById(cfg.countId);
+    if (!sel || !tbl) return;
+    let RUNS = [];
+    function fmtVol(v) {
+      if (!v) return "—";
+      return v >= 1e9 ? "$" + (v / 1e9).toFixed(2) + "B"
+                      : "$" + Math.round(v / 1e6) + "M";
+    }
+    function renderRun(run) {
+      if (!run || !run.rows || !run.rows.length) {
+        tbl.innerHTML = '<tr><td colspan="6" class="uoa-empty">' +
+          'No names passed this screen on this date.</td></tr>';
+        cnt.textContent = "";
+        return;
+      }
+      cnt.textContent = run.rows.length + " names";
+      tbl.innerHTML =
+        '<tr><th>Ticker</th><th>Price</th><th>' + cfg.chgLabel + '</th>' +
+        '<th>ADR%</th><th>$ Vol</th><th>Next Ern</th></tr>' +
+        run.rows.map(function (r) {
+          const c = (typeof r.chg === "number") ? r.chg : null;
+          const cc = c == null ? "" : c > 0 ? "mom-pos" : c < 0 ? "mom-neg" : "";
+          return '<tr><td>' + r.ticker + '</td>' +
+            '<td>' + (r.price != null ? "$" + r.price.toFixed(2) : "—") + '</td>' +
+            '<td class="' + cc + '">' +
+              (c != null ? (c > 0 ? "+" : "") + c.toFixed(1) + "%" : "—") + '</td>' +
+            '<td>' + (r.adr_pct != null ? r.adr_pct.toFixed(1) + "%" : "—") + '</td>' +
+            '<td>' + fmtVol(r.dollar_vol) + '</td>' +
+            '<td>' + (r.ern || "—") + '</td></tr>';
+        }).join("");
+    }
+    fetch("./reports/" + cfg.file + "?t=" + Date.now())
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        RUNS = (d && d.runs) ? d.runs.slice().reverse() : [];   // newest first
+        if (!RUNS.length) {
+          tbl.innerHTML = '<tr><td colspan="6" class="uoa-empty">' +
+            'No scans yet — the next 4:30 PM ET run will populate this.</td></tr>';
+          return;
+        }
+        sel.innerHTML = RUNS.map(function (run, i) {
+          return '<option value="' + i + '">' + run.date + '</option>';
+        }).join("");
+        renderRun(RUNS[0]);
+        sel.onchange = function () { renderRun(RUNS[+sel.value] || null); };
+      })
+      .catch(function () {
+        tbl.innerHTML = '<tr><td colspan="6" class="uoa-empty">' +
+          'Could not load screen data.</td></tr>';
+      });
+  }
+  setupMomentum({ file:"momentum_qm.json", dateId:"qm-date", tableId:"qm-table",
+                  countId:"qm-count", chgLabel:"1-Mo %" });
+  setupMomentum({ file:"momentum_stockbee.json", dateId:"sb-date", tableId:"sb-table",
+                  countId:"sb-count", chgLabel:"1-Wk %" });
 
   /* ── Unusual Options Activity dashboard ── */
   (function () {
