@@ -22,6 +22,7 @@ Re-running is safe: jobs are matched by title and skipped if they exist.
 import json
 import os
 import sys
+import time
 import urllib.request
 import urllib.error
 
@@ -45,13 +46,21 @@ JOBS = [
 
 
 def cronjob_api(method, path, payload=None):
+    # cron-job.org throttles the API; retry HTTP 429 with backoff.
     data = json.dumps(payload).encode() if payload is not None else None
-    req = urllib.request.Request(CRONJOB_API + path, data=data, method=method)
-    req.add_header("Authorization", "Bearer " + CRONJOB_API_KEY)
-    req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        body = r.read().decode()
-        return json.loads(body) if body else {}
+    for attempt in range(6):
+        req = urllib.request.Request(CRONJOB_API + path, data=data, method=method)
+        req.add_header("Authorization", "Bearer " + CRONJOB_API_KEY)
+        req.add_header("Content-Type", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                body = r.read().decode()
+                return json.loads(body) if body else {}
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < 5:
+                time.sleep(5 * (attempt + 1))
+                continue
+            raise
 
 
 def github_dispatch_headers():
