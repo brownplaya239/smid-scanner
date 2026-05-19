@@ -1032,7 +1032,7 @@
               (c != null ? (c > 0 ? "+" : "") + c.toFixed(1) + "%" : "—") + '</td>' +
             '<td>' + (r.adr_pct != null ? r.adr_pct.toFixed(1) + "%" : "—") + '</td>' +
             '<td>' + fmtVol(r.dollar_vol) + '</td>' +
-            '<td>' + (r.ern || "—") + '</td></tr>';
+            '<td>' + (r.ern && r.ern !== "--" ? r.ern : "—") + '</td></tr>';
         }).join("");
     }
     fetch("./reports/" + cfg.file + "?t=" + Date.now())
