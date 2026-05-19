@@ -91,7 +91,14 @@ def _meta_is_fresh(entry, today):
         fetched = datetime.strptime(entry["fetched"], "%Y-%m-%d").date()
     except (KeyError, ValueError, TypeError):
         return False
-    return (today - fetched).days <= META_REFRESH_DAYS
+    if (today - fetched).days > META_REFRESH_DAYS:
+        return False
+    # Schema-upgrade safety: re-fetch legacy entries that pre-date the raw
+    # market_cap field so popups can show the actual figure ($X.XB / $X.XT)
+    # instead of a coarse bucket label.
+    if "market_cap" not in entry:
+        return False
+    return True
 
 
 def _fetch_one_meta(ticker):
@@ -110,6 +117,7 @@ def _fetch_one_meta(ticker):
         "country":     "USA" if loc == "us" else loc.upper(),
         "exchange":    EXCHANGE_NAME.get(pex, pex),
         "mcap_bucket": _swing_cap_bucket(d.get("market_cap")),
+        "market_cap":  d.get("market_cap"),     # raw figure for popups
         "fetched":     datetime.now(ET).strftime("%Y-%m-%d"),
     }
 
@@ -350,6 +358,7 @@ def run():
             "ctry":  meta.get("country", ""),
             "xch":   meta.get("exchange", ""),
             "mcb":   meta.get("mcap_bucket", ""),
+            "mcap":  meta.get("market_cap"),    # raw value (for popup formatting)
             "p":     round(m["price"], 2),
             "chg":   round(m["chg_day"], 2) if m["chg_day"] is not None else None,
             "spark": m["spark"],
