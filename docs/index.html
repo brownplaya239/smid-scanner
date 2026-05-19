@@ -397,7 +397,7 @@
   /* apply saved color scheme before first paint — avoids a flash */
   (function () {
     try { document.documentElement.dataset.theme =
-      localStorage.getItem("td-theme") || "mid"; } catch (e) {}
+      localStorage.getItem("td-theme") || "dark"; } catch (e) {}
   })();
 </script>
 </head>
@@ -717,7 +717,7 @@
     tg.addEventListener("click", function (e) {
       if (e.target.dataset.theme) apply(e.target.dataset.theme);
     });
-    apply(document.documentElement.dataset.theme || "mid");
+    apply(document.documentElement.dataset.theme || "dark");
   })();
 
   /* ── Tab switching ── */
