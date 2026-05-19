@@ -334,8 +334,9 @@
   .th-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
   .th-grid .th-col { display:flex; flex-direction:column; }
   .th-grid .th-row { display:flex; align-items:center; gap:6px;
-    padding:2px 0; font-size:9.5px; }
+    padding:2px 0; font-size:9.5px; cursor:default; }
   .th-grid .th-row + .th-row { border-top:1px solid var(--line); }
+  .th-grid .th-row:hover { background:rgba(255,255,255,0.03); }
   .th-grid .th-row .tr-name { font-weight:700; color:var(--text);
     flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .th-grid .th-row .tr-n    { color:var(--muted); font-size:8.5px; }
@@ -343,11 +344,40 @@
     font-weight:700; }
   .th-grid .th-row.up   .tr-avg { color:var(--green); }
   .th-grid .th-row.down .tr-avg { color:var(--red); }
+  .th-grid .th-row.flat .tr-avg { color:var(--muted); }
   .th-grid .th-head { font-size:9px; text-transform:uppercase;
     letter-spacing:.4px; font-weight:700; padding:2px 0 4px;
     margin-bottom:2px; border-bottom:1px solid var(--line); }
   .th-grid .th-head.pos { color:var(--green); }
   .th-grid .th-head.neg { color:var(--red); }
+
+  /* Theme constituent popup (hover a theme row to see its members) */
+  .th-pop { position:fixed; z-index:60; display:none; width:240px;
+    background:var(--card); border:1px solid var(--line); border-radius:8px;
+    padding:10px 12px; box-shadow:0 6px 22px rgba(0,0,0,.55); }
+  .th-pop.show { display:block; }
+  .th-pop .tp-head { display:flex; align-items:baseline; gap:6px;
+    margin-bottom:6px; padding-bottom:6px;
+    border-bottom:1px solid var(--line); }
+  .th-pop .tp-name { font-size:12px; font-weight:800; color:var(--text);
+    flex:1; }
+  .th-pop .tp-avg  { font-size:11px; font-weight:700;
+    font-variant-numeric:tabular-nums; }
+  .th-pop .tp-avg.up   { color:var(--green); }
+  .th-pop .tp-avg.down { color:var(--red); }
+  .th-pop .tp-avg.flat { color:var(--muted); }
+  .th-pop .tp-sub { font-size:9px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.4px; margin-bottom:4px; }
+  .th-pop .tp-list { display:grid; grid-template-columns:1fr 1fr;
+    gap:1px 8px; max-height:280px; overflow-y:auto; }
+  .th-pop .tp-row { display:flex; justify-content:space-between; gap:4px;
+    padding:2px 0; font-size:10px; }
+  .th-pop .tp-row .tp-tk { font-weight:700; color:var(--text); }
+  .th-pop .tp-row .tp-chg { font-variant-numeric:tabular-nums;
+    font-weight:700; }
+  .th-pop .tp-row .tp-chg.up   { color:var(--green); }
+  .th-pop .tp-row .tp-chg.down { color:var(--red); }
+  .th-pop .tp-row .tp-chg.flat { color:var(--muted); }
 
   /* Upcoming Earnings card */
   .earn-row { display:grid; grid-template-columns:68px 1fr; gap:9px;
@@ -1711,24 +1741,75 @@
         }).join(""));
     }
 
+    // Theme rollup — walks every graded cell, aggregates daily % change by
+    // theme. Returns sorted array of {theme, n, chg_avg, tickers[]}.
+    // Daily-return average is more useful day-to-day than the composite
+    // grading score (which moves slowly).
+    function buildThemeRollup(swing) {
+      if (!swing || !swing.runs || !swing.runs.length) return [];
+      const r = swing.runs[swing.runs.length - 1];
+      const acc = {};
+      Object.keys(r.grades || {}).forEach(function (g) {
+        (r.grades[g] || []).forEach(function (c) {
+          if (!c.th || !c.th.length) return;
+          if (typeof c.chg !== "number") return;
+          c.th.forEach(function (th) {
+            if (!acc[th]) acc[th] = { tickers: [], sum: 0 };
+            acc[th].tickers.push({ t: c.t, chg: c.chg });
+            acc[th].sum += c.chg;
+          });
+        });
+      });
+      const out = [];
+      Object.keys(acc).forEach(function (th) {
+        const o = acc[th], n = o.tickers.length;
+        if (n < 3) return;                     // same gate as server-side
+        out.push({
+          theme:    th,
+          n:        n,
+          chg_avg:  o.sum / n,
+          tickers:  o.tickers.sort(function (a, b) { return b.chg - a.chg; }),
+        });
+      });
+      out.sort(function (a, b) { return b.chg_avg - a.chg_avg; });
+      return out;
+    }
+    // Stash for the hover popup
+    let THEME_ROLLUP = {};
     function cardThemes(swing) {
-      if (!swing || !swing.runs || !swing.runs.length ||
-          !swing.runs[swing.runs.length - 1].themes)
+      const all = buildThemeRollup(swing);
+      if (!all.length)
         return desk("Strongest / Weakest Themes", empty("No theme data."));
-      const T = swing.runs[swing.runs.length - 1].themes;
-      const strong = T.slice(0, 15), weak = T.slice(-15).reverse();
-      const row = function (t, cls) {
-        return '<div class="th-row ' + cls + '">' +
+      // Re-index for popup lookup
+      THEME_ROLLUP = {};
+      all.forEach(function (t) { THEME_ROLLUP[t.theme] = t; });
+      // Split the sorted list in half so every theme shows up (one side or
+      // the other), regardless of count. Strongest = top half desc,
+      // Weakest = bottom half asc-by-loss.
+      const half = Math.ceil(all.length / 2);
+      const strong = all.slice(0, half);
+      const weak   = all.slice(half).reverse();
+      const fmtChg = function (v) {
+        const sign = v > 0 ? "+" : "";
+        return sign + v.toFixed(1) + "%";
+      };
+      const dirCls = function (v) {
+        return v > 0 ? "up" : v < 0 ? "down" : "flat";
+      };
+      const row = function (t) {
+        const cls = dirCls(t.chg_avg);
+        return '<div class="th-row ' + cls + '" data-th="' +
+            t.theme.replace(/"/g, "&quot;") + '">' +
           '<span class="tr-name">' + t.theme + '</span>' +
           '<span class="tr-n">' + t.n + '</span>' +
-          '<span class="tr-avg">' + t.avg + '</span></div>';
+          '<span class="tr-avg">' + fmtChg(t.chg_avg) + '</span></div>';
       };
       const strongCol = '<div class="th-col">' +
-        '<div class="th-head pos">Strongest</div>' +
-        strong.map(function (t) { return row(t, "up"); }).join("") + '</div>';
-      const weakCol   = '<div class="th-col">' +
-        '<div class="th-head neg">Weakest</div>' +
-        weak.map(function (t) { return row(t, "down"); }).join("") + '</div>';
+        '<div class="th-head pos">Strongest (' + strong.length + ')</div>' +
+        strong.map(row).join("") + '</div>';
+      const weakCol = '<div class="th-col">' +
+        '<div class="th-head neg">Weakest (' + weak.length + ')</div>' +
+        weak.map(row).join("") + '</div>';
       return desk("Strongest / Weakest Themes",
         '<div class="th-grid">' + strongCol + weakCol + '</div>');
     }
@@ -1996,12 +2077,55 @@
       pop.style.top  = Math.max(8, top) + "px";
     }
     function hidePopDesk() { pop.classList.remove("show"); }
+
+    // ── Theme hover popup — shows constituent tickers with daily % ──
+    const themePop = document.createElement("div");
+    themePop.className = "th-pop";
+    document.body.appendChild(themePop);
+    function showThemePop(themeName, anchor) {
+      const t = THEME_ROLLUP[themeName];
+      if (!t) return;
+      const avg = t.chg_avg;
+      const aCls = avg > 0 ? "up" : avg < 0 ? "down" : "flat";
+      const aSign = avg > 0 ? "+" : "";
+      const rows = t.tickers.map(function (tk) {
+        const cls = tk.chg > 0 ? "up" : tk.chg < 0 ? "down" : "flat";
+        const sign = tk.chg > 0 ? "+" : "";
+        return '<div class="tp-row">' +
+          '<span class="tp-tk">' + tk.t + '</span>' +
+          '<span class="tp-chg ' + cls + '">' +
+            sign + tk.chg.toFixed(1) + "%</span></div>";
+      }).join("");
+      themePop.innerHTML =
+        '<div class="tp-head">' +
+          '<span class="tp-name">' + themeName + '</span>' +
+          '<span class="tp-avg ' + aCls + '">' +
+            aSign + avg.toFixed(1) + "%</span></div>" +
+        '<div class="tp-sub">' + t.n + ' constituents · sorted by daily %</div>' +
+        '<div class="tp-list">' + rows + '</div>';
+      themePop.classList.add("show");
+      const r = anchor.getBoundingClientRect();
+      const pw = 240, ph = themePop.offsetHeight || 200;
+      let left = r.right + 8;                        // anchor to right side
+      if (left + pw > window.innerWidth - 8) left = r.left - pw - 8;
+      if (left < 8) left = 8;
+      let top = r.top + r.height / 2 - ph / 2;
+      if (top + ph > window.innerHeight - 8) top = window.innerHeight - ph - 8;
+      if (top < 8) top = 8;
+      themePop.style.left = left + "px";
+      themePop.style.top  = top + "px";
+    }
+    function hideThemePop() { themePop.classList.remove("show"); }
+
     grid.addEventListener("mouseover", function (e) {
+      const th = e.target.closest("[data-th]");
+      if (th && th.dataset.th) { showThemePop(th.dataset.th, th); return; }
       const t = e.target.closest("[data-t]");
       if (t && t.dataset.t) showPopDesk(t.dataset.t, t);
     });
     grid.addEventListener("mouseout", function (e) {
-      if (e.target.closest("[data-t]")) hidePopDesk();
+      if (e.target.closest("[data-th]")) { hideThemePop(); return; }
+      if (e.target.closest("[data-t]"))  hidePopDesk();
     });
 
     // ── "See notable flow" click handler — switches to Options Flow tab
