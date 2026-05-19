@@ -21,6 +21,7 @@ go-live; +5d stats become meaningful within ~2 weeks.
 
 import os
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from statistics import mean, median
 
@@ -30,6 +31,10 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 LEDGER_PATH = os.path.join(_BASE, "docs", "reports", "uoa_signals.jsonl")
 EDGE_PATH   = os.path.join(_BASE, "docs", "reports", "uoa_edge.json")
 SCORED_PATH = os.path.join(_BASE, "docs", "reports", "uoa_signals_scored.json")
+ALPHA_CACHE_PATH = os.path.join(_BASE, "docs", "reports", "uoa_alpha_cache.json")
+
+FINAL_AGE_DAYS = 35   # a signal this old has every horizon matured — freeze it
+WORKERS = 24          # fan out bar/OI pulls; modest — _oi_now pulls full chains
 
 HORIZONS = [1, 3, 5, 10, 20]
 SCORE_BUCKETS = [("80-100", 80, 101), ("65-79", 65, 80), ("55-64", 55, 65)]
@@ -61,6 +66,45 @@ def load_ledger():
                 except Exception:
                     pass
     return out
+
+
+def _pending_oi():
+    return {"status": "pending", "oi_change": None, "retained_pct": None}
+
+
+def _is_final(signal, today):
+    """True once every forward horizon has matured (flagged >= FINAL_AGE_DAYS
+    ago) — the signal's score is frozen and can be served from cache."""
+    try:
+        fd = datetime.strptime(signal["flagged_at"][:10], "%Y-%m-%d").date()
+    except (KeyError, ValueError, TypeError):
+        return False
+    return (today - fd).days >= FINAL_AGE_DAYS
+
+
+def _restore_returns(d):
+    """JSON turns the integer horizon keys into strings on round-trip — put
+    them back to int so _agg / _group can index them."""
+    return {int(k): v for k, v in (d or {}).items()}
+
+
+def _load_alpha_cache():
+    """Frozen scores for signals past FINAL_AGE_DAYS, persisted in
+    docs/reports/ so they survive across CI runs and never re-hit the API."""
+    try:
+        with open(ALPHA_CACHE_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_alpha_cache(cache):
+    try:
+        os.makedirs(os.path.dirname(ALPHA_CACHE_PATH), exist_ok=True)
+        with open(ALPHA_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=0)
+    except Exception as e:
+        print(f"  alpha cache save failed (non-fatal): {e}")
 
 
 def _bars(ticker, days=160):
@@ -204,28 +248,51 @@ def _excursion_avg(scored):
 
 
 def compute_edge():
-    """Score the whole ledger; build aggregates + per-signal scorecards."""
+    """Score the ledger; build aggregates + per-signal scorecards. Signals
+    older than FINAL_AGE_DAYS are frozen in uoa_alpha_cache.json — every
+    horizon has matured, so they're scored once and never re-fetched. Only
+    the rolling active window is recomputed, and its bar/OI pulls fan out
+    across a thread pool."""
     ledger = load_ledger()
     print(f"  Ledger: {len(ledger)} signals")
     if not ledger:
         return _empty_edge(), []
 
-    spy = _bars("SPY")
-    spy_closes = {d: b["c"] for d, b in spy.items()}
-
-    bar_cache, scored = {}, []
-    for s in ledger:
-        tk = s.get("ticker", "")
-        if tk and tk not in bar_cache:
-            bar_cache[tk] = _bars(tk)
-        s2 = dict(s)
-        s2["returns"]   = forward_returns(s, bar_cache.get(tk, {}), spy_closes)
-        s2["excursion"] = excursions(s, bar_cache.get(tk, {}))
-        scored.append(s2)
-
-    # next-day OI status — fetch current OI only for tickers with a signal
-    # old enough to be confirmable
     today = datetime.now(timezone.utc).date()
+    cache = _load_alpha_cache()
+
+    # cached-final signals reuse their frozen score; the rest recompute
+    scored, fresh = [], []
+    for s in ledger:
+        c = cache.get(s.get("id") or "")
+        if c and _is_final(s, today):
+            s2 = dict(s)
+            s2["returns"]   = _restore_returns(c.get("returns"))
+            s2["excursion"] = c.get("excursion") or {"mfe": None, "mae": None}
+            s2["oi"]        = c.get("oi") or _pending_oi()
+            scored.append(s2)
+        else:
+            fresh.append(s)
+    print(f"  {len(scored)} final (cached), {len(fresh)} to score...")
+
+    # forward returns + excursions for the active window — daily bars fetched
+    # concurrently, one call per unique ticker
+    if fresh:
+        spy_closes = {d: b["c"] for d, b in _bars("SPY").items()}
+        tks = sorted({s.get("ticker", "") for s in fresh if s.get("ticker")})
+        bar_cache = {}
+        with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+            for tk, bars in ex.map(lambda t: (t, _bars(t)), tks):
+                bar_cache[tk] = bars
+        for s in fresh:
+            bars = bar_cache.get(s.get("ticker", ""), {})
+            s2 = dict(s)
+            s2["returns"]   = forward_returns(s, bars, spy_closes)
+            s2["excursion"] = excursions(s, bars)
+            scored.append(s2)
+
+    # next-day OI status — current option chain fetched concurrently, only
+    # for active-window tickers with a confirmable signal
     def _confirmable(s):
         if s.get("open_interest") is None or s.get("volume") is None:
             return False
@@ -234,15 +301,30 @@ def compute_edge():
         except Exception:
             return False
         return (today - fd).days >= 1
+    oi_tickers = sorted({s["ticker"] for s in fresh
+                         if s.get("ticker") and _confirmable(s)})
     oi_cache = {}
+    if oi_tickers:
+        with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+            for tk, oi in ex.map(lambda t: (t, _oi_now(t)), oi_tickers):
+                oi_cache[tk] = oi
     for s in scored:
-        if _confirmable(s):
-            tk = s["ticker"]
-            if tk not in oi_cache:
-                oi_cache[tk] = _oi_now(tk)
-            s["oi"] = oi_status(s, oi_cache[tk])
-        else:
-            s["oi"] = {"status": "pending", "oi_change": None, "retained_pct": None}
+        if "oi" in s:                       # cached-final already carries it
+            continue
+        s["oi"] = (oi_status(s, oi_cache.get(s["ticker"], {}))
+                   if _confirmable(s) else _pending_oi())
+
+    # freeze newly-final signals so future runs skip them entirely
+    new_final = 0
+    for s in scored:
+        sid = s.get("id")
+        if sid and sid not in cache and _is_final(s, today):
+            cache[sid] = {"returns": s["returns"], "excursion": s["excursion"],
+                          "oi": s["oi"]}
+            new_final += 1
+    if new_final:
+        _save_alpha_cache(cache)
+        print(f"  Froze {new_final} newly-final signals into the cache")
 
     matured_5d = sum(1 for s in scored if s["returns"].get(5))
 
