@@ -7,7 +7,11 @@ Emits a dated JSON history (docs/reports/swing_report.json) the dashboard
 renders as the Swing Report Card grid.
 
 Methodology (every weight / threshold here is tunable):
-  Universe       : 20-day avg $-volume >= $50M AND 20-day ADR% >= universe median
+  Universe       : ThinkScript spec —
+                     close*volume >= $50M  on the most recent trading day
+                     AND
+                     14-day ATR > 50-day average of the 14-day ATR
+                     (today's volatility above its own 50-day baseline)
   Rel. Strength  : percentile rank of 0.4*r63 + 0.3*r126 + 0.2*r21 + 0.1*r252
   Trend Strength : MA-stack (<=50) + rising SMA50 (25) + 52w-high proximity (25)
   Composite      : 0.6*RS + 0.4*Trend  ->  20 grades A+ .. G
@@ -17,7 +21,7 @@ Methodology (every weight / threshold here is tunable):
 import os
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 
 import pytz
@@ -30,7 +34,7 @@ load_dotenv(override=True)
 
 import polygon_data
 import themes
-from momentum_scanner import get_market_universe
+from uoa_scanner import EXCLUDE_ETFS
 
 ET = pytz.timezone("America/New_York")
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +49,56 @@ GRADE_MIN = [88, 84, 80, 76, 72, 68, 64, 60, 56, 52,
              48, 44, 40, 36, 32, 28, 24, 20, 16, -1]
 EXT_OVEREXTENDED = 7.0     # ATR-to-SMA50 — red font
 EXT_EXTENDED     = 5.0     # ATR-to-SMA50 — purple font
+
+
+# ─── Universe ────────────────────────────────────────────────────────────────
+
+def _last_trading_day():
+    d = datetime.now(ET).date()
+    while d.weekday() >= 5:                 # Mon-Fri only
+        d -= timedelta(days=1)
+    return d.strftime("%Y-%m-%d")
+
+
+def _build_universe(min_dollar_vol=MIN_DOLLAR_VOL, ref_date=None):
+    """Single-day dollar-volume gate, applied to the full US-stock universe
+    via Polygon's grouped_daily. Mirrors the ThinkScript volumeCondition
+    (close * volume >= 50M on the last trading day). Filters out ETFs,
+    obvious non-common symbols (dots, length>5), and bad data."""
+    ref_date = ref_date or _last_trading_day()
+    grouped = polygon_data.grouped_daily(ref_date)
+    out = []
+    for tk, bar in grouped.items():
+        if "." in tk or len(tk) > 5 or tk in EXCLUDE_ETFS:
+            continue
+        c = bar.get("c") or 0
+        v = bar.get("v") or 0
+        if c > 0 and v > 0 and c * v >= min_dollar_vol:
+            out.append(tk)
+    return sorted(out)
+
+
+def _atr_now_vs_avg(c, h, l, atr_len=14, base_len=50):
+    """ThinkScript volatileCondition: (currentATR > averageATR) where
+        currentATR = Average(TrueRange, atr_len)        # most recent value
+        averageATR = Average(currentATR, base_len)      # most recent value
+    Returns (current_atr, average_atr), or (None, None) if not enough history."""
+    n = len(c)
+    if n < atr_len + base_len + 1:
+        return None, None
+    # true-range series (one shorter than the close series)
+    trs = []
+    for i in range(1, n):
+        trs.append(max(h[i] - l[i], abs(h[i] - c[i-1]), abs(l[i] - c[i-1])))
+    # ATR(atr_len) series — simple mean of last atr_len TRs ending at each bar
+    atr_series = []
+    for k in range(atr_len, len(trs) + 1):
+        atr_series.append(sum(trs[k - atr_len:k]) / atr_len)
+    if len(atr_series) < base_len:
+        return None, None
+    current_atr = atr_series[-1]
+    average_atr = sum(atr_series[-base_len:]) / base_len
+    return current_atr, average_atr
 
 
 # ─── Data ─────────────────────────────────────────────────────────────────────
@@ -163,23 +217,27 @@ def run():
     print(f"SWING REPORT CARD  --  {datetime.now(ET):%Y-%m-%d %H:%M ET}")
     print(f"{'='*54}")
 
-    uni = get_market_universe()
+    ref = _last_trading_day()
+    print(f"  Universe stage 1 — grouped-daily $-vol >= $50M on {ref}...")
+    uni = _build_universe(ref_date=ref)
+    print(f"  Stage 1 passed: {len(uni)} names")
     print(f"  Fetching ~400d daily bars for {len(uni)} names...")
     bars = _fetch_bars(uni)
     print(f"  Bars retrieved for {len(bars)}")
 
-    rows = [m for m in (metrics(t, s) for t, s in bars.items()) if m]
+    # ATR-expansion gate (ThinkScript: 14-day ATR > 50-day avg of 14-day ATR)
+    expanding = {}
+    for t, s in bars.items():
+        cur, avg = _atr_now_vs_avg(s["c"], s["h"], s["l"])
+        if cur is not None and avg is not None and cur > avg:
+            expanding[t] = s
+    print(f"  Stage 2 passed (ATR expanding): {len(expanding)} names")
 
-    # universe gate — $50M+ dollar volume, then ADR% at/above the median
-    liquid = [m for m in rows if m["dollar_vol"] >= MIN_DOLLAR_VOL]
-    if not liquid:
-        print("  No names cleared the $50M liquidity gate.")
+    universe = [m for m in (metrics(t, s) for t, s in expanding.items()) if m]
+    if not universe:
+        print("  No names cleared the universe filters.")
         return
-    adrs = sorted(m["adr_pct"] for m in liquid)
-    adr_median = adrs[len(adrs) // 2]
-    universe = [m for m in liquid if m["adr_pct"] >= adr_median]
-    print(f"  Universe: {len(universe)} names "
-          f"($50M+ $-vol, ADR% >= {adr_median:.2f} median)")
+    print(f"  Final universe: {len(universe)} names")
 
     # Relative Strength = percentile rank of the blended return
     for m in universe:
