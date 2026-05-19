@@ -1,6 +1,6 @@
 {
- "generated": "2026-05-19T16:44:43+00:00",
- "total_signals": 4831,
+ "generated": "2026-05-19T17:42:54+00:00",
+ "total_signals": 4993,
  "matured_5d": 0,
  "horizons": [
   1,
@@ -12,10 +12,10 @@
  "overall": {
   "1": {
    "n": 4622,
-   "hit_rate": 34,
-   "avg": -0.74,
-   "median": -1.1,
-   "avg_excess": -0.16
+   "hit_rate": 51,
+   "avg": 0.53,
+   "median": 0.07,
+   "avg_excess": 0.73
   },
   "3": {
    "n": 0,
@@ -47,20 +47,20 @@
   }
  },
  "excursion": {
-  "avg_mfe": 1.3,
-  "avg_mae": -3.4,
+  "avg_mfe": 1.9,
+  "avg_mae": -3.5,
   "n": 4622
  },
  "by_type": {
   "golden_sweep": {
-   "signals": 1154,
+   "signals": 1209,
    "h": {
     "1": {
      "n": 1087,
-     "hit_rate": 37,
-     "avg": -0.27,
-     "median": -1.17,
-     "avg_excess": 0.3
+     "hit_rate": 48,
+     "avg": 1.19,
+     "median": -0.55,
+     "avg_excess": 1.39
     },
     "3": {
      "n": 0,
@@ -90,17 +90,22 @@
      "median": null,
      "avg_excess": null
     }
+   },
+   "oi": {
+    "checked": 970,
+    "confirmed": 101,
+    "confirm_rate": 10
    }
   },
   "sweep": {
-   "signals": 2973,
+   "signals": 3047,
    "h": {
     "1": {
      "n": 2877,
-     "hit_rate": 31,
-     "avg": -1.02,
-     "median": -1.2,
-     "avg_excess": -0.44
+     "hit_rate": 50,
+     "avg": 0.27,
+     "median": -0.01,
+     "avg_excess": 0.47
     },
     "3": {
      "n": 0,
@@ -130,17 +135,22 @@
      "median": null,
      "avg_excess": null
     }
+   },
+   "oi": {
+    "checked": 2560,
+    "confirmed": 1232,
+    "confirm_rate": 48
    }
   },
   "voloi": {
-   "signals": 704,
+   "signals": 737,
    "h": {
     "1": {
      "n": 658,
-     "hit_rate": 40,
-     "avg": -0.3,
-     "median": -0.21,
-     "avg_excess": 0.27
+     "hit_rate": 60,
+     "avg": 0.57,
+     "median": 0.2,
+     "avg_excess": 0.77
     },
     "3": {
      "n": 0,
@@ -170,19 +180,24 @@
      "median": null,
      "avg_excess": null
     }
+   },
+   "oi": {
+    "checked": 594,
+    "confirmed": 459,
+    "confirm_rate": 77
    }
   }
  },
  "by_score": {
   "80-100": {
-   "signals": 614,
+   "signals": 625,
    "h": {
     "1": {
      "n": 610,
-     "hit_rate": 33,
-     "avg": -0.38,
-     "median": -0.76,
-     "avg_excess": 0.19
+     "hit_rate": 51,
+     "avg": 0.8,
+     "median": 0.12,
+     "avg_excess": 1.0
     },
     "3": {
      "n": 0,
@@ -212,17 +227,22 @@
      "median": null,
      "avg_excess": null
     }
+   },
+   "oi": {
+    "checked": 553,
+    "confirmed": 216,
+    "confirm_rate": 39
    }
   },
   "65-79": {
-   "signals": 2412,
+   "signals": 2505,
    "h": {
     "1": {
      "n": 2313,
-     "hit_rate": 34,
-     "avg": -0.78,
-     "median": -1.13,
-     "avg_excess": -0.2
+     "hit_rate": 51,
+     "avg": 0.52,
+     "median": 0.11,
+     "avg_excess": 0.72
     },
     "3": {
      "n": 0,
@@ -252,17 +272,22 @@
      "median": null,
      "avg_excess": null
     }
+   },
+   "oi": {
+    "checked": 2110,
+    "confirmed": 874,
+    "confirm_rate": 41
    }
   },
   "55-64": {
-   "signals": 1805,
+   "signals": 1863,
    "h": {
     "1": {
      "n": 1699,
-     "hit_rate": 33,
-     "avg": -0.81,
-     "median": -1.12,
-     "avg_excess": -0.24
+     "hit_rate": 50,
+     "avg": 0.45,
+     "median": 0.01,
+     "avg_excess": 0.65
     },
     "3": {
      "n": 0,
@@ -292,19 +317,24 @@
      "median": null,
      "avg_excess": null
     }
+   },
+   "oi": {
+    "checked": 1461,
+    "confirmed": 702,
+    "confirm_rate": 48
    }
   }
  },
  "by_dte": {
   "urgent": {
-   "signals": 3345,
+   "signals": 3454,
    "h": {
     "1": {
      "n": 3211,
-     "hit_rate": 32,
-     "avg": -0.67,
-     "median": -1.18,
-     "avg_excess": -0.1
+     "hit_rate": 49,
+     "avg": 0.61,
+     "median": -0.15,
+     "avg_excess": 0.82
     },
     "3": {
      "n": 0,
@@ -334,17 +364,22 @@
      "median": null,
      "avg_excess": null
     }
+   },
+   "oi": {
+    "checked": 2885,
+    "confirmed": 694,
+    "confirm_rate": 24
    }
   },
   "swing": {
-   "signals": 1029,
+   "signals": 1065,
    "h": {
     "1": {
      "n": 976,
-     "hit_rate": 38,
-     "avg": -0.81,
-     "median": -0.44,
-     "avg_excess": -0.23
+     "hit_rate": 56,
+     "avg": 0.43,
+     "median": 0.15,
+     "avg_excess": 0.63
     },
     "3": {
      "n": 0,
@@ -374,17 +409,22 @@
      "median": null,
      "avg_excess": null
     }
+   },
+   "oi": {
+    "checked": 854,
+    "confirmed": 737,
+    "confirm_rate": 86
    }
   },
   "positioning": {
-   "signals": 399,
+   "signals": 414,
    "h": {
     "1": {
      "n": 381,
-     "hit_rate": 37,
-     "avg": -1.06,
-     "median": -1.15,
-     "avg_excess": -0.48
+     "hit_rate": 53,
+     "avg": 0.18,
+     "median": 0.11,
+     "avg_excess": 0.39
     },
     "3": {
      "n": 0,
@@ -414,17 +454,22 @@
      "median": null,
      "avg_excess": null
     }
+   },
+   "oi": {
+    "checked": 333,
+    "confirmed": 309,
+    "confirm_rate": 93
    }
   },
   "leaps": {
-   "signals": 58,
+   "signals": 60,
    "h": {
     "1": {
      "n": 54,
-     "hit_rate": 46,
-     "avg": -1.13,
-     "median": -0.09,
-     "avg_excess": -0.56
+     "hit_rate": 74,
+     "avg": -0.08,
+     "median": 0.55,
+     "avg_excess": 0.12
     },
     "3": {
      "n": 0,
@@ -454,78 +499,328 @@
      "median": null,
      "avg_excess": null
     }
+   },
+   "oi": {
+    "checked": 52,
+    "confirmed": 52,
+    "confirm_rate": 100
    }
   }
  },
  "by_tag": {
   "Golden Sweep": {
-   "signals": 1154,
-   "h5": {
-    "n": 0,
-    "hit_rate": null,
-    "avg": null,
-    "median": null,
-    "avg_excess": null
+   "signals": 1209,
+   "h": {
+    "1": {
+     "n": 1087,
+     "hit_rate": 48,
+     "avg": 1.19,
+     "median": -0.55,
+     "avg_excess": 1.39
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 970,
+    "confirmed": 101,
+    "confirm_rate": 10
    }
   },
   "Sweep": {
-   "signals": 2973,
-   "h5": {
-    "n": 0,
-    "hit_rate": null,
-    "avg": null,
-    "median": null,
-    "avg_excess": null
+   "signals": 3047,
+   "h": {
+    "1": {
+     "n": 2877,
+     "hit_rate": 50,
+     "avg": 0.27,
+     "median": -0.01,
+     "avg_excess": 0.47
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 2560,
+    "confirmed": 1232,
+    "confirm_rate": 48
    }
   },
   "Block": {
-   "signals": 3230,
-   "h5": {
-    "n": 0,
-    "hit_rate": null,
-    "avg": null,
-    "median": null,
-    "avg_excess": null
+   "signals": 3336,
+   "h": {
+    "1": {
+     "n": 3097,
+     "hit_rate": 55,
+     "avg": 0.84,
+     "median": 0.14,
+     "avg_excess": 1.04
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 2761,
+    "confirmed": 1281,
+    "confirm_rate": 46
    }
   },
   "Size>OI": {
-   "signals": 1252,
-   "h5": {
-    "n": 0,
-    "hit_rate": null,
-    "avg": null,
-    "median": null,
-    "avg_excess": null
+   "signals": 1284,
+   "h": {
+    "1": {
+     "n": 1205,
+     "hit_rate": 52,
+     "avg": 0.18,
+     "median": 0.09,
+     "avg_excess": 0.39
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 1205,
+    "confirmed": 795,
+    "confirm_rate": 66
    }
   },
   "Repeat": {
-   "signals": 3994,
-   "h5": {
-    "n": 0,
-    "hit_rate": null,
-    "avg": null,
-    "median": null,
-    "avg_excess": null
+   "signals": 4125,
+   "h": {
+    "1": {
+     "n": 3852,
+     "hit_rate": 49,
+     "avg": 0.41,
+     "median": -0.06,
+     "avg_excess": 0.61
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 3852,
+    "confirmed": 1659,
+    "confirm_rate": 43
    }
   },
   "Into ERN": {
-   "signals": 558,
-   "h5": {
-    "n": 0,
-    "hit_rate": null,
-    "avg": null,
-    "median": null,
-    "avg_excess": null
+   "signals": 584,
+   "h": {
+    "1": {
+     "n": 513,
+     "hit_rate": 86,
+     "avg": 1.01,
+     "median": 0.55,
+     "avg_excess": 1.21
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 513,
+    "confirmed": 342,
+    "confirm_rate": 67
    }
   },
   "In Universe": {
-   "signals": 3858,
-   "h5": {
-    "n": 0,
-    "hit_rate": null,
-    "avg": null,
-    "median": null,
-    "avg_excess": null
+   "signals": 3991,
+   "h": {
+    "1": {
+     "n": 3691,
+     "hit_rate": 49,
+     "avg": 0.64,
+     "median": -0.1,
+     "avg_excess": 0.85
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 3340,
+    "confirmed": 1160,
+    "confirm_rate": 35
    }
   }
  },
