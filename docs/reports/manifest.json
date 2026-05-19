@@ -1,5 +1,5 @@
 {
-  "generated": "2026-05-19T15:42:57+00:00",
+  "generated": "2026-05-19T17:02:21+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -191,6 +191,16 @@
     ],
     "adhoc": [
       {
+        "file": "ticker_CMBT_2026-05-19_1250.pdf",
+        "label": "May 19, 2026  -  12:50 PM ET",
+        "ticker": "CMBT"
+      },
+      {
+        "file": "ticker_CMBT_2026-05-19_1248.pdf",
+        "label": "May 19, 2026  -  12:48 PM ET",
+        "ticker": "CMBT"
+      },
+      {
         "file": "ticker_MRVL_2026-05-19_1122.pdf",
         "label": "May 19, 2026  -  11:22 AM ET",
         "ticker": "MRVL"
@@ -322,6 +332,11 @@
       }
     ],
     "alt-data": [
+      {
+        "file": "altdata_CMBT_2026-05-19_1302.pdf",
+        "label": "May 19, 2026  -  1:02 PM ET",
+        "ticker": "CMBT"
+      },
       {
         "file": "altdata_UCTT_2026-05-18_1329.pdf",
         "label": "May 18, 2026  -  1:29 PM ET",
