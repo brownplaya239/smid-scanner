@@ -20,27 +20,36 @@
 
 const REPO = "brownplaya239/smid-scanner";
 
-/** One Yahoo Finance quote — current price + % change vs the prior close. */
+/** One Yahoo Finance quote — current price, % change vs the prior close, and
+ *  the intraday (5-min) close series for the dashboard's hover sparkline. */
 async function fetchYahooQuote(sym) {
   try {
     const r = await fetch(
       "https://query1.finance.yahoo.com/v8/finance/chart/" +
-        encodeURIComponent(sym) + "?range=1d&interval=1d",
+        encodeURIComponent(sym) + "?range=1d&interval=5m",
       { headers: { "User-Agent": "Mozilla/5.0" }, cf: { cacheTtl: 30 } }
     );
-    if (!r.ok) return { symbol: sym, price: null, change: null };
+    if (!r.ok) return { symbol: sym, price: null, change: null, spark: [] };
     const j = await r.json();
-    const m = j && j.chart && j.chart.result && j.chart.result[0] &&
-              j.chart.result[0].meta;
-    if (!m) return { symbol: sym, price: null, change: null };
+    const res = j && j.chart && j.chart.result && j.chart.result[0];
+    const m = res && res.meta;
+    if (!m) return { symbol: sym, price: null, change: null, spark: [] };
     const price = typeof m.regularMarketPrice === "number"
       ? m.regularMarketPrice : null;
     const prev = m.chartPreviousClose || m.previousClose || null;
     const change = (price != null && prev)
       ? Math.round((price / prev - 1) * 10000) / 100 : null;
-    return { symbol: sym, price: price, change: change };
+    let spark = [];
+    const closes = res.indicators && res.indicators.quote &&
+                   res.indicators.quote[0] && res.indicators.quote[0].close;
+    if (Array.isArray(closes)) {
+      spark = closes.filter(function (v) { return typeof v === "number"; })
+                    .map(function (v) { return Math.round(v * 100) / 100; });
+    }
+    return { symbol: sym, price: price, change: change,
+             prevClose: prev, spark: spark };
   } catch (e) {
-    return { symbol: sym, price: null, change: null };
+    return { symbol: sym, price: null, change: null, spark: [] };
   }
 }
 
