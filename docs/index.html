@@ -77,40 +77,29 @@
   nav button.active { color:var(--gold); border-bottom-color:var(--gold); }
 
   /* ── Market ticker tape ── */
-  /* tape + cards share item width / gap / padding so each card sits in a
-     column directly under its tape chip */
-  .tape { display:flex; align-items:stretch; justify-content:safe center;
-    gap:8px; padding:0 16px;
-    overflow-x:auto; background:var(--navy); border-bottom:1px solid var(--line);
-    scrollbar-width:none; -webkit-overflow-scrolling:touch; }
-  .tape::-webkit-scrollbar { display:none; }
-  .tape-item { flex:0 0 156px; display:flex; align-items:center;
-    justify-content:center; gap:6px; white-space:nowrap;
-    padding:6px 8px; font-size:11.5px; }
-  .tape-sym { font-weight:700; color:var(--text); letter-spacing:.3px; }
-  .tape-px  { color:var(--textdim); font-variant-numeric:tabular-nums; }
-  .tape-chg { font-weight:600; font-size:11px; font-variant-numeric:tabular-nums; }
+  /* change pill — shared by the candlestick cards */
+  .tape-chg { font-weight:600; font-size:10px; font-variant-numeric:tabular-nums; }
   .tape-chg.up   { color:var(--green); }
   .tape-chg.down { color:var(--red); }
   .tape-chg.flat { color:var(--muted); }
 
-  /* ── Market candlestick cards (row under the tape) ── */
-  .market-cards { display:flex; gap:8px; padding:10px 16px; overflow-x:auto;
+  /* ── Market candlestick cards (row under the nav) ── */
+  .market-cards { display:flex; gap:7px; padding:9px 16px; overflow-x:auto;
     justify-content:safe center;
     background:var(--bg); border-bottom:1px solid var(--line);
     scrollbar-width:none; -webkit-overflow-scrolling:touch; }
   .market-cards::-webkit-scrollbar { display:none; }
-  .mcard { flex:0 0 156px; background:var(--card); border:1px solid var(--line);
-    border-radius:8px; padding:8px 9px; }
-  .mcard .mc-head { display:flex; align-items:baseline; gap:6px;
-    font-size:12px; margin-bottom:5px; }
+  .mcard { flex:0 0 128px; background:var(--card); border:1px solid var(--line);
+    border-radius:7px; padding:6px 8px; }
+  .mcard .mc-head { display:flex; align-items:baseline; gap:5px;
+    font-size:10.5px; margin-bottom:4px; }
   .mcard .mc-sym { font-weight:700; color:var(--text); }
   .mcard .mc-head .tape-chg { margin-left:auto; }
   .mcard svg { display:block; width:100%; height:auto; }
-  .mcard .mc-foot { text-align:right; font-size:12.5px; font-weight:700;
-    color:var(--text); font-variant-numeric:tabular-nums; margin-top:4px; }
-  .mcard .mc-empty { font-size:10.5px; color:var(--muted);
-    text-align:center; padding:26px 0; }
+  .mcard .mc-foot { text-align:right; font-size:11px; font-weight:700;
+    color:var(--text); font-variant-numeric:tabular-nums; margin-top:3px; }
+  .mcard .mc-empty { font-size:9.5px; color:var(--muted);
+    text-align:center; padding:20px 0; }
 
   /* ── Momentum screen tables (QM / Stockbee) ── */
   .mom-bar { display:flex; gap:10px; align-items:center; justify-content:center;
@@ -500,7 +489,6 @@
     <button data-tab="stockbee-weekly">Stockbee Weekly</button>
   </nav>
 
-  <div class="tape" id="tape"></div>
   <div class="market-cards" id="market-cards"></div>
 
   <main>
@@ -792,11 +780,10 @@
 <script>
   const WORKER_URL = "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev";
 
-  /* ── Market ticker tape + candlestick cards (polls the worker every 60s) ── */
+  /* ── Market candlestick cards (polls the worker every 60s) ── */
   (function () {
-    const tape  = document.getElementById("tape");
     const cards = document.getElementById("market-cards");
-    if (!tape) return;
+    if (!cards) return;
     const SYMS = [
       { y: "SPY",     label: "SPY"   },
       { y: "QQQ",     label: "QQQ"   },
@@ -870,16 +857,7 @@
       }
       return '<svg viewBox="0 0 ' + W + ' ' + H + '">' + baseLine + body + '</svg>';
     }
-    function renderTape() {
-      tape.innerHTML = SYMS.map(function (s) {
-        const q = QMAP[s.y] || {};
-        return '<div class="tape-item"><span class="tape-sym">' + s.label +
-          '</span><span class="tape-px">' + fmtPx(q.price) + '</span>' +
-          chgSpan(typeof q.change === "number" ? q.change : null) + '</div>';
-      }).join("");
-    }
     function renderCards() {
-      if (!cards) return;
       cards.innerHTML = SYMS.map(function (s) {
         const q = QMAP[s.y] || {};
         return '<div class="mcard"><div class="mc-head">' +
@@ -889,8 +867,7 @@
           '<div class="mc-foot">' + fmtPx(q.price) + '</div></div>';
       }).join("");
     }
-    function renderAll() { renderTape(); renderCards(); }
-    renderAll();
+    renderCards();
     function load() {
       fetch(WORKER_URL + "?quotes=" +
             encodeURIComponent(SYMS.map(function (s) { return s.y; }).join(",")))
@@ -899,7 +876,7 @@
           if (!d || !d.quotes) return;
           QMAP = {};
           d.quotes.forEach(function (q) { QMAP[q.symbol] = q; });
-          renderAll();
+          renderCards();
         })
         .catch(function () {});
     }
