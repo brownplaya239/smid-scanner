@@ -52,6 +52,25 @@ def _dte_bucket(dte):
     return "leaps"
 
 
+def _parse_occ(contract):
+    """(contract_type, strike) from an OCC option ticker, e.g.
+    'O:NVDA260529C00217500' -> ('call', 217.5). The last 8 digits are the
+    strike x1000; the char before them is C/P. The underlying root is
+    variable-length, so everything is read from the end. Returns
+    (None, None) on any malformed input — callers treat that as unknown."""
+    try:
+        s = (contract or "").strip()
+        cp = s[-9].upper()
+        if cp not in ("C", "P"):
+            return None, None
+        strike = int(s[-8:]) / 1000.0
+        if strike <= 0:
+            return None, None
+        return ("call" if cp == "C" else "put"), strike
+    except (ValueError, IndexError, TypeError):
+        return None, None
+
+
 def load_ledger():
     """Read the append-only signal ledger (one JSON object per line)."""
     out = []
@@ -422,6 +441,13 @@ def _emit_scored(scored):
         r1, r3, r5 = ret.get(1) or {}, ret.get(3) or {}, ret.get(5) or {}
         exc = s.get("excursion") or {}
         oi  = s.get("oi") or {}
+        # contract type + strike from the OCC ticker — works for every signal,
+        # including older ones whose ledger row predates the `type` field.
+        occ_type, strike = _parse_occ(s.get("contract"))
+        spot = s.get("underlying_px_at_flag")
+        is_otm = None
+        if occ_type and strike and spot:
+            is_otm = (strike >= spot) if occ_type == "call" else (strike <= spot)
         rows.append({
             "id":           s.get("id"),
             "flagged_at":   s.get("flagged_at"),
@@ -433,8 +459,10 @@ def _emit_scored(scored):
             "dte":          s.get("dte"),
             "tags":         s.get("tags", []),
             # pass-through fields so the Tracked-Signals tab can offer the
-            # same filters as Live Flow
-            "type":         s.get("type"),
+            # same filters as Live Flow. `type` falls back to the OCC ticker
+            # so the call/put filter works on pre-schema-expansion signals.
+            "type":         s.get("type") or occ_type,
+            "is_otm":       is_otm,
             "cap_bucket":   s.get("cap_bucket"),
             "sector":       s.get("sector"),
             "themes":       s.get("themes", []),

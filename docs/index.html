@@ -581,6 +581,11 @@
             <option value="call">Calls only</option>
             <option value="put">Puts only</option>
           </select>
+          <select id="trk-side">
+            <option value="">Any side</option>
+            <option value="ask">Ask (buy)</option>
+            <option value="bid">Bid (sell)</option>
+          </select>
           <select id="trk-dte">
             <option value="">Any DTE</option>
             <option value="urgent">0-14d</option>
@@ -610,6 +615,8 @@
             <option value="500000">$500k+</option>
             <option value="1000000">$1M+</option>
           </select>
+          </div>
+          <div class="uoa-filter-row">
           <select id="trk-status">
             <option value="">Any OI status</option>
             <option value="confirmed">OI Confirmed</option>
@@ -617,10 +624,9 @@
             <option value="closed">Closed / Failed</option>
             <option value="pending">Pending</option>
           </select>
-          </div>
-          <div class="uoa-filter-row">
           <label class="grp-toggle"><input type="checkbox" id="trk-group" /> Group by ticker</label>
           <label><input type="checkbox" id="trk-golden" /> Golden</label>
+          <label><input type="checkbox" id="trk-otm" /> OTM</label>
           <label><input type="checkbox" id="trk-open" /> Open</label>
           <label><input type="checkbox" id="trk-liqab" /> Liquid</label>
           <label><input type="checkbox" id="trk-repeat" /> Repeat</label>
@@ -1226,6 +1232,11 @@
       if (q && (r.ticker||"").indexOf(q) < 0) return false;
       const tp = $("trk-type").value;
       if (tp && r.type !== tp) return false;
+      const sd = $("trk-side").value;
+      if (sd === "ask" && !(r.flow_side==="call_buyer" || r.flow_side==="put_buyer"))
+        return false;
+      if (sd === "bid" && !(r.flow_side==="call_seller" || r.flow_side==="put_seller"))
+        return false;
       const dte = $("trk-dte").value;
       if (dte && trkDteBucket(r.dte) !== dte) return false;
       const cap = $("trk-cap").value;
@@ -1240,6 +1251,7 @@
       if (stf && r.oi_status !== stf) return false;
       const tags = r.tags || [];
       if ($("trk-golden").checked && tags.indexOf("Golden Sweep") < 0) return false;
+      if ($("trk-otm").checked && !r.is_otm) return false;
       if ($("trk-open").checked && r.opening !== "likely_open") return false;
       if ($("trk-liqab").checked && !(r.liquidity==="A" || r.liquidity==="B")) return false;
       if ($("trk-repeat").checked && tags.indexOf("Repeat") < 0) return false;
@@ -1272,11 +1284,12 @@
     }
     function resetTracked() {
       $("trk-q").value = "";
-      ["trk-type","trk-dte","trk-cap","trk-sector","trk-theme","trk-status"]
+      ["trk-type","trk-side","trk-dte","trk-cap","trk-sector","trk-theme","trk-status"]
         .forEach(function (id) { if ($(id)) $(id).value = ""; });
       $("trk-score").value = "0"; $("trk-prem").value = "0";
-      ["trk-golden","trk-open","trk-liqab","trk-repeat","trk-ern","trk-noseller",
-       "trk-univ"].forEach(function (id) { if ($(id)) $(id).checked = false; });
+      ["trk-golden","trk-otm","trk-open","trk-liqab","trk-repeat","trk-ern",
+       "trk-noseller","trk-univ"].forEach(function (id) {
+        if ($(id)) $(id).checked = false; });
       renderTrackedBody();
     }
     function renderTrackedHead() {
@@ -1376,9 +1389,10 @@
       populateTrackedSectors(); populateTrackedThemes();
       renderTrackedHead(); renderTrackedBody();
     }
-    ["trk-q","trk-type","trk-dte","trk-cap","trk-sector","trk-theme","trk-score",
-     "trk-prem","trk-status","trk-group","trk-golden","trk-open","trk-liqab",
-     "trk-repeat","trk-ern","trk-noseller","trk-univ"].forEach(function (id) {
+    ["trk-q","trk-type","trk-side","trk-dte","trk-cap","trk-sector","trk-theme",
+     "trk-score","trk-prem","trk-status","trk-group","trk-golden","trk-otm",
+     "trk-open","trk-liqab","trk-repeat","trk-ern","trk-noseller","trk-univ"]
+        .forEach(function (id) {
       const el = document.getElementById(id);
       if (el) el.addEventListener(
         (el.tagName==="INPUT" && el.type==="text") ? "input" : "change", renderTrackedBody);
