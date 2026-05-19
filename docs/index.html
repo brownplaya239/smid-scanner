@@ -186,68 +186,78 @@
   #panel-desk { max-width:1180px; }
   .desk-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .desk-card { background:var(--card); border:1px solid var(--line);
-    border-radius:8px; padding:14px 16px; }
-  .desk-card h3 { font-size:11px; color:var(--muted); text-transform:uppercase;
-    letter-spacing:.4px; margin-bottom:10px; font-weight:700; }
+    border-radius:8px; padding:11px 13px; }
+  .desk-card h3 { font-size:10px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.4px; margin-bottom:8px; font-weight:700; }
+  .desk-card h3 .desk-h-link { font-size:9.5px; color:var(--gold);
+    text-transform:none; letter-spacing:0; font-weight:600; margin-left:8px;
+    cursor:pointer; text-decoration:none; }
+  .desk-card h3 .desk-h-link:hover { text-decoration:underline; }
   .desk-stats { display:flex; flex-wrap:wrap; gap:12px 22px; }
-  .desk-stat { font-size:10.5px; color:var(--muted); text-transform:uppercase;
+  .desk-stat { font-size:10px; color:var(--muted); text-transform:uppercase;
     letter-spacing:.3px; }
-  .desk-stat b { display:block; color:var(--text); font-size:20px; font-weight:800;
+  .desk-stat b { display:block; color:var(--text); font-size:18px; font-weight:800;
     margin-bottom:2px; font-variant-numeric:tabular-nums; }
   .desk-stat.pos b { color:var(--green); }
   .desk-stat.neg b { color:var(--red); }
-  .desk-row { display:flex; align-items:center; gap:8px; padding:5px 0;
-    font-size:12px; }
+  .desk-row { display:flex; align-items:center; gap:7px; padding:3px 0;
+    font-size:10.5px; }
   .desk-row + .desk-row { border-top:1px solid var(--line); }
-  .desk-row .dr-tk { font-weight:700; color:var(--text); min-width:56px; }
-  .desk-row .dr-meta { color:var(--muted); font-size:10.5px; flex:1;
+  .desk-row .dr-tk { font-weight:700; color:var(--text); min-width:52px;
+    font-size:11px; }
+  .desk-row .dr-meta { color:var(--muted); font-size:9.5px; flex:1;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .desk-row .dr-val { color:var(--textdim); font-variant-numeric:tabular-nums;
-    white-space:nowrap; font-weight:600; }
+    white-space:nowrap; font-weight:600; font-size:10.5px; }
   .desk-row .dr-val.sc-up   { color:var(--green); }
   .desk-row .dr-val.sc-down { color:var(--red); }
   .desk-row .dr-val a { color:var(--gold); text-decoration:none; }
-  .desk-sub { font-size:9.5px; text-transform:uppercase; letter-spacing:.4px;
-    color:var(--muted); font-weight:700; margin:10px 0 3px; }
+  .desk-row .dr-flow { color:var(--gold); cursor:pointer; font-size:10px;
+    margin-left:4px; opacity:.75; }
+  .desk-row .dr-flow:hover { opacity:1; text-decoration:underline; }
+  .desk-sub { font-size:9px; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--muted); font-weight:700; margin:9px 0 2px; }
   .desk-sub:first-child { margin-top:0; }
   .desk-sub.pos { color:var(--green); }
   .desk-sub.neg { color:var(--red); }
-  .desk-empty { color:var(--muted); font-size:11px; text-align:center;
-    padding:14px; }
+  .desk-empty { color:var(--muted); font-size:10.5px; text-align:center;
+    padding:10px; }
   @media (max-width:760px) {
     .desk-grid { grid-template-columns:1fr; }
   }
   .desk-card.span2 { grid-column:1 / -1; }
+  /* Stack two cards in a single grid cell (Calendar + Earnings combo) */
+  .desk-stack { display:grid; gap:14px; align-content:start; }
 
   /* Economic calendar rows (Today's Desk card) */
   .cal-row { display:grid;
-    grid-template-columns:54px 1fr 26px 60px 60px 60px;
-    align-items:center; gap:8px; padding:4px 0; font-size:11.5px; }
+    grid-template-columns:50px 1fr 22px 56px 56px 56px;
+    align-items:center; gap:7px; padding:3px 0; font-size:10.5px; }
   .cal-row + .cal-row { border-top:1px solid var(--line); }
-  .cal-row.cal-hdr { padding-bottom:5px; margin-bottom:3px;
+  .cal-row.cal-hdr { padding-bottom:4px; margin-bottom:2px;
     border-bottom:1px solid var(--line); }
-  .cal-row.cal-hdr span { font-size:9px; text-transform:uppercase;
+  .cal-row.cal-hdr span { font-size:8.5px; text-transform:uppercase;
     letter-spacing:.4px; color:var(--muted); font-weight:700; }
   .cal-time  { color:var(--muted); font-variant-numeric:tabular-nums;
-    font-size:10.5px; }
+    font-size:9.5px; }
   .cal-title { color:var(--text); overflow:hidden; text-overflow:ellipsis;
     white-space:nowrap; }
-  .cal-imp   { height:8px; border-radius:2px; }
+  .cal-imp   { height:7px; border-radius:2px; }
   .cal-imp.imp-high   { background:var(--red); }
   .cal-imp.imp-med    { background:#ff9e1b; }
   .cal-imp.imp-low    { background:var(--gold); opacity:.55; }
   .cal-imp.imp-none   { background:var(--muted); opacity:.35; }
   .cal-act, .cal-fcst, .cal-prev { text-align:right;
-    font-variant-numeric:tabular-nums; font-size:11px; color:var(--textdim); }
+    font-variant-numeric:tabular-nums; font-size:10px; color:var(--textdim); }
   .cal-act { color:var(--text); font-weight:700; }
 
-  /* Top Confluence Names (rich, spans both desk columns) */
-  .conf-row { display:flex; gap:10px; padding:7px 0; align-items:baseline; }
+  /* Top Bullish / Bearish (per-name narrative rows) */
+  .conf-row { display:flex; gap:9px; padding:5px 0; align-items:baseline; }
   .conf-row + .conf-row { border-top:1px solid var(--line); }
-  .conf-row .cr-tk { font-weight:800; color:var(--text); min-width:64px;
-    font-size:12.5px; letter-spacing:.3px; }
-  .conf-row .cr-narr { color:var(--textdim); font-size:11.5px;
-    line-height:1.45; }
+  .conf-row .cr-tk { font-weight:800; color:var(--text); min-width:54px;
+    font-size:11px; letter-spacing:.3px; }
+  .conf-row .cr-narr { color:var(--textdim); font-size:10px;
+    line-height:1.4; }
   .conf-row .cr-narr .tag-pos     { color:var(--green); font-weight:600; }
   .conf-row .cr-narr .tag-neg     { color:var(--red);   font-weight:600; }
   .conf-row .cr-narr .tag-conf    { color:#ff9e1b; font-weight:700; }
@@ -255,42 +265,42 @@
   .conf-row .cr-narr .tag-rep     { color:var(--gold); }
 
   /* Market Health — compact stats line + 4-column performers table */
-  .mh-stats { font-size:11.5px; color:var(--textdim); margin-bottom:10px;
+  .mh-stats { font-size:10.5px; color:var(--textdim); margin-bottom:8px;
     line-height:1.6; }
   .mh-stats b { color:var(--text); font-weight:700; }
   .mh-stats .pos { color:var(--green); font-weight:700; }
   .mh-stats .neg { color:var(--red); font-weight:700; }
-  .mh-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+  .mh-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:5px; }
   .mh-col { border:1px solid var(--line); border-radius:5px; overflow:hidden; }
-  .mh-col h4 { font-size:10px; text-transform:uppercase; letter-spacing:.4px;
+  .mh-col h4 { font-size:9px; text-transform:uppercase; letter-spacing:.4px;
     color:#fff; text-align:center; padding:3px 0; font-weight:700;
     text-shadow:0 1px 2px rgba(0,0,0,.55); }
   .mh-col h4.bull { background:rgba(31,179,99,0.85); }
   .mh-col h4.bear { background:rgba(214,68,68,0.85); }
   .mh-tk-row { display:flex; justify-content:space-between; gap:5px;
-    padding:2px 6px; font-size:10.5px; white-space:nowrap; cursor:default; }
+    padding:1.5px 5px; font-size:9.5px; white-space:nowrap; cursor:default; }
   .mh-tk-row .mh-tk { font-weight:700; color:var(--text); }
   .mh-tk-row .mh-pct { font-variant-numeric:tabular-nums; }
   .mh-tk-row .mh-pct.up   { color:var(--green); }
   .mh-tk-row .mh-pct.down { color:var(--red); }
 
   /* Upcoming Earnings card */
-  .earn-row { display:grid; grid-template-columns:74px 1fr; gap:10px;
-    padding:6px 0; font-size:11px; align-items:baseline; }
+  .earn-row { display:grid; grid-template-columns:68px 1fr; gap:9px;
+    padding:5px 0; font-size:10px; align-items:baseline; }
   .earn-row + .earn-row { border-top:1px solid var(--line); }
-  .earn-row .er-date { color:var(--muted); font-weight:700; font-size:10.5px;
+  .earn-row .er-date { color:var(--muted); font-weight:700; font-size:9.5px;
     text-transform:uppercase; letter-spacing:.3px; }
-  .er-sessions { display:flex; flex-direction:column; gap:4px; }
-  .earn-sess { display:grid; grid-template-columns:34px 1fr; gap:8px;
+  .er-sessions { display:flex; flex-direction:column; gap:3px; }
+  .earn-sess { display:grid; grid-template-columns:30px 1fr; gap:7px;
     align-items:baseline; }
-  .earn-sess .es-tag { font-size:9px; font-weight:800; letter-spacing:.3px;
+  .earn-sess .es-tag { font-size:8.5px; font-weight:800; letter-spacing:.3px;
     color:#fff; text-align:center; padding:1px 0; border-radius:3px;
     text-shadow:0 1px 2px rgba(0,0,0,.5); }
   .earn-sess .es-tag.es-bmo { background:rgba(31,179,99,0.85); }
   .earn-sess .es-tag.es-amc { background:rgba(214,68,68,0.85); }
   .earn-sess .es-tag.es-tbd { background:var(--muted); }
   .earn-sess .es-tk span { display:inline-block; font-weight:700;
-    color:var(--text); margin-right:9px; cursor:default; font-size:11px; }
+    color:var(--text); margin-right:8px; cursor:default; font-size:10px; }
 
   /* Density: compact preset */
   html[data-density="dense"] .desk-card { padding:9px 12px; }
@@ -1438,7 +1448,9 @@
         .sort(function (a, b) { return (b.trade_score || 0) - (a.trade_score || 0); })
         .slice(0, 20);
       if (!top.length) return desk("Top Options Flow", empty("No flow today."));
-      return desk("Top Options Flow", top.map(function (r) {
+      const titleWithLink = "Top Options Flow" +
+        '<a class="desk-h-link" data-flow-all="1">See all notable flow &rarr;</a>';
+      return desk(titleWithLink, top.map(function (r) {
         const dir = r.direction || "";
         const cls = dir === "bullish" ? "sc-up" : dir === "bearish" ? "sc-down" : "";
         const tag = (r.type || "").toUpperCase() + " $" + r.strike + " · " + r.expiry;
@@ -1446,7 +1458,10 @@
           '<span class="dr-tk" data-t="' + r.ticker + '">' + r.ticker + '</span>' +
           '<span class="dr-meta">' + tag + '</span>' +
           '<span class="dr-val ' + cls + '">' + (r.trade_score || 0) +
-            ' · ' + fmtVol(r.premium) + '</span></div>';
+            ' · ' + fmtVol(r.premium) + '</span>' +
+          '<a class="dr-flow" data-flow-tk="' + r.ticker +
+            '" title="See notable flow for ' + r.ticker + '">flow &rarr;</a>' +
+          '</div>';
       }).join(""));
     }
 
@@ -1560,18 +1575,19 @@
         '<div class="desk-sub neg">Weakest</div>'   + weak.map(function (t)   { return row(t,"sc-down"); }).join(""));
     }
 
-    function cardTopConfluence(uoa, swing, qm, sb, manifest, today) {
-      // Build per-ticker context map by walking every data source
+    // Build per-ticker context map from every data source. Used by both
+    // Top Bullish and Top Bearish cards (split out of the prior Confluence card).
+    function buildConfluenceCtx(uoa, swing, qm, sb, manifest, today) {
       const ctx = {};
       const ensure = function (t) {
         if (!ctx[t]) ctx[t] = { grade:null, themes:[], flow:null,
                                 qm:false, sb:false, rep:false };
         return ctx[t];
       };
-      // Swing grades — A+/A/A- = "A-tier trend"; B+/B = "B-tier trend"
+      // Swing grades — full A+/A/A-/B+/B (bullish tier) + G+/G/F+/F (bearish tier)
       if (swing && swing.runs && swing.runs.length) {
         const r = swing.runs[swing.runs.length - 1];
-        ["A+","A","A-","B+","B"].forEach(function (g) {
+        ["A+","A","A-","B+","B","F+","F","F-","G+","G"].forEach(function (g) {
           (r.grades[g] || []).forEach(function (c) {
             const e = ensure(c.t); e.grade = g; e.themes = c.th || [];
           });
@@ -1608,51 +1624,93 @@
           });
         });
       }
-      // Score: count of distinct signal sources (grade / flow / qm / sb / report)
+      return ctx;
+    }
+    function narrative(e) {
+      const parts = [];
+      if (e.grade) {
+        const lbl = /^A/.test(e.grade) ? e.grade + " trend"
+                  : /^B/.test(e.grade) ? "B-tier trend"
+                  : /^[FG]/.test(e.grade) ? e.grade + " weakness" : null;
+        if (lbl) parts.push('<span class="tag-grade">' + lbl + '</span>');
+      }
+      if (e.flow) {
+        if (e.flow === "bullish")
+          parts.push('<span class="tag-pos">bullish flow</span>');
+        else if (e.flow === "bearish")
+          parts.push('<span class="tag-neg">bearish flow</span>');
+        else parts.push('options flow');
+      }
+      if (e.themes && e.themes.length)
+        parts.push(e.themes[0] + ' theme');
+      if (e.qm)  parts.push('monthly gainer');
+      if (e.sb)  parts.push('weekly gainer');
+      if (e.rep) parts.push('<span class="tag-rep">recent report</span>');
+      if (e.grade && /^A/.test(e.grade) && e.flow === "bearish")
+        parts.push('<span class="tag-conf">bearish flow conflict</span>');
+      if (e.grade && /^[FG]/.test(e.grade) && e.flow === "bullish")
+        parts.push('<span class="tag-conf">bullish flow conflict</span>');
+      return parts.join(' &middot; ');
+    }
+    function cardTopBullish(ctx) {
       const list = Object.keys(ctx).map(function (t) {
         const e = ctx[t];
-        let n = 0;
-        if (e.grade) n++;
-        if (e.flow)  n++;
-        if (e.qm)    n++;
-        if (e.sb)    n++;
-        if (e.rep)   n++;
-        return { t:t, e:e, n:n };
-      }).filter(function (x) { return x.n >= 2; })
-        .sort(function (a, b) {
-          if (b.n !== a.n) return b.n - a.n;
-          // tiebreaker: A+ tier ranks first
-          const ga = (a.e.grade || "Z"), gb = (b.e.grade || "Z");
-          return ga.localeCompare(gb);
-        });
-      if (!list.length) return desk("Top Confluence Names",
-        empty("No names appear in 2+ tools today."));
-
-      function narrative(e) {
-        const parts = [];
+        // Score bullish bias and signal richness in one pass
+        let score = 0, sigs = 0;
         if (e.grade) {
-          const lbl = /^A/.test(e.grade) ? e.grade + " trend"
-                    : /^B/.test(e.grade) ? "high trend strength" : null;
-          if (lbl) parts.push('<span class="tag-grade">' + lbl + '</span>');
+          sigs++;
+          if (e.grade === "A+") score += 4;
+          else if (e.grade === "A") score += 3;
+          else if (e.grade === "A-") score += 2;
+          else if (/^B/.test(e.grade)) score += 1;
         }
-        if (e.flow) {
-          if (e.flow === "bullish")
-            parts.push('<span class="tag-pos">bullish flow</span>');
-          else if (e.flow === "bearish")
-            parts.push('<span class="tag-neg">bearish flow</span>');
-          else parts.push('options flow');
+        if (e.flow === "bullish") { score += 2; sigs++; }
+        else if (e.flow === "bearish") { score -= 2; sigs++; }
+        else if (e.flow) sigs++;
+        if (e.qm)  { score += 1; sigs++; }
+        if (e.sb)  { score += 1; sigs++; }
+        if (e.rep) sigs++;
+        return { t:t, e:e, score:score, sigs:sigs };
+      }).filter(function (x) { return x.score > 0 && x.sigs >= 2; })
+        .sort(function (a, b) {
+          if (b.score !== a.score) return b.score - a.score;
+          return b.sigs - a.sigs;
+        });
+      if (!list.length) return desk("Top Bullish",
+        empty("No bullish confluence today."));
+      return desk("Top Bullish", list.slice(0, 20).map(function (x) {
+        return '<div class="conf-row">' +
+          '<span class="cr-tk" data-t="' + x.t + '">' + x.t + '</span>' +
+          '<span class="cr-narr">' + narrative(x.e) + '</span></div>';
+      }).join(""));
+    }
+    function cardTopBearish(ctx) {
+      const list = Object.keys(ctx).map(function (t) {
+        const e = ctx[t];
+        let score = 0, sigs = 0;
+        if (e.grade) {
+          sigs++;
+          if (e.grade === "G") score += 4;
+          else if (e.grade === "G+") score += 3;
+          else if (/^F/.test(e.grade)) score += 2;
         }
-        if (e.themes && e.themes.length)
-          parts.push(e.themes[0] + ' theme');
-        if (e.qm)  parts.push('monthly gainer');
-        if (e.sb)  parts.push('weekly gainer');
-        if (e.rep) parts.push('<span class="tag-rep">recent report</span>');
-        // Conflict detection
-        if (e.grade && /^A/.test(e.grade) && e.flow === "bearish")
-          parts.push('<span class="tag-conf">bearish flow conflict</span>');
-        return parts.join(' &middot; ');
-      }
-      return desk("Top Confluence Names", list.slice(0, 20).map(function (x) {
+        if (e.flow === "bearish") { score += 2; sigs++; }
+        else if (e.flow === "bullish") { score -= 2; sigs++; }
+        else if (e.flow) sigs++;
+        if (e.rep) sigs++;
+        // Bonus: an A-tier name with bearish flow is a notable conflict to surface
+        if (e.grade && /^A/.test(e.grade) && e.flow === "bearish") {
+          score += 2; sigs++;
+        }
+        return { t:t, e:e, score:score, sigs:sigs };
+      }).filter(function (x) { return x.score > 0 && x.sigs >= 2; })
+        .sort(function (a, b) {
+          if (b.score !== a.score) return b.score - a.score;
+          return b.sigs - a.sigs;
+        });
+      if (!list.length) return desk("Top Bearish",
+        empty("No bearish confluence today."));
+      return desk("Top Bearish", list.slice(0, 20).map(function (x) {
         return '<div class="conf-row">' +
           '<span class="cr-tk" data-t="' + x.t + '">' + x.t + '</span>' +
           '<span class="cr-narr">' + narrative(x.e) + '</span></div>';
@@ -1710,11 +1768,23 @@
         }).join(""));
     }
 
+    // Market cap formatter — exposed for popups across this scope
+    function fmtMcap(v) {
+      if (v == null || !isFinite(v) || v <= 0) return null;
+      if (v >= 1e12) return "$" + (v / 1e12).toFixed(2) + "T";
+      if (v >= 1e11) return "$" + Math.round(v / 1e9) + "B";
+      if (v >= 1e10) return "$" + (v / 1e9).toFixed(1) + "B";
+      if (v >= 1e9)  return "$" + (v / 1e9).toFixed(2) + "B";
+      if (v >= 1e8)  return "$" + Math.round(v / 1e6) + "M";
+      if (v >= 1e6)  return "$" + (v / 1e6).toFixed(1) + "M";
+      return "$" + Math.round(v);
+    }
+
     // ── Hover popup (security info card, mirrors Swing Report Card) ──
     const pop = document.createElement("div");
     pop.className = "src-pop";
     document.body.appendChild(pop);
-    let DESK_TKMAP = {}, DESK_DATE = "";
+    let DESK_TKMAP = {}, DESK_DATE = "", DESK_META = {};
     function popSparkDesk(spark) {
       if (!spark || spark.length < 2) return "";
       const W = 252, H = 40;
@@ -1731,12 +1801,16 @@
         '" stroke-width="1.5"/></svg></div>';
     }
     function showPopDesk(tkr, anchor) {
-      const c = DESK_TKMAP[tkr];
-      if (!c) return;
+      const c = DESK_TKMAP[tkr] || { t: tkr };
       const dc = (typeof c.chg === "number") ? c.chg : null;
       const cls = dc == null ? "flat" : dc > 0 ? "up" : dc < 0 ? "down" : "flat";
       const arrow = dc == null ? "" : dc > 0 ? "▲ " : dc < 0 ? "▼ " : "";
-      const row2 = [c.ctry, c.mcb && (c.mcb + " cap"), c.xch].filter(Boolean).join(" · ");
+      // Prefer raw market_cap (uoa_meta_cache or swing cell.mcap) over the
+      // coarse bucket label so the popup shows e.g. "$2.4T" not "Large cap"
+      const rawMcap = (typeof c.mcap === "number") ? c.mcap
+                    : (DESK_META[tkr] && DESK_META[tkr].mkt_cap);
+      const mcapStr = fmtMcap(rawMcap);
+      const row2 = [c.ctry, mcapStr, c.xch].filter(Boolean).join(" · ");
       const row1 = [c.sec, c.ind].filter(Boolean).join(" · ");
       pop.innerHTML =
         '<div class="sp-head"><span class="sp-sym">' + c.t + '</span>' +
@@ -1767,6 +1841,24 @@
       if (e.target.closest("[data-t]")) hidePopDesk();
     });
 
+    // ── "See notable flow" click handler — switches to Options Flow tab
+    // and pre-fills the ticker search input so the table is filtered to that
+    // name. Empty data-flow-tk on the card-header link means "no filter".
+    grid.addEventListener("click", function (e) {
+      const flowTk = e.target.closest("[data-flow-tk]");
+      const flowAll = e.target.closest("[data-flow-all]");
+      if (!flowTk && !flowAll) return;
+      e.preventDefault();
+      hidePopDesk();
+      const tab = document.querySelector('nav button[data-tab="uoa"]');
+      if (tab) tab.click();
+      const q = document.getElementById("uoa-q");
+      if (q) {
+        q.value = flowTk ? flowTk.dataset.flowTk : "";
+        q.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+
     const fetchJSON = function (path) {
       return fetch(path + "?t=" + Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -1787,6 +1879,7 @@
         ? swing.runs[swing.runs.length - 1].date
         : new Date().toISOString().slice(0, 10);
       DESK_DATE = today;
+      DESK_META = uoaMeta || {};
       // Build hover lookup from every cell across grades
       DESK_TKMAP = {};
       if (swing && swing.runs && swing.runs.length) {
@@ -1795,15 +1888,23 @@
           (r.grades[g] || []).forEach(function (c) { DESK_TKMAP[c.t] = c; });
         });
       }
+      const ctx = buildConfluenceCtx(uoa, swing, qm, sb, manifest, today);
+      // Calendar + Earnings share a single grid cell — Earnings sits cleanly
+      // beneath the Economic Calendar in the same left-column slot.
+      const calEarnStack =
+        '<div class="desk-stack">' +
+          cardCalendar(cal, today) +
+          cardEarnings(uoaMeta, today) +
+        '</div>';
       grid.innerHTML = [
         cardMarketHealth(swing),
         cardTopFlow(uoa),
         cardSwingUpgrades(swing),
         cardBreakouts(swing),
-        cardCalendar(cal, today),
+        calEarnStack,
         cardThemes(swing),
-        cardTopConfluence(uoa, swing, qm, sb, manifest, today),
-        cardEarnings(uoaMeta, today),
+        cardTopBullish(ctx),
+        cardTopBearish(ctx),
       ].join("");
     });
   }
@@ -1819,12 +1920,25 @@
     if (!sel || !body) return;
     const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
                 "D","D-","E+","E","E-","F+","F","F-","G+","G"];
-    let RUNS = [], TKMAP = {}, RUN_DATE = "";
+    let RUNS = [], TKMAP = {}, RUN_DATE = "", META = {};
 
     // hover popup (created once)
     const pop = document.createElement("div");
     pop.className = "src-pop";
     document.body.appendChild(pop);
+
+    // Market-cap formatter — swap "Large/Small cap" buckets for the actual
+    // figure ($X.XT / $XB / etc.) sourced from the per-ticker meta cache.
+    function fmtMcap(v) {
+      if (v == null || !isFinite(v) || v <= 0) return null;
+      if (v >= 1e12) return "$" + (v / 1e12).toFixed(2) + "T";
+      if (v >= 1e11) return "$" + Math.round(v / 1e9) + "B";
+      if (v >= 1e10) return "$" + (v / 1e9).toFixed(1) + "B";
+      if (v >= 1e9)  return "$" + (v / 1e9).toFixed(2) + "B";
+      if (v >= 1e8)  return "$" + Math.round(v / 1e6) + "M";
+      if (v >= 1e6)  return "$" + (v / 1e6).toFixed(1) + "M";
+      return "$" + Math.round(v);
+    }
 
     function gradeMap(run) {
       const m = {};
@@ -1863,7 +1977,13 @@
       const dc = (typeof c.chg === "number") ? c.chg : null;
       const cls = dc == null ? "flat" : dc > 0 ? "up" : dc < 0 ? "down" : "flat";
       const arrow = dc == null ? "" : dc > 0 ? "▲ " : dc < 0 ? "▼ " : "";
-      const row2 = [c.ctry, c.mcb && (c.mcb + " cap"), c.xch].filter(Boolean).join(" · ");
+      // Real market-cap figure if we have it (uoa_meta_cache or swing cell);
+      // fall back to the cap bucket only if no raw number is available.
+      const rawMcap = (typeof c.mcap === "number") ? c.mcap
+                    : (META[c.t] && META[c.t].mkt_cap);
+      const mcapStr = fmtMcap(rawMcap) ||
+                      (c.mcb ? (c.mcb + " cap") : null);
+      const row2 = [c.ctry, mcapStr, c.xch].filter(Boolean).join(" · ");
       const row1 = [c.sec, c.ind].filter(Boolean).join(" · ");
       pop.innerHTML =
         '<div class="sp-head"><span class="sp-sym">' + c.t + '</span>' +
@@ -1991,25 +2111,33 @@
       if (e.target.closest(".src-tk")) hidePop();
     });
 
-    fetch("./reports/swing_report.json?t=" + Date.now())
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        RUNS = (d && d.runs) ? d.runs.slice().reverse() : [];
-        if (!RUNS.length) {
-          body.innerHTML = '<div class="uoa-empty">No report yet &mdash; the ' +
-            'next 4:30 PM ET run will populate this.</div>';
-          return;
-        }
-        sel.innerHTML = RUNS.map(function (r, i) {
-          return '<option value="' + i + '">' + r.date + '</option>';
-        }).join("");
-        render(0);
-        sel.onchange  = function () { render(+sel.value); };
-        if (tsel) tsel.onchange = function () { render(+sel.value); };
-      })
-      .catch(function () {
-        body.innerHTML = '<div class="uoa-empty">Could not load the report.</div>';
-      });
+    // Load the swing report + uoa meta cache in parallel — the meta cache
+    // gives us the raw market_cap figure used in the hover popup.
+    Promise.all([
+      fetch("./reports/swing_report.json?t=" + Date.now())
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; }),
+      fetch("./reports/uoa_meta_cache.json?t=" + Date.now())
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; }),
+    ]).then(function (arr) {
+      const d = arr[0];
+      META = arr[1] || {};
+      RUNS = (d && d.runs) ? d.runs.slice().reverse() : [];
+      if (!RUNS.length) {
+        body.innerHTML = '<div class="uoa-empty">No report yet &mdash; the ' +
+          'next 4:30 PM ET run will populate this.</div>';
+        return;
+      }
+      sel.innerHTML = RUNS.map(function (r, i) {
+        return '<option value="' + i + '">' + r.date + '</option>';
+      }).join("");
+      render(0);
+      sel.onchange  = function () { render(+sel.value); };
+      if (tsel) tsel.onchange = function () { render(+sel.value); };
+    }).catch(function () {
+      body.innerHTML = '<div class="uoa-empty">Could not load the report.</div>';
+    });
   }
   setupSwing();
 
