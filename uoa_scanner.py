@@ -34,6 +34,7 @@ import themes
 _BASE = os.path.dirname(os.path.abspath(__file__))
 LEDGER_PATH = os.path.join(_BASE, "docs", "reports", "uoa_signals.jsonl")
 LATEST_PATH = os.path.join(_BASE, "docs", "reports", "uoa_latest.json")
+META_CACHE_PATH = os.path.join(_BASE, "docs", "reports", "uoa_meta_cache.json")
 
 # ─── Screen thresholds (tunable) ──────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ GOLDEN_PREMIUM    = 1_000_000       # $ — Golden Sweep premium floor
 GOLDEN_MAX_DTE    = 30
 EARNINGS_WINDOW   = 10              # flag flow into earnings within N days
 REPEAT_LOOKBACK_DAYS = 5            # ledger window for repeat-flow detection
+META_REFRESH_DAYS    = 10           # days a cached earnings/cap/sector entry lives
 
 # Major ETF / index products — excluded. Hedging vehicles, not directional
 # single-name smart-money flow (your spec: single-name equities preferred).
@@ -555,9 +557,10 @@ def _load_repeat_map(lookback_days=REPEAT_LOOKBACK_DAYS):
     return counts
 
 
-def _earnings_days(ticker):
-    """Calendar days until the next earnings date (yfinance calendar — the
-    fixed date/datetime parse). None if unavailable."""
+def _earnings_date(ticker):
+    """Next earnings date as 'YYYY-MM-DD' (yfinance calendar), or None.
+    Stored as an absolute date so a cached entry stays valid until the
+    earnings actually passes — not just for the day it was fetched."""
     try:
         import yfinance as yf
         from datetime import date as _date
@@ -570,9 +573,30 @@ def _earnings_days(ticker):
             ed = ed.date()
         elif not isinstance(ed, _date):
             return None
-        return (ed - datetime.now(timezone.utc).date()).days
+        return ed.isoformat()
     except Exception:
         return None
+
+
+def _load_meta_cache():
+    """Per-ticker earnings/cap/sector cache, persisted in docs/reports/ so it
+    survives across CI runs. yfinance earnings lookups are slow and flaky;
+    caching the absolute earnings date means most runs make zero yfinance
+    calls — only stale or newly-seen tickers are fetched."""
+    try:
+        with open(META_CACHE_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_meta_cache(cache):
+    try:
+        os.makedirs(os.path.dirname(META_CACHE_PATH), exist_ok=True)
+        with open(META_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=0, sort_keys=True)
+    except Exception as e:
+        print(f"  meta cache save failed (non-fatal): {e}")
 
 
 def _cap_bucket(mkt_cap):
@@ -614,25 +638,48 @@ def _sic_sector(sic):
     return "Other"
 
 
-def _underlying_meta(ticker):
-    """Per-underlying metadata: next-earnings days (yfinance calendar),
-    market cap + coarse sector (Polygon ticker reference)."""
-    meta = {"earnings_days": _earnings_days(ticker),
-            "mkt_cap": None, "sector": "Other"}
+def _meta_is_fresh(entry, today):
+    """A cached metadata entry is reusable if it was fetched recently AND its
+    earnings date hasn't already passed (a passed date means a newer one
+    should be picked up)."""
+    try:
+        fetched = datetime.strptime(entry["fetched"], "%Y-%m-%d").date()
+    except (KeyError, ValueError, TypeError):
+        return False
+    if (today - fetched).days > META_REFRESH_DAYS:
+        return False
+    ed = entry.get("earnings_date")
+    if ed:
+        try:
+            if datetime.strptime(ed, "%Y-%m-%d").date() < today:
+                return False
+        except ValueError:
+            return False
+    return True
+
+
+def _fetch_underlying_meta(ticker):
+    """Cold metadata fetch for one ticker: earnings date (yfinance) plus
+    market cap and coarse sector (Polygon ticker reference)."""
+    entry = {
+        "earnings_date": _earnings_date(ticker),
+        "mkt_cap": None,
+        "sector": "Other",
+        "fetched": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+    }
     try:
         d = pg.ticker_details(ticker) or {}
-        mc = d.get("market_cap")
-        if mc:
-            meta["mkt_cap"] = mc
-        meta["sector"] = _sic_sector(d.get("sic_code"))
+        if d.get("market_cap"):
+            entry["mkt_cap"] = d["market_cap"]
+        entry["sector"] = _sic_sector(d.get("sic_code"))
     except Exception:
         pass
-    return meta
+    return entry
 
 
 # ─── Orchestration ────────────────────────────────────────────────────────────
 
-def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, workers=10):
+def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, workers=40):
     """Run the full UOA screen. Returns ranked rows (highest Trade Score first)."""
     if universe is None:
         universe, boost = build_universe()
@@ -653,14 +700,36 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
             flagged.extend(hits)
     print(f"  Snapshot flagged {len(flagged)} unusual contracts")
 
-    # Repeat-flow map (recent ledger) + earnings dates for the flagged shortlist
+    # Repeat-flow map (recent ledger) + per-underlying metadata. Metadata is
+    # cached on disk (uoa_meta_cache.json) keyed by ticker — only stale or
+    # newly-seen names trigger a slow, flaky yfinance earnings call.
     repeat_map = _load_repeat_map()
     uniq = sorted({r["underlying"] for r in flagged})
-    print(f"  Fetching metadata (earnings, market cap, sector) for {len(uniq)} underlyings...")
+    today = datetime.now(timezone.utc).date()
+    cache = _load_meta_cache()
+    stale = [t for t in uniq if not _meta_is_fresh(cache.get(t, {}), today)]
+    print(f"  Metadata for {len(uniq)} underlyings "
+          f"({len(uniq) - len(stale)} cached, {len(stale)} to fetch)...")
+    # yfinance bans bursty clients — keep its concurrency low even when the
+    # Polygon passes run wide.
+    meta_workers = max(1, min(workers, 8))
+    with ThreadPoolExecutor(max_workers=meta_workers) as ex:
+        for t, entry in ex.map(lambda t: (t, _fetch_underlying_meta(t)), stale):
+            cache[t] = entry
+    if stale:
+        _save_meta_cache(cache)
     meta_map = {}
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        for tk, m in ex.map(lambda t: (t, _underlying_meta(t)), uniq):
-            meta_map[tk] = m
+    for t in uniq:
+        e = cache.get(t, {})
+        ed = e.get("earnings_date")
+        days = None
+        if ed:
+            try:
+                days = (datetime.strptime(ed, "%Y-%m-%d").date() - today).days
+            except ValueError:
+                days = None
+        meta_map[t] = {"earnings_days": days, "mkt_cap": e.get("mkt_cap"),
+                       "sector": e.get("sector", "Other")}
 
     print(f"  Trade-tape analysis on {len(flagged)} contracts...")
     rows = []
