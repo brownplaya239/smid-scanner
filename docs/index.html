@@ -3,21 +3,33 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#000000" />
+<meta name="description" content="Your daily equity research desk for flow, breakouts, catalysts, and watchlists." />
+<!-- Link preview (iMessage, Slack, social) -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="TickerDesk" />
+<meta property="og:title" content="TickerDesk" />
+<meta property="og:description" content="Your daily equity research desk for flow, breakouts, catalysts, and watchlists." />
+<meta property="og:url" content="https://tickerdesk.io" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="TickerDesk" />
+<meta name="twitter:description" content="Your daily equity research desk for flow, breakouts, catalysts, and watchlists." />
 <title>TickerDesk</title>
 <style>
-  :root, html[data-theme="mid"] {           /* MID — navy / gold (default) */
-    --bg:#0a0f24; --navy:#0c1430; --navy2:#162246; --card:#111a38;
-    --line:#20305e; --border2:var(--border2); --inp:var(--inp); --rowhov:var(--rowhov);
-    --text:var(--text); --textdim:var(--textdim); --muted:#8a93a8;
-    --gold:#ffc800; --accink:#0c1430;
-    --green:#27ae60; --red:#c0392b;
-  }
-  html[data-theme="dark"] {                  /* DARK — Bloomberg / Koyfin black */
+  :root, html[data-theme="dark"] {           /* DARK — Bloomberg / Koyfin (default;
+                                                also what no-JS link scrapers render) */
     --bg:#000000; --navy:#0a0a0a; --navy2:#161616; --card:#0e0e0e;
     --line:#2b2b2b; --border2:#3a3a3a; --inp:#070707; --rowhov:#1e1e1e;
     --text:#e8e8e8; --textdim:#b4b4b4; --muted:#7a7a7a;
     --gold:#ff9e1b; --accink:#000000;
     --green:#1fc36e; --red:#ff5b5b;
+  }
+  html[data-theme="mid"] {                   /* MID — navy / gold */
+    --bg:#0a0f24; --navy:#0c1430; --navy2:#162246; --card:#111a38;
+    --line:#20305e; --border2:#2a3a6e; --inp:#0a1024; --rowhov:#16213f;
+    --text:#e8ecf6; --textdim:#cdd6ee; --muted:#8a93a8;
+    --gold:#ffc800; --accink:#0c1430;
+    --green:#27ae60; --red:#c0392b;
   }
   html[data-theme="light"] {                 /* LIGHT */
     --bg:#f3f4f7; --navy:#ffffff; --navy2:#e9ebf0; --card:#ffffff;
