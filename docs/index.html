@@ -574,15 +574,61 @@
           next-day OI status (did the position stick?) and realized forward
           return. Builds up over the days following each scan.</p>
         <div class="uoa-filters">
+          <div class="uoa-filter-row">
+          <input type="text" id="trk-q" placeholder="Ticker..." autocomplete="off" />
+          <select id="trk-type">
+            <option value="">Calls + Puts</option>
+            <option value="call">Calls only</option>
+            <option value="put">Puts only</option>
+          </select>
+          <select id="trk-dte">
+            <option value="">Any DTE</option>
+            <option value="urgent">0-14d</option>
+            <option value="swing">14-90d</option>
+            <option value="positioning">90-365d</option>
+            <option value="leaps">365d+</option>
+          </select>
+          <select id="trk-cap">
+            <option value="">Any cap</option>
+            <option value="mega">Mega</option>
+            <option value="large">Large</option>
+            <option value="mid">Mid</option>
+            <option value="small">Small</option>
+          </select>
+          <select id="trk-sector"><option value="">Any sector</option></select>
+          <select id="trk-theme"><option value="">Any theme</option></select>
+          <select id="trk-score">
+            <option value="0">Any score</option>
+            <option value="80">80+</option>
+            <option value="65">65+</option>
+            <option value="55">55+</option>
+          </select>
+          <select id="trk-prem">
+            <option value="0">Any premium</option>
+            <option value="100000">$100k+</option>
+            <option value="300000">$300k+</option>
+            <option value="500000">$500k+</option>
+            <option value="1000000">$1M+</option>
+          </select>
           <select id="trk-status">
-            <option value="">All statuses</option>
+            <option value="">Any OI status</option>
             <option value="confirmed">OI Confirmed</option>
             <option value="weak">OI Weak</option>
             <option value="closed">Closed / Failed</option>
             <option value="pending">Pending</option>
           </select>
-          <input type="text" id="trk-q" placeholder="Ticker..." autocomplete="off" />
-          <label><input type="checkbox" id="trk-group" /> Group by ticker</label>
+          </div>
+          <div class="uoa-filter-row">
+          <label class="grp-toggle"><input type="checkbox" id="trk-group" /> Group by ticker</label>
+          <label><input type="checkbox" id="trk-golden" /> Golden</label>
+          <label><input type="checkbox" id="trk-open" /> Open</label>
+          <label><input type="checkbox" id="trk-liqab" /> Liquid</label>
+          <label><input type="checkbox" id="trk-repeat" /> Repeat</label>
+          <label><input type="checkbox" id="trk-ern" /> Earnings</label>
+          <label><input type="checkbox" id="trk-noseller" /> No sellers</label>
+          <label><input type="checkbox" id="trk-univ" /> Universe</label>
+          <button class="uoa-reset" id="trk-reset">Reset</button>
+          </div>
         </div>
         <div class="uoa-table-wrap">
           <table class="uoa" id="trk-table">
@@ -1133,7 +1179,11 @@
         .catch(function () { renderEdge(null); });
       fetch("./reports/uoa_signals_scored.json?t="+Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) { SCORED = (d && d.signals) ? d.signals : []; })
+        .then(function (d) {
+          SCORED = (d && d.signals) ? d.signals : [];
+          const st = document.getElementById("sub-tracked");
+          if (st && st.style.display !== "none") renderTracked();
+        })
         .catch(function () { SCORED = []; });
     }
 
@@ -1164,6 +1214,71 @@
       s = s || "pending";
       return '<span class="st st-'+s+'">'+s.toUpperCase()+'</span>';
     }
+    function trkDteBucket(dte) {
+      if (dte == null)  return "unknown";
+      if (dte <= 14)    return "urgent";
+      if (dte <= 90)    return "swing";
+      if (dte <= 365)   return "positioning";
+      return "leaps";
+    }
+    function passTrackedFilters(r) {
+      const q = $("trk-q").value.trim().toUpperCase();
+      if (q && (r.ticker||"").indexOf(q) < 0) return false;
+      const tp = $("trk-type").value;
+      if (tp && r.type !== tp) return false;
+      const dte = $("trk-dte").value;
+      if (dte && trkDteBucket(r.dte) !== dte) return false;
+      const cap = $("trk-cap").value;
+      if (cap && r.cap_bucket !== cap) return false;
+      const sec = $("trk-sector").value;
+      if (sec && (r.sector||"Other") !== sec) return false;
+      const th = $("trk-theme").value;
+      if (th && !(r.themes||[]).includes(th)) return false;
+      if ((r.trade_score||0) < +$("trk-score").value) return false;
+      if ((r.premium||0) < +$("trk-prem").value) return false;
+      const stf = $("trk-status").value;
+      if (stf && r.oi_status !== stf) return false;
+      const tags = r.tags || [];
+      if ($("trk-golden").checked && tags.indexOf("Golden Sweep") < 0) return false;
+      if ($("trk-open").checked && r.opening !== "likely_open") return false;
+      if ($("trk-liqab").checked && !(r.liquidity==="A" || r.liquidity==="B")) return false;
+      if ($("trk-repeat").checked && tags.indexOf("Repeat") < 0) return false;
+      if ($("trk-ern").checked && tags.indexOf("Into ERN") < 0) return false;
+      if ($("trk-noseller").checked &&
+          (r.flow_side==="call_seller" || r.flow_side==="put_seller" ||
+           r.flow_side==="mixed" || r.flow_side==="unknown")) return false;
+      if ($("trk-univ").checked && tags.indexOf("In Universe") < 0) return false;
+      return true;
+    }
+    function populateTrackedSectors() {
+      const sel = $("trk-sector"); if (!sel) return;
+      const cur = sel.value;
+      const secs = Array.from(new Set(SCORED.map(function (r) {
+        return r.sector || "Other"; }))).sort();
+      sel.innerHTML = '<option value="">Any sector</option>' +
+        secs.map(function (s) { return '<option value="'+s+'">'+s+'</option>'; }).join("");
+      sel.value = cur;
+    }
+    function populateTrackedThemes() {
+      const sel = $("trk-theme"); if (!sel) return;
+      const cur = sel.value;
+      const set = {};
+      SCORED.forEach(function (r) {
+        (r.themes||[]).forEach(function (t) { set[t] = 1; }); });
+      sel.innerHTML = '<option value="">Any theme</option>' +
+        Object.keys(set).sort().map(function (t) {
+          return '<option value="'+t+'">'+t+'</option>'; }).join("");
+      sel.value = cur;
+    }
+    function resetTracked() {
+      $("trk-q").value = "";
+      ["trk-type","trk-dte","trk-cap","trk-sector","trk-theme","trk-status"]
+        .forEach(function (id) { if ($(id)) $(id).value = ""; });
+      $("trk-score").value = "0"; $("trk-prem").value = "0";
+      ["trk-golden","trk-open","trk-liqab","trk-repeat","trk-ern","trk-noseller",
+       "trk-univ"].forEach(function (id) { if ($(id)) $(id).checked = false; });
+      renderTrackedBody();
+    }
     function renderTrackedHead() {
       $("trk-head").innerHTML = TRK_COLS.map(function (c) {
         const ar = c.k===trkSort ? (trkDir<0?" ▼":" ▲") : "";
@@ -1184,13 +1299,8 @@
           '&mdash; the ledger fills as scans run, then scores them over the following days.</td></tr>';
         return;
       }
-      const stf = $("trk-status").value, q = $("trk-q").value.trim().toUpperCase();
       const grouped = $("trk-group").checked;
-      let rows = SCORED.filter(function (r) {
-        if (stf && r.oi_status !== stf) return false;
-        if (q && (r.ticker||"").indexOf(q) < 0) return false;
-        return true;
-      });
+      let rows = SCORED.filter(passTrackedFilters);
       function pct(v) { return v==null ? "&mdash;" : (v>0?"+":"")+v+"%"; }
       function cls(v) { return v==null ? "" : v>0?"perf-pos":v<0?"perf-neg":""; }
       function avg(a) {
@@ -1262,11 +1372,21 @@
         '</tr>';
       }).join("");
     }
-    function renderTracked() { renderTrackedHead(); renderTrackedBody(); }
-    ["trk-status","trk-q","trk-group"].forEach(function (id) {
+    function renderTracked() {
+      populateTrackedSectors(); populateTrackedThemes();
+      renderTrackedHead(); renderTrackedBody();
+    }
+    ["trk-q","trk-type","trk-dte","trk-cap","trk-sector","trk-theme","trk-score",
+     "trk-prem","trk-status","trk-group","trk-golden","trk-open","trk-liqab",
+     "trk-repeat","trk-ern","trk-noseller","trk-univ"].forEach(function (id) {
       const el = document.getElementById(id);
-      if (el) el.addEventListener(el.tagName==="INPUT"?"input":"change", renderTrackedBody);
+      if (el) el.addEventListener(
+        (el.tagName==="INPUT" && el.type==="text") ? "input" : "change", renderTrackedBody);
     });
+    (function () {
+      const b = $("trk-reset");
+      if (b) b.addEventListener("click", resetTracked);
+    })();
 
     function perfHCell(st) {
       // one horizon cell: avg return (coloured) with hit-rate beneath
