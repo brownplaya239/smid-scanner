@@ -292,10 +292,20 @@
   .mh-tk-row .mh-pct.up   { color:var(--green); }
   .mh-tk-row .mh-pct.down { color:var(--red); }
 
-  /* Top Breakout Candidates mini-table (Ticker | Theme | Mcap | RVol | Ext) */
+  /* Daily-return chip — shown next to every ticker on Today's Desk */
+  .chg-pill { font-size:9.5px; font-variant-numeric:tabular-nums;
+    font-weight:700; margin-left:5px; white-space:nowrap; cursor:default; }
+  .chg-pill.up   { color:var(--green); }
+  .chg-pill.down { color:var(--red);   }
+  .chg-pill.flat { color:var(--muted); }
+  /* Earnings card: pair each ticker with its daily-change chip */
+  .er-tk-pair { display:inline-block; margin-right:9px; white-space:nowrap; }
+  .er-tk-pair .chg-pill { margin-left:3px; }
+
+  /* Top Breakout Candidates mini-table (Ticker | Day | Theme | Mcap | RVol | Ext) */
   .brk-row { display:grid;
-    grid-template-columns:54px 1fr 56px 44px 56px;
-    align-items:center; gap:6px; padding:3px 0; font-size:10px; }
+    grid-template-columns:46px 42px 1fr 54px 42px 48px;
+    align-items:center; gap:5px; padding:3px 0; font-size:10px; }
   .brk-row + .brk-row { border-top:1px solid var(--line); }
   .brk-row.brk-hdr { padding-bottom:4px; margin-bottom:2px;
     border-bottom:1px solid var(--line); }
@@ -303,6 +313,11 @@
     letter-spacing:.4px; color:var(--muted); font-weight:700; }
   .brk-row .bk-tk   { font-weight:800; color:var(--text); font-size:11px;
     cursor:default; }
+  .brk-row .bk-dy   { text-align:right; font-variant-numeric:tabular-nums;
+    font-weight:700; font-size:10px; }
+  .brk-row .bk-dy.up   { color:var(--green); }
+  .brk-row .bk-dy.down { color:var(--red);   }
+  .brk-row .bk-dy.flat { color:var(--muted); }
   .brk-row .bk-th   { color:var(--gold); font-size:9.5px; overflow:hidden;
     text-overflow:ellipsis; white-space:nowrap; }
   .brk-row .bk-mc   { color:var(--textdim); text-align:right;
@@ -349,8 +364,8 @@
   .earn-sess .es-tag.es-bmo { background:rgba(31,179,99,0.85); }
   .earn-sess .es-tag.es-amc { background:rgba(214,68,68,0.85); }
   .earn-sess .es-tag.es-tbd { background:var(--muted); }
-  .earn-sess .es-tk span { display:inline-block; font-weight:700;
-    color:var(--text); margin-right:8px; cursor:default; font-size:10px; }
+  .earn-sess .er-tk { display:inline-block; font-weight:700;
+    color:var(--text); cursor:default; font-size:10px; }
 
   /* Density: compact preset */
   html[data-density="dense"] .desk-card { padding:9px 12px; }
@@ -1477,6 +1492,29 @@
       if (ext == null) return "";
       return ext >= 7 ? "ext-over" : ext >= 5 ? "ext-ext" : "";
     }
+    // Daily-change chip — looks up swing.chg for the ticker and returns a
+    // small inline span ("+2.3%" green, "-1.4%" red, rounded to tenths).
+    // Returns empty string if the ticker isn't graded in today's swing run.
+    function chgBadge(t) {
+      const c = DESK_TKMAP[t];
+      const v = c && typeof c.chg === "number" ? c.chg : null;
+      if (v == null) return "";
+      const cls = v > 0 ? "up" : v < 0 ? "down" : "flat";
+      const sign = v > 0 ? "+" : "";
+      return '<span class="chg-pill ' + cls + '">' + sign +
+        v.toFixed(1) + "%</span>";
+    }
+    // Variant for grid-table cells (returns plain "+X.X%" + a class) — used
+    // by the Top Breakout Candidates table where the chip sits in its own
+    // column rather than inline after the ticker.
+    function chgCell(t) {
+      const c = DESK_TKMAP[t];
+      const v = c && typeof c.chg === "number" ? c.chg : null;
+      if (v == null) return { txt: "—", cls: "flat" };
+      const cls = v > 0 ? "up" : v < 0 ? "down" : "flat";
+      const sign = v > 0 ? "+" : "";
+      return { txt: sign + v.toFixed(1) + "%", cls: cls };
+    }
 
     function cardMarketHealth(swing) {
       if (!swing || !swing.runs || !swing.runs.length)
@@ -1548,6 +1586,7 @@
         const tag = (r.type || "").toUpperCase() + " $" + r.strike + " · " + r.expiry;
         return '<div class="desk-row">' +
           '<span class="dr-tk" data-t="' + r.ticker + '">' + r.ticker + '</span>' +
+          chgBadge(r.ticker) +
           '<span class="dr-meta">' + tag + '</span>' +
           '<span class="dr-val ' + cls + '">' + (r.trade_score || 0) +
             ' · ' + fmtVol(r.premium) + '</span>' +
@@ -1586,7 +1625,8 @@
       return desk("Top Swing Upgrades", moves.slice(0, 8).map(function (m) {
         const label = (m.d === 99) ? "new entry to " + m.to : (m.from + " → " + m.to);
         return '<div class="desk-row">' +
-          '<span class="dr-tk">' + m.t + '</span>' +
+          '<span class="dr-tk" data-t="' + m.t + '">' + m.t + '</span>' +
+          chgBadge(m.t) +
           '<span class="dr-meta">' + label + '</span>' +
           '<span class="dr-val sc-up">+' + (m.d === 99 ? "★" : m.d) + '</span></div>';
       }).join(""));
@@ -1606,7 +1646,9 @@
       if (!cands.length) return desk("Top Breakout Candidates",
         empty("No clean A-tier candidates today."));
       const hdr = '<div class="brk-row brk-hdr">' +
-        '<span>Ticker</span><span>Theme</span>' +
+        '<span>Ticker</span>' +
+        '<span style="text-align:right">Day</span>' +
+        '<span>Theme</span>' +
         '<span style="text-align:right">Mcap</span>' +
         '<span style="text-align:right">RVol</span>' +
         '<span style="text-align:right">Ext</span></div>';
@@ -1618,9 +1660,11 @@
         const rvol = fmtRvol(c.rvol);
         const rvCls = (typeof c.rvol === "number" && c.rvol >= 1.5) ? " hot" : "";
         const xCls = extCls(c.ext);
+        const day = chgCell(c.t);
         return '<div class="brk-row" title="' +
             cleanName(c.n).replace(/"/g, "&quot;") + '">' +
           '<span class="bk-tk" data-t="' + c.t + '">' + c.t + '</span>' +
+          '<span class="bk-dy ' + day.cls + '">' + day.txt + '</span>' +
           '<span class="bk-th">' + th + '</span>' +
           '<span class="bk-mc">' + mcap + '</span>' +
           '<span class="bk-rv' + rvCls + '">' + rvol + '</span>' +
@@ -1795,6 +1839,7 @@
       return desk("Top Bullish", list.slice(0, 20).map(function (x) {
         return '<div class="conf-row">' +
           '<span class="cr-tk" data-t="' + x.t + '">' + x.t + '</span>' +
+          chgBadge(x.t) +
           '<span class="cr-narr">' + narrative(x.e) + '</span></div>';
       }).join(""));
     }
@@ -1827,6 +1872,7 @@
       return desk("Top Bearish", list.slice(0, 20).map(function (x) {
         return '<div class="conf-row">' +
           '<span class="cr-tk" data-t="' + x.t + '">' + x.t + '</span>' +
+          chgBadge(x.t) +
           '<span class="cr-narr">' + narrative(x.e) + '</span></div>';
       }).join(""));
     }
@@ -1860,7 +1906,10 @@
         return dow + " " + mo + " " + dt.getDate();
       };
       const tkSpan = function (t) {
-        return '<span data-t="' + t + '">' + t + '</span>';
+        // Wrap so the ticker + its daily-change chip stay together when the
+        // list wraps to a new line; padding via .er-tk-pair.
+        return '<span class="er-tk-pair"><span class="er-tk" data-t="' + t +
+          '">' + t + '</span>' + chgBadge(t) + '</span>';
       };
       const sessionRow = function (label, cls, tks) {
         if (!tks.length) return "";
