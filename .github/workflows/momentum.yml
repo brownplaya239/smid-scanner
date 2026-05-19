@@ -38,5 +38,8 @@ jobs:
       - name: Run momentum scans
         run: python momentum_scanner.py
 
+      - name: Run swing report card
+        run: python swing_report.py
+
       - name: Publish reports to site archive
         run: bash scripts/publish_reports.sh
