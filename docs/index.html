@@ -394,8 +394,8 @@
         <p class="sub">
           Enter any US-listed ticker for a full institutional one-pager: setup
           analysis, 12-month insider transactions, institutional ownership, and
-          price/volume intelligence. PDF is delivered to <strong>#onepager-adhoc</strong>
-          on Discord and archived below in ~60&ndash;90 seconds.
+          price/volume intelligence. The PDF appears in the archive below in
+          ~60&ndash;90 seconds.
         </p>
         <div class="input-row">
           <input type="text" id="ticker" placeholder="NVDA" maxlength="8"
@@ -419,8 +419,8 @@
         <p class="sub">
           Real-time alt-data for any ticker &mdash; news flow, StockTwits social
           sentiment, Reddit chatter, and Nimble-extracted web context, synthesized
-          by Claude into a sentiment + narrative read. PDF arrives here and in
-          <strong>#alt-data</strong> on Discord in ~1&ndash;2 minutes.
+          by Claude into a sentiment + narrative read. The PDF appears in the
+          archive below in ~1&ndash;2 minutes.
         </p>
         <div class="input-row">
           <input type="text" id="ticker-alt" placeholder="NVDA" maxlength="8"
@@ -744,8 +744,8 @@
       async function tick() {
         const elapsed = Math.round((Date.now() - startedAt) / 1000);
         if (Date.now() - startedAt > deadlineMs) {
-          setStatus("err", "&#10007; Timed out waiting for the report. It may still arrive &mdash; " +
-            "check <strong>" + cfg.channel + "</strong> on Discord, or reload shortly.");
+          setStatus("err", "&#10007; Timed out waiting for the report. It may still " +
+            "arrive &mdash; reload the page shortly to check the archive below.");
           button.disabled = false;
           return;
         }
@@ -803,9 +803,9 @@
   }
 
   setupLookup({ inputId:"ticker", btnId:"go", statusId:"status", viewerId:"viewer",
-    listKey:"adhoc", reportType:"adhoc", channel:"#onepager-adhoc", runtime:"2-3 min" });
+    listKey:"adhoc", reportType:"adhoc", runtime:"2-3 min" });
   setupLookup({ inputId:"ticker-alt", btnId:"go-alt", statusId:"status-alt", viewerId:"viewer-alt",
-    listKey:"alt-data", reportType:"altdata", channel:"#alt-data", runtime:"1-2 min" });
+    listKey:"alt-data", reportType:"altdata", runtime:"1-2 min" });
 
   /* ── Unusual Options Activity dashboard ── */
   (function () {

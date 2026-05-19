@@ -21,7 +21,7 @@ Measured, not just descriptive:
 Per-ticker run history is kept in docs/reports/altdata_history.json so the
 report can say "this is a real buzz spike" vs "normal noise".
 
-Env: ANTHROPIC_API_KEY, NIMBLE_API_KEY, DISCORD_ALTDATA_WEBHOOK_URL (optional).
+Env: ANTHROPIC_API_KEY, NIMBLE_API_KEY.
 """
 
 import os
@@ -46,7 +46,6 @@ from nimble_data import gather_alt_data
 
 ET = pytz.timezone("America/New_York")
 ANTHROPIC_API_KEY       = os.environ.get("ANTHROPIC_API_KEY", "")
-DISCORD_ALTDATA_WEBHOOK = os.environ.get("DISCORD_ALTDATA_WEBHOOK_URL", "")
 HISTORY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "docs", "reports", "altdata_history.json")
 
@@ -575,7 +574,6 @@ def generate_altdata_pdf(ticker, alt, scores, synth):
 
 def run_altdata_lookup(ticker):
     ticker  = ticker.upper().strip()
-    webhook = DISCORD_ALTDATA_WEBHOOK
     print(f"\n{'='*54}\nALT-DATA INTELLIGENCE: {ticker}\n{'='*54}")
 
     if not ANTHROPIC_API_KEY:
@@ -587,12 +585,6 @@ def run_altdata_lookup(ticker):
     # Invalid-ticker guard — no data anywhere = bad symbol
     if not any(alt["coverage"].values()):
         print(f"  No data found for {ticker} — likely an invalid ticker. Aborting.")
-        if webhook:
-            try:
-                requests.post(webhook, json={"content":
-                    f"**{ticker}** — no alt-data found. Check the symbol."}, timeout=15)
-            except Exception:
-                pass
         return
 
     print("[2/5] Computing baseline + scores...")
@@ -635,31 +627,13 @@ def run_altdata_lookup(ticker):
     except Exception as e:
         print(f"  history update failed: {e}")
 
-    print("[5/5] Publishing...")
+    print("[5/5] Archiving to site...")
     now      = datetime.now(ET)
     filename = f"altdata_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
-    if webhook:
-        try:
-            sidx = synth.get("sentimentIndex", scores["sentiment_raw"])
-            content = (f"**{ticker} - Alt-Data Intelligence**\n"
-                       f"{now.strftime('%b %d %Y %I:%M %p ET')}  |  "
-                       f"Buzz {scores['buzz']}  |  Sentiment {sidx:+d}  |  "
-                       f"{synth.get('divergenceVerdict', scores['divergence_raw'])}")
-            resp = requests.post(
-                webhook,
-                data={"payload_json": json.dumps({"content": content})},
-                files={"files[0]": (filename, pdf_bytes, "application/pdf")},
-                timeout=60,
-            )
-            print(f"  Discord: {'sent' if resp.status_code in (200,204) else resp.status_code}")
-        except Exception as e:
-            print(f"  Discord send failed: {e}")
-    else:
-        print("  DISCORD_ALTDATA_WEBHOOK_URL not set — site archive only")
-
     try:
         from report_archive import archive
         archive(pdf_bytes, filename)
+        print(f"  Archived: {filename}")
     except Exception as e:
         print(f"  Archive failed: {e}")
 

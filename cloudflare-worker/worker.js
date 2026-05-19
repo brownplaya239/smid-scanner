@@ -3,11 +3,7 @@
  *
  * Receives a POST {ticker} from the GitHub Pages web form, validates it,
  * and triggers the ticker-lookup.yml GitHub Actions workflow. The workflow
- * generates the research PDF and delivers it to the #onepager-adhoc Discord
- * channel (via DISCORD_TICKER_WEBHOOK_URL, configured as a GitHub secret).
- *
- * This replaces the earlier Discord-slash-command design — no ed25519
- * signature verification needed for a plain web form.
+ * generates the research PDF and archives it to the GitHub Pages report site.
  *
  * Required environment variable (Cloudflare dashboard → Settings → Variables):
  *   PAT  — GitHub fine-grained PAT with Actions: read/write on the repo

@@ -10,8 +10,7 @@ momentum_scanner.py — Two market-leader momentum screens (clean data tables).
      $100M liquidity floor.
 
 No Claude analysis — these are pure quantitative screens. Run EOD when the
-daily candle is complete. Publishes clean table PDFs to the site archive
-(and Discord if DISCORD_MOMENTUM_WEBHOOK_URL is set).
+daily candle is complete. Publishes clean table PDFs to the site archive.
 """
 
 import os
@@ -37,7 +36,6 @@ load_dotenv()
 import polygon_data
 
 ET = pytz.timezone("America/New_York")
-DISCORD_MOMENTUM_WEBHOOK = os.environ.get("DISCORD_MOMENTUM_WEBHOOK_URL", "")
 IWM_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IWM_holdings.csv")
 
 # Hardcoded liquid large / mega caps so the universe spans the full market.
@@ -407,23 +405,12 @@ def generate_table_pdf(title, subtitle, blurb_lines, rows, change_label):
 
 # ─── Output ───────────────────────────────────────────────────────────────────
 
-def publish(pdf_bytes, filename, discord_text):
-    if DISCORD_MOMENTUM_WEBHOOK:
-        try:
-            resp = requests.post(
-                DISCORD_MOMENTUM_WEBHOOK,
-                data={"payload_json": json.dumps({"content": discord_text})},
-                files={"files[0]": (filename, pdf_bytes, "application/pdf")},
-                timeout=60,
-            )
-            print(f"  Discord: {'sent' if resp.status_code in (200,204) else resp.status_code}")
-        except Exception as e:
-            print(f"  Discord send failed: {e}")
-    else:
-        print("  DISCORD_MOMENTUM_WEBHOOK_URL not set — site archive only")
+def publish(pdf_bytes, filename):
+    """Archive a screen PDF to the GitHub Pages report site."""
     try:
         from report_archive import archive
         archive(pdf_bytes, filename)
+        print(f"  Archived to site: {filename}")
     except Exception as e:
         print(f"  Archive failed: {e}")
 
@@ -476,9 +463,7 @@ def run():
         "Top 2% of the market by 1-month gain  |  ADR% >= 5  |  $100M+ dollar volume",
         qm_blurb, qm, "1-Mo %",
     )
-    publish(qm_pdf, f"qm_monthly_{stamp}.pdf",
-            f"**QM -- Biggest One-Month Gainers**  |  {now.strftime('%b %d %Y')}  |  "
-            f"{len(qm)} names")
+    publish(qm_pdf, f"qm_monthly_{stamp}.pdf")
     print(f"  QM Monthly: {len(qm)} names")
 
     # ── Screen 2: Stockbee Weekly 20% ──
@@ -502,9 +487,7 @@ def run():
         "Up 20%+ over the last 5 trading days  |  $100M+ dollar volume",
         sb_blurb, sb, "1-Wk %",
     )
-    publish(sb_pdf, f"stockbee_weekly_{stamp}.pdf",
-            f"**Stockbee -- 20%+ in a Week**  |  {now.strftime('%b %d %Y')}  |  "
-            f"{len(sb)} names")
+    publish(sb_pdf, f"stockbee_weekly_{stamp}.pdf")
     print(f"  Stockbee Weekly: {len(sb)} names")
 
     print("\nDone.")

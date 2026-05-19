@@ -1,7 +1,7 @@
 # SMID Scanner — Project Guide
 
 Institutional-grade SMID-cap research system. Six automated report types plus
-on-demand ad-hoc ticker research, delivered to Discord and a GitHub Pages site.
+on-demand ad-hoc ticker research, published to a GitHub Pages site.
 
 ---
 
@@ -77,12 +77,9 @@ GitHub Pages, served from `docs/` on `master`:
 the Cloudflare Worker has its own separate secret.
 
 GitHub repo secrets (Settings → Secrets and variables → Actions):
-- `ANTHROPIC_API_KEY`
-- `DISCORD_WEBHOOK_URL` (SMID scanner channel)
-- `DISCORD_SETUP_WEBHOOK_URL` (SMID setup channel)
-- `DISCORD_IWM_WEBHOOK_URL` (#iwm-names)
-- `DISCORD_TICKER_WEBHOOK_URL` (#onepager-adhoc)
-- `DISCORD_MOMENTUM_WEBHOOK_URL` (optional — momentum scans; site-only if unset)
+- `ANTHROPIC_API_KEY` — scanner / setup builder / ad-hoc lookup
+- `NIMBLE_API_KEY` — alt-data lookup
+- `POLYGON_API_KEY` — market data feed
 
 Cloudflare Worker secret (dashboard → Worker → Settings → Variables):
 - `PAT` — GitHub PAT with `repo` + `workflow` scope (triggers `ticker-lookup.yml`)

@@ -13,8 +13,8 @@
 # manifest.json is the only file that can conflict (report PDFs have unique
 # timestamped names) — on conflict it is simply regenerated from the PDFs.
 #
-# Always exits 0: a lost archive race must not fail the parent job (the report
-# has already been delivered to Discord, and the next run re-publishes).
+# Always exits 0: a lost archive race must not fail the parent job — the next
+# run re-publishes the report.
 
 set -u
 
@@ -56,5 +56,5 @@ for attempt in 1 2 3 4 5; do
 done
 
 echo "::warning::Could not publish reports to site after 5 attempts. "\
-"The report was still delivered to Discord; the next run will re-publish."
+"The next run will re-publish."
 exit 0

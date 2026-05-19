@@ -35,9 +35,8 @@ jobs:
 
       - name: Run alt-data lookup
         env:
-          ANTHROPIC_API_KEY:           ${{ secrets.ANTHROPIC_API_KEY }}
-          NIMBLE_API_KEY:              ${{ secrets.NIMBLE_API_KEY }}
-          DISCORD_ALTDATA_WEBHOOK_URL: ${{ secrets.DISCORD_ALTDATA_WEBHOOK_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NIMBLE_API_KEY:    ${{ secrets.NIMBLE_API_KEY }}
         run: python alt_data.py --ticker "${{ inputs.ticker }}"
 
       - name: Publish report to site archive
