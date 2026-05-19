@@ -55,14 +55,19 @@
   header h1 { font-size:20px; font-weight:700; letter-spacing:.3px; }
   header p  { font-size:12px; color:var(--muted); margin-top:4px; }
 
-  .theme-toggle { display:flex; position:absolute; top:20px; right:28px;
+  .head-toggles { position:absolute; top:20px; right:28px;
+    display:flex; flex-direction:column; gap:5px; align-items:flex-end; }
+  .theme-toggle, .density-toggle { display:flex;
     border:1px solid var(--border2); border-radius:6px; overflow:hidden; }
-  .theme-toggle button { background:var(--navy2); color:var(--muted); border:0;
-    font-family:inherit; font-size:10px; font-weight:700; letter-spacing:.5px;
-    padding:5px 9px; cursor:pointer; }
-  .theme-toggle button + button { border-left:1px solid var(--border2); }
-  .theme-toggle button:hover { color:var(--textdim); }
-  .theme-toggle button.on { background:var(--gold); color:var(--accink); }
+  .theme-toggle button, .density-toggle button { background:var(--navy2);
+    color:var(--muted); border:0; font-family:inherit; font-size:10px;
+    font-weight:700; letter-spacing:.5px; padding:5px 9px; cursor:pointer; }
+  .theme-toggle button + button,
+  .density-toggle button + button { border-left:1px solid var(--border2); }
+  .theme-toggle button:hover,
+  .density-toggle button:hover { color:var(--textdim); }
+  .theme-toggle button.on,
+  .density-toggle button.on { background:var(--gold); color:var(--accink); }
 
   nav { background:var(--navy2); display:flex; gap:2px; padding:0 16px;
     justify-content:safe center;
@@ -212,6 +217,62 @@
   @media (max-width:760px) {
     .desk-grid { grid-template-columns:1fr; }
   }
+  .desk-card.span2 { grid-column:1 / -1; }
+
+  /* Economic calendar rows (Today's Desk card) */
+  .cal-row { display:grid;
+    grid-template-columns:54px 1fr 26px 60px 60px 60px;
+    align-items:center; gap:8px; padding:4px 0; font-size:11.5px; }
+  .cal-row + .cal-row { border-top:1px solid var(--line); }
+  .cal-row.cal-hdr { padding-bottom:5px; margin-bottom:3px;
+    border-bottom:1px solid var(--line); }
+  .cal-row.cal-hdr span { font-size:9px; text-transform:uppercase;
+    letter-spacing:.4px; color:var(--muted); font-weight:700; }
+  .cal-time  { color:var(--muted); font-variant-numeric:tabular-nums;
+    font-size:10.5px; }
+  .cal-title { color:var(--text); overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; }
+  .cal-imp   { height:8px; border-radius:2px; }
+  .cal-imp.imp-high   { background:var(--red); }
+  .cal-imp.imp-med    { background:#ff9e1b; }
+  .cal-imp.imp-low    { background:var(--gold); opacity:.55; }
+  .cal-imp.imp-none   { background:var(--muted); opacity:.35; }
+  .cal-act, .cal-fcst, .cal-prev { text-align:right;
+    font-variant-numeric:tabular-nums; font-size:11px; color:var(--textdim); }
+  .cal-act { color:var(--text); font-weight:700; }
+
+  /* Top Confluence Names (rich, spans both desk columns) */
+  .conf-row { display:flex; gap:10px; padding:7px 0; align-items:baseline; }
+  .conf-row + .conf-row { border-top:1px solid var(--line); }
+  .conf-row .cr-tk { font-weight:800; color:var(--text); min-width:64px;
+    font-size:12.5px; letter-spacing:.3px; }
+  .conf-row .cr-narr { color:var(--textdim); font-size:11.5px;
+    line-height:1.45; }
+  .conf-row .cr-narr .tag-pos     { color:var(--green); font-weight:600; }
+  .conf-row .cr-narr .tag-neg     { color:var(--red);   font-weight:600; }
+  .conf-row .cr-narr .tag-conf    { color:#ff9e1b; font-weight:700; }
+  .conf-row .cr-narr .tag-grade   { color:var(--gold); font-weight:600; }
+  .conf-row .cr-narr .tag-rep     { color:var(--gold); }
+
+  /* Density: compact preset */
+  html[data-density="dense"] .desk-card { padding:9px 12px; }
+  html[data-density="dense"] .desk-card h3 { font-size:10px; margin-bottom:7px; }
+  html[data-density="dense"] .desk-row { padding:3px 0; font-size:11px; }
+  html[data-density="dense"] .desk-stat b { font-size:17px; }
+  html[data-density="dense"] .cal-row { padding:3px 0; font-size:11px; }
+  html[data-density="dense"] .conf-row { padding:5px 0; }
+  html[data-density="dense"] .conf-row .cr-narr { font-size:11px; }
+  html[data-density="dense"] .perf-card { padding:11px 13px; }
+  html[data-density="dense"] .perf-card table { font-size:11px; }
+  html[data-density="dense"] .perf-card td,
+  html[data-density="dense"] .perf-card th { padding:4px 5px; }
+  html[data-density="dense"] table.uoa td { padding:6px 6px; font-size:11px; }
+  html[data-density="dense"] table.uoa th { padding:7px 6px; }
+  html[data-density="dense"] table.mom-table td { padding:6px 8px; font-size:11.5px; }
+  html[data-density="dense"] .uoa-cluster { padding:6px 10px; }
+  html[data-density="dense"] .src-tk { padding:1px 2px; font-size:9.5px; }
+  html[data-density="dense"] .src-cnt { padding:1px 0; font-size:9.5px; }
+  html[data-density="dense"] .src-head { padding:2px 0; font-size:11px; }
 
   main { flex:1; padding:34px 22px; display:flex; justify-content:center; }
   .panel { display:none; width:100%; max-width:760px; }
@@ -551,10 +612,12 @@
   }
 </style>
 <script>
-  /* apply saved color scheme before first paint — avoids a flash */
+  /* apply saved color scheme + density before first paint — avoids a flash */
   (function () {
     try { document.documentElement.dataset.theme =
       localStorage.getItem("td-theme") || "dark"; } catch (e) {}
+    try { document.documentElement.dataset.density =
+      localStorage.getItem("td-density") || "comfy"; } catch (e) {}
   })();
 </script>
 </head>
@@ -564,10 +627,16 @@
       <h1>TickerDesk</h1>
       <p>Your daily equity research desk for flow, breakouts, catalysts, and watchlists.</p>
     </div>
-    <div class="theme-toggle" id="theme-toggle" title="Color scheme">
-      <button data-theme="light">L</button>
-      <button data-theme="mid">M</button>
-      <button data-theme="dark">D</button>
+    <div class="head-toggles">
+      <div class="theme-toggle" id="theme-toggle" title="Color scheme">
+        <button data-theme="light">L</button>
+        <button data-theme="mid">M</button>
+        <button data-theme="dark">D</button>
+      </div>
+      <div class="density-toggle" id="density-toggle" title="Layout density">
+        <button data-density="comfy">Cm</button>
+        <button data-density="dense">Dn</button>
+      </div>
     </div>
   </header>
 
@@ -1003,6 +1072,23 @@
     setInterval(load, 60000);
   })();
 
+  /* ── Layout density toggle (Comfortable / Dense) ── */
+  (function () {
+    const dg = document.getElementById("density-toggle");
+    if (!dg) return;
+    function apply(d) {
+      document.documentElement.dataset.density = d;
+      try { localStorage.setItem("td-density", d); } catch (e) {}
+      dg.querySelectorAll("button").forEach(function (b) {
+        b.classList.toggle("on", b.dataset.density === d);
+      });
+    }
+    dg.addEventListener("click", function (e) {
+      if (e.target.dataset.density) apply(e.target.dataset.density);
+    });
+    apply(document.documentElement.dataset.density || "comfy");
+  })();
+
   /* ── Color scheme toggle (Light / Mid / Dark) ── */
   (function () {
     const tg = document.getElementById("theme-toggle");
@@ -1254,8 +1340,9 @@
       if (v >= 1e3) return "$" + Math.round(v / 1e3) + "k";
       return "$" + Math.round(v);
     }
-    function desk(title, body) {
-      return '<div class="desk-card"><h3>' + title + '</h3>' + body + '</div>';
+    function desk(title, body, cls) {
+      return '<div class="desk-card' + (cls ? ' ' + cls : '') +
+             '"><h3>' + title + '</h3>' + body + '</div>';
     }
     function empty(msg) { return '<div class="desk-empty">' + msg + '</div>'; }
 
@@ -1349,30 +1436,41 @@
       }).join(""));
     }
 
-    function cardMomentum(qm, sb) {
-      const pull = function (d) {
-        return (d && d.runs && d.runs.length)
-          ? (d.runs[d.runs.length - 1].rows || []) : [];
+    function cardCalendar(cal, todayISO) {
+      if (!cal || !cal.events)
+        return desk("Today's Economic Calendar", empty("No calendar data yet."));
+      // FF feed uses MM-DD-YYYY; todayISO is YYYY-MM-DD
+      const p = todayISO.split("-");
+      const todayFF = p[1] + "-" + p[2] + "-" + p[0];
+      const todays = cal.events.filter(function (e) { return e.date === todayFF; });
+      if (!todays.length) return desk("Today's Economic Calendar",
+        empty("No US releases scheduled today."));
+      const impCls = function (imp) {
+        const i = (imp || "").toLowerCase();
+        return i === "high"   ? "imp-high" :
+               i === "medium" ? "imp-med"  :
+               i === "low"    ? "imp-low"  : "imp-none";
       };
-      const Q = pull(qm).slice(0, 5), S = pull(sb).slice(0, 5);
-      if (!Q.length && !S.length)
-        return desk("Top Momentum", empty("No momentum hits today."));
-      const fmtRow = function (r) {
-        const c = (typeof r.chg === "number") ? r.chg : null;
-        const cls = c == null ? "" : c > 0 ? "sc-up" : c < 0 ? "sc-down" : "";
-        const sign = c != null && c > 0 ? "+" : "";
-        return '<div class="desk-row">' +
-          '<span class="dr-tk">' + r.ticker + '</span>' +
-          '<span class="dr-meta">$' + (r.price != null ? r.price.toFixed(2) : "—") + '</span>' +
-          '<span class="dr-val ' + cls + '">' +
-            (c != null ? sign + c.toFixed(1) + "%" : "—") + '</span></div>';
-      };
-      let body = "";
-      if (Q.length) body += '<div class="desk-sub">QM Monthly · 1-month gainers</div>' +
-        Q.map(fmtRow).join("");
-      if (S.length) body += '<div class="desk-sub">Stockbee · 5-day gainers</div>' +
-        S.map(fmtRow).join("");
-      return desk("Top Momentum", body);
+      const hdr = '<div class="cal-row cal-hdr">' +
+        '<span class="cal-time">Time</span>' +
+        '<span class="cal-title">Release</span>' +
+        '<span>Imp</span>' +
+        '<span class="cal-act">Actual</span>' +
+        '<span class="cal-fcst">Fcst</span>' +
+        '<span class="cal-prev">Prior</span></div>';
+      return desk("Today's Economic Calendar", hdr +
+        todays.map(function (e) {
+          return '<div class="cal-row">' +
+            '<span class="cal-time">' + (e.time || "") + '</span>' +
+            '<span class="cal-title" title="' + (e.title || "").replace(/"/g,"&quot;") +
+              '">' + (e.title || "") + '</span>' +
+            '<span class="cal-imp ' + impCls(e.impact) + '" title="' +
+              (e.impact || "") + '"></span>' +
+            '<span class="cal-act">'  + (e.actual   || "—") + '</span>' +
+            '<span class="cal-fcst">' + (e.forecast || "—") + '</span>' +
+            '<span class="cal-prev">' + (e.previous || "—") + '</span>' +
+            '</div>';
+        }).join(""));
     }
 
     function cardThemes(swing) {
@@ -1392,71 +1490,120 @@
         '<div class="desk-sub neg">Weakest</div>'   + weak.map(function (t)   { return row(t,"sc-down"); }).join(""));
     }
 
-    function cardConfluence(uoa, swing, qm, sb) {
-      const sets = {};
-      const add = function (t, tag) {
-        if (!t) return;
-        if (!sets[t]) sets[t] = {};
-        sets[t][tag] = 1;
+    function cardTopConfluence(uoa, swing, qm, sb, manifest, today) {
+      // Build per-ticker context map by walking every data source
+      const ctx = {};
+      const ensure = function (t) {
+        if (!ctx[t]) ctx[t] = { grade:null, themes:[], flow:null,
+                                qm:false, sb:false, rep:false };
+        return ctx[t];
       };
-      if (uoa && uoa.rows) {
-        uoa.rows.slice()
-          .sort(function (a, b) { return (b.trade_score || 0) - (a.trade_score || 0); })
-          .slice(0, 30).forEach(function (r) { add(r.ticker, "Flow"); });
-      }
+      // Swing grades — A+/A/A- = "A-tier trend"; B+/B = "B-tier trend"
       if (swing && swing.runs && swing.runs.length) {
         const r = swing.runs[swing.runs.length - 1];
-        ["A+", "A", "A-"].forEach(function (g) {
-          (r.grades[g] || []).forEach(function (c) { add(c.t, "A-tier"); });
+        ["A+","A","A-","B+","B"].forEach(function (g) {
+          (r.grades[g] || []).forEach(function (c) {
+            const e = ensure(c.t); e.grade = g; e.themes = c.th || [];
+          });
         });
       }
-      if (qm && qm.runs && qm.runs.length)
-        (qm.runs[qm.runs.length - 1].rows || []).forEach(function (r) { add(r.ticker, "QM"); });
-      if (sb && sb.runs && sb.runs.length)
-        (sb.runs[sb.runs.length - 1].rows || []).forEach(function (r) { add(r.ticker, "Stockbee"); });
-      const conf = Object.keys(sets)
-        .map(function (t) { return {t:t, tags:Object.keys(sets[t])}; })
-        .filter(function (x) { return x.tags.length >= 2; })
-        .sort(function (a, b) { return b.tags.length - a.tags.length; });
-      if (!conf.length) return desk("Confluence — Multi-Tool",
-        empty("No names appear in 2+ tools today."));
-      return desk("Confluence — Multi-Tool", conf.slice(0, 10).map(function (c) {
-        return '<div class="desk-row">' +
-          '<span class="dr-tk">' + c.t + '</span>' +
-          '<span class="dr-meta">' + c.tags.join(" · ") + '</span>' +
-          '<span class="dr-val sc-up">' + c.tags.length + ' tools</span></div>';
-      }).join(""));
-    }
-
-    function cardReports(manifest, today) {
-      if (!manifest || !manifest.reports)
-        return desk("Reports Today", empty("Manifest not loaded."));
-      const found = [];
-      Object.keys(manifest.reports).forEach(function (k) {
-        (manifest.reports[k] || []).forEach(function (r) {
-          if ((r.file || "").indexOf(today) >= 0) found.push({k:k, r:r});
+      // UOA flow direction (use the highest-scored row per ticker)
+      if (uoa && uoa.rows) {
+        const byTk = {};
+        uoa.rows.forEach(function (r) {
+          if (!byTk[r.ticker] || (r.trade_score||0) > (byTk[r.ticker].trade_score||0))
+            byTk[r.ticker] = r;
         });
-      });
-      if (!found.length) return desk("Reports Today",
-        empty("No PDFs archived today yet."));
-      return desk("Reports Today", found.slice(0, 12).map(function (x) {
-        const label = x.r.ticker ? x.r.ticker : x.k.replace(/-/g, " ");
-        return '<div class="desk-row">' +
-          '<span class="dr-tk">' + label + '</span>' +
-          '<span class="dr-meta">' + (x.r.label || x.r.file) + '</span>' +
-          '<span class="dr-val"><a href="./reports/' + x.r.file +
-            '" target="_blank">open</a></span></div>';
-      }).join(""));
+        Object.keys(byTk).forEach(function (t) {
+          const r = byTk[t], dir = (r.direction || "").toLowerCase();
+          ensure(t).flow = dir === "bullish" ? "bullish" :
+                            dir === "bearish" ? "bearish" : "mixed";
+        });
+      }
+      // Momentum lists
+      if (qm && qm.runs && qm.runs.length)
+        (qm.runs[qm.runs.length-1].rows || []).forEach(function (r) {
+          ensure(r.ticker).qm = true;
+        });
+      if (sb && sb.runs && sb.runs.length)
+        (sb.runs[sb.runs.length-1].rows || []).forEach(function (r) {
+          ensure(r.ticker).sb = true;
+        });
+      // Today's archived reports
+      if (manifest && manifest.reports) {
+        Object.keys(manifest.reports).forEach(function (k) {
+          (manifest.reports[k] || []).forEach(function (r) {
+            if (r.ticker && (r.file || "").indexOf(today) >= 0)
+              ensure(r.ticker).rep = true;
+          });
+        });
+      }
+      // Score: count of distinct signal sources (grade / flow / qm / sb / report)
+      const list = Object.keys(ctx).map(function (t) {
+        const e = ctx[t];
+        let n = 0;
+        if (e.grade) n++;
+        if (e.flow)  n++;
+        if (e.qm)    n++;
+        if (e.sb)    n++;
+        if (e.rep)   n++;
+        return { t:t, e:e, n:n };
+      }).filter(function (x) { return x.n >= 2; })
+        .sort(function (a, b) {
+          if (b.n !== a.n) return b.n - a.n;
+          // tiebreaker: A+ tier ranks first
+          const ga = (a.e.grade || "Z"), gb = (b.e.grade || "Z");
+          return ga.localeCompare(gb);
+        });
+      if (!list.length) return desk("Top Confluence Names",
+        empty("No names appear in 2+ tools today."), "span2");
+
+      function narrative(e) {
+        const parts = [];
+        if (e.grade) {
+          const lbl = /^A/.test(e.grade) ? e.grade + " trend"
+                    : /^B/.test(e.grade) ? "high trend strength" : null;
+          if (lbl) parts.push('<span class="tag-grade">' + lbl + '</span>');
+        }
+        if (e.flow) {
+          if (e.flow === "bullish")
+            parts.push('<span class="tag-pos">bullish flow</span>');
+          else if (e.flow === "bearish")
+            parts.push('<span class="tag-neg">bearish flow</span>');
+          else parts.push('options flow');
+        }
+        if (e.themes && e.themes.length)
+          parts.push(e.themes[0] + ' theme');
+        if (e.qm)  parts.push('monthly gainer');
+        if (e.sb)  parts.push('weekly gainer');
+        if (e.rep) parts.push('<span class="tag-rep">recent report</span>');
+        // Conflict detection
+        if (e.grade && /^A/.test(e.grade) && e.flow === "bearish")
+          parts.push('<span class="tag-conf">bearish flow conflict</span>');
+        return parts.join(' &middot; ');
+      }
+      return desk("Top Confluence Names", list.slice(0, 14).map(function (x) {
+        return '<div class="conf-row">' +
+          '<span class="cr-tk">' + x.t + '</span>' +
+          '<span class="cr-narr">' + narrative(x.e) + '</span></div>';
+      }).join(""), "span2");
     }
 
+    const fetchJSON = function (path) {
+      return fetch(path + "?t=" + Date.now())
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; });
+    };
     Promise.all([
-      fetch("./reports/uoa_latest.json?t="+Date.now()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-      fetch("./reports/swing_report.json?t="+Date.now()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-      fetch("./reports/momentum_qm.json?t="+Date.now()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-      fetch("./reports/momentum_stockbee.json?t="+Date.now()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-      fetch("./reports/manifest.json?t="+Date.now()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+      fetchJSON("./reports/uoa_latest.json"),
+      fetchJSON("./reports/swing_report.json"),
+      fetchJSON("./reports/momentum_qm.json"),
+      fetchJSON("./reports/momentum_stockbee.json"),
+      fetchJSON("./reports/manifest.json"),
+      fetchJSON("./reports/economic_calendar.json"),
     ]).then(function (arr) {
-      const uoa = arr[0], swing = arr[1], qm = arr[2], sb = arr[3], manifest = arr[4];
+      const uoa = arr[0], swing = arr[1], qm = arr[2], sb = arr[3];
+      const manifest = arr[4], cal = arr[5];
       const today = (swing && swing.runs && swing.runs.length)
         ? swing.runs[swing.runs.length - 1].date
         : new Date().toISOString().slice(0, 10);
@@ -1465,10 +1612,9 @@
         cardTopFlow(uoa),
         cardSwingUpgrades(swing),
         cardBreakouts(swing),
-        cardMomentum(qm, sb),
+        cardCalendar(cal, today),
         cardThemes(swing),
-        cardConfluence(uoa, swing, qm, sb),
-        cardReports(manifest, today),
+        cardTopConfluence(uoa, swing, qm, sb, manifest, today),
       ].join("");
     });
   }
@@ -2318,9 +2464,10 @@
           : "";
         note = '<p class="uoa-subnote">'+liveTxt+
           'Longer horizons fill in as signals age (+3d, +5d, +10d, +20d). '+
-          '<strong>OI&nbsp;held</strong> is the share of flow whose open interest '+
-          'stuck the next day &mdash; a same-day read on whether the smart money '+
-          'actually held, before any price horizon matures.</p>';
+          '<strong>OI Retention</strong> = (next-day OI change) &divide; ' +
+          '(signal-day volume) &mdash; the share of the day&rsquo;s flow that ' +
+          'became persistent open interest. A same-day read on whether the ' +
+          'smart money actually held, before any price horizon matures.</p>';
       }
       const cards = [
         perfTable("Edge by signal type", EDGE.by_type, "Type"),

@@ -41,5 +41,8 @@ jobs:
       - name: Run swing report card
         run: python swing_report.py
 
+      - name: Refresh economic calendar
+        run: python economic_calendar.py
+
       - name: Publish reports to site archive
         run: bash scripts/publish_reports.sh
