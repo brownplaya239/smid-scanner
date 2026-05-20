@@ -192,17 +192,37 @@ def _week_of_from_text(text):
 
 
 def run():
+    """Best-effort weekly tweet discovery. Always returns exit code 0 —
+    Twitter's syndication endpoint rate-limits aggressively and a 429
+    here should NEVER fail the parent workflow (publishing swing report,
+    momentum scans, etc. all live in the same job and must run regardless).
+    The existing whisper_tweet.json stays in place until the next
+    successful fetch."""
     print("Finding latest @eWhispers Most Anticipated tweet...")
-    tweet = find_latest_anticipated_tweet()
+    try:
+        tweet = find_latest_anticipated_tweet()
+    except urllib.error.HTTPError as e:
+        print(f"  Twitter syndication returned HTTP {e.code} — "
+              f"keeping prior whisper_tweet.json untouched, exiting 0.")
+        return
+    except Exception as e:
+        print(f"  Timeline fetch failed ({type(e).__name__}: {e}) — "
+              f"keeping prior whisper_tweet.json untouched, exiting 0.")
+        return
     if not tweet:
-        print("  No matching tweet found in current timeline.")
+        print("  No matching tweet found in current timeline — keeping "
+              "prior whisper_tweet.json untouched.")
         return
     print(f"  Found tweet {tweet['id']}  ({tweet['created']})")
     print(f"  Text: {tweet['text'][:100]}...")
 
-    media = fetch_tweet_image(tweet["id"])
+    try:
+        media = fetch_tweet_image(tweet["id"])
+    except Exception as e:
+        print(f"  Tweet-result fetch failed ({e}) — keeping prior json.")
+        return
     if not media:
-        print("  Tweet has no attached photo — skipping.")
+        print("  Tweet has no attached photo — skipping (prior json kept).")
         return
 
     payload = {
@@ -226,4 +246,10 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    # Wrap once more at top level so ANY exception falls out as exit 0.
+    # The publish step (swing report, scans, calendar) must run.
+    try:
+        run()
+    except Exception as e:
+        print(f"  Unexpected error ({type(e).__name__}: {e}) — exiting 0 "
+              f"to keep downstream workflow steps running.")
