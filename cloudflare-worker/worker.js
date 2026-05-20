@@ -58,6 +58,67 @@ async function fetchYahooQuote(sym) {
   }
 }
 
+/** Strip a Polygon news article down to just the fields the dashboard
+ *  renders — drops large fields like the full article body and trims
+ *  the response from Polygon (~3KB per article) to ~600 bytes. */
+function simplifyArticle(a) {
+  if (!a) return null;
+  return {
+    id:        a.id,
+    title:     a.title || "",
+    url:       a.article_url || "",
+    publisher: a.publisher ? (a.publisher.name || "") : "",
+    favicon:   a.publisher ? (a.publisher.favicon_url || "") : "",
+    published: a.published_utc || "",
+    tickers:   a.tickers || [],
+    description: a.description ? String(a.description).slice(0, 400) : "",
+    keywords:  a.keywords || [],
+    image:     a.image_url || "",
+    insights: (a.insights || []).map(function (ins) {
+      return {
+        ticker:    ins.ticker,
+        sentiment: ins.sentiment,                 // positive | negative | neutral
+        reasoning: ins.sentiment_reasoning
+          ? String(ins.sentiment_reasoning).slice(0, 300)
+          : "",
+      };
+    }),
+  };
+}
+
+/** News headlines via the Polygon News API. `ticker` either a specific
+ *  symbol or "general" for the firehose. Cached at the edge for 5 minutes
+ *  since news cadence is well under that. */
+async function fetchPolygonNews(env, ticker, limit) {
+  if (!env.POLYGON_API_KEY) {
+    return { error: "POLYGON_API_KEY not configured in worker environment.",
+             articles: [] };
+  }
+  const params = new URLSearchParams({
+    limit: String(Math.min(Math.max(parseInt(limit) || 50, 1), 1000)),
+    order: "desc",
+    sort:  "published_utc",
+    apiKey: env.POLYGON_API_KEY,
+  });
+  if (ticker && ticker !== "general") {
+    params.set("ticker", ticker.toUpperCase());
+  }
+  try {
+    const r = await fetch(
+      "https://api.polygon.io/v2/reference/news?" + params.toString(),
+      { cf: { cacheTtl: 300 } }
+    );
+    if (!r.ok) {
+      return { error: "polygon " + r.status, status: r.status, articles: [] };
+    }
+    const j = await r.json();
+    const articles = (j.results || []).map(simplifyArticle).filter(Boolean);
+    return { count: articles.length, articles: articles };
+  } catch (e) {
+    return { error: String(e), articles: [] };
+  }
+}
+
 /** Daily OHLC candles for a single ticker — used by the universal ticker
  *  drilldown panel. `range` accepts Yahoo values (1mo, 3mo, 6mo, 1y, 2y, 5y);
  *  `interval` accepts 1d / 1wk / 1mo. Cached at the edge for 5 minutes since
@@ -155,6 +216,30 @@ export default {
           sym,
           url.searchParams.get("range")    || "3mo",
           url.searchParams.get("interval") || "1d"
+        );
+        const resp = Response.json(data, {
+          headers: { ...cors, "Cache-Control": "public, max-age=300" },
+        });
+        ctx.waitUntil(cache.put(request, resp.clone()));
+        return resp;
+      }
+      // News headlines — ?news=general for firehose or ?news=AAPL for a
+      // specific ticker. Optional ?limit=N (1..1000, default 50/200).
+      const newsParam = url.searchParams.get("news");
+      if (newsParam) {
+        const cache = caches.default;
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const tk = newsParam.trim();
+        if (tk !== "general" && !/^[A-Z.\-]{1,8}$/i.test(tk)) {
+          return Response.json(
+            { error: `Invalid ticker: "${tk}"`, articles: [] },
+            { status: 400, headers: cors });
+        }
+        const defaultLimit = tk === "general" ? 200 : 50;
+        const data = await fetchPolygonNews(
+          env, tk,
+          url.searchParams.get("limit") || defaultLimit
         );
         const resp = Response.json(data, {
           headers: { ...cors, "Cache-Control": "public, max-age=300" },
