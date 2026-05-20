@@ -58,6 +58,56 @@ async function fetchYahooQuote(sym) {
   }
 }
 
+/** Daily OHLC candles for a single ticker — used by the universal ticker
+ *  drilldown panel. `range` accepts Yahoo values (1mo, 3mo, 6mo, 1y, 2y, 5y);
+ *  `interval` accepts 1d / 1wk / 1mo. Cached at the edge for 5 minutes since
+ *  daily bars only change once per session. */
+async function fetchYahooCandles(sym, range, interval) {
+  const r2 = function (x) { return Math.round(x * 100) / 100; };
+  const allowedRange = new Set(["1mo","3mo","6mo","1y","2y","5y","ytd","max"]);
+  const allowedInt   = new Set(["1d","1wk","1mo"]);
+  range    = allowedRange.has(range)   ? range    : "3mo";
+  interval = allowedInt.has(interval)  ? interval : "1d";
+  try {
+    const r = await fetch(
+      "https://query1.finance.yahoo.com/v8/finance/chart/" +
+        encodeURIComponent(sym) +
+        "?range=" + range + "&interval=" + interval,
+      { headers: { "User-Agent": "Mozilla/5.0" }, cf: { cacheTtl: 300 } }
+    );
+    if (!r.ok) return { symbol: sym, bars: [], error: "yahoo " + r.status };
+    const j = await r.json();
+    const res = j && j.chart && j.chart.result && j.chart.result[0];
+    if (!res) return { symbol: sym, bars: [], error: "no chart result" };
+    const m = res.meta || {};
+    const ts = res.timestamp || [];
+    const q = res.indicators && res.indicators.quote && res.indicators.quote[0];
+    const out = [];
+    if (q && Array.isArray(q.close)) {
+      for (let i = 0; i < q.close.length; i++) {
+        const o = q.open[i], h = q.high[i], l = q.low[i], c = q.close[i];
+        if (typeof o === "number" && typeof h === "number" &&
+            typeof l === "number" && typeof c === "number") {
+          out.push({
+            t: ts[i] || null,                       // epoch seconds
+            o: r2(o), h: r2(h), l: r2(l), c: r2(c),
+            v: (q.volume && q.volume[i]) || 0,
+          });
+        }
+      }
+    }
+    return {
+      symbol:   sym,
+      bars:     out,
+      price:    typeof m.regularMarketPrice === "number" ? m.regularMarketPrice : null,
+      prevClose: m.chartPreviousClose || m.previousClose || null,
+      currency: m.currency || null,
+    };
+  } catch (e) {
+    return { symbol: sym, bars: [], error: String(e) };
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -71,9 +121,12 @@ export default {
       return new Response(null, { headers: cors });
     }
 
-    // GET — market-quote proxy (?quotes=SPY,QQQ,...), or health check
+    // GET — market-quote proxy (?quotes=SPY,QQQ,...), daily-candle proxy
+    // (?candles=NVDA&range=3mo&interval=1d), or health check
     if (request.method === "GET") {
-      const quotesParam = new URL(request.url).searchParams.get("quotes");
+      const url = new URL(request.url);
+      const quotesParam  = url.searchParams.get("quotes");
+      const candlesParam = url.searchParams.get("candles");
       if (quotesParam) {
         const cache = caches.default;
         const hit = await cache.match(request);
@@ -84,6 +137,27 @@ export default {
         const quotes = await Promise.all(syms.map(fetchYahooQuote));
         const resp = Response.json({ quotes: quotes }, {
           headers: { ...cors, "Cache-Control": "public, max-age=30" },
+        });
+        ctx.waitUntil(cache.put(request, resp.clone()));
+        return resp;
+      }
+      if (candlesParam) {
+        const cache = caches.default;
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const sym = candlesParam.trim().toUpperCase();
+        if (!sym || !/^[A-Z.\-]{1,8}$/.test(sym)) {
+          return Response.json(
+            { error: `Invalid ticker: "${sym}"` },
+            { status: 400, headers: cors });
+        }
+        const data = await fetchYahooCandles(
+          sym,
+          url.searchParams.get("range")    || "3mo",
+          url.searchParams.get("interval") || "1d"
+        );
+        const resp = Response.json(data, {
+          headers: { ...cors, "Cache-Control": "public, max-age=300" },
         });
         ctx.waitUntil(cache.put(request, resp.clone()));
         return resp;
