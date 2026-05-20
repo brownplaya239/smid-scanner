@@ -125,8 +125,19 @@ def _fetch_one_meta(ticker):
 # ─── Universe ────────────────────────────────────────────────────────────────
 
 def _last_trading_day():
-    d = datetime.now(ET).date()
-    while d.weekday() >= 5:                 # Mon-Fri only
+    """Most recent weekday whose daily bar should exist on Polygon. Pre-market
+    on a weekday, that bar isn't published yet — Polygon's grouped_daily for
+    'today' returns empty until after market close (~4 PM ET) and stabilizes
+    closer to 6 PM ET. We give it until 4:30 PM ET ('market close + 30min'
+    buffer) before counting today; otherwise the script reports against the
+    PRIOR trading day, which is what every quote ladder would show too."""
+    now = datetime.now(ET)
+    d = now.date()
+    # If it's pre-close on a weekday, today's bar isn't ready yet
+    market_close = now.replace(hour=16, minute=30, second=0, microsecond=0)
+    if now < market_close:
+        d -= timedelta(days=1)
+    while d.weekday() >= 5:                 # walk back over weekends
         d -= timedelta(days=1)
     return d.strftime("%Y-%m-%d")
 
@@ -135,17 +146,34 @@ def _build_universe(min_dollar_vol=MIN_DOLLAR_VOL, ref_date=None):
     """Single-day dollar-volume gate, applied to the full US-stock universe
     via Polygon's grouped_daily. Mirrors the ThinkScript volumeCondition
     (close * volume >= 50M on the last trading day). Filters out ETFs,
-    obvious non-common symbols (dots, length>5), and bad data."""
-    ref_date = ref_date or _last_trading_day()
-    grouped = polygon_data.grouped_daily(ref_date)
+    obvious non-common symbols (dots, length>5), and bad data.
+
+    If the requested grouped_daily comes back empty (Polygon publishes the
+    day's bar gradually), walks back one trading day at a time up to 5 days
+    before giving up. Prevents the "0 names cleared" outcome that happens
+    when CI fires before Polygon has published today's bar."""
     out = []
-    for tk, bar in grouped.items():
-        if "." in tk or len(tk) > 5 or tk in EXCLUDE_ETFS:
-            continue
-        c = bar.get("c") or 0
-        v = bar.get("v") or 0
-        if c > 0 and v > 0 and c * v >= min_dollar_vol:
-            out.append(tk)
+    candidate = ref_date or _last_trading_day()
+    for _ in range(5):
+        grouped = polygon_data.grouped_daily(candidate) or {}
+        if grouped:
+            for tk, bar in grouped.items():
+                if "." in tk or len(tk) > 5 or tk in EXCLUDE_ETFS:
+                    continue
+                c = bar.get("c") or 0
+                v = bar.get("v") or 0
+                if c > 0 and v > 0 and c * v >= min_dollar_vol:
+                    out.append(tk)
+            if out:
+                if candidate != (ref_date or _last_trading_day()):
+                    print(f"  Universe used fallback date {candidate} "
+                          f"(today's bar wasn't ready).")
+                return sorted(out)
+        # Walk back one trading day and retry
+        d = datetime.strptime(candidate, "%Y-%m-%d").date() - timedelta(days=1)
+        while d.weekday() >= 5:
+            d -= timedelta(days=1)
+        candidate = d.strftime("%Y-%m-%d")
     return sorted(out)
 
 
