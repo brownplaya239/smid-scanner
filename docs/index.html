@@ -450,6 +450,108 @@
     .tdp-head .tdp-sym { font-size:20px; }
   }
 
+  /* ────────────────────────────────────────────────────────────────
+     News Flow tab — split view (Trading Day | Per-Ticker) plus pulse
+     ──────────────────────────────────────────────────────────────── */
+  #panel-news { max-width:1320px; }
+  .news-pulse { display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:9px;
+    margin-bottom:14px; padding:12px; background:var(--card);
+    border:1px solid var(--line); border-radius:8px; }
+  .news-pulse .np-stat { font-size:9.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; }
+  .news-pulse .np-stat b { display:block; font-size:17px; color:var(--text);
+    font-weight:800; margin-top:2px; font-variant-numeric:tabular-nums; }
+  .news-pulse .np-stat .pos { color:var(--green); }
+  .news-pulse .np-stat .neg { color:var(--red); }
+  .news-pulse .np-chips { display:flex; flex-wrap:wrap; gap:4px;
+    margin-top:3px; }
+  .news-pulse .np-chip { font-size:9.5px; padding:2px 6px;
+    background:var(--navy2); border:1px solid var(--border2);
+    border-radius:10px; color:var(--text); font-weight:700;
+    cursor:pointer; }
+  .news-pulse .np-chip:hover { border-color:var(--gold); color:var(--gold); }
+  .news-pulse .np-chip .np-chip-n { color:var(--muted); font-weight:500;
+    margin-left:3px; }
+
+  .news-split { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:900px) { .news-split { grid-template-columns:1fr; } }
+  .news-col { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:12px 13px; display:flex; flex-direction:column;
+    min-height:480px; }
+  .news-col-head { display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    padding-bottom:9px; margin-bottom:9px; border-bottom:1px solid var(--line); }
+  .news-col-head h3 { font-size:11px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.5px; font-weight:700; margin:0; flex:1; min-width:80px; }
+  .news-col-head select, .news-col-head input[type=text] {
+    background:var(--navy2); border:1px solid var(--border2); color:var(--text);
+    padding:5px 8px; border-radius:4px; font-family:inherit; font-size:11px; }
+  .news-col-head input[type=text] { width:120px; text-transform:uppercase;
+    letter-spacing:.4px; font-weight:700; }
+  .news-col-head input[type=text]:focus, .news-col-head select:focus {
+    border-color:var(--gold); outline:0; }
+  .news-watch { display:flex; align-items:center; gap:5px; font-size:10.5px;
+    color:var(--textdim); cursor:pointer; }
+  .news-watch input { margin:0; }
+
+  .news-list { flex:1; overflow-y:auto; max-height:760px; }
+  .news-empty { color:var(--muted); font-size:11px; text-align:center;
+    padding:36px 18px; }
+  .news-item { display:grid; grid-template-columns:46px 1fr; gap:9px;
+    padding:9px 0; align-items:start; }
+  .news-item + .news-item { border-top:1px solid var(--line); }
+  .news-item .ni-time { font-size:9.5px; color:var(--muted);
+    font-variant-numeric:tabular-nums; padding-top:1px; line-height:1.3; }
+  .news-item .ni-time .ni-src { display:block; color:var(--textdim);
+    font-size:8.5px; text-transform:uppercase; letter-spacing:.3px;
+    margin-top:2px; }
+  .news-item .ni-body { min-width:0; }
+  .news-item .ni-title { font-size:12.5px; line-height:1.35; color:var(--text);
+    font-weight:600; text-decoration:none; display:block; }
+  .news-item .ni-title:hover { color:var(--gold); }
+  .news-item .ni-desc { font-size:10.5px; line-height:1.4; color:var(--textdim);
+    margin-top:3px; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2;
+    -webkit-box-orient:vertical; overflow:hidden; }
+  .news-item .ni-foot { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;
+    align-items:center; }
+  .news-item .ni-tk { font-size:9.5px; padding:1px 6px;
+    background:rgba(255,255,255,0.03); border:1px solid var(--border2);
+    border-radius:9px; color:var(--text); font-weight:700; cursor:pointer; }
+  .news-item .ni-tk:hover { border-color:var(--gold); color:var(--gold); }
+  .news-sent { font-size:8.5px; font-weight:800; padding:1.5px 5px;
+    border-radius:3px; letter-spacing:.4px; text-transform:uppercase;
+    text-shadow:0 1px 1px rgba(0,0,0,.5); cursor:default; }
+  .news-sent.positive { background:rgba(31,179,99,0.85); color:#fff; }
+  .news-sent.negative { background:rgba(214,68,68,0.85); color:#fff; }
+  .news-sent.neutral  { background:rgba(160,178,210,0.4); color:var(--text); }
+
+  .news-ticker-stats { display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(80px, 1fr));
+    gap:6px; padding:9px 0; margin-bottom:6px;
+    border-bottom:1px solid var(--line); font-size:10.5px; }
+  .news-ticker-stats.empty { display:none; }
+  .news-ticker-stats .nts-cell { color:var(--muted); text-transform:uppercase;
+    font-size:9px; letter-spacing:.4px; font-weight:700; }
+  .news-ticker-stats .nts-cell b { display:block; color:var(--text);
+    font-size:15px; font-weight:800; margin-top:2px;
+    font-variant-numeric:tabular-nums; }
+  .news-ticker-stats .nts-cell .pos { color:var(--green); }
+  .news-ticker-stats .nts-cell .neg { color:var(--red); }
+
+  /* News section inside the ticker drilldown panel */
+  .tdp-news { display:flex; flex-direction:column; gap:8px; }
+  .tdp-news-row { padding:6px 0; }
+  .tdp-news-row + .tdp-news-row { border-top:1px solid var(--line); }
+  .tdp-news-row .tnr-time { font-size:9.5px; color:var(--muted);
+    margin-bottom:2px; }
+  .tdp-news-row .tnr-title { font-size:11.5px; color:var(--text);
+    text-decoration:none; line-height:1.4; font-weight:600; display:block; }
+  .tdp-news-row .tnr-title:hover { color:var(--gold); }
+  .tdp-news-row .tnr-foot { margin-top:4px; display:flex; gap:5px;
+    align-items:center; }
+  .tdp-news-row .tnr-foot .tnr-src { font-size:9px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.3px; }
+
   /* Theme constituent popup (hover a theme row to see its members) */
   .th-pop { position:fixed; z-index:60; display:none; width:240px;
     background:var(--card); border:1px solid var(--line); border-radius:8px;
@@ -913,6 +1015,7 @@
     <button data-tab="swing">Swing Report Card</button>
     <button data-tab="qm-monthly">QM Monthly Gainers</button>
     <button data-tab="stockbee-weekly">Stockbee Weekly</button>
+    <button data-tab="news">News Flow</button>
   </nav>
 
   <div class="market-cards" id="market-cards"></div>
@@ -1034,6 +1137,56 @@
       </div>
       <div class="uoa-table-wrap">
         <table class="mom-table" id="sb-table"></table>
+      </div>
+    </section>
+
+    <!-- ── News Flow (Polygon News via Cloudflare Worker, 5-min edge cache) ── -->
+    <section class="panel" id="panel-news">
+      <h2 class="tab-title">News Flow</h2>
+      <p class="tab-sub">Headlines aggregated by Polygon from Reuters, Bloomberg,
+        CNBC, MarketWatch, Seeking Alpha &amp; ~25 more publishers &mdash; with
+        sentiment tagging. Cached 5 min at the edge.
+        <span id="news-updated"></span></p>
+
+      <div class="news-pulse" id="news-pulse"></div>
+
+      <div class="news-split">
+        <div class="news-col" id="news-col-general">
+          <div class="news-col-head">
+            <h3>Trading Day</h3>
+            <div class="news-filters">
+              <select id="news-window" title="Time window">
+                <option value="1">Last 1h</option>
+                <option value="4">Last 4h</option>
+                <option value="24" selected>Today (24h)</option>
+                <option value="72">Last 3d</option>
+                <option value="0">All</option>
+              </select>
+              <select id="news-sent" title="Sentiment">
+                <option value="">Any sentiment</option>
+                <option value="positive">Positive only</option>
+                <option value="negative">Negative only</option>
+                <option value="neutral">Neutral only</option>
+              </select>
+              <label class="news-watch"><input type="checkbox" id="news-watch"/>
+                Watchlist only</label>
+            </div>
+          </div>
+          <div class="news-list" id="news-general-list">
+            <div class="news-empty">Loading headlines&hellip;</div>
+          </div>
+        </div>
+        <div class="news-col" id="news-col-ticker">
+          <div class="news-col-head">
+            <h3>Per Ticker</h3>
+            <input type="text" id="news-ticker-q" placeholder="Ticker (e.g. NVDA)"
+              autocomplete="off" maxlength="8" />
+          </div>
+          <div class="news-ticker-stats" id="news-ticker-stats"></div>
+          <div class="news-list" id="news-ticker-list">
+            <div class="news-empty">Search any ticker above for its news flow.</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1770,7 +1923,16 @@
         sec.push('<div class="tdp-section"><h4>Recent reports</h4>' + rep + '</div>');
       }
 
-      // 5) Why it matters today
+      // 5) Latest news — lazy-loaded from the worker. Shows a placeholder
+      // here; fetchAndUpgradeNews() swaps in the headlines when ready.
+      sec.push('<div class="tdp-section" id="tdp-news-section">' +
+        '<h4>Latest news <span style="color:var(--muted);font-weight:400;' +
+          'text-transform:none;letter-spacing:0;font-size:9px;">· loading…</span></h4>' +
+        '<div class="tdp-news" id="tdp-news-body">' +
+          '<div class="tdp-empty">Fetching headlines…</div>' +
+        '</div></div>');
+
+      // 6) Why it matters today
       sec.push('<div class="tdp-section"><h4>Why it matters today</h4>' +
         '<div class="tdp-why">' + whyMatters(agg) + '</div></div>');
 
@@ -1851,6 +2013,67 @@
       } catch (e) { /* leave the sparkline in place */ }
     }
 
+    function fmtNewsAge(iso) {
+      if (!iso) return "";
+      const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+      if (mins < 1)   return "just now";
+      if (mins < 60)  return mins + " min ago";
+      if (mins < 1440) return Math.round(mins / 60) + " hr ago";
+      return Math.round(mins / 1440) + " days ago";
+    }
+    async function fetchAndRenderNews(t) {
+      if (!t || t !== ACTIVE_TICKER) return;
+      try {
+        const r = await fetch(TDP_WORKER_URL + "?news=" +
+          encodeURIComponent(t) + "&limit=20");
+        if (!r.ok) return;
+        const d = await r.json();
+        if (t !== ACTIVE_TICKER) return;
+        const head = document.querySelector("#tdp-news-section h4");
+        const body = document.getElementById("tdp-news-body");
+        if (!head || !body) return;
+        const arts = (d && d.articles) || [];
+        head.innerHTML = 'Latest news ' +
+          '<span style="color:var(--muted);font-weight:400;text-transform:none;' +
+            'letter-spacing:0;font-size:9px;">· ' + arts.length + ' on file</span>';
+        if (!arts.length) {
+          body.innerHTML = '<div class="tdp-empty">No news on file for ' + t + '.</div>';
+          return;
+        }
+        const top3 = arts.slice(0, 3).map(function (a) {
+          // Pick this ticker's sentiment when available
+          let sent = null;
+          if (a.insights && a.insights.length) {
+            sent = a.insights.find(function (i) { return i.ticker === t; }) ||
+                   a.insights[0];
+          }
+          const sentTag = sent
+            ? '<span class="news-sent ' + sent.sentiment + '">' +
+              sent.sentiment + '</span>'
+            : '';
+          return '<div class="tdp-news-row">' +
+            '<div class="tnr-time">' + fmtNewsAge(a.published) + '</div>' +
+            '<a class="tnr-title" href="' + (a.url || "#") +
+              '" target="_blank" rel="noopener">' +
+              (a.title || "(no title)").replace(/&/g, "&amp;").replace(/</g, "&lt;") +
+              '</a>' +
+            '<div class="tnr-foot">' +
+              '<span class="tnr-src">' + (a.publisher || "—") + '</span>' +
+              sentTag +
+            '</div></div>';
+        }).join("");
+        const viewAll = arts.length > 3
+          ? '<div class="tdp-actions" style="margin-top:9px"><button ' +
+              'data-news-tk="' + t + '">View all ' + arts.length +
+              ' headlines on News tab &rarr;</button></div>'
+          : '';
+        body.innerHTML = top3 + viewAll;
+      } catch (e) {
+        const body = document.getElementById("tdp-news-body");
+        if (body) body.innerHTML = '<div class="tdp-empty">News feed unavailable.</div>';
+      }
+    }
+
     function openPanel(t) {
       if (!t) return;
       ACTIVE_TICKER = t;
@@ -1861,6 +2084,8 @@
       document.body.style.overflow = "hidden";
       // Async upgrade: sparkline -> 90-day daily candlestick when ready
       fetchAndUpgradeChart(t);
+      // Async fetch the latest 20 headlines via the worker
+      fetchAndRenderNews(t);
     }
     function closePanel() {
       ACTIVE_TICKER = null;
@@ -1898,15 +2123,30 @@
     // Action button inside panel: "View all on Options Flow tab"
     panel.addEventListener("click", function (e) {
       const fk = e.target.closest("[data-flow-tk]");
-      if (!fk) return;
-      const tab = document.querySelector('nav button[data-tab="uoa"]');
-      if (tab) tab.click();
-      const q = document.getElementById("uoa-q");
-      if (q) {
-        q.value = fk.dataset.flowTk;
-        q.dispatchEvent(new Event("input", { bubbles: true }));
+      if (fk) {
+        const tab = document.querySelector('nav button[data-tab="uoa"]');
+        if (tab) tab.click();
+        const q = document.getElementById("uoa-q");
+        if (q) {
+          q.value = fk.dataset.flowTk;
+          q.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        closePanel();
+        return;
       }
-      closePanel();
+      // "View all news on News tab" — switches to News, populates ticker search
+      const nk = e.target.closest("[data-news-tk]");
+      if (nk) {
+        const tab = document.querySelector('nav button[data-tab="news"]');
+        if (tab) tab.click();
+        const q = document.getElementById("news-ticker-q");
+        if (q) {
+          q.value = nk.dataset.newsTk;
+          q.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        closePanel();
+        return;
+      }
     });
   })();
 
@@ -2134,6 +2374,305 @@
                   countId:"qm-count", chgLabel:"1-Mo %" });
   setupMomentum({ file:"momentum_stockbee.json", dateId:"sb-date", tableId:"sb-table",
                   countId:"sb-count", chgLabel:"1-Wk %" });
+
+  /* ────────────────────────────────────────────────────────────────
+     News Flow tab — reads from the Cloudflare Worker's ?news endpoint
+     ( Polygon News API, edge-cached 5 min ).
+     Two panes: Trading Day firehose (left) and Per-Ticker (right).
+     Pulse row across the top with at-a-glance stats.
+     ──────────────────────────────────────────────────────────────── */
+  (function setupNews() {
+    const list      = document.getElementById("news-general-list");
+    const pulse     = document.getElementById("news-pulse");
+    const tkList    = document.getElementById("news-ticker-list");
+    const tkStats   = document.getElementById("news-ticker-stats");
+    const tkInput   = document.getElementById("news-ticker-q");
+    const windowSel = document.getElementById("news-window");
+    const sentSel   = document.getElementById("news-sent");
+    const watchOnly = document.getElementById("news-watch");
+    const updated   = document.getElementById("news-updated");
+    if (!list) return;
+
+    let GENERAL = [], TICKER_DATA = { ticker: null, articles: [] };
+    let UNIV    = new Set();   // universe set for "watchlist only" filter
+    let pollT   = null;
+
+    function fmtAge(iso) {
+      if (!iso) return "";
+      const dt = new Date(iso);
+      const mins = Math.max(0, Math.round((Date.now() - dt.getTime()) / 60000));
+      if (mins < 1)   return "now";
+      if (mins < 60)  return mins + "m";
+      if (mins < 1440) return Math.round(mins / 60) + "h";
+      return Math.round(mins / 1440) + "d";
+    }
+    function escHTML(s) {
+      return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    // Build the universe lookup from window.TD_DATA (populated by setupDesk
+    // + setupSwing) so "Watchlist only" hides anything not on the site.
+    function rebuildUniverse() {
+      UNIV = new Set();
+      const D = window.TD_DATA || {};
+      if (D.swing && D.swing.runs && D.swing.runs.length) {
+        const r = D.swing.runs[D.swing.runs.length - 1];
+        Object.keys(r.grades || {}).forEach(function (g) {
+          (r.grades[g] || []).forEach(function (c) { UNIV.add(c.t); });
+        });
+      }
+      if (D.uoa && D.uoa.rows) {
+        D.uoa.rows.forEach(function (r) { UNIV.add(r.ticker); });
+      }
+      if (D.qm && D.qm.runs && D.qm.runs.length) {
+        (D.qm.runs[D.qm.runs.length-1].rows || []).forEach(function (r) {
+          UNIV.add(r.ticker);
+        });
+      }
+      if (D.sb && D.sb.runs && D.sb.runs.length) {
+        (D.sb.runs[D.sb.runs.length-1].rows || []).forEach(function (r) {
+          UNIV.add(r.ticker);
+        });
+      }
+      if (D.uoaMeta) {
+        Object.keys(D.uoaMeta).forEach(function (t) { UNIV.add(t); });
+      }
+    }
+    function sentimentFor(article, focusTicker) {
+      // Pick sentiment for the focus ticker (if any), else first insight,
+      // else null. Polygon attaches sentiment per-ticker via .insights.
+      if (!article.insights || !article.insights.length) return null;
+      if (focusTicker) {
+        const m = article.insights.find(function (i) {
+          return i.ticker === focusTicker;
+        });
+        if (m) return m;
+      }
+      return article.insights[0];
+    }
+    function articleHTML(a, focusTicker) {
+      const ins = sentimentFor(a, focusTicker);
+      const sentTag = ins
+        ? '<span class="news-sent ' + ins.sentiment + '" title="' +
+            escHTML(ins.reasoning || "") + '">' + ins.sentiment + '</span>'
+        : '';
+      const tickers = (a.tickers || []).slice(0, 6).map(function (t) {
+        return '<span class="ni-tk" data-t="' + escHTML(t) + '">' + t + '</span>';
+      }).join("");
+      const more = a.tickers && a.tickers.length > 6
+        ? '<span class="ni-tk" style="cursor:default;color:var(--muted)">+' +
+            (a.tickers.length - 6) + '</span>' : '';
+      return '<div class="news-item">' +
+        '<div class="ni-time">' + fmtAge(a.published) +
+          '<span class="ni-src">' + escHTML(a.publisher || "—") + '</span></div>' +
+        '<div class="ni-body">' +
+          '<a class="ni-title" href="' + escHTML(a.url) +
+            '" target="_blank" rel="noopener">' + escHTML(a.title) + '</a>' +
+          (a.description ? '<div class="ni-desc">' + escHTML(a.description) +
+            '</div>' : '') +
+          '<div class="ni-foot">' + tickers + more + sentTag + '</div>' +
+        '</div></div>';
+    }
+    function withinWindow(article, hours) {
+      if (!hours) return true;                  // "All"
+      if (!article.published) return false;
+      const age = (Date.now() - new Date(article.published).getTime()) / 3600000;
+      return age <= hours;
+    }
+    function matchesSentiment(article, want) {
+      if (!want) return true;
+      const ins = sentimentFor(article);
+      return ins && ins.sentiment === want;
+    }
+    function inUniverse(article) {
+      if (!watchOnly.checked) return true;
+      if (!article.tickers || !article.tickers.length) return false;
+      return article.tickers.some(function (t) { return UNIV.has(t); });
+    }
+    function renderGeneral() {
+      const hours = parseInt(windowSel.value, 10);
+      const want  = sentSel.value;
+      const filtered = GENERAL.filter(function (a) {
+        return withinWindow(a, hours) && matchesSentiment(a, want) &&
+               inUniverse(a);
+      });
+      if (!filtered.length) {
+        list.innerHTML = '<div class="news-empty">No headlines match these filters.</div>';
+      } else {
+        list.innerHTML = filtered.slice(0, 150)
+          .map(function (a) { return articleHTML(a); }).join("");
+      }
+      renderPulse(filtered);
+    }
+    function renderPulse(filtered) {
+      if (!filtered || !filtered.length) {
+        pulse.innerHTML = '<div class="np-stat">No headlines in window. ' +
+          'Try widening the time filter.</div>';
+        return;
+      }
+      // Sentiment split
+      let pos = 0, neg = 0, neu = 0;
+      filtered.forEach(function (a) {
+        const ins = sentimentFor(a);
+        if (!ins) return;
+        if (ins.sentiment === "positive") pos++;
+        else if (ins.sentiment === "negative") neg++;
+        else neu++;
+      });
+      const sentTotal = pos + neg + neu;
+      const posPct = sentTotal ? Math.round(100 * pos / sentTotal) : 0;
+      const negPct = sentTotal ? Math.round(100 * neg / sentTotal) : 0;
+      // Most-tickered names
+      const counts = {};
+      filtered.forEach(function (a) {
+        (a.tickers || []).forEach(function (t) {
+          counts[t] = (counts[t] || 0) + 1;
+        });
+      });
+      const topTks = Object.keys(counts)
+        .sort(function (a, b) { return counts[b] - counts[a]; })
+        .slice(0, 8);
+      pulse.innerHTML =
+        '<div class="np-stat">Headlines<b>' + filtered.length + '</b></div>' +
+        '<div class="np-stat">Sentiment<b>' +
+          '<span class="pos">' + posPct + '%</span> / ' +
+          '<span class="neg">' + negPct + '%</span></b></div>' +
+        '<div class="np-stat" style="grid-column:span 2">Most-tickered' +
+          '<div class="np-chips">' +
+          topTks.map(function (t) {
+            return '<span class="np-chip" data-t="' + t + '">' + t +
+              '<span class="np-chip-n">' + counts[t] + '</span></span>';
+          }).join("") + '</div></div>';
+    }
+
+    // ── Per-Ticker view ──
+    function renderTicker() {
+      const t = TICKER_DATA.ticker;
+      const arts = TICKER_DATA.articles || [];
+      if (!t) {
+        tkStats.className = "news-ticker-stats empty";
+        tkStats.innerHTML = "";
+        tkList.innerHTML = '<div class="news-empty">' +
+          'Search any ticker above for its news flow.</div>';
+        return;
+      }
+      // Stats
+      const now = Date.now();
+      const buckets = { today: 0, week: 0, month: 0 };
+      let pos = 0, neg = 0;
+      arts.forEach(function (a) {
+        if (!a.published) return;
+        const ageH = (now - new Date(a.published).getTime()) / 3600000;
+        if (ageH <= 24)  buckets.today++;
+        if (ageH <= 168) buckets.week++;
+        if (ageH <= 720) buckets.month++;
+        const ins = sentimentFor(a, t);
+        if (ins && ins.sentiment === "positive") pos++;
+        else if (ins && ins.sentiment === "negative") neg++;
+      });
+      const sentTotal = pos + neg || 1;
+      const posPct = Math.round(100 * pos / sentTotal);
+      const sources = {};
+      arts.forEach(function (a) {
+        if (a.publisher) sources[a.publisher] = (sources[a.publisher] || 0) + 1;
+      });
+      const topSrc = Object.keys(sources)
+        .sort(function (a, b) { return sources[b] - sources[a]; })
+        .slice(0, 3)
+        .map(function (s) { return s + " (" + sources[s] + ")"; })
+        .join(", ");
+      tkStats.className = "news-ticker-stats";
+      tkStats.innerHTML =
+        '<div class="nts-cell">Today<b>' + buckets.today + '</b></div>' +
+        '<div class="nts-cell">7-day<b>' + buckets.week + '</b></div>' +
+        '<div class="nts-cell">30-day<b>' + buckets.month + '</b></div>' +
+        '<div class="nts-cell">Bull%<b><span class="pos">' + posPct + '%</span></b></div>' +
+        '<div class="nts-cell" style="grid-column:span 2">Top sources' +
+          '<b style="font-size:11px;font-weight:600">' + (topSrc || "—") + '</b></div>';
+      if (!arts.length) {
+        tkList.innerHTML = '<div class="news-empty">' +
+          'No news on file for ' + t + '.</div>';
+      } else {
+        tkList.innerHTML = arts.slice(0, 60)
+          .map(function (a) { return articleHTML(a, t); }).join("");
+      }
+    }
+
+    // ── Data fetchers ──
+    function loadGeneral() {
+      fetch(TDP_WORKER_URL + "?news=general&limit=200")
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.articles) {
+            list.innerHTML = '<div class="news-empty">' +
+              (d && d.error ? "Worker: " + escHTML(d.error)
+                : "News feed unavailable.") + '</div>';
+            return;
+          }
+          GENERAL = d.articles;
+          if (updated) updated.textContent = "· refreshed " +
+            new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+          rebuildUniverse();
+          renderGeneral();
+        })
+        .catch(function () {
+          list.innerHTML = '<div class="news-empty">' +
+            'Could not reach the news worker.</div>';
+        });
+    }
+    function loadTicker(t) {
+      if (!t) return;
+      tkList.innerHTML = '<div class="news-empty">Loading ' + t + '&hellip;</div>';
+      fetch(TDP_WORKER_URL + "?news=" + encodeURIComponent(t) + "&limit=100")
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.articles) {
+            TICKER_DATA = { ticker: t, articles: [] };
+          } else {
+            TICKER_DATA = { ticker: t, articles: d.articles };
+          }
+          renderTicker();
+        })
+        .catch(function () {
+          TICKER_DATA = { ticker: t, articles: [] };
+          renderTicker();
+        });
+    }
+
+    // ── Wiring ──
+    windowSel.addEventListener("change", renderGeneral);
+    sentSel.addEventListener("change", renderGeneral);
+    watchOnly.addEventListener("change", renderGeneral);
+    let searchTimer;
+    tkInput.addEventListener("input", function () {
+      const t = tkInput.value.trim().toUpperCase();
+      clearTimeout(searchTimer);
+      if (!t) {
+        TICKER_DATA = { ticker: null, articles: [] };
+        renderTicker();
+        return;
+      }
+      if (!/^[A-Z.\-]{1,8}$/.test(t)) return;
+      searchTimer = setTimeout(function () { loadTicker(t); }, 250);
+    });
+    // Clicking a most-tickered chip in the pulse row jumps the search box
+    pulse.addEventListener("click", function (e) {
+      const chip = e.target.closest(".np-chip");
+      if (!chip) return;
+      e.preventDefault();
+      const t = chip.dataset.t;
+      if (!t) return;
+      tkInput.value = t;
+      loadTicker(t);
+    });
+
+    // Initial load + auto-refresh every 5 min (matches the worker's edge cache)
+    loadGeneral();
+    pollT = setInterval(loadGeneral, 5 * 60 * 1000);
+
+    // Expose for the panel's News section
+    window.NEWS_LOAD_TICKER = loadTicker;
+  })();
 
   /* ── Today's Desk — daily command center ── */
   function setupDesk() {
