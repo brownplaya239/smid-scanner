@@ -938,6 +938,34 @@
   .perf-card tr:not(:first-child):hover { background:var(--rowhov); }
   .perf-dim { color:var(--muted); }
 
+  /* ── Data-maturity warning banner — sets honest expectations about
+     whether the cohort scores are statistically meaningful yet.
+     Shown above the hero strip so users see it before any number. ── */
+  .perf-maturity { display:flex; gap:10px; align-items:flex-start;
+    padding:11px 14px; border-radius:8px; margin-bottom:14px;
+    font-size:11.5px; line-height:1.5; }
+  .perf-maturity .pm-tag { font-size:9.5px; font-weight:800;
+    text-transform:uppercase; letter-spacing:.5px; padding:3px 9px;
+    border-radius:11px; flex-shrink:0; align-self:center;
+    text-shadow:0 1px 1px rgba(0,0,0,.5); }
+  .perf-maturity .pm-text { flex:1; color:var(--textdim); }
+  .perf-maturity.matur-noisy  { background:rgba(214,68,68,0.08);
+    border:1px solid rgba(214,68,68,0.25); }
+  .perf-maturity.matur-noisy  .pm-tag { background:var(--red);
+    color:#fff; }
+  .perf-maturity.matur-early  { background:rgba(255,158,27,0.07);
+    border:1px solid rgba(255,158,27,0.25); }
+  .perf-maturity.matur-early  .pm-tag { background:#ff9e1b;
+    color:#1a1a1a; }
+  .perf-maturity.matur-stable { background:rgba(31,179,99,0.06);
+    border:1px solid rgba(31,179,99,0.22); }
+  .perf-maturity.matur-stable .pm-tag { background:var(--green);
+    color:#fff; }
+  .perf-maturity.matur-robust { background:rgba(255,200,0,0.08);
+    border:1px solid rgba(255,200,0,0.3); }
+  .perf-maturity.matur-robust .pm-tag { background:var(--gold);
+    color:var(--accink); }
+
   /* ── Hero strip (top of Performance tab) ── */
   .perf-hero { display:grid;
     grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
@@ -5136,6 +5164,46 @@
           'builds as signals log and mature.</div>';
         return;
       }
+      // ── Data-maturity badge — honest about whether cohort scores
+      // are statistically trustworthy yet. Built from the ledger date
+      // range so it can't lie to itself. ──
+      // SCORED is the scored-signals export; we infer maturity from the
+      // signal dates already in EDGE via overall.{horizon}.n.
+      function maturityBadge() {
+        const ov = EDGE.overall || {};
+        const n1 = (ov["1"] || {}).n || 0;
+        const n5 = (ov["5"] || {}).n || 0;
+        const n20 = (ov["20"] || {}).n || 0;
+        // Tiers reflect what's statistically actionable, not what's pretty
+        let cls, label, text;
+        if (n5 < 50) {
+          cls = "matur-noisy";
+          label = "noisy";
+          text = "Less than 50 signals have aged to +5d. Cohort scores " +
+            "are anchored on +1d data over a very small window — every " +
+            "high-confidence reading here is provisional. Treat the " +
+            "framework as ready; the data is not. Revisit in 2-4 weeks.";
+        } else if (n5 < 200) {
+          cls = "matur-early";
+          label = "early";
+          text = "Some +5d data is in. Cohort scores are directionally " +
+            "useful but small-N tradeable cohorts can still flip with " +
+            "one bad week. Size conservatively against confidence scores.";
+        } else if (n20 < 100) {
+          cls = "matur-stable";
+          label = "stable";
+          text = "Solid +5d sample. +20d still accumulating. Cohort " +
+            "scores are real signal at the swing-DTE horizon.";
+        } else {
+          cls = "matur-robust";
+          label = "robust";
+          text = "Multi-horizon data is mature. Cohort scores reflect " +
+            "real alpha across regimes.";
+        }
+        return '<div class="perf-maturity ' + cls + '" title="' + text +
+          '"><span class="pm-tag">' + label + '</span>' +
+          '<span class="pm-text">' + text + '</span></div>';
+      }
       // ── Hero: top-of-page summary ──
       const ov = (EDGE.overall || {})["1"] || {};
       const ex = EDGE.excursion || {};
@@ -5259,7 +5327,7 @@
           rows.length + ' cohorts</div>' : '') +
         '</div>';
 
-      el.innerHTML = hero + filters + table;
+      el.innerHTML = maturityBadge() + hero + filters + table;
 
       // Wire interactivity
       $("perf-view").onchange = function () {
