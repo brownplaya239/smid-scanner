@@ -1,5 +1,5 @@
 {
- "updated": "2026-05-20T18:09:57-04:00",
+ "updated": "2026-05-20T18:23:32-04:00",
  "anchor": {
   "ticker": "SPY",
   "country": "United States",
@@ -17,7 +17,7 @@
    "country": "Canada",
    "region": "americas",
    "developed": true,
-   "aum_b": 4.8,
+   "aum_b": 5.0,
    "aum_tier": "md",
    "top_sector": "Financials 30%",
    "ytd_pct": 7.55,
@@ -46,6 +46,17 @@
    "vs_anchor": 5.63
   },
   {
+   "ticker": "ECH",
+   "country": "Chile",
+   "region": "americas",
+   "developed": false,
+   "aum_b": 0.5,
+   "aum_tier": "sm",
+   "top_sector": "Materials 26%",
+   "ytd_pct": 0.54,
+   "vs_anchor": -7.96
+  },
+  {
    "ticker": "ILF",
    "country": "Latin America",
    "region": "americas",
@@ -57,15 +68,15 @@
    "vs_anchor": 5.12
   },
   {
-   "ticker": "VGK",
-   "country": "Europe (broad)",
+   "ticker": "IEUR",
+   "country": "Europe (core MSCI)",
    "region": "europe",
    "developed": true,
-   "aum_b": 20.0,
-   "aum_tier": "xl",
-   "top_sector": "Financials 18%",
-   "ytd_pct": 4.35,
-   "vs_anchor": -4.15
+   "aum_b": 5.5,
+   "aum_tier": "lg",
+   "top_sector": "Industrials 16%",
+   "ytd_pct": 4.97,
+   "vs_anchor": -3.54
   },
   {
    "ticker": "EWU",
@@ -112,6 +123,94 @@
    "vs_anchor": -2.23
   },
   {
+   "ticker": "EWP",
+   "country": "Spain",
+   "region": "europe",
+   "developed": true,
+   "aum_b": 0.6,
+   "aum_tier": "sm",
+   "top_sector": "Financials 32%",
+   "ytd_pct": 4.46,
+   "vs_anchor": -4.04
+  },
+  {
+   "ticker": "EWN",
+   "country": "Netherlands",
+   "region": "europe",
+   "developed": true,
+   "aum_b": 0.4,
+   "aum_tier": "sm",
+   "top_sector": "Technology 21%",
+   "ytd_pct": 11.43,
+   "vs_anchor": 2.92
+  },
+  {
+   "ticker": "EWL",
+   "country": "Switzerland",
+   "region": "europe",
+   "developed": true,
+   "aum_b": 1.4,
+   "aum_tier": "md",
+   "top_sector": "Healthcare 32%",
+   "ytd_pct": 3.25,
+   "vs_anchor": -5.25
+  },
+  {
+   "ticker": "EWD",
+   "country": "Sweden",
+   "region": "europe",
+   "developed": true,
+   "aum_b": 0.3,
+   "aum_tier": "sm",
+   "top_sector": "Industrials 38%",
+   "ytd_pct": 3.43,
+   "vs_anchor": -5.07
+  },
+  {
+   "ticker": "EWO",
+   "country": "Austria",
+   "region": "europe",
+   "developed": true,
+   "aum_b": 0.2,
+   "aum_tier": "sm",
+   "top_sector": "Financials 36%",
+   "ytd_pct": 10.61,
+   "vs_anchor": 2.1
+  },
+  {
+   "ticker": "EWK",
+   "country": "Belgium",
+   "region": "europe",
+   "developed": true,
+   "aum_b": 0.05,
+   "aum_tier": "sm",
+   "top_sector": "Cons. Staples 30%",
+   "ytd_pct": 8.91,
+   "vs_anchor": 0.41
+  },
+  {
+   "ticker": "EIRL",
+   "country": "Ireland",
+   "region": "europe",
+   "developed": true,
+   "aum_b": 0.1,
+   "aum_tier": "sm",
+   "top_sector": "Materials 22%",
+   "ytd_pct": 0.09,
+   "vs_anchor": -8.41
+  },
+  {
+   "ticker": "EPOL",
+   "country": "Poland",
+   "region": "europe",
+   "developed": false,
+   "aum_b": 0.3,
+   "aum_tier": "sm",
+   "top_sector": "Financials 39%",
+   "ytd_pct": 9.66,
+   "vs_anchor": 1.15
+  },
+  {
    "ticker": "EWJ",
    "country": "Japan",
    "region": "apac",
@@ -132,6 +231,39 @@
    "top_sector": "Financials 27%",
    "ytd_pct": 9.18,
    "vs_anchor": 0.68
+  },
+  {
+   "ticker": "EWH",
+   "country": "Hong Kong",
+   "region": "apac",
+   "developed": true,
+   "aum_b": 0.8,
+   "aum_tier": "sm",
+   "top_sector": "Financials 38%",
+   "ytd_pct": 9.19,
+   "vs_anchor": 0.69
+  },
+  {
+   "ticker": "EWS",
+   "country": "Singapore",
+   "region": "apac",
+   "developed": true,
+   "aum_b": 0.4,
+   "aum_tier": "sm",
+   "top_sector": "Financials 49%",
+   "ytd_pct": 6.63,
+   "vs_anchor": -1.87
+  },
+  {
+   "ticker": "ENZL",
+   "country": "New Zealand",
+   "region": "apac",
+   "developed": true,
+   "aum_b": 0.05,
+   "aum_tier": "sm",
+   "top_sector": "Industrials 23%",
+   "ytd_pct": -3.39,
+   "vs_anchor": -11.89
   },
   {
    "ticker": "EEM",
@@ -167,17 +299,6 @@
    "vs_anchor": -17.53
   },
   {
-   "ticker": "KWEB",
-   "country": "China internet",
-   "region": "em",
-   "developed": false,
-   "aum_b": 4.5,
-   "aum_tier": "md",
-   "top_sector": "Communications 35%",
-   "ytd_pct": -21.08,
-   "vs_anchor": -29.58
-  },
-  {
    "ticker": "EWT",
    "country": "Taiwan",
    "region": "em",
@@ -198,6 +319,50 @@
    "top_sector": "Technology 30%",
    "ytd_pct": 76.2,
    "vs_anchor": 67.7
+  },
+  {
+   "ticker": "EIDO",
+   "country": "Indonesia",
+   "region": "em",
+   "developed": false,
+   "aum_b": 0.3,
+   "aum_tier": "sm",
+   "top_sector": "Financials 47%",
+   "ytd_pct": -28.28,
+   "vs_anchor": -36.78
+  },
+  {
+   "ticker": "EWM",
+   "country": "Malaysia",
+   "region": "em",
+   "developed": false,
+   "aum_b": 0.2,
+   "aum_tier": "sm",
+   "top_sector": "Financials 30%",
+   "ytd_pct": 7.62,
+   "vs_anchor": -0.88
+  },
+  {
+   "ticker": "EPHE",
+   "country": "Philippines",
+   "region": "em",
+   "developed": false,
+   "aum_b": 0.1,
+   "aum_tier": "sm",
+   "top_sector": "Financials 30%",
+   "ytd_pct": -3.04,
+   "vs_anchor": -11.55
+  },
+  {
+   "ticker": "THD",
+   "country": "Thailand",
+   "region": "em",
+   "developed": false,
+   "aum_b": 0.3,
+   "aum_tier": "sm",
+   "top_sector": "Financials 21%",
+   "ytd_pct": 20.73,
+   "vs_anchor": 12.23
   },
   {
    "ticker": "TUR",
@@ -222,15 +387,48 @@
    "vs_anchor": -9.77
   },
   {
-   "ticker": "VNM",
-   "country": "Vietnam",
+   "ticker": "EIS",
+   "country": "Israel",
+   "region": "em",
+   "developed": true,
+   "aum_b": 0.2,
+   "aum_tier": "sm",
+   "top_sector": "Industrials 21%",
+   "ytd_pct": 18.04,
+   "vs_anchor": 9.53
+  },
+  {
+   "ticker": "KSA",
+   "country": "Saudi Arabia",
    "region": "em",
    "developed": false,
-   "aum_b": 0.5,
+   "aum_b": 0.7,
    "aum_tier": "sm",
-   "top_sector": "Real Estate 28%",
-   "ytd_pct": 1.05,
-   "vs_anchor": -7.45
+   "top_sector": "Financials 35%",
+   "ytd_pct": 4.24,
+   "vs_anchor": -4.26
+  },
+  {
+   "ticker": "QAT",
+   "country": "Qatar",
+   "region": "em",
+   "developed": false,
+   "aum_b": 0.1,
+   "aum_tier": "sm",
+   "top_sector": "Financials 49%",
+   "ytd_pct": -1.22,
+   "vs_anchor": -9.72
+  },
+  {
+   "ticker": "UAE",
+   "country": "United Arab Emirates",
+   "region": "em",
+   "developed": false,
+   "aum_b": 0.05,
+   "aum_tier": "sm",
+   "top_sector": "Financials 50%",
+   "ytd_pct": -1.74,
+   "vs_anchor": -10.25
   }
  ],
  "source": "Polygon daily bars \u00b7 sector + AUM hand-maintained from iShares factsheets"
