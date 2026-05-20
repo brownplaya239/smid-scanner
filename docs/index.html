@@ -552,6 +552,54 @@
   .tdp-news-row .tnr-foot .tnr-src { font-size:9px; color:var(--muted);
     text-transform:uppercase; letter-spacing:.3px; }
 
+  /* SEC Filings section inside the ticker drilldown panel */
+  .tdp-filings { display:flex; flex-direction:column; }
+  .tdp-filing { padding:7px 0; display:grid; grid-template-columns:8px 60px 1fr;
+    gap:7px; align-items:start; }
+  .tdp-filing + .tdp-filing { border-top:1px solid var(--line); }
+  .tdp-filing .tf-dot { width:8px; height:8px; border-radius:50%;
+    margin-top:5px; }
+  .tdp-filing .tf-dot.red    { background:var(--red); }
+  .tdp-filing .tf-dot.amber  { background:#ff9e1b; }
+  .tdp-filing .tf-dot.blue   { background:#5fa3ff; }
+  .tdp-filing .tf-dot.green  { background:var(--green); }
+  .tdp-filing .tf-dot.purple { background:#a87cff; }
+  .tdp-filing .tf-dot.gold   { background:var(--gold); }
+  .tdp-filing .tf-dot.gray   { background:var(--muted); }
+  .tdp-filing .tf-date { color:var(--muted); font-size:10px;
+    font-variant-numeric:tabular-nums; padding-top:2px; line-height:1.3; }
+  .tdp-filing .tf-body { min-width:0; }
+  .tdp-filing .tf-headline { display:flex; align-items:baseline; gap:6px;
+    flex-wrap:wrap; }
+  .tdp-filing .tf-link { color:var(--text); font-size:11.5px;
+    font-weight:600; text-decoration:none; line-height:1.35; }
+  .tdp-filing .tf-link:hover { color:var(--gold); }
+  .tdp-filing .tf-form { font-size:9px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; }
+  .tdp-filing .tf-summary { font-size:11px; color:var(--textdim);
+    margin-top:4px; line-height:1.45; padding:6px 9px;
+    background:rgba(255,255,255,0.025); border-left:2px solid var(--gold);
+    border-radius:0 3px 3px 0; }
+  .tdp-filing .tf-summary.loading { color:var(--muted); font-style:italic;
+    border-left-color:var(--muted); }
+  .tdp-filing .tf-summary.error { color:var(--muted); font-style:italic;
+    border-left-color:var(--red); }
+  .tdp-filing .tf-routine { font-size:10px; color:var(--muted);
+    margin-top:3px; }
+  .tdp-filing .tf-actions { margin-top:4px; }
+  .tdp-filing .tf-summarize-btn { font-family:inherit; font-size:10px;
+    background:none; border:0; color:var(--gold); cursor:pointer;
+    text-decoration:underline; padding:0; }
+  .tdp-filing .tf-summarize-btn:hover { opacity:0.7; }
+  .tdp-filing .tf-summarize-btn:disabled { color:var(--muted);
+    cursor:not-allowed; text-decoration:none; }
+  /* Legend strip under the section header */
+  .tdp-filings-legend { font-size:9px; color:var(--muted); margin-top:-4px;
+    margin-bottom:6px; display:flex; flex-wrap:wrap; gap:6px 10px; }
+  .tdp-filings-legend .tfl { display:inline-flex; align-items:center; gap:3px; }
+  .tdp-filings-legend .tfl-dot { width:6px; height:6px; border-radius:50%;
+    display:inline-block; }
+
   /* Theme constituent popup (hover a theme row to see its members) */
   .th-pop { position:fixed; z-index:60; display:none; width:240px;
     background:var(--card); border:1px solid var(--line); border-radius:8px;
@@ -1932,6 +1980,22 @@
           '<div class="tdp-empty">Fetching headlines…</div>' +
         '</div></div>');
 
+      // 5b) SEC filings — lazy-loaded list + auto-summaries for notable ones
+      sec.push('<div class="tdp-section" id="tdp-filings-section">' +
+        '<h4>SEC filings <span style="color:var(--muted);font-weight:400;' +
+          'text-transform:none;letter-spacing:0;font-size:9px;">· loading…</span></h4>' +
+        '<div class="tdp-filings-legend">' +
+          '<span class="tfl"><span class="tfl-dot" style="background:var(--red)"></span>Restatement/Late</span>' +
+          '<span class="tfl"><span class="tfl-dot" style="background:#ff9e1b"></span>Dilution</span>' +
+          '<span class="tfl"><span class="tfl-dot" style="background:#5fa3ff"></span>M&amp;A/Material</span>' +
+          '<span class="tfl"><span class="tfl-dot" style="background:#a87cff"></span>Activist 13D</span>' +
+          '<span class="tfl"><span class="tfl-dot" style="background:var(--green)"></span>Insider</span>' +
+          '<span class="tfl"><span class="tfl-dot" style="background:var(--gold)"></span>10-K/Q</span>' +
+        '</div>' +
+        '<div class="tdp-filings" id="tdp-filings-body">' +
+          '<div class="tdp-empty">Fetching EDGAR submissions…</div>' +
+        '</div></div>');
+
       // 6) Why it matters today
       sec.push('<div class="tdp-section"><h4>Why it matters today</h4>' +
         '<div class="tdp-why">' + whyMatters(agg) + '</div></div>');
@@ -2021,6 +2085,141 @@
       if (mins < 1440) return Math.round(mins / 60) + " hr ago";
       return Math.round(mins / 1440) + " days ago";
     }
+    // Format a filing's date as "3d ago" / "2w ago" relative to now.
+    function fmtFilingAge(yyyymmdd) {
+      if (!yyyymmdd) return "";
+      const d = new Date(yyyymmdd + "T00:00:00Z");
+      if (isNaN(d.getTime())) return yyyymmdd;
+      const days = Math.max(0, Math.round((Date.now() - d.getTime()) / 86400000));
+      if (days === 0)   return "today";
+      if (days === 1)   return "1d ago";
+      if (days < 7)     return days + "d ago";
+      if (days < 30)    return Math.round(days / 7) + "w ago";
+      if (days < 365)   return Math.round(days / 30) + "mo ago";
+      return Math.round(days / 365) + "y ago";
+    }
+    // Lazy-load AI summary for one notable filing (8-K narrative items
+    // / amendments / 13D). Caller passes the row's DOM node to update.
+    async function loadFilingSummary(filing, ticker, row) {
+      const sumEl = row.querySelector(".tf-summary");
+      if (!sumEl) return;
+      sumEl.className = "tf-summary loading";
+      sumEl.textContent = "Generating summary…";
+      try {
+        const params = new URLSearchParams({
+          "filing-summary": filing.accession,
+          ticker: ticker,
+          form:   filing.form,
+          items:  filing.items || "",
+          url:    filing.url,
+        });
+        const r = await fetch(TDP_WORKER_URL + "?" + params.toString());
+        if (!r.ok) throw new Error("worker " + r.status);
+        const d = await r.json();
+        if (d.ok && d.summary) {
+          if (/^Routine procedural filing/i.test(d.summary)) {
+            sumEl.className = "tf-summary";
+            sumEl.style.fontStyle = "italic";
+            sumEl.style.opacity = "0.6";
+          } else {
+            sumEl.className = "tf-summary";
+          }
+          sumEl.textContent = d.summary;
+        } else {
+          sumEl.className = "tf-summary error";
+          sumEl.textContent = "Summary unavailable: " +
+            (d.error || "unknown error");
+        }
+      } catch (e) {
+        sumEl.className = "tf-summary error";
+        sumEl.textContent = "Summary unavailable.";
+      }
+    }
+    async function fetchAndRenderFilings(t) {
+      if (!t || t !== ACTIVE_TICKER) return;
+      try {
+        const r = await fetch(TDP_WORKER_URL + "?filings=" +
+          encodeURIComponent(t) + "&limit=15");
+        if (!r.ok) return;
+        const d = await r.json();
+        if (t !== ACTIVE_TICKER) return;
+        const head = document.querySelector("#tdp-filings-section h4");
+        const body = document.getElementById("tdp-filings-body");
+        if (!head || !body) return;
+        const filings = (d && d.filings) || [];
+        head.innerHTML = 'SEC filings ' +
+          '<span style="color:var(--muted);font-weight:400;text-transform:none;' +
+            'letter-spacing:0;font-size:9px;">· ' + filings.length +
+            (d.cik ? ' (CIK ' + parseInt(d.cik, 10) + ')' : '') + '</span>';
+        if (!filings.length) {
+          body.innerHTML = '<div class="tdp-empty">' +
+            (d.error ? "EDGAR: " + d.error :
+              "No filings on file for " + t + ".") + '</div>';
+          return;
+        }
+        // Build rows. Auto-summarize the top 3 "needsAI" filings; everything
+        // else is link-only (with heuristic headline) unless the user clicks.
+        let aiSummariesQueued = 0;
+        const rowsHtml = filings.map(function (f, i) {
+          const id = "tdp-filing-" + i;
+          const showAI = f.needsAI;
+          const willAutoSummarize = showAI && aiSummariesQueued < 3;
+          if (willAutoSummarize) aiSummariesQueued++;
+          return '<div class="tdp-filing" id="' + id + '" data-acc="' +
+              f.accession + '">' +
+            '<div class="tf-dot ' + f.category + '"></div>' +
+            '<div class="tf-date">' + fmtFilingAge(f.filingDate) + '</div>' +
+            '<div class="tf-body">' +
+              '<div class="tf-headline">' +
+                '<a class="tf-link" href="' + f.url + '" target="_blank" ' +
+                  'rel="noopener">' + (f.headline || f.form) + '</a>' +
+              '</div>' +
+              (showAI
+                ? '<div class="tf-summary">' +
+                    (willAutoSummarize ? '' : '&nbsp;') +
+                  '</div>' +
+                  (willAutoSummarize
+                    ? ''
+                    : '<div class="tf-actions"><button class="tf-summarize-btn"' +
+                      ' data-row="' + id + '">Summarize with AI &rarr;</button>' +
+                      '</div>')
+                : '') +
+            '</div></div>';
+        }).join("");
+        body.innerHTML = rowsHtml;
+
+        // Kick off auto-summaries (top 3 notables)
+        filings.slice(0, 15).forEach(function (f, i) {
+          if (!f.needsAI) return;
+          if (i >= 3) return;        // cap auto-fires; rest are click-to-load
+          const row = document.getElementById("tdp-filing-" + i);
+          if (row) loadFilingSummary(f, t, row);
+        });
+
+        // Wire "Summarize with AI" click-handlers for the rest
+        body.querySelectorAll(".tf-summarize-btn").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const row = document.getElementById(btn.dataset.row);
+            if (!row) return;
+            const acc = row.dataset.acc;
+            const filing = filings.find(function (f) {
+              return f.accession === acc;
+            });
+            if (!filing) return;
+            btn.disabled = true;
+            btn.textContent = "Summarizing…";
+            loadFilingSummary(filing, t, row).then(function () {
+              btn.style.display = "none";  // hide the button after success
+            });
+          });
+        });
+      } catch (e) {
+        const body = document.getElementById("tdp-filings-body");
+        if (body) body.innerHTML =
+          '<div class="tdp-empty">EDGAR feed unavailable.</div>';
+      }
+    }
+
     async function fetchAndRenderNews(t) {
       if (!t || t !== ACTIVE_TICKER) return;
       try {
@@ -2086,6 +2285,8 @@
       fetchAndUpgradeChart(t);
       // Async fetch the latest 20 headlines via the worker
       fetchAndRenderNews(t);
+      // Async fetch SEC filings (+ auto-summarize top 3 notables via Haiku)
+      fetchAndRenderFilings(t);
     }
     function closePanel() {
       ACTIVE_TICKER = null;
