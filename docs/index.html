@@ -3189,8 +3189,11 @@
       return "$" + Math.round(v);
     }
     function desk(title, body, cls, stamp) {
+      // &nbsp; before the stamp guarantees a visible gap that survives both
+      // CSS-stripped copy-paste and any margin-collapse edge case (without
+      // it some browsers run "Top Bearish" right up against the stamp text)
       const sh = stamp
-        ? '<span class="desk-stamp dst-' + stamp.cls + '" title="' +
+        ? '&nbsp;<span class="desk-stamp dst-' + stamp.cls + '" title="' +
             (stamp.full || stamp.label) + '">' + stamp.label + '</span>'
         : '';
       return '<div class="desk-card' + (cls ? ' ' + cls : '') +
@@ -3801,16 +3804,23 @@
         }).join("");
       return desk(title, html, null, stamp);
     }
-    // Confluence cards blend swing grades + uoa flow — use the OLDER of
-    // the two as the freshness anchor (whichever data source is staler
-    // bounds the card's overall freshness).
+    // Confluence cards blend swing grades + uoa flow. Use the OLDER source
+    // as the freshness anchor (whichever side is staler bounds the card)
+    // but grade it against THAT SOURCE'S natural cadence — swing is a
+    // daily 24h cycle, UOA is ~4h. A swing run from yesterday evening
+    // (~20h ago) is still "current" inside its 24h cycle, so the
+    // confluence card should read "current," not "stale."
     function confluenceStamp(swing, uoa) {
       const sw = swing && (swing.updated || (swing.runs && swing.runs.length
         ? swing.runs[swing.runs.length-1].generated : null));
       const uo = uoa && uoa.generated;
-      const older = !sw ? uo : !uo ? sw :
-        (new Date(sw) < new Date(uo) ? sw : uo);
-      return freshness(older, 12, "Confluence as of");
+      if (!sw && !uo) return freshness(null, 24, "Confluence");
+      let anchor, cadence;
+      if (!sw) { anchor = uo; cadence = 4; }
+      else if (!uo) { anchor = sw; cadence = 24; }
+      else if (new Date(sw) < new Date(uo)) { anchor = sw; cadence = 24; }
+      else { anchor = uo; cadence = 4; }
+      return freshness(anchor, cadence, "Confluence as of");
     }
     function cardTopBullish(ctx, swing, uoa) {
       return renderConfluenceCard("Top Bullish",
