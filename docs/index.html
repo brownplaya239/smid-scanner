@@ -74,10 +74,18 @@
     justify-content:safe center;
     overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
   nav::-webkit-scrollbar { display:none; }
+  /* Nav: 11 tabs need to fit ~1180px without horizontal scroll on desktop.
+     Tightened padding and slightly smaller font + abbreviated labels in
+     the markup get us there without losing readability. */
   nav button {
     background:none; border:0; color:var(--muted); cursor:pointer;
-    font-size:12.5px; font-weight:600; padding:13px 15px; white-space:nowrap;
+    font-size:12px; font-weight:600; padding:13px 11px; white-space:nowrap;
     border-bottom:2px solid transparent; font-family:inherit;
+    letter-spacing:.1px;
+  }
+  @media (min-width: 1280px) {
+    /* On wide desktop, restore comfortable padding */
+    nav button { padding:13px 14px; font-size:12.5px; }
   }
   nav button:hover { color:var(--textdim); }
   nav button.active { color:var(--gold); border-bottom-color:var(--gold); }
@@ -190,10 +198,15 @@
     border-radius:8px; padding:11px 13px; }
   .desk-card h3 { font-size:10px; color:var(--muted); text-transform:uppercase;
     letter-spacing:.4px; margin-bottom:8px; font-weight:700; }
+  /* Header action — semantically a button styled as an inline link.
+     Was an anchor without href which read as a fake link to users. */
   .desk-card h3 .desk-h-link { font-size:9.5px; color:var(--gold);
     text-transform:none; letter-spacing:0; font-weight:600; margin-left:8px;
-    cursor:pointer; text-decoration:none; }
+    cursor:pointer; text-decoration:none; background:none;
+    border:0; padding:0; font-family:inherit; }
   .desk-card h3 .desk-h-link:hover { text-decoration:underline; }
+  .desk-card h3 .desk-h-link:focus { outline:1px dashed var(--gold);
+    outline-offset:2px; }
   /* Per-card freshness stamp + Data Health badge -
      answers "is this card showing live data, or stale numbers?" */
   .desk-stamp { display:inline-block; font-size:9px; padding:2px 7px;
@@ -204,12 +217,12 @@
     font-size:11px; line-height:1; vertical-align:-1px; }
   .desk-stamp.dst-fresh   { background:rgba(31,179,99,0.18);
     color:var(--green); }
-  .desk-stamp.dst-current { background:rgba(160,178,210,0.15);
-    color:var(--textdim); }
-  .desk-stamp.dst-stale   { background:rgba(255,158,27,0.18);
+  /* Prior-close / latest / weekly cache = expected, NOT a warning state */
+  .desk-stamp.dst-current { background:rgba(160,178,210,0.18);
+    color:var(--text); }
+  /* True warning state: data is actually behind its expected cadence */
+  .desk-stamp.dst-old     { background:rgba(255,158,27,0.18);
     color:#ff9e1b; }
-  .desk-stamp.dst-old     { background:rgba(214,68,68,0.18);
-    color:var(--red); }
   .desk-stamp.dst-none    { background:rgba(120,120,120,0.15);
     color:var(--muted); }
   .desk-stats { display:flex; flex-wrap:wrap; gap:12px 22px; }
@@ -231,9 +244,13 @@
   .desk-row .dr-val.sc-up   { color:var(--green); }
   .desk-row .dr-val.sc-down { color:var(--red); }
   .desk-row .dr-val a { color:var(--gold); text-decoration:none; }
+  /* Real button — was an anchor without href which Cmd-click etc. failed on */
   .desk-row .dr-flow { color:var(--gold); cursor:pointer; font-size:10px;
-    margin-left:4px; opacity:.75; }
+    margin-left:4px; opacity:.75; background:none; border:0; padding:0;
+    font-family:inherit; font-weight:500; }
   .desk-row .dr-flow:hover { opacity:1; text-decoration:underline; }
+  .desk-row .dr-flow:focus { outline:1px dashed var(--gold);
+    outline-offset:2px; opacity:1; }
   .desk-sub { font-size:9px; text-transform:uppercase; letter-spacing:.4px;
     color:var(--muted); font-weight:700; margin:9px 0 2px; }
   .desk-sub:first-child { margin-top:0; }
@@ -1309,17 +1326,17 @@
   </header>
 
   <nav id="nav">
-    <button data-tab="desk" class="active">Today&apos;s Desk</button>
+    <button data-tab="desk" class="active">Desk</button>
     <button data-tab="uoa">Options Flow</button>
-    <button data-tab="adhoc">Ticker Research</button>
-    <button data-tab="alt-data">Alternative Data</button>
-    <button data-tab="breakout">Breakout Scans</button>
-    <button data-tab="setup">Setup Builder</button>
-    <button data-tab="swing">Swing Report Card</button>
-    <button data-tab="qm-monthly">QM Monthly Gainers</button>
-    <button data-tab="stockbee-weekly">Stockbee Weekly</button>
-    <button data-tab="news">News Flow</button>
-    <button data-tab="whisper">Earnings Whisper</button>
+    <button data-tab="adhoc">Research</button>
+    <button data-tab="alt-data">Alt-Data</button>
+    <button data-tab="breakout">Breakouts</button>
+    <button data-tab="setup">Setups</button>
+    <button data-tab="swing">Swing</button>
+    <button data-tab="qm-monthly">QM Monthly</button>
+    <button data-tab="stockbee-weekly">Stockbee</button>
+    <button data-tab="news">News</button>
+    <button data-tab="whisper">Whisper</button>
   </nav>
 
   <div class="market-cards" id="market-cards"></div>
@@ -1528,6 +1545,10 @@
                 title="Show only articles where at least one tagged ticker appears in the headline — filters out Polygon NER false positives">
                 <input type="checkbox" id="news-highconf"/>
                 High-conf only</label>
+              <label class="news-watch"
+                title="Include press releases from PR Newswire, GlobeNewswire, Business Wire, EIN Presswire, ACCESS Newswire, etc. — usually low-signal corporate boilerplate">
+                <input type="checkbox" id="news-pr"/>
+                Include press releases</label>
             </div>
           </div>
           <div class="news-list" id="news-general-list">
@@ -2751,17 +2772,39 @@
     });
   })();
 
-  /* ── Tab switching ── */
-  const nav = document.getElementById("nav");
-  nav.addEventListener("click", function (e) {
-    if (e.target.tagName !== "BUTTON") return;
-    const tab = e.target.dataset.tab;
+  /* ── Tab switching ──
+     Active panel gets .active. Inactive panels also get aria-hidden +
+     inert so their form controls (search inputs, selects) are removed
+     from the accessibility tree AND blocked from scripting/automation —
+     no more "ghost duplicate Ticker inputs" in the DOM that the QA
+     pass flagged. inert is supported in all modern browsers. */
+  function setActivePanel(tab) {
     document.querySelectorAll("nav button").forEach(function (b) {
       b.classList.toggle("active", b.dataset.tab === tab);
     });
     document.querySelectorAll(".panel").forEach(function (p) {
-      p.classList.toggle("active", p.id === "panel-" + tab);
+      const active = (p.id === "panel-" + tab);
+      p.classList.toggle("active", active);
+      if (active) {
+        p.removeAttribute("aria-hidden");
+        p.removeAttribute("inert");
+      } else {
+        p.setAttribute("aria-hidden", "true");
+        p.setAttribute("inert", "");
+      }
     });
+  }
+  // Initial state: hide every panel except the active one
+  document.querySelectorAll(".panel").forEach(function (p) {
+    if (!p.classList.contains("active")) {
+      p.setAttribute("aria-hidden", "true");
+      p.setAttribute("inert", "");
+    }
+  });
+  const nav = document.getElementById("nav");
+  nav.addEventListener("click", function (e) {
+    if (e.target.tagName !== "BUTTON") return;
+    setActivePanel(e.target.dataset.tab);
   });
 
   /* ── Sub-toggles inside consolidated tabs (Breakout Scans, Setup Builder) ── */
@@ -3411,9 +3454,17 @@
     const sentSel   = document.getElementById("news-sent");
     const watchOnly = document.getElementById("news-watch");
     const highConf  = document.getElementById("news-highconf");
+    const includePR = document.getElementById("news-pr");
     const catSel    = document.getElementById("news-cat");
     const updated   = document.getElementById("news-updated");
     if (!list) return;
+
+    // Press-release publishers — generally boilerplate corporate releases.
+    // Off by default; user can toggle them on for full firehose.
+    const PR_PUBLISHERS = /^(PR Newswire|GlobeNewswire|Business Wire|EIN Presswire|ACCESS Newswire|ACCESSWIRE|Newsfile|Globenewswire|PRNewswire|StreetInsider|TipRanks Press)/i;
+    function isPressRelease(article) {
+      return PR_PUBLISHERS.test(article.publisher || "");
+    }
 
     let GENERAL = [], TICKER_DATA = { ticker: null, articles: [] };
     let UNIV    = new Set();   // universe set for "watchlist only" filter
@@ -3678,7 +3729,9 @@
       const hours = parseInt(windowSel.value, 10);
       const want  = sentSel.value;
       const cat = catSel ? catSel.value : "";
+      const allowPR = !!(includePR && includePR.checked);
       const filtered = GENERAL.filter(function (a) {
+        if (!allowPR && isPressRelease(a)) return false;
         return withinWindow(a, hours) && matchesSentiment(a, want) &&
                inUniverse(a) && passesHighConf(a) && passesCategory(a, cat);
       });
@@ -3838,6 +3891,7 @@
     sentSel.addEventListener("change", renderGeneral);
     watchOnly.addEventListener("change", renderGeneral);
     if (highConf) highConf.addEventListener("change", renderGeneral);
+    if (includePR) includePR.addEventListener("change", renderGeneral);
     if (catSel)   catSel.addEventListener("change", renderGeneral);
     let searchTimer;
     tkInput.addEventListener("input", function () {
@@ -3895,47 +3949,78 @@
     }
     function empty(msg) { return '<div class="desk-empty">' + msg + '</div>'; }
 
-    // Build a freshness stamp from a source timestamp + expected cadence.
-    // cadenceHours is how often the source SHOULD refresh — Fresh = <0.5x
-    // that, Current = <1x, Stale = <2x, Old = >2x. Lets each card grade its
-    // own data against its own update tempo (UOA every ~3 hours, swing
-    // daily, etc.) instead of one global threshold.
-    function freshness(iso, cadenceHours, label) {
-      label = label || "Updated";
-      if (!iso) return { cls: "none", label: "no batch yet",
-                          full: label + " never" };
+    // Freshness stamp — describes what the data IS, not whether it's broken.
+    // The previous "stale" wording on post-close models (yesterday's swing
+    // grades, weekly themes, etc.) read as a defect when it was actually
+    // the correct, expected state. New model: each card declares its data
+    // CHARACTER and the stamp labels accordingly.
+    //
+    // character options:
+    //   "post-close"   — daily batch model that runs after 4 PM ET (swing,
+    //                    themes, breakouts, market health). Yesterday's
+    //                    run is "Prior close", today's run is "Post-close".
+    //   "live"         — intraday refreshed (UOA flow). Recent = "Live",
+    //                    older within day = "Latest", older = "Outdated".
+    //   "pre-market"   — daily morning batch (economic calendar).
+    //   "weekly"       — per-week refresh cadence (meta cache, anticipated
+    //                    earnings).
+    function freshness(iso, opts) {
+      // Back-compat: a numeric 2nd arg = cadenceHours, fall back to live model
+      if (typeof opts === "number") opts = { cadenceHours: opts };
+      opts = opts || {};
+      const character = opts.character || "live";
+      const cadenceHours = opts.cadenceHours ||
+        (character === "weekly" ? 168 :
+         character === "post-close" ? 24 :
+         character === "pre-market" ? 24 : 4);
+      if (!iso) return { cls: "none", label: "Pending first run",
+                          full: "No data yet" };
       const dt = new Date(iso);
-      if (isNaN(dt.getTime())) return { cls: "none", label: "unknown",
-                                         full: "Could not parse timestamp" };
+      if (isNaN(dt.getTime()))
+        return { cls: "none", label: "unknown",
+                 full: "Could not parse timestamp" };
       const ageH = (Date.now() - dt.getTime()) / 3600000;
-      const c = cadenceHours || 24;
-      let cls;
-      if (ageH < c * 0.5)      cls = "fresh";
-      else if (ageH < c)        cls = "current";
-      else if (ageH < c * 2)    cls = "stale";
-      else                       cls = "old";
-      // Human time: today => "1:40 PM", earlier => "May 19 5:41 PM"
+      // Human time
       const today = new Date(); today.setHours(0,0,0,0);
       const dtDay = new Date(dt); dtDay.setHours(0,0,0,0);
       const timeOnly = dt.toLocaleTimeString([],
         { hour: "numeric", minute: "2-digit" });
-      let when;
-      if (dtDay.getTime() === today.getTime()) {
-        when = timeOnly;
-      } else if (dtDay.getTime() === today.getTime() - 86400000) {
-        when = "yest " + timeOnly;
+      const isToday = dtDay.getTime() === today.getTime();
+      const isYest  = dtDay.getTime() === today.getTime() - 86400000;
+      const dateLabel = isToday ? timeOnly
+        : isYest ? "yest " + timeOnly
+        : dt.toLocaleDateString([], { month: "short", day: "numeric" }) +
+            " " + timeOnly;
+      // Label is character-driven: tell the user what kind of data this is.
+      let prefix, cls;
+      if (character === "post-close") {
+        if (isToday)        { prefix = "Post-close";  cls = "fresh"; }
+        else if (isYest)    { prefix = "Prior close"; cls = "current"; }
+        else if (ageH < 72) { prefix = "Prior close"; cls = "current"; }
+        else                 { prefix = "Outdated";   cls = "old"; }
+      } else if (character === "live") {
+        if (ageH < cadenceHours * 0.5)  { prefix = "Live";     cls = "fresh"; }
+        else if (ageH < cadenceHours)    { prefix = "Latest";   cls = "current"; }
+        else if (ageH < cadenceHours*3)  { prefix = "Latest";   cls = "current"; }
+        else                              { prefix = "Outdated"; cls = "old"; }
+      } else if (character === "pre-market") {
+        if (isToday)       { prefix = "Today's batch"; cls = "fresh"; }
+        else if (isYest)   { prefix = "Yesterday's batch"; cls = "current"; }
+        else                { prefix = "Outdated";    cls = "old"; }
+      } else if (character === "weekly") {
+        if (ageH < 168)    { prefix = "Weekly cache";   cls = "current"; }
+        else if (ageH < 336) { prefix = "Refresh due"; cls = "current"; }
+        else                  { prefix = "Outdated";    cls = "old"; }
       } else {
-        when = dt.toLocaleDateString([], { month: "short", day: "numeric" }) +
-          " " + timeOnly;
+        prefix = "Updated"; cls = "current";
       }
-      const tags = { fresh: "fresh", current: "current",
-                     stale: "stale", old: "stale" };
       return {
         cls: cls,
-        label: when + " · " + tags[cls],
-        full: label + " " + dt.toLocaleString([],
-          { month: "short", day: "numeric", hour: "numeric",
-            minute: "2-digit" }) + " — " + cls,
+        label: prefix + " · " + dateLabel,
+        full: (opts.label || "Updated") + " " +
+          dt.toLocaleString([], { month: "short", day: "numeric",
+            hour: "numeric", minute: "2-digit" }) +
+          " — character: " + character,
       };
     }
 
@@ -4000,9 +4085,9 @@
       // Daily cadence (1 swing run per day, 4:33 PM ET post-close)
       const stamp = swing
         ? freshness(swing.updated || (swing.runs && swing.runs.length
-            ? swing.runs[swing.runs.length-1].generated : null), 24,
-            "Grades from")
-        : { cls: "none", label: "no batch yet" };
+            ? swing.runs[swing.runs.length-1].generated : null),
+            { character: "post-close", label: "Grades from" })
+        : { cls: "none", label: "Pending first run" };
       if (!swing || !swing.runs || !swing.runs.length)
         return desk("Market Health", empty("No swing report yet."),
                     null, stamp);
@@ -4061,7 +4146,8 @@
 
     function cardTopFlow(uoa) {
       // UOA runs 3x/day on weekdays — fresh window ~4 hours
-      const stamp = freshness(uoa && uoa.generated, 4, "Flow scanned at");
+      const stamp = freshness(uoa && uoa.generated,
+        { character: "live", cadenceHours: 4, label: "Flow scanned at" });
       if (!uoa || !uoa.rows)
         return desk("Top Options Flow", empty("No flow data yet."),
                     null, stamp);
@@ -4071,7 +4157,9 @@
       if (!top.length)
         return desk("Top Options Flow", empty("No flow today."), null, stamp);
       const titleWithLink = "Top Options Flow" +
-        '<a class="desk-h-link" data-flow-all="1">See all notable flow &rarr;</a>';
+        '<button class="desk-h-link" type="button" data-flow-all="1" ' +
+          'title="Switch to Options Flow tab">' +
+          'See all notable flow &rarr;</button>';
       return desk(titleWithLink, top.map(function (r) {
         const dir = r.direction || "";
         const cls = dir === "bullish" ? "sc-up" : dir === "bearish" ? "sc-down" : "";
@@ -4082,8 +4170,8 @@
           '<span class="dr-meta">' + tag + '</span>' +
           '<span class="dr-val ' + cls + '">' + (r.trade_score || 0) +
             ' · ' + fmtVol(r.premium) + '</span>' +
-          '<a class="dr-flow" data-flow-tk="' + r.ticker +
-            '" title="See notable flow for ' + r.ticker + '">flow &rarr;</a>' +
+          '<button class="dr-flow" type="button" data-flow-tk="' + r.ticker +
+            '" title="See notable flow for ' + r.ticker + '">flow &rarr;</button>' +
           '</div>';
       }).join(""), null, stamp);
     }
@@ -4091,9 +4179,9 @@
     function cardSwingUpgrades(swing) {
       const stamp = swing
         ? freshness(swing.updated || (swing.runs && swing.runs.length
-            ? swing.runs[swing.runs.length-1].generated : null), 24,
-            "Grades from")
-        : { cls: "none", label: "no batch yet" };
+            ? swing.runs[swing.runs.length-1].generated : null),
+            { character: "post-close", label: "Grades from" })
+        : { cls: "none", label: "Pending first run" };
       if (!swing || !swing.runs)
         return desk("Top Swing Upgrades", empty("No swing data yet."),
                     null, stamp);
@@ -4134,9 +4222,9 @@
     function cardBreakouts(swing, uoaMeta) {
       const stamp = swing
         ? freshness(swing.updated || (swing.runs && swing.runs.length
-            ? swing.runs[swing.runs.length-1].generated : null), 24,
-            "Grades from")
-        : { cls: "none", label: "no batch yet" };
+            ? swing.runs[swing.runs.length-1].generated : null),
+            { character: "post-close", label: "Grades from" })
+        : { cls: "none", label: "Pending first run" };
       if (!swing || !swing.runs || !swing.runs.length)
         return desk("Top Breakout Candidates", empty("No swing data yet."),
                     null, stamp);
@@ -4181,7 +4269,8 @@
 
     function cardCalendar(cal, todayISO) {
       // Calendar refreshes daily — same cadence as swing
-      const stamp = freshness(cal && cal.updated, 24, "Calendar pulled");
+      const stamp = freshness(cal && cal.updated,
+        { character: "pre-market", label: "Calendar pulled" });
       if (!cal || !cal.events)
         return desk("Today's Economic Calendar", empty("No calendar data yet."),
                     null, stamp);
@@ -4508,13 +4597,21 @@
       const sw = swing && (swing.updated || (swing.runs && swing.runs.length
         ? swing.runs[swing.runs.length-1].generated : null));
       const uo = uoa && uoa.generated;
-      if (!sw && !uo) return freshness(null, 24, "Confluence");
-      let anchor, cadence;
-      if (!sw) { anchor = uo; cadence = 4; }
-      else if (!uo) { anchor = sw; cadence = 24; }
-      else if (new Date(sw) < new Date(uo)) { anchor = sw; cadence = 24; }
-      else { anchor = uo; cadence = 4; }
-      return freshness(anchor, cadence, "Confluence as of");
+      if (!sw && !uo) return freshness(null,
+        { character: "post-close", label: "Confluence" });
+      // Confluence inherits its CHARACTER from whichever side is older.
+      // If swing's the anchor (daily post-close cadence), use post-close.
+      // If flow's the anchor (intraday), use live.
+      let anchor, character;
+      if (!sw)       { anchor = uo; character = "live"; }
+      else if (!uo)  { anchor = sw; character = "post-close"; }
+      else if (new Date(sw) < new Date(uo)) {
+        anchor = sw; character = "post-close";
+      } else {
+        anchor = uo; character = "live";
+      }
+      return freshness(anchor,
+        { character: character, label: "Confluence as of" });
     }
     function cardTopBullish(ctx, swing, uoa) {
       return renderConfluenceCard("Top Bullish",
@@ -4535,7 +4632,8 @@
           if (f && (!newestFetched || f > newestFetched)) newestFetched = f;
         });
       }
-      const stamp = freshness(newestFetched, 168, "Earnings cache");
+      const stamp = freshness(newestFetched,
+        { character: "weekly", label: "Earnings cache" });
       if (!meta) return desk("Upcoming Earnings (BMO / AMC)",
         empty("No earnings data yet."), null, stamp);
       // Group by (date, session) — BMO, AMC, or TBD if time unknown
