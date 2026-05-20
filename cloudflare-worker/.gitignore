@@ -1,0 +1,5 @@
+# wrangler / npm
+node_modules/
+.wrangler/
+.dev.vars
+*.log

@@ -1,0 +1,20 @@
+# Wrangler config for the smid-scanner-discord-bot Cloudflare Worker.
+#
+# This config drives `wrangler deploy` so you can push worker.js changes
+# from the CLI instead of pasting into the dashboard editor.
+#
+# The `PAT` secret (GitHub fine-grained token used to dispatch the
+# ticker-lookup workflow) is NOT defined here — secrets live in the
+# Cloudflare environment, not in source. Set or rotate it with:
+#   wrangler secret put PAT
+# Existing secrets are preserved across deploys, so you only set this
+# once (or when rotating).
+
+name               = "smid-scanner-discord-bot"
+main               = "worker.js"
+compatibility_date = "2026-05-20"
+
+# Observability: enable the Workers dashboard "Logs" tab so `wrangler tail`
+# and the live-logs UI can stream console output from production.
+[observability]
+enabled = true
