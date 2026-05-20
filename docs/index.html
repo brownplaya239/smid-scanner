@@ -481,6 +481,32 @@
      Most Anticipated Earnings tab — weekly grid by day × session
      ──────────────────────────────────────────────────────────────── */
   #panel-whisper { max-width:1280px; }
+  /* Auto-discovered @eWhispers tweet image at the top */
+  .ew-tweet-wrap { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:14px 16px; margin-bottom:14px;
+    text-align:center; }
+  .ew-tweet-wrap img { max-width:100%; height:auto; border-radius:6px;
+    box-shadow:0 4px 20px rgba(0,0,0,.45); display:block; margin:0 auto;
+    cursor:zoom-in; }
+  .ew-tweet-meta { margin-top:10px; font-size:11px; color:var(--muted);
+    display:flex; justify-content:center; gap:14px; flex-wrap:wrap;
+    align-items:center; }
+  .ew-tweet-meta a { color:var(--gold); text-decoration:none; font-weight:600; }
+  .ew-tweet-meta a:hover { text-decoration:underline; }
+  .ew-tweet-meta .ew-week { color:var(--text); font-weight:700; }
+  .ew-tweet-meta .ew-cashtags { color:var(--textdim); font-size:10px;
+    line-height:1.5; max-width:100%; }
+  .ew-tweet-meta .ew-cashtags .ew-ct { color:var(--text); font-weight:700;
+    margin-right:8px; cursor:pointer; }
+  .ew-tweet-meta .ew-cashtags .ew-ct:hover { color:var(--gold); }
+  .ew-tweet-meta .ew-cashtags .ew-ct.ew-in-univ { color:var(--gold); }
+  /* Lightbox for full-size view when image is clicked */
+  .ew-lightbox { display:none; position:fixed; inset:0; z-index:80;
+    background:rgba(0,0,0,.88); align-items:center; justify-content:center;
+    padding:20px; cursor:zoom-out; }
+  .ew-lightbox.show { display:flex; }
+  .ew-lightbox img { max-width:100%; max-height:95vh; box-shadow:0 8px 40px
+    rgba(0,0,0,.65); border-radius:6px; }
   .ant-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;
     margin-top:8px; }
   @media (max-width:1100px) {
@@ -1373,18 +1399,19 @@
       </div>
     </section>
 
-    <!-- ── Most Anticipated Earnings (live from earningswhispers.com API) ── -->
+    <!-- ── Most Anticipated Earnings (auto-discovered EW tweet + scraped grid) ── -->
     <section class="panel" id="panel-whisper">
       <h2 class="tab-title">Most Anticipated Earnings</h2>
-      <p class="tab-sub">Our own version of the Earnings Whisper weekly
-        chart &mdash; scraped daily from <a href="https://www.earningswhispers.com/calendar"
-        target="_blank" rel="noopener">earningswhispers.com</a>'s own API
-        (the same data their /calendar page renders).
-        Anticipation score is EW's "total" interest metric; the bigger the
-        bar, the more eyeballs are on that print. Every ticker is clickable
-        &mdash; click to open the universal drilldown panel with grade,
-        flow, news, filings, and "Why it matters today."
+      <p class="tab-sub">Auto-discovered weekly <a href="https://x.com/eWhispers"
+        target="_blank" rel="noopener">@eWhispers</a> chart &mdash; the dashboard
+        scans Twitter's public syndication endpoint daily for the latest
+        "Most Anticipated" tweet, extracts the image URL, and renders it
+        below. No manual pasting, no Twitter JS. Companion grid is our
+        own daily scrape of <a href="https://www.earningswhispers.com/calendar"
+        target="_blank" rel="noopener">earningswhispers.com</a>'s API with
+        clickable tickers into the drilldown panel.
         <span id="whisper-meta"></span></p>
+      <div id="whisper-tweet"></div>
       <div id="whisper-body">
         <div class="uoa-empty">Loading...</div>
       </div>
@@ -2871,13 +2898,88 @@
      Two panes: Trading Day firehose (left) and Per-Ticker (right).
      Pulse row across the top with at-a-glance stats.
      ──────────────────────────────────────────────────────────────── */
-  // ── Most Anticipated Earnings tab — renders our own version of the
-  // weekly Earnings Whisper chart from the scraped /api/quickcaldata JSON.
-  // Every ticker is a single click into the universal drilldown panel.
+  // ── Most Anticipated Earnings tab — auto-discovered @eWhispers tweet
+  // image (top) + our own scraped grid (below). Both update automatically
+  // via the momentum.yml cron. No manual paste, no Twitter JS embed.
   (function setupWhisper() {
-    const body = document.getElementById("whisper-body");
-    const meta = document.getElementById("whisper-meta");
+    const body  = document.getElementById("whisper-body");
+    const meta  = document.getElementById("whisper-meta");
+    const tweet = document.getElementById("whisper-tweet");
     if (!body) return;
+
+    // ── Lightbox for full-size image view on click ──
+    function showLightbox(src) {
+      let lb = document.getElementById("ew-lightbox");
+      if (!lb) {
+        lb = document.createElement("div");
+        lb.id = "ew-lightbox";
+        lb.className = "ew-lightbox";
+        document.body.appendChild(lb);
+        lb.addEventListener("click", function () {
+          lb.classList.remove("show");
+        });
+      }
+      lb.innerHTML = '<img src="' + src + '" alt="" />';
+      lb.classList.add("show");
+    }
+
+    function escHTML(s) {
+      return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function loadTweetImage() {
+      if (!tweet) return;
+      fetch("./reports/whisper_tweet.json?t=" + Date.now())
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.image_url) {
+            tweet.innerHTML = '';   // no image, hide the section silently
+            return;
+          }
+          const week = d.week_of
+            ? new Date(d.week_of + "T00:00:00").toLocaleDateString([],
+                { month: "long", day: "numeric", year: "numeric" })
+            : "";
+          // Universe overlap: highlight cashtags also tracked by our site
+          const univ = new Set();
+          const D = window.TD_DATA || {};
+          if (D.swing && D.swing.runs && D.swing.runs.length) {
+            const r = D.swing.runs[D.swing.runs.length - 1];
+            Object.keys(r.grades || {}).forEach(function (g) {
+              (r.grades[g] || []).forEach(function (c) { univ.add(c.t); });
+            });
+          }
+          if (D.uoaMeta) Object.keys(D.uoaMeta).forEach(function (t) {
+            univ.add(t);
+          });
+          const cashHtml = (d.tickers || []).map(function (t) {
+            const cls = univ.has(t) ? "ew-ct ew-in-univ" : "ew-ct";
+            return '<span class="' + cls + '" data-t="' + escHTML(t) +
+              '" title="' + escHTML(t) +
+              (univ.has(t) ? " (in our universe)" : "") + '">$' +
+              escHTML(t) + '</span>';
+          }).join("");
+          tweet.innerHTML = '<div class="ew-tweet-wrap">' +
+            '<img id="ew-tweet-img" src="' + escHTML(d.image_url) +
+              '" alt="Earnings Whisper Most Anticipated — week of ' +
+              escHTML(week) + '" />' +
+            '<div class="ew-tweet-meta">' +
+              '<span class="ew-week">Week of ' + escHTML(week) + '</span>' +
+              (d.favorites ? '<span>❤ ' + d.favorites.toLocaleString() +
+                ' likes</span>' : '') +
+              '<a href="' + escHTML(d.tweet_url) +
+                '" target="_blank" rel="noopener">view on X &rarr;</a>' +
+            '</div>' +
+            (cashHtml ? '<div class="ew-tweet-meta">' +
+              '<div class="ew-cashtags">' + cashHtml + '</div></div>' : '') +
+            '</div>';
+          const img = document.getElementById("ew-tweet-img");
+          if (img) img.addEventListener("click", function () {
+            showLightbox(d.image_url);
+          });
+        })
+        .catch(function () { tweet.innerHTML = ''; });
+    }
     function fmtWeekOf(s) {
       if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || "";
       const d = new Date(s + "T00:00:00");
@@ -2996,6 +3098,8 @@
       }
     }
     function load() {
+      // Refresh both: the auto-discovered tweet image + the scraped grid
+      loadTweetImage();
       fetch("./reports/earnings_anticipated.json?t=" + Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(render)

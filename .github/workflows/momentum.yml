@@ -47,5 +47,8 @@ jobs:
       - name: Refresh Earnings Whisper anticipated calendar
         run: python earnings_anticipated.py
 
+      - name: Auto-discover @eWhispers weekly tweet image
+        run: python earnings_whisper_tweet.py
+
       - name: Publish reports to site archive
         run: bash scripts/publish_reports.sh
