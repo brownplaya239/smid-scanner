@@ -194,6 +194,24 @@
     text-transform:none; letter-spacing:0; font-weight:600; margin-left:8px;
     cursor:pointer; text-decoration:none; }
   .desk-card h3 .desk-h-link:hover { text-decoration:underline; }
+  /* Per-card freshness stamp + Data Health badge -
+     answers "is this card showing live data, or stale numbers?" */
+  .desk-stamp { display:inline-block; font-size:9px; padding:2px 7px;
+    border-radius:10px; font-weight:700; margin-left:8px;
+    text-transform:none; letter-spacing:.2px; vertical-align:middle;
+    cursor:default; }
+  .desk-stamp::before { content:"\2022"; margin-right:4px;
+    font-size:11px; line-height:1; vertical-align:-1px; }
+  .desk-stamp.dst-fresh   { background:rgba(31,179,99,0.18);
+    color:var(--green); }
+  .desk-stamp.dst-current { background:rgba(160,178,210,0.15);
+    color:var(--textdim); }
+  .desk-stamp.dst-stale   { background:rgba(255,158,27,0.18);
+    color:#ff9e1b; }
+  .desk-stamp.dst-old     { background:rgba(214,68,68,0.18);
+    color:var(--red); }
+  .desk-stamp.dst-none    { background:rgba(120,120,120,0.15);
+    color:var(--muted); }
   .desk-stats { display:flex; flex-wrap:wrap; gap:12px 22px; }
   .desk-stat { font-size:10px; color:var(--muted); text-transform:uppercase;
     letter-spacing:.3px; }
@@ -1266,7 +1284,7 @@
 
       <div class="uoa-filters">
         <div class="uoa-filter-row">
-        <input type="text" id="uoa-q" placeholder="Ticker..." autocomplete="off" />
+        <input type="text" id="uoa-q" placeholder="Filter ticker..." autocomplete="off" aria-label="Filter live flow by ticker" />
         <select id="uoa-type">
           <option value="">Calls + Puts</option>
           <option value="call">Calls only</option>
@@ -1340,13 +1358,13 @@
       </div>
       </div><!-- /sub-live -->
 
-      <div class="uoa-sub" id="sub-tracked" style="display:none">
+      <div class="uoa-sub" id="sub-tracked" style="display:none" aria-hidden="true" inert>
         <p class="uoa-subnote">Every flagged signal, scored as it ages &mdash;
           next-day OI status (did the position stick?) and realized forward
           return. Builds up over the days following each scan.</p>
         <div class="uoa-filters">
           <div class="uoa-filter-row">
-          <input type="text" id="trk-q" placeholder="Ticker..." autocomplete="off" />
+          <input type="text" id="trk-q" placeholder="Filter tracked..." autocomplete="off" aria-label="Filter tracked signals by ticker" />
           <select id="trk-type">
             <option value="">Calls + Puts</option>
             <option value="call">Calls only</option>
@@ -1415,7 +1433,7 @@
         </div>
       </div><!-- /sub-tracked -->
 
-      <div class="uoa-sub" id="sub-perf" style="display:none">
+      <div class="uoa-sub" id="sub-perf" style="display:none" aria-hidden="true" inert>
         <p class="uoa-subnote">Realized edge attribution &mdash; which signal
           types, DTE buckets and flags actually predict moves. Honest by
           design; benchmarked against SPY. Fills in as signals mature.</p>
@@ -2906,11 +2924,59 @@
       if (v >= 1e3) return "$" + Math.round(v / 1e3) + "k";
       return "$" + Math.round(v);
     }
-    function desk(title, body, cls) {
+    function desk(title, body, cls, stamp) {
+      const sh = stamp
+        ? '<span class="desk-stamp dst-' + stamp.cls + '" title="' +
+            (stamp.full || stamp.label) + '">' + stamp.label + '</span>'
+        : '';
       return '<div class="desk-card' + (cls ? ' ' + cls : '') +
-             '"><h3>' + title + '</h3>' + body + '</div>';
+             '"><h3>' + title + sh + '</h3>' + body + '</div>';
     }
     function empty(msg) { return '<div class="desk-empty">' + msg + '</div>'; }
+
+    // Build a freshness stamp from a source timestamp + expected cadence.
+    // cadenceHours is how often the source SHOULD refresh — Fresh = <0.5x
+    // that, Current = <1x, Stale = <2x, Old = >2x. Lets each card grade its
+    // own data against its own update tempo (UOA every ~3 hours, swing
+    // daily, etc.) instead of one global threshold.
+    function freshness(iso, cadenceHours, label) {
+      label = label || "Updated";
+      if (!iso) return { cls: "none", label: "no batch yet",
+                          full: label + " never" };
+      const dt = new Date(iso);
+      if (isNaN(dt.getTime())) return { cls: "none", label: "unknown",
+                                         full: "Could not parse timestamp" };
+      const ageH = (Date.now() - dt.getTime()) / 3600000;
+      const c = cadenceHours || 24;
+      let cls;
+      if (ageH < c * 0.5)      cls = "fresh";
+      else if (ageH < c)        cls = "current";
+      else if (ageH < c * 2)    cls = "stale";
+      else                       cls = "old";
+      // Human time: today => "1:40 PM", earlier => "May 19 5:41 PM"
+      const today = new Date(); today.setHours(0,0,0,0);
+      const dtDay = new Date(dt); dtDay.setHours(0,0,0,0);
+      const timeOnly = dt.toLocaleTimeString([],
+        { hour: "numeric", minute: "2-digit" });
+      let when;
+      if (dtDay.getTime() === today.getTime()) {
+        when = timeOnly;
+      } else if (dtDay.getTime() === today.getTime() - 86400000) {
+        when = "yest " + timeOnly;
+      } else {
+        when = dt.toLocaleDateString([], { month: "short", day: "numeric" }) +
+          " " + timeOnly;
+      }
+      const tags = { fresh: "fresh", current: "current",
+                     stale: "stale", old: "stale" };
+      return {
+        cls: cls,
+        label: when + " · " + tags[cls],
+        full: label + " " + dt.toLocaleString([],
+          { month: "short", day: "numeric", hour: "numeric",
+            minute: "2-digit" }) + " — " + cls,
+      };
+    }
 
     // Strip boilerplate from Polygon company names so popups and rows show
     // "ABC Tech" not "ABC Tech, Inc. Common Stock". Iterative — handles
@@ -2970,8 +3036,15 @@
     }
 
     function cardMarketHealth(swing) {
+      // Daily cadence (1 swing run per day, 4:33 PM ET post-close)
+      const stamp = swing
+        ? freshness(swing.updated || (swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length-1].generated : null), 24,
+            "Grades from")
+        : { cls: "none", label: "no batch yet" };
       if (!swing || !swing.runs || !swing.runs.length)
-        return desk("Market Health", empty("No swing report yet."));
+        return desk("Market Health", empty("No swing report yet."),
+                    null, stamp);
       const r = swing.runs[swing.runs.length - 1];
       const counts = r.counts || {};
       const ALL_GRADES = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
@@ -3022,15 +3095,20 @@
             ? c.cells.map(tkRow).join("")
             : '<div class="desk-empty">—</div>') + '</div>';
       }).join("") + '</div>';
-      return desk("Market Health", stats + gstrip + tkgrid);
+      return desk("Market Health", stats + gstrip + tkgrid, null, stamp);
     }
 
     function cardTopFlow(uoa) {
-      if (!uoa || !uoa.rows) return desk("Top Options Flow", empty("No flow data yet."));
+      // UOA runs 3x/day on weekdays — fresh window ~4 hours
+      const stamp = freshness(uoa && uoa.generated, 4, "Flow scanned at");
+      if (!uoa || !uoa.rows)
+        return desk("Top Options Flow", empty("No flow data yet."),
+                    null, stamp);
       const top = uoa.rows.slice()
         .sort(function (a, b) { return (b.trade_score || 0) - (a.trade_score || 0); })
         .slice(0, 20);
-      if (!top.length) return desk("Top Options Flow", empty("No flow today."));
+      if (!top.length)
+        return desk("Top Options Flow", empty("No flow today."), null, stamp);
       const titleWithLink = "Top Options Flow" +
         '<a class="desk-h-link" data-flow-all="1">See all notable flow &rarr;</a>';
       return desk(titleWithLink, top.map(function (r) {
@@ -3046,15 +3124,22 @@
           '<a class="dr-flow" data-flow-tk="' + r.ticker +
             '" title="See notable flow for ' + r.ticker + '">flow &rarr;</a>' +
           '</div>';
-      }).join(""));
+      }).join(""), null, stamp);
     }
 
     function cardSwingUpgrades(swing) {
+      const stamp = swing
+        ? freshness(swing.updated || (swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length-1].generated : null), 24,
+            "Grades from")
+        : { cls: "none", label: "no batch yet" };
       if (!swing || !swing.runs)
-        return desk("Top Swing Upgrades", empty("No swing data yet."));
+        return desk("Top Swing Upgrades", empty("No swing data yet."),
+                    null, stamp);
       const runs = swing.runs;
       if (runs.length < 2) return desk("Top Swing Upgrades",
-        empty("Upgrades light up tomorrow — needs a prior session to diff."));
+        empty("Upgrades light up tomorrow — needs a prior session to diff."),
+        null, stamp);
       const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
                   "D","D-","E+","E","E-","F+","F","F-","G+","G"];
       const gm = function (run) {
@@ -3074,7 +3159,7 @@
       });
       moves.sort(function (a, b) { return b.d - a.d; });
       if (!moves.length) return desk("Top Swing Upgrades",
-        empty("No grade upgrades vs the prior session."));
+        empty("No grade upgrades vs the prior session."), null, stamp);
       return desk("Top Swing Upgrades", moves.slice(0, 8).map(function (m) {
         const label = (m.d === 99) ? "new entry to " + m.to : (m.from + " → " + m.to);
         return '<div class="desk-row">' +
@@ -3082,12 +3167,18 @@
           chgBadge(m.t) +
           '<span class="dr-meta">' + label + '</span>' +
           '<span class="dr-val sc-up">+' + (m.d === 99 ? "★" : m.d) + '</span></div>';
-      }).join(""));
+      }).join(""), null, stamp);
     }
 
     function cardBreakouts(swing, uoaMeta) {
+      const stamp = swing
+        ? freshness(swing.updated || (swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length-1].generated : null), 24,
+            "Grades from")
+        : { cls: "none", label: "no batch yet" };
       if (!swing || !swing.runs || !swing.runs.length)
-        return desk("Top Breakout Candidates", empty("No swing data yet."));
+        return desk("Top Breakout Candidates", empty("No swing data yet."),
+                    null, stamp);
       const r = swing.runs[swing.runs.length - 1];
       const cands = [];
       ["A+", "A", "A-"].forEach(function (g) {
@@ -3097,7 +3188,7 @@
         });
       });
       if (!cands.length) return desk("Top Breakout Candidates",
-        empty("No clean A-tier candidates today."));
+        empty("No clean A-tier candidates today."), null, stamp);
       const hdr = '<div class="brk-row brk-hdr">' +
         '<span>Ticker</span>' +
         '<span style="text-align:right">Day</span>' +
@@ -3124,18 +3215,21 @@
           '<span class="bk-ex ' + xCls + '">' +
             (c.ext != null ? c.ext + "×" : "—") + '</span></div>';
       }).join("");
-      return desk("Top Breakout Candidates", hdr + body);
+      return desk("Top Breakout Candidates", hdr + body, null, stamp);
     }
 
     function cardCalendar(cal, todayISO) {
+      // Calendar refreshes daily — same cadence as swing
+      const stamp = freshness(cal && cal.updated, 24, "Calendar pulled");
       if (!cal || !cal.events)
-        return desk("Today's Economic Calendar", empty("No calendar data yet."));
+        return desk("Today's Economic Calendar", empty("No calendar data yet."),
+                    null, stamp);
       // FF feed uses MM-DD-YYYY; todayISO is YYYY-MM-DD
       const p = todayISO.split("-");
       const todayFF = p[1] + "-" + p[2] + "-" + p[0];
       const todays = cal.events.filter(function (e) { return e.date === todayFF; });
       if (!todays.length) return desk("Today's Economic Calendar",
-        empty("No US releases scheduled today."));
+        empty("No US releases scheduled today."), null, stamp);
       const impCls = function (imp) {
         const i = (imp || "").toLowerCase();
         return i === "high"   ? "imp-high" :
@@ -3161,7 +3255,7 @@
             '<span class="cal-fcst">' + (e.forecast || "—") + '</span>' +
             '<span class="cal-prev">' + (e.previous || "—") + '</span>' +
             '</div>';
-        }).join(""));
+        }).join(""), null, stamp);
     }
 
     // Theme rollup — walks every graded cell, aggregates daily % change by
@@ -3200,9 +3294,15 @@
     // Stash for the hover popup
     let THEME_ROLLUP = {};
     function cardThemes(swing) {
+      const stamp = swing
+        ? freshness(swing.updated || (swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length-1].generated : null), 24,
+            "Themes from")
+        : { cls: "none", label: "no batch yet" };
       const all = buildThemeRollup(swing);
       if (!all.length)
-        return desk("Strongest / Weakest Themes", empty("No theme data."));
+        return desk("Strongest / Weakest Themes", empty("No theme data."),
+                    null, stamp);
       // Re-index for popup lookup
       THEME_ROLLUP = {};
       all.forEach(function (t) { THEME_ROLLUP[t.theme] = t; });
@@ -3234,7 +3334,8 @@
         '<div class="th-head neg">Weakest (' + weak.length + ')</div>' +
         weak.map(row).join("") + '</div>';
       return desk("Strongest / Weakest Themes",
-        '<div class="th-grid">' + strongCol + weakCol + '</div>');
+        '<div class="th-grid">' + strongCol + weakCol + '</div>',
+        null, stamp);
     }
 
     // Build per-ticker context map from every data source. Used by both
@@ -3414,8 +3515,9 @@
     }
     // Render a confluence card grouped by bias category with mini section
     // dividers between each group.
-    function renderConfluenceCard(title, list) {
-      if (!list.length) return desk(title, empty("No confluence today."));
+    function renderConfluenceCard(title, list, stamp) {
+      if (!list.length)
+        return desk(title, empty("No confluence today."), null, stamp);
       const groups = {};
       list.forEach(function (x) {
         (groups[x.cat] = groups[x.cat] || []).push(x);
@@ -3433,20 +3535,41 @@
           }).join("");
           return section + rows;
         }).join("");
-      return desk(title, html);
+      return desk(title, html, null, stamp);
     }
-    function cardTopBullish(ctx) {
+    // Confluence cards blend swing grades + uoa flow — use the OLDER of
+    // the two as the freshness anchor (whichever data source is staler
+    // bounds the card's overall freshness).
+    function confluenceStamp(swing, uoa) {
+      const sw = swing && (swing.updated || (swing.runs && swing.runs.length
+        ? swing.runs[swing.runs.length-1].generated : null));
+      const uo = uoa && uoa.generated;
+      const older = !sw ? uo : !uo ? sw :
+        (new Date(sw) < new Date(uo) ? sw : uo);
+      return freshness(older, 12, "Confluence as of");
+    }
+    function cardTopBullish(ctx, swing, uoa) {
       return renderConfluenceCard("Top Bullish",
-        buildConfluenceList(ctx, "bull"));
+        buildConfluenceList(ctx, "bull"), confluenceStamp(swing, uoa));
     }
-    function cardTopBearish(ctx) {
+    function cardTopBearish(ctx, swing, uoa) {
       return renderConfluenceCard("Top Bearish",
-        buildConfluenceList(ctx, "bear"));
+        buildConfluenceList(ctx, "bear"), confluenceStamp(swing, uoa));
     }
 
     function cardEarnings(meta, todayISO) {
+      // uoa_meta_cache.json refreshes weekly per ticker; freshest single
+      // entry stands in for the whole cache's freshness.
+      let newestFetched = null;
+      if (meta) {
+        Object.keys(meta).forEach(function (k) {
+          const f = meta[k] && meta[k].fetched;
+          if (f && (!newestFetched || f > newestFetched)) newestFetched = f;
+        });
+      }
+      const stamp = freshness(newestFetched, 168, "Earnings cache");
       if (!meta) return desk("Upcoming Earnings (BMO / AMC)",
-        empty("No earnings data yet."));
+        empty("No earnings data yet."), null, stamp);
       // Group by (date, session) — BMO, AMC, or TBD if time unknown
       const today = new Date(todayISO + "T00:00:00");
       const horizon = new Date(today.getTime() + 14 * 86400 * 1000);
@@ -3464,7 +3587,7 @@
       });
       const dates = Object.keys(groups).sort();
       if (!dates.length) return desk("Upcoming Earnings (BMO / AMC)",
-        empty("No earnings within the next 14 days."));
+        empty("No earnings within the next 14 days."), null, stamp);
       const dayLbl = function (iso) {
         const dt = new Date(iso + "T00:00:00");
         const dow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dt.getDay()];
@@ -3495,7 +3618,7 @@
               sessionRow("AMC", "es-amc", g.AMC) +
               sessionRow("TBD", "es-tbd", g.TBD) +
             '</div></div>';
-        }).join(""));
+        }).join(""), null, stamp);
     }
 
     // Market cap formatter — exposed for popups across this scope
@@ -3684,8 +3807,8 @@
         cardBreakouts(swing, uoaMeta),
         calEarnStack,
         cardThemes(swing),
-        cardTopBullish(ctx),
-        cardTopBearish(ctx),
+        cardTopBullish(ctx, swing, uoa),
+        cardTopBearish(ctx, swing, uoa),
       ].join("");
     });
   }
@@ -4339,8 +4462,21 @@
       document.querySelectorAll("#uoa-subnav button").forEach(function (b) {
         b.classList.toggle("active", b.dataset.sub === sub);
       });
+      // display:none + aria-hidden + inert work together: display:none
+      // hides visually, aria-hidden hides from screen readers, inert
+      // removes from tab order AND blocks pointer/automation tools from
+      // interacting (no more "ghost" Ticker input in the DOM).
       ["live","tracked","perf"].forEach(function (s) {
-        document.getElementById("sub-"+s).style.display = (s===sub) ? "" : "none";
+        const el = document.getElementById("sub-" + s);
+        const active = (s === sub);
+        el.style.display = active ? "" : "none";
+        if (active) {
+          el.removeAttribute("aria-hidden");
+          el.removeAttribute("inert");
+        } else {
+          el.setAttribute("aria-hidden", "true");
+          el.setAttribute("inert", "");
+        }
       });
       if (sub === "tracked") renderTracked();
       if (sub === "perf") renderPerf();
