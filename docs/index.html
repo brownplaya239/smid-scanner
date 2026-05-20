@@ -495,6 +495,169 @@
   }
 
   /* ────────────────────────────────────────────────────────────────
+     Global Markets · country / region ETF map
+     ──────────────────────────────────────────────────────────────── */
+  #panel-global { max-width:1280px; }
+
+  /* SPY anchor strip — visually isolated above the grid so users
+     can instantly read which countries sit above/below the US line */
+  .gm-anchor { background:linear-gradient(90deg, rgba(255,200,0,0.08),
+    transparent); border:1px solid var(--gold); border-radius:8px;
+    padding:13px 18px; margin-bottom:14px; display:flex;
+    align-items:center; gap:18px; flex-wrap:wrap; }
+  .gm-anchor .gma-tag { font-size:9.5px; font-weight:800;
+    letter-spacing:.5px; text-transform:uppercase; color:var(--gold);
+    background:rgba(255,200,0,0.15); border:1px solid var(--gold);
+    border-radius:11px; padding:3px 9px; }
+  .gm-anchor .gma-tk { font-size:18px; font-weight:800; color:var(--text); }
+  .gm-anchor .gma-name { font-size:12px; color:var(--textdim); }
+  .gm-anchor .gma-ytd { margin-left:auto; font-size:18px; font-weight:800;
+    font-variant-numeric:tabular-nums; }
+  .gm-anchor .gma-ytd.up   { color:var(--green); }
+  .gm-anchor .gma-ytd.down { color:var(--red); }
+  .gm-anchor .gma-ytd-l { font-size:10px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; margin-right:5px; }
+
+  /* Filter pills + view/sort row */
+  .gm-controls { display:flex; flex-wrap:wrap; gap:10px;
+    align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .gm-pills { display:flex; gap:4px; flex-wrap:wrap; }
+  .gm-pills button { background:var(--navy2); border:1px solid var(--border2);
+    color:var(--textdim); font-family:inherit; font-size:11px;
+    font-weight:600; padding:6px 12px; border-radius:14px;
+    cursor:pointer; letter-spacing:.2px; }
+  .gm-pills button:hover { color:var(--text); border-color:var(--gold); }
+  .gm-pills button.active { background:var(--gold); color:var(--accink);
+    border-color:var(--gold); }
+  .gm-right { display:flex; gap:8px; align-items:center; }
+  .gm-view-toggle { display:flex; border:1px solid var(--border2);
+    border-radius:5px; overflow:hidden; }
+  .gm-view-toggle button { background:var(--navy2); color:var(--muted);
+    border:0; font-family:inherit; font-size:11px; font-weight:600;
+    padding:6px 13px; cursor:pointer; }
+  .gm-view-toggle button + button { border-left:1px solid var(--border2); }
+  .gm-view-toggle button:hover { color:var(--text); }
+  .gm-view-toggle button.active { background:var(--gold); color:var(--accink); }
+  #gm-sort { background:var(--navy2); border:1px solid var(--border2);
+    color:var(--text); padding:6px 10px; border-radius:5px;
+    font-family:inherit; font-size:11px; font-weight:600; }
+
+  /* ── Treemap view ── */
+  .gm-treemap { display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+    gap:8px; grid-auto-flow:dense; }
+  .gm-block { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:14px 14px 12px; cursor:default;
+    transition:transform .12s ease, border-color .12s ease; position:relative;
+    overflow:hidden; min-height:100px; display:flex; flex-direction:column; }
+  .gm-block:hover { transform:translateY(-2px); border-color:var(--gold); }
+  /* AUM tier drives the visual weight via grid-column span and height */
+  .gm-block.tier-xl { grid-column:span 2; min-height:140px; padding:18px; }
+  .gm-block.tier-lg { grid-column:span 2; min-height:110px; }
+  .gm-block.tier-md { grid-column:span 1; }
+  .gm-block.tier-sm { grid-column:span 1; min-height:80px;
+    opacity:0.95; }
+  @media (max-width:760px) {
+    .gm-block.tier-xl, .gm-block.tier-lg { grid-column:span 2; }
+  }
+  /* Color encoding: emerald for big outperformance vs anchor, slate
+     for neutral, crimson for underperformance. */
+  .gm-block.r-strong-up   { background:linear-gradient(135deg,
+    rgba(31,179,99,0.32), rgba(31,179,99,0.08));
+    border-color:rgba(31,179,99,0.55); }
+  .gm-block.r-up          { background:linear-gradient(135deg,
+    rgba(31,179,99,0.18), rgba(31,179,99,0.04));
+    border-color:rgba(31,179,99,0.32); }
+  .gm-block.r-flat        { background:var(--card); }
+  .gm-block.r-down        { background:linear-gradient(135deg,
+    rgba(214,68,68,0.18), rgba(214,68,68,0.04));
+    border-color:rgba(214,68,68,0.32); }
+  .gm-block.r-strong-down { background:linear-gradient(135deg,
+    rgba(214,68,68,0.32), rgba(214,68,68,0.08));
+    border-color:rgba(214,68,68,0.55); }
+  /* Anchor block — gold border + accent so SPY is unmistakable */
+  .gm-block.gm-anchor-block { border-color:var(--gold);
+    background:linear-gradient(135deg, rgba(255,200,0,0.18),
+    rgba(255,200,0,0.04)); }
+  .gm-block.gm-anchor-block::before { content:"ANCHOR";
+    position:absolute; top:8px; right:10px; font-size:8px;
+    font-weight:800; color:var(--gold); letter-spacing:.4px; }
+
+  .gm-block .gmb-tk { font-size:13px; font-weight:800; color:var(--text);
+    letter-spacing:.3px; }
+  .gm-block.tier-xl .gmb-tk { font-size:16px; }
+  .gm-block .gmb-country { font-size:11px; color:var(--textdim);
+    margin-top:2px; line-height:1.3; }
+  .gm-block .gmb-ytd { font-size:18px; font-weight:800; margin-top:auto;
+    font-variant-numeric:tabular-nums; line-height:1.1; padding-top:8px; }
+  .gm-block.tier-xl .gmb-ytd { font-size:22px; }
+  .gm-block .gmb-ytd.up   { color:var(--green); }
+  .gm-block .gmb-ytd.down { color:var(--red); }
+  .gm-block .gmb-ytd.flat { color:var(--muted); }
+  .gm-block .gmb-vs { font-size:9.5px; color:var(--textdim);
+    text-transform:uppercase; letter-spacing:.4px; margin-top:3px;
+    font-variant-numeric:tabular-nums; }
+  .gm-block .gmb-vs b { color:var(--text); font-variant-numeric:tabular-nums; }
+  .gm-block .gmb-sector { font-size:9.5px; color:var(--muted);
+    margin-top:6px; padding-top:6px; border-top:1px solid var(--line); }
+
+  /* ── Matrix view (list, sorted by vs-anchor) ── */
+  .gm-matrix { display:flex; flex-direction:column; gap:2px; }
+  .gm-matrix .gm-mrow { display:grid;
+    grid-template-columns:60px 1fr 80px 90px 100px 60px 1fr;
+    align-items:center; gap:12px; padding:9px 12px; background:var(--card);
+    border:1px solid var(--line); border-radius:6px; font-size:11.5px;
+    transition:border-color .12s ease; }
+  .gm-matrix .gm-mrow:hover { border-color:var(--gold); }
+  .gm-matrix .gm-mrow.gm-anchor-row { border-color:var(--gold);
+    background:linear-gradient(90deg, rgba(255,200,0,0.06), transparent); }
+  .gm-matrix .gmm-tk { font-weight:800; color:var(--text); font-size:12.5px;
+    cursor:default; }
+  .gm-matrix .gmm-country { color:var(--textdim);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .gm-matrix .gmm-region { font-size:9px; text-transform:uppercase;
+    letter-spacing:.3px; padding:2px 7px; border-radius:9px;
+    background:var(--bg); border:1px solid var(--border2);
+    color:var(--textdim); text-align:center; }
+  .gm-matrix .gmm-ytd { font-weight:800; text-align:right;
+    font-variant-numeric:tabular-nums; }
+  .gm-matrix .gmm-ytd.up   { color:var(--green); }
+  .gm-matrix .gmm-ytd.down { color:var(--red); }
+  .gm-matrix .gmm-vs { text-align:right; font-variant-numeric:tabular-nums;
+    font-weight:700; }
+  .gm-matrix .gmm-vs.up   { color:var(--green); }
+  .gm-matrix .gmm-vs.down { color:var(--red); }
+  .gm-matrix .gmm-vs.flat { color:var(--muted); }
+  .gm-matrix .gmm-aum { text-align:right; color:var(--textdim);
+    font-variant-numeric:tabular-nums; font-size:11px; }
+  .gm-matrix .gmm-sector { color:var(--muted); font-size:10.5px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* Visual relative bar — green when above anchor, red when below */
+  .gm-matrix .gm-rel-bar { width:120px; height:6px; background:var(--bg);
+    border-radius:3px; position:relative; overflow:hidden;
+    border:1px solid var(--line); }
+  .gm-matrix .gm-rel-bar .gm-rel-fill { position:absolute; top:0; height:100%;
+    left:50%; }
+  .gm-matrix .gm-rel-bar .gm-rel-zero { position:absolute; top:0; left:50%;
+    width:1px; height:100%; background:var(--text); opacity:.4; }
+  @media (max-width:900px) {
+    .gm-matrix .gm-mrow {
+      grid-template-columns:55px 1fr 70px 70px;
+      grid-template-areas: "tk co ytd vs"
+                            "sector sector sector sector";
+      gap:6px; padding:9px;
+    }
+    .gm-matrix .gmm-tk     { grid-area:tk; }
+    .gm-matrix .gmm-country { grid-area:co; }
+    .gm-matrix .gmm-ytd    { grid-area:ytd; }
+    .gm-matrix .gmm-vs     { grid-area:vs; }
+    .gm-matrix .gmm-region { display:none; }
+    .gm-matrix .gmm-aum    { display:none; }
+    .gm-matrix .gm-rel-bar { display:none; }
+    .gm-matrix .gmm-sector { grid-area:sector; font-size:10px; }
+  }
+
+  /* ────────────────────────────────────────────────────────────────
      Most Anticipated Earnings tab — weekly grid by day × session
      ──────────────────────────────────────────────────────────────── */
   #panel-whisper { max-width:1280px; }
@@ -1337,6 +1500,7 @@
     <button data-tab="stockbee-weekly">Stockbee</button>
     <button data-tab="news">News</button>
     <button data-tab="whisper">Whisper</button>
+    <button data-tab="global">Global</button>
   </nav>
 
   <div class="market-cards" id="market-cards"></div>
@@ -1499,6 +1663,44 @@
       <div id="whisper-tweet"></div>
       <div id="whisper-body">
         <div class="uoa-empty">Loading...</div>
+      </div>
+    </section>
+
+    <!-- ── Global Markets · country / region ETF map ── -->
+    <section class="panel" id="panel-global">
+      <h2 class="tab-title">Global Markets &mdash; Country &amp; Region ETFs</h2>
+      <p class="tab-sub">YTD performance + relative-to-SPY read across the
+        major iShares country and regional wrappers. Treemap sizes blocks
+        by AUM tier (broad EM / Europe / Japan dominate); Matrix view sorts
+        strictly by outperformance vs the US benchmark. Daily refresh
+        from Polygon, sector + AUM hand-maintained from iShares
+        factsheets. <span id="global-meta"></span></p>
+      <div class="gm-anchor" id="gm-anchor"></div>
+      <div class="gm-controls">
+        <div class="gm-pills" id="gm-pills">
+          <button data-region="all" class="active">All</button>
+          <button data-region="developed">Developed</button>
+          <button data-region="em">Emerging</button>
+          <button data-region="americas">Americas</button>
+          <button data-region="europe">Europe</button>
+          <button data-region="apac">APAC</button>
+        </div>
+        <div class="gm-right">
+          <div class="gm-view-toggle">
+            <button data-view="treemap" class="active">Treemap</button>
+            <button data-view="matrix">Matrix</button>
+          </div>
+          <select id="gm-sort" title="Sort order">
+            <option value="vs_anchor">Sort: vs SPY (best first)</option>
+            <option value="vs_anchor_asc">Sort: vs SPY (worst first)</option>
+            <option value="ytd">Sort: YTD %</option>
+            <option value="aum">Sort: AUM (largest first)</option>
+            <option value="region">Sort: by region</option>
+          </select>
+        </div>
+      </div>
+      <div id="gm-body">
+        <div class="uoa-empty">Loading global markets...</div>
       </div>
     </section>
 
@@ -3224,6 +3426,239 @@
      Two panes: Trading Day firehose (left) and Per-Ticker (right).
      Pulse row across the top with at-a-glance stats.
      ──────────────────────────────────────────────────────────────── */
+  // ── Global Markets · country / region ETF heatmap ──
+  // Real-data view of how the world's major country ETFs are trading
+  // YTD vs SPY. Treemap view sizes blocks by AUM tier; Matrix view
+  // sorts strictly by outperformance. Data refreshed daily by
+  // country_etfs.py via the momentum.yml workflow.
+  (function setupGlobal() {
+    const body  = document.getElementById("gm-body");
+    const anch  = document.getElementById("gm-anchor");
+    const meta  = document.getElementById("global-meta");
+    const pills = document.getElementById("gm-pills");
+    const sortS = document.getElementById("gm-sort");
+    if (!body) return;
+    let DATA = null;
+    let REGION = "all";
+    let VIEW   = "treemap";
+    let SORT   = "vs_anchor";
+
+    function escHTML(s) {
+      return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function classifyRel(vs) {
+      // Map vs-anchor pct to a color tier
+      if (vs == null) return "r-flat";
+      if (vs >= 8)  return "r-strong-up";
+      if (vs >= 1)  return "r-up";
+      if (vs <= -8) return "r-strong-down";
+      if (vs <= -1) return "r-down";
+      return "r-flat";
+    }
+    function fmtPct(v) {
+      if (v == null) return "—";
+      return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
+    }
+    function fmtAum(b) {
+      if (b == null) return "—";
+      if (b >= 1)   return "$" + b.toFixed(1) + "B";
+      return "$" + Math.round(b * 1000) + "M";
+    }
+    function regionLabel(r) {
+      return ({ americas: "Americas", europe: "Europe",
+                apac: "APAC", em: "EM", anchor: "Anchor" })[r] || r;
+    }
+    function passesFilter(e) {
+      if (REGION === "all") return true;
+      if (REGION === "developed") return e.developed;
+      if (REGION === "em")        return !e.developed;
+      return e.region === REGION;
+    }
+    function sortedEtfs() {
+      const arr = (DATA.etfs || []).filter(passesFilter).slice();
+      arr.sort(function (a, b) {
+        if (SORT === "vs_anchor")
+          return (b.vs_anchor || 0) - (a.vs_anchor || 0);
+        if (SORT === "vs_anchor_asc")
+          return (a.vs_anchor || 0) - (b.vs_anchor || 0);
+        if (SORT === "ytd")
+          return (b.ytd_pct || 0) - (a.ytd_pct || 0);
+        if (SORT === "aum")
+          return (b.aum_b || 0) - (a.aum_b || 0);
+        if (SORT === "region") {
+          // Group by region first, then by vs_anchor desc within region
+          const ord = ["anchor","americas","europe","apac","em"];
+          const ai = ord.indexOf(a.region), bi = ord.indexOf(b.region);
+          if (ai !== bi) return ai - bi;
+          return (b.vs_anchor || 0) - (a.vs_anchor || 0);
+        }
+        return 0;
+      });
+      return arr;
+    }
+
+    function renderAnchor() {
+      const a = DATA.anchor;
+      if (!a) { anch.innerHTML = ""; return; }
+      const cls = a.ytd_pct == null ? "" : a.ytd_pct > 0 ? "up"
+                : a.ytd_pct < 0 ? "down" : "";
+      anch.innerHTML =
+        '<span class="gma-tag">US Benchmark Anchor</span>' +
+        '<div><span class="gma-tk">' + a.ticker + '</span> ' +
+          '<span class="gma-name">&middot; ' + escHTML(a.country) + ' &middot; ' +
+          escHTML(a.top_sector) + ' &middot; AUM ' + fmtAum(a.aum_b) +
+          '</span></div>' +
+        '<span class="gma-ytd ' + cls + '">' +
+          '<span class="gma-ytd-l">YTD</span>' + fmtPct(a.ytd_pct) +
+        '</span>';
+    }
+
+    function renderTreemap() {
+      const arr = sortedEtfs();
+      // Anchor block first (visual reference) when 'all' or 'developed'
+      const showAnchor = (REGION === "all" || REGION === "developed");
+      const anchorBlock = (showAnchor && DATA.anchor)
+        ? blockHtml(DATA.anchor, true) : "";
+      const blocks = arr.map(function (e) { return blockHtml(e); }).join("");
+      body.innerHTML = '<div class="gm-treemap">' +
+        anchorBlock + blocks + '</div>';
+    }
+    function blockHtml(e, isAnchor) {
+      const ytdCls = e.ytd_pct == null ? "flat"
+                    : e.ytd_pct > 0 ? "up" : e.ytd_pct < 0 ? "down" : "flat";
+      const relCls = isAnchor ? "" : classifyRel(e.vs_anchor);
+      return '<div class="gm-block tier-' + (e.aum_tier || "md") + ' ' +
+          relCls + (isAnchor ? ' gm-anchor-block' : '') +
+          '" title="' +
+          escHTML(e.country) + ' (' + e.ticker + ')\n' +
+          'YTD: ' + fmtPct(e.ytd_pct) +
+          (isAnchor ? '' : '\nvs SPY: ' + fmtPct(e.vs_anchor)) +
+          '\nAUM: ' + fmtAum(e.aum_b) +
+          '\nTop sector: ' + escHTML(e.top_sector) +
+        '">' +
+        '<div class="gmb-tk">' + e.ticker + '</div>' +
+        '<div class="gmb-country">' + escHTML(e.country) + '</div>' +
+        '<div class="gmb-ytd ' + ytdCls + '">' + fmtPct(e.ytd_pct) + '</div>' +
+        (isAnchor
+          ? '<div class="gmb-vs">benchmark</div>'
+          : '<div class="gmb-vs">vs SPY <b>' + fmtPct(e.vs_anchor) + '</b></div>') +
+        '<div class="gmb-sector">' + escHTML(e.top_sector) + '</div>' +
+        '</div>';
+    }
+
+    function renderMatrix() {
+      const arr = sortedEtfs();
+      const showAnchor = (REGION === "all" || REGION === "developed");
+      const rows = [];
+      if (showAnchor && DATA.anchor) rows.push(rowHtml(DATA.anchor, true));
+      arr.forEach(function (e) { rows.push(rowHtml(e, false)); });
+      body.innerHTML = '<div class="gm-matrix">' + rows.join("") + '</div>';
+    }
+    function relBar(vs) {
+      if (vs == null) return '<div class="gm-rel-bar"><div class="gm-rel-zero"></div></div>';
+      // Cap visual at ±40pp for the bar; longer extremes still get the
+      // numeric in the column
+      const MAX = 40;
+      const v = Math.max(-MAX, Math.min(MAX, vs));
+      const half = 50; // 50% of bar = anchor
+      let style;
+      if (v >= 0) {
+        style = 'left:50%;width:' + (v / MAX * half).toFixed(1) +
+                '%;background:var(--green)';
+      } else {
+        style = 'left:' + (50 + (v / MAX * half)).toFixed(1) +
+                '%;width:' + (-v / MAX * half).toFixed(1) +
+                '%;background:var(--red)';
+      }
+      return '<div class="gm-rel-bar"><div class="gm-rel-zero"></div>' +
+        '<div class="gm-rel-fill" style="' + style + '"></div></div>';
+    }
+    function rowHtml(e, isAnchor) {
+      const ytdCls = e.ytd_pct == null ? "flat"
+                   : e.ytd_pct > 0 ? "up" : e.ytd_pct < 0 ? "down" : "flat";
+      const vsCls = isAnchor ? "flat"
+                  : e.vs_anchor == null ? "flat"
+                  : e.vs_anchor > 0 ? "up"
+                  : e.vs_anchor < 0 ? "down" : "flat";
+      return '<div class="gm-mrow' + (isAnchor ? ' gm-anchor-row' : '') + '">' +
+        '<span class="gmm-tk">' + e.ticker + '</span>' +
+        '<span class="gmm-country">' + escHTML(e.country) + '</span>' +
+        '<span class="gmm-region">' + (isAnchor ? "Anchor"
+          : (e.developed ? "Dev" : "EM") + " · " + regionLabel(e.region)) +
+          '</span>' +
+        '<span class="gmm-ytd ' + ytdCls + '">' + fmtPct(e.ytd_pct) + '</span>' +
+        '<span class="gmm-vs ' + vsCls + '">' +
+          (isAnchor ? "—" : fmtPct(e.vs_anchor)) + '</span>' +
+        '<span class="gmm-aum">' + fmtAum(e.aum_b) + '</span>' +
+        '<span class="gmm-sector">' + escHTML(e.top_sector) +
+          (isAnchor ? '' : ' ' + relBar(e.vs_anchor)) + '</span>' +
+        '</div>';
+    }
+
+    function render() {
+      if (!DATA) return;
+      renderAnchor();
+      if (VIEW === "treemap") renderTreemap();
+      else renderMatrix();
+    }
+
+    function load() {
+      fetch("./reports/country_etfs.json?t=" + Date.now())
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d) {
+            body.innerHTML = '<div class="uoa-empty">Could not load ' +
+              'country_etfs.json — daily refresh runs with the momentum ' +
+              'workflow.</div>';
+            return;
+          }
+          DATA = d;
+          if (meta && d.updated) {
+            meta.textContent = "· refreshed " +
+              new Date(d.updated).toLocaleString([],
+                { month: "short", day: "numeric", hour: "numeric",
+                  minute: "2-digit" });
+          }
+          render();
+        })
+        .catch(function () {
+          body.innerHTML = '<div class="uoa-empty">' +
+            'Could not load country_etfs.json.</div>';
+        });
+    }
+
+    pills.addEventListener("click", function (e) {
+      const b = e.target.closest("button[data-region]");
+      if (!b) return;
+      REGION = b.dataset.region;
+      pills.querySelectorAll("button").forEach(function (x) {
+        x.classList.toggle("active", x === b);
+      });
+      render();
+    });
+    document.querySelectorAll("#panel-global .gm-view-toggle button")
+      .forEach(function (b) {
+        b.addEventListener("click", function () {
+          VIEW = b.dataset.view;
+          document.querySelectorAll("#panel-global .gm-view-toggle button")
+            .forEach(function (x) {
+              x.classList.toggle("active", x === b);
+            });
+          render();
+        });
+      });
+    if (sortS) sortS.addEventListener("change", function () {
+      SORT = sortS.value; render();
+    });
+    load();
+    document.getElementById("nav").addEventListener("click", function (e) {
+      if (e.target && e.target.dataset && e.target.dataset.tab === "global") {
+        load();
+      }
+    });
+  })();
+
   // ── Most Anticipated Earnings tab — auto-discovered @eWhispers tweet
   // image (top) + our own scraped grid (below). Both update automatically
   // via the momentum.yml cron. No manual paste, no Twitter JS embed.
