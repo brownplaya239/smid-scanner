@@ -1,8 +1,8 @@
 {
  "week_of": "2026-05-18",
- "generated": "2026-05-20T16:13:13-04:00",
+ "generated": "2026-05-20T18:58:40-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 91,
+ "total": 92,
  "days": [
   {
    "date": "2026-05-18",
@@ -325,7 +325,7 @@
     {
      "ticker": "TGT",
      "company": "Target Corp.",
-     "score": 30,
+     "score": 31,
      "analysts": 35,
      "release_time": 1,
      "confirmed": true,
@@ -497,7 +497,7 @@
     {
      "ticker": "NVDA",
      "company": "NVIDIA Corp.",
-     "score": 762,
+     "score": 786,
      "analysts": 49,
      "release_time": 3,
      "confirmed": true,
@@ -545,6 +545,16 @@
      "q": "4/2026"
     },
     {
+     "ticker": "STEP",
+     "company": "StepStone Group Inc.",
+     "score": 6,
+     "analysts": 9,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "3/2026"
+    },
+    {
      "ticker": "NDSN",
      "company": "Nordson Corp.",
      "score": 6,
@@ -559,16 +569,6 @@
      "company": "AEVEX Corp.",
      "score": 6,
      "analysts": 10,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-05-20T00:00:00",
-     "q": "3/2026"
-    },
-    {
-     "ticker": "STEP",
-     "company": "StepStone Group Inc.",
-     "score": 6,
-     "analysts": 9,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-05-20T00:00:00",
@@ -603,6 +603,16 @@
      "confirmed": true,
      "next_eps": "2026-05-20T00:00:00",
      "q": "3/2026"
+    },
+    {
+     "ticker": "VVOS",
+     "company": "Vivos Therapeutics, Inc.",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "3/2026"
     }
    ]
   },
@@ -613,7 +623,7 @@
     {
      "ticker": "WMT",
      "company": "Walmart Inc.",
-     "score": 39,
+     "score": 40,
      "analysts": 38,
      "release_time": 1,
      "confirmed": true,
@@ -623,7 +633,7 @@
     {
      "ticker": "NIO",
      "company": "NIO Inc.",
-     "score": 36,
+     "score": 37,
      "analysts": 15,
      "release_time": 1,
      "confirmed": true,
@@ -643,7 +653,7 @@
     {
      "ticker": "RL",
      "company": "Ralph Lauren Corporation",
-     "score": 8,
+     "score": 9,
      "analysts": 19,
      "release_time": 1,
      "confirmed": true,
@@ -795,7 +805,7 @@
     {
      "ticker": "WDAY",
      "company": "Workday, Inc.",
-     "score": 21,
+     "score": 22,
      "analysts": 41,
      "release_time": 3,
      "confirmed": true,
@@ -805,7 +815,7 @@
     {
      "ticker": "DECK",
      "company": "Deckers Brands",
-     "score": 19,
+     "score": 20,
      "analysts": 26,
      "release_time": 3,
      "confirmed": true,
@@ -815,7 +825,7 @@
     {
      "ticker": "BULL",
      "company": "Webull Corporation",
-     "score": 14,
+     "score": 15,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
@@ -825,7 +835,7 @@
     {
      "ticker": "TTWO",
      "company": "Take-Two Interactive Software, Inc.",
-     "score": 14,
+     "score": 15,
      "analysts": 29,
      "release_time": 3,
      "confirmed": true,
@@ -835,7 +845,7 @@
     {
      "ticker": "ZM",
      "company": "Zoom Communications, Inc.",
-     "score": 12,
+     "score": 13,
      "analysts": 27,
      "release_time": 3,
      "confirmed": true,
@@ -845,7 +855,7 @@
     {
      "ticker": "ROST",
      "company": "Ross Stores Inc.",
-     "score": 9,
+     "score": 10,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
@@ -855,7 +865,7 @@
     {
      "ticker": "CPRT",
      "company": "Copart Inc.",
-     "score": 7,
+     "score": 8,
      "analysts": 12,
      "release_time": 3,
      "confirmed": true,
@@ -865,7 +875,7 @@
     {
      "ticker": "FLO",
      "company": "Flowers Foods Inc.",
-     "score": 4,
+     "score": 5,
      "analysts": 6,
      "release_time": 3,
      "confirmed": true,
@@ -875,7 +885,7 @@
     {
      "ticker": "LION",
      "company": "Lionsgate Studios Corp.",
-     "score": 3,
+     "score": 4,
      "analysts": 12,
      "release_time": 3,
      "confirmed": true,
@@ -895,7 +905,7 @@
     {
      "ticker": "CAE",
      "company": "Cae Inc",
-     "score": 2,
+     "score": 3,
      "analysts": 14,
      "release_time": 3,
      "confirmed": true,
@@ -921,7 +931,7 @@
     {
      "ticker": "BAH",
      "company": "Booz Allen Hamilton Holding Corporation",
-     "score": 8,
+     "score": 9,
      "analysts": 14,
      "release_time": 1,
      "confirmed": true,
@@ -931,7 +941,7 @@
     {
      "ticker": "BJ",
      "company": "BJ's Wholesale Club, Inc.",
-     "score": 6,
+     "score": 7,
      "analysts": 21,
      "release_time": 1,
      "confirmed": true,

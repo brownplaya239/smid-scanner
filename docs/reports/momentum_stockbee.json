@@ -1,5 +1,5 @@
 {
- "updated": "2026-05-20T12:06:50-04:00",
+ "updated": "2026-05-20T18:58:37-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -9,74 +9,90 @@
   },
   {
    "date": "2026-05-20",
-   "generated": "2026-05-20T12:06:50-04:00",
-   "count": 3,
+   "generated": "2026-05-20T18:58:37-04:00",
+   "count": 5,
    "rows": [
     {
      "ticker": "NOW",
-     "price": 100.95,
-     "chg": 15.97,
-     "adr_pct": 5.11,
-     "dollar_vol": 2801431849,
+     "price": 103.3,
+     "chg": 18.67,
+     "adr_pct": 5.2,
+     "dollar_vol": 2888087527,
      "ern": "Jul 22"
     },
     {
      "ticker": "ARM",
-     "price": 257.15,
-     "chg": 16.25,
-     "adr_pct": 7.41,
-     "dollar_vol": 2578817817,
+     "price": 256.73,
+     "chg": 16.06,
+     "adr_pct": 7.4,
+     "dollar_vol": 2657816605,
      "ern": "Jul 29"
     },
     {
+     "ticker": "CRWD",
+     "price": 650.11,
+     "chg": 15.56,
+     "adr_pct": 4.28,
+     "dollar_vol": 1614559862,
+     "ern": "Jun 03"
+    },
+    {
      "ticker": "CLSK",
-     "price": 15.87,
-     "chg": 19.32,
+     "price": 15.4,
+     "chg": 15.79,
      "adr_pct": 7.77,
-     "dollar_vol": 292276635,
+     "dollar_vol": 304984865,
      "ern": "Aug 06"
+    },
+    {
+     "ticker": "GH",
+     "price": 114.97,
+     "chg": 16.76,
+     "adr_pct": 6.19,
+     "dollar_vol": 188932652,
+     "ern": "Jul 29"
     }
    ],
    "near_misses": [
     {
      "ticker": "ZETA",
-     "price": 18.39,
-     "chg": 14.62,
+     "price": 18.34,
+     "chg": 14.34,
      "adr_pct": 5.5,
-     "dollar_vol": 166085621,
+     "dollar_vol": 168760252,
      "ern": "--"
     },
     {
-     "ticker": "CRWD",
-     "price": 644.15,
-     "chg": 14.5,
-     "adr_pct": 4.25,
-     "dollar_vol": 1529675463,
-     "ern": "Jun 03"
+     "ticker": "CELC",
+     "price": 140.34,
+     "chg": 12.75,
+     "adr_pct": 7.4,
+     "dollar_vol": 166396301,
+     "ern": "Aug 13"
     },
     {
-     "ticker": "CSCO",
-     "price": 115.7,
-     "chg": 13.58,
-     "adr_pct": 2.73,
-     "dollar_vol": 2549581599,
-     "ern": "Aug 12"
+     "ticker": "OPCH",
+     "price": 22.23,
+     "chg": 12.39,
+     "adr_pct": 4.61,
+     "dollar_vol": 109013527,
+     "ern": "Jul 29"
     },
     {
      "ticker": "ACN",
-     "price": 178.38,
-     "chg": 11.74,
-     "adr_pct": 3.99,
-     "dollar_vol": 1024717639,
+     "price": 179.22,
+     "chg": 12.27,
+     "adr_pct": 4.04,
+     "dollar_vol": 1047433740,
      "ern": "Jun 18"
     },
     {
-     "ticker": "SM",
-     "price": 34.52,
-     "chg": 10.73,
-     "adr_pct": 3.98,
-     "dollar_vol": 123701234,
-     "ern": "Jul 30"
+     "ticker": "CSCO",
+     "price": 114.35,
+     "chg": 12.25,
+     "adr_pct": 2.79,
+     "dollar_vol": 2638084879,
+     "ern": "Aug 12"
     }
    ]
   }

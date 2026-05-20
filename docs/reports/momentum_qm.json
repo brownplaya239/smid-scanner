@@ -1,5 +1,5 @@
 {
- "updated": "2026-05-20T12:06:50-04:00",
+ "updated": "2026-05-20T18:58:37-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -98,95 +98,95 @@
   },
   {
    "date": "2026-05-20",
-   "generated": "2026-05-20T12:06:50-04:00",
+   "generated": "2026-05-20T18:58:37-04:00",
    "count": 11,
    "rows": [
     {
      "ticker": "MU",
-     "price": 724.68,
-     "chg": 61.26,
+     "price": 731.99,
+     "chg": 62.89,
      "adr_pct": 6.81,
-     "dollar_vol": 32576463521,
+     "dollar_vol": 33383114644,
      "ern": "Jun 24"
     },
     {
      "ticker": "SNDK",
-     "price": 1404.98,
-     "chg": 55.51,
-     "adr_pct": 7.87,
-     "dollar_vol": 19467716910,
+     "price": 1392.56,
+     "chg": 54.13,
+     "adr_pct": 7.86,
+     "dollar_vol": 19704885695,
      "ern": "--"
     },
     {
      "ticker": "AMD",
-     "price": 447.04,
-     "chg": 57.14,
-     "adr_pct": 5.86,
-     "dollar_vol": 17316474483,
+     "price": 447.58,
+     "chg": 57.33,
+     "adr_pct": 5.88,
+     "dollar_vol": 17732296407,
      "ern": "Aug 04"
     },
     {
      "ticker": "INTC",
-     "price": 118.06,
-     "chg": 78.18,
-     "adr_pct": 7.52,
-     "dollar_vol": 16852086324,
+     "price": 118.96,
+     "chg": 79.54,
+     "adr_pct": 7.59,
+     "dollar_vol": 17252577022,
      "ern": "Jul 23"
     },
     {
      "ticker": "DDOG",
-     "price": 213.5,
-     "chg": 65.13,
-     "adr_pct": 5.13,
-     "dollar_vol": 1168749711,
+     "price": 212.24,
+     "chg": 64.16,
+     "adr_pct": 5.14,
+     "dollar_vol": 1205871904,
      "ern": "Aug 06"
     },
     {
-     "ticker": "MXL",
-     "price": 95.97,
-     "chg": 184.77,
-     "adr_pct": 14.22,
-     "dollar_vol": 558634066,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "DOCN",
-     "price": 162.4,
-     "chg": 71.47,
-     "adr_pct": 8.11,
-     "dollar_vol": 555481702,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "STRL",
-     "price": 754.23,
-     "chg": 59.51,
-     "adr_pct": 6.45,
-     "dollar_vol": 513363857,
+     "ticker": "NVTS",
+     "price": 22.99,
+     "chg": 49.97,
+     "adr_pct": 14.58,
+     "dollar_vol": 701109318,
      "ern": "Aug 03"
     },
     {
-     "ticker": "OSCR",
-     "price": 23.94,
-     "chg": 48.05,
-     "adr_pct": 6.05,
-     "dollar_vol": 175867293,
-     "ern": "--"
+     "ticker": "DOCN",
+     "price": 160.11,
+     "chg": 69.05,
+     "adr_pct": 8.11,
+     "dollar_vol": 568409390,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "MXL",
+     "price": 96.77,
+     "chg": 187.15,
+     "adr_pct": 14.21,
+     "dollar_vol": 565491638,
+     "ern": "Jul 22"
+    },
+    {
+     "ticker": "STRL",
+     "price": 752.0,
+     "chg": 59.04,
+     "adr_pct": 6.45,
+     "dollar_vol": 525802636,
+     "ern": "Aug 03"
     },
     {
      "ticker": "SYNA",
-     "price": 131.13,
-     "chg": 51.02,
+     "price": 129.82,
+     "chg": 49.51,
      "adr_pct": 7.39,
-     "dollar_vol": 118271774,
+     "dollar_vol": 122326734,
      "ern": "Aug 06"
     },
     {
      "ticker": "COCO",
-     "price": 78.77,
-     "chg": 66.25,
-     "adr_pct": 5.17,
-     "dollar_vol": 110846329,
+     "price": 77.88,
+     "chg": 64.37,
+     "adr_pct": 5.18,
+     "dollar_vol": 112977202,
      "ern": "Jul 29"
     }
    ]
