@@ -366,7 +366,11 @@ async function fetchPolygonNews(env, ticker, limit) {
   try {
     const r = await fetch(
       "https://api.polygon.io/v2/reference/news?" + params.toString(),
-      { cf: { cacheTtl: 300 } }
+      {
+        cf: { cacheTtl: 300 },
+        signal: AbortSignal.timeout(8000),    // 8s — Polygon News has
+                                              // had upstream outages
+      }
     );
     if (!r.ok) {
       return { error: "polygon " + r.status, status: r.status, articles: [] };
@@ -375,7 +379,10 @@ async function fetchPolygonNews(env, ticker, limit) {
     const articles = (j.results || []).map(simplifyArticle).filter(Boolean);
     return { count: articles.length, articles: articles };
   } catch (e) {
-    return { error: String(e), articles: [] };
+    const msg = e && e.name === "TimeoutError"
+      ? "Polygon News upstream timeout (their endpoint is slow/down)"
+      : String(e);
+    return { error: msg, articles: [] };
   }
 }
 
