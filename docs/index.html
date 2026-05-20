@@ -60,8 +60,9 @@
   .theme-toggle, .density-toggle { display:flex;
     border:1px solid var(--border2); border-radius:6px; overflow:hidden; }
   .theme-toggle button, .density-toggle button { background:var(--navy2);
-    color:var(--muted); border:0; font-family:inherit; font-size:10px;
-    font-weight:700; letter-spacing:.5px; padding:5px 9px; cursor:pointer; }
+    color:var(--muted); border:0; font-family:inherit; font-size:10.5px;
+    font-weight:600; letter-spacing:.3px; padding:5px 11px; cursor:pointer;
+    line-height:1.2; white-space:nowrap; }
   .theme-toggle button + button,
   .density-toggle button + button { border-left:1px solid var(--border2); }
   .theme-toggle button:hover,
@@ -252,17 +253,34 @@
   .cal-act { color:var(--text); font-weight:700; }
 
   /* Top Bullish / Bearish (per-name narrative rows) */
-  .conf-row { display:flex; gap:9px; padding:5px 0; align-items:baseline; }
+  .conf-row { display:flex; gap:8px; padding:5px 0; align-items:baseline;
+    flex-wrap:wrap; }
   .conf-row + .conf-row { border-top:1px solid var(--line); }
-  .conf-row .cr-tk { font-weight:800; color:var(--text); min-width:54px;
-    font-size:11px; letter-spacing:.3px; }
+  .conf-row .cr-tk { font-weight:800; color:var(--text); min-width:50px;
+    font-size:11px; letter-spacing:.3px; cursor:pointer; }
+  .conf-row .cr-tk:hover { color:var(--gold); }
   .conf-row .cr-narr { color:var(--textdim); font-size:10px;
-    line-height:1.4; }
+    line-height:1.4; flex:1; min-width:0; }
   .conf-row .cr-narr .tag-pos     { color:var(--green); font-weight:600; }
   .conf-row .cr-narr .tag-neg     { color:var(--red);   font-weight:600; }
   .conf-row .cr-narr .tag-conf    { color:#ff9e1b; font-weight:700; }
   .conf-row .cr-narr .tag-grade   { color:var(--gold); font-weight:600; }
   .conf-row .cr-narr .tag-rep     { color:var(--gold); }
+  /* Bias-category badge — hierarchy at a glance: Confirmation /
+     Conflict / Hedge / Mixed */
+  .bias-badge { display:inline-block; font-size:8.5px; font-weight:800;
+    letter-spacing:.4px; text-transform:uppercase; padding:1.5px 5px;
+    border-radius:3px; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,.5); }
+  .bias-badge.bias-confirm-bull { background:rgba(31,179,99,0.9);  color:#fff; }
+  .bias-badge.bias-confirm-bear { background:rgba(214,68,68,0.9);  color:#fff; }
+  .bias-badge.bias-conflict     { background:rgba(255,158,27,0.92); color:#1a1a1a; }
+  .bias-badge.bias-hedge        { background:rgba(160,178,210,0.55); color:#1a1a1a; }
+  .bias-badge.bias-mixed        { background:rgba(120,135,165,0.45); color:var(--text); }
+  /* Inline section header inside Top Bullish/Bearish cards */
+  .conf-section { font-size:9px; text-transform:uppercase; letter-spacing:.5px;
+    color:var(--muted); font-weight:700; margin:6px 0 3px;
+    padding-bottom:2px; border-bottom:1px dashed var(--line); }
+  .conf-section:first-child { margin-top:0; }
 
   /* Market Health — compact stats line + 4-column performers table */
   .mh-stats { font-size:10.5px; color:var(--textdim); margin-bottom:6px;
@@ -350,6 +368,87 @@
     margin-bottom:2px; border-bottom:1px solid var(--line); }
   .th-grid .th-head.pos { color:var(--green); }
   .th-grid .th-head.neg { color:var(--red); }
+
+  /* ────────────────────────────────────────────────────────────────
+     Universal Ticker Drilldown (right-side slide-out panel)
+     Click any ticker anywhere on the site to open a per-name briefing
+     ──────────────────────────────────────────────────────────────── */
+  .tdp-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45);
+    opacity:0; pointer-events:none; transition:opacity .18s ease;
+    z-index:80; }
+  .tdp-backdrop.show { opacity:1; pointer-events:auto; }
+  .ticker-panel { position:fixed; top:0; right:0; bottom:0; width:420px;
+    max-width:100vw; background:var(--card); border-left:1px solid var(--line);
+    box-shadow:-10px 0 36px rgba(0,0,0,.6); z-index:90;
+    transform:translateX(100%); transition:transform .22s ease;
+    display:flex; flex-direction:column; }
+  .ticker-panel.show { transform:translateX(0); }
+  .tdp-head { padding:16px 18px 12px; border-bottom:1px solid var(--line);
+    background:var(--navy2); position:sticky; top:0; z-index:1; }
+  .tdp-head .tdp-row1 { display:flex; align-items:baseline; gap:10px; }
+  .tdp-head .tdp-sym { font-size:22px; font-weight:800; color:var(--text);
+    letter-spacing:.4px; }
+  .tdp-head .tdp-chg { font-size:14px; font-weight:700;
+    font-variant-numeric:tabular-nums; }
+  .tdp-head .tdp-chg.up   { color:var(--green); }
+  .tdp-head .tdp-chg.down { color:var(--red); }
+  .tdp-head .tdp-chg.flat { color:var(--muted); }
+  .tdp-head .tdp-px { margin-left:auto; font-size:15px; font-weight:700;
+    font-variant-numeric:tabular-nums; color:var(--text); }
+  .tdp-head .tdp-close { background:none; border:0; color:var(--muted);
+    font-size:22px; line-height:1; cursor:pointer; padding:0 4px;
+    margin-left:8px; font-family:inherit; }
+  .tdp-head .tdp-close:hover { color:var(--text); }
+  .tdp-head .tdp-name { font-size:12px; color:var(--textdim); margin-top:4px; }
+  .tdp-body { padding:8px 18px 22px; overflow-y:auto; flex:1; }
+  .tdp-section { padding:12px 0; border-bottom:1px solid var(--line); }
+  .tdp-section:last-child { border-bottom:0; }
+  .tdp-section h4 { font-size:9.5px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.5px; font-weight:700; margin:0 0 7px; }
+  .tdp-kv { display:grid; grid-template-columns:96px 1fr; gap:4px 12px;
+    font-size:11.5px; }
+  .tdp-kv .tdp-k { color:var(--muted); }
+  .tdp-kv .tdp-v { color:var(--text); font-weight:600; }
+  .tdp-kv .tdp-v.dim { color:var(--textdim); font-weight:400; }
+  .tdp-themes { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+  .tdp-themes .tdp-theme { font-size:10px; padding:2px 7px;
+    border:1px solid var(--border2); border-radius:11px;
+    color:var(--text); font-weight:600; background:rgba(160,178,210,0.06); }
+  .tdp-grade-pill { display:inline-block; font-size:11px; font-weight:800;
+    padding:2px 7px; border-radius:4px; color:#fff;
+    text-shadow:0 1px 1px rgba(0,0,0,.5); }
+  .tdp-bias { display:inline-block; margin-left:8px; }
+  .tdp-contract { display:flex; justify-content:space-between; gap:8px;
+    padding:4px 0; font-size:11px; align-items:baseline; }
+  .tdp-contract + .tdp-contract { border-top:1px solid var(--line); }
+  .tdp-contract .tdp-c-tag { color:var(--text); font-weight:600; }
+  .tdp-contract .tdp-c-side { color:var(--gold); font-size:9.5px;
+    text-transform:uppercase; letter-spacing:.3px; margin-left:6px; }
+  .tdp-contract .tdp-c-val  { color:var(--textdim);
+    font-variant-numeric:tabular-nums; }
+  .tdp-contract .tdp-c-val.up   { color:var(--green); }
+  .tdp-contract .tdp-c-val.down { color:var(--red); }
+  .tdp-report { display:flex; justify-content:space-between;
+    padding:5px 0; font-size:11px; }
+  .tdp-report + .tdp-report { border-top:1px solid var(--line); }
+  .tdp-report a { color:var(--gold); text-decoration:none; }
+  .tdp-report a:hover { text-decoration:underline; }
+  .tdp-report .tdp-r-date { color:var(--muted); font-size:10px;
+    font-variant-numeric:tabular-nums; }
+  .tdp-why { font-size:12px; line-height:1.55; color:var(--text); }
+  .tdp-why .tdp-why-tag { color:var(--gold); font-weight:700; }
+  .tdp-spark { margin-top:6px; }
+  .tdp-spark svg { display:block; width:100%; height:60px; }
+  .tdp-actions { display:flex; gap:8px; margin-top:4px; flex-wrap:wrap; }
+  .tdp-actions button { font-family:inherit; font-size:11px; font-weight:600;
+    background:var(--navy2); border:1px solid var(--border2); color:var(--text);
+    padding:6px 12px; border-radius:5px; cursor:pointer; }
+  .tdp-actions button:hover { border-color:var(--gold); color:var(--gold); }
+  .tdp-empty { color:var(--muted); font-size:11px; font-style:italic; }
+  @media (max-width: 640px) {
+    .ticker-panel { width:100vw; }
+    .tdp-head .tdp-sym { font-size:20px; }
+  }
 
   /* Theme constituent popup (hover a theme row to see its members) */
   .th-pop { position:fixed; z-index:60; display:none; width:240px;
@@ -721,10 +820,16 @@
 
   /* ── Mobile (phones — iPhone 17 Pro is ~402px CSS width) ── */
   @media (max-width: 640px) {
-    header { padding:16px 18px; }
+    header { padding:14px 16px 12px; }
     header h1 { font-size:16px; line-height:1.3; }
-    header p  { font-size:11px; }
-    .theme-toggle { top:14px; right:14px; }
+    header p  { font-size:11px; padding-right:0; }
+    /* Drop the absolute-positioned controls under the header text so they
+       don't overlap the title on narrow screens. */
+    .head-toggles { position:static; flex-direction:row; gap:8px;
+      margin-top:10px; align-items:center; justify-content:flex-start;
+      flex-wrap:wrap; }
+    .theme-toggle button, .density-toggle button {
+      font-size:10px; padding:5px 9px; letter-spacing:.2px; }
 
     nav { padding:0 6px; }
     nav button { font-size:12px; padding:12px 11px; }
@@ -765,6 +870,21 @@
 </script>
 </head>
 <body>
+  <!-- Universal ticker drilldown side panel (single global element) -->
+  <div class="tdp-backdrop" id="tdp-backdrop"></div>
+  <aside class="ticker-panel" id="ticker-panel" aria-hidden="true">
+    <div class="tdp-head">
+      <div class="tdp-row1">
+        <span class="tdp-sym" id="tdp-sym">—</span>
+        <span class="tdp-chg" id="tdp-chg"></span>
+        <span class="tdp-px"  id="tdp-px"></span>
+        <button class="tdp-close" id="tdp-close" title="Close (Esc)">&times;</button>
+      </div>
+      <div class="tdp-name" id="tdp-name"></div>
+    </div>
+    <div class="tdp-body" id="tdp-body"></div>
+  </aside>
+
   <header>
     <div class="hgroup">
       <h1>TickerDesk</h1>
@@ -772,13 +892,13 @@
     </div>
     <div class="head-toggles">
       <div class="theme-toggle" id="theme-toggle" title="Color scheme">
-        <button data-theme="light">L</button>
-        <button data-theme="mid">M</button>
-        <button data-theme="dark">D</button>
+        <button data-theme="light" title="Light theme">Light</button>
+        <button data-theme="mid"   title="Mid (market) theme">Market</button>
+        <button data-theme="dark"  title="Dark theme">Dark</button>
       </div>
       <div class="density-toggle" id="density-toggle" title="Layout density">
-        <button data-density="comfy">Cm</button>
-        <button data-density="dense">Dn</button>
+        <button data-density="comfy" title="Comfortable spacing">Comfort</button>
+        <button data-density="dense" title="Dense / compact layout">Dense</button>
       </div>
     </div>
   </header>
@@ -1247,6 +1367,403 @@
       if (e.target.dataset.theme) apply(e.target.dataset.theme);
     });
     apply(document.documentElement.dataset.theme || "dark");
+  })();
+
+  /* ────────────────────────────────────────────────────────────────
+     Universal Ticker Drilldown — single source of truth for clicks
+     on any ticker, anywhere on the site. Aggregates data from every
+     loaded JSON (swing, uoa, uoaMeta, manifest, ...) and renders a
+     right-side slide-out panel with a per-name briefing.
+     ──────────────────────────────────────────────────────────────── */
+  window.TD_DATA = window.TD_DATA || {};   // populated by setupDesk + setupSwing
+
+  (function () {
+    const panel    = document.getElementById("ticker-panel");
+    const backdrop = document.getElementById("tdp-backdrop");
+    const body     = document.getElementById("tdp-body");
+    const symEl    = document.getElementById("tdp-sym");
+    const chgEl    = document.getElementById("tdp-chg");
+    const pxEl     = document.getElementById("tdp-px");
+    const nameEl   = document.getElementById("tdp-name");
+    const closeBtn = document.getElementById("tdp-close");
+    if (!panel) return;
+
+    // Shared formatters (kept identical to setupDesk's so the panel matches)
+    function fmtMcap(v) {
+      if (v == null || !isFinite(v) || v <= 0) return null;
+      if (v >= 1e12) return "$" + (v / 1e12).toFixed(2) + "T";
+      if (v >= 1e11) return "$" + Math.round(v / 1e9) + "B";
+      if (v >= 1e10) return "$" + (v / 1e9).toFixed(1) + "B";
+      if (v >= 1e9)  return "$" + (v / 1e9).toFixed(2) + "B";
+      if (v >= 1e8)  return "$" + Math.round(v / 1e6) + "M";
+      if (v >= 1e6)  return "$" + (v / 1e6).toFixed(1) + "M";
+      return "$" + Math.round(v);
+    }
+    function fmtPrem(v) {
+      if (v == null) return "—";
+      if (v >= 1e9) return "$" + (v / 1e9).toFixed(2) + "B";
+      if (v >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
+      if (v >= 1e3) return "$" + Math.round(v / 1e3) + "k";
+      return "$" + Math.round(v);
+    }
+    function cleanName(n) {
+      if (!n) return "";
+      const re = [
+        /\s*-?\s*American Depositary (Shares?|Receipts?)$/i,
+        /\s*-?\s*Ord(inary)? Shares?$/i,
+        /\s*-?\s*Class [A-Z]\s*(Common Stock|Ordinary Shares?)?$/i,
+        /\s*-?\s*Common (Stock|Shares?)$/i,
+        /\s*-?\s*Beneficial Interest$/i,
+        /,?\s*(Inc|Corp|Corporation|Ltd|Limited|plc|S\.A|N\.V)\.?$/i,
+      ];
+      let s = String(n), last = "";
+      while (s && s !== last) {
+        last = s; for (const r of re) s = s.replace(r, "").trim();
+      }
+      return s || n;
+    }
+    function spark(arr, height) {
+      if (!arr || arr.length < 2) return "";
+      const H = height || 60, W = 380;
+      let lo = Math.min.apply(null, arr), hi = Math.max.apply(null, arr);
+      const span = (hi - lo) || 1;
+      const up = arr[arr.length - 1] >= arr[0];
+      const col = up ? "var(--green)" : "var(--red)";
+      const pts = arr.map(function (v, i) {
+        return ((i / (arr.length - 1)) * W).toFixed(1) + "," +
+               (H - ((v - lo) / span) * H).toFixed(1);
+      }).join(" ");
+      return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+        '<polyline points="' + pts + '" fill="none" stroke="' + col +
+        '" stroke-width="1.8"/></svg>';
+    }
+    function gradeBg(g) {
+      // Mirror the swing grading colour ramp
+      const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
+                  "D","D-","E+","E","E-","F+","F","F-","G+","G"];
+      const i = GR.indexOf(g);
+      if (i < 0) return "var(--muted)";
+      return i < 10
+        ? "rgba(31,179,99," + (0.9 - (i / 9) * 0.6).toFixed(2) + ")"
+        : "rgba(214,68,68," + (0.35 + ((i - 10) / 9) * 0.6).toFixed(2) + ")";
+    }
+
+    // Look up everything we know about this ticker across all loaded data
+    function aggregate(t) {
+      const D = window.TD_DATA;
+      const out = { t: t, found: false };
+      // Swing cell (price, day chg, grade, themes, extension, sparkline)
+      if (D.swing && D.swing.runs && D.swing.runs.length) {
+        const r = D.swing.runs[D.swing.runs.length - 1];
+        out.swingRun = r;
+        Object.keys(r.grades || {}).some(function (g) {
+          const cell = (r.grades[g] || []).find(function (c) { return c.t === t; });
+          if (cell) { out.swing = cell; out.grade = g; out.found = true; return true; }
+          return false;
+        });
+      }
+      // UOA rows (this ticker's contracts) — filter and sort by trade_score
+      if (D.uoa && D.uoa.rows) {
+        out.uoaRows = D.uoa.rows.filter(function (r) { return r.ticker === t; })
+          .sort(function (a, b) { return (b.trade_score || 0) - (a.trade_score || 0); });
+        if (out.uoaRows.length) {
+          // Net directional bias across this ticker's flagged contracts
+          let bull = 0, bear = 0;
+          out.uoaRows.forEach(function (r) {
+            if ((r.direction || "").toLowerCase() === "bullish") bull += r.premium || 0;
+            else if ((r.direction || "").toLowerCase() === "bearish") bear += r.premium || 0;
+          });
+          out.uoaDir = bull > bear * 1.2 ? "bullish"
+                     : bear > bull * 1.2 ? "bearish" : "mixed";
+          out.uoaBullPrem = bull;
+          out.uoaBearPrem = bear;
+        }
+      }
+      // UOA per-underlying meta (earnings, mkt cap)
+      if (D.uoaMeta && D.uoaMeta[t]) out.meta = D.uoaMeta[t];
+      // Momentum gainer lists
+      if (D.qm && D.qm.runs && D.qm.runs.length) {
+        out.qmHit = (D.qm.runs[D.qm.runs.length - 1].rows || [])
+          .some(function (r) { return r.ticker === t; });
+      }
+      if (D.sb && D.sb.runs && D.sb.runs.length) {
+        out.sbHit = (D.sb.runs[D.sb.runs.length - 1].rows || [])
+          .some(function (r) { return r.ticker === t; });
+      }
+      // Archived reports referencing this ticker
+      if (D.manifest && D.manifest.reports) {
+        const hits = [];
+        Object.keys(D.manifest.reports).forEach(function (k) {
+          (D.manifest.reports[k] || []).forEach(function (r) {
+            if (r.ticker === t) hits.push({
+              file: r.file, label: r.label || k,
+              date: (r.file || "").match(/\d{4}-\d{2}-\d{2}/) || ["unknown"]
+            });
+          });
+        });
+        hits.sort(function (a, b) {
+          return (b.date[0] || "").localeCompare(a.date[0] || "");
+        });
+        out.reports = hits.slice(0, 5);
+      }
+      if (out.swing || out.uoaRows && out.uoaRows.length || out.meta) {
+        out.found = true;
+      }
+      return out;
+    }
+
+    // Generate a 1-3 sentence narrative explaining why this ticker matters
+    // RIGHT NOW. Pulls from grade alignment, flow conviction, themes,
+    // momentum, reports, earnings imminence.
+    function whyMatters(agg) {
+      const s = [];
+      const aTier = agg.grade && /^A/.test(agg.grade);
+      const fgTier = agg.grade && /^[FG]/.test(agg.grade);
+      const bullFlow = agg.uoaDir === "bullish";
+      const bearFlow = agg.uoaDir === "bearish";
+
+      // Lead: directional thesis
+      if (aTier && bullFlow)
+        s.push('<span class="tdp-why-tag">Bullish confirmation.</span> ' +
+          agg.grade + " trend grade with smart-money calls confirming.");
+      else if (fgTier && bearFlow)
+        s.push('<span class="tdp-why-tag">Bearish confirmation.</span> ' +
+          agg.grade + " weakness with smart-money puts confirming.");
+      else if (aTier && bearFlow)
+        s.push('<span class="tdp-why-tag">Trend / flow conflict.</span> ' +
+          agg.grade + " trend but bearish options positioning — read as hedging " +
+          "or distribution into strength.");
+      else if (fgTier && bullFlow)
+        s.push('<span class="tdp-why-tag">Bottom-fishing flow.</span> ' +
+          agg.grade + " weakness but bullish calls — reversal positioning.");
+      else if (aTier)
+        s.push('<span class="tdp-why-tag">Strong trend.</span> ' +
+          agg.grade + " grade.");
+      else if (fgTier)
+        s.push('<span class="tdp-why-tag">Weak trend.</span> ' +
+          agg.grade + " grade.");
+      else if (bullFlow)
+        s.push('Bullish options flow with no strong swing read.');
+      else if (bearFlow)
+        s.push('Bearish options flow with no strong swing read.');
+
+      // Theme leadership
+      if (agg.swing && agg.swing.th && agg.swing.th.length)
+        s.push("Tagged to " + agg.swing.th.slice(0, 2).join(" + ") +
+          (agg.swing.th.length > 2 ? " + others" : "") + ".");
+
+      // Volume confirmation
+      if (agg.swing && typeof agg.swing.rvol === "number" && agg.swing.rvol >= 1.5)
+        s.push("Volume confirms — " + agg.swing.rvol.toFixed(1) +
+          "× relative volume today.");
+
+      // Extension warning
+      if (agg.swing && typeof agg.swing.ext === "number" && agg.swing.ext >= 5)
+        s.push("ATR extension at " + agg.swing.ext.toFixed(1) +
+          "× — late in the move; wait for a base.");
+
+      // Momentum lists
+      const mom = [];
+      if (agg.qmHit) mom.push("monthly gainer");
+      if (agg.sbHit) mom.push("weekly gainer");
+      if (mom.length) s.push("On the " + mom.join(" + ") + " screen.");
+
+      // Recent reports
+      if (agg.reports && agg.reports.length)
+        s.push("Featured in " + agg.reports.length + " recent report" +
+          (agg.reports.length > 1 ? "s" : "") + ".");
+
+      // Earnings imminence
+      if (agg.meta && agg.meta.earnings_date) {
+        const ed = new Date(agg.meta.earnings_date + "T00:00:00");
+        const today = new Date(); today.setHours(0,0,0,0);
+        const days = Math.round((ed - today) / 86400000);
+        if (days >= 0 && days <= 7) {
+          const sess = agg.meta.earnings_session;
+          s.push("Earnings in " + days + " day" + (days === 1 ? "" : "s") +
+            (sess ? " (" + sess + ")" : "") + " — event risk live.");
+        }
+      }
+
+      if (!s.length) return "Limited signal across the desk's data sources " +
+        "for this name today.";
+      return s.join(" ");
+    }
+
+    function renderPanel(t) {
+      const agg = aggregate(t);
+      symEl.textContent = t;
+      // Header chip + price
+      const sw = agg.swing;
+      const chg = sw && typeof sw.chg === "number" ? sw.chg : null;
+      if (chg != null) {
+        chgEl.className = "tdp-chg " + (chg > 0 ? "up" : chg < 0 ? "down" : "flat");
+        chgEl.textContent = (chg > 0 ? "▲ +" : chg < 0 ? "▼ " : "") +
+          chg.toFixed(2) + "%";
+      } else {
+        chgEl.className = "tdp-chg flat";
+        chgEl.textContent = "";
+      }
+      pxEl.textContent = sw && sw.p != null ? "$" + sw.p.toFixed(2) : "";
+      nameEl.textContent = cleanName((sw && sw.n) ||
+                            (agg.meta && agg.meta.name) || t);
+
+      // ── Body sections ──
+      const sec = [];
+
+      // 1) Snapshot (grade, themes, mcap, sector, earnings)
+      const meta = agg.meta || {};
+      const mcapStr = fmtMcap(sw && sw.mcap) || fmtMcap(meta.mkt_cap);
+      const earn = meta.earnings_date
+        ? (meta.earnings_date + (meta.earnings_session
+            ? " · " + meta.earnings_session : ""))
+        : null;
+      let snap = '<div class="tdp-kv">';
+      if (agg.grade)
+        snap += '<div class="tdp-k">Trend grade</div><div class="tdp-v">' +
+          '<span class="tdp-grade-pill" style="background:' + gradeBg(agg.grade) +
+          '">' + agg.grade + '</span>' +
+          (sw && typeof sw.ext === "number"
+            ? ' <span class="dim">· ' + sw.ext.toFixed(1) + '× ATR</span>' : "") +
+          '</div>';
+      if (sw && typeof sw.rvol === "number")
+        snap += '<div class="tdp-k">Rel volume</div><div class="tdp-v">' +
+          sw.rvol.toFixed(2) + 'x</div>';
+      if (mcapStr)
+        snap += '<div class="tdp-k">Market cap</div><div class="tdp-v">' +
+          mcapStr + '</div>';
+      if (sw && sw.sec || meta.sector)
+        snap += '<div class="tdp-k">Sector</div><div class="tdp-v">' +
+          ((sw && sw.sec) || meta.sector) + '</div>';
+      if (sw && sw.ind)
+        snap += '<div class="tdp-k">Industry</div><div class="tdp-v dim">' +
+          sw.ind + '</div>';
+      if (earn)
+        snap += '<div class="tdp-k">Earnings</div><div class="tdp-v">' +
+          earn + '</div>';
+      snap += '</div>';
+      if (sw && sw.th && sw.th.length)
+        snap += '<div class="tdp-themes">' +
+          sw.th.map(function (th) {
+            return '<span class="tdp-theme">' + th + '</span>';
+          }).join("") + '</div>';
+      sec.push('<div class="tdp-section"><h4>Snapshot</h4>' + snap + '</div>');
+
+      // 2) 30-day sparkline (from swing data)
+      if (sw && sw.spark && sw.spark.length > 1) {
+        sec.push('<div class="tdp-section"><h4>30-day price</h4>' +
+          '<div class="tdp-spark">' + spark(sw.spark) + '</div></div>');
+      }
+
+      // 3) Options flow
+      if (agg.uoaRows && agg.uoaRows.length) {
+        const top3 = agg.uoaRows.slice(0, 3);
+        const dirCls = agg.uoaDir === "bullish" ? "up" :
+                       agg.uoaDir === "bearish" ? "down" : "flat";
+        const dirLbl = agg.uoaDir === "bullish" ? "Net bullish" :
+                       agg.uoaDir === "bearish" ? "Net bearish" : "Mixed";
+        let flow = '<div class="tdp-kv">' +
+          '<div class="tdp-k">Direction</div>' +
+          '<div class="tdp-v"><span class="tdp-bias bias-badge bias-' +
+            (agg.uoaDir === "bullish" ? "confirm-bull" :
+             agg.uoaDir === "bearish" ? "confirm-bear" : "mixed") +
+            '">' + dirLbl + '</span></div>' +
+          '<div class="tdp-k">Contracts</div>' +
+          '<div class="tdp-v">' + agg.uoaRows.length + ' flagged · bull ' +
+            fmtPrem(agg.uoaBullPrem) + ' / bear ' + fmtPrem(agg.uoaBearPrem) +
+          '</div></div>';
+        flow += top3.map(function (r) {
+          const cls = (r.direction || "").toLowerCase() === "bullish" ? "up"
+                    : (r.direction || "").toLowerCase() === "bearish" ? "down"
+                    : "flat";
+          return '<div class="tdp-contract">' +
+            '<span class="tdp-c-tag">' + (r.type || "").toUpperCase() +
+              ' $' + r.strike + ' · ' + r.expiry + '</span>' +
+            '<span class="tdp-c-val ' + cls + '">' + (r.trade_score || 0) +
+              ' · ' + fmtPrem(r.premium) + '</span></div>';
+        }).join("");
+        flow += '<div class="tdp-actions"><button data-flow-tk="' + t +
+          '">View all on Options Flow tab &rarr;</button></div>';
+        sec.push('<div class="tdp-section"><h4>Options Flow</h4>' + flow + '</div>');
+      }
+
+      // 4) Recent reports (from manifest)
+      if (agg.reports && agg.reports.length) {
+        const rep = agg.reports.map(function (r) {
+          return '<div class="tdp-report">' +
+            '<a href="' + r.file + '" target="_blank">' + r.label + '</a>' +
+            '<span class="tdp-r-date">' + r.date[0] + '</span></div>';
+        }).join("");
+        sec.push('<div class="tdp-section"><h4>Recent reports</h4>' + rep + '</div>');
+      }
+
+      // 5) Why it matters today
+      sec.push('<div class="tdp-section"><h4>Why it matters today</h4>' +
+        '<div class="tdp-why">' + whyMatters(agg) + '</div></div>');
+
+      // 6) Empty-state fallback
+      if (!agg.found) {
+        sec.unshift('<div class="tdp-section"><div class="tdp-empty">' +
+          'No swing grade or options flow on file for this ticker — ' +
+          'limited data available.</div></div>');
+      }
+
+      body.innerHTML = sec.join("");
+    }
+
+    function openPanel(t) {
+      if (!t) return;
+      renderPanel(t);
+      panel.classList.add("show");
+      panel.setAttribute("aria-hidden", "false");
+      backdrop.classList.add("show");
+      document.body.style.overflow = "hidden";
+    }
+    function closePanel() {
+      panel.classList.remove("show");
+      panel.setAttribute("aria-hidden", "true");
+      backdrop.classList.remove("show");
+      document.body.style.overflow = "";
+    }
+    window.openTickerPanel = openPanel;
+    closeBtn.addEventListener("click", closePanel);
+    backdrop.addEventListener("click", closePanel);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && panel.classList.contains("show")) closePanel();
+    });
+
+    // Click anywhere on the document → if the target has [data-t] (or is
+    // inside one) AND is NOT inside an interactive container (Options Flow
+    // row, theme row, etc.), open the panel.
+    document.addEventListener("click", function (e) {
+      // Priority 1: explicit navigation links (already wired elsewhere)
+      if (e.target.closest("[data-flow-tk], [data-flow-all]")) return;
+      // Priority 2: ticker click → drilldown
+      const tEl = e.target.closest("[data-t]");
+      if (!tEl) return;
+      // Skip if click was on a chg-pill / hover-only sub-element
+      if (e.target.classList.contains("chg-pill")) return;
+      // Skip if click is inside the panel itself (avoid recursion)
+      if (e.target.closest("#ticker-panel")) return;
+      const tk = tEl.dataset.t;
+      if (!tk) return;
+      e.preventDefault();
+      openPanel(tk);
+    });
+
+    // Action button inside panel: "View all on Options Flow tab"
+    panel.addEventListener("click", function (e) {
+      const fk = e.target.closest("[data-flow-tk]");
+      if (!fk) return;
+      const tab = document.querySelector('nav button[data-tab="uoa"]');
+      if (tab) tab.click();
+      const q = document.getElementById("uoa-q");
+      if (q) {
+        q.value = fk.dataset.flowTk;
+        q.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      closePanel();
+    });
   })();
 
   /* ── Tab switching ── */
@@ -1878,84 +2395,147 @@
           parts.push('<span class="tag-pos">bullish flow</span>');
         else if (e.flow === "bearish")
           parts.push('<span class="tag-neg">bearish flow</span>');
-        else parts.push('options flow');
+        else parts.push('mixed flow');
       }
       if (e.themes && e.themes.length)
         parts.push(e.themes[0] + ' theme');
       if (e.qm)  parts.push('monthly gainer');
       if (e.sb)  parts.push('weekly gainer');
       if (e.rep) parts.push('<span class="tag-rep">recent report</span>');
-      if (e.grade && /^A/.test(e.grade) && e.flow === "bearish")
-        parts.push('<span class="tag-conf">bearish flow conflict</span>');
-      if (e.grade && /^[FG]/.test(e.grade) && e.flow === "bullish")
-        parts.push('<span class="tag-conf">bullish flow conflict</span>');
       return parts.join(' &middot; ');
     }
-    function cardTopBullish(ctx) {
-      const list = Object.keys(ctx).map(function (t) {
-        const e = ctx[t];
-        // Score bullish bias and signal richness in one pass
-        let score = 0, sigs = 0;
-        if (e.grade) {
-          sigs++;
+    // Bias classification — hierarchy across all confluence names:
+    //   confirm-bull: A-tier grade + bullish flow (textbook setup)
+    //   confirm-bear: G/F-tier grade + bearish flow (textbook short)
+    //   conflict:     A-tier with bearish flow, or G-tier with bullish flow
+    //                 (most actionable disagreement — surface prominently)
+    //   hedge:        strong grade direction but flow is mixed/absent
+    //   mixed:        neither grade nor flow strongly directional
+    function biasCategory(e) {
+      const aTier = e.grade && /^A/.test(e.grade);
+      const bTier = e.grade && /^B/.test(e.grade);
+      const fgTier = e.grade && /^[FG]/.test(e.grade);
+      const fb = e.flow === "bullish", fr = e.flow === "bearish";
+      const fm = e.flow === "mixed";
+      if (aTier && fb) return "confirm-bull";
+      if (fgTier && fr) return "confirm-bear";
+      if (aTier && fr) return "conflict";
+      if (fgTier && fb) return "conflict";
+      if ((aTier || bTier) && (fm || !e.flow)) return "hedge";
+      if (fgTier && (fm || !e.flow)) return "hedge";
+      return "mixed";
+    }
+    const BIAS_LABEL = {
+      "confirm-bull": "Bullish Confirm",
+      "confirm-bear": "Bearish Confirm",
+      "conflict":     "Trend/Flow Conflict",
+      "hedge":        "Hedge",
+      "mixed":        "Mixed Flow",
+    };
+    function biasBadge(cat) {
+      return '<span class="bias-badge bias-' + cat + '">' +
+        BIAS_LABEL[cat] + "</span>";
+    }
+    // Score each context for signal richness + directional strength.
+    // Returns null if no signals worth surfacing.
+    function scoreCtx(ctx, dir) {
+      const e = ctx;
+      let score = 0, sigs = 0;
+      if (e.grade) {
+        sigs++;
+        if (dir === "bull") {
           if (e.grade === "A+") score += 4;
           else if (e.grade === "A") score += 3;
           else if (e.grade === "A-") score += 2;
           else if (/^B/.test(e.grade)) score += 1;
-        }
-        if (e.flow === "bullish") { score += 2; sigs++; }
-        else if (e.flow === "bearish") { score -= 2; sigs++; }
-        else if (e.flow) sigs++;
-        if (e.qm)  { score += 1; sigs++; }
-        if (e.sb)  { score += 1; sigs++; }
-        if (e.rep) sigs++;
-        return { t:t, e:e, score:score, sigs:sigs };
-      }).filter(function (x) { return x.score > 0 && x.sigs >= 2; })
-        .sort(function (a, b) {
-          if (b.score !== a.score) return b.score - a.score;
-          return b.sigs - a.sigs;
-        });
-      if (!list.length) return desk("Top Bullish",
-        empty("No bullish confluence today."));
-      return desk("Top Bullish", list.slice(0, 20).map(function (x) {
-        return '<div class="conf-row">' +
-          '<span class="cr-tk" data-t="' + x.t + '">' + x.t + '</span>' +
-          chgBadge(x.t) +
-          '<span class="cr-narr">' + narrative(x.e) + '</span></div>';
-      }).join(""));
-    }
-    function cardTopBearish(ctx) {
-      const list = Object.keys(ctx).map(function (t) {
-        const e = ctx[t];
-        let score = 0, sigs = 0;
-        if (e.grade) {
-          sigs++;
+        } else {
           if (e.grade === "G") score += 4;
           else if (e.grade === "G+") score += 3;
           else if (/^F/.test(e.grade)) score += 2;
         }
+      }
+      if (dir === "bull") {
+        if (e.flow === "bullish") { score += 2; sigs++; }
+        else if (e.flow === "bearish") { score -= 2; sigs++; }
+        else if (e.flow) sigs++;
+      } else {
         if (e.flow === "bearish") { score += 2; sigs++; }
         else if (e.flow === "bullish") { score -= 2; sigs++; }
         else if (e.flow) sigs++;
-        if (e.rep) sigs++;
-        // Bonus: an A-tier name with bearish flow is a notable conflict to surface
-        if (e.grade && /^A/.test(e.grade) && e.flow === "bearish") {
-          score += 2; sigs++;
+      }
+      if (e.qm)  { sigs++; if (dir === "bull") score += 1; }
+      if (e.sb)  { sigs++; if (dir === "bull") score += 1; }
+      if (e.rep) sigs++;
+      // Surface A-tier-with-bearish-flow (or vice versa) prominently in both lists
+      if (dir === "bear" && /^A/.test(e.grade || "") && e.flow === "bearish")
+        score += 2;
+      return { score: score, sigs: sigs };
+    }
+    // Build a confluence list filtered to either bullish or bearish bias,
+    // grouped by 4-way category (confirm / conflict / hedge / mixed) and
+    // sorted within each group by signal score.
+    function buildConfluenceList(ctx, dir) {
+      const list = Object.keys(ctx).map(function (t) {
+        const e = ctx[t];
+        const s = scoreCtx(e, dir);
+        return { t:t, e:e, score:s.score, sigs:s.sigs, cat:biasCategory(e) };
+      }).filter(function (x) {
+        if (x.sigs < 2 || x.score <= 0) return false;
+        // Bullish card hosts: confirm-bull, conflict (A+bear flow), hedge with A/B tier
+        // Bearish card hosts: confirm-bear, conflict (G+bull flow), hedge with F/G tier
+        const aTier = x.e.grade && /^A/.test(x.e.grade);
+        const bTier = x.e.grade && /^B/.test(x.e.grade);
+        const fgTier = x.e.grade && /^[FG]/.test(x.e.grade);
+        if (dir === "bull") {
+          return x.cat === "confirm-bull" ||
+                 (x.cat === "conflict" && aTier) ||
+                 (x.cat === "hedge"    && (aTier || bTier)) ||
+                 (x.cat === "mixed"    && (aTier || bTier) && x.e.flow);
         }
-        return { t:t, e:e, score:score, sigs:sigs };
-      }).filter(function (x) { return x.score > 0 && x.sigs >= 2; })
-        .sort(function (a, b) {
-          if (b.score !== a.score) return b.score - a.score;
-          return b.sigs - a.sigs;
-        });
-      if (!list.length) return desk("Top Bearish",
-        empty("No bearish confluence today."));
-      return desk("Top Bearish", list.slice(0, 20).map(function (x) {
-        return '<div class="conf-row">' +
-          '<span class="cr-tk" data-t="' + x.t + '">' + x.t + '</span>' +
-          chgBadge(x.t) +
-          '<span class="cr-narr">' + narrative(x.e) + '</span></div>';
-      }).join(""));
+        return x.cat === "confirm-bear" ||
+               (x.cat === "conflict" && fgTier) ||
+               (x.cat === "hedge"    && fgTier) ||
+               (x.cat === "mixed"    && fgTier && x.e.flow);
+      }).sort(function (a, b) {
+        // Category order: confirm > conflict > hedge > mixed; then by score
+        const ORDER = ["confirm-bull","confirm-bear","conflict","hedge","mixed"];
+        const ai = ORDER.indexOf(a.cat), bi = ORDER.indexOf(b.cat);
+        if (ai !== bi) return ai - bi;
+        if (b.score !== a.score) return b.score - a.score;
+        return b.sigs - a.sigs;
+      }).slice(0, 20);
+      return list;
+    }
+    // Render a confluence card grouped by bias category with mini section
+    // dividers between each group.
+    function renderConfluenceCard(title, list) {
+      if (!list.length) return desk(title, empty("No confluence today."));
+      const groups = {};
+      list.forEach(function (x) {
+        (groups[x.cat] = groups[x.cat] || []).push(x);
+      });
+      const ORDER = ["confirm-bull","confirm-bear","conflict","hedge","mixed"];
+      const html = ORDER.filter(function (c) { return groups[c]; })
+        .map(function (cat) {
+          const section = '<div class="conf-section">' +
+            BIAS_LABEL[cat] + " &middot; " + groups[cat].length + "</div>";
+          const rows = groups[cat].map(function (x) {
+            return '<div class="conf-row">' +
+              '<span class="cr-tk" data-t="' + x.t + '">' + x.t + '</span>' +
+              chgBadge(x.t) + biasBadge(x.cat) +
+              '<span class="cr-narr">' + narrative(x.e) + '</span></div>';
+          }).join("");
+          return section + rows;
+        }).join("");
+      return desk(title, html);
+    }
+    function cardTopBullish(ctx) {
+      return renderConfluenceCard("Top Bullish",
+        buildConfluenceList(ctx, "bull"));
+    }
+    function cardTopBearish(ctx) {
+      return renderConfluenceCard("Top Bearish",
+        buildConfluenceList(ctx, "bear"));
     }
 
     function cardEarnings(meta, todayISO) {
@@ -2167,6 +2747,14 @@
         : new Date().toISOString().slice(0, 10);
       DESK_DATE = today;
       DESK_META = uoaMeta || {};
+      // Publish everything to the global drilldown cache
+      window.TD_DATA.uoa = uoa;
+      window.TD_DATA.swing = swing;
+      window.TD_DATA.qm = qm;
+      window.TD_DATA.sb = sb;
+      window.TD_DATA.manifest = manifest;
+      window.TD_DATA.cal = cal;
+      window.TD_DATA.uoaMeta = uoaMeta;
       // Build hover lookup from every cell across grades
       DESK_TKMAP = {};
       if (swing && swing.runs && swing.runs.length) {
@@ -2429,6 +3017,9 @@
     ]).then(function (arr) {
       const d = arr[0];
       META = arr[1] || {};
+      // Publish to global drilldown cache (setupSwing may load before setupDesk)
+      if (!window.TD_DATA.swing) window.TD_DATA.swing = d;
+      if (!window.TD_DATA.uoaMeta) window.TD_DATA.uoaMeta = META;
       RUNS = (d && d.runs) ? d.runs.slice().reverse() : [];
       if (!RUNS.length) {
         body.innerHTML = '<div class="uoa-empty">No report yet &mdash; the ' +
