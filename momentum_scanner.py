@@ -280,12 +280,33 @@ def screen_qm_monthly(rows):
     return screened
 
 
+STOCKBEE_WEEKLY_THRESHOLD = 15.0    # was 20.0 — relaxed so the tab fills
+                                    # on quiet weeks too. Genuine explosions
+                                    # (>= 20%) still get flagged separately.
+STOCKBEE_NEAR_MISS_GAP   = 5.0     # 10-14.99% becomes "near-miss" only when
+                                    # the main list is empty.
+
+
 def screen_stockbee_weekly(rows):
-    """Every name up 20%+ over the last week, with the $100M liquidity floor."""
-    screened = [r for r in rows
-                if r["chg_1wk"] >= 20.0 and r["dollar_vol"] >= MIN_DOLLAR_VOL]
-    screened.sort(key=lambda r: r["dollar_vol"], reverse=True)
-    return screened
+    """Every name up >= 15% over the last week, with the $100M liquidity floor.
+
+    Returns (screened, near_misses) where:
+      screened    = rows clearing the main threshold (15% + $100M)
+      near_misses = top 5 names in the (threshold - 5%) <= chg < threshold
+                    band, surfaced only by the consumer when screened is
+                    empty (rendered as the "Approaching" fallback).
+    """
+    main = [r for r in rows
+            if r["chg_1wk"] >= STOCKBEE_WEEKLY_THRESHOLD
+               and r["dollar_vol"] >= MIN_DOLLAR_VOL]
+    main.sort(key=lambda r: r["dollar_vol"], reverse=True)
+
+    lo_band = STOCKBEE_WEEKLY_THRESHOLD - STOCKBEE_NEAR_MISS_GAP
+    near = [r for r in rows
+            if lo_band <= r["chg_1wk"] < STOCKBEE_WEEKLY_THRESHOLD
+               and r["dollar_vol"] >= MIN_DOLLAR_VOL]
+    near.sort(key=lambda r: r["chg_1wk"], reverse=True)
+    return main, near[:5]
 
 
 # ─── PDF ──────────────────────────────────────────────────────────────────────
@@ -415,24 +436,34 @@ def publish(pdf_bytes, filename):
         print(f"  Archive failed: {e}")
 
 
-def emit_screen_json(key, rows, change_field):
-    """Append today's screen result to a dated history JSON the dashboard
-    renders as a live, date-filterable table. Same-day re-runs overwrite the
-    day's entry; the file keeps the most recent ~60 runs."""
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "docs", "reports", f"momentum_{key}.json")
-    now = datetime.now(ET)
-    out_rows = [{
+def _shape_row(r, change_field):
+    return {
         "ticker":     r["ticker"],
         "price":      r.get("price"),
         "chg":        r.get(change_field),
         "adr_pct":    r.get("adr_pct"),
         "dollar_vol": round(r.get("dollar_vol", 0) or 0),
         "ern":        r.get("_ern", ""),
-    } for r in rows]
+    }
+
+
+def emit_screen_json(key, rows, change_field, near_misses=None):
+    """Append today's screen result to a dated history JSON the dashboard
+    renders as a live, date-filterable table. Same-day re-runs overwrite the
+    day's entry; the file keeps the most recent ~60 runs.
+
+    `near_misses` is an optional list of just-below-threshold rows. The
+    dashboard surfaces them only when the main `rows` list is empty
+    (rendered as an "Approaching" fallback section)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "docs", "reports", f"momentum_{key}.json")
+    now = datetime.now(ET)
+    out_rows = [_shape_row(r, change_field) for r in rows]
     run = {"date": now.strftime("%Y-%m-%d"),
            "generated": now.isoformat(timespec="seconds"),
            "count": len(out_rows), "rows": out_rows}
+    if near_misses:
+        run["near_misses"] = [_shape_row(r, change_field) for r in near_misses]
     data = {}
     try:
         with open(path, encoding="utf-8") as f:
@@ -446,7 +477,9 @@ def emit_screen_json(key, rows, change_field):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"updated": run["generated"], "runs": runs}, f, indent=1)
-        print(f"  Wrote momentum_{key}.json ({len(out_rows)} names)")
+        nm_msg = (f" + {len(run.get('near_misses', []))} near-miss"
+                  if near_misses else "")
+        print(f"  Wrote momentum_{key}.json ({len(out_rows)} names{nm_msg})")
     except Exception as e:
         print(f"  momentum_{key}.json write failed: {e}")
 
@@ -468,14 +501,19 @@ def run():
 
     # ── Screen 1: QM Monthly Gainers ──
     qm = screen_qm_monthly(rows)
-    # ── Screen 2: Stockbee Weekly 20% ──
-    sb = screen_stockbee_weekly(rows)
+    # ── Screen 2: Stockbee Weekly (15%+ in 5 trading days, with near-miss
+    #             10-14.99% surfaced when the main list is empty) ──
+    sb, sb_near = screen_stockbee_weekly(rows)
 
     # Earnings dates for the union of screened names (small list — fast)
-    screened_tickers = sorted({r["ticker"] for r in qm} | {r["ticker"] for r in sb})
+    screened_tickers = sorted(
+        {r["ticker"] for r in qm} |
+        {r["ticker"] for r in sb} |
+        {r["ticker"] for r in sb_near}
+    )
     print(f"  Fetching earnings dates for {len(screened_tickers)} screened names...")
     ern_map = fetch_earnings_dates(screened_tickers)
-    for r in qm + sb:
+    for r in qm + sb + sb_near:
         r["_ern"] = _ern_str(ern_map.get(r["ticker"]))
 
     for r in qm:
@@ -503,30 +541,35 @@ def run():
     emit_screen_json("qm", qm, "chg_1mo")
     print(f"  QM Monthly: {len(qm)} names")
 
-    # ── Screen 2: Stockbee Weekly 20% ──
-    for r in sb:
+    # ── Screen 2: Stockbee Weekly (15%+ in 5 trading days) ──
+    for r in sb + sb_near:
         r["_chg"] = r["chg_1wk"]
     sb_blurb = [
-        "Stockbee's '20% Plus in a Week' momentum screen -- names that have surged 20% or "
-        "more over the last five trading sessions. These are the market's most explosive "
-        "short-term movers, often reacting to earnings, news, or sector rotation.",
-        "Membership criteria:  (1) up 20%+ over the last 5 trading days;  "
+        "Stockbee's '20% Plus in a Week' momentum screen, relaxed to 15% to keep "
+        "the list populated on quieter weeks -- names that have surged 15%+ over the "
+        "last five trading sessions. These are the market's most explosive short-term "
+        "movers, often reacting to earnings, news, or sector rotation.",
+        "Membership criteria:  (1) up 15%+ over the last 5 trading days;  "
         "(2) 20-day average dollar volume >= $100M (a liquidity floor so only tradeable "
         "names appear).",
         "A large list signals a strong, broad momentum environment; a short list signals a "
         "narrow or risk-off tape. Sorted by dollar volume -- the most liquid movers first.",
         "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
-        "'Reported' = reported within the last 10 days). A 20%+ week running INTO earnings "
-        "carries binary event risk; a 20%+ week just AFTER a report is reacting to news.",
+        "'Reported' = reported within the last 10 days). A momentum run INTO earnings "
+        "carries binary event risk; a run just AFTER a report is reacting to news.",
     ]
+    # On empty-main days, render the near-miss list in the PDF instead so it's
+    # never blank. The dashboard handles the equivalent fallback via JSON.
+    sb_for_pdf = sb if sb else sb_near
     sb_pdf = generate_table_pdf(
-        "STOCKBEE -- 20%+ IN A WEEK",
-        "Up 20%+ over the last 5 trading days  |  $100M+ dollar volume",
-        sb_blurb, sb, "1-Wk %",
+        "STOCKBEE -- 15%+ IN A WEEK",
+        "Up 15%+ over the last 5 trading days  |  $100M+ dollar volume" +
+        ("  |  (Approaching — main list empty)" if not sb else ""),
+        sb_blurb, sb_for_pdf, "1-Wk %",
     )
     publish(sb_pdf, f"stockbee_weekly_{stamp}.pdf")
-    emit_screen_json("stockbee", sb, "chg_1wk")
-    print(f"  Stockbee Weekly: {len(sb)} names")
+    emit_screen_json("stockbee", sb, "chg_1wk", near_misses=sb_near)
+    print(f"  Stockbee Weekly: {len(sb)} names + {len(sb_near)} near-miss")
 
     print("\nDone.")
 

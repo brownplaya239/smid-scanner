@@ -1176,9 +1176,11 @@
       </div>
     </section>
     <section class="panel" id="panel-stockbee-weekly">
-      <h2 class="tab-title">Stockbee Weekly 20%</h2>
-      <p class="tab-sub">Stockbee's "20% Plus in a Week" &mdash; every liquid name up
-        20%+ over the last 5 trading days. 4:30 PM ET weekdays.</p>
+      <h2 class="tab-title">Stockbee Weekly</h2>
+      <p class="tab-sub">Stockbee's "20% Plus in a Week" momentum screen, relaxed
+        to <b>15%+</b> over the last 5 trading days, with the $100M liquidity
+        floor. On quiet weeks an "Approaching" fallback surfaces names within
+        5% of the threshold. 4:30 PM ET weekdays.</p>
       <div class="mom-bar">
         <select id="sb-date"></select>
         <span class="mom-count" id="sb-count"></span>
@@ -2528,28 +2530,46 @@
       return v >= 1e9 ? "$" + (v / 1e9).toFixed(2) + "B"
                       : "$" + Math.round(v / 1e6) + "M";
     }
+    function rowHtml(r) {
+      const c = (typeof r.chg === "number") ? r.chg : null;
+      const cc = c == null ? "" : c > 0 ? "mom-pos" : c < 0 ? "mom-neg" : "";
+      return '<tr><td><span data-t="' + r.ticker + '">' + r.ticker + '</span></td>' +
+        '<td>' + (r.price != null ? "$" + r.price.toFixed(2) : "—") + '</td>' +
+        '<td class="' + cc + '">' +
+          (c != null ? (c > 0 ? "+" : "") + c.toFixed(1) + "%" : "—") + '</td>' +
+        '<td>' + (r.adr_pct != null ? r.adr_pct.toFixed(1) + "%" : "—") + '</td>' +
+        '<td>' + fmtVol(r.dollar_vol) + '</td>' +
+        '<td>' + (r.ern && r.ern !== "--" ? r.ern : "—") + '</td></tr>';
+    }
     function renderRun(run) {
-      if (!run || !run.rows || !run.rows.length) {
+      const hdr = '<tr><th>Ticker</th><th>Price</th><th>' + cfg.chgLabel + '</th>' +
+        '<th>ADR%</th><th>$ Vol</th><th>Next Ern</th></tr>';
+      const mainRows = (run && run.rows) || [];
+      const near     = (run && run.near_misses) || [];
+      // Empty main + no near-misses → standard empty state
+      if (!mainRows.length && !near.length) {
         tbl.innerHTML = '<tr><td colspan="6" class="uoa-empty">' +
           'No names passed this screen on this date.</td></tr>';
         cnt.textContent = "";
         return;
       }
-      cnt.textContent = run.rows.length + " names";
-      tbl.innerHTML =
-        '<tr><th>Ticker</th><th>Price</th><th>' + cfg.chgLabel + '</th>' +
-        '<th>ADR%</th><th>$ Vol</th><th>Next Ern</th></tr>' +
-        run.rows.map(function (r) {
-          const c = (typeof r.chg === "number") ? r.chg : null;
-          const cc = c == null ? "" : c > 0 ? "mom-pos" : c < 0 ? "mom-neg" : "";
-          return '<tr><td><span data-t="' + r.ticker + '">' + r.ticker + '</span></td>' +
-            '<td>' + (r.price != null ? "$" + r.price.toFixed(2) : "—") + '</td>' +
-            '<td class="' + cc + '">' +
-              (c != null ? (c > 0 ? "+" : "") + c.toFixed(1) + "%" : "—") + '</td>' +
-            '<td>' + (r.adr_pct != null ? r.adr_pct.toFixed(1) + "%" : "—") + '</td>' +
-            '<td>' + fmtVol(r.dollar_vol) + '</td>' +
-            '<td>' + (r.ern && r.ern !== "--" ? r.ern : "—") + '</td></tr>';
-        }).join("");
+      if (mainRows.length) {
+        // Populated case — show only main rows
+        cnt.textContent = mainRows.length + " names";
+        tbl.innerHTML = hdr + mainRows.map(rowHtml).join("");
+      } else {
+        // Main is empty but near-misses exist — surface them under a
+        // labeled "Approaching" section so the tab stays useful.
+        cnt.textContent = "0 cleared · " + near.length + " approaching";
+        const banner = '<tr><td colspan="6" class="uoa-empty" ' +
+          'style="text-align:left;padding:10px 12px;background:rgba(255,158,27,0.06);' +
+          'border-left:3px solid #ff9e1b;color:var(--textdim);">' +
+          '<b style="color:var(--text)">Approaching · </b>' +
+          'No names cleared the main threshold today. ' +
+          'Showing the top ' + near.length + ' names within 5% of it.' +
+          '</td></tr>';
+        tbl.innerHTML = hdr + banner + near.map(rowHtml).join("");
+      }
     }
     fetch("./reports/" + cfg.file + "?t=" + Date.now())
       .then(function (r) { return r.ok ? r.json() : null; })
