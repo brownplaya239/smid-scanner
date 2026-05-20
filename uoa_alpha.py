@@ -266,6 +266,70 @@ def _excursion_avg(scored):
     }
 
 
+def _alpha_confidence(items):
+    """Single 0-100 score per cohort answering "is this signal pattern
+    statistically worth trading?" Combines four discipline-checks:
+
+        sample factor    = min(1, N / 30)        -- N=30 is "enough"
+        direction factor = (hit_rate - 50) / 50  -- 50% is coin-flip
+        alpha factor     = avg_excess / 5        -- 5%+ excess = max credit
+        adverse cap      = penalty if MAE swamps MFE
+
+    Score = 100 * sample * (0.4 * direction + 0.5 * alpha + 0.1 * mfe_mae)
+    Returns 0 if hit rate < 50 OR avg excess <= 0 (cohort is anti-alpha).
+    Uses the 5-day horizon as the canonical window — long enough to be
+    meaningful, short enough to be measurable. Falls back to 3d if 5d
+    is empty, then 1d, so live-data cohorts still get a score.
+    """
+    # Pick the deepest horizon that actually has data for this cohort
+    rets = [s.get("returns", {}) for s in items]
+    horizon = None
+    for h in (5, 3, 1):
+        if any(r.get(h, {}).get("ret") is not None for r in rets):
+            horizon = h
+            break
+    if horizon is None:
+        return {"score": None, "horizon": None, "n": 0,
+                "verdict": "no data", "tradeable": False}
+    a = _agg(rets, horizon)
+    n = a["n"] or 0
+    if n < 5:
+        return {"score": None, "horizon": horizon, "n": n,
+                "verdict": "insufficient sample", "tradeable": False}
+    hit  = a["hit_rate"] or 0
+    avgx = a["avg_excess"] if a["avg_excess"] is not None else 0.0
+    # Excursion penalty: cohorts where MAE swamps MFE get capped
+    mfe_vals = [s["excursion"]["mfe"] for s in items
+                if s.get("excursion") and s["excursion"].get("mfe") is not None]
+    mae_vals = [s["excursion"]["mae"] for s in items
+                if s.get("excursion") and s["excursion"].get("mae") is not None]
+    mfe = sum(mfe_vals) / len(mfe_vals) if mfe_vals else 0
+    mae = sum(mae_vals) / len(mae_vals) if mae_vals else 0
+    mfe_mae = max(0.0, min(1.0, (mfe + mae) / max(1.0, mfe)))
+    sample_f = min(1.0, n / 30.0)
+    dir_f    = max(0.0, (hit - 50.0) / 50.0)
+    alpha_f  = max(0.0, min(1.0, avgx / 5.0))
+    if hit < 50 or avgx <= 0:
+        score = 0
+        verdict = "anti-alpha" if hit < 50 else "neutral"
+    else:
+        raw = 100 * sample_f * (0.4 * dir_f + 0.5 * alpha_f + 0.1 * mfe_mae)
+        score = round(max(0, min(100, raw)))
+        if   score >= 60: verdict = "high alpha"
+        elif score >= 40: verdict = "moderate alpha"
+        elif score >= 20: verdict = "low alpha"
+        else:             verdict = "marginal"
+    return {
+        "score":     score,
+        "horizon":   horizon,
+        "n":         n,
+        "hit_rate":  hit,
+        "avg_excess": avgx,
+        "verdict":   verdict,
+        "tradeable": (n >= 10 and hit > 50 and avgx > 0),
+    }
+
+
 def _oi_summary(items):
     """Next-day OI-confirmation rate for a group of scored signals. This is
     an INTERIM quality read — available the day after the flag, long before
@@ -364,33 +428,84 @@ def compute_edge():
 
     # Each group carries per-horizon return stats (h) AND an OI-confirmation
     # summary (oi) — the latter is meaningful before any price horizon matures.
+    # alpha_confidence is the single sortable "trade this?" score that ties
+    # every cohort table together. All slices now carry it.
     by_type = {}
     for typ in SIGNAL_TYPES:
         items = [s for s in scored if s.get("signal_type") == typ]
         if items:
             by_type[typ] = {"signals": len(items), "h": _group(items),
-                            "oi": _oi_summary(items)}
+                            "oi": _oi_summary(items),
+                            "alpha_confidence": _alpha_confidence(items)}
 
     by_score = {}
     for label, lo, hi in SCORE_BUCKETS:
         items = [s for s in scored if lo <= s.get("trade_score", 0) < hi]
         if items:
             by_score[label] = {"signals": len(items), "h": _group(items),
-                               "oi": _oi_summary(items)}
+                               "oi": _oi_summary(items),
+                               "alpha_confidence": _alpha_confidence(items)}
 
     by_dte = {}
     for b in DTE_BUCKETS:
         items = [s for s in scored if _dte_bucket(s.get("dte")) == b]
         if items:
             by_dte[b] = {"signals": len(items), "h": _group(items),
-                         "oi": _oi_summary(items)}
+                         "oi": _oi_summary(items),
+                         "alpha_confidence": _alpha_confidence(items)}
 
     by_tag = {}
     for tag in ATTRIB_TAGS:
         items = [s for s in scored if tag in (s.get("tags") or [])]
         if items:
             by_tag[tag] = {"signals": len(items), "h": _group(items),
-                           "oi": _oi_summary(items)}
+                           "oi": _oi_summary(items),
+                           "alpha_confidence": _alpha_confidence(items)}
+
+    # ── Per-ticker and per-theme cohorts — power the dashboard's
+    #    "hone in on what actually works" filtering. Only emit cohorts
+    #    with N >= MIN_COHORT_N so we don't surface 2-signal noise.
+    MIN_COHORT_N = 5
+    by_ticker = {}
+    tk_groups = {}
+    for s in scored:
+        tk = s.get("ticker")
+        if tk:
+            tk_groups.setdefault(tk, []).append(s)
+    for tk, items in tk_groups.items():
+        if len(items) < MIN_COHORT_N:
+            continue
+        by_ticker[tk] = {
+            "signals":   len(items),
+            "h":         _group(items),
+            "oi":        _oi_summary(items),
+            "excursion": _excursion_avg(items),
+            "alpha_confidence": _alpha_confidence(items),
+        }
+
+    # Theme attribution joins ticker -> themes via the curated taxonomy.
+    by_theme = {}
+    try:
+        import themes
+        theme_groups = {}
+        for s in scored:
+            tk = s.get("ticker")
+            if not tk:
+                continue
+            for th in themes.themes_for(tk):
+                theme_groups.setdefault(th, []).append(s)
+        for th, items in theme_groups.items():
+            if len(items) < MIN_COHORT_N:
+                continue
+            by_theme[th] = {
+                "signals":   len(items),
+                "h":         _group(items),
+                "oi":        _oi_summary(items),
+                "excursion": _excursion_avg(items),
+                "alpha_confidence": _alpha_confidence(items),
+            }
+    except Exception as e:
+        print(f"  by_theme aggregation skipped: {e}")
 
     oc = [s["oi"]["status"] for s in scored if s["oi"]["status"] != "pending"]
     edge = {
@@ -404,6 +519,8 @@ def compute_edge():
         "by_score":      by_score,
         "by_dte":        by_dte,
         "by_tag":        by_tag,
+        "by_ticker":     by_ticker,
+        "by_theme":      by_theme,
         "oi_confirmation": {
             "checked":      len(oc),
             "confirmed":    sum(1 for x in oc if x == "confirmed"),
@@ -428,6 +545,8 @@ def _empty_edge():
         "by_score":      {},
         "by_dte":        {},
         "by_tag":        {},
+        "by_ticker":     {},
+        "by_theme":      {},
         "oi_confirmation": {"checked": 0, "confirmed": 0, "weak": 0,
                             "closed": 0, "confirm_rate": None},
     }
