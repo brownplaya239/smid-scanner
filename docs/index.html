@@ -1554,15 +1554,31 @@
 
     <!-- Ad-Hoc -->
     <section class="panel" id="panel-adhoc">
-      <!-- Archive Search — primary action: pull existing PDFs instantly -->
+      <!-- Generate new ad-hoc report — primary action -->
+      <div class="card">
+        <h2>Generate a new ad-hoc report</h2>
+        <p class="sub">
+          Full institutional one-pager: setup analysis, 12-month insider
+          transactions, institutional ownership, and price/volume
+          intelligence. PDF lands in the inline viewer below in
+          ~60&ndash;90 seconds.
+        </p>
+        <div class="input-row">
+          <input type="text" id="ticker" placeholder="NVDA" maxlength="8"
+                 autocomplete="off" autocapitalize="characters" />
+          <button class="go" id="go">Generate</button>
+        </div>
+        <div id="status"></div>
+      </div>
+
+      <!-- Archive search — secondary action, pulls existing PDFs instantly -->
       <div class="card">
         <h2>Ticker Report Archive</h2>
         <p class="sub">
-          Search the full PDF archive by ticker. Every type of report we've
-          ever generated for that name &mdash; ad-hoc research, alt-data,
-          breakout scans, setup builders &mdash; surfaces below, most recent
-          first, and opens in the inline viewer with one click. Generate a
-          fresh report (further down) only when nothing recent exists.
+          Skip the wait when a recent report already exists. Search the full
+          PDF archive by ticker &mdash; ad-hoc research, alt-data, breakout
+          scans, setup builders all surface most-recent-first, and open in
+          the inline viewer with one click.
         </p>
         <div class="input-row">
           <input type="text" id="archive-q" placeholder="NVDA · MU · COIN..."
@@ -1575,23 +1591,6 @@
       </div>
 
       <div id="viewer"></div>
-
-      <!-- Generate new — secondary action -->
-      <div class="card">
-        <h2>Generate a new ad-hoc report</h2>
-        <p class="sub">
-          Full institutional one-pager: setup analysis, 12-month insider
-          transactions, institutional ownership, and price/volume
-          intelligence. PDF lands in the viewer above in
-          ~60&ndash;90 seconds.
-        </p>
-        <div class="input-row">
-          <input type="text" id="ticker" placeholder="NVDA" maxlength="8"
-                 autocomplete="off" autocapitalize="characters" />
-          <button class="go" id="go">Generate</button>
-        </div>
-        <div id="status"></div>
-      </div>
 
       <h2 class="tab-title">Recent Ad-Hoc Reports</h2>
       <p class="tab-sub">Most recent first. Click to open the PDF.</p>
@@ -3118,13 +3117,22 @@
     function setStatus(cls, html) { status.className = "show " + cls; status.innerHTML = html; }
 
     function embedReport(ticker, entry) {
+      const url = "./reports/" + entry.file;
       viewer.className = "show";
       viewer.innerHTML =
         '<div class="vbar">' +
-          '<span class="vname">' + ticker + ' &mdash; ' + (entry.label || entry.file) + '</span>' +
-          '<a href="./reports/' + entry.file + '" target="_blank">Open in new tab &rarr;</a>' +
+          '<span class="vname">' + ticker + ' &mdash; ' +
+            (entry.label || entry.file) + '</span>' +
+          '<span style="display:flex;gap:6px">' +
+            '<a href="' + url + '" target="_blank" rel="noopener" ' +
+              'aria-label="Open ' + ticker + ' PDF in new tab">' +
+              'Open in new tab &rarr;</a>' +
+            '<a href="' + url + '" download="' + entry.file + '" ' +
+              'aria-label="Download ' + ticker + ' PDF">Download</a>' +
+          '</span>' +
         '</div>' +
-        '<iframe src="./reports/' + entry.file + '"></iframe>';
+        '<iframe src="' + url + '" type="application/pdf" ' +
+          'title="' + ticker + ' report" loading="lazy"></iframe>';
       viewer.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
@@ -3264,17 +3272,25 @@
       return m[1] + " " + t.slice(0, 2) + ":" + t.slice(2);
     }
     function embed(ticker, entry) {
+      const url = "./reports/" + entry.file;
       viewer.className = "show";
+      // Bar gets both "Open in new tab" AND "Download" — the first works
+      // everywhere, the second is the mobile-Safari-old fallback for
+      // when inline iframe rendering doesn't kick in.
       viewer.innerHTML =
         '<div class="vbar">' +
           '<span class="vname">' + ticker + ' &mdash; ' +
             (entry.label || entry.file) + '</span>' +
-          '<a href="./reports/' + entry.file +
-            '" target="_blank">Open in new tab &rarr;</a>' +
+          '<span style="display:flex;gap:6px">' +
+            '<a href="' + url + '" target="_blank" rel="noopener" ' +
+              'aria-label="Open ' + ticker + ' PDF in new tab">' +
+              'Open in new tab &rarr;</a>' +
+            '<a href="' + url + '" download="' + entry.file + '" ' +
+              'aria-label="Download ' + ticker + ' PDF">Download</a>' +
+          '</span>' +
         '</div>' +
-        '<iframe src="./reports/' + entry.file +
-          '" title="' + ticker + ' report"></iframe>';
-      // Update active state on the row list
+        '<iframe src="' + url + '" type="application/pdf" ' +
+          'title="' + ticker + ' report" loading="lazy"></iframe>';
       resultsEl.querySelectorAll(".ar-row").forEach(function (r) {
         r.classList.toggle("active", r.dataset.file === entry.file);
       });
