@@ -536,6 +536,15 @@
     background:rgba(255,255,255,0.03); border:1px solid var(--border2);
     border-radius:9px; color:var(--text); font-weight:700; cursor:pointer; }
   .news-item .ni-tk:hover { border-color:var(--gold); color:var(--gold); }
+  /* Lower-confidence ticker tags — Polygon's NER guessed; not in title */
+  .news-item .ni-tk-med { color:var(--textdim); border-style:dashed; }
+  .news-item .ni-tk-low { color:var(--muted); border-style:dashed;
+    opacity:0.65; }
+  /* "Catch-all" flag — article tagged 8+ tickers, per-name attribution weak */
+  .news-item .ni-catchall { font-size:8.5px; padding:1px 5px;
+    background:rgba(255,158,27,0.12); color:#ff9e1b; border-radius:9px;
+    font-weight:700; letter-spacing:.3px; text-transform:uppercase;
+    cursor:default; }
   .news-sent { font-size:8.5px; font-weight:800; padding:1.5px 5px;
     border-radius:3px; letter-spacing:.4px; text-transform:uppercase;
     text-shadow:0 1px 1px rgba(0,0,0,.5); cursor:default; }
@@ -1238,6 +1247,10 @@
               </select>
               <label class="news-watch"><input type="checkbox" id="news-watch"/>
                 Watchlist only</label>
+              <label class="news-watch"
+                title="Show only articles where at least one tagged ticker appears in the headline — filters out Polygon NER false positives">
+                <input type="checkbox" id="news-highconf"/>
+                High-conf only</label>
             </div>
           </div>
           <div class="news-list" id="news-general-list">
@@ -2251,7 +2264,12 @@
         const head = document.querySelector("#tdp-news-section h4");
         const body = document.getElementById("tdp-news-body");
         if (!head || !body) return;
-        const arts = (d && d.articles) || [];
+        // Apply the same dedupe + ticker-normalization pass used on the
+        // News tab so the panel never shows duplicate wire stories or
+        // mis-attributed share-class artifacts.
+        const arts = (window.preprocessArticles
+          ? window.preprocessArticles(d && d.articles)
+          : (d && d.articles) || []);
         head.innerHTML = 'Latest news ' +
           '<span style="color:var(--muted);font-weight:400;text-transform:none;' +
             'letter-spacing:0;font-size:9px;">· ' + arts.length + ' on file</span>';
@@ -2629,12 +2647,103 @@
     const windowSel = document.getElementById("news-window");
     const sentSel   = document.getElementById("news-sent");
     const watchOnly = document.getElementById("news-watch");
+    const highConf  = document.getElementById("news-highconf");
     const updated   = document.getElementById("news-updated");
     if (!list) return;
 
     let GENERAL = [], TICKER_DATA = { ticker: null, articles: [] };
     let UNIV    = new Set();   // universe set for "watchlist only" filter
     let pollT   = null;
+
+    // ── Ticker quality + dedupe rules ──
+    // Polygon's NER-based ticker tagging is decent but produces false
+    // positives ("BC outdoors coalition" tagged with LULU) and the same
+    // wire story shows up under 2-4 publishers. We clean both before
+    // rendering so the dashboard never displays mis-attributed or dupe
+    // headlines.
+    //
+    // Canonicalize tickers: dual-class names collapse to one. This stops
+    // GOOG + GOOGL from inflating "most tickered" rankings, etc.
+    const TICKER_ALIAS = {
+      "GOOG":  "GOOGL",
+      "BRK.A": "BRK.B",
+      "FB":    "META",        // legacy
+      "FOX":   "FOXA",
+      "NWS":   "NWSA",
+      "LBRDA": "LBRDK",
+      "DISCA": "WBD",          // post-merger legacy
+      "DISCB": "WBD",
+      "DISCK": "WBD",
+    };
+    // Preferred shares / warrants / units / rights — never the underlying
+    // common stock and almost always Polygon false-positives in news context.
+    const SHARE_CLASS_RE =
+      /^[A-Z]+(\.|[-])(PR[A-Z]?|P[A-Z]|WS[A-Z]?|WT[A-Z]?|U|R|RT)$/i;
+    function canonicalTicker(t) {
+      if (!t) return null;
+      const u = String(t).toUpperCase().trim();
+      if (SHARE_CLASS_RE.test(u)) return null;          // drop the artifact
+      return TICKER_ALIAS[u] || u;
+    }
+    function normalizeTickers(arr) {
+      if (!Array.isArray(arr)) return [];
+      const seen = new Set();
+      const out = [];
+      for (const t of arr) {
+        const c = canonicalTicker(t);
+        if (c && !seen.has(c)) { seen.add(c); out.push(c); }
+      }
+      return out;
+    }
+
+    // Confidence per ticker per article — low-confidence chips are faded.
+    //   high   = ticker appears as a $TICKER / (TICKER) / word boundary
+    //            mention in the title
+    //   medium = ticker is in the description body
+    //   low    = ticker is only in Polygon's tickers[] array (NER guess),
+    //            OR the article is a "catch-all" (>= 8 tagged tickers,
+    //            usually a market-wrap roundup where per-ticker attribution
+    //            is weak)
+    function tickerConfidence(article, ticker) {
+      const tcount = (article.tickers || []).length;
+      if (tcount >= 8) return "low";
+      const re = new RegExp("(?:^|[^A-Z])" + ticker + "(?:$|[^A-Z])");
+      const title = (article.title || "").toUpperCase();
+      if (re.test(title)) return "high";
+      const desc = (article.description || "").toUpperCase();
+      if (desc && re.test(desc)) return "medium";
+      return "low";
+    }
+    // Stable title hash for dedupe. Strips leading $TICKER:/(TICKER)
+    // labels, trailing publisher attribution, and all punctuation.
+    function titleKey(article) {
+      let t = (article.title || "").toLowerCase();
+      t = t.replace(/^\s*[\$\(\[]?[a-z]{1,5}[\)\]]?\s*[:\-—]\s*/, "");
+      t = t.replace(/\s*[\-–—]\s*[a-z][a-z\s\.&]*$/, "");
+      t = t.replace(/[^\w\s]/g, " ");
+      t = t.replace(/\s+/g, " ").trim();
+      return t.slice(0, 90);
+    }
+
+    // Single pass over an array of articles: normalize tickers, dedupe
+    // by title-hash, tag each ticker's confidence. Returns the cleaned
+    // array (newest articles preserved on title collision).
+    function preprocessArticles(articles) {
+      const seen = new Set();
+      const out = [];
+      for (const a of articles || []) {
+        if (!a || !a.title) continue;
+        a.tickers = normalizeTickers(a.tickers);
+        const key = titleKey(a);
+        if (key && seen.has(key)) continue;       // dedupe by title
+        if (key) seen.add(key);
+        // Tag confidence per ticker so the UI can fade low-confidence chips
+        a._conf = {};
+        for (const t of a.tickers) a._conf[t] = tickerConfidence(a, t);
+        out.push(a);
+      }
+      return out;
+    }
 
     function fmtAge(iso) {
       if (!iso) return "";
@@ -2695,12 +2804,36 @@
         ? '<span class="news-sent ' + ins.sentiment + '" title="' +
             escHTML(ins.reasoning || "") + '">' + ins.sentiment + '</span>'
         : '';
-      const tickers = (a.tickers || []).slice(0, 6).map(function (t) {
-        return '<span class="ni-tk" data-t="' + escHTML(t) + '">' + t + '</span>';
+      // Sort tickers by confidence (high > medium > low) so the most
+      // reliably-attributed names always lead. Faded styling for the
+      // low-confidence ones flags them visually.
+      const conf = a._conf || {};
+      const RANK = { high: 0, medium: 1, low: 2 };
+      const ordered = (a.tickers || []).slice().sort(function (x, y) {
+        return (RANK[conf[x]] || 9) - (RANK[conf[y]] || 9);
+      });
+      const tickers = ordered.slice(0, 6).map(function (t) {
+        const c = conf[t] || "low";
+        const cls = "ni-tk" + (c === "low" ? " ni-tk-low"
+                              : c === "medium" ? " ni-tk-med" : "");
+        const tip = c === "high"   ? "Ticker appears in headline"
+                  : c === "medium" ? "Ticker appears in description"
+                  : "Low-confidence tag (Polygon NER guess)";
+        return '<span class="' + cls + '" data-t="' + escHTML(t) +
+          '" title="' + tip + '">' + t + '</span>';
       }).join("");
       const more = a.tickers && a.tickers.length > 6
-        ? '<span class="ni-tk" style="cursor:default;color:var(--muted)">+' +
+        ? '<span class="ni-tk" style="cursor:default;color:var(--muted)" ' +
+          'title="' + (a.tickers.length - 6) + ' more tagged">+' +
             (a.tickers.length - 6) + '</span>' : '';
+      // "Catch-all" flag — Polygon often tags 10-30 tickers on broad
+      // market-wrap articles where per-name attribution is meaningless.
+      const isCatchAll = (a.tickers || []).length >= 8;
+      const catchTag = isCatchAll
+        ? '<span class="ni-catchall" title="Catch-all article (' +
+            a.tickers.length + ' tickers tagged) — per-name attribution ' +
+            'is weak">market wrap</span>'
+        : '';
       return '<div class="news-item">' +
         '<div class="ni-time">' + fmtAge(a.published) +
           '<span class="ni-src">' + escHTML(a.publisher || "—") + '</span></div>' +
@@ -2709,7 +2842,7 @@
             '" target="_blank" rel="noopener">' + escHTML(a.title) + '</a>' +
           (a.description ? '<div class="ni-desc">' + escHTML(a.description) +
             '</div>' : '') +
-          '<div class="ni-foot">' + tickers + more + sentTag + '</div>' +
+          '<div class="ni-foot">' + tickers + more + catchTag + sentTag + '</div>' +
         '</div></div>';
     }
     function withinWindow(article, hours) {
@@ -2728,12 +2861,19 @@
       if (!article.tickers || !article.tickers.length) return false;
       return article.tickers.some(function (t) { return UNIV.has(t); });
     }
+    function passesHighConf(article) {
+      if (!highConf || !highConf.checked) return true;
+      const c = article._conf || {};
+      return (article.tickers || []).some(function (t) {
+        return c[t] === "high";
+      });
+    }
     function renderGeneral() {
       const hours = parseInt(windowSel.value, 10);
       const want  = sentSel.value;
       const filtered = GENERAL.filter(function (a) {
         return withinWindow(a, hours) && matchesSentiment(a, want) &&
-               inUniverse(a);
+               inUniverse(a) && passesHighConf(a);
       });
       if (!filtered.length) {
         list.innerHTML = '<div class="news-empty">No headlines match these filters.</div>';
@@ -2761,14 +2901,22 @@
       const sentTotal = pos + neg + neu;
       const posPct = sentTotal ? Math.round(100 * pos / sentTotal) : 0;
       const negPct = sentTotal ? Math.round(100 * neg / sentTotal) : 0;
-      // Most-tickered names
+      // Most-tickered names — weight each mention by its confidence so a
+      // single high-confidence (in-title) mention outranks several
+      // low-confidence NER guesses. high=1.0, med=0.5, low=0.2.
+      const CONF_W = { high: 1.0, medium: 0.5, low: 0.2 };
       const counts = {};
       filtered.forEach(function (a) {
+        const cmap = a._conf || {};
         (a.tickers || []).forEach(function (t) {
-          counts[t] = (counts[t] || 0) + 1;
+          const w = CONF_W[cmap[t]] || 0.2;
+          counts[t] = (counts[t] || 0) + w;
         });
       });
+      // Drop names that didn't accumulate even one solid mention worth
+      // of weight — keeps the chip row free of one-off NER noise.
       const topTks = Object.keys(counts)
+        .filter(function (t) { return counts[t] >= 0.5; })
         .sort(function (a, b) { return counts[b] - counts[a]; })
         .slice(0, 8);
       pulse.innerHTML =
@@ -2780,7 +2928,7 @@
           '<div class="np-chips">' +
           topTks.map(function (t) {
             return '<span class="np-chip" data-t="' + t + '">' + t +
-              '<span class="np-chip-n">' + counts[t] + '</span></span>';
+              '<span class="np-chip-n">' + Math.round(counts[t]) + '</span></span>';
           }).join("") + '</div></div>';
     }
 
@@ -2848,7 +2996,7 @@
                 : "News feed unavailable.") + '</div>';
             return;
           }
-          GENERAL = d.articles;
+          GENERAL = preprocessArticles(d.articles);
           if (updated) updated.textContent = "· refreshed " +
             new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
           rebuildUniverse();
@@ -2868,7 +3016,7 @@
           if (!d || !d.articles) {
             TICKER_DATA = { ticker: t, articles: [] };
           } else {
-            TICKER_DATA = { ticker: t, articles: d.articles };
+            TICKER_DATA = { ticker: t, articles: preprocessArticles(d.articles) };
           }
           renderTicker();
         })
@@ -2882,6 +3030,7 @@
     windowSel.addEventListener("change", renderGeneral);
     sentSel.addEventListener("change", renderGeneral);
     watchOnly.addEventListener("change", renderGeneral);
+    if (highConf) highConf.addEventListener("change", renderGeneral);
     let searchTimer;
     tkInput.addEventListener("input", function () {
       const t = tkInput.value.trim().toUpperCase();
@@ -2909,8 +3058,9 @@
     loadGeneral();
     pollT = setInterval(loadGeneral, 5 * 60 * 1000);
 
-    // Expose for the panel's News section
-    window.NEWS_LOAD_TICKER = loadTicker;
+    // Expose for cross-component reuse (drilldown panel uses both)
+    window.NEWS_LOAD_TICKER   = loadTicker;
+    window.preprocessArticles = preprocessArticles;
   })();
 
   /* ── Today's Desk — daily command center ── */
