@@ -145,9 +145,44 @@
   .src-bar .bear { background:var(--red); color:#fff; }
   .src-changes { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11.5px;
     margin-bottom:12px; align-items:baseline; }
-  .src-changes .sc-up   { color:var(--green); font-weight:700; }
-  .src-changes .sc-down { color:var(--red); font-weight:700; }
-  .src-changes .sc-new  { color:var(--gold); }
+  .src-changes .sc-up   { color:var(--green); font-weight:700;
+    cursor:default; border-bottom:1px dashed transparent; }
+  .src-changes .sc-down { color:var(--red); font-weight:700;
+    cursor:default; border-bottom:1px dashed transparent; }
+  .src-changes .sc-new  { color:var(--gold); cursor:default;
+    border-bottom:1px dashed transparent; }
+  .src-changes [data-change]:hover { border-bottom-color:currentColor; }
+
+  /* Change-list hover popup (Swing Report Card upgraded/downgraded/new) */
+  .ch-pop { position:fixed; z-index:60; display:none; width:320px;
+    max-height:60vh; background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:10px 12px; box-shadow:0 6px 22px rgba(0,0,0,.55);
+    overflow:hidden; display:none; flex-direction:column; }
+  .ch-pop.show { display:flex; }
+  .ch-pop .cp-head { font-size:12px; font-weight:800; padding-bottom:6px;
+    margin-bottom:6px; border-bottom:1px solid var(--line); }
+  .ch-pop .cp-head.ch-up   { color:var(--green); }
+  .ch-pop .cp-head.ch-down { color:var(--red); }
+  .ch-pop .cp-head.ch-new  { color:var(--gold); }
+  .ch-pop .cp-head .cp-n { color:var(--muted); font-weight:500; }
+  .ch-pop .cp-list { overflow-y:auto; flex:1; min-height:0; }
+  .ch-pop .cp-row { display:grid; grid-template-columns:56px 1fr 58px;
+    align-items:center; gap:8px; padding:4px 0; font-size:11px;
+    cursor:default; }
+  .ch-pop .cp-row + .cp-row { border-top:1px solid var(--line); }
+  .ch-pop .cp-row .cp-tk { font-weight:800; color:var(--text); }
+  .ch-pop .cp-row .cp-trans { color:var(--textdim); font-size:10.5px; }
+  .ch-pop .cp-row .cp-trans .cp-from { color:var(--muted); }
+  .ch-pop .cp-row .cp-trans .cp-to   { color:var(--text); font-weight:700; }
+  .ch-pop .cp-row .cp-trans .cp-arrow { color:var(--gold);
+    font-weight:700; }
+  .ch-pop .cp-row .cp-chg { text-align:right; font-weight:700;
+    font-variant-numeric:tabular-nums; font-size:11px; }
+  .ch-pop .cp-row .cp-chg.up   { color:var(--green); }
+  .ch-pop .cp-row .cp-chg.down { color:var(--red); }
+  .ch-pop .cp-row .cp-chg.flat { color:var(--muted); }
+  .ch-pop .cp-foot { font-size:10px; color:var(--muted); padding-top:6px;
+    border-top:1px solid var(--line); margin-top:4px; text-align:center; }
   .src-grid { display:flex; gap:2px; overflow-x:auto; align-items:flex-start;
     scrollbar-width:none; }
   .src-grid::-webkit-scrollbar { display:none; }
@@ -5436,6 +5471,9 @@
     const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
                 "D","D-","E+","E","E-","F+","F","F-","G+","G"];
     let RUNS = [], TKMAP = {}, RUN_DATE = "", META = {};
+    // Grade-change lists for the upgraded/downgraded/fresh-A-tier hover
+    // popup. Populated per-render in render() below.
+    let CHANGE_LISTS = { up: [], down: [], fresh: [] };
 
     // hover popup (created once)
     const pop = document.createElement("div");
@@ -5607,23 +5645,48 @@
       let html = '<div class="src-bar">' +
         '<div class="bull" style="flex:1">BULLISH ' + bull_pct + '%</div>' +
         '<div class="bear" style="flex:1">BEARISH ' + bear_pct + '%</div></div>';
-      // grade-change strip (only meaningful on the unfiltered view)
+      // grade-change strip (only meaningful on the unfiltered view).
+      // Build the FULL upgrade/downgrade/fresh lists so the popup hover
+      // can show the actual tickers + grade transition + daily %.
       const prior = RUNS[idx + 1];
+      CHANGE_LISTS = { up: [], down: [], fresh: [] };
       if (prior && !themeF) {
         const now = gradeMap(run), was = gradeMap(prior);
-        let ups = 0, downs = 0; const fresh = [];
         Object.keys(now).forEach(function (t) {
-          if (!(t in was)) { if (now[t] <= 2) fresh.push(t); return; }
-          const d = was[t] - now[t];
-          if (now[t] <= 2 && was[t] > 2) fresh.push(t);
-          else if (d >= 3) ups++;
-          else if (d <= -3) downs++;
+          const cell = TKMAP[t] || { t: t };
+          if (!(t in was)) {
+            if (now[t] <= 2) CHANGE_LISTS.fresh.push({ t: t,
+              to: GR[now[t]], chg: cell.chg, p: cell.p });
+            return;
+          }
+          const diff = was[t] - now[t];
+          if (now[t] <= 2 && was[t] > 2) {
+            CHANGE_LISTS.fresh.push({ t: t, from: GR[was[t]],
+              to: GR[now[t]], diff: diff, chg: cell.chg, p: cell.p });
+          } else if (diff >= 3) {
+            CHANGE_LISTS.up.push({ t: t, from: GR[was[t]],
+              to: GR[now[t]], diff: diff, chg: cell.chg, p: cell.p });
+          } else if (diff <= -3) {
+            CHANGE_LISTS.down.push({ t: t, from: GR[was[t]],
+              to: GR[now[t]], diff: -diff, chg: cell.chg, p: cell.p });
+          }
+        });
+        // Sort each list: biggest jumps first
+        CHANGE_LISTS.up.sort(function (a, b) { return b.diff - a.diff; });
+        CHANGE_LISTS.down.sort(function (a, b) { return b.diff - a.diff; });
+        CHANGE_LISTS.fresh.sort(function (a, b) {
+          return (b.diff || 99) - (a.diff || 99);
         });
         html += '<div class="src-changes">' +
-          '<span class="sc-up">&#9650; ' + ups + ' upgraded</span>' +
-          '<span class="sc-down">&#9660; ' + downs + ' downgraded</span>' +
-          (fresh.length ? '<span class="sc-new">&#9733; new A-tier: ' +
-            fresh.slice(0, 14).join(", ") + '</span>' : '') + '</div>';
+          '<span class="sc-up" data-change="up" title="Hover for tickers">' +
+            '&#9650; ' + CHANGE_LISTS.up.length + ' upgraded</span>' +
+          '<span class="sc-down" data-change="down" title="Hover for tickers">' +
+            '&#9660; ' + CHANGE_LISTS.down.length + ' downgraded</span>' +
+          (CHANGE_LISTS.fresh.length
+            ? '<span class="sc-new" data-change="fresh" title="Hover for tickers">' +
+              '&#9733; ' + CHANGE_LISTS.fresh.length + ' new A-tier</span>'
+            : '') +
+          '</div>';
       }
       html += '<div class="src-grid">' + GR.map(function (g, gi) {
         const cells = fg[g];
@@ -5643,6 +5706,64 @@
     });
     body.addEventListener("mouseout", function (e) {
       if (e.target.closest(".src-tk")) hidePop();
+    });
+
+    // ── Change-list popup ── hover the "X upgraded / Y downgraded / Z new
+    // A-tier" labels to see the actual tickers, their old→new grades, and
+    // today's daily return. Reuses the .ch-pop styling (defined globally).
+    const changePop = document.createElement("div");
+    changePop.className = "ch-pop";
+    document.body.appendChild(changePop);
+    function showChangePop(kind, anchor) {
+      const items = CHANGE_LISTS[kind] || [];
+      if (!items.length) return;
+      const title = kind === "up"   ? "Upgraded vs prior session"
+                  : kind === "down" ? "Downgraded vs prior session"
+                  :                    "New A-tier entries";
+      const headCls = kind === "up" ? "ch-up" : kind === "down" ? "ch-down"
+                                                                  : "ch-new";
+      const rows = items.slice(0, 30).map(function (it) {
+        const trans = it.from
+          ? '<span class="cp-from">' + it.from + '</span>' +
+            ' <span class="cp-arrow">→</span> ' +
+            '<span class="cp-to">' + it.to + '</span>'
+          : '<span class="cp-arrow">★ new</span> ' +
+            '<span class="cp-to">' + it.to + '</span>';
+        const chgCls = it.chg == null ? "flat"
+                     : it.chg > 0 ? "up" : it.chg < 0 ? "down" : "flat";
+        const chgSign = it.chg != null && it.chg > 0 ? "+" : "";
+        const chgStr = it.chg != null
+          ? chgSign + it.chg.toFixed(2) + "%" : "—";
+        return '<div class="cp-row" data-t="' + it.t + '">' +
+          '<span class="cp-tk">' + it.t + '</span>' +
+          '<span class="cp-trans">' + trans + '</span>' +
+          '<span class="cp-chg ' + chgCls + '">' + chgStr + '</span>' +
+          '</div>';
+      }).join("");
+      const more = items.length > 30
+        ? '<div class="cp-foot">+ ' + (items.length - 30) + ' more</div>'
+        : '';
+      changePop.innerHTML =
+        '<div class="cp-head ' + headCls + '">' + title +
+          ' <span class="cp-n">· ' + items.length + '</span></div>' +
+        '<div class="cp-list">' + rows + '</div>' + more;
+      changePop.classList.add("show");
+      const r = anchor.getBoundingClientRect();
+      const pw = 320, ph = changePop.offsetHeight || 200;
+      let left = r.left + r.width / 2 - pw / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+      let top = r.bottom + 6;
+      if (top + ph > window.innerHeight - 8) top = r.top - ph - 6;
+      changePop.style.left = left + "px";
+      changePop.style.top  = Math.max(8, top) + "px";
+    }
+    function hideChangePop() { changePop.classList.remove("show"); }
+    body.addEventListener("mouseover", function (e) {
+      const c = e.target.closest("[data-change]");
+      if (c && c.dataset.change) showChangePop(c.dataset.change, c);
+    });
+    body.addEventListener("mouseout", function (e) {
+      if (e.target.closest("[data-change]")) hideChangePop();
     });
 
     // Load the swing report + uoa meta cache in parallel — the meta cache
