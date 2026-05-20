@@ -847,6 +847,51 @@
   .empty { color:var(--muted); font-size:13px; padding:24px; text-align:center;
     border:1px dashed var(--line); border-radius:8px; }
 
+  /* ── Ticker Archive Search ── */
+  .archive-recent { margin-top:12px; display:flex; flex-wrap:wrap;
+    align-items:center; gap:6px; min-height:18px; }
+  .archive-recent .ar-recent-label { font-size:10.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; font-weight:700;
+    margin-right:4px; }
+  .archive-recent .ar-chip { font-size:11px; font-weight:700;
+    color:var(--text); background:var(--navy2);
+    border:1px solid var(--border2); border-radius:11px;
+    padding:3px 9px; cursor:pointer; user-select:none;
+    transition:border-color .15s, color .15s; }
+  .archive-recent .ar-chip:hover { border-color:var(--gold);
+    color:var(--gold); }
+  .archive-recent .ar-clear { font-size:10px; color:var(--muted);
+    background:none; border:0; cursor:pointer; padding:3px 6px;
+    margin-left:4px; }
+  .archive-recent .ar-clear:hover { color:var(--red); }
+
+  .archive-results { margin-top:14px; }
+  .archive-results .ar-empty { font-size:11.5px; color:var(--muted);
+    font-style:italic; padding:8px 0; }
+  .archive-results .ar-found { font-size:10.5px; color:var(--textdim);
+    margin-bottom:8px; text-transform:uppercase; letter-spacing:.3px;
+    font-weight:600; }
+  .archive-results .ar-found b { color:var(--text); }
+  .archive-results .ar-list { display:flex; flex-direction:column; gap:4px; }
+  .archive-results .ar-row { display:grid;
+    grid-template-columns:110px 1fr 100px; align-items:center; gap:10px;
+    padding:7px 11px; background:var(--navy2);
+    border:1px solid var(--border2); border-radius:5px;
+    cursor:pointer; font-size:11.5px; transition:border-color .15s; }
+  .archive-results .ar-row:hover { border-color:var(--gold); }
+  .archive-results .ar-row.active { border-color:var(--gold);
+    background:rgba(255,200,0,0.06); }
+  .archive-results .ar-row .ar-type { font-size:9.5px; font-weight:800;
+    text-transform:uppercase; letter-spacing:.3px; color:var(--text);
+    background:var(--bg); border:1px solid var(--line); border-radius:9px;
+    padding:2px 8px; text-align:center; }
+  .archive-results .ar-row.active .ar-type { color:var(--gold);
+    border-color:var(--gold); }
+  .archive-results .ar-row .ar-label { color:var(--textdim);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .archive-results .ar-row .ar-date { color:var(--muted); font-size:10.5px;
+    text-align:right; font-variant-numeric:tabular-nums; }
+
   /* ── Inline PDF viewer ── */
   [id^="viewer"] { margin-bottom:24px; display:none; }
   [id^="viewer"].show { display:block; }
@@ -1293,12 +1338,35 @@
 
     <!-- Ad-Hoc -->
     <section class="panel" id="panel-adhoc">
+      <!-- Archive Search — primary action: pull existing PDFs instantly -->
       <div class="card">
-        <h2>Ad-Hoc Ticker Research</h2>
+        <h2>Ticker Report Archive</h2>
         <p class="sub">
-          Enter any US-listed ticker for a full institutional one-pager: setup
-          analysis, 12-month insider transactions, institutional ownership, and
-          price/volume intelligence. The PDF appears in the archive below in
+          Search the full PDF archive by ticker. Every type of report we've
+          ever generated for that name &mdash; ad-hoc research, alt-data,
+          breakout scans, setup builders &mdash; surfaces below, most recent
+          first, and opens in the inline viewer with one click. Generate a
+          fresh report (further down) only when nothing recent exists.
+        </p>
+        <div class="input-row">
+          <input type="text" id="archive-q" placeholder="NVDA · MU · COIN..."
+                 maxlength="8" autocomplete="off"
+                 autocapitalize="characters" />
+          <button class="go" id="archive-go">Search</button>
+        </div>
+        <div id="archive-recent" class="archive-recent"></div>
+        <div id="archive-results" class="archive-results"></div>
+      </div>
+
+      <div id="viewer"></div>
+
+      <!-- Generate new — secondary action -->
+      <div class="card">
+        <h2>Generate a new ad-hoc report</h2>
+        <p class="sub">
+          Full institutional one-pager: setup analysis, 12-month insider
+          transactions, institutional ownership, and price/volume
+          intelligence. PDF lands in the viewer above in
           ~60&ndash;90 seconds.
         </p>
         <div class="input-row">
@@ -1308,8 +1376,6 @@
         </div>
         <div id="status"></div>
       </div>
-
-      <div id="viewer"></div>
 
       <h2 class="tab-title">Recent Ad-Hoc Reports</h2>
       <p class="tab-sub">Most recent first. Click to open the PDF.</p>
@@ -2263,7 +2329,14 @@
             '<a href="' + r.file + '" target="_blank">' + r.label + '</a>' +
             '<span class="tdp-r-date">' + r.date[0] + '</span></div>';
         }).join("");
-        sec.push('<div class="tdp-section"><h4>Recent reports</h4>' + rep + '</div>');
+        // "Open archive viewer" action: switches to Ticker Research tab
+        // and runs the archive search for this name — lands the most
+        // recent PDF inline in the iframe viewer.
+        const archiveBtn = '<div class="tdp-actions" style="margin-top:9px">' +
+          '<button data-archive-tk="' + t + '">' +
+          'Open in archive viewer &rarr;</button></div>';
+        sec.push('<div class="tdp-section"><h4>Recent reports</h4>' +
+          rep + archiveBtn + '</div>');
       }
 
       // 5) Latest news — lazy-loaded from the worker. Shows a placeholder
@@ -2667,6 +2740,14 @@
         closePanel();
         return;
       }
+      // "Open in archive viewer" — switches to Ticker Research tab,
+      // runs archive search, embeds most recent matching PDF inline.
+      const ak = e.target.closest("[data-archive-tk]");
+      if (ak && window.searchTickerArchive) {
+        window.searchTickerArchive(ak.dataset.archiveTk);
+        closePanel();
+        return;
+      }
     });
   })();
 
@@ -2829,6 +2910,187 @@
     button.addEventListener("click", submit);
     input.addEventListener("keydown", function (e) { if (e.key === "Enter") submit(); });
   }
+
+  // ── Ticker archive search — pulls existing PDFs from manifest.json
+  // and embeds the most recent matching report in the same #viewer the
+  // generate flow uses. Recently-searched chips persist via localStorage.
+  // Cross-references every report type (adhoc, alt-data, smid-scanner,
+  // iwm-scanner, smid-setup, iwm-setup, qm-monthly, stockbee-weekly).
+  (function setupArchiveSearch() {
+    const input    = document.getElementById("archive-q");
+    const button   = document.getElementById("archive-go");
+    const recentEl = document.getElementById("archive-recent");
+    const resultsEl= document.getElementById("archive-results");
+    const viewer   = document.getElementById("viewer");
+    if (!input || !button) return;
+
+    const RECENT_KEY = "td-recent-tickers";
+    const MAX_RECENT = 12;
+    const TYPE_LABEL = {
+      "adhoc":           "Ad-Hoc",
+      "alt-data":        "Alt-Data",
+      "smid-scanner":    "SMID Scan",
+      "iwm-scanner":     "IWM Scan",
+      "smid-setup":      "SMID Setup",
+      "iwm-setup":       "IWM Setup",
+      "qm-monthly":      "QM Month",
+      "stockbee-weekly": "Stockbee",
+    };
+    let LAST_MATCHES = [];     // most recent search result set
+
+    function recent() {
+      try {
+        return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+      } catch (e) { return []; }
+    }
+    function pushRecent(tk) {
+      const r = recent().filter(function (x) { return x !== tk; });
+      r.unshift(tk);
+      try {
+        localStorage.setItem(RECENT_KEY, JSON.stringify(r.slice(0, MAX_RECENT)));
+      } catch (e) { /* private mode etc. */ }
+      renderRecent();
+    }
+    function clearRecent() {
+      try { localStorage.removeItem(RECENT_KEY); } catch (e) {}
+      renderRecent();
+    }
+    function renderRecent() {
+      const r = recent();
+      if (!r.length) { recentEl.innerHTML = ""; return; }
+      recentEl.innerHTML =
+        '<span class="ar-recent-label">Recently searched:</span>' +
+        r.map(function (t) {
+          // Intentionally NOT using data-t — chip click triggers an archive
+          // search, not the drilldown panel. (Use the ticker spans inside
+          // search result rows or elsewhere on the site to open the panel.)
+          return '<span class="ar-chip" data-tk="' + t +
+            '" title="Search archive for ' + t + '">' + t + '</span>';
+        }).join("") +
+        '<button class="ar-clear" id="ar-clear-btn" ' +
+          'title="Clear recently searched">clear</button>';
+      const cb = document.getElementById("ar-clear-btn");
+      if (cb) cb.addEventListener("click", function (e) {
+        e.stopPropagation();
+        clearRecent();
+      });
+    }
+
+    function fileDate(file) {
+      // Filenames embed the date+time: e.g. ticker_NVDA_2026-05-19_1931.pdf
+      const m = (file || "").match(/(\d{4}-\d{2}-\d{2})_(\d{4})/);
+      if (!m) return "";
+      const t = m[2];
+      return m[1] + " " + t.slice(0, 2) + ":" + t.slice(2);
+    }
+    function embed(ticker, entry) {
+      viewer.className = "show";
+      viewer.innerHTML =
+        '<div class="vbar">' +
+          '<span class="vname">' + ticker + ' &mdash; ' +
+            (entry.label || entry.file) + '</span>' +
+          '<a href="./reports/' + entry.file +
+            '" target="_blank">Open in new tab &rarr;</a>' +
+        '</div>' +
+        '<iframe src="./reports/' + entry.file +
+          '" title="' + ticker + ' report"></iframe>';
+      // Update active state on the row list
+      resultsEl.querySelectorAll(".ar-row").forEach(function (r) {
+        r.classList.toggle("active", r.dataset.file === entry.file);
+      });
+      viewer.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function fetchM() {
+      try {
+        const r = await fetch("./reports/manifest.json?t=" + Date.now());
+        return r.ok ? r.json() : { reports: {} };
+      } catch (e) { return { reports: {} }; }
+    }
+    async function search(ticker) {
+      ticker = (ticker || "").toUpperCase().trim();
+      if (!ticker || !/^[A-Z.\-]{1,8}$/.test(ticker)) {
+        resultsEl.innerHTML = '<div class="ar-empty">' +
+          'Enter a valid ticker (1-8 letters).</div>';
+        return;
+      }
+      resultsEl.innerHTML = '<div class="ar-empty">Searching archive&hellip;</div>';
+      const m = await fetchM();
+      const matches = [];
+      Object.keys(m.reports || {}).forEach(function (type) {
+        (m.reports[type] || []).forEach(function (e) {
+          if ((e.ticker || "").toUpperCase() === ticker) {
+            matches.push(Object.assign({}, e, { _type: type }));
+          }
+        });
+      });
+      // Sort by filename date suffix (descending = newest first)
+      matches.sort(function (a, b) {
+        return (b.file || "").localeCompare(a.file || "");
+      });
+      LAST_MATCHES = matches;
+      if (!matches.length) {
+        resultsEl.innerHTML = '<div class="ar-empty">No archived reports ' +
+          'for <b>' + ticker + '</b> yet. Use the Generate form below to ' +
+          'create one.</div>';
+        viewer.className = ""; viewer.innerHTML = "";
+        pushRecent(ticker);
+        return;
+      }
+      resultsEl.innerHTML =
+        '<div class="ar-found"><b>' + matches.length + '</b> matched ' +
+          'for <b>' + ticker + '</b> &mdash; most recent loaded in viewer ' +
+          'below. Click a row to switch.</div>' +
+        '<div class="ar-list">' +
+          matches.map(function (e) {
+            const dt = fileDate(e.file);
+            return '<div class="ar-row" data-file="' + e.file + '">' +
+              '<span class="ar-type">' +
+                (TYPE_LABEL[e._type] || e._type) + '</span>' +
+              '<span class="ar-label">' + (e.label || e.file) + '</span>' +
+              '<span class="ar-date">' + dt + '</span>' +
+              '</div>';
+          }).join("") +
+        '</div>';
+      // Wire row clicks
+      resultsEl.querySelectorAll(".ar-row").forEach(function (row) {
+        row.addEventListener("click", function () {
+          const entry = LAST_MATCHES.find(function (x) {
+            return x.file === row.dataset.file;
+          });
+          if (entry) embed(ticker, entry);
+        });
+      });
+      embed(ticker, matches[0]);
+      pushRecent(ticker);
+    }
+
+    button.addEventListener("click", function () { search(input.value); });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") search(input.value);
+    });
+    // Click a recent chip → re-run search (without re-firing the global
+    // drilldown handler, which would also catch the chip's data-t).
+    recentEl.addEventListener("click", function (e) {
+      const c = e.target.closest("[data-tk]");
+      if (!c) return;
+      e.stopPropagation();
+      e.preventDefault();
+      input.value = c.dataset.tk;
+      search(c.dataset.tk);
+    });
+    renderRecent();
+
+    // Expose so other tabs can pipe into the search box. E.g., clicking
+    // a "View archived reports" action from the drilldown panel will
+    // call window.searchTickerArchive("NVDA") to jump here.
+    window.searchTickerArchive = function (tk) {
+      const tab = document.querySelector('nav button[data-tab="adhoc"]');
+      if (tab) tab.click();
+      input.value = (tk || "").toUpperCase();
+      search(input.value);
+    };
+  })();
 
   setupLookup({ inputId:"ticker", btnId:"go", statusId:"status", viewerId:"viewer",
     listKey:"adhoc", reportType:"adhoc", runtime:"2-3 min" });
