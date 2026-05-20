@@ -58,6 +58,266 @@ async function fetchYahooQuote(sym) {
   }
 }
 
+// ── SEC EDGAR — filings list + targeted summarization ───────────────────
+//
+// EDGAR requires a User-Agent identifying the requester. Set once here.
+const SEC_UA = "TickerDesk Dashboard support@tickerdesk.io";
+
+// SEC's ticker→CIK index. ~1MB JSON, refreshed by SEC weekly, mostly
+// stable. We cache at the edge for 24h so the worker hits SEC once per
+// region per day.
+async function fetchSecTickerMap() {
+  const r = await fetch(
+    "https://www.sec.gov/files/company_tickers.json",
+    { headers: { "User-Agent": SEC_UA }, cf: { cacheTtl: 86400 } }
+  );
+  if (!r.ok) return null;
+  return r.json();
+}
+async function tickerToCIK(ticker) {
+  const map = await fetchSecTickerMap();
+  if (!map) return null;
+  const want = ticker.toUpperCase();
+  for (const k of Object.keys(map)) {
+    if (map[k].ticker === want) {
+      return String(map[k].cik_str).padStart(10, "0");
+    }
+  }
+  return null;
+}
+
+/** EDGAR submissions: company's recent filings.
+ *  Returns up to `count` most recent filings shaped for the dashboard,
+ *  with a heuristic-derived category flag per entry (the "color dot"). */
+async function fetchSecFilings(ticker, count) {
+  const cik = await tickerToCIK(ticker);
+  if (!cik) return { ticker: ticker, error: "Ticker not found in EDGAR index",
+                     filings: [] };
+  const r = await fetch(
+    "https://data.sec.gov/submissions/CIK" + cik + ".json",
+    { headers: { "User-Agent": SEC_UA }, cf: { cacheTtl: 300 } }
+  );
+  if (!r.ok) return { ticker: ticker, cik: cik, error: "edgar " + r.status,
+                      filings: [] };
+  const j = await r.json();
+  const rec = j.filings && j.filings.recent;
+  if (!rec) return { ticker: ticker, cik: cik, filings: [] };
+  const out = [];
+  const max = Math.min(count || 25, (rec.form || []).length);
+  for (let i = 0; i < max; i++) {
+    const form = rec.form[i];
+    const acc = (rec.accessionNumber[i] || "").replace(/-/g, "");
+    const items = (rec.items || [])[i] || "";
+    const date = rec.filingDate[i];
+    const primary = rec.primaryDocument[i];
+    const cikInt = parseInt(cik, 10);
+    out.push({
+      form: form,
+      filingDate: date,
+      acceptedDate: rec.acceptanceDateTime ? rec.acceptanceDateTime[i] : null,
+      accession: rec.accessionNumber[i],
+      items: items,                            // 8-K items, comma-separated
+      description: rec.primaryDocDescription ? rec.primaryDocDescription[i] : "",
+      // Primary doc URL (the actual filing to read/summarize)
+      url: "https://www.sec.gov/Archives/edgar/data/" + cikInt + "/" +
+           acc + "/" + primary,
+      filingIndexUrl: "https://www.sec.gov/cgi-bin/browse-edgar?action=" +
+        "getcompany&CIK=" + cik + "&type=" + encodeURIComponent(form) +
+        "&dateb=&owner=include&count=10",
+      category: filingCategory(form, items),
+      // Heuristic label — what we can say without LLM
+      headline: filingHeadline(form, items, rec.primaryDocDescription
+        ? rec.primaryDocDescription[i] : ""),
+      // Whether body summarization with LLM adds material value
+      needsAI: needsAISummary(form, items),
+    });
+  }
+  return {
+    ticker: ticker,
+    cik: cik,
+    name: j.name || ticker,
+    filings: out,
+  };
+}
+
+/** Classify a filing for the dashboard's color-flag system.
+ *  red:  restatement / late-filer risk
+ *  amber: dilution
+ *  blue:  M&A / material agreement / earnings release
+ *  green: insider buying (Form 4 — net direction parsed downstream)
+ *  purple: activist / >5% holder
+ *  gold:  10-K / 10-Q (periodic financials)
+ *  gray:  routine / boilerplate */
+// Form names come back inconsistently from EDGAR — "SC 13D", "SCHEDULE 13D",
+// "13D" are all the same thing. Normalize so downstream checks are simple.
+function is13D(form) { return /^(SC |SCHEDULE )?13D/i.test(form); }
+function is13G(form) { return /^(SC |SCHEDULE )?13G/i.test(form); }
+
+function filingCategory(form, items) {
+  const it = (items || "");
+  // 13D / 13G come in plain + /A variants — both stay purple; the amendment
+  // is just a position-change update, not a restatement red flag.
+  if (is13D(form)) return "purple";
+  if (is13G(form)) return "purple";                           // passive >5%
+  // Real restatement / late-filer red flags
+  if (form === "NT 10-K" || form === "NT 10-Q") return "red";
+  if (form === "10-K/A" || form === "10-Q/A") return "red";
+  if (it.indexOf("4.02") >= 0) return "red";                  // non-reliance
+  if (form === "424B5" || form === "424B4" || form === "S-3" ||
+      form === "S-1") return "amber";
+  if (form === "Form 4" || form === "4") return "green";
+  if (it.indexOf("1.01") >= 0 || it.indexOf("2.01") >= 0 ||
+      it.indexOf("2.02") >= 0) return "blue";
+  if (it.indexOf("5.02") >= 0) return "blue";                 // exec changes
+  if (it.indexOf("8.01") >= 0) return "blue";                 // material event
+  if (form === "10-K" || form === "10-Q") return "gold";
+  if (form === "DEF 14A" || form === "PRE 14A") return "gold";
+  return "gray";
+}
+
+/** Heuristic, LLM-free one-liner for the filing — what we can derive
+ *  from form + items alone, no body parsing. */
+function filingHeadline(form, items, desc) {
+  const it = (items || "").split(",").map(s => s.trim()).filter(Boolean);
+  const ITEM_LABEL = {
+    "1.01": "Material Agreement",
+    "1.02": "Termination of Material Agreement",
+    "2.01": "Acquisition / Disposition Completed",
+    "2.02": "Earnings Release",
+    "2.05": "Restructuring / Exit Costs",
+    "2.06": "Material Impairment",
+    "3.01": "NYSE/NASDAQ Listing Notice",
+    "3.02": "Unregistered Equity Sale (Dilution)",
+    "3.03": "Modification of Rights of Holders",
+    "4.01": "Auditor Change",
+    "4.02": "Non-Reliance on Prior Financials",
+    "5.01": "Change in Control",
+    "5.02": "Officer/Director Change",
+    "5.03": "Bylaw/Charter Amendment",
+    "5.07": "Submission of Matters to Holder Vote",
+    "7.01": "Reg FD Disclosure",
+    "8.01": "Other Material Event",
+    "9.01": "Financial Statements / Exhibits",
+  };
+  if (form === "Form 4" || form === "4") return "Insider transaction";
+  if (form === "10-K") return "Annual report (10-K)";
+  if (form === "10-Q") return "Quarterly report (10-Q)";
+  if (form === "10-K/A") return "Amended annual report (10-K/A)";
+  if (form === "10-Q/A") return "Amended quarterly report (10-Q/A)";
+  if (form === "NT 10-K") return "Late filing notice (NT 10-K)";
+  if (form === "NT 10-Q") return "Late filing notice (NT 10-Q)";
+  if (form === "424B5") return "Prospectus supplement / shelf takedown";
+  if (form === "424B4") return "Prospectus supplement";
+  if (form === "S-1") return "IPO registration (S-1)";
+  if (form === "S-3") return "Shelf registration (S-3)";
+  if (is13D(form)) return form.match(/\/A$/)
+    ? "13D/A — activist position update"
+    : "13D filed — activist / >5% holder";
+  if (is13G(form)) return form.match(/\/A$/)
+    ? "13G/A — passive holder position update"
+    : "13G filed — passive 5%+ holder";
+  if (form === "DEF 14A") return "Definitive proxy statement";
+  if (form === "8-K" && it.length) {
+    if (it.length === 1) return "8-K · " + (ITEM_LABEL[it[0]] || ("Item " + it[0]));
+    if (it.length <= 3)  return "8-K · " + it.map(x => ITEM_LABEL[x] || x).join(" + ");
+    return "8-K · " + it.length + " items";
+  }
+  return form + (desc ? " · " + desc : "");
+}
+
+/** Which filings benefit enough from body summarization to justify the
+ *  LLM call. Most filings (Form 4, 13G, routine 8-Ks, S-8) don't. */
+function needsAISummary(form, items) {
+  if (/\/A$/.test(form)) return true;                          // amendments
+  if (form === "NT 10-K" || form === "NT 10-Q") return true;
+  if (form === "8-K") {
+    const it = (items || "");
+    // Items worth the LLM call: M&A, dispositions, restructuring, dilution,
+    // restatements, exec changes, other material events.
+    // Skip routine 2.02 (earnings — Polygon News covers it) and 9.01 (exhibits).
+    return ["1.01","1.02","2.01","2.05","3.02","4.02","5.02","8.01"]
+      .some(code => it.indexOf(code) >= 0);
+  }
+  if (is13D(form) && !/\/A$/.test(form)) return true;
+  return false;
+}
+
+/** Anthropic Haiku call — concise 2-3 sentence summary of an SEC filing.
+ *  Returns { summary, ok, error?, usage? }. Edge-cached by the caller. */
+async function summarizeFiling(env, ticker, form, items, primaryUrl) {
+  if (!env.ANTHROPIC_API_KEY) {
+    return { ok: false, error: "ANTHROPIC_API_KEY not set in worker." };
+  }
+  // Fetch the filing's primary document, strip tags, truncate. Filings
+  // are HTML; the SEC also returns large embedded tables. Aggressive
+  // truncation + tag stripping keeps token cost predictable.
+  let body;
+  try {
+    const r = await fetch(primaryUrl,
+      { headers: { "User-Agent": SEC_UA }, cf: { cacheTtl: 604800 } });
+    if (!r.ok) return { ok: false, error: "filing fetch " + r.status };
+    body = await r.text();
+  } catch (e) {
+    return { ok: false, error: "filing fetch: " + String(e) };
+  }
+  // Strip HTML, normalize whitespace, truncate to ~12K tokens (~48K chars)
+  let text = body
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#160;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text.length > 48000) text = text.slice(0, 48000);
+  // Build the prompt
+  const ITEM_HINT = items
+    ? "\nFiling items: " + items
+    : "";
+  const prompt =
+    "You are summarizing an SEC " + form + " filing for ticker " + ticker +
+    "." + ITEM_HINT +
+    "\n\nWrite a 2-3 sentence factual summary (under 80 words) of what " +
+    "happened. Lead with the most material fact. Use specific dollar " +
+    "amounts, percentages, and named parties when present. Skip " +
+    "boilerplate. If the filing is purely routine / procedural, return " +
+    "exactly: \"Routine procedural filing — no actionable content.\"\n\n" +
+    "FILING TEXT:\n" + text;
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key":         env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type":      "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 250,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!r.ok) {
+      const errText = await r.text();
+      return { ok: false, error: "anthropic " + r.status + ": " +
+                                  errText.slice(0, 200) };
+    }
+    const j = await r.json();
+    const summary = j.content && j.content[0] && j.content[0].text || "";
+    return {
+      ok:      true,
+      summary: summary.trim(),
+      usage:   j.usage || null,
+      model:   j.model,
+    };
+  } catch (e) {
+    return { ok: false, error: "anthropic call: " + String(e) };
+  }
+}
+
 /** Strip a Polygon news article down to just the fields the dashboard
  *  renders — drops large fields like the full article body and trims
  *  the response from Polygon (~3KB per article) to ~600 bytes. */
@@ -222,6 +482,66 @@ export default {
         });
         ctx.waitUntil(cache.put(request, resp.clone()));
         return resp;
+      }
+      // SEC filings list — ?filings=TICKER returns the last ~25 filings
+      // with form, date, items, primary doc URL, and a heuristic
+      // category flag the dashboard uses to color-code each row.
+      const filingsParam = url.searchParams.get("filings");
+      if (filingsParam) {
+        const cache = caches.default;
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const tk = filingsParam.trim().toUpperCase();
+        if (!tk || !/^[A-Z.\-]{1,8}$/.test(tk)) {
+          return Response.json(
+            { error: `Invalid ticker: "${tk}"`, filings: [] },
+            { status: 400, headers: cors });
+        }
+        const count = Math.min(
+          Math.max(parseInt(url.searchParams.get("limit") || 25, 10), 1), 50);
+        const data = await fetchSecFilings(tk, count);
+        const resp = Response.json(data, {
+          headers: { ...cors, "Cache-Control": "public, max-age=300" },
+        });
+        ctx.waitUntil(cache.put(request, resp.clone()));
+        return resp;
+      }
+      // SEC filing summary — ?filing-summary=ACCESSION&ticker=T&form=F
+      //   &items=ITEMS&url=PRIMARY_URL
+      // Calls Anthropic Haiku on the body text. Edge-cached for 7 days
+      // (filings are immutable post-publish, so summary is too).
+      // Caller is expected to gate this by checking needsAISummary first.
+      const summaryParam = url.searchParams.get("filing-summary");
+      if (summaryParam) {
+        const cache = caches.default;
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const tk    = (url.searchParams.get("ticker") || "").toUpperCase();
+        const form  = url.searchParams.get("form")  || "";
+        const items = url.searchParams.get("items") || "";
+        const prim  = url.searchParams.get("url")   || "";
+        if (!tk || !form || !prim) {
+          return Response.json(
+            { ok: false, error: "Missing ticker, form, or url param" },
+            { status: 400, headers: cors });
+        }
+        // Defence in depth: only call Anthropic for forms we expect to need it
+        if (!needsAISummary(form, items)) {
+          return Response.json(
+            { ok: false, error: "Filing type not eligible for AI summary",
+              form: form, items: items },
+            { headers: cors });
+        }
+        const data = await summarizeFiling(env, tk, form, items, prim);
+        // Only cache successful results (so failures don't poison the cache)
+        if (data.ok) {
+          const resp = Response.json(data, {
+            headers: { ...cors, "Cache-Control": "public, max-age=604800" },
+          });
+          ctx.waitUntil(cache.put(request, resp.clone()));
+          return resp;
+        }
+        return Response.json(data, { headers: cors });
       }
       // News headlines — ?news=general for firehose or ?news=AAPL for a
       // specific ticker. Optional ?limit=N (1..1000, default 50/200).
