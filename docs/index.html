@@ -1499,7 +1499,7 @@
     <button data-tab="qm-monthly">QM Monthly</button>
     <button data-tab="stockbee-weekly">Stockbee</button>
     <button data-tab="news">News</button>
-    <button data-tab="whisper">Whisper</button>
+    <button data-tab="whisper">Earnings</button>
     <button data-tab="global">Global</button>
   </nav>
 
@@ -1648,9 +1648,9 @@
       </div>
     </section>
 
-    <!-- ── Most Anticipated Earnings (auto-discovered EW tweet + scraped grid) ── -->
+    <!-- ── Earnings (auto-discovered EW tweet + scraped Most Anticipated grid) ── -->
     <section class="panel" id="panel-whisper">
-      <h2 class="tab-title">Most Anticipated Earnings</h2>
+      <h2 class="tab-title">Earnings &mdash; Most Anticipated This Week</h2>
       <p class="tab-sub">Auto-discovered weekly <a href="https://x.com/eWhispers"
         target="_blank" rel="noopener">@eWhispers</a> chart &mdash; the dashboard
         scans Twitter's public syndication endpoint daily for the latest
@@ -5154,31 +5154,84 @@
         '<polyline points="' + pts + '" fill="none" stroke="' + col +
         '" stroke-width="1.5"/></svg></div>';
     }
-    function showPopDesk(tkr, anchor) {
-      const c = DESK_TKMAP[tkr] || { t: tkr };
-      const dc = (typeof c.chg === "number") ? c.chg : null;
+    // Live-quote cache for hover popups on tickers NOT in our swing
+    // universe. Swing covers ~930 names; Earnings Whisper, News, and
+    // other tabs surface plenty of names outside that set (ELF, NIO,
+    // INTU, DECK, HD, CAVA, etc. report each week). For those we
+    // lazy-fetch the worker's ?quotes=TICKER endpoint and update the
+    // popup in place when the response lands.
+    const LIVE_QUOTE_CACHE = {};   // ticker -> {price, change, ts}
+    const LIVE_QUOTE_PENDING = {}; // ticker -> Promise
+    function fetchLiveQuote(tkr) {
+      if (LIVE_QUOTE_CACHE[tkr] &&
+          Date.now() - LIVE_QUOTE_CACHE[tkr].ts < 60000) {
+        return Promise.resolve(LIVE_QUOTE_CACHE[tkr]);
+      }
+      if (LIVE_QUOTE_PENDING[tkr]) return LIVE_QUOTE_PENDING[tkr];
+      const p = fetch(TDP_WORKER_URL + "?quotes=" +
+          encodeURIComponent(tkr))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          const q = (d && d.quotes && d.quotes[0]) || null;
+          const out = q ? { price: q.price, change: q.change,
+                             prevClose: q.prevClose, ts: Date.now() }
+                        : { price: null, change: null, ts: Date.now() };
+          LIVE_QUOTE_CACHE[tkr] = out;
+          delete LIVE_QUOTE_PENDING[tkr];
+          return out;
+        })
+        .catch(function () {
+          const out = { price: null, change: null, ts: Date.now() };
+          LIVE_QUOTE_CACHE[tkr] = out;
+          delete LIVE_QUOTE_PENDING[tkr];
+          return out;
+        });
+      LIVE_QUOTE_PENDING[tkr] = p;
+      return p;
+    }
+
+    // Track the ticker whose popup is currently rendered so async
+    // quote updates don't clobber the popup if the user has moved on
+    let POP_TICKER = null;
+    function renderPopContent(tkr, c, liveQuote) {
+      // Pick the freshest data: live worker quote > swing cell
+      const dc = (liveQuote && typeof liveQuote.change === "number")
+                  ? liveQuote.change
+                  : (typeof c.chg === "number" ? c.chg : null);
+      const px = (liveQuote && typeof liveQuote.price === "number")
+                  ? liveQuote.price
+                  : (typeof c.p === "number" ? c.p : null);
       const cls = dc == null ? "flat" : dc > 0 ? "up" : dc < 0 ? "down" : "flat";
       const arrow = dc == null ? "" : dc > 0 ? "▲ " : dc < 0 ? "▼ " : "";
-      // Prefer raw market_cap (uoa_meta_cache or swing cell.mcap) over the
-      // coarse bucket label so the popup shows e.g. "$2.4T" not "Large cap"
       const rawMcap = (typeof c.mcap === "number") ? c.mcap
                     : (DESK_META[tkr] && DESK_META[tkr].mkt_cap);
       const mcapStr = fmtMcap(rawMcap);
       const row2 = [c.ctry, mcapStr, c.xch].filter(Boolean).join(" · ");
       const row1 = [c.sec, c.ind].filter(Boolean).join(" · ");
+      // Pull a name out of uoa_meta_cache as a fallback for non-swing
+      // tickers — beats showing just the ticker symbol twice.
+      const name = c.n ||
+        (DESK_META[tkr] && DESK_META[tkr].name) || tkr;
+      // Label: "Close · 2026-05-19" for swing data, "Live" if we
+      // used the worker's regularMarketPrice fallback
+      const pxLabel = (liveQuote && liveQuote.price != null)
+                        ? "Live"
+                        : ("Close · " + DESK_DATE);
       pop.innerHTML =
-        '<div class="sp-head"><span class="sp-sym">' + c.t + '</span>' +
+        '<div class="sp-head"><span class="sp-sym">' + tkr + '</span>' +
         '<span class="tape-chg ' + cls + '">' + arrow +
           (dc == null ? "" : (dc > 0 ? "+" : "") + dc.toFixed(2) + "%") +
           '</span></div>' +
-        '<div class="sp-name">' + cleanName(c.n || c.t) + '</div>' +
-        '<div><span class="sp-px">$' + (c.p != null ? c.p.toFixed(2) : "—") +
-          '</span><span class="sp-pxs">Close · ' + DESK_DATE + '</span></div>' +
+        '<div class="sp-name">' + cleanName(name) + '</div>' +
+        '<div><span class="sp-px">$' + (px != null ? px.toFixed(2) : "—") +
+          '</span><span class="sp-pxs">' + pxLabel + '</span></div>' +
         (row1 ? '<div class="sp-row">' + row1 + '</div>' : '') +
         (row2 ? '<div class="sp-row muted">' + row2 + '</div>' : '') +
         popSparkDesk(c.spark);
-      pop.classList.add("show");
-      const r = anchor.getBoundingClientRect(), pw = 280, ph = pop.offsetHeight || 200;
+    }
+    function positionPop(anchor) {
+      const r = anchor.getBoundingClientRect();
+      const pw = 280, ph = pop.offsetHeight || 200;
       let left = r.left + r.width / 2 - pw / 2;
       left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
       let top = r.bottom + 6;
@@ -5186,7 +5239,30 @@
       pop.style.left = left + "px";
       pop.style.top  = Math.max(8, top) + "px";
     }
-    function hidePopDesk() { pop.classList.remove("show"); }
+    function showPopDesk(tkr, anchor) {
+      POP_TICKER = tkr;
+      const c = DESK_TKMAP[tkr] || { t: tkr };
+      const hasFreshSwing = (typeof c.p === "number") &&
+        (typeof c.chg === "number");
+      // Check live-quote cache for an existing recent fetch
+      const cached = LIVE_QUOTE_CACHE[tkr] &&
+        Date.now() - LIVE_QUOTE_CACHE[tkr].ts < 60000
+          ? LIVE_QUOTE_CACHE[tkr] : null;
+      renderPopContent(tkr, c, cached);
+      pop.classList.add("show");
+      positionPop(anchor);
+      // For names not in our swing universe (or stale), lazy-fetch
+      // the live worker quote and re-render once it lands.
+      if (!hasFreshSwing && !cached) {
+        fetchLiveQuote(tkr).then(function (q) {
+          if (POP_TICKER !== tkr) return;     // user moved on
+          if (!q || q.price == null) return;
+          renderPopContent(tkr, c, q);
+          positionPop(anchor);                // re-position; height changed
+        });
+      }
+    }
+    function hidePopDesk() { pop.classList.remove("show"); POP_TICKER = null; }
     // Publish so the universal drilldown's document-level handler can
     // fire these on ANY [data-t] across the site (News, Whisper, Swing,
     // Performance cohort table, etc.) — not just Today's Desk.
