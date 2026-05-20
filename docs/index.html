@@ -4024,56 +4024,85 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .catch(function () { return null; });
     };
-    Promise.all([
-      fetchJSON("./reports/uoa_latest.json"),
-      fetchJSON("./reports/swing_report.json"),
-      fetchJSON("./reports/momentum_qm.json"),
-      fetchJSON("./reports/momentum_stockbee.json"),
-      fetchJSON("./reports/manifest.json"),
-      fetchJSON("./reports/economic_calendar.json"),
-      fetchJSON("./reports/uoa_meta_cache.json"),
-    ]).then(function (arr) {
-      const uoa = arr[0], swing = arr[1], qm = arr[2], sb = arr[3];
-      const manifest = arr[4], cal = arr[5], uoaMeta = arr[6];
-      const today = (swing && swing.runs && swing.runs.length)
-        ? swing.runs[swing.runs.length - 1].date
-        : new Date().toISOString().slice(0, 10);
-      DESK_DATE = today;
-      DESK_META = uoaMeta || {};
-      // Publish everything to the global drilldown cache
-      window.TD_DATA.uoa = uoa;
-      window.TD_DATA.swing = swing;
-      window.TD_DATA.qm = qm;
-      window.TD_DATA.sb = sb;
-      window.TD_DATA.manifest = manifest;
-      window.TD_DATA.cal = cal;
-      window.TD_DATA.uoaMeta = uoaMeta;
-      // Build hover lookup from every cell across grades
-      DESK_TKMAP = {};
-      if (swing && swing.runs && swing.runs.length) {
-        const r = swing.runs[swing.runs.length - 1];
-        Object.keys(r.grades || {}).forEach(function (g) {
-          (r.grades[g] || []).forEach(function (c) { DESK_TKMAP[c.t] = c; });
-        });
+
+    // Reloads every JSON the desk reads + re-renders every card. Designed
+    // to be safe to call repeatedly — used both on initial mount and on
+    // every interval tick. Cards do their own freshness staling display,
+    // so this just keeps the underlying data current.
+    function loadAndRender() {
+      return Promise.all([
+        fetchJSON("./reports/uoa_latest.json"),
+        fetchJSON("./reports/swing_report.json"),
+        fetchJSON("./reports/momentum_qm.json"),
+        fetchJSON("./reports/momentum_stockbee.json"),
+        fetchJSON("./reports/manifest.json"),
+        fetchJSON("./reports/economic_calendar.json"),
+        fetchJSON("./reports/uoa_meta_cache.json"),
+      ]).then(function (arr) {
+        const uoa = arr[0], swing = arr[1], qm = arr[2], sb = arr[3];
+        const manifest = arr[4], cal = arr[5], uoaMeta = arr[6];
+        const today = (swing && swing.runs && swing.runs.length)
+          ? swing.runs[swing.runs.length - 1].date
+          : new Date().toISOString().slice(0, 10);
+        DESK_DATE = today;
+        DESK_META = uoaMeta || {};
+        window.TD_DATA.uoa = uoa;
+        window.TD_DATA.swing = swing;
+        window.TD_DATA.qm = qm;
+        window.TD_DATA.sb = sb;
+        window.TD_DATA.manifest = manifest;
+        window.TD_DATA.cal = cal;
+        window.TD_DATA.uoaMeta = uoaMeta;
+        DESK_TKMAP = {};
+        if (swing && swing.runs && swing.runs.length) {
+          const r = swing.runs[swing.runs.length - 1];
+          Object.keys(r.grades || {}).forEach(function (g) {
+            (r.grades[g] || []).forEach(function (c) { DESK_TKMAP[c.t] = c; });
+          });
+        }
+        const ctx = buildConfluenceCtx(uoa, swing, qm, sb, manifest, today);
+        const calEarnStack =
+          '<div class="desk-stack">' +
+            cardCalendar(cal, today) +
+            cardEarnings(uoaMeta, today) +
+          '</div>';
+        grid.innerHTML = [
+          cardMarketHealth(swing),
+          cardTopFlow(uoa),
+          cardSwingUpgrades(swing),
+          cardBreakouts(swing, uoaMeta),
+          calEarnStack,
+          cardThemes(swing),
+          cardTopBullish(ctx, swing, uoa),
+          cardTopBearish(ctx, swing, uoa),
+        ].join("");
+      });
+    }
+
+    // Initial load + auto-refresh while the desk tab is visible. 2-min
+    // tick matches the UOA refresh granularity (UOA itself runs 3x/day,
+    // but Polygon-side caches turn over faster). When the page is
+    // background-tabbed, browsers will throttle the interval — that's
+    // intentional and fine.
+    loadAndRender();
+    setInterval(function () {
+      // Only refresh while the desk tab is the active panel — avoids
+      // hammering the network for users sitting on UOA/Swing/etc. The
+      // freshness stamp will still update on next desk visit because
+      // we render the desk fresh on each interval tick.
+      const deskPanel = document.getElementById("panel-desk");
+      if (deskPanel && deskPanel.classList.contains("active")) {
+        loadAndRender();
       }
-      const ctx = buildConfluenceCtx(uoa, swing, qm, sb, manifest, today);
-      // Calendar + Earnings share a single grid cell — Earnings sits cleanly
-      // beneath the Economic Calendar in the same left-column slot.
-      const calEarnStack =
-        '<div class="desk-stack">' +
-          cardCalendar(cal, today) +
-          cardEarnings(uoaMeta, today) +
-        '</div>';
-      grid.innerHTML = [
-        cardMarketHealth(swing),
-        cardTopFlow(uoa),
-        cardSwingUpgrades(swing),
-        cardBreakouts(swing, uoaMeta),
-        calEarnStack,
-        cardThemes(swing),
-        cardTopBullish(ctx, swing, uoa),
-        cardTopBearish(ctx, swing, uoa),
-      ].join("");
+    }, 2 * 60 * 1000);
+
+    // Also refresh whenever the user switches BACK to the desk tab
+    // (catches the case where data went stale while they were on
+    // another tab). Listen at nav-level for the desk button.
+    document.getElementById("nav").addEventListener("click", function (e) {
+      if (e.target && e.target.dataset && e.target.dataset.tab === "desk") {
+        loadAndRender();
+      }
     });
   }
   setupDesk();
