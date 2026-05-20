@@ -48,6 +48,10 @@ jobs:
         run: python earnings_anticipated.py
 
       - name: Auto-discover @eWhispers weekly tweet image
+        # Twitter's syndication endpoint rate-limits aggressively; a 429
+        # or any other failure here must NEVER block the publish step
+        # below (which commits swing_report.json, momentum scans, etc.).
+        continue-on-error: true
         run: python earnings_whisper_tweet.py
 
       - name: Refresh country/region ETF YTD
