@@ -1375,6 +1375,7 @@
      loaded JSON (swing, uoa, uoaMeta, manifest, ...) and renders a
      right-side slide-out panel with a per-name briefing.
      ──────────────────────────────────────────────────────────────── */
+  const TDP_WORKER_URL = "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev";
   window.TD_DATA = window.TD_DATA || {};   // populated by setupDesk + setupSwing
 
   (function () {
@@ -1436,6 +1437,72 @@
       return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
         '<polyline points="' + pts + '" fill="none" stroke="' + col +
         '" stroke-width="1.8"/></svg>';
+    }
+    // Full daily candlestick chart (90 days). Returns inline SVG with
+    // wick + body per bar, plus a 50-day SMA overlay and the prior close
+    // baseline. Sized to fit the panel column (380×140).
+    function candlestickSVG(bars, prevClose) {
+      if (!bars || bars.length < 2) return '<div class="tdp-empty">No chart data.</div>';
+      const W = 380, H = 140, PAD = 6;
+      let lo = Infinity, hi = -Infinity;
+      bars.forEach(function (b) { if (b.l < lo) lo = b.l; if (b.h > hi) hi = b.h; });
+      if (prevClose != null) {
+        lo = Math.min(lo, prevClose); hi = Math.max(hi, prevClose);
+      }
+      const span = (hi - lo) || 1;
+      const innerH = H - PAD * 2;
+      const yv = function (v) { return PAD + innerH - ((v - lo) / span) * innerH; };
+      const n = bars.length, cw = W / n, bw = Math.max(1, cw * 0.62);
+      // 50-day SMA overlay
+      const sma = [];
+      for (let i = 0; i < bars.length; i++) {
+        if (i < 49) { sma.push(null); continue; }
+        let s = 0;
+        for (let k = i - 49; k <= i; k++) s += bars[k].c;
+        sma.push(s / 50);
+      }
+      let body = "";
+      bars.forEach(function (b, i) {
+        const cx = (i + 0.5) * cw;
+        const col = b.c >= b.o ? "var(--green)" : "var(--red)";
+        const top = Math.min(yv(b.o), yv(b.c));
+        const bh = Math.max(1, Math.abs(yv(b.c) - yv(b.o)));
+        body +=
+          '<line x1="' + cx.toFixed(1) + '" y1="' + yv(b.h).toFixed(1) +
+            '" x2="' + cx.toFixed(1) + '" y2="' + yv(b.l).toFixed(1) +
+            '" stroke="' + col + '" stroke-width="1"/>' +
+          '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + top.toFixed(1) +
+            '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) +
+            '" fill="' + col + '"/>';
+      });
+      // 50-SMA line
+      let smaLine = "";
+      const smaPts = sma.map(function (v, i) {
+          return v == null ? null : ((i + 0.5) * cw).toFixed(1) + "," + yv(v).toFixed(1);
+        }).filter(Boolean).join(" ");
+      if (smaPts) smaLine =
+        '<polyline points="' + smaPts + '" fill="none" stroke="var(--gold)" ' +
+        'stroke-width="1" opacity="0.65" stroke-dasharray="2 2"/>';
+      // Range label (top-left)
+      const lbl =
+        '<text x="6" y="13" fill="var(--muted)" font-size="9" font-family="monospace">' +
+          '$' + lo.toFixed(2) + ' - $' + hi.toFixed(2) +
+        '</text>' +
+        '<text x="' + (W - 6) + '" y="13" fill="var(--muted)" font-size="9" ' +
+          'font-family="monospace" text-anchor="end">' +
+          n + ' bars · 50-SMA</text>';
+      return '<svg viewBox="0 0 ' + W + ' ' + H + '">' + body + smaLine + lbl + '</svg>';
+    }
+    // Per-ticker private notes (localStorage). Cleared with Reset link.
+    function loadNotes(t) {
+      try { return localStorage.getItem("td-notes-" + t) || ""; }
+      catch (e) { return ""; }
+    }
+    function saveNotes(t, v) {
+      try {
+        if (v) localStorage.setItem("td-notes-" + t, v);
+        else   localStorage.removeItem("td-notes-" + t);
+      } catch (e) {}
     }
     function gradeBg(g) {
       // Mirror the swing grading colour ramp
@@ -1649,11 +1716,17 @@
           }).join("") + '</div>';
       sec.push('<div class="tdp-section"><h4>Snapshot</h4>' + snap + '</div>');
 
-      // 2) 30-day sparkline (from swing data)
-      if (sw && sw.spark && sw.spark.length > 1) {
-        sec.push('<div class="tdp-section"><h4>30-day price</h4>' +
-          '<div class="tdp-spark">' + spark(sw.spark) + '</div></div>');
-      }
+      // 2) Price chart — opens with the 30-day sparkline (instant, from
+      // swing data) then auto-upgrades to a 90-day daily candlestick when
+      // the worker's ?candles= endpoint returns. The section is keyed by
+      // a stable id so the upgrade can find it.
+      sec.push('<div class="tdp-section" id="tdp-chart-section">' +
+        '<h4 id="tdp-chart-head">30-day price</h4>' +
+        '<div class="tdp-spark" id="tdp-chart-body">' +
+          (sw && sw.spark && sw.spark.length > 1
+            ? spark(sw.spark)
+            : '<div class="tdp-empty">No price data on file.</div>') +
+        '</div></div>');
 
       // 3) Options flow
       if (agg.uoaRows && agg.uoaRows.length) {
@@ -1701,7 +1774,30 @@
       sec.push('<div class="tdp-section"><h4>Why it matters today</h4>' +
         '<div class="tdp-why">' + whyMatters(agg) + '</div></div>');
 
-      // 6) Empty-state fallback
+      // 6) Setup notes — local-only scratchpad. Stored per-ticker in
+      // localStorage. Persists across sessions on this browser only.
+      const notesVal = loadNotes(t).replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      sec.push('<div class="tdp-section">' +
+        '<h4>Setup notes <span style="color:var(--muted);font-weight:400;' +
+          'text-transform:none;letter-spacing:0;font-size:9px;">' +
+          '· private, saved to this browser</span></h4>' +
+        '<textarea id="tdp-notes" rows="3" placeholder="Levels, ' +
+          'entry/exit, watch flags..." style="width:100%;background:' +
+          'var(--navy2);border:1px solid var(--border2);border-radius:5px;' +
+          'padding:7px 9px;color:var(--text);font-family:inherit;' +
+          'font-size:11.5px;line-height:1.4;resize:vertical;min-height:60px;' +
+          'box-sizing:border-box;">' + notesVal + '</textarea>' +
+        '<div style="display:flex;justify-content:space-between;' +
+          'align-items:center;margin-top:5px;font-size:9.5px;color:var(--muted);">' +
+          '<span id="tdp-notes-status">Auto-saves as you type</span>' +
+          '<button id="tdp-notes-clear" style="background:none;border:0;' +
+            'color:var(--muted);cursor:pointer;font-size:9.5px;' +
+            'text-decoration:underline;font-family:inherit;padding:0;">' +
+            'Clear notes</button>' +
+        '</div></div>');
+
+      // 7) Empty-state fallback
       if (!agg.found) {
         sec.unshift('<div class="tdp-section"><div class="tdp-empty">' +
           'No swing grade or options flow on file for this ticker — ' +
@@ -1709,17 +1805,65 @@
       }
 
       body.innerHTML = sec.join("");
+
+      // Wire the notes textarea (debounced auto-save)
+      const ta = document.getElementById("tdp-notes");
+      const status = document.getElementById("tdp-notes-status");
+      const clr = document.getElementById("tdp-notes-clear");
+      if (ta) {
+        let saveTimer;
+        ta.addEventListener("input", function () {
+          clearTimeout(saveTimer);
+          status.textContent = "Saving...";
+          saveTimer = setTimeout(function () {
+            saveNotes(t, ta.value);
+            status.textContent = "Saved " + (new Date())
+              .toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+          }, 350);
+        });
+        clr.addEventListener("click", function () {
+          if (!ta.value) return;
+          if (!confirm("Clear notes for " + t + "?")) return;
+          ta.value = "";
+          saveNotes(t, "");
+          status.textContent = "Cleared";
+        });
+      }
+    }
+
+    // Tracks the ticker currently displayed so async candle fetches
+    // don't clobber the panel if the user has since switched tickers.
+    let ACTIVE_TICKER = null;
+    async function fetchAndUpgradeChart(t) {
+      if (!t || t !== ACTIVE_TICKER) return;
+      try {
+        const r = await fetch(TDP_WORKER_URL + "?candles=" +
+          encodeURIComponent(t) + "&range=3mo&interval=1d");
+        if (!r.ok) return;
+        const d = await r.json();
+        if (!d || !d.bars || !d.bars.length) return;
+        if (t !== ACTIVE_TICKER) return;     // user moved on
+        const head = document.getElementById("tdp-chart-head");
+        const body = document.getElementById("tdp-chart-body");
+        if (!head || !body) return;
+        head.textContent = "90-day price · daily candles";
+        body.innerHTML = candlestickSVG(d.bars, d.prevClose);
+      } catch (e) { /* leave the sparkline in place */ }
     }
 
     function openPanel(t) {
       if (!t) return;
+      ACTIVE_TICKER = t;
       renderPanel(t);
       panel.classList.add("show");
       panel.setAttribute("aria-hidden", "false");
       backdrop.classList.add("show");
       document.body.style.overflow = "hidden";
+      // Async upgrade: sparkline -> 90-day daily candlestick when ready
+      fetchAndUpgradeChart(t);
     }
     function closePanel() {
+      ACTIVE_TICKER = null;
       panel.classList.remove("show");
       panel.setAttribute("aria-hidden", "true");
       backdrop.classList.remove("show");
@@ -1808,7 +1952,9 @@
       return;
     }
     el.innerHTML = entries.map(function (r) {
-      const tk = r.ticker ? '<span class="tk">' + r.ticker + '</span>' : '';
+      const tk = r.ticker
+        ? '<span class="tk" data-t="' + r.ticker + '">' + r.ticker + '</span>'
+        : '';
       return '<a class="report-item" href="./reports/' + r.file + '" target="_blank">' +
         '<span class="meta">' +
           '<span class="label">' + tk + (r.label || r.file) + '</span>' +
@@ -1955,7 +2101,7 @@
         run.rows.map(function (r) {
           const c = (typeof r.chg === "number") ? r.chg : null;
           const cc = c == null ? "" : c > 0 ? "mom-pos" : c < 0 ? "mom-neg" : "";
-          return '<tr><td>' + r.ticker + '</td>' +
+          return '<tr><td><span data-t="' + r.ticker + '">' + r.ticker + '</span></td>' +
             '<td>' + (r.price != null ? "$" + r.price.toFixed(2) : "—") + '</td>' +
             '<td class="' + cc + '">' +
               (c != null ? (c > 0 ? "+" : "") + c.toFixed(1) + "%" : "—") + '</td>' +
@@ -3286,7 +3432,7 @@
       tb.innerHTML = groups.map(function (g) {
         const ncls = g.net==="BULLISH" ? "bias-bull" : g.net==="BEARISH" ? "bias-bear" : "bias-hedge";
         return '<tr data-grp="'+g.ticker+'">'+
-          '<td><strong>'+g.ticker+'</strong></td>'+
+          '<td><strong data-t="'+g.ticker+'">'+g.ticker+'</strong></td>'+
           '<td><span class="uoa-bias '+ncls+'">'+g.net+'</span></td>'+
           '<td>'+g.n+'</td>'+
           '<td class="'+(g.prem>=1e6?"uoa-prem-big":"")+'">$'+fmtNum(g.prem)+'</td>'+
@@ -3352,7 +3498,7 @@
       tb.innerHTML = shownRows.map(function (r, i) {
         const bem = r.be_distance_pct;
         return '<tr data-idx="'+i+'">'+
-          '<td><strong>'+r.ticker+'</strong></td>'+
+          '<td><strong data-t="'+r.ticker+'">'+r.ticker+'</strong></td>'+
           '<td><span class="uoa-tier '+tierCls(r.tier)+'">'+(r.tier||"C")+'</span></td>'+
           '<td><span class="uoa-score '+scoreCls(r.trade_score)+'">'+r.trade_score+'</span></td>'+
           '<td>'+biasPill(r.flow_side, r.direction)+'</td>'+
@@ -3867,6 +4013,9 @@
     })();
 
     $("uoa-body").addEventListener("click", function (e) {
+      // If the click landed on a ticker cell, the global drilldown handler
+      // owns it — don't also filter the table or open the contract detail.
+      if (e.target.closest("[data-t]")) return;
       const tr = e.target.closest("tr");
       if (!tr) return;
       if (tr.dataset.grp) {                     // grouped row -> drill into ticker
