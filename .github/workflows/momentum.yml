@@ -50,5 +50,8 @@ jobs:
       - name: Auto-discover @eWhispers weekly tweet image
         run: python earnings_whisper_tweet.py
 
+      - name: Refresh country/region ETF YTD
+        run: python country_etfs.py
+
       - name: Publish reports to site archive
         run: bash scripts/publish_reports.sh
