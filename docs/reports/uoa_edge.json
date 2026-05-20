@@ -1,6 +1,6 @@
 {
- "generated": "2026-05-20T22:16:25+00:00",
- "total_signals": 7357,
+ "generated": "2026-05-20T22:52:34+00:00",
+ "total_signals": 7587,
  "matured_5d": 0,
  "horizons": [
   1,
@@ -53,7 +53,7 @@
  },
  "by_type": {
   "golden_sweep": {
-   "signals": 1958,
+   "signals": 2034,
    "h": {
     "1": {
      "n": 1673,
@@ -107,7 +107,7 @@
    }
   },
   "sweep": {
-   "signals": 4236,
+   "signals": 4357,
    "h": {
     "1": {
      "n": 3784,
@@ -161,7 +161,7 @@
    }
   },
   "voloi": {
-   "signals": 1163,
+   "signals": 1196,
    "h": {
     "1": {
      "n": 1030,
@@ -217,7 +217,7 @@
  },
  "by_score": {
   "80-100": {
-   "signals": 926,
+   "signals": 962,
    "h": {
     "1": {
      "n": 854,
@@ -271,7 +271,7 @@
    }
   },
   "65-79": {
-   "signals": 3941,
+   "signals": 4103,
    "h": {
     "1": {
      "n": 3462,
@@ -325,7 +325,7 @@
    }
   },
   "55-64": {
-   "signals": 2490,
+   "signals": 2522,
    "h": {
     "1": {
      "n": 2171,
@@ -381,7 +381,7 @@
  },
  "by_dte": {
   "urgent": {
-   "signals": 5156,
+   "signals": 5318,
    "h": {
     "1": {
      "n": 4544,
@@ -435,7 +435,7 @@
    }
   },
   "swing": {
-   "signals": 1462,
+   "signals": 1500,
    "h": {
     "1": {
      "n": 1316,
@@ -489,7 +489,7 @@
    }
   },
   "positioning": {
-   "signals": 653,
+   "signals": 680,
    "h": {
     "1": {
      "n": 551,
@@ -543,7 +543,7 @@
    }
   },
   "leaps": {
-   "signals": 86,
+   "signals": 89,
    "h": {
     "1": {
      "n": 76,
@@ -599,7 +599,7 @@
  },
  "by_tag": {
   "Golden Sweep": {
-   "signals": 1958,
+   "signals": 2034,
    "h": {
     "1": {
      "n": 1673,
@@ -653,7 +653,7 @@
    }
   },
   "Sweep": {
-   "signals": 4236,
+   "signals": 4357,
    "h": {
     "1": {
      "n": 3784,
@@ -707,7 +707,7 @@
    }
   },
   "Block": {
-   "signals": 4851,
+   "signals": 4999,
    "h": {
     "1": {
      "n": 4300,
@@ -761,7 +761,7 @@
    }
   },
   "Size>OI": {
-   "signals": 1839,
+   "signals": 1904,
    "h": {
     "1": {
      "n": 1604,
@@ -815,7 +815,7 @@
    }
   },
   "Repeat": {
-   "signals": 6271,
+   "signals": 6501,
    "h": {
     "1": {
      "n": 5557,
@@ -869,7 +869,7 @@
    }
   },
   "Into ERN": {
-   "signals": 1015,
+   "signals": 1074,
    "h": {
     "1": {
      "n": 816,
@@ -923,7 +923,7 @@
    }
   },
   "In Universe": {
-   "signals": 5905,
+   "signals": 6085,
    "h": {
     "1": {
      "n": 5226,
@@ -979,7 +979,7 @@
  },
  "by_ticker": {
   "MRVL": {
-   "signals": 53,
+   "signals": 58,
    "h": {
     "1": {
      "n": 33,
@@ -1038,7 +1038,7 @@
    }
   },
   "TSLA": {
-   "signals": 1223,
+   "signals": 1270,
    "h": {
     "1": {
      "n": 1027,
@@ -1097,7 +1097,7 @@
    }
   },
   "GOOGL": {
-   "signals": 153,
+   "signals": 155,
    "h": {
     "1": {
      "n": 145,
@@ -1156,7 +1156,7 @@
    }
   },
   "MU": {
-   "signals": 744,
+   "signals": 757,
    "h": {
     "1": {
      "n": 693,
@@ -1215,7 +1215,7 @@
    }
   },
   "NVDA": {
-   "signals": 409,
+   "signals": 438,
    "h": {
     "1": {
      "n": 323,
@@ -1392,7 +1392,7 @@
    }
   },
   "INTC": {
-   "signals": 301,
+   "signals": 311,
    "h": {
     "1": {
      "n": 255,
@@ -1628,7 +1628,7 @@
    }
   },
   "META": {
-   "signals": 112,
+   "signals": 113,
    "h": {
     "1": {
      "n": 110,
@@ -1687,7 +1687,7 @@
    }
   },
   "GOOG": {
-   "signals": 136,
+   "signals": 141,
    "h": {
     "1": {
      "n": 115,
@@ -1746,7 +1746,7 @@
    }
   },
   "NOW": {
-   "signals": 247,
+   "signals": 248,
    "h": {
     "1": {
      "n": 245,
@@ -1864,7 +1864,7 @@
    }
   },
   "AMD": {
-   "signals": 316,
+   "signals": 324,
    "h": {
     "1": {
      "n": 286,
@@ -1923,7 +1923,7 @@
    }
   },
   "AMZN": {
-   "signals": 100,
+   "signals": 102,
    "h": {
     "1": {
      "n": 92,
@@ -1982,7 +1982,7 @@
    }
   },
   "MSFT": {
-   "signals": 261,
+   "signals": 272,
    "h": {
     "1": {
      "n": 225,
@@ -2336,7 +2336,7 @@
    }
   },
   "AAOI": {
-   "signals": 40,
+   "signals": 41,
    "h": {
     "1": {
      "n": 37,
@@ -2513,7 +2513,7 @@
    }
   },
   "ORCL": {
-   "signals": 28,
+   "signals": 29,
    "h": {
     "1": {
      "n": 26,
@@ -2690,7 +2690,7 @@
    }
   },
   "COIN": {
-   "signals": 48,
+   "signals": 49,
    "h": {
     "1": {
      "n": 46,
@@ -2749,7 +2749,7 @@
    }
   },
   "UNP": {
-   "signals": 13,
+   "signals": 14,
    "h": {
     "1": {
      "n": 9,
@@ -2867,7 +2867,7 @@
    }
   },
   "TSM": {
-   "signals": 38,
+   "signals": 39,
    "h": {
     "1": {
      "n": 36,
@@ -3280,7 +3280,7 @@
    }
   },
   "AAPL": {
-   "signals": 85,
+   "signals": 88,
    "h": {
     "1": {
      "n": 73,
@@ -3634,7 +3634,7 @@
    }
   },
   "MSTR": {
-   "signals": 79,
+   "signals": 80,
    "h": {
     "1": {
      "n": 74,
@@ -3693,7 +3693,7 @@
    }
   },
   "FSLR": {
-   "signals": 13,
+   "signals": 14,
    "h": {
     "1": {
      "n": 9,
@@ -4106,7 +4106,7 @@
    }
   },
   "ADI": {
-   "signals": 44,
+   "signals": 46,
    "h": {
     "1": {
      "n": 36,
@@ -4165,7 +4165,7 @@
    }
   },
   "WMT": {
-   "signals": 25,
+   "signals": 27,
    "h": {
     "1": {
      "n": 20,
@@ -4283,7 +4283,7 @@
    }
   },
   "RKLB": {
-   "signals": 50,
+   "signals": 51,
    "h": {
     "1": {
      "n": 46,
@@ -4578,7 +4578,7 @@
    }
   },
   "ALAB": {
-   "signals": 15,
+   "signals": 16,
    "h": {
     "1": {
      "n": 9,
@@ -5109,7 +5109,7 @@
    }
   },
   "CCJ": {
-   "signals": 13,
+   "signals": 14,
    "h": {
     "1": {
      "n": 9,
@@ -5699,7 +5699,7 @@
    }
   },
   "HIMS": {
-   "signals": 25,
+   "signals": 26,
    "h": {
     "1": {
      "n": 21,
@@ -5758,7 +5758,7 @@
    }
   },
   "CRM": {
-   "signals": 30,
+   "signals": 31,
    "h": {
     "1": {
      "n": 25,
@@ -5876,7 +5876,7 @@
    }
   },
   "PLTR": {
-   "signals": 30,
+   "signals": 32,
    "h": {
     "1": {
      "n": 24,
@@ -5994,7 +5994,7 @@
    }
   },
   "IOT": {
-   "signals": 14,
+   "signals": 15,
    "h": {
     "1": {
      "n": 9,
@@ -6112,7 +6112,7 @@
    }
   },
   "XRT": {
-   "signals": 23,
+   "signals": 24,
    "h": {
     "1": {
      "n": 19,
@@ -6171,7 +6171,7 @@
    }
   },
   "IREN": {
-   "signals": 37,
+   "signals": 38,
    "h": {
     "1": {
      "n": 33,
@@ -6289,7 +6289,7 @@
    }
   },
   "ARM": {
-   "signals": 29,
+   "signals": 32,
    "h": {
     "1": {
      "n": 15,
@@ -6466,7 +6466,7 @@
    }
   },
   "APLD": {
-   "signals": 13,
+   "signals": 14,
    "h": {
     "1": {
      "n": 9,
@@ -6820,7 +6820,7 @@
    }
   },
   "WDAY": {
-   "signals": 13,
+   "signals": 14,
    "h": {
     "1": {
      "n": 9,
@@ -6879,7 +6879,7 @@
    }
   },
   "NVTS": {
-   "signals": 13,
+   "signals": 14,
    "h": {
     "1": {
      "n": 9,
@@ -6997,7 +6997,7 @@
    }
   },
   "TGT": {
-   "signals": 54,
+   "signals": 58,
    "h": {
     "1": {
      "n": 37,
@@ -7115,7 +7115,7 @@
    }
   },
   "AAP": {
-   "signals": 13,
+   "signals": 14,
    "h": {
     "1": {
      "n": 9,
@@ -7174,7 +7174,7 @@
    }
   },
   "TE": {
-   "signals": 25,
+   "signals": 28,
    "h": {
     "1": {
      "n": 15,
@@ -8059,7 +8059,7 @@
    }
   },
   "POET": {
-   "signals": 59,
+   "signals": 60,
    "h": {
     "1": {
      "n": 57,
@@ -8118,7 +8118,7 @@
    }
   },
   "CSCO": {
-   "signals": 26,
+   "signals": 29,
    "h": {
     "1": {
      "n": 13,
@@ -8295,7 +8295,7 @@
    }
   },
   "DELL": {
-   "signals": 15,
+   "signals": 19,
    "h": {
     "1": {
      "n": 2,
@@ -8529,7 +8529,7 @@
    }
   },
   "TTD": {
-   "signals": 5,
+   "signals": 6,
    "h": {
     "1": {
      "n": 1,
@@ -9058,7 +9058,7 @@
    }
   },
   "HIVE": {
-   "signals": 14,
+   "signals": 16,
    "h": {
     "1": {
      "n": 6,
@@ -9294,7 +9294,7 @@
    }
   },
   "DG": {
-   "signals": 14,
+   "signals": 15,
    "h": {
     "1": {
      "n": 9,
@@ -9707,7 +9707,7 @@
    }
   },
   "OKLO": {
-   "signals": 10,
+   "signals": 11,
    "h": {
     "1": {
      "n": 8,
@@ -10415,7 +10415,7 @@
    }
   },
   "V": {
-   "signals": 10,
+   "signals": 11,
    "h": {
     "1": {
      "n": 6,
@@ -10828,7 +10828,7 @@
    }
   },
   "DVN": {
-   "signals": 5,
+   "signals": 6,
    "h": {
     "1": {
      "n": 0,
@@ -10885,7 +10885,7 @@
    }
   },
   "OKTA": {
-   "signals": 5,
+   "signals": 6,
    "h": {
     "1": {
      "n": 0,
@@ -10942,7 +10942,7 @@
    }
   },
   "INTU": {
-   "signals": 14,
+   "signals": 17,
    "h": {
     "1": {
      "n": 0,
@@ -10999,7 +10999,7 @@
    }
   },
   "SLS": {
-   "signals": 5,
+   "signals": 6,
    "h": {
     "1": {
      "n": 0,
@@ -11056,6 +11056,63 @@
    }
   },
   "HUN": {
+   "signals": 6,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "EOSE": {
    "signals": 5,
    "h": {
     "1": {
@@ -11113,177 +11170,6 @@
    }
   },
   "BBIO": {
-   "signals": 5,
-   "h": {
-    "1": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 0,
-    "confirmed": 0,
-    "confirm_rate": null
-   },
-   "excursion": {
-    "avg_mfe": null,
-    "avg_mae": null,
-    "n": 0
-   },
-   "alpha_confidence": {
-    "score": null,
-    "horizon": null,
-    "n": 0,
-    "verdict": "no data",
-    "tradeable": false
-   }
-  },
-  "VIAV": {
-   "signals": 10,
-   "h": {
-    "1": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 0,
-    "confirmed": 0,
-    "confirm_rate": null
-   },
-   "excursion": {
-    "avg_mfe": null,
-    "avg_mae": null,
-    "n": 0
-   },
-   "alpha_confidence": {
-    "score": null,
-    "horizon": null,
-    "n": 0,
-    "verdict": "no data",
-    "tradeable": false
-   }
-  },
-  "ASHR": {
-   "signals": 9,
-   "h": {
-    "1": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 0,
-    "confirmed": 0,
-    "confirm_rate": null
-   },
-   "excursion": {
-    "avg_mfe": null,
-    "avg_mae": null,
-    "n": 0
-   },
-   "alpha_confidence": {
-    "score": null,
-    "horizon": null,
-    "n": 0,
-    "verdict": "no data",
-    "tradeable": false
-   }
-  },
-  "ELF": {
    "signals": 6,
    "h": {
     "1": {
@@ -11340,8 +11226,977 @@
     "tradeable": false
    }
   },
+  "VIAV": {
+   "signals": 12,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "ASHR": {
+   "signals": 11,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "RCL": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "KSS": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "NKE": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "DOC": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "TPR": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "FLR": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "NCLH": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "W": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "ELF": {
+   "signals": 8,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "RDDT": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "LULU": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "CGNX": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "NVDL": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
   "CHWY": {
-   "signals": 7,
+   "signals": 9,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "EBAY": {
+   "signals": 5,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "DOCN": {
+   "signals": 6,
    "h": {
     "1": {
      "n": 0,
@@ -11400,7 +12255,7 @@
  },
  "by_theme": {
   "AI Infrastructure": {
-   "signals": 1905,
+   "signals": 1966,
    "h": {
     "1": {
      "n": 1697,
@@ -11459,7 +12314,7 @@
    }
   },
   "Photonics / Optical Networking": {
-   "signals": 196,
+   "signals": 204,
    "h": {
     "1": {
      "n": 163,
@@ -11518,7 +12373,7 @@
    }
   },
   "Semiconductors": {
-   "signals": 1331,
+   "signals": 1387,
    "h": {
     "1": {
      "n": 1135,
@@ -11577,7 +12432,7 @@
    }
   },
   "Autos & Auto Tech": {
-   "signals": 1223,
+   "signals": 1270,
    "h": {
     "1": {
      "n": 1027,
@@ -11636,7 +12491,7 @@
    }
   },
   "Robotics & Automation": {
-   "signals": 1232,
+   "signals": 1280,
    "h": {
     "1": {
      "n": 1034,
@@ -11695,7 +12550,7 @@
    }
   },
   "Internet & Content": {
-   "signals": 314,
+   "signals": 318,
    "h": {
     "1": {
      "n": 300,
@@ -11754,7 +12609,7 @@
    }
   },
   "Memory": {
-   "signals": 893,
+   "signals": 906,
    "h": {
     "1": {
      "n": 842,
@@ -11813,7 +12668,7 @@
    }
   },
   "Space": {
-   "signals": 130,
+   "signals": 131,
    "h": {
     "1": {
      "n": 126,
@@ -11872,7 +12727,7 @@
    }
   },
   "Alternative Energy & Power": {
-   "signals": 49,
+   "signals": 52,
    "h": {
     "1": {
      "n": 38,
@@ -11931,7 +12786,7 @@
    }
   },
   "Bitcoin Miners & AI Data Centers": {
-   "signals": 176,
+   "signals": 178,
    "h": {
     "1": {
      "n": 167,
@@ -11990,7 +12845,7 @@
    }
   },
   "Crypto Infrastructure": {
-   "signals": 292,
+   "signals": 295,
    "h": {
     "1": {
      "n": 279,
@@ -12049,7 +12904,7 @@
    }
   },
   "Brokers & Exchanges": {
-   "signals": 49,
+   "signals": 50,
    "h": {
     "1": {
      "n": 46,
@@ -12108,7 +12963,7 @@
    }
   },
   "Software": {
-   "signals": 331,
+   "signals": 335,
    "h": {
     "1": {
      "n": 320,
@@ -12226,7 +13081,7 @@
    }
   },
   "Cybersecurity": {
-   "signals": 35,
+   "signals": 37,
    "h": {
     "1": {
      "n": 28,
@@ -12344,7 +13199,7 @@
    }
   },
   "Power Semis": {
-   "signals": 66,
+   "signals": 69,
    "h": {
     "1": {
      "n": 54,
@@ -12462,7 +13317,7 @@
    }
   },
   "Defense Tech": {
-   "signals": 80,
+   "signals": 83,
    "h": {
     "1": {
      "n": 70,
@@ -12580,7 +13435,7 @@
    }
   },
   "Banks": {
-   "signals": 57,
+   "signals": 58,
    "h": {
     "1": {
      "n": 54,
@@ -12698,7 +13553,7 @@
    }
   },
   "Uranium": {
-   "signals": 19,
+   "signals": 20,
    "h": {
     "1": {
      "n": 15,
@@ -12757,7 +13612,7 @@
    }
   },
   "Retail & Apparel": {
-   "signals": 37,
+   "signals": 41,
    "h": {
     "1": {
      "n": 22,
@@ -12934,7 +13789,7 @@
    }
   },
   "GLP-1 / Obesity": {
-   "signals": 25,
+   "signals": 26,
    "h": {
     "1": {
      "n": 21,
@@ -13170,7 +14025,7 @@
    }
   },
   "Small Modular Reactors": {
-   "signals": 14,
+   "signals": 16,
    "h": {
     "1": {
      "n": 8,
@@ -13229,7 +14084,7 @@
    }
   },
   "Chemicals": {
-   "signals": 5,
+   "signals": 6,
    "h": {
     "1": {
      "n": 0,
