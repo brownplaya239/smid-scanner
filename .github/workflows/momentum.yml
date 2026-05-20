@@ -13,6 +13,13 @@ on:
 jobs:
   momentum:
     runs-on: ubuntu-latest
+    # Pass Polygon API key to every step — swing_report.py builds the
+    # universe from grouped_daily, country_etfs.py pulls daily bars,
+    # momentum_scanner.py prefers Polygon over yfinance. Missing key
+    # was silently zeroing the swing universe (and breaking Top Swing
+    # Upgrades) for every CI run since this workflow started.
+    env:
+      POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
     permissions:
       contents: write          # allow committing archived report PDFs back
 
