@@ -418,6 +418,15 @@
     margin-left:8px; font-family:inherit; }
   .tdp-head .tdp-close:hover { color:var(--text); }
   .tdp-head .tdp-name { font-size:12px; color:var(--textdim); margin-top:4px; }
+  /* Confluence score — single -10..+10 read on whether everything we
+     know about this name is agreeing (bull/bear) or disagreeing (mixed) */
+  .tdp-conf { display:inline-block; font-size:10px; font-weight:800;
+    letter-spacing:.3px; padding:2px 8px; border-radius:10px;
+    margin-top:6px; text-shadow:0 1px 1px rgba(0,0,0,.4); cursor:default; }
+  .tdp-conf.tdp-conf-bull  { background:rgba(31,179,99,0.85);  color:#fff; }
+  .tdp-conf.tdp-conf-bear  { background:rgba(214,68,68,0.85);  color:#fff; }
+  .tdp-conf.tdp-conf-lean  { background:rgba(160,178,210,0.45); color:var(--text); }
+  .tdp-conf.tdp-conf-mixed { background:rgba(120,135,165,0.35); color:var(--text); }
   .tdp-body { padding:8px 18px 22px; overflow-y:auto; flex:1; }
   .tdp-section { padding:12px 0; border-bottom:1px solid var(--line); }
   .tdp-section:last-child { border-bottom:0; }
@@ -1245,6 +1254,15 @@
                 <option value="negative">Negative only</option>
                 <option value="neutral">Neutral only</option>
               </select>
+              <select id="news-cat" title="Category">
+                <option value="">All categories</option>
+                <option value="market-moving">Market-moving</option>
+                <option value="earnings">Earnings</option>
+                <option value="analyst">Analyst actions</option>
+                <option value="ma">M&amp;A</option>
+                <option value="legal">Legal / Regulatory</option>
+                <option value="insider">Insider / Institutional</option>
+              </select>
               <label class="news-watch"><input type="checkbox" id="news-watch"/>
                 Watchlist only</label>
               <label class="news-watch"
@@ -1816,6 +1834,53 @@
     // Generate a 1-3 sentence narrative explaining why this ticker matters
     // RIGHT NOW. Pulls from grade alignment, flow conviction, themes,
     // momentum, reports, earnings imminence.
+    // Confluence score — single -10..+10 number that aggregates every
+    // signal we have for this ticker into one read. Lets the user glance
+    // at the panel header and know whether all systems are agreeing or
+    // arguing. Components:
+    //   Grade tier        ±4 max (A+ +4, A +3, A- +2, B+ +1; G -4, G+ -3, F -2)
+    //   Flow direction    ±2     (bullish +2, bearish -2)
+    //   Volume confirm    +1     (rvol >= 1.5)
+    //   Momentum hits     +1 ea  (QM Monthly + Stockbee Weekly)
+    //   Earnings live    +0.5   (event risk inside 3 days)
+    function confluenceScore(agg) {
+      let s = 0;
+      const g = agg.grade || "";
+      if (g === "A+") s += 4; else if (g === "A") s += 3;
+      else if (g === "A-") s += 2; else if (/^B\+?$/.test(g)) s += 1;
+      else if (g === "G") s -= 4; else if (g === "G+") s -= 3;
+      else if (/^F/.test(g)) s -= 2;
+      if (agg.uoaDir === "bullish") s += 2;
+      else if (agg.uoaDir === "bearish") s -= 2;
+      if (agg.swing && typeof agg.swing.rvol === "number" &&
+          agg.swing.rvol >= 1.5) s += (s >= 0 ? 1 : -1);
+      if (agg.qmHit) s += 1;
+      if (agg.sbHit) s += 1;
+      if (agg.meta && agg.meta.earnings_date) {
+        const ed = new Date(agg.meta.earnings_date + "T00:00:00");
+        const today = new Date(); today.setHours(0,0,0,0);
+        const days = Math.round((ed - today) / 86400000);
+        if (days >= 0 && days <= 3) s += (s >= 0 ? 0.5 : -0.5);
+      }
+      // Cap at ±10 so the badge never overflows the layout
+      return Math.max(-10, Math.min(10, Math.round(s * 2) / 2));
+    }
+    function confluenceBadge(score) {
+      let cls, label;
+      if (score >= 5)      { cls = "tdp-conf-bull"; label = "strong bull"; }
+      else if (score >= 2) { cls = "tdp-conf-bull"; label = "bull"; }
+      else if (score >= 1) { cls = "tdp-conf-lean"; label = "lean bull"; }
+      else if (score <= -5){ cls = "tdp-conf-bear"; label = "strong bear"; }
+      else if (score <= -2){ cls = "tdp-conf-bear"; label = "bear"; }
+      else if (score <= -1){ cls = "tdp-conf-lean"; label = "lean bear"; }
+      else                  { cls = "tdp-conf-mixed"; label = "neutral"; }
+      const sign = score > 0 ? "+" : "";
+      return '<span class="tdp-conf ' + cls +
+        '" title="Confluence score: grade + flow + rvol + momentum + ' +
+        'earnings proximity. Range -10..+10.">' +
+        sign + score + ' · ' + label + '</span>';
+    }
+
     function whyMatters(agg) {
       const s = [];
       const aTier = agg.grade && /^A/.test(agg.grade);
@@ -1906,8 +1971,12 @@
         chgEl.textContent = "";
       }
       pxEl.textContent = sw && sw.p != null ? "$" + sw.p.toFixed(2) : "";
-      nameEl.textContent = cleanName((sw && sw.n) ||
+      const cleanedName = cleanName((sw && sw.n) ||
                             (agg.meta && agg.meta.name) || t);
+      // Name + confluence chip on the same row — single glance read.
+      const confScore = confluenceScore(agg);
+      nameEl.innerHTML = '<span>' + cleanedName + '</span> ' +
+        confluenceBadge(confScore);
 
       // ── Body sections ──
       const sec = [];
@@ -2648,6 +2717,7 @@
     const sentSel   = document.getElementById("news-sent");
     const watchOnly = document.getElementById("news-watch");
     const highConf  = document.getElementById("news-highconf");
+    const catSel    = document.getElementById("news-cat");
     const updated   = document.getElementById("news-updated");
     if (!list) return;
 
@@ -2868,12 +2938,55 @@
         return c[t] === "high";
       });
     }
+    // ── Category detection from Polygon keywords + title fallback ──
+    // Each category is a set of substring patterns that, when matched
+    // against the article's keywords[] array or title, flag the article
+    // as belonging to that category.
+    const CAT_PATTERNS = {
+      earnings: ["earning", "revenue", "guidance", "quarterly", "preannounce",
+                 "beat", "miss", " eps", "fiscal", "Q1 ", "Q2 ", "Q3 ", "Q4 ",
+                 "reports results", "results for"],
+      analyst:  ["upgrade", "downgrade", "rating", "price target", "analyst",
+                 "reiterat", "initiat", "buy rating", "sell rating",
+                 "overweight", "underweight"],
+      ma:       ["merger", "acquisition", "acquir", "takeover", "buyout",
+                 "definitive agreement", "tender offer", " m&a ", "to acquire",
+                 "to buy", "in talks to", "merger of equals"],
+      legal:    ["lawsuit", "settlement", "sec ", "investigation", "fraud",
+                 "subpoena", "class action", "court ", "judge ", "ruling",
+                 "indictment", "fines", "regulatory"],
+      insider:  ["13d", "13g", "form 4", "insider buy", "insider sell",
+                 "insider transaction", "beneficial owner", "stake",
+                 "activist", "shareholder vote", "institutional"],
+    };
+    function detectCategories(article) {
+      const haystack = ((article.keywords || []).join(" ") + " " +
+        (article.title || "") + " " + (article.description || "")).toLowerCase();
+      const out = new Set();
+      Object.keys(CAT_PATTERNS).forEach(function (cat) {
+        if (CAT_PATTERNS[cat].some(function (p) {
+          return haystack.indexOf(p) >= 0;
+        })) out.add(cat);
+      });
+      return out;
+    }
+    function passesCategory(article, want) {
+      if (!want) return true;
+      if (!article._cats) article._cats = detectCategories(article);
+      if (want === "market-moving") {
+        // The four categories that historically move price hardest
+        return article._cats.has("earnings") || article._cats.has("analyst") ||
+               article._cats.has("ma")       || article._cats.has("legal");
+      }
+      return article._cats.has(want);
+    }
     function renderGeneral() {
       const hours = parseInt(windowSel.value, 10);
       const want  = sentSel.value;
+      const cat = catSel ? catSel.value : "";
       const filtered = GENERAL.filter(function (a) {
         return withinWindow(a, hours) && matchesSentiment(a, want) &&
-               inUniverse(a) && passesHighConf(a);
+               inUniverse(a) && passesHighConf(a) && passesCategory(a, cat);
       });
       if (!filtered.length) {
         list.innerHTML = '<div class="news-empty">No headlines match these filters.</div>';
@@ -3031,6 +3144,7 @@
     sentSel.addEventListener("change", renderGeneral);
     watchOnly.addEventListener("change", renderGeneral);
     if (highConf) highConf.addEventListener("change", renderGeneral);
+    if (catSel)   catSel.addEventListener("change", renderGeneral);
     let searchTimer;
     tkInput.addEventListener("input", function () {
       const t = tkInput.value.trim().toUpperCase();
