@@ -1,6 +1,6 @@
 {
- "generated": "2026-05-20T08:43:06+00:00",
- "total_signals": 6487,
+ "generated": "2026-05-20T15:11:56+00:00",
+ "total_signals": 6553,
  "matured_5d": 0,
  "horizons": [
   1,
@@ -11,11 +11,11 @@
  ],
  "overall": {
   "1": {
-   "n": 4622,
-   "hit_rate": 37,
-   "avg": -0.17,
-   "median": -0.78,
-   "avg_excess": 0.5
+   "n": 6487,
+   "hit_rate": 48,
+   "avg": 0.44,
+   "median": -0.11,
+   "avg_excess": 0.72
   },
   "3": {
    "n": 0,
@@ -47,20 +47,20 @@
   }
  },
  "excursion": {
-  "avg_mfe": 2.1,
-  "avg_mae": -3.5,
-  "n": 4622
+  "avg_mfe": 3.7,
+  "avg_mae": -2.9,
+  "n": 6487
  },
  "by_type": {
   "golden_sweep": {
-   "signals": 1673,
+   "signals": 1692,
    "h": {
     "1": {
-     "n": 1087,
-     "hit_rate": 37,
-     "avg": 0.13,
-     "median": -0.91,
-     "avg_excess": 0.8
+     "n": 1673,
+     "hit_rate": 55,
+     "avg": 0.87,
+     "median": 0.79,
+     "avg_excess": 1.06
     },
     "3": {
      "n": 0,
@@ -93,699 +93,18 @@
    },
    "oi": {
     "checked": 1556,
-    "confirmed": 101,
-    "confirm_rate": 6
+    "confirmed": 305,
+    "confirm_rate": 20
    }
   },
   "sweep": {
-   "signals": 3784,
+   "signals": 3820,
    "h": {
     "1": {
-     "n": 2877,
-     "hit_rate": 34,
-     "avg": -0.36,
-     "median": -0.84,
-     "avg_excess": 0.3
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 3467,
-    "confirmed": 1232,
-    "confirm_rate": 36
-   }
-  },
-  "voloi": {
-   "signals": 1030,
-   "h": {
-    "1": {
-     "n": 658,
-     "hit_rate": 51,
-     "avg": 0.2,
-     "median": 0.12,
-     "avg_excess": 0.86
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 966,
-    "confirmed": 459,
-    "confirm_rate": 48
-   }
-  }
- },
- "by_score": {
-  "80-100": {
-   "signals": 854,
-   "h": {
-    "1": {
-     "n": 610,
-     "hit_rate": 33,
-     "avg": -0.05,
-     "median": -0.79,
-     "avg_excess": 0.61
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 797,
-    "confirmed": 216,
-    "confirm_rate": 27
-   }
-  },
-  "65-79": {
-   "signals": 3462,
-   "h": {
-    "1": {
-     "n": 2313,
-     "hit_rate": 39,
-     "avg": -0.13,
-     "median": -0.84,
-     "avg_excess": 0.54
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 3259,
-    "confirmed": 874,
-    "confirm_rate": 27
-   }
-  },
-  "55-64": {
-   "signals": 2171,
-   "h": {
-    "1": {
-     "n": 1699,
-     "hit_rate": 37,
-     "avg": -0.26,
-     "median": -0.62,
-     "avg_excess": 0.41
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 1933,
-    "confirmed": 702,
-    "confirm_rate": 36
-   }
-  }
- },
- "by_dte": {
-  "urgent": {
-   "signals": 4544,
-   "h": {
-    "1": {
-     "n": 3211,
-     "hit_rate": 36,
-     "avg": -0.11,
-     "median": -1.03,
-     "avg_excess": 0.55
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 4218,
-    "confirmed": 694,
-    "confirm_rate": 16
-   }
-  },
-  "swing": {
-   "signals": 1316,
-   "h": {
-    "1": {
-     "n": 976,
-     "hit_rate": 40,
-     "avg": -0.16,
-     "median": -0.36,
-     "avg_excess": 0.51
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 1194,
-    "confirmed": 737,
-    "confirm_rate": 62
-   }
-  },
-  "positioning": {
-   "signals": 551,
-   "h": {
-    "1": {
-     "n": 381,
-     "hit_rate": 38,
-     "avg": -0.61,
-     "median": -0.52,
-     "avg_excess": 0.06
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 503,
-    "confirmed": 309,
-    "confirm_rate": 61
-   }
-  },
-  "leaps": {
-   "signals": 76,
-   "h": {
-    "1": {
-     "n": 54,
-     "hit_rate": 50,
-     "avg": -0.37,
-     "median": 0.0,
-     "avg_excess": 0.3
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 74,
-    "confirmed": 52,
-    "confirm_rate": 70
-   }
-  }
- },
- "by_tag": {
-  "Golden Sweep": {
-   "signals": 1673,
-   "h": {
-    "1": {
-     "n": 1087,
-     "hit_rate": 37,
-     "avg": 0.13,
-     "median": -0.91,
-     "avg_excess": 0.8
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 1556,
-    "confirmed": 101,
-    "confirm_rate": 6
-   }
-  },
-  "Sweep": {
-   "signals": 3784,
-   "h": {
-    "1": {
-     "n": 2877,
-     "hit_rate": 34,
-     "avg": -0.36,
-     "median": -0.84,
-     "avg_excess": 0.3
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 3467,
-    "confirmed": 1232,
-    "confirm_rate": 36
-   }
-  },
-  "Block": {
-   "signals": 4300,
-   "h": {
-    "1": {
-     "n": 3097,
-     "hit_rate": 41,
-     "avg": 0.02,
-     "median": -0.62,
-     "avg_excess": 0.69
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 3964,
-    "confirmed": 1281,
-    "confirm_rate": 32
-   }
-  },
-  "Size>OI": {
-   "signals": 1604,
-   "h": {
-    "1": {
-     "n": 1205,
-     "hit_rate": 34,
-     "avg": -0.46,
-     "median": -0.84,
-     "avg_excess": 0.21
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 1604,
-    "confirmed": 795,
-    "confirm_rate": 50
-   }
-  },
-  "Repeat": {
-   "signals": 5557,
-   "h": {
-    "1": {
-     "n": 3852,
-     "hit_rate": 36,
-     "avg": -0.29,
-     "median": -1.02,
-     "avg_excess": 0.37
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 5557,
-    "confirmed": 1659,
-    "confirm_rate": 30
-   }
-  },
-  "Into ERN": {
-   "signals": 816,
-   "h": {
-    "1": {
-     "n": 513,
-     "hit_rate": 46,
-     "avg": 0.35,
-     "median": -0.19,
-     "avg_excess": 1.02
-    },
-    "3": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "5": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "10": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    },
-    "20": {
-     "n": 0,
-     "hit_rate": null,
-     "avg": null,
-     "median": null,
-     "avg_excess": null
-    }
-   },
-   "oi": {
-    "checked": 816,
-    "confirmed": 342,
-    "confirm_rate": 42
-   }
-  },
-  "In Universe": {
-   "signals": 5226,
-   "h": {
-    "1": {
-     "n": 3691,
-     "hit_rate": 38,
-     "avg": -0.05,
-     "median": -0.84,
+     "n": 3784,
+     "hit_rate": 44,
+     "avg": 0.27,
+     "median": -0.29,
      "avg_excess": 0.62
     },
     "3": {
@@ -818,17 +137,698 @@
     }
    },
    "oi": {
+    "checked": 3467,
+    "confirmed": 1844,
+    "confirm_rate": 53
+   }
+  },
+  "voloi": {
+   "signals": 1041,
+   "h": {
+    "1": {
+     "n": 1030,
+     "hit_rate": 53,
+     "avg": 0.38,
+     "median": 0.27,
+     "avg_excess": 0.56
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 966,
+    "confirmed": 663,
+    "confirm_rate": 69
+   }
+  }
+ },
+ "by_score": {
+  "80-100": {
+   "signals": 854,
+   "h": {
+    "1": {
+     "n": 854,
+     "hit_rate": 49,
+     "avg": 0.62,
+     "median": -0.12,
+     "avg_excess": 0.9
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 797,
+    "confirmed": 357,
+    "confirm_rate": 45
+   }
+  },
+  "65-79": {
+   "signals": 3484,
+   "h": {
+    "1": {
+     "n": 3462,
+     "hit_rate": 50,
+     "avg": 0.56,
+     "median": 0.01,
+     "avg_excess": 0.78
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 3259,
+    "confirmed": 1488,
+    "confirm_rate": 46
+   }
+  },
+  "55-64": {
+   "signals": 2215,
+   "h": {
+    "1": {
+     "n": 2171,
+     "hit_rate": 45,
+     "avg": 0.19,
+     "median": -0.26,
+     "avg_excess": 0.57
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 1933,
+    "confirmed": 967,
+    "confirm_rate": 50
+   }
+  }
+ },
+ "by_dte": {
+  "urgent": {
+   "signals": 4590,
+   "h": {
+    "1": {
+     "n": 4544,
+     "hit_rate": 49,
+     "avg": 0.53,
+     "median": -0.07,
+     "avg_excess": 0.8
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 4218,
+    "confirmed": 1279,
+    "confirm_rate": 30
+   }
+  },
+  "swing": {
+   "signals": 1328,
+   "h": {
+    "1": {
+     "n": 1316,
+     "hit_rate": 48,
+     "avg": 0.37,
+     "median": -0.08,
+     "avg_excess": 0.69
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 1194,
+    "confirmed": 1014,
+    "confirm_rate": 85
+   }
+  },
+  "positioning": {
+   "signals": 558,
+   "h": {
+    "1": {
+     "n": 551,
+     "hit_rate": 42,
+     "avg": -0.08,
+     "median": -0.35,
+     "avg_excess": 0.17
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 503,
+    "confirmed": 445,
+    "confirm_rate": 88
+   }
+  },
+  "leaps": {
+   "signals": 77,
+   "h": {
+    "1": {
+     "n": 76,
+     "hit_rate": 61,
+     "avg": 0.23,
+     "median": 0.65,
+     "avg_excess": 0.5
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 74,
+    "confirmed": 74,
+    "confirm_rate": 100
+   }
+  }
+ },
+ "by_tag": {
+  "Golden Sweep": {
+   "signals": 1692,
+   "h": {
+    "1": {
+     "n": 1673,
+     "hit_rate": 55,
+     "avg": 0.87,
+     "median": 0.79,
+     "avg_excess": 1.06
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 1556,
+    "confirmed": 305,
+    "confirm_rate": 20
+   }
+  },
+  "Sweep": {
+   "signals": 3820,
+   "h": {
+    "1": {
+     "n": 3784,
+     "hit_rate": 44,
+     "avg": 0.27,
+     "median": -0.29,
+     "avg_excess": 0.62
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 3467,
+    "confirmed": 1844,
+    "confirm_rate": 53
+   }
+  },
+  "Block": {
+   "signals": 4339,
+   "h": {
+    "1": {
+     "n": 4300,
+     "hit_rate": 52,
+     "avg": 0.63,
+     "median": 0.24,
+     "avg_excess": 0.92
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 3964,
+    "confirmed": 2011,
+    "confirm_rate": 51
+   }
+  },
+  "Size>OI": {
+   "signals": 1618,
+   "h": {
+    "1": {
+     "n": 1604,
+     "hit_rate": 43,
+     "avg": 0.14,
+     "median": -0.4,
+     "avg_excess": 0.47
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 1604,
+    "confirmed": 1193,
+    "confirm_rate": 74
+   }
+  },
+  "Repeat": {
+   "signals": 5590,
+   "h": {
+    "1": {
+     "n": 5557,
+     "hit_rate": 48,
+     "avg": 0.4,
+     "median": -0.14,
+     "avg_excess": 0.66
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 5557,
+    "confirmed": 2542,
+    "confirm_rate": 46
+   }
+  },
+  "Into ERN": {
+   "signals": 824,
+   "h": {
+    "1": {
+     "n": 816,
+     "hit_rate": 48,
+     "avg": 0.17,
+     "median": -0.13,
+     "avg_excess": 0.34
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 816,
+    "confirmed": 586,
+    "confirm_rate": 72
+   }
+  },
+  "In Universe": {
+   "signals": 5279,
+   "h": {
+    "1": {
+     "n": 5226,
+     "hit_rate": 50,
+     "avg": 0.52,
+     "median": -0.04,
+     "avg_excess": 0.79
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
     "checked": 4875,
-    "confirmed": 1160,
-    "confirm_rate": 24
+    "confirmed": 1924,
+    "confirm_rate": 39
    }
   }
  },
  "oi_confirmation": {
   "checked": 5989,
-  "confirmed": 1792,
-  "weak": 1445,
-  "closed": 2752,
-  "confirm_rate": 30
+  "confirmed": 2812,
+  "weak": 1853,
+  "closed": 1324,
+  "confirm_rate": 47
  }
 }
