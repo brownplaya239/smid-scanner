@@ -1,5 +1,5 @@
 {
- "generated": "2026-05-19T23:46:17+00:00",
+ "generated": "2026-05-20T08:43:06+00:00",
  "total_signals": 6487,
  "matured_5d": 0,
  "horizons": [
@@ -92,9 +92,9 @@
     }
    },
    "oi": {
-    "checked": 970,
+    "checked": 1556,
     "confirmed": 101,
-    "confirm_rate": 10
+    "confirm_rate": 6
    }
   },
   "sweep": {
@@ -137,9 +137,9 @@
     }
    },
    "oi": {
-    "checked": 2560,
+    "checked": 3467,
     "confirmed": 1232,
-    "confirm_rate": 48
+    "confirm_rate": 36
    }
   },
   "voloi": {
@@ -182,9 +182,9 @@
     }
    },
    "oi": {
-    "checked": 594,
+    "checked": 966,
     "confirmed": 459,
-    "confirm_rate": 77
+    "confirm_rate": 48
    }
   }
  },
@@ -229,9 +229,9 @@
     }
    },
    "oi": {
-    "checked": 553,
+    "checked": 797,
     "confirmed": 216,
-    "confirm_rate": 39
+    "confirm_rate": 27
    }
   },
   "65-79": {
@@ -274,9 +274,9 @@
     }
    },
    "oi": {
-    "checked": 2110,
+    "checked": 3259,
     "confirmed": 874,
-    "confirm_rate": 41
+    "confirm_rate": 27
    }
   },
   "55-64": {
@@ -319,9 +319,9 @@
     }
    },
    "oi": {
-    "checked": 1461,
+    "checked": 1933,
     "confirmed": 702,
-    "confirm_rate": 48
+    "confirm_rate": 36
    }
   }
  },
@@ -366,9 +366,9 @@
     }
    },
    "oi": {
-    "checked": 2885,
+    "checked": 4218,
     "confirmed": 694,
-    "confirm_rate": 24
+    "confirm_rate": 16
    }
   },
   "swing": {
@@ -411,9 +411,9 @@
     }
    },
    "oi": {
-    "checked": 854,
+    "checked": 1194,
     "confirmed": 737,
-    "confirm_rate": 86
+    "confirm_rate": 62
    }
   },
   "positioning": {
@@ -456,9 +456,9 @@
     }
    },
    "oi": {
-    "checked": 333,
+    "checked": 503,
     "confirmed": 309,
-    "confirm_rate": 93
+    "confirm_rate": 61
    }
   },
   "leaps": {
@@ -501,9 +501,9 @@
     }
    },
    "oi": {
-    "checked": 52,
+    "checked": 74,
     "confirmed": 52,
-    "confirm_rate": 100
+    "confirm_rate": 70
    }
   }
  },
@@ -548,9 +548,9 @@
     }
    },
    "oi": {
-    "checked": 970,
+    "checked": 1556,
     "confirmed": 101,
-    "confirm_rate": 10
+    "confirm_rate": 6
    }
   },
   "Sweep": {
@@ -593,9 +593,9 @@
     }
    },
    "oi": {
-    "checked": 2560,
+    "checked": 3467,
     "confirmed": 1232,
-    "confirm_rate": 48
+    "confirm_rate": 36
    }
   },
   "Block": {
@@ -638,9 +638,9 @@
     }
    },
    "oi": {
-    "checked": 2761,
+    "checked": 3964,
     "confirmed": 1281,
-    "confirm_rate": 46
+    "confirm_rate": 32
    }
   },
   "Size>OI": {
@@ -683,9 +683,9 @@
     }
    },
    "oi": {
-    "checked": 1205,
+    "checked": 1604,
     "confirmed": 795,
-    "confirm_rate": 66
+    "confirm_rate": 50
    }
   },
   "Repeat": {
@@ -728,9 +728,9 @@
     }
    },
    "oi": {
-    "checked": 3852,
+    "checked": 5557,
     "confirmed": 1659,
-    "confirm_rate": 43
+    "confirm_rate": 30
    }
   },
   "Into ERN": {
@@ -773,9 +773,9 @@
     }
    },
    "oi": {
-    "checked": 513,
+    "checked": 816,
     "confirmed": 342,
-    "confirm_rate": 67
+    "confirm_rate": 42
    }
   },
   "In Universe": {
@@ -818,17 +818,17 @@
     }
    },
    "oi": {
-    "checked": 3340,
+    "checked": 4875,
     "confirmed": 1160,
-    "confirm_rate": 35
+    "confirm_rate": 24
    }
   }
  },
  "oi_confirmation": {
-  "checked": 4124,
+  "checked": 5989,
   "confirmed": 1792,
   "weak": 1445,
-  "closed": 887,
-  "confirm_rate": 43
+  "closed": 2752,
+  "confirm_rate": 30
  }
 }
