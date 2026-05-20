@@ -478,26 +478,61 @@
   }
 
   /* ────────────────────────────────────────────────────────────────
-     Earnings Whisper tab — renders the weekly @eWhispers chart
+     Most Anticipated Earnings tab — weekly grid by day × session
      ──────────────────────────────────────────────────────────────── */
-  #panel-whisper { max-width:1180px; }
-  .whisper-wrap { background:var(--card); border:1px solid var(--line);
-    border-radius:8px; padding:18px; text-align:center; }
-  .whisper-wrap img { max-width:100%; height:auto; border-radius:6px;
-    box-shadow:0 4px 18px rgba(0,0,0,.35); display:block; margin:0 auto; }
-  .whisper-meta { margin-top:14px; font-size:11px; color:var(--muted);
-    line-height:1.6; }
-  .whisper-meta a { color:var(--gold); text-decoration:none; }
-  .whisper-meta a:hover { text-decoration:underline; }
-  .whisper-embed { display:flex; justify-content:center; padding:8px; }
-  /* Twitter widgets.js styles the blockquote when it loads, but during
-     pre-render we need a sensible width on the placeholder */
-  .whisper-embed blockquote.twitter-tweet { max-width:550px; width:100%; }
-  .whisper-note { background:rgba(255,200,0,0.08);
-    border:1px solid rgba(255,200,0,0.3); border-radius:6px;
-    padding:10px 13px; margin-bottom:14px; font-size:11.5px;
-    color:var(--textdim); line-height:1.5; }
-  .whisper-note b { color:var(--gold); }
+  #panel-whisper { max-width:1280px; }
+  .ant-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;
+    margin-top:8px; }
+  @media (max-width:1100px) {
+    .ant-grid { grid-template-columns:repeat(2, 1fr); }
+  }
+  @media (max-width:640px) {
+    .ant-grid { grid-template-columns:1fr; }
+  }
+  .ant-day { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:11px 12px; min-height:200px; }
+  .ant-day h3 { font-size:11px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.5px; font-weight:700; margin:0 0 9px 0;
+    padding-bottom:7px; border-bottom:1px solid var(--line);
+    display:flex; align-items:baseline; gap:6px; }
+  .ant-day h3 .ant-d-date { color:var(--textdim); font-weight:500;
+    text-transform:none; letter-spacing:0; font-size:10px; }
+  /* Day is "today" — gold accent so it pops on the grid */
+  .ant-day.ant-day-today { border-color:var(--gold);
+    box-shadow:0 0 0 1px rgba(255,200,0,0.15); }
+  .ant-day.ant-day-today h3 { color:var(--gold); }
+
+  .ant-sess { margin-bottom:10px; }
+  .ant-sess:last-child { margin-bottom:0; }
+  .ant-sess-hdr { font-size:8.5px; font-weight:800; letter-spacing:.4px;
+    color:#fff; text-align:center; padding:2px 0; border-radius:3px;
+    margin-bottom:6px; text-shadow:0 1px 1px rgba(0,0,0,.5); }
+  .ant-sess-hdr.ant-bmo { background:rgba(31,179,99,0.85); }
+  .ant-sess-hdr.ant-amc { background:rgba(214,68,68,0.85); }
+
+  .ant-row { display:flex; align-items:center; gap:6px; padding:3px 0;
+    font-size:11px; line-height:1.3; }
+  .ant-row + .ant-row { border-top:1px solid var(--line); }
+  .ant-row .ant-tk { font-weight:800; color:var(--text); cursor:pointer;
+    min-width:46px; }
+  .ant-row .ant-tk:hover { color:var(--gold); }
+  .ant-row .ant-co { color:var(--textdim); font-size:9.5px; flex:1;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ant-row .ant-bar-wrap { width:46px; height:6px; border-radius:3px;
+    background:rgba(160,178,210,0.1); overflow:hidden; flex-shrink:0; }
+  .ant-row .ant-bar { height:100%; background:var(--gold);
+    transition:width .3s ease; }
+  /* "Marquee" row — top anticipation score of the week, gets extra weight */
+  .ant-row.ant-marquee .ant-tk { color:var(--gold); font-size:12px; }
+  .ant-row.ant-marquee .ant-bar { background:linear-gradient(90deg,
+    var(--gold), var(--green)); }
+
+  .ant-empty { color:var(--muted); font-size:10px; text-align:center;
+    padding:14px 6px; font-style:italic; }
+  .ant-meta-strip { margin-top:14px; padding:10px 13px;
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    font-size:11px; color:var(--textdim); line-height:1.5; }
+  .ant-meta-strip b { color:var(--text); }
 
   /* ────────────────────────────────────────────────────────────────
      News Flow tab — split view (Trading Day | Per-Ticker) plus pulse
@@ -1338,13 +1373,17 @@
       </div>
     </section>
 
-    <!-- ── Earnings Whisper Most Anticipated (weekly @eWhispers chart) ── -->
+    <!-- ── Most Anticipated Earnings (live from earningswhispers.com API) ── -->
     <section class="panel" id="panel-whisper">
-      <h2 class="tab-title">Most Anticipated Earnings &mdash; Earnings Whisper</h2>
-      <p class="tab-sub">@eWhispers's weekly Most Anticipated chart &mdash;
-        the curated visual ranking of the largest, highest-IV reporters
-        each week. Updated manually each week when the new chart posts;
-        the image (or X embed) below reflects the most recent post.
+      <h2 class="tab-title">Most Anticipated Earnings</h2>
+      <p class="tab-sub">Our own version of the Earnings Whisper weekly
+        chart &mdash; scraped daily from <a href="https://www.earningswhispers.com/calendar"
+        target="_blank" rel="noopener">earningswhispers.com</a>'s own API
+        (the same data their /calendar page renders).
+        Anticipation score is EW's "total" interest metric; the bigger the
+        bar, the more eyeballs are on that print. Every ticker is clickable
+        &mdash; click to open the universal drilldown panel with grade,
+        flow, news, filings, and "Why it matters today."
         <span id="whisper-meta"></span></p>
       <div id="whisper-body">
         <div class="uoa-empty">Loading...</div>
@@ -2832,99 +2871,140 @@
      Two panes: Trading Day firehose (left) and Per-Ticker (right).
      Pulse row across the top with at-a-glance stats.
      ──────────────────────────────────────────────────────────────── */
-  // ── Earnings Whisper tab — weekly @eWhispers Most Anticipated chart.
-  // X.com lockdown post-Musk makes scraping the tweet image impossible;
-  // we use Twitter's blessed embed widget (publish.twitter.com/oembed
-  // + widgets.js) for the canonical render, OR a direct pbs.twimg.com
-  // image URL if the operator has pasted one into whisper_tweet.json.
+  // ── Most Anticipated Earnings tab — renders our own version of the
+  // weekly Earnings Whisper chart from the scraped /api/quickcaldata JSON.
+  // Every ticker is a single click into the universal drilldown panel.
   (function setupWhisper() {
     const body = document.getElementById("whisper-body");
     const meta = document.getElementById("whisper-meta");
     if (!body) return;
-    let widgetsLoaded = false;
-    function loadTwitterWidgets() {
-      if (widgetsLoaded) {
-        if (window.twttr && window.twttr.widgets) {
-          window.twttr.widgets.load(body);
-        }
-        return;
-      }
-      widgetsLoaded = true;
-      const s = document.createElement("script");
-      s.async = true;
-      s.src = "https://platform.twitter.com/widgets.js";
-      s.charset = "utf-8";
-      document.head.appendChild(s);
-    }
     function fmtWeekOf(s) {
       if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || "";
       const d = new Date(s + "T00:00:00");
       return d.toLocaleDateString([], { month: "long", day: "numeric",
                                          year: "numeric" });
     }
+    function todayET() {
+      // Approximation — uses local-clock + a Date pinned to today's
+      // ET-equivalent calendar day. Good enough for "is this Wednesday's
+      // column the current day?" highlighting.
+      return new Date().toISOString().slice(0, 10);
+    }
+    function escHTML(s) {
+      return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
     function render(d) {
-      if (!d || !d.tweet_id) {
+      if (!d || !d.days || !d.days.length) {
         body.innerHTML = '<div class="uoa-empty">' +
-          'No tweet on file. Update <code>docs/reports/whisper_tweet.json</code> ' +
-          'with the latest @eWhispers status ID.</div>';
+          'No anticipated calendar on file yet. Next scheduled scrape ' +
+          'runs with the daily momentum workflow at 4:33 PM ET.</div>';
         return;
       }
-      const url = d.tweet_url ||
-        "https://x.com/eWhispers/status/" + d.tweet_id;
-      let mainHtml;
-      // Preferred path: direct image URL (no Twitter JS, faster, no tracking).
-      // The operator pastes the pbs.twimg.com URL when they snag the
-      // image — right-click "Copy Image Address" on desktop, or hold +
-      // Share > Copy Link to Image on mobile.
-      if (d.image_url) {
-        mainHtml = '<div class="whisper-wrap">' +
-          '<img src="' + d.image_url + '" alt="Most Anticipated Earnings — ' +
-            fmtWeekOf(d.week_of) + '" />' +
+      // Find the global max score so we can scale bar widths consistently
+      // across the entire week (NVDA at 762 sets the upper bound)
+      let maxScore = 1;
+      d.days.forEach(function (day) {
+        ["bmo", "amc"].forEach(function (k) {
+          (day[k] || []).forEach(function (r) {
+            if (r.score && r.score > maxScore) maxScore = r.score;
+          });
+        });
+      });
+      const todayStr = todayET();
+      const sessionHtml = function (rows, sessClass) {
+        if (!rows || !rows.length) {
+          return '<div class="ant-empty">—</div>';
+        }
+        // Show top 10 per session; sorted high-to-low by score already
+        return rows.slice(0, 10).map(function (r, i) {
+          const isMarquee = (r.score && r.score >= maxScore * 0.5);
+          const barW = Math.max(2, Math.round(100 * (r.score || 0) / maxScore));
+          return '<div class="ant-row' + (isMarquee ? ' ant-marquee' : '') +
+            '" title="' + escHTML(r.company || "") +
+            (r.score ? '\nAnticipation score: ' + r.score : '') +
+            (r.analysts ? '\nAnalyst estimates: ' + r.analysts : '') + '">' +
+            '<span class="ant-tk" data-t="' + escHTML(r.ticker) + '">' +
+              escHTML(r.ticker) + '</span>' +
+            '<span class="ant-co">' + escHTML((r.company || "")
+              .replace(/[,.]?\s*(Inc|Corp|Corporation|Ltd|N\.V|S\.A)\.?$/i, "")
+              .slice(0, 28)) + '</span>' +
+            '<span class="ant-bar-wrap"><span class="ant-bar" ' +
+              'style="width:' + barW + '%"></span></span>' +
+            '</div>';
+        }).join("");
+      };
+      const dayHtml = function (day) {
+        const isToday = (day.date === todayStr);
+        const dt = new Date(day.date + "T00:00:00");
+        const md = dt.toLocaleDateString([],
+          { month: "short", day: "numeric" });
+        const empty = (!day.bmo || !day.bmo.length) &&
+                      (!day.amc || !day.amc.length);
+        return '<div class="ant-day' + (isToday ? " ant-day-today" : "") + '">' +
+          '<h3>' + day.dow + '<span class="ant-d-date">' + md + '</span></h3>' +
+          (empty
+            ? '<div class="ant-empty">No reporters</div>'
+            : ('<div class="ant-sess">' +
+                  '<div class="ant-sess-hdr ant-bmo">Before Open</div>' +
+                  sessionHtml(day.bmo, "ant-bmo") +
+                '</div>' +
+                '<div class="ant-sess">' +
+                  '<div class="ant-sess-hdr ant-amc">After Close</div>' +
+                  sessionHtml(day.amc, "ant-amc") +
+                '</div>')) +
           '</div>';
-      } else {
-        // Fallback: render via Twitter embed widget (loads widgets.js).
-        mainHtml = '<div class="whisper-wrap">' +
-          '<div class="whisper-embed">' +
-            '<blockquote class="twitter-tweet" data-theme="dark" ' +
-              'data-conversation="none">' +
-              '<a href="' + url + '"></a>' +
-            '</blockquote>' +
-          '</div></div>';
-      }
-      // Footer with link out + week label + how to refresh
-      const week = d.week_of ? "Week of " + fmtWeekOf(d.week_of) : "";
-      const updated = d.updated
-        ? " · synced " + new Date(d.updated).toLocaleString([],
-            { month: "short", day: "numeric", hour: "numeric",
-              minute: "2-digit" })
+      };
+      // Marquee summary — pick the single highest-scored name of the week
+      let marquee = null;
+      d.days.forEach(function (day) {
+        ["bmo", "amc"].forEach(function (k) {
+          (day[k] || []).forEach(function (r) {
+            if (!marquee || (r.score || 0) > (marquee.score || 0)) {
+              marquee = { ...r, day: day.dow, date: day.date,
+                          sess: k === "bmo" ? "Before Open" : "After Close" };
+            }
+          });
+        });
+      });
+      const week = d.week_of
+        ? "Week of " + fmtWeekOf(d.week_of) : "Current week";
+      const totalReporters = d.total != null ? d.total :
+        d.days.reduce(function (s, day) {
+          return s + (day.bmo||[]).length + (day.amc||[]).length;
+        }, 0);
+      const banner = marquee
+        ? '<div class="ant-meta-strip">' +
+            '<b>Marquee print this week:</b> ' +
+            '<span style="color:var(--gold);font-weight:700;cursor:pointer" ' +
+              'data-t="' + escHTML(marquee.ticker) + '">' + marquee.ticker +
+              '</span> &mdash; ' + escHTML(marquee.company || "") + ' &middot; ' +
+            marquee.day + ' ' + marquee.sess +
+            ' &middot; Anticipation score <b>' + (marquee.score || "—") +
+            '</b> &middot; ' + totalReporters + ' total reporters this week.' +
+          '</div>'
         : "";
-      const note = '<div class="whisper-note"><b>How this updates:</b> ' +
-        '@eWhispers posts a new Most Anticipated chart roughly every ' +
-        'Sunday/Monday. To swap to the new week, edit <code>docs/reports/' +
-        'whisper_tweet.json</code> &mdash; paste the new tweet\'s status ' +
-        'ID into <code>tweet_id</code>. Optional: also paste the direct ' +
-        '<code>pbs.twimg.com</code> image URL into <code>image_url</code> ' +
-        'to skip the Twitter widget and render just the image.</div>';
-      body.innerHTML = note + mainHtml;
+      body.innerHTML = banner +
+        '<div class="ant-grid">' + d.days.map(dayHtml).join("") + '</div>';
       if (meta) {
-        meta.innerHTML = (week ? "&middot; " + week : "") + updated +
-          ' &middot; <a href="' + url + '" target="_blank" ' +
-          'rel="noopener" style="color:var(--gold)">view on X &rarr;</a>';
+        const updated = d.generated
+          ? " · refreshed " + new Date(d.generated).toLocaleString([],
+              { month: "short", day: "numeric", hour: "numeric",
+                minute: "2-digit" })
+          : "";
+        meta.innerHTML = "&middot; " + week + updated;
       }
-      if (!d.image_url) loadTwitterWidgets();
     }
     function load() {
-      fetch("./reports/whisper_tweet.json?t=" + Date.now())
+      fetch("./reports/earnings_anticipated.json?t=" + Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(render)
         .catch(function () {
           body.innerHTML = '<div class="uoa-empty">' +
-            'Could not load whisper_tweet.json.</div>';
+            'Could not load anticipated calendar.</div>';
         });
     }
     load();
-    // Re-render on tab return — picks up newly-pushed tweet IDs without
-    // requiring a page reload
     document.getElementById("nav").addEventListener("click", function (e) {
       if (e.target && e.target.dataset &&
           e.target.dataset.tab === "whisper") load();

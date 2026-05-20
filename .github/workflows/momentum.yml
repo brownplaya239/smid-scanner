@@ -44,5 +44,8 @@ jobs:
       - name: Refresh economic calendar
         run: python economic_calendar.py
 
+      - name: Refresh Earnings Whisper anticipated calendar
+        run: python earnings_anticipated.py
+
       - name: Publish reports to site archive
         run: bash scripts/publish_reports.sh
