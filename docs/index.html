@@ -86,6 +86,14 @@
   .email-capture .ec-status.ok  { color:var(--green); }
   .email-capture .ec-status.err { color:var(--red); }
 
+  /* Report-credits badge next to the Generate header */
+  .report-credits { font-size:11px; font-weight:600; color:var(--gold);
+    margin-left:10px; background:rgba(255,200,0,0.1);
+    border:1px solid rgba(255,200,0,0.3); border-radius:11px;
+    padding:3px 9px; vertical-align:middle; cursor:default; }
+  .report-credits.exhausted { color:var(--red);
+    background:rgba(214,68,68,0.1); border-color:rgba(214,68,68,0.3); }
+
   /* Watcher count badge — 👁 N next to popular tickers */
   .watch-badge { display:inline-block; font-size:10px; font-weight:700;
     color:var(--gold); margin-left:4px; vertical-align:middle;
@@ -188,6 +196,92 @@
 
   .wlt-empty { padding:32px 20px; text-align:center; color:var(--muted);
     font-size:12px; font-style:italic; }
+
+  /* Sign-out landing state for the Watchlist tab */
+  .wlt-signed-out { margin-bottom:14px; }
+  .wlt-cta { background:linear-gradient(135deg,
+    rgba(255,200,0,0.10), rgba(31,179,99,0.05));
+    border:1px solid var(--gold); border-radius:10px; padding:32px 28px;
+    text-align:center; }
+  .wlt-cta h3 { font-size:20px; font-weight:800; color:var(--text);
+    margin:0 0 10px; }
+  .wlt-cta p { font-size:13px; color:var(--textdim); line-height:1.55;
+    margin:0 auto 18px; max-width:520px; }
+  .wlt-cta p b { color:var(--gold); }
+  .wlt-cta-btns { display:flex; gap:10px; justify-content:center;
+    flex-wrap:wrap; }
+  .wlt-cta-primary { background:var(--gold); color:var(--accink);
+    border:0; padding:11px 22px; border-radius:6px; font-family:inherit;
+    font-size:13px; font-weight:700; cursor:pointer; }
+  .wlt-cta-primary:hover { filter:brightness(1.05); }
+  .wlt-cta-sample { background:transparent; color:var(--text);
+    border:1px solid var(--border2); padding:11px 22px; border-radius:6px;
+    font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+  .wlt-cta-sample:hover { border-color:var(--gold); color:var(--gold); }
+
+  /* Paste import expander */
+  .wlt-import { margin-top:12px; padding-top:12px;
+    border-top:1px solid var(--line); }
+  .wlt-import summary { cursor:pointer; font-size:11.5px;
+    color:var(--gold); font-weight:600; }
+  .wlt-import summary:hover { text-decoration:underline; }
+  .wlt-import-body { margin-top:10px; }
+  .wlt-import-body textarea { width:100%; background:var(--navy2);
+    border:1px solid var(--border2); color:var(--text); padding:10px 12px;
+    border-radius:5px; font-family:inherit; font-size:12px;
+    letter-spacing:.2px; resize:vertical; }
+  .wlt-import-body textarea:focus { border-color:var(--gold); outline:0; }
+  .wlt-import-actions { display:flex; gap:10px; align-items:center;
+    margin-top:8px; flex-wrap:wrap; }
+  .wlt-import-actions code { background:var(--card); padding:1px 5px;
+    border-radius:3px; font-size:10.5px; }
+
+  /* ⭐ inline indicator on watchlisted tickers across the site */
+  .tdwatch-dot { display:inline-block; margin-left:4px; font-size:9px;
+    color:var(--gold); vertical-align:middle; line-height:1;
+    cursor:default; }
+  /* Inline action chips beside ticker rows in key tabs */
+  .td-action-chip { font-size:9px; font-weight:700; padding:2px 6px;
+    border-radius:9px; cursor:pointer; background:rgba(160,178,210,0.15);
+    color:var(--textdim); border:0; font-family:inherit; margin-left:4px;
+    text-transform:uppercase; letter-spacing:.3px; }
+  .td-action-chip:hover { background:var(--gold); color:var(--accink); }
+  .td-action-chip.on { background:var(--gold); color:var(--accink); }
+
+  /* "What's New Since Last Visit" widget — top of My Desk */
+  .whats-new { background:linear-gradient(135deg,
+    rgba(255,200,0,0.08), rgba(31,179,99,0.04));
+    border:1px solid var(--gold); border-radius:8px;
+    padding:14px 16px; margin-bottom:14px; }
+  .whats-new.empty { display:none; }
+  .whats-new .wn-head { display:flex; align-items:baseline; gap:8px;
+    margin-bottom:8px; flex-wrap:wrap; }
+  .whats-new .wn-head h3 { font-size:13px; font-weight:800;
+    color:var(--gold); margin:0; text-transform:uppercase;
+    letter-spacing:.5px; }
+  .whats-new .wn-head .wn-since { font-size:10.5px; color:var(--muted); }
+  .whats-new .wn-head .wn-dismiss { margin-left:auto; background:none;
+    border:0; color:var(--muted); font-size:11px; cursor:pointer;
+    font-family:inherit; padding:0; }
+  .whats-new .wn-head .wn-dismiss:hover { color:var(--text); }
+  .whats-new .wn-groups { display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+    gap:10px; }
+  .whats-new .wn-group h4 { font-size:9.5px; color:var(--textdim);
+    text-transform:uppercase; letter-spacing:.4px; margin:0 0 4px;
+    font-weight:700; }
+  .whats-new .wn-item { font-size:11.5px; color:var(--text);
+    padding:3px 0; line-height:1.4; }
+  .whats-new .wn-item .wn-tk { font-weight:800; color:var(--gold);
+    cursor:pointer; margin-right:5px; }
+  .whats-new .wn-item .wn-tk:hover { text-decoration:underline; }
+  .whats-new .wn-item .wn-detail { color:var(--textdim); font-size:11px; }
+  .whats-new .wn-item .wn-up   { color:var(--green); font-weight:700; }
+  .whats-new .wn-item .wn-down { color:var(--red); font-weight:700; }
+  .whats-new .wn-foot { font-size:10.5px; color:var(--muted);
+    margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); }
+  .whats-new .wn-foot a { color:var(--gold); text-decoration:none; }
+  .whats-new .wn-foot a:hover { text-decoration:underline; }
 
   /* My Desk tab — watchlist-personalized signal grid */
   #panel-mydesk { max-width:1280px; }
@@ -376,8 +470,55 @@
   /* Auth modal */
   .auth-modal { position:fixed; inset:0; z-index:90;
     background:rgba(4,8,20,.78); display:none; align-items:center;
-    justify-content:center; padding:20px; }
+    justify-content:center; padding:20px; overflow-y:auto; }
   .auth-modal.show { display:flex; }
+
+  /* Pricing modal (shares auth-modal backdrop styling) */
+  .pricing-inner { background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:30px 26px 22px; width:760px; max-width:100%;
+    position:relative; box-shadow:0 12px 50px rgba(0,0,0,.6); }
+  .pricing-inner h3 { font-size:22px; font-weight:800; color:var(--text);
+    margin:0 0 8px; text-align:center; }
+  .pricing-grid { display:grid; grid-template-columns:repeat(3, 1fr);
+    gap:14px; margin-top:18px; }
+  @media (max-width:760px) {
+    .pricing-grid { grid-template-columns:1fr; }
+  }
+  .pricing-card { background:var(--navy2); border:1px solid var(--line);
+    border-radius:10px; padding:20px 18px; position:relative; }
+  .pricing-card.pc-featured { border-color:var(--gold);
+    box-shadow:0 0 0 1px rgba(255,200,0,.2); }
+  .pricing-card .pc-badge { position:absolute; top:-10px; left:50%;
+    transform:translateX(-50%); background:var(--gold); color:var(--accink);
+    font-size:9px; font-weight:800; letter-spacing:.5px;
+    text-transform:uppercase; padding:3px 10px; border-radius:11px; }
+  .pricing-card .pc-name { font-size:13px; font-weight:800;
+    color:var(--text); text-transform:uppercase; letter-spacing:.5px; }
+  .pricing-card .pc-price { font-size:32px; font-weight:800;
+    color:var(--text); margin-top:6px; font-variant-numeric:tabular-nums; }
+  .pricing-card .pc-price span { font-size:14px; font-weight:500;
+    color:var(--muted); }
+  .pricing-card .pc-period { font-size:10.5px; color:var(--muted);
+    margin-bottom:14px; }
+  .pricing-card .pc-feats { list-style:none; padding:0; margin:0;
+    font-size:11.5px; color:var(--textdim); line-height:1.7; }
+  .pricing-card .pc-feats li::before { content:"✓ "; color:var(--green);
+    font-weight:700; margin-right:4px; }
+  .pricing-card .pc-feats li b { color:var(--text); }
+  .pricing-card .pricing-cta { width:100%; margin-top:14px;
+    background:var(--gold); color:var(--accink); border:0; padding:11px;
+    border-radius:6px; font-family:inherit; font-size:13px; font-weight:700;
+    cursor:pointer; }
+  .pricing-card .pricing-cta:hover { filter:brightness(1.05); }
+  .pricing-card:not(.pc-featured) .pricing-cta { background:transparent;
+    color:var(--text); border:1px solid var(--border2); }
+  .pricing-card:not(.pc-featured) .pricing-cta:hover {
+    border-color:var(--gold); color:var(--gold); }
+  .pricing-note { margin-top:20px; padding:12px 14px;
+    background:rgba(255,200,0,0.06); border:1px solid rgba(255,200,0,.25);
+    border-radius:6px; font-size:11px; color:var(--textdim);
+    line-height:1.5; text-align:center; }
+  .pricing-note b { color:var(--gold); }
   .auth-modal-inner { background:var(--card); border:1px solid var(--line);
     border-radius:10px; padding:28px 26px 22px; width:380px; max-width:100%;
     position:relative; box-shadow:0 10px 40px rgba(0,0,0,.55); }
@@ -1932,15 +2073,74 @@
       </div>
     </div>
 
+    <!-- Pricing modal — opens when a free user hits a limit -->
+    <div class="auth-modal" id="pricing-modal" role="dialog"
+         aria-modal="true" aria-hidden="true">
+      <div class="pricing-inner">
+        <button class="auth-close" id="pricing-close"
+                aria-label="Close">&times;</button>
+        <h3 id="pricing-title">Upgrade to Pro</h3>
+        <p class="auth-sub" id="pricing-sub">
+          You've hit your free-tier limit. Upgrade for unlimited research,
+          alerts, journal entries, and full archive access.
+        </p>
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <div class="pc-name">Free</div>
+            <div class="pc-price">$0</div>
+            <div class="pc-period">forever</div>
+            <ul class="pc-feats">
+              <li>Public dashboard, all data</li>
+              <li>5 watchlist names</li>
+              <li>3 lifetime ad-hoc reports</li>
+              <li>7-day archive</li>
+            </ul>
+          </div>
+          <div class="pricing-card pc-featured">
+            <div class="pc-badge">Most popular</div>
+            <div class="pc-name">Pro</div>
+            <div class="pc-price">$29<span>/mo</span></div>
+            <div class="pc-period">or $290/yr (save 17%)</div>
+            <ul class="pc-feats">
+              <li>Unlimited watchlist + My Desk</li>
+              <li><b>10 ad-hoc reports</b> per month</li>
+              <li>Daily email brief + alerts</li>
+              <li>Full archive + trade journal export</li>
+              <li>Intraday refresh</li>
+            </ul>
+            <button class="pricing-cta" data-plan="pro">Upgrade to Pro</button>
+          </div>
+          <div class="pricing-card">
+            <div class="pc-name">Premium</div>
+            <div class="pc-price">$99<span>/mo</span></div>
+            <div class="pc-period">or $990/yr</div>
+            <ul class="pc-feats">
+              <li>Everything in Pro</li>
+              <li><b>100 ad-hoc reports</b> per month</li>
+              <li>API access (coming soon)</li>
+              <li>Advanced alert routing</li>
+              <li>Priority support</li>
+            </ul>
+            <button class="pricing-cta" data-plan="premium">Get Premium</button>
+          </div>
+        </div>
+        <div class="pricing-note" id="pricing-note">
+          Beta cohort: first 500 signups lock in <b>$14.50/mo lifetime</b>
+          on Pro. Stripe checkout activates after we exit beta —
+          for now, the upgrade button registers interest.
+        </div>
+      </div>
+    </div>
+
     <!-- Auth modal — magic-link email + Google OAuth -->
     <div class="auth-modal" id="auth-modal" role="dialog" aria-modal="true"
          aria-hidden="true">
       <div class="auth-modal-inner">
         <button class="auth-close" id="auth-close" aria-label="Close">&times;</button>
-        <h3>Sign in to TickerDesk</h3>
-        <p class="auth-sub">Save your watchlist, get email alerts, track
-          your trade journal across devices. <b>Free forever</b> for the
-          core dashboard.</p>
+        <h3 id="auth-title">Sign in to TickerDesk</h3>
+        <p class="auth-sub" id="auth-sub">Save your watchlist, get email
+          alerts, track your trade journal across devices. <b>Free forever</b>
+          for the core dashboard.</p>
         <button class="auth-google" id="auth-google">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
             <path fill="#4285f4" d="M22.5 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.75h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -2015,8 +2215,24 @@
       <!-- Portfolio benchmark hero -->
       <div class="wlt-bench" id="wlt-bench"></div>
 
+      <!-- Sign-out landing state — only shown when SUPA_URL set + signed out -->
+      <div class="wlt-signed-out" id="wlt-signed-out" style="display:none">
+        <div class="wlt-cta">
+          <h3>Create a free account to save your watchlist</h3>
+          <p>Saved tickers stay synced across devices with live grade,
+             flow, news, and earnings signals. Alerts, notes, and a daily
+             "what changed" digest. <b>Free during beta.</b></p>
+          <div class="wlt-cta-btns">
+            <button class="wlt-cta-primary" id="wlt-cta-signin">
+              Sign in / Create account</button>
+            <button class="wlt-cta-sample"  id="wlt-cta-sample">
+              Try a sample watchlist</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Add ticker form -->
-      <div class="wlt-add card">
+      <div class="wlt-add card" id="wlt-add-card">
         <div class="wlt-add-row">
           <input type="text" id="wlt-ticker" placeholder="Ticker"
                  maxlength="8" autocomplete="off"
@@ -2027,6 +2243,20 @@
           <span class="wlt-add-hint">Weight = relative position size
             (any number — we normalize for benchmarking)</span>
         </div>
+        <details class="wlt-import">
+          <summary>Paste/import multiple tickers</summary>
+          <div class="wlt-import-body">
+            <textarea id="wlt-import-area" rows="3"
+              placeholder="NVDA, MU, AVGO, MRVL&#10;TSLA AAPL GOOGL&#10;COIN&#10;Paste comma-, space-, or newline-separated tickers"></textarea>
+            <div class="wlt-import-actions">
+              <button class="wlt-add-btn" id="wlt-import-btn">
+                Import to watchlist</button>
+              <span class="wlt-add-hint" id="wlt-import-hint">
+                Defaults to equal weight (1.0 each) unless format is
+                <code>TICKER:weight</code> per row.</span>
+            </div>
+          </div>
+        </details>
       </div>
 
       <!-- Portfolio table -->
@@ -2073,6 +2303,10 @@
         grades, options flow, news, upcoming earnings, recent reports.
         <span id="mydesk-meta"></span>
       </p>
+      <!-- "What's New Since Last Visit" widget — diffs current state vs
+           the previous touch_last_seen() timestamp so user sees the
+           changes that happened while they were away -->
+      <div id="whats-new" class="whats-new"></div>
       <div id="mydesk-body">
         <div class="uoa-empty">Loading...</div>
       </div>
@@ -2082,12 +2316,15 @@
     <section class="panel" id="panel-adhoc">
       <!-- Generate new ad-hoc report — primary action -->
       <div class="card">
-        <h2>Generate a new ad-hoc report</h2>
+        <h2>Generate a new ad-hoc report
+          <span class="report-credits" id="report-credits"></span>
+        </h2>
         <p class="sub">
           Full institutional one-pager: setup analysis, 12-month insider
           transactions, institutional ownership, and price/volume
           intelligence. PDF lands in the inline viewer below in
-          ~60&ndash;90 seconds.
+          ~60&ndash;90 seconds. Free accounts get 3 lifetime reports;
+          Pro gets 10/month.
         </p>
         <div class="input-row">
           <input type="text" id="ticker" placeholder="NVDA" maxlength="8"
@@ -2659,6 +2896,67 @@
   window.tdGetWeight = function (t) {
     return WATCHLIST_WEIGHTS[(t || "").toUpperCase()] || 1;
   };
+
+  // ── Plan / entitlement layer ──
+  // Tier limits drive what free/pro/premium users can do. Read once on
+  // signin, cached in CURRENT_USER_PLAN; UI reads via window.tdPlan().
+  let CURRENT_USER_PLAN = "free";
+  let REPORT_COUNT_30D = 0;
+  let REPORT_COUNT_LIFETIME = 0;
+  const PLAN_LIMITS = {
+    free:    { watchlist_max: 5,     reports_lifetime: 3,  reports_30d: 3,
+               name: "Free",   color: "#a0b2d2" },
+    pro:     { watchlist_max: 9999,  reports_lifetime: 9999, reports_30d: 10,
+               name: "Pro",    color: "#1fb363" },
+    premium: { watchlist_max: 9999,  reports_lifetime: 9999, reports_30d: 100,
+               name: "Premium", color: "#ffc800" },
+    beta:    { watchlist_max: 9999,  reports_lifetime: 9999, reports_30d: 50,
+               name: "Beta",   color: "#a87cff" },
+  };
+  async function refreshPlanState() {
+    if (!SUPA || !CURRENT_USER) {
+      CURRENT_USER_PLAN = "free";
+      REPORT_COUNT_30D = 0;
+      REPORT_COUNT_LIFETIME = 0;
+      return;
+    }
+    try {
+      const [planResp, c30Resp, cLtResp] = await Promise.all([
+        SUPA.rpc("get_user_plan"),
+        SUPA.rpc("report_count_30d"),
+        SUPA.rpc("report_count_lifetime"),
+      ]);
+      CURRENT_USER_PLAN = (planResp.data || "free");
+      REPORT_COUNT_30D = c30Resp.data || 0;
+      REPORT_COUNT_LIFETIME = cLtResp.data || 0;
+    } catch (e) {
+      console.warn("Plan state load failed:", e);
+    }
+  }
+  window.tdPlan = function () { return CURRENT_USER_PLAN; };
+  window.tdPlanLimits = function (p) {
+    return PLAN_LIMITS[p || CURRENT_USER_PLAN] || PLAN_LIMITS.free;
+  };
+  window.tdCanGenerateReport = function () {
+    if (!CURRENT_USER) return { ok: false, reason: "signin_required" };
+    const lim = PLAN_LIMITS[CURRENT_USER_PLAN] || PLAN_LIMITS.free;
+    if (CURRENT_USER_PLAN === "free" &&
+        REPORT_COUNT_LIFETIME >= lim.reports_lifetime) {
+      return { ok: false, reason: "lifetime_cap",
+               cap: lim.reports_lifetime, used: REPORT_COUNT_LIFETIME };
+    }
+    if (REPORT_COUNT_30D >= lim.reports_30d) {
+      return { ok: false, reason: "monthly_cap",
+               cap: lim.reports_30d, used: REPORT_COUNT_30D };
+    }
+    return { ok: true,
+             remaining: lim.reports_30d - REPORT_COUNT_30D,
+             lifetime_remaining: CURRENT_USER_PLAN === "free"
+               ? lim.reports_lifetime - REPORT_COUNT_LIFETIME : Infinity };
+  };
+  window.tdReportCounts = function () {
+    return { d30: REPORT_COUNT_30D, lifetime: REPORT_COUNT_LIFETIME };
+  };
   async function addToWatchlist(ticker, weight) {
     ticker = (ticker || "").toUpperCase().trim();
     if (!ticker || WATCHLIST.has(ticker)) return false;
@@ -2733,6 +3031,7 @@
       const sess = resp && resp.data && resp.data.session;
       CURRENT_USER = sess ? sess.user : null;
       _emitUser();
+      refreshPlanState();
       loadWatchlist();
     });
     // Listen for sign-in / sign-out events
@@ -2743,6 +3042,8 @@
         _emitUser();
         // On first sign-in: merge any localStorage watchlist into the
         // account, then clear local so we don't double-add on next signout
+        // Refresh plan + report counts whenever auth state changes
+        refreshPlanState();
         if (CURRENT_USER && event === "SIGNED_IN") {
           const local = _wlReadLocal();
           if (local.length) {
@@ -2795,6 +3096,189 @@
   } else {
     initSupabase();
   }
+
+  // ── "What's New Since Last Visit" widget ──
+  // Pragmatic V1 implementation: we don't have day-over-day signal
+  // snapshots yet (that requires server-side ETL), so the widget surfaces
+  // four interesting things derivable from CURRENT-state data alone:
+  //   1. Watchlist tickers with A+/A grade today
+  //   2. Watchlist tickers tagged in today's UOA flow (bullish or bearish)
+  //   3. Watchlist tickers with earnings inside 3 days
+  //   4. Watchlist tickers featured in archived reports dated today
+  // Once signal_snapshots table is populated by a daily ETL job, this
+  // upgrades to true "what changed since prev visit" diffs against the
+  // touch_last_seen() return value. For now: "what's notable RIGHT NOW
+  // on your watchlist."
+  (function setupWhatsNew() {
+    const el = document.getElementById("whats-new");
+    if (!el) return;
+    let LAST_SEEN_ISO = null;
+    async function fetchLastSeen() {
+      if (!SUPA || !CURRENT_USER) return null;
+      try {
+        const { data } = await SUPA.rpc("touch_last_seen");
+        return data || null;
+      } catch (e) { return null; }
+    }
+    function fmtSince(iso) {
+      if (!iso) return "since your first visit";
+      try {
+        const dt = new Date(iso);
+        const h = (Date.now() - dt.getTime()) / 3600000;
+        if (h < 1)   return "since just now";
+        if (h < 24)  return "since " + Math.round(h) + "h ago";
+        const d = Math.round(h / 24);
+        return "since " + d + " day" + (d === 1 ? "" : "s") + " ago";
+      } catch (e) { return ""; }
+    }
+    function build() {
+      // Show ONLY when signed in and has watchlist items
+      const signed = !!window.tdUser();
+      if (!signed || WATCHLIST.size === 0) {
+        el.classList.add("empty");
+        return;
+      }
+      const D = window.TD_DATA || {};
+      const wl = Array.from(WATCHLIST);
+      const groups = {
+        trend: [], flow: [], earnings: [], news: [], reports: []
+      };
+      // ── Trend: any watchlist name in A+ or A today ──
+      if (D.swing && D.swing.runs && D.swing.runs.length) {
+        const r = D.swing.runs[D.swing.runs.length - 1];
+        ["A+", "A"].forEach(function (g) {
+          (r.grades[g] || []).forEach(function (c) {
+            if (wl.indexOf(c.t) >= 0) {
+              groups.trend.push({ t: c.t,
+                detail: g + " grade", chg: c.chg });
+            }
+          });
+        });
+        // Also call out any F/G grades on watchlist (downgrade risk)
+        ["G", "G+", "F-", "F"].forEach(function (g) {
+          (r.grades[g] || []).forEach(function (c) {
+            if (wl.indexOf(c.t) >= 0) {
+              groups.trend.push({ t: c.t, detail: g + " grade — caution",
+                chg: c.chg, neg: true });
+            }
+          });
+        });
+      }
+      // ── Flow: watchlist tickers in UOA, top scored signal per ticker
+      if (D.uoa && D.uoa.rows) {
+        const byTk = {};
+        D.uoa.rows.forEach(function (r) {
+          if (wl.indexOf(r.ticker) < 0) return;
+          if (!byTk[r.ticker] ||
+              (r.trade_score || 0) > (byTk[r.ticker].trade_score || 0))
+            byTk[r.ticker] = r;
+        });
+        Object.keys(byTk).forEach(function (t) {
+          const r = byTk[t];
+          const dir = (r.direction || "").toLowerCase();
+          groups.flow.push({
+            t: t,
+            detail: dir + " flow · " + r.type.toUpperCase() + " $" +
+              r.strike + " · score " + (r.trade_score || 0),
+            neg: dir === "bearish",
+          });
+        });
+      }
+      // ── Earnings: watchlist tickers reporting in next 3 days ──
+      if (D.uoaMeta) {
+        const today = new Date(); today.setHours(0,0,0,0);
+        wl.forEach(function (t) {
+          const e = D.uoaMeta[t];
+          if (!e || !e.earnings_date) return;
+          try {
+            const ed = new Date(e.earnings_date + "T00:00:00");
+            const days = Math.round((ed - today) / 86400000);
+            if (days >= 0 && days <= 3) {
+              groups.earnings.push({
+                t: t,
+                detail: (days === 0 ? "today" : "in " + days + "d") +
+                  (e.earnings_session ? " " + e.earnings_session : ""),
+              });
+            }
+          } catch (err) {}
+        });
+      }
+      // ── Reports: watchlist tickers with a report dated today
+      if (D.manifest && D.manifest.reports) {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const seen = new Set();
+        Object.keys(D.manifest.reports).forEach(function (k) {
+          (D.manifest.reports[k] || []).forEach(function (r) {
+            if (!r.ticker || wl.indexOf(r.ticker) < 0) return;
+            if (!(r.file || "").indexOf(todayStr) >= 0) return;
+            if (seen.has(r.ticker)) return;
+            seen.add(r.ticker);
+            groups.reports.push({ t: r.ticker,
+              detail: "new report today" });
+          });
+        });
+      }
+      const totalItems = groups.trend.length + groups.flow.length +
+        groups.earnings.length + groups.reports.length;
+      if (totalItems === 0) {
+        el.classList.add("empty");
+        return;
+      }
+      el.classList.remove("empty");
+      const itemHtml = function (it) {
+        const cls = it.neg ? "wn-down" : "wn-up";
+        return '<div class="wn-item">' +
+          '<span class="wn-tk" data-t="' + it.t + '">' + it.t + '</span>' +
+          '<span class="wn-detail ' + cls + '">' + it.detail + '</span>' +
+          '</div>';
+      };
+      const groupHtml = function (title, items) {
+        if (!items.length) return "";
+        return '<div class="wn-group"><h4>' + title +
+          ' · ' + items.length + '</h4>' +
+          items.slice(0, 6).map(itemHtml).join("") +
+          (items.length > 6
+            ? '<div class="wn-item wn-detail">+ ' + (items.length - 6) +
+              ' more</div>' : '') +
+          '</div>';
+      };
+      el.innerHTML =
+        '<div class="wn-head">' +
+          '<h3>What\'s on your watchlist</h3>' +
+          '<span class="wn-since">' + fmtSince(LAST_SEEN_ISO) + '</span>' +
+          '<button class="wn-dismiss" id="wn-dismiss">dismiss</button>' +
+        '</div>' +
+        '<div class="wn-groups">' +
+          groupHtml("Trend",     groups.trend) +
+          groupHtml("Flow",      groups.flow) +
+          groupHtml("Earnings",  groups.earnings) +
+          groupHtml("Reports",   groups.reports) +
+        '</div>' +
+        '<div class="wn-foot">Click any ticker for full drilldown. ' +
+          '<a href="#" id="wn-go-watchlist">Manage watchlist &rarr;</a></div>';
+      const dismiss = document.getElementById("wn-dismiss");
+      if (dismiss) dismiss.addEventListener("click", function () {
+        el.classList.add("empty");
+      });
+      const go = document.getElementById("wn-go-watchlist");
+      if (go) go.addEventListener("click", function (e) {
+        e.preventDefault();
+        document.querySelector('nav button[data-tab="watchlist"]').click();
+      });
+    }
+    async function refresh() {
+      LAST_SEEN_ISO = await fetchLastSeen();
+      build();
+    }
+    onUserChange(refresh);
+    onWatchChange(build);
+    // Re-build when My Desk tab is shown
+    document.getElementById("nav").addEventListener("click", function (e) {
+      if (e.target && e.target.dataset &&
+          e.target.dataset.tab === "mydesk") build();
+    });
+    setTimeout(refresh, 2000);
+  })();
 
   // ── Watchlist & Trade Log tab ── full portfolio view with weights,
   // benchmark vs SPY / QQQ, plus a journal table for tracking real P&L.
@@ -2906,9 +3390,29 @@
     }
 
     // ── Portfolio table ──
+    // Sample watchlist for unsigned users who hit "Try sample" — these
+    // are the universe's biggest signal generators today.
+    const SAMPLE_WATCHLIST = ["NVDA","MU","AVGO","MRVL","AAPL","COIN","PLTR"];
+    let SHOW_SAMPLE = false;
+
     function renderPortfolio() {
-      const wl = Array.from(WATCHLIST).sort();
       const signed = !!window.tdUser();
+      const signedOut = (SUPA_URL && SUPA_ANON) && !signed;
+      // Sign-out landing state with auth CTAs
+      const ctaPanel = document.getElementById("wlt-signed-out");
+      const addCard  = document.getElementById("wlt-add-card");
+      if (ctaPanel && addCard) {
+        if (signedOut && !SHOW_SAMPLE && WATCHLIST.size === 0) {
+          ctaPanel.style.display = "";
+          addCard.style.display = "none";
+        } else {
+          ctaPanel.style.display = "none";
+          addCard.style.display = "";
+        }
+      }
+      const wl = SHOW_SAMPLE && !signed && WATCHLIST.size === 0
+                  ? SAMPLE_WATCHLIST.slice()
+                  : Array.from(WATCHLIST).sort();
       signedH.style.display = signed ? "" : "none";
       anonH.style.display = signed ? "none" : "";
       if (!wl.length) {
@@ -3108,8 +3612,47 @@
     });
     if (anonLink) anonLink.addEventListener("click", function (e) {
       e.preventDefault();
-      const btn = document.getElementById("auth-signin");
-      if (btn) btn.click();
+      window.tdRequireAuth("save", null);
+    });
+    // Sign-out CTAs
+    const ctaSignin = document.getElementById("wlt-cta-signin");
+    const ctaSample = document.getElementById("wlt-cta-sample");
+    if (ctaSignin) ctaSignin.addEventListener("click", function () {
+      window.tdRequireAuth("save", null);
+    });
+    if (ctaSample) ctaSample.addEventListener("click", function () {
+      SHOW_SAMPLE = true;
+      renderAll();
+    });
+
+    // Paste import — accepts "NVDA, MU", newline-separated, or "TICKER:weight"
+    const importBtn = document.getElementById("wlt-import-btn");
+    const importArea = document.getElementById("wlt-import-area");
+    const importHint = document.getElementById("wlt-import-hint");
+    if (importBtn) importBtn.addEventListener("click", async function () {
+      const raw = (importArea.value || "").trim();
+      if (!raw) return;
+      // Split on commas / whitespace / newlines, then trim each
+      const entries = raw
+        .split(/[\s,]+/)
+        .map(function (s) { return s.trim(); })
+        .filter(Boolean);
+      let added = 0, skipped = 0, invalid = 0;
+      for (const e of entries) {
+        const m = e.match(/^([A-Z\.\-]{1,8})(?::([\d\.]+))?$/i);
+        if (!m) { invalid++; continue; }
+        const tk = m[1].toUpperCase();
+        const wt = m[2] ? parseFloat(m[2]) : 1;
+        if (WATCHLIST.has(tk)) { skipped++; continue; }
+        const ok = await window.tdAddWatch(tk, wt);
+        if (ok) added++;
+      }
+      importHint.innerHTML = "Imported " +
+        '<b style="color:var(--green)">' + added + '</b> · skipped ' +
+        '<b>' + skipped + '</b> (already on list)' +
+        (invalid ? ' · <b style="color:var(--red)">' + invalid +
+          '</b> invalid format' : '');
+      importArea.value = "";
     });
 
     tlAddBtn.addEventListener("click", function () {
@@ -3364,6 +3907,42 @@
     setTimeout(render, 500);
   })();
 
+  // ── Report-credits badge updater ──
+  // Shows e.g. "3 free reports left" or "Pro · 10/month" next to the
+  // Generate header. Refreshes whenever auth state or plan state changes.
+  function refreshReportCreditsBadge() {
+    const badge = document.getElementById("report-credits");
+    if (!badge) return;
+    if (!CURRENT_USER) {
+      badge.textContent = "Sign in for 3 free";
+      badge.classList.remove("exhausted");
+      return;
+    }
+    const plan = CURRENT_USER_PLAN;
+    const lim = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+    if (plan === "free") {
+      const left = Math.max(0, lim.reports_lifetime - REPORT_COUNT_LIFETIME);
+      badge.textContent = left + " free reports left";
+      badge.classList.toggle("exhausted", left === 0);
+    } else {
+      const left = Math.max(0, lim.reports_30d - REPORT_COUNT_30D);
+      badge.textContent = lim.name + " · " + left + "/" +
+        lim.reports_30d + " this month";
+      badge.classList.toggle("exhausted", left === 0);
+    }
+  }
+  // Wire whenever plan or user state changes
+  (function () {
+    // Initial paint after a short delay (after refreshPlanState resolves)
+    setTimeout(refreshReportCreditsBadge, 1500);
+    setInterval(refreshReportCreditsBadge, 30000);
+    if (typeof onUserChange === "function") {
+      onUserChange(function () {
+        setTimeout(refreshReportCreditsBadge, 500);
+      });
+    }
+  })();
+
   // ── Email capture (footer beta signup) ──
   (function setupEmailCapture() {
     const form = document.getElementById("ec-form");
@@ -3587,7 +4166,31 @@
     const status   = document.getElementById("auth-status");
     if (!btn) return;
 
-    function openModal() {
+    const titleEl = document.getElementById("auth-title");
+    const subEl   = document.getElementById("auth-sub");
+    // Action-specific modal copy. Called as openModal(action, ticker)
+    // — falls back to generic copy if no action specified.
+    const ACTION_COPY = {
+      save:   { title: "Sign in to save {tk}",
+                sub:   "Saved tickers stay on your watchlist across devices " +
+                       "with live grade + flow signals. <b>Free forever</b> " +
+                       "for the core dashboard." },
+      alert:  { title: "Sign in to create alerts",
+                sub:   "Get daily email briefs the moment {tk} upgrades, " +
+                       "fires a notable flow signal, or has earnings inside " +
+                       "7 days. <b>Free during beta</b>." },
+      note:   { title: "Sign in to keep notes",
+                sub:   "Private per-ticker notes + trade journal track every " +
+                       "thesis, entry, and outcome — your personal alpha record." },
+      report: { title: "Sign in to generate research",
+                sub:   "Free accounts get <b>3 ad-hoc reports</b> to start. " +
+                       "Upgrade to Pro for 10/month + unlimited archive." },
+      generic:{ title: "Sign in to TickerDesk",
+                sub:   "Save your watchlist, get email alerts, track your " +
+                       "trade journal across devices. <b>Free forever</b> " +
+                       "for the core dashboard." },
+    };
+    function openModal(action, ticker) {
       // Only show modal if Supabase is configured; else explain silently
       if (!SUPA_URL || !SUPA_ANON) {
         status.className = "auth-status err";
@@ -3595,10 +4198,89 @@
           "Sign-in not configured yet — site is fully usable in anon mode.";
         return;
       }
+      const copy = ACTION_COPY[action] || ACTION_COPY.generic;
+      const tkLabel = ticker ? ticker : "tickers";
+      titleEl.textContent = copy.title.replace("{tk}", tkLabel);
+      subEl.innerHTML = copy.sub.replace("{tk}", "<b>" + tkLabel + "</b>");
       modal.classList.add("show");
       modal.setAttribute("aria-hidden", "false");
       setTimeout(function () { input && input.focus(); }, 50);
     }
+    // Expose so other modules can trigger auth with action context
+    window.tdRequireAuth = function (action, ticker) {
+      if (CURRENT_USER) return true;
+      openModal(action, ticker);
+      return false;
+    };
+
+    // ── Pricing modal wiring ──
+    const pricingModal = document.getElementById("pricing-modal");
+    const pricingClose = document.getElementById("pricing-close");
+    const pricingTitle = document.getElementById("pricing-title");
+    const pricingSub   = document.getElementById("pricing-sub");
+    function openPricing(reason, detail) {
+      if (!pricingModal) return;
+      const titles = {
+        lifetime_cap: "Lifetime free reports used",
+        monthly_cap:  "Monthly report cap reached",
+        watchlist_cap:"Watchlist limit reached",
+        generic:      "Upgrade to Pro",
+      };
+      const subs = {
+        lifetime_cap: "You've used your " + (detail && detail.cap || 3) +
+          " lifetime free reports. Upgrade to Pro for 10 reports/month + " +
+          "unlimited archive + alerts + journal.",
+        monthly_cap:  "You've used your " + (detail && detail.cap || 10) +
+          " reports this month. Resets in 30 days from your earliest run, " +
+          "or upgrade to Premium for 100/month.",
+        watchlist_cap:"Free accounts get 5 watchlist names. Upgrade to Pro " +
+          "for unlimited watchlist + benchmark + trade journal.",
+        generic:      "Unlock unlimited research, alerts, journal, and " +
+          "full archive access.",
+      };
+      pricingTitle.textContent = titles[reason] || titles.generic;
+      pricingSub.textContent   = subs[reason] || subs.generic;
+      pricingModal.classList.add("show");
+      pricingModal.setAttribute("aria-hidden", "false");
+    }
+    function closePricing() {
+      pricingModal.classList.remove("show");
+      pricingModal.setAttribute("aria-hidden", "true");
+    }
+    if (pricingClose) pricingClose.addEventListener("click", closePricing);
+    if (pricingModal) pricingModal.addEventListener("click", function (e) {
+      if (e.target === pricingModal) closePricing();
+    });
+    // Stripe checkout stub — until keys are configured, just records intent.
+    // TODO: wire createCheckoutSession to a Cloudflare Worker endpoint that
+    // calls Stripe API; redirect to Stripe-hosted checkout; webhook updates
+    // profiles.subscription_tier on subscription.created/updated events.
+    document.querySelectorAll("[data-plan]").forEach(function (btn) {
+      btn.addEventListener("click", async function () {
+        const plan = btn.dataset.plan;
+        if (!CURRENT_USER) {
+          closePricing();
+          openModal("save", null);
+          return;
+        }
+        // Persist intent via email_signups as a placeholder until Stripe
+        // is wired. Lets us reach out manually + measure conversion intent.
+        if (SUPA && CURRENT_USER.email) {
+          try {
+            await SUPA.from("email_signups").upsert(
+              { email: CURRENT_USER.email,
+                source: "upgrade_intent_" + plan },
+              { onConflict: "email" }
+            );
+          } catch (e) { /* silent */ }
+        }
+        btn.textContent = "Recorded — we'll be in touch";
+        btn.disabled = true;
+        setTimeout(closePricing, 2000);
+      });
+    });
+    window.tdOpenPricing = openPricing;
+    window.tdClosePricing = closePricing;
     function closeModal() {
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
@@ -4623,6 +5305,39 @@
       e.preventDefault();
       openPanel(tk);
     });
+    // ── Visual highlight of watchlisted tickers across the site ──
+    // Walks every [data-t] on the page and appends/removes a small ⭐
+    // next to it based on watchlist membership. Re-runs whenever the
+    // watchlist or DOM changes.
+    function markWatchedTickers() {
+      const watched = window.tdWatchlist ? window.tdWatchlist() : new Set();
+      document.querySelectorAll("[data-t]").forEach(function (el) {
+        // Skip elements inside the panel/popups where the star is shown
+        // already, and skip the watchlist drawer/portfolio rows
+        if (el.closest("#ticker-panel, .src-pop, .wl-drawer, " +
+                        "#panel-watchlist, #wl-trigger, .ar-chip")) return;
+        const tk = el.dataset.t;
+        if (!tk) return;
+        const existing = el.querySelector(":scope > .tdwatch-dot");
+        const should = watched.has(tk);
+        if (should && !existing) {
+          const dot = document.createElement("span");
+          dot.className = "tdwatch-dot";
+          dot.textContent = "★";
+          dot.title = tk + " is on your watchlist";
+          el.appendChild(dot);
+        } else if (!should && existing) {
+          existing.remove();
+        }
+      });
+    }
+    // Re-mark whenever watchlist changes
+    if (typeof onWatchChange === "function") onWatchChange(markWatchedTickers);
+    // Re-mark periodically since tabs re-render their content asynchronously
+    setInterval(markWatchedTickers, 3000);
+    // Initial pass
+    setTimeout(markWatchedTickers, 1500);
+
     // Star-button click inside the hover popup — toggles watchlist for
     // the ticker the popup is anchored to. Works on every tab because
     // the popup is mounted on document.body.
@@ -4873,6 +5588,32 @@
       if (!ticker) { setStatus("err", "Enter a ticker symbol."); return; }
       if (!/^[A-Z.\-]{1,8}$/.test(ticker)) {
         setStatus("err", "Invalid ticker format: <strong>" + ticker + "</strong>"); return;
+      }
+      // ── Gate against plan limits ──
+      // Signed-out: prompt sign-in with the "report" action copy
+      if (window.tdRequireAuth &&
+          !window.tdRequireAuth("report", ticker)) return;
+      // Signed-in but over limit: open pricing modal
+      if (window.tdCanGenerateReport) {
+        const gate = window.tdCanGenerateReport();
+        if (!gate.ok) {
+          if (window.tdOpenPricing) window.tdOpenPricing(gate.reason, gate);
+          return;
+        }
+      }
+      // Log the generation attempt for credit tracking
+      if (SUPA && CURRENT_USER) {
+        try {
+          await SUPA.from("report_generations").insert({
+            user_id: CURRENT_USER.id,
+            ticker: ticker,
+            report_type: cfg.reportType,
+            status: "queued",
+          });
+          if (typeof refreshPlanState === "function") {
+            await refreshPlanState();
+          }
+        } catch (e) { console.warn("Report log failed:", e); }
       }
       button.disabled = true;
       viewer.className = ""; viewer.innerHTML = "";

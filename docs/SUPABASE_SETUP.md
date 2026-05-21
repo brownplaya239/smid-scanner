@@ -13,7 +13,118 @@ Takes ~5 minutes.
    - Region: pick the one closest to most users (US East for now)
 4. Wait ~90 seconds for provisioning
 
-## 2a. (Update) Run this in SQL Editor to add the new launch features
+## 2b. (Phase 3) Run this in SQL Editor for notes, alerts, report tracking
+
+```sql
+-- Notes — private per-ticker (and optionally per-signal) jottings.
+-- Separate from trade_journal because not every note is a trade action.
+create table if not exists public.notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  ticker text not null,
+  note text not null,
+  related_signal_type text,
+  related_signal_id text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists notes_user_ticker on public.notes(user_id, ticker);
+alter table public.notes enable row level security;
+create policy "n_own" on public.notes
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Alerts — what user wants to be notified about. Email sending deferred;
+-- this just persists preferences for now.
+create table if not exists public.alerts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  ticker text,                  -- nullable: alert can apply to all watchlist
+  alert_type text not null check (alert_type in (
+    'new_flow','grade_change','earnings_imminent','news_sentiment',
+    'top_flow','enters_a_tier'
+  )),
+  enabled boolean default true,
+  config jsonb default '{}',
+  created_at timestamptz default now()
+);
+alter table public.alerts enable row level security;
+create policy "a_own" on public.alerts
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Report-generation usage tracking (drives free/Pro credits)
+create table if not exists public.report_generations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  ticker text not null,
+  report_type text not null,        -- 'adhoc' | 'altdata' | etc.
+  status text default 'queued'
+    check (status in ('queued','running','done','failed')),
+  cost_units numeric default 1,
+  created_at timestamptz default now()
+);
+create index if not exists rg_user_created
+  on public.report_generations(user_id, created_at desc);
+alter table public.report_generations enable row level security;
+create policy "rg_own" on public.report_generations
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Daily snapshot per signal per ticker — drives "What's New since last
+-- visit." Lightweight: one row per ticker per day with the day's grade,
+-- flow bias, and whether the ticker appeared in key modules.
+create table if not exists public.signal_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  snapshot_date date not null,
+  ticker text not null,
+  trend_grade text,
+  flow_bias text,
+  flow_score numeric,
+  theme text,
+  earnings_date date,
+  news_sentiment text,
+  appeared_in_modules jsonb default '{}',  -- {top_flow:true, qm:true, ...}
+  unique (snapshot_date, ticker)
+);
+-- Snapshots are SHARED across users (same swing data feeds everyone).
+-- Public read so the "what's new" widget can compute diffs cheaply.
+alter table public.signal_snapshots enable row level security;
+create policy "ss_read_any" on public.signal_snapshots
+  for select using (true);
+-- Only service role can write (server-side ETL)
+
+-- Helper to get user plan (free/pro/premium) with sane fallback
+create or replace function public.get_user_plan()
+returns text language sql security definer set search_path = public
+as $$
+  select coalesce(subscription_tier, 'free') from public.profiles
+  where id = auth.uid();
+$$;
+grant execute on function public.get_user_plan() to authenticated;
+
+-- Count report generations in the last 30 days (for monthly credit caps)
+create or replace function public.report_count_30d()
+returns bigint language sql security definer set search_path = public
+as $$
+  select count(*)::bigint from public.report_generations
+  where user_id = auth.uid()
+    and created_at > now() - interval '30 days';
+$$;
+grant execute on function public.report_count_30d() to authenticated;
+
+-- Total lifetime report generations (for free-tier lifetime cap)
+create or replace function public.report_count_lifetime()
+returns bigint language sql security definer set search_path = public
+as $$
+  select count(*)::bigint from public.report_generations
+  where user_id = auth.uid();
+$$;
+grant execute on function public.report_count_lifetime() to authenticated;
+```
+
+Run that block as one query. After it succeeds: 4 new tables + 3 helper
+RPCs. Free / Pro / Premium logic is now driven by `profiles.subscription_tier`
+(default `'free'` for new signups via the existing trigger).
+
+## 2a. (Phase 2) Run this in SQL Editor to add the launch features
 
 If you've already run the initial setup, run this delta to add portfolio
 weights, email signups, watcher-count function, and last-seen tracking:
