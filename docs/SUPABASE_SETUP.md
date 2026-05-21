@@ -3,6 +3,25 @@
 One-time setup to power user accounts, watchlists, and trade journal.
 Takes ~5 minutes.
 
+## 0. (Phase 4) GitHub Actions secrets for the Daily Brief job
+
+The `Daily Brief` workflow (`.github/workflows/daily_brief.yml`) runs at
+~8:45 AM ET weekdays and emails every user with `daily_brief_enabled =
+true`. It needs 4 secrets — add them under **Settings → Secrets and
+variables → Actions** on the GitHub repo:
+
+| Secret name             | Value                                                 |
+|-------------------------|-------------------------------------------------------|
+| `SUPABASE_URL`          | `https://uaeojibmhxbwkhpvmjwy.supabase.co`            |
+| `SUPABASE_SERVICE_KEY`  | service_role key (Supabase → Settings → API → `service_role secret`). NEVER expose this in client code — it bypasses RLS. |
+| `RESEND_API_KEY`        | `re_…` from resend.com → API Keys (single key fine; same one the Supabase SMTP integration uses) |
+| `FROM_EMAIL`            | `TickerDesk <brief@tickerdesk.io>` (sender must be a verified domain in Resend) |
+
+Once added you can test on demand: **Actions → Daily Brief → Run workflow**,
+toggle `dry_run = true` and `restrict_email = your-email@example.com`
+for a no-send preview. Remove both for the real send.
+
+
 ## 1. Create the Supabase project
 
 1. Go to https://supabase.com
@@ -12,6 +31,50 @@ Takes ~5 minutes.
    - Database password: any strong password (you won't need it day-to-day)
    - Region: pick the one closest to most users (US East for now)
 4. Wait ~90 seconds for provisioning
+
+## 2c. (Phase 4) Run this in SQL Editor for Daily Brief opt-in + email log
+
+```sql
+-- Daily Brief opt-in lives on profiles (single boolean — keeps the
+-- toggle path simple). Alerts table will still hold per-event
+-- preferences later (new flow, grade change, etc); the daily brief
+-- is the one cross-cutting digest we ship first.
+alter table public.profiles
+  add column if not exists daily_brief_enabled boolean default false;
+
+-- Email log — every send (success or fail) is recorded so we can
+-- (a) avoid duplicate sends within a single brief day, (b) debug
+-- delivery, (c) measure open / engagement later. We don't store
+-- the HTML body, just metadata + the JSON payload we shaped it from.
+create table if not exists public.email_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  email text not null,
+  kind text not null check (kind in (
+    'daily_brief','alert','onboarding','transactional'
+  )),
+  status text not null check (status in ('sent','failed','skipped')),
+  subject text,
+  payload jsonb,
+  error text,
+  sent_at timestamptz default now(),
+  -- For daily_brief: which trading day's data the brief covered. Lets
+  -- us idempotently retry without spamming someone twice for the same day.
+  brief_date date
+);
+create index if not exists email_log_user_day
+  on public.email_log(user_id, kind, brief_date);
+alter table public.email_log enable row level security;
+-- Users can read their own delivery history (status badge in the UI)
+create policy "el_own_read" on public.email_log
+  for select using (auth.uid() = user_id);
+-- Only service role writes (the daily-brief CI job uses the service key)
+```
+
+Run that block. After it succeeds: 1 new column on `profiles`, plus
+the `email_log` table. The daily brief CI job will only send to users
+who have `daily_brief_enabled = true`; the in-app toggle (Watchlist
+tab → Settings) flips it.
 
 ## 2b. (Phase 3) Run this in SQL Editor for notes, alerts, report tracking
 
