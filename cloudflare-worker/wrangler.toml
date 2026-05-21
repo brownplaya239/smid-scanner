@@ -22,20 +22,14 @@ SUPABASE_URL = "https://uaeojibmhxbwkhpvmjwy.supabase.co"
 REPO = "brownplaya239/smid-scanner"
 
 # Observability — exact match to what the Cloudflare dashboard
-# generates. The dashboard adds `enabled`, `head_sampling_rate`, and
-# `persist` fields even when not strictly required; mirroring them
-# here prevents the "remote config differs" warning on every deploy.
-[observability]
-enabled = false
-head_sampling_rate = 1
-
+# currently generates. Cloudflare reformats this section every time
+# you toggle a setting in the dashboard, and any mismatch causes the
+# "remote config differs" loop that blocks Logs/Observability tabs.
+# If you re-toggle in the dashboard, copy the JSONC shown there back
+# into TOML form here.
 [observability.logs]
 enabled = true
-head_sampling_rate = 1
-persist = true
 invocation_logs = true
 
 [observability.traces]
 enabled = false
-persist = true
-head_sampling_rate = 1
