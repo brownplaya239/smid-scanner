@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="TickerDesk Privacy Policy — what data we collect, how it's used, and your rights." />
+<link rel="icon" href="favicon.png" />
+<title>Privacy Policy — TickerDesk</title>
+<style>
+  body { margin:0; padding:48px 20px 80px;
+    background:#000; color:#e8e8e8;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    line-height:1.6; }
+  main { max-width:680px; margin:0 auto; }
+  .nav { display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid #2b2b2b; padding-bottom:16px; margin-bottom:32px; }
+  .nav a { color:#ff9e1b; text-decoration:none; font-size:13px; font-weight:600; }
+  .nav a:hover { text-decoration:underline; }
+  h1 { font-size:28px; font-weight:800; margin:0 0 8px; }
+  .sub { color:#7a7a7a; font-size:13px; margin-bottom:32px; }
+  h2 { font-size:16px; font-weight:700; margin-top:32px;
+    margin-bottom:10px; color:#ff9e1b; }
+  p { font-size:14px; color:#b4b4b4; margin:0 0 12px; }
+  ul { font-size:14px; color:#b4b4b4; padding-left:22px; margin:8px 0 16px; }
+  li { margin-bottom:6px; }
+  b, strong { color:#e8e8e8; font-weight:600; }
+  a { color:#ff9e1b; }
+  hr { border:0; border-top:1px solid #2b2b2b; margin:32px 0; }
+  .foot { font-size:11px; color:#7a7a7a; }
+</style>
+</head>
+<body>
+<main>
+  <div class="nav">
+    <a href="/">← TickerDesk</a>
+    <a href="/terms.html">Terms of Service</a>
+  </div>
+
+  <h1>Privacy Policy</h1>
+  <div class="sub">Last updated: May 21, 2026</div>
+
+  <p>TickerDesk ("we", "us", "the service") provides a stock research
+  dashboard at tickerdesk.io. This policy explains what data we collect
+  from you, how we use it, and what controls you have. We've kept it
+  short and human-readable on purpose.</p>
+
+  <h2>What we collect</h2>
+  <ul>
+    <li><b>Account info</b> — your email address (required for sign-in)
+      and an optional display name. If you sign in with Google, we
+      receive your name and Google account email; we do not receive
+      your Google password, contacts, calendar, or any other Google data.</li>
+    <li><b>Your dashboard activity</b> — tickers you add to your
+      watchlist, weights you assign them, and trade journal entries you
+      log. All of this is stored only against your account and visible
+      only to you.</li>
+    <li><b>Notification subscriptions</b> — if you enable browser push
+      notifications or the Daily Brief email, we store the technical
+      details needed to deliver them (push endpoint and encryption keys
+      for browser; email address for the brief).</li>
+    <li><b>Basic technical metadata</b> — browser user-agent string and
+      device label (e.g. "Chrome on Windows") attached to each push
+      subscription, so you can manage multiple devices.</li>
+  </ul>
+
+  <h2>What we do NOT collect</h2>
+  <ul>
+    <li>We do not collect or store passwords. Sign-in is exclusively via
+      email magic-link or Google OAuth — your credentials live with the
+      auth provider, not us.</li>
+    <li>We do not collect bank accounts, credit cards, brokerage
+      credentials, social security numbers, or any payment information.
+      We do not connect to your broker.</li>
+    <li>We do not track you across the web. There are no third-party
+      advertising or analytics scripts on TickerDesk.</li>
+  </ul>
+
+  <h2>How we use your data</h2>
+  <ul>
+    <li>To render your personalized dashboard (My Desk, Watchlist tab,
+      Trade Log).</li>
+    <li>To send the Daily Brief email if you've opted in, and the
+      push notifications if you've enabled them.</li>
+    <li>To debug failures (we log delivery attempts for emails and pushes
+      so we can tell if a push endpoint expired or an email bounced).</li>
+  </ul>
+
+  <h2>Third parties we use</h2>
+  <ul>
+    <li><b>Supabase</b> — hosts our database and handles user authentication.
+      Your account row and watchlist live here.</li>
+    <li><b>Resend</b> — delivers transactional email (magic-link sign-in
+      and the Daily Brief).</li>
+    <li><b>Polygon.io</b> — provides the market data (quotes, candles,
+      options flow, news) we display. They receive ticker symbols you
+      look up; they do not receive your user identity.</li>
+    <li><b>GitHub Pages</b> — hosts the dashboard static files.</li>
+    <li><b>Cloudflare</b> — provides DNS, CDN, and an edge worker that
+      proxies market data calls. They see your IP address as the
+      requester, as any CDN does.</li>
+    <li><b>Google</b> — only if you choose to sign in with Google.
+      Google sees that you signed into TickerDesk.</li>
+  </ul>
+
+  <p>We do not sell your data to anyone. We do not share your data with
+  any party beyond what is strictly required to render the service.</p>
+
+  <h2>How long we keep your data</h2>
+  <p>We retain your account and watchlist for as long as your account is
+  active. Notification delivery logs are kept indefinitely (they're small
+  and useful for debugging). If you delete your account, all your data is
+  permanently erased within 30 days.</p>
+
+  <h2>Your rights</h2>
+  <ul>
+    <li><b>Access</b> — every byte of your data is visible on your
+      dashboard. Use the Watchlist tab and your account settings to
+      review.</li>
+    <li><b>Export</b> — email us and we'll send you a JSON export of
+      everything we hold on you within 7 days.</li>
+    <li><b>Delete</b> — email us at the address below to delete your
+      account and all associated data. Or unsubscribe individual streams
+      (Daily Brief, push) from the dashboard toggles.</li>
+    <li><b>Opt out of communications</b> — every Daily Brief includes an
+      unsubscribe option; the push notification toggle disables real-time
+      alerts immediately.</li>
+  </ul>
+
+  <h2>Security</h2>
+  <p>Data in our database is gated by row-level security — even our own
+  worker cannot read your data without your user ID. Connections are
+  encrypted (HTTPS / TLS). We use only services with industry-standard
+  security postures.</p>
+
+  <p>That said, no system is perfectly secure. Don't put information in
+  TickerDesk that you couldn't tolerate becoming public if we had a
+  catastrophic breach.</p>
+
+  <h2>Children</h2>
+  <p>TickerDesk is intended for users 18 and older. We do not knowingly
+  collect data from anyone under 18.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>We may update this policy as the service evolves. Material changes
+  will be announced via the Daily Brief or an in-dashboard banner.</p>
+
+  <h2>Contact</h2>
+  <p>Privacy questions, data export, account deletion:
+    <a href="mailto:privacy@tickerdesk.io">privacy@tickerdesk.io</a>.
+    We respond within 7 days.</p>
+
+  <hr>
+  <p class="foot">TickerDesk is a research tool. Nothing on the dashboard
+  constitutes financial advice. Do your own due diligence before any
+  trade. See the <a href="/terms.html">Terms of Service</a> for the full
+  legal framing.</p>
+</main>
+</body>
+</html>
