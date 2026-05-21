@@ -1,0 +1,48 @@
+name: Deploy Cloudflare Worker
+
+# Auto-deploys the worker any time worker.js (or other cloudflare-worker/
+# files) change on master. Eliminates the "did you run wrangler deploy?"
+# friction — every commit that touches the worker ships to Cloudflare's
+# edge within ~60 sec of push.
+#
+# Setup (one-time): add CLOUDFLARE_API_TOKEN to GitHub Actions secrets.
+# Create the token at https://dash.cloudflare.com/profile/api-tokens
+# using the "Edit Cloudflare Workers" template. Account-scoped, no other
+# permissions needed.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'cloudflare-worker/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install worker dependencies
+        working-directory: cloudflare-worker
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Deploy worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: cloudflare-worker
+          command: deploy
