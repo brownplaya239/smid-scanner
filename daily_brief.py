@@ -670,12 +670,18 @@ def send_email(to_email: str, subject: str, html: str) -> tuple[bool, str]:
         "subject": subject,
         "html": html,
     }).encode("utf-8")
+    # NOTE: Resend's API is fronted by Cloudflare and the default urllib
+    # User-Agent ("Python-urllib/3.12") trips Cloudflare WAF rule 1010
+    # (banned browser signature). A real-looking UA gets through cleanly.
     req = urllib.request.Request(
         "https://api.resend.com/emails",
         data=body,
         headers={
             "Authorization": f"Bearer {RESEND_API_KEY}",
             "Content-Type": "application/json",
+            "User-Agent": ("Mozilla/5.0 (compatible; TickerDesk-Brief/1.0; "
+                           "+https://tickerdesk.io)"),
+            "Accept": "application/json",
         },
         method="POST",
     )
