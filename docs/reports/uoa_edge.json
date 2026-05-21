@@ -1,6 +1,6 @@
 {
- "generated": "2026-05-21T21:19:54+00:00",
- "total_signals": 8423,
+ "generated": "2026-05-21T22:49:36+00:00",
+ "total_signals": 8562,
  "matured_5d": 0,
  "horizons": [
   1,
@@ -53,7 +53,7 @@
  },
  "by_type": {
   "golden_sweep": {
-   "signals": 2279,
+   "signals": 2316,
    "h": {
     "1": {
      "n": 2186,
@@ -107,7 +107,7 @@
    }
   },
   "sweep": {
-   "signals": 4808,
+   "signals": 4885,
    "h": {
     "1": {
      "n": 4599,
@@ -161,7 +161,7 @@
    }
   },
   "voloi": {
-   "signals": 1336,
+   "signals": 1361,
    "h": {
     "1": {
      "n": 1262,
@@ -217,7 +217,7 @@
  },
  "by_score": {
   "80-100": {
-   "signals": 1053,
+   "signals": 1070,
    "h": {
     "1": {
      "n": 1034,
@@ -271,7 +271,7 @@
    }
   },
   "65-79": {
-   "signals": 4602,
+   "signals": 4699,
    "h": {
     "1": {
      "n": 4427,
@@ -325,7 +325,7 @@
    }
   },
   "55-64": {
-   "signals": 2768,
+   "signals": 2793,
    "h": {
     "1": {
      "n": 2586,
@@ -381,7 +381,7 @@
  },
  "by_dte": {
   "urgent": {
-   "signals": 5863,
+   "signals": 5944,
    "h": {
     "1": {
      "n": 5642,
@@ -435,7 +435,7 @@
    }
   },
   "swing": {
-   "signals": 1690,
+   "signals": 1733,
    "h": {
     "1": {
      "n": 1576,
@@ -489,7 +489,7 @@
    }
   },
   "positioning": {
-   "signals": 769,
+   "signals": 781,
    "h": {
     "1": {
      "n": 734,
@@ -543,7 +543,7 @@
    }
   },
   "leaps": {
-   "signals": 101,
+   "signals": 104,
    "h": {
     "1": {
      "n": 95,
@@ -599,7 +599,7 @@
  },
  "by_tag": {
   "Golden Sweep": {
-   "signals": 2279,
+   "signals": 2316,
    "h": {
     "1": {
      "n": 2186,
@@ -653,7 +653,7 @@
    }
   },
   "Sweep": {
-   "signals": 4808,
+   "signals": 4885,
    "h": {
     "1": {
      "n": 4599,
@@ -707,7 +707,7 @@
    }
   },
   "Block": {
-   "signals": 5551,
+   "signals": 5646,
    "h": {
     "1": {
      "n": 5295,
@@ -761,7 +761,7 @@
    }
   },
   "Size>OI": {
-   "signals": 2115,
+   "signals": 2147,
    "h": {
     "1": {
      "n": 2034,
@@ -815,7 +815,7 @@
    }
   },
   "Repeat": {
-   "signals": 7229,
+   "signals": 7368,
    "h": {
     "1": {
      "n": 6961,
@@ -869,7 +869,7 @@
    }
   },
   "Into ERN": {
-   "signals": 1242,
+   "signals": 1261,
    "h": {
     "1": {
      "n": 1192,
@@ -923,7 +923,7 @@
    }
   },
   "In Universe": {
-   "signals": 6732,
+   "signals": 6835,
    "h": {
     "1": {
      "n": 6445,
@@ -1038,7 +1038,7 @@
    }
   },
   "TSLA": {
-   "signals": 1459,
+   "signals": 1493,
    "h": {
     "1": {
      "n": 1364,
@@ -1097,7 +1097,7 @@
    }
   },
   "GOOGL": {
-   "signals": 165,
+   "signals": 167,
    "h": {
     "1": {
      "n": 159,
@@ -1156,7 +1156,7 @@
    }
   },
   "MU": {
-   "signals": 790,
+   "signals": 793,
    "h": {
     "1": {
      "n": 783,
@@ -1215,7 +1215,7 @@
    }
   },
   "NVDA": {
-   "signals": 543,
+   "signals": 560,
    "h": {
     "1": {
      "n": 496,
@@ -1274,7 +1274,7 @@
    }
   },
   "SNDK": {
-   "signals": 132,
+   "signals": 133,
    "h": {
     "1": {
      "n": 130,
@@ -1392,7 +1392,7 @@
    }
   },
   "INTC": {
-   "signals": 335,
+   "signals": 336,
    "h": {
     "1": {
      "n": 331,
@@ -1805,7 +1805,7 @@
    }
   },
   "QCOM": {
-   "signals": 49,
+   "signals": 50,
    "h": {
     "1": {
      "n": 46,
@@ -1864,7 +1864,7 @@
    }
   },
   "AMD": {
-   "signals": 346,
+   "signals": 350,
    "h": {
     "1": {
      "n": 340,
@@ -1923,7 +1923,7 @@
    }
   },
   "AMZN": {
-   "signals": 110,
+   "signals": 112,
    "h": {
     "1": {
      "n": 106,
@@ -1982,7 +1982,7 @@
    }
   },
   "MSFT": {
-   "signals": 298,
+   "signals": 299,
    "h": {
     "1": {
      "n": 294,
@@ -2454,7 +2454,7 @@
    }
   },
   "AVGO": {
-   "signals": 82,
+   "signals": 83,
    "h": {
     "1": {
      "n": 78,
@@ -2690,7 +2690,7 @@
    }
   },
   "COIN": {
-   "signals": 55,
+   "signals": 56,
    "h": {
     "1": {
      "n": 51,
@@ -2867,7 +2867,7 @@
    }
   },
   "TSM": {
-   "signals": 47,
+   "signals": 50,
    "h": {
     "1": {
      "n": 41,
@@ -2926,7 +2926,7 @@
    }
   },
   "NBIS": {
-   "signals": 128,
+   "signals": 129,
    "h": {
     "1": {
      "n": 125,
@@ -3280,7 +3280,7 @@
    }
   },
   "AAPL": {
-   "signals": 95,
+   "signals": 96,
    "h": {
     "1": {
      "n": 94,
@@ -3516,7 +3516,7 @@
    }
   },
   "DRAM": {
-   "signals": 28,
+   "signals": 29,
    "h": {
     "1": {
      "n": 26,
@@ -3634,7 +3634,7 @@
    }
   },
   "MSTR": {
-   "signals": 92,
+   "signals": 96,
    "h": {
     "1": {
      "n": 82,
@@ -3693,7 +3693,7 @@
    }
   },
   "FSLR": {
-   "signals": 19,
+   "signals": 20,
    "h": {
     "1": {
      "n": 16,
@@ -3752,7 +3752,7 @@
    }
   },
   "SNOW": {
-   "signals": 68,
+   "signals": 69,
    "h": {
     "1": {
      "n": 64,
@@ -4165,7 +4165,7 @@
    }
   },
   "WMT": {
-   "signals": 54,
+   "signals": 62,
    "h": {
     "1": {
      "n": 31,
@@ -4989,7 +4989,7 @@
    }
   },
   "JPM": {
-   "signals": 11,
+   "signals": 12,
    "h": {
     "1": {
      "n": 9,
@@ -5107,7 +5107,7 @@
    }
   },
   "CCJ": {
-   "signals": 19,
+   "signals": 20,
    "h": {
     "1": {
      "n": 16,
@@ -5343,7 +5343,7 @@
    }
   },
   "C": {
-   "signals": 15,
+   "signals": 16,
    "h": {
     "1": {
      "n": 12,
@@ -5577,7 +5577,7 @@
    }
   },
   "ASTS": {
-   "signals": 22,
+   "signals": 24,
    "h": {
     "1": {
      "n": 17,
@@ -5872,7 +5872,7 @@
    }
   },
   "PLTR": {
-   "signals": 38,
+   "signals": 39,
    "h": {
     "1": {
      "n": 36,
@@ -6167,7 +6167,7 @@
    }
   },
   "IREN": {
-   "signals": 44,
+   "signals": 45,
    "h": {
     "1": {
      "n": 40,
@@ -6285,7 +6285,7 @@
    }
   },
   "ARM": {
-   "signals": 50,
+   "signals": 54,
    "h": {
     "1": {
      "n": 38,
@@ -6462,7 +6462,7 @@
    }
   },
   "APLD": {
-   "signals": 18,
+   "signals": 19,
    "h": {
     "1": {
      "n": 16,
@@ -7170,7 +7170,7 @@
    }
   },
   "TE": {
-   "signals": 36,
+   "signals": 37,
    "h": {
     "1": {
      "n": 34,
@@ -7229,7 +7229,7 @@
    }
   },
   "QBTS": {
-   "signals": 10,
+   "signals": 12,
    "h": {
     "1": {
      "n": 2,
@@ -7640,7 +7640,7 @@
    }
   },
   "ZM": {
-   "signals": 13,
+   "signals": 16,
    "h": {
     "1": {
      "n": 8,
@@ -8169,7 +8169,7 @@
    }
   },
   "CSCO": {
-   "signals": 38,
+   "signals": 39,
    "h": {
     "1": {
      "n": 35,
@@ -8344,7 +8344,7 @@
    }
   },
   "DELL": {
-   "signals": 35,
+   "signals": 37,
    "h": {
     "1": {
      "n": 27,
@@ -9636,7 +9636,7 @@
    }
   },
   "TTWO": {
-   "signals": 21,
+   "signals": 22,
    "h": {
     "1": {
      "n": 17,
@@ -10403,7 +10403,7 @@
    }
   },
   "PANW": {
-   "signals": 8,
+   "signals": 9,
    "h": {
     "1": {
      "n": 6,
@@ -13058,7 +13058,7 @@
    }
   },
   "RGTI": {
-   "signals": 13,
+   "signals": 17,
    "h": {
     "1": {
      "n": 0,
@@ -13115,7 +13115,7 @@
    }
   },
   "ETSY": {
-   "signals": 6,
+   "signals": 8,
    "h": {
     "1": {
      "n": 0,
@@ -13172,7 +13172,121 @@
    }
   },
   "IBM": {
-   "signals": 5,
+   "signals": 7,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "SHEL": {
+   "signals": 6,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "INFY": {
+   "signals": 6,
    "h": {
     "1": {
      "n": 0,
@@ -13231,7 +13345,7 @@
  },
  "by_theme": {
   "AI Infrastructure": {
-   "signals": 2169,
+   "signals": 2200,
    "h": {
     "1": {
      "n": 2088,
@@ -13290,7 +13404,7 @@
    }
   },
   "Photonics / Optical Networking": {
-   "signals": 224,
+   "signals": 225,
    "h": {
     "1": {
      "n": 220,
@@ -13349,7 +13463,7 @@
    }
   },
   "Semiconductors": {
-   "signals": 1569,
+   "signals": 1596,
    "h": {
     "1": {
      "n": 1499,
@@ -13408,7 +13522,7 @@
    }
   },
   "Autos & Auto Tech": {
-   "signals": 1459,
+   "signals": 1493,
    "h": {
     "1": {
      "n": 1364,
@@ -13467,7 +13581,7 @@
    }
   },
   "Robotics & Automation": {
-   "signals": 1471,
+   "signals": 1505,
    "h": {
     "1": {
      "n": 1376,
@@ -13526,7 +13640,7 @@
    }
   },
   "Internet & Content": {
-   "signals": 333,
+   "signals": 336,
    "h": {
     "1": {
      "n": 326,
@@ -13585,7 +13699,7 @@
    }
   },
   "Memory": {
-   "signals": 941,
+   "signals": 945,
    "h": {
     "1": {
      "n": 932,
@@ -13644,7 +13758,7 @@
    }
   },
   "Space": {
-   "signals": 138,
+   "signals": 140,
    "h": {
     "1": {
      "n": 133,
@@ -13703,7 +13817,7 @@
    }
   },
   "Alternative Energy & Power": {
-   "signals": 61,
+   "signals": 62,
    "h": {
     "1": {
      "n": 58,
@@ -13762,7 +13876,7 @@
    }
   },
   "Bitcoin Miners & AI Data Centers": {
-   "signals": 188,
+   "signals": 190,
    "h": {
     "1": {
      "n": 182,
@@ -13821,7 +13935,7 @@
    }
   },
   "Crypto Infrastructure": {
-   "signals": 319,
+   "signals": 325,
    "h": {
     "1": {
      "n": 301,
@@ -13880,7 +13994,7 @@
    }
   },
   "Brokers & Exchanges": {
-   "signals": 56,
+   "signals": 57,
    "h": {
     "1": {
      "n": 52,
@@ -13939,7 +14053,7 @@
    }
   },
   "Software": {
-   "signals": 352,
+   "signals": 355,
    "h": {
     "1": {
      "n": 343,
@@ -14057,7 +14171,7 @@
    }
   },
   "Cybersecurity": {
-   "signals": 43,
+   "signals": 44,
    "h": {
     "1": {
      "n": 41,
@@ -14234,7 +14348,7 @@
    }
   },
   "Insurance": {
-   "signals": 17,
+   "signals": 18,
    "h": {
     "1": {
      "n": 15,
@@ -14293,7 +14407,7 @@
    }
   },
   "Defense Tech": {
-   "signals": 91,
+   "signals": 92,
    "h": {
     "1": {
      "n": 89,
@@ -14411,7 +14525,7 @@
    }
   },
   "Banks": {
-   "signals": 65,
+   "signals": 67,
    "h": {
     "1": {
      "n": 60,
@@ -14470,7 +14584,7 @@
    }
   },
   "China ADRs": {
-   "signals": 48,
+   "signals": 49,
    "h": {
     "1": {
      "n": 47,
@@ -14529,7 +14643,7 @@
    }
   },
   "Uranium": {
-   "signals": 25,
+   "signals": 26,
    "h": {
     "1": {
      "n": 22,
@@ -14647,7 +14761,7 @@
    }
   },
   "Quantum Computing": {
-   "signals": 28,
+   "signals": 34,
    "h": {
     "1": {
      "n": 5,
