@@ -410,11 +410,27 @@
   .mydesk-empty { padding:48px 30px; text-align:center; color:var(--muted);
     background:var(--card); border:1px solid var(--line);
     border-radius:8px; }
-  .mydesk-empty h3 { color:var(--text); font-size:15px; font-weight:700;
-    margin:0 0 8px; }
-  .mydesk-empty button { margin-top:14px; background:var(--gold);
-    color:var(--accink); border:0; font-family:inherit; font-size:12px;
-    font-weight:700; padding:10px 20px; border-radius:6px; cursor:pointer; }
+  .mydesk-empty h3 { color:var(--text); font-size:18px; font-weight:700;
+    margin:0 0 10px; }
+  .mydesk-empty p { font-size:13px; line-height:1.55; margin:6px 0;
+    max-width:520px; margin-left:auto; margin-right:auto; }
+  .mydesk-empty .mydesk-hint { color:var(--textdim); font-size:11.5px;
+    margin-top:12px; }
+  .mydesk-empty .mydesk-link { color:var(--gold); text-decoration:none;
+    font-weight:600; }
+  .mydesk-empty .mydesk-link:hover { text-decoration:underline; }
+  /* Two-button CTA row — primary (gold filled) + secondary (outline) */
+  .mydesk-cta-row { display:flex; gap:10px; justify-content:center;
+    flex-wrap:wrap; margin:18px 0 4px; }
+  .mydesk-cta-primary, .mydesk-cta-sample {
+    border:0; font-family:inherit; font-size:13px; font-weight:700;
+    padding:10px 18px; border-radius:6px; cursor:pointer; }
+  .mydesk-cta-primary { background:var(--gold); color:var(--accink); }
+  .mydesk-cta-primary:hover { filter:brightness(1.05); }
+  .mydesk-cta-primary:disabled { opacity:.6; cursor:wait; }
+  .mydesk-cta-sample { background:transparent; color:var(--text);
+    border:1px solid var(--border2); }
+  .mydesk-cta-sample:hover { border-color:var(--gold); color:var(--gold); }
 
   /* Watchlist trigger button in head-toggles + slide-out drawer */
   .wl-trigger { display:flex; align-items:center; gap:6px;
@@ -810,6 +826,56 @@
   .src-pop .sp-head .tape-chg { font-size:11px; }
   /* Star button inside the hover popup — click adds/removes from
      watchlist without needing to open the full drilldown panel */
+  /* Unified action row at the bottom of every ticker hover popup —
+     Save · Alert · Note · Open. The single source of truth for ticker
+     actions; same component everywhere on the site. */
+  .src-pop .sp-actions { display:flex; gap:6px; margin-top:10px;
+    padding-top:9px; border-top:1px solid var(--line);
+    justify-content:space-between; align-items:stretch; }
+  .src-pop .sp-actions button { flex:1; background:var(--navy2);
+    border:1px solid var(--border2); color:var(--textdim);
+    font-family:inherit; font-size:10.5px; font-weight:600;
+    padding:6px 4px; border-radius:5px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center;
+    gap:2px; line-height:1.15;
+    transition:background .12s, border-color .12s, color .12s; }
+  .src-pop .sp-actions button:hover { background:var(--card);
+    border-color:var(--gold); color:var(--gold); }
+  .src-pop .sp-actions button.is-on { background:var(--gold);
+    color:var(--accink); border-color:var(--gold); }
+  .src-pop .sp-actions .sp-action-icon { font-size:13px; line-height:1; }
+  .src-pop .sp-actions .sp-action-lbl { font-size:9px;
+    text-transform:uppercase; letter-spacing:.3px; }
+
+  /* Note editor — small modal that opens when a Note action is clicked.
+     Saves to public.notes table when signed in, otherwise prompts auth. */
+  .note-modal { position:fixed; inset:0; z-index:95; display:none;
+    background:rgba(0,0,0,.6); align-items:center; justify-content:center;
+    padding:20px; }
+  .note-modal.show { display:flex; }
+  .note-modal-inner { background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:22px 22px 18px; width:440px;
+    max-width:100%; box-shadow:0 10px 40px rgba(0,0,0,.55); }
+  .note-modal h3 { font-size:16px; font-weight:700; color:var(--text);
+    margin:0 0 12px; }
+  .note-modal textarea { width:100%; min-height:120px; box-sizing:border-box;
+    background:var(--navy2); border:1px solid var(--border2);
+    color:var(--text); padding:10px 12px; border-radius:6px;
+    font-family:inherit; font-size:13px; line-height:1.5; resize:vertical; }
+  .note-modal textarea:focus { outline:0; border-color:var(--gold); }
+  .note-modal-foot { display:flex; gap:8px; justify-content:flex-end;
+    margin-top:12px; align-items:center; }
+  .note-modal-foot .note-status { flex:1; font-size:11px; color:var(--muted); }
+  .note-modal-foot button { font-family:inherit; font-size:12px;
+    font-weight:600; padding:8px 14px; border-radius:5px; cursor:pointer;
+    border:1px solid var(--border2); background:transparent;
+    color:var(--text); }
+  .note-modal-foot button.primary { background:var(--gold);
+    color:var(--accink); border-color:var(--gold); font-weight:700; }
+  .note-modal-foot button:hover { border-color:var(--gold); color:var(--gold); }
+  .note-modal-foot button.primary:hover { filter:brightness(1.05);
+    color:var(--accink); }
+
   .src-pop .sp-star { background:none; border:0; color:var(--muted);
     cursor:pointer; font-size:15px; line-height:1; padding:0 6px;
     font-family:inherit; margin-left:auto; }
@@ -832,6 +898,45 @@
   .desk-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .desk-card { background:var(--card); border:1px solid var(--line);
     border-radius:8px; padding:11px 13px; }
+  /* Wide variant for the Action List — spans full row */
+  .desk-card.desk-card--wide { grid-column:1 / -1; }
+
+  /* Action List — top-of-desk segmentation that turns the passive
+     "what's happening" wall into a "what to do next" decision tool. */
+  .al-grid { display:grid; gap:10px;
+    grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); }
+  .al-seg { background:var(--navy2); border:1px solid var(--line);
+    border-left:3px solid var(--muted); border-radius:6px;
+    padding:8px 10px; }
+  .al-seg-h { font-size:9.5px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.4px; font-weight:700; margin-bottom:6px; }
+  .al-seg-body { display:flex; flex-direction:column; gap:4px; }
+  .al-seg-cta { background:linear-gradient(135deg,
+    var(--navy2), rgba(255,158,27,.08)); }
+  .al-chip { display:flex; align-items:center; gap:6px; padding:4px 6px;
+    background:var(--bg); border:1px solid var(--line); border-radius:4px;
+    font-size:11px; cursor:pointer;
+    transition:border-color .12s, background .12s; }
+  .al-chip:hover { border-color:var(--gold); background:var(--card); }
+  .al-chip.al-bull { border-left:2px solid var(--green); }
+  .al-chip.al-bear { border-left:2px solid var(--red); }
+  .al-chip .al-tk { font-weight:700; color:var(--text);
+    font-size:11.5px; min-width:50px; }
+  .al-chip .al-grade { font-size:9.5px; font-weight:700; padding:1px 4px;
+    border-radius:3px; background:var(--card); color:var(--textdim); }
+  .al-chip .al-grade.al-grade-a { background:rgba(31,195,110,.15);
+    color:var(--green); }
+  .al-chip .al-grade.al-grade-g { background:rgba(255,91,91,.15);
+    color:var(--red); }
+  .al-chip .al-grade.al-grade-mid { background:rgba(255,158,27,.10);
+    color:var(--gold); }
+  .al-chip .al-prem { color:var(--gold); font-weight:600; font-size:10.5px;
+    margin-left:auto; font-variant-numeric:tabular-nums; }
+  .al-chip .al-why { color:var(--muted); font-size:10px;
+    margin-left:auto; font-style:italic; }
+  .al-empty { color:var(--muted); font-size:10.5px; font-style:italic; }
+  .al-more { font-size:10px; color:var(--muted); padding:3px 6px;
+    align-self:flex-start; }
   .desk-card h3 { font-size:10px; color:var(--muted); text-transform:uppercase;
     letter-spacing:.4px; margin-bottom:8px; font-weight:700; }
   /* Header action — semantically a button styled as an inline link.
@@ -881,6 +986,18 @@
   .desk-row .dr-val.sc-down { color:var(--red); }
   .desk-row .dr-val a { color:var(--gold); text-decoration:none; }
   /* Real button — was an anchor without href which Cmd-click etc. failed on */
+  /* Brief gold flash on the Options Flow filter input when arrived via
+     a "flow →" link from Today's Desk. Confirms the filter was applied. */
+  @keyframes filter-flash-anim {
+    0%   { box-shadow:0 0 0 0   var(--gold); border-color:var(--gold); }
+    50%  { box-shadow:0 0 0 4px rgba(255,158,27,.25);
+           border-color:var(--gold); }
+    100% { box-shadow:0 0 0 0   transparent; border-color:var(--border2); }
+  }
+  #uoa-q.filter-flash {
+    animation:filter-flash-anim 1.2s ease-out;
+  }
+
   .desk-row .dr-flow { color:var(--gold); cursor:pointer; font-size:10px;
     margin-left:4px; opacity:.75; background:none; border:0; padding:0;
     font-family:inherit; font-weight:500; }
@@ -2923,6 +3040,20 @@
     </section>
   </main>
 
+  <!-- Note editor modal — opened when any Note action is clicked anywhere -->
+  <div class="note-modal" id="note-modal" role="dialog" aria-modal="true"
+       aria-hidden="true">
+    <div class="note-modal-inner">
+      <h3 id="note-modal-title">Note on TICKER</h3>
+      <textarea id="note-modal-text" placeholder="Why are you watching this name? Thesis, support/resistance, entry trigger, catalyst — anything you'll want to remember next time you open the drilldown."></textarea>
+      <div class="note-modal-foot">
+        <div class="note-status" id="note-modal-status"></div>
+        <button id="note-modal-cancel">Cancel</button>
+        <button class="primary" id="note-modal-save">Save note</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Beta email capture — collects emails for daily brief + launch list -->
   <div class="email-capture">
     <div class="ec-inner">
@@ -4328,14 +4459,74 @@
           : "";
       }
       if (!wl.length) {
+        // Signed-out users see a stronger CTA + sample mode; signed-in see
+        // a starter-tickers hint. Watchlist tab is the canonical entry now
+        // (the old drawer reference confused users who didn't realize it
+        // had moved to its own tab in Phase 2).
+        if (!signed) {
+          body.innerHTML = '<div class="mydesk-empty">' +
+            '<h3>Create your personal research desk</h3>' +
+            '<p>My Desk filters every signal — flow, trend, news, earnings, ' +
+              'reports — down to just the names YOU follow.</p>' +
+            '<div class="mydesk-cta-row">' +
+              '<button class="mydesk-cta-primary" id="mydesk-cta-signin">' +
+                'Sign in to get started</button>' +
+              '<button class="mydesk-cta-sample"  id="mydesk-cta-sample">' +
+                'Try a sample watchlist</button>' +
+            '</div>' +
+            '<p class="mydesk-hint">Free forever. No card required. ' +
+              'Magic-link or Google sign-in.</p>' +
+            '</div>';
+          // Wire the sample/sign-in buttons (idempotent — only attaches once)
+          const sampleBtn = document.getElementById("mydesk-cta-sample");
+          const signinBtn = document.getElementById("mydesk-cta-signin");
+          if (signinBtn) signinBtn.onclick = function () {
+            if (window.tdRequireAuth) window.tdRequireAuth("generic");
+          };
+          if (sampleBtn) sampleBtn.onclick = function () {
+            // Borrow the Watchlist tab's sample seed (NVDA/MU/AVGO/MRVL/AAPL)
+            const navBtn = document.querySelector(
+              'nav button[data-tab="watchlist"]');
+            if (navBtn) navBtn.click();
+            setTimeout(function () {
+              const sb = document.getElementById("wlt-cta-sample");
+              if (sb) sb.click();
+            }, 100);
+          };
+          return;
+        }
+        // Signed-in but empty watchlist — point at the Watchlist tab (the
+        // dedicated home for ticker management) and offer a starter seed.
         body.innerHTML = '<div class="mydesk-empty">' +
           '<h3>Your watchlist is empty</h3>' +
-          '<p>Star tickers anywhere on the site (click any ticker → ☆ button ' +
-            'in the drilldown panel header), or open the watchlist drawer ' +
-            '(★ button top-right) to add names manually.</p>' +
-          (signed ? "" : '<p style="margin-top:8px"><b>Sign in</b> to sync ' +
-            'across devices.</p>') +
+          '<p>Star tickers anywhere on the site (☆ on any ticker chip or in ' +
+            'the drilldown panel), or open the ' +
+            '<a href="#" id="mydesk-go-wl" class="mydesk-link">' +
+            'Watchlist tab</a> to paste a portfolio.</p>' +
+          '<div class="mydesk-cta-row">' +
+            '<button class="mydesk-cta-primary" id="mydesk-cta-starter">' +
+              'Try the starter (NVDA · MU · AVGO · MRVL · AAPL)</button>' +
+          '</div>' +
+          '<p class="mydesk-hint">Once you have tickers, this tab shows ' +
+            'today\'s flow, grade changes, earnings, news, and "what\'s new ' +
+            'since last visit" — all filtered to your names.</p>' +
           '</div>';
+        const goWlLink = document.getElementById("mydesk-go-wl");
+        if (goWlLink) goWlLink.onclick = function (e) {
+          e.preventDefault();
+          document.querySelector('nav button[data-tab="watchlist"]').click();
+        };
+        const starterBtn = document.getElementById("mydesk-cta-starter");
+        if (starterBtn) starterBtn.onclick = async function () {
+          starterBtn.disabled = true;
+          starterBtn.textContent = "Adding...";
+          const starter = ["NVDA", "MU", "AVGO", "MRVL", "AAPL"];
+          for (const t of starter) {
+            if (window.tdAddWatch) await window.tdAddWatch(t, 1);
+          }
+          starterBtn.textContent = "Added! Refreshing...";
+          setTimeout(loadAndRender, 200);
+        };
         return;
       }
       // Build rows, sort by confluence score descending
@@ -6145,6 +6336,195 @@
       });
     });
 
+    // ── Unified action row click handler (Save / Alert / Note / Open) ──
+    // The hover popup is the single canonical home for ticker actions
+    // across the site. Buttons attach via data-act-{action} so the same
+    // event delegation covers every popup instance.
+    document.addEventListener("click", function (e) {
+      const saveBtn  = e.target.closest("[data-act-save]");
+      const alertBtn = e.target.closest("[data-act-alert]");
+      const noteBtn  = e.target.closest("[data-act-note]");
+      const openBtn  = e.target.closest("[data-act-open]");
+      if (!saveBtn && !alertBtn && !noteBtn && !openBtn) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (saveBtn) {
+        const tk = saveBtn.dataset.actSave;
+        if (!window.tdToggleWatch) return;
+        window.tdToggleWatch(tk).then(function () {
+          const nowIn = window.tdInWatchlist(tk);
+          const icon = saveBtn.querySelector(".sp-action-icon");
+          if (icon) icon.textContent = nowIn ? "★" : "☆";
+          saveBtn.classList.toggle("is-on", nowIn);
+          // Also flip the main sp-star header button if it's the same ticker
+          const star = document.querySelector(
+            '.src-pop .sp-star[data-watch-tk="' + tk + '"]');
+          if (star) {
+            star.classList.toggle("on", nowIn);
+            star.textContent = nowIn ? "★" : "☆";
+          }
+        });
+        return;
+      }
+
+      if (alertBtn) {
+        // Real-time alerts are an account-level setting (push toggle on
+        // the Watchlist tab). For now: a ticker-level Alert click on a
+        // signed-out user opens auth; signed-in users get pointed to
+        // the Watchlist tab where the global push toggle lives. Per-
+        // ticker alert prefs come in a later phase (uses alerts table).
+        const tk = alertBtn.dataset.actAlert;
+        if (window.tdRequireAuth && !window.tdRequireAuth("alert", tk)) return;
+        // Already signed in — send them to Watchlist tab + scroll the
+        // push card into view. Add this ticker to watchlist too if not
+        // already (so the alert actually targets something).
+        if (window.tdAddWatch) window.tdAddWatch(tk);
+        const wlNav = document.querySelector('nav button[data-tab="watchlist"]');
+        if (wlNav) wlNav.click();
+        setTimeout(function () {
+          const card = document.getElementById("wlt-push-card");
+          if (card) {
+            card.scrollIntoView({ behavior: "smooth", block: "center" });
+            card.style.transition = "box-shadow .3s";
+            card.style.boxShadow = "0 0 0 3px var(--gold)";
+            setTimeout(function () { card.style.boxShadow = ""; }, 1500);
+          }
+        }, 100);
+        return;
+      }
+
+      if (noteBtn) {
+        const tk = noteBtn.dataset.actNote;
+        if (window.tdRequireAuth && !window.tdRequireAuth("note", tk)) return;
+        openNoteModal(tk);
+        return;
+      }
+
+      if (openBtn) {
+        const tk = openBtn.dataset.actOpen;
+        if (window.openTickerPanel) window.openTickerPanel(tk);
+        return;
+      }
+    });
+
+    // ── Note editor modal ──
+    // Backs the 📝 Note action everywhere. Reads/writes public.notes by
+    // ticker — one note per (user, ticker) overwritten on save. Future
+    // enhancement: per-signal notes (related_signal_id) for journaling.
+    let NOTE_CURRENT_TICKER = null;
+    function openNoteModal(tk) {
+      NOTE_CURRENT_TICKER = tk;
+      const modal = document.getElementById("note-modal");
+      const titleEl = document.getElementById("note-modal-title");
+      const textEl = document.getElementById("note-modal-text");
+      const statusEl = document.getElementById("note-modal-status");
+      if (!modal) return;
+      titleEl.textContent = "Note on " + tk;
+      textEl.value = "";
+      statusEl.textContent = "Loading...";
+      modal.classList.add("show");
+      modal.setAttribute("aria-hidden", "false");
+      setTimeout(function () { textEl.focus(); }, 50);
+      // Try to load an existing note from Supabase (most recent)
+      if (window.tdUser && window.tdUser()) {
+        if (window.SUPA_CLIENT__ || (typeof SUPA !== "undefined" && SUPA)) {
+          const cli = (typeof SUPA !== "undefined" && SUPA) ||
+                      window.SUPA_CLIENT__;
+          cli.from("notes").select("note").eq("ticker", tk)
+            .order("updated_at", { ascending: false }).limit(1)
+            .then(function (resp) {
+              if (NOTE_CURRENT_TICKER !== tk) return;
+              if (resp.error) {
+                statusEl.textContent =
+                  "Couldn't load existing note: " + resp.error.message;
+                return;
+              }
+              if (resp.data && resp.data.length) {
+                textEl.value = resp.data[0].note || "";
+                statusEl.textContent = "Last saved note loaded.";
+              } else {
+                statusEl.textContent = "No prior note. Type one below.";
+              }
+            });
+        } else {
+          statusEl.textContent = "";
+        }
+      } else {
+        statusEl.textContent = "";
+      }
+    }
+    function closeNoteModal() {
+      const modal = document.getElementById("note-modal");
+      if (!modal) return;
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+      NOTE_CURRENT_TICKER = null;
+    }
+    async function saveNote() {
+      const tk = NOTE_CURRENT_TICKER;
+      if (!tk) return;
+      const textEl = document.getElementById("note-modal-text");
+      const statusEl = document.getElementById("note-modal-status");
+      const saveBtn = document.getElementById("note-modal-save");
+      if (!textEl || !statusEl) return;
+      const txt = (textEl.value || "").trim();
+      const user = window.tdUser && window.tdUser();
+      if (!user) {
+        statusEl.textContent = "Sign in required to save notes.";
+        return;
+      }
+      if (typeof SUPA === "undefined" || !SUPA) {
+        statusEl.textContent = "Supabase not configured.";
+        return;
+      }
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving...";
+      statusEl.textContent = "";
+      try {
+        // Upsert pattern: if a note exists for this (user, ticker),
+        // update it; otherwise insert. Notes table has no UNIQUE
+        // constraint on (user_id, ticker), so we do a manual select-
+        // then-upsert. For simplicity we INSERT a new row each time
+        // and rely on order_by(updated_at desc).limit(1) on read —
+        // future cleanup can collapse stale rows.
+        const payload = {
+          user_id: user.id, ticker: tk, note: txt,
+          updated_at: new Date().toISOString(),
+        };
+        const { error } = await SUPA.from("notes").insert(payload);
+        if (error) throw error;
+        statusEl.textContent = "Saved.";
+        saveBtn.textContent = "Saved ✓";
+        setTimeout(closeNoteModal, 600);
+      } catch (e) {
+        statusEl.textContent = "Save failed: " + (e.message || e);
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save note";
+      }
+    }
+    // Wire note-modal buttons once (idempotent)
+    (function wireNoteModal() {
+      const cancel = document.getElementById("note-modal-cancel");
+      const save = document.getElementById("note-modal-save");
+      const modal = document.getElementById("note-modal");
+      if (!cancel || !save || !modal) return;
+      if (modal.dataset.wired) return;
+      modal.dataset.wired = "1";
+      cancel.addEventListener("click", closeNoteModal);
+      save.addEventListener("click", saveNote);
+      // Backdrop click closes
+      modal.addEventListener("click", function (e) {
+        if (e.target === modal) closeNoteModal();
+      });
+      // ESC closes
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && modal.classList.contains("show")) {
+          closeNoteModal();
+        }
+      });
+    })();
+
     // Document-wide HOVER for the security-info popup. setupDesk publishes
     // window.showTickerHover / hideTickerHover when its swing data is loaded;
     // this listener fires them on ANY [data-t] anywhere on the site
@@ -7808,6 +8188,224 @@
       return { txt: sign + v.toFixed(1) + "%", cls: cls };
     }
 
+    // ── Action List (Today's Desk top card) ─────────────────────────
+    // Synthesizes 6 actionable segments from current signal data so the
+    // user sees "what to do next" instead of just "what's happening."
+    //
+    //   Best Long Setups       — A/A+ grade + bullish flow (confluence)
+    //   Best Short / Avoid     — F/G grade + bearish flow OR conflict
+    //   Flow + Trend Confirmed — names where flow agrees with trend
+    //   Trend / Flow Conflict  — A+ grade with bearish flow (or vice versa)
+    //   Earnings Today         — anything reporting today
+    //   Watchlist Urgencies    — only when signed in
+    function cardActionList(ctx, swing, uoa, uoaMeta, today) {
+      const stamp = uoa
+        ? freshness(uoa.generated, { character: "live", label: "Built from" })
+        : { cls: "none", label: "Pending first scan" };
+
+      // Build per-ticker confluence map: { tk: {grade, flowBias, flowPrem} }
+      const grades = {};
+      if (swing && swing.runs && swing.runs.length) {
+        const run = swing.runs[swing.runs.length - 1];
+        Object.keys(run.grades || {}).forEach(function (g) {
+          (run.grades[g] || []).forEach(function (c) { grades[c.t] = g; });
+        });
+      }
+      const flowByTk = {};
+      if (uoa && uoa.rows) {
+        uoa.rows.forEach(function (r) {
+          if (!r.ticker) return;
+          const cur = flowByTk[r.ticker];
+          if (!cur || (r.premium || 0) > (cur.premium || 0)) {
+            flowByTk[r.ticker] = {
+              direction: r.direction || "",
+              premium: r.premium || 0,
+              type: r.type || "",
+              strike: r.strike,
+              expiry: r.expiry,
+              dte: r.dte,
+            };
+          }
+        });
+      }
+
+      // Earnings today set (from uoa_meta_cache earnings_date field)
+      const todayStr = today;
+      const earningsToday = new Set();
+      if (uoaMeta) {
+        Object.keys(uoaMeta).forEach(function (tk) {
+          const ed = uoaMeta[tk] && uoaMeta[tk].earnings_date;
+          if (ed && ed.slice(0, 10) === todayStr) earningsToday.add(tk);
+        });
+      }
+
+      // Signed-in watchlist (or empty Set if anonymous)
+      const watchlist = (window.tdWatchlist && window.tdWatchlist()) ||
+                        new Set();
+      const signedIn = !!(window.tdUser && window.tdUser());
+
+      // Tier classification helpers
+      const isTopGrade  = g => g === "A+" || g === "A" || g === "A-";
+      const isBadGrade  = g => g === "F+" || g === "F" || g === "F-" ||
+                                g === "G+" || g === "G";
+      const isBullFlow  = d => d === "bullish";
+      const isBearFlow  = d => d === "bearish";
+
+      // 1. Best Long Setups: A-tier + bull flow, sorted by premium
+      const longs = [];
+      Object.keys(flowByTk).forEach(function (tk) {
+        const g = grades[tk];
+        const f = flowByTk[tk];
+        if (isTopGrade(g) && isBullFlow(f.direction)) {
+          longs.push({ tk, grade: g, flow: f,
+                       score: f.premium * 1.5 });
+        }
+      });
+      longs.sort((a, b) => b.score - a.score);
+
+      // 2. Best Short / Avoid: F/G grade + bear flow OR A+ + bear flow conflict
+      const shorts = [];
+      Object.keys(flowByTk).forEach(function (tk) {
+        const g = grades[tk];
+        const f = flowByTk[tk];
+        if (isBadGrade(g) && isBearFlow(f.direction)) {
+          shorts.push({ tk, grade: g, flow: f, why: "Falling + bear flow" });
+        }
+      });
+      shorts.sort((a, b) => (b.flow.premium || 0) - (a.flow.premium || 0));
+
+      // 3. Flow + Trend Confirmed: any confluence (not just top tier)
+      const confirmed = [];
+      Object.keys(flowByTk).forEach(function (tk) {
+        const g = grades[tk];
+        const f = flowByTk[tk];
+        if (g && f.direction) {
+          const gUp = isTopGrade(g) || g[0] === "B" || g[0] === "C";
+          if (gUp && isBullFlow(f.direction)) {
+            confirmed.push({ tk, grade: g, flow: f });
+          }
+        }
+      });
+      confirmed.sort((a, b) => (b.flow.premium || 0) - (a.flow.premium || 0));
+
+      // 4. Trend / Flow Conflict: A-tier with bear flow
+      const conflict = [];
+      Object.keys(flowByTk).forEach(function (tk) {
+        const g = grades[tk];
+        const f = flowByTk[tk];
+        if (isTopGrade(g) && isBearFlow(f.direction)) {
+          conflict.push({ tk, grade: g, flow: f,
+                          why: "A+ trend but bearish flow" });
+        } else if (isBadGrade(g) && isBullFlow(f.direction)) {
+          conflict.push({ tk, grade: g, flow: f,
+                          why: "Failing trend but bullish flow" });
+        }
+      });
+      conflict.sort((a, b) => (b.flow.premium || 0) - (a.flow.premium || 0));
+
+      // 5. Watchlist urgencies (signed-in only)
+      const urgent = [];
+      if (signedIn && watchlist.size) {
+        watchlist.forEach(function (tk) {
+          const g = grades[tk];
+          const f = flowByTk[tk];
+          if (earningsToday.has(tk)) {
+            urgent.push({ tk, grade: g, flow: f,
+                          why: "Reports earnings today" });
+          } else if (f && isBullFlow(f.direction) && f.premium >= 250000) {
+            urgent.push({ tk, grade: g, flow: f,
+                          why: "Heavy bullish flow ($" +
+                            Math.round(f.premium / 1000) + "K)" });
+          } else if (f && isBearFlow(f.direction) && f.premium >= 250000) {
+            urgent.push({ tk, grade: g, flow: f,
+                          why: "Heavy bearish flow" });
+          }
+        });
+      }
+
+      // Render a segment — title + chips (top 4 names, click → drilldown)
+      const fmtPrem = function (p) {
+        if (!p) return "";
+        if (p >= 1e6) return "$" + (p / 1e6).toFixed(1) + "M";
+        if (p >= 1e3) return "$" + Math.round(p / 1e3) + "K";
+        return "$" + p;
+      };
+      function chip(item, opts) {
+        opts = opts || {};
+        const g = item.grade || "";
+        const gradeCls = g === "A+" || g === "A" ? "al-grade-a" :
+                         g === "G" || g === "F" ? "al-grade-g" :
+                         g ? "al-grade-mid" : "";
+        const dirCls = item.flow && item.flow.direction === "bullish"
+                         ? "al-bull"
+                       : item.flow && item.flow.direction === "bearish"
+                         ? "al-bear"
+                         : "";
+        const why = opts.why || item.why || "";
+        return '<div class="al-chip ' + dirCls + '" data-t="' + item.tk + '" ' +
+                 'title="' + (why || item.tk) + '">' +
+          '<span class="al-tk">' + item.tk + '</span>' +
+          (g ? '<span class="al-grade ' + gradeCls + '">' + g + '</span>' : '') +
+          (item.flow && item.flow.premium
+            ? '<span class="al-prem">' + fmtPrem(item.flow.premium) + '</span>'
+            : '') +
+          (why ? '<span class="al-why">' + why + '</span>' : '') +
+        '</div>';
+      }
+      function segment(title, items, maxShow, emptyMsg, color) {
+        const shown = items.slice(0, maxShow || 4);
+        const more = items.length > shown.length
+          ? '<span class="al-more">+' + (items.length - shown.length) +
+            ' more</span>' : '';
+        const body = shown.length
+          ? shown.map(it => chip(it)).join("") + more
+          : '<span class="al-empty">' + emptyMsg + '</span>';
+        return '<div class="al-seg" style="border-left-color:' + color + '">' +
+          '<div class="al-seg-h">' + title + '</div>' +
+          '<div class="al-seg-body">' + body + '</div></div>';
+      }
+
+      const segments = [
+        segment("Best Long Setups", longs, 4,
+                "No A-tier + bull flow yet", "var(--green)"),
+        segment("Flow + Trend Confirmed", confirmed, 4,
+                "No confluence flagged", "#5fa3ff"),
+        segment("Trend / Flow Conflict", conflict, 3,
+                "No conflicts — flow agrees with grades", "#ffc800"),
+        segment("Best Short / Avoid", shorts, 3,
+                "No F-tier + bear flow flagged", "var(--red)"),
+        segment("Earnings Today", Array.from(earningsToday).slice(0, 5)
+                  .map(tk => ({ tk: tk, grade: grades[tk] })),
+                5, "Nothing reporting today", "#ff8c1a"),
+      ];
+      // Watchlist urgencies — last, only when signed in
+      if (signedIn) {
+        segments.push(segment(
+          "⭐ Watchlist Urgencies", urgent, 4,
+          watchlist.size === 0
+            ? "Your watchlist is empty — star tickers to see alerts here"
+            : "Quiet today across your watchlist",
+          "var(--gold)"
+        ));
+      } else {
+        segments.push(
+          '<div class="al-seg al-seg-cta" ' +
+               'style="border-left-color:var(--gold)">' +
+          '<div class="al-seg-h">⭐ Watchlist Urgencies</div>' +
+          '<div class="al-seg-body">' +
+            '<span class="al-empty">Sign in to surface urgent ' +
+              'changes for names YOU follow.</span>' +
+          '</div></div>'
+        );
+      }
+
+      return desk(
+        "Action List · what matters today",
+        '<div class="al-grid">' + segments.join("") + '</div>',
+        "desk-card--wide", stamp
+      );
+    }
+
     function cardMarketHealth(swing) {
       // Daily cadence (1 swing run per day, 4:33 PM ET post-close)
       const stamp = swing
@@ -8514,6 +9112,28 @@
         (inWL ? "on" : "") + '" data-watch-tk="' + tkr +
         '" title="' + (inWL ? "Remove from" : "Add to") + ' watchlist">' +
         (inWL ? "★" : "☆") + '</button>';
+      // Unified action row — same 4 actions, same labels, every popup.
+      // The Save button up top stays for visual prominence; this row is
+      // the canonical home for Save/Alert/Note/Open across the site.
+      const actionsRow =
+        '<div class="sp-actions">' +
+          '<button data-act-save="' + tkr + '" ' +
+                  'title="Add to (or remove from) watchlist">' +
+            '<span class="sp-action-icon">' + (inWL ? "★" : "☆") +
+              '</span><span class="sp-action-lbl">Save</span></button>' +
+          '<button data-act-alert="' + tkr + '" ' +
+                  'title="Real-time push alerts for ' + tkr + '">' +
+            '<span class="sp-action-icon">🔔</span>' +
+            '<span class="sp-action-lbl">Alert</span></button>' +
+          '<button data-act-note="' + tkr + '" ' +
+                  'title="Add a private note on ' + tkr + '">' +
+            '<span class="sp-action-icon">📝</span>' +
+            '<span class="sp-action-lbl">Note</span></button>' +
+          '<button data-act-open="' + tkr + '" ' +
+                  'title="Open full drilldown panel">' +
+            '<span class="sp-action-icon">→</span>' +
+            '<span class="sp-action-lbl">Open</span></button>' +
+        '</div>';
       pop.innerHTML =
         '<div class="sp-head"><span class="sp-sym">' + tkr + '</span>' +
         starBtn +
@@ -8525,7 +9145,8 @@
           '</span><span class="sp-pxs">' + pxLabel + '</span></div>' +
         (row1 ? '<div class="sp-row">' + row1 + '</div>' : '') +
         (row2 ? '<div class="sp-row muted">' + row2 + '</div>' : '') +
-        popSparkDesk(c.spark);
+        popSparkDesk(c.spark) +
+        actionsRow;
     }
     function positionPop(anchor) {
       const r = anchor.getBoundingClientRect();
@@ -8618,8 +9239,9 @@
     });
 
     // ── "See notable flow" click handler — switches to Options Flow tab
-    // and pre-fills the ticker search input so the table is filtered to that
-    // name. Empty data-flow-tk on the card-header link means "no filter".
+    // and pre-fills the ticker search input. Adds a brief pulse + scroll
+    // so users SEE that the table was filtered, not just that the tab
+    // switched silently. Empty data-flow-tk = no filter (clear all).
     grid.addEventListener("click", function (e) {
       const flowTk = e.target.closest("[data-flow-tk]");
       const flowAll = e.target.closest("[data-flow-all]");
@@ -8628,11 +9250,24 @@
       hidePopDesk();
       const tab = document.querySelector('nav button[data-tab="uoa"]');
       if (tab) tab.click();
-      const q = document.getElementById("uoa-q");
-      if (q) {
+      // Defer to next tick so the panel-switch transition completes
+      // before we try to focus the input (otherwise focus race with
+      // the inert attribute toggle in setActivePanel).
+      setTimeout(function () {
+        const q = document.getElementById("uoa-q");
+        if (!q) return;
         q.value = flowTk ? flowTk.dataset.flowTk : "";
         q.dispatchEvent(new Event("input", { bubbles: true }));
-      }
+        q.focus();
+        // Brief gold pulse so user sees the filter applied
+        q.classList.add("filter-flash");
+        setTimeout(function () { q.classList.remove("filter-flash"); }, 1200);
+        // Scroll the filter row into view (handles the case where the user
+        // scrolled down on the Desk tab before clicking flow →)
+        try {
+          q.scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch (e) {}
+      }, 60);
     });
 
     const fetchJSON = function (path) {
@@ -8697,6 +9332,7 @@
             cardEarnings(uoaMeta, today) +
           '</div>';
         grid.innerHTML = [
+          cardActionList(ctx, swing, uoa, uoaMeta, today),
           cardMarketHealth(swing),
           cardTopFlow(uoa),
           cardSwingUpgrades(swing),
