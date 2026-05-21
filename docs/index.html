@@ -55,6 +55,71 @@
   header h1 { font-size:20px; font-weight:700; letter-spacing:.3px; }
   header p  { font-size:12px; color:var(--muted); margin-top:4px; }
 
+  /* Auth bar — sits above the theme/density toggles in head-toggles */
+  .auth-bar { display:flex; align-items:center; gap:6px; }
+  .auth-btn { background:var(--gold); color:var(--accink);
+    border:0; font-family:inherit; font-size:11px; font-weight:700;
+    letter-spacing:.3px; padding:6px 14px; border-radius:5px;
+    cursor:pointer; }
+  .auth-btn:hover { filter:brightness(1.1); }
+  .auth-user { display:flex; align-items:center; gap:5px;
+    background:var(--navy2); border:1px solid var(--border2);
+    border-radius:5px; padding:3px 4px 3px 10px; font-size:11px;
+    color:var(--text); max-width:200px; }
+  .auth-user .au-email { font-weight:600; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; max-width:160px; }
+  .auth-user .au-signout { background:none; border:0; cursor:pointer;
+    color:var(--muted); font-size:15px; line-height:1;
+    padding:0 6px; font-family:inherit; }
+  .auth-user .au-signout:hover { color:var(--red); }
+
+  /* Auth modal */
+  .auth-modal { position:fixed; inset:0; z-index:90;
+    background:rgba(4,8,20,.78); display:none; align-items:center;
+    justify-content:center; padding:20px; }
+  .auth-modal.show { display:flex; }
+  .auth-modal-inner { background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:28px 26px 22px; width:380px; max-width:100%;
+    position:relative; box-shadow:0 10px 40px rgba(0,0,0,.55); }
+  .auth-modal h3 { font-size:18px; font-weight:800; color:var(--text);
+    margin:0 0 8px; }
+  .auth-modal .auth-sub { font-size:12px; color:var(--textdim);
+    line-height:1.5; margin:0 0 18px; }
+  .auth-modal .auth-sub b { color:var(--gold); }
+  .auth-close { position:absolute; top:10px; right:12px; background:none;
+    border:0; color:var(--muted); font-size:24px; cursor:pointer;
+    font-family:inherit; line-height:1; }
+  .auth-close:hover { color:var(--text); }
+  .auth-google { display:flex; align-items:center; justify-content:center;
+    gap:10px; width:100%; padding:11px; background:#fff; color:#1a1a1a;
+    border:1px solid var(--line); border-radius:6px; font-family:inherit;
+    font-size:13px; font-weight:600; cursor:pointer; margin-bottom:14px; }
+  .auth-google:hover { filter:brightness(0.97); }
+  .auth-or { text-align:center; font-size:10px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; margin:0 0 12px;
+    position:relative; }
+  .auth-or::before, .auth-or::after { content:""; position:absolute;
+    top:50%; width:42%; height:1px; background:var(--line); }
+  .auth-or::before { left:0; }
+  .auth-or::after  { right:0; }
+  #auth-email-form { display:flex; flex-direction:column; gap:8px; }
+  #auth-email-input { background:var(--navy2); border:1px solid var(--border2);
+    color:var(--text); padding:10px 12px; border-radius:6px;
+    font-family:inherit; font-size:13px; }
+  #auth-email-input:focus { border-color:var(--gold); outline:0; }
+  .auth-submit { padding:10px; background:var(--gold); color:var(--accink);
+    border:0; border-radius:6px; font-family:inherit; font-size:13px;
+    font-weight:700; cursor:pointer; }
+  .auth-submit:hover { filter:brightness(1.05); }
+  .auth-submit:disabled { opacity:.6; cursor:wait; }
+  .auth-status { margin-top:12px; font-size:11.5px; line-height:1.5;
+    min-height:18px; }
+  .auth-status.ok  { color:var(--green); }
+  .auth-status.err { color:var(--red); }
+  .auth-foot { margin-top:14px; font-size:9.5px; color:var(--muted);
+    line-height:1.5; text-align:center; }
+  .auth-foot a { color:var(--textdim); text-decoration:underline; }
+
   .head-toggles { position:absolute; top:20px; right:28px;
     display:flex; flex-direction:column; gap:5px; align-items:flex-end; }
   .theme-toggle, .density-toggle { display:flex;
@@ -469,7 +534,13 @@
     font-size:22px; line-height:1; cursor:pointer; padding:0 4px;
     margin-left:8px; font-family:inherit; }
   .tdp-head .tdp-close:hover { color:var(--text); }
-  .tdp-head .tdp-name { font-size:12px; color:var(--textdim); margin-top:4px; }
+  .tdp-head .tdp-name { font-size:12px; color:var(--textdim); margin-top:4px;
+    display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+  .tdp-star { background:none; border:0; color:var(--muted); cursor:pointer;
+    font-size:18px; line-height:1; padding:0 4px; font-family:inherit;
+    transition:color .12s; }
+  .tdp-star:hover { color:var(--gold); }
+  .tdp-star.tdp-star-on { color:var(--gold); }
   /* Confluence score — single -10..+10 read on whether everything we
      know about this name is agreeing (bull/bear) or disagreeing (mixed) */
   .tdp-conf { display:inline-block; font-size:10px; font-weight:800;
@@ -1511,6 +1582,15 @@
       <p>Your daily equity research desk for flow, breakouts, catalysts, and watchlists.</p>
     </div>
     <div class="head-toggles">
+      <div class="auth-bar" id="auth-bar">
+        <button class="auth-btn" id="auth-signin"
+                title="Sign in to save watchlist and journal across devices"
+                style="display:none">Sign in</button>
+        <span class="auth-user" id="auth-user" style="display:none">
+          <span class="au-email" id="au-email"></span>
+          <button class="au-signout" id="auth-signout" title="Sign out">×</button>
+        </span>
+      </div>
       <div class="theme-toggle" id="theme-toggle" title="Color scheme">
         <button data-theme="light" title="Light theme">Light</button>
         <button data-theme="mid"   title="Mid (market) theme">Market</button>
@@ -1519,6 +1599,40 @@
       <div class="density-toggle" id="density-toggle" title="Layout density">
         <button data-density="comfy" title="Comfortable spacing">Comfort</button>
         <button data-density="dense" title="Dense / compact layout">Dense</button>
+      </div>
+    </div>
+
+    <!-- Auth modal — magic-link email + Google OAuth -->
+    <div class="auth-modal" id="auth-modal" role="dialog" aria-modal="true"
+         aria-hidden="true">
+      <div class="auth-modal-inner">
+        <button class="auth-close" id="auth-close" aria-label="Close">&times;</button>
+        <h3>Sign in to TickerDesk</h3>
+        <p class="auth-sub">Save your watchlist, get email alerts, track
+          your trade journal across devices. <b>Free forever</b> for the
+          core dashboard.</p>
+        <button class="auth-google" id="auth-google">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path fill="#4285f4" d="M22.5 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.75h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.75c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#fbbc05" d="M5.84 14.12A6.5 6.5 0 0 1 5.5 12c0-.74.13-1.46.34-2.12V7.04H2.18A11 11 0 0 0 1 12c0 1.76.42 3.43 1.18 4.96l3.66-2.84z"/>
+            <path fill="#ea4335" d="M12 5.4c1.62 0 3.06.56 4.21 1.65l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.04l3.66 2.84C6.71 7.28 9.14 5.4 12 5.4z"/>
+          </svg>
+          Continue with Google
+        </button>
+        <div class="auth-or">or</div>
+        <form id="auth-email-form">
+          <input type="email" id="auth-email-input" placeholder="you@example.com"
+                 autocomplete="email" required />
+          <button type="submit" class="auth-submit">Email me a magic link</button>
+        </form>
+        <div id="auth-status" class="auth-status"></div>
+        <div class="auth-foot">
+          By signing in you agree to TickerDesk's
+          <a href="#" target="_blank">Terms</a> and
+          <a href="#" target="_blank">Privacy Policy</a>.
+          No financial advice.
+        </div>
       </div>
     </div>
   </header>
@@ -1996,8 +2110,271 @@
     Not financial advice. For informational purposes only. Do your own due diligence.
   </footer>
 
+<!-- Supabase JS via CDN. Auth-gated features (watchlist, journal) only
+     activate when SUPA_URL + SUPA_ANON below are populated. -->
+<script src="https://unpkg.com/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"
+        defer></script>
+
 <script>
   const WORKER_URL = "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev";
+
+  // ── Supabase config ── paste your project URL + anon key here.
+  // Both keys are SAFE in client code — RLS gates every table on auth.uid()
+  // so the anon key alone cannot read/write any user's data. The service
+  // role key (do NOT put here) is the only bypass; that stays server-side.
+  // While these are empty strings, the site still works fully in anon mode:
+  // watchlists persist to localStorage, "sign in" button is hidden.
+  const SUPA_URL  = "";    // e.g. "https://xxxxx.supabase.co"
+  const SUPA_ANON = "";    // e.g. "eyJhbGciOi..." (long JWT)
+  let SUPA = null;         // populated by initSupabase() once SDK loads
+
+  // ── Auth + persistence layer ─────────────────────────────────────
+  // Three-tier graceful degradation:
+  //   1. No SUPA_URL set  → fully anon; watchlist persists to localStorage
+  //   2. SUPA_URL set, user signed out → still localStorage; "sign in to
+  //      sync across devices" prompts
+  //   3. Signed in  → all reads/writes go to Supabase tables with RLS
+  // Site stays fully usable in all three states. Auth is ADDITIVE.
+
+  let CURRENT_USER = null;   // null when signed out
+  let WATCHLIST = new Set(); // canonical in-memory set of tickers
+
+  // Cross-component subscribers — re-render when watchlist or user changes
+  const _userListeners  = [];
+  const _watchListeners = [];
+  function onUserChange(fn)  { _userListeners.push(fn);  }
+  function onWatchChange(fn) { _watchListeners.push(fn); }
+  function _emitUser()  { _userListeners.forEach(function (f) {
+    try { f(CURRENT_USER); } catch (e) { console.error(e); }
+  }); }
+  function _emitWatch() { _watchListeners.forEach(function (f) {
+    try { f(WATCHLIST); } catch (e) { console.error(e); }
+  }); }
+  window.tdUser    = function () { return CURRENT_USER; };
+  window.tdWatchlist = function () { return new Set(WATCHLIST); };
+
+  // ── Watchlist storage layer ──
+  const WL_LOCAL_KEY = "td-watchlist-local";
+  function _wlReadLocal() {
+    try {
+      const v = JSON.parse(localStorage.getItem(WL_LOCAL_KEY) || "[]");
+      return Array.isArray(v) ? v : [];
+    } catch (e) { return []; }
+  }
+  function _wlWriteLocal(arr) {
+    try { localStorage.setItem(WL_LOCAL_KEY, JSON.stringify(arr)); }
+    catch (e) {}
+  }
+  async function loadWatchlist() {
+    if (SUPA && CURRENT_USER) {
+      try {
+        const { data, error } = await SUPA
+          .from("watchlists")
+          .select("ticker")
+          .eq("user_id", CURRENT_USER.id);
+        if (!error && data) {
+          WATCHLIST = new Set(data.map(function (r) { return r.ticker; }));
+          _emitWatch();
+          return;
+        }
+      } catch (e) { console.warn("Watchlist load failed, falling back:", e); }
+    }
+    WATCHLIST = new Set(_wlReadLocal());
+    _emitWatch();
+  }
+  async function addToWatchlist(ticker) {
+    ticker = (ticker || "").toUpperCase().trim();
+    if (!ticker || WATCHLIST.has(ticker)) return false;
+    WATCHLIST.add(ticker);
+    _emitWatch();
+    if (SUPA && CURRENT_USER) {
+      try {
+        await SUPA.from("watchlists").upsert({
+          user_id: CURRENT_USER.id, ticker: ticker,
+        });
+      } catch (e) {
+        console.warn("Watchlist write failed:", e);
+        _wlWriteLocal([...WATCHLIST]);
+      }
+    } else {
+      _wlWriteLocal([...WATCHLIST]);
+    }
+    return true;
+  }
+  async function removeFromWatchlist(ticker) {
+    ticker = (ticker || "").toUpperCase().trim();
+    if (!ticker || !WATCHLIST.has(ticker)) return false;
+    WATCHLIST.delete(ticker);
+    _emitWatch();
+    if (SUPA && CURRENT_USER) {
+      try {
+        await SUPA.from("watchlists")
+          .delete()
+          .eq("user_id", CURRENT_USER.id)
+          .eq("ticker", ticker);
+      } catch (e) {
+        console.warn("Watchlist delete failed:", e);
+        _wlWriteLocal([...WATCHLIST]);
+      }
+    } else {
+      _wlWriteLocal([...WATCHLIST]);
+    }
+    return true;
+  }
+  window.tdInWatchlist  = function (t) { return WATCHLIST.has(
+    (t || "").toUpperCase()); };
+  window.tdAddWatch     = addToWatchlist;
+  window.tdRemoveWatch  = removeFromWatchlist;
+  window.tdToggleWatch  = function (t) {
+    return WATCHLIST.has((t || "").toUpperCase())
+      ? removeFromWatchlist(t) : addToWatchlist(t);
+  };
+
+  // ── Supabase init + auth flow ──
+  function initSupabase() {
+    if (!SUPA_URL || !SUPA_ANON) {
+      // Anon mode — site still works, watchlist on localStorage
+      loadWatchlist();
+      return;
+    }
+    if (!window.supabase) {
+      // SDK still loading — retry once it lands
+      setTimeout(initSupabase, 200);
+      return;
+    }
+    SUPA = window.supabase.createClient(SUPA_URL, SUPA_ANON);
+    // Restore session if user was already signed in
+    SUPA.auth.getSession().then(function (resp) {
+      const sess = resp && resp.data && resp.data.session;
+      CURRENT_USER = sess ? sess.user : null;
+      _emitUser();
+      loadWatchlist();
+    });
+    // Listen for sign-in / sign-out events
+    SUPA.auth.onAuthStateChange(function (_event, session) {
+      const prev = CURRENT_USER ? CURRENT_USER.id : null;
+      CURRENT_USER = session ? session.user : null;
+      if ((CURRENT_USER ? CURRENT_USER.id : null) !== prev) {
+        _emitUser();
+        loadWatchlist();
+      }
+    });
+  }
+  async function signInWithEmail(email) {
+    if (!SUPA) throw new Error("Supabase not configured");
+    const { error } = await SUPA.auth.signInWithOtp({
+      email: email,
+      options: { emailRedirectTo: window.location.origin + "/" },
+    });
+    if (error) throw error;
+  }
+  async function signInWithGoogle() {
+    if (!SUPA) throw new Error("Supabase not configured");
+    const { error } = await SUPA.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin + "/" },
+    });
+    if (error) throw error;
+  }
+  async function signOut() {
+    if (!SUPA) return;
+    await SUPA.auth.signOut();
+  }
+  window.tdSignIn  = signInWithEmail;
+  window.tdSignInGoogle = signInWithGoogle;
+  window.tdSignOut = signOut;
+
+  // Kick off init after DOM ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initSupabase);
+  } else {
+    initSupabase();
+  }
+
+  // ── Auth modal wiring ──
+  (function setupAuthUI() {
+    const btn      = document.getElementById("auth-signin");
+    const userBox  = document.getElementById("auth-user");
+    const emailEl  = document.getElementById("au-email");
+    const signOut  = document.getElementById("auth-signout");
+    const modal    = document.getElementById("auth-modal");
+    const closeBtn = document.getElementById("auth-close");
+    const googBtn  = document.getElementById("auth-google");
+    const form     = document.getElementById("auth-email-form");
+    const input    = document.getElementById("auth-email-input");
+    const status   = document.getElementById("auth-status");
+    if (!btn) return;
+
+    function openModal() {
+      // Only show modal if Supabase is configured; else explain silently
+      if (!SUPA_URL || !SUPA_ANON) {
+        status.className = "auth-status err";
+        status.textContent =
+          "Sign-in not configured yet — site is fully usable in anon mode.";
+        return;
+      }
+      modal.classList.add("show");
+      modal.setAttribute("aria-hidden", "false");
+      setTimeout(function () { input && input.focus(); }, 50);
+    }
+    function closeModal() {
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+      status.textContent = ""; status.className = "auth-status";
+    }
+    btn.addEventListener("click", openModal);
+    closeBtn.addEventListener("click", closeModal);
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) closeModal();
+    });
+    googBtn.addEventListener("click", function () {
+      status.className = "auth-status";
+      status.textContent = "Redirecting to Google...";
+      window.tdSignInGoogle().catch(function (e) {
+        status.className = "auth-status err";
+        status.textContent = "Sign-in failed: " + e.message;
+      });
+    });
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const email = input.value.trim();
+      if (!email) return;
+      const submit = form.querySelector(".auth-submit");
+      submit.disabled = true;
+      submit.textContent = "Sending...";
+      status.className = "auth-status";
+      status.textContent = "";
+      window.tdSignIn(email).then(function () {
+        status.className = "auth-status ok";
+        status.innerHTML = "✓ Magic link sent to <b>" + email + "</b>. " +
+          "Check your inbox and click the link to sign in.";
+      }).catch(function (e) {
+        status.className = "auth-status err";
+        status.textContent = "Sign-in failed: " + (e.message || e);
+      }).finally(function () {
+        submit.disabled = false;
+        submit.textContent = "Email me a magic link";
+      });
+    });
+    signOut.addEventListener("click", function () {
+      window.tdSignOut();
+    });
+
+    // Show/hide based on auth state
+    onUserChange(function (user) {
+      if (user) {
+        btn.style.display = "none";
+        userBox.style.display = "flex";
+        emailEl.textContent = user.email || "signed in";
+        closeModal();
+      } else {
+        // Only show "Sign in" button if Supabase is configured. In anon
+        // mode we hide it entirely — site is fully functional without it.
+        btn.style.display = (SUPA_URL && SUPA_ANON) ? "" : "none";
+        userBox.style.display = "none";
+      }
+    });
+  })();
 
   /* ── Market candlestick cards (polls the worker every 60s) ── */
   (function () {
@@ -2489,10 +2866,16 @@
       pxEl.textContent = sw && sw.p != null ? "$" + sw.p.toFixed(2) : "";
       const cleanedName = cleanName((sw && sw.n) ||
                             (agg.meta && agg.meta.name) || t);
-      // Name + confluence chip on the same row — single glance read.
+      // Name + confluence chip + watchlist toggle on the same row
       const confScore = confluenceScore(agg);
+      const inWL = window.tdInWatchlist && window.tdInWatchlist(t);
+      const starHtml = '<button class="tdp-star ' +
+        (inWL ? "tdp-star-on" : "") + '" data-watch-tk="' + t +
+        '" title="' + (inWL ? "Remove from" : "Add to") + ' watchlist" ' +
+        'aria-label="Toggle watchlist">' +
+        (inWL ? "★" : "☆") + '</button>';
       nameEl.innerHTML = '<span>' + cleanedName + '</span> ' +
-        confluenceBadge(confScore);
+        confluenceBadge(confScore) + ' ' + starHtml;
 
       // ── Body sections ──
       const sec = [];
@@ -3003,6 +3386,18 @@
       if (ak && window.searchTickerArchive) {
         window.searchTickerArchive(ak.dataset.archiveTk);
         closePanel();
+        return;
+      }
+      // Watchlist star toggle
+      const wk = e.target.closest("[data-watch-tk]");
+      if (wk && window.tdToggleWatch) {
+        const tk = wk.dataset.watchTk;
+        window.tdToggleWatch(tk).then(function () {
+          const nowIn = window.tdInWatchlist(tk);
+          wk.classList.toggle("tdp-star-on", nowIn);
+          wk.textContent = nowIn ? "★" : "☆";
+          wk.title = (nowIn ? "Remove from" : "Add to") + " watchlist";
+        });
         return;
       }
     });
