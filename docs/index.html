@@ -1490,6 +1490,33 @@
     text-transform:uppercase; letter-spacing:.3px; }
 
   /* SEC Filings section inside the ticker drilldown panel */
+  /* Live UOA flow inside drilldown panel — same style language as the
+     filings list but tighter rows since each contract is denser data. */
+  .tdp-liveflow { display:flex; flex-direction:column; gap:0; }
+  .tdp-liveflow-meta { font-size:9.5px; color:var(--muted);
+    margin:-2px 0 6px; line-height:1.5; }
+  .tdp-liveflow-meta .live-dot { display:inline-block; width:6px; height:6px;
+    border-radius:50%; background:var(--green); margin-right:5px;
+    animation:mp-pulse 2s infinite ease-out; vertical-align:middle; }
+  .tdp-flow-row { display:grid;
+    grid-template-columns: 30px 50px 60px 1fr 70px;
+    gap:6px; padding:5px 0; font-size:11px; line-height:1.3;
+    border-bottom:1px solid var(--line); align-items:center; }
+  .tdp-flow-row:last-child { border-bottom:0; }
+  .tdp-flow-row .tfc-type { font-weight:700; font-size:9.5px;
+    text-transform:uppercase; letter-spacing:.3px; }
+  .tdp-flow-row .tfc-type.call { color:var(--green); }
+  .tdp-flow-row .tfc-type.put  { color:var(--red); }
+  .tdp-flow-row .tfc-strike { color:var(--text); font-weight:600;
+    font-variant-numeric:tabular-nums; }
+  .tdp-flow-row .tfc-exp { color:var(--muted); font-size:10px;
+    font-variant-numeric:tabular-nums; }
+  .tdp-flow-row .tfc-meta { color:var(--textdim); font-size:9.5px;
+    line-height:1.3; }
+  .tdp-flow-row .tfc-meta b { color:var(--text); font-weight:600; }
+  .tdp-flow-row .tfc-prem { color:var(--gold); font-weight:700;
+    text-align:right; font-variant-numeric:tabular-nums; font-size:11px; }
+
   .tdp-filings { display:flex; flex-direction:column; }
   .tdp-filing { padding:7px 0; display:grid; grid-template-columns:8px 60px 1fr;
     gap:7px; align-items:start; }
@@ -5377,6 +5404,16 @@
           '<div class="tdp-empty">Fetching headlines…</div>' +
         '</div></div>');
 
+      // 5a) Live options flow — top unusual contracts as of <30 sec ago.
+      // Pulls Polygon's snapshot endpoint via the worker, edge-cached 30s.
+      // Bypasses the 75-min batch lag.
+      sec.push('<div class="tdp-section" id="tdp-liveflow-section">' +
+        '<h4>Live unusual flow <span style="color:var(--muted);font-weight:400;' +
+          'text-transform:none;letter-spacing:0;font-size:9px;">· loading…</span></h4>' +
+        '<div class="tdp-liveflow" id="tdp-liveflow-body">' +
+          '<div class="tdp-empty">Fetching live snapshot…</div>' +
+        '</div></div>');
+
       // 5b) SEC filings — lazy-loaded list + auto-summaries for notable ones
       sec.push('<div class="tdp-section" id="tdp-filings-section">' +
         '<h4>SEC filings <span style="color:var(--muted);font-weight:400;' +
@@ -5617,6 +5654,71 @@
       }
     }
 
+    async function fetchAndRenderLiveFlow(t) {
+      // Live UOA snapshot via the worker. Returns top 25 unusual contracts
+      // sorted by premium. We display top 6 in the panel — enough to
+      // surface what's flowing without overwhelming the column. Lookback
+      // is "right now" — Polygon snapshot data is sub-second fresh.
+      if (!t || t !== ACTIVE_TICKER) return;
+      const body = document.getElementById("tdp-liveflow-body");
+      const head = document.querySelector("#tdp-liveflow-section h4");
+      if (!body || !head) return;
+      try {
+        const r = await fetch(TDP_WORKER_URL + "?uoa-flash=" +
+          encodeURIComponent(t));
+        if (!r.ok) {
+          body.innerHTML = '<div class="tdp-empty">Live flow unavailable ' +
+            '(HTTP ' + r.status + ').</div>';
+          return;
+        }
+        const d = await r.json();
+        if (t !== ACTIVE_TICKER) return;
+        if (d.error) {
+          body.innerHTML = '<div class="tdp-empty">' + d.error + '</div>';
+          return;
+        }
+        const flagged = d.total_flagged || 0;
+        head.innerHTML = 'Live unusual flow ' +
+          '<span style="color:var(--muted);font-weight:400;text-transform:none;' +
+            'letter-spacing:0;font-size:9px;">· ' + flagged + ' flagged · live</span>';
+        if (!d.contracts || !d.contracts.length) {
+          body.innerHTML = '<div class="tdp-empty">No unusual contracts ' +
+            'for ' + t + ' right now (vol/OI &gt; 1.5 · premium &gt; $25k).</div>';
+          return;
+        }
+        const top = d.contracts.slice(0, 6);
+        const fmtPrem = function (p) {
+          if (p >= 1e6) return "$" + (p / 1e6).toFixed(1) + "M";
+          if (p >= 1e3) return "$" + Math.round(p / 1e3) + "K";
+          return "$" + Math.round(p);
+        };
+        // Header strip
+        const meta = '<div class="tdp-liveflow-meta">' +
+          '<span class="live-dot"></span>As of just now · vol/OI > 1.5 · ' +
+          'premium ≥ $25k' +
+          (d.underlying_price
+            ? ' · underlying $' + d.underlying_price.toFixed(2)
+            : '') + '</div>';
+        const rows = top.map(function (c) {
+          return '<div class="tdp-flow-row">' +
+            '<span class="tfc-type ' + c.type + '">' +
+              (c.type === "call" ? "C" : "P") + '</span>' +
+            '<span class="tfc-strike">$' + c.strike + '</span>' +
+            '<span class="tfc-exp">' + c.dte + 'd</span>' +
+            '<span class="tfc-meta">' +
+              'vol <b>' + c.volume.toLocaleString() + '</b> · ' +
+              'oi <b>' + c.open_interest.toLocaleString() + '</b> · ' +
+              'v/oi <b>' + c.vol_oi.toFixed(1) + '</b>' +
+            '</span>' +
+            '<span class="tfc-prem">' + fmtPrem(c.premium) + '</span>' +
+          '</div>';
+        }).join("");
+        body.innerHTML = meta + rows;
+      } catch (e) {
+        body.innerHTML = '<div class="tdp-empty">Live flow unavailable.</div>';
+      }
+    }
+
     async function fetchAndRenderNews(t) {
       if (!t || t !== ACTIVE_TICKER) return;
       try {
@@ -5687,6 +5789,8 @@
       fetchAndUpgradeChart(t);
       // Async fetch the latest 20 headlines via the worker
       fetchAndRenderNews(t);
+      // Async fetch live options flow snapshot via Polygon (worker proxy)
+      fetchAndRenderLiveFlow(t);
       // Async fetch SEC filings (+ auto-summarize top 3 notables via Haiku)
       fetchAndRenderFilings(t);
     }
