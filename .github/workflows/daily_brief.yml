@@ -1,0 +1,68 @@
+name: Daily Brief
+
+on:
+  schedule:
+    # 8:45 AM ET weekdays. GitHub delays top/half-hour schedules heavily,
+    # so cron is :47 past for the actual ~8:47 ET fire time.
+    # EDT: 12:47 UTC  |  EST: 13:47 UTC
+    - cron: '47 12 * * 1-5'   # summer (EDT)
+    - cron: '47 13 * * 1-5'   # winter (EST)
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run (build emails, do not send)'
+        required: false
+        default: 'false'
+      restrict_email:
+        description: 'Only send to this email (for testing)'
+        required: false
+        default: ''
+
+jobs:
+  daily-brief:
+    runs-on: ubuntu-latest
+    env:
+      # Service-role key bypasses RLS so we can read everyone's
+      # watchlist + send mail on their behalf. NEVER expose this in
+      # client code — it lives only in the repo's Actions secrets.
+      SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      RESEND_API_KEY:       ${{ secrets.RESEND_API_KEY }}
+      FROM_EMAIL:           ${{ secrets.FROM_EMAIL }}
+      SITE_URL:             https://tickerdesk.io
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          # We need the latest JSON outputs from the prior overnight
+          # scan, which the momentum workflow commits back to the
+          # branch. A shallow fetch is fine — we're not branching.
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send daily brief
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ -n "${{ github.event.inputs.restrict_email }}" ]; then
+            ARGS="$ARGS --me ${{ github.event.inputs.restrict_email }}"
+          fi
+          python daily_brief.py $ARGS

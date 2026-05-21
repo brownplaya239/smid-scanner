@@ -152,6 +152,43 @@
   .wlt-section-h .wlt-section-sub { color:var(--muted); font-weight:400;
     font-size:11px; text-transform:none; letter-spacing:0; margin-left:8px; }
 
+  /* Daily Brief opt-in card — shown to signed-in users on the Watchlist tab.
+     Mirrors .card visuals but adds a prominent toggle. */
+  .wlt-brief-card { display:none; background:var(--card);
+    border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+    margin:10px 0 0; display:flex; align-items:center;
+    justify-content:space-between; gap:14px; flex-wrap:wrap; }
+  .wlt-brief-card.show { display:flex; }
+  .wlt-brief-left { flex:1; min-width:0; }
+  .wlt-brief-title { font-size:13px; font-weight:700; color:var(--text);
+    margin:0 0 3px; display:flex; align-items:center; gap:8px; }
+  .wlt-brief-title .badge { font-size:9.5px; padding:2px 6px;
+    background:var(--gold); color:#000; border-radius:4px;
+    font-weight:700; letter-spacing:.4px; }
+  .wlt-brief-sub { font-size:11.5px; color:var(--muted); line-height:1.45; }
+  .wlt-brief-status { font-size:11px; color:var(--muted); margin-top:4px; }
+  .wlt-brief-status.on  { color:var(--green); }
+  .wlt-brief-status.off { color:var(--muted); }
+  .wlt-brief-toggle { display:inline-flex; align-items:center; gap:8px;
+    cursor:pointer; user-select:none; flex-shrink:0; }
+  .wlt-brief-toggle .sw { position:relative; width:42px; height:22px;
+    background:var(--navy2); border:1px solid var(--line);
+    border-radius:11px; transition:background .18s; }
+  .wlt-brief-toggle .sw::after { content:""; position:absolute;
+    top:1px; left:1px; width:18px; height:18px; background:#cfd8ff;
+    border-radius:50%; transition:left .18s, background .18s; }
+  .wlt-brief-toggle input { position:absolute; opacity:0;
+    pointer-events:none; }
+  .wlt-brief-toggle input:checked + .sw {
+    background:var(--green-dim, rgba(31,179,99,.4));
+    border-color:var(--green); }
+  .wlt-brief-toggle input:checked + .sw::after {
+    left:21px; background:var(--green); }
+  .wlt-brief-toggle .lbl { font-size:11.5px; color:var(--text);
+    font-weight:600; }
+  .wlt-brief-toggle.is-saving .sw::after {
+    background:var(--gold); }
+
   .wlt-portfolio-wrap, .wlt-tl-wrap { background:var(--card);
     border:1px solid var(--line); border-radius:8px; overflow:hidden; }
   table.wlt-portfolio, table.wlt-tl { width:100%; border-collapse:collapse;
@@ -2265,6 +2302,29 @@
         <table class="wlt-portfolio" id="wlt-portfolio"></table>
       </div>
 
+      <!-- Daily Brief opt-in (signed-in only — flips profiles.daily_brief_enabled) -->
+      <div class="wlt-brief-card" id="wlt-brief-card">
+        <div class="wlt-brief-left">
+          <div class="wlt-brief-title">
+            Daily Brief <span class="badge">FREE</span>
+          </div>
+          <div class="wlt-brief-sub">
+            One concise email every weekday at 8:45 AM ET covering your
+            watchlist: grade changes, unusual flow, earnings within 7 days,
+            and any new research reports.
+          </div>
+          <div class="wlt-brief-status off" id="wlt-brief-status">
+            Off — turn on to start receiving briefs next trading day.
+          </div>
+        </div>
+        <label class="wlt-brief-toggle" id="wlt-brief-toggle"
+               title="Enable / disable the morning email">
+          <input type="checkbox" id="wlt-brief-input" />
+          <span class="sw"></span>
+          <span class="lbl" id="wlt-brief-lbl">Off</span>
+        </label>
+      </div>
+
       <!-- Trade Log Panel -->
       <h3 class="wlt-section-h">Trade Log
         <span class="wlt-section-sub">Personal P&amp;L tracking</span>
@@ -3089,6 +3149,96 @@
   window.tdSignIn  = signInWithEmail;
   window.tdSignInGoogle = signInWithGoogle;
   window.tdSignOut = signOut;
+
+  // ── Daily Brief opt-in toggle (Watchlist tab) ──
+  // Flips profiles.daily_brief_enabled. The actual send happens
+  // server-side via daily_brief.py (GitHub Actions cron at ~8:45 AM ET).
+  // UI is hidden when signed out — anon users see the sign-in CTA instead.
+  let DAILY_BRIEF_ENABLED = false;
+  async function loadDailyBriefState() {
+    const card = document.getElementById("wlt-brief-card");
+    if (!card) return;
+    if (!SUPA || !CURRENT_USER) {
+      card.classList.remove("show");
+      return;
+    }
+    card.classList.add("show");
+    try {
+      const { data, error } = await SUPA
+        .from("profiles")
+        .select("daily_brief_enabled")
+        .eq("id", CURRENT_USER.id)
+        .single();
+      if (error) throw error;
+      DAILY_BRIEF_ENABLED = !!(data && data.daily_brief_enabled);
+    } catch (e) {
+      console.warn("Daily brief state load failed:", e);
+      DAILY_BRIEF_ENABLED = false;
+    }
+    renderDailyBriefToggle();
+  }
+  function renderDailyBriefToggle() {
+    const inp = document.getElementById("wlt-brief-input");
+    const lbl = document.getElementById("wlt-brief-lbl");
+    const status = document.getElementById("wlt-brief-status");
+    if (!inp || !lbl || !status) return;
+    inp.checked = DAILY_BRIEF_ENABLED;
+    lbl.textContent = DAILY_BRIEF_ENABLED ? "On" : "Off";
+    if (DAILY_BRIEF_ENABLED) {
+      status.className = "wlt-brief-status on";
+      status.textContent = "On — you'll receive your first brief the next "
+        + "trading day at ~8:45 AM ET to "
+        + (CURRENT_USER && CURRENT_USER.email
+            ? CURRENT_USER.email : "your inbox") + ".";
+    } else {
+      status.className = "wlt-brief-status off";
+      status.textContent = "Off — turn on to start receiving briefs next "
+        + "trading day.";
+    }
+  }
+  async function toggleDailyBrief() {
+    if (!SUPA || !CURRENT_USER) {
+      if (window.tdRequireAuth) window.tdRequireAuth("generic");
+      return;
+    }
+    const next = !DAILY_BRIEF_ENABLED;
+    const toggle = document.getElementById("wlt-brief-toggle");
+    if (toggle) toggle.classList.add("is-saving");
+    try {
+      const { error } = await SUPA
+        .from("profiles")
+        .update({ daily_brief_enabled: next })
+        .eq("id", CURRENT_USER.id);
+      if (error) throw error;
+      DAILY_BRIEF_ENABLED = next;
+      renderDailyBriefToggle();
+    } catch (e) {
+      console.error("Daily brief toggle failed:", e);
+      // Revert the visual to actual state
+      renderDailyBriefToggle();
+      alert("Couldn't save preference. Please try again.");
+    } finally {
+      if (toggle) toggle.classList.remove("is-saving");
+    }
+  }
+  function wireDailyBriefToggle() {
+    const toggle = document.getElementById("wlt-brief-toggle");
+    if (!toggle || toggle.dataset.wired) return;
+    toggle.dataset.wired = "1";
+    toggle.addEventListener("click", function (e) {
+      e.preventDefault();
+      toggleDailyBrief();
+    });
+  }
+  // Wire once on DOM ready; load state on every auth change
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireDailyBriefToggle);
+  } else {
+    wireDailyBriefToggle();
+  }
+  onUserChange(function () { loadDailyBriefState(); });
+  // First call (in case auth state already settled by the time we register)
+  loadDailyBriefState();
 
   // Kick off init after DOM ready
   if (document.readyState === "loading") {
