@@ -22,12 +22,11 @@ compatibility_date = "2026-05-20"
 [vars]
 SUPABASE_URL = "https://uaeojibmhxbwkhpvmjwy.supabase.co"
 
-# Observability: enables the Workers dashboard "Logs" tab so `wrangler tail`
-# and the live-logs UI can stream console output from production. Logs
-# persist to the dashboard so we can debug past events (Stripe webhooks,
-# Polygon errors, etc.) without needing tail running live.
+# Observability: minimal config matching what Cloudflare's dashboard
+# generates. logs.enabled + invocation_logs are the only knobs that
+# matter for our use; head_sampling_rate and persist default sensibly.
+# Lets us see worker console output in the dashboard Logs tab + via
+# `npx wrangler tail` from terminal.
 [observability.logs]
 enabled = true
-head_sampling_rate = 1
-persist = true
 invocation_logs = true
