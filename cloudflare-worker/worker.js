@@ -318,6 +318,90 @@ async function summarizeFiling(env, ticker, form, items, primaryUrl) {
   }
 }
 
+/** Live UOA snapshot for a single underlying — pulls Polygon's
+ *  /v3/snapshot/options/{ticker} which returns every active contract
+ *  for that underlying with current day's volume, OI, last quote, IV,
+ *  greeks. Filters to "interesting" flow: vol/OI > 1.5 (volume
+ *  exceeding open interest, the classic UOA tell), volume >= 100, and
+ *  delta-weighted notional premium >= 25k. Returns top 25 by premium.
+ *
+ *  This is what powers the drilldown panel's "live flow" subsection —
+ *  so users see flow as of ~now, not as of the last 75-min batch.
+ *  Edge cached 30s to limit Polygon hits while a user clicks around.
+ */
+async function fetchLiveUOA(env, ticker) {
+  if (!env.POLYGON_API_KEY) {
+    return { error: "POLYGON_API_KEY not configured", contracts: [] };
+  }
+  const url = "https://api.polygon.io/v3/snapshot/options/" +
+              encodeURIComponent(ticker) +
+              "?limit=250&apiKey=" + env.POLYGON_API_KEY;
+  let r;
+  try {
+    r = await fetch(url, {
+      signal: AbortSignal.timeout(10000),
+      cf: { cacheTtl: 30 },
+    });
+  } catch (e) {
+    return { error: "Polygon snapshot timeout", contracts: [] };
+  }
+  if (!r.ok) {
+    return { error: "Polygon snapshot HTTP " + r.status, contracts: [] };
+  }
+  const j = await r.json();
+  const results = (j && j.results) || [];
+  // Walk all returned contracts and rank
+  const rows = [];
+  let underlyingPrice = null;
+  for (const c of results) {
+    const d   = c.details || {};
+    const day = c.day     || {};
+    const lq  = c.last_quote || {};
+    const greeks = c.greeks || {};
+    if (!d.contract_type || !d.strike_price || !d.expiration_date) continue;
+    const vol = day.volume || 0;
+    const oi  = c.open_interest || 0;
+    if (vol < 100) continue;
+    const voi = oi > 0 ? vol / oi : (vol > 0 ? 999 : 0);
+    if (voi < 1.5) continue;            // classic UOA threshold
+    const mid = (lq.ask && lq.bid) ? (lq.ask + lq.bid) / 2 : (lq.last || 0);
+    const premium = mid * vol * 100;    // contracts × 100 shares × $/share
+    if (premium < 25000) continue;       // skip dust
+    if (underlyingPrice == null && c.underlying_asset &&
+        typeof c.underlying_asset.price === "number") {
+      underlyingPrice = c.underlying_asset.price;
+    }
+    const dte = (() => {
+      const exp = new Date(d.expiration_date + "T16:00:00-04:00");
+      return Math.max(0, Math.round((exp - Date.now()) / 86400000));
+    })();
+    rows.push({
+      contract:    d.ticker || (d.contract_type + d.strike_price),
+      type:        d.contract_type,      // "call" / "put"
+      strike:      d.strike_price,
+      expiry:      d.expiration_date,
+      dte:         dte,
+      volume:      vol,
+      open_interest: oi,
+      vol_oi:      Math.round(voi * 10) / 10,
+      premium:     Math.round(premium),
+      iv:          c.implied_volatility || null,
+      delta:       greeks.delta || null,
+      mid:         Math.round(mid * 100) / 100,
+      bid:         lq.bid || null,
+      ask:         lq.ask || null,
+    });
+  }
+  rows.sort(function (a, b) { return b.premium - a.premium; });
+  return {
+    ticker:           ticker,
+    underlying_price: underlyingPrice,
+    contracts:        rows.slice(0, 25),
+    total_flagged:    rows.length,
+    fetched:          new Date().toISOString(),
+  };
+}
+
 /** Strip a Polygon news article down to just the fields the dashboard
  *  renders — drops large fields like the full article body and trims
  *  the response from Polygon (~3KB per article) to ~600 bytes. */
@@ -549,6 +633,28 @@ export default {
           return resp;
         }
         return Response.json(data, { headers: cors });
+      }
+      // Live UOA flash — ?uoa-flash=NVDA returns top 25 unusual contracts
+      // for that underlying as of <30 sec ago, sourced from Polygon's
+      // options snapshot endpoint. Used by the ticker drilldown panel to
+      // show what's flowing RIGHT NOW vs the latest 75-min batch.
+      const uoaFlashParam = url.searchParams.get("uoa-flash");
+      if (uoaFlashParam) {
+        const cache = caches.default;
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const tk = uoaFlashParam.trim().toUpperCase();
+        if (!tk || !/^[A-Z.\-]{1,8}$/.test(tk)) {
+          return Response.json(
+            { error: `Invalid ticker: "${tk}"`, contracts: [] },
+            { status: 400, headers: cors });
+        }
+        const data = await fetchLiveUOA(env, tk);
+        const resp = Response.json(data, {
+          headers: { ...cors, "Cache-Control": "public, max-age=30" },
+        });
+        ctx.waitUntil(cache.put(request, resp.clone()));
+        return resp;
       }
       // News headlines — ?news=general for firehose or ?news=AAPL for a
       // specific ticker. Optional ?limit=N (1..1000, default 50/200).
