@@ -2,28 +2,39 @@ name: SMID Breakout Scanner
 
 on:
   schedule:
-    # ── Scanner (3 runs/day, weekdays) ────────────────────────────────────────
-    # 10:00 AM ET — post-open: opening range resolved, real breakouts visible
-    # Crons run :07 past the hour — GitHub heavily delays top-of-hour schedules.
-    # EDT: 14:07 UTC  |  EST: 15:07 UTC
-    - cron: '7 14 * * 1-5'    # summer (EDT)
-    - cron: '7 15 * * 1-5'    # winter (EST)
+    # ── DST policy (single cron per fire time, no duplicates) ──────────────
+    # GitHub cron is literal UTC. Previously each fire time had two crons
+    # (EDT + EST) under the assumption only the "current season" fired — but
+    # BOTH fire every weekday year-round, doubling every report archive.
+    # Now picking ONE cron per fire window. Crons run :07/:17/:37 past to
+    # avoid GitHub's top-of-hour delay penalty.
+    #
+    # For each window: pick whichever cron keeps the run in the SAFE side
+    # (post-open for breakouts, post-close for setups). Accept a 1-hour
+    # drift during the off-season DST window.
+    #
+    # ── Scanner (3 runs/day) ──
+    # 10:00 AM ET breakouts: MUST be post-open. EDT cron (14:07 UTC) fires
+    # at 10:07 AM EDT (correct) but 9:07 AM EST (pre-open — bad).
+    # EST cron (15:07 UTC) fires 11:07 AM EDT (1 hr late — fine) and
+    # 10:07 AM EST (correct). Picked EST.
+    - cron: '7 15 * * 1-5'
 
-    # 11:30 AM ET — first-hour continuation: Qullamaggie's prime entry window
-    # EDT: 15:37 UTC  |  EST: 16:37 UTC
-    - cron: '37 15 * * 1-5'   # summer (EDT)
-    - cron: '37 16 * * 1-5'   # winter (EST)
+    # 11:30 AM ET — first-hour continuation: Qullamaggie's prime entry.
+    # Both options safely land within market hours. Picked EDT for closer
+    # match in summer (longer DST window).
+    - cron: '37 15 * * 1-5'
 
-    # 3:00 PM ET — power hour begins: full hour left to size and enter
-    # EDT: 19:07 UTC  |  EST: 20:07 UTC
-    - cron: '7 19 * * 1-5'    # summer (EDT)
-    - cron: '7 20 * * 1-5'    # winter (EST)
+    # 3:00 PM ET — power hour. Both options within market hours.
+    # Picked EDT to keep summer fire at intended 3:07 PM ET.
+    - cron: '7 19 * * 1-5'
 
-    # ── Setup Builder (1 run/day, after close) ────────────────────────────────
-    # 4:15 PM ET — daily candle complete, VCP volume dry-up data is valid
-    # EDT: 20:17 UTC  |  EST: 21:17 UTC
-    - cron: '17 20 * * 1-5'   # summer (EDT)
-    - cron: '17 21 * * 1-5'   # winter (EST)
+    # ── Setup Builder (1 run/day, after close) ──
+    # 4:15 PM ET — MUST be post-close (VCP volume needs finalized candle).
+    # EDT cron (20:17 UTC) fires 4:17 PM EDT (correct) but 3:17 PM EST
+    # (pre-close — bad). EST cron (21:17 UTC) fires 5:17 PM EDT (1 hr late
+    # — fine) and 4:17 PM EST (correct). Picked EST.
+    - cron: '17 21 * * 1-5'
 
   workflow_dispatch:           # manual trigger from GitHub UI anytime
 

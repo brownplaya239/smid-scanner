@@ -2,11 +2,18 @@ name: Momentum Scans
 
 on:
   schedule:
-    # 4:30 PM ET weekdays — EOD, after the setup builders; daily candle complete
+    # 4:30 PM ET weekdays — EOD, after setup builders; daily candle complete.
     # Cron runs :33 past — GitHub heavily delays top/half-hour schedules.
-    # EDT: 20:33 UTC  |  EST: 21:33 UTC
-    - cron: '33 20 * * 1-5'   # summer (EDT)
-    - cron: '33 21 * * 1-5'   # winter (EST)
+    #
+    # IMPORTANT — single cron, year-round:
+    # GitHub cron is literal UTC with no DST handling. Previously we had both
+    # 20:33 UTC (EDT-correct) and 21:33 UTC (EST-correct) listed — but BOTH
+    # fired year-round, doubling our runs. Picked the EST cron because it's
+    # always POST-close: 21:33 UTC = 5:33 PM ET during EDT (post-close, fine),
+    # 4:33 PM ET during EST (correct intent). The EDT cron would fire at
+    # 3:33 PM ET during EST winter — before the daily candle finalizes, which
+    # would corrupt swing grades. So EST cron is the safe single choice.
+    - cron: '33 21 * * 1-5'
 
   workflow_dispatch:           # manual trigger from GitHub UI anytime
 
