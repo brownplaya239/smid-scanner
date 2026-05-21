@@ -1,6 +1,6 @@
 {
- "generated": "2026-05-21T19:52:33+00:00",
- "total_signals": 8283,
+ "generated": "2026-05-21T21:19:54+00:00",
+ "total_signals": 8423,
  "matured_5d": 0,
  "horizons": [
   1,
@@ -13,16 +13,16 @@
   "1": {
    "n": 8047,
    "hit_rate": 55,
-   "avg": 0.8,
-   "median": 0.4,
-   "avg_excess": 0.92
+   "avg": 0.83,
+   "median": 0.42,
+   "avg_excess": 0.94
   },
   "3": {
    "n": 4622,
-   "hit_rate": 66,
-   "avg": 3.56,
-   "median": 2.22,
-   "avg_excess": 3.05
+   "hit_rate": 67,
+   "avg": 3.8,
+   "median": 2.02,
+   "avg_excess": 3.25
   },
   "5": {
    "n": 0,
@@ -47,27 +47,27 @@
   }
  },
  "excursion": {
-  "avg_mfe": 5.7,
-  "avg_mae": -2.9,
+  "avg_mfe": 5.8,
+  "avg_mae": -3.0,
   "n": 8047
  },
  "by_type": {
   "golden_sweep": {
-   "signals": 2242,
+   "signals": 2279,
    "h": {
     "1": {
      "n": 2186,
      "hit_rate": 63,
-     "avg": 1.43,
-     "median": 0.99,
-     "avg_excess": 1.45
+     "avg": 1.49,
+     "median": 0.96,
+     "avg_excess": 1.5
     },
     "3": {
      "n": 1087,
-     "hit_rate": 78,
-     "avg": 4.66,
-     "median": 2.28,
-     "avg_excess": 4.15
+     "hit_rate": 77,
+     "avg": 4.95,
+     "median": 2.05,
+     "avg_excess": 4.4
     },
     "5": {
      "n": 0,
@@ -97,31 +97,31 @@
     "confirm_rate": 19
    },
    "alpha_confidence": {
-    "score": 70,
+    "score": 72,
     "horizon": 3,
     "n": 1087,
-    "hit_rate": 78,
-    "avg_excess": 4.15,
+    "hit_rate": 77,
+    "avg_excess": 4.4,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "sweep": {
-   "signals": 4731,
+   "signals": 4808,
    "h": {
     "1": {
      "n": 4599,
-     "hit_rate": 51,
-     "avg": 0.6,
-     "median": 0.03,
-     "avg_excess": 0.78
+     "hit_rate": 50,
+     "avg": 0.61,
+     "median": 0.06,
+     "avg_excess": 0.79
     },
     "3": {
      "n": 2877,
      "hit_rate": 63,
-     "avg": 3.3,
-     "median": 2.2,
-     "avg_excess": 2.79
+     "avg": 3.53,
+     "median": 1.98,
+     "avg_excess": 2.98
     },
     "5": {
      "n": 0,
@@ -151,31 +151,31 @@
     "confirm_rate": 56
    },
    "alpha_confidence": {
-    "score": 43,
+    "score": 45,
     "horizon": 3,
     "n": 2877,
     "hit_rate": 63,
-    "avg_excess": 2.79,
+    "avg_excess": 2.98,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "voloi": {
-   "signals": 1310,
+   "signals": 1336,
    "h": {
     "1": {
      "n": 1262,
-     "hit_rate": 55,
-     "avg": 0.47,
-     "median": 0.35,
-     "avg_excess": 0.48
+     "hit_rate": 56,
+     "avg": 0.5,
+     "median": 0.34,
+     "avg_excess": 0.5
     },
     "3": {
      "n": 658,
-     "hit_rate": 62,
-     "avg": 2.85,
-     "median": 1.77,
-     "avg_excess": 2.34
+     "hit_rate": 64,
+     "avg": 3.09,
+     "median": 1.94,
+     "avg_excess": 2.54
     },
     "5": {
      "n": 0,
@@ -205,33 +205,33 @@
     "confirm_rate": 68
    },
    "alpha_confidence": {
-    "score": 36,
+    "score": 40,
     "horizon": 3,
     "n": 658,
-    "hit_rate": 62,
-    "avg_excess": 2.34,
-    "verdict": "low alpha",
+    "hit_rate": 64,
+    "avg_excess": 2.54,
+    "verdict": "moderate alpha",
     "tradeable": true
    }
   }
  },
  "by_score": {
   "80-100": {
-   "signals": 1043,
+   "signals": 1053,
    "h": {
     "1": {
      "n": 1034,
-     "hit_rate": 54,
+     "hit_rate": 52,
      "avg": 0.9,
-     "median": 0.26,
-     "avg_excess": 1.03
+     "median": 0.23,
+     "avg_excess": 1.02
     },
     "3": {
      "n": 610,
-     "hit_rate": 62,
-     "avg": 3.08,
-     "median": 2.2,
-     "avg_excess": 2.57
+     "hit_rate": 61,
+     "avg": 3.23,
+     "median": 1.94,
+     "avg_excess": 2.68
     },
     "5": {
      "n": 0,
@@ -264,28 +264,28 @@
     "score": 41,
     "horizon": 3,
     "n": 610,
-    "hit_rate": 62,
-    "avg_excess": 2.57,
+    "hit_rate": 61,
+    "avg_excess": 2.68,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "65-79": {
-   "signals": 4520,
+   "signals": 4602,
    "h": {
     "1": {
      "n": 4427,
      "hit_rate": 57,
-     "avg": 0.93,
+     "avg": 0.97,
      "median": 0.52,
-     "avg_excess": 0.98
+     "avg_excess": 1.0
     },
     "3": {
      "n": 2313,
      "hit_rate": 70,
-     "avg": 3.52,
-     "median": 2.24,
-     "avg_excess": 3.01
+     "avg": 3.77,
+     "median": 2.02,
+     "avg_excess": 3.22
     },
     "5": {
      "n": 0,
@@ -315,31 +315,31 @@
     "confirm_rate": 45
    },
    "alpha_confidence": {
-    "score": 51,
+    "score": 53,
     "horizon": 3,
     "n": 2313,
     "hit_rate": 70,
-    "avg_excess": 3.01,
+    "avg_excess": 3.22,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "55-64": {
-   "signals": 2720,
+   "signals": 2768,
    "h": {
     "1": {
      "n": 2586,
      "hit_rate": 51,
-     "avg": 0.54,
-     "median": 0.09,
-     "avg_excess": 0.77
+     "avg": 0.57,
+     "median": 0.15,
+     "avg_excess": 0.78
     },
     "3": {
      "n": 1699,
-     "hit_rate": 63,
-     "avg": 3.78,
-     "median": 2.22,
-     "avg_excess": 3.27
+     "hit_rate": 64,
+     "avg": 4.04,
+     "median": 2.02,
+     "avg_excess": 3.49
     },
     "5": {
      "n": 0,
@@ -369,11 +369,11 @@
     "confirm_rate": 52
    },
    "alpha_confidence": {
-    "score": 48,
+    "score": 51,
     "horizon": 3,
     "n": 1699,
-    "hit_rate": 63,
-    "avg_excess": 3.27,
+    "hit_rate": 64,
+    "avg_excess": 3.49,
     "verdict": "moderate alpha",
     "tradeable": true
    }
@@ -381,21 +381,21 @@
  },
  "by_dte": {
   "urgent": {
-   "signals": 5782,
+   "signals": 5863,
    "h": {
     "1": {
      "n": 5642,
-     "hit_rate": 56,
-     "avg": 0.96,
-     "median": 0.53,
-     "avg_excess": 1.07
+     "hit_rate": 57,
+     "avg": 0.99,
+     "median": 0.52,
+     "avg_excess": 1.09
     },
     "3": {
      "n": 3211,
-     "hit_rate": 65,
-     "avg": 3.51,
-     "median": 2.22,
-     "avg_excess": 2.99
+     "hit_rate": 66,
+     "avg": 3.74,
+     "median": 1.98,
+     "avg_excess": 3.19
     },
     "5": {
      "n": 0,
@@ -425,31 +425,31 @@
     "confirm_rate": 31
    },
    "alpha_confidence": {
-    "score": 47,
+    "score": 50,
     "horizon": 3,
     "n": 3211,
-    "hit_rate": 65,
-    "avg_excess": 2.99,
+    "hit_rate": 66,
+    "avg_excess": 3.19,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "swing": {
-   "signals": 1646,
+   "signals": 1690,
    "h": {
     "1": {
      "n": 1576,
-     "hit_rate": 50,
-     "avg": 0.46,
-     "median": 0.0,
+     "hit_rate": 49,
+     "avg": 0.47,
+     "median": -0.03,
      "avg_excess": 0.62
     },
     "3": {
      "n": 976,
-     "hit_rate": 67,
-     "avg": 3.69,
-     "median": 2.22,
-     "avg_excess": 3.18
+     "hit_rate": 68,
+     "avg": 3.98,
+     "median": 2.04,
+     "avg_excess": 3.43
     },
     "5": {
      "n": 0,
@@ -479,31 +479,31 @@
     "confirm_rate": 81
    },
    "alpha_confidence": {
-    "score": 49,
+    "score": 53,
     "horizon": 3,
     "n": 976,
-    "hit_rate": 67,
-    "avg_excess": 3.18,
+    "hit_rate": 68,
+    "avg_excess": 3.43,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "positioning": {
-   "signals": 757,
+   "signals": 769,
    "h": {
     "1": {
      "n": 734,
-     "hit_rate": 51,
-     "avg": 0.32,
-     "median": 0.08,
-     "avg_excess": 0.39
+     "hit_rate": 50,
+     "avg": 0.39,
+     "median": 0.05,
+     "avg_excess": 0.45
     },
     "3": {
      "n": 381,
      "hit_rate": 72,
-     "avg": 4.14,
-     "median": 3.27,
-     "avg_excess": 3.63
+     "avg": 4.39,
+     "median": 3.76,
+     "avg_excess": 3.84
     },
     "5": {
      "n": 0,
@@ -533,31 +533,31 @@
     "confirm_rate": 91
    },
    "alpha_confidence": {
-    "score": 57,
+    "score": 59,
     "horizon": 3,
     "n": 381,
     "hit_rate": 72,
-    "avg_excess": 3.63,
+    "avg_excess": 3.84,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "leaps": {
-   "signals": 98,
+   "signals": 101,
    "h": {
     "1": {
      "n": 95,
-     "hit_rate": 65,
-     "avg": 0.68,
-     "median": 0.64,
-     "avg_excess": 0.79
+     "hit_rate": 63,
+     "avg": 0.65,
+     "median": 0.68,
+     "avg_excess": 0.76
     },
     "3": {
      "n": 54,
      "hit_rate": 54,
-     "avg": -0.01,
-     "median": 0.87,
-     "avg_excess": -0.52
+     "avg": 0.34,
+     "median": 0.98,
+     "avg_excess": -0.22
     },
     "5": {
      "n": 0,
@@ -591,7 +591,7 @@
     "horizon": 3,
     "n": 54,
     "hit_rate": 54,
-    "avg_excess": -0.52,
+    "avg_excess": -0.22,
     "verdict": "neutral",
     "tradeable": false
    }
@@ -599,21 +599,21 @@
  },
  "by_tag": {
   "Golden Sweep": {
-   "signals": 2242,
+   "signals": 2279,
    "h": {
     "1": {
      "n": 2186,
      "hit_rate": 63,
-     "avg": 1.43,
-     "median": 0.99,
-     "avg_excess": 1.45
+     "avg": 1.49,
+     "median": 0.96,
+     "avg_excess": 1.5
     },
     "3": {
      "n": 1087,
-     "hit_rate": 78,
-     "avg": 4.66,
-     "median": 2.28,
-     "avg_excess": 4.15
+     "hit_rate": 77,
+     "avg": 4.95,
+     "median": 2.05,
+     "avg_excess": 4.4
     },
     "5": {
      "n": 0,
@@ -643,31 +643,31 @@
     "confirm_rate": 19
    },
    "alpha_confidence": {
-    "score": 70,
+    "score": 72,
     "horizon": 3,
     "n": 1087,
-    "hit_rate": 78,
-    "avg_excess": 4.15,
+    "hit_rate": 77,
+    "avg_excess": 4.4,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "Sweep": {
-   "signals": 4731,
+   "signals": 4808,
    "h": {
     "1": {
      "n": 4599,
-     "hit_rate": 51,
-     "avg": 0.6,
-     "median": 0.03,
-     "avg_excess": 0.78
+     "hit_rate": 50,
+     "avg": 0.61,
+     "median": 0.06,
+     "avg_excess": 0.79
     },
     "3": {
      "n": 2877,
      "hit_rate": 63,
-     "avg": 3.3,
-     "median": 2.2,
-     "avg_excess": 2.79
+     "avg": 3.53,
+     "median": 1.98,
+     "avg_excess": 2.98
     },
     "5": {
      "n": 0,
@@ -697,31 +697,31 @@
     "confirm_rate": 56
    },
    "alpha_confidence": {
-    "score": 43,
+    "score": 45,
     "horizon": 3,
     "n": 2877,
     "hit_rate": 63,
-    "avg_excess": 2.79,
+    "avg_excess": 2.98,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "Block": {
-   "signals": 5455,
+   "signals": 5551,
    "h": {
     "1": {
      "n": 5295,
      "hit_rate": 57,
-     "avg": 1.0,
-     "median": 0.55,
-     "avg_excess": 1.12
+     "avg": 1.03,
+     "median": 0.52,
+     "avg_excess": 1.15
     },
     "3": {
      "n": 3097,
      "hit_rate": 71,
-     "avg": 4.39,
-     "median": 2.53,
-     "avg_excess": 3.88
+     "avg": 4.68,
+     "median": 2.57,
+     "avg_excess": 4.13
     },
     "5": {
      "n": 0,
@@ -751,31 +751,31 @@
     "confirm_rate": 52
    },
    "alpha_confidence": {
-    "score": 61,
+    "score": 63,
     "horizon": 3,
     "n": 3097,
     "hit_rate": 71,
-    "avg_excess": 3.88,
+    "avg_excess": 4.13,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "Size>OI": {
-   "signals": 2083,
+   "signals": 2115,
    "h": {
     "1": {
      "n": 2034,
      "hit_rate": 48,
-     "avg": 0.56,
-     "median": -0.07,
-     "avg_excess": 0.72
+     "avg": 0.58,
+     "median": -0.23,
+     "avg_excess": 0.74
     },
     "3": {
      "n": 1205,
-     "hit_rate": 61,
-     "avg": 3.13,
-     "median": 2.08,
-     "avg_excess": 2.62
+     "hit_rate": 62,
+     "avg": 3.34,
+     "median": 1.94,
+     "avg_excess": 2.79
     },
     "5": {
      "n": 0,
@@ -805,31 +805,31 @@
     "confirm_rate": 74
    },
    "alpha_confidence": {
-    "score": 39,
+    "score": 41,
     "horizon": 3,
     "n": 1205,
-    "hit_rate": 61,
-    "avg_excess": 2.62,
-    "verdict": "low alpha",
+    "hit_rate": 62,
+    "avg_excess": 2.79,
+    "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "Repeat": {
-   "signals": 7102,
+   "signals": 7229,
    "h": {
     "1": {
      "n": 6961,
      "hit_rate": 55,
-     "avg": 0.8,
-     "median": 0.46,
-     "avg_excess": 0.89
+     "avg": 0.83,
+     "median": 0.48,
+     "avg_excess": 0.91
     },
     "3": {
      "n": 3852,
-     "hit_rate": 65,
-     "avg": 3.47,
-     "median": 2.22,
-     "avg_excess": 2.95
+     "hit_rate": 66,
+     "avg": 3.71,
+     "median": 1.98,
+     "avg_excess": 3.16
     },
     "5": {
      "n": 0,
@@ -859,30 +859,30 @@
     "confirm_rate": 47
    },
    "alpha_confidence": {
-    "score": 46,
+    "score": 49,
     "horizon": 3,
     "n": 3852,
-    "hit_rate": 65,
-    "avg_excess": 2.95,
+    "hit_rate": 66,
+    "avg_excess": 3.16,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "Into ERN": {
-   "signals": 1223,
+   "signals": 1242,
    "h": {
     "1": {
      "n": 1192,
-     "hit_rate": 46,
+     "hit_rate": 44,
      "avg": -0.02,
-     "median": -0.14,
-     "avg_excess": -0.04
+     "median": -0.4,
+     "avg_excess": -0.06
     },
     "3": {
      "n": 513,
-     "hit_rate": 35,
-     "avg": 0.42,
-     "median": -0.84,
+     "hit_rate": 42,
+     "avg": 0.46,
+     "median": -1.28,
      "avg_excess": -0.09
     },
     "5": {
@@ -916,28 +916,28 @@
     "score": 0,
     "horizon": 3,
     "n": 513,
-    "hit_rate": 35,
+    "hit_rate": 42,
     "avg_excess": -0.09,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "In Universe": {
-   "signals": 6628,
+   "signals": 6732,
    "h": {
     "1": {
      "n": 6445,
      "hit_rate": 57,
-     "avg": 0.94,
-     "median": 0.57,
-     "avg_excess": 1.04
+     "avg": 0.96,
+     "median": 0.52,
+     "avg_excess": 1.06
     },
     "3": {
      "n": 3691,
-     "hit_rate": 65,
-     "avg": 3.45,
-     "median": 2.22,
-     "avg_excess": 2.94
+     "hit_rate": 66,
+     "avg": 3.68,
+     "median": 1.98,
+     "avg_excess": 3.13
     },
     "5": {
      "n": 0,
@@ -967,11 +967,11 @@
     "confirm_rate": 40
    },
    "alpha_confidence": {
-    "score": 47,
+    "score": 49,
     "horizon": 3,
     "n": 3691,
-    "hit_rate": 65,
-    "avg_excess": 2.94,
+    "hit_rate": 66,
+    "avg_excess": 3.13,
     "verdict": "moderate alpha",
     "tradeable": true
    }
@@ -984,16 +984,16 @@
     "1": {
      "n": 68,
      "hit_rate": 100,
-     "avg": 2.98,
-     "median": 2.93,
-     "avg_excess": 2.84
+     "avg": 3.36,
+     "median": 3.63,
+     "avg_excess": 3.21
     },
     "3": {
      "n": 18,
      "hit_rate": 100,
-     "avg": 12.73,
-     "median": 12.68,
-     "avg_excess": 12.22
+     "avg": 13.56,
+     "median": 13.51,
+     "avg_excess": 13.01
     },
     "5": {
      "n": 0,
@@ -1032,27 +1032,27 @@
     "horizon": 3,
     "n": 18,
     "hit_rate": 100,
-    "avg_excess": 12.22,
+    "avg_excess": 13.01,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "TSLA": {
-   "signals": 1425,
+   "signals": 1459,
    "h": {
     "1": {
      "n": 1364,
      "hit_rate": 50,
-     "avg": 0.57,
+     "avg": 0.51,
      "median": -0.32,
-     "avg_excess": 0.61
+     "avg_excess": 0.54
     },
     "3": {
      "n": 683,
      "hit_rate": 100,
-     "avg": 2.41,
-     "median": 2.24,
-     "avg_excess": 1.89
+     "avg": 2.15,
+     "median": 1.98,
+     "avg_excess": 1.6
     },
     "5": {
      "n": 0,
@@ -1087,31 +1087,31 @@
     "n": 1364
    },
    "alpha_confidence": {
-    "score": 65,
+    "score": 62,
     "horizon": 3,
     "n": 683,
     "hit_rate": 100,
-    "avg_excess": 1.89,
+    "avg_excess": 1.6,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "GOOGL": {
-   "signals": 163,
+   "signals": 165,
    "h": {
     "1": {
      "n": 159,
-     "hit_rate": 14,
-     "avg": -2.01,
+     "hit_rate": 13,
+     "avg": -2.03,
      "median": -2.44,
-     "avg_excess": -1.6
+     "avg_excess": -1.62
     },
     "3": {
      "n": 128,
      "hit_rate": 0,
-     "avg": -2.32,
-     "median": -2.27,
-     "avg_excess": -2.83
+     "avg": -2.54,
+     "median": -2.49,
+     "avg_excess": -3.09
     },
     "5": {
      "n": 0,
@@ -1150,27 +1150,27 @@
     "horizon": 3,
     "n": 128,
     "hit_rate": 0,
-    "avg_excess": -2.83,
+    "avg_excess": -3.09,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "MU": {
-   "signals": 787,
+   "signals": 790,
    "h": {
     "1": {
      "n": 783,
      "hit_rate": 100,
-     "avg": 3.31,
-     "median": 3.51,
-     "avg_excess": 3.29
+     "avg": 3.44,
+     "median": 3.98,
+     "avg_excess": 3.42
     },
     "3": {
      "n": 420,
      "hit_rate": 100,
-     "avg": 10.77,
-     "median": 10.62,
-     "avg_excess": 10.26
+     "avg": 12.05,
+     "median": 11.9,
+     "avg_excess": 11.5
     },
     "5": {
      "n": 0,
@@ -1209,27 +1209,27 @@
     "horizon": 3,
     "n": 420,
     "hit_rate": 100,
-    "avg_excess": 10.26,
+    "avg_excess": 11.5,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "NVDA": {
-   "signals": 526,
+   "signals": 543,
    "h": {
     "1": {
      "n": 496,
-     "hit_rate": 31,
-     "avg": -0.27,
-     "median": -0.27,
-     "avg_excess": -0.2
+     "hit_rate": 25,
+     "avg": -0.42,
+     "median": -0.63,
+     "avg_excess": -0.37
     },
     "3": {
      "n": 231,
-     "hit_rate": 17,
-     "avg": -0.69,
-     "median": -0.89,
-     "avg_excess": -1.2
+     "hit_rate": 9,
+     "avg": -1.13,
+     "median": -1.33,
+     "avg_excess": -1.68
     },
     "5": {
      "n": 0,
@@ -1267,14 +1267,14 @@
     "score": 0,
     "horizon": 3,
     "n": 231,
-    "hit_rate": 17,
-    "avg_excess": -1.2,
+    "hit_rate": 9,
+    "avg_excess": -1.68,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "SNDK": {
-   "signals": 131,
+   "signals": 132,
    "h": {
     "1": {
      "n": 130,
@@ -1286,9 +1286,9 @@
     "3": {
      "n": 111,
      "hit_rate": 100,
-     "avg": 17.16,
-     "median": 16.67,
-     "avg_excess": 16.65
+     "avg": 17.21,
+     "median": 16.72,
+     "avg_excess": 16.66
     },
     "5": {
      "n": 0,
@@ -1327,7 +1327,7 @@
     "horizon": 3,
     "n": 111,
     "hit_rate": 100,
-    "avg_excess": 16.65,
+    "avg_excess": 16.66,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -1345,9 +1345,9 @@
     "3": {
      "n": 61,
      "hit_rate": 0,
-     "avg": -5.0,
-     "median": -5.07,
-     "avg_excess": -5.51
+     "avg": -6.18,
+     "median": -6.25,
+     "avg_excess": -6.73
     },
     "5": {
      "n": 0,
@@ -1378,7 +1378,7 @@
    },
    "excursion": {
     "avg_mfe": 4.3,
-    "avg_mae": -5.7,
+    "avg_mae": -6.4,
     "n": 61
    },
    "alpha_confidence": {
@@ -1386,27 +1386,27 @@
     "horizon": 3,
     "n": 61,
     "hit_rate": 0,
-    "avg_excess": -5.51,
+    "avg_excess": -6.73,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "INTC": {
-   "signals": 334,
+   "signals": 335,
    "h": {
     "1": {
      "n": 331,
-     "hit_rate": 94,
-     "avg": 3.48,
+     "hit_rate": 100,
+     "avg": 3.56,
      "median": 2.61,
-     "avg_excess": 3.54
+     "avg_excess": 3.62
     },
     "3": {
      "n": 174,
      "hit_rate": 100,
-     "avg": 9.74,
-     "median": 9.34,
-     "avg_excess": 9.22
+     "avg": 10.14,
+     "median": 9.74,
+     "avg_excess": 9.59
     },
     "5": {
      "n": 0,
@@ -1445,7 +1445,7 @@
     "horizon": 3,
     "n": 174,
     "hit_rate": 100,
-    "avg_excess": 9.22,
+    "avg_excess": 9.59,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -1463,8 +1463,8 @@
     "3": {
      "n": 29,
      "hit_rate": 100,
-     "avg": 19.92,
-     "median": 19.03,
+     "avg": 19.96,
+     "median": 19.07,
      "avg_excess": 19.41
     },
     "5": {
@@ -1521,10 +1521,10 @@
     },
     "3": {
      "n": 45,
-     "hit_rate": 20,
-     "avg": -0.03,
-     "median": -0.06,
-     "avg_excess": -0.54
+     "hit_rate": 0,
+     "avg": -0.33,
+     "median": -0.37,
+     "avg_excess": -0.88
     },
     "5": {
      "n": 0,
@@ -1562,8 +1562,8 @@
     "score": 0,
     "horizon": 3,
     "n": 45,
-    "hit_rate": 20,
-    "avg_excess": -0.54,
+    "hit_rate": 0,
+    "avg_excess": -0.88,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -1581,9 +1581,9 @@
     "3": {
      "n": 31,
      "hit_rate": 100,
-     "avg": 13.48,
-     "median": 12.27,
-     "avg_excess": 12.96
+     "avg": 15.02,
+     "median": 13.8,
+     "avg_excess": 14.47
     },
     "5": {
      "n": 0,
@@ -1613,7 +1613,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 14.4,
+    "avg_mfe": 15.2,
     "avg_mae": -5.8,
     "n": 31
    },
@@ -1622,7 +1622,7 @@
     "horizon": 3,
     "n": 31,
     "hit_rate": 100,
-    "avg_excess": 12.96,
+    "avg_excess": 14.47,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -1635,14 +1635,14 @@
      "hit_rate": 16,
      "avg": -1.05,
      "median": -1.29,
-     "avg_excess": -0.62
+     "avg_excess": -0.61
     },
     "3": {
      "n": 97,
      "hit_rate": 0,
-     "avg": -0.63,
-     "median": -0.59,
-     "avg_excess": -1.14
+     "avg": -0.56,
+     "median": -0.52,
+     "avg_excess": -1.11
     },
     "5": {
      "n": 0,
@@ -1681,7 +1681,7 @@
     "horizon": 3,
     "n": 97,
     "hit_rate": 0,
-    "avg_excess": -1.14,
+    "avg_excess": -1.11,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -1691,17 +1691,17 @@
    "h": {
     "1": {
      "n": 151,
-     "hit_rate": 30,
-     "avg": -1.4,
+     "hit_rate": 18,
+     "avg": -1.48,
      "median": -2.17,
-     "avg_excess": -1.15
+     "avg_excess": -1.24
     },
     "3": {
      "n": 95,
      "hit_rate": 0,
-     "avg": -2.37,
-     "median": -2.33,
-     "avg_excess": -2.88
+     "avg": -2.69,
+     "median": -2.65,
+     "avg_excess": -3.24
     },
     "5": {
      "n": 0,
@@ -1740,7 +1740,7 @@
     "horizon": 3,
     "n": 95,
     "hit_rate": 0,
-    "avg_excess": -2.88,
+    "avg_excess": -3.24,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -1751,16 +1751,16 @@
     "1": {
      "n": 250,
      "hit_rate": 36,
-     "avg": -0.68,
+     "avg": -0.67,
      "median": -1.87,
-     "avg_excess": -0.64
+     "avg_excess": -0.63
     },
     "3": {
      "n": 154,
      "hit_rate": 0,
-     "avg": -4.58,
-     "median": -4.52,
-     "avg_excess": -5.09
+     "avg": -4.19,
+     "median": -4.13,
+     "avg_excess": -4.74
     },
     "5": {
      "n": 0,
@@ -1799,13 +1799,13 @@
     "horizon": 3,
     "n": 154,
     "hit_rate": 0,
-    "avg_excess": -5.09,
+    "avg_excess": -4.74,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "QCOM": {
-   "signals": 48,
+   "signals": 49,
    "h": {
     "1": {
      "n": 46,
@@ -1817,9 +1817,9 @@
     "3": {
      "n": 40,
      "hit_rate": 100,
-     "avg": 4.28,
-     "median": 3.97,
-     "avg_excess": 3.77
+     "avg": 5.44,
+     "median": 5.12,
+     "avg_excess": 4.89
     },
     "5": {
      "n": 0,
@@ -1849,36 +1849,36 @@
     "confirm_rate": 78
    },
    "excursion": {
-    "avg_mfe": 6.1,
+    "avg_mfe": 6.2,
     "avg_mae": -5.0,
     "n": 46
    },
    "alpha_confidence": {
-    "score": 79,
+    "score": 91,
     "horizon": 3,
     "n": 40,
     "hit_rate": 100,
-    "avg_excess": 3.77,
+    "avg_excess": 4.89,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "AMD": {
-   "signals": 342,
+   "signals": 346,
    "h": {
     "1": {
      "n": 340,
-     "hit_rate": 60,
-     "avg": 2.34,
-     "median": 0.6,
-     "avg_excess": 2.25
+     "hit_rate": 62,
+     "avg": 2.5,
+     "median": 1.07,
+     "avg_excess": 2.4
     },
     "3": {
      "n": 159,
      "hit_rate": 100,
-     "avg": 6.03,
-     "median": 5.62,
-     "avg_excess": 5.52
+     "avg": 7.08,
+     "median": 6.67,
+     "avg_excess": 6.53
     },
     "5": {
      "n": 0,
@@ -1908,36 +1908,36 @@
     "confirm_rate": 25
    },
    "excursion": {
-    "avg_mfe": 6.5,
+    "avg_mfe": 7.0,
     "avg_mae": -2.4,
     "n": 340
    },
    "alpha_confidence": {
-    "score": 96,
+    "score": 97,
     "horizon": 3,
     "n": 159,
     "hit_rate": 100,
-    "avg_excess": 5.52,
+    "avg_excess": 6.53,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "AMZN": {
-   "signals": 108,
+   "signals": 110,
    "h": {
     "1": {
      "n": 106,
      "hit_rate": 35,
-     "avg": -0.57,
+     "avg": -0.56,
      "median": -1.98,
      "avg_excess": -0.38
     },
     "3": {
      "n": 69,
      "hit_rate": 100,
-     "avg": 1.42,
-     "median": 1.34,
-     "avg_excess": 0.9
+     "avg": 1.49,
+     "median": 1.42,
+     "avg_excess": 0.94
     },
     "5": {
      "n": 0,
@@ -1976,27 +1976,27 @@
     "horizon": 3,
     "n": 69,
     "hit_rate": 100,
-    "avg_excess": 0.9,
+    "avg_excess": 0.94,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "MSFT": {
-   "signals": 297,
+   "signals": 298,
    "h": {
     "1": {
      "n": 294,
-     "hit_rate": 24,
-     "avg": -0.59,
+     "hit_rate": 32,
+     "avg": -0.56,
      "median": -1.17,
-     "avg_excess": -0.45
+     "avg_excess": -0.43
     },
     "3": {
      "n": 166,
      "hit_rate": 0,
-     "avg": -1.05,
-     "median": -1.11,
-     "avg_excess": -1.56
+     "avg": -0.92,
+     "median": -0.99,
+     "avg_excess": -1.47
     },
     "5": {
      "n": 0,
@@ -2035,7 +2035,7 @@
     "horizon": 3,
     "n": 166,
     "hit_rate": 0,
-    "avg_excess": -1.56,
+    "avg_excess": -1.47,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -2053,9 +2053,9 @@
     "3": {
      "n": 19,
      "hit_rate": 100,
-     "avg": 6.23,
-     "median": 5.49,
-     "avg_excess": 5.72
+     "avg": 7.03,
+     "median": 6.29,
+     "avg_excess": 6.48
     },
     "5": {
      "n": 0,
@@ -2085,7 +2085,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 6.6,
+    "avg_mfe": 7.2,
     "avg_mae": -4.5,
     "n": 19
    },
@@ -2094,7 +2094,7 @@
     "horizon": 3,
     "n": 19,
     "hit_rate": 100,
-    "avg_excess": 5.72,
+    "avg_excess": 6.48,
     "verdict": "moderate alpha",
     "tradeable": true
    }
@@ -2112,9 +2112,9 @@
     "3": {
      "n": 29,
      "hit_rate": 100,
-     "avg": 1.12,
-     "median": 1.12,
-     "avg_excess": 0.61
+     "avg": 1.11,
+     "median": 1.11,
+     "avg_excess": 0.56
     },
     "5": {
      "n": 0,
@@ -2153,7 +2153,7 @@
     "horizon": 3,
     "n": 29,
     "hit_rate": 100,
-    "avg_excess": 0.61,
+    "avg_excess": 0.56,
     "verdict": "moderate alpha",
     "tradeable": true
    }
@@ -2170,10 +2170,10 @@
     },
     "3": {
      "n": 6,
-     "hit_rate": 0,
-     "avg": -0.29,
-     "median": -0.29,
-     "avg_excess": -0.8
+     "hit_rate": 100,
+     "avg": 0.03,
+     "median": 0.03,
+     "avg_excess": -0.52
     },
     "5": {
      "n": 0,
@@ -2211,9 +2211,9 @@
     "score": 0,
     "horizon": 3,
     "n": 6,
-    "hit_rate": 0,
-    "avg_excess": -0.8,
-    "verdict": "anti-alpha",
+    "hit_rate": 100,
+    "avg_excess": -0.52,
+    "verdict": "neutral",
     "tradeable": false
    }
   },
@@ -2230,9 +2230,9 @@
     "3": {
      "n": 6,
      "hit_rate": 0,
-     "avg": -0.09,
-     "median": -0.09,
-     "avg_excess": -0.6
+     "avg": -0.01,
+     "median": -0.01,
+     "avg_excess": -0.56
     },
     "5": {
      "n": 0,
@@ -2271,7 +2271,7 @@
     "horizon": 3,
     "n": 6,
     "hit_rate": 0,
-    "avg_excess": -0.6,
+    "avg_excess": -0.56,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -2289,9 +2289,9 @@
     "3": {
      "n": 26,
      "hit_rate": 100,
-     "avg": 1.97,
-     "median": 1.97,
-     "avg_excess": 1.46
+     "avg": 2.09,
+     "median": 2.09,
+     "avg_excess": 1.54
     },
     "5": {
      "n": 0,
@@ -2330,7 +2330,7 @@
     "horizon": 3,
     "n": 26,
     "hit_rate": 100,
-    "avg_excess": 1.46,
+    "avg_excess": 1.54,
     "verdict": "moderate alpha",
     "tradeable": true
    }
@@ -2341,16 +2341,16 @@
     "1": {
      "n": 43,
      "hit_rate": 42,
-     "avg": 0.69,
+     "avg": 0.79,
      "median": -0.37,
-     "avg_excess": 1.2
+     "avg_excess": 1.29
     },
     "3": {
      "n": 36,
      "hit_rate": 100,
-     "avg": 2.36,
-     "median": 2.11,
-     "avg_excess": 1.85
+     "avg": 3.04,
+     "median": 2.78,
+     "avg_excess": 2.48
     },
     "5": {
      "n": 0,
@@ -2385,11 +2385,11 @@
     "n": 43
    },
    "alpha_confidence": {
-    "score": 60,
+    "score": 66,
     "horizon": 3,
     "n": 36,
     "hit_rate": 100,
-    "avg_excess": 1.85,
+    "avg_excess": 2.48,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -2407,9 +2407,9 @@
     "3": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 4.95,
-     "median": 4.96,
-     "avg_excess": 4.44
+     "avg": 5.46,
+     "median": 5.46,
+     "avg_excess": 4.91
     },
     "5": {
      "n": 0,
@@ -2444,17 +2444,17 @@
     "n": 7
    },
    "alpha_confidence": {
-    "score": 21,
+    "score": 22,
     "horizon": 3,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 4.44,
+    "avg_excess": 4.91,
     "verdict": "low alpha",
     "tradeable": false
    }
   },
   "AVGO": {
-   "signals": 81,
+   "signals": 82,
    "h": {
     "1": {
      "n": 78,
@@ -2466,9 +2466,9 @@
     "3": {
      "n": 57,
      "hit_rate": 0,
-     "avg": -1.65,
-     "median": -1.85,
-     "avg_excess": -2.16
+     "avg": -1.09,
+     "median": -1.3,
+     "avg_excess": -1.64
     },
     "5": {
      "n": 0,
@@ -2507,7 +2507,7 @@
     "horizon": 3,
     "n": 57,
     "hit_rate": 0,
-    "avg_excess": -2.16,
+    "avg_excess": -1.64,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -2518,16 +2518,16 @@
     "1": {
      "n": 31,
      "hit_rate": 32,
-     "avg": -0.74,
+     "avg": -0.7,
      "median": -2.32,
-     "avg_excess": -0.47
+     "avg_excess": -0.45
     },
     "3": {
      "n": 21,
      "hit_rate": 100,
-     "avg": 1.9,
-     "median": 1.54,
-     "avg_excess": 1.39
+     "avg": 2.12,
+     "median": 1.75,
+     "avg_excess": 1.57
     },
     "5": {
      "n": 0,
@@ -2562,11 +2562,11 @@
     "n": 31
    },
    "alpha_confidence": {
-    "score": 40,
+    "score": 41,
     "horizon": 3,
     "n": 21,
     "hit_rate": 100,
-    "avg_excess": 1.39,
+    "avg_excess": 1.57,
     "verdict": "moderate alpha",
     "tradeable": true
    }
@@ -2584,9 +2584,9 @@
     "3": {
      "n": 38,
      "hit_rate": 100,
-     "avg": 8.94,
-     "median": 8.18,
-     "avg_excess": 8.43
+     "avg": 9.39,
+     "median": 8.63,
+     "avg_excess": 8.84
     },
     "5": {
      "n": 0,
@@ -2625,7 +2625,7 @@
     "horizon": 3,
     "n": 38,
     "hit_rate": 100,
-    "avg_excess": 8.43,
+    "avg_excess": 8.84,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -2643,9 +2643,9 @@
     "3": {
      "n": 5,
      "hit_rate": 100,
-     "avg": 2.89,
-     "median": 2.89,
-     "avg_excess": 2.38
+     "avg": 2.96,
+     "median": 2.96,
+     "avg_excess": 2.41
     },
     "5": {
      "n": 0,
@@ -2684,27 +2684,27 @@
     "horizon": 3,
     "n": 5,
     "hit_rate": 100,
-    "avg_excess": 2.38,
+    "avg_excess": 2.41,
     "verdict": "marginal",
     "tradeable": false
    }
   },
   "COIN": {
-   "signals": 54,
+   "signals": 55,
    "h": {
     "1": {
      "n": 51,
      "hit_rate": 100,
-     "avg": 2.53,
+     "avg": 2.5,
      "median": 2.19,
-     "avg_excess": 3.11
+     "avg_excess": 3.08
     },
     "3": {
      "n": 46,
      "hit_rate": 100,
-     "avg": 3.02,
-     "median": 2.56,
-     "avg_excess": 2.51
+     "avg": 2.71,
+     "median": 2.25,
+     "avg_excess": 2.16
     },
     "5": {
      "n": 0,
@@ -2739,11 +2739,11 @@
     "n": 51
    },
    "alpha_confidence": {
-    "score": 71,
+    "score": 68,
     "horizon": 3,
     "n": 46,
     "hit_rate": 100,
-    "avg_excess": 2.51,
+    "avg_excess": 2.16,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -2753,17 +2753,17 @@
    "h": {
     "1": {
      "n": 16,
-     "hit_rate": 25,
-     "avg": -0.84,
+     "hit_rate": 19,
+     "avg": -0.9,
      "median": -1.25,
-     "avg_excess": -0.53
+     "avg_excess": -0.61
     },
     "3": {
      "n": 9,
      "hit_rate": 0,
-     "avg": -3.48,
-     "median": -3.43,
-     "avg_excess": -4.0
+     "avg": -3.62,
+     "median": -3.57,
+     "avg_excess": -4.17
     },
     "5": {
      "n": 0,
@@ -2802,7 +2802,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 0,
-    "avg_excess": -4.0,
+    "avg_excess": -4.17,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -2820,9 +2820,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 8.92,
-     "median": 8.76,
-     "avg_excess": 8.41
+     "avg": 9.66,
+     "median": 9.5,
+     "avg_excess": 9.11
     },
     "5": {
      "n": 0,
@@ -2852,7 +2852,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 9.7,
+    "avg_mfe": 9.8,
     "avg_mae": -2.4,
     "n": 9
    },
@@ -2861,27 +2861,27 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 8.41,
+    "avg_excess": 9.11,
     "verdict": "low alpha",
     "tradeable": false
    }
   },
   "TSM": {
-   "signals": 44,
+   "signals": 47,
    "h": {
     "1": {
      "n": 41,
      "hit_rate": 27,
-     "avg": -0.37,
+     "avg": -0.35,
      "median": -0.73,
-     "avg_excess": 0.2
+     "avg_excess": 0.21
     },
     "3": {
      "n": 36,
      "hit_rate": 100,
-     "avg": 2.92,
-     "median": 2.75,
-     "avg_excess": 2.4
+     "avg": 3.05,
+     "median": 2.88,
+     "avg_excess": 2.5
     },
     "5": {
      "n": 0,
@@ -2916,17 +2916,17 @@
     "n": 41
    },
    "alpha_confidence": {
-    "score": 68,
+    "score": 69,
     "horizon": 3,
     "n": 36,
     "hit_rate": 100,
-    "avg_excess": 2.4,
+    "avg_excess": 2.5,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "NBIS": {
-   "signals": 127,
+   "signals": 128,
    "h": {
     "1": {
      "n": 125,
@@ -2938,9 +2938,9 @@
     "3": {
      "n": 82,
      "hit_rate": 100,
-     "avg": 10.22,
-     "median": 9.65,
-     "avg_excess": 9.71
+     "avg": 10.59,
+     "median": 10.01,
+     "avg_excess": 10.04
     },
     "5": {
      "n": 0,
@@ -2979,7 +2979,7 @@
     "horizon": 3,
     "n": 82,
     "hit_rate": 100,
-    "avg_excess": 9.71,
+    "avg_excess": 10.04,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -2997,9 +2997,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 8.27,
-     "median": 7.64,
-     "avg_excess": 7.76
+     "avg": 10.31,
+     "median": 9.67,
+     "avg_excess": 9.76
     },
     "5": {
      "n": 0,
@@ -3029,7 +3029,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 8.9,
+    "avg_mfe": 10.5,
     "avg_mae": -9.0,
     "n": 9
    },
@@ -3038,7 +3038,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 7.76,
+    "avg_excess": 9.76,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -3056,9 +3056,9 @@
     "3": {
      "n": 17,
      "hit_rate": 100,
-     "avg": 7.57,
-     "median": 7.37,
-     "avg_excess": 7.06
+     "avg": 8.93,
+     "median": 8.74,
+     "avg_excess": 8.38
     },
     "5": {
      "n": 0,
@@ -3097,7 +3097,7 @@
     "horizon": 3,
     "n": 17,
     "hit_rate": 100,
-    "avg_excess": 7.06,
+    "avg_excess": 8.38,
     "verdict": "moderate alpha",
     "tradeable": true
    }
@@ -3115,9 +3115,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 3.01,
-     "median": 2.82,
-     "avg_excess": 2.5
+     "avg": 3.21,
+     "median": 3.02,
+     "avg_excess": 2.66
     },
     "5": {
      "n": 0,
@@ -3152,11 +3152,11 @@
     "n": 16
    },
    "alpha_confidence": {
-    "score": 20,
+    "score": 21,
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 2.5,
+    "avg_excess": 2.66,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -3174,9 +3174,9 @@
     "3": {
      "n": 10,
      "hit_rate": 100,
-     "avg": 9.9,
-     "median": 9.68,
-     "avg_excess": 9.39
+     "avg": 9.59,
+     "median": 9.36,
+     "avg_excess": 9.04
     },
     "5": {
      "n": 0,
@@ -3215,7 +3215,7 @@
     "horizon": 3,
     "n": 10,
     "hit_rate": 100,
-    "avg_excess": 9.39,
+    "avg_excess": 9.04,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -3233,9 +3233,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 4.7,
-     "median": 4.59,
-     "avg_excess": 4.19
+     "avg": 5.64,
+     "median": 5.53,
+     "avg_excess": 5.09
     },
     "5": {
      "n": 0,
@@ -3270,31 +3270,31 @@
     "n": 9
    },
    "alpha_confidence": {
-    "score": 27,
+    "score": 30,
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 4.19,
+    "avg_excess": 5.09,
     "verdict": "low alpha",
     "tradeable": false
    }
   },
   "AAPL": {
-   "signals": 94,
+   "signals": 95,
    "h": {
     "1": {
      "n": 94,
      "hit_rate": 100,
-     "avg": 0.82,
+     "avg": 0.8,
      "median": 0.59,
-     "avg_excess": 1.14
+     "avg_excess": 1.11
     },
     "3": {
      "n": 64,
      "hit_rate": 100,
-     "avg": 2.68,
-     "median": 2.6,
-     "avg_excess": 2.17
+     "avg": 2.61,
+     "median": 2.53,
+     "avg_excess": 2.06
     },
     "5": {
      "n": 0,
@@ -3329,11 +3329,11 @@
     "n": 94
    },
    "alpha_confidence": {
-    "score": 71,
+    "score": 69,
     "horizon": 3,
     "n": 64,
     "hit_rate": 100,
-    "avg_excess": 2.17,
+    "avg_excess": 2.06,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -3351,9 +3351,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 2.73,
-     "median": 2.71,
-     "avg_excess": 2.22
+     "avg": 2.5,
+     "median": 2.47,
+     "avg_excess": 1.95
     },
     "5": {
      "n": 0,
@@ -3383,17 +3383,17 @@
     "confirm_rate": 0
    },
    "excursion": {
-    "avg_mfe": 2.9,
+    "avg_mfe": 3.0,
     "avg_mae": -1.8,
     "n": 9
    },
    "alpha_confidence": {
-    "score": 20,
+    "score": 19,
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 2.22,
-    "verdict": "low alpha",
+    "avg_excess": 1.95,
+    "verdict": "marginal",
     "tradeable": false
    }
   },
@@ -3410,9 +3410,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 8.11,
-     "median": 6.44,
-     "avg_excess": 7.6
+     "avg": 9.11,
+     "median": 7.43,
+     "avg_excess": 8.56
     },
     "5": {
      "n": 0,
@@ -3451,7 +3451,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 7.6,
+    "avg_excess": 8.56,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -3469,9 +3469,9 @@
     "3": {
      "n": 18,
      "hit_rate": 100,
-     "avg": 2.82,
-     "median": 2.64,
-     "avg_excess": 2.3
+     "avg": 3.01,
+     "median": 2.84,
+     "avg_excess": 2.46
     },
     "5": {
      "n": 0,
@@ -3506,17 +3506,17 @@
     "n": 18
    },
    "alpha_confidence": {
-    "score": 39,
+    "score": 40,
     "horizon": 3,
     "n": 18,
     "hit_rate": 100,
-    "avg_excess": 2.3,
-    "verdict": "low alpha",
+    "avg_excess": 2.46,
+    "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "DRAM": {
-   "signals": 27,
+   "signals": 28,
    "h": {
     "1": {
      "n": 26,
@@ -3528,9 +3528,9 @@
     "3": {
      "n": 26,
      "hit_rate": 100,
-     "avg": 10.17,
-     "median": 10.11,
-     "avg_excess": 9.66
+     "avg": 10.58,
+     "median": 10.51,
+     "avg_excess": 10.03
     },
     "5": {
      "n": 0,
@@ -3569,7 +3569,7 @@
     "horizon": 3,
     "n": 26,
     "hit_rate": 100,
-    "avg_excess": 9.66,
+    "avg_excess": 10.03,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -3587,9 +3587,9 @@
     "3": {
      "n": 44,
      "hit_rate": 100,
-     "avg": 4.48,
-     "median": 4.25,
-     "avg_excess": 3.97
+     "avg": 4.69,
+     "median": 4.46,
+     "avg_excess": 4.14
     },
     "5": {
      "n": 0,
@@ -3624,31 +3624,31 @@
     "n": 66
    },
    "alpha_confidence": {
-    "score": 83,
+    "score": 85,
     "horizon": 3,
     "n": 44,
     "hit_rate": 100,
-    "avg_excess": 3.97,
+    "avg_excess": 4.14,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "MSTR": {
-   "signals": 88,
+   "signals": 92,
    "h": {
     "1": {
      "n": 82,
      "hit_rate": 27,
-     "avg": -0.75,
+     "avg": -0.74,
      "median": -1.34,
-     "avg_excess": -0.48
+     "avg_excess": -0.47
     },
     "3": {
      "n": 59,
      "hit_rate": 14,
-     "avg": -1.09,
-     "median": -1.41,
-     "avg_excess": -1.6
+     "avg": -0.9,
+     "median": -1.22,
+     "avg_excess": -1.45
     },
     "5": {
      "n": 0,
@@ -3687,27 +3687,27 @@
     "horizon": 3,
     "n": 59,
     "hit_rate": 14,
-    "avg_excess": -1.6,
+    "avg_excess": -1.45,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "FSLR": {
-   "signals": 18,
+   "signals": 19,
    "h": {
     "1": {
      "n": 16,
      "hit_rate": 44,
-     "avg": -0.62,
+     "avg": -0.39,
      "median": -3.85,
-     "avg_excess": -0.32
+     "avg_excess": -0.11
     },
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 6.31,
-     "median": 6.0,
-     "avg_excess": 5.8
+     "avg": 6.84,
+     "median": 6.52,
+     "avg_excess": 6.29
     },
     "5": {
      "n": 0,
@@ -3746,13 +3746,13 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 5.8,
+    "avg_excess": 6.29,
     "verdict": "low alpha",
     "tradeable": false
    }
   },
   "SNOW": {
-   "signals": 67,
+   "signals": 68,
    "h": {
     "1": {
      "n": 64,
@@ -3763,10 +3763,10 @@
     },
     "3": {
      "n": 42,
-     "hit_rate": 17,
-     "avg": -0.35,
-     "median": -0.31,
-     "avg_excess": -0.86
+     "hit_rate": 100,
+     "avg": 0.51,
+     "median": 0.55,
+     "avg_excess": -0.04
     },
     "5": {
      "n": 0,
@@ -3804,9 +3804,9 @@
     "score": 0,
     "horizon": 3,
     "n": 42,
-    "hit_rate": 17,
-    "avg_excess": -0.86,
-    "verdict": "anti-alpha",
+    "hit_rate": 100,
+    "avg_excess": -0.04,
+    "verdict": "neutral",
     "tradeable": false
    }
   },
@@ -3823,9 +3823,9 @@
     "3": {
      "n": 12,
      "hit_rate": 100,
-     "avg": 4.3,
-     "median": 3.83,
-     "avg_excess": 3.79
+     "avg": 5.53,
+     "median": 5.05,
+     "avg_excess": 4.98
     },
     "5": {
      "n": 0,
@@ -3855,16 +3855,16 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 4.6,
+    "avg_mfe": 5.8,
     "avg_mae": -2.7,
     "n": 12
    },
    "alpha_confidence": {
-    "score": 33,
+    "score": 38,
     "horizon": 3,
     "n": 12,
     "hit_rate": 100,
-    "avg_excess": 3.79,
+    "avg_excess": 4.98,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -3882,9 +3882,9 @@
     "3": {
      "n": 12,
      "hit_rate": 100,
-     "avg": 5.91,
-     "median": 5.23,
-     "avg_excess": 5.4
+     "avg": 6.43,
+     "median": 5.75,
+     "avg_excess": 5.88
     },
     "5": {
      "n": 0,
@@ -3923,7 +3923,7 @@
     "horizon": 3,
     "n": 12,
     "hit_rate": 100,
-    "avg_excess": 5.4,
+    "avg_excess": 5.88,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -3941,9 +3941,9 @@
     "3": {
      "n": 17,
      "hit_rate": 100,
-     "avg": 7.87,
-     "median": 7.57,
-     "avg_excess": 7.36
+     "avg": 9.02,
+     "median": 8.71,
+     "avg_excess": 8.46
     },
     "5": {
      "n": 0,
@@ -3982,7 +3982,7 @@
     "horizon": 3,
     "n": 17,
     "hit_rate": 100,
-    "avg_excess": 7.36,
+    "avg_excess": 8.46,
     "verdict": "moderate alpha",
     "tradeable": true
    }
@@ -4000,9 +4000,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 18.61,
-     "median": 17.93,
-     "avg_excess": 18.09
+     "avg": 18.47,
+     "median": 17.8,
+     "avg_excess": 17.92
     },
     "5": {
      "n": 0,
@@ -4041,7 +4041,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 18.09,
+    "avg_excess": 17.92,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -4059,9 +4059,9 @@
     "3": {
      "n": 18,
      "hit_rate": 0,
-     "avg": -5.89,
-     "median": -5.87,
-     "avg_excess": -6.4
+     "avg": -5.91,
+     "median": -5.89,
+     "avg_excess": -6.46
     },
     "5": {
      "n": 0,
@@ -4100,7 +4100,7 @@
     "horizon": 3,
     "n": 18,
     "hit_rate": 0,
-    "avg_excess": -6.4,
+    "avg_excess": -6.46,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -4111,16 +4111,16 @@
     "1": {
      "n": 50,
      "hit_rate": 0,
-     "avg": -3.05,
-     "median": -3.63,
-     "avg_excess": -3.22
+     "avg": -2.9,
+     "median": -3.1,
+     "avg_excess": -3.08
     },
     "3": {
      "n": 18,
      "hit_rate": 0,
-     "avg": -8.59,
-     "median": -8.8,
-     "avg_excess": -9.1
+     "avg": -8.09,
+     "median": -8.3,
+     "avg_excess": -8.64
     },
     "5": {
      "n": 0,
@@ -4159,27 +4159,27 @@
     "horizon": 3,
     "n": 18,
     "hit_rate": 0,
-    "avg_excess": -9.1,
+    "avg_excess": -8.64,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "WMT": {
-   "signals": 46,
+   "signals": 54,
    "h": {
     "1": {
      "n": 31,
      "hit_rate": 32,
-     "avg": -3.05,
+     "avg": -3.32,
      "median": -2.63,
-     "avg_excess": -3.22
+     "avg_excess": -3.5
     },
     "3": {
      "n": 10,
      "hit_rate": 0,
-     "avg": -8.15,
-     "median": -8.27,
-     "avg_excess": -8.66
+     "avg": -8.88,
+     "median": -8.99,
+     "avg_excess": -9.43
     },
     "5": {
      "n": 0,
@@ -4218,7 +4218,7 @@
     "horizon": 3,
     "n": 10,
     "hit_rate": 0,
-    "avg_excess": -8.66,
+    "avg_excess": -9.43,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -4236,9 +4236,9 @@
     "3": {
      "n": 9,
      "hit_rate": 22,
-     "avg": 0.0,
-     "median": -0.07,
-     "avg_excess": -0.51
+     "avg": 0.05,
+     "median": -0.02,
+     "avg_excess": -0.5
     },
     "5": {
      "n": 0,
@@ -4277,7 +4277,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 22,
-    "avg_excess": -0.51,
+    "avg_excess": -0.5,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -4288,16 +4288,16 @@
     "1": {
      "n": 53,
      "hit_rate": 34,
-     "avg": -0.23,
+     "avg": -0.18,
      "median": -1.93,
-     "avg_excess": -0.09
+     "avg_excess": -0.04
     },
     "3": {
      "n": 33,
      "hit_rate": 0,
-     "avg": -3.85,
-     "median": -4.08,
-     "avg_excess": -4.36
+     "avg": -3.45,
+     "median": -3.69,
+     "avg_excess": -4.0
     },
     "5": {
      "n": 0,
@@ -4336,7 +4336,7 @@
     "horizon": 3,
     "n": 33,
     "hit_rate": 0,
-    "avg_excess": -4.36,
+    "avg_excess": -4.0,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -4354,9 +4354,9 @@
     "3": {
      "n": 9,
      "hit_rate": 89,
-     "avg": 0.65,
-     "median": 0.69,
-     "avg_excess": 0.14
+     "avg": 0.57,
+     "median": 0.61,
+     "avg_excess": 0.02
     },
     "5": {
      "n": 0,
@@ -4395,7 +4395,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 89,
-    "avg_excess": 0.14,
+    "avg_excess": 0.02,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -4413,9 +4413,9 @@
     "3": {
      "n": 17,
      "hit_rate": 100,
-     "avg": 0.27,
-     "median": 0.21,
-     "avg_excess": -0.25
+     "avg": 0.47,
+     "median": 0.41,
+     "avg_excess": -0.08
     },
     "5": {
      "n": 0,
@@ -4454,7 +4454,7 @@
     "horizon": 3,
     "n": 17,
     "hit_rate": 100,
-    "avg_excess": -0.25,
+    "avg_excess": -0.08,
     "verdict": "neutral",
     "tradeable": false
    }
@@ -4472,9 +4472,9 @@
     "3": {
      "n": 9,
      "hit_rate": 0,
-     "avg": -3.23,
-     "median": -3.21,
-     "avg_excess": -3.74
+     "avg": -3.29,
+     "median": -3.27,
+     "avg_excess": -3.84
     },
     "5": {
      "n": 0,
@@ -4513,7 +4513,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 0,
-    "avg_excess": -3.74,
+    "avg_excess": -3.84,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -4531,9 +4531,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 36.0,
-     "median": 34.42,
-     "avg_excess": 35.49
+     "avg": 35.98,
+     "median": 34.4,
+     "avg_excess": 35.42
     },
     "5": {
      "n": 0,
@@ -4572,7 +4572,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 35.49,
+    "avg_excess": 35.42,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -4583,16 +4583,16 @@
     "1": {
      "n": 18,
      "hit_rate": 100,
-     "avg": 10.66,
-     "median": 10.43,
-     "avg_excess": 10.35
+     "avg": 11.02,
+     "median": 10.8,
+     "avg_excess": 10.69
     },
     "3": {
      "n": 3,
      "hit_rate": 100,
-     "avg": 38.71,
-     "median": 39.61,
-     "avg_excess": 38.2
+     "avg": 39.67,
+     "median": 40.57,
+     "avg_excess": 39.12
     },
     "5": {
      "n": 0,
@@ -4622,7 +4622,7 @@
     "confirm_rate": 59
    },
    "excursion": {
-    "avg_mfe": 16.1,
+    "avg_mfe": 16.8,
     "avg_mae": 0.5,
     "n": 18
    },
@@ -4647,9 +4647,9 @@
     "3": {
      "n": 18,
      "hit_rate": 100,
-     "avg": 1.89,
-     "median": 1.88,
-     "avg_excess": 1.37
+     "avg": 2.21,
+     "median": 2.2,
+     "avg_excess": 1.66
     },
     "5": {
      "n": 0,
@@ -4684,11 +4684,11 @@
     "n": 18
    },
    "alpha_confidence": {
-    "score": 36,
+    "score": 38,
     "horizon": 3,
     "n": 18,
     "hit_rate": 100,
-    "avg_excess": 1.37,
+    "avg_excess": 1.66,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -4706,9 +4706,9 @@
     "3": {
      "n": 9,
      "hit_rate": 0,
-     "avg": -4.09,
-     "median": -4.12,
-     "avg_excess": -4.6
+     "avg": -3.81,
+     "median": -3.84,
+     "avg_excess": -4.36
     },
     "5": {
      "n": 0,
@@ -4739,7 +4739,7 @@
    },
    "excursion": {
     "avg_mfe": 1.0,
-    "avg_mae": -4.1,
+    "avg_mae": -5.4,
     "n": 9
    },
    "alpha_confidence": {
@@ -4747,7 +4747,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 0,
-    "avg_excess": -4.6,
+    "avg_excess": -4.36,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -4765,9 +4765,9 @@
     "3": {
      "n": 10,
      "hit_rate": 0,
-     "avg": -2.77,
-     "median": -2.96,
-     "avg_excess": -3.28
+     "avg": -3.05,
+     "median": -3.24,
+     "avg_excess": -3.6
     },
     "5": {
      "n": 0,
@@ -4806,7 +4806,7 @@
     "horizon": 3,
     "n": 10,
     "hit_rate": 0,
-    "avg_excess": -3.28,
+    "avg_excess": -3.6,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -4824,9 +4824,9 @@
     "3": {
      "n": 16,
      "hit_rate": 100,
-     "avg": 1.12,
-     "median": 1.17,
-     "avg_excess": 0.61
+     "avg": 1.51,
+     "median": 1.56,
+     "avg_excess": 0.96
     },
     "5": {
      "n": 0,
@@ -4861,11 +4861,11 @@
     "n": 22
    },
    "alpha_confidence": {
-    "score": 28,
+    "score": 30,
     "horizon": 3,
     "n": 16,
     "hit_rate": 100,
-    "avg_excess": 0.61,
+    "avg_excess": 0.96,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -4883,9 +4883,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 24.49,
-     "median": 23.7,
-     "avg_excess": 23.98
+     "avg": 24.52,
+     "median": 23.73,
+     "avg_excess": 23.97
     },
     "5": {
      "n": 0,
@@ -4924,7 +4924,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 23.98,
+    "avg_excess": 23.97,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -4942,9 +4942,9 @@
     "3": {
      "n": 12,
      "hit_rate": 0,
-     "avg": -0.58,
-     "median": -0.58,
-     "avg_excess": -1.09
+     "avg": -0.53,
+     "median": -0.54,
+     "avg_excess": -1.08
     },
     "5": {
      "n": 0,
@@ -4983,13 +4983,13 @@
     "horizon": 3,
     "n": 12,
     "hit_rate": 0,
-    "avg_excess": -1.09,
+    "avg_excess": -1.08,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "JPM": {
-   "signals": 10,
+   "signals": 11,
    "h": {
     "1": {
      "n": 9,
@@ -5001,9 +5001,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 0.95,
-     "median": 0.89,
-     "avg_excess": 0.44
+     "avg": 0.93,
+     "median": 0.87,
+     "avg_excess": 0.38
     },
     "5": {
      "n": 0,
@@ -5042,7 +5042,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 0.44,
+    "avg_excess": 0.38,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -5060,9 +5060,9 @@
     "3": {
      "n": 34,
      "hit_rate": 100,
-     "avg": 2.86,
-     "median": 2.78,
-     "avg_excess": 2.34
+     "avg": 3.11,
+     "median": 3.03,
+     "avg_excess": 2.56
     },
     "5": {
      "n": 0,
@@ -5097,31 +5097,31 @@
     "n": 34
    },
    "alpha_confidence": {
-    "score": 73,
+    "score": 76,
     "horizon": 3,
     "n": 34,
     "hit_rate": 100,
-    "avg_excess": 2.34,
+    "avg_excess": 2.56,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "CCJ": {
-   "signals": 18,
+   "signals": 19,
    "h": {
     "1": {
      "n": 16,
      "hit_rate": 44,
-     "avg": -0.5,
+     "avg": -0.46,
      "median": -0.55,
-     "avg_excess": -0.2
+     "avg_excess": -0.17
     },
     "3": {
      "n": 9,
-     "hit_rate": 33,
-     "avg": 0.16,
-     "median": -0.08,
-     "avg_excess": -0.35
+     "hit_rate": 67,
+     "avg": 0.26,
+     "median": 0.02,
+     "avg_excess": -0.29
     },
     "5": {
      "n": 0,
@@ -5159,9 +5159,9 @@
     "score": 0,
     "horizon": 3,
     "n": 9,
-    "hit_rate": 33,
-    "avg_excess": -0.35,
-    "verdict": "anti-alpha",
+    "hit_rate": 67,
+    "avg_excess": -0.29,
+    "verdict": "neutral",
     "tradeable": false
    }
   },
@@ -5178,9 +5178,9 @@
     "3": {
      "n": 9,
      "hit_rate": 0,
-     "avg": -1.96,
-     "median": -1.93,
-     "avg_excess": -2.47
+     "avg": -2.33,
+     "median": -2.3,
+     "avg_excess": -2.88
     },
     "5": {
      "n": 0,
@@ -5219,7 +5219,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 0,
-    "avg_excess": -2.47,
+    "avg_excess": -2.88,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -5237,9 +5237,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 6.06,
-     "median": 6.06,
-     "avg_excess": 5.55
+     "avg": 6.31,
+     "median": 6.31,
+     "avg_excess": 5.76
     },
     "5": {
      "n": 0,
@@ -5278,7 +5278,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 5.55,
+    "avg_excess": 5.76,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -5296,9 +5296,9 @@
     "3": {
      "n": 18,
      "hit_rate": 0,
-     "avg": -9.68,
-     "median": -9.69,
-     "avg_excess": -10.19
+     "avg": -10.07,
+     "median": -10.09,
+     "avg_excess": -10.62
     },
     "5": {
      "n": 0,
@@ -5329,7 +5329,7 @@
    },
    "excursion": {
     "avg_mfe": 1.0,
-    "avg_mae": -9.8,
+    "avg_mae": -10.5,
     "n": 18
    },
    "alpha_confidence": {
@@ -5337,13 +5337,13 @@
     "horizon": 3,
     "n": 18,
     "hit_rate": 0,
-    "avg_excess": -10.19,
+    "avg_excess": -10.62,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "C": {
-   "signals": 14,
+   "signals": 15,
    "h": {
     "1": {
      "n": 12,
@@ -5355,9 +5355,9 @@
     "3": {
      "n": 3,
      "hit_rate": 100,
-     "avg": 2.16,
-     "median": 2.21,
-     "avg_excess": 1.65
+     "avg": 2.41,
+     "median": 2.46,
+     "avg_excess": 1.86
     },
     "5": {
      "n": 0,
@@ -5412,9 +5412,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 4.83,
-     "median": 4.2,
-     "avg_excess": 4.32
+     "avg": 3.73,
+     "median": 3.11,
+     "avg_excess": 3.18
     },
     "5": {
      "n": 0,
@@ -5449,11 +5449,11 @@
     "n": 9
    },
    "alpha_confidence": {
-    "score": 27,
+    "score": 24,
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 4.32,
+    "avg_excess": 3.18,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -5471,9 +5471,9 @@
     "3": {
      "n": 18,
      "hit_rate": 100,
-     "avg": 0.75,
-     "median": 0.63,
-     "avg_excess": 0.24
+     "avg": 0.99,
+     "median": 0.87,
+     "avg_excess": 0.44
     },
     "5": {
      "n": 0,
@@ -5508,11 +5508,11 @@
     "n": 18
    },
    "alpha_confidence": {
-    "score": 25,
+    "score": 27,
     "horizon": 3,
     "n": 18,
     "hit_rate": 100,
-    "avg_excess": 0.24,
+    "avg_excess": 0.44,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -5530,9 +5530,9 @@
     "3": {
      "n": 27,
      "hit_rate": 100,
-     "avg": 7.34,
-     "median": 7.1,
-     "avg_excess": 6.83
+     "avg": 7.56,
+     "median": 7.32,
+     "avg_excess": 7.01
     },
     "5": {
      "n": 0,
@@ -5562,22 +5562,22 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 7.8,
+    "avg_mfe": 8.6,
     "avg_mae": -4.8,
     "n": 27
    },
    "alpha_confidence": {
-    "score": 84,
+    "score": 85,
     "horizon": 3,
     "n": 27,
     "hit_rate": 100,
-    "avg_excess": 6.83,
+    "avg_excess": 7.01,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "ASTS": {
-   "signals": 20,
+   "signals": 22,
    "h": {
     "1": {
      "n": 17,
@@ -5589,9 +5589,9 @@
     "3": {
      "n": 10,
      "hit_rate": 100,
-     "avg": 10.14,
-     "median": 9.34,
-     "avg_excess": 9.63
+     "avg": 11.84,
+     "median": 11.03,
+     "avg_excess": 11.29
     },
     "5": {
      "n": 0,
@@ -5630,7 +5630,7 @@
     "horizon": 3,
     "n": 10,
     "hit_rate": 100,
-    "avg_excess": 9.63,
+    "avg_excess": 11.29,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -5648,9 +5648,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 4.75,
-     "median": 4.39,
-     "avg_excess": 4.23
+     "avg": 6.73,
+     "median": 6.37,
+     "avg_excess": 6.18
     },
     "5": {
      "n": 0,
@@ -5680,16 +5680,16 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 5.8,
+    "avg_mfe": 7.0,
     "avg_mae": -5.3,
     "n": 9
    },
    "alpha_confidence": {
-    "score": 25,
+    "score": 28,
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 4.23,
+    "avg_excess": 6.18,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -5700,16 +5700,16 @@
     "1": {
      "n": 28,
      "hit_rate": 79,
-     "avg": 1.61,
-     "median": 2.48,
-     "avg_excess": 1.53
+     "avg": 1.95,
+     "median": 2.6,
+     "avg_excess": 1.86
     },
     "3": {
      "n": 12,
      "hit_rate": 100,
-     "avg": 5.27,
-     "median": 5.24,
-     "avg_excess": 4.76
+     "avg": 6.65,
+     "median": 6.62,
+     "avg_excess": 6.1
     },
     "5": {
      "n": 0,
@@ -5739,16 +5739,16 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 6.2,
+    "avg_mfe": 6.3,
     "avg_mae": -3.0,
     "n": 28
    },
    "alpha_confidence": {
-    "score": 37,
+    "score": 38,
     "horizon": 3,
     "n": 12,
     "hit_rate": 100,
-    "avg_excess": 4.76,
+    "avg_excess": 6.1,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -5758,17 +5758,17 @@
    "h": {
     "1": {
      "n": 33,
-     "hit_rate": 33,
-     "avg": -0.15,
-     "median": -0.07,
-     "avg_excess": -0.15
+     "hit_rate": 42,
+     "avg": -0.06,
+     "median": -0.03,
+     "avg_excess": -0.06
     },
     "3": {
      "n": 16,
      "hit_rate": 0,
-     "avg": -2.16,
-     "median": -2.17,
-     "avg_excess": -2.67
+     "avg": -1.78,
+     "median": -1.79,
+     "avg_excess": -2.33
     },
     "5": {
      "n": 0,
@@ -5807,7 +5807,7 @@
     "horizon": 3,
     "n": 16,
     "hit_rate": 0,
-    "avg_excess": -2.67,
+    "avg_excess": -2.33,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -5825,9 +5825,9 @@
     "3": {
      "n": 9,
      "hit_rate": 0,
-     "avg": -1.21,
-     "median": -1.27,
-     "avg_excess": -1.72
+     "avg": -1.82,
+     "median": -1.87,
+     "avg_excess": -2.37
     },
     "5": {
      "n": 0,
@@ -5866,27 +5866,27 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 0,
-    "avg_excess": -1.72,
+    "avg_excess": -2.37,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "PLTR": {
-   "signals": 37,
+   "signals": 38,
    "h": {
     "1": {
      "n": 36,
      "hit_rate": 94,
-     "avg": 1.07,
-     "median": 1.21,
-     "avg_excess": 0.9
+     "avg": 1.05,
+     "median": 1.19,
+     "avg_excess": 0.87
     },
     "3": {
      "n": 12,
      "hit_rate": 100,
-     "avg": 2.36,
-     "median": 2.2,
-     "avg_excess": 1.85
+     "avg": 2.31,
+     "median": 2.15,
+     "avg_excess": 1.76
     },
     "5": {
      "n": 0,
@@ -5925,7 +5925,7 @@
     "horizon": 3,
     "n": 12,
     "hit_rate": 100,
-    "avg_excess": 1.85,
+    "avg_excess": 1.76,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -5943,9 +5943,9 @@
     "3": {
      "n": 9,
      "hit_rate": 0,
-     "avg": -3.62,
-     "median": -3.75,
-     "avg_excess": -4.13
+     "avg": -4.08,
+     "median": -4.21,
+     "avg_excess": -4.63
     },
     "5": {
      "n": 0,
@@ -5984,7 +5984,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 0,
-    "avg_excess": -4.13,
+    "avg_excess": -4.63,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -5994,17 +5994,17 @@
    "h": {
     "1": {
      "n": 17,
-     "hit_rate": 59,
-     "avg": 0.35,
+     "hit_rate": 65,
+     "avg": 0.55,
      "median": 0.59,
-     "avg_excess": 0.63
+     "avg_excess": 0.81
     },
     "3": {
      "n": 9,
-     "hit_rate": 11,
-     "avg": -1.02,
-     "median": -0.79,
-     "avg_excess": -1.53
+     "hit_rate": 33,
+     "avg": -0.59,
+     "median": -0.36,
+     "avg_excess": -1.14
     },
     "5": {
      "n": 0,
@@ -6042,8 +6042,8 @@
     "score": 0,
     "horizon": 3,
     "n": 9,
-    "hit_rate": 11,
-    "avg_excess": -1.53,
+    "hit_rate": 33,
+    "avg_excess": -1.14,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -6061,9 +6061,9 @@
     "3": {
      "n": 41,
      "hit_rate": 100,
-     "avg": 3.86,
-     "median": 3.33,
-     "avg_excess": 3.35
+     "avg": 4.45,
+     "median": 3.92,
+     "avg_excess": 3.9
     },
     "5": {
      "n": 0,
@@ -6098,11 +6098,11 @@
     "n": 59
    },
    "alpha_confidence": {
-    "score": 74,
+    "score": 80,
     "horizon": 3,
     "n": 41,
     "hit_rate": 100,
-    "avg_excess": 3.35,
+    "avg_excess": 3.9,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -6113,16 +6113,16 @@
     "1": {
      "n": 26,
      "hit_rate": 27,
-     "avg": 0.02,
+     "avg": -0.0,
      "median": -0.28,
-     "avg_excess": 0.46
+     "avg_excess": 0.43
     },
     "3": {
      "n": 19,
      "hit_rate": 100,
-     "avg": 2.97,
-     "median": 3.14,
-     "avg_excess": 2.46
+     "avg": 2.9,
+     "median": 3.07,
+     "avg_excess": 2.35
     },
     "5": {
      "n": 0,
@@ -6157,31 +6157,31 @@
     "n": 26
    },
    "alpha_confidence": {
-    "score": 43,
+    "score": 42,
     "horizon": 3,
     "n": 19,
     "hit_rate": 100,
-    "avg_excess": 2.46,
+    "avg_excess": 2.35,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "IREN": {
-   "signals": 43,
+   "signals": 44,
    "h": {
     "1": {
      "n": 40,
      "hit_rate": 32,
-     "avg": 0.06,
+     "avg": 0.16,
      "median": -5.06,
-     "avg_excess": 0.33
+     "avg_excess": 0.42
     },
     "3": {
      "n": 27,
      "hit_rate": 100,
-     "avg": 15.16,
-     "median": 14.52,
-     "avg_excess": 14.64
+     "avg": 15.78,
+     "median": 15.13,
+     "avg_excess": 15.22
     },
     "5": {
      "n": 0,
@@ -6211,7 +6211,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 15.4,
+    "avg_mfe": 15.8,
     "avg_mae": -5.1,
     "n": 40
    },
@@ -6220,13 +6220,13 @@
     "horizon": 3,
     "n": 27,
     "hit_rate": 100,
-    "avg_excess": 14.64,
+    "avg_excess": 15.22,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "ABT": {
-   "signals": 6,
+   "signals": 7,
    "h": {
     "1": {
      "n": 6,
@@ -6238,9 +6238,9 @@
     "3": {
      "n": 6,
      "hit_rate": 83,
-     "avg": 0.41,
-     "median": 0.58,
-     "avg_excess": -0.1
+     "avg": 0.4,
+     "median": 0.57,
+     "avg_excess": -0.16
     },
     "5": {
      "n": 0,
@@ -6279,27 +6279,27 @@
     "horizon": 3,
     "n": 6,
     "hit_rate": 83,
-    "avg_excess": -0.1,
+    "avg_excess": -0.16,
     "verdict": "neutral",
     "tradeable": false
    }
   },
   "ARM": {
-   "signals": 46,
+   "signals": 50,
    "h": {
     "1": {
      "n": 38,
      "hit_rate": 100,
-     "avg": 11.61,
-     "median": 13.06,
-     "avg_excess": 11.51
+     "avg": 12.95,
+     "median": 14.82,
+     "avg_excess": 12.83
     },
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 36.76,
-     "median": 35.36,
-     "avg_excess": 36.25
+     "avg": 39.41,
+     "median": 37.99,
+     "avg_excess": 38.86
     },
     "5": {
      "n": 0,
@@ -6329,7 +6329,7 @@
     "confirm_rate": 24
    },
    "excursion": {
-    "avg_mfe": 22.1,
+    "avg_mfe": 24.4,
     "avg_mae": 1.4,
     "n": 38
    },
@@ -6338,7 +6338,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 36.25,
+    "avg_excess": 38.86,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -6356,9 +6356,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 5.65,
-     "median": 5.63,
-     "avg_excess": 5.14
+     "avg": 5.79,
+     "median": 5.77,
+     "avg_excess": 5.24
     },
     "5": {
      "n": 0,
@@ -6397,7 +6397,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 5.14,
+    "avg_excess": 5.24,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -6414,10 +6414,10 @@
     },
     "3": {
      "n": 9,
-     "hit_rate": 56,
-     "avg": -0.18,
-     "median": 0.01,
-     "avg_excess": -0.69
+     "hit_rate": 78,
+     "avg": 0.01,
+     "median": 0.2,
+     "avg_excess": -0.54
     },
     "5": {
      "n": 0,
@@ -6455,28 +6455,28 @@
     "score": 0,
     "horizon": 3,
     "n": 9,
-    "hit_rate": 56,
-    "avg_excess": -0.69,
+    "hit_rate": 78,
+    "avg_excess": -0.54,
     "verdict": "neutral",
     "tradeable": false
    }
   },
   "APLD": {
-   "signals": 17,
+   "signals": 18,
    "h": {
     "1": {
      "n": 16,
      "hit_rate": 44,
-     "avg": 4.32,
+     "avg": 3.93,
      "median": -3.12,
-     "avg_excess": 4.63
+     "avg_excess": 4.22
     },
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 24.47,
-     "median": 23.41,
-     "avg_excess": 23.96
+     "avg": 23.52,
+     "median": 22.47,
+     "avg_excess": 22.97
     },
     "5": {
      "n": 0,
@@ -6515,7 +6515,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 23.96,
+    "avg_excess": 22.97,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -6533,9 +6533,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 1.43,
-     "median": 1.4,
-     "avg_excess": 0.91
+     "avg": 2.3,
+     "median": 2.27,
+     "avg_excess": 1.75
     },
     "5": {
      "n": 0,
@@ -6570,11 +6570,11 @@
     "n": 9
    },
    "alpha_confidence": {
-    "score": 15,
+    "score": 17,
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 0.91,
+    "avg_excess": 1.75,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -6592,9 +6592,9 @@
     "3": {
      "n": 10,
      "hit_rate": 40,
-     "avg": -0.09,
-     "median": -0.32,
-     "avg_excess": -0.61
+     "avg": -0.29,
+     "median": -0.52,
+     "avg_excess": -0.85
     },
     "5": {
      "n": 0,
@@ -6633,7 +6633,7 @@
     "horizon": 3,
     "n": 10,
     "hit_rate": 40,
-    "avg_excess": -0.61,
+    "avg_excess": -0.85,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -6651,9 +6651,9 @@
     "3": {
      "n": 9,
      "hit_rate": 22,
-     "avg": 0.06,
-     "median": -0.24,
-     "avg_excess": -0.45
+     "avg": 0.04,
+     "median": -0.25,
+     "avg_excess": -0.51
     },
     "5": {
      "n": 0,
@@ -6692,7 +6692,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 22,
-    "avg_excess": -0.45,
+    "avg_excess": -0.51,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -6710,9 +6710,9 @@
     "3": {
      "n": 10,
      "hit_rate": 0,
-     "avg": -1.52,
-     "median": -1.62,
-     "avg_excess": -2.03
+     "avg": -1.78,
+     "median": -1.89,
+     "avg_excess": -2.33
     },
     "5": {
      "n": 0,
@@ -6751,7 +6751,7 @@
     "horizon": 3,
     "n": 10,
     "hit_rate": 0,
-    "avg_excess": -2.03,
+    "avg_excess": -2.33,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -6769,9 +6769,9 @@
     "3": {
      "n": 8,
      "hit_rate": 100,
-     "avg": 3.92,
-     "median": 3.74,
-     "avg_excess": 3.41
+     "avg": 4.28,
+     "median": 4.09,
+     "avg_excess": 3.72
     },
     "5": {
      "n": 0,
@@ -6806,11 +6806,11 @@
     "n": 8
    },
    "alpha_confidence": {
-    "score": 21,
+    "score": 22,
     "horizon": 3,
     "n": 8,
     "hit_rate": 100,
-    "avg_excess": 3.41,
+    "avg_excess": 3.72,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -6821,16 +6821,16 @@
     "1": {
      "n": 16,
      "hit_rate": 31,
-     "avg": -1.47,
+     "avg": -1.13,
      "median": -0.47,
-     "avg_excess": -1.17
+     "avg_excess": -0.84
     },
     "3": {
      "n": 9,
      "hit_rate": 0,
-     "avg": -6.52,
-     "median": -6.46,
-     "avg_excess": -7.03
+     "avg": -5.75,
+     "median": -5.7,
+     "avg_excess": -6.31
     },
     "5": {
      "n": 0,
@@ -6869,7 +6869,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 0,
-    "avg_excess": -7.03,
+    "avg_excess": -6.31,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -6880,16 +6880,16 @@
     "1": {
      "n": 16,
      "hit_rate": 56,
-     "avg": 3.5,
+     "avg": 3.19,
      "median": 2.54,
-     "avg_excess": 3.81
+     "avg_excess": 3.47
     },
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 26.05,
-     "median": 25.23,
-     "avg_excess": 25.54
+     "avg": 25.2,
+     "median": 24.39,
+     "avg_excess": 24.65
     },
     "5": {
      "n": 0,
@@ -6928,7 +6928,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 25.54,
+    "avg_excess": 24.65,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -6945,10 +6945,10 @@
     },
     "3": {
      "n": 9,
-     "hit_rate": 89,
-     "avg": 0.79,
-     "median": 0.41,
-     "avg_excess": 0.28
+     "hit_rate": 100,
+     "avg": 1.07,
+     "median": 0.69,
+     "avg_excess": 0.52
     },
     "5": {
      "n": 0,
@@ -6983,11 +6983,11 @@
     "n": 9
    },
    "alpha_confidence": {
-    "score": 11,
+    "score": 15,
     "horizon": 3,
     "n": 9,
-    "hit_rate": 89,
-    "avg_excess": 0.28,
+    "hit_rate": 100,
+    "avg_excess": 0.52,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -6998,16 +6998,16 @@
     "1": {
      "n": 66,
      "hit_rate": 71,
-     "avg": 1.27,
-     "median": 2.93,
-     "avg_excess": 1.08
+     "avg": 1.52,
+     "median": 3.21,
+     "avg_excess": 1.32
     },
     "3": {
      "n": 18,
      "hit_rate": 100,
-     "avg": 1.85,
-     "median": 1.75,
-     "avg_excess": 1.34
+     "avg": 2.42,
+     "median": 2.32,
+     "avg_excess": 1.87
     },
     "5": {
      "n": 0,
@@ -7037,16 +7037,16 @@
     "confirm_rate": 50
    },
    "excursion": {
-    "avg_mfe": 2.1,
+    "avg_mfe": 2.7,
     "avg_mae": -4.9,
     "n": 66
    },
    "alpha_confidence": {
-    "score": 32,
+    "score": 35,
     "horizon": 3,
     "n": 18,
     "hit_rate": 100,
-    "avg_excess": 1.34,
+    "avg_excess": 1.87,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -7064,9 +7064,9 @@
     "3": {
      "n": 10,
      "hit_rate": 100,
-     "avg": 1.1,
-     "median": 1.11,
-     "avg_excess": 0.59
+     "avg": 1.31,
+     "median": 1.32,
+     "avg_excess": 0.76
     },
     "5": {
      "n": 0,
@@ -7101,11 +7101,11 @@
     "n": 10
    },
    "alpha_confidence": {
-    "score": 17,
+    "score": 18,
     "horizon": 3,
     "n": 10,
     "hit_rate": 100,
-    "avg_excess": 0.59,
+    "avg_excess": 0.76,
     "verdict": "marginal",
     "tradeable": true
    }
@@ -7116,16 +7116,16 @@
     "1": {
      "n": 16,
      "hit_rate": 44,
-     "avg": 5.09,
+     "avg": 4.81,
      "median": -1.29,
-     "avg_excess": 5.39
+     "avg_excess": 5.09
     },
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 16.6,
-     "median": 16.5,
-     "avg_excess": 16.09
+     "avg": 15.95,
+     "median": 15.85,
+     "avg_excess": 15.4
     },
     "5": {
      "n": 0,
@@ -7164,27 +7164,27 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 16.09,
+    "avg_excess": 15.4,
     "verdict": "low alpha",
     "tradeable": false
    }
   },
   "TE": {
-   "signals": 35,
+   "signals": 36,
    "h": {
     "1": {
      "n": 34,
-     "hit_rate": 6,
-     "avg": -3.62,
-     "median": -2.85,
-     "avg_excess": -3.41
+     "hit_rate": 15,
+     "avg": -3.37,
+     "median": -2.41,
+     "avg_excess": -3.18
     },
     "3": {
      "n": 15,
      "hit_rate": 100,
-     "avg": 19.82,
-     "median": 16.51,
-     "avg_excess": 19.31
+     "avg": 20.38,
+     "median": 17.05,
+     "avg_excess": 19.83
     },
     "5": {
      "n": 0,
@@ -7223,13 +7223,13 @@
     "horizon": 3,
     "n": 15,
     "hit_rate": 100,
-    "avg_excess": 19.31,
+    "avg_excess": 19.83,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "QBTS": {
-   "signals": 8,
+   "signals": 10,
    "h": {
     "1": {
      "n": 2,
@@ -7241,9 +7241,9 @@
     "3": {
      "n": 2,
      "hit_rate": 100,
-     "avg": 35.97,
-     "median": 35.97,
-     "avg_excess": 35.47
+     "avg": 38.42,
+     "median": 38.42,
+     "avg_excess": 37.87
     },
     "5": {
      "n": 0,
@@ -7273,7 +7273,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 36.9,
+    "avg_mfe": 38.9,
     "avg_mae": -4.6,
     "n": 2
    },
@@ -7298,9 +7298,9 @@
     "3": {
      "n": 8,
      "hit_rate": 62,
-     "avg": -0.2,
-     "median": 0.41,
-     "avg_excess": -0.71
+     "avg": 0.09,
+     "median": 0.69,
+     "avg_excess": -0.47
     },
     "5": {
      "n": 0,
@@ -7339,7 +7339,7 @@
     "horizon": 3,
     "n": 8,
     "hit_rate": 62,
-    "avg_excess": -0.71,
+    "avg_excess": -0.47,
     "verdict": "neutral",
     "tradeable": false
    }
@@ -7357,9 +7357,9 @@
     "3": {
      "n": 15,
      "hit_rate": 0,
-     "avg": -2.18,
-     "median": -2.2,
-     "avg_excess": -2.7
+     "avg": -2.31,
+     "median": -2.33,
+     "avg_excess": -2.86
     },
     "5": {
      "n": 0,
@@ -7398,7 +7398,7 @@
     "horizon": 3,
     "n": 15,
     "hit_rate": 0,
-    "avg_excess": -2.7,
+    "avg_excess": -2.86,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -7416,9 +7416,9 @@
     "3": {
      "n": 8,
      "hit_rate": 100,
-     "avg": 3.07,
-     "median": 3.11,
-     "avg_excess": 2.56
+     "avg": 3.34,
+     "median": 3.38,
+     "avg_excess": 2.79
     },
     "5": {
      "n": 0,
@@ -7448,16 +7448,16 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 3.3,
+    "avg_mfe": 3.5,
     "avg_mae": -2.2,
     "n": 8
    },
    "alpha_confidence": {
-    "score": 18,
+    "score": 19,
     "horizon": 3,
     "n": 8,
     "hit_rate": 100,
-    "avg_excess": 2.56,
+    "avg_excess": 2.79,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -7475,9 +7475,9 @@
     "3": {
      "n": 8,
      "hit_rate": 0,
-     "avg": -5.53,
-     "median": -5.51,
-     "avg_excess": -6.04
+     "avg": -5.63,
+     "median": -5.61,
+     "avg_excess": -6.18
     },
     "5": {
      "n": 0,
@@ -7516,7 +7516,7 @@
     "horizon": 3,
     "n": 8,
     "hit_rate": 0,
-    "avg_excess": -6.04,
+    "avg_excess": -6.18,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -7534,9 +7534,9 @@
     "3": {
      "n": 8,
      "hit_rate": 100,
-     "avg": 5.66,
-     "median": 5.74,
-     "avg_excess": 5.15
+     "avg": 5.22,
+     "median": 5.3,
+     "avg_excess": 4.67
     },
     "5": {
      "n": 0,
@@ -7571,11 +7571,11 @@
     "n": 8
    },
    "alpha_confidence": {
-    "score": 26,
+    "score": 25,
     "horizon": 3,
     "n": 8,
     "hit_rate": 100,
-    "avg_excess": 5.15,
+    "avg_excess": 4.67,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -7586,16 +7586,16 @@
     "1": {
      "n": 23,
      "hit_rate": 26,
-     "avg": -1.08,
+     "avg": -1.06,
      "median": -1.68,
-     "avg_excess": -1.48
+     "avg_excess": -1.46
     },
     "3": {
      "n": 8,
      "hit_rate": 0,
-     "avg": -4.74,
-     "median": -4.56,
-     "avg_excess": -5.25
+     "avg": -4.32,
+     "median": -4.14,
+     "avg_excess": -4.87
     },
     "5": {
      "n": 0,
@@ -7634,13 +7634,13 @@
     "horizon": 3,
     "n": 8,
     "hit_rate": 0,
-    "avg_excess": -5.25,
+    "avg_excess": -4.87,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "ZM": {
-   "signals": 10,
+   "signals": 13,
    "h": {
     "1": {
      "n": 8,
@@ -7652,9 +7652,9 @@
     "3": {
      "n": 8,
      "hit_rate": 0,
-     "avg": -1.82,
-     "median": -1.83,
-     "avg_excess": -2.33
+     "avg": -2.11,
+     "median": -2.12,
+     "avg_excess": -2.67
     },
     "5": {
      "n": 0,
@@ -7693,7 +7693,7 @@
     "horizon": 3,
     "n": 8,
     "hit_rate": 0,
-    "avg_excess": -2.33,
+    "avg_excess": -2.67,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -7711,9 +7711,9 @@
     "3": {
      "n": 86,
      "hit_rate": 0,
-     "avg": -2.68,
-     "median": -2.73,
-     "avg_excess": -3.19
+     "avg": -2.6,
+     "median": -2.66,
+     "avg_excess": -3.15
     },
     "5": {
      "n": 0,
@@ -7752,7 +7752,7 @@
     "horizon": 3,
     "n": 86,
     "hit_rate": 0,
-    "avg_excess": -3.19,
+    "avg_excess": -3.15,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -7770,9 +7770,9 @@
     "3": {
      "n": 8,
      "hit_rate": 0,
-     "avg": -1.51,
-     "median": -1.42,
-     "avg_excess": -2.02
+     "avg": -1.91,
+     "median": -1.82,
+     "avg_excess": -2.46
     },
     "5": {
      "n": 0,
@@ -7811,7 +7811,7 @@
     "horizon": 3,
     "n": 8,
     "hit_rate": 0,
-    "avg_excess": -2.02,
+    "avg_excess": -2.46,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -7829,9 +7829,9 @@
     "3": {
      "n": 16,
      "hit_rate": 100,
-     "avg": 7.29,
-     "median": 7.3,
-     "avg_excess": 6.78
+     "avg": 8.35,
+     "median": 8.35,
+     "avg_excess": 7.8
     },
     "5": {
      "n": 0,
@@ -7861,7 +7861,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 7.5,
+    "avg_mfe": 8.7,
     "avg_mae": -2.6,
     "n": 17
    },
@@ -7870,7 +7870,7 @@
     "horizon": 3,
     "n": 16,
     "hit_rate": 100,
-    "avg_excess": 6.78,
+    "avg_excess": 7.8,
     "verdict": "moderate alpha",
     "tradeable": true
    }
@@ -7888,9 +7888,9 @@
     "3": {
      "n": 14,
      "hit_rate": 0,
-     "avg": -1.73,
-     "median": -1.64,
-     "avg_excess": -2.24
+     "avg": -1.08,
+     "median": -0.99,
+     "avg_excess": -1.64
     },
     "5": {
      "n": 0,
@@ -7929,7 +7929,7 @@
     "horizon": 3,
     "n": 14,
     "hit_rate": 0,
-    "avg_excess": -2.24,
+    "avg_excess": -1.64,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -7947,9 +7947,9 @@
     "3": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 19.04,
-     "median": 18.97,
-     "avg_excess": 18.53
+     "avg": 20.14,
+     "median": 20.07,
+     "avg_excess": 19.59
     },
     "5": {
      "n": 0,
@@ -7979,7 +7979,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 20.7,
+    "avg_mfe": 20.9,
     "avg_mae": -1.3,
     "n": 16
    },
@@ -7988,7 +7988,7 @@
     "horizon": 3,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 18.53,
+    "avg_excess": 19.59,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -8006,9 +8006,9 @@
     "3": {
      "n": 7,
      "hit_rate": 0,
-     "avg": -3.28,
-     "median": -3.18,
-     "avg_excess": -3.8
+     "avg": -2.34,
+     "median": -2.24,
+     "avg_excess": -2.89
     },
     "5": {
      "n": 0,
@@ -8047,7 +8047,7 @@
     "horizon": 3,
     "n": 7,
     "hit_rate": 0,
-    "avg_excess": -3.8,
+    "avg_excess": -2.89,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -8060,14 +8060,14 @@
      "hit_rate": 0,
      "avg": -1.02,
      "median": -1.02,
-     "avg_excess": -1.72
+     "avg_excess": -1.73
     },
     "3": {
      "n": 1,
      "hit_rate": 0,
-     "avg": -2.26,
-     "median": -2.26,
-     "avg_excess": -2.78
+     "avg": -2.28,
+     "median": -2.28,
+     "avg_excess": -2.83
     },
     "5": {
      "n": 0,
@@ -8115,16 +8115,16 @@
     "1": {
      "n": 62,
      "hit_rate": 76,
-     "avg": 6.64,
+     "avg": 6.74,
      "median": 12.05,
-     "avg_excess": 6.09
+     "avg_excess": 6.2
     },
     "3": {
      "n": 15,
      "hit_rate": 100,
-     "avg": 4.03,
-     "median": 3.83,
-     "avg_excess": 3.52
+     "avg": 5.39,
+     "median": 5.18,
+     "avg_excess": 4.84
     },
     "5": {
      "n": 0,
@@ -8159,31 +8159,31 @@
     "n": 62
    },
    "alpha_confidence": {
-    "score": 42,
+    "score": 48,
     "horizon": 3,
     "n": 15,
     "hit_rate": 100,
-    "avg_excess": 3.52,
+    "avg_excess": 4.84,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "CSCO": {
-   "signals": 37,
+   "signals": 38,
    "h": {
     "1": {
      "n": 35,
      "hit_rate": 63,
-     "avg": 1.43,
-     "median": 3.52,
-     "avg_excess": 1.28
+     "avg": 1.48,
+     "median": 3.6,
+     "avg_excess": 1.31
     },
     "3": {
      "n": 7,
      "hit_rate": 0,
-     "avg": -0.58,
-     "median": -0.58,
-     "avg_excess": -1.09
+     "avg": -0.5,
+     "median": -0.51,
+     "avg_excess": -1.05
     },
     "5": {
      "n": 0,
@@ -8213,7 +8213,7 @@
     "confirm_rate": 80
    },
    "excursion": {
-    "avg_mfe": 2.6,
+    "avg_mfe": 2.9,
     "avg_mae": -1.5,
     "n": 35
    },
@@ -8222,7 +8222,7 @@
     "horizon": 3,
     "n": 7,
     "hit_rate": 0,
-    "avg_excess": -1.09,
+    "avg_excess": -1.05,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -8233,16 +8233,16 @@
     "1": {
      "n": 8,
      "hit_rate": 75,
-     "avg": 0.82,
+     "avg": 0.83,
      "median": 1.33,
      "avg_excess": 0.12
     },
     "3": {
      "n": 1,
      "hit_rate": 100,
-     "avg": 0.18,
-     "median": 0.18,
-     "avg_excess": -0.34
+     "avg": 0.25,
+     "median": 0.25,
+     "avg_excess": -0.3
     },
     "5": {
      "n": 0,
@@ -8297,9 +8297,9 @@
     "3": {
      "n": 7,
      "hit_rate": 0,
-     "avg": -2.52,
-     "median": -2.55,
-     "avg_excess": -3.03
+     "avg": -2.78,
+     "median": -2.81,
+     "avg_excess": -3.33
     },
     "5": {
      "n": 0,
@@ -8338,27 +8338,27 @@
     "horizon": 3,
     "n": 7,
     "hit_rate": 0,
-    "avg_excess": -3.03,
+    "avg_excess": -3.33,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "DELL": {
-   "signals": 33,
+   "signals": 35,
    "h": {
     "1": {
      "n": 27,
      "hit_rate": 96,
-     "avg": 3.51,
-     "median": 3.62,
-     "avg_excess": 3.35
+     "avg": 3.59,
+     "median": 3.7,
+     "avg_excess": 3.39
     },
     "3": {
      "n": 1,
      "hit_rate": 100,
-     "avg": 6.69,
-     "median": 6.69,
-     "avg_excess": 6.18
+     "avg": 6.78,
+     "median": 6.78,
+     "avg_excess": 6.23
     },
     "5": {
      "n": 0,
@@ -8388,7 +8388,7 @@
     "confirm_rate": 7
    },
    "excursion": {
-    "avg_mfe": 4.1,
+    "avg_mfe": 4.7,
     "avg_mae": -1.4,
     "n": 27
    },
@@ -8413,9 +8413,9 @@
     "3": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 6.6,
-     "median": 6.4,
-     "avg_excess": 6.08
+     "avg": 7.92,
+     "median": 7.72,
+     "avg_excess": 7.37
     },
     "5": {
      "n": 0,
@@ -8445,7 +8445,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 8.0,
+    "avg_mfe": 8.1,
     "avg_mae": -6.4,
     "n": 7
    },
@@ -8454,7 +8454,7 @@
     "horizon": 3,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 6.08,
+    "avg_excess": 7.37,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -8472,9 +8472,9 @@
     "3": {
      "n": 1,
      "hit_rate": 0,
-     "avg": -4.59,
-     "median": -4.59,
-     "avg_excess": -5.1
+     "avg": -4.43,
+     "median": -4.43,
+     "avg_excess": -4.98
     },
     "5": {
      "n": 0,
@@ -8529,9 +8529,9 @@
     "3": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 2.21,
-     "median": 2.25,
-     "avg_excess": 1.7
+     "avg": 2.44,
+     "median": 2.47,
+     "avg_excess": 1.89
     },
     "5": {
      "n": 0,
@@ -8566,11 +8566,11 @@
     "n": 7
    },
    "alpha_confidence": {
-    "score": 13,
+    "score": 14,
     "horizon": 3,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 1.7,
+    "avg_excess": 1.89,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -8583,14 +8583,14 @@
      "hit_rate": 88,
      "avg": 1.09,
      "median": 1.77,
-     "avg_excess": 1.04
+     "avg_excess": 1.0
     },
     "3": {
      "n": 1,
      "hit_rate": 0,
      "avg": -3.8,
      "median": -3.8,
-     "avg_excess": -4.31
+     "avg_excess": -4.35
     },
     "5": {
      "n": 0,
@@ -8645,9 +8645,9 @@
     "3": {
      "n": 7,
      "hit_rate": 0,
-     "avg": -2.35,
-     "median": -2.33,
-     "avg_excess": -2.86
+     "avg": -2.38,
+     "median": -2.36,
+     "avg_excess": -2.93
     },
     "5": {
      "n": 0,
@@ -8686,7 +8686,7 @@
     "horizon": 3,
     "n": 7,
     "hit_rate": 0,
-    "avg_excess": -2.86,
+    "avg_excess": -2.93,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -8704,9 +8704,9 @@
     "3": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 2.67,
-     "median": 2.63,
-     "avg_excess": 2.16
+     "avg": 2.76,
+     "median": 2.72,
+     "avg_excess": 2.21
     },
     "5": {
      "n": 0,
@@ -8745,7 +8745,7 @@
     "horizon": 3,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 2.16,
+    "avg_excess": 2.21,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -8763,9 +8763,9 @@
     "3": {
      "n": 7,
      "hit_rate": 0,
-     "avg": -5.78,
-     "median": -5.11,
-     "avg_excess": -6.3
+     "avg": -6.72,
+     "median": -6.05,
+     "avg_excess": -7.27
     },
     "5": {
      "n": 0,
@@ -8804,7 +8804,7 @@
     "horizon": 3,
     "n": 7,
     "hit_rate": 0,
-    "avg_excess": -6.3,
+    "avg_excess": -7.27,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -8822,9 +8822,9 @@
     "3": {
      "n": 7,
      "hit_rate": 0,
-     "avg": -7.75,
-     "median": -7.79,
-     "avg_excess": -8.26
+     "avg": -7.27,
+     "median": -7.31,
+     "avg_excess": -7.82
     },
     "5": {
      "n": 0,
@@ -8863,7 +8863,7 @@
     "horizon": 3,
     "n": 7,
     "hit_rate": 0,
-    "avg_excess": -8.26,
+    "avg_excess": -7.82,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -8881,9 +8881,9 @@
     "3": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 0.31,
-     "median": 0.09,
-     "avg_excess": -0.2
+     "avg": 1.05,
+     "median": 0.83,
+     "avg_excess": 0.5
     },
     "5": {
      "n": 0,
@@ -8918,12 +8918,12 @@
     "n": 16
    },
    "alpha_confidence": {
-    "score": 0,
+    "score": 11,
     "horizon": 3,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": -0.2,
-    "verdict": "neutral",
+    "avg_excess": 0.5,
+    "verdict": "marginal",
     "tradeable": false
    }
   },
@@ -8939,10 +8939,10 @@
     },
     "3": {
      "n": 7,
-     "hit_rate": 29,
-     "avg": -0.33,
-     "median": -0.28,
-     "avg_excess": -0.84
+     "hit_rate": 57,
+     "avg": 0.18,
+     "median": 0.23,
+     "avg_excess": -0.37
     },
     "5": {
      "n": 0,
@@ -8980,9 +8980,9 @@
     "score": 0,
     "horizon": 3,
     "n": 7,
-    "hit_rate": 29,
-    "avg_excess": -0.84,
-    "verdict": "anti-alpha",
+    "hit_rate": 57,
+    "avg_excess": -0.37,
+    "verdict": "neutral",
     "tradeable": false
    }
   },
@@ -8999,9 +8999,9 @@
     "3": {
      "n": 6,
      "hit_rate": 100,
-     "avg": 0.98,
-     "median": 1.01,
-     "avg_excess": 0.47
+     "avg": 1.09,
+     "median": 1.11,
+     "avg_excess": 0.54
     },
     "5": {
      "n": 0,
@@ -9040,7 +9040,7 @@
     "horizon": 3,
     "n": 6,
     "hit_rate": 100,
-    "avg_excess": 0.47,
+    "avg_excess": 0.54,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -9058,9 +9058,9 @@
     "3": {
      "n": 6,
      "hit_rate": 100,
-     "avg": 2.48,
-     "median": 2.5,
-     "avg_excess": 1.97
+     "avg": 3.03,
+     "median": 3.05,
+     "avg_excess": 2.48
     },
     "5": {
      "n": 0,
@@ -9095,11 +9095,11 @@
     "n": 6
    },
    "alpha_confidence": {
-    "score": 12,
+    "score": 13,
     "horizon": 3,
     "n": 6,
     "hit_rate": 100,
-    "avg_excess": 1.97,
+    "avg_excess": 2.48,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -9109,17 +9109,17 @@
    "h": {
     "1": {
      "n": 20,
-     "hit_rate": 5,
-     "avg": -3.8,
-     "median": -3.67,
-     "avg_excess": -3.71
+     "hit_rate": 15,
+     "avg": -3.0,
+     "median": -2.77,
+     "avg_excess": -2.93
     },
     "3": {
      "n": 6,
      "hit_rate": 100,
-     "avg": 7.21,
-     "median": 6.44,
-     "avg_excess": 6.7
+     "avg": 8.47,
+     "median": 7.7,
+     "avg_excess": 7.92
     },
     "5": {
      "n": 0,
@@ -9158,7 +9158,7 @@
     "horizon": 3,
     "n": 6,
     "hit_rate": 100,
-    "avg_excess": 6.7,
+    "avg_excess": 7.92,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -9175,10 +9175,10 @@
     },
     "3": {
      "n": 6,
-     "hit_rate": 67,
-     "avg": 0.43,
-     "median": 0.04,
-     "avg_excess": -0.08
+     "hit_rate": 33,
+     "avg": 0.21,
+     "median": -0.17,
+     "avg_excess": -0.34
     },
     "5": {
      "n": 0,
@@ -9216,9 +9216,9 @@
     "score": 0,
     "horizon": 3,
     "n": 6,
-    "hit_rate": 67,
-    "avg_excess": -0.08,
-    "verdict": "neutral",
+    "hit_rate": 33,
+    "avg_excess": -0.34,
+    "verdict": "anti-alpha",
     "tradeable": false
    }
   },
@@ -9235,9 +9235,9 @@
     "3": {
      "n": 6,
      "hit_rate": 100,
-     "avg": 12.14,
-     "median": 8.67,
-     "avg_excess": 11.63
+     "avg": 12.2,
+     "median": 8.73,
+     "avg_excess": 11.65
     },
     "5": {
      "n": 0,
@@ -9276,7 +9276,7 @@
     "horizon": 3,
     "n": 6,
     "hit_rate": 100,
-    "avg_excess": 11.63,
+    "avg_excess": 11.65,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -9294,9 +9294,9 @@
     "3": {
      "n": 6,
      "hit_rate": 0,
-     "avg": -0.97,
-     "median": -0.96,
-     "avg_excess": -1.48
+     "avg": -1.38,
+     "median": -1.37,
+     "avg_excess": -1.94
     },
     "5": {
      "n": 0,
@@ -9335,7 +9335,7 @@
     "horizon": 3,
     "n": 6,
     "hit_rate": 0,
-    "avg_excess": -1.48,
+    "avg_excess": -1.94,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -9346,9 +9346,9 @@
     "1": {
      "n": 17,
      "hit_rate": 94,
-     "avg": 0.79,
-     "median": 0.88,
-     "avg_excess": 0.17
+     "avg": 0.85,
+     "median": 0.93,
+     "avg_excess": 0.22
     },
     "3": {
      "n": 0,
@@ -9385,7 +9385,7 @@
     "confirm_rate": 47
    },
    "excursion": {
-    "avg_mfe": 1.3,
+    "avg_mfe": 1.4,
     "avg_mae": -4.2,
     "n": 17
    },
@@ -9394,7 +9394,7 @@
     "horizon": 1,
     "n": 17,
     "hit_rate": 94,
-    "avg_excess": 0.17,
+    "avg_excess": 0.22,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -9563,7 +9563,7 @@
    },
    "excursion": {
     "avg_mfe": 0.3,
-    "avg_mae": -3.1,
+    "avg_mae": -3.3,
     "n": 9
    },
    "alpha_confidence": {
@@ -9636,7 +9636,7 @@
    }
   },
   "TTWO": {
-   "signals": 20,
+   "signals": 21,
    "h": {
     "1": {
      "n": 17,
@@ -9759,9 +9759,9 @@
     "1": {
      "n": 13,
      "hit_rate": 100,
-     "avg": 9.41,
+     "avg": 9.83,
      "median": 12.09,
-     "avg_excess": 8.72
+     "avg_excess": 9.13
     },
     "3": {
      "n": 0,
@@ -9807,7 +9807,7 @@
     "horizon": 1,
     "n": 13,
     "hit_rate": 100,
-    "avg_excess": 8.72,
+    "avg_excess": 9.13,
     "verdict": "moderate alpha",
     "tradeable": true
    }
@@ -10403,7 +10403,7 @@
    }
   },
   "PANW": {
-   "signals": 7,
+   "signals": 8,
    "h": {
     "1": {
      "n": 6,
@@ -10447,7 +10447,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 5.3,
+    "avg_mfe": 5.7,
     "avg_mae": -1.8,
     "n": 6
    },
@@ -10467,9 +10467,9 @@
     "1": {
      "n": 13,
      "hit_rate": 92,
-     "avg": 0.51,
-     "median": 0.23,
-     "avg_excess": -0.05
+     "avg": 0.52,
+     "median": 0.25,
+     "avg_excess": -0.06
     },
     "3": {
      "n": 0,
@@ -10515,7 +10515,7 @@
     "horizon": 1,
     "n": 13,
     "hit_rate": 92,
-    "avg_excess": -0.05,
+    "avg_excess": -0.06,
     "verdict": "neutral",
     "tradeable": false
    }
@@ -10762,9 +10762,9 @@
     "1": {
      "n": 6,
      "hit_rate": 83,
-     "avg": 3.43,
+     "avg": 3.62,
      "median": 4.34,
-     "avg_excess": 2.55
+     "avg_excess": 2.73
     },
     "3": {
      "n": 0,
@@ -10810,7 +10810,7 @@
     "horizon": 1,
     "n": 6,
     "hit_rate": 83,
-    "avg_excess": 2.55,
+    "avg_excess": 2.73,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -10880,9 +10880,9 @@
     "1": {
      "n": 8,
      "hit_rate": 0,
-     "avg": -2.56,
-     "median": -2.21,
-     "avg_excess": -2.71
+     "avg": -3.11,
+     "median": -2.77,
+     "avg_excess": -3.31
     },
     "3": {
      "n": 0,
@@ -10928,7 +10928,7 @@
     "horizon": 1,
     "n": 8,
     "hit_rate": 0,
-    "avg_excess": -2.71,
+    "avg_excess": -3.31,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -10939,9 +10939,9 @@
     "1": {
      "n": 8,
      "hit_rate": 100,
-     "avg": 1.01,
-     "median": 0.53,
-     "avg_excess": 0.86
+     "avg": 1.42,
+     "median": 0.93,
+     "avg_excess": 1.22
     },
     "3": {
      "n": 0,
@@ -10983,11 +10983,11 @@
     "n": 8
    },
    "alpha_confidence": {
-    "score": 15,
+    "score": 16,
     "horizon": 1,
     "n": 8,
     "hit_rate": 100,
-    "avg_excess": 0.86,
+    "avg_excess": 1.22,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -10998,9 +10998,9 @@
     "1": {
      "n": 23,
      "hit_rate": 0,
-     "avg": -11.81,
-     "median": -7.79,
-     "avg_excess": -11.97
+     "avg": -11.55,
+     "median": -7.51,
+     "avg_excess": -11.75
     },
     "3": {
      "n": 0,
@@ -11046,7 +11046,7 @@
     "horizon": 1,
     "n": 23,
     "hit_rate": 0,
-    "avg_excess": -11.97,
+    "avg_excess": -11.75,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -11057,9 +11057,9 @@
     "1": {
      "n": 8,
      "hit_rate": 0,
-     "avg": -16.6,
-     "median": -17.33,
-     "avg_excess": -16.76
+     "avg": -15.54,
+     "median": -16.28,
+     "avg_excess": -15.74
     },
     "3": {
      "n": 0,
@@ -11105,7 +11105,7 @@
     "horizon": 1,
     "n": 8,
     "hit_rate": 0,
-    "avg_excess": -16.76,
+    "avg_excess": -15.74,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -11116,9 +11116,9 @@
     "1": {
      "n": 8,
      "hit_rate": 100,
-     "avg": 3.69,
-     "median": 3.31,
-     "avg_excess": 3.53
+     "avg": 2.87,
+     "median": 2.5,
+     "avg_excess": 2.67
     },
     "3": {
      "n": 0,
@@ -11160,12 +11160,12 @@
     "n": 8
    },
    "alpha_confidence": {
-    "score": 21,
+    "score": 19,
     "horizon": 1,
     "n": 8,
     "hit_rate": 100,
-    "avg_excess": 3.53,
-    "verdict": "low alpha",
+    "avg_excess": 2.67,
+    "verdict": "marginal",
     "tradeable": false
    }
   },
@@ -11175,9 +11175,9 @@
     "1": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 13.76,
-     "median": 13.71,
-     "avg_excess": 13.6
+     "avg": 14.96,
+     "median": 14.91,
+     "avg_excess": 14.76
     },
     "3": {
      "n": 0,
@@ -11214,7 +11214,7 @@
     "confirm_rate": 0
    },
    "excursion": {
-    "avg_mfe": 15.3,
+    "avg_mfe": 15.7,
     "avg_mae": -0.7,
     "n": 7
    },
@@ -11223,7 +11223,7 @@
     "horizon": 1,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 13.6,
+    "avg_excess": 14.76,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -11234,9 +11234,9 @@
     "1": {
      "n": 8,
      "hit_rate": 100,
-     "avg": 3.59,
-     "median": 3.51,
-     "avg_excess": 3.43
+     "avg": 3.08,
+     "median": 3.0,
+     "avg_excess": 2.88
     },
     "3": {
      "n": 0,
@@ -11278,11 +11278,11 @@
     "n": 8
    },
    "alpha_confidence": {
-    "score": 21,
+    "score": 20,
     "horizon": 1,
     "n": 8,
     "hit_rate": 100,
-    "avg_excess": 3.43,
+    "avg_excess": 2.88,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -11293,9 +11293,9 @@
     "1": {
      "n": 16,
      "hit_rate": 100,
-     "avg": 1.48,
-     "median": 2.08,
-     "avg_excess": 1.32
+     "avg": 1.51,
+     "median": 2.1,
+     "avg_excess": 1.31
     },
     "3": {
      "n": 0,
@@ -11341,7 +11341,7 @@
     "horizon": 1,
     "n": 16,
     "hit_rate": 100,
-    "avg_excess": 1.32,
+    "avg_excess": 1.31,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -11352,9 +11352,9 @@
     "1": {
      "n": 15,
      "hit_rate": 0,
-     "avg": -0.79,
-     "median": -0.8,
-     "avg_excess": -0.95
+     "avg": -0.72,
+     "median": -0.73,
+     "avg_excess": -0.92
     },
     "3": {
      "n": 0,
@@ -11400,7 +11400,7 @@
     "horizon": 1,
     "n": 15,
     "hit_rate": 0,
-    "avg_excess": -0.95,
+    "avg_excess": -0.92,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -11411,9 +11411,9 @@
     "1": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 2.32,
-     "median": 2.32,
-     "avg_excess": 2.16
+     "avg": 2.54,
+     "median": 2.53,
+     "avg_excess": 2.34
     },
     "3": {
      "n": 0,
@@ -11455,11 +11455,11 @@
     "n": 7
    },
    "alpha_confidence": {
-    "score": 14,
+    "score": 15,
     "horizon": 1,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 2.16,
+    "avg_excess": 2.34,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -11470,9 +11470,9 @@
     "1": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 3.64,
-     "median": 3.49,
-     "avg_excess": 3.48
+     "avg": 4.33,
+     "median": 4.18,
+     "avg_excess": 4.13
     },
     "3": {
      "n": 0,
@@ -11509,17 +11509,17 @@
     "confirm_rate": 0
    },
    "excursion": {
-    "avg_mfe": 3.7,
+    "avg_mfe": 4.7,
     "avg_mae": -3.6,
     "n": 7
    },
    "alpha_confidence": {
-    "score": 17,
+    "score": 20,
     "horizon": 1,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 3.48,
-    "verdict": "marginal",
+    "avg_excess": 4.13,
+    "verdict": "low alpha",
     "tradeable": false
    }
   },
@@ -11529,9 +11529,9 @@
     "1": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 0.33,
-     "median": 0.33,
-     "avg_excess": 0.17
+     "avg": 0.64,
+     "median": 0.63,
+     "avg_excess": 0.44
     },
     "3": {
      "n": 0,
@@ -11577,7 +11577,7 @@
     "horizon": 1,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 0.17,
+    "avg_excess": 0.44,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -11587,10 +11587,10 @@
    "h": {
     "1": {
      "n": 7,
-     "hit_rate": 57,
-     "avg": 0.04,
-     "median": 0.03,
-     "avg_excess": -0.12
+     "hit_rate": 14,
+     "avg": -0.29,
+     "median": -0.3,
+     "avg_excess": -0.49
     },
     "3": {
      "n": 0,
@@ -11635,9 +11635,9 @@
     "score": 0,
     "horizon": 1,
     "n": 7,
-    "hit_rate": 57,
-    "avg_excess": -0.12,
-    "verdict": "neutral",
+    "hit_rate": 14,
+    "avg_excess": -0.49,
+    "verdict": "anti-alpha",
     "tradeable": false
    }
   },
@@ -11647,9 +11647,9 @@
     "1": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 2.45,
-     "median": 2.65,
-     "avg_excess": 2.29
+     "avg": 2.24,
+     "median": 2.44,
+     "avg_excess": 2.04
     },
     "3": {
      "n": 0,
@@ -11695,7 +11695,7 @@
     "horizon": 1,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 2.29,
+    "avg_excess": 2.04,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -11706,9 +11706,9 @@
     "1": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 1.7,
-     "median": 1.52,
-     "avg_excess": 1.54
+     "avg": 2.85,
+     "median": 2.67,
+     "avg_excess": 2.65
     },
     "3": {
      "n": 0,
@@ -11745,16 +11745,16 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 2.8,
+    "avg_mfe": 3.2,
     "avg_mae": -1.1,
     "n": 7
    },
    "alpha_confidence": {
-    "score": 14,
+    "score": 17,
     "horizon": 1,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 1.54,
+    "avg_excess": 2.65,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -11765,9 +11765,9 @@
     "1": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 3.33,
-     "median": 3.62,
-     "avg_excess": 3.17
+     "avg": 2.4,
+     "median": 2.68,
+     "avg_excess": 2.2
     },
     "3": {
      "n": 0,
@@ -11804,16 +11804,16 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 3.9,
+    "avg_mfe": 4.5,
     "avg_mae": -4.1,
     "n": 7
    },
    "alpha_confidence": {
-    "score": 17,
+    "score": 15,
     "horizon": 1,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 3.17,
+    "avg_excess": 2.2,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -11824,9 +11824,9 @@
     "1": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 3.79,
-     "median": 4.03,
-     "avg_excess": 3.63
+     "avg": 3.49,
+     "median": 3.74,
+     "avg_excess": 3.29
     },
     "3": {
      "n": 0,
@@ -11868,12 +11868,12 @@
     "n": 7
    },
    "alpha_confidence": {
-    "score": 20,
+    "score": 19,
     "horizon": 1,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 3.63,
-    "verdict": "low alpha",
+    "avg_excess": 3.29,
+    "verdict": "marginal",
     "tradeable": false
    }
   },
@@ -11882,10 +11882,10 @@
    "h": {
     "1": {
      "n": 12,
-     "hit_rate": 17,
-     "avg": -0.68,
-     "median": -0.96,
-     "avg_excess": -0.84
+     "hit_rate": 67,
+     "avg": 0.88,
+     "median": 0.6,
+     "avg_excess": 0.68
     },
     "3": {
      "n": 0,
@@ -11927,13 +11927,13 @@
     "n": 12
    },
    "alpha_confidence": {
-    "score": 0,
+    "score": 8,
     "horizon": 1,
     "n": 12,
-    "hit_rate": 17,
-    "avg_excess": -0.84,
-    "verdict": "anti-alpha",
-    "tradeable": false
+    "hit_rate": 67,
+    "avg_excess": 0.68,
+    "verdict": "marginal",
+    "tradeable": true
    }
   },
   "RDDT": {
@@ -11942,9 +11942,9 @@
     "1": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 2.65,
-     "median": 2.57,
-     "avg_excess": 2.49
+     "avg": 2.53,
+     "median": 2.45,
+     "avg_excess": 2.33
     },
     "3": {
      "n": 0,
@@ -11986,11 +11986,11 @@
     "n": 7
    },
    "alpha_confidence": {
-    "score": 17,
+    "score": 16,
     "horizon": 1,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 2.49,
+    "avg_excess": 2.33,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -12001,9 +12001,9 @@
     "1": {
      "n": 7,
      "hit_rate": 100,
-     "avg": 1.6,
-     "median": 1.35,
-     "avg_excess": 1.45
+     "avg": 1.74,
+     "median": 1.49,
+     "avg_excess": 1.54
     },
     "3": {
      "n": 0,
@@ -12040,7 +12040,7 @@
     "confirm_rate": 0
    },
    "excursion": {
-    "avg_mfe": 1.8,
+    "avg_mfe": 2.0,
     "avg_mae": -2.7,
     "n": 7
    },
@@ -12049,7 +12049,7 @@
     "horizon": 1,
     "n": 7,
     "hit_rate": 100,
-    "avg_excess": 1.45,
+    "avg_excess": 1.54,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -12059,10 +12059,10 @@
    "h": {
     "1": {
      "n": 7,
-     "hit_rate": 71,
-     "avg": 0.69,
-     "median": 0.54,
-     "avg_excess": 0.53
+     "hit_rate": 100,
+     "avg": 1.46,
+     "median": 1.31,
+     "avg_excess": 1.26
     },
     "3": {
      "n": 0,
@@ -12099,16 +12099,16 @@
     "confirm_rate": 0
    },
    "excursion": {
-    "avg_mfe": 1.5,
+    "avg_mfe": 1.7,
     "avg_mae": -1.1,
     "n": 7
    },
    "alpha_confidence": {
-    "score": 6,
+    "score": 13,
     "horizon": 1,
     "n": 7,
-    "hit_rate": 71,
-    "avg_excess": 0.53,
+    "hit_rate": 100,
+    "avg_excess": 1.26,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -12119,9 +12119,9 @@
     "1": {
      "n": 7,
      "hit_rate": 0,
-     "avg": -1.31,
-     "median": -0.72,
-     "avg_excess": -1.47
+     "avg": -2.01,
+     "median": -1.42,
+     "avg_excess": -2.21
     },
     "3": {
      "n": 0,
@@ -12167,7 +12167,7 @@
     "horizon": 1,
     "n": 7,
     "hit_rate": 0,
-    "avg_excess": -1.47,
+    "avg_excess": -2.21,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -12178,9 +12178,9 @@
     "1": {
      "n": 13,
      "hit_rate": 0,
-     "avg": -1.22,
-     "median": -1.21,
-     "avg_excess": -1.38
+     "avg": -1.29,
+     "median": -1.29,
+     "avg_excess": -1.49
     },
     "3": {
      "n": 0,
@@ -12226,7 +12226,7 @@
     "horizon": 1,
     "n": 13,
     "hit_rate": 0,
-    "avg_excess": -1.38,
+    "avg_excess": -1.49,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -12237,9 +12237,9 @@
     "1": {
      "n": 7,
      "hit_rate": 14,
-     "avg": -0.9,
-     "median": -0.85,
-     "avg_excess": -1.06
+     "avg": -0.95,
+     "median": -0.91,
+     "avg_excess": -1.15
     },
     "3": {
      "n": 0,
@@ -12285,7 +12285,7 @@
     "horizon": 1,
     "n": 7,
     "hit_rate": 14,
-    "avg_excess": -1.06,
+    "avg_excess": -1.15,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -12296,9 +12296,9 @@
     "1": {
      "n": 6,
      "hit_rate": 100,
-     "avg": 4.87,
-     "median": 4.53,
-     "avg_excess": 4.71
+     "avg": 6.02,
+     "median": 5.68,
+     "avg_excess": 5.82
     },
     "3": {
      "n": 0,
@@ -12340,12 +12340,12 @@
     "n": 6
    },
    "alpha_confidence": {
-    "score": 19,
+    "score": 20,
     "horizon": 1,
     "n": 6,
     "hit_rate": 100,
-    "avg_excess": 4.71,
-    "verdict": "marginal",
+    "avg_excess": 5.82,
+    "verdict": "low alpha",
     "tradeable": false
    }
   },
@@ -12355,9 +12355,9 @@
     "1": {
      "n": 6,
      "hit_rate": 0,
-     "avg": -4.22,
-     "median": -4.29,
-     "avg_excess": -4.38
+     "avg": -4.8,
+     "median": -4.87,
+     "avg_excess": -5.0
     },
     "3": {
      "n": 0,
@@ -12395,7 +12395,7 @@
    },
    "excursion": {
     "avg_mfe": 0.8,
-    "avg_mae": -4.9,
+    "avg_mae": -5.1,
     "n": 6
    },
    "alpha_confidence": {
@@ -12403,7 +12403,7 @@
     "horizon": 1,
     "n": 6,
     "hit_rate": 0,
-    "avg_excess": -4.38,
+    "avg_excess": -5.0,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -12414,9 +12414,9 @@
     "1": {
      "n": 6,
      "hit_rate": 100,
-     "avg": 0.25,
-     "median": 0.2,
-     "avg_excess": 0.09
+     "avg": 0.53,
+     "median": 0.47,
+     "avg_excess": 0.33
     },
     "3": {
      "n": 0,
@@ -12462,7 +12462,7 @@
     "horizon": 1,
     "n": 6,
     "hit_rate": 100,
-    "avg_excess": 0.09,
+    "avg_excess": 0.33,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -12473,9 +12473,9 @@
     "1": {
      "n": 6,
      "hit_rate": 100,
-     "avg": 3.35,
-     "median": 3.54,
-     "avg_excess": 3.19
+     "avg": 4.13,
+     "median": 4.34,
+     "avg_excess": 3.93
     },
     "3": {
      "n": 0,
@@ -12517,11 +12517,11 @@
     "n": 6
    },
    "alpha_confidence": {
-    "score": 14,
+    "score": 16,
     "horizon": 1,
     "n": 6,
     "hit_rate": 100,
-    "avg_excess": 3.19,
+    "avg_excess": 3.93,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -12532,9 +12532,9 @@
     "1": {
      "n": 6,
      "hit_rate": 0,
-     "avg": -2.54,
-     "median": -2.53,
-     "avg_excess": -2.7
+     "avg": -3.29,
+     "median": -3.28,
+     "avg_excess": -3.49
     },
     "3": {
      "n": 0,
@@ -12580,7 +12580,7 @@
     "horizon": 1,
     "n": 6,
     "hit_rate": 0,
-    "avg_excess": -2.7,
+    "avg_excess": -3.49,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -12590,10 +12590,10 @@
    "h": {
     "1": {
      "n": 6,
-     "hit_rate": 50,
-     "avg": -0.0,
-     "median": 0.51,
-     "avg_excess": -0.16
+     "hit_rate": 17,
+     "avg": -1.05,
+     "median": -0.55,
+     "avg_excess": -1.25
     },
     "3": {
      "n": 0,
@@ -12638,9 +12638,9 @@
     "score": 0,
     "horizon": 1,
     "n": 6,
-    "hit_rate": 50,
-    "avg_excess": -0.16,
-    "verdict": "neutral",
+    "hit_rate": 17,
+    "avg_excess": -1.25,
+    "verdict": "anti-alpha",
     "tradeable": false
    }
   },
@@ -12650,9 +12650,9 @@
     "1": {
      "n": 6,
      "hit_rate": 100,
-     "avg": 1.0,
-     "median": 1.0,
-     "avg_excess": 0.84
+     "avg": 2.44,
+     "median": 2.44,
+     "avg_excess": 2.24
     },
     "3": {
      "n": 0,
@@ -12689,16 +12689,16 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 2.2,
+    "avg_mfe": 2.5,
     "avg_mae": -2.5,
     "n": 6
    },
    "alpha_confidence": {
-    "score": 10,
+    "score": 12,
     "horizon": 1,
     "n": 6,
     "hit_rate": 100,
-    "avg_excess": 0.84,
+    "avg_excess": 2.24,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -12709,9 +12709,9 @@
     "1": {
      "n": 5,
      "hit_rate": 100,
-     "avg": 3.51,
-     "median": 3.47,
-     "avg_excess": 3.35
+     "avg": 3.21,
+     "median": 3.17,
+     "avg_excess": 3.01
     },
     "3": {
      "n": 0,
@@ -12753,11 +12753,11 @@
     "n": 5
    },
    "alpha_confidence": {
-    "score": 14,
+    "score": 13,
     "horizon": 1,
     "n": 5,
     "hit_rate": 100,
-    "avg_excess": 3.35,
+    "avg_excess": 3.01,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -12768,9 +12768,9 @@
     "1": {
      "n": 5,
      "hit_rate": 100,
-     "avg": 3.63,
-     "median": 3.42,
-     "avg_excess": 3.47
+     "avg": 3.52,
+     "median": 3.31,
+     "avg_excess": 3.32
     },
     "3": {
      "n": 0,
@@ -12807,7 +12807,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 3.9,
+    "avg_mfe": 4.5,
     "avg_mae": -2.0,
     "n": 5
    },
@@ -12816,7 +12816,7 @@
     "horizon": 1,
     "n": 5,
     "hit_rate": 100,
-    "avg_excess": 3.47,
+    "avg_excess": 3.32,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -12826,10 +12826,10 @@
    "h": {
     "1": {
      "n": 10,
-     "hit_rate": 80,
-     "avg": 0.39,
-     "median": 0.42,
-     "avg_excess": 0.23
+     "hit_rate": 0,
+     "avg": -0.88,
+     "median": -0.85,
+     "avg_excess": -1.08
     },
     "3": {
      "n": 0,
@@ -12871,13 +12871,13 @@
     "n": 10
    },
    "alpha_confidence": {
-    "score": 10,
+    "score": 0,
     "horizon": 1,
     "n": 10,
-    "hit_rate": 80,
-    "avg_excess": 0.23,
-    "verdict": "marginal",
-    "tradeable": true
+    "hit_rate": 0,
+    "avg_excess": -1.08,
+    "verdict": "anti-alpha",
+    "tradeable": false
    }
   },
   "XRAY": {
@@ -12886,9 +12886,9 @@
     "1": {
      "n": 5,
      "hit_rate": 20,
-     "avg": -0.05,
-     "median": -0.25,
-     "avg_excess": -0.21
+     "avg": -0.4,
+     "median": -0.6,
+     "avg_excess": -0.6
     },
     "3": {
      "n": 0,
@@ -12934,7 +12934,7 @@
     "horizon": 1,
     "n": 5,
     "hit_rate": 20,
-    "avg_excess": -0.21,
+    "avg_excess": -0.6,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -12945,9 +12945,9 @@
     "1": {
      "n": 5,
      "hit_rate": 100,
-     "avg": 2.25,
-     "median": 2.32,
-     "avg_excess": 2.09
+     "avg": 2.42,
+     "median": 2.49,
+     "avg_excess": 2.23
     },
     "3": {
      "n": 0,
@@ -12993,7 +12993,7 @@
     "horizon": 1,
     "n": 5,
     "hit_rate": 100,
-    "avg_excess": 2.09,
+    "avg_excess": 2.23,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -13003,10 +13003,10 @@
    "h": {
     "1": {
      "n": 5,
-     "hit_rate": 20,
-     "avg": -0.2,
-     "median": -0.23,
-     "avg_excess": -0.36
+     "hit_rate": 100,
+     "avg": 0.15,
+     "median": 0.11,
+     "avg_excess": -0.05
     },
     "3": {
      "n": 0,
@@ -13051,14 +13051,128 @@
     "score": 0,
     "horizon": 1,
     "n": 5,
-    "hit_rate": 20,
-    "avg_excess": -0.36,
-    "verdict": "anti-alpha",
+    "hit_rate": 100,
+    "avg_excess": -0.05,
+    "verdict": "neutral",
     "tradeable": false
    }
   },
   "RGTI": {
-   "signals": 9,
+   "signals": 13,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "ETSY": {
+   "signals": 6,
+   "h": {
+    "1": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "3": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "5": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "10": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    },
+    "20": {
+     "n": 0,
+     "hit_rate": null,
+     "avg": null,
+     "median": null,
+     "avg_excess": null
+    }
+   },
+   "oi": {
+    "checked": 0,
+    "confirmed": 0,
+    "confirm_rate": null
+   },
+   "excursion": {
+    "avg_mfe": null,
+    "avg_mae": null,
+    "n": 0
+   },
+   "alpha_confidence": {
+    "score": null,
+    "horizon": null,
+    "n": 0,
+    "verdict": "no data",
+    "tradeable": false
+   }
+  },
+  "IBM": {
+   "signals": 5,
    "h": {
     "1": {
      "n": 0,
@@ -13117,21 +13231,21 @@
  },
  "by_theme": {
   "AI Infrastructure": {
-   "signals": 2138,
+   "signals": 2169,
    "h": {
     "1": {
      "n": 2088,
-     "hit_rate": 65,
-     "avg": 1.71,
-     "median": 1.13,
-     "avg_excess": 1.73
+     "hit_rate": 63,
+     "avg": 1.77,
+     "median": 1.4,
+     "avg_excess": 1.78
     },
     "3": {
      "n": 1088,
-     "hit_rate": 77,
-     "avg": 6.51,
-     "median": 8.16,
-     "avg_excess": 6.0
+     "hit_rate": 75,
+     "avg": 7.19,
+     "median": 9.24,
+     "avg_excess": 6.64
     },
     "5": {
      "n": 0,
@@ -13161,36 +13275,36 @@
     "confirm_rate": 42
    },
    "excursion": {
-    "avg_mfe": 7.5,
+    "avg_mfe": 7.6,
     "avg_mae": -2.4,
     "n": 2088
    },
    "alpha_confidence": {
-    "score": 78,
+    "score": 77,
     "horizon": 3,
     "n": 1088,
-    "hit_rate": 77,
-    "avg_excess": 6.0,
+    "hit_rate": 75,
+    "avg_excess": 6.64,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "Photonics / Optical Networking": {
-   "signals": 223,
+   "signals": 224,
    "h": {
     "1": {
      "n": 220,
      "hit_rate": 62,
-     "avg": 0.96,
-     "median": 0.53,
-     "avg_excess": 1.13
+     "avg": 1.1,
+     "median": 1.1,
+     "avg_excess": 1.26
     },
     "3": {
      "n": 126,
      "hit_rate": 55,
-     "avg": 2.98,
-     "median": 1.8,
-     "avg_excess": 2.47
+     "avg": 3.54,
+     "median": 2.47,
+     "avg_excess": 2.98
     },
     "5": {
      "n": 0,
@@ -13225,31 +13339,31 @@
     "n": 220
    },
    "alpha_confidence": {
-    "score": 34,
+    "score": 39,
     "horizon": 3,
     "n": 126,
     "hit_rate": 55,
-    "avg_excess": 2.47,
+    "avg_excess": 2.98,
     "verdict": "low alpha",
     "tradeable": true
    }
   },
   "Semiconductors": {
-   "signals": 1542,
+   "signals": 1569,
    "h": {
     "1": {
      "n": 1499,
      "hit_rate": 53,
-     "avg": 1.15,
-     "median": 0.08,
-     "avg_excess": 1.2
+     "avg": 1.18,
+     "median": 0.39,
+     "avg_excess": 1.22
     },
     "3": {
      "n": 766,
-     "hit_rate": 65,
-     "avg": 4.24,
-     "median": 5.12,
-     "avg_excess": 3.73
+     "hit_rate": 63,
+     "avg": 4.59,
+     "median": 6.16,
+     "avg_excess": 4.04
     },
     "5": {
      "n": 0,
@@ -13279,36 +13393,36 @@
     "confirm_rate": 48
    },
    "excursion": {
-    "avg_mfe": 5.8,
+    "avg_mfe": 5.9,
     "avg_mae": -2.5,
     "n": 1499
    },
    "alpha_confidence": {
-    "score": 55,
+    "score": 57,
     "horizon": 3,
     "n": 766,
-    "hit_rate": 65,
-    "avg_excess": 3.73,
+    "hit_rate": 63,
+    "avg_excess": 4.04,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "Autos & Auto Tech": {
-   "signals": 1425,
+   "signals": 1459,
    "h": {
     "1": {
      "n": 1364,
      "hit_rate": 50,
-     "avg": 0.57,
+     "avg": 0.51,
      "median": -0.32,
-     "avg_excess": 0.61
+     "avg_excess": 0.54
     },
     "3": {
      "n": 683,
      "hit_rate": 100,
-     "avg": 2.41,
-     "median": 2.24,
-     "avg_excess": 1.89
+     "avg": 2.15,
+     "median": 1.98,
+     "avg_excess": 1.6
     },
     "5": {
      "n": 0,
@@ -13343,31 +13457,31 @@
     "n": 1364
    },
    "alpha_confidence": {
-    "score": 65,
+    "score": 62,
     "horizon": 3,
     "n": 683,
     "hit_rate": 100,
-    "avg_excess": 1.89,
+    "avg_excess": 1.6,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "Robotics & Automation": {
-   "signals": 1437,
+   "signals": 1471,
    "h": {
     "1": {
      "n": 1376,
      "hit_rate": 50,
-     "avg": 0.57,
+     "avg": 0.51,
      "median": -0.33,
-     "avg_excess": 0.61
+     "avg_excess": 0.54
     },
     "3": {
      "n": 690,
      "hit_rate": 100,
-     "avg": 2.45,
-     "median": 2.24,
-     "avg_excess": 1.94
+     "avg": 2.21,
+     "median": 1.98,
+     "avg_excess": 1.66
     },
     "5": {
      "n": 0,
@@ -13402,31 +13516,31 @@
     "n": 1376
    },
    "alpha_confidence": {
-    "score": 65,
+    "score": 63,
     "horizon": 3,
     "n": 690,
     "hit_rate": 100,
-    "avg_excess": 1.94,
+    "avg_excess": 1.66,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "Internet & Content": {
-   "signals": 330,
+   "signals": 333,
    "h": {
     "1": {
      "n": 326,
      "hit_rate": 14,
-     "avg": -1.34,
+     "avg": -1.35,
      "median": -1.34,
-     "avg_excess": -0.89
+     "avg_excess": -0.91
     },
     "3": {
      "n": 270,
-     "hit_rate": 3,
-     "avg": -1.33,
-     "median": -0.86,
-     "avg_excess": -1.84
+     "hit_rate": 0,
+     "avg": -1.46,
+     "median": -0.79,
+     "avg_excess": -2.01
     },
     "5": {
      "n": 0,
@@ -13464,28 +13578,28 @@
     "score": 0,
     "horizon": 3,
     "n": 270,
-    "hit_rate": 3,
-    "avg_excess": -1.84,
+    "hit_rate": 0,
+    "avg_excess": -2.01,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "Memory": {
-   "signals": 937,
+   "signals": 941,
    "h": {
     "1": {
      "n": 932,
      "hit_rate": 99,
-     "avg": 3.41,
-     "median": 3.85,
-     "avg_excess": 3.47
+     "avg": 3.53,
+     "median": 4.01,
+     "avg_excess": 3.58
     },
     "3": {
      "n": 550,
      "hit_rate": 100,
-     "avg": 11.9,
-     "median": 10.85,
-     "avg_excess": 11.39
+     "avg": 12.92,
+     "median": 12.14,
+     "avg_excess": 12.37
     },
     "5": {
      "n": 0,
@@ -13515,7 +13629,7 @@
     "confirm_rate": 25
    },
    "excursion": {
-    "avg_mfe": 11.1,
+    "avg_mfe": 11.2,
     "avg_mae": -2.3,
     "n": 932
    },
@@ -13524,27 +13638,27 @@
     "horizon": 3,
     "n": 550,
     "hit_rate": 100,
-    "avg_excess": 11.39,
+    "avg_excess": 12.37,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "Space": {
-   "signals": 136,
+   "signals": 138,
    "h": {
     "1": {
      "n": 133,
      "hit_rate": 32,
-     "avg": -0.02,
+     "avg": 0.0,
      "median": -0.35,
-     "avg_excess": 0.35
+     "avg_excess": 0.37
     },
     "3": {
      "n": 106,
      "hit_rate": 11,
-     "avg": -3.11,
-     "median": -4.77,
-     "avg_excess": -3.63
+     "avg": -3.5,
+     "median": -5.52,
+     "avg_excess": -4.06
     },
     "5": {
      "n": 0,
@@ -13575,7 +13689,7 @@
    },
    "excursion": {
     "avg_mfe": 5.3,
-    "avg_mae": -6.7,
+    "avg_mae": -7.1,
     "n": 133
    },
    "alpha_confidence": {
@@ -13583,27 +13697,27 @@
     "horizon": 3,
     "n": 106,
     "hit_rate": 11,
-    "avg_excess": -3.63,
+    "avg_excess": -4.06,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "Alternative Energy & Power": {
-   "signals": 60,
+   "signals": 61,
    "h": {
     "1": {
      "n": 58,
      "hit_rate": 84,
-     "avg": 2.91,
+     "avg": 3.23,
      "median": 1.51,
-     "avg_excess": 3.29
+     "avg_excess": 3.6
     },
     "3": {
      "n": 38,
      "hit_rate": 100,
-     "avg": 16.7,
-     "median": 18.85,
-     "avg_excess": 16.19
+     "avg": 16.85,
+     "median": 18.9,
+     "avg_excess": 16.3
     },
     "5": {
      "n": 0,
@@ -13642,27 +13756,27 @@
     "horizon": 3,
     "n": 38,
     "hit_rate": 100,
-    "avg_excess": 16.19,
+    "avg_excess": 16.3,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "Bitcoin Miners & AI Data Centers": {
-   "signals": 186,
+   "signals": 188,
    "h": {
     "1": {
      "n": 182,
      "hit_rate": 55,
-     "avg": 0.93,
+     "avg": 0.92,
      "median": 0.9,
-     "avg_excess": 1.23
+     "avg_excess": 1.22
     },
     "3": {
      "n": 135,
      "hit_rate": 100,
-     "avg": 11.67,
-     "median": 11.56,
-     "avg_excess": 11.16
+     "avg": 12.52,
+     "median": 12.68,
+     "avg_excess": 11.97
     },
     "5": {
      "n": 0,
@@ -13692,7 +13806,7 @@
     "confirm_rate": 79
    },
    "excursion": {
-    "avg_mfe": 12.4,
+    "avg_mfe": 12.7,
     "avg_mae": -4.8,
     "n": 182
    },
@@ -13701,27 +13815,27 @@
     "horizon": 3,
     "n": 135,
     "hit_rate": 100,
-    "avg_excess": 11.16,
+    "avg_excess": 11.97,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "Crypto Infrastructure": {
-   "signals": 313,
+   "signals": 319,
    "h": {
     "1": {
      "n": 301,
      "hit_rate": 56,
-     "avg": 0.56,
+     "avg": 0.57,
      "median": 0.61,
-     "avg_excess": 0.9
+     "avg_excess": 0.91
     },
     "3": {
      "n": 232,
      "hit_rate": 78,
-     "avg": 6.18,
-     "median": 5.05,
-     "avg_excess": 5.67
+     "avg": 6.71,
+     "median": 6.08,
+     "avg_excess": 6.15
     },
     "5": {
      "n": 0,
@@ -13751,7 +13865,7 @@
     "confirm_rate": 81
    },
    "excursion": {
-    "avg_mfe": 7.5,
+    "avg_mfe": 7.8,
     "avg_mae": -3.9,
     "n": 301
    },
@@ -13760,27 +13874,27 @@
     "horizon": 3,
     "n": 232,
     "hit_rate": 78,
-    "avg_excess": 5.67,
+    "avg_excess": 6.15,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "Brokers & Exchanges": {
-   "signals": 55,
+   "signals": 56,
    "h": {
     "1": {
      "n": 52,
      "hit_rate": 100,
-     "avg": 2.49,
+     "avg": 2.46,
      "median": 2.17,
-     "avg_excess": 3.06
+     "avg_excess": 3.03
     },
     "3": {
      "n": 46,
      "hit_rate": 100,
-     "avg": 3.02,
-     "median": 2.56,
-     "avg_excess": 2.51
+     "avg": 2.71,
+     "median": 2.25,
+     "avg_excess": 2.16
     },
     "5": {
      "n": 0,
@@ -13815,31 +13929,31 @@
     "n": 52
    },
    "alpha_confidence": {
-    "score": 71,
+    "score": 68,
     "horizon": 3,
     "n": 46,
     "hit_rate": 100,
-    "avg_excess": 2.51,
+    "avg_excess": 2.16,
     "verdict": "high alpha",
     "tradeable": true
    }
   },
   "Software": {
-   "signals": 349,
+   "signals": 352,
    "h": {
     "1": {
      "n": 343,
-     "hit_rate": 36,
-     "avg": -0.68,
-     "median": -1.1,
-     "avg_excess": -0.65
+     "hit_rate": 34,
+     "avg": -0.72,
+     "median": -1.12,
+     "avg_excess": -0.69
     },
     "3": {
      "n": 203,
-     "hit_rate": 70,
-     "avg": 4.27,
-     "median": 3.33,
-     "avg_excess": 3.76
+     "hit_rate": 87,
+     "avg": 4.72,
+     "median": 3.92,
+     "avg_excess": 4.17
     },
     "5": {
      "n": 0,
@@ -13874,12 +13988,12 @@
     "n": 343
    },
    "alpha_confidence": {
-    "score": 57,
+    "score": 75,
     "horizon": 3,
     "n": 203,
-    "hit_rate": 70,
-    "avg_excess": 3.76,
-    "verdict": "moderate alpha",
+    "hit_rate": 87,
+    "avg_excess": 4.17,
+    "verdict": "high alpha",
     "tradeable": true
    }
   },
@@ -13896,9 +14010,9 @@
     "3": {
      "n": 17,
      "hit_rate": 100,
-     "avg": 7.57,
-     "median": 7.37,
-     "avg_excess": 7.06
+     "avg": 8.93,
+     "median": 8.74,
+     "avg_excess": 8.38
     },
     "5": {
      "n": 0,
@@ -13937,27 +14051,27 @@
     "horizon": 3,
     "n": 17,
     "hit_rate": 100,
-    "avg_excess": 7.06,
+    "avg_excess": 8.38,
     "verdict": "moderate alpha",
     "tradeable": true
    }
   },
   "Cybersecurity": {
-   "signals": 42,
+   "signals": 43,
    "h": {
     "1": {
      "n": 41,
-     "hit_rate": 76,
-     "avg": 1.92,
-     "median": 1.39,
-     "avg_excess": 1.95
+     "hit_rate": 85,
+     "avg": 2.04,
+     "median": 1.7,
+     "avg_excess": 2.06
     },
     "3": {
      "n": 19,
      "hit_rate": 63,
-     "avg": 2.55,
-     "median": 4.38,
-     "avg_excess": 2.03
+     "avg": 3.34,
+     "median": 5.32,
+     "avg_excess": 2.79
     },
     "5": {
      "n": 0,
@@ -13992,11 +14106,11 @@
     "n": 41
    },
    "alpha_confidence": {
-    "score": 24,
+    "score": 28,
     "horizon": 3,
     "n": 19,
     "hit_rate": 63,
-    "avg_excess": 2.03,
+    "avg_excess": 2.79,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -14014,9 +14128,9 @@
     "3": {
      "n": 29,
      "hit_rate": 79,
-     "avg": 1.9,
-     "median": 2.62,
-     "avg_excess": 1.39
+     "avg": 1.98,
+     "median": 2.82,
+     "avg_excess": 1.43
     },
     "5": {
      "n": 0,
@@ -14055,7 +14169,7 @@
     "horizon": 3,
     "n": 29,
     "hit_rate": 79,
-    "avg_excess": 1.39,
+    "avg_excess": 1.43,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -14066,16 +14180,16 @@
     "1": {
      "n": 75,
      "hit_rate": 17,
-     "avg": -1.25,
+     "avg": -1.22,
      "median": -1.3,
-     "avg_excess": -1.22
+     "avg_excess": -1.2
     },
     "3": {
      "n": 36,
      "hit_rate": 50,
      "avg": 6.87,
-     "median": 3.97,
-     "avg_excess": 6.36
+     "median": 4.15,
+     "avg_excess": 6.32
     },
     "5": {
      "n": 0,
@@ -14114,13 +14228,13 @@
     "horizon": 3,
     "n": 36,
     "hit_rate": 50,
-    "avg_excess": 6.36,
+    "avg_excess": 6.32,
     "verdict": "moderate alpha",
     "tradeable": false
    }
   },
   "Insurance": {
-   "signals": 16,
+   "signals": 17,
    "h": {
     "1": {
      "n": 15,
@@ -14132,9 +14246,9 @@
     "3": {
      "n": 9,
      "hit_rate": 22,
-     "avg": 0.0,
-     "median": -0.07,
-     "avg_excess": -0.51
+     "avg": 0.05,
+     "median": -0.02,
+     "avg_excess": -0.5
     },
     "5": {
      "n": 0,
@@ -14173,27 +14287,27 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 22,
-    "avg_excess": -0.51,
+    "avg_excess": -0.5,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "Defense Tech": {
-   "signals": 90,
+   "signals": 91,
    "h": {
     "1": {
      "n": 89,
      "hit_rate": 58,
-     "avg": 0.29,
+     "avg": 0.32,
      "median": 0.36,
-     "avg_excess": 0.31
+     "avg_excess": 0.33
     },
     "3": {
      "n": 45,
      "hit_rate": 27,
-     "avg": -2.19,
-     "median": -3.76,
-     "avg_excess": -2.7
+     "avg": -1.91,
+     "median": -3.36,
+     "avg_excess": -2.46
     },
     "5": {
      "n": 0,
@@ -14232,7 +14346,7 @@
     "horizon": 3,
     "n": 45,
     "hit_rate": 27,
-    "avg_excess": -2.7,
+    "avg_excess": -2.46,
     "verdict": "anti-alpha",
     "tradeable": false
    }
@@ -14250,9 +14364,9 @@
     "3": {
      "n": 96,
      "hit_rate": 1,
-     "avg": -2.69,
-     "median": -2.73,
-     "avg_excess": -3.2
+     "avg": -2.64,
+     "median": -2.66,
+     "avg_excess": -3.19
     },
     "5": {
      "n": 0,
@@ -14291,27 +14405,27 @@
     "horizon": 3,
     "n": 96,
     "hit_rate": 1,
-    "avg_excess": -3.2,
+    "avg_excess": -3.19,
     "verdict": "anti-alpha",
     "tradeable": false
    }
   },
   "Banks": {
-   "signals": 63,
+   "signals": 65,
    "h": {
     "1": {
      "n": 60,
      "hit_rate": 40,
-     "avg": 0.17,
+     "avg": 0.19,
      "median": 0.0,
-     "avg_excess": 0.33
+     "avg_excess": 0.35
     },
     "3": {
      "n": 39,
      "hit_rate": 100,
-     "avg": 1.81,
-     "median": 1.17,
-     "avg_excess": 1.29
+     "avg": 2.06,
+     "median": 1.56,
+     "avg_excess": 1.51
     },
     "5": {
      "n": 0,
@@ -14346,17 +14460,17 @@
     "n": 60
    },
    "alpha_confidence": {
-    "score": 58,
+    "score": 61,
     "horizon": 3,
     "n": 39,
     "hit_rate": 100,
-    "avg_excess": 1.29,
-    "verdict": "moderate alpha",
+    "avg_excess": 1.51,
+    "verdict": "high alpha",
     "tradeable": true
    }
   },
   "China ADRs": {
-   "signals": 47,
+   "signals": 48,
    "h": {
     "1": {
      "n": 47,
@@ -14368,9 +14482,9 @@
     "3": {
      "n": 42,
      "hit_rate": 81,
-     "avg": 1.26,
-     "median": 2.76,
-     "avg_excess": 0.75
+     "avg": 1.45,
+     "median": 3.01,
+     "avg_excess": 0.89
     },
     "5": {
      "n": 0,
@@ -14405,31 +14519,31 @@
     "n": 47
    },
    "alpha_confidence": {
-    "score": 32,
+    "score": 34,
     "horizon": 3,
     "n": 42,
     "hit_rate": 81,
-    "avg_excess": 0.75,
+    "avg_excess": 0.89,
     "verdict": "low alpha",
     "tradeable": true
    }
   },
   "Uranium": {
-   "signals": 24,
+   "signals": 25,
    "h": {
     "1": {
      "n": 22,
      "hit_rate": 59,
-     "avg": 1.46,
-     "median": 0.54,
-     "avg_excess": 1.41
+     "avg": 1.49,
+     "median": 0.64,
+     "avg_excess": 1.43
     },
     "3": {
      "n": 9,
-     "hit_rate": 33,
-     "avg": 0.16,
-     "median": -0.08,
-     "avg_excess": -0.35
+     "hit_rate": 67,
+     "avg": 0.26,
+     "median": 0.02,
+     "avg_excess": -0.29
     },
     "5": {
      "n": 0,
@@ -14467,9 +14581,9 @@
     "score": 0,
     "horizon": 3,
     "n": 9,
-    "hit_rate": 33,
-    "avg_excess": -0.35,
-    "verdict": "anti-alpha",
+    "hit_rate": 67,
+    "avg_excess": -0.29,
+    "verdict": "neutral",
     "tradeable": false
    }
   },
@@ -14479,16 +14593,16 @@
     "1": {
      "n": 49,
      "hit_rate": 96,
-     "avg": 1.71,
+     "avg": 1.65,
      "median": 1.39,
-     "avg_excess": 1.55
+     "avg_excess": 1.46
     },
     "3": {
      "n": 11,
      "hit_rate": 100,
-     "avg": 7.21,
-     "median": 6.13,
-     "avg_excess": 6.7
+     "avg": 7.51,
+     "median": 6.38,
+     "avg_excess": 6.96
     },
     "5": {
      "n": 0,
@@ -14518,7 +14632,7 @@
     "confirm_rate": 77
    },
    "excursion": {
-    "avg_mfe": 4.2,
+    "avg_mfe": 4.3,
     "avg_mae": -2.7,
     "n": 49
    },
@@ -14527,13 +14641,13 @@
     "horizon": 3,
     "n": 11,
     "hit_rate": 100,
-    "avg_excess": 6.7,
+    "avg_excess": 6.96,
     "verdict": "low alpha",
     "tradeable": true
    }
   },
   "Quantum Computing": {
-   "signals": 22,
+   "signals": 28,
    "h": {
     "1": {
      "n": 5,
@@ -14545,9 +14659,9 @@
     "3": {
      "n": 5,
      "hit_rate": 100,
-     "avg": 26.66,
-     "median": 21.59,
-     "avg_excess": 26.15
+     "avg": 28.52,
+     "median": 23.07,
+     "avg_excess": 27.97
     },
     "5": {
      "n": 0,
@@ -14577,7 +14691,7 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 30.7,
+    "avg_mfe": 31.5,
     "avg_mae": -5.3,
     "n": 5
    },
@@ -14586,7 +14700,7 @@
     "horizon": 3,
     "n": 5,
     "hit_rate": 100,
-    "avg_excess": 26.15,
+    "avg_excess": 27.97,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -14604,9 +14718,9 @@
     "3": {
      "n": 28,
      "hit_rate": 100,
-     "avg": 7.16,
-     "median": 7.1,
-     "avg_excess": 6.65
+     "avg": 7.4,
+     "median": 7.32,
+     "avg_excess": 6.85
     },
     "5": {
      "n": 0,
@@ -14636,16 +14750,16 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 7.6,
+    "avg_mfe": 8.4,
     "avg_mae": -4.8,
     "n": 28
    },
    "alpha_confidence": {
-    "score": 87,
+    "score": 88,
     "horizon": 3,
     "n": 28,
     "hit_rate": 100,
-    "avg_excess": 6.65,
+    "avg_excess": 6.85,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -14656,16 +14770,16 @@
     "1": {
      "n": 28,
      "hit_rate": 79,
-     "avg": 1.61,
-     "median": 2.48,
-     "avg_excess": 1.53
+     "avg": 1.95,
+     "median": 2.6,
+     "avg_excess": 1.86
     },
     "3": {
      "n": 12,
      "hit_rate": 100,
-     "avg": 5.27,
-     "median": 5.24,
-     "avg_excess": 4.76
+     "avg": 6.65,
+     "median": 6.62,
+     "avg_excess": 6.1
     },
     "5": {
      "n": 0,
@@ -14695,16 +14809,16 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 6.2,
+    "avg_mfe": 6.3,
     "avg_mae": -3.0,
     "n": 28
    },
    "alpha_confidence": {
-    "score": 37,
+    "score": 38,
     "horizon": 3,
     "n": 12,
     "hit_rate": 100,
-    "avg_excess": 4.76,
+    "avg_excess": 6.1,
     "verdict": "low alpha",
     "tradeable": true
    }
@@ -14722,9 +14836,9 @@
     "3": {
      "n": 9,
      "hit_rate": 100,
-     "avg": 5.65,
-     "median": 5.63,
-     "avg_excess": 5.14
+     "avg": 5.79,
+     "median": 5.77,
+     "avg_excess": 5.24
     },
     "5": {
      "n": 0,
@@ -14763,7 +14877,7 @@
     "horizon": 3,
     "n": 9,
     "hit_rate": 100,
-    "avg_excess": 5.14,
+    "avg_excess": 5.24,
     "verdict": "low alpha",
     "tradeable": false
    }
@@ -14781,9 +14895,9 @@
     "3": {
      "n": 2,
      "hit_rate": 0,
-     "avg": -4.19,
-     "median": -4.19,
-     "avg_excess": -4.7
+     "avg": -4.67,
+     "median": -4.67,
+     "avg_excess": -5.22
     },
     "5": {
      "n": 0,
@@ -14838,9 +14952,9 @@
     "3": {
      "n": 1,
      "hit_rate": 100,
-     "avg": 0.18,
-     "median": 0.18,
-     "avg_excess": -0.34
+     "avg": 0.25,
+     "median": 0.25,
+     "avg_excess": -0.3
     },
     "5": {
      "n": 0,
@@ -14888,9 +15002,9 @@
     "1": {
      "n": 20,
      "hit_rate": 100,
-     "avg": 6.71,
-     "median": 4.64,
-     "avg_excess": 6.21
+     "avg": 7.39,
+     "median": 5.74,
+     "avg_excess": 6.86
     },
     "3": {
      "n": 0,
@@ -14927,7 +15041,7 @@
     "confirm_rate": 75
    },
    "excursion": {
-    "avg_mfe": 9.4,
+    "avg_mfe": 9.5,
     "avg_mae": 0.1,
     "n": 20
    },
@@ -14936,7 +15050,7 @@
     "horizon": 1,
     "n": 20,
     "hit_rate": 100,
-    "avg_excess": 6.21,
+    "avg_excess": 6.86,
     "verdict": "high alpha",
     "tradeable": true
    }
@@ -14947,9 +15061,9 @@
     "1": {
      "n": 8,
      "hit_rate": 100,
-     "avg": 3.69,
-     "median": 3.31,
-     "avg_excess": 3.53
+     "avg": 2.87,
+     "median": 2.5,
+     "avg_excess": 2.67
     },
     "3": {
      "n": 0,
@@ -14991,12 +15105,12 @@
     "n": 8
    },
    "alpha_confidence": {
-    "score": 21,
+    "score": 19,
     "horizon": 1,
     "n": 8,
     "hit_rate": 100,
-    "avg_excess": 3.53,
-    "verdict": "low alpha",
+    "avg_excess": 2.67,
+    "verdict": "marginal",
     "tradeable": false
    }
   },
@@ -15006,9 +15120,9 @@
     "1": {
      "n": 6,
      "hit_rate": 100,
-     "avg": 3.35,
-     "median": 3.54,
-     "avg_excess": 3.19
+     "avg": 4.13,
+     "median": 4.34,
+     "avg_excess": 3.93
     },
     "3": {
      "n": 0,
@@ -15050,11 +15164,11 @@
     "n": 6
    },
    "alpha_confidence": {
-    "score": 14,
+    "score": 16,
     "horizon": 1,
     "n": 6,
     "hit_rate": 100,
-    "avg_excess": 3.19,
+    "avg_excess": 3.93,
     "verdict": "marginal",
     "tradeable": false
    }
@@ -15065,9 +15179,9 @@
     "1": {
      "n": 6,
      "hit_rate": 100,
-     "avg": 1.0,
-     "median": 1.0,
-     "avg_excess": 0.84
+     "avg": 2.44,
+     "median": 2.44,
+     "avg_excess": 2.24
     },
     "3": {
      "n": 0,
@@ -15104,16 +15218,16 @@
     "confirm_rate": 100
    },
    "excursion": {
-    "avg_mfe": 2.2,
+    "avg_mfe": 2.5,
     "avg_mae": -2.5,
     "n": 6
    },
    "alpha_confidence": {
-    "score": 10,
+    "score": 12,
     "horizon": 1,
     "n": 6,
     "hit_rate": 100,
-    "avg_excess": 0.84,
+    "avg_excess": 2.24,
     "verdict": "marginal",
     "tradeable": false
    }
