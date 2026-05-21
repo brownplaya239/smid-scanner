@@ -24,6 +24,10 @@ on:
         description: 'Force trigger source (uoa | momentum | both)'
         required: false
         default: 'both'
+      force:
+        description: 'Bypass 4-hour push_log dedup (re-send same content)'
+        required: false
+        default: 'false'
 
 jobs:
   push:
@@ -83,5 +87,8 @@ jobs:
           ARGS=""
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
+          fi
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
           fi
           python push_alerts.py $ARGS
