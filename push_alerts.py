@@ -451,9 +451,14 @@ def process_user(user, swing_upgrades, uoa_flagged, earnings_imminent,
     at = user["alert_types"] or {}
 
     alerts_to_send = []
+    # "both" comes from manual dispatch — fires every applicable alert.
+    # "uoa" / "momentum" come from workflow_run triggers and limit to the
+    # alert type that the source workflow could actually inform.
+    fire_uoa = TRIGGER_SOURCE in ("uoa", "both")
+    fire_momentum = TRIGGER_SOURCE in ("momentum", "both")
 
-    # 1. UOA alerts — only if this run is from a UOA scan
-    if TRIGGER_SOURCE == "uoa" and at.get("uoa_watchlist", True):
+    # 1. UOA alerts — only if this run is from a UOA scan (or manual both)
+    if fire_uoa and at.get("uoa_watchlist", True):
         matched = []
         for tk in tickers:
             if tk in uoa_flagged:
@@ -470,8 +475,8 @@ def process_user(user, swing_upgrades, uoa_flagged, earnings_imminent,
                 alerts_to_send.append(("uoa_watchlist",
                     compose_uoa_push(matched, brief_date_label), uoa_tickers))
 
-    # 2. Grade upgrades — only if this run is from a momentum scan
-    if TRIGGER_SOURCE == "momentum" and at.get("grade_upgrade", True):
+    # 2. Grade upgrades — only if this run is from a momentum scan (or both)
+    if fire_momentum and at.get("grade_upgrade", True):
         matched = []
         for tk in tickers:
             if tk in swing_upgrades:
