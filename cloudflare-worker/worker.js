@@ -648,16 +648,46 @@ async function handleStripeCheckout(request, env, cors) {
 }
 
 async function handleStripeWebhook(request, env, cors) {
+  // Diagnostic logging so failures show up in `wrangler tail` and the
+  // Cloudflare dashboard Logs tab. Never logs the secret itself.
+  const has = {
+    STRIPE_SECRET_KEY: !!env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: !!env.STRIPE_WEBHOOK_SECRET,
+    SUPABASE_URL: !!env.SUPABASE_URL,
+    SUPABASE_SERVICE_KEY: !!env.SUPABASE_SERVICE_KEY,
+  };
+  console.log("Stripe webhook hit · env present:", JSON.stringify(has));
   if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET ||
       !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
-    return new Response("Webhook misconfigured", { status: 500 });
+    console.error("Webhook misconfigured — missing env vars:", JSON.stringify(has));
+    return new Response("Webhook misconfigured: " + JSON.stringify(has),
+      { status: 500 });
   }
   const sig = request.headers.get("stripe-signature");
-  if (!sig) return new Response("Missing signature", { status: 400 });
+  if (!sig) {
+    console.error("No stripe-signature header on request");
+    return new Response("Missing signature", { status: 400 });
+  }
   const bodyText = await request.text();
   // Verify signature (HMAC-SHA256 with whsec)
   const ok = await verifyStripeSig(bodyText, sig, env.STRIPE_WEBHOOK_SECRET);
-  if (!ok) return new Response("Invalid signature", { status: 400 });
+  if (!ok) {
+    // Helpful diagnostic without leaking the secret: show the first few
+    // chars of the WHSEC we're using + the t/v1 of the incoming signature
+    // so we can tell at a glance whether we have the wrong secret.
+    const whsecPrefix = env.STRIPE_WEBHOOK_SECRET.slice(0, 10);
+    const sigParts = sig.split(",").reduce(function (acc, p) {
+      const [k, v] = p.split("=", 2);
+      acc[k] = v;
+      return acc;
+    }, {});
+    console.error("Signature verification FAILED · " +
+      "configured secret prefix: " + whsecPrefix + "... · " +
+      "incoming sig t=" + sigParts.t + " v1=" +
+      (sigParts.v1 || "").slice(0, 12) + "...");
+    return new Response("Invalid signature", { status: 400 });
+  }
+  console.log("Signature verified · processing event");
   let evt;
   try { evt = JSON.parse(bodyText); }
   catch { return new Response("Invalid JSON", { status: 400 }); }
@@ -686,10 +716,13 @@ async function handleStripeWebhook(request, env, cors) {
 
   const type = evt.type;
   const obj = evt.data && evt.data.object;
+  console.log("Event type: " + type + " · obj id: " + (obj && obj.id));
   if (type === "checkout.session.completed") {
     const userId = obj.client_reference_id ||
                    (obj.metadata && obj.metadata.user_id);
     const plan = obj.metadata && obj.metadata.plan;
+    console.log("checkout.session.completed · user_id=" + userId +
+      " plan=" + plan);
     if (userId && plan) await updateProfile(userId, plan);
   } else if (type === "customer.subscription.created" ||
              type === "customer.subscription.updated") {
@@ -698,10 +731,15 @@ async function handleStripeWebhook(request, env, cors) {
                     obj.items.data[0].price && obj.items.data[0].price.id;
     const plan = planFromPriceId(priceId);
     const active = obj.status === "active" || obj.status === "trialing";
+    console.log("subscription event · user_id=" + userId +
+      " priceId=" + priceId + " plan=" + plan + " active=" + active);
     if (userId) await updateProfile(userId, active && plan ? plan : "free");
   } else if (type === "customer.subscription.deleted") {
     const userId = obj.metadata && obj.metadata.user_id;
+    console.log("subscription.deleted · user_id=" + userId);
     if (userId) await updateProfile(userId, "free");
+  } else {
+    console.log("Ignored event type: " + type);
   }
   return new Response(JSON.stringify({ received: true }), {
     status: 200,
