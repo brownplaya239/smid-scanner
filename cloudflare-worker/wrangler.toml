@@ -22,7 +22,12 @@ compatibility_date = "2026-05-20"
 [vars]
 SUPABASE_URL = "https://uaeojibmhxbwkhpvmjwy.supabase.co"
 
-# Observability: enable the Workers dashboard "Logs" tab so `wrangler tail`
-# and the live-logs UI can stream console output from production.
-[observability]
+# Observability: enables the Workers dashboard "Logs" tab so `wrangler tail`
+# and the live-logs UI can stream console output from production. Logs
+# persist to the dashboard so we can debug past events (Stripe webhooks,
+# Polygon errors, etc.) without needing tail running live.
+[observability.logs]
 enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
