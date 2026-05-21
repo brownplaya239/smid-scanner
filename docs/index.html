@@ -600,6 +600,51 @@
 
   .head-toggles { position:absolute; top:20px; right:28px;
     display:flex; flex-direction:column; gap:5px; align-items:flex-end; }
+
+  /* Market-hours pill — sits above the auth bar; updates client-side
+     every second. Shows current state + countdown to next transition.
+     Trader's at-a-glance "is my data live or stale right now". */
+  .market-pill { display:inline-flex; align-items:center; gap:6px;
+    padding:4px 10px; background:var(--navy2);
+    border:1px solid var(--border2); border-radius:14px;
+    font-size:10.5px; font-weight:600; color:var(--textdim);
+    letter-spacing:.2px; line-height:1.2;
+    font-variant-numeric:tabular-nums; white-space:nowrap;
+    cursor:default; user-select:none; }
+  .market-pill .mp-dot { width:7px; height:7px; border-radius:50%;
+    background:var(--muted); flex-shrink:0;
+    box-shadow:0 0 0 0 currentColor;
+    animation:none; }
+  .market-pill.state-open  .mp-dot { background:var(--green);
+    animation:mp-pulse 2s infinite ease-out; }
+  .market-pill.state-open          { color:var(--green); }
+  .market-pill.state-pre   .mp-dot { background:#ffc800; }
+  .market-pill.state-pre           { color:#ffc800; }
+  .market-pill.state-after .mp-dot { background:#ff8c1a; }
+  .market-pill.state-after         { color:#ff8c1a; }
+  .market-pill.state-closed .mp-dot { background:var(--muted); }
+  .market-pill .mp-label  { font-weight:700; }
+  .market-pill .mp-time   { color:var(--text); }
+  .market-pill .mp-cd     { color:var(--muted); font-weight:500; }
+  @keyframes mp-pulse {
+    0%   { box-shadow:0 0 0 0 currentColor; opacity:1; }
+    70%  { box-shadow:0 0 0 5px transparent; opacity:.7; }
+    100% { box-shadow:0 0 0 0 transparent; opacity:1; }
+  }
+
+  /* Tab freshness stamp — small subtle line under each tab title.
+     "Updated 4 hr ago · post-close" or "Updated 22 sec ago · live"
+     Reads from each panel's data source 'updated' / 'generated' field. */
+  .freshness { font-size:10.5px; color:var(--muted); margin-top:-4px;
+    margin-bottom:14px; display:flex; align-items:center; gap:8px;
+    line-height:1.4; font-variant-numeric:tabular-nums; }
+  .freshness .fr-dot { width:6px; height:6px; border-radius:50%;
+    background:var(--muted); flex-shrink:0; }
+  .freshness.fresh .fr-dot { background:var(--green); }
+  .freshness.recent .fr-dot { background:#ffc800; }
+  .freshness.stale .fr-dot { background:#ff5b78; }
+  .freshness .fr-sep { color:var(--border2); }
+  .freshness .fr-char { color:var(--textdim); font-weight:500; }
   .theme-toggle, .density-toggle { display:flex;
     border:1px solid var(--border2); border-radius:6px; overflow:hidden; }
   .theme-toggle button, .density-toggle button { background:var(--navy2);
@@ -2084,6 +2129,13 @@
     </aside>
 
     <div class="head-toggles">
+      <!-- Live market clock — updates every second client-side -->
+      <div class="market-pill" id="market-pill" title="US equity market state">
+        <span class="mp-dot"></span>
+        <span class="mp-label" id="mp-label">—</span>
+        <span class="mp-time"  id="mp-time">—</span>
+        <span class="mp-cd"    id="mp-cd"></span>
+      </div>
       <button class="wl-trigger" id="wl-trigger"
               title="Watchlist (click to open drawer)"
               style="display:none">
@@ -4630,6 +4682,202 @@
     apply(document.documentElement.dataset.density || "comfy");
   })();
 
+  /* ── Live market-hours pill ──────────────────────────────────────
+     Renders the current US equity market state + ET clock + countdown
+     to next transition. Updates every second, fully client-side, no
+     network calls. NYSE half-day calendar (early-close days) isn't
+     modeled here — pill will read "Closed" 4 hr early on those days
+     which is a minor cosmetic issue (rare, ~6 days/year). */
+  (function setupMarketPill() {
+    const pill = document.getElementById("market-pill");
+    if (!pill) return;
+    const labelEl = document.getElementById("mp-label");
+    const timeEl  = document.getElementById("mp-time");
+    const cdEl    = document.getElementById("mp-cd");
+
+    // Cache the ET formatter — locale "en-US" + timeZone tag gives us
+    // wall-clock ET regardless of viewer's machine TZ. Hour cycle h23
+    // gives 24-hour for the underlying math; we re-format for display.
+    const FMT_TIME = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "numeric", minute: "2-digit", hour12: true,
+    });
+    const FMT_PARTS = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+      hour12: false, weekday: "short",
+    });
+
+    function etNow() {
+      // Return {y,m,d,h,mi,s,dow} for current ET time.
+      const parts = FMT_PARTS.formatToParts(new Date());
+      const p = {};
+      parts.forEach(function (x) { p[x.type] = x.value; });
+      return {
+        y: parseInt(p.year, 10),
+        m: parseInt(p.month, 10),
+        d: parseInt(p.day, 10),
+        h: parseInt(p.hour, 10),
+        mi: parseInt(p.minute, 10),
+        s: parseInt(p.second, 10),
+        dow: p.weekday,                 // "Mon"..."Sun"
+      };
+    }
+
+    function minutesIntoDay(et) { return et.h * 60 + et.mi; }
+
+    function fmtCountdown(secs) {
+      if (secs <= 0) return "";
+      if (secs < 60) return secs + "s";
+      const m = Math.floor(secs / 60);
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      if (h > 0) return h + "h " + (mm > 0 ? mm + "m" : "");
+      return mm + "m";
+    }
+
+    function tick() {
+      const et = etNow();
+      const isWeekend = (et.dow === "Sat" || et.dow === "Sun");
+      const md = minutesIntoDay(et);
+      // RTH 9:30 AM – 4:00 PM ET
+      const PRE_START   =  4 * 60;        //  4:00 AM ET pre-market opens
+      const RTH_START   =  9 * 60 + 30;   //  9:30 AM ET open
+      const RTH_END     = 16 * 60;        //  4:00 PM ET close
+      const AFTER_END   = 20 * 60;        //  8:00 PM ET after-hours ends
+      let state, label, cdSecs;
+      const secsRem = (mins) => (mins - md) * 60 - et.s;
+      if (isWeekend) {
+        state = "closed";  label = "Closed";  cdSecs = 0;
+      } else if (md < PRE_START) {
+        state = "closed";  label = "Closed";  cdSecs = secsRem(PRE_START);
+      } else if (md < RTH_START) {
+        state = "pre";     label = "Pre-market"; cdSecs = secsRem(RTH_START);
+      } else if (md < RTH_END) {
+        state = "open";    label = "Open";    cdSecs = secsRem(RTH_END);
+      } else if (md < AFTER_END) {
+        state = "after";   label = "After-hours"; cdSecs = secsRem(AFTER_END);
+      } else {
+        state = "closed";  label = "Closed";  cdSecs = 0;
+      }
+
+      // Apply state class (single source of truth — strip prior states)
+      pill.classList.remove("state-open", "state-pre",
+                            "state-after", "state-closed");
+      pill.classList.add("state-" + state);
+
+      labelEl.textContent = label;
+      timeEl.textContent  = FMT_TIME.format(new Date()) + " ET";
+
+      if (cdSecs > 0 && state !== "closed") {
+        const next = state === "pre"   ? "opens"
+                   : state === "open"  ? "closes"
+                   : state === "after" ? "ends"
+                   : "";
+        cdEl.textContent = "· " + next + " in " + fmtCountdown(cdSecs);
+      } else if (state === "closed" && !isWeekend && md < PRE_START) {
+        cdEl.textContent = "· pre in " + fmtCountdown(cdSecs);
+      } else {
+        cdEl.textContent = "";
+      }
+    }
+    tick();
+    setInterval(tick, 1000);
+  })();
+
+  /* ── Per-tab freshness stamps ────────────────────────────────────
+     Each tab can register a freshness reader via window.tdSetFreshness
+     once its data is loaded. Renders "Updated X ago · post-close"
+     under the tab title. Color: green <2h, amber 2-12h, red >12h.
+     The "character" tag (live / post-close / weekly / pre-market)
+     tells users what KIND of freshness they're looking at — a
+     "1 day ago · post-close" stamp isn't stale, it's correct. */
+  (function setupFreshnessLayer() {
+    function timeAgo(isoStr) {
+      if (!isoStr) return "?";
+      const t = Date.parse(isoStr);
+      if (isNaN(t)) return "?";
+      const secs = Math.max(0, Math.floor((Date.now() - t) / 1000));
+      if (secs < 60)  return secs + "s ago";
+      if (secs < 3600) return Math.floor(secs / 60) + "m ago";
+      if (secs < 86400) return Math.floor(secs / 3600) + "h ago";
+      return Math.floor(secs / 86400) + "d ago";
+    }
+    function staleClass(isoStr, character) {
+      const t = Date.parse(isoStr);
+      if (isNaN(t)) return "stale";
+      const hrs = (Date.now() - t) / 3600000;
+      // "post-close" is allowed to be ~14h old without being stale
+      // (yesterday's close → today's pre-open is normal)
+      if (character === "post-close") {
+        if (hrs < 18) return "fresh";
+        if (hrs < 40) return "recent";
+        return "stale";
+      }
+      if (character === "weekly") {
+        if (hrs < 72)  return "fresh";
+        if (hrs < 192) return "recent";
+        return "stale";
+      }
+      // "live" data should be very fresh
+      if (hrs < 0.5) return "fresh";
+      if (hrs < 4)   return "recent";
+      return "stale";
+    }
+    window.tdSetFreshness = function (panelId, isoStr, character) {
+      const panel = document.getElementById(panelId);
+      if (!panel) return;
+      let fr = panel.querySelector(":scope > .freshness");
+      if (!fr) {
+        fr = document.createElement("div");
+        fr.className = "freshness";
+        // Insert right after the tab title (h2)
+        const h2 = panel.querySelector(":scope > h2");
+        const subP = panel.querySelector(":scope > p.tab-sub");
+        const anchor = subP || h2;
+        if (anchor && anchor.nextSibling) {
+          panel.insertBefore(fr, anchor.nextSibling);
+        } else {
+          panel.insertBefore(fr, panel.firstChild);
+        }
+      }
+      fr.className = "freshness " + staleClass(isoStr, character);
+      const charLabel = character === "post-close"
+                          ? "post-close batch"
+                        : character === "weekly"
+                          ? "weekly batch"
+                        : character === "pre-market"
+                          ? "pre-market"
+                        : character === "live"
+                          ? "live"
+                          : "batch";
+      fr.innerHTML =
+        '<span class="fr-dot"></span>' +
+        '<span>Updated ' + timeAgo(isoStr) + '</span>' +
+        '<span class="fr-sep">·</span>' +
+        '<span class="fr-char">' + charLabel + '</span>';
+    };
+    // Refresh "X ago" strings every 30 sec so they don't go stale visually
+    setInterval(function () {
+      document.querySelectorAll(".freshness").forEach(function (fr) {
+        const panel = fr.closest(".panel");
+        if (!panel || !panel._frConfig) return;
+        const cfg = panel._frConfig;
+        fr.className = "freshness " + staleClass(cfg.iso, cfg.character);
+        fr.querySelector("span:nth-child(2)").textContent =
+          "Updated " + timeAgo(cfg.iso);
+      });
+    }, 30000);
+    // Wrap setter so we also store config for the periodic refresh
+    const realSet = window.tdSetFreshness;
+    window.tdSetFreshness = function (panelId, isoStr, character) {
+      const panel = document.getElementById(panelId);
+      if (panel) panel._frConfig = { iso: isoStr, character: character };
+      realSet(panelId, isoStr, character);
+    };
+  })();
+
   /* ── Color scheme toggle (Light / Mid / Dark) ── */
   (function () {
     const tg = document.getElementById("theme-toggle");
@@ -6284,6 +6532,9 @@
                 { month: "short", day: "numeric", hour: "numeric",
                   minute: "2-digit" });
           }
+          if (window.tdSetFreshness && d.updated) {
+            window.tdSetFreshness("panel-global", d.updated, "post-close");
+          }
           render();
         })
         .catch(function () {
@@ -6530,7 +6781,12 @@
       loadTweetImage();
       fetch("./reports/earnings_anticipated.json?t=" + Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(render)
+        .then(function (d) {
+          render(d);
+          if (window.tdSetFreshness && d && d.generated) {
+            window.tdSetFreshness("panel-whisper", d.generated, "post-close");
+          }
+        })
         .catch(function () {
           body.innerHTML = '<div class="uoa-empty">' +
             'Could not load anticipated calendar.</div>';
@@ -8041,6 +8297,20 @@
         window.TD_DATA.manifest = manifest;
         window.TD_DATA.cal = cal;
         window.TD_DATA.uoaMeta = uoaMeta;
+        // Stamp every tab whose primary data we just loaded so the
+        // freshness pill under each tab title reflects reality.
+        if (window.tdSetFreshness) {
+          const swingTs = (swing && swing.updated) ||
+            ((swing && swing.runs && swing.runs.length)
+              ? swing.runs[swing.runs.length - 1].generated : null);
+          const uoaTs = uoa && uoa.generated;
+          window.tdSetFreshness("panel-desk",  swingTs, "post-close");
+          window.tdSetFreshness("panel-mydesk", swingTs, "post-close");
+          window.tdSetFreshness("panel-swing",  swingTs, "post-close");
+          window.tdSetFreshness("panel-uoa",    uoaTs,   "post-close");
+          window.tdSetFreshness("panel-qm-monthly",      swingTs, "post-close");
+          window.tdSetFreshness("panel-stockbee-weekly", swingTs, "weekly");
+        }
         DESK_TKMAP = {};
         if (swing && swing.runs && swing.runs.length) {
           const r = swing.runs[swing.runs.length - 1];
@@ -8416,6 +8686,11 @@
       // Publish to global drilldown cache (setupSwing may load before setupDesk)
       if (!window.TD_DATA.swing) window.TD_DATA.swing = d;
       if (!window.TD_DATA.uoaMeta) window.TD_DATA.uoaMeta = META;
+      if (window.tdSetFreshness && d) {
+        const ts = d.updated || (d.runs && d.runs[d.runs.length - 1] &&
+                                 d.runs[d.runs.length - 1].generated);
+        if (ts) window.tdSetFreshness("panel-swing", ts, "post-close");
+      }
       RUNS = (d && d.runs) ? d.runs.slice().reverse() : [];
       if (!RUNS.length) {
         body.innerHTML = '<div class="uoa-empty">No report yet &mdash; the ' +
@@ -8801,6 +9076,12 @@
             $("uoa-updated").textContent = dt
               ? ("Updated "+dt.toLocaleString()+"  ·  Live flagged: "+DATA.length)
               : "";
+            if (window.tdSetFreshness && d.generated) {
+              // UOA is "batch" with 6 fires/day during RTH — not strictly
+              // post-close but updates within ~75 min during market hours.
+              // Treat as live-ish (sub-2h is fresh).
+              window.tdSetFreshness("panel-uoa", d.generated, "live");
+            }
           } else { DATA = []; $("uoa-updated").textContent = "First scan pending."; }
           populateSectors(); populateThemes();
           renderHead(); renderClusters(); renderBody();

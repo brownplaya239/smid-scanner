@@ -2,19 +2,26 @@ name: Unusual Options Activity
 
 on:
   schedule:
-    # 3 runs/day on weekdays — off-the-hour to avoid GitHub's top-of-hour
-    # cron delays. Single cron per fire time (previously had duplicate
-    # EDT+EST entries that both fired year-round, doubling runs).
-    # All 3 windows stay safely within market hours either DST mode, so
-    # picked EDT crons across the board for closer-to-intended timing in
-    # the longer summer window. EST winter fires are 1 hr earlier (still
-    # within RTH 9:30 AM – 4:00 PM ET — fine).
+    # 6 runs/day on weekdays — covers every ~75 min of market hours so
+    # intraday flow doesn't sit stale for 2.5 hrs at a time. Cron times
+    # are off-the-hour to dodge GitHub's top-of-hour delay penalty.
+    # Single cron per fire time (no EDT/EST duplicates — GH cron is
+    # literal UTC and BOTH would fire year-round).
+    # All windows stay safely within RTH (9:30 AM – 4:00 PM ET) under
+    # either DST mode; picked EDT crons for closer-to-intended timing
+    # during the longer summer window. EST winter fires are 1 hr earlier.
     #
-    # ~11:00 AM ET intraday flow check
+    # ~9:45 AM ET  — opening flow (first 15 min noise settled)
+    - cron: '47 13 * * 1-5'
+    # ~11:00 AM ET — late-morning continuation
     - cron: '7 15 * * 1-5'
-    # ~1:30 PM ET midday flow check
+    # ~12:15 PM ET — lunch-hour positioning
+    - cron: '17 16 * * 1-5'
+    # ~1:30 PM ET  — early afternoon
     - cron: '37 17 * * 1-5'
-    # ~3:45 PM ET late-session flow before close
+    # ~2:30 PM ET  — pre-power-hour positioning
+    - cron: '37 18 * * 1-5'
+    # ~3:45 PM ET  — final-15-min positioning before close
     - cron: '47 19 * * 1-5'
 
   workflow_dispatch:           # manual trigger anytime
