@@ -1,5 +1,5 @@
 {
-  "generated": "2026-05-21T01:55:53+00:00",
+  "generated": "2026-05-21T02:50:43+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -411,6 +411,11 @@
     ],
     "adhoc": [
       {
+        "file": "ticker_NVDA_2026-05-20_2250.pdf",
+        "label": "May 20, 2026  -  10:50 PM ET",
+        "ticker": "NVDA"
+      },
+      {
         "file": "ticker_BLPD_2026-05-20_2155.pdf",
         "label": "May 20, 2026  -  9:55 PM ET",
         "ticker": "BLPD"
@@ -554,11 +559,6 @@
         "file": "ticker_PLTR_2026-05-15_1512.pdf",
         "label": "May 15, 2026  -  3:12 PM ET",
         "ticker": "PLTR"
-      },
-      {
-        "file": "ticker_HYLN_2026-05-15_1509.pdf",
-        "label": "May 15, 2026  -  3:09 PM ET",
-        "ticker": "HYLN"
       }
     ],
     "alt-data": [
