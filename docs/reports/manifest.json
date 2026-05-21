@@ -1,5 +1,5 @@
 {
-  "generated": "2026-05-21T00:26:23+00:00",
+  "generated": "2026-05-21T01:37:44+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -411,6 +411,11 @@
     ],
     "adhoc": [
       {
+        "file": "ticker_TESLA_2026-05-20_2137.pdf",
+        "label": "May 20, 2026  -  9:37 PM ET",
+        "ticker": "TESLA"
+      },
+      {
         "file": "ticker_NVDA_2026-05-19_1931.pdf",
         "label": "May 19, 2026  -  7:31 PM ET",
         "ticker": "NVDA"
@@ -554,11 +559,6 @@
         "file": "ticker_ALAB_2026-05-15_1505.pdf",
         "label": "May 15, 2026  -  3:05 PM ET",
         "ticker": "ALAB"
-      },
-      {
-        "file": "ticker_AAPL_2026-05-15_1459.pdf",
-        "label": "May 15, 2026  -  2:59 PM ET",
-        "ticker": "AAPL"
       }
     ],
     "alt-data": [
