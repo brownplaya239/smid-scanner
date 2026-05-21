@@ -19,6 +19,7 @@ compatibility_date = "2026-05-20"
 # secrets, service_role keys) lives ONLY in worker secrets.
 [vars]
 SUPABASE_URL = "https://uaeojibmhxbwkhpvmjwy.supabase.co"
+REPO = "brownplaya239/smid-scanner"
 
 # Observability — exact match to what the Cloudflare dashboard
 # generates. The dashboard adds `enabled`, `head_sampling_rate`, and
