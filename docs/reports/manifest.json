@@ -1,5 +1,5 @@
 {
-  "generated": "2026-05-21T01:37:44+00:00",
+  "generated": "2026-05-21T01:55:53+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -411,6 +411,11 @@
     ],
     "adhoc": [
       {
+        "file": "ticker_BLPD_2026-05-20_2155.pdf",
+        "label": "May 20, 2026  -  9:55 PM ET",
+        "ticker": "BLPD"
+      },
+      {
         "file": "ticker_TESLA_2026-05-20_2137.pdf",
         "label": "May 20, 2026  -  9:37 PM ET",
         "ticker": "TESLA"
@@ -554,11 +559,6 @@
         "file": "ticker_HYLN_2026-05-15_1509.pdf",
         "label": "May 15, 2026  -  3:09 PM ET",
         "ticker": "HYLN"
-      },
-      {
-        "file": "ticker_ALAB_2026-05-15_1505.pdf",
-        "label": "May 15, 2026  -  3:05 PM ET",
-        "ticker": "ALAB"
       }
     ],
     "alt-data": [
