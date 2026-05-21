@@ -3,6 +3,42 @@
 One-time setup to power user accounts, watchlists, and trade journal.
 Takes ~5 minutes.
 
+## 0b. (Phase 5) GitHub Actions secrets for Web Push notifications
+
+The `Push Alerts` workflow needs 3 more secrets on top of the Daily Brief
+ones. Same place: **Settings → Secrets and variables → Actions** on GitHub.
+
+| Secret name             | Value                                            |
+|-------------------------|--------------------------------------------------|
+| `VAPID_PUBLIC_KEY`      | The public half of your VAPID key pair. The matching value also lives in the client (`docs/index.html`) — they must match. |
+| `VAPID_PRIVATE_KEY`     | The private half. Used to SIGN every push payload. Keep this only in Actions secrets — never in client code, never in chat. |
+| `VAPID_SUBJECT`         | A `mailto:` URL the push service can contact if our pushes misbehave. Use `mailto:brief@tickerdesk.io` or similar. |
+
+Generate a fresh pair (DO NOT use anything that's appeared in chat for
+production) with this one-liner — run in any terminal with Python +
+cryptography installed:
+
+```bash
+python -c "
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization
+import base64
+priv = ec.generate_private_key(ec.SECP256R1())
+pub = priv.public_key().public_bytes(
+    encoding=serialization.Encoding.X962,
+    format=serialization.PublicFormat.UncompressedPoint)
+print('VAPID_PUBLIC_KEY  =', base64.urlsafe_b64encode(pub).decode().rstrip('='))
+priv_int = priv.private_numbers().private_value
+print('VAPID_PRIVATE_KEY =', base64.urlsafe_b64encode(
+    priv_int.to_bytes(32, 'big')).decode().rstrip('='))
+"
+```
+
+After adding the 3 secrets, ALSO update the `VAPID_PUBLIC_KEY` constant
+in `docs/index.html` (search for `VAPID_PUBLIC_KEY =`) to the new value.
+The browser-side public key MUST match the server-side public key, or
+push subscription registration fails silently.
+
 ## 0. (Phase 4) GitHub Actions secrets for the Daily Brief job
 
 The `Daily Brief` workflow (`.github/workflows/daily_brief.yml`) runs at
@@ -31,6 +67,68 @@ for a no-send preview. Remove both for the real send.
    - Database password: any strong password (you won't need it day-to-day)
    - Region: pick the one closest to most users (US East for now)
 4. Wait ~90 seconds for provisioning
+
+## 2d. (Phase 5) Run this in SQL Editor for Web Push subscriptions
+
+```sql
+-- One row per browser/device the user has subscribed for push from.
+-- A user can subscribe from multiple devices — same user_id, multiple
+-- rows. Endpoint is unique per (browser, device) and is the URL the
+-- push service hands us; we sign payloads with our VAPID private key
+-- and POST to it.
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,         -- public ECDH key from browser
+  auth text not null,           -- ephemeral auth secret from browser
+  user_agent text,
+  device_label text,            -- "Chrome on Mac" — for UI listing
+  alert_types jsonb default '{
+    "uoa_watchlist": true,
+    "grade_upgrade": true,
+    "earnings_imminent": true,
+    "new_report": true
+  }',
+  created_at timestamptz default now(),
+  last_used_at timestamptz,     -- bumped on every successful push
+  last_failed_at timestamptz,   -- and bumped on every failed push
+  fail_count int default 0,     -- if reaches 5, we stop trying & delete
+  unique (endpoint)
+);
+create index if not exists psub_user on public.push_subscriptions(user_id);
+alter table public.push_subscriptions enable row level security;
+-- Users can read + manage their own subscriptions (for the device list
+-- UI under Watchlist → Settings).
+create policy "psub_own_read"  on public.push_subscriptions
+  for select using (auth.uid() = user_id);
+create policy "psub_own_write" on public.push_subscriptions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Per-send log — used to debug + measure engagement (open/click).
+-- Schema mirrors email_log for consistency.
+create table if not exists public.push_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  subscription_id uuid references public.push_subscriptions(id) on delete set null,
+  alert_type text not null,
+  status text not null check (status in ('sent','failed','expired')),
+  title text,
+  body text,
+  payload jsonb,
+  error text,
+  sent_at timestamptz default now()
+);
+create index if not exists pl_user_sent on public.push_log(user_id, sent_at desc);
+alter table public.push_log enable row level security;
+create policy "pl_own_read" on public.push_log
+  for select using (auth.uid() = user_id);
+```
+
+Run that. Adds 2 tables. The Python push_alerts.py script (run by the
+push_alerts.yml workflow) reads `push_subscriptions` via the service
+key, sends WebPushes signed with our VAPID private key, and logs each
+attempt to `push_log`.
 
 ## 2c. (Phase 4) Run this in SQL Editor for Daily Brief opt-in + email log
 

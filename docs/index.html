@@ -638,13 +638,19 @@
   .freshness { font-size:10.5px; color:var(--muted); margin-top:-4px;
     margin-bottom:14px; display:flex; align-items:center; gap:8px;
     line-height:1.4; font-variant-numeric:tabular-nums; }
-  .freshness .fr-dot { width:6px; height:6px; border-radius:50%;
-    background:var(--muted); flex-shrink:0; }
-  .freshness.fresh .fr-dot { background:var(--green); }
+  .freshness .fr-dot { width:7px; height:7px; border-radius:50%;
+    background:var(--muted); flex-shrink:0;
+    box-shadow:0 0 0 0 currentColor; }
+  .freshness.fresh  .fr-dot { background:var(--green);
+    animation:mp-pulse 2s infinite ease-out; }
+  .freshness.fresh          { color:var(--green); }
   .freshness.recent .fr-dot { background:#ffc800; }
-  .freshness.stale .fr-dot { background:#ff5b78; }
+  .freshness.recent         { color:#ffc800; }
+  .freshness.stale  .fr-dot { background:#ff5b78; }
+  .freshness.stale          { color:#ff5b78; }
   .freshness .fr-sep { color:var(--border2); }
   .freshness .fr-char { color:var(--textdim); font-weight:500; }
+  .freshness .fr-stamp { color:var(--text); font-weight:600; }
   .theme-toggle, .density-toggle { display:flex;
     border:1px solid var(--border2); border-radius:6px; overflow:hidden; }
   .theme-toggle button, .density-toggle button { background:var(--navy2);
@@ -2381,6 +2387,29 @@
         <table class="wlt-portfolio" id="wlt-portfolio"></table>
       </div>
 
+      <!-- Web Push real-time alerts (signed-in only — needs Notification permission) -->
+      <div class="wlt-brief-card" id="wlt-push-card" style="border-color:var(--gold);">
+        <div class="wlt-brief-left">
+          <div class="wlt-brief-title">
+            🔔 Real-time alerts <span class="badge" style="background:#a87cff">NEW</span>
+          </div>
+          <div class="wlt-brief-sub">
+            Browser push notifications the moment a watchlist name gets
+            unusual options flow, a swing-grade upgrade, or earnings within
+            a day. Works on desktop + Android. Free.
+          </div>
+          <div class="wlt-brief-status off" id="wlt-push-status">
+            Off — turn on to start receiving real-time alerts.
+          </div>
+        </div>
+        <label class="wlt-brief-toggle" id="wlt-push-toggle"
+               title="Enable / disable real-time browser notifications">
+          <input type="checkbox" id="wlt-push-input" />
+          <span class="sw"></span>
+          <span class="lbl" id="wlt-push-lbl">Off</span>
+        </label>
+      </div>
+
       <!-- Daily Brief opt-in (signed-in only — flips profiles.daily_brief_enabled) -->
       <div class="wlt-brief-card" id="wlt-brief-card">
         <div class="wlt-brief-left">
@@ -3337,6 +3366,222 @@
   onUserChange(function () { loadDailyBriefState(); });
   // First call (in case auth state already settled by the time we register)
   loadDailyBriefState();
+
+  // ── Web Push real-time alerts ──────────────────────────────────────
+  // Three states the toggle reflects:
+  //  off              user hasn't subscribed (default for new visit)
+  //  permission_denied  browser blocked notifications system-wide
+  //  on              SW registered + subscription saved in Supabase
+  //
+  // We use a single VAPID public key for the app; the matching private
+  // key lives only in GitHub Actions secrets and signs payloads from
+  // push_alerts.py. The browser uses applicationServerKey to verify
+  // each push's origin.
+  const VAPID_PUBLIC_KEY = "BN7aVSjiKKU4wcZz7pnY5APwj8hWAkJ8aF6fwShkZ56OrjgJvxWSRe6LOmDGntxzHeH96KgJin4XbOhP3XlCNvc";
+  let PUSH_SUBSCRIPTION = null;     // current PushSubscription object
+  let PUSH_ENABLED = false;         // true if subscription is in Supabase
+
+  function urlBase64ToUint8Array(base64String) {
+    // Browser's pushManager.subscribe expects a Uint8Array, not a string.
+    // VAPID keys are URL-safe base64; pad to multiple of 4 first.
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(base64);
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  async function loadPushState() {
+    const card = document.getElementById("wlt-push-card");
+    if (!card) return;
+    // Hide card when signed out — push is only useful for signed-in users
+    if (!SUPA || !CURRENT_USER) {
+      card.classList.remove("show");
+      return;
+    }
+    card.classList.add("show");
+    // Hide card if the browser doesn't support push at all (Safari < 16,
+    // some embedded browsers)
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      card.classList.add("show");
+      renderPushToggle("unsupported");
+      return;
+    }
+    // Permission-denied state is system-level — we can't undo it from JS
+    if (Notification.permission === "denied") {
+      renderPushToggle("denied");
+      return;
+    }
+    // Register SW (idempotent) and see if there's an existing subscription
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      const sub = await reg.pushManager.getSubscription();
+      PUSH_SUBSCRIPTION = sub;
+      if (sub) {
+        // Check that this endpoint is in Supabase
+        const { data } = await SUPA.from("push_subscriptions")
+          .select("id").eq("user_id", CURRENT_USER.id)
+          .eq("endpoint", sub.endpoint).limit(1);
+        PUSH_ENABLED = !!(data && data.length);
+      } else {
+        PUSH_ENABLED = false;
+      }
+    } catch (e) {
+      console.warn("Push state load failed:", e);
+      PUSH_ENABLED = false;
+    }
+    renderPushToggle(PUSH_ENABLED ? "on" : "off");
+  }
+
+  function renderPushToggle(state) {
+    const inp = document.getElementById("wlt-push-input");
+    const lbl = document.getElementById("wlt-push-lbl");
+    const status = document.getElementById("wlt-push-status");
+    if (!inp || !lbl || !status) return;
+    if (state === "on") {
+      inp.checked = true;
+      lbl.textContent = "On";
+      status.className = "wlt-brief-status on";
+      status.textContent = "On — you'll get a browser notification when " +
+        "watchlist names get unusual flow, grade upgrades, or earnings " +
+        "alerts. Updates ~6× per market day.";
+    } else if (state === "off") {
+      inp.checked = false;
+      lbl.textContent = "Off";
+      status.className = "wlt-brief-status off";
+      status.textContent = "Off — turn on to start receiving real-time alerts.";
+    } else if (state === "denied") {
+      inp.checked = false;
+      inp.disabled = true;
+      lbl.textContent = "Blocked";
+      status.className = "wlt-brief-status off";
+      status.textContent = "Notifications blocked by your browser. To enable: " +
+        "click the lock icon in the URL bar → Notifications → Allow, then " +
+        "refresh and toggle on again.";
+    } else if (state === "unsupported") {
+      inp.disabled = true;
+      lbl.textContent = "—";
+      status.className = "wlt-brief-status off";
+      status.textContent = "Your browser doesn't support push notifications " +
+        "(Safari < 16, or certain embedded views). Use the Daily Brief email " +
+        "below to get alerts instead.";
+    }
+  }
+
+  async function subscribePush() {
+    const toggle = document.getElementById("wlt-push-toggle");
+    if (toggle) toggle.classList.add("is-saving");
+    try {
+      // Ask for permission (browser shows the prompt if not yet decided)
+      if (Notification.permission === "default") {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") {
+          renderPushToggle(perm === "denied" ? "denied" : "off");
+          return;
+        }
+      } else if (Notification.permission !== "granted") {
+        renderPushToggle("denied");
+        return;
+      }
+      // Register SW and subscribe
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      // Wait for SW to be active so we can call pushManager on it
+      const readyReg = await navigator.serviceWorker.ready;
+      let sub = await readyReg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await readyReg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
+      PUSH_SUBSCRIPTION = sub;
+      // Save to Supabase — extract p256dh + auth from the subscription
+      const raw = sub.toJSON();
+      const ua = navigator.userAgent || "";
+      // Derive a friendly device label from UA so the user can recognize
+      // their devices in a settings list later
+      const deviceLabel = (function (u) {
+        if (/iPhone|iPad/i.test(u)) return "iPhone/iPad";
+        if (/Android/i.test(u))     return "Android";
+        if (/Mac OS X/i.test(u))    return /Chrome/i.test(u) ? "Chrome on Mac"
+                                       : /Safari/i.test(u) ? "Safari on Mac"
+                                       : "Mac browser";
+        if (/Windows/i.test(u))     return /Chrome/i.test(u) ? "Chrome on Windows"
+                                       : /Edg\//i.test(u)    ? "Edge on Windows"
+                                       : "Windows browser";
+        return "Browser";
+      })(ua);
+      const { error } = await SUPA.from("push_subscriptions").upsert({
+        user_id: CURRENT_USER.id,
+        endpoint: sub.endpoint,
+        p256dh: raw.keys && raw.keys.p256dh,
+        auth: raw.keys && raw.keys.auth,
+        user_agent: ua.slice(0, 200),
+        device_label: deviceLabel,
+        last_used_at: null,
+        fail_count: 0,
+      }, { onConflict: "endpoint" });
+      if (error) throw error;
+      PUSH_ENABLED = true;
+      renderPushToggle("on");
+      // Show a confirmation notification so the user sees it work
+      try {
+        readyReg.showNotification("TickerDesk alerts enabled", {
+          body: "You'll get a notification here next time a watchlist name " +
+                "has unusual flow or a grade change.",
+          icon: "/icon-192.png",
+          tag: "tickerdesk-welcome",
+        });
+      } catch (e) {}
+    } catch (e) {
+      console.error("Push subscribe failed:", e);
+      alert("Couldn't enable alerts: " + (e.message || e));
+      renderPushToggle("off");
+    } finally {
+      if (toggle) toggle.classList.remove("is-saving");
+    }
+  }
+
+  async function unsubscribePush() {
+    const toggle = document.getElementById("wlt-push-toggle");
+    if (toggle) toggle.classList.add("is-saving");
+    try {
+      if (PUSH_SUBSCRIPTION) {
+        // Remove from Supabase first (so server won't try to send to it)
+        await SUPA.from("push_subscriptions")
+          .delete()
+          .eq("user_id", CURRENT_USER.id)
+          .eq("endpoint", PUSH_SUBSCRIPTION.endpoint);
+        // Then unsubscribe in the browser
+        await PUSH_SUBSCRIPTION.unsubscribe();
+        PUSH_SUBSCRIPTION = null;
+      }
+      PUSH_ENABLED = false;
+      renderPushToggle("off");
+    } catch (e) {
+      console.error("Push unsubscribe failed:", e);
+      alert("Couldn't disable: " + (e.message || e));
+    } finally {
+      if (toggle) toggle.classList.remove("is-saving");
+    }
+  }
+
+  function wirePushToggle() {
+    const input = document.getElementById("wlt-push-input");
+    if (!input || input.dataset.wired) return;
+    input.dataset.wired = "1";
+    input.addEventListener("change", function () {
+      if (input.checked) subscribePush(); else unsubscribePush();
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wirePushToggle);
+  } else {
+    wirePushToggle();
+  }
+  onUserChange(function () { loadPushState(); });
+  loadPushState();
 
   // Kick off init after DOM ready
   if (document.readyState === "loading") {
@@ -4852,6 +5097,19 @@
       if (hrs < 4)   return "recent";
       return "stale";
     }
+    // Format an ISO timestamp as "May 21, 4:51 PM ET" — always in ET
+    // regardless of viewer's machine timezone, so collaborators across
+    // time zones see the same wall-clock for "when did this scan run".
+    const FMT_ET_STAMP = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      month: "short", day: "numeric",
+      hour: "numeric", minute: "2-digit", hour12: true,
+    });
+    function etStamp(isoStr) {
+      const t = Date.parse(isoStr);
+      if (isNaN(t)) return "?";
+      return FMT_ET_STAMP.format(new Date(t)) + " ET";
+    }
     window.tdSetFreshness = function (panelId, isoStr, character) {
       const panel = document.getElementById(panelId);
       if (!panel) return;
@@ -4879,11 +5137,20 @@
                         : character === "live"
                           ? "live"
                           : "batch";
+      // Order: dot · ET timestamp · "X ago" · character. The blinking
+      // colored dot gives traffic-light RAG status (green/amber/red);
+      // the ET stamp gives the concrete "when" so you can match scans
+      // against market events; "X ago" is the human-friendly relative.
       fr.innerHTML =
         '<span class="fr-dot"></span>' +
-        '<span>Updated ' + timeAgo(isoStr) + '</span>' +
+        '<span class="fr-stamp">' + etStamp(isoStr) + '</span>' +
+        '<span class="fr-sep">·</span>' +
+        '<span>' + timeAgo(isoStr) + '</span>' +
         '<span class="fr-sep">·</span>' +
         '<span class="fr-char">' + charLabel + '</span>';
+      // Stash config for the 30-sec auto-refresher (recomputes "X ago"
+      // string + recolors the dot if the data crosses a staleness threshold)
+      panel._frConfig = { iso: isoStr, character: character };
     };
     // Refresh "X ago" strings every 30 sec so they don't go stale visually
     setInterval(function () {
@@ -4892,8 +5159,9 @@
         if (!panel || !panel._frConfig) return;
         const cfg = panel._frConfig;
         fr.className = "freshness " + staleClass(cfg.iso, cfg.character);
-        fr.querySelector("span:nth-child(2)").textContent =
-          "Updated " + timeAgo(cfg.iso);
+        // ET stamp is immutable, "X ago" is the 4th span (after dot, stamp, sep)
+        const agoSpan = fr.querySelector(":scope > span:nth-of-type(4)");
+        if (agoSpan) agoSpan.textContent = timeAgo(cfg.iso);
       });
     }, 30000);
     // Wrap setter so we also store config for the periodic refresh
