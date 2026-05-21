@@ -3196,38 +3196,57 @@
         + "trading day.";
     }
   }
-  async function toggleDailyBrief() {
+  async function setDailyBrief(next) {
     if (!SUPA || !CURRENT_USER) {
       if (window.tdRequireAuth) window.tdRequireAuth("generic");
       return;
     }
-    const next = !DAILY_BRIEF_ENABLED;
     const toggle = document.getElementById("wlt-brief-toggle");
     if (toggle) toggle.classList.add("is-saving");
     try {
-      const { error } = await SUPA
+      // .select() forces Supabase to return the updated row, so we can
+      // tell the difference between "RLS allowed but no row matched" and
+      // a real successful write. Without .select() update is fire-and-
+      // forget and we can't detect a 0-rows update.
+      const { data, error } = await SUPA
         .from("profiles")
         .update({ daily_brief_enabled: next })
-        .eq("id", CURRENT_USER.id);
+        .eq("id", CURRENT_USER.id)
+        .select();
       if (error) throw error;
+      if (!data || !data.length) {
+        // No profile row exists yet — create one. handle_new_user trigger
+        // should have done this on signup, but older accounts may have
+        // missed it.
+        const { error: e2 } = await SUPA.from("profiles").upsert({
+          id: CURRENT_USER.id,
+          daily_brief_enabled: next,
+        });
+        if (e2) throw e2;
+      }
       DAILY_BRIEF_ENABLED = next;
       renderDailyBriefToggle();
     } catch (e) {
       console.error("Daily brief toggle failed:", e);
-      // Revert the visual to actual state
+      // Revert UI to actual stored state
       renderDailyBriefToggle();
-      alert("Couldn't save preference. Please try again.");
+      alert("Couldn't save preference: " + (e.message || e) +
+            "\nCheck console for details.");
     } finally {
       if (toggle) toggle.classList.remove("is-saving");
     }
   }
   function wireDailyBriefToggle() {
-    const toggle = document.getElementById("wlt-brief-toggle");
-    if (!toggle || toggle.dataset.wired) return;
-    toggle.dataset.wired = "1";
-    toggle.addEventListener("click", function (e) {
-      e.preventDefault();
-      toggleDailyBrief();
+    const input = document.getElementById("wlt-brief-input");
+    if (!input || input.dataset.wired) return;
+    input.dataset.wired = "1";
+    // Listen on the checkbox's "change" event, not the label's "click".
+    // When the user clicks the <label>, the browser auto-fires click on
+    // the contained <input>, which then bubbles back up — listening to
+    // the label causes a double-fire (toggle on, then immediately off).
+    // The change event fires exactly once per state transition.
+    input.addEventListener("change", function () {
+      setDailyBrief(input.checked);
     });
   }
   // Wire once on DOM ready; load state on every auth change
