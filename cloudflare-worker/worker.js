@@ -329,13 +329,21 @@ async function summarizeFiling(env, ticker, form, items, primaryUrl) {
  *  so users see flow as of ~now, not as of the last 75-min batch.
  *  Edge cached 30s to limit Polygon hits while a user clicks around.
  */
-async function fetchLiveUOA(env, ticker) {
+async function fetchLiveUOA(env, ticker, debug) {
   if (!env.POLYGON_API_KEY) {
     return { error: "POLYGON_API_KEY not configured", contracts: [] };
   }
+  // Polygon's options snapshot defaults to ATM-only, 10-day expiry. To
+  // catch real UOA we need a wider window + the "unusual" filter Polygon
+  // exposes natively. Sort by descending day volume to get the active
+  // names first. The "expiration_date.gte" lower-bound = today UTC.
+  const today = new Date().toISOString().slice(0, 10);
   const url = "https://api.polygon.io/v3/snapshot/options/" +
               encodeURIComponent(ticker) +
-              "?limit=250&apiKey=" + env.POLYGON_API_KEY;
+              "?limit=250" +
+              "&order=desc&sort=day.volume" +
+              "&expiration_date.gte=" + today +
+              "&apiKey=" + env.POLYGON_API_KEY;
   let r;
   try {
     r = await fetch(url, {
@@ -346,38 +354,48 @@ async function fetchLiveUOA(env, ticker) {
     return { error: "Polygon snapshot timeout", contracts: [] };
   }
   if (!r.ok) {
-    return { error: "Polygon snapshot HTTP " + r.status, contracts: [] };
+    let body = "";
+    try { body = await r.text(); } catch (e) {}
+    return { error: "Polygon snapshot HTTP " + r.status,
+             body: body.slice(0, 500), contracts: [] };
   }
   const j = await r.json();
   const results = (j && j.results) || [];
-  // Walk all returned contracts and rank
+  // Walk all returned contracts and rank. Track WHY each one drops so
+  // we can return diagnostic counts when debug=1 (cuts down on guessing).
   const rows = [];
   let underlyingPrice = null;
+  let stats = { total: results.length, no_details: 0, low_vol: 0,
+                low_voi: 0, low_prem: 0, kept: 0 };
   for (const c of results) {
     const d   = c.details || {};
     const day = c.day     || {};
     const lq  = c.last_quote || {};
     const greeks = c.greeks || {};
-    if (!d.contract_type || !d.strike_price || !d.expiration_date) continue;
-    const vol = day.volume || 0;
-    const oi  = c.open_interest || 0;
-    if (vol < 100) continue;
-    const voi = oi > 0 ? vol / oi : (vol > 0 ? 999 : 0);
-    if (voi < 1.5) continue;            // classic UOA threshold
-    const mid = (lq.ask && lq.bid) ? (lq.ask + lq.bid) / 2 : (lq.last || 0);
-    const premium = mid * vol * 100;    // contracts × 100 shares × $/share
-    if (premium < 25000) continue;       // skip dust
+    if (!d.contract_type || !d.strike_price || !d.expiration_date) {
+      stats.no_details++; continue;
+    }
     if (underlyingPrice == null && c.underlying_asset &&
         typeof c.underlying_asset.price === "number") {
       underlyingPrice = c.underlying_asset.price;
     }
+    const vol = day.volume || 0;
+    const oi  = c.open_interest || 0;
+    if (vol < 100) { stats.low_vol++; continue; }
+    const voi = oi > 0 ? vol / oi : (vol > 0 ? 999 : 0);
+    if (voi < 1.5) { stats.low_voi++; continue; }
+    const mid = (lq.ask && lq.bid) ? (lq.ask + lq.bid) / 2 :
+                (lq.last || day.close || 0);
+    const premium = mid * vol * 100;
+    if (premium < 25000) { stats.low_prem++; continue; }
+    stats.kept++;
     const dte = (() => {
       const exp = new Date(d.expiration_date + "T16:00:00-04:00");
       return Math.max(0, Math.round((exp - Date.now()) / 86400000));
     })();
     rows.push({
       contract:    d.ticker || (d.contract_type + d.strike_price),
-      type:        d.contract_type,      // "call" / "put"
+      type:        d.contract_type,
       strike:      d.strike_price,
       expiry:      d.expiration_date,
       dte:         dte,
@@ -393,13 +411,27 @@ async function fetchLiveUOA(env, ticker) {
     });
   }
   rows.sort(function (a, b) { return b.premium - a.premium; });
-  return {
+  const out = {
     ticker:           ticker,
     underlying_price: underlyingPrice,
     contracts:        rows.slice(0, 25),
     total_flagged:    rows.length,
     fetched:          new Date().toISOString(),
   };
+  if (debug) {
+    out._stats = stats;
+    out._polygon_status = j && j.status;
+    out._polygon_msg = (j && j.message) || (j && j.error) || null;
+    // Sample one raw row so we can see the actual shape
+    if (results.length) {
+      const s = results[0];
+      out._sample = {
+        details: s.details, day: s.day, oi: s.open_interest,
+        underlying: s.underlying_asset, has_last_quote: !!s.last_quote,
+      };
+    }
+  }
+  return out;
 }
 
 /** Strip a Polygon news article down to just the fields the dashboard
@@ -649,11 +681,18 @@ export default {
             { error: `Invalid ticker: "${tk}"`, contracts: [] },
             { status: 400, headers: cors });
         }
-        const data = await fetchLiveUOA(env, tk);
+        const debug = url.searchParams.get("debug") === "1";
+        const data = await fetchLiveUOA(env, tk, debug);
         const resp = Response.json(data, {
-          headers: { ...cors, "Cache-Control": "public, max-age=30" },
+          headers: {
+            ...cors,
+            // Skip caching when debug=1 so we get a fresh diagnostic
+            "Cache-Control": debug
+              ? "no-store"
+              : "public, max-age=30",
+          },
         });
-        ctx.waitUntil(cache.put(request, resp.clone()));
+        if (!debug) ctx.waitUntil(cache.put(request, resp.clone()));
         return resp;
       }
       // News headlines — ?news=general for firehose or ?news=AAPL for a
