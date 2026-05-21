@@ -102,6 +102,43 @@
 
   /* Watchlist & Trade Log tab — portfolio + benchmark + journal */
   #panel-watchlist { max-width:1280px; }
+  /* Watchlist cross-reference summary cards — A-tier count, flow counts,
+     best/worst contributor, earnings in 7d. Above the bench card. */
+  .wlt-summary { margin-bottom:14px; }
+  .wlt-summary .wls-grid { display:grid; gap:8px;
+    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); }
+  .wls-card { background:var(--card); border:1px solid var(--line);
+    border-radius:6px; padding:10px 12px;
+    border-left:3px solid var(--muted); }
+  .wls-card.wls-pos { border-left-color:var(--green); }
+  .wls-card.wls-neg { border-left-color:var(--red); }
+  .wls-card.wls-best { border-left-color:var(--green);
+    background:linear-gradient(135deg, var(--card),
+      rgba(31,195,110,.04)); }
+  .wls-card.wls-worst { border-left-color:var(--red);
+    background:linear-gradient(135deg, var(--card),
+      rgba(255,91,91,.04)); }
+  .wls-card.wls-earn { border-left-color:#ff8c1a; }
+  .wls-card .wls-label { font-size:9.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; font-weight:700;
+    margin-bottom:4px; }
+  .wls-card .wls-val { font-size:18px; font-weight:800; color:var(--text);
+    line-height:1.1; font-variant-numeric:tabular-nums; }
+  .wls-card .wls-val.up { color:var(--green); }
+  .wls-card .wls-val.down { color:var(--red); }
+  .wls-card .wls-val.neutral { color:var(--textdim); }
+  .wls-card .wls-val[data-t] { cursor:pointer; }
+  .wls-card .wls-val[data-t]:hover { text-decoration:underline; }
+  .wls-card .wls-sub { font-size:10.5px; color:var(--textdim);
+    margin-top:4px; line-height:1.4; }
+  .wls-card .wls-ern-tk { display:inline-block;
+    background:var(--navy2); border:1px solid var(--border2);
+    color:var(--text); padding:1px 5px; border-radius:3px;
+    font-size:10px; font-weight:700; margin-right:3px;
+    cursor:pointer; }
+  .wls-card .wls-ern-tk:hover { border-color:var(--gold);
+    color:var(--gold); }
+
   .wlt-bench { display:grid;
     grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
     gap:10px; margin-bottom:14px; padding:14px;
@@ -747,6 +784,47 @@
 
   /* ── Swing Report Card ── */
   #panel-swing { max-width:1400px; }       /* wide enough for all 20 grade columns */
+
+  /* Swing "New today" insights strip — diffs latest run vs prior */
+  .snt-strip { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:10px 12px; margin-bottom:14px; }
+  .snt-strip-h { font-size:10.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; font-weight:700;
+    margin-bottom:8px; }
+  .snt-grid { display:grid; gap:8px;
+    grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); }
+  .snt-seg { background:var(--navy2); border:1px solid var(--line);
+    border-radius:6px; padding:7px 9px;
+    border-left:3px solid var(--muted); }
+  .snt-seg.snt-pos { border-left-color:var(--green); }
+  .snt-seg.snt-neg { border-left-color:var(--red); }
+  .snt-seg.snt-wl { border-left-color:var(--gold);
+    background:linear-gradient(135deg, var(--navy2),
+      rgba(255,158,27,.05)); }
+  .snt-seg-h { font-size:9.5px; color:var(--textdim);
+    text-transform:uppercase; letter-spacing:.4px; font-weight:700;
+    margin-bottom:5px; }
+  .snt-seg-h .snt-count { color:var(--muted); font-weight:500; }
+  .snt-body { display:flex; flex-wrap:wrap; gap:4px; }
+  .snt-empty { font-size:10.5px; color:var(--muted); font-style:italic; }
+  .snt-more { font-size:10px; color:var(--muted);
+    padding:2px 4px; align-self:center; }
+  .snt-chip { display:inline-flex; align-items:center; gap:3px;
+    background:var(--bg); border:1px solid var(--line);
+    border-radius:3px; padding:2px 5px; font-size:10.5px;
+    cursor:pointer; transition:border-color .12s; }
+  .snt-chip:hover { border-color:var(--gold); }
+  .snt-chip .snt-prev { font-size:9px; color:var(--muted);
+    font-weight:500; }
+  .snt-chip .snt-tk { font-weight:700; color:var(--text); }
+  .snt-chip .snt-grade { font-size:9px; font-weight:700; padding:1px 4px;
+    border-radius:2px; }
+  .snt-chip .snt-grade.snt-a { background:rgba(31,195,110,.18);
+    color:var(--green); }
+  .snt-chip .snt-grade.snt-g { background:rgba(255,91,91,.15);
+    color:var(--red); }
+  .snt-chip .snt-grade.snt-mid { background:rgba(255,158,27,.12);
+    color:var(--gold); }
   .src-bar { display:flex; height:24px; border-radius:6px; overflow:hidden;
     margin-bottom:12px; }
   .src-bar > div { display:flex; align-items:center; justify-content:center;
@@ -1260,6 +1338,53 @@
 
   /* SPY anchor strip — visually isolated above the grid so users
      can instantly read which countries sit above/below the US line */
+  /* Global tab read-through: risk-on/off + top/worst countries → US */
+  .gm-readthrough { margin:8px 0 16px; }
+  .gmr-strip { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:11px 13px; }
+  .gmr-meta { display:flex; align-items:baseline; gap:12px;
+    margin-bottom:10px; flex-wrap:wrap; }
+  .gmr-risk { font-size:13px; font-weight:800; letter-spacing:.4px;
+    padding:3px 9px; border-radius:4px;
+    background:var(--navy2); color:var(--textdim); }
+  .gmr-risk.gmr-risk-up { background:rgba(31,195,110,.16);
+    color:var(--green); }
+  .gmr-risk.gmr-risk-down { background:rgba(255,91,91,.13);
+    color:var(--red); }
+  .gmr-risk.gmr-risk-neutral { background:rgba(255,200,0,.10);
+    color:var(--gold); }
+  .gmr-sub { font-size:10.5px; color:var(--muted);
+    font-variant-numeric:tabular-nums; }
+  .gmr-cols { display:grid; gap:14px; grid-template-columns:1fr 1fr; }
+  @media (max-width:760px) {
+    .gmr-cols { grid-template-columns:1fr; }
+  }
+  .gmr-col-h { font-size:9.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; font-weight:700;
+    margin-bottom:6px; padding-bottom:4px;
+    border-bottom:1px solid var(--line); }
+  .gmr-conn { background:var(--navy2); border:1px solid var(--line);
+    border-radius:5px; padding:7px 9px; margin-bottom:5px;
+    border-left:3px solid var(--muted);
+    display:flex; flex-direction:column; gap:3px; }
+  .gmr-conn.up { border-left-color:var(--green); }
+  .gmr-conn.down { border-left-color:var(--red); }
+  .gmr-conn-h { font-size:11px; font-weight:700; color:var(--text);
+    display:flex; align-items:baseline; gap:6px; }
+  .gmr-conn-h small { color:var(--muted); font-size:10px;
+    font-weight:500; font-variant-numeric:tabular-nums; }
+  .gmr-arrow { font-size:13px; }
+  .gmr-conn.up .gmr-arrow { color:var(--green); }
+  .gmr-conn.down .gmr-arrow { color:var(--red); }
+  .gmr-conn-theme { font-size:10.5px; color:var(--textdim); }
+  .gmr-us-row { display:flex; gap:4px; flex-wrap:wrap; margin-top:2px; }
+  .gmr-us-tk { font-size:9.5px; font-weight:700;
+    background:var(--bg); border:1px solid var(--border2);
+    color:var(--text); padding:2px 5px; border-radius:3px;
+    cursor:pointer; transition:border-color .12s, color .12s; }
+  .gmr-us-tk:hover { border-color:var(--gold); color:var(--gold); }
+  .gmr-us-tk.gmr-empty { color:var(--muted); cursor:default; }
+
   .gm-anchor { background:linear-gradient(90deg, rgba(255,200,0,0.08),
     transparent); border:1px solid var(--gold); border-radius:8px;
     padding:13px 18px; margin-bottom:14px; display:flex;
@@ -1420,6 +1545,37 @@
      Most Anticipated Earnings tab — weekly grid by day × session
      ──────────────────────────────────────────────────────────────── */
   #panel-whisper { max-width:1280px; }
+
+  /* Earnings tab summary cards — actionable above the EW image */
+  .ws-grid { display:grid; gap:10px; margin-bottom:18px;
+    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }
+  .ws-card { background:var(--card); border:1px solid var(--line);
+    border-radius:6px; padding:10px 12px;
+    border-left:3px solid var(--muted); }
+  .ws-card.ws-bmo { border-left-color:#5fa3ff; }
+  .ws-card.ws-amc { border-left-color:#ff8c1a; }
+  .ws-card.ws-watch { border-left-color:var(--gold);
+    background:linear-gradient(135deg, var(--card),
+      rgba(255,158,27,.05)); }
+  .ws-card.ws-anticipation { border-left-color:#a87cff; }
+  .ws-card .ws-label { font-size:9.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; font-weight:700;
+    margin-bottom:4px; }
+  .ws-card .ws-val { font-size:22px; font-weight:800; color:var(--text);
+    line-height:1.05; font-variant-numeric:tabular-nums; margin-bottom:6px; }
+  .ws-card .ws-chips { display:flex; flex-wrap:wrap; gap:4px; }
+  .ws-chip { display:inline-flex; align-items:center; gap:3px;
+    background:var(--navy2); border:1px solid var(--border2);
+    border-radius:3px; padding:2px 7px; font-size:10.5px;
+    font-weight:700; color:var(--text); cursor:pointer;
+    transition:border-color .12s, color .12s; }
+  .ws-chip:hover { border-color:var(--gold); color:var(--gold); }
+  .ws-chip.ws-hi { background:rgba(168,124,255,.12);
+    border-color:#a87cff; color:#a87cff; }
+  .ws-chip small { font-size:9px; opacity:.7; font-weight:500; }
+  .ws-empty { font-size:11px; color:var(--muted); font-style:italic; }
+  .ws-more { font-size:10px; color:var(--muted); padding:2px 4px;
+    align-self:center; }
   /* Auto-discovered @eWhispers tweet image at the top */
   .ew-tweet-wrap { background:var(--card); border:1px solid var(--line);
     border-radius:8px; padding:14px 16px; margin-bottom:14px;
@@ -2513,6 +2669,10 @@
       </p>
 
       <!-- Portfolio benchmark hero -->
+      <!-- Cross-referenced summary cards — A-tier count, bullish/bearish
+           flow count, best/worst contributor, earnings in 7d. Updates
+           every time the watchlist or signal data changes. -->
+      <div class="wlt-summary" id="wlt-summary"></div>
       <div class="wlt-bench" id="wlt-bench"></div>
 
       <!-- Sign-out landing state — only shown when SUPA_URL set + signed out -->
@@ -2756,6 +2916,10 @@
         graded A+ &rarr; G on Relative Strength <em>and</em> price-structure
         Trend Strength. A+ = highest RS and strongest trend. Universe:
         above-average ATR, $50M+ daily dollar volume. 4:30 PM ET weekdays.</p>
+      <!-- "New today" insights strip — diffs latest run vs prior session
+           to surface what just changed: new A+, upgrades, demotions,
+           and any watchlist grade movement. -->
+      <div id="swing-new-today"></div>
       <div id="swing-top"></div>
       <div class="mom-bar">
         <select id="swing-date"></select>
@@ -2803,10 +2967,20 @@
         target="_blank" rel="noopener">earningswhispers.com</a>'s API with
         clickable tickers into the drilldown panel.
         <span id="whisper-meta"></span></p>
-      <div id="whisper-tweet"></div>
+      <!-- Today/Tomorrow summary cards — actionable above the EW image.
+           These four cards summarize what's reporting in the next 24h
+           so traders see what matters TODAY without scrolling through
+           the full week grid. -->
+      <div id="whisper-summary"></div>
+      <!-- The actionable scrape table goes ABOVE the EW chart image now.
+           EW's image is secondary (still discoverable below) but no
+           longer the first thing the user sees on this tab. -->
       <div id="whisper-body">
         <div class="uoa-empty">Loading...</div>
       </div>
+      <!-- @eWhispers weekly chart image — moved below the actionable
+           summary + scrape grid, but still preserved for reference. -->
+      <div id="whisper-tweet"></div>
     </section>
 
     <!-- ── Global Markets · country / region ETF map ── -->
@@ -2819,6 +2993,11 @@
         from Polygon, sector + AUM hand-maintained from iShares
         factsheets. <span id="global-meta"></span></p>
       <div class="gm-anchor" id="gm-anchor"></div>
+      <!-- Risk-on/off read + theme connections to US stocks. Renders
+           best/worst country plus interpretation tags ("semis tailwind",
+           "commodity-sensitive risk-on", etc) so users see what global
+           markets are SAYING about US sector winners. -->
+      <div class="gm-readthrough" id="gm-readthrough"></div>
       <div class="gm-controls">
         <div class="gm-pills" id="gm-pills">
           <button data-region="all" class="active">All</button>
@@ -4045,11 +4224,144 @@
         renderBench();
       } catch (e) { /* silent */ }
     }
+    // ── Cross-referenced summary cards ──────────────────────────────
+    // Pulls swing/uoa/earnings data via window.TD_DATA so the watchlist
+    // tab shows derived counts: bullish flow, A-tier names, upcoming
+    // earnings, best/worst contributor. Renders into #wlt-summary which
+    // sits above the bench card.
+    function renderWlSummary() {
+      const wl = Array.from(WATCHLIST);
+      const sumEl = document.getElementById("wlt-summary");
+      if (!sumEl) return;
+      if (!wl.length) { sumEl.innerHTML = ""; return; }
+      const D = window.TD_DATA || {};
+      // Latest swing grades
+      const grades = {};
+      if (D.swing && D.swing.runs && D.swing.runs.length) {
+        const run = D.swing.runs[D.swing.runs.length - 1];
+        Object.keys(run.grades || {}).forEach(function (g) {
+          (run.grades[g] || []).forEach(function (c) {
+            grades[c.t] = g;
+          });
+        });
+      }
+      // Top UOA flow per ticker
+      const flowByTk = {};
+      if (D.uoa && D.uoa.rows) {
+        D.uoa.rows.forEach(function (r) {
+          if (!r.ticker) return;
+          const cur = flowByTk[r.ticker];
+          if (!cur || (r.premium || 0) > (cur.premium || 0)) {
+            flowByTk[r.ticker] = r;
+          }
+        });
+      }
+      // Compute aggregates
+      let aTier = 0, bullFlow = 0, bearFlow = 0;
+      let bestContrib = null, worstContrib = null;
+      let totalW = 0;
+      wl.forEach(function (tk) {
+        const g = grades[tk];
+        if (g === "A+" || g === "A" || g === "A-") aTier++;
+        const f = flowByTk[tk];
+        if (f && f.direction === "bullish") bullFlow++;
+        if (f && f.direction === "bearish") bearFlow++;
+        const w = WATCHLIST_WEIGHTS[tk] != null ? WATCHLIST_WEIGHTS[tk] : 1;
+        totalW += w;
+        const cell = lookupCell(tk);
+        if (cell && typeof cell.chg === "number") {
+          const contrib = w * cell.chg;
+          if (bestContrib == null || contrib > bestContrib.contrib) {
+            bestContrib = { ticker: tk, contrib: contrib, chg: cell.chg, w: w };
+          }
+          if (worstContrib == null || contrib < worstContrib.contrib) {
+            worstContrib = { ticker: tk, contrib: contrib, chg: cell.chg, w: w };
+          }
+        }
+      });
+      // Earnings <=7 days — load from earnings_anticipated if available
+      let earnNext7 = [];
+      try {
+        // Check if loaded earlier (Today's Desk uses it via TD_DATA but
+        // not stored there); fetch directly if needed
+        if (D.earnings && D.earnings.days) {
+          const today = new Date();
+          const horizon = new Date(today);
+          horizon.setDate(horizon.getDate() + 7);
+          D.earnings.days.forEach(function (day) {
+            const d = new Date(day.date + "T12:00:00-04:00");
+            if (d < today || d > horizon) return;
+            ["bmo", "amc"].forEach(function (slot) {
+              (day[slot] || []).forEach(function (r) {
+                if (r.ticker && WATCHLIST.has(r.ticker)) {
+                  earnNext7.push({
+                    ticker: r.ticker, date: day.date,
+                    slot: slot.toUpperCase(),
+                  });
+                }
+              });
+            });
+          });
+        }
+      } catch (e) {}
+
+      function fmtVal(v) {
+        return v != null ? (v > 0 ? "+" : "") + v.toFixed(2) + "%" : "—";
+      }
+      function valCls(v) {
+        return v == null ? "neutral" : v > 0 ? "up" : v < 0 ? "down" : "neutral";
+      }
+      const cards = [];
+      cards.push('<div class="wls-card"><div class="wls-label">' +
+        'Watchlist size</div><div class="wls-val">' + wl.length +
+        '</div><div class="wls-sub">' + Math.round(totalW * 10) / 10 +
+        ' total weight units</div></div>');
+      cards.push('<div class="wls-card wls-pos"><div class="wls-label">' +
+        'A-tier names</div><div class="wls-val up">' + aTier +
+        '</div><div class="wls-sub">Strong RS + trend (top swing grade)' +
+        '</div></div>');
+      cards.push('<div class="wls-card wls-pos"><div class="wls-label">' +
+        'Bullish flow today</div><div class="wls-val up">' + bullFlow +
+        '</div><div class="wls-sub">Call-side UOA flagged</div></div>');
+      cards.push('<div class="wls-card wls-neg"><div class="wls-label">' +
+        'Bearish flow today</div><div class="wls-val down">' + bearFlow +
+        '</div><div class="wls-sub">Put-side UOA flagged</div></div>');
+      if (bestContrib) {
+        cards.push('<div class="wls-card wls-best"><div class="wls-label">' +
+          'Best contributor (1D)</div><div class="wls-val up" data-t="' +
+          bestContrib.ticker + '">' + bestContrib.ticker +
+          ' ' + fmtVal(bestContrib.chg) +
+          '</div><div class="wls-sub">contributing ' +
+          ((bestContrib.contrib > 0 ? "+" : "") +
+            bestContrib.contrib.toFixed(2)) + '% weighted</div></div>');
+      }
+      if (worstContrib && worstContrib.ticker !== (bestContrib && bestContrib.ticker)) {
+        cards.push('<div class="wls-card wls-worst"><div class="wls-label">' +
+          'Worst contributor (1D)</div><div class="wls-val down" data-t="' +
+          worstContrib.ticker + '">' + worstContrib.ticker +
+          ' ' + fmtVal(worstContrib.chg) +
+          '</div><div class="wls-sub">drag of ' +
+          worstContrib.contrib.toFixed(2) + '% weighted</div></div>');
+      }
+      cards.push('<div class="wls-card wls-earn"><div class="wls-label">' +
+        'Earnings in 7d</div><div class="wls-val">' + earnNext7.length +
+        '</div><div class="wls-sub">' +
+        (earnNext7.slice(0, 4).map(function (e) {
+          return '<span class="wls-ern-tk" data-t="' + e.ticker + '">' +
+                 e.ticker + '</span>';
+        }).join(" ") || "Quiet next 7 days") +
+        '</div></div>');
+      sumEl.innerHTML = '<div class="wls-grid">' + cards.join("") + '</div>';
+    }
+    // Hook renderWlSummary into the renderBench refresh path
+    const _origRenderBench = null;  // marker only — we wrap below
+
     function renderBench() {
       const wl = Array.from(WATCHLIST);
       if (!wl.length) {
         benchEl.innerHTML = '<div class="wb-stat" style="grid-column:1/-1">' +
           'Add tickers below to start benchmarking.</div>';
+        renderWlSummary();
         return;
       }
       // Weighted average using swing cell.chg
@@ -4091,6 +4403,7 @@
           '<b class="' + chgCls(LIVE_BENCH.IWM) + '">' +
             fmtPct(LIVE_BENCH.IWM) + '</b>' +
           '<span class="wb-sub">Small-cap reference</span></div>';
+      renderWlSummary();
     }
 
     // ── Portfolio table ──
@@ -7340,9 +7653,142 @@
         '</div>';
     }
 
+    // ── Read-through interpretation ─────────────────────────────────
+    // Maps best/worst-performing country ETFs to the US sectors they
+    // influence. Surfaces a one-line read-through ("EWT outperforming
+    // → semis tailwind") so users see how global markets inform their
+    // US watchlist positioning.
+    const COUNTRY_READTHROUGH = {
+      EWT:  { theme: "Semiconductors / AI hardware",
+              us: "NVDA AVGO MU AMAT LRCX" },
+      EWY:  { theme: "Korea exports + semis cyclical",
+              us: "NVDA AMD QCOM" },
+      EWJ:  { theme: "Japan exporters + autos",
+              us: "TM HMC" },
+      EWZ:  { theme: "Brazil = commodities / iron ore / oil",
+              us: "VALE PBR FCX RIO" },
+      EWW:  { theme: "Mexico = US nearshoring beneficiary",
+              us: "FMX KOF AMX" },
+      ASHR: { theme: "China A-share consumer + tech",
+              us: "BABA JD PDD NIO" },
+      MCHI: { theme: "China broad ADRs",
+              us: "BABA PDD JD BIDU NIO LI XPEV" },
+      INDA: { theme: "India growth (IT services, financials)",
+              us: "INFY WIT HDB" },
+      EWG:  { theme: "Germany industrials + autos",
+              us: "BASF SAP" },
+      EWU:  { theme: "UK energy + financials",
+              us: "BP SHEL HSBC" },
+      EWQ:  { theme: "France luxury + aerospace",
+              us: "LVMH defense suppliers" },
+      EWP:  { theme: "Spain financials + utilities",
+              us: "" },
+      EWI:  { theme: "Italy banks + industrials",
+              us: "" },
+      EWA:  { theme: "Australia mining / materials",
+              us: "BHP RIO FCX" },
+      EWC:  { theme: "Canada energy + financials",
+              us: "ENB SU TD" },
+      EWH:  { theme: "Hong Kong financials + property",
+              us: "BABA HSBC" },
+      EZA:  { theme: "South Africa precious metals",
+              us: "AEM NEM GOLD" },
+      EIDO: { theme: "Indonesia + commodities",
+              us: "" },
+      EWS:  { theme: "Singapore banks + REITs",
+              us: "" },
+    };
+    function renderReadthrough() {
+      const el = document.getElementById("gm-readthrough");
+      if (!el || !DATA) return;
+      const anchorYtd = DATA.anchor ? (DATA.anchor.ytd_pct || 0) : 0;
+      const etfs = (DATA.etfs || []).slice();
+      // Sort by vs_anchor (best outperformance first)
+      etfs.sort(function (a, b) {
+        return (b.vs_anchor || 0) - (a.vs_anchor || 0);
+      });
+      const top3 = etfs.slice(0, 3);
+      const bot3 = etfs.slice(-3).reverse();
+      // Risk-on/off heuristic: aggregate EM vs DM YTD diff
+      let emYtd = 0, emN = 0, dmYtd = 0, dmN = 0;
+      etfs.forEach(function (e) {
+        const r = (e.region || "").toLowerCase();
+        if (r === "em" || r === "emerging") {
+          emYtd += (e.ytd_pct || 0); emN++;
+        } else if (r === "developed" || r === "dm") {
+          dmYtd += (e.ytd_pct || 0); dmN++;
+        }
+      });
+      const emAvg = emN > 0 ? emYtd / emN : null;
+      const dmAvg = dmN > 0 ? dmYtd / dmN : null;
+      let riskRead = "Balanced";
+      let riskCls = "neutral";
+      if (emAvg != null && dmAvg != null) {
+        if (emAvg > dmAvg + 3) {
+          riskRead = "Risk-On";
+          riskCls = "up";
+        } else if (dmAvg > emAvg + 3) {
+          riskRead = "Risk-Off (DM-led)";
+          riskCls = "down";
+        }
+      }
+      // Connection chips: top 3 with read-through mapping
+      function connChip(e) {
+        const map = COUNTRY_READTHROUGH[e.ticker];
+        const cls = (e.vs_anchor || 0) > 0 ? "up" : "down";
+        const arrow = (e.vs_anchor || 0) > 0 ? "↗" : "↘";
+        if (!map) {
+          return '<div class="gmr-conn ' + cls + '" data-t="' + e.ticker + '">' +
+            '<span class="gmr-conn-h">' + arrow + ' ' + e.ticker +
+            ' <small>vs SPY: ' + (e.vs_anchor > 0 ? "+" : "") +
+            (e.vs_anchor || 0).toFixed(1) + '%</small></span>' +
+            '<span class="gmr-conn-theme">' + (e.country || "") + '</span>' +
+            '</div>';
+        }
+        const usList = map.us
+          ? map.us.split(" ").slice(0, 3).map(function (tk) {
+              return '<span class="gmr-us-tk" data-t="' + tk + '">' +
+                tk + '</span>';
+            }).join("")
+          : '<span class="gmr-us-tk gmr-empty">—</span>';
+        return '<div class="gmr-conn ' + cls + '">' +
+          '<span class="gmr-conn-h"><span class="gmr-arrow">' +
+            arrow + '</span> <span data-t="' + e.ticker + '">' + e.ticker +
+            '</span> <small>vs SPY ' + (e.vs_anchor > 0 ? "+" : "") +
+            (e.vs_anchor || 0).toFixed(1) + '%</small></span>' +
+          '<span class="gmr-conn-theme">' + map.theme + '</span>' +
+          '<span class="gmr-us-row">' + usList + '</span>' +
+        '</div>';
+      }
+      el.innerHTML =
+        '<div class="gmr-strip">' +
+          '<div class="gmr-meta">' +
+            '<span class="gmr-risk gmr-risk-' + riskCls + '">' +
+              riskRead + '</span>' +
+            (emAvg != null && dmAvg != null
+              ? '<span class="gmr-sub">EM avg ' +
+                (emAvg > 0 ? "+" : "") + emAvg.toFixed(1) +
+                '% · DM avg ' + (dmAvg > 0 ? "+" : "") + dmAvg.toFixed(1) +
+                '%</span>'
+              : '') +
+          '</div>' +
+          '<div class="gmr-cols">' +
+            '<div class="gmr-col"><div class="gmr-col-h">' +
+              'Best vs SPY → US read-through</div>' +
+              top3.map(connChip).join("") +
+            '</div>' +
+            '<div class="gmr-col"><div class="gmr-col-h">' +
+              'Worst vs SPY → caution</div>' +
+              bot3.map(connChip).join("") +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    }
+
     function render() {
       if (!DATA) return;
       renderAnchor();
+      renderReadthrough();
       if (VIEW === "treemap") renderTreemap();
       else renderMatrix();
     }
@@ -7504,7 +7950,106 @@
       return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
         .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
+    // ── Today/Tomorrow earnings summary cards ──────────────────────
+    // Surfaces what's reporting in the next 24h, broken into:
+    //   BMO today  ·  AMC today  ·  BMO tomorrow  ·  AMC tomorrow
+    //   + ⭐ Watchlist earnings  · High-anticipation count
+    function renderWhisperSummary(d) {
+      const sumEl = document.getElementById("whisper-summary");
+      if (!sumEl) return;
+      if (!d || !d.days) {
+        sumEl.innerHTML = "";
+        return;
+      }
+      const todayStr = todayET();
+      const tomorrow = (function () {
+        const t = new Date(todayStr + "T12:00:00-04:00");
+        t.setDate(t.getDate() + 1);
+        return t.toISOString().slice(0, 10);
+      })();
+      const buckets = {
+        bmo_today: [], amc_today: [],
+        bmo_tomorrow: [], amc_tomorrow: [],
+      };
+      d.days.forEach(function (day) {
+        if (day.date === todayStr) {
+          buckets.bmo_today = day.bmo || [];
+          buckets.amc_today = day.amc || [];
+        } else if (day.date === tomorrow) {
+          buckets.bmo_tomorrow = day.bmo || [];
+          buckets.amc_tomorrow = day.amc || [];
+        }
+      });
+      // Watchlist matches across the entire week
+      const watchlist = (window.tdWatchlist && window.tdWatchlist()) ||
+                        new Set();
+      const watchEarn = [];
+      const hiAntic = [];
+      d.days.forEach(function (day) {
+        ["bmo", "amc"].forEach(function (slot) {
+          (day[slot] || []).forEach(function (r) {
+            if (r.ticker && watchlist.has(r.ticker)) {
+              watchEarn.push({ ticker: r.ticker, date: day.date,
+                               slot: slot.toUpperCase() });
+            }
+            if ((r.score || 0) >= 100) {
+              hiAntic.push({ ticker: r.ticker, date: day.date,
+                             score: r.score, slot: slot.toUpperCase() });
+            }
+          });
+        });
+      });
+      hiAntic.sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
+
+      function chips(rows, max) {
+        if (!rows || !rows.length) return '<span class="ws-empty">—</span>';
+        const shown = rows.slice(0, max || 4);
+        const more = rows.length > shown.length
+          ? '<span class="ws-more">+' + (rows.length - shown.length) +
+            '</span>' : '';
+        return shown.map(function (r) {
+          return '<span class="ws-chip" data-t="' + r.ticker + '">' +
+                 r.ticker + '</span>';
+        }).join("") + more;
+      }
+      function chipsAnticipation(rows, max) {
+        if (!rows || !rows.length) return '<span class="ws-empty">—</span>';
+        const shown = rows.slice(0, max || 4);
+        return shown.map(function (r) {
+          return '<span class="ws-chip ws-hi" data-t="' + r.ticker + '">' +
+                 r.ticker + ' <small>' + r.score + '</small></span>';
+        }).join("");
+      }
+
+      const cards = [];
+      cards.push('<div class="ws-card ws-bmo"><div class="ws-label">' +
+        'Before open today</div><div class="ws-val">' +
+        (buckets.bmo_today.length || "—") + '</div>' +
+        '<div class="ws-chips">' + chips(buckets.bmo_today) + '</div></div>');
+      cards.push('<div class="ws-card ws-amc"><div class="ws-label">' +
+        'After close today</div><div class="ws-val">' +
+        (buckets.amc_today.length || "—") + '</div>' +
+        '<div class="ws-chips">' + chips(buckets.amc_today) + '</div></div>');
+      cards.push('<div class="ws-card ws-bmo"><div class="ws-label">' +
+        'Before open tomorrow</div><div class="ws-val">' +
+        (buckets.bmo_tomorrow.length || "—") + '</div>' +
+        '<div class="ws-chips">' + chips(buckets.bmo_tomorrow) + '</div></div>');
+      if (watchlist.size) {
+        cards.push('<div class="ws-card ws-watch"><div class="ws-label">' +
+          '⭐ Watchlist earnings (this week)</div><div class="ws-val">' +
+          watchEarn.length + '</div><div class="ws-chips">' +
+          chips(watchEarn, 6) + '</div></div>');
+      }
+      cards.push('<div class="ws-card ws-anticipation"><div class="ws-label">' +
+        'High anticipation (score ≥ 100)</div><div class="ws-val">' +
+        hiAntic.length + '</div><div class="ws-chips">' +
+        chipsAnticipation(hiAntic, 5) + '</div></div>');
+      sumEl.innerHTML = '<div class="ws-grid">' + cards.join("") + '</div>';
+    }
+
     function render(d) {
+      // Render summary cards FIRST (above the body grid)
+      renderWhisperSummary(d);
       if (!d || !d.days || !d.days.length) {
         body.innerHTML = '<div class="uoa-empty">' +
           'No anticipated calendar on file yet. Next scheduled scrape ' +
@@ -9587,6 +10132,126 @@
         }).join("");
       tsel.value = cur;
     }
+    // ── New today strip ─────────────────────────────────────────────
+    // Diff current run vs prior run and surface upgrades/demotions.
+    // Renders into #swing-new-today (above the grade bar/grid).
+    function renderSwingNewToday(curIdx) {
+      const el = document.getElementById("swing-new-today");
+      if (!el) return;
+      const cur = RUNS[curIdx];
+      const prev = RUNS[curIdx + 1];   // RUNS is sorted desc, so +1 = prior
+      if (!cur || !prev) {
+        el.innerHTML = "";
+        return;
+      }
+      const GR_ORDER = ["A+","A","A-","B+","B","B-","C+","C","C-",
+                        "D+","D","D-","E+","E","E-","F+","F","F-","G+","G"];
+      const rank = {};
+      GR_ORDER.forEach(function (g, i) { rank[g] = i; });
+      function flatten(run) {
+        const out = {};
+        GR_ORDER.forEach(function (g) {
+          (run.grades[g] || []).forEach(function (c) {
+            out[c.t] = { grade: g, name: c.n || "", th: c.th || [] };
+          });
+        });
+        return out;
+      }
+      const curMap = flatten(cur);
+      const prevMap = flatten(prev);
+      const newAplus = [];      // names that are A+ today but weren't yesterday
+      const upgrades = [];      // any rank improvement
+      const demotions = [];     // any rank drop
+      const droppedFromA = [];  // A/A+/A- yesterday, lower today
+      Object.keys(curMap).forEach(function (tk) {
+        const c = curMap[tk];
+        const p = prevMap[tk];
+        if (!p) {
+          if (c.grade === "A+") newAplus.push({ ticker: tk, ...c });
+          return;
+        }
+        const dRank = rank[c.grade] - rank[p.grade];
+        if (c.grade === "A+" && p.grade !== "A+") {
+          newAplus.push({ ticker: tk, ...c, prev_grade: p.grade });
+        }
+        if (dRank < 0) {
+          upgrades.push({ ticker: tk, ...c, prev_grade: p.grade,
+                          delta: -dRank });
+        } else if (dRank > 0) {
+          demotions.push({ ticker: tk, ...c, prev_grade: p.grade,
+                           delta: dRank });
+          if (p.grade[0] === "A") {
+            droppedFromA.push({ ticker: tk, ...c, prev_grade: p.grade });
+          }
+        }
+      });
+      upgrades.sort(function (a, b) { return b.delta - a.delta; });
+      demotions.sort(function (a, b) { return b.delta - a.delta; });
+      // Watchlist movers
+      const watchlist = (window.tdWatchlist && window.tdWatchlist()) ||
+                        new Set();
+      const wlMovers = [];
+      watchlist.forEach(function (tk) {
+        const c = curMap[tk]; const p = prevMap[tk];
+        if (!c) return;
+        const pg = p ? p.grade : null;
+        if (pg && c.grade !== pg) {
+          wlMovers.push({ ticker: tk, grade: c.grade, prev_grade: pg,
+                          name: c.name,
+                          dir: rank[c.grade] < rank[pg] ? "up" : "down" });
+        }
+      });
+
+      function chip(item) {
+        const g = item.grade;
+        const gCls = g === "A+" || g === "A" ? "snt-a"
+                   : g[0] === "G" || g[0] === "F" ? "snt-g"
+                   : "snt-mid";
+        const pg = item.prev_grade
+          ? '<span class="snt-prev">' + item.prev_grade + '→</span>'
+          : '';
+        return '<span class="snt-chip" data-t="' + item.ticker + '">' +
+                 pg +
+                 '<span class="snt-tk">' + item.ticker + '</span>' +
+                 '<span class="snt-grade ' + gCls + '">' + g + '</span>' +
+               '</span>';
+      }
+      function seg(title, items, max, emptyMsg, cls) {
+        if (!items || !items.length) {
+          return '<div class="snt-seg ' + cls + '">' +
+            '<div class="snt-seg-h">' + title +
+              ' <span class="snt-count">(0)</span></div>' +
+            '<div class="snt-empty">' + emptyMsg + '</div></div>';
+        }
+        const shown = items.slice(0, max || 6);
+        const more = items.length > shown.length
+          ? ' <span class="snt-more">+' + (items.length - shown.length) +
+            '</span>' : '';
+        return '<div class="snt-seg ' + cls + '">' +
+          '<div class="snt-seg-h">' + title +
+            ' <span class="snt-count">(' + items.length + ')</span></div>' +
+          '<div class="snt-body">' + shown.map(chip).join("") + more +
+          '</div></div>';
+      }
+      const segs = [];
+      segs.push(seg("New / Returning A+", newAplus, 6,
+                    "No new A+ tonight", "snt-pos"));
+      segs.push(seg("Biggest Upgrades", upgrades, 5,
+                    "No upgrades yet", "snt-pos"));
+      segs.push(seg("Dropped from A-tier", droppedFromA, 5,
+                    "All A-tier names held", "snt-neg"));
+      segs.push(seg("Biggest Demotions", demotions, 5,
+                    "No demotions yet", "snt-neg"));
+      if (watchlist.size) {
+        segs.push(seg("⭐ Watchlist Grade Changes", wlMovers, 6,
+                      "No grade changes on your watchlist", "snt-wl"));
+      }
+      el.innerHTML = '<div class="snt-strip">' +
+        '<div class="snt-strip-h">Since ' + prev.date + ' &rarr; ' +
+          cur.date + '</div>' +
+        '<div class="snt-grid">' + segs.join("") + '</div></div>';
+    }
+
     function render(idx) {
       const run = RUNS[idx];
       if (!run) {
@@ -9594,6 +10259,8 @@
           '<div class="uoa-empty">No report yet.</div>'; return;
       }
       RUN_DATE = run.date;
+      // Render the "since last run" strip first (above the grade grid)
+      renderSwingNewToday(idx);
       populateThemes(run);
       const themeF = tsel ? tsel.value : "";
       // hover lookup uses the full set so even filtered-out cells work
