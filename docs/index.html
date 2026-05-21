@@ -3883,6 +3883,47 @@
       _emitUser();
       refreshPlanState();
       loadWatchlist();
+      // Post-checkout cache-bust: if the user just returned from Stripe,
+      // the webhook may have just updated profiles.subscription_tier but
+      // the client only reads on auth-change. Force a few refresh
+      // attempts to pick up the new tier without requiring sign-out.
+      try {
+        const u = new URL(window.location.href);
+        if (u.searchParams.get("subscribed") === "1") {
+          const plan = u.searchParams.get("plan") || "(new tier)";
+          // Soft toast: status line near the top
+          console.log("Stripe success → refreshing plan to " + plan);
+          // Stagger 3 refreshes: 0s, 4s, 12s — covers webhook latency
+          // even if Stripe is slow to fire the event.
+          refreshPlanState();
+          setTimeout(refreshPlanState, 4000);
+          setTimeout(function () {
+            refreshPlanState();
+            // Soft confirmation if we did pick up the new tier
+            if (window.tdPlan && window.tdPlan() !== "free") {
+              try {
+                if (Notification && Notification.permission === "granted" &&
+                    "serviceWorker" in navigator) {
+                  navigator.serviceWorker.ready.then(function (reg) {
+                    reg.showNotification("🎉 Welcome to TickerDesk " +
+                      window.tdPlan().toUpperCase(), {
+                      body: "Your subscription is active. All paid " +
+                            "features unlocked across the dashboard.",
+                      icon: "/favicon.png",
+                      tag: "td-subscribed",
+                    });
+                  });
+                }
+              } catch (e) {}
+            }
+          }, 12000);
+          // Strip the subscribed=1 + plan query params so a refresh
+          // doesn't keep firing this. Replace history state in place.
+          u.searchParams.delete("subscribed");
+          u.searchParams.delete("plan");
+          window.history.replaceState({}, "", u.toString());
+        }
+      } catch (e) {}
     });
     // Listen for sign-in / sign-out events
     SUPA.auth.onAuthStateChange(async function (event, session) {
