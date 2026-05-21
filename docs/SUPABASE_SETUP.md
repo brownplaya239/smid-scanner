@@ -13,6 +13,59 @@ Takes ~5 minutes.
    - Region: pick the one closest to most users (US East for now)
 4. Wait ~90 seconds for provisioning
 
+## 2a. (Update) Run this in SQL Editor to add the new launch features
+
+If you've already run the initial setup, run this delta to add portfolio
+weights, email signups, watcher-count function, and last-seen tracking:
+
+```sql
+-- Add weight column for portfolio benchmarking (1.0 = equal weight default)
+alter table public.watchlists
+  add column if not exists weight numeric default 1
+    check (weight >= 0 and weight <= 1000000);
+
+-- Email signups for beta + daily brief (collected before account creation)
+create table if not exists public.email_signups (
+  email text primary key,
+  source text,            -- 'beta', 'daily_brief', 'footer', etc.
+  created_at timestamptz default now()
+);
+alter table public.email_signups enable row level security;
+-- Anyone can INSERT (signup form is public); nobody can SELECT (privacy)
+create policy "es_insert_any" on public.email_signups
+  for insert with check (true);
+
+-- Watcher count RPC — returns {ticker, n} for an array of tickers, with
+-- security definer so it can read across ALL rows in watchlists without
+-- exposing individual user identities. Counts only, never user_ids.
+create or replace function public.watcher_counts(p_tickers text[])
+returns table (ticker text, n bigint)
+language sql security definer set search_path = public
+as $$
+  select ticker, count(*)::bigint
+  from public.watchlists
+  where ticker = any(p_tickers)
+  group by ticker;
+$$;
+grant execute on function public.watcher_counts(text[]) to anon, authenticated;
+
+-- last_seen RPC — atomically read prev last_seen + bump to now()
+-- Used by the "What's New Since Last Visit" widget so we can show
+-- diffs without losing the marker.
+create or replace function public.touch_last_seen()
+returns timestamptz
+language plpgsql security definer set search_path = public
+as $$
+declare prev timestamptz;
+begin
+  select last_seen into prev from public.profiles where id = auth.uid();
+  update public.profiles set last_seen = now() where id = auth.uid();
+  return prev;
+end;
+$$;
+grant execute on function public.touch_last_seen() to authenticated;
+```
+
 ## 2. Run the schema SQL
 
 In the project, open **SQL Editor** (left sidebar). Paste the entire

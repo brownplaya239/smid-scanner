@@ -55,6 +55,140 @@
   header h1 { font-size:20px; font-weight:700; letter-spacing:.3px; }
   header p  { font-size:12px; color:var(--muted); margin-top:4px; }
 
+  /* Email capture strip above the footer */
+  .email-capture { background:linear-gradient(135deg,
+    rgba(255,200,0,0.06), rgba(31,179,99,0.04));
+    border-top:1px solid var(--line); padding:30px 20px; }
+  .email-capture .ec-inner { max-width:780px; margin:0 auto;
+    display:grid; grid-template-columns:1fr 360px; gap:24px;
+    align-items:center; }
+  @media (max-width:760px) {
+    .email-capture .ec-inner { grid-template-columns:1fr; gap:16px; }
+  }
+  .email-capture .ec-pitch h3 { font-size:18px; font-weight:800;
+    color:var(--text); margin:0 0 6px; }
+  .email-capture .ec-pitch p { font-size:12px; color:var(--textdim);
+    line-height:1.5; margin:0; }
+  .email-capture .ec-form { display:flex; gap:6px; }
+  .email-capture .ec-form input { flex:1; background:var(--card);
+    border:1px solid var(--border2); color:var(--text);
+    padding:11px 13px; border-radius:6px; font-family:inherit;
+    font-size:13px; }
+  .email-capture .ec-form input:focus { border-color:var(--gold);
+    outline:0; }
+  .email-capture .ec-form button { background:var(--gold);
+    color:var(--accink); border:0; padding:11px 18px; border-radius:6px;
+    font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;
+    white-space:nowrap; }
+  .email-capture .ec-form button:hover { filter:brightness(1.05); }
+  .email-capture .ec-status { grid-column:1/-1; font-size:11.5px;
+    text-align:center; min-height:18px; }
+  .email-capture .ec-status.ok  { color:var(--green); }
+  .email-capture .ec-status.err { color:var(--red); }
+
+  /* Watcher count badge — 👁 N next to popular tickers */
+  .watch-badge { display:inline-block; font-size:10px; font-weight:700;
+    color:var(--gold); margin-left:4px; vertical-align:middle;
+    font-variant-numeric:tabular-nums; cursor:default; }
+  .watch-badge::before { content:"👁 "; font-size:9.5px; opacity:.85; }
+
+  /* Watchlist & Trade Log tab — portfolio + benchmark + journal */
+  #panel-watchlist { max-width:1280px; }
+  .wlt-bench { display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+    gap:10px; margin-bottom:14px; padding:14px;
+    background:linear-gradient(135deg, rgba(255,200,0,0.06), transparent);
+    border:1px solid var(--gold); border-radius:8px; }
+  .wlt-bench .wb-stat { font-size:9.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; }
+  .wlt-bench .wb-stat b { display:block; font-size:22px; font-weight:800;
+    color:var(--text); margin-top:3px; font-variant-numeric:tabular-nums;
+    line-height:1.1; }
+  .wlt-bench .wb-stat b.up   { color:var(--green); }
+  .wlt-bench .wb-stat b.down { color:var(--red); }
+  .wlt-bench .wb-stat .wb-sub { font-size:10.5px; color:var(--textdim);
+    font-weight:500; margin-top:2px; }
+  .wlt-bench .wb-stat .wb-vs  { font-size:10px; color:var(--muted);
+    font-weight:500; margin-top:1px; }
+  .wlt-bench .wb-stat .wb-vs.up   { color:var(--green); font-weight:700; }
+  .wlt-bench .wb-stat .wb-vs.down { color:var(--red); font-weight:700; }
+
+  .wlt-add, .wlt-tl-add { padding:14px 16px; margin-bottom:14px; }
+  .wlt-add-row, .wlt-tl-form { display:grid; gap:8px; align-items:center; }
+  .wlt-add-row { grid-template-columns:120px 100px 80px 1fr; }
+  .wlt-tl-form { grid-template-columns:80px 110px 100px 90px 120px 1fr 100px; }
+  @media (max-width:760px) {
+    .wlt-add-row { grid-template-columns:1fr 1fr; }
+    .wlt-add-row .wlt-add-hint { grid-column:1/-1; }
+    .wlt-tl-form { grid-template-columns:1fr 1fr; }
+    .wlt-tl-form #tl-notes { grid-column:1/-1; }
+    .wlt-tl-form .wlt-add-btn { grid-column:1/-1; }
+  }
+  .wlt-add input, .wlt-add select, .wlt-tl-add input, .wlt-tl-add select {
+    background:var(--navy2); border:1px solid var(--border2);
+    color:var(--text); padding:8px 11px; border-radius:5px;
+    font-family:inherit; font-size:12px; }
+  .wlt-add input:focus, .wlt-add select:focus, .wlt-tl-add input:focus,
+  .wlt-tl-add select:focus { border-color:var(--gold); outline:0; }
+  .wlt-add input[type=text], .wlt-tl-add input[type=text]:not(#tl-notes) {
+    text-transform:uppercase; letter-spacing:.4px; font-weight:700; }
+  .wlt-add-btn { background:var(--gold); color:var(--accink); border:0;
+    padding:8px 16px; border-radius:5px; font-family:inherit; font-size:12px;
+    font-weight:700; cursor:pointer; }
+  .wlt-add-btn:hover { filter:brightness(1.05); }
+  .wlt-add-hint { font-size:10.5px; color:var(--muted); line-height:1.4; }
+
+  .wlt-section-h { font-size:13px; color:var(--text); font-weight:700;
+    margin:18px 0 10px; text-transform:uppercase; letter-spacing:.4px;
+    border-bottom:1px solid var(--line); padding-bottom:6px; }
+  .wlt-section-h .wlt-section-sub { color:var(--muted); font-weight:400;
+    font-size:11px; text-transform:none; letter-spacing:0; margin-left:8px; }
+
+  .wlt-portfolio-wrap, .wlt-tl-wrap { background:var(--card);
+    border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  table.wlt-portfolio, table.wlt-tl { width:100%; border-collapse:collapse;
+    font-size:11.5px; }
+  table.wlt-portfolio th, table.wlt-tl th { background:var(--navy2);
+    color:var(--muted); font-size:9.5px; text-transform:uppercase;
+    letter-spacing:.4px; font-weight:700; text-align:right;
+    padding:9px 10px; border-bottom:1px solid var(--line); }
+  table.wlt-portfolio th:first-child, table.wlt-tl th:first-child {
+    text-align:left; }
+  table.wlt-portfolio td, table.wlt-tl td { padding:8px 10px;
+    border-bottom:1px solid var(--line); text-align:right;
+    font-variant-numeric:tabular-nums; }
+  table.wlt-portfolio td:first-child, table.wlt-tl td:first-child {
+    text-align:left; }
+  table.wlt-portfolio tbody tr, table.wlt-tl tbody tr { cursor:pointer; }
+  table.wlt-portfolio tbody tr:hover, table.wlt-tl tbody tr:hover {
+    background:var(--rowhov); }
+  table.wlt-portfolio .wp-tk, table.wlt-tl .wt-tk {
+    font-weight:800; color:var(--text); }
+  table.wlt-portfolio .wp-chg.up,   table.wlt-tl .wt-pnl.up   { color:var(--green); }
+  table.wlt-portfolio .wp-chg.down, table.wlt-tl .wt-pnl.down { color:var(--red); }
+  table.wlt-portfolio .wp-chg.flat, table.wlt-tl .wt-pnl.flat { color:var(--muted); }
+  table.wlt-portfolio .wp-weight-input { width:60px; background:transparent;
+    border:1px solid transparent; color:var(--text); text-align:right;
+    padding:2px 5px; font-family:inherit; font-size:11.5px;
+    font-variant-numeric:tabular-nums; border-radius:3px; }
+  table.wlt-portfolio .wp-weight-input:hover { border-color:var(--border2); }
+  table.wlt-portfolio .wp-weight-input:focus { border-color:var(--gold);
+    outline:0; background:var(--bg); }
+  .wp-remove, .wt-remove { background:none; border:0; color:var(--muted);
+    font-size:14px; cursor:pointer; padding:0 4px; line-height:1;
+    font-family:inherit; }
+  .wp-remove:hover, .wt-remove:hover { color:var(--red); }
+  table.wlt-portfolio .wp-action, table.wlt-tl .wt-action {
+    font-size:9px; font-weight:800; text-transform:uppercase;
+    letter-spacing:.3px; padding:2px 6px; border-radius:3px; }
+  .wt-action.buy   { background:rgba(31,179,99,0.18);  color:var(--green); }
+  .wt-action.sell  { background:rgba(214,68,68,0.18);  color:var(--red); }
+  .wt-action.watch { background:rgba(160,178,210,0.18); color:var(--text); }
+  .wt-action.signal_acted { background:rgba(255,200,0,0.18); color:var(--gold); }
+
+  .wlt-empty { padding:32px 20px; text-align:center; color:var(--muted);
+    font-size:12px; font-style:italic; }
+
   /* My Desk tab — watchlist-personalized signal grid */
   #panel-mydesk { max-width:1280px; }
   .mydesk-hero { display:grid;
@@ -444,7 +578,14 @@
   .src-pop .sp-head { display:flex; align-items:baseline; gap:6px; margin-bottom:2px; }
   .src-pop .sp-sym { font-size:14px; font-weight:800; color:var(--text);
     letter-spacing:.3px; }
-  .src-pop .sp-head .tape-chg { margin-left:auto; font-size:11px; }
+  .src-pop .sp-head .tape-chg { font-size:11px; }
+  /* Star button inside the hover popup — click adds/removes from
+     watchlist without needing to open the full drilldown panel */
+  .src-pop .sp-star { background:none; border:0; color:var(--muted);
+    cursor:pointer; font-size:15px; line-height:1; padding:0 6px;
+    font-family:inherit; margin-left:auto; }
+  .src-pop .sp-star:hover { color:var(--gold); }
+  .src-pop .sp-star.on { color:var(--gold); }
   .src-pop .sp-name { font-size:11.5px; color:var(--textdim); margin-bottom:8px;
     line-height:1.3; }
   .src-pop .sp-px { font-size:18px; font-weight:700; color:var(--text);
@@ -1829,6 +1970,7 @@
   <nav id="nav">
     <button data-tab="desk" class="active">Desk</button>
     <button data-tab="mydesk">My Desk</button>
+    <button data-tab="watchlist">Watchlist</button>
     <button data-tab="uoa">Options Flow</button>
     <button data-tab="adhoc">Research</button>
     <button data-tab="alt-data">Alt-Data</button>
@@ -1853,6 +1995,73 @@
         that appear in more than one of them.</p>
       <div class="desk-grid" id="desk-grid">
         <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
+      </div>
+    </section>
+
+    <!-- Watchlist — portfolio with weights + benchmark + Trade Log -->
+    <section class="panel" id="panel-watchlist">
+      <h2 class="tab-title">Watchlist &amp; Trade Log</h2>
+      <p class="tab-sub">
+        Build your portfolio with weights, benchmark daily performance vs
+        SPY &amp; QQQ, and log every entry/exit to track real P&amp;L over
+        time. <b id="wlt-signed-hint" style="display:none">Signed in
+        &mdash; persists across devices.</b>
+        <span id="wlt-anon-hint" style="display:none;color:var(--muted)">
+          Anonymous mode &mdash; stored locally in this browser only.
+          <a href="#" id="wlt-signin-link" style="color:var(--gold)">Sign in</a>
+          to sync.</span>
+      </p>
+
+      <!-- Portfolio benchmark hero -->
+      <div class="wlt-bench" id="wlt-bench"></div>
+
+      <!-- Add ticker form -->
+      <div class="wlt-add card">
+        <div class="wlt-add-row">
+          <input type="text" id="wlt-ticker" placeholder="Ticker"
+                 maxlength="8" autocomplete="off"
+                 autocapitalize="characters" />
+          <input type="number" id="wlt-weight" placeholder="Weight"
+                 step="0.5" min="0" />
+          <button class="wlt-add-btn" id="wlt-add-btn">Add</button>
+          <span class="wlt-add-hint">Weight = relative position size
+            (any number — we normalize for benchmarking)</span>
+        </div>
+      </div>
+
+      <!-- Portfolio table -->
+      <h3 class="wlt-section-h">Portfolio</h3>
+      <div class="wlt-portfolio-wrap">
+        <table class="wlt-portfolio" id="wlt-portfolio"></table>
+      </div>
+
+      <!-- Trade Log Panel -->
+      <h3 class="wlt-section-h">Trade Log
+        <span class="wlt-section-sub">Personal P&amp;L tracking</span>
+      </h3>
+      <div class="wlt-tl-add card">
+        <div class="wlt-tl-form">
+          <input type="text" id="tl-ticker" placeholder="Ticker"
+                 maxlength="8" autocapitalize="characters" />
+          <select id="tl-action">
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+            <option value="watch">Watch</option>
+            <option value="signal_acted">Signal acted</option>
+          </select>
+          <input type="number" id="tl-price"    placeholder="Entry price"
+                 step="0.01" />
+          <input type="number" id="tl-quantity" placeholder="Quantity"
+                 step="0.01" />
+          <input type="date"   id="tl-date" />
+          <input type="text"   id="tl-notes"
+                 placeholder="Thesis / source signal / notes"
+                 maxlength="240" />
+          <button class="wlt-add-btn" id="tl-add-btn">Log Entry</button>
+        </div>
+      </div>
+      <div class="wlt-tl-wrap">
+        <table class="wlt-tl" id="wlt-tl"></table>
       </div>
     </section>
 
@@ -2084,8 +2293,8 @@
                 <option value="neutral">Neutral only</option>
               </select>
               <select id="news-cat" title="Category">
+                <option value="market-moving" selected>Market-moving</option>
                 <option value="">All categories</option>
-                <option value="market-moving">Market-moving</option>
                 <option value="earnings">Earnings</option>
                 <option value="analyst">Analyst actions</option>
                 <option value="ma">M&amp;A</option>
@@ -2096,7 +2305,7 @@
                 Watchlist only</label>
               <label class="news-watch"
                 title="Show only articles where at least one tagged ticker appears in the headline — filters out Polygon NER false positives">
-                <input type="checkbox" id="news-highconf"/>
+                <input type="checkbox" id="news-highconf" checked/>
                 High-conf only</label>
               <label class="news-watch"
                 title="Include press releases from PR Newswire, GlobeNewswire, Business Wire, EIN Presswire, ACCESS Newswire, etc. — usually low-signal corporate boilerplate">
@@ -2309,6 +2518,24 @@
     </section>
   </main>
 
+  <!-- Beta email capture — collects emails for daily brief + launch list -->
+  <div class="email-capture">
+    <div class="ec-inner">
+      <div class="ec-pitch">
+        <h3>Get the daily TickerDesk Brief</h3>
+        <p>One email per morning with your watchlist's overnight moves,
+          new A+ trend grades, options flow signals, and earnings within
+          7 days. Free during beta.</p>
+      </div>
+      <form id="ec-form" class="ec-form">
+        <input type="email" id="ec-email" placeholder="you@example.com"
+               autocomplete="email" required />
+        <button type="submit" id="ec-submit">Join free beta</button>
+      </form>
+      <div id="ec-status" class="ec-status"></div>
+    </div>
+  </div>
+
   <footer>
     Not financial advice. For informational purposes only. Do your own due diligence.
   </footer>
@@ -2345,6 +2572,7 @@
 
   let CURRENT_USER = null;   // null when signed out
   let WATCHLIST = new Set(); // canonical in-memory set of tickers
+  let WATCHLIST_WEIGHTS = {}; // ticker -> numeric weight (default 1)
 
   // Cross-component subscribers — re-render when watchlist or user changes
   const _userListeners  = [];
@@ -2361,15 +2589,27 @@
   window.tdWatchlist = function () { return new Set(WATCHLIST); };
 
   // ── Watchlist storage layer ──
-  const WL_LOCAL_KEY = "td-watchlist-local";
+  const WL_LOCAL_KEY = "td-watchlist-local";          // [ticker, ...]
+  const WL_WEIGHTS_LOCAL_KEY = "td-watchlist-weights"; // {ticker: weight}
   function _wlReadLocal() {
     try {
       const v = JSON.parse(localStorage.getItem(WL_LOCAL_KEY) || "[]");
       return Array.isArray(v) ? v : [];
     } catch (e) { return []; }
   }
+  function _wlReadWeightsLocal() {
+    try {
+      const v = JSON.parse(
+        localStorage.getItem(WL_WEIGHTS_LOCAL_KEY) || "{}");
+      return (v && typeof v === "object") ? v : {};
+    } catch (e) { return {}; }
+  }
   function _wlWriteLocal(arr) {
     try { localStorage.setItem(WL_LOCAL_KEY, JSON.stringify(arr)); }
+    catch (e) {}
+  }
+  function _wlWriteWeightsLocal(map) {
+    try { localStorage.setItem(WL_WEIGHTS_LOCAL_KEY, JSON.stringify(map)); }
     catch (e) {}
   }
   async function loadWatchlist() {
@@ -2377,34 +2617,69 @@
       try {
         const { data, error } = await SUPA
           .from("watchlists")
-          .select("ticker")
+          .select("ticker, weight")
           .eq("user_id", CURRENT_USER.id);
         if (!error && data) {
           WATCHLIST = new Set(data.map(function (r) { return r.ticker; }));
+          WATCHLIST_WEIGHTS = {};
+          data.forEach(function (r) {
+            WATCHLIST_WEIGHTS[r.ticker] = r.weight != null ? r.weight : 1;
+          });
           _emitWatch();
           return;
         }
       } catch (e) { console.warn("Watchlist load failed, falling back:", e); }
     }
     WATCHLIST = new Set(_wlReadLocal());
+    WATCHLIST_WEIGHTS = _wlReadWeightsLocal();
+    // Fill in defaults for any ticker without a stored weight
+    WATCHLIST.forEach(function (t) {
+      if (WATCHLIST_WEIGHTS[t] == null) WATCHLIST_WEIGHTS[t] = 1;
+    });
     _emitWatch();
   }
-  async function addToWatchlist(ticker) {
+  async function setWatchlistWeight(ticker, weight) {
+    ticker = (ticker || "").toUpperCase().trim();
+    if (!ticker || !WATCHLIST.has(ticker)) return false;
+    weight = parseFloat(weight);
+    if (isNaN(weight) || weight < 0) weight = 1;
+    WATCHLIST_WEIGHTS[ticker] = weight;
+    _emitWatch();
+    if (SUPA && CURRENT_USER) {
+      try {
+        await SUPA.from("watchlists").update({ weight: weight })
+          .eq("user_id", CURRENT_USER.id).eq("ticker", ticker);
+      } catch (e) { console.warn("Weight write failed:", e); }
+    } else {
+      _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
+    }
+    return true;
+  }
+  window.tdSetWeight = setWatchlistWeight;
+  window.tdGetWeight = function (t) {
+    return WATCHLIST_WEIGHTS[(t || "").toUpperCase()] || 1;
+  };
+  async function addToWatchlist(ticker, weight) {
     ticker = (ticker || "").toUpperCase().trim();
     if (!ticker || WATCHLIST.has(ticker)) return false;
+    weight = parseFloat(weight);
+    if (isNaN(weight) || weight < 0) weight = 1;
     WATCHLIST.add(ticker);
+    WATCHLIST_WEIGHTS[ticker] = weight;
     _emitWatch();
     if (SUPA && CURRENT_USER) {
       try {
         await SUPA.from("watchlists").upsert({
-          user_id: CURRENT_USER.id, ticker: ticker,
+          user_id: CURRENT_USER.id, ticker: ticker, weight: weight,
         });
       } catch (e) {
         console.warn("Watchlist write failed:", e);
         _wlWriteLocal([...WATCHLIST]);
+        _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
       }
     } else {
       _wlWriteLocal([...WATCHLIST]);
+      _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
     }
     return true;
   }
@@ -2412,6 +2687,7 @@
     ticker = (ticker || "").toUpperCase().trim();
     if (!ticker || !WATCHLIST.has(ticker)) return false;
     WATCHLIST.delete(ticker);
+    delete WATCHLIST_WEIGHTS[ticker];
     _emitWatch();
     if (SUPA && CURRENT_USER) {
       try {
@@ -2422,9 +2698,11 @@
       } catch (e) {
         console.warn("Watchlist delete failed:", e);
         _wlWriteLocal([...WATCHLIST]);
+        _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
       }
     } else {
       _wlWriteLocal([...WATCHLIST]);
+      _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
     }
     return true;
   }
@@ -2517,6 +2795,378 @@
   } else {
     initSupabase();
   }
+
+  // ── Watchlist & Trade Log tab ── full portfolio view with weights,
+  // benchmark vs SPY / QQQ, plus a journal table for tracking real P&L.
+  (function setupWatchlistTab() {
+    const benchEl   = document.getElementById("wlt-bench");
+    const tblEl     = document.getElementById("wlt-portfolio");
+    const tlTblEl   = document.getElementById("wlt-tl");
+    const addTk     = document.getElementById("wlt-ticker");
+    const addWt     = document.getElementById("wlt-weight");
+    const addBtn    = document.getElementById("wlt-add-btn");
+    const signedH   = document.getElementById("wlt-signed-hint");
+    const anonH     = document.getElementById("wlt-anon-hint");
+    const anonLink  = document.getElementById("wlt-signin-link");
+    const tlTk      = document.getElementById("tl-ticker");
+    const tlAction  = document.getElementById("tl-action");
+    const tlPrice   = document.getElementById("tl-price");
+    const tlQty     = document.getElementById("tl-quantity");
+    const tlDate    = document.getElementById("tl-date");
+    const tlNotes   = document.getElementById("tl-notes");
+    const tlAddBtn  = document.getElementById("tl-add-btn");
+    if (!tblEl) return;
+
+    // Defaults
+    if (tlDate) tlDate.value = new Date().toISOString().slice(0, 10);
+
+    function lookupCell(tk) {
+      const D = window.TD_DATA || {};
+      if (D.swing && D.swing.runs && D.swing.runs.length) {
+        const r = D.swing.runs[D.swing.runs.length - 1];
+        const grades = r.grades || {};
+        for (const g of Object.keys(grades)) {
+          const c = (grades[g] || []).find(function (x) {
+            return x.t === tk;
+          });
+          if (c) return c;
+        }
+      }
+      return null;
+    }
+    function fmtPct(v) {
+      if (v == null) return "—";
+      return (v > 0 ? "+" : "") + v.toFixed(2) + "%";
+    }
+    function chgCls(v) {
+      return v == null ? "flat" : v > 0 ? "up" : v < 0 ? "down" : "flat";
+    }
+
+    // ── Benchmark calculation ──
+    // Portfolio daily % = sum(weight_i * daychg_i) / sum(weight_i)
+    // Compare vs SPY daily chg (pulled from worker quotes endpoint).
+    let LIVE_BENCH = { SPY: null, QQQ: null, IWM: null };
+    async function fetchBenchQuotes() {
+      try {
+        const r = await fetch(TDP_WORKER_URL + "?quotes=SPY,QQQ,IWM");
+        if (!r.ok) return;
+        const d = await r.json();
+        (d.quotes || []).forEach(function (q) {
+          if (q && q.symbol) LIVE_BENCH[q.symbol] = q.change;
+        });
+        renderBench();
+      } catch (e) { /* silent */ }
+    }
+    function renderBench() {
+      const wl = Array.from(WATCHLIST);
+      if (!wl.length) {
+        benchEl.innerHTML = '<div class="wb-stat" style="grid-column:1/-1">' +
+          'Add tickers below to start benchmarking.</div>';
+        return;
+      }
+      // Weighted average using swing cell.chg
+      let num = 0, denom = 0, missing = 0;
+      wl.forEach(function (t) {
+        const w = WATCHLIST_WEIGHTS[t] != null ? WATCHLIST_WEIGHTS[t] : 1;
+        const c = lookupCell(t);
+        if (c && typeof c.chg === "number") {
+          num += w * c.chg;
+          denom += w;
+        } else {
+          missing++;
+        }
+      });
+      const portRet = denom > 0 ? (num / denom) : null;
+      const vsSpy = (portRet != null && LIVE_BENCH.SPY != null)
+                    ? portRet - LIVE_BENCH.SPY : null;
+      const vsQqq = (portRet != null && LIVE_BENCH.QQQ != null)
+                    ? portRet - LIVE_BENCH.QQQ : null;
+      const portCls = chgCls(portRet);
+      const spyCls = chgCls(LIVE_BENCH.SPY);
+      const qqqCls = chgCls(LIVE_BENCH.QQQ);
+      const vsSpyCls = chgCls(vsSpy);
+      const vsQqqCls = chgCls(vsQqq);
+      benchEl.innerHTML =
+        '<div class="wb-stat"><span>Portfolio (weighted)</span>' +
+          '<b class="' + portCls + '">' + fmtPct(portRet) + '</b>' +
+          '<span class="wb-sub">' + wl.length + ' names' +
+          (missing ? ' · ' + missing + ' no data' : '') + '</span></div>' +
+        '<div class="wb-stat"><span>SPY (live)</span>' +
+          '<b class="' + spyCls + '">' + fmtPct(LIVE_BENCH.SPY) + '</b>' +
+          '<span class="wb-vs ' + vsSpyCls + '">vs portfolio: ' +
+            fmtPct(vsSpy) + '</span></div>' +
+        '<div class="wb-stat"><span>QQQ (live)</span>' +
+          '<b class="' + qqqCls + '">' + fmtPct(LIVE_BENCH.QQQ) + '</b>' +
+          '<span class="wb-vs ' + vsQqqCls + '">vs portfolio: ' +
+            fmtPct(vsQqq) + '</span></div>' +
+        '<div class="wb-stat"><span>IWM (live)</span>' +
+          '<b class="' + chgCls(LIVE_BENCH.IWM) + '">' +
+            fmtPct(LIVE_BENCH.IWM) + '</b>' +
+          '<span class="wb-sub">Small-cap reference</span></div>';
+    }
+
+    // ── Portfolio table ──
+    function renderPortfolio() {
+      const wl = Array.from(WATCHLIST).sort();
+      const signed = !!window.tdUser();
+      signedH.style.display = signed ? "" : "none";
+      anonH.style.display = signed ? "none" : "";
+      if (!wl.length) {
+        tblEl.innerHTML = '<tbody><tr><td colspan="6" class="wlt-empty">' +
+          'Empty portfolio. Add tickers above, or star names anywhere on ' +
+          'the site to populate this list.</td></tr></tbody>';
+        return;
+      }
+      const totalWeight = wl.reduce(function (s, t) {
+        return s + (WATCHLIST_WEIGHTS[t] != null ? WATCHLIST_WEIGHTS[t] : 1);
+      }, 0);
+      const head = '<thead><tr>' +
+        '<th>Ticker</th>' +
+        '<th>Weight</th>' +
+        '<th>% of Port</th>' +
+        '<th>Price</th>' +
+        '<th>Day %</th>' +
+        '<th></th></tr></thead>';
+      const rows = wl.map(function (t) {
+        const c = lookupCell(t);
+        const w = WATCHLIST_WEIGHTS[t] != null ? WATCHLIST_WEIGHTS[t] : 1;
+        const pct = totalWeight > 0 ? (w / totalWeight) * 100 : 0;
+        const price = c && c.p != null ? "$" + c.p.toFixed(2) : "—";
+        const chg = c && typeof c.chg === "number" ? c.chg : null;
+        const cc = chgCls(chg);
+        const chgStr = chg == null ? "—"
+          : (chg > 0 ? "+" : "") + chg.toFixed(2) + "%";
+        return '<tr data-t="' + t + '">' +
+          '<td><span class="wp-tk">' + t + '</span></td>' +
+          '<td><input class="wp-weight-input" type="number" step="0.5" ' +
+            'min="0" value="' + w + '" data-weight-tk="' + t + '" /></td>' +
+          '<td>' + pct.toFixed(1) + '%</td>' +
+          '<td>' + price + '</td>' +
+          '<td class="wp-chg ' + cc + '">' + chgStr + '</td>' +
+          '<td><button class="wp-remove" data-remove-tk="' + t +
+            '" title="Remove">×</button></td>' +
+          '</tr>';
+      }).join("");
+      tblEl.innerHTML = head + '<tbody>' + rows + '</tbody>';
+    }
+
+    // ── Trade Log ──
+    let TRADE_LOG = [];   // {id, ticker, action, ts, price, quantity, notes}
+    const TL_LOCAL_KEY = "td-trade-log-local";
+    function _tlReadLocal() {
+      try {
+        const v = JSON.parse(localStorage.getItem(TL_LOCAL_KEY) || "[]");
+        return Array.isArray(v) ? v : [];
+      } catch (e) { return []; }
+    }
+    function _tlWriteLocal(arr) {
+      try { localStorage.setItem(TL_LOCAL_KEY, JSON.stringify(arr)); }
+      catch (e) {}
+    }
+    async function loadTradeLog() {
+      if (SUPA && CURRENT_USER) {
+        try {
+          const { data, error } = await SUPA.from("trade_journal")
+            .select("*")
+            .eq("user_id", CURRENT_USER.id)
+            .order("ts", { ascending: false });
+          if (!error && data) {
+            TRADE_LOG = data;
+            renderTradeLog();
+            return;
+          }
+        } catch (e) { console.warn("Trade log load failed:", e); }
+      }
+      TRADE_LOG = _tlReadLocal();
+      renderTradeLog();
+    }
+    async function addTradeLogEntry(entry) {
+      // Add a local-id so we can render immediately before Supabase responds
+      const local = Object.assign({
+        id: "local-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),
+        ts: entry.ts || new Date().toISOString(),
+      }, entry);
+      TRADE_LOG.unshift(local);
+      renderTradeLog();
+      if (SUPA && CURRENT_USER) {
+        try {
+          const payload = Object.assign({ user_id: CURRENT_USER.id },
+            entry, { ts: local.ts });
+          delete payload.id;       // let DB generate
+          const { data, error } = await SUPA.from("trade_journal")
+            .insert(payload).select().single();
+          if (!error && data) {
+            // Swap local entry for the DB row
+            const idx = TRADE_LOG.findIndex(function (e) {
+              return e.id === local.id;
+            });
+            if (idx >= 0) TRADE_LOG[idx] = data;
+            renderTradeLog();
+          }
+        } catch (e) {
+          console.warn("Trade log write failed:", e);
+          _tlWriteLocal(TRADE_LOG);
+        }
+      } else {
+        _tlWriteLocal(TRADE_LOG);
+      }
+    }
+    async function removeTradeLogEntry(id) {
+      const idx = TRADE_LOG.findIndex(function (e) { return e.id === id; });
+      if (idx < 0) return;
+      TRADE_LOG.splice(idx, 1);
+      renderTradeLog();
+      if (SUPA && CURRENT_USER && !String(id).startsWith("local-")) {
+        try {
+          await SUPA.from("trade_journal").delete()
+            .eq("id", id).eq("user_id", CURRENT_USER.id);
+        } catch (e) { console.warn("Trade log delete failed:", e); }
+      } else {
+        _tlWriteLocal(TRADE_LOG);
+      }
+    }
+    function renderTradeLog() {
+      if (!TRADE_LOG.length) {
+        tlTblEl.innerHTML = '<tbody><tr><td colspan="7" class="wlt-empty">' +
+          'No trade log entries yet. Use the form above to log buys, sells, ' +
+          'and signals you acted on. P&amp;L computes automatically against ' +
+          'today\'s price.</td></tr></tbody>';
+        return;
+      }
+      const head = '<thead><tr>' +
+        '<th>Date</th>' +
+        '<th>Ticker</th>' +
+        '<th>Action</th>' +
+        '<th>Entry</th>' +
+        '<th>Qty</th>' +
+        '<th>P&amp;L%</th>' +
+        '<th>Notes</th>' +
+        '<th></th></tr></thead>';
+      const rows = TRADE_LOG.map(function (e) {
+        const dt = e.ts ? new Date(e.ts).toISOString().slice(0, 10) : "—";
+        // P&L vs current price (only for buy/sell against same-ticker open price)
+        let pnl = null;
+        if (e.price && (e.action === "buy" || e.action === "signal_acted")) {
+          const c = lookupCell(e.ticker);
+          if (c && c.p != null) {
+            pnl = ((c.p - e.price) / e.price) * 100;
+          }
+        }
+        const pnlCls = chgCls(pnl);
+        const pnlStr = pnl == null ? "—"
+          : (pnl > 0 ? "+" : "") + pnl.toFixed(2) + "%";
+        return '<tr data-t="' + e.ticker + '">' +
+          '<td>' + dt + '</td>' +
+          '<td><span class="wt-tk">' + e.ticker + '</span></td>' +
+          '<td><span class="wt-action ' + e.action + '">' +
+            (e.action || "").replace("_", " ") + '</span></td>' +
+          '<td>' + (e.price != null ? "$" + Number(e.price).toFixed(2) : "—") +
+            '</td>' +
+          '<td>' + (e.quantity != null ? e.quantity : "—") + '</td>' +
+          '<td class="wt-pnl ' + pnlCls + '">' + pnlStr + '</td>' +
+          '<td style="text-align:left;max-width:280px;overflow:hidden;' +
+            'text-overflow:ellipsis;white-space:nowrap" title="' +
+            (e.notes || "").replace(/"/g, "&quot;") + '">' +
+            (e.notes || "") + '</td>' +
+          '<td><button class="wt-remove" data-tl-remove="' + e.id +
+            '" title="Delete entry">×</button></td>' +
+          '</tr>';
+      }).join("");
+      tlTblEl.innerHTML = head + '<tbody>' + rows + '</tbody>';
+    }
+
+    // ── Wiring ──
+    addBtn.addEventListener("click", async function () {
+      const tk = (addTk.value || "").toUpperCase().trim();
+      const wt = parseFloat(addWt.value) || 1;
+      if (!tk || !/^[A-Z\.\-]{1,8}$/.test(tk)) return;
+      await window.tdAddWatch(tk, wt);
+      addTk.value = ""; addWt.value = "";
+      addTk.focus();
+    });
+    [addTk, addWt].forEach(function (el) {
+      el.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); addBtn.click(); }
+      });
+    });
+    tblEl.addEventListener("click", function (e) {
+      const rm = e.target.closest("[data-remove-tk]");
+      if (rm) {
+        e.stopPropagation();
+        window.tdRemoveWatch(rm.dataset.removeTk);
+        return;
+      }
+      // Ignore clicks on the weight input
+      if (e.target.classList.contains("wp-weight-input")) return;
+      const row = e.target.closest("tr[data-t]");
+      if (row && window.openTickerPanel) window.openTickerPanel(row.dataset.t);
+    });
+    tblEl.addEventListener("change", function (e) {
+      const inp = e.target.closest("[data-weight-tk]");
+      if (!inp) return;
+      window.tdSetWeight(inp.dataset.weightTk, inp.value);
+    });
+    if (anonLink) anonLink.addEventListener("click", function (e) {
+      e.preventDefault();
+      const btn = document.getElementById("auth-signin");
+      if (btn) btn.click();
+    });
+
+    tlAddBtn.addEventListener("click", function () {
+      const tk = (tlTk.value || "").toUpperCase().trim();
+      if (!tk) return;
+      const ts = tlDate.value
+        ? new Date(tlDate.value + "T12:00:00").toISOString()
+        : new Date().toISOString();
+      addTradeLogEntry({
+        ticker: tk,
+        action: tlAction.value,
+        ts: ts,
+        price: tlPrice.value ? parseFloat(tlPrice.value) : null,
+        quantity: tlQty.value ? parseFloat(tlQty.value) : null,
+        notes: tlNotes.value || null,
+        source: "manual",
+      });
+      // Clear form (keep date + action)
+      tlTk.value = ""; tlPrice.value = ""; tlQty.value = ""; tlNotes.value = "";
+      tlTk.focus();
+    });
+    tlTblEl.addEventListener("click", function (e) {
+      const rm = e.target.closest("[data-tl-remove]");
+      if (rm) {
+        e.stopPropagation();
+        if (confirm("Delete this trade log entry?")) {
+          removeTradeLogEntry(rm.dataset.tlRemove);
+        }
+        return;
+      }
+      const row = e.target.closest("tr[data-t]");
+      if (row && window.openTickerPanel) window.openTickerPanel(row.dataset.t);
+    });
+
+    function renderAll() {
+      renderPortfolio();
+      renderTradeLog();
+      renderBench();
+    }
+    onWatchChange(renderAll);
+    onUserChange(function () { loadTradeLog(); renderAll(); });
+    document.getElementById("nav").addEventListener("click", function (e) {
+      if (e.target && e.target.dataset &&
+          e.target.dataset.tab === "watchlist") {
+        renderAll();
+        fetchBenchQuotes();
+      }
+    });
+    // Initial loads
+    loadTradeLog();
+    setTimeout(renderAll, 800);
+    fetchBenchQuotes();
+    setInterval(function () {
+      const panel = document.getElementById("panel-watchlist");
+      if (panel && panel.classList.contains("active")) fetchBenchQuotes();
+    }, 60 * 1000);
+  })();
 
   // ── My Desk tab ── personalized view of every signal we have for the
   // user's watchlist names. Reads from window.TD_DATA which setupDesk
@@ -2713,6 +3363,95 @@
     // Initial render
     setTimeout(render, 500);
   })();
+
+  // ── Email capture (footer beta signup) ──
+  (function setupEmailCapture() {
+    const form = document.getElementById("ec-form");
+    const input = document.getElementById("ec-email");
+    const submit = document.getElementById("ec-submit");
+    const status = document.getElementById("ec-status");
+    if (!form) return;
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const email = (input.value || "").trim().toLowerCase();
+      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        status.className = "ec-status err";
+        status.textContent = "Enter a valid email address.";
+        return;
+      }
+      status.className = "ec-status";
+      status.textContent = "";
+      submit.disabled = true;
+      submit.textContent = "Submitting...";
+      try {
+        if (SUPA) {
+          await SUPA.from("email_signups").upsert(
+            { email: email, source: "footer_beta" },
+            { onConflict: "email" }
+          );
+        }
+        status.className = "ec-status ok";
+        status.innerHTML = "✓ You're on the list. We'll send the first " +
+          "brief tomorrow morning ET.";
+        input.value = "";
+      } catch (e) {
+        status.className = "ec-status err";
+        status.textContent = "Signup failed: " + (e.message || e);
+      } finally {
+        submit.disabled = false;
+        submit.textContent = "Join free beta";
+      }
+    });
+  })();
+
+  // ── Watcher counts (eye emoji badges) ──
+  // Calls the watcher_counts RPC for visible tickers. Cached for 5 min
+  // to keep DB load minimal. Only updates global TD_WATCHER_COUNTS;
+  // each renderer is responsible for surfacing the badge where it fits.
+  window.TD_WATCHER_COUNTS = {};
+  let WATCHER_CACHE_TS = 0;
+  async function refreshWatcherCounts(tickers) {
+    if (!SUPA || !tickers || !tickers.length) return;
+    if (Date.now() - WATCHER_CACHE_TS < 5 * 60 * 1000) return;
+    try {
+      const { data, error } = await SUPA.rpc("watcher_counts", {
+        p_tickers: tickers,
+      });
+      if (error || !data) return;
+      data.forEach(function (r) {
+        window.TD_WATCHER_COUNTS[r.ticker] = r.n;
+      });
+      WATCHER_CACHE_TS = Date.now();
+    } catch (e) { /* silent — RPC may not exist if SQL didn't run */ }
+  }
+  window.tdWatcherCount = function (t) {
+    return window.TD_WATCHER_COUNTS[(t || "").toUpperCase()] || 0;
+  };
+  // Refresh visible-universe watcher counts every 5 min
+  setInterval(function () {
+    const D = window.TD_DATA || {};
+    const tickers = new Set();
+    if (D.uoa && D.uoa.rows)
+      D.uoa.rows.slice(0, 40).forEach(function (r) {
+        tickers.add(r.ticker);
+      });
+    Array.from(WATCHLIST).forEach(function (t) { tickers.add(t); });
+    if (tickers.size) {
+      WATCHER_CACHE_TS = 0;            // bust cache for refresh tick
+      refreshWatcherCounts(Array.from(tickers));
+    }
+  }, 5 * 60 * 1000);
+  // Initial fetch after data loads
+  setTimeout(function () {
+    const D = window.TD_DATA || {};
+    const tickers = new Set();
+    if (D.uoa && D.uoa.rows)
+      D.uoa.rows.slice(0, 40).forEach(function (r) {
+        tickers.add(r.ticker);
+      });
+    Array.from(WATCHLIST).forEach(function (t) { tickers.add(t); });
+    if (tickers.size) refreshWatcherCounts(Array.from(tickers));
+  }, 3000);
 
   // ── Watchlist drawer wiring ──
   (function setupWatchlistDrawer() {
@@ -3409,7 +4148,7 @@
       pxEl.textContent = sw && sw.p != null ? "$" + sw.p.toFixed(2) : "";
       const cleanedName = cleanName((sw && sw.n) ||
                             (agg.meta && agg.meta.name) || t);
-      // Name + confluence chip + watchlist toggle on the same row
+      // Name + confluence chip + watchlist toggle + watcher count
       const confScore = confluenceScore(agg);
       const inWL = window.tdInWatchlist && window.tdInWatchlist(t);
       const starHtml = '<button class="tdp-star ' +
@@ -3417,8 +4156,16 @@
         '" title="' + (inWL ? "Remove from" : "Add to") + ' watchlist" ' +
         'aria-label="Toggle watchlist">' +
         (inWL ? "★" : "☆") + '</button>';
+      // 👁 N watching — only render if count > 1 (no point showing "👁 1"
+      // when only the current user is watching). RPC is best-effort,
+      // cache may be empty during initial load.
+      const watchN = window.tdWatcherCount ? window.tdWatcherCount(t) : 0;
+      const watchHtml = watchN > 1
+        ? '<span class="watch-badge" title="' + watchN +
+          ' traders watching">' + watchN + '</span>'
+        : '';
       nameEl.innerHTML = '<span>' + cleanedName + '</span> ' +
-        confluenceBadge(confScore) + ' ' + starHtml;
+        confluenceBadge(confScore) + ' ' + starHtml + watchHtml;
 
       // ── Body sections ──
       const sec = [];
@@ -3876,6 +4623,24 @@
       e.preventDefault();
       openPanel(tk);
     });
+    // Star-button click inside the hover popup — toggles watchlist for
+    // the ticker the popup is anchored to. Works on every tab because
+    // the popup is mounted on document.body.
+    document.addEventListener("click", function (e) {
+      const star = e.target.closest(".src-pop .sp-star[data-watch-tk]");
+      if (!star) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const tk = star.dataset.watchTk;
+      if (!tk || !window.tdToggleWatch) return;
+      window.tdToggleWatch(tk).then(function () {
+        const nowIn = window.tdInWatchlist(tk);
+        star.classList.toggle("on", nowIn);
+        star.textContent = nowIn ? "★" : "☆";
+        star.title = (nowIn ? "Remove from" : "Add to") + " watchlist";
+      });
+    });
+
     // Document-wide HOVER for the security-info popup. setupDesk publishes
     // window.showTickerHover / hideTickerHover when its swing data is loaded;
     // this listener fires them on ANY [data-t] anywhere on the site
@@ -6206,8 +6971,14 @@
       const pxLabel = (liveQuote && liveQuote.price != null)
                         ? "Live"
                         : ("Close · " + DESK_DATE);
+      const inWL = window.tdInWatchlist && window.tdInWatchlist(tkr);
+      const starBtn = '<button class="sp-star ' +
+        (inWL ? "on" : "") + '" data-watch-tk="' + tkr +
+        '" title="' + (inWL ? "Remove from" : "Add to") + ' watchlist">' +
+        (inWL ? "★" : "☆") + '</button>';
       pop.innerHTML =
         '<div class="sp-head"><span class="sp-sym">' + tkr + '</span>' +
+        starBtn +
         '<span class="tape-chg ' + cls + '">' + arrow +
           (dc == null ? "" : (dc > 0 ? "+" : "") + dc.toFixed(2) + "%") +
           '</span></div>' +
