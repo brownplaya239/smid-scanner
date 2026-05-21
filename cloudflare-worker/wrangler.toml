@@ -14,6 +14,14 @@ name               = "smid-scanner-discord-bot"
 main               = "worker.js"
 compatibility_date = "2026-05-20"
 
+# Non-secret runtime config — these are public values (URLs, project IDs)
+# that the worker needs but don't require encryption. Anything sensitive
+# (API keys, signing secrets, service_role keys) lives ONLY in worker
+# secrets — set them via `wrangler secret put NAME` or the dashboard
+# Variables and Secrets section (Type: Secret).
+[vars]
+SUPABASE_URL = "https://uaeojibmhxbwkhpvmjwy.supabase.co"
+
 # Observability: enable the Workers dashboard "Logs" tab so `wrangler tail`
 # and the live-logs UI can stream console output from production.
 [observability]
