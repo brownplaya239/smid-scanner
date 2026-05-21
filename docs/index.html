@@ -1878,6 +1878,67 @@
 
   /* ── Unusual Options Activity dashboard ── */
   #panel-uoa { max-width:1180px; }
+  /* Today's Flow Edge — top strip showing TODAY'S flow synthesis.
+     Distinct from .uoa-edge (which shows historical signal tracking). */
+  .uoa-today-edge { display:grid; gap:8px; margin-bottom:14px;
+    grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); }
+  .uoa-today-edge .te-card { background:var(--card);
+    border:1px solid var(--line); border-radius:6px; padding:9px 11px;
+    border-left:3px solid var(--muted); }
+  .uoa-today-edge .te-card.bull { border-left-color:var(--green); }
+  .uoa-today-edge .te-card.bear { border-left-color:var(--red); }
+  .uoa-today-edge .te-card.gold { border-left-color:var(--gold); }
+  .uoa-today-edge .te-card.blue { border-left-color:#5fa3ff; }
+  .uoa-today-edge .te-card.purple { border-left-color:#a87cff; }
+  .uoa-today-edge .te-card.hover-actionable {
+    cursor:pointer; transition:background .12s, border-color .12s; }
+  .uoa-today-edge .te-card.hover-actionable:hover {
+    background:var(--card); border-color:var(--gold); }
+  .uoa-today-edge .te-label { font-size:9.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; font-weight:600;
+    margin-bottom:3px; }
+  .uoa-today-edge .te-val { font-size:18px; font-weight:700;
+    color:var(--text); font-variant-numeric:tabular-nums; line-height:1.1; }
+  .uoa-today-edge .te-val.up { color:var(--green); }
+  .uoa-today-edge .te-val.down { color:var(--red); }
+  .uoa-today-edge .te-val.gold { color:var(--gold); }
+  .uoa-today-edge .te-sub { font-size:10px; color:var(--textdim);
+    margin-top:3px; line-height:1.4; }
+
+  /* Quality tier badges on each UOA row.
+     5 tiers, each with a distinct color so users can scan the list. */
+  .uoa-tier { display:inline-flex; align-items:center; gap:3px;
+    font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:3px;
+    text-transform:uppercase; letter-spacing:.3px;
+    background:var(--card); color:var(--textdim);
+    border:1px solid var(--border2); cursor:help; }
+  .uoa-tier.tier-conviction { background:rgba(31,195,110,.18);
+    color:var(--green); border-color:var(--green); }
+  .uoa-tier.tier-confirming { background:rgba(95,163,255,.15);
+    color:#5fa3ff; border-color:#5fa3ff; }
+  .uoa-tier.tier-speculative { background:rgba(255,200,0,.12);
+    color:var(--gold); border-color:rgba(255,158,27,.5); }
+  .uoa-tier.tier-hedge { background:rgba(168,124,255,.12);
+    color:#a87cff; border-color:#a87cff; }
+  .uoa-tier.tier-caution { background:rgba(255,91,91,.12);
+    color:var(--red); border-color:var(--red); }
+  .uoa-tier.tier-earnings { background:rgba(255,140,26,.12);
+    color:#ff8c1a; border-color:#ff8c1a; }
+
+  /* Preset filter pills above the table */
+  .uoa-presets { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 12px; }
+  .uoa-presets button { background:var(--navy2); border:1px solid var(--border2);
+    color:var(--textdim); padding:5px 10px; border-radius:4px;
+    font-family:inherit; font-size:10.5px; font-weight:600; cursor:pointer;
+    letter-spacing:.2px;
+    transition:background .12s, border-color .12s, color .12s; }
+  .uoa-presets button:hover { border-color:var(--gold); color:var(--gold); }
+  .uoa-presets button.active { background:var(--gold);
+    color:var(--accink); border-color:var(--gold); }
+  .uoa-presets .preset-label { font-size:9.5px; color:var(--muted);
+    align-self:center; margin-right:4px;
+    text-transform:uppercase; letter-spacing:.3px; font-weight:700; }
+
   .uoa-edge { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
   .uoa-edge .ecard {
     background:var(--card); border:1px solid var(--line); border-radius:8px;
@@ -2867,6 +2928,11 @@
       </div>
 
       <div class="uoa-sub" id="sub-live">
+      <!-- Today's Flow Edge — synthesized from the current uoa_latest.json
+           scan. Bullish/bearish premium split, golden sweeps, repeat flow,
+           opening-buyer count, watchlist flow count. Shown above the
+           historical edge tracking so users see TODAY's signal first. -->
+      <div class="uoa-today-edge" id="uoa-today-edge"></div>
       <div class="uoa-edge" id="uoa-edge"></div>
 
       <div class="uoa-cluster-mode">
@@ -2876,6 +2942,20 @@
         </select>
       </div>
       <div class="uoa-clusters" id="uoa-clusters"></div>
+
+      <!-- Preset filter chips — one-click to common UOA queries -->
+      <div class="uoa-presets" id="uoa-presets">
+        <span class="preset-label">Quick filters:</span>
+        <button data-preset="all" class="active">All</button>
+        <button data-preset="conviction">A+ Conviction</button>
+        <button data-preset="bullish">Bullish Swing</button>
+        <button data-preset="bearish">Bearish Swing</button>
+        <button data-preset="golden">Golden Sweeps</button>
+        <button data-preset="repeat">Repeat Flow</button>
+        <button data-preset="opening">Opening Buyers</button>
+        <button data-preset="watchlist">⭐ Watchlist Only</button>
+        <button data-preset="earnings">Earnings Bets</button>
+      </div>
 
       <div class="uoa-filters">
         <div class="uoa-filter-row">
@@ -9874,6 +9954,181 @@
       }
       return {h: "5", st: (hobj && hobj["5"]) || null};
     }
+    // ── Today's Flow Edge ──────────────────────────────────────────
+    // Synthesizes today's full flow into a 7-card summary:
+    //   Bullish premium  ·  Bearish premium  ·  Net bias
+    //   Golden sweeps    ·  Repeat flow      ·  Opening buyers
+    //   Watchlist flow (only when watchlist non-empty)
+    // Cards are clickable → filter the table to that subset.
+    function renderTodayEdge(rows) {
+      const el = $("uoa-today-edge");
+      if (!el) return;
+      if (!rows || !rows.length) {
+        el.innerHTML = '<div class="te-card"><div class="te-label">' +
+          'Today\'s Flow</div><div class="te-val">—</div>' +
+          '<div class="te-sub">No flow on file yet. Next scan fires ' +
+          'within ~75 min during market hours.</div></div>';
+        return;
+      }
+      const fmt = function (p) {
+        if (!p) return "$0";
+        if (p >= 1e9) return "$" + (p / 1e9).toFixed(2) + "B";
+        if (p >= 1e6) return "$" + (p / 1e6).toFixed(1) + "M";
+        if (p >= 1e3) return "$" + Math.round(p / 1e3) + "K";
+        return "$" + p;
+      };
+      // Categorize rows
+      let bullPrem = 0, bearPrem = 0;
+      let goldenCount = 0, repeatCount = 0, openingCount = 0;
+      const watchlist = (window.tdWatchlist && window.tdWatchlist()) ||
+                        new Set();
+      const watchlistTickers = new Set();
+      let watchlistPrem = 0;
+      rows.forEach(function (r) {
+        const p = r.premium || 0;
+        if (r.direction === "bullish") bullPrem += p;
+        else if (r.direction === "bearish") bearPrem += p;
+        if (r.is_golden_sweep || r.golden_sweep) goldenCount++;
+        if ((r.repeat_count || 0) >= 2 || r.repeat) repeatCount++;
+        // "opening" is inferred from vol > oi (classic UOA tell)
+        if ((r.volume || 0) > (r.open_interest || 0) * 0.5) openingCount++;
+        if (r.ticker && watchlist.has(r.ticker)) {
+          watchlistTickers.add(r.ticker);
+          watchlistPrem += p;
+        }
+      });
+      const netPrem = bullPrem - bearPrem;
+      const netRatio = (bullPrem + bearPrem) > 0
+        ? bullPrem / (bullPrem + bearPrem) : 0.5;
+      const biasLabel = netRatio > 0.60 ? "Bullish tilt"
+                      : netRatio > 0.55 ? "Slight bull"
+                      : netRatio > 0.45 ? "Balanced"
+                      : netRatio > 0.40 ? "Slight bear"
+                      : "Bearish tilt";
+      const biasCls = netRatio > 0.55 ? "up"
+                    : netRatio < 0.45 ? "down" : "neutral";
+      const cards = [];
+      cards.push('<div class="te-card bull"><div class="te-label">' +
+        'Bullish Premium</div><div class="te-val up">' + fmt(bullPrem) +
+        '</div><div class="te-sub">' + (rows.filter(r =>
+          r.direction === "bullish").length) + ' call-side contracts</div></div>');
+      cards.push('<div class="te-card bear"><div class="te-label">' +
+        'Bearish Premium</div><div class="te-val down">' + fmt(bearPrem) +
+        '</div><div class="te-sub">' + (rows.filter(r =>
+          r.direction === "bearish").length) + ' put-side contracts</div></div>');
+      cards.push('<div class="te-card"><div class="te-label">' +
+        'Net Directional</div><div class="te-val ' + biasCls + '">' +
+        biasLabel + '</div>' +
+        '<div class="te-sub">' + Math.round(netRatio * 100) +
+        '% call vs ' + Math.round((1 - netRatio) * 100) +
+        '% put (premium-weighted)</div></div>');
+      cards.push('<div class="te-card gold"><div class="te-label">' +
+        'Golden Sweeps</div><div class="te-val gold">' + goldenCount +
+        '</div><div class="te-sub">cross-exchange aggressive buys</div></div>');
+      cards.push('<div class="te-card blue"><div class="te-label">' +
+        'Repeat Flow</div><div class="te-val">' + repeatCount +
+        '</div><div class="te-sub">multi-print conviction</div></div>');
+      cards.push('<div class="te-card purple"><div class="te-label">' +
+        'Opening Buyers</div><div class="te-val">' + openingCount +
+        '</div><div class="te-sub">vol > prior OI (new positions)</div></div>');
+      if (watchlist.size) {
+        cards.push('<div class="te-card hover-actionable" ' +
+          'data-preset="watchlist" title="Click to filter to watchlist only">' +
+          '<div class="te-label">⭐ Watchlist Flow</div>' +
+          '<div class="te-val gold">' + watchlistTickers.size +
+          ' name' + (watchlistTickers.size === 1 ? "" : "s") +
+          '</div><div class="te-sub">' + fmt(watchlistPrem) +
+          ' premium · click to filter</div></div>');
+      }
+      el.innerHTML = cards.join("");
+      // Wire the watchlist-filter card
+      el.querySelectorAll("[data-preset='watchlist']").forEach(function (c) {
+        c.onclick = function () { applyPreset("watchlist"); };
+      });
+    }
+
+    // ── Quality tier classifier ─────────────────────────────────────
+    // Tag each row with one of:
+    //   conviction  — call buy + opening + repeat + high premium
+    //   confirming  — directional + moderate confidence
+    //   speculative — directional but low conviction / wide spread
+    //   hedge       — large cap + deep ITM + mixed → likely portfolio hedge
+    //   caution     — low liquidity / wide spread / questionable
+    //   earnings    — earnings within 7 DTE → could be either way
+    function classifyTier(r) {
+      const prem = r.premium || 0;
+      const voi = r.vol_oi || 0;
+      const dte = r.dte || 0;
+      const liq = r.liquidity_grade || "";
+      const opening = (r.volume || 0) > (r.open_interest || 0) * 0.5;
+      const repeat = (r.repeat_count || 0) >= 2 || r.repeat;
+      const golden = r.is_golden_sweep || r.golden_sweep;
+      const isCall = r.type === "call";
+      const isPut = r.type === "put";
+      const isBuy = r.side === "ask";
+      const bull = r.direction === "bullish";
+      const bear = r.direction === "bearish";
+
+      // Earnings gamble: anything <7 DTE with earnings flag
+      if (r.earnings_within_dte || (dte <= 7 && r.has_earnings_soon)) {
+        return {
+          tier: "earnings",
+          label: "Earnings Bet",
+          why: "Expires within earnings window — high vol, binary outcome.",
+        };
+      }
+      // Caution: low liquidity or wide spread
+      if (liq === "F" || liq === "D" || r.bid_ask_spread_pct > 0.30) {
+        return {
+          tier: "caution",
+          label: "Caution",
+          why: "Low liquidity or wide bid-ask spread — execution risk.",
+        };
+      }
+      // A+ Conviction: call buy + opening + (repeat or golden) + premium ≥ $250k
+      if (isBuy && opening && (repeat || golden) && prem >= 250000 && bull) {
+        return {
+          tier: "conviction",
+          label: "A+ Conviction",
+          why: "Aggressive call buy at the ask, opening new position, " +
+               "repeat or golden sweep, $250k+ premium.",
+        };
+      }
+      // Hedge: very large cap (mcb=Large+) + bear flow on calls is suspicious
+      if (r.cap_class === "large" && bear && prem >= 500000) {
+        return {
+          tier: "hedge",
+          label: "Likely Hedge",
+          why: "Big-cap bear flow at high premium — often institutional " +
+               "tail-risk hedging, not directional.",
+        };
+      }
+      // Confirming: directional + opening + decent premium
+      if ((bull || bear) && opening && prem >= 100000) {
+        return {
+          tier: "confirming",
+          label: bull ? "Confirming Bull" : "Confirming Bear",
+          why: "Directional flow opening fresh positions at meaningful size.",
+        };
+      }
+      // Speculative: directional but lighter
+      if (bull || bear) {
+        return {
+          tier: "speculative",
+          label: "Speculative",
+          why: "Directional but lower conviction (smaller premium or " +
+               "vol/OI ratio).",
+        };
+      }
+      return {
+        tier: "speculative",
+        label: "Flagged",
+        why: "Flagged by base UOA filter; bias unclear.",
+      };
+    }
+    // Make classifier available to renderBody
+    window.__uoaClassifyTier = classifyTier;
+
     function renderEdge(edge) {
       const el = $("uoa-edge"); if (!el) return;
       if (!edge || !edge.total_signals) {
@@ -9976,7 +10231,62 @@
         '</tr>';
       }).join("");
     }
+    // ── Preset filters ──────────────────────────────────────────────
+    // Preset chips above the table set ACTIVE_PRESET; passFilters
+    // honors it BEFORE the granular dropdowns so users can one-click
+    // common queries without resetting every filter.
+    let ACTIVE_PRESET = "all";
+    function applyPreset(key) {
+      ACTIVE_PRESET = key || "all";
+      document.querySelectorAll("#uoa-presets button").forEach(function (b) {
+        b.classList.toggle("active", b.dataset.preset === ACTIVE_PRESET);
+      });
+      renderBody();
+    }
+    function passPreset(r) {
+      if (ACTIVE_PRESET === "all") return true;
+      const watchlist = (window.tdWatchlist && window.tdWatchlist()) ||
+                        new Set();
+      if (ACTIVE_PRESET === "watchlist") return watchlist.has(r.ticker);
+      if (ACTIVE_PRESET === "conviction") {
+        return r.direction === "bullish" && (r.premium || 0) >= 250000 &&
+               r.opening === "likely_open" &&
+               ((r.repeat_count || 0) >= 2 || r.golden);
+      }
+      if (ACTIVE_PRESET === "bullish") return r.direction === "bullish";
+      if (ACTIVE_PRESET === "bearish") return r.direction === "bearish";
+      if (ACTIVE_PRESET === "golden") return !!r.golden;
+      if (ACTIVE_PRESET === "repeat") return (r.repeat_count || 0) >= 2;
+      if (ACTIVE_PRESET === "opening") return r.opening === "likely_open";
+      if (ACTIVE_PRESET === "earnings") {
+        return r.earnings_days != null && r.earnings_days >= 0 &&
+               r.earnings_days <= 10;
+      }
+      return true;
+    }
+    // Wire preset chip clicks once on first availability of the DOM
+    (function wireUoaPresets() {
+      const wrap = document.getElementById("uoa-presets");
+      if (!wrap || wrap.dataset.wired) return;
+      wrap.dataset.wired = "1";
+      wrap.addEventListener("click", function (e) {
+        if (e.target.tagName !== "BUTTON") return;
+        applyPreset(e.target.dataset.preset);
+      });
+    })();
+    // Re-render presets every time the watchlist changes (so the Watchlist
+    // preset shows fresh results without manual re-click)
+    if (typeof onWatchChange === "function") {
+      onWatchChange(function () {
+        if (ACTIVE_PRESET === "watchlist") renderBody();
+        // also refresh the today-edge "watchlist flow" card
+        if (typeof renderTodayEdge === "function" &&
+            typeof DATA !== "undefined") renderTodayEdge(DATA);
+      });
+    }
+
     function passFilters(r) {
+      if (!passPreset(r)) return false;
       const q = $("uoa-q").value.trim().toUpperCase();
       if (q && r.ticker.indexOf(q) < 0) return false;
       const tp = $("uoa-type").value;
@@ -10093,6 +10403,7 @@
           } else { DATA = []; $("uoa-updated").textContent = "First scan pending."; }
           populateSectors(); populateThemes();
           renderHead(); renderClusters(); renderBody();
+          renderTodayEdge(DATA);
         })
         .catch(function () { DATA = []; renderHead(); renderClusters(); renderBody(); });
       fetch("./reports/uoa_edge.json?t="+Date.now())
