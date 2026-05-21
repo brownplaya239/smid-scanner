@@ -52,7 +52,13 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
-VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:brief@tickerdesk.io")
+VAPID_SUBJECT = (os.environ.get("VAPID_SUBJECT") or
+                 "mailto:brief@tickerdesk.io").strip()
+# Belt-and-suspenders: a blank GH Actions secret returns '' (not None),
+# which os.environ.get(... default) doesn't fall through. Coerce.
+if not VAPID_SUBJECT.startswith("mailto:") and \
+   not VAPID_SUBJECT.startswith("https:"):
+    VAPID_SUBJECT = "mailto:" + VAPID_SUBJECT.lstrip(":")
 TRIGGER_SOURCE = os.environ.get("TRIGGER_SOURCE", "manual")
 SITE_URL = os.environ.get("SITE_URL", "https://tickerdesk.io")
 
@@ -513,6 +519,9 @@ def process_user(user, swing_upgrades, uoa_flagged, earnings_imminent,
                 continue
             ok, err, gone = send_webpush(sub_row, payload)
             if ok:
+                print("    sent {} → {} ({}): {}".format(
+                    alert_type, sub_id[:8], user["user_id"][:8],
+                    payload["title"]))
                 log_push(user["user_id"], sub_id, alert_type, "sent",
                          payload["title"], payload["body"], t_list)
                 _sb_patch("push_subscriptions",
@@ -526,6 +535,8 @@ def process_user(user, swing_upgrades, uoa_flagged, earnings_imminent,
                 _sb_delete("push_subscriptions", {"id": "eq." + sub_id})
                 skipped += 1
             else:
+                print("    FAILED {} → {} ({}): {}".format(
+                    alert_type, sub_id[:8], user["user_id"][:8], err))
                 log_push(user["user_id"], sub_id, alert_type, "failed",
                          payload["title"], payload["body"], t_list, err)
                 # Increment fail counter — at 5 we stop trying this endpoint
