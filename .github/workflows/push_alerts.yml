@@ -1,0 +1,87 @@
+name: Push Alerts
+
+# Triggered AFTER each successful UOA or Momentum scan. workflow_run lets
+# us chain workflows: when uoa.yml or momentum.yml finishes, we kick this
+# off with TRIGGER_SOURCE set so push_alerts.py knows which signal to
+# diff (UOA flagged contracts vs swing grade upgrades).
+#
+# Also supports manual workflow_dispatch with a dry-run toggle, useful
+# for testing without spamming real devices.
+
+on:
+  workflow_run:
+    workflows: ["Momentum Scans", "Unusual Options Activity"]
+    types: [completed]
+    branches: [master]
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run (compose pushes, do not send)'
+        required: false
+        default: 'false'
+      trigger:
+        description: 'Force trigger source (uoa | momentum | both)'
+        required: false
+        default: 'both'
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    # Only fire on successful parent runs — failed scans have stale data
+    # and we don't want to push grade upgrades from a broken swing report.
+    if: ${{ github.event.workflow_run.conclusion == 'success' ||
+            github.event_name == 'workflow_dispatch' }}
+    env:
+      SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      VAPID_PUBLIC_KEY:     ${{ secrets.VAPID_PUBLIC_KEY }}
+      VAPID_PRIVATE_KEY:    ${{ secrets.VAPID_PRIVATE_KEY }}
+      VAPID_SUBJECT:        ${{ secrets.VAPID_SUBJECT }}
+      SITE_URL:             https://tickerdesk.io
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Determine trigger source
+        id: trig
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "trigger=${{ github.event.inputs.trigger }}" >> $GITHUB_OUTPUT
+          else
+            # Map parent workflow name → script trigger keyword
+            WF="${{ github.event.workflow.name }}"
+            case "$WF" in
+              "Momentum Scans") echo "trigger=momentum" >> $GITHUB_OUTPUT ;;
+              "Unusual Options Activity") echo "trigger=uoa" >> $GITHUB_OUTPUT ;;
+              *) echo "trigger=both" >> $GITHUB_OUTPUT ;;
+            esac
+          fi
+
+      - name: Send push alerts
+        env:
+          TRIGGER_SOURCE: ${{ steps.trig.outputs.trigger }}
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python push_alerts.py $ARGS
