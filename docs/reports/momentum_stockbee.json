@@ -1,5 +1,5 @@
 {
- "updated": "2026-05-20T19:01:38-04:00",
+ "updated": "2026-05-21T04:48:55-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -92,6 +92,95 @@
      "chg": 12.25,
      "adr_pct": 2.79,
      "dollar_vol": 2650728568,
+     "ern": "Aug 12"
+    }
+   ]
+  },
+  {
+   "date": "2026-05-21",
+   "generated": "2026-05-21T04:48:55-04:00",
+   "count": 5,
+   "rows": [
+    {
+     "ticker": "NOW",
+     "price": 103.3,
+     "chg": 18.67,
+     "adr_pct": 5.2,
+     "dollar_vol": 2889472055,
+     "ern": "Jul 22"
+    },
+    {
+     "ticker": "ARM",
+     "price": 256.73,
+     "chg": 16.06,
+     "adr_pct": 7.41,
+     "dollar_vol": 2662664716,
+     "ern": "Jul 29"
+    },
+    {
+     "ticker": "CRWD",
+     "price": 650.11,
+     "chg": 15.56,
+     "adr_pct": 4.28,
+     "dollar_vol": 1614793518,
+     "ern": "Jun 03"
+    },
+    {
+     "ticker": "CLSK",
+     "price": 15.4,
+     "chg": 15.79,
+     "adr_pct": 7.77,
+     "dollar_vol": 305348483,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "GH",
+     "price": 114.97,
+     "chg": 16.76,
+     "adr_pct": 6.19,
+     "dollar_vol": 189163962,
+     "ern": "Jul 29"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "ZETA",
+     "price": 18.34,
+     "chg": 14.34,
+     "adr_pct": 5.5,
+     "dollar_vol": 169414251,
+     "ern": "--"
+    },
+    {
+     "ticker": "CELC",
+     "price": 140.34,
+     "chg": 12.75,
+     "adr_pct": 7.4,
+     "dollar_vol": 166416817,
+     "ern": "Aug 13"
+    },
+    {
+     "ticker": "OPCH",
+     "price": 22.23,
+     "chg": 12.39,
+     "adr_pct": 4.61,
+     "dollar_vol": 109015468,
+     "ern": "Jul 29"
+    },
+    {
+     "ticker": "ACN",
+     "price": 179.22,
+     "chg": 12.27,
+     "adr_pct": 4.04,
+     "dollar_vol": 1047646547,
+     "ern": "Jun 18"
+    },
+    {
+     "ticker": "CSCO",
+     "price": 114.35,
+     "chg": 12.25,
+     "adr_pct": 2.79,
+     "dollar_vol": 2650769349,
      "ern": "Aug 12"
     }
    ]

@@ -1,5 +1,5 @@
 {
- "updated": "2026-05-20T19:01:38-04:00",
+ "updated": "2026-05-21T04:48:55-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -187,6 +187,101 @@
      "chg": 64.37,
      "adr_pct": 5.18,
      "dollar_vol": 112982612,
+     "ern": "Jul 29"
+    }
+   ]
+  },
+  {
+   "date": "2026-05-21",
+   "generated": "2026-05-21T04:48:55-04:00",
+   "count": 11,
+   "rows": [
+    {
+     "ticker": "MU",
+     "price": 731.99,
+     "chg": 62.89,
+     "adr_pct": 6.81,
+     "dollar_vol": 33458581584,
+     "ern": "Jun 24"
+    },
+    {
+     "ticker": "SNDK",
+     "price": 1392.56,
+     "chg": 54.13,
+     "adr_pct": 7.87,
+     "dollar_vol": 19717199878,
+     "ern": "--"
+    },
+    {
+     "ticker": "AMD",
+     "price": 447.58,
+     "chg": 57.33,
+     "adr_pct": 5.88,
+     "dollar_vol": 17729160209,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "INTC",
+     "price": 118.96,
+     "chg": 79.54,
+     "adr_pct": 7.59,
+     "dollar_vol": 17271240202,
+     "ern": "Jul 23"
+    },
+    {
+     "ticker": "DDOG",
+     "price": 212.24,
+     "chg": 64.16,
+     "adr_pct": 5.14,
+     "dollar_vol": 1205998838,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "NVTS",
+     "price": 22.99,
+     "chg": 49.97,
+     "adr_pct": 14.58,
+     "dollar_vol": 701571297,
+     "ern": "Aug 03"
+    },
+    {
+     "ticker": "DOCN",
+     "price": 160.11,
+     "chg": 69.05,
+     "adr_pct": 8.11,
+     "dollar_vol": 573219054,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "MXL",
+     "price": 96.77,
+     "chg": 187.15,
+     "adr_pct": 14.22,
+     "dollar_vol": 565729959,
+     "ern": "Jul 22"
+    },
+    {
+     "ticker": "STRL",
+     "price": 752.0,
+     "chg": 59.04,
+     "adr_pct": 6.45,
+     "dollar_vol": 526249197,
+     "ern": "Aug 03"
+    },
+    {
+     "ticker": "SYNA",
+     "price": 129.82,
+     "chg": 49.51,
+     "adr_pct": 7.39,
+     "dollar_vol": 122356613,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "COCO",
+     "price": 77.88,
+     "chg": 64.37,
+     "adr_pct": 5.18,
+     "dollar_vol": 112985642,
      "ern": "Jul 29"
     }
    ]
