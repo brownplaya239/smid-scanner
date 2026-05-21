@@ -3,6 +3,47 @@
 One-time setup to power user accounts, watchlists, and trade journal.
 Takes ~5 minutes.
 
+## 0c. (Phase 6) Cloudflare Worker secrets for Stripe Checkout
+
+The worker now exposes `/stripe/checkout` (frontend calls this to start
+a subscription) and `/stripe/webhook` (Stripe calls this to update
+`profiles.subscription_tier` when events fire). Both need worker secrets
+set via Wrangler:
+
+```bash
+cd cloudflare-worker
+npx wrangler secret put STRIPE_SECRET_KEY         # sk_live_... or sk_test_...
+npx wrangler secret put STRIPE_PRO_PRICE_ID       # price_... for $29/mo Pro
+npx wrangler secret put STRIPE_PREMIUM_PRICE_ID   # price_... for $99/mo Premium
+npx wrangler secret put STRIPE_WEBHOOK_SECRET     # whsec_... from webhook endpoint
+npx wrangler secret put SUPABASE_URL              # already used by daily_brief — same value
+npx wrangler secret put SUPABASE_SERVICE_KEY      # so the webhook can update profiles
+```
+
+To wire it up end-to-end:
+
+1. **Create the products in Stripe** at https://dashboard.stripe.com/products:
+   - "TickerDesk Pro" — recurring $29/mo
+   - "TickerDesk Premium" — recurring $99/mo
+   Copy each `price_...` ID (NOT the product ID) into the worker secrets above.
+
+2. **Register the webhook** at https://dashboard.stripe.com/webhooks:
+   - Endpoint URL: `https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev/stripe/webhook`
+   - Listen for events:
+     - `checkout.session.completed`
+     - `customer.subscription.created`
+     - `customer.subscription.updated`
+     - `customer.subscription.deleted`
+   - Copy the **Signing secret** (`whsec_...`) into the `STRIPE_WEBHOOK_SECRET` worker secret.
+
+3. **Deploy the worker** with `npx wrangler deploy`.
+
+4. **Test**: on tickerdesk.io click any "Upgrade to Pro" CTA → should redirect to Stripe hosted checkout. Complete the test card flow (`4242 4242 4242 4242`, any future date, any CVC). On success, redirected back to tickerdesk.io with `?subscribed=1&plan=pro`. The webhook fires within seconds and sets `profiles.subscription_tier = 'pro'`.
+
+Until secrets are set, clicking Upgrade falls back to the email-signup
+intent capture (current behavior pre-Stripe) so the user's interest is
+still recorded.
+
 ## 0b. (Phase 5) GitHub Actions secrets for Web Push notifications
 
 The `Push Alerts` workflow needs 3 more secrets on top of the Daily Brief
