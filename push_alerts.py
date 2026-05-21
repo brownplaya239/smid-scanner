@@ -404,6 +404,8 @@ def alert_hash(user_id, alert_type, tickers):
 
 def already_pushed_recently(user_id, alert_type, tickers, hours=6):
     """True if this same (user, alert_type, ticker set) was pushed <hours ago."""
+    if globals().get("FORCE_NO_DEDUP"):
+        return False
     cutoff = (datetime.utcnow() - timedelta(hours=hours)).isoformat() + "Z"
     rows = _sb_get("push_log", {
         "select": "id,payload",
@@ -556,7 +558,11 @@ def main():
                     help="Don't actually send pushes; print what would be sent")
     ap.add_argument("--trigger", default=None,
                     help="Override TRIGGER_SOURCE env (uoa|momentum|both)")
+    ap.add_argument("--force", action="store_true",
+                    help="Bypass the 4-hour push_log dedup (testing only)")
     args = ap.parse_args()
+    global FORCE_NO_DEDUP
+    FORCE_NO_DEDUP = bool(args.force)
     global TRIGGER_SOURCE
     if args.trigger:
         TRIGGER_SOURCE = args.trigger
