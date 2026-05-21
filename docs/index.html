@@ -2124,8 +2124,12 @@
   // role key (do NOT put here) is the only bypass; that stays server-side.
   // While these are empty strings, the site still works fully in anon mode:
   // watchlists persist to localStorage, "sign in" button is hidden.
-  const SUPA_URL  = "";    // e.g. "https://xxxxx.supabase.co"
-  const SUPA_ANON = "";    // e.g. "eyJhbGciOi..." (long JWT)
+  // Supabase project credentials — both ARE safe to put in client code.
+  // The publishable key is RLS-gated; can only read/write rows where
+  // auth.uid() matches the row's user_id. The secret key (which we
+  // never use here) is the only one that bypasses RLS.
+  const SUPA_URL  = "https://uaeojibmhxbwkhpvmjwy.supabase.co";
+  const SUPA_ANON = "sb_publishable_Lsy2m1QG18tkGYwizS-_0A_LhfIFXdo";
   let SUPA = null;         // populated by initSupabase() once SDK loads
 
   // ── Auth + persistence layer ─────────────────────────────────────
