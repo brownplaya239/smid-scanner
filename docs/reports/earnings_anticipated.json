@@ -1,8 +1,8 @@
 {
  "week_of": "2026-05-18",
- "generated": "2026-05-21T04:51:32-04:00",
+ "generated": "2026-05-21T16:35:22-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 37,
+ "total": 66,
  "days": [
   {
    "date": "2026-05-18",
@@ -41,8 +41,199 @@
   {
    "date": "2026-05-20",
    "dow": "Wednesday",
-   "bmo": [],
+   "bmo": [
+    {
+     "ticker": "TJX",
+     "company": "TJX Companies Inc.",
+     "score": 1,
+     "analysts": 22,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "7/2026"
+    },
+    {
+     "ticker": "TGT",
+     "company": "Target Corp.",
+     "score": 1,
+     "analysts": 35,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "7/2026"
+    },
+    {
+     "ticker": "LOW",
+     "company": "Lowe's Companies, Inc.",
+     "score": 1,
+     "analysts": 29,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "7/2026"
+    },
+    {
+     "ticker": "ADI",
+     "company": "Analog Devices, Inc.",
+     "score": 1,
+     "analysts": 32,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "7/2026"
+    },
+    {
+     "ticker": "ZIM",
+     "company": "ZIM Integrated Shipping Services Ltd.",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "VFC",
+     "company": "VF Corp.",
+     "score": 1,
+     "analysts": 23,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "TATT",
+     "company": "TAT Technologies Ltd.",
+     "score": 1,
+     "analysts": 8,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "ROIV",
+     "company": "Roivant Sciences Ltd.",
+     "score": 1,
+     "analysts": 14,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "PERI",
+     "company": "Perion Network Ltd.",
+     "score": 1,
+     "analysts": 8,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "IMVT",
+     "company": "Immunovant, Inc.",
+     "score": 1,
+     "analysts": 19,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "HDL",
+     "company": "Super Hi",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "HAS",
+     "company": "Hasbro, Inc.",
+     "score": 1,
+     "analysts": 16,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "GLNG",
+     "company": "Golar LNG Ltd",
+     "score": 1,
+     "analysts": 11,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "GDS",
+     "company": "GDS Holdings Ltd",
+     "score": 1,
+     "analysts": 14,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "EDRY",
+     "company": "EuroDry Ltd.",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "BZUN",
+     "company": "Baozun Inc.",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "BZ",
+     "company": "Kanzhun Limited",
+     "score": 1,
+     "analysts": 12,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "ARCO",
+     "company": "Arcos Dorados Holdings Inc.",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    }
+   ],
    "amc": [
+    {
+     "ticker": "NVDA",
+     "company": "NVIDIA Corp.",
+     "score": 5,
+     "analysts": 49,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "7/2026"
+    },
     {
      "ticker": "CSAI",
      "company": "Cloudastructure, Inc. ",
@@ -54,14 +245,104 @@
      "q": "3/2026"
     },
     {
-     "ticker": "NVDA",
-     "company": "NVIDIA Corp.",
+     "ticker": "URBN",
+     "company": "Urban Outfitters, Inc",
      "score": 1,
-     "analysts": 49,
+     "analysts": 12,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-05-20T00:00:00",
      "q": "7/2026"
+    },
+    {
+     "ticker": "NDSN",
+     "company": "Nordson Corp.",
+     "score": 1,
+     "analysts": 9,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "7/2026"
+    },
+    {
+     "ticker": "INTU",
+     "company": "Intuit Inc.",
+     "score": 1,
+     "analysts": 31,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "7/2026"
+    },
+    {
+     "ticker": "VVOS",
+     "company": "Vivos Therapeutics, Inc.",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "STEP",
+     "company": "StepStone Group Inc.",
+     "score": 1,
+     "analysts": 9,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "SBLK",
+     "company": "Star Bulk Carriers Corp",
+     "score": 1,
+     "analysts": 7,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "ENS",
+     "company": "EnerSys",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "ELF",
+     "company": "e.l.f. Beauty, Inc.",
+     "score": 1,
+     "analysts": 18,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "BLTE",
+     "company": "Belite Bio Inc",
+     "score": 1,
+     "analysts": 9,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "AVEX",
+     "company": "AEVEX Corp.",
+     "score": 1,
+     "analysts": 10,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-20T00:00:00",
+     "q": "6/2026"
     }
    ]
   },
@@ -72,7 +353,7 @@
     {
      "ticker": "WMT",
      "company": "Walmart Inc.",
-     "score": 43,
+     "score": 46,
      "analysts": 38,
      "release_time": 1,
      "confirmed": true,
@@ -82,7 +363,7 @@
     {
      "ticker": "NIO",
      "company": "NIO Inc.",
-     "score": 38,
+     "score": 39,
      "analysts": 15,
      "release_time": 1,
      "confirmed": true,
@@ -92,7 +373,7 @@
     {
      "ticker": "DE",
      "company": "Deere & Company",
-     "score": 22,
+     "score": 25,
      "analysts": 24,
      "release_time": 1,
      "confirmed": true,
@@ -130,6 +411,16 @@
      "q": "3/2026"
     },
     {
+     "ticker": "LSPD",
+     "company": "Lightspeed Commerce Inc.",
+     "score": 6,
+     "analysts": 20,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-21T00:00:00",
+     "q": "3/2026"
+    },
+    {
      "ticker": "NTES",
      "company": "NetEase, Inc.",
      "score": 5,
@@ -144,16 +435,6 @@
      "company": "Endava",
      "score": 5,
      "analysts": 9,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-05-21T00:00:00",
-     "q": "3/2026"
-    },
-    {
-     "ticker": "LSPD",
-     "company": "Lightspeed Commerce Inc.",
-     "score": 5,
-     "analysts": 20,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-05-21T00:00:00",
@@ -178,16 +459,6 @@
      "confirmed": true,
      "next_eps": "2026-05-21T00:00:00",
      "q": "3/2026"
-    },
-    {
-     "ticker": "WSM",
-     "company": "Williams-Sonoma, Inc.",
-     "score": 3,
-     "analysts": 20,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-05-21T00:00:00",
-     "q": "4/2026"
     },
     {
      "ticker": "SCVL",
@@ -230,6 +501,26 @@
      "q": "3/2026"
     },
     {
+     "ticker": "WSM",
+     "company": "Williams-Sonoma, Inc.",
+     "score": 3,
+     "analysts": 20,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-21T00:00:00",
+     "q": "4/2026"
+    },
+    {
+     "ticker": "PMI",
+     "company": "PMI Group, Inc.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-05-21T00:00:00",
+     "q": "6/2026"
+    },
+    {
      "ticker": "ESEA",
      "company": "Euroseas Ltd.",
      "score": 1,
@@ -254,7 +545,7 @@
     {
      "ticker": "WDAY",
      "company": "Workday, Inc.",
-     "score": 25,
+     "score": 29,
      "analysts": 41,
      "release_time": 3,
      "confirmed": true,
@@ -264,7 +555,7 @@
     {
      "ticker": "DECK",
      "company": "Deckers Brands",
-     "score": 21,
+     "score": 26,
      "analysts": 26,
      "release_time": 3,
      "confirmed": true,
@@ -272,9 +563,19 @@
      "q": "3/2026"
     },
     {
+     "ticker": "ZM",
+     "company": "Zoom Communications, Inc.",
+     "score": 21,
+     "analysts": 27,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-05-21T00:00:00",
+     "q": "4/2026"
+    },
+    {
      "ticker": "BULL",
      "company": "Webull Corporation",
-     "score": 16,
+     "score": 20,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
@@ -284,7 +585,7 @@
     {
      "ticker": "TTWO",
      "company": "Take-Two Interactive Software, Inc.",
-     "score": 15,
+     "score": 17,
      "analysts": 28,
      "release_time": 3,
      "confirmed": true,
@@ -292,19 +593,9 @@
      "q": "3/2026"
     },
     {
-     "ticker": "ZM",
-     "company": "Zoom Communications, Inc.",
-     "score": 14,
-     "analysts": 27,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-05-21T00:00:00",
-     "q": "4/2026"
-    },
-    {
      "ticker": "ROST",
      "company": "Ross Stores Inc.",
-     "score": 10,
+     "score": 13,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
@@ -322,20 +613,20 @@
      "q": "4/2026"
     },
     {
-     "ticker": "FLO",
-     "company": "Flowers Foods Inc.",
+     "ticker": "LION",
+     "company": "Lionsgate Studios Corp.",
      "score": 5,
-     "analysts": 6,
+     "analysts": 12,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-05-21T00:00:00",
      "q": "3/2026"
     },
     {
-     "ticker": "LION",
-     "company": "Lionsgate Studios Corp.",
-     "score": 4,
-     "analysts": 12,
+     "ticker": "FLO",
+     "company": "Flowers Foods Inc.",
+     "score": 5,
+     "analysts": 6,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-05-21T00:00:00",
@@ -380,7 +671,7 @@
     {
      "ticker": "BAH",
      "company": "Booz Allen Hamilton Holding Corporation",
-     "score": 9,
+     "score": 12,
      "analysts": 14,
      "release_time": 1,
      "confirmed": true,
@@ -390,7 +681,7 @@
     {
      "ticker": "BJ",
      "company": "BJ's Wholesale Club, Inc.",
-     "score": 7,
+     "score": 10,
      "analysts": 22,
      "release_time": 1,
      "confirmed": true,
@@ -400,7 +691,7 @@
     {
      "ticker": "GSL",
      "company": "Global Ship Lease, Inc.",
-     "score": 4,
+     "score": 5,
      "analysts": 5,
      "release_time": 1,
      "confirmed": true,

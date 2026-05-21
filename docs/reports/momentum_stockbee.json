@@ -1,5 +1,5 @@
 {
- "updated": "2026-05-21T04:51:05-04:00",
+ "updated": "2026-05-21T16:34:28-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -98,90 +98,90 @@
   },
   {
    "date": "2026-05-21",
-   "generated": "2026-05-21T04:51:05-04:00",
+   "generated": "2026-05-21T16:34:28-04:00",
    "count": 5,
    "rows": [
     {
-     "ticker": "NOW",
-     "price": 103.3,
-     "chg": 18.67,
-     "adr_pct": 5.2,
-     "dollar_vol": 2889472055,
-     "ern": "Jul 22"
-    },
-    {
      "ticker": "ARM",
-     "price": 256.73,
-     "chg": 16.06,
-     "adr_pct": 7.41,
-     "dollar_vol": 2662664716,
+     "price": 298.23,
+     "chg": 30.52,
+     "adr_pct": 7.54,
+     "dollar_vol": 2808847546,
      "ern": "Jul 29"
     },
     {
-     "ticker": "CRWD",
-     "price": 650.11,
-     "chg": 15.56,
-     "adr_pct": 4.28,
-     "dollar_vol": 1614793518,
-     "ern": "Jun 03"
+     "ticker": "IBM",
+     "price": 252.97,
+     "chg": 15.84,
+     "adr_pct": 2.83,
+     "dollar_vol": 1628176714,
+     "ern": "Jul 22"
     },
     {
-     "ticker": "CLSK",
-     "price": 15.4,
-     "chg": 15.79,
-     "adr_pct": 7.77,
-     "dollar_vol": 305348483,
+     "ticker": "QBTS",
+     "price": 25.74,
+     "chg": 16.31,
+     "adr_pct": 9.05,
+     "dollar_vol": 657224360,
      "ern": "Aug 06"
     },
     {
      "ticker": "GH",
-     "price": 114.97,
-     "chg": 16.76,
-     "adr_pct": 6.19,
-     "dollar_vol": 189163962,
+     "price": 118.01,
+     "chg": 19.61,
+     "adr_pct": 6.26,
+     "dollar_vol": 208070997,
      "ern": "Jul 29"
+    },
+    {
+     "ticker": "AAP",
+     "price": 58.62,
+     "chg": 17.92,
+     "adr_pct": 5.21,
+     "dollar_vol": 109906867,
+     "ern": "May 21"
     }
    ],
    "near_misses": [
     {
-     "ticker": "ZETA",
-     "price": 18.34,
-     "chg": 14.34,
-     "adr_pct": 5.5,
-     "dollar_vol": 169414251,
-     "ern": "--"
+     "ticker": "RGTI",
+     "price": 22.04,
+     "chg": 14.37,
+     "adr_pct": 8.88,
+     "dollar_vol": 619376204,
+     "ern": "Reported"
     },
     {
-     "ticker": "CELC",
-     "price": 140.34,
-     "chg": 12.75,
-     "adr_pct": 7.4,
-     "dollar_vol": 166416817,
-     "ern": "Aug 13"
+     "ticker": "CLSK",
+     "price": 15.76,
+     "chg": 12.73,
+     "adr_pct": 7.66,
+     "dollar_vol": 308347124,
+     "ern": "Aug 06"
     },
     {
-     "ticker": "OPCH",
-     "price": 22.23,
-     "chg": 12.39,
-     "adr_pct": 4.61,
-     "dollar_vol": 109015468,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "ACN",
-     "price": 179.22,
+     "ticker": "MXL",
+     "price": 99.67,
      "chg": 12.27,
-     "adr_pct": 4.04,
-     "dollar_vol": 1047646547,
-     "ern": "Jun 18"
+     "adr_pct": 14.28,
+     "dollar_vol": 572035670,
+     "ern": "Jul 22"
     },
     {
-     "ticker": "CSCO",
-     "price": 114.35,
-     "chg": 12.25,
-     "adr_pct": 2.79,
-     "dollar_vol": 2650769349,
-     "ern": "Aug 12"
+     "ticker": "CRWD",
+     "price": 648.23,
+     "chg": 11.77,
+     "adr_pct": 4.22,
+     "dollar_vol": 1628228985,
+     "ern": "Jun 03"
+    },
+    {
+     "ticker": "SNDK",
+     "price": 1542.24,
+     "chg": 11.54,
+     "adr_pct": 8.2,
+     "dollar_vol": 20188988815,
+     "ern": "--"
     }
    ]
   }
