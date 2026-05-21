@@ -333,15 +333,17 @@ async function fetchLiveUOA(env, ticker, debug) {
   if (!env.POLYGON_API_KEY) {
     return { error: "POLYGON_API_KEY not configured", contracts: [] };
   }
-  // Polygon's options snapshot defaults to ATM-only, 10-day expiry. To
-  // catch real UOA we need a wider window + the "unusual" filter Polygon
-  // exposes natively. Sort by descending day volume to get the active
-  // names first. The "expiration_date.gte" lower-bound = today UTC.
+  // Polygon's options snapshot supports limit + filter params but its
+  // `sort` parameter only accepts: ticker, expiration_date, strike_price,
+  // contract_type. There's NO sort-by-volume — so we pull a wide
+  // result set (250 contracts) with explicit expiry/strike windows and
+  // do the volume ranking client-side.
+  // expiration_date.gte = today  → don't get rid of today-expiring
+  //                                  contracts (0DTE flow is real flow)
   const today = new Date().toISOString().slice(0, 10);
   const url = "https://api.polygon.io/v3/snapshot/options/" +
               encodeURIComponent(ticker) +
               "?limit=250" +
-              "&order=desc&sort=day.volume" +
               "&expiration_date.gte=" + today +
               "&apiKey=" + env.POLYGON_API_KEY;
   let r;
