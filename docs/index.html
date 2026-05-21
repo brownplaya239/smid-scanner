@@ -785,6 +785,38 @@
   /* ── Swing Report Card ── */
   #panel-swing { max-width:1400px; }       /* wide enough for all 20 grade columns */
 
+  /* Live scan tables — Breakouts + Setups, above the PDF archive */
+  .live-scan-table { margin-bottom:14px; }
+  .lst-wrap { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:8px 0 0; overflow:hidden; }
+  .lst-h { font-size:10.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; font-weight:700;
+    padding:4px 14px 8px; border-bottom:1px solid var(--line); }
+  .lst-table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  .lst-table th { background:var(--navy2); color:var(--muted);
+    font-size:9.5px; text-transform:uppercase; letter-spacing:.4px;
+    font-weight:700; text-align:left; padding:7px 10px;
+    border-bottom:1px solid var(--line); }
+  .lst-table td { padding:7px 10px; border-bottom:1px solid var(--line);
+    color:var(--textdim); font-variant-numeric:tabular-nums; }
+  .lst-table tr:hover td { background:var(--rowhov); }
+  .lst-table strong { color:var(--text); font-weight:700; cursor:pointer; }
+  .lst-table strong:hover { color:var(--gold); }
+  .lst-star { color:var(--gold); font-size:10px; }
+  .lst-score { background:var(--navy2); border-radius:3px;
+    padding:1px 6px; font-weight:700; color:var(--text); font-size:10.5px; }
+  .lst-flow { font-weight:700; }
+  .lst-flow.up { color:var(--green); }
+  .lst-flow.down { color:var(--red); }
+  .lst-empty { padding:18px; color:var(--muted); font-size:11px;
+    text-align:center; font-style:italic; }
+  .lst-empty-c { color:var(--muted); }
+  .lst-add { background:transparent; border:1px solid var(--border2);
+    color:var(--textdim); padding:3px 8px; border-radius:3px;
+    font-size:10px; font-weight:700; cursor:pointer;
+    font-family:inherit; }
+  .lst-add:hover { border-color:var(--gold); color:var(--gold); }
+
   /* Swing "New today" insights strip — diffs latest run vs prior */
   .snt-strip { background:var(--card); border:1px solid var(--line);
     border-radius:8px; padding:10px 12px; margin-bottom:14px; }
@@ -924,6 +956,125 @@
   .src-pop .sp-actions .sp-action-icon { font-size:13px; line-height:1; }
   .src-pop .sp-actions .sp-action-lbl { font-size:9px;
     text-transform:uppercase; letter-spacing:.3px; }
+
+  /* Admin / Data Quality drawer — hidden by default; opens via ?admin=1 */
+  .adm-backdrop { position:fixed; inset:0; z-index:97; background:rgba(0,0,0,.5);
+    display:none; }
+  .adm-backdrop.show { display:block; }
+  .adm-drawer { position:fixed; top:0; right:0; bottom:0; width:520px;
+    max-width:100vw; background:var(--card); border-left:1px solid var(--line);
+    z-index:98; transform:translateX(100%);
+    transition:transform .2s ease; overflow-y:auto;
+    font-family:'SF Mono', Menlo, Consolas, monospace; }
+  .adm-drawer.show { transform:translateX(0); }
+  .adm-drawer-h { display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px; border-bottom:1px solid var(--line);
+    background:var(--navy2); position:sticky; top:0; z-index:1; }
+  .adm-drawer-h h3 { margin:0; font-size:14px; font-weight:700;
+    color:var(--text); font-family:inherit; }
+  .adm-close { background:none; border:0; color:var(--muted);
+    font-size:22px; cursor:pointer; font-family:inherit; line-height:1; }
+  .adm-close:hover { color:var(--text); }
+  .adm-drawer-body { padding:14px 18px 40px; }
+  .adm-section { margin-bottom:18px; }
+  .adm-section-h { font-size:10.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; font-weight:700;
+    margin-bottom:6px; padding-bottom:4px;
+    border-bottom:1px solid var(--line); }
+  .adm-row { display:flex; align-items:center; gap:8px;
+    padding:5px 0; font-size:11px; }
+  .adm-name { min-width:160px; color:var(--textdim); font-weight:600; }
+  .adm-stamp { color:var(--muted); flex:1;
+    font-variant-numeric:tabular-nums; }
+  .adm-badge { padding:2px 6px; border-radius:3px; font-size:9.5px;
+    font-weight:700; letter-spacing:.3px; }
+  .adm-badge.ok { background:rgba(31,195,110,.18); color:var(--green); }
+  .adm-badge.warn { background:rgba(255,200,0,.15); color:var(--gold); }
+  .adm-badge.err { background:rgba(255,91,91,.15); color:var(--red); }
+  .adm-loading { color:var(--muted); font-size:11.5px; padding:20px;
+    text-align:center; }
+
+  /* Report generation phase hint — sub-line of the working status */
+  .rep-phase-hint { display:block; color:var(--muted); font-size:10.5px;
+    font-weight:400; margin-top:2px; line-height:1.4; }
+
+  /* Onboarding modal — first-run setup for new users (4 steps) */
+  .ob-modal { position:fixed; inset:0; z-index:96; display:none;
+    background:rgba(0,0,0,.75); align-items:center; justify-content:center;
+    padding:20px; }
+  .ob-modal.show { display:flex; }
+  .ob-modal-inner { background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:32px 28px 24px; width:520px;
+    max-width:100%; position:relative;
+    box-shadow:0 20px 60px rgba(0,0,0,.7); }
+  .ob-progress { display:flex; gap:8px; justify-content:center;
+    margin-bottom:24px; }
+  .ob-dot { width:8px; height:8px; border-radius:50%;
+    background:var(--border2); transition:background .2s, width .2s; }
+  .ob-dot.active { background:var(--gold); width:24px;
+    border-radius:4px; }
+  .ob-close { position:absolute; top:12px; right:14px; background:none;
+    border:0; color:var(--muted); font-size:24px; cursor:pointer;
+    font-family:inherit; line-height:1; }
+  .ob-close:hover { color:var(--text); }
+  .ob-step { display:none; }
+  .ob-step.active { display:block; }
+  .ob-step h3 { font-size:22px; font-weight:800; color:var(--text);
+    margin:0 0 8px; line-height:1.25; }
+  .ob-step .ob-sub { font-size:13px; color:var(--textdim);
+    line-height:1.6; margin:0 0 18px; }
+  .ob-checklist { list-style:none; padding:0; margin:0 0 18px;
+    font-size:13px; color:var(--text); }
+  .ob-checklist li { padding:6px 0; line-height:1.5; }
+  .ob-starter { margin-bottom:14px; }
+  .ob-starter-btn { width:100%; background:var(--gold);
+    color:var(--accink); border:0; font-family:inherit;
+    font-size:13px; font-weight:700; padding:12px 14px;
+    border-radius:6px; cursor:pointer; }
+  .ob-starter-btn:hover { filter:brightness(1.05); }
+  .ob-or { text-align:center; font-size:11px; color:var(--muted);
+    margin:12px 0; text-transform:uppercase; letter-spacing:.5px; }
+  .ob-paste { width:100%; box-sizing:border-box;
+    background:var(--navy2); border:1px solid var(--border2);
+    color:var(--text); padding:10px 12px; border-radius:6px;
+    font-family:inherit; font-size:13px; line-height:1.5;
+    resize:vertical; }
+  .ob-paste:focus { outline:0; border-color:var(--gold); }
+  .ob-toggle-row { display:flex; justify-content:center;
+    margin:18px 0 10px; }
+  .ob-big-toggle { display:flex; align-items:center; gap:10px;
+    cursor:pointer; font-size:14px; font-weight:600; color:var(--text); }
+  .ob-big-toggle input { position:absolute; opacity:0;
+    pointer-events:none; }
+  .ob-toggle-vis { position:relative; width:50px; height:26px;
+    background:var(--navy2); border:1px solid var(--border2);
+    border-radius:13px; transition:background .2s, border-color .2s; }
+  .ob-toggle-vis::after { content:""; position:absolute;
+    top:1px; left:1px; width:22px; height:22px; background:#cfd8ff;
+    border-radius:50%; transition:left .2s, background .2s; }
+  .ob-big-toggle input:checked + .ob-toggle-vis {
+    background:rgba(31,195,110,.4); border-color:var(--green); }
+  .ob-big-toggle input:checked + .ob-toggle-vis::after {
+    left:25px; background:var(--green); }
+  .ob-fineprint { font-size:11px; color:var(--muted); text-align:center;
+    margin:8px 0 0; line-height:1.5; }
+  .ob-cta-primary { width:100%; background:var(--gold);
+    color:var(--accink); border:0; font-family:inherit;
+    font-size:14px; font-weight:800; padding:14px 18px;
+    border-radius:7px; cursor:pointer; letter-spacing:.3px; }
+  .ob-cta-primary:hover { filter:brightness(1.05); }
+  .ob-foot { display:flex; gap:8px; justify-content:space-between;
+    margin-top:22px; }
+  .ob-back, .ob-skip { background:transparent;
+    color:var(--textdim); border:1px solid var(--border2);
+    font-family:inherit; font-size:12px; font-weight:600;
+    padding:9px 14px; border-radius:5px; cursor:pointer; }
+  .ob-back:hover, .ob-skip:hover { border-color:var(--gold);
+    color:var(--gold); }
+  .ob-next, .ob-finish { background:var(--gold); color:var(--accink);
+    border:0; font-family:inherit; font-size:12.5px; font-weight:700;
+    padding:9px 18px; border-radius:5px; cursor:pointer; margin-left:auto; }
+  .ob-next:hover, .ob-finish:hover { filter:brightness(1.05); }
 
   /* Note editor — small modal that opens when a Note action is clicked.
      Saves to public.notes table when signed in, otherwise prompts auth. */
@@ -1769,6 +1920,37 @@
     text-transform:uppercase; letter-spacing:.3px; }
 
   /* SEC Filings section inside the ticker drilldown panel */
+  /* Per-ticker alert preferences inside drilldown panel */
+  .tdp-alerts { display:flex; flex-direction:column; gap:5px; }
+  .tdp-alerts-cta { padding:14px 10px; text-align:center;
+    background:var(--navy2); border:1px dashed var(--border2);
+    border-radius:5px; }
+  .tdp-alerts-cta p { font-size:11.5px; color:var(--textdim);
+    line-height:1.5; margin:0 0 10px; }
+  .tdp-alerts-signin { background:var(--gold); color:var(--accink);
+    border:0; font-family:inherit; font-size:11.5px; font-weight:700;
+    padding:7px 14px; border-radius:5px; cursor:pointer; }
+  .tdp-alerts-signin:hover { filter:brightness(1.05); }
+  .tdp-alert-row { display:flex; align-items:center;
+    gap:10px; padding:7px 8px; background:var(--navy2);
+    border:1px solid var(--line); border-radius:4px; cursor:pointer; }
+  .tdp-alert-row:hover { border-color:var(--gold); }
+  .tdp-alert-row.is-disabled { opacity:.55; cursor:not-allowed; }
+  .tdp-alert-meta { flex:1; min-width:0; }
+  .tdp-alert-label { font-size:11.5px; font-weight:600; color:var(--text);
+    line-height:1.3; }
+  .tdp-alert-sub { font-size:10px; color:var(--muted); line-height:1.4; }
+  .tdp-alert-soon { background:var(--navy2);
+    border:1px solid var(--border2); color:var(--muted);
+    font-size:8.5px; font-weight:700; padding:1px 4px; border-radius:3px;
+    text-transform:uppercase; letter-spacing:.4px; margin-left:4px; }
+  .tdp-alert-toggle { width:18px; height:18px; cursor:pointer;
+    accent-color:var(--gold); flex-shrink:0; }
+  .tdp-alerts-foot { font-size:10px; color:var(--muted);
+    margin-top:6px; line-height:1.5; padding:5px 6px; }
+  .tdp-alerts-foot a { color:var(--gold); text-decoration:none; }
+  .tdp-alerts-foot a:hover { text-decoration:underline; }
+
   /* Live UOA flow inside drilldown panel — same style language as the
      filings list but tighter rows since each contract is denser data. */
   .tdp-liveflow { display:flex; flex-direction:column; gap:0; }
@@ -2893,6 +3075,10 @@
     <section class="panel" id="panel-breakout">
       <h2 class="tab-title">Breakout Scans</h2>
       <p class="tab-sub">Live breakout scans &mdash; 10:00, 11:30, 3:00 PM ET weekdays.</p>
+      <!-- Live ticker table — extracts top breakout candidates from
+           today's swing run (A/A+ grades + bull flow if present)
+           so users see actionable names without opening every PDF. -->
+      <div class="live-scan-table" id="breakout-live-table"></div>
       <div class="uoa-subnav" id="breakout-subnav">
         <button data-sub="smid-scanner" class="active">SMID</button>
         <button data-sub="iwm-scanner">Russell 2000 (IWM)</button>
@@ -2903,6 +3089,10 @@
     <section class="panel" id="panel-setup">
       <h2 class="tab-title">Setup Builder</h2>
       <p class="tab-sub">EOD pre-breakout VCP watchlists &mdash; 4:15 PM ET weekdays.</p>
+      <!-- Live ticker table — extracts top setup candidates (A/A+ grade
+           tight bases, lower volatility, near 52-wk highs) so users see
+           actionable VCP names without opening every PDF. -->
+      <div class="live-scan-table" id="setup-live-table"></div>
       <div class="uoa-subnav" id="setup-subnav">
         <button data-sub="smid-setup" class="active">SMID</button>
         <button data-sub="iwm-setup">Russell 2000 (IWM)</button>
@@ -3298,6 +3488,108 @@
       <div class="uoa-tip" id="uoa-tip"></div>
     </section>
   </main>
+
+  <!-- Admin / Data Quality drawer. Opens via ?admin=1 in URL.
+       Hidden by default; shows job health, file ages, errors, stale
+       data warnings. Read-only — no settings exposed here. -->
+  <div class="adm-drawer" id="adm-drawer" aria-hidden="true">
+    <div class="adm-drawer-h">
+      <h3>📊 Data Quality &middot; admin view</h3>
+      <button class="adm-close" id="adm-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="adm-drawer-body" id="adm-drawer-body">
+      <div class="adm-loading">Loading health checks...</div>
+    </div>
+  </div>
+  <div class="adm-backdrop" id="adm-backdrop"></div>
+
+  <!-- Onboarding modal — shown to brand-new users on first sign-in.
+       Four steps with progress dots; users can skip at any point.
+       Local-storage flag td-onboarded prevents re-showing. -->
+  <div class="ob-modal" id="ob-modal" role="dialog" aria-modal="true"
+       aria-hidden="true">
+    <div class="ob-modal-inner">
+      <div class="ob-progress">
+        <span class="ob-dot active" data-step="1"></span>
+        <span class="ob-dot" data-step="2"></span>
+        <span class="ob-dot" data-step="3"></span>
+        <span class="ob-dot" data-step="4"></span>
+      </div>
+      <button class="ob-close" id="ob-close" aria-label="Skip">&times;</button>
+
+      <div class="ob-step active" data-step="1">
+        <h3>Welcome to TickerDesk 🚀</h3>
+        <p class="ob-sub">Let's set up your personal research desk in
+          under a minute. Three quick steps and you're done.</p>
+        <ul class="ob-checklist">
+          <li>📊 Daily Brief email at 8:45 AM ET</li>
+          <li>🔔 Real-time browser alerts for watchlist names</li>
+          <li>⭐ Save tickers from any tab to your watchlist</li>
+          <li>📝 Private notes on every name</li>
+          <li>📈 Live unusual options flow on every drilldown</li>
+        </ul>
+        <div class="ob-foot">
+          <button class="ob-skip" data-ob-skip>Skip setup</button>
+          <button class="ob-next" data-ob-next="2">Get started →</button>
+        </div>
+      </div>
+
+      <div class="ob-step" data-step="2">
+        <h3>Build your watchlist</h3>
+        <p class="ob-sub">Add 3-10 tickers you actively follow.
+          Everything personalizes around this list — My Desk, alerts,
+          the Daily Brief, and "what's new since last visit."</p>
+        <div class="ob-starter">
+          <button class="ob-starter-btn" data-ob-starter>
+            ★ Use starter (NVDA · MU · AVGO · MRVL · AAPL · PLTR · COIN)
+          </button>
+        </div>
+        <div class="ob-or">— or —</div>
+        <textarea class="ob-paste" id="ob-paste" rows="3"
+          placeholder="Paste your own: NVDA, MU, AVGO, MRVL, AAPL"></textarea>
+        <div class="ob-foot">
+          <button class="ob-back" data-ob-next="1">← Back</button>
+          <button class="ob-next" data-ob-next="3">Continue →</button>
+        </div>
+      </div>
+
+      <div class="ob-step" data-step="3">
+        <h3>Get the morning brief?</h3>
+        <p class="ob-sub">One concise email at 8:45 AM ET weekdays
+          covering your watchlist's grade changes, unusual flow,
+          earnings within 7 days, and new research reports.
+          Free forever. One-click unsubscribe in every email.</p>
+        <div class="ob-toggle-row">
+          <label class="ob-big-toggle">
+            <input type="checkbox" id="ob-brief-on" checked />
+            <span class="ob-toggle-vis"></span>
+            <span class="ob-toggle-lbl">Daily Brief: <b id="ob-brief-state">ON</b></span>
+          </label>
+        </div>
+        <p class="ob-fineprint">Flip this anytime from the Watchlist tab.</p>
+        <div class="ob-foot">
+          <button class="ob-back" data-ob-next="2">← Back</button>
+          <button class="ob-next" data-ob-next="4">Continue →</button>
+        </div>
+      </div>
+
+      <div class="ob-step" data-step="4">
+        <h3>Real-time browser alerts?</h3>
+        <p class="ob-sub">Get a notification the moment a watchlist name
+          gets unusual options flow, a grade upgrade, or earnings
+          within 24h. Works on desktop + Android. Free.</p>
+        <button class="ob-cta-primary" id="ob-enable-push">
+          🔔 Enable browser alerts
+        </button>
+        <p class="ob-fineprint">Your browser will ask for permission.
+          Allow once and it works across all your watchlist names.</p>
+        <div class="ob-foot">
+          <button class="ob-back" data-ob-next="3">← Back</button>
+          <button class="ob-finish" id="ob-finish">All set — open my desk</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Note editor modal — opened when any Note action is clicked anywhere -->
   <div class="note-modal" id="note-modal" role="dialog" aria-modal="true"
@@ -3973,6 +4265,133 @@
   onUserChange(function () { loadPushState(); });
   loadPushState();
 
+  // ── Onboarding flow ─────────────────────────────────────────────
+  // Triggered on first sign-in when localStorage flag 'td-onboarded' is
+  // not set. Walks the user through 4 quick steps (welcome → watchlist →
+  // brief → push) then marks them onboarded.
+  function showOnboarding() {
+    const modal = document.getElementById("ob-modal");
+    if (!modal) return;
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    showOnboardingStep(1);
+  }
+  function hideOnboarding(markDone) {
+    const modal = document.getElementById("ob-modal");
+    if (!modal) return;
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    if (markDone) {
+      try { localStorage.setItem("td-onboarded", "1"); } catch (e) {}
+    }
+  }
+  function showOnboardingStep(n) {
+    const modal = document.getElementById("ob-modal");
+    if (!modal) return;
+    modal.querySelectorAll(".ob-step").forEach(function (s) {
+      s.classList.toggle("active", +s.dataset.step === n);
+    });
+    modal.querySelectorAll(".ob-dot").forEach(function (d) {
+      d.classList.toggle("active", +d.dataset.step === n);
+    });
+  }
+  function maybeShowOnboarding() {
+    // Only run if signed in, brand new (no localStorage flag), and
+    // SUPA is configured (otherwise the brief toggle won't work)
+    if (!SUPA || !CURRENT_USER) return;
+    let done = false;
+    try { done = !!localStorage.getItem("td-onboarded"); } catch (e) {}
+    if (done) return;
+    // Delay slightly so the rest of the auth state can settle
+    setTimeout(showOnboarding, 600);
+  }
+  // Wire onboarding buttons (idempotent)
+  (function wireOnboarding() {
+    const modal = document.getElementById("ob-modal");
+    if (!modal || modal.dataset.wired) return;
+    modal.dataset.wired = "1";
+    modal.addEventListener("click", async function (e) {
+      const nextBtn = e.target.closest("[data-ob-next]");
+      const skipBtn = e.target.closest("[data-ob-skip]");
+      const starterBtn = e.target.closest("[data-ob-starter]");
+      if (nextBtn) {
+        const n = +nextBtn.dataset.obNext;
+        // If leaving step 2, accept the typed list (if any)
+        if (n === 3) {
+          const ta = document.getElementById("ob-paste");
+          if (ta && ta.value.trim()) {
+            const tickers = ta.value.toUpperCase()
+              .replace(/[^A-Z\s,]+/g, " ").split(/[\s,]+/)
+              .filter(function (s) { return s.length >= 1 && s.length <= 6; });
+            for (const tk of tickers) {
+              if (window.tdAddWatch) await window.tdAddWatch(tk);
+            }
+          }
+        }
+        // If leaving step 3, apply Daily Brief preference
+        if (n === 4) {
+          const cb = document.getElementById("ob-brief-on");
+          if (cb && SUPA && CURRENT_USER) {
+            try {
+              await SUPA.from("profiles").upsert({
+                id: CURRENT_USER.id,
+                daily_brief_enabled: cb.checked,
+              });
+            } catch (e) { console.warn("Brief preset failed:", e); }
+          }
+        }
+        showOnboardingStep(n);
+      } else if (starterBtn) {
+        starterBtn.disabled = true;
+        starterBtn.textContent = "Adding starter...";
+        const starter = ["NVDA","MU","AVGO","MRVL","AAPL","PLTR","COIN"];
+        for (const tk of starter) {
+          if (window.tdAddWatch) await window.tdAddWatch(tk);
+        }
+        starterBtn.textContent = "★ Starter added! Continue →";
+        setTimeout(function () { showOnboardingStep(3); }, 700);
+      } else if (skipBtn) {
+        hideOnboarding(true);
+      }
+    });
+    // Brief toggle live label update
+    const cb = document.getElementById("ob-brief-on");
+    if (cb) cb.addEventListener("change", function () {
+      const lbl = document.getElementById("ob-brief-state");
+      if (lbl) lbl.textContent = cb.checked ? "ON" : "OFF";
+    });
+    // Enable push step
+    const pushBtn = document.getElementById("ob-enable-push");
+    if (pushBtn) pushBtn.addEventListener("click", async function () {
+      pushBtn.disabled = true;
+      pushBtn.textContent = "Asking browser permission...";
+      try {
+        if (typeof subscribePush === "function") {
+          await subscribePush();
+        }
+        pushBtn.textContent = "✓ Alerts enabled";
+        pushBtn.disabled = false;
+      } catch (e) {
+        pushBtn.textContent = "🔔 Try again";
+        pushBtn.disabled = false;
+      }
+    });
+    // Finish + close
+    const fin = document.getElementById("ob-finish");
+    if (fin) fin.addEventListener("click", function () {
+      hideOnboarding(true);
+      // Land on My Desk after onboarding
+      const mydesk = document.querySelector('nav button[data-tab="mydesk"]');
+      if (mydesk) mydesk.click();
+    });
+    const close = document.getElementById("ob-close");
+    if (close) close.addEventListener("click", function () {
+      hideOnboarding(true);
+    });
+  })();
+  // Trigger onboarding on first SIGN_IN event
+  onUserChange(function () { maybeShowOnboarding(); });
+
   // Kick off init after DOM ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initSupabase);
@@ -4224,6 +4643,134 @@
         renderBench();
       } catch (e) { /* silent */ }
     }
+    // ── MTD / YTD aggregation cache ─────────────────────────────────
+    // Fetches daily candles via the worker for each watchlist ticker,
+    // computes MTD and YTD per name, then aggregates weighted into a
+    // portfolio number. Cached for 5 min per ticker so repeat tab
+    // visits within a session don't re-fetch. Use sparingly — 10
+    // tickers × ~30KB candle response = ~300KB, fine for the user
+    // but we throttle to 5 in-flight at once to be polite.
+    const MTD_YTD_CACHE = {};         // ticker → {ts, mtdPct, ytdPct, lastPx}
+    const MTD_YTD_TTL = 5 * 60 * 1000;
+    async function fetchMtdYtd(ticker) {
+      const cached = MTD_YTD_CACHE[ticker];
+      if (cached && Date.now() - cached.ts < MTD_YTD_TTL) return cached;
+      try {
+        const url = TDP_WORKER_URL + "?candles=" +
+          encodeURIComponent(ticker) + "&range=1y&interval=1d";
+        const r = await fetch(url);
+        if (!r.ok) return null;
+        const d = await r.json();
+        if (!d || !d.bars || !d.bars.length) return null;
+        const last = d.bars[d.bars.length - 1];
+        const lastPx = last.c;
+        const lastTs = last.t || last.timestamp;
+        const lastDate = lastTs ? new Date(lastTs) : new Date();
+        // MTD anchor = first bar of the current month
+        const monthStart = new Date(lastDate.getFullYear(),
+                                    lastDate.getMonth(), 1);
+        // YTD anchor = last bar of the prior year (or first of this year)
+        const yearStart = new Date(lastDate.getFullYear(), 0, 1);
+        // Walk backwards to find the anchor bars
+        let mtdBase = null, ytdBase = null;
+        for (let i = d.bars.length - 1; i >= 0; i--) {
+          const b = d.bars[i];
+          const ts = b.t || b.timestamp;
+          if (!ts) continue;
+          const dt = new Date(ts);
+          if (mtdBase == null && dt < monthStart) mtdBase = b.c;
+          if (ytdBase == null && dt < yearStart) { ytdBase = b.c; break; }
+        }
+        const out = {
+          ts: Date.now(),
+          mtdPct: mtdBase ? ((lastPx - mtdBase) / mtdBase) * 100 : null,
+          ytdPct: ytdBase ? ((lastPx - ytdBase) / ytdBase) * 100 : null,
+          lastPx: lastPx,
+        };
+        MTD_YTD_CACHE[ticker] = out;
+        return out;
+      } catch (e) { return null; }
+    }
+    // Throttled batch fetch (up to 5 in-flight at once)
+    async function fetchAllMtdYtd(tickers) {
+      const out = {};
+      const queue = tickers.slice();
+      const workers = Math.min(5, queue.length);
+      await Promise.all(Array.from({length: workers}, async function () {
+        while (queue.length) {
+          const tk = queue.shift();
+          out[tk] = await fetchMtdYtd(tk);
+        }
+      }));
+      return out;
+    }
+    // Update the portfolio MTD/YTD cards once per Watchlist tab activation
+    let _wlMtdYtdInflight = false;
+    async function refreshPortfolioMtdYtd() {
+      if (_wlMtdYtdInflight) return;
+      const wl = Array.from(WATCHLIST);
+      if (!wl.length) return;
+      _wlMtdYtdInflight = true;
+      try {
+        const data = await fetchAllMtdYtd(wl);
+        // Weighted aggregates
+        let mtdNum = 0, mtdDen = 0, ytdNum = 0, ytdDen = 0;
+        wl.forEach(function (tk) {
+          const w = WATCHLIST_WEIGHTS[tk] != null ? WATCHLIST_WEIGHTS[tk] : 1;
+          const d = data[tk];
+          if (d && d.mtdPct != null) { mtdNum += w * d.mtdPct; mtdDen += w; }
+          if (d && d.ytdPct != null) { ytdNum += w * d.ytdPct; ytdDen += w; }
+        });
+        const mtdPort = mtdDen > 0 ? mtdNum / mtdDen : null;
+        const ytdPort = ytdDen > 0 ? ytdNum / ytdDen : null;
+        // Anchor SPY for vs-SPY math (worker call but cached for 5m)
+        const spy = await fetchMtdYtd("SPY");
+        const qqq = await fetchMtdYtd("QQQ");
+        const mtdEl = document.getElementById("wl-mtd");
+        const ytdEl = document.getElementById("wl-ytd");
+        const vsSpyEl = document.getElementById("wl-vs-spy-ytd");
+        const vsQqqEl = document.getElementById("wl-vs-qqq-ytd");
+        function setCard(el, pct, sub) {
+          if (!el) return;
+          if (pct == null) {
+            el.innerHTML = '<div class="wls-label">' + el.dataset.label +
+              '</div><div class="wls-val neutral">—</div>' +
+              '<div class="wls-sub">' + (sub || "loading") + '</div>';
+            return;
+          }
+          const cls = pct >= 0 ? "up" : "down";
+          el.innerHTML = '<div class="wls-label">' + el.dataset.label +
+            '</div><div class="wls-val ' + cls + '">' +
+            (pct > 0 ? "+" : "") + pct.toFixed(2) + '%</div>' +
+            '<div class="wls-sub">' + (sub || "") + '</div>';
+        }
+        setCard(mtdEl, mtdPort, "Weighted across " + wl.length + " names");
+        setCard(ytdEl, ytdPort, "Year-to-date weighted return");
+        if (vsSpyEl && spy) {
+          const diff = (ytdPort != null && spy.ytdPct != null)
+            ? ytdPort - spy.ytdPct : null;
+          setCard(vsSpyEl, diff, "SPY YTD " +
+            (spy.ytdPct != null ? (spy.ytdPct > 0 ? "+" : "") +
+              spy.ytdPct.toFixed(1) + "%" : ""));
+        }
+        if (vsQqqEl && qqq) {
+          const diff = (ytdPort != null && qqq.ytdPct != null)
+            ? ytdPort - qqq.ytdPct : null;
+          setCard(vsQqqEl, diff, "QQQ YTD " +
+            (qqq.ytdPct != null ? (qqq.ytdPct > 0 ? "+" : "") +
+              qqq.ytdPct.toFixed(1) + "%" : ""));
+        }
+      } finally {
+        _wlMtdYtdInflight = false;
+      }
+    }
+    // Trigger on Watchlist tab open
+    document.getElementById("nav").addEventListener("click", function (e) {
+      if (e.target && e.target.dataset && e.target.dataset.tab === "watchlist") {
+        setTimeout(refreshPortfolioMtdYtd, 300);
+      }
+    });
+
     // ── Cross-referenced summary cards ──────────────────────────────
     // Pulls swing/uoa/earnings data via window.TD_DATA so the watchlist
     // tab shows derived counts: bullish flow, A-tier names, upcoming
@@ -4312,6 +4859,25 @@
         return v == null ? "neutral" : v > 0 ? "up" : v < 0 ? "down" : "neutral";
       }
       const cards = [];
+      // Time-period performance cards — populated asynchronously by
+      // refreshPortfolioMtdYtd() which fetches /candles per ticker.
+      // Initial state shows "—" with "loading" subtext.
+      cards.push('<div class="wls-card" id="wl-mtd" data-label="MTD %">' +
+        '<div class="wls-label">MTD %</div>' +
+        '<div class="wls-val neutral">—</div>' +
+        '<div class="wls-sub">loading...</div></div>');
+      cards.push('<div class="wls-card" id="wl-ytd" data-label="YTD %">' +
+        '<div class="wls-label">YTD %</div>' +
+        '<div class="wls-val neutral">—</div>' +
+        '<div class="wls-sub">loading...</div></div>');
+      cards.push('<div class="wls-card" id="wl-vs-spy-ytd" data-label="vs SPY YTD">' +
+        '<div class="wls-label">vs SPY YTD</div>' +
+        '<div class="wls-val neutral">—</div>' +
+        '<div class="wls-sub">loading...</div></div>');
+      cards.push('<div class="wls-card" id="wl-vs-qqq-ytd" data-label="vs QQQ YTD">' +
+        '<div class="wls-label">vs QQQ YTD</div>' +
+        '<div class="wls-val neutral">—</div>' +
+        '<div class="wls-sub">loading...</div></div>');
       cards.push('<div class="wls-card"><div class="wls-label">' +
         'Watchlist size</div><div class="wls-val">' + wl.length +
         '</div><div class="wls-sub">' + Math.round(totalW * 10) / 10 +
@@ -5110,6 +5676,177 @@
   }, 3000);
 
   // ── Watchlist drawer wiring ──
+  // ── Admin / Data Quality drawer ──────────────────────────────────
+  // Opens via ?admin=1 (or ctrl+shift+A). Pulls timestamp + size + a
+  // "what's this for" tag per data module. Read-only health view.
+  (function setupAdminDrawer() {
+    function openAdmin() {
+      const drawer = document.getElementById("adm-drawer");
+      const back = document.getElementById("adm-backdrop");
+      if (!drawer) return;
+      drawer.classList.add("show");
+      drawer.setAttribute("aria-hidden", "false");
+      back.classList.add("show");
+      renderAdmin();
+    }
+    function closeAdmin() {
+      const drawer = document.getElementById("adm-drawer");
+      const back = document.getElementById("adm-backdrop");
+      if (!drawer) return;
+      drawer.classList.remove("show");
+      drawer.setAttribute("aria-hidden", "true");
+      back.classList.remove("show");
+    }
+    function timeAgo(iso) {
+      if (!iso) return "?";
+      const t = Date.parse(iso);
+      if (isNaN(t)) return "?";
+      const secs = Math.max(0, Math.floor((Date.now() - t) / 1000));
+      if (secs < 60) return secs + "s ago";
+      if (secs < 3600) return Math.floor(secs / 60) + "m ago";
+      if (secs < 86400) return Math.floor(secs / 3600) + "h ago";
+      return Math.floor(secs / 86400) + "d ago";
+    }
+    function freshBadge(iso, character) {
+      const t = Date.parse(iso);
+      if (isNaN(t)) return '<span class="adm-badge err">No data</span>';
+      const hrs = (Date.now() - t) / 3600000;
+      if (character === "post-close") {
+        if (hrs < 18) return '<span class="adm-badge ok">Fresh</span>';
+        if (hrs < 40) return '<span class="adm-badge warn">Aging</span>';
+        return '<span class="adm-badge err">Stale</span>';
+      }
+      if (character === "weekly") {
+        if (hrs < 72) return '<span class="adm-badge ok">Fresh</span>';
+        if (hrs < 192) return '<span class="adm-badge warn">Aging</span>';
+        return '<span class="adm-badge err">Stale</span>';
+      }
+      if (hrs < 1.5) return '<span class="adm-badge ok">Fresh</span>';
+      if (hrs < 6) return '<span class="adm-badge warn">Aging</span>';
+      return '<span class="adm-badge err">Stale</span>';
+    }
+    async function fetchTs(path) {
+      try {
+        const r = await fetch(path + "?t=" + Date.now());
+        if (!r.ok) return null;
+        const d = await r.json();
+        return {
+          ts: d.updated || d.generated || null,
+          rowCount: d.rows ? d.rows.length :
+                    d.runs ? d.runs.length :
+                    d.days ? d.days.length :
+                    d.etfs ? d.etfs.length : null,
+          raw: d,
+        };
+      } catch (e) { return null; }
+    }
+    async function renderAdmin() {
+      const body = document.getElementById("adm-drawer-body");
+      if (!body) return;
+      body.innerHTML = '<div class="adm-loading">Loading health checks...</div>';
+
+      const modules = [
+        { id: "swing_report", path: "./reports/swing_report.json",
+          char: "post-close", desc: "Swing grades (Today's Desk, Swing, Action List)" },
+        { id: "uoa_latest", path: "./reports/uoa_latest.json",
+          char: "live", desc: "Unusual flow (Options Flow, drilldown live flow)" },
+        { id: "uoa_signals_scored", path: "./reports/uoa_signals_scored.json",
+          char: "live", desc: "Scored signals (Tracked Signals subtab)" },
+        { id: "uoa_edge", path: "./reports/uoa_edge.json",
+          char: "live", desc: "Historical edge stats" },
+        { id: "earnings_anticipated", path: "./reports/earnings_anticipated.json",
+          char: "post-close", desc: "Earnings calendar (Earnings tab, Daily Brief)" },
+        { id: "economic_calendar", path: "./reports/economic_calendar.json",
+          char: "post-close", desc: "Macro events (Today's Desk)" },
+        { id: "country_etfs", path: "./reports/country_etfs.json",
+          char: "post-close", desc: "Country ETF YTD (Global tab)" },
+        { id: "momentum_qm", path: "./reports/momentum_qm.json",
+          char: "post-close", desc: "Qullamaggie monthly screen" },
+        { id: "momentum_stockbee", path: "./reports/momentum_stockbee.json",
+          char: "weekly", desc: "Stockbee weekly screen" },
+        { id: "manifest", path: "./reports/manifest.json",
+          char: "live", desc: "Report archive index" },
+        { id: "whisper_tweet", path: "./reports/whisper_tweet.json",
+          char: "post-close", desc: "EW weekly anticipation tweet" },
+      ];
+
+      const results = await Promise.all(modules.map(async function (m) {
+        const r = await fetchTs(m.path);
+        return { ...m, ...r };
+      }));
+
+      const rows = results.map(function (r) {
+        const badge = r.ts ? freshBadge(r.ts, r.char)
+          : '<span class="adm-badge err">Missing</span>';
+        const ageStr = r.ts ? timeAgo(r.ts) : "—";
+        const cnt = r.rowCount != null
+          ? ' · ' + r.rowCount + (r.id === "swing_report" ? " runs"
+            : r.id === "earnings_anticipated" ? " days"
+            : r.id === "country_etfs" ? " ETFs"
+            : " rows") : "";
+        return '<div class="adm-row">' +
+          '<span class="adm-name">' + r.id + '.json</span>' +
+          '<span class="adm-stamp">' + ageStr + cnt + '</span>' +
+          badge +
+          '</div>';
+      }).join("");
+
+      // Cron schedule summary (read from window vs hardcoded — we know
+      // the schedule from the workflows)
+      const schedule = [
+        ["Daily Brief", "8:47 AM ET weekdays"],
+        ["Scanner 10:00 AM", "scanner.yml @ 11:07 ET (EST cron, runs 1hr late in EDT)"],
+        ["Scanner 11:30 AM", "scanner.yml @ 11:37 ET"],
+        ["Scanner 3:00 PM", "scanner.yml @ 3:07 ET"],
+        ["Setup Builder 4:15 PM", "scanner.yml @ 5:17 ET (EST cron, EDT post-close)"],
+        ["UOA scans (6×/day)", "9:47, 11:07, 12:17, 1:37, 2:37, 3:47 PM ET"],
+        ["Momentum + Swing", "5:33 PM ET post-close"],
+        ["Push alerts", "after each UOA + Momentum (workflow_run trigger)"],
+      ];
+
+      const schedRows = schedule.map(function (s) {
+        return '<div class="adm-row">' +
+          '<span class="adm-name">' + s[0] + '</span>' +
+          '<span class="adm-stamp">' + s[1] + '</span>' +
+          '</div>';
+      }).join("");
+
+      body.innerHTML =
+        '<div class="adm-section">' +
+          '<div class="adm-section-h">Data Files</div>' +
+          rows +
+        '</div>' +
+        '<div class="adm-section">' +
+          '<div class="adm-section-h">Cron Schedules (literal UTC fire times)</div>' +
+          schedRows +
+        '</div>' +
+        '<div class="adm-section">' +
+          '<div class="adm-section-h">Notes</div>' +
+          '<div class="adm-row"><span class="adm-stamp">' +
+            'Stale = no data or far past expected cadence. "Aging" is ' +
+            'between fresh and stale — normal for post-close batches ' +
+            'after market hours.' +
+          '</span></div>' +
+        '</div>';
+    }
+    // Wire close
+    document.getElementById("adm-close").addEventListener("click", closeAdmin);
+    document.getElementById("adm-backdrop").addEventListener("click", closeAdmin);
+    // Open via URL or shortcut
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.get("admin") === "1") openAdmin();
+    } catch (e) {}
+    document.addEventListener("keydown", function (e) {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        const drawer = document.getElementById("adm-drawer");
+        if (drawer.classList.contains("show")) closeAdmin();
+        else openAdmin();
+      }
+    });
+  })();
+
   (function setupWatchlistDrawer() {
     const trigger  = document.getElementById("wl-trigger");
     const triggerN = document.getElementById("wl-trigger-count");
@@ -6286,6 +7023,17 @@
       sec.push('<div class="tdp-section"><h4>Why it matters today</h4>' +
         '<div class="tdp-why">' + whyMatters(agg) + '</div></div>');
 
+      // 6b) Per-ticker push alert preferences. Renders into a placeholder
+      // div; fetchAndRenderTickerAlerts() fills it async based on current
+      // alerts table state. Signed-out users see a Sign-in CTA instead.
+      sec.push('<div class="tdp-section" id="tdp-alerts-section">' +
+        '<h4>🔔 Alerts for ' + t + ' <span style="color:var(--muted);' +
+          'font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;">' +
+          '· per-event push preferences</span></h4>' +
+        '<div class="tdp-alerts" id="tdp-alerts-body">' +
+          '<div class="tdp-empty">Loading...</div>' +
+        '</div></div>');
+
       // 6) Setup notes — local-only scratchpad. Stored per-ticker in
       // localStorage. Persists across sessions on this browser only.
       const notesVal = loadNotes(t).replace(/&/g, "&amp;")
@@ -6506,6 +7254,115 @@
       }
     }
 
+    // ── Per-ticker alert preferences ────────────────────────────────
+    // Renders 4 toggles (UOA flow / Grade change / Earnings / News) backed
+    // by public.alerts table. Signed-out users see a sign-in CTA. When a
+    // toggle flips, we upsert an alerts row keyed by (user_id, ticker,
+    // alert_type) so push_alerts.py can check them on each scan.
+    async function fetchAndRenderTickerAlerts(t) {
+      if (!t || t !== ACTIVE_TICKER) return;
+      const body = document.getElementById("tdp-alerts-body");
+      if (!body) return;
+      const user = window.tdUser && window.tdUser();
+      if (!user) {
+        body.innerHTML = '<div class="tdp-alerts-cta">' +
+          '<p>Sign in to set per-event alerts for ' + t + ':<br>' +
+          'new unusual flow, grade upgrades, earnings 24h, ' +
+          'breaking news.</p>' +
+          '<button class="tdp-alerts-signin" data-act-alert-signin="' +
+          t + '">Sign in to enable alerts</button>' +
+          '</div>';
+        return;
+      }
+      if (typeof SUPA === "undefined" || !SUPA) {
+        body.innerHTML = '<div class="tdp-empty">Alerts unavailable ' +
+          '(Supabase not configured).</div>';
+        return;
+      }
+      // Fetch existing prefs for this ticker
+      let prefs = {
+        new_flow: true, grade_change: true,
+        earnings_imminent: true, news_sentiment: false,
+      };
+      try {
+        const { data } = await SUPA.from("alerts")
+          .select("alert_type, enabled, config")
+          .eq("user_id", user.id).eq("ticker", t);
+        (data || []).forEach(function (row) {
+          prefs[row.alert_type] = !!row.enabled;
+        });
+      } catch (e) {
+        console.warn("Per-ticker alerts load failed:", e);
+      }
+      if (t !== ACTIVE_TICKER) return;
+      const types = [
+        { k: "new_flow", label: "New unusual options flow",
+          sub: "Fires when " + t + " is flagged in a UOA scan" },
+        { k: "grade_change", label: "Swing grade upgrade",
+          sub: "Fires when " + t + "'s grade improves vs prior session" },
+        { k: "earnings_imminent", label: "Earnings within 24h",
+          sub: "Fires the day before " + t + " reports" },
+        { k: "news_sentiment", label: "Breaking news",
+          sub: "Fires on negative or major news (deferred)" },
+      ];
+      body.innerHTML = types.map(function (item) {
+        const on = !!prefs[item.k];
+        const dis = item.k === "news_sentiment" ? "disabled" : "";
+        return '<label class="tdp-alert-row ' + (dis ? "is-disabled" : "") + '">' +
+          '<div class="tdp-alert-meta">' +
+            '<div class="tdp-alert-label">' + item.label +
+              (dis ? ' <span class="tdp-alert-soon">soon</span>' : '') +
+              '</div>' +
+            '<div class="tdp-alert-sub">' + item.sub + '</div>' +
+          '</div>' +
+          '<input type="checkbox" class="tdp-alert-toggle" ' +
+            'data-alert-tk="' + t + '" data-alert-type="' + item.k + '" ' +
+            (on ? "checked " : "") + dis + ' />' +
+        '</label>';
+      }).join("") +
+        '<div class="tdp-alerts-foot">Push notifications require ' +
+        'Real-time Alerts on from your <a href="#" id="tdp-go-wl">' +
+        'Watchlist tab</a> &mdash; this card sets WHICH events fire.</div>';
+      // Wire link
+      const goWl = body.querySelector("#tdp-go-wl");
+      if (goWl) goWl.onclick = function (e) {
+        e.preventDefault();
+        document.querySelector('nav button[data-tab="watchlist"]').click();
+      };
+    }
+    // Listen for any alert-toggle change inside the drilldown panel
+    document.addEventListener("change", async function (e) {
+      const inp = e.target.closest("input.tdp-alert-toggle");
+      if (!inp || inp.disabled) return;
+      const tk = inp.dataset.alertTk;
+      const type = inp.dataset.alertType;
+      const on = inp.checked;
+      const user = window.tdUser && window.tdUser();
+      if (!user || !SUPA) return;
+      try {
+        // Upsert via insert then update — Supabase JS doesn't support
+        // upsert with composite key elegantly; emulate with delete+insert.
+        await SUPA.from("alerts").delete()
+          .eq("user_id", user.id).eq("ticker", tk).eq("alert_type", type);
+        if (on) {
+          await SUPA.from("alerts").insert({
+            user_id: user.id, ticker: tk,
+            alert_type: type, enabled: true, config: {},
+          });
+        }
+      } catch (e) {
+        console.error("Alert pref save failed:", e);
+        inp.checked = !on;        // revert
+      }
+    });
+    // Signed-out CTA → open auth modal
+    document.addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-act-alert-signin]");
+      if (!btn) return;
+      const tk = btn.dataset.actAlertSignin;
+      if (window.tdRequireAuth) window.tdRequireAuth("alert", tk);
+    });
+
     async function fetchAndRenderLiveFlow(t) {
       // Live UOA snapshot via the worker. Returns top 25 unusual contracts
       // sorted by premium. We display top 6 in the panel — enough to
@@ -6645,6 +7502,8 @@
       fetchAndRenderLiveFlow(t);
       // Async fetch SEC filings (+ auto-summarize top 3 notables via Haiku)
       fetchAndRenderFilings(t);
+      // Async load per-ticker alert preferences (or signed-out CTA)
+      fetchAndRenderTickerAlerts(t);
     }
     function closePanel() {
       ACTIVE_TICKER = null;
@@ -7043,6 +7902,169 @@
   wireSubnav("setup-subnav", ["smid-setup", "iwm-setup"]);
 
   /* ── Load report manifest and render lists ── */
+  // ── Live ticker tables for Breakouts + Setups ───────────────────
+  // Extracts actionable candidates from today's swing universe and
+  // cross-references UOA flow. Renders ABOVE the PDF archive on both
+  // tabs so users see names they can act on immediately.
+  function renderLiveScanTables() {
+    const breakoutEl = document.getElementById("breakout-live-table");
+    const setupEl = document.getElementById("setup-live-table");
+    if (!breakoutEl && !setupEl) return;
+    const D = window.TD_DATA || {};
+    if (!D.swing || !D.swing.runs || !D.swing.runs.length) return;
+    const run = D.swing.runs[D.swing.runs.length - 1];
+    const grades = {};
+    Object.keys(run.grades || {}).forEach(function (g) {
+      (run.grades[g] || []).forEach(function (c) {
+        grades[c.t] = { ...c, grade: g };
+      });
+    });
+    // Flow lookup
+    const flowByTk = {};
+    if (D.uoa && D.uoa.rows) {
+      D.uoa.rows.forEach(function (r) {
+        if (!r.ticker) return;
+        const cur = flowByTk[r.ticker];
+        if (!cur || (r.premium || 0) > (cur.premium || 0)) {
+          flowByTk[r.ticker] = r;
+        }
+      });
+    }
+    const watchlist = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+
+    // ── Breakouts: A+/A grade + recent strength (high chg or high ext) ──
+    function buildBreakoutRows() {
+      const candidates = [];
+      ["A+", "A", "A-"].forEach(function (g) {
+        (run.grades[g] || []).forEach(function (c) {
+          const flow = flowByTk[c.t];
+          // Quality score: grade weight + flow agreement + extension
+          let score = g === "A+" ? 100 : g === "A" ? 80 : 65;
+          if (flow && flow.direction === "bullish") score += 15;
+          if (flow && flow.direction === "bearish") score -= 25;
+          if (c.chg != null) score += Math.min(c.chg * 2, 20);
+          candidates.push({
+            ticker: c.t, name: c.n || "", grade: g,
+            sector: c.sec || "", theme: (c.th && c.th[0]) || "",
+            price: c.p, chg: c.chg, ext: c.ext,
+            flow: flow, score: Math.round(score),
+            watched: watchlist.has(c.t),
+          });
+        });
+      });
+      candidates.sort(function (a, b) { return b.score - a.score; });
+      return candidates.slice(0, 15);
+    }
+
+    // ── Setups: A+/A grade + LOW extension (tight base near highs) ──
+    function buildSetupRows() {
+      const candidates = [];
+      ["A+", "A", "A-", "B+"].forEach(function (g) {
+        (run.grades[g] || []).forEach(function (c) {
+          const ext = c.ext || 0;
+          // Setup quality: A/A+ grade + ext < 8% (not overextended) +
+          // bull flow confirmation (or absence of bearish flow)
+          if (ext > 12) return;          // skip overextended
+          const flow = flowByTk[c.t];
+          if (flow && flow.direction === "bearish") return; // skip conflicts
+          let score = g === "A+" ? 100 : g === "A" ? 85
+                    : g === "A-" ? 70 : 55;
+          // Lower extension = tighter base = higher quality
+          score += (10 - Math.min(ext, 10));
+          if (flow && flow.direction === "bullish") score += 12;
+          candidates.push({
+            ticker: c.t, name: c.n || "", grade: g,
+            sector: c.sec || "", theme: (c.th && c.th[0]) || "",
+            price: c.p, chg: c.chg, ext: ext,
+            flow: flow, score: Math.round(score),
+            watched: watchlist.has(c.t),
+          });
+        });
+      });
+      candidates.sort(function (a, b) { return b.score - a.score; });
+      return candidates.slice(0, 15);
+    }
+
+    function gradeCls(g) {
+      return g[0] === "A" ? "snt-a" : g[0] === "G" || g[0] === "F"
+        ? "snt-g" : "snt-mid";
+    }
+    function flowCls(d) {
+      return d === "bullish" ? "up" : d === "bearish" ? "down" : "";
+    }
+    function fmtPrem(p) {
+      if (!p) return "—";
+      if (p >= 1e6) return "$" + (p / 1e6).toFixed(1) + "M";
+      if (p >= 1e3) return "$" + Math.round(p / 1e3) + "K";
+      return "$" + p;
+    }
+    function renderTable(rows, label) {
+      if (!rows.length) {
+        return '<div class="lst-empty">No qualifying names from ' +
+          'today\'s scan yet.</div>';
+      }
+      const head = '<thead><tr>' +
+        '<th>Ticker</th><th>Grade</th><th>Score</th>' +
+        '<th>Theme</th><th>Price</th><th>1D %</th>' +
+        '<th>Extension</th><th>Flow today</th><th></th></tr></thead>';
+      const body = rows.map(function (r) {
+        const fcls = r.flow ? flowCls(r.flow.direction) : "";
+        return '<tr>' +
+          '<td><strong data-t="' + r.ticker + '">' + r.ticker +
+            '</strong>' + (r.watched ? ' <span class="lst-star">★</span>' : '') +
+          '</td>' +
+          '<td><span class="snt-grade ' + gradeCls(r.grade) + '">' +
+            r.grade + '</span></td>' +
+          '<td><span class="lst-score">' + r.score + '</span></td>' +
+          '<td>' + (r.theme || '<span class="lst-empty-c">—</span>') + '</td>' +
+          '<td>$' + (r.price != null ? r.price.toFixed(2) : '—') + '</td>' +
+          '<td class="' + (r.chg > 0 ? "up" : r.chg < 0 ? "down" : "") +
+            '">' + (r.chg != null ? (r.chg > 0 ? "+" : "") +
+              r.chg.toFixed(2) + "%" : "—") + '</td>' +
+          '<td>' + (r.ext != null ? r.ext.toFixed(1) + "%" : "—") + '</td>' +
+          '<td>' + (r.flow
+            ? '<span class="lst-flow ' + fcls + '">' +
+              (r.flow.type || '').toUpperCase() + ' ' + fmtPrem(r.flow.premium) +
+              '</span>'
+            : '<span class="lst-empty-c">—</span>') + '</td>' +
+          '<td><button class="lst-add" data-act-save="' + r.ticker + '">' +
+            (r.watched ? '★ Saved' : '☆ Save') + '</button></td>' +
+          '</tr>';
+      }).join("");
+      return '<div class="lst-wrap">' +
+        '<div class="lst-h">' + label + ' &middot; ' + rows.length +
+          ' candidates from latest scan</div>' +
+        '<table class="lst-table">' + head + '<tbody>' + body +
+          '</tbody></table></div>';
+    }
+    if (breakoutEl) breakoutEl.innerHTML =
+      renderTable(buildBreakoutRows(), "Top Breakout Candidates");
+    if (setupEl) setupEl.innerHTML =
+      renderTable(buildSetupRows(), "Top Setup Candidates (low-extension VCPs)");
+  }
+  // Re-render live tables whenever the user lands on Breakouts or Setups
+  // (in case the watchlist toggled or swing data refreshed)
+  document.getElementById("nav").addEventListener("click", function (e) {
+    if (e.target && e.target.dataset) {
+      const t = e.target.dataset.tab;
+      if (t === "breakout" || t === "setup") {
+        setTimeout(renderLiveScanTables, 50);
+      }
+    }
+  });
+  // Initial render after swing data is available (try a few times)
+  let _liveScanTries = 0;
+  const _liveScanInterval = setInterval(function () {
+    if (window.TD_DATA && window.TD_DATA.swing) {
+      renderLiveScanTables();
+      clearInterval(_liveScanInterval);
+    }
+    if (++_liveScanTries > 30) clearInterval(_liveScanInterval);
+  }, 1000);
+  if (typeof onWatchChange === "function") {
+    onWatchChange(function () { renderLiveScanTables(); });
+  }
+
   function renderList(typeKey, entries) {
     const el = document.getElementById("list-" + typeKey);
     if (!el) return;
@@ -7116,13 +8138,42 @@
       viewer.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
+    // Update the most recent report_generations row for (user, ticker)
+    // to a new status. Used to reflect the queued → running → done lifecycle
+    // back to anything that watches public.report_generations (e.g. an
+    // account-wide "Recent reports" list, future credit dashboard, etc).
+    async function updateReportStatus(ticker, status) {
+      if (!SUPA || !CURRENT_USER) return;
+      try {
+        // Find the most recent queued/running row for this user+ticker
+        const { data, error } = await SUPA.from("report_generations")
+          .select("id, status")
+          .eq("user_id", CURRENT_USER.id)
+          .eq("ticker", ticker)
+          .in("status", ["queued", "running"])
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (error || !data || !data.length) return;
+        await SUPA.from("report_generations")
+          .update({ status: status })
+          .eq("id", data[0].id);
+      } catch (e) { /* silent */ }
+    }
+
     function poll(ticker, baseline, startedAt) {
       const deadlineMs = 7 * 60 * 1000;
+      let firstTick = true;
       async function tick() {
         const elapsed = Math.round((Date.now() - startedAt) / 1000);
+        // On first poll iteration, mark the row as "running"
+        if (firstTick) {
+          updateReportStatus(ticker, "running");
+          firstTick = false;
+        }
         if (Date.now() - startedAt > deadlineMs) {
           setStatus("err", "&#10007; Timed out waiting for the report. It may still " +
             "arrive &mdash; reload the page shortly to check the archive below.");
+          updateReportStatus(ticker, "failed");
           button.disabled = false;
           return;
         }
@@ -7133,13 +8184,25 @@
         });
         if (fresh) {
           setStatus("ok", "&#10003; <strong>" + ticker + "</strong> report ready &mdash; shown below.");
+          updateReportStatus(ticker, "done");
           embedReport(ticker, fresh);
           button.disabled = false;
           renderList(cfg.listKey, list);
           return;
         }
-        setStatus("working", "Researching <strong>" + ticker + "</strong>&hellip; (" +
-          elapsed + "s elapsed; typically " + cfg.runtime + ")");
+        // Progressive status — show "queued" first ~30s, then "running",
+        // then "still working" so the user gets concrete progress signals
+        const phase = elapsed < 30 ? "Queued" : elapsed < 180 ? "Running" : "Still working";
+        const phaseHint = elapsed < 30
+          ? "Worker received the request — preparing model"
+          : elapsed < 90
+          ? "Pulling market data + filings + news + alt-data"
+          : elapsed < 180
+          ? "Anthropic Opus is synthesizing — most reports take ~2-3 min"
+          : "Taking longer than usual — sometimes happens on cold cache";
+        setStatus("working", "<strong>" + phase + "</strong> · " +
+          ticker + " &middot; " + elapsed + "s elapsed " +
+          '<span class="rep-phase-hint">(' + phaseHint + ')</span>');
         setTimeout(tick, 10000);
       }
       setTimeout(tick, 15000);
