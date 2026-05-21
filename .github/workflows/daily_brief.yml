@@ -4,9 +4,13 @@ on:
   schedule:
     # 8:45 AM ET weekdays. GitHub delays top/half-hour schedules heavily,
     # so cron is :47 past for the actual ~8:47 ET fire time.
-    # EDT: 12:47 UTC  |  EST: 13:47 UTC
-    - cron: '47 12 * * 1-5'   # summer (EDT)
-    - cron: '47 13 * * 1-5'   # winter (EST)
+    # Single cron — GitHub cron is literal UTC with no DST handling. Both
+    # entries previously fired year-round (a bug). Picked EDT cron because
+    # the brief is purely a pre-open digest, and 1 hr earlier during EST
+    # winter (7:47 AM ET) is still pre-market and harmless.
+    # email_log idempotency check in daily_brief.py also de-dupes any
+    # accidental double-fire on the same brief_date.
+    - cron: '47 12 * * 1-5'
 
   workflow_dispatch:
     inputs:
