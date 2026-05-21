@@ -1,32 +1,40 @@
 # Wrangler config for the smid-scanner-discord-bot Cloudflare Worker.
 #
-# This config drives `wrangler deploy` so you can push worker.js changes
-# from the CLI instead of pasting into the dashboard editor.
+# This config drives `wrangler deploy` and the GH Actions auto-deploy
+# workflow (.github/workflows/deploy_worker.yml). Keep this file in
+# sync with whatever the Cloudflare dashboard generates — every time
+# you toggle settings in the dashboard, Wrangler complains on the next
+# deploy if local doesn't match remote.
 #
-# The `PAT` secret (GitHub fine-grained token used to dispatch the
-# ticker-lookup workflow) is NOT defined here — secrets live in the
-# Cloudflare environment, not in source. Set or rotate it with:
-#   wrangler secret put PAT
-# Existing secrets are preserved across deploys, so you only set this
-# once (or when rotating).
+# Secrets (sensitive values) are NOT defined here — they live in the
+# Cloudflare worker environment and are set via the dashboard or
+# `wrangler secret put NAME`. Existing secrets are preserved across
+# deploys.
 
 name               = "smid-scanner-discord-bot"
 main               = "worker.js"
 compatibility_date = "2026-05-20"
 
-# Non-secret runtime config — these are public values (URLs, project IDs)
-# that the worker needs but don't require encryption. Anything sensitive
-# (API keys, signing secrets, service_role keys) lives ONLY in worker
-# secrets — set them via `wrangler secret put NAME` or the dashboard
-# Variables and Secrets section (Type: Secret).
+# Non-secret runtime config. Anything sensitive (API keys, signing
+# secrets, service_role keys) lives ONLY in worker secrets.
 [vars]
 SUPABASE_URL = "https://uaeojibmhxbwkhpvmjwy.supabase.co"
 
-# Observability: minimal config matching what Cloudflare's dashboard
-# generates. logs.enabled + invocation_logs are the only knobs that
-# matter for our use; head_sampling_rate and persist default sensibly.
-# Lets us see worker console output in the dashboard Logs tab + via
-# `npx wrangler tail` from terminal.
+# Observability — exact match to what the Cloudflare dashboard
+# generates. The dashboard adds `enabled`, `head_sampling_rate`, and
+# `persist` fields even when not strictly required; mirroring them
+# here prevents the "remote config differs" warning on every deploy.
+[observability]
+enabled = false
+head_sampling_rate = 1
+
 [observability.logs]
 enabled = true
+head_sampling_rate = 1
+persist = true
 invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
