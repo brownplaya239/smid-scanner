@@ -554,6 +554,191 @@ async function fetchYahooCandles(sym, range, interval) {
   }
 }
 
+// ── Stripe Checkout integration ───────────────────────────────────
+// Creates a Stripe Checkout Session for a Pro or Premium subscription
+// and returns the hosted-checkout URL. The frontend redirects the
+// browser there; Stripe handles all card collection + PCI.
+//
+// Required env (Cloudflare worker secrets):
+//   STRIPE_SECRET_KEY       sk_live_... or sk_test_...
+//   STRIPE_PRO_PRICE_ID     price_... for Pro $29/mo
+//   STRIPE_PREMIUM_PRICE_ID price_... for Premium $99/mo
+//   STRIPE_WEBHOOK_SECRET   whsec_... for signature verification
+//
+// On success (post-checkout), Stripe fires customer.subscription.created
+// to /stripe/webhook which updates profiles.subscription_tier.
+
+async function handleStripeCheckout(request, env, cors) {
+  if (!env.STRIPE_SECRET_KEY) {
+    return Response.json(
+      { ok: false, error: "Stripe not configured (STRIPE_SECRET_KEY missing in worker secrets)" },
+      { status: 500, headers: cors }
+    );
+  }
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ ok: false, error: "Invalid JSON" },
+                         { status: 400, headers: cors });
+  }
+  const plan = String(body.plan || "").toLowerCase();
+  const userId = String(body.user_id || "");
+  const email = String(body.email || "");
+  if (!plan || !userId) {
+    return Response.json(
+      { ok: false, error: "plan and user_id are required" },
+      { status: 400, headers: cors }
+    );
+  }
+  const priceId = plan === "pro" ? env.STRIPE_PRO_PRICE_ID
+                : plan === "premium" ? env.STRIPE_PREMIUM_PRICE_ID
+                : null;
+  if (!priceId) {
+    return Response.json(
+      { ok: false, error: `Unknown plan: "${plan}". Use "pro" or "premium".` },
+      { status: 400, headers: cors }
+    );
+  }
+  // Build form-urlencoded body for Stripe API (it expects this, not JSON)
+  const params = new URLSearchParams();
+  params.set("mode", "subscription");
+  params.set("line_items[0][price]", priceId);
+  params.set("line_items[0][quantity]", "1");
+  params.set("client_reference_id", userId);
+  if (email) params.set("customer_email", email);
+  params.set("success_url",
+    "https://tickerdesk.io/?subscribed=1&plan=" + plan);
+  params.set("cancel_url", "https://tickerdesk.io/?subscribe_cancel=1");
+  // Allow promotion codes so we can run discounts later
+  params.set("allow_promotion_codes", "true");
+  // Store plan + user_id in metadata so the webhook can update Supabase
+  params.set("metadata[user_id]", userId);
+  params.set("metadata[plan]", plan);
+  params.set("subscription_data[metadata][user_id]", userId);
+  params.set("subscription_data[metadata][plan]", plan);
+
+  try {
+    const r = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + env.STRIPE_SECRET_KEY,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
+    if (!r.ok) {
+      const txt = await r.text();
+      return Response.json(
+        { ok: false, error: "Stripe API error: " + txt.slice(0, 500) },
+        { status: 502, headers: cors }
+      );
+    }
+    const session = await r.json();
+    return Response.json(
+      { ok: true, url: session.url, session_id: session.id },
+      { headers: cors }
+    );
+  } catch (e) {
+    return Response.json(
+      { ok: false, error: "Stripe call failed: " + String(e) },
+      { status: 502, headers: cors }
+    );
+  }
+}
+
+async function handleStripeWebhook(request, env, cors) {
+  if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET ||
+      !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return new Response("Webhook misconfigured", { status: 500 });
+  }
+  const sig = request.headers.get("stripe-signature");
+  if (!sig) return new Response("Missing signature", { status: 400 });
+  const bodyText = await request.text();
+  // Verify signature (HMAC-SHA256 with whsec)
+  const ok = await verifyStripeSig(bodyText, sig, env.STRIPE_WEBHOOK_SECRET);
+  if (!ok) return new Response("Invalid signature", { status: 400 });
+  let evt;
+  try { evt = JSON.parse(bodyText); }
+  catch { return new Response("Invalid JSON", { status: 400 }); }
+
+  // Map plan from price_id on the subscription
+  function planFromPriceId(id) {
+    if (id === env.STRIPE_PRO_PRICE_ID) return "pro";
+    if (id === env.STRIPE_PREMIUM_PRICE_ID) return "premium";
+    return null;
+  }
+  async function updateProfile(userId, tier) {
+    if (!userId || !tier) return;
+    const url = env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/profiles?id=eq." + encodeURIComponent(userId);
+    await fetch(url, {
+      method: "PATCH",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_KEY,
+        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+      },
+      body: JSON.stringify({ subscription_tier: tier }),
+    });
+  }
+
+  const type = evt.type;
+  const obj = evt.data && evt.data.object;
+  if (type === "checkout.session.completed") {
+    const userId = obj.client_reference_id ||
+                   (obj.metadata && obj.metadata.user_id);
+    const plan = obj.metadata && obj.metadata.plan;
+    if (userId && plan) await updateProfile(userId, plan);
+  } else if (type === "customer.subscription.created" ||
+             type === "customer.subscription.updated") {
+    const userId = obj.metadata && obj.metadata.user_id;
+    const priceId = obj.items && obj.items.data && obj.items.data[0] &&
+                    obj.items.data[0].price && obj.items.data[0].price.id;
+    const plan = planFromPriceId(priceId);
+    const active = obj.status === "active" || obj.status === "trialing";
+    if (userId) await updateProfile(userId, active && plan ? plan : "free");
+  } else if (type === "customer.subscription.deleted") {
+    const userId = obj.metadata && obj.metadata.user_id;
+    if (userId) await updateProfile(userId, "free");
+  }
+  return new Response(JSON.stringify({ received: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json", ...cors },
+  });
+}
+
+// Stripe webhook signature verification (HMAC-SHA256).
+// Uses WebCrypto since the Cloudflare Worker runtime supports it.
+async function verifyStripeSig(payload, sig, secret) {
+  try {
+    const parts = sig.split(",");
+    let ts = null, v1 = null;
+    parts.forEach(p => {
+      const [k, v] = p.split("=", 2);
+      if (k === "t") ts = v;
+      if (k === "v1") v1 = v;
+    });
+    if (!ts || !v1) return false;
+    const signed = ts + "." + payload;
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw", enc.encode(secret),
+      { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const buf = await crypto.subtle.sign("HMAC", key, enc.encode(signed));
+    const expected = Array.from(new Uint8Array(buf))
+      .map(b => b.toString(16).padStart(2, "0")).join("");
+    // Timing-safe compare
+    if (expected.length !== v1.length) return false;
+    let diff = 0;
+    for (let i = 0; i < expected.length; i++) {
+      diff |= expected.charCodeAt(i) ^ v1.charCodeAt(i);
+    }
+    return diff === 0;
+  } catch (e) { return false; }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -565,6 +750,19 @@ export default {
     // CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: cors });
+    }
+
+    // ── Stripe Checkout + webhook routing ─────────────────────────
+    // Path-based: /stripe/checkout (POST) and /stripe/webhook (POST).
+    // The webhook ingests subscription events and updates
+    // public.profiles.subscription_tier so the entitlement layer
+    // in the client picks up the new plan immediately.
+    const urlPath = new URL(request.url).pathname;
+    if (urlPath === "/stripe/checkout" && request.method === "POST") {
+      return handleStripeCheckout(request, env, cors);
+    }
+    if (urlPath === "/stripe/webhook" && request.method === "POST") {
+      return handleStripeWebhook(request, env, cors);
     }
 
     // GET — market-quote proxy (?quotes=SPY,QQQ,...), daily-candle proxy

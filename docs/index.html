@@ -2764,8 +2764,8 @@
         </div>
         <div class="pricing-note" id="pricing-note">
           Beta cohort: first 500 signups lock in <b>$14.50/mo lifetime</b>
-          on Pro. Stripe checkout activates after we exit beta —
-          for now, the upgrade button registers interest.
+          on Pro. Cancel any time. Card billed via Stripe — secure
+          PCI-compliant checkout.
         </div>
       </div>
     </div>
@@ -4568,16 +4568,198 @@
         document.querySelector('nav button[data-tab="watchlist"]').click();
       });
     }
+    // ── True day-over-day diff (V2) ─────────────────────────────────
+    // When signal_snapshots has rows for both today and a prior date,
+    // compute the ACTUAL changes since the user's last_seen (or last
+    // available snapshot). Falls back to the V1 current-state surface
+    // if no snapshot data is available (first-week of widget).
+    async function buildV2Diff() {
+      const signed = !!window.tdUser();
+      if (!signed || WATCHLIST.size === 0) {
+        el.classList.add("empty");
+        return false;
+      }
+      if (!SUPA) return false;
+      const wl = Array.from(WATCHLIST);
+      // Determine "since" date: either LAST_SEEN_ISO's date, or
+      // 2 days ago as a fallback. We pull all snapshots from that
+      // date onwards for any watchlist ticker.
+      let sinceDate = null;
+      if (LAST_SEEN_ISO) {
+        try {
+          sinceDate = LAST_SEEN_ISO.slice(0, 10);
+        } catch (e) {}
+      }
+      if (!sinceDate) {
+        const d = new Date();
+        d.setDate(d.getDate() - 2);
+        sinceDate = d.toISOString().slice(0, 10);
+      }
+      let rows;
+      try {
+        const inClause = "(" + wl.map(t => '"' + t + '"').join(",") + ")";
+        const { data, error } = await SUPA
+          .from("signal_snapshots")
+          .select("snapshot_date,ticker,trend_grade,flow_bias,flow_score," +
+                  "earnings_date,appeared_in_modules")
+          .gte("snapshot_date", sinceDate)
+          .in("ticker", wl)
+          .order("snapshot_date", { ascending: true });
+        if (error) throw error;
+        rows = data || [];
+      } catch (e) {
+        return false;       // signal_snapshots table missing or empty
+      }
+      if (!rows.length) return false;
+      // Group by ticker; sort by date ascending
+      const byTk = {};
+      rows.forEach(function (r) {
+        byTk[r.ticker] = byTk[r.ticker] || [];
+        byTk[r.ticker].push(r);
+      });
+      // Compute diffs: today's most recent vs the earliest in the window
+      const GR_ORDER = ["A+","A","A-","B+","B","B-","C+","C","C-",
+                        "D+","D","D-","E+","E","E-","F+","F","F-","G+","G"];
+      const rank = {};
+      GR_ORDER.forEach(function (g, i) { rank[g] = i; });
+      const groups = {
+        trend: [],     // grade changes
+        flow: [],      // flow direction changes
+        earnings: [],  // earnings now within range
+        modules: [],   // new module appearances (qm, stockbee)
+      };
+      Object.keys(byTk).forEach(function (tk) {
+        const hist = byTk[tk];
+        if (hist.length < 1) return;
+        const today = hist[hist.length - 1];
+        const prior = hist.length > 1 ? hist[0] : null;
+        // Grade changes
+        if (today.trend_grade && prior && prior.trend_grade &&
+            today.trend_grade !== prior.trend_grade) {
+          const dRank = rank[today.trend_grade] - rank[prior.trend_grade];
+          if (dRank < 0) {
+            groups.trend.push({
+              t: tk,
+              detail: prior.trend_grade + " → " + today.trend_grade +
+                " (upgrade)",
+              neg: false,
+            });
+          } else if (dRank > 0) {
+            groups.trend.push({
+              t: tk,
+              detail: prior.trend_grade + " → " + today.trend_grade +
+                " (demoted)",
+              neg: true,
+            });
+          }
+        }
+        // Flow direction changes
+        if (today.flow_bias && (!prior || prior.flow_bias !== today.flow_bias)) {
+          if (today.flow_bias === "bullish") {
+            groups.flow.push({
+              t: tk, detail: "New bullish flow", neg: false,
+            });
+          } else if (today.flow_bias === "bearish") {
+            groups.flow.push({
+              t: tk, detail: "New bearish flow", neg: true,
+            });
+          }
+        }
+        // Earnings entered the 7-day horizon
+        if (today.earnings_date) {
+          const ed = new Date(today.earnings_date);
+          const days = Math.round((ed - Date.now()) / 86400000);
+          if (days >= 0 && days <= 7) {
+            const wasIn = prior && prior.earnings_date &&
+              new Date(prior.earnings_date) - Date.now() >= 0 &&
+              new Date(prior.earnings_date) - Date.now() <= 7 * 86400000;
+            if (!wasIn) {
+              groups.earnings.push({
+                t: tk,
+                detail: "Reports in " + days + " day" +
+                  (days === 1 ? "" : "s"),
+                neg: false,
+              });
+            }
+          }
+        }
+        // New module appearances
+        const todayMods = today.appeared_in_modules || {};
+        const priorMods = (prior && prior.appeared_in_modules) || {};
+        Object.keys(todayMods).forEach(function (m) {
+          if (todayMods[m] && !priorMods[m]) {
+            groups.modules.push({
+              t: tk,
+              detail: "New in " + (m === "qm" ? "QM Monthly"
+                : m === "stockbee" ? "Stockbee Weekly"
+                : m === "top_flow" ? "Top Options Flow" : m),
+              neg: false,
+            });
+          }
+        });
+      });
+      const total = groups.trend.length + groups.flow.length +
+                    groups.earnings.length + groups.modules.length;
+      if (total === 0) return false;     // nothing changed → fall back
+      // Render diff view
+      el.classList.remove("empty");
+      const itemHtml = function (it) {
+        const cls = it.neg ? "wn-down" : "wn-up";
+        return '<div class="wn-item">' +
+          '<span class="wn-tk" data-t="' + it.t + '">' + it.t + '</span>' +
+          '<span class="wn-detail ' + cls + '">' + it.detail + '</span>' +
+          '</div>';
+      };
+      const groupHtml = function (title, items) {
+        if (!items.length) return "";
+        return '<div class="wn-group"><h4>' + title +
+          ' · ' + items.length + '</h4>' +
+          items.slice(0, 6).map(itemHtml).join("") +
+          (items.length > 6
+            ? '<div class="wn-item wn-detail">+ ' + (items.length - 6) +
+              ' more</div>' : '') +
+          '</div>';
+      };
+      el.innerHTML =
+        '<div class="wn-head">' +
+          '<h3>What\'s changed on your watchlist</h3>' +
+          '<span class="wn-since">' + fmtSince(LAST_SEEN_ISO) + '</span>' +
+          '<button class="wn-dismiss" id="wn-dismiss">dismiss</button>' +
+        '</div>' +
+        '<div class="wn-groups">' +
+          groupHtml("Trend grade",     groups.trend) +
+          groupHtml("Flow direction",  groups.flow) +
+          groupHtml("Earnings horizon", groups.earnings) +
+          groupHtml("New appearances",  groups.modules) +
+        '</div>' +
+        '<div class="wn-foot">Diffed against signal_snapshots since ' +
+        sinceDate + '. <a href="#" id="wn-go-watchlist">' +
+        'Manage watchlist &rarr;</a></div>';
+      const dismiss = document.getElementById("wn-dismiss");
+      if (dismiss) dismiss.addEventListener("click", function () {
+        el.classList.add("empty");
+      });
+      const go = document.getElementById("wn-go-watchlist");
+      if (go) go.addEventListener("click", function (e) {
+        e.preventDefault();
+        document.querySelector('nav button[data-tab="watchlist"]').click();
+      });
+      return true;
+    }
+
     async function refresh() {
       LAST_SEEN_ISO = await fetchLastSeen();
-      build();
+      // Try V2 (true diff via signal_snapshots) first; fall back to V1
+      // current-state surface if no snapshot data yet.
+      const v2Ok = await buildV2Diff();
+      if (!v2Ok) build();
     }
     onUserChange(refresh);
-    onWatchChange(build);
+    onWatchChange(refresh);
     // Re-build when My Desk tab is shown
     document.getElementById("nav").addEventListener("click", function (e) {
       if (e.target && e.target.dataset &&
-          e.target.dataset.tab === "mydesk") build();
+          e.target.dataset.tab === "mydesk") refresh();
     });
     setTimeout(refresh, 2000);
   })();
@@ -6065,10 +6247,12 @@
     if (pricingModal) pricingModal.addEventListener("click", function (e) {
       if (e.target === pricingModal) closePricing();
     });
-    // Stripe checkout stub — until keys are configured, just records intent.
-    // TODO: wire createCheckoutSession to a Cloudflare Worker endpoint that
-    // calls Stripe API; redirect to Stripe-hosted checkout; webhook updates
-    // profiles.subscription_tier on subscription.created/updated events.
+    // ── Stripe Checkout integration ───────────────────────────────
+    // Calls the worker's /stripe/checkout endpoint which creates a
+    // Stripe Checkout Session and returns the hosted-checkout URL.
+    // We redirect the browser there; Stripe handles card collection.
+    // The worker's /stripe/webhook then updates profiles.subscription_tier
+    // when the subscription becomes active.
     document.querySelectorAll("[data-plan]").forEach(function (btn) {
       btn.addEventListener("click", async function () {
         const plan = btn.dataset.plan;
@@ -6077,20 +6261,58 @@
           openModal("save", null);
           return;
         }
-        // Persist intent via email_signups as a placeholder until Stripe
-        // is wired. Lets us reach out manually + measure conversion intent.
-        if (SUPA && CURRENT_USER.email) {
-          try {
-            await SUPA.from("email_signups").upsert(
-              { email: CURRENT_USER.email,
-                source: "upgrade_intent_" + plan },
-              { onConflict: "email" }
-            );
-          } catch (e) { /* silent */ }
-        }
-        btn.textContent = "Recorded — we'll be in touch";
         btn.disabled = true;
-        setTimeout(closePricing, 2000);
+        const orig = btn.textContent;
+        btn.textContent = "Opening checkout...";
+        try {
+          const resp = await fetch(WORKER_URL + "/stripe/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              plan: plan,
+              user_id: CURRENT_USER.id,
+              email: CURRENT_USER.email || "",
+            }),
+          });
+          const data = await resp.json();
+          if (data.ok && data.url) {
+            // Best-effort: log intent so we can correlate Stripe events
+            if (SUPA && CURRENT_USER.email) {
+              try {
+                await SUPA.from("email_signups").upsert(
+                  { email: CURRENT_USER.email,
+                    source: "checkout_started_" + plan },
+                  { onConflict: "email" }
+                );
+              } catch (e) {}
+            }
+            window.location.href = data.url;
+          } else {
+            // Stripe not configured yet — fall back to email-capture stub
+            // so the upgrade intent doesn't get lost.
+            console.warn("Stripe checkout error:", data.error);
+            if (SUPA && CURRENT_USER.email) {
+              try {
+                await SUPA.from("email_signups").upsert(
+                  { email: CURRENT_USER.email,
+                    source: "upgrade_intent_" + plan },
+                  { onConflict: "email" }
+                );
+              } catch (e) {}
+            }
+            btn.textContent = "Recorded — we'll email you when ready";
+            setTimeout(function () {
+              btn.disabled = false;
+              btn.textContent = orig;
+              closePricing();
+            }, 2200);
+          }
+        } catch (e) {
+          console.error("Checkout fetch failed:", e);
+          btn.disabled = false;
+          btn.textContent = orig;
+          alert("Checkout failed: " + (e.message || e));
+        }
       });
     });
     window.tdOpenPricing = openPricing;

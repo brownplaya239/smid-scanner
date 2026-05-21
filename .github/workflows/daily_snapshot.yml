@@ -1,0 +1,50 @@
+name: Daily Snapshot
+
+# Snapshots per-ticker state (grade, flow, earnings, module appearances)
+# into public.signal_snapshots so the "What's New Since Last Visit"
+# widget can show TRUE day-over-day diffs instead of current-state-only.
+#
+# Fires after Momentum Scans completes (which is the final daily run
+# of swing_report + supporting files). Also supports manual dispatch
+# for one-off rebuilds.
+
+on:
+  workflow_run:
+    workflows: ["Momentum Scans"]
+    types: [completed]
+    branches: [master]
+
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' ||
+            github.event_name == 'workflow_dispatch' }}
+    env:
+      SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write daily snapshot
+        run: python daily_snapshot.py
