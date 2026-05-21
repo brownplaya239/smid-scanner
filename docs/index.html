@@ -55,6 +55,172 @@
   header h1 { font-size:20px; font-weight:700; letter-spacing:.3px; }
   header p  { font-size:12px; color:var(--muted); margin-top:4px; }
 
+  /* My Desk tab — watchlist-personalized signal grid */
+  #panel-mydesk { max-width:1280px; }
+  .mydesk-hero { display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+    gap:10px; margin-bottom:14px; padding:14px; background:var(--card);
+    border:1px solid var(--line); border-radius:8px; }
+  .mydesk-hero .mh-stat { font-size:9.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; }
+  .mydesk-hero .mh-stat b { display:block; font-size:18px; font-weight:800;
+    color:var(--text); margin-top:3px; font-variant-numeric:tabular-nums; }
+  .mydesk-hero .mh-stat b.up   { color:var(--green); }
+  .mydesk-hero .mh-stat b.down { color:var(--red); }
+
+  .mydesk-grid { display:grid; grid-template-columns:1fr; gap:1px;
+    background:var(--line); border:1px solid var(--line);
+    border-radius:8px; overflow:hidden; }
+  .md-row { display:grid;
+    grid-template-columns:60px 1fr 70px 90px 110px 1fr 60px;
+    background:var(--card); padding:11px 14px; gap:12px;
+    align-items:center; font-size:11.5px; cursor:pointer; }
+  .md-row:hover { background:var(--rowhov); }
+  .md-row.md-header { background:var(--navy2); font-size:9.5px;
+    color:var(--muted); text-transform:uppercase; letter-spacing:.4px;
+    font-weight:700; cursor:default; padding:9px 14px; }
+  .md-row .md-tk { font-weight:800; color:var(--text); font-size:12.5px; }
+  .md-row .md-name { color:var(--textdim); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  .md-row .md-grade { text-align:center; }
+  .md-row .md-grade-pill { font-weight:800; font-size:11px; padding:2px 6px;
+    border-radius:4px; color:#fff; min-width:24px; display:inline-block;
+    text-align:center; text-shadow:0 1px 1px rgba(0,0,0,.4); }
+  .md-row .md-grade-pill.none { background:rgba(120,120,120,0.25);
+    color:var(--muted); text-shadow:none; }
+  .md-row .md-chg { text-align:right; font-weight:700;
+    font-variant-numeric:tabular-nums; }
+  .md-row .md-chg.up   { color:var(--green); }
+  .md-row .md-chg.down { color:var(--red); }
+  .md-row .md-chg.flat { color:var(--muted); }
+  .md-row .md-flow { text-align:center; font-size:9.5px; font-weight:800;
+    text-transform:uppercase; letter-spacing:.3px; padding:2px 6px;
+    border-radius:3px; }
+  .md-row .md-flow.bullish { background:rgba(31,179,99,0.18);
+    color:var(--green); }
+  .md-row .md-flow.bearish { background:rgba(214,68,68,0.18);
+    color:var(--red); }
+  .md-row .md-flow.mixed { background:rgba(160,178,210,0.18);
+    color:var(--text); }
+  .md-row .md-flow.none { color:var(--muted); }
+  .md-row .md-context { color:var(--textdim); font-size:10.5px; }
+  .md-row .md-context .md-ctx-tag { display:inline-block; margin-right:6px;
+    font-weight:600; }
+  .md-row .md-context .md-ctx-tag.earn { color:#ff9e1b; }
+  .md-row .md-context .md-ctx-tag.qm   { color:var(--green); }
+  .md-row .md-context .md-ctx-tag.sb   { color:var(--green); }
+  .md-row .md-context .md-ctx-tag.rep  { color:var(--gold); }
+  .md-row .md-context .md-ctx-tag.news { color:var(--gold); }
+  .md-row .md-conf { text-align:right; }
+  .md-row .md-conf-pill { font-weight:800; font-size:11px; padding:2px 8px;
+    border-radius:10px; cursor:default; }
+  .md-row .md-conf-pill.bull-strong { background:rgba(31,179,99,0.85);
+    color:#fff; }
+  .md-row .md-conf-pill.bull        { background:rgba(31,179,99,0.45);
+    color:var(--text); }
+  .md-row .md-conf-pill.bear-strong { background:rgba(214,68,68,0.85);
+    color:#fff; }
+  .md-row .md-conf-pill.bear        { background:rgba(214,68,68,0.45);
+    color:var(--text); }
+  .md-row .md-conf-pill.neutral     { background:rgba(160,178,210,0.35);
+    color:var(--text); }
+  @media (max-width:760px) {
+    .md-row {
+      grid-template-columns:50px 1fr 60px 70px;
+      grid-template-areas: "tk name chg conf"
+                            "grade flow flow flow"
+                            "ctx ctx ctx ctx";
+      gap:6px;
+    }
+    .md-row .md-tk      { grid-area:tk; }
+    .md-row .md-name    { grid-area:name; }
+    .md-row .md-chg     { grid-area:chg; }
+    .md-row .md-conf    { grid-area:conf; }
+    .md-row .md-grade   { grid-area:grade; text-align:left; }
+    .md-row .md-flow    { grid-area:flow; }
+    .md-row .md-context { grid-area:ctx; }
+    .md-row.md-header   { display:none; }
+  }
+
+  .mydesk-empty { padding:48px 30px; text-align:center; color:var(--muted);
+    background:var(--card); border:1px solid var(--line);
+    border-radius:8px; }
+  .mydesk-empty h3 { color:var(--text); font-size:15px; font-weight:700;
+    margin:0 0 8px; }
+  .mydesk-empty button { margin-top:14px; background:var(--gold);
+    color:var(--accink); border:0; font-family:inherit; font-size:12px;
+    font-weight:700; padding:10px 20px; border-radius:6px; cursor:pointer; }
+
+  /* Watchlist trigger button in head-toggles + slide-out drawer */
+  .wl-trigger { display:flex; align-items:center; gap:6px;
+    background:var(--navy2); border:1px solid var(--border2);
+    color:var(--text); font-family:inherit; font-size:11px;
+    font-weight:700; padding:5px 10px 5px 8px; border-radius:5px;
+    cursor:pointer; }
+  .wl-trigger:hover { border-color:var(--gold); color:var(--gold); }
+  .wl-trigger-icon { color:var(--gold); font-size:13px; }
+  .wl-trigger-count { background:var(--bg); padding:1px 6px;
+    border-radius:8px; font-size:10px; font-variant-numeric:tabular-nums;
+    color:var(--textdim); }
+
+  .wl-drawer-backdrop { position:fixed; inset:0; z-index:79;
+    background:rgba(0,0,0,.4); opacity:0; pointer-events:none;
+    transition:opacity .18s; }
+  .wl-drawer-backdrop.show { opacity:1; pointer-events:auto; }
+  .wl-drawer { position:fixed; top:0; left:0; bottom:0; width:340px;
+    max-width:100vw; background:var(--card); border-right:1px solid var(--line);
+    box-shadow:10px 0 36px rgba(0,0,0,.5); z-index:85;
+    transform:translateX(-100%); transition:transform .22s ease;
+    display:flex; flex-direction:column; }
+  .wl-drawer.show { transform:translateX(0); }
+  .wl-drawer .wl-head { display:flex; align-items:center;
+    padding:15px 18px 13px; border-bottom:1px solid var(--line);
+    background:var(--navy2); }
+  .wl-drawer .wl-head h3 { margin:0; font-size:14px; font-weight:800;
+    color:var(--text); flex:1; }
+  .wl-drawer .wl-count { color:var(--muted); font-weight:500;
+    font-size:11.5px; margin-left:6px; }
+  .wl-drawer .wl-close { background:none; border:0; color:var(--muted);
+    font-size:22px; cursor:pointer; padding:0 4px; line-height:1;
+    font-family:inherit; }
+  .wl-drawer .wl-close:hover { color:var(--text); }
+  .wl-drawer .wl-add-row { display:flex; gap:6px; padding:11px 14px;
+    border-bottom:1px solid var(--line); }
+  .wl-drawer .wl-add-row input { flex:1; background:var(--navy2);
+    border:1px solid var(--border2); color:var(--text); padding:7px 10px;
+    border-radius:5px; font-family:inherit; font-size:12px;
+    text-transform:uppercase; letter-spacing:.4px; font-weight:700; }
+  .wl-drawer .wl-add-row input:focus { border-color:var(--gold); outline:0; }
+  .wl-drawer .wl-add-btn { background:var(--gold); color:var(--accink);
+    border:0; font-family:inherit; font-size:12px; font-weight:700;
+    padding:0 14px; border-radius:5px; cursor:pointer; }
+  .wl-drawer .wl-body { flex:1; overflow-y:auto; padding:6px 0; }
+  .wl-drawer .wl-empty { padding:32px 18px; color:var(--muted);
+    font-size:11.5px; text-align:center; font-style:italic; }
+  .wl-drawer .wl-row { display:grid;
+    grid-template-columns:52px 1fr 60px 20px; align-items:center;
+    gap:8px; padding:8px 14px; cursor:pointer;
+    border-bottom:1px solid var(--line); font-size:11.5px; }
+  .wl-drawer .wl-row:hover { background:var(--rowhov); }
+  .wl-drawer .wl-row .wl-tk { font-weight:800; color:var(--text); }
+  .wl-drawer .wl-row .wl-co { color:var(--textdim); font-size:10.5px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wl-drawer .wl-row .wl-chg { text-align:right; font-weight:700;
+    font-variant-numeric:tabular-nums; }
+  .wl-drawer .wl-row .wl-chg.up   { color:var(--green); }
+  .wl-drawer .wl-row .wl-chg.down { color:var(--red); }
+  .wl-drawer .wl-row .wl-chg.flat { color:var(--muted); }
+  .wl-drawer .wl-row .wl-remove { background:none; border:0; color:var(--muted);
+    font-size:14px; cursor:pointer; padding:0; line-height:1;
+    font-family:inherit; opacity:0; transition:opacity .12s; }
+  .wl-drawer .wl-row:hover .wl-remove { opacity:1; }
+  .wl-drawer .wl-row .wl-remove:hover { color:var(--red); }
+  .wl-drawer .wl-foot { padding:10px 14px; border-top:1px solid var(--line);
+    font-size:10.5px; color:var(--muted); background:var(--navy2); }
+  .wl-drawer .wl-foot a { color:var(--gold); text-decoration:none;
+    font-weight:600; }
+  .wl-drawer .wl-foot a:hover { text-decoration:underline; }
+
   /* Auth bar — sits above the theme/density toggles in head-toggles */
   .auth-bar { display:flex; align-items:center; gap:6px; }
   .auth-btn { background:var(--gold); color:var(--accink);
@@ -1581,7 +1747,30 @@
       <h1>TickerDesk</h1>
       <p>Your daily equity research desk for flow, breakouts, catalysts, and watchlists.</p>
     </div>
+    <!-- Watchlist drawer — slide-out sidebar listing all watched tickers -->
+    <div class="wl-drawer-backdrop" id="wl-drawer-backdrop"></div>
+    <aside class="wl-drawer" id="wl-drawer" aria-hidden="true">
+      <div class="wl-head">
+        <h3>Watchlist <span class="wl-count" id="wl-count"></span></h3>
+        <button class="wl-close" id="wl-close" aria-label="Close drawer">&times;</button>
+      </div>
+      <div class="wl-add-row">
+        <input type="text" id="wl-add-input" placeholder="Add ticker (NVDA, MU...)"
+               maxlength="8" autocomplete="off"
+               autocapitalize="characters" />
+        <button class="wl-add-btn" id="wl-add-btn">Add</button>
+      </div>
+      <div class="wl-body" id="wl-body"></div>
+      <div class="wl-foot" id="wl-foot"></div>
+    </aside>
+
     <div class="head-toggles">
+      <button class="wl-trigger" id="wl-trigger"
+              title="Watchlist (click to open drawer)"
+              style="display:none">
+        <span class="wl-trigger-icon">★</span>
+        <span class="wl-trigger-count" id="wl-trigger-count">0</span>
+      </button>
       <div class="auth-bar" id="auth-bar">
         <button class="auth-btn" id="auth-signin"
                 title="Sign in to save watchlist and journal across devices"
@@ -1639,6 +1828,7 @@
 
   <nav id="nav">
     <button data-tab="desk" class="active">Desk</button>
+    <button data-tab="mydesk">My Desk</button>
     <button data-tab="uoa">Options Flow</button>
     <button data-tab="adhoc">Research</button>
     <button data-tab="alt-data">Alt-Data</button>
@@ -1663,6 +1853,19 @@
         that appear in more than one of them.</p>
       <div class="desk-grid" id="desk-grid">
         <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
+      </div>
+    </section>
+
+    <!-- My Desk — watchlist-personalized view of Today's Desk data -->
+    <section class="panel" id="panel-mydesk">
+      <h2 class="tab-title">My Desk</h2>
+      <p class="tab-sub" id="mydesk-sub">
+        Your watchlist, surfaced with every signal we have for those names &mdash;
+        grades, options flow, news, upcoming earnings, recent reports.
+        <span id="mydesk-meta"></span>
+      </p>
+      <div id="mydesk-body">
+        <div class="uoa-empty">Loading...</div>
       </div>
     </section>
 
@@ -2255,11 +2458,31 @@
       loadWatchlist();
     });
     // Listen for sign-in / sign-out events
-    SUPA.auth.onAuthStateChange(function (_event, session) {
+    SUPA.auth.onAuthStateChange(async function (event, session) {
       const prev = CURRENT_USER ? CURRENT_USER.id : null;
       CURRENT_USER = session ? session.user : null;
       if ((CURRENT_USER ? CURRENT_USER.id : null) !== prev) {
         _emitUser();
+        // On first sign-in: merge any localStorage watchlist into the
+        // account, then clear local so we don't double-add on next signout
+        if (CURRENT_USER && event === "SIGNED_IN") {
+          const local = _wlReadLocal();
+          if (local.length) {
+            console.log("Merging " + local.length +
+              " local watchlist tickers into account...");
+            try {
+              await SUPA.from("watchlists").upsert(
+                local.map(function (t) {
+                  return { user_id: CURRENT_USER.id, ticker: t };
+                }),
+                { onConflict: "user_id,ticker" }
+              );
+              _wlWriteLocal([]);
+            } catch (e) {
+              console.warn("Watchlist merge failed:", e);
+            }
+          }
+        }
         loadWatchlist();
       }
     });
@@ -2294,6 +2517,322 @@
   } else {
     initSupabase();
   }
+
+  // ── My Desk tab ── personalized view of every signal we have for the
+  // user's watchlist names. Reads from window.TD_DATA which setupDesk
+  // populates with swing + uoa + qm + sb + meta + cal data. Re-renders
+  // whenever watchlist changes or new TD_DATA arrives.
+  (function setupMyDesk() {
+    const body = document.getElementById("mydesk-body");
+    const meta = document.getElementById("mydesk-meta");
+    if (!body) return;
+    const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
+                "D","D-","E+","E","E-","F+","F","F-","G+","G"];
+    function gradeBg(g) {
+      const i = GR.indexOf(g);
+      if (i < 0) return "rgba(120,120,120,0.25)";
+      return i < 10
+        ? "rgba(31,179,99," + (0.85 - (i / 9) * 0.55).toFixed(2) + ")"
+        : "rgba(214,68,68," + (0.30 + ((i - 10) / 9) * 0.55).toFixed(2) + ")";
+    }
+    function fmtPct(v) {
+      if (v == null) return "—";
+      return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
+    }
+    function buildRow(tk) {
+      const D = window.TD_DATA || {};
+      // Grade lookup
+      let grade = null, cell = null;
+      if (D.swing && D.swing.runs && D.swing.runs.length) {
+        const r = D.swing.runs[D.swing.runs.length - 1];
+        Object.keys(r.grades || {}).some(function (g) {
+          const c = (r.grades[g] || []).find(function (x) {
+            return x.t === tk;
+          });
+          if (c) { grade = g; cell = c; return true; }
+          return false;
+        });
+      }
+      // UOA flow direction
+      let flow = null, flowBull = 0, flowBear = 0;
+      if (D.uoa && D.uoa.rows) {
+        D.uoa.rows.forEach(function (r) {
+          if (r.ticker !== tk) return;
+          const dir = (r.direction || "").toLowerCase();
+          if (dir === "bullish") flowBull += r.premium || 0;
+          else if (dir === "bearish") flowBear += r.premium || 0;
+        });
+        if (flowBull > flowBear * 1.2) flow = "bullish";
+        else if (flowBear > flowBull * 1.2) flow = "bearish";
+        else if (flowBull > 0 || flowBear > 0) flow = "mixed";
+      }
+      // Earnings imminence
+      let earnDays = null, earnSess = null;
+      if (D.uoaMeta && D.uoaMeta[tk] && D.uoaMeta[tk].earnings_date) {
+        try {
+          const ed = new Date(D.uoaMeta[tk].earnings_date + "T00:00:00");
+          const t0 = new Date(); t0.setHours(0,0,0,0);
+          earnDays = Math.round((ed - t0) / 86400000);
+          earnSess = D.uoaMeta[tk].earnings_session;
+        } catch (e) {}
+      }
+      // Momentum + reports
+      const qm = D.qm && D.qm.runs && D.qm.runs.length &&
+        (D.qm.runs[D.qm.runs.length-1].rows || [])
+          .some(function (r) { return r.ticker === tk; });
+      const sb = D.sb && D.sb.runs && D.sb.runs.length &&
+        (D.sb.runs[D.sb.runs.length-1].rows || [])
+          .some(function (r) { return r.ticker === tk; });
+      let repCount = 0;
+      if (D.manifest && D.manifest.reports) {
+        Object.keys(D.manifest.reports).forEach(function (k) {
+          (D.manifest.reports[k] || []).forEach(function (r) {
+            if (r.ticker === tk) repCount++;
+          });
+        });
+      }
+      // Confluence score (-10..+10)
+      let conf = 0;
+      if (grade === "A+") conf += 4;
+      else if (grade === "A") conf += 3;
+      else if (grade === "A-") conf += 2;
+      else if (grade && /^B\+?$/.test(grade)) conf += 1;
+      else if (grade === "G") conf -= 4;
+      else if (grade === "G+") conf -= 3;
+      else if (grade && /^F/.test(grade)) conf -= 2;
+      if (flow === "bullish") conf += 2;
+      else if (flow === "bearish") conf -= 2;
+      if (qm) conf += 1;
+      if (sb) conf += 1;
+      if (earnDays != null && earnDays >= 0 && earnDays <= 3) {
+        conf += (conf >= 0 ? 0.5 : -0.5);
+      }
+      conf = Math.max(-10, Math.min(10, Math.round(conf * 2) / 2));
+      let confCls, confLabel;
+      if (conf >= 5)      { confCls = "bull-strong"; confLabel = "Strong bull"; }
+      else if (conf >= 2) { confCls = "bull";        confLabel = "Bull"; }
+      else if (conf >= 1) { confCls = "bull";        confLabel = "Lean bull"; }
+      else if (conf <= -5){ confCls = "bear-strong"; confLabel = "Strong bear"; }
+      else if (conf <= -2){ confCls = "bear";        confLabel = "Bear"; }
+      else if (conf <= -1){ confCls = "bear";        confLabel = "Lean bear"; }
+      else                { confCls = "neutral";     confLabel = "Neutral"; }
+      // Context tags
+      const ctx = [];
+      if (earnDays != null) {
+        if (earnDays === 0) ctx.push('<span class="md-ctx-tag earn">📅 Earns today' +
+          (earnSess ? " " + earnSess : "") + '</span>');
+        else if (earnDays > 0 && earnDays <= 7)
+          ctx.push('<span class="md-ctx-tag earn">📅 ' + earnDays + 'd' +
+            (earnSess ? " " + earnSess : "") + '</span>');
+      }
+      if (qm) ctx.push('<span class="md-ctx-tag qm">QM</span>');
+      if (sb) ctx.push('<span class="md-ctx-tag sb">SB</span>');
+      if (repCount) ctx.push('<span class="md-ctx-tag rep">' +
+        repCount + ' rep' + (repCount > 1 ? 's' : '') + '</span>');
+      return { tk: tk, grade: grade, cell: cell, flow: flow,
+               conf: conf, confCls: confCls, confLabel: confLabel,
+               ctxHtml: ctx.join(""), earnDays: earnDays };
+    }
+    function render() {
+      const wl = window.tdWatchlist ? Array.from(window.tdWatchlist()) : [];
+      const signed = window.tdUser && window.tdUser();
+      if (meta) {
+        meta.textContent = wl.length
+          ? " · " + wl.length + " names" + (signed ? "" : " (local)")
+          : "";
+      }
+      if (!wl.length) {
+        body.innerHTML = '<div class="mydesk-empty">' +
+          '<h3>Your watchlist is empty</h3>' +
+          '<p>Star tickers anywhere on the site (click any ticker → ☆ button ' +
+            'in the drilldown panel header), or open the watchlist drawer ' +
+            '(★ button top-right) to add names manually.</p>' +
+          (signed ? "" : '<p style="margin-top:8px"><b>Sign in</b> to sync ' +
+            'across devices.</p>') +
+          '</div>';
+        return;
+      }
+      // Build rows, sort by confluence score descending
+      const rows = wl.map(buildRow);
+      rows.sort(function (a, b) { return b.conf - a.conf; });
+      const header = '<div class="md-row md-header">' +
+        '<span>Ticker</span><span>Name</span><span>Grade</span>' +
+        '<span style="text-align:right">Day %</span>' +
+        '<span style="text-align:center">Flow</span>' +
+        '<span>Context</span>' +
+        '<span style="text-align:right">Confluence</span></div>';
+      const out = rows.map(function (r) {
+        const c = r.cell;
+        const chg = c && typeof c.chg === "number" ? c.chg : null;
+        const chgCls = chg == null ? "flat"
+                     : chg > 0 ? "up" : chg < 0 ? "down" : "flat";
+        const name = c && c.n ? c.n
+                              : (window.TD_DATA.uoaMeta &&
+                                 window.TD_DATA.uoaMeta[r.tk] &&
+                                 window.TD_DATA.uoaMeta[r.tk].name) || "";
+        const gradeChip = r.grade
+          ? '<span class="md-grade-pill" style="background:' +
+            gradeBg(r.grade) + '">' + r.grade + '</span>'
+          : '<span class="md-grade-pill none">—</span>';
+        const flowChip = r.flow
+          ? '<span class="md-flow ' + r.flow + '">' + r.flow + '</span>'
+          : '<span class="md-flow none">—</span>';
+        const sign = r.conf > 0 ? "+" : "";
+        return '<div class="md-row" data-t="' + r.tk + '">' +
+          '<span class="md-tk">' + r.tk + '</span>' +
+          '<span class="md-name">' + (name || "").slice(0, 32) + '</span>' +
+          '<span class="md-grade">' + gradeChip + '</span>' +
+          '<span class="md-chg ' + chgCls + '">' +
+            (chg == null ? "—" : (chg > 0 ? "+" : "") + chg.toFixed(1) + "%") +
+            '</span>' +
+          '<span>' + flowChip + '</span>' +
+          '<span class="md-context">' + (r.ctxHtml || "—") + '</span>' +
+          '<span class="md-conf">' +
+            '<span class="md-conf-pill ' + r.confCls + '" title="' +
+              r.confLabel + ' · Confluence: ' + sign + r.conf + '">' +
+              sign + r.conf + '</span>' +
+            '</span>' +
+          '</div>';
+      }).join("");
+      body.innerHTML = '<div class="mydesk-grid">' + header + out + '</div>';
+    }
+    onWatchChange(render);
+    // Also re-render when Today's Desk loads its data (so My Desk picks it up)
+    const _origLoadAndRender = window._origLoadAndRender;  // placeholder
+    // Render on tab return
+    document.getElementById("nav").addEventListener("click", function (e) {
+      if (e.target && e.target.dataset &&
+          e.target.dataset.tab === "mydesk") render();
+    });
+    // Poll-style re-render — TD_DATA is populated by setupDesk's interval,
+    // so a periodic re-render picks up fresh data without coupling
+    setInterval(function () {
+      const panel = document.getElementById("panel-mydesk");
+      if (panel && panel.classList.contains("active")) render();
+    }, 60 * 1000);
+    // Initial render
+    setTimeout(render, 500);
+  })();
+
+  // ── Watchlist drawer wiring ──
+  (function setupWatchlistDrawer() {
+    const trigger  = document.getElementById("wl-trigger");
+    const triggerN = document.getElementById("wl-trigger-count");
+    const drawer   = document.getElementById("wl-drawer");
+    const backdrop = document.getElementById("wl-drawer-backdrop");
+    const closeBtn = document.getElementById("wl-close");
+    const body     = document.getElementById("wl-body");
+    const count    = document.getElementById("wl-count");
+    const foot     = document.getElementById("wl-foot");
+    const addIn    = document.getElementById("wl-add-input");
+    const addBtn   = document.getElementById("wl-add-btn");
+    if (!trigger) return;
+
+    function openDrawer() {
+      drawer.classList.add("show");
+      drawer.setAttribute("aria-hidden", "false");
+      backdrop.classList.add("show");
+      renderDrawer();
+    }
+    function closeDrawer() {
+      drawer.classList.remove("show");
+      drawer.setAttribute("aria-hidden", "true");
+      backdrop.classList.remove("show");
+    }
+    trigger.addEventListener("click", openDrawer);
+    closeBtn.addEventListener("click", closeDrawer);
+    backdrop.addEventListener("click", closeDrawer);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && drawer.classList.contains("show"))
+        closeDrawer();
+    });
+
+    function lookupCell(tk) {
+      // Pull whatever we know about this ticker from swing data
+      const D = window.TD_DATA || {};
+      if (D.swing && D.swing.runs && D.swing.runs.length) {
+        const r = D.swing.runs[D.swing.runs.length - 1];
+        const grades = r.grades || {};
+        for (const g of Object.keys(grades)) {
+          const c = (grades[g] || []).find(function (x) { return x.t === tk; });
+          if (c) return c;
+        }
+      }
+      return null;
+    }
+    function renderDrawer() {
+      const wl = Array.from(window.tdWatchlist()).sort();
+      triggerN.textContent = wl.length;
+      count.textContent = "(" + wl.length + ")";
+      const signed = !!window.tdUser();
+      if (!wl.length) {
+        body.innerHTML = '<div class="wl-empty">Empty watchlist.<br>' +
+          'Star tickers anywhere on the site, or add them above.</div>';
+      } else {
+        body.innerHTML = wl.map(function (tk) {
+          const c = lookupCell(tk);
+          const chg = c && typeof c.chg === "number" ? c.chg : null;
+          const cls = chg == null ? "flat"
+                    : chg > 0 ? "up" : chg < 0 ? "down" : "flat";
+          const sign = chg != null && chg > 0 ? "+" : "";
+          const co = c && c.n ? c.n : "";
+          const chgStr = chg != null ? sign + chg.toFixed(1) + "%" : "—";
+          return '<div class="wl-row" data-t="' + tk + '">' +
+            '<span class="wl-tk">' + tk + '</span>' +
+            '<span class="wl-co">' + (co || "").slice(0, 28) + '</span>' +
+            '<span class="wl-chg ' + cls + '">' + chgStr + '</span>' +
+            '<button class="wl-remove" data-remove-tk="' + tk +
+              '" title="Remove" aria-label="Remove ' + tk +
+              ' from watchlist">×</button></div>';
+        }).join("");
+      }
+      foot.innerHTML = signed
+        ? 'Synced to <b style="color:var(--text)">' +
+          window.tdUser().email + '</b>'
+        : '<a href="#" id="wl-foot-signin">Sign in</a> ' +
+          'to sync across devices. Local only for now.';
+      const fsi = document.getElementById("wl-foot-signin");
+      if (fsi) fsi.addEventListener("click", function (e) {
+        e.preventDefault();
+        const btn = document.getElementById("auth-signin");
+        if (btn) btn.click();
+      });
+    }
+    onWatchChange(renderDrawer);
+    onUserChange(renderDrawer);
+
+    addBtn.addEventListener("click", async function () {
+      const tk = (addIn.value || "").toUpperCase().trim();
+      if (!tk || !/^[A-Z\.\-]{1,8}$/.test(tk)) return;
+      await window.tdAddWatch(tk);
+      addIn.value = "";
+    });
+    addIn.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); addBtn.click(); }
+    });
+    body.addEventListener("click", function (e) {
+      const rm = e.target.closest("[data-remove-tk]");
+      if (rm) {
+        e.stopPropagation();
+        window.tdRemoveWatch(rm.dataset.removeTk);
+        return;
+      }
+      const row = e.target.closest(".wl-row[data-t]");
+      if (row && window.openTickerPanel) {
+        window.openTickerPanel(row.dataset.t);
+      }
+    });
+
+    // Trigger button visibility: show whenever the watchlist is non-empty
+    // OR Supabase is configured (so users can click to discover the feature)
+    function refreshTriggerVisibility() {
+      const show = (SUPA_URL && SUPA_ANON) ||
+        (window.tdWatchlist && window.tdWatchlist().size > 0);
+      trigger.style.display = show ? "" : "none";
+    }
+    onWatchChange(refreshTriggerVisibility);
+    refreshTriggerVisibility();
+  })();
 
   // ── Auth modal wiring ──
   (function setupAuthUI() {
