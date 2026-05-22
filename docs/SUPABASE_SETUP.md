@@ -109,6 +109,29 @@ for a no-send preview. Remove both for the real send.
    - Region: pick the one closest to most users (US East for now)
 4. Wait ~90 seconds for provisioning
 
+## 2e. (Phase 7) Run this in SQL Editor for promo-code expiry
+
+```sql
+-- Add an optional expiry timestamp on the user's subscription_tier.
+-- Promo codes use this to grant time-limited Premium access (e.g.
+-- "TEST69" → premium for 90 days). When NULL, the tier is open-ended
+-- (normal paid subscription). When set + < now(), the client treats
+-- the user as 'free' for entitlement purposes regardless of the tier
+-- value, until a Stripe webhook re-confirms paid status.
+alter table public.profiles
+  add column if not exists subscription_expires_at timestamptz;
+-- Most recent promo redemption tracked separately so we can show the
+-- user what they redeemed and when (and prevent redeeming twice).
+alter table public.profiles
+  add column if not exists promo_code_redeemed text;
+alter table public.profiles
+  add column if not exists promo_code_redeemed_at timestamptz;
+```
+
+Run that. Adds 3 nullable columns. Existing users default to NULL
+(no expiry). The promo redemption flow in the frontend looks for these
+columns and refuses to re-redeem the same code.
+
 ## 2d. (Phase 5) Run this in SQL Editor for Web Push subscriptions
 
 ```sql

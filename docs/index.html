@@ -627,6 +627,31 @@
   .pricing-hero .ph-manage:hover { border-color:var(--gold);
     color:var(--gold); }
 
+  /* Promo code box on Pricing tab — between hero strip and tier cards */
+  .promo-box { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:14px 18px; margin-bottom:8px;
+    display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .promo-left { flex:1; min-width:200px; }
+  .promo-h { font-size:13px; font-weight:700; color:var(--text);
+    margin-bottom:2px; }
+  .promo-sub { font-size:11.5px; color:var(--textdim); line-height:1.5; }
+  .promo-right { display:flex; gap:8px; align-items:center; }
+  .promo-right input { background:var(--navy2);
+    border:1px solid var(--border2); color:var(--text);
+    padding:7px 12px; border-radius:5px; font-family:'SF Mono',
+    Menlo, Consolas, monospace; font-size:13px; font-weight:700;
+    letter-spacing:1px; text-transform:uppercase; width:140px; }
+  .promo-right input:focus { outline:0; border-color:var(--gold); }
+  .promo-right button { background:var(--gold); color:var(--accink);
+    border:0; font-family:inherit; font-size:12px; font-weight:700;
+    padding:7px 16px; border-radius:5px; cursor:pointer; }
+  .promo-right button:hover { filter:brightness(1.05); }
+  .promo-right button:disabled { opacity:.6; cursor:wait; }
+  .promo-status { font-size:12px; line-height:1.5; padding:0 4px 18px;
+    min-height:18px; }
+  .promo-status.ok  { color:var(--green); font-weight:600; }
+  .promo-status.err { color:var(--red); font-weight:600; }
+
   /* Tier card grid */
   .pricing-tiers { display:grid; grid-template-columns:repeat(3, 1fr);
     gap:16px; margin-bottom:36px; }
@@ -829,6 +854,39 @@
 
   .head-toggles { position:absolute; top:20px; right:28px;
     display:flex; flex-direction:column; gap:5px; align-items:flex-end; }
+
+  /* Universal ticker search — top-right of header. Compact input;
+     autocomplete dropdown appears below on focus + typing. */
+  .td-search { position:relative; }
+  .td-search input { background:var(--navy2);
+    border:1px solid var(--border2); color:var(--text);
+    padding:5px 10px; border-radius:5px; font-family:inherit;
+    font-size:11.5px; font-weight:600; width:160px;
+    text-transform:uppercase; letter-spacing:.5px; }
+  .td-search input::placeholder { text-transform:none; letter-spacing:0;
+    color:var(--muted); font-weight:500; }
+  .td-search input:focus { outline:0; border-color:var(--gold); width:200px; }
+  .td-search-results { display:none; position:absolute; top:calc(100% + 4px);
+    right:0; width:240px; background:var(--card);
+    border:1px solid var(--border2); border-radius:6px;
+    box-shadow:0 8px 24px rgba(0,0,0,.4); z-index:80;
+    max-height:320px; overflow-y:auto; }
+  .td-search-results.show { display:block; }
+  .td-search-results .tsr-item { padding:7px 10px; cursor:pointer;
+    display:flex; align-items:baseline; gap:8px;
+    border-bottom:1px solid var(--line); }
+  .td-search-results .tsr-item:last-child { border-bottom:0; }
+  .td-search-results .tsr-item:hover,
+  .td-search-results .tsr-item.tsr-active {
+    background:var(--rowhov); }
+  .td-search-results .tsr-tk { font-weight:700; color:var(--text);
+    font-size:12px; min-width:50px; }
+  .td-search-results .tsr-name { color:var(--textdim); font-size:11px;
+    flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .td-search-results .tsr-grade { font-size:10px; font-weight:700;
+    padding:1px 5px; border-radius:3px; }
+  .td-search-results .tsr-empty { padding:14px; color:var(--muted);
+    font-size:11.5px; text-align:center; font-style:italic; }
 
   /* Market-hours pill — sits above the auth bar; updates client-side
      every second. Shows current state + countdown to next transition.
@@ -2903,6 +2961,16 @@
     </aside>
 
     <div class="head-toggles">
+      <!-- Universal ticker search — type any symbol, Enter opens drilldown.
+           Autocomplete pulls from the swing/uoa/qm/stockbee universe
+           cached in window.TD_DATA so no extra fetch. -->
+      <div class="td-search" id="td-search">
+        <input type="text" id="td-search-input" placeholder="Search ticker…"
+               autocomplete="off" maxlength="8"
+               aria-label="Search any ticker" />
+        <div class="td-search-results" id="td-search-results"
+             role="listbox" aria-hidden="true"></div>
+      </div>
       <!-- Live market clock — updates every second client-side -->
       <div class="market-pill" id="market-pill" title="US equity market state">
         <span class="mp-dot"></span>
@@ -3728,6 +3796,21 @@
       <!-- Hero strip — current plan + billing portal link (when signed in) -->
       <div class="pricing-hero" id="pricing-hero"></div>
 
+      <!-- Promo code field — beta / referral / migration codes -->
+      <div class="promo-box">
+        <div class="promo-left">
+          <div class="promo-h">🎟 Have a promo code?</div>
+          <div class="promo-sub">Beta cohorts, referral codes, and
+            migration codes redeem here. One per account.</div>
+        </div>
+        <div class="promo-right">
+          <input type="text" id="promo-input" placeholder="ENTER CODE"
+                 maxlength="32" autocomplete="off" />
+          <button id="promo-redeem">Redeem</button>
+        </div>
+      </div>
+      <div class="promo-status" id="promo-status"></div>
+
       <!-- Tier cards -->
       <div class="pricing-tiers">
         <!-- FREE -->
@@ -4250,26 +4333,117 @@
     beta:    { watchlist_max: 9999,  reports_lifetime: 9999, reports_30d: 50,
                name: "Beta",   color: "#a87cff" },
   };
+  let CURRENT_USER_EXPIRES_AT = null;  // promo subscription expiry
   async function refreshPlanState() {
     if (!SUPA || !CURRENT_USER) {
       CURRENT_USER_PLAN = "free";
       REPORT_COUNT_30D = 0;
       REPORT_COUNT_LIFETIME = 0;
+      CURRENT_USER_EXPIRES_AT = null;
       return;
     }
     try {
-      const [planResp, c30Resp, cLtResp] = await Promise.all([
+      const [planResp, c30Resp, cLtResp, expiresResp] = await Promise.all([
         SUPA.rpc("get_user_plan"),
         SUPA.rpc("report_count_30d"),
         SUPA.rpc("report_count_lifetime"),
+        // Read subscription_expires_at directly — RLS limits to own row
+        SUPA.from("profiles")
+          .select("subscription_expires_at")
+          .eq("id", CURRENT_USER.id).single(),
       ]);
       CURRENT_USER_PLAN = (planResp.data || "free");
       REPORT_COUNT_30D = c30Resp.data || 0;
       REPORT_COUNT_LIFETIME = cLtResp.data || 0;
+      CURRENT_USER_EXPIRES_AT = (expiresResp.data &&
+        expiresResp.data.subscription_expires_at) || null;
+      // Expiry check — if a promo grant has lapsed, treat as free
+      // until the next refreshPlanState confirms the user resubscribed
+      // (Stripe webhook would clear expires_at when a real sub starts).
+      if (CURRENT_USER_EXPIRES_AT) {
+        const exp = Date.parse(CURRENT_USER_EXPIRES_AT);
+        if (!isNaN(exp) && exp < Date.now()) {
+          console.log("Promo subscription expired; treating as free.");
+          CURRENT_USER_PLAN = "free";
+        }
+      }
     } catch (e) {
       console.warn("Plan state load failed:", e);
     }
   }
+  // ── Promo code redemption ──────────────────────────────────────
+  // Frontend-validated promo codes that grant time-limited access.
+  // Codes are checked against a hard-coded table here; redemption
+  // writes to public.profiles via Supabase REST so RLS limits the
+  // update to the user's own row (no impersonation risk).
+  //
+  // To add a code: extend PROMO_CODES with { code, tier, days, label }.
+  // To revoke a code mid-flight: remove it from the table and any
+  // future redemption attempt will reject with "Invalid promo code."
+  // Existing redemptions retain their expires_at.
+  const PROMO_CODES = {
+    "TEST69": { tier: "premium", days: 90,
+                label: "90-day Premium trial" },
+  };
+  window.tdRedeemPromo = async function (rawCode) {
+    const code = (rawCode || "").trim().toUpperCase();
+    if (!code) return { ok: false, error: "Enter a code." };
+    const promo = PROMO_CODES[code];
+    if (!promo) return { ok: false, error: "Invalid promo code." };
+    if (!CURRENT_USER) {
+      return { ok: false, error: "Sign in first to redeem a promo code." };
+    }
+    if (!SUPA) {
+      return { ok: false, error: "Service unavailable." };
+    }
+    // Check if user already redeemed THIS code
+    try {
+      const { data: prof, error: profErr } = await SUPA
+        .from("profiles")
+        .select("promo_code_redeemed, subscription_tier, " +
+                "subscription_expires_at")
+        .eq("id", CURRENT_USER.id).single();
+      if (profErr) throw profErr;
+      if (prof && prof.promo_code_redeemed === code) {
+        return { ok: false,
+                 error: "You've already redeemed " + code +
+                   ". Each code is valid once per account." };
+      }
+      // Don't downgrade an active paid subscriber to a shorter promo
+      if (prof && (prof.subscription_tier === "premium" ||
+                   prof.subscription_tier === "pro") &&
+          !prof.subscription_expires_at) {
+        return { ok: false,
+                 error: "You're already on " +
+                   prof.subscription_tier.toUpperCase() +
+                   " — redeeming a promo would shorten your access." };
+      }
+    } catch (e) {
+      return { ok: false, error: "Couldn't verify status: " +
+        (e.message || e) };
+    }
+    // Apply the upgrade
+    const expiresAt = new Date(Date.now() + promo.days * 86400000)
+      .toISOString();
+    try {
+      const { error } = await SUPA.from("profiles").update({
+        subscription_tier: promo.tier,
+        subscription_expires_at: expiresAt,
+        promo_code_redeemed: code,
+        promo_code_redeemed_at: new Date().toISOString(),
+      }).eq("id", CURRENT_USER.id);
+      if (error) throw error;
+      await refreshPlanState();
+      return { ok: true,
+               tier: promo.tier,
+               days: promo.days,
+               expires: expiresAt,
+               label: promo.label };
+    } catch (e) {
+      return { ok: false, error: "Save failed: " + (e.message || e) };
+    }
+  };
+
   window.tdPlan = function () { return CURRENT_USER_PLAN; };
   window.tdPlanLimits = function (p) {
     return PLAN_LIMITS[p || CURRENT_USER_PLAN] || PLAN_LIMITS.free;
@@ -7163,6 +7337,43 @@
           : "Free tier";
       }
     }
+    // Promo redemption button
+    document.addEventListener("click", async function (e) {
+      const btn = e.target.closest("#promo-redeem");
+      if (!btn) return;
+      const input = document.getElementById("promo-input");
+      const status = document.getElementById("promo-status");
+      if (!input || !status) return;
+      if (!window.tdRedeemPromo) return;
+      btn.disabled = true;
+      const origLabel = btn.textContent;
+      btn.textContent = "Redeeming...";
+      status.textContent = ""; status.className = "promo-status";
+      try {
+        const res = await window.tdRedeemPromo(input.value);
+        if (res.ok) {
+          status.className = "promo-status ok";
+          const dt = new Date(res.expires).toLocaleDateString();
+          status.innerHTML = "✓ " + res.label +
+            " activated. Your " + res.tier.toUpperCase() +
+            " access runs until " + dt + ".";
+          input.value = "";
+          // Re-render hero + CTAs immediately
+          renderPricingHero();
+          refreshPricingCtas();
+        } else {
+          status.className = "promo-status err";
+          status.textContent = "✗ " + res.error;
+        }
+      } catch (e) {
+        status.className = "promo-status err";
+        status.textContent = "Error: " + (e.message || e);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = origLabel;
+      }
+    });
+
     // Click handler for the pricing tab's CTAs
     document.addEventListener("click", async function (e) {
       const btn = e.target.closest("#panel-pricing [data-pt-action]");
@@ -7447,6 +7658,162 @@
      network calls. NYSE half-day calendar (early-close days) isn't
      modeled here — pill will read "Closed" 4 hr early on those days
      which is a minor cosmetic issue (rare, ~6 days/year). */
+  // ── Universal ticker search ─────────────────────────────────────
+  // Type any symbol in the header search; Enter (or click a result)
+  // opens the drilldown panel. Autocomplete pulls from the universe
+  // cached in window.TD_DATA (swing report, UOA flagged, QM Monthly,
+  // Stockbee). Works on any tab, any time.
+  (function setupTickerSearch() {
+    const input = document.getElementById("td-search-input");
+    const results = document.getElementById("td-search-results");
+    if (!input || !results) return;
+    let activeIdx = -1;
+    let currentList = [];
+
+    function buildUniverse() {
+      // {ticker: {name, grade}} — built lazily on each search so updates
+      // to TD_DATA from later loads are picked up
+      const u = {};
+      const D = window.TD_DATA || {};
+      if (D.swing && D.swing.runs && D.swing.runs.length) {
+        const run = D.swing.runs[D.swing.runs.length - 1];
+        Object.keys(run.grades || {}).forEach(function (g) {
+          (run.grades[g] || []).forEach(function (c) {
+            if (!u[c.t]) {
+              u[c.t] = { ticker: c.t, name: c.n || "", grade: g };
+            }
+          });
+        });
+      }
+      if (D.uoa && D.uoa.rows) {
+        D.uoa.rows.forEach(function (r) {
+          if (r.ticker && !u[r.ticker]) {
+            u[r.ticker] = { ticker: r.ticker, name: "", grade: "" };
+          }
+        });
+      }
+      return u;
+    }
+
+    function gradeCls(g) {
+      if (!g) return "";
+      return g[0] === "A" ? "snt-a"
+           : g[0] === "G" || g[0] === "F" ? "snt-g"
+           : "snt-mid";
+    }
+
+    function renderResults(query) {
+      if (!query) {
+        results.classList.remove("show");
+        results.setAttribute("aria-hidden", "true");
+        currentList = [];
+        return;
+      }
+      const q = query.toUpperCase();
+      const u = buildUniverse();
+      const universe = Object.values(u);
+      // Match priority: exact ticker > ticker-starts-with > name-contains
+      const exact = [], starts = [], nameMatches = [];
+      universe.forEach(function (item) {
+        if (item.ticker === q) exact.push(item);
+        else if (item.ticker.startsWith(q)) starts.push(item);
+        else if (item.name.toUpperCase().includes(q)) nameMatches.push(item);
+      });
+      currentList = exact
+        .concat(starts.slice(0, 10))
+        .concat(nameMatches.slice(0, 5))
+        .slice(0, 12);
+      if (!currentList.length) {
+        // Even if not in universe, still allow "go to this ticker" since
+        // drilldown will fetch via worker (any valid Polygon ticker works)
+        currentList = [{ ticker: q, name: "(off-universe, will fetch live)",
+                          grade: "" }];
+      }
+      activeIdx = 0;
+      results.innerHTML = currentList.map(function (it, i) {
+        const gCls = gradeCls(it.grade);
+        return '<div class="tsr-item ' +
+          (i === activeIdx ? "tsr-active" : "") +
+          '" data-search-tk="' + it.ticker + '" role="option">' +
+          '<span class="tsr-tk">' + it.ticker + '</span>' +
+          '<span class="tsr-name">' + (it.name || "&mdash;") + '</span>' +
+          (it.grade
+            ? '<span class="tsr-grade ' + gCls + '">' + it.grade +
+              '</span>' : '') +
+          '</div>';
+      }).join("");
+      results.classList.add("show");
+      results.setAttribute("aria-hidden", "false");
+    }
+
+    function pick(idx) {
+      const item = currentList[idx];
+      if (!item) return;
+      input.value = "";
+      results.classList.remove("show");
+      results.setAttribute("aria-hidden", "true");
+      if (window.openTickerPanel) window.openTickerPanel(item.ticker);
+    }
+
+    input.addEventListener("input", function (e) {
+      renderResults(e.target.value);
+    });
+    input.addEventListener("focus", function () {
+      if (input.value) renderResults(input.value);
+    });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (currentList.length) pick(activeIdx);
+        else if (input.value.trim()) {
+          // Direct open (no autocomplete match)
+          if (window.openTickerPanel)
+            window.openTickerPanel(input.value.trim().toUpperCase());
+          input.value = "";
+        }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (!currentList.length) return;
+        activeIdx = Math.min(activeIdx + 1, currentList.length - 1);
+        document.querySelectorAll(".tsr-item").forEach(function (el, i) {
+          el.classList.toggle("tsr-active", i === activeIdx);
+        });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!currentList.length) return;
+        activeIdx = Math.max(activeIdx - 1, 0);
+        document.querySelectorAll(".tsr-item").forEach(function (el, i) {
+          el.classList.toggle("tsr-active", i === activeIdx);
+        });
+      } else if (e.key === "Escape") {
+        results.classList.remove("show");
+        input.blur();
+      }
+    });
+    results.addEventListener("click", function (e) {
+      const item = e.target.closest(".tsr-item");
+      if (!item) return;
+      const idx = currentList.findIndex(function (it) {
+        return it.ticker === item.dataset.searchTk;
+      });
+      if (idx >= 0) pick(idx);
+    });
+    // Close results when clicking outside
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest("#td-search")) {
+        results.classList.remove("show");
+      }
+    });
+    // Keyboard shortcut: / focuses the search
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "/" && document.activeElement !== input &&
+          !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+        e.preventDefault();
+        input.focus();
+      }
+    });
+  })();
+
   (function setupMarketPill() {
     const pill = document.getElementById("market-pill");
     if (!pill) return;
@@ -11662,6 +12029,55 @@
       }).join(""), null, stamp);
     }
 
+    function cardSwingDowngrades(swing) {
+      // Mirror of cardSwingUpgrades — surfaces names that DROPPED grade
+      // vs the prior session. Critical for "what to avoid" awareness:
+      // a name falling from B to D in one session is more actionable
+      // than a routine B-to-B+ shuffle.
+      const stamp = swing
+        ? freshness(swing.updated || (swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length-1].generated : null),
+            { character: "post-close", label: "Grades from" })
+        : { cls: "none", label: "Pending first run" };
+      if (!swing || !swing.runs)
+        return desk("Top Swing Downgrades",
+          empty("No swing data yet."), null, stamp);
+      const runs = swing.runs;
+      if (runs.length < 2) return desk("Top Swing Downgrades",
+        empty("Downgrades light up tomorrow — needs a prior session " +
+          "to diff."), null, stamp);
+      const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
+                  "D","D-","E+","E","E-","F+","F","F-","G+","G"];
+      const gm = function (run) {
+        const m = {};
+        GR.forEach(function (g, gi) {
+          (run.grades[g] || []).forEach(function (c) { m[c.t] = gi; });
+        });
+        return m;
+      };
+      const now = gm(runs[runs.length - 1]);
+      const was = gm(runs[runs.length - 2]);
+      const moves = [];
+      Object.keys(was).forEach(function (t) {
+        if (!(t in now)) return;     // tickers that vanished are noise
+        const d = now[t] - was[t];   // positive d = dropped (higher rank num)
+        if (d >= 2) {
+          moves.push({ t: t, d: d, from: GR[was[t]], to: GR[now[t]] });
+        }
+      });
+      moves.sort(function (a, b) { return b.d - a.d; });
+      if (!moves.length) return desk("Top Swing Downgrades",
+        empty("No notable grade demotions today — A-tier holding."),
+        null, stamp);
+      return desk("Top Swing Downgrades", moves.slice(0, 8).map(function (m) {
+        return '<div class="desk-row">' +
+          '<span class="dr-tk" data-t="' + m.t + '">' + m.t + '</span>' +
+          chgBadge(m.t) +
+          '<span class="dr-meta">' + m.from + " → " + m.to + '</span>' +
+          '<span class="dr-val sc-down">-' + m.d + '</span></div>';
+      }).join(""), null, stamp);
+    }
+
     function cardSwingUpgrades(swing) {
       const stamp = swing
         ? freshness(swing.updated || (swing.runs && swing.runs.length
@@ -12498,6 +12914,7 @@
           cardMarketHealth(swing),
           cardTopFlow(uoa),
           cardSwingUpgrades(swing),
+          cardSwingDowngrades(swing),
           cardBreakouts(swing, uoaMeta),
           calEarnStack,
           cardThemes(swing),
