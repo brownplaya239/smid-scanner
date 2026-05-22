@@ -657,6 +657,26 @@ def _safe(text):
     return re.sub(r'[^\x00-\xFF]', '', s).strip()
 
 
+def _num(x, default=0.0):
+    """Coerce ANY value (including strings like "+5.2", "N/A", "12.3%")
+    to a float. Returns `default` on failure. Defensive because Claude
+    occasionally returns numeric fields as formatted strings instead
+    of raw numbers — the f"{rs:.1f}" format calls then explode with
+    TypeError if we don't coerce first. Strips %, +, and surrounding
+    whitespace before parsing."""
+    if isinstance(x, (int, float)):
+        return float(x)
+    if x is None:
+        return default
+    try:
+        s = str(x).strip().replace("%", "").replace("+", "").replace(",", "")
+        if not s or s.lower() in ("n/a", "na", "none", "null", "-", "—"):
+            return default
+        return float(s)
+    except (TypeError, ValueError):
+        return default
+
+
 def generate_setup_pdf(results, hist_cache=None, macro=None):
     now    = datetime.now(ET)
     grades = {"A": [], "B": [], "C": []}
@@ -772,20 +792,27 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         bg    = (220,245,230) if grade=="A" else (220,235,250) if grade=="B" else (250,240,215)
         pdf.set_fill_color(*bg)
         pdf.set_font("Helvetica", "B" if grade == "A" else "", 7)
-        rs   = r.get("rsVsSpy", r.get("rs_vs_spy", 0)) or 0
-        rs_s = f"+{rs:.1f}" if rs >= 0 else f"{rs:.1f}"
-        cap  = r.get("mkt_cap_b", 0) or 0
+        # Coerce every numeric field defensively. Claude sometimes
+        # returns values as formatted strings ("+5.2", "12.3%", "N/A")
+        # instead of raw numbers; the f"{val:.Nf}" format calls below
+        # need a real number or they TypeError. _num() strips formatting
+        # and falls back to 0 on unparseable values.
+        rs    = _num(r.get("rsVsSpy", r.get("rs_vs_spy", 0)))
+        cap   = _num(r.get("mkt_cap_b", 0))
+        price = _num(r.get("price", 0))
+        pivot_v = _num(r.get("pivot", r.get("watchTarget", 0)))
+        pct_to_pivot = _num(r.get("pctToPivot", r.get("pct_to_pivot", 0)))
+        rs_s  = f"+{rs:.1f}" if rs >= 0 else f"{rs:.1f}"
         theme = _safe(r.get("theme", r.get("sector", "")))
-        pivot_v = r.get("pivot", r.get("watchTarget", 0)) or 0
         row = [
             (grade,                                                   7),
             (r.get("ticker", ""),                                    14),
             (_safe(r.get("company", ""))[:17],                       28),
             (theme[:20],                                             32),
             (f"${cap:.2f}B",                                         17),
-            (f"${r.get('price', 0):.2f}",                            14),
+            (f"${price:.2f}",                                        14),
             (f"${pivot_v:.2f}",                                      14),
-            (f"{r.get('pctToPivot', r.get('pct_to_pivot', 0)):.1f}%", 14),
+            (f"{pct_to_pivot:.1f}%",                                 14),
             (rs_s,                                                   15),
             ("YES" if r.get("volDryup", r.get("vol_dryup")) else "no", 13),
             ("YES" if r.get("rsLineNewHigh", r.get("rs_line_new_high")) else "no", 12),
@@ -813,12 +840,16 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
     for s in results:
         ticker = s["ticker"]
         grade  = str(s.get("grade", ""))[:1]
-        pivot  = float(s.get("pivot", s.get("watchTarget", 0)) or 0)
-        cap_b  = s.get("mkt_cap_b", 0) or 0
-        fl_m   = s.get("float_m", 0) or 0
-        price  = s.get("price", 0) or 0
-        prox   = s.get("pctToPivot", s.get("pct_to_pivot", 0)) or 0
-        rs_raw = s.get("rsVsSpy", s.get("rs_vs_spy", 0)) or 0
+        # Coerce every numeric field through _num() — same defensive
+        # pattern as the summary table. Claude can return strings
+        # ("+5.2%", "N/A", etc.) for any of these and the format
+        # specifiers below need real numbers.
+        pivot  = _num(s.get("pivot", s.get("watchTarget", 0)))
+        cap_b  = _num(s.get("mkt_cap_b", 0))
+        fl_m   = _num(s.get("float_m", 0))
+        price  = _num(s.get("price", 0))
+        prox   = _num(s.get("pctToPivot", s.get("pct_to_pivot", 0)))
+        rs_raw = _num(s.get("rsVsSpy", s.get("rs_vs_spy", 0)))
         rs_s   = f"+{rs_raw:.1f}%" if rs_raw >= 0 else f"{rs_raw:.1f}%"
 
         grade_label = {"A": "A  PRIME", "B": "B  BUILDING", "C": "C  EARLY STAGE"}.get(grade, grade)
