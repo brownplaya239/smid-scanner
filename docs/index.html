@@ -3582,7 +3582,13 @@
       <h2 class="tab-title">Today&apos;s Desk</h2>
       <p class="tab-sub">A daily command center &mdash; market health, the top
         flow / setups / momentum across every TickerDesk tool, and the names
-        that appear in more than one of them.</p>
+        that appear in more than one of them.
+        <span style="color:var(--muted);font-size:11px">
+          &middot; <b style="color:var(--textdim)">Grades</b> from last EOD
+          batch &middot; <b style="color:var(--textdim)">% chips</b> &
+          <b style="color:var(--textdim)">flow</b> refresh during the day
+          (delayed 15 min)
+        </span></p>
       <!-- Start Here morning-routine strip. Populated by buildStartHere()
            in JS; auto-collapses after 7 sessions or once user dismisses.
            Hidden by default; the JS adds .show only when criteria met. -->
@@ -12700,24 +12706,46 @@
       if (ext == null) return "";
       return ext >= 7 ? "ext-over" : ext >= 5 ? "ext-ext" : "";
     }
-    // Daily-change chip — looks up swing.chg for the ticker and returns a
-    // small inline span ("+2.3%" green, "-1.4%" red, rounded to tenths).
-    // Returns empty string if the ticker isn't graded in today's swing run.
+    // Daily-change chip. Prefers the live (15m-delayed) worker quote
+    // over swing's yesterday-close value so the chip shows TODAY's
+    // intraday % rather than the previous session's close-to-close.
+    // The data-chg-tk attribute lets hydrateDeskLiveQuotes() walk the
+    // DOM and refresh each chip in place once the bulk-quote fetch
+    // resolves — no full re-render needed.
     function chgBadge(t) {
+      const live = window.LIVE_QUOTE_CACHE
+        ? window.LIVE_QUOTE_CACHE[t] : null;
       const c = DESK_TKMAP[t];
-      const v = c && typeof c.chg === "number" ? c.chg : null;
+      let v = null, label = "";
+      if (live && typeof live.change === "number" &&
+          Date.now() - (live.ts || 0) < 5 * 60 * 1000) {
+        v = live.change;
+        label = "Delayed 15m · today's % change";
+      } else if (c && typeof c.chg === "number") {
+        v = c.chg;
+        label = "Yesterday's close-to-close (live quote loading…)";
+      }
       if (v == null) return "";
       const cls = v > 0 ? "up" : v < 0 ? "down" : "flat";
       const sign = v > 0 ? "+" : "";
-      return '<span class="chg-pill ' + cls + '">' + sign +
+      return '<span class="chg-pill ' + cls + '" data-chg-tk="' + t +
+        '" title="' + label + '">' + sign +
         v.toFixed(1) + "%</span>";
     }
-    // Variant for grid-table cells (returns plain "+X.X%" + a class) — used
-    // by the Top Breakout Candidates table where the chip sits in its own
-    // column rather than inline after the ticker.
+    // Variant for grid-table cells. Also prefers live quote over
+    // swing close (same logic as chgBadge) so the Top Breakout
+    // Candidates table reflects today's intraday move.
     function chgCell(t) {
+      const live = window.LIVE_QUOTE_CACHE
+        ? window.LIVE_QUOTE_CACHE[t] : null;
       const c = DESK_TKMAP[t];
-      const v = c && typeof c.chg === "number" ? c.chg : null;
+      let v = null;
+      if (live && typeof live.change === "number" &&
+          Date.now() - (live.ts || 0) < 5 * 60 * 1000) {
+        v = live.change;
+      } else if (c && typeof c.chg === "number") {
+        v = c.chg;
+      }
       if (v == null) return { txt: "—", cls: "flat" };
       const cls = v > 0 ? "up" : v < 0 ? "down" : "flat";
       const sign = v > 0 ? "+" : "";
@@ -13851,7 +13879,12 @@
     // INTU, DECK, HD, CAVA, etc. report each week). For those we
     // lazy-fetch the worker's ?quotes=TICKER endpoint and update the
     // popup in place when the response lands.
-    const LIVE_QUOTE_CACHE = {};   // ticker -> {price, change, ts}
+    // window-scoped so the Desk's chgBadge / hydrateDeskLiveQuotes
+    // (defined in setupDesk's separate IIFE) can read + populate the
+    // same cache. Single source of truth for "today's intraday quote
+    // (15m delayed)" across the whole site.
+    window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
+    const LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE;
     const LIVE_QUOTE_PENDING = {}; // ticker -> Promise
     function fetchLiveQuote(tkr) {
       if (LIVE_QUOTE_CACHE[tkr] &&
@@ -14160,6 +14193,98 @@
           cardTopBullish(ctx, swing, uoa),
           cardTopBearish(ctx, swing, uoa),
         ].join("");
+        // Kick off live-quote hydration in the background. Once each
+        // batch of /quotes lands, hydrateDeskLiveQuotes() walks the
+        // DOM and refreshes every chg-pill in place — converting the
+        // initial "yesterday close" tooltip cohort into "today 15m
+        // delayed" intraday values without a full re-render.
+        hydrateDeskLiveQuotes();
+      });
+    }
+
+    // ── Live-quote hydration for the Desk grid ───────────────────────
+    // Every chg-pill (and many drilldown popups) initially renders
+    // with swing.runs[-1].chg — which is YESTERDAY's close-to-close
+    // value. That makes the entire Desk feel stale during the trading
+    // day. We fix it by bulk-fetching today's intraday quotes via the
+    // worker /quotes endpoint (Polygon Stocks Starter, 15m delayed)
+    // for every ticker visible in the current grid, then walking the
+    // DOM and rewriting each .chg-pill in place.
+    //
+    // Cache TTL is 5 min to match the worker edge cache. Re-fires on
+    // every loadAndRender() pass — the existing 2-min Desk tick keeps
+    // chips current throughout the trading day.
+    let deskQuotesInFlight = false;
+    function hydrateDeskLiveQuotes() {
+      if (deskQuotesInFlight) return;
+      // Collect unique tickers visible in the rendered grid. We use
+      // both [data-t] (the ticker chips themselves) and [data-chg-tk]
+      // (the chg-pill spans) so we catch every spot a chip will need
+      // an updated value.
+      const tickers = new Set();
+      document.querySelectorAll(
+        "#panel-desk [data-t], #panel-desk [data-chg-tk]"
+      ).forEach(function (el) {
+        const t = el.dataset.t || el.dataset.chgTk;
+        if (t && /^[A-Z\.\-]{1,8}$/.test(t)) tickers.add(t);
+      });
+      // Filter out tickers we already fetched within the last 5 min —
+      // saves bandwidth and respects the worker edge cache.
+      const cache = window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
+      const stale = [];
+      tickers.forEach(function (t) {
+        const c = cache[t];
+        if (!c || Date.now() - (c.ts || 0) > 5 * 60 * 1000) stale.push(t);
+      });
+      if (!stale.length) {
+        updateDeskChgPills();
+        return;
+      }
+      deskQuotesInFlight = true;
+      const chunkSize = 50;
+      const promises = [];
+      for (let i = 0; i < stale.length; i += chunkSize) {
+        const chunk = stale.slice(i, i + chunkSize);
+        promises.push(
+          fetch(WORKER_URL + "?quotes=" + encodeURIComponent(chunk.join(",")))
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) {
+              if (!d || !d.quotes) return;
+              d.quotes.forEach(function (q) {
+                if (!q.symbol) return;
+                cache[q.symbol] = {
+                  price: q.price, change: q.change,
+                  prevClose: q.prevClose, ts: Date.now(),
+                };
+              });
+              // Progressive update: redraw chips for the tickers in
+              // THIS chunk as soon as it lands, so users see the
+              // page light up incrementally instead of waiting for
+              // every batch to finish.
+              updateDeskChgPills();
+            })
+            .catch(function () {})
+        );
+      }
+      Promise.all(promises).finally(function () {
+        deskQuotesInFlight = false;
+      });
+    }
+
+    // In-place DOM update: rewrite every .chg-pill[data-chg-tk] from
+    // window.LIVE_QUOTE_CACHE. Avoids the cost of a full Desk re-render.
+    function updateDeskChgPills() {
+      const cache = window.LIVE_QUOTE_CACHE || {};
+      document.querySelectorAll(".chg-pill[data-chg-tk]").forEach(function (el) {
+        const t = el.dataset.chgTk;
+        const live = cache[t];
+        if (!live || typeof live.change !== "number") return;
+        const v = live.change;
+        const cls = v > 0 ? "up" : v < 0 ? "down" : "flat";
+        const sign = v > 0 ? "+" : "";
+        el.className = "chg-pill " + cls;
+        el.textContent = sign + v.toFixed(1) + "%";
+        el.setAttribute("title", "Delayed 15m · today's % change");
       });
     }
 
