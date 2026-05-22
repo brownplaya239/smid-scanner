@@ -1934,6 +1934,24 @@
   .conf-section:first-child { margin-top:0; }
 
   /* Market Health — compact stats line + 4-column performers table */
+  /* Intraday breadth strip above the EOD grade stats. Pulls live
+     quotes (15m delayed) for the swing universe and renders a small
+     bar: % green / % red / % strong-up / % strong-down today. Auto-
+     updates every 60s during market hours via updateDeskIntradayBreadth(). */
+  .mh-intraday { font-size:11px; padding:8px 10px; margin-bottom:8px;
+    background:var(--navy2); border:1px solid var(--line);
+    border-left:3px solid var(--gold); border-radius:5px;
+    line-height:1.5; }
+  .mh-intraday-h { color:var(--muted); font-size:10px;
+    text-transform:uppercase; letter-spacing:.3px; font-weight:700;
+    margin-right:4px; }
+  .mh-intraday-body .ib-up   { color:var(--green); font-weight:700; }
+  .mh-intraday-body .ib-down { color:var(--red); font-weight:700; }
+  .mh-intraday-body .ib-strong { font-weight:800;
+    text-shadow:0 0 1px currentColor; }
+  .mh-intraday-body .ib-sep { color:var(--border2); margin:0 3px; }
+  .mh-intraday-body .ib-as { color:var(--muted); font-size:10px;
+    margin-left:4px; }
   .mh-stats { font-size:10.5px; color:var(--textdim); margin-bottom:6px;
     line-height:1.6; }
   .mh-stats b { color:var(--text); font-weight:700; }
@@ -13239,6 +13257,21 @@
         '<span class="neg">' + r.bearish_pct + '% bearish</span> &middot; ' +
         '<b>' + r.total + '</b> names graded' +
         '</div>';
+      // ── Intraday breadth strip (added on top of EOD grade stats) ──
+      // Walks the same swing universe and computes today's % up vs
+      // down from window.LIVE_QUOTE_CACHE (Polygon Stocks Starter
+      // 15m delayed). The strip is replaced in-place by
+      // updateDeskIntradayBreadth() as new chunks of live quotes
+      // land, so users see this populate progressively. Empty
+      // string until at least one quote has arrived for the
+      // universe — keeps the card from showing "0% green" for the
+      // first second after load.
+      const breadthStrip = '<div class="mh-intraday" id="mh-intraday">' +
+        '<span class="mh-intraday-h">Today &middot; intraday breadth ' +
+        '(15m delayed):</span> ' +
+        '<span id="mh-intraday-body" class="mh-intraday-body">' +
+          'Hydrating live quotes&hellip;' +
+        '</span></div>';
       const gstrip = '<div class="mh-gstrip">' + ALL_GRADES.map(function (g, i) {
         return '<div class="mh-gc" style="background:' + gradeBg(i) +
           '" title="' + g + ': ' + (counts[g] || 0) + ' names">' +
@@ -13250,13 +13283,16 @@
             ? c.cells.map(tkRow).join("")
             : '<div class="desk-empty">—</div>') + '</div>';
       }).join("") + '</div>';
-      return desk("Market Health", stats + gstrip + tkgrid, null, stamp);
+      return desk("Market Health",
+        breadthStrip + stats + gstrip + tkgrid, null, stamp);
     }
 
     function cardTopFlow(uoa) {
-      // UOA runs 3x/day on weekdays — fresh window ~4 hours
+      // UOA snapshot — 6 fires per RTH day, ~75 min cadence. Tag
+      // as "intraday-batch" for honest labeling (the freshness
+      // function uses ≤90 min fresh / ≤4h recent thresholds).
       const stamp = freshness(uoa && uoa.generated,
-        { character: "live", cadenceHours: 4, label: "Flow scanned at" });
+        { character: "intraday-batch", label: "Flow scanned at" });
       if (!uoa || !uoa.rows)
         return desk("Top Options Flow", empty("No flow data yet."),
                     null, stamp);
@@ -14240,10 +14276,14 @@
     let deskQuotesInFlight = false;
     function hydrateDeskLiveQuotes() {
       if (deskQuotesInFlight) return;
-      // Collect unique tickers visible in the rendered grid. We use
-      // both [data-t] (the ticker chips themselves) and [data-chg-tk]
-      // (the chg-pill spans) so we catch every spot a chip will need
-      // an updated value.
+      // Collect tickers from TWO sources so we cover:
+      //   (a) every chip visible in the rendered grid (so individual
+      //       chg-pills can update in place)
+      //   (b) the entire swing universe in DESK_TKMAP (so the
+      //       intraday breadth strip in Market Health has a real
+      //       sample to compute % up / % down today)
+      // Combined, this gives a "live breadth" view of the market
+      // even though grade-dependent cards stay EOD.
       const tickers = new Set();
       document.querySelectorAll(
         "#panel-desk [data-t], #panel-desk [data-chg-tk]"
@@ -14251,6 +14291,14 @@
         const t = el.dataset.t || el.dataset.chgTk;
         if (t && /^[A-Z\.\-]{1,8}$/.test(t)) tickers.add(t);
       });
+      // Add the whole swing universe for breadth math. ~1000 tickers
+      // = ~20 chunks of 50 = ~20 worker /quotes calls; each cached
+      // 5 min so this only runs ~once per refresh tick.
+      if (typeof DESK_TKMAP === "object" && DESK_TKMAP) {
+        Object.keys(DESK_TKMAP).forEach(function (t) {
+          if (t && /^[A-Z\.\-]{1,8}$/.test(t)) tickers.add(t);
+        });
+      }
       // Filter out tickers we already fetched within the last 5 min —
       // saves bandwidth and respects the worker edge cache.
       const cache = window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
@@ -14309,24 +14357,115 @@
         el.textContent = sign + v.toFixed(1) + "%";
         el.setAttribute("title", "Delayed 15m · today's % change");
       });
+      // Whenever chips refresh, also update the intraday breadth
+      // strip on Market Health so the two stay synchronized.
+      updateDeskIntradayBreadth();
     }
 
-    // Initial load + auto-refresh while the desk tab is visible. 2-min
-    // tick matches the UOA refresh granularity (UOA itself runs 3x/day,
-    // but Polygon-side caches turn over faster). When the page is
-    // background-tabbed, browsers will throttle the interval — that's
-    // intentional and fine.
+    // ── Intraday breadth (Market Health top strip) ───────────────────
+    // Walks the swing universe (DESK_TKMAP) and bins each ticker by
+    // its live % change. Renders into #mh-intraday-body which the
+    // cardMarketHealth() render emitted. Re-fires on every quote
+    // chunk so the breadth populates progressively as live data lands.
+    function updateDeskIntradayBreadth() {
+      const body = document.getElementById("mh-intraday-body");
+      if (!body || typeof DESK_TKMAP !== "object") return;
+      const cache = window.LIVE_QUOTE_CACHE || {};
+      let up = 0, down = 0, strongUp = 0, strongDown = 0, flat = 0;
+      let counted = 0;
+      Object.keys(DESK_TKMAP).forEach(function (t) {
+        const live = cache[t];
+        if (!live || typeof live.change !== "number") return;
+        counted++;
+        const v = live.change;
+        if (v > 0) up++;
+        else if (v < 0) down++;
+        else flat++;
+        if (v >= 3) strongUp++;
+        else if (v <= -3) strongDown++;
+      });
+      if (counted < 10) {
+        // Not enough data hydrated yet — show a loading hint
+        // instead of a misleading "0% green" snapshot.
+        body.innerHTML = '<span style="color:var(--muted);font-style:italic">' +
+          'Loading… (' + counted + ' / ' + Object.keys(DESK_TKMAP).length +
+          ' quotes hydrated)</span>';
+        return;
+      }
+      const upPct = Math.round((up / counted) * 100);
+      const downPct = Math.round((down / counted) * 100);
+      const suPct = Math.round((strongUp / counted) * 100);
+      const sdPct = Math.round((strongDown / counted) * 100);
+      const asOf = new Date().toLocaleTimeString([],
+        { hour: "numeric", minute: "2-digit",
+          timeZone: "America/New_York" }) + " ET";
+      body.innerHTML =
+        '<span class="ib-up">' + upPct + '% green</span>' +
+        '<span class="ib-sep">·</span>' +
+        '<span class="ib-down">' + downPct + '% red</span>' +
+        (suPct >= 1
+          ? '<span class="ib-sep">·</span>' +
+            '<span class="ib-up ib-strong">' + suPct + '% &ge;+3%</span>'
+          : '') +
+        (sdPct >= 1
+          ? '<span class="ib-sep">·</span>' +
+            '<span class="ib-down ib-strong">' + sdPct + '% &le;-3%</span>'
+          : '') +
+        '<span class="ib-as">· ' + counted + ' / ' +
+          Object.keys(DESK_TKMAP).length + ' tickers · as of ' +
+          asOf + '</span>';
+    }
+
+    // ── Market-hours-aware auto-refresh helpers ──────────────────────
+    function isMarketOpenET() {
+      // Read the market-pill state if it's rendered; cheapest path
+      // since the pill already does ET + holiday math.
+      const pill = document.getElementById("market-pill");
+      if (pill) return pill.classList.contains("state-open");
+      // Fallback: weekday 9:30 AM - 4:00 PM ET. No holiday calendar
+      // in this fallback — pill is the canonical source.
+      try {
+        const et = new Date(
+          new Date().toLocaleString("en-US", {
+            timeZone: "America/New_York" }));
+        const dow = et.getDay();
+        if (dow === 0 || dow === 6) return false;
+        const mins = et.getHours() * 60 + et.getMinutes();
+        return mins >= 9 * 60 + 30 && mins < 16 * 60;
+      } catch (e) { return false; }
+    }
+
+    // Two-tier auto-refresh while the Desk tab is active and the
+    // market is OPEN:
+    //
+    //  Tier 1 — 60s chip refresh (lightweight)
+    //    Just calls hydrateDeskLiveQuotes() which bulk-fetches the
+    //    worker /quotes endpoint and updates chg-pills + the
+    //    intraday breadth strip in place. No JSON re-fetch, no
+    //    re-render, no flicker. Aligns with the worker's 30s edge
+    //    cache + Polygon Stocks Starter's 15m delay tier — this is
+    //    as fresh as our data license allows.
+    //
+    //  Tier 2 — 5-min full reload (heavy)
+    //    Calls loadAndRender() which re-fetches every JSON. Catches
+    //    the case where UOA fires its next batch (every ~75 min) or
+    //    the swing/setup JSON gets a mid-day re-touch.
+    //
+    // When the market is closed, both tiers stop firing. Static
+    // last-quote state is what the user wants overnight.
     loadAndRender();
     setInterval(function () {
-      // Only refresh while the desk tab is the active panel — avoids
-      // hammering the network for users sitting on UOA/Swing/etc. The
-      // freshness stamp will still update on next desk visit because
-      // we render the desk fresh on each interval tick.
       const deskPanel = document.getElementById("panel-desk");
-      if (deskPanel && deskPanel.classList.contains("active")) {
-        loadAndRender();
-      }
-    }, 2 * 60 * 1000);
+      if (!deskPanel || !deskPanel.classList.contains("active")) return;
+      if (!isMarketOpenET()) return;
+      hydrateDeskLiveQuotes();   // chips + breadth, no re-render
+    }, 60 * 1000);
+    setInterval(function () {
+      const deskPanel = document.getElementById("panel-desk");
+      if (!deskPanel || !deskPanel.classList.contains("active")) return;
+      if (!isMarketOpenET()) return;
+      loadAndRender();           // full JSON re-fetch + re-render
+    }, 5 * 60 * 1000);
 
     // Also refresh whenever the user switches BACK to the desk tab
     // (catches the case where data went stale while they were on
