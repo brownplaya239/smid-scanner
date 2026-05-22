@@ -8992,9 +8992,11 @@
       // Per-character so users understand exactly which feed + cadence
       // backs the numbers on this tab. Honest > clever.
       const SOURCE_NOTE = {
-        "post-close": "Daily batch: grades + scans run after 4 PM ET. " +
-          "Today's run is post-close; before tomorrow's run it reads as " +
-          "yesterday's prior close.",
+        "post-close": "Grades + scans run once per session at 4:30 PM ET " +
+          "close. Today's grade reflects yesterday's close and stays " +
+          "current until tonight's 4:30 PM ET cron. Price chips on " +
+          "this tab overlay today's intraday quote (15m delayed) on " +
+          "top of yesterday's grade.",
         "intraday-batch": "Polygon Options Starter snapshot — 6 fires per " +
           "RTH day (~75 min cadence). Upstream license is 15m delayed; " +
           "this is not real-time tick data.",
@@ -9004,8 +9006,10 @@
           "Closest tier to streaming we offer.",
         "weekly": "Weekly batch — recomputed once per trading week. " +
           "Refresh due window starts at ~7 days, stale at ~14 days.",
-        "pre-market": "Daily pre-market batch — refreshed once before " +
-          "open. Today's run is fresh until tomorrow's regenerates.",
+        "pre-market": "Pre-market batch — economic calendar pulls the " +
+          "full day's schedule before open (typically 4:30 AM ET). " +
+          "Normal that today's events show with a pre-open timestamp; " +
+          "next refresh tomorrow morning.",
         "live": "Streaming data feed (reserved label — not currently " +
           "used; no true-streaming source is wired today).",
       };
@@ -12964,8 +12968,13 @@
     //   Earnings Today         — anything reporting today
     //   Watchlist Urgencies    — only when signed in
     function cardActionList(ctx, swing, uoa, uoaMeta, today) {
+      // Action list synthesizes UOA flow + swing grades + earnings.
+      // UOA is the freshest input (intraday-batch ~75 min), so we
+      // tag the card with that character. Honest about cadence;
+      // grade+earnings context comes from EOD batches underneath.
       const stamp = uoa
-        ? freshness(uoa.generated, { character: "live", label: "Built from" })
+        ? freshness(uoa.generated,
+            { character: "intraday-batch", label: "Built from flow at" })
         : { cls: "none", label: "Pending first scan" };
 
       // Build per-ticker confluence map: { tk: {grade, flowBias, flowPrem} }
@@ -13183,8 +13192,9 @@
     function cardMarketHealth(swing) {
       // Daily cadence (1 swing run per day, 4:33 PM ET post-close)
       const stamp = swing
-        ? freshness(swing.updated || (swing.runs && swing.runs.length
-            ? swing.runs[swing.runs.length-1].generated : null),
+        ? freshness((swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length-1].generated
+            : swing.updated),
             { character: "post-close", label: "Grades from" })
         : { cls: "none", label: "Pending first run" };
       if (!swing || !swing.runs || !swing.runs.length)
@@ -13283,8 +13293,9 @@
       // a name falling from B to D in one session is more actionable
       // than a routine B-to-B+ shuffle.
       const stamp = swing
-        ? freshness(swing.updated || (swing.runs && swing.runs.length
-            ? swing.runs[swing.runs.length-1].generated : null),
+        ? freshness((swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length-1].generated
+            : swing.updated),
             { character: "post-close", label: "Grades from" })
         : { cls: "none", label: "Pending first run" };
       if (!swing || !swing.runs)
@@ -13330,8 +13341,9 @@
 
     function cardSwingUpgrades(swing) {
       const stamp = swing
-        ? freshness(swing.updated || (swing.runs && swing.runs.length
-            ? swing.runs[swing.runs.length-1].generated : null),
+        ? freshness((swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length-1].generated
+            : swing.updated),
             { character: "post-close", label: "Grades from" })
         : { cls: "none", label: "Pending first run" };
       if (!swing || !swing.runs)
@@ -13375,8 +13387,9 @@
 
     function cardBreakouts(swing, uoaMeta) {
       const stamp = swing
-        ? freshness(swing.updated || (swing.runs && swing.runs.length
-            ? swing.runs[swing.runs.length-1].generated : null),
+        ? freshness((swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length-1].generated
+            : swing.updated),
             { character: "post-close", label: "Grades from" })
         : { cls: "none", label: "Pending first run" };
       if (!swing || !swing.runs || !swing.runs.length)
@@ -13392,13 +13405,15 @@
       });
       if (!cands.length) return desk("Top Breakout Candidates",
         empty("No clean A-tier candidates today."), null, stamp);
-      const hdr = '<div class="brk-row brk-hdr">' +
-        '<span>Ticker</span>' +
-        '<span style="text-align:right">Day</span>' +
-        '<span>Theme</span>' +
-        '<span style="text-align:right">Mcap</span>' +
-        '<span style="text-align:right">RVol</span>' +
-        '<span style="text-align:right">Ext</span></div>';
+      // role="row"+"columnheader" gives screen readers proper table
+      // semantics even though we're using CSS grid not <table>.
+      const hdr = '<div class="brk-row brk-hdr" role="row">' +
+        '<span role="columnheader">Ticker</span>' +
+        '<span role="columnheader" style="text-align:right">Day</span>' +
+        '<span role="columnheader">Theme</span>' +
+        '<span role="columnheader" style="text-align:right">Mcap</span>' +
+        '<span role="columnheader" style="text-align:right">RVol</span>' +
+        '<span role="columnheader" style="text-align:right">Ext</span></div>';
       const body = cands.slice(0, 25).map(function (c) {
         const th = (c.th && c.th.length) ? c.th[0] : "—";
         const rawMcap = (typeof c.mcap === "number") ? c.mcap
@@ -13498,10 +13513,18 @@
     // Stash for the hover popup
     let THEME_ROLLUP = {};
     function cardThemes(swing) {
+      // Themes are aggregated from the EOD swing batch — pure
+      // post-close cadence. The old call used the legacy positional
+      // form which silently defaulted to character="live", showing
+      // a misleading "Live · 4:42 AM" stamp. Now correctly tagged
+      // post-close, which renders "Prior close · yest 4:30 PM"
+      // when reading yesterday's data — honest about what the user
+      // is looking at.
       const stamp = swing
-        ? freshness(swing.updated || (swing.runs && swing.runs.length
-            ? swing.runs[swing.runs.length-1].generated : null), 24,
-            "Themes from")
+        ? freshness((swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length-1].generated
+            : swing.updated),
+            { character: "post-close", label: "Themes from" })
         : { cls: "none", label: "no batch yet" };
       const all = buildThemeRollup(swing);
       if (!all.length)
