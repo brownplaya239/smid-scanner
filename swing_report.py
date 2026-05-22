@@ -255,19 +255,24 @@ def metrics(ticker, s):
     adr_pct = (sum(hh / ll for hh, ll in pairs) / len(pairs) - 1) * 100 if pairs else 0
     chg_day = ((c[-1] / c[-2] - 1) * 100) if n >= 2 and c[-2] else None
     # ── Defensive data-quality checks ─────────────────────────────────
-    # Polygon's adjusted=true bars still occasionally produce extreme
-    # moves from ticker changes, spin-offs, corporate actions, or
-    # ticker reuse (e.g. SNDK = old Sandisk-acquired-by-WD vs new
-    # WD-flash-spinoff). The join point of the adjusted+raw series
-    # misaligns and today's bar reads $1500+ on what should be a $80
-    # stock. Skip rather than serve corrupted grades.
+    # Polygon's adjusted=true bars occasionally produce extreme moves
+    # from ticker changes, spinoffs, corporate actions, or join-point
+    # misalignment between adjusted/raw segments. The filters here
+    # reject the cases that are virtually-always data errors WITHOUT
+    # rejecting legitimately high-priced or volatile names.
     #
-    # (1) Single-day move > 30% — was 40% but tightened to align with
-    #     the admin-panel warning threshold. Real liquid SMID names
-    #     with $50M+ daily volume virtually never move >30% in one
-    #     day on legitimate news; >30% is data corruption ~95% of
-    #     the time.
-    if chg_day is not None and abs(chg_day) > 30:
+    # NOTE: Earlier versions had an absolute $500 price ceiling — that
+    # was WRONG. SNDK (the 2025 WD-flash spinoff) legitimately trades
+    # at $1400-1600 with a 52w range of $36 → $1600 (real post-IPO
+    # run-up). A flat price ceiling rejects names like that even when
+    # the data is correct. The ratio-vs-prior-30-median check below
+    # (which fires only when today's price is wildly out of line with
+    # recent history) is the right detection.
+    #
+    # (1) Single-day move > 40% — restored from 30%. Real names CAN
+    #     move 30% on legitimate news (small-cap binary events). 40%
+    #     is the better threshold for "almost certainly data error."
+    if chg_day is not None and abs(chg_day) > 40:
         return None
     # (2) 7-day rolling cumulative > 100% — catches bad bars that are
     #     recent but not today (would otherwise leak into ATR / RVOL /
@@ -276,27 +281,27 @@ def metrics(ticker, s):
         seven_day = abs((c[-1] / c[-8] - 1) * 100)
         if seven_day > 100:
             return None
-    # (3) Statistical outlier vs prior-30 median. THE big new catch:
-    #     when a ticker reuses a symbol (SNDK), the series joins two
-    #     different companies and today's bar is wildly out of line
-    #     with the historical range. If today's price is >4× or <1/4
-    #     the median of the prior 30 closes, the series has a bad
-    #     join — refuse to grade.
+    # (3) Statistical outlier vs prior-30 median. When a ticker's data
+    #     series has a corrupted join point (mis-aligned split factor,
+    #     mid-series ticker reuse on a long-dead symbol, etc.) today's
+    #     bar is wildly out of line with the recent trading range.
+    #     If today's price is >5× or <1/5 the median of the prior 30
+    #     closes, the series has a bad join — refuse to grade.
+    #
+    #     Threshold 5× (not 4×) so legitimately violent post-IPO or
+    #     post-spinoff run-ups stay in the grade. SNDK going from
+    #     $36 to $1500 over many months has a prior-30 median near
+    #     today's price (~$1400-1500), so ratio is ~1 — passes.
+    #     What this catches: a sudden bar that's 5× the median of
+    #     the rest of the series, which is the actual data-error
+    #     signature.
     if n >= 30:
         prior_30 = sorted(c[-31:-1])
         med = prior_30[len(prior_30) // 2]
         if med > 0:
             ratio = price / med
-            if ratio > 4 or ratio < 0.25:
+            if ratio > 5 or ratio < 0.2:
                 return None
-    # (4) Absolute price ceiling. The screened universe is SMID-cap
-    #     ($50M+ daily $-vol floor, generally <$30B mkt cap). Stocks
-    #     above $500 in this universe are nearly always data errors
-    #     (real high-priced names like NVR / AZO are large-cap and
-    #     excluded). Defensive floor; protects against the rare case
-    #     where the median check misses (e.g. a flat-stale series).
-    if price > 500:
-        return None
     # Relative volume: today's bar volume vs the prior 30-day average.
     # A standard breakout-confirmation metric: 1.0 = average, 2.0 = 2x normal.
     rvol = None

@@ -7652,16 +7652,19 @@
                 msg: "Only " + totalGraded + " names graded today " +
                   "(expected 800-1000)" });
             }
-            // Suspicious prices (split-adjustment + ticker-reuse check)
-            // Thresholds mirror swing_report.py metrics() defensive
-            // filters: price > $500 or |daily chg| > 25%. The
-            // scanner-side filter rejects most of these before they
-            // hit grade; anything that lands here despite the filter
-            // gets surfaced for manual investigation.
+            // Suspicious-data check — flags daily moves >35% only.
+            // We INTENTIONALLY do NOT flag on absolute price level:
+            // SNDK (the 2025 WD-flash spinoff) legitimately trades
+            // around $1400-1600 with a real 52w range of $36 → $1600.
+            // Flat price ceilings produced false positives on real
+            // post-IPO run-ups. Now we rely on the scanner-side
+            // prior-30-median ratio check (in swing_report.py) to
+            // detect actual data corruption; this admin warning only
+            // surfaces the % move anomalies that slip through.
             const suspicious = [];
             Object.values(today.grades || {}).forEach(function (arr) {
               arr.forEach(function (c) {
-                if (c.p > 500 || (c.chg && Math.abs(c.chg) > 25)) {
+                if (c.chg && Math.abs(c.chg) > 35) {
                   suspicious.push(c.t + " ($" +
                     (typeof c.p === "number" ? c.p.toFixed(2) : c.p) +
                     ", " + (c.chg || 0).toFixed(2) + "%)");
@@ -7670,11 +7673,11 @@
             });
             if (suspicious.length) {
               validations.push({ severity: "warn", module: r.id,
-                msg: "Possible split/adjustment issue on " +
+                msg: "Extreme single-day moves on " +
                   suspicious.length + " names: " +
                   suspicious.slice(0, 3).join(", ") +
                   (suspicious.length > 3 ? "..." : "") +
-                  " (scanner re-run will purge after next post-close)" });
+                  " — verify against broker quote before trading" });
             }
           }
         }
