@@ -259,7 +259,7 @@ def synthesize(alt, scores):
     msg = f"{SYNTH_PROMPT}\n\nAlt-data for {alt['ticker']}:\n{json.dumps(payload, indent=1)}"
     print("  Sending alt-data to Claude for synthesis...")
     resp = client.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-sonnet-4-7",
         max_tokens=4000,
         messages=[{"role": "user", "content": msg}],
     )

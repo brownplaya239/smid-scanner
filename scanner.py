@@ -680,12 +680,36 @@ Today is {today}. Scan type: {scan_type}.
 Candidates (include insider activity from SEC Form 4 last 60d):
 {json.dumps(candidates, indent=2)}"""
 
-    print("  ✅ Sending to Claude (Sonnet 4.6)...")
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=12000,
-        messages=[{"role": "user", "content": full_prompt}],
-    )
+    print("  ✅ Sending to Claude (Sonnet 4.7)...")
+    # Try Claude. If it auth-fails, rate-limits, or otherwise errors,
+    # don't crash the whole scan — fall back to a "no-LLM" result set
+    # that returns the candidates with a neutral score so users still
+    # get the pre-filter pass and the workflow archives a real run
+    # rather than failing entirely.
+    try:
+        response = client.messages.create(
+            model="claude-sonnet-4-7",
+            max_tokens=12000,
+            messages=[{"role": "user", "content": full_prompt}],
+        )
+    except anthropic.AuthenticationError as e:
+        print(f"  ✗ Claude auth error (HTTP 401): {e}")
+        print("  ➜ ANTHROPIC_API_KEY secret is invalid/expired/rotated.")
+        print("  ➜ Rotate the key in https://console.anthropic.com/keys")
+        print("     and update the GH Actions secret. Returning bare ")
+        print("     candidates without LLM ranking so the scan still")
+        print("     publishes a degraded but useful report.")
+        return _fallback_no_llm(candidates, reason="auth_error")
+    except anthropic.RateLimitError as e:
+        print(f"  ✗ Claude rate limit: {e}")
+        return _fallback_no_llm(candidates, reason="rate_limit")
+    except anthropic.APIError as e:
+        # Any other Anthropic-side error (e.g. model retired, 5xx).
+        print(f"  ✗ Claude API error: {e}")
+        return _fallback_no_llm(candidates, reason="api_error")
+    except Exception as e:
+        print(f"  ✗ Unexpected Claude error: {type(e).__name__}: {e}")
+        return _fallback_no_llm(candidates, reason="unknown_error")
     usage = getattr(response, "usage", None)
     if usage:
         it = getattr(usage, "input_tokens", 0) or 0
@@ -709,6 +733,33 @@ Candidates (include insider activity from SEC Form 4 last 60d):
             except Exception as e2:
                 print(f"  Regex fallback also failed: {e2}")
         return []
+
+
+def _fallback_no_llm(candidates, reason="api_error"):
+    """Build a minimal result set when Claude is unavailable. Each
+    candidate is returned with a neutral grade + a flag explaining
+    why the LLM scoring is missing, so the consuming UI/PDF can
+    surface "Claude scoring unavailable — pre-filter data only"
+    instead of returning an empty list (which would silently drop
+    every candidate and look like "no candidates found")."""
+    out = []
+    for c in candidates:
+        out.append({
+            "ticker":           c.get("ticker") or c.get("symbol"),
+            "grade":            "C - Watch",
+            "reasoning":        f"LLM scoring unavailable ({reason}); "
+                                f"showing pre-filter pass. Volume "
+                                f"{c.get('vol_ratio', 0):.2f}x, change "
+                                f"{c.get('change_pct', 0):.2f}%.",
+            "keyRisk":          "Cannot grade without Claude — manual "
+                                "review required.",
+            "earningsContext":  "",
+            "institutionalAngle": "",
+            "catalyst":         "",
+            "_llm_unavailable": True,
+            "_llm_failure":     reason,
+        })
+    return out
 
 
 # ─── Chart generation ─────────────────────────────────────────────────────────
