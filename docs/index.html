@@ -64,6 +64,18 @@
   body.td-panel-open { overflow:hidden; position:fixed;
     width:100%; height:100%; }
 
+  /* Missing-data helper visuals — keep the default "—" inline and
+     light-weight; reserved variants get explicit color/copy so users
+     can tell broken pipes from intentional empties. Inline-block so
+     they slot into table cells without disrupting layout. */
+  .td-missing { color:var(--muted); }
+  .td-missing.td-missing-unavail { font-style:italic;
+    color:var(--muted); }
+  .td-missing.td-missing-failed { color:var(--red);
+    font-weight:600; font-size:.9em; }
+  .td-missing.td-missing-pending { color:var(--textdim);
+    font-style:italic; }
+
   /* Every clickable ticker element on the site carries data-t. Apply
      consistent affordance so taps on mobile always register:
        - cursor:pointer signals tappability + makes iOS fire `click`
@@ -213,6 +225,15 @@
     font-weight:700; cursor:pointer; }
   .wlt-add-btn:hover { filter:brightness(1.05); }
   .wlt-add-hint { font-size:10.5px; color:var(--muted); line-height:1.4; }
+
+  /* Data-source disclosure note under the Portfolio header. Spells out
+     which feed backs which column so users can tell EOD grades from
+     15m-delayed prices from 75-min UOA at a glance. */
+  .wlt-data-note { font-size:10.5px; color:var(--muted);
+    line-height:1.5; margin:-6px 0 12px; padding:8px 12px;
+    background:var(--navy2); border:1px solid var(--line);
+    border-left:3px solid var(--gold); border-radius:5px; }
+  .wlt-data-note b { color:var(--textdim); font-weight:600; }
 
   /* Portfolio section tools — Equal-weight + Normalize 100% buttons
      sit to the right of the "Portfolio" heading. Small, low-emphasis
@@ -1121,6 +1142,17 @@
   .freshness .fr-sep { color:var(--border2); }
   .freshness .fr-char { color:var(--textdim); font-weight:500; }
   .freshness .fr-stamp { color:var(--text); font-weight:600; }
+  /* "?" pill that exposes the per-tab data-source explanation. Native
+     title= tooltip keeps it light-weight; on touch devices users can
+     tap-and-hold to see the same text. Visible affordance + cursor:help
+     signals "more info" without needing a custom popover. */
+  .freshness .fr-info { display:inline-flex; align-items:center;
+    justify-content:center; width:15px; height:15px; margin-left:4px;
+    padding:0; border-radius:50%; cursor:help;
+    background:transparent; border:1px solid var(--border2);
+    color:var(--muted); font-family:inherit; font-size:9.5px;
+    font-weight:700; line-height:1; }
+  .freshness .fr-info:hover { color:var(--gold); border-color:var(--gold); }
   .theme-toggle, .density-toggle { display:flex;
     border:1px solid var(--border2); border-radius:6px; overflow:hidden; }
   .theme-toggle button, .density-toggle button { background:var(--navy2);
@@ -3527,6 +3559,14 @@
           </button>
         </span>
       </h3>
+      <!-- Data-source disclosure under the section header so users see
+           at a glance which tier each column comes from. Different
+           freshness for prices (delayed 15m) vs grades (EOD batch). -->
+      <p class="wlt-data-note">
+        <b>Prices:</b> delayed 15 min (Polygon Stocks Starter) ·
+        <b>Grades:</b> EOD batch (after 4 PM ET) ·
+        <b>Flow:</b> intraday batch (~75 min cadence)
+      </p>
       <div class="wlt-portfolio-wrap">
         <table class="wlt-portfolio" id="wlt-portfolio"></table>
       </div>
@@ -3917,7 +3957,7 @@
         <span id="uoa-updated"></span></p>
 
       <div class="uoa-subnav" id="uoa-subnav">
-        <button data-sub="live" class="active">Live Flow</button>
+        <button data-sub="live" class="active">Latest Flow</button>
         <button data-sub="tracked">Tracked Signals</button>
         <button data-sub="perf">Performance</button>
       </div>
@@ -4992,6 +5032,32 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  };
+
+  // ── Missing-data helper ─────────────────────────────────────────
+  // "Never silent stale": every missing value should communicate WHY
+  // it's missing so users can tell intentional gaps from broken
+  // pipes. Use this anywhere a cell could be empty.
+  //
+  //   tdMissing()              → "—" (intentionally empty / not applicable)
+  //   tdMissing("nodata")      → "—"
+  //   tdMissing("unavailable") → italic muted "Unavailable"
+  //   tdMissing("failed")      → red "Update failed"
+  //   tdMissing("pending")     → muted "Loading…"
+  //
+  // Returns HTML — use only via innerHTML, not textContent.
+  window.tdMissing = function (reason) {
+    switch (reason) {
+      case "unavailable":
+        return '<span class="td-missing td-missing-unavail">Unavailable</span>';
+      case "failed":
+        return '<span class="td-missing td-missing-failed">Update failed</span>';
+      case "pending":
+        return '<span class="td-missing td-missing-pending">Loading…</span>';
+      case "nodata":
+      default:
+        return '<span class="td-missing">—</span>';
+    }
   };
 
   // Generic mobile-collapse toggle. Any button with data-filter-toggle="id"
@@ -8684,6 +8750,22 @@
         if (hrs < 4)   return "recent";
         return "stale";
       }
+      // "delayed-15m" — quotes that are intentionally lagged 15 min
+      // (Polygon Stocks Starter / yfinance). Anything in the last hour
+      // is the freshest possible state given the license tier.
+      if (character === "delayed-15m") {
+        if (hrs < 1)  return "fresh";
+        if (hrs < 6)  return "recent";
+        return "stale";
+      }
+      // "near-realtime" — sub-5-min cadence (would require Polygon
+      // Advanced; currently unused but the threshold reserves the
+      // label honestly).
+      if (character === "near-realtime") {
+        if (hrs < 0.1)  return "fresh";   // 6 min
+        if (hrs < 0.5)  return "recent";  // 30 min
+        return "stale";
+      }
       // "live" character kept for back-compat with older call sites;
       // strict freshness window because true-live data should never
       // be more than minutes old.
@@ -8722,14 +8804,28 @@
         }
       }
       fr.className = "freshness " + staleClass(isoStr, character);
+      // Standardized freshness vocab — matches the 5-tier model:
+      //   Live          (streaming feed, currently unused)
+      //   Near real-time (sub-5-min, currently unused — would need
+      //                  Polygon Stocks Advanced)
+      //   Delayed 15m   (Polygon Stocks Starter quotes, yfinance)
+      //   Intraday batch (UOA: Polygon Options Starter 6×/day)
+      //   EOD           (post-close swing, breakouts, setups, earnings)
+      //   Weekly        (Stockbee)
+      // Keep the underlying character keys ("post-close" etc.) for
+      // back-compat; only display strings change.
       const charLabel = character === "post-close"
-                          ? "post-close batch"
+                          ? "EOD batch"
                         : character === "weekly"
                           ? "weekly batch"
                         : character === "pre-market"
                           ? "pre-market"
                         : character === "intraday-batch"
                           ? "intraday batch (~75 min)"
+                        : character === "delayed-15m"
+                          ? "delayed 15m"
+                        : character === "near-realtime"
+                          ? "near real-time"
                         : character === "live"
                           ? "live"
                           : "batch";
@@ -8737,13 +8833,37 @@
       // colored dot gives traffic-light RAG status (green/amber/red);
       // the ET stamp gives the concrete "when" so you can match scans
       // against market events; "X ago" is the human-friendly relative.
+      // Source explanation tooltip — shown on hover/tap of the (?) pill.
+      // Per-character so users understand exactly which feed + cadence
+      // backs the numbers on this tab. Honest > clever.
+      const SOURCE_NOTE = {
+        "post-close": "Daily batch: grades + scans run after 4 PM ET. " +
+          "Today's run is post-close; before tomorrow's run it reads as " +
+          "yesterday's prior close.",
+        "intraday-batch": "Polygon Options Starter snapshot — 6 fires per " +
+          "RTH day (~75 min cadence). Upstream license is 15m delayed; " +
+          "this is not real-time tick data.",
+        "delayed-15m": "Polygon Stocks Starter quotes — 15-minute delayed " +
+          "by license terms. Fresh at fetch time but not real-time.",
+        "near-realtime": "Sub-5-minute cadence quotes (Polygon Advanced). " +
+          "Closest tier to streaming we offer.",
+        "weekly": "Weekly batch — recomputed once per trading week. " +
+          "Refresh due window starts at ~7 days, stale at ~14 days.",
+        "pre-market": "Daily pre-market batch — refreshed once before " +
+          "open. Today's run is fresh until tomorrow's regenerates.",
+        "live": "Streaming data feed (reserved label — not currently " +
+          "used; no true-streaming source is wired today).",
+      };
+      const note = SOURCE_NOTE[character] || "Batch data of unknown cadence.";
       fr.innerHTML =
         '<span class="fr-dot"></span>' +
         '<span class="fr-stamp">' + etStamp(isoStr) + '</span>' +
         '<span class="fr-sep">·</span>' +
         '<span>' + timeAgo(isoStr) + '</span>' +
         '<span class="fr-sep">·</span>' +
-        '<span class="fr-char">' + charLabel + '</span>';
+        '<span class="fr-char">' + charLabel + '</span>' +
+        '<button class="fr-info" type="button" aria-label="Data source"' +
+          ' title="' + window.escapeHtml(note) + '">?</button>';
       // Stash config for the 30-sec auto-refresher (recomputes "X ago"
       // string + recolors the dot if the data crosses a staleness threshold)
       panel._frConfig = { iso: isoStr, character: character };
@@ -9268,14 +9388,18 @@
           '<div class="tdp-empty">Fetching headlines…</div>' +
         '</div></div>');
 
-      // 5a) Live options flow — top unusual contracts as of <30 sec ago.
-      // Pulls Polygon's snapshot endpoint via the worker, edge-cached 30s.
-      // Bypasses the 75-min batch lag.
+      // 5a) Latest options flow snapshot — top unusual contracts at
+      // fetch time. Pulls Polygon's snapshot endpoint via the worker
+      // (edge-cached 30s) so this bypasses the 75-min batch lag, but
+      // the source data is still 15-min delayed per Polygon Options
+      // Starter license. Labelled "delayed 15m" to be honest.
       sec.push('<div class="tdp-section" id="tdp-liveflow-section">' +
-        '<h4>Live unusual flow <span style="color:var(--muted);font-weight:400;' +
-          'text-transform:none;letter-spacing:0;font-size:9px;">· loading…</span></h4>' +
+        '<h4>Latest options flow ' +
+        '<span style="color:var(--muted);font-weight:400;' +
+          'text-transform:none;letter-spacing:0;font-size:9px;">' +
+          '· delayed 15m · loading…</span></h4>' +
         '<div class="tdp-liveflow" id="tdp-liveflow-body">' +
-          '<div class="tdp-empty">Fetching live snapshot…</div>' +
+          '<div class="tdp-empty">Fetching latest snapshot…</div>' +
         '</div></div>');
 
       // 5b) SEC filings — lazy-loaded list + auto-summaries for notable ones
@@ -9639,10 +9763,12 @@
     });
 
     async function fetchAndRenderLiveFlow(t) {
-      // Live UOA snapshot via the worker. Returns top 25 unusual contracts
-      // sorted by premium. We display top 6 in the panel — enough to
-      // surface what's flowing without overwhelming the column. Lookback
-      // is "right now" — Polygon snapshot data is sub-second fresh.
+      // On-demand UOA snapshot via the worker. Returns top 25 unusual
+      // contracts sorted by premium. We display top 6 in the panel —
+      // enough to surface what's flowing without overwhelming. The
+      // snapshot is fresh at fetch time but Polygon Options Starter
+      // data is still 15-min delayed; we label as "delayed-15m" not
+      // "live" to be honest about the upstream license tier.
       if (!t || t !== ACTIVE_TICKER) return;
       const body = document.getElementById("tdp-liveflow-body");
       const head = document.querySelector("#tdp-liveflow-section h4");
@@ -9651,7 +9777,8 @@
         const r = await fetch(TDP_WORKER_URL + "?uoa-flash=" +
           encodeURIComponent(t));
         if (!r.ok) {
-          body.innerHTML = '<div class="tdp-empty">Live flow unavailable ' +
+          body.innerHTML = '<div class="tdp-empty">' +
+            window.tdMissing("failed") + ' Flow snapshot ' +
             '(HTTP ' + r.status + ').</div>';
           return;
         }
@@ -9702,7 +9829,8 @@
         }).join("");
         body.innerHTML = meta + rows;
       } catch (e) {
-        body.innerHTML = '<div class="tdp-empty">Live flow unavailable.</div>';
+        body.innerHTML = '<div class="tdp-empty">' +
+          window.tdMissing("failed") + ' Flow snapshot.</div>';
       }
     }
 
@@ -12357,6 +12485,18 @@
         else if (isToday)   { prefix = "Today";      cls = "current"; }
         else if (isYest)    { prefix = "Yesterday";  cls = "old"; }
         else                 { prefix = "Outdated";   cls = "old"; }
+      } else if (character === "delayed-15m") {
+        // Stock quote feed (Polygon Stocks Starter / yfinance). Data
+        // is intentionally 15 min behind realtime. Inside the last
+        // hour is the freshest possible state given this tier.
+        if (ageH < 1)        { prefix = "Delayed 15m"; cls = "fresh"; }
+        else if (ageH < 6)   { prefix = "Delayed";     cls = "current"; }
+        else if (isToday)    { prefix = "Today";       cls = "current"; }
+        else                  { prefix = "Outdated";    cls = "old"; }
+      } else if (character === "near-realtime") {
+        if (ageH < 0.1)      { prefix = "Near real-time"; cls = "fresh"; }
+        else if (ageH < 0.5) { prefix = "Recent";        cls = "current"; }
+        else                  { prefix = "Outdated";      cls = "old"; }
       } else if (character === "pre-market") {
         if (isToday)       { prefix = "Today's batch"; cls = "fresh"; }
         else if (isYest)   { prefix = "Yesterday's batch"; cls = "current"; }
