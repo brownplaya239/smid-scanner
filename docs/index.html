@@ -1652,15 +1652,24 @@
   .td-action-strip .tda-btn:hover { background:var(--navy2);
     color:var(--gold); }
   .td-action-strip .tda-btn.is-on { color:var(--gold); }
+  /* Compact 2-icon variant — used in dense rows (Desk cards, Swing
+     change-list popup, News stories) where the full 4-icon strip
+     would overflow. Just Save (★) + Drilldown (→); Alert + Note
+     remain reachable via the drilldown panel itself. */
+  .td-action-strip-compact .tda-btn { font-size:11.5px;
+    padding:2px 4px; min-width:18px; }
   /* Touch devices (iPhone / Android / iPad-touch) — bump tap targets
-     to ≥34×34 so fingers can reliably hit the icon buttons inside
-     scrollable table rows. Desktop mouse users keep the compact
-     density. Apple HIG recommends 44pt; we trade a bit of vertical
-     density (font-size+padding) for hit-target reliability. */
+     to ≥44×44 so fingers reliably hit icon buttons inside scrollable
+     table rows. Apple HIG minimum is 44pt; this is the upper bound of
+     what we can do without breaking dense desktop layouts. Compact
+     variant keeps a smaller min-width but still grows comfortably. */
   @media (hover:none) and (pointer:coarse) {
-    .td-action-strip { gap:4px; }
-    .td-action-strip .tda-btn { font-size:15px; padding:7px 8px;
-      min-width:34px; }
+    .td-action-strip { gap:6px; }
+    .td-action-strip .tda-btn { font-size:17px; padding:11px 12px;
+      min-width:44px; min-height:44px; }
+    .td-action-strip-compact { gap:4px; }
+    .td-action-strip-compact .tda-btn { font-size:14px;
+      padding:8px 9px; min-width:36px; min-height:36px; }
   }
 
   /* Brief gold flash on the Options Flow filter input when arrived via
@@ -9775,6 +9784,26 @@
         '" title="Open ' + ticker + ' drilldown">→</button>' +
     '</span>';
   };
+
+  // Compact variant for dense rows where the full 4-icon strip
+  // wouldn't fit (Desk cards, Swing change-list popup, News story
+  // rows). Same data-act-* hooks so the global handlers cover both.
+  // Only Save (★) + Drilldown (→) are surfaced inline; Alert + Note
+  // remain reachable via the drilldown panel itself.
+  window.tdActionStripCompact = function (ticker) {
+    if (!ticker) return "";
+    const inWL = (window.tdInWatchlist && window.tdInWatchlist(ticker));
+    return '<span class="td-action-strip td-action-strip-compact"' +
+        ' onclick="event.stopPropagation()">' +
+      '<button class="tda-btn ' + (inWL ? "is-on" : "") +
+        '" data-act-save="' + ticker + '" title="' +
+        (inWL ? "Remove " + ticker + " from watchlist"
+              : "Save " + ticker + " to watchlist") + '">' +
+        (inWL ? "★" : "☆") + '</button>' +
+      '<button class="tda-btn" data-act-open="' + ticker +
+        '" title="Open ' + ticker + ' drilldown">→</button>' +
+    '</span>';
+  };
   // ── Universal save-button label refresher ───────────────────────
   // When the watchlist changes (any source), update all visible
   // tda-btn save buttons to reflect current state so star icons
@@ -10544,16 +10573,18 @@
           (c != null ? (c > 0 ? "+" : "") + c.toFixed(1) + "%" : "—") + '</td>' +
         '<td>' + (r.adr_pct != null ? r.adr_pct.toFixed(1) + "%" : "—") + '</td>' +
         '<td>' + fmtVol(r.dollar_vol) + '</td>' +
-        '<td>' + (r.ern && r.ern !== "--" ? r.ern : "—") + '</td></tr>';
+        '<td>' + (r.ern && r.ern !== "--" ? r.ern : "—") + '</td>' +
+        '<td>' + (window.tdActionStrip
+          ? window.tdActionStrip(r.ticker) : "") + '</td></tr>';
     }
     function renderRun(run) {
       const hdr = '<tr><th>Ticker</th><th>Price</th><th>' + cfg.chgLabel + '</th>' +
-        '<th>ADR%</th><th>$ Vol</th><th>Next Ern</th></tr>';
+        '<th>ADR%</th><th>$ Vol</th><th>Next Ern</th><th>Actions</th></tr>';
       const mainRows = (run && run.rows) || [];
       const near     = (run && run.near_misses) || [];
       // Empty main + no near-misses → standard empty state
       if (!mainRows.length && !near.length) {
-        tbl.innerHTML = '<tr><td colspan="6" class="uoa-empty">' +
+        tbl.innerHTML = '<tr><td colspan="7" class="uoa-empty">' +
           'No names passed this screen on this date.</td></tr>';
         cnt.textContent = "";
         return;
@@ -10566,7 +10597,7 @@
         // Main is empty but near-misses exist — surface them under a
         // labeled "Approaching" section so the tab stays useful.
         cnt.textContent = "0 cleared · " + near.length + " approaching";
-        const banner = '<tr><td colspan="6" class="uoa-empty" ' +
+        const banner = '<tr><td colspan="7" class="uoa-empty" ' +
           'style="text-align:left;padding:10px 12px;background:rgba(255,158,27,0.06);' +
           'border-left:3px solid #ff9e1b;color:var(--textdim);">' +
           '<b style="color:var(--text)">Approaching · </b>' +
@@ -10581,7 +10612,7 @@
       .then(function (d) {
         RUNS = (d && d.runs) ? d.runs.slice().reverse() : [];   // newest first
         if (!RUNS.length) {
-          tbl.innerHTML = '<tr><td colspan="6" class="uoa-empty">' +
+          tbl.innerHTML = '<tr><td colspan="7" class="uoa-empty">' +
             'No scans yet — the next 4:30 PM ET run will populate this.</td></tr>';
           return;
         }
@@ -10592,7 +10623,7 @@
         sel.onchange = function () { renderRun(RUNS[+sel.value] || null); };
       })
       .catch(function () {
-        tbl.innerHTML = '<tr><td colspan="6" class="uoa-empty">' +
+        tbl.innerHTML = '<tr><td colspan="7" class="uoa-empty">' +
           'Could not load screen data.</td></tr>';
       });
   }
@@ -11213,6 +11244,8 @@
               .slice(0, 28)) + '</span>' +
             '<span class="ant-bar-wrap"><span class="ant-bar" ' +
               'style="width:' + barW + '%"></span></span>' +
+            (window.tdActionStripCompact
+              ? window.tdActionStripCompact(r.ticker) : "") +
             '</div>';
         }).join("");
       };
@@ -12454,6 +12487,8 @@
         const tag = (r.type || "").toUpperCase() + " $" + r.strike + " · " + r.expiry;
         return '<div class="desk-row">' +
           '<span class="dr-tk" data-t="' + r.ticker + '">' + r.ticker + '</span>' +
+          (window.tdActionStripCompact
+            ? window.tdActionStripCompact(r.ticker) : "") +
           chgBadge(r.ticker) +
           '<span class="dr-meta">' + tag + '</span>' +
           '<span class="dr-val ' + cls + '">' + (r.trade_score || 0) +
@@ -12507,6 +12542,8 @@
       return desk("Top Swing Downgrades", moves.slice(0, 8).map(function (m) {
         return '<div class="desk-row">' +
           '<span class="dr-tk" data-t="' + m.t + '">' + m.t + '</span>' +
+          (window.tdActionStripCompact
+            ? window.tdActionStripCompact(m.t) : "") +
           chgBadge(m.t) +
           '<span class="dr-meta">' + m.from + " → " + m.to + '</span>' +
           '<span class="dr-val sc-down">-' + m.d + '</span></div>';
@@ -12550,6 +12587,8 @@
         const label = (m.d === 99) ? "new entry to " + m.to : (m.from + " → " + m.to);
         return '<div class="desk-row">' +
           '<span class="dr-tk" data-t="' + m.t + '">' + m.t + '</span>' +
+          (window.tdActionStripCompact
+            ? window.tdActionStripCompact(m.t) : "") +
           chgBadge(m.t) +
           '<span class="dr-meta">' + label + '</span>' +
           '<span class="dr-val sc-up">+' + (m.d === 99 ? "★" : m.d) + '</span></div>';
