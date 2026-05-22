@@ -226,10 +226,27 @@
   .wlt-brief-toggle.is-saving .sw::after {
     background:var(--gold); }
 
+  /* overflow-x:auto so wide portfolio + trade-log tables can horizontally
+     scroll on iPhone instead of being silently clipped by body's
+     overflow-x:hidden. -webkit-overflow-scrolling for native momentum. */
   .wlt-portfolio-wrap, .wlt-tl-wrap { background:var(--card);
-    border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+    border:1px solid var(--line); border-radius:8px;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; }
   table.wlt-portfolio, table.wlt-tl { width:100%; border-collapse:collapse;
     font-size:11.5px; }
+  /* Sticky ticker column so the symbol stays visible while scrolling
+     horizontally on mobile. z-index lifts it above hovered row bg. */
+  table.wlt-portfolio td:first-child,
+  table.wlt-portfolio th:first-child,
+  table.wlt-tl td:first-child,
+  table.wlt-tl th:first-child {
+    position:sticky; left:0; z-index:2;
+    background:var(--card);
+  }
+  table.wlt-portfolio thead th:first-child,
+  table.wlt-tl thead th:first-child { background:var(--navy2); }
+  table.wlt-portfolio tbody tr:hover td:first-child,
+  table.wlt-tl tbody tr:hover td:first-child { background:var(--rowhov); }
   table.wlt-portfolio th, table.wlt-tl th { background:var(--navy2);
     color:var(--muted); font-size:9.5px; text-transform:uppercase;
     letter-spacing:.4px; font-weight:700; text-align:right;
@@ -1130,14 +1147,23 @@
   /* ── Swing Report Card ── */
   #panel-swing { max-width:1400px; }       /* wide enough for all 20 grade columns */
 
-  /* Live scan tables — Breakouts + Setups, above the PDF archive */
+  /* Live scan tables — Breakouts + Setups, above the PDF archive.
+     overflow-x:auto so 8-col tables (ticker, day, theme, score, mcap,
+     rvol, ext, actions) horizontally scroll on iPhone. The .lst-h
+     header bar sits outside the scroll region so it stays full-width.
+     Sticky first column anchors the ticker. */
   .live-scan-table { margin-bottom:14px; }
   .lst-wrap { background:var(--card); border:1px solid var(--line);
-    border-radius:8px; padding:8px 0 0; overflow:hidden; }
+    border-radius:8px; padding:8px 0 0; }
   .lst-h { font-size:10.5px; color:var(--muted);
     text-transform:uppercase; letter-spacing:.4px; font-weight:700;
     padding:4px 14px 8px; border-bottom:1px solid var(--line); }
+  .lst-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .lst-table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  .lst-table td:first-child, .lst-table th:first-child {
+    position:sticky; left:0; z-index:2; background:var(--card); }
+  .lst-table thead th:first-child { background:var(--navy2); }
+  .lst-table tr:hover td:first-child { background:var(--rowhov); }
   .lst-table th { background:var(--navy2); color:var(--muted);
     font-size:9.5px; text-transform:uppercase; letter-spacing:.4px;
     font-weight:700; text-align:left; padding:7px 10px;
@@ -1264,11 +1290,27 @@
   .ch-pop .cp-row .cp-chg.flat { color:var(--muted); }
   .ch-pop .cp-foot { font-size:10px; color:var(--muted); padding-top:6px;
     border-top:1px solid var(--line); margin-top:4px; text-align:center; }
+  /* 20-grade grid horizontally scrolls inside its panel. On mobile,
+     scroll-snap makes each swipe land on a clean column boundary so
+     users can quickly move from A+ → G without dead-zone scrolling.
+     overscroll-behavior contains the scroll to the grid (won't bleed
+     into vertical page scroll). */
   .src-grid { display:flex; gap:2px; overflow-x:auto; align-items:flex-start;
-    scrollbar-width:none; }
+    scrollbar-width:none; scroll-snap-type:x mandatory;
+    overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; }
   .src-grid::-webkit-scrollbar { display:none; }
   .src-col { flex:1 1 60px; min-width:60px; display:flex; flex-direction:column;
-    border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+    border:1px solid var(--line); border-radius:4px; overflow:hidden;
+    scroll-snap-align:start; }
+  /* Mobile hint: a subtle right-edge fade tells users the grid scrolls.
+     Wraps in a positioned container via the parent ::after pseudo. */
+  @media (max-width:760px) {
+    #swing-body { position:relative; }
+    #swing-body .src-grid { padding-right:14px; }
+    #swing-body::after { content:""; position:absolute;
+      top:0; right:0; bottom:0; width:18px; pointer-events:none;
+      background:linear-gradient(to right, transparent, var(--bg)); }
+  }
   .src-head { text-align:center; font-weight:800; font-size:12px; padding:3px 0;
     color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.55); }
   .src-cnt { text-align:center; font-size:10px; padding:2px 0;
@@ -9971,11 +10013,16 @@
             ? window.tdActionStrip(r.ticker) : "") + '</td>' +
           '</tr>';
       }).join("");
+      // Header sits outside the horizontal scroll area so it stays
+      // pinned to the card edge; the table itself lives inside an
+      // overflow-x:auto wrapper so iPhone users can swipe to see the
+      // full column set.
       return '<div class="lst-wrap">' +
         '<div class="lst-h">' + label + ' &middot; ' + rows.length +
           ' candidates from latest scan</div>' +
+        '<div class="lst-table-wrap">' +
         '<table class="lst-table">' + head + '<tbody>' + body +
-          '</tbody></table></div>';
+          '</tbody></table></div></div>';
     }
     if (breakoutEl) breakoutEl.innerHTML =
       renderTable(buildBreakoutRows(), "Top Breakout Candidates");
