@@ -855,22 +855,35 @@
   .head-toggles { position:absolute; top:20px; right:28px;
     display:flex; flex-direction:column; gap:5px; align-items:flex-end; }
 
-  /* Universal ticker search — top-right of header. Compact input;
-     autocomplete dropdown appears below on focus + typing. */
-  .td-search { position:relative; }
-  .td-search input { background:var(--navy2);
+  /* Universal ticker search — left side of the Desk tab header.
+     Compact input, expands on focus. Dropdown anchored to left. */
+  .desk-header { display:flex; align-items:flex-start; gap:18px;
+    margin-bottom:12px; flex-wrap:wrap; }
+  .desk-header-text { flex:1; min-width:280px; }
+  .desk-header-text .tab-title { margin-bottom:4px; }
+  .desk-header-text .tab-sub { margin-bottom:0; }
+  .td-search { position:relative; flex:0 0 280px;
+    margin-top:4px; }
+  @media (max-width:760px) {
+    .td-search { flex:1 0 100%; }
+  }
+  .td-search input { width:100%; box-sizing:border-box;
+    background:var(--navy2);
     border:1px solid var(--border2); color:var(--text);
-    padding:5px 10px; border-radius:5px; font-family:inherit;
-    font-size:11.5px; font-weight:600; width:160px;
-    text-transform:uppercase; letter-spacing:.5px; }
+    padding:9px 14px 9px 32px; border-radius:6px;
+    font-family:inherit; font-size:13px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.5px;
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%237a7a7a" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>');
+    background-repeat:no-repeat; background-position:10px center; }
   .td-search input::placeholder { text-transform:none; letter-spacing:0;
     color:var(--muted); font-weight:500; }
-  .td-search input:focus { outline:0; border-color:var(--gold); width:200px; }
+  .td-search input:focus { outline:0; border-color:var(--gold);
+    background-color:var(--bg); }
   .td-search-results { display:none; position:absolute; top:calc(100% + 4px);
-    right:0; width:240px; background:var(--card);
+    left:0; width:100%; background:var(--card);
     border:1px solid var(--border2); border-radius:6px;
     box-shadow:0 8px 24px rgba(0,0,0,.4); z-index:80;
-    max-height:320px; overflow-y:auto; }
+    max-height:360px; overflow-y:auto; }
   .td-search-results.show { display:block; }
   .td-search-results .tsr-item { padding:7px 10px; cursor:pointer;
     display:flex; align-items:baseline; gap:8px;
@@ -2961,16 +2974,6 @@
     </aside>
 
     <div class="head-toggles">
-      <!-- Universal ticker search — type any symbol, Enter opens drilldown.
-           Autocomplete pulls from the swing/uoa/qm/stockbee universe
-           cached in window.TD_DATA so no extra fetch. -->
-      <div class="td-search" id="td-search">
-        <input type="text" id="td-search-input" placeholder="Search ticker…"
-               autocomplete="off" maxlength="8"
-               aria-label="Search any ticker" />
-        <div class="td-search-results" id="td-search-results"
-             role="listbox" aria-hidden="true"></div>
-      </div>
       <!-- Live market clock — updates every second client-side -->
       <div class="market-pill" id="market-pill" title="US equity market state">
         <span class="mp-dot"></span>
@@ -3121,10 +3124,25 @@
   <main>
     <!-- Today's Desk -->
     <section class="panel active" id="panel-desk">
-      <h2 class="tab-title">Today&apos;s Desk</h2>
-      <p class="tab-sub">A daily command center &mdash; market health, the top
-        flow / setups / momentum across every TickerDesk tool, and the names
-        that appear in more than one of them.</p>
+      <div class="desk-header">
+        <!-- Universal ticker search — relocated here from the header
+             so it's prominent on the landing tab. Type any symbol,
+             Enter or click a result opens the drilldown.
+             Press / anywhere on the site to focus this input. -->
+        <div class="td-search" id="td-search">
+          <input type="text" id="td-search-input"
+                 placeholder="Search any ticker (try NVDA, press / to focus)"
+                 autocomplete="off" maxlength="8"
+                 aria-label="Search any ticker" />
+          <div class="td-search-results" id="td-search-results"
+               role="listbox" aria-hidden="true"></div>
+        </div>
+        <div class="desk-header-text">
+          <h2 class="tab-title">Today&apos;s Desk</h2>
+          <p class="tab-sub">Daily command center &mdash; market health, top
+            flow / setups / momentum, and names crossing more than one signal.</p>
+        </div>
+      </div>
       <div class="desk-grid" id="desk-grid">
         <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
       </div>
@@ -4409,14 +4427,18 @@
                  error: "You've already redeemed " + code +
                    ". Each code is valid once per account." };
       }
-      // Don't downgrade an active paid subscriber to a shorter promo
-      if (prof && (prof.subscription_tier === "premium" ||
-                   prof.subscription_tier === "pro") &&
-          !prof.subscription_expires_at) {
+      // Only refuse if the promo would be a STRICT downgrade. Equal-tier
+      // or upgrade promos are always allowed (they extend or upgrade
+      // the existing benefit). Tier rank: free=0, pro=1, premium=2.
+      const TIER_RANK = { free: 0, pro: 1, premium: 2, beta: 3 };
+      const currentRank = TIER_RANK[prof && prof.subscription_tier] || 0;
+      const promoRank = TIER_RANK[promo.tier] || 0;
+      if (currentRank > promoRank) {
         return { ok: false,
                  error: "You're already on " +
-                   prof.subscription_tier.toUpperCase() +
-                   " — redeeming a promo would shorten your access." };
+                   (prof.subscription_tier || "").toUpperCase() +
+                   ", which is a higher tier than this promo grants. " +
+                   "No upgrade applied." };
       }
     } catch (e) {
       return { ok: false, error: "Couldn't verify status: " +
