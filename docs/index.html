@@ -484,6 +484,13 @@
   .md-row.md-header { background:var(--navy2); font-size:9.5px;
     color:var(--muted); text-transform:uppercase; letter-spacing:.4px;
     font-weight:700; cursor:default; padding:9px 14px; }
+  /* Header cells with data-tip get the dotted underline + cursor:help
+     affordance so users know hovering reveals an explanation. Pattern
+     mirrors .desk-row-hdr / .wct-row-hdr / .th-row-hdr / .conf-row-hdr. */
+  .md-row.md-header [data-tip] { cursor:help;
+    border-bottom:1px dotted var(--border2); }
+  .md-row.md-header [data-tip]:hover { color:var(--gold);
+    border-bottom-color:var(--gold); }
   .md-row .md-tk { font-weight:800; color:var(--text); font-size:12.5px; }
   .md-row .md-name { color:var(--textdim); overflow:hidden;
     text-overflow:ellipsis; white-space:nowrap; }
@@ -1688,6 +1695,22 @@
      Single-row digest of meaningful changes vs prior session.
      Different cls patterns for signed-out (sample) vs signed-in (real). */
   .wct-list, .wct-sample { display:flex; flex-direction:column; gap:5px; }
+  /* Header row for the What-Changed-Today list — uppercase muted
+     style matching .desk-row-hdr. Hidden by .wct-list:nth-child rule
+     so it's always visible (never collapsed under the +N more toggle). */
+  .wct-row.wct-row-hdr {
+    color:var(--muted); font-size:8.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.4px;
+    padding-bottom:5px; border-bottom:1px solid var(--line);
+    margin-bottom:3px; cursor:default;
+  }
+  .wct-row.wct-row-hdr [data-tip] { cursor:help;
+    border-bottom:1px dotted var(--border2); }
+  .wct-row.wct-row-hdr [data-tip]:hover { color:var(--gold);
+    border-bottom-color:var(--gold); }
+  /* Header row stays visible even when the +N collapse hides the
+     overflow rows. nth-child target was originally only data rows. */
+  .wct-list .wct-row.wct-row-hdr { display:flex !important; }
   .wct-row { display:flex; align-items:baseline; gap:10px;
     padding:5px 0; font-size:12px; }
   .wct-row .wct-tk { font-weight:700; color:var(--text);
@@ -1708,7 +1731,10 @@
     display:block; }
   .wct-more:hover { text-decoration:underline; }
   /* Hide rows past index 8 by default; .expanded re-shows all. */
-  .wct-list .wct-row:nth-child(n+9) { display:none; }
+  /* nth-child(n+10) because the header row is now nth-child(1).
+     Bumped from n+9 to n+10 so we still show 8 DATA rows beneath
+     the header before the +N collapse kicks in. */
+  .wct-list .wct-row:nth-child(n+10) { display:none; }
   .wct-list.expanded .wct-row { display:flex; }
   .wct-list.expanded .wct-more { display:none; }
   .wct-cta { font-size:11.5px; color:var(--textdim);
@@ -1904,6 +1930,19 @@
   .cal-act { color:var(--text); font-weight:700; }
 
   /* Top Bullish / Bearish (per-name narrative rows) */
+  /* Top Bullish / Top Bearish header row. Same muted-uppercase
+     styling as .desk-row-hdr but keyed off the conf-row flex layout. */
+  .conf-row.conf-row-hdr {
+    color:var(--muted); font-size:8.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.4px;
+    padding-bottom:5px; border-bottom:1px solid var(--line);
+    margin-bottom:3px; cursor:default;
+  }
+  .conf-row.conf-row-hdr [data-tip] { cursor:help;
+    border-bottom:1px dotted var(--border2); }
+  .conf-row.conf-row-hdr [data-tip]:hover { color:var(--gold);
+    border-bottom-color:var(--gold); }
+  .conf-row.conf-row-hdr .ts-bias-hdr { min-width:120px; }
   .conf-row { display:flex; gap:8px; padding:5px 0; align-items:baseline;
     flex-wrap:wrap; }
   .conf-row + .conf-row { border-top:1px solid var(--line); }
@@ -1998,6 +2037,36 @@
     border-bottom:1px solid var(--line); }
   .brk-row.brk-hdr span { font-size:8.5px; text-transform:uppercase;
     letter-spacing:.4px; color:var(--muted); font-weight:700; }
+
+  /* ── Column-header row for desk-card row lists ────────────────────
+     Every ticker-row card on Today's Desk + My Desk gets a tiny
+     uppercase header row at the top labeling each column. Cells
+     with [data-tip] show their explanation via native title= on
+     hover (cursor:help + dotted underline for affordance). Used by
+     deskHdr() helper in JS — applied to Top Flow, Swing Upgrades/
+     Downgrades, Top Bullish/Bearish, Watchlist Urgencies, What's
+     Changed, Themes, etc. Pattern is generic so future cards inherit
+     the same labeling. */
+  .desk-row.desk-row-hdr {
+    padding:2px 0 5px; margin-bottom:3px;
+    border-bottom:1px solid var(--line);
+    color:var(--muted); font-size:8.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.4px;
+    cursor:default;
+  }
+  .desk-row.desk-row-hdr span { color:var(--muted); }
+  .desk-row.desk-row-hdr [data-tip] {
+    cursor:help; border-bottom:1px dotted var(--border2);
+  }
+  .desk-row.desk-row-hdr [data-tip]:hover {
+    color:var(--gold); border-bottom-color:var(--gold);
+  }
+  /* Sub-row header for sections within a card body (e.g. Earnings
+     "BMO / AMC" sub-tags). Keeps the muted-uppercase semantics
+     consistent across the site. */
+  abbr[title] { text-decoration:none;
+    border-bottom:1px dotted var(--border2); cursor:help; }
+  abbr[title]:hover { color:var(--gold); border-bottom-color:var(--gold); }
   .brk-row .bk-tk   { font-weight:800; color:var(--text); font-size:11px;
     cursor:default; }
   .brk-row .bk-dy   { text-align:right; font-variant-numeric:tabular-nums;
@@ -2018,6 +2087,20 @@
   .brk-row .bk-ex.ext-over { color:var(--red); }
 
   /* Strongest / Weakest Themes — denser variant */
+  /* Theme list column-header row (Theme / N / Avg %). Sits below
+     the "Strongest" / "Weakest" section header. Same muted-uppercase
+     pattern as .desk-row-hdr / .wct-row-hdr. */
+  .th-grid .th-row.th-row-hdr {
+    color:var(--muted); font-size:8.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.4px;
+    padding:1px 0 4px; border-bottom:1px solid var(--line);
+    margin-bottom:2px; cursor:default;
+  }
+  .th-grid .th-row.th-row-hdr [data-tip] { cursor:help;
+    border-bottom:1px dotted var(--border2); }
+  .th-grid .th-row.th-row-hdr [data-tip]:hover { color:var(--gold);
+    border-bottom-color:var(--gold); }
+  .th-grid .th-row.th-row-hdr + .th-row { border-top:0; }
   .th-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
   .th-grid .th-col { display:flex; flex-direction:column; }
   .th-grid .th-row { display:flex; align-items:center; gap:6px;
@@ -6701,16 +6784,26 @@
         });
       }
       const head = '<thead><tr>' +
-        '<th>Ticker</th>' +
-        '<th>Weight</th>' +
-        '<th>% Port</th>' +
-        '<th>Price</th>' +
-        '<th>Day %</th>' +
-        '<th>Grade</th>' +
-        '<th>Theme</th>' +
-        '<th>Flow</th>' +
-        '<th>Earnings</th>' +
-        '<th>Actions</th></tr></thead>';
+        '<th title="Saved watchlist symbol. Tap to open drilldown.">' +
+          'Ticker</th>' +
+        '<th title="Position weight in arbitrary units. Default 1. Edit inline. Use Equal-weight or Normalize 100% buttons above for bulk operations.">' +
+          'Weight</th>' +
+        '<th title="This position\'s weight as a percentage of total watchlist weight. Sums to 100% only when you click Normalize 100%.">' +
+          '% Port</th>' +
+        '<th title="Latest underlying price (Polygon Stocks Starter, delayed 15 min).">' +
+          'Price</th>' +
+        '<th title="Today\'s % change in the underlying (delayed 15 min).">' +
+          'Day %</th>' +
+        '<th title="Swing grade A+ (strongest) through G (weakest). EOD batch — recomputes after each session\'s close.">' +
+          'Grade</th>' +
+        '<th title="Primary thematic bucket (AI Infra, Space, Semis, etc.). — = no theme tagged.">' +
+          'Theme</th>' +
+        '<th title="Today\'s options flow bias (bullish / bearish / mixed). Intraday-batch ~75 min cadence.">' +
+          'Flow</th>' +
+        '<th title="Days until next earnings report. — = no earnings within the next 30 days (or no scrape data).">' +
+          'Earnings</th>' +
+        '<th title="Save / Alert / Note / Drilldown action buttons + remove (×).">' +
+          'Actions</th></tr></thead>';
       const rows = wl.map(function (t) {
         const c = lookupCell(t);
         const w = WATCHLIST_WEIGHTS[t] != null ? WATCHLIST_WEIGHTS[t] : 1;
@@ -6895,13 +6988,17 @@
         return;
       }
       const head = '<thead><tr>' +
-        '<th>Date</th>' +
-        '<th>Ticker</th>' +
-        '<th>Action</th>' +
-        '<th>Entry</th>' +
-        '<th>Qty</th>' +
-        '<th>P&amp;L%</th>' +
-        '<th>Notes</th>' +
+        '<th title="Trade date you entered.">Date</th>' +
+        '<th title="Ticker symbol. Tap row to open drilldown.">' +
+          'Ticker</th>' +
+        '<th title="Buy / Sell / Signal acted (you acted on a TickerDesk signal without necessarily filling).">' +
+          'Action</th>' +
+        '<th title="Your entry price per share.">Entry</th>' +
+        '<th title="Number of shares.">Qty</th>' +
+        '<th title="Profit / loss percentage vs the current price (delayed 15m). Computed only for buy / signal-acted entries.">' +
+          'P&amp;L%</th>' +
+        '<th title="Your free-text notes — thesis, source signal, exit plan, etc. Sanitized via escapeHtml to prevent XSS.">' +
+          'Notes</th>' +
         '<th></th></tr></thead>';
       const rows = TRADE_LOG.map(function (e) {
         const dt = e.ts ? new Date(e.ts).toISOString().slice(0, 10) : "—";
@@ -7301,12 +7398,37 @@
       // Build rows, sort by confluence score descending
       const rows = wl.map(buildRow);
       rows.sort(function (a, b) { return b.conf - a.conf; });
+      // My Desk column headers — every column gets a hover-tooltip
+      // so abbreviations + multi-source values are unambiguous.
       const header = '<div class="md-row md-header">' +
-        '<span>Ticker</span><span>Name</span><span>Grade</span>' +
-        '<span style="text-align:right">Day %</span>' +
-        '<span style="text-align:center">Flow</span>' +
-        '<span>Context</span>' +
-        '<span style="text-align:right">Confluence</span></div>';
+        '<span data-tip="1" title="' +
+          'Saved watchlist ticker. Tap to open the drilldown panel.">' +
+          'Ticker</span>' +
+        '<span data-tip="1" title="' +
+          'Company name (cleaned: removes Inc/Corp/Class A boilerplate).">' +
+          'Name</span>' +
+        '<span data-tip="1" title="' +
+          'Latest swing grade (A+ strongest through G weakest). EOD ' +
+          'batch — recomputes after each session\'s close.">' +
+          'Grade</span>' +
+        '<span data-tip="1" style="text-align:right" title="' +
+          'Today\'s % change in the underlying (delayed 15m). Green ' +
+          'up, red down, flat = 0%.">' +
+          'Day %</span>' +
+        '<span data-tip="1" style="text-align:center" title="' +
+          'Today\'s options flow bias: bullish / bearish / mixed / —. ' +
+          'Derived from premium-weighted call vs put activity in the ' +
+          'most recent intraday-batch (~75 min cadence).">' +
+          'Flow</span>' +
+        '<span data-tip="1" title="' +
+          'Plain-English signal context: earnings within N days, new ' +
+          'A-tier, theme membership, news catalyst, recent flow prints.">' +
+          'Context</span>' +
+        '<span data-tip="1" style="text-align:right" title="' +
+          'Confluence score (-5 to +5). Sum of bullish minus bearish ' +
+          'signals across grade + flow + earnings + monthly/weekly ' +
+          'momentum screens. Bull-strong ≥ +3; Bear-strong ≤ -3.">' +
+          'Confluence</span></div>';
       const out = rows.map(function (r) {
         const c = r.cell;
         const chg = c && typeof c.chg === "number" ? c.chg : null;
@@ -11337,8 +11459,24 @@
           ? window.tdActionStrip(r.ticker) : "") + '</td></tr>';
     }
     function renderRun(run) {
-      const hdr = '<tr><th>Ticker</th><th>Price</th><th>' + cfg.chgLabel + '</th>' +
-        '<th>ADR%</th><th>$ Vol</th><th>Next Ern</th><th>Actions</th></tr>';
+      // Tooltips on every column. cfg.chgLabel varies per momentum
+      // screen (1-Mo % for QM Monthly, 1-Wk % for Stockbee Weekly).
+      const chgTip = cfg.chgLabel.indexOf("Mo") >= 0
+        ? "Qullamaggie's primary momentum metric — top 2% of the market by 1-month gain. ADR ≥ 5%, $100M+ daily $-vol."
+        : "Stockbee's weekly momentum screen — top names by 1-week gain. ADR ≥ 5%, $100M+ daily $-vol.";
+      const hdr = '<tr>' +
+        '<th title="Ticker symbol — tap to open drilldown.">Ticker</th>' +
+        '<th title="Latest underlying price (Polygon Stocks Starter, delayed 15 min).">' +
+          'Price</th>' +
+        '<th title="' + chgTip + '">' + cfg.chgLabel + '</th>' +
+        '<th title="ADR (Average Daily Range): mean of (high/low - 1) over the last 20 sessions, expressed as %. Volatility proxy. Qullamaggie targets ADR ≥ 5%.">' +
+          'ADR%</th>' +
+        '<th title="20-day average dollar volume (close × volume averaged). Liquidity filter at $100M minimum for these momentum screens.">' +
+          '$ Vol</th>' +
+        '<th title="Days until the next earnings report. — = no earnings within 30 days or no scrape data.">' +
+          'Next Ern</th>' +
+        '<th title="Save / Alert / Note / Drilldown action buttons.">' +
+          'Actions</th></tr>';
       const mainRows = (run && run.rows) || [];
       const near     = (run && run.near_misses) || [];
       // Empty main + no near-misses → standard empty state
@@ -12606,6 +12744,35 @@
     }
     function empty(msg) { return '<div class="desk-empty">' + msg + '</div>'; }
 
+    // ── deskHdr ──────────────────────────────────────────────────────
+    // Renders a column-header row that matches the .desk-row layout
+    // used by Top Flow, Swing Upgrades/Downgrades, Top Bullish/Bearish,
+    // What's Changed Today, Watchlist Urgencies, Themes, etc.
+    //
+    // cells: array of objects, each:
+    //   { label: "Score", tip: "Trade Score 0-100 — composite of ..." }
+    //
+    // Cells with a `tip` get a native title= tooltip so users can
+    // hover for an acronym definition without us building a custom
+    // popover. The data-tip attribute + CSS gives the dotted-underline
+    // affordance so users know it's interactive.
+    //
+    // Each cell's class string mirrors the data-row CSS class so the
+    // flex weights line up: .dr-tk for the ticker col, .dr-meta for
+    // the wide middle col, .dr-val for the right-aligned value col,
+    // etc. Pass {cls:"dr-meta"} to override defaults.
+    function deskHdr(cells) {
+      const inner = (cells || []).map(function (c) {
+        const cls   = c.cls ? ' class="' + c.cls + '"' : '';
+        const tip   = c.tip
+          ? ' data-tip="1" title="' + window.escapeHtml(c.tip) + '"'
+          : '';
+        return '<span' + cls + tip + '>' +
+          window.escapeHtml(c.label) + '</span>';
+      }).join("");
+      return '<div class="desk-row desk-row-hdr">' + inner + '</div>';
+    }
+
     // Freshness stamp — describes what the data IS, not whether it's broken.
     // The previous "stale" wording on post-close models (yesterday's swing
     // grades, weekly themes, etc.) read as a defect when it was actually
@@ -12963,8 +13130,18 @@
       // button toggles .expanded on the parent .wct-list. Lets users
       // actually expand the list (the old slice + "+N more" text was
       // just decoration, not clickable).
+      const wctHdr = '<div class="wct-row wct-row-hdr">' +
+        '<span class="wct-tk" data-tip="1" ' +
+          'title="Ticker that experienced a change vs prior session.">' +
+          'Ticker</span>' +
+        '<span class="wct-detail" data-tip="1" ' +
+          'title="What changed: new A-tier appearance, flow direction shift, ' +
+          'earnings imminent, grade demotion, watchlist match. Color: ' +
+          'green = bullish change, red = bearish, gold = neutral / informational.">' +
+          'Change since prior session</span>' +
+        '</div>';
       return desk("What changed today",
-        '<div class="wct-list">' +
+        '<div class="wct-list">' + wctHdr +
           changes.map(function (item) {
             return '<div class="wct-row">' +
               '<span class="wct-tk" data-t="' + item.ticker + '">' +
@@ -13315,7 +13492,19 @@
         '<button class="desk-h-link" type="button" data-flow-all="1" ' +
           'title="Switch to Options Flow tab">' +
           'See all notable flow &rarr;</button>';
-      return desk(titleWithLink, top.map(function (r) {
+      const hdr = deskHdr([
+        { label: "Ticker", cls: "dr-tk",
+          tip: "Underlying stock symbol. Tap to open the drilldown panel." },
+        { label: "Day %", cls: "chg-pill",
+          tip: "Today's % change in the underlying stock (delayed 15m)." },
+        { label: "Contract",  cls: "dr-meta",
+          tip: "Option type (CALL/PUT), strike, expiry. Bullish flow = call buyers or put sellers; bearish flow = put buyers or call sellers." },
+        { label: "Score · Premium", cls: "dr-val",
+          tip: "Trade Score (0-100) · Premium ($ value of the print). Premium is contracts × price × 100. Score combines premium, vol/OI, opening likelihood, ask-side aggression, repeat history, conviction tier." },
+        { label: "Flow", cls: "dr-flow",
+          tip: "Open the Options Flow tab pre-filtered to this ticker." },
+      ]);
+      return desk(titleWithLink, hdr + top.map(function (r) {
         const dir = r.direction || "";
         const cls = dir === "bullish" ? "sc-up" : dir === "bearish" ? "sc-down" : "";
         const tag = (r.type || "").toUpperCase() + " $" + r.strike + " · " + r.expiry;
@@ -13374,7 +13563,17 @@
       if (!moves.length) return desk("Top Swing Downgrades",
         empty("No notable grade demotions today — A-tier holding."),
         null, stamp);
-      return desk("Top Swing Downgrades", moves.slice(0, 8).map(function (m) {
+      const hdr = deskHdr([
+        { label: "Ticker", cls: "dr-tk",
+          tip: "Underlying stock symbol. Tap to open the drilldown panel." },
+        { label: "Day %",  cls: "chg-pill",
+          tip: "Today's % change in the underlying (delayed 15m)." },
+        { label: "Grade Change", cls: "dr-meta",
+          tip: "Yesterday's grade → today's grade. Lower letter = weaker trend strength. 20-grade ladder runs A+ (strongest) through G (weakest)." },
+        { label: "Δ Steps", cls: "dr-val",
+          tip: "How many notches the grade dropped vs the prior session. -3 = fell from B to D+ for example." },
+      ]);
+      return desk("Top Swing Downgrades", hdr + moves.slice(0, 8).map(function (m) {
         return '<div class="desk-row">' +
           '<span class="dr-tk" data-t="' + m.t + '">' + m.t + '</span>' +
           (window.tdActionStripCompact
@@ -13419,7 +13618,17 @@
       moves.sort(function (a, b) { return b.d - a.d; });
       if (!moves.length) return desk("Top Swing Upgrades",
         empty("No grade upgrades vs the prior session."), null, stamp);
-      return desk("Top Swing Upgrades", moves.slice(0, 8).map(function (m) {
+      const hdr = deskHdr([
+        { label: "Ticker", cls: "dr-tk",
+          tip: "Underlying stock symbol. Tap to open the drilldown panel." },
+        { label: "Day %",  cls: "chg-pill",
+          tip: "Today's % change in the underlying (delayed 15m)." },
+        { label: "Grade Change", cls: "dr-meta",
+          tip: "Yesterday's grade → today's grade. Higher letter = stronger trend. \"New entry\" = first time entering the A-tier. 20-grade ladder: A+ (strongest) through G (weakest)." },
+        { label: "Δ Steps", cls: "dr-val",
+          tip: "How many notches the grade improved. +3 = climbed from D to B+. ★ = brand new A-tier entry (no prior grade to diff against)." },
+      ]);
+      return desk("Top Swing Upgrades", hdr + moves.slice(0, 8).map(function (m) {
         const label = (m.d === 99) ? "new entry to " + m.to : (m.from + " → " + m.to);
         return '<div class="desk-row">' +
           '<span class="dr-tk" data-t="' + m.t + '">' + m.t + '</span>' +
@@ -13453,13 +13662,36 @@
         empty("No clean A-tier candidates today."), null, stamp);
       // role="row"+"columnheader" gives screen readers proper table
       // semantics even though we're using CSS grid not <table>.
+      // data-tip + title= give every column a hover explanation —
+      // important for the abbreviations (Mcap, RVol, Ext).
       const hdr = '<div class="brk-row brk-hdr" role="row">' +
-        '<span role="columnheader">Ticker</span>' +
-        '<span role="columnheader" style="text-align:right">Day</span>' +
-        '<span role="columnheader">Theme</span>' +
-        '<span role="columnheader" style="text-align:right">Mcap</span>' +
-        '<span role="columnheader" style="text-align:right">RVol</span>' +
-        '<span role="columnheader" style="text-align:right">Ext</span></div>';
+        '<span role="columnheader" data-tip="1" title="' +
+          'Underlying stock symbol. Tap to open the drilldown panel.">' +
+          'Ticker</span>' +
+        '<span role="columnheader" data-tip="1" style="text-align:right" ' +
+          'title="Today\'s % change in the underlying (delayed 15m).">' +
+          'Day</span>' +
+        '<span role="columnheader" data-tip="1" title="' +
+          'Primary thematic bucket the name maps to (AI Infra, ' +
+          'Space, Semis, Quantum, Cybersecurity, etc.). Used for ' +
+          'sector-rotation reads. — = no theme tag in our universe.">' +
+          'Theme</span>' +
+        '<span role="columnheader" data-tip="1" style="text-align:right" ' +
+          'title="Market cap (Mcap) in billions of dollars. Shares ' +
+          'outstanding × current price.">' +
+          'Mcap</span>' +
+        '<span role="columnheader" data-tip="1" style="text-align:right" ' +
+          'title="Relative Volume (RVol): today\'s volume divided by ' +
+          'the 30-day average. 1.0× = average, 2.0× = double, 0.5× = ' +
+          'half. RVol ≥ 1.5× confirms institutional participation on ' +
+          'a breakout.">' +
+          'RVol</span>' +
+        '<span role="columnheader" data-tip="1" style="text-align:right" ' +
+          'title="Extension (Ext) = how far above the 50-day moving ' +
+          'average, in ATR (average true range) units. <3× = healthy / ' +
+          'tradeable, 5-7× = extended (late entry risk), >7× = over-' +
+          'extended (likely to pull back before continuing).">' +
+          'Ext</span></div>';
       const body = cands.slice(0, 25).map(function (c) {
         const th = (c.th && c.th.length) ? c.th[0] : "—";
         const rawMcap = (typeof c.mcap === "number") ? c.mcap
@@ -13600,12 +13832,29 @@
           '<span class="tr-n">' + t.n + '</span>' +
           '<span class="tr-avg">' + fmtChg(t.chg_avg) + '</span></div>';
       };
+      // Column headers for the theme list — explain what "N" and
+      // "Avg %" mean since they're not self-evident.
+      const colHdr = '<div class="th-row th-row-hdr">' +
+        '<span class="tr-name" data-tip="1" title="' +
+          'Thematic bucket (AI Infrastructure, Space, Semis, Memory, ' +
+          'Quantum, etc.). Hover any theme name on the list itself to ' +
+          'see all constituents + their daily moves.">' +
+          'Theme</span>' +
+        '<span class="tr-n" data-tip="1" title="' +
+          'Number of liquid universe constituents in this theme that ' +
+          'graded today. Themes need ≥3 to be included.">' +
+          'N</span>' +
+        '<span class="tr-avg" data-tip="1" title="' +
+          'Equal-weighted average of today\'s daily % change across ' +
+          'every constituent in the theme. Positive = the theme is ' +
+          'leading; negative = the theme is lagging.">' +
+          'Avg %</span></div>';
       const strongCol = '<div class="th-col">' +
         '<div class="th-head pos">Strongest (' + strong.length + ')</div>' +
-        strong.map(row).join("") + '</div>';
+        colHdr + strong.map(row).join("") + '</div>';
       const weakCol = '<div class="th-col">' +
         '<div class="th-head neg">Weakest (' + weak.length + ')</div>' +
-        weak.map(row).join("") + '</div>';
+        colHdr + weak.map(row).join("") + '</div>';
       return desk("Strongest / Weakest Themes",
         '<div class="th-grid">' + strongCol + weakCol + '</div>',
         null, stamp);
@@ -13796,7 +14045,34 @@
         (groups[x.cat] = groups[x.cat] || []).push(x);
       });
       const ORDER = ["confirm-bull","confirm-bear","conflict","hedge","mixed"];
-      const html = ORDER.filter(function (c) { return groups[c]; })
+      // Top-of-card header explaining the columns. The bias categories
+      // (Confirm / Conflict / Hedge / Mixed) are domain-specific so
+      // each gets a hover-tooltip definition.
+      const cardHdr = '<div class="conf-row conf-row-hdr">' +
+        '<span class="cr-tk" data-tip="1" title="' +
+          'Underlying stock symbol. Tap to open the drilldown panel.">' +
+          'Ticker</span>' +
+        '<span class="chg-pill" data-tip="1" title="' +
+          'Today\'s % change in the underlying (delayed 15m).">' +
+          'Day %</span>' +
+        '<span class="ts-bias-hdr" data-tip="1" title="' +
+          'Trend / Flow alignment category. ' +
+          'Confirm = swing grade AND options flow agree (A-tier with ' +
+          'bullish flow on Bullish card; F/G-tier with bearish flow on ' +
+          'Bearish card). ' +
+          'Conflict = grade and flow disagree (A-tier with bearish flow, ' +
+          'or G-tier with bullish flow) — often the highest-edge setups. ' +
+          'Hedge = mixed or directional flow on a name with the opposite ' +
+          'trend (likely institutional tail-risk hedging, not directional). ' +
+          'Mixed = both directions of flow present without a clean lean.">' +
+          'Confluence</span>' +
+        '<span class="cr-narr" data-tip="1" title="' +
+          'Plain-English summary of WHY this name lands in this category: ' +
+          'trend grade, flow direction, theme membership, weekly/monthly ' +
+          'gainer flags.">' +
+          'Why it matters</span>' +
+        '</div>';
+      const html = cardHdr + ORDER.filter(function (c) { return groups[c]; })
         .map(function (cat) {
           const section = '<div class="conf-section">' +
             BIAS_LABEL[cat] + " &middot; " + groups[cat].length + "</div>";
@@ -15285,22 +15561,30 @@
 
   /* ── Unusual Options Activity dashboard ── */
   (function () {
+    // Each column has a `tip` (hover-tooltip explanation) so users
+    // can decode the acronyms (DTE, Vol/OI, Δ, B/E, %OTM, Liq tier)
+    // without leaving the page. The header renderer reads `.tip` and
+    // wires it into a `title=` attribute on each <th>.
     const COLS = [
-      { k:"ticker", t:"Ticker" }, { k:"tier", t:"Tier" },
-      { k:"trade_score", t:"Score" }, { k:"flow_side", t:"Bias" },
-      { k:"opening", t:"Opening" },
-      { k:"type", t:"C/P" }, { k:"strike", t:"Strike" }, { k:"expiry", t:"Expiry" },
-      { k:"dte", t:"DTE" }, { k:"pct_otm", t:"%OTM" }, { k:"be_distance_pct", t:"→B/E" },
-      { k:"volume", t:"Volume" }, { k:"vol_oi", t:"Vol/OI" }, { k:"liquidity", t:"Liq" },
-      { k:"premium", t:"Premium" },
-      // Printed = how long ago the marquee single-print hit the tape.
-      // Δ since print = how far the underlying has moved from spot at
-      // print to current spot — answers "did this trade already work
-      // or am I still in time?" at a glance.
-      { k:"biggest_print_ts", t:"Printed" },
-      { k:"delta_since_print", t:"Δ since" },
-      { k:"interpretation", t:"Why Actionable" },
-      { k:"actions", t:"Actions" },
+      { k:"ticker", t:"Ticker", tip:"Underlying stock symbol. Tap to open drilldown." },
+      { k:"tier", t:"Tier", tip:"Quality tier A+ / A / B / C. Combines bullishness, opening likelihood, premium size, and conviction signals." },
+      { k:"trade_score", t:"Score", tip:"Composite Trade Score 0-100. Premium-weighted: vol/OI, opening likelihood, ask-side aggression, repeat history, conviction tier." },
+      { k:"flow_side", t:"Bias", tip:"Bullish (call buying or put selling) / Bearish (put buying or call selling) / Mixed. Direction the smart money is leaning." },
+      { k:"opening", t:"Opening", tip:"Opening likelihood: New (likely opening a fresh position, +signal) / Closing (likely closing existing, weaker signal) / Mixed." },
+      { k:"type", t:"C/P", tip:"Contract type: CALL (right to buy) or PUT (right to sell)." },
+      { k:"strike", t:"Strike", tip:"Strike price of the contract." },
+      { k:"expiry", t:"Expiry", tip:"Expiration date. Shorter DTE = more leveraged exposure; longer DTE = thesis bet." },
+      { k:"dte", t:"DTE", tip:"Days To Expiration. Days until the contract expires." },
+      { k:"pct_otm", t:"%OTM", tip:"Out-of-the-Money percentage — how far the strike is from current spot. Positive = OTM, negative = ITM." },
+      { k:"be_distance_pct", t:"→B/E", tip:"% the underlying must move to reach the break-even (strike + premium for calls; strike - premium for puts)." },
+      { k:"volume", t:"Volume", tip:"Today's traded contract count for this strike+expiry." },
+      { k:"vol_oi", t:"Vol/OI", tip:"Today's Volume / Open Interest ratio. >1 = today's volume exceeds total open contracts → unusual activity; ≥3 = strongly unusual." },
+      { k:"liquidity", t:"Liq", tip:"Liquidity grade A/B/C/D. A = tight spread, deep book; D = wide spread, thin book (execution risk)." },
+      { k:"premium", t:"Premium", tip:"Total dollar value traded today: Volume × price × 100. The bigger this is, the more conviction money is behind the trade." },
+      { k:"biggest_print_ts", t:"Printed", tip:"How long ago the marquee single-print (largest premium) hit the tape. Gold = just now / recent (still actionable); muted = older." },
+      { k:"delta_since_print", t:"Δ since", tip:"Δ (delta) = % change in the underlying from spot-at-print to current spot. Tells you if the trade already worked (large + move) or you're still in time (small or negative move)." },
+      { k:"interpretation", t:"Why Actionable", tip:"Plain-English tier label: A+ Conviction / Confirming Bull or Bear / Speculative / Likely Hedge / Earnings Bet / Caution. Hover the badge for the full reasoning." },
+      { k:"actions", t:"Actions", tip:"Save / Alert / Note / Drilldown buttons." },
     ];
     const GROUP_COLS = [
       { k:"ticker", t:"Ticker" }, { k:"net", t:"Net Bias" }, { k:"n", t:"Signals" },
@@ -15768,7 +16052,16 @@
       const cols = $("uoa-group").checked ? GROUP_COLS : COLS;
       $("uoa-head").innerHTML = cols.map(function (c) {
         const arrow = c.k===sortKey ? (sortDir<0 ? " ▼" : " ▲") : "";
-        return '<th data-k="'+c.k+'"'+(c.k===sortKey?' class="sorted"':'')+'>'+c.t+arrow+'</th>';
+        // title= = hover tooltip explaining the column. Combined with
+        // the existing "click to sort" affordance via cursor:pointer
+        // styling — users get both behaviors from a single header.
+        const tipAttr = c.tip
+          ? ' title="' + window.escapeHtml(c.tip) +
+            ' &#10;&#10;Click to sort."'
+          : ' title="Click to sort."';
+        return '<th data-k="' + c.k + '"' +
+          (c.k===sortKey?' class="sorted"':'') +
+          tipAttr + '>' + c.t + arrow + '</th>';
       }).join("");
       $("uoa-head").querySelectorAll("th").forEach(function (th) {
         th.onclick = function () {
