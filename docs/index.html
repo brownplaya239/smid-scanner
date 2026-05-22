@@ -1283,6 +1283,26 @@
   /* Wide variant for the Action List — spans full row */
   .desk-card.desk-card--wide { grid-column:1 / -1; }
 
+  /* What Changed Today (Desk wide card, sits above Action List).
+     Single-row digest of meaningful changes vs prior session.
+     Different cls patterns for signed-out (sample) vs signed-in (real). */
+  .wct-list, .wct-sample { display:flex; flex-direction:column; gap:5px; }
+  .wct-row { display:flex; align-items:baseline; gap:10px;
+    padding:5px 0; font-size:12px; }
+  .wct-row .wct-tk { font-weight:700; color:var(--text);
+    cursor:pointer; min-width:54px; }
+  .wct-row .wct-tk:hover { color:var(--gold); }
+  .wct-row .wct-detail { color:var(--textdim); flex:1; }
+  .wct-row .wct-detail.wct-up { color:var(--green); font-weight:600; }
+  .wct-row .wct-detail.wct-down { color:var(--red); font-weight:600; }
+  .wct-empty { color:var(--muted); font-size:11.5px; padding:8px 0;
+    font-style:italic; }
+  .wct-more { color:var(--muted); font-size:11px; margin-top:4px; }
+  .wct-cta { font-size:11.5px; color:var(--textdim);
+    margin-top:10px; padding-top:8px;
+    border-top:1px dashed var(--line); }
+  .wct-cta b { color:var(--gold); }
+
   /* Action List — top-of-desk segmentation that turns the passive
      "what's happening" wall into a "what to do next" decision tool. */
   .al-grid { display:grid; gap:10px;
@@ -6449,7 +6469,159 @@
           '</div>';
       }).join("");
 
+      // ── Module health validation ──────────────────────────────
+      // Synthesizes per-module warnings from the loaded data: empty
+      // result sets, suspicious prices, low row counts, etc. Gives
+      // the user a quick "what's wrong right now" view.
+      const validations = [];
+      results.forEach(function (r) {
+        if (!r.raw) {
+          validations.push({ severity: "err",
+            module: r.id,
+            msg: "File missing or unreadable" });
+          return;
+        }
+        // Suspicious row counts
+        if (r.id === "swing_report") {
+          const runs = (r.raw.runs || []);
+          if (runs.length === 0) {
+            validations.push({ severity: "err", module: r.id,
+              msg: "Zero runs in swing_report.json" });
+          } else {
+            const today = runs[runs.length - 1];
+            const totalGraded = Object.values(today.grades || {})
+              .reduce(function (s, arr) { return s + arr.length; }, 0);
+            if (totalGraded < 200) {
+              validations.push({ severity: "warn", module: r.id,
+                msg: "Only " + totalGraded + " names graded today " +
+                  "(expected 800-1000)" });
+            }
+            // Suspicious prices (split-adjustment check)
+            const suspicious = [];
+            Object.values(today.grades || {}).forEach(function (arr) {
+              arr.forEach(function (c) {
+                if (c.p > 800 || (c.chg && Math.abs(c.chg) > 30)) {
+                  suspicious.push(c.t + " ($" + c.p +
+                    ", " + (c.chg || 0) + "%)");
+                }
+              });
+            });
+            if (suspicious.length) {
+              validations.push({ severity: "warn", module: r.id,
+                msg: "Possible split/adjustment issue on " +
+                  suspicious.length + " names: " +
+                  suspicious.slice(0, 3).join(", ") +
+                  (suspicious.length > 3 ? "..." : "") });
+            }
+          }
+        }
+        if (r.id === "uoa_latest") {
+          const ucount = (r.raw.rows || []).length;
+          if (ucount === 0) {
+            validations.push({ severity: "err", module: r.id,
+              msg: "No UOA rows — scanner may have failed" });
+          } else if (ucount < 50) {
+            validations.push({ severity: "warn", module: r.id,
+              msg: "Only " + ucount + " UOA rows (expected 200+)" });
+          }
+          // Check for duplicate tickers (same ticker too many times)
+          const counts = {};
+          (r.raw.rows || []).forEach(function (row) {
+            counts[row.ticker] = (counts[row.ticker] || 0) + 1;
+          });
+          const heavy = Object.entries(counts).filter(function (e) {
+            return e[1] > 25;
+          });
+          if (heavy.length) {
+            validations.push({ severity: "warn", module: r.id,
+              msg: heavy.length + " ticker(s) with >25 contracts: " +
+                heavy.slice(0, 3).map(function (e) {
+                  return e[0] + "×" + e[1];
+                }).join(", ") });
+          }
+        }
+        if (r.id === "earnings_anticipated") {
+          const days = (r.raw.days || []);
+          if (days.length === 0) {
+            validations.push({ severity: "err", module: r.id,
+              msg: "No earnings days in calendar" });
+          }
+        }
+        if (r.id === "country_etfs") {
+          const etfs = (r.raw.etfs || []);
+          if (etfs.length < 20) {
+            validations.push({ severity: "warn", module: r.id,
+              msg: "Only " + etfs.length + " country ETFs " +
+                "(expected 30+)" });
+          }
+        }
+      });
+      // Cron drift check — Momentum should fire daily during weekdays
+      const swingResult = results.find(function (x) {
+        return x.id === "swing_report";
+      });
+      if (swingResult && swingResult.ts) {
+        const hrs = (Date.now() - Date.parse(swingResult.ts)) / 3600000;
+        if (hrs > 36) {
+          validations.push({ severity: "err", module: "schedule",
+            msg: "Momentum hasn't run in " + Math.round(hrs) +
+              " hours — check GH Actions" });
+        }
+      }
+      const valRows = validations.length ? validations.map(function (v) {
+        const badge = v.severity === "err"
+          ? '<span class="adm-badge err">Error</span>'
+          : '<span class="adm-badge warn">Warning</span>';
+        return '<div class="adm-row">' +
+          '<span class="adm-name">' + v.module + '</span>' +
+          '<span class="adm-stamp">' + v.msg + '</span>' +
+          badge + '</div>';
+      }).join("") :
+        '<div class="adm-row"><span class="adm-stamp">' +
+        'All clear — no warnings or errors detected.</span>' +
+        '<span class="adm-badge ok">OK</span></div>';
+
+      // Active route + page state
+      const routeRow = '<div class="adm-row">' +
+        '<span class="adm-name">Active route</span>' +
+        '<span class="adm-stamp">' +
+          (document.body.dataset.route || "?") + " → " +
+          (document.body.dataset.activePanel || "?") +
+        '</span>' +
+        '<span class="adm-badge ok">' +
+          (document.body.dataset.route === document.body.dataset.activePanel
+            ? "synced" : "drift") +
+        '</span></div>';
+
+      // User + plan state
+      const user = window.tdUser && window.tdUser();
+      const plan = (window.tdPlan && window.tdPlan()) || "?";
+      const userRows =
+        '<div class="adm-row">' +
+          '<span class="adm-name">Signed in</span>' +
+          '<span class="adm-stamp">' +
+            (user ? user.email : "(anonymous)") + '</span>' +
+        '</div>' +
+        '<div class="adm-row">' +
+          '<span class="adm-name">Plan tier</span>' +
+          '<span class="adm-stamp">' + plan + '</span>' +
+        '</div>' +
+        '<div class="adm-row">' +
+          '<span class="adm-name">Watchlist size</span>' +
+          '<span class="adm-stamp">' +
+            (window.tdWatchlist
+              ? window.tdWatchlist().size : 0) + ' tickers</span>' +
+        '</div>';
+
       body.innerHTML =
+        '<div class="adm-section">' +
+          '<div class="adm-section-h">Module Health Checks</div>' +
+          valRows +
+        '</div>' +
+        '<div class="adm-section">' +
+          '<div class="adm-section-h">Client State</div>' +
+          routeRow + userRows +
+        '</div>' +
         '<div class="adm-section">' +
           '<div class="adm-section-h">Data Files</div>' +
           rows +
@@ -6463,7 +6635,7 @@
           '<div class="adm-row"><span class="adm-stamp">' +
             'Stale = no data or far past expected cadence. "Aging" is ' +
             'between fresh and stale — normal for post-close batches ' +
-            'after market hours.' +
+            'after market hours. Open with Ctrl+Shift+A or ?admin=1.' +
           '</span></div>' +
         '</div>';
     }
@@ -8675,17 +8847,53 @@
     document.querySelectorAll("nav button").forEach(function (b) {
       b.classList.toggle("active", b.dataset.tab === tab);
     });
+    let activatedId = null;
     document.querySelectorAll(".panel").forEach(function (p) {
       const active = (p.id === "panel-" + tab);
       p.classList.toggle("active", active);
       if (active) {
         p.removeAttribute("aria-hidden");
         p.removeAttribute("inert");
+        activatedId = p.id;
       } else {
         p.setAttribute("aria-hidden", "true");
         p.setAttribute("inert", "");
       }
     });
+    // ── Routing safety: stamp the active route on <body> so any QA
+    // tool or screenshot inspector can verify which panel is showing
+    // without having to inspect computed CSS. Mismatches between
+    // data-tab on the clicked nav button and data-route on body indicate
+    // a routing bug — easy to spot.
+    document.body.dataset.route = tab;
+    document.body.dataset.activePanel = activatedId || "none";
+    // Console log for dev visibility (kept lightweight; not gated on debug
+    // flag because routing bugs are rare and worth seeing every time)
+    console.log("[route] active panel: " + (activatedId || "NONE") +
+                " (clicked: " + tab + ")");
+    if (!activatedId) {
+      console.warn("[route] No panel found for tab '" + tab +
+        "'. Check nav data-tab vs panel id naming.");
+    }
+    // Optional debug banner (?debug=1 in URL) — fixed bottom-right
+    // pill showing the live route, helpful when running automated QA
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.get("debug") === "1") {
+        let banner = document.getElementById("route-debug-banner");
+        if (!banner) {
+          banner = document.createElement("div");
+          banner.id = "route-debug-banner";
+          banner.style.cssText = "position:fixed;bottom:8px;left:8px;" +
+            "z-index:999;background:rgba(255,158,27,.95);color:#000;" +
+            "padding:5px 10px;border-radius:6px;font-family:monospace;" +
+            "font-size:11px;font-weight:700;pointer-events:none;";
+          document.body.appendChild(banner);
+        }
+        banner.textContent = "🐞 route=" + tab + " · panel=" +
+          (activatedId || "MISSING");
+      }
+    } catch (e) {}
   }
   // Initial state: hide every panel except the active one
   document.querySelectorAll(".panel").forEach(function (p) {
@@ -10694,6 +10902,199 @@
       return { txt: sign + v.toFixed(1) + "%", cls: cls };
     }
 
+    // ── What Changed Today (Desk top card, before Action List) ─────
+    // Single-row digest of meaningful changes from prior session:
+    //   - New A+ grade appearances on watchlist (signed-in) or
+    //     market-wide top 3 (signed-out)
+    //   - New bullish/bearish flow on watchlist names
+    //   - Earnings appearing today on watchlist
+    //   - Watchlist names entering QM Monthly / Stockbee
+    //   - Watchlist names dropped from A-tier
+    // Signed-out users get sample changes + CTA to save watchlist.
+    function cardWhatChangedToday(swing, uoa) {
+      const stamp = swing
+        ? freshness(swing.updated || (swing.runs && swing.runs.length
+            ? swing.runs[swing.runs.length - 1].generated : null),
+            { character: "post-close", label: "Diff against" })
+        : { cls: "none", label: "Pending first run" };
+
+      const user = window.tdUser && window.tdUser();
+      const watchlist = (window.tdWatchlist && window.tdWatchlist()) ||
+                        new Set();
+      const signed = !!user;
+
+      // For signed-out users, surface sample changes from the universe
+      // so they see WHY they'd want a personal watchlist
+      if (!signed || watchlist.size === 0) {
+        const sampleItems = [];
+        if (swing && swing.runs && swing.runs.length >= 2) {
+          const today = swing.runs[swing.runs.length - 1];
+          const prior = swing.runs[swing.runs.length - 2];
+          const todayFlat = {};
+          (today.grades["A+"] || []).forEach(function (c) {
+            todayFlat[c.t] = c;
+          });
+          const priorAplus = new Set(
+            (prior.grades["A+"] || []).map(function (c) { return c.t; }));
+          // New A+ names today
+          const newAplus = Object.keys(todayFlat).filter(function (tk) {
+            return !priorAplus.has(tk);
+          }).slice(0, 4);
+          newAplus.forEach(function (tk) {
+            const c = todayFlat[tk];
+            sampleItems.push({
+              ticker: tk,
+              detail: "New A+ today (" + (c.th && c.th[0] || c.sec || "") +
+                ")",
+              cls: "up",
+            });
+          });
+        }
+        if (uoa && uoa.rows && uoa.rows.length) {
+          const topBull = uoa.rows
+            .filter(function (r) { return r.direction === "bullish"; })
+            .slice()
+            .sort(function (a, b) {
+              return (b.premium || 0) - (a.premium || 0);
+            })[0];
+          if (topBull) {
+            const prem = topBull.premium || 0;
+            const premStr = prem >= 1e6
+              ? "$" + (prem / 1e6).toFixed(1) + "M"
+              : "$" + Math.round(prem / 1e3) + "K";
+            sampleItems.push({
+              ticker: topBull.ticker,
+              detail: "Heavy bullish flow (" + premStr + ")",
+              cls: "up",
+            });
+          }
+        }
+        const sampleHtml = sampleItems.length
+          ? '<div class="wct-sample">' +
+              sampleItems.slice(0, 4).map(function (item) {
+                return '<div class="wct-row">' +
+                  '<span class="wct-tk" data-t="' + item.ticker +
+                    '">' + item.ticker + '</span>' +
+                  '<span class="wct-detail wct-' + item.cls + '">' +
+                    item.detail + '</span>' +
+                  '</div>';
+              }).join("") +
+            '</div>'
+          : '<div class="wct-empty">' +
+            'Building today\'s diff — comes online after market close.</div>';
+        return desk("What changed today",
+          sampleHtml +
+          '<div class="wct-cta">' +
+          (signed
+            ? "★ Star tickers anywhere to see YOUR changes here instead."
+            : "<b>Sign in</b> to see only changes for names you follow.") +
+          '</div>',
+          "desk-card--wide", stamp);
+      }
+
+      // Signed-in with watchlist — show actual diff
+      if (!swing || !swing.runs || swing.runs.length < 2) {
+        return desk("What changed today",
+          empty("Diff lights up after the next post-close run."),
+          "desk-card--wide", stamp);
+      }
+      const today = swing.runs[swing.runs.length - 1];
+      const prior = swing.runs[swing.runs.length - 2];
+      const GR_ORDER = ["A+","A","A-","B+","B","B-","C+","C","C-",
+                        "D+","D","D-","E+","E","E-","F+","F","F-","G+","G"];
+      const rank = {};
+      GR_ORDER.forEach(function (g, i) { rank[g] = i; });
+      const flatten = function (run) {
+        const o = {};
+        Object.keys(run.grades || {}).forEach(function (g) {
+          (run.grades[g] || []).forEach(function (c) {
+            o[c.t] = { ...c, grade: g };
+          });
+        });
+        return o;
+      };
+      const todayMap = flatten(today);
+      const priorMap = flatten(prior);
+      // Flow lookup
+      const flowByTk = {};
+      if (uoa && uoa.rows) {
+        uoa.rows.forEach(function (r) {
+          if (!r.ticker) return;
+          if (!flowByTk[r.ticker] || (r.premium || 0) >
+              (flowByTk[r.ticker].premium || 0)) {
+            flowByTk[r.ticker] = r;
+          }
+        });
+      }
+      const changes = [];
+      watchlist.forEach(function (tk) {
+        const t = todayMap[tk];
+        const p = priorMap[tk];
+        if (t && p && t.grade !== p.grade) {
+          const dRank = rank[t.grade] - rank[p.grade];
+          if (dRank < 0) {
+            changes.push({
+              ticker: tk, cls: "up",
+              detail: p.grade + " → " + t.grade + " grade upgrade",
+              pri: 1,
+            });
+          } else if (dRank > 0 && p.grade[0] === "A") {
+            changes.push({
+              ticker: tk, cls: "down",
+              detail: p.grade + " → " + t.grade + " dropped from A-tier",
+              pri: 2,
+            });
+          }
+        }
+        if (t && t.grade === "A+" && (!p || p.grade !== "A+")) {
+          changes.push({
+            ticker: tk, cls: "up",
+            detail: "Entered A+ today",
+            pri: 0,
+          });
+        }
+        const flow = flowByTk[tk];
+        if (flow && flow.premium >= 250000) {
+          const premStr = flow.premium >= 1e6
+            ? "$" + (flow.premium / 1e6).toFixed(1) + "M"
+            : "$" + Math.round(flow.premium / 1e3) + "K";
+          changes.push({
+            ticker: tk,
+            cls: flow.direction === "bullish" ? "up"
+                 : flow.direction === "bearish" ? "down" : "",
+            detail: (flow.direction || "mixed") + " flow today (" +
+              premStr + ")",
+            pri: 3,
+          });
+        }
+      });
+      changes.sort(function (a, b) { return a.pri - b.pri; });
+      if (!changes.length) {
+        return desk("What changed today",
+          '<div class="wct-empty">⭐ Quiet day across your ' +
+            watchlist.size + '-name watchlist. ' +
+            'Check the Action List below for market-wide opportunities.' +
+          '</div>',
+          "desk-card--wide", stamp);
+      }
+      return desk("What changed today",
+        '<div class="wct-list">' +
+          changes.slice(0, 8).map(function (item) {
+            return '<div class="wct-row">' +
+              '<span class="wct-tk" data-t="' + item.ticker + '">' +
+                item.ticker + '</span>' +
+              '<span class="wct-detail wct-' + item.cls + '">' +
+                item.detail + '</span>' +
+            '</div>';
+          }).join("") +
+          (changes.length > 8
+            ? '<div class="wct-more">+ ' + (changes.length - 8) +
+              ' more changes</div>'
+            : '') +
+        '</div>',
+        "desk-card--wide", stamp);
+    }
+
     // ── Action List (Today's Desk top card) ─────────────────────────
     // Synthesizes 6 actionable segments from current signal data so the
     // user sees "what to do next" instead of just "what's happening."
@@ -11838,6 +12239,7 @@
             cardEarnings(uoaMeta, today) +
           '</div>';
         grid.innerHTML = [
+          cardWhatChangedToday(swing, uoa),
           cardActionList(ctx, swing, uoa, uoaMeta, today),
           cardMarketHealth(swing),
           cardTopFlow(uoa),
@@ -12548,10 +12950,17 @@
         const p = r.premium || 0;
         if (r.direction === "bullish") bullPrem += p;
         else if (r.direction === "bearish") bearPrem += p;
-        if (r.is_golden_sweep || r.golden_sweep) goldenCount++;
-        if ((r.repeat_count || 0) >= 2 || r.repeat) repeatCount++;
-        // "opening" is inferred from vol > oi (classic UOA tell)
-        if ((r.volume || 0) > (r.open_interest || 0) * 0.5) openingCount++;
+        // Source data uses a single `golden` flag; older drafts of this
+        // code checked is_golden_sweep / golden_sweep which never exist
+        // → metric was always 0 despite the table showing Golden Sweep
+        // tags on individual rows. Reconciled to match passFilters.
+        if (r.golden) goldenCount++;
+        if ((r.repeat_count || 0) >= 2) repeatCount++;
+        // `opening` is a string label set by the upstream scoring
+        // (uoa_alpha.py): "likely_open" / "likely_close" / "mixed".
+        // Use it directly instead of the vol/OI heuristic which
+        // double-counted closing-flow rows.
+        if (r.opening === "likely_open") openingCount++;
         if (r.ticker && watchlist.has(r.ticker)) {
           watchlistTickers.add(r.ticker);
           watchlistPrem += p;
