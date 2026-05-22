@@ -254,6 +254,22 @@ def metrics(ticker, s):
     pairs = [(hh, ll) for hh, ll in zip(h[-20:], l[-20:]) if ll > 0]
     adr_pct = (sum(hh / ll for hh, ll in pairs) / len(pairs) - 1) * 100 if pairs else 0
     chg_day = ((c[-1] / c[-2] - 1) * 100) if n >= 2 and c[-2] else None
+    # ── Defensive data-quality check ─────────────────────────────────
+    # Polygon's adjusted=true bars still occasionally produce extreme
+    # single-day moves from ticker changes, spin-offs, or corporate
+    # actions where the join point of adjusted+raw series misaligns.
+    # A real liquid stock with $50M+ daily volume moving >40% in one
+    # day is virtually always a data error, not a real event.
+    # Skip these names entirely rather than serve corrupted grades.
+    if chg_day is not None and abs(chg_day) > 40:
+        return None
+    # Same check for a 7-day rolling cumulative — catches cases where
+    # the bad bar is recent but not today (would otherwise leak into
+    # ATR, RVOL, return calculations downstream)
+    if n >= 8 and c[-8] > 0:
+        seven_day = abs((c[-1] / c[-8] - 1) * 100)
+        if seven_day > 100:
+            return None
     # Relative volume: today's bar volume vs the prior 30-day average.
     # A standard breakout-confirmation metric: 1.0 = average, 2.0 = 2x normal.
     rvol = None

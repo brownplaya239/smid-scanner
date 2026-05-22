@@ -6379,8 +6379,11 @@
         if (hrs < 192) return '<span class="adm-badge warn">Aging</span>';
         return '<span class="adm-badge err">Stale</span>';
       }
-      if (hrs < 1.5) return '<span class="adm-badge ok">Fresh</span>';
-      if (hrs < 6) return '<span class="adm-badge warn">Aging</span>';
+      // "live" data — UOA fires every ~75 min during RTH so anywhere
+      // from 0 to ~80 min is normal "between-scans" age. Bumped Fresh
+      // window to 2.5h to avoid flagging mid-cycle data as Aging.
+      if (hrs < 2.5) return '<span class="adm-badge ok">Fresh</span>';
+      if (hrs < 8) return '<span class="adm-badge warn">Aging</span>';
       return '<span class="adm-badge err">Stale</span>';
     }
     async function fetchTs(path) {
@@ -6524,17 +6527,28 @@
             validations.push({ severity: "warn", module: r.id,
               msg: "Only " + ucount + " UOA rows (expected 200+)" });
           }
-          // Check for duplicate tickers (same ticker too many times)
+          // Check for duplicate tickers (same ticker too many times).
+          // Mega-caps (AAPL/NVDA/TSLA/MSFT/GOOGL/AMZN/META/SPY/QQQ) have
+          // 500+ active strikes daily, so high contract counts are normal.
+          // Only warn for tickers OUTSIDE the mega-cap list with >50
+          // contracts — that's the actual "duplicate-spam" signal.
+          const MEGA_CAPS = new Set([
+            "AAPL", "NVDA", "TSLA", "MSFT", "GOOGL", "GOOG", "AMZN",
+            "META", "SPY", "QQQ", "IWM", "AMD", "AVGO", "NFLX", "BABA",
+            "BAC", "JPM", "XOM", "WMT",
+          ]);
           const counts = {};
           (r.raw.rows || []).forEach(function (row) {
             counts[row.ticker] = (counts[row.ticker] || 0) + 1;
           });
           const heavy = Object.entries(counts).filter(function (e) {
-            return e[1] > 25;
+            // Mega-caps are exempt; flag others with > 50 contracts
+            return !MEGA_CAPS.has(e[0]) && e[1] > 50;
           });
           if (heavy.length) {
             validations.push({ severity: "warn", module: r.id,
-              msg: heavy.length + " ticker(s) with >25 contracts: " +
+              msg: heavy.length + " non-mega-cap ticker(s) with " +
+                ">50 contracts (possible noise): " +
                 heavy.slice(0, 3).map(function (e) {
                   return e[0] + "×" + e[1];
                 }).join(", ") });
@@ -8895,13 +8909,23 @@
       }
     } catch (e) {}
   }
-  // Initial state: hide every panel except the active one
+  // Initial state: hide every panel except the active one, then stamp
+  // body.dataset.route so the admin Client State section reflects the
+  // initially-active panel (not "? → ?" before the user clicks anything).
+  const initialActive = document.querySelector(".panel.active");
   document.querySelectorAll(".panel").forEach(function (p) {
     if (!p.classList.contains("active")) {
       p.setAttribute("aria-hidden", "true");
       p.setAttribute("inert", "");
     }
   });
+  if (initialActive) {
+    const initialTab = initialActive.id.replace(/^panel-/, "");
+    document.body.dataset.route = initialTab;
+    document.body.dataset.activePanel = initialActive.id;
+    console.log("[route] initial panel: " + initialActive.id +
+                " (tab: " + initialTab + ")");
+  }
   const nav = document.getElementById("nav");
   nav.addEventListener("click", function (e) {
     if (e.target.tagName !== "BUTTON") return;
