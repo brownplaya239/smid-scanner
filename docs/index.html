@@ -735,6 +735,10 @@
   @media (max-width:760px) {
     .pricing-trust { grid-template-columns:repeat(2, 1fr); }
   }
+  /* iPhone SE (320px) — 2 cards per row gets cramped; stack to 1. */
+  @media (max-width:380px) {
+    .pricing-trust { grid-template-columns:1fr; }
+  }
   .pt-trust-item { background:var(--card); border:1px solid var(--line);
     border-radius:8px; padding:14px 16px; }
   .pt-trust-icon { font-size:22px; line-height:1; margin-bottom:6px; }
@@ -1151,7 +1155,9 @@
   .src-changes [data-change]:hover { border-bottom-color:currentColor; }
 
   /* Change-list hover popup (Swing Report Card upgraded/downgraded/new) */
-  .ch-pop { position:fixed; z-index:60; display:none; width:320px;
+  /* min(320px, 92vw) so iPhone SE (320px viewport) doesn't render the
+     popup edge-to-edge with no breathing room. */
+  .ch-pop { position:fixed; z-index:60; display:none; width:min(320px, 92vw);
     max-height:60vh; background:var(--card); border:1px solid var(--line);
     border-radius:8px; padding:10px 12px; box-shadow:0 6px 22px rgba(0,0,0,.55);
     overflow:hidden; display:none; flex-direction:column; }
@@ -1526,6 +1532,16 @@
   .td-action-strip .tda-btn:hover { background:var(--navy2);
     color:var(--gold); }
   .td-action-strip .tda-btn.is-on { color:var(--gold); }
+  /* Touch devices (iPhone / Android / iPad-touch) — bump tap targets
+     to ≥34×34 so fingers can reliably hit the icon buttons inside
+     scrollable table rows. Desktop mouse users keep the compact
+     density. Apple HIG recommends 44pt; we trade a bit of vertical
+     density (font-size+padding) for hit-target reliability. */
+  @media (hover:none) and (pointer:coarse) {
+    .td-action-strip { gap:4px; }
+    .td-action-strip .tda-btn { font-size:15px; padding:7px 8px;
+      min-width:34px; }
+  }
 
   /* Brief gold flash on the Options Flow filter input when arrived via
      a "flow →" link from Today's Desk. Confirms the filter was applied. */
@@ -2684,7 +2700,8 @@
     margin-left:5px; vertical-align:middle; }
 
   .uoa-tier { display:inline-block; min-width:24px; text-align:center;
-    font-weight:800; border-radius:5px; padding:3px 5px; font-size:11px; }
+    font-weight:800; border-radius:5px; padding:3px 5px; font-size:11px;
+    white-space:nowrap; }
   .t-ap { background:#1d6b3a; color:#eafff0; }
   .t-a  { background:#3a7d4e; color:#eafff0; }
   .t-b  { background:#7a5e12; color:#fff6da; }
@@ -7873,10 +7890,15 @@
         results.classList.remove("show");
       }
     });
-    // Keyboard shortcut: / focuses the search
+    // Keyboard shortcut: / focuses the search.
+    // Guard: on mobile (≤760px) the .td-search wrapper is display:none,
+    // so focusing the hidden input would orphan the dropdown at (0,0)
+    // if any text were typed. Bail early when the input has zero size.
     document.addEventListener("keydown", function (e) {
       if (e.key === "/" && document.activeElement !== input &&
           !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+        const r = input.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) return;
         e.preventDefault();
         input.focus();
       }
