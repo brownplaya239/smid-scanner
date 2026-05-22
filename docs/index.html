@@ -9642,9 +9642,12 @@
             '<span class="tfc-strike">$' + c.strike + '</span>' +
             '<span class="tfc-exp">' + c.dte + 'd</span>' +
             '<span class="tfc-meta">' +
-              'vol <b>' + c.volume.toLocaleString() + '</b> · ' +
-              'oi <b>' + c.open_interest.toLocaleString() + '</b> · ' +
-              'v/oi <b>' + c.vol_oi.toFixed(1) + '</b>' +
+              'vol <b>' + (c.volume != null
+                ? c.volume.toLocaleString() : "—") + '</b> · ' +
+              'oi <b>' + (c.open_interest != null
+                ? c.open_interest.toLocaleString() : "—") + '</b> · ' +
+              'v/oi <b>' + (c.vol_oi != null
+                ? c.vol_oi.toFixed(1) : "—") + '</b>' +
             '</span>' +
             '<span class="tfc-prem">' + fmtPrem(c.premium) + '</span>' +
           '</div>';
