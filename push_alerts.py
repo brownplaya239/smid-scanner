@@ -241,6 +241,60 @@ def _sb_delete(path, where_params):
         return False
 
 
+# ─────────────────────────────────────────────────────────────────────
+# Per-ticker alert overrides
+#
+# The drilldown panel lets users opt OUT of specific alert types for
+# specific tickers (e.g. "I want UOA alerts on my watchlist, but mute
+# them for SPY because the flow there is noisy"). Those overrides live
+# in public.alerts(user_id, ticker, alert_type, enabled).
+#
+# UI key names don't match the push_alerts.py internal names — translate
+# via ALERT_KEY_MAP. Missing rows default to ON (opt-out model): if the
+# user has never visited the drilldown, every applicable alert fires.
+# ─────────────────────────────────────────────────────────────────────
+
+# UI alert_type → push_alerts internal name. Both keys map to the same
+# canonical types we actually fire on; news_sentiment is recognized but
+# deferred (no fire path yet).
+ALERT_KEY_MAP = {
+    "new_flow":          "uoa_watchlist",
+    "grade_change":      "grade_upgrade",
+    "earnings_imminent": "earnings_imminent",
+    "news_sentiment":    "news_sentiment",
+}
+
+
+def fetch_per_ticker_overrides(user_ids):
+    """Return {(user_id, ticker, push_alert_type): enabled_bool}.
+
+    Only rows where the user has explicitly set enabled=false are
+    actually consulted at fire-time (we treat missing as ON), but we
+    return everything so the caller can also surface user-opted-in
+    state if needed.
+    """
+    if not user_ids:
+        return {}
+    in_clause = "(" + ",".join(user_ids) + ")"
+    rows = _sb_get("alerts", {
+        "select": "user_id,ticker,alert_type,enabled",
+        "user_id": "in." + in_clause,
+    }) or []
+    out = {}
+    for r in rows:
+        ui_key = r.get("alert_type")
+        push_key = ALERT_KEY_MAP.get(ui_key, ui_key)
+        out[(r["user_id"], r["ticker"], push_key)] = bool(r.get("enabled"))
+    return out
+
+
+def per_ticker_allowed(per_ticker, user_id, ticker, alert_type):
+    """True unless the user has explicitly turned off this alert for
+    this ticker. Default ON matches the drilldown panel's defaults."""
+    val = per_ticker.get((user_id, ticker, alert_type))
+    return True if val is None else val
+
+
 def fetch_subscriptions_with_watchlist():
     """Return [{user_id, subs: [...], tickers: [...], alert_types: {}}]."""
     subs = _sb_get("push_subscriptions", {
@@ -450,8 +504,15 @@ def log_push(user_id, sub_id, alert_type, status, title, body,
 # ─────────────────────────────────────────────────────────────────────
 
 def process_user(user, swing_upgrades, uoa_flagged, earnings_imminent,
-                 brief_date_label, dry_run=False):
-    """For one user: figure out what to push (if anything), send + log."""
+                 brief_date_label, per_ticker=None, dry_run=False):
+    """For one user: figure out what to push (if anything), send + log.
+
+    per_ticker: dict from fetch_per_ticker_overrides() — lets the user
+    opt OUT of specific (ticker, alert_type) combinations via the
+    drilldown alerts panel. Missing entries default to ON.
+    """
+    per_ticker = per_ticker or {}
+    uid = user["user_id"]
     tickers = set(user["tickers"])
     if not tickers:
         return 0, 0, 0
@@ -469,16 +530,21 @@ def process_user(user, swing_upgrades, uoa_flagged, earnings_imminent,
     if fire_uoa and at.get("uoa_watchlist", True):
         matched = []
         for tk in tickers:
-            if tk in uoa_flagged:
-                row = uoa_flagged[tk]
-                matched.append({
-                    "ticker": tk, "premium": row.get("premium"),
-                    "type": row.get("type"), "strike": row.get("strike"),
-                    "expiry": row.get("expiry"), "vol_oi": row.get("vol_oi"),
-                })
+            if tk not in uoa_flagged:
+                continue
+            # Per-ticker mute: user toggled off UOA alerts for this name
+            # in the drilldown panel. Skip silently.
+            if not per_ticker_allowed(per_ticker, uid, tk, "uoa_watchlist"):
+                continue
+            row = uoa_flagged[tk]
+            matched.append({
+                "ticker": tk, "premium": row.get("premium"),
+                "type": row.get("type"), "strike": row.get("strike"),
+                "expiry": row.get("expiry"), "vol_oi": row.get("vol_oi"),
+            })
         if matched:
             uoa_tickers = [m["ticker"] for m in matched]
-            if not already_pushed_recently(user["user_id"], "uoa_watchlist",
+            if not already_pushed_recently(uid, "uoa_watchlist",
                                            uoa_tickers, hours=4):
                 alerts_to_send.append(("uoa_watchlist",
                     compose_uoa_push(matched, brief_date_label), uoa_tickers))
@@ -487,11 +553,14 @@ def process_user(user, swing_upgrades, uoa_flagged, earnings_imminent,
     if fire_momentum and at.get("grade_upgrade", True):
         matched = []
         for tk in tickers:
-            if tk in swing_upgrades:
-                matched.append({"ticker": tk, **swing_upgrades[tk]})
+            if tk not in swing_upgrades:
+                continue
+            if not per_ticker_allowed(per_ticker, uid, tk, "grade_upgrade"):
+                continue
+            matched.append({"ticker": tk, **swing_upgrades[tk]})
         if matched:
             g_tickers = [m["ticker"] for m in matched]
-            if not already_pushed_recently(user["user_id"], "grade_upgrade",
+            if not already_pushed_recently(uid, "grade_upgrade",
                                            g_tickers, hours=20):
                 alerts_to_send.append(("grade_upgrade",
                     compose_grade_push(matched, brief_date_label), g_tickers))
@@ -500,11 +569,14 @@ def process_user(user, swing_upgrades, uoa_flagged, earnings_imminent,
     if at.get("earnings_imminent", True):
         matched = []
         for tk in tickers:
-            if tk in earnings_imminent:
-                matched.append({"ticker": tk, **earnings_imminent[tk]})
+            if tk not in earnings_imminent:
+                continue
+            if not per_ticker_allowed(per_ticker, uid, tk, "earnings_imminent"):
+                continue
+            matched.append({"ticker": tk, **earnings_imminent[tk]})
         if matched:
             e_tickers = [m["ticker"] for m in matched]
-            if not already_pushed_recently(user["user_id"], "earnings_imminent",
+            if not already_pushed_recently(uid, "earnings_imminent",
                                            e_tickers, hours=20):
                 alerts_to_send.append(("earnings_imminent",
                     compose_earnings_push(matched), e_tickers))
@@ -593,10 +665,21 @@ def main():
     if not users:
         return
 
+    # Pre-fetch per-ticker overrides for every subscribing user in one
+    # query so each process_user() call is O(1) lookup instead of an
+    # extra round-trip per ticker.
+    user_ids = [u["user_id"] for u in users]
+    per_ticker = fetch_per_ticker_overrides(user_ids)
+    if per_ticker:
+        muted = sum(1 for v in per_ticker.values() if v is False)
+        print("    per-ticker overrides loaded: {} rows ({} muted)".format(
+            len(per_ticker), muted))
+
     total_sent = total_failed = total_skipped = 0
     for u in users:
         s, f, sk = process_user(u, swing_upgrades, uoa_flagged,
                                 earnings_imminent, brief_date_label,
+                                per_ticker=per_ticker,
                                 dry_run=args.dry_run)
         if s or f or sk:
             print("  user {}: sent={} failed={} expired={}".format(

@@ -3771,6 +3771,8 @@
       <h2 class="tab-title">Unusual Options Activity</h2>
       <p class="tab-sub">Smart-money options flow &mdash; sweeps, blocks &amp; golden sweeps
         across the liquid optionable market, ranked by Trade Score.
+        Snapshot batch from Polygon Options Starter; refreshes 6&times; per
+        RTH day (~75 min cadence). Not real-time tick data.
         <span id="uoa-updated"></span></p>
 
       <div class="uoa-subnav" id="uoa-subnav">
@@ -6917,9 +6919,10 @@
         if (hrs < 192) return '<span class="adm-badge warn">Aging</span>';
         return '<span class="adm-badge err">Stale</span>';
       }
-      // "live" data — UOA fires every ~75 min during RTH so anywhere
-      // from 0 to ~80 min is normal "between-scans" age. Bumped Fresh
-      // window to 2.5h to avoid flagging mid-cycle data as Aging.
+      // "intraday-batch" (UOA / Polygon Options Starter snapshots) —
+      // 6 fires per RTH day means ~75 min cadence worst case. The
+      // legacy "live" character keys also fall through here so older
+      // call sites still get correct thresholds.
       if (hrs < 2.5) return '<span class="adm-badge ok">Fresh</span>';
       if (hrs < 8) return '<span class="adm-badge warn">Aging</span>';
       return '<span class="adm-badge err">Stale</span>';
@@ -8281,7 +8284,16 @@
         if (hrs < 192) return "recent";
         return "stale";
       }
-      // "live" data should be very fresh
+      // "intraday-batch" — Polygon Options Starter snapshot every
+      // ~75 min during RTH. ≤90 min is the freshest possible state.
+      if (character === "intraday-batch") {
+        if (hrs < 1.5) return "fresh";
+        if (hrs < 4)   return "recent";
+        return "stale";
+      }
+      // "live" character kept for back-compat with older call sites;
+      // strict freshness window because true-live data should never
+      // be more than minutes old.
       if (hrs < 0.5) return "fresh";
       if (hrs < 4)   return "recent";
       return "stale";
@@ -8323,6 +8335,8 @@
                           ? "weekly batch"
                         : character === "pre-market"
                           ? "pre-market"
+                        : character === "intraday-batch"
+                          ? "intraday batch (~75 min)"
                         : character === "live"
                           ? "live"
                           : "batch";
@@ -10081,6 +10095,23 @@
       ["adhoc","alt-data","smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
         renderList(k, reps[k]);
       });
+      // Research + Alt-Data tabs are archive-driven (PDFs generated
+      // on-demand by users). Stamp them with the manifest's most-recent
+      // report timestamp so users can see how recent the archive is.
+      // Falls back to manifest.updated when no reports exist yet.
+      if (window.tdSetFreshness) {
+        const newest = ["adhoc", "alt-data"].reduce(function (best, k) {
+          const list = reps[k] || [];
+          const t = list.length ? Date.parse(list[0].date || list[0].generated || 0) : 0;
+          return t > best ? t : best;
+        }, 0);
+        const ts = newest ? new Date(newest).toISOString()
+                          : (m.updated || null);
+        if (ts) {
+          window.tdSetFreshness("panel-adhoc",    ts, "post-close");
+          window.tdSetFreshness("panel-alt-data", ts, "post-close");
+        }
+      }
     })
     .catch(function () {
       ["adhoc","alt-data","smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
@@ -11641,6 +11672,15 @@
           GENERAL = preprocessArticles(d.articles);
           if (updated) updated.textContent = "· refreshed " +
             new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+          // News worker has a 5-min edge cache; intraday-batch character
+          // matches that cadence honestly. Prefer the worker-reported
+          // article timestamp when present (so users see "Recent · 3:42 PM"
+          // tied to the data, not the client clock); fall back to now.
+          if (window.tdSetFreshness) {
+            const newestTs = (d.articles[0] && d.articles[0].published) ||
+                              new Date().toISOString();
+            window.tdSetFreshness("panel-news", newestTs, "intraday-batch");
+          }
           rebuildUniverse();
           renderGeneral();
         })
@@ -11785,6 +11825,18 @@
         else if (ageH < cadenceHours)    { prefix = "Latest";   cls = "current"; }
         else if (ageH < cadenceHours*3)  { prefix = "Latest";   cls = "current"; }
         else                              { prefix = "Outdated"; cls = "old"; }
+      } else if (character === "intraday-batch") {
+        // Polygon Options Starter snapshots are batch — 6 fires per
+        // RTH day (~75-min cadence worst case). Anything inside the
+        // last ~90 min is the freshest possible state given the
+        // license tier; ≤4 h is still useful intraday context; older
+        // than that is stale. Never claim "live" — the upstream API
+        // doesn't update sub-minute.
+        if (ageH < 1.5)     { prefix = "Refreshed";  cls = "fresh"; }
+        else if (ageH < 4)  { prefix = "Recent";     cls = "current"; }
+        else if (isToday)   { prefix = "Today";      cls = "current"; }
+        else if (isYest)    { prefix = "Yesterday";  cls = "old"; }
+        else                 { prefix = "Outdated";   cls = "old"; }
       } else if (character === "pre-market") {
         if (isToday)       { prefix = "Today's batch"; cls = "fresh"; }
         else if (isYest)   { prefix = "Yesterday's batch"; cls = "current"; }
@@ -13223,15 +13275,23 @@
         window.TD_DATA.uoaMeta = uoaMeta;
         // Stamp every tab whose primary data we just loaded so the
         // freshness pill under each tab title reflects reality.
+        // Watchlist + Breakouts + Setups share the same swing manifest
+        // (live-scan tables read from the latest swing run); UOA gets
+        // its own intraday-batch character from the uoa.json fetch
+        // (see ~14431) so the post-close stamp here just seeds an
+        // initial value until that endpoint resolves.
         if (window.tdSetFreshness) {
           const swingTs = (swing && swing.updated) ||
             ((swing && swing.runs && swing.runs.length)
               ? swing.runs[swing.runs.length - 1].generated : null);
           const uoaTs = uoa && uoa.generated;
-          window.tdSetFreshness("panel-desk",  swingTs, "post-close");
-          window.tdSetFreshness("panel-mydesk", swingTs, "post-close");
-          window.tdSetFreshness("panel-swing",  swingTs, "post-close");
-          window.tdSetFreshness("panel-uoa",    uoaTs,   "post-close");
+          window.tdSetFreshness("panel-desk",      swingTs, "post-close");
+          window.tdSetFreshness("panel-mydesk",    swingTs, "post-close");
+          window.tdSetFreshness("panel-watchlist", swingTs, "post-close");
+          window.tdSetFreshness("panel-swing",     swingTs, "post-close");
+          window.tdSetFreshness("panel-breakout",  swingTs, "post-close");
+          window.tdSetFreshness("panel-setup",     swingTs, "post-close");
+          window.tdSetFreshness("panel-uoa",       uoaTs,   "intraday-batch");
           window.tdSetFreshness("panel-qm-monthly",      swingTs, "post-close");
           window.tdSetFreshness("panel-stockbee-weekly", swingTs, "weekly");
         }
@@ -14396,10 +14456,13 @@
               ? ("Updated "+dt.toLocaleString()+"  ·  Live flagged: "+DATA.length)
               : "";
             if (window.tdSetFreshness && d.generated) {
-              // UOA is "batch" with 6 fires/day during RTH — not strictly
-              // post-close but updates within ~75 min during market hours.
-              // Treat as live-ish (sub-2h is fresh).
-              window.tdSetFreshness("panel-uoa", d.generated, "live");
+              // UOA is batch — Polygon Options Starter snapshots fire
+              // 6× per RTH day (~75 min cadence worst case). Labelling
+              // this "live" was misleading — the API doesn't update
+              // sub-minute. "intraday-batch" character renders an
+              // honest "Refreshed every ~75 min" label and uses
+              // freshness thresholds that match the actual cadence.
+              window.tdSetFreshness("panel-uoa", d.generated, "intraday-batch");
             }
           } else { DATA = []; $("uoa-updated").textContent = "First scan pending."; }
           populateSectors(); populateThemes();
