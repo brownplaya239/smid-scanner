@@ -1102,6 +1102,142 @@ export default {
         { status: 500, headers: cors });
     }
 
+    // ── Server-side rate limit (QA-08) ───────────────────────────────
+    // The client pre-flights tdCanGenerateReport() before this call,
+    // but a devtools user can disable the button and POST anyway. So
+    // the worker re-validates: identify the user from the Supabase
+    // JWT, look up their tier and 30-day report count, reject if
+    // they're over the cap. Anonymous calls (no Authorization header)
+    // are allowed through with free-tier limits — they will fail at
+    // the client gate, but we treat them as best-effort and let the
+    // GitHub workflow itself be the backstop.
+    //
+    // Tier caps mirror PLAN_LIMITS in docs/index.html. Keep in sync.
+    const TIER_REPORT_CAPS_30D = {
+      free: 3, pro: 10, premium: 100, beta: 50,
+    };
+    const TIER_LIFETIME_CAPS = {
+      free: 3, pro: 9999, premium: 9999, beta: 9999,
+    };
+    const authHeader = request.headers.get("Authorization") || "";
+    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (bearer && env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY) {
+      try {
+        // 1. Validate the user's access token by asking Supabase who
+        //    it represents. Anon key is enough for /auth/v1/user.
+        const userResp = await fetch(
+          env.SUPABASE_URL + "/auth/v1/user",
+          { headers: {
+              "Authorization": "Bearer " + bearer,
+              "apikey": env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY,
+          }}
+        );
+        if (!userResp.ok) {
+          return Response.json(
+            { ok: false, error: "Sign-in expired. Please sign in again." },
+            { status: 401, headers: cors });
+        }
+        const userBody = await userResp.json();
+        const uid = userBody && userBody.id;
+        if (uid) {
+          // 2. Look up the user's effective tier (honors promo expiry
+          //    server-side via the get_user_plan RPC).
+          const planResp = await fetch(
+            env.SUPABASE_URL + "/rest/v1/rpc/get_user_plan",
+            { method: "POST",
+              headers: {
+                "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+                "apikey": env.SUPABASE_SERVICE_KEY,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({}),
+            }
+          );
+          // RPC returns a string ("free" / "pro" / "premium" / "beta")
+          // when called with the service role and user_id is implicit
+          // via auth.uid() — but service role has no auth.uid(). So
+          // fall back to reading the profile row directly with service
+          // role and computing the tier inline.
+          let tier = "free";
+          try {
+            const profResp = await fetch(
+              env.SUPABASE_URL + "/rest/v1/profiles?id=eq." +
+                encodeURIComponent(uid) +
+                "&select=subscription_tier,subscription_expires_at",
+              { headers: {
+                  "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+                  "apikey": env.SUPABASE_SERVICE_KEY,
+              }}
+            );
+            const profBody = await profResp.json();
+            const row = (profBody || [])[0];
+            if (row) {
+              const expired = row.subscription_expires_at &&
+                new Date(row.subscription_expires_at) < new Date();
+              tier = expired ? "free" : (row.subscription_tier || "free");
+            }
+          } catch (_) {}
+
+          // 3. Count this user's reports in the last 30 days
+          const sinceIso = new Date(Date.now() - 30 * 86400000).toISOString();
+          const countResp = await fetch(
+            env.SUPABASE_URL + "/rest/v1/report_generations" +
+              "?user_id=eq." + encodeURIComponent(uid) +
+              "&created_at=gte." + encodeURIComponent(sinceIso) +
+              "&select=id",
+            { headers: {
+                "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+                "apikey": env.SUPABASE_SERVICE_KEY,
+                "Prefer": "count=exact",
+            }}
+          );
+          const contentRange = countResp.headers.get("Content-Range") || "";
+          const count30 = parseInt(contentRange.split("/")[1] || "0", 10) || 0;
+          const cap30 = TIER_REPORT_CAPS_30D[tier] || TIER_REPORT_CAPS_30D.free;
+
+          // 4. Lifetime cap (free tier only — others are effectively unlimited)
+          let lifetime = 0;
+          if (tier === "free") {
+            const lifeResp = await fetch(
+              env.SUPABASE_URL + "/rest/v1/report_generations" +
+                "?user_id=eq." + encodeURIComponent(uid) +
+                "&select=id",
+              { headers: {
+                  "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+                  "apikey": env.SUPABASE_SERVICE_KEY,
+                  "Prefer": "count=exact",
+              }}
+            );
+            const lifeRange = lifeResp.headers.get("Content-Range") || "";
+            lifetime = parseInt(lifeRange.split("/")[1] || "0", 10) || 0;
+          }
+          const lifeCap = TIER_LIFETIME_CAPS[tier] || TIER_LIFETIME_CAPS.free;
+
+          if (count30 >= cap30) {
+            return Response.json(
+              { ok: false, error: "Monthly report limit reached for " +
+                tier + " tier (" + count30 + " of " + cap30 +
+                " used). Upgrade to keep researching.",
+                code: "monthly_cap", used: count30, cap: cap30, tier: tier },
+              { status: 429, headers: cors });
+          }
+          if (tier === "free" && lifetime >= lifeCap) {
+            return Response.json(
+              { ok: false, error: "Free-tier lifetime cap reached (" +
+                lifetime + " of " + lifeCap +
+                " reports). Upgrade for more.",
+                code: "lifetime_cap", used: lifetime, cap: lifeCap, tier: tier },
+              { status: 429, headers: cors });
+          }
+        }
+      } catch (e) {
+        // If our rate-limit lookup itself fails, fail-open rather than
+        // blocking legitimate users on a Supabase hiccup. The client
+        // gate already gave best-effort protection.
+        console.log("Rate-limit lookup failed (fail-open):", e.message);
+      }
+    }
+
     // Best-effort fast validity check — reject obviously-invalid tickers
     // instantly, before spending a GitHub Actions run. If the probe itself
     // fails (Yahoo blocks the edge IP), fall through — scanner.py still

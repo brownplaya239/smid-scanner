@@ -316,11 +316,24 @@ create policy "ss_read_any" on public.signal_snapshots
   for select using (true);
 -- Only service role can write (server-side ETL)
 
--- Helper to get user plan (free/pro/premium) with sane fallback
+-- Helper to get user plan (free/pro/premium) with sane fallback.
+-- Server-side enforces subscription_expires_at: once the timestamp
+-- has passed, the user reads as 'free' regardless of what column
+-- subscription_tier still holds. Prevents devtools-bypass where a
+-- client could keep the cached "premium" string after expiry — every
+-- privileged read must round-trip through this RPC, which honors the
+-- expiry date directly. The expires_at column is left intact so the
+-- client UI can still show "Your trial ended on Aug 19, 2026" copy.
 create or replace function public.get_user_plan()
 returns text language sql security definer set search_path = public
 as $$
-  select coalesce(subscription_tier, 'free') from public.profiles
+  select case
+    when subscription_expires_at is not null
+     and subscription_expires_at < now()
+    then 'free'
+    else coalesce(subscription_tier, 'free')
+  end
+  from public.profiles
   where id = auth.uid();
 $$;
 grant execute on function public.get_user_plan() to authenticated;

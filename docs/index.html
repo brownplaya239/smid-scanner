@@ -4757,6 +4757,21 @@
       ? removeFromWatchlist(t) : addToWatchlist(t);
   };
 
+  // Canonical HTML-escape helper. Use anywhere user-typed text is
+  // injected into innerHTML — notes, paste imports, search queries,
+  // ticker symbols echoed back to the user. Mirrors the per-module
+  // escHTML helpers (which we keep for back-compat) but lives on
+  // window so new render paths don't have to redefine it.
+  window.escapeHtml = function (s) {
+    if (s == null) return "";
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  };
+
   // ── Supabase init + auth flow ──
   function initSupabase() {
     if (!SUPA_URL || !SUPA_ANON) {
@@ -6351,8 +6366,8 @@
           '<td class="wt-pnl ' + pnlCls + '">' + pnlStr + '</td>' +
           '<td style="text-align:left;max-width:280px;overflow:hidden;' +
             'text-overflow:ellipsis;white-space:nowrap" title="' +
-            (e.notes || "").replace(/"/g, "&quot;") + '">' +
-            (e.notes || "") + '</td>' +
+            window.escapeHtml(e.notes) + '">' +
+            window.escapeHtml(e.notes) + '</td>' +
           '<td><button class="wt-remove" data-tl-remove="' + e.id +
             '" title="Delete entry">×</button></td>' +
           '</tr>';
@@ -10266,13 +10281,41 @@
         ((base.reports && base.reports[cfg.listKey]) || []).map(function (e) { return e.file; })
       );
       try {
+        // Send the Supabase access token so the worker can re-validate
+        // the user's plan + monthly report count server-side. Devtools
+        // users can disable the button + bypass the client gate but
+        // they can't forge a valid JWT. Anonymous calls (no header)
+        // are allowed through and fall back to the GitHub workflow
+        // itself for invalid-ticker handling.
+        const headers = { "Content-Type": "application/json" };
+        try {
+          if (SUPA && SUPA.auth) {
+            const { data: { session } } = await SUPA.auth.getSession();
+            if (session && session.access_token) {
+              headers["Authorization"] = "Bearer " + session.access_token;
+            }
+          }
+        } catch (_) {}
         const resp = await fetch(WORKER_URL, {
-          method:"POST", headers:{ "Content-Type":"application/json" },
+          method:"POST", headers: headers,
           body: JSON.stringify({ ticker: ticker, report: cfg.reportType }),
         });
         const data = await resp.json();
         if (data.ok) {
           poll(ticker, baseline, Date.now());
+        } else if (resp.status === 429 && data.code) {
+          // Server-side cap reached. Open pricing modal with the same
+          // reason code the client gate would have used so users get
+          // a consistent upgrade prompt regardless of bypass path.
+          if (window.tdOpenPricing) {
+            window.tdOpenPricing(data.code, { cap: data.cap, used: data.used });
+          }
+          setStatus("err", "&#10007; " + data.error);
+          button.disabled = false;
+        } else if (resp.status === 401) {
+          setStatus("err", "&#10007; Sign-in expired. Please sign in again.");
+          button.disabled = false;
+          if (window.tdRequireAuth) window.tdRequireAuth("report", ticker);
         } else {
           setStatus("err", "&#10007; " + (data.error || "Unknown error"));
           button.disabled = false;

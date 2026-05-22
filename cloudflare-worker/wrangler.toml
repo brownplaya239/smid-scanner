@@ -17,8 +17,13 @@ compatibility_date = "2026-05-20"
 
 # Non-secret runtime config. Anything sensitive (API keys, signing
 # secrets, service_role keys) lives ONLY in worker secrets.
+#
+# SUPABASE_ANON_KEY is intentionally a var — it's public-facing and
+# already lives in the static site's JS. The worker uses it as the
+# `apikey` header when validating user JWTs via /auth/v1/user.
 [vars]
 SUPABASE_URL = "https://uaeojibmhxbwkhpvmjwy.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_Lsy2m1QG18tkGYwizS-_0A_LhfIFXdo"
 REPO = "brownplaya239/smid-scanner"
 
 # Observability — exact match to what the Cloudflare dashboard
