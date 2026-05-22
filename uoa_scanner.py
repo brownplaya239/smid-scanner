@@ -63,18 +63,55 @@ META_REFRESH_DAYS    = 10           # days a cached earnings/cap/sector entry li
 
 # Major ETF / index products — excluded. Hedging vehicles, not directional
 # single-name smart-money flow (your spec: single-name equities preferred).
+# Also covers the rapidly-growing class of 2x / -1x / -2x SINGLE-STOCK
+# leveraged ETFs (Tradr, GraniteShares, Direxion, Defiance). These show
+# up in grouped_daily looking like normal small-caps but are synthetic
+# daily-reset vehicles that decay over multi-day holds — they should
+# NEVER be in a swing-grade universe. The list below is curated; new
+# launches need to be added manually (TODO: replace with a yfinance
+# quoteType=="ETF" check during universe build).
 EXCLUDE_ETFS = {
+    # Broad-market index + sector
     "SPY","QQQ","DIA","IWM","VOO","VTI","RSP","MDY","VXX","UVXY","SVXY","VIXY",
     "XLK","XLF","XLE","XLV","XLI","XLY","XLP","XLU","XLB","XLC","XLRE",
+    # Leveraged/inverse broad indices
     "TQQQ","SQQQ","SOXL","SOXS","TNA","TZA","SPXL","SPXS","UPRO","SPXU","SDOW",
     "UDOW","TMF","TMV","LABU","LABD","FAS","FAZ","YINN","YANG","NUGT","DUST",
+    # Bonds / commodities / FX / international
     "TLT","IEF","SHY","HYG","LQD","AGG","BND","TIP","MUB","BIL",
     "GLD","SLV","USO","UNG","GDX","GDXJ","IAU","DBC","CPER",
     "EEM","EFA","FXI","EWZ","VEA","VWO","INDA","EWJ","EWT","EWY",
+    # Thematic / sector
     "ARKK","ARKG","ARKW","SMH","SOXX","IGV","XBI","IBB","KRE","KBE",
     "ITB","XHB","XOP","OIH","XME","JETS","TAN","ICLN","HACK","BOTZ",
     "SCHD","DGRO","VYM","JEPI","JEPQ","QYLD","VIG","VT","ACWI","EFV",
     "BITO","IBIT","FBTC","GBTC","ETHE","KWEB","FXY","UUP","FXE",
+    # ────────────────────────────────────────────────────────────────
+    # Single-stock leveraged ETFs — Tradr (1x/2x/3x daily reset)
+    # These look like normal small-caps in the universe screen but
+    # are synthetic vehicles. The bug that triggered this list: NVTX
+    # (2x NVTS) showed up as a +39.5% "breakout" alongside the real
+    # NVTS at +20%, double-counting the trade.
+    "NVDU","NVDD","NVDL","NVDX",          # NVDA 2x/-2x family
+    "NVTU","NVTX",                          # NVTS 2x family
+    "TSLL","TSLZ","TSLS","TSLR","TSLY","TSDD","TSLG","TSLT","TSLQ",  # TSLA 2x/-2x/income
+    "AAPU","AAPD","AAPB","AAPX",          # AAPL 2x/-2x
+    "AMZU","AMZD","AMZZ",                  # AMZN 2x/-2x
+    "METU","METD","FBL","FBX",            # META/FB 2x/-2x
+    "MSFU","MSFD","MSFL","MSFX",          # MSFT 2x/-2x
+    "GGLL","GGLS",                          # GOOGL 2x/-2x
+    "NFXL","NFXS",                          # NFLX 2x/-2x
+    "CONL","CONI",                          # COIN 2x/-2x
+    "MSTU","MSTZ","MSTX",                  # MSTR 2x/-2x
+    "AMDL","AMDY",                          # AMD 2x
+    "HOOX","HOOXL",                         # HOOD 2x
+    "PLTU","PLTD",                          # PLTR 2x
+    "DELU","DELD",                          # DELL 2x (if launched)
+    "PYPL","SHOL","SHOY",                  # PYPL/SHOP 2x
+    # Old single-stock leveraged ETFs (Direxion, GraniteShares 1x/2x)
+    "BABX","BABL","BBAX",                  # BABA leveraged
+    "DISL","DISD",                          # DIS leveraged
+    "WMTL","WMTD",                          # WMT leveraged
 }
 
 

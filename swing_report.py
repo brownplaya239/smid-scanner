@@ -43,6 +43,13 @@ META_CACHE_PATH = os.path.join(_BASE, "docs", "reports", "swing_meta_cache.json"
 META_REFRESH_DAYS = 30           # company name/sector/exchange change slowly
 
 MIN_DOLLAR_VOL = 50_000_000
+# Minimum share price for universe inclusion. Penny stocks ($0.10 - $2)
+# can clear the $50M dollar-volume floor on heavy share count alone
+# (e.g. MEHA at $0.11 × 619M shares = $66M) but have no swing-tradeable
+# per-share risk profile — spread + slippage eats any edge. $2 floor
+# excludes pure penny territory while keeping legitimate small caps
+# (most real $1-3 names are restructuring or near-delisting anyway).
+MIN_PRICE = 2.00
 EXCHANGE_NAME = {
     "XNAS": "NASDAQ", "XNYS": "NYSE",   "XASE": "AMEX",
     "ARCX": "NYSE Arca", "BATS": "BATS", "IEXG": "IEX",
@@ -162,7 +169,12 @@ def _build_universe(min_dollar_vol=MIN_DOLLAR_VOL, ref_date=None):
                     continue
                 c = bar.get("c") or 0
                 v = bar.get("v") or 0
-                if c > 0 and v > 0 and c * v >= min_dollar_vol:
+                # Three gates: positive price + volume, price >= $2
+                # (penny floor), and dollar-volume >= $50M (liquidity).
+                # The price floor catches names like MEHA at $0.11
+                # that clear $-vol on share-count alone but aren't
+                # swing-tradeable.
+                if c >= MIN_PRICE and v > 0 and c * v >= min_dollar_vol:
                     out.append(tk)
             if out:
                 if candidate != (ref_date or _last_trading_day()):
