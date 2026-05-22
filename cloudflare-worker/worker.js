@@ -730,9 +730,19 @@ async function handleStripeWebhook(request, env, cors) {
     const priceId = obj.items && obj.items.data && obj.items.data[0] &&
                     obj.items.data[0].price && obj.items.data[0].price.id;
     const plan = planFromPriceId(priceId);
-    const active = obj.status === "active" || obj.status === "trialing";
+    // Treat any non-terminal status as paid. Stripe's subscription
+    // lifecycle: incomplete → active → past_due/unpaid → canceled.
+    // For Checkout flows the first `customer.subscription.created`
+    // event arrives with status='incomplete' BEFORE the payment is
+    // fully confirmed (~1 sec later it flips to 'active'). The user
+    // already entered card details and clicked Subscribe — we want
+    // to grant Pro access immediately, not wait for the second event.
+    const liveStatuses = ["active", "trialing", "incomplete",
+                          "incomplete_expired", "past_due"];
+    const active = liveStatuses.indexOf(obj.status) >= 0;
     console.log("subscription event · user_id=" + userId +
-      " priceId=" + priceId + " plan=" + plan + " active=" + active);
+      " priceId=" + priceId + " plan=" + plan +
+      " status=" + obj.status + " active=" + active);
     if (userId) await updateProfile(userId, active && plan ? plan : "free");
   } else if (type === "customer.subscription.deleted") {
     const userId = obj.metadata && obj.metadata.user_id;
