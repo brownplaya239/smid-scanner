@@ -183,7 +183,18 @@
   .wlt-add-btn:hover { filter:brightness(1.05); }
   .wlt-add-hint { font-size:10.5px; color:var(--muted); line-height:1.4; }
 
+  /* Portfolio section tools — Equal-weight + Normalize 100% buttons
+     sit to the right of the "Portfolio" heading. Small, low-emphasis
+     because they're occasional-use; gold border on hover so they're
+     discoverable. */
+  .wlt-portfolio-tools { margin-left:auto; display:inline-flex; gap:6px; }
+  .wlt-weight-tool { background:transparent; border:1px solid var(--border2);
+    color:var(--textdim); font-family:inherit; font-size:10.5px;
+    font-weight:600; padding:4px 10px; border-radius:4px; cursor:pointer;
+    letter-spacing:.2px; }
+  .wlt-weight-tool:hover { border-color:var(--gold); color:var(--gold); }
   .wlt-section-h { font-size:13px; color:var(--text); font-weight:700;
+    display:flex; align-items:center; flex-wrap:wrap; gap:8px;
     margin:18px 0 10px; text-transform:uppercase; letter-spacing:.4px;
     border-bottom:1px solid var(--line); padding-bottom:6px; }
   .wlt-section-h .wlt-section-sub { color:var(--muted); font-weight:400;
@@ -482,6 +493,19 @@
     .md-row .md-flow    { grid-area:flow; }
     .md-row .md-context { grid-area:ctx; }
     .md-row.md-header   { display:none; }
+  }
+  /* iPhone SE / mini (320-390px) — the 4-col header row gets tight.
+     Drop the conf col to its own line so name has more breathing room
+     and the chg / conf pills don't overlap when prices grow to 4 sig
+     digits. */
+  @media (max-width:390px) {
+    .md-row {
+      grid-template-columns:50px 1fr 70px;
+      grid-template-areas: "tk name chg"
+                            "grade flow conf"
+                            "ctx ctx ctx";
+      padding:10px 12px;
+    }
   }
 
   .mydesk-empty { padding:48px 30px; text-align:center; color:var(--muted);
@@ -2756,6 +2780,31 @@
   .uoa-edge .es { font-size:10.5px; color:var(--muted); margin-top:3px; line-height:1.4; }
 
   .uoa-filters { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+
+  /* Mobile-only "Filters" toggle button. Hidden on desktop; on
+     ≤760px it sits above .uoa-filters which starts collapsed.
+     The .open class on the filters block is set by JS via the
+     data-filter-toggle handler. Caret rotates via .uoa-mobile-filters-btn.is-open. */
+  .uoa-mobile-filters-btn { display:none; }
+  @media (max-width:760px) {
+    .uoa-mobile-filters-btn {
+      display:inline-flex; align-items:center; gap:8px;
+      background:var(--navy2); color:var(--text); cursor:pointer;
+      border:1px solid var(--border2); border-radius:6px;
+      font-family:inherit; font-size:12px; font-weight:600;
+      padding:9px 14px; margin-bottom:10px;
+      letter-spacing:.2px;
+    }
+    .uoa-mobile-filters-btn .ufb-caret { transition:transform .15s;
+      color:var(--muted); font-size:9px; margin-left:2px; }
+    .uoa-mobile-filters-btn.is-open .ufb-caret { transform:rotate(180deg); }
+    .uoa-mobile-filters-btn:hover { border-color:var(--gold);
+      color:var(--gold); }
+    /* Collapse the filter block by default on mobile. Adding .open
+       (via the button) re-shows it. Keeping display:flex when open so
+       the flex column layout above still works. */
+    .uoa-filters:not(.open) { display:none; }
+  }
   .uoa-filter-row { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
   .uoa-filters input[type=text], .uoa-filters select {
     background:var(--inp); border:1px solid var(--border2); border-radius:6px; color:var(--text);
@@ -3372,7 +3421,7 @@
                  maxlength="8" autocomplete="off"
                  autocapitalize="characters" />
           <input type="number" id="wlt-weight" placeholder="Weight"
-                 step="0.5" min="0" />
+                 inputmode="decimal" step="0.5" min="0" />
           <button class="wlt-add-btn" id="wlt-add-btn">Add</button>
           <span class="wlt-add-hint">Weight = relative position size
             (any number — we normalize for benchmarking)</span>
@@ -3394,7 +3443,19 @@
       </div>
 
       <!-- Portfolio table -->
-      <h3 class="wlt-section-h">Portfolio</h3>
+      <h3 class="wlt-section-h">Portfolio
+        <span class="wlt-section-sub" id="wlt-portfolio-summary"></span>
+        <span class="wlt-portfolio-tools">
+          <button class="wlt-weight-tool" id="wlt-equal-weight"
+                  type="button" title="Set every position to 1.0">
+            Equal-weight
+          </button>
+          <button class="wlt-weight-tool" id="wlt-normalize-weight"
+                  type="button" title="Scale every weight so the total = 100">
+            Normalize 100%
+          </button>
+        </span>
+      </h3>
       <div class="wlt-portfolio-wrap">
         <table class="wlt-portfolio" id="wlt-portfolio"></table>
       </div>
@@ -3460,9 +3521,9 @@
             <option value="signal_acted">Signal acted</option>
           </select>
           <input type="number" id="tl-price"    placeholder="Entry price"
-                 step="0.01" />
+                 inputmode="decimal" step="0.01" min="0" />
           <input type="number" id="tl-quantity" placeholder="Quantity"
-                 step="0.01" />
+                 inputmode="decimal" step="0.01" />
           <input type="date"   id="tl-date" />
           <input type="text"   id="tl-notes"
                  placeholder="Thesis / source signal / notes"
@@ -3820,7 +3881,18 @@
         <button data-preset="earnings">Earnings Bets</button>
       </div>
 
-      <div class="uoa-filters">
+      <!-- Mobile-only filter toggle. On desktop the .uoa-filters block
+           is always visible; on ≤760px it collapses behind this button
+           so the table gets full vertical room. JS toggles .open on
+           the .uoa-filters sibling. -->
+      <button class="uoa-mobile-filters-btn" type="button"
+              data-filter-toggle="uoa-live-filters" aria-expanded="false">
+        <span class="ufb-icon" aria-hidden="true">⚙</span>
+        <span>Filters</span>
+        <span class="ufb-caret" aria-hidden="true">▼</span>
+      </button>
+
+      <div class="uoa-filters" id="uoa-live-filters">
         <div class="uoa-filter-row">
         <input type="text" id="uoa-q" placeholder="Filter ticker..." autocomplete="off" aria-label="Filter live flow by ticker" />
         <select id="uoa-type">
@@ -4554,6 +4626,54 @@
   window.tdGetWeight = function (t) {
     return WATCHLIST_WEIGHTS[(t || "").toUpperCase()] || 1;
   };
+  // Bulk weight operations — used by the Equal-weight + Normalize 100%
+  // buttons in the Portfolio section. Both write through to Supabase
+  // when the user is signed in (one round-trip per ticker is fine for
+  // typical watchlist sizes of ≤50 names); fall back to localStorage
+  // otherwise. Emits a single _emitWatch() after the batch completes
+  // so the UI re-renders once, not N times.
+  async function setAllWatchlistWeights(getWeight) {
+    const tickers = Array.from(WATCHLIST);
+    tickers.forEach(function (t) {
+      const w = getWeight(t);
+      WATCHLIST_WEIGHTS[t] = (isNaN(w) || w < 0) ? 1 : w;
+    });
+    if (SUPA && CURRENT_USER) {
+      try {
+        for (const t of tickers) {
+          await SUPA.from("watchlists")
+            .update({ weight: WATCHLIST_WEIGHTS[t] })
+            .eq("user_id", CURRENT_USER.id).eq("ticker", t);
+        }
+      } catch (e) { console.warn("Bulk weight write failed:", e); }
+    } else {
+      _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
+    }
+    _emitWatch();
+  }
+  window.tdEqualWeight = function () {
+    return setAllWatchlistWeights(function () { return 1; });
+  };
+  window.tdNormalizeWeights = function () {
+    const tickers = Array.from(WATCHLIST);
+    if (!tickers.length) return Promise.resolve();
+    const total = tickers.reduce(function (s, t) {
+      return s + (WATCHLIST_WEIGHTS[t] != null ? WATCHLIST_WEIGHTS[t] : 1);
+    }, 0);
+    if (total <= 0) {
+      // Degenerate state — fall back to equal-weight so users don't
+      // end up with NaN rows.
+      return window.tdEqualWeight();
+    }
+    // Scale so the sum equals 100 (matches the "% Port" column meaning
+    // 1:1 with raw weight after normalization).
+    const factor = 100 / total;
+    return setAllWatchlistWeights(function (t) {
+      const w = WATCHLIST_WEIGHTS[t] != null ? WATCHLIST_WEIGHTS[t] : 1;
+      // Round to one decimal so the UI doesn't show 8.333333…
+      return Math.round(w * factor * 10) / 10;
+    });
+  };
 
   // ── Plan / entitlement layer ──
   // Tier limits drive what free/pro/premium users can do. Read once on
@@ -4781,6 +4901,21 @@
       .replace(/'/g, "&#39;");
   };
 
+  // Generic mobile-collapse toggle. Any button with data-filter-toggle="id"
+  // toggles the .open class on the element with that id, and the .is-open
+  // class on itself (so the caret rotates). Used by .uoa-mobile-filters-btn
+  // and any future mobile-collapse pattern.
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-filter-toggle]");
+    if (!btn) return;
+    const targetId = btn.dataset.filterToggle;
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    const isOpen = target.classList.toggle("open");
+    btn.classList.toggle("is-open", isOpen);
+    btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  });
+
   // ── Supabase init + auth flow ──
   function initSupabase() {
     if (!SUPA_URL || !SUPA_ANON) {
@@ -4811,12 +4946,61 @@
           const plan = u.searchParams.get("plan") || "(new tier)";
           // Soft toast: status line near the top
           console.log("Stripe success → refreshing plan to " + plan);
+          // Visible spinner during the webhook-confirmation wait. The
+          // worst case is ~12s while Stripe's webhook fires + Supabase
+          // commits + we re-fetch the profile. Without this users see
+          // a blank loading state and wonder if their payment worked.
+          // The pill auto-dismisses once tdPlan() reports the new
+          // tier — see the third stagger callback below.
+          const pillId = "stripe-return-toast";
+          if (!document.getElementById(pillId)) {
+            const pill = document.createElement("div");
+            pill.id = pillId;
+            pill.style.cssText = "position:fixed;top:14px;left:50%;" +
+              "transform:translateX(-50%);background:var(--card);" +
+              "border:1px solid var(--gold);border-radius:24px;" +
+              "padding:9px 18px 9px 14px;color:var(--text);" +
+              "font-size:12.5px;font-weight:600;z-index:130;" +
+              "box-shadow:0 6px 24px rgba(0,0,0,.5);" +
+              "display:flex;align-items:center;gap:9px;" +
+              "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;";
+            pill.innerHTML =
+              '<span style="width:14px;height:14px;border:2px solid var(--gold);' +
+                'border-top-color:transparent;border-radius:50%;' +
+                'animation:tdspin 0.8s linear infinite;display:inline-block"></span>' +
+              '<span>Confirming your <b style="color:var(--gold)">' +
+                String(plan).toUpperCase() + '</b> upgrade…</span>';
+            document.body.appendChild(pill);
+            // Inject the keyframes once so the spinner animates
+            if (!document.getElementById("tdspin-kf")) {
+              const kf = document.createElement("style");
+              kf.id = "tdspin-kf";
+              kf.textContent = "@keyframes tdspin{to{transform:rotate(360deg)}}";
+              document.head.appendChild(kf);
+            }
+          }
           // Stagger 3 refreshes: 0s, 4s, 12s — covers webhook latency
           // even if Stripe is slow to fire the event.
           refreshPlanState();
           setTimeout(refreshPlanState, 4000);
           setTimeout(function () {
             refreshPlanState();
+            // Dismiss the confirming-upgrade spinner. If we picked up
+            // the new tier successfully, swap to a success state for
+            // 4 seconds before removing; if not (webhook still hasn't
+            // landed), the pill stays so users can see the state.
+            const pill = document.getElementById(pillId);
+            if (pill && window.tdPlan && window.tdPlan() !== "free") {
+              pill.style.borderColor = "var(--green)";
+              pill.innerHTML =
+                '<span style="color:var(--green);font-size:14px">✓</span>' +
+                '<span><b style="color:var(--green)">' +
+                  window.tdPlan().toUpperCase() +
+                  '</b> tier unlocked. Enjoy.</span>';
+              setTimeout(function () {
+                if (pill && pill.parentNode) pill.parentNode.removeChild(pill);
+              }, 4000);
+            }
             // Soft confirmation if we did pick up the new tier
             if (window.tdPlan && window.tdPlan() !== "free") {
               try {
@@ -6241,7 +6425,8 @@
         return '<tr data-t="' + t + '">' +
           '<td><span class="wp-tk">' + t + '</span></td>' +
           '<td><input class="wp-weight-input" type="number" step="0.5" ' +
-            'min="0" value="' + w + '" data-weight-tk="' + t + '" /></td>' +
+            'min="0" inputmode="decimal" value="' + w + '" ' +
+            'data-weight-tk="' + t + '" /></td>' +
           '<td>' + pct.toFixed(1) + '%</td>' +
           '<td>' + price + '</td>' +
           '<td class="wp-chg ' + cc + '">' + chgStr + '</td>' +
@@ -6257,6 +6442,16 @@
           '</tr>';
       }).join("");
       tblEl.innerHTML = head + '<tbody>' + rows + '</tbody>';
+      // Summary line in the section header — names + total weight units.
+      // Total = 100 when weights are normalized; otherwise it's the raw
+      // sum so users can see how far they are from a normalized state.
+      const summaryEl = document.getElementById("wlt-portfolio-summary");
+      if (summaryEl) {
+        const totalDisplay = totalWeight % 1 === 0
+          ? totalWeight.toFixed(0) : totalWeight.toFixed(1);
+        summaryEl.textContent = "· " + wl.length + " name" +
+          (wl.length === 1 ? "" : "s") + " · total weight " + totalDisplay;
+      }
     }
 
     // ── Trade Log ──
@@ -6336,10 +6531,35 @@
     }
     function renderTradeLog() {
       if (!TRADE_LOG.length) {
+        // Useful empty state — explain the value + give the user a
+        // concrete sample of what a logged entry looks like + a
+        // direct "focus the form" affordance so they don't have to
+        // hunt for the input row.
         tlTblEl.innerHTML = '<tbody><tr><td colspan="7" class="wlt-empty">' +
-          'No trade log entries yet. Use the form above to log buys, sells, ' +
-          'and signals you acted on. P&amp;L computes automatically against ' +
-          'today\'s price.</td></tr></tbody>';
+          '<div style="text-align:left;max-width:520px;margin:0 auto;' +
+          'padding:18px 6px;line-height:1.6">' +
+          '<div style="font-weight:700;color:var(--text);font-size:13px;' +
+          'margin-bottom:6px">Build your edge log.</div>' +
+          '<div style="color:var(--textdim);font-size:12px;margin-bottom:10px">' +
+          'Log every entry, exit, and signal you acted on. ' +
+          'P&amp;L computes vs today\'s price automatically. ' +
+          'Over time the log surfaces which signal types (Confirming Bull ' +
+          'flow / A+ grade upgrades / breakout setups) you actually trade ' +
+          'profitably.</div>' +
+          '<button type="button" id="tl-empty-focus" ' +
+          'style="background:var(--gold);color:var(--accink);border:0;' +
+          'font-family:inherit;font-size:12px;font-weight:700;padding:8px 16px;' +
+          'border-radius:5px;cursor:pointer">Log your first trade &rarr;</button>' +
+          '</div></td></tr></tbody>';
+        // Wire the CTA — focus the ticker input above so the form is
+        // ready for typing. Runs once per render of the empty state.
+        const focusBtn = document.getElementById("tl-empty-focus");
+        if (focusBtn && tlTk) {
+          focusBtn.addEventListener("click", function () {
+            tlTk.focus();
+            tlTk.scrollIntoView({ behavior: "smooth", block: "center" });
+          });
+        }
         return;
       }
       const head = '<thead><tr>' +
@@ -6415,6 +6635,24 @@
       if (!inp) return;
       window.tdSetWeight(inp.dataset.weightTk, inp.value);
     });
+    // Equal-weight + Normalize buttons in the section header. Both
+    // are no-ops on an empty watchlist; otherwise they batch-write
+    // through window.tdEqualWeight / tdNormalizeWeights which take
+    // care of Supabase + localStorage + re-render via _emitWatch().
+    const eqBtn   = document.getElementById("wlt-equal-weight");
+    const normBtn = document.getElementById("wlt-normalize-weight");
+    if (eqBtn) eqBtn.addEventListener("click", function () {
+      if (!WATCHLIST.size) return;
+      eqBtn.disabled = true;
+      Promise.resolve(window.tdEqualWeight())
+        .finally(function () { eqBtn.disabled = false; });
+    });
+    if (normBtn) normBtn.addEventListener("click", function () {
+      if (!WATCHLIST.size) return;
+      normBtn.disabled = true;
+      Promise.resolve(window.tdNormalizeWeights())
+        .finally(function () { normBtn.disabled = false; });
+    });
     if (anonLink) anonLink.addEventListener("click", function (e) {
       e.preventDefault();
       window.tdRequireAuth("save", null);
@@ -6462,7 +6700,25 @@
 
     tlAddBtn.addEventListener("click", function () {
       const tk = (tlTk.value || "").toUpperCase().trim();
+      // Mirror the watchlist-add validation so the trade log can't
+      // be polluted with junk strings ("AAPL ", "appl1", "<script>").
+      // BRK.B / BRK-A are valid (regex allows . and -). Reject anything
+      // else inline so the user sees a clear "Invalid ticker" hint
+      // instead of a confusing empty-row failure later.
       if (!tk) return;
+      if (!/^[A-Z\.\-]{1,8}$/.test(tk)) {
+        const status = document.getElementById("tl-status");
+        if (status) {
+          status.textContent = "Invalid ticker: " + tk;
+          status.className = "wlt-status err";
+          setTimeout(function () {
+            if (status.textContent.startsWith("Invalid ticker")) {
+              status.textContent = ""; status.className = "wlt-status";
+            }
+          }, 4000);
+        }
+        return;
+      }
       const ts = tlDate.value
         ? new Date(tlDate.value + "T12:00:00").toISOString()
         : new Date().toISOString();
@@ -9358,7 +9614,11 @@
           body.innerHTML = '<div class="tdp-empty">No news on file for ' + t + '.</div>';
           return;
         }
-        const top3 = arts.slice(0, 3).map(function (a) {
+        // 5 most-recent — chronological timeline feel. Each row shows
+        // age (Xh ago), source, sentiment for this specific ticker.
+        // Bumped from 3 → 5 so the drilldown gives a "what's happened
+        // this week" read-through without needing to switch tabs.
+        const top5 = arts.slice(0, 5).map(function (a) {
           // Pick this ticker's sentiment when available
           let sent = null;
           if (a.insights && a.insights.length) {
@@ -9380,12 +9640,12 @@
               sentTag +
             '</div></div>';
         }).join("");
-        const viewAll = arts.length > 3
+        const viewAll = arts.length > 5
           ? '<div class="tdp-actions" style="margin-top:9px"><button ' +
               'data-news-tk="' + t + '">View all ' + arts.length +
               ' headlines on News tab &rarr;</button></div>'
           : '';
-        body.innerHTML = top3 + viewAll;
+        body.innerHTML = top5 + viewAll;
       } catch (e) {
         const body = document.getElementById("tdp-news-body");
         if (body) body.innerHTML = '<div class="tdp-empty">News feed unavailable.</div>';
@@ -10114,8 +10374,28 @@
     const el = document.getElementById("list-" + typeKey);
     if (!el) return;
     if (!entries || entries.length === 0) {
-      el.innerHTML = '<div class="empty">No reports archived yet. ' +
-        'The next scheduled scan will populate this tab.</div>';
+      // Useful empty state per report type — explain what the user can
+      // do RIGHT NOW (run a fresh report) instead of just "wait for cron".
+      // adhoc + alt-data are user-triggered; the swing/setup variants
+      // run on a cron schedule so the copy reflects that distinction.
+      const isUserTriggered = (typeKey === "adhoc" || typeKey === "alt-data");
+      const lookupAnchor = typeKey === "alt-data"
+        ? "#adhoc-altdata"
+        : (typeKey === "adhoc" ? "#adhoc-input" : null);
+      el.innerHTML = '<div class="empty" ' +
+        'style="padding:22px 18px;text-align:center;line-height:1.6">' +
+        (isUserTriggered
+          ? '<div style="font-size:13px;color:var(--text);font-weight:700;' +
+            'margin-bottom:6px">No reports yet — generate the first one.</div>' +
+            '<div style="font-size:11.5px;color:var(--textdim);' +
+            'margin-bottom:10px">Type a ticker into the form above to ' +
+            'kick off a fresh research run. Reports take ~60s to ' +
+            'generate and are archived here permanently.</div>'
+          : '<div style="font-size:13px;color:var(--text);font-weight:700;' +
+            'margin-bottom:6px">No reports archived yet.</div>' +
+            '<div style="font-size:11.5px;color:var(--textdim)">The next ' +
+            'scheduled scan (4:30 PM ET weekdays) will populate this tab.</div>'
+        ) + '</div>';
       return;
     }
     el.innerHTML = entries.map(function (r) {
