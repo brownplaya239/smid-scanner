@@ -1311,8 +1311,18 @@
   .snt-seg-h .snt-count { color:var(--muted); font-weight:500; }
   .snt-body { display:flex; flex-wrap:wrap; gap:4px; }
   .snt-empty { font-size:10.5px; color:var(--muted); font-style:italic; }
-  .snt-more { font-size:10px; color:var(--muted);
-    padding:2px 4px; align-self:center; }
+  /* Expandable "+N more" button per Swing-new-today segment. Same
+     toggle pattern: hidden chips reveal when .expanded is added to
+     the .snt-body parent. */
+  .snt-more { font-size:10px; color:var(--gold);
+    padding:3px 6px; align-self:center; background:none;
+    border:0; cursor:pointer; font-family:inherit; font-weight:600;
+    border-radius:3px; }
+  .snt-more:hover { background:var(--bg);
+    text-decoration:underline; }
+  .snt-body .snt-chip:nth-child(n+7) { display:none; }
+  .snt-body.expanded .snt-chip { display:inline-flex; }
+  .snt-body.expanded .snt-more { display:none; }
   .snt-chip { display:inline-flex; align-items:center; gap:3px;
     background:var(--bg); border:1px solid var(--line);
     border-radius:3px; padding:2px 5px; font-size:10.5px;
@@ -1688,7 +1698,19 @@
   .wct-row .wct-detail.wct-down { color:var(--red); font-weight:600; }
   .wct-empty { color:var(--muted); font-size:11.5px; padding:8px 0;
     font-style:italic; }
-  .wct-more { color:var(--muted); font-size:11px; margin-top:4px; }
+  /* Expandable "+N more" trigger — click toggles .expanded on the
+     parent .wct-list and the hidden overflow rows reveal. Looks like
+     a link by default so users recognize it as interactive; hover
+     gold; cursor:pointer + native button styling for affordance. */
+  .wct-more { color:var(--gold); font-size:11px; margin-top:6px;
+    background:none; border:0; padding:4px 0; cursor:pointer;
+    font-family:inherit; font-weight:600; text-align:left;
+    display:block; }
+  .wct-more:hover { text-decoration:underline; }
+  /* Hide rows past index 8 by default; .expanded re-shows all. */
+  .wct-list .wct-row:nth-child(n+9) { display:none; }
+  .wct-list.expanded .wct-row { display:flex; }
+  .wct-list.expanded .wct-more { display:none; }
   .wct-cta { font-size:11.5px; color:var(--textdim);
     margin-top:10px; padding-top:8px;
     border-top:1px dashed var(--line); }
@@ -1728,8 +1750,20 @@
   .al-chip .al-why { color:var(--muted); font-size:10px;
     margin-left:auto; font-style:italic; }
   .al-empty { color:var(--muted); font-size:10.5px; font-style:italic; }
-  .al-more { font-size:10px; color:var(--muted); padding:3px 6px;
-    align-self:flex-start; }
+  /* Expandable +N more button on each action-list segment. Same
+     pattern as .wct-more — hidden overflow chips reveal when the
+     parent .al-seg-body has .expanded. data-al-cap drives which
+     children to hide via the JS-set nth-child rule below. */
+  .al-more { font-size:10.5px; color:var(--gold); padding:3px 8px;
+    align-self:flex-start; background:none; border:0; cursor:pointer;
+    font-family:inherit; font-weight:600; border-radius:3px; }
+  .al-more:hover { background:var(--navy2);
+    text-decoration:underline; }
+  /* Each .al-seg-body keeps its own data-al-cap; default cap=4 for
+     the layout below. CSS hides chips past index 4 unless .expanded. */
+  .al-seg-body .al-chip:nth-child(n+5) { display:none; }
+  .al-seg-body.expanded .al-chip { display:inline-flex; }
+  .al-seg-body.expanded .al-more { display:none; }
   .desk-card h3 { font-size:10px; color:var(--muted); text-transform:uppercase;
     letter-spacing:.4px; margin-bottom:8px; font-weight:700; }
   /* Header action — semantically a button styled as an inline link.
@@ -5163,6 +5197,31 @@
     const isOpen = target.classList.toggle("open");
     btn.classList.toggle("is-open", isOpen);
     btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  });
+
+  // Generic "+N more" expand toggle. Any button with
+  // data-expand-parent="<selector>" finds its closest matching parent
+  // and toggles .expanded on it. CSS rules per "more" variant
+  // (.wct-list / .al-seg-body / .snt-body) reveal the hidden overflow
+  // children when .expanded is present. One handler covers every
+  // expandable list on the site.
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-expand-parent]");
+    if (!btn) return;
+    const sel = btn.dataset.expandParent;
+    const parent = btn.closest(sel);
+    if (!parent) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const wasExpanded = parent.classList.toggle("expanded");
+    // Swap button label so collapsing the list is discoverable.
+    if (wasExpanded) {
+      const n = btn.dataset.collapseCount || "";
+      btn.textContent = "− Show first " + n + " ‹";
+    } else {
+      const n = btn.dataset.expandCount || "";
+      btn.textContent = "+" + n + " more ›";
+    }
   });
 
   // ── Supabase init + auth flow ──
@@ -12840,9 +12899,13 @@
           '</div>',
           "desk-card--wide", stamp);
       }
+      // Render ALL changes — CSS hides rows past N until the +N-more
+      // button toggles .expanded on the parent .wct-list. Lets users
+      // actually expand the list (the old slice + "+N more" text was
+      // just decoration, not clickable).
       return desk("What changed today",
         '<div class="wct-list">' +
-          changes.slice(0, 8).map(function (item) {
+          changes.map(function (item) {
             return '<div class="wct-row">' +
               '<span class="wct-tk" data-t="' + item.ticker + '">' +
                 item.ticker + '</span>' +
@@ -12851,8 +12914,12 @@
             '</div>';
           }).join("") +
           (changes.length > 8
-            ? '<div class="wct-more">+ ' + (changes.length - 8) +
-              ' more changes</div>'
+            ? '<button class="wct-more" type="button" ' +
+                'data-expand-parent=".wct-list" ' +
+                'data-expand-count="' + (changes.length - 8) +
+                '" data-collapse-count="8">' +
+                '+ ' + (changes.length - 8) + ' more changes &rsaquo;' +
+              '</button>'
             : '') +
         '</div>',
         "desk-card--wide", stamp);
@@ -13023,16 +13090,25 @@
         '</div>';
       }
       function segment(title, items, maxShow, emptyMsg, color) {
-        const shown = items.slice(0, maxShow || 4);
-        const more = items.length > shown.length
-          ? '<span class="al-more">+' + (items.length - shown.length) +
-            ' more</span>' : '';
-        const body = shown.length
-          ? shown.map(it => chip(it)).join("") + more
+        // Render ALL items. CSS hides chips past maxShow until the
+        // user clicks the +N more button (toggles .expanded on the
+        // .al-seg-body wrapper). Lets users actually see the full
+        // list instead of just an "N more" decoration.
+        const cap = maxShow || 4;
+        const more = items.length > cap
+          ? '<button class="al-more" type="button" ' +
+              'data-expand-parent=".al-seg-body" ' +
+              'data-expand-count="' + (items.length - cap) +
+              '" data-collapse-count="' + cap + '">' +
+              '+' + (items.length - cap) + ' more &rsaquo;</button>'
+          : '';
+        const body = items.length
+          ? items.map(it => chip(it)).join("") + more
           : '<span class="al-empty">' + emptyMsg + '</span>';
         return '<div class="al-seg" style="border-left-color:' + color + '">' +
           '<div class="al-seg-h">' + title + '</div>' +
-          '<div class="al-seg-body">' + body + '</div></div>';
+          '<div class="al-seg-body" data-al-cap="' + cap + '">' +
+          body + '</div></div>';
       }
 
       const segments = [
@@ -13827,10 +13903,13 @@
       // tickers — beats showing just the ticker symbol twice.
       const name = c.n ||
         (DESK_META[tkr] && DESK_META[tkr].name) || tkr;
-      // Label: "Close · 2026-05-19" for swing data, "Live" if we
-      // used the worker's regularMarketPrice fallback
+      // Honest source label:
+      //   "Delayed 15m"   when we have a live worker quote (Polygon
+      //                   Stocks Starter is intentionally 15m delayed)
+      //   "Close · DATE"  when we're falling back to swing's EOD value
+      // Never claim "Live" — we don't have a streaming feed.
       const pxLabel = (liveQuote && liveQuote.price != null)
-                        ? "Live"
+                        ? "Delayed 15m"
                         : ("Close · " + DESK_DATE);
       const inWL = window.tdInWatchlist && window.tdInWatchlist(tkr);
       const starBtn = '<button class="sp-star ' +
@@ -13886,18 +13965,22 @@
     function showPopDesk(tkr, anchor) {
       POP_TICKER = tkr;
       const c = DESK_TKMAP[tkr] || { t: tkr };
-      const hasFreshSwing = (typeof c.p === "number") &&
-        (typeof c.chg === "number");
-      // Check live-quote cache for an existing recent fetch
+      // Always check live-quote cache; prefer it over swing close.
+      // swing.runs[-1].chg / p is YESTERDAY's close — showing it
+      // unlabelled reads as stale. The 15m-delayed worker quote is
+      // the freshest data we have access to and should be the
+      // default for the popup.
       const cached = LIVE_QUOTE_CACHE[tkr] &&
         Date.now() - LIVE_QUOTE_CACHE[tkr].ts < 60000
           ? LIVE_QUOTE_CACHE[tkr] : null;
       renderPopContent(tkr, c, cached);
       pop.classList.add("show");
       positionPop(anchor);
-      // For names not in our swing universe (or stale), lazy-fetch
-      // the live worker quote and re-render once it lands.
-      if (!hasFreshSwing && !cached) {
+      // ALWAYS upgrade to the latest live quote (15m delayed). Only
+      // skip if we just fetched (≤60s cache). This makes the popup
+      // show "today's price" not "yesterday's close" for every
+      // ticker, fixing the stale-display complaint.
+      if (!cached) {
         fetchLiveQuote(tkr).then(function (q) {
           if (POP_TICKER !== tkr) return;     // user moved on
           if (!q || q.price == null) return;
@@ -14652,14 +14735,19 @@
               ' <span class="snt-count">(0)</span></div>' +
             '<div class="snt-empty">' + emptyMsg + '</div></div>';
         }
-        const shown = items.slice(0, max || 6);
-        const more = items.length > shown.length
-          ? ' <span class="snt-more">+' + (items.length - shown.length) +
-            '</span>' : '';
+        const cap = max || 6;
+        const more = items.length > cap
+          ? ' <button class="snt-more" type="button" ' +
+              'data-expand-parent=".snt-body" ' +
+              'data-expand-count="' + (items.length - cap) +
+              '" data-collapse-count="' + cap + '">' +
+              '+' + (items.length - cap) + ' more &rsaquo;</button>'
+          : '';
         return '<div class="snt-seg ' + cls + '">' +
           '<div class="snt-seg-h">' + title +
             ' <span class="snt-count">(' + items.length + ')</span></div>' +
-          '<div class="snt-body">' + shown.map(chip).join("") + more +
+          '<div class="snt-body" data-snt-cap="' + cap + '">' +
+          items.map(chip).join("") + more +
           '</div></div>';
       }
       const segs = [];
