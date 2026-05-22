@@ -13,11 +13,15 @@
 <meta property="og:title" content="TickerDesk" />
 <meta property="og:description" content="Your daily equity research desk for flow, breakouts, catalysts, and watchlists." />
 <meta property="og:url" content="https://tickerdesk.io" />
-<meta property="og:image" content="https://tickerdesk.io/og-image.png" />
+<meta property="og:image" content="https://tickerdesk.io/og-image.jpg" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content="1400" />
+<meta property="og:image:height" content="735" />
+<meta property="og:image:alt" content="TickerDesk — daily equity research desk" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="TickerDesk" />
 <meta name="twitter:description" content="Your daily equity research desk for flow, breakouts, catalysts, and watchlists." />
-<meta name="twitter:image" content="https://tickerdesk.io/og-image.png" />
+<meta name="twitter:image" content="https://tickerdesk.io/og-image.jpg" />
 <title>TickerDesk</title>
 <style>
   :root, html[data-theme="dark"] {           /* DARK — Bloomberg / Koyfin (default;
@@ -1710,17 +1714,19 @@
   .td-action-strip-compact .tda-btn { font-size:11.5px;
     padding:2px 4px; min-width:18px; }
   /* Touch devices (iPhone / Android / iPad-touch) — bump tap targets
-     to ≥44×44 so fingers reliably hit icon buttons inside scrollable
-     table rows. Apple HIG minimum is 44pt; this is the upper bound of
-     what we can do without breaking dense desktop layouts. Compact
-     variant keeps a smaller min-width but still grows comfortably. */
+     to Apple HIG's 44pt minimum so fingers reliably hit icon buttons
+     inside scrollable table rows. Both variants honor 44×44 now —
+     the compact strip differs only in visual size (smaller icons +
+     gap) but the hit area matches HIG. We rely on `padding` to grow
+     the invisible click region beyond the visible icon, which keeps
+     dense rows looking tight while still being tap-friendly. */
   @media (hover:none) and (pointer:coarse) {
     .td-action-strip { gap:6px; }
     .td-action-strip .tda-btn { font-size:17px; padding:11px 12px;
       min-width:44px; min-height:44px; }
     .td-action-strip-compact { gap:4px; }
     .td-action-strip-compact .tda-btn { font-size:14px;
-      padding:8px 9px; min-width:36px; min-height:36px; }
+      padding:11px 10px; min-width:44px; min-height:44px; }
   }
 
   /* Brief gold flash on the Options Flow filter input when arrived via
@@ -14643,12 +14649,21 @@
           why: "Expires within earnings window — high vol, binary outcome.",
         };
       }
-      // Caution: low liquidity or wide spread
-      if (liq === "F" || liq === "D" || r.bid_ask_spread_pct > 0.30) {
+      // Caution: low liquidity or wide spread.
+      // bid_ask_spread_pct is not populated on every snapshot — when
+      // it's null we fall back to liquidity grade alone, and the
+      // explanatory copy drops the "wide spread" clause so we don't
+      // claim a signal we can't actually verify. Honest data > clever
+      // copy.
+      const hasSpread = (r.bid_ask_spread_pct != null);
+      const wideSpread = hasSpread && r.bid_ask_spread_pct > 0.30;
+      if (liq === "F" || liq === "D" || wideSpread) {
         return {
           tier: "caution",
           label: "Caution",
-          why: "Low liquidity or wide bid-ask spread — execution risk.",
+          why: hasSpread
+            ? "Low liquidity or wide bid-ask spread — execution risk."
+            : "Low liquidity grade — execution risk.",
         };
       }
       // A+ Conviction: call buy + opening + (repeat or golden) + premium ≥ $250k
@@ -14706,7 +14721,20 @@
           'Realized edge stats appear here as they mature.</div></div>';
         return;
       }
+      // Maturity helper — counts how many horizons have any matured
+      // signals at all. Lets us show an explicit "longer horizons
+      // not yet mature" note instead of silently falling back to a
+      // shorter horizon with no explanation.
+      function matureHorizons(hobj) {
+        const out = [];
+        ["1", "3", "5", "10", "20"].forEach(function (h) {
+          const st = hobj && hobj[h];
+          if (st && st.n > 0 && st.avg != null) out.push(h);
+        });
+        return out;
+      }
       const cards = [];
+      const ovMature = matureHorizons(edge.overall || {});
       const ov = bestHorizon(edge.overall || {});
       cards.push(edgeCard("Overall +"+ov.h+"d", ov.st));
       const bt = edge.by_type || {};
@@ -14728,10 +14756,30 @@
           '<div class="es">'+oc.confirmed+' of '+oc.checked+
           ' positions stuck (OI retained next day)</div></div>');
       }
+      // Explicit maturity card. Tells the user WHICH horizons have
+      // actually accumulated mature signals so they don't assume the
+      // "Overall +1d" cell is the best stat available when really
+      // 5d/10d/20d just haven't matured yet. The previous version
+      // silently picked the longest matured horizon (1d→3d→5d) with
+      // no maturity context — users couldn't tell whether 5d+ was
+      // missing for "no edge" or "not enough time yet" reasons.
+      const maturedSig = edge.matured_5d != null ? edge.matured_5d : 0;
+      const missingLong = ["5", "10", "20"]
+        .filter(function (h) { return ovMature.indexOf(h) === -1; });
+      const matStr = ovMature.length
+        ? "Matured +" + ovMature.join("d, +") + "d"
+        : "No matured horizons yet";
+      const longCopy = missingLong.length
+        ? '<br><span style="color:var(--muted);font-size:9.5px">' +
+          'Not enough mature +' + missingLong.join("d / +") +
+          'd history yet — needs more time to backfill.</span>'
+        : '';
       cards.push('<div class="ecard"><div class="et">Tracked History</div>'+
         '<div class="ev neutral">'+edge.total_signals+'</div>'+
-        '<div class="es">cumulative signals logged &middot; '+
-        edge.matured_5d+' matured to +5d</div></div>');
+        '<div class="es">cumulative signals logged &middot; ' +
+        maturedSig + ' matured to +5d<br>' +
+        '<span style="color:var(--textdim)">' + matStr + '</span>' +
+        longCopy + '</div></div>');
       el.innerHTML = cards.join("");
     }
 
@@ -15561,7 +15609,11 @@
         drow("Implied vol", r.iv!=null?Math.round(r.iv*100)+"%":"&mdash;")+
         drow("Liquidity", '<span class="uoa-liq liq-'+(r.liquidity||"C").toLowerCase()+
           '">'+(r.liquidity||"C")+'</span>')+
-        drow("Catalyst", r.catalyst||"&mdash;")+
+        drow("Catalyst",
+          r.catalyst
+            ? (window.escapeHtml ? window.escapeHtml(r.catalyst) : r.catalyst)
+            : '<span style="color:var(--muted);font-style:italic">' +
+              'No known catalyst</span>')+
         '<div class="dwhy">'+(r.why||"")+'</div>'+
       '</div>';
       d.classList.add("show");
