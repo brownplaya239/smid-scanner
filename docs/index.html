@@ -1614,6 +1614,60 @@
 
   /* ── Today's Desk — daily command center ── */
   #panel-desk { max-width:1180px; }
+
+  /* ── Morning-routine "Start Here" strip ─────────────────────────
+     Shown at the top of Desk for first ~7 sessions OR until the user
+     explicitly dismisses. Carries 4 sequenced cards (What's new →
+     What's hot → What's at risk → Next move) with prev/next nav so
+     new users get a guided first-look without the 15-tab firehose.
+     Auto-hidden once sh-dismissed localStorage flag is set. */
+  .sh-strip { display:none; background:linear-gradient(135deg,
+    rgba(255,158,27,0.08), rgba(95,163,255,0.04));
+    border:1px solid var(--gold); border-radius:10px;
+    padding:14px 16px 12px; margin-bottom:18px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.25); }
+  .sh-strip.show { display:block; }
+  .sh-head { display:flex; align-items:center; gap:10px;
+    margin-bottom:10px; padding-bottom:8px;
+    border-bottom:1px solid rgba(255,158,27,0.2); }
+  .sh-title { font-size:11px; font-weight:800; color:var(--gold);
+    text-transform:uppercase; letter-spacing:1px; }
+  .sh-progress { color:var(--muted); font-size:11px;
+    font-weight:500; letter-spacing:.2px;
+    font-variant-numeric:tabular-nums; }
+  .sh-dismiss { background:transparent; border:0; color:var(--muted);
+    font-size:18px; cursor:pointer; padding:2px 8px; margin-left:auto;
+    line-height:1; border-radius:4px; font-family:inherit; }
+  .sh-dismiss:hover { color:var(--text); background:var(--navy2); }
+  .sh-cards { min-height:120px; }
+  .sh-card { display:none; }
+  .sh-card.active { display:block; }
+  .sh-card h4 { font-size:14px; font-weight:700; color:var(--text);
+    margin:0 0 6px; }
+  .sh-card .sh-card-sub { font-size:11px; color:var(--textdim);
+    line-height:1.55; margin:0 0 10px; }
+  .sh-card .sh-card-body { font-size:12.5px; color:var(--text);
+    line-height:1.6; }
+  .sh-card .sh-card-body a, .sh-card .sh-card-body button.sh-jump {
+    color:var(--gold); text-decoration:none; font-weight:600;
+    background:none; border:0; padding:0; font-family:inherit;
+    font-size:inherit; cursor:pointer; }
+  .sh-card .sh-card-body a:hover,
+  .sh-card .sh-card-body button.sh-jump:hover {
+    text-decoration:underline; }
+  .sh-foot { display:flex; gap:8px; margin-top:12px;
+    padding-top:10px; border-top:1px solid rgba(255,158,27,0.15); }
+  .sh-prev, .sh-next { background:transparent; color:var(--textdim);
+    border:1px solid var(--border2); font-family:inherit;
+    font-size:11.5px; font-weight:600; padding:6px 14px;
+    border-radius:5px; cursor:pointer; }
+  .sh-prev:hover, .sh-next:hover { border-color:var(--gold);
+    color:var(--gold); }
+  .sh-prev:disabled, .sh-next:disabled { opacity:0.4; cursor:default; }
+  .sh-next { margin-left:auto; background:var(--gold);
+    color:var(--accink); border-color:var(--gold); font-weight:700; }
+  .sh-next:hover { filter:brightness(1.05); }
+
   .desk-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .desk-card { background:var(--card); border:1px solid var(--line);
     border-radius:8px; padding:11px 13px; }
@@ -3495,6 +3549,22 @@
       <p class="tab-sub">A daily command center &mdash; market health, the top
         flow / setups / momentum across every TickerDesk tool, and the names
         that appear in more than one of them.</p>
+      <!-- Start Here morning-routine strip. Populated by buildStartHere()
+           in JS; auto-collapses after 7 sessions or once user dismisses.
+           Hidden by default; the JS adds .show only when criteria met. -->
+      <div class="sh-strip" id="sh-strip" aria-hidden="true">
+        <div class="sh-head">
+          <span class="sh-title">Morning routine</span>
+          <span class="sh-progress" id="sh-progress"></span>
+          <button class="sh-dismiss" id="sh-dismiss" type="button"
+                  aria-label="Hide morning routine">&times;</button>
+        </div>
+        <div class="sh-cards" id="sh-cards"></div>
+        <div class="sh-foot">
+          <button class="sh-prev" id="sh-prev" type="button">&larr; Back</button>
+          <button class="sh-next" id="sh-next" type="button">Next &rarr;</button>
+        </div>
+      </div>
       <div class="desk-grid" id="desk-grid">
         <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
       </div>
@@ -14049,6 +14119,313 @@
     }
   }
   setupDesk();
+
+  // ── Morning-routine "Start Here" strip ────────────────────────────
+  // Pinned 4-card sequence above the Desk grid. Visible for first 7
+  // visits (or any visit if the user hasn't explicitly dismissed).
+  // After 7 sessions or a dismiss click, hidden forever via
+  // localStorage.
+  //
+  // Cards:
+  //   1. What's new — signals since last visit (uses signal_snapshots
+  //                   when available; falls back to today's activity).
+  //   2. What's hot — top conviction flow + top A-tier breakouts.
+  //   3. What's at risk — watchlist urgencies, or onboarding CTA if
+  //                       the watchlist is empty.
+  //   4. Next move    — single actionable suggestion + jump button.
+  (function setupStartHere() {
+    const strip   = document.getElementById("sh-strip");
+    const cardsEl = document.getElementById("sh-cards");
+    const progEl  = document.getElementById("sh-progress");
+    const prevBtn = document.getElementById("sh-prev");
+    const nextBtn = document.getElementById("sh-next");
+    const dismissBtn = document.getElementById("sh-dismiss");
+    if (!strip || !cardsEl) return;
+
+    const VISIT_KEY = "td-sh-visits";
+    const DISMISS_KEY = "td-sh-dismissed";
+    const MAX_VISITS = 7;
+
+    function getVisits() {
+      try { return parseInt(localStorage.getItem(VISIT_KEY) || "0", 10) || 0; }
+      catch (e) { return 0; }
+    }
+    function bumpVisits() {
+      try { localStorage.setItem(VISIT_KEY, String(getVisits() + 1)); }
+      catch (e) {}
+    }
+    function isDismissed() {
+      try { return localStorage.getItem(DISMISS_KEY) === "1"; }
+      catch (e) { return false; }
+    }
+    function setDismissed() {
+      try { localStorage.setItem(DISMISS_KEY, "1"); } catch (e) {}
+    }
+
+    // Skip entirely if user has dismissed OR exceeded the visit cap.
+    // The dismiss button below sets the flag; bumpVisits runs on every
+    // load so power users naturally graduate out after a week.
+    if (isDismissed() || getVisits() >= MAX_VISITS) {
+      strip.style.display = "none";
+      return;
+    }
+
+    let currentIdx = 0;
+    const cards = [];
+
+    function buildCards() {
+      const D = window.TD_DATA || {};
+      const out = [];
+
+      // Card 1: What's new — uses signal_snapshots diff if available;
+      // otherwise points to swing upgrades count or "fresh scan" note.
+      let newCount = 0, newCopy = "";
+      try {
+        if (D.swing && D.swing.runs && D.swing.runs.length >= 2) {
+          const last = D.swing.runs[D.swing.runs.length - 1];
+          const prior = D.swing.runs[D.swing.runs.length - 2];
+          // Count A+/A/A- in last that weren't in prior. Rough proxy
+          // for "new A-tier names this session".
+          const priorA = new Set();
+          ["A+", "A", "A-"].forEach(function (g) {
+            (prior.grades[g] || []).forEach(function (c) { priorA.add(c.t); });
+          });
+          ["A+", "A", "A-"].forEach(function (g) {
+            (last.grades[g] || []).forEach(function (c) {
+              if (!priorA.has(c.t)) newCount++;
+            });
+          });
+        }
+        if (D.uoa && D.uoa.rows) {
+          // Within last 90 min of biggest_print_ts = fresh flow.
+          const cutoff = Date.now() - 90 * 60000;
+          let fresh = 0;
+          D.uoa.rows.forEach(function (r) {
+            const iso = r.biggest_print_ts;
+            if (iso && Date.parse(iso) > cutoff) fresh++;
+          });
+          if (fresh) newCopy += fresh + " fresh flow print" +
+            (fresh === 1 ? "" : "s") + " in the last 90 min. ";
+        }
+      } catch (_) {}
+      if (newCount > 0) newCopy += newCount + " new A-tier name" +
+        (newCount === 1 ? "" : "s") + " vs the prior session.";
+      if (!newCopy) newCopy = "Today's scans are loading. Once they " +
+        "land, this card will surface signals since your last visit.";
+      out.push({
+        h: "1. What's new since your last visit",
+        sub: "Diffs against the prior post-close run + freshly-printed " +
+             "options flow.",
+        body: newCopy + ' <button class="sh-jump" data-sh-tab="desk">' +
+              'See the full What-Changed widget &rarr;</button>',
+      });
+
+      // Card 2: What's hot — top conviction flow + top A+ breakout.
+      let hotBody = "";
+      try {
+        if (D.uoa && D.uoa.rows && D.uoa.rows.length) {
+          const conviction = D.uoa.rows
+            .filter(function (r) { return r.tier === "A+"; })
+            .sort(function (a, b) {
+              return (b.premium || 0) - (a.premium || 0); })
+            .slice(0, 3);
+          if (conviction.length) {
+            hotBody += "<b>Top conviction flow:</b> " +
+              conviction.map(function (r) {
+                return '<span data-t="' + r.ticker + '">' + r.ticker +
+                  '</span> ($' + ((r.premium || 0) / 1e6).toFixed(1) + 'M)';
+              }).join(" &middot; ") + "<br>";
+          }
+        }
+        if (D.swing && D.swing.runs && D.swing.runs.length) {
+          const last = D.swing.runs[D.swing.runs.length - 1];
+          const aplus = (last.grades["A+"] || []).slice(0, 5);
+          if (aplus.length) {
+            hotBody += "<b>A+ grade leaders:</b> " +
+              aplus.map(function (c) {
+                return '<span data-t="' + c.t + '">' + c.t + '</span>';
+              }).join(" &middot; ");
+          }
+        }
+      } catch (_) {}
+      if (!hotBody) hotBody = "Top flow + A+ leaders surface here once " +
+        "today's scans complete.";
+      out.push({
+        h: "2. What's hot today",
+        sub: "Top conviction options flow + highest-grade swing names.",
+        body: hotBody + ' <button class="sh-jump" ' +
+              'data-sh-tab="uoa">Open Options Flow &rarr;</button>',
+      });
+
+      // Card 3: What's at risk — watchlist urgencies or empty CTA.
+      const wl = window.tdWatchlist ? window.tdWatchlist() : new Set();
+      let riskBody = "";
+      if (!wl.size) {
+        riskBody = "Your watchlist is empty. Add 5 tickers to unlock " +
+          "personalized alerts, daily brief emails, and watchlist " +
+          "grade tracking. " +
+          '<button class="sh-jump" data-sh-tab="watchlist">' +
+          'Build your watchlist &rarr;</button>';
+      } else {
+        try {
+          // Count downgrades + earnings-imminent + new A→C for
+          // watchlist names. Same logic that powers Watchlist Urgencies
+          // card, but condensed to a sentence.
+          let down = 0, earningsSoon = 0;
+          if (D.swing && D.swing.runs && D.swing.runs.length >= 2) {
+            const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
+                        "D","D-","E+","E","E-","F+","F","F-","G+","G"];
+            const gm = function (run) {
+              const m = {};
+              GR.forEach(function (g, gi) {
+                (run.grades[g] || []).forEach(function (c) { m[c.t] = gi; });
+              });
+              return m;
+            };
+            const now = gm(D.swing.runs[D.swing.runs.length - 1]);
+            const was = gm(D.swing.runs[D.swing.runs.length - 2]);
+            wl.forEach(function (t) {
+              if (now[t] != null && was[t] != null && now[t] - was[t] >= 2)
+                down++;
+            });
+          }
+          if (D.earnings && D.earnings.days) {
+            const today = new Date().toISOString().slice(0, 10);
+            D.earnings.days.forEach(function (day) {
+              if (day.date < today || day.date > today.slice(0, 8) +
+                  String(parseInt(today.slice(8), 10) + 3).padStart(2, "0"))
+                return;
+              ["bmo", "amc"].forEach(function (k) {
+                (day[k] || []).forEach(function (r) {
+                  if (wl.has(r.ticker)) earningsSoon++;
+                });
+              });
+            });
+          }
+          if (down) riskBody += down + " watchlist downgrade" +
+            (down === 1 ? "" : "s") + " vs prior session. ";
+          if (earningsSoon) riskBody += earningsSoon + " name" +
+            (earningsSoon === 1 ? "" : "s") + " reporting within 3 days. ";
+          if (!riskBody) riskBody = "No urgent watchlist changes today. " +
+            "Your " + wl.size + " name" + (wl.size === 1 ? "" : "s") +
+            " held grade.";
+          riskBody += ' <button class="sh-jump" data-sh-tab="mydesk">' +
+            'Open My Desk &rarr;</button>';
+        } catch (e) {
+          riskBody = "Watchlist signals will appear here as scans run.";
+        }
+      }
+      out.push({
+        h: "3. What's at risk in your watchlist",
+        sub: "Downgrades, earnings within 72h, and conflict flow on " +
+             "your saved names.",
+        body: riskBody,
+      });
+
+      // Card 4: Next move — single most actionable next step.
+      let nextBody = "";
+      if (!wl.size) {
+        nextBody = "<b>Next move:</b> add your top 5 tickers. " +
+          "Everything else gets better once you do.<br>" +
+          '<button class="sh-jump" data-sh-tab="watchlist">' +
+          'Start your watchlist &rarr;</button>';
+      } else if (D.uoa && D.uoa.rows && D.uoa.rows.length) {
+        // Pick the highest-score conviction flow ticker on watchlist.
+        const wlConviction = D.uoa.rows
+          .filter(function (r) { return wl.has(r.ticker) && r.tier === "A+"; })
+          .sort(function (a, b) {
+            return (b.trade_score || 0) - (a.trade_score || 0); })[0];
+        if (wlConviction) {
+          nextBody = "<b>Next move:</b> A+ conviction flow on " +
+            '<span data-t="' + wlConviction.ticker + '">' +
+            wlConviction.ticker + '</span> &mdash; ' +
+            (wlConviction.type === "call" ? "CALL" : "PUT") + " $" +
+            wlConviction.strike + " " + wlConviction.expiry +
+            ". Open the drilldown to see print time, spot delta, and " +
+            "tier reasoning.";
+        } else {
+          nextBody = "<b>Next move:</b> review today's top flow on " +
+            "the Options Flow tab and save anything you'd want " +
+            "alerted on.<br>" +
+            '<button class="sh-jump" data-sh-tab="uoa">' +
+            'Open Options Flow &rarr;</button>';
+        }
+      } else {
+        nextBody = "<b>Next move:</b> review the Swing Report Card " +
+          "for grade changes on your watchlist.<br>" +
+          '<button class="sh-jump" data-sh-tab="swing">' +
+          'Open Swing &rarr;</button>';
+      }
+      out.push({
+        h: "4. Your next move",
+        sub: "Single highest-leverage action right now.",
+        body: nextBody,
+      });
+
+      return out;
+    }
+
+    function renderCard() {
+      const list = cards.length ? cards : buildCards();
+      if (!cards.length) cards.push.apply(cards, list);
+      const total = cards.length;
+      cardsEl.innerHTML = cards.map(function (c, i) {
+        return '<div class="sh-card' + (i === currentIdx ? " active" : "") +
+          '"><h4>' + c.h + '</h4>' +
+          '<p class="sh-card-sub">' + c.sub + '</p>' +
+          '<div class="sh-card-body">' + c.body + '</div></div>';
+      }).join("");
+      if (progEl) progEl.textContent = (currentIdx + 1) + " / " + total;
+      if (prevBtn) prevBtn.disabled = currentIdx === 0;
+      if (nextBtn) {
+        nextBtn.textContent = currentIdx === total - 1
+          ? "Done · let me explore"
+          : "Next →";
+      }
+    }
+    function show() {
+      strip.classList.add("show");
+      strip.setAttribute("aria-hidden", "false");
+      renderCard();
+    }
+
+    // Listeners
+    if (prevBtn) prevBtn.addEventListener("click", function () {
+      if (currentIdx > 0) { currentIdx--; renderCard(); }
+    });
+    if (nextBtn) nextBtn.addEventListener("click", function () {
+      if (currentIdx < cards.length - 1) {
+        currentIdx++; renderCard();
+      } else {
+        // "Done" click = dismiss without setting the permanent flag —
+        // user just wants to move on this session but might see it
+        // again next visit (until MAX_VISITS).
+        strip.classList.remove("show");
+        strip.setAttribute("aria-hidden", "true");
+      }
+    });
+    if (dismissBtn) dismissBtn.addEventListener("click", function () {
+      setDismissed();
+      strip.classList.remove("show");
+      strip.setAttribute("aria-hidden", "true");
+    });
+    // sh-jump buttons: switch to the named tab (data-sh-tab="uoa")
+    cardsEl.addEventListener("click", function (e) {
+      const btn = e.target.closest(".sh-jump");
+      if (!btn) return;
+      const tab = btn.dataset.shTab;
+      if (!tab) return;
+      const navBtn = document.querySelector(
+        'nav button[data-tab="' + tab + '"]');
+      if (navBtn) navBtn.click();
+    });
+
+    bumpVisits();
+    // Defer the first render until TD_DATA has had a chance to load —
+    // otherwise all 4 cards show "loading…" copy on first paint. 1.5s
+    // is enough for the swing + uoa fetches in setupDesk to resolve.
+    setTimeout(show, 1500);
+  })();
 
   /* ── Swing Report Card ── */
   function setupSwing() {
