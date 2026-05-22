@@ -7652,13 +7652,19 @@
                 msg: "Only " + totalGraded + " names graded today " +
                   "(expected 800-1000)" });
             }
-            // Suspicious prices (split-adjustment check)
+            // Suspicious prices (split-adjustment + ticker-reuse check)
+            // Thresholds mirror swing_report.py metrics() defensive
+            // filters: price > $500 or |daily chg| > 25%. The
+            // scanner-side filter rejects most of these before they
+            // hit grade; anything that lands here despite the filter
+            // gets surfaced for manual investigation.
             const suspicious = [];
             Object.values(today.grades || {}).forEach(function (arr) {
               arr.forEach(function (c) {
-                if (c.p > 800 || (c.chg && Math.abs(c.chg) > 30)) {
-                  suspicious.push(c.t + " ($" + c.p +
-                    ", " + (c.chg || 0) + "%)");
+                if (c.p > 500 || (c.chg && Math.abs(c.chg) > 25)) {
+                  suspicious.push(c.t + " ($" +
+                    (typeof c.p === "number" ? c.p.toFixed(2) : c.p) +
+                    ", " + (c.chg || 0).toFixed(2) + "%)");
                 }
               });
             });
@@ -7667,7 +7673,8 @@
                 msg: "Possible split/adjustment issue on " +
                   suspicious.length + " names: " +
                   suspicious.slice(0, 3).join(", ") +
-                  (suspicious.length > 3 ? "..." : "") });
+                  (suspicious.length > 3 ? "..." : "") +
+                  " (scanner re-run will purge after next post-close)" });
             }
           }
         }

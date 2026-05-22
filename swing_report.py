@@ -254,22 +254,49 @@ def metrics(ticker, s):
     pairs = [(hh, ll) for hh, ll in zip(h[-20:], l[-20:]) if ll > 0]
     adr_pct = (sum(hh / ll for hh, ll in pairs) / len(pairs) - 1) * 100 if pairs else 0
     chg_day = ((c[-1] / c[-2] - 1) * 100) if n >= 2 and c[-2] else None
-    # ── Defensive data-quality check ─────────────────────────────────
+    # ── Defensive data-quality checks ─────────────────────────────────
     # Polygon's adjusted=true bars still occasionally produce extreme
-    # single-day moves from ticker changes, spin-offs, or corporate
-    # actions where the join point of adjusted+raw series misaligns.
-    # A real liquid stock with $50M+ daily volume moving >40% in one
-    # day is virtually always a data error, not a real event.
-    # Skip these names entirely rather than serve corrupted grades.
-    if chg_day is not None and abs(chg_day) > 40:
+    # moves from ticker changes, spin-offs, corporate actions, or
+    # ticker reuse (e.g. SNDK = old Sandisk-acquired-by-WD vs new
+    # WD-flash-spinoff). The join point of the adjusted+raw series
+    # misaligns and today's bar reads $1500+ on what should be a $80
+    # stock. Skip rather than serve corrupted grades.
+    #
+    # (1) Single-day move > 30% — was 40% but tightened to align with
+    #     the admin-panel warning threshold. Real liquid SMID names
+    #     with $50M+ daily volume virtually never move >30% in one
+    #     day on legitimate news; >30% is data corruption ~95% of
+    #     the time.
+    if chg_day is not None and abs(chg_day) > 30:
         return None
-    # Same check for a 7-day rolling cumulative — catches cases where
-    # the bad bar is recent but not today (would otherwise leak into
-    # ATR, RVOL, return calculations downstream)
+    # (2) 7-day rolling cumulative > 100% — catches bad bars that are
+    #     recent but not today (would otherwise leak into ATR / RVOL /
+    #     return calculations downstream).
     if n >= 8 and c[-8] > 0:
         seven_day = abs((c[-1] / c[-8] - 1) * 100)
         if seven_day > 100:
             return None
+    # (3) Statistical outlier vs prior-30 median. THE big new catch:
+    #     when a ticker reuses a symbol (SNDK), the series joins two
+    #     different companies and today's bar is wildly out of line
+    #     with the historical range. If today's price is >4× or <1/4
+    #     the median of the prior 30 closes, the series has a bad
+    #     join — refuse to grade.
+    if n >= 30:
+        prior_30 = sorted(c[-31:-1])
+        med = prior_30[len(prior_30) // 2]
+        if med > 0:
+            ratio = price / med
+            if ratio > 4 or ratio < 0.25:
+                return None
+    # (4) Absolute price ceiling. The screened universe is SMID-cap
+    #     ($50M+ daily $-vol floor, generally <$30B mkt cap). Stocks
+    #     above $500 in this universe are nearly always data errors
+    #     (real high-priced names like NVR / AZO are large-cap and
+    #     excluded). Defensive floor; protects against the rare case
+    #     where the median check misses (e.g. a flat-stale series).
+    if price > 500:
+        return None
     # Relative volume: today's bar volume vs the prior 30-day average.
     # A standard breakout-confirmation metric: 1.0 = average, 2.0 = 2x normal.
     rvol = None
