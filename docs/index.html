@@ -49,6 +49,33 @@
     background:var(--bg); color:var(--text); min-height:100vh;
     display:flex; flex-direction:column;
     overflow-x:hidden;
+    /* iOS Safari: remove default tap-flash gray box on click; we'll
+       paint our own subtle gold flash via :active rules below. */
+    -webkit-tap-highlight-color:transparent;
+  }
+  /* When the drilldown panel is open we lock body scroll via this
+     class instead of inline style so it can't get out of sync if
+     JS errors during close. CSS-only lock works on iOS Safari where
+     `body { overflow:hidden }` from JS doesn't reliably stop scroll. */
+  body.td-panel-open { overflow:hidden; position:fixed;
+    width:100%; height:100%; }
+
+  /* Every clickable ticker element on the site carries data-t. Apply
+     consistent affordance so taps on mobile always register:
+       - cursor:pointer signals tappability + makes iOS fire `click`
+         reliably on non-button elements (Safari quirk: spans without
+         pointer cursor sometimes miss the synthesized click).
+       - touch-action:manipulation kills the 300ms double-tap delay
+         and prevents double-tap-to-zoom from swallowing single taps.
+       - active state gives instant tactile feedback so users know
+         their tap landed even before the panel finishes sliding in. */
+  [data-t] {
+    cursor:pointer;
+    touch-action:manipulation;
+  }
+  [data-t]:active {
+    opacity:0.65;
+    transition:opacity 0s;
   }
   header { background:var(--navy); border-bottom:3px solid var(--gold); padding:22px 28px;
     position:relative; text-align:center; }
@@ -1875,11 +1902,16 @@
     opacity:0; pointer-events:none; transition:opacity .18s ease;
     z-index:80; }
   .tdp-backdrop.show { opacity:1; pointer-events:auto; }
+  /* Desktop: right-side drawer (420px). Mobile: full-screen sheet that
+     slides up from the bottom — iOS-native modal pattern. Both share
+     the same .show class but the transform direction changes via the
+     mobile media query below. */
   .ticker-panel { position:fixed; top:0; right:0; bottom:0; width:420px;
     max-width:100vw; background:var(--card); border-left:1px solid var(--line);
     box-shadow:-10px 0 36px rgba(0,0,0,.6); z-index:90;
     transform:translateX(100%); transition:transform .22s ease;
-    display:flex; flex-direction:column; }
+    display:flex; flex-direction:column; box-sizing:border-box;
+  }
   .ticker-panel.show { transform:translateX(0); }
   .tdp-head { padding:16px 18px 12px; border-bottom:1px solid var(--line);
     background:var(--navy2); position:sticky; top:0; z-index:1; }
@@ -1913,7 +1945,12 @@
   .tdp-conf.tdp-conf-bear  { background:rgba(214,68,68,0.85);  color:#fff; }
   .tdp-conf.tdp-conf-lean  { background:rgba(160,178,210,0.45); color:var(--text); }
   .tdp-conf.tdp-conf-mixed { background:rgba(120,135,165,0.35); color:var(--text); }
-  .tdp-body { padding:8px 18px 22px; overflow-y:auto; flex:1; }
+  .tdp-body { padding:8px 18px 22px; overflow-y:auto; flex:1;
+    -webkit-overflow-scrolling:touch;
+    /* On mobile bottom-sheet the home-indicator overlay can hide the
+       last 20-34px of content; pad the bottom so scrollable content
+       can fully scroll past it. env() value is 0 on desktop. */
+    padding-bottom:calc(22px + env(safe-area-inset-bottom)); }
   .tdp-section { padding:12px 0; border-bottom:1px solid var(--line); }
   .tdp-section:last-child { border-bottom:0; }
   .tdp-section h4 { font-size:9.5px; color:var(--muted); text-transform:uppercase;
@@ -1958,9 +1995,37 @@
     padding:6px 12px; border-radius:5px; cursor:pointer; }
   .tdp-actions button:hover { border-color:var(--gold); color:var(--gold); }
   .tdp-empty { color:var(--muted); font-size:11px; font-style:italic; }
+  /* Mobile bottom-sheet variant. Slides up from the bottom instead of
+     in from the right — iOS-native modal pattern that doesn't compete
+     with the right-edge scroll affordance on tables. Full viewport
+     width + 92% height so the user can see the underlying tab edge
+     and tap-to-dismiss without aiming. Uses dvh (dynamic viewport
+     height) where supported so the URL bar collapse doesn't cause
+     the sheet to jump. Falls back cleanly to 92vh on older browsers. */
   @media (max-width: 640px) {
-    .ticker-panel { width:100vw; }
+    .ticker-panel {
+      top:auto; right:0; left:0; bottom:0;
+      width:100vw; max-width:100vw;
+      height:92vh; height:92dvh;
+      border-left:0; border-top:1px solid var(--line);
+      border-top-left-radius:14px; border-top-right-radius:14px;
+      box-shadow:0 -10px 36px rgba(0,0,0,.6);
+      /* Slide direction flipped: hidden state pushes the sheet below
+         the viewport via translateY(100%); .show animates back to 0. */
+      transform:translateY(100%);
+    }
+    .ticker-panel.show { transform:translateY(0); }
     .tdp-head .tdp-sym { font-size:20px; }
+    /* Mobile sheet grab-handle — visual cue that this is a sheet that
+       can be dismissed. Sits at the top edge above the sym row. */
+    .ticker-panel::before {
+      content:"";
+      display:block; flex-shrink:0;
+      width:38px; height:4px;
+      background:var(--border2);
+      border-radius:2px;
+      margin:8px auto 4px;
+    }
   }
 
   /* ────────────────────────────────────────────────────────────────
@@ -9652,6 +9717,24 @@
       }
     }
 
+    // Preserve scroll position when we lock body — `position:fixed`
+    // on body (the only way to actually stop iOS Safari rubber-band
+    // scroll) repositions the viewport to top:0 unless we counteract
+    // with a negative top offset. Storing the scroll Y and restoring
+    // it on close keeps the underlying tab where the user left it.
+    let _bodyLockScrollY = 0;
+    function lockBodyScroll() {
+      _bodyLockScrollY = window.scrollY || window.pageYOffset || 0;
+      document.body.style.top = "-" + _bodyLockScrollY + "px";
+      document.body.classList.add("td-panel-open");
+    }
+    function unlockBodyScroll() {
+      document.body.classList.remove("td-panel-open");
+      document.body.style.top = "";
+      // Restore the user's scroll position
+      window.scrollTo(0, _bodyLockScrollY);
+    }
+
     function openPanel(t) {
       if (!t) return;
       ACTIVE_TICKER = t;
@@ -9659,7 +9742,7 @@
       panel.classList.add("show");
       panel.setAttribute("aria-hidden", "false");
       backdrop.classList.add("show");
-      document.body.style.overflow = "hidden";
+      lockBodyScroll();
       // Async upgrade: sparkline -> 90-day daily candlestick when ready
       fetchAndUpgradeChart(t);
       // Async fetch the latest 20 headlines via the worker
@@ -9676,7 +9759,7 @@
       panel.classList.remove("show");
       panel.setAttribute("aria-hidden", "true");
       backdrop.classList.remove("show");
-      document.body.style.overflow = "";
+      unlockBodyScroll();
     }
     window.openTickerPanel = openPanel;
     closeBtn.addEventListener("click", closePanel);
@@ -9688,16 +9771,46 @@
     // Click anywhere on the document → if the target has [data-t] (or is
     // inside one) AND is NOT inside an interactive container (Options Flow
     // row, theme row, etc.), open the panel.
+    //
+    // Mobile reliability fixes:
+    //  - [data-t] elements get cursor:pointer + touch-action:manipulation
+    //    via the global CSS rule earlier in the file, which is what makes
+    //    iOS Safari reliably synthesize click events for span/div taps.
+    //  - We explicitly skip action-strip buttons (data-act-*) so a tap
+    //    on ★ doesn't ALSO open the drilldown.
+    //  - We skip form controls so editing weight/notes inputs doesn't
+    //    trigger the panel.
+    //  - We skip touchmove-followed taps via a track of touch start/move
+    //    so scrolling never accidentally opens the drilldown.
+    let _tdpTouchMoved = false;
+    document.addEventListener("touchstart", function () {
+      _tdpTouchMoved = false;
+    }, { passive: true });
+    document.addEventListener("touchmove", function () {
+      _tdpTouchMoved = true;
+    }, { passive: true });
+
     document.addEventListener("click", function (e) {
+      // If the user just dragged/scrolled, the trailing click is a
+      // scroll-gesture artifact, not an intentional tap.
+      if (_tdpTouchMoved) return;
       // Priority 1: explicit navigation links (already wired elsewhere)
       if (e.target.closest("[data-flow-tk], [data-flow-all]")) return;
-      // Priority 2: ticker click → drilldown
+      // Priority 2: action-strip buttons. Those have their own data-act-*
+      // handler and we don't want to also fire drilldown when the user
+      // taps ★/🔔/📝/→.
+      if (e.target.closest("[data-act-save], [data-act-alert], " +
+                            "[data-act-note], [data-act-open]")) return;
+      // Priority 3: ticker tap → drilldown
       const tEl = e.target.closest("[data-t]");
       if (!tEl) return;
       // Skip if click was on a chg-pill / hover-only sub-element
       if (e.target.classList.contains("chg-pill")) return;
       // Skip if click is inside the panel itself (avoid recursion)
       if (e.target.closest("#ticker-panel")) return;
+      // Skip interactive form elements + non-ticker anchors with hrefs.
+      if (e.target.closest("input, select, textarea, a[href]:not([data-t])"))
+        return;
       const tk = tEl.dataset.t;
       if (!tk) return;
       e.preventDefault();
