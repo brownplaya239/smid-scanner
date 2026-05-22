@@ -878,13 +878,29 @@
     color:var(--muted); font-weight:500; }
   nav .td-search input:focus { outline:0; border-color:var(--gold);
     width:300px; background-color:var(--bg); }
-  nav .td-search-results { display:none; position:absolute;
-    top:calc(100% + 4px); left:0; width:300px;
-    background:var(--card);
+  /* Dropdown is now body-level (escaped from nav overflow). Position
+     set via JS using the input's getBoundingClientRect. */
+  .td-search-results { display:none; position:fixed;
+    width:300px; background:var(--card);
     border:1px solid var(--border2); border-radius:6px;
-    box-shadow:0 8px 24px rgba(0,0,0,.55); z-index:80;
+    box-shadow:0 8px 24px rgba(0,0,0,.55); z-index:200;
     max-height:360px; overflow-y:auto; }
-  nav .td-search-results.show { display:block; }
+  .td-search-results.show { display:block; }
+  .td-search-results .tsr-item { padding:7px 10px; cursor:pointer;
+    display:flex; align-items:baseline; gap:8px;
+    border-bottom:1px solid var(--line); }
+  .td-search-results .tsr-item:last-child { border-bottom:0; }
+  .td-search-results .tsr-item:hover,
+  .td-search-results .tsr-item.tsr-active {
+    background:var(--rowhov); }
+  .td-search-results .tsr-tk { font-weight:700; color:var(--text);
+    font-size:12px; min-width:50px; }
+  .td-search-results .tsr-name { color:var(--textdim); font-size:11px;
+    flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .td-search-results .tsr-grade { font-size:10px; font-weight:700;
+    padding:1px 5px; border-radius:3px; }
+  .td-search-results .tsr-empty { padding:14px; color:var(--muted);
+    font-size:11.5px; text-align:center; font-style:italic; }
   .td-search-results .tsr-item { padding:7px 10px; cursor:pointer;
     display:flex; align-items:baseline; gap:8px;
     border-bottom:1px solid var(--line); }
@@ -3102,16 +3118,16 @@
   </header>
 
   <nav id="nav">
-    <!-- Universal ticker search — leftmost element in the nav, visible
-         on every tab. Type any symbol → autocomplete → Enter opens
-         drilldown panel. Press / from anywhere to focus this input. -->
+    <!-- Universal ticker search — leftmost in nav, visible every tab.
+         Dropdown lives at body-level (below </main>) because nav has
+         overflow-x:auto which would clip an absolute-positioned
+         dropdown. JS positions it on focus using getBoundingClientRect.
+         Press / from anywhere to focus this input. -->
     <div class="td-search" id="td-search">
       <input type="text" id="td-search-input"
              placeholder="Search any ticker, shortcut = /"
              autocomplete="off" maxlength="8"
              aria-label="Search any ticker" />
-      <div class="td-search-results" id="td-search-results"
-           role="listbox" aria-hidden="true"></div>
     </div>
     <button data-tab="desk" class="active">Desk</button>
     <button data-tab="mydesk">My Desk</button>
@@ -4086,6 +4102,14 @@
     </div>
   </div>
   <div class="adm-backdrop" id="adm-backdrop"></div>
+
+  <!-- Ticker search results dropdown — lives at body level because the
+       nav (where the search input sits) has overflow-x:auto which
+       would otherwise clip the absolutely-positioned dropdown.
+       Positioned via JS using the input's getBoundingClientRect on
+       focus/show. -->
+  <div class="td-search-results" id="td-search-results"
+       role="listbox" aria-hidden="true"></div>
 
   <!-- Onboarding modal — shown to brand-new users on first sign-in.
        Four steps with progress dots; users can skip at any point.
@@ -7720,6 +7744,16 @@
            : "snt-mid";
     }
 
+    // Position the dropdown directly below the input. Called on every
+    // show so the dropdown follows the input if the page reflows.
+    function positionDropdown() {
+      if (!input || !results) return;
+      const r = input.getBoundingClientRect();
+      results.style.top = (r.bottom + 4) + "px";
+      results.style.left = r.left + "px";
+      results.style.width = Math.max(r.width, 280) + "px";
+    }
+
     function renderResults(query) {
       if (!query) {
         results.classList.remove("show");
@@ -7727,6 +7761,7 @@
         currentList = [];
         return;
       }
+      positionDropdown();
       const q = query.toUpperCase();
       const u = buildUniverse();
       const universe = Object.values(u);
@@ -7777,8 +7812,16 @@
       renderResults(e.target.value);
     });
     input.addEventListener("focus", function () {
+      positionDropdown();
       if (input.value) renderResults(input.value);
     });
+    // Re-position on window resize / scroll while dropdown is open
+    window.addEventListener("resize", function () {
+      if (results.classList.contains("show")) positionDropdown();
+    });
+    window.addEventListener("scroll", function () {
+      if (results.classList.contains("show")) positionDropdown();
+    }, true);
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
         e.preventDefault();
