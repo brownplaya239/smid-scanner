@@ -855,36 +855,36 @@
   .head-toggles { position:absolute; top:20px; right:28px;
     display:flex; flex-direction:column; gap:5px; align-items:flex-end; }
 
-  /* Universal ticker search — left side of the Desk tab header.
-     Compact input, expands on focus. Dropdown anchored to left. */
-  .desk-header { display:flex; align-items:flex-start; gap:18px;
-    margin-bottom:12px; flex-wrap:wrap; }
-  .desk-header-text { flex:1; min-width:280px; }
-  .desk-header-text .tab-title { margin-bottom:4px; }
-  .desk-header-text .tab-sub { margin-bottom:0; }
-  .td-search { position:relative; flex:0 0 280px;
-    margin-top:4px; }
+  /* Universal ticker search — first element in the main nav bar,
+     so it's visible on every tab. Compact pill that expands on focus,
+     with a search-icon inline and autocomplete dropdown anchored
+     below-left. */
+  nav .td-search { position:relative;
+    margin-right:8px; align-self:center;
+    flex:0 0 auto; }
   @media (max-width:760px) {
-    .td-search { flex:1 0 100%; }
+    nav .td-search { display:none; }   /* mobile: hide; / shortcut still works */
   }
-  .td-search input { width:100%; box-sizing:border-box;
-    background:var(--navy2);
+  nav .td-search input { background:var(--navy2);
     border:1px solid var(--border2); color:var(--text);
-    padding:9px 14px 9px 32px; border-radius:6px;
-    font-family:inherit; font-size:13px; font-weight:600;
-    text-transform:uppercase; letter-spacing:.5px;
-    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%237a7a7a" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>');
-    background-repeat:no-repeat; background-position:10px center; }
-  .td-search input::placeholder { text-transform:none; letter-spacing:0;
+    padding:5px 10px 5px 28px; border-radius:4px;
+    font-family:inherit; font-size:11px; font-weight:600;
+    width:230px; height:24px;
+    text-transform:uppercase; letter-spacing:.4px;
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%237a7a7a" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>');
+    background-repeat:no-repeat; background-position:9px center;
+    transition:width .15s, border-color .15s; }
+  nav .td-search input::placeholder { text-transform:none; letter-spacing:0;
     color:var(--muted); font-weight:500; }
-  .td-search input:focus { outline:0; border-color:var(--gold);
-    background-color:var(--bg); }
-  .td-search-results { display:none; position:absolute; top:calc(100% + 4px);
-    left:0; width:100%; background:var(--card);
+  nav .td-search input:focus { outline:0; border-color:var(--gold);
+    width:300px; background-color:var(--bg); }
+  nav .td-search-results { display:none; position:absolute;
+    top:calc(100% + 4px); left:0; width:300px;
+    background:var(--card);
     border:1px solid var(--border2); border-radius:6px;
-    box-shadow:0 8px 24px rgba(0,0,0,.4); z-index:80;
+    box-shadow:0 8px 24px rgba(0,0,0,.55); z-index:80;
     max-height:360px; overflow-y:auto; }
-  .td-search-results.show { display:block; }
+  nav .td-search-results.show { display:block; }
   .td-search-results .tsr-item { padding:7px 10px; cursor:pointer;
     display:flex; align-items:baseline; gap:8px;
     border-bottom:1px solid var(--line); }
@@ -3102,6 +3102,17 @@
   </header>
 
   <nav id="nav">
+    <!-- Universal ticker search — leftmost element in the nav, visible
+         on every tab. Type any symbol → autocomplete → Enter opens
+         drilldown panel. Press / from anywhere to focus this input. -->
+    <div class="td-search" id="td-search">
+      <input type="text" id="td-search-input"
+             placeholder="Search any ticker, shortcut = /"
+             autocomplete="off" maxlength="8"
+             aria-label="Search any ticker" />
+      <div class="td-search-results" id="td-search-results"
+           role="listbox" aria-hidden="true"></div>
+    </div>
     <button data-tab="desk" class="active">Desk</button>
     <button data-tab="mydesk">My Desk</button>
     <button data-tab="watchlist">Watchlist</button>
@@ -3124,25 +3135,10 @@
   <main>
     <!-- Today's Desk -->
     <section class="panel active" id="panel-desk">
-      <div class="desk-header">
-        <!-- Universal ticker search — relocated here from the header
-             so it's prominent on the landing tab. Type any symbol,
-             Enter or click a result opens the drilldown.
-             Press / anywhere on the site to focus this input. -->
-        <div class="td-search" id="td-search">
-          <input type="text" id="td-search-input"
-                 placeholder="Search any ticker (try NVDA, press / to focus)"
-                 autocomplete="off" maxlength="8"
-                 aria-label="Search any ticker" />
-          <div class="td-search-results" id="td-search-results"
-               role="listbox" aria-hidden="true"></div>
-        </div>
-        <div class="desk-header-text">
-          <h2 class="tab-title">Today&apos;s Desk</h2>
-          <p class="tab-sub">Daily command center &mdash; market health, top
-            flow / setups / momentum, and names crossing more than one signal.</p>
-        </div>
-      </div>
+      <h2 class="tab-title">Today&apos;s Desk</h2>
+      <p class="tab-sub">A daily command center &mdash; market health, the top
+        flow / setups / momentum across every TickerDesk tool, and the names
+        that appear in more than one of them.</p>
       <div class="desk-grid" id="desk-grid">
         <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
       </div>
