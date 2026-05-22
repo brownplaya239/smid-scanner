@@ -11321,6 +11321,18 @@
         loadAndRender();
       }
     });
+
+    // Re-render the desk whenever auth state changes — the Action List
+    // card's "Watchlist Urgencies" segment branches on signed-in vs
+    // signed-out, and we need to update it immediately when the user
+    // signs in (without forcing a full page reload). Also fires when
+    // the watchlist itself changes so urgency contents stay accurate.
+    if (typeof onUserChange === "function") {
+      onUserChange(function () { loadAndRender(); });
+    }
+    if (typeof onWatchChange === "function") {
+      onWatchChange(function () { loadAndRender(); });
+    }
   }
   setupDesk();
 
