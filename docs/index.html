@@ -569,6 +569,159 @@
     position:relative; box-shadow:0 12px 50px rgba(0,0,0,.6); }
   .pricing-inner h3 { font-size:22px; font-weight:800; color:var(--text);
     margin:0 0 8px; text-align:center; }
+  /* ──────────────────────────────────────────────────────────────────
+     Pricing TAB (panel-pricing) — bigger and more breathing room
+     than the in-modal pricing card grid. Section structure:
+       Hero strip · Tier cards · Comparison table · Trust signals · FAQ · Final CTA
+     ──────────────────────────────────────────────────────────────── */
+  #panel-pricing { max-width:1180px; }
+  /* Distinguish the Pricing nav button — gold dot to signal premium */
+  nav button.nav-pricing { color:var(--gold); }
+  nav button.nav-pricing.active { background:var(--gold);
+    color:var(--accink); }
+
+  /* Hero — shows current plan + manage-billing link when signed in */
+  .pricing-hero { background:linear-gradient(135deg,
+    rgba(255,158,27,.08), rgba(95,163,255,.05));
+    border:1px solid var(--line); border-radius:8px;
+    padding:14px 18px; margin-bottom:24px;
+    display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap; gap:10px; min-height:42px; }
+  .pricing-hero .ph-left { font-size:12px; color:var(--textdim);
+    line-height:1.5; }
+  .pricing-hero .ph-left b { color:var(--text); }
+  .pricing-hero .ph-tier { display:inline-flex; align-items:center;
+    gap:5px; background:var(--card); padding:2px 8px; border-radius:4px;
+    margin-left:6px; }
+  .pricing-hero .ph-tier.ph-free    { color:var(--textdim); }
+  .pricing-hero .ph-tier.ph-pro     { color:var(--green); }
+  .pricing-hero .ph-tier.ph-premium { color:var(--gold); }
+  .pricing-hero .ph-tier.ph-beta    { color:#a87cff; }
+  .pricing-hero .ph-manage { background:transparent;
+    border:1px solid var(--border2); color:var(--text);
+    padding:6px 12px; border-radius:5px; font-family:inherit;
+    font-size:11.5px; font-weight:600; cursor:pointer; }
+  .pricing-hero .ph-manage:hover { border-color:var(--gold);
+    color:var(--gold); }
+
+  /* Tier card grid */
+  .pricing-tiers { display:grid; grid-template-columns:repeat(3, 1fr);
+    gap:16px; margin-bottom:36px; }
+  @media (max-width:900px) {
+    .pricing-tiers { grid-template-columns:1fr; }
+  }
+  .pt-card { background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:24px 22px;
+    position:relative; display:flex; flex-direction:column; }
+  .pt-card.pt-featured { border:2px solid var(--gold);
+    background:linear-gradient(180deg, var(--card),
+      rgba(255,158,27,.04));
+    transform:translateY(-4px); }
+  .pt-card.pt-premium { border-color:#a87cff44; }
+  .pt-badge { position:absolute; top:-12px; left:50%;
+    transform:translateX(-50%); background:var(--gold);
+    color:var(--accink); padding:4px 12px; border-radius:4px;
+    font-size:10.5px; font-weight:800;
+    text-transform:uppercase; letter-spacing:.5px; }
+  .pt-tier { font-size:13px; font-weight:800; color:var(--gold);
+    text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+  .pt-card.pt-featured .pt-tier { color:var(--gold); }
+  .pt-card.pt-premium .pt-tier { color:#a87cff; }
+  .pt-price { font-size:38px; font-weight:800; color:var(--text);
+    line-height:1; margin-bottom:4px; }
+  .pt-price span { font-size:14px; font-weight:600; color:var(--muted);
+    margin-left:3px; }
+  .pt-period { font-size:11px; color:var(--muted); margin-bottom:18px; }
+  .pt-blurb { font-size:13px; color:var(--textdim); line-height:1.55;
+    margin:0 0 18px; min-height:80px; }
+  .pt-feats { list-style:none; padding:0; margin:0 0 22px;
+    font-size:12.5px; color:var(--text); line-height:1.6; flex:1; }
+  .pt-feats li { padding:5px 0; display:flex; align-items:flex-start;
+    gap:8px; }
+  .pt-feats li b { color:var(--text); font-weight:700; }
+  .pt-check { color:var(--green); font-weight:800; min-width:14px;
+    text-align:center; }
+  .pt-check.pt-check-pro { color:var(--gold); }
+  .pt-cross { color:var(--muted); font-weight:600; min-width:14px;
+    text-align:center; opacity:.6; }
+  .pt-cta { width:100%; font-family:inherit; font-size:13.5px;
+    font-weight:700; padding:13px; border-radius:7px; cursor:pointer;
+    border:0; transition:filter .12s; }
+  .pt-cta-primary { background:var(--gold); color:var(--accink); }
+  .pt-cta-primary:hover { filter:brightness(1.05); }
+  .pt-cta-secondary { background:#a87cff; color:#fff; }
+  .pt-cta-secondary:hover { filter:brightness(1.05); }
+  .pt-cta-current { background:transparent; color:var(--textdim);
+    border:1px solid var(--border2); cursor:default; }
+  .pt-cta:disabled { opacity:.6; cursor:wait; }
+  .pt-fineprint { font-size:10.5px; color:var(--muted);
+    text-align:center; margin-top:8px; line-height:1.4; }
+
+  /* Section heading */
+  .pricing-section-h { font-size:14px; font-weight:800;
+    color:var(--text); text-transform:uppercase; letter-spacing:1px;
+    margin:32px 0 14px; padding-bottom:8px;
+    border-bottom:1px solid var(--line); }
+
+  /* Comparison table */
+  .pricing-compare-wrap { background:var(--card);
+    border:1px solid var(--line); border-radius:8px;
+    overflow:auto; margin-bottom:24px; }
+  table.pricing-compare { width:100%; border-collapse:collapse;
+    font-size:12px; }
+  .pricing-compare th { background:var(--navy2); color:var(--muted);
+    font-size:10px; text-transform:uppercase; letter-spacing:.5px;
+    font-weight:700; padding:10px 14px; text-align:left;
+    border-bottom:1px solid var(--line); white-space:nowrap; }
+  .pricing-compare th:not(:first-child) { text-align:center; }
+  .pricing-compare td { padding:9px 14px; color:var(--textdim);
+    border-bottom:1px solid var(--line); }
+  .pricing-compare td:not(:first-child) { text-align:center;
+    font-weight:600; color:var(--text); }
+  .pricing-compare tr:last-child td { border-bottom:0; }
+  .pricing-compare tr:hover td { background:var(--rowhov); }
+
+  /* Trust signals — 4-card row */
+  .pricing-trust { display:grid; gap:14px;
+    grid-template-columns:repeat(4, 1fr); margin-bottom:32px; }
+  @media (max-width:760px) {
+    .pricing-trust { grid-template-columns:repeat(2, 1fr); }
+  }
+  .pt-trust-item { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:14px 16px; }
+  .pt-trust-icon { font-size:22px; line-height:1; margin-bottom:6px; }
+  .pt-trust-h { font-size:12.5px; font-weight:700; color:var(--text);
+    margin-bottom:4px; }
+  .pt-trust-b { font-size:11.5px; color:var(--textdim); line-height:1.55; }
+
+  /* FAQ */
+  .pricing-faq { display:flex; flex-direction:column; gap:6px;
+    margin-bottom:32px; }
+  .pt-faq { background:var(--card); border:1px solid var(--line);
+    border-radius:6px; padding:0 16px; overflow:hidden; }
+  .pt-faq summary { padding:12px 0; font-size:13px;
+    font-weight:600; color:var(--text); cursor:pointer;
+    list-style:none; position:relative; padding-right:28px; }
+  .pt-faq summary::-webkit-details-marker { display:none; }
+  .pt-faq summary::after { content:"+"; position:absolute;
+    right:6px; top:50%; transform:translateY(-50%);
+    font-size:18px; color:var(--muted); font-weight:300; }
+  .pt-faq[open] summary::after { content:"−"; color:var(--gold); }
+  .pt-faq summary:hover { color:var(--gold); }
+  .pt-faq > div { font-size:12.5px; color:var(--textdim);
+    line-height:1.6; padding:0 0 14px; }
+  .pt-faq > div a { color:var(--gold); text-decoration:none; }
+  .pt-faq > div a:hover { text-decoration:underline; }
+
+  /* Final CTA strip */
+  .pricing-final-cta { background:linear-gradient(135deg,
+    rgba(255,158,27,.08), rgba(31,195,110,.05));
+    border:1px solid var(--line); border-radius:10px;
+    padding:32px 24px; text-align:center; margin-bottom:24px; }
+  .pricing-final-cta h3 { font-size:22px; font-weight:800;
+    color:var(--text); margin:0 0 18px; }
+  .pricing-final-cta .pt-cta { max-width:320px; }
+
   .pricing-grid { display:grid; grid-template-columns:repeat(3, 1fr);
     gap:14px; margin-top:18px; }
   @media (max-width:760px) {
@@ -2820,6 +2973,7 @@
     <button data-tab="news">News</button>
     <button data-tab="whisper">Earnings</button>
     <button data-tab="global">Global</button>
+    <button data-tab="pricing" class="nav-pricing">Pricing</button>
   </nav>
 
   <div class="market-cards" id="market-cards"></div>
@@ -3486,6 +3640,267 @@
 
       <div class="uoa-detail" id="uoa-detail"></div>
       <div class="uoa-tip" id="uoa-tip"></div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────────────
+         Pricing tab — full tier descriptions, feature comparison table,
+         FAQ, trust signals. Clickable Subscribe CTAs wire to the
+         existing /stripe/checkout worker endpoint.
+         ──────────────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-pricing">
+      <h2 class="tab-title">Pricing</h2>
+      <p class="tab-sub">Free forever for the core dashboard. Pay only when
+        you want unlimited research, real-time alerts, and a full audit
+        trail of every signal. Cancel any time, no questions asked.</p>
+
+      <!-- Hero strip — current plan + billing portal link (when signed in) -->
+      <div class="pricing-hero" id="pricing-hero"></div>
+
+      <!-- Tier cards -->
+      <div class="pricing-tiers">
+        <!-- FREE -->
+        <div class="pt-card">
+          <div class="pt-tier">Free</div>
+          <div class="pt-price">$0</div>
+          <div class="pt-period">forever &middot; no card required</div>
+          <p class="pt-blurb">Everything you need to evaluate the platform.
+            Browse the entire public dashboard, save a starter watchlist,
+            generate a few research reports.</p>
+          <ul class="pt-feats">
+            <li><span class="pt-check">✓</span> Full public dashboard
+              (every tab, every signal)</li>
+            <li><span class="pt-check">✓</span> Save up to <b>5 tickers</b> to
+              your personal watchlist</li>
+            <li><span class="pt-check">✓</span> Star buttons + private notes
+              on any ticker</li>
+            <li><span class="pt-check">✓</span> Trade journal entries</li>
+            <li><span class="pt-check">✓</span> <b>3 lifetime</b> ad-hoc
+              research reports</li>
+            <li><span class="pt-check">✓</span> Daily Brief email (~8:45 AM ET
+              weekdays)</li>
+            <li><span class="pt-check">✓</span> Real-time push notifications
+              for watchlist events</li>
+            <li><span class="pt-cross">×</span> Report archive limited to
+              last 7 days</li>
+            <li><span class="pt-cross">×</span> Watchlist hard-capped at 5
+              names</li>
+            <li><span class="pt-cross">×</span> No portfolio benchmarking
+              vs SPY/QQQ</li>
+          </ul>
+          <button class="pt-cta pt-cta-current"
+                  data-pt-action="current-free">Current plan</button>
+        </div>
+
+        <!-- PRO — featured -->
+        <div class="pt-card pt-featured">
+          <div class="pt-badge">Most popular</div>
+          <div class="pt-tier">Pro</div>
+          <div class="pt-price">$29<span>/month</span></div>
+          <div class="pt-period">or $290/year (save 17%)</div>
+          <p class="pt-blurb">For active swing traders. Unlimited watchlist,
+            full research firehose, daily edge updates, real-time alerts.
+            One signal acted on covers the month.</p>
+          <ul class="pt-feats">
+            <li><span class="pt-check pt-check-pro">✓</span>
+              <b>Everything in Free, plus:</b></li>
+            <li><span class="pt-check pt-check-pro">✓</span>
+              <b>Unlimited watchlist</b> + My Desk personalization</li>
+            <li><span class="pt-check pt-check-pro">✓</span>
+              <b>10 ad-hoc reports per month</b> (one-pager &amp; alt-data)</li>
+            <li><span class="pt-check pt-check-pro">✓</span>
+              <b>Full archive access</b> — every report we've ever generated</li>
+            <li><span class="pt-check pt-check-pro">✓</span>
+              <b>Portfolio benchmarking</b> vs SPY / QQQ / IWM with weights</li>
+            <li><span class="pt-check pt-check-pro">✓</span>
+              <b>Trade journal export</b> (CSV)</li>
+            <li><span class="pt-check pt-check-pro">✓</span>
+              Intraday signal refresh (vs end-of-day on Free)</li>
+            <li><span class="pt-check pt-check-pro">✓</span>
+              Per-ticker alert preferences (flow / grade / earnings)</li>
+            <li><span class="pt-check pt-check-pro">✓</span>
+              Priority email support (24h response SLA)</li>
+          </ul>
+          <button class="pt-cta pt-cta-primary"
+                  data-pt-action="subscribe" data-pt-plan="pro">
+            Upgrade to Pro &mdash; $29/mo
+          </button>
+          <div class="pt-fineprint">Cancel any time. Card billed by Stripe.</div>
+        </div>
+
+        <!-- PREMIUM -->
+        <div class="pt-card pt-premium">
+          <div class="pt-tier">Premium</div>
+          <div class="pt-price">$99<span>/month</span></div>
+          <div class="pt-period">or $990/year (save 17%)</div>
+          <p class="pt-blurb">For full-time traders running large watchlists,
+            multiple strategies, or building automated alerting into their
+            workflow. Built for power.</p>
+          <ul class="pt-feats">
+            <li><span class="pt-check">✓</span>
+              <b>Everything in Pro, plus:</b></li>
+            <li><span class="pt-check">✓</span>
+              <b>100 ad-hoc reports per month</b></li>
+            <li><span class="pt-check">✓</span>
+              <b>Multi-account support</b> (up to 3 sub-watchlists)</li>
+            <li><span class="pt-check">✓</span>
+              <b>API access</b> (coming Q3 — read-only endpoints for
+              watchlist, journal, signals)</li>
+            <li><span class="pt-check">✓</span>
+              <b>Advanced alert routing</b> (per-ticker push +
+              webhook + Discord integration)</li>
+            <li><span class="pt-check">✓</span>
+              <b>Discord channel access</b> (members-only signal stream)</li>
+            <li><span class="pt-check">✓</span>
+              <b>Priority report queue</b> (your generations run first)</li>
+            <li><span class="pt-check">✓</span>
+              1:1 onboarding call + priority email support (4h SLA)</li>
+          </ul>
+          <button class="pt-cta pt-cta-secondary"
+                  data-pt-action="subscribe" data-pt-plan="premium">
+            Upgrade to Premium &mdash; $99/mo
+          </button>
+          <div class="pt-fineprint">Cancel any time. Card billed by Stripe.</div>
+        </div>
+      </div>
+
+      <!-- Comparison table — feature-by-feature -->
+      <h3 class="pricing-section-h">Feature comparison</h3>
+      <div class="pricing-compare-wrap">
+        <table class="pricing-compare">
+          <thead>
+            <tr><th>Feature</th><th>Free</th><th>Pro</th><th>Premium</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Public dashboard (all tabs)</td>
+              <td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Watchlist size</td>
+              <td>5 names</td><td>Unlimited</td><td>Unlimited (3 lists)</td></tr>
+            <tr><td>My Desk personalization</td>
+              <td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Ad-hoc research reports</td>
+              <td>3 lifetime</td><td>10/month</td><td>100/month</td></tr>
+            <tr><td>Alt-Data intelligence reports</td>
+              <td>—</td><td>Included</td><td>Included</td></tr>
+            <tr><td>Report archive depth</td>
+              <td>7 days</td><td>Full archive</td><td>Full archive</td></tr>
+            <tr><td>Daily Brief email</td>
+              <td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Real-time push alerts</td>
+              <td>Basic</td><td>Per-ticker config</td><td>Per-ticker + webhook</td></tr>
+            <tr><td>Portfolio benchmarking</td>
+              <td>—</td><td>vs SPY/QQQ/IWM</td><td>vs SPY/QQQ/IWM + custom</td></tr>
+            <tr><td>Trade journal</td>
+              <td>Local only</td><td>Synced + CSV export</td><td>Synced + CSV + API</td></tr>
+            <tr><td>Signal refresh cadence</td>
+              <td>EOD</td><td>Intraday (6×/day)</td><td>Intraday + priority queue</td></tr>
+            <tr><td>API access</td>
+              <td>—</td><td>—</td><td>Coming Q3 (read-only)</td></tr>
+            <tr><td>Discord channel</td>
+              <td>—</td><td>—</td><td>Members-only</td></tr>
+            <tr><td>Email support SLA</td>
+              <td>Best effort</td><td>24 hours</td><td>4 hours</td></tr>
+            <tr><td>Onboarding</td>
+              <td>Self-serve</td><td>Self-serve</td><td>1:1 call</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Trust signals -->
+      <div class="pricing-trust">
+        <div class="pt-trust-item">
+          <div class="pt-trust-icon">🔒</div>
+          <div class="pt-trust-h">Cards charged by Stripe</div>
+          <div class="pt-trust-b">PCI-compliant checkout.
+            We never see or store your card number.</div>
+        </div>
+        <div class="pt-trust-item">
+          <div class="pt-trust-icon">↩</div>
+          <div class="pt-trust-h">Cancel any time</div>
+          <div class="pt-trust-b">One click from your account settings.
+            Access continues through end of billing cycle.</div>
+        </div>
+        <div class="pt-trust-item">
+          <div class="pt-trust-icon">📊</div>
+          <div class="pt-trust-h">Not financial advice</div>
+          <div class="pt-trust-b">TickerDesk is a research tool.
+            Always verify with your broker before any trade.</div>
+        </div>
+        <div class="pt-trust-item">
+          <div class="pt-trust-icon">⚡</div>
+          <div class="pt-trust-h">Beta cohort lock</div>
+          <div class="pt-trust-b">First 500 Pro subscribers lock in
+            <b>$14.50/mo lifetime</b> — half off forever.</div>
+        </div>
+      </div>
+
+      <!-- FAQ -->
+      <h3 class="pricing-section-h">Frequently asked</h3>
+      <div class="pricing-faq">
+        <details class="pt-faq">
+          <summary>What's a research report?</summary>
+          <div>An on-demand 8-12 page PDF on any ticker, generated by
+            Claude Opus using current market data, recent filings, news,
+            and alt-data. Typically takes 2-3 minutes. Covers the bull/bear
+            case, recent flow, key levels, catalyst calendar, and a clear
+            takeaway. Pro gets 10/month, Premium gets 100/month.</div>
+        </details>
+        <details class="pt-faq">
+          <summary>Can I cancel mid-month?</summary>
+          <div>Yes. Cancel any time from your account settings. Your
+            access continues through the end of your current billing period.
+            No partial refunds, but no questions asked either.</div>
+        </details>
+        <details class="pt-faq">
+          <summary>Do I need a credit card to try TickerDesk?</summary>
+          <div>No. Free tier requires zero card info — sign in with email
+            magic link or Google. You only enter a card if you choose to
+            upgrade to Pro or Premium.</div>
+        </details>
+        <details class="pt-faq">
+          <summary>What's the difference between Pro and Premium?</summary>
+          <div>Pro is built for one trader running their own watchlist.
+            Premium adds bulk research (10× the reports), multi-watchlist
+            support, advanced alert routing (push + webhook + Discord),
+            and 1:1 onboarding. If you run multiple strategies or trade
+            full-time, Premium is the right pick.</div>
+        </details>
+        <details class="pt-faq">
+          <summary>How do you handle my data?</summary>
+          <div>Your watchlist, notes, and trade journal stay private
+            (RLS-enforced — even our admin can't read across users without
+            audit). We never sell user data. See our
+            <a href="/privacy.html" target="_blank">Privacy Policy</a>
+            for the full details.</div>
+        </details>
+        <details class="pt-faq">
+          <summary>What if I don't want a recurring subscription?</summary>
+          <div>The Free tier is genuinely useful long-term. If you only
+            occasionally want a deep-dive report, the 3 lifetime reports
+            on Free should cover sporadic use. We don't currently offer
+            one-time report purchases but it's on the roadmap.</div>
+        </details>
+        <details class="pt-faq">
+          <summary>Can I get a refund?</summary>
+          <div>If you cancel within 7 days of your first payment and
+            haven't generated more than 3 reports, email
+            <a href="mailto:support@tickerdesk.io">support@tickerdesk.io</a>
+            and we'll issue a full refund. After that, we don't offer
+            refunds for partial months — but you can cancel any time to
+            stop future billing.</div>
+        </details>
+      </div>
+
+      <!-- Final CTA -->
+      <div class="pricing-final-cta">
+        <h3>Ready to commit to better research?</h3>
+        <button class="pt-cta pt-cta-primary"
+                data-pt-action="subscribe" data-pt-plan="pro">
+          Start with Pro &mdash; $29/mo
+        </button>
+        <div class="pt-fineprint" style="margin-top:10px;">
+          Cancel any time. First 500 lock in $14.50/mo lifetime.
+        </div>
+      </div>
     </section>
   </main>
 
@@ -6358,6 +6773,146 @@
     });
     window.tdOpenPricing = openPricing;
     window.tdClosePricing = closePricing;
+
+    // ── Pricing TAB (panel-pricing) wiring ────────────────────────
+    // The dedicated pricing tab has its own Subscribe buttons that
+    // call the SAME /stripe/checkout flow as the pricing modal. Plus
+    // a hero strip that shows the user's current plan and a Manage
+    // billing link (Stripe billing portal — wire later when needed).
+    function renderPricingHero() {
+      const el = document.getElementById("pricing-hero");
+      if (!el) return;
+      const user = window.tdUser && window.tdUser();
+      const plan = (window.tdPlan && window.tdPlan()) || "free";
+      if (!user) {
+        el.innerHTML = '<div class="ph-left">' +
+          '<b>Browse without limits</b> — sign in to save tickers, ' +
+          'get the Daily Brief, and unlock per-ticker alerts.</div>' +
+          '<button class="ph-manage" onclick="window.tdRequireAuth && ' +
+          'window.tdRequireAuth(\'generic\')">Sign in</button>';
+        return;
+      }
+      const tierLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+      const tierCls = "ph-" + plan;
+      const isPaid = plan !== "free";
+      el.innerHTML =
+        '<div class="ph-left">Signed in as <b>' +
+          (user.email || "you") + '</b>. Current plan: ' +
+          '<span class="ph-tier ' + tierCls + '">⭐ ' + tierLabel +
+          '</span></div>' +
+        (isPaid
+          ? '<button class="ph-manage" data-pt-action="manage-billing">' +
+            'Manage billing</button>'
+          : '<button class="ph-manage" data-pt-action="subscribe" ' +
+            'data-pt-plan="pro">Upgrade now</button>');
+    }
+    // Update buttons on each tier card to reflect current plan
+    function refreshPricingCtas() {
+      const plan = (window.tdPlan && window.tdPlan()) || "free";
+      document.querySelectorAll(
+        "#panel-pricing [data-pt-action='subscribe']"
+      ).forEach(function (btn) {
+        const planFor = btn.dataset.ptPlan;
+        if (plan === planFor) {
+          btn.textContent = "✓ Current plan";
+          btn.classList.add("pt-cta-current");
+          btn.classList.remove("pt-cta-primary", "pt-cta-secondary");
+          btn.disabled = true;
+        } else {
+          btn.disabled = false;
+          btn.classList.remove("pt-cta-current");
+          if (planFor === "pro") {
+            btn.classList.add("pt-cta-primary");
+            btn.textContent = plan === "premium"
+              ? "Downgrade to Pro — $29/mo"
+              : "Upgrade to Pro — $29/mo";
+          } else if (planFor === "premium") {
+            btn.classList.add("pt-cta-secondary");
+            btn.textContent = plan === "pro"
+              ? "Upgrade to Premium — $99/mo"
+              : "Upgrade to Premium — $99/mo";
+          }
+        }
+      });
+      // Free "Current plan" button — toggle based on whether they actually
+      // are on free
+      const freeBtn = document.querySelector(
+        "#panel-pricing [data-pt-action='current-free']");
+      if (freeBtn) {
+        freeBtn.textContent = plan === "free"
+          ? "✓ Current plan"
+          : "Free tier";
+      }
+    }
+    // Click handler for the pricing tab's CTAs
+    document.addEventListener("click", async function (e) {
+      const btn = e.target.closest("#panel-pricing [data-pt-action]");
+      if (!btn) return;
+      const action = btn.dataset.ptAction;
+
+      if (action === "subscribe") {
+        const planFor = btn.dataset.ptPlan;
+        if (!CURRENT_USER) {
+          if (window.tdRequireAuth) window.tdRequireAuth("generic");
+          return;
+        }
+        btn.disabled = true;
+        const orig = btn.textContent;
+        btn.textContent = "Opening checkout...";
+        try {
+          const resp = await fetch(WORKER_URL + "/stripe/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              plan: planFor,
+              user_id: CURRENT_USER.id,
+              email: CURRENT_USER.email || "",
+            }),
+          });
+          const data = await resp.json();
+          if (data.ok && data.url) {
+            window.location.href = data.url;
+          } else {
+            console.warn("Checkout error:", data.error);
+            btn.textContent = "Couldn't open checkout — try again";
+            setTimeout(function () {
+              btn.disabled = false;
+              btn.textContent = orig;
+            }, 2500);
+          }
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = orig;
+          alert("Checkout failed: " + (e.message || e));
+        }
+      } else if (action === "manage-billing") {
+        // Stripe billing portal — feature flag for now; show a friendly
+        // notice until we wire the portal-session creation endpoint.
+        // (Worker would need a `/stripe/portal` route that creates a
+        // billing_portal.Session.create call and redirects.)
+        alert("Billing portal coming soon. To cancel or change card, " +
+              "email support@tickerdesk.io and we'll handle it within 24h.");
+      }
+    });
+    // Re-render the pricing tab anytime user or plan changes
+    if (typeof onUserChange === "function") {
+      onUserChange(function () {
+        renderPricingHero();
+        refreshPricingCtas();
+      });
+    }
+    // Also render once on tab activation (covers the case where the
+    // user lands directly on /?tab=pricing without signing in first)
+    document.getElementById("nav").addEventListener("click", function (e) {
+      if (e.target && e.target.dataset &&
+          e.target.dataset.tab === "pricing") {
+        renderPricingHero();
+        refreshPricingCtas();
+      }
+    });
+    // Initial render
+    renderPricingHero();
+    refreshPricingCtas();
     function closeModal() {
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
