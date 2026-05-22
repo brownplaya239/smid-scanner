@@ -2562,8 +2562,16 @@
     text-transform:uppercase; letter-spacing:.3px;
     background:var(--card); color:var(--textdim);
     border:1px solid var(--border2); cursor:help; }
-  .uoa-tier.tier-conviction { background:rgba(31,195,110,.18);
+  .uoa-tier.tier-conviction { background:rgba(31,195,110,.22);
+    color:var(--green); border-color:var(--green); font-weight:800; }
+  /* Bullish/bearish confirming flow — distinct green/red highlight so
+     traders scan the Why-Actionable column at a glance for direction.
+     Background opacity slightly higher than non-directional tiers. */
+  .uoa-tier.tier-confirming_bull { background:rgba(31,195,110,.20);
     color:var(--green); border-color:var(--green); }
+  .uoa-tier.tier-confirming_bear { background:rgba(255,91,91,.18);
+    color:var(--red); border-color:var(--red); }
+  /* Legacy tier-confirming (un-directioned) — kept for backward compat */
   .uoa-tier.tier-confirming { background:rgba(95,163,255,.15);
     color:#5fa3ff; border-color:#5fa3ff; }
   .uoa-tier.tier-speculative { background:rgba(255,200,0,.12);
@@ -13811,9 +13819,12 @@
         };
       }
       // Confirming: directional + opening + decent premium
+      // Split into bull/bear sub-tiers so the table cell can color
+      // green (bullish confirmation) vs red (bearish confirmation)
+      // — much easier to scan at a glance than a single blue color.
       if ((bull || bear) && opening && prem >= 100000) {
         return {
-          tier: "confirming",
+          tier: bull ? "confirming_bull" : "confirming_bear",
           label: bull ? "Confirming Bull" : "Confirming Bear",
           why: "Directional flow opening fresh positions at meaningful size.",
         };
