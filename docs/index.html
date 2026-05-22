@@ -869,6 +869,84 @@
   @media (max-width:760px) {
     nav .td-search { display:none; }   /* mobile: hide; / shortcut still works */
   }
+
+  /* Mobile search button — shows only on ≤760px. Compact 38×38 icon
+     button sits leftmost in the nav and opens the fullscreen overlay.
+     Hidden on desktop because the inline input covers that role.
+     box-sizing:border-box + explicit border:0 because the parent
+     `nav button` rule adds `border-bottom:2px transparent` for the
+     active-tab underline. */
+  .td-search-mobile-btn { display:none; }
+  @media (max-width:760px) {
+    .td-search-mobile-btn { display:inline-flex; align-items:center;
+      justify-content:center; background:transparent; border:0;
+      color:var(--textdim); cursor:pointer; padding:0; margin-right:4px;
+      width:38px; height:38px; align-self:center; flex:0 0 auto;
+      border-radius:4px; box-sizing:border-box; }
+    .td-search-mobile-btn:hover { color:var(--gold);
+      background:var(--navy2); }
+    .td-search-mobile-btn:focus-visible { outline:1px dashed var(--gold);
+      outline-offset:-2px; color:var(--gold); }
+  }
+
+  /* Fullscreen search overlay — slides down from top edge. Lives at
+     body level so it covers everything (nav, header, panels). Uses
+     viewport units so iOS Safari's URL bar collapse doesn't shift the
+     layout under the user's thumb. */
+  .td-search-overlay { position:fixed; inset:0; z-index:120;
+    background:var(--bg); display:none; flex-direction:column; }
+  .td-search-overlay.show { display:flex; }
+  .td-search-overlay .tso-bar { display:flex; align-items:center;
+    gap:8px; padding:10px 12px; background:var(--navy2);
+    border-bottom:1px solid var(--line); flex:0 0 auto;
+    /* Top inset for iOS notch / Dynamic Island */
+    padding-top:max(10px, env(safe-area-inset-top)); }
+  .td-search-overlay .tso-back { background:transparent; border:0;
+    color:var(--text); cursor:pointer; padding:6px; border-radius:4px;
+    line-height:0; flex:0 0 auto; }
+  .td-search-overlay .tso-back:hover { background:var(--card);
+    color:var(--gold); }
+  .td-search-overlay .tso-input { flex:1; min-width:0;
+    background:var(--card); border:1px solid var(--border2);
+    color:var(--text); font-family:inherit; font-size:16px;
+    /* font-size 16px prevents iOS Safari auto-zoom on focus. */
+    font-weight:600; padding:10px 14px; border-radius:6px;
+    text-transform:uppercase; letter-spacing:.5px;
+    -webkit-appearance:none; appearance:none; }
+  .td-search-overlay .tso-input:focus { outline:0;
+    border-color:var(--gold); }
+  .td-search-overlay .tso-input::placeholder { text-transform:none;
+    letter-spacing:0; color:var(--muted); font-weight:500; }
+  .td-search-overlay .tso-clear { background:transparent; border:0;
+    color:var(--muted); cursor:pointer; font-size:24px; font-family:inherit;
+    width:34px; height:34px; line-height:1; flex:0 0 auto;
+    border-radius:4px; }
+  .td-search-overlay .tso-clear:hover { color:var(--text);
+    background:var(--card); }
+  .td-search-overlay .tso-clear { visibility:hidden; }
+  .td-search-overlay.has-text .tso-clear { visibility:visible; }
+  .td-search-overlay .tso-results { flex:1; overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    background:var(--bg);
+    padding-bottom:env(safe-area-inset-bottom); }
+  .td-search-overlay .tso-results .tsr-item { padding:14px 16px;
+    cursor:pointer; display:flex; align-items:baseline; gap:10px;
+    border-bottom:1px solid var(--line); }
+  .td-search-overlay .tso-results .tsr-item:active,
+  .td-search-overlay .tso-results .tsr-item.tsr-active {
+    background:var(--rowhov); }
+  .td-search-overlay .tso-results .tsr-tk { font-weight:800;
+    color:var(--text); font-size:14px; min-width:58px; }
+  .td-search-overlay .tso-results .tsr-name { color:var(--textdim);
+    font-size:12.5px; flex:1; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  .td-search-overlay .tso-results .tsr-grade { font-size:11px;
+    font-weight:700; padding:2px 6px; border-radius:3px; }
+  .td-search-overlay .tso-results .tsr-empty { padding:24px 18px;
+    color:var(--muted); font-size:13px; text-align:center;
+    font-style:italic; }
+  .td-search-overlay .tso-hint { padding:12px 18px; color:var(--muted);
+    font-size:12px; text-align:center; line-height:1.5; }
   nav .td-search input { background:var(--navy2);
     border:1px solid var(--border2); color:var(--text);
     padding:5px 10px 5px 28px; border-radius:4px;
@@ -3147,13 +3225,27 @@
          Dropdown lives at body-level (below </main>) because nav has
          overflow-x:auto which would clip an absolute-positioned
          dropdown. JS positions it on focus using getBoundingClientRect.
-         Press / from anywhere to focus this input. -->
+         Press / from anywhere to focus this input.
+         On ≤760px this is hidden and replaced by the 🔍 icon button
+         below, which opens the fullscreen #td-search-overlay. -->
     <div class="td-search" id="td-search">
       <input type="text" id="td-search-input"
              placeholder="Search any ticker, shortcut = /"
              autocomplete="off" maxlength="8"
              aria-label="Search any ticker" />
     </div>
+    <!-- Mobile-only search icon. Opens a fullscreen overlay (iOS-native
+         pattern used by Twitter / Robinhood / Slack). Sits beside the
+         tabs and is hidden on desktop where the inline input is shown. -->
+    <button id="td-search-mobile-btn" class="td-search-mobile-btn"
+            aria-label="Search any ticker" type="button">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+           stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+           stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </button>
     <button data-tab="desk" class="active">Desk</button>
     <button data-tab="mydesk">My Desk</button>
     <button data-tab="watchlist">Watchlist</button>
@@ -4135,6 +4227,36 @@
        focus/show. -->
   <div class="td-search-results" id="td-search-results"
        role="listbox" aria-hidden="true"></div>
+
+  <!-- Mobile-only fullscreen ticker search overlay. Triggered by the
+       🔍 icon button in the nav on screens ≤760px. Slides down from
+       the top; uses the same buildUniverse() / autocomplete logic as
+       the desktop input. Results render inline below the input (no
+       fixed positioning needed since the overlay already covers the
+       viewport). -->
+  <div class="td-search-overlay" id="td-search-overlay" aria-hidden="true">
+    <div class="tso-bar">
+      <button class="tso-back" id="tso-back" aria-label="Close search"
+              type="button">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+             stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true">
+          <line x1="19" y1="12" x2="5" y2="12"/>
+          <polyline points="12 19 5 12 12 5"/>
+        </svg>
+      </button>
+      <input type="text" id="td-search-input-m" class="tso-input"
+             placeholder="Search any ticker (NVDA, AAPL...)"
+             autocomplete="off" autocapitalize="characters"
+             autocorrect="off" spellcheck="false" maxlength="8"
+             aria-label="Search any ticker" />
+      <button class="tso-clear" id="tso-clear" aria-label="Clear" type="button">
+        ×
+      </button>
+    </div>
+    <div class="tso-results" id="td-search-results-m"
+         role="listbox" aria-hidden="true"></div>
+  </div>
 
   <!-- Onboarding modal — shown to brand-new users on first sign-in.
        Four steps with progress dots; users can skip at any point.
@@ -7730,13 +7852,15 @@
   // opens the drilldown panel. Autocomplete pulls from the universe
   // cached in window.TD_DATA (swing report, UOA flagged, QM Monthly,
   // Stockbee). Works on any tab, any time.
+  //
+  // Two surfaces share this logic via `wireSearch(input, results, opts)`:
+  //   1. Desktop inline input in the nav (input fixed-positioned dropdown)
+  //   2. Mobile fullscreen overlay (input + results inside the overlay
+  //      element, results rendered in normal flow — no fixed positioning)
+  // Both pull from the same buildUniverse() / TD_DATA cache. `pick()`
+  // calls window.openTickerPanel and the optional opts.onPick callback
+  // so the mobile overlay can close itself after a selection.
   (function setupTickerSearch() {
-    const input = document.getElementById("td-search-input");
-    const results = document.getElementById("td-search-results");
-    if (!input || !results) return;
-    let activeIdx = -1;
-    let currentList = [];
-
     function buildUniverse() {
       // {ticker: {name, grade}} — built lazily on each search so updates
       // to TD_DATA from later loads are picked up
@@ -7761,7 +7885,6 @@
       }
       return u;
     }
-
     function gradeCls(g) {
       if (!g) return "";
       return g[0] === "A" ? "snt-a"
@@ -7769,138 +7892,217 @@
            : "snt-mid";
     }
 
-    // Position the dropdown directly below the input. Called on every
-    // show so the dropdown follows the input if the page reflows.
-    function positionDropdown() {
-      if (!input || !results) return;
-      const r = input.getBoundingClientRect();
-      results.style.top = (r.bottom + 4) + "px";
-      results.style.left = r.left + "px";
-      results.style.width = Math.max(r.width, 280) + "px";
-    }
+    // opts: { fixedDropdown: bool, wrapperSelector: string|null,
+    //         onPick: function|null }
+    //   fixedDropdown   — position results below input via JS (desktop)
+    //                     vs. let results sit inline (mobile overlay)
+    //   wrapperSelector — outside-click closes the results if user
+    //                     clicks outside this element (desktop only)
+    //   onPick          — extra callback fired after a result is picked
+    function wireSearch(input, results, opts) {
+      if (!input || !results) return null;
+      opts = opts || {};
+      let activeIdx = -1;
+      let currentList = [];
 
-    function renderResults(query) {
-      if (!query) {
-        results.classList.remove("show");
-        results.setAttribute("aria-hidden", "true");
-        currentList = [];
-        return;
-      }
-      positionDropdown();
-      const q = query.toUpperCase();
-      const u = buildUniverse();
-      const universe = Object.values(u);
-      // Match priority: exact ticker > ticker-starts-with > name-contains
-      const exact = [], starts = [], nameMatches = [];
-      universe.forEach(function (item) {
-        if (item.ticker === q) exact.push(item);
-        else if (item.ticker.startsWith(q)) starts.push(item);
-        else if (item.name.toUpperCase().includes(q)) nameMatches.push(item);
-      });
-      currentList = exact
-        .concat(starts.slice(0, 10))
-        .concat(nameMatches.slice(0, 5))
-        .slice(0, 12);
-      if (!currentList.length) {
-        // Even if not in universe, still allow "go to this ticker" since
-        // drilldown will fetch via worker (any valid Polygon ticker works)
-        currentList = [{ ticker: q, name: "(off-universe, will fetch live)",
-                          grade: "" }];
-      }
-      activeIdx = 0;
-      results.innerHTML = currentList.map(function (it, i) {
-        const gCls = gradeCls(it.grade);
-        return '<div class="tsr-item ' +
-          (i === activeIdx ? "tsr-active" : "") +
-          '" data-search-tk="' + it.ticker + '" role="option">' +
-          '<span class="tsr-tk">' + it.ticker + '</span>' +
-          '<span class="tsr-name">' + (it.name || "&mdash;") + '</span>' +
-          (it.grade
-            ? '<span class="tsr-grade ' + gCls + '">' + it.grade +
-              '</span>' : '') +
-          '</div>';
-      }).join("");
-      results.classList.add("show");
-      results.setAttribute("aria-hidden", "false");
-    }
-
-    function pick(idx) {
-      const item = currentList[idx];
-      if (!item) return;
-      input.value = "";
-      results.classList.remove("show");
-      results.setAttribute("aria-hidden", "true");
-      if (window.openTickerPanel) window.openTickerPanel(item.ticker);
-    }
-
-    input.addEventListener("input", function (e) {
-      renderResults(e.target.value);
-    });
-    input.addEventListener("focus", function () {
-      positionDropdown();
-      if (input.value) renderResults(input.value);
-    });
-    // Re-position on window resize / scroll while dropdown is open
-    window.addEventListener("resize", function () {
-      if (results.classList.contains("show")) positionDropdown();
-    });
-    window.addEventListener("scroll", function () {
-      if (results.classList.contains("show")) positionDropdown();
-    }, true);
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (currentList.length) pick(activeIdx);
-        else if (input.value.trim()) {
-          // Direct open (no autocomplete match)
-          if (window.openTickerPanel)
-            window.openTickerPanel(input.value.trim().toUpperCase());
-          input.value = "";
-        }
-      } else if (e.key === "ArrowDown") {
-        e.preventDefault();
-        if (!currentList.length) return;
-        activeIdx = Math.min(activeIdx + 1, currentList.length - 1);
-        document.querySelectorAll(".tsr-item").forEach(function (el, i) {
-          el.classList.toggle("tsr-active", i === activeIdx);
-        });
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        if (!currentList.length) return;
-        activeIdx = Math.max(activeIdx - 1, 0);
-        document.querySelectorAll(".tsr-item").forEach(function (el, i) {
-          el.classList.toggle("tsr-active", i === activeIdx);
-        });
-      } else if (e.key === "Escape") {
-        results.classList.remove("show");
-        input.blur();
-      }
-    });
-    results.addEventListener("click", function (e) {
-      const item = e.target.closest(".tsr-item");
-      if (!item) return;
-      const idx = currentList.findIndex(function (it) {
-        return it.ticker === item.dataset.searchTk;
-      });
-      if (idx >= 0) pick(idx);
-    });
-    // Close results when clicking outside
-    document.addEventListener("click", function (e) {
-      if (!e.target.closest("#td-search")) {
-        results.classList.remove("show");
-      }
-    });
-    // Keyboard shortcut: / focuses the search.
-    // Guard: on mobile (≤760px) the .td-search wrapper is display:none,
-    // so focusing the hidden input would orphan the dropdown at (0,0)
-    // if any text were typed. Bail early when the input has zero size.
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "/" && document.activeElement !== input &&
-          !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+      function positionDropdown() {
+        if (!opts.fixedDropdown) return;
         const r = input.getBoundingClientRect();
+        results.style.top = (r.bottom + 4) + "px";
+        results.style.left = r.left + "px";
+        results.style.width = Math.max(r.width, 280) + "px";
+      }
+      function renderResults(query) {
+        if (!query) {
+          if (opts.fixedDropdown) {
+            results.classList.remove("show");
+          } else {
+            results.innerHTML = '<div class="tsr-empty">' +
+              "Type a ticker — autocomplete pulls from " +
+              "the active universe.</div>";
+          }
+          results.setAttribute("aria-hidden", "true");
+          currentList = [];
+          return;
+        }
+        positionDropdown();
+        const q = query.toUpperCase();
+        const u = buildUniverse();
+        const universe = Object.values(u);
+        const exact = [], starts = [], nameMatches = [];
+        universe.forEach(function (item) {
+          if (item.ticker === q) exact.push(item);
+          else if (item.ticker.startsWith(q)) starts.push(item);
+          else if (item.name.toUpperCase().includes(q)) nameMatches.push(item);
+        });
+        currentList = exact
+          .concat(starts.slice(0, 10))
+          .concat(nameMatches.slice(0, 5))
+          .slice(0, 12);
+        if (!currentList.length) {
+          // Even if not in universe, allow "go to this ticker" — drilldown
+          // will fetch via worker (any valid Polygon ticker works)
+          currentList = [{ ticker: q,
+            name: "(off-universe, will fetch live)", grade: "" }];
+        }
+        activeIdx = 0;
+        results.innerHTML = currentList.map(function (it, i) {
+          const gCls = gradeCls(it.grade);
+          return '<div class="tsr-item ' +
+            (i === activeIdx ? "tsr-active" : "") +
+            '" data-search-tk="' + it.ticker + '" role="option">' +
+            '<span class="tsr-tk">' + it.ticker + '</span>' +
+            '<span class="tsr-name">' + (it.name || "&mdash;") + '</span>' +
+            (it.grade
+              ? '<span class="tsr-grade ' + gCls + '">' + it.grade +
+                '</span>' : '') +
+            '</div>';
+        }).join("");
+        if (opts.fixedDropdown) results.classList.add("show");
+        results.setAttribute("aria-hidden", "false");
+      }
+      function pick(idx) {
+        const item = currentList[idx];
+        if (!item) return;
+        input.value = "";
+        if (opts.fixedDropdown) results.classList.remove("show");
+        results.setAttribute("aria-hidden", "true");
+        if (window.openTickerPanel) window.openTickerPanel(item.ticker);
+        if (typeof opts.onPick === "function") opts.onPick(item.ticker);
+      }
+
+      input.addEventListener("input", function (e) {
+        renderResults(e.target.value);
+      });
+      input.addEventListener("focus", function () {
+        positionDropdown();
+        if (input.value) renderResults(input.value);
+      });
+      if (opts.fixedDropdown) {
+        // Re-position on window resize/scroll while dropdown is open
+        window.addEventListener("resize", function () {
+          if (results.classList.contains("show")) positionDropdown();
+        });
+        window.addEventListener("scroll", function () {
+          if (results.classList.contains("show")) positionDropdown();
+        }, true);
+      }
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (currentList.length) pick(activeIdx);
+          else if (input.value.trim()) {
+            if (window.openTickerPanel)
+              window.openTickerPanel(input.value.trim().toUpperCase());
+            if (typeof opts.onPick === "function")
+              opts.onPick(input.value.trim().toUpperCase());
+            input.value = "";
+          }
+        } else if (e.key === "ArrowDown") {
+          e.preventDefault();
+          if (!currentList.length) return;
+          activeIdx = Math.min(activeIdx + 1, currentList.length - 1);
+          results.querySelectorAll(".tsr-item").forEach(function (el, i) {
+            el.classList.toggle("tsr-active", i === activeIdx);
+          });
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          if (!currentList.length) return;
+          activeIdx = Math.max(activeIdx - 1, 0);
+          results.querySelectorAll(".tsr-item").forEach(function (el, i) {
+            el.classList.toggle("tsr-active", i === activeIdx);
+          });
+        } else if (e.key === "Escape") {
+          if (opts.fixedDropdown) results.classList.remove("show");
+          input.blur();
+        }
+      });
+      results.addEventListener("click", function (e) {
+        const item = e.target.closest(".tsr-item");
+        if (!item) return;
+        const idx = currentList.findIndex(function (it) {
+          return it.ticker === item.dataset.searchTk;
+        });
+        if (idx >= 0) pick(idx);
+      });
+      if (opts.wrapperSelector) {
+        document.addEventListener("click", function (e) {
+          if (!e.target.closest(opts.wrapperSelector)) {
+            results.classList.remove("show");
+          }
+        });
+      }
+      return { renderResults: renderResults, input: input };
+    }
+
+    // Desktop inline search in nav
+    const dInput = document.getElementById("td-search-input");
+    const dResults = document.getElementById("td-search-results");
+    wireSearch(dInput, dResults, {
+      fixedDropdown: true, wrapperSelector: "#td-search"
+    });
+
+    // Mobile fullscreen overlay search
+    const mInput = document.getElementById("td-search-input-m");
+    const mResults = document.getElementById("td-search-results-m");
+    const overlay = document.getElementById("td-search-overlay");
+    const openBtn = document.getElementById("td-search-mobile-btn");
+    const backBtn = document.getElementById("tso-back");
+    const clearBtn = document.getElementById("tso-clear");
+    function openOverlay() {
+      if (!overlay) return;
+      overlay.classList.add("show");
+      overlay.setAttribute("aria-hidden", "false");
+      document.documentElement.style.overflow = "hidden";
+      // Focus after the slide-in so iOS keyboard appears predictably
+      setTimeout(function () { if (mInput) mInput.focus(); }, 30);
+    }
+    function closeOverlay() {
+      if (!overlay) return;
+      overlay.classList.remove("show", "has-text");
+      overlay.setAttribute("aria-hidden", "true");
+      document.documentElement.style.overflow = "";
+      if (mInput) mInput.blur();
+    }
+    const mHandle = wireSearch(mInput, mResults, {
+      fixedDropdown: false, wrapperSelector: null,
+      onPick: closeOverlay,
+    });
+    if (mInput && mHandle) {
+      // Seed initial hint state so the results pane has something
+      // helpful in it before the user starts typing.
+      mHandle.renderResults("");
+      mInput.addEventListener("input", function () {
+        overlay.classList.toggle("has-text", !!mInput.value);
+      });
+    }
+    if (openBtn) openBtn.addEventListener("click", openOverlay);
+    if (backBtn) backBtn.addEventListener("click", closeOverlay);
+    if (clearBtn) clearBtn.addEventListener("click", function () {
+      if (mInput) { mInput.value = ""; mInput.focus(); }
+      overlay.classList.remove("has-text");
+      if (mHandle) mHandle.renderResults("");
+    });
+    // Esc closes the overlay from anywhere
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && overlay &&
+          overlay.classList.contains("show")) {
+        closeOverlay();
+      }
+    });
+
+    // Keyboard shortcut: / focuses the desktop search.
+    // Guard: on mobile (≤760px) the .td-search wrapper is display:none,
+    // so focusing the hidden input would orphan the dropdown at (0,0).
+    // Bail early when the input has zero size — mobile users use the
+    // 🔍 button in the nav instead.
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "/" && dInput && document.activeElement !== dInput &&
+          !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+        const r = dInput.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) return;
         e.preventDefault();
-        input.focus();
+        dInput.focus();
       }
     });
   })();
