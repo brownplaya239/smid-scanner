@@ -680,15 +680,17 @@ Today is {today}. Scan type: {scan_type}.
 Candidates (include insider activity from SEC Form 4 last 60d):
 {json.dumps(candidates, indent=2)}"""
 
-    print("  ✅ Sending to Claude (Sonnet 4.7)...")
+    print("  ✅ Sending to Claude (Sonnet 4.5)...")
     # Try Claude. If it auth-fails, rate-limits, or otherwise errors,
     # don't crash the whole scan — fall back to a "no-LLM" result set
     # that returns the candidates with a neutral score so users still
     # get the pre-filter pass and the workflow archives a real run
     # rather than failing entirely.
+    # Model: claude-sonnet-4-5 is the current alias for the latest
+    # Sonnet 4-series (auto-resolves to dated version under the hood).
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-7",
+            model="claude-sonnet-4-5",
             max_tokens=12000,
             messages=[{"role": "user", "content": full_prompt}],
         )

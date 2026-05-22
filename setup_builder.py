@@ -539,9 +539,9 @@ Today is {today}.
 Candidates (all have confirmed vol dry-up + Stage 2 base; some have insider activity in last 60d):
 {json.dumps(setups, indent=2)}"""
 
-    print("  ✅ Sending to Claude (Opus 4.7)...")
+    print("  ✅ Sending to Claude (Opus 4.5)...")
     response = client.messages.create(
-        model="claude-opus-4-7",
+        model="claude-opus-4-5",
         max_tokens=16000,
         messages=[{"role": "user", "content": full_prompt}],
     )
