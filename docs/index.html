@@ -4898,6 +4898,28 @@
   async function addToWatchlist(ticker, weight) {
     ticker = (ticker || "").toUpperCase().trim();
     if (!ticker || WATCHLIST.has(ticker)) return false;
+    // Enforce tier-based watchlist cap. Free users are limited to 5
+    // names; pro/premium/beta are 9999 (effectively unlimited). Reading
+    // from PLAN_LIMITS so the cap mirrors the pricing copy exactly.
+    // Server-side RLS doesn't enforce row counts, so this is the
+    // primary gate — but since pricing claims "5 watchlist max" for
+    // free, we honor it consistently.
+    try {
+      const limits = window.tdPlanLimits
+        ? window.tdPlanLimits(window.tdPlan && window.tdPlan())
+        : null;
+      const cap = (limits && limits.watchlist_max) || 9999;
+      if (WATCHLIST.size >= cap) {
+        // Open pricing modal so the user has a clear path forward
+        // instead of a silent rejection. Reason code reuses the same
+        // copy paths the report-gen gate uses.
+        if (window.tdOpenPricing) {
+          window.tdOpenPricing("watchlist_cap",
+            { cap: cap, used: WATCHLIST.size });
+        }
+        return false;
+      }
+    } catch (_) {}
     weight = parseFloat(weight);
     if (isNaN(weight) || weight < 0) weight = 1;
     WATCHLIST.add(ticker);
@@ -7793,9 +7815,20 @@
         const orig = btn.textContent;
         btn.textContent = "Opening checkout...";
         try {
+          // Include the user's access token so the worker can verify
+          // that body.user_id actually matches the signed-in user. Stops
+          // a third party from creating a checkout session pointed at
+          // someone else's account.
+          const headers = { "Content-Type": "application/json" };
+          try {
+            const { data: { session } } = await SUPA.auth.getSession();
+            if (session && session.access_token) {
+              headers["Authorization"] = "Bearer " + session.access_token;
+            }
+          } catch (_) {}
           const resp = await fetch(WORKER_URL + "/stripe/checkout", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: headers,
             body: JSON.stringify({
               plan: plan,
               user_id: CURRENT_USER.id,
@@ -7969,9 +8002,18 @@
         const orig = btn.textContent;
         btn.textContent = "Opening checkout...";
         try {
+          // Bearer token so the worker can verify identity before
+          // creating a Stripe Checkout Session keyed to user_id.
+          const headers = { "Content-Type": "application/json" };
+          try {
+            const { data: { session } } = await SUPA.auth.getSession();
+            if (session && session.access_token) {
+              headers["Authorization"] = "Bearer " + session.access_token;
+            }
+          } catch (_) {}
           const resp = await fetch(WORKER_URL + "/stripe/checkout", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: headers,
             body: JSON.stringify({
               plan: planFor,
               user_id: CURRENT_USER.id,

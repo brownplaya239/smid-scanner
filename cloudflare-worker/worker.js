@@ -583,12 +583,55 @@ async function handleStripeCheckout(request, env, cors) {
                          { status: 400, headers: cors });
   }
   const plan = String(body.plan || "").toLowerCase();
-  const userId = String(body.user_id || "");
+  const userIdClaim = String(body.user_id || "");
   const email = String(body.email || "");
-  if (!plan || !userId) {
+  if (!plan || !userIdClaim) {
     return Response.json(
       { ok: false, error: "plan and user_id are required" },
       { status: 400, headers: cors }
+    );
+  }
+  // Validate that the caller actually owns the user_id they're claiming.
+  // Without this, anyone could POST a checkout session pointing at
+  // someone else's user_id and (if they paid) effectively "donate" a
+  // subscription to a stranger. Require a Bearer token from the
+  // Authorization header, validate it via Supabase /auth/v1/user, and
+  // ensure the validated user.id matches body.user_id.
+  const authHeader = request.headers.get("Authorization") || "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!bearer || !env.SUPABASE_URL) {
+    return Response.json(
+      { ok: false, error: "Sign in required to start checkout." },
+      { status: 401, headers: cors }
+    );
+  }
+  let userId = userIdClaim;
+  try {
+    const userResp = await fetch(
+      env.SUPABASE_URL + "/auth/v1/user",
+      { headers: {
+          "Authorization": "Bearer " + bearer,
+          "apikey": env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY || "",
+      }}
+    );
+    if (!userResp.ok) {
+      return Response.json(
+        { ok: false, error: "Sign-in expired. Please sign in again." },
+        { status: 401, headers: cors }
+      );
+    }
+    const userBody = await userResp.json();
+    if (!userBody || !userBody.id || userBody.id !== userIdClaim) {
+      return Response.json(
+        { ok: false, error: "Auth mismatch — user_id does not match signed-in user." },
+        { status: 403, headers: cors }
+      );
+    }
+    userId = userBody.id;
+  } catch (e) {
+    return Response.json(
+      { ok: false, error: "Auth validation failed: " + e.message },
+      { status: 502, headers: cors }
     );
   }
   const priceId = plan === "pro" ? env.STRIPE_PRO_PRICE_ID
