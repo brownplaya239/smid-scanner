@@ -647,6 +647,105 @@ async function handleStripeCheckout(request, env, cors) {
   }
 }
 
+// ── Stripe Customer Portal ────────────────────────────────────────
+// Self-serve billing management for subscribers: cancel, change card,
+// update payment method, view invoices, switch plans. Creates a
+// billing_portal.Session and returns the URL for the frontend to
+// redirect to. Stripe handles the entire portal UI.
+//
+// Lookup chain to find the customer:
+//   1. Client provides user_id (from auth session)
+//   2. We query Supabase profiles for stripe_customer_id (cached on
+//      first checkout) — TODO: add this column + populate in webhook
+//   3. Fallback: search Stripe customers by email (slower, requires
+//      another API call). Works today since checkout sessions set
+//      customer_email.
+async function handleStripePortal(request, env, cors) {
+  if (!env.STRIPE_SECRET_KEY) {
+    return Response.json(
+      { ok: false, error: "Stripe not configured" },
+      { status: 500, headers: cors }
+    );
+  }
+  let body;
+  try { body = await request.json(); }
+  catch { return Response.json({ ok: false, error: "Invalid JSON" },
+                                { status: 400, headers: cors }); }
+  const email = String(body.email || "").trim();
+  if (!email) {
+    return Response.json(
+      { ok: false, error: "email is required" },
+      { status: 400, headers: cors }
+    );
+  }
+  // Find Stripe customer by email (most recent first if duplicates)
+  let customerId = null;
+  try {
+    const sr = await fetch(
+      "https://api.stripe.com/v1/customers/search?query=" +
+        encodeURIComponent('email:"' + email + '"') + "&limit=1",
+      {
+        headers: {
+          "Authorization": "Bearer " + env.STRIPE_SECRET_KEY,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+    if (sr.ok) {
+      const sd = await sr.json();
+      if (sd.data && sd.data.length) customerId = sd.data[0].id;
+    }
+  } catch (e) {
+    return Response.json(
+      { ok: false, error: "Customer lookup failed: " + String(e) },
+      { status: 502, headers: cors }
+    );
+  }
+  if (!customerId) {
+    return Response.json(
+      { ok: false,
+        error: "No Stripe customer found for " + email +
+          ". You probably haven't subscribed yet — try the Upgrade " +
+          "buttons on the Pricing tab first." },
+      { status: 404, headers: cors }
+    );
+  }
+  // Create portal session
+  const params = new URLSearchParams();
+  params.set("customer", customerId);
+  params.set("return_url", "https://tickerdesk.io/?portal_returned=1");
+  try {
+    const r = await fetch(
+      "https://api.stripe.com/v1/billing_portal/sessions",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + env.STRIPE_SECRET_KEY,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+      }
+    );
+    if (!r.ok) {
+      const txt = await r.text();
+      return Response.json(
+        { ok: false, error: "Portal create failed: " + txt.slice(0, 400) },
+        { status: 502, headers: cors }
+      );
+    }
+    const session = await r.json();
+    return Response.json(
+      { ok: true, url: session.url },
+      { headers: cors }
+    );
+  } catch (e) {
+    return Response.json(
+      { ok: false, error: "Portal call failed: " + String(e) },
+      { status: 502, headers: cors }
+    );
+  }
+}
+
 async function handleStripeWebhook(request, env, cors) {
   // Diagnostic logging so failures show up in `wrangler tail` and the
   // Cloudflare dashboard Logs tab. Never logs the secret itself.
@@ -811,6 +910,9 @@ export default {
     }
     if (urlPath === "/stripe/webhook" && request.method === "POST") {
       return handleStripeWebhook(request, env, cors);
+    }
+    if (urlPath === "/stripe/portal" && request.method === "POST") {
+      return handleStripePortal(request, env, cors);
     }
 
     // GET — market-quote proxy (?quotes=SPY,QQQ,...), daily-candle proxy

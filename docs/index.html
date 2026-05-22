@@ -260,6 +260,29 @@
     font-size:14px; cursor:pointer; padding:0 4px; line-height:1;
     font-family:inherit; }
   .wp-remove:hover, .wt-remove:hover { color:var(--red); }
+  /* Portfolio enrichment cells (grade, theme, flow, earnings, actions) */
+  .wp-grade { font-size:10px; font-weight:800; padding:2px 6px;
+    border-radius:3px; }
+  .wp-grade.wp-grade-a { background:rgba(31,195,110,.18);
+    color:var(--green); }
+  .wp-grade.wp-grade-g { background:rgba(255,91,91,.15); color:var(--red); }
+  .wp-grade.wp-grade-mid { background:rgba(255,158,27,.10);
+    color:var(--gold); }
+  .wp-grade.wp-grade-none { background:transparent; color:var(--muted);
+    border:1px dashed var(--border2); }
+  .wp-theme { font-size:10.5px; color:var(--textdim); }
+  .wp-flow { font-size:10px; font-weight:600; padding:2px 5px;
+    border-radius:3px; }
+  .wp-flow-bullish { background:rgba(31,195,110,.15); color:var(--green); }
+  .wp-flow-bearish { background:rgba(255,91,91,.15); color:var(--red); }
+  .wp-flow-mixed { background:rgba(168,124,255,.12); color:#a87cff; }
+  .wp-earn { font-size:10.5px; font-weight:700; padding:2px 6px;
+    border-radius:3px; }
+  .wp-earn-imminent { background:rgba(255,91,91,.18); color:var(--red); }
+  .wp-earn-near { background:rgba(255,200,0,.15); color:var(--gold); }
+  .wp-earn-far { background:rgba(95,163,255,.12); color:#5fa3ff; }
+  .wp-empty { color:var(--muted); font-size:11px; }
+  .wp-actions { display:inline-flex; align-items:center; gap:4px; }
   table.wlt-portfolio .wp-action, table.wlt-tl .wt-action {
     font-size:9px; font-weight:800; text-transform:uppercase;
     letter-spacing:.3px; padding:2px 6px; border-radius:3px; }
@@ -969,6 +992,20 @@
     font-size:10px; font-weight:700; cursor:pointer;
     font-family:inherit; }
   .lst-add:hover { border-color:var(--gold); color:var(--gold); }
+  /* Setup interpretation labels — small badges in the Type column */
+  .lst-setup-label { font-size:9.5px; font-weight:700; padding:2px 6px;
+    border-radius:3px; text-transform:uppercase; letter-spacing:.3px; }
+  .lst-label-clean-vcp { background:rgba(31,195,110,.18);
+    color:var(--green); }
+  .lst-label-flow-confirmed { background:rgba(31,195,110,.14);
+    color:var(--green); }
+  .lst-label-approaching { background:rgba(95,163,255,.15);
+    color:#5fa3ff; }
+  .lst-label-needs-volume { background:rgba(255,200,0,.12);
+    color:var(--gold); }
+  .lst-label-extended { background:rgba(255,140,26,.15); color:#ff8c1a; }
+  .lst-label-earnings-risk { background:rgba(255,91,91,.15);
+    color:var(--red); }
 
   /* Swing "New today" insights strip — diffs latest run vs prior */
   .snt-strip { background:var(--card); border:1px solid var(--line);
@@ -1388,6 +1425,21 @@
   .desk-row .dr-val.sc-down { color:var(--red); }
   .desk-row .dr-val a { color:var(--gold); text-decoration:none; }
   /* Real button — was an anchor without href which Cmd-click etc. failed on */
+  /* Universal action strip — drops into any table cell. 4 compact
+     icon buttons (Save / Alert / Note / Drilldown). Muted by default,
+     gold on hover. Same data-act-* attributes the popup uses so the
+     global event handler covers both. */
+  .td-action-strip { display:inline-flex; gap:2px; align-items:center;
+    line-height:1; }
+  .td-action-strip .tda-btn { background:transparent; border:0;
+    color:var(--muted); cursor:pointer; font-family:inherit;
+    font-size:13px; padding:3px 5px; border-radius:3px;
+    transition:background .12s, color .12s; line-height:1;
+    min-width:22px; }
+  .td-action-strip .tda-btn:hover { background:var(--navy2);
+    color:var(--gold); }
+  .td-action-strip .tda-btn.is-on { color:var(--gold); }
+
   /* Brief gold flash on the Options Flow filter input when arrived via
      a "flow →" link from Today's Desk. Confirms the filter was applied. */
   @keyframes filter-flash-anim {
@@ -5657,7 +5709,7 @@
       signedH.style.display = signed ? "" : "none";
       anonH.style.display = signed ? "none" : "";
       if (!wl.length) {
-        tblEl.innerHTML = '<tbody><tr><td colspan="6" class="wlt-empty">' +
+        tblEl.innerHTML = '<tbody><tr><td colspan="10" class="wlt-empty">' +
           'Empty portfolio. Add tickers above, or star names anywhere on ' +
           'the site to populate this list.</td></tr></tbody>';
         return;
@@ -5665,13 +5717,53 @@
       const totalWeight = wl.reduce(function (s, t) {
         return s + (WATCHLIST_WEIGHTS[t] != null ? WATCHLIST_WEIGHTS[t] : 1);
       }, 0);
+      // Build lookup maps from the global TD_DATA cache for enrichment
+      // columns: grade, theme, flow bias, upcoming earnings.
+      const D = window.TD_DATA || {};
+      const gradeMap = {};
+      if (D.swing && D.swing.runs && D.swing.runs.length) {
+        const r = D.swing.runs[D.swing.runs.length - 1];
+        Object.keys(r.grades || {}).forEach(function (g) {
+          (r.grades[g] || []).forEach(function (c) {
+            gradeMap[c.t] = { grade: g, theme: (c.th && c.th[0]) || "" };
+          });
+        });
+      }
+      const flowMap = {};
+      if (D.uoa && D.uoa.rows) {
+        D.uoa.rows.forEach(function (r) {
+          if (!r.ticker) return;
+          if (!flowMap[r.ticker] || (r.premium || 0) >
+              (flowMap[r.ticker].premium || 0)) {
+            flowMap[r.ticker] = r;
+          }
+        });
+      }
+      // Earnings within 30 days lookup
+      const earnMap = {};
+      if (D.earnings && D.earnings.days) {
+        D.earnings.days.forEach(function (day) {
+          (day.bmo || []).concat(day.amc || []).forEach(function (r) {
+            if (r.ticker && !earnMap[r.ticker]) {
+              earnMap[r.ticker] = {
+                date: day.date,
+                slot: (day.bmo || []).includes(r) ? "BMO" : "AMC",
+              };
+            }
+          });
+        });
+      }
       const head = '<thead><tr>' +
         '<th>Ticker</th>' +
         '<th>Weight</th>' +
-        '<th>% of Port</th>' +
+        '<th>% Port</th>' +
         '<th>Price</th>' +
         '<th>Day %</th>' +
-        '<th></th></tr></thead>';
+        '<th>Grade</th>' +
+        '<th>Theme</th>' +
+        '<th>Flow</th>' +
+        '<th>Earnings</th>' +
+        '<th>Actions</th></tr></thead>';
       const rows = wl.map(function (t) {
         const c = lookupCell(t);
         const w = WATCHLIST_WEIGHTS[t] != null ? WATCHLIST_WEIGHTS[t] : 1;
@@ -5681,6 +5773,40 @@
         const cc = chgCls(chg);
         const chgStr = chg == null ? "—"
           : (chg > 0 ? "+" : "") + chg.toFixed(2) + "%";
+        // Enrichment cells
+        const gradeInfo = gradeMap[t];
+        const gradeCell = gradeInfo
+          ? '<span class="wp-grade wp-grade-' +
+            (gradeInfo.grade[0] === "A" ? "a"
+             : gradeInfo.grade[0] === "G" || gradeInfo.grade[0] === "F" ? "g"
+             : "mid") + '">' + gradeInfo.grade + '</span>'
+          : '<span class="wp-grade wp-grade-none">—</span>';
+        const themeCell = gradeInfo && gradeInfo.theme
+          ? '<span class="wp-theme">' + gradeInfo.theme + '</span>'
+          : '<span class="wp-empty">—</span>';
+        const flow = flowMap[t];
+        const flowCell = flow && flow.direction
+          ? '<span class="wp-flow wp-flow-' + flow.direction +
+            '">' + flow.direction +
+            (flow.premium && flow.premium >= 100000
+              ? ' · $' + Math.round(flow.premium / 1000) + 'K'
+              : '') +
+            '</span>'
+          : '<span class="wp-empty">—</span>';
+        const earn = earnMap[t];
+        let earnCell = '<span class="wp-empty">—</span>';
+        if (earn) {
+          const today = new Date();
+          const ed = new Date(earn.date + "T12:00:00-04:00");
+          const days = Math.round((ed - today) / 86400000);
+          if (days >= 0 && days <= 30) {
+            const cls = days <= 1 ? "wp-earn-imminent"
+                       : days <= 7 ? "wp-earn-near" : "wp-earn-far";
+            earnCell = '<span class="wp-earn ' + cls + '">' +
+              (days === 0 ? "today" : days === 1 ? "tomorrow"
+                : "in " + days + "d") + ' ' + earn.slot + '</span>';
+          }
+        }
         return '<tr data-t="' + t + '">' +
           '<td><span class="wp-tk">' + t + '</span></td>' +
           '<td><input class="wp-weight-input" type="number" step="0.5" ' +
@@ -5688,8 +5814,15 @@
           '<td>' + pct.toFixed(1) + '%</td>' +
           '<td>' + price + '</td>' +
           '<td class="wp-chg ' + cc + '">' + chgStr + '</td>' +
-          '<td><button class="wp-remove" data-remove-tk="' + t +
-            '" title="Remove">×</button></td>' +
+          '<td>' + gradeCell + '</td>' +
+          '<td>' + themeCell + '</td>' +
+          '<td>' + flowCell + '</td>' +
+          '<td>' + earnCell + '</td>' +
+          '<td><span class="wp-actions">' +
+            (window.tdActionStrip ? window.tdActionStrip(t) : "") +
+            '<button class="wp-remove" data-remove-tk="' + t +
+              '" title="Remove from watchlist">×</button>' +
+          '</span></td>' +
           '</tr>';
       }).join("");
       tblEl.innerHTML = head + '<tbody>' + rows + '</tbody>';
@@ -7072,12 +7205,41 @@
           alert("Checkout failed: " + (e.message || e));
         }
       } else if (action === "manage-billing") {
-        // Stripe billing portal — feature flag for now; show a friendly
-        // notice until we wire the portal-session creation endpoint.
-        // (Worker would need a `/stripe/portal` route that creates a
-        // billing_portal.Session.create call and redirects.)
-        alert("Billing portal coming soon. To cancel or change card, " +
-              "email support@tickerdesk.io and we'll handle it within 24h.");
+        // Open Stripe Customer Portal — self-serve billing management
+        if (!CURRENT_USER) {
+          if (window.tdRequireAuth) window.tdRequireAuth("generic");
+          return;
+        }
+        btn.disabled = true;
+        const orig = btn.textContent;
+        btn.textContent = "Opening portal...";
+        try {
+          const resp = await fetch(WORKER_URL + "/stripe/portal", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: CURRENT_USER.email || "",
+            }),
+          });
+          const data = await resp.json();
+          if (data.ok && data.url) {
+            window.location.href = data.url;
+          } else {
+            console.warn("Portal error:", data.error);
+            btn.textContent = "Couldn't open portal";
+            alert(data.error ||
+              "Couldn't open billing portal. Please email " +
+              "support@tickerdesk.io.");
+            setTimeout(function () {
+              btn.disabled = false;
+              btn.textContent = orig;
+            }, 2500);
+          }
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = orig;
+          alert("Portal failed: " + (e.message || e));
+        }
       }
     });
     // Re-render the pricing tab anytime user or plan changes
@@ -8857,6 +9019,49 @@
      from the accessibility tree AND blocked from scripting/automation —
      no more "ghost duplicate Ticker inputs" in the DOM that the QA
      pass flagged. inert is supported in all modern browsers. */
+  // ── Reusable inline action strip ────────────────────────────────
+  // Returns HTML for a compact 4-icon row (★ Save · 🔔 Alert · 📝 Note
+  // · → Drilldown) that can drop into any table cell or row. Each
+  // icon dispatches to the same global handlers as the hover popup's
+  // action row, so signed-out clicks open the auth modal and signed-in
+  // clicks fire the corresponding action.
+  //
+  // Tiny on purpose — designed to fit in a single 110px-wide column.
+  window.tdActionStrip = function (ticker) {
+    if (!ticker) return "";
+    const inWL = (window.tdInWatchlist && window.tdInWatchlist(ticker));
+    return '<span class="td-action-strip" onclick="event.stopPropagation()">' +
+      '<button class="tda-btn ' + (inWL ? "is-on" : "") +
+        '" data-act-save="' + ticker + '" title="' +
+        (inWL ? "Remove " + ticker + " from watchlist"
+              : "Save " + ticker + " to watchlist") + '">' +
+        (inWL ? "★" : "☆") + '</button>' +
+      '<button class="tda-btn" data-act-alert="' + ticker +
+        '" title="Set up alerts for ' + ticker + '">🔔</button>' +
+      '<button class="tda-btn" data-act-note="' + ticker +
+        '" title="Add a private note for ' + ticker + '">📝</button>' +
+      '<button class="tda-btn" data-act-open="' + ticker +
+        '" title="Open ' + ticker + ' drilldown">→</button>' +
+    '</span>';
+  };
+  // ── Universal save-button label refresher ───────────────────────
+  // When the watchlist changes (any source), update all visible
+  // tda-btn save buttons to reflect current state so star icons
+  // stay accurate across the entire page.
+  if (typeof onWatchChange === "function") {
+    onWatchChange(function (wl) {
+      document.querySelectorAll(".td-action-strip [data-act-save]")
+        .forEach(function (btn) {
+          const tk = btn.dataset.actSave;
+          const inWl = wl.has(tk);
+          btn.classList.toggle("is-on", inWl);
+          btn.textContent = inWl ? "★" : "☆";
+          btn.title = (inWl ? "Remove " : "Save ") + tk +
+            (inWl ? " from" : " to") + " watchlist";
+        });
+    });
+  }
+
   function setActivePanel(tab) {
     document.querySelectorAll("nav button").forEach(function (b) {
       b.classList.toggle("active", b.dataset.tab === tab);
@@ -9022,12 +9227,26 @@
           // Lower extension = tighter base = higher quality
           score += (10 - Math.min(ext, 10));
           if (flow && flow.direction === "bullish") score += 12;
+          // Setup interpretation label — classifies setup quality so
+          // users see WHAT KIND of pattern this is, not just a number.
+          //   Clean VCP: low extension, A-tier grade, ideal setup
+          //   Flow Confirmed: bullish flow present alongside the base
+          //   Approaching: B+ grade nearing A-tier — needs confirmation
+          //   Needs Volume: tight base but no UOA signal yet
+          //   Extended: getting close to overextended (8-12% ext)
+          let label = "";
+          if (ext >= 8) label = "Extended";
+          else if (flow && flow.direction === "bullish") label = "Flow Confirmed";
+          else if (ext <= 4 && (g === "A+" || g === "A")) label = "Clean VCP";
+          else if (g === "B+") label = "Approaching";
+          else label = "Needs Volume";
           candidates.push({
             ticker: c.t, name: c.n || "", grade: g,
             sector: c.sec || "", theme: (c.th && c.th[0]) || "",
             price: c.p, chg: c.chg, ext: ext,
             flow: flow, score: Math.round(score),
             watched: watchlist.has(c.t),
+            label: label,
           });
         });
       });
@@ -9053,12 +9272,22 @@
         return '<div class="lst-empty">No qualifying names from ' +
           'today\'s scan yet.</div>';
       }
+      // Include the Type column only when ANY row has a label set
+      // (Setups have labels; Breakouts don't). Keeps the Breakouts
+      // table compact while adding the interpretation column to Setups.
+      const hasLabels = rows.some(function (r) { return r.label; });
       const head = '<thead><tr>' +
         '<th>Ticker</th><th>Grade</th><th>Score</th>' +
+        (hasLabels ? '<th>Type</th>' : '') +
         '<th>Theme</th><th>Price</th><th>1D %</th>' +
-        '<th>Extension</th><th>Flow today</th><th></th></tr></thead>';
+        '<th>Extension</th><th>Flow today</th><th>Actions</th></tr></thead>';
       const body = rows.map(function (r) {
         const fcls = r.flow ? flowCls(r.flow.direction) : "";
+        const labelCell = hasLabels
+          ? '<td><span class="lst-setup-label lst-label-' +
+            (r.label || "").replace(/\s+/g, "-").toLowerCase() + '">' +
+            (r.label || "—") + '</span></td>'
+          : '';
         return '<tr>' +
           '<td><strong data-t="' + r.ticker + '">' + r.ticker +
             '</strong>' + (r.watched ? ' <span class="lst-star">★</span>' : '') +
@@ -9066,6 +9295,7 @@
           '<td><span class="snt-grade ' + gradeCls(r.grade) + '">' +
             r.grade + '</span></td>' +
           '<td><span class="lst-score">' + r.score + '</span></td>' +
+          labelCell +
           '<td>' + (r.theme || '<span class="lst-empty-c">—</span>') + '</td>' +
           '<td>$' + (r.price != null ? r.price.toFixed(2) : '—') + '</td>' +
           '<td class="' + (r.chg > 0 ? "up" : r.chg < 0 ? "down" : "") +
@@ -9077,8 +9307,8 @@
               (r.flow.type || '').toUpperCase() + ' ' + fmtPrem(r.flow.premium) +
               '</span>'
             : '<span class="lst-empty-c">—</span>') + '</td>' +
-          '<td><button class="lst-add" data-act-save="' + r.ticker + '">' +
-            (r.watched ? '★ Saved' : '☆ Save') + '</button></td>' +
+          '<td>' + (window.tdActionStrip
+            ? window.tdActionStrip(r.ticker) : "") + '</td>' +
           '</tr>';
       }).join("");
       return '<div class="lst-wrap">' +
@@ -12631,6 +12861,11 @@
       CHANGE_LISTS = { up: [], down: [], fresh: [] };
       if (prior && !themeF) {
         const now = gradeMap(run), was = gradeMap(prior);
+        // Threshold reconciliation: previously the badge counted only
+        // "major" upgrades (diff ≥ 3 grade positions) while the
+        // snt-strip on the same page counted ANY upgrade. That created
+        // the confusing "Biggest Upgrades (3)" + "▲ 0 upgraded" mismatch.
+        // Now both use diff ≥ 1 (any upgrade) so the counts match.
         Object.keys(now).forEach(function (t) {
           const cell = TKMAP[t] || { t: t };
           if (!(t in was)) {
@@ -12642,10 +12877,10 @@
           if (now[t] <= 2 && was[t] > 2) {
             CHANGE_LISTS.fresh.push({ t: t, from: GR[was[t]],
               to: GR[now[t]], diff: diff, chg: cell.chg, p: cell.p });
-          } else if (diff >= 3) {
+          } else if (diff >= 1) {
             CHANGE_LISTS.up.push({ t: t, from: GR[was[t]],
               to: GR[now[t]], diff: diff, chg: cell.chg, p: cell.p });
-          } else if (diff <= -3) {
+          } else if (diff <= -1) {
             CHANGE_LISTS.down.push({ t: t, from: GR[was[t]],
               to: GR[now[t]], diff: -diff, chg: cell.chg, p: cell.p });
           }
@@ -12792,7 +13027,8 @@
       { k:"type", t:"C/P" }, { k:"strike", t:"Strike" }, { k:"expiry", t:"Expiry" },
       { k:"dte", t:"DTE" }, { k:"pct_otm", t:"%OTM" }, { k:"be_distance_pct", t:"→B/E" },
       { k:"volume", t:"Volume" }, { k:"vol_oi", t:"Vol/OI" }, { k:"liquidity", t:"Liq" },
-      { k:"premium", t:"Premium" }, { k:"why", t:"Why Flagged" },
+      { k:"premium", t:"Premium" }, { k:"interpretation", t:"Why Actionable" },
+      { k:"actions", t:"Actions" },
     ];
     const GROUP_COLS = [
       { k:"ticker", t:"Ticker" }, { k:"net", t:"Net Bias" }, { k:"n", t:"Signals" },
@@ -13314,7 +13550,7 @@
       renderChips();
       const tb = $("uoa-body");
       if (!DATA.length) {
-        tb.innerHTML = '<tr><td colspan="16" class="uoa-empty">Awaiting the first UOA scan '+
+        tb.innerHTML = '<tr><td colspan="17" class="uoa-empty">Awaiting the first UOA scan '+
           '&mdash; scheduled runs at ~11:00 AM, 1:30 PM &amp; 3:45 PM ET will populate this.</td></tr>';
         return;
       }
@@ -13327,12 +13563,22 @@
         return sortDir*(((x==null?-1:x)) - ((y==null?-1:y)));
       });
       if (!rows.length) {
-        tb.innerHTML = '<tr><td colspan="16" class="uoa-empty">No flow matches these filters.</td></tr>';
+        tb.innerHTML = '<tr><td colspan="17" class="uoa-empty">No flow matches these filters.</td></tr>';
         return;
       }
       shownRows = rows.slice(0, 300);
       tb.innerHTML = shownRows.map(function (r, i) {
         const bem = r.be_distance_pct;
+        // Why Actionable — use the JS classifier so users see WHAT
+        // KIND of flow this is (Conviction / Confirming / Hedge / etc)
+        // not just the source's "what filter matched" string. The
+        // source's r.why is preserved as the tooltip so the technical
+        // detail is still accessible.
+        const tier = (window.__uoaClassifyTier && window.__uoaClassifyTier(r)) ||
+                     { label: r.why || "—", why: r.why || "",
+                       tier: "speculative" };
+        const tooltipText = (tier.why || r.why || "")
+          .replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
         return '<tr data-idx="'+i+'">'+
           '<td><strong data-t="'+r.ticker+'">'+r.ticker+'</strong></td>'+
           '<td><span class="uoa-tier '+tierCls(r.tier)+'">'+(r.tier||"C")+'</span></td>'+
@@ -13349,9 +13595,11 @@
           '<td>'+r.vol_oi+'</td>'+
           '<td><span class="uoa-liq liq-'+(r.liquidity||"C").toLowerCase()+'">'+(r.liquidity||"C")+'</span></td>'+
           '<td class="'+(r.premium>=1e6?"uoa-prem-big":"")+'">$'+fmtNum(r.premium)+'</td>'+
-          '<td class="uoa-why" data-why="'+
-            (r.why||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;")+
-            '">'+(r.why||"&mdash;")+'</td>'+
+          '<td class="uoa-why" title="'+tooltipText+'">' +
+            '<span class="uoa-tier tier-'+tier.tier+'">'+
+              tier.label+'</span></td>' +
+          '<td>'+(window.tdActionStrip
+            ? window.tdActionStrip(r.ticker) : "")+'</td>'+
         '</tr>';
       }).join("");
     }
