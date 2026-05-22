@@ -442,24 +442,58 @@ def _classify_precise(trades, quotes):
 
 def analyze_flow(row):
     """Pull the trade tape for one flagged contract and summarise the flow:
-    sweeps, blocks, biggest single print, aggressor side."""
+    sweeps, blocks, biggest single print, aggressor side, plus the two
+    timestamps that let the UI answer "did this trade already work or am
+    I late?":
+
+      last_print_ts    — most recent trade (ISO 8601 UTC)
+      biggest_print_ts — timestamp of the marquee single-print
+                         (size × price × 100). This is the one that
+                         drives "printed Xm ago" + spot-delta math.
+
+    sip_timestamp is nanoseconds-since-epoch; we convert to ISO seconds
+    so the client can subtract from Date.now() without unit gymnastics.
+    """
     contract = row["contract"]
     trades = pg.option_trades(contract)
     sweeps, blocks = detect_sweeps(trades)
     side = classify_trades(trades, row)
     biggest = 0
+    biggest_ts_ns = 0
+    last_ts_ns = 0
     for t in trades:
-        biggest = max(biggest, (t.get("price", 0) or 0) * (t.get("size", 0) or 0) * 100)
+        prem = (t.get("price", 0) or 0) * (t.get("size", 0) or 0) * 100
+        ts = t.get("sip_timestamp", 0) or 0
+        if prem > biggest:
+            biggest = prem
+            biggest_ts_ns = ts
+        if ts > last_ts_ns:
+            last_ts_ns = ts
     sweep_prem = sum(s["premium"] for s in sweeps)
     max_sweep_size = max((s["size"] for s in sweeps), default=0)
+
+    def _ns_to_iso(ns):
+        if not ns:
+            return None
+        try:
+            # sip_timestamp is nanoseconds since epoch UTC. Truncate to
+            # microseconds (Python datetime cap) and round to whole sec
+            # for compact serialization.
+            return (datetime.fromtimestamp(ns / 1e9, tz=timezone.utc)
+                    .isoformat(timespec="seconds"))
+        except (ValueError, OSError):
+            return None
+
     return {
-        "trade_count":    len(trades),
-        "sweeps":         len(sweeps),
-        "sweep_premium":  round(sweep_prem),
-        "blocks":         len(blocks),
-        "biggest_print":  round(biggest),
-        "max_sweep_size": max_sweep_size,
-        "side":           side,
+        "trade_count":      len(trades),
+        "sweeps":           len(sweeps),
+        "sweep_premium":    round(sweep_prem),
+        "blocks":           len(blocks),
+        "biggest_print":    round(biggest),
+        "max_sweep_size":   max_sweep_size,
+        "side":             side,
+        "last_print_ts":    _ns_to_iso(last_ts_ns),
+        "biggest_print_ts": _ns_to_iso(biggest_ts_ns),
     }
 
 
@@ -908,6 +942,15 @@ def emit_latest(rows):
             "blocks":        flow.get("blocks", 0),
             "sweep_premium": flow.get("sweep_premium", 0),
             "biggest_print": flow.get("biggest_print", 0),
+            # ISO 8601 UTC. last_print_ts = most recent trade on the
+            # contract; biggest_print_ts = timestamp of the marquee
+            # premium print (most informative for "am I late?" UX).
+            # spot_at_print = the snapshot's underlying spot at scan
+            # time — close-enough proxy for "underlying when the
+            # marquee print hit" since snapshots fire every ~75 min.
+            "last_print_ts":    flow.get("last_print_ts"),
+            "biggest_print_ts": flow.get("biggest_print_ts"),
+            "spot_at_print":    r.get("spot"),
             "size_gt_oi":    r.get("size_gt_oi", False),
             "repeat_count":  r.get("repeat_count", 0),
             "earnings_days": r.get("earnings_days"),
