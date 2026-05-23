@@ -5059,6 +5059,53 @@
   let WATCHLIST = new Set(); // canonical in-memory set of tickers
   let WATCHLIST_WEIGHTS = {}; // ticker -> numeric weight (default 1)
 
+  // ── Safe session getter ──
+  // The Supabase SDK's auth.getSession() can hang indefinitely when its
+  // refresh-token state is in a bad spot (stale tokens in localStorage,
+  // network-failed silent refresh, etc.). When that happens, every UI
+  // action that needs the JWT — Open Checkout, Manage Billing, Generate
+  // Report — locks on "Opening…" forever because we await on a promise
+  // that never resolves. This wraps getSession() with a 2.5s timeout so
+  // the calling code can always proceed (or fall through to a "please
+  // sign in again" path) instead of hanging the button text.
+  //
+  // Returns: { session } on success, or { session: null } on timeout /
+  // error — same shape as the SDK so callers can treat it identically.
+  async function getSessionSafe(timeoutMs) {
+    const t = timeoutMs || 2500;
+    try {
+      const result = await Promise.race([
+        SUPA.auth.getSession(),
+        new Promise(function (_, rej) {
+          setTimeout(function () { rej(new Error("getSession timeout")); }, t);
+        }),
+      ]);
+      return result && result.data ? result.data : { session: null };
+    } catch (e) {
+      console.warn("getSessionSafe fallback:", e && e.message);
+      // Last-ditch fallback: read the access_token directly from the
+      // SDK's localStorage key. Format is sb-<projectref>-auth-token →
+      // { access_token, refresh_token, expires_at, user, … } JSON. If
+      // we can pull a non-expired token from there, the request can
+      // proceed even when the SDK refresh path is stuck.
+      try {
+        const key = Object.keys(localStorage)
+          .find(function (k) { return /^sb-.*-auth-token$/.test(k); });
+        if (key) {
+          const raw = JSON.parse(localStorage.getItem(key) || "{}");
+          if (raw && raw.access_token && raw.expires_at &&
+              raw.expires_at * 1000 > Date.now()) {
+            return { session: {
+              access_token: raw.access_token,
+              user: raw.user || null,
+            } };
+          }
+        }
+      } catch (_) {}
+      return { session: null };
+    }
+  }
+
   // Cross-component subscribers — re-render when watchlist or user changes
   const _userListeners  = [];
   const _watchListeners = [];
@@ -8485,7 +8532,7 @@
           // someone else's account.
           const headers = { "Content-Type": "application/json" };
           try {
-            const { data: { session } } = await SUPA.auth.getSession();
+            const { session } = await getSessionSafe();
             if (session && session.access_token) {
               headers["Authorization"] = "Bearer " + session.access_token;
             }
@@ -8670,7 +8717,7 @@
           // creating a Stripe Checkout Session keyed to user_id.
           const headers = { "Content-Type": "application/json" };
           try {
-            const { data: { session } } = await SUPA.auth.getSession();
+            const { session } = await getSessionSafe();
             if (session && session.access_token) {
               headers["Authorization"] = "Bearer " + session.access_token;
             }
@@ -8716,7 +8763,7 @@
           // guesswork). Email is sent only as a fallback search hint.
           const headers = { "Content-Type": "application/json" };
           try {
-            const { data: { session } } = await SUPA.auth.getSession();
+            const { session } = await getSessionSafe();
             if (session && session.access_token) {
               headers["Authorization"] = "Bearer " + session.access_token;
             }
@@ -11547,7 +11594,7 @@
         const headers = { "Content-Type": "application/json" };
         try {
           if (SUPA && SUPA.auth) {
-            const { data: { session } } = await SUPA.auth.getSession();
+            const { session } = await getSessionSafe();
             if (session && session.access_token) {
               headers["Authorization"] = "Bearer " + session.access_token;
             }
