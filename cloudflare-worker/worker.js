@@ -51,10 +51,28 @@ async function fetchYahooQuote(sym) {
         }
       }
     }
+    // Freshness metadata so the client can disclose the 15m delay
+    // truthfully rather than implying real-time. regularMarketTime is
+    // the Yahoo-reported last-trade timestamp (epoch seconds);
+    // multiply ×1000 for JS ms. source flags the upstream provider
+    // (Yahoo passthrough = Polygon Stocks Starter tier in practice,
+    // delayed 15 min by license). delay_minutes is advisory — clients
+    // should display "Delayed 15m · last trade HH:MM ET" using these.
+    const lastTradeMs = (typeof m.regularMarketTime === "number"
+      && m.regularMarketTime > 0)
+      ? m.regularMarketTime * 1000 : null;
     return { symbol: sym, price: price, change: change,
-             prevClose: prev, bars: bars };
+             prevClose: prev, bars: bars,
+             last_trade_ts: lastTradeMs
+               ? new Date(lastTradeMs).toISOString() : null,
+             source: "yahoo",
+             delay_minutes: 15,
+             fetched_at: new Date().toISOString() };
   } catch (e) {
-    return { symbol: sym, price: null, change: null, bars: [] };
+    return { symbol: sym, price: null, change: null, bars: [],
+             last_trade_ts: null, source: "yahoo",
+             delay_minutes: 15,
+             fetched_at: new Date().toISOString() };
   }
 }
 
