@@ -454,6 +454,167 @@ async function fetchLiveUOA(env, ticker, debug) {
   return out;
 }
 
+/** ATM straddle → implied-move snapshot for a single underlying.
+ *
+ *  How it works:
+ *    1. Pulls /v3/snapshot/options/{ticker} (same endpoint as live-UOA)
+ *    2. Picks the nearest expiry (>= today) — this is the most relevant
+ *       contract for earnings/event positioning. If a specific
+ *       earnings-date hint is supplied via ?earningsDate=, we pick the
+ *       FIRST expiry on-or-after that date instead so the user sees
+ *       the move the market is pricing INTO the print.
+ *    3. Walks the chain for that expiry, picks the call+put pair
+ *       closest to the underlying spot (ATM).
+ *    4. implied_move_pct = (atm_call_mid + atm_put_mid) / spot * 100
+ *       — the classic ATM-straddle approximation of 1σ expected move
+ *       over the contract's life. Honest math, no IV blends.
+ *    5. iv_pct = avg of the call+put implied vols from the snapshot
+ *       (Polygon emits per-contract IV on the snapshot).
+ *
+ *  Why "IV level" not "IV rank":
+ *  IV rank requires 52-week IV history per ticker which Polygon Starter
+ *  doesn't ship and which our cache doesn't yet backfill. So we report
+ *  raw IV ("47%") plus a coarse Low/Normal/High label keyed off the
+ *  absolute level. When we accumulate enough daily snapshots to build a
+ *  true rank, the endpoint can swap in a percentile.
+ *
+ *  Edge cached 5 min — IV doesn't move that fast and this is called
+ *  from earnings cards (potentially dozens per page load).
+ */
+async function fetchIvSnapshot(env, ticker, earningsDate) {
+  if (!env.POLYGON_API_KEY) {
+    return { error: "POLYGON_API_KEY not configured", ticker: ticker };
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const url = "https://api.polygon.io/v3/snapshot/options/" +
+              encodeURIComponent(ticker) +
+              "?limit=250" +
+              "&expiration_date.gte=" + today +
+              "&apiKey=" + env.POLYGON_API_KEY;
+  let r;
+  try {
+    r = await fetch(url, {
+      signal: AbortSignal.timeout(10000),
+      cf: { cacheTtl: 300 },
+    });
+  } catch (e) {
+    return { error: "Polygon snapshot timeout", ticker: ticker };
+  }
+  if (!r.ok) {
+    let body = "";
+    try { body = await r.text(); } catch (e) {}
+    return { error: "Polygon snapshot HTTP " + r.status,
+             body: body.slice(0, 200), ticker: ticker };
+  }
+  const j = await r.json();
+  const results = (j && j.results) || [];
+  if (!results.length) {
+    return { ticker: ticker, error: "No active options chain",
+             fetched: new Date().toISOString() };
+  }
+  // Underlying spot
+  let spot = null;
+  for (const c of results) {
+    if (c.underlying_asset && typeof c.underlying_asset.price === "number") {
+      spot = c.underlying_asset.price; break;
+    }
+  }
+  if (!spot) {
+    return { ticker: ticker, error: "Underlying price unavailable",
+             fetched: new Date().toISOString() };
+  }
+  // Group by expiry
+  const byExpiry = {};
+  for (const c of results) {
+    const d = c.details || {};
+    if (!d.expiration_date || !d.strike_price || !d.contract_type) continue;
+    const e = d.expiration_date;
+    (byExpiry[e] = byExpiry[e] || []).push(c);
+  }
+  // Choose the target expiry
+  const expiries = Object.keys(byExpiry).sort();
+  if (!expiries.length) {
+    return { ticker: ticker, error: "No usable expiries", spot: spot };
+  }
+  let pick = expiries[0];
+  if (earningsDate) {
+    const later = expiries.find(function (e) { return e >= earningsDate; });
+    if (later) pick = later;
+  }
+  const chain = byExpiry[pick];
+  // Find ATM call + ATM put
+  const closest = function (typ) {
+    let best = null, bestDist = Infinity;
+    for (const c of chain) {
+      const d = c.details || {};
+      if (d.contract_type !== typ) continue;
+      const dist = Math.abs((d.strike_price || 0) - spot);
+      if (dist < bestDist) { best = c; bestDist = dist; }
+    }
+    return best;
+  };
+  const call = closest("call");
+  const put  = closest("put");
+  if (!call || !put) {
+    return { ticker: ticker, error: "No ATM straddle on " + pick,
+             spot: spot, expiry: pick };
+  }
+  const midOf = function (c) {
+    const lq = c.last_quote || {};
+    if (lq.ask && lq.bid && lq.ask + lq.bid > 0) {
+      return (lq.ask + lq.bid) / 2;
+    }
+    const dy = c.day || {};
+    return dy.close || lq.last || 0;
+  };
+  const callMid = midOf(call);
+  const putMid  = midOf(put);
+  const straddle = callMid + putMid;
+  const impliedMovePct = spot > 0 ? (straddle / spot) * 100 : null;
+  const ivCall = (typeof call.implied_volatility === "number")
+    ? call.implied_volatility : null;
+  const ivPut  = (typeof put.implied_volatility === "number")
+    ? put.implied_volatility  : null;
+  const ivs = [ivCall, ivPut].filter(function (v) { return v != null; });
+  const ivPct = ivs.length
+    ? (ivs.reduce(function (s, v) { return s + v; }, 0) / ivs.length) * 100
+    : null;
+  // Coarse level label keyed off absolute IV (NOT rank — we don't have
+  // 52w history yet). Thresholds chosen for liquid US single-name
+  // equity options where 30% IV is roughly average. Reset these once
+  // we have ticker-specific history.
+  const ivLevel = ivPct == null ? null
+    : ivPct >= 70 ? "high"
+    : ivPct >= 40 ? "elevated"
+    : ivPct >= 20 ? "normal"
+    : "low";
+  // DTE for the picked expiry — helps the UI label "weekly" vs "monthly"
+  const expMs = Date.parse(pick + "T16:00:00-04:00");
+  const dte = expMs ? Math.max(0, Math.round(
+    (expMs - Date.now()) / 86400000)) : null;
+  return {
+    ticker:           ticker,
+    spot:             Math.round(spot * 100) / 100,
+    expiry:           pick,
+    dte:              dte,
+    atm_call_strike:  call.details.strike_price,
+    atm_put_strike:   put.details.strike_price,
+    call_mid:         Math.round(callMid * 100) / 100,
+    put_mid:          Math.round(putMid  * 100) / 100,
+    straddle:         Math.round(straddle * 100) / 100,
+    implied_move_pct: impliedMovePct == null ? null
+                      : Math.round(impliedMovePct * 10) / 10,
+    iv_pct:           ivPct == null ? null
+                      : Math.round(ivPct * 10) / 10,
+    iv_level:         ivLevel,
+    // Honest disclosure of how the IV level is bucketed — keeps the
+    // client copy from over-claiming IV-rank semantics. Static while
+    // we lack history.
+    iv_level_method:  "absolute (Low <20 · Normal 20-40 · Elevated 40-70 · High ≥70)",
+    fetched:          new Date().toISOString(),
+  };
+}
+
 /** Strip a Polygon news article down to just the fields the dashboard
  *  renders — drops large fields like the full article body and trims
  *  the response from Polygon (~3KB per article) to ~600 bytes. */
@@ -1220,6 +1381,31 @@ export default {
           },
         });
         if (!debug) ctx.waitUntil(cache.put(request, resp.clone()));
+        return resp;
+      }
+      // ATM-straddle implied move + IV snapshot for a single ticker.
+      // `?iv=AAPL` returns { spot, expiry, dte, implied_move_pct, iv_pct,
+      // iv_level }. Optional `?earningsDate=YYYY-MM-DD` picks the first
+      // expiry on-or-after that date (so the badge reflects move INTO
+      // the print, not the closest weekly). Used by the Earnings cards.
+      const ivParam = url.searchParams.get("iv");
+      if (ivParam) {
+        const cache = caches.default;
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const tk = ivParam.trim().toUpperCase();
+        if (!tk || !/^[A-Z.\-]{1,8}$/.test(tk)) {
+          return Response.json(
+            { error: `Invalid ticker: "${tk}"` },
+            { status: 400, headers: cors });
+        }
+        const ed = (url.searchParams.get("earningsDate") || "").trim();
+        const validED = /^\d{4}-\d{2}-\d{2}$/.test(ed) ? ed : null;
+        const data = await fetchIvSnapshot(env, tk, validED);
+        const resp = Response.json(data, {
+          headers: { ...cors, "Cache-Control": "public, max-age=300" },
+        });
+        ctx.waitUntil(cache.put(request, resp.clone()));
         return resp;
       }
       // News headlines — ?news=general for firehose or ?news=AAPL for a

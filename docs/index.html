@@ -1237,6 +1237,28 @@
   table.mom-table tr:hover td { background:var(--rowhov); }
   .mom-pos { color:var(--green); }
   .mom-neg { color:var(--red); }
+  /* ── Momentum interpretive badges ──
+     QM Monthly: Quality (Explosive/Strong/Moderate)
+     Stockbee Weekly: Fade Risk (Hot/Extended/Fresh)
+     Same chip pattern, different palettes — colors encode the read.
+     Explosive/Hot share warning palette since both signal "ride or
+     fade soon"; Strong/Extended are neutral-positive; Moderate/Fresh
+     are calm-green (best risk/reward). */
+  .mom-badge { display:inline-block; font-size:9.5px; font-weight:700;
+    padding:2px 7px; border-radius:10px; letter-spacing:0.02em;
+    white-space:nowrap; line-height:1.4; }
+  .mom-bk-exp   { background:rgba(255,158,27,0.18);
+    color:var(--gold); border:1px solid rgba(255,158,27,0.45); }
+  .mom-bk-str   { background:rgba(31,179,99,0.16);
+    color:var(--green); border:1px solid rgba(31,179,99,0.4); }
+  .mom-bk-mod   { background:rgba(120,150,200,0.08);
+    color:var(--textdim); border:1px solid var(--line); }
+  .mom-bk-hot   { background:rgba(214,68,68,0.16);
+    color:var(--red); border:1px solid rgba(214,68,68,0.4); }
+  .mom-bk-ext   { background:rgba(255,158,27,0.18);
+    color:var(--gold); border:1px solid rgba(255,158,27,0.45); }
+  .mom-bk-fresh { background:rgba(31,179,99,0.16);
+    color:var(--green); border:1px solid rgba(31,179,99,0.4); }
 
   /* ── Swing Report Card ── */
   #panel-swing { max-width:1400px; }       /* wide enough for all 20 grade columns */
@@ -1923,6 +1945,37 @@
   @media (max-width:760px) {
     .desk-insight { font-size:10.5px; padding:5px 8px; }
   }
+  /* ── First-sign-in welcome toast ──
+     Bottom-anchored card with slide-up animation. Lives on top of the
+     page (z-index above nav) so it's visible regardless of which tab
+     the user lands on. Auto-dismisses or user can ✕. Reused pattern
+     for future onboarding toasts. */
+  .td-toast { position:fixed; bottom:24px; right:24px; max-width:380px;
+    background:var(--card); border:1px solid var(--gold);
+    border-radius:10px; padding:13px 38px 13px 14px;
+    box-shadow:0 12px 36px rgba(0,0,0,.55);
+    z-index:140; display:flex; gap:11px; align-items:flex-start;
+    transform:translateY(20px); opacity:0;
+    transition:transform .35s ease, opacity .35s ease;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+  .td-toast.show { transform:translateY(0); opacity:1; }
+  .td-toast .tdt-icon { font-size:22px; line-height:1.2; flex-shrink:0; }
+  .td-toast .tdt-title { font-size:13px; font-weight:700;
+    color:var(--gold); margin-bottom:3px; }
+  .td-toast .tdt-msg { font-size:12px; line-height:1.45;
+    color:var(--text); }
+  .td-toast .tdt-msg a { color:var(--gold); text-decoration:none;
+    border-bottom:1px dashed var(--gold); }
+  .td-toast .tdt-msg a:hover { color:var(--text); }
+  .td-toast .tdt-close { position:absolute; top:6px; right:9px;
+    background:transparent; border:none; color:var(--muted);
+    font-size:18px; font-weight:600; cursor:pointer; line-height:1;
+    padding:4px 6px; border-radius:4px; }
+  .td-toast .tdt-close:hover { color:var(--text);
+    background:rgba(255,255,255,.05); }
+  @media (max-width:520px) {
+    .td-toast { left:12px; right:12px; bottom:12px; max-width:none; }
+  }
   @media (max-width:760px) {
     .desk-grid { grid-template-columns:1fr; }
   }
@@ -2352,6 +2405,12 @@
   /* Filter pills + view/sort row */
   .gm-controls { display:flex; flex-wrap:wrap; gap:10px;
     align-items:center; justify-content:space-between; margin-bottom:14px; }
+  /* iPhone SE / narrow phones — stack controls vertically so the
+     filter pills + view-toggle don't crush into each other. */
+  @media (max-width:380px) {
+    .gm-controls { flex-direction:column; align-items:stretch; }
+    .gm-controls > * { width:100%; }
+  }
   .gm-pills { display:flex; gap:4px; flex-wrap:wrap; }
   .gm-pills button { background:var(--navy2); border:1px solid var(--border2);
     color:var(--textdim); font-family:inherit; font-size:11px;
@@ -2596,6 +2655,30 @@
   .ant-row.ant-marquee .ant-tk { color:var(--gold); font-size:12px; }
   .ant-row.ant-marquee .ant-bar { background:linear-gradient(90deg,
     var(--gold), var(--green)); }
+  /* IV / Implied-Move badge on the right of the row. Lazy-hydrated;
+     starts as "…" until the worker /iv response lands. Color encodes
+     the absolute IV bucket — not a true 0-100 rank since we lack
+     52-week history; tooltip discloses the methodology. */
+  .ant-row .ant-iv { font-size:9.5px; line-height:1.3;
+    margin-left:auto; padding:0 4px; flex-shrink:0; }
+  .ant-row .ant-iv-loading { color:var(--muted); font-style:italic; }
+  .ant-row .ant-iv-pill { display:inline-block; padding:2px 7px;
+    border-radius:9px; font-weight:700; font-variant-numeric:tabular-nums;
+    border:1px solid var(--line); white-space:nowrap; }
+  .ant-row .ant-iv-low      { color:var(--green);
+    border-color:rgba(31,179,99,0.4);
+    background:rgba(31,179,99,0.10); }
+  .ant-row .ant-iv-normal   { color:var(--textdim);
+    border-color:var(--line);
+    background:rgba(120,150,200,0.08); }
+  .ant-row .ant-iv-elevated { color:var(--gold);
+    border-color:rgba(255,158,27,0.45);
+    background:rgba(255,158,27,0.12); }
+  .ant-row .ant-iv-high     { color:var(--red);
+    border-color:rgba(214,68,68,0.45);
+    background:rgba(214,68,68,0.14); }
+  .ant-row .ant-iv-na, .ant-row .ant-iv .ant-iv-na {
+    color:var(--muted); font-style:italic; font-size:9px; }
 
   .ant-empty { color:var(--muted); font-size:10px; text-align:center;
     padding:14px 6px; font-style:italic; }
@@ -2988,6 +3071,10 @@
   .archive-results .ar-row.active .ar-type { color:var(--gold);
     border-color:var(--gold); }
   .archive-results .ar-row .ar-label { color:var(--textdim);
+    overflow:hidden; min-width:0;
+    display:flex; flex-direction:column; gap:2px; }
+  .archive-results .ar-row .ar-label .ar-preview { color:var(--muted);
+    font-size:10px; line-height:1.35;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .archive-results .ar-row .ar-date { color:var(--muted); font-size:10.5px;
     text-align:right; font-variant-numeric:tabular-nums; }
@@ -3036,6 +3123,72 @@
   .uoa-today-edge .te-val.up { color:var(--green); }
   .uoa-today-edge .te-val.down { color:var(--red); }
   .uoa-today-edge .te-val.gold { color:var(--gold); }
+  /* ── Score-component breakdown popover ──
+     Anchored to the right of a clicked score cell. Floats above the
+     table with high z-index so it doesn't get clipped by the sticky
+     table header or the .uoa-table-wrap scroll container. */
+  .uoa-score.has-breakdown { cursor:pointer; }
+  .uoa-score.has-breakdown:hover {
+    box-shadow:0 0 0 2px rgba(255,158,27,0.5); }
+  .uoa-score.has-breakdown:focus-visible {
+    outline:2px solid var(--gold); outline-offset:1px; }
+  .scp-popover { position:absolute; z-index:160;
+    background:var(--card); border:1px solid var(--gold);
+    border-radius:8px; padding:11px 13px 9px;
+    box-shadow:0 12px 36px rgba(0,0,0,.55);
+    min-width:280px; max-width:340px;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    color:var(--text); font-size:11.5px; line-height:1.4; }
+  .scp-popover .scp-h { font-size:12px; font-weight:600;
+    color:var(--gold); margin-bottom:7px; padding-right:18px; }
+  .scp-popover .scp-h b { color:var(--text); font-weight:700; }
+  .scp-popover .scp-row { display:grid;
+    grid-template-columns:80px 1fr 56px; align-items:center;
+    gap:8px; padding:3px 0; font-size:11px; }
+  .scp-popover .scp-label { color:var(--textdim); }
+  .scp-popover .scp-bar { background:rgba(255,255,255,0.05);
+    height:6px; border-radius:3px; overflow:hidden; }
+  .scp-popover .scp-fill { display:block; height:100%; border-radius:3px;
+    transition:width .25s ease; }
+  .scp-popover .scp-fill.scp-high { background:var(--green); }
+  .scp-popover .scp-fill.scp-mid  { background:var(--gold); }
+  .scp-popover .scp-fill.scp-low  { background:rgba(120,150,200,0.35); }
+  .scp-popover .scp-val { text-align:right;
+    font-variant-numeric:tabular-nums; font-weight:600;
+    color:var(--text); }
+  .scp-popover .scp-max { color:var(--muted); font-weight:400; }
+  .scp-popover .scp-row.scp-penalty .scp-val { color:var(--red); }
+  .scp-popover .scp-pen-why { color:var(--muted); font-weight:400;
+    font-size:9.5px; display:block; }
+  .scp-popover .scp-neg { color:var(--red); }
+  .scp-popover .scp-foot { font-size:10px; color:var(--muted);
+    border-top:1px solid var(--line); margin-top:7px; padding-top:6px; }
+  .scp-popover .scp-close { position:absolute; top:5px; right:7px;
+    background:transparent; border:none; color:var(--muted);
+    font-size:17px; line-height:1; cursor:pointer;
+    padding:3px 5px; border-radius:4px; }
+  .scp-popover .scp-close:hover { color:var(--text);
+    background:rgba(255,255,255,0.05); }
+  @media (max-width:520px) {
+    .scp-popover { min-width:240px; max-width:90vw; }
+  }
+  /* Filter-aware headline above the UOA table — 1-line aggregate
+     read that updates as the user changes filter chips. Same visual
+     language as .desk-insight on the homepage so the connection is
+     obvious: "this is your current view summarized." */
+  .uoa-filter-headline { font-size:11.5px; color:var(--text);
+    background:rgba(120,150,200,0.08);
+    border-left:2px solid var(--gold);
+    border-radius:0 3px 3px 0;
+    padding:7px 11px; margin:0 0 10px; line-height:1.5;
+    font-feature-settings:"tnum" 1; }
+  .uoa-filter-headline b { color:var(--text); font-weight:700; }
+  .uoa-filter-headline .pos { color:var(--green); font-weight:700; }
+  .uoa-filter-headline .neg { color:var(--red); font-weight:700; }
+  .uoa-filter-headline .muted { color:var(--muted); }
+  @media (max-width:760px) {
+    .uoa-filter-headline { font-size:10.5px; padding:6px 9px; }
+  }
   .uoa-today-edge .te-sub { font-size:10px; color:var(--textdim);
     margin-top:3px; line-height:1.4; }
 
@@ -4325,6 +4478,11 @@
 
       <div class="uoa-chips" id="uoa-chips"></div>
 
+      <!-- Filter-aware headline — updates every time the user changes a
+           filter chip or preset. Single 1-line read of WHAT THEY'RE
+           CURRENTLY LOOKING AT before they parse 17 columns. -->
+      <div class="uoa-filter-headline" id="uoa-filter-headline"></div>
+
       <div class="uoa-table-wrap">
         <table class="uoa" id="uoa-table">
           <thead><tr id="uoa-head"></tr></thead>
@@ -5487,10 +5645,70 @@
               console.warn("Watchlist merge failed:", e);
             }
           }
+          // First-sign-in welcome toast — explains the silently-seeded
+          // starter watchlist so the user doesn't wonder where the 5
+          // tickers came from. Gated by (a) profile created <30 min
+          // ago AND (b) not already shown on this browser. The
+          // localStorage key keeps it from re-firing if they sign out
+          // and back in (which is a clean re-sign, not a first sign).
+          try {
+            const seenKey = "td_welcome_seen_v1";
+            if (!localStorage.getItem(seenKey)) {
+              const { data: prof } = await SUPA.from("profiles")
+                .select("created_at,starter_seeded")
+                .eq("id", CURRENT_USER.id).single();
+              const isFresh = prof && prof.created_at &&
+                (Date.now() - new Date(prof.created_at).getTime() < 1800 * 1000);
+              if (isFresh && prof.starter_seeded) {
+                showWelcomeToast();
+                localStorage.setItem(seenKey, "1");
+              }
+            }
+          } catch (_) { /* non-fatal — toast is a nice-to-have */ }
         }
         loadWatchlist();
       }
     });
+  }
+  // ── First-sign-in welcome toast ───────────────────────────────
+  // Triggered after the first SIGNED_IN event for a freshly-created
+  // profile. Explains the starter watchlist (NVDA/MU/AVGO/MRVL/AAPL)
+  // that the handle_new_user() Postgres trigger silently seeds so the
+  // user understands where those tickers came from. Tappable to jump
+  // to the Watchlist tab; dismissible with ✕ button. Auto-dismisses
+  // after 12s. Reuses the .td-toast CSS pattern.
+  function showWelcomeToast() {
+    if (document.getElementById("td-welcome-toast")) return;
+    const toast = document.createElement("div");
+    toast.id = "td-welcome-toast";
+    toast.className = "td-toast td-toast-welcome";
+    toast.innerHTML =
+      '<div class="tdt-icon" aria-hidden="true">👋</div>' +
+      '<div class="tdt-body">' +
+        '<div class="tdt-title">Welcome to TickerDesk</div>' +
+        '<div class="tdt-msg">We\'ve seeded your watchlist with 5 tech ' +
+          'leaders to get you started: <b>NVDA · MU · AVGO · MRVL · AAPL</b>. ' +
+          '<a href="#" data-tdt-goto="watchlist">Customize on Watchlist tab &rarr;</a>' +
+        '</div>' +
+      '</div>' +
+      '<button class="tdt-close" type="button" aria-label="Dismiss">&times;</button>';
+    document.body.appendChild(toast);
+    requestAnimationFrame(function () { toast.classList.add("show"); });
+    const dismiss = function () {
+      toast.classList.remove("show");
+      setTimeout(function () {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 350);
+    };
+    toast.querySelector(".tdt-close").addEventListener("click", dismiss);
+    toast.querySelector("[data-tdt-goto]").addEventListener("click",
+      function (e) {
+        e.preventDefault();
+        const btn = document.querySelector('nav button[data-tab="watchlist"]');
+        if (btn) btn.click();
+        dismiss();
+      });
+    setTimeout(dismiss, 12000);
   }
   async function signInWithEmail(email) {
     if (!SUPA) throw new Error("Supabase not configured");
@@ -7416,6 +7634,56 @@
       // Build rows, sort by confluence score descending
       const rows = wl.map(buildRow);
       rows.sort(function (a, b) { return b.conf - a.conf; });
+      // ── Macro stat strip ──
+      // 1-line "your book at a glance" so the user opens the tab and
+      // immediately knows: how many names changed today, where the
+      // flow is, what's about to report. Computes from the same `rows`
+      // we just built — pure aggregation, no extra fetches.
+      const D = window.TD_DATA || {};
+      let _upgrades = 0, _withFlow = 0, _earnSoon = 0;
+      let _confSum = 0, _confN = 0;
+      // Upgrades: compare current grade vs previous swing run
+      if (D.swing && D.swing.runs && D.swing.runs.length >= 2) {
+        const GRR = GR;
+        const rankOf = function (g) {
+          const i = GRR.indexOf(g); return i < 0 ? 99 : i;
+        };
+        const prevRun = D.swing.runs[D.swing.runs.length - 2];
+        const prevG = {};
+        Object.keys(prevRun.grades || {}).forEach(function (g) {
+          (prevRun.grades[g] || []).forEach(function (c) {
+            prevG[c.t] = g;
+          });
+        });
+        rows.forEach(function (r) {
+          if (r.grade && prevG[r.tk] &&
+              rankOf(r.grade) < rankOf(prevG[r.tk])) _upgrades++;
+        });
+      }
+      rows.forEach(function (r) {
+        if (r.flow) _withFlow++;
+        if (r.earnDays != null && r.earnDays >= 0 && r.earnDays <= 7) _earnSoon++;
+        if (typeof r.conf === "number") { _confSum += r.conf; _confN++; }
+      });
+      const _avgConf = _confN ? (_confSum / _confN) : 0;
+      const _bookCls = _avgConf >= 2 ? "pos"
+                     : _avgConf <= -2 ? "neg" : "muted";
+      const _bookLabel = _avgConf >= 3 ? "leaning strong bull"
+                       : _avgConf >= 1 ? "leaning bull"
+                       : _avgConf <= -3 ? "leaning strong bear"
+                       : _avgConf <= -1 ? "leaning bear"
+                       : "balanced";
+      const statStrip = '<div class="desk-insight" style="margin:0 0 12px">' +
+        '<b>' + rows.length + ' name' + (rows.length === 1 ? '' : 's') +
+          '</b>' +
+        (_upgrades ? ' &middot; <span class="pos">' + _upgrades +
+          ' upgrade' + (_upgrades === 1 ? '' : 's') + ' today</span>' : '') +
+        (_withFlow ? ' &middot; ' + _withFlow + ' with unusual flow' : '') +
+        (_earnSoon ? ' &middot; <b>' + _earnSoon + ' earnings &le;7d</b>' : '') +
+        ' &middot; book <span class="' + _bookCls + '">' + _bookLabel +
+          '</span> (avg confluence ' + (_avgConf >= 0 ? "+" : "") +
+          _avgConf.toFixed(1) + ')' +
+        '</div>';
       // My Desk column headers — every column gets a hover-tooltip
       // so abbreviations + multi-source values are unambiguous.
       const header = '<div class="md-row md-header">' +
@@ -7480,7 +7748,8 @@
             '</span>' +
           '</div>';
       }).join("");
-      body.innerHTML = '<div class="mydesk-grid">' + header + out + '</div>';
+      body.innerHTML = statStrip +
+        '<div class="mydesk-grid">' + header + out + '</div>';
     }
     onWatchChange(render);
     // Also re-render when Today's Desk loads its data (so My Desk picks it up)
@@ -10792,6 +11061,19 @@
   nav.addEventListener("click", function (e) {
     if (e.target.tagName !== "BUTTON") return;
     setActivePanel(e.target.dataset.tab);
+    // Mobile: nav is horizontally scrollable across 15 tabs. After the
+    // user switches tabs, scroll the active button into view so they
+    // can see what they just tapped — otherwise the leftmost active
+    // button can sit offscreen on iPhones with only 4-5 tabs visible
+    // at once. block:"nearest" keeps vertical scroll unchanged;
+    // inline:"center" centers horizontally when possible.
+    try {
+      e.target.scrollIntoView({
+        behavior: "smooth",
+        block:    "nearest",
+        inline:   "center",
+      });
+    } catch (_) { /* old browsers — silent no-op */ }
   });
 
   /* ── Sub-toggles inside consolidated tabs (Breakout Scans, Setup Builder) ── */
@@ -11329,6 +11611,21 @@
       "qm-monthly":      "QM Month",
       "stockbee-weekly": "Stockbee",
     };
+    // 1-line preview shown under each archived report — explains
+    // what's in the PDF before the user clicks. Avoids the "list of
+    // filenames" anti-pattern. Per-type because each report type
+    // covers a different surface; the SMID setup write-up is
+    // structurally different from an ad-hoc one-pager.
+    const TYPE_DESC = {
+      "adhoc":           "Setup analysis, 12-mo insider transactions, institutional ownership, price/volume context",
+      "alt-data":        "Sentiment, social momentum, alternative datasets — bull/bear thesis with conviction score",
+      "smid-scanner":    "Breakout candidates from the SMID universe with Claude-scored thesis per ticker",
+      "iwm-scanner":     "Same as SMID for the broader Russell 2000 universe",
+      "smid-setup":      "VCP and consolidation setups in SMID names with entry/stop logic",
+      "iwm-setup":       "VCP / consolidation setups across the IWM universe",
+      "qm-monthly":      "Qullamaggie-style 1-month momentum screen with ADR + dollar-volume filters",
+      "stockbee-weekly": "Stockbee weekly momentum screen — top 1-week % gainers above the liquidity floor",
+    };
     let LAST_MATCHES = [];     // most recent search result set
 
     function recent() {
@@ -11438,6 +11735,21 @@
         pushRecent(ticker);
         return;
       }
+      // Freshness helper — turns a file's embedded date+time stamp
+      // into "Generated 2d ago" / "Today 4:31 PM" so the archive
+      // row carries an obvious recency cue without the user having
+      // to parse the date string themselves.
+      const ago = function (file) {
+        const m = (file || "").match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+        if (!m) return "";
+        const d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]));
+        const ms = Date.now() - d.getTime();
+        const h = Math.round(ms / 3600000);
+        if (h < 24)  return h <= 1 ? "Just now" : h + "h ago";
+        const days = Math.round(h / 24);
+        if (days < 30) return days + "d ago";
+        return Math.round(days / 30) + "mo ago";
+      };
       resultsEl.innerHTML =
         '<div class="ar-found"><b>' + matches.length + '</b> matched ' +
           'for <b>' + ticker + '</b> &mdash; most recent loaded in viewer ' +
@@ -11445,11 +11757,18 @@
         '<div class="ar-list">' +
           matches.map(function (e) {
             const dt = fileDate(e.file);
+            const desc = TYPE_DESC[e._type] ||
+              "Generated report (open to view).";
+            const freshness = ago(e.file);
             return '<div class="ar-row" data-file="' + e.file + '">' +
               '<span class="ar-type">' +
                 (TYPE_LABEL[e._type] || e._type) + '</span>' +
-              '<span class="ar-label">' + (e.label || e.file) + '</span>' +
-              '<span class="ar-date">' + dt + '</span>' +
+              '<span class="ar-label">' + (e.label || e.file) +
+                '<span class="ar-preview">' + desc + '</span>' +
+              '</span>' +
+              '<span class="ar-date">' +
+                (freshness ? freshness + ' &middot; ' : '') + dt +
+              '</span>' +
               '</div>';
           }).join("") +
         '</div>';
@@ -11510,14 +11829,45 @@
       return v >= 1e9 ? "$" + (v / 1e9).toFixed(2) + "B"
                       : "$" + Math.round(v / 1e6) + "M";
     }
+    // ── Per-row interpretive badge ──
+    // QM Monthly (1-Mo %): Momentum Quality
+    //   Explosive  — 1-mo ≥ 50% AND ADR ≥ 8%  (parabolic blow-off potential)
+    //   Strong     — 1-mo ≥ 25% AND ADR ≥ 6%  (sustained ramp)
+    //   Moderate   — passed the screen but below the elite tiers
+    // Stockbee Weekly (1-Wk %): Fade Risk
+    //   Hot        — 1-wk ≥ 35%  (overextended; fade-risk highest)
+    //   Extended   — 1-wk 20-35%
+    //   Fresh      — 1-wk < 20%  (just started moving — best risk/reward)
+    function quality(r) {
+      const m = (typeof r.chg === "number") ? r.chg : 0;
+      const adr = (typeof r.adr_pct === "number") ? r.adr_pct : 0;
+      if (m >= 50 && adr >= 8) return { label:"Explosive", cls:"mom-bk-exp" };
+      if (m >= 25 && adr >= 6) return { label:"Strong",    cls:"mom-bk-str" };
+      return                        { label:"Moderate",  cls:"mom-bk-mod" };
+    }
+    function fadeRisk(r) {
+      const w = (typeof r.chg === "number") ? r.chg : 0;
+      if (w >= 35)              return { label:"Hot",      cls:"mom-bk-hot" };
+      if (w >= 20)              return { label:"Extended", cls:"mom-bk-ext" };
+      return                         { label:"Fresh",    cls:"mom-bk-fresh" };
+    }
+    const badgeFn = cfg.badgeFn ||
+      (cfg.chgLabel.indexOf("Mo") >= 0 ? quality : fadeRisk);
+    const badgeColLabel = cfg.chgLabel.indexOf("Mo") >= 0
+      ? "Quality" : "Fade Risk";
+    const badgeColTip = cfg.chgLabel.indexOf("Mo") >= 0
+      ? "Momentum Quality — Explosive (1-mo ≥ 50% AND ADR ≥ 8%, parabolic blow-off potential), Strong (1-mo ≥ 25% AND ADR ≥ 6%, sustained ramp), Moderate (passed the screen but below the elite tiers)."
+      : "Fade Risk — Hot (1-wk ≥ 35%, likely overextended), Extended (1-wk 20-35%, getting late), Fresh (1-wk < 20%, just starting — best risk/reward).";
     function rowHtml(r) {
       const c = (typeof r.chg === "number") ? r.chg : null;
       const cc = c == null ? "" : c > 0 ? "mom-pos" : c < 0 ? "mom-neg" : "";
+      const bk = badgeFn(r);
       return '<tr><td><span data-t="' + r.ticker + '">' + r.ticker + '</span></td>' +
         '<td>' + (r.price != null ? "$" + r.price.toFixed(2) : "—") + '</td>' +
         '<td class="' + cc + '">' +
           (c != null ? (c > 0 ? "+" : "") + c.toFixed(1) + "%" : "—") + '</td>' +
         '<td>' + (r.adr_pct != null ? r.adr_pct.toFixed(1) + "%" : "—") + '</td>' +
+        '<td><span class="mom-badge ' + bk.cls + '">' + bk.label + '</span></td>' +
         '<td>' + fmtVol(r.dollar_vol) + '</td>' +
         '<td>' + (r.ern && r.ern !== "--" ? r.ern : "—") + '</td>' +
         '<td>' + (window.tdActionStrip
@@ -11536,6 +11886,7 @@
         '<th title="' + chgTip + '">' + cfg.chgLabel + '</th>' +
         '<th title="ADR (Average Daily Range): mean of (high/low - 1) over the last 20 sessions, expressed as %. Volatility proxy. Qullamaggie targets ADR ≥ 5%.">' +
           'ADR%</th>' +
+        '<th title="' + badgeColTip + '">' + badgeColLabel + '</th>' +
         '<th title="20-day average dollar volume (close × volume averaged). Liquidity filter at $100M minimum for these momentum screens.">' +
           '$ Vol</th>' +
         '<th title="Days until the next earnings report. — = no earnings within 30 days or no scrape data.">' +
@@ -11546,20 +11897,39 @@
       const near     = (run && run.near_misses) || [];
       // Empty main + no near-misses → standard empty state
       if (!mainRows.length && !near.length) {
-        tbl.innerHTML = '<tr><td colspan="7" class="uoa-empty">' +
+        tbl.innerHTML = '<tr><td colspan="8" class="uoa-empty">' +
           'No names passed this screen on this date.</td></tr>';
         cnt.textContent = "";
         return;
       }
+      // Top-of-table aggregate insight strip: tier counts + lead name
+      const tierCounts = {};
+      mainRows.forEach(function (r) {
+        const lbl = badgeFn(r).label;
+        tierCounts[lbl] = (tierCounts[lbl] || 0) + 1;
+      });
+      const lead = mainRows[0];
+      const _insightParts = ['<b>' + mainRows.length + ' names</b>'];
+      Object.keys(tierCounts).forEach(function (k) {
+        _insightParts.push(tierCounts[k] + ' ' + k);
+      });
+      if (lead) {
+        _insightParts.push('lead: <b>' + lead.ticker + '</b> (' +
+          (lead.chg != null ? (lead.chg > 0 ? "+" : "") +
+           lead.chg.toFixed(1) + "%" : "—") + ')');
+      }
+      const insightStripHTML =
+        '<tr><td colspan="8" class="desk-insight" style="margin:0">' +
+          _insightParts.join(' &middot; ') + '</td></tr>';
       if (mainRows.length) {
         // Populated case — show only main rows
         cnt.textContent = mainRows.length + " names";
-        tbl.innerHTML = hdr + mainRows.map(rowHtml).join("");
+        tbl.innerHTML = hdr + insightStripHTML + mainRows.map(rowHtml).join("");
       } else {
         // Main is empty but near-misses exist — surface them under a
         // labeled "Approaching" section so the tab stays useful.
         cnt.textContent = "0 cleared · " + near.length + " approaching";
-        const banner = '<tr><td colspan="7" class="uoa-empty" ' +
+        const banner = '<tr><td colspan="8" class="uoa-empty" ' +
           'style="text-align:left;padding:10px 12px;background:rgba(255,158,27,0.06);' +
           'border-left:3px solid #ff9e1b;color:var(--textdim);">' +
           '<b style="color:var(--text)">Approaching · </b>' +
@@ -11574,7 +11944,7 @@
       .then(function (d) {
         RUNS = (d && d.runs) ? d.runs.slice().reverse() : [];   // newest first
         if (!RUNS.length) {
-          tbl.innerHTML = '<tr><td colspan="7" class="uoa-empty">' +
+          tbl.innerHTML = '<tr><td colspan="8" class="uoa-empty">' +
             'No scans yet — the next 4:30 PM ET run will populate this.</td></tr>';
           return;
         }
@@ -11585,7 +11955,7 @@
         sel.onchange = function () { renderRun(RUNS[+sel.value] || null); };
       })
       .catch(function () {
-        tbl.innerHTML = '<tr><td colspan="7" class="uoa-empty">' +
+        tbl.innerHTML = '<tr><td colspan="8" class="uoa-empty">' +
           'Could not load screen data.</td></tr>';
       });
   }
@@ -12184,10 +12554,21 @@
         });
       });
       const todayStr = todayET();
-      const sessionHtml = function (rows, sessClass) {
+      const tomorrowStr = (function () {
+        const t = new Date(todayStr + "T12:00:00-04:00");
+        t.setDate(t.getDate() + 1);
+        return t.toISOString().slice(0, 10);
+      })();
+      const sessionHtml = function (rows, sessClass, dayDate) {
         if (!rows || !rows.length) {
           return '<div class="ant-empty">—</div>';
         }
+        // We only hydrate IV/implied-move for Today and Tomorrow rows —
+        // (a) keeps Polygon options-snapshot calls bounded (each fetch
+        // is one underlying), (b) the further out the report, the less
+        // a "what's the market pricing" read matters. Beyond tomorrow
+        // we leave the row without the badge.
+        const showIv = dayDate === todayStr || dayDate === tomorrowStr;
         // Show top 10 per session; sorted high-to-low by score already
         return rows.slice(0, 10).map(function (r, i) {
           const isMarquee = (r.score && r.score >= maxScore * 0.5);
@@ -12195,6 +12576,11 @@
           // data-t on the ROW (not just the ticker span) so a click
           // anywhere on the row — name, bar, blank space — opens the
           // drilldown panel. Same for hover.
+          const ivSlot = showIv
+            ? '<span class="ant-iv ant-iv-loading" data-iv-tk="' +
+                escHTML(r.ticker) + '" data-iv-date="' + (dayDate || "") +
+                '" title="Implied move + IV loading…">&hellip;</span>'
+            : '';
           return '<div class="ant-row' + (isMarquee ? ' ant-marquee' : '') +
             '" data-t="' + escHTML(r.ticker) +
             '" title="' + escHTML(r.company || "") +
@@ -12206,6 +12592,7 @@
               .slice(0, 28)) + '</span>' +
             '<span class="ant-bar-wrap"><span class="ant-bar" ' +
               'style="width:' + barW + '%"></span></span>' +
+            ivSlot +
             (window.tdActionStripCompact
               ? window.tdActionStripCompact(r.ticker) : "") +
             '</div>';
@@ -12224,11 +12611,11 @@
             ? '<div class="ant-empty">No reporters</div>'
             : ('<div class="ant-sess">' +
                   '<div class="ant-sess-hdr ant-bmo">Before Open</div>' +
-                  sessionHtml(day.bmo, "ant-bmo") +
+                  sessionHtml(day.bmo, "ant-bmo", day.date) +
                 '</div>' +
                 '<div class="ant-sess">' +
                   '<div class="ant-sess-hdr ant-amc">After Close</div>' +
-                  sessionHtml(day.amc, "ant-amc") +
+                  sessionHtml(day.amc, "ant-amc", day.date) +
                 '</div>')) +
           '</div>';
       };
@@ -12270,6 +12657,84 @@
                 minute: "2-digit" })
           : "";
         meta.innerHTML = "&middot; " + week + updated;
+      }
+      // Lazy-hydrate IV badges for Today + Tomorrow rows. Each fetch
+      // hits the worker's edge-cached /iv endpoint so repeat tickers
+      // (e.g. NVDA appears across multiple session lists) only cost
+      // one upstream Polygon call. Chunk 5 at a time to avoid spawning
+      // 40 simultaneous fetches when the page loads.
+      hydrateIvBadges();
+    }
+    // De-dup hydration: if multiple .ant-iv slots reference the same
+    // ticker+date we only fetch once and fan the result out to all DOM
+    // elements that asked for it.
+    const _IV_INFLIGHT = new Map();
+    function _fmtIv(d) {
+      if (!d || d.error || d.implied_move_pct == null) {
+        return { html: '<span class="ant-iv-na" title="' +
+          ((d && d.error) || "No IV data available on this chain.") +
+          '">no IV</span>', cls: "ant-iv-na" };
+      }
+      const im = d.implied_move_pct;
+      const iv = d.iv_pct;
+      const lvl = (d.iv_level || "").toLowerCase();
+      const cls = "ant-iv-" + (lvl || "normal");
+      const tooltip = "Spot $" + d.spot +
+        " · ATM straddle $" + d.straddle +
+        " (call $" + d.call_mid + " + put $" + d.put_mid + ")" +
+        " · Expiry " + d.expiry +
+        (d.dte != null ? " (" + d.dte + " DTE)" : "") +
+        " · " + (d.iv_level_method || "");
+      const html = '<span class="ant-iv-pill ' + cls +
+        '" title="' + tooltip.replace(/"/g, "&quot;") + '">' +
+        '±' + im.toFixed(1) + '% &middot; IV ' +
+        (iv != null ? iv.toFixed(0) + '%' : '—') +
+        '</span>';
+      return { html: html, cls: cls };
+    }
+    async function hydrateIvBadges() {
+      const slots = Array.from(document.querySelectorAll(
+        ".ant-iv[data-iv-tk]:not(.ant-iv-done)"));
+      if (!slots.length) return;
+      // De-dup per (ticker, date) pair
+      const groups = new Map();
+      slots.forEach(function (el) {
+        const tk = el.dataset.ivTk;
+        const dt = el.dataset.ivDate || "";
+        if (!tk) return;
+        const key = tk + "|" + dt;
+        if (!groups.has(key)) groups.set(key, { tk: tk, dt: dt, els: [] });
+        groups.get(key).els.push(el);
+      });
+      const keys = Array.from(groups.keys());
+      // Parallel fetches in chunks of 5 — Polygon will rate-limit if
+      // we hammer it and the worker edge cache benefits from sequential
+      // dedupe on repeat tickers (NVDA shows up in multiple session
+      // lists; we only want one round-trip).
+      const CHUNK = 5;
+      for (let i = 0; i < keys.length; i += CHUNK) {
+        const slice = keys.slice(i, i + CHUNK);
+        await Promise.all(slice.map(async function (key) {
+          const g = groups.get(key);
+          let dataP;
+          if (_IV_INFLIGHT.has(key)) {
+            dataP = _IV_INFLIGHT.get(key);
+          } else {
+            const u = WORKER_URL + "/?iv=" + encodeURIComponent(g.tk) +
+              (g.dt ? "&earningsDate=" + g.dt : "");
+            dataP = fetch(u, { cache: "default" })
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .catch(function () { return null; });
+            _IV_INFLIGHT.set(key, dataP);
+          }
+          const data = await dataP;
+          const out = _fmtIv(data);
+          g.els.forEach(function (el) {
+            el.classList.add("ant-iv-done");
+            el.classList.remove("ant-iv-loading");
+            el.innerHTML = out.html;
+          });
+        }));
       }
     }
     function load() {
@@ -12602,12 +13067,22 @@
       }
       // Sentiment split
       let pos = 0, neg = 0, neu = 0;
+      // Per-ticker sentiment tally so we can answer "is the top-mover
+      // breaking bullish or bearish?" — much more actionable than the
+      // aggregate sentiment %.
+      const tickerSent = {};
       filtered.forEach(function (a) {
         const ins = sentimentFor(a);
-        if (!ins) return;
-        if (ins.sentiment === "positive") pos++;
-        else if (ins.sentiment === "negative") neg++;
-        else neu++;
+        let s = null;
+        if (ins) {
+          if (ins.sentiment === "positive") { pos++; s = "pos"; }
+          else if (ins.sentiment === "negative") { neg++; s = "neg"; }
+          else { neu++; s = "neu"; }
+        }
+        (a.tickers || []).forEach(function (t) {
+          if (!tickerSent[t]) tickerSent[t] = { pos:0, neg:0, neu:0 };
+          if (s) tickerSent[t][s]++;
+        });
       });
       const sentTotal = pos + neg + neu;
       const posPct = sentTotal ? Math.round(100 * pos / sentTotal) : 0;
@@ -12630,7 +13105,27 @@
         .filter(function (t) { return counts[t] >= 0.5; })
         .sort(function (a, b) { return counts[b] - counts[a]; })
         .slice(0, 8);
-      pulse.innerHTML =
+      // Top mover insight strip: name the single most-tickered name +
+      // its sentiment lean. This is the "what's the news story today"
+      // 1-line read that competitors put above the raw counts.
+      let _topMoverStrip = "";
+      if (topTks.length) {
+        const t0 = topTks[0];
+        const st = tickerSent[t0] || { pos:0, neg:0, neu:0 };
+        const stCnt = Math.round(counts[t0]);
+        const _lean = (st.pos > st.neg + 1) ? "mostly bullish"
+                    : (st.neg > st.pos + 1) ? "mostly bearish"
+                    : (st.pos + st.neg > 0)  ? "mixed"
+                    : "no sentiment yet";
+        const _leanCls = (st.pos > st.neg + 1) ? "pos"
+                       : (st.neg > st.pos + 1) ? "neg" : "muted";
+        _topMoverStrip = '<div class="desk-insight" style="grid-column:1/-1;margin-bottom:6px">' +
+          '<b>' + filtered.length + ' headlines</b> in window &middot; ' +
+          'top mover: <b>' + t0 + '</b> (' + stCnt + ' mentions, ' +
+          '<span class="' + _leanCls + '">' + _lean + '</span>)' +
+          '</div>';
+      }
+      pulse.innerHTML = _topMoverStrip +
         '<div class="np-stat">Headlines<b>' + filtered.length + '</b></div>' +
         '<div class="np-stat">Sentiment<b>' +
           '<span class="pos">' + posPct + '%</span> / ' +
@@ -16385,15 +16880,61 @@
            r.flow_side==="mixed" || r.flow_side==="unknown")) return false;
       return true;
     }
+    // ── Filter-aware headline ──
+    // Updates every renderBody pass so the user always sees a 1-line
+    // read of what THEIR current filter set is showing. Reads top
+    // conviction, premium total, bull/bear split from the FILTERED
+    // rows (not raw DATA) — the whole point is to react to filters.
+    function renderFilterHeadline(filteredRows) {
+      const h = $("uoa-filter-headline");
+      if (!h) return;
+      if (!filteredRows || !filteredRows.length) {
+        h.innerHTML = '<span class="muted">No flow matches these filters.</span>';
+        return;
+      }
+      const best = filteredRows.slice().sort(function (a, b) {
+        return (b.trade_score || 0) - (a.trade_score || 0);
+      })[0];
+      const totPrem = filteredRows.reduce(function (s, r) {
+        return s + (r.premium || 0); }, 0);
+      const bull = filteredRows.filter(function (r) {
+        return r.direction === "bullish"; }).length;
+      const bear = filteredRows.filter(function (r) {
+        return r.direction === "bearish"; }).length;
+      const fmtP = function (p) {
+        if (!p) return "$0";
+        if (p >= 1e9) return "$" + (p / 1e9).toFixed(2) + "B";
+        if (p >= 1e6) return "$" + (p / 1e6).toFixed(1) + "M";
+        if (p >= 1e3) return "$" + Math.round(p / 1e3) + "K";
+        return "$" + p;
+      };
+      const bestTag = best
+        ? (best.type || "").toUpperCase() + " $" + best.strike
+        : "";
+      h.innerHTML =
+        '<b>Showing ' + filteredRows.length + ' contracts</b> &middot; ' +
+        fmtP(totPrem) + ' total premium &middot; ' +
+        '<span class="pos">' + bull + ' bull</span> / ' +
+        '<span class="neg">' + bear + ' bear</span>' +
+        (best ? ' &middot; top conviction: <b>' + best.ticker + '</b> ' +
+          bestTag + ' (score ' + (best.trade_score || 0) +
+          ', ' + fmtP(best.premium || 0) + ')' : '');
+    }
     function renderBody() {
       renderChips();
       const tb = $("uoa-body");
       if (!DATA.length) {
         tb.innerHTML = '<tr><td colspan="17" class="uoa-empty">Awaiting the first UOA scan '+
           '&mdash; scheduled runs at ~11:00 AM, 1:30 PM &amp; 3:45 PM ET will populate this.</td></tr>';
+        renderFilterHeadline([]);
         return;
       }
-      if ($("uoa-group").checked) { renderGrouped(); return; }
+      if ($("uoa-group").checked) {
+        const _gfilt = DATA.filter(passFilters);
+        renderFilterHeadline(_gfilt);
+        renderGrouped();
+        return;
+      }
       const rows = DATA.filter(passFilters).slice().sort(function (a, b) {
         let x = a[sortKey], y = b[sortKey];
         if (typeof x === "string" || typeof y === "string") {
@@ -16401,6 +16942,7 @@
         }
         return sortDir*(((x==null?-1:x)) - ((y==null?-1:y)));
       });
+      renderFilterHeadline(rows);
       if (!rows.length) {
         tb.innerHTML = '<tr><td colspan="17" class="uoa-empty">No flow matches these filters.</td></tr>';
         return;
@@ -16463,7 +17005,10 @@
         return '<tr data-idx="'+i+'">'+
           '<td><strong data-t="'+r.ticker+'">'+r.ticker+'</strong></td>'+
           '<td><span class="uoa-tier '+tierCls(r.tier)+'">'+(r.tier||"C")+'</span></td>'+
-          '<td><span class="uoa-score '+scoreCls(r.trade_score)+'">'+r.trade_score+'</span></td>'+
+          '<td><span class="uoa-score has-breakdown '+scoreCls(r.trade_score)+
+            '" data-score-comp="'+i+'" tabindex="0" ' +
+            'role="button" aria-label="Score breakdown" '+
+            'title="Click for score breakdown">'+r.trade_score+'</span></td>'+
           '<td>'+biasPill(r.flow_side, r.direction)+'</td>'+
           '<td>'+openPill(r.opening)+'</td>'+
           '<td class="'+(r.type==="call"?"uoa-call":"uoa-put")+'">'+(r.type==="call"?"CALL":"PUT")+'</td>'+
@@ -17273,7 +17818,122 @@
       });
     })();
 
+    // ── Score-component breakdown popover ──
+    // The Trade Score column shows a single 0-100 number which is opaque
+    // ("why 92, not 80?"). Clicking it opens a small popover that breaks
+    // the score into its 7 component contributions plus any penalties —
+    // making the score interpretable. Closes on outside click or Escape.
+    // Reads from shownRows[i].score_components which the scanner now
+    // emits (uoa_scanner.trade_score() populates this dict per row).
+    function _scoreCompPopover(rowIdx, anchor) {
+      const r = shownRows[rowIdx];
+      if (!r) return;
+      const comp = r.score_components || {};
+      // Each component has a max — render as "X / Y" so the user sees
+      // both the contribution and the headroom available on each axis.
+      const FACTORS = [
+        { k:"premium",     label:"Premium",          max:20,
+          tip:"Log-scaled dollar premium across aggregate / sweep / biggest single print." },
+        { k:"vol_oi",      label:"Vol / OI",         max:20,
+          tip:"Day volume divided by open interest — high values mean fresh positioning, not roll-over." },
+        { k:"opening",     label:"Opening",          max:15,
+          tip:"Likelihood the prints opened new positions (vs closing existing OI)." },
+        { k:"repeat",      label:"Repeat",           max:15,
+          tip:"Recent same-contract appearances in our ledger — a campaign beats a one-off." },
+        { k:"liquidity",   label:"Liquidity",        max:10,
+          tip:"OI + day volume grade. A = follow-able execution, D = wide / thin." },
+        { k:"catalyst",    label:"Catalyst",         max:10,
+          tip:"Earnings within the next 7 trading days." },
+        { k:"directional", label:"Directional",      max:10,
+          tip:"Clean buy-side conviction (bullish or bearish) outranks ambiguous flow_side." },
+      ];
+      const total = FACTORS.reduce(function (s, f) {
+        return s + (comp[f.k] || 0); }, 0);
+      const penalty = comp.penalty || 0;
+      const reasons = (comp.penalty_reasons || []).join(", ");
+      const rows = FACTORS.map(function (f) {
+        const v = comp[f.k] || 0;
+        const pctW = Math.round(100 * v / f.max);
+        const cls = v >= f.max * 0.8 ? "scp-high"
+                  : v >= f.max * 0.4 ? "scp-mid" : "scp-low";
+        return '<div class="scp-row" title="' +
+          (f.tip || "").replace(/"/g, "&quot;") + '">' +
+          '<span class="scp-label">' + f.label + '</span>' +
+          '<span class="scp-bar"><span class="scp-fill ' + cls +
+            '" style="width:' + pctW + '%"></span></span>' +
+          '<span class="scp-val">' + v + '<span class="scp-max"> / ' +
+            f.max + '</span></span>' +
+          '</div>';
+      }).join("");
+      const penaltyHTML = penalty < 0
+        ? '<div class="scp-row scp-penalty" ' +
+            'title="Quality penalties knock low-conviction flow out of the top tier.">' +
+          '<span class="scp-label">Penalty</span>' +
+          '<span class="scp-bar"></span>' +
+          '<span class="scp-val scp-neg">' + penalty +
+            (reasons ? '<span class="scp-pen-why"> · ' + reasons + '</span>' : '') +
+            '</span></div>'
+        : '';
+      const tooltip = document.createElement("div");
+      tooltip.className = "scp-popover";
+      tooltip.innerHTML =
+        '<div class="scp-h">Score breakdown · <b>' + r.trade_score +
+          '</b> for ' + r.ticker + '</div>' +
+        '<div class="scp-list">' + rows + penaltyHTML + '</div>' +
+        '<div class="scp-foot">Components sum: ' + total +
+          (penalty < 0 ? ' &minus; ' + Math.abs(penalty) + ' penalty' : '') +
+          ' &rarr; final ' + r.trade_score +
+          '. Cap and rounding may shift ±1.</div>' +
+        '<button class="scp-close" type="button" aria-label="Close">&times;</button>';
+      document.body.appendChild(tooltip);
+      // Position to the right of the score cell when possible; fall
+      // back to left or below if it doesn't fit. Recompute after
+      // append since width depends on contents.
+      const rc = anchor.getBoundingClientRect();
+      const pw = tooltip.offsetWidth;
+      const ph = tooltip.offsetHeight;
+      const pad = 8;
+      let top = rc.top + window.scrollY - 6;
+      let left = rc.right + window.scrollX + pad;
+      if (left + pw > window.innerWidth - pad) {
+        left = rc.left + window.scrollX - pw - pad;
+      }
+      if (left < pad) left = pad;
+      if (top + ph > window.scrollY + window.innerHeight - pad) {
+        top = window.scrollY + window.innerHeight - ph - pad;
+      }
+      if (top < window.scrollY + pad) top = window.scrollY + pad;
+      tooltip.style.top  = top  + "px";
+      tooltip.style.left = left + "px";
+      const dismiss = function () {
+        if (tooltip.parentNode) tooltip.parentNode.removeChild(tooltip);
+        document.removeEventListener("click",   onOutside, true);
+        document.removeEventListener("keydown", onKey);
+      };
+      const onOutside = function (ev) {
+        if (!tooltip.contains(ev.target) && ev.target !== anchor) dismiss();
+      };
+      const onKey = function (ev) {
+        if (ev.key === "Escape") dismiss();
+      };
+      tooltip.querySelector(".scp-close").addEventListener("click", dismiss);
+      // Defer outside-click binding by 1 tick so the originating click
+      // that opened the popover doesn't immediately re-close it.
+      setTimeout(function () {
+        document.addEventListener("click",   onOutside, true);
+        document.addEventListener("keydown", onKey);
+      }, 0);
+    }
     $("uoa-body").addEventListener("click", function (e) {
+      // Score-cell click → component breakdown popover. Wired BEFORE
+      // the ticker-cell short-circuit so the score cell doesn't also
+      // trigger the drilldown (the score span has no data-t).
+      const sc = e.target.closest("[data-score-comp]");
+      if (sc) {
+        e.stopPropagation();
+        _scoreCompPopover(+sc.dataset.scoreComp, sc);
+        return;
+      }
       // If the click landed on a ticker cell, the global drilldown handler
       // owns it — don't also filter the table or open the contract detail.
       if (e.target.closest("[data-t]")) return;
@@ -17288,6 +17948,15 @@
       }
       if (tr.dataset.idx != null && shownRows[tr.dataset.idx])
         openDetail(shownRows[tr.dataset.idx]);
+    });
+    // Keyboard support: focus the score cell + Enter / Space opens it.
+    $("uoa-body").addEventListener("keydown", function (e) {
+      const sc = e.target.closest("[data-score-comp]");
+      if (!sc) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        _scoreCompPopover(+sc.dataset.scoreComp, sc);
+      }
     });
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closeDetail();

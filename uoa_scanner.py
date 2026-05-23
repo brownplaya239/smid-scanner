@@ -551,6 +551,12 @@ def trade_score(row, flow):
     print. Components (max): premium 20 | vol/OI 20 | opening 15 | repeat 15
     | liquidity 10 | catalyst 10 | directional 10.
 
+    Returns just the final integer score for backward compat. Mutates
+    `row["score_components"]` with the per-factor breakdown so the
+    client can render a popover ("Score 92 = 18 premium + 17 vol/OI +
+    15 opening + …"). The breakdown is essential for trust — a single
+    opaque number doesn't tell users WHY a contract scored high.
+
     Requires row to already carry opening / liquidity / direction / flow_side."""
     import math
 
@@ -587,13 +593,36 @@ def trade_score(row, flow):
 
     # Penalties — keep low-quality flow out of the top tier
     penalty = 0
-    if liq == "D":                                  penalty += 5    # illiquid
-    if direction == "hedge":                        penalty += 5    # mixed / ambiguous
+    penalty_reasons = []
+    if liq == "D":
+        penalty += 5
+        penalty_reasons.append("illiquid (D)")
+    if direction == "hedge":
+        penalty += 5
+        penalty_reasons.append("ambiguous / hedge")
     otm = row.get("pct_otm")
-    if otm is not None and otm > 25:                penalty += 5    # deep-OTM lotto
+    if otm is not None and otm > 25:
+        penalty += 5
+        penalty_reasons.append("deep OTM (>25%)")
     if row.get("flow_side") in ("call_seller", "put_seller"):
-        penalty += 4                                                # premium sale, not a buy
+        penalty += 4
+        penalty_reasons.append("seller-side (premium sale)")
 
+    # Stash the breakdown on the row so the client can render a hover/
+    # tap popover. Each component is rounded to an integer for clean UI
+    # display; sum may be 1 off the final score due to rounding — call
+    # it out in the client copy.
+    row["score_components"] = {
+        "premium":     round(premium_pts),
+        "vol_oi":      round(voi_pts),
+        "opening":     round(open_pts),
+        "repeat":      round(repeat_pts),
+        "liquidity":   round(liq_pts),
+        "catalyst":    round(cat_pts),
+        "directional": round(dir_pts),
+        "penalty":     -penalty if penalty else 0,
+        "penalty_reasons": penalty_reasons,
+    }
     return round(max(0, min(100, base - penalty)))
 
 
@@ -989,6 +1018,7 @@ def emit_latest(rows):
             "golden":        r["golden"],
             "in_universe":   r["in_universe"],
             "trade_score":   r["trade_score"],
+            "score_components": r.get("score_components", {}),
             "tier":          r.get("tier", "C"),
             "flow_side":     r.get("flow_side", "unknown"),
             "direction":     r.get("direction", "hedge"),
