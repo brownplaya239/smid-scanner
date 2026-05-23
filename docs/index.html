@@ -1684,6 +1684,13 @@
   .sh-next { margin-left:auto; background:var(--gold);
     color:var(--accink); border-color:var(--gold); font-weight:700; }
   .sh-next:hover { filter:brightness(1.05); }
+  /* Touch devices: Start Here prev/next must hit Apple HIG 44pt
+     minimum. Padding grows under the (hover:none) media query so
+     desktop density is preserved. */
+  @media (hover:none) and (pointer:coarse) {
+    .sh-prev, .sh-next { font-size:13px; padding:12px 18px;
+      min-height:44px; min-width:44px; }
+  }
 
   .desk-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .desk-card { background:var(--card); border:1px solid var(--line);
