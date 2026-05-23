@@ -257,25 +257,19 @@ def _opening(row):
 
 
 def _liquidity(row):
-    """(spread_pct, grade) — how followable/tradeable the contract is.
-    Graded on open interest + day volume (always available). Bid/ask spread%
-    is included only once the quotes entitlement is live; when present a wide
-    spread can knock an otherwise-liquid grade down."""
+    """Grade — how followable/tradeable the contract is.
+    Graded on open interest + day volume (always available on Polygon
+    Options Starter). Bid/ask spread is NOT included — Starter doesn't
+    populate quotes and our previous attempts produced 100% null
+    spread_pct, which leaked into the JSON as a dead field. If/when
+    we upgrade Polygon to a quotes-enabled tier we can re-introduce
+    spread-aware grading; until then, OI + volume is the honest signal."""
     oi  = row.get("open_interest", 0) or 0
     vol = row.get("volume", 0) or 0
-    bid = row.get("_bid") or 0
-    ask = row.get("_ask") or 0
-    spread_pct = None
-    if bid and ask and (bid + ask) > 0:
-        spread_pct = round((ask - bid) / ((bid + ask) / 2) * 100, 1)
-
-    if   oi >= 2000 and vol >= 2000: grade = "A"
-    elif oi >= 500  and vol >= 1000: grade = "B"
-    elif oi >= 100:                  grade = "C"
-    else:                            grade = "D"
-    if spread_pct is not None and spread_pct > 20 and grade in ("A", "B"):
-        grade = "C"
-    return spread_pct, grade
+    if   oi >= 2000 and vol >= 2000: return "A"
+    elif oi >= 500  and vol >= 1000: return "B"
+    elif oi >= 100:                  return "C"
+    else:                            return "D"
 
 
 def _trade_plan(row):
@@ -869,9 +863,7 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
             # so they must be computed BEFORE trade_score()
             row["flow_side"], row["direction"] = _bias(row["type"], flow.get("side"))
             row["opening"]   = _opening(row)
-            sp, lg = _liquidity(row)
-            row["spread_pct"] = sp
-            row["liquidity"]  = lg
+            row["liquidity"] = _liquidity(row)
             be, bd, em, cat = _trade_plan(row)
             row["break_even"]        = be
             row["be_distance_pct"]   = bd
@@ -1003,7 +995,6 @@ def emit_latest(rows):
             "why":           r.get("why", ""),
             "opening":       r.get("opening", "mixed"),
             "liquidity":     r.get("liquidity", "C"),
-            "spread_pct":    r.get("spread_pct"),
             "break_even":    r.get("break_even"),
             "be_distance_pct":   r.get("be_distance_pct"),
             "expected_move_pct": r.get("expected_move_pct"),

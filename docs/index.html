@@ -1907,6 +1907,22 @@
   .desk-sub.neg { color:var(--red); }
   .desk-empty { color:var(--muted); font-size:10.5px; text-align:center;
     padding:10px; }
+  /* Top-of-card 1-line aggregate insight ("7 breakout candidates today
+     · 3 overlap with bullish flow"). Subtle background to separate
+     from row content without screaming for attention. */
+  .desk-insight { font-size:11px; color:var(--text);
+    background:var(--row-bg, rgba(120,150,200,0.06));
+    border-left:2px solid var(--accent, #3b82f6);
+    border-radius:0 3px 3px 0;
+    padding:6px 9px; margin:0 0 9px; line-height:1.45;
+    font-feature-settings:"tnum" 1; }
+  .desk-insight b { color:var(--text); font-weight:600; }
+  .desk-insight .pos { color:var(--green); font-weight:600; }
+  .desk-insight .neg { color:var(--red); font-weight:600; }
+  .desk-insight .muted { color:var(--muted); }
+  @media (max-width:760px) {
+    .desk-insight { font-size:10.5px; padding:5px 8px; }
+  }
   @media (max-width:760px) {
     .desk-grid { grid-template-columns:1fr; }
   }
@@ -3589,9 +3605,9 @@
             <ul class="pc-feats">
               <li>Everything in Pro</li>
               <li><b>100 ad-hoc reports</b> per month</li>
-              <li>API access (coming soon)</li>
               <li>Advanced alert routing</li>
-              <li>Priority support</li>
+              <li>Discord channel access</li>
+              <li>Priority support (4h SLA)</li>
             </ul>
             <button class="pricing-cta" data-plan="premium">Get Premium</button>
           </div>
@@ -4519,9 +4535,6 @@
             <li><span class="pt-check">✓</span>
               <b>Multi-account support</b> (up to 3 sub-watchlists)</li>
             <li><span class="pt-check">✓</span>
-              <b>API access</b> (coming Q3 — read-only endpoints for
-              watchlist, journal, signals)</li>
-            <li><span class="pt-check">✓</span>
               <b>Advanced alert routing</b> (per-ticker push +
               webhook + Discord integration)</li>
             <li><span class="pt-check">✓</span>
@@ -4566,11 +4579,9 @@
             <tr><td>Portfolio benchmarking</td>
               <td>—</td><td>vs SPY/QQQ/IWM</td><td>vs SPY/QQQ/IWM + custom</td></tr>
             <tr><td>Trade journal</td>
-              <td>Local only</td><td>Synced + CSV export</td><td>Synced + CSV + API</td></tr>
+              <td>Local only</td><td>Synced + CSV export</td><td>Synced + CSV export</td></tr>
             <tr><td>Signal refresh cadence</td>
               <td>EOD</td><td>Intraday (6×/day)</td><td>Intraday + priority queue</td></tr>
-            <tr><td>API access</td>
-              <td>—</td><td>—</td><td>Coming Q3 (read-only)</td></tr>
             <tr><td>Discord channel</td>
               <td>—</td><td>—</td><td>Members-only</td></tr>
             <tr><td>Email support SLA</td>
@@ -8430,9 +8441,20 @@
         const orig = btn.textContent;
         btn.textContent = "Opening portal...";
         try {
+          // Same JWT-required pattern as /stripe/checkout: the worker
+          // validates the Bearer token, derives user_id from it, and
+          // looks up profiles.stripe_customer_id directly (no email
+          // guesswork). Email is sent only as a fallback search hint.
+          const headers = { "Content-Type": "application/json" };
+          try {
+            const { data: { session } } = await SUPA.auth.getSession();
+            if (session && session.access_token) {
+              headers["Authorization"] = "Bearer " + session.access_token;
+            }
+          } catch (_) {}
           const resp = await fetch(WORKER_URL + "/stripe/portal", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: headers,
             body: JSON.stringify({
               email: CURRENT_USER.email || "",
             }),
@@ -10045,7 +10067,16 @@
         document.querySelector('nav button[data-tab="watchlist"]').click();
       };
     }
-    // Listen for any alert-toggle change inside the drilldown panel
+    // Listen for any alert-toggle change inside the drilldown panel.
+    //
+    // Storage model: one row per (user_id, ticker, alert_type) holding
+    // the user's explicit choice in `enabled`. When toggled OFF we
+    // INSERT enabled=false (NOT delete) — push_alerts.py reads missing
+    // rows as "default ON", so deleting would silently re-enable the
+    // alert the user just muted. The delete + insert dance below is
+    // PostgREST's idiomatic way to emulate an upsert on a composite
+    // key when the table doesn't have a uniqueness constraint we can
+    // declare on (user_id, ticker, alert_type).
     document.addEventListener("change", async function (e) {
       const inp = e.target.closest("input.tdp-alert-toggle");
       if (!inp || inp.disabled) return;
@@ -10055,16 +10086,14 @@
       const user = window.tdUser && window.tdUser();
       if (!user || !SUPA) return;
       try {
-        // Upsert via insert then update — Supabase JS doesn't support
-        // upsert with composite key elegantly; emulate with delete+insert.
+        // Wipe any existing row for this (user, ticker, type) then
+        // insert the user's current choice — both ON and OFF persist.
         await SUPA.from("alerts").delete()
           .eq("user_id", user.id).eq("ticker", tk).eq("alert_type", type);
-        if (on) {
-          await SUPA.from("alerts").insert({
-            user_id: user.id, ticker: tk,
-            alert_type: type, enabled: true, config: {},
-          });
-        }
+        await SUPA.from("alerts").insert({
+          user_id: user.id, ticker: tk,
+          alert_type: type, enabled: on, config: {},
+        });
       } catch (e) {
         console.error("Alert pref save failed:", e);
         inp.checked = !on;        // revert
@@ -10939,6 +10968,33 @@
             ? window.tdActionStrip(r.ticker) : "") + '</td>' +
           '</tr>';
       }).join("");
+      // Aggregate insight: blend grade strength + flow agreement so the
+      // user reads "what's the lay of the land" before the table. For
+      // Setups we additionally surface the Clean VCP / Flow Confirmed
+      // mix — that's where the highest-conviction setups live.
+      const _flowAgree = rows.filter(function (r) {
+        return r.flow && r.flow.direction === "bullish"; }).length;
+      const _onWatch = rows.filter(function (r) { return r.watched; }).length;
+      const _aPlus = rows.filter(function (r) {
+        return r.grade === "A+" || r.grade === "A"; }).length;
+      const _best = rows[0];
+      let _insightHTML = '<b>' + rows.length + ' candidates</b> &middot; ' +
+        _aPlus + ' A/A+ grade &middot; ' +
+        '<span class="pos">' + _flowAgree + ' with bullish flow</span>' +
+        (_onWatch > 0 ? ' &middot; ' + _onWatch +
+          ' on your watchlist' : '') +
+        ' &middot; top: <b>' + _best.ticker + '</b> (' + _best.grade +
+        ', score ' + _best.score + ')';
+      if (hasLabels) {
+        const _cleanVcp = rows.filter(function (r) {
+          return r.label === "Clean VCP"; }).length;
+        const _flowConf = rows.filter(function (r) {
+          return r.label === "Flow Confirmed"; }).length;
+        if (_cleanVcp || _flowConf) {
+          _insightHTML += ' &middot; ' + _cleanVcp + ' Clean VCP &middot; ' +
+            _flowConf + ' Flow Confirmed';
+        }
+      }
       // Header sits outside the horizontal scroll area so it stays
       // pinned to the card edge; the table itself lives inside an
       // overflow-x:auto wrapper so iPhone users can swipe to see the
@@ -10946,6 +11002,8 @@
       return '<div class="lst-wrap">' +
         '<div class="lst-h">' + label + ' &middot; ' + rows.length +
           ' candidates from latest scan</div>' +
+        '<div class="desk-insight" style="margin:0 0 10px">' +
+          _insightHTML + '</div>' +
         '<div class="lst-table-wrap">' +
         '<table class="lst-table">' + head + '<tbody>' + body +
           '</tbody></table></div></div>';
@@ -12750,6 +12808,17 @@
              '"><h3>' + title + sh + '</h3>' + body + '</div>';
     }
     function empty(msg) { return '<div class="desk-empty">' + msg + '</div>'; }
+    // ── insight ────────────────────────────────────────────────────
+    // Top-of-card 1-line aggregate read. Goes BEFORE the table/hdr so
+    // a scanning user can take the takeaway in 1 second without
+    // parsing rows. Pure plain text — no inline action chips, no
+    // numbers without a unit, no hedging language ("might / could").
+    // Keep under 100 chars; cards get truncated on mobile if longer.
+    // Caller passes HTML-safe text; this fn wraps it.
+    function insight(text) {
+      if (!text) return "";
+      return '<div class="desk-insight">' + text + '</div>';
+    }
 
     // ── deskHdr ──────────────────────────────────────────────────────
     // Renders a column-header row that matches the .desk-row layout
@@ -13495,6 +13564,26 @@
         .slice(0, 20);
       if (!top.length)
         return desk("Top Options Flow", empty("No flow today."), null, stamp);
+      // Aggregate insight: total premium across visible rows, bullish/bearish
+      // split, and the single biggest conviction print so the user knows
+      // where the room is leaning before reading the table.
+      const _totPrem = top.reduce(function (s, r) {
+        return s + (r.premium || 0); }, 0);
+      const _bull = top.filter(function (r) {
+        return r.direction === "bullish"; }).length;
+      const _bear = top.filter(function (r) {
+        return r.direction === "bearish"; }).length;
+      const _convict = top.find(function (r) {
+        return (r.tier || "").indexOf("conviction") >= 0;
+      }) || top[0];
+      const _convictTag = (_convict.type || "").toUpperCase() + " $" +
+        _convict.strike;
+      const _insight = '<b>' + top.length + ' notable contracts</b> &middot; ' +
+        fmtVol(_totPrem) + ' total premium &middot; ' +
+        '<span class="pos">' + _bull + ' bull</span> / ' +
+        '<span class="neg">' + _bear + ' bear</span> &middot; ' +
+        'top: <b>' + _convict.ticker + '</b> ' + _convictTag +
+        ' (' + fmtVol(_convict.premium || 0) + ')';
       const titleWithLink = "Top Options Flow" +
         '<button class="desk-h-link" type="button" data-flow-all="1" ' +
           'title="Switch to Options Flow tab">' +
@@ -13511,7 +13600,7 @@
         { label: "Flow", cls: "dr-flow",
           tip: "Open the Options Flow tab pre-filtered to this ticker." },
       ]);
-      return desk(titleWithLink, hdr + top.map(function (r) {
+      return desk(titleWithLink, insight(_insight) + hdr + top.map(function (r) {
         const dir = r.direction || "";
         const cls = dir === "bullish" ? "sc-up" : dir === "bearish" ? "sc-down" : "";
         const tag = (r.type || "").toUpperCase() + " $" + r.strike + " · " + r.expiry;
@@ -13570,6 +13659,12 @@
       if (!moves.length) return desk("Top Swing Downgrades",
         empty("No notable grade demotions today — A-tier holding."),
         null, stamp);
+      // Aggregate insight: how many demotions, how steep the worst, plus
+      // a one-name lead so the user can act before reading the table.
+      const _dgInsight =
+        '<b>' + moves.length + ' demotions</b> vs prior session &middot; ' +
+        'steepest: <b>' + moves[0].t + '</b> ' + moves[0].from + ' → ' +
+        moves[0].to + ' <span class="neg">(-' + moves[0].d + ' notches)</span>';
       const hdr = deskHdr([
         { label: "Ticker", cls: "dr-tk",
           tip: "Underlying stock symbol. Tap to open the drilldown panel." },
@@ -13580,7 +13675,7 @@
         { label: "Δ Steps", cls: "dr-val",
           tip: "How many notches the grade dropped vs the prior session. -3 = fell from B to D+ for example." },
       ]);
-      return desk("Top Swing Downgrades", hdr + moves.slice(0, 8).map(function (m) {
+      return desk("Top Swing Downgrades", insight(_dgInsight) + hdr + moves.slice(0, 8).map(function (m) {
         return '<div class="desk-row">' +
           '<span class="dr-tk" data-t="' + m.t + '">' + m.t + '</span>' +
           (window.tdActionStripCompact
@@ -13625,6 +13720,20 @@
       moves.sort(function (a, b) { return b.d - a.d; });
       if (!moves.length) return desk("Top Swing Upgrades",
         empty("No grade upgrades vs the prior session."), null, stamp);
+      // Aggregate insight: count of upgrades + a lead headline. New A-tier
+      // entries are highlighted separately since they're the highest-
+      // conviction "this just turned" reads in the dataset.
+      const _newEntries = moves.filter(function (m) { return m.d === 99; }).length;
+      const _topMove = moves[0];
+      const _topTxt = (_topMove.d === 99)
+        ? '<b>' + _topMove.t + '</b> entered <b>' + _topMove.to + '</b> ★'
+        : '<b>' + _topMove.t + '</b> ' + _topMove.from + ' → ' +
+          _topMove.to + ' <span class="pos">(+' + _topMove.d + ' notches)</span>';
+      const _upInsight =
+        '<b>' + moves.length + ' upgrades</b> vs prior session' +
+        (_newEntries ? ' &middot; ' + _newEntries + ' new A-tier entry' +
+          (_newEntries === 1 ? '' : 'ies') : '') +
+        ' &middot; biggest: ' + _topTxt;
       const hdr = deskHdr([
         { label: "Ticker", cls: "dr-tk",
           tip: "Underlying stock symbol. Tap to open the drilldown panel." },
@@ -13635,7 +13744,7 @@
         { label: "Δ Steps", cls: "dr-val",
           tip: "How many notches the grade improved. +3 = climbed from D to B+. ★ = brand new A-tier entry (no prior grade to diff against)." },
       ]);
-      return desk("Top Swing Upgrades", hdr + moves.slice(0, 8).map(function (m) {
+      return desk("Top Swing Upgrades", insight(_upInsight) + hdr + moves.slice(0, 8).map(function (m) {
         const label = (m.d === 99) ? "new entry to " + m.to : (m.from + " → " + m.to);
         return '<div class="desk-row">' +
           '<span class="dr-tk" data-t="' + m.t + '">' + m.t + '</span>' +
@@ -13667,6 +13776,35 @@
       });
       if (!cands.length) return desk("Top Breakout Candidates",
         empty("No clean A-tier candidates today."), null, stamp);
+      // Aggregate insight: count + overlap with bullish UOA flow. Overlap
+      // matters because a clean technical setup with concurrent flow is a
+      // much higher-conviction read than either alone. We pull bullish-
+      // direction tickers out of the UOA snapshot held in cache and
+      // intersect with the candidate set. Tightest = lowest extension
+      // (closest to base) — the read for "best entry left to take."
+      let _bullFlowTks = {};
+      try {
+        const _uoaCache = (window.TD_DATA && window.TD_DATA.uoa &&
+                          window.TD_DATA.uoa.rows) || [];
+        _uoaCache.forEach(function (row) {
+          if (row.direction === "bullish" && row.ticker) {
+            _bullFlowTks[row.ticker] = true;
+          }
+        });
+      } catch (_) { /* no cache yet — overlap count drops to 0 */ }
+      const _overlap = cands.filter(function (c) {
+        return _bullFlowTks[c.t]; }).length;
+      const _tightest = cands.slice().sort(function (a, b) {
+        const ea = (a.ext == null) ? 99 : a.ext;
+        const eb = (b.ext == null) ? 99 : b.ext;
+        return ea - eb;
+      })[0];
+      const _bkInsight =
+        '<b>' + cands.length + ' A-tier candidates</b> today' +
+        (_overlap > 0 ? ' &middot; <span class="pos">' + _overlap +
+          ' with bullish flow</span>' : '') +
+        ' &middot; tightest: <b>' + _tightest.t + '</b>' +
+        (_tightest.ext != null ? ' (' + _tightest.ext + '× ext)' : '');
       // role="row"+"columnheader" gives screen readers proper table
       // semantics even though we're using CSS grid not <table>.
       // data-tip + title= give every column a hover explanation —
@@ -13718,7 +13856,8 @@
           '<span class="bk-ex ' + xCls + '">' +
             (c.ext != null ? c.ext + "×" : "—") + '</span></div>';
       }).join("");
-      return desk("Top Breakout Candidates", hdr + body, null, stamp);
+      return desk("Top Breakout Candidates",
+        insight(_bkInsight) + hdr + body, null, stamp);
     }
 
     function cardCalendar(cal, todayISO) {
@@ -13862,7 +14001,25 @@
       const weakCol = '<div class="th-col">' +
         '<div class="th-head neg">Weakest (' + weak.length + ')</div>' +
         colHdr + weak.map(row).join("") + '</div>';
+      // Aggregate insight: name the single strongest + weakest theme with
+      // their daily averages so the rotation read is immediate. Order
+      // matters — strongest first is the "where's the money" read.
+      const _tStrong = strong[0];
+      const _tWeak = weak[0];
+      const _thInsight = (_tStrong && _tWeak)
+        ? 'Strongest: <b>' + _tStrong.theme + '</b> ' +
+          '<span class="pos">' +
+          (_tStrong.chg_avg > 0 ? "+" : "") +
+          _tStrong.chg_avg.toFixed(1) + '%</span> ' +
+          '<span class="muted">(' + _tStrong.n + ' names)</span>' +
+          ' &middot; Weakest: <b>' + _tWeak.theme + '</b> ' +
+          '<span class="neg">' +
+          (_tWeak.chg_avg > 0 ? "+" : "") +
+          _tWeak.chg_avg.toFixed(1) + '%</span> ' +
+          '<span class="muted">(' + _tWeak.n + ' names)</span>'
+        : null;
       return desk("Strongest / Weakest Themes",
+        (_thInsight ? insight(_thInsight) : "") +
         '<div class="th-grid">' + strongCol + weakCol + '</div>',
         null, stamp);
     }
@@ -14052,6 +14209,23 @@
         (groups[x.cat] = groups[x.cat] || []).push(x);
       });
       const ORDER = ["confirm-bull","confirm-bear","conflict","hedge","mixed"];
+      // Aggregate insight: count of confirms (the clean read) vs conflicts
+      // (the high-edge "what to think twice about" read). Tells the user
+      // at a glance whether the dataset has any disagreement they need
+      // to investigate, or whether everything's textbook.
+      const _confirms = (groups["confirm-bull"] || []).length +
+                        (groups["confirm-bear"] || []).length;
+      const _conflicts = (groups["conflict"] || []).length;
+      const _hedges = (groups["hedge"] || []).length;
+      const _cfLead = list[0];
+      const _cfInsight = '<b>' + list.length + ' names</b> in confluence &middot; ' +
+        '<span class="pos">' + _confirms + ' confirm</span>' +
+        (_conflicts ? ' &middot; <b>' + _conflicts +
+          ' trend/flow conflict' + (_conflicts === 1 ? '' : 's') + '</b>' : '') +
+        (_hedges ? ' &middot; ' + _hedges + ' hedge' +
+          (_hedges === 1 ? '' : 's') : '') +
+        ' &middot; lead: <b>' + _cfLead.t + '</b>' +
+        (_cfLead.e.grade ? ' (' + _cfLead.e.grade + ')' : '');
       // Top-of-card header explaining the columns. The bias categories
       // (Confirm / Conflict / Hedge / Mixed) are domain-specific so
       // each gets a hover-tooltip definition.
@@ -14091,7 +14265,7 @@
           }).join("");
           return section + rows;
         }).join("");
-      return desk(title, html, null, stamp);
+      return desk(title, insight(_cfInsight) + html, null, stamp);
     }
     // Confluence cards blend swing grades + uoa flow. Use the OLDER source
     // as the freshness anchor (whichever side is staler bounds the card)
@@ -15586,7 +15760,7 @@
       { k:"be_distance_pct", t:"→B/E", tip:"% the underlying must move to reach the break-even (strike + premium for calls; strike - premium for puts)." },
       { k:"volume", t:"Volume", tip:"Today's traded contract count for this strike+expiry." },
       { k:"vol_oi", t:"Vol/OI", tip:"Today's Volume / Open Interest ratio. >1 = today's volume exceeds total open contracts → unusual activity; ≥3 = strongly unusual." },
-      { k:"liquidity", t:"Liq", tip:"Liquidity grade A/B/C/D. A = tight spread, deep book; D = wide spread, thin book (execution risk)." },
+      { k:"liquidity", t:"Liq", tip:"Liquidity grade A/B/C/D from OI + day volume. A = deep book + heavy trading; D = thin OI or low volume (execution risk). Polygon Options Starter doesn't populate quotes so spread is excluded." },
       { k:"premium", t:"Premium", tip:"Total dollar value traded today: Volume × price × 100. The bigger this is, the more conviction money is behind the trade." },
       { k:"biggest_print_ts", t:"Printed", tip:"How long ago the marquee single-print (largest premium) hit the tape. Gold = just now / recent (still actionable); muted = older." },
       { k:"delta_since_print", t:"Δ since", tip:"Δ (delta) = % change in the underlying from spot-at-print to current spot. Tells you if the trade already worked (large + move) or you're still in time (small or negative move)." },
@@ -15921,21 +16095,17 @@
           why: "Expires within earnings window — high vol, binary outcome.",
         };
       }
-      // Caution: low liquidity or wide spread.
-      // bid_ask_spread_pct is not populated on every snapshot — when
-      // it's null we fall back to liquidity grade alone, and the
-      // explanatory copy drops the "wide spread" clause so we don't
-      // claim a signal we can't actually verify. Honest data > clever
-      // copy.
-      const hasSpread = (r.bid_ask_spread_pct != null);
-      const wideSpread = hasSpread && r.bid_ask_spread_pct > 0.30;
-      if (liq === "F" || liq === "D" || wideSpread) {
+      // Caution: low liquidity grade.
+      // Polygon Options Starter doesn't populate bid/ask quotes, so
+      // we grade on OI + day volume alone (see uoa_scanner._liquidity).
+      // We deliberately don't claim a spread-based filter here — that
+      // would be a signal we can't actually verify on the current
+      // Polygon tier. Honest data > clever copy.
+      if (liq === "F" || liq === "D") {
         return {
           tier: "caution",
           label: "Caution",
-          why: hasSpread
-            ? "Low liquidity or wide bid-ask spread — execution risk."
-            : "Low liquidity grade — execution risk.",
+          why: "Thin open interest / low day volume — execution risk.",
         };
       }
       // A+ Conviction: call buy + opening + (repeat or golden) + premium ≥ $250k

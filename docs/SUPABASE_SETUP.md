@@ -109,6 +109,26 @@ for a no-send preview. Remove both for the real send.
    - Region: pick the one closest to most users (US East for now)
 4. Wait ~90 seconds for provisioning
 
+## 2f. (Phase 8) Run this in SQL Editor for Stripe customer-id cache
+
+```sql
+-- Cache the Stripe customer_id on the profile the first time a user
+-- completes a checkout. Lets the Billing Portal endpoint look up the
+-- customer directly by user_id instead of searching Stripe by email
+-- (which 404s for promo / trial users who never paid, and is racy
+-- when the same email maps to multiple Stripe customers).
+alter table public.profiles
+  add column if not exists stripe_customer_id text;
+create index if not exists profiles_stripe_customer_idx
+  on public.profiles(stripe_customer_id);
+```
+
+Run that. Adds 1 nullable column + an index. The worker's
+`/stripe/webhook` handler writes the customer id on
+`checkout.session.completed` and `customer.subscription.*` events.
+`/stripe/portal` reads it first and only falls back to email lookup
+if the row is null (and back-fills the row when it does).
+
 ## 2e. (Phase 7) Run this in SQL Editor for promo-code expiry
 
 ```sql

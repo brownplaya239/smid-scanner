@@ -714,13 +714,20 @@ async function handleStripeCheckout(request, env, cors) {
 // billing_portal.Session and returns the URL for the frontend to
 // redirect to. Stripe handles the entire portal UI.
 //
+// Auth: requires a Supabase Bearer JWT (Authorization header) so we
+// can confidently tie this request to a specific user. We then trust
+// the user_id from /auth/v1/user — body.email is optional, only used
+// as a fallback search hint if profiles.stripe_customer_id is null.
+//
 // Lookup chain to find the customer:
-//   1. Client provides user_id (from auth session)
-//   2. We query Supabase profiles for stripe_customer_id (cached on
-//      first checkout) — TODO: add this column + populate in webhook
-//   3. Fallback: search Stripe customers by email (slower, requires
-//      another API call). Works today since checkout sessions set
-//      customer_email.
+//   1. Read profiles.stripe_customer_id (cached on first checkout via
+//      the webhook handler below). One DB hit, zero Stripe API calls.
+//   2. If null, fall back to Stripe customers/search by email AND
+//      write the resolved id back to profiles so the next portal
+//      open is fast + correct.
+//   3. If both fail, return 404 with a helpful message — most likely
+//      the user is on a promo/trial path and has no Stripe customer
+//      record yet (nothing to manage in the portal).
 async function handleStripePortal(request, env, cors) {
   if (!env.STRIPE_SECRET_KEY) {
     return Response.json(
@@ -732,42 +739,121 @@ async function handleStripePortal(request, env, cors) {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Invalid JSON" },
                                 { status: 400, headers: cors }); }
-  const email = String(body.email || "").trim();
-  if (!email) {
+  // JWT-required: this opens billing UI for a real account, so we
+  // refuse to look up customers without a verified sign-in.
+  const authHeader = request.headers.get("Authorization") || "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!bearer || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
     return Response.json(
-      { ok: false, error: "email is required" },
-      { status: 400, headers: cors }
+      { ok: false, error: "Sign in required to manage billing." },
+      { status: 401, headers: cors }
     );
   }
-  // Find Stripe customer by email (most recent first if duplicates)
-  let customerId = null;
+  let userId = null;
+  let userEmail = String(body.email || "").trim();
   try {
-    const sr = await fetch(
-      "https://api.stripe.com/v1/customers/search?query=" +
-        encodeURIComponent('email:"' + email + '"') + "&limit=1",
-      {
-        headers: {
-          "Authorization": "Bearer " + env.STRIPE_SECRET_KEY,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }
+    const userResp = await fetch(
+      env.SUPABASE_URL + "/auth/v1/user",
+      { headers: {
+          "Authorization": "Bearer " + bearer,
+          "apikey": env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY || "",
+      }}
     );
-    if (sr.ok) {
-      const sd = await sr.json();
-      if (sd.data && sd.data.length) customerId = sd.data[0].id;
+    if (!userResp.ok) {
+      return Response.json(
+        { ok: false, error: "Sign-in expired. Please sign in again." },
+        { status: 401, headers: cors }
+      );
     }
+    const userBody = await userResp.json();
+    if (!userBody || !userBody.id) {
+      return Response.json(
+        { ok: false, error: "Auth validation failed (no user id)." },
+        { status: 401, headers: cors }
+      );
+    }
+    userId = userBody.id;
+    // Prefer the verified email from the JWT over whatever the
+    // client sent in the body (which could be stale).
+    if (userBody.email) userEmail = String(userBody.email);
   } catch (e) {
     return Response.json(
-      { ok: false, error: "Customer lookup failed: " + String(e) },
+      { ok: false, error: "Auth validation failed: " + String(e) },
       { status: 502, headers: cors }
     );
   }
+
+  // 1. Try cached stripe_customer_id on profiles
+  let customerId = null;
+  const profilesBase = env.SUPABASE_URL.replace(/\/+$/, "") +
+    "/rest/v1/profiles";
+  try {
+    const pr = await fetch(
+      profilesBase + "?id=eq." + encodeURIComponent(userId) +
+        "&select=stripe_customer_id",
+      { headers: {
+          "apikey": env.SUPABASE_SERVICE_KEY,
+          "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+      }}
+    );
+    if (pr.ok) {
+      const rows = await pr.json();
+      if (rows && rows[0] && rows[0].stripe_customer_id) {
+        customerId = String(rows[0].stripe_customer_id);
+      }
+    }
+  } catch (_) { /* fall through to email lookup */ }
+
+  // 2. Fallback: Stripe customers/search by email
+  if (!customerId && userEmail) {
+    try {
+      const sr = await fetch(
+        "https://api.stripe.com/v1/customers/search?query=" +
+          encodeURIComponent('email:"' + userEmail + '"') + "&limit=1",
+        {
+          headers: {
+            "Authorization": "Bearer " + env.STRIPE_SECRET_KEY,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
+      );
+      if (sr.ok) {
+        const sd = await sr.json();
+        if (sd.data && sd.data.length) customerId = sd.data[0].id;
+      }
+    } catch (e) {
+      return Response.json(
+        { ok: false, error: "Customer lookup failed: " + String(e) },
+        { status: 502, headers: cors }
+      );
+    }
+    // Back-fill profiles.stripe_customer_id so future calls hit the
+    // fast path. Best-effort — don't block portal open on failure.
+    if (customerId) {
+      try {
+        await fetch(
+          profilesBase + "?id=eq." + encodeURIComponent(userId),
+          { method: "PATCH",
+            headers: {
+              "apikey": env.SUPABASE_SERVICE_KEY,
+              "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+              "Content-Type": "application/json",
+              "Prefer": "return=minimal",
+            },
+            body: JSON.stringify({ stripe_customer_id: customerId }),
+          }
+        );
+      } catch (_) {}
+    }
+  }
+
   if (!customerId) {
     return Response.json(
       { ok: false,
-        error: "No Stripe customer found for " + email +
-          ". You probably haven't subscribed yet — try the Upgrade " +
-          "buttons on the Pricing tab first." },
+        error: "No Stripe customer record yet — you're either on a " +
+          "promo/trial plan or haven't completed a paid checkout. " +
+          "There's nothing to manage in the billing portal until your " +
+          "first paid subscription." },
       { status: 404, headers: cors }
     );
   }
@@ -858,8 +944,19 @@ async function handleStripeWebhook(request, env, cors) {
     if (id === env.STRIPE_PREMIUM_PRICE_ID) return "premium";
     return null;
   }
-  async function updateProfile(userId, tier) {
-    if (!userId || !tier) return;
+  // updateProfile — single PATCH that merges subscription tier and/or
+  // the Stripe customer_id onto public.profiles. Caller passes only
+  // the fields it wants to change; missing fields are left alone so
+  // a subscription.updated event doesn't clobber the cached customer
+  // id that arrived in checkout.session.completed.
+  async function updateProfile(userId, patch) {
+    if (!userId || !patch) return;
+    const body = {};
+    if (patch.tier) body.subscription_tier = patch.tier;
+    if (patch.stripe_customer_id) {
+      body.stripe_customer_id = patch.stripe_customer_id;
+    }
+    if (Object.keys(body).length === 0) return;
     const url = env.SUPABASE_URL.replace(/\/+$/, "") +
       "/rest/v1/profiles?id=eq." + encodeURIComponent(userId);
     await fetch(url, {
@@ -870,7 +967,7 @@ async function handleStripeWebhook(request, env, cors) {
         "Content-Type": "application/json",
         "Prefer": "return=minimal",
       },
-      body: JSON.stringify({ subscription_tier: tier }),
+      body: JSON.stringify(body),
     });
   }
 
@@ -881,15 +978,25 @@ async function handleStripeWebhook(request, env, cors) {
     const userId = obj.client_reference_id ||
                    (obj.metadata && obj.metadata.user_id);
     const plan = obj.metadata && obj.metadata.plan;
+    // obj.customer is the canonical Stripe customer_id created during
+    // this checkout. Cache it on the profile so the Billing Portal
+    // endpoint can look the customer up without a Stripe customers/search.
+    const stripeCustomerId = obj.customer || null;
     console.log("checkout.session.completed · user_id=" + userId +
-      " plan=" + plan);
-    if (userId && plan) await updateProfile(userId, plan);
+      " plan=" + plan + " stripe_customer_id=" + stripeCustomerId);
+    if (userId) {
+      await updateProfile(userId, {
+        tier: plan || undefined,
+        stripe_customer_id: stripeCustomerId || undefined,
+      });
+    }
   } else if (type === "customer.subscription.created" ||
              type === "customer.subscription.updated") {
     const userId = obj.metadata && obj.metadata.user_id;
     const priceId = obj.items && obj.items.data && obj.items.data[0] &&
                     obj.items.data[0].price && obj.items.data[0].price.id;
     const plan = planFromPriceId(priceId);
+    const stripeCustomerId = obj.customer || null;
     // Treat any non-terminal status as paid. Stripe's subscription
     // lifecycle: incomplete → active → past_due/unpaid → canceled.
     // For Checkout flows the first `customer.subscription.created`
@@ -902,12 +1009,21 @@ async function handleStripeWebhook(request, env, cors) {
     const active = liveStatuses.indexOf(obj.status) >= 0;
     console.log("subscription event · user_id=" + userId +
       " priceId=" + priceId + " plan=" + plan +
-      " status=" + obj.status + " active=" + active);
-    if (userId) await updateProfile(userId, active && plan ? plan : "free");
+      " status=" + obj.status + " active=" + active +
+      " stripe_customer_id=" + stripeCustomerId);
+    if (userId) {
+      await updateProfile(userId, {
+        tier: active && plan ? plan : "free",
+        stripe_customer_id: stripeCustomerId || undefined,
+      });
+    }
   } else if (type === "customer.subscription.deleted") {
     const userId = obj.metadata && obj.metadata.user_id;
     console.log("subscription.deleted · user_id=" + userId);
-    if (userId) await updateProfile(userId, "free");
+    // Leave stripe_customer_id intact — the customer record still
+    // exists in Stripe (with no active sub) and the user may want to
+    // re-subscribe later. We just downgrade the entitlement.
+    if (userId) await updateProfile(userId, { tier: "free" });
   } else {
     console.log("Ignored event type: " + type);
   }
