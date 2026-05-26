@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Dashboard / app root. Single-page; tabs are anchors not paths,
+       so this one URL covers Today's Desk + Watchlist + Options Flow
+       + Earnings + News + every other tab. -->
+  <url>
+    <loc>https://tickerdesk.io/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Legal pages. Lower priority but valuable for trust-signal
+       crawling by Google when verifying the OAuth consent screen. -->
+  <url>
+    <loc>https://tickerdesk.io/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://tickerdesk.io/terms</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+</urlset>

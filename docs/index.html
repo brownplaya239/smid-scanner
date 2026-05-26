@@ -13,6 +13,7 @@
 <meta property="og:site_name" content="TickerDesk" />
 <meta property="og:title" content="TickerDesk" />
 <meta property="og:description" content="Your daily equity research desk for flow, breakouts, catalysts, and watchlists." />
+<link rel="canonical" href="https://tickerdesk.io/" />
 <meta property="og:url" content="https://tickerdesk.io" />
 <meta property="og:image" content="https://tickerdesk.io/og-image.jpg" />
 <meta property="og:image:type" content="image/jpeg" />
@@ -516,6 +517,21 @@
   .md-row .md-flow.mixed { background:rgba(160,178,210,0.18);
     color:var(--text); }
   .md-row .md-flow.none { color:var(--muted); }
+  /* Per-ticker "since last visit" badge — rendered inline after the
+     company name. Lets users see at-a-row which names actually had a
+     signal change since their previous session, instead of just an
+     aggregate stat strip. Reads from window.MD_CHANGED_SINCE (built
+     by buildV2Diff in setupMyDesk → renderWhatsNew). */
+  .md-row .md-since { display:inline-block; margin-left:6px;
+    font-size:9.5px; font-weight:700; padding:1px 6px;
+    border-radius:8px; vertical-align:middle; line-height:1.4;
+    white-space:nowrap; cursor:help; }
+  .md-row .md-since.md-since-pos { background:rgba(31,179,99,0.16);
+    color:var(--green); border:1px solid rgba(31,179,99,0.4); }
+  .md-row .md-since.md-since-neg { background:rgba(214,68,68,0.16);
+    color:var(--red); border:1px solid rgba(214,68,68,0.4); }
+  .md-row .md-since small { color:var(--muted); font-weight:600;
+    font-size:8.5px; margin-left:2px; }
   .md-row .md-context { color:var(--textdim); font-size:10.5px; }
   .md-row .md-context .md-ctx-tag { display:inline-block; margin-right:6px;
     font-weight:600; }
@@ -700,6 +716,14 @@
      ──────────────────────────────────────────────────────────────── */
   #panel-pricing { max-width:1180px; }
   /* Distinguish the Pricing nav button — gold dot to signal premium */
+  /* Skip-link — visually hidden until focused. Lands a keyboard
+     user past nav into the main app on one Tab. WCAG 2.4.1 + EAA. */
+  .skip-link { position:absolute; left:-9999px; top:8px;
+    background:var(--gold); color:#000; padding:10px 16px;
+    border-radius:6px; font-weight:700; font-size:13px;
+    z-index:200; text-decoration:none; }
+  .skip-link:focus { left:8px; outline:2px solid var(--text);
+    outline-offset:2px; }
   nav button.nav-pricing { color:var(--gold); }
   nav button.nav-pricing.active { background:var(--gold);
     color:var(--accink); }
@@ -3166,6 +3190,19 @@
      Anchored to the right of a clicked score cell. Floats above the
      table with high z-index so it doesn't get clipped by the sticky
      table header or the .uoa-table-wrap scroll container. */
+  /* News + Flow agree badge ── compact 📰 chip rendered inline next to
+     the ticker cell when last-24h news sentiment aligns with current
+     UOA flow direction. Highest-conviction confirmation read — "the
+     story IS confirmed by money." */
+  .uoa-nf-badge { display:inline-block; margin-left:5px;
+    font-size:9.5px; font-weight:700;
+    padding:1px 6px; border-radius:8px;
+    vertical-align:middle; line-height:1.4;
+    white-space:nowrap; cursor:help; }
+  .uoa-nf-badge.uoa-nf-pos { background:rgba(31,179,99,0.16);
+    color:var(--green); border:1px solid rgba(31,179,99,0.4); }
+  .uoa-nf-badge.uoa-nf-neg { background:rgba(214,68,68,0.16);
+    color:var(--red); border:1px solid rgba(214,68,68,0.4); }
   .uoa-score.has-breakdown { cursor:pointer; }
   .uoa-score.has-breakdown:hover {
     box-shadow:0 0 0 2px rgba(255,158,27,0.5); }
@@ -3202,6 +3239,18 @@
   .scp-popover .scp-neg { color:var(--red); }
   .scp-popover .scp-foot { font-size:10px; color:var(--muted);
     border-top:1px solid var(--line); margin-top:7px; padding-top:6px; }
+  /* Historical-edge footer ── shows hit-rate + avg-return for this
+     score bucket from uoa_edge.json so the user can calibrate
+     "should I trust this score?" against the cohort backtest. */
+  .scp-popover .scp-edge { margin-top:7px; padding:7px 0;
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+  .scp-popover .scp-edge-h { font-size:10px; font-weight:700;
+    color:var(--gold); letter-spacing:0.2px;
+    text-transform:uppercase; margin-bottom:4px; }
+  .scp-popover .scp-edge-rows { font-size:10.5px;
+    color:var(--text); line-height:1.55; }
+  .scp-popover .scp-edge-rows b { color:var(--green); }
+  .scp-popover .scp-edge-n { color:var(--muted); font-size:9px; }
   .scp-popover .scp-close { position:absolute; top:5px; right:7px;
     background:transparent; border:none; color:var(--muted);
     font-size:17px; line-height:1; cursor:pointer;
@@ -3225,6 +3274,40 @@
   .uoa-filter-headline .pos { color:var(--green); font-weight:700; }
   .uoa-filter-headline .neg { color:var(--red); font-weight:700; }
   .uoa-filter-headline .muted { color:var(--muted); }
+  .uoa-filter-headline .ufh-row1 { margin-bottom:5px; }
+  /* Top-5 chip strip ── clickable shortcuts sourced from the filtered
+     view's top trade_scores. Updates live with filter changes. */
+  .uoa-filter-headline .ufh-chips { display:flex; flex-wrap:wrap;
+    align-items:center; gap:6px; margin-top:4px;
+    padding-top:6px; border-top:1px dashed var(--line); }
+  .uoa-filter-headline .ufh-chips-label { font-size:10.5px;
+    color:var(--muted); font-weight:600; letter-spacing:0.2px;
+    text-transform:uppercase; margin-right:4px; }
+  .uoa-filter-headline .ufh-chip { display:inline-flex; align-items:baseline;
+    gap:5px; padding:3px 9px; border-radius:11px;
+    background:rgba(120,150,200,0.10);
+    border:1px solid var(--line);
+    cursor:pointer; user-select:none;
+    font-size:11px; font-variant-numeric:tabular-nums;
+    transition:border-color .15s ease, background .15s ease; }
+  .uoa-filter-headline .ufh-chip:hover,
+  .uoa-filter-headline .ufh-chip:focus-visible {
+    border-color:var(--gold); background:rgba(255,158,27,0.10);
+    outline:none; }
+  .uoa-filter-headline .ufh-chip:focus-visible {
+    box-shadow:0 0 0 2px rgba(255,158,27,0.5); }
+  .uoa-filter-headline .ufh-chip b { color:var(--text); font-weight:700; }
+  .uoa-filter-headline .ufh-chip-meta { color:var(--textdim);
+    font-size:10px; }
+  .uoa-filter-headline .ufh-chip-dir { font-weight:700; font-size:10px;
+    margin-left:2px; }
+  .uoa-filter-headline .ufh-chip-dir.pos { color:var(--green); }
+  .uoa-filter-headline .ufh-chip-dir.neg { color:var(--red); }
+  .uoa-filter-headline .ufh-chip-dir.muted { color:var(--muted); }
+  @media (max-width:520px) {
+    .uoa-filter-headline .ufh-chips { gap:4px; }
+    .uoa-filter-headline .ufh-chips-label { display:none; }
+  }
   @media (max-width:760px) {
     .uoa-filter-headline { font-size:10.5px; padding:6px 9px; }
   }
@@ -3691,6 +3774,11 @@
 </script>
 </head>
 <body>
+  <!-- Skip-link: lets keyboard / screen-reader users jump past the
+       nav + header into the main content area in one Tab. WCAG 2.1
+       2.4.1 "Bypass Blocks". Visually hidden until focused. -->
+  <a href="#main" class="skip-link">Skip to main content</a>
+
   <!-- Universal ticker drilldown side panel (single global element) -->
   <div class="tdp-backdrop" id="tdp-backdrop"></div>
   <aside class="ticker-panel" id="ticker-panel" aria-hidden="true">
@@ -3901,7 +3989,7 @@
 
   <div class="market-cards" id="market-cards"></div>
 
-  <main>
+  <main id="main" tabindex="-1">
     <!-- Today's Desk -->
     <section class="panel active" id="panel-desk">
       <h2 class="tab-title">Today&apos;s Desk</h2>
@@ -6661,6 +6749,28 @@
       });
       const total = groups.trend.length + groups.flow.length +
                     groups.earnings.length + groups.modules.length;
+      // Expose the per-ticker diff map so My Desk + other modules can
+      // render row-level "since last visit" chips without re-querying
+      // signal_snapshots. Shape: { TICKER: [{type, detail, neg}, ...] }
+      // The What's New widget uses the grouped form above; My Desk
+      // uses this flattened form to badge individual rows.
+      const byTkChanges = {};
+      [["trend", groups.trend],
+       ["flow", groups.flow],
+       ["earnings", groups.earnings],
+       ["modules", groups.modules]].forEach(function (pair) {
+        const type = pair[0];
+        pair[1].forEach(function (it) {
+          byTkChanges[it.t] = byTkChanges[it.t] || [];
+          byTkChanges[it.t].push({ type: type,
+            detail: it.detail, neg: it.neg });
+        });
+      });
+      window.MD_CHANGED_SINCE = byTkChanges;
+      // Notify My Desk so it can re-render with the badge data
+      try {
+        if (window._mdRender) window._mdRender();
+      } catch (_) {}
       if (total === 0) return false;     // nothing changed → fall back
       // Render diff view
       el.classList.remove("empty");
@@ -6946,10 +7056,22 @@
           }
         });
       }
-      // Compute aggregates
+      // Compute aggregates.
+      // For best/worst contributor we prefer the LIVE_QUOTE_CACHE
+      // intraday delta (delayed 15m) over the swing post-close chg,
+      // so this card reflects TODAY's drag/lift not yesterday's
+      // close-to-close. Falls back to swing cell.chg when live quote
+      // hasn't hydrated yet (first ~1-2 sec after page load).
       let aTier = 0, bullFlow = 0, bearFlow = 0;
       let bestContrib = null, worstContrib = null;
       let totalW = 0;
+      const LIVE = window.LIVE_QUOTE_CACHE || {};
+      const liveFresh = function (t) {
+        const q = LIVE[t];
+        return q && typeof q.change === "number" &&
+          Date.now() - (q.ts || 0) < 5 * 60 * 1000
+          ? q.change : null;
+      };
       wl.forEach(function (tk) {
         const g = grades[tk];
         if (g === "A+" || g === "A" || g === "A-") aTier++;
@@ -6958,14 +7080,22 @@
         if (f && f.direction === "bearish") bearFlow++;
         const w = WATCHLIST_WEIGHTS[tk] != null ? WATCHLIST_WEIGHTS[tk] : 1;
         totalW += w;
-        const cell = lookupCell(tk);
-        if (cell && typeof cell.chg === "number") {
-          const contrib = w * cell.chg;
+        // Intraday today > swing post-close yesterday
+        let chg = liveFresh(tk);
+        let isLive = (chg != null);
+        if (chg == null) {
+          const cell = lookupCell(tk);
+          if (cell && typeof cell.chg === "number") chg = cell.chg;
+        }
+        if (chg != null) {
+          const contrib = w * chg;
           if (bestContrib == null || contrib > bestContrib.contrib) {
-            bestContrib = { ticker: tk, contrib: contrib, chg: cell.chg, w: w };
+            bestContrib = { ticker: tk, contrib: contrib,
+              chg: chg, w: w, live: isLive };
           }
           if (worstContrib == null || contrib < worstContrib.contrib) {
-            worstContrib = { ticker: tk, contrib: contrib, chg: cell.chg, w: w };
+            worstContrib = { ticker: tk, contrib: contrib,
+              chg: chg, w: w, live: isLive };
           }
         }
       });
@@ -7035,22 +7165,30 @@
       cards.push('<div class="wls-card wls-neg"><div class="wls-label">' +
         'Bearish flow today</div><div class="wls-val down">' + bearFlow +
         '</div><div class="wls-sub">Put-side UOA flagged</div></div>');
+      // Best / Worst show a freshness suffix so the user knows whether
+      // the contributor read is intraday (delayed 15m) or yesterday's
+      // close-to-close — a critical distinction post-holiday or pre-market.
+      const subFreshness = function (c) {
+        return c.live ? "intraday · delayed 15m" : "yesterday's close";
+      };
       if (bestContrib) {
         cards.push('<div class="wls-card wls-best"><div class="wls-label">' +
-          'Best contributor (1D)</div><div class="wls-val up" data-t="' +
+          'Best contributor</div><div class="wls-val up" data-t="' +
           bestContrib.ticker + '">' + bestContrib.ticker +
           ' ' + fmtVal(bestContrib.chg) +
-          '</div><div class="wls-sub">contributing ' +
+          '</div><div class="wls-sub">' +
           ((bestContrib.contrib > 0 ? "+" : "") +
-            bestContrib.contrib.toFixed(2)) + '% weighted</div></div>');
+            bestContrib.contrib.toFixed(2)) + '% weighted &middot; ' +
+          subFreshness(bestContrib) + '</div></div>');
       }
       if (worstContrib && worstContrib.ticker !== (bestContrib && bestContrib.ticker)) {
         cards.push('<div class="wls-card wls-worst"><div class="wls-label">' +
-          'Worst contributor (1D)</div><div class="wls-val down" data-t="' +
+          'Worst contributor</div><div class="wls-val down" data-t="' +
           worstContrib.ticker + '">' + worstContrib.ticker +
           ' ' + fmtVal(worstContrib.chg) +
           '</div><div class="wls-sub">drag of ' +
-          worstContrib.contrib.toFixed(2) + '% weighted</div></div>');
+          worstContrib.contrib.toFixed(2) + '% weighted &middot; ' +
+          subFreshness(worstContrib) + '</div></div>');
       }
       cards.push('<div class="wls-card wls-earn"><div class="wls-label">' +
         'Earnings in 7d</div><div class="wls-val">' + earnNext7.length +
@@ -7882,6 +8020,28 @@
           'signals across grade + flow + earnings + monthly/weekly ' +
           'momentum screens. Bull-strong ≥ +3; Bear-strong ≤ -3.">' +
           'Confluence</span></div>';
+      // Per-ticker "since last visit" change badges are computed by
+      // the What's New widget (buildV2Diff above) and exposed via
+      // window.MD_CHANGED_SINCE. Read-only here so My Desk doesn't
+      // need its own signal_snapshots query.
+      const CHANGED = window.MD_CHANGED_SINCE || {};
+      const sinceBadge = function (tk) {
+        const arr = CHANGED[tk];
+        if (!arr || !arr.length) return "";
+        // Show the strongest change first (trend > flow > earnings > modules)
+        const ORDER = { trend: 0, flow: 1, earnings: 2, modules: 3 };
+        const top = arr.slice().sort(function (a, b) {
+          return (ORDER[a.type] || 9) - (ORDER[b.type] || 9);
+        })[0];
+        const cls = top.neg ? "md-since-neg" : "md-since-pos";
+        const fullList = arr.map(function (c) { return c.detail; })
+          .join(" · ").replace(/"/g, "&quot;");
+        return '<span class="md-since ' + cls +
+          '" title="Since last visit: ' + fullList + '">' +
+          top.detail + (arr.length > 1
+            ? ' <small>+' + (arr.length - 1) + '</small>'
+            : '') + '</span>';
+      };
       const out = rows.map(function (r) {
         const c = r.cell;
         const chg = c && typeof c.chg === "number" ? c.chg : null;
@@ -7901,7 +8061,8 @@
         const sign = r.conf > 0 ? "+" : "";
         return '<div class="md-row" data-t="' + r.tk + '">' +
           '<span class="md-tk">' + r.tk + '</span>' +
-          '<span class="md-name">' + (name || "").slice(0, 32) + '</span>' +
+          '<span class="md-name">' + (name || "").slice(0, 32) +
+            sinceBadge(r.tk) + '</span>' +
           '<span class="md-grade">' + gradeChip + '</span>' +
           '<span class="md-chg ' + chgCls + '">' +
             (chg == null ? "—" : (chg > 0 ? "+" : "") + chg.toFixed(1) + "%") +
@@ -7918,6 +8079,10 @@
       body.innerHTML = statStrip +
         '<div class="mydesk-grid">' + header + out + '</div>';
     }
+    // Expose render so the What's New widget (different IIFE) can
+    // re-trigger My Desk after it finishes computing the
+    // window.MD_CHANGED_SINCE map.
+    window._mdRender = render;
     onWatchChange(render);
     // Also re-render when Today's Desk loads its data (so My Desk picks it up)
     const _origLoadAndRender = window._origLoadAndRender;  // placeholder
@@ -10791,6 +10956,20 @@
       e.preventDefault();
       openPanel(tk);
     });
+    // Keyboard: Enter / Space on any focusable [data-t] element opens
+    // the drilldown. Mirrors the click handler above so keyboard +
+    // screen-reader users get the same interaction model as mouse.
+    // (data-t elements with role="button" + tabindex="0" — currently
+    // the ufh-chip in the Options Flow filter headline.)
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const tEl = e.target.closest("[data-t][role='button']");
+      if (!tEl) return;
+      const tk = tEl.dataset.t;
+      if (!tk) return;
+      e.preventDefault();
+      openPanel(tk);
+    });
     // Expose openPanel globally so Start Here cards, the search overlay,
     // and any future module can deep-link directly into the drilldown
     // without bouncing through a data-t synthetic click. Set once at
@@ -13478,6 +13657,34 @@
             return;
           }
           GENERAL = preprocessArticles(d.articles);
+          // Build a per-ticker sentiment map keyed for cross-module
+          // reuse — UOA tab uses it to render the "📰 + flow agrees"
+          // badge on rows where news AND flow point the same way.
+          // Only counts articles published in the last 24h (anything
+          // older isn't a confirmation, it's history).
+          try {
+            const map = {};
+            const cutoff = Date.now() - 24 * 3600 * 1000;
+            (GENERAL || []).forEach(function (a) {
+              if (!a.published || new Date(a.published).getTime() < cutoff)
+                return;
+              (a.insights || []).forEach(function (ins) {
+                if (!ins.ticker) return;
+                if (!map[ins.ticker]) map[ins.ticker] = {
+                  pos: 0, neg: 0, neu: 0, total: 0,
+                  freshest: a.published,
+                };
+                if (ins.sentiment === "positive") map[ins.ticker].pos++;
+                else if (ins.sentiment === "negative") map[ins.ticker].neg++;
+                else map[ins.ticker].neu++;
+                map[ins.ticker].total++;
+                if (a.published > map[ins.ticker].freshest) {
+                  map[ins.ticker].freshest = a.published;
+                }
+              });
+            });
+            window.NEWS_SENT_24H = map;
+          } catch (_) {}
           if (updated) updated.textContent = "· refreshed " +
             new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
           // News worker has a 5-min edge cache; intraday-batch character
@@ -13657,17 +13864,55 @@
         { hour: "numeric", minute: "2-digit" });
       const isToday = dtDay.getTime() === today.getTime();
       const isYest  = dtDay.getTime() === today.getTime() - 86400000;
+      // Holiday-gap detection: if there are market-closed days BETWEEN
+      // the data's date and today, that's why the data looks "stale" —
+      // markets simply weren't open. Surface the reason explicitly so
+      // users don't read "Prior close · Fri" on a Tuesday as "scanner
+      // is 3 days behind." Examples after Memorial Day:
+      //   Tue: data from Fri (Mon was Memorial Day) → " · Mon holiday"
+      //   Mon AM: data from Fri close                → " · weekend"
+      let gapLabel = "";
+      try {
+        if (!isToday && !isYest && window.tdMarketClosedReason) {
+          const reasons = [];
+          // Walk each calendar day from data-day+1 to today-1
+          for (let d = new Date(dtDay.getTime() + 86400000);
+               d < today; d = new Date(d.getTime() + 86400000)) {
+            const cr = window.tdMarketClosedReason(d);
+            if (cr) {
+              // Compress repeated weekend mentions: only flag the
+              // first weekend day we encounter, not both Sat AND Sun
+              if (cr.reason === "weekend" &&
+                  reasons.some(function (r) {
+                    return r.reason === "weekend"; })) continue;
+              reasons.push(cr);
+            }
+          }
+          if (reasons.length) {
+            const labels = reasons.map(function (r) {
+              return r.reason === "weekend" ? "weekend"
+                : r.label.replace(/ \(observed\)/, "");
+            });
+            gapLabel = " (" + labels.join(" + ") + " in between)";
+          }
+        }
+      } catch (_) {}
       const dateLabel = isToday ? timeOnly
         : isYest ? "yest " + timeOnly
         : dt.toLocaleDateString([], { month: "short", day: "numeric" }) +
-            " " + timeOnly;
+            " " + timeOnly + gapLabel;
       // Label is character-driven: tell the user what kind of data this is.
+      // For post-close, extend the "current" window when the gap is
+      // explained by known market-closed days (weekend / holiday) —
+      // 96h instead of 72h post-Memorial-Day shouldn't read as
+      // "Outdated" when markets simply weren't open Mon.
+      const holidayAdj = gapLabel ? 48 : 0;  // +2 days slack per closure
       let prefix, cls;
       if (character === "post-close") {
-        if (isToday)        { prefix = "Post-close";  cls = "fresh"; }
-        else if (isYest)    { prefix = "Prior close"; cls = "current"; }
-        else if (ageH < 72) { prefix = "Prior close"; cls = "current"; }
-        else                 { prefix = "Outdated";   cls = "old"; }
+        if (isToday)                       { prefix = "Post-close";  cls = "fresh"; }
+        else if (isYest)                   { prefix = "Prior close"; cls = "current"; }
+        else if (ageH < 72 + holidayAdj)   { prefix = "Prior close"; cls = "current"; }
+        else                                { prefix = "Outdated";   cls = "old"; }
       } else if (character === "live") {
         if (ageH < cadenceHours * 0.5)  { prefix = "Live";     cls = "fresh"; }
         else if (ageH < cadenceHours)    { prefix = "Latest";   cls = "current"; }
@@ -17292,14 +17537,52 @@
       const bestTag = best
         ? (best.type || "").toUpperCase() + " $" + best.strike
         : "";
+      // Top-5 conviction strip — clickable chips sourced from the
+      // SAME filtered set (so they react to filter changes). Each chip
+      // opens the ticker drilldown via the existing global data-t
+      // handler. Single biggest "what should I actually trade now"
+      // surface — the user can act on the page without reading the
+      // 558-row table.
+      const top5 = filteredRows.slice().sort(function (a, b) {
+        return (b.trade_score || 0) - (a.trade_score || 0);
+      }).slice(0, 5);
+      const chips = top5.map(function (r) {
+        const dirCls = r.direction === "bullish" ? "pos"
+                     : r.direction === "bearish" ? "neg" : "muted";
+        const typ = (r.type || "").charAt(0).toUpperCase();
+        return '<span class="ufh-chip" data-t="' + r.ticker + '" ' +
+          'role="button" tabindex="0" ' +
+          'aria-label="Open ' + r.ticker + ' drilldown — ' +
+          (r.type || "").toUpperCase() + ' strike ' + r.strike +
+          ' expiry ' + r.expiry +
+          ', score ' + (r.trade_score || 0) +
+          ', premium ' + fmtP(r.premium || 0) + '" ' +
+          'title="' + r.ticker + ' ' + (r.type || "").toUpperCase() + ' $' +
+          r.strike + ' ' + r.expiry +
+          ' · score ' + (r.trade_score || 0) +
+          ' · ' + fmtP(r.premium || 0) +
+          ' — click to open drilldown">' +
+          '<b>' + r.ticker + '</b> ' +
+          '<span class="ufh-chip-meta">' + typ + ' $' + r.strike +
+          ' &middot; ' + (r.trade_score || 0) + '</span>' +
+          '<span class="ufh-chip-dir ' + dirCls + '">' +
+          (r.direction === "bullish" ? "▲"
+            : r.direction === "bearish" ? "▼" : "•") + '</span>' +
+          '</span>';
+      }).join("");
       h.innerHTML =
-        '<b>Showing ' + filteredRows.length + ' contracts</b> &middot; ' +
-        fmtP(totPrem) + ' total premium &middot; ' +
-        '<span class="pos">' + bull + ' bull</span> / ' +
-        '<span class="neg">' + bear + ' bear</span>' +
-        (best ? ' &middot; top conviction: <b>' + best.ticker + '</b> ' +
-          bestTag + ' (score ' + (best.trade_score || 0) +
-          ', ' + fmtP(best.premium || 0) + ')' : '');
+        '<div class="ufh-row1">' +
+          '<b>Showing ' + filteredRows.length + ' contracts</b> &middot; ' +
+          fmtP(totPrem) + ' total premium &middot; ' +
+          '<span class="pos">' + bull + ' bull</span> / ' +
+          '<span class="neg">' + bear + ' bear</span>' +
+          (best ? ' &middot; top conviction: <b>' + best.ticker + '</b> ' +
+            bestTag + ' (score ' + (best.trade_score || 0) +
+            ', ' + fmtP(best.premium || 0) + ')' : '') +
+        '</div>' +
+        (chips ? '<div class="ufh-chips">' +
+          '<span class="ufh-chips-label">Top 5 by score:</span>' +
+          chips + '</div>' : '');
     }
     function renderBody() {
       renderChips();
@@ -17383,8 +17666,36 @@
             ' · Current: $' + cur.toFixed(2) + '">' +
             sign + delta.toFixed(1) + '%</span>';
         })();
+        // News + Flow confirmation badge — render next to the ticker
+        // when news in the last 24h agrees with the UOA direction.
+        // Positive news + bullish flow → "📰 +flow" (green)
+        // Negative news + bearish flow → "📰 -flow" (red)
+        // Strong disagreement isn't surfaced as a badge (too noisy);
+        // mixed/no-news = no badge. Highest-conviction confirmation:
+        // story confirmed by money.
+        const _nm = (window.NEWS_SENT_24H || {})[r.ticker];
+        let nfBadge = '';
+        if (_nm && _nm.total >= 1) {
+          const lean = _nm.pos > _nm.neg + 1 ? "pos"
+                     : _nm.neg > _nm.pos + 1 ? "neg" : null;
+          if (lean === "pos" && r.direction === "bullish") {
+            nfBadge = '<span class="uoa-nf-badge uoa-nf-pos" ' +
+              'role="img" aria-label="' +
+              'News and flow agree bullish: ' + _nm.pos +
+              ' positive headlines in last 24 hours" ' +
+              'title="' + _nm.pos + ' positive news in last 24h, ' +
+              'flow is bullish — story confirmed by money.">📰&nbsp;+flow</span>';
+          } else if (lean === "neg" && r.direction === "bearish") {
+            nfBadge = '<span class="uoa-nf-badge uoa-nf-neg" ' +
+              'role="img" aria-label="' +
+              'News and flow agree bearish: ' + _nm.neg +
+              ' negative headlines in last 24 hours" ' +
+              'title="' + _nm.neg + ' negative news in last 24h, ' +
+              'flow is bearish — story confirmed by money.">📰&nbsp;-flow</span>';
+          }
+        }
         return '<tr data-idx="'+i+'">'+
-          '<td><strong data-t="'+r.ticker+'">'+r.ticker+'</strong></td>'+
+          '<td><strong data-t="'+r.ticker+'">'+r.ticker+'</strong>'+nfBadge+'</td>'+
           '<td><span class="uoa-tier '+tierCls(r.tier)+'">'+(r.tier||"C")+'</span></td>'+
           '<td><span class="uoa-score has-breakdown '+scoreCls(r.trade_score)+
             '" data-score-comp="'+i+'" tabindex="0" ' +
@@ -17465,16 +17776,31 @@
         .catch(function () { DATA = []; renderHead(); renderClusters(); renderBody(); });
       fetch("./reports/uoa_edge.json?t="+Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (e) { EDGE = e; renderEdge(e); })
+        .then(function (e) {
+          EDGE = e;
+          // Expose globally so the score-breakdown popover can read
+          // by_score buckets for its historical-edge footer without
+          // re-fetching.
+          window.EDGE = e;
+          renderEdge(e);
+        })
         .catch(function () { renderEdge(null); });
-      fetch("./reports/uoa_signals_scored.json?t="+Date.now())
+      // uoa_signals_scored.json is intentionally NOT fetched here —
+      // it's a heavy file (75k+ lines, ~2MB) used only by the
+      // Tracked Signals subtab. Lazy-load it via loadScoredIfNeeded()
+      // when the user opens that subtab. Saves bandwidth on every
+      // page mount for the 95% of users who never click into Tracked.
+    }
+    let _scoredLoaded = false;
+    function loadScoredIfNeeded() {
+      if (_scoredLoaded) return Promise.resolve();
+      _scoredLoaded = true;
+      return fetch("./reports/uoa_signals_scored.json?t="+Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           SCORED = (d && d.signals) ? d.signals : [];
-          const st = document.getElementById("sub-tracked");
-          if (st && st.style.display !== "none") renderTracked();
         })
-        .catch(function () { SCORED = []; });
+        .catch(function () { SCORED = []; _scoredLoaded = false; });
     }
 
     /* ── Phase C — sub-tabs, tracked signals, performance, detail ── */
@@ -17502,8 +17828,12 @@
           el.setAttribute("inert", "");
         }
       });
-      if (sub === "tracked") renderTracked();
-      if (sub === "perf") renderPerf();
+      if (sub === "tracked") {
+        loadScoredIfNeeded().then(renderTracked);
+      }
+      if (sub === "perf") {
+        loadScoredIfNeeded().then(renderPerf);
+      }
     });
 
     const TRK_COLS = [
@@ -18255,12 +18585,46 @@
             (reasons ? '<span class="scp-pen-why"> · ' + reasons + '</span>' : '') +
             '</span></div>'
         : '';
+      // Historical edge for this score bucket — uses uoa_edge.json's
+      // by_score breakdown (60-69 / 70-79 / 80-100) so the user can
+      // calibrate THIS score against how that bucket has performed
+      // historically. Single most useful "should I act on this signal"
+      // signal we can surface without per-signal backtesting.
+      let edgeFooter = '';
+      try {
+        const sc = r.trade_score || 0;
+        const bucket = sc >= 80 ? "80-100"
+                     : sc >= 70 ? "70-79"
+                     : sc >= 60 ? "60-69" : null;
+        const bs = (window.EDGE && window.EDGE.by_score) || null;
+        if (bucket && bs && bs[bucket] && bs[bucket].h) {
+          const h = bs[bucket].h;
+          const fmt = function (k) {
+            const horizon = h[k];
+            if (!horizon || !horizon.n) return null;
+            const avgSign = (horizon.avg || 0) >= 0 ? "+" : "";
+            return '+' + k + 'd: <b>' + horizon.hit_rate + '%</b> hit · ' +
+              'avg ' + avgSign + (horizon.avg || 0).toFixed(1) + '% ' +
+              '<span class="scp-edge-n">(n=' + horizon.n + ')</span>';
+          };
+          const parts = ["1", "3", "5"].map(fmt)
+            .filter(function (x) { return x; });
+          if (parts.length) {
+            edgeFooter = '<div class="scp-edge">' +
+              '<div class="scp-edge-h">Historical edge · score ' +
+                bucket + ' bucket</div>' +
+              '<div class="scp-edge-rows">' + parts.join("<br>") + '</div>' +
+              '</div>';
+          }
+        }
+      } catch (_) {}
       const tooltip = document.createElement("div");
       tooltip.className = "scp-popover";
       tooltip.innerHTML =
         '<div class="scp-h">Score breakdown · <b>' + r.trade_score +
           '</b> for ' + r.ticker + '</div>' +
         '<div class="scp-list">' + rows + penaltyHTML + '</div>' +
+        edgeFooter +
         '<div class="scp-foot">Components sum: ' + total +
           (penalty < 0 ? ' &minus; ' + Math.abs(penalty) + ' penalty' : '') +
           ' &rarr; final ' + r.trade_score +

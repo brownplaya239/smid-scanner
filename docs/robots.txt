@@ -1,0 +1,11 @@
+# TickerDesk.io robots.txt
+# Public site — allow indexing of all pages.
+
+User-agent: *
+Allow: /
+# Block the reports/ JSON output dir — large, churns frequently, no
+# SEO value, and indexing it would waste crawl budget. These files
+# are loaded directly by the dashboard JS, not user-facing pages.
+Disallow: /reports/
+
+Sitemap: https://tickerdesk.io/sitemap.xml
