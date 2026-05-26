@@ -5479,6 +5479,72 @@
   // ticker symbols echoed back to the user. Mirrors the per-module
   // escHTML helpers (which we keep for back-compat) but lives on
   // window so new render paths don't have to redefine it.
+  // ── US Equity-Market closed-day detector ──
+  // Returns null if the date is a normal market day; otherwise returns
+  // { reason, label, color } so the caller can show a graceful empty-state
+  // ("Markets closed — Memorial Day") instead of a false-alarm
+  // "scanner may have failed". Date arg can be:
+  //   - ISO string ("2026-05-25T23:42:43+00:00")
+  //   - "YYYY-MM-DD"
+  //   - Date object
+  // We resolve to a US/Eastern calendar date for the comparison so the
+  // late-Sunday-UTC ↔ market-Friday-ET edge doesn't flip the bucket.
+  //
+  // Holidays list covers 2026 + 2027 — the surface area where 0 rows
+  // is genuinely expected. Re-check + extend annually.
+  window.tdMarketClosedReason = function (dateLike) {
+    let d;
+    if (dateLike instanceof Date) d = dateLike;
+    else if (typeof dateLike === "string") d = new Date(dateLike);
+    else return null;
+    if (!d || isNaN(d.getTime())) return null;
+    // Convert to US/Eastern calendar parts so we don't off-by-one a
+    // UTC-late-evening Friday into "Saturday."
+    const fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "2-digit", day: "2-digit",
+      weekday: "short",
+    });
+    const parts = fmt.formatToParts(d).reduce(function (acc, p) {
+      acc[p.type] = p.value; return acc;
+    }, {});
+    const iso = parts.year + "-" + parts.month + "-" + parts.day;
+    const wkd = parts.weekday;        // "Mon", "Tue", … "Sun"
+    if (wkd === "Sat") return { reason: "weekend", label: "Saturday (weekend)" };
+    if (wkd === "Sun") return { reason: "weekend", label: "Sunday (weekend)" };
+    // NYSE/CBOE holidays — full closures only. Early-close days
+    // (Black Friday 1pm ET, Christmas Eve 1pm ET) still produce flow,
+    // so they're not listed here.
+    const HOLIDAYS = {
+      // 2026
+      "2026-01-01": "New Year's Day",
+      "2026-01-19": "Martin Luther King Jr. Day",
+      "2026-02-16": "Presidents Day",
+      "2026-04-03": "Good Friday",
+      "2026-05-25": "Memorial Day",
+      "2026-06-19": "Juneteenth",
+      "2026-07-03": "Independence Day (observed)",
+      "2026-09-07": "Labor Day",
+      "2026-11-26": "Thanksgiving",
+      "2026-12-25": "Christmas Day",
+      // 2027
+      "2027-01-01": "New Year's Day",
+      "2027-01-18": "Martin Luther King Jr. Day",
+      "2027-02-15": "Presidents Day",
+      "2027-03-26": "Good Friday",
+      "2027-05-31": "Memorial Day",
+      "2027-06-18": "Juneteenth (observed)",
+      "2027-07-05": "Independence Day (observed)",
+      "2027-09-06": "Labor Day",
+      "2027-11-25": "Thanksgiving",
+      "2027-12-24": "Christmas Day (observed)",
+    };
+    if (HOLIDAYS[iso]) {
+      return { reason: "holiday", label: HOLIDAYS[iso] };
+    }
+    return null;          // normal market day
+  };
+
   window.escapeHtml = function (s) {
     if (s == null) return "";
     return String(s)
@@ -8141,8 +8207,23 @@
         if (r.id === "uoa_latest") {
           const ucount = (r.raw.rows || []).length;
           if (ucount === 0) {
-            validations.push({ severity: "err", module: r.id,
-              msg: "No UOA rows — scanner may have failed" });
+            // Differentiate a real scanner failure from a 0-row result on a
+            // market-closed day (weekend / federal holiday). Memorial Day
+            // 2026-05-25 was the first time this triggered a false "scanner
+            // failed" alarm — the scanner ran perfectly, there was just no
+            // trading. Use the scan's `generated` timestamp (not now) so we
+            // attribute correctly even when the user opens the panel mid-week.
+            const closed = window.tdMarketClosedReason &&
+              window.tdMarketClosedReason(r.raw.generated);
+            if (closed) {
+              validations.push({ severity: "info", module: r.id,
+                msg: "0 UOA rows — markets closed (" + closed.label +
+                  "). Next scan when markets reopen." });
+            } else {
+              validations.push({ severity: "err", module: r.id,
+                msg: "0 UOA rows on a market day — scanner may have failed " +
+                  "(or filters were too tight)" });
+            }
           } else if (ucount < 50) {
             validations.push({ severity: "warn", module: r.id,
               msg: "Only " + ucount + " UOA rows (expected 200+)" });
@@ -16518,10 +16599,22 @@
       const el = $("uoa-today-edge");
       if (!el) return;
       if (!rows || !rows.length) {
+        // If the most recent scan landed on a market-closed day, surface
+        // that explicitly so the user doesn't read "no flow" as "broken
+        // scanner." DATA.generated isn't available here, so fall back to
+        // the JSON's generated timestamp via window.TD_DATA cache.
+        const gen = (window.TD_DATA && window.TD_DATA.uoa &&
+          window.TD_DATA.uoa.generated) || null;
+        const closed = (gen && window.tdMarketClosedReason)
+          ? window.tdMarketClosedReason(gen) : null;
+        const sub = closed
+          ? "Markets closed &mdash; " + closed.label +
+            ". Next scan when markets reopen."
+          : "No flow on file yet. Next scan fires within ~75 min " +
+            "during market hours.";
         el.innerHTML = '<div class="te-card"><div class="te-label">' +
-          'Today\'s Flow</div><div class="te-val">—</div>' +
-          '<div class="te-sub">No flow on file yet. Next scan fires ' +
-          'within ~75 min during market hours.</div></div>';
+          'Today\'s Flow</div><div class="te-val">&mdash;</div>' +
+          '<div class="te-sub">' + sub + '</div></div>';
         return;
       }
       const fmt = function (p) {
