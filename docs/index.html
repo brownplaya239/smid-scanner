@@ -1692,6 +1692,15 @@
     color:var(--gold); text-decoration:none; font-weight:600;
     background:none; border:0; padding:0; font-family:inherit;
     font-size:inherit; cursor:pointer; }
+  /* Top-idea reason-chip stack (Card 4: Today's top idea) ── small
+     why-chips like "opening · repeat · bullish · liquid" rendered as
+     pills below the contract line so the user sees WHY at a glance. */
+  .sh-card .sh-reasons { display:inline-flex; flex-wrap:wrap; gap:4px;
+    margin:6px 0; }
+  .sh-card .sh-reason-chip { font-size:10px; font-weight:600;
+    color:var(--textdim); background:rgba(120,150,200,0.08);
+    border:1px solid var(--line); border-radius:9px;
+    padding:1px 7px; text-transform:lowercase; }
   .sh-card .sh-card-body a:hover,
   .sh-card .sh-card-body button.sh-jump:hover {
     text-decoration:underline; }
@@ -2884,7 +2893,16 @@
   .tdp-filing .tf-summary { font-size:11px; color:var(--textdim);
     margin-top:4px; line-height:1.45; padding:6px 9px;
     background:rgba(255,255,255,0.025); border-left:2px solid var(--gold);
-    border-radius:0 3px 3px 0; }
+    border-radius:0 3px 3px 0;
+    /* Cap long Haiku summaries so a 10-paragraph 10-K excerpt doesn't
+       push the rest of the drilldown panel below the fold on mobile.
+       Scrolls internally when content exceeds; user can still expand
+       on click (handled in JS). */
+    max-height:200px; overflow-y:auto;
+    overscroll-behavior:contain; /* prevents body scroll chaining on mobile */ }
+  @media (max-width:640px) {
+    .tdp-filing .tf-summary { max-height:160px; }
+  }
   .tdp-filing .tf-summary.loading { color:var(--muted); font-style:italic;
     border-left-color:var(--muted); }
   .tdp-filing .tf-summary.error { color:var(--muted); font-style:italic;
@@ -3049,6 +3067,26 @@
     margin-left:4px; }
   .archive-recent .ar-clear:hover { color:var(--red); }
 
+  /* Archive global freshness strip — sits above the search input on
+     the Research / Alt-Data tab. Stays compact so it doesn't crowd
+     the search input; clickable chips per report type. */
+  .archive-freshness { display:flex; flex-wrap:wrap; gap:6px;
+    align-items:center; margin:6px 0 10px;
+    font-size:11px; color:var(--textdim); line-height:1.45; }
+  .archive-freshness .af-total { color:var(--text); font-weight:700;
+    margin-right:6px; }
+  .archive-freshness .af-chip { display:inline-flex; align-items:baseline;
+    gap:5px; padding:3px 8px; border-radius:11px;
+    background:rgba(120,150,200,0.07);
+    border:1px solid var(--line);
+    font-variant-numeric:tabular-nums; }
+  .archive-freshness .af-chip .af-label { color:var(--text);
+    font-weight:600; }
+  .archive-freshness .af-chip .af-age { color:var(--muted);
+    font-size:10px; }
+  .archive-freshness .af-chip.is-stale { border-color:rgba(255,158,27,0.45);
+    background:rgba(255,158,27,0.08); }
+  .archive-freshness .af-chip.is-stale .af-age { color:var(--gold); }
   .archive-results { margin-top:14px; }
   .archive-results .ar-empty { font-size:11.5px; color:var(--muted);
     font-style:italic; padding:8px 0; }
@@ -3607,6 +3645,15 @@
 
     nav { padding:0 6px; }
     nav button { font-size:12px; padding:12px 11px; }
+  }
+  /* Under 480px (small phones), tuck the admin tab out of the nav —
+     it's a power-user / debug surface that rarely needs to be one-tap
+     reachable from mobile. Keeps Pricing visible since that's still
+     a conversion surface signed-out mobile users care about. The tab
+     remains reachable via deep-link (`/?tab=admin`) for anyone who
+     genuinely needs it. */
+  @media (max-width:480px) {
+    nav button[data-tab="admin"] { display:none; }
 
     main { padding:20px 13px; }
 
@@ -4103,6 +4150,12 @@
           scans, setup builders all surface most-recent-first, and open in
           the inline viewer with one click.
         </p>
+        <!-- Global archive freshness strip — populated by setupArchiveSearch.
+             Shows total report count + the freshness of each report type so
+             the user knows the archive is alive even before they search a
+             ticker. Catches the "looks abandoned" trap when adhoc latest
+             is several days old. -->
+        <div id="archive-freshness" class="archive-freshness"></div>
         <div class="input-row">
           <input type="text" id="archive-q" placeholder="NVDA · MU · COIN..."
                  maxlength="8" autocomplete="off"
@@ -10738,6 +10791,12 @@
       e.preventDefault();
       openPanel(tk);
     });
+    // Expose openPanel globally so Start Here cards, the search overlay,
+    // and any future module can deep-link directly into the drilldown
+    // without bouncing through a data-t synthetic click. Set once at
+    // module init (NOT inside openPanel — that would only expose it
+    // AFTER the user already clicked something).
+    window.tdOpenDrilldown = openPanel;
     // ── Visual highlight of watchlisted tickers across the site ──
     // Walks every [data-t] on the page and appends/removes a small ⭐
     // next to it based on watchlist membership. Re-runs whenever the
@@ -11725,8 +11784,95 @@
     const button   = document.getElementById("archive-go");
     const recentEl = document.getElementById("archive-recent");
     const resultsEl= document.getElementById("archive-results");
+    const freshEl  = document.getElementById("archive-freshness");
     const viewer   = document.getElementById("viewer");
     if (!input || !button) return;
+    // ── Global archive freshness strip ──
+    // Renders into #archive-freshness on tab load. Pulls manifest.json,
+    // counts reports per type, finds each type's latest filename-date.
+    // Anything older than 7 days gets the .is-stale highlight so users
+    // see "Adhoc: 5d old — generate a fresh one" rather than scratching
+    // their head wondering whether the product is abandoned.
+    async function renderFreshness() {
+      if (!freshEl) return;
+      let m;
+      try { m = await fetchM(); } catch (_) { return; }
+      if (!m || !m.reports) {
+        freshEl.innerHTML = '';
+        return;
+      }
+      const TYPE_LABEL_SHORT = {
+        "adhoc":           "Ad-Hoc",
+        "alt-data":        "Alt-Data",
+        "smid-scanner":    "SMID",
+        "iwm-scanner":     "IWM",
+        "smid-setup":      "SMID Setup",
+        "iwm-setup":       "IWM Setup",
+        "qm-monthly":      "QM",
+        "stockbee-weekly": "Stockbee",
+      };
+      const fileAgeMs = function (file) {
+        const m2 = (file || "").match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+        if (!m2) return null;
+        const d = new Date(Date.UTC(+m2[1], +m2[2]-1, +m2[3], +m2[4], +m2[5]));
+        return Date.now() - d.getTime();
+      };
+      const formatAge = function (ms) {
+        if (ms == null) return "—";
+        const h = Math.round(ms / 3600000);
+        if (h < 1)   return "&lt;1h";
+        if (h < 24)  return h + "h";
+        const days = Math.round(h / 24);
+        if (days < 30) return days + "d";
+        return Math.round(days / 30) + "mo";
+      };
+      let total = 0;
+      const chips = [];
+      Object.keys(m.reports).forEach(function (type) {
+        const entries = m.reports[type] || [];
+        total += entries.length;
+        if (!entries.length) return;
+        const latest = entries[0];
+        const ageMs = fileAgeMs(latest.file);
+        const stale = (ageMs != null && ageMs > 7 * 86400000);
+        chips.push({
+          type: type,
+          label: TYPE_LABEL_SHORT[type] || type,
+          n: entries.length,
+          ageMs: ageMs,
+          stale: stale,
+        });
+      });
+      // Sort: stale first (more attention), then by recency
+      chips.sort(function (a, b) {
+        if (a.stale !== b.stale) return a.stale ? -1 : 1;
+        return (a.ageMs || 0) - (b.ageMs || 0);
+      });
+      const html = '<span class="af-total">' + total +
+        ' reports on file</span>' +
+        chips.map(function (c) {
+          return '<span class="af-chip' +
+            (c.stale ? ' is-stale' : '') +
+            '" title="' + c.n + ' ' + c.label + ' report' +
+            (c.n === 1 ? '' : 's') +
+            (c.stale ? ' — latest is ' + formatAge(c.ageMs) +
+              ' old. Consider running a fresh one." ' : '" ') +
+            '>' +
+            '<span class="af-label">' + c.label + '</span>' +
+            '<span class="af-age">' + formatAge(c.ageMs) + '</span>' +
+            '</span>';
+        }).join("");
+      freshEl.innerHTML = html;
+    }
+    // Render on initial mount + every time user lands on this tab
+    renderFreshness();
+    document.getElementById("nav").addEventListener("click", function (e) {
+      if (e.target && e.target.dataset &&
+          (e.target.dataset.tab === "adhoc" ||
+           e.target.dataset.tab === "alt-data")) {
+        setTimeout(renderFreshness, 100);
+      }
+    });
 
     const RECENT_KEY = "td-recent-tickers";
     const MAX_RECENT = 12;
@@ -15783,7 +15929,65 @@
         body: riskBody,
       });
 
-      // Card 4: Next move — single most actionable next step.
+      // Card 4: Today's top single idea ─────────────────────────────
+      // The single highest-conviction trade across the entire UOA scan,
+      // surfaced as one focused recommendation (not a top-3 list — that's
+      // already on Card 2). The idea is: if a trader had 60 seconds to
+      // glance at the site, this is the ONE name they should think about.
+      // Pulls the row with the highest trade_score; shows ticker, contract,
+      // score, premium, and a 2-3 word reason chip stack.
+      let topIdeaBody = "";
+      try {
+        if (D.uoa && D.uoa.rows && D.uoa.rows.length) {
+          const top = D.uoa.rows.slice().sort(function (a, b) {
+            return (b.trade_score || 0) - (a.trade_score || 0);
+          })[0];
+          if (top && (top.trade_score || 0) >= 60) {
+            const prem = top.premium || 0;
+            const premStr = prem >= 1e6
+              ? "$" + (prem / 1e6).toFixed(1) + "M"
+              : "$" + Math.round(prem / 1e3) + "K";
+            const typ = (top.type === "call") ? "CALL" : "PUT";
+            const reasons = [];
+            if (top.opening === "likely_open") reasons.push("opening");
+            if ((top.repeat_count || 0) >= 2) reasons.push("repeat");
+            if (top.golden) reasons.push("golden sweep");
+            if (top.direction === "bullish") reasons.push("bullish");
+            else if (top.direction === "bearish") reasons.push("bearish");
+            if (top.liquidity === "A" || top.liquidity === "B")
+              reasons.push("liquid");
+            const onWl = (window.tdWatchlist && window.tdWatchlist().has(top.ticker));
+            topIdeaBody =
+              '<b style="color:var(--gold)">' +
+                '<span data-t="' + top.ticker + '">' + top.ticker + '</span>' +
+                ' ' + typ + ' $' + top.strike + ' ' + top.expiry +
+              '</b>' +
+              ' &middot; score <b>' + top.trade_score + '</b>' +
+              ' &middot; ' + premStr +
+              (onWl ? ' &middot; <span style="color:var(--gold)">' +
+                '★ on your watchlist</span>' : '') +
+              '<br>' +
+              '<span class="sh-reasons">' +
+              reasons.map(function (r) {
+                return '<span class="sh-reason-chip">' + r + '</span>';
+              }).join("") +
+              '</span>' +
+              ' <button class="sh-jump" data-sh-drill="' + top.ticker +
+              '">Open ' + top.ticker + ' drilldown &rarr;</button>';
+          }
+        }
+      } catch (_) {}
+      if (!topIdeaBody) {
+        topIdeaBody = "Top idea appears once today's UOA scan completes " +
+          "with at least one conviction-tier print.";
+      }
+      out.push({
+        h: "4. Today's top idea",
+        sub: "Single highest-conviction trade across today's flow.",
+        body: topIdeaBody,
+      });
+
+      // Card 5: Next move — single most actionable next step.
       let nextBody = "";
       if (!wl.size) {
         nextBody = "<b>Next move:</b> add your top 5 tickers. " +
@@ -15818,7 +16022,7 @@
           'Open Swing &rarr;</button>';
       }
       out.push({
-        h: "4. Your next move",
+        h: "5. Your next move",
         sub: "Single highest-leverage action right now.",
         body: nextBody,
       });
@@ -15874,6 +16078,15 @@
     cardsEl.addEventListener("click", function (e) {
       const btn = e.target.closest(".sh-jump");
       if (!btn) return;
+      // data-sh-drill="TICKER" → open the ticker drilldown panel directly
+      // (used by Card 4 "Today's top idea" to deep-link to the single
+      // best-scored row without a tab-switch first). Wins over
+      // data-sh-tab when both are present.
+      const drillTk = btn.dataset.shDrill;
+      if (drillTk && window.tdOpenDrilldown) {
+        window.tdOpenDrilldown(drillTk);
+        return;
+      }
       const tab = btn.dataset.shTab;
       if (!tab) return;
       const navBtn = document.querySelector(
@@ -16372,7 +16585,7 @@
     // wires it into a `title=` attribute on each <th>.
     const COLS = [
       { k:"ticker", t:"Ticker", tip:"Underlying stock symbol. Tap to open drilldown." },
-      { k:"tier", t:"Tier", tip:"Quality tier A+ / A / B / C. Combines bullishness, opening likelihood, premium size, and conviction signals." },
+      { k:"tier", t:"Tier", tip:"Quality tier A / B / C / earnings / caution / hedge. A-tier is rare BY DESIGN — top 1-2% of flow each day, only the absolute strongest setups qualify. B = solid directional reads. C = working set; everything that cleared the universe filters but doesn't merit a top label. Earnings / Hedge / Caution call out specific patterns. Combines bullishness, opening likelihood, premium size, and conviction signals." },
       { k:"trade_score", t:"Score", tip:"Composite Trade Score 0-100. Premium-weighted: vol/OI, opening likelihood, ask-side aggression, repeat history, conviction tier." },
       { k:"flow_side", t:"Bias", tip:"Bullish (call buying or put selling) / Bearish (put buying or call selling) / Mixed. Direction the smart money is leaning." },
       { k:"opening", t:"Opening", tip:"Opening likelihood: New (likely opening a fresh position, +signal) / Closing (likely closing existing, weaker signal) / Mixed." },
@@ -16847,11 +17060,38 @@
       const matStr = ovMature.length
         ? "Matured +" + ovMature.join("d, +") + "d"
         : "No matured horizons yet";
-      const longCopy = missingLong.length
-        ? '<br><span style="color:var(--muted);font-size:9.5px">' +
-          'Not enough mature +' + missingLong.join("d / +") +
-          'd history yet — needs more time to backfill.</span>'
-        : '';
+      // Concrete expected-mature dates per missing horizon — computed
+      // from edge.oldest_signal_ts + N calendar days. Trading-day math
+      // would be more precise but adds maybe ±1-2 days; calendar is
+      // honest enough for "when can I trust this column" planning.
+      // Falls back to the generic "needs more backfill" copy if the
+      // upstream JSON hasn't been re-published yet with oldest_signal_ts.
+      let longCopy = '';
+      if (missingLong.length) {
+        let etas = '';
+        if (edge.oldest_signal_ts) {
+          const oldest = Date.parse(edge.oldest_signal_ts);
+          if (!isNaN(oldest)) {
+            const fmt = function (d) {
+              return new Date(d).toLocaleDateString("en-US",
+                { month: "short", day: "numeric", year: "numeric" });
+            };
+            etas = missingLong.map(function (h) {
+              const eta = oldest + parseInt(h, 10) * 86400000;
+              const inDays = Math.max(0,
+                Math.round((eta - Date.now()) / 86400000));
+              return '+' + h + 'd matures ~' + fmt(eta) +
+                ' (in ' + inDays + 'd)';
+            }).join(' &middot; ');
+          }
+        }
+        longCopy = '<br><span style="color:var(--muted);font-size:9.5px">' +
+          (etas
+            ? etas
+            : 'Not enough mature +' + missingLong.join("d / +") +
+              'd history yet — needs more time to backfill.') +
+          '</span>';
+      }
       cards.push('<div class="ecard"><div class="et">Tracked History</div>'+
         '<div class="ev neutral">'+edge.total_signals+'</div>'+
         '<div class="es">cumulative signals logged &middot; ' +

@@ -508,10 +508,18 @@ def compute_edge():
         print(f"  by_theme aggregation skipped: {e}")
 
     oc = [s["oi"]["status"] for s in scored if s["oi"]["status"] != "pending"]
+    # Find the oldest signal so the client can compute "expected mature
+    # on YYYY-MM-DD" for horizons that haven't accumulated samples yet
+    # (e.g. 10d / 20d when the scanner has only been running a few weeks).
+    # Without this, the admin panel says "needs more backfill" without
+    # any concrete date the user can plan against.
+    flagged_ts = [s.get("flagged_at") for s in scored if s.get("flagged_at")]
+    oldest_signal_ts = min(flagged_ts) if flagged_ts else None
     edge = {
         "generated":     datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "total_signals": len(scored),
         "matured_5d":    matured_5d,
+        "oldest_signal_ts": oldest_signal_ts,
         "horizons":      HORIZONS,
         "overall":       _group(scored),
         "excursion":     _excursion_avg(scored),
