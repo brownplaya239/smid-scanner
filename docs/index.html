@@ -3773,12 +3773,19 @@
     margin-top:1px; letter-spacing:0.15px; text-transform:uppercase;
     font-weight:600; max-width:80px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  /* ── UW-10: Visual tag pill stack ── */
-  .uoa-pills { display:flex; flex-wrap:wrap; gap:3px;
-    max-width:220px; align-items:center; }
-  .uoa-pill { display:inline-block; font-size:9px; font-weight:700;
-    padding:1px 6px; border-radius:8px; letter-spacing:0.2px;
-    cursor:help; white-space:nowrap; line-height:1.4; }
+  /* ── UW-10: Visual tag pill stack ──
+     The parent table.uoa td defaults to white-space:nowrap so cells
+     stay on one line. The Tags cell needs to wrap (multiple pills),
+     so override at both the td (.uoa-tags-cell) and inner level. */
+  .uoa-pills { display:flex; flex-wrap:wrap; gap:3px 4px;
+    align-items:center; line-height:1.55;
+    /* Individual pills must NOT inherit the cell's nowrap */
+    white-space:normal; }
+  .uoa-pill { display:inline-block; font-size:9.5px; font-weight:700;
+    padding:1px 7px; border-radius:9px; letter-spacing:0.2px;
+    cursor:help; white-space:nowrap; line-height:1.5;
+    /* Prevent any pill itself from clipping on tight columns */
+    flex-shrink:0; }
   .uoa-pill-tier { background:rgba(120,150,200,0.10);
     color:var(--textdim); border:1px solid var(--line); }
   .uoa-pill-bull   { background:rgba(31,179,99,0.18);
@@ -3800,7 +3807,21 @@
     color:var(--red); border:1px solid rgba(214,68,68,0.4); }
   .uoa-pill-watch  { background:rgba(255,200,0,0.18);
     color:var(--gold); border:1px solid var(--gold); }
-  .uoa-tags-cell { vertical-align:middle; }
+  /* Override the global td nowrap + right-align so pills wrap cleanly
+     to multiple lines and start from the left edge. min-width gives
+     them room; max-width prevents them from blowing out the table on
+     ticker rows with many flags simultaneously. */
+  table.uoa td.uoa-tags-cell {
+    white-space:normal !important;
+    text-align:left !important;
+    vertical-align:middle;
+    padding:5px 8px;
+    min-width:240px;
+    max-width:340px; }
+  @media (max-width:1100px) {
+    table.uoa td.uoa-tags-cell { min-width:200px; max-width:260px; }
+    .uoa-pill { font-size:9px; padding:1px 6px; }
+  }
   /* Stacked absolute-time + relative-ago for the Print column.
      Top row = MM/DD, middle = HH:MM:SS ET (most prominent — matches
      Unusual Whales' verification-friendly format), bottom = "3m ago"
