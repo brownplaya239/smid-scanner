@@ -3350,6 +3350,13 @@
     letter-spacing:.2px;
     transition:background .12s, border-color .12s, color .12s; }
   .uoa-presets button:hover { border-color:var(--gold); color:var(--gold); }
+  /* Dim chips where the current scan has 0 matching rows so the user
+     can tell at a glance which presets will return empty before
+     clicking. Still clickable so the user can verify the filter logic. */
+  .uoa-presets button.uoa-preset-empty { opacity:0.4;
+    border-style:dashed; cursor:not-allowed; }
+  .uoa-presets button.uoa-preset-empty:hover { opacity:0.55;
+    border-color:var(--muted); color:var(--muted); }
   .uoa-presets button.active { background:var(--gold);
     color:var(--accink); border-color:var(--gold); }
   .uoa-presets .preset-label { font-size:9.5px; color:var(--muted);
@@ -17633,6 +17640,53 @@
         applyPreset(e.target.dataset.preset);
       });
     })();
+    // ── Live counts on preset chips ──
+    // Adds a "(N)" suffix to every chip showing how many rows the
+    // current DATA set has matching that preset. Dimmed when N=0
+    // so the user can tell at a glance which presets will return
+    // empty results before clicking. Recomputed on every renderBody
+    // (after data loads / refreshes / watchlist changes).
+    function updatePresetCounts() {
+      const wrap = document.getElementById("uoa-presets");
+      if (!wrap || !DATA || !DATA.length) return;
+      const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+      // Map preset key → predicate (mirrors passPreset; kept duplicate
+      // here so updatePresetCounts doesn't mutate ACTIVE_PRESET).
+      const PREDS = {
+        "all":        () => true,
+        "conviction": (r) => r.direction === "bullish" &&
+                              (r.premium || 0) >= 250000 &&
+                              r.opening === "likely_open" &&
+                              ((r.repeat_count || 0) >= 2 || r.golden),
+        "bullish":    (r) => r.direction === "bullish",
+        "bearish":    (r) => r.direction === "bearish",
+        "golden":     (r) => !!r.golden,
+        "repeat":     (r) => (r.repeat_count || 0) >= 2,
+        "opening":    (r) => r.opening === "likely_open",
+        "watchlist":  (r) => wl.has(r.ticker),
+        "earnings":   (r) => r.earnings_days != null &&
+                              r.earnings_days >= 0 &&
+                              r.earnings_days <= 10,
+      };
+      wrap.querySelectorAll("button").forEach(function (btn) {
+        const key = btn.dataset.preset;
+        const pred = PREDS[key];
+        if (!pred) return;
+        const n = DATA.filter(pred).length;
+        // Strip any prior "(N)" suffix from the label before re-adding.
+        const baseLabel = (btn.dataset.baseLabel ||
+          btn.textContent.replace(/\s*\(\d+\)\s*$/, "")).trim();
+        btn.dataset.baseLabel = baseLabel;
+        btn.textContent = baseLabel + " (" + n + ")";
+        btn.classList.toggle("uoa-preset-empty", n === 0);
+        btn.title = n === 0
+          ? "No rows in the current scan match this filter — try widening " +
+            "the data or check back after the next 75-min refresh."
+          : n + " row" + (n === 1 ? "" : "s") +
+            " match this filter in the current scan.";
+      });
+    }
+    window.__uoaUpdatePresetCounts = updatePresetCounts;
     // Re-render presets every time the watchlist changes (so the Watchlist
     // preset shows fresh results without manual re-click)
     if (typeof onWatchChange === "function") {
@@ -18143,6 +18197,7 @@
           populateSectors(); populateThemes();
           renderHead(); renderClusters(); renderBody();
           renderTodayEdge(DATA);
+          updatePresetCounts();
           // Kick off the bulk current-spot fetch so the Δ-since-print
           // column populates on the next renderBody (which the hydrate
           // promise chain triggers automatically when chunks resolve).
