@@ -35,6 +35,11 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 LEDGER_PATH = os.path.join(_BASE, "docs", "reports", "uoa_signals.jsonl")
 LATEST_PATH = os.path.join(_BASE, "docs", "reports", "uoa_latest.json")
 META_CACHE_PATH = os.path.join(_BASE, "docs", "reports", "uoa_meta_cache.json")
+# OI history cache — one entry per contract OCC ticker. Each scan reads
+# the previous day's OI for delta computation, then writes today's.
+# Schema: { "O:NVDA260620C00220000": {"date": "2026-05-28", "oi": 1234}, ... }
+# Persisted across runs so the 6×/day cadence doesn't lose state.
+OI_HISTORY_PATH = os.path.join(_BASE, "docs", "reports", "uoa_oi_history.json")
 
 # ─── Screen thresholds (tunable) ──────────────────────────────────────────────
 
@@ -967,9 +972,68 @@ def append_ledger(rows, min_score=55):
     print(f"  Ledger: appended {n} signals (score >= {min_score})")
 
 
+# ── OI history cache ──
+# Stores yesterday's OI per contract so today's scan can emit a delta.
+# Read once at scan start, written once at scan end. Survives across the
+# 6×/day scans by snapshotting only when the calendar date changes — so
+# the "previous" OI we compare against is always end-of-day yesterday,
+# not the most recent intraday read which would always show near-zero
+# delta. Date comparison is in US/Eastern so it lines up with NYSE.
+def _load_oi_history():
+    try:
+        with open(OI_HISTORY_PATH, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_oi_history(history):
+    try:
+        os.makedirs(os.path.dirname(OI_HISTORY_PATH), exist_ok=True)
+        with open(OI_HISTORY_PATH, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=1)
+    except OSError:
+        pass
+
+
+def _enrich_with_oi_history(rows):
+    """Mutates rows in-place adding `prev_oi`, `oi_delta`, `oi_delta_pct`.
+    Then snapshots today's OI ONLY if the calendar date has advanced — so
+    intraday scans don't overwrite end-of-day baseline with mid-day reads."""
+    history = _load_oi_history()
+    et_today = datetime.now(tz=pytz.timezone("America/New_York")).date().isoformat()
+    for r in rows:
+        key = r.get("contract")
+        if not key:
+            continue
+        prev = history.get(key) or {}
+        prev_date = prev.get("date")
+        prev_oi = prev.get("oi")
+        # Only treat prev_oi as legitimate if it's from a PREVIOUS day —
+        # otherwise we'd compare today's mid-day OI against today's
+        # earlier mid-day OI, producing meaningless near-zero deltas.
+        if prev_date and prev_date < et_today and isinstance(prev_oi, int):
+            r["prev_oi"] = prev_oi
+            r["oi_delta"] = (r.get("open_interest", 0) or 0) - prev_oi
+            if prev_oi > 0:
+                r["oi_delta_pct"] = round(
+                    100 * r["oi_delta"] / prev_oi, 1)
+        # Snapshot today's OI for next run. Only OVERWRITE if today's
+        # date differs from the stored date — preserves the EOD baseline
+        # across intraday re-runs.
+        if prev_date != et_today:
+            history[key] = {"date": et_today,
+                            "oi": r.get("open_interest", 0) or 0}
+    _save_oi_history(history)
+
+
 def emit_latest(rows):
     """Write the ranked UOA rows as JSON for the dashboard tab to render."""
     os.makedirs(os.path.dirname(LATEST_PATH), exist_ok=True)
+    # Enrich with OI delta from yesterday's snapshot (cached locally).
+    _enrich_with_oi_history(rows)
+    # Compute total universe premium for the "% of total" column.
+    total_premium = sum((r.get("premium") or 0) for r in rows) or 1
     out = []
     for r in rows:
         flow = r.get("flow", {}) or {}
@@ -996,6 +1060,33 @@ def emit_latest(rows):
             "sector":        r.get("sector", "Other"),
             "themes":        r.get("themes", []),
             "iv":            r.get("iv"),
+            # Bid / ask quote at scan time — populates the Fill vs Spread
+            # mini-bar on the UOA table. Polygon Options Starter doesn't
+            # always populate last_quote.bid/ask (silver/gold tiers do
+            # better); when absent the bar gracefully falls back to a
+            # neutral display.
+            "bid":           r.get("_bid"),
+            "ask":           r.get("_ask"),
+            "mid":           (round((r["_bid"] + r["_ask"]) / 2, 4)
+                              if r.get("_bid") and r.get("_ask") else None),
+            "last_price":    r.get("px"),
+            # OI delta vs end-of-day yesterday. prev_oi is null on the
+            # first run after a new contract appears; the UI shows "—".
+            "prev_oi":       r.get("prev_oi"),
+            "oi_delta":      r.get("oi_delta"),
+            "oi_delta_pct":  r.get("oi_delta_pct"),
+            # This contract's share of today's total flagged-universe
+            # premium. Lets traders calibrate "is this size unusual
+            # within today's flow?" The denominator is our filtered
+            # universe (not market-wide) — labeled honestly in the UI.
+            "pct_total_premium": round(
+                100 * (r.get("premium") or 0) / total_premium, 2),
+            # Execution venue flags — sweep already exists implicitly via
+            # `golden`, but emit explicit booleans so the UI tag system
+            # can render them per-row without re-deriving.
+            "is_sweep":      bool(flow.get("sweeps", 0) > 0),
+            "is_block":      bool(flow.get("blocks", 0) > 0),
+            "is_golden":     bool(r.get("golden", False)),
             "sweeps":        flow.get("sweeps", 0),
             "blocks":        flow.get("blocks", 0),
             "sweep_premium": flow.get("sweep_premium", 0),

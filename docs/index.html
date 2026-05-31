@@ -3694,6 +3694,113 @@
      fresh enough to act on"; older fade to muted. Delta colors mirror
      the chg-pill convention (green up, red down) so users get
      consistent visual semantics. */
+  /* ── UW-3: OI Δ cell ──
+     Stacked count + percent. Bold green when positive (new positions
+     entered overnight); muted red when negative (closing). The dollar-
+     count line is primary; the percent below is secondary context. */
+  .uoa-oi-delta { display:inline-flex; flex-direction:column;
+    align-items:flex-end; gap:0px; line-height:1.1;
+    font-variant-numeric:tabular-nums; }
+  .uoa-oi-d-n { font-size:11px; font-weight:700; }
+  .uoa-oi-d-p { font-size:9.5px; opacity:0.75; }
+  .uoa-oi-up   { color:var(--green); }
+  .uoa-oi-down { color:var(--red); }
+  .uoa-oi-flat { color:var(--muted); }
+  .uoa-oi-na   { color:var(--muted); font-size:11px; cursor:help; }
+  /* ── UW-5: IV cell ── */
+  .uoa-iv { display:inline-block; padding:1px 6px;
+    border-radius:8px; font-weight:700; font-size:11px;
+    font-variant-numeric:tabular-nums; cursor:help; white-space:nowrap; }
+  .uoa-iv-high     { background:rgba(214,68,68,0.18);
+    color:var(--red); border:1px solid rgba(214,68,68,0.4); }
+  .uoa-iv-elevated { background:rgba(255,158,27,0.18);
+    color:var(--gold); border:1px solid rgba(255,158,27,0.45); }
+  .uoa-iv-normal   { background:rgba(120,150,200,0.08);
+    color:var(--textdim); border:1px solid var(--line); }
+  .uoa-iv-low      { background:rgba(31,179,99,0.16);
+    color:var(--green); border:1px solid rgba(31,179,99,0.4); }
+  .uoa-iv-na       { color:var(--muted); }
+  /* ── UW-1: Fill vs Spread mini-bar ──
+     ~50px wide × 8px tall horizontal bar. Background = bid (left red)
+     to ask (right green); tick mark positioned via inline left:%.
+     The user reads "did the fill land on the ask?" at a glance. */
+  .uoa-fill-bar { position:relative; display:inline-block;
+    width:48px; height:9px; border-radius:3px;
+    background:linear-gradient(to right,
+      rgba(214,68,68,0.22) 0%, rgba(160,160,160,0.18) 50%,
+      rgba(31,179,99,0.22) 100%);
+    border:1px solid var(--line); cursor:help;
+    vertical-align:middle; }
+  .uoa-fill-bar-bid, .uoa-fill-bar-ask {
+    position:absolute; top:0; width:2px; height:100%; }
+  .uoa-fill-bar-bid { left:0; background:var(--red); opacity:0.55; }
+  .uoa-fill-bar-ask { right:0; background:var(--green); opacity:0.55; }
+  .uoa-fill-bar-tick { position:absolute; top:-2px;
+    width:3px; height:13px; border-radius:1px;
+    transform:translateX(-50%); }
+  .uoa-fill-buy  { background:var(--green); box-shadow:0 0 4px var(--green); }
+  .uoa-fill-sell { background:var(--red);   box-shadow:0 0 4px var(--red); }
+  .uoa-fill-mid  { background:var(--gold); }
+  .uoa-fill-na   { color:var(--muted); cursor:help; }
+  /* ── UW-2: Chain Bid/Ask % split-bar ── */
+  .uoa-cba-bar { position:relative; display:inline-block;
+    width:60px; height:13px; border-radius:3px;
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--line); overflow:hidden;
+    cursor:help; font-size:9px; font-weight:700;
+    vertical-align:middle; }
+  .uoa-cba-ask { position:absolute; left:0; top:0; height:100%;
+    background:rgba(31,179,99,0.45); }
+  .uoa-cba-bid { position:absolute; right:0; top:0; height:100%;
+    background:rgba(214,68,68,0.45); }
+  .uoa-cba-lbl { position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text); text-shadow:0 0 2px rgba(0,0,0,0.6);
+    font-variant-numeric:tabular-nums; }
+  .uoa-cba-na { color:var(--muted); cursor:help; }
+  /* ── UW-9: % of total premium line ── */
+  .uoa-pct-total      { font-size:9.5px; color:var(--muted);
+    margin-top:1px; font-variant-numeric:tabular-nums; }
+  .uoa-pct-total-big  { font-size:9.5px; color:var(--gold);
+    font-weight:700; margin-top:1px;
+    font-variant-numeric:tabular-nums; }
+  /* ── UW-11: Last fill price ── */
+  .uoa-last     { font-variant-numeric:tabular-nums; font-size:11px;
+    color:var(--text); }
+  .uoa-last-na  { color:var(--muted); }
+  /* ── UW-7: Sector chip under ticker ── */
+  .uoa-sector-chip { display:block; font-size:9px; color:var(--muted);
+    margin-top:1px; letter-spacing:0.15px; text-transform:uppercase;
+    font-weight:600; max-width:80px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* ── UW-10: Visual tag pill stack ── */
+  .uoa-pills { display:flex; flex-wrap:wrap; gap:3px;
+    max-width:220px; align-items:center; }
+  .uoa-pill { display:inline-block; font-size:9px; font-weight:700;
+    padding:1px 6px; border-radius:8px; letter-spacing:0.2px;
+    cursor:help; white-space:nowrap; line-height:1.4; }
+  .uoa-pill-tier { background:rgba(120,150,200,0.10);
+    color:var(--textdim); border:1px solid var(--line); }
+  .uoa-pill-bull   { background:rgba(31,179,99,0.18);
+    color:var(--green); border:1px solid rgba(31,179,99,0.4); }
+  .uoa-pill-bear   { background:rgba(214,68,68,0.18);
+    color:var(--red);   border:1px solid rgba(214,68,68,0.4); }
+  .uoa-pill-gold   { background:rgba(255,200,0,0.20);
+    color:var(--gold); border:1px solid var(--gold);
+    box-shadow:0 0 4px rgba(255,200,0,0.4); }
+  .uoa-pill-sweep  { background:rgba(255,158,27,0.18);
+    color:var(--gold); border:1px solid rgba(255,158,27,0.45); }
+  .uoa-pill-block  { background:rgba(95,163,255,0.15);
+    color:#5fa3ff;     border:1px solid rgba(95,163,255,0.4); }
+  .uoa-pill-open   { background:rgba(168,124,255,0.15);
+    color:#a87cff;     border:1px solid rgba(168,124,255,0.4); }
+  .uoa-pill-repeat { background:rgba(120,150,200,0.15);
+    color:var(--textdim); border:1px solid var(--line); }
+  .uoa-pill-earn   { background:rgba(214,68,68,0.18);
+    color:var(--red); border:1px solid rgba(214,68,68,0.4); }
+  .uoa-pill-watch  { background:rgba(255,200,0,0.18);
+    color:var(--gold); border:1px solid var(--gold); }
+  .uoa-tags-cell { vertical-align:middle; }
   /* Stacked absolute-time + relative-ago for the Print column.
      Top row = MM/DD, middle = HH:MM:SS ET (most prominent — matches
      Unusual Whales' verification-friendly format), bottom = "3m ago"
@@ -16855,11 +16962,35 @@
       { k:"be_distance_pct", t:"→B/E", tip:"% the underlying must move to reach the break-even (strike + premium for calls; strike - premium for puts)." },
       { k:"volume", t:"Volume", tip:"Today's traded contract count for this strike+expiry." },
       { k:"vol_oi", t:"Vol/OI", tip:"Today's Volume / Open Interest ratio. >1 = today's volume exceeds total open contracts → unusual activity; ≥3 = strongly unusual." },
-      { k:"liquidity", t:"Liq", tip:"Liquidity grade A/B/C/D from OI + day volume. A = deep book + heavy trading; D = thin OI or low volume (execution risk). Polygon Options Starter doesn't populate quotes so spread is excluded." },
-      { k:"premium", t:"Premium", tip:"Total dollar value traded today: Volume × price × 100. The bigger this is, the more conviction money is behind the trade." },
-      { k:"biggest_print_ts", t:"Printed", tip:"How long ago the marquee single-print (largest premium) hit the tape. Gold = just now / recent (still actionable); muted = older." },
+      // NEW UW-3: Open Interest delta vs end-of-day yesterday. Single
+      // best confirmation of "opening" vs "closing." Big +Δ → new
+      // positions; -Δ → closing existing. Yesterday's value is cached
+      // locally; populates on the SECOND day a contract appears.
+      { k:"oi_delta", t:"OI Δ", tip:"Change in Open Interest vs end-of-day yesterday. +N = N new positions opened overnight; -N = closing. Single strongest confirmation of opening vs closing flow." },
+      { k:"liquidity", t:"Liq", tip:"Liquidity grade A/B/C/D from OI + day volume. A = deep book + heavy trading; D = thin OI or low volume (execution risk)." },
+      // NEW UW-5: Implied Volatility per contract. Calibrates whether
+      // the contract is paying high vol (potential mean-revert candidate)
+      // or low vol (cheap option). Polygon snapshot exposes this directly.
+      { k:"iv", t:"IV", tip:"Implied Volatility for this specific contract. ≥70% high (mean-revert candidate or pricing in event); 40-70% elevated; 20-40% normal; <20% low. Levels are absolute (not 52w rank)." },
+      // NEW UW-1: Fill vs Spread mini-bar. Shows WHERE in the bid-ask
+      // the last quote-mid landed. Closer to ask = aggressive buying;
+      // closer to bid = aggressive selling. Single most useful execution
+      // signal on the UOA board.
+      { k:"fill_vs_spread", t:"Fill", tip:"Where the last trade filled in the bid-ask spread. Right side (green) = at-ask aggressive buy; left (red) = at-bid aggressive sell; middle = passive midpoint fill. Bid–Ask range shown numerically in tooltip." },
+      // NEW UW-2: Chain Bid/Ask % bar. From flow.side analysis — what
+      // fraction of today's tape on this contract printed at ask vs bid.
+      // Aggregate aggression read complementing the per-print Fill bar.
+      { k:"chain_ba", t:"Chain B/A", tip:"Today's total contract volume split — what % of all fills hit at/near the ask (bull aggressive) vs the bid (bear aggressive). Aggregated across all trades on this strike+expiry." },
+      { k:"premium", t:"Premium", tip:"Total dollar value traded today: Volume × price × 100. The bigger this is, the more conviction money is behind the trade. Second line = % of today's total flagged-universe premium (within our scan, not market-wide)." },
+      // NEW UW-11: Last trade fill price. Useful for users who want to
+      // place their own order — they see the actual fill they'd be
+      // chasing, not just the aggregate premium.
+      { k:"last_price", t:"Last", tip:"Last trade price per contract. The single price most recent buyers / sellers paid — useful for sizing your own order entry." },
+      { k:"biggest_print_ts", t:"Printed", tip:"How long ago the marquee single-print (largest premium) hit the tape. Top row = MM/DD date; middle = HH:MM:SS ET; bottom = relative ago. Matches Unusual Whales' verification-friendly format." },
       { k:"delta_since_print", t:"Δ since", tip:"Δ (delta) = % change in the underlying from spot-at-print to current spot. Tells you if the trade already worked (large + move) or you're still in time (small or negative move)." },
-      { k:"interpretation", t:"Why Actionable", tip:"Plain-English tier label: A+ Conviction / Confirming Bull or Bear / Speculative / Likely Hedge / Earnings Bet / Caution. Hover the badge for the full reasoning." },
+      // NEW UW-6: Earnings days. Inline rather than a column — folded
+      // into the per-row pills below since not every row has earnings.
+      { k:"interpretation", t:"Why Actionable / Tags", tip:"Plain-English tier label + visual tag stack: BULLISH/BEARISH/SWEEP/GOLDEN/OPENING/REPEAT/EARNINGS/INDEX. Hover any pill for what it means." },
       { k:"actions", t:"Actions", tip:"Save / Alert / Note / Drilldown buttons." },
     ];
     const GROUP_COLS = [
@@ -17726,8 +17857,174 @@
               'flow is bearish — story confirmed by money.">📰&nbsp;-flow</span>';
           }
         }
+        // ── NEW UW-3: OI Δ cell ─────────────────────────────────────
+        // Shows the delta in open interest vs end-of-day yesterday.
+        // First time a contract is seen → null → "—" (next scan tomorrow
+        // will compare). Color: bold green for big +Δ (new positions),
+        // muted red for -Δ (closing). Format: "+342  (+27%)" stacked.
+        const oiDeltaHtml = (function () {
+          if (r.oi_delta == null) return '<span class="uoa-oi-na" title="' +
+            'Tomorrow\'s scan will have a baseline to compare. First-day ' +
+            'contracts show no delta until end-of-day yesterday is cached.' +
+            '">&mdash;</span>';
+          const d = r.oi_delta;
+          const pct = r.oi_delta_pct;
+          const cls = d > 0 ? "uoa-oi-up" : d < 0 ? "uoa-oi-down" : "uoa-oi-flat";
+          const sign = d > 0 ? "+" : "";
+          return '<span class="uoa-oi-delta ' + cls + '" title="' +
+            'Open Interest yesterday EOD: ' +
+            (r.prev_oi != null ? r.prev_oi.toLocaleString() : "?") +
+            ' → today: ' + (r.open_interest || 0).toLocaleString() + '">' +
+            '<span class="uoa-oi-d-n">' + sign + d.toLocaleString() + '</span>' +
+            (pct != null ? '<span class="uoa-oi-d-p">' + sign +
+              pct + '%</span>' : '') +
+            '</span>';
+        })();
+        // ── NEW UW-5: IV cell ────────────────────────────────────────
+        const ivHtml = (function () {
+          if (r.iv == null) return '<span class="uoa-iv-na">&mdash;</span>';
+          const ivPct = Math.round(r.iv * 100);
+          const ivCls = ivPct >= 70 ? "uoa-iv-high"
+                      : ivPct >= 40 ? "uoa-iv-elevated"
+                      : ivPct >= 20 ? "uoa-iv-normal"
+                      : "uoa-iv-low";
+          return '<span class="uoa-iv ' + ivCls +
+            '" title="Absolute IV level (not 52w rank). High ≥70 · ' +
+            'Elevated 40-70 · Normal 20-40 · Low <20.">' +
+            ivPct + '%</span>';
+        })();
+        // ── NEW UW-1: Fill vs Spread mini-bar ───────────────────────
+        // Horizontal bar; bid on left edge, ask on right edge, tick
+        // mark at the position where last/mid fell. Closer to ask
+        // (right side) = aggressive buying; closer to bid (left) =
+        // aggressive selling. Gold tick = midpoint passive fill.
+        const fillBarHtml = (function () {
+          if (!r.bid || !r.ask || r.bid <= 0 || r.ask <= 0 || r.bid >= r.ask) {
+            return '<span class="uoa-fill-na" title="' +
+              'Bid/ask not in this snapshot (Polygon Starter only ' +
+              'populates quotes for select tiers).">&mdash;</span>';
+          }
+          const ref = r.last_price || r.mid || ((r.bid + r.ask) / 2);
+          // Position 0..1 along bid→ask axis (clamped)
+          const pos = Math.max(0, Math.min(1, (ref - r.bid) / (r.ask - r.bid)));
+          const cls = pos >= 0.65 ? "uoa-fill-buy"
+                    : pos <= 0.35 ? "uoa-fill-sell"
+                    : "uoa-fill-mid";
+          return '<span class="uoa-fill-bar" title="' +
+            'Bid $' + r.bid.toFixed(2) + ' · Ask $' + r.ask.toFixed(2) +
+            ' · Fill $' + ref.toFixed(2) + ' · ' +
+            (pos >= 0.65 ? "Aggressive BUY (near ask)"
+              : pos <= 0.35 ? "Aggressive SELL (near bid)"
+              : "Midpoint (passive)") + '">' +
+            '<span class="uoa-fill-bar-bid"></span>' +
+            '<span class="uoa-fill-bar-ask"></span>' +
+            '<span class="uoa-fill-bar-tick ' + cls +
+              '" style="left:' + (pos * 100).toFixed(1) + '%"></span>' +
+            '</span>';
+        })();
+        // ── NEW UW-2: Chain Bid/Ask % bar ───────────────────────────
+        // ask_pct + bid_pct populated by flow.side; sum to ~100% of
+        // identified-side trades. Rendered as a split-bar: green left
+        // portion = ask% (bull aggressive), red right portion = bid%
+        // (bear aggressive). Width-percentages map directly to %s.
+        const chainBaHtml = (function () {
+          const ap = r.ask_pct || 0;
+          const bp = r.bid_pct || 0;
+          if (ap + bp < 5) return '<span class="uoa-cba-na" title="' +
+            'Bid/ask side identification too sparse to classify.' +
+            '">&mdash;</span>';
+          return '<span class="uoa-cba-bar" title="' +
+            'Today\'s tape: ' + ap + '% at ask (bull aggressive) / ' +
+            bp + '% at bid (bear aggressive)">' +
+            '<span class="uoa-cba-ask" style="width:' + ap + '%"></span>' +
+            '<span class="uoa-cba-bid" style="width:' + bp + '%"></span>' +
+            '<span class="uoa-cba-lbl">' +
+              Math.round(ap) + '/' + Math.round(bp) +
+            '</span>' +
+            '</span>';
+        })();
+        // ── NEW UW-9: % of total flagged-universe premium ───────────
+        // Surfaced as a small line under the main premium $ value.
+        const pctTotalHtml = (function () {
+          const p = r.pct_total_premium;
+          if (p == null || p === 0) return "";
+          const cls = p >= 5 ? "uoa-pct-total-big" : "uoa-pct-total";
+          return '<div class="' + cls + '" title="' +
+            'This contract is ' + p +
+            '% of today\'s total flagged-universe premium.">' +
+            p + '% of total</div>';
+        })();
+        // ── NEW UW-11: Last fill price ──────────────────────────────
+        const lastPriceHtml = (function () {
+          const lp = r.last_price;
+          if (lp == null) return '<span class="uoa-last-na">&mdash;</span>';
+          return '<span class="uoa-last" title="' +
+            'Last trade fill — the price most recent buyers/sellers paid.">' +
+            '$' + lp.toFixed(2) + '</span>';
+        })();
+        // ── NEW UW-7: Sector chip in Ticker cell ────────────────────
+        // Small muted line under the ticker symbol. Hidden when "Other".
+        const sectorChip = (r.sector && r.sector !== "Other" && r.sector !== "")
+          ? '<div class="uoa-sector-chip">' + r.sector + '</div>'
+          : '';
+        // ── NEW UW-10: Visual tag pills ─────────────────────────────
+        // Replaces the single "Why" text with a stack of color-coded
+        // pills — BULLISH/BEARISH + SWEEP/GOLDEN + OPENING + REPEAT +
+        // EARNINGS + WATCHLIST. Matches Unusual Whales' high-density
+        // tag aesthetic for at-a-glance row scanning.
+        const tagsHtml = (function () {
+          const pills = [];
+          // Plain-English tier (Conviction / Confirming / Hedge / etc.)
+          pills.push('<span class="uoa-pill uoa-pill-tier tier-' + tier.tier +
+            '" title="' + tooltipText + '">' + tier.label + '</span>');
+          // Direction
+          if (r.direction === "bullish") pills.push(
+            '<span class="uoa-pill uoa-pill-bull" title="' +
+            'Premium-weighted lean is bullish.">BULLISH</span>');
+          else if (r.direction === "bearish") pills.push(
+            '<span class="uoa-pill uoa-pill-bear" title="' +
+            'Premium-weighted lean is bearish.">BEARISH</span>');
+          // Execution venue
+          if (r.is_golden || r.golden) pills.push(
+            '<span class="uoa-pill uoa-pill-gold" title="' +
+            'Golden Sweep — cross-exchange aggressive buy ≥$1M premium ' +
+            'with short DTE.">GOLDEN</span>');
+          else if (r.is_sweep || (r.sweeps || 0) > 0) pills.push(
+            '<span class="uoa-pill uoa-pill-sweep" title="' +
+            'Sweep — parent order routed across multiple exchanges, ' +
+            'urgency signal.">SWEEP</span>');
+          if (r.is_block || (r.blocks || 0) > 0) pills.push(
+            '<span class="uoa-pill uoa-pill-block" title="' +
+            'Block — single large institutional print ≥$100k.">BLOCK</span>');
+          // Opening / repeat
+          if (r.opening === "likely_open") pills.push(
+            '<span class="uoa-pill uoa-pill-open" title="' +
+            'Vol significantly exceeds prior OI — likely a new ' +
+            'position, not closing.">OPENING</span>');
+          if ((r.repeat_count || 0) >= 2) pills.push(
+            '<span class="uoa-pill uoa-pill-repeat" title="' +
+            'Same contract has appeared in our ledger ' + r.repeat_count +
+            '× — campaign / scaled position.">REPEAT ×' + r.repeat_count +
+            '</span>');
+          // Earnings
+          if (r.earnings_days != null && r.earnings_days >= 0 &&
+              r.earnings_days <= 10) {
+            pills.push('<span class="uoa-pill uoa-pill-earn" title="' +
+              'Earnings reports in ' + r.earnings_days + ' day' +
+              (r.earnings_days === 1 ? '' : 's') +
+              ' — flow could be positioning into the print.">EARN ' +
+              r.earnings_days + 'd</span>');
+          }
+          // Watchlist member
+          if (window.tdWatchlist && window.tdWatchlist().has(r.ticker)) {
+            pills.push('<span class="uoa-pill uoa-pill-watch" title="' +
+              'On your watchlist.">★ WL</span>');
+          }
+          return '<div class="uoa-pills">' + pills.join("") + '</div>';
+        })();
         return '<tr data-idx="'+i+'">'+
-          '<td><strong data-t="'+r.ticker+'">'+r.ticker+'</strong>'+nfBadge+'</td>'+
+          '<td><strong data-t="'+r.ticker+'">'+r.ticker+'</strong>'+
+            nfBadge + sectorChip + '</td>'+
           '<td><span class="uoa-tier '+tierCls(r.tier)+'">'+(r.tier||"C")+'</span></td>'+
           '<td><span class="uoa-score has-breakdown '+scoreCls(r.trade_score)+
             '" data-score-comp="'+i+'" tabindex="0" ' +
@@ -17743,13 +18040,17 @@
           '<td>'+(bem!=null?(bem>0?"+":"")+bem+"%":"&mdash;")+'</td>'+
           '<td>'+fmtNum(r.volume)+'</td>'+
           '<td>'+r.vol_oi+'</td>'+
+          '<td>'+oiDeltaHtml+'</td>'+
           '<td><span class="uoa-liq liq-'+(r.liquidity||"C").toLowerCase()+'">'+(r.liquidity||"C")+'</span></td>'+
-          '<td class="'+(r.premium>=1e6?"uoa-prem-big":"")+'">$'+fmtNum(r.premium)+'</td>'+
+          '<td>'+ivHtml+'</td>'+
+          '<td>'+fillBarHtml+'</td>'+
+          '<td>'+chainBaHtml+'</td>'+
+          '<td class="'+(r.premium>=1e6?"uoa-prem-big":"")+'">$'+fmtNum(r.premium)+
+            pctTotalHtml + '</td>'+
+          '<td>'+lastPriceHtml+'</td>'+
           '<td>'+printedHtml+'</td>'+
           '<td>'+deltaHtml+'</td>'+
-          '<td class="uoa-why" title="'+tooltipText+'">' +
-            '<span class="uoa-tier tier-'+tier.tier+'">'+
-              tier.label+'</span></td>' +
+          '<td class="uoa-tags-cell">'+tagsHtml+'</td>' +
           '<td>'+(window.tdActionStrip
             ? window.tdActionStrip(r.ticker) : "")+'</td>'+
         '</tr>';
