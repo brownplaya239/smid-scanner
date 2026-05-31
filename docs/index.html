@@ -3694,6 +3694,19 @@
      fresh enough to act on"; older fade to muted. Delta colors mirror
      the chg-pill convention (green up, red down) so users get
      consistent visual semantics. */
+  /* Stacked absolute-time + relative-ago for the Print column.
+     Top row = MM/DD, middle = HH:MM:SS ET (most prominent — matches
+     Unusual Whales' verification-friendly format), bottom = "3m ago"
+     small + muted for at-a-glance freshness. */
+  .uoa-printed-stack { display:inline-flex; flex-direction:column;
+    align-items:flex-end; gap:1px; line-height:1.1;
+    font-variant-numeric:tabular-nums; }
+  .uoa-printed-stack .upr-date { font-size:9.5px; color:var(--muted);
+    font-weight:600; }
+  .uoa-printed-stack .upr-time { font-size:11.5px; font-weight:700;
+    letter-spacing:-0.2px; }
+  .uoa-printed-stack .upr-rel { font-size:9px; color:var(--muted);
+    font-style:italic; }
   .uoa-printed { font-size:11px; font-variant-numeric:tabular-nums;
     white-space:nowrap; cursor:help; }
   .uoa-printed-now    { color:var(--gold); font-weight:700; }
@@ -17624,9 +17637,15 @@
                        tier: "speculative" };
         const tooltipText = (tier.why || r.why || "")
           .replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
-        // Time-since-print on the marquee single-print. Falls back
-        // gracefully if old uoa_latest.json rows don't have the
-        // biggest_print_ts field yet (scanner change is forward-only).
+        // Absolute + relative print timestamp.
+        // Unusual Whales prints "MM/DD HH:MM:SS ET" prominently so traders
+        // can match flows to news / earnings / catalysts down to the
+        // second. We do the same — primary line = wall-clock ET, secondary
+        // (smaller) = relative-ago ("3m ago") so the user gets both:
+        //   "verify this against my data" + "is this fresh?"
+        // Same color tier system (fresh-now → recent → today → old) but
+        // applied to the wrapper so the absolute time inherits the
+        // freshness color.
         const printedHtml = (function () {
           const iso = r.biggest_print_ts || r.last_print_ts;
           if (!iso) return '<span class="uoa-printed-na" title="' +
@@ -17635,18 +17654,31 @@
           const ms = Date.parse(iso);
           if (!ms) return '<span>&mdash;</span>';
           const mins = Math.round((Date.now() - ms) / 60000);
-          let txt, cls;
-          if (mins < 5)        { txt = "just now";              cls = "uoa-printed-now"; }
-          else if (mins < 60)  { txt = mins + "m ago";          cls = "uoa-printed-recent"; }
-          else if (mins < 60*8){ txt = Math.round(mins/60)+"h ago"; cls = "uoa-printed-today"; }
-          else                  { txt = Math.round(mins/(60*24))+"d ago"; cls = "uoa-printed-old"; }
-          // ET wall-clock as the title so users can match against
-          // open/close/lunch news without doing TZ math.
-          const wall = new Date(ms).toLocaleString("en-US",
-            { timeZone: "America/New_York", month: "short", day: "numeric",
-              hour: "numeric", minute: "2-digit" }) + " ET";
-          return '<span class="uoa-printed ' + cls + '" title="' + wall +
-            '">' + txt + '</span>';
+          let relTxt, cls;
+          if (mins < 5)        { relTxt = "just now";              cls = "uoa-printed-now"; }
+          else if (mins < 60)  { relTxt = mins + "m ago";          cls = "uoa-printed-recent"; }
+          else if (mins < 60*8){ relTxt = Math.round(mins/60)+"h ago"; cls = "uoa-printed-today"; }
+          else                  { relTxt = Math.round(mins/(60*24))+"d ago"; cls = "uoa-printed-old"; }
+          const d = new Date(ms);
+          // ET wall clock — split into components so we can render
+          // MM/DD on row 1 and HH:MM:SS on row 2 in tabular columns.
+          const etParts = new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/New_York",
+            month: "2-digit", day: "2-digit",
+            hour: "2-digit", minute: "2-digit", second: "2-digit",
+            hour12: false,
+          }).formatToParts(d).reduce(function (acc, p) {
+            acc[p.type] = p.value; return acc;
+          }, {});
+          const dateLbl = etParts.month + "/" + etParts.day;
+          const timeLbl = etParts.hour + ":" + etParts.minute + ":" + etParts.second;
+          const fullTitle = dateLbl + " " + timeLbl + " ET · " + relTxt;
+          return '<span class="uoa-printed uoa-printed-stack ' + cls +
+            '" title="' + fullTitle + '">' +
+            '<span class="upr-date">' + dateLbl + '</span>' +
+            '<span class="upr-time">' + timeLbl + '</span>' +
+            '<span class="upr-rel">' + relTxt + '</span>' +
+            '</span>';
         })();
         // Δ since print — % change in underlying from spot_at_print to
         // current_spot. CURRENT_SPOTS is populated in chunks by
