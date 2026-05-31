@@ -18839,7 +18839,13 @@
       const fn = fns[+c.dataset.ci];
       if (fn) { fn(); renderBody(); }
     });
-    function applyPreset() {
+    // ⚠️ Was previously named applyPreset() — but hoisting let it
+    // override the preset-chip handler at line ~17598, breaking every
+    // chip in the "Quick Filters" bar. Renamed to be distinct.
+    // This handler is only for the "★ High Conviction" filter button
+    // inside the filters panel; it resets the granular dropdowns to
+    // a hand-tuned conviction config.
+    function applyHighConvictionFilterPreset() {
       $("uoa-q").value = ""; $("uoa-type").value = ""; $("uoa-side").value = "";
       $("uoa-dte").value = ""; $("uoa-cap").value = ""; $("uoa-sector").value = "";
       if ($("uoa-theme")) $("uoa-theme").value = "";
@@ -18851,7 +18857,7 @@
       $("uoa-noseller").checked = true;
       renderBody();
     }
-    $("uoa-preset").addEventListener("click", applyPreset);
+    $("uoa-preset").addEventListener("click", applyHighConvictionFilterPreset);
     function resetFilters() {
       $("uoa-q").value = "";
       ["uoa-type","uoa-side","uoa-dte","uoa-cap","uoa-sector","uoa-theme"].forEach(function (id) {
