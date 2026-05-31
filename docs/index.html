@@ -3774,18 +3774,19 @@
     font-weight:600; max-width:80px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   /* ── UW-10: Visual tag pill stack ──
-     The parent table.uoa td defaults to white-space:nowrap so cells
-     stay on one line. The Tags cell needs to wrap (multiple pills),
-     so override at both the td (.uoa-tags-cell) and inner level. */
-  .uoa-pills { display:flex; flex-wrap:wrap; gap:3px 4px;
-    align-items:center; line-height:1.55;
-    /* Individual pills must NOT inherit the cell's nowrap */
+     Compact 2-row pill flex container. Pills are intentionally tight
+     (8.5px font, 1px-5px padding) so a typical row fits 6 flags in
+     ~210px without scroll. Wrap is enabled both at container and
+     pill level so the cell's white-space:nowrap (inherited from
+     table.uoa td) doesn't lock everything to one line. */
+  .uoa-pills { display:flex; flex-wrap:wrap; gap:2px 3px;
+    align-items:center; line-height:1.5;
     white-space:normal; }
-  .uoa-pill { display:inline-block; font-size:9.5px; font-weight:700;
-    padding:1px 7px; border-radius:9px; letter-spacing:0.2px;
-    cursor:help; white-space:nowrap; line-height:1.5;
-    /* Prevent any pill itself from clipping on tight columns */
+  .uoa-pill { display:inline-block; font-size:8.5px; font-weight:700;
+    padding:0.5px 5px; border-radius:7px; letter-spacing:0.15px;
+    cursor:help; white-space:nowrap; line-height:1.55;
     flex-shrink:0; }
+  .uoa-pills-empty { color:var(--muted); font-size:11px; cursor:help; }
   .uoa-pill-tier { background:rgba(120,150,200,0.10);
     color:var(--textdim); border:1px solid var(--line); }
   .uoa-pill-bull   { background:rgba(31,179,99,0.18);
@@ -3807,20 +3808,24 @@
     color:var(--red); border:1px solid rgba(214,68,68,0.4); }
   .uoa-pill-watch  { background:rgba(255,200,0,0.18);
     color:var(--gold); border:1px solid var(--gold); }
-  /* Override the global td nowrap + right-align so pills wrap cleanly
-     to multiple lines and start from the left edge. min-width gives
-     them room; max-width prevents them from blowing out the table on
-     ticker rows with many flags simultaneously. */
+  /* Override the global td nowrap + right-align so pills wrap cleanly.
+     Now sized for the compact pill density (≈210px holds 6 pills
+     in 2 rows; 7+ pills push to 3 rows). Lower min-width than
+     before so the column doesn't crowd out the other data columns
+     when viewport is narrow. */
   table.uoa td.uoa-tags-cell {
     white-space:normal !important;
     text-align:left !important;
     vertical-align:middle;
-    padding:5px 8px;
-    min-width:240px;
-    max-width:340px; }
-  @media (max-width:1100px) {
-    table.uoa td.uoa-tags-cell { min-width:200px; max-width:260px; }
-    .uoa-pill { font-size:9px; padding:1px 6px; }
+    padding:4px 7px;
+    min-width:210px;
+    max-width:280px; }
+  @media (max-width:1280px) {
+    table.uoa td.uoa-tags-cell { min-width:180px; max-width:220px; }
+  }
+  @media (max-width:900px) {
+    table.uoa td.uoa-tags-cell { min-width:160px; max-width:200px; }
+    .uoa-pill { font-size:8px; padding:0 4px; }
   }
   /* Stacked absolute-time + relative-ago for the Print column.
      Top row = MM/DD, middle = HH:MM:SS ET (most prominent — matches
@@ -17995,52 +18000,68 @@
         // tag aesthetic for at-a-glance row scanning.
         const tagsHtml = (function () {
           const pills = [];
-          // Plain-English tier (Conviction / Confirming / Hedge / etc.)
-          pills.push('<span class="uoa-pill uoa-pill-tier tier-' + tier.tier +
-            '" title="' + tooltipText + '">' + tier.label + '</span>');
-          // Direction
+          // Shorten verbose tier labels so they fit in compact pills.
+          // "Flagged" is the catch-all fallback when no real
+          // classification applies — skip it entirely, it's noise.
+          const TIER_SHORT = {
+            "A+ Conviction":   "A+ Conv",
+            "Confirming Bull": "Conf Bull",
+            "Confirming Bear": "Conf Bear",
+            "Likely Hedge":    "Hedge",
+            "Earnings Bet":    "ERN Bet",
+            "Speculative":     "Spec",
+            "Caution":         "Caution",
+          };
+          const tierLbl = TIER_SHORT[tier.label] || tier.label;
+          if (tier.label && tier.label !== "Flagged" && tier.label !== "—") {
+            pills.push('<span class="uoa-pill uoa-pill-tier tier-' +
+              tier.tier + '" title="' + tooltipText + '">' +
+              tierLbl + '</span>');
+          }
+          // Direction — abbreviate to single arrow + text for density.
           if (r.direction === "bullish") pills.push(
             '<span class="uoa-pill uoa-pill-bull" title="' +
-            'Premium-weighted lean is bullish.">BULLISH</span>');
+            'Premium-weighted lean is bullish.">▲ Bull</span>');
           else if (r.direction === "bearish") pills.push(
             '<span class="uoa-pill uoa-pill-bear" title="' +
-            'Premium-weighted lean is bearish.">BEARISH</span>');
-          // Execution venue
+            'Premium-weighted lean is bearish.">▼ Bear</span>');
+          // Execution venue — Golden takes precedence over Sweep
           if (r.is_golden || r.golden) pills.push(
             '<span class="uoa-pill uoa-pill-gold" title="' +
             'Golden Sweep — cross-exchange aggressive buy ≥$1M premium ' +
-            'with short DTE.">GOLDEN</span>');
+            'with short DTE.">★ Golden</span>');
           else if (r.is_sweep || (r.sweeps || 0) > 0) pills.push(
             '<span class="uoa-pill uoa-pill-sweep" title="' +
             'Sweep — parent order routed across multiple exchanges, ' +
-            'urgency signal.">SWEEP</span>');
+            'urgency signal.">Sweep</span>');
           if (r.is_block || (r.blocks || 0) > 0) pills.push(
             '<span class="uoa-pill uoa-pill-block" title="' +
-            'Block — single large institutional print ≥$100k.">BLOCK</span>');
+            'Block — single large institutional print ≥$100k.">Block</span>');
           // Opening / repeat
           if (r.opening === "likely_open") pills.push(
             '<span class="uoa-pill uoa-pill-open" title="' +
             'Vol significantly exceeds prior OI — likely a new ' +
-            'position, not closing.">OPENING</span>');
+            'position, not closing.">Open</span>');
           if ((r.repeat_count || 0) >= 2) pills.push(
             '<span class="uoa-pill uoa-pill-repeat" title="' +
             'Same contract has appeared in our ledger ' + r.repeat_count +
-            '× — campaign / scaled position.">REPEAT ×' + r.repeat_count +
-            '</span>');
+            '× — campaign / scaled position.">×' + r.repeat_count + '</span>');
           // Earnings
           if (r.earnings_days != null && r.earnings_days >= 0 &&
               r.earnings_days <= 10) {
             pills.push('<span class="uoa-pill uoa-pill-earn" title="' +
               'Earnings reports in ' + r.earnings_days + ' day' +
               (r.earnings_days === 1 ? '' : 's') +
-              ' — flow could be positioning into the print.">EARN ' +
+              ' — flow could be positioning into the print.">E' +
               r.earnings_days + 'd</span>');
           }
           // Watchlist member
           if (window.tdWatchlist && window.tdWatchlist().has(r.ticker)) {
             pills.push('<span class="uoa-pill uoa-pill-watch" title="' +
-              'On your watchlist.">★ WL</span>');
+              'On your watchlist.">★</span>');
           }
+          if (!pills.length) return '<span class="uoa-pills-empty" ' +
+            'title="No additional flags for this row.">&mdash;</span>';
           return '<div class="uoa-pills">' + pills.join("") + '</div>';
         })();
         return '<tr data-idx="'+i+'">'+
