@@ -3573,7 +3573,7 @@
   .lf-empty { font-size:12px; color:var(--muted);
     padding:24px; text-align:center; font-style:italic; }
   .lf-row { display:grid;
-    grid-template-columns:90px 70px 1fr 80px 70px 100px 60px;
+    grid-template-columns:90px 70px 1fr 80px 86px 70px 100px 60px;
     align-items:center; gap:8px;
     padding:8px 12px; font-size:11.5px; line-height:1.4;
     border-bottom:1px solid var(--line);
@@ -3594,6 +3594,17 @@
     margin-left:3px; }
   .lf-row .lf-prem { font-weight:800; color:var(--text);
     text-align:right; font-size:12.5px; }
+  /* Per-contract cost — stacked $/share over $/lot. The lot figure
+     is the actual outlay to buy 1 contract (most useful retail
+     "can I act on this?" read); the /share line is reference. */
+  .lf-row .lf-cost { display:flex; flex-direction:column;
+    align-items:flex-end; gap:0; line-height:1.1;
+    font-variant-numeric:tabular-nums; cursor:help; }
+  .lf-row .lf-cost-share { font-size:10px; color:var(--muted); }
+  .lf-row .lf-cost-lot { font-size:11.5px; font-weight:700;
+    color:var(--text); }
+  .lf-row .lf-cost-na { color:var(--muted); font-size:11px;
+    text-align:right; cursor:help; }
   .lf-row .lf-voi { color:var(--muted); font-size:10.5px;
     text-align:right; }
   .lf-row .lf-dir { font-weight:700; font-size:10.5px;
@@ -3874,7 +3885,16 @@
   .uoa-pct-total-big  { font-size:9.5px; color:var(--gold);
     font-weight:700; margin-top:1px;
     font-variant-numeric:tabular-nums; }
-  /* ── UW-11: Last fill price ── */
+  /* ── UW-11: Last fill price + per-lot cost ──
+     Stacked: $/share reference (small, muted) over $/lot total (bold).
+     Lot = actual $ outlay to buy 1 contract — the most useful retail
+     "can I act on this?" read. */
+  .uoa-last-stack { display:inline-flex; flex-direction:column;
+    align-items:flex-end; gap:0; line-height:1.1;
+    font-variant-numeric:tabular-nums; cursor:help; }
+  .uoa-last-stack .uoa-last-share { font-size:9.5px; color:var(--muted); }
+  .uoa-last-stack .uoa-last-lot   { font-size:11.5px; font-weight:700;
+    color:var(--text); }
   .uoa-last     { font-variant-numeric:tabular-nums; font-size:11px;
     color:var(--text); }
   .uoa-last-na  { color:var(--muted); }
@@ -17182,7 +17202,7 @@
       // NEW UW-11: Last trade fill price. Useful for users who want to
       // place their own order — they see the actual fill they'd be
       // chasing, not just the aggregate premium.
-      { k:"last_price", t:"Last", tip:"Last trade price per contract. The single price most recent buyers / sellers paid — useful for sizing your own order entry." },
+      { k:"last_price", t:"Last / Lot", tip:"Per-share quote (small line) over actual per-contract cost (bold). Multiply quote × 100 = $ outlay to buy 1 lot. The most useful 'can I act on this size?' read for retail — tells you if a $5M flagged contract is $4/lot (anyone can play) or $5,000/lot (institutional only)." },
       { k:"biggest_print_ts", t:"Printed", tip:"How long ago the marquee single-print (largest premium) hit the tape. Top row = MM/DD date; middle = HH:MM:SS ET; bottom = relative ago. Matches Unusual Whales' verification-friendly format." },
       { k:"delta_since_print", t:"Δ since", tip:"Δ (delta) = % change in the underlying from spot-at-print to current spot. Tells you if the trade already worked (large + move) or you're still in time (small or negative move)." },
       // NEW UW-6: Earnings days. Inline rather than a column — folded
@@ -18198,13 +18218,24 @@
             '% of today\'s total flagged-universe premium.">' +
             p + '% of total</div>';
         })();
-        // ── NEW UW-11: Last fill price ──────────────────────────────
+        // ── NEW UW-11: Last fill price + per-lot cost ──────────────
+        // Stacked: per-share quote on top (reference), per-lot cost
+        // below (the actual $ outlay to buy 1 contract). Per-lot is
+        // the most useful "can I act on this?" read for retail.
         const lastPriceHtml = (function () {
           const lp = r.last_price;
           if (lp == null) return '<span class="uoa-last-na">&mdash;</span>';
-          return '<span class="uoa-last" title="' +
-            'Last trade fill — the price most recent buyers/sellers paid.">' +
-            '$' + lp.toFixed(2) + '</span>';
+          const lot = lp * 100;
+          const lotStr = lot < 100  ? '$' + lot.toFixed(2)
+                       : lot < 10000 ? '$' + Math.round(lot)
+                       : '$' + (lot/1000).toFixed(1) + 'k';
+          return '<span class="uoa-last-stack" title="' +
+            'Per-share quote $' + lp.toFixed(2) + ' × 100 = $' +
+            Math.round(lot).toLocaleString() + ' per contract (1 lot). ' +
+            'The actual dollar outlay to buy ONE contract at this price.">' +
+            '<span class="uoa-last-share">$' + lp.toFixed(2) + '/sh</span>' +
+            '<span class="uoa-last-lot">' + lotStr + '/lot</span>' +
+            '</span>';
         })();
         // ── NEW UW-7: Sector chip in Ticker cell ────────────────────
         // Small muted line under the ticker symbol. Hidden when "Other".
@@ -18536,6 +18567,27 @@
           const dirArrow = f.direction === "bullish" ? "▲"
                          : f.direction === "bearish" ? "▼" : "•";
           const watched = wl.has(f.ticker);
+          // Per-contract cost = quoted price × 100 (1 contract = 100
+          // shares of underlying option exposure). This is the actual
+          // dollar outlay a trader pays to buy ONE lot — the most
+          // useful "can I act on this?" signal for retail. Stacked
+          // with the per-share quote above for full context.
+          const pricePerShare = f.last_price || 0;
+          const costPerLot = pricePerShare * 100;
+          const costHtml = pricePerShare > 0
+            ? '<span class="lf-cost" title="Per-share quote $' +
+                pricePerShare.toFixed(2) + ' × 100 = $' +
+                Math.round(costPerLot).toLocaleString() +
+                ' per contract (1 lot)">' +
+              '<span class="lf-cost-share">$' + pricePerShare.toFixed(2) +
+                '/sh</span>' +
+              '<span class="lf-cost-lot">' +
+                (costPerLot < 100 ? '$' + costPerLot.toFixed(2) :
+                 costPerLot < 10000 ? '$' + Math.round(costPerLot) :
+                 '$' + (costPerLot / 1000).toFixed(1) + 'k') + '/lot</span>' +
+              '</span>'
+            : '<span class="lf-cost-na" title="' +
+              'Price unavailable on this fill">&mdash;</span>';
           return '<div class="lf-row ' + (isFresh ? "lf-row-fresh " : "") +
             dirCls + '" data-key="' + key + '">' +
             '<span class="lf-ts">' + fmtTs(f.last_trade_ts) + '</span>' +
@@ -18546,6 +18598,7 @@
               (f.type || "?").toUpperCase() + ' $' + f.strike + ' ' +
               f.expiry + ' <small>(' + f.dte + 'd)</small></span>' +
             '<span class="lf-prem">' + fmtPrem(f.premium) + '</span>' +
+            costHtml +
             '<span class="lf-voi">v/oi ' + f.vol_oi + '</span>' +
             '<span class="lf-dir ' + dirCls + '">' + dirArrow + ' ' +
               (f.direction || "mixed") + '</span>' +
