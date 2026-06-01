@@ -615,6 +615,165 @@ async function fetchIvSnapshot(env, ticker, earningsDate) {
   };
 }
 
+/** Live Flow feed — polled "notable flow" across a curated universe.
+ *
+ *  Fans out to /v3/snapshot/options/{TICKER} for the top liquid options
+ *  underlyings (default list below; can be augmented via ?tickers=).
+ *  Filters each chain to contracts whose aggregate-day premium >=
+ *  min_premium (default $1M) and whose last trade landed within
+ *  freshness_min minutes. Returns ranked-most-recent-first list of
+ *  matching contracts, each tagged with its last-trade ET timestamp.
+ *
+ *  Important honesty disclosure: this is NOT true real-time. Polygon
+ *  Options Starter delivers 15-min-delayed quotes/trades. The endpoint
+ *  itself runs every poll (no caching of "since X" state), but the
+ *  underlying data lags the tape. For true real-time the worker would
+ *  need WebSocket via Polygon Advanced tier — separate roadmap.
+ *
+ *  Edge cached 30s so multiple concurrent users sharing the universe
+ *  don't multiply Polygon API calls. Per-poll cost = ~50 snapshots.
+ */
+const LF_DEFAULT_UNIVERSE = [
+  // Mega-cap indices + leaders
+  "SPY","QQQ","IWM","DIA",
+  // Mag 7 / AI bellwethers
+  "NVDA","AAPL","MSFT","GOOGL","AMZN","META","TSLA",
+  // Semis + AI infra
+  "AMD","AVGO","MU","MRVL","INTC","TSM","ASML","LRCX","AMAT","KLAC",
+  "ARM","SMCI","COHR","ANET","CRWV","ALAB",
+  // Software / cloud
+  "ORCL","CRM","SNOW","PLTR","NOW","DDOG","NET","CRWD","PANW","ZS",
+  // Hardware + electronics
+  "AAPL","DELL","HPE","CSCO",
+  // Megacap finance
+  "JPM","BAC","GS","MS","WFC",
+  // Energy
+  "XOM","CVX","COP","SLB",
+  // Healthcare/pharma high-flyers
+  "LLY","UNH","JNJ","NVO",
+  // Retail / consumer
+  "WMT","COST","HD","NKE","SBUX","MCD","DIS",
+  // High-beta single names
+  "COIN","HOOD","RBLX","SHOP","UBER","ABNB","NFLX","BABA",
+  // Defense / aerospace
+  "BA","LMT","RTX","NOC","GD",
+];
+
+async function fetchLiveFlow(env, opts) {
+  opts = opts || {};
+  const tickers = (opts.tickers && opts.tickers.length
+    ? opts.tickers : LF_DEFAULT_UNIVERSE).slice(0, 80);
+  const minPrem = Math.max(0, +(opts.minPremium || 1_000_000));
+  const freshnessMin = Math.max(1, +(opts.freshnessMin || 90));
+  const limit = Math.min(100, Math.max(10, +(opts.limit || 60)));
+  if (!env.POLYGON_API_KEY) {
+    return { error: "POLYGON_API_KEY not configured", flows: [] };
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const freshnessCutoff = Date.now() - freshnessMin * 60 * 1000;
+  // Fan out to Polygon snapshots. Concurrent fetches handled by the
+  // Workers runtime (no manual queue needed for ~50 parallel HTTP calls).
+  // Per-ticker errors don't fail the whole batch — just contribute zero
+  // contracts to the feed.
+  async function snap(tk) {
+    try {
+      const r = await fetch(
+        "https://api.polygon.io/v3/snapshot/options/" +
+          encodeURIComponent(tk) +
+          "?limit=250&expiration_date.gte=" + today +
+          "&apiKey=" + env.POLYGON_API_KEY,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (!r.ok) return [];
+      const j = await r.json();
+      return (j.results || []).map(function (c) { return [tk, c]; });
+    } catch (_) { return []; }
+  }
+  const allArrays = await Promise.all(tickers.map(snap));
+  const all = [].concat.apply([], allArrays);
+  // Per-contract filter + transform to the feed-friendly shape.
+  const flows = [];
+  for (const [tk, c] of all) {
+    const d = c.details || {};
+    const day = c.day || {};
+    const lq = c.last_quote || {};
+    const lt = c.last_trade || {};
+    if (!d.contract_type || !d.strike_price || !d.expiration_date) continue;
+    const vol = day.volume || 0;
+    const oi  = c.open_interest || 0;
+    if (vol < 100 || oi < 10) continue;
+    const last = lt.price || day.close || 0;
+    const premium = vol * last * 100;
+    if (premium < minPrem) continue;
+    // Use sip_timestamp (nanoseconds since epoch) for last-trade time.
+    // Polygon Options Starter clamps this to 15-min-delayed, but the
+    // RELATIVE recency between rows is still meaningful — newer last
+    // trades show as more recent in the feed.
+    const sip = lt.sip_timestamp;
+    const tradeMs = sip ? Math.round(sip / 1e6) : null;
+    if (tradeMs && tradeMs < freshnessCutoff) continue;
+    // Direction inference — combine type + bid/ask context.
+    let direction = "mixed";
+    if (lq.bid && lq.ask && (lq.bid + lq.ask) > 0) {
+      const mid = (lq.bid + lq.ask) / 2;
+      // last price >= mid → ask-side aggression = bull on call, bear on put
+      const askSide = last >= mid;
+      if (d.contract_type === "call") {
+        direction = askSide ? "bullish" : "bearish";
+      } else if (d.contract_type === "put") {
+        direction = askSide ? "bearish" : "bullish";
+      }
+    } else {
+      // No quote — default by contract type (weak signal but better than null)
+      direction = (d.contract_type === "call") ? "bullish" : "bearish";
+    }
+    const dte = (function () {
+      const exp = new Date(d.expiration_date + "T16:00:00-04:00");
+      return Math.max(0, Math.round((exp - Date.now()) / 86400000));
+    })();
+    const voi = oi > 0 ? vol / oi : 0;
+    flows.push({
+      ticker:        tk,
+      contract:      d.ticker || "",
+      type:          d.contract_type,
+      strike:        d.strike_price,
+      expiry:        d.expiration_date,
+      dte:           dte,
+      volume:        vol,
+      open_interest: oi,
+      vol_oi:        Math.round(voi * 10) / 10,
+      premium:       Math.round(premium),
+      last_price:    last,
+      bid:           lq.bid || null,
+      ask:           lq.ask || null,
+      iv:            c.implied_volatility || null,
+      direction:     direction,
+      last_trade_ts: tradeMs,
+      // Flag types — sweep / golden / earnings-positioned aren't known
+      // at this endpoint level (no flow analysis here). The client can
+      // cross-ref against uoa_latest.json on its end.
+      spot:          (c.underlying_asset && c.underlying_asset.price) || null,
+    });
+  }
+  // Newest fills first; tie-break by premium descending.
+  flows.sort(function (a, b) {
+    if (b.last_trade_ts !== a.last_trade_ts) {
+      return (b.last_trade_ts || 0) - (a.last_trade_ts || 0);
+    }
+    return (b.premium || 0) - (a.premium || 0);
+  });
+  return {
+    fetched:        new Date().toISOString(),
+    universe_size:  tickers.length,
+    scanned:        all.length,
+    min_premium:    minPrem,
+    freshness_min:  freshnessMin,
+    license_note:   "Polygon Options Starter — quotes delayed 15 min. " +
+                    "True real-time requires Advanced tier upgrade.",
+    flows:          flows.slice(0, limit),
+  };
+}
+
 /** Strip a Polygon news article down to just the fields the dashboard
  *  renders — drops large fields like the full article body and trims
  *  the response from Polygon (~3KB per article) to ~600 bytes. */
@@ -1404,6 +1563,35 @@ export default {
         const data = await fetchIvSnapshot(env, tk, validED);
         const resp = Response.json(data, {
           headers: { ...cors, "Cache-Control": "public, max-age=300" },
+        });
+        ctx.waitUntil(cache.put(request, resp.clone()));
+        return resp;
+      }
+      // Live Flow feed — ?live-flow=1 returns notable options flow across
+      // the default top-50 liquid universe (plus optional ?tickers=A,B,C
+      // augmentation, e.g. user watchlist). Filters at minPremium (default
+      // $1M) and freshnessMin (default 90 min — Polygon Starter is 15-min
+      // delayed so anything fresher than 90 min is the freshest possible
+      // state). Edge cached 30s so 10 concurrent users polling at 60s
+      // intervals all share one upstream batch.
+      if (url.searchParams.get("live-flow")) {
+        const cache = caches.default;
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const extra = (url.searchParams.get("tickers") || "")
+          .toUpperCase().split(",").map(function (s) { return s.trim(); })
+          .filter(function (s) { return /^[A-Z.\-]{1,8}$/.test(s); });
+        const uni = Array.from(new Set(
+          (extra.length ? extra.concat(LF_DEFAULT_UNIVERSE)
+                        : LF_DEFAULT_UNIVERSE)));
+        const data = await fetchLiveFlow(env, {
+          tickers:      uni,
+          minPremium:   +url.searchParams.get("min_premium") || 1_000_000,
+          freshnessMin: +url.searchParams.get("freshness_min") || 90,
+          limit:        +url.searchParams.get("limit") || 60,
+        });
+        const resp = Response.json(data, {
+          headers: { ...cors, "Cache-Control": "public, max-age=30" },
         });
         ctx.waitUntil(cache.put(request, resp.clone()));
         return resp;
