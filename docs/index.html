@@ -3520,6 +3520,109 @@
   .uoa-subnav button:hover { color:var(--textdim); }
   .uoa-subnav button.active { color:var(--gold); border-bottom-color:var(--gold); }
   .uoa-subnote { font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.5; }
+  /* NEW pill next to the "Live Feed" subtab label. Marks the new
+     subtab so users notice it without being intrusive. */
+  .lf-pill-new { display:inline-block; font-size:8.5px; font-weight:800;
+    background:var(--gold); color:#000; padding:1px 5px; border-radius:5px;
+    margin-left:5px; letter-spacing:0.3px; vertical-align:middle; }
+
+  /* ── Live Flow toolbar ── */
+  .lf-toolbar { display:flex; flex-wrap:wrap; align-items:center;
+    gap:9px; margin-bottom:12px; padding:9px 11px;
+    background:var(--card); border:1px solid var(--line);
+    border-radius:7px; }
+  .lf-status { display:flex; align-items:center; gap:6px;
+    font-size:11px; font-weight:600; color:var(--textdim);
+    min-width:160px; }
+  .lf-status-dot { width:8px; height:8px; border-radius:50%;
+    background:var(--muted); flex-shrink:0;
+    transition:background .2s ease; }
+  .lf-status-live    { background:var(--green);
+    box-shadow:0 0 6px rgba(31,179,99,0.6); animation:lf-pulse 2.4s infinite; }
+  .lf-status-polling { background:var(--gold);
+    box-shadow:0 0 6px rgba(255,200,0,0.6); }
+  .lf-status-paused  { background:var(--muted); }
+  .lf-status-error   { background:var(--red);
+    box-shadow:0 0 6px rgba(214,68,68,0.5); }
+  @keyframes lf-pulse {
+    0%, 100% { box-shadow:0 0 4px rgba(31,179,99,0.5); }
+    50%      { box-shadow:0 0 12px rgba(31,179,99,0.95); }
+  }
+  .lf-control { display:flex; flex-direction:column; gap:2px;
+    font-size:9.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:0.2px; font-weight:600; }
+  .lf-control select { background:var(--navy2);
+    border:1px solid var(--border2); color:var(--text);
+    font-family:inherit; font-size:11.5px; padding:5px 7px;
+    border-radius:4px; min-width:90px; }
+  .lf-control.lf-checkbox { flex-direction:row; align-items:center;
+    gap:6px; text-transform:none; letter-spacing:0; font-size:11.5px;
+    color:var(--text); font-weight:600; cursor:pointer; }
+  .lf-control.lf-checkbox input { accent-color:var(--gold);
+    width:14px; height:14px; cursor:pointer; }
+  .lf-btn { background:var(--navy2); border:1px solid var(--border2);
+    color:var(--text); cursor:pointer; font-family:inherit;
+    font-size:11.5px; font-weight:600; padding:7px 12px;
+    border-radius:5px; transition:border-color .15s ease; }
+  .lf-btn:hover { border-color:var(--gold); color:var(--gold); }
+
+  /* ── Live Flow feed ── */
+  .lf-feed { background:var(--card); border:1px solid var(--line);
+    border-radius:7px; max-height:75vh; overflow-y:auto;
+    overscroll-behavior:contain; }
+  .lf-empty { font-size:12px; color:var(--muted);
+    padding:24px; text-align:center; font-style:italic; }
+  .lf-row { display:grid;
+    grid-template-columns:90px 70px 1fr 80px 70px 100px 60px;
+    align-items:center; gap:8px;
+    padding:8px 12px; font-size:11.5px; line-height:1.4;
+    border-bottom:1px solid var(--line);
+    font-variant-numeric:tabular-nums;
+    transition:background .25s ease, box-shadow .25s ease; }
+  .lf-row:hover { background:var(--rowhov); }
+  .lf-row-fresh { background:rgba(255,200,0,0.10);
+    box-shadow:inset 3px 0 0 var(--gold); }
+  .lf-row .lf-ts { color:var(--muted); font-size:10.5px;
+    font-variant-numeric:tabular-nums; }
+  .lf-row .lf-tk { font-weight:800; color:var(--text); cursor:pointer; }
+  .lf-row .lf-tk:hover { color:var(--gold); }
+  .lf-row .lf-contract { color:var(--textdim); font-size:11px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lf-row .lf-contract.lf-call { color:#9ee5b7; }
+  .lf-row .lf-contract.lf-put  { color:#f0a0a0; }
+  .lf-row .lf-contract small { color:var(--muted); font-size:9.5px;
+    margin-left:3px; }
+  .lf-row .lf-prem { font-weight:800; color:var(--text);
+    text-align:right; font-size:12.5px; }
+  .lf-row .lf-voi { color:var(--muted); font-size:10.5px;
+    text-align:right; }
+  .lf-row .lf-dir { font-weight:700; font-size:10.5px;
+    text-align:center; }
+  .lf-row .lf-iv { color:var(--muted); font-size:10.5px;
+    text-align:right; }
+  .lf-row .lf-bull .lf-dir, .lf-row.lf-bull .lf-dir { color:var(--green); }
+  .lf-row .lf-bear .lf-dir, .lf-row.lf-bear .lf-dir { color:var(--red); }
+  .lf-row.lf-bull { border-left:3px solid rgba(31,179,99,0.4); }
+  .lf-row.lf-bear { border-left:3px solid rgba(214,68,68,0.4); }
+  .lf-row.lf-mixed { border-left:3px solid var(--muted); }
+  .lf-foot { font-size:10.5px; color:var(--muted);
+    margin-top:8px; text-align:right; }
+  @media (max-width:900px) {
+    .lf-row { grid-template-columns:60px 1fr 80px;
+      grid-template-areas:
+        "ts tk prem"
+        "ts contract dir"
+        "ts voi iv"; }
+    .lf-row .lf-ts { grid-area:ts; }
+    .lf-row .lf-tk { grid-area:tk; }
+    .lf-row .lf-prem { grid-area:prem; }
+    .lf-row .lf-contract { grid-area:contract; }
+    .lf-row .lf-dir { grid-area:dir; text-align:right; }
+    .lf-row .lf-voi { grid-area:voi; text-align:left; }
+    .lf-row .lf-iv { grid-area:iv; text-align:right; }
+    .lf-toolbar { gap:6px; }
+    .lf-status { min-width:120px; font-size:10px; }
+  }
 
   .st { display:inline-block; font-size:9px; font-weight:700;
     border-radius:4px; padding:2px 6px; }
@@ -4660,6 +4763,9 @@
 
       <div class="uoa-subnav" id="uoa-subnav">
         <button data-sub="live" class="active">Latest Flow</button>
+        <button data-sub="liveflow">Live Feed
+          <span class="lf-pill-new" title="New near-live polling feed across top liquid names">NEW</span>
+        </button>
         <button data-sub="tracked">Tracked Signals</button>
         <button data-sub="perf">Performance</button>
       </div>
@@ -4860,6 +4966,64 @@
           </table>
         </div>
       </div><!-- /sub-tracked -->
+
+      <div class="uoa-sub" id="sub-liveflow" style="display:none" aria-hidden="true" inert>
+        <p class="uoa-subnote">
+          <b style="color:var(--gold)">Live Feed</b> &mdash; rolling
+          notable options flow across the top-50 liquid underlyings
+          (plus your watchlist). Polled every 60 seconds; new fills
+          flash gold for 3 seconds. <b>Data delayed 15 minutes</b>
+          (Polygon Options Starter license). True real-time per-print
+          streaming would require a Polygon Advanced upgrade.
+        </p>
+
+        <div class="lf-toolbar" id="lf-toolbar">
+          <div class="lf-status" id="lf-status">
+            <span class="lf-status-dot" id="lf-status-dot"></span>
+            <span id="lf-status-text">Initializing…</span>
+          </div>
+          <label class="lf-control">
+            <span>Min premium</span>
+            <select id="lf-min-premium">
+              <option value="500000">$500K</option>
+              <option value="1000000" selected>$1M</option>
+              <option value="2500000">$2.5M</option>
+              <option value="5000000">$5M</option>
+              <option value="10000000">$10M</option>
+            </select>
+          </label>
+          <label class="lf-control">
+            <span>Direction</span>
+            <select id="lf-direction">
+              <option value="">All</option>
+              <option value="bullish">Bullish only</option>
+              <option value="bearish">Bearish only</option>
+            </select>
+          </label>
+          <label class="lf-control lf-checkbox">
+            <input type="checkbox" id="lf-watchlist-only" />
+            <span>⭐ Watchlist only</span>
+          </label>
+          <label class="lf-control lf-checkbox">
+            <input type="checkbox" id="lf-audible" />
+            <span>🔔 Audible alerts</span>
+          </label>
+          <button class="lf-btn" id="lf-pause"
+            title="Pause / resume polling. Auto-pauses when the tab is backgrounded.">
+            ⏸ Pause
+          </button>
+          <button class="lf-btn" id="lf-clear"
+            title="Clear the on-screen feed (won't affect the next poll's results).">
+            Clear
+          </button>
+        </div>
+
+        <div class="lf-feed" id="lf-feed">
+          <div class="lf-empty">First poll incoming…</div>
+        </div>
+
+        <div class="lf-foot" id="lf-foot"></div>
+      </div><!-- /sub-liveflow -->
 
       <div class="uoa-sub" id="sub-perf" style="display:none" aria-hidden="true" inert>
         <p class="uoa-subnote">Realized edge attribution &mdash; which signal
@@ -18246,8 +18410,9 @@
       // hides visually, aria-hidden hides from screen readers, inert
       // removes from tab order AND blocks pointer/automation tools from
       // interacting (no more "ghost" Ticker input in the DOM).
-      ["live","tracked","perf"].forEach(function (s) {
+      ["live","liveflow","tracked","perf"].forEach(function (s) {
         const el = document.getElementById("sub-" + s);
+        if (!el) return;
         const active = (s === sub);
         el.style.display = active ? "" : "none";
         if (active) {
@@ -18264,7 +18429,228 @@
       if (sub === "perf") {
         loadScoredIfNeeded().then(renderPerf);
       }
+      if (sub === "liveflow") {
+        startLiveFlow();
+      } else {
+        stopLiveFlow();
+      }
     });
+
+    // ── Live Flow subtab ─────────────────────────────────────────────
+    // Polls /live-flow every 60s for notable options flow across the
+    // top-50 liquid universe + user watchlist. Auto-pauses when the
+    // tab is backgrounded (Page Visibility API). Tracks "seen" prints
+    // by contract+timestamp so the same fill doesn't re-flash on
+    // every poll. Opt-in audible alert + optional push for watchlist.
+    (function setupLiveFlow() {
+      const POLL_MS = 60_000;
+      const HIGHLIGHT_MS = 3_000;
+      const AUDIBLE_KEY = "td-lf-audible";
+      let timer = null;
+      let paused = false;
+      const seen = new Map();              // contract+ts → first-seen wall ms
+      let lastFeedSize = 0;
+
+      function $(id) { return document.getElementById(id); }
+      function fmtPrem(p) {
+        if (!p) return "$0";
+        if (p >= 1e9) return "$" + (p/1e9).toFixed(2) + "B";
+        if (p >= 1e6) return "$" + (p/1e6).toFixed(1) + "M";
+        return "$" + Math.round(p/1e3) + "K";
+      }
+      function fmtTs(ms) {
+        if (!ms) return "—";
+        const d = new Date(ms);
+        const p = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York", hour: "2-digit",
+          minute: "2-digit", second: "2-digit", hour12: false,
+        }).format(d);
+        return p + " ET";
+      }
+      function setStatus(state, text) {
+        const dot = $("lf-status-dot");
+        const txt = $("lf-status-text");
+        if (dot) dot.className = "lf-status-dot lf-status-" + state;
+        if (txt) txt.textContent = text;
+      }
+      // Audible alert — short web-audio beep, opt-in via checkbox.
+      let audioCtx = null;
+      function ding() {
+        if (!$("lf-audible") || !$("lf-audible").checked) return;
+        try {
+          audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.connect(g); g.connect(audioCtx.destination);
+          o.type = "sine"; o.frequency.value = 880;
+          g.gain.setValueAtTime(0, audioCtx.currentTime);
+          g.gain.linearRampToValueAtTime(0.18, audioCtx.currentTime + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35);
+          o.start(); o.stop(audioCtx.currentTime + 0.36);
+        } catch (_) { /* audio context blocked = silent fail */ }
+      }
+      // Build the request URL with current filter selections.
+      function buildUrl() {
+        const minPrem = $("lf-min-premium") ? $("lf-min-premium").value : "1000000";
+        const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+        let extra = "";
+        // Pass watchlist tickers as ?tickers= so the universe includes
+        // them even if they're outside the default top-50 liquid set.
+        if (wl.size) {
+          extra = "&tickers=" + Array.from(wl).join(",");
+        }
+        return WORKER_URL + "/?live-flow=1&min_premium=" + minPrem +
+          "&limit=80" + extra;
+      }
+      function renderFeed(flows) {
+        const feed = $("lf-feed");
+        const footEl = $("lf-foot");
+        if (!feed) return;
+        // Apply client-side filters (direction + watchlist-only) since
+        // they're cheaper to evaluate locally + responsive to changes.
+        const dir = $("lf-direction") ? $("lf-direction").value : "";
+        const wlOnly = $("lf-watchlist-only") && $("lf-watchlist-only").checked;
+        const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+        const filtered = (flows || []).filter(function (f) {
+          if (dir && f.direction !== dir) return false;
+          if (wlOnly && !wl.has(f.ticker)) return false;
+          return true;
+        });
+        if (!filtered.length) {
+          feed.innerHTML = '<div class="lf-empty">No flow over your ' +
+            'threshold in the last 90 minutes. Lower the min-premium ' +
+            'filter or wait for the next poll.</div>';
+          if (footEl) footEl.textContent = "0 flows · next poll in 60s";
+          lastFeedSize = 0;
+          return;
+        }
+        const now = Date.now();
+        const rows = filtered.map(function (f) {
+          // Stable key per fill: contract + last_trade_ts. If the same
+          // contract prints again with a different ts, it's a new row.
+          const key = f.contract + "|" + (f.last_trade_ts || 0);
+          const firstSeen = seen.get(key) || (seen.set(key, now), now);
+          const isFresh = (now - firstSeen) < HIGHLIGHT_MS;
+          const dirCls = f.direction === "bullish" ? "lf-bull"
+                       : f.direction === "bearish" ? "lf-bear" : "lf-mixed";
+          const dirArrow = f.direction === "bullish" ? "▲"
+                         : f.direction === "bearish" ? "▼" : "•";
+          const watched = wl.has(f.ticker);
+          return '<div class="lf-row ' + (isFresh ? "lf-row-fresh " : "") +
+            dirCls + '" data-key="' + key + '">' +
+            '<span class="lf-ts">' + fmtTs(f.last_trade_ts) + '</span>' +
+            '<span class="lf-tk" data-t="' + f.ticker + '">' +
+              (watched ? '★ ' : '') + f.ticker + '</span>' +
+            '<span class="lf-contract ' +
+              (f.type === "call" ? "lf-call" : "lf-put") + '">' +
+              (f.type || "?").toUpperCase() + ' $' + f.strike + ' ' +
+              f.expiry + ' <small>(' + f.dte + 'd)</small></span>' +
+            '<span class="lf-prem">' + fmtPrem(f.premium) + '</span>' +
+            '<span class="lf-voi">v/oi ' + f.vol_oi + '</span>' +
+            '<span class="lf-dir ' + dirCls + '">' + dirArrow + ' ' +
+              (f.direction || "mixed") + '</span>' +
+            (f.iv ? '<span class="lf-iv">IV ' +
+              Math.round((f.iv || 0) * 100) + '%</span>' : '') +
+            '</div>';
+        }).join("");
+        feed.innerHTML = rows;
+        // Schedule fresh-class removal so highlights fade out naturally
+        setTimeout(function () {
+          feed.querySelectorAll(".lf-row-fresh").forEach(function (el) {
+            el.classList.remove("lf-row-fresh");
+          });
+        }, HIGHLIGHT_MS);
+        // Audible only when new entries arrived (count grew)
+        if (filtered.length > lastFeedSize) ding();
+        lastFeedSize = filtered.length;
+        if (footEl) {
+          footEl.textContent = filtered.length + " flow" +
+            (filtered.length === 1 ? "" : "s") +
+            " · universe " + (flows ? flows.length : 0) + " unfiltered" +
+            " · polled " + new Date().toLocaleTimeString();
+        }
+      }
+      async function pollOnce() {
+        if (paused) return;
+        if (document.visibilityState !== "visible") {
+          setStatus("paused", "Auto-paused (tab backgrounded)");
+          return;
+        }
+        setStatus("polling", "Polling…");
+        try {
+          const r = await fetch(buildUrl(), { cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const d = await r.json();
+          renderFeed(d.flows || []);
+          setStatus("live", "Live · refreshed " +
+            new Date().toLocaleTimeString());
+        } catch (e) {
+          setStatus("error", "Error: " + (e.message || e));
+        }
+      }
+      function startLiveFlow() {
+        if (timer) return;     // already running
+        paused = false;
+        pollOnce();
+        timer = setInterval(pollOnce, POLL_MS);
+        setStatus("live", "Starting…");
+      }
+      function stopLiveFlow() {
+        if (timer) { clearInterval(timer); timer = null; }
+      }
+      // Expose for subnav switching.
+      window.__startLiveFlow = startLiveFlow;
+      window.__stopLiveFlow = stopLiveFlow;
+      // Page Visibility: pause when tab not in foreground.
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") {
+          // Resume on tab return ONLY if Live Feed subtab is active
+          const sf = $("sub-liveflow");
+          if (sf && sf.style.display !== "none" && !paused) pollOnce();
+        }
+      });
+      // Wire controls
+      const ms = $("lf-min-premium");
+      if (ms) ms.addEventListener("change", pollOnce);
+      const dr = $("lf-direction");
+      if (dr) dr.addEventListener("change", function () {
+        // Direction filter is client-side, so just re-render current data
+        // (the next poll will refetch anyway). For instant response we
+        // could store last response, but simpler to re-poll.
+        pollOnce();
+      });
+      const wo = $("lf-watchlist-only");
+      if (wo) wo.addEventListener("change", pollOnce);
+      const ad = $("lf-audible");
+      if (ad) {
+        try { ad.checked = localStorage.getItem(AUDIBLE_KEY) === "1"; }
+        catch (_) {}
+        ad.addEventListener("change", function () {
+          try { localStorage.setItem(AUDIBLE_KEY,
+            ad.checked ? "1" : "0"); } catch (_) {}
+          // Test sound immediately so user knows the toggle worked
+          if (ad.checked) ding();
+        });
+      }
+      const pb = $("lf-pause");
+      if (pb) pb.addEventListener("click", function () {
+        paused = !paused;
+        pb.textContent = paused ? "▶ Resume" : "⏸ Pause";
+        setStatus(paused ? "paused" : "live",
+          paused ? "Manually paused" : "Resuming…");
+        if (!paused) pollOnce();
+      });
+      const cb = $("lf-clear");
+      if (cb) cb.addEventListener("click", function () {
+        const feed = $("lf-feed");
+        if (feed) feed.innerHTML = '<div class="lf-empty">Feed cleared. ' +
+          'Next poll in 60s.</div>';
+        seen.clear();
+        lastFeedSize = 0;
+      });
+    })();
+    function startLiveFlow() { if (window.__startLiveFlow) window.__startLiveFlow(); }
+    function stopLiveFlow()  { if (window.__stopLiveFlow)  window.__stopLiveFlow(); }
 
     const TRK_COLS = [
       {k:"ticker",t:"Ticker"},{k:"flagged_at",t:"Flagged"},{k:"trade_score",t:"Score"},
