@@ -23,6 +23,7 @@ import os
 import sys
 import json
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from concurrent.futures import ThreadPoolExecutor
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -1001,7 +1002,7 @@ def _enrich_with_oi_history(rows):
     Then snapshots today's OI ONLY if the calendar date has advanced — so
     intraday scans don't overwrite end-of-day baseline with mid-day reads."""
     history = _load_oi_history()
-    et_today = datetime.now(tz=pytz.timezone("America/New_York")).date().isoformat()
+    et_today = datetime.now(tz=ZoneInfo("America/New_York")).date().isoformat()
     for r in rows:
         key = r.get("contract")
         if not key:
