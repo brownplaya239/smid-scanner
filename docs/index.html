@@ -5744,21 +5744,45 @@
       CURRENT_USER_EXPIRES_AT = null;
       return;
     }
+    // Wrap each query in a 6 sec timeout — the supabase-js client can
+    // stall indefinitely after a token refresh in some sessions, which
+    // used to leave the plan state stuck on "free" with no surfaced
+    // error. With per-call timeouts, a stall logs a warning and falls
+    // through with a graceful default.
+    const withTimeout = function (p, label) {
+      return new Promise(function (resolve) {
+        const t = setTimeout(function () {
+          console.warn("[plan] " + label + " timed out after 6s");
+          resolve({ data: null, error: { message: "timeout" } });
+        }, 6000);
+        Promise.resolve(p).then(function (r) {
+          clearTimeout(t); resolve(r);
+        }, function (err) {
+          clearTimeout(t); resolve({ data: null, error: err });
+        });
+      });
+    };
     try {
       const [planResp, c30Resp, cLtResp, expiresResp] = await Promise.all([
-        SUPA.rpc("get_user_plan"),
-        SUPA.rpc("report_count_30d"),
-        SUPA.rpc("report_count_lifetime"),
-        // Read subscription_expires_at directly — RLS limits to own row
-        SUPA.from("profiles")
-          .select("subscription_expires_at")
-          .eq("id", CURRENT_USER.id).single(),
+        withTimeout(SUPA.rpc("get_user_plan"),         "get_user_plan"),
+        withTimeout(SUPA.rpc("report_count_30d"),      "report_count_30d"),
+        withTimeout(SUPA.rpc("report_count_lifetime"), "report_count_lifetime"),
+        withTimeout(
+          SUPA.from("profiles")
+            .select("subscription_expires_at")
+            .eq("id", CURRENT_USER.id).single(),
+          "subscription_expires_at"
+        ),
       ]);
-      CURRENT_USER_PLAN = (planResp.data || "free");
-      REPORT_COUNT_30D = c30Resp.data || 0;
-      REPORT_COUNT_LIFETIME = cLtResp.data || 0;
-      CURRENT_USER_EXPIRES_AT = (expiresResp.data &&
-        expiresResp.data.subscription_expires_at) || null;
+      // Don't smash existing plan to "free" on timeout — keep the last
+      // known good value so a transient supabase stall doesn't visibly
+      // downgrade a paid user mid-session.
+      if (planResp && planResp.data) CURRENT_USER_PLAN = planResp.data;
+      if (c30Resp && c30Resp.data != null) REPORT_COUNT_30D = c30Resp.data;
+      if (cLtResp && cLtResp.data != null) REPORT_COUNT_LIFETIME = cLtResp.data;
+      if (expiresResp && expiresResp.data) {
+        CURRENT_USER_EXPIRES_AT = expiresResp.data.subscription_expires_at || null;
+      }
       // Expiry check — if a promo grant has lapsed, treat as free
       // until the next refreshPlanState confirms the user resubscribed
       // (Stripe webhook would clear expires_at when a real sub starts).
@@ -5787,6 +5811,44 @@
     "TEST69": { tier: "premium", days: 90,
                 label: "90-day Premium trial" },
   };
+  // Direct-REST helper — bypasses supabase-js (whose query layer hangs
+  // indefinitely in some session states after an auth-token refresh).
+  // Uses fetch + the user's live access_token, with a 6 sec hard timeout
+  // so a network stall fails loudly instead of hanging the UI forever.
+  async function tdSupaRestFetch(path, opts) {
+    if (!SUPA_URL || !SUPA_ANON) {
+      throw new Error("Supabase URL/key not configured.");
+    }
+    const sess = await getSessionSafe().catch(function () { return {}; });
+    const access = sess && sess.session && sess.session.access_token;
+    if (!access) throw new Error("No active session — sign in again.");
+    const ctrl = new AbortController();
+    const t = setTimeout(function () { ctrl.abort(); }, 6000);
+    try {
+      const res = await fetch(SUPA_URL + path, {
+        method: (opts && opts.method) || "GET",
+        headers: {
+          "apikey": SUPA_ANON,
+          "Authorization": "Bearer " + access,
+          "Content-Type": "application/json",
+          ...((opts && opts.headers) || {}),
+        },
+        body: opts && opts.body ? JSON.stringify(opts.body) : undefined,
+        signal: ctrl.signal,
+      });
+      const text = await res.text();
+      let parsed = null;
+      try { parsed = text ? JSON.parse(text) : null; } catch (e) {}
+      return { ok: res.ok, status: res.status, data: parsed, raw: text };
+    } catch (e) {
+      if (e.name === "AbortError") {
+        throw new Error("Server didn't respond in 6 sec.");
+      }
+      throw e;
+    } finally {
+      clearTimeout(t);
+    }
+  }
   window.tdRedeemPromo = async function (rawCode) {
     const code = (rawCode || "").trim().toUpperCase();
     if (!code) return { ok: false, error: "Enter a code." };
@@ -5795,51 +5857,68 @@
     if (!CURRENT_USER) {
       return { ok: false, error: "Sign in first to redeem a promo code." };
     }
-    if (!SUPA) {
-      return { ok: false, error: "Service unavailable." };
-    }
-    // Check if user already redeemed THIS code
+    // Check current profile state via direct REST
+    let prof = null;
     try {
-      const { data: prof, error: profErr } = await SUPA
-        .from("profiles")
-        .select("promo_code_redeemed, subscription_tier, " +
-                "subscription_expires_at")
-        .eq("id", CURRENT_USER.id).single();
-      if (profErr) throw profErr;
-      if (prof && prof.promo_code_redeemed === code) {
-        return { ok: false,
-                 error: "You've already redeemed " + code +
-                   ". Each code is valid once per account." };
+      const r = await tdSupaRestFetch(
+        "/rest/v1/profiles?id=eq." + encodeURIComponent(CURRENT_USER.id) +
+        "&select=promo_code_redeemed,subscription_tier," +
+        "subscription_expires_at",
+        { method: "GET" }
+      );
+      if (!r.ok) {
+        return { ok: false, error: "Couldn't read your profile (HTTP " +
+          r.status + "). Try signing out and back in." };
       }
-      // Only refuse if the promo would be a STRICT downgrade. Equal-tier
-      // or upgrade promos are always allowed (they extend or upgrade
-      // the existing benefit). Tier rank: free=0, pro=1, premium=2.
-      const TIER_RANK = { free: 0, pro: 1, premium: 2, beta: 3 };
-      const currentRank = TIER_RANK[prof && prof.subscription_tier] || 0;
-      const promoRank = TIER_RANK[promo.tier] || 0;
-      if (currentRank > promoRank) {
-        return { ok: false,
-                 error: "You're already on " +
-                   (prof.subscription_tier || "").toUpperCase() +
-                   ", which is a higher tier than this promo grants. " +
-                   "No upgrade applied." };
-      }
+      prof = (r.data && r.data[0]) || null;
     } catch (e) {
       return { ok: false, error: "Couldn't verify status: " +
         (e.message || e) };
     }
-    // Apply the upgrade
+    if (prof && prof.promo_code_redeemed === code) {
+      return { ok: false,
+               error: "You've already redeemed " + code +
+                 ". Each code is valid once per account." };
+    }
+    // Only refuse if the promo would be a STRICT downgrade. Equal-tier
+    // or upgrade promos are always allowed (they extend or upgrade
+    // the existing benefit). Tier rank: free=0, pro=1, premium=2.
+    const TIER_RANK = { free: 0, pro: 1, premium: 2, beta: 3 };
+    const currentRank = TIER_RANK[prof && prof.subscription_tier] || 0;
+    const promoRank = TIER_RANK[promo.tier] || 0;
+    if (currentRank > promoRank) {
+      return { ok: false,
+               error: "You're already on " +
+                 (prof.subscription_tier || "").toUpperCase() +
+                 ", which is a higher tier than this promo grants. " +
+                 "No upgrade applied." };
+    }
+    // Apply the upgrade via direct REST PATCH
     const expiresAt = new Date(Date.now() + promo.days * 86400000)
       .toISOString();
     try {
-      const { error } = await SUPA.from("profiles").update({
-        subscription_tier: promo.tier,
-        subscription_expires_at: expiresAt,
-        promo_code_redeemed: code,
-        promo_code_redeemed_at: new Date().toISOString(),
-      }).eq("id", CURRENT_USER.id);
-      if (error) throw error;
-      await refreshPlanState();
+      const r = await tdSupaRestFetch(
+        "/rest/v1/profiles?id=eq." + encodeURIComponent(CURRENT_USER.id),
+        { method: "PATCH",
+          headers: { "Prefer": "return=minimal" },
+          body: {
+            subscription_tier: promo.tier,
+            subscription_expires_at: expiresAt,
+            promo_code_redeemed: code,
+            promo_code_redeemed_at: new Date().toISOString(),
+          } }
+      );
+      if (!r.ok) {
+        return { ok: false, error: "Save failed (HTTP " + r.status + "): " +
+          (r.raw || "").slice(0, 140) };
+      }
+      // Best-effort refresh — bounded by its own timeout below
+      try { await refreshPlanState(); } catch (e) {}
+      // Even if refreshPlanState stalls, force the local state so the
+      // UI reflects the upgrade immediately (it'll re-confirm on next
+      // page load via the RPC).
+      CURRENT_USER_PLAN = promo.tier;
+      CURRENT_USER_EXPIRES_AT = expiresAt;
       return { ok: true,
                tier: promo.tier,
                days: promo.days,
@@ -9185,28 +9264,33 @@
           });
           const data = await resp.json();
           if (data.ok && data.url) {
-            // Best-effort: log intent so we can correlate Stripe events
+            // Best-effort intent log — FIRE AND FORGET. Awaiting this
+            // hangs forever in some session states (supabase-js client
+            // gets stuck after auth refresh) and blocks the redirect.
+            // The user's intent is captured by the Stripe checkout
+            // session itself; this row is just telemetry.
             if (SUPA && CURRENT_USER.email) {
               try {
-                await SUPA.from("email_signups").upsert(
+                SUPA.from("email_signups").upsert(
                   { email: CURRENT_USER.email,
                     source: "checkout_started_" + plan },
                   { onConflict: "email" }
-                );
+                ).then(function(){}, function(){});
               } catch (e) {}
             }
             window.location.href = data.url;
           } else {
             // Stripe not configured yet — fall back to email-capture stub
-            // so the upgrade intent doesn't get lost.
+            // so the upgrade intent doesn't get lost. Same fire-and-forget
+            // pattern as the success branch to avoid the supabase hang.
             console.warn("Stripe checkout error:", data.error);
             if (SUPA && CURRENT_USER.email) {
               try {
-                await SUPA.from("email_signups").upsert(
+                SUPA.from("email_signups").upsert(
                   { email: CURRENT_USER.email,
                     source: "upgrade_intent_" + plan },
                   { onConflict: "email" }
-                );
+                ).then(function(){}, function(){});
               } catch (e) {}
             }
             btn.textContent = "Recorded — we'll email you when ready";
