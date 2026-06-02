@@ -24,12 +24,27 @@ const REPO = "brownplaya239/smid-scanner";
  *  the intraday 5-min OHLC bars for the dashboard's candlestick cards. */
 async function fetchYahooQuote(sym) {
   const r2 = function (x) { return Math.round(x * 100) / 100; };
+  // Two parallel calls so we can derive a TRUSTWORTHY previous close.
+  //   1d/5m  → intraday bars + current regularMarketPrice (real-time
+  //            field, drives the spark + price display).
+  //   5d/1d  → 5 most-recent daily bars; bars[-2].close is yesterday's
+  //            real close. Yahoo's meta.chartPreviousClose / .previousClose
+  //            return stale/garbage values for some symbols (MRVL was
+  //            returning $219.43 vs. today's day-low of $252 — quote
+  //            engine cache out of sync). Trusting one field gave
+  //            +29% daily-return chips. Derive prev from the actual
+  //            daily history instead.
+  const sym2 = encodeURIComponent(sym);
+  const intradayUrl = "https://query1.finance.yahoo.com/v8/finance/chart/" +
+    sym2 + "?range=1d&interval=5m";
+  const dailyUrl    = "https://query1.finance.yahoo.com/v8/finance/chart/" +
+    sym2 + "?range=5d&interval=1d";
+  const headers = { "User-Agent": "Mozilla/5.0" };
   try {
-    const r = await fetch(
-      "https://query1.finance.yahoo.com/v8/finance/chart/" +
-        encodeURIComponent(sym) + "?range=1d&interval=5m",
-      { headers: { "User-Agent": "Mozilla/5.0" }, cf: { cacheTtl: 30 } }
-    );
+    const [r, rd] = await Promise.all([
+      fetch(intradayUrl, { headers: headers, cf: { cacheTtl: 30 } }),
+      fetch(dailyUrl,    { headers: headers, cf: { cacheTtl: 60 } }),
+    ]);
     if (!r.ok) return { symbol: sym, price: null, change: null, bars: [] };
     const j = await r.json();
     const res = j && j.chart && j.chart.result && j.chart.result[0];
@@ -37,8 +52,48 @@ async function fetchYahooQuote(sym) {
     if (!m) return { symbol: sym, price: null, change: null, bars: [] };
     const price = typeof m.regularMarketPrice === "number"
       ? m.regularMarketPrice : null;
-    const prev = m.chartPreviousClose || m.previousClose || null;
-    const change = (price != null && prev)
+    // Derive prev close from the daily-bars history. Take the close of
+    // the bar BEFORE the most-recent one (most-recent = today's
+    // partial-or-completed bar). Yahoo includes today as a bar in
+    // range=5d/interval=1d once the session opens.
+    let prev = null;
+    try {
+      if (rd.ok) {
+        const jd = await rd.json();
+        const resd = jd && jd.chart && jd.chart.result && jd.chart.result[0];
+        const qd = resd && resd.indicators
+                && resd.indicators.quote && resd.indicators.quote[0];
+        const closes = (qd && Array.isArray(qd.close)) ? qd.close : null;
+        if (closes && closes.length >= 2) {
+          // Walk back from the end skipping nulls (the current bar may
+          // not have closed yet — close[-1] could be null intraday).
+          // bars[-1] = today, bars[-2] = yesterday's real close.
+          for (let i = closes.length - 2; i >= 0; i--) {
+            if (typeof closes[i] === "number" && closes[i] > 0) {
+              prev = closes[i]; break;
+            }
+          }
+        }
+      }
+    } catch (_) { /* fall through to meta fallback below */ }
+    // Fallback to meta fields if the daily call failed entirely.
+    // (Better to display a possibly-stale change than a NaN chip.)
+    if (prev == null) {
+      prev = m.chartPreviousClose || m.previousClose || null;
+    }
+    // Sanity check: if "prev" is more than 25% away from today's range
+    // (and today HAS traded), it's almost certainly a stale-cache
+    // value from Yahoo. Skip the change calc rather than display +30%.
+    const dayLow  = typeof m.regularMarketDayLow  === "number" ? m.regularMarketDayLow  : null;
+    const dayHigh = typeof m.regularMarketDayHigh === "number" ? m.regularMarketDayHigh : null;
+    let prevSuspect = false;
+    if (prev != null && dayLow != null && dayHigh != null) {
+      const dayMid = (dayLow + dayHigh) / 2;
+      if (Math.abs(prev - dayMid) / dayMid > 0.25) {
+        prevSuspect = true;
+      }
+    }
+    const change = (price != null && prev != null && !prevSuspect)
       ? Math.round((price / prev - 1) * 10000) / 100 : null;
     let bars = [];
     const q = res.indicators && res.indicators.quote && res.indicators.quote[0];
@@ -62,7 +117,10 @@ async function fetchYahooQuote(sym) {
       && m.regularMarketTime > 0)
       ? m.regularMarketTime * 1000 : null;
     return { symbol: sym, price: price, change: change,
-             prevClose: prev, bars: bars,
+             prevClose: prevSuspect ? null : prev, bars: bars,
+             // Expose the suspect flag for client-side debugging
+             // (chip shows "—" instead of a wrong percentage)
+             prev_suspect: prevSuspect ? true : undefined,
              last_trade_ts: lastTradeMs
                ? new Date(lastTradeMs).toISOString() : null,
              source: "yahoo",
