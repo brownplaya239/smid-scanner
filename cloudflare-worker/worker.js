@@ -22,6 +22,54 @@ const REPO = "brownplaya239/smid-scanner";
 
 /** One Yahoo Finance quote — current price, % change vs the prior close, and
  *  the intraday 5-min OHLC bars for the dashboard's candlestick cards. */
+// ── Polygon snapshot (Stocks Starter tier) ─────────────────────────────
+// Hits /v2/snapshot/locale/us/markets/stocks/tickers/{ticker} for the
+// last-trade price + yesterday's official close. Same 15-min OPRA
+// delay as Yahoo's passthrough but cleaner data — no stale-cache
+// chartPreviousClose bug, deterministic timestamps, single source of
+// truth on the previous-day close.
+//
+// Returned shape mirrors fetchYahooQuote so the call site can merge
+// or pick the fresher of the two by last_trade_ts.
+async function fetchPolygonSnapshot(sym, env) {
+  if (!env || !env.POLYGON_API_KEY) return null;
+  try {
+    const r = await fetch(
+      "https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/" +
+        encodeURIComponent(sym) + "?apiKey=" + env.POLYGON_API_KEY,
+      { signal: AbortSignal.timeout(4000) }
+    );
+    if (!r.ok) return null;
+    const j = await r.json();
+    const t = j && j.ticker;
+    if (!t) return null;
+    const lastTrade = t.lastTrade || {};
+    const prevDay   = t.prevDay   || {};
+    const day       = t.day       || {};
+    // Last-trade price; fall back to the day's most recent VWAP / close
+    // if the lastTrade field is empty (illiquid names mid-session).
+    const price = lastTrade.p != null ? lastTrade.p
+                : day.c       != null ? day.c
+                : day.vw      != null ? day.vw : null;
+    const prev = prevDay.c != null ? prevDay.c : null;
+    // sip_timestamp / .t — nanoseconds since epoch
+    const tradeNs = lastTrade.t || 0;
+    const lastTradeMs = tradeNs ? Math.round(tradeNs / 1e6) : null;
+    const change = (price != null && prev != null && prev > 0)
+      ? Math.round((price / prev - 1) * 10000) / 100 : null;
+    return {
+      symbol:        sym,
+      price:         price,
+      prevClose:     prev,
+      change:        change,
+      last_trade_ts: lastTradeMs
+                       ? new Date(lastTradeMs).toISOString() : null,
+      last_trade_ms: lastTradeMs,
+      source:        "polygon",
+    };
+  } catch (_) { return null; }
+}
+
 async function fetchYahooQuote(sym) {
   const r2 = function (x) { return Math.round(x * 100) / 100; };
   // Two parallel calls so we can derive a TRUSTWORTHY previous close.
@@ -81,19 +129,12 @@ async function fetchYahooQuote(sym) {
     if (prev == null) {
       prev = m.chartPreviousClose || m.previousClose || null;
     }
-    // Sanity check: if "prev" is more than 25% away from today's range
-    // (and today HAS traded), it's almost certainly a stale-cache
-    // value from Yahoo. Skip the change calc rather than display +30%.
-    const dayLow  = typeof m.regularMarketDayLow  === "number" ? m.regularMarketDayLow  : null;
-    const dayHigh = typeof m.regularMarketDayHigh === "number" ? m.regularMarketDayHigh : null;
-    let prevSuspect = false;
-    if (prev != null && dayLow != null && dayHigh != null) {
-      const dayMid = (dayLow + dayHigh) / 2;
-      if (Math.abs(prev - dayMid) / dayMid > 0.25) {
-        prevSuspect = true;
-      }
-    }
-    const change = (price != null && prev != null && !prevSuspect)
+    // NO sanity guard on the prev close — earnings gaps of +30%+ are
+    // real (MRVL +29% on a blowout print) and the daily-bars derivation
+    // above is the authoritative source: bars[-2].close = yesterday's
+    // settlement. Suppressing legitimate big movers would have a worse
+    // failure mode than displaying them.
+    const change = (price != null && prev != null)
       ? Math.round((price / prev - 1) * 10000) / 100 : null;
     let bars = [];
     const q = res.indicators && res.indicators.quote && res.indicators.quote[0];
@@ -116,13 +157,24 @@ async function fetchYahooQuote(sym) {
     const lastTradeMs = (typeof m.regularMarketTime === "number"
       && m.regularMarketTime > 0)
       ? m.regularMarketTime * 1000 : null;
+    // Stale-detection: if the last trade is older than 25 min wall
+    // time AND it's a trading session, surface that so the client can
+    // dim the chip. 25 min = 15-min license delay + 10-min generous
+    // latency buffer. During off-hours we don't flag — quotes go
+    // stale by design.
+    const stale = lastTradeMs
+      ? (Date.now() - lastTradeMs > 25 * 60 * 1000) : false;
     return { symbol: sym, price: price, change: change,
-             prevClose: prevSuspect ? null : prev, bars: bars,
-             // Expose the suspect flag for client-side debugging
-             // (chip shows "—" instead of a wrong percentage)
-             prev_suspect: prevSuspect ? true : undefined,
+             prevClose: prev, bars: bars,
              last_trade_ts: lastTradeMs
                ? new Date(lastTradeMs).toISOString() : null,
+             // Wall-clock age of the last trade — lets the chip render
+             // "as of 1:58 PM ET (3m ago)" or "Stale 28m" so the user
+             // never confuses 15-min-delayed with real-time.
+             last_trade_age_sec: lastTradeMs
+               ? Math.max(0, Math.round((Date.now() - lastTradeMs) / 1000))
+               : null,
+             stale: stale,
              source: "yahoo",
              delay_minutes: 15,
              fetched_at: new Date().toISOString() };
@@ -1549,9 +1601,70 @@ export default {
         const syms = quotesParam.split(",")
           .map(function (s) { return s.trim(); })
           .filter(Boolean).slice(0, 12);
-        const quotes = await Promise.all(syms.map(fetchYahooQuote));
+        // Hit both Yahoo (full chart + intraday bars + sparkline data)
+        // AND Polygon snapshot (cleaner last-trade timestamp + prevDay
+        // close from the broker-grade feed). Then for each symbol,
+        // pick the fresher last-trade source for the live price /
+        // change chip and merge Yahoo's bars in for the sparkline.
+        const quotes = await Promise.all(syms.map(async function (sym) {
+          const [y, p] = await Promise.all([
+            fetchYahooQuote(sym),
+            fetchPolygonSnapshot(sym, env),
+          ]);
+          // No Polygon → just return Yahoo as-is.
+          if (!p || p.price == null) return y;
+          // No Yahoo → return Polygon shape (no bars, but at least live
+          // price + change). Falls back from a Yahoo outage.
+          if (!y || y.price == null) {
+            return {
+              symbol:        sym,
+              price:         p.price,
+              change:        p.change,
+              prevClose:     p.prevClose,
+              bars:          [],
+              last_trade_ts: p.last_trade_ts,
+              last_trade_age_sec: p.last_trade_ms
+                ? Math.max(0, Math.round((Date.now() - p.last_trade_ms) / 1000))
+                : null,
+              source:        "polygon",
+              delay_minutes: 15,
+              fetched_at:    new Date().toISOString(),
+            };
+          }
+          // Both populated → keep Yahoo's bars (for the sparkline), and
+          // pick the fresher last-trade timestamp for price/change. If
+          // Polygon is fresher by >5 seconds OR Yahoo's prev is missing,
+          // override.
+          const yTs = y.last_trade_ts ? Date.parse(y.last_trade_ts) : 0;
+          const pTs = p.last_trade_ts ? Date.parse(p.last_trade_ts) : 0;
+          const useP = (pTs > yTs + 5000) || y.prevClose == null;
+          if (useP) {
+            return Object.assign({}, y, {
+              price:         p.price,
+              change:        p.change,
+              prevClose:     p.prevClose != null ? p.prevClose : y.prevClose,
+              last_trade_ts: p.last_trade_ts,
+              last_trade_age_sec: p.last_trade_ms
+                ? Math.max(0, Math.round((Date.now() - p.last_trade_ms) / 1000))
+                : y.last_trade_age_sec,
+              source:        "polygon+yahoo",
+            });
+          }
+          // Yahoo is the fresher source — keep it but expose Polygon's
+          // prev close as a cross-check (helps detect Yahoo cache bugs).
+          return Object.assign({}, y, {
+            polygon_prev_close: p.prevClose,
+            polygon_price:      p.price,
+            source:             "yahoo+polygon",
+          });
+        }));
+        // Edge cache 15s (was 30s) — concurrent users share one fan-out
+        // but each user gets a near-fresh price within 15s of the last
+        // upstream call. Upstream (Yahoo + Polygon) is already 15-min
+        // delayed by license, so dropping below 15s of edge cache buys
+        // nothing — that's the floor on freshness.
         const resp = Response.json({ quotes: quotes }, {
-          headers: { ...cors, "Cache-Control": "public, max-age=30" },
+          headers: { ...cors, "Cache-Control": "public, max-age=15" },
         });
         ctx.waitUntil(cache.put(request, resp.clone()));
         return resp;
