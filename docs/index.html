@@ -12074,15 +12074,25 @@
       // Research + Alt-Data tabs are archive-driven (PDFs generated
       // on-demand by users). Stamp them with the manifest's most-recent
       // report timestamp so users can see how recent the archive is.
-      // Falls back to manifest.updated when no reports exist yet.
+      // Manifest entries only carry {file, label, ticker} — the date is
+      // embedded in the filename (ticker_CEVA_2026-06-01_2051.pdf), so
+      // parse it from there. Falls back to manifest.generated.
+      // ⚠ Old code did Date.parse(0) when fields were missing, which V8
+      // resolves to Jan 1, 2000 (not NaN) and silently stamped both
+      // panels as "2000-01-01 · 9000d ago · stale". Hence the bug.
       if (window.tdSetFreshness) {
+        const parseFromFile = function (file) {
+          const m2 = (file || "").match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+          if (!m2) return 0;
+          return Date.UTC(+m2[1], +m2[2] - 1, +m2[3], +m2[4], +m2[5]);
+        };
         const newest = ["adhoc", "alt-data"].reduce(function (best, k) {
           const list = reps[k] || [];
-          const t = list.length ? Date.parse(list[0].date || list[0].generated || 0) : 0;
+          const t = list.length ? parseFromFile(list[0].file) : 0;
           return t > best ? t : best;
         }, 0);
         const ts = newest ? new Date(newest).toISOString()
-                          : (m.updated || null);
+                          : (m.generated || null);
         if (ts) {
           window.tdSetFreshness("panel-adhoc",    ts, "post-close");
           window.tdSetFreshness("panel-alt-data", ts, "post-close");
