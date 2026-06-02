@@ -751,6 +751,17 @@
     font-size:11.5px; font-weight:600; cursor:pointer; }
   .pricing-hero .ph-manage:hover { border-color:var(--gold);
     color:var(--gold); }
+  /* Promo-grant expiry chip in the hero — gold dashed border so it
+     reads as "time-limited benefit" without alarming red. */
+  .pricing-hero .ph-promo { display:inline-block; margin-left:8px;
+    font-size:10.5px; font-weight:600; color:var(--gold);
+    background:rgba(212,160,23,0.10);
+    border:1px dashed rgba(212,160,23,0.5);
+    padding:2px 8px; border-radius:4px; cursor:help;
+    vertical-align:middle; }
+  @media (max-width:600px) {
+    .pricing-hero .ph-promo { display:block; margin:6px 0 0; }
+  }
 
   /* Promo code box on Pricing tab — between hero strip and tier cards */
   .promo-box { background:var(--card); border:1px solid var(--line);
@@ -1164,7 +1175,10 @@
      Reads from each panel's data source 'updated' / 'generated' field. */
   .freshness { font-size:10.5px; color:var(--muted); margin-top:-4px;
     margin-bottom:14px; display:flex; align-items:center; gap:8px;
-    line-height:1.4; font-variant-numeric:tabular-nums; }
+    line-height:1.4; font-variant-numeric:tabular-nums;
+    /* S-12: wrap on narrow phones so the dot · stamp · ago · character ·
+       (?) chain doesn't overflow / clip at 320-390px widths. */
+    flex-wrap:wrap; row-gap:2px; }
   .freshness .fr-dot { width:7px; height:7px; border-radius:50%;
     background:var(--muted); flex-shrink:0;
     box-shadow:0 0 0 0 currentColor; }
@@ -3600,6 +3614,16 @@
     overscroll-behavior:contain; }
   .lf-empty { font-size:12px; color:var(--muted);
     padding:24px; text-align:center; font-style:italic; }
+  .lf-reset-btn { margin-top:12px; background:var(--gold);
+    color:var(--accink); border:0; border-radius:5px;
+    padding:7px 16px; font-size:11.5px; font-weight:700;
+    font-family:inherit; cursor:pointer; font-style:normal;
+    min-height:36px; }
+  .lf-reset-btn:hover { filter:brightness(1.06); }
+  /* Trade-log P&L delayed-quote caveat — tiny inline so the user never
+     reads the % as a real-time fill mark. */
+  .tl-delay-note { font-size:8.5px; font-weight:500; color:var(--muted);
+    text-transform:none; letter-spacing:0; }
   .lf-row { display:grid;
     grid-template-columns:90px 70px 1fr 80px 86px 70px 100px 60px;
     align-items:center; gap:8px;
@@ -4014,6 +4038,17 @@
   @media (max-width:900px) {
     table.uoa td.uoa-tags-cell { min-width:160px; max-width:200px; }
     .uoa-pill { font-size:8px; padding:0 4px; }
+  }
+  /* F-29: keyboard focus-visible ring. iOS Safari + some custom
+     controls lose the default outline; restore a consistent gold ring
+     for keyboard users without showing it on mouse/touch clicks
+     (:focus-visible only fires for keyboard navigation). */
+  a:focus-visible, button:focus-visible, input:focus-visible,
+  select:focus-visible, textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline:2px solid var(--gold);
+    outline-offset:2px;
+    border-radius:3px;
   }
   /* Stacked absolute-time + relative-ago for the Print column.
      Top row = MM/DD, middle = HH:MM:SS ET (most prominent — matches
@@ -8202,7 +8237,7 @@
         '<th title="Your entry price per share.">Entry</th>' +
         '<th title="Number of shares.">Qty</th>' +
         '<th title="Profit / loss percentage vs the current price (delayed 15m). Computed only for buy / signal-acted entries.">' +
-          'P&amp;L%</th>' +
+          'P&amp;L% <span class="tl-delay-note">(delayed 15m)</span></th>' +
         '<th title="Your free-text notes — thesis, source signal, exit plan, etc. Sanitized via escapeHtml to prevent XSS.">' +
           'Notes</th>' +
         '<th></th></tr></thead>';
@@ -9611,11 +9646,30 @@
       const tierLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
       const tierCls = "ph-" + plan;
       const isPaid = plan !== "free";
+      // Promo-grant callout: if the paid tier came from a promo code
+      // (subscription_expires_at is set — a real Stripe sub leaves it
+      // null until cancellation), surface the expiry date so the user
+      // knows their access is time-limited and isn't surprised when it
+      // lapses. CURRENT_USER_EXPIRES_AT is set by refreshPlanState.
+      let promoChip = "";
+      if (isPaid && CURRENT_USER_EXPIRES_AT) {
+        const exp = Date.parse(CURRENT_USER_EXPIRES_AT);
+        if (!isNaN(exp) && exp > Date.now()) {
+          const expStr = new Date(exp).toLocaleDateString([], {
+            month: "short", day: "numeric", year: "numeric" });
+          const daysLeft = Math.ceil((exp - Date.now()) / 86400000);
+          promoChip = '<span class="ph-promo" title="' +
+            'Your ' + tierLabel + ' access was granted by a promo code ' +
+            'and expires on ' + expStr + '. Subscribe before then to ' +
+            'keep it.">🎁 Promo ' + tierLabel + ' — expires ' + expStr +
+            ' (' + daysLeft + 'd left)</span>';
+        }
+      }
       el.innerHTML =
         '<div class="ph-left">Signed in as <b>' +
           (user.email || "you") + '</b>. Current plan: ' +
           '<span class="ph-tier ' + tierCls + '">⭐ ' + tierLabel +
-          '</span></div>' +
+          '</span>' + promoChip + '</div>' +
         (isPaid
           ? '<button class="ph-manage" data-pt-action="manage-billing">' +
             'Manage billing</button>'
@@ -19037,7 +19091,19 @@
         if (!filtered.length) {
           feed.innerHTML = '<div class="lf-empty">No flow matching your ' +
             'filters in the last 90 minutes. Try lowering Min premium, ' +
-            'dropping Min vol/OI to 1×, or clearing the Tier filter.</div>';
+            'dropping Min vol/OI to 1×, or clearing the Tier filter.' +
+            '<br><button class="lf-reset-btn" id="lf-reset-filters" ' +
+            'type="button">Reset filters</button></div>';
+          // One-click reset back to the permissive defaults + re-poll.
+          const rb = document.getElementById("lf-reset-filters");
+          if (rb) rb.addEventListener("click", function () {
+            if ($("lf-min-premium")) $("lf-min-premium").value = "100000";
+            if ($("lf-min-vol-oi"))  $("lf-min-vol-oi").value  = "2.0";
+            if ($("lf-tier"))        $("lf-tier").value        = "";
+            if ($("lf-direction"))   $("lf-direction").value   = "";
+            if ($("lf-watchlist-only")) $("lf-watchlist-only").checked = false;
+            pollOnce();
+          });
           if (footEl) footEl.textContent = "0 flows · next poll in 60s";
           lastFeedSize = 0;
           return;
