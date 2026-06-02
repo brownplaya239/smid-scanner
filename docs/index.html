@@ -18883,9 +18883,13 @@
       function fmtTs(ms) {
         if (!ms) return "—";
         const d = new Date(ms);
+        // NYC standard format — 12-hour clock with AM/PM. America/New_York
+        // auto-switches between EST (UTC-5, winter) and EDT (UTC-4,
+        // summer) so the "ET" label stays correct year-round without
+        // a manual EST/EDT toggle.
         const p = new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/New_York", hour: "2-digit",
-          minute: "2-digit", second: "2-digit", hour12: false,
+          timeZone: "America/New_York", hour: "numeric",
+          minute: "2-digit", second: "2-digit", hour12: true,
         }).format(d);
         return p + " ET";
       }
