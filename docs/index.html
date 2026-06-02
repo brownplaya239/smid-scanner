@@ -2016,6 +2016,16 @@
   .desk-card.span2 { grid-column:1 / -1; }
   /* Stack two cards in a single grid cell (Calendar + Earnings combo) */
   .desk-stack { display:grid; gap:14px; align-content:start; }
+  /* Side-by-side pair — full-width row, two equal halves. Used for
+     Top Bullish / Top Bearish so they always render left/right as a
+     symmetric pair regardless of the card count above. Collapses to
+     a single column at the same breakpoint as .desk-grid. */
+  .desk-pair { grid-column:1 / -1;
+    display:grid; grid-template-columns:1fr 1fr; gap:14px;
+    align-items:start; }
+  @media (max-width:900px) {
+    .desk-pair { grid-template-columns:1fr; }
+  }
 
   /* Economic calendar rows (Today's Desk card) */
   .cal-row { display:grid;
@@ -14592,7 +14602,25 @@
       const holidayAdj = gapLabel ? 48 : 0;  // +2 days slack per closure
       let prefix, cls;
       if (character === "post-close") {
-        if (isToday)                       { prefix = "Post-close";  cls = "fresh"; }
+        // Time-of-day-aware prefix: a batch generated at 8:28 AM ET on
+        // a trading day is a PRE-OPEN refresh, not "post-close" — the
+        // old label read as wrong-or-stale to users even when the data
+        // itself was fresh. Bin by ET hour: <12 = pre-open,
+        // 12-16 = intraday, ≥16 = post-close.
+        // For non-today data the cadence is what matters more than
+        // the hour, so the "Prior close" wording stays accurate.
+        const etHour = (function () {
+          try {
+            return parseInt(dt.toLocaleString("en-US", {
+              timeZone: "America/New_York", hour: "numeric",
+              hour12: false }), 10);
+          } catch (_) { return null; }
+        })();
+        const todayPrefix = etHour == null   ? "Latest"
+                          : etHour < 12      ? "Pre-open"
+                          : etHour < 16      ? "Intraday"
+                                              : "Post-close";
+        if (isToday)                       { prefix = todayPrefix;   cls = "fresh"; }
         else if (isYest)                   { prefix = "Prior close"; cls = "current"; }
         else if (ageH < 72 + holidayAdj)   { prefix = "Prior close"; cls = "current"; }
         else                                { prefix = "Outdated";   cls = "old"; }
@@ -16427,6 +16455,17 @@
             cardCalendar(cal, today) +
             cardEarnings(uoaMeta, today) +
           '</div>';
+        // Wrap Top Bullish + Top Bearish in a forced 2-col row so they
+        // always render left/right as a symmetric pair. Without this,
+        // the auto-flow of the 2-col grid puts them in arbitrary
+        // columns based on the parity of preceding cards (Top Bullish
+        // ended up right-of-Themes, Top Bearish alone on the next row
+        // — visually asymmetric and harder to compare).
+        const topBullBearRow =
+          '<div class="desk-pair">' +
+            cardTopBullish(ctx, swing, uoa) +
+            cardTopBearish(ctx, swing, uoa) +
+          '</div>';
         grid.innerHTML = [
           cardWhatChangedToday(swing, uoa),
           cardActionList(ctx, swing, uoa, uoaMeta, today),
@@ -16437,8 +16476,7 @@
           cardBreakouts(swing, uoaMeta),
           calEarnStack,
           cardThemes(swing),
-          cardTopBullish(ctx, swing, uoa),
-          cardTopBearish(ctx, swing, uoa),
+          topBullBearRow,
         ].join("");
         // Kick off live-quote hydration in the background. Once each
         // batch of /quotes lands, hydrateDeskLiveQuotes() walks the
