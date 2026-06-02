@@ -5783,6 +5783,40 @@
       if (expiresResp && expiresResp.data) {
         CURRENT_USER_EXPIRES_AT = expiresResp.data.subscription_expires_at || null;
       }
+      // Promo-grant override: get_user_plan() RPC only returns 'pro' or
+      // 'premium' for active Stripe subscriptions. Promo-code grants
+      // (subscription_tier + subscription_expires_at written by
+      // tdRedeemPromo) don't register through the RPC, so the user
+      // would otherwise see themselves as 'free' despite a valid promo.
+      // Read the profile directly via REST and honor it when the
+      // expires_at is still in the future. Bypass supabase-js (which
+      // can hang) by using tdSupaRestFetch.
+      try {
+        const profileResp = await tdSupaRestFetch(
+          "/rest/v1/profiles?id=eq." + encodeURIComponent(CURRENT_USER.id) +
+          "&select=subscription_tier,subscription_expires_at"
+        );
+        const p = profileResp && profileResp.data && profileResp.data[0];
+        if (p && p.subscription_tier && p.subscription_tier !== "free") {
+          const exp = p.subscription_expires_at
+            ? Date.parse(p.subscription_expires_at) : null;
+          if (!exp || isNaN(exp) || exp > Date.now()) {
+            // Profile shows a paid/promo tier and it's not expired —
+            // take it as the source of truth (the RPC may have undershot).
+            const TIER_RANK = { free: 0, pro: 1, premium: 2, beta: 3 };
+            const rpcRank = TIER_RANK[CURRENT_USER_PLAN] || 0;
+            const profRank = TIER_RANK[p.subscription_tier] || 0;
+            if (profRank > rpcRank) {
+              CURRENT_USER_PLAN = p.subscription_tier;
+            }
+            if (p.subscription_expires_at) {
+              CURRENT_USER_EXPIRES_AT = p.subscription_expires_at;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Profile override read failed:", e && e.message);
+      }
       // Expiry check — if a promo grant has lapsed, treat as free
       // until the next refreshPlanState confirms the user resubscribed
       // (Stripe webhook would clear expires_at when a real sub starts).
