@@ -3586,12 +3586,42 @@
     font-variant-numeric:tabular-nums; }
   .lf-row .lf-tk { font-weight:800; color:var(--text); cursor:pointer; }
   .lf-row .lf-tk:hover { color:var(--gold); }
-  .lf-row .lf-contract { color:var(--textdim); font-size:11px;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .lf-row .lf-contract.lf-call { color:#9ee5b7; }
-  .lf-row .lf-contract.lf-put  { color:#f0a0a0; }
-  .lf-row .lf-contract small { color:var(--muted); font-size:9.5px;
-    margin-left:3px; }
+  /* Contract cell — two-line stack so the side / strike / expiry /
+     DTE each get their own visual weight instead of mushing into one
+     truncated line. Top row: side pill + strike (the trade identity).
+     Bottom row: weekday + abbreviated date + DTE chip. */
+  .lf-row .lf-contract { display:flex; flex-direction:column;
+    align-items:flex-start; gap:2px; line-height:1.25;
+    overflow:hidden; min-width:0; }
+  .lf-row .lf-c-top, .lf-row .lf-c-bot {
+    display:inline-flex; align-items:center; gap:6px; min-width:0;
+    max-width:100%; }
+  .lf-c-side { display:inline-block; font-size:9.5px; font-weight:800;
+    letter-spacing:0.4px; padding:1px 5px; border-radius:3px;
+    background:transparent; border:1px solid currentColor;
+    line-height:1.3; }
+  .lf-c-strike { font-size:13px; font-weight:800; color:var(--text); }
+  .lf-c-exp { font-size:10.5px; color:var(--textdim);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-variant-numeric:tabular-nums; }
+  .lf-c-dte { font-size:9.5px; font-weight:700;
+    padding:1px 5px; border-radius:3px;
+    background:rgba(255,255,255,0.06); color:var(--textdim);
+    letter-spacing:0.2px; line-height:1.3; }
+  /* DTE urgency colors — 0d = today (gamma risk), 1-7d = this week
+     (weeklies), 8-45d = normal swing flow, 46d+ = longer-dated. */
+  .lf-c-dte.lf-dte-today    { background:rgba(214,68,68,0.20);
+    color:#ff9b9b; }
+  .lf-c-dte.lf-dte-thisweek { background:rgba(255,184,77,0.18);
+    color:#ffd28a; }
+  .lf-c-dte.lf-dte-leap     { background:rgba(125,211,252,0.14);
+    color:#a8def0; }
+  .lf-row .lf-contract.lf-call .lf-c-side { color:#7ddfa1;
+    background:rgba(31,179,99,0.10); }
+  .lf-row .lf-contract.lf-put  .lf-c-side { color:#f08585;
+    background:rgba(214,68,68,0.10); }
+  .lf-row .lf-contract.lf-call .lf-c-strike { color:#caf4d8; }
+  .lf-row .lf-contract.lf-put  .lf-c-strike { color:#f6cccc; }
   .lf-row .lf-prem { font-weight:800; color:var(--text);
     text-align:right; font-size:12.5px; }
   /* Per-contract cost — stacked $/share over $/lot. The lot figure
@@ -18918,6 +18948,37 @@
             if (t === "unusual") return '<span class="lf-tier lf-tier-unusual" title="Vol/OI ≥ 5× — small-cap edge: new positioning vs. existing OI">📈 Unusual</span>';
             return '<span class="lf-tier lf-tier-active" title="Day flow worth a glance">· Active</span>';
           })(f.tier);
+          // Format the contract cell as a two-line stack:
+          //   [PUT pill] [$200 strike]            ← top: identity
+          //    Fri, Jun 5  [3d urgency chip]      ← bottom: timing
+          // …instead of the cramped "PUT $200 2026-06-05 (3d)" one-line
+          // run that truncated on smaller widths.
+          const expIso = f.expiry || "";
+          const expFmt = (function () {
+            if (!expIso) return "";
+            // Build a JS Date at 4pm ET on the expiry day so the day-of-week
+            // computation lines up with the actual settlement day.
+            const d = new Date(expIso + "T16:00:00-04:00");
+            if (isNaN(d.getTime())) return expIso;
+            const wd  = d.toLocaleDateString("en-US",
+              { timeZone: "America/New_York", weekday: "short" });
+            const mo  = d.toLocaleDateString("en-US",
+              { timeZone: "America/New_York", month: "short" });
+            const day = d.toLocaleDateString("en-US",
+              { timeZone: "America/New_York", day: "numeric" });
+            const yr  = d.getUTCFullYear();
+            const thisYr = new Date().getUTCFullYear();
+            // "Fri, Jun 5" for this year, "Fri, Jun 5 '27" for next year +
+            // (covers LEAPS without taking another full line).
+            return wd + ", " + mo + " " + day +
+              (yr !== thisYr ? " '" + String(yr).slice(2) : "");
+          })();
+          const dteCls = f.dte === 0  ? "lf-dte-today"
+                       : f.dte <= 7   ? "lf-dte-thisweek"
+                       : f.dte >= 90  ? "lf-dte-leap"
+                                       : "";
+          const sideTxt = (f.type || "?").toUpperCase();
+          const strikeTxt = "$" + (f.strike != null ? f.strike : "?");
           return '<div class="lf-row ' + (isFresh ? "lf-row-fresh " : "") +
             dirCls + ' lf-row-' + (f.tier || "active") +
             '" data-key="' + key + '">' +
@@ -18926,9 +18987,19 @@
             '<span class="lf-tk" data-t="' + f.ticker + '">' +
               (watched ? '★ ' : '') + f.ticker + '</span>' +
             '<span class="lf-contract ' +
-              (f.type === "call" ? "lf-call" : "lf-put") + '">' +
-              (f.type || "?").toUpperCase() + ' $' + f.strike + ' ' +
-              f.expiry + ' <small>(' + f.dte + 'd)</small></span>' +
+              (f.type === "call" ? "lf-call" : "lf-put") + '"' +
+              ' title="' + sideTxt + ' ' + strikeTxt + ' expiring ' +
+              expIso + ' (' + f.dte + ' days)">' +
+              '<span class="lf-c-top">' +
+                '<span class="lf-c-side">' + sideTxt + '</span>' +
+                '<span class="lf-c-strike">' + strikeTxt + '</span>' +
+              '</span>' +
+              '<span class="lf-c-bot">' +
+                '<span class="lf-c-exp">' + expFmt + '</span>' +
+                '<span class="lf-c-dte ' + dteCls + '">' +
+                  f.dte + 'd' + '</span>' +
+              '</span>' +
+            '</span>' +
             '<span class="lf-prem">' + fmtPrem(f.premium) + '</span>' +
             costHtml +
             '<span class="lf-voi">v/oi ' + f.vol_oi + '</span>' +
