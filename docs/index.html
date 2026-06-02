@@ -3616,6 +3616,25 @@
   .lf-row.lf-bull { border-left:3px solid rgba(31,179,99,0.4); }
   .lf-row.lf-bear { border-left:3px solid rgba(214,68,68,0.4); }
   .lf-row.lf-mixed { border-left:3px solid var(--muted); }
+  /* Tier badges — one per row, color-coded so a trader can sort by
+     "kind of unusual" in a glance. Golden / Big are loud; Unusual is
+     the small-cap edge (matches batch UOA's vol-OI conviction); Active
+     is the catch-all for day flow worth a glance. */
+  .lf-tier { display:inline-flex; align-items:center; gap:3px;
+    font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;
+    line-height:1; white-space:nowrap; letter-spacing:0.2px; }
+  .lf-tier-golden  { background:#3d2c08; color:#ffd166;
+    border:1px solid rgba(255,209,102,0.4); }
+  .lf-tier-big     { background:#3b1f1f; color:#ff6b6b;
+    border:1px solid rgba(255,107,107,0.4); }
+  .lf-tier-unusual { background:#1c2e3f; color:#7dd3fc;
+    border:1px solid rgba(125,211,252,0.4); }
+  .lf-tier-active  { background:transparent; color:var(--muted);
+    border:1px solid rgba(255,255,255,0.1); }
+  /* Subtle accent on golden/unusual rows so the eye finds the smid-cap
+     edge in a busy feed without it competing with the bull/bear border. */
+  .lf-row.lf-row-golden  { background:rgba(255,209,102,0.04); }
+  .lf-row.lf-row-unusual { background:rgba(125,211,252,0.03); }
   .lf-foot { font-size:10.5px; color:var(--muted);
     margin-top:8px; text-align:right; }
   @media (max-width:900px) {
@@ -4990,11 +5009,21 @@
       <div class="uoa-sub" id="sub-liveflow" style="display:none" aria-hidden="true" inert>
         <p class="uoa-subnote">
           <b style="color:var(--gold)">Live Feed</b> &mdash; rolling
-          notable options flow across the top-50 liquid underlyings
-          (plus your watchlist). Polled every 60 seconds; new fills
-          flash gold for 3 seconds. <b>Data delayed 15 minutes</b>
-          (Polygon Options Starter license). True real-time per-print
-          streaming would require a Polygon Advanced upgrade.
+          notable options flow across <b>~180 liquid optionables</b>
+          (mega-caps PLUS the SMID / high-beta cohort where UOA edge
+          lives, plus your watchlist). A fill surfaces if its premium
+          clears <b>Min premium</b> <i>OR</i> its volume / open-interest
+          ratio clears <b>Min vol/OI</b> &mdash; so a $80K bet on a
+          $3B mcap that's 12&times; the existing OI shows up alongside
+          NVDA's $5M sweeps. Each row is tagged
+          <span class="lf-tier lf-tier-golden">🥇 Golden</span>
+          <span class="lf-tier lf-tier-big">🔥 Big</span>
+          <span class="lf-tier lf-tier-unusual">📈 Unusual</span>
+          or <span class="lf-tier lf-tier-active">· Active</span>.
+          Polled every 60 sec; new fills flash gold for 3 sec.
+          <b>Data delayed 15 minutes</b> (Polygon Options Starter
+          license). True per-print streaming would need a Polygon
+          Advanced upgrade.
         </p>
 
         <div class="lf-toolbar" id="lf-toolbar">
@@ -5002,14 +5031,36 @@
             <span class="lf-status-dot" id="lf-status-dot"></span>
             <span id="lf-status-text">Initializing…</span>
           </div>
-          <label class="lf-control">
+          <label class="lf-control"
+            title="Either-or threshold with vol/OI: a fill passes if its premium clears this OR its volume/open-interest ratio clears the next selector. Default $100K matches the batch UOA screen.">
             <span>Min premium</span>
             <select id="lf-min-premium">
+              <option value="50000">$50K</option>
+              <option value="100000" selected>$100K</option>
+              <option value="250000">$250K</option>
               <option value="500000">$500K</option>
-              <option value="1000000" selected>$1M</option>
+              <option value="1000000">$1M</option>
               <option value="2500000">$2.5M</option>
-              <option value="5000000">$5M</option>
-              <option value="10000000">$10M</option>
+            </select>
+          </label>
+          <label class="lf-control"
+            title="Volume-to-Open-Interest ratio — a single day's volume exceeding this much of the existing open interest means new positioning, not just churn. Default 2× matches the batch UOA screen. 5× = textbook unusual.">
+            <span>Min vol/OI</span>
+            <select id="lf-min-vol-oi">
+              <option value="1.0">1×</option>
+              <option value="2.0" selected>2×</option>
+              <option value="3.0">3×</option>
+              <option value="5.0">5×</option>
+              <option value="10.0">10×</option>
+            </select>
+          </label>
+          <label class="lf-control">
+            <span>Tier</span>
+            <select id="lf-tier">
+              <option value="">All</option>
+              <option value="golden">🥇 Golden only</option>
+              <option value="big">🔥 Big sweep only</option>
+              <option value="unusual">📈 Unusual ratio only</option>
             </select>
           </label>
           <label class="lf-control">
@@ -18787,35 +18838,39 @@
       }
       // Build the request URL with current filter selections.
       function buildUrl() {
-        const minPrem = $("lf-min-premium") ? $("lf-min-premium").value : "1000000";
+        const minPrem  = $("lf-min-premium") ? $("lf-min-premium").value : "100000";
+        const minVolOi = $("lf-min-vol-oi")  ? $("lf-min-vol-oi").value  : "2.0";
         const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
         let extra = "";
         // Pass watchlist tickers as ?tickers= so the universe includes
-        // them even if they're outside the default top-50 liquid set.
+        // them even if they're outside the default ~180-name set.
         if (wl.size) {
           extra = "&tickers=" + Array.from(wl).join(",");
         }
         return WORKER_URL + "/?live-flow=1&min_premium=" + minPrem +
-          "&limit=80" + extra;
+          "&min_vol_oi=" + minVolOi + "&limit=120" + extra;
       }
       function renderFeed(flows) {
         const feed = $("lf-feed");
         const footEl = $("lf-foot");
         if (!feed) return;
-        // Apply client-side filters (direction + watchlist-only) since
-        // they're cheaper to evaluate locally + responsive to changes.
+        // Apply client-side filters (direction + tier + watchlist-only)
+        // since they're cheaper to evaluate locally + responsive to
+        // changes without re-polling.
         const dir = $("lf-direction") ? $("lf-direction").value : "";
+        const tierFilter = $("lf-tier") ? $("lf-tier").value : "";
         const wlOnly = $("lf-watchlist-only") && $("lf-watchlist-only").checked;
         const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
         const filtered = (flows || []).filter(function (f) {
           if (dir && f.direction !== dir) return false;
+          if (tierFilter && f.tier !== tierFilter) return false;
           if (wlOnly && !wl.has(f.ticker)) return false;
           return true;
         });
         if (!filtered.length) {
-          feed.innerHTML = '<div class="lf-empty">No flow over your ' +
-            'threshold in the last 90 minutes. Lower the min-premium ' +
-            'filter or wait for the next poll.</div>';
+          feed.innerHTML = '<div class="lf-empty">No flow matching your ' +
+            'filters in the last 90 minutes. Try lowering Min premium, ' +
+            'dropping Min vol/OI to 1×, or clearing the Tier filter.</div>';
           if (footEl) footEl.textContent = "0 flows · next poll in 60s";
           lastFeedSize = 0;
           return;
@@ -18853,9 +18908,21 @@
               '</span>'
             : '<span class="lf-cost-na" title="' +
               'Price unavailable on this fill">&mdash;</span>';
+          // Tier badge — the "what KIND of unusual" pill. Surfaces the
+          // small-cap UOA edge that used to be invisible behind the $1M
+          // floor: a 12× vol/OI fill on a $3B mcap gets "📈 Unusual"
+          // even if the premium is only $80K.
+          const tierBadge = (function (t) {
+            if (t === "golden")  return '<span class="lf-tier lf-tier-golden"  title="Premium ≥ $250K + vol/OI ≥ 5× + DTE ≤ 45 — textbook UOA">🥇 Golden</span>';
+            if (t === "big")     return '<span class="lf-tier lf-tier-big"     title="Premium ≥ $1M — classic mega-cap institutional sweep">🔥 Big</span>';
+            if (t === "unusual") return '<span class="lf-tier lf-tier-unusual" title="Vol/OI ≥ 5× — small-cap edge: new positioning vs. existing OI">📈 Unusual</span>';
+            return '<span class="lf-tier lf-tier-active" title="Day flow worth a glance">· Active</span>';
+          })(f.tier);
           return '<div class="lf-row ' + (isFresh ? "lf-row-fresh " : "") +
-            dirCls + '" data-key="' + key + '">' +
+            dirCls + ' lf-row-' + (f.tier || "active") +
+            '" data-key="' + key + '">' +
             '<span class="lf-ts">' + fmtTs(f.last_trade_ts) + '</span>' +
+            tierBadge +
             '<span class="lf-tk" data-t="' + f.ticker + '">' +
               (watched ? '★ ' : '') + f.ticker + '</span>' +
             '<span class="lf-contract ' +
@@ -18882,9 +18949,21 @@
         if (filtered.length > lastFeedSize) ding();
         lastFeedSize = filtered.length;
         if (footEl) {
+          // Per-tier count so the trader sees at a glance "we caught
+          // 4 golden / 2 big / 27 unusual today" — that's the value
+          // prop of the wider screen.
+          const counts = (flows || []).reduce(function (acc, f) {
+            acc[f.tier] = (acc[f.tier] || 0) + 1; return acc;
+          }, {});
+          const tierStr = [
+            counts.golden  ? "🥇 " + counts.golden  : null,
+            counts.big     ? "🔥 " + counts.big     : null,
+            counts.unusual ? "📈 " + counts.unusual : null,
+          ].filter(Boolean).join(" · ");
           footEl.textContent = filtered.length + " flow" +
-            (filtered.length === 1 ? "" : "s") +
-            " · universe " + (flows ? flows.length : 0) + " unfiltered" +
+            (filtered.length === 1 ? "" : "s") + " shown" +
+            (tierStr ? " · " + tierStr : "") +
+            " · universe " + (flows ? flows.length : 0) +
             " · polled " + new Date().toLocaleTimeString();
         }
       }
@@ -18930,6 +19009,15 @@
       // Wire controls
       const ms = $("lf-min-premium");
       if (ms) ms.addEventListener("change", pollOnce);
+      const mv = $("lf-min-vol-oi");
+      if (mv) mv.addEventListener("change", pollOnce);
+      const tf = $("lf-tier");
+      if (tf) tf.addEventListener("change", function () {
+        // Tier filter is client-side — re-render is enough; next poll
+        // will refresh data anyway. Keeps response snappy on selector
+        // change without triggering an extra Polygon fan-out.
+        pollOnce();
+      });
       const dr = $("lf-direction");
       if (dr) dr.addEventListener("change", function () {
         // Direction filter is client-side, so just re-render current data

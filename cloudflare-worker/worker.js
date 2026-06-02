@@ -633,6 +633,12 @@ async function fetchIvSnapshot(env, ticker, earningsDate) {
  *  Edge cached 30s so multiple concurrent users sharing the universe
  *  don't multiply Polygon API calls. Per-poll cost = ~50 snapshots.
  */
+// Live Flow universe — ~180 names. Mega-caps for context (NVDA-sized
+// $1M+ sweeps), PLUS the SMID/high-beta names where UOA actually has
+// edge (a $200K bet on a $3B mcap is unusual; the same notional on
+// NVDA is rounding). Aim for the cohort the batch UOA scanner finds
+// signal in. Capped well below Polygon's per-poll throughput so a
+// 60-sec cadence doesn't hit rate limits.
 const LF_DEFAULT_UNIVERSE = [
   // Mega-cap indices + leaders
   "SPY","QQQ","IWM","DIA",
@@ -640,32 +646,60 @@ const LF_DEFAULT_UNIVERSE = [
   "NVDA","AAPL","MSFT","GOOGL","AMZN","META","TSLA",
   // Semis + AI infra
   "AMD","AVGO","MU","MRVL","INTC","TSM","ASML","LRCX","AMAT","KLAC",
-  "ARM","SMCI","COHR","ANET","CRWV","ALAB",
-  // Software / cloud
+  "ARM","SMCI","COHR","ANET","CRWV","ALAB","NBIS","AEVA","NVTS",
+  "ONTO","ENTG","WOLF","NXPI","ON","TXN","ADI","MCHP","QCOM","SWKS",
+  // Software / cloud / data
   "ORCL","CRM","SNOW","PLTR","NOW","DDOG","NET","CRWD","PANW","ZS",
-  // Hardware + electronics
-  "AAPL","DELL","HPE","CSCO",
-  // Megacap finance
-  "JPM","BAC","GS","MS","WFC",
-  // Energy
-  "XOM","CVX","COP","SLB",
-  // Healthcare/pharma high-flyers
-  "LLY","UNH","JNJ","NVO",
-  // Retail / consumer
-  "WMT","COST","HD","NKE","SBUX","MCD","DIS",
-  // High-beta single names
-  "COIN","HOOD","RBLX","SHOP","UBER","ABNB","NFLX","BABA",
-  // Defense / aerospace
-  "BA","LMT","RTX","NOC","GD",
+  "MDB","S","ESTC","HUBS","TEAM","WDAY","INTU","ADBE","SHOP","FROG",
+  "GTLB","DOCN","BOX","AI","BBAI","SOUN","PATH","UPST","APP","RDDT",
+  // Hardware / connectivity
+  "DELL","HPE","CSCO","NTAP","STX","WDC","PSTG","JNPR",
+  // Megacap finance + brokerage
+  "JPM","BAC","GS","MS","WFC","C","SCHW","V","MA","AXP","BLK","COIN",
+  "HOOD","SOFI","NU","UPST","AFRM","SQ","PYPL",
+  // Energy + miners (high-beta UOA targets)
+  "XOM","CVX","COP","SLB","OXY","DVN","FANG","EOG","HAL","BKR",
+  "MRO","CLR","CCJ","UEC","UUUU","LEU","NXE",
+  // Healthcare / pharma / biotech high-beta
+  "LLY","UNH","JNJ","NVO","PFE","MRK","BMY","GILD","AMGN","REGN",
+  "VRTX","BIIB","MRNA","BNTX","CRSP","BEAM","NTLA","EDIT","RNA",
+  // Retail / consumer / discretionary
+  "WMT","COST","HD","NKE","SBUX","MCD","DIS","TGT","LOW","TJX",
+  "ULTA","CMG","DASH","ABNB","UBER","LYFT","CVNA","CHWY","DKNG",
+  "MELI","BABA","JD","PDD","NIO","XPEV","LI","RIVN","LCID",
+  // Crypto / blockchain proxies (high vol/oi spikes common)
+  "MSTR","RIOT","MARA","CLSK","WULF","HUT","IREN","BITF","CIFR",
+  "BITX","IBIT","ETHA",
+  // Quantum / space / defense (smaller mcap, UOA-prone)
+  "RKLB","ASTS","JOBY","ACHR","BLDE","RGTI","IONQ","QUBT","QBTS",
+  "BA","LMT","RTX","NOC","GD","LHX","HII","KTOS","LDOS","AVAV","RKT",
+  // Nuclear / power / clean energy momentum
+  "OKLO","SMR","NXT","FSLR","ENPH","RUN","SEDG","TSLR","VST","CEG",
+  "TLN","NRG","NEE","BE",
+  // Healthcare / wellness consumer (UOA targets)
+  "HIMS","LFMD","OSCR","RDDT","NU",
+  // Other high-beta single names that show up in batch UOA frequently
+  "GME","BBBY","AMC","RBLX","NFLX","ROKU","SPOT","SNAP","PINS","ETSY",
+  "TWLO","ZM","DOCN","FROG","WOLF","ENVX","JOBY","NKLA","FUBO","OPEN",
 ];
 
 async function fetchLiveFlow(env, opts) {
   opts = opts || {};
+  // Universe — default to LF_DEFAULT_UNIVERSE (~180 names), capped at
+  // 200 to keep per-poll cost bounded. Watchlist additions append to
+  // the front (passed via opts.tickers) so user names are never dropped.
   const tickers = (opts.tickers && opts.tickers.length
-    ? opts.tickers : LF_DEFAULT_UNIVERSE).slice(0, 80);
-  const minPrem = Math.max(0, +(opts.minPremium || 1_000_000));
+    ? opts.tickers : LF_DEFAULT_UNIVERSE).slice(0, 200);
+  // EITHER-OR filter: pass a contract if its premium clears minPrem OR
+  // its volume / open-interest ratio clears minVolOi. The vol/oi gate
+  // is what catches small-cap UOA — a $80K premium fill that's also
+  // 12× the existing open interest is a textbook "someone knows
+  // something" signal. The legacy code required premium-only, which
+  // silently dropped every small-cap UOA print.
+  const minPrem  = Math.max(0, +(opts.minPremium || 100_000));
+  const minVolOi = Math.max(0, +(opts.minVolOi   || 2.0));
   const freshnessMin = Math.max(1, +(opts.freshnessMin || 90));
-  const limit = Math.min(100, Math.max(10, +(opts.limit || 60)));
+  const limit = Math.min(200, Math.max(10, +(opts.limit || 100)));
   if (!env.POLYGON_API_KEY) {
     return { error: "POLYGON_API_KEY not configured", flows: [] };
   }
@@ -701,10 +735,17 @@ async function fetchLiveFlow(env, opts) {
     if (!d.contract_type || !d.strike_price || !d.expiration_date) continue;
     const vol = day.volume || 0;
     const oi  = c.open_interest || 0;
-    if (vol < 100 || oi < 10) continue;
+    // Liquidity floor — drop true noise (~10 lots / no chain). 200 is
+    // the same floor uoa_scanner.py uses for its batch screen so the
+    // live + batch surfaces are visually consistent.
+    if (vol < 200 || oi < 10) continue;
     const last = lt.price || day.close || 0;
     const premium = vol * last * 100;
-    if (premium < minPrem) continue;
+    const voi = oi > 0 ? vol / oi : 0;
+    // EITHER threshold passes the contract through. Drops only if both
+    // gates fail — i.e., the contract is small-premium AND
+    // small-vol/oi (which is just non-event flow).
+    if (premium < minPrem && voi < minVolOi) continue;
     // Use sip_timestamp (nanoseconds since epoch) for last-trade time.
     // Polygon Options Starter clamps this to 15-min-delayed, but the
     // RELATIVE recency between rows is still meaningful — newer last
@@ -731,7 +772,25 @@ async function fetchLiveFlow(env, opts) {
       const exp = new Date(d.expiration_date + "T16:00:00-04:00");
       return Math.max(0, Math.round((exp - Date.now()) / 86400000));
     })();
-    const voi = oi > 0 ? vol / oi : 0;
+    // voi computed above for the threshold gate; reused for the tier.
+    //
+    // Tier — what KIND of unusual is this? Order matters: each row
+    // gets the strongest tier it qualifies for.
+    //   golden  : premium >= $250K AND vol/oi >= 5 AND dte <= 45
+    //             — textbook UOA: real money + new positioning + near
+    //             enough to act before the catalyst.
+    //   big     : premium >= $1M — classic "mega-cap institutional sweep"
+    //             (used to be the only thing the live feed surfaced;
+    //             still useful but not the only signal).
+    //   unusual : vol/oi >= 5 — small-cap edge. The whole reason this
+    //             feed exists: a $120K fill on a $3B mcap that's 14×
+    //             the contract's existing OI = someone has conviction.
+    //   active  : passed the EITHER gate but didn't hit any above. Day
+    //             flow worth a glance.
+    let tier = "active";
+    if (premium >= 250_000 && voi >= 5 && dte <= 45) tier = "golden";
+    else if (premium >= 1_000_000)                   tier = "big";
+    else if (voi >= 5)                                tier = "unusual";
     flows.push({
       ticker:        tk,
       contract:      d.ticker || "",
@@ -749,6 +808,7 @@ async function fetchLiveFlow(env, opts) {
       iv:            c.implied_volatility || null,
       direction:     direction,
       last_trade_ts: tradeMs,
+      tier:          tier,
       // Flag types — sweep / golden / earnings-positioned aren't known
       // at this endpoint level (no flow analysis here). The client can
       // cross-ref against uoa_latest.json on its end.
@@ -767,7 +827,13 @@ async function fetchLiveFlow(env, opts) {
     universe_size:  tickers.length,
     scanned:        all.length,
     min_premium:    minPrem,
+    min_vol_oi:     minVolOi,
     freshness_min:  freshnessMin,
+    // Per-tier counts so the UI can show "12 golden / 4 big / 31 unusual"
+    // without re-iterating client-side.
+    tier_counts: flows.reduce(function (acc, f) {
+      acc[f.tier] = (acc[f.tier] || 0) + 1; return acc;
+    }, {}),
     license_note:   "Polygon Options Starter — quotes delayed 15 min. " +
                     "True real-time requires Advanced tier upgrade.",
     flows:          flows.slice(0, limit),
@@ -1568,12 +1634,14 @@ export default {
         return resp;
       }
       // Live Flow feed — ?live-flow=1 returns notable options flow across
-      // the default top-50 liquid universe (plus optional ?tickers=A,B,C
-      // augmentation, e.g. user watchlist). Filters at minPremium (default
-      // $1M) and freshnessMin (default 90 min — Polygon Starter is 15-min
-      // delayed so anything fresher than 90 min is the freshest possible
-      // state). Edge cached 30s so 10 concurrent users polling at 60s
-      // intervals all share one upstream batch.
+      // the default ~180-name universe (mega-caps for context PLUS SMID
+      // / high-beta where UOA edge lives), augmented with the optional
+      // ?tickers=A,B,C list (e.g. user watchlist — never excluded).
+      // The screen uses an EITHER-OR gate: a contract passes if its
+      // premium clears min_premium OR its volume / open-interest ratio
+      // clears min_vol_oi. Defaults ($100K, 2.0×) mirror the batch
+      // uoa_scanner.py thresholds so live + batch surface the same kind
+      // of signal. Edge cached 30s so concurrent users share one batch.
       if (url.searchParams.get("live-flow")) {
         const cache = caches.default;
         const hit = await cache.match(request);
@@ -1586,9 +1654,10 @@ export default {
                         : LF_DEFAULT_UNIVERSE)));
         const data = await fetchLiveFlow(env, {
           tickers:      uni,
-          minPremium:   +url.searchParams.get("min_premium") || 1_000_000,
+          minPremium:   +url.searchParams.get("min_premium")   || 100_000,
+          minVolOi:     +url.searchParams.get("min_vol_oi")    || 2.0,
           freshnessMin: +url.searchParams.get("freshness_min") || 90,
-          limit:        +url.searchParams.get("limit") || 60,
+          limit:        +url.searchParams.get("limit")         || 100,
         });
         const resp = Response.json(data, {
           headers: { ...cors, "Cache-Control": "public, max-age=30" },
