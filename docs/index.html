@@ -982,7 +982,11 @@
   .auth-foot a { color:var(--textdim); text-decoration:underline; }
 
   .head-toggles { position:absolute; top:20px; right:28px;
-    display:flex; flex-direction:column; gap:5px; align-items:flex-end; }
+    display:flex; flex-direction:column; gap:5px; align-items:flex-end;
+    /* Sits above the nav row so when the column is taller than the
+       header (always the case at narrow MacBook widths) the toggles
+       overlay the nav cleanly instead of bleeding through tab text. */
+    z-index:5; }
 
   /* Universal ticker search — first element in the main nav bar,
      so it's visible on every tab. Compact pill that expands on focus,
@@ -1202,6 +1206,20 @@
     justify-content:safe center;
     overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
   nav::-webkit-scrollbar { display:none; }
+  /* Reserve right-edge space at desktop widths so the absolute-
+     positioned .head-toggles column (market pill / ★ / Sign in /
+     theme / density — ~170px wide × ~166px tall) can't overlap the
+     last few nav tabs (was hiding Earnings / Global behind the
+     Light/Market/Dark toggle on standard MacBook widths). Mobile
+     puts the toggles inline so no reservation is needed there. */
+  @media (min-width: 760px) {
+    nav { padding-right: 200px; justify-content:safe flex-start; }
+  }
+  @media (min-width: 1480px) {
+    /* Wide-monitor sweet spot — center the nav since there's plenty
+       of room past the toggle column. */
+    nav { justify-content:safe center; }
+  }
   /* Nav: 11 tabs need to fit ~1180px without horizontal scroll on desktop.
      Tightened padding and slightly smaller font + abbreviated labels in
      the markup get us there without losing readability. */
