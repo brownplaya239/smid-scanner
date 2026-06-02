@@ -5845,6 +5845,33 @@
     "TEST69": { tier: "premium", days: 90,
                 label: "90-day Premium trial" },
   };
+  // Generic Supabase-call timeout wrapper — any `await SUPA.from(...)`
+  // or `await SUPA.rpc(...)` should be wrapped with this to avoid the
+  // indefinite hang we've seen when the supabase-js client gets stuck.
+  // Returns a Promise that resolves with whatever the original would
+  // return on success, or rejects with Error("timeout") after ms.
+  // Use as: `const r = await tdSupaTimeout(SUPA.from(...).insert(...));`
+  function tdSupaTimeout(p, ms, label) {
+    const limit = ms || 7000;
+    return new Promise(function (resolve, reject) {
+      let done = false;
+      const timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        console.warn("[tdSupaTimeout] " + (label || "supabase call") +
+                     " did not resolve in " + limit + "ms");
+        reject(new Error("Server didn't respond in " +
+          Math.round(limit / 1000) + "s. Try again."));
+      }, limit);
+      Promise.resolve(p).then(function (v) {
+        if (done) return;
+        done = true; clearTimeout(timer); resolve(v);
+      }, function (e) {
+        if (done) return;
+        done = true; clearTimeout(timer); reject(e);
+      });
+    });
+  }
   // Direct-REST helper — bypasses supabase-js (whose query layer hangs
   // indefinitely in some session states after an auth-token refresh).
   // Uses fetch + the user's live access_token, with a 6 sec hard timeout
@@ -6019,9 +6046,17 @@
     _emitWatch();
     if (SUPA && CURRENT_USER) {
       try {
-        await SUPA.from("watchlists").upsert({
-          user_id: CURRENT_USER.id, ticker: ticker, weight: weight,
-        });
+        // tdSupaTimeout — supabase-js can hang on .from() in some sessions,
+        // which would leave Add-to-Watchlist hung mid-action. Even if the
+        // network write fails / times out, we already added to the local
+        // WATCHLIST set, so the user sees the ticker immediately. The catch
+        // mirrors to localStorage as a backup.
+        await tdSupaTimeout(
+          SUPA.from("watchlists").upsert({
+            user_id: CURRENT_USER.id, ticker: ticker, weight: weight,
+          }),
+          7000, "watchlist add"
+        );
       } catch (e) {
         console.warn("Watchlist write failed:", e);
         _wlWriteLocal([...WATCHLIST]);
@@ -6041,10 +6076,13 @@
     _emitWatch();
     if (SUPA && CURRENT_USER) {
       try {
-        await SUPA.from("watchlists")
-          .delete()
-          .eq("user_id", CURRENT_USER.id)
-          .eq("ticker", ticker);
+        await tdSupaTimeout(
+          SUPA.from("watchlists")
+            .delete()
+            .eq("user_id", CURRENT_USER.id)
+            .eq("ticker", ticker),
+          7000, "watchlist remove"
+        );
       } catch (e) {
         console.warn("Watchlist delete failed:", e);
         _wlWriteLocal([...WATCHLIST]);
@@ -6497,20 +6535,28 @@
       // tell the difference between "RLS allowed but no row matched" and
       // a real successful write. Without .select() update is fire-and-
       // forget and we can't detect a 0-rows update.
-      const { data, error } = await SUPA
-        .from("profiles")
-        .update({ daily_brief_enabled: next })
-        .eq("id", CURRENT_USER.id)
-        .select();
+      // Wrapped in tdSupaTimeout — supabase-js can hang on .from() calls
+      // after a stuck JWT refresh, leaving the toggle spinning forever.
+      const { data, error } = await tdSupaTimeout(
+        SUPA
+          .from("profiles")
+          .update({ daily_brief_enabled: next })
+          .eq("id", CURRENT_USER.id)
+          .select(),
+        7000, "daily-brief update"
+      );
       if (error) throw error;
       if (!data || !data.length) {
         // No profile row exists yet — create one. handle_new_user trigger
         // should have done this on signup, but older accounts may have
         // missed it.
-        const { error: e2 } = await SUPA.from("profiles").upsert({
-          id: CURRENT_USER.id,
-          daily_brief_enabled: next,
-        });
+        const { error: e2 } = await tdSupaTimeout(
+          SUPA.from("profiles").upsert({
+            id: CURRENT_USER.id,
+            daily_brief_enabled: next,
+          }),
+          7000, "daily-brief profile upsert"
+        );
         if (e2) throw e2;
       }
       DAILY_BRIEF_ENABLED = next;
@@ -6693,16 +6739,22 @@
                                        : "Windows browser";
         return "Browser";
       })(ua);
-      const { error } = await SUPA.from("push_subscriptions").upsert({
-        user_id: CURRENT_USER.id,
-        endpoint: sub.endpoint,
-        p256dh: raw.keys && raw.keys.p256dh,
-        auth: raw.keys && raw.keys.auth,
-        user_agent: ua.slice(0, 200),
-        device_label: deviceLabel,
-        last_used_at: null,
-        fail_count: 0,
-      }, { onConflict: "endpoint" });
+      // tdSupaTimeout — supabase-js .from() can hang silently in some
+      // sessions, leaving the push toggle in is-saving state forever
+      // while the browser is already subscribed but no DB row exists.
+      const { error } = await tdSupaTimeout(
+        SUPA.from("push_subscriptions").upsert({
+          user_id: CURRENT_USER.id,
+          endpoint: sub.endpoint,
+          p256dh: raw.keys && raw.keys.p256dh,
+          auth: raw.keys && raw.keys.auth,
+          user_agent: ua.slice(0, 200),
+          device_label: deviceLabel,
+          last_used_at: null,
+          fail_count: 0,
+        }, { onConflict: "endpoint" }),
+        7000, "push subscription upsert"
+      );
       if (error) throw error;
       PUSH_ENABLED = true;
       renderPushToggle("on");
@@ -6729,11 +6781,20 @@
     if (toggle) toggle.classList.add("is-saving");
     try {
       if (PUSH_SUBSCRIPTION) {
-        // Remove from Supabase first (so server won't try to send to it)
-        await SUPA.from("push_subscriptions")
-          .delete()
-          .eq("user_id", CURRENT_USER.id)
-          .eq("endpoint", PUSH_SUBSCRIPTION.endpoint);
+        // Remove from Supabase first (so server won't try to send to it).
+        // tdSupaTimeout — if the supabase-js call hangs, fall through
+        // and still unsubscribe locally so the OFF state takes effect.
+        try {
+          await tdSupaTimeout(
+            SUPA.from("push_subscriptions")
+              .delete()
+              .eq("user_id", CURRENT_USER.id)
+              .eq("endpoint", PUSH_SUBSCRIPTION.endpoint),
+            7000, "push unsubscribe"
+          );
+        } catch (e) {
+          console.warn("Push subscription delete failed (continuing):", e);
+        }
         // Then unsubscribe in the browser
         await PUSH_SUBSCRIPTION.unsubscribe();
         PUSH_SUBSCRIPTION = null;
@@ -7913,8 +7974,13 @@
           const payload = Object.assign({ user_id: CURRENT_USER.id },
             entry, { ts: local.ts });
           delete payload.id;       // let DB generate
-          const { data, error } = await SUPA.from("trade_journal")
-            .insert(payload).select().single();
+          // tdSupaTimeout — supabase-js can hang silently on .from()
+          // after a stuck JWT refresh, leaving trade-log "Add" stuck
+          // without persisting to DB (local-only fallback only).
+          const { data, error } = await tdSupaTimeout(
+            SUPA.from("trade_journal").insert(payload).select().single(),
+            7000, "trade-journal insert"
+          );
           if (!error && data) {
             // Swap local entry for the DB row
             const idx = TRADE_LOG.findIndex(function (e) {
@@ -8608,9 +8674,12 @@
       submit.textContent = "Submitting...";
       try {
         if (SUPA) {
-          await SUPA.from("email_signups").upsert(
-            { email: email, source: "footer_beta" },
-            { onConflict: "email" }
+          await tdSupaTimeout(
+            SUPA.from("email_signups").upsert(
+              { email: email, source: "footer_beta" },
+              { onConflict: "email" }
+            ),
+            7000, "footer email signup"
           );
         }
         status.className = "ec-status ok";
@@ -9490,8 +9559,14 @@
           if (data.ok && data.url) {
             window.location.href = data.url;
           } else {
+            // Surface the actual server-side error so a misconfigured
+            // STRIPE_PRO_PRICE_ID etc. is visible instead of just a
+            // generic "Couldn't open checkout — try again". Matches
+            // the manage-billing handler's alert() pattern below.
             console.warn("Checkout error:", data.error);
             btn.textContent = "Couldn't open checkout — try again";
+            alert("Checkout failed: " + (data.error ||
+              "Unknown error. Please email support@tickerdesk.io."));
             setTimeout(function () {
               btn.disabled = false;
               btn.textContent = orig;
@@ -11159,12 +11234,21 @@
       try {
         // Wipe any existing row for this (user, ticker, type) then
         // insert the user's current choice — both ON and OFF persist.
-        await SUPA.from("alerts").delete()
-          .eq("user_id", user.id).eq("ticker", tk).eq("alert_type", type);
-        await SUPA.from("alerts").insert({
-          user_id: user.id, ticker: tk,
-          alert_type: type, enabled: on, config: {},
-        });
+        // Wrapped in tdSupaTimeout so a stuck supabase-js call doesn't
+        // silently flip the toggle without persisting (and without
+        // hitting the catch to revert).
+        await tdSupaTimeout(
+          SUPA.from("alerts").delete()
+            .eq("user_id", user.id).eq("ticker", tk).eq("alert_type", type),
+          7000, "alert-pref delete"
+        );
+        await tdSupaTimeout(
+          SUPA.from("alerts").insert({
+            user_id: user.id, ticker: tk,
+            alert_type: type, enabled: on, config: {},
+          }),
+          7000, "alert-pref insert"
+        );
       } catch (e) {
         console.error("Alert pref save failed:", e);
         inp.checked = !on;        // revert
@@ -11638,7 +11722,13 @@
           user_id: user.id, ticker: tk, note: txt,
           updated_at: new Date().toISOString(),
         };
-        const { error } = await SUPA.from("notes").insert(payload);
+        // tdSupaTimeout — supabase-js can hang on .from() in some
+        // sessions, which used to leave Save Note stuck on "Saving..."
+        // with no surfaced error and no way to close the modal.
+        const { error } = await tdSupaTimeout(
+          SUPA.from("notes").insert(payload),
+          7000, "note save"
+        );
         if (error) throw error;
         statusEl.textContent = "Saved.";
         saveBtn.textContent = "Saved ✓";
