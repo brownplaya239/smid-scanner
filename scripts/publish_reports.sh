@@ -33,9 +33,27 @@ for attempt in 1 2 3 4 5; do
   git fetch origin master
 
   if ! git rebase origin/master; then
-    # manifest.json and altdata_history.json are generated/append-only — on a
-    # concurrent-run conflict, take the incoming copy and regenerate the manifest.
-    git checkout --theirs docs/reports/altdata_history.json 2>/dev/null || true
+    # EVERY file under docs/reports/ is machine-generated and rewritten
+    # whole each run (scanners overwrite uoa_latest / uoa_edge /
+    # uoa_signals_scored / uoa_oi_history; altdata_history append-only;
+    # manifest rebuilt from PDFs). On a concurrent-run conflict the
+    # INCOMING (origin) copy is always at least as fresh, so resolve
+    # EVERY conflicted path with --theirs.
+    #
+    # The old code only did --theirs for altdata_history.json, then
+    # blind-`git add`'d everything else — which staged uoa_latest.json
+    # et al. WITH raw <<<<<<< / ======= / >>>>>>> markers and committed
+    # corrupt JSON (broke the live Options Flow tab on 2026-06-02).
+    conflicted=$(git diff --name-only --diff-filter=U)
+    if [ -n "$conflicted" ]; then
+      echo "Conflicts on: ${conflicted} — resolving with incoming (theirs)"
+      for cf in ${conflicted}; do
+        git checkout --theirs "${cf}" 2>/dev/null || true
+        git add "${cf}" || true
+      done
+    fi
+    # Manifest is derived from the PDF set — rebuild after taking theirs
+    # so it reflects this run's newly-added reports too.
     python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || true
     git add docs/reports/
     if ! GIT_EDITOR=true git rebase --continue; then
@@ -44,6 +62,17 @@ for attempt in 1 2 3 4 5; do
       sleep $((attempt * 2))
       continue
     fi
+  fi
+
+  # SAFETY GATE: never publish a tree that still contains git conflict
+  # markers. If any docs/reports file has leftover <<<<<<< / ======= /
+  # >>>>>>> lines, abort this attempt and hard-reset rather than push
+  # corrupt JSON to the live site.
+  if grep -rlE '^(<{7}|={7}|>{7})' docs/reports/ >/dev/null 2>&1; then
+    echo "::error::Conflict markers detected in docs/reports/ — refusing to push."
+    git reset --hard origin/master || true
+    sleep $((attempt * 2))
+    continue
   fi
 
   if git push origin master; then
