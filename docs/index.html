@@ -4020,13 +4020,30 @@
      in 2 rows; 7+ pills push to 3 rows). Lower min-width than
      before so the column doesn't crowd out the other data columns
      when viewport is narrow. */
+  /* ★ button inside the UOA Latest ticker cell — replaces the
+     deleted Actions column. Star renders unfilled until the ticker
+     is on the user's watchlist, then fills gold. Click toggles. */
+  table.uoa .uoa-star {
+    background:none; border:0; color:var(--muted);
+    cursor:pointer; font-size:13px; padding:0 5px 0 0;
+    margin:0; line-height:1; vertical-align:middle;
+    transition:color .12s ease, transform .1s ease; }
+  table.uoa .uoa-star:hover  { color:var(--gold); transform:scale(1.15); }
+  table.uoa .uoa-star.is-on  { color:var(--gold); }
+  table.uoa .uoa-star.is-on:hover { color:var(--red); }
+  /* Tighter cell padding on UOA Latest so the 23 data columns fit on
+     standard MacBook widths without horizontal scroll. Was 8px; the
+     density-aware override at the top of this file already covers
+     dense mode — this just makes the default narrower. */
+  table.uoa td { padding:5px 6px; font-size:11.5px; }
+  table.uoa th { padding:7px 6px; font-size:10.5px; }
   table.uoa td.uoa-tags-cell {
     white-space:normal !important;
     text-align:left !important;
     vertical-align:middle;
     padding:4px 7px;
-    min-width:210px;
-    max-width:280px; }
+    min-width:180px;
+    max-width:230px; }
   @media (max-width:1280px) {
     table.uoa td.uoa-tags-cell { min-width:180px; max-width:220px; }
   }
@@ -17655,7 +17672,11 @@
       // NEW UW-6: Earnings days. Inline rather than a column — folded
       // into the per-row pills below since not every row has earnings.
       { k:"interpretation", t:"Why Actionable / Tags", tip:"Plain-English tier label + visual tag stack: BULLISH/BEARISH/SWEEP/GOLDEN/OPENING/REPEAT/EARNINGS/INDEX. Hover any pill for what it means." },
-      { k:"actions", t:"Actions", tip:"Save / Alert / Note / Drilldown buttons." },
+      // Actions column removed — Save/Alert/Note/Drilldown buttons
+      // weren't working reliably AND chewed up ~100px of horizontal
+      // width that pushed the table off-screen on standard MacBook
+      // widths. Watchlist add/remove now lives as a ★ button in the
+      // ticker cell itself (see body render below).
     ];
     const GROUP_COLS = [
       { k:"ticker", t:"Ticker" }, { k:"net", t:"Net Bias" }, { k:"n", t:"Signals" },
@@ -18504,16 +18525,20 @@
           const d = new Date(ms);
           // ET wall clock — split into components so we can render
           // MM/DD on row 1 and HH:MM:SS on row 2 in tabular columns.
+          // NYC standard format — 12-hour clock with AM/PM. Tab-aligned
+          // via tabular-nums on the parent. dayPeriod gives the AM/PM
+          // token in its own part so we render it as a small superscript.
           const etParts = new Intl.DateTimeFormat("en-US", {
             timeZone: "America/New_York",
             month: "2-digit", day: "2-digit",
-            hour: "2-digit", minute: "2-digit", second: "2-digit",
-            hour12: false,
+            hour: "numeric", minute: "2-digit", second: "2-digit",
+            hour12: true,
           }).formatToParts(d).reduce(function (acc, p) {
             acc[p.type] = p.value; return acc;
           }, {});
           const dateLbl = etParts.month + "/" + etParts.day;
-          const timeLbl = etParts.hour + ":" + etParts.minute + ":" + etParts.second;
+          const timeLbl = etParts.hour + ":" + etParts.minute + ":" + etParts.second +
+            " " + (etParts.dayPeriod || "");
           const fullTitle = dateLbl + " " + timeLbl + " ET · " + relTxt;
           return '<span class="uoa-printed uoa-printed-stack ' + cls +
             '" title="' + fullTitle + '">' +
@@ -18760,8 +18785,23 @@
             'title="No additional flags for this row.">&mdash;</span>';
           return '<div class="uoa-pills">' + pills.join("") + '</div>';
         })();
+        // ★ button — single-click toggles the ticker in/out of the
+        // user's watchlist. Replaces the full Save/Alert/Note/Open
+        // action strip (those buttons were unreliable and chewed up
+        // ~100px of horizontal table width). Active state colors gold
+        // so the user can see what's already saved.
+        const isWatched = !!(window.tdWatchlist &&
+                             window.tdWatchlist().has(r.ticker));
+        const starBtn = '<button class="uoa-star ' +
+            (isWatched ? "is-on" : "") + '" data-uoa-star="' + r.ticker +
+            '" type="button" aria-label="' +
+            (isWatched ? "Remove from watchlist" : "Add to watchlist") +
+            '" title="' +
+            (isWatched ? "On watchlist — click to remove"
+                       : "Add to watchlist") + '">★</button>';
         return '<tr data-idx="'+i+'">'+
-          '<td><strong data-t="'+r.ticker+'">'+r.ticker+'</strong>'+
+          '<td>'+ starBtn +
+            '<strong data-t="'+r.ticker+'">'+r.ticker+'</strong>'+
             nfBadge + sectorChip + '</td>'+
           '<td><span class="uoa-tier '+tierCls(r.tier)+'">'+(r.tier||"C")+'</span></td>'+
           '<td><span class="uoa-score has-breakdown '+scoreCls(r.trade_score)+
@@ -18789,8 +18829,8 @@
           '<td>'+printedHtml+'</td>'+
           '<td>'+deltaHtml+'</td>'+
           '<td class="uoa-tags-cell">'+tagsHtml+'</td>' +
-          '<td>'+(window.tdActionStrip
-            ? window.tdActionStrip(r.ticker) : "")+'</td>'+
+          // Actions column removed — see COLS array note. Watchlist
+          // toggle is the ★ button in the ticker cell.
         '</tr>';
       }).join("");
     }
@@ -20074,6 +20114,29 @@
       }, 0);
     }
     $("uoa-body").addEventListener("click", function (e) {
+      // ★ button click → toggle ticker in/out of watchlist. Wired
+      // FIRST so the star click doesn't also fire the global ticker
+      // drilldown (the strong[data-t] sibling) or open the score
+      // popover. The button has its own data-uoa-star attribute.
+      const star = e.target.closest("[data-uoa-star]");
+      if (star) {
+        e.stopPropagation();
+        const tk = star.dataset.uoaStar;
+        if (window.tdToggleWatch) {
+          Promise.resolve(window.tdToggleWatch(tk)).then(function () {
+            const onNow = !!(window.tdWatchlist &&
+                             window.tdWatchlist().has(tk));
+            star.classList.toggle("is-on", onNow);
+            star.title = onNow
+              ? "On watchlist — click to remove"
+              : "Add to watchlist";
+            star.setAttribute("aria-label", onNow
+              ? "Remove from watchlist"
+              : "Add to watchlist");
+          });
+        }
+        return;
+      }
       // Score-cell click → component breakdown popover. Wired BEFORE
       // the ticker-cell short-circuit so the score cell doesn't also
       // trigger the drilldown (the score span has no data-t).
