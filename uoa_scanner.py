@@ -1029,8 +1029,32 @@ def _enrich_with_oi_history(rows):
 
 
 def emit_latest(rows):
-    """Write the ranked UOA rows as JSON for the dashboard tab to render."""
+    """Write the ranked UOA rows as JSON for the dashboard tab to render.
+
+    PROTECTION: if THIS run produced 0 rows AND the existing file has
+    rows from a recent successful run, refuse to overwrite. After-hours
+    scans + transient Polygon errors regularly return empty results;
+    overwriting good intraday data with empty results blanks the desk
+    until the next RTH scan. The previous run's content stays live;
+    the freshness pill (driven by `generated`) makes it obvious the
+    data is from earlier."""
     os.makedirs(os.path.dirname(LATEST_PATH), exist_ok=True)
+    # Empty-result guard
+    if not rows:
+        try:
+            with open(LATEST_PATH, encoding="utf-8") as f:
+                existing = json.load(f)
+            existing_count = len(existing.get("rows", []))
+            if existing_count > 0:
+                print(f"  Scan produced 0 rows — PRESERVING existing "
+                      f"{existing_count}-row payload (likely after-hours "
+                      f"or transient Polygon hiccup; existing data was "
+                      f"from {existing.get('generated', '?')}).")
+                return
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            pass
+        print("  Scan produced 0 rows — no existing data to preserve, "
+              "writing empty payload.")
     # Enrich with OI delta from yesterday's snapshot (cached locally).
     _enrich_with_oi_history(rows)
     # Compute total universe premium for the "% of total" column.
