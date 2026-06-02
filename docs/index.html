@@ -3918,44 +3918,8 @@
   .uoa-iv-low      { background:rgba(31,179,99,0.16);
     color:var(--green); border:1px solid rgba(31,179,99,0.4); }
   .uoa-iv-na       { color:var(--muted); }
-  /* ── UW-1: Fill vs Spread mini-bar ──
-     ~50px wide × 8px tall horizontal bar. Background = bid (left red)
-     to ask (right green); tick mark positioned via inline left:%.
-     The user reads "did the fill land on the ask?" at a glance. */
-  .uoa-fill-bar { position:relative; display:inline-block;
-    width:48px; height:9px; border-radius:3px;
-    background:linear-gradient(to right,
-      rgba(214,68,68,0.22) 0%, rgba(160,160,160,0.18) 50%,
-      rgba(31,179,99,0.22) 100%);
-    border:1px solid var(--line); cursor:help;
-    vertical-align:middle; }
-  .uoa-fill-bar-bid, .uoa-fill-bar-ask {
-    position:absolute; top:0; width:2px; height:100%; }
-  .uoa-fill-bar-bid { left:0; background:var(--red); opacity:0.55; }
-  .uoa-fill-bar-ask { right:0; background:var(--green); opacity:0.55; }
-  .uoa-fill-bar-tick { position:absolute; top:-2px;
-    width:3px; height:13px; border-radius:1px;
-    transform:translateX(-50%); }
-  .uoa-fill-buy  { background:var(--green); box-shadow:0 0 4px var(--green); }
-  .uoa-fill-sell { background:var(--red);   box-shadow:0 0 4px var(--red); }
-  .uoa-fill-mid  { background:var(--gold); }
-  .uoa-fill-na   { color:var(--muted); cursor:help; }
-  /* ── UW-2: Chain Bid/Ask % split-bar ── */
-  .uoa-cba-bar { position:relative; display:inline-block;
-    width:60px; height:13px; border-radius:3px;
-    background:rgba(255,255,255,0.04);
-    border:1px solid var(--line); overflow:hidden;
-    cursor:help; font-size:9px; font-weight:700;
-    vertical-align:middle; }
-  .uoa-cba-ask { position:absolute; left:0; top:0; height:100%;
-    background:rgba(31,179,99,0.45); }
-  .uoa-cba-bid { position:absolute; right:0; top:0; height:100%;
-    background:rgba(214,68,68,0.45); }
-  .uoa-cba-lbl { position:absolute; inset:0;
-    display:flex; align-items:center; justify-content:center;
-    color:var(--text); text-shadow:0 0 2px rgba(0,0,0,0.6);
-    font-variant-numeric:tabular-nums; }
-  .uoa-cba-na { color:var(--muted); cursor:help; }
+  /* Fill-vs-Spread + Chain-Bid/Ask styles removed with their columns —
+     Polygon Options Starter doesn't license per-contract bid/ask. */
   /* ── UW-9: % of total premium line ── */
   .uoa-pct-total      { font-size:9.5px; color:var(--muted);
     margin-top:1px; font-variant-numeric:tabular-nums; }
@@ -6418,6 +6382,21 @@
         }
       } catch (_) {}
     }).finally(function () {
+      // PRIVACY: the OAuth redirect lands back here with the full
+      // session JWT in the URL hash (#access_token=eyJ...&refresh_token
+      // =...). Supabase reads + persists it to localStorage during
+      // getSession() above, after which the hash is dead weight — but
+      // it lingers in the address bar, browser history, and any
+      // screenshot the user shares for ~1h until token expiry. Strip
+      // it the moment the session is restored. Preserve the route hash
+      // (#desk etc.) if one was present before the token; otherwise
+      // fall back to the default route.
+      try {
+        if (location.hash && /access_token=|refresh_token=/.test(location.hash)) {
+          history.replaceState(null, "",
+            location.pathname + location.search);
+        }
+      } catch (_) {}
       _emitUser();
       refreshPlanState();
       loadWatchlist();
@@ -6975,6 +6954,25 @@
   }
   onUserChange(function () { loadPushState(); });
   loadPushState();
+
+  // ── Service-worker hot-deploy reload ─────────────────────────────
+  // When a NEW sw.js activates (it calls skipWaiting + clients.claim),
+  // the browser fires controllerchange. Reload ONCE so the freshly
+  // deployed page logic + assets take effect without the user having
+  // to hard-refresh. Guard against the first-ever install (no prior
+  // controller → no reload) and against a reload-loop via a flag.
+  if ("serviceWorker" in navigator) {
+    let _swReloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (_swReloaded) return;
+      // Only reload if a controller already existed before this change
+      // (i.e. an UPDATE, not the first activation on a fresh visit).
+      if (navigator.serviceWorker.controller) {
+        _swReloaded = true;
+        location.reload();
+      }
+    });
+  }
 
   // ── Onboarding flow ─────────────────────────────────────────────
   // Triggered on first sign-in when localStorage flag 'td-onboarded' is
@@ -8317,16 +8315,43 @@
         .split(/[\s,]+/)
         .map(function (s) { return s.trim(); })
         .filter(Boolean);
-      let added = 0, skipped = 0, invalid = 0;
+      // Pre-parse so we know the valid-add count up front (for the
+      // progress label denominator) and can run the adds concurrently.
+      const toAdd = [];
+      let skipped = 0, invalid = 0;
       for (const e of entries) {
         const m = e.match(/^([A-Z\.\-]{1,8})(?::([\d\.]+))?$/i);
         if (!m) { invalid++; continue; }
         const tk = m[1].toUpperCase();
         const wt = m[2] ? parseFloat(m[2]) : 1;
         if (WATCHLIST.has(tk)) { skipped++; continue; }
-        const ok = await window.tdAddWatch(tk, wt);
-        if (ok) added++;
+        toAdd.push({ tk: tk, wt: wt });
       }
+      // Concurrency-capped parallel add (chunks of 5). The old code
+      // did `await tdAddWatch` serially — on a stuck supabase session
+      // each call could hang up to 7s (its timeout), so a 30-ticker
+      // paste froze the button silently for minutes. allSettled +
+      // chunking caps total wall time at ~ceil(N/5)×7s worst case and
+      // every per-ticker write has its own timeout fallback.
+      const origLabel = importBtn.textContent;
+      importBtn.disabled = true;
+      let done = 0, added = 0;
+      const CHUNK = 5;
+      for (let i = 0; i < toAdd.length; i += CHUNK) {
+        const slice = toAdd.slice(i, i + CHUNK);
+        const results = await Promise.allSettled(
+          slice.map(function (x) {
+            return Promise.resolve(window.tdAddWatch(x.tk, x.wt));
+          })
+        );
+        results.forEach(function (r) {
+          done++;
+          if (r.status === "fulfilled" && r.value) added++;
+        });
+        importBtn.textContent = "Adding " + done + "/" + toAdd.length + "…";
+      }
+      importBtn.disabled = false;
+      importBtn.textContent = origLabel;
       importHint.innerHTML = "Imported " +
         '<b style="color:var(--green)">' + added + '</b> · skipped ' +
         '<b>' + skipped + '</b> (already on list)' +
@@ -14301,10 +14326,22 @@
                     : "no sentiment yet";
         const _leanCls = (st.pos > st.neg + 1) ? "pos"
                        : (st.neg > st.pos + 1) ? "neg" : "muted";
+        // Watchlist hits — the highest-value cut: "which of MY names
+        // are in the news right now". Intersect the most-tickered set
+        // with the user's watchlist; show up to 3 names inline.
+        const _wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+        const _wlHits = topTks.filter(function (t) { return _wl.has(t); });
+        const _wlStr = _wlHits.length
+          ? ' &middot; <span class="pos">your watchlist: ' +
+            _wlHits.slice(0, 3).join(", ") +
+            (_wlHits.length > 3 ? " +" + (_wlHits.length - 3) : "") +
+            '</span>'
+          : "";
         _topMoverStrip = '<div class="desk-insight" style="grid-column:1/-1;margin-bottom:6px">' +
           '<b>' + filtered.length + ' headlines</b> in window &middot; ' +
           'top mover: <b>' + t0 + '</b> (' + stCnt + ' mentions, ' +
           '<span class="' + _leanCls + '">' + _lean + '</span>)' +
+          _wlStr +
           '</div>';
       }
       pulse.innerHTML = _topMoverStrip +
@@ -17653,15 +17690,12 @@
       // the contract is paying high vol (potential mean-revert candidate)
       // or low vol (cheap option). Polygon snapshot exposes this directly.
       { k:"iv", t:"IV", tip:"Implied Volatility for this specific contract. ≥70% high (mean-revert candidate or pricing in event); 40-70% elevated; 20-40% normal; <20% low. Levels are absolute (not 52w rank)." },
-      // NEW UW-1: Fill vs Spread mini-bar. Shows WHERE in the bid-ask
-      // the last quote-mid landed. Closer to ask = aggressive buying;
-      // closer to bid = aggressive selling. Single most useful execution
-      // signal on the UOA board.
-      { k:"fill_vs_spread", t:"Fill", tip:"Where the last trade filled in the bid-ask spread. Right side (green) = at-ask aggressive buy; left (red) = at-bid aggressive sell; middle = passive midpoint fill. Bid–Ask range shown numerically in tooltip." },
-      // NEW UW-2: Chain Bid/Ask % bar. From flow.side analysis — what
-      // fraction of today's tape on this contract printed at ask vs bid.
-      // Aggregate aggression read complementing the per-print Fill bar.
-      { k:"chain_ba", t:"Chain B/A", tip:"Today's total contract volume split — what % of all fills hit at/near the ask (bull aggressive) vs the bid (bear aggressive). Aggregated across all trades on this strike+expiry." },
+      // Fill-vs-Spread + Chain-Bid/Ask columns removed: both depend on
+      // per-contract bid/ask quotes which Polygon Options Starter does
+      // NOT license. They rendered 0/1254 populated (every cell "—") so
+      // they were pure noise + horizontal-scroll cost. Re-add only when
+      // an options-quotes entitlement (Polygon Advanced) is wired and
+      // the scanner's _bid/_ask fields actually populate.
       { k:"premium", t:"Premium", tip:"Total dollar value traded today: Volume × price × 100. The bigger this is, the more conviction money is behind the trade. Second line = % of today's total flagged-universe premium (within our scan, not market-wide)." },
       // NEW UW-11: Last trade fill price. Useful for users who want to
       // place their own order — they see the actual fill they'd be
@@ -18634,51 +18668,9 @@
         // mark at the position where last/mid fell. Closer to ask
         // (right side) = aggressive buying; closer to bid (left) =
         // aggressive selling. Gold tick = midpoint passive fill.
-        const fillBarHtml = (function () {
-          if (!r.bid || !r.ask || r.bid <= 0 || r.ask <= 0 || r.bid >= r.ask) {
-            return '<span class="uoa-fill-na" title="' +
-              'Bid/ask not in this snapshot (Polygon Starter only ' +
-              'populates quotes for select tiers).">&mdash;</span>';
-          }
-          const ref = r.last_price || r.mid || ((r.bid + r.ask) / 2);
-          // Position 0..1 along bid→ask axis (clamped)
-          const pos = Math.max(0, Math.min(1, (ref - r.bid) / (r.ask - r.bid)));
-          const cls = pos >= 0.65 ? "uoa-fill-buy"
-                    : pos <= 0.35 ? "uoa-fill-sell"
-                    : "uoa-fill-mid";
-          return '<span class="uoa-fill-bar" title="' +
-            'Bid $' + r.bid.toFixed(2) + ' · Ask $' + r.ask.toFixed(2) +
-            ' · Fill $' + ref.toFixed(2) + ' · ' +
-            (pos >= 0.65 ? "Aggressive BUY (near ask)"
-              : pos <= 0.35 ? "Aggressive SELL (near bid)"
-              : "Midpoint (passive)") + '">' +
-            '<span class="uoa-fill-bar-bid"></span>' +
-            '<span class="uoa-fill-bar-ask"></span>' +
-            '<span class="uoa-fill-bar-tick ' + cls +
-              '" style="left:' + (pos * 100).toFixed(1) + '%"></span>' +
-            '</span>';
-        })();
-        // ── NEW UW-2: Chain Bid/Ask % bar ───────────────────────────
-        // ask_pct + bid_pct populated by flow.side; sum to ~100% of
-        // identified-side trades. Rendered as a split-bar: green left
-        // portion = ask% (bull aggressive), red right portion = bid%
-        // (bear aggressive). Width-percentages map directly to %s.
-        const chainBaHtml = (function () {
-          const ap = r.ask_pct || 0;
-          const bp = r.bid_pct || 0;
-          if (ap + bp < 5) return '<span class="uoa-cba-na" title="' +
-            'Bid/ask side identification too sparse to classify.' +
-            '">&mdash;</span>';
-          return '<span class="uoa-cba-bar" title="' +
-            'Today\'s tape: ' + ap + '% at ask (bull aggressive) / ' +
-            bp + '% at bid (bear aggressive)">' +
-            '<span class="uoa-cba-ask" style="width:' + ap + '%"></span>' +
-            '<span class="uoa-cba-bid" style="width:' + bp + '%"></span>' +
-            '<span class="uoa-cba-lbl">' +
-              Math.round(ap) + '/' + Math.round(bp) +
-            '</span>' +
-            '</span>';
-        })();
+        // fillBarHtml + chainBaHtml removed — both need per-contract
+        // bid/ask quotes that Polygon Options Starter doesn't license,
+        // so they were 0/1254 populated (every cell "—"). See COLS note.
         // ── NEW UW-9: % of total flagged-universe premium ───────────
         // Surfaced as a small line under the main premium $ value.
         const pctTotalHtml = (function () {
@@ -18821,8 +18813,8 @@
           '<td>'+oiDeltaHtml+'</td>'+
           '<td><span class="uoa-liq liq-'+(r.liquidity||"C").toLowerCase()+'">'+(r.liquidity||"C")+'</span></td>'+
           '<td>'+ivHtml+'</td>'+
-          '<td>'+fillBarHtml+'</td>'+
-          '<td>'+chainBaHtml+'</td>'+
+          // Fill / Chain B/A columns removed — see COLS note (Polygon
+          // Starter doesn't license per-contract bid/ask).
           '<td class="'+(r.premium>=1e6?"uoa-prem-big":"")+'">$'+fmtNum(r.premium)+
             pctTotalHtml + '</td>'+
           '<td>'+lastPriceHtml+'</td>'+
@@ -20122,6 +20114,12 @@
       if (star) {
         e.stopPropagation();
         const tk = star.dataset.uoaStar;
+        // Signed-out → open the sign-in modal with the "save" action
+        // copy ("Sign in to save NVDA") instead of silently no-op'ing.
+        if (!window.tdUser || !window.tdUser()) {
+          if (window.tdRequireAuth) window.tdRequireAuth("save", tk);
+          return;
+        }
         if (window.tdToggleWatch) {
           Promise.resolve(window.tdToggleWatch(tk)).then(function () {
             const onNow = !!(window.tdWatchlist &&

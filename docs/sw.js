@@ -16,7 +16,7 @@
  * compare byte-for-byte on each register() call; any change wins.
  */
 
-const SW_VERSION = 'tickerdesk-v1.0.0';
+const SW_VERSION = 'tickerdesk-v1.1.0';
 const SITE_URL = 'https://tickerdesk.io';
 
 self.addEventListener('install', function (event) {
