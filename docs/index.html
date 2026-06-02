@@ -12286,8 +12286,30 @@
         button.disabled = false;
       }
     }
-    button.addEventListener("click", submit);
-    input.addEventListener("keydown", function (e) { if (e.key === "Enter") submit(); });
+    // Event delegation off document — survives any panel DOM re-render
+    // (which would silently detach direct listeners on the original button
+    // and Enter wouldn't fire either). Without this, the Generate button
+    // can fall into a state where clicks and Enter do nothing.
+    document.addEventListener("click", function (e) {
+      if (!e.target || !e.target.closest) return;
+      const btnHit = e.target.closest("#" + cfg.btnId);
+      if (!btnHit) return;
+      // Only respond if the hit element is THE current button with this ID
+      if (btnHit === document.getElementById(cfg.btnId)) {
+        e.preventDefault();
+        submit();
+      }
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      if (!e.target || !e.target.closest) return;
+      const inpHit = e.target.closest("#" + cfg.inputId);
+      if (!inpHit) return;
+      if (inpHit === document.getElementById(cfg.inputId)) {
+        e.preventDefault();
+        submit();
+      }
+    });
   }
 
   // ── Ticker archive search — pulls existing PDFs from manifest.json
