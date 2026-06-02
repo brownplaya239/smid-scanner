@@ -3455,7 +3455,21 @@
   .uoa-filters label { font-size:11px; color:var(--textdim); display:flex; align-items:center; gap:5px; }
 
   .uoa-table-wrap { max-height:70vh; overflow:auto;
-    border:1px solid var(--line); border-radius:8px; }
+    border:1px solid var(--line); border-radius:8px;
+    /* iOS momentum scroll + contain so the page behind doesn't also
+       scroll while the user swipes the wide table horizontally. */
+    -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+  /* S-04: on phones, give the ★ watchlist button a 44px-class tap
+     target (Apple HIG min) and let the sticky ticker column breathe so
+     the most-used mobile action — save a name — is thumb-reliable even
+     though the full table still scrolls horizontally (Live Feed is the
+     mobile-first flow surface; this table stays the power-user grid). */
+  @media (max-width:600px) {
+    table.uoa .uoa-star { font-size:16px; padding:6px 8px 6px 0;
+      min-width:30px; }
+    table.uoa td:first-child, table.uoa th:first-child {
+      min-width:74px; }
+  }
   table.uoa { width:100%; border-collapse:collapse; font-size:12px; }
   table.uoa th {
     background:var(--navy2); color:var(--textdim); font-size:10px; text-transform:uppercase;
@@ -4003,6 +4017,11 @@
     color:var(--red); border:1px solid rgba(214,68,68,0.4); }
   .uoa-pill-watch  { background:rgba(255,200,0,0.18);
     color:var(--gold); border:1px solid var(--gold); }
+  /* "Late chase" warning pill — loud orange so it reads as caution.
+     Surfaces when the move already happened + DTE is short. */
+  .uoa-pill-chase  { background:rgba(255,138,0,0.20);
+    color:#ff9d3c; border:1px solid rgba(255,138,0,0.55);
+    font-weight:800; }
   /* Override the global td nowrap + right-align so pills wrap cleanly.
      Now sized for the compact pill density (≈210px holds 6 pills
      in 2 rows; 7+ pills push to 3 rows). Lower min-width than
@@ -6855,9 +6874,26 @@
       inp.disabled = true;
       lbl.textContent = "—";
       status.className = "wlt-brief-status off";
-      status.textContent = "Your browser doesn't support push notifications " +
-        "(Safari < 16, or certain embedded views). Use the Daily Brief email " +
-        "below to get alerts instead.";
+      // iOS Safari supports web push ONLY when the site is installed to
+      // the Home Screen (standalone PWA). Detect that case specifically
+      // and give the actionable install path instead of a dead-end
+      // "unsupported" message — this is the difference between an iPhone
+      // user getting alerts or not.
+      const ua = navigator.userAgent || "";
+      const isIOS = /iPhone|iPad|iPod/.test(ua);
+      const isStandalone = window.navigator.standalone === true ||
+        (window.matchMedia &&
+         window.matchMedia("(display-mode: standalone)").matches);
+      if (isIOS && !isStandalone) {
+        status.innerHTML = "iPhone push requires installing TickerDesk to " +
+          "your Home Screen first: tap the <b>Share</b> icon → " +
+          "<b>Add to Home Screen</b>, then open it from there and toggle " +
+          "this on. Or use the Daily Brief email below — works everywhere.";
+      } else {
+        status.textContent = "Your browser doesn't support push notifications " +
+          "(Safari < 16, or certain embedded views). Use the Daily Brief email " +
+          "below to get alerts instead.";
+      }
     }
   }
 
@@ -8692,12 +8728,37 @@
               rankOf(r.grade) < rankOf(prevG[r.tk])) _upgrades++;
         });
       }
+      // Average watchlist day-change vs SPY — the "am I beating the
+      // tape today" read the audit called for. Uses each row's day %
+      // (delayed 15m) averaged, minus SPY's day % from the live quote
+      // cache. Only shown once we have ≥3 names with a price.
+      let _dayChgSum = 0, _dayChgN = 0;
       rows.forEach(function (r) {
         if (r.flow) _withFlow++;
         if (r.earnDays != null && r.earnDays >= 0 && r.earnDays <= 7) _earnSoon++;
         if (typeof r.conf === "number") { _confSum += r.conf; _confN++; }
+        const c = r.cell;
+        if (c && typeof c.chg === "number") { _dayChgSum += c.chg; _dayChgN++; }
       });
       const _avgConf = _confN ? (_confSum / _confN) : 0;
+      let _vsSpyHTML = "";
+      if (_dayChgN >= 3) {
+        const _avgDay = _dayChgSum / _dayChgN;
+        const _spy = (window.LIVE_QUOTE_CACHE || {}).SPY;
+        const _spyChg = _spy && typeof _spy.change === "number"
+          ? _spy.change : null;
+        if (_spyChg != null) {
+          const _rel = _avgDay - _spyChg;
+          const _relCls = _rel > 0 ? "pos" : _rel < 0 ? "neg" : "muted";
+          _vsSpyHTML = ' &middot; <span class="' + _relCls + '">' +
+            (_avgDay >= 0 ? "+" : "") + _avgDay.toFixed(1) +
+            '% avg (' + (_rel >= 0 ? "+" : "") + _rel.toFixed(1) +
+            '% vs SPY)</span>';
+        } else {
+          _vsSpyHTML = ' &middot; ' + (_avgDay >= 0 ? "+" : "") +
+            _avgDay.toFixed(1) + '% avg today';
+        }
+      }
       const _bookCls = _avgConf >= 2 ? "pos"
                      : _avgConf <= -2 ? "neg" : "muted";
       const _bookLabel = _avgConf >= 3 ? "leaning strong bull"
@@ -8708,6 +8769,7 @@
       const statStrip = '<div class="desk-insight" style="margin:0 0 12px">' +
         '<b>' + rows.length + ' name' + (rows.length === 1 ? '' : 's') +
           '</b>' +
+        _vsSpyHTML +
         (_upgrades ? ' &middot; <span class="pos">' + _upgrades +
           ' upgrade' + (_upgrades === 1 ? '' : 's') + ' today</span>' : '') +
         (_withFlow ? ' &middot; ' + _withFlow + ' with unusual flow' : '') +
@@ -18767,6 +18829,31 @@
         // tag aesthetic for at-a-glance row scanning.
         const tagsHtml = (function () {
           const pills = [];
+          // ── "Too late to chase" warning (P0 enrichment) ──
+          // When the underlying has ALREADY moved >5% in the trade's
+          // favor since the print AND there's <3 days to expiry, the
+          // edge is largely spent: premium has inflated and theta is
+          // accelerating. Surface a loud caution so a retail user
+          // doesn't buy the top of a working idea. Needs spot_at_print
+          // + a hydrated current spot to compute the realized move.
+          (function () {
+            if (r.spot_at_print == null || r.dte == null || r.dte >= 3) return;
+            const cur = (window.CURRENT_SPOTS || {})[r.ticker];
+            if (cur == null) return;
+            const mv = ((cur - r.spot_at_print) / r.spot_at_print) * 100;
+            // Favorable = up for a call/bullish, down for a put/bearish.
+            const favorable = (r.direction === "bullish") ? mv
+                            : (r.direction === "bearish") ? -mv : 0;
+            if (favorable > 5) {
+              pills.push('<span class="uoa-pill uoa-pill-chase" title="' +
+                'The underlying already moved ' + favorable.toFixed(1) +
+                '% in this trade\'s favor since the print, and it expires ' +
+                'in ' + r.dte + ' day' + (r.dte === 1 ? '' : 's') + '. ' +
+                'Premium has inflated and theta is accelerating — chasing ' +
+                'here pays up for a move that mostly already happened.">' +
+                '🚨 Late chase</span>');
+            }
+          })();
           // Shorten verbose tier labels so they fit in compact pills.
           // "Flagged" is the catch-all fallback when no real
           // classification applies — skip it entirely, it's noise.
