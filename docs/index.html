@@ -15169,13 +15169,36 @@
     }
 
     function cardMarketHealth(swing) {
-      // Daily cadence (1 swing run per day, 4:33 PM ET post-close)
-      const stamp = swing
+      // Two distinct freshness signals on this card:
+      //  - Grades come from the 4:33 PM ET post-close swing batch
+      //    (A+/A/.../G ladder + Top Bullish/Bearish lists). Daily.
+      //  - Intraday breadth strip ("% green / % red") is computed live
+      //    from window.LIVE_QUOTE_CACHE, refreshed every 60s by
+      //    hydrateDeskLiveQuotes() during RTH.
+      // The post-close stamp by itself reads as a stale card even
+      // though the live breadth strip IS updating below it. Render
+      // a LIVE stamp during market hours that updateDeskIntradayBreadth
+      // re-ticks each cycle; fall back to the post-close stamp when
+      // the session is closed.
+      const postStamp = swing
         ? freshness((swing.runs && swing.runs.length
             ? swing.runs[swing.runs.length-1].generated
             : swing.updated),
             { character: "post-close", label: "Grades from" })
         : { cls: "none", label: "Pending first run" };
+      const liveOpen = (typeof isMarketOpenET === "function")
+        ? isMarketOpenET() : false;
+      // During RTH, show a live stamp; updateDeskIntradayBreadth()
+      // refreshes the time string every 60s as new quote chunks arrive.
+      const liveTime = new Date().toLocaleTimeString([],
+        { hour: "numeric", minute: "2-digit",
+          timeZone: "America/New_York" });
+      const stamp = liveOpen
+        ? { cls: "fresh",
+            label: "Live · " + liveTime + " ET",
+            full:  "Intraday breadth refreshed every 60s. " +
+                   "Grades are from " + postStamp.label + "." }
+        : postStamp;
       if (!swing || !swing.runs || !swing.runs.length)
         return desk("Market Health", empty("No swing report yet."),
                     null, stamp);
@@ -16579,6 +16602,28 @@
         '<span class="ib-as">· ' + counted + ' / ' +
           Object.keys(DESK_TKMAP).length + ' tickers · as of ' +
           asOf + '</span>';
+      // Also re-tick the Market Health card-header stamp during RTH so
+      // the user sees "Live · HH:MM ET" advance instead of the static
+      // post-close timestamp. Find the stamp by walking the card whose
+      // h3 starts with "Market Health" — DOM structure-agnostic and
+      // doesn't require us to plumb an id through the desk() helper.
+      if (typeof isMarketOpenET === "function" && isMarketOpenET()) {
+        const cards = document.querySelectorAll(
+          "#panel-desk .desk-card");
+        cards.forEach(function (c) {
+          const h3 = c.querySelector(":scope > h3");
+          if (!h3 || h3.firstChild.textContent.indexOf("Market Health") < 0) {
+            return;
+          }
+          const st = h3.querySelector(".desk-stamp");
+          if (!st) return;
+          st.textContent = "Live · " + asOf;
+          st.className = "desk-stamp dst-fresh";
+          st.title = "Intraday breadth refreshed every 60s during RTH " +
+                     "from live quote cache. Grades below are still " +
+                     "from the daily post-close swing batch.";
+        });
+      }
     }
 
     // ── Market-hours-aware auto-refresh helpers ──────────────────────
