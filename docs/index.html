@@ -6263,10 +6263,35 @@
       return;
     }
     SUPA = window.supabase.createClient(SUPA_URL, SUPA_ANON);
-    // Restore session if user was already signed in
-    SUPA.auth.getSession().then(function (resp) {
+    // Restore session if user was already signed in. SUPA.auth.getSession()
+    // can hang indefinitely after some auth states (we've seen this every
+    // session), which used to leave the entire UI in a signed-out state
+    // even when localStorage held a valid JWT. Race with a 2.5s timeout
+    // and fall back to constructing a user record from localStorage
+    // directly. The session object that hangs would have given us the
+    // same info anyway.
+    Promise.race([
+      SUPA.auth.getSession(),
+      new Promise(function (_, rej) {
+        setTimeout(function () { rej(new Error("getSession timeout")); }, 2500);
+      }),
+    ]).then(function (resp) {
       const sess = resp && resp.data && resp.data.session;
       CURRENT_USER = sess ? sess.user : null;
+    }).catch(function (e) {
+      console.warn("[init] getSession timed out — recovering from localStorage:", e.message);
+      try {
+        const key = Object.keys(localStorage)
+          .find(function (k) { return /^sb-.*-auth-token$/.test(k); });
+        if (key) {
+          const raw = JSON.parse(localStorage.getItem(key) || "{}");
+          // Only honor non-expired tokens. Otherwise stay signed-out.
+          if (raw && raw.expires_at && raw.expires_at > Date.now() / 1000) {
+            CURRENT_USER = raw.user || null;
+          }
+        }
+      } catch (_) {}
+    }).finally(function () {
       _emitUser();
       refreshPlanState();
       loadWatchlist();
