@@ -514,8 +514,20 @@ async function fetchLiveUOA(env, ticker, debug) {
     if (vol < 100) { stats.low_vol++; continue; }
     const voi = oi > 0 ? vol / oi : (vol > 0 ? 999 : 0);
     if (voi < 1.5) { stats.low_voi++; continue; }
-    const mid = (lq.ask && lq.bid) ? (lq.ask + lq.bid) / 2 :
-                (lq.last || day.close || 0);
+    // price_basis makes the mid-price provenance explicit. Polygon
+    // Options Starter frequently returns NO bid/ask, so the "mid" can
+    // fall back to last trade or the day close — label which one so the
+    // UI never implies a true bid/ask midpoint when there isn't one.
+    let mid, priceBasis;
+    if (lq.ask && lq.bid) {
+      mid = (lq.ask + lq.bid) / 2; priceBasis = "quote_mid";
+    } else if (lq.last) {
+      mid = lq.last; priceBasis = "last_trade";
+    } else if (day.close) {
+      mid = day.close; priceBasis = "day_close";
+    } else {
+      mid = 0; priceBasis = "none";
+    }
     const premium = mid * vol * 100;
     if (premium < 25000) { stats.low_prem++; continue; }
     stats.kept++;
@@ -536,6 +548,7 @@ async function fetchLiveUOA(env, ticker, debug) {
       iv:          c.implied_volatility || null,
       delta:       greeks.delta || null,
       mid:         Math.round(mid * 100) / 100,
+      price_basis: priceBasis,
       bid:         lq.bid || null,
       ask:         lq.ask || null,
     });
@@ -547,6 +560,12 @@ async function fetchLiveUOA(env, ticker, debug) {
     contracts:        rows.slice(0, 25),
     total_flagged:    rows.length,
     fetched:          new Date().toISOString(),
+    // Data-provenance metadata — honest about the upstream feed.
+    source:           "polygon_options_starter",
+    delay_minutes:    15,
+    // Per-contract premium uses mid from quote when available, else
+    // last trade, else day close — see each row's price_basis field.
+    price_basis_note: "Per-contract mid: quote_mid > last_trade > day_close (see row.price_basis)",
   };
   if (debug) {
     out._stats = stats;
@@ -669,16 +688,26 @@ async function fetchIvSnapshot(env, ticker, earningsDate) {
     return { ticker: ticker, error: "No ATM straddle on " + pick,
              spot: spot, expiry: pick };
   }
+  // Returns {mid, basis} so we can disclose how each leg was priced.
+  // Polygon Starter often omits bid/ask, so the straddle mid can fall
+  // back to day close or last trade — surface which.
   const midOf = function (c) {
     const lq = c.last_quote || {};
     if (lq.ask && lq.bid && lq.ask + lq.bid > 0) {
-      return (lq.ask + lq.bid) / 2;
+      return { mid: (lq.ask + lq.bid) / 2, basis: "quote_mid" };
     }
     const dy = c.day || {};
-    return dy.close || lq.last || 0;
+    if (dy.close) return { mid: dy.close, basis: "day_close" };
+    if (lq.last) return { mid: lq.last, basis: "last_trade" };
+    return { mid: 0, basis: "none" };
   };
-  const callMid = midOf(call);
-  const putMid  = midOf(put);
+  const callPx = midOf(call), putPx = midOf(put);
+  const callMid = callPx.mid, putMid = putPx.mid;
+  // Combined basis: if both legs used a true quote mid, report quote_mid;
+  // otherwise report the weaker leg's basis so the user isn't misled.
+  const BASIS_RANK = { quote_mid: 0, last_trade: 1, day_close: 2, none: 3 };
+  const priceBasis = (BASIS_RANK[callPx.basis] >= BASIS_RANK[putPx.basis])
+    ? callPx.basis : putPx.basis;
   const straddle = callMid + putMid;
   const impliedMovePct = spot > 0 ? (straddle / spot) * 100 : null;
   const ivCall = (typeof call.implied_volatility === "number")
@@ -722,6 +751,12 @@ async function fetchIvSnapshot(env, ticker, earningsDate) {
     // we lack history.
     iv_level_method:  "absolute (Low <20 · Normal 20-40 · Elevated 40-70 · High ≥70)",
     fetched:          new Date().toISOString(),
+    // Data-provenance metadata — honest about the upstream feed +
+    // how the straddle mid was priced (quote_mid / day_close /
+    // last_trade — Polygon Starter often lacks bid/ask).
+    source:           "polygon_options_starter",
+    delay_minutes:    15,
+    price_basis:      priceBasis,
   };
 }
 
@@ -1565,9 +1600,16 @@ export default {
       "Access-Control-Allow-Origin":  "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      // charset=utf-8 so the Unicode in our JSON bodies (· — ≥ ★ etc.
+      // in license/freshness notes) renders correctly in every client.
+      // Response.json defaults to bare "application/json"; this explicit
+      // value in the spread headers wins. Harmless on the null-body
+      // OPTIONS preflight below.
+      "Content-Type": "application/json; charset=utf-8",
     };
 
-    // CORS preflight
+    // CORS preflight — null body, so the content-type above is ignored
+    // by browsers; we keep cors as-is for simplicity.
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: cors });
     }

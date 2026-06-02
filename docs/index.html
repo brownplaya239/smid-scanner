@@ -4506,19 +4506,20 @@
       <div class="wlt-brief-card" id="wlt-push-card" style="border-color:var(--gold);">
         <div class="wlt-brief-left">
           <div class="wlt-brief-title">
-            🔔 Real-time alerts <span class="badge" style="background:#a87cff">NEW</span>
+            🔔 Scan alerts <span class="badge" style="background:#a87cff">NEW</span>
           </div>
           <div class="wlt-brief-sub">
-            Browser push notifications the moment a watchlist name gets
-            unusual options flow, a swing-grade upgrade, or earnings within
-            a day. Works on desktop + Android. Free.
+            Browser push notifications after each scan (~6× per market day)
+            when a watchlist name gets unusual options flow, a swing-grade
+            upgrade, or earnings within a day. Underlying data is delayed
+            15m (Polygon Starter). Works on desktop + Android. Free.
           </div>
           <div class="wlt-brief-status off" id="wlt-push-status">
-            Off — turn on to start receiving real-time alerts.
+            Off — turn on to get push alerts after each scan (~6× per market day).
           </div>
         </div>
         <label class="wlt-brief-toggle" id="wlt-push-toggle"
-               title="Enable / disable real-time browser notifications">
+               title="Enable / disable scan-based browser notifications">
           <input type="checkbox" id="wlt-push-input" />
           <span class="sw"></span>
           <span class="lbl" id="wlt-push-lbl">Off</span>
@@ -4895,8 +4896,8 @@
 
       <div class="uoa-subnav" id="uoa-subnav">
         <button data-sub="live" class="active">Latest Flow</button>
-        <button data-sub="liveflow">Live Feed
-          <span class="lf-pill-new" title="New near-live polling feed across top liquid names">NEW</span>
+        <button data-sub="liveflow">Delayed Feed
+          <span class="lf-pill-new" title="New polling feed across top liquid names — upstream delayed 15m (Polygon Options Starter)">NEW</span>
         </button>
         <button data-sub="tracked">Tracked Signals</button>
         <button data-sub="perf">Performance</button>
@@ -5101,7 +5102,7 @@
 
       <div class="uoa-sub" id="sub-liveflow" style="display:none" aria-hidden="true" inert>
         <p class="uoa-subnote">
-          <b style="color:var(--gold)">Live Feed</b> &mdash; rolling
+          <b style="color:var(--gold)">Delayed Feed</b> &mdash; rolling
           notable options flow across <b>~180 liquid optionables</b>
           (mega-caps PLUS the SMID / high-beta cohort where UOA edge
           lives, plus your watchlist). A fill surfaces if its premium
@@ -5208,8 +5209,8 @@
     <section class="panel" id="panel-pricing">
       <h2 class="tab-title">Pricing</h2>
       <p class="tab-sub">Free forever for the core dashboard. Pay only when
-        you want unlimited research, real-time alerts, and a full audit
-        trail of every signal. Cancel any time, no questions asked.</p>
+        you want unlimited research, push alerts after each scan, and a full
+        audit trail of every signal. Cancel any time, no questions asked.</p>
 
       <!-- Hero strip — current plan + billing portal link (when signed in) -->
       <div class="pricing-hero" id="pricing-hero"></div>
@@ -5271,7 +5272,7 @@
           <div class="pt-price">$29<span>/month</span></div>
           <div class="pt-period">or $290/year (save 17%)</div>
           <p class="pt-blurb">For active swing traders. Unlimited watchlist,
-            full research firehose, daily edge updates, real-time alerts.
+            full research firehose, daily edge updates, push alerts each scan.
             One signal acted on covers the month.</p>
           <ul class="pt-feats">
             <li><span class="pt-check pt-check-pro">✓</span>
@@ -5544,7 +5545,7 @@
           under a minute. Three quick steps and you're done.</p>
         <ul class="ob-checklist">
           <li>📊 Daily Brief email at 8:45 AM ET</li>
-          <li>🔔 Real-time browser alerts for watchlist names</li>
+          <li>🔔 Push alerts after each scan (~6×/day) for watchlist names</li>
           <li>⭐ Save tickers from any tab to your watchlist</li>
           <li>📝 Private notes on every name</li>
           <li>📈 Live unusual options flow on every drilldown</li>
@@ -5595,10 +5596,11 @@
       </div>
 
       <div class="ob-step" data-step="4">
-        <h3>Real-time browser alerts?</h3>
-        <p class="ob-sub">Get a notification the moment a watchlist name
-          gets unusual options flow, a grade upgrade, or earnings
-          within 24h. Works on desktop + Android. Free.</p>
+        <h3>Push alerts after each scan?</h3>
+        <p class="ob-sub">Get a notification after each scan (~6× per market
+          day) when a watchlist name gets unusual options flow, a grade
+          upgrade, or earnings within 24h. Underlying data delayed 15m.
+          Works on desktop + Android. Free.</p>
         <button class="ob-cta-primary" id="ob-enable-push">
           🔔 Enable browser alerts
         </button>
@@ -6861,7 +6863,7 @@
       inp.checked = false;
       lbl.textContent = "Off";
       status.className = "wlt-brief-status off";
-      status.textContent = "Off — turn on to start receiving real-time alerts.";
+      status.textContent = "Off — turn on to get push alerts after each scan (~6× per market day).";
     } else if (state === "denied") {
       inp.checked = false;
       inp.disabled = true;
@@ -9096,11 +9098,11 @@
         { id: "swing_report", path: "./reports/swing_report.json",
           char: "post-close", desc: "Swing grades (Today's Desk, Swing, Action List)" },
         { id: "uoa_latest", path: "./reports/uoa_latest.json",
-          char: "live", desc: "Unusual flow (Options Flow, drilldown live flow)" },
+          char: "intraday-batch", desc: "Unusual flow (Options Flow, drilldown). Polygon Options Starter — delayed 15m, 6 scans/day." },
         { id: "uoa_signals_scored", path: "./reports/uoa_signals_scored.json",
-          char: "live", desc: "Scored signals (Tracked Signals subtab)" },
+          char: "intraday-batch", desc: "Scored signals (Tracked Signals subtab). Rebuilt each UOA scan." },
         { id: "uoa_edge", path: "./reports/uoa_edge.json",
-          char: "live", desc: "Historical edge stats" },
+          char: "post-close", desc: "Historical edge stats — recomputed once per day after close." },
         { id: "earnings_anticipated", path: "./reports/earnings_anticipated.json",
           char: "post-close", desc: "Earnings calendar (Earnings tab, Daily Brief)" },
         { id: "economic_calendar", path: "./reports/economic_calendar.json",
@@ -11581,9 +11583,9 @@
           return;
         }
         const flagged = d.total_flagged || 0;
-        head.innerHTML = 'Live unusual flow ' +
+        head.innerHTML = 'Latest unusual flow ' +
           '<span style="color:var(--muted);font-weight:400;text-transform:none;' +
-            'letter-spacing:0;font-size:9px;">· ' + flagged + ' flagged · live</span>';
+            'letter-spacing:0;font-size:9px;">· ' + flagged + ' flagged · delayed 15m</span>';
         if (!d.contracts || !d.contracts.length) {
           body.innerHTML = '<div class="tdp-empty">No unusual contracts ' +
             'for ' + t + ' right now (vol/OI &gt; 1.5 · premium &gt; $25k).</div>';
@@ -11597,8 +11599,8 @@
         };
         // Header strip
         const meta = '<div class="tdp-liveflow-meta">' +
-          '<span class="live-dot"></span>As of just now · vol/OI > 1.5 · ' +
-          'premium ≥ $25k' +
+          '<span class="live-dot"></span>Fetched just now · upstream delayed 15m · ' +
+          'vol/OI > 1.5 · premium ≥ $25k' +
           (d.underlying_price
             ? ' · underlying $' + d.underlying_price.toFixed(2)
             : '') + '</div>';
@@ -16422,7 +16424,7 @@
             '<span class="sp-action-icon">' + (inWL ? "★" : "☆") +
               '</span><span class="sp-action-lbl">Save</span></button>' +
           '<button data-act-alert="' + tkr + '" ' +
-                  'title="Real-time push alerts for ' + tkr + '">' +
+                  'title="Push alerts (fire each scan, ~6×/day) for ' + tkr + '">' +
             '<span class="sp-action-icon">🔔</span>' +
             '<span class="sp-action-lbl">Alert</span></button>' +
           '<button data-act-note="' + tkr + '" ' +
@@ -19340,8 +19342,11 @@
           if (!r.ok) throw new Error("HTTP " + r.status);
           const d = await r.json();
           renderFeed(d.flows || []);
-          setStatus("live", "Live · refreshed " +
-            new Date().toLocaleTimeString());
+          // Honest label: the POLL is fresh (we just fetched) but the
+          // upstream Polygon Options Starter data is 15m delayed by
+          // license. Never imply the prints themselves are live.
+          setStatus("polling", "Fetched " +
+            new Date().toLocaleTimeString() + " · upstream delayed 15m");
         } catch (e) {
           setStatus("error", "Error: " + (e.message || e));
         }
@@ -19351,7 +19356,7 @@
         paused = false;
         pollOnce();
         timer = setInterval(pollOnce, POLL_MS);
-        setStatus("live", "Starting…");
+        setStatus("polling", "Starting…");
       }
       function stopLiveFlow() {
         if (timer) { clearInterval(timer); timer = null; }
