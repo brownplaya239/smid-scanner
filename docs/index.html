@@ -318,6 +318,13 @@
     padding:9px 10px; border-bottom:1px solid var(--line); }
   table.wlt-portfolio th:first-child, table.wlt-tl th:first-child {
     text-align:left; }
+  /* Sortable portfolio headers — click to sort, click again to reverse */
+  table.wlt-portfolio th.wp-sortable { cursor:pointer; user-select:none;
+    -webkit-user-select:none; white-space:nowrap; transition:color .12s; }
+  table.wlt-portfolio th.wp-sortable:hover { color:var(--text); }
+  table.wlt-portfolio th.wp-sort-active { color:var(--gold); }
+  table.wlt-portfolio th .wp-caret { font-size:8px; margin-left:3px;
+    display:inline-block; vertical-align:middle; }
   table.wlt-portfolio td, table.wlt-tl td { padding:8px 10px;
     border-bottom:1px solid var(--line); text-align:right;
     font-variant-numeric:tabular-nums; }
@@ -7796,6 +7803,25 @@
       return v == null ? "flat" : v > 0 ? "up" : v < 0 ? "down" : "flat";
     }
 
+    // ── Sortable portfolio columns ───────────────────────────────────
+    // Click any header to sort; click the same header again to reverse.
+    // Null / "—" cells ALWAYS sink to the bottom regardless of direction
+    // so empty values never crowd the top of a sort. Each column has a
+    // sensible default direction for its first click (biggest weight,
+    // biggest mover, strongest grade, soonest earnings...).
+    const WP_GRADES = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
+                       "D","D-","E+","E","E-","F+","F","F-","G+","G","G-"];
+    function wpGradeRank(g) {
+      if (!g) return null;
+      const i = WP_GRADES.indexOf(g);
+      return i < 0 ? null : i;          // lower index = stronger (A+ = 0)
+    }
+    const WP_SORT_DEFAULT_DIR = {
+      ticker: 1, weight: -1, pct: -1, price: -1, chg: -1,
+      grade: 1, theme: 1, flow: -1, earnings: 1,
+    };
+    let WP_SORT = { key: "ticker", dir: 1 };   // dir: 1 = asc, -1 = desc
+
     // ── Benchmark calculation ──
     // Portfolio daily % = sum(weight_i * daychg_i) / sum(weight_i)
     // Compare vs SPY daily chg (pulled from worker quotes endpoint).
@@ -7810,6 +7836,56 @@
         });
         renderBench();
       } catch (e) { /* silent */ }
+    }
+    // ── Live quotes for EVERY watchlist ticker ───────────────────────
+    // The swing dataset only covers the small/mid-cap scan universe, so
+    // Price / Day % were blank for any watchlist name outside it (META,
+    // HIMS, BRUN, CMBT, IMSR...). Pull real delayed quotes for every
+    // ticker via the worker /quotes batch endpoint (works for ANY
+    // symbol), store them in the shared window.LIVE_QUOTE_CACHE that the
+    // Desk also uses, then re-render. 5-min TTL + in-flight guard keeps
+    // this cheap on repeat visits and matches the worker edge cache.
+    let wlQuotesInFlight = false;
+    function hydrateWatchlistQuotes() {
+      if (wlQuotesInFlight) return;
+      const signed = !!window.tdUser();
+      const wl = (SHOW_SAMPLE && !signed && WATCHLIST.size === 0)
+        ? SAMPLE_WATCHLIST.slice()
+        : Array.from(WATCHLIST);
+      if (!wl.length) return;
+      const cache = window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
+      const stale = wl.filter(function (t) {
+        const c = cache[t];
+        return /^[A-Z\.\-]{1,8}$/.test(t) &&
+          (!c || Date.now() - (c.ts || 0) > 5 * 60 * 1000);
+      });
+      if (!stale.length) { renderPortfolio(); renderBench(); return; }
+      wlQuotesInFlight = true;
+      const chunkSize = 50;
+      const jobs = [];
+      for (let i = 0; i < stale.length; i += chunkSize) {
+        const chunk = stale.slice(i, i + chunkSize);
+        jobs.push(
+          fetch(WORKER_URL + "?quotes=" + encodeURIComponent(chunk.join(",")))
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) {
+              if (!d || !d.quotes) return;
+              d.quotes.forEach(function (q) {
+                if (!q || !q.symbol) return;
+                cache[q.symbol] = {
+                  price: q.price, change: q.change,
+                  prevClose: q.prevClose, ts: Date.now(),
+                };
+              });
+              renderPortfolio();   // progressive: light up as chunks land
+            })
+            .catch(function () {})
+        );
+      }
+      Promise.all(jobs).finally(function () {
+        wlQuotesInFlight = false;
+        renderBench();
+      });
     }
     // ── MTD / YTD aggregation cache ─────────────────────────────────
     // Fetches daily candles via the worker for each watchlist ticker,
@@ -8239,76 +8315,131 @@
           });
         });
       }
-      const head = '<thead><tr>' +
-        '<th title="Saved watchlist symbol. Tap to open drilldown.">' +
-          'Ticker</th>' +
-        '<th title="Position weight in arbitrary units. Default 1. Edit inline. Use Equal-weight or Normalize 100% buttons above for bulk operations.">' +
-          'Weight</th>' +
-        '<th title="This position\'s weight as a percentage of total watchlist weight. Sums to 100% only when you click Normalize 100%.">' +
-          '% Port</th>' +
-        '<th title="Latest underlying price (Polygon Stocks Starter, delayed 15 min).">' +
-          'Price</th>' +
-        '<th title="Today\'s % change in the underlying (delayed 15 min).">' +
-          'Day %</th>' +
-        '<th title="Swing grade A+ (strongest) through G (weakest). EOD batch — recomputes after each session\'s close.">' +
-          'Grade</th>' +
-        '<th title="Primary thematic bucket (AI Infra, Space, Semis, etc.). — = no theme tagged.">' +
-          'Theme</th>' +
-        '<th title="Today\'s options flow bias (bullish / bearish / mixed). Intraday-batch ~75 min cadence.">' +
-          'Flow</th>' +
-        '<th title="Days until next earnings report. — = no earnings within the next 30 days (or no scrape data).">' +
-          'Earnings</th>' +
-        '<th title="Save / Alert / Note / Drilldown action buttons + remove (×).">' +
-          'Actions</th></tr></thead>';
-      const rows = wl.map(function (t) {
+      // ── Build per-row data (sortable) ──────────────────────────
+      // Price/Day% prefer the live worker quote (covers ANY ticker,
+      // incl. mega-caps like META that aren't in the swing universe);
+      // fall back to the swing run's EOD close-to-close value only if a
+      // live quote hasn't landed yet. Grade/theme/flow/earnings stay
+      // "—" for names the respective dataset doesn't cover — an honest
+      // "not tracked" signal, not a fetch failure.
+      const liveCache = window.LIVE_QUOTE_CACHE || {};
+      const rowData = wl.map(function (t) {
         const c = lookupCell(t);
+        const live = liveCache[t];
         const w = WATCHLIST_WEIGHTS[t] != null ? WATCHLIST_WEIGHTS[t] : 1;
         const pct = totalWeight > 0 ? (w / totalWeight) * 100 : 0;
-        const price = c && c.p != null ? "$" + c.p.toFixed(2) : "—";
-        const chg = c && typeof c.chg === "number" ? c.chg : null;
-        const cc = chgCls(chg);
-        const chgStr = chg == null ? "—"
-          : (chg > 0 ? "+" : "") + chg.toFixed(2) + "%";
-        // Enrichment cells
-        const gradeInfo = gradeMap[t];
-        const gradeCell = gradeInfo
-          ? '<span class="wp-grade wp-grade-' +
-            (gradeInfo.grade[0] === "A" ? "a"
-             : gradeInfo.grade[0] === "G" || gradeInfo.grade[0] === "F" ? "g"
-             : "mid") + '">' + gradeInfo.grade + '</span>'
-          : '<span class="wp-grade wp-grade-none">—</span>';
-        const themeCell = gradeInfo && gradeInfo.theme
-          ? '<span class="wp-theme">' + gradeInfo.theme + '</span>'
-          : '<span class="wp-empty">—</span>';
+        let price = null, chg = null;
+        if (live && typeof live.price === "number") price = live.price;
+        else if (c && c.p != null) price = c.p;
+        if (live && typeof live.change === "number") chg = live.change;
+        else if (c && typeof c.chg === "number") chg = c.chg;
+        const gi = gradeMap[t];
+        const grade = gi ? gi.grade : null;
+        const theme = gi && gi.theme ? gi.theme : null;
         const flow = flowMap[t];
-        const flowCell = flow && flow.direction
-          ? '<span class="wp-flow wp-flow-' + flow.direction +
-            '">' + flow.direction +
-            (flow.premium && flow.premium >= 100000
-              ? ' · $' + Math.round(flow.premium / 1000) + 'K'
-              : '') +
+        const flowDir = flow && flow.direction ? flow.direction : null;
+        const flowPrem = flow && typeof flow.premium === "number"
+          ? flow.premium : null;
+        let earnDays = null, earnSlot = null;
+        const earn = earnMap[t];
+        if (earn) {
+          const ed = new Date(earn.date + "T12:00:00-04:00");
+          const days = Math.round((ed - new Date()) / 86400000);
+          if (days >= 0 && days <= 30) { earnDays = days; earnSlot = earn.slot; }
+        }
+        return { t: t, w: w, pct: pct, price: price, chg: chg,
+                 grade: grade, gradeRank: wpGradeRank(grade), theme: theme,
+                 flowDir: flowDir, flowPrem: flowPrem,
+                 earnDays: earnDays, earnSlot: earnSlot };
+      });
+      // Sort by the active column. Nulls always sink to the bottom;
+      // ticker is the stable tiebreaker.
+      const sortVal = ({
+        ticker: function (r) { return r.t; },
+        weight: function (r) { return r.w; },
+        pct:    function (r) { return r.pct; },
+        price:  function (r) { return r.price; },
+        chg:    function (r) { return r.chg; },
+        grade:  function (r) { return r.gradeRank; },
+        theme:  function (r) { return r.theme; },
+        flow:   function (r) { return r.flowPrem; },
+        earnings: function (r) { return r.earnDays; },
+      })[WP_SORT.key] || function (r) { return r.t; };
+      rowData.sort(function (a, b) {
+        const av = sortVal(a), bv = sortVal(b);
+        const an = (av == null || av === ""), bn = (bv == null || bv === "");
+        if (an && bn) return a.t.localeCompare(b.t);
+        if (an) return 1;       // nulls last, always
+        if (bn) return -1;
+        let r = (typeof av === "string") ? av.localeCompare(bv) : (av - bv);
+        if (r === 0) return a.t.localeCompare(b.t);
+        return WP_SORT.dir * r;
+      });
+      // ── Sortable header ────────────────────────────────────────
+      function wpTh(key, label, title) {
+        const active = WP_SORT.key === key;
+        const caret = active ? (WP_SORT.dir === 1 ? "▲" : "▼") : "";
+        return '<th class="wp-sortable' + (active ? " wp-sort-active" : "") +
+          '" data-sort="' + key + '" title="' + title +
+          ' · click to sort">' + label +
+          '<span class="wp-caret">' + caret + '</span></th>';
+      }
+      const head = '<thead><tr>' +
+        wpTh("ticker", "Ticker",
+          "Saved watchlist symbol. Tap a row to open drilldown.") +
+        wpTh("weight", "Weight",
+          "Position weight in arbitrary units. Default 1. Edit inline.") +
+        wpTh("pct", "% Port",
+          "This position's weight as a % of total watchlist weight.") +
+        wpTh("price", "Price",
+          "Latest price (Polygon, delayed 15 min). Live for every ticker.") +
+        wpTh("chg", "Day %",
+          "Today's % change (delayed 15 min).") +
+        wpTh("grade", "Grade",
+          "Swing grade A+ (strongest) to G. EOD batch. — = not in swing universe.") +
+        wpTh("theme", "Theme",
+          "Primary thematic bucket. — = no theme tagged.") +
+        wpTh("flow", "Flow",
+          "Today's options flow bias + premium. Intraday-batch.") +
+        wpTh("earnings", "Earnings",
+          "Days until next earnings. — = none within 30 days.") +
+        '<th title="Save / Alert / Note / Drilldown + remove (×).">' +
+          'Actions</th></tr></thead>';
+      const rows = rowData.map(function (d) {
+        const t = d.t;
+        const price = d.price != null ? "$" + d.price.toFixed(2) : "—";
+        const cc = chgCls(d.chg);
+        const chgStr = d.chg == null ? "—"
+          : (d.chg > 0 ? "+" : "") + d.chg.toFixed(2) + "%";
+        const gradeCell = d.grade
+          ? '<span class="wp-grade wp-grade-' +
+            (d.grade[0] === "A" ? "a"
+             : d.grade[0] === "G" || d.grade[0] === "F" ? "g" : "mid") +
+            '">' + d.grade + '</span>'
+          : '<span class="wp-grade wp-grade-none">—</span>';
+        const themeCell = d.theme
+          ? '<span class="wp-theme">' + d.theme + '</span>'
+          : '<span class="wp-empty">—</span>';
+        const flowCell = d.flowDir
+          ? '<span class="wp-flow wp-flow-' + d.flowDir + '">' + d.flowDir +
+            (d.flowPrem && d.flowPrem >= 100000
+              ? ' · $' + Math.round(d.flowPrem / 1000) + 'K' : '') +
             '</span>'
           : '<span class="wp-empty">—</span>';
-        const earn = earnMap[t];
         let earnCell = '<span class="wp-empty">—</span>';
-        if (earn) {
-          const today = new Date();
-          const ed = new Date(earn.date + "T12:00:00-04:00");
-          const days = Math.round((ed - today) / 86400000);
-          if (days >= 0 && days <= 30) {
-            const cls = days <= 1 ? "wp-earn-imminent"
-                       : days <= 7 ? "wp-earn-near" : "wp-earn-far";
-            earnCell = '<span class="wp-earn ' + cls + '">' +
-              (days === 0 ? "today" : days === 1 ? "tomorrow"
-                : "in " + days + "d") + ' ' + earn.slot + '</span>';
-          }
+        if (d.earnDays != null) {
+          const cls = d.earnDays <= 1 ? "wp-earn-imminent"
+                     : d.earnDays <= 7 ? "wp-earn-near" : "wp-earn-far";
+          earnCell = '<span class="wp-earn ' + cls + '">' +
+            (d.earnDays === 0 ? "today" : d.earnDays === 1 ? "tomorrow"
+              : "in " + d.earnDays + "d") + ' ' + d.earnSlot + '</span>';
         }
         return '<tr data-t="' + t + '">' +
           '<td><span class="wp-tk">' + t + '</span></td>' +
           '<td><input class="wp-weight-input" type="number" step="0.5" ' +
-            'min="0" inputmode="decimal" value="' + w + '" ' +
+            'min="0" inputmode="decimal" value="' + d.w + '" ' +
             'data-weight-tk="' + t + '" /></td>' +
-          '<td>' + pct.toFixed(1) + '%</td>' +
+          '<td>' + d.pct.toFixed(1) + '%</td>' +
           '<td>' + price + '</td>' +
           '<td class="wp-chg ' + cc + '">' + chgStr + '</td>' +
           '<td>' + gradeCell + '</td>' +
@@ -8509,6 +8640,16 @@
       });
     });
     tblEl.addEventListener("click", function (e) {
+      // Sortable column header — toggle direction if same column, else
+      // switch to the new column at its sensible default direction.
+      const sortTh = e.target.closest("th[data-sort]");
+      if (sortTh) {
+        const key = sortTh.dataset.sort;
+        if (WP_SORT.key === key) WP_SORT.dir = -WP_SORT.dir;
+        else { WP_SORT.key = key; WP_SORT.dir = WP_SORT_DEFAULT_DIR[key] || 1; }
+        renderPortfolio();
+        return;
+      }
       const rm = e.target.closest("[data-remove-tk]");
       if (rm) {
         e.stopPropagation();
@@ -8669,6 +8810,7 @@
       renderPortfolio();
       renderTradeLog();
       renderBench();
+      hydrateWatchlistQuotes();   // fetch live Price/Day% for all names
     }
     onWatchChange(renderAll);
     onUserChange(function () { loadTradeLog(); renderAll(); });
@@ -8685,7 +8827,10 @@
     fetchBenchQuotes();
     setInterval(function () {
       const panel = document.getElementById("panel-watchlist");
-      if (panel && panel.classList.contains("active")) fetchBenchQuotes();
+      if (panel && panel.classList.contains("active")) {
+        fetchBenchQuotes();
+        hydrateWatchlistQuotes();
+      }
     }, 60 * 1000);
   })();
 
