@@ -429,7 +429,7 @@
 
   /* ── Pre-Market Buzz pane (Today's Desk) ── */
   .pmb { background:var(--card); border:1px solid var(--line);
-    border-radius:10px; padding:16px 18px; margin-bottom:16px; }
+    border-radius:10px; padding:16px 18px; margin-top:16px; }
   .pmb-head { display:flex; align-items:baseline; gap:10px;
     flex-wrap:wrap; margin-bottom:12px;
     border-bottom:1px solid var(--line); padding-bottom:10px; }
@@ -4502,10 +4502,14 @@
           <button class="sh-next" id="sh-next" type="button">Next &rarr;</button>
         </div>
       </div>
+      <div class="desk-grid" id="desk-grid">
+        <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
+      </div>
       <!-- Pre-Market Buzz — top gainers/losers + catalyst per name.
            Populated by setupPremarketBuzz() from the worker /?premarket=1
            endpoint (Polygon movers + verbatim news catalysts). Hidden
-           until data lands. -->
+           until data lands. Sits BELOW the desk grid (under the Earnings
+           square / desk cards) per product placement. -->
       <div class="pmb" id="pmb" style="display:none">
         <div class="pmb-head">
           <span class="pmb-title">📊 Pre-Market Buzz</span>
@@ -4522,9 +4526,6 @@
             <div class="pmb-list" id="pmb-losers"></div>
           </div>
         </div>
-      </div>
-      <div class="desk-grid" id="desk-grid">
-        <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
       </div>
     </section>
 
