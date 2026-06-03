@@ -12,7 +12,16 @@ on:
     # during the longer summer window. EST winter fires are 1 hr earlier.
     #
     # ~9:45 AM ET  — opening flow (first 15 min noise settled)
+    # Triple-fire the morning slot because GitHub's scheduler routinely
+    # SKIPS the first cron of the day under load (observed 2026-06-03:
+    # the 13:47 fire never triggered, leaving the desk on yesterday's
+    # 22:15 scan all morning). The scanner's emit_latest only writes
+    # when it produces rows, and dedups by timestamp, so redundant
+    # fires that both succeed just refresh to the same state — cheap
+    # insurance against a dropped opening scan.
+    - cron: '35 13 * * 1-5'
     - cron: '47 13 * * 1-5'
+    - cron: '5 14 * * 1-5'
     # ~11:00 AM ET — late-morning continuation
     - cron: '7 15 * * 1-5'
     # ~12:15 PM ET — lunch-hour positioning
