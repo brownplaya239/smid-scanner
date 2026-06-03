@@ -470,6 +470,11 @@
   .pmb-why { grid-column:1 / -1; grid-row:2; font-size:11.5px;
     color:var(--textdim); line-height:1.4; margin-top:2px; }
   .pmb-why.none { color:var(--muted); font-style:italic; }
+  .pmb-src { display:inline-block; font-size:8.5px; font-weight:800;
+    letter-spacing:.3px; padding:1px 5px; border-radius:3px;
+    margin-right:6px; vertical-align:middle; text-transform:uppercase; }
+  .pmb-src-sec  { background:rgba(125,211,252,0.16); color:#7dd3fc; }
+  .pmb-src-news { background:rgba(255,255,255,0.07); color:var(--muted); }
   .pmb-empty { font-size:11.5px; color:var(--muted); font-style:italic;
     padding:14px; text-align:center; }
 
@@ -3199,6 +3204,51 @@
   .archive-freshness .af-chip.is-stale { border-color:rgba(255,158,27,0.45);
     background:rgba(255,158,27,0.08); }
   .archive-freshness .af-chip.is-stale .af-age { color:var(--gold); }
+  /* ── IR & Filings hub (Research tab) ── */
+  .ir-beta { font-size:9px; font-weight:800; letter-spacing:.5px;
+    background:rgba(125,211,252,0.16); color:#7dd3fc; padding:2px 7px;
+    border-radius:4px; vertical-align:middle; margin-left:6px; }
+  .ir-results { margin-top:14px; display:flex; flex-direction:column; gap:1px; }
+  .ir-row { display:grid; grid-template-columns:130px 78px 1fr auto;
+    gap:10px; align-items:start; padding:10px 8px;
+    border-bottom:1px solid var(--line); font-size:12px; }
+  .ir-row:hover { background:var(--rowhov); }
+  .ir-when { color:var(--muted); font-size:10.5px;
+    font-variant-numeric:tabular-nums; padding-top:2px; }
+  .ir-form { font-size:10px; font-weight:800; text-align:center;
+    padding:2px 6px; border-radius:4px; height:fit-content;
+    white-space:nowrap; }
+  .ir-cat-red    { background:rgba(214,68,68,0.18);  color:#f08585; }
+  .ir-cat-amber  { background:rgba(255,170,40,0.18); color:#ffc06a; }
+  .ir-cat-blue   { background:rgba(96,165,250,0.18); color:#93c5fd; }
+  .ir-cat-green  { background:rgba(31,179,99,0.18);  color:#7ddfa1; }
+  .ir-cat-purple { background:rgba(168,124,255,0.18);color:#c4a8ff; }
+  .ir-cat-gold   { background:rgba(255,200,0,0.16);  color:#ffd166; }
+  .ir-cat-gray   { background:rgba(255,255,255,0.06);color:var(--muted); }
+  .ir-headline { color:var(--text); line-height:1.4; min-width:0; }
+  .ir-cat-tag { font-size:9px; color:var(--muted); margin-left:7px;
+    text-transform:uppercase; letter-spacing:.3px; }
+  .ir-sum { display:none; margin-top:6px; font-size:11px; line-height:1.5;
+    color:var(--textdim); background:var(--navy2); border-radius:6px;
+    padding:8px 10px; border-left:2px solid #7dd3fc; }
+  .ir-sum.show { display:block; }
+  .ir-sum-err { color:var(--red); font-style:italic; }
+  .ir-acts { display:flex; gap:8px; align-items:center; white-space:nowrap; }
+  .ir-open { font-size:10.5px; color:var(--textdim); text-decoration:none; }
+  .ir-open:hover { color:var(--gold); }
+  .ir-sum-btn { background:transparent; border:1px solid var(--border2);
+    color:var(--textdim); font-size:10px; font-weight:600; padding:3px 8px;
+    border-radius:5px; cursor:pointer; font-family:inherit; }
+  .ir-sum-btn:hover { border-color:#7dd3fc; color:#7dd3fc; }
+  .ir-sum-btn:disabled { opacity:.6; cursor:wait; }
+  @media (max-width:600px) {
+    .ir-row { grid-template-columns:1fr auto; gap:4px 8px; }
+    .ir-when { grid-column:1; }
+    .ir-form { grid-column:2; grid-row:1; }
+    .ir-headline { grid-column:1 / -1; }
+    .ir-acts { grid-column:1 / -1; }
+  }
+
   .archive-results { margin-top:14px; }
   .archive-results .ar-empty { font-size:11.5px; color:var(--muted);
     font-style:italic; padding:8px 0; }
@@ -4708,6 +4758,29 @@
         </div>
         <div id="archive-recent" class="archive-recent"></div>
         <div id="archive-results" class="archive-results"></div>
+      </div>
+
+      <!-- IR & Filings hub — per-ticker SEC EDGAR timeline (the reliable
+           proxy for a corporate IR page: 8-K exhibits / press releases /
+           decks / 10-K/Q all land here in a standard feed). On-demand AI
+           summary per filing via the worker. -->
+      <div class="card">
+        <h2>IR &amp; Filings <span class="ir-beta">EDGAR</span></h2>
+        <p class="sub">
+          A company's investor-relations materials &mdash; press releases,
+          8-K exhibits, investor decks, quarterly/annual reports &mdash; land
+          on <b>SEC EDGAR</b> in a standard feed within minutes of posting.
+          Search any ticker for its recent filing timeline; click
+          <b>Summarize</b> on a material filing for a Claude one-paragraph
+          read. Source: SEC EDGAR (official, real-time).
+        </p>
+        <div class="input-row">
+          <input type="text" id="ir-q" placeholder="NVDA &middot; MU &middot; COIN..."
+                 maxlength="8" autocomplete="off" autocapitalize="characters" />
+          <button class="go" id="ir-go">Load filings</button>
+        </div>
+        <div id="ir-status"></div>
+        <div id="ir-results" class="ir-results"></div>
       </div>
 
       <div id="viewer"></div>
@@ -13250,6 +13323,135 @@
   setupLookup({ inputId:"ticker-alt", btnId:"go-alt", statusId:"status-alt", viewerId:"viewer-alt",
     listKey:"alt-data", reportType:"altdata", runtime:"1-2 min" });
 
+  /* ── IR & Filings hub (Research tab) ───────────────────────────────
+     Per-ticker SEC EDGAR timeline via the worker /?filings= endpoint.
+     EDGAR is the reliable proxy for a corporate IR page — press
+     releases (8-K EX-99.1), investor decks (EX-99.2), 10-K/Q, S-1,
+     offerings all land here in a standard feed. On-demand AI summary
+     per material filing via /?filing-summary=. */
+  (function setupIRFilings() {
+    const input  = document.getElementById("ir-q");
+    const button = document.getElementById("ir-go");
+    const status = document.getElementById("ir-status");
+    const results = document.getElementById("ir-results");
+    if (!input || !button) return;
+    const CAT_LABEL = {
+      red:"Risk", amber:"Dilution", blue:"Material", green:"Insider",
+      purple:"Activist", gold:"Financials", gray:"Routine",
+    };
+    function setStatus(cls, html) {
+      status.className = "show " + (cls || "");
+      status.innerHTML = html;
+    }
+    function fmtWhen(f) {
+      const iso = f.acceptedDate || f.filingDate;
+      if (!iso) return "";
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return f.filingDate || "";
+      const days = Math.round((Date.now() - d.getTime()) / 86400000);
+      const ago = days <= 0 ? "today" : days === 1 ? "yesterday" : days + "d ago";
+      return d.toLocaleDateString([], { month:"short", day:"numeric",
+        year:"numeric" }) + " · " + ago;
+    }
+    async function load(tk) {
+      tk = (tk || "").toUpperCase().trim();
+      if (!tk || !/^[A-Z.\-]{1,8}$/.test(tk)) {
+        setStatus("err", "Enter a valid ticker (1-8 letters).");
+        return;
+      }
+      setStatus("working", "Loading EDGAR filings for <strong>" + tk +
+        "</strong>&hellip;");
+      results.innerHTML = "";
+      try {
+        const r = await fetch(WORKER_URL + "/?filings=" +
+          encodeURIComponent(tk) + "&limit=30");
+        const d = await r.json();
+        if (!d || d.error || !d.filings || !d.filings.length) {
+          setStatus("err", "&#10007; " + (d && d.error
+            ? d.error : "No EDGAR filings found for " + tk + "."));
+          return;
+        }
+        setStatus("ok", "&#10003; <strong>" + (d.name || tk) + "</strong> · " +
+          d.filings.length + " recent filings · " +
+          '<a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=' +
+          encodeURIComponent(d.cik || tk) + '&type=&dateb=&owner=include&count=40" ' +
+          'target="_blank" rel="noopener">full EDGAR &rarr;</a>');
+        results.innerHTML = d.filings.map(function (f, i) {
+          const cat = f.category || "gray";
+          const aiBtn = f.needsAI
+            ? '<button class="ir-sum-btn" data-ir-sum="' + i + '" ' +
+              'type="button">Summarize</button>'
+            : '';
+          return '<div class="ir-row" data-ir-i="' + i + '">' +
+            '<span class="ir-when">' + fmtWhen(f) + '</span>' +
+            '<span class="ir-form ir-cat-' + cat + '">' +
+              window.escapeHtml(f.form || "?") + '</span>' +
+            '<span class="ir-headline">' +
+              window.escapeHtml(f.headline || f.form || "") +
+              '<span class="ir-cat-tag">' + (CAT_LABEL[cat] || "") + '</span>' +
+              '<div class="ir-sum" id="ir-sum-' + i + '"></div>' +
+            '</span>' +
+            '<span class="ir-acts">' +
+              '<a href="' + window.escapeHtml(f.url) + '" target="_blank" ' +
+                'rel="noopener" class="ir-open">Open &rarr;</a>' +
+              aiBtn +
+            '</span>' +
+            '</div>';
+        }).join("");
+        // Stash for the summarize handler
+        results._filings = d.filings;
+        results._ticker = tk;
+      } catch (e) {
+        setStatus("err", "&#10007; Request failed: " + (e.message || e));
+      }
+    }
+    // Summarize button — calls the worker's Haiku filing-summary endpoint.
+    results.addEventListener("click", async function (e) {
+      const b = e.target.closest("[data-ir-sum]");
+      if (!b) return;
+      const i = +b.dataset.irSum;
+      const f = (results._filings || [])[i];
+      if (!f) return;
+      const box = document.getElementById("ir-sum-" + i);
+      if (box && box.dataset.done) { box.classList.toggle("show"); return; }
+      b.disabled = true; b.textContent = "Summarizing…";
+      try {
+        const q = "?filing-summary=" + encodeURIComponent(f.accession || "x") +
+          "&ticker=" + encodeURIComponent(results._ticker) +
+          "&form=" + encodeURIComponent(f.form || "") +
+          "&items=" + encodeURIComponent(f.items || "") +
+          "&url=" + encodeURIComponent(f.url || "");
+        const r = await fetch(WORKER_URL + "/" + q);
+        const d = await r.json();
+        if (box) {
+          if (d && d.ok && d.summary) {
+            box.innerHTML = window.escapeHtml(d.summary);
+            box.classList.add("show"); box.dataset.done = "1";
+          } else {
+            box.innerHTML = '<span class="ir-sum-err">' +
+              window.escapeHtml((d && d.error) || "Summary unavailable.") +
+              '</span>';
+            box.classList.add("show");
+          }
+        }
+        b.textContent = "Summary";
+      } catch (err) {
+        b.textContent = "Retry";
+      } finally { b.disabled = false; }
+    });
+    button.addEventListener("click", function () { load(input.value); });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") load(input.value);
+    });
+    // Expose so the drilldown / other surfaces can deep-link in.
+    window.tdLoadFilings = function (tk) {
+      const tab = document.querySelector('nav button[data-tab="adhoc"]');
+      if (tab) tab.click();
+      input.value = (tk || "").toUpperCase();
+      load(input.value);
+    };
+  })();
+
   /* ── Momentum screen tables (QM Monthly / Stockbee Weekly) ── */
   function setupMomentum(cfg) {
     const sel = document.getElementById(cfg.dateId);
@@ -19227,8 +19429,15 @@
       function row(r, dir) {
         const pctCls = r.pct >= 0 ? "up" : "down";
         const sign = r.pct > 0 ? "+" : "";
+        // Source tag so the "why" provenance is explicit — SEC (EDGAR
+        // 8-K headline) vs news (Polygon headline).
+        const srcTag = r.catalyst
+          ? '<span class="pmb-src pmb-src-' +
+            (r.catalyst_src === "edgar" ? "sec" : "news") + '">' +
+            (r.catalyst_src === "edgar" ? "SEC" : "news") + '</span>'
+          : '';
         const why = r.catalyst
-          ? '<div class="pmb-why">' + esc(r.catalyst) + '</div>'
+          ? '<div class="pmb-why">' + srcTag + esc(r.catalyst) + '</div>'
           : '<div class="pmb-why none">No catalyst on file (pre-market mover)</div>';
         return '<div class="pmb-row pmb-r-' + dir + '" data-t="' + esc(r.ticker) + '" ' +
           'role="button" tabindex="0" ' +

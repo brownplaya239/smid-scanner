@@ -1613,6 +1613,25 @@ const PMB_EXCLUDE = new Set([
   "BOIL","KOLD","GUSH","DRIP","JNUG","JDST","NVDL","NVDU","TSLL","TSLQ",
   "MSTU","MSTX","MSTZ","CONL","BITX","ETHU","USD","ERX","ERY","WEBL",
 ]);
+// Most-recent material SEC filing for a ticker, within the last 4 days,
+// used as a catalyst fallback when Polygon news has nothing fresh.
+// Skips insider Forms 3/4/5 (rarely THE catalyst) and returns the
+// already-human filing headline + the doc URL. Reuses fetchSecFilings
+// (CIK map cached 24h, submissions cached 5 min).
+async function latest8KCatalyst(ticker) {
+  const res = await fetchSecFilings(ticker, 12);
+  const filings = (res && res.filings) || [];
+  if (!filings.length) return null;
+  const now = Date.now();
+  for (const f of filings) {           // EDGAR order = most-recent-first
+    const d = Date.parse(f.acceptedDate || f.filingDate || "");
+    if (isNaN(d)) continue;
+    if ((now - d) / 3600000 > 96) break;        // older than 4 days → stop
+    if (/^(Form )?[345]$/.test(f.form)) continue; // skip insider forms
+    return { label: f.headline || (f.form + " filing"), url: f.url };
+  }
+  return null;
+}
 async function fetchPremarketBuzz(env) {
   if (!env.POLYGON_API_KEY) {
     return { error: "POLYGON_API_KEY not configured", gainers: [], losers: [] };
@@ -1697,6 +1716,26 @@ async function fetchPremarketBuzz(env) {
     } catch (_) {}
   }
   await Promise.all(gCand.concat(lCand).map(attachCatalyst));
+  // EDGAR 8-K fallback — Polygon's news tier doesn't carry the fresh
+  // micro-cap press releases that drive these pops (verified: no XOS
+  // article on its +172% day). But the catalyst is almost always filed
+  // as an 8-K/424B5/13D within minutes. For any mover STILL without a
+  // catalyst, pull its most recent non-insider filing inside 4 days and
+  // use the human filing headline ("8-K · Material Agreement",
+  // "Prospectus supplement / shelf takedown", etc.) as the why. Bounded
+  // to the names that need it.
+  const needEdgar = gCand.concat(lCand)
+    .filter(function (r) { return !r.catalyst; }).slice(0, 14);
+  await Promise.all(needEdgar.map(async function (row) {
+    try {
+      const f = await latest8KCatalyst(row.ticker);
+      if (f) {
+        row.catalyst = f.label;
+        row.catalyst_url = f.url;
+        row.catalyst_src = "edgar";
+      }
+    } catch (_) {}
+  }));
   // Buzz filter: catalyst OR price ≥ $5. If that leaves < 4 in a column
   // (quiet pre-market), fall back to the raw top movers so the pane is
   // never misleadingly empty.
