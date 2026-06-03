@@ -5769,23 +5769,56 @@
     try { localStorage.setItem(WL_WEIGHTS_LOCAL_KEY, JSON.stringify(map)); }
     catch (e) {}
   }
+  // Resolve the signed-in user id even when the supabase-js client is
+  // mid-hang and CURRENT_USER hasn't populated yet. Falls back to the
+  // non-expired access token persisted in localStorage. This is what
+  // makes the watchlist survive the getSession() race on a fresh window
+  // / new day — without it, loadWatchlist runs as "signed out" and
+  // reads an empty localStorage cache, wiping the visible watchlist.
+  function _resolveUserId() {
+    if (CURRENT_USER && CURRENT_USER.id) return CURRENT_USER.id;
+    try {
+      const key = Object.keys(localStorage)
+        .find(function (k) { return /^sb-.*-auth-token$/.test(k); });
+      if (key) {
+        const raw = JSON.parse(localStorage.getItem(key) || "{}");
+        if (raw && raw.expires_at && raw.expires_at > Date.now() / 1000 &&
+            raw.user && raw.user.id) {
+          return raw.user.id;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+  window.tdUserId = _resolveUserId;
   async function loadWatchlist() {
-    if (SUPA && CURRENT_USER) {
+    // Persistence runs through DIRECT REST (tdSupaRestFetch), NOT the
+    // supabase-js client — the client hangs intermittently after a
+    // token refresh and was silently dropping watchlist reads, so a
+    // signed-in user's saved names vanished on every new window / day.
+    // REST uses the live access token + a 6 sec AbortController timeout.
+    const uid = _resolveUserId();
+    if (SUPA_URL && SUPA_ANON && uid) {
       try {
-        const { data, error } = await SUPA
-          .from("watchlists")
-          .select("ticker, weight")
-          .eq("user_id", CURRENT_USER.id);
-        if (!error && data) {
-          WATCHLIST = new Set(data.map(function (r) { return r.ticker; }));
+        const r = await tdSupaRestFetch(
+          "/rest/v1/watchlists?select=ticker,weight&user_id=eq." +
+          encodeURIComponent(uid), { method: "GET" });
+        if (r.ok && Array.isArray(r.data)) {
+          WATCHLIST = new Set(r.data.map(function (x) { return x.ticker; }));
           WATCHLIST_WEIGHTS = {};
-          data.forEach(function (r) {
-            WATCHLIST_WEIGHTS[r.ticker] = r.weight != null ? r.weight : 1;
+          r.data.forEach(function (x) {
+            WATCHLIST_WEIGHTS[x.ticker] = x.weight != null ? x.weight : 1;
           });
+          // Mirror the server truth into localStorage as an offline
+          // cache (used only when no session is present).
+          _wlWriteLocal([...WATCHLIST]);
+          _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
           _emitWatch();
           return;
         }
-      } catch (e) { console.warn("Watchlist load failed, falling back:", e); }
+      } catch (e) {
+        console.warn("Watchlist REST load failed, using local cache:", e);
+      }
     }
     WATCHLIST = new Set(_wlReadLocal());
     WATCHLIST_WEIGHTS = _wlReadWeightsLocal();
@@ -5802,13 +5835,17 @@
     if (isNaN(weight) || weight < 0) weight = 1;
     WATCHLIST_WEIGHTS[ticker] = weight;
     _emitWatch();
-    if (SUPA && CURRENT_USER) {
+    _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
+    const uid = _resolveUserId();
+    if (SUPA_URL && SUPA_ANON && uid) {
       try {
-        await SUPA.from("watchlists").update({ weight: weight })
-          .eq("user_id", CURRENT_USER.id).eq("ticker", ticker);
-      } catch (e) { console.warn("Weight write failed:", e); }
-    } else {
-      _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
+        await tdSupaRestFetch(
+          "/rest/v1/watchlists?user_id=eq." + encodeURIComponent(uid) +
+          "&ticker=eq." + encodeURIComponent(ticker),
+          { method: "PATCH",
+            headers: { "Prefer": "return=minimal" },
+            body: { weight: weight } });
+      } catch (e) { console.warn("Weight write (REST) failed:", e); }
     }
     return true;
   }
@@ -5828,16 +5865,21 @@
       const w = getWeight(t);
       WATCHLIST_WEIGHTS[t] = (isNaN(w) || w < 0) ? 1 : w;
     });
-    if (SUPA && CURRENT_USER) {
+    _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
+    const uid = _resolveUserId();
+    if (SUPA_URL && SUPA_ANON && uid) {
+      // Concurrent REST PATCHes (allSettled) — bypasses supabase-js and
+      // no single hung write stalls the whole bulk op.
       try {
-        for (const t of tickers) {
-          await SUPA.from("watchlists")
-            .update({ weight: WATCHLIST_WEIGHTS[t] })
-            .eq("user_id", CURRENT_USER.id).eq("ticker", t);
-        }
-      } catch (e) { console.warn("Bulk weight write failed:", e); }
-    } else {
-      _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
+        await Promise.allSettled(tickers.map(function (t) {
+          return tdSupaRestFetch(
+            "/rest/v1/watchlists?user_id=eq." + encodeURIComponent(uid) +
+            "&ticker=eq." + encodeURIComponent(t),
+            { method: "PATCH",
+              headers: { "Prefer": "return=minimal" },
+              body: { weight: WATCHLIST_WEIGHTS[t] } });
+        }));
+      } catch (e) { console.warn("Bulk weight write (REST) failed:", e); }
     }
     _emitWatch();
   }
@@ -6190,27 +6232,25 @@
     WATCHLIST.add(ticker);
     WATCHLIST_WEIGHTS[ticker] = weight;
     _emitWatch();
-    if (SUPA && CURRENT_USER) {
+    // Always mirror to localStorage immediately (offline cache + the
+    // anon path). Then persist to Supabase via DIRECT REST upsert —
+    // bypasses the supabase-js client whose hangs were dropping writes
+    // (a "saved" ticker that never reached the server, so it vanished
+    // on the next window). REST uses PostgREST upsert via the
+    // (user_id,ticker) unique constraint.
+    _wlWriteLocal([...WATCHLIST]);
+    _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
+    const uid = _resolveUserId();
+    if (SUPA_URL && SUPA_ANON && uid) {
       try {
-        // tdSupaTimeout — supabase-js can hang on .from() in some sessions,
-        // which would leave Add-to-Watchlist hung mid-action. Even if the
-        // network write fails / times out, we already added to the local
-        // WATCHLIST set, so the user sees the ticker immediately. The catch
-        // mirrors to localStorage as a backup.
-        await tdSupaTimeout(
-          SUPA.from("watchlists").upsert({
-            user_id: CURRENT_USER.id, ticker: ticker, weight: weight,
-          }),
-          7000, "watchlist add"
-        );
+        await tdSupaRestFetch(
+          "/rest/v1/watchlists?on_conflict=user_id,ticker",
+          { method: "POST",
+            headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
+            body: { user_id: uid, ticker: ticker, weight: weight } });
       } catch (e) {
-        console.warn("Watchlist write failed:", e);
-        _wlWriteLocal([...WATCHLIST]);
-        _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
+        console.warn("Watchlist add (REST) failed — kept in local cache:", e);
       }
-    } else {
-      _wlWriteLocal([...WATCHLIST]);
-      _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
     }
     return true;
   }
@@ -6220,23 +6260,19 @@
     WATCHLIST.delete(ticker);
     delete WATCHLIST_WEIGHTS[ticker];
     _emitWatch();
-    if (SUPA && CURRENT_USER) {
+    _wlWriteLocal([...WATCHLIST]);
+    _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
+    const uid = _resolveUserId();
+    if (SUPA_URL && SUPA_ANON && uid) {
       try {
-        await tdSupaTimeout(
-          SUPA.from("watchlists")
-            .delete()
-            .eq("user_id", CURRENT_USER.id)
-            .eq("ticker", ticker),
-          7000, "watchlist remove"
-        );
+        await tdSupaRestFetch(
+          "/rest/v1/watchlists?user_id=eq." + encodeURIComponent(uid) +
+          "&ticker=eq." + encodeURIComponent(ticker),
+          { method: "DELETE",
+            headers: { "Prefer": "return=minimal" } });
       } catch (e) {
-        console.warn("Watchlist delete failed:", e);
-        _wlWriteLocal([...WATCHLIST]);
-        _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
+        console.warn("Watchlist delete (REST) failed:", e);
       }
-    } else {
-      _wlWriteLocal([...WATCHLIST]);
-      _wlWriteWeightsLocal(WATCHLIST_WEIGHTS);
     }
     return true;
   }
@@ -6563,15 +6599,20 @@
             console.log("Merging " + local.length +
               " local watchlist tickers into account...");
             try {
-              await SUPA.from("watchlists").upsert(
-                local.map(function (t) {
-                  return { user_id: CURRENT_USER.id, ticker: t };
-                }),
-                { onConflict: "user_id,ticker" }
-              );
+              // Direct REST bulk upsert — supabase-js bare await here
+              // could hang and prevent the loadWatchlist() below from
+              // ever running (so a signed-in user saw nothing). REST
+              // has its own 6 sec timeout.
+              await tdSupaRestFetch(
+                "/rest/v1/watchlists?on_conflict=user_id,ticker",
+                { method: "POST",
+                  headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
+                  body: local.map(function (t) {
+                    return { user_id: CURRENT_USER.id, ticker: t };
+                  }) });
               _wlWriteLocal([]);
             } catch (e) {
-              console.warn("Watchlist merge failed:", e);
+              console.warn("Watchlist merge failed (non-fatal):", e);
             }
           }
           // First-sign-in welcome toast — explains the silently-seeded
