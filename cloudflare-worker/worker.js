@@ -1594,6 +1594,110 @@ async function verifyStripeSig(payload, sig, secret) {
   } catch (e) { return false; }
 }
 
+// ── Pre-Market Buzz ─────────────────────────────────────────────────
+// Top gainers + losers with a one-line catalyst per name. EVERYTHING is
+// real upstream data — no fabricated movers or reasons:
+//   • % moves: Polygon's gainers/losers snapshot (todaysChangePerc).
+//     Pre-market it reflects pre-market trading; RTH it's the intraday
+//     move; after-hours it's the AH move. 15-min delayed by license.
+//   • catalyst: the single most-recent Polygon news headline for that
+//     ticker, used VERBATIM, and ONLY if published within ~36h. If no
+//     recent article exists we emit no catalyst rather than invent one.
+//   • company name: from the cached SEC ticker→title map.
+// Filters out sub-$1 pennies + leveraged/inverse ETFs so the board
+// reads like real single-name catalysts (the way a desk scans it).
+const PMB_EXCLUDE = new Set([
+  "SPY","QQQ","IWM","DIA","TQQQ","SQQQ","SOXL","SOXS","TNA","TZA",
+  "SPXL","SPXS","UPRO","SPXU","UVXY","SVXY","VXX","UDOW","SDOW",
+  "TMF","TMV","LABU","LABD","FAS","FAZ","NUGT","DUST","YINN","YANG",
+  "BOIL","KOLD","GUSH","DRIP","JNUG","JDST","NVDL","NVDU","TSLL","TSLQ",
+  "MSTU","MSTX","MSTZ","CONL","BITX","ETHU","USD","ERX","ERY","WEBL",
+]);
+async function fetchPremarketBuzz(env) {
+  if (!env.POLYGON_API_KEY) {
+    return { error: "POLYGON_API_KEY not configured", gainers: [], losers: [] };
+  }
+  const key = env.POLYGON_API_KEY;
+  async function snap(dir) {
+    try {
+      const r = await fetch(
+        "https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/" +
+          dir + "?apiKey=" + key,
+        { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) return [];
+      const j = await r.json();
+      return j.tickers || [];
+    } catch (_) { return []; }
+  }
+  // Name lookup from the cached SEC ticker map (one fetch, 24h edge cache).
+  let nameByTk = {};
+  try {
+    const secMap = await fetchSecTickerMap();
+    if (secMap) {
+      Object.keys(secMap).forEach(function (k) {
+        const o = secMap[k];
+        if (o && o.ticker) nameByTk[String(o.ticker).toUpperCase()] = o.title;
+      });
+    }
+  } catch (_) {}
+  const [gRaw, lRaw] = await Promise.all([snap("gainers"), snap("losers")]);
+  function shape(arr) {
+    const out = [];
+    for (const t of arr) {
+      const tk = (t.ticker || "").toUpperCase();
+      const pct = t.todaysChangePerc;
+      if (!tk || pct == null || PMB_EXCLUDE.has(tk)) continue;
+      if (/[.\-]/.test(tk)) continue;             // skip pref/warrant/unit classes
+      const price = (t.day && t.day.c) ||
+                    (t.lastTrade && t.lastTrade.p) ||
+                    (t.prevDay && t.prevDay.c) || null;
+      if (price != null && price < 1) continue;   // drop sub-$1 pennies
+      out.push({
+        ticker: tk,
+        name:   nameByTk[tk] || "",
+        pct:    Math.round(pct * 10) / 10,
+        price:  price != null ? Math.round(price * 100) / 100 : null,
+      });
+      if (out.length >= 10) break;
+    }
+    return out;
+  }
+  const gainers = shape(gRaw);
+  const losers  = shape(lRaw);
+  // Attach catalysts — one bounded news call per shown ticker.
+  const shown = gainers.concat(losers);
+  await Promise.all(shown.map(async function (row) {
+    try {
+      const nr = await fetch(
+        "https://api.polygon.io/v2/reference/news?ticker=" + row.ticker +
+          "&limit=1&order=desc&sort=published_utc&apiKey=" + key,
+        { signal: AbortSignal.timeout(6000) });
+      if (!nr.ok) return;
+      const nj = await nr.json();
+      const a = (nj.results || [])[0];
+      if (a && a.title && a.published_utc) {
+        const ageH = (Date.now() - new Date(a.published_utc).getTime()) / 3600000;
+        if (ageH <= 36) {
+          row.catalyst = a.title;
+          row.catalyst_url = a.article_url || null;
+        }
+      }
+    } catch (_) {}
+  }));
+  return {
+    generated:     new Date().toISOString(),
+    total:         gainers.length + losers.length,
+    up:            gainers.length,
+    down:          losers.length,
+    top_ticker:    gainers[0] ? gainers[0].ticker : null,
+    top_pct:       gainers[0] ? gainers[0].pct : null,
+    gainers:       gainers,
+    losers:        losers,
+    source:        "polygon",
+    delay_minutes: 15,
+  };
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -1874,6 +1978,21 @@ export default {
         });
         const resp = Response.json(data, {
           headers: { ...cors, "Cache-Control": "public, max-age=30" },
+        });
+        ctx.waitUntil(cache.put(request, resp.clone()));
+        return resp;
+      }
+      // Pre-Market Buzz — ?premarket=1 returns top gainers/losers with a
+      // verbatim news catalyst per name. Edge-cached 5 min: the movers
+      // shift slowly and this fans out to ~20 Polygon news calls, so
+      // sharing one upstream batch across users keeps it cheap.
+      if (url.searchParams.get("premarket")) {
+        const cache = caches.default;
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const data = await fetchPremarketBuzz(env);
+        const resp = Response.json(data, {
+          headers: { ...cors, "Cache-Control": "public, max-age=300" },
         });
         ctx.waitUntil(cache.put(request, resp.clone()));
         return resp;

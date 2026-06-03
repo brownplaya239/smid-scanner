@@ -427,6 +427,52 @@
   .td-action-chip:hover { background:var(--gold); color:var(--accink); }
   .td-action-chip.on { background:var(--gold); color:var(--accink); }
 
+  /* ── Pre-Market Buzz pane (Today's Desk) ── */
+  .pmb { background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:16px 18px; margin-bottom:16px; }
+  .pmb-head { display:flex; align-items:baseline; gap:10px;
+    flex-wrap:wrap; margin-bottom:12px;
+    border-bottom:1px solid var(--line); padding-bottom:10px; }
+  .pmb-title { font-size:14px; font-weight:800; color:var(--text);
+    letter-spacing:.2px; }
+  .pmb-stamp { font-size:10.5px; color:var(--muted);
+    font-variant-numeric:tabular-nums; }
+  .pmb-stats { margin-left:auto; font-size:11px; color:var(--textdim);
+    font-variant-numeric:tabular-nums; }
+  .pmb-stats b { color:var(--text); }
+  .pmb-stats .up { color:var(--green); font-weight:700; }
+  .pmb-stats .down { color:var(--red); font-weight:700; }
+  .pmb-cols { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:760px) { .pmb-cols { grid-template-columns:1fr; gap:14px; } }
+  .pmb-col-head { font-size:10px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.6px; margin-bottom:8px; }
+  .pmb-col-head.pmb-up   { color:var(--green); }
+  .pmb-col-head.pmb-down { color:var(--red); }
+  .pmb-col-head span { color:var(--muted); font-weight:600; }
+  .pmb-row { display:grid; grid-template-columns:1fr auto;
+    gap:8px 10px; align-items:start; padding:9px 11px; margin-bottom:7px;
+    background:var(--navy2); border-radius:7px;
+    border-left:3px solid var(--line); cursor:pointer;
+    transition:background .12s ease, border-color .12s ease; }
+  .pmb-row:hover { background:var(--rowhov); }
+  .pmb-row.pmb-r-up   { border-left-color:rgba(31,179,99,0.55); }
+  .pmb-row.pmb-r-down { border-left-color:rgba(214,68,68,0.55); }
+  .pmb-r-head { display:flex; align-items:baseline; gap:7px;
+    min-width:0; grid-column:1; }
+  .pmb-tk { font-size:13px; font-weight:800; color:var(--text); }
+  .pmb-name { font-size:10.5px; color:var(--muted);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pmb-pct { grid-column:2; grid-row:1; font-size:13px; font-weight:800;
+    font-variant-numeric:tabular-nums; padding:1px 8px; border-radius:5px;
+    white-space:nowrap; }
+  .pmb-pct.up   { color:#7ddfa1; background:rgba(31,179,99,0.14); }
+  .pmb-pct.down { color:#f08585; background:rgba(214,68,68,0.14); }
+  .pmb-why { grid-column:1 / -1; grid-row:2; font-size:11.5px;
+    color:var(--textdim); line-height:1.4; margin-top:2px; }
+  .pmb-why.none { color:var(--muted); font-style:italic; }
+  .pmb-empty { font-size:11.5px; color:var(--muted); font-style:italic;
+    padding:14px; text-align:center; }
+
   /* "What's New Since Last Visit" widget — top of My Desk */
   .whats-new { background:linear-gradient(135deg,
     rgba(255,200,0,0.08), rgba(31,179,99,0.04));
@@ -4404,6 +4450,27 @@
         <div class="sh-foot">
           <button class="sh-prev" id="sh-prev" type="button">&larr; Back</button>
           <button class="sh-next" id="sh-next" type="button">Next &rarr;</button>
+        </div>
+      </div>
+      <!-- Pre-Market Buzz — top gainers/losers + catalyst per name.
+           Populated by setupPremarketBuzz() from the worker /?premarket=1
+           endpoint (Polygon movers + verbatim news catalysts). Hidden
+           until data lands. -->
+      <div class="pmb" id="pmb" style="display:none">
+        <div class="pmb-head">
+          <span class="pmb-title">📊 Pre-Market Buzz</span>
+          <span class="pmb-stamp" id="pmb-stamp"></span>
+          <span class="pmb-stats" id="pmb-stats"></span>
+        </div>
+        <div class="pmb-cols">
+          <div class="pmb-col">
+            <div class="pmb-col-head pmb-up">▲ Top Gainers <span id="pmb-up-n"></span></div>
+            <div class="pmb-list" id="pmb-gainers"></div>
+          </div>
+          <div class="pmb-col">
+            <div class="pmb-col-head pmb-down">▼ Top Losers <span id="pmb-down-n"></span></div>
+            <div class="pmb-list" id="pmb-losers"></div>
+          </div>
         </div>
       </div>
       <div class="desk-grid" id="desk-grid">
@@ -19129,6 +19196,109 @@
         stopLiveFlow();
       }
     });
+
+    // ── Pre-Market Buzz pane (Today's Desk) ─────────────────────────
+    // Renders top gainers/losers + a verbatim news catalyst per name
+    // from the worker /?premarket=1 endpoint. All real upstream data;
+    // no fabricated movers/reasons. Refreshes on desk-tab activation +
+    // every 5 min while the desk is visible (matches the worker's edge
+    // cache). Honest label that says delayed 15m + the session phase.
+    (function setupPremarketBuzz() {
+      const wrap = document.getElementById("pmb");
+      if (!wrap) return;
+      function esc(s) {
+        return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? "" : s);
+      }
+      function phaseLabel() {
+        // Pre-market / Intraday / After-hours / Prior close from ET clock
+        try {
+          const h = parseInt(new Date().toLocaleString("en-US", {
+            timeZone: "America/New_York", hour: "numeric", hour12: false }), 10);
+          const m = new Date().toLocaleString("en-US", {
+            timeZone: "America/New_York", weekday: "short" });
+          const wknd = (m === "Sat" || m === "Sun");
+          if (wknd) return "Prior session";
+          if (h < 9)  return "Pre-market";
+          if (h < 16) return "Intraday";
+          if (h < 20) return "After-hours";
+          return "Prior close";
+        } catch (_) { return "Latest"; }
+      }
+      function row(r, dir) {
+        const pctCls = r.pct >= 0 ? "up" : "down";
+        const sign = r.pct > 0 ? "+" : "";
+        const why = r.catalyst
+          ? '<div class="pmb-why">' + esc(r.catalyst) + '</div>'
+          : '<div class="pmb-why none">No catalyst on file (pre-market mover)</div>';
+        return '<div class="pmb-row pmb-r-' + dir + '" data-t="' + esc(r.ticker) + '" ' +
+          'role="button" tabindex="0" ' +
+          'title="Open ' + esc(r.ticker) + ' drilldown">' +
+          '<span class="pmb-r-head">' +
+            '<span class="pmb-tk">' + esc(r.ticker) + '</span>' +
+            (r.name ? '<span class="pmb-name">' + esc(r.name) + '</span>' : '') +
+          '</span>' +
+          '<span class="pmb-pct ' + pctCls + '">' + sign + r.pct + '%</span>' +
+          why +
+          '</div>';
+      }
+      function render(d) {
+        if (!d) return;
+        const _g0 = (d.gainers || []).length, _l0 = (d.losers || []).length;
+        if (!_g0 && !_l0) return; // keep pane hidden if nothing to show
+        const g = d.gainers || [], l = d.losers || [];
+        const gE = document.getElementById("pmb-gainers");
+        const lE = document.getElementById("pmb-losers");
+        if (gE) gE.innerHTML = g.length
+          ? g.map(function (r) { return row(r, "up"); }).join("")
+          : '<div class="pmb-empty">No notable gainers right now.</div>';
+        if (lE) lE.innerHTML = l.length
+          ? l.map(function (r) { return row(r, "down"); }).join("")
+          : '<div class="pmb-empty">No notable losers right now.</div>';
+        const upN = document.getElementById("pmb-up-n");
+        const dnN = document.getElementById("pmb-down-n");
+        if (upN) upN.textContent = g.length;
+        if (dnN) dnN.textContent = l.length;
+        const stats = document.getElementById("pmb-stats");
+        if (stats) {
+          stats.innerHTML = 'Total <b>' + d.total + '</b> · ' +
+            '<span class="up">▲ ' + d.up + '</span> · ' +
+            '<span class="down">▼ ' + d.down + '</span>' +
+            (d.top_ticker ? ' · top <b>' + esc(d.top_ticker) + '</b> +' +
+              d.top_pct + '%' : '');
+        }
+        const stamp = document.getElementById("pmb-stamp");
+        if (stamp) {
+          const t = d.generated ? new Date(d.generated)
+            .toLocaleTimeString([], { hour: "numeric", minute: "2-digit",
+              timeZone: "America/New_York" }) + " ET" : "";
+          stamp.textContent = phaseLabel() + " · " + t + " · delayed 15m";
+        }
+        wrap.style.display = "";
+      }
+      let _t = 0;
+      function load() {
+        // Throttle to the worker's 5-min edge cache.
+        if (Date.now() - _t < 4 * 60 * 1000 && wrap.style.display !== "none") return;
+        _t = Date.now();
+        fetch(WORKER_URL + "/?premarket=1")
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) { if (d) render(d); })
+          .catch(function () {});
+      }
+      load();
+      // Refresh when the user lands on the desk tab + every 5 min while visible.
+      const nav = document.getElementById("nav");
+      if (nav) nav.addEventListener("click", function (e) {
+        if (e.target && e.target.dataset && e.target.dataset.tab === "desk") {
+          setTimeout(load, 100);
+        }
+      });
+      setInterval(function () {
+        const p = document.getElementById("panel-desk");
+        if (p && p.classList.contains("active") &&
+            document.visibilityState === "visible") load();
+      }, 5 * 60 * 1000);
+    })();
 
     // ── Live Flow subtab ─────────────────────────────────────────────
     // Polls /live-flow every 60s for notable options flow across the
