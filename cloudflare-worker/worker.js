@@ -1666,15 +1666,19 @@ async function fetchPremarketBuzz(env) {
         pct:    Math.round(pct * 10) / 10,
         price:  price != null ? Math.round(price * 100) / 100 : null,
       });
-      if (out.length >= 10) break;
+      if (out.length >= 16) break;   // candidate pool (pre-filter)
     }
     return out;
   }
-  const gainers = shape(gRaw);
-  const losers  = shape(lRaw);
-  // Attach catalysts — one bounded news call per shown ticker.
-  const shown = gainers.concat(losers);
-  await Promise.all(shown.map(async function (row) {
+  // Candidate pools (up to 16 each), then attach catalysts, then keep
+  // the names that read like real desk "buzz": ones with a genuine
+  // recent news catalyst OR liquid enough (≥ $5) to be a real mover —
+  // dropping the unexplained sub-$5 micro-cap pumps that otherwise
+  // dominate the raw %-feed. %-ranked within each column like a desk
+  // board. Falls back to top movers if a quiet session yields too few.
+  const gCand = shape(gRaw);
+  const lCand = shape(lRaw);
+  async function attachCatalyst(row) {
     try {
       const nr = await fetch(
         "https://api.polygon.io/v2/reference/news?ticker=" + row.ticker +
@@ -1691,7 +1695,20 @@ async function fetchPremarketBuzz(env) {
         }
       }
     } catch (_) {}
-  }));
+  }
+  await Promise.all(gCand.concat(lCand).map(attachCatalyst));
+  // Buzz filter: catalyst OR price ≥ $5. If that leaves < 4 in a column
+  // (quiet pre-market), fall back to the raw top movers so the pane is
+  // never misleadingly empty.
+  function buzzPick(cand) {
+    const buzz = cand.filter(function (r) {
+      return r.catalyst || (r.price != null && r.price >= 5);
+    });
+    const picked = (buzz.length >= 4 ? buzz : cand).slice(0, 10);
+    return picked;
+  }
+  const gainers = buzzPick(gCand);
+  const losers  = buzzPick(lCand);
   return {
     generated:     new Date().toISOString(),
     total:         gainers.length + losers.length,
