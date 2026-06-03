@@ -19,17 +19,21 @@ compatibility_date = "2026-05-20"
 # Cloudflare Cron Triggers fire the worker's scheduled() handler, which
 # pokes the GitHub scans via workflow_dispatch (reusing env.PAT). This
 # exists because GitHub's own `schedule:` cron is unreliable and dropped
-# every scheduled workflow on 2026-06-03. GitHub schedules stay primary;
-# these are redundant insurance (offset ~3 min from the GH-native crons
-# so a double-fire is harmless — emit_latest dedups by timestamp). UTC,
+# every scheduled workflow on 2026-06-03. GitHub schedules stay primary
+# (all 6 UOA fire times); these are redundant insurance for the most
+# important windows. Offset ~3 min from the GH-native crons so a
+# double-fire is harmless — emit_latest dedups by timestamp. UTC,
 # weekdays only.
+#
+# CAPPED AT 5 — Cloudflare's free plan allows max 5 cron triggers per
+# account (code 10072 if exceeded). So the backstop covers open / midday
+# / afternoon / pre-close UOA + EOD; the GH-native schedule fills the two
+# in-between UOA slots when it's working.
 [triggers]
 crons = [
-  "50 13 * * 1-5",   # ~9:50 AM ET — opening UOA
-  "10 15 * * 1-5",   # ~11:10 AM ET
-  "20 16 * * 1-5",   # ~12:20 PM ET
-  "40 17 * * 1-5",   # ~1:40 PM ET
-  "40 18 * * 1-5",   # ~2:40 PM ET
+  "50 13 * * 1-5",   # ~9:50 AM ET — opening UOA (the one stranded 6/3)
+  "20 16 * * 1-5",   # ~12:20 PM ET — midday UOA
+  "40 18 * * 1-5",   # ~2:40 PM ET — afternoon UOA
   "50 19 * * 1-5",   # ~3:50 PM ET — pre-close UOA
   "40 20 * * 1-5",   # ~4:40 PM ET — EOD: scanner + momentum
 ]
