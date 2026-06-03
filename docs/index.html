@@ -537,7 +537,7 @@
     background:var(--line); border:1px solid var(--line);
     border-radius:8px; overflow:hidden; }
   .md-row { display:grid;
-    grid-template-columns:60px 1fr 70px 90px 110px 1fr 60px;
+    grid-template-columns:60px 1fr 70px 80px 90px 110px 1fr 60px;
     background:var(--card); padding:11px 14px; gap:12px;
     align-items:center; font-size:11.5px; cursor:pointer; }
   .md-row:hover { background:var(--rowhov); }
@@ -560,6 +560,8 @@
     text-align:center; text-shadow:0 1px 1px rgba(0,0,0,.4); }
   .md-row .md-grade-pill.none { background:rgba(120,120,120,0.25);
     color:var(--muted); text-shadow:none; }
+  .md-row .md-price { text-align:right; font-weight:600; color:var(--text);
+    font-variant-numeric:tabular-nums; }
   .md-row .md-chg { text-align:right; font-weight:700;
     font-variant-numeric:tabular-nums; }
   .md-row .md-chg.up   { color:var(--green); }
@@ -626,6 +628,7 @@
     .md-row .md-grade   { grid-area:grade; text-align:left; }
     .md-row .md-flow    { grid-area:flow; }
     .md-row .md-context { grid-area:ctx; }
+    .md-row .md-price   { display:none; }  /* Day % is the priority on mobile */
     .md-row.md-header   { display:none; }
   }
   /* iPhone SE / mini (320-390px) — the 4-col header row gets tight.
@@ -9041,6 +9044,11 @@
         if (lq && typeof lq.change === "number") return lq.change;
         return r.cell && typeof r.cell.chg === "number" ? r.cell.chg : null;
       };
+      const livePrice = function (r) {
+        const lq = (window.LIVE_QUOTE_CACHE || {})[r.tk];
+        if (lq && typeof lq.price === "number") return lq.price;
+        return r.cell && typeof r.cell.p === "number" ? r.cell.p : null;
+      };
       // ── Macro stat strip ──
       // 1-line "your book at a glance" so the user opens the tab and
       // immediately knows: how many names changed today, where the
@@ -9131,6 +9139,10 @@
           'batch — recomputes after each session\'s close.">' +
           'Grade</span>' +
         '<span data-tip="1" style="text-align:right" title="' +
+          'Latest price (Polygon, delayed 15m). Live for every ticker — ' +
+          'updates through the session.">' +
+          'Price</span>' +
+        '<span data-tip="1" style="text-align:right" title="' +
           'Today\'s % change in the underlying (delayed 15m). Green ' +
           'up, red down, flat = 0%.">' +
           'Day %</span>' +
@@ -9187,11 +9199,14 @@
           ? '<span class="md-flow ' + r.flow + '">' + r.flow + '</span>'
           : '<span class="md-flow none">—</span>';
         const sign = r.conf > 0 ? "+" : "";
+        const px = livePrice(r);
         return '<div class="md-row" data-t="' + r.tk + '">' +
           '<span class="md-tk">' + r.tk + '</span>' +
           '<span class="md-name">' + (name || "").slice(0, 32) +
             sinceBadge(r.tk) + '</span>' +
           '<span class="md-grade">' + gradeChip + '</span>' +
+          '<span class="md-price">' +
+            (px != null ? "$" + px.toFixed(2) : "—") + '</span>' +
           '<span class="md-chg ' + chgCls + '">' +
             (chg == null ? "—" : (chg > 0 ? "+" : "") + chg.toFixed(1) + "%") +
             '</span>' +
@@ -11406,12 +11421,23 @@
       return s.join(" ");
     }
 
-    function renderPanel(t) {
-      const agg = aggregate(t);
-      symEl.textContent = t;
-      // Header chip + price
-      const sw = agg.swing;
-      const chg = sw && typeof sw.chg === "number" ? sw.chg : null;
+    // ── Live header quote ────────────────────────────────────────────
+    // The panel header price + day-change prefer the live worker quote
+    // (Polygon, delayed 15m, covers ANY ticker) over the swing run's EOD
+    // close-to-close. paintHeaderQuote() is reused by the initial render,
+    // the open-time fetch, and a 60s poll so the header refreshes in
+    // place while the panel stays open. _hdrFallback caches the swing
+    // values so the poll never has to re-run the full aggregate().
+    let _hdrFallback = { chg: null, p: null };
+    let _hdrPollTimer = null;
+    function paintHeaderQuote(t) {
+      const lq = (window.LIVE_QUOTE_CACHE || {})[t];
+      const chg = (lq && typeof lq.change === "number") ? lq.change
+                : (typeof _hdrFallback.chg === "number") ? _hdrFallback.chg
+                : null;
+      const px  = (lq && typeof lq.price === "number") ? lq.price
+                : (typeof _hdrFallback.p === "number") ? _hdrFallback.p
+                : null;
       if (chg != null) {
         chgEl.className = "tdp-chg " + (chg > 0 ? "up" : chg < 0 ? "down" : "flat");
         chgEl.textContent = (chg > 0 ? "▲ +" : chg < 0 ? "▼ " : "") +
@@ -11420,7 +11446,47 @@
         chgEl.className = "tdp-chg flat";
         chgEl.textContent = "";
       }
-      pxEl.textContent = sw && sw.p != null ? "$" + sw.p.toFixed(2) : "";
+      if (px != null) {
+        pxEl.textContent = "$" + px.toFixed(2);
+        pxEl.title = (lq && lq.price != null)
+          ? "Delayed 15m · refreshes while open"
+          : "Prior close (EOD batch)";
+      } else {
+        pxEl.textContent = "";
+        pxEl.title = "";
+      }
+    }
+    // Fetch a fresh delayed quote for the open panel and repaint in place
+    // (only if the same ticker is still showing). Worker edge-caches
+    // /quotes 15s, so the open-time call + 60s poll stay cheap.
+    function hydratePanelQuote(t) {
+      if (!t) return;
+      fetch(TDP_WORKER_URL + "?quotes=" + encodeURIComponent(t))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          const q = d && d.quotes && d.quotes[0];
+          if (!q || !q.symbol) return;
+          (window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {})[q.symbol] = {
+            price: q.price, change: q.change, prevClose: q.prevClose,
+            ts: Date.now(),
+          };
+          if (ACTIVE_TICKER === t && panel.classList.contains("show")) {
+            paintHeaderQuote(t);
+          }
+        })
+        .catch(function () {});
+    }
+    function renderPanel(t) {
+      const agg = aggregate(t);
+      symEl.textContent = t;
+      // Header chip + price — prefer live worker quote, fall back to the
+      // swing EOD value (cached in _hdrFallback for the poll path).
+      const sw = agg.swing;
+      _hdrFallback = {
+        chg: sw && typeof sw.chg === "number" ? sw.chg : null,
+        p:   sw && typeof sw.p === "number" ? sw.p : null,
+      };
+      paintHeaderQuote(t);
       const cleanedName = cleanName((sw && sw.n) ||
                             (agg.meta && agg.meta.name) || t);
       // Name + confluence chip + watchlist toggle + watcher count
@@ -12103,6 +12169,15 @@
       panel.setAttribute("aria-hidden", "false");
       backdrop.classList.add("show");
       lockBodyScroll();
+      // Live header quote: fetch now, then poll every 60s while open so
+      // price + day-change stay current (cleared in closePanel).
+      hydratePanelQuote(t);
+      clearInterval(_hdrPollTimer);
+      _hdrPollTimer = setInterval(function () {
+        if (ACTIVE_TICKER && panel.classList.contains("show")) {
+          hydratePanelQuote(ACTIVE_TICKER);
+        }
+      }, 60 * 1000);
       // Async upgrade: sparkline -> 90-day daily candlestick when ready
       fetchAndUpgradeChart(t);
       // Async fetch the latest 20 headlines via the worker
@@ -12116,6 +12191,8 @@
     }
     function closePanel() {
       ACTIVE_TICKER = null;
+      clearInterval(_hdrPollTimer);
+      _hdrPollTimer = null;
       panel.classList.remove("show");
       panel.setAttribute("aria-hidden", "true");
       backdrop.classList.remove("show");
