@@ -2128,4 +2128,58 @@ export default {
       { status: 502, headers: cors }
     );
   },
+
+  // ── Scheduled cron backstop ──────────────────────────────────────
+  // GitHub's own `schedule:` cron is best-effort and routinely drops
+  // fires under platform load — observed 2026-06-03 when NONE of the
+  // five scheduled workflows fired all morning (only manual + chained
+  // runs), stranding the desk on the prior evening's scans.
+  //
+  // Cloudflare Cron Triggers are far more reliable, so the worker now
+  // *also* pokes the scans on schedule via workflow_dispatch (the same
+  // GitHub API + reused env.PAT the ad-hoc report trigger uses — no new
+  // secret). The GitHub-native schedules stay in place as primary; this
+  // is belt-and-suspenders. If both fire, the scanner's emit_latest
+  // dedups by timestamp so a double-run is harmless.
+  //
+  // Cron→workflow map (UTC, see wrangler.toml [triggers]):
+  //   "40 20 * * 1-5"  → EOD: scanner.yml + momentum.yml (post-close)
+  //   everything else  → intraday: uoa.yml
+  async scheduled(event, env, ctx) {
+    if (!env.PAT) {
+      console.log("[cron] env.PAT not set — backstop skipped");
+      return;
+    }
+    const repo = (env.REPO || "brownplaya239/smid-scanner");
+    const dispatch = async function (workflow) {
+      try {
+        const r = await fetch(
+          "https://api.github.com/repos/" + repo +
+            "/actions/workflows/" + workflow + "/dispatches",
+          { method: "POST",
+            headers: {
+              "Authorization":        "Bearer " + env.PAT,
+              "Accept":               "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent":           "tickerdesk-cron-backstop",
+              "Content-Type":         "application/json",
+            },
+            body: JSON.stringify({ ref: "master" }),
+          }
+        );
+        console.log("[cron] dispatch " + workflow + " -> HTTP " + r.status);
+      } catch (e) {
+        console.log("[cron] dispatch " + workflow + " failed: " + e.message);
+      }
+    };
+    const isEod = event.cron === "40 20 * * 1-5";
+    if (isEod) {
+      ctx.waitUntil(Promise.all([
+        dispatch("scanner.yml"),
+        dispatch("momentum.yml"),
+      ]));
+    } else {
+      ctx.waitUntil(dispatch("uoa.yml"));
+    }
+  },
 };
