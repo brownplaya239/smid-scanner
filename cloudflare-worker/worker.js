@@ -1648,13 +1648,21 @@ async function fetchPremarketBuzz(env) {
       const pct = t.todaysChangePerc;
       if (!tk || pct == null || PMB_EXCLUDE.has(tk)) continue;
       if (/[.\-]/.test(tk)) continue;             // skip pref/warrant/unit classes
+      // REQUIRE a real SEC operating-company name — the single cleanest
+      // filter. Leveraged ETNs / inverse notes / structured products
+      // (ONDL, XNDX, LUNL, etc.) that flood the raw gainers/losers feed
+      // aren't SEC-registered operating companies, so they're absent
+      // from company_tickers.json and drop out here — leaving a board of
+      // real single-name movers the way a desk actually scans it.
+      const name = nameByTk[tk];
+      if (!name) continue;
       const price = (t.day && t.day.c) ||
                     (t.lastTrade && t.lastTrade.p) ||
                     (t.prevDay && t.prevDay.c) || null;
       if (price != null && price < 1) continue;   // drop sub-$1 pennies
       out.push({
         ticker: tk,
-        name:   nameByTk[tk] || "",
+        name:   name,
         pct:    Math.round(pct * 10) / 10,
         price:  price != null ? Math.round(price * 100) / 100 : null,
       });
