@@ -9031,6 +9031,16 @@
       // Build rows, sort by confluence score descending
       const rows = wl.map(buildRow);
       rows.sort(function (a, b) { return b.conf - a.conf; });
+      // Live-or-EOD day change: prefer the delayed worker quote (updates
+      // through the session, covers ANY ticker incl. names outside the
+      // scan universe), fall back to the swing run's close-to-close only
+      // until a live quote lands. hydrateMyDeskQuotes() keeps the cache
+      // fresh (~60s) while this tab is open.
+      const liveChg = function (r) {
+        const lq = (window.LIVE_QUOTE_CACHE || {})[r.tk];
+        if (lq && typeof lq.change === "number") return lq.change;
+        return r.cell && typeof r.cell.chg === "number" ? r.cell.chg : null;
+      };
       // ── Macro stat strip ──
       // 1-line "your book at a glance" so the user opens the tab and
       // immediately knows: how many names changed today, where the
@@ -9066,8 +9076,8 @@
         if (r.flow) _withFlow++;
         if (r.earnDays != null && r.earnDays >= 0 && r.earnDays <= 7) _earnSoon++;
         if (typeof r.conf === "number") { _confSum += r.conf; _confN++; }
-        const c = r.cell;
-        if (c && typeof c.chg === "number") { _dayChgSum += c.chg; _dayChgN++; }
+        const dchg = liveChg(r);
+        if (dchg != null) { _dayChgSum += dchg; _dayChgN++; }
       });
       const _avgConf = _confN ? (_confSum / _confN) : 0;
       let _vsSpyHTML = "";
@@ -9162,7 +9172,7 @@
       };
       const out = rows.map(function (r) {
         const c = r.cell;
-        const chg = c && typeof c.chg === "number" ? c.chg : null;
+        const chg = liveChg(r);
         const chgCls = chg == null ? "flat"
                      : chg > 0 ? "up" : chg < 0 ? "down" : "flat";
         const name = c && c.n ? c.n
@@ -9197,26 +9207,76 @@
       body.innerHTML = statStrip +
         '<div class="mydesk-grid">' + header + out + '</div>';
     }
+    // ── Live quotes for My Desk (Day % column + vs-SPY square) ───────
+    // My Desk's Day % used the swing run's EOD close-to-close value —
+    // stale during the session and blank for names outside the scan
+    // universe. Pull real delayed quotes (worker /quotes, 15s edge
+    // cache) for every watchlist name + SPY into the shared
+    // window.LIVE_QUOTE_CACHE the Desk also uses, then repaint. 60s
+    // client TTL so the tab genuinely refreshes each tick instead of
+    // sitting on a 5-min copy. In-flight guard avoids overlap.
+    let mdQuotesInFlight = false;
+    function hydrateMyDeskQuotes() {
+      if (mdQuotesInFlight) return;
+      const wl = window.tdWatchlist ? Array.from(window.tdWatchlist()) : [];
+      const want = new Set(["SPY"]);   // SPY powers the vs-SPY square
+      wl.forEach(function (t) {
+        if (/^[A-Z\.\-]{1,8}$/.test(t)) want.add(t);
+      });
+      const cache = window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
+      const stale = Array.from(want).filter(function (t) {
+        const c = cache[t];
+        return !c || Date.now() - (c.ts || 0) > 60 * 1000;
+      });
+      if (!stale.length) return;
+      mdQuotesInFlight = true;
+      const chunkSize = 50;
+      const jobs = [];
+      for (let i = 0; i < stale.length; i += chunkSize) {
+        const chunk = stale.slice(i, i + chunkSize);
+        jobs.push(
+          fetch(WORKER_URL + "?quotes=" + encodeURIComponent(chunk.join(",")))
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) {
+              if (!d || !d.quotes) return;
+              d.quotes.forEach(function (q) {
+                if (!q || !q.symbol) return;
+                cache[q.symbol] = {
+                  price: q.price, change: q.change,
+                  prevClose: q.prevClose, ts: Date.now(),
+                };
+              });
+              render();   // progressive repaint as chunks land
+            })
+            .catch(function () {})
+        );
+      }
+      Promise.all(jobs).finally(function () { mdQuotesInFlight = false; });
+    }
     // Expose render so the What's New widget (different IIFE) can
     // re-trigger My Desk after it finishes computing the
     // window.MD_CHANGED_SINCE map.
     window._mdRender = render;
-    onWatchChange(render);
+    onWatchChange(function () { render(); hydrateMyDeskQuotes(); });
     // Also re-render when Today's Desk loads its data (so My Desk picks it up)
     const _origLoadAndRender = window._origLoadAndRender;  // placeholder
     // Render on tab return
     document.getElementById("nav").addEventListener("click", function (e) {
       if (e.target && e.target.dataset &&
-          e.target.dataset.tab === "mydesk") render();
+          e.target.dataset.tab === "mydesk") { render(); hydrateMyDeskQuotes(); }
     });
     // Poll-style re-render — TD_DATA is populated by setupDesk's interval,
-    // so a periodic re-render picks up fresh data without coupling
+    // so a periodic re-render picks up fresh data without coupling. Also
+    // re-pull live quotes each tick so Day % + vs-SPY stay current.
     setInterval(function () {
       const panel = document.getElementById("panel-mydesk");
-      if (panel && panel.classList.contains("active")) render();
+      if (panel && panel.classList.contains("active")) {
+        render();
+        hydrateMyDeskQuotes();
+      }
     }, 60 * 1000);
-    // Initial render
-    setTimeout(render, 500);
+    // Initial render + first quote pull
+    setTimeout(function () { render(); hydrateMyDeskQuotes(); }, 500);
   })();
 
   // ── Report-credits badge updater ──
