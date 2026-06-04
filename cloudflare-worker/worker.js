@@ -84,7 +84,7 @@ async function fetchYahooQuote(sym) {
   //            daily history instead.
   const sym2 = encodeURIComponent(sym);
   const intradayUrl = "https://query1.finance.yahoo.com/v8/finance/chart/" +
-    sym2 + "?range=1d&interval=5m";
+    sym2 + "?range=1d&interval=5m&includePrePost=true";
   const dailyUrl    = "https://query1.finance.yahoo.com/v8/finance/chart/" +
     sym2 + "?range=5d&interval=1d";
   const headers = { "User-Agent": "Mozilla/5.0" };
@@ -157,26 +157,50 @@ async function fetchYahooQuote(sym) {
     const lastTradeMs = (typeof m.regularMarketTime === "number"
       && m.regularMarketTime > 0)
       ? m.regularMarketTime * 1000 : null;
+    // ── Extended-hours (pre/post) awareness ──────────────────────────
+    // During PRE / POST sessions Yahoo's regularMarketPrice is still the
+    // prior regular close, so chips looked flat pre-market. Use the
+    // latest pre/post print (last non-null close in the includePrePost
+    // series) and recompute change off the SAME split-adjusted prev, so
+    // every quote consumer (Desk chips, Watchlist, My Desk, drilldown)
+    // reflects the real extended-hours move. RTH / closed are untouched.
+    let effPrice = price, effChange = change, effLastMs = lastTradeMs;
+    let extended = false;
+    const ms = m.marketState;
+    if ((ms === "PRE" || ms === "POST") && q && Array.isArray(q.close) && prev) {
+      const ts = Array.isArray(res.timestamp) ? res.timestamp : null;
+      for (let i = q.close.length - 1; i >= 0; i--) {
+        if (typeof q.close[i] === "number" && q.close[i] > 0) {
+          effPrice  = r2(q.close[i]);
+          effChange = Math.round((q.close[i] / prev - 1) * 10000) / 100;
+          if (ts && typeof ts[i] === "number") effLastMs = ts[i] * 1000;
+          extended  = true;
+          break;
+        }
+      }
+    }
     // Stale-detection: if the last trade is older than 25 min wall
     // time AND it's a trading session, surface that so the client can
     // dim the chip. 25 min = 15-min license delay + 10-min generous
     // latency buffer. During off-hours we don't flag — quotes go
     // stale by design.
-    const stale = lastTradeMs
-      ? (Date.now() - lastTradeMs > 25 * 60 * 1000) : false;
-    return { symbol: sym, price: price, change: change,
+    const stale = effLastMs
+      ? (Date.now() - effLastMs > 25 * 60 * 1000) : false;
+    return { symbol: sym, price: effPrice, change: effChange,
              prevClose: prev, bars: bars,
-             last_trade_ts: lastTradeMs
-               ? new Date(lastTradeMs).toISOString() : null,
+             last_trade_ts: effLastMs
+               ? new Date(effLastMs).toISOString() : null,
              // Wall-clock age of the last trade — lets the chip render
              // "as of 1:58 PM ET (3m ago)" or "Stale 28m" so the user
              // never confuses 15-min-delayed with real-time.
-             last_trade_age_sec: lastTradeMs
-               ? Math.max(0, Math.round((Date.now() - lastTradeMs) / 1000))
+             last_trade_age_sec: effLastMs
+               ? Math.max(0, Math.round((Date.now() - effLastMs) / 1000))
                : null,
              stale: stale,
-             source: "yahoo",
-             delay_minutes: 15,
+             extended: extended,
+             market_state: ms || null,
+             source: extended ? "yahoo-ext" : "yahoo",
+             delay_minutes: extended ? 0 : 15,
              fetched_at: new Date().toISOString() };
   } catch (e) {
     return { symbol: sym, price: null, change: null, bars: [],
@@ -1907,6 +1931,14 @@ export default {
             fetchYahooQuote(sym),
             fetchPolygonSnapshot(sym, env),
           ]);
+          // Pre/post: trust Yahoo extended-hours outright. Polygon's
+          // snapshot is 15m-delayed and not reliably pre/post-aware, so
+          // letting it override would re-introduce the stale number.
+          if (y && y.extended) {
+            return Object.assign({}, y, {
+              polygon_prev_close: p ? p.prevClose : null,
+            });
+          }
           // No Polygon → just return Yahoo as-is.
           if (!p || p.price == null) return y;
           // No Yahoo → return Polygon shape (no bars, but at least live
