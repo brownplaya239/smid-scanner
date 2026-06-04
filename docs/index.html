@@ -7881,7 +7881,9 @@
                 if (!q || !q.symbol) return;
                 cache[q.symbol] = {
                   price: q.price, change: q.change,
-                  prevClose: q.prevClose, ts: Date.now(),
+                  prevClose: q.prevClose,
+                  extended: q.extended, market_state: q.market_state,
+                  ts: Date.now(),
                 };
               });
               renderPortfolio();   // progressive: light up as chunks land
@@ -9262,7 +9264,9 @@
                 if (!q || !q.symbol) return;
                 cache[q.symbol] = {
                   price: q.price, change: q.change,
-                  prevClose: q.prevClose, ts: Date.now(),
+                  prevClose: q.prevClose,
+                  extended: q.extended, market_state: q.market_state,
+                  ts: Date.now(),
                 };
               });
               render();   // progressive repaint as chunks land
@@ -11472,6 +11476,7 @@
           if (!q || !q.symbol) return;
           (window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {})[q.symbol] = {
             price: q.price, change: q.change, prevClose: q.prevClose,
+            extended: q.extended, market_state: q.market_state,
             ts: Date.now(),
           };
           if (ACTIVE_TICKER === t && panel.classList.contains("show")) {
@@ -15508,7 +15513,11 @@
       if (live && typeof live.change === "number" &&
           Date.now() - (live.ts || 0) < 5 * 60 * 1000) {
         v = live.change;
-        label = "Delayed 15m · today's % change";
+        label = live.extended
+          ? (live.market_state === "post"
+              ? "After-hours · live % (extended-hours)"
+              : "Pre-market · live % (extended-hours)")
+          : "Delayed 15m · today's % change";
       } else if (c && typeof c.chg === "number") {
         v = c.chg;
         label = "Yesterday's close-to-close (live quote loading…)";
@@ -16960,7 +16969,9 @@
         .then(function (d) {
           const q = (d && d.quotes && d.quotes[0]) || null;
           const out = q ? { price: q.price, change: q.change,
-                             prevClose: q.prevClose, ts: Date.now() }
+                             prevClose: q.prevClose,
+                             extended: q.extended, market_state: q.market_state,
+                             ts: Date.now() }
                         : { price: null, change: null, ts: Date.now() };
           LIVE_QUOTE_CACHE[tkr] = out;
           delete LIVE_QUOTE_PENDING[tkr];
@@ -17338,7 +17349,9 @@
                 if (!q.symbol) return;
                 cache[q.symbol] = {
                   price: q.price, change: q.change,
-                  prevClose: q.prevClose, ts: Date.now(),
+                  prevClose: q.prevClose,
+                  extended: q.extended, market_state: q.market_state,
+                  ts: Date.now(),
                 };
               });
               // Progressive update: redraw chips for the tickers in
@@ -17368,7 +17381,11 @@
         const sign = v > 0 ? "+" : "";
         el.className = "chg-pill " + cls;
         el.textContent = sign + v.toFixed(1) + "%";
-        el.setAttribute("title", "Delayed 15m · today's % change");
+        el.setAttribute("title", live.extended
+          ? (live.market_state === "post"
+              ? "After-hours · live % (extended-hours)"
+              : "Pre-market · live % (extended-hours)")
+          : "Delayed 15m · today's % change");
       });
       // Whenever chips refresh, also update the intraday breadth
       // strip on Market Health so the two stay synchronized.
