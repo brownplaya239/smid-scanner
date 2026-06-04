@@ -1597,9 +1597,16 @@ async function verifyStripeSig(payload, sig, secret) {
 // ── Pre-Market Buzz ─────────────────────────────────────────────────
 // Top gainers + losers with a one-line catalyst per name. EVERYTHING is
 // real upstream data — no fabricated movers or reasons:
-//   • % moves: Polygon's gainers/losers snapshot (todaysChangePerc).
-//     Pre-market it reflects pre-market trading; RTH it's the intraday
-//     move; after-hours it's the AH move. 15-min delayed by license.
+//   • DISCOVERY (which names are moving): Polygon's gainers/losers
+//     snapshot — the only free "what's moving" list. 15-min delayed by
+//     license, so a name that JUST started moving may lag ~15m.
+//   • % + price (what's displayed): re-fetched per surfaced name from
+//     Yahoo extended-hours (includePrePost) so pre/post-market moves are
+//     near-real-time and on the correct (split-adjusted) prior close —
+//     Polygon's delayed snapshot materially understated fast low-float
+//     movers (e.g. STI showed +247% when it was live +334%) and its
+//     prior-close basis could be split-distorted. Falls back to the
+//     Polygon snapshot number per-name if Yahoo doesn't answer.
 //   • catalyst: the single most-recent Polygon news headline for that
 //     ticker, used VERBATIM, and ONLY if published within ~36h. If no
 //     recent article exists we emit no catalyst rather than invent one.
@@ -1631,6 +1638,47 @@ async function latest8KCatalyst(ticker) {
     return { label: f.headline || (f.form + " filing"), url: f.url };
   }
   return null;
+}
+// Live extended-hours quote for one ticker via Yahoo (includePrePost).
+// Returns the latest pre/post/regular print + the true (split-adjusted)
+// prior close, so % reflects actual extended-hours trading rather than
+// Polygon's 15-min-delayed snapshot. null on any failure (caller keeps
+// the Polygon value). Edge-cached 30s.
+async function fetchYahooExt(sym) {
+  try {
+    const url = "https://query1.finance.yahoo.com/v8/finance/chart/" +
+      encodeURIComponent(sym) + "?interval=2m&range=1d&includePrePost=true";
+    const r = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      cf: { cacheTtl: 30 },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const res = j && j.chart && j.chart.result && j.chart.result[0];
+    const m = res && res.meta;
+    if (!m) return null;
+    const prev = (typeof m.chartPreviousClose === "number" && m.chartPreviousClose > 0)
+      ? m.chartPreviousClose
+      : (typeof m.previousClose === "number" && m.previousClose > 0
+          ? m.previousClose : null);
+    if (!prev) return null;
+    // Latest extended-hours print = last non-null close across the
+    // prePost-inclusive series; fall back to regularMarketPrice.
+    let last = null;
+    const q = res.indicators && res.indicators.quote && res.indicators.quote[0];
+    const closes = q && Array.isArray(q.close) ? q.close : null;
+    if (closes) {
+      for (let i = closes.length - 1; i >= 0; i--) {
+        if (typeof closes[i] === "number" && closes[i] > 0) { last = closes[i]; break; }
+      }
+    }
+    if (last == null && typeof m.regularMarketPrice === "number") {
+      last = m.regularMarketPrice;
+    }
+    if (last == null) return null;
+    return { price: last, prevClose: prev, pct: (last / prev - 1) * 100 };
+  } catch (_) { return null; }
 }
 async function fetchPremarketBuzz(env) {
   if (!env.POLYGON_API_KEY) {
@@ -1697,6 +1745,31 @@ async function fetchPremarketBuzz(env) {
   // board. Falls back to top movers if a quiet session yields too few.
   const gCand = shape(gRaw);
   const lCand = shape(lRaw);
+  // ── Live re-pricing ──────────────────────────────────────────────
+  // Polygon discovered the movers (above); now overwrite each row's pct
+  // + price with Yahoo extended-hours so the displayed number is the
+  // true near-real-time pre/post move on a split-adjusted basis. Per
+  // name: keep Polygon's value only if Yahoo doesn't answer.
+  await Promise.all(gCand.concat(lCand).map(async function (row) {
+    const y = await fetchYahooExt(row.ticker);
+    if (y && y.pct != null && isFinite(y.pct) && y.price != null) {
+      row.pct         = Math.round(y.pct * 10) / 10;
+      row.price       = Math.round(y.price * 100) / 100;
+      row.prev_close  = Math.round(y.prevClose * 100) / 100;
+      row.price_basis = "yahoo-ext";
+    }
+  }));
+  // Re-rank with the corrected numbers: gainers must be up, losers down,
+  // price >= $1, sorted by magnitude. Drops the Polygon sign-flips and
+  // stale prints that Yahoo reveals as actually flat.
+  function liveRank(arr, dir) {
+    return arr
+      .filter(function (r) { return r.price == null || r.price >= 1; })
+      .filter(function (r) { return dir === "up" ? r.pct > 0 : r.pct < 0; })
+      .sort(function (a, b) { return dir === "up" ? b.pct - a.pct : a.pct - b.pct; });
+  }
+  const gRank = liveRank(gCand, "up");
+  const lRank = liveRank(lCand, "down");
   async function attachCatalyst(row) {
     try {
       const nr = await fetch(
@@ -1715,7 +1788,7 @@ async function fetchPremarketBuzz(env) {
       }
     } catch (_) {}
   }
-  await Promise.all(gCand.concat(lCand).map(attachCatalyst));
+  await Promise.all(gRank.concat(lRank).map(attachCatalyst));
   // EDGAR 8-K fallback — Polygon's news tier doesn't carry the fresh
   // micro-cap press releases that drive these pops (verified: no XOS
   // article on its +172% day). But the catalyst is almost always filed
@@ -1724,7 +1797,7 @@ async function fetchPremarketBuzz(env) {
   // use the human filing headline ("8-K · Material Agreement",
   // "Prospectus supplement / shelf takedown", etc.) as the why. Bounded
   // to the names that need it.
-  const needEdgar = gCand.concat(lCand)
+  const needEdgar = gRank.concat(lRank)
     .filter(function (r) { return !r.catalyst; }).slice(0, 14);
   await Promise.all(needEdgar.map(async function (row) {
     try {
@@ -1746,8 +1819,14 @@ async function fetchPremarketBuzz(env) {
     const picked = (buzz.length >= 4 ? buzz : cand).slice(0, 10);
     return picked;
   }
-  const gainers = buzzPick(gCand);
-  const losers  = buzzPick(lCand);
+  const gainers = buzzPick(gRank);
+  const losers  = buzzPick(lRank);
+  // How many displayed rows got the live Yahoo number vs fell back to
+  // the Polygon snapshot — surfaces pricing-source health for QA.
+  const allShown = gainers.concat(losers);
+  const livePriced = allShown.filter(function (r) {
+    return r.price_basis === "yahoo-ext";
+  }).length;
   return {
     generated:     new Date().toISOString(),
     total:         gainers.length + losers.length,
@@ -1757,8 +1836,15 @@ async function fetchPremarketBuzz(env) {
     top_pct:       gainers[0] ? gainers[0].pct : null,
     gainers:       gainers,
     losers:        losers,
-    source:        "polygon",
-    delay_minutes: 15,
+    source:        "polygon+yahoo",
+    price_basis:   "yahoo-extended",
+    live_priced:   livePriced,
+    priced_total:  allShown.length,
+    // Pricing is near-real-time extended-hours; the LIST of names is
+    // discovered from Polygon's 15-min-delayed snapshot, so a brand-new
+    // mover can take ~15m to appear.
+    delay_minutes: 0,
+    discovery:     "polygon-snapshot-15m",
   };
 }
 

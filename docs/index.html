@@ -19763,7 +19763,16 @@
           const t = d.generated ? new Date(d.generated)
             .toLocaleTimeString([], { hour: "numeric", minute: "2-digit",
               timeZone: "America/New_York" }) + " ET" : "";
-          stamp.textContent = phaseLabel() + " · " + t + " · delayed 15m";
+          // Prices are re-fetched live from Yahoo extended-hours; the LIST
+          // of names is still discovered from Polygon's 15m-delayed scan.
+          const liveNote = d.price_basis === "yahoo-extended"
+            ? "prices live · list ~15m" : "delayed 15m";
+          stamp.textContent = phaseLabel() + " · " + t + " · " + liveNote;
+          stamp.title = d.price_basis === "yahoo-extended"
+            ? "Prices are near-real-time extended-hours (Yahoo includePrePost). " +
+              "The list of movers is discovered from a 15-min-delayed scan, so a " +
+              "brand-new mover can take ~15m to appear."
+            : "Prices delayed 15 min (Polygon Stocks Starter).";
         }
         wrap.style.display = "";
       }
