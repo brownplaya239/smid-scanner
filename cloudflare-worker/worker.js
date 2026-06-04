@@ -70,6 +70,30 @@ async function fetchPolygonSnapshot(sym, env) {
   } catch (_) { return null; }
 }
 
+// Current US-equity market phase from the ET wall clock (handles EDT/EST
+// via Intl; Yahoo's chart-endpoint meta omits marketState, so we can't
+// rely on it). pre = 04:00–09:30, regular = 09:30–16:00, post =
+// 16:00–20:00, else closed. Weekends = closed.
+function etMarketPhase() {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York", hour12: false,
+      weekday: "short", hour: "2-digit", minute: "2-digit",
+    }).formatToParts(new Date());
+    const get = function (t) {
+      return (parts.find(function (x) { return x.type === t; }) || {}).value;
+    };
+    const wd = get("weekday");
+    if (wd === "Sat" || wd === "Sun") return "closed";
+    let hh = parseInt(get("hour"), 10);
+    if (hh === 24) hh = 0;                       // hour12:false midnight edge
+    const t = hh * 60 + parseInt(get("minute"), 10);
+    if (t >= 240 && t < 570)  return "pre";      // 04:00–09:30
+    if (t >= 570 && t < 960)  return "regular";  // 09:30–16:00
+    if (t >= 960 && t < 1200) return "post";     // 16:00–20:00
+    return "closed";
+  } catch (_) { return "regular"; }              // safe default = RTH behavior
+}
 async function fetchYahooQuote(sym) {
   const r2 = function (x) { return Math.round(x * 100) / 100; };
   // Two parallel calls so we can derive a TRUSTWORTHY previous close.
@@ -164,18 +188,26 @@ async function fetchYahooQuote(sym) {
     // series) and recompute change off the SAME split-adjusted prev, so
     // every quote consumer (Desk chips, Watchlist, My Desk, drilldown)
     // reflects the real extended-hours move. RTH / closed are untouched.
-    let effPrice = price, effChange = change, effLastMs = lastTradeMs;
+    let effPrice = price, effChange = change, effLastMs = lastTradeMs, effPrev = prev;
     let extended = false;
-    const ms = m.marketState;
-    if ((ms === "PRE" || ms === "POST") && q && Array.isArray(q.close) && prev) {
-      const ts = Array.isArray(res.timestamp) ? res.timestamp : null;
-      for (let i = q.close.length - 1; i >= 0; i--) {
-        if (typeof q.close[i] === "number" && q.close[i] > 0) {
-          effPrice  = r2(q.close[i]);
-          effChange = Math.round((q.close[i] / prev - 1) * 10000) / 100;
-          if (ts && typeof ts[i] === "number") effLastMs = ts[i] * 1000;
-          extended  = true;
-          break;
+    const phase = etMarketPhase();
+    if (phase === "pre" || phase === "post") {
+      // Prior REGULAR close basis: chartPreviousClose is correct pre/post
+      // (the daily-bar derivation can miss yesterday when today's bar
+      // isn't created yet pre-open). Falls back to the daily-derived prev.
+      const xprev = (typeof m.chartPreviousClose === "number"
+        && m.chartPreviousClose > 0) ? m.chartPreviousClose : prev;
+      if (q && Array.isArray(q.close) && xprev) {
+        const ts = Array.isArray(res.timestamp) ? res.timestamp : null;
+        for (let i = q.close.length - 1; i >= 0; i--) {
+          if (typeof q.close[i] === "number" && q.close[i] > 0) {
+            effPrice  = r2(q.close[i]);
+            effPrev   = r2(xprev);
+            effChange = Math.round((q.close[i] / xprev - 1) * 10000) / 100;
+            if (ts && typeof ts[i] === "number") effLastMs = ts[i] * 1000;
+            extended  = true;
+            break;
+          }
         }
       }
     }
@@ -187,7 +219,7 @@ async function fetchYahooQuote(sym) {
     const stale = effLastMs
       ? (Date.now() - effLastMs > 25 * 60 * 1000) : false;
     return { symbol: sym, price: effPrice, change: effChange,
-             prevClose: prev, bars: bars,
+             prevClose: effPrev, bars: bars,
              last_trade_ts: effLastMs
                ? new Date(effLastMs).toISOString() : null,
              // Wall-clock age of the last trade — lets the chip render
@@ -198,7 +230,7 @@ async function fetchYahooQuote(sym) {
                : null,
              stale: stale,
              extended: extended,
-             market_state: ms || null,
+             market_state: phase,
              source: extended ? "yahoo-ext" : "yahoo",
              delay_minutes: extended ? 0 : 15,
              fetched_at: new Date().toISOString() };
