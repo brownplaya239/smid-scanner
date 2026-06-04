@@ -16450,21 +16450,40 @@
     // theme. Returns sorted array of {theme, n, chg_avg, tickers[]}.
     // Daily-return average is more useful day-to-day than the composite
     // grading score (which moves slowly).
+    let THEME_ROLLUP_META = { live: 0, total: 0, lastTs: 0 };
     function buildThemeRollup(swing) {
       if (!swing || !swing.runs || !swing.runs.length) return [];
       const r = swing.runs[swing.runs.length - 1];
+      const cache = window.LIVE_QUOTE_CACHE || {};
       const acc = {};
+      let liveN = 0, totN = 0, lastTs = 0;
       Object.keys(r.grades || {}).forEach(function (g) {
         (r.grades[g] || []).forEach(function (c) {
           if (!c.th || !c.th.length) return;
-          if (typeof c.chg !== "number") return;
+          // Prefer TODAY's live quote (intraday / extended-hours) over the
+          // swing run's EOD close-to-close so theme rotation reflects the
+          // current session, not yesterday. 30-min guard keeps an
+          // overnight-stale cache from masquerading as live. Falls back to
+          // the swing chg until quotes load.
+          const lq = cache[c.t];
+          let chg = null;
+          if (lq && typeof lq.change === "number" &&
+              Date.now() - (lq.ts || 0) < 30 * 60 * 1000) {
+            chg = lq.change; liveN++;
+            if ((lq.ts || 0) > lastTs) lastTs = lq.ts;
+          } else if (typeof c.chg === "number") {
+            chg = c.chg;
+          }
+          if (chg == null) return;
+          totN++;
           c.th.forEach(function (th) {
             if (!acc[th]) acc[th] = { tickers: [], sum: 0 };
-            acc[th].tickers.push({ t: c.t, chg: c.chg });
-            acc[th].sum += c.chg;
+            acc[th].tickers.push({ t: c.t, chg: chg });
+            acc[th].sum += chg;
           });
         });
       });
+      THEME_ROLLUP_META = { live: liveN, total: totN, lastTs: lastTs };
       const out = [];
       Object.keys(acc).forEach(function (th) {
         const o = acc[th], n = o.tickers.length;
@@ -16489,13 +16508,24 @@
       // post-close, which renders "Prior close · yest 4:30 PM"
       // when reading yesterday's data — honest about what the user
       // is looking at.
-      const stamp = swing
-        ? freshness((swing.runs && swing.runs.length
-            ? swing.runs[swing.runs.length-1].generated
-            : swing.updated),
-            { character: "post-close", label: "Themes from" })
-        : { cls: "none", label: "no batch yet" };
       const all = buildThemeRollup(swing);
+      // Stamp reflects what's actually driving the averages: once today's
+      // live quotes cover the constituents, the moves are intraday /
+      // extended-hours (delayed-15m), not "prior close". Falls back to the
+      // post-close swing stamp before quotes load. (Theme MEMBERSHIP is
+      // always the EOD grade batch; only the % moves go live.)
+      const _tm = THEME_ROLLUP_META || { live: 0, total: 0, lastTs: 0 };
+      const _liveThemes = _tm.total > 0 &&
+        _tm.live >= Math.max(3, Math.ceil(_tm.total * 0.5));
+      const stamp = _liveThemes
+        ? freshness(new Date(_tm.lastTs || Date.now()).toISOString(),
+            { character: "delayed-15m", label: "Theme moves (membership EOD)" })
+        : (swing
+            ? freshness((swing.runs && swing.runs.length
+                ? swing.runs[swing.runs.length-1].generated
+                : swing.updated),
+                { character: "post-close", label: "Themes from" })
+            : { cls: "none", label: "no batch yet" });
       if (!all.length)
         return desk("Strongest / Weakest Themes", empty("No theme data."),
                     null, stamp);
