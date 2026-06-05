@@ -1,0 +1,35 @@
+name: UOA Freshness Monitor
+
+# Independent watchdog: a few times during RTH it checks whether the
+# DEPLOYED options-flow dataset is fresh, and emails an alert (via Resend)
+# if it's stale. Checks the OUTCOME, so it catches a dropped GitHub
+# schedule, a missed Cloudflare cron, a PAT-expired backstop dispatch, or
+# a publish failure — all at once. Fire times are OFFSET from the UOA scan
+# crons (13:35-19:47 UTC) so each runs after a scan should have published.
+on:
+  schedule:
+    - cron: '30 14 * * 1-5'   # ~10:30 AM ET — after the open scans
+    - cron: '0 17 * * 1-5'    # ~1:00 PM ET
+    - cron: '5 19 * * 1-5'    # ~3:05 PM ET
+    - cron: '20 20 * * 1-5'   # ~4:20 PM ET — after the pre-close scan
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uoa-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check UOA freshness
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          MAX_AGE_MIN: "180"
+        run: python scripts/uoa_freshness_check.py
