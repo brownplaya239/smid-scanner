@@ -5807,8 +5807,10 @@
 
 <!-- Supabase JS via CDN. Auth-gated features (watchlist, journal) only
      activate when SUPA_URL + SUPA_ANON below are populated. -->
-<script src="https://unpkg.com/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"
-        defer></script>
+<!-- Vendored from unpkg @supabase/supabase-js@2.45.0 (dist/umd) so auth
+     doesn't depend on a third-party CDN's uptime/latency on the critical
+     path. Same fast edge as the rest of the site; still deferred. -->
+<script src="./vendor/supabase-2.45.0.min.js" defer></script>
 
 <script>
   const WORKER_URL = "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev";
@@ -9486,7 +9488,7 @@
     }
     async function fetchTs(path) {
       try {
-        const r = await fetch(path + "?t=" + Date.now());
+        const r = await fetch(path, { cache: "no-cache" });
         if (!r.ok) return null;
         const d = await r.json();
         return {
