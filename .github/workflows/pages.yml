@@ -1,0 +1,69 @@
+name: Build & Deploy Pages
+
+# Replaces GitHub's legacy branch-build for Pages. Serves a MINIFIED
+# index.html (html-minifier-terser: collapse whitespace + minify inline
+# CSS/JS) for faster parse + ~46% smaller transfer, while docs/index.html
+# stays the readable source. Everything else under docs/ (reports/, sw.js,
+# scored-worker.js, vendor/, CNAME, etc.) is copied through untouched.
+#
+# GRACEFUL DEGRADATION: if minification fails or its output fails the
+# sanity gates, the build deploys the UNMINIFIED index.html instead of
+# failing — so a data publish (the scanner commits to docs/reports ~6x/day)
+# is never blocked by a build hiccup. Worst case == today's behavior.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Don't cancel an in-progress deploy (a cancelled Pages deploy can leave
+# the site in a half-published state); queue instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Assemble _site (best-effort minify of index.html)
+        run: |
+          set -uo pipefail
+          rm -rf _site && mkdir -p _site
+          cp -r docs/. _site/
+          ok=0
+          if npx --yes html-minifier-terser@7 docs/index.html \
+                --collapse-whitespace --remove-comments \
+                --minify-css --minify-js -o /tmp/min.html; then
+            src=$(wc -c < docs/index.html); out=$(wc -c < /tmp/min.html)
+            if [ "$out" -gt 300000 ] && [ "$out" -lt "$src" ] \
+               && node scripts/verify_inline_js.js /tmp/min.html; then
+              cp /tmp/min.html _site/index.html
+              ok=1
+              echo "::notice::index.html minified ${src} -> ${out} bytes"
+            fi
+          fi
+          if [ "$ok" != "1" ]; then
+            echo "::warning::minify skipped/failed — deploying UNMINIFIED index.html"
+          fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
