@@ -17215,7 +17215,12 @@
     });
 
     const fetchJSON = function (path) {
-      return fetch(path + "?t=" + Date.now())
+      // cache:"no-cache" sends a conditional request (If-None-Match) and
+      // gets a tiny 304 when the file is unchanged — instead of the old
+      // ?t=Date.now() cache-buster, which forced a full re-download of
+      // every desk file (incl. swing_report ~2MB) on every 5-min tick
+      // and every watchlist change, bypassing the browser/SW/CDN cache.
+      return fetch(path, { cache: "no-cache" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .catch(function () { return null; });
     };
@@ -17224,7 +17229,7 @@
     // to be safe to call repeatedly — used both on initial mount and on
     // every interval tick. Cards do their own freshness staling display,
     // so this just keeps the underlying data current.
-    function loadAndRender() {
+    function fetchDeskData() {
       return Promise.all([
         fetchJSON("./reports/uoa_latest.json"),
         fetchJSON("./reports/swing_report.json"),
@@ -17234,20 +17239,31 @@
         fetchJSON("./reports/economic_calendar.json"),
         fetchJSON("./reports/uoa_meta_cache.json"),
       ]).then(function (arr) {
-        const uoa = arr[0], swing = arr[1], qm = arr[2], sb = arr[3];
-        const manifest = arr[4], cal = arr[5], uoaMeta = arr[6];
-        const today = (swing && swing.runs && swing.runs.length)
+        const swing = arr[1], uoaMeta = arr[6];
+        DESK_DATE = (swing && swing.runs && swing.runs.length)
           ? swing.runs[swing.runs.length - 1].date
           : new Date().toISOString().slice(0, 10);
-        DESK_DATE = today;
         DESK_META = uoaMeta || {};
-        window.TD_DATA.uoa = uoa;
-        window.TD_DATA.swing = swing;
-        window.TD_DATA.qm = qm;
-        window.TD_DATA.sb = sb;
-        window.TD_DATA.manifest = manifest;
-        window.TD_DATA.cal = cal;
-        window.TD_DATA.uoaMeta = uoaMeta;
+        window.TD_DATA.uoa = arr[0];
+        window.TD_DATA.swing = arr[1];
+        window.TD_DATA.qm = arr[2];
+        window.TD_DATA.sb = arr[3];
+        window.TD_DATA.manifest = arr[4];
+        window.TD_DATA.cal = arr[5];
+        window.TD_DATA.uoaMeta = arr[6];
+      });
+    }
+    // Render the desk grid from whatever is already in window.TD_DATA — no
+    // network. fetchDeskData() refreshes that cache; this draws from it.
+    // Splitting them lets watchlist/auth changes (which only affect the
+    // Action List's urgencies) re-render from memory instead of
+    // re-downloading ~2.3MB of mostly-static JSON on every weight edit.
+    function renderDesk() {
+      const D = window.TD_DATA || {};
+      const uoa = D.uoa, swing = D.swing, qm = D.qm, sb = D.sb;
+      const manifest = D.manifest, cal = D.cal, uoaMeta = D.uoaMeta;
+      if (!swing) return;     // initial fetch hasn't landed yet
+      const today = DESK_DATE || new Date().toISOString().slice(0, 10);
         // Stamp every tab whose primary data we just loaded so the
         // freshness pill under each tab title reflects reality.
         // Watchlist + Breakouts + Setups share the same swing manifest
@@ -17312,7 +17328,9 @@
         // initial "yesterday close" tooltip cohort into "today 15m
         // delayed" intraday values without a full re-render.
         hydrateDeskLiveQuotes();
-      });
+    }
+    function loadAndRender() {
+      return fetchDeskData().then(renderDesk);
     }
 
     // ── Live-quote hydration for the Desk grid ───────────────────────
@@ -17563,11 +17581,14 @@
     // signed-out, and we need to update it immediately when the user
     // signs in (without forcing a full page reload). Also fires when
     // the watchlist itself changes so urgency contents stay accurate.
+    // Watchlist / auth changes only affect the Action List's urgencies —
+    // re-render from the in-memory TD_DATA cache instead of re-fetching
+    // every desk JSON. (renderDesk no-ops until the first fetch lands.)
     if (typeof onUserChange === "function") {
-      onUserChange(function () { loadAndRender(); });
+      onUserChange(function () { renderDesk(); });
     }
     if (typeof onWatchChange === "function") {
-      onWatchChange(function () { loadAndRender(); });
+      onWatchChange(function () { renderDesk(); });
     }
   }
   setupDesk();
@@ -18387,10 +18408,10 @@
     // Load the swing report + uoa meta cache in parallel — the meta cache
     // gives us the raw market_cap figure used in the hover popup.
     Promise.all([
-      fetch("./reports/swing_report.json?t=" + Date.now())
+      fetch("./reports/swing_report.json", { cache: "no-cache" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .catch(function () { return null; }),
-      fetch("./reports/uoa_meta_cache.json?t=" + Date.now())
+      fetch("./reports/uoa_meta_cache.json", { cache: "no-cache" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .catch(function () { return null; }),
     ]).then(function (arr) {
@@ -19683,15 +19704,39 @@
       // page mount for the 95% of users who never click into Tracked.
     }
     let _scoredLoaded = false;
+    function _scoredMainThread() {
+      // Fallback path: fetch + parse on the main thread (older browsers
+      // or if the Worker can't be created). cache:"no-cache" revalidates
+      // (304 when unchanged) instead of the old ?t= cache-buster.
+      return fetch("./reports/uoa_signals_scored.json", { cache: "no-cache" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { SCORED = (d && d.signals) ? d.signals : []; })
+        .catch(function () { SCORED = []; _scoredLoaded = false; });
+    }
     function loadScoredIfNeeded() {
       if (_scoredLoaded) return Promise.resolve();
       _scoredLoaded = true;
-      return fetch("./reports/uoa_signals_scored.json?t="+Date.now())
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) {
-          SCORED = (d && d.signals) ? d.signals : [];
-        })
-        .catch(function () { SCORED = []; _scoredLoaded = false; });
+      // Parse the ~19.7MB scored-signals file in a Web Worker so opening
+      // the Tracked Signals subtab doesn't freeze the main thread on
+      // first load. Falls back to main-thread fetch on any worker issue.
+      if (typeof Worker === "undefined") return _scoredMainThread();
+      return new Promise(function (resolve) {
+        let w, settled = false;
+        const finish = function () {
+          if (settled) return; settled = true;
+          try { if (w) w.terminate(); } catch (e) {}
+          resolve();
+        };
+        try { w = new Worker("./scored-worker.js"); }
+        catch (e) { _scoredMainThread().then(finish); return; }
+        w.onmessage = function (ev) {
+          const m = ev.data || {};
+          if (m && m.ok) { SCORED = m.signals || []; finish(); }
+          else { _scoredMainThread().then(finish); }   // worker fetch failed
+        };
+        w.onerror = function () { _scoredMainThread().then(finish); };
+        w.postMessage({ url: "./reports/uoa_signals_scored.json" });
+      });
     }
 
     /* ── Phase C — sub-tabs, tracked signals, performance, detail ── */

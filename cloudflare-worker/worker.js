@@ -884,6 +884,25 @@ const LF_DEFAULT_UNIVERSE = [
   "TWLO","ZM","DOCN","FROG","WOLF","ENVX","JOBY","NKLA","FUBO","OPEN",
 ];
 
+// Bounded-concurrency map: run fn over items with at most `limit` in
+// flight. Firing all ~180 option-snapshot calls at once made Polygon
+// throttle the burst, and Promise.all waits for the slowest — so one
+// rate-limited straggler dragged the whole /live-flow response to the
+// 8s timeout. Pacing to ~20 keeps us under the rate limit while still
+// finishing in a few waves. Order preserved; per-item errors isolated.
+async function mapPool(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i], i);
+    }
+  }
+  const n = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: n }, worker));
+  return out;
+}
 async function fetchLiveFlow(env, opts) {
   opts = opts || {};
   // Universe — default to LF_DEFAULT_UNIVERSE (~180 names), capped at
@@ -917,14 +936,16 @@ async function fetchLiveFlow(env, opts) {
           encodeURIComponent(tk) +
           "?limit=250&expiration_date.gte=" + today +
           "&apiKey=" + env.POLYGON_API_KEY,
-        { signal: AbortSignal.timeout(8000) }
+        { signal: AbortSignal.timeout(4000) }
       );
       if (!r.ok) return [];
       const j = await r.json();
       return (j.results || []).map(function (c) { return [tk, c]; });
     } catch (_) { return []; }
   }
-  const allArrays = await Promise.all(tickers.map(snap));
+  // Paced fan-out (≤20 concurrent) instead of all-at-once — avoids the
+  // Polygon throttle that was pinning latency at the 8s timeout.
+  const allArrays = await mapPool(tickers, 20, snap);
   const all = [].concat.apply([], allArrays);
   // Per-contract filter + transform to the feed-friendly shape.
   const flows = [];
@@ -2191,7 +2212,7 @@ export default {
           limit:        +url.searchParams.get("limit")         || 100,
         });
         const resp = Response.json(data, {
-          headers: { ...cors, "Cache-Control": "public, max-age=30" },
+          headers: { ...cors, "Cache-Control": "public, max-age=60" },
         });
         ctx.waitUntil(cache.put(request, resp.clone()));
         return resp;
