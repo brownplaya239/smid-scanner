@@ -2526,14 +2526,54 @@ export default {
         console.log("[cron] dispatch " + workflow + " failed: " + e.message);
       }
     };
+    // ── Publish-freshness self-heal ──────────────────────────────────
+    // Catches the OTHER failure class, observed 2026-06-10: scans ran and
+    // committed fresh JSON, but the PUBLISHED site stayed frozen (Pages
+    // didn't build — e.g. a deploy-config change; GITHUB_TOKEN commits
+    // also can't trigger workflow-based deploys). On every cron fire,
+    // check the age of the DEPLOYED uoa_latest.json; if it's >3h stale,
+    // force a native Pages build of current master via the same PAT.
+    // Rides Cloudflare cron (reliable), so it can't be blinded by the
+    // GitHub-schedule drops that silenced the Actions-side watchdog.
+    const healPublish = async function () {
+      try {
+        const r = await fetch(
+          "https://tickerdesk.io/reports/uoa_latest.json?cb=" + Date.now(),
+          { signal: AbortSignal.timeout(10000),
+            headers: { "User-Agent": "tickerdesk-cron-backstop" } });
+        if (!r.ok) return;
+        const d = await r.json();
+        const gen = Date.parse(d && d.generated || "");
+        if (isNaN(gen)) return;
+        const ageH = (Date.now() - gen) / 3600000;
+        if (ageH <= 3) return;                 // published data is current
+        const b = await fetch(
+          "https://api.github.com/repos/" + repo + "/pages/builds",
+          { method: "POST",
+            headers: {
+              "Authorization":        "Bearer " + env.PAT,
+              "Accept":               "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent":           "tickerdesk-cron-backstop",
+            } });
+        console.log("[cron] published uoa stale " + ageH.toFixed(1) +
+          "h -> forced Pages build, HTTP " + b.status);
+      } catch (e) {
+        console.log("[cron] healPublish failed: " + e.message);
+      }
+    };
     const isEod = event.cron === "40 20 * * 1-5";
     if (isEod) {
       ctx.waitUntil(Promise.all([
         dispatch("scanner.yml"),
         dispatch("momentum.yml"),
+        healPublish(),
       ]));
     } else {
-      ctx.waitUntil(dispatch("uoa.yml"));
+      ctx.waitUntil(Promise.all([
+        dispatch("uoa.yml"),
+        healPublish(),
+      ]));
     }
   },
 };

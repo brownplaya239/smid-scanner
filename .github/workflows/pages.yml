@@ -10,9 +10,16 @@ name: Build & Deploy Pages
 # sanity gates, the build deploys the UNMINIFIED index.html instead of
 # failing — so a data publish (the scanner commits to docs/reports ~6x/day)
 # is never blocked by a build hiccup. Worst case == today's behavior.
+# 2026-06-10 ROLLBACK: Pages is back on the native legacy build. The
+# workflow-based deploy FROZE the site during a selloff — the scanner's
+# data commits are pushed with GITHUB_TOKEN, and GitHub never triggers
+# push workflows from GITHUB_TOKEN commits (anti-recursion), so ~10 data
+# commits piled up unpublished while pages-build-deployment sat idle.
+# Re-enabling requires BOTH: (a) the scanner pushing with a PAT (or this
+# workflow gaining a schedule/cron trigger as a sweeper), AND (b) Pages
+# build_type switched back to "workflow". Until then: manual dispatch
+# only, and deploy-pages would fail anyway while build_type=legacy.
 on:
-  push:
-    branches: [master]
   workflow_dispatch: {}
 
 permissions:
