@@ -1086,7 +1086,7 @@
     .td-search-mobile-btn { display:inline-flex; align-items:center;
       justify-content:center; background:transparent; border:0;
       color:var(--textdim); cursor:pointer; padding:0; margin-right:4px;
-      width:38px; height:38px; align-self:center; flex:0 0 auto;
+      width:44px; height:44px; align-self:center; flex:0 0 auto;
       border-radius:4px; box-sizing:border-box; }
     .td-search-mobile-btn:hover { color:var(--gold);
       background:var(--navy2); }
@@ -2108,7 +2108,13 @@
     .td-toast { left:12px; right:12px; bottom:12px; max-width:none; }
   }
   @media (max-width:760px) {
-    .desk-grid { grid-template-columns:1fr; }
+    /* minmax(0,1fr) + min-width:0 let the track shrink below its
+       content's min-content width — without it, an unbreakable
+       .wct-row (~394px) forces every desk card to ~420px and the
+       whole Desk scrolls horizontally on phones. */
+    .desk-grid { grid-template-columns:minmax(0,1fr); }
+    .desk-card { min-width:0; overflow-x:hidden; }
+    .wct-row { flex-wrap:wrap; row-gap:2px; }
   }
   .desk-card.span2 { grid-column:1 / -1; }
   /* Stack two cards in a single grid cell (Calendar + Earnings combo) */
@@ -4787,7 +4793,7 @@
           on <b>SEC EDGAR</b> in a standard feed within minutes of posting.
           Search any ticker for its recent filing timeline; click
           <b>Summarize</b> on a material filing for a Claude one-paragraph
-          read. Source: SEC EDGAR (official, real-time).
+          read. Source: SEC EDGAR (official feed, ~5-min cache).
         </p>
         <div class="input-row">
           <input type="text" id="ir-q" placeholder="NVDA &middot; MU &middot; COIN..."
@@ -4831,7 +4837,7 @@
     <!-- Report tabs -->
     <section class="panel" id="panel-breakout">
       <h2 class="tab-title">Breakout Scans</h2>
-      <p class="tab-sub">Live breakout scans &mdash; 10:00, 11:30, 3:00 PM ET weekdays.</p>
+      <p class="tab-sub">Intraday breakout scans &mdash; batch runs at 10:00, 11:30 &amp; 3:00 PM ET weekdays.</p>
       <!-- Live ticker table — extracts top breakout candidates from
            today's swing run (A/A+ grades + bull flow if present)
            so users see actionable names without opening every PDF. -->

@@ -1046,6 +1046,11 @@ async function fetchLiveFlow(env, opts) {
   });
   return {
     fetched:        new Date().toISOString(),
+    // Provenance metadata — present even when flows is empty, so the
+    // client can always disclose the feed's source + delay honestly.
+    source:         "polygon_options_starter",
+    delay_minutes:  15,
+    price_basis:    "last_trade",
     universe_size:  tickers.length,
     scanned:        all.length,
     min_premium:    minPrem,
