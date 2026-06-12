@@ -952,9 +952,9 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         pdf.cell(MW, 5, "  VCP BASE ANALYSIS", fill=True)
         row_y = MY + 5
 
-        bt    = s.get("base_tight", s.get("baseTight", 0)) or 0
+        bt    = _num(s.get("base_tight", s.get("baseTight", 0)))
         coil  = "Textbook" if bt and bt < 1.5 else "Good" if bt and bt < 2.0 else "Fair" if bt else "-"
-        prox_52w_v = s.get("prox_52w", 0) or 0
+        prox_52w_v = _num(s.get("prox_52w", 0))
 
         row_y = _subhdr("BASE STRUCTURE", row_y)
         row_y = _row("Pivot Price",    f"${pivot:.2f}",                             row_y, 0)
@@ -963,17 +963,22 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         row_y = _row("Tightness",      f"{bt:.2f}  {coil}" if bt else "-",         row_y, 3)
         row_y = _row("52W Hi Prox",    f"{prox_52w_v:.1f}%",                       row_y, 4)
 
-        v1 = s.get("vol_w1_k", 0) or 0
-        v2 = s.get("vol_w2_k", 0) or 0
-        v3 = s.get("vol_w3_k", 0) or 0
-        contraction = s.get("vol_contraction", 0) or 0
+        # Coerce via the module-level _num() — upstream scan dicts
+        # occasionally deliver these as strings (observed 2026-06-11:
+        # rsVsSpy arrived as a str and `rs_raw >= 0` raised TypeError,
+        # killing the whole PDF build mid-session). `or 0` only guards
+        # falsy values, not "12.3".
+        v1 = _num(s.get("vol_w1_k", 0))
+        v2 = _num(s.get("vol_w2_k", 0))
+        v3 = _num(s.get("vol_w3_k", 0))
+        contraction = _num(s.get("vol_contraction", 0))
         row_y = _subhdr("VOLUME CONTRACTION  (Wk1 < Wk2 < Wk3 = VCP)", row_y)
         row_y = _row("Wk1 (recent)",  f"{v1:.0f}k  <",  row_y, 0)
         row_y = _row("Wk2",           f"{v2:.0f}k  <",  row_y, 1)
         row_y = _row("Wk3 (oldest)",  f"{v3:.0f}k",     row_y, 2)
         row_y = _row("Coil Strength", f"{contraction:.1f}% from peak" if contraction else "-", row_y, 3)
 
-        rs_raw   = s.get("rsVsSpy", s.get("rs_vs_spy", 0)) or 0
+        rs_raw   = _num(s.get("rsVsSpy", s.get("rs_vs_spy", 0)))
         rs_disp  = f"+{rs_raw:.1f}%" if rs_raw >= 0 else f"{rs_raw:.1f}%"
         rs_hi    = s.get("rs_line_new_high", s.get("rsLineNewHigh", False))
         row_y = _subhdr("RELATIVE STRENGTH", row_y)
