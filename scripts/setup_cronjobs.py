@@ -34,6 +34,13 @@ GH_PAT = os.environ.get("GH_DISPATCH_PAT", "").strip()
 
 # (title, workflow file, hour, minute) — weekdays only, America/New_York
 JOBS = [
+    # Morning slots added 2026-06-12: GitHub's three morning crons AND the
+    # Cloudflare 9:50 ET backstop all dropped that day, leaving flow stale
+    # from the open until 11:07. cron-job.org is the leg that demonstrably
+    # fires on time (scanner at 10:07:02 two days running) — give it the
+    # open. emit_latest dedups if the GitHub cron also fires.
+    ("UOA 9:36 AM ET",      "uoa.yml",       9, 36),
+    ("UOA 10:21 AM ET",     "uoa.yml",      10, 21),
     ("UOA 11:07 AM ET",     "uoa.yml",      11,  7),
     ("UOA 1:37 PM ET",      "uoa.yml",      13, 37),
     ("UOA 3:47 PM ET",      "uoa.yml",      15, 47),
