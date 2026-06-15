@@ -477,7 +477,15 @@ def run():
         key=lambda x: x["avg"], reverse=True)
 
     run_obj = {
-        "date":        datetime.now(ET).strftime("%Y-%m-%d"),
+        # Date the run by the SESSION it grades (ref = _last_trading_day(),
+        # which walks back over weekends/pre-close), NOT wall-clock now().
+        # A stray Saturday re-run was stamping "date":"2026-06-14" while the
+        # grades were Friday's close — so the dashboard showed a non-trading
+        # day and "22h ago" on a Monday. Dedup in _emit() keys on this date,
+        # so a weekend re-run now correctly REFRESHES the Friday entry
+        # instead of adding a phantom Saturday one. `generated` stays
+        # wall-clock (it's when the scan actually ran).
+        "date":        ref,
         "generated":   datetime.now(ET).isoformat(timespec="seconds"),
         "total":       total,
         "bullish_pct": bull_pct,
