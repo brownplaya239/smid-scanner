@@ -1850,6 +1850,18 @@
     border-radius:8px; padding:11px 13px; }
   /* Wide variant for the Action List — spans full row */
   .desk-card.desk-card--wide { grid-column:1 / -1; }
+  /* Launch-week SpaceX callout (dismissible) */
+  .launch-note { display:flex; align-items:center; gap:8px;
+    background:linear-gradient(90deg,rgba(255,158,27,.12),transparent);
+    border:1px solid rgba(255,158,27,.32); border-radius:8px;
+    padding:8px 12px; margin:0 0 12px; font-size:12.5px;
+    color:var(--textdim); }
+  .launch-note .ln-tk { color:var(--gold); font-weight:800; cursor:pointer; }
+  .launch-note .ln-tk:hover { text-decoration:underline; }
+  .launch-note .ln-x { margin-left:auto; background:none; border:0;
+    color:var(--muted); font-size:16px; line-height:1; cursor:pointer;
+    padding:0 4px; font-family:inherit; }
+  .launch-note .ln-x:hover { color:var(--text); }
 
   /* What Changed Today (Desk wide card, sits above Action List).
      Single-row digest of meaningful changes vs prior session.
@@ -4497,6 +4509,16 @@
     <!-- Today's Desk -->
     <section class="panel active" id="panel-desk">
       <h2 class="tab-title">Today&apos;s Desk</h2>
+      <!-- Launch-week callout (dismissible; per-browser localStorage). Remove
+           after the SpaceX IPO news cycle cools. data-t="SPCX" routes the
+           click to the ticker drilldown via the global [data-t] handler. -->
+      <div class="launch-note" id="launch-note" style="display:none">
+        <span>🚀 <b>New:</b> SpaceX (<span class="ln-tk" data-t="SPCX">SPCX</span>)
+          now covered &mdash; live options flow, IV &amp; drilldown.</span>
+        <button class="ln-x" type="button" aria-label="Dismiss"
+          onclick="this.closest('.launch-note').style.display='none';try{localStorage.setItem('td_ln_spcx','1')}catch(e){}">&times;</button>
+      </div>
+      <script>try{if(localStorage.getItem('td_ln_spcx')!=='1'){var _ln=document.getElementById('launch-note');if(_ln)_ln.style.display='';}}catch(e){}</script>
       <p class="tab-sub">A daily command center &mdash; market health, the top
         flow / setups / momentum across every TickerDesk tool, and the names
         that appear in more than one of them.
@@ -5724,7 +5746,7 @@
           the Daily Brief, and "what's new since last visit."</p>
         <div class="ob-starter">
           <button class="ob-starter-btn" data-ob-starter>
-            ★ Use starter (NVDA · MU · AVGO · MRVL · AAPL · PLTR · COIN)
+            ★ Use starter (NVDA · MU · AVGO · MRVL · AAPL · PLTR · COIN · SPCX)
           </button>
         </div>
         <div class="ob-or">— or —</div>
@@ -7332,7 +7354,7 @@
       } else if (starterBtn) {
         starterBtn.disabled = true;
         starterBtn.textContent = "Adding starter...";
-        const starter = ["NVDA","MU","AVGO","MRVL","AAPL","PLTR","COIN"];
+        const starter = ["NVDA","MU","AVGO","MRVL","AAPL","PLTR","COIN","SPCX"];
         for (const tk of starter) {
           if (window.tdAddWatch) await window.tdAddWatch(tk);
         }
@@ -8266,7 +8288,7 @@
     // ── Portfolio table ──
     // Sample watchlist for unsigned users who hit "Try sample" — these
     // are the universe's biggest signal generators today.
-    const SAMPLE_WATCHLIST = ["NVDA","MU","AVGO","MRVL","AAPL","COIN","PLTR"];
+    const SAMPLE_WATCHLIST = ["NVDA","MU","AVGO","MRVL","AAPL","COIN","PLTR","SPCX"];
     let SHOW_SAMPLE = false;
 
     function renderPortfolio() {
@@ -9023,7 +9045,7 @@
             'Watchlist tab</a> to paste a portfolio.</p>' +
           '<div class="mydesk-cta-row">' +
             '<button class="mydesk-cta-primary" id="mydesk-cta-starter">' +
-              'Try the starter (NVDA · MU · AVGO · MRVL · AAPL)</button>' +
+              'Try the starter (NVDA · MU · AVGO · MRVL · AAPL · SPCX)</button>' +
           '</div>' +
           '<p class="mydesk-hint">Once you have tickers, this tab shows ' +
             'today\'s flow, grade changes, earnings, news, and "what\'s new ' +
@@ -9038,7 +9060,7 @@
         if (starterBtn) starterBtn.onclick = async function () {
           starterBtn.disabled = true;
           starterBtn.textContent = "Adding...";
-          const starter = ["NVDA", "MU", "AVGO", "MRVL", "AAPL"];
+          const starter = ["NVDA", "MU", "AVGO", "MRVL", "AAPL", "SPCX"];
           for (const t of starter) {
             if (window.tdAddWatch) await window.tdAddWatch(t, 1);
           }
