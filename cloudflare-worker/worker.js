@@ -843,6 +843,9 @@ async function fetchIvSnapshot(env, ticker, earningsDate) {
 const LF_DEFAULT_UNIVERSE = [
   // Mega-cap indices + leaders
   "SPY","QQQ","IWM","DIA",
+  // Recent high-volume listings (added on request — covered for live flow
+  // immediately; swing/momentum grades lag until ~50 sessions of history).
+  "SPCX",
   // Mag 7 / AI bellwethers
   "NVDA","AAPL","MSFT","GOOGL","AMZN","META","TSLA",
   // Semis + AI infra

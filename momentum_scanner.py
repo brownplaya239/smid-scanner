@@ -54,6 +54,11 @@ LARGE_CAPS = [
     "APD","COF","HCA","CARR","AJG","NSC","PCAR","SLB","TFC","WELL","TGT","DKNG",
     "PLTR","SMCI","COIN","ARM","CRWD","SNOW","DASH","ABNB","UBER","SHOP","PANW",
     "DDOG","NET","SNDK","WDC","STX","ON","MRVL","ANET","DELL","HPQ","CSX","FTNT",
+    # Recent high-volume listing (added on request). IPO'd 2026-06-12, so it
+    # sits outside the dollar-vol auto-universe's ~50-session history window;
+    # seeding it here forces UOA + momentum coverage now. QM/Stockbee metrics
+    # that need a full month of bars will skip it until history accrues.
+    "SPCX",
 ]
 
 
