@@ -18,7 +18,7 @@ import sys
 import csv
 import json
 import time
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from concurrent.futures import ThreadPoolExecutor
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -452,6 +452,24 @@ def _shape_row(r, change_field):
     }
 
 
+def _session_date():
+    """Date a run by the trading SESSION its data reflects, not wall-clock.
+    Momentum's cron fires post-close on weekdays (4:33 PM ET), but a manual
+    weekend dispatch or a holiday re-run must not stamp a non-trading day.
+    Mirrors swing_report._last_trading_day: only count today after the
+    4:30 PM ET close buffer, then walk back over weekends. Without this a
+    Saturday re-run stamped '06-21' on Friday's grades, so the dashboard
+    showed a non-trading day; the per-day dedup below then keys on the right
+    session and overwrites it instead of appending a phantom weekend entry."""
+    now = datetime.now(ET)
+    d = now.date()
+    if now < now.replace(hour=16, minute=30, second=0, microsecond=0):
+        d -= timedelta(days=1)
+    while d.weekday() >= 5:                 # walk back over weekends
+        d -= timedelta(days=1)
+    return d.strftime("%Y-%m-%d")
+
+
 def emit_screen_json(key, rows, change_field, near_misses=None):
     """Append today's screen result to a dated history JSON the dashboard
     renders as a live, date-filterable table. Same-day re-runs overwrite the
@@ -464,7 +482,7 @@ def emit_screen_json(key, rows, change_field, near_misses=None):
                         "docs", "reports", f"momentum_{key}.json")
     now = datetime.now(ET)
     out_rows = [_shape_row(r, change_field) for r in rows]
-    run = {"date": now.strftime("%Y-%m-%d"),
+    run = {"date": _session_date(),
            "generated": now.isoformat(timespec="seconds"),
            "count": len(out_rows), "rows": out_rows}
     if near_misses:
