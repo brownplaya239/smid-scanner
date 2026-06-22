@@ -34,6 +34,11 @@ import urllib.request
 REPORT_URL = os.environ.get(
     "REPORT_URL", "https://tickerdesk.io/reports/uoa_latest.json")
 MAX_AGE_MIN = int(os.environ.get("MAX_AGE_MIN", "180"))
+# If the DATA (`generated`) is stale but the scanner ATTEMPTED a run within this
+# window, it's an upstream-empty preserve (Polygon came back blank) — the
+# scanner is healthy, so we send a calm [INFO] and exit 0 instead of redding
+# the monitor + screaming "pipeline down". Scans run ~every 75 min in RTH.
+ATTEMPT_MAX_MIN = int(os.environ.get("ATTEMPT_MAX_MIN", "120"))
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 FROM_EMAIL = os.environ.get("FROM_EMAIL", "")
 ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "") or "sumeetsancheti97@gmail.com"
@@ -113,24 +118,66 @@ def main():
     now_utc = datetime.datetime.now(datetime.timezone.utc)
     age_min = (now_utc - t).total_seconds() / 60.0
 
-    if age_min > MAX_AGE_MIN:
-        body = (
-            "Options-flow dataset (uoa_latest.json) last updated %.0f min ago "
-            "(%s) — over the %d-min RTH threshold.\n\n"
-            "Today's intraday scans likely didn't run. Check:\n"
-            "  1. The 'Unusual Options Activity' GitHub workflow runs.\n"
-            "  2. The Cloudflare worker cron backstop — Workers dashboard -> "
-            "Logs/Cron Triggers. A 'dispatch uoa.yml -> HTTP 401' means the "
-            "PAT secret expired (regenerate + update the worker secret).\n\n"
-            "Quick fix: gh workflow run uoa.yml --ref master"
-            % (age_min, str(gen), MAX_AGE_MIN))
-        send_alert("[ALERT] TickerDesk: UOA flow is STALE (%.0fh)"
-                   % (age_min / 60.0), body)
-        print("[monitor] STALE: %.0f min > %d — alerted." % (age_min, MAX_AGE_MIN))
-        return 1
+    if age_min <= MAX_AGE_MIN:
+        print("[monitor] fresh: %.0f min old (<= %d) — OK." % (age_min, MAX_AGE_MIN))
+        return 0
 
-    print("[monitor] fresh: %.0f min old (<= %d) — OK." % (age_min, MAX_AGE_MIN))
-    return 0
+    # Data is stale. Separate "scanner alive but upstream (Polygon) returned
+    # empty so we preserved the last good payload" from "pipeline down — nothing
+    # ran". The scanner stamps `last_attempt` on every run (even empty ones);
+    # `generated` only advances when a run produced real rows.
+    attempt = d.get("last_attempt")
+    attempt_age = None
+    if attempt:
+        try:
+            at = datetime.datetime.fromisoformat(str(attempt).replace("Z", "+00:00"))
+            if at.tzinfo is None:
+                at = at.replace(tzinfo=datetime.timezone.utc)
+            attempt_age = (now_utc - at).total_seconds() / 60.0
+        except Exception:
+            attempt_age = None
+
+    if attempt_age is not None and attempt_age <= ATTEMPT_MAX_MIN:
+        # Healthy scanner, empty upstream — the preserve guard is doing its job.
+        # Inform (paying users' flow IS stale), but don't redden the monitor or
+        # imply our pipeline broke. Persisting >2-3h would suggest a real
+        # Polygon outage/quota issue worth escalating.
+        body = (
+            "Options-flow DATA is %.0f min old (%s), but the scanner ran only "
+            "%.0f min ago and returned 0 rows — it's healthy and is "
+            "intentionally preserving the last good payload because the upstream "
+            "options feed (Polygon) came back empty.\n\n"
+            "No action needed unless this persists past ~2-3 hours (then suspect "
+            "a Polygon outage or a quota/rate issue — e.g. a day of heavy manual "
+            "workflow dispatches). Front-end freshness pills already show users "
+            "the data is delayed."
+            % (age_min, str(gen), attempt_age))
+        send_alert("[INFO] TickerDesk: UOA upstream empty — data preserved (%.1fh)"
+                   % (age_min / 60.0), body)
+        print("[monitor] upstream-empty: data %.0fm old, scanner ran %.0fm ago "
+              "— preserved, not a pipeline failure." % (age_min, attempt_age))
+        return 0
+
+    # No last_attempt (old payload) or the scanner itself hasn't run in a long
+    # time -> genuine pipeline failure.
+    attempt_note = (" and the scanner has not run for %.0f min" % attempt_age
+                    if attempt_age is not None
+                    else " (no last_attempt stamp — old data or scanner never ran)")
+    body = (
+        "Options-flow dataset (uoa_latest.json) last updated %.0f min ago "
+        "(%s) — over the %d-min RTH threshold%s.\n\n"
+        "The scanner does NOT appear to be running. Check:\n"
+        "  1. The 'Unusual Options Activity' GitHub workflow runs.\n"
+        "  2. The Cloudflare worker cron backstop — Workers dashboard -> "
+        "Logs/Cron Triggers. A 'dispatch uoa.yml -> HTTP 401' means the "
+        "PAT secret expired (regenerate + update the worker secret).\n\n"
+        "Quick fix: gh workflow run uoa.yml --ref master"
+        % (age_min, str(gen), MAX_AGE_MIN, attempt_note))
+    send_alert("[ALERT] TickerDesk: UOA flow is STALE — pipeline down (%.1fh)"
+               % (age_min / 60.0), body)
+    print("[monitor] STALE/pipeline-down: %.0f min > %d — alerted."
+          % (age_min, MAX_AGE_MIN))
+    return 1
 
 
 if __name__ == "__main__":

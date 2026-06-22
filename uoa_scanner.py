@@ -1046,10 +1046,32 @@ def emit_latest(rows):
                 existing = json.load(f)
             existing_count = len(existing.get("rows", []))
             if existing_count > 0:
+                attempt_iso = datetime.now(timezone.utc).isoformat(
+                    timespec="seconds")
                 print(f"  Scan produced 0 rows — PRESERVING existing "
                       f"{existing_count}-row payload (likely after-hours "
                       f"or transient Polygon hiccup; existing data was "
                       f"from {existing.get('generated', '?')}).")
+                # Make the preserve VISIBLE in the workflow (it exits 0, so it
+                # otherwise looks identical to a healthy run) and advance a
+                # `last_attempt` stamp distinct from `generated`. The freshness
+                # monitor reads both: scanner-ran-recently + data-stale ==
+                # "upstream empty, intentionally preserved" (not our failure);
+                # no recent attempt == "pipeline down". Rows/`generated` are
+                # left untouched so the desk keeps showing the last good data.
+                if os.environ.get("GITHUB_ACTIONS"):
+                    print(f"::warning::UOA scan returned 0 rows — preserved "
+                          f"{existing_count}-row payload from "
+                          f"{existing.get('generated', '?')}. Scanner healthy; "
+                          f"upstream (Polygon) came back empty. Data held "
+                          f"intentionally — not a pipeline failure.")
+                existing["last_attempt"] = attempt_iso
+                existing["last_attempt_rows"] = 0
+                try:
+                    with open(LATEST_PATH, "w", encoding="utf-8") as f:
+                        json.dump(existing, f, indent=1)
+                except OSError:
+                    pass
                 return
         except (FileNotFoundError, json.JSONDecodeError, OSError):
             pass
@@ -1147,10 +1169,15 @@ def emit_latest(rows):
             "catalyst":      r.get("catalyst", ""),
             "tags":          r["tags"],
         })
+    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "count":     len(out),
-        "rows":      out,
+        "generated":    now_iso,
+        # last_attempt == generated on a successful (non-empty) run; the
+        # preserve guard advances last_attempt alone when a run comes back
+        # empty, so the monitor can separate "upstream empty" from "down".
+        "last_attempt": now_iso,
+        "count":        len(out),
+        "rows":         out,
     }
     with open(LATEST_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
