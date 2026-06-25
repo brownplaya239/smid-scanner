@@ -15424,7 +15424,7 @@
       // 96h instead of 72h post-Memorial-Day shouldn't read as
       // "Outdated" when markets simply weren't open Mon.
       const holidayAdj = gapLabel ? 48 : 0;  // +2 days slack per closure
-      let prefix, cls;
+      let prefix, cls, suffix = "";
       if (character === "post-close") {
         // Time-of-day-aware prefix: a batch generated at 8:28 AM ET on
         // a trading day is a PRE-OPEN refresh, not "post-close" — the
@@ -15448,6 +15448,22 @@
         else if (isYest)                   { prefix = "Prior close"; cls = "current"; }
         else if (ageH < 72 + holidayAdj)   { prefix = "Prior close"; cls = "current"; }
         else                                { prefix = "Outdated";   cls = "old"; }
+        // EOD honesty on a moving day: when we're showing a PRIOR session's
+        // grades during today's open weekday session — before today's
+        // post-close batch can run (4 PM ET close + buffer) — say so, so a
+        // whipping intraday tape doesn't read "Prior close · yest" as a
+        // broken/stale site. Suppressed on weekends/holidays (gapLabel
+        // already explains those) and once today's batch should exist.
+        if (!isToday && cls === "current") {
+          try {
+            const nd = new Date(new Date().toLocaleString("en-US",
+              { timeZone: "America/New_York" }));
+            const wd = nd.getDay();                       // 0 Sun .. 6 Sat
+            const nowMin = nd.getHours() * 60 + nd.getMinutes();
+            if (wd >= 1 && wd <= 5 && nowMin < 16 * 60 + 30)
+              suffix = " · next update after 4 PM close";
+          } catch (_) {}
+        }
       } else if (character === "live") {
         if (ageH < cadenceHours * 0.5)  { prefix = "Live";     cls = "fresh"; }
         else if (ageH < cadenceHours)    { prefix = "Latest";   cls = "current"; }
@@ -15490,11 +15506,15 @@
       }
       return {
         cls: cls,
-        label: prefix + " · " + dateLabel,
-        full: (opts.label || "Updated") + " " +
+        label: prefix + " · " + dateLabel + suffix,
+        full: (character === "post-close"
+            ? "End-of-day grades from the last completed session — these " +
+              "refresh after the 4 PM ET close, not intraday, so they read " +
+              "the prior session while today is still open. Updated "
+            : (opts.label || "Updated") + " ") +
           dt.toLocaleString([], { month: "short", day: "numeric",
             hour: "numeric", minute: "2-digit" }) +
-          " — character: " + character,
+          (character === "post-close" ? "." : " — character: " + character),
       };
     }
 
