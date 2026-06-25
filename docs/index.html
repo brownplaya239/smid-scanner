@@ -9494,18 +9494,58 @@
       if (secs < 86400) return Math.floor(secs / 3600) + "h ago";
       return Math.floor(secs / 86400) + "d ago";
     }
+    // How many completed trading sessions behind its cadence a daily
+    // post-close file is. 0 = reflects the latest session that SHOULD have
+    // run, which is "on cadence" — including yesterday's close viewed before
+    // today's 4 PM close, and Friday's close viewed Monday. 1 = missed one
+    // run; 2+ = well behind. Weekend/holiday-aware (tdMarketClosedReason),
+    // so normal overnight and weekend gaps read 0 instead of false "Aging",
+    // while a genuinely skipped weekday run is still caught.
+    function sessionsBehind(iso) {
+      const isClosed = function (d) {
+        const wd = d.getDay();
+        if (wd === 0 || wd === 6) return true;        // weekend
+        try {
+          return !!(window.tdMarketClosedReason &&
+                    window.tdMarketClosedReason(d));   // holiday
+        } catch (_) { return false; }
+      };
+      const etMidnight = function (date) {
+        const e = new Date(date.toLocaleString("en-US",
+          { timeZone: "America/New_York" }));
+        e.setHours(0, 0, 0, 0); return e;
+      };
+      const nowET = new Date(new Date().toLocaleString("en-US",
+        { timeZone: "America/New_York" }));
+      // Expected latest session: today counts only after the 4:30 PM ET
+      // close buffer; otherwise the most recent prior open session.
+      let exp = etMidnight(nowET);
+      if (nowET.getHours() * 60 + nowET.getMinutes() < 16 * 60 + 30)
+        exp = new Date(exp.getTime() - 86400000);
+      while (isClosed(exp)) exp = new Date(exp.getTime() - 86400000);
+      const ds = etMidnight(new Date(iso));
+      if (ds.getTime() >= exp.getTime()) return 0;
+      let n = 0;
+      for (let d = new Date(ds.getTime() + 86400000);
+           d <= exp; d = new Date(d.getTime() + 86400000))
+        if (!isClosed(d)) n++;
+      return n;
+    }
     function freshBadge(iso, character) {
       const t = Date.parse(iso);
       if (isNaN(t)) return '<span class="adm-badge err">No data</span>';
       const hrs = (Date.now() - t) / 3600000;
-      if (character === "post-close") {
-        if (hrs < 18) return '<span class="adm-badge ok">Fresh</span>';
-        if (hrs < 40) return '<span class="adm-badge warn">Aging</span>';
-        return '<span class="adm-badge err">Stale</span>';
-      }
-      if (character === "weekly") {
-        if (hrs < 72) return '<span class="adm-badge ok">Fresh</span>';
-        if (hrs < 192) return '<span class="adm-badge warn">Aging</span>';
+      // Daily/weekly batches: judge by trading sessions behind cadence, not
+      // raw hours, so EOD data that's simply waiting on today's post-close
+      // run doesn't flash "Aging" every morning, while a truly skipped run
+      // still surfaces. (Also guarantees momentum_qm and momentum_stockbee,
+      // written by the same run, badge identically.)
+      if (character === "post-close" || character === "weekly") {
+        const behind = sessionsBehind(iso);
+        const okMax    = character === "weekly" ? 5  : 0;
+        const agingMax = character === "weekly" ? 10 : 1;
+        if (behind <= okMax)    return '<span class="adm-badge ok">Fresh</span>';
+        if (behind <= agingMax) return '<span class="adm-badge warn">Aging</span>';
         return '<span class="adm-badge err">Stale</span>';
       }
       // "intraday-batch" (UOA / Polygon Options Starter snapshots) —
@@ -9554,7 +9594,7 @@
         { id: "momentum_qm", path: "./reports/momentum_qm.json",
           char: "post-close", desc: "Qullamaggie monthly screen" },
         { id: "momentum_stockbee", path: "./reports/momentum_stockbee.json",
-          char: "weekly", desc: "Stockbee weekly screen" },
+          char: "post-close", desc: "Stockbee weekly screen (refreshes daily post-close — same run as QM)" },
         { id: "manifest", path: "./reports/manifest.json",
           char: "live", desc: "Report archive index" },
         { id: "whisper_tweet", path: "./reports/whisper_tweet.json",
