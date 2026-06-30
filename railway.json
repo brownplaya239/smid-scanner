@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "news-ingestor/Dockerfile.railway"
+  },
+  "deploy": {
+    "startCommand": "node index.mjs",
+    "restartPolicyType": "ALWAYS",
+    "numReplicas": 1
+  }
+}

@@ -1,0 +1,7 @@
+# Only the news-ingestor worker is built into the Railway Docker image.
+# Everything else is excluded so the build context stays tiny. This file ONLY
+# affects `docker build` (i.e. Railway). It has no effect on the Cloudflare
+# worker deploy (wrangler), GitHub Pages, or the Python jobs.
+*
+!news-ingestor
+!news-ingestor/**
