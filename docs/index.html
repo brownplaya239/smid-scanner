@@ -15481,15 +15481,20 @@
         // Backfill the live wire on load — Realtime only delivers NEW inserts,
         // so pull recent news_live rows once so the tape leads with the
         // Benzinga feed immediately, not just the slower Polygon poll.
-        SUPA.from("news_live")
-          .select("id,headline,summary,source,url,symbols,published_at")
-          .order("published_at", { ascending: false }).limit(80)
-          .then(function (res) {
-            if (res && res.data && res.data.length) {
-              mergeIntoGeneral(preprocessArticles(res.data.map(rowToArticle)));
+        // Direct REST — supabase-js .from() can hang in this app (that's why
+        // tdSupaRestFetch exists). The anon publishable key + public-read RLS
+        // allow this select.
+        fetch(SUPA_URL + "/rest/v1/news_live?select=id,headline,summary,source," +
+            "url,symbols,published_at&order=published_at.desc&limit=80",
+            { headers: { "apikey": SUPA_ANON,
+                         "Authorization": "Bearer " + SUPA_ANON } })
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .then(function (rows) {
+            if (Array.isArray(rows) && rows.length) {
+              mergeIntoGeneral(preprocessArticles(rows.map(rowToArticle)));
               if (newsMode === "tape" && newsTabVisible()) renderGeneral();
             }
-          });
+          }).catch(function () {});
       } catch (_) { liveSub = null; }
     }
     subscribeLiveNews();
