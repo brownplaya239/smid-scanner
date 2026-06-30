@@ -2872,6 +2872,23 @@
 
   .news-split { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   @media (max-width:900px) { .news-split { grid-template-columns:1fr; } }
+  /* Two-screen toggle: one screen at a time (Live tape ⇄ Ticker search) */
+  .news-stage { display:block; }
+  .nc-hidden { display:none !important; }
+  .news-modes { display:flex; align-items:center; gap:8px; margin:12px 0; flex-wrap:wrap; }
+  .news-mode-btn { background:var(--navy2); border:1px solid var(--border2);
+    color:var(--muted); font-size:12px; font-weight:700; padding:7px 15px;
+    border-radius:8px; cursor:pointer; transition:all .12s; }
+  .news-mode-btn:hover { border-color:var(--gold); color:var(--text); }
+  .news-mode-btn.active { background:rgba(255,200,0,0.12); border-color:var(--gold);
+    color:var(--gold); }
+  .news-live-status { margin-left:auto; display:inline-flex; align-items:center;
+    gap:6px; font-size:10.5px; color:var(--muted); }
+  .news-live-dot { width:8px; height:8px; border-radius:50%; background:var(--green);
+    box-shadow:0 0 6px rgba(31,179,99,0.6); animation:lf-pulse 2.4s infinite; }
+  .news-live-dot.paused { background:var(--muted); box-shadow:none; animation:none; }
+  .news-item.ni-fresh { animation:niFresh 6s ease-out forwards; }
+  @keyframes niFresh { 0% { background:rgba(255,200,0,0.16); } 100% { background:transparent; } }
   .news-col { background:var(--card); border:1px solid var(--line);
     border-radius:8px; padding:12px 13px; display:flex; flex-direction:column;
     min-height:480px; }
@@ -5004,14 +5021,21 @@
     <!-- ── News Flow (Polygon News via Cloudflare Worker, 5-min edge cache) ── -->
     <section class="panel" id="panel-news">
       <h2 class="tab-title">News Flow</h2>
-      <p class="tab-sub">Headlines aggregated by Polygon from Reuters, Bloomberg,
-        CNBC, MarketWatch, Seeking Alpha &amp; ~25 more publishers &mdash; with
-        sentiment tagging. Cached 5 min at the edge.
+      <p class="tab-sub">Benzinga wire via Massive, shown as published. The Live
+        tape auto-refreshes ~30s while it's open; ticker search is on demand.
         <span id="news-updated"></span></p>
+
+      <div class="news-modes" id="news-modes">
+        <button type="button" class="news-mode-btn active" data-news-mode="tape">Live tape</button>
+        <button type="button" class="news-mode-btn" data-news-mode="search">Ticker search</button>
+        <span class="news-live-status" id="news-live-status">
+          <span class="news-live-dot" id="news-live-dot"></span>
+          <span id="news-live-text">Live</span></span>
+      </div>
 
       <div class="news-pulse" id="news-pulse"></div>
 
-      <div class="news-split">
+      <div class="news-stage">
         <div class="news-col" id="news-col-general">
           <div class="news-col-head">
             <h3>Trading Day</h3>
@@ -5054,7 +5078,7 @@
             <div class="news-empty">Loading headlines&hellip;</div>
           </div>
         </div>
-        <div class="news-col" id="news-col-ticker">
+        <div class="news-col nc-hidden" id="news-col-ticker">
           <div class="news-col-head">
             <h3>Per Ticker</h3>
             <input type="text" id="news-ticker-q" placeholder="Ticker (e.g. NVDA)"
@@ -14795,6 +14819,9 @@
     let GENERAL = [], TICKER_DATA = { ticker: null, articles: [] };
     let UNIV    = new Set();   // universe set for "watchlist only" filter
     let pollT   = null;
+    let newsMode = "tape";     // "tape" (live firehose) | "search" (per ticker)
+    let SEEN_IDS = new Set(), FRESH_IDS = new Set(), firstNewsLoad = true;
+    const panelNews = document.getElementById("panel-news");
 
     // ── Ticker quality + dedupe rules ──
     // Polygon's NER-based ticker tagging is decent but produces false
@@ -14975,7 +15002,8 @@
             a.tickers.length + ' tickers tagged) — per-name attribution ' +
             'is weak">market wrap</span>'
         : '';
-      return '<div class="news-item">' +
+      return '<div class="news-item' +
+          (a.id && FRESH_IDS.has(a.id) ? ' ni-fresh' : '') + '">' +
         '<div class="ni-time">' + fmtAge(a.published) +
           '<span class="ni-src">' + escHTML(a.publisher || "—") + '</span></div>' +
         '<div class="ni-body">' +
@@ -15225,6 +15253,15 @@
             return;
           }
           GENERAL = preprocessArticles(d.articles);
+          // Flash headlines new since the last poll (never on first load, so
+          // we don't light up the whole list on open).
+          try {
+            const ids = new Set(GENERAL.map(function (a) { return a.id; })
+              .filter(Boolean));
+            FRESH_IDS = firstNewsLoad ? new Set()
+              : new Set([...ids].filter(function (id) { return !SEEN_IDS.has(id); }));
+            SEEN_IDS = ids; firstNewsLoad = false;
+          } catch (_) { FRESH_IDS = new Set(); }
           // Build a per-ticker sentiment map keyed for cross-module
           // reuse — UOA tab uses it to render the "📰 + flow agrees"
           // badge on rows where news AND flow point the same way.
@@ -15255,6 +15292,7 @@
           } catch (_) {}
           if (updated) updated.textContent = "· refreshed " +
             new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+          setLiveStatus();
           // News worker has a 5-min edge cache; intraday-batch character
           // matches that cadence honestly. Prefer the worker-reported
           // article timestamp when present (so users see "Recent · 3:42 PM"
@@ -15318,12 +15356,62 @@
       const t = chip.dataset.t;
       if (!t) return;
       tkInput.value = t;
-      loadTicker(t);
+      setNewsMode("search");
     });
 
-    // Initial load + auto-refresh every 5 min (matches the worker's edge cache)
-    loadGeneral();
-    pollT = setInterval(loadGeneral, 5 * 60 * 1000);
+    // ── Live tape ⇄ Ticker search toggle + visibility-aware polling ──
+    const colGeneral = document.getElementById("news-col-general");
+    const colTicker  = document.getElementById("news-col-ticker");
+    const modeBtns   = document.querySelectorAll("[data-news-mode]");
+    const liveDot    = document.getElementById("news-live-dot");
+    const liveText   = document.getElementById("news-live-text");
+    const liveStatus = document.getElementById("news-live-status");
+    const POLL_MS    = 30000;
+    function newsTabVisible() {
+      return panelNews && getComputedStyle(panelNews).display !== "none";
+    }
+    function tapeActive() {
+      return newsMode === "tape" && newsTabVisible() &&
+             document.visibilityState === "visible";
+    }
+    function setLiveStatus() {
+      if (liveStatus) liveStatus.style.display = newsMode === "tape" ? "" : "none";
+      if (!liveDot || !liveText || newsMode !== "tape") return;
+      if (tapeActive()) {
+        liveDot.classList.remove("paused");
+        liveText.textContent = "Live · " + new Date().toLocaleTimeString([],
+          { hour: "numeric", minute: "2-digit", second: "2-digit" });
+      } else {
+        liveDot.classList.add("paused");
+        liveText.textContent = "Paused";
+      }
+    }
+    function setNewsMode(m) {
+      newsMode = m;
+      modeBtns.forEach(function (b) {
+        b.classList.toggle("active", b.dataset.newsMode === m);
+      });
+      const tape = m === "tape";
+      if (colGeneral) colGeneral.classList.toggle("nc-hidden", !tape);
+      if (pulse)      pulse.classList.toggle("nc-hidden", !tape);
+      if (colTicker)  colTicker.classList.toggle("nc-hidden", tape);
+      setLiveStatus();
+      if (tape) loadGeneral();
+      else if (tkInput.value.trim()) loadTicker(tkInput.value.trim().toUpperCase());
+      else tkInput.focus();
+    }
+    modeBtns.forEach(function (b) {
+      b.addEventListener("click", function () { setNewsMode(b.dataset.newsMode); });
+    });
+    document.addEventListener("visibilitychange", function () {
+      setLiveStatus();
+      if (tapeActive()) loadGeneral();
+    });
+    // Initial load via the tape screen, then auto-refresh — but only fetch when
+    // the tape is actually on-screen and the page is visible (no background
+    // polling burning Polygon calls on a hidden tab).
+    setNewsMode("tape");
+    pollT = setInterval(function () { if (tapeActive()) loadGeneral(); }, POLL_MS);
 
     // Expose for cross-component reuse (drilldown panel uses both)
     window.NEWS_LOAD_TICKER   = loadTicker;

@@ -2292,13 +2292,18 @@ export default {
         }
         const defaultLimit = tk === "general" ? 200 : 50;
         const lim = url.searchParams.get("limit") || defaultLimit;
-        // In-memory fallback (Cache API inert on *.workers.dev) — share one
-        // 5-min batch per ticker/limit across pollers.
+        // The general firehose backs a live headline tape, so refresh it on a
+        // ~30s cadence; per-ticker lookups change slowly, keep 5 min. In-memory
+        // cache (Cache API inert on *.workers.dev) shares one batch across all
+        // pollers, so a 30s tape ≠ N× Polygon calls.
+        const isFirehose = tk === "general";
+        const ttlMs = isFirehose ? 30_000 : 300_000;
+        const ccMax = isFirehose ? 30 : 300;
         const nkey = "news:" + tk + ":" + lim;
-        let data = memGet(nkey, 300_000);
+        let data = memGet(nkey, ttlMs);
         if (!data) { data = await fetchPolygonNews(env, tk, lim); memPut(nkey, data); }
         const resp = Response.json(data, {
-          headers: { ...cors, "Cache-Control": "public, max-age=300" },
+          headers: { ...cors, "Cache-Control": "public, max-age=" + ccMax },
         });
         ctx.waitUntil(cache.put(request, resp.clone()));
         return resp;
