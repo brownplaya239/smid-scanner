@@ -1,19 +1,14 @@
 name: Alt-Data Intelligence Lookup
 
+# On-demand only. Alt-data is a single-stock lookup the USER requests per
+# ticker; the output report is archived for reference. There is intentionally
+# NO schedule — these are not a scheduled feed.
 on:
-  schedule:
-    # Daily pre-market refresh of the tracked alt-data set (weekdays).
-    # 12:25 UTC = 8:25 AM ET (EDT) / 7:25 AM ET (EST) — before the open so
-    # the buzz/sentiment is current for the session. GitHub cron is literal
-    # UTC with no DST handling; one cron, the ~1h drift is still pre-open.
-    # NOTE: each ticker costs one Anthropic + one Nimble call, so the
-    # scheduled batch below is a small curated set, not the whole universe.
-    - cron: '25 12 * * 1-5'
   workflow_dispatch:
     inputs:
       ticker:
-        description: 'Ticker (e.g. NVDA). Leave blank on a scheduled/manual run to refresh the tracked set.'
-        required: false
+        description: 'Ticker symbol (e.g. NVDA, ALAB, IONQ)'
+        required: true
         type: string
 
 jobs:
@@ -45,22 +40,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           NIMBLE_API_KEY:    ${{ secrets.NIMBLE_API_KEY }}
-        run: |
-          T="${{ github.event.inputs.ticker }}"
-          if [ -n "$T" ]; then
-            # Manual single-ticker lookup
-            python alt_data.py --ticker "$T"
-          else
-            # Scheduled (or no-input) batch — refresh the tracked set.
-            # Best-effort per ticker so one failure doesn't abort the rest.
-            # Edit this list to change coverage (each name = 1 Anthropic +
-            # 1 Nimble call). alt_data.py has no batch mode, so we loop.
-            for t in PLTR SOFI UCTT CMBT ALAB CEVA BB AEVA SMWB; do
-              echo "::group::alt-data $t"
-              python alt_data.py --ticker "$t" || echo "::warning::alt-data lookup failed for $t"
-              echo "::endgroup::"
-            done
-          fi
+        run: python alt_data.py --ticker "${{ inputs.ticker }}"
 
       - name: Publish report to site archive
         run: bash scripts/publish_reports.sh

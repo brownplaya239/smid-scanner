@@ -13141,10 +13141,11 @@
           if (!m2) return 0;
           return Date.UTC(+m2[1], +m2[2] - 1, +m2[3], +m2[4], +m2[5]);
         };
-        // Each panel uses ITS OWN latest report date (the old code stamped
-        // both with the max of the two). Ad-hoc reports are user-generated
-        // on request, so they're "on-demand" — an old date means nobody's
-        // run one lately, not that data is stale.
+        // Both ad-hoc AND alt-data are user-requested single-stock lookups —
+        // generated on demand, archived for reference, NOT a scheduled feed.
+        // So both are "on-demand": an old date means nobody's run one lately,
+        // not that data is stale. Each panel uses ITS OWN latest report date
+        // (the old code stamped both with the max of the two).
         const tsForType = function (k) {
           const list = reps[k] || [];
           const t = list.length ? parseFromFile(list[0].file) : 0;
@@ -13153,7 +13154,7 @@
         const adhocTs = tsForType("adhoc");
         const altTs   = tsForType("alt-data");
         if (adhocTs) window.tdSetFreshness("panel-adhoc",    adhocTs, "on-demand");
-        if (altTs)   window.tdSetFreshness("panel-alt-data", altTs,   "post-close");
+        if (altTs)   window.tdSetFreshness("panel-alt-data", altTs,   "on-demand");
       }
     })
     .catch(function () {
