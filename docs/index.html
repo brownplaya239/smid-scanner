@@ -10987,6 +10987,9 @@
       const t = Date.parse(isoStr);
       if (isNaN(t)) return "stale";
       const hrs = (Date.now() - t) / 3600000;
+      // "on-demand" reports (ad-hoc) have no cadence — an old date just means
+      // nobody has generated one recently, not that data is stale. Never alarm.
+      if (character === "on-demand") return "fresh";
       // "post-close" is allowed to be ~14h old without being stale
       // (yesterday's close → today's pre-open is normal)
       if (character === "post-close") {
@@ -11084,6 +11087,8 @@
                           ? "near real-time"
                         : character === "live"
                           ? "live"
+                        : character === "on-demand"
+                          ? "on-demand"
                           : "batch";
       // Order: dot · ET timestamp · "X ago" · character. The blinking
       // colored dot gives traffic-light RAG status (green/amber/red);
@@ -11113,6 +11118,9 @@
           "next refresh tomorrow morning.",
         "live": "Streaming data feed (reserved label — not currently " +
           "used; no true-streaming source is wired today).",
+        "on-demand": "Generated on request — these reports are built when " +
+          "you click Generate, not on a schedule. The date shows when the " +
+          "most recent one was made; generate a fresh one anytime.",
       };
       const note = SOURCE_NOTE[character] || "Batch data of unknown cadence.";
       fr.innerHTML =
@@ -13133,17 +13141,19 @@
           if (!m2) return 0;
           return Date.UTC(+m2[1], +m2[2] - 1, +m2[3], +m2[4], +m2[5]);
         };
-        const newest = ["adhoc", "alt-data"].reduce(function (best, k) {
+        // Each panel uses ITS OWN latest report date (the old code stamped
+        // both with the max of the two). Ad-hoc reports are user-generated
+        // on request, so they're "on-demand" — an old date means nobody's
+        // run one lately, not that data is stale.
+        const tsForType = function (k) {
           const list = reps[k] || [];
           const t = list.length ? parseFromFile(list[0].file) : 0;
-          return t > best ? t : best;
-        }, 0);
-        const ts = newest ? new Date(newest).toISOString()
-                          : (m.generated || null);
-        if (ts) {
-          window.tdSetFreshness("panel-adhoc",    ts, "post-close");
-          window.tdSetFreshness("panel-alt-data", ts, "post-close");
-        }
+          return t ? new Date(t).toISOString() : (m.generated || null);
+        };
+        const adhocTs = tsForType("adhoc");
+        const altTs   = tsForType("alt-data");
+        if (adhocTs) window.tdSetFreshness("panel-adhoc",    adhocTs, "on-demand");
+        if (altTs)   window.tdSetFreshness("panel-alt-data", altTs,   "post-close");
       }
     })
     .catch(function () {
