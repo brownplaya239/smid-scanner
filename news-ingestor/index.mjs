@@ -33,11 +33,24 @@ const SB_HEADERS = {
   "Content-Type": "application/json",
 };
 
+// Benzinga headlines arrive HTML-entity-encoded ("What&#39;s"). Decode so the
+// tape renders clean text (the frontend re-escapes on render). &amp; last to
+// avoid double-decoding.
+function decodeEntities(s) {
+  if (!s) return "";
+  return String(s)
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&");
+}
+
 async function insertHeadline(n) {
   const row = {
     id:           String(n.id),
-    headline:     n.headline || "",
-    summary:      n.summary || "",
+    headline:     decodeEntities(n.headline || ""),
+    summary:      decodeEntities(n.summary || ""),
     source:       n.source || "",
     url:          n.url || "",
     symbols:      Array.isArray(n.symbols) ? n.symbols : [],
