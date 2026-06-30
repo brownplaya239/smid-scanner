@@ -15434,7 +15434,8 @@
     let liveSub = null;
     function subscribeLiveNews() {
       if (liveSub) return;
-      if (!(window.SUPA && typeof SUPA.channel === "function")) {
+      // SUPA is a closure var (not window.SUPA) populated async by initSupabase.
+      if (!(typeof SUPA !== "undefined" && SUPA && typeof SUPA.channel === "function")) {
         setTimeout(subscribeLiveNews, 2500);
         return;
       }
