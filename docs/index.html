@@ -15584,7 +15584,8 @@
       if (timeEl) timeEl.textContent = "Live · " + fmtT(new Date().toISOString());
     }
     function poll() {
-      if (document.visibilityState !== "visible") return;
+      // Small 12-row query — poll regardless of focus so the card is always
+      // pre-filled when My Desk is opened.
       fetch(SUPA_URL + "/rest/v1/news_live?select=id,headline,symbols," +
           "published_at&order=published_at.desc&limit=12",
           { headers: { "apikey": SUPA_ANON,
