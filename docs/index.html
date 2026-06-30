@@ -5054,8 +5054,8 @@
                 <option value="neutral">Neutral only</option>
               </select>
               <select id="news-cat" title="Category">
-                <option value="market-moving" selected>Market-moving</option>
-                <option value="">All categories</option>
+                <option value="market-moving">Market-moving</option>
+                <option value="" selected>All categories</option>
                 <option value="earnings">Earnings</option>
                 <option value="analyst">Analyst actions</option>
                 <option value="ma">M&amp;A</option>
@@ -5066,7 +5066,7 @@
                 Watchlist only</label>
               <label class="news-watch"
                 title="Show only articles where at least one tagged ticker appears in the headline — filters out Polygon NER false positives">
-                <input type="checkbox" id="news-highconf" checked/>
+                <input type="checkbox" id="news-highconf"/>
                 High-conf only</label>
               <label class="news-watch"
                 title="Include press releases from PR Newswire, GlobeNewswire, Business Wire, EIN Presswire, ACCESS Newswire, etc. — usually low-signal corporate boilerplate">
@@ -15406,6 +15406,17 @@
     document.addEventListener("visibilitychange", function () {
       setLiveStatus();
       if (tapeActive()) loadGeneral();
+    });
+    // Entering the News tab in-app: refresh + un-pause the status immediately
+    // (otherwise the tape sits on stale data / "Paused" until the next tick).
+    const navEl2 = document.getElementById("nav");
+    if (navEl2) navEl2.addEventListener("click", function (e) {
+      if (e.target.closest && e.target.closest('[data-tab="news"]')) {
+        setTimeout(function () {
+          setLiveStatus();
+          if (tapeActive()) loadGeneral();
+        }, 80);
+      }
     });
     // Initial load via the tape screen, then auto-refresh — but only fetch when
     // the tape is actually on-screen and the page is visible (no background
