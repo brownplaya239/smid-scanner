@@ -2266,7 +2266,11 @@ export default {
         const cache = caches.default;
         const hit = await cache.match(request);
         if (hit) return hit;
-        const data = await fetchPremarketBuzz(env);
+        // In-memory fallback (Cache API inert on *.workers.dev) — share one
+        // 5-min batch across pollers instead of re-running ~20 Polygon news
+        // calls each time.
+        let data = memGet("pm", 300_000);
+        if (!data) { data = await fetchPremarketBuzz(env); memPut("pm", data); }
         const resp = Response.json(data, {
           headers: { ...cors, "Cache-Control": "public, max-age=300" },
         });
@@ -2287,10 +2291,12 @@ export default {
             { status: 400, headers: cors });
         }
         const defaultLimit = tk === "general" ? 200 : 50;
-        const data = await fetchPolygonNews(
-          env, tk,
-          url.searchParams.get("limit") || defaultLimit
-        );
+        const lim = url.searchParams.get("limit") || defaultLimit;
+        // In-memory fallback (Cache API inert on *.workers.dev) — share one
+        // 5-min batch per ticker/limit across pollers.
+        const nkey = "news:" + tk + ":" + lim;
+        let data = memGet(nkey, 300_000);
+        if (!data) { data = await fetchPolygonNews(env, tk, lim); memPut(nkey, data); }
         const resp = Response.json(data, {
           headers: { ...cors, "Cache-Control": "public, max-age=300" },
         });
