@@ -537,6 +537,28 @@
   .mydesk-hero .mh-stat b.up   { color:var(--green); }
   .mydesk-hero .mh-stat b.down { color:var(--red); }
 
+  /* My Desk live news wire (Benzinga via news_live) */
+  .md-news-card { background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:11px 14px; margin:0 0 14px; }
+  .md-news-head { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+  .md-news-title { font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--muted); font-weight:700; }
+  .md-news-status { margin-left:auto; display:inline-flex; align-items:center;
+    gap:5px; font-size:10px; color:var(--muted); }
+  .md-news-dot { width:7px; height:7px; border-radius:50%; background:var(--green);
+    box-shadow:0 0 6px rgba(31,179,99,0.6); animation:lf-pulse 2.4s infinite; }
+  .md-news-row { display:grid; grid-template-columns:50px 1fr; gap:8px;
+    padding:5px 0; align-items:baseline; border-top:1px solid var(--line); }
+  .md-news-row:first-child { border-top:0; }
+  .md-news-row .mn-time { font-family:monospace; font-size:10px; color:var(--muted); }
+  .md-news-row .mn-hl { font-size:12.5px; color:var(--text); line-height:1.35;
+    cursor:pointer; }
+  .md-news-row .mn-hl:hover { color:var(--gold); }
+  .md-news-row .mn-tk { font-size:9.5px; color:var(--gold); margin-left:6px;
+    white-space:nowrap; }
+  .md-news-row.mn-fresh { animation:niFresh 6s ease-out forwards; }
+  .md-news-empty { font-size:11.5px; color:var(--muted); font-style:italic;
+    padding:6px 0; }
   .mydesk-grid { display:grid; grid-template-columns:1fr; gap:1px;
     background:var(--line); border:1px solid var(--line);
     border-radius:8px; overflow:hidden; }
@@ -4768,6 +4790,16 @@
            the previous touch_last_seen() timestamp so user sees the
            changes that happened while they were away -->
       <div id="whats-new" class="whats-new"></div>
+      <div id="mydesk-news" class="md-news-card">
+        <div class="md-news-head">
+          <span class="md-news-title">Live news wire</span>
+          <span class="md-news-status"><span class="md-news-dot"></span>
+            <span id="md-news-time">Live</span></span>
+        </div>
+        <div id="md-news-list" class="md-news-list">
+          <div class="md-news-empty">Connecting to the wire&hellip;</div>
+        </div>
+      </div>
       <div id="mydesk-body">
         <div class="uoa-empty">Loading...</div>
       </div>
@@ -15514,6 +15546,63 @@
     window.preprocessArticles = preprocessArticles;
   })();
 
+  /* ── My Desk live news wire (Benzinga via news_live, REST poll ~20s) ── */
+  (function setupMyDeskNews() {
+    const listEl = document.getElementById("md-news-list");
+    const timeEl = document.getElementById("md-news-time");
+    if (!listEl) return;
+    const seen = new Set();
+    let first = true;
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+      });
+    }
+    function fmtT(iso) {
+      try {
+        return new Date(iso).toLocaleTimeString([],
+          { hour: "numeric", minute: "2-digit" });
+      } catch (_) { return ""; }
+    }
+    function render(rows) {
+      if (!rows.length) {
+        listEl.innerHTML = '<div class="md-news-empty">No live headlines yet.</div>';
+        return;
+      }
+      listEl.innerHTML = rows.slice(0, 7).map(function (r) {
+        const tks = (r.symbols || []).slice(0, 2);
+        const fresh = (!first && r.id && !seen.has(r.id)) ? " mn-fresh" : "";
+        return '<div class="md-news-row' + fresh + '">' +
+          '<span class="mn-time">' + fmtT(r.published_at) + '</span>' +
+          '<span><span class="mn-hl" data-t="' + esc(tks[0] || "") + '">' +
+            esc(r.headline) + '</span>' +
+            (tks.length ? '<span class="mn-tk">' + esc(tks.join(" ")) + '</span>' : '') +
+          '</span></div>';
+      }).join("");
+      rows.forEach(function (r) { if (r.id) seen.add(r.id); });
+      first = false;
+      if (timeEl) timeEl.textContent = "Live · " + fmtT(new Date().toISOString());
+    }
+    function poll() {
+      if (document.visibilityState !== "visible") return;
+      fetch(SUPA_URL + "/rest/v1/news_live?select=id,headline,symbols," +
+          "published_at&order=published_at.desc&limit=12",
+          { headers: { "apikey": SUPA_ANON,
+                       "Authorization": "Bearer " + SUPA_ANON } })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) { if (Array.isArray(rows)) render(rows); })
+        .catch(function () {});
+    }
+    listEl.addEventListener("click", function (e) {
+      const hl = e.target.closest(".mn-hl");
+      if (!hl) return;
+      const t = hl.dataset.t;
+      if (t && window.tdOpenDrilldown) window.tdOpenDrilldown(t);
+    });
+    poll();
+    setInterval(poll, 20000);
+  })();
+
   /* ── Today's Desk — daily command center ── */
   function setupDesk() {
     const grid = document.getElementById("desk-grid");
@@ -17726,6 +17815,44 @@
       // strip on Market Health so the two stay synchronized.
       updateDeskIntradayBreadth();
     }
+
+    // Keep visible tiles ticking through the session. The desk/My-Desk chg
+    // pills hydrate once on load with no refresh timer, so they go stale (and
+    // tiles the initial batch missed read "yesterday's close"). Every 60s,
+    // re-fetch quotes for every ON-SCREEN chg pill (any panel) in small chunks
+    // — the worker edge-caches /quotes 15s, so it's cheap and shared — then
+    // repaint. Values are still 15m-delayed by the data license.
+    function refreshTilesLive() {
+      if (document.visibilityState !== "visible") return;
+      const cache = window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
+      const tickers = new Set();
+      document.querySelectorAll(".chg-pill[data-chg-tk]").forEach(function (el) {
+        if (el.offsetParent === null) return;          // skip hidden panels
+        const t = el.dataset.chgTk;
+        if (t && /^[A-Z.\-]{1,8}$/.test(t)) tickers.add(t);
+      });
+      if (!tickers.size) return;                        // no tiles on screen
+      const list = Array.from(tickers);
+      let pending = 0;
+      for (let i = 0; i < list.length; i += 50) {
+        const chunk = list.slice(i, i + 50);
+        pending++;
+        fetch(WORKER_URL + "?quotes=" + encodeURIComponent(chunk.join(",")))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (d && d.quotes) d.quotes.forEach(function (q) {
+              if (q.symbol) cache[q.symbol] = {
+                price: q.price, change: q.change, prevClose: q.prevClose,
+                extended: q.extended, market_state: q.market_state,
+                ts: Date.now(),
+              };
+            });
+          })
+          .catch(function () {})
+          .finally(function () { if (--pending === 0) updateDeskChgPills(); });
+      }
+    }
+    setInterval(refreshTilesLive, 60000);
 
     // ── Intraday breadth (Market Health top strip) ───────────────────
     // Walks the swing universe (DESK_TKMAP) and bins each ticker by
