@@ -4583,6 +4583,16 @@
           <button class="sh-next" id="sh-next" type="button">Next &rarr;</button>
         </div>
       </div>
+      <div class="md-news-card" id="desk-news">
+        <div class="md-news-head">
+          <span class="md-news-title">Live news wire</span>
+          <span class="md-news-status"><span class="md-news-dot"></span>
+            <span class="td-news-time">Live</span></span>
+        </div>
+        <div class="md-news-list td-news-list">
+          <div class="md-news-empty">Connecting to the wire&hellip;</div>
+        </div>
+      </div>
       <div class="desk-grid" id="desk-grid">
         <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
       </div>
@@ -4794,9 +4804,9 @@
         <div class="md-news-head">
           <span class="md-news-title">Live news wire</span>
           <span class="md-news-status"><span class="md-news-dot"></span>
-            <span id="md-news-time">Live</span></span>
+            <span id="md-news-time" class="td-news-time">Live</span></span>
         </div>
-        <div id="md-news-list" class="md-news-list">
+        <div id="md-news-list" class="md-news-list td-news-list">
           <div class="md-news-empty">Connecting to the wire&hellip;</div>
         </div>
       </div>
@@ -15546,11 +15556,11 @@
     window.preprocessArticles = preprocessArticles;
   })();
 
-  /* ── My Desk live news wire (Benzinga via news_live, REST poll ~20s) ── */
-  (function setupMyDeskNews() {
-    const listEl = document.getElementById("md-news-list");
-    const timeEl = document.getElementById("md-news-time");
-    if (!listEl) return;
+  /* ── Live news wire mini-feed (Benzinga via news_live, REST poll ~20s).
+        Renders into every .td-news-list on the page — Today's Desk + My Desk. */
+  (function setupLiveNewsMini() {
+    function lists() { return document.querySelectorAll(".td-news-list"); }
+    if (!lists().length) return;
     const seen = new Set();
     let first = true;
     function esc(s) {
@@ -15565,27 +15575,34 @@
       } catch (_) { return ""; }
     }
     function render(rows) {
+      let html;
       if (!rows.length) {
-        listEl.innerHTML = '<div class="md-news-empty">No live headlines yet.</div>';
-        return;
+        html = '<div class="md-news-empty">No live headlines yet.</div>';
+      } else {
+        html = rows.slice(0, 7).map(function (r) {
+          const tks = (r.symbols || []).slice(0, 2);
+          const fresh = (!first && r.id && !seen.has(r.id)) ? " mn-fresh" : "";
+          return '<div class="md-news-row' + fresh + '">' +
+            '<span class="mn-time">' + fmtT(r.published_at) + '</span>' +
+            '<span><span class="mn-hl" data-t="' + esc(tks[0] || "") + '">' +
+              esc(r.headline) + '</span>' +
+              (tks.length ? '<span class="mn-tk">' + esc(tks.join(" ")) + '</span>' : '') +
+            '</span></div>';
+        }).join("");
       }
-      listEl.innerHTML = rows.slice(0, 7).map(function (r) {
-        const tks = (r.symbols || []).slice(0, 2);
-        const fresh = (!first && r.id && !seen.has(r.id)) ? " mn-fresh" : "";
-        return '<div class="md-news-row' + fresh + '">' +
-          '<span class="mn-time">' + fmtT(r.published_at) + '</span>' +
-          '<span><span class="mn-hl" data-t="' + esc(tks[0] || "") + '">' +
-            esc(r.headline) + '</span>' +
-            (tks.length ? '<span class="mn-tk">' + esc(tks.join(" ")) + '</span>' : '') +
-          '</span></div>';
-      }).join("");
-      rows.forEach(function (r) { if (r.id) seen.add(r.id); });
-      first = false;
-      if (timeEl) timeEl.textContent = "Live · " + fmtT(new Date().toISOString());
+      lists().forEach(function (el) { el.innerHTML = html; });
+      if (rows.length) {
+        rows.forEach(function (r) { if (r.id) seen.add(r.id); });
+        first = false;
+        const t = "Live · " + fmtT(new Date().toISOString());
+        document.querySelectorAll(".td-news-time").forEach(function (el) {
+          el.textContent = t;
+        });
+      }
     }
     function poll() {
-      // Small 12-row query — poll regardless of focus so the card is always
-      // pre-filled when My Desk is opened.
+      // Small 12-row query — poll regardless of focus so the cards are always
+      // pre-filled when a desk is opened.
       fetch(SUPA_URL + "/rest/v1/news_live?select=id,headline,symbols," +
           "published_at&order=published_at.desc&limit=12",
           { headers: { "apikey": SUPA_ANON,
@@ -15594,8 +15611,8 @@
         .then(function (rows) { if (Array.isArray(rows)) render(rows); })
         .catch(function () {});
     }
-    listEl.addEventListener("click", function (e) {
-      const hl = e.target.closest(".mn-hl");
+    document.addEventListener("click", function (e) {
+      const hl = e.target.closest && e.target.closest(".td-news-list .mn-hl");
       if (!hl) return;
       const t = hl.dataset.t;
       if (t && window.tdOpenDrilldown) window.tdOpenDrilldown(t);
