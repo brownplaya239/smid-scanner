@@ -15334,6 +15334,31 @@
             'Could not reach the news worker.</div>';
         });
     }
+    // Live wire backbone: poll the news_live table (Benzinga, via the Alpaca
+    // ingestor) over direct REST every ~15s and merge into the tape. No
+    // dependency on the supabase-js client (which loads slowly/flakily here),
+    // so it's reliable; the Realtime websocket below is a best-effort instant
+    // bonus on top.
+    let firstLive = true;
+    function loadLiveNews() {
+      fetch(SUPA_URL + "/rest/v1/news_live?select=id,headline,summary,source," +
+          "url,symbols,published_at&order=published_at.desc&limit=100",
+          { headers: { "apikey": SUPA_ANON,
+                       "Authorization": "Bearer " + SUPA_ANON } })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) {
+          if (!Array.isArray(rows) || !rows.length) return;
+          const arts = preprocessArticles(rows.map(rowToArticle));
+          const before = new Set(GENERAL.map(titleKey));
+          const added = mergeIntoGeneral(arts);
+          if (!added) return;
+          FRESH_IDS = firstLive ? new Set()
+            : new Set(arts.filter(function (a) { return !before.has(titleKey(a)); })
+                .map(function (a) { return a.id; }).filter(Boolean));
+          firstLive = false;
+          if (newsMode === "tape" && newsTabVisible()) renderGeneral();
+        }).catch(function () {});
+    }
     function loadTicker(t) {
       if (!t) return;
       tkList.innerHTML = '<div class="news-empty">Loading ' + t + '&hellip;</div>';
@@ -15420,7 +15445,7 @@
       if (pulse)      pulse.classList.toggle("nc-hidden", !tape);
       if (colTicker)  colTicker.classList.toggle("nc-hidden", tape);
       setLiveStatus();
-      if (tape) loadGeneral();
+      if (tape) { loadGeneral(); loadLiveNews(); }
       else if (tkInput.value.trim()) loadTicker(tkInput.value.trim().toUpperCase());
       else tkInput.focus();
     }
@@ -15447,6 +15472,8 @@
     // polling burning Polygon calls on a hidden tab).
     setNewsMode("tape");
     pollT = setInterval(function () { if (tapeActive()) loadGeneral(); }, POLL_MS);
+    // Live wire backbone — poll news_live every 15s (REST, no SUPA dependency).
+    setInterval(function () { if (tapeActive()) loadLiveNews(); }, 15000);
 
     // ── Real-time push layer (Phase 2) ──
     // The Alpaca→Supabase ingestor writes the news_live table; subscribe to
@@ -15478,23 +15505,6 @@
                 if (newsMode === "tape" && newsTabVisible()) renderGeneral();
               })
           .subscribe();
-        // Backfill the live wire on load — Realtime only delivers NEW inserts,
-        // so pull recent news_live rows once so the tape leads with the
-        // Benzinga feed immediately, not just the slower Polygon poll.
-        // Direct REST — supabase-js .from() can hang in this app (that's why
-        // tdSupaRestFetch exists). The anon publishable key + public-read RLS
-        // allow this select.
-        fetch(SUPA_URL + "/rest/v1/news_live?select=id,headline,summary,source," +
-            "url,symbols,published_at&order=published_at.desc&limit=80",
-            { headers: { "apikey": SUPA_ANON,
-                         "Authorization": "Bearer " + SUPA_ANON } })
-          .then(function (r) { return r.ok ? r.json() : []; })
-          .then(function (rows) {
-            if (Array.isArray(rows) && rows.length) {
-              mergeIntoGeneral(preprocessArticles(rows.map(rowToArticle)));
-              if (newsMode === "tape" && newsTabVisible()) renderGeneral();
-            }
-          }).catch(function () {});
       } catch (_) { liveSub = null; }
     }
     subscribeLiveNews();
