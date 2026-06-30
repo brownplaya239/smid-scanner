@@ -15241,6 +15241,34 @@
       }
     }
 
+    // Merge incoming articles into the tape WITHOUT clobbering what's already
+    // there (especially real-time Supabase pushes). Dedup by title, keep
+    // newest-first, cap the list. Returns how many were actually new.
+    function mergeIntoGeneral(incoming) {
+      if (!Array.isArray(incoming) || !incoming.length) return 0;
+      const seen = new Set(GENERAL.map(titleKey));
+      let added = 0;
+      for (const a of incoming) {
+        const k = titleKey(a);
+        if (k && !seen.has(k)) { seen.add(k); GENERAL.push(a); added++; }
+      }
+      GENERAL.sort(function (a, b) {
+        return new Date(b.published || 0) - new Date(a.published || 0);
+      });
+      if (GENERAL.length > 250) GENERAL.length = 250;
+      return added;
+    }
+    // Map a news_live row (Supabase) into the article shape the tape renders.
+    function rowToArticle(row) {
+      return {
+        id: row.id, title: row.headline || "", description: row.summary || "",
+        publisher: row.source || "", url: row.url || "",
+        published: row.published_at,
+        tickers: Array.isArray(row.symbols) ? row.symbols : [],
+        insights: [], keywords: [],
+      };
+    }
+
     // ── Data fetchers ──
     function loadGeneral() {
       fetch(TDP_WORKER_URL + "?news=general&limit=200")
@@ -15252,16 +15280,18 @@
                 : "News feed unavailable.") + '</div>';
             return;
           }
-          GENERAL = preprocessArticles(d.articles);
-          // Flash headlines new since the last poll (never on first load, so
-          // we don't light up the whole list on open).
+          const incoming = preprocessArticles(d.articles);
+          // Flash headlines new since the last poll (never on first load).
           try {
-            const ids = new Set(GENERAL.map(function (a) { return a.id; })
+            const ids = new Set(incoming.map(function (a) { return a.id; })
               .filter(Boolean));
             FRESH_IDS = firstNewsLoad ? new Set()
               : new Set([...ids].filter(function (id) { return !SEEN_IDS.has(id); }));
             SEEN_IDS = ids; firstNewsLoad = false;
           } catch (_) { FRESH_IDS = new Set(); }
+          // MERGE into the tape (don't replace) so real-time Supabase pushes
+          // survive each 30s poll; newest-first, deduped, capped.
+          mergeIntoGeneral(incoming);
           // Build a per-ticker sentiment map keyed for cross-module
           // reuse — UOA tab uses it to render the "📰 + flow agrees"
           // badge on rows where news AND flow point the same way.
@@ -15293,15 +15323,9 @@
           if (updated) updated.textContent = "· refreshed " +
             new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
           setLiveStatus();
-          // News worker has a 5-min edge cache; intraday-batch character
-          // matches that cadence honestly. Prefer the worker-reported
-          // article timestamp when present (so users see "Recent · 3:42 PM"
-          // tied to the data, not the client clock); fall back to now.
-          if (window.tdSetFreshness) {
-            const newestTs = (d.articles[0] && d.articles[0].published) ||
-                              new Date().toISOString();
-            window.tdSetFreshness("panel-news", newestTs, "intraday-batch");
-          }
+          // Freshness for the tape is the live "Live · HH:MM:SS" status in the
+          // modes bar (setLiveStatus). The generic batch/post stamp would
+          // contradict a real-time push feed, so it's intentionally not set.
           rebuildUniverse();
           renderGeneral();
         })
@@ -15446,21 +15470,26 @@
               function (payload) {
                 const row = payload && payload.new;
                 if (!row || !row.headline) return;
-                const art = {
-                  id: row.id, title: row.headline,
-                  description: row.summary || "", publisher: row.source || "",
-                  url: row.url || "", published: row.published_at,
-                  tickers: Array.isArray(row.symbols) ? row.symbols : [],
-                  insights: [], keywords: [],
-                };
-                const k = titleKey(art);
-                if (GENERAL.some(function (a) { return titleKey(a) === k; })) return;
+                const art = rowToArticle(row);
                 const proc = preprocessArticles([art]) || [];
-                GENERAL.unshift(proc.length ? proc[0] : art);
+                const added = mergeIntoGeneral(proc.length ? proc : [art]);
+                if (!added) return;
                 FRESH_IDS = new Set([art.id]);
                 if (newsMode === "tape" && newsTabVisible()) renderGeneral();
               })
           .subscribe();
+        // Backfill the live wire on load — Realtime only delivers NEW inserts,
+        // so pull recent news_live rows once so the tape leads with the
+        // Benzinga feed immediately, not just the slower Polygon poll.
+        SUPA.from("news_live")
+          .select("id,headline,summary,source,url,symbols,published_at")
+          .order("published_at", { ascending: false }).limit(80)
+          .then(function (res) {
+            if (res && res.data && res.data.length) {
+              mergeIntoGeneral(preprocessArticles(res.data.map(rowToArticle)));
+              if (newsMode === "tape" && newsTabVisible()) renderGeneral();
+            }
+          });
       } catch (_) { liveSub = null; }
     }
     subscribeLiveNews();
