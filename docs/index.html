@@ -15424,6 +15424,46 @@
     setNewsMode("tape");
     pollT = setInterval(function () { if (tapeActive()) loadGeneral(); }, POLL_MS);
 
+    // ── Real-time push layer (Phase 2) ──
+    // The Alpaca→Supabase ingestor writes the news_live table; subscribe to
+    // INSERTs over Supabase Realtime and merge each headline into the tape
+    // instantly (~1-2s), deduped by title against the 30s Polygon baseline.
+    // Degrades gracefully: if the ingestor isn't running, no rows arrive and
+    // the tape is simply the Polygon poll. SUPA loads async, so retry until
+    // the client exists.
+    let liveSub = null;
+    function subscribeLiveNews() {
+      if (liveSub) return;
+      if (!(window.SUPA && typeof SUPA.channel === "function")) {
+        setTimeout(subscribeLiveNews, 2500);
+        return;
+      }
+      try {
+        liveSub = SUPA.channel("news_live_tape")
+          .on("postgres_changes",
+              { event: "INSERT", schema: "public", table: "news_live" },
+              function (payload) {
+                const row = payload && payload.new;
+                if (!row || !row.headline) return;
+                const art = {
+                  id: row.id, title: row.headline,
+                  description: row.summary || "", publisher: row.source || "",
+                  url: row.url || "", published: row.published_at,
+                  tickers: Array.isArray(row.symbols) ? row.symbols : [],
+                  insights: [], keywords: [],
+                };
+                const k = titleKey(art);
+                if (GENERAL.some(function (a) { return titleKey(a) === k; })) return;
+                const proc = preprocessArticles([art]) || [];
+                GENERAL.unshift(proc.length ? proc[0] : art);
+                FRESH_IDS = new Set([art.id]);
+                if (newsMode === "tape" && newsTabVisible()) renderGeneral();
+              })
+          .subscribe();
+      } catch (_) { liveSub = null; }
+    }
+    subscribeLiveNews();
+
     // Expose for cross-component reuse (drilldown panel uses both)
     window.NEWS_LOAD_TICKER   = loadTicker;
     window.preprocessArticles = preprocessArticles;
