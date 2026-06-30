@@ -15803,7 +15803,7 @@
             const wd = nd.getDay();                       // 0 Sun .. 6 Sat
             const nowMin = nd.getHours() * 60 + nd.getMinutes();
             if (wd >= 1 && wd <= 5 && nowMin < 16 * 60 + 30)
-              suffix = " · next update after 4 PM close";
+              suffix = " · prices live (15m)";
           } catch (_) {}
         }
       } else if (character === "live") {
@@ -17844,8 +17844,12 @@
       if (document.visibilityState !== "visible") return;
       const cache = window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
       const tickers = new Set();
-      document.querySelectorAll(".chg-pill[data-chg-tk]").forEach(function (el) {
-        if (el.offsetParent === null) return;          // skip hidden panels
+      // Both desks' pills — no offsetParent check so late-rendered or
+      // hidden-desk pills are still covered (this was leaving normal large
+      // caps like DAL/PANW/MCD stuck on yesterday's close).
+      document.querySelectorAll(
+        "#panel-desk .chg-pill[data-chg-tk], #panel-mydesk .chg-pill[data-chg-tk]"
+      ).forEach(function (el) {
         const t = el.dataset.chgTk;
         if (t && /^[A-Z.\-]{1,8}$/.test(t)) tickers.add(t);
       });
@@ -17870,7 +17874,8 @@
           .finally(function () { if (--pending === 0) updateDeskChgPills(); });
       }
     }
-    setInterval(refreshTilesLive, 60000);
+    setTimeout(refreshTilesLive, 3000);    // fast first fill (covers late-render gaps)
+    setInterval(refreshTilesLive, 30000);
 
     // ── Intraday breadth (Market Health top strip) ───────────────────
     // Walks the swing universe (DESK_TKMAP) and bins each ticker by
