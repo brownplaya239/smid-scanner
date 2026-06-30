@@ -1933,6 +1933,28 @@ async function fetchPremarketBuzz(env) {
   };
 }
 
+// ── In-memory micro-cache ────────────────────────────────────────────────
+// The Cache API (caches.default) is INERT on *.workers.dev domains, so the
+// edge cache wired into the live-flow / premarket / news handlers below never
+// actually hits there — every poll re-ran the full Polygon fan-out (live-flow
+// measured 5-7s, and N× the upstream load under concurrent pollers, the kind
+// of burst that can trip the Polygon Starter rate limit). This module-global
+// TTL cache lives on the warm isolate and works regardless of domain, so
+// repeat polls within the TTL return instantly and share one upstream batch.
+// Bounded to cap memory. (The Cache API calls stay — they start working for
+// free if the worker ever moves behind a custom domain / route.)
+const MEM_CACHE = new Map();   // key -> { ts, data }
+function memGet(key, ttlMs) {
+  const e = MEM_CACHE.get(key);
+  if (e && (Date.now() - e.ts) < ttlMs) return e.data;
+  if (e) MEM_CACHE.delete(key);
+  return null;
+}
+function memPut(key, data) {
+  MEM_CACHE.set(key, { ts: Date.now(), data });
+  if (MEM_CACHE.size > 64) MEM_CACHE.delete(MEM_CACHE.keys().next().value);
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -1945,6 +1967,8 @@ export default {
       // value in the spread headers wins. Harmless on the null-body
       // OPTIONS preflight below.
       "Content-Type": "application/json; charset=utf-8",
+      // Defense-in-depth: stop browsers MIME-sniffing our JSON responses.
+      "X-Content-Type-Options": "nosniff",
     };
 
     // CORS preflight — null body, so the content-type above is ignored
@@ -2212,13 +2236,22 @@ export default {
         const uni = Array.from(new Set(
           (extra.length ? extra.concat(LF_DEFAULT_UNIVERSE)
                         : LF_DEFAULT_UNIVERSE)));
-        const data = await fetchLiveFlow(env, {
+        const opts = {
           tickers:      uni,
           minPremium:   +url.searchParams.get("min_premium")   || 100_000,
           minVolOi:     +url.searchParams.get("min_vol_oi")    || 2.0,
           freshnessMin: +url.searchParams.get("freshness_min") || 90,
           limit:        +url.searchParams.get("limit")         || 100,
-        });
+        };
+        // In-memory fallback cache (the Cache API above is inert on
+        // *.workers.dev). Key on the variable inputs only — the default
+        // universe is constant, so every default poller shares one 60s batch
+        // instead of each re-running the 5-7s Polygon fan-out.
+        const memKey = "lf:" + extra.slice().sort().join(",") + ":" +
+          opts.minPremium + ":" + opts.minVolOi + ":" +
+          opts.freshnessMin + ":" + opts.limit;
+        let data = memGet(memKey, 60_000);
+        if (!data) { data = await fetchLiveFlow(env, opts); memPut(memKey, data); }
         const resp = Response.json(data, {
           headers: { ...cors, "Cache-Control": "public, max-age=60" },
         });
