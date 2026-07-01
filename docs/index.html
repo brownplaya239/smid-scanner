@@ -3433,6 +3433,36 @@
     border:1px solid var(--line); border-radius:0 0 8px 8px; background:#fff;
   }
 
+  /* ── Charts (TradingView embed) ── */
+  #panel-charts { max-width:1400px; }
+  .chart-controls { display:flex; align-items:center; gap:8px;
+    flex-wrap:wrap; margin:6px 0 12px; }
+  .chart-ticker-input { background:var(--navy2); border:1px solid var(--border2);
+    color:var(--text); padding:7px 11px; border-radius:6px; font-size:13px;
+    width:150px; text-transform:uppercase; letter-spacing:.5px; }
+  .chart-ticker-input:focus { outline:0; border-color:var(--gold); }
+  .chart-btn { background:var(--card); border:1px solid var(--border2);
+    color:var(--text); padding:7px 12px; border-radius:6px; font-size:12.5px;
+    font-family:inherit; cursor:pointer; transition:border-color .15s,
+    background .15s; }
+  .chart-btn:hover { border-color:var(--gold); }
+  .chart-btn-gold { background:var(--gold); color:#0a0e17; font-weight:700;
+    border-color:var(--gold); }
+  .chart-btn-gold:hover { filter:brightness(1.08); }
+  .chart-ctl-sep { width:1px; height:22px; background:var(--line); margin:0 2px; }
+  .chart-hint { font-size:11px; color:var(--muted); flex:1 1 220px;
+    min-width:180px; }
+  .chart-wrap { position:relative; width:100%; height:72vh; min-height:460px;
+    border:1px solid var(--line); border-radius:8px; overflow:hidden;
+    background:var(--navy2); }
+  .chart-tv { width:100%; height:100%; }
+  .chart-loading { position:absolute; inset:0; display:flex;
+    align-items:center; justify-content:center; color:var(--muted);
+    font-size:13px; pointer-events:none; }
+  .chart-loading.chart-hidden { display:none; }
+  .chart-foot { font-size:10.5px; color:var(--muted); margin-top:8px; }
+  .chart-foot a { color:var(--gold); }
+
   /* ── Unusual Options Activity dashboard ── */
   #panel-uoa { max-width:1180px; }
   /* Today's Flow Edge — top strip showing TODAY'S flow synthesis.
@@ -4593,6 +4623,7 @@
     <button data-tab="mydesk">My Desk</button>
     <button data-tab="watchlist">Watchlist</button>
     <button data-tab="uoa">Options Flow</button>
+    <button data-tab="charts">Charts</button>
     <button data-tab="adhoc">Research</button>
     <button data-tab="alt-data">Alt-Data</button>
     <button data-tab="breakout">Breakouts</button>
@@ -5530,6 +5561,49 @@
 
       <div class="uoa-detail" id="uoa-detail"></div>
       <div class="uoa-tip" id="uoa-tip"></div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────────────
+         Charts tab — TradingView Advanced Chart embed. Loads on first
+         open (script injected lazily). App-level controls: ticker load,
+         theme, reset-to-Finviz-defaults. The TradingView toolbar itself
+         provides symbol search, every timeframe, chart types (incl.
+         Heikin Ashi) and the full indicator/overlay library; we just set
+         the Finviz-style default preset on init.
+         ──────────────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-charts">
+      <h2 class="tab-title">Charts</h2>
+      <p class="tab-sub">Full TradingView charting — search any ticker, all
+        timeframes (1m→1W), candles / bars / line / Heikin Ashi, and the
+        complete indicator set (SMA, EMA, VWAP, RSI, MACD, ATR, Bollinger,
+        relative-strength via <b>Compare</b>). Opens on the
+        <b>Finviz-style default</b>: daily candles, SMA 20/50/200, Volume,
+        RSI, MACD, clean light theme.
+        <span id="charts-meta"></span></p>
+      <div class="chart-controls">
+        <input id="chart-ticker" class="chart-ticker-input" type="text"
+               inputmode="latin" autocomplete="off" spellcheck="false"
+               placeholder="Symbol (e.g. NVDA)" />
+        <button id="chart-load" class="chart-btn chart-btn-gold">Load</button>
+        <span class="chart-ctl-sep"></span>
+        <button id="chart-theme" class="chart-btn" data-theme="light"
+                title="Toggle light / dark theme">◑ Light</button>
+        <button id="chart-reset" class="chart-btn"
+                title="Reset to the Finviz-style default layout">↺ Defaults</button>
+        <span class="chart-hint" id="chart-note">
+          Tip: use the TradingView toolbar for timeframes, chart type,
+          indicators &amp; Compare (rel. strength vs SPY/QQQ).</span>
+      </div>
+      <div class="chart-wrap">
+        <div id="tv-chart-container" class="chart-tv"></div>
+        <div class="chart-loading" id="chart-loading">Loading chart…</div>
+      </div>
+      <p class="chart-foot">
+        Charts &amp; data © <a href="https://www.tradingview.com"
+          target="_blank" rel="noopener">TradingView</a>.
+        Auto-drawn levels (premarket H/L, prior-day H/L, 52-wk high,
+        support/resistance, gap zones, earnings markers) are planned as a
+        next phase on our own data feed.</p>
     </section>
 
     <!-- ────────────────────────────────────────────────────────────────
@@ -13325,6 +13399,147 @@
       });
     } catch (_) { /* old browsers — silent no-op */ }
   });
+
+  /* ── Charts tab — TradingView Advanced Chart embed ──────────────────
+     Lazily injects tv.js the first time the Charts tab is opened (so the
+     ~200KB library isn't loaded for users who never look at it), then
+     builds the widget on the Finviz-style default preset. The TV toolbar
+     provides symbol search, all timeframes, chart types (incl. Heikin
+     Ashi) and the full indicator/overlay library. */
+  (function setupCharts() {
+    var TV_SRC = "https://s3.tradingview.com/tv.js";
+    var CID = "tv-chart-container";
+    var TICK_RE = /^[A-Z][A-Z.\-]{0,9}$/;
+    var theme = "light";           // Finviz default = clean white
+    var lastSymbol = "SPY";
+    var scriptRequested = false;
+
+    function defaultSymbol() {
+      try {
+        var wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+        var arr = Array.from(wl);
+        if (arr.length) return arr[0];
+      } catch (_) {}
+      return "SPY";
+    }
+    // Finviz-style default studies: SMA 20/50/200, Volume, RSI, MACD.
+    function studies() {
+      return [
+        { id: "MASimple@tv-basicstudies", inputs: { length: 20 } },
+        { id: "MASimple@tv-basicstudies", inputs: { length: 50 } },
+        { id: "MASimple@tv-basicstudies", inputs: { length: 200 } },
+        "Volume@tv-basicstudies",
+        "RSI@tv-basicstudies",
+        "MACD@tv-basicstudies",
+      ];
+    }
+    function build(symbol) {
+      var el = document.getElementById(CID);
+      if (!el || !window.TradingView) return;
+      if (symbol) lastSymbol = symbol;
+      el.innerHTML = "";           // tear down any previous widget
+      /* eslint-disable no-new */
+      new TradingView.widget({
+        container_id:        CID,
+        autosize:            true,
+        symbol:              lastSymbol,
+        interval:            "D",           // daily default
+        timezone:            "America/New_York",
+        theme:               theme,
+        style:               "1",           // candles
+        locale:              "en",
+        toolbar_bg:          theme === "light" ? "#ffffff" : "#0a0e17",
+        enable_publishing:   false,
+        allow_symbol_change: true,          // ticker search in TV toolbar
+        withdateranges:      true,
+        hide_side_toolbar:   false,
+        details:             true,
+        studies:             studies(),
+        support_host:        "https://www.tradingview.com",
+      });
+      var loading = document.getElementById("chart-loading");
+      if (loading) loading.classList.add("chart-hidden");
+      var meta = document.getElementById("charts-meta");
+      if (meta) meta.textContent = "Showing " + lastSymbol + ".";
+    }
+    function ensureScriptThen(cb) {
+      if (window.TradingView) { cb(); return; }
+      if (scriptRequested) {
+        var t = setInterval(function () {
+          if (window.TradingView) { clearInterval(t); cb(); }
+        }, 60);
+        return;
+      }
+      scriptRequested = true;
+      var s = document.createElement("script");
+      s.src = TV_SRC; s.async = true;
+      s.onload = function () { cb(); };
+      s.onerror = function () {
+        var loading = document.getElementById("chart-loading");
+        if (loading) {
+          loading.classList.remove("chart-hidden");
+          loading.textContent = "Couldn't load TradingView — an ad-blocker " +
+            "or network filter may be blocking s3.tradingview.com.";
+        }
+      };
+      document.head.appendChild(s);
+    }
+    var inited = false;
+    function initOnce() {
+      if (inited) return; inited = true;
+      var sym = defaultSymbol();
+      var input = document.getElementById("chart-ticker");
+      if (input) input.value = sym;
+      ensureScriptThen(function () { build(sym); });
+    }
+    // Lazy-init when the Charts tab is opened.
+    var navEl = document.getElementById("nav");
+    if (navEl) navEl.addEventListener("click", function (e) {
+      if (e.target.tagName === "BUTTON" && e.target.dataset.tab === "charts") {
+        initOnce();
+      }
+    });
+    // Controls.
+    function loadTyped() {
+      var input = document.getElementById("chart-ticker");
+      var v = (input && input.value || "").toUpperCase().trim();
+      if (!TICK_RE.test(v)) {
+        if (input) { input.style.borderColor = "var(--red)";
+          setTimeout(function () { input.style.borderColor = ""; }, 1200); }
+        return;
+      }
+      ensureScriptThen(function () { build(v); });
+    }
+    var loadBtn = document.getElementById("chart-load");
+    if (loadBtn) loadBtn.addEventListener("click", loadTyped);
+    var tickIn = document.getElementById("chart-ticker");
+    if (tickIn) tickIn.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") loadTyped();
+    });
+    var themeBtn = document.getElementById("chart-theme");
+    if (themeBtn) themeBtn.addEventListener("click", function () {
+      theme = theme === "light" ? "dark" : "light";
+      themeBtn.textContent = theme === "light" ? "◑ Light" : "◐ Dark";
+      ensureScriptThen(function () { build(lastSymbol); });
+    });
+    var resetBtn = document.getElementById("chart-reset");
+    if (resetBtn) resetBtn.addEventListener("click", function () {
+      theme = "light";
+      if (themeBtn) themeBtn.textContent = "◑ Light";
+      ensureScriptThen(function () { build(lastSymbol); });
+    });
+    // Public hook so any ticker elsewhere can jump to its chart.
+    window.tdOpenChart = function (tk) {
+      tk = String(tk || "").toUpperCase().trim();
+      if (!TICK_RE.test(tk)) return;
+      var btn = document.querySelector('nav button[data-tab="charts"]');
+      if (btn) btn.click();
+      var input = document.getElementById("chart-ticker");
+      if (input) input.value = tk;
+      inited = true;               // opening via hook counts as init
+      ensureScriptThen(function () { build(tk); });
+    };
+  })();
 
   /* ── Sub-toggles inside consolidated tabs (Breakout Scans, Setup Builder) ── */
   function wireSubnav(navId, keys) {
