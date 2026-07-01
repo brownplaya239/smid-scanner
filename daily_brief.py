@@ -52,7 +52,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import pytz
@@ -342,6 +342,53 @@ def load_market_context() -> dict:
               if (e.get("impact") or "").lower() in ("high", "medium")]
         ctx["events"] = (hi or todays)[:6]
     return ctx
+
+
+def load_premarket() -> dict:
+    """Market-wide pre-market movers (top gainers/losers + a catalyst per
+    name) from the worker's Pre-Market Buzz endpoint. {} on failure."""
+    try:
+        req = urllib.request.Request(
+            f"{WORKER_URL}/?premarket=1",
+            headers={"User-Agent": "TickerDesk-Brief/1.0",
+                     "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=25) as r:
+            return json.loads(r.read().decode("utf-8")) or {}
+    except Exception as e:
+        print(f"  premarket load failed (non-fatal): {e}")
+        return {}
+
+
+def load_overnight_news(tickers, hours: int = 15, limit: int = 5) -> list[dict]:
+    """Watchlist-relevant headlines from the news_live wire published since
+    last night (Benzinga via Supabase). [] on failure / no config."""
+    if not tickers or not (SUPABASE_URL and SUPABASE_SERVICE_KEY):
+        return []
+    try:
+        since = (datetime.now(timezone.utc) - timedelta(hours=hours)
+                 ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        syms = ",".join(sorted(set(tickers))[:40])
+        rows = _supabase_get("news_live", {
+            "select": "headline,url,symbols,published_at,source",
+            "symbols": f"ov.%7B{syms}%7D",
+            "published_at": f"gte.{since}",
+            "order": "published_at.desc",
+            "limit": str(limit * 4),
+        }) or []
+        seen, out = set(), []
+        for r in rows:
+            h = (r.get("headline") or "").strip()
+            k = h.lower()
+            if not h or k in seen:
+                continue
+            seen.add(k)
+            out.append(r)
+            if len(out) >= limit:
+                break
+        return out
+    except Exception as e:
+        print(f"  overnight-news load failed (non-fatal): {e}")
+        return []
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -655,15 +702,63 @@ def compute_what_changed(tickers, swing, uoa, earnings, reports_by_tk) -> dict:
     return ch
 
 
+def _earnings_soon(c, within: int = 2) -> bool:
+    """True when a confluence row reports earnings inside `within` days.
+    These are binary-event / post-move names — deliberately kept OUT of the
+    top-of-brief ideas (they belong in the earnings section, not the idea
+    list). Distinct from 'watch/risk' bullets, which may cite a catalyst."""
+    er = c.get("earnings")
+    da = er.get("days_away") if er else None
+    return isinstance(da, int) and 0 <= da <= within
+
+
+def compute_ideas(conf, swing=None, tickers=None, earnings=None,
+                  n: int = 5) -> list[dict]:
+    """A few concrete, actionable NON-earnings ideas for the very top of
+    the brief. Earnings-soon names are excluded (event risk / post-move —
+    they belong under Watch/Risk, not the idea list). Order:
+      1. bull-stacked confluence (score ≥ 2)
+      2. any bullish confluence (score > 0)
+      3. strong A-tier swing grades even without a full confluence stack
+    so the line reliably shows a few names, not just one."""
+    earn_soon = set()
+    if earnings:
+        earn_soon = {tk for tk, e in earnings.items()
+                     if isinstance(e.get("days_away"), int)
+                     and 0 <= e["days_away"] <= 2}
+    prim = [c for c in conf
+            if c["net"] == "bull" and c["score"] >= 2 and not _earnings_soon(c)]
+    seen = {c["ticker"] for c in prim}
+    if len(prim) < 3:
+        for c in conf:
+            if (c["net"] == "bull" and c["score"] > 0
+                    and not _earnings_soon(c) and c["ticker"] not in seen):
+                prim.append(c); seen.add(c["ticker"])
+    if len(prim) < 3 and swing and tickers:
+        atier = []
+        for tk in set(tickers):
+            sw = swing.get(tk) or {}
+            g = sw.get("grade")
+            if (g and _is_a_tier(g) and tk not in seen and tk not in earn_soon):
+                atier.append({"ticker": tk, "grade": g, "score": 0.0,
+                              "net": "bull", "reason": f"{g} swing grade",
+                              "top": None, "earnings": None})
+        atier.sort(key=lambda c: GRADE_RANK.get(c["grade"], 99))
+        prim += atier
+    return prim[:n]
+
+
 def compute_playbook(conf, market_top, market, earnings, tickers) -> list[dict]:
     """Exactly three bullets: best opportunity / watch today / risk."""
     wl = set(tickers)
     used = set()
 
     # 1) Best opportunity — strongest bull-stack watchlist name, else the
-    #    tape's top golden/high-score flow.
+    #    tape's top golden/high-score flow. Earnings-soon names are excluded
+    #    here (event risk, not a clean setup) — they surface under Watch.
     best = None
-    bulls = [c for c in conf if c["net"] == "bull" and c["score"] >= 2]
+    bulls = [c for c in conf
+             if c["net"] == "bull" and c["score"] >= 2 and not _earnings_soon(c)]
     if bulls:
         c = bulls[0]
         used.add(c["ticker"])
@@ -752,6 +847,7 @@ def build_brief(tickers, swing, uoa, market_top, earnings, reports_by_tk,
     conf = compute_confluence(tickers, swing, uoa, earnings, reports_by_tk)
     changed = compute_what_changed(tickers, swing, uoa, earnings, reports_by_tk)
     playbook = compute_playbook(conf, market_top, market, earnings, tickers)
+    ideas = compute_ideas(conf, swing, tickers, earnings)
 
     flow = []
     for tk in sorted(set(tickers)):
@@ -773,6 +869,7 @@ def build_brief(tickers, swing, uoa, market_top, earnings, reports_by_tk,
 
     return {
         "playbook": playbook,
+        "ideas": ideas,
         "confluence": conf[:6],
         "changed": changed,
         "flow": flow[:6],
@@ -854,11 +951,32 @@ def _badge(text, color, bg=None) -> str:
             f'margin:2px 4px 2px 0;letter-spacing:.3px;">{esc(text)}</span>')
 
 
-def _render_playbook(playbook) -> str:
+def _render_playbook(playbook, ideas=None) -> str:
     icons = {"Best opportunity": ("🎯", CSS_GREEN),
              "Watch today": ("👁", CSS_ACCENT),
              "Risk / avoid chase": ("⚠️", CSS_RED)}
     rows = []
+    # Ideas chip line — a few concrete, NON-earnings names up top so the
+    # brief opens with tradeable setups, not the earnings calendar.
+    if ideas:
+        chips = "".join(
+            f'<a href="{_link(c["ticker"])}" style="display:inline-block;'
+            f'text-decoration:none;background:rgba(31,179,99,0.12);'
+            f'border:1px solid rgba(31,179,99,0.4);border-radius:6px;'
+            f'padding:3px 9px;margin:3px 6px 3px 0;font-size:12.5px;'
+            f'font-weight:700;color:{CSS_TEXT};white-space:nowrap;">'
+            f'{esc(c["ticker"])}'
+            + (f' <span style="color:{_grade_color(c.get("grade"))};">{esc(c["grade"])}</span>'
+               if c.get("grade") else "")
+            + '</a>'
+            for c in ideas)
+        rows.append(
+            f'<div style="padding:11px 14px;border-bottom:1px solid {CSS_BORDER};">'
+            f'<div style="font-size:11px;font-weight:700;color:{CSS_GREEN};'
+            f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">'
+            f'💡 Today\'s ideas <span style="color:{CSS_MUTED};font-weight:400;'
+            f'text-transform:none;letter-spacing:0;">· non-earnings, bull-stacked</span></div>'
+            f'<div>{chips}</div></div>')
     for b in playbook:
         icon, col = icons.get(b["kind"], ("•", CSS_TEXT))
         tk = (f'{_ticker_link(b["ticker"])} — ' if b.get("ticker") else "")
@@ -1089,6 +1207,79 @@ def _render_carryover(cf) -> str:
     return _card("Overnight flow — did the whales hold?", "".join(parts), sub)
 
 
+def _render_premarket(premarket, overnight, brief) -> str:
+    """Pre-open pulse: what reports before the bell, what's already moving
+    pre-market, and the overnight headlines on your names. Only blocks with
+    data render; returns "" when there's nothing pre-open to say."""
+    blocks = []
+
+    # 1) Reporting before the open today (watchlist).
+    bmo = [r for r in (brief.get("earnings") or [])
+           if r.get("days_away") == 0
+           and "bmo" in (r.get("bmo_amc") or "").lower()]
+    if bmo:
+        chips = "".join(
+            f'<a href="{_link(r["ticker"])}" style="display:inline-block;'
+            f'text-decoration:none;background:rgba(255,200,0,0.12);'
+            f'border:1px solid rgba(255,200,0,0.4);border-radius:6px;'
+            f'padding:3px 9px;margin:3px 6px 3px 0;font-size:12.5px;'
+            f'font-weight:700;color:{CSS_TEXT};">{esc(r["ticker"])}</a>'
+            for r in bmo[:8])
+        blocks.append(
+            f'<div style="padding:10px 14px;border-bottom:1px solid {CSS_BORDER};">'
+            f'<div style="font-size:11px;font-weight:700;color:{CSS_AMBER};'
+            f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">'
+            f'⏰ Reports before the open</div><div>{chips}</div></div>')
+
+    # 2) Pre-market movers (market-wide) with a catalyst per name.
+    def _mover_rows(items, col, arrow):
+        out = []
+        for m in (items or [])[:3]:
+            pct = m.get("pct")
+            pct_txt = f'{arrow}{abs(pct):.1f}%' if isinstance(pct, (int, float)) else ""
+            cat = (m.get("catalyst") or {}).get("label") if isinstance(m.get("catalyst"), dict) else m.get("catalyst")
+            cat_txt = (f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:2px;'
+                       f'line-height:1.35;">{esc(str(cat)[:88])}</div>' if cat else "")
+            out.append(
+                f'<div style="padding:6px 0;border-bottom:1px solid {CSS_BORDER};">'
+                f'<div style="display:flex;justify-content:space-between;gap:8px;">'
+                f'{_ticker_link(m.get("ticker"), 13)}'
+                f'<span style="font-weight:700;color:{col};font-variant-numeric:tabular-nums;">'
+                f'{pct_txt}</span></div>{cat_txt}</div>')
+        return "".join(out)
+    g = _mover_rows((premarket or {}).get("gainers"), CSS_GREEN, "+")
+    l = _mover_rows((premarket or {}).get("losers"), CSS_RED, "−")
+    if g or l:
+        blocks.append(
+            f'<div style="padding:10px 14px;border-bottom:1px solid {CSS_BORDER};">'
+            f'<div style="font-size:11px;font-weight:700;color:{CSS_ACCENT};'
+            f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">'
+            f'📈 Pre-market movers <span style="color:{CSS_MUTED};font-weight:400;'
+            f'text-transform:none;letter-spacing:0;">· extended-hours, list ~15m delayed</span></div>'
+            + (g or "") + (l or "") + '</div>')
+
+    # 3) Overnight headlines on your names.
+    if overnight:
+        news = "".join(
+            f'<div style="padding:6px 0;border-bottom:1px solid {CSS_BORDER};">'
+            f'<a href="{esc(n.get("url") or "#")}" style="color:{CSS_TEXT};'
+            f'text-decoration:none;font-size:12.5px;line-height:1.4;">'
+            f'{esc((n.get("headline") or "")[:120])}</a>'
+            f'<div style="font-size:10.5px;color:{CSS_MUTED};margin-top:2px;">'
+            f'{esc(", ".join((n.get("symbols") or [])[:4]))}'
+            + (f' · {esc(n.get("source"))}' if n.get("source") else "") + '</div></div>'
+            for n in overnight[:5])
+        blocks.append(
+            f'<div style="padding:10px 14px;">'
+            f'<div style="font-size:11px;font-weight:700;color:{CSS_MUTED};'
+            f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">'
+            f'📰 Overnight headlines on your names</div>' + news + '</div>')
+
+    if not blocks:
+        return ""
+    return _card("Pre-market pulse", "".join(blocks))
+
+
 def _render_earnings(earn) -> str:
     rows = []
     for r in earn:
@@ -1180,7 +1371,8 @@ def _render_snapshot(snapshot) -> str:
     </div>'''
 
 
-def render_html(user, brief, brief_date, carryover=None) -> tuple[str, str]:
+def render_html(user, brief, brief_date, carryover=None,
+                premarket=None, overnight=None) -> tuple[str, str]:
     name = esc((user.get("display_name") or "").strip() or "trader")
     subject, preheader = build_subject(brief)
 
@@ -1201,7 +1393,12 @@ def render_html(user, brief, brief_date, carryover=None) -> tuple[str, str]:
         f'<div style="font-size:13px;color:{CSS_MUTED};margin-top:5px;">Good morning, {name}. {esc(preheader)}</div>'
         f'</div>')
 
-    parts.append(_render_playbook(brief["playbook"]))
+    parts.append(_render_playbook(brief["playbook"], brief.get("ideas")))
+    # Pre-market pulse — what reports before the bell, what's already moving,
+    # and overnight headlines on your names. Pre-open context up top.
+    pm_html = _render_premarket(premarket, overnight, brief)
+    if pm_html:
+        parts.append(pm_html)
     # Overnight OI-confirmed carryover — pre-open flow context, so it sits
     # high, right under the playbook.
     co_html = _render_carryover(carryover)
@@ -1356,6 +1553,10 @@ def main():
     if carryover.get("contracts"):
         print(f"    carryover: {carryover.get('held_count')}/{carryover.get('total')} "
               f"held (session {carryover.get('session_date')})")
+    premarket = load_premarket()
+    if premarket.get("gainers") or premarket.get("losers"):
+        print(f"    premarket: {len(premarket.get('gainers', []))}↑ "
+              f"{len(premarket.get('losers', []))}↓")
     print(f"    swing:{len(swing)} uoa:{len(uoa)} earn/7d:{len(earnings)} "
           f"reports:{len(new_reports_all)} events:{len(market.get('events', []))}")
 
@@ -1382,7 +1583,9 @@ def main():
     for u in users:
         brief = build_brief(u["tickers"], swing, uoa, market_top, earnings,
                             reports_by_tk, new_reports_all, market)
-        subject, html_body = render_html(u, brief, brief_date, carryover)
+        overnight = load_overnight_news(u["tickers"])
+        subject, html_body = render_html(u, brief, brief_date, carryover,
+                                         premarket, overnight)
         prefix = f"  → {u['email']:32s} ({len(u['tickers'])} tickers): "
 
         # Always write the first rendered email to the preview file.
