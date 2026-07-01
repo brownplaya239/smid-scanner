@@ -2888,16 +2888,22 @@
   .ew-lightbox.show { display:flex; }
   .ew-lightbox img { max-width:100%; max-height:95vh; box-shadow:0 8px 40px
     rgba(0,0,0,.65); border-radius:6px; }
-  .ant-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;
-    margin-top:8px; }
+  /* minmax(0,1fr), not 1fr: grid items default to min-width:auto, so a wide
+     flex .ant-row (ticker + company + bar + IV pill + action strip) can't
+     shrink below its content — the track expands past the 1280px panel and
+     the whole document gets a horizontal scrollbar (panel visibly shifts
+     left). minmax(0,...) + min-width:0 on the children lets tracks shrink so
+     .ant-co ellipsis-truncates instead of forcing overflow. */
+  .ant-grid { display:grid; grid-template-columns:repeat(5, minmax(0,1fr));
+    gap:10px; margin-top:8px; max-width:100%; }
   @media (max-width:1100px) {
-    .ant-grid { grid-template-columns:repeat(2, 1fr); }
+    .ant-grid { grid-template-columns:repeat(2, minmax(0,1fr)); }
   }
   @media (max-width:640px) {
-    .ant-grid { grid-template-columns:1fr; }
+    .ant-grid { grid-template-columns:minmax(0,1fr); }
   }
   .ant-day { background:var(--card); border:1px solid var(--line);
-    border-radius:8px; padding:11px 12px; min-height:200px; }
+    border-radius:8px; padding:11px 12px; min-height:200px; min-width:0; }
   .ant-day h3 { font-size:11px; color:var(--muted); text-transform:uppercase;
     letter-spacing:.5px; font-weight:700; margin:0 0 9px 0;
     padding-bottom:7px; border-bottom:1px solid var(--line);
@@ -2919,14 +2925,14 @@
 
   .ant-row { display:flex; align-items:center; gap:6px; padding:3px 4px;
     font-size:11px; line-height:1.3; cursor:pointer; border-radius:3px;
-    margin:0 -4px; }
+    margin:0 -4px; min-width:0; }
   .ant-row + .ant-row { border-top:1px solid var(--line); }
   .ant-row:hover { background:rgba(255,200,0,0.06); }
   .ant-row:hover .ant-tk { color:var(--gold); }
   .ant-row .ant-tk { font-weight:800; color:var(--text); min-width:46px;
     transition:color .15s ease; }
   .ant-row .ant-co { color:var(--textdim); font-size:9.5px; flex:1;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .ant-row .ant-bar-wrap { width:46px; height:6px; border-radius:3px;
     background:rgba(160,178,210,0.1); overflow:hidden; flex-shrink:0; }
   .ant-row .ant-bar { height:100%; background:var(--gold);
@@ -4618,8 +4624,8 @@
             <ul class="pc-feats">
               <li>Everything in Pro</li>
               <li><b>100 ad-hoc reports</b> per month</li>
-              <li>Advanced alert routing</li>
-              <li>Discord channel access</li>
+              <li>Priority report queue</li>
+              <li>1:1 onboarding call</li>
               <li>Priority support (4h SLA)</li>
             </ul>
             <button class="pricing-cta" data-plan="premium">Get Premium</button>
@@ -4723,7 +4729,7 @@
            click to the ticker drilldown via the global [data-t] handler. -->
       <div class="launch-note" id="launch-note" style="display:none">
         <span>🚀 <b>New:</b> SpaceX (<span class="ln-tk" data-t="SPCX">SPCX</span>)
-          now covered &mdash; live options flow, IV &amp; drilldown.</span>
+          now covered &mdash; options flow (delayed 15m), IV &amp; drilldown.</span>
         <button class="ln-x" type="button" aria-label="Dismiss"
           onclick="this.closest('.launch-note').style.display='none';try{localStorage.setItem('td_ln_spcx','1')}catch(e){}">&times;</button>
       </div>
@@ -5776,21 +5782,14 @@
           <div class="pt-tier">Premium</div>
           <div class="pt-price">$99<span>/month</span></div>
           <div class="pt-period">or $990/year (save 17%)</div>
-          <p class="pt-blurb">For full-time traders running large watchlists,
-            multiple strategies, or building automated alerting into their
-            workflow. Built for power.</p>
+          <p class="pt-blurb">For full-time traders running large watchlists
+            and heavy research volume who want their generations to jump the
+            queue. Built for power.</p>
           <ul class="pt-feats">
             <li><span class="pt-check">✓</span>
               <b>Everything in Pro, plus:</b></li>
             <li><span class="pt-check">✓</span>
               <b>100 ad-hoc reports per month</b></li>
-            <li><span class="pt-check">✓</span>
-              <b>Multi-account support</b> (up to 3 sub-watchlists)</li>
-            <li><span class="pt-check">✓</span>
-              <b>Advanced alert routing</b> (per-ticker push +
-              webhook + Discord integration)</li>
-            <li><span class="pt-check">✓</span>
-              <b>Discord channel access</b> (members-only signal stream)</li>
             <li><span class="pt-check">✓</span>
               <b>Priority report queue</b> (your generations run first)</li>
             <li><span class="pt-check">✓</span>
@@ -5815,7 +5814,7 @@
             <tr><td>Public dashboard (all tabs)</td>
               <td>✓</td><td>✓</td><td>✓</td></tr>
             <tr><td>Watchlist size</td>
-              <td>5 names</td><td>Unlimited</td><td>Unlimited (3 lists)</td></tr>
+              <td>5 names</td><td>Unlimited</td><td>Unlimited</td></tr>
             <tr><td>My Desk personalization</td>
               <td>—</td><td>✓</td><td>✓</td></tr>
             <tr><td>Ad-hoc research reports</td>
@@ -5827,15 +5826,13 @@
             <tr><td>Daily Brief email</td>
               <td>✓</td><td>✓</td><td>✓</td></tr>
             <tr><td>Push alerts (fire each scan, ~14×/day)</td>
-              <td>Basic</td><td>Per-ticker config</td><td>Per-ticker + webhook</td></tr>
+              <td>Basic</td><td>Per-ticker config</td><td>Per-ticker config</td></tr>
             <tr><td>Portfolio benchmarking</td>
-              <td>—</td><td>vs SPY/QQQ/IWM</td><td>vs SPY/QQQ/IWM + custom</td></tr>
+              <td>—</td><td>vs SPY/QQQ/IWM</td><td>vs SPY/QQQ/IWM</td></tr>
             <tr><td>Trade journal</td>
               <td>Local only</td><td>Synced + CSV export</td><td>Synced + CSV export</td></tr>
             <tr><td>Signal refresh cadence</td>
               <td>EOD</td><td>Intraday (every ~30 min)</td><td>Intraday + priority queue</td></tr>
-            <tr><td>Discord channel</td>
-              <td>—</td><td>—</td><td>Members-only</td></tr>
             <tr><td>Email support SLA</td>
               <td>Best effort</td><td>24 hours</td><td>4 hours</td></tr>
             <tr><td>Onboarding</td>
@@ -5898,10 +5895,10 @@
         <details class="pt-faq">
           <summary>What's the difference between Pro and Premium?</summary>
           <div>Pro is built for one trader running their own watchlist.
-            Premium adds bulk research (10× the reports), multi-watchlist
-            support, advanced alert routing (push + webhook + Discord),
-            and 1:1 onboarding. If you run multiple strategies or trade
-            full-time, Premium is the right pick.</div>
+            Premium adds bulk research (10× the reports), a priority report
+            queue so your generations run first, and a 1:1 onboarding call.
+            If you run heavy research volume or trade full-time, Premium is
+            the right pick.</div>
         </details>
         <details class="pt-faq">
           <summary>How do you handle my data?</summary>
@@ -6018,7 +6015,7 @@
           <li>🔔 Push alerts after each scan (~14×/day) for watchlist names</li>
           <li>⭐ Save tickers from any tab to your watchlist</li>
           <li>📝 Private notes on every name</li>
-          <li>📈 Live unusual options flow on every drilldown</li>
+          <li>📈 Unusual options flow (delayed 15m) on every drilldown</li>
         </ul>
         <div class="ob-foot">
           <button class="ob-skip" data-ob-skip>Skip setup</button>
@@ -8786,7 +8783,7 @@
         wpTh("pct", "% Port",
           "This position's weight as a % of total watchlist weight.") +
         wpTh("price", "Price",
-          "Latest price (Polygon, delayed 15 min). Live for every ticker.") +
+          "Latest price (Polygon, delayed 15 min).") +
         wpTh("chg", "Day %",
           "Today's % change (delayed 15 min).") +
         wpTh("grade", "Grade",
@@ -9873,7 +9870,7 @@
           'batch — recomputes after each session\'s close.">' +
           'Grade</span>' +
         '<span data-tip="1" style="text-align:right" title="' +
-          'Latest price (Polygon, delayed 15m). Live for every ticker — ' +
+          'Latest price (Polygon, delayed 15m) — ' +
           'updates through the session.">' +
           'Price</span>' +
         '<span data-tip="1" style="text-align:right" title="' +
@@ -9977,9 +9974,9 @@
         const t = new Date().toLocaleTimeString([],
           { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
         mdMoversHTML =
-          '<div class="desk-card md-movers-card"><h3>Live Movers' +
+          '<div class="desk-card md-movers-card"><h3>Top Movers' +
             '<span class="desk-stamp dst-fresh" title="Biggest intraday % ' +
-            'moves in your watchlist — 15m delayed, refreshed ~60s">Live · ' +
+            'moves in your watchlist — 15m delayed, refreshed ~60s">Latest · ' +
             t + ' ET</span></h3><div class="lm-cols">' +
             '<div class="lm-col"><div class="lm-hd lm-hd-up">▲ Gainers</div>' +
               (up.length ? up.map(mrow).join("")
@@ -16453,14 +16450,14 @@
       const t = new Date().toLocaleTimeString([],
         { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
       const stamp = open
-        ? { cls: "fresh", label: "Live · " + t + " ET",
+        ? { cls: "fresh", label: "Latest · " + t + " ET",
             full: "Biggest intraday % moves across your watchlist + desk " +
                   "coverage. 15-min delayed, refreshed every ~30s." }
         : { cls: "current", label: "Market closed",
             full: "Shows the last session's moves until the next open." };
-      return desk("Live Movers",
+      return desk("Top Movers",
         '<div class="lm-wrap" id="desk-live-movers-body">' +
-          '<div class="desk-empty">Loading live moves…</div></div>',
+          '<div class="desk-empty">Loading latest moves…</div></div>',
         "desk-card--wide", stamp);
     }
     function renderLiveMovers(univ) {
@@ -16702,7 +16699,7 @@
             const wd = nd.getDay();                       // 0 Sun .. 6 Sat
             const nowMin = nd.getHours() * 60 + nd.getMinutes();
             if (wd >= 1 && wd <= 5 && nowMin < 16 * 60 + 30)
-              suffix = " · prices live (15m)";
+              suffix = " · prices delayed 15m";
           } catch (_) {}
         }
       } else if (character === "live") {
@@ -17031,7 +17028,7 @@
           'title="Ticker that experienced a change.">' +
           'Ticker</span>' +
         '<span class="wct-detail" data-tip="1" ' +
-          'title="What changed: live options flow (intraday, 15m delayed) or ' +
+          'title="What changed: latest options flow (intraday, 15m delayed) or ' +
           'a swing grade change vs the prior EOD batch. Color: green = ' +
           'bullish, red = bearish, gold = neutral / informational.">' +
           'Change</span>' +
@@ -17325,8 +17322,8 @@
           timeZone: "America/New_York" });
       const stamp = liveOpen
         ? { cls: "fresh",
-            label: "Live · " + liveTime + " ET",
-            full:  "Intraday breadth refreshed every 60s. " +
+            label: "Latest · " + liveTime + " ET",
+            full:  "Intraday breadth refreshed every 60s (quotes delayed 15m). " +
                    "Grades are from " + postStamp.label + "." }
         : postStamp;
       if (!swing || !swing.runs || !swing.runs.length)
@@ -18898,10 +18895,10 @@
           }
           const st = h3.querySelector(".desk-stamp");
           if (!st) return;
-          st.textContent = "Live · " + asOf;
+          st.textContent = "Latest · " + asOf;
           st.className = "desk-stamp dst-fresh";
           st.title = "Intraday breadth refreshed every 60s during RTH " +
-                     "from live quote cache. Grades below are still " +
+                     "from the 15m-delayed quote cache. Grades below are still " +
                      "from the daily post-close swing batch.";
         });
       }
@@ -21258,7 +21255,7 @@
           // Prices are re-fetched live from Yahoo extended-hours; the LIST
           // of names is still discovered from Polygon's 15m-delayed scan.
           const liveNote = d.price_basis === "yahoo-extended"
-            ? "prices live · list ~15m" : "delayed 15m";
+            ? "ext-hrs quotes · list ~15m" : "delayed 15m";
           stamp.textContent = phaseLabel() + " · " + t + " · " + liveNote;
           stamp.title = d.price_basis === "yahoo-extended"
             ? "Prices are near-real-time extended-hours (Yahoo includePrePost). " +
