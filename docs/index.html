@@ -3462,6 +3462,29 @@
   .chart-loading.chart-hidden { display:none; }
   .chart-foot { font-size:10.5px; color:var(--muted); margin-top:8px; }
   .chart-foot a { color:var(--gold); }
+  /* Key Levels ribbon */
+  .chart-levels { display:flex; gap:7px; overflow-x:auto; padding:2px 0 10px;
+    scrollbar-width:thin; }
+  .chart-levels:empty { display:none; }
+  .clv-chip { flex:0 0 auto; display:flex; flex-direction:column;
+    gap:1px; padding:6px 10px; border-radius:7px; background:var(--card);
+    border:1px solid var(--line); border-left-width:3px; min-width:88px;
+    line-height:1.2; }
+  .clv-lbl { font-size:9.5px; text-transform:uppercase; letter-spacing:.5px;
+    color:var(--muted); font-weight:600; }
+  .clv-val { font-size:13px; font-weight:700; color:var(--text);
+    font-variant-numeric:tabular-nums; }
+  .clv-dist { font-size:9.5px; color:var(--muted);
+    font-variant-numeric:tabular-nums; }
+  .clv-res  { border-left-color:var(--red); }
+  .clv-sup  { border-left-color:var(--green); }
+  .clv-neu  { border-left-color:var(--border2); }
+  .clv-evt  { border-left-color:var(--gold); }
+  .clv-res .clv-lbl { color:var(--red); }
+  .clv-sup .clv-lbl { color:var(--green); }
+  .clv-evt .clv-lbl { color:var(--gold); }
+  .chart-levels-note { flex:0 0 auto; align-self:center; font-size:10px;
+    color:var(--muted); padding-left:4px; }
 
   /* ── Unusual Options Activity dashboard ── */
   #panel-uoa { max-width:1180px; }
@@ -5594,6 +5617,9 @@
           Tip: use the TradingView toolbar for timeframes, chart type,
           indicators &amp; Compare (rel. strength vs SPY/QQQ).</span>
       </div>
+      <!-- Key Levels ribbon — computed from our own daily data, shown
+           alongside the real-time TradingView chart. -->
+      <div class="chart-levels" id="chart-levels" aria-label="Key levels"></div>
       <div class="chart-wrap">
         <div id="tv-chart-container" class="chart-tv"></div>
         <div class="chart-loading" id="chart-loading">Loading chart…</div>
@@ -13413,6 +13439,11 @@
     var theme = "light";           // Finviz default = clean white
     var lastSymbol = "SPY";
     var scriptRequested = false;
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+      });
+    }
 
     function defaultSymbol() {
       try {
@@ -13461,6 +13492,157 @@
       if (loading) loading.classList.add("chart-hidden");
       var meta = document.getElementById("charts-meta");
       if (meta) meta.textContent = "Showing " + lastSymbol + ".";
+      renderLevels(lastSymbol);
+    }
+
+    // ── Key Levels ribbon — computed from our own daily/intraday data ──
+    var _earnCache = null;   // earnings_anticipated.json (fetched once)
+    function fmtPx(v) {
+      if (v == null || !isFinite(v)) return "—";
+      return v >= 100 ? v.toFixed(2) : v.toFixed(v >= 1 ? 2 : 3);
+    }
+    function distPct(spot, level) {
+      if (!spot || !level) return "";
+      var d = (level - spot) / spot * 100;
+      return (d >= 0 ? "+" : "") + d.toFixed(1) + "%";
+    }
+    // Classify by position vs spot: above = resistance, below = support.
+    function clsFor(price, spot) {
+      if (spot == null || price == null) return "clv-neu";
+      if (price > spot * 1.0005) return "clv-res";
+      if (price < spot * 0.9995) return "clv-sup";
+      return "clv-neu";
+    }
+    function chipHtml(cls, label, price, spot) {
+      return '<div class="clv-chip ' + cls + '">' +
+        '<span class="clv-lbl">' + label + '</span>' +
+        '<span class="clv-val">' + fmtPx(price) + '</span>' +
+        '<span class="clv-dist">' + distPct(spot, price) + '</span></div>';
+    }
+    // ET hour+minute for a unix-seconds timestamp (premarket detection).
+    function etMinutes(tSec) {
+      try {
+        var s = new Date(tSec * 1000).toLocaleString("en-US",
+          { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit",
+            hour12: false });
+        var m = /(\d{1,2}):(\d{2})/.exec(s);
+        return m ? (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : null;
+      } catch (_) { return null; }
+    }
+    async function getPremarket(symbol) {
+      try {
+        var r = await fetch(WORKER_URL + "/?candles=" +
+          encodeURIComponent(symbol) + "&range=1d&interval=5m");
+        if (!r.ok) return null;
+        var j = await r.json();
+        var bars = j.bars || [];
+        var hi = null, lo = null;
+        bars.forEach(function (b) {
+          var mins = etMinutes(b.t);
+          if (mins != null && mins < 570) {   // before 9:30 AM ET
+            if (hi == null || b.h > hi) hi = b.h;
+            if (lo == null || b.l < lo) lo = b.l;
+          }
+        });
+        return (hi != null) ? { hi: hi, lo: lo } : null;
+      } catch (_) { return null; }
+    }
+    async function getEarnings(symbol) {
+      try {
+        if (!_earnCache) {
+          var r = await fetch("./reports/earnings_anticipated.json?cb=" +
+            Math.floor(Date.now() / 3600000));
+          _earnCache = r.ok ? await r.json() : [];
+        }
+        var list = Array.isArray(_earnCache)
+          ? _earnCache : (_earnCache.rows || _earnCache.data || []);
+        var hit = list.find(function (x) {
+          var t = (x.ticker || x.symbol || x.sym || "").toUpperCase();
+          return t === symbol.toUpperCase();
+        });
+        if (!hit) return null;
+        return hit.date || hit.earnings_date || hit.report_date ||
+          hit.when || null;
+      } catch (_) { return null; }
+    }
+    async function renderLevels(symbol) {
+      var host = document.getElementById("chart-levels");
+      if (!host) return;
+      host.innerHTML = '<span class="chart-levels-note">Loading key levels…</span>';
+      var data;
+      try {
+        var r = await fetch(WORKER_URL + "/?candles=" +
+          encodeURIComponent(symbol) + "&range=1y&interval=1d");
+        data = r.ok ? await r.json() : null;
+      } catch (_) { data = null; }
+      var bars = (data && data.bars) || [];
+      if (bars.length < 2) {
+        host.innerHTML = '<span class="chart-levels-note">' +
+          'Key levels unavailable for ' + esc(symbol) + '.</span>';
+        return;
+      }
+      // Treat the last bar as "today" (forming) and the one before as the
+      // prior completed session for PDH/PDL/pivots/gap.
+      var today = bars[bars.length - 1];
+      var prior = bars[bars.length - 2];
+      var spot = (data && data.price) || today.c;
+      // Derive prev close from the bars themselves — the endpoint's
+      // top-level `prevClose` can be stale/mis-scaled (observed SPY 617 vs
+      // a ~745 tape), while the daily bar series is internally consistent.
+      var prevClose = prior.c;
+      var pdh = prior.h, pdl = prior.l, pdc = prior.c;
+      // 52-week hi/lo across the (~252) daily bars.
+      var hi52 = -Infinity, lo52 = Infinity;
+      bars.forEach(function (b) {
+        if (b.h > hi52) hi52 = b.h;
+        if (b.l < lo52) lo52 = b.l;
+      });
+      // Classic floor-trader pivots from the prior session.
+      var P = (pdh + pdl + pdc) / 3;
+      var R1 = 2 * P - pdl, S1 = 2 * P - pdh;
+      var R2 = P + (pdh - pdl), S2 = P - (pdh - pdl);
+      // Gap: today's open vs prior close.
+      var gapPct = (today.o != null && prevClose)
+        ? (today.o - prevClose) / prevClose * 100 : null;
+
+      // Price-level ladder — sorted high→low, coloured by side vs spot.
+      var levels = [
+        ["52W High", hi52], ["R2", R2], ["R1", R1], ["Prior-day H", pdh],
+        ["Pivot", P], ["Prev Close", prevClose], ["Prior-day L", pdl],
+        ["S1", S1], ["S2", S2], ["52W Low", lo52],
+      ].filter(function (x) { return isFinite(x[1]); })
+       .sort(function (a, b) { return b[1] - a[1]; });
+
+      var html = levels.map(function (x) {
+        return chipHtml(clsFor(x[1], spot), x[0], x[1], spot);
+      }).join("");
+
+      // Gap chip (event-coloured).
+      if (gapPct != null) {
+        var gTxt = (gapPct >= 0 ? "+" : "") + gapPct.toFixed(1) + "%";
+        html += '<div class="clv-chip clv-evt"><span class="clv-lbl">Gap</span>' +
+          '<span class="clv-val">' + gTxt + '</span>' +
+          '<span class="clv-dist">' + fmtPx(prevClose) + "→" +
+          fmtPx(today.o) + '</span></div>';
+      }
+      host.innerHTML = html;   // render the core immediately
+
+      // Best-effort async extras: premarket H/L + next earnings.
+      getPremarket(symbol).then(function (pm) {
+        if (pm && document.getElementById("chart-levels") === host) {
+          host.insertAdjacentHTML("beforeend",
+            chipHtml(clsFor(pm.hi, spot), "Premkt H", pm.hi, spot) +
+            chipHtml(clsFor(pm.lo, spot), "Premkt L", pm.lo, spot));
+        }
+      });
+      getEarnings(symbol).then(function (dt) {
+        if (dt && document.getElementById("chart-levels") === host) {
+          host.insertAdjacentHTML("beforeend",
+            '<div class="clv-chip clv-evt"><span class="clv-lbl">Earnings</span>' +
+            '<span class="clv-val" style="font-size:11px">' + esc(String(dt)) +
+            '</span><span class="clv-dist">anticipated</span></div>');
+        }
+      });
     }
     function ensureScriptThen(cb) {
       if (window.TradingView) { cb(); return; }
