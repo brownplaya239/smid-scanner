@@ -157,6 +157,20 @@ def option_chain(underlying, contract_type=None, spot=None,
     return rows
 
 
+def option_contract(underlying, contract):
+    """Current snapshot for ONE option contract. Used by the next-morning
+    OI-retention check — after OCC settles overnight, open_interest reflects
+    whether yesterday's big print was actually held.
+
+    underlying : 'NVDA'   contract : full OCC ticker 'O:NVDA260710C00350000'
+    Returns the single contract snapshot dict (open_interest, day, details,
+    greeks, last_quote/last_trade), or None."""
+    data = _get(f"/v3/snapshot/options/{underlying}/{contract}")
+    if not data:
+        return None
+    return data.get("results") or None
+
+
 def option_trades(contract, day=None, limit=50000, max_pages=12):
     """Every executed trade for one option contract on a given day.
 

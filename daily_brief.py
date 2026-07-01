@@ -63,6 +63,7 @@ if hasattr(sys.stdout, "reconfigure"):
 ET = pytz.timezone("America/New_York")
 _BASE = os.path.dirname(os.path.abspath(__file__))
 REPORTS_DIR = os.path.join(_BASE, "docs", "reports")
+CARRYOVER_PATH = os.path.join(REPORTS_DIR, "carryover_flow.json")
 PREVIEW_PATH = os.path.join(_BASE, "docs", "email-previews", "daily_brief_preview.html")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -996,6 +997,98 @@ def _render_flow(flow) -> str:
     return _card("Unusual options flow", "".join(rows), "intraday batch · 15m delayed")
 
 
+def load_carryover() -> dict:
+    """Pre-open OI-confirmed carryover payload (from carryover_flow.py).
+    Returns {} when the file is absent or unreadable."""
+    try:
+        with open(CARRYOVER_PATH, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def _fmt_expiry_short(iso: str) -> str:
+    """'2026-07-02' → '7/2' (no leading zeros, no year)."""
+    try:
+        y, m, d = iso.split("-")
+        return f"{int(m)}/{int(d)}"
+    except Exception:
+        return iso or ""
+
+
+def _fmt_strike(v) -> str:
+    if not isinstance(v, (int, float)):
+        return esc(v)
+    return str(int(v)) if float(v).is_integer() else f"{v:g}"
+
+
+def _render_carryover(cf) -> str:
+    """@flowgod-style 'did the whales hold?' section: yesterday's notable
+    prints re-checked against this morning's OCC-settled open interest."""
+    contracts = (cf or {}).get("contracts") or []
+    if not contracts:
+        return ""
+    sess = _fmt_expiry_short(cf.get("session_date") or "") or "yesterday"
+    held = [c for c in contracts if c.get("held") is True]
+
+    # Block 1 — the confirmed ideas (whale held > half), as trade lines.
+    idea_rows = []
+    for c in held:
+        typ = (c.get("type") or "").upper().replace("CALL", "Call").replace("PUT", "Put")
+        typ = "Call" if typ.startswith("C") else ("Put" if typ.startswith("P") else typ)
+        exp = _fmt_expiry_short(c.get("expiry") or "")
+        prem = _fmt_premium(c.get("premium"))
+        px = c.get("avg_px")
+        px_txt = f" @ {px:g}" if isinstance(px, (int, float)) else ""
+        idea_rows.append(_row_wrap(
+            f'<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">'
+            f'<div>{_ticker_link(c.get("ticker"))}'
+            f'<span style="color:{CSS_TEXT};font-size:12.5px;margin-left:8px;">'
+            f'{_fmt_strike(c.get("strike"))} {esc(typ)} '
+            f'<span style="color:{CSS_MUTED};">({esc(exp)})</span></span></div>'
+            f'<div style="font-size:12px;color:{CSS_GREEN};font-weight:700;white-space:nowrap;">'
+            f'{esc(prem)}{esc(px_txt)} ✅</div></div>'))
+
+    # Block 2 — the OI update line for every carried contract (✅/❌).
+    oi_rows = []
+    for c in contracts:
+        held_c = c.get("held")
+        delta = c.get("delta")
+        vol = c.get("volume")
+        if held_c is None or delta is None or not vol:
+            frac = '<span style="color:%s;">OI pending</span>' % CSS_MUTED
+            mark = "…"
+            col = CSS_MUTED
+        else:
+            num = max(0, int(delta))
+            frac = f"{num:,}/{int(vol):,}"
+            mark = "✅" if held_c else "❌"
+            col = CSS_GREEN if held_c else CSS_RED
+        oi_rows.append(
+            f'<div style="display:flex;align-items:baseline;justify-content:space-between;'
+            f'padding:6px 14px;border-bottom:1px solid {CSS_BORDER};">'
+            f'<span>{_ticker_link(c.get("ticker"), 13)}</span>'
+            f'<span style="font-size:12px;color:{col};font-weight:700;'
+            f'font-variant-numeric:tabular-nums;">{frac} {mark}</span></div>')
+
+    parts = []
+    if idea_rows:
+        parts.append(
+            f'<div style="font-size:11px;font-weight:700;color:{CSS_MUTED};'
+            f'padding:10px 14px 4px;text-transform:uppercase;letter-spacing:.5px;">'
+            f'Noteworthy flow — OI confirmed</div>' + "".join(idea_rows))
+    parts.append(
+        f'<div style="font-size:11px;font-weight:700;color:{CSS_MUTED};'
+        f'padding:10px 14px 4px;text-transform:uppercase;letter-spacing:.5px;">'
+        f'Open interest update</div>' + "".join(oi_rows))
+    parts.append(
+        f'<div style="font-size:10.5px;color:{CSS_MUTED};padding:9px 14px;line-height:1.5;">'
+        f'✅ = whale held &gt;50% of the print overnight (Δ open interest ÷ flag-day volume). '
+        f'Not advice.</div>')
+    sub = f"{cf.get('held_count', len(held))}/{cf.get('total', len(contracts))} held · session {sess}"
+    return _card("Overnight flow — did the whales hold?", "".join(parts), sub)
+
+
 def _render_earnings(earn) -> str:
     rows = []
     for r in earn:
@@ -1087,7 +1180,7 @@ def _render_snapshot(snapshot) -> str:
     </div>'''
 
 
-def render_html(user, brief, brief_date) -> tuple[str, str]:
+def render_html(user, brief, brief_date, carryover=None) -> tuple[str, str]:
     name = esc((user.get("display_name") or "").strip() or "trader")
     subject, preheader = build_subject(brief)
 
@@ -1109,6 +1202,11 @@ def render_html(user, brief, brief_date) -> tuple[str, str]:
         f'</div>')
 
     parts.append(_render_playbook(brief["playbook"]))
+    # Overnight OI-confirmed carryover — pre-open flow context, so it sits
+    # high, right under the playbook.
+    co_html = _render_carryover(carryover)
+    if co_html:
+        parts.append(co_html)
     if brief["confluence"]:
         parts.append(_render_confluence(brief["confluence"]))
     parts.append(_render_changed(brief["changed"]))
@@ -1254,6 +1352,10 @@ def main():
     reports_by_tk = load_reports_by_ticker(hours=24)
     new_reports_all = load_new_reports_all(hours=24)
     market = load_market_context()
+    carryover = load_carryover()
+    if carryover.get("contracts"):
+        print(f"    carryover: {carryover.get('held_count')}/{carryover.get('total')} "
+              f"held (session {carryover.get('session_date')})")
     print(f"    swing:{len(swing)} uoa:{len(uoa)} earn/7d:{len(earnings)} "
           f"reports:{len(new_reports_all)} events:{len(market.get('events', []))}")
 
@@ -1280,7 +1382,7 @@ def main():
     for u in users:
         brief = build_brief(u["tickers"], swing, uoa, market_top, earnings,
                             reports_by_tk, new_reports_all, market)
-        subject, html_body = render_html(u, brief, brief_date)
+        subject, html_body = render_html(u, brief, brief_date, carryover)
         prefix = f"  → {u['email']:32s} ({len(u['tickers'])} tickers): "
 
         # Always write the first rendered email to the preview file.

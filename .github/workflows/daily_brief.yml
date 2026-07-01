@@ -26,6 +26,8 @@ on:
 jobs:
   daily-brief:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write          # commit the freshly-generated carryover file back
     env:
       # Service-role key bypasses RLS so we can read everyone's
       # watchlist + send mail on their behalf. NEVER expose this in
@@ -35,6 +37,8 @@ jobs:
       RESEND_API_KEY:       ${{ secrets.RESEND_API_KEY }}
       FROM_EMAIL:           ${{ secrets.FROM_EMAIL }}
       SITE_URL:             https://tickerdesk.io
+      # Pre-open OI-retention check on yesterday's notable flow.
+      POLYGON_API_KEY:      ${{ secrets.POLYGON_API_KEY }}
 
     steps:
       - name: Checkout repo
@@ -60,6 +64,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Build OI-confirmed carryover flow
+        # Re-checks yesterday's notable prints against this morning's
+        # OCC-settled open interest. Non-fatal: the brief still sends if
+        # this fails (e.g. Polygon hiccup) — it just omits the section.
+        run: python carryover_flow.py || echo "carryover generation failed (non-fatal)"
+
       - name: Send daily brief
         run: |
           ARGS=""
@@ -70,3 +80,20 @@ jobs:
             ARGS="$ARGS --me ${{ github.event.inputs.restrict_email }}"
           fi
           python daily_brief.py $ARGS
+
+      - name: Commit carryover flow for the Desk tile
+        # The Today's Desk "Overnight Flow" tile reads this file off Pages,
+        # so publish it back to the branch. Only commits when it changed.
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/reports/carryover_flow.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No carryover change to commit."
+          else
+            git commit -m "Carryover flow (OI-confirmed) — pre-open $(date -u +%Y-%m-%dT%H:%MZ)"
+            for i in 1 2 3; do
+              git pull --rebase --autostash origin ${{ github.ref_name }} && \
+              git push origin HEAD:${{ github.ref_name }} && break || sleep 5
+            done
+          fi

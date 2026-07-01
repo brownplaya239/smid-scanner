@@ -2005,6 +2005,34 @@
   .lm-row .lm-pct.down { color:var(--red); }
   .lm-none { color:var(--muted); font-size:11px; padding:4px 0; }
   .md-movers-card { margin-bottom:12px; }
+  /* Overnight Flow (OI-confirmed) tile */
+  .ovf-sub { font-size:9px; font-weight:800; letter-spacing:.5px;
+    text-transform:uppercase; color:var(--muted); margin:10px 0 5px;
+    padding-bottom:4px; border-bottom:1px solid var(--line); }
+  .ovf-sub:first-child { margin-top:2px; }
+  .ovf-idea { display:flex; align-items:baseline; gap:8px; padding:4px 0;
+    font-size:12px; cursor:pointer; }
+  .ovf-idea:hover .ovf-tk { color:var(--gold); }
+  .ovf-tk { font-weight:800; color:var(--text); min-width:52px; }
+  .ovf-con { color:var(--textdim); flex:1; min-width:0; }
+  .ovf-exp { color:var(--muted); }
+  .ovf-prem { font-weight:700; color:var(--green); white-space:nowrap;
+    font-variant-numeric:tabular-nums; }
+  .ovf-oi-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr));
+    gap:2px 14px; }
+  .ovf-oi { display:flex; align-items:baseline; justify-content:space-between;
+    gap:8px; padding:3px 0; font-size:12px; cursor:pointer; }
+  .ovf-oi:hover .ovf-tk { color:var(--gold); }
+  .ovf-frac { font-weight:700; font-variant-numeric:tabular-nums;
+    white-space:nowrap; }
+  .ovf-frac.ovf-held { color:var(--green); }
+  .ovf-frac.ovf-cut  { color:var(--red); }
+  .ovf-frac.ovf-pend { color:var(--muted); font-weight:500; }
+  .ovf-foot { font-size:10px; color:var(--muted); margin-top:9px;
+    padding-top:7px; border-top:1px solid var(--line); line-height:1.5; }
+  @media (max-width:560px) {
+    .ovf-oi-grid { grid-template-columns:minmax(0,1fr); }
+  }
   .lm-foot { margin-top:9px; padding-top:7px; border-top:1px solid var(--line);
     font-size:10px; color:var(--muted); }
   /* Full-width divider between the live block and the EOD cards */
@@ -16425,6 +16453,79 @@
     }
     function empty(msg) { return '<div class="desk-empty">' + msg + '</div>'; }
 
+    // ── Overnight Flow (OI-confirmed) ────────────────────────────────
+    // Yesterday's notable option prints, re-checked against this morning's
+    // OCC-settled open interest: did the whale actually HOLD the position?
+    // held = (today_OI − flag_OI) / flag_volume ≥ 0.5. Generated pre-open
+    // by carryover_flow.py; most relevant before the open, so it relabels
+    // (not hides) once RTH starts. Returns "" when there's no data yet.
+    function cardOvernightFlow(carryover) {
+      const co = carryover || (window.TD_DATA && window.TD_DATA.carryover);
+      const contracts = (co && co.contracts) || [];
+      if (!contracts.length) return "";
+      const open = (typeof isMarketOpenET === "function") ? isMarketOpenET() : false;
+      const title = open ? "Yesterday's Flow · OI-confirmed"
+                         : "Overnight Flow · OI-confirmed";
+      const fmtPrem = function (p) {
+        if (!p && p !== 0) return "";
+        return p >= 1e6 ? "$" + (p / 1e6).toFixed(1) + "M"
+             : p >= 1e3 ? "$" + Math.round(p / 1e3) + "K" : "$" + p;
+      };
+      const fmtExp = function (iso) {
+        const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso || "");
+        return m ? (+m[1]) + "/" + (+m[2]) : "";
+      };
+      const fmtStrike = function (v) {
+        return (typeof v === "number")
+          ? (Number.isInteger(v) ? String(v) : String(v)) : (v || "");
+      };
+      const held = contracts.filter(function (c) { return c.held === true; });
+      // Block 1 — confirmed ideas (held), capped for readability.
+      const ideaRows = held.slice(0, 6).map(function (c) {
+        const typ = /^p/i.test(c.type || "") ? "Put" : "Call";
+        const px = (typeof c.avg_px === "number") ? " @ " + c.avg_px : "";
+        return '<div class="ovf-idea" data-t="' + c.ticker + '">' +
+          '<span class="ovf-tk">' + c.ticker + '</span>' +
+          '<span class="ovf-con">' + fmtStrike(c.strike) + ' ' + typ +
+            ' <span class="ovf-exp">(' + fmtExp(c.expiry) + ')</span></span>' +
+          '<span class="ovf-prem">' + fmtPrem(c.premium) + px + ' ✅</span>' +
+          '</div>';
+      }).join("");
+      // Block 2 — OI update for every carried contract (✅/❌).
+      const oiRows = contracts.map(function (c) {
+        let frac, mark, cls;
+        if (c.held === null || c.delta === null || !c.volume) {
+          frac = "OI pending"; mark = "…"; cls = "ovf-pend";
+        } else {
+          frac = Math.max(0, c.delta).toLocaleString() + "/" +
+                 c.volume.toLocaleString();
+          mark = c.held ? "✅" : "❌";
+          cls = c.held ? "ovf-held" : "ovf-cut";
+        }
+        return '<div class="ovf-oi" data-t="' + c.ticker + '">' +
+          '<span class="ovf-tk">' + c.ticker + '</span>' +
+          '<span class="ovf-frac ' + cls + '">' + frac + ' ' + mark + '</span>' +
+          '</div>';
+      }).join("");
+      const sess = fmtExp(co.session_date) || "prior session";
+      const stamp = { cls: open ? "current" : "fresh",
+        label: (open ? "Pre-open · " : "Latest · ") + "session " + sess,
+        full: "Yesterday's notable prints re-checked against this morning's " +
+              "OCC-settled open interest. ✅ = whale held >50% of the print " +
+              "(Δ OI ÷ flag-day volume ≥ 0.5). 15-min delayed source data." };
+      const body =
+        (ideaRows
+          ? '<div class="ovf-sub">Held overnight — whale kept &gt;50%</div>' +
+            ideaRows
+          : '<div class="desk-empty">No prints confirmed held overnight.</div>') +
+        '<div class="ovf-sub">Open interest update</div>' +
+        '<div class="ovf-oi-grid">' + oiRows + '</div>' +
+        '<div class="ovf-foot">' + (co.held_count || held.length) + '/' +
+          (co.total || contracts.length) + ' held &middot; ✅ = Δ OI ' +
+          '&ge; 50% of flag-day volume</div>';
+      return desk(title, body, "desk-card--wide", stamp);
+    }
+
     // ── Live Movers (part B) — biggest intraday % moves among the names
     // this desk covers, straight from the live 15m-delayed quote cache.
     // Pure real-time: no EOD data involved. ─────────────────────────────
@@ -18572,6 +18673,9 @@
             return fetchJSON("./reports/economic_calendar.json");
           }),
         fetchJSON("./reports/uoa_meta_cache.json"),
+        // Pre-open OI-confirmed carryover (tiny — a few KB) for the
+        // "Overnight Flow" tile. Absent/empty until the morning brief run.
+        fetchJSON("./reports/carryover_flow.json"),
       ]).then(function (arr) {
         const swing = arr[1], uoaMeta = arr[6];
         DESK_DATE = (swing && swing.runs && swing.runs.length)
@@ -18585,6 +18689,7 @@
         window.TD_DATA.manifest = arr[4];
         window.TD_DATA.cal = arr[5];
         window.TD_DATA.uoaMeta = arr[6];
+        window.TD_DATA.carryover = arr[7];
       });
     }
     // Render the desk grid from whatever is already in window.TD_DATA — no
@@ -18663,6 +18768,7 @@
           cardLiveMovers(swing, uoa),          // pure live intraday movers
           cardMarketHealth(swing),             // live intraday breadth
           cardTopFlow(uoa),                    // live options flow
+          cardOvernightFlow(D.carryover),      // pre-open OI-confirmed carryover
           cardActionList(ctx, swing, uoa, uoaMeta, today),  // actionable synth
           '<div class="desk-divider"><span>End-of-day — grades &amp; ' +
             'setups from the last post-close batch (4:30 PM ET); these ' +
