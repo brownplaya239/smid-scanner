@@ -2307,6 +2307,81 @@ async function handleMyReports(request, env, cors) {
   return Response.json({ ok: true, reports: out }, { headers: cors });
 }
 
+// ── One-click email unsubscribe (RFC 8058) ───────────────────────────
+// The Daily Brief email carries a List-Unsubscribe header + footer link
+// pointing here with ?u=<user_id>&t=<sig>, where sig = first 40 hex of
+// HMAC-SHA256(SUPABASE_SERVICE_KEY, user_id). We recompute the HMAC with
+// the same shared service key and, on match, flip
+// profiles.daily_brief_enabled=false — no login required. Handles both
+// GET (a human clicking the footer link → HTML confirmation) and POST
+// (the mail client's one-click List-Unsubscribe-Post → 200).
+function _timingSafeEq(a, b) {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+async function handleUnsubscribe(request, env) {
+  const htmlHdr = { "Content-Type": "text/html; charset=utf-8",
+                    "X-Content-Type-Options": "nosniff" };
+  const page = function (title, msg) {
+    return new Response(
+      '<!doctype html><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<title>' + title + '</title>' +
+      '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,' +
+      'sans-serif;max-width:460px;margin:64px auto;padding:0 20px;text-align:center;">' +
+      '<h2 style="margin:0 0 10px;color:#1a1a1a;">' + title + '</h2>' +
+      '<p style="color:#555;line-height:1.6;">' + msg + '</p>' +
+      '<p style="margin-top:22px;"><a href="https://tickerdesk.io" ' +
+      'style="color:#c8891a;text-decoration:none;font-weight:600;">' +
+      'Return to TickerDesk &rarr;</a></p></div>', { headers: htmlHdr });
+  };
+  const url = new URL(request.url);
+  const uid = url.searchParams.get("u") || "";
+  const tok = (url.searchParams.get("t") || "").toLowerCase();
+  if (!uid || !tok || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return new Response("Bad request", { status: 400, headers: htmlHdr });
+  }
+  let expected = "";
+  try {
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey("raw",
+      enc.encode(env.SUPABASE_SERVICE_KEY),
+      { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const sig = await crypto.subtle.sign("HMAC", key, enc.encode(uid));
+    expected = [...new Uint8Array(sig)]
+      .map(function (b) { return b.toString(16).padStart(2, "0"); })
+      .join("").slice(0, 40);
+  } catch (e) {
+    return new Response("Server error", { status: 500, headers: htmlHdr });
+  }
+  if (!_timingSafeEq(tok, expected)) {
+    return page("Link expired",
+      "This unsubscribe link is invalid or has expired. You can manage " +
+      "email preferences from your account on TickerDesk.");
+  }
+  try {
+    await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/profiles?id=eq." + encodeURIComponent(uid), {
+      method: "PATCH",
+      headers: { "apikey": env.SUPABASE_SERVICE_KEY,
+                 "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+                 "Content-Type": "application/json",
+                 "Prefer": "return=minimal" },
+      body: JSON.stringify({ daily_brief_enabled: false }) });
+  } catch (e) {
+    return new Response("Server error", { status: 500, headers: htmlHdr });
+  }
+  // RFC 8058 one-click POST expects a plain 200 (no body needed).
+  if (request.method === "POST") {
+    return new Response("Unsubscribed", { status: 200, headers: htmlHdr });
+  }
+  return page("You're unsubscribed",
+    "You won't receive any more TickerDesk Daily Brief emails. You can turn " +
+    "them back on anytime from your Watchlist settings.");
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -2351,6 +2426,11 @@ export default {
     // My Reports — the signed-in user's private report history + signed URLs.
     if (urlPath === "/my-reports" && request.method === "GET") {
       return handleMyReports(request, env, cors);
+    }
+    // One-click email unsubscribe (GET link + RFC 8058 POST). Signed token.
+    if (urlPath === "/unsubscribe" &&
+        (request.method === "GET" || request.method === "POST")) {
+      return handleUnsubscribe(request, env);
     }
 
     // GET — market-quote proxy (?quotes=SPY,QQQ,...), daily-candle proxy

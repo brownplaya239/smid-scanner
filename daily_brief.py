@@ -43,11 +43,14 @@ so you can eyeball the email in a browser without sending anything.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import html
 import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -67,6 +70,27 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 FROM_EMAIL = os.environ.get("FROM_EMAIL") or "TickerDesk <brief@tickerdesk.io>"
 SITE_URL = os.environ.get("SITE_URL") or "https://tickerdesk.io"
+# Worker that hosts the one-click /unsubscribe endpoint (flips
+# profiles.daily_brief_enabled=false after verifying the signed token).
+WORKER_URL = (os.environ.get("WORKER_URL")
+              or "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev")
+
+
+def _unsub_sig(user_id: str) -> str:
+    """HMAC-SHA256(service_key, user_id) — the worker recomputes this with
+    the same shared SUPABASE_SERVICE_KEY to authorize a one-click
+    unsubscribe without any login. The key never leaves the server; only
+    the 40-hex digest travels in the URL."""
+    key = (SUPABASE_SERVICE_KEY or "td-dev-unsub").encode("utf-8")
+    return hmac.new(key, user_id.encode("utf-8"), hashlib.sha256).hexdigest()[:40]
+
+
+def unsub_url(user_id: str) -> str:
+    """Signed one-click unsubscribe link for a given user."""
+    if not user_id:
+        return f"{SITE_URL}/#watchlist"
+    q = urllib.parse.urlencode({"u": user_id, "t": _unsub_sig(user_id)})
+    return f"{WORKER_URL}/unsubscribe?{q}"
 
 GRADE_ORDER = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-",
                "D+", "D", "D-", "E+", "E", "E-", "F+", "F", "F-", "G+", "G"]
@@ -1107,10 +1131,12 @@ def render_html(user, brief, brief_date) -> tuple[str, str]:
         f'News: cached intraday.<br>'
         f'Not investment advice. Verify against your broker before trading.'
         f'</div>')
+    uurl = unsub_url(user.get("user_id") or "")
     parts.append(
         f'<div style="margin-top:14px;font-size:11px;color:{CSS_MUTED};">'
-        f'Daily Brief is on for your account. '
-        f'<a href="{SITE_URL}/#watchlist" style="color:{CSS_ACCENT};text-decoration:none;">Manage</a> · '
+        f"You're receiving this because Daily Brief is on for your account. "
+        f'<a href="{uurl}" style="color:{CSS_ACCENT};text-decoration:none;">Unsubscribe</a> · '
+        f'<a href="{SITE_URL}/#watchlist" style="color:{CSS_ACCENT};text-decoration:none;">Manage preferences</a> · '
         f'<a href="{SITE_URL}" style="color:{CSS_ACCENT};text-decoration:none;">Open TickerDesk</a>'
         f'</div></div></div>')
     return subject, "".join(parts)
@@ -1120,13 +1146,24 @@ def render_html(user, brief, brief_date) -> tuple[str, str]:
 # Resend send
 # ─────────────────────────────────────────────────────────────────────
 
-def send_email(to_email: str, subject: str, html_body: str) -> tuple[bool, str]:
+def send_email(to_email: str, subject: str, html_body: str,
+               unsub: str = "") -> tuple[bool, str]:
     if not RESEND_API_KEY:
         return False, "RESEND_API_KEY not set"
-    body = json.dumps({
+    payload: dict[str, Any] = {
         "from": FROM_EMAIL, "to": [to_email],
         "subject": subject, "html": html_body,
-    }).encode("utf-8")
+    }
+    # RFC 8058 one-click unsubscribe. Gmail/Yahoo/Apple render a native
+    # "Unsubscribe" control from these headers and (for List-Unsubscribe-Post)
+    # POST the URL directly — no login, no round trip through the inbox.
+    # Required by Gmail/Yahoo bulk-sender rules before scaling volume.
+    if unsub and unsub.startswith("http"):
+        payload["headers"] = {
+            "List-Unsubscribe": f"<{unsub}>",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        }
+    body = json.dumps(payload).encode("utf-8")
     # Resend sits behind Cloudflare; the default urllib UA trips WAF rule
     # 1010, so send a real-looking UA.
     req = urllib.request.Request(
@@ -1261,7 +1298,8 @@ def main():
             skipped += 1
             continue
 
-        ok, resp = send_email(u["email"], subject, html_body)
+        ok, resp = send_email(u["email"], subject, html_body,
+                              unsub=unsub_url(u.get("user_id") or ""))
         if ok:
             print(prefix + f"sent ({subject})")
             log_email(u["user_id"], u["email"], iso_date, "sent", subject,
