@@ -552,10 +552,11 @@
   .md-news-row:first-child { border-top:0; }
   .md-news-row .mn-time { font-family:monospace; font-size:10px; color:var(--muted); }
   .md-news-row .mn-hl { font-size:12.5px; color:var(--text); line-height:1.35;
-    cursor:pointer; }
-  .md-news-row .mn-hl:hover { color:var(--gold); }
-  .md-news-row .mn-tk { font-size:9.5px; color:var(--gold); margin-left:6px;
-    white-space:nowrap; }
+    text-decoration:none; }
+  .md-news-row a.mn-hl:hover { color:var(--gold); text-decoration:underline; }
+  .md-news-row .mn-tk { font-size:9.5px; color:var(--gold); margin-left:5px;
+    white-space:nowrap; cursor:pointer; padding:0 3px; border-radius:3px; }
+  .md-news-row .mn-tk:hover { background:rgba(255,200,0,0.16); }
   .md-news-row.mn-fresh { animation:niFresh 6s ease-out forwards; }
   .md-news-empty { font-size:11.5px; color:var(--muted); font-style:italic;
     padding:6px 0; }
@@ -15580,14 +15581,21 @@
         html = '<div class="md-news-empty">No live headlines yet.</div>';
       } else {
         html = rows.slice(0, 7).map(function (r) {
-          const tks = (r.symbols || []).slice(0, 2);
+          const tks = (r.symbols || []).slice(0, 3);
           const fresh = (!first && r.id && !seen.has(r.id)) ? " mn-fresh" : "";
+          const url = r.url || "";
+          // Headline links to the article; ticker chips open the drilldown.
+          const hl = url
+            ? '<a class="mn-hl" href="' + esc(url) +
+              '" target="_blank" rel="noopener">' + esc(r.headline) + '</a>'
+            : '<span class="mn-hl mn-nolink">' + esc(r.headline) + '</span>';
+          const tkHtml = tks.map(function (t) {
+            return '<span class="mn-tk" data-t="' + esc(t) +
+              '" title="Open ' + esc(t) + ' drilldown">' + esc(t) + '</span>';
+          }).join("");
           return '<div class="md-news-row' + fresh + '">' +
             '<span class="mn-time">' + fmtT(r.published_at) + '</span>' +
-            '<span><span class="mn-hl" data-t="' + esc(tks[0] || "") + '">' +
-              esc(r.headline) + '</span>' +
-              (tks.length ? '<span class="mn-tk">' + esc(tks.join(" ")) + '</span>' : '') +
-            '</span></div>';
+            '<span>' + hl + (tkHtml ? ' ' + tkHtml : '') + '</span></div>';
         }).join("");
       }
       lists().forEach(function (el) { el.innerHTML = html; });
@@ -15603,7 +15611,7 @@
     function poll() {
       // Small 12-row query — poll regardless of focus so the cards are always
       // pre-filled when a desk is opened.
-      fetch(SUPA_URL + "/rest/v1/news_live?select=id,headline,symbols," +
+      fetch(SUPA_URL + "/rest/v1/news_live?select=id,headline,symbols,url," +
           "published_at&order=published_at.desc&limit=12",
           { headers: { "apikey": SUPA_ANON,
                        "Authorization": "Bearer " + SUPA_ANON } })
@@ -15612,9 +15620,10 @@
         .catch(function () {});
     }
     document.addEventListener("click", function (e) {
-      const hl = e.target.closest && e.target.closest(".td-news-list .mn-hl");
-      if (!hl) return;
-      const t = hl.dataset.t;
+      const tk = e.target.closest && e.target.closest(".td-news-list .mn-tk[data-t]");
+      if (!tk) return;
+      e.preventDefault();
+      const t = tk.dataset.t;
       if (t && window.tdOpenDrilldown) window.tdOpenDrilldown(t);
     });
     poll();
