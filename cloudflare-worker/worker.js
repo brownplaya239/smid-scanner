@@ -550,19 +550,23 @@ async function handlePortfolioOCR(request, env, cors) {
   }
   const instr =
     "You are reading a screenshot of a stock brokerage account or " +
-    "portfolio/watchlist. Extract every distinct EQUITY position or line " +
-    "item you can see. For each, capture:\n" +
-    "  - ticker: the US stock symbol (uppercase, letters/dots/dashes, 1-6 " +
-    "chars). If only a company name is shown and you are confident of its " +
-    "ticker, use it; otherwise omit the row.\n" +
-    "  - weight: the position's market value / dollar value if a value or " +
-    "'Mkt Value' column is visible (number only, no $ or commas). If no " +
-    "dollar value is shown, use null.\n" +
+    "portfolio/watchlist (e.g. Interactive Brokers, Fidelity, Schwab, " +
+    "Robinhood). Extract every distinct tradeable position so the user can " +
+    "add the underlying tickers to a watchlist. For each, capture:\n" +
+    "  - ticker: the US ticker symbol (uppercase, letters/dots/dashes, 1-6 " +
+    "chars). For an OPTION line, use the UNDERLYING stock ticker only — e.g. " +
+    "\"ONDS Aug21'26 9 CALL\" -> \"ONDS\", \"TE Sep18'26 12 CALL\" -> \"TE\". " +
+    "ETFs (e.g. IBIT) are valid tickers, keep them. If only a company name " +
+    "is shown and you are confident of its ticker, use it; otherwise omit.\n" +
+    "  - weight: the position's market value / dollar value if a 'Market " +
+    "Value' / 'Mkt Value' column is visible (number only, no $ or commas). " +
+    "If no dollar value is shown, use null.\n" +
     "  - name: the company name if visible, else null.\n" +
-    "Ignore cash, totals, indices/ETF benchmarks used as headers, option " +
-    "contracts, and anything that is not a tradeable US stock ticker. Do " +
-    "NOT guess or hallucinate tickers you cannot read. Return ONLY a JSON " +
-    "object of the exact shape " +
+    "IGNORE cash rows (TOTAL CASH, USD CASH, EUR CASH), account totals, " +
+    "subtotals, and header/summary figures (Net Liquidity, Buying Power, " +
+    "P&L). Do NOT guess or hallucinate tickers you cannot read. If the same " +
+    "underlying appears more than once (e.g. shares plus an option), include " +
+    "it once. Return ONLY a JSON object of the exact shape " +
     "{\"positions\":[{\"ticker\":\"NVDA\",\"weight\":12000,\"name\":\"NVIDIA\"}]} " +
     "with no prose, no markdown fences.";
   let j;
