@@ -4726,10 +4726,12 @@
             </div>
 
             <!-- Screenshot / CSV auto-import -->
-            <label class="wlt-drop" id="wlt-drop" for="wlt-file-input">
+            <label class="wlt-drop" id="wlt-drop" for="wlt-file-input"
+                   tabindex="0">
               <div class="wlt-drop-icon">📸</div>
-              <div class="wlt-drop-title">Drop a portfolio screenshot or CSV</div>
-              <div class="wlt-drop-sub">or <b>click to choose a file</b> —
+              <div class="wlt-drop-title">Paste, drop, or upload your portfolio</div>
+              <div class="wlt-drop-sub"><b>Paste a screenshot</b> (Ctrl/⌘V) ·
+                drop an image or CSV · or <b>click to choose a file</b> —
                 we read the tickers &amp; position sizes automatically</div>
               <input type="file" id="wlt-file-input"
                 accept="image/png,image/jpeg,image/webp,image/gif,.csv,.tsv,.txt,text/csv" />
@@ -9195,6 +9197,41 @@
         const f = e.dataTransfer && e.dataTransfer.files &&
           e.dataTransfer.files[0];
         if (f) wltHandleFile(f);
+      });
+
+      // Paste-to-import — grab an image straight off the clipboard (e.g.
+      // a screenshot copied with the OS snip tool) without saving a file.
+      // Extract any image item and route it through the same OCR path.
+      const wltPasteImage = function (e) {
+        const cd = e.clipboardData || window.clipboardData;
+        if (!cd) return false;
+        const items = cd.items || [];
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].kind === "file" && /^image\//.test(items[i].type)) {
+            const blob = items[i].getAsFile();
+            if (blob) {
+              e.preventDefault();
+              // Some clipboards name the blob "" — give it an extension so
+              // the type router recognises it as an image.
+              const named = (blob.name && /\.\w+$/.test(blob.name))
+                ? blob
+                : new File([blob], "pasted-screenshot.png",
+                    { type: blob.type || "image/png" });
+              wltHandleFile(named);
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+      // Catch a paste anywhere on the page while the importer is visible —
+      // but only for images, so pasting ticker text into the textarea (or
+      // anywhere else) keeps its normal behaviour. This also covers the
+      // case where the drop zone itself is focused, since paste bubbles to
+      // document (a non-editable element doesn't receive its own paste).
+      document.addEventListener("paste", function (e) {
+        if (!wltDrop || wltDrop.offsetParent === null) return; // importer hidden
+        wltPasteImage(e);   // no-op unless the clipboard holds an image
       });
     }
 
