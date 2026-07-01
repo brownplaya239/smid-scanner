@@ -28,10 +28,12 @@ from statistics import mean, median
 import polygon_data as pg
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
-LEDGER_PATH = os.path.join(_BASE, "docs", "reports", "uoa_signals.jsonl")
+# Internal ETL state (ledger + alpha cache) lives in data/ so it stays OUT of
+# the public Pages artifact. EDGE/SCORED stay in docs/reports (browser-served).
+LEDGER_PATH = os.path.join(_BASE, "data", "uoa_signals.jsonl")
 EDGE_PATH   = os.path.join(_BASE, "docs", "reports", "uoa_edge.json")
 SCORED_PATH = os.path.join(_BASE, "docs", "reports", "uoa_signals_scored.json")
-ALPHA_CACHE_PATH = os.path.join(_BASE, "docs", "reports", "uoa_alpha_cache.json")
+ALPHA_CACHE_PATH = os.path.join(_BASE, "data", "uoa_alpha_cache.json")
 
 FINAL_AGE_DAYS = 35   # a signal this old has every horizon matured — freeze it
 WORKERS = 24          # fan out bar/OI pulls; modest — _oi_now pulls full chains

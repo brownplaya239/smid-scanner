@@ -33,14 +33,16 @@ import polygon_data as pg
 import themes
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
-LEDGER_PATH = os.path.join(_BASE, "docs", "reports", "uoa_signals.jsonl")
+# Internal ETL state (signals ledger) lives in data/ so it stays OUT of the
+# public GitHub Pages artifact — still committed to git for cross-run state.
+LEDGER_PATH = os.path.join(_BASE, "data", "uoa_signals.jsonl")
 LATEST_PATH = os.path.join(_BASE, "docs", "reports", "uoa_latest.json")
 META_CACHE_PATH = os.path.join(_BASE, "docs", "reports", "uoa_meta_cache.json")
 # OI history cache — one entry per contract OCC ticker. Each scan reads
 # the previous day's OI for delta computation, then writes today's.
 # Schema: { "O:NVDA260620C00220000": {"date": "2026-05-28", "oi": 1234}, ... }
 # Persisted across runs so the 6×/day cadence doesn't lose state.
-OI_HISTORY_PATH = os.path.join(_BASE, "docs", "reports", "uoa_oi_history.json")
+OI_HISTORY_PATH = os.path.join(_BASE, "data", "uoa_oi_history.json")  # internal state, out of Pages
 
 # ─── Screen thresholds (tunable) ──────────────────────────────────────────────
 

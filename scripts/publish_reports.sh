@@ -21,7 +21,14 @@ set -u
 git config user.name  "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-git add docs/reports/ || true
+# Cap the public archive so the GitHub Pages artifact stays small: keep only
+# the 10 most-recent PDFs per report type (older ones removed here + pruned
+# from manifest.json). git history retains everything. Internal ETL state
+# (uoa_signals.jsonl / uoa_oi_history.json / uoa_alpha_cache.json) lives in
+# data/ — committed for cross-run persistence, but OUT of the Pages folder.
+python -c "from report_archive import rebuild_manifest; rebuild_manifest(keep_per_type=10)" || true
+
+git add docs/reports/ data/ || true
 if git diff --staged --quiet; then
   echo "No new reports to publish"
   exit 0
@@ -33,10 +40,10 @@ for attempt in 1 2 3 4 5; do
   git fetch origin master
 
   if ! git rebase origin/master; then
-    # EVERY file under docs/reports/ is machine-generated and rewritten
-    # whole each run (scanners overwrite uoa_latest / uoa_edge /
-    # uoa_signals_scored / uoa_oi_history; altdata_history append-only;
-    # manifest rebuilt from PDFs). On a concurrent-run conflict the
+    # EVERY file under docs/reports/ + data/ is machine-generated and
+    # rewritten whole each run (scanners overwrite uoa_latest / uoa_edge /
+    # uoa_signals_scored; data/ holds the ledger + oi_history; altdata_history
+    # append-only; manifest rebuilt from PDFs). On a concurrent-run conflict the
     # INCOMING (origin) copy is always at least as fresh, so resolve
     # EVERY conflicted path with --theirs.
     #
@@ -54,8 +61,8 @@ for attempt in 1 2 3 4 5; do
     fi
     # Manifest is derived from the PDF set — rebuild after taking theirs
     # so it reflects this run's newly-added reports too.
-    python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || true
-    git add docs/reports/
+    python -c "from report_archive import rebuild_manifest; rebuild_manifest(keep_per_type=10)" || true
+    git add docs/reports/ data/
     if ! GIT_EDITOR=true git rebase --continue; then
       git rebase --abort || true
       echo "Rebase failed on attempt ${attempt}; retrying..."
