@@ -39,6 +39,14 @@ from uoa_scanner import EXCLUDE_ETFS, _sic_sector
 ET = pytz.timezone("America/New_York")
 _BASE = os.path.dirname(os.path.abspath(__file__))
 OUT_PATH = os.path.join(_BASE, "docs", "reports", "swing_report.json")
+# Lightweight desk-paint derivatives. The full OUT_PATH history is ~15 MB
+# (40 runs × ~1,100 tickers each) — far too heavy to fetch on every desk
+# mount, especially on mobile / paid traffic. The dashboard's Today's Desk
+# only ever reads the latest run (+ the prior one for grade-change diffs),
+# so we also emit a 2-run summary (<1 MB) and an ultra-light top-line.
+# The full file stays for the Swing tab's run-date history (lazy-loaded).
+LATEST_SUMMARY_PATH = os.path.join(_BASE, "docs", "reports", "swing_latest_summary.json")
+DESK_SUMMARY_PATH   = os.path.join(_BASE, "docs", "reports", "desk_summary.json")
 META_CACHE_PATH = os.path.join(_BASE, "docs", "reports", "swing_meta_cache.json")
 META_REFRESH_DAYS = 30           # company name/sector/exchange change slowly
 
@@ -516,6 +524,57 @@ def _emit(run_obj):
         json.dump({"updated": run_obj["generated"], "runs": runs}, f,
                   separators=(",", ":"))
     print(f"  Wrote swing_report.json ({len(runs)} run(s) in history)")
+    try:
+        _emit_summaries(runs)
+    except Exception as e:
+        print(f"  (summary emit skipped: {type(e).__name__}: {e})")
+
+
+def _emit_summaries(runs):
+    """Emit the desk-paint derivatives alongside the full history.
+
+    swing_latest_summary.json — {updated, runs:[prior, latest]}: identical
+      SHAPE to swing_report.json (full per-ticker objects, spark included)
+      so every existing desk consumer works unchanged, but only the two
+      runs the desk actually reads. This is what Today's Desk fetches.
+
+    desk_summary.json — an ultra-light top-line (counts, bull%, a compact
+      A-tier list with NO spark arrays) for the lightest possible desk
+      header read. Emitted for completeness; safe to ignore downstream.
+    """
+    if not runs:
+        return
+    latest = runs[-1]
+    last2 = runs[-2:]
+    with open(LATEST_SUMMARY_PATH, "w", encoding="utf-8") as f:
+        json.dump({"updated": latest["generated"], "runs": last2}, f,
+                  separators=(",", ":"))
+
+    def _slim(card, grade):
+        # Keep only the fields a desk header needs; drop the heavy spark
+        # array + metadata. Card keys: t, p, chg, ext (see grades build).
+        return {"t": card.get("t"), "grade": grade, "n": card.get("n"),
+                "p": card.get("p"), "chg": card.get("chg"),
+                "ext": card.get("ext")}
+
+    a_tier = []
+    for g in ("A+", "A", "A-"):
+        for c in (latest.get("grades", {}).get(g, []) or []):
+            a_tier.append(_slim(c, g))
+    desk = {
+        "updated":     latest["generated"],
+        "date":        latest.get("date"),
+        "total":       latest.get("total"),
+        "bullish_pct": latest.get("bullish_pct"),
+        "bearish_pct": latest.get("bearish_pct"),
+        "counts":      latest.get("counts", {}),
+        "themes":      (latest.get("themes") or [])[:12],
+        "top_a":       a_tier[:40],
+    }
+    with open(DESK_SUMMARY_PATH, "w", encoding="utf-8") as f:
+        json.dump(desk, f, separators=(",", ":"))
+    print(f"  Wrote swing_latest_summary.json ({len(last2)} run(s)) "
+          f"+ desk_summary.json")
 
 
 if __name__ == "__main__":

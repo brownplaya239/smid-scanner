@@ -18547,7 +18547,15 @@
     function fetchDeskData() {
       return Promise.all([
         fetchJSON("./reports/uoa_latest.json"),
-        fetchJSON("./reports/swing_report.json"),
+        // The desk only reads the latest run (+ the prior one for grade
+        // diffs), so pull the ~0.9 MB 2-run summary instead of the full
+        // ~15 MB history — the single biggest initial-load win, esp. on
+        // mobile. Fall back to the full file if the summary isn't
+        // published yet (first deploy before the next swing run).
+        fetchJSON("./reports/swing_latest_summary.json").then(function (s) {
+          return (s && s.runs && s.runs.length)
+            ? s : fetchJSON("./reports/swing_report.json");
+        }),
         fetchJSON("./reports/momentum_qm.json"),
         fetchJSON("./reports/momentum_stockbee.json"),
         fetchJSON("./reports/manifest.json"),
@@ -19793,41 +19801,59 @@
       if (e.target.closest("[data-change]")) hideChangePop();
     });
 
-    // Load the swing report + uoa meta cache in parallel — the meta cache
-    // gives us the raw market_cap figure used in the hover popup.
-    Promise.all([
-      fetch("./reports/swing_report.json", { cache: "no-cache" })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .catch(function () { return null; }),
-      fetch("./reports/uoa_meta_cache.json", { cache: "no-cache" })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .catch(function () { return null; }),
-    ]).then(function (arr) {
-      const d = arr[0];
-      META = arr[1] || {};
-      // Publish to global drilldown cache (setupSwing may load before setupDesk)
-      if (!window.TD_DATA.swing) window.TD_DATA.swing = d;
-      if (!window.TD_DATA.uoaMeta) window.TD_DATA.uoaMeta = META;
-      if (window.tdSetFreshness && d) {
-        const ts = d.updated || (d.runs && d.runs[d.runs.length - 1] &&
-                                 d.runs[d.runs.length - 1].generated);
-        if (ts) window.tdSetFreshness("panel-swing", ts, "post-close");
+    // Lazy-load the FULL swing history (~15 MB — every run date for the
+    // dropdown) only when the Swing tab is first opened, NOT on page init.
+    // Today's Desk already seeds window.TD_DATA.swing from the ~0.9 MB
+    // 2-run summary, so the header search + drilldown work before this
+    // runs. This removes the second eager 15 MB fetch from initial load.
+    let _swingLoaded = false;
+    function loadSwingData() {
+      if (_swingLoaded) return;
+      _swingLoaded = true;
+      body.innerHTML = '<div class="uoa-empty">Loading swing history&hellip;</div>';
+      // The meta cache gives us the raw market_cap figure for the popup.
+      Promise.all([
+        fetch("./reports/swing_report.json", { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .catch(function () { return null; }),
+        fetch("./reports/uoa_meta_cache.json", { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .catch(function () { return null; }),
+      ]).then(function (arr) {
+        const d = arr[0];
+        META = arr[1] || {};
+        if (!window.TD_DATA.uoaMeta) window.TD_DATA.uoaMeta = META;
+        if (window.tdSetFreshness && d) {
+          const ts = d.updated || (d.runs && d.runs[d.runs.length - 1] &&
+                                   d.runs[d.runs.length - 1].generated);
+          if (ts) window.tdSetFreshness("panel-swing", ts, "post-close");
+        }
+        RUNS = (d && d.runs) ? d.runs.slice().reverse() : [];
+        if (!RUNS.length) {
+          body.innerHTML = '<div class="uoa-empty">No report yet &mdash; the ' +
+            'next 4:30 PM ET run will populate this.</div>';
+          return;
+        }
+        sel.innerHTML = RUNS.map(function (r, i) {
+          return '<option value="' + i + '">' + r.date + '</option>';
+        }).join("");
+        render(0);
+        sel.onchange  = function () { render(+sel.value); };
+        if (tsel) tsel.onchange = function () { render(+sel.value); };
+      }).catch(function () {
+        _swingLoaded = false;    // allow a retry the next time the tab opens
+        body.innerHTML = '<div class="uoa-empty">Could not load the report.</div>';
+      });
+    }
+    // Trigger on first Swing-tab activation; also fire immediately if the
+    // page was deep-linked straight to #swing.
+    const _navEl = document.getElementById("nav");
+    if (_navEl) _navEl.addEventListener("click", function (e) {
+      if (e.target && e.target.dataset && e.target.dataset.tab === "swing") {
+        loadSwingData();
       }
-      RUNS = (d && d.runs) ? d.runs.slice().reverse() : [];
-      if (!RUNS.length) {
-        body.innerHTML = '<div class="uoa-empty">No report yet &mdash; the ' +
-          'next 4:30 PM ET run will populate this.</div>';
-        return;
-      }
-      sel.innerHTML = RUNS.map(function (r, i) {
-        return '<option value="' + i + '">' + r.date + '</option>';
-      }).join("");
-      render(0);
-      sel.onchange  = function () { render(+sel.value); };
-      if (tsel) tsel.onchange = function () { render(+sel.value); };
-    }).catch(function () {
-      body.innerHTML = '<div class="uoa-empty">Could not load the report.</div>';
     });
+    if ((location.hash || "").replace(/^#/, "") === "swing") loadSwingData();
   }
   setupSwing();
 
