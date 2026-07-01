@@ -4884,7 +4884,7 @@
       <div id="whats-new" class="whats-new"></div>
       <div id="mydesk-news" class="md-news-card">
         <div class="md-news-head">
-          <span class="md-news-title">Live news wire</span>
+          <span class="md-news-title">Watchlist news wire</span>
           <span class="md-news-status"><span class="md-news-dot"></span>
             <span id="md-news-time" class="td-news-time">Live</span></span>
         </div>
@@ -15982,10 +15982,17 @@
   })();
 
   /* ── Live news wire mini-feed (Benzinga via news_live, REST poll ~20s).
-        Renders into every .td-news-list on the page — Today's Desk + My Desk. */
+        Two feeds: the GENERAL firehose fills Today's Desk (and any other
+        .td-news-list), while My Desk (#md-news-list) shows only headlines
+        that tag a ticker on the user's watchlist. */
   (function setupLiveNewsMini() {
-    function lists() { return document.querySelectorAll(".td-news-list"); }
-    if (!lists().length) return;
+    const mdEl = document.getElementById("md-news-list");
+    // Today's Desk + any other wire, excluding the My Desk (watchlist) list.
+    function generalLists() {
+      return [].slice.call(document.querySelectorAll(".td-news-list"))
+        .filter(function (el) { return el !== mdEl; });
+    }
+    if (!document.querySelectorAll(".td-news-list").length) return;
     const seen = new Set();
     let first = true;
     function esc(s) {
@@ -15999,48 +16006,78 @@
           { hour: "numeric", minute: "2-digit" });
       } catch (_) { return ""; }
     }
-    function render(rows) {
-      let html;
+    function buildHtml(rows, emptyMsg) {
       if (!rows.length) {
-        html = '<div class="md-news-empty">No live headlines yet.</div>';
-      } else {
-        html = rows.slice(0, 7).map(function (r) {
-          const tks = (r.symbols || []).slice(0, 3);
-          const fresh = (!first && r.id && !seen.has(r.id)) ? " mn-fresh" : "";
-          const url = r.url || "";
-          // Headline links to the article; ticker chips open the drilldown.
-          const hl = url
-            ? '<a class="mn-hl" href="' + esc(url) +
-              '" target="_blank" rel="noopener">' + esc(r.headline) + '</a>'
-            : '<span class="mn-hl mn-nolink">' + esc(r.headline) + '</span>';
-          const tkHtml = tks.map(function (t) {
-            return '<span class="mn-tk" data-t="' + esc(t) +
-              '" title="Open ' + esc(t) + ' drilldown">' + esc(t) + '</span>';
-          }).join("");
-          return '<div class="md-news-row' + fresh + '">' +
-            '<span class="mn-time">' + fmtT(r.published_at) + '</span>' +
-            '<span>' + hl + (tkHtml ? ' ' + tkHtml : '') + '</span></div>';
+        return '<div class="md-news-empty">' + emptyMsg + '</div>';
+      }
+      return rows.slice(0, 7).map(function (r) {
+        const tks = (r.symbols || []).slice(0, 3);
+        const fresh = (!first && r.id && !seen.has(r.id)) ? " mn-fresh" : "";
+        const url = r.url || "";
+        // Headline links to the article; ticker chips open the drilldown.
+        const hl = url
+          ? '<a class="mn-hl" href="' + esc(url) +
+            '" target="_blank" rel="noopener">' + esc(r.headline) + '</a>'
+          : '<span class="mn-hl mn-nolink">' + esc(r.headline) + '</span>';
+        const tkHtml = tks.map(function (t) {
+          return '<span class="mn-tk" data-t="' + esc(t) +
+            '" title="Open ' + esc(t) + ' drilldown">' + esc(t) + '</span>';
         }).join("");
-      }
-      lists().forEach(function (el) { el.innerHTML = html; });
-      if (rows.length) {
-        rows.forEach(function (r) { if (r.id) seen.add(r.id); });
-        first = false;
-        const t = "Live · " + fmtT(new Date().toISOString());
-        document.querySelectorAll(".td-news-time").forEach(function (el) {
-          el.textContent = t;
-        });
-      }
+        return '<div class="md-news-row' + fresh + '">' +
+          '<span class="mn-time">' + fmtT(r.published_at) + '</span>' +
+          '<span>' + hl + (tkHtml ? ' ' + tkHtml : '') + '</span></div>';
+      }).join("");
     }
-    function poll() {
-      // Small 12-row query — poll regardless of focus so the cards are always
-      // pre-filled when a desk is opened.
-      fetch(SUPA_URL + "/rest/v1/news_live?select=id,headline,symbols,url," +
-          "published_at&order=published_at.desc&limit=12",
-          { headers: { "apikey": SUPA_ANON,
-                       "Authorization": "Bearer " + SUPA_ANON } })
+    function markSeenAndStamp(rows) {
+      if (!rows.length) return;
+      rows.forEach(function (r) { if (r.id) seen.add(r.id); });
+      first = false;
+      const t = "Live · " + fmtT(new Date().toISOString());
+      document.querySelectorAll(".td-news-time").forEach(function (el) {
+        el.textContent = t;
+      });
+    }
+    const NEWS_COLS = "select=id,headline,symbols,url,published_at";
+    const HDRS = { "apikey": SUPA_ANON, "Authorization": "Bearer " + SUPA_ANON };
+
+    // General firehose → Today's Desk.
+    function pollGeneral() {
+      const gen = generalLists();
+      if (!gen.length) return;
+      fetch(SUPA_URL + "/rest/v1/news_live?" + NEWS_COLS +
+          "&order=published_at.desc&limit=12", { headers: HDRS })
         .then(function (r) { return r.ok ? r.json() : []; })
-        .then(function (rows) { if (Array.isArray(rows)) render(rows); })
+        .then(function (rows) {
+          if (!Array.isArray(rows)) return;
+          const html = buildHtml(rows, "No live headlines yet.");
+          gen.forEach(function (el) { el.innerHTML = html; });
+          markSeenAndStamp(rows);
+        })
+        .catch(function () {});
+    }
+
+    // Watchlist-filtered feed → My Desk. Uses the text[] `symbols` overlap
+    // operator (ov) so only headlines tagging a watchlist ticker show.
+    function pollWatchlist() {
+      if (!mdEl) return;
+      const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+      const tickers = Array.from(wl).filter(function (t) {
+        return /^[A-Z][A-Z.\-]{0,5}$/.test(t); });   // safe for the URL filter
+      if (!tickers.length) {
+        mdEl.innerHTML = '<div class="md-news-empty">Add tickers to your ' +
+          'watchlist to see their headlines here.</div>';
+        return;
+      }
+      const filter = "symbols=ov.%7B" + tickers.join(",") + "%7D";
+      fetch(SUPA_URL + "/rest/v1/news_live?" + NEWS_COLS + "&" + filter +
+          "&order=published_at.desc&limit=12", { headers: HDRS })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) {
+          if (!Array.isArray(rows)) return;
+          mdEl.innerHTML = buildHtml(rows,
+            "No recent headlines for your watchlist tickers.");
+          markSeenAndStamp(rows);
+        })
         .catch(function () {});
     }
     document.addEventListener("click", function (e) {
@@ -16050,8 +16087,10 @@
       const t = tk.dataset.t;
       if (t && window.tdOpenDrilldown) window.tdOpenDrilldown(t);
     });
-    poll();
-    setInterval(poll, 20000);
+    pollGeneral();
+    pollWatchlist();
+    setInterval(pollGeneral, 20000);
+    setInterval(pollWatchlist, 20000);
   })();
 
   /* ── Today's Desk — daily command center ── */
