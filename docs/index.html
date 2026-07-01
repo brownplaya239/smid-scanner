@@ -6918,7 +6918,32 @@
       setTimeout(initSupabase, 200);
       return;
     }
-    SUPA = window.supabase.createClient(SUPA_URL, SUPA_ANON);
+    SUPA = window.supabase.createClient(SUPA_URL, SUPA_ANON, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        // ROOT-CAUSE FIX for the "supabase-js hangs" we've papered over
+        // with timeouts all over this file, plus stuck sign-out and
+        // glitchy multi-tab sessions:
+        //
+        // supabase-js v2 serializes every auth op (getSession, refresh,
+        // signOut) behind a cross-tab Web Lock named
+        // "lock:sb-<ref>-auth-token" (navigator.locks). If ANY tab stalls
+        // while holding it — a backgrounded tab paused mid-refresh, a slow
+        // or failed network refresh — every other tab's getSession() /
+        // .from() / signOut() blocks on that lock indefinitely. Buttons
+        // hang on "Opening…", the username renders stale, sign-out never
+        // completes.
+        //
+        // Replace the lock with a no-op: each tab manages its own token
+        // and persistSession keeps them converged via localStorage. This
+        // trades the (rarely-needed) cross-tab refresh dedup for never
+        // hanging — the right call for a browser app where a wedged lock
+        // is far more damaging than an occasional duplicate refresh.
+        lock: function (name, acquireTimeout, fn) { return fn(); },
+      },
+    });
     // Restore session if user was already signed in. SUPA.auth.getSession()
     // can hang indefinitely after some auth states (we've seen this every
     // session), which used to leave the entire UI in a signed-out state
@@ -7178,7 +7203,30 @@
   }
   async function signOut() {
     if (!SUPA) return;
-    await SUPA.auth.signOut();
+    // Tear down local state FIRST so the UI never waits on the network.
+    // scope:"local" clears the local session and fires SIGNED_OUT without
+    // the server-side revoke round-trip that can hang. Race a short
+    // timeout so a wedged SDK can't block the sign-out either way.
+    try {
+      await Promise.race([
+        SUPA.auth.signOut({ scope: "local" }),
+        new Promise(function (res) { setTimeout(res, 1500); }),
+      ]);
+    } catch (e) { console.warn("signOut (continuing):", e && e.message); }
+    // Purge any lingering auth-token keys so the getSessionSafe /init
+    // localStorage fallback can't resurrect the user after sign-out.
+    try {
+      Object.keys(localStorage)
+        .filter(function (k) { return /^sb-.*-auth-token$/.test(k); })
+        .forEach(function (k) { localStorage.removeItem(k); });
+    } catch (_) {}
+    CURRENT_USER = null;
+    CURRENT_USER_PLAN = "free";
+    _emitUser();
+    // Hard reload guarantees every cached module (watchlist, plan,
+    // reports, desk) re-initializes from a clean signed-out slate rather
+    // than relying on each one to react to the user-change event.
+    try { location.reload(); } catch (_) {}
   }
   window.tdSignIn  = signInWithEmail;
   window.tdSignInGoogle = signInWithGoogle;
