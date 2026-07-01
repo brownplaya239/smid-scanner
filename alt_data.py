@@ -627,13 +627,25 @@ def run_altdata_lookup(ticker):
     except Exception as e:
         print(f"  history update failed: {e}")
 
-    print("[5/5] Archiving to site...")
+    print("[5/5] Archiving...")
     now      = datetime.now(ET)
     filename = f"altdata_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
-        from report_archive import archive
-        archive(pdf_bytes, filename)
-        print(f"  Archived: {filename}")
+        from report_archive import archive, upload_user_report
+        # --user-id (set by the alt-data workflow) => user's PRIVATE Storage;
+        # otherwise / on failure, fall back to the public archive.
+        user_id = ""
+        if "--user-id" in sys.argv:
+            try:
+                user_id = sys.argv[sys.argv.index("--user-id") + 1].strip()
+            except IndexError:
+                user_id = ""
+        if user_id and upload_user_report(pdf_bytes, filename, user_id,
+                                           ticker.upper(), "altdata"):
+            print(f"  Uploaded private: {filename}")
+        else:
+            archive(pdf_bytes, filename)
+            print(f"  Archived: {filename}")
     except Exception as e:
         print(f"  Archive failed: {e}")
 

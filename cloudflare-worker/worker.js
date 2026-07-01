@@ -2241,6 +2241,72 @@ async function fetchEconCalendar() {
     source: "forexfactory-live", events };
 }
 
+/** My Reports — GET /my-reports (Bearer JWT). Lists the signed-in user's
+ *  own ad-hoc/alt-data reports from report_generations and mints short-lived
+ *  signed URLs to the private user-reports bucket. Storage access stays
+ *  server-side (service key); the client only ever sees its own signed URLs.
+ *  Optional ?ticker=X to fetch just that name (used by the generate poll). */
+async function handleMyReports(request, env, cors) {
+  const url = new URL(request.url);
+  const tf = (url.searchParams.get("ticker") || "").toUpperCase().trim();
+  const auth = request.headers.get("Authorization") || "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  if (!bearer || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return Response.json({ ok: false, error: "Sign in required." },
+      { status: 401, headers: cors });
+  }
+  let uid = "";
+  try {
+    const ur = await fetch(env.SUPABASE_URL + "/auth/v1/user", {
+      headers: { "Authorization": "Bearer " + bearer,
+                 "apikey": env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY } });
+    if (!ur.ok) return Response.json({ ok: false, error: "Sign-in expired." },
+      { status: 401, headers: cors });
+    const ub = await ur.json();
+    uid = ub && ub.id;
+  } catch (e) {
+    return Response.json({ ok: false, error: "auth: " + String(e) },
+      { status: 502, headers: cors });
+  }
+  if (!uid) return Response.json({ ok: false, error: "No user." },
+    { status: 401, headers: cors });
+
+  let rows = [];
+  try {
+    let q = env.SUPABASE_URL + "/rest/v1/report_generations?user_id=eq." +
+      encodeURIComponent(uid) + "&storage_path=not.is.null" +
+      "&select=ticker,kind,report_type,created_at,completed_at,storage_path" +
+      "&order=created_at.desc&limit=50";
+    if (tf && /^[A-Z.\-]{1,8}$/.test(tf)) q += "&ticker=eq." + encodeURIComponent(tf);
+    const r = await fetch(q, { headers: {
+      "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+      "apikey": env.SUPABASE_SERVICE_KEY } });
+    rows = r.ok ? await r.json() : [];
+  } catch (e) { rows = []; }
+
+  const out = [];
+  for (const row of rows) {
+    let signedUrl = null;
+    try {
+      const sr = await fetch(env.SUPABASE_URL +
+        "/storage/v1/object/sign/user-reports/" + row.storage_path, {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+                   "apikey": env.SUPABASE_SERVICE_KEY,
+                   "Content-Type": "application/json" },
+        body: JSON.stringify({ expiresIn: 600 }) });
+      if (sr.ok) {
+        const sj = await sr.json();
+        const rel = sj.signedURL || sj.signedUrl || "";
+        if (rel) signedUrl = env.SUPABASE_URL + "/storage/v1" + rel;
+      }
+    } catch (e) {}
+    out.push({ ticker: row.ticker, kind: row.kind || row.report_type,
+      created_at: row.completed_at || row.created_at, url: signedUrl });
+  }
+  return Response.json({ ok: true, reports: out }, { headers: cors });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -2281,6 +2347,10 @@ export default {
     // Portfolio screenshot OCR — vision extract of tickers/weights.
     if (urlPath === "/portfolio-ocr" && request.method === "POST") {
       return handlePortfolioOCR(request, env, cors);
+    }
+    // My Reports — the signed-in user's private report history + signed URLs.
+    if (urlPath === "/my-reports" && request.method === "GET") {
+      return handleMyReports(request, env, cors);
     }
 
     // GET — market-quote proxy (?quotes=SPY,QQQ,...), daily-candle proxy
@@ -2628,7 +2698,7 @@ export default {
     }
 
     // Parse + validate ticker; pick the workflow by report type
-    let ticker = "", report = "adhoc";
+    let ticker = "", report = "adhoc", reqUserId = "";
     try {
       const data = await request.json();
       ticker = String(data.ticker || "").toUpperCase().trim();
@@ -2688,6 +2758,7 @@ export default {
         const userBody = await userResp.json();
         const uid = userBody && userBody.id;
         if (uid) {
+          reqUserId = uid;   // route the generated report to this user's private storage
           // 2. Look up the user's effective tier (honors promo expiry
           //    server-side via the get_user_plan RPC).
           const planResp = await fetch(
@@ -2823,7 +2894,8 @@ export default {
           "User-Agent":           "smid-scanner-adhoc-web",
           "Content-Type":         "application/json",
         },
-        body: JSON.stringify({ ref: "master", inputs: { ticker } }),
+        body: JSON.stringify({ ref: "master",
+          inputs: { ticker, user_id: reqUserId } }),
       }
     );
 

@@ -7,6 +7,11 @@ on:
         description: 'Ticker symbol (e.g. AAPL, BKSY, IONQ)'
         required: true
         type: string
+      user_id:
+        description: 'Requesting user id — routes the report to their private storage'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   lookup:
@@ -36,7 +41,9 @@ jobs:
       - name: Run ticker lookup
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python scanner.py --ticker "${{ inputs.ticker }}"
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scanner.py --ticker "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}"
 
       - name: Publish report to site archive
         run: bash scripts/publish_reports.sh

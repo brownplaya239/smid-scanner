@@ -10,6 +10,8 @@ import os
 import re
 import json
 import glob
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone
 
 _BASE       = os.path.dirname(os.path.abspath(__file__))
@@ -113,6 +115,77 @@ def archive(pdf_bytes, filename):
     """Convenience: save a PDF and rebuild the manifest in one call."""
     save_report(pdf_bytes, filename)
     rebuild_manifest()
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Per-user private report storage
+#
+# Ad-hoc + alt-data reports are user-specific research, so instead of the
+# public docs/reports archive they go to a PRIVATE Supabase Storage bucket
+# scoped by user_id. The pipeline uploads with the service key (CI secret);
+# the worker mints signed URLs for the client. Nothing hits the public site.
+# ─────────────────────────────────────────────────────────────────────
+
+def _sb_env():
+    return (os.environ.get("SUPABASE_URL", "").rstrip("/"),
+            os.environ.get("SUPABASE_SERVICE_KEY", ""))
+
+
+def _link_report_generation(url_base, key, user_id, ticker, kind, storage_path):
+    """Attach storage_path (+ mark done) onto the most-recent queued
+    report_generations row for (user, ticker); insert one if none exists."""
+    hdr = {"Authorization": f"Bearer {key}", "apikey": key,
+           "Content-Type": "application/json"}
+    body = {"storage_path": storage_path, "kind": kind, "status": "done",
+            "completed_at": datetime.now(timezone.utc).isoformat()}
+    q = (f"{url_base}/rest/v1/report_generations?user_id=eq.{user_id}"
+         f"&ticker=eq.{ticker}&storage_path=is.null"
+         f"&order=created_at.desc&limit=1&select=id")
+    req = urllib.request.Request(q, headers={**hdr, "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        rows = json.loads(r.read().decode("utf-8"))
+    if rows:
+        patch = urllib.request.Request(
+            f"{url_base}/rest/v1/report_generations?id=eq.{rows[0]['id']}",
+            data=json.dumps(body).encode("utf-8"),
+            headers={**hdr, "Prefer": "return=minimal"}, method="PATCH")
+        urllib.request.urlopen(patch, timeout=20).read()
+    else:
+        body.update({"user_id": user_id, "ticker": ticker, "report_type": kind})
+        ins = urllib.request.Request(
+            f"{url_base}/rest/v1/report_generations",
+            data=json.dumps(body).encode("utf-8"),
+            headers={**hdr, "Prefer": "return=minimal"}, method="POST")
+        urllib.request.urlopen(ins, timeout=20).read()
+
+
+def upload_user_report(pdf_bytes, filename, user_id, ticker, kind):
+    """Upload an ad-hoc/alt-data PDF to user-reports/<user_id>/<filename> and
+    link it onto the user's report_generations row. Returns True on success.
+    Returns False (so the caller falls back to the public archive) when the
+    Storage bucket / creds aren't configured yet — safe pre-setup rollout."""
+    url_base, key = _sb_env()
+    if not (url_base and key and user_id):
+        return False
+    storage_path = f"{user_id}/{filename}"
+    try:
+        req = urllib.request.Request(
+            f"{url_base}/storage/v1/object/user-reports/{storage_path}",
+            data=pdf_bytes,
+            headers={"Authorization": f"Bearer {key}", "apikey": key,
+                     "Content-Type": "application/pdf", "x-upsert": "true"},
+            method="POST")
+        with urllib.request.urlopen(req, timeout=45) as r:
+            r.read()
+    except Exception as e:
+        print(f"  Private upload failed ({e}); falling back to public archive.")
+        return False
+    try:
+        _link_report_generation(url_base, key, user_id, ticker, kind, storage_path)
+    except Exception as e:
+        print(f"  report_generations link failed (non-fatal): {e}")
+    print(f"  Uploaded private report: user-reports/{storage_path}")
+    return True
 
 
 if __name__ == "__main__":

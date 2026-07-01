@@ -45,6 +45,30 @@ import polygon_data
 IWM_MODE    = "--iwm" in sys.argv
 TICKER_MODE = "--ticker" in sys.argv
 
+# --user-id <uuid> (set by the ticker-lookup workflow) routes the ad-hoc
+# report to that user's PRIVATE Storage instead of the public archive.
+USER_ID = ""
+if "--user-id" in sys.argv:
+    try:
+        USER_ID = sys.argv[sys.argv.index("--user-id") + 1].strip()
+    except IndexError:
+        USER_ID = ""
+
+
+def _archive_report(pdf_bytes, filename):
+    """Ad-hoc `ticker_*` reports go to the requesting user's PRIVATE Supabase
+    Storage when --user-id is supplied; daily scanner reports (and any run
+    without a user_id) archive publicly as before. Falls back to the public
+    archive if the private upload fails (e.g. bucket not set up yet)."""
+    from report_archive import archive as _pub_archive, upload_user_report
+    if USER_ID and filename.startswith("ticker_"):
+        import re as _re
+        m = _re.match(r"ticker_([A-Za-z.\-]+)_", filename)
+        tk = m.group(1).upper() if m else ""
+        if upload_user_report(pdf_bytes, filename, USER_ID, tk, "adhoc"):
+            return
+    _pub_archive(pdf_bytes, filename)
+
 ANTHROPIC_API_KEY      = os.environ.get("ANTHROPIC_API_KEY", "")
 
 if not ANTHROPIC_API_KEY:
@@ -1957,7 +1981,7 @@ def publish_report(pdf_bytes, label="SMID"):
     filename = f"{prefix}_scanner_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
         from report_archive import archive
-        archive(pdf_bytes, filename)
+        _archive_report(pdf_bytes, filename)
         print(f"  PDF archived to site: {filename}")
     except Exception as e:
         print(f"  Archive step failed: {e}")
@@ -2090,7 +2114,7 @@ def _abort_invalid_ticker(ticker, hist):
     err_pdf  = generate_error_pdf(ticker, reason)
     try:
         from report_archive import archive
-        archive(err_pdf, filename)
+        _archive_report(err_pdf, filename)
     except Exception as e:
         print(f"  Archive failed: {e}")
     print("\nDone (invalid ticker - lookup aborted before pipeline).")
@@ -2309,7 +2333,7 @@ def run_single_ticker_lookup(ticker):
     filename = f"ticker_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
         from report_archive import archive
-        archive(pdf_bytes, filename)
+        _archive_report(pdf_bytes, filename)
         print(f"  Archived: {filename}")
     except Exception as e:
         print(f"  Archive step failed: {e}")
