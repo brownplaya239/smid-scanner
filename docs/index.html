@@ -422,6 +422,48 @@
   .wlt-import-actions code { background:var(--card); padding:1px 5px;
     border-radius:3px; font-size:10.5px; }
 
+  /* Screenshot / CSV drop zone */
+  .wlt-drop { margin-top:12px; border:1.5px dashed var(--border2);
+    border-radius:7px; padding:16px 14px; text-align:center;
+    background:var(--navy2); cursor:pointer; transition:border-color .15s,
+    background .15s; }
+  .wlt-drop:hover, .wlt-drop.wlt-drop-hot { border-color:var(--gold);
+    background:rgba(255,200,0,0.05); }
+  .wlt-drop-icon { font-size:20px; line-height:1; margin-bottom:6px; }
+  .wlt-drop-title { font-size:12.5px; font-weight:600; color:var(--text); }
+  .wlt-drop-sub { font-size:11px; color:var(--muted); margin-top:3px; }
+  .wlt-drop-sub b { color:var(--gold); font-weight:600; }
+  .wlt-drop input[type=file] { display:none; }
+  .wlt-ocr-status { margin-top:8px; font-size:11.5px; min-height:1em; }
+  .wlt-ocr-status.err { color:var(--red); }
+  .wlt-ocr-status.busy { color:var(--gold); }
+  /* Review list — user confirms detected positions before commit */
+  .wlt-review { margin-top:12px; border:1px solid var(--line);
+    border-radius:7px; background:var(--card); overflow:hidden; }
+  .wlt-review-hd { display:flex; align-items:center; justify-content:space-between;
+    gap:8px; padding:9px 12px; border-bottom:1px solid var(--line);
+    font-size:11.5px; }
+  .wlt-review-hd b { color:var(--text); }
+  .wlt-review-hd .wlt-review-note { color:var(--muted); font-weight:400; }
+  .wlt-review-body { max-height:230px; overflow-y:auto; }
+  .wlt-review-row { display:flex; align-items:center; gap:9px;
+    padding:6px 12px; border-bottom:1px solid var(--line); font-size:12px; }
+  .wlt-review-row:last-child { border-bottom:0; }
+  .wlt-review-row input[type=checkbox] { accent-color:var(--gold);
+    width:14px; height:14px; flex:0 0 auto; }
+  .wlt-review-tk { font-weight:700; color:var(--gold); min-width:52px; }
+  .wlt-review-nm { color:var(--muted); flex:1; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
+  .wlt-review-wt { color:var(--text); font-variant-numeric:tabular-nums;
+    font-size:11px; }
+  .wlt-review-row.wlt-review-dup .wlt-review-tk { color:var(--muted); }
+  .wlt-review-row.wlt-review-dup .wlt-review-nm::after {
+    content:" · already on list"; color:var(--muted); }
+  .wlt-review-ft { display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .wlt-review-ft .wlt-review-sel { font-size:10.5px; color:var(--muted);
+    cursor:pointer; text-decoration:underline; }
+
   /* ⭐ inline indicator on watchlisted tickers across the site */
   .tdwatch-dot { display:inline-block; margin-left:4px; font-size:9px;
     color:var(--gold); vertical-align:middle; line-height:1;
@@ -4682,6 +4724,18 @@
                 Defaults to equal weight (1.0 each) unless format is
                 <code>TICKER:weight</code> per row.</span>
             </div>
+
+            <!-- Screenshot / CSV auto-import -->
+            <label class="wlt-drop" id="wlt-drop" for="wlt-file-input">
+              <div class="wlt-drop-icon">📸</div>
+              <div class="wlt-drop-title">Drop a portfolio screenshot or CSV</div>
+              <div class="wlt-drop-sub">or <b>click to choose a file</b> —
+                we read the tickers &amp; position sizes automatically</div>
+              <input type="file" id="wlt-file-input"
+                accept="image/png,image/jpeg,image/webp,image/gif,.csv,.tsv,.txt,text/csv" />
+            </label>
+            <div class="wlt-ocr-status" id="wlt-ocr-status"></div>
+            <div class="wlt-review" id="wlt-review" style="display:none"></div>
           </div>
         </details>
       </div>
@@ -8863,6 +8917,286 @@
           '</b> invalid format' : '');
       importArea.value = "";
     });
+
+    // ── Screenshot / CSV auto-import ───────────────────────────────
+    // One file input handles both: images go to the worker's vision
+    // endpoint (Claude reads tickers + position sizes), CSV/TSV are
+    // parsed client-side. Both funnel into a review list the user
+    // confirms before anything is written — OCR isn't perfect and we
+    // never auto-commit machine-read tickers.
+    const wltDrop     = document.getElementById("wlt-drop");
+    const wltFileIn   = document.getElementById("wlt-file-input");
+    const wltOcrStat  = document.getElementById("wlt-ocr-status");
+    const wltReview   = document.getElementById("wlt-review");
+
+    // Local HTML-escape (the shared esc() lives in other function scopes).
+    const wltEsc = function (s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    };
+
+    function wltSetStatus(msg, kind) {
+      if (!wltOcrStat) return;
+      wltOcrStat.textContent = msg || "";
+      wltOcrStat.className = "wlt-ocr-status" + (kind ? " " + kind : "");
+    }
+
+    // Parse a broker CSV/TSV export → [{ ticker, weight, name }].
+    // Detects the symbol column from a header row; pulls a dollar/market
+    // value column as weight when present, else equal-weights.
+    function wltParseCsv(text) {
+      const lines = text.split(/\r?\n/).filter(function (l) { return l.trim(); });
+      if (!lines.length) return [];
+      const delim = (lines[0].indexOf("\t") >= 0 && lines[0].indexOf(",") < 0)
+        ? "\t" : ",";
+      const splitRow = function (l) {
+        // Minimal CSV: handle simple quoted cells with embedded commas.
+        const out = []; let cur = "", q = false;
+        for (let i = 0; i < l.length; i++) {
+          const c = l[i];
+          if (c === '"') { q = !q; }
+          else if (c === delim && !q) { out.push(cur); cur = ""; }
+          else { cur += c; }
+        }
+        out.push(cur);
+        return out.map(function (s) { return s.trim().replace(/^"|"$/g, ""); });
+      };
+      // Find header row (first row with a "symbol"/"ticker" cell).
+      let hdrIdx = -1, symCol = -1, valCol = -1, nmCol = -1;
+      for (let i = 0; i < Math.min(lines.length, 8); i++) {
+        const cells = splitRow(lines[i]);
+        const sc = cells.findIndex(function (c) {
+          return /^(symbol|ticker|sym|instrument)$/i.test(c); });
+        if (sc >= 0) {
+          hdrIdx = i; symCol = sc;
+          valCol = cells.findIndex(function (c) {
+            return /(market\s*val|mkt\s*val|current\s*value|position\s*value)/i.test(c); });
+          if (valCol < 0) valCol = cells.findIndex(function (c) {
+            return /^(value|val)$/i.test(c); });
+          nmCol = cells.findIndex(function (c) {
+            return /(description|name|company|security)/i.test(c); });
+          break;
+        }
+      }
+      const rows = [];
+      const seen = {};
+      const pushRow = function (tk, wt, nm) {
+        tk = String(tk || "").toUpperCase().trim();
+        if (!/^[A-Z][A-Z.\-]{0,5}$/.test(tk)) return;
+        if (seen[tk]) return; seen[tk] = 1;
+        let w = null;
+        if (wt != null && wt !== "") {
+          const n = parseFloat(String(wt).replace(/[$,%\s]/g, ""));
+          if (isFinite(n) && n > 0) w = n;
+        }
+        rows.push({ ticker: tk, weight: w, name: nm ? String(nm).slice(0, 60) : null });
+      };
+      if (hdrIdx >= 0) {
+        for (let i = hdrIdx + 1; i < lines.length; i++) {
+          const cells = splitRow(lines[i]);
+          if (symCol >= cells.length) continue;
+          pushRow(cells[symCol],
+            valCol >= 0 ? cells[valCol] : null,
+            nmCol >= 0 ? cells[nmCol] : null);
+        }
+      } else {
+        // No header — take the first ticker-shaped cell in each row.
+        for (const l of lines) {
+          const cells = splitRow(l);
+          const tk = cells.find(function (c) {
+            return /^[A-Z][A-Z.\-]{0,5}$/.test(c.toUpperCase().trim()); });
+          if (tk) pushRow(tk, null, null);
+        }
+      }
+      return rows;
+    }
+
+    // Read an image file → { image_b64, media_type } and POST to worker.
+    function wltOcrImage(file) {
+      return new Promise(function (resolve, reject) {
+        const fr = new FileReader();
+        fr.onerror = function () { reject(new Error("Could not read file.")); };
+        fr.onload = function () {
+          const dataUrl = String(fr.result || "");
+          const m = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl);
+          if (!m) { reject(new Error("Unsupported image encoding.")); return; }
+          fetch(WORKER_URL + "/portfolio-ocr", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ media_type: m[1], image_b64: m[2] }),
+          }).then(function (r) { return r.json(); })
+            .then(function (j) {
+              if (!j || !j.ok) {
+                reject(new Error((j && j.error) || "Vision request failed."));
+              } else { resolve(j.positions || []); }
+            }).catch(reject);
+        };
+        fr.readAsDataURL(file);
+      });
+    }
+
+    // Render the review list — user ticks which detected rows to add.
+    function wltRenderReview(positions, sourceLabel) {
+      if (!wltReview) return;
+      if (!positions.length) {
+        wltReview.style.display = "none";
+        wltSetStatus("No tickers found in that " + sourceLabel + ".", "err");
+        return;
+      }
+      // Sort by weight desc (largest positions first), nulls last.
+      positions.sort(function (a, b) { return (b.weight || 0) - (a.weight || 0); });
+      const rowsHtml = positions.map(function (p, i) {
+        const dup = WATCHLIST.has(p.ticker);
+        const wt = p.weight != null
+          ? '<span class="wlt-review-wt">$' +
+              p.weight.toLocaleString(undefined, { maximumFractionDigits: 0 }) +
+              '</span>'
+          : '';
+        return '<div class="wlt-review-row' + (dup ? ' wlt-review-dup' : '') +
+          '" data-i="' + i + '">' +
+          '<input type="checkbox" ' + (dup ? '' : 'checked') +
+            ' data-i="' + i + '">' +
+          '<span class="wlt-review-tk">' + wltEsc(p.ticker) + '</span>' +
+          '<span class="wlt-review-nm">' + wltEsc(p.name || "") + '</span>' +
+          wt + '</div>';
+      }).join("");
+      const newCount = positions.filter(function (p) {
+        return !WATCHLIST.has(p.ticker); }).length;
+      const hasWeights = positions.some(function (p) { return p.weight != null; });
+      wltReview.innerHTML =
+        '<div class="wlt-review-hd"><b>' + positions.length +
+          ' tickers found</b> <span class="wlt-review-note">' +
+          (hasWeights
+            ? 'weights = position value from your ' + wltEsc(sourceLabel)
+            : 'no sizes detected — equal-weight') +
+          '</span></div>' +
+        '<div class="wlt-review-body">' + rowsHtml + '</div>' +
+        '<div class="wlt-review-ft">' +
+          '<button class="wlt-add-btn" id="wlt-review-commit">Add ' +
+            newCount + ' to watchlist</button>' +
+          '<span class="wlt-review-sel" id="wlt-review-all">select all</span>' +
+          '<span class="wlt-review-sel" id="wlt-review-none">none</span>' +
+        '</div>';
+      wltReview.style.display = "";
+      wltReview._positions = positions;
+
+      const commitBtn = document.getElementById("wlt-review-commit");
+      const updateCount = function () {
+        const n = wltReview.querySelectorAll(
+          '.wlt-review-body input:checked').length;
+        commitBtn.textContent = "Add " + n + " to watchlist";
+        commitBtn.disabled = n === 0;
+      };
+      wltReview.querySelectorAll('.wlt-review-body input').forEach(function (cb) {
+        cb.addEventListener("change", updateCount);
+      });
+      document.getElementById("wlt-review-all").addEventListener("click",
+        function () {
+          wltReview.querySelectorAll('.wlt-review-body input')
+            .forEach(function (cb) { cb.checked = true; });
+          updateCount();
+        });
+      document.getElementById("wlt-review-none").addEventListener("click",
+        function () {
+          wltReview.querySelectorAll('.wlt-review-body input')
+            .forEach(function (cb) { cb.checked = false; });
+          updateCount();
+        });
+      updateCount();
+
+      commitBtn.addEventListener("click", async function () {
+        const picks = [];
+        wltReview.querySelectorAll('.wlt-review-body input:checked')
+          .forEach(function (cb) {
+            const p = positions[parseInt(cb.getAttribute("data-i"), 10)];
+            if (p && !WATCHLIST.has(p.ticker)) picks.push(p);
+          });
+        if (!picks.length) return;
+        commitBtn.disabled = true;
+        let done = 0, added = 0;
+        const CHUNK = 5;
+        for (let i = 0; i < picks.length; i += CHUNK) {
+          const slice = picks.slice(i, i + CHUNK);
+          const results = await Promise.allSettled(slice.map(function (p) {
+            // Weight = position value if present, else equal weight 1.
+            return Promise.resolve(window.tdAddWatch(p.ticker, p.weight || 1));
+          }));
+          results.forEach(function (r) {
+            done++;
+            if (r.status === "fulfilled" && r.value) added++;
+          });
+          commitBtn.textContent = "Adding " + done + "/" + picks.length + "…";
+        }
+        wltSetStatus("Imported " + added + " ticker" + (added === 1 ? "" : "s") +
+          " into your watchlist.", "");
+        wltReview.style.display = "none";
+        wltReview.innerHTML = "";
+      });
+    }
+
+    // Route a chosen file by type.
+    async function wltHandleFile(file) {
+      if (!file) return;
+      wltReview.style.display = "none";
+      const isImg = /^image\//.test(file.type) ||
+        /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+      const isCsv = /\.(csv|tsv|txt)$/i.test(file.name) ||
+        /text\/(csv|tab|plain)/.test(file.type);
+      if (isImg) {
+        if (file.size > 5 * 1024 * 1024) {
+          wltSetStatus("Image is over 5MB — crop or downscale it first.", "err");
+          return;
+        }
+        wltSetStatus("Reading your screenshot…", "busy");
+        try {
+          const positions = await wltOcrImage(file);
+          wltSetStatus("", "");
+          wltRenderReview(positions, "screenshot");
+        } catch (e) {
+          wltSetStatus(String(e.message || e), "err");
+        }
+      } else if (isCsv) {
+        wltSetStatus("Parsing " + file.name + "…", "busy");
+        try {
+          const text = await file.text();
+          const positions = wltParseCsv(text);
+          wltSetStatus("", "");
+          wltRenderReview(positions, "file");
+        } catch (e) {
+          wltSetStatus("Could not read that file.", "err");
+        }
+      } else {
+        wltSetStatus("Unsupported file — use a screenshot (PNG/JPG) or a CSV.",
+          "err");
+      }
+    }
+
+    if (wltFileIn) {
+      wltFileIn.addEventListener("change", function () {
+        if (wltFileIn.files && wltFileIn.files[0]) {
+          wltHandleFile(wltFileIn.files[0]);
+          wltFileIn.value = "";   // allow re-selecting the same file
+        }
+      });
+    }
+    if (wltDrop) {
+      ["dragenter", "dragover"].forEach(function (ev) {
+        wltDrop.addEventListener(ev, function (e) {
+          e.preventDefault(); wltDrop.classList.add("wlt-drop-hot");
+        });
+      });
+      ["dragleave", "drop"].forEach(function (ev) {
+        wltDrop.addEventListener(ev, function (e) {
+          e.preventDefault(); wltDrop.classList.remove("wlt-drop-hot");
+        });
+      });
+      wltDrop.addEventListener("drop", function (e) {
+        const f = e.dataTransfer && e.dataTransfer.files &&
+          e.dataTransfer.files[0];
+        if (f) wltHandleFile(f);
+      });
+    }
 
     tlAddBtn.addEventListener("click", function () {
       const tk = (tlTk.value || "").toUpperCase().trim();

@@ -502,6 +502,144 @@ async function summarizeFiling(env, ticker, form, items, primaryUrl) {
   }
 }
 
+/** Portfolio screenshot OCR — Claude Haiku 4.5 vision.
+ *  Accepts a POST body { image_b64, media_type } (media_type one of
+ *  image/png|jpeg|webp|gif) and returns
+ *  { ok, positions: [{ ticker, weight, name }], usage }.
+ *  weight = the position's market/dollar value when visible (so the
+ *  imported watchlist reflects real sizing for benchmarking), else null.
+ *  Everything the model can't read confidently is simply omitted — we
+ *  never invent tickers. The client shows a review list before committing. */
+const OCR_MEDIA_OK = {
+  "image/png": 1, "image/jpeg": 1, "image/webp": 1, "image/gif": 1,
+};
+async function handlePortfolioOCR(request, env, cors) {
+  if (!env.ANTHROPIC_API_KEY) {
+    return Response.json(
+      { ok: false, error: "Vision not configured (ANTHROPIC_API_KEY unset)." },
+      { status: 500, headers: cors });
+  }
+  let payload;
+  try { payload = await request.json(); }
+  catch (e) {
+    return Response.json({ ok: false, error: "Bad JSON body." },
+      { status: 400, headers: cors });
+  }
+  let b64 = (payload && payload.image_b64) || "";
+  const mediaType = (payload && payload.media_type) || "";
+  // Tolerate a full data URL ("data:image/png;base64,AAAA…").
+  const dataUrlMatch = /^data:([^;]+);base64,(.*)$/s.exec(b64);
+  let mt = mediaType;
+  if (dataUrlMatch) { mt = dataUrlMatch[1]; b64 = dataUrlMatch[2]; }
+  if (!b64) {
+    return Response.json({ ok: false, error: "No image provided." },
+      { status: 400, headers: cors });
+  }
+  if (!OCR_MEDIA_OK[mt]) {
+    return Response.json(
+      { ok: false, error: "Unsupported image type: " + (mt || "unknown") +
+        " (use PNG, JPEG, WEBP or GIF)." },
+      { status: 400, headers: cors });
+  }
+  // Size guard — base64 inflates ~33%. ~9.3M chars ≈ 7MB decoded, and
+  // Anthropic caps images at ~5MB, so reject early with a clear message.
+  if (b64.length > 9_300_000) {
+    return Response.json(
+      { ok: false, error: "Image too large (max ~5MB). Crop or downscale it." },
+      { status: 413, headers: cors });
+  }
+  const instr =
+    "You are reading a screenshot of a stock brokerage account or " +
+    "portfolio/watchlist. Extract every distinct EQUITY position or line " +
+    "item you can see. For each, capture:\n" +
+    "  - ticker: the US stock symbol (uppercase, letters/dots/dashes, 1-6 " +
+    "chars). If only a company name is shown and you are confident of its " +
+    "ticker, use it; otherwise omit the row.\n" +
+    "  - weight: the position's market value / dollar value if a value or " +
+    "'Mkt Value' column is visible (number only, no $ or commas). If no " +
+    "dollar value is shown, use null.\n" +
+    "  - name: the company name if visible, else null.\n" +
+    "Ignore cash, totals, indices/ETF benchmarks used as headers, option " +
+    "contracts, and anything that is not a tradeable US stock ticker. Do " +
+    "NOT guess or hallucinate tickers you cannot read. Return ONLY a JSON " +
+    "object of the exact shape " +
+    "{\"positions\":[{\"ticker\":\"NVDA\",\"weight\":12000,\"name\":\"NVIDIA\"}]} " +
+    "with no prose, no markdown fences.";
+  let j;
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key":         env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type":      "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 1500,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image",
+              source: { type: "base64", media_type: mt, data: b64 } },
+            { type: "text", text: instr },
+          ],
+        }],
+      }),
+    });
+    if (!r.ok) {
+      const errText = await r.text();
+      return Response.json(
+        { ok: false, error: "vision " + r.status + ": " + errText.slice(0, 200) },
+        { status: 502, headers: cors });
+    }
+    j = await r.json();
+  } catch (e) {
+    return Response.json({ ok: false, error: "vision call: " + String(e) },
+      { status: 502, headers: cors });
+  }
+  // Parse the model's JSON. It should be a bare object, but strip any
+  // stray fences / prose defensively before JSON.parse.
+  const raw = (j.content && j.content[0] && j.content[0].text || "").trim();
+  let positions = [];
+  try {
+    const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    const slice = (start >= 0 && end > start) ? cleaned.slice(start, end + 1) : cleaned;
+    const parsed = JSON.parse(slice);
+    const arr = Array.isArray(parsed) ? parsed : (parsed.positions || []);
+    for (const p of arr) {
+      if (!p || typeof p !== "object") continue;
+      const tk = String(p.ticker || "").toUpperCase().trim();
+      if (!/^[A-Z][A-Z.\-]{0,5}$/.test(tk)) continue;
+      let wt = null;
+      if (p.weight != null && p.weight !== "") {
+        const n = parseFloat(String(p.weight).replace(/[$,\s]/g, ""));
+        if (isFinite(n) && n > 0) wt = n;
+      }
+      positions.push({ ticker: tk,
+        weight: wt,
+        name: p.name ? String(p.name).slice(0, 60) : null });
+    }
+  } catch (e) {
+    return Response.json(
+      { ok: false, error: "Could not parse positions from the image.",
+        raw: raw.slice(0, 300) },
+      { status: 502, headers: cors });
+  }
+  // Dedupe by ticker (keep first / largest weight seen).
+  const byTk = {};
+  for (const p of positions) {
+    const cur = byTk[p.ticker];
+    if (!cur) { byTk[p.ticker] = p; }
+    else if ((p.weight || 0) > (cur.weight || 0)) { byTk[p.ticker] = p; }
+  }
+  return Response.json(
+    { ok: true, positions: Object.values(byTk), usage: j.usage || null },
+    { headers: cors });
+}
+
 /** Live UOA snapshot for a single underlying — pulls Polygon's
  *  /v3/snapshot/options/{ticker} which returns every active contract
  *  for that underlying with current day's volume, OI, last quote, IV,
@@ -1991,6 +2129,10 @@ export default {
     }
     if (urlPath === "/stripe/portal" && request.method === "POST") {
       return handleStripePortal(request, env, cors);
+    }
+    // Portfolio screenshot OCR — vision extract of tickers/weights.
+    if (urlPath === "/portfolio-ocr" && request.method === "POST") {
+      return handlePortfolioOCR(request, env, cors);
     }
 
     // GET — market-quote proxy (?quotes=SPY,QQQ,...), daily-candle proxy
