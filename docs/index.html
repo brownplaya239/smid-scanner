@@ -7213,20 +7213,32 @@
         new Promise(function (res) { setTimeout(res, 1500); }),
       ]);
     } catch (e) { console.warn("signOut (continuing):", e && e.message); }
-    // Purge any lingering auth-token keys so the getSessionSafe /init
-    // localStorage fallback can't resurrect the user after sign-out.
+    // Purge EVERY supabase key from both storages so nothing can resurrect
+    // the session after we reload. Critical: supabase-js chunks large
+    // sessions across keys like "sb-<ref>-auth-token.0", ".1" — a regex
+    // anchored on ...auth-token$ misses those chunks, they survive the
+    // reload, and the SDK rehydrates the user (== "the X button doesn't
+    // log me out"). Match the "sb-" prefix instead so base key, chunks,
+    // and the PKCE code-verifier all go. Also clear the code_verifier and
+    // any app-side flags.
     try {
-      Object.keys(localStorage)
-        .filter(function (k) { return /^sb-.*-auth-token$/.test(k); })
-        .forEach(function (k) { localStorage.removeItem(k); });
+      [localStorage, sessionStorage].forEach(function (store) {
+        try {
+          Object.keys(store)
+            .filter(function (k) { return k.indexOf("sb-") === 0; })
+            .forEach(function (k) { store.removeItem(k); });
+        } catch (_) {}
+      });
     } catch (_) {}
     CURRENT_USER = null;
     CURRENT_USER_PLAN = "free";
     _emitUser();
     // Hard reload guarantees every cached module (watchlist, plan,
     // reports, desk) re-initializes from a clean signed-out slate rather
-    // than relying on each one to react to the user-change event.
-    try { location.reload(); } catch (_) {}
+    // than relying on each one to react to the user-change event. Drop any
+    // hash/query so an OAuth token fragment can't re-detect a session.
+    try { location.replace(location.origin + location.pathname); }
+    catch (_) { try { location.reload(); } catch (__) {} }
   }
   window.tdSignIn  = signInWithEmail;
   window.tdSignInGoogle = signInWithGoogle;
