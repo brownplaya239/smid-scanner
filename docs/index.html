@@ -422,14 +422,23 @@
   .wlt-import-actions code { background:var(--card); padding:1px 5px;
     border-radius:3px; font-size:10.5px; }
 
+  /* "— or —" divider between the paste-text and screenshot methods */
+  .wlt-or { display:flex; align-items:center; gap:10px; margin:14px 0 2px;
+    color:var(--muted); font-size:10.5px; letter-spacing:.6px;
+    text-transform:uppercase; }
+  .wlt-or::before, .wlt-or::after { content:""; flex:1; height:1px;
+    background:var(--line); }
   /* Screenshot / CSV drop zone */
-  .wlt-drop { margin-top:12px; border:1.5px dashed var(--border2);
-    border-radius:7px; padding:16px 14px; text-align:center;
+  .wlt-drop { display:block; margin-top:12px;
+    border:1.5px dashed var(--border2);
+    border-radius:8px; padding:18px 16px; text-align:center;
     background:var(--navy2); cursor:pointer; transition:border-color .15s,
     background .15s; }
   .wlt-drop:hover, .wlt-drop.wlt-drop-hot { border-color:var(--gold);
     background:rgba(255,200,0,0.05); }
-  .wlt-drop-icon { font-size:20px; line-height:1; margin-bottom:6px; }
+  .wlt-drop:focus-visible { outline:2px solid var(--gold);
+    outline-offset:2px; }
+  .wlt-drop-icon { font-size:22px; line-height:1; margin-bottom:6px; }
   .wlt-drop-title { font-size:12.5px; font-weight:600; color:var(--text); }
   .wlt-drop-sub { font-size:11px; color:var(--muted); margin-top:3px; }
   .wlt-drop-sub b { color:var(--gold); font-weight:600; }
@@ -4726,6 +4735,7 @@
             </div>
 
             <!-- Screenshot / CSV auto-import -->
+            <div class="wlt-or">or import your whole portfolio</div>
             <label class="wlt-drop" id="wlt-drop" for="wlt-file-input"
                    tabindex="0">
               <div class="wlt-drop-icon">📸</div>
