@@ -2183,7 +2183,20 @@ async function _econFromNasdaq(dateISO) {
       actual:   String(row.actual || "").trim(),
     });
   }
-  return events;
+  // Nasdaq lists sub-indices under identical generic names (e.g. "House
+  // Price Index" ×3, "S&P/CS HPI Composite - 20 n.s.a." ×2). Collapse rows
+  // that share a time+title to the single most COMPLETE one (most of
+  // actual/forecast/previous populated), preserving chronological order.
+  const _score = function (e) {
+    return (e.actual ? 1 : 0) + (e.forecast ? 1 : 0) + (e.previous ? 1 : 0);
+  };
+  const order = [], best = {};
+  for (const e of events) {
+    const k = e.time + "|" + e.title.toLowerCase();
+    if (!(k in best)) { order.push(k); best[k] = e; }
+    else if (_score(e) > _score(best[k])) best[k] = e;
+  }
+  return order.map(function (k) { return best[k]; });
 }
 function _ffTag(block, tag) {
   const m = new RegExp("<" + tag +
