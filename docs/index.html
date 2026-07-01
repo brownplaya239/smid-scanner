@@ -3485,6 +3485,9 @@
   .clv-evt .clv-lbl { color:var(--gold); }
   .chart-levels-note { flex:0 0 auto; align-self:center; font-size:10px;
     color:var(--muted); padding-left:4px; }
+  /* Zero-size marker: positions the freshness stamp on the desks (below
+     the live news wire, above the EOD grid). */
+  .fresh-anchor { display:none; }
 
   /* ── Unusual Options Activity dashboard ── */
   #panel-uoa { max-width:1180px; }
@@ -4711,6 +4714,9 @@
           <div class="md-news-empty">Connecting to the wire&hellip;</div>
         </div>
       </div>
+      <!-- Freshness stamp lands here (below the live wire, above the EOD
+           grid it describes) via the .fresh-anchor slot in tdSetFreshness. -->
+      <div class="fresh-anchor"></div>
       <div class="desk-grid" id="desk-grid">
         <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
       </div>
@@ -4946,6 +4952,9 @@
           <div class="md-news-empty">Connecting to the wire&hellip;</div>
         </div>
       </div>
+      <!-- EOD/grades freshness stamp lands here, below the live watchlist
+           news wire (which has its own Live badge). -->
+      <div class="fresh-anchor"></div>
       <div id="mydesk-body">
         <div class="uoa-empty">Loading...</div>
       </div>
@@ -11643,14 +11652,23 @@
       if (!fr) {
         fr = document.createElement("div");
         fr.className = "freshness";
-        // Insert right after the tab title (h2)
-        const h2 = panel.querySelector(":scope > h2");
-        const subP = panel.querySelector(":scope > p.tab-sub");
-        const anchor = subP || h2;
-        if (anchor && anchor.nextSibling) {
-          panel.insertBefore(fr, anchor.nextSibling);
+        // If the panel declares an explicit slot, drop the stamp there —
+        // used on the desks so the EOD/grades stamp sits ABOVE the grid it
+        // describes, NOT above the always-live news wire (which reads as
+        // misleading — the news is live, not 16h old).
+        const slot = panel.querySelector(":scope > .fresh-anchor");
+        if (slot) {
+          panel.insertBefore(fr, slot);
         } else {
-          panel.insertBefore(fr, panel.firstChild);
+          // Default: right after the tab title / sub.
+          const h2 = panel.querySelector(":scope > h2");
+          const subP = panel.querySelector(":scope > p.tab-sub");
+          const anchor = subP || h2;
+          if (anchor && anchor.nextSibling) {
+            panel.insertBefore(fr, anchor.nextSibling);
+          } else {
+            panel.insertBefore(fr, panel.firstChild);
+          }
         }
       }
       fr.className = "freshness " + staleClass(isoStr, character);
