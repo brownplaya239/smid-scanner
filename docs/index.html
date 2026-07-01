@@ -5687,14 +5687,14 @@
               <td>7 days</td><td>Full archive</td><td>Full archive</td></tr>
             <tr><td>Daily Brief email</td>
               <td>✓</td><td>✓</td><td>✓</td></tr>
-            <tr><td>Push alerts (fire each scan, ~6×/day)</td>
+            <tr><td>Push alerts (fire each scan, ~14×/day)</td>
               <td>Basic</td><td>Per-ticker config</td><td>Per-ticker + webhook</td></tr>
             <tr><td>Portfolio benchmarking</td>
               <td>—</td><td>vs SPY/QQQ/IWM</td><td>vs SPY/QQQ/IWM + custom</td></tr>
             <tr><td>Trade journal</td>
               <td>Local only</td><td>Synced + CSV export</td><td>Synced + CSV export</td></tr>
             <tr><td>Signal refresh cadence</td>
-              <td>EOD</td><td>Intraday (6×/day)</td><td>Intraday + priority queue</td></tr>
+              <td>EOD</td><td>Intraday (every ~30 min)</td><td>Intraday + priority queue</td></tr>
             <tr><td>Discord channel</td>
               <td>—</td><td>—</td><td>Members-only</td></tr>
             <tr><td>Email support SLA</td>
@@ -5876,7 +5876,7 @@
           under a minute. Three quick steps and you're done.</p>
         <ul class="ob-checklist">
           <li>📊 Daily Brief email at 8:45 AM ET</li>
-          <li>🔔 Push alerts after each scan (~6×/day) for watchlist names</li>
+          <li>🔔 Push alerts after each scan (~14×/day) for watchlist names</li>
           <li>⭐ Save tickers from any tab to your watchlist</li>
           <li>📝 Private notes on every name</li>
           <li>📈 Live unusual options flow on every drilldown</li>
@@ -10121,7 +10121,7 @@
         ["Scanner 11:30 AM", "scanner.yml @ 11:37 ET"],
         ["Scanner 3:00 PM", "scanner.yml @ 3:07 ET"],
         ["Setup Builder 4:15 PM", "scanner.yml @ 5:17 ET (EST cron, EDT post-close)"],
-        ["UOA scans (6×/day)", "9:47, 11:07, 12:17, 1:37, 2:37, 3:47 PM ET"],
+        ["UOA scans (every ~30 min)", "~9:35 AM → 3:55 PM ET, :05/:35 grid (~14×/day)"],
         ["Momentum + Swing", "5:33 PM ET post-close"],
         ["Push alerts", "after each UOA + Momentum (workflow_run trigger)"],
       ];
@@ -11559,7 +11559,7 @@
       //   Near real-time (sub-5-min, currently unused — would need
       //                  Polygon Stocks Advanced)
       //   Delayed 15m   (Polygon Stocks Starter quotes, yfinance)
-      //   Intraday batch (UOA: Polygon Options Starter 6×/day)
+      //   Intraday batch (UOA: Polygon Options Starter, every ~30 min)
       //   EOD           (post-close swing, breakouts, setups, earnings)
       //   Weekly        (Stockbee)
       // Keep the underlying character keys ("post-close" etc.) for
@@ -17928,7 +17928,7 @@
             '<span class="sp-action-icon">' + (inWL ? "★" : "☆") +
               '</span><span class="sp-action-lbl">Save</span></button>' +
           '<button data-act-alert="' + tkr + '" ' +
-                  'title="Push alerts (fire each scan, ~6×/day) for ' + tkr + '">' +
+                  'title="Push alerts (fire each scan, ~14×/day) for ' + tkr + '">' +
             '<span class="sp-action-icon">🔔</span>' +
             '<span class="sp-action-lbl">Alert</span></button>' +
           '<button data-act-note="' + tkr + '" ' +
