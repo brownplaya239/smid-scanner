@@ -3374,10 +3374,12 @@
   .archive-freshness .af-chip.is-stale { border-color:rgba(255,158,27,0.45);
     background:rgba(255,158,27,0.08); }
   .archive-freshness .af-chip.is-stale .af-age { color:var(--gold); }
-  /* My Reports (private history) rows */
-  #my-reports-list .mr-row { display:flex; align-items:baseline; gap:10px;
-    padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; }
-  #my-reports-list .mr-row:last-child { border-bottom:0; }
+  /* My Reports (private history) rows — used by both the Research "My Recent
+     Reports" card and the Alt-Data "Your Recent Alt-Data Reports" list. */
+  #my-reports-list .mr-row, #list-alt-data .mr-row { display:flex; align-items:baseline;
+    gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  #my-reports-list .mr-row:last-child, #list-alt-data .mr-row:last-child { border-bottom:0; }
+  .mr-empty { padding:10px 0; color:var(--muted); font-size:12.5px; }
   .mr-row .mr-tk { font-weight:700; color:var(--gold); min-width:56px; }
   .mr-row .mr-kind { font-size:10px; text-transform:uppercase;
     letter-spacing:.4px; color:var(--muted); background:var(--card);
@@ -5033,35 +5035,10 @@
            by loadMyReports() from the worker /my-reports endpoint (signed
            URLs). Hidden until the user is signed in and has reports. -->
       <div class="card" id="my-reports-card" style="display:none">
-        <h2>My Reports</h2>
+        <h2>My Recent Reports</h2>
         <p class="sub">Your private research history — reports you've
           generated, newest first. Only you can see these.</p>
         <div id="my-reports-list"></div>
-      </div>
-
-      <!-- Archive search — secondary action, pulls existing PDFs instantly -->
-      <div class="card">
-        <h2>Ticker Report Archive</h2>
-        <p class="sub">
-          Skip the wait when a recent report already exists. Search the full
-          PDF archive by ticker &mdash; ad-hoc research, alt-data, breakout
-          scans, setup builders all surface most-recent-first, and open in
-          the inline viewer with one click.
-        </p>
-        <!-- Global archive freshness strip — populated by setupArchiveSearch.
-             Shows total report count + the freshness of each report type so
-             the user knows the archive is alive even before they search a
-             ticker. Catches the "looks abandoned" trap when adhoc latest
-             is several days old. -->
-        <div id="archive-freshness" class="archive-freshness"></div>
-        <div class="input-row">
-          <input type="text" id="archive-q" placeholder="NVDA · MU · COIN..."
-                 maxlength="8" autocomplete="off"
-                 autocapitalize="characters" />
-          <button class="go" id="archive-go">Search</button>
-        </div>
-        <div id="archive-recent" class="archive-recent"></div>
-        <div id="archive-results" class="archive-results"></div>
       </div>
 
       <!-- IR & Filings hub — per-ticker SEC EDGAR timeline (the reliable
@@ -5088,10 +5065,6 @@
       </div>
 
       <div id="viewer"></div>
-
-      <h2 class="tab-title">Recent Ad-Hoc Reports</h2>
-      <p class="tab-sub">Most recent first. Click to open the PDF.</p>
-      <div class="report-list" id="list-adhoc"></div>
     </section>
 
     <!-- Alt-Data Intel -->
@@ -5112,8 +5085,8 @@
         <div id="status-alt"></div>
       </div>
       <div id="viewer-alt"></div>
-      <h2 class="tab-title">Recent Alt-Data Reports</h2>
-      <p class="tab-sub">Most recent first. Click to open the PDF.</p>
+      <h2 class="tab-title">Your Recent Alt-Data Reports</h2>
+      <p class="tab-sub">Private to your account &mdash; newest first. Only you can see these.</p>
       <div class="report-list" id="list-alt-data"></div>
     </section>
 
@@ -7094,6 +7067,12 @@
         // account, then clear local so we don't double-add on next signout
         // Refresh plan + report counts whenever auth state changes
         refreshPlanState();
+        // Refresh the per-user private report lists (Research + Alt-Data).
+        // On sign-out these clear to their empty state; on sign-in they fill.
+        if (typeof window.loadMyReports === "function") {
+          window.loadMyReports({ cardId: "my-reports-card", listId: "my-reports-list", kind: "adhoc" });
+          window.loadMyReports({ listId: "list-alt-data", kind: "altdata" });
+        }
         if (CURRENT_USER && event === "SIGNED_IN") {
           const local = _wlReadLocal();
           if (local.length) {
@@ -12391,14 +12370,8 @@
             '<a href="' + r.file + '" target="_blank">' + r.label + '</a>' +
             '<span class="tdp-r-date">' + r.date[0] + '</span></div>';
         }).join("");
-        // "Open archive viewer" action: switches to Ticker Research tab
-        // and runs the archive search for this name — lands the most
-        // recent PDF inline in the iframe viewer.
-        const archiveBtn = '<div class="tdp-actions" style="margin-top:9px">' +
-          '<button data-archive-tk="' + t + '">' +
-          'Open in archive viewer &rarr;</button></div>';
         sec.push('<div class="tdp-section"><h4>Recent reports</h4>' +
-          rep + archiveBtn + '</div>');
+          rep + '</div>');
       }
 
       // 5) Latest news — lazy-loaded from the worker. Shows a placeholder
@@ -13357,14 +13330,6 @@
         closePanel();
         return;
       }
-      // "Open in archive viewer" — switches to Ticker Research tab,
-      // runs archive search, embeds most recent matching PDF inline.
-      const ak = e.target.closest("[data-archive-tk]");
-      if (ak && window.searchTickerArchive) {
-        window.searchTickerArchive(ak.dataset.archiveTk);
-        closePanel();
-        return;
-      }
       // Watchlist star toggle
       const wk = e.target.closest("[data-watch-tk]");
       if (wk && window.tdToggleWatch) {
@@ -14083,28 +14048,15 @@
     const el = document.getElementById("list-" + typeKey);
     if (!el) return;
     if (!entries || entries.length === 0) {
-      // Useful empty state per report type — explain what the user can
-      // do RIGHT NOW (run a fresh report) instead of just "wait for cron".
-      // adhoc + alt-data are user-triggered; the swing/setup variants
-      // run on a cron schedule so the copy reflects that distinction.
-      const isUserTriggered = (typeKey === "adhoc" || typeKey === "alt-data");
-      const lookupAnchor = typeKey === "alt-data"
-        ? "#adhoc-altdata"
-        : (typeKey === "adhoc" ? "#adhoc-input" : null);
+      // renderList only serves the scheduled scanner/setup PDFs now
+      // (ad-hoc + alt-data are per-user private — see loadMyReports).
       el.innerHTML = '<div class="empty" ' +
         'style="padding:22px 18px;text-align:center;line-height:1.6">' +
-        (isUserTriggered
-          ? '<div style="font-size:13px;color:var(--text);font-weight:700;' +
-            'margin-bottom:6px">No reports yet — generate the first one.</div>' +
-            '<div style="font-size:11.5px;color:var(--textdim);' +
-            'margin-bottom:10px">Type a ticker into the form above to ' +
-            'kick off a fresh research run. Reports take ~60s to ' +
-            'generate and are archived here permanently.</div>'
-          : '<div style="font-size:13px;color:var(--text);font-weight:700;' +
-            'margin-bottom:6px">No reports archived yet.</div>' +
-            '<div style="font-size:11.5px;color:var(--textdim)">The next ' +
-            'scheduled scan (4:30 PM ET weekdays) will populate this tab.</div>'
-        ) + '</div>';
+        '<div style="font-size:13px;color:var(--text);font-weight:700;' +
+        'margin-bottom:6px">No reports archived yet.</div>' +
+        '<div style="font-size:11.5px;color:var(--textdim)">The next ' +
+        'scheduled scan (4:30 PM ET weekdays) will populate this tab.</div>' +
+        '</div>';
       return;
     }
     el.innerHTML = entries.map(function (r) {
@@ -14125,42 +14077,14 @@
     .then(function (r) { return r.ok ? r.json() : { reports: {} }; })
     .then(function (m) {
       const reps = m.reports || {};
-      ["adhoc","alt-data","smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
+      // Only the scheduled scanner/setup PDFs live in the public manifest now.
+      // Ad-hoc + alt-data reports are per-user private (see loadMyReports).
+      ["smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
         renderList(k, reps[k]);
       });
-      // Research + Alt-Data tabs are archive-driven (PDFs generated
-      // on-demand by users). Stamp them with the manifest's most-recent
-      // report timestamp so users can see how recent the archive is.
-      // Manifest entries only carry {file, label, ticker} — the date is
-      // embedded in the filename (ticker_CEVA_2026-06-01_2051.pdf), so
-      // parse it from there. Falls back to manifest.generated.
-      // ⚠ Old code did Date.parse(0) when fields were missing, which V8
-      // resolves to Jan 1, 2000 (not NaN) and silently stamped both
-      // panels as "2000-01-01 · 9000d ago · stale". Hence the bug.
-      if (window.tdSetFreshness) {
-        const parseFromFile = function (file) {
-          const m2 = (file || "").match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
-          if (!m2) return 0;
-          return Date.UTC(+m2[1], +m2[2] - 1, +m2[3], +m2[4], +m2[5]);
-        };
-        // Both ad-hoc AND alt-data are user-requested single-stock lookups —
-        // generated on demand, archived for reference, NOT a scheduled feed.
-        // So both are "on-demand": an old date means nobody's run one lately,
-        // not that data is stale. Each panel uses ITS OWN latest report date
-        // (the old code stamped both with the max of the two).
-        const tsForType = function (k) {
-          const list = reps[k] || [];
-          const t = list.length ? parseFromFile(list[0].file) : 0;
-          return t ? new Date(t).toISOString() : (m.generated || null);
-        };
-        const adhocTs = tsForType("adhoc");
-        const altTs   = tsForType("alt-data");
-        if (adhocTs) window.tdSetFreshness("panel-adhoc",    adhocTs, "on-demand");
-        if (altTs)   window.tdSetFreshness("panel-alt-data", altTs,   "on-demand");
-      }
     })
     .catch(function () {
-      ["adhoc","alt-data","smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
+      ["smid-scanner","iwm-scanner","smid-setup","iwm-setup"].forEach(function (k) {
         renderList(k, []);
       });
     });
@@ -14176,46 +14100,72 @@
   // ── My Reports — the signed-in user's PRIVATE report history ──────────
   // Reads the worker /my-reports endpoint (validates the JWT + mints signed
   // URLs to the private user-reports bucket). Signed URLs are short-lived,
-  // so we re-fetch fresh ones on every load. Hidden when signed out / empty.
-  async function loadMyReports() {
-    const card = document.getElementById("my-reports-card");
-    const list = document.getElementById("my-reports-list");
-    if (!card || !list) return;
+  // so we re-fetch fresh ones on every load. This replaced the old public
+  // "archive" (all users' PDFs on the Pages site) — now each user sees only
+  // their own recent reports, which is both private and far lighter to serve.
+  //
+  // Two call shapes:
+  //   {cardId, listId, kind:"adhoc"}  → Research tab (card hides when empty)
+  //   {listId, kind:"altdata"}        → Alt-Data tab (always-visible list)
+  function _mrRowHtml(rp) {
+    var when = "";
+    try {
+      var d = new Date(rp.created_at);
+      when = d.toLocaleDateString([], { month: "short", day: "numeric" }) +
+        " " + d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    } catch (e) {}
+    var kind = rp.kind === "altdata" ? "Alt-Data" : "Research";
+    var right = rp.url
+      ? '<a href="' + rp.url + '" target="_blank" rel="noopener" class="mr-open">Open &rarr;</a>'
+      : '<span class="mr-exp">link expired — regenerate</span>';
+    return '<div class="mr-row">' +
+      '<span class="mr-tk">' + (rp.ticker || "") + '</span>' +
+      '<span class="mr-kind">' + kind + '</span>' +
+      '<span class="mr-when">' + when + '</span>' + right + '</div>';
+  }
+  async function loadMyReports(opts) {
+    opts = opts || {};
+    const listId = opts.listId || "my-reports-list";
+    const kind   = opts.kind || null;               // "adhoc" | "altdata" | null(all)
+    const list   = document.getElementById(listId);
+    if (!list) return;
+    const card   = opts.cardId ? document.getElementById(opts.cardId) : null;
+    // When a wrapping card is supplied we hide it entirely if there's nothing
+    // to show; a bare list instead shows an inline empty message.
+    const hide = function () {
+      if (card) card.style.display = "none";
+      else list.innerHTML = '<div class="mr-empty">Sign in and generate a report to see it here.</div>';
+    };
     try {
       const { session } = await getSessionSafe();
-      if (!session || !session.access_token) { card.style.display = "none"; return; }
+      if (!session || !session.access_token) { hide(); return; }
       const r = await fetch(WORKER_URL + "/my-reports",
         { headers: { "Authorization": "Bearer " + session.access_token } });
       const j = r.ok ? await r.json() : {};
-      const reps = (j && j.reports) || [];
-      if (!reps.length) { card.style.display = "none"; return; }
-      card.style.display = "";
-      list.innerHTML = reps.map(function (rp) {
-        var when = "";
-        try {
-          var d = new Date(rp.created_at);
-          when = d.toLocaleDateString([], { month: "short", day: "numeric" }) +
-            " " + d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-        } catch (e) {}
-        var kind = rp.kind === "altdata" ? "Alt-Data" : "Research";
-        var right = rp.url
-          ? '<a href="' + rp.url + '" target="_blank" rel="noopener" class="mr-open">Open &rarr;</a>'
-          : '<span class="mr-exp">link expired — regenerate</span>';
-        return '<div class="mr-row">' +
-          '<span class="mr-tk">' + (rp.ticker || "") + '</span>' +
-          '<span class="mr-kind">' + kind + '</span>' +
-          '<span class="mr-when">' + when + '</span>' + right + '</div>';
-      }).join("");
-    } catch (e) { card.style.display = "none"; }
+      let reps = (j && j.reports) || [];
+      if (kind === "altdata")     reps = reps.filter(function (x) { return (x.kind || "") === "altdata"; });
+      else if (kind === "adhoc")  reps = reps.filter(function (x) { return (x.kind || "adhoc") !== "altdata"; });
+      if (!reps.length) {
+        if (card) { card.style.display = "none"; return; }
+        list.innerHTML = '<div class="mr-empty">No reports yet — generate one above.</div>';
+        return;
+      }
+      if (card) card.style.display = "";
+      list.innerHTML = reps.map(_mrRowHtml).join("");
+    } catch (e) { hide(); }
   }
   window.loadMyReports = loadMyReports;
-  // Load the user's history when the Research tab is opened.
+  // Per-tab config for the two private recents lists.
+  const MY_REPORTS_CFG = {
+    "adhoc":    { cardId: "my-reports-card", listId: "my-reports-list", kind: "adhoc" },
+    "alt-data": { listId: "list-alt-data", kind: "altdata" }
+  };
+  // Refresh the right list whenever its tab is opened.
   (function () {
     const navEl = document.getElementById("nav");
     if (navEl) navEl.addEventListener("click", function (e) {
-      if (e.target && e.target.dataset && e.target.dataset.tab === "adhoc") {
-        loadMyReports();
-      }
+      const t = e.target && e.target.dataset && e.target.dataset.tab;
+      if (t && MY_REPORTS_CFG[t]) loadMyReports(MY_REPORTS_CFG[t]);
     });
   })();
 
@@ -14331,9 +14281,14 @@
             "</strong> report ready &mdash; shown below.");
           embedPrivateReport(ticker, priv);
           button.disabled = false;
-          if (typeof loadMyReports === "function") loadMyReports();
+          if (typeof loadMyReports === "function") {
+            loadMyReports(MY_REPORTS_CFG[cfg.listKey] || { listId: "my-reports-list", cardId: "my-reports-card" });
+          }
           return;
         }
+        // Fallback (signed-out, or private upload not configured): the PDF
+        // lands in the public manifest instead. Show it inline — there's no
+        // public list to refresh anymore (recents are per-user + private).
         const m = await fetchManifest();
         const list = (m.reports && m.reports[cfg.listKey]) || [];
         const fresh = list.find(function (e) {
@@ -14344,7 +14299,6 @@
           updateReportStatus(ticker, "done");
           embedReport(ticker, fresh);
           button.disabled = false;
-          renderList(cfg.listKey, list);
           return;
         }
         // Progressive status — show "queued" first ~30s, then "running",
@@ -14475,323 +14429,16 @@
     });
   }
 
-  // ── Ticker archive search — pulls existing PDFs from manifest.json
-  // and embeds the most recent matching report in the same #viewer the
-  // generate flow uses. Recently-searched chips persist via localStorage.
-  // Cross-references every report type (adhoc, alt-data, smid-scanner,
-  // iwm-scanner, smid-setup, iwm-setup, qm-monthly, stockbee-weekly).
-  (function setupArchiveSearch() {
-    const input    = document.getElementById("archive-q");
-    const button   = document.getElementById("archive-go");
-    const recentEl = document.getElementById("archive-recent");
-    const resultsEl= document.getElementById("archive-results");
-    const freshEl  = document.getElementById("archive-freshness");
-    const viewer   = document.getElementById("viewer");
-    if (!input || !button) return;
-    // ── Global archive freshness strip ──
-    // Renders into #archive-freshness on tab load. Pulls manifest.json,
-    // counts reports per type, finds each type's latest filename-date.
-    // Anything older than 7 days gets the .is-stale highlight so users
-    // see "Adhoc: 5d old — generate a fresh one" rather than scratching
-    // their head wondering whether the product is abandoned.
-    async function renderFreshness() {
-      if (!freshEl) return;
-      let m;
-      try { m = await fetchM(); } catch (_) { return; }
-      if (!m || !m.reports) {
-        freshEl.innerHTML = '';
-        return;
-      }
-      const TYPE_LABEL_SHORT = {
-        "adhoc":           "Ad-Hoc",
-        "alt-data":        "Alt-Data",
-        "smid-scanner":    "SMID",
-        "iwm-scanner":     "IWM",
-        "smid-setup":      "SMID Setup",
-        "iwm-setup":       "IWM Setup",
-        "qm-monthly":      "QM",
-        "stockbee-weekly": "Stockbee",
-      };
-      const fileAgeMs = function (file) {
-        const m2 = (file || "").match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
-        if (!m2) return null;
-        const d = new Date(Date.UTC(+m2[1], +m2[2]-1, +m2[3], +m2[4], +m2[5]));
-        return Date.now() - d.getTime();
-      };
-      const formatAge = function (ms) {
-        if (ms == null) return "—";
-        const h = Math.round(ms / 3600000);
-        if (h < 1)   return "&lt;1h";
-        if (h < 24)  return h + "h";
-        const days = Math.round(h / 24);
-        if (days < 30) return days + "d";
-        return Math.round(days / 30) + "mo";
-      };
-      let total = 0;
-      const chips = [];
-      Object.keys(m.reports).forEach(function (type) {
-        const entries = m.reports[type] || [];
-        total += entries.length;
-        if (!entries.length) return;
-        const latest = entries[0];
-        const ageMs = fileAgeMs(latest.file);
-        const stale = (ageMs != null && ageMs > 7 * 86400000);
-        chips.push({
-          type: type,
-          label: TYPE_LABEL_SHORT[type] || type,
-          n: entries.length,
-          ageMs: ageMs,
-          stale: stale,
-        });
-      });
-      // Sort: stale first (more attention), then by recency
-      chips.sort(function (a, b) {
-        if (a.stale !== b.stale) return a.stale ? -1 : 1;
-        return (a.ageMs || 0) - (b.ageMs || 0);
-      });
-      const html = '<span class="af-total">' + total +
-        ' reports on file</span>' +
-        chips.map(function (c) {
-          return '<span class="af-chip' +
-            (c.stale ? ' is-stale' : '') +
-            '" title="' + c.n + ' ' + c.label + ' report' +
-            (c.n === 1 ? '' : 's') +
-            (c.stale ? ' — latest is ' + formatAge(c.ageMs) +
-              ' old. Consider running a fresh one." ' : '" ') +
-            '>' +
-            '<span class="af-label">' + c.label + '</span>' +
-            '<span class="af-age">' + formatAge(c.ageMs) + '</span>' +
-            '</span>';
-        }).join("");
-      freshEl.innerHTML = html;
-    }
-    // Render on initial mount + every time user lands on this tab
-    renderFreshness();
-    document.getElementById("nav").addEventListener("click", function (e) {
-      if (e.target && e.target.dataset &&
-          (e.target.dataset.tab === "adhoc" ||
-           e.target.dataset.tab === "alt-data")) {
-        setTimeout(renderFreshness, 100);
-      }
-    });
-
-    const RECENT_KEY = "td-recent-tickers";
-    const MAX_RECENT = 12;
-    const TYPE_LABEL = {
-      "adhoc":           "Ad-Hoc",
-      "alt-data":        "Alt-Data",
-      "smid-scanner":    "SMID Scan",
-      "iwm-scanner":     "IWM Scan",
-      "smid-setup":      "SMID Setup",
-      "iwm-setup":       "IWM Setup",
-      "qm-monthly":      "QM Month",
-      "stockbee-weekly": "Stockbee",
-    };
-    // 1-line preview shown under each archived report — explains
-    // what's in the PDF before the user clicks. Avoids the "list of
-    // filenames" anti-pattern. Per-type because each report type
-    // covers a different surface; the SMID setup write-up is
-    // structurally different from an ad-hoc one-pager.
-    const TYPE_DESC = {
-      "adhoc":           "Setup analysis, 12-mo insider transactions, institutional ownership, price/volume context",
-      "alt-data":        "Sentiment, social momentum, alternative datasets — bull/bear thesis with conviction score",
-      "smid-scanner":    "Breakout candidates from the SMID universe with Claude-scored thesis per ticker",
-      "iwm-scanner":     "Same as SMID for the broader Russell 2000 universe",
-      "smid-setup":      "VCP and consolidation setups in SMID names with entry/stop logic",
-      "iwm-setup":       "VCP / consolidation setups across the IWM universe",
-      "qm-monthly":      "Qullamaggie-style 1-month momentum screen with ADR + dollar-volume filters",
-      "stockbee-weekly": "Stockbee weekly momentum screen — top 1-week % gainers above the liquidity floor",
-    };
-    let LAST_MATCHES = [];     // most recent search result set
-
-    function recent() {
-      try {
-        return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
-      } catch (e) { return []; }
-    }
-    function pushRecent(tk) {
-      const r = recent().filter(function (x) { return x !== tk; });
-      r.unshift(tk);
-      try {
-        localStorage.setItem(RECENT_KEY, JSON.stringify(r.slice(0, MAX_RECENT)));
-      } catch (e) { /* private mode etc. */ }
-      renderRecent();
-    }
-    function clearRecent() {
-      try { localStorage.removeItem(RECENT_KEY); } catch (e) {}
-      renderRecent();
-    }
-    function renderRecent() {
-      const r = recent();
-      if (!r.length) { recentEl.innerHTML = ""; return; }
-      recentEl.innerHTML =
-        '<span class="ar-recent-label">Recently searched:</span>' +
-        r.map(function (t) {
-          // Intentionally NOT using data-t — chip click triggers an archive
-          // search, not the drilldown panel. (Use the ticker spans inside
-          // search result rows or elsewhere on the site to open the panel.)
-          return '<span class="ar-chip" data-tk="' + t +
-            '" title="Search archive for ' + t + '">' + t + '</span>';
-        }).join("") +
-        '<button class="ar-clear" id="ar-clear-btn" ' +
-          'title="Clear recently searched">clear</button>';
-      const cb = document.getElementById("ar-clear-btn");
-      if (cb) cb.addEventListener("click", function (e) {
-        e.stopPropagation();
-        clearRecent();
-      });
-    }
-
-    function fileDate(file) {
-      // Filenames embed the date+time: e.g. ticker_NVDA_2026-05-19_1931.pdf
-      const m = (file || "").match(/(\d{4}-\d{2}-\d{2})_(\d{4})/);
-      if (!m) return "";
-      const t = m[2];
-      return m[1] + " " + t.slice(0, 2) + ":" + t.slice(2);
-    }
-    function embed(ticker, entry) {
-      const url = "./reports/" + entry.file;
-      viewer.className = "show";
-      // Bar gets both "Open in new tab" AND "Download" — the first works
-      // everywhere, the second is the mobile-Safari-old fallback for
-      // when inline iframe rendering doesn't kick in.
-      viewer.innerHTML =
-        '<div class="vbar">' +
-          '<span class="vname">' + ticker + ' &mdash; ' +
-            (entry.label || entry.file) + '</span>' +
-          '<span style="display:flex;gap:6px">' +
-            '<a href="' + url + '" target="_blank" rel="noopener" ' +
-              'aria-label="Open ' + ticker + ' PDF in new tab">' +
-              'Open in new tab &rarr;</a>' +
-            '<a href="' + url + '" download="' + entry.file + '" ' +
-              'aria-label="Download ' + ticker + ' PDF">Download</a>' +
-          '</span>' +
-        '</div>' +
-        '<iframe src="' + url + '" type="application/pdf" ' +
-          'title="' + ticker + ' report" loading="lazy"></iframe>';
-      resultsEl.querySelectorAll(".ar-row").forEach(function (r) {
-        r.classList.toggle("active", r.dataset.file === entry.file);
-      });
-      viewer.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
-    async function fetchM() {
-      try {
-        const r = await fetch("./reports/manifest.json?t=" + Date.now());
-        return r.ok ? r.json() : { reports: {} };
-      } catch (e) { return { reports: {} }; }
-    }
-    async function search(ticker) {
-      ticker = (ticker || "").toUpperCase().trim();
-      if (!ticker || !/^[A-Z.\-]{1,8}$/.test(ticker)) {
-        resultsEl.innerHTML = '<div class="ar-empty">' +
-          'Enter a valid ticker (1-8 letters).</div>';
-        return;
-      }
-      resultsEl.innerHTML = '<div class="ar-empty">Searching archive&hellip;</div>';
-      const m = await fetchM();
-      const matches = [];
-      Object.keys(m.reports || {}).forEach(function (type) {
-        (m.reports[type] || []).forEach(function (e) {
-          if ((e.ticker || "").toUpperCase() === ticker) {
-            matches.push(Object.assign({}, e, { _type: type }));
-          }
-        });
-      });
-      // Sort by filename date suffix (descending = newest first)
-      matches.sort(function (a, b) {
-        return (b.file || "").localeCompare(a.file || "");
-      });
-      LAST_MATCHES = matches;
-      if (!matches.length) {
-        resultsEl.innerHTML = '<div class="ar-empty">No archived reports ' +
-          'for <b>' + ticker + '</b> yet. Use the Generate form below to ' +
-          'create one.</div>';
-        viewer.className = ""; viewer.innerHTML = "";
-        pushRecent(ticker);
-        return;
-      }
-      // Freshness helper — turns a file's embedded date+time stamp
-      // into "Generated 2d ago" / "Today 4:31 PM" so the archive
-      // row carries an obvious recency cue without the user having
-      // to parse the date string themselves.
-      const ago = function (file) {
-        const m = (file || "").match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
-        if (!m) return "";
-        const d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]));
-        const ms = Date.now() - d.getTime();
-        const h = Math.round(ms / 3600000);
-        if (h < 24)  return h <= 1 ? "Just now" : h + "h ago";
-        const days = Math.round(h / 24);
-        if (days < 30) return days + "d ago";
-        return Math.round(days / 30) + "mo ago";
-      };
-      resultsEl.innerHTML =
-        '<div class="ar-found"><b>' + matches.length + '</b> matched ' +
-          'for <b>' + ticker + '</b> &mdash; most recent loaded in viewer ' +
-          'below. Click a row to switch.</div>' +
-        '<div class="ar-list">' +
-          matches.map(function (e) {
-            const dt = fileDate(e.file);
-            const desc = TYPE_DESC[e._type] ||
-              "Generated report (open to view).";
-            const freshness = ago(e.file);
-            return '<div class="ar-row" data-file="' + e.file + '">' +
-              '<span class="ar-type">' +
-                (TYPE_LABEL[e._type] || e._type) + '</span>' +
-              '<span class="ar-label">' + (e.label || e.file) +
-                '<span class="ar-preview">' + desc + '</span>' +
-              '</span>' +
-              '<span class="ar-date">' +
-                (freshness ? freshness + ' &middot; ' : '') + dt +
-              '</span>' +
-              '</div>';
-          }).join("") +
-        '</div>';
-      // Wire row clicks
-      resultsEl.querySelectorAll(".ar-row").forEach(function (row) {
-        row.addEventListener("click", function () {
-          const entry = LAST_MATCHES.find(function (x) {
-            return x.file === row.dataset.file;
-          });
-          if (entry) embed(ticker, entry);
-        });
-      });
-      embed(ticker, matches[0]);
-      pushRecent(ticker);
-    }
-
-    button.addEventListener("click", function () { search(input.value); });
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") search(input.value);
-    });
-    // Click a recent chip → re-run search (without re-firing the global
-    // drilldown handler, which would also catch the chip's data-t).
-    recentEl.addEventListener("click", function (e) {
-      const c = e.target.closest("[data-tk]");
-      if (!c) return;
-      e.stopPropagation();
-      e.preventDefault();
-      input.value = c.dataset.tk;
-      search(c.dataset.tk);
-    });
-    renderRecent();
-
-    // Expose so other tabs can pipe into the search box. E.g., clicking
-    // a "View archived reports" action from the drilldown panel will
-    // call window.searchTickerArchive("NVDA") to jump here.
-    window.searchTickerArchive = function (tk) {
-      const tab = document.querySelector('nav button[data-tab="adhoc"]');
-      if (tab) tab.click();
-      input.value = (tk || "").toUpperCase();
-      search(input.value);
-    };
-  })();
 
   setupLookup({ inputId:"ticker", btnId:"go", statusId:"status", viewerId:"viewer",
     listKey:"adhoc", reportType:"adhoc", runtime:"2-3 min" });
   setupLookup({ inputId:"ticker-alt", btnId:"go-alt", statusId:"status-alt", viewerId:"viewer-alt",
     listKey:"alt-data", reportType:"altdata", runtime:"1-2 min" });
+
+  // Paint the per-user recents on first load (empty state until sign-in);
+  // onAuthStateChange + the per-tab nav handler refresh them thereafter.
+  loadMyReports({ cardId: "my-reports-card", listId: "my-reports-list", kind: "adhoc" });
+  loadMyReports({ listId: "list-alt-data", kind: "altdata" });
 
   /* ── IR & Filings hub (Research tab) ───────────────────────────────
      Per-ticker SEC EDGAR timeline via the worker /?filings= endpoint.
