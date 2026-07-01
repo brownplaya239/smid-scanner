@@ -443,6 +443,20 @@
   .wlt-drop-sub { font-size:11px; color:var(--muted); margin-top:3px; }
   .wlt-drop-sub b { color:var(--gold); font-weight:600; }
   .wlt-drop input[type=file] { display:none; }
+  /* Dedicated paste slot — a contenteditable box that reliably receives
+     clipboard 'paste' events (a plain label/div does not). */
+  .wlt-paste-slot { display:block; margin-top:12px; min-height:46px;
+    padding:13px 16px; border:1.5px solid var(--border2); border-radius:8px;
+    background:var(--navy2); color:var(--text); font-size:12.5px;
+    line-height:1.4; text-align:center; cursor:text; outline:none;
+    transition:border-color .15s, background .15s; }
+  .wlt-paste-slot:empty::before { content:attr(data-ph); color:var(--muted); }
+  .wlt-paste-slot:hover { border-color:var(--gold); }
+  .wlt-paste-slot:focus { border-color:var(--gold);
+    background:rgba(255,200,0,0.06); }
+  .wlt-paste-slot.wlt-slot-armed { border-color:var(--gold);
+    border-style:solid; background:rgba(255,200,0,0.06); }
+  .wlt-paste-slot b { color:var(--gold); font-weight:600; }
   .wlt-ocr-status { margin-top:8px; font-size:11.5px; min-height:1em; }
   .wlt-ocr-status.err { color:var(--red); }
   .wlt-ocr-status.busy { color:var(--gold); }
@@ -4736,12 +4750,17 @@
 
             <!-- Screenshot / CSV auto-import -->
             <div class="wlt-or">or import your whole portfolio</div>
+            <div class="wlt-paste-slot" id="wlt-paste-slot"
+                 contenteditable="true" role="textbox" spellcheck="false"
+                 aria-label="Paste a portfolio screenshot"
+                 data-ph="📋 Click here, then paste your screenshot (Ctrl/⌘V)">
+            </div>
             <label class="wlt-drop" id="wlt-drop" for="wlt-file-input"
                    tabindex="0">
               <div class="wlt-drop-icon">📸</div>
-              <div class="wlt-drop-title">Paste, drop, or upload your portfolio</div>
-              <div class="wlt-drop-sub"><b>Paste a screenshot</b> (Ctrl/⌘V) ·
-                drop an image or CSV · or <b>click to choose a file</b> —
+              <div class="wlt-drop-title">Drop an image or CSV, or click to
+                choose a file</div>
+              <div class="wlt-drop-sub">screenshot or broker export —
                 we read the tickers &amp; position sizes automatically</div>
               <input type="file" id="wlt-file-input"
                 accept="image/png,image/jpeg,image/webp,image/gif,.csv,.tsv,.txt,text/csv" />
@@ -9234,14 +9253,63 @@
         }
         return false;
       };
-      // Catch a paste anywhere on the page while the importer is visible —
-      // but only for images, so pasting ticker text into the textarea (or
-      // anywhere else) keeps its normal behaviour. This also covers the
-      // case where the drop zone itself is focused, since paste bubbles to
-      // document (a non-editable element doesn't receive its own paste).
+      // Primary paste target: a dedicated contenteditable slot. Browsers
+      // only fire 'paste' when focus is in an editable element, so the slot
+      // is what actually makes Ctrl/⌘V work (a label/div never gets it).
+      const wltSlot = document.getElementById("wlt-paste-slot");
+      if (wltSlot) {
+        const clearSlot = function () { wltSlot.innerHTML = ""; };
+        wltSlot.addEventListener("paste", function (e) {
+          const handled = wltPasteImage(e);   // preventDefault's on image
+          if (handled) {
+            wltSlot.classList.remove("wlt-slot-armed");
+            setTimeout(clearSlot, 0);          // never let the img/text stick
+          } else {
+            // Pasted text (or an unreadable clipboard) — don't accumulate
+            // it in the slot; nudge toward the ticker textarea instead.
+            e.preventDefault();
+            const txt = (e.clipboardData || window.clipboardData)
+              .getData("text") || "";
+            if (txt.trim()) {
+              importArea.value = (importArea.value
+                ? importArea.value + "\n" : "") + txt.trim();
+              wltSetStatus("Added pasted text to the ticker box above — hit " +
+                "“Import to watchlist.”", "");
+            }
+            setTimeout(clearSlot, 0);
+          }
+        });
+        // Keep it a paste target, not a text editor — block typing so it
+        // can't fill up with stray characters.
+        wltSlot.addEventListener("keydown", function (e) {
+          const nav = ["Tab", "Escape"];
+          const combo = (e.ctrlKey || e.metaKey) &&
+            ["v", "a", "c", "x"].indexOf(e.key.toLowerCase()) >= 0;
+          if (!combo && nav.indexOf(e.key) < 0) e.preventDefault();
+        });
+        wltSlot.addEventListener("focus", function () {
+          wltSlot.classList.add("wlt-slot-armed");
+        });
+        wltSlot.addEventListener("blur", function () {
+          wltSlot.classList.remove("wlt-slot-armed"); clearSlot();
+        });
+      }
+
+      // Bonus fallback: catch a paste anywhere on the page while the importer
+      // is visible (some browsers deliver the paste to document.body). Images
+      // only, so pasting ticker text elsewhere keeps its normal behaviour.
       document.addEventListener("paste", function (e) {
         if (!wltDrop || wltDrop.offsetParent === null) return; // importer hidden
-        wltPasteImage(e);   // no-op unless the clipboard holds an image
+        if (document.activeElement === wltSlot) return; // slot handles its own
+        const cd = e.clipboardData || window.clipboardData;
+        const items = (cd && cd.items) || [];
+        let hasImg = false;
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].kind === "file" && /^image\//.test(items[i].type)) {
+            hasImg = true; break;
+          }
+        }
+        if (hasImg) wltPasteImage(e);
       });
     }
 
