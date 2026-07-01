@@ -18711,6 +18711,17 @@
       const manifest = D.manifest, cal = D.cal, uoaMeta = D.uoaMeta;
       if (!swing) return;     // initial fetch hasn't landed yet
       const today = DESK_DATE || new Date().toISOString().slice(0, 10);
+      // DESK_DATE is the last-GRADED session (yesterday's close) — correct
+      // for the EOD grade cards, but the economic calendar and earnings
+      // must show the LIVE trading day. Use the real current ET date
+      // (DST-safe via Intl), never the session date or a UTC slice (which
+      // rolls to tomorrow after ~8 PM ET).
+      const todayET = (function () {
+        try {
+          return new Date().toLocaleDateString("en-CA",
+            { timeZone: "America/New_York" });
+        } catch (_) { return new Date().toISOString().slice(0, 10); }
+      })();
         // Stamp every tab whose primary data we just loaded so the
         // freshness pill under each tab title reflects reality.
         // Watchlist + Breakouts + Setups share the same swing manifest
@@ -18743,8 +18754,8 @@
         const ctx = buildConfluenceCtx(uoa, swing, qm, sb, manifest, today);
         const calEarnStack =
           '<div class="desk-stack">' +
-            cardCalendar(cal, today) +
-            cardEarnings(uoaMeta, today) +
+            cardCalendar(cal, todayET) +
+            cardEarnings(uoaMeta, todayET) +
           '</div>';
         // Wrap Top Bullish + Top Bearish in a forced 2-col row so they
         // always render left/right as a symmetric pair. Without this,
