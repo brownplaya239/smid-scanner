@@ -1979,6 +1979,13 @@
   .wct-row .wct-detail.wct-down { color:var(--red); font-weight:600; }
   .wct-empty { color:var(--muted); font-size:11.5px; padding:8px 0;
     font-style:italic; }
+  /* Per-row cadence chip — LIVE (intraday flow) vs EOD (grade diff). */
+  .wct-cad { font-size:8px; font-weight:800; letter-spacing:.5px;
+    padding:1px 5px; border-radius:4px; flex:0 0 auto; align-self:center; }
+  .wct-cad-live { background:rgba(31,179,99,0.18); color:var(--green); }
+  .wct-cad-eod  { background:var(--card); color:var(--muted);
+    border:1px solid var(--line); }
+  .wct-row-hdr .wct-when { flex:0 0 auto; }
   /* Expandable "+N more" trigger — click toggles .expanded on the
      parent .wct-list and the hidden overflow rows reveal. Looks like
      a link by default so users recognize it as interactive; hover
@@ -16875,7 +16882,7 @@
             const c = todayFlat[tk];
             sampleItems.push({
               ticker: tk,
-              detail: "New A+ today (" + (c.th && c.th[0] || c.sec || "") +
+              detail: "New A+ this batch (" + (c.th && c.th[0] || c.sec || "") +
                 ")",
               cls: "up",
             });
@@ -16913,7 +16920,7 @@
             '</div>'
           : '<div class="wct-empty">' +
             'Building today\'s diff — comes online after market close.</div>';
-        return desk("What changed today",
+        return desk("What changed",
           sampleHtml +
           '<div class="wct-cta">' +
           (signed
@@ -16925,7 +16932,7 @@
 
       // Signed-in with watchlist — show actual diff
       if (!swing || !swing.runs || swing.runs.length < 2) {
-        return desk("What changed today",
+        return desk("What changed",
           empty("Diff lights up after the next post-close run."),
           "desk-card--wide", stamp);
       }
@@ -16980,7 +16987,7 @@
         if (t && t.grade === "A+" && (!p || p.grade !== "A+")) {
           changes.push({
             ticker: tk, cls: "up",
-            detail: "Entered A+ today",
+            detail: "Entered A+ (latest batch)",
             pri: 0,
           });
         }
@@ -16999,9 +17006,14 @@
           });
         }
       });
-      changes.sort(function (a, b) { return a.pri - b.pri; });
+      // Lead with LIVE (intraday flow, pri 3) rows so the desk foregrounds
+      // what's moving now; EOD grade diffs follow, ordered by materiality.
+      changes.sort(function (a, b) {
+        var al = a.pri === 3 ? 0 : 1, bl = b.pri === 3 ? 0 : 1;
+        return (al - bl) || (a.pri - b.pri);
+      });
       if (!changes.length) {
-        return desk("What changed today",
+        return desk("What changed",
           '<div class="wct-empty">⭐ Quiet day across your ' +
             watchlist.size + '-name watchlist. ' +
             'Check the Action List below for market-wide opportunities.' +
@@ -17014,22 +17026,30 @@
       // just decoration, not clickable).
       const wctHdr = '<div class="wct-row wct-row-hdr">' +
         '<span class="wct-tk" data-tip="1" ' +
-          'title="Ticker that experienced a change vs prior session.">' +
+          'title="Ticker that experienced a change.">' +
           'Ticker</span>' +
         '<span class="wct-detail" data-tip="1" ' +
-          'title="What changed: new A-tier appearance, flow direction shift, ' +
-          'earnings imminent, grade demotion, watchlist match. Color: ' +
-          'green = bullish change, red = bearish, gold = neutral / informational.">' +
-          'Change since prior session</span>' +
+          'title="What changed: live options flow (intraday, 15m delayed) or ' +
+          'a swing grade change vs the prior EOD batch. Color: green = ' +
+          'bullish, red = bearish, gold = neutral / informational.">' +
+          'Change</span>' +
+        '<span class="wct-when" data-tip="1" ' +
+          'title="LIVE = intraday options flow (updates through the day). ' +
+          'EOD = swing grade diff from the last post-close batch (yesterday ' +
+          'close); does not change intraday.">Feed</span>' +
         '</div>';
-      return desk("What changed today",
+      return desk("What changed",
         '<div class="wct-list">' + wctHdr +
           changes.map(function (item) {
+            var live = item.pri === 3;
+            var cad = '<span class="wct-cad wct-cad-' +
+              (live ? "live" : "eod") + '">' +
+              (live ? "LIVE" : "EOD") + '</span>';
             return '<div class="wct-row">' +
               '<span class="wct-tk" data-t="' + item.ticker + '">' +
                 item.ticker + '</span>' +
               '<span class="wct-detail wct-' + item.cls + '">' +
-                item.detail + '</span>' +
+                item.detail + '</span>' + cad +
             '</div>';
           }).join("") +
           (changes.length > 8
