@@ -1,39 +1,49 @@
 """
-daily_brief.py — Personalized morning email for TickerDesk subscribers.
+daily_brief.py — Personalized morning trading-desk email for TickerDesk.
 
 Runs ~8:45 AM ET on weekdays (GitHub Actions cron). For every user with
-`profiles.daily_brief_enabled = true`:
+`profiles.daily_brief_enabled = true` it builds a personalized brief that
+answers four questions at a glance:
 
-  1. Pull their watchlist from Supabase
-  2. Cross-reference today's signal JSON for each watched ticker:
-       - swing grade today + change vs prior run
-       - UOA flow (top contract by premium, if any new today)
-       - earnings within the next 7 days
-       - new reports archived in the last 24h
-  3. Compose a clean HTML email (mobile-friendly, single column)
-  4. Send via Resend API
-  5. Write the result to public.email_log (idempotent per brief_date)
+    What changed?   What matters?   What should I look at first?   Where's the risk?
 
-Idempotency: before sending, we check email_log for an existing
-'sent' row for (user_id, kind='daily_brief', brief_date=today). If we
-find one we skip — so re-running the workflow same-day never spams.
+Sections (in order):
+  1. Today's Playbook — 3 bullets: best opportunity / watch today / risk
+  2. Confluence — watchlist names where grade + flow + catalyst align
+  3. What Changed Since Yesterday — upgrades, downgrades, new A+, new flow,
+     new earnings ≤7d, new reports
+  4. Unusual Options Flow — expanded rows (tier/score, why, tags, B/E, etc.)
+  5. Earnings in the next 7 days
+  6. Market Context — global risk read-through + today's high-impact events
+  7. New Research — human-labeled scanner/report PDFs
+  8. Watchlist snapshot
+
+Then: Resend send + email_log idempotency (unchanged).
+
+Idempotency: before sending we check email_log for an existing 'sent' row
+for (user_id, kind='daily_brief', brief_date=today) and skip if found, so
+re-running the workflow same-day never spams.
 
 Required env vars:
   SUPABASE_URL              https://uaeojibmhxbwkhpvmjwy.supabase.co
   SUPABASE_SERVICE_KEY      service_role key (bypasses RLS — keep in CI only)
   RESEND_API_KEY            re_XXXXXX
   FROM_EMAIL                e.g. "TickerDesk <brief@tickerdesk.io>"
-                             (defaults to brief@tickerdesk.io if unset)
 
 Run locally:
-  python daily_brief.py            # sends to all opted-in users
-  python daily_brief.py --dry-run  # build + log to stdout, don't send
-  python daily_brief.py --me you@example.com  # restrict to one email
+  python daily_brief.py                 # sends to all opted-in users
+  python daily_brief.py --dry-run       # build + write preview HTML, don't send
+  python daily_brief.py --me you@x.com  # restrict to one email
+  python daily_brief.py --preview       # force a synthetic demo brief (no Supabase)
+
+Dry-run / preview always writes docs/email-previews/daily_brief_preview.html
+so you can eyeball the email in a browser without sending anything.
 """
 
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import sys
@@ -50,12 +60,27 @@ if hasattr(sys.stdout, "reconfigure"):
 ET = pytz.timezone("America/New_York")
 _BASE = os.path.dirname(os.path.abspath(__file__))
 REPORTS_DIR = os.path.join(_BASE, "docs", "reports")
+PREVIEW_PATH = os.path.join(_BASE, "docs", "email-previews", "daily_brief_preview.html")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 FROM_EMAIL = os.environ.get("FROM_EMAIL") or "TickerDesk <brief@tickerdesk.io>"
 SITE_URL = os.environ.get("SITE_URL") or "https://tickerdesk.io"
+
+GRADE_ORDER = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-",
+               "D+", "D", "D-", "E+", "E", "E-", "F+", "F", "F-", "G+", "G"]
+GRADE_RANK = {g: i for i, g in enumerate(GRADE_ORDER)}
+
+
+def esc(s: Any) -> str:
+    """HTML-escape any dynamic value. All user/data-derived strings that
+    reach the template MUST go through this."""
+    return html.escape("" if s is None else str(s), quote=True)
+
+
+def _is_a_tier(g: str | None) -> bool:
+    return bool(g) and g[0] == "A"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -71,20 +96,12 @@ def _safe_load(path: str) -> Any:
 
 
 def load_swing() -> dict[str, Any]:
-    """Returns {ticker: {grade, prev_grade, name, sector, price, chg, change}}.
-
-    "change" is one of:
-      - "new"      first time appearing today
-      - "upgrade"  grade improved vs prior day
-      - "downgrade" grade fell vs prior day
-      - "same"     unchanged
-    """
+    """Returns {ticker: {grade, prev_grade, name, sector, price, chg,
+    change, rvol, themes}}. `change` ∈ new/upgrade/downgrade/same."""
     data = _safe_load(os.path.join(REPORTS_DIR, "swing_report.json"))
     if not data or not data.get("runs"):
         return {}
-    runs = data["runs"]
-    # Sort by date desc just in case
-    runs = sorted(runs, key=lambda r: r.get("date", ""), reverse=True)
+    runs = sorted(data["runs"], key=lambda r: r.get("date", ""), reverse=True)
     today_run = runs[0]
     prev_run = runs[1] if len(runs) > 1 else None
 
@@ -100,25 +117,17 @@ def load_swing() -> dict[str, Any]:
     today = flatten(today_run)
     prev = flatten(prev_run) if prev_run else {}
 
-    # Grade ordering for upgrade/downgrade detection (lower index = better)
-    order = [
-        "A+", "A", "A-", "B+", "B", "B-",
-        "C+", "C", "C-", "D+", "D", "D-",
-        "E+", "E", "E-", "F+", "F", "F-",
-        "G+", "G",
-    ]
-    rank = {g: i for i, g in enumerate(order)}
-
     merged: dict[str, dict] = {}
     for t, row in today.items():
         pg = (prev.get(t) or {}).get("grade")
-        change = "same"
         if pg is None:
             change = "new"
-        elif rank.get(row["grade"], 99) < rank.get(pg, 99):
+        elif GRADE_RANK.get(row["grade"], 99) < GRADE_RANK.get(pg, 99):
             change = "upgrade"
-        elif rank.get(row["grade"], 99) > rank.get(pg, 99):
+        elif GRADE_RANK.get(row["grade"], 99) > GRADE_RANK.get(pg, 99):
             change = "downgrade"
+        else:
+            change = "same"
         merged[t] = {
             "grade": row["grade"],
             "prev_grade": pg,
@@ -126,42 +135,55 @@ def load_swing() -> dict[str, Any]:
             "sector": row.get("sec", ""),
             "price": row.get("p"),
             "chg": row.get("chg"),
+            "rvol": row.get("rvol"),
+            "themes": row.get("th") or [],
             "change": change,
         }
     return merged
 
 
-def load_uoa() -> dict[str, list[dict]]:
-    """Returns {ticker: [top_contract_rows]} — top 3 by premium per ticker.
+def load_uoa() -> tuple[dict[str, list[dict]], list[dict]]:
+    """Returns (by_ticker, market_top).
 
-    "New flow" gating happens implicitly because uoa_latest.json is rewritten
-    every scan with the day's signals only.
+    by_ticker  : {ticker: [top 3 contract rows by premium]} — full field set.
+    market_top : highest-conviction flow across the whole tape (deduped by
+                 ticker, sorted by trade_score) for the market-wide teaser.
     """
     data = _safe_load(os.path.join(REPORTS_DIR, "uoa_latest.json"))
     if not data:
-        return {}
+        return {}, []
+    rows = data.get("rows", []) or []
     by_ticker: dict[str, list[dict]] = {}
-    for row in data.get("rows", []):
+    for row in rows:
         t = row.get("ticker")
-        if not t:
-            continue
-        by_ticker.setdefault(t, []).append(row)
-    # Top 3 contracts per ticker by premium
+        if t:
+            by_ticker.setdefault(t, []).append(row)
     for t in by_ticker:
         by_ticker[t] = sorted(by_ticker[t],
                               key=lambda r: -(r.get("premium") or 0))[:3]
-    return by_ticker
+    # Market-wide top flow — one row per ticker (its best), by trade_score
+    best_per_tk: dict[str, dict] = {}
+    for row in rows:
+        t = row.get("ticker")
+        if not t:
+            continue
+        cur = best_per_tk.get(t)
+        if not cur or (row.get("trade_score") or 0) > (cur.get("trade_score") or 0):
+            best_per_tk[t] = row
+    market_top = sorted(best_per_tk.values(),
+                        key=lambda r: -(r.get("trade_score") or 0))
+    return by_ticker, market_top
 
 
 def load_earnings_within(days: int = 7) -> dict[str, dict]:
-    """Returns {ticker: {when_date, dow, bmo_amc}} for earnings in next N days."""
+    """Returns {ticker: {when_date, dow, bmo_amc, company, days_away}}."""
     data = _safe_load(os.path.join(REPORTS_DIR, "earnings_anticipated.json"))
     if not data:
         return {}
     today = datetime.now(ET).date()
     horizon = today + timedelta(days=days)
     out: dict[str, dict] = {}
-    for day in data.get("days", []):
+    for day in data.get("days", []) or []:
         try:
             d = datetime.strptime(day.get("date", ""), "%Y-%m-%d").date()
         except ValueError:
@@ -177,39 +199,32 @@ def load_earnings_within(days: int = 7) -> dict[str, dict]:
                         "dow": day.get("dow"),
                         "bmo_amc": slot.upper(),
                         "company": c.get("company"),
+                        "days_away": (d - today).days,
                     }
     return out
 
 
-def load_new_reports(hours: int = 24) -> dict[str, list[dict]]:
-    """Returns {ticker: [{file, label, type}]} for ticker-tagged reports
-    archived within the last N hours. Only ticker_*.pdf and altdata_*.pdf
-    are tied to a specific name; broader scans (smid_scanner, qm_monthly)
-    are surfaced site-wide but not per-watchlist."""
+def load_reports_by_ticker(hours: int = 24) -> dict[str, list[dict]]:
+    """{ticker: [{file, label, type}]} for ticker/altdata reports < N hours old."""
     data = _safe_load(os.path.join(REPORTS_DIR, "manifest.json"))
     if not data:
         return {}
     cutoff = datetime.now(ET) - timedelta(hours=hours)
     by_ticker: dict[str, list[dict]] = {}
-    for rtype, files in (data.get("reports") or {}).items():
+    for _rtype, files in (data.get("reports") or {}).items():
         for f in files:
             fname = f.get("file", "")
-            # ticker_NVDA_2026-05-20_2250.pdf or altdata_PLTR_2026-05-15_1740.pdf
             parts = fname.split("_")
             if len(parts) < 4:
                 continue
-            head = parts[0]
-            tk = parts[1]
+            head, tk = parts[0], parts[1]
             if head not in ("ticker", "altdata"):
                 continue
             if not tk.isupper() or not tk.isalpha():
                 continue
-            # Parse date+time from filename
             try:
-                stamp = datetime.strptime(
-                    f"{parts[2]}_{parts[3].split('.')[0]}", "%Y-%m-%d_%H%M"
-                )
-                stamp = ET.localize(stamp)
+                stamp = ET.localize(datetime.strptime(
+                    f"{parts[2]}_{parts[3].split('.')[0]}", "%Y-%m-%d_%H%M"))
             except (ValueError, IndexError):
                 continue
             if stamp < cutoff:
@@ -222,20 +237,102 @@ def load_new_reports(hours: int = 24) -> dict[str, list[dict]]:
     return by_ticker
 
 
+# Human labels for the broad (non-ticker) scanners so filenames never leak
+# into the email.
+_REPORT_LABELS = {
+    "smid_scanner": "SMID Breakout Scanner",
+    "smid": "SMID Breakout Scanner",
+    "setup_builder": "Setup Builder",
+    "setups": "Setup Builder",
+    "qm_monthly": "Qullamaggie Monthly Momentum",
+    "qm": "Qullamaggie Monthly Momentum",
+    "stockbee": "Stockbee Weekly Momentum",
+    "swing": "Swing Grades",
+    "uoa": "Unusual Options Activity",
+}
+
+
+def load_new_reports_all(hours: int = 24) -> list[dict]:
+    """Every report archived in the last N hours, with a human label
+    (never a raw filename). Returns [{label, file, when}] newest first."""
+    data = _safe_load(os.path.join(REPORTS_DIR, "manifest.json"))
+    if not data:
+        return []
+    cutoff = datetime.now(ET) - timedelta(hours=hours)
+    out: list[dict] = []
+    for rtype, files in (data.get("reports") or {}).items():
+        for f in files:
+            fname = f.get("file", "")
+            parts = fname.split("_")
+            if len(parts) < 4:
+                continue
+            head = parts[0]
+            try:
+                stamp = ET.localize(datetime.strptime(
+                    f"{parts[-2]}_{parts[-1].split('.')[0]}", "%Y-%m-%d_%H%M"))
+            except (ValueError, IndexError):
+                continue
+            if stamp < cutoff:
+                continue
+            # Human label: explicit manifest label, else map the head token.
+            if head in ("ticker", "altdata") and len(parts) >= 2:
+                tk = parts[1]
+                kind = "Alt-Data" if head == "altdata" else "Ticker Report"
+                label = f.get("label") or f"{kind} · {tk}"
+            else:
+                label = f.get("label") or _REPORT_LABELS.get(
+                    head, _REPORT_LABELS.get(rtype, rtype.replace("_", " ").title()))
+            out.append({"label": label, "file": fname, "when": stamp})
+    out.sort(key=lambda r: r["when"], reverse=True)
+    return out
+
+
+def load_market_context() -> dict:
+    """Global risk read-through (country ETFs) + today's high-impact events."""
+    ctx: dict[str, Any] = {"global": None, "events": []}
+    cetf = _safe_load(os.path.join(REPORTS_DIR, "country_etfs.json"))
+    if cetf:
+        anchor = cetf.get("anchor") or {}
+        etfs = [e for e in (cetf.get("etfs") or [])
+                if isinstance(e.get("vs_anchor"), (int, float))]
+        ranked = sorted(etfs, key=lambda e: -e["vs_anchor"])
+        em = [e["vs_anchor"] for e in etfs if e.get("developed") is False]
+        dev = [e["vs_anchor"] for e in etfs if e.get("developed") is True]
+        tone = "mixed"
+        if em and dev:
+            avg_em, avg_dev = sum(em) / len(em), sum(dev) / len(dev)
+            if avg_em > avg_dev + 1:
+                tone = "risk-on tilt (EM leading)"
+            elif avg_dev > avg_em + 1:
+                tone = "risk-off tilt (developed leading)"
+            else:
+                tone = "balanced"
+        ctx["global"] = {
+            "anchor_ticker": anchor.get("ticker", "SPY"),
+            "anchor_ytd": anchor.get("ytd_pct"),
+            "leaders": ranked[:2],
+            "laggards": ranked[-2:][::-1],
+            "tone": tone,
+        }
+    cal = _safe_load(os.path.join(REPORTS_DIR, "economic_calendar.json"))
+    if cal:
+        today_ff = datetime.now(ET).strftime("%m-%d-%Y")
+        todays = [e for e in (cal.get("events") or []) if e.get("date") == today_ff]
+        hi = [e for e in todays
+              if (e.get("impact") or "").lower() in ("high", "medium")]
+        ctx["events"] = (hi or todays)[:6]
+    return ctx
+
+
 # ─────────────────────────────────────────────────────────────────────
-# Supabase REST helpers — service role bypasses RLS so we can read
-# everyone's watchlists in one shot. Keep the service key OUT of the
-# client; this script only runs in CI.
+# Supabase REST helpers (service role — CI only)
 # ─────────────────────────────────────────────────────────────────────
 
 def _supabase_get(path: str, params: dict | None = None) -> Any:
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         raise RuntimeError("SUPABASE_URL / SUPABASE_SERVICE_KEY not set")
-    q = ""
-    if params:
-        q = "?" + "&".join(f"{k}={v}" for k, v in params.items())
-    url = f"{SUPABASE_URL}/rest/v1/{path}{q}"
-    req = urllib.request.Request(url, headers={
+    q = ("?" + "&".join(f"{k}={v}" for k, v in params.items())) if params else ""
+    req = urllib.request.Request(f"{SUPABASE_URL}/rest/v1/{path}{q}", headers={
         "apikey": SUPABASE_SERVICE_KEY,
         "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
         "Accept": "application/json",
@@ -245,7 +342,6 @@ def _supabase_get(path: str, params: dict | None = None) -> Any:
 
 
 def _supabase_post(path: str, body: dict | list, prefer: str = "") -> Any:
-    url = f"{SUPABASE_URL}/rest/v1/{path}"
     data = json.dumps(body).encode("utf-8")
     headers = {
         "apikey": SUPABASE_SERVICE_KEY,
@@ -255,13 +351,13 @@ def _supabase_post(path: str, body: dict | list, prefer: str = "") -> Any:
     }
     if prefer:
         headers["Prefer"] = prefer
-    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    req = urllib.request.Request(f"{SUPABASE_URL}/rest/v1/{path}",
+                                 data=data, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             txt = r.read().decode("utf-8")
             return json.loads(txt) if txt else None
     except urllib.error.HTTPError as e:
-        # Surfacing the body helps debug Supabase RLS / constraint errors
         body_txt = ""
         try:
             body_txt = e.read().decode("utf-8")
@@ -271,13 +367,6 @@ def _supabase_post(path: str, body: dict | list, prefer: str = "") -> Any:
 
 
 def fetch_opted_in_users(restrict_email: str | None = None) -> list[dict]:
-    """Returns [{user_id, email, display_name, last_seen, plan, tickers:[..]}].
-
-    We need to hit auth.users for the email — that table is server-only,
-    accessible via the admin API. The simplest path is to call the
-    /auth/v1/admin/users endpoint.
-    """
-    # 1) Profiles where daily_brief is on
     profiles = _supabase_get("profiles", {
         "select": "id,display_name,last_seen,subscription_tier,daily_brief_enabled",
         "daily_brief_enabled": "eq.true",
@@ -285,8 +374,6 @@ def fetch_opted_in_users(restrict_email: str | None = None) -> list[dict]:
     if not profiles:
         return []
     ids = [p["id"] for p in profiles]
-
-    # 2) Watchlist tickers for those profiles
     in_clause = "(" + ",".join(ids) + ")"
     wl = _supabase_get("watchlists", {
         "select": "user_id,ticker",
@@ -296,8 +383,6 @@ def fetch_opted_in_users(restrict_email: str | None = None) -> list[dict]:
     for row in wl or []:
         by_user.setdefault(row["user_id"], []).append(row["ticker"])
 
-    # 3) Emails via Supabase admin endpoint. Avoid one-call-per-user — the
-    # admin/users endpoint paginates. Pull a generous page and filter.
     emails: dict[str, str] = {}
     page = 1
     while True:
@@ -328,7 +413,7 @@ def fetch_opted_in_users(restrict_email: str | None = None) -> list[dict]:
             continue
         tickers = by_user.get(uid, [])
         if not tickers:
-            continue  # nothing to brief about
+            continue
         out.append({
             "user_id": uid,
             "email": em,
@@ -341,7 +426,6 @@ def fetch_opted_in_users(restrict_email: str | None = None) -> list[dict]:
 
 
 def already_sent_today(user_id: str, brief_date: str) -> bool:
-    """Idempotency check — don't re-send the same brief day."""
     rows = _supabase_get("email_log", {
         "select": "id",
         "user_id": f"eq.{user_id}",
@@ -371,60 +455,7 @@ def log_email(user_id: str, email: str, brief_date: str, status: str,
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Brief assembly — per-user data slice
-# ─────────────────────────────────────────────────────────────────────
-
-def build_brief(tickers: list[str], swing: dict, uoa: dict,
-                earnings: dict, new_reports: dict) -> dict:
-    """Returns the structured payload we render into HTML."""
-    sections = {
-        "grade_changes": [],   # upgrades / downgrades / new A-tier appearances
-        "flow": [],            # tickers with UOA today
-        "earnings": [],        # earnings within 7 days
-        "reports": [],         # new ticker-specific reports
-        "snapshot": [],        # every watched ticker's current grade
-    }
-    for tk in sorted(set(tickers)):
-        sw = swing.get(tk)
-        if sw:
-            sections["snapshot"].append({"ticker": tk, **sw})
-            if sw["change"] in ("upgrade", "downgrade", "new"):
-                sections["grade_changes"].append({"ticker": tk, **sw})
-        flows = uoa.get(tk)
-        if flows:
-            sections["flow"].append({
-                "ticker": tk,
-                "contracts": [
-                    {
-                        "type": c.get("type"),
-                        "strike": c.get("strike"),
-                        "expiry": c.get("expiry"),
-                        "premium": c.get("premium"),
-                        "vol_oi": c.get("vol_oi"),
-                        "dte": c.get("dte"),
-                    } for c in flows
-                ],
-            })
-        er = earnings.get(tk)
-        if er:
-            sections["earnings"].append({"ticker": tk, **er})
-        rep = new_reports.get(tk)
-        if rep:
-            sections["reports"].append({"ticker": tk, "reports": rep})
-    # Sort grade_changes: upgrades first, then new, then downgrades
-    pri = {"upgrade": 0, "new": 1, "downgrade": 2, "same": 3}
-    sections["grade_changes"].sort(
-        key=lambda r: (pri.get(r["change"], 9), r["ticker"]))
-    # Sort flow by highest premium first
-    sections["flow"].sort(
-        key=lambda r: -(r["contracts"][0].get("premium") or 0))
-    # Earnings sorted by date
-    sections["earnings"].sort(key=lambda r: r.get("when_date") or "")
-    return sections
-
-
-# ─────────────────────────────────────────────────────────────────────
-# HTML rendering — inline-styled, single column, mobile friendly
+# Formatting helpers
 # ─────────────────────────────────────────────────────────────────────
 
 CSS_BG = "#0b1020"
@@ -436,11 +467,10 @@ CSS_GREEN = "#1fb363"
 CSS_RED = "#ff5b78"
 CSS_AMBER = "#ffc800"
 CSS_ACCENT = "#7aa9ff"
+CSS_GOLD = "#ffd54a"
 
 
 def _fmt_premium(p) -> str:
-    if not p:
-        return "—"
     try:
         p = float(p)
     except (TypeError, ValueError):
@@ -452,243 +482,670 @@ def _fmt_premium(p) -> str:
     return f"${p:.0f}"
 
 
-def _grade_color(g: str) -> str:
+def _fmt_num(v, fmt="{:.1f}") -> str:
+    try:
+        return fmt.format(float(v))
+    except (TypeError, ValueError):
+        return "—"
+
+
+def _fmt_ts_et(iso) -> str:
+    if not iso:
+        return ""
+    try:
+        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        return dt.astimezone(ET).strftime("%I:%M %p").lstrip("0") + " ET"
+    except Exception:
+        return ""
+
+
+def _grade_color(g: str | None) -> str:
     if not g:
         return CSS_MUTED
-    head = g[0]
+    return {"A": CSS_GREEN, "B": CSS_GREEN, "C": CSS_ACCENT, "D": CSS_AMBER,
+            "E": "#ff8c1a", "F": CSS_RED, "G": CSS_RED}.get(g[0], CSS_MUTED)
+
+
+def _tier_color(t: str | None) -> str:
+    return {"A": CSS_GREEN, "B": CSS_ACCENT, "C": CSS_MUTED,
+            "golden": CSS_GOLD}.get((t or "").lower()[:1] if t else "", CSS_MUTED)
+
+
+def _dir_meta(d: str | None) -> tuple[str, str]:
+    d = (d or "").lower()
+    if d == "bullish":
+        return "Bullish", CSS_GREEN
+    if d == "bearish":
+        return "Bearish", CSS_RED
+    return "Mixed", CSS_MUTED
+
+
+def _link(tk: str) -> str:
+    return f"{SITE_URL}/?t={esc(tk)}"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Analysis — confluence, what-changed, playbook
+# ─────────────────────────────────────────────────────────────────────
+
+def compute_confluence(tickers, swing, uoa, earnings, reports_by_tk) -> list[dict]:
+    """Rank watchlist names where multiple TickerDesk signals align, with a
+    plain-English reason. Positive score = bull stack, negative = caution."""
+    out = []
+    for tk in set(tickers):
+        sw = swing.get(tk) or {}
+        grade = sw.get("grade")
+        top = (uoa.get(tk) or [None])[0]
+        er = earnings.get(tk)
+        rep = reports_by_tk.get(tk)
+        score = 0.0
+        bull, bear, ctx = [], [], []
+
+        if grade:
+            if _is_a_tier(grade):
+                score += 3 if grade == "A+" else 2 if grade == "A" else 1.5
+                bull.append(f"{grade} swing grade")
+            elif grade[0] in ("D", "E", "F", "G"):
+                score -= 1.5
+                bear.append(f"weak {grade} grade")
+        if sw.get("change") == "upgrade":
+            score += 1
+            bull.append(f"upgraded from {sw.get('prev_grade')}")
+        elif sw.get("change") == "downgrade":
+            score -= 1
+            bear.append(f"downgraded from {sw.get('prev_grade')}")
+        elif sw.get("change") == "new" and _is_a_tier(grade):
+            score += 0.5
+            bull.append("new A-tier today")
+
+        if top:
+            direction = (top.get("direction") or "").lower()
+            ts = top.get("trade_score") or 0
+            golden = bool(top.get("is_golden") or top.get("golden"))
+            voi = top.get("vol_oi")
+            voi_txt = f"{voi:.0f}× OI" if isinstance(voi, (int, float)) else ""
+            flow_desc = (f"{'golden ' if golden else ''}bullish flow "
+                         f"({_fmt_premium(top.get('premium'))}"
+                         f"{', ' + voi_txt if voi_txt else ''}, score {int(ts)})")
+            if direction == "bullish":
+                score += 3 if golden else 2 if ts >= 70 else 1
+                bull.append(flow_desc)
+            elif direction == "bearish":
+                score -= 3 if golden else 2 if ts >= 70 else 1
+                bear.append(flow_desc.replace("bullish", "bearish"))
+
+        if er:
+            da = er.get("days_away")
+            ctx.append(f"earnings {er.get('dow', '')} {er.get('bmo_amc', '')}"
+                       + (f" ({da}d)" if isinstance(da, int) else ""))
+        if rep:
+            ctx.append("fresh research today")
+
+        # Need at least two aligned signals to count as confluence.
+        signal_ct = len(bull) + len(bear) + (1 if er else 0) + (1 if rep else 0)
+        if signal_ct < 2:
+            continue
+
+        net = "bull" if score > 0.5 else "bear" if score < -0.5 else "mixed"
+        if net == "bull":
+            reason = "Bull stack — " + ", ".join(bull)
+            if ctx:
+                reason += "; " + ", ".join(ctx)
+        elif net == "bear":
+            reason = "Caution — " + ", ".join(bear)
+            if ctx:
+                reason += "; " + ", ".join(ctx)
+        else:
+            reason = "Mixed — " + ", ".join(bull + bear)
+            if ctx:
+                reason += "; " + ", ".join(ctx)
+
+        out.append({
+            "ticker": tk, "score": round(score, 1), "net": net,
+            "grade": grade, "reason": reason,
+            "top": top, "earnings": er,
+        })
+    out.sort(key=lambda r: -abs(r["score"]))
+    return out
+
+
+def compute_what_changed(tickers, swing, uoa, earnings, reports_by_tk) -> dict:
+    wl = set(tickers)
+    ch = {"upgrades": [], "downgrades": [], "new_a": [], "new_flow": [],
+          "new_earnings": [], "new_reports": []}
+    for tk in sorted(wl):
+        sw = swing.get(tk) or {}
+        if sw.get("change") == "upgrade":
+            ch["upgrades"].append((tk, sw.get("prev_grade"), sw.get("grade")))
+        elif sw.get("change") == "downgrade":
+            ch["downgrades"].append((tk, sw.get("prev_grade"), sw.get("grade")))
+        if sw.get("change") == "new" and _is_a_tier(sw.get("grade")):
+            ch["new_a"].append((tk, sw.get("grade")))
+        top = (uoa.get(tk) or [None])[0]
+        if top:
+            ch["new_flow"].append((tk, top))
+        er = earnings.get(tk)
+        if er:
+            ch["new_earnings"].append((tk, er))
+        rep = reports_by_tk.get(tk)
+        if rep:
+            ch["new_reports"].append((tk, rep))
+    ch["new_flow"].sort(key=lambda x: -(x[1].get("premium") or 0))
+    ch["new_earnings"].sort(key=lambda x: x[1].get("days_away", 99))
+    return ch
+
+
+def compute_playbook(conf, market_top, market, earnings, tickers) -> list[dict]:
+    """Exactly three bullets: best opportunity / watch today / risk."""
+    wl = set(tickers)
+    used = set()
+
+    # 1) Best opportunity — strongest bull-stack watchlist name, else the
+    #    tape's top golden/high-score flow.
+    best = None
+    bulls = [c for c in conf if c["net"] == "bull" and c["score"] >= 2]
+    if bulls:
+        c = bulls[0]
+        used.add(c["ticker"])
+        best = {"kind": "Best opportunity", "ticker": c["ticker"],
+                "text": c["reason"]}
+    elif market_top:
+        m = market_top[0]
+        best = {"kind": "Best opportunity", "ticker": m.get("ticker"),
+                "text": f"Tape's top edge: {m.get('why') or ''}"
+                        f" — tier {m.get('tier')}, score {int(m.get('trade_score') or 0)}"}
+    else:
+        best = {"kind": "Best opportunity", "ticker": None,
+                "text": "No standout setup on your watchlist today — check the "
+                        "desk for market-wide movers."}
+
+    # 2) Watch today — nearest catalyst: earnings today/tomorrow on the
+    #    watchlist, else biggest fresh flow, else today's marquee macro event.
+    watch = None
+    soonest = sorted(
+        [(tk, e) for tk, e in earnings.items() if tk in wl
+         and isinstance(e.get("days_away"), int)],
+        key=lambda x: x[1]["days_away"])
+    if soonest and soonest[0][1]["days_away"] <= 1:
+        tk, e = soonest[0]
+        when = "today" if e["days_away"] == 0 else "tomorrow"
+        watch = {"kind": "Watch today", "ticker": tk,
+                 "text": f"Reports {when} {e.get('bmo_amc', '')} — expect an IV "
+                         f"crush / gap; size accordingly."}
+    if not watch:
+        fresh = [c for c in conf if c["ticker"] not in used and c["top"]]
+        if fresh:
+            c = fresh[0]
+            t = c["top"]
+            watch = {"kind": "Watch today", "ticker": c["ticker"],
+                     "text": f"Fresh flow: {t.get('why') or ''}. "
+                             f"Biggest print {_fmt_ts_et(t.get('biggest_print_ts'))}."}
+    if not watch and market and market.get("events"):
+        ev = market["events"][0]
+        watch = {"kind": "Watch today", "ticker": None,
+                 "text": f"Macro: {ev.get('title')} at "
+                         f"{ev.get('time')} — {ev.get('impact')} impact."}
+    if not watch:
+        watch = {"kind": "Watch today", "ticker": None,
+                 "text": "Quiet catalyst calendar for your names — let setups come to you."}
+    if watch.get("ticker"):
+        used.add(watch["ticker"])
+
+    # 3) Risk / avoid chase — bearish/downgraded name, else an overextended
+    #    one (far from break-even / big recent run), else earnings risk.
+    risk = None
+    bears = [c for c in conf if c["net"] == "bear"]
+    if bears:
+        c = bears[0]
+        risk = {"kind": "Risk / avoid chase", "ticker": c["ticker"],
+                "text": c["reason"]}
+    if not risk:
+        overext = None
+        for c in conf:
+            t = c["top"] or {}
+            bed = t.get("be_distance_pct")
+            if isinstance(bed, (int, float)) and bed >= 10:
+                overext = (c["ticker"], bed)
+                break
+        if overext:
+            risk = {"kind": "Risk / avoid chase", "ticker": overext[0],
+                    "text": f"Flow strike sits {overext[1]:.0f}% out — the easy "
+                            f"money's priced in; don't chase the premium here."}
+    if not risk and soonest:
+        tk, e = soonest[0]
+        risk = {"kind": "Risk / avoid chase", "ticker": tk,
+                "text": f"Earnings in {e['days_away']}d — binary event risk; "
+                        f"trim or hedge into the print."}
+    if not risk:
+        risk = {"kind": "Risk / avoid chase", "ticker": None,
+                "text": "No obvious blow-up risk flagged — still, respect stops "
+                        "and don't chase extended names."}
+    return [best, watch, risk]
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Brief assembly
+# ─────────────────────────────────────────────────────────────────────
+
+def build_brief(tickers, swing, uoa, market_top, earnings, reports_by_tk,
+                new_reports_all, market) -> dict:
+    conf = compute_confluence(tickers, swing, uoa, earnings, reports_by_tk)
+    changed = compute_what_changed(tickers, swing, uoa, earnings, reports_by_tk)
+    playbook = compute_playbook(conf, market_top, market, earnings, tickers)
+
+    flow = []
+    for tk in sorted(set(tickers)):
+        rows = uoa.get(tk)
+        if rows:
+            flow.append({"ticker": tk, "contracts": rows})
+    flow.sort(key=lambda r: -(r["contracts"][0].get("premium") or 0))
+
+    earn = sorted(
+        [{"ticker": tk, **e} for tk, e in earnings.items() if tk in set(tickers)],
+        key=lambda r: r.get("days_away", 99))
+
+    snapshot = []
+    for tk in sorted(set(tickers)):
+        sw = swing.get(tk)
+        if sw:
+            snapshot.append({"ticker": tk, "grade": sw["grade"],
+                             "chg": sw.get("chg")})
+
     return {
-        "A": CSS_GREEN, "B": CSS_GREEN, "C": CSS_ACCENT,
-        "D": CSS_AMBER, "E": "#ff8c1a", "F": CSS_RED, "G": CSS_RED,
-    }.get(head, CSS_MUTED)
+        "playbook": playbook,
+        "confluence": conf[:6],
+        "changed": changed,
+        "flow": flow[:6],
+        "earnings": earn,
+        "market": market,
+        "market_top": market_top[:4],
+        "reports": new_reports_all[:6],
+        "snapshot": snapshot,
+    }
 
 
-def _change_badge(change: str, prev_grade: str | None) -> str:
-    if change == "upgrade":
-        return (f'<span style="color:{CSS_GREEN};font-weight:600">'
-                f'▲ upgrade{f" from {prev_grade}" if prev_grade else ""}</span>')
-    if change == "downgrade":
-        return (f'<span style="color:{CSS_RED};font-weight:600">'
-                f'▼ downgrade{f" from {prev_grade}" if prev_grade else ""}</span>')
-    if change == "new":
-        return f'<span style="color:{CSS_AMBER};font-weight:600">★ new appearance</span>'
-    return ""
+# ─────────────────────────────────────────────────────────────────────
+# Subject + preheader — most important personalized hook
+# ─────────────────────────────────────────────────────────────────────
 
-
-def render_html(user: dict, brief: dict, brief_date: str) -> tuple[str, str]:
-    """Returns (subject, html)."""
-    name = (user.get("display_name") or "").strip() or "trader"
-    n_changes = len(brief["grade_changes"])
+def build_subject(brief) -> tuple[str, str]:
+    ch = brief["changed"]
+    n_up = len(ch["upgrades"])
+    n_atier = sum(1 for s in brief["snapshot"] if _is_a_tier(s["grade"]))
     n_flow = len(brief["flow"])
-    n_earn = len(brief["earnings"])
-    n_rep = len(brief["reports"])
-    headline_bits = []
-    if n_changes:
-        headline_bits.append(f"{n_changes} grade chg")
-    if n_flow:
-        headline_bits.append(f"{n_flow} flow")
-    if n_earn:
-        headline_bits.append(f"{n_earn} earnings ≤7d")
-    if n_rep:
-        headline_bits.append(f"{n_rep} new report{'s' if n_rep > 1 else ''}")
-    headline = " · ".join(headline_bits) or "Watchlist quiet today"
-    subject = f"TickerDesk Brief — {brief_date} · {headline}"
+    top_flow_tk = brief["flow"][0]["ticker"] if brief["flow"] else None
 
-    # ── header ──
-    parts: list[str] = []
-    parts.append(f'''
-<div style="background:{CSS_BG};padding:24px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:{CSS_TEXT};">
-  <div style="max-width:600px;margin:0 auto;">
-    <div style="padding:0 0 16px;border-bottom:1px solid {CSS_BORDER};">
-      <div style="font-size:11px;letter-spacing:1.5px;color:{CSS_MUTED};text-transform:uppercase;">TickerDesk · Daily Brief</div>
-      <div style="font-size:22px;font-weight:600;margin-top:4px;">{brief_date}</div>
-      <div style="font-size:14px;color:{CSS_MUTED};margin-top:6px;">Good morning, {name}. {headline}.</div>
-    </div>
-''')
+    if top_flow_tk and n_up:
+        hook = (f"{top_flow_tk} flow + {n_up} watchlist "
+                f"upgrade{'s' if n_up != 1 else ''}")
+    elif n_atier and n_flow:
+        hook = (f"{n_atier} A-tier name{'s' if n_atier != 1 else ''}, "
+                f"{n_flow} fresh flow hit{'s' if n_flow != 1 else ''}")
+    elif top_flow_tk:
+        extra = n_flow - 1
+        hook = (f"{top_flow_tk} unusual flow"
+                + (f" +{extra} more" if extra > 0 else ""))
+    elif n_up:
+        hook = f"{n_up} watchlist upgrade{'s' if n_up != 1 else ''}"
+    elif n_atier:
+        hook = f"{n_atier} A-tier name{'s' if n_atier != 1 else ''} holding"
+    else:
+        hook = "Quiet watchlist — market movers inside"
 
-    # ── grade changes ──
-    if brief["grade_changes"]:
-        parts.append(_section("Grade changes", brief["grade_changes"],
-                              _render_grade_row))
-    # ── unusual flow ──
+    subject = f"TickerDesk · {hook}"
+    # Preheader = the playbook's best-opportunity line (what to look at first)
+    best = brief["playbook"][0]
+    pre_tk = f"{best['ticker']}: " if best.get("ticker") else ""
+    preheader = (pre_tk + best["text"])[:140]
+    return subject, preheader
+
+
+# ─────────────────────────────────────────────────────────────────────
+# HTML rendering — inline CSS, single column, ≤600px, Gmail-safe
+# ─────────────────────────────────────────────────────────────────────
+
+def _card(title: str, inner: str, sub: str = "") -> str:
+    sub_html = (f'<span style="color:{CSS_MUTED};font-weight:400;'
+                f'text-transform:none;letter-spacing:0;font-size:11px;"> · {esc(sub)}</span>'
+                if sub else "")
+    return f'''
+    <div style="margin-top:22px;">
+      <div style="font-size:12px;font-weight:700;color:{CSS_MUTED};text-transform:uppercase;letter-spacing:1px;margin-bottom:9px;">{esc(title)}{sub_html}</div>
+      <div style="background:{CSS_PANEL};border:1px solid {CSS_BORDER};border-radius:10px;overflow:hidden;">{inner}</div>
+    </div>'''
+
+
+def _row_wrap(inner: str) -> str:
+    return (f'<div style="padding:12px 14px;border-bottom:1px solid {CSS_BORDER};">'
+            f'{inner}</div>')
+
+
+def _ticker_link(tk, size=15) -> str:
+    if not tk:
+        return ""
+    return (f'<a href="{_link(tk)}" style="font-weight:700;color:{CSS_TEXT};'
+            f'text-decoration:none;font-size:{size}px;">{esc(tk)}</a>')
+
+
+def _badge(text, color, bg=None) -> str:
+    bg = bg or "rgba(255,255,255,0.06)"
+    return (f'<span style="display:inline-block;font-size:10px;font-weight:700;'
+            f'color:{color};background:{bg};border-radius:4px;padding:1px 6px;'
+            f'margin:2px 4px 2px 0;letter-spacing:.3px;">{esc(text)}</span>')
+
+
+def _render_playbook(playbook) -> str:
+    icons = {"Best opportunity": ("🎯", CSS_GREEN),
+             "Watch today": ("👁", CSS_ACCENT),
+             "Risk / avoid chase": ("⚠️", CSS_RED)}
+    rows = []
+    for b in playbook:
+        icon, col = icons.get(b["kind"], ("•", CSS_TEXT))
+        tk = (f'{_ticker_link(b["ticker"])} — ' if b.get("ticker") else "")
+        rows.append(
+            f'<div style="padding:11px 14px;border-bottom:1px solid {CSS_BORDER};">'
+            f'<div style="font-size:11px;font-weight:700;color:{col};'
+            f'text-transform:uppercase;letter-spacing:.5px;">{icon} {esc(b["kind"])}</div>'
+            f'<div style="font-size:13.5px;color:{CSS_TEXT};margin-top:3px;line-height:1.45;">'
+            f'{tk}{esc(b["text"]) if not b.get("ticker") else esc(b["text"])}</div>'
+            f'</div>')
+    inner = "".join(rows)
+    return f'''
+    <div style="margin-top:4px;">
+      <div style="font-size:13px;font-weight:800;color:{CSS_GOLD};text-transform:uppercase;letter-spacing:1.2px;margin-bottom:9px;">📋 Today's Playbook</div>
+      <div style="background:{CSS_PANEL};border:1px solid {CSS_GOLD};border-radius:10px;overflow:hidden;">{inner}</div>
+    </div>'''
+
+
+def _render_confluence(conf) -> str:
+    rows = []
+    for c in conf:
+        col = CSS_GREEN if c["net"] == "bull" else CSS_RED if c["net"] == "bear" else CSS_MUTED
+        gcol = _grade_color(c.get("grade"))
+        gtxt = (f'<span style="color:{gcol};font-weight:700;font-size:12px;'
+                f'margin-left:8px;">{esc(c["grade"])}</span>' if c.get("grade") else "")
+        sign = "+" if c["score"] >= 0 else ""
+        rows.append(_row_wrap(
+            f'<div style="display:flex;align-items:baseline;justify-content:space-between;">'
+            f'<div>{_ticker_link(c["ticker"])}{gtxt}</div>'
+            f'<div style="font-size:12px;font-weight:700;color:{col};">{sign}{c["score"]}</div></div>'
+            f'<div style="font-size:12.5px;color:{CSS_MUTED};margin-top:4px;line-height:1.4;">{esc(c["reason"])}</div>'))
+    return _card("Confluence", "".join(rows),
+                 "where grade + flow + catalyst align")
+
+
+def _render_changed(ch) -> str:
+    lines = []
+
+    def _tk_list(items, fmt):
+        return ", ".join(fmt(i) for i in items)
+
+    if ch["upgrades"]:
+        lines.append((CSS_GREEN, "▲ Upgrades",
+                      _tk_list(ch["upgrades"],
+                               lambda x: f'{esc(x[0])} {esc(x[1])}→{esc(x[2])}')))
+    if ch["new_a"]:
+        lines.append((CSS_GOLD, "★ New A-tier",
+                      _tk_list(ch["new_a"], lambda x: f'{esc(x[0])} ({esc(x[1])})')))
+    if ch["new_flow"]:
+        lines.append((CSS_AMBER, "⚡ New flow",
+                      _tk_list(ch["new_flow"][:5],
+                               lambda x: f'{esc(x[0])} {_fmt_premium(x[1].get("premium"))}')))
+    if ch["new_earnings"]:
+        lines.append((CSS_ACCENT, "📅 Earnings ≤7d",
+                      _tk_list(ch["new_earnings"][:5],
+                               lambda x: f'{esc(x[0])} ({x[1].get("days_away")}d)')))
+    if ch["new_reports"]:
+        lines.append((CSS_ACCENT, "📄 New reports",
+                      _tk_list(ch["new_reports"][:5], lambda x: esc(x[0]))))
+    if ch["downgrades"]:
+        lines.append((CSS_RED, "▼ Downgrades",
+                      _tk_list(ch["downgrades"],
+                               lambda x: f'{esc(x[0])} {esc(x[1])}→{esc(x[2])}')))
+    if not lines:
+        return ""
+    inner = "".join(
+        f'<div style="padding:10px 14px;border-bottom:1px solid {CSS_BORDER};">'
+        f'<span style="font-size:11px;font-weight:700;color:{col};">{esc(label)}</span>'
+        f'<div style="font-size:12.5px;color:{CSS_TEXT};margin-top:3px;line-height:1.4;">{body}</div>'
+        f'</div>'
+        for col, label, body in lines)
+    return _card("What changed since yesterday", inner)
+
+
+def _render_flow(flow) -> str:
+    rows = []
+    for r in flow:
+        top = r["contracts"][0]
+        dir_txt, dir_col = _dir_meta(top.get("direction"))
+        typ = (top.get("type") or "").upper()
+        tier = top.get("tier")
+        ts = top.get("trade_score")
+        golden = bool(top.get("is_golden") or top.get("golden"))
+        # Header line: ticker · direction · tier/score
+        score_txt = (f'<span style="color:{_tier_color(tier)};font-weight:700;'
+                     f'font-size:12px;margin-left:8px;">'
+                     f'{esc(tier)} · {int(ts) if isinstance(ts,(int,float)) else "—"}</span>')
+        # Contract line
+        strike = top.get("strike")
+        contract = (f'{typ} ${esc(strike)} {esc(top.get("expiry") or "")}'
+                    f' ({esc(top.get("dte"))}d)')
+        # Badges
+        badges = ""
+        if golden:
+            badges += _badge("★ Golden", CSS_GOLD, "rgba(255,213,74,0.14)")
+        if (top.get("opening") or "").startswith("likely"):
+            badges += _badge("Opening", CSS_ACCENT)
+        ask = top.get("ask_pct")
+        if isinstance(ask, (int, float)) and ask >= 60:
+            badges += _badge(f"{int(ask)}% at ask", CSS_GREEN)
+        elif isinstance(top.get("bid_pct"), (int, float)) and top["bid_pct"] >= 60:
+            badges += _badge(f"{int(top['bid_pct'])}% at bid", CSS_RED)
+        rc = top.get("repeat_count")
+        if isinstance(rc, (int, float)) and rc >= 2:
+            badges += _badge(f"repeat ×{int(rc)}", CSS_AMBER)
+        for tag in (top.get("tags") or [])[:2]:
+            if tag not in ("In Universe",):
+                badges += _badge(tag, CSS_MUTED)
+        # Break-even + earnings risk line
+        meta_bits = []
+        be = top.get("break_even")
+        bed = top.get("be_distance_pct")
+        if isinstance(be, (int, float)):
+            bd = (f" ({bed:+.1f}% away)" if isinstance(bed, (int, float)) else "")
+            meta_bits.append(f"B/E ${be:.2f}{bd}")
+        ed = top.get("earnings_days")
+        if isinstance(ed, (int, float)) and 0 <= ed <= 21:
+            meta_bits.append(f"⚠ earns in {int(ed)}d")
+        bp = _fmt_ts_et(top.get("biggest_print_ts"))
+        if bp:
+            meta_bits.append(f"biggest print {bp}")
+        why = top.get("why") or ""
+        more = (f'<span style="color:{CSS_MUTED};"> · +{len(r["contracts"])-1} more contract{"s" if len(r["contracts"])>2 else ""}</span>'
+                if len(r["contracts"]) > 1 else "")
+        rows.append(_row_wrap(
+            f'<div style="display:flex;align-items:baseline;justify-content:space-between;">'
+            f'<div>{_ticker_link(r["ticker"])}'
+            f'<span style="color:{dir_col};font-weight:700;font-size:12px;margin-left:8px;">{esc(dir_txt)}</span>'
+            f'{score_txt}</div>'
+            f'<div style="font-size:14px;color:{CSS_AMBER};font-weight:700;">{_fmt_premium(top.get("premium"))}</div></div>'
+            f'<div style="font-size:12.5px;color:{CSS_TEXT};margin-top:4px;">{contract}'
+            f'<span style="color:{CSS_MUTED};"> · {_fmt_num(top.get("vol_oi"),"{:.0f}")}× OI</span>{more}</div>'
+            f'<div style="margin-top:5px;">{badges}</div>'
+            + (f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:4px;line-height:1.4;">{esc(why)}</div>' if why else "")
+            + (f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:3px;">{esc(" · ".join(meta_bits))}</div>' if meta_bits else "")))
+    return _card("Unusual options flow", "".join(rows), "intraday batch · 15m delayed")
+
+
+def _render_earnings(earn) -> str:
+    rows = []
+    for r in earn:
+        col = CSS_RED if r.get("days_away", 9) <= 1 else CSS_AMBER
+        rows.append(_row_wrap(
+            f'<div style="display:flex;align-items:baseline;justify-content:space-between;">'
+            f'<div>{_ticker_link(r["ticker"])}'
+            f'<span style="color:{CSS_MUTED};font-size:12px;margin-left:8px;">{esc((r.get("company") or "")[:42])}</span></div>'
+            f'<div style="font-size:12px;color:{col};font-weight:700;">{esc(r.get("dow",""))} {esc(r.get("bmo_amc",""))}</div></div>'
+            f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:3px;">{esc(r.get("when_date",""))} · in {r.get("days_away","?")}d</div>'))
+    return _card("Earnings in the next 7 days", "".join(rows))
+
+
+def _render_market(market, market_top) -> str:
+    inner = ""
+    g = market.get("global")
+    if g:
+        leaders = ", ".join(
+            f'{esc(e.get("ticker"))} {e.get("vs_anchor"):+.1f}%'
+            for e in g.get("leaders", []) if isinstance(e.get("vs_anchor"), (int, float)))
+        laggards = ", ".join(
+            f'{esc(e.get("ticker"))} {e.get("vs_anchor"):+.1f}%'
+            for e in g.get("laggards", []) if isinstance(e.get("vs_anchor"), (int, float)))
+        ay = g.get("anchor_ytd")
+        inner += (
+            f'<div style="padding:11px 14px;border-bottom:1px solid {CSS_BORDER};">'
+            f'<div style="font-size:12.5px;color:{CSS_TEXT};">Global backdrop: '
+            f'<b style="color:{CSS_ACCENT};">{esc(g.get("tone"))}</b>'
+            + (f' · {esc(g.get("anchor_ticker"))} {ay:+.1f}% YTD' if isinstance(ay, (int, float)) else "")
+            + '</div>'
+            f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:3px;">'
+            f'Leaders {leaders or "—"} · Laggards {laggards or "—"} '
+            f'<span style="color:{CSS_MUTED};">(YTD vs SPY)</span></div></div>')
+    for ev in market.get("events", []):
+        impact = (ev.get("impact") or "").lower()
+        icol = CSS_RED if impact == "high" else CSS_AMBER if impact == "medium" else CSS_MUTED
+        act = ev.get("actual")
+        act_html = (f'<span style="color:{CSS_TEXT};font-weight:700;"> · actual {esc(act)}</span>'
+                    if act else "")
+        inner += (
+            f'<div style="padding:9px 14px;border-bottom:1px solid {CSS_BORDER};">'
+            f'<span style="color:{icol};font-weight:700;font-size:11px;">●</span> '
+            f'<span style="font-size:12.5px;color:{CSS_TEXT};">{esc(ev.get("time"))} {esc(ev.get("title"))}</span>'
+            f'<span style="font-size:11px;color:{CSS_MUTED};"> · fcst {esc(ev.get("forecast") or "—")} · prior {esc(ev.get("previous") or "—")}</span>{act_html}</div>')
+    # Bonus: tape's top edge (market-wide) so the email always has alpha
+    if market_top:
+        tape = " · ".join(
+            f'{esc(m.get("ticker"))} ({esc(m.get("tier"))}·{int(m.get("trade_score") or 0)})'
+            for m in market_top[:4])
+        inner += (f'<div style="padding:10px 14px;">'
+                  f'<span style="font-size:11px;font-weight:700;color:{CSS_MUTED};">TOP TAPE EDGE</span>'
+                  f'<div style="font-size:12.5px;color:{CSS_TEXT};margin-top:3px;">{tape}</div></div>')
+    if not inner:
+        return ""
+    return _card("Market context", inner)
+
+
+def _render_reports(reports) -> str:
+    if not reports:
+        return ""
+    inner = "".join(
+        f'<div style="padding:9px 14px;border-bottom:1px solid {CSS_BORDER};">'
+        f'<a href="{SITE_URL}/reports/{esc(r["file"])}" style="color:{CSS_ACCENT};text-decoration:none;font-size:12.5px;">📄 {esc(r["label"])}</a>'
+        f'<span style="font-size:11px;color:{CSS_MUTED};"> · {r["when"].strftime("%-I:%M %p") if False else r["when"].strftime("%I:%M %p").lstrip("0")} ET</span></div>'
+        for r in reports)
+    return _card("New research (24h)", inner)
+
+
+def _render_snapshot(snapshot) -> str:
+    if not snapshot:
+        return ""
+    cells = []
+    for r in snapshot:
+        color = _grade_color(r["grade"])
+        chg = r.get("chg")
+        chg_html = ""
+        if isinstance(chg, (int, float)):
+            cc = CSS_GREEN if chg >= 0 else CSS_RED
+            chg_html = f'<span style="color:{cc};font-size:10px;"> {chg:+.1f}%</span>'
+        cells.append(
+            f'<a href="{_link(r["ticker"])}" style="display:inline-block;padding:6px 9px;'
+            f'margin:3px;background:{CSS_BG};border:1px solid {CSS_BORDER};border-radius:6px;'
+            f'text-decoration:none;color:{CSS_TEXT};font-size:12px;">'
+            f'<b>{esc(r["ticker"])}</b> <span style="color:{color};font-weight:700;">{esc(r["grade"])}</span>{chg_html}</a>')
+    return f'''
+    <div style="margin-top:22px;">
+      <div style="font-size:12px;font-weight:700;color:{CSS_MUTED};text-transform:uppercase;letter-spacing:1px;margin-bottom:9px;">Watchlist snapshot</div>
+      <div style="background:{CSS_PANEL};border:1px solid {CSS_BORDER};border-radius:10px;padding:8px;">{"".join(cells)}</div>
+    </div>'''
+
+
+def render_html(user, brief, brief_date) -> tuple[str, str]:
+    name = esc((user.get("display_name") or "").strip() or "trader")
+    subject, preheader = build_subject(brief)
+
+    parts = []
+    # Preheader (hidden preview text) + spacer so Gmail doesn't pull body text
+    parts.append(
+        f'<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;'
+        f'font-size:1px;line-height:1px;color:{CSS_BG};opacity:0;">{esc(preheader)}'
+        + ("&nbsp;&zwnj;" * 40) + '</div>')
+    parts.append(
+        f'<div style="background:{CSS_BG};padding:22px 14px;'
+        f"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;"
+        f'color:{CSS_TEXT};">'
+        f'<div style="max-width:600px;margin:0 auto;">'
+        f'<div style="padding:0 0 14px;border-bottom:1px solid {CSS_BORDER};">'
+        f'<div style="font-size:11px;letter-spacing:1.5px;color:{CSS_MUTED};text-transform:uppercase;">TickerDesk · Morning Brief</div>'
+        f'<div style="font-size:20px;font-weight:700;margin-top:4px;">{esc(brief_date)}</div>'
+        f'<div style="font-size:13px;color:{CSS_MUTED};margin-top:5px;">Good morning, {name}. {esc(preheader)}</div>'
+        f'</div>')
+
+    parts.append(_render_playbook(brief["playbook"]))
+    if brief["confluence"]:
+        parts.append(_render_confluence(brief["confluence"]))
+    parts.append(_render_changed(brief["changed"]))
     if brief["flow"]:
-        parts.append(_section("Unusual options flow today", brief["flow"],
-                              _render_flow_row))
-    # ── earnings ──
+        parts.append(_render_flow(brief["flow"]))
     if brief["earnings"]:
-        parts.append(_section("Earnings in the next 7 days", brief["earnings"],
-                              _render_earnings_row))
-    # ── new reports ──
-    if brief["reports"]:
-        parts.append(_section("New research reports", brief["reports"],
-                              _render_report_row))
-    # ── snapshot ──
-    if brief["snapshot"]:
-        parts.append(_section_snapshot(brief["snapshot"]))
+        parts.append(_render_earnings(brief["earnings"]))
+    parts.append(_render_market(brief["market"], brief["market_top"]))
+    parts.append(_render_reports(brief["reports"]))
+    parts.append(_render_snapshot(brief["snapshot"]))
 
-    # ── footer ──
-    parts.append(f'''
-    <div style="margin-top:32px;padding-top:16px;border-top:1px solid {CSS_BORDER};font-size:12px;color:{CSS_MUTED};">
-      You're getting this because Daily Brief is enabled on your TickerDesk account.
-      <a href="{SITE_URL}/#watchlist" style="color:{CSS_ACCENT};text-decoration:none;">Manage on your dashboard</a>
-      &nbsp;·&nbsp;
-      <a href="{SITE_URL}" style="color:{CSS_ACCENT};text-decoration:none;">Open TickerDesk</a>
-    </div>
-  </div>
-</div>
-''')
+    # Data-honesty footer
+    parts.append(
+        f'<div style="margin-top:26px;padding-top:14px;border-top:1px solid {CSS_BORDER};font-size:11px;color:{CSS_MUTED};line-height:1.6;">'
+        f'<div style="font-weight:700;color:{CSS_MUTED};margin-bottom:4px;">Data freshness</div>'
+        f'Flow: intraday batch (Polygon Options Starter, 15-min delayed) · '
+        f'Grades: prior close / EOD batch · '
+        f'Quotes: delayed 15m where shown · '
+        f'Calendar: live feed, actuals fill in through the day · '
+        f'News: cached intraday.<br>'
+        f'Not investment advice. Verify against your broker before trading.'
+        f'</div>')
+    parts.append(
+        f'<div style="margin-top:14px;font-size:11px;color:{CSS_MUTED};">'
+        f'Daily Brief is on for your account. '
+        f'<a href="{SITE_URL}/#watchlist" style="color:{CSS_ACCENT};text-decoration:none;">Manage</a> · '
+        f'<a href="{SITE_URL}" style="color:{CSS_ACCENT};text-decoration:none;">Open TickerDesk</a>'
+        f'</div></div></div>')
     return subject, "".join(parts)
 
 
-def _section(title: str, rows: list[dict], render_row) -> str:
-    inner = "".join(render_row(r) for r in rows)
-    return f'''
-    <div style="margin-top:24px;">
-      <div style="font-size:13px;font-weight:600;color:{CSS_MUTED};text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">{title}</div>
-      <div style="background:{CSS_PANEL};border:1px solid {CSS_BORDER};border-radius:10px;overflow:hidden;">
-        {inner}
-      </div>
-    </div>'''
-
-
-def _render_grade_row(r: dict) -> str:
-    color = _grade_color(r["grade"])
-    badge = _change_badge(r["change"], r.get("prev_grade"))
-    chg = r.get("chg")
-    chg_txt = ""
-    if isinstance(chg, (int, float)):
-        col = CSS_GREEN if chg >= 0 else CSS_RED
-        chg_txt = (f'<span style="color:{col};font-size:12px;">'
-                   f'{chg:+.2f}%</span>')
-    price = (f"${r['price']:.2f}"
-             if isinstance(r.get("price"), (int, float)) else "")
-    return f'''
-        <div style="padding:12px 14px;border-bottom:1px solid {CSS_BORDER};">
-          <div style="display:flex;align-items:baseline;justify-content:space-between;">
-            <div>
-              <a href="{SITE_URL}/?t={r['ticker']}" style="font-weight:600;color:{CSS_TEXT};text-decoration:none;font-size:15px;">{r['ticker']}</a>
-              <span style="color:{CSS_MUTED};font-size:12px;margin-left:8px;">{r.get('name','')[:50]}</span>
-            </div>
-            <div style="font-size:14px;color:{color};font-weight:600;">{r['grade']}</div>
-          </div>
-          <div style="font-size:12px;color:{CSS_MUTED};margin-top:4px;">
-            {badge} &nbsp; {price} {chg_txt}
-          </div>
-        </div>'''
-
-
-def _render_flow_row(r: dict) -> str:
-    top = r["contracts"][0]
-    typ = (top.get("type") or "").upper()
-    typ_col = CSS_GREEN if typ == "CALL" else CSS_RED
-    # Defensive formatting — vol_oi / strike / dte can occasionally be None
-    # in source data, and we don't want one bad row to fail the whole brief.
-    voi = top.get("vol_oi")
-    voi_txt = f"{voi:.1f}" if isinstance(voi, (int, float)) else "—"
-    strike = top.get("strike")
-    strike_txt = f"${strike}" if strike is not None else "—"
-    dte = top.get("dte")
-    dte_txt = f"{dte}d" if dte is not None else "—"
-    more = (f" · {len(r['contracts']) - 1} more"
-            if len(r["contracts"]) > 1 else "")
-    return f'''
-        <div style="padding:12px 14px;border-bottom:1px solid {CSS_BORDER};">
-          <div style="display:flex;align-items:baseline;justify-content:space-between;">
-            <div>
-              <a href="{SITE_URL}/?t={r['ticker']}" style="font-weight:600;color:{CSS_TEXT};text-decoration:none;font-size:15px;">{r['ticker']}</a>
-              <span style="color:{typ_col};font-size:12px;margin-left:8px;font-weight:600;">{typ}</span>
-              <span style="color:{CSS_MUTED};font-size:12px;margin-left:6px;">{strike_txt} · {top.get('expiry') or '—'} ({dte_txt})</span>
-            </div>
-            <div style="font-size:14px;color:{CSS_AMBER};font-weight:600;">{_fmt_premium(top.get('premium'))}</div>
-          </div>
-          <div style="font-size:12px;color:{CSS_MUTED};margin-top:4px;">
-            vol/oi {voi_txt} on top contract{more}
-          </div>
-        </div>'''
-
-
-def _render_earnings_row(r: dict) -> str:
-    return f'''
-        <div style="padding:12px 14px;border-bottom:1px solid {CSS_BORDER};">
-          <div style="display:flex;align-items:baseline;justify-content:space-between;">
-            <div>
-              <a href="{SITE_URL}/?t={r['ticker']}" style="font-weight:600;color:{CSS_TEXT};text-decoration:none;font-size:15px;">{r['ticker']}</a>
-              <span style="color:{CSS_MUTED};font-size:12px;margin-left:8px;">{r.get('company','')[:48]}</span>
-            </div>
-            <div style="font-size:12px;color:{CSS_AMBER};font-weight:600;">{r.get('dow','')} {r.get('bmo_amc','')}</div>
-          </div>
-          <div style="font-size:12px;color:{CSS_MUTED};margin-top:4px;">{r.get('when_date','')}</div>
-        </div>'''
-
-
-def _render_report_row(r: dict) -> str:
-    reps = r["reports"]
-    items = "".join(
-        f'<div style="font-size:12px;color:{CSS_ACCENT};margin-top:3px;">'
-        f'<a href="{SITE_URL}/reports/{rep["file"]}" style="color:{CSS_ACCENT};text-decoration:none;">{rep["type"]} · {rep["label"]}</a>'
-        f'</div>' for rep in reps
-    )
-    return f'''
-        <div style="padding:12px 14px;border-bottom:1px solid {CSS_BORDER};">
-          <a href="{SITE_URL}/?t={r['ticker']}" style="font-weight:600;color:{CSS_TEXT};text-decoration:none;font-size:15px;">{r['ticker']}</a>
-          {items}
-        </div>'''
-
-
-def _section_snapshot(rows: list[dict]) -> str:
-    cells = []
-    for r in rows:
-        color = _grade_color(r["grade"])
-        cells.append(
-            f'<a href="{SITE_URL}/?t={r["ticker"]}" '
-            f'style="display:inline-block;padding:6px 10px;margin:3px;background:{CSS_BG};'
-            f'border:1px solid {CSS_BORDER};border-radius:6px;text-decoration:none;'
-            f'color:{CSS_TEXT};font-size:12px;">'
-            f'<b>{r["ticker"]}</b> '
-            f'<span style="color:{color};font-weight:600;">{r["grade"]}</span>'
-            f'</a>'
-        )
-    inner = "".join(cells)
-    return f'''
-    <div style="margin-top:24px;">
-      <div style="font-size:13px;font-weight:600;color:{CSS_MUTED};text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Watchlist snapshot</div>
-      <div style="background:{CSS_PANEL};border:1px solid {CSS_BORDER};border-radius:10px;padding:10px;">
-        {inner}
-      </div>
-    </div>'''
-
-
 # ─────────────────────────────────────────────────────────────────────
-# Resend send — single tiny HTTP call per recipient
+# Resend send
 # ─────────────────────────────────────────────────────────────────────
 
-def send_email(to_email: str, subject: str, html: str) -> tuple[bool, str]:
+def send_email(to_email: str, subject: str, html_body: str) -> tuple[bool, str]:
     if not RESEND_API_KEY:
         return False, "RESEND_API_KEY not set"
     body = json.dumps({
-        "from": FROM_EMAIL,
-        "to": [to_email],
-        "subject": subject,
-        "html": html,
+        "from": FROM_EMAIL, "to": [to_email],
+        "subject": subject, "html": html_body,
     }).encode("utf-8")
-    # NOTE: Resend's API is fronted by Cloudflare and the default urllib
-    # User-Agent ("Python-urllib/3.12") trips Cloudflare WAF rule 1010
-    # (banned browser signature). A real-looking UA gets through cleanly.
+    # Resend sits behind Cloudflare; the default urllib UA trips WAF rule
+    # 1010, so send a real-looking UA.
     req = urllib.request.Request(
-        "https://api.resend.com/emails",
-        data=body,
+        "https://api.resend.com/emails", data=body,
         headers={
             "Authorization": f"Bearer {RESEND_API_KEY}",
             "Content-Type": "application/json",
             "User-Agent": ("Mozilla/5.0 (compatible; TickerDesk-Brief/1.0; "
                            "+https://tickerdesk.io)"),
             "Accept": "application/json",
-        },
-        method="POST",
-    )
+        }, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
-            txt = r.read().decode("utf-8")
-            return True, txt
+            return True, r.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         try:
             err = e.read().decode("utf-8")
@@ -700,83 +1157,136 @@ def send_email(to_email: str, subject: str, html: str) -> tuple[bool, str]:
 
 
 # ─────────────────────────────────────────────────────────────────────
+# Dry-run preview
+# ─────────────────────────────────────────────────────────────────────
+
+def write_preview(subject: str, html_body: str) -> None:
+    os.makedirs(os.path.dirname(PREVIEW_PATH), exist_ok=True)
+    doc = (f'<!doctype html><html><head><meta charset="utf-8">'
+           f'<meta name="viewport" content="width=device-width,initial-scale=1">'
+           f'<title>{esc(subject)}</title></head>'
+           f'<body style="margin:0;background:{CSS_BG};">{html_body}</body></html>')
+    with open(PREVIEW_PATH, "w", encoding="utf-8") as f:
+        f.write(doc)
+    kb = len(doc.encode("utf-8")) / 1024
+    print(f"  Preview written: {PREVIEW_PATH} ({kb:.0f} KB"
+          + (" ⚠ over 102KB Gmail clip limit" if kb > 102 else "") + ")")
+
+
+def demo_user(swing, uoa, market_top, earnings) -> dict:
+    """Synthetic watchlist for local preview — a BALANCED mix (earnings +
+    flow + A-tier) so every section renders without Supabase."""
+    a_tier = [tk for tk, sw in swing.items() if _is_a_tier(sw.get("grade"))]
+    tickers: list[str] = []
+    tickers += list(earnings.keys())[:3]                 # exercise earnings
+    tickers += list(uoa.keys())[:4]                      # exercise flow
+    tickers += [m.get("ticker") for m in market_top[:3]]  # tape edge
+    tickers += a_tier                                    # fill with A-tier
+    seen, uniq = set(), []
+    for t in tickers:
+        if t and t not in seen:
+            seen.add(t)
+            uniq.append(t)
+    return {"user_id": "demo", "email": "preview@tickerdesk.io",
+            "display_name": "", "plan": "premium", "tickers": uniq[:16]}
+
+
+# ─────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true",
-                    help="Build emails but don't send; print first 300 chars")
-    ap.add_argument("--me", default=None,
-                    help="Restrict to one email address (testing)")
-    ap.add_argument("--skip-idempotency", action="store_true",
-                    help="Re-send even if email_log already has a sent row")
+                    help="Build + write preview HTML, don't send")
+    ap.add_argument("--me", default=None, help="Restrict to one email")
+    ap.add_argument("--preview", action="store_true",
+                    help="Force a synthetic demo brief (no Supabase needed)")
+    ap.add_argument("--skip-idempotency", action="store_true")
     args = ap.parse_args()
 
     today = datetime.now(ET).date()
-    brief_date = today.isoformat()
-    print(f"TickerDesk Daily Brief — {brief_date}")
+    brief_date = today.strftime("%A, %B %-d, %Y") if os.name != "nt" else \
+        today.strftime("%A, %B ") + str(today.day) + today.strftime(", %Y")
+    iso_date = today.isoformat()
+    print(f"TickerDesk Daily Brief — {iso_date}")
 
-    # Skip on weekends — market data is stale and we don't want noise.
-    if today.weekday() >= 5:
-        print("  Weekend — skipping. (Cron should already exclude this, but"
-              " belt-and-suspenders.)")
+    if today.weekday() >= 5 and not (args.dry_run or args.preview):
+        print("  Weekend — skipping.")
         return
 
     print("  Loading signal data...")
     swing = load_swing()
-    uoa = load_uoa()
+    uoa, market_top = load_uoa()
     earnings = load_earnings_within(days=7)
-    new_reports = load_new_reports(hours=24)
-    print(f"    swing: {len(swing)} tickers · uoa: {len(uoa)} tickers"
-          f" · earnings/7d: {len(earnings)} · new reports: {len(new_reports)}")
+    reports_by_tk = load_reports_by_ticker(hours=24)
+    new_reports_all = load_new_reports_all(hours=24)
+    market = load_market_context()
+    print(f"    swing:{len(swing)} uoa:{len(uoa)} earn/7d:{len(earnings)} "
+          f"reports:{len(new_reports_all)} events:{len(market.get('events', []))}")
 
-    print("  Fetching opted-in users...")
-    users = fetch_opted_in_users(restrict_email=args.me)
+    # Preview / dry-run without users → synthetic demo
+    users: list[dict] = []
+    if args.preview:
+        users = [demo_user(swing, uoa, market_top, earnings)]
+        print("  --preview: using synthetic demo watchlist")
+    else:
+        try:
+            print("  Fetching opted-in users...")
+            users = fetch_opted_in_users(restrict_email=args.me)
+        except Exception as e:
+            print(f"  Could not fetch users ({e}).")
+            if args.dry_run:
+                users = [demo_user(swing, uoa, market_top, earnings)]
+                print("  dry-run: falling back to synthetic demo watchlist")
     print(f"    {len(users)} user(s) to brief")
     if not users:
         return
 
     sent = skipped = failed = 0
+    preview_written = False
     for u in users:
-        brief = build_brief(u["tickers"], swing, uoa, earnings, new_reports)
-        subject, html = render_html(u, brief, brief_date)
+        brief = build_brief(u["tickers"], swing, uoa, market_top, earnings,
+                            reports_by_tk, new_reports_all, market)
+        subject, html_body = render_html(u, brief, brief_date)
         prefix = f"  → {u['email']:32s} ({len(u['tickers'])} tickers): "
 
-        if not args.skip_idempotency and already_sent_today(u["user_id"], brief_date):
+        # Always write the first rendered email to the preview file.
+        if (args.dry_run or args.preview) and not preview_written:
+            write_preview(subject, html_body)
+            preview_written = True
+
+        if args.dry_run or args.preview:
+            print(prefix + f"DRY-RUN subject={subject!r}")
+            sent += 1
+            continue
+
+        if not args.skip_idempotency and already_sent_today(u["user_id"], iso_date):
             print(prefix + "skipped (already sent today)")
             skipped += 1
             continue
 
-        if args.dry_run:
-            print(prefix + f"DRY-RUN  subject={subject!r}")
-            print(f"      preview: {html[:300]}...")
-            sent += 1
-            continue
-
-        ok, resp = send_email(u["email"], subject, html)
+        ok, resp = send_email(u["email"], subject, html_body)
         if ok:
-            print(prefix + f"sent  ({subject})")
-            log_email(u["user_id"], u["email"], brief_date, "sent",
-                      subject,
-                      {"counts": {k: len(v) for k, v in brief.items()},
-                       "tickers": u["tickers"]})
+            print(prefix + f"sent ({subject})")
+            log_email(u["user_id"], u["email"], iso_date, "sent", subject,
+                      {"tickers": u["tickers"],
+                       "counts": {"flow": len(brief["flow"]),
+                                  "confluence": len(brief["confluence"])}})
             sent += 1
         else:
-            print(prefix + f"FAILED  {resp[:200]}")
-            log_email(u["user_id"], u["email"], brief_date, "failed",
-                      subject,
+            print(prefix + f"FAILED {resp[:200]}")
+            log_email(u["user_id"], u["email"], iso_date, "failed", subject,
                       {"tickers": u["tickers"]}, error=resp[:500])
             failed += 1
 
-    print(f"\nDone. sent={sent}  skipped={skipped}  failed={failed}")
+    print(f"\nDone. sent={sent} skipped={skipped} failed={failed}")
 
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        # Never crash the workflow — log and exit 0 so other jobs unaffected.
         print(f"  Fatal: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
