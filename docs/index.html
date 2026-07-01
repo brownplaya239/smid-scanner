@@ -17853,9 +17853,20 @@
     }
 
     function cardCalendar(cal, todayISO) {
-      // Calendar refreshes daily — same cadence as swing
-      const stamp = freshness(cal && cal.updated,
-        { character: "pre-market", label: "Calendar pulled" });
+      // Live feed (worker ForexFactory proxy) → live stamp so users know
+      // the Actual column is filling in through the day. Static fallback
+      // (post-close batch) keeps the pre-market "Calendar pulled" stamp.
+      let stamp;
+      if (cal && cal.source === "forexfactory-live") {
+        const t = new Date().toLocaleTimeString([],
+          { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+        stamp = { cls: "fresh", label: "Live · " + t + " ET",
+          full: "Live economic calendar (ForexFactory) — Actual values fill " +
+                "in as releases print, refreshed every few minutes." };
+      } else {
+        stamp = freshness(cal && cal.updated,
+          { character: "pre-market", label: "Calendar pulled" });
+      }
       if (!cal || !cal.events)
         return desk("Today's Economic Calendar", empty("No calendar data yet."),
                     null, stamp);
@@ -18683,7 +18694,18 @@
         fetchJSON("./reports/momentum_qm.json"),
         fetchJSON("./reports/momentum_stockbee.json"),
         fetchJSON("./reports/manifest.json"),
-        fetchJSON("./reports/economic_calendar.json"),
+        // Live economic calendar via the worker (ForexFactory proxy) so the
+        // Actual column fills in through the day; fall back to the static
+        // post-close batch if the worker is unreachable.
+        fetch(WORKER_URL + "/?econ-calendar=1")
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            return (d && d.events && d.events.length)
+              ? d : fetchJSON("./reports/economic_calendar.json");
+          })
+          .catch(function () {
+            return fetchJSON("./reports/economic_calendar.json");
+          }),
         fetchJSON("./reports/uoa_meta_cache.json"),
       ]).then(function (arr) {
         const swing = arr[1], uoaMeta = arr[6];

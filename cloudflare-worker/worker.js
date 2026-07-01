@@ -2134,6 +2134,44 @@ function memPut(key, data) {
   if (MEM_CACHE.size > 64) MEM_CACHE.delete(MEM_CACHE.keys().next().value);
 }
 
+/** Live US economic calendar — proxies the ForexFactory weekly feed so
+ *  the Actual column populates through the day (like Finviz) without a
+ *  batch scrape or a Pages commit. Same JSON shape as the static
+ *  economic_calendar.json the desk used to read. */
+function _ffTag(block, tag) {
+  const m = new RegExp("<" + tag +
+    ">(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</" + tag + ">", "i").exec(block);
+  return m ? m[1].trim() : "";
+}
+async function fetchEconCalendar() {
+  const r = await fetch(
+    "https://nfs.faireconomy.media/ff_calendar_thisweek.xml",
+    { headers: { "User-Agent": "Mozilla/5.0" }, cf: { cacheTtl: 120 } });
+  if (!r.ok) throw new Error("feed " + r.status);
+  const xml = await r.text();
+  const events = [];
+  const parts = xml.split(/<event>/i).slice(1);
+  for (const p of parts) {
+    const block = p.split(/<\/event>/i)[0];
+    if (_ffTag(block, "country") !== "USD") continue;   // US events only
+    events.push({
+      date:     _ffTag(block, "date"),      // MM-DD-YYYY
+      time:     _ffTag(block, "time"),
+      title:    _ffTag(block, "title"),
+      impact:   _ffTag(block, "impact"),
+      forecast: _ffTag(block, "forecast"),
+      previous: _ffTag(block, "previous"),
+      actual:   _ffTag(block, "actual"),    // fills in as releases print
+    });
+  }
+  return {
+    updated: new Date().toISOString(),
+    tz: "America/New_York",
+    source: "forexfactory-live",
+    events,
+  };
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -2459,6 +2497,25 @@ export default {
         });
         ctx.waitUntil(cache.put(request, resp.clone()));
         return resp;
+      }
+      // Live economic calendar — ?econ-calendar=1 proxies ForexFactory so
+      // the Actual column fills in through the day. 5-min in-memory cache
+      // shares one upstream fetch across all pollers.
+      if (url.searchParams.get("econ-calendar")) {
+        let data = memGet("econcal", 300_000);
+        if (!data) {
+          try {
+            data = await fetchEconCalendar();
+            memPut("econcal", data);
+          } catch (e) {
+            return Response.json(
+              { error: "calendar feed: " + String(e), events: [] },
+              { status: 502, headers: cors });
+          }
+        }
+        return Response.json(data, {
+          headers: { ...cors, "Cache-Control": "public, max-age=120" },
+        });
       }
       // News headlines — ?news=general for firehose or ?news=AAPL for a
       // specific ticker. Optional ?limit=N (1..1000, default 50/200).
