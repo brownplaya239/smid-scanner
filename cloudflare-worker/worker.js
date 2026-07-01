@@ -559,8 +559,11 @@ async function handlePortfolioOCR(request, env, cors) {
     "ETFs (e.g. IBIT) are valid tickers, keep them. If only a company name " +
     "is shown and you are confident of its ticker, use it; otherwise omit.\n" +
     "  - weight: the position's market value / dollar value if a 'Market " +
-    "Value' / 'Mkt Value' column is visible (number only, no $ or commas). " +
-    "If no dollar value is shown, use null.\n" +
+    "Value' / 'Mkt Value' column is visible. Return it as a STRING copied " +
+    "EXACTLY as displayed, keeping commas as-is (e.g. \"8,557\" or " +
+    "\"$12,400\"). Commas are thousands separators, never decimals — do NOT " +
+    "convert, scale, round, or divide the number. If no dollar value is " +
+    "shown, use null.\n" +
     "  - name: the company name if visible, else null.\n" +
     "IGNORE cash rows (TOTAL CASH, USD CASH, EUR CASH), account totals, " +
     "subtotals, and header/summary figures (Net Liquidity, Buying Power, " +
