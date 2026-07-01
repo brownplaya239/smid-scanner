@@ -152,6 +152,31 @@
   .wlt-summary { margin-bottom:14px; }
   .wlt-summary .wls-grid { display:grid; gap:8px;
     grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); }
+  /* Watchlist Health Score hero */
+  .whs-hero { display:flex; align-items:center; gap:18px; margin-bottom:10px;
+    background:var(--card); border:1px solid var(--line); border-radius:8px;
+    padding:14px 18px; }
+  .whs-score { font-size:44px; font-weight:800; line-height:1;
+    font-variant-numeric:tabular-nums; flex-shrink:0; }
+  .whs-score small { font-size:15px; color:var(--muted); font-weight:600; }
+  .whs-body { flex:1; min-width:0; }
+  .whs-band { font-size:11px; font-weight:800; text-transform:uppercase;
+    letter-spacing:.6px; margin-bottom:7px; }
+  .whs-comps { display:grid; gap:4px; }
+  .whs-comp { display:grid; grid-template-columns:88px 1fr 28px;
+    align-items:center; gap:8px; font-size:11px; color:var(--muted); }
+  .whs-comp .whs-k { white-space:nowrap; }
+  .whs-comp .whs-bar { height:6px; border-radius:3px;
+    background:rgba(160,178,210,0.12); overflow:hidden; }
+  .whs-comp .whs-bar i { display:block; height:100%; border-radius:3px; }
+  .whs-comp .whs-v { text-align:right; font-variant-numeric:tabular-nums;
+    color:var(--text); font-weight:700; }
+  .whs-comp .whs-na { color:var(--muted); font-style:italic; }
+  @media (max-width:520px) {
+    .whs-hero { gap:12px; padding:12px 14px; }
+    .whs-score { font-size:36px; }
+    .whs-comp { grid-template-columns:74px 1fr 26px; }
+  }
   .wls-card { background:var(--card); border:1px solid var(--line);
     border-radius:6px; padding:10px 12px;
     border-left:3px solid var(--muted); }
@@ -8475,6 +8500,7 @@
       let aTier = 0, bullFlow = 0, bearFlow = 0;
       let bestContrib = null, worstContrib = null;
       let totalW = 0;
+      let portNum = 0, portDenom = 0;   // weighted return, for Health RS
       const LIVE = window.LIVE_QUOTE_CACHE || {};
       const liveFresh = function (t) {
         const q = LIVE[t];
@@ -8498,6 +8524,7 @@
           if (cell && typeof cell.chg === "number") chg = cell.chg;
         }
         if (chg != null) {
+          portNum += w * chg; portDenom += w;
           const contrib = w * chg;
           if (bestContrib == null || contrib > bestContrib.contrib) {
             bestContrib = { ticker: tk, contrib: contrib,
@@ -8608,7 +8635,95 @@
                  e.ticker + '</span>';
         }).join(" ") || "Quiet next 7 days") +
         '</div></div>');
-      sumEl.innerHTML = '<div class="wls-grid">' + cards.join("") + '</div>';
+
+      // ── Watchlist Health Score (0-100) ─────────────────────────────
+      // One number blending trend grade, flow bias, relative strength,
+      // earnings-event risk, and concentration. Each component is 0-100
+      // (higher = healthier); the weighted blend is the headline score.
+      // All inputs are already computed above — no extra network.
+      const healthHero = (function () {
+        const GR20 = ["A+","A","A-","B+","B","B-","C+","C","C-","D+","D",
+                      "D-","E+","E","E-","F+","F","F-","G+","G"];
+        const gScore = function (g) {
+          const i = GR20.indexOf(g);
+          return i < 0 ? null : 100 * (1 - i / (GR20.length - 1));
+        };
+        const clamp = function (v) { return Math.max(0, Math.min(100, v)); };
+        // 1) Trend — weight-avg swing grade of graded names.
+        let tNum = 0, tDen = 0;
+        wl.forEach(function (tk) {
+          const s = gScore(grades[tk]);
+          if (s == null) return;
+          const w = WATCHLIST_WEIGHTS[tk] != null ? WATCHLIST_WEIGHTS[tk] : 1;
+          tNum += w * s; tDen += w;
+        });
+        const trend = tDen ? tNum / tDen : null;
+        // 2) Flow bias — net bullish among names with flow.
+        const nFlow = bullFlow + bearFlow;
+        const flow = nFlow ? clamp(50 + 50 * (bullFlow - bearFlow) / nFlow) : null;
+        // 3) Relative strength — portfolio vs SPY today (delayed 15m).
+        const portRet = portDenom ? portNum / portDenom : null;
+        const rs = (portRet != null && LIVE_BENCH && typeof LIVE_BENCH.SPY === "number")
+          ? clamp(50 + (portRet - LIVE_BENCH.SPY) * 10) : null;
+        // 4) Earnings risk — less weight into an imminent print = healthier.
+        const earnTk = new Set(earnNext7.map(function (e) { return e.ticker; }));
+        let eNum = 0;
+        wl.forEach(function (tk) {
+          if (!earnTk.has(tk)) return;
+          eNum += (WATCHLIST_WEIGHTS[tk] != null ? WATCHLIST_WEIGHTS[tk] : 1);
+        });
+        const earnScore = totalW ? clamp(100 * (1 - eNum / totalW)) : 100;
+        // 5) Concentration — effective-N via HHI (more diversified = healthier).
+        let hhi = 0;
+        if (totalW > 0) {
+          wl.forEach(function (tk) {
+            const w = (WATCHLIST_WEIGHTS[tk] != null ? WATCHLIST_WEIGHTS[tk] : 1) / totalW;
+            hhi += w * w;
+          });
+        }
+        const effN = hhi ? 1 / hhi : wl.length;
+        const conc = wl.length > 1
+          ? clamp(100 * (effN - 1) / (Math.min(wl.length, 10) - 1)) : 50;
+        // Weighted blend over the components that have data.
+        const comps = [
+          { k: "Trend",         v: trend,     w: 0.30 },
+          { k: "Flow",          v: flow,      w: 0.20 },
+          { k: "Rel. strength", v: rs,        w: 0.20 },
+          { k: "Earnings",      v: earnScore, w: 0.15 },
+          { k: "Concentration", v: conc,      w: 0.15 },
+        ];
+        let sNum = 0, sDen = 0;
+        comps.forEach(function (c) {
+          if (c.v != null) { sNum += c.w * c.v; sDen += c.w; }
+        });
+        if (!sDen) return "";
+        const score = Math.round(sNum / sDen);
+        const band = score >= 70 ? { c: "var(--green)", t: "Healthy" }
+                   : score >= 45 ? { c: "var(--gold)",  t: "Mixed" }
+                   :               { c: "var(--red)",   t: "Caution" };
+        const bars = comps.map(function (c) {
+          if (c.v == null)
+            return '<div class="whs-comp"><span class="whs-k">' + c.k +
+                   '</span><span class="whs-na">n/a</span></div>';
+          const cv = Math.round(c.v);
+          const cc = cv >= 70 ? "var(--green)" : cv >= 45 ? "var(--gold)" : "var(--red)";
+          return '<div class="whs-comp"><span class="whs-k">' + c.k +
+            '</span><span class="whs-bar"><i style="width:' + cv +
+            '%;background:' + cc + '"></i></span>' +
+            '<span class="whs-v">' + cv + '</span></div>';
+        }).join("");
+        return '<div class="whs-hero" title="Blended 0-100 read of your ' +
+          'watchlist: trend grade, options-flow bias, performance vs SPY, ' +
+          'earnings-event risk, and concentration. Not advice.">' +
+          '<div class="whs-score" style="color:' + band.c + '">' + score +
+            '<small>/100</small></div>' +
+          '<div class="whs-body"><div class="whs-band" style="color:' + band.c +
+            '">' + band.t + ' &middot; Watchlist Health</div>' +
+          '<div class="whs-comps">' + bars + '</div></div></div>';
+      })();
+
+      sumEl.innerHTML = healthHero +
+        '<div class="wls-grid">' + cards.join("") + '</div>';
     }
     // Hook renderWlSummary into the renderBench refresh path
     const _origRenderBench = null;  // marker only — we wrap below
