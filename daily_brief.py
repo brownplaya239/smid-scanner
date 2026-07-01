@@ -237,36 +237,35 @@ def load_reports_by_ticker(hours: int = 24) -> dict[str, list[dict]]:
     return by_ticker
 
 
-# Human labels for the broad (non-ticker) scanners so filenames never leak
-# into the email.
-_REPORT_LABELS = {
-    "smid_scanner": "SMID Breakout Scanner",
-    "smid": "SMID Breakout Scanner",
-    "setup_builder": "Setup Builder",
-    "setups": "Setup Builder",
-    "qm_monthly": "Qullamaggie Monthly Momentum",
-    "qm": "Qullamaggie Monthly Momentum",
-    "stockbee": "Stockbee Weekly Momentum",
-    "swing": "Swing Grades",
-    "uoa": "Unusual Options Activity",
+# Human labels keyed by the manifest report TYPE (its `label` field is just
+# a timestamp, so we never use that as the display name).
+_REPORT_TYPE_LABELS = {
+    "smid-scanner": "SMID Breakout Scanner",
+    "iwm-scanner": "IWM Breakout Scanner",
+    "smid-setup": "SMID Setup Builder",
+    "iwm-setup": "IWM Setup Builder",
+    "qm-monthly": "Qullamaggie Monthly Momentum",
+    "stockbee-weekly": "Stockbee Weekly Momentum",
+    "adhoc": "Ticker Research",
+    "alt-data": "Alt-Data Report",
 }
 
 
 def load_new_reports_all(hours: int = 24) -> list[dict]:
     """Every report archived in the last N hours, with a human label
-    (never a raw filename). Returns [{label, file, when}] newest first."""
+    (never a raw filename or a bare timestamp). [{label, file, when}]."""
     data = _safe_load(os.path.join(REPORTS_DIR, "manifest.json"))
     if not data:
         return []
     cutoff = datetime.now(ET) - timedelta(hours=hours)
     out: list[dict] = []
     for rtype, files in (data.get("reports") or {}).items():
+        base = _REPORT_TYPE_LABELS.get(rtype, rtype.replace("-", " ").title())
         for f in files:
             fname = f.get("file", "")
             parts = fname.split("_")
             if len(parts) < 4:
                 continue
-            head = parts[0]
             try:
                 stamp = ET.localize(datetime.strptime(
                     f"{parts[-2]}_{parts[-1].split('.')[0]}", "%Y-%m-%d_%H%M"))
@@ -274,14 +273,10 @@ def load_new_reports_all(hours: int = 24) -> list[dict]:
                 continue
             if stamp < cutoff:
                 continue
-            # Human label: explicit manifest label, else map the head token.
-            if head in ("ticker", "altdata") and len(parts) >= 2:
-                tk = parts[1]
-                kind = "Alt-Data" if head == "altdata" else "Ticker Report"
-                label = f.get("label") or f"{kind} · {tk}"
-            else:
-                label = f.get("label") or _REPORT_LABELS.get(
-                    head, _REPORT_LABELS.get(rtype, rtype.replace("_", " ").title()))
+            label = base
+            # Per-ticker reports: append the symbol so it's specific.
+            if parts[0] in ("ticker", "altdata") and parts[1].isupper():
+                label = f"{base} · {parts[1]}"
             out.append({"label": label, "file": fname, "when": stamp})
     out.sort(key=lambda r: r["when"], reverse=True)
     return out
@@ -1040,7 +1035,7 @@ def _render_reports(reports) -> str:
     inner = "".join(
         f'<div style="padding:9px 14px;border-bottom:1px solid {CSS_BORDER};">'
         f'<a href="{SITE_URL}/reports/{esc(r["file"])}" style="color:{CSS_ACCENT};text-decoration:none;font-size:12.5px;">📄 {esc(r["label"])}</a>'
-        f'<span style="font-size:11px;color:{CSS_MUTED};"> · {r["when"].strftime("%-I:%M %p") if False else r["when"].strftime("%I:%M %p").lstrip("0")} ET</span></div>'
+        f'<span style="font-size:11px;color:{CSS_MUTED};"> · {r["when"].strftime("%I:%M %p").lstrip("0")} ET</span></div>'
         for r in reports)
     return _card("New research (24h)", inner)
 
