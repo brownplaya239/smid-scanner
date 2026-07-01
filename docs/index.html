@@ -1986,6 +1986,33 @@
   .wct-cad-eod  { background:var(--card); color:var(--muted);
     border:1px solid var(--line); }
   .wct-row-hdr .wct-when { flex:0 0 auto; }
+  /* Live Movers card */
+  .lm-cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .lm-hd { font-size:9px; font-weight:800; letter-spacing:.5px;
+    text-transform:uppercase; padding-bottom:5px; margin-bottom:4px;
+    border-bottom:1px solid var(--line); }
+  .lm-hd-up { color:var(--green); }
+  .lm-hd-dn { color:var(--red); }
+  .lm-row { display:flex; align-items:baseline; gap:8px; padding:4px 0;
+    font-size:12px; }
+  .lm-row .lm-tk { font-weight:700; color:var(--text); cursor:pointer;
+    min-width:48px; }
+  .lm-row .lm-tk:hover { color:var(--gold); }
+  .lm-row .lm-px { color:var(--muted); font-size:11px; flex:1;
+    font-variant-numeric:tabular-nums; }
+  .lm-row .lm-pct { font-weight:700; font-variant-numeric:tabular-nums; }
+  .lm-row .lm-pct.up { color:var(--green); }
+  .lm-row .lm-pct.down { color:var(--red); }
+  .lm-none { color:var(--muted); font-size:11px; padding:4px 0; }
+  .lm-foot { margin-top:9px; padding-top:7px; border-top:1px solid var(--line);
+    font-size:10px; color:var(--muted); }
+  /* Full-width divider between the live block and the EOD cards */
+  .desk-divider { grid-column:1 / -1; display:flex; align-items:center;
+    gap:12px; margin:4px 0 2px; color:var(--muted); font-size:10.5px;
+    letter-spacing:.3px; }
+  .desk-divider::before, .desk-divider::after { content:""; flex:1;
+    height:1px; background:var(--line); }
+  .desk-divider span { flex:0 0 auto; max-width:70%; text-align:center; }
   /* Expandable "+N more" trigger — click toggles .expanded on the
      parent .wct-list and the hidden overflow rows reveal. Looks like
      a link by default so users recognize it as interactive; hover
@@ -16541,6 +16568,122 @@
              '"><h3>' + title + sh + '</h3>' + body + '</div>';
     }
     function empty(msg) { return '<div class="desk-empty">' + msg + '</div>'; }
+
+    // ── Live Movers (part B) — biggest intraday % moves among the names
+    // this desk covers, straight from the live 15m-delayed quote cache.
+    // Pure real-time: no EOD data involved. ─────────────────────────────
+    function liveMoversUniverse(swing, uoa) {
+      const set = new Set();
+      const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+      wl.forEach(function (t) { if (/^[A-Z\.\-]{1,8}$/.test(t)) set.add(t); });
+      if (swing && swing.runs && swing.runs.length) {
+        const r = swing.runs[swing.runs.length - 1];
+        ["A+", "A", "A-", "B+"].forEach(function (g) {
+          (r.grades && r.grades[g] || []).slice(0, 10).forEach(function (c) {
+            if (c.t) set.add(c.t);
+          });
+        });
+      }
+      if (uoa && uoa.rows) uoa.rows.slice(0, 30).forEach(function (x) {
+        if (x.ticker) set.add(x.ticker);
+      });
+      return Array.from(set).slice(0, 60);
+    }
+    function cardLiveMovers(swing, uoa) {
+      const open = (typeof isMarketOpenET === "function") ? isMarketOpenET() : false;
+      const t = new Date().toLocaleTimeString([],
+        { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+      const stamp = open
+        ? { cls: "fresh", label: "Live · " + t + " ET",
+            full: "Biggest intraday % moves across your watchlist + desk " +
+                  "coverage. 15-min delayed, refreshed every ~30s." }
+        : { cls: "current", label: "Market closed",
+            full: "Shows the last session's moves until the next open." };
+      return desk("Live Movers",
+        '<div class="lm-wrap" id="desk-live-movers-body">' +
+          '<div class="desk-empty">Loading live moves…</div></div>',
+        "desk-card--wide", stamp);
+    }
+    function renderLiveMovers(univ) {
+      const el = document.getElementById("desk-live-movers-body");
+      if (!el) return;
+      const cache = window.LIVE_QUOTE_CACHE || {};
+      const rows = (univ || []).map(function (t) {
+        const q = cache[t];
+        return (q && typeof q.change === "number")
+          ? { t: t, chg: q.change, px: q.price } : null;
+      }).filter(Boolean);
+      if (!rows.length) {
+        el.innerHTML = '<div class="desk-empty">Waiting for live quotes…</div>';
+        return;
+      }
+      const up = rows.filter(function (r) { return r.chg > 0; })
+        .sort(function (a, b) { return b.chg - a.chg; }).slice(0, 6);
+      const dn = rows.filter(function (r) { return r.chg < 0; })
+        .sort(function (a, b) { return a.chg - b.chg; }).slice(0, 6);
+      const row = function (r) {
+        const cls = r.chg >= 0 ? "up" : "down";
+        const sign = r.chg >= 0 ? "+" : "";
+        return '<div class="lm-row"><span class="lm-tk" data-t="' + r.t +
+          '">' + r.t + '</span>' +
+          '<span class="lm-px">' +
+            (r.px != null ? "$" + r.px.toFixed(2) : "—") + '</span>' +
+          '<span class="lm-pct ' + cls + '">' + sign +
+            r.chg.toFixed(1) + '%</span></div>';
+      };
+      el.innerHTML =
+        '<div class="lm-cols">' +
+          '<div class="lm-col"><div class="lm-hd lm-hd-up">▲ Gainers</div>' +
+            (up.length ? up.map(row).join("") : '<div class="lm-none">—</div>') +
+          '</div>' +
+          '<div class="lm-col"><div class="lm-hd lm-hd-dn">▼ Losers</div>' +
+            (dn.length ? dn.map(row).join("") : '<div class="lm-none">—</div>') +
+          '</div>' +
+        '</div>' +
+        '<div class="lm-foot">' + rows.length +
+          ' names · watchlist + desk coverage · 15m delayed</div>';
+    }
+    function hydrateLiveMovers(univ) {
+      window._lmUniv = univ || window._lmUniv || [];
+      univ = window._lmUniv;
+      renderLiveMovers(univ);                 // paint from cache immediately
+      if (!univ.length || window._lmInFlight) return;
+      const cache = window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
+      const stale = univ.filter(function (t) {
+        const c = cache[t];
+        return !c || Date.now() - (c.ts || 0) > 60 * 1000;
+      });
+      if (!stale.length) return;
+      window._lmInFlight = true;
+      const chunk = 50, jobs = [];
+      for (let i = 0; i < stale.length; i += chunk) {
+        const cs = stale.slice(i, i + chunk);
+        jobs.push(
+          fetch(WORKER_URL + "?quotes=" + encodeURIComponent(cs.join(",")))
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) {
+              if (!d || !d.quotes) return;
+              d.quotes.forEach(function (q) {
+                if (q && q.symbol) cache[q.symbol] = {
+                  price: q.price, change: q.change,
+                  prevClose: q.prevClose, ts: Date.now() };
+              });
+              renderLiveMovers(univ);
+            }).catch(function () {})
+        );
+      }
+      Promise.all(jobs).finally(function () { window._lmInFlight = false; });
+      // One shared 30s refresher, gated on the desk being visible.
+      if (!window._lmTimer) {
+        window._lmTimer = setInterval(function () {
+          const p = document.getElementById("panel-desk");
+          if (p && p.classList.contains("active") &&
+              document.visibilityState === "visible") {
+            hydrateLiveMovers(window._lmUniv);
+          }
+        }, 30000);
+      }
+    }
     // ── insight ────────────────────────────────────────────────────
     // Top-of-card 1-line aggregate read. Goes BEFORE the table/hdr so
     // a scanning user can take the takeaway in 1 second without
@@ -18614,16 +18757,23 @@
             cardTopBullish(ctx, swing, uoa) +
             cardTopBearish(ctx, swing, uoa) +
           '</div>';
+        // Real-time-first ordering: lead with the live/intraday blocks,
+        // then the actionable synthesis, then a divider and the EOD (last
+        // post-close) cards. So the desk foregrounds what's moving now.
         grid.innerHTML = [
-          cardWhatChangedToday(swing, uoa),
-          cardActionList(ctx, swing, uoa, uoaMeta, today),
-          cardMarketHealth(swing),
-          cardTopFlow(uoa),
+          cardWhatChangedToday(swing, uoa),   // LIVE-first internally
+          cardLiveMovers(swing, uoa),          // pure live intraday movers
+          cardMarketHealth(swing),             // live intraday breadth
+          cardTopFlow(uoa),                    // live options flow
+          cardActionList(ctx, swing, uoa, uoaMeta, today),  // actionable synth
+          '<div class="desk-divider"><span>End-of-day — grades &amp; ' +
+            'setups from the last post-close batch (4:30 PM ET); these ' +
+            'don’t change intraday</span></div>',
           cardSwingUpgrades(swing),
           cardSwingDowngrades(swing),
           cardBreakouts(swing, uoaMeta),
-          calEarnStack,
           cardThemes(swing),
+          calEarnStack,
           topBullBearRow,
         ].join("");
         // Kick off live-quote hydration in the background. Once each
@@ -18632,6 +18782,7 @@
         // initial "yesterday close" tooltip cohort into "today 15m
         // delayed" intraday values without a full re-render.
         hydrateDeskLiveQuotes();
+        hydrateLiveMovers(liveMoversUniverse(swing, uoa));
     }
     function loadAndRender() {
       return fetchDeskData().then(renderDesk);
