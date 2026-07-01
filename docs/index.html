@@ -17857,11 +17857,12 @@
       // the Actual column is filling in through the day. Static fallback
       // (post-close batch) keeps the pre-market "Calendar pulled" stamp.
       let stamp;
-      if (cal && cal.source === "forexfactory-live") {
+      if (cal && /-live$/.test(cal.source || "")) {
         const t = new Date().toLocaleTimeString([],
           { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+        const src = cal.source === "nasdaq-live" ? "Nasdaq" : "ForexFactory";
         stamp = { cls: "fresh", label: "Live · " + t + " ET",
-          full: "Live economic calendar (ForexFactory) — Actual values fill " +
+          full: "Live economic calendar (" + src + ") — Actual values fill " +
                 "in as releases print, refreshed every few minutes." };
       } else {
         stamp = freshness(cal && cal.updated,

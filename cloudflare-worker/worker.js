@@ -2134,42 +2134,98 @@ function memPut(key, data) {
   if (MEM_CACHE.size > 64) MEM_CACHE.delete(MEM_CACHE.keys().next().value);
 }
 
-/** Live US economic calendar — proxies the ForexFactory weekly feed so
- *  the Actual column populates through the day (like Finviz) without a
- *  batch scrape or a Pages commit. Same JSON shape as the static
- *  economic_calendar.json the desk used to read. */
+/** Live US economic calendar for the desk. Primary source is Nasdaq's
+ *  economic-events API, which carries the ACTUAL column (like Finviz) and
+ *  fills in through the day. Falls back to the ForexFactory weekly XML
+ *  (schedule + impact, no actuals) if Nasdaq is unreachable. */
+const _EC_HI = /(non-?farm|payroll|\bnfp\b|\bcpi\b|consumer price|\bpce\b|\bfomc\b|fed interest|federal funds|interest rate|\bgdp\b|ism manufacturing|ism services|ism non|retail sales|unemployment rate|(initial|jobless) claims|\bppi\b|producer price|powell|jackson hole)/i;
+const _EC_MED = /(\bjolts\b|\badp\b|consumer confidence|consumer sentiment|durable goods|housing starts|building permits|chicago pmi|philly|empire|trade balance|factory orders|construction spending|pending home|(new|existing) home|industrial production|manufacturing pmi|services pmi)/i;
+function _ecImpact(title) {
+  if (_EC_HI.test(title)) return "High";
+  if (_EC_MED.test(title)) return "Medium";
+  return "Low";
+}
+function _ecTime(t) {
+  t = (t || "").trim();
+  if (!t || /[ap]m$/i.test(t)) return t;      // already 12h, or "All Day"
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t);    // Nasdaq gives 24h ET clock
+  if (!m) return t;
+  let h = parseInt(m[1], 10); const mm = m[2];
+  const ap = h >= 12 ? "pm" : "am";
+  h = h % 12; if (h === 0) h = 12;
+  return h + ":" + mm + ap;
+}
+async function _econFromNasdaq(dateISO) {
+  const r = await fetch(
+    "https://api.nasdaq.com/api/calendar/economicevents?date=" + dateISO,
+    { headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept": "application/json",
+        "Accept-Language": "en-US,en;q=0.9",
+      } });
+  if (!r.ok) throw new Error("nasdaq " + r.status);
+  const j = await r.json();
+  const rows = (j && j.data && j.data.rows) || [];
+  const p = dateISO.split("-");                    // YYYY-MM-DD
+  const ffDate = p[1] + "-" + p[2] + "-" + p[0];   // MM-DD-YYYY (frontend fmt)
+  const events = [];
+  for (const row of rows) {
+    if (String(row.country || "").toLowerCase() !== "united states") continue;
+    const title = String(row.eventName || "").trim();
+    if (!title) continue;
+    events.push({
+      date:     ffDate,
+      time:     _ecTime(row.gmt),
+      title:    title,
+      impact:   _ecImpact(title),
+      forecast: String(row.consensus || "").trim(),
+      previous: String(row.previous || "").trim(),
+      actual:   String(row.actual || "").trim(),
+    });
+  }
+  return events;
+}
 function _ffTag(block, tag) {
   const m = new RegExp("<" + tag +
     ">(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</" + tag + ">", "i").exec(block);
   return m ? m[1].trim() : "";
 }
-async function fetchEconCalendar() {
+async function _econFromFF() {
   const r = await fetch(
     "https://nfs.faireconomy.media/ff_calendar_thisweek.xml",
     { headers: { "User-Agent": "Mozilla/5.0" }, cf: { cacheTtl: 120 } });
-  if (!r.ok) throw new Error("feed " + r.status);
+  if (!r.ok) throw new Error("ff " + r.status);
   const xml = await r.text();
   const events = [];
   const parts = xml.split(/<event>/i).slice(1);
   for (const p of parts) {
     const block = p.split(/<\/event>/i)[0];
-    if (_ffTag(block, "country") !== "USD") continue;   // US events only
+    if (_ffTag(block, "country") !== "USD") continue;
     events.push({
-      date:     _ffTag(block, "date"),      // MM-DD-YYYY
+      date:     _ffTag(block, "date"),
       time:     _ffTag(block, "time"),
       title:    _ffTag(block, "title"),
       impact:   _ffTag(block, "impact"),
       forecast: _ffTag(block, "forecast"),
       previous: _ffTag(block, "previous"),
-      actual:   _ffTag(block, "actual"),    // fills in as releases print
+      actual:   _ffTag(block, "actual"),
     });
   }
-  return {
-    updated: new Date().toISOString(),
-    tz: "America/New_York",
-    source: "forexfactory-live",
-    events,
-  };
+  return events;
+}
+async function fetchEconCalendar() {
+  const etDate = new Date()
+    .toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  try {
+    const events = await _econFromNasdaq(etDate);   // has Actual
+    if (events.length) {
+      return { updated: new Date().toISOString(), tz: "America/New_York",
+        source: "nasdaq-live", events };
+    }
+  } catch (e) { /* fall through to FF */ }
+  const events = await _econFromFF();               // schedule only, no actuals
+  return { updated: new Date().toISOString(), tz: "America/New_York",
+    source: "forexfactory-live", events };
 }
 
 export default {
