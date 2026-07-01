@@ -2315,6 +2315,10 @@
   @media (max-width:900px) {
     .desk-pair { grid-template-columns:1fr; }
   }
+  /* Top Movers slot — sits above the Live news wire on Today's Desk.
+     Collapses cleanly when empty (pre-render / no live quotes). */
+  .desk-movers-slot { margin-bottom:14px; }
+  .desk-movers-slot:empty { display:none; margin:0; }
 
   /* Economic calendar rows (Today's Desk card) */
   .cal-row { display:grid;
@@ -4812,6 +4816,8 @@
           <button class="sh-next" id="sh-next" type="button">Next &rarr;</button>
         </div>
       </div>
+      <!-- Top Movers rendered here (above the news wire) by renderDesk. -->
+      <div id="desk-movers" class="desk-movers-slot"></div>
       <div class="md-news-card" id="desk-news">
         <div class="md-news-head">
           <span class="md-news-title">Live news wire</span>
@@ -16647,19 +16653,47 @@
     function liveMoversUniverse(swing, uoa) {
       const set = new Set();
       const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+      // Market-cap map so we can screen out sub-$500M noise (low-float
+      // momentum names flood the raw flow feed). Sourced from the swing
+      // cards' raw mcap + the UOA meta cache; watchlist names are exempt
+      // (the user curated those, so we always keep them).
+      const MIN_MC = 500e6;
+      const mcap = {};
+      const meta = (window.TD_DATA && window.TD_DATA.uoaMeta) || DESK_META || {};
+      if (swing && swing.runs && swing.runs.length) {
+        const r0 = swing.runs[swing.runs.length - 1];
+        Object.keys(r0.grades || {}).forEach(function (g) {
+          (r0.grades[g] || []).forEach(function (c) {
+            if (c.t && typeof c.mcap === "number") mcap[c.t] = c.mcap;
+          });
+        });
+      }
+      const mcOf = function (t) {
+        if (typeof mcap[t] === "number") return mcap[t];
+        const m = meta[t];
+        const v = m && (m.mkt_cap != null ? m.mkt_cap : m.market_cap);
+        return typeof v === "number" ? v : null;
+      };
+      // Legit = on the watchlist OR a known market cap ≥ $500M. Unknown-cap
+      // non-watchlist names are dropped (that's where the noise lives).
+      const legit = function (t) {
+        if (wl.has(t)) return true;
+        const v = mcOf(t);
+        return v != null && v >= MIN_MC;
+      };
       wl.forEach(function (t) { if (/^[A-Z\.\-]{1,8}$/.test(t)) set.add(t); });
       if (swing && swing.runs && swing.runs.length) {
         const r = swing.runs[swing.runs.length - 1];
         ["A+", "A", "A-", "B+"].forEach(function (g) {
-          (r.grades && r.grades[g] || []).slice(0, 10).forEach(function (c) {
-            if (c.t) set.add(c.t);
+          (r.grades && r.grades[g] || []).slice(0, 20).forEach(function (c) {
+            if (c.t && legit(c.t)) set.add(c.t);
           });
         });
       }
-      if (uoa && uoa.rows) uoa.rows.slice(0, 30).forEach(function (x) {
-        if (x.ticker) set.add(x.ticker);
+      if (uoa && uoa.rows) uoa.rows.slice(0, 50).forEach(function (x) {
+        if (x.ticker && legit(x.ticker)) set.add(x.ticker);
       });
-      return Array.from(set).slice(0, 60);
+      return Array.from(set).slice(0, 100);
     }
     function cardLiveMovers(swing, uoa) {
       const open = (typeof isMarketOpenET === "function") ? isMarketOpenET() : false;
@@ -16690,9 +16724,9 @@
         return;
       }
       const up = rows.filter(function (r) { return r.chg > 0; })
-        .sort(function (a, b) { return b.chg - a.chg; }).slice(0, 6);
+        .sort(function (a, b) { return b.chg - a.chg; }).slice(0, 10);
       const dn = rows.filter(function (r) { return r.chg < 0; })
-        .sort(function (a, b) { return a.chg - b.chg; }).slice(0, 6);
+        .sort(function (a, b) { return a.chg - b.chg; }).slice(0, 10);
       const row = function (r) {
         const cls = r.chg >= 0 ? "up" : "down";
         const sign = r.chg >= 0 ? "+" : "";
@@ -16713,7 +16747,7 @@
           '</div>' +
         '</div>' +
         '<div class="lm-foot">' + rows.length +
-          ' names · watchlist + desk coverage · 15m delayed</div>';
+          ' names · watchlist + desk coverage (&ge;$500M mcap) · 15m delayed</div>';
     }
     function hydrateLiveMovers(univ) {
       window._lmUniv = univ || window._lmUniv || [];
@@ -18859,8 +18893,10 @@
           });
         }
         const ctx = buildConfluenceCtx(uoa, swing, qm, sb, manifest, today);
-        const calEarnStack =
-          '<div class="desk-stack">' +
+        // Calendar + Earnings sit LEFT/RIGHT as a full-width pair (was a
+        // vertical stack), placed just above Top Bullish / Top Bearish.
+        const calEarnRow =
+          '<div class="desk-pair">' +
             cardCalendar(cal, todayET) +
             cardEarnings(uoaMeta, todayET) +
           '</div>';
@@ -18875,16 +18911,20 @@
             cardTopBullish(ctx, swing, uoa) +
             cardTopBearish(ctx, swing, uoa) +
           '</div>';
+        // Top Movers lives ABOVE the news wire now — render it into its own
+        // slot there rather than as a grid card.
+        const moversEl = document.getElementById("desk-movers");
+        if (moversEl) moversEl.innerHTML = cardLiveMovers(swing, uoa);
         // Real-time-first ordering: lead with the live/intraday blocks,
         // then the actionable synthesis, then a divider and the EOD (last
         // post-close) cards. So the desk foregrounds what's moving now.
+        // Top options flow now sits BELOW the Action List.
         grid.innerHTML = [
           cardWhatChangedToday(swing, uoa),   // LIVE-first internally
-          cardLiveMovers(swing, uoa),          // pure live intraday movers
           cardMarketHealth(swing),             // live intraday breadth
-          cardTopFlow(uoa),                    // live options flow
           cardOvernightFlow(D.carryover),      // pre-open OI-confirmed carryover
           cardActionList(ctx, swing, uoa, uoaMeta, today),  // actionable synth
+          cardTopFlow(uoa),                    // options flow — below action list
           '<div class="desk-divider"><span>End-of-day — grades &amp; ' +
             'setups from the last post-close batch (4:30 PM ET); these ' +
             'don’t change intraday</span></div>',
@@ -18892,8 +18932,8 @@
           cardSwingDowngrades(swing),
           cardBreakouts(swing, uoaMeta),
           cardThemes(swing),
-          calEarnStack,
-          topBullBearRow,
+          calEarnRow,                          // calendar | earnings, side by side
+          topBullBearRow,                      // bullish | bearish, below
         ].join("");
         // Kick off live-quote hydration in the background. Once each
         // batch of /quotes lands, hydrateDeskLiveQuotes() walks the
