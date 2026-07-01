@@ -13581,15 +13581,18 @@
           'Key levels unavailable for ' + esc(symbol) + '.</span>';
         return;
       }
-      // Treat the last bar as "today" (forming) and the one before as the
-      // prior completed session for PDH/PDL/pivots/gap.
-      var today = bars[bars.length - 1];
-      var prior = bars[bars.length - 2];
-      var spot = (data && data.price) || today.c;
-      // Derive prev close from the bars themselves — the endpoint's
-      // top-level `prevClose` can be stale/mis-scaled (observed SPY 617 vs
-      // a ~745 tape), while the daily bar series is internally consistent.
-      var prevClose = prior.c;
+      // Prefer the worker's explicitly-resolved sessions (DST-safe, correct
+      // even pre-market). Fall back to bar-index assumption if an older
+      // worker build is still serving.
+      var prior = (data && data.priorSession) || bars[bars.length - 2];
+      // If the worker resolved sessions, respect a null todaySession
+      // (pre-market: no forming bar yet → no gap). Only fall back to the
+      // last bar for older worker builds that don't send the field.
+      var today = (data && ("todaySession" in data))
+        ? data.todaySession : bars[bars.length - 1];
+      var spot = (data && data.price) || (today && today.c) || prior.c;
+      var prevClose = (data && data.prevClose != null)
+        ? data.prevClose : prior.c;
       var pdh = prior.h, pdl = prior.l, pdc = prior.c;
       // 52-week hi/lo across the (~252) daily bars.
       var hi52 = -Infinity, lo52 = Infinity;
@@ -13601,8 +13604,8 @@
       var P = (pdh + pdl + pdc) / 3;
       var R1 = 2 * P - pdl, S1 = 2 * P - pdh;
       var R2 = P + (pdh - pdl), S2 = P - (pdh - pdl);
-      // Gap: today's open vs prior close.
-      var gapPct = (today.o != null && prevClose)
+      // Gap: today's open vs prior close (only when a today session exists).
+      var gapPct = (today && today.o != null && prevClose)
         ? (today.o - prevClose) / prevClose * 100 : null;
 
       // Price-level ladder — sorted high→low, coloured by side vs spot.

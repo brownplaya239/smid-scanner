@@ -1321,11 +1321,45 @@ async function fetchYahooCandles(sym, range, interval) {
         }
       }
     }
+    // ── Prior-session resolution (trading-grade) ──────────────────────
+    // Yahoo's meta.chartPreviousClose is the close at the START of the
+    // requested range (≈733 for range=5d, ≈617 for range=1y on the SAME
+    // day) — NOT yesterday's close — and meta.previousClose /
+    // regularMarketPreviousClose are absent from chart meta. So the only
+    // reliable prior close is the bar series: if the last bar is today's
+    // (forming) session, the prior session is the bar before it; if the
+    // last bar is already a completed prior day (e.g. pre-market before
+    // today's daily bar prints), it IS the prior session. ET-date compare
+    // is DST-safe via Intl.
+    const etDate = function (tsec) {
+      if (!tsec) return null;
+      try {
+        return new Date(tsec * 1000)
+          .toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+      } catch (_) { return null; }
+    };
+    let todayET = null;
+    try {
+      todayET = new Date()
+        .toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+    } catch (_) {}
+    let todaySession = null, priorSession = null;
+    if (out.length >= 1) {
+      const last = out[out.length - 1];
+      const lastIsToday = !!(last.t && todayET && etDate(last.t) === todayET);
+      todaySession = lastIsToday ? last : null;
+      priorSession = lastIsToday
+        ? (out.length >= 2 ? out[out.length - 2] : null)
+        : last;
+    }
+    const prevClose = priorSession ? priorSession.c : null;
     return {
       symbol:   sym,
       bars:     out,
       price:    typeof m.regularMarketPrice === "number" ? m.regularMarketPrice : null,
-      prevClose: m.chartPreviousClose || m.previousClose || null,
+      prevClose: prevClose,          // true prior-session close (not range-relative)
+      priorSession: priorSession,    // {t,o,h,l,c,v} of the last completed session
+      todaySession: todaySession,    // {t,o,h,l,c,v} of the current (forming) session, or null
       currency: m.currency || null,
     };
   } catch (e) {
