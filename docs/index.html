@@ -2004,6 +2004,7 @@
   .lm-row .lm-pct.up { color:var(--green); }
   .lm-row .lm-pct.down { color:var(--red); }
   .lm-none { color:var(--muted); font-size:11px; padding:4px 0; }
+  .md-movers-card { margin-bottom:12px; }
   .lm-foot { margin-top:9px; padding-top:7px; border-top:1px solid var(--line);
     font-size:10px; color:var(--muted); }
   /* Full-width divider between the live block and the EOD cards */
@@ -9891,7 +9892,43 @@
             '</span>' +
           '</div>';
       }).join("");
-      body.innerHTML = statStrip +
+      // ── Live Movers — biggest intraday % moves among YOUR watchlist,
+      // from the live 15m quote cache. Leads the desk (above the grade
+      // table) so My Desk foregrounds what's moving now. ──────────────
+      const _mv = rows.map(function (r) {
+        const chg = liveChg(r), px = livePrice(r);
+        return (chg != null) ? { tk: r.tk, chg: chg, px: px } : null;
+      }).filter(Boolean);
+      let mdMoversHTML = "";
+      if (_mv.length) {
+        const up = _mv.filter(function (m) { return m.chg > 0; })
+          .sort(function (a, b) { return b.chg - a.chg; }).slice(0, 5);
+        const dn = _mv.filter(function (m) { return m.chg < 0; })
+          .sort(function (a, b) { return a.chg - b.chg; }).slice(0, 5);
+        const mrow = function (m) {
+          const cls = m.chg >= 0 ? "up" : "down", sg = m.chg >= 0 ? "+" : "";
+          return '<div class="lm-row"><span class="lm-tk" data-t="' + m.tk +
+            '">' + m.tk + '</span><span class="lm-px">' +
+            (m.px != null ? "$" + m.px.toFixed(2) : "—") +
+            '</span><span class="lm-pct ' + cls + '">' + sg +
+            m.chg.toFixed(1) + '%</span></div>';
+        };
+        const t = new Date().toLocaleTimeString([],
+          { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+        mdMoversHTML =
+          '<div class="desk-card md-movers-card"><h3>Live Movers' +
+            '<span class="desk-stamp dst-fresh" title="Biggest intraday % ' +
+            'moves in your watchlist — 15m delayed, refreshed ~60s">Live · ' +
+            t + ' ET</span></h3><div class="lm-cols">' +
+            '<div class="lm-col"><div class="lm-hd lm-hd-up">▲ Gainers</div>' +
+              (up.length ? up.map(mrow).join("")
+                         : '<div class="lm-none">—</div>') + '</div>' +
+            '<div class="lm-col"><div class="lm-hd lm-hd-dn">▼ Losers</div>' +
+              (dn.length ? dn.map(mrow).join("")
+                         : '<div class="lm-none">—</div>') + '</div>' +
+          '</div></div>';
+      }
+      body.innerHTML = statStrip + mdMoversHTML +
         '<div class="mydesk-grid">' + header + out + '</div>';
     }
     // ── Live quotes for My Desk (Day % column + vs-SPY square) ───────
