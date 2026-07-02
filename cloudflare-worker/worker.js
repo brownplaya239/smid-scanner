@@ -2024,11 +2024,11 @@ async function fetchPremarketBuzz(env) {
         pct:    Math.round(pct * 10) / 10,
         price:  price != null ? Math.round(price * 100) / 100 : null,
       });
-      if (out.length >= 16) break;   // candidate pool (pre-filter)
+      if (out.length >= 40) break;   // deep candidate pool (pre-filter)
     }
     return out;
   }
-  // Candidate pools (up to 16 each), then attach catalysts, then keep
+  // Candidate pools (up to 40 each), then attach catalysts, then keep
   // the names that read like real desk "buzz": ones with a genuine
   // recent news catalyst OR liquid enough (≥ $5) to be a real mover —
   // dropping the unexplained sub-$5 micro-cap pumps that otherwise
@@ -2036,12 +2036,31 @@ async function fetchPremarketBuzz(env) {
   // board. Falls back to top movers if a quiet session yields too few.
   const gCand = shape(gRaw);
   const lCand = shape(lRaw);
+  // ── Market-cap floor ($100M) FIRST ───────────────────────────────
+  // The raw feed is topped by micro-cap pumps, so scan a DEEP pool (above)
+  // and drop everything sub-$100M up front — cheaply, since fetchMktCap is
+  // 24h-cached — leaving a fuller board of tradable names further down the
+  // list that the old top-16 cut off. Doing it here (before the pricier
+  // Yahoo re-pricing) also means Yahoo only runs on the survivors. Cases:
+  //   • number ≥ floor → keep. number < floor → drop (real micro-cap).
+  //   • 0 (Polygon answered 200 but reported NO market cap) → drop — a
+  //     junk signal (SPAC warrants / shells / oddball symbols).
+  //   • null (the lookup itself failed) → KEEP (fail open) so a transient
+  //     Polygon hiccup never blanks the board.
+  await Promise.all(gCand.concat(lCand).map(async function (r) {
+    r.market_cap = await fetchMktCap(r.ticker, key);
+  }));
+  function aboveCapFloor(r) {
+    if (r.market_cap == null) return true;   // lookup failed → fail open
+    return r.market_cap >= PMB_CAP_FLOOR;     // 0 (no cap reported) → drop
+  }
+  const gCap = gCand.filter(aboveCapFloor);
+  const lCap = lCand.filter(aboveCapFloor);
   // ── Live re-pricing ──────────────────────────────────────────────
-  // Polygon discovered the movers (above); now overwrite each row's pct
-  // + price with Yahoo extended-hours so the displayed number is the
-  // true near-real-time pre/post move on a split-adjusted basis. Per
-  // name: keep Polygon's value only if Yahoo doesn't answer.
-  await Promise.all(gCand.concat(lCand).map(async function (row) {
+  // Overwrite each survivor's pct + price with Yahoo extended-hours so the
+  // displayed number is the true near-real-time move on a split-adjusted
+  // basis. Per name: keep Polygon's value only if Yahoo doesn't answer.
+  await Promise.all(gCap.concat(lCap).map(async function (row) {
     const y = await fetchYahooExt(row.ticker);
     if (y && y.pct != null && isFinite(y.pct) && y.price != null) {
       row.pct         = Math.round(y.pct * 10) / 10;
@@ -2059,27 +2078,8 @@ async function fetchPremarketBuzz(env) {
       .filter(function (r) { return dir === "up" ? r.pct > 0 : r.pct < 0; })
       .sort(function (a, b) { return dir === "up" ? b.pct - a.pct : a.pct - b.pct; });
   }
-  let gRank = liveRank(gCand, "up");
-  let lRank = liveRank(lCand, "down");
-  // ── Market-cap floor ($100M) ─────────────────────────────────────
-  // Drop micro-caps BEFORE spending catalyst/EDGAR calls on them, so the
-  // board reads like tradable single-name buzz rather than sub-$100M
-  // pump-and-dumps. Three cases from fetchMktCap:
-  //   • number ≥ floor → keep. number < floor → drop (real micro-cap).
-  //   • 0 (Polygon answered 200 but reported NO market cap) → drop. This
-  //     is a strong junk signal — SPAC warrants / shells / oddball
-  //     symbols (USDE, RAAQW) that aren't tradable single-name buzz.
-  //   • null (the lookup itself failed — 404 / rate-limit / timeout) →
-  //     KEEP (fail open) so a transient Polygon hiccup never blanks it.
-  await Promise.all(gRank.concat(lRank).map(async function (r) {
-    r.market_cap = await fetchMktCap(r.ticker, key);
-  }));
-  function aboveCapFloor(r) {
-    if (r.market_cap == null) return true;   // lookup failed → fail open
-    return r.market_cap >= PMB_CAP_FLOOR;     // 0 (no cap reported) → drop
-  }
-  gRank = gRank.filter(aboveCapFloor);
-  lRank = lRank.filter(aboveCapFloor);
+  const gRank = liveRank(gCap, "up");
+  const lRank = liveRank(lCap, "down");
   async function attachCatalyst(row) {
     try {
       const nr = await fetch(
@@ -2126,7 +2126,7 @@ async function fetchPremarketBuzz(env) {
     const buzz = cand.filter(function (r) {
       return r.catalyst || (r.price != null && r.price >= 5);
     });
-    const picked = (buzz.length >= 4 ? buzz : cand).slice(0, 10);
+    const picked = (buzz.length >= 4 ? buzz : cand).slice(0, 12);
     return picked;
   }
   const gainers = buzzPick(gRank);
