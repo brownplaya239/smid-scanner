@@ -518,7 +518,11 @@ def _emit(run_obj):
         pass
     runs = [r for r in data.get("runs", []) if r.get("date") != run_obj["date"]]
     runs.append(run_obj)
-    runs = runs[-40:]
+    # Cap history so the site file stays small enough for GitHub Pages to
+    # deploy (was 40 runs ≈ 15MB, which contributed to Pages deploy
+    # timeouts). 20 runs ≈ a month of daily history — plenty for the Swing
+    # tab; the desk uses swing_latest_summary.json (last 2) separately.
+    runs = runs[-20:]
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump({"updated": run_obj["generated"], "runs": runs}, f,

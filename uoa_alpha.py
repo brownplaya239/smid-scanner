@@ -609,13 +609,23 @@ def _emit_scored(scored):
             "retained_pct": oi.get("retained_pct"),
         })
     rows.sort(key=lambda r: (r.get("flagged_at") or ""), reverse=True)
+    # Cap the SITE copy to the most recent signals + write COMPACT (no
+    # indent). The full ledger stays in data/uoa_signals.jsonl and the edge
+    # aggregates in uoa_edge.json are computed on ALL signals, so this only
+    # trims the per-signal "Tracked Signals" list — while keeping the file
+    # small enough that GitHub Pages can actually deploy it. (The old
+    # indent=1 full dump ballooned to ~42MB and timed out the Pages deploy.)
+    SITE_MAX = 15000
+    total = len(rows)
+    rows = rows[:SITE_MAX]
     payload = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "count":     len(rows),
+        "total":     total,
         "signals":   rows,
     }
     with open(SCORED_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=1)
+        json.dump(payload, f, separators=(",", ":"))
 
 
 def run():
