@@ -137,6 +137,14 @@ def _boost_set():
     return names
 
 
+# Legit common-share classes Polygon keys WITH a dot (BRK.B = Berkshire,
+# BF.B = Brown-Forman) — both S&P 500 members. The pref/warrant "." filter
+# in build_universe would otherwise silently drop them from the flow scan.
+# Polygon uses this same dotted form for the options snapshot underlying, so
+# these pass straight through option_chain() unchanged.
+KEEP_DOTTED = {"BRK.B", "BF.B"}
+
+
 def build_universe(min_dollar_vol=UNIVERSE_MIN_DOLLAR_VOL, ref_date=None):
     """Liquid optionable underlyings from the most recent grouped-daily bar,
     gated by dollar volume. Returns (underlyings, boost_set)."""
@@ -144,7 +152,8 @@ def build_universe(min_dollar_vol=UNIVERSE_MIN_DOLLAR_VOL, ref_date=None):
     grouped = pg.grouped_daily(ref_date)
     universe = []
     for tk, bar in grouped.items():
-        if "." in tk or len(tk) > 5 or tk in EXCLUDE_ETFS:
+        if (("." in tk and tk not in KEEP_DOTTED)
+                or len(tk) > 5 or tk in EXCLUDE_ETFS):
             continue
         dollar_vol = (bar.get("c", 0) or 0) * (bar.get("v", 0) or 0)
         if dollar_vol >= min_dollar_vol:
