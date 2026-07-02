@@ -2702,6 +2702,44 @@ export default {
       // verbatim news catalyst per name. Edge-cached 5 min: the movers
       // shift slowly and this fans out to ~20 Polygon news calls, so
       // sharing one upstream batch across users keeps it cheap.
+      // Market-cap lookup — ?mktcap=NVDA,GMEX,... returns { ticker: cap }.
+      // Powers the news wire's nano-cap gate: the client only asks for
+      // tickers it doesn't already know (few per poll), and each is cached
+      // 24h (caps barely move). Polygon reference endpoint has caps for
+      // essentially every listed name, incl. nano-caps like GMEX ($500K),
+      // which our own universes lack — that's the whole point.
+      if (url.searchParams.get("mktcap")) {
+        if (!env.POLYGON_API_KEY) {
+          return Response.json({ ok: false, error: "no polygon key", mcap: {} },
+            { headers: cors });
+        }
+        const syms = (url.searchParams.get("mktcap") || "").split(",")
+          .map(function (s) { return s.trim().toUpperCase(); })
+          .filter(function (s) { return /^[A-Z][A-Z.\-]{0,8}$/.test(s); })
+          .slice(0, 40);
+        const out = {};
+        const need = [];
+        for (const s of syms) {
+          const c = memGet("mc:" + s, 86_400_000);   // 24h
+          if (c !== null) out[s] = c; else need.push(s);
+        }
+        await Promise.all(need.map(async function (s) {
+          let mc = null;
+          try {
+            const r = await fetch("https://api.polygon.io/v3/reference/tickers/" +
+              encodeURIComponent(s) + "?apiKey=" + env.POLYGON_API_KEY);
+            if (r.ok) {
+              const j = await r.json();
+              const v = j && j.results && j.results.market_cap;
+              mc = (typeof v === "number") ? v : 0;   // 0 = looked up, none reported
+            }
+          } catch (e) { mc = null; }
+          if (mc !== null) memPut("mc:" + s, mc);
+          out[s] = mc;
+        }));
+        return Response.json({ ok: true, mcap: out },
+          { headers: { ...cors, "Cache-Control": "public, max-age=3600" } });
+      }
       if (url.searchParams.get("premarket")) {
         const cache = caches.default;
         const hit = await cache.match(request);

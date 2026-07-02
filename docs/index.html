@@ -16558,6 +16558,72 @@
     let lastGen = [], lastWl = [];   // cache so the toggle re-renders live
     const seen = new Set();
     let first = true;
+
+    // ── Nano-cap gate ────────────────────────────────────────────────
+    // Drop headlines whose tagged tickers are ALL known sub-$300M names
+    // (e.g. GMEX @ $500K "Halt News Pending" spam). Caps come from our own
+    // data first (swing cards + optionable-universe meta), then a cached
+    // worker lookup for the rest — because our universes lack both nano-
+    // caps (GMEX) AND some legit mid-caps (FC/GBX), so membership alone
+    // can't judge. FAIL-OPEN: a row is dropped only when every ticker's cap
+    // is KNOWN and below the floor; anything unresolved stays visible.
+    const CAP_FLOOR = 300e6;
+    const NEWS_MCAP = {};            // ticker -> cap number (0 = looked up, none)
+    let mcapSeeded = false;
+    function seedMcap() {
+      const D = window.TD_DATA || {};
+      try {
+        if (D.swing && D.swing.runs && D.swing.runs.length) {
+          const r = D.swing.runs[D.swing.runs.length - 1];
+          Object.keys(r.grades || {}).forEach(function (g) {
+            (r.grades[g] || []).forEach(function (c) {
+              if (c.t && typeof c.mcap === "number") NEWS_MCAP[c.t] = c.mcap;
+            });
+          });
+        }
+        const meta = D.uoaMeta || {};
+        Object.keys(meta).forEach(function (t) {
+          const v = meta[t] && (meta[t].mkt_cap != null ? meta[t].mkt_cap : meta[t].market_cap);
+          if (typeof v === "number" && NEWS_MCAP[t] == null) NEWS_MCAP[t] = v;
+        });
+        if (Object.keys(NEWS_MCAP).length) mcapSeeded = true;
+      } catch (e) {}
+    }
+    function isNanoCapRow(symbols) {
+      if (!symbols || !symbols.length) return false;   // macro/general — keep
+      let anyBig = false, allResolved = true;
+      for (let i = 0; i < symbols.length; i++) {
+        const mc = NEWS_MCAP[symbols[i]];
+        if (typeof mc !== "number") { allResolved = false; continue; }
+        if (mc >= CAP_FLOOR || mc === 0) anyBig = true;  // 0 = unknown-to-Polygon → keep
+      }
+      return allResolved && !anyBig;   // every ticker known + all < floor → drop
+    }
+    // Fetch caps for tickers we don't know yet (few per poll — most news
+    // tags majors we already have). 24h-cached in the worker.
+    function enrichMcap(rows) {
+      const need = {};
+      (rows || []).forEach(function (r) {
+        (r.symbols || []).forEach(function (t) {
+          if (t && NEWS_MCAP[t] === undefined) need[t] = 1;
+        });
+      });
+      const list = Object.keys(need).slice(0, 40);
+      if (!list.length) return Promise.resolve(false);
+      return fetch(WORKER_URL + "/?mktcap=" + encodeURIComponent(list.join(",")))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          list.forEach(function (t) {
+            const v = j && j.mcap && j.mcap[t];
+            NEWS_MCAP[t] = (typeof v === "number") ? v : 0;   // 0 = checked, none
+          });
+          return true;
+        })
+        .catch(function () {
+          list.forEach(function (t) { if (NEWS_MCAP[t] === undefined) NEWS_MCAP[t] = 0; });
+          return true;
+        });
+    }
     function esc(s) {
       return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
         return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
@@ -16575,8 +16641,10 @@
       // a FirstSquawk / Bloomberg breaking feed, not an SEO farm. Material
       // headlines (halts, M&A, ratings, guidance, FDA…) get a hot marker.
       // "Breaking only" narrows further to just the material headlines.
+      if (!mcapSeeded) seedMcap();
       rows = (rows || []).filter(function (r) {
         if (tdNewsSlop(r.headline)) return false;
+        if (isNanoCapRow(r.symbols)) return false;
         if (breakingOnly && !tdNewsHot(r.headline)) return false;
         return true;
       });
@@ -16629,6 +16697,8 @@
           const html = buildHtml(rows, "No live headlines yet.");
           gen.forEach(function (el) { el.innerHTML = html; });
           markSeenAndStamp(rows);
+          // Resolve any unknown-cap tickers, then re-render so nano-caps drop.
+          enrichMcap(rows).then(function (changed) { if (changed) rerenderFromCache(); });
         })
         .catch(function () {});
     }
@@ -16655,6 +16725,7 @@
           mdEl.innerHTML = buildHtml(rows,
             "No recent headlines for your watchlist tickers.");
           markSeenAndStamp(rows);
+          enrichMcap(rows).then(function (changed) { if (changed) rerenderFromCache(); });
         })
         .catch(function () {});
     }
