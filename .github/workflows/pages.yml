@@ -19,7 +19,35 @@ name: Build & Deploy Pages
 # workflow gaining a schedule/cron trigger as a sweeper), AND (b) Pages
 # build_type switched back to "workflow". Until then: manual dispatch
 # only, and deploy-pages would fail anyway while build_type=legacy.
+#
+# 2026-07-02 RE-ENABLED: the legacy branch build broke — Pages ran Jekyll
+# over the 95MB site and the deploy step timed out on the huge JSON, so
+# nothing published for hours. Solving the 6/10 anti-recursion trap the
+# right way this time: `workflow_run` triggers fire on scan COMPLETION
+# regardless of the GITHUB_TOKEN push, so scanner data still publishes; a
+# cron sweeper + push cover the rest. build_type is set to "workflow".
 on:
+  # Immediate deploy on human / real-token pushes to the site.
+  push:
+    branches: [master]
+    paths: ['docs/**']
+  # RELIABLE trigger for scanner data commits: those are pushed with
+  # GITHUB_TOKEN, which does NOT fire `push` workflows (anti-recursion —
+  # exactly what froze the site on 2026-06-10). `workflow_run` fires when
+  # the named workflow COMPLETES regardless of the committing token, so
+  # each scan's freshly-committed data gets published.
+  workflow_run:
+    workflows:
+      - "Unusual Options Activity"
+      - "SMID Breakout Scanner"
+      - "Momentum Scans"
+      - "Daily Brief"
+    types: [completed]
+  # Catch-all sweeper — republish the latest docs/ periodically so a
+  # committer not in the list above (or a missed workflow_run) still lands
+  # within ~20 min. GitHub cron is best-effort; this is only a backstop.
+  schedule:
+    - cron: '*/20 12-22 * * 1-5'   # ~every 20 min, 8am–6pm ET weekdays
   workflow_dispatch: {}
 
 permissions:
