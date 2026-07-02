@@ -1875,7 +1875,7 @@ async function verifyStripeSig(payload, sig, secret) {
 //     ticker, used VERBATIM, and ONLY if published within ~36h. If no
 //     recent article exists we emit no catalyst rather than invent one.
 //   • company name: from the cached SEC ticker→title map.
-// Filters out sub-$1 pennies, sub-$300M micro-caps + leveraged/inverse
+// Filters out sub-$1 pennies, sub-$100M micro-caps + leveraged/inverse
 // ETFs so the board reads like real single-name catalysts (the way a
 // desk scans it).
 const PMB_EXCLUDE = new Set([
@@ -1945,9 +1945,9 @@ async function fetchYahooExt(sym) {
     return { price: last, prevClose: prev, pct: (last / prev - 1) * 100 };
   } catch (_) { return null; }
 }
-// Market Buzz drops sub-$300M names — micro-cap pop-and-drop pumps that
-// aren't tradable "buzz". Same floor as the news wire's nano-cap gate.
-const PMB_CAP_FLOOR = 300_000_000;
+// Market Buzz drops sub-$100M names — micro-cap pop-and-drop pumps that
+// aren't tradable "buzz".
+const PMB_CAP_FLOOR = 100_000_000;
 // Current market cap for one ticker via Polygon's reference endpoint
 // (has caps for essentially every listed name, incl. nano-caps our own
 // universes lack). Shares the 24h "mc:" mem-cache with the /?mktcap=
@@ -2060,9 +2060,9 @@ async function fetchPremarketBuzz(env) {
   }
   let gRank = liveRank(gCand, "up");
   let lRank = liveRank(lCand, "down");
-  // ── Market-cap floor ($300M) ─────────────────────────────────────
+  // ── Market-cap floor ($100M) ─────────────────────────────────────
   // Drop micro-caps BEFORE spending catalyst/EDGAR calls on them, so the
-  // board reads like tradable single-name buzz rather than sub-$300M
+  // board reads like tradable single-name buzz rather than sub-$100M
   // pump-and-dumps. Fail open (keep) when the cap is unknown (null) or
   // unreported (0) so a Polygon hiccup never blanks the board.
   await Promise.all(gRank.concat(lRank).map(async function (r) {

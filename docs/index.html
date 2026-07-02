@@ -4892,7 +4892,7 @@
         <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
       </div>
       <!-- Market Buzz — top gainers/losers + catalyst per name, live
-           priced (Yahoo extended-hours), sub-$300M micro-caps filtered.
+           priced (Yahoo extended-hours), sub-$100M micro-caps filtered.
            Populated by setupPremarketBuzz() from the worker /?premarket=1
            endpoint (Polygon movers + verbatim news catalysts). Hidden
            until data lands. Sits BELOW the desk grid (under the Earnings
@@ -21694,7 +21694,7 @@
     // Renders top gainers/losers + a verbatim news catalyst per name
     // from the worker /?premarket=1 endpoint. All real upstream data;
     // no fabricated movers/reasons. Live-priced (Yahoo extended-hours),
-    // sub-$300M micro-caps filtered at the worker. Refreshes on desk-tab
+    // sub-$100M micro-caps filtered at the worker. Refreshes on desk-tab
     // activation + every 5 min while the desk is visible (matches the
     // worker's edge cache). Honest label with the session phase.
     (function setupPremarketBuzz() {
