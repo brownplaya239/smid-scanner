@@ -4790,12 +4790,12 @@
          Dropdown lives at body-level (below </main>) because nav has
          overflow-x:auto which would clip an absolute-positioned
          dropdown. JS positions it on focus using getBoundingClientRect.
-         Press / from anywhere to focus this input.
+         Press ⌘K / Ctrl+K (or / ) from anywhere to focus this input.
          On ≤760px this is hidden and replaced by the 🔍 icon button
          below, which opens the fullscreen #td-search-overlay. -->
     <div class="td-search" id="td-search">
       <input type="text" id="td-search-input"
-             placeholder="Search any ticker, shortcut = /"
+             placeholder="Search any ticker  ⌘K"
              autocomplete="off" maxlength="8"
              aria-label="Search any ticker" />
     </div>
@@ -11789,12 +11789,25 @@
       }
     });
 
-    // Keyboard shortcut: / focuses the desktop search.
-    // Guard: on mobile (≤760px) the .td-search wrapper is display:none,
-    // so focusing the hidden input would orphan the dropdown at (0,0).
-    // Bail early when the input has zero size — mobile users use the
-    // 🔍 button in the nav instead.
+    // Keyboard shortcuts for ticker search:
+    //   ⌘K / Ctrl+K — command-palette style, works ANYWHERE (even mid-typing);
+    //                 focuses the desktop bar, or opens the mobile overlay
+    //                 when the desktop bar is hidden (≤760px).
+    //   /           — quick-focus the desktop bar (only when not already in a
+    //                 text field, so it doesn't hijack typing).
+    // Guard: on mobile the .td-search wrapper is display:none, so focusing the
+    // hidden input would orphan the dropdown at (0,0) — hence the size check.
     document.addEventListener("keydown", function (e) {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey &&
+          (e.key === "k" || e.key === "K")) {
+        e.preventDefault();               // override Chrome/Firefox omnibox ⌘K
+        if (dInput) {
+          const r = dInput.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) { dInput.focus(); dInput.select(); return; }
+        }
+        openOverlay();                    // desktop bar hidden → mobile overlay
+        return;
+      }
       if (e.key === "/" && dInput && document.activeElement !== dInput &&
           !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
         const r = dInput.getBoundingClientRect();
