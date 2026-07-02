@@ -633,6 +633,15 @@
     color:var(--muted); font-weight:700; }
   .md-news-status { margin-left:auto; display:inline-flex; align-items:center;
     gap:5px; font-size:10px; color:var(--muted); }
+  /* "Breaking only" wire toggle — pushes right, sits beside the Live stamp */
+  .news-brk { margin-left:auto; font-size:9.5px; font-weight:700;
+    letter-spacing:.02em; color:var(--muted); background:transparent;
+    border:1px solid var(--line); border-radius:999px; padding:2px 9px;
+    cursor:pointer; white-space:nowrap;
+    transition:color .12s, border-color .12s, background .12s; }
+  .news-brk:hover { color:var(--text); border-color:var(--border2); }
+  .news-brk.on { color:var(--gold); border-color:rgba(255,158,27,.55);
+    background:rgba(255,158,27,.12); }
   .md-news-dot { width:7px; height:7px; border-radius:50%; background:var(--green);
     box-shadow:0 0 6px rgba(31,179,99,0.6); animation:lf-pulse 2.4s infinite; }
   .md-news-row { display:grid; grid-template-columns:50px 1fr; gap:8px;
@@ -646,6 +655,13 @@
     white-space:nowrap; cursor:pointer; padding:0 3px; border-radius:3px; }
   .md-news-row .mn-tk:hover { background:rgba(255,200,0,0.16); }
   .md-news-row.mn-fresh { animation:niFresh 6s ease-out forwards; }
+  /* Material headline (halt, M&A, rating action, guidance, FDA, legal…):
+     a gold rail + a small ● so the high-signal items lead the eye, the
+     way a terminal squawk flags a breaking print. */
+  .md-news-row.mn-hot { box-shadow:inset 2px 0 0 var(--gold); padding-left:8px; }
+  .md-news-row.mn-hot .mn-hl { color:var(--text); font-weight:600; }
+  .md-news-row.mn-hot .mn-time::before { content:"\25CF"; color:var(--gold);
+    font-size:7px; margin-right:4px; vertical-align:middle; }
   .md-news-empty { font-size:11.5px; color:var(--muted); font-style:italic;
     padding:6px 0; }
   .mydesk-grid { display:grid; grid-template-columns:1fr; gap:1px;
@@ -1958,7 +1974,7 @@
 
   .desk-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .desk-card { background:var(--card); border:1px solid var(--line);
-    border-radius:8px; padding:11px 13px; }
+    border-radius:8px; padding:11px 13px; min-width:0; }
   /* Wide variant for the Action List — spans full row */
   .desk-card.desk-card--wide { grid-column:1 / -1; }
   /* Launch-week SpaceX callout (dismissible) */
@@ -2293,13 +2309,17 @@
   @media (max-width:520px) {
     .td-toast { left:12px; right:12px; bottom:12px; max-width:none; }
   }
-  @media (max-width:760px) {
+  /* Single breakpoint for the whole desk: 2-col on desktop AND laptop,
+     collapse to one column only on phones (≤700px). Both .desk-grid and
+     .desk-pair flip here so the layout stays consistent (they used to
+     mismatch at 760 vs 900). */
+  @media (max-width:700px) {
     /* minmax(0,1fr) + min-width:0 let the track shrink below its
        content's min-content width — without it, an unbreakable
        .wct-row (~394px) forces every desk card to ~420px and the
        whole Desk scrolls horizontally on phones. */
     .desk-grid { grid-template-columns:minmax(0,1fr); }
-    .desk-card { min-width:0; overflow-x:hidden; }
+    .desk-card { overflow-x:hidden; }
     .wct-row { flex-wrap:wrap; row-gap:2px; }
   }
   .desk-card.span2 { grid-column:1 / -1; }
@@ -2310,10 +2330,20 @@
      symmetric pair regardless of the card count above. Collapses to
      a single column at the same breakpoint as .desk-grid. */
   .desk-pair { grid-column:1 / -1;
-    display:grid; grid-template-columns:1fr 1fr; gap:14px;
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px;
     align-items:start; }
-  @media (max-width:900px) {
+  @media (max-width:700px) {
     .desk-pair { grid-template-columns:1fr; }
+  }
+  /* Laptop / small-desktop (≤1080px): keep every 2-col pair side-by-side
+     but tighten gaps, card padding, and the dense card internals so the
+     compact half-width cards — especially the 6-column economic calendar
+     and the 4-column Market Health grid — fit without clipping. */
+  @media (max-width:1080px) {
+    .desk-grid { gap:10px; }
+    .desk-pair { gap:10px; }
+    .desk-card { padding:10px 11px; }
+    .lm-cols   { gap:10px; }
   }
   /* Top Movers slot — sits above the Live news wire on Today's Desk.
      Collapses cleanly when empty (pre-render / no live quotes). */
@@ -2410,14 +2440,15 @@
   .mh-stats .pos { color:var(--green); font-weight:700; }
   .mh-stats .neg { color:var(--red); font-weight:700; }
   /* All-grades count strip (20 cells, A+..G with diverging colour) */
-  .mh-gstrip { display:grid; grid-template-columns:repeat(20, 1fr);
+  .mh-gstrip { display:grid; grid-template-columns:repeat(20, minmax(0,1fr));
     gap:1px; margin-bottom:8px; }
+  .mh-gstrip .mh-gc { overflow:hidden; }
   .mh-gstrip .mh-gc { text-align:center; padding:3px 1px; border-radius:2px;
     font-size:9px; line-height:1.25; color:#fff; cursor:default;
     text-shadow:0 1px 1px rgba(0,0,0,.5); }
   .mh-gstrip .mh-gc b { display:block; font-size:10.5px; font-weight:800;
     font-variant-numeric:tabular-nums; }
-  .mh-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:5px; }
+  .mh-grid { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:5px; }
   .mh-col { border:1px solid var(--line); border-radius:5px; overflow:hidden; }
   .mh-col h4 { font-size:9px; text-transform:uppercase; letter-spacing:.4px;
     color:#fff; text-align:center; padding:3px 0; font-weight:700;
@@ -2430,6 +2461,23 @@
   .mh-tk-row .mh-pct { font-variant-numeric:tabular-nums; }
   .mh-tk-row .mh-pct.up   { color:var(--green); }
   .mh-tk-row .mh-pct.down { color:var(--red); }
+
+  /* Responsive tightening for the dense half-width cards. Placed AFTER
+     their base rules (.cal-row, .mh-grid, .mh-tk-row above) so the media
+     overrides win the cascade. Laptop keeps the 2-col pairs readable;
+     the ≤400 tier keeps the 6-col calendar + 20-cell grade strip inside
+     the smallest iPhone (SE/mini) without horizontal scroll. */
+  @media (max-width:1080px) {
+    .cal-row   { grid-template-columns:44px 1fr 14px 46px 46px 46px; gap:5px; }
+    .mh-grid   { gap:4px; }
+    .mh-tk-row { padding:1.5px 4px; font-size:9px; }
+  }
+  @media (max-width:400px) {
+    .cal-row   { grid-template-columns:36px 1fr 12px 40px 40px 40px; gap:4px;
+      font-size:10px; }
+    .mh-gstrip .mh-gc   { font-size:8px; }
+    .mh-gstrip .mh-gc b { font-size:9px; }
+  }
 
   /* Daily-return chip — shown next to every ticker on Today's Desk */
   .chg-pill { font-size:9.5px; font-variant-numeric:tabular-nums;
@@ -2514,8 +2562,14 @@
   .th-grid .th-row.th-row-hdr [data-tip]:hover { color:var(--gold);
     border-bottom-color:var(--gold); }
   .th-grid .th-row.th-row-hdr + .th-row { border-top:0; }
-  .th-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
-  .th-grid .th-col { display:flex; flex-direction:column; }
+  .th-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:0 14px; }
+  .th-grid .th-col { display:flex; flex-direction:column; min-width:0; }
+  /* Phones: stack Strongest above Weakest so theme names stay readable
+     (the smallest iPhone can't fit two columns of long theme labels). */
+  @media (max-width:480px) {
+    .th-grid { grid-template-columns:1fr; gap:0; }
+  }
   .th-grid .th-row { display:flex; align-items:center; gap:6px;
     padding:2px 0; font-size:9.5px; cursor:default; }
   .th-grid .th-row + .th-row { border-top:1px solid var(--line); }
@@ -4821,6 +4875,9 @@
       <div class="md-news-card" id="desk-news">
         <div class="md-news-head">
           <span class="md-news-title">Live news wire</span>
+          <button class="news-brk" data-news-breaking type="button"
+            aria-pressed="false"
+            title="Breaking only — show just market-moving headlines (halts, M&amp;A, rating actions, guidance, FDA, legal, buybacks)">⚡ Breaking</button>
           <span class="md-news-status"><span class="md-news-dot"></span>
             <span class="td-news-time">Live</span></span>
         </div>
@@ -5059,6 +5116,9 @@
       <div id="mydesk-news" class="md-news-card">
         <div class="md-news-head">
           <span class="md-news-title">Watchlist news wire</span>
+          <button class="news-brk" data-news-breaking type="button"
+            aria-pressed="false"
+            title="Breaking only — show just market-moving headlines (halts, M&amp;A, rating actions, guidance, FDA, legal, buybacks)">⚡ Breaking</button>
           <span class="md-news-status"><span class="md-news-dot"></span>
             <span id="md-news-time" class="td-news-time">Live</span></span>
         </div>
@@ -15777,6 +15837,38 @@
       if (SHARE_CLASS_RE.test(u)) return null;          // drop the artifact
       return TICKER_ALIAS[u] || u;
     }
+    // ── News quality gate (shared by the wire mini-feed + the News tab) ──
+    // The Benzinga firehose is roughly half genuine breaking news and half
+    // algorithmic SEO filler: "If You Invested $X…", "Here's How Much…Would
+    // Be Worth", multi-year backtests, "…A Deep Dive Into…", "Understanding
+    // X's P/E" explainers — zero signal for a trading desk. tdNewsSlop()
+    // drops those so the tape reads like a FirstSquawk / Bloomberg breaking
+    // feed. tdNewsHot() flags genuinely material headlines (halts, M&A,
+    // rating actions, guidance, FDA, legal, capital returns) so they lead
+    // visually. Both are high-precision + easily tuned.
+    window.tdNewsSlop = (function () {
+      var P = [
+        /\bif you (had )?invested\b/i,
+        /here'?s how much\b/i,
+        /\bwould (have )?(be|been) worth\b/i,
+        /\bwould have made\b/i,
+        /\byears? ago\b[\s\S]{0,60}\b(today|now|worth)\b/i,
+        /\$[\d,]+ (invested|in [A-Z])/i,
+        /\ba deep dive into\b/i,
+        /understanding\b[\s\S]{0,40}\bp\/e\b/i,
+        /\bwhat the options market\b/i,
+      ];
+      return function (title) {
+        var t = String(title || "");
+        for (var i = 0; i < P.length; i++) if (P[i].test(t)) return true;
+        return false;
+      };
+    })();
+    window.tdNewsHot = (function () {
+      var HOT = /\b(halt(ed|s)?|resumes? trading|to acquire|acquires?|acquisition|merger|buyout|takeover|tender offer|upgrade[sd]?|downgrade[sd]?|initiat(?:e|es|ed) coverage|price target|raises?(?: its)? (?:guidance|outlook|forecast|estimates?)|cuts?(?: its)? (?:guidance|outlook|forecast|estimates?)|lowers? (?:guidance|outlook)|tops estimates|profit warning|\bFDA\b|approval|phase [123]|recall|SEC (?:charges|probe|investigation)|lawsuit|subpoena|bankruptcy|chapter 11|delist|going concern|special dividend|buyback|repurchase|stock split|steps? down|resigns?|appoints?|names? (?:new )?(?:CEO|CFO)|guidance)\b/i;
+      return function (title) { return HOT.test(String(title || "")); };
+    })();
+
     function normalizeTickers(arr) {
       if (!Array.isArray(arr)) return [];
       const seen = new Set();
@@ -15825,6 +15917,8 @@
       const out = [];
       for (const a of articles || []) {
         if (!a || !a.title) continue;
+        // Quality gate — drop Benzinga's algorithmic SEO filler.
+        if (window.tdNewsSlop && window.tdNewsSlop(a.title)) continue;
         a.tickers = normalizeTickers(a.tickers);
         const key = titleKey(a);
         if (key && seen.has(key)) continue;       // dedupe by title
@@ -16450,6 +16544,13 @@
         .filter(function (el) { return el !== mdEl; });
     }
     if (!document.querySelectorAll(".td-news-list").length) return;
+    // "Breaking only" state — when on, the wire shows just tdNewsHot()
+    // headlines (halts, M&A, rating actions, guidance, FDA, legal, buybacks).
+    // Persisted per-browser; toggling re-renders instantly from the last
+    // fetched rows (no waiting for the next 20s poll).
+    let breakingOnly = false;
+    try { breakingOnly = localStorage.getItem("td_news_breaking") === "1"; } catch (e) {}
+    let lastGen = [], lastWl = [];   // cache so the toggle re-renders live
     const seen = new Set();
     let first = true;
     function esc(s) {
@@ -16464,12 +16565,25 @@
       } catch (_) { return ""; }
     }
     function buildHtml(rows, emptyMsg) {
+      // Quality gate: drop Benzinga's algorithmic filler (backtest /
+      // "if you invested" / listicle SEO articles) so the wire reads like
+      // a FirstSquawk / Bloomberg breaking feed, not an SEO farm. Material
+      // headlines (halts, M&A, ratings, guidance, FDA…) get a hot marker.
+      // "Breaking only" narrows further to just the material headlines.
+      rows = (rows || []).filter(function (r) {
+        if (tdNewsSlop(r.headline)) return false;
+        if (breakingOnly && !tdNewsHot(r.headline)) return false;
+        return true;
+      });
       if (!rows.length) {
-        return '<div class="md-news-empty">' + emptyMsg + '</div>';
+        return '<div class="md-news-empty">' +
+          (breakingOnly ? "No breaking headlines right now." : emptyMsg) +
+          '</div>';
       }
       return rows.slice(0, 7).map(function (r) {
         const tks = (r.symbols || []).slice(0, 3);
         const fresh = (!first && r.id && !seen.has(r.id)) ? " mn-fresh" : "";
+        const hot = tdNewsHot(r.headline) ? " mn-hot" : "";
         const url = r.url || "";
         // Headline links to the article; ticker chips open the drilldown.
         const hl = url
@@ -16480,7 +16594,7 @@
           return '<span class="mn-tk" data-t="' + esc(t) +
             '" title="Open ' + esc(t) + ' drilldown">' + esc(t) + '</span>';
         }).join("");
-        return '<div class="md-news-row' + fresh + '">' +
+        return '<div class="md-news-row' + fresh + hot + '">' +
           '<span class="mn-time">' + fmtT(r.published_at) + '</span>' +
           '<span>' + hl + (tkHtml ? ' ' + tkHtml : '') + '</span></div>';
       }).join("");
@@ -16502,10 +16616,11 @@
       const gen = generalLists();
       if (!gen.length) return;
       fetch(SUPA_URL + "/rest/v1/news_live?" + NEWS_COLS +
-          "&order=published_at.desc&limit=12", { headers: HDRS })
+          "&order=published_at.desc&limit=28", { headers: HDRS })
         .then(function (r) { return r.ok ? r.json() : []; })
         .then(function (rows) {
           if (!Array.isArray(rows)) return;
+          lastGen = rows;
           const html = buildHtml(rows, "No live headlines yet.");
           gen.forEach(function (el) { el.innerHTML = html; });
           markSeenAndStamp(rows);
@@ -16527,16 +16642,45 @@
       }
       const filter = "symbols=ov.%7B" + tickers.join(",") + "%7D";
       fetch(SUPA_URL + "/rest/v1/news_live?" + NEWS_COLS + "&" + filter +
-          "&order=published_at.desc&limit=12", { headers: HDRS })
+          "&order=published_at.desc&limit=28", { headers: HDRS })
         .then(function (r) { return r.ok ? r.json() : []; })
         .then(function (rows) {
           if (!Array.isArray(rows)) return;
+          lastWl = rows;
           mdEl.innerHTML = buildHtml(rows,
             "No recent headlines for your watchlist tickers.");
           markSeenAndStamp(rows);
         })
         .catch(function () {});
     }
+    // Re-render both wires from the last-fetched rows (no network) — used
+    // when the "Breaking only" toggle flips so it feels instant.
+    function rerenderFromCache() {
+      const gen = generalLists();
+      const html = buildHtml(lastGen, "No live headlines yet.");
+      gen.forEach(function (el) { el.innerHTML = html; });
+      if (mdEl && lastWl.length) {
+        mdEl.innerHTML = buildHtml(lastWl,
+          "No recent headlines for your watchlist tickers.");
+      }
+    }
+    // "Breaking only" toggle — one shared state across both wire headers.
+    function syncBreakingBtns() {
+      document.querySelectorAll("[data-news-breaking]").forEach(function (b) {
+        b.classList.toggle("on", breakingOnly);
+        b.setAttribute("aria-pressed", breakingOnly ? "true" : "false");
+      });
+    }
+    document.addEventListener("click", function (e) {
+      const btn = e.target.closest && e.target.closest("[data-news-breaking]");
+      if (!btn) return;
+      e.preventDefault();
+      breakingOnly = !breakingOnly;
+      try { localStorage.setItem("td_news_breaking", breakingOnly ? "1" : "0"); } catch (_) {}
+      syncBreakingBtns();
+      rerenderFromCache();
+    });
+    syncBreakingBtns();
     document.addEventListener("click", function (e) {
       const tk = e.target.closest && e.target.closest(".td-news-list .mn-tk[data-t]");
       if (!tk) return;
