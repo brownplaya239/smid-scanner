@@ -15847,16 +15847,21 @@
     // rating actions, guidance, FDA, legal, capital returns) so they lead
     // visually. Both are high-precision + easily tuned.
     window.tdNewsSlop = (function () {
+      // High-PRECISION patterns — each targets a specific Benzinga
+      // auto-article template, tightened so they can't catch real news
+      // (e.g. bare "here's how much" would hit "Here's how much the Fed
+      // will cut"; "$X in [Word]" would hit "$500M in funding"). The four
+      // backtest templates already co-occur with "invested / would be
+      // worth / would have made", so we key on those, not a bare "years
+      // ago", which could hit "founded 20 years ago … reports today".
       var P = [
         /\bif you (had )?invested\b/i,
-        /here'?s how much\b/i,
+        /here'?s how much (\$?[\d,]+|you|your|owning|invest)/i,
         /\bwould (have )?(be|been) worth\b/i,
         /\bwould have made\b/i,
-        /\byears? ago\b[\s\S]{0,60}\b(today|now|worth)\b/i,
-        /\$[\d,]+ (invested|in [A-Z])/i,
+        /\$[\d,]+ invested\b/i,
         /\ba deep dive into\b/i,
         /understanding\b[\s\S]{0,40}\bp\/e\b/i,
-        /\bwhat the options market\b/i,
       ];
       return function (title) {
         var t = String(title || "");
