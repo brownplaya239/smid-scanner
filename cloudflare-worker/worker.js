@@ -1951,8 +1951,9 @@ const PMB_CAP_FLOOR = 100_000_000;
 // Current market cap for one ticker via Polygon's reference endpoint
 // (has caps for essentially every listed name, incl. nano-caps our own
 // universes lack). Shares the 24h "mc:" mem-cache with the /?mktcap=
-// handler. Returns the cap in $, 0 if looked-up-but-none-reported, or
-// null on error (caller fails open on both so a hiccup never blanks it).
+// handler. Returns the cap in $, 0 if Polygon answered but reported no
+// cap (a junk signal — the caller drops these), or null if the lookup
+// itself failed (the caller keeps these — fail open on transient errors).
 async function fetchMktCap(ticker, key) {
   const cached = memGet("mc:" + ticker, 86_400_000);   // 24h
   if (cached !== null) return cached;
@@ -2063,14 +2064,19 @@ async function fetchPremarketBuzz(env) {
   // ── Market-cap floor ($100M) ─────────────────────────────────────
   // Drop micro-caps BEFORE spending catalyst/EDGAR calls on them, so the
   // board reads like tradable single-name buzz rather than sub-$100M
-  // pump-and-dumps. Fail open (keep) when the cap is unknown (null) or
-  // unreported (0) so a Polygon hiccup never blanks the board.
+  // pump-and-dumps. Three cases from fetchMktCap:
+  //   • number ≥ floor → keep. number < floor → drop (real micro-cap).
+  //   • 0 (Polygon answered 200 but reported NO market cap) → drop. This
+  //     is a strong junk signal — SPAC warrants / shells / oddball
+  //     symbols (USDE, RAAQW) that aren't tradable single-name buzz.
+  //   • null (the lookup itself failed — 404 / rate-limit / timeout) →
+  //     KEEP (fail open) so a transient Polygon hiccup never blanks it.
   await Promise.all(gRank.concat(lRank).map(async function (r) {
     r.market_cap = await fetchMktCap(r.ticker, key);
   }));
   function aboveCapFloor(r) {
-    return r.market_cap == null || r.market_cap === 0 ||
-           r.market_cap >= PMB_CAP_FLOOR;
+    if (r.market_cap == null) return true;   // lookup failed → fail open
+    return r.market_cap >= PMB_CAP_FLOOR;     // 0 (no cap reported) → drop
   }
   gRank = gRank.filter(aboveCapFloor);
   lRank = lRank.filter(aboveCapFloor);
