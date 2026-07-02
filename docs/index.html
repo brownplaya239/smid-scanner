@@ -522,7 +522,7 @@
   .td-action-chip:hover { background:var(--gold); color:var(--accink); }
   .td-action-chip.on { background:var(--gold); color:var(--accink); }
 
-  /* ── Pre-Market Buzz pane (Today's Desk) ── */
+  /* ── Market Buzz pane (Today's Desk) ── */
   .pmb { background:var(--card); border:1px solid var(--line);
     border-radius:10px; padding:16px 18px; margin-top:16px; }
   .pmb-head { display:flex; align-items:baseline; gap:10px;
@@ -4891,14 +4891,15 @@
       <div class="desk-grid" id="desk-grid">
         <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
       </div>
-      <!-- Pre-Market Buzz — top gainers/losers + catalyst per name.
+      <!-- Market Buzz — top gainers/losers + catalyst per name, live
+           priced (Yahoo extended-hours), sub-$300M micro-caps filtered.
            Populated by setupPremarketBuzz() from the worker /?premarket=1
            endpoint (Polygon movers + verbatim news catalysts). Hidden
            until data lands. Sits BELOW the desk grid (under the Earnings
            square / desk cards) per product placement. -->
       <div class="pmb" id="pmb" style="display:none">
         <div class="pmb-head">
-          <span class="pmb-title">📊 Pre-Market Buzz</span>
+          <span class="pmb-title">📊 Market Buzz</span>
           <span class="pmb-stamp" id="pmb-stamp"></span>
           <span class="pmb-stats" id="pmb-stats"></span>
         </div>
@@ -21689,12 +21690,13 @@
       }
     });
 
-    // ── Pre-Market Buzz pane (Today's Desk) ─────────────────────────
+    // ── Market Buzz pane (Today's Desk) ─────────────────────────────
     // Renders top gainers/losers + a verbatim news catalyst per name
     // from the worker /?premarket=1 endpoint. All real upstream data;
-    // no fabricated movers/reasons. Refreshes on desk-tab activation +
-    // every 5 min while the desk is visible (matches the worker's edge
-    // cache). Honest label that says delayed 15m + the session phase.
+    // no fabricated movers/reasons. Live-priced (Yahoo extended-hours),
+    // sub-$300M micro-caps filtered at the worker. Refreshes on desk-tab
+    // activation + every 5 min while the desk is visible (matches the
+    // worker's edge cache). Honest label with the session phase.
     (function setupPremarketBuzz() {
       const wrap = document.getElementById("pmb");
       if (!wrap) return;

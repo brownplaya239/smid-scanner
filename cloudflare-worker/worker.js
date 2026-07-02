@@ -1875,8 +1875,9 @@ async function verifyStripeSig(payload, sig, secret) {
 //     ticker, used VERBATIM, and ONLY if published within ~36h. If no
 //     recent article exists we emit no catalyst rather than invent one.
 //   • company name: from the cached SEC ticker→title map.
-// Filters out sub-$1 pennies + leveraged/inverse ETFs so the board
-// reads like real single-name catalysts (the way a desk scans it).
+// Filters out sub-$1 pennies, sub-$300M micro-caps + leveraged/inverse
+// ETFs so the board reads like real single-name catalysts (the way a
+// desk scans it).
 const PMB_EXCLUDE = new Set([
   "SPY","QQQ","IWM","DIA","TQQQ","SQQQ","SOXL","SOXS","TNA","TZA",
   "SPXL","SPXS","UPRO","SPXU","UVXY","SVXY","VXX","UDOW","SDOW",
@@ -1943,6 +1944,31 @@ async function fetchYahooExt(sym) {
     if (last == null) return null;
     return { price: last, prevClose: prev, pct: (last / prev - 1) * 100 };
   } catch (_) { return null; }
+}
+// Market Buzz drops sub-$300M names — micro-cap pop-and-drop pumps that
+// aren't tradable "buzz". Same floor as the news wire's nano-cap gate.
+const PMB_CAP_FLOOR = 300_000_000;
+// Current market cap for one ticker via Polygon's reference endpoint
+// (has caps for essentially every listed name, incl. nano-caps our own
+// universes lack). Shares the 24h "mc:" mem-cache with the /?mktcap=
+// handler. Returns the cap in $, 0 if looked-up-but-none-reported, or
+// null on error (caller fails open on both so a hiccup never blanks it).
+async function fetchMktCap(ticker, key) {
+  const cached = memGet("mc:" + ticker, 86_400_000);   // 24h
+  if (cached !== null) return cached;
+  let mc = null;
+  try {
+    const r = await fetch("https://api.polygon.io/v3/reference/tickers/" +
+      encodeURIComponent(ticker) + "?apiKey=" + key,
+      { signal: AbortSignal.timeout(6000) });
+    if (r.ok) {
+      const j = await r.json();
+      const v = j && j.results && j.results.market_cap;
+      mc = (typeof v === "number") ? v : 0;   // 0 = looked up, none reported
+    }
+  } catch (_) { mc = null; }
+  if (mc !== null) memPut("mc:" + ticker, mc);
+  return mc;
 }
 async function fetchPremarketBuzz(env) {
   if (!env.POLYGON_API_KEY) {
@@ -2032,8 +2058,22 @@ async function fetchPremarketBuzz(env) {
       .filter(function (r) { return dir === "up" ? r.pct > 0 : r.pct < 0; })
       .sort(function (a, b) { return dir === "up" ? b.pct - a.pct : a.pct - b.pct; });
   }
-  const gRank = liveRank(gCand, "up");
-  const lRank = liveRank(lCand, "down");
+  let gRank = liveRank(gCand, "up");
+  let lRank = liveRank(lCand, "down");
+  // ── Market-cap floor ($300M) ─────────────────────────────────────
+  // Drop micro-caps BEFORE spending catalyst/EDGAR calls on them, so the
+  // board reads like tradable single-name buzz rather than sub-$300M
+  // pump-and-dumps. Fail open (keep) when the cap is unknown (null) or
+  // unreported (0) so a Polygon hiccup never blanks the board.
+  await Promise.all(gRank.concat(lRank).map(async function (r) {
+    r.market_cap = await fetchMktCap(r.ticker, key);
+  }));
+  function aboveCapFloor(r) {
+    return r.market_cap == null || r.market_cap === 0 ||
+           r.market_cap >= PMB_CAP_FLOOR;
+  }
+  gRank = gRank.filter(aboveCapFloor);
+  lRank = lRank.filter(aboveCapFloor);
   async function attachCatalyst(row) {
     try {
       const nr = await fetch(
