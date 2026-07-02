@@ -18915,16 +18915,19 @@
         // slot there rather than as a grid card.
         const moversEl = document.getElementById("desk-movers");
         if (moversEl) moversEl.innerHTML = cardLiveMovers(swing, uoa);
-        // Real-time-first ordering: lead with the live/intraday blocks,
-        // then the actionable synthesis, then a divider and the EOD (last
-        // post-close) cards. So the desk foregrounds what's moving now.
-        // Top options flow now sits BELOW the Action List.
+        // Real-time-first ordering, packed to kill dead space. What Changed
+        // and Action List are full-width cards; the two HALF-width cards —
+        // Market Health + Top Options Flow — are paired left/right so Top
+        // Flow sits next to Market Health instead of leaving an empty
+        // half-cell. Then the EOD divider + post-close cards.
         grid.innerHTML = [
-          cardWhatChangedToday(swing, uoa),   // LIVE-first internally
-          cardMarketHealth(swing),             // live intraday breadth
+          cardWhatChangedToday(swing, uoa),    // full-width, LIVE-first
+          '<div class="desk-pair">' +          // Market Health | Top Flow
+            cardMarketHealth(swing) +          //   live intraday breadth (left)
+            cardTopFlow(uoa) +                 //   options flow (right)
+          '</div>',
+          cardActionList(ctx, swing, uoa, uoaMeta, today),  // full-width synth
           cardOvernightFlow(D.carryover),      // pre-open OI-confirmed carryover
-          cardActionList(ctx, swing, uoa, uoaMeta, today),  // actionable synth
-          cardTopFlow(uoa),                    // options flow — below action list
           '<div class="desk-divider"><span>End-of-day — grades &amp; ' +
             'setups from the last post-close batch (4:30 PM ET); these ' +
             'don’t change intraday</span></div>',
