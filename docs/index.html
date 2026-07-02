@@ -589,6 +589,15 @@
   .pmb--compact .pmb-pct { font-size:12px; padding:1px 6px; }
   .pmb--compact .pmb-px { font-size:10px; }
   .pmb--compact .pmb-why { font-size:10.5px; line-height:1.35; }
+  /* Market Buzz stacked in the Earnings column (right side of the
+     Calendar/Earnings row) — fills the dead space left by the tall
+     economic calendar. The column is only ~half width, so collapse the
+     gainers/losers into a single vertical list and drop the top margin
+     (the flex gap handles spacing under the Earnings tile). */
+  .desk-earn-stack { display:flex; flex-direction:column; gap:14px;
+    min-width:0; }
+  .desk-earn-stack > .pmb { margin-top:0; }
+  .desk-earn-stack .pmb-cols { grid-template-columns:1fr; gap:10px; }
 
   /* "What's New Since Last Visit" widget — top of My Desk */
   .whats-new { background:linear-gradient(135deg,
@@ -4908,11 +4917,11 @@
            priced (Yahoo extended-hours), sub-$100M micro-caps filtered.
            Populated by setupPremarketBuzz() from the worker /?premarket=1
            endpoint (Polygon movers + verbatim news catalysts). Hidden
-           until data lands. Positioned DIRECTLY under the Calendar/Earnings
-           row: the main #desk-grid now ends at that row, this pane follows,
-           and Top Bullish/Bearish render into #desk-bullbear just below —
-           so the pane persists across desk re-renders (it lives outside the
-           grid whose innerHTML is rebuilt each pass). -->
+           until data lands. This node lives OUTSIDE #desk-grid so the grid's
+           innerHTML rebuild never destroys it; on every renderDesk pass it's
+           relocated into #pmb-slot inside the Earnings column, where it
+           stacks under the Upcoming Earnings tile (filling the dead space
+           next to the tall economic calendar). -->
       <div class="pmb pmb--compact" id="pmb" style="display:none">
         <div class="pmb-head">
           <span class="pmb-title">📊 Market Buzz</span>
@@ -4930,9 +4939,6 @@
           </div>
         </div>
       </div>
-      <!-- Top Bullish / Top Bearish — moved out of #desk-grid so Market Buzz
-           can sit directly under the Earnings tile. renderDesk() fills this. -->
-      <div class="desk-grid" id="desk-bullbear"></div>
     </section>
 
     <!-- Watchlist — portfolio with weights + benchmark + Trade Log -->
@@ -19146,12 +19152,18 @@
           });
         }
         const ctx = buildConfluenceCtx(uoa, swing, qm, sb, manifest, today);
-        // Calendar + Earnings sit LEFT/RIGHT as a full-width pair (was a
-        // vertical stack), placed just above Top Bullish / Top Bearish.
+        // Calendar (left) | Earnings + Market Buzz stacked (right). The
+        // economic calendar is much taller than the earnings tile, so the
+        // right column stacks Market Buzz beneath Earnings to fill that dead
+        // space. #pmb-slot is an empty target; the persistent #pmb node is
+        // relocated into it after the grid is built (see below).
         const calEarnRow =
           '<div class="desk-pair">' +
             cardCalendar(cal, todayET) +
-            cardEarnings(uoaMeta, todayET) +
+            '<div class="desk-earn-stack">' +
+              cardEarnings(uoaMeta, todayET) +
+              '<div id="pmb-slot"></div>' +
+            '</div>' +
           '</div>';
         // Wrap Top Bullish + Top Bearish in a forced 2-col row so they
         // always render left/right as a symmetric pair. Without this,
@@ -19168,6 +19180,12 @@
         // slot there rather than as a grid card.
         const moversEl = document.getElementById("desk-movers");
         if (moversEl) moversEl.innerHTML = cardLiveMovers(swing, uoa);
+        // Rescue the persistent Market Buzz node out of the grid BEFORE we
+        // rebuild grid.innerHTML (which would otherwise destroy it, since it
+        // gets re-slotted into the Earnings column each pass). Moving a node
+        // keeps its content + setupPremarketBuzz's cached refs intact.
+        const _pmbNode = document.getElementById("pmb");
+        if (_pmbNode) grid.parentNode.appendChild(_pmbNode);
         // Real-time-first ordering, packed to kill dead space. What Changed
         // and Action List are full-width cards; the two HALF-width cards —
         // Market Health + Top Options Flow — are paired left/right so Top
@@ -19188,14 +19206,14 @@
           cardSwingDowngrades(swing),
           cardBreakouts(swing, uoaMeta),
           cardThemes(swing),
-          calEarnRow,                          // calendar | earnings — LAST grid row
+          calEarnRow,                          // calendar | (earnings + Market Buzz)
+          topBullBearRow,                      // bullish | bearish, below
         ].join("");
-        // Top Bullish/Bearish render into their own container BELOW the
-        // Market Buzz pane (which sits between the grid and this row), so
-        // Market Buzz lands directly under the Earnings tile. Separate
-        // container = the persistent #pmb node survives grid re-renders.
-        const bbEl = document.getElementById("desk-bullbear");
-        if (bbEl) bbEl.innerHTML = topBullBearRow;
+        // Slot the rescued Market Buzz node into the Earnings column, stacked
+        // under the Upcoming Earnings tile. Synchronous with the rebuild
+        // above, so there's no repaint in between (no flicker).
+        const pmbSlot = document.getElementById("pmb-slot");
+        if (pmbSlot && _pmbNode) pmbSlot.appendChild(_pmbNode);
         // Kick off live-quote hydration in the background. Once each
         // batch of /quotes lands, hydrateDeskLiveQuotes() walks the
         // DOM and refreshes every chg-pill in place — converting the
