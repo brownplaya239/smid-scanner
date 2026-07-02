@@ -1987,6 +1987,53 @@ async function fetchPremarketBuzz(env) {
       return j.tickers || [];
     } catch (_) { return []; }
   }
+  // Full-market snapshot — ALL ~11k US tickers in one call. Polygon's
+  // gainers/losers snapshot only returns ~20 names sorted purely by %, so
+  // it's dominated by micro-cap pumps and the liquid ≥$100M movers we want
+  // never appear. Scanning the whole market lets us apply a liquidity gate
+  // first, THEN sort by % — surfacing real tradable movers. Gated behind
+  // env.PMB_FULL_SCAN because parsing this ~6MB payload needs the Workers
+  // Paid CPU budget (the free plan's 10ms limit would kill it). Returns
+  // null on any failure so the caller falls back to gainers/losers.
+  async function allTickersSnapshot() {
+    try {
+      const r = await fetch(
+        "https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey=" + key,
+        { signal: AbortSignal.timeout(12000) });
+      if (!r.ok) return null;
+      const j = await r.json();
+      return Array.isArray(j.tickers) ? j.tickers : null;
+    } catch (_) { return null; }
+  }
+  // Liquidity gate — strip pennies + illiquid names so the %-sort isn't
+  // swamped by micro-cap pumps (real ≥$100M movers clear these easily). The
+  // definitive ≥$100M check still happens later via market cap; this just
+  // narrows ~11k names to the top liquid movers per side worth cap-checking.
+  const PRICE_FLOOR = 3;         // $ — skip sub-$3 pennies
+  const DOLLARVOL_FLOOR = 15e6;  // $ — day volume × price; real liquidity
+  function snapPx(t) {
+    return (t.day && t.day.c) || (t.lastTrade && t.lastTrade.p) ||
+           (t.prevDay && t.prevDay.c) || null;
+  }
+  function liquidMovers(all, dir) {
+    const out = [];
+    for (const t of all) {
+      const pct = t.todaysChangePerc;
+      if (pct == null) continue;
+      if (dir === "up" ? pct <= 0 : pct >= 0) continue;
+      const px = snapPx(t);
+      if (px == null || px < PRICE_FLOOR) continue;
+      const vol = (t.day && t.day.v) || 0;
+      if (px * vol < DOLLARVOL_FLOOR) continue;
+      out.push(t);
+    }
+    out.sort(function (a, b) {
+      return dir === "up"
+        ? b.todaysChangePerc - a.todaysChangePerc
+        : a.todaysChangePerc - b.todaysChangePerc;
+    });
+    return out.slice(0, 60);   // top 60 liquid movers per side (pre-cap-check)
+  }
   // Name lookup from the cached SEC ticker map (one fetch, 24h edge cache).
   let nameByTk = {};
   try {
@@ -1998,7 +2045,20 @@ async function fetchPremarketBuzz(env) {
       });
     }
   } catch (_) {}
-  const [gRaw, lRaw] = await Promise.all([snap("gainers"), snap("losers")]);
+  // Full-market scan is OFF unless env.PMB_FULL_SCAN==="1" (needs Workers
+  // Paid — see allTickersSnapshot). Until then, and on any snapshot
+  // failure, fall back to the ~20-name gainers/losers snapshot so the
+  // endpoint stays safe on the free plan.
+  let gRaw, lRaw, moverSource;
+  const all = env.PMB_FULL_SCAN === "1" ? await allTickersSnapshot() : null;
+  if (all && all.length) {
+    gRaw = liquidMovers(all, "up");
+    lRaw = liquidMovers(all, "down");
+    moverSource = "full-snapshot";
+  } else {
+    [gRaw, lRaw] = await Promise.all([snap("gainers"), snap("losers")]);
+    moverSource = "gainers-losers";
+  }
   function shape(arr) {
     const out = [];
     for (const t of arr) {
@@ -2147,6 +2207,7 @@ async function fetchPremarketBuzz(env) {
     gainers:       gainers,
     losers:        losers,
     source:        "polygon+yahoo",
+    mover_source:  moverSource,
     price_basis:   "yahoo-extended",
     live_priced:   livePriced,
     priced_total:  allShown.length,
