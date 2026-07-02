@@ -576,6 +576,19 @@
   .pmb-src-news { background:rgba(255,255,255,0.07); color:var(--muted); }
   .pmb-empty { font-size:11.5px; color:var(--muted); font-style:italic;
     padding:14px; text-align:center; }
+  /* Compact variant — a smaller tile that tucks directly under the
+     Calendar/Earnings row (denser padding, type & rows than the full pane). */
+  .pmb--compact { padding:11px 13px; margin-top:14px; }
+  .pmb--compact .pmb-head { margin-bottom:8px; padding-bottom:7px; }
+  .pmb--compact .pmb-title { font-size:12.5px; }
+  .pmb--compact .pmb-cols { gap:12px; }
+  .pmb--compact .pmb-col-head { margin-bottom:6px; }
+  .pmb--compact .pmb-row { padding:6px 9px; margin-bottom:5px; }
+  .pmb--compact .pmb-tk { font-size:12px; }
+  .pmb--compact .pmb-name { font-size:10px; }
+  .pmb--compact .pmb-pct { font-size:12px; padding:1px 6px; }
+  .pmb--compact .pmb-px { font-size:10px; }
+  .pmb--compact .pmb-why { font-size:10.5px; line-height:1.35; }
 
   /* "What's New Since Last Visit" widget — top of My Desk */
   .whats-new { background:linear-gradient(135deg,
@@ -4895,9 +4908,12 @@
            priced (Yahoo extended-hours), sub-$100M micro-caps filtered.
            Populated by setupPremarketBuzz() from the worker /?premarket=1
            endpoint (Polygon movers + verbatim news catalysts). Hidden
-           until data lands. Sits BELOW the desk grid (under the Earnings
-           square / desk cards) per product placement. -->
-      <div class="pmb" id="pmb" style="display:none">
+           until data lands. Positioned DIRECTLY under the Calendar/Earnings
+           row: the main #desk-grid now ends at that row, this pane follows,
+           and Top Bullish/Bearish render into #desk-bullbear just below —
+           so the pane persists across desk re-renders (it lives outside the
+           grid whose innerHTML is rebuilt each pass). -->
+      <div class="pmb pmb--compact" id="pmb" style="display:none">
         <div class="pmb-head">
           <span class="pmb-title">📊 Market Buzz</span>
           <span class="pmb-stamp" id="pmb-stamp"></span>
@@ -4914,6 +4930,9 @@
           </div>
         </div>
       </div>
+      <!-- Top Bullish / Top Bearish — moved out of #desk-grid so Market Buzz
+           can sit directly under the Earnings tile. renderDesk() fills this. -->
+      <div class="desk-grid" id="desk-bullbear"></div>
     </section>
 
     <!-- Watchlist — portfolio with weights + benchmark + Trade Log -->
@@ -19169,9 +19188,14 @@
           cardSwingDowngrades(swing),
           cardBreakouts(swing, uoaMeta),
           cardThemes(swing),
-          calEarnRow,                          // calendar | earnings, side by side
-          topBullBearRow,                      // bullish | bearish, below
+          calEarnRow,                          // calendar | earnings — LAST grid row
         ].join("");
+        // Top Bullish/Bearish render into their own container BELOW the
+        // Market Buzz pane (which sits between the grid and this row), so
+        // Market Buzz lands directly under the Earnings tile. Separate
+        // container = the persistent #pmb node survives grid re-renders.
+        const bbEl = document.getElementById("desk-bullbear");
+        if (bbEl) bbEl.innerHTML = topBullBearRow;
         // Kick off live-quote hydration in the background. Once each
         // batch of /quotes lands, hydrateDeskLiveQuotes() walks the
         // DOM and refreshes every chg-pill in place — converting the
@@ -21751,7 +21775,11 @@
         if (!d) return;
         const _g0 = (d.gainers || []).length, _l0 = (d.losers || []).length;
         if (!_g0 && !_l0) return; // keep pane hidden if nothing to show
-        const g = d.gainers || [], l = d.losers || [];
+        // Compact tile — cap each column so the pane stays small under the
+        // Earnings row. The stats line still reports the true totals.
+        const CAP = 6;
+        const g = (d.gainers || []).slice(0, CAP),
+              l = (d.losers  || []).slice(0, CAP);
         const gE = document.getElementById("pmb-gainers");
         const lE = document.getElementById("pmb-losers");
         if (gE) gE.innerHTML = g.length
