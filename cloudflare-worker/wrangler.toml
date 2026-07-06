@@ -25,14 +25,19 @@ compatibility_date = "2026-05-20"
 # double-fire is harmless — emit_latest dedups by timestamp. UTC,
 # weekdays only.
 #
-# CAPPED AT 5 — Cloudflare's free plan allows max 5 cron triggers per
-# account (code 10072 if exceeded). So the backstop covers open / midday
-# / afternoon / pre-close UOA + EOD; the GH-native schedule fills the two
-# in-between UOA slots when it's working.
+# On Workers Paid (since 2026-07-06) the free-plan 5-cron cap is lifted, so
+# the backstop now covers the two previously-uncovered in-between UOA slots
+# (~11am late-morning, ~1pm early-afternoon) too — no market-hours gap wider
+# than ~1.5h without a Cloudflare-cron backstop, independent of GitHub's
+# flaky scheduler. Every fire also runs healPublish() (self-heal if the
+# published data goes >3h stale). scheduled() dispatches uoa.yml for every
+# cron except the EOD one (which fires scanner+momentum).
 [triggers]
 crons = [
   "50 13 * * 1-5",   # ~9:50 AM ET — opening UOA (the one stranded 6/3)
+  "8 15 * * 1-5",    # ~11:08 AM ET — late-morning UOA (new)
   "20 16 * * 1-5",   # ~12:20 PM ET — midday UOA
+  "8 17 * * 1-5",    # ~1:08 PM ET — early-afternoon UOA (new)
   "40 18 * * 1-5",   # ~2:40 PM ET — afternoon UOA
   "50 19 * * 1-5",   # ~3:50 PM ET — pre-close UOA
   "40 20 * * 1-5",   # ~4:40 PM ET — EOD: scanner + momentum
