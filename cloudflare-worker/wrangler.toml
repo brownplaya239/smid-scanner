@@ -48,6 +48,12 @@ crons = [
 SUPABASE_URL = "https://uaeojibmhxbwkhpvmjwy.supabase.co"
 SUPABASE_ANON_KEY = "sb_publishable_Lsy2m1QG18tkGYwizS-_0A_LhfIFXdo"
 REPO = "brownplaya239/smid-scanner"
+# Market Buzz full-market scan (fetchPremarketBuzz). Parses the ~6MB
+# all-tickers snapshot, which needs the Workers Paid CPU budget (the free
+# plan's 10ms limit would kill it). Set to "1" now that the account is on
+# Workers Paid. Kill-switch: change to "0" (or remove) to instantly revert
+# to the ~20-name gainers/losers fallback.
+PMB_FULL_SCAN = "1"
 
 # Observability — exact match to what the Cloudflare dashboard
 # currently generates. Cloudflare reformats this section every time
