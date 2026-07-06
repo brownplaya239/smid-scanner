@@ -3186,13 +3186,18 @@ export default {
     };
     // ── Publish-freshness self-heal ──────────────────────────────────
     // Catches the OTHER failure class, observed 2026-06-10: scans ran and
-    // committed fresh JSON, but the PUBLISHED site stayed frozen (Pages
-    // didn't build — e.g. a deploy-config change; GITHUB_TOKEN commits
-    // also can't trigger workflow-based deploys). On every cron fire,
-    // check the age of the DEPLOYED uoa_latest.json; if it's >3h stale,
-    // force a native Pages build of current master via the same PAT.
-    // Rides Cloudflare cron (reliable), so it can't be blinded by the
-    // GitHub-schedule drops that silenced the Actions-side watchdog.
+    // committed fresh JSON, but the PUBLISHED site stayed frozen. On every
+    // cron fire, check the age of the DEPLOYED uoa_latest.json; if it's >3h
+    // stale, dispatch the pages.yml DEPLOY workflow via the PAT.
+    //   • Pages is now build_type=workflow (serialized pages.yml), so the
+    //     legacy POST /pages/builds no longer applies — a workflow_dispatch
+    //     of pages.yml is what rebuilds + deploys current master.
+    //   • Dispatching with the PAT (not GITHUB_TOKEN) is exactly what
+    //     sidesteps the anti-recursion trap that froze the site on 6/10:
+    //     GITHUB_TOKEN commits can't trigger workflow deploys, but a
+    //     PAT-authenticated dispatch can.
+    //   • Rides Cloudflare cron (reliable), so it can't be blinded by the
+    //     GitHub-schedule drops that silenced the Actions-side watchdog.
     const healPublish = async function () {
       try {
         const r = await fetch(
@@ -3206,16 +3211,20 @@ export default {
         const ageH = (Date.now() - gen) / 3600000;
         if (ageH <= 3) return;                 // published data is current
         const b = await fetch(
-          "https://api.github.com/repos/" + repo + "/pages/builds",
+          "https://api.github.com/repos/" + repo +
+            "/actions/workflows/pages.yml/dispatches",
           { method: "POST",
             headers: {
               "Authorization":        "Bearer " + env.PAT,
               "Accept":               "application/vnd.github+json",
               "X-GitHub-Api-Version": "2022-11-28",
               "User-Agent":           "tickerdesk-cron-backstop",
-            } });
+              "Content-Type":         "application/json",
+            },
+            body: JSON.stringify({ ref: "master" }),
+          });
         console.log("[cron] published uoa stale " + ageH.toFixed(1) +
-          "h -> forced Pages build, HTTP " + b.status);
+          "h -> dispatched pages.yml deploy, HTTP " + b.status);
       } catch (e) {
         console.log("[cron] healPublish failed: " + e.message);
       }
