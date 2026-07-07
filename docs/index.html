@@ -619,6 +619,16 @@
   .brk-hdr [data-bk] { cursor:pointer; user-select:none; }
   .brk-hdr [data-bk]:hover { color:var(--text); }
   .bk-th-sec { font-style:normal; color:var(--muted); }
+  /* Evening Review — nightly self-grade card */
+  .evr-learn { font-size:10.5px; color:var(--muted); margin-top:8px;
+    padding-top:6px; border-top:1px solid var(--line); line-height:1.5; }
+  .evr-tmw { font-size:11px; color:var(--textdim); margin-top:7px;
+    display:flex; align-items:baseline; gap:5px; flex-wrap:wrap; }
+  .evr-pick { font-weight:800; font-size:11px; padding:1px 7px;
+    border-radius:5px; cursor:pointer; }
+  .evr-bull { background:rgba(31,179,99,0.14); color:#7ddfa1; }
+  .evr-bear { background:rgba(214,68,68,0.14); color:#f08585; }
+  .evr-pick:hover { outline:1px solid var(--gold); }
 
   /* "What's New Since Last Visit" widget — top of My Desk */
   .whats-new { background:linear-gradient(135deg,
@@ -18967,8 +18977,77 @@
       const body = insightLine + (rows ||
         '<div class="desk-empty">Nothing missed — every big tradable mover ' +
         'was on a surfaced list today.</div>');
-      return desk("What We Missed — scan self-audit", body,
-                  "desk-card--wide", stamp);
+      // Half-width: pairs with the Evening Review as the nightly self-grade
+      // row; renderDesk widens it when it renders alone.
+      return desk("What We Missed — scan self-audit", body, null, stamp);
+    }
+
+    // ── Evening Review — the system grading itself, nightly ─────────────
+    // Yesterday's picks vs today's actual closes (next-day horizon), what
+    // the learner currently weights, what's decaying, and tomorrow's
+    // carry-forward list. The visible half of the learning loop.
+    function cardEveningReview(ev) {
+      const d = ev || (window.TD_DATA && window.TD_DATA.evening);
+      if (!d || (!d.graded && !(d.tomorrow || []).length)) return "";
+      const esc = window.escapeHtml;
+      const stamp = freshness(d.generated,
+        { character: "post-close", label: "Reviewed" });
+      let head;
+      const g = d.graded;
+      if (g && g.n) {
+        const pct = Math.round(100 * g.wins / g.n);
+        const cls = pct >= 55 ? "pos" : pct <= 40 ? "neg" : "";
+        head = insight('<b>' + g.wins + '/' + g.n + '</b> of ' +
+          esc(g.date) + "'s picks worked next-day " +
+          '<span class="' + cls + '">(' + pct + '%)</span>');
+      } else {
+        head = insight('First review — grading starts next session.');
+      }
+      const rows = (g && g.results || []).map(function (r) {
+        const w = r.win === true ? '<span class="pos">✓</span>'
+                : r.win === false ? '<span class="neg">✕</span>'
+                : '<span style="color:var(--muted)">…</span>';
+        const chg = (typeof r.chg === "number")
+          ? (r.chg > 0 ? "+" : "") + r.chg.toFixed(1) + "%" : "—";
+        const cls = (typeof r.chg === "number")
+          ? (r.chg > 0 ? "sc-up" : "sc-down") : "";
+        return '<div class="desk-row">' +
+          '<span class="dr-tk" data-t="' + esc(r.t) + '">' + esc(r.t) + '</span>' +
+          '<span class="dr-meta">' + (r.dir === "bear" ? "short" : "long") +
+            ' · conv ' + r.conviction + '</span>' +
+          '<span class="dr-val ' + cls + '">' + chg + ' ' + w + '</span>' +
+          '</div>';
+      }).join("");
+      // learner status line — top weights + decaying features
+      let learn = "";
+      if (d.learning) {
+        const top = (d.learning.top || []).slice(0, 3).map(function (f) {
+          return esc(f.f.split(":").pop()) + " " +
+            (f.adj > 0 ? "+" : "") + f.adj;
+        }).join(", ");
+        const dying = (d.learning.dying || []).map(function (f) {
+          return esc(f.f.split(":").pop()) + " " +
+            Math.round(f.prior * 100) + "%→" + Math.round(f.recent * 100) + "%";
+        }).join(", ");
+        learn = '<div class="evr-learn">Learner: ' + (top || "—") +
+          (dying ? ' · <span class="neg">decaying: ' + dying + '</span>' : "") +
+          (d.learning.regimes === "accruing"
+            ? ' · regime data accruing' : "") + '</div>';
+      }
+      const missed = d.missed && d.missed.checked
+        ? '<div class="evr-learn">Coverage: missed ' + d.missed.missed_count +
+          '/' + d.missed.checked + ' big movers (details in the audit card)</div>'
+        : "";
+      const tmw = (d.tomorrow || []).length
+        ? '<div class="evr-tmw">Tomorrow: ' + d.tomorrow.map(function (p) {
+            return '<span class="evr-pick ' +
+              (p.dir === "bear" ? "evr-bear" : "evr-bull") + '" data-t="' +
+              esc(p.t) + '" title="' + esc((p.evidence || []).join(" · ")) +
+              ' · conviction ' + p.conviction + '">' + esc(p.t) + '</span>';
+          }).join("") + '</div>'
+        : "";
+      return desk("Evening Review — did our calls work?",
+        head + rows + learn + missed + tmw, null, stamp);
     }
 
     // ── Opportunities — the decision-first spine of Today's Desk ────────
@@ -19519,6 +19598,8 @@
         fetchJSON("./reports/carryover_flow.json"),
         // Post-close missed-opportunity self-audit (learning loop 5).
         fetchJSON("./reports/missed_opportunities.json"),
+        // Nightly self-grade: yesterday's picks vs today's closes.
+        fetchJSON("./reports/evening_review.json"),
       ]).then(function (arr) {
         const swing = arr[1], uoaMeta = arr[6];
         DESK_DATE = (swing && swing.runs && swing.runs.length)
@@ -19534,6 +19615,7 @@
         window.TD_DATA.uoaMeta = arr[6];
         window.TD_DATA.carryover = arr[7];
         window.TD_DATA.missed = arr[8];
+        window.TD_DATA.evening = arr[9];
       });
     }
     // Render the desk grid from whatever is already in window.TD_DATA — no
@@ -19646,7 +19728,19 @@
           cardSwingDowngrades(swing),
           eodColumns,                          // (breakouts+calendar) | (themes+earnings+buzz)
           topBullBearRow,                      // bullish | bearish, below
-          cardMissed(D.missed),                // loop 5 — post-close self-audit (wide, last)
+          // Nightly self-grade row: Evening Review | What We Missed. Either
+          // may be empty (pre-first-run); a lone card renders full-width so
+          // the grid never shows a dead half-cell.
+          (function () {
+            const evC = cardEveningReview(D.evening);
+            const miC = cardMissed(D.missed);
+            if (evC && miC)
+              return '<div class="desk-pair">' + evC + miC + '</div>';
+            const solo = evC || miC;
+            return solo
+              ? solo.replace('class="desk-card', 'class="desk-card desk-card--wide')
+              : "";
+          })(),
         ].join("");
         // Slot the rescued Market Buzz node into the Earnings column, stacked
         // under the Upcoming Earnings tile. Synchronous with the rebuild
