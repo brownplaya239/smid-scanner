@@ -3702,6 +3702,9 @@
   .archive-freshness .af-chip.is-stale { border-color:rgba(255,158,27,0.45);
     background:rgba(255,158,27,0.08); }
   .archive-freshness .af-chip.is-stale .af-age { color:var(--gold); }
+  /* Alt-Data history heading — sits inside the merged Research-tab card */
+  .alt-hist-h { margin:16px 0 2px; font-size:13.5px; color:var(--text);
+    border-top:1px solid var(--line); padding-top:14px; }
   /* My Reports (private history) rows — used by both the Research "My Recent
      Reports" card and the Alt-Data "Your Recent Alt-Data Reports" list. */
   #my-reports-list .mr-row, #list-alt-data .mr-row { display:flex; align-items:baseline;
@@ -5417,12 +5420,9 @@
 
     <!-- Ad-Hoc -->
     <section class="panel" id="panel-adhoc">
-      <!-- v3 IA: Alt-Data left the nav; Research is the one report surface.
-           The alt-data panel + route still exist as a deep-dive. -->
-      <p class="tab-sub" style="margin-bottom:10px">Need a social read on a
-        name? <a href="#alt-data" data-go-tab="alt-data">Alt-data report
-        &rarr;</a> &mdash; StockTwits sentiment, Reddit chatter, news flow +
-        web context, synthesized per ticker.</p>
+      <!-- v3 IA: Research is the ONE report surface — ad-hoc one-pager,
+           IR & Filings search, and the Alt-Data social read all live here.
+           The separate Alt-Data tab/panel was fully merged in. -->
       <!-- Generate new ad-hoc report — primary action -->
       <div class="card">
         <h2>Generate a new ad-hoc report
@@ -5476,11 +5476,8 @@
         <div id="ir-results" class="ir-results"></div>
       </div>
 
-      <div id="viewer"></div>
-    </section>
-
-    <!-- Alt-Data Intel -->
-    <section class="panel" id="panel-alt-data">
+      <!-- Alt-Data pane — merged from the former Alt-Data tab (v3 IA).
+           Same element IDs, so the generator/archive JS is untouched. -->
       <div class="card">
         <h2>Alt-Data Intelligence</h2>
         <p class="sub">
@@ -5495,11 +5492,13 @@
           <button class="go" id="go-alt">Generate</button>
         </div>
         <div id="status-alt"></div>
+        <div id="viewer-alt"></div>
+        <h3 class="alt-hist-h">Your Recent Alt-Data Reports</h3>
+        <p class="sub">Private to your account &mdash; newest first. Only you can see these.</p>
+        <div class="report-list" id="list-alt-data"></div>
       </div>
-      <div id="viewer-alt"></div>
-      <h2 class="tab-title">Your Recent Alt-Data Reports</h2>
-      <p class="tab-sub">Private to your account &mdash; newest first. Only you can see these.</p>
-      <div class="report-list" id="list-alt-data"></div>
+
+      <div id="viewer"></div>
     </section>
 
     <!-- Report tabs -->
@@ -14866,12 +14865,16 @@
     "adhoc":    { cardId: "my-reports-card", listId: "my-reports-list", kind: "adhoc" },
     "alt-data": { listId: "list-alt-data", kind: "altdata" }
   };
-  // Refresh the right list whenever its tab is opened.
+  // Refresh the private recents whenever the Research tab is opened —
+  // it hosts BOTH lists since the Alt-Data pane merged in (v3 IA).
   (function () {
     const navEl = document.getElementById("nav");
     if (navEl) navEl.addEventListener("click", function (e) {
       const t = e.target && e.target.dataset && e.target.dataset.tab;
-      if (t && MY_REPORTS_CFG[t]) loadMyReports(MY_REPORTS_CFG[t]);
+      if (t === "adhoc") {
+        loadMyReports(MY_REPORTS_CFG["adhoc"]);
+        loadMyReports(MY_REPORTS_CFG["alt-data"]);
+      }
     });
   })();
 
