@@ -2195,6 +2195,23 @@
   .opc-meta { font-size:10px; color:var(--muted); padding:5px 11px 0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     font-variant-numeric:tabular-nums; }
+  /* "what changed" chips — on cards, lab rows, drilldowns */
+  .chg-chips { display:flex; gap:4px; flex-wrap:wrap; padding:4px 11px 0; }
+  .chg-chip { font-size:8px; font-weight:800; letter-spacing:.05em;
+    padding:1px 5px; border-radius:3px; }
+  .chg-chip.chg-up { background:rgba(31,179,99,0.18); color:#8ee9ac; }
+  .chg-chip.chg-dn { background:rgba(214,68,68,0.18); color:#f19089; }
+  .chg-chip.chg-nu { background:rgba(94,160,224,0.16); color:#9ac6f0; }
+  /* theme whale-flow strip + laggards line */
+  .th-flow { font-size:11px; color:var(--textdim); padding:6px 10px;
+    background:var(--navy2); border-radius:6px; margin-bottom:8px;
+    line-height:1.55; cursor:help; }
+  .th-flow b { color:var(--text); cursor:pointer; }
+  .th-flow b:hover { color:var(--gold); }
+  .th-lag { font-size:10.5px; color:var(--muted); margin:-2px 0 8px;
+    padding:0 10px; }
+  .th-lag-tk { font-weight:800; color:var(--gold); cursor:pointer; }
+  .th-lag-tk:hover { text-decoration:underline; }
   .opc-d-bull { background:rgba(31,179,99,0.16); color:#7ddfa1; }
   .opc-d-bear { background:rgba(214,68,68,0.16); color:#f08585; }
   .opc-ev, .opc-risk { list-style:none; margin:0; padding:7px 11px;
@@ -5042,6 +5059,9 @@
       <div class="md-news-card" id="desk-news">
         <div class="md-news-head">
           <span class="md-news-title">Live news wire</span>
+          <button class="news-brk" data-news-ranked type="button"
+            aria-pressed="false"
+            title="Ranked — order headlines by materiality (market impact + your watchlist + size + novelty) instead of time">▲ Ranked</button>
           <button class="news-brk" data-news-breaking type="button"
             aria-pressed="false"
             title="Breaking only — show just market-moving headlines (halts, M&amp;A, rating actions, guidance, FDA, legal, buybacks)">⚡ Breaking</button>
@@ -5287,6 +5307,9 @@
       <div id="mydesk-news" class="md-news-card">
         <div class="md-news-head">
           <span class="md-news-title">Watchlist news wire</span>
+          <button class="news-brk" data-news-ranked type="button"
+            aria-pressed="false"
+            title="Ranked — order headlines by materiality (market impact + your watchlist + size + novelty) instead of time">▲ Ranked</button>
           <button class="news-brk" data-news-breaking type="button"
             aria-pressed="false"
             title="Breaking only — show just market-moving headlines (halts, M&amp;A, rating actions, guidance, FDA, legal, buybacks)">⚡ Breaking</button>
@@ -16793,6 +16816,35 @@
     // fetched rows (no waiting for the next 20s poll).
     let breakingOnly = false;
     try { breakingOnly = localStorage.getItem("td_news_breaking") === "1"; } catch (e) {}
+    // "Ranked" mode — order headlines by materiality instead of time.
+    // Score = market-moving pattern + watchlist relevance + issuer size +
+    // novelty (first sighting of a story beats its repeats) + recency.
+    let rankedMode = false;
+    try { rankedMode = localStorage.getItem("td_news_ranked") === "1"; } catch (e) {}
+    const storySeen = new Map();     // story key -> sightings this session
+    function storyKey(h) {
+      return String(h || "").toLowerCase().replace(/[\d$%,.]/g, "").slice(0, 60);
+    }
+    function tdNewsMateriality(r) {
+      let s = 0;
+      if (tdNewsHot(r.headline)) s += 4;
+      try {
+        const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+        if ((r.symbols || []).some(function (t) { return wl.has(t); })) s += 3;
+      } catch (e) {}
+      let big = 0;
+      (r.symbols || []).forEach(function (t) {
+        const mc = NEWS_MCAP[t];
+        if (typeof mc === "number")
+          big = Math.max(big, mc >= 10e9 ? 2 : mc >= 1e9 ? 1 : 0);
+      });
+      s += big;
+      s += (storySeen.get(storyKey(r.headline)) || 0) === 0 ? 2 : -1;
+      try {
+        if (Date.now() - Date.parse(r.created) < 30 * 60000) s += 1;
+      } catch (e) {}
+      return s;
+    }
     let lastGen = [], lastWl = [];   // cache so the toggle re-renders live
     const seen = new Set();
     let first = true;
@@ -16891,6 +16943,20 @@
           (breakingOnly ? "No breaking headlines right now." : emptyMsg) +
           '</div>';
       }
+      if (rankedMode) {
+        // materiality order — stable sort, score computed BEFORE sightings
+        // are recorded so every row in this batch is judged consistently
+        rows = rows.map(function (r, i) {
+          return { r: r, s: tdNewsMateriality(r), i: i };
+        }).sort(function (a, b) { return b.s - a.s || a.i - b.i; })
+          .map(function (x) { x.r._mat = x.s; return x.r; });
+      }
+      // record story sightings AFTER scoring the batch (novelty decays on
+      // the NEXT poll, not within one render)
+      rows.slice(0, 7).forEach(function (r) {
+        const k = storyKey(r.headline);
+        storySeen.set(k, (storySeen.get(k) || 0) + 1);
+      });
       return rows.slice(0, 7).map(function (r) {
         const tks = (r.symbols || []).slice(0, 3);
         const fresh = (!first && r.id && !seen.has(r.id)) ? " mn-fresh" : "";
@@ -16995,6 +17061,22 @@
       rerenderFromCache();
     });
     syncBreakingBtns();
+    function syncRankedBtns() {
+      document.querySelectorAll("[data-news-ranked]").forEach(function (b) {
+        b.classList.toggle("on", rankedMode);
+        b.setAttribute("aria-pressed", rankedMode ? "true" : "false");
+      });
+    }
+    document.addEventListener("click", function (e) {
+      const btn = e.target.closest && e.target.closest("[data-news-ranked]");
+      if (!btn) return;
+      e.preventDefault();
+      rankedMode = !rankedMode;
+      try { localStorage.setItem("td_news_ranked", rankedMode ? "1" : "0"); } catch (_) {}
+      syncRankedBtns();
+      rerenderFromCache();
+    });
+    syncRankedBtns();
     document.addEventListener("click", function (e) {
       const tk = e.target.closest && e.target.closest(".td-news-list .mn-tk[data-t]");
       if (!tk) return;
@@ -18618,8 +18700,75 @@
           _tWeak.chg_avg.toFixed(1) + '%</span> ' +
           '<span class="muted">(' + _tWeak.n + ' names)</span>'
         : null;
+      // ── Whale-flow propagation ─────────────────────────────────────
+      // Institutions rarely buy ONE name in a theme. Aggregate today's
+      // notable flow premium by theme (rows carry their themes) and, for
+      // the hottest bullish theme, surface the members that HAVEN'T moved
+      // yet — the classic leadership → laggard alpha pattern.
+      let flowStrip = "";
+      try {
+        const rows = ((window.TD_DATA || {}).uoa || {}).rows || [];
+        const byTheme = {};
+        rows.forEach(function (r) {
+          const prem = r.premium || 0;
+          const d = r.direction;
+          if (prem < 250e3 || (d !== "bullish" && d !== "bearish")) return;
+          (r.themes || []).forEach(function (th) {
+            const e = byTheme[th] = byTheme[th] || { bull: 0, bear: 0, n: 0,
+                                                     tks: new Set() };
+            e[d === "bullish" ? "bull" : "bear"] += prem;
+            e.n++;
+            e.tks.add(r.ticker);
+          });
+        });
+        const hot = Object.keys(byTheme).map(function (th) {
+          const e = byTheme[th];
+          return { th: th, net: e.bull - e.bear, e: e };
+        }).filter(function (x) { return Math.abs(x.net) >= 1e6 && x.e.tks.size >= 2; })
+          .sort(function (a, b) { return Math.abs(b.net) - Math.abs(a.net); })
+          .slice(0, 3);
+        if (hot.length) {
+          const fmtM = function (v) { return "$" + (Math.abs(v) / 1e6).toFixed(1) + "M"; };
+          const bits = hot.map(function (x) {
+            const cls = x.net > 0 ? "pos" : "neg";
+            return '<b data-th="' + window.escapeHtml(x.th) + '">' +
+              window.escapeHtml(x.th) + '</b> <span class="' + cls + '">' +
+              fmtM(x.net) + (x.net > 0 ? " bull" : " bear") + '</span> <span ' +
+              'class="muted">(' + x.e.tks.size + ' names)</span>';
+          });
+          // laggards inside the hottest bullish theme: graded members that
+          // are flat/down today with NO flow of their own
+          let lag = "";
+          const lead = hot.find(function (x) { return x.net > 0; });
+          if (lead && swing && swing.runs && swing.runs.length) {
+            const flowTks = lead.e.tks;
+            const lags = [];
+            const r0 = swing.runs[swing.runs.length - 1];
+            Object.keys(r0.grades || {}).forEach(function (g) {
+              (r0.grades[g] || []).forEach(function (c) {
+                if ((c.th || []).indexOf(lead.th) >= 0 &&
+                    !flowTks.has(c.t) &&
+                    typeof c.chg === "number" && c.chg <= 0.5)
+                  lags.push(c.t);
+              });
+            });
+            if (lags.length)
+              lag = '<div class="th-lag">Laggards in ' +
+                window.escapeHtml(lead.th) + ' (no flow, not moved yet): ' +
+                lags.slice(0, 4).map(function (t) {
+                  return '<span class="th-lag-tk" data-t="' + t + '">' + t +
+                    '</span>';
+                }).join(" ") + '</div>';
+          }
+          flowStrip = '<div class="th-flow" title="Today\'s notable options ' +
+            'premium (≥$250K prints) aggregated by theme — clustered ' +
+            'institutional positioning. Laggards = graded theme members ' +
+            'without their own flow that haven\'t moved yet.">' +
+            'Whale flow: ' + bits.join(" &middot; ") + '</div>' + lag;
+        }
+      } catch (_) {}
       return desk("Strongest / Weakest Themes",
-        (_thInsight ? insight(_thInsight) : "") +
+        (_thInsight ? insight(_thInsight) : "") + flowStrip +
         '<div class="th-grid">' + strongCol + weakCol + '</div>',
         null, stamp);
     }
@@ -19066,6 +19215,58 @@
       return desk("What We Missed — scan self-audit", body, null, stamp);
     }
 
+    // ── Per-ticker "what changed" chips ──────────────────────────────────
+    // Change is what users pay for. Computed from data already on the desk:
+    // grade moves = diff of the last two swing runs; NEW WHALE = notable
+    // flow today on a name absent from yesterday's carried prints.
+    let _chgChipCache = null;
+    function tdChangeChips(t) {
+      const D = window.TD_DATA || {};
+      if (!_chgChipCache || _chgChipCache._src !== D.swing) {
+        const cache = { _src: D.swing };
+        const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
+                    "D","D-","E+","E","E-","F+","F","F-","G+","G"];
+        const gm = function (run) {
+          const m = {};
+          if (run) GR.forEach(function (g, gi) {
+            ((run.grades || {})[g] || []).forEach(function (c) { m[c.t] = gi; });
+          });
+          return m;
+        };
+        const runs = (D.swing && D.swing.runs) || [];
+        cache.now = gm(runs[runs.length - 1]);
+        cache.was = gm(runs[runs.length - 2]);
+        cache.yWhale = new Set(((D.carryover || {}).contracts || [])
+          .map(function (c) { return c.ticker; }));
+        cache.todayWhale = new Set();
+        (((D.uoa || {}).rows) || []).forEach(function (r) {
+          if ((r.trade_score || 0) >= 65 && (r.premium || 0) >= 1e6)
+            cache.todayWhale.add(r.ticker);
+        });
+        _chgChipCache = cache;
+      }
+      const c = _chgChipCache, chips = [];
+      const ni = c.now[t], wi = c.was[t];
+      if (ni != null && wi != null && ni !== wi) {
+        const up = ni < wi;                        // lower index = better grade
+        if (up && ni <= 2 && wi > 2) chips.push({ l: "NEW A-TIER", c: "up" });
+        else chips.push({ l: up ? "UPGRADED" : "DOWNGRADED",
+                          c: up ? "up" : "dn" });
+      } else if (ni != null && wi == null && Object.keys(c.was).length) {
+        chips.push({ l: "NEW TO SCANS", c: "nu" });
+      }
+      if (c.todayWhale.has(t) && !c.yWhale.has(t))
+        chips.push({ l: "NEW WHALE", c: "up" });
+      return chips;
+    }
+    function tdChangeChipsHTML(t) {
+      const chips = tdChangeChips(t);
+      if (!chips.length) return "";
+      return '<div class="chg-chips">' + chips.map(function (ch) {
+        return '<span class="chg-chip chg-' + ch.c + '">' + ch.l + '</span>';
+      }).join("") + '</div>';
+    }
+
     // ── Evening Review — the system grading itself, nightly ─────────────
     // Yesterday's picks vs today's actual closes (next-day horizon), what
     // the learner currently weights, what's decaying, and tomorrow's
@@ -19251,7 +19452,7 @@
               '<b>' + conviction + '</b><i>conv</i></span>' +
             '<span class="opc-dir ' + (dir === "bull" ? "opc-d-bull" : "opc-d-bear") + '">' +
               (dir === "bull" ? "LONG" : "SHORT") + '</span></div>' +
-          metaLine +
+          metaLine + tdChangeChipsHTML(t) +
           '<ul class="opc-ev">' + evidence.map(function (s) {
             return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>' +
           (risk.length ? '<ul class="opc-risk">' + risk.map(function (s) {
@@ -21508,6 +21709,25 @@
           '<div class="es">'+oc.confirmed+' of '+oc.checked+
           ' positions stuck (OI retained next day)</div></div>');
       }
+      // False-positive honesty card — the inverse of the hit rate, per
+      // score band at +5d. Users calibrate trust better against "how
+      // often does this FAIL" than against a hit rate alone.
+      try {
+        const bs = edge.by_score || {};
+        const fps = ["55-64", "65-79", "80-100"].map(function (b) {
+          const h5 = bs[b] && bs[b].h && bs[b].h["5"];
+          if (!h5 || !h5.n || h5.hit_rate == null) return null;
+          return b.replace("-100", "+") + ': <b>' +
+            (100 - h5.hit_rate) + '%</b>';
+        }).filter(Boolean);
+        if (fps.length) {
+          cards.push('<div class="ecard"><div class="et">False-Positive Rate ' +
+            '+5d</div><div class="ev neutral" style="font-size:14px;' +
+            'line-height:1.7">' + fps.join(' &middot; ') + '</div>' +
+            '<div class="es">Share of signals per score band that did NOT ' +
+            'work at +5 days — size and stop accordingly.</div></div>');
+        }
+      } catch (_) {}
       // Explicit maturity card. Tells the user WHICH horizons have
       // actually accumulated mature signals so they don't assume the
       // "Overall +1d" cell is the best stat available when really
