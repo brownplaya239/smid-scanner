@@ -694,6 +694,20 @@ Risk-Off → most breakouts fail; note macro headwind in reasoning. Risk-On with
     if force_full_descriptives:
         override_block = """
 OVERRIDE — SINGLE TICKER MODE: This is an on-demand single-ticker lookup. The OUTPUT EFFICIENCY rule does NOT apply. Populate ALL analytical fields (businessDescription, factorExposure, institutionalAngle, earningsContext, keyRisk) for ALL grades (A, B, AND C). Token cost is immaterial for a single name — give full institutional-quality treatment regardless of grade.
+
+INVESTMENT MEMO (single-ticker mode only) — additionally include these fields on the SAME object. Write like a PM's page-one memo: decisive, probability-weighted, zero repetition of ideas across sections (each bullet must add NEW information):
+- "memo_rating": one of "BUY" | "WATCH" | "AVOID" | "SHORT"
+- "memo_confidence": 0-100 integer — your SELF-ASSESSED odds the rating is right (this is displayed as a model estimate, not a calibrated probability)
+- "memo_horizon": "swing (1-4w)" | "position (1-6mo)" | "long-term (6mo+)"
+- "memo_bull": {"ret_pct": int, "prob": int}  base/bear likewise as "memo_base", "memo_bear" — probabilities MUST sum to 100; returns are scenario price moves over the horizon
+- "memo_thesis": exactly 3 short bullets — why the rating (strongest evidence first)
+- "memo_risks": exactly 3 short bullets — what kills the thesis
+- "memo_scenarios": array of 3 {"s": "scenario", "p": int_prob, "action": "what a PM does"}
+- "memo_bull_if": 3 concrete observable triggers that IMPROVE the thesis (price levels, events, data points)
+- "memo_bear_if": 3 concrete triggers that DAMAGE it
+- "memo_consensus": one sentence — what the market currently believes
+- "memo_variant": one sentence — where your view differs and the evidence for it (if you have no variant view, say "no variant view — consensus looks right")
+If a `tickerdesk_signals` field is present on the candidate, it is THE PLATFORM'S OWN quant stack (swing grade, options-flow read, technical facts, overnight conviction). Integrate it explicitly: cite agreements as confirmation and divergences as open questions in the memo bullets. Do not ignore it.
 """
 
     full_prompt = f"""{SCANNER_STATIC_PROMPT}
@@ -873,6 +887,131 @@ def _safe(text):
     return re.sub(r'[^\x00-\xFF]', '', s).strip()
 
 
+_MEMO_RATING_RGB = {"BUY": (34, 153, 84), "WATCH": (200, 130, 20),
+                    "AVOID": (110, 110, 120), "SHORT": (192, 57, 43)}
+
+
+def _memo_page(pdf, r, hist_cache):
+    """Page one: the PM investment memo — rating, probability-weighted
+    return, thesis/risks, scenario matrix, thesis monitor, variant view,
+    and an ATR-derived position plan (deterministic, formula stated).
+    Every model-generated number is labeled a model estimate."""
+    NAVY, GOLD, WHITE = (12, 20, 48), (255, 200, 0), (255, 255, 255)
+    INK, MUTED = (15, 20, 50), (100, 110, 135)
+    tk = r.get("ticker", "")
+    pdf.add_page()
+    pdf.set_fill_color(*NAVY)
+    pdf.rect(0, 0, 210, 30, "F")
+    pdf.set_text_color(*WHITE)
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_xy(10, 6)
+    pdf.cell(120, 8, _safe(f"{tk} — Investment Memo"))
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_xy(10, 16)
+    pdf.cell(120, 5, _safe(f"Horizon: {r.get('memo_horizon', '-')}  |  "
+                           f"Model confidence: {r.get('memo_confidence', '-')}"
+                           f"/100 (self-assessed, not calibrated)"))
+    rating = str(r.get("memo_rating", "WATCH")).upper()
+    pdf.set_fill_color(*_MEMO_RATING_RGB.get(rating, (110, 110, 120)))
+    pdf.rect(150, 5, 52, 20, "F")
+    pdf.set_font("Helvetica", "B", 15)
+    pdf.set_xy(150, 11)
+    pdf.cell(52, 8, _safe(rating), align="C")
+
+    # probability-weighted expected return
+    y = 36
+    pdf.set_text_color(*INK)
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_xy(10, y)
+    pdf.cell(100, 6, "Scenario returns (model estimates)")
+    pdf.set_font("Helvetica", "", 9)
+    ew, parts = 0.0, []
+    for lab, key in (("Bull", "memo_bull"), ("Base", "memo_base"),
+                     ("Bear", "memo_bear")):
+        sc = r.get(key) or {}
+        try:
+            ret, p = float(sc.get("ret_pct")), float(sc.get("prob"))
+            ew += ret * p / 100.0
+            parts.append(f"{lab} {ret:+.0f}% ({p:.0f}%)")
+        except Exception:
+            pass
+    pdf.set_xy(10, y + 6)
+    pdf.cell(190, 5, _safe("  |  ".join(parts) +
+                           (f"   =>  probability-weighted {ew:+.1f}%"
+                            if parts else "-")))
+
+    def bullets(title, items, yy, mark):
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_xy(10, yy)
+        pdf.cell(100, 6, _safe(title))
+        pdf.set_font("Helvetica", "", 8.5)
+        for i, b in enumerate((items or [])[:3]):
+            pdf.set_xy(12, yy + 6 + i * 5)
+            pdf.cell(186, 5, _safe(f"{mark} {b}")[:118])
+        return yy + 6 + min(3, len(items or [])) * 5 + 3
+
+    y = bullets("Why (thesis)", r.get("memo_thesis"), y + 14, "+")
+    y = bullets("What kills it (risks)", r.get("memo_risks"), y, "x")
+
+    # scenario matrix
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_xy(10, y)
+    pdf.cell(100, 6, "Decision matrix")
+    pdf.set_font("Helvetica", "", 8.5)
+    for i, s in enumerate((r.get("memo_scenarios") or [])[:3]):
+        pdf.set_xy(12, y + 6 + i * 5)
+        pdf.cell(186, 5, _safe(f"{s.get('p', '-')}%  {s.get('s', '')}"
+                               f"  ->  {s.get('action', '')}")[:118])
+    y += 6 + min(3, len(r.get("memo_scenarios") or [])) * 5 + 3
+
+    y = bullets("Thesis improves if", r.get("memo_bull_if"), y, ">")
+    y = bullets("Thesis breaks if", r.get("memo_bear_if"), y, "<")
+
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_xy(10, y)
+    pdf.cell(100, 6, "Variant perception")
+    pdf.set_font("Helvetica", "", 8.5)
+    pdf.set_xy(12, y + 6)
+    pdf.cell(186, 5, _safe(f"Consensus: {r.get('memo_consensus', '-')}")[:118])
+    pdf.set_xy(12, y + 11)
+    pdf.cell(186, 5, _safe(f"Variant:   {r.get('memo_variant', '-')}")[:118])
+    y += 19
+
+    # deterministic ATR position plan (mirrors the Daily Brief hero)
+    try:
+        hist = hist_cache.get(tk)
+        closes = hist["Close"].dropna()
+        highs, lows = hist["High"].dropna(), hist["Low"].dropna()
+        c0 = float(closes.iloc[-1])
+        trs = [max(float(highs.iloc[i]) - float(lows.iloc[i]),
+                   abs(float(highs.iloc[i]) - float(closes.iloc[i - 1])),
+                   abs(float(lows.iloc[i]) - float(closes.iloc[i - 1])))
+               for i in range(max(1, len(closes) - 14), len(closes))]
+        a = sum(trs) / len(trs)
+        sgn = -1 if rating == "SHORT" else 1
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_xy(10, y)
+        pdf.cell(100, 6, "Position plan (ATR-derived, not advice)")
+        pdf.set_font("Helvetica", "", 8.5)
+        pdf.set_xy(12, y + 6)
+        pdf.cell(186, 5, _safe(
+            f"Entry zone {c0 - 0.25 * a:.2f}-{c0 + 0.25 * a:.2f}  |  "
+            f"Stop {c0 - sgn * 1.5 * a:.2f}  |  Target {c0 + sgn * 2.5 * a:.2f}"
+            f"  |  R:R 1.7  (ATR14 {a:.2f}; entry +/-0.25xATR, stop 1.5x, "
+            f"target 2.5x - adjust to your structure)"))
+        y += 14
+    except Exception:
+        pass
+
+    pdf.set_text_color(*MUTED)
+    pdf.set_font("Helvetica", "I", 7)
+    pdf.set_xy(10, max(y, 270))
+    pdf.cell(190, 4, _safe(
+        "Ratings, probabilities and confidence are MODEL ESTIMATES (not "
+        "calibrated). They become trackable once the report outcome loop "
+        "accrues graded history. Not investment advice."))
+
+
 def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCANNER",
                  insider_transactions=None, institutional_data=None, filings_13=None,
                  smart_money=None, volume_intelligence=None):
@@ -893,6 +1032,13 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=12)
+
+    # ── PAGE ONE: PM investment memo (single-ticker lookups only) ──
+    if len(results) == 1 and results[0].get("memo_rating"):
+        try:
+            _memo_page(pdf, results[0], hist_cache)
+        except Exception as e:
+            print(f"  memo page skipped (non-fatal): {e}")
 
     # ════════════════════════════════════════════════════════════════════════════
     # COVER PAGE
@@ -2127,6 +2273,55 @@ def _abort_invalid_ticker(ticker, hist):
     print("\nDone (invalid ticker - lookup aborted before pipeline).")
 
 
+def _gather_site_signals(ticker):
+    """TickerDesk's own quant stack for one name — swing grade, technical
+    facts, best flow read, overnight conviction. Injected into the memo
+    prompt so the report synthesizes WITH the platform instead of existing
+    beside it. Missing files degrade to absent keys."""
+    base = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "docs", "reports")
+
+    def _load(name):
+        try:
+            with open(os.path.join(base, name), encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+    sig = {}
+    sw = _load("swing_report.json") or _load("swing_latest_summary.json")
+    if sw and sw.get("runs"):
+        for g, cards in (sw["runs"][-1].get("grades") or {}).items():
+            for c in cards or []:
+                if c.get("t") == ticker:
+                    sig["swing_grade"] = g
+                    break
+    f = ((_load("technical_facts.json") or {}).get("facts") or {}).get(ticker)
+    if f:
+        sig["technicals"] = {k: f.get(k) for k in
+                             ("trend", "rsi14", "atr_pct", "vol_ratio",
+                              "rs_rank", "ema20", "ema50", "ema200")}
+        sig["rs_vs_spy"] = f.get("rs")
+    rows = [r for r in ((_load("uoa_latest.json") or {}).get("rows") or [])
+            if r.get("ticker") == ticker]
+    if rows:
+        top = max(rows, key=lambda r: r.get("trade_score") or 0)
+        sig["options_flow"] = {
+            "direction": top.get("direction"), "tier": top.get("tier"),
+            "trade_score": top.get("trade_score"),
+            "premium": top.get("premium"), "why": top.get("why"),
+            "prints_today": len(rows)}
+    for c in ((_load("carryover_flow.json") or {}).get("contracts") or []):
+        if c.get("ticker") == ticker:
+            sig["overnight_conviction"] = {
+                "conviction": c.get("conviction"),
+                "priority": c.get("priority"),
+                "oi_confirmed": c.get("oi_confirmed"),
+                "dir": c.get("dir_label")}
+            break
+    return sig
+
+
 def run_single_ticker_lookup(ticker):
     """
     On-demand one-pager for a single ticker. Skips universe/pre-filter entirely;
@@ -2272,6 +2467,15 @@ def run_single_ticker_lookup(ticker):
     print(f"  Smart money signal: {smart_money['label']}  (score={smart_money['score']})")
     if filings_13:
         print(f"  13D/13G filings (last 12mo): {len(filings_13)}")
+
+    # TickerDesk's own signal stack — the memo must synthesize with it
+    try:
+        sig = _gather_site_signals(ticker)
+        if sig:
+            candidates[0]["tickerdesk_signals"] = sig
+            print(f"  Site signals attached: {', '.join(sig.keys())}")
+    except Exception as e:
+        print(f"  site signals skipped (non-fatal): {e}")
 
     print("[3/5] Claude analysis...")
     results = run_claude_analysis(
