@@ -3816,6 +3816,13 @@
   .scp-popover .scp-pen-why { color:var(--muted); font-weight:400;
     font-size:9.5px; display:block; }
   .scp-popover .scp-neg { color:var(--red); }
+  .scp-popover .scp-pos { color:var(--green); }
+  /* learned-edge marker on flow rows (self-learning loop moved the rank) */
+  .dr-lrn { display:inline-block; font-size:8.5px; font-weight:800;
+    letter-spacing:.03em; padding:0 4px; margin-left:5px; border-radius:3px;
+    cursor:help; vertical-align:1px; }
+  .dr-lrn.up { background:rgba(31,179,99,0.14); color:#7ddfa1; }
+  .dr-lrn.dn { background:rgba(214,68,68,0.14); color:#f08585; }
   .scp-popover .scp-foot { font-size:10px; color:var(--muted);
     border-top:1px solid var(--line); margin-top:7px; padding-top:6px; }
   /* Historical-edge footer ── shows hit-rate + avg-return for this
@@ -18107,12 +18114,22 @@
         const dir = r.direction || "";
         const cls = dir === "bullish" ? "sc-up" : dir === "bearish" ? "sc-down" : "";
         const tag = (r.type || "").toUpperCase() + " $" + r.strike + " · " + r.expiry;
+        // learned-edge marker — the self-learning loop moved this row's
+        // rank; tooltip explains which features and by how much.
+        const eadj = r.edge_adj || 0;
+        const lrn = Math.abs(eadj) >= 2
+          ? '<span class="dr-lrn ' + (eadj > 0 ? 'up' : 'dn') + '" title="' +
+            'Learned edge ' + (eadj > 0 ? '+' : '') + eadj + ' — ' +
+            window.escapeHtml((r.edge_why || []).slice(0, 3).join(", ")) +
+            '. From matured signal outcomes; recomputed nightly.">' +
+            (eadj > 0 ? '▲' : '▼') + 'lrn</span>'
+          : '';
         return '<div class="desk-row">' +
           '<span class="dr-tk" data-t="' + r.ticker + '">' + r.ticker + '</span>' +
           (window.tdActionStripCompact
             ? window.tdActionStripCompact(r.ticker) : "") +
           chgBadge(r.ticker) +
-          '<span class="dr-meta">' + tag + '</span>' +
+          '<span class="dr-meta">' + tag + lrn + '</span>' +
           '<span class="dr-val ' + cls + '">' + (r.trade_score || 0) +
             ' · ' + fmtVol(r.premium) + '</span>' +
           '<button class="dr-flow" type="button" data-flow-tk="' + r.ticker +
@@ -23282,6 +23299,25 @@
             (reasons ? '<span class="scp-pen-why"> · ' + reasons + '</span>' : '') +
             '</span></div>'
         : '';
+      // Learned edge — the self-learning loop's per-row adjustment. Features
+      // of this print historically out/under-performed on matured +5d
+      // outcomes (uoa_alpha edge weights, shrunk + clamped ±8). Shown so the
+      // learning is never a black box: the "why" lists the exact features.
+      const eadj = r.edge_adj || 0;
+      const learnedHTML = eadj
+        ? '<div class="scp-row scp-learned" title="Self-learning adjustment: ' +
+            'this print’s features historically ' +
+            (eadj > 0 ? 'outperformed' : 'underperformed') +
+            ' on matured outcomes. Recomputed nightly, bounded ±8.">' +
+          '<span class="scp-label">Learned edge</span>' +
+          '<span class="scp-bar"></span>' +
+          '<span class="scp-val ' + (eadj > 0 ? 'scp-pos' : 'scp-neg') + '">' +
+            (eadj > 0 ? '+' : '') + eadj +
+            ((r.edge_why || []).length
+              ? '<span class="scp-pen-why"> · ' +
+                r.edge_why.slice(0, 3).join(", ") + '</span>' : '') +
+          '</span></div>'
+        : '';
       // Historical edge for this score bucket — uses uoa_edge.json's
       // by_score breakdown (60-69 / 70-79 / 80-100) so the user can
       // calibrate THIS score against how that bucket has performed
@@ -23320,10 +23356,12 @@
       tooltip.innerHTML =
         '<div class="scp-h">Score breakdown · <b>' + r.trade_score +
           '</b> for ' + r.ticker + '</div>' +
-        '<div class="scp-list">' + rows + penaltyHTML + '</div>' +
+        '<div class="scp-list">' + rows + penaltyHTML + learnedHTML + '</div>' +
         edgeFooter +
         '<div class="scp-foot">Components sum: ' + total +
           (penalty < 0 ? ' &minus; ' + Math.abs(penalty) + ' penalty' : '') +
+          (eadj ? ' ' + (eadj > 0 ? '+' : '&minus;') + ' ' + Math.abs(eadj) +
+            ' learned' : '') +
           ' &rarr; final ' + r.trade_score +
           '. Cap and rounding may shift ±1.</div>' +
         '<button class="scp-close" type="button" aria-label="Close">&times;</button>';
