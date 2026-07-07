@@ -646,6 +646,106 @@ EW_MIN_N       = 200    # min matured signals before a feature may emit
 EW_SHRINK_K    = 200    # pseudo-observations pulled toward the prior
 EW_SCALE       = 80     # 5% shrunk lift -> 4.0 score points
 EW_PER_MAX     = 4.0    # per-feature clamp (points)
+# Signal-decay diagnostic: recent window vs prior window hit rates per
+# feature. DISPLAY-ONLY for now — weights still learn from the full sample;
+# decay is the early-warning that an edge is dying (and the evidence needed
+# before ever switching the weights themselves to a recency window).
+EW_DECAY_RECENT_D = 30
+EW_DECAY_PRIOR_D  = 90     # prior window = (recent, 90] days back
+EW_DECAY_MIN_N    = 50     # per window, per feature
+# Regime-conditioned weights: GATED. Emitted only when enough labeled days
+# from regime_history.json join matured outcomes — activates automatically
+# as the (new) regime dataset accrues. Until then the file carries an
+# honest {"status":"accruing"} and the scanner uses the global set.
+REGIME_HISTORY_PATH = os.path.join(_BASE, "docs", "reports", "regime_history.json")
+EW_REGIME_MIN_DAYS  = 40   # labeled trading days required per activation
+EW_REGIME_MIN_N     = 150  # graded signals required per regime cohort
+
+
+def _ew_decay(graded, now_utc):
+    """Per-feature hit rate: last EW_DECAY_RECENT_D days vs the prior window.
+    Only features with >= EW_DECAY_MIN_N graded signals in BOTH windows emit
+    (a delta computed on thin windows is noise, not decay)."""
+    recent, prior = {}, {}
+    for s, w in graded:
+        try:
+            d = (now_utc - datetime.fromisoformat(
+                s["flagged_at"].replace("Z", "+00:00"))).days
+        except Exception:
+            continue
+        bucket = recent if d <= EW_DECAY_RECENT_D else (
+            prior if d <= EW_DECAY_PRIOR_D else None)
+        if bucket is None:
+            continue
+        for f in _ew_features(s):
+            st = bucket.setdefault(f, [0, 0])
+            st[0] += 1
+            st[1] += 1 if w else 0
+    out = {}
+    for f in set(recent) & set(prior):
+        rn, rw = recent[f]
+        pn, pw = prior[f]
+        if rn < EW_DECAY_MIN_N or pn < EW_DECAY_MIN_N:
+            continue
+        rh, ph = rw / rn, pw / pn
+        out[f] = {"recent_n": rn, "recent_hit": round(rh, 3),
+                  "prior_n": pn, "prior_hit": round(ph, 3),
+                  "delta": round(rh - ph, 3)}
+    return out
+
+
+def _ew_regime_sets(graded):
+    """Per-regime feature weights, or an 'accruing' status while the regime
+    dataset is too young. Join: signal's flagged date -> that day's regime
+    label from regime_history.json. Same shrinkage math as the global set,
+    but against each regime's own prior."""
+    try:
+        with open(REGIME_HISTORY_PATH, encoding="utf-8") as f:
+            days = json.load(f).get("days") or []
+    except Exception:
+        days = []
+    label_by_date = {d.get("date"): d.get("label") for d in days
+                     if d.get("date") and d.get("label")}
+    joined = []
+    for s, w in graded:
+        lbl = label_by_date.get((s.get("flagged_at") or "")[:10])
+        if lbl:
+            joined.append((s, w, lbl))
+    labeled_days_used = len({(s.get("flagged_at") or "")[:10]
+                             for s, w, _ in joined})
+    if labeled_days_used < EW_REGIME_MIN_DAYS:
+        return {"status": "accruing", "labeled_days": len(label_by_date),
+                "labeled_days_with_outcomes": labeled_days_used,
+                "activates_at_days": EW_REGIME_MIN_DAYS}
+    sets = {}
+    for regime in ("risk_on", "risk_off", "mixed"):
+        cohort = [(s, w) for s, w, l in joined if l == regime]
+        if len(cohort) < EW_REGIME_MIN_N:
+            continue
+        prior = sum(1 for _, w in cohort if w) / len(cohort)
+        stats = {}
+        for s, w in cohort:
+            for f in _ew_features(s):
+                st = stats.setdefault(f, [0, 0])
+                st[0] += 1
+                st[1] += 1 if w else 0
+        feats = {}
+        for key, (n, wins) in stats.items():
+            if n < EW_MIN_N // 2:      # regime cohorts are smaller by nature
+                continue
+            shrunk = (wins + EW_SHRINK_K * prior) / (n + EW_SHRINK_K)
+            adj = round(max(-EW_PER_MAX, min(EW_PER_MAX,
+                                             (shrunk - prior) * EW_SCALE)), 1)
+            feats[key] = {"n": n, "adj": adj}
+        if feats:
+            sets[regime] = {"prior": round(prior, 4), "n": len(cohort),
+                            "features": feats}
+    if not sets:
+        return {"status": "accruing", "labeled_days": len(label_by_date),
+                "labeled_days_with_outcomes": labeled_days_used,
+                "activates_at_days": EW_REGIME_MIN_DAYS}
+    return {"status": "active", "labeled_days_with_outcomes": labeled_days_used,
+            "sets": sets}
 
 
 def _ew_win(s):
@@ -713,14 +813,33 @@ def _emit_edge_weights(scored):
         if prev.get(key) is not None and abs(adj - prev[key]) >= 0.5:
             print(f"  edge_weights Δ {key}: {prev[key]:+.1f} -> {adj:+.1f}")
 
+    now_utc = datetime.now(timezone.utc)
+    decay = _ew_decay(graded, now_utc)
+    dying = {k: v for k, v in decay.items() if v["delta"] <= -0.08}
+    if dying:
+        print("  edge decay ⚠ " + ", ".join(
+            f"{k} {v['prior_hit']:.0%}->{v['recent_hit']:.0%}"
+            for k, v in sorted(dying.items(), key=lambda x: x[1]["delta"])[:4]))
+    regimes = _ew_regime_sets(graded)
+    if regimes.get("status") == "accruing":
+        print(f"  regime weights: accruing "
+              f"({regimes.get('labeled_days_with_outcomes', 0)}/"
+              f"{EW_REGIME_MIN_DAYS} labeled days with outcomes)")
+    else:
+        print(f"  regime weights ACTIVE: {list(regimes['sets'].keys())}")
+
     payload = {
         "version":      datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "prev_version": prev_version,
         "prior":        round(prior, 4),
         "graded":       len(graded),
         "params": {"min_n": EW_MIN_N, "shrink_k": EW_SHRINK_K,
-                   "scale": EW_SCALE, "per_max": EW_PER_MAX},
+                   "scale": EW_SCALE, "per_max": EW_PER_MAX,
+                   "decay_windows_d": [EW_DECAY_RECENT_D, EW_DECAY_PRIOR_D],
+                   "regime_min_days": EW_REGIME_MIN_DAYS},
         "features":     features,
+        "decay":        decay,
+        "regimes":      regimes,
     }
     for path in (EW_PATH, EW_SITE_PATH):
         os.makedirs(os.path.dirname(path), exist_ok=True)

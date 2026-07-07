@@ -573,6 +573,27 @@ EDGE_TOTAL_MAX = 8.0     # total learned adjustment clamp (points)
 _EDGE_W = None           # lazy cache: {"features": {...}} or {} once loaded
 
 
+REGIME_HISTORY_PATH = os.path.join(_BASE, "docs", "reports", "regime_history.json")
+
+
+def _current_regime():
+    """Most recent regime label (yesterday's EOD classification — regimes
+    persist day-to-day, so it's the best available intraday read). None if
+    the history is missing or stale (>5 days)."""
+    try:
+        with open(REGIME_HISTORY_PATH, encoding="utf-8") as f:
+            days = json.load(f).get("days") or []
+        if not days:
+            return None
+        # max-by-date, not positional — robust to any file ordering
+        last = max(days, key=lambda d: d.get("date") or "")
+        age = (datetime.now(timezone.utc).date()
+               - datetime.strptime(last["date"], "%Y-%m-%d").date()).days
+        return last.get("label") if age <= 5 else None
+    except Exception:
+        return None
+
+
 def _edge_weights():
     global _EDGE_W
     if _EDGE_W is None:
@@ -580,13 +601,26 @@ def _edge_weights():
             with open(EDGE_WEIGHTS_PATH, encoding="utf-8") as f:
                 data = json.load(f)
             feats = data.get("features") or {}
+            regime_used = None
+            # Regime-conditioned set takes precedence WHEN uoa_alpha has
+            # activated it (>=40 labeled days joined to matured outcomes)
+            # AND we know the current regime. Otherwise: global weights.
+            reg = data.get("regimes") or {}
+            if reg.get("status") == "active":
+                lbl = _current_regime()
+                rset = (reg.get("sets") or {}).get(lbl)
+                if rset and rset.get("features"):
+                    feats = rset["features"]
+                    regime_used = lbl
             # sanity: adjs must be small numbers, else treat file as bad
             ok = all(isinstance(v.get("adj"), (int, float)) and abs(v["adj"]) <= 10
                      for v in feats.values())
-            _EDGE_W = {"features": feats, "version": data.get("version")} if ok else {}
+            _EDGE_W = ({"features": feats, "version": data.get("version"),
+                        "regime": regime_used} if ok else {})
             if _EDGE_W:
                 print(f"  edge_weights: {len(feats)} features "
-                      f"(v{data.get('version', '?')[:10]})")
+                      f"(v{data.get('version', '?')[:10]}"
+                      + (f", regime={regime_used}" if regime_used else "") + ")")
         except Exception:
             _EDGE_W = {}       # no file / malformed -> no adjustment
     return _EDGE_W
