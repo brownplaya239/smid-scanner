@@ -596,15 +596,29 @@
      (the full headline is still on the ticker's drilldown). */
   .pmb--compact .pmb-why { font-size:10px; line-height:1.3; margin-top:1px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  /* Market Buzz stacked in the Earnings column (right side of the
-     Calendar/Earnings row) — fills the dead space left by the tall
-     economic calendar. The column is only ~half width, so collapse the
-     gainers/losers into a single vertical list and drop the top margin
-     (the flex gap handles spacing under the Earnings tile). */
+  /* Vertical card stacks inside a desk-pair column ((breakouts+calendar)
+     left, (themes+earnings+Market Buzz) right). Market Buzz sits beneath
+     the themes/earnings tiles with gainers LEFT and losers RIGHT —
+     side-by-side, collapsing to one column only on narrow phones. */
   .desk-earn-stack { display:flex; flex-direction:column; gap:14px;
     min-width:0; }
   .desk-earn-stack > .pmb { margin-top:0; }
-  .desk-earn-stack .pmb-cols { grid-template-columns:1fr; gap:10px; }
+  .desk-earn-stack .pmb-cols {
+    grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+  @media (max-width:560px) {
+    .desk-earn-stack .pmb-cols { grid-template-columns:minmax(0,1fr); }
+  }
+  /* Compact Upcoming Earnings (under the Themes pane) */
+  .es-more { font-size:10px; font-weight:700; color:var(--muted);
+    padding:1px 6px; border:1px dashed var(--line); border-radius:4px;
+    margin-left:4px; white-space:nowrap; }
+  .er-foot { font-size:10px; color:var(--muted); margin-top:8px;
+    padding-top:6px; border-top:1px solid var(--line); }
+  .er-foot b { color:var(--gold); font-weight:700; }
+  /* Sortable breakout headers + sector fallback for un-themed names */
+  .brk-hdr [data-bk] { cursor:pointer; user-select:none; }
+  .brk-hdr [data-bk]:hover { color:var(--text); }
+  .bk-th-sec { font-style:normal; color:var(--muted); }
 
   /* "What's New Since Last Visit" widget — top of My Desk */
   .whats-new { background:linear-gradient(135deg,
@@ -2138,6 +2152,9 @@
     text-transform:uppercase; color:var(--muted); font-weight:700; }
   .opc-dir { margin-left:auto; font-size:9px; font-weight:800;
     padding:2px 6px; border-radius:4px; letter-spacing:.04em; }
+  .opc-meta { font-size:10px; color:var(--muted); padding:5px 11px 0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-variant-numeric:tabular-nums; }
   .opc-d-bull { background:rgba(31,179,99,0.16); color:#7ddfa1; }
   .opc-d-bear { background:rgba(214,68,68,0.16); color:#f08585; }
   .opc-ev, .opc-risk { list-style:none; margin:0; padding:7px 11px;
@@ -18157,6 +18174,35 @@
       }).join(""), null, stamp);
     }
 
+    // Breakouts column sort — persists across desk re-renders. k=null means
+    // the default order (grade ladder, A+ first). Clicking a header toggles
+    // asc/desc and re-renders the desk from cache (no network).
+    let _bkSort = { k: null, dir: -1 };
+    function bkSortVal(c, k) {
+      if (k === "t")   return c.t || "";
+      if (k === "day") {
+        const lq = (window.LIVE_QUOTE_CACHE || {})[c.t];
+        if (lq && typeof lq.change === "number") return lq.change;
+        return (typeof c.chg === "number") ? c.chg : -Infinity;
+      }
+      if (k === "th")   return (c.th && c.th[0]) ||
+        (c.sec ? "zz" + c.sec : "zzz");        // curated themes first, then sectors
+      if (k === "mcap") return (typeof c.mcap === "number") ? c.mcap : -Infinity;
+      if (k === "rvol") return (typeof c.rvol === "number") ? c.rvol : -Infinity;
+      if (k === "ext")  return (c.ext != null) ? c.ext : Infinity;
+      return 0;
+    }
+    if (!window._bkWired) {
+      window._bkWired = true;
+      document.addEventListener("click", function (e) {
+        const h = e.target.closest && e.target.closest(".brk-hdr [data-bk]");
+        if (!h) return;
+        const k = h.getAttribute("data-bk");
+        if (_bkSort.k === k) _bkSort.dir = -_bkSort.dir;
+        else _bkSort = { k: k, dir: (k === "t" || k === "th") ? 1 : -1 };
+        if (typeof renderDesk === "function") renderDesk();
+      });
+    }
     function cardBreakouts(swing, uoaMeta) {
       const stamp = swing
         ? freshness((swing.runs && swing.runs.length
@@ -18208,38 +18254,55 @@
         (_tightest.ext != null ? ' (' + _tightest.ext + '× ext)' : '');
       // role="row"+"columnheader" gives screen readers proper table
       // semantics even though we're using CSS grid not <table>.
-      // data-tip + title= give every column a hover explanation —
-      // important for the abbreviations (Mcap, RVol, Ext).
+      // Every header is click-to-sort (asc/desc toggle); data-tip + title=
+      // give every column a hover explanation (Mcap, RVol, Ext).
+      const arr = function (k) {
+        return _bkSort.k === k ? (_bkSort.dir < 0 ? " ▾" : " ▴") : "";
+      };
       const hdr = '<div class="brk-row brk-hdr" role="row">' +
-        '<span role="columnheader" data-tip="1" title="' +
-          'Underlying stock symbol. Tap to open the drilldown panel.">' +
-          'Ticker</span>' +
-        '<span role="columnheader" data-tip="1" style="text-align:right" ' +
-          'title="Today\'s % change in the underlying (delayed 15m).">' +
-          'Day</span>' +
-        '<span role="columnheader" data-tip="1" title="' +
-          'Primary thematic bucket the name maps to (AI Infra, ' +
-          'Space, Semis, Quantum, Cybersecurity, etc.). Used for ' +
-          'sector-rotation reads. — = no theme tag in our universe.">' +
-          'Theme</span>' +
-        '<span role="columnheader" data-tip="1" style="text-align:right" ' +
-          'title="Market cap (Mcap) in billions of dollars. Shares ' +
-          'outstanding × current price.">' +
-          'Mcap</span>' +
-        '<span role="columnheader" data-tip="1" style="text-align:right" ' +
-          'title="Relative Volume (RVol): today\'s volume divided by ' +
-          'the 30-day average. 1.0× = average, 2.0× = double, 0.5× = ' +
-          'half. RVol ≥ 1.5× confirms institutional participation on ' +
-          'a breakout.">' +
-          'RVol</span>' +
-        '<span role="columnheader" data-tip="1" style="text-align:right" ' +
-          'title="Extension (Ext) = how far above the 50-day moving ' +
-          'average, in ATR (average true range) units. <3× = healthy / ' +
-          'tradeable, 5-7× = extended (late entry risk), >7× = over-' +
-          'extended (likely to pull back before continuing).">' +
-          'Ext</span></div>';
-      const body = cands.slice(0, 25).map(function (c) {
-        const th = (c.th && c.th.length) ? c.th[0] : "—";
+        '<span role="columnheader" data-tip="1" data-bk="t" title="' +
+          'Underlying stock symbol. Tap a row to open the drilldown. ' +
+          'Click header to sort.">' +
+          'Ticker' + arr("t") + '</span>' +
+        '<span role="columnheader" data-tip="1" data-bk="day" ' +
+          'style="text-align:right" ' +
+          'title="Today\'s % change in the underlying (delayed 15m). ' +
+          'Click to sort.">' +
+          'Day' + arr("day") + '</span>' +
+        '<span role="columnheader" data-tip="1" data-bk="th" title="' +
+          'Curated theme (AI Infra, Space, Semis, Quantum…) when the name ' +
+          'is in our theme taxonomy; otherwise its sector, shown muted. ' +
+          'Click to sort.">' +
+          'Theme' + arr("th") + '</span>' +
+        '<span role="columnheader" data-tip="1" data-bk="mcap" ' +
+          'style="text-align:right" ' +
+          'title="Market cap. Click to sort.">' +
+          'Mcap' + arr("mcap") + '</span>' +
+        '<span role="columnheader" data-tip="1" data-bk="rvol" ' +
+          'style="text-align:right" ' +
+          'title="Relative Volume: today\'s volume ÷ 30-day average. ' +
+          '≥1.5× confirms institutional participation. Click to sort.">' +
+          'RVol' + arr("rvol") + '</span>' +
+        '<span role="columnheader" data-tip="1" data-bk="ext" ' +
+          'style="text-align:right" ' +
+          'title="Extension above the 50-day MA in ATR units. <3× healthy, ' +
+          '5-7× extended, >7× over-extended. Click to sort.">' +
+          'Ext' + arr("ext") + '</span></div>';
+      let ordered = cands;
+      if (_bkSort.k) {
+        ordered = cands.slice().sort(function (a, b) {
+          const va = bkSortVal(a, _bkSort.k), vb = bkSortVal(b, _bkSort.k);
+          if (va < vb) return -_bkSort.dir;
+          if (va > vb) return _bkSort.dir;
+          return 0;
+        });
+      }
+      const body = ordered.slice(0, 25).map(function (c) {
+        const th = (c.th && c.th.length)
+          ? c.th[0]
+          : (c.sec
+              ? '<i class="bk-th-sec">' + c.sec.split("/")[0].trim() + '</i>'
+              : "—");
         const rawMcap = (typeof c.mcap === "number") ? c.mcap
                       : (uoaMeta && uoaMeta[c.t] && uoaMeta[c.t].mkt_cap);
         const mcap = fmtMcap(rawMcap) || "—";
@@ -18904,7 +18967,8 @@
       const body = insightLine + (rows ||
         '<div class="desk-empty">Nothing missed — every big tradable mover ' +
         'was on a surfaced list today.</div>');
-      return desk("What We Missed — scan self-audit", body, null, stamp);
+      return desk("What We Missed — scan self-audit", body,
+                  "desk-card--wide", stamp);
     }
 
     // ── Opportunities — the decision-first spine of Today's Desk ────────
@@ -19008,6 +19072,14 @@
         else { act = "MONITOR"; actCls = "opc-a-watch"; }
 
         const esc = window.escapeHtml;
+        // meta line: market cap + theme (sector fallback when the name
+        // isn't in the curated theme taxonomy)
+        const mc = fmtMcap(card.mcap);
+        const themeOrSec = (e.themes || [])[0] ||
+          (card.sec ? card.sec.split("/")[0].trim() : "");
+        const metaBits = [mc, themeOrSec].filter(Boolean).join(" · ");
+        const metaLine = metaBits
+          ? '<div class="opc-meta">' + esc(metaBits) + '</div>' : "";
         return '<div class="opc" data-t="' + esc(t) + '" role="button" tabindex="0">' +
           '<div class="opc-h"><span class="opc-tk">' + esc(t) + '</span>' +
             '<span class="opc-sc" title="Opportunity: conviction net of timing/event risk">' +
@@ -19016,6 +19088,7 @@
               '<b>' + conviction + '</b><i>conv</i></span>' +
             '<span class="opc-dir ' + (dir === "bull" ? "opc-d-bull" : "opc-d-bear") + '">' +
               (dir === "bull" ? "LONG" : "SHORT") + '</span></div>' +
+          metaLine +
           '<ul class="opc-ev">' + evidence.map(function (s) {
             return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>' +
           (risk.length ? '<ul class="opc-risk">' + risk.map(function (s) {
@@ -19043,7 +19116,10 @@
         buildConfluenceList(ctx, "bear"), confluenceStamp(swing, uoa));
     }
 
-    function cardEarnings(meta, todayISO) {
+    function cardEarnings(meta, todayISO, compact) {
+      // compact=true → truncated tile that tucks under the Themes pane:
+      // next 4 report-days, ≤10 tickers per session row, footer points at
+      // the Earnings tab for the full two-week view.
       // uoa_meta_cache.json refreshes weekly per ticker; freshest single
       // entry stands in for the whole cache's freshness.
       let newestFetched = null;
@@ -19088,24 +19164,39 @@
         return '<span class="er-tk-pair"><span class="er-tk" data-t="' + t +
           '">' + t + '</span>' + chgBadge(t) + '</span>';
       };
+      let truncated = 0;
       const sessionRow = function (label, cls, tks) {
         if (!tks.length) return "";
+        let shown = tks.sort(), more = "";
+        if (compact && shown.length > 10) {
+          truncated += shown.length - 10;
+          more = '<span class="es-more">+' + (shown.length - 10) + '</span>';
+          shown = shown.slice(0, 10);
+        }
         return '<div class="earn-sess">' +
           '<span class="es-tag ' + cls + '">' + label + '</span>' +
-          '<span class="es-tk">' + tks.sort().map(tkSpan).join("") + '</span>' +
+          '<span class="es-tk">' + shown.map(tkSpan).join("") + more + '</span>' +
           '</div>';
       };
-      return desk("Upcoming Earnings (BMO / AMC)",
-        dates.slice(0, 10).map(function (d) {
-          const g = groups[d];
-          return '<div class="earn-row">' +
-            '<span class="er-date">' + dayLbl(d) + '</span>' +
-            '<div class="er-sessions">' +
-              sessionRow("BMO", "es-bmo", g.BMO) +
-              sessionRow("AMC", "es-amc", g.AMC) +
-              sessionRow("TBD", "es-tbd", g.TBD) +
-            '</div></div>';
-        }).join(""), null, stamp);
+      const maxDays = compact ? 4 : 10;
+      if (compact && dates.length > maxDays)
+        truncated += dates.length - maxDays;
+      const body = dates.slice(0, maxDays).map(function (d) {
+        const g = groups[d];
+        return '<div class="earn-row">' +
+          '<span class="er-date">' + dayLbl(d) + '</span>' +
+          '<div class="er-sessions">' +
+            sessionRow("BMO", "es-bmo", g.BMO) +
+            sessionRow("AMC", "es-amc", g.AMC) +
+            sessionRow("TBD", "es-tbd", g.TBD) +
+          '</div></div>';
+      }).join("") +
+      (compact && truncated
+        ? '<div class="er-foot">Next ' + Math.min(dates.length, maxDays) +
+          ' report-days shown &middot; full two weeks on the ' +
+          '<b>Earnings</b> tab</div>'
+        : "");
+      return desk("Upcoming Earnings (BMO / AMC)", body, null, stamp);
     }
 
     // Market cap formatter — exposed for popups across this scope
@@ -19497,16 +19588,20 @@
           });
         }
         const ctx = buildConfluenceCtx(uoa, swing, qm, sb, manifest, today);
-        // Calendar (left) | Earnings + Market Buzz stacked (right). The
-        // economic calendar is much taller than the earnings tile, so the
-        // right column stacks Market Buzz beneath Earnings to fill that dead
-        // space. #pmb-slot is an empty target; the persistent #pmb node is
-        // relocated into it after the grid is built (see below).
-        const calEarnRow =
+        // EOD columns: (Breakouts + Calendar) left | (Themes + truncated
+        // Earnings + Market Buzz) right. Earnings tucks under the themes
+        // pane in compact form; Market Buzz sits beneath them with gainers
+        // and losers SIDE-BY-SIDE. #pmb-slot is an empty target; the
+        // persistent #pmb node is relocated into it after the grid is built.
+        const eodColumns =
           '<div class="desk-pair">' +
-            cardCalendar(cal, todayET) +
             '<div class="desk-earn-stack">' +
-              cardEarnings(uoaMeta, todayET) +
+              cardBreakouts(swing, uoaMeta) +
+              cardCalendar(cal, todayET) +
+            '</div>' +
+            '<div class="desk-earn-stack">' +
+              cardThemes(swing) +
+              cardEarnings(uoaMeta, todayET, true) +
               '<div id="pmb-slot"></div>' +
             '</div>' +
           '</div>';
@@ -19549,11 +19644,9 @@
             'don’t change intraday</span></div>',
           cardSwingUpgrades(swing),
           cardSwingDowngrades(swing),
-          cardBreakouts(swing, uoaMeta),
-          cardThemes(swing),
-          cardMissed(D.missed),                // loop 5 — post-close self-audit
-          calEarnRow,                          // calendar | (earnings + Market Buzz)
+          eodColumns,                          // (breakouts+calendar) | (themes+earnings+buzz)
           topBullBearRow,                      // bullish | bearish, below
+          cardMissed(D.missed),                // loop 5 — post-close self-audit (wide, last)
         ].join("");
         // Slot the rescued Market Buzz node into the Earnings column, stacked
         // under the Upcoming Earnings tile. Synchronous with the rebuild
