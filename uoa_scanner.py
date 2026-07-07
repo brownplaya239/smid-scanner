@@ -1304,9 +1304,28 @@ def emit_latest(rows):
         "count":        len(out),
         "rows":         out,
     }
+    # COMPACT — the old indent=1 pretty-print was ~40% whitespace on a file
+    # the Flow tab downloads on every scan publish.
     with open(LATEST_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=1)
+        json.dump(payload, f, separators=(",", ":"))
     print(f"  Wrote uoa_latest.json ({len(out)} rows)")
+    # uoa_desk.json — the DESK'S slice of the same rows: every row, but only
+    # the 16 fields the desk actually reads (confluence, Top Flow card,
+    # theme propagation, cockpit, change chips, Momentum Lab). The full
+    # 60-field file measured 2.1 MB and sat on the desk's critical path to
+    # render ~20 rows; this is ~90% smaller with zero logic change because
+    # row membership is identical.
+    DESK_FIELDS = ("ticker", "type", "strike", "expiry", "dte", "premium",
+                   "trade_score", "tier", "direction", "flow_side",
+                   "edge_adj", "edge_why", "themes", "tags", "golden",
+                   "earnings_days")
+    desk_rows = [{k: r.get(k) for k in DESK_FIELDS if r.get(k) is not None
+                  or k in ("premium", "trade_score")} for r in out]
+    with open(os.path.join(_BASE, "docs", "reports", "uoa_desk.json"),
+              "w", encoding="utf-8") as f:
+        json.dump({"generated": now_iso, "count": len(desk_rows),
+                   "rows": desk_rows}, f, separators=(",", ":"))
+    print(f"  Wrote uoa_desk.json ({len(desk_rows)} rows, desk fields only)")
 
 
 def run():

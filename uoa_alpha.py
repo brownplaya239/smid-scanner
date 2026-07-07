@@ -854,8 +854,19 @@ def run():
     """Compute edge stats + per-signal scorecards; publish both JSON files."""
     edge, scored = compute_edge()
     os.makedirs(os.path.dirname(EDGE_PATH), exist_ok=True)
+    # Split the heavy per-ticker/per-theme cohorts into their own file —
+    # no client code reads them from the main payload (verified), yet they
+    # were ~90% of a 656 KB file fetched with the Flow tab. The cohorts
+    # file exists for future lazy consumption (drilldowns, Performance).
+    cohorts = {"generated": edge.get("generated"),
+               "by_ticker": edge.pop("by_ticker", {}),
+               "by_theme":  edge.pop("by_theme", {})}
+    with open(os.path.join(_BASE, "docs", "reports",
+                           "uoa_edge_cohorts.json"), "w",
+              encoding="utf-8") as f:
+        json.dump(cohorts, f, separators=(",", ":"))
     with open(EDGE_PATH, "w", encoding="utf-8") as f:
-        json.dump(edge, f, indent=1)
+        json.dump(edge, f, separators=(",", ":"))
     _emit_scored(scored)
     try:
         _emit_edge_weights(scored)

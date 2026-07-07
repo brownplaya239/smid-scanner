@@ -7,6 +7,9 @@
 <meta name="description" content="Your daily equity research desk for flow, breakouts, catalysts, and watchlists." />
 <link rel="icon" href="favicon.ico" sizes="any" />
 <link rel="icon" href="favicon.png" type="image/png" />
+<!-- Warm the worker connection before the first quote/news poll — saves a
+     DNS+TLS round trip on the first live data fetch of every session. -->
+<link rel="preconnect" href="https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev" crossorigin />
 <link rel="apple-touch-icon" href="favicon.png" />
 <!-- Link preview (iMessage, Slack, social) -->
 <meta property="og:type" content="website" />
@@ -20178,7 +20181,13 @@
     // so this just keeps the underlying data current.
     function fetchDeskData() {
       return Promise.all([
-        fetchJSON("./reports/uoa_latest.json"),
+        // Desk slice of the flow rows (~90% smaller than uoa_latest: same
+        // rows, 16 fields). Falls back to the full file until the first
+        // post-deploy scan publishes the slim one.
+        fetchJSON("./reports/uoa_desk.json").then(function (d) {
+          return (d && d.rows && d.rows.length)
+            ? d : fetchJSON("./reports/uoa_latest.json");
+        }),
         // The desk only reads the latest run (+ the prior one for grade
         // diffs), so pull the ~0.9 MB 2-run summary instead of the full
         // ~15 MB history — the single biggest initial-load win, esp. on
