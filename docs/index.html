@@ -5419,9 +5419,10 @@
     <section class="panel" id="panel-adhoc">
       <!-- v3 IA: Alt-Data left the nav; Research is the one report surface.
            The alt-data panel + route still exist as a deep-dive. -->
-      <p class="tab-sub" style="margin-bottom:10px">Looking for satellite /
-        app-usage / web-traffic lookups? <a href="#alt-data">Alt-data
-        reports &rarr;</a></p>
+      <p class="tab-sub" style="margin-bottom:10px">Need a social read on a
+        name? <a href="#alt-data" data-go-tab="alt-data">Alt-data report
+        &rarr;</a> &mdash; StockTwits sentiment, Reddit chatter, news flow +
+        web context, synthesized per ticker.</p>
       <!-- Generate new ad-hoc report — primary action -->
       <div class="card">
         <h2>Generate a new ad-hoc report
@@ -14175,6 +14176,19 @@
     console.log("[route] initial panel: " + initialActive.id +
                 " (tab: " + initialTab + ")");
   }
+  // Deep links: any element with data-go-tab switches panels exactly like
+  // a nav click. Needed since the v3 IA delisted some tabs from the nav —
+  // plain #hash hrefs do NOT route (the router is button-driven; hash was
+  // never wired to it).
+  window.tdGoTab = setActivePanel;
+  document.addEventListener("click", function (e) {
+    const a = e.target.closest && e.target.closest("[data-go-tab]");
+    if (!a) return;
+    e.preventDefault();
+    setActivePanel(a.dataset.goTab);
+    try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (_) {}
+  });
+
   const nav = document.getElementById("nav");
   nav.addEventListener("click", function (e) {
     if (e.target.tagName !== "BUTTON") return;
@@ -17335,10 +17349,10 @@
         '· Stockbee Weekly · Breakout screen · bullish flow. Confirmations ' +
         'count: a name on 3+ engines is the strongest momentum read this ' +
         'site produces. Deep-dives: ' +
-        '<a href="#qm-monthly">QM Monthly</a> · ' +
-        '<a href="#stockbee-weekly">Stockbee Weekly</a> · ' +
-        '<a href="#breakout">Breakouts</a> · ' +
-        '<a href="#setup">Setups</a></span></div>' +
+        '<a href="#qm-monthly" data-go-tab="qm-monthly">QM Monthly</a> · ' +
+        '<a href="#stockbee-weekly" data-go-tab="stockbee-weekly">Stockbee Weekly</a> · ' +
+        '<a href="#breakout" data-go-tab="breakout">Breakouts</a> · ' +
+        '<a href="#setup" data-go-tab="setup">Setups</a></span></div>' +
         '<div class="mlab-row mlab-hdr"><span>Ticker</span><span>Engines</span>' +
         '<span class="ee-num">Day %</span><span class="ee-num">RVol</span>' +
         '<span class="ee-num">Ext</span>' +
