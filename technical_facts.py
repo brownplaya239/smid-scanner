@@ -226,6 +226,32 @@ def build():
     for i, t in enumerate(ranked):
         facts[t]["rs_rank"] = round(100.0 * (i + 1) / len(ranked)) if len(ranked) > 1 else 50
 
+    # Correlation map (portfolio awareness): pairwise 60-session daily-
+    # return correlation across the universe; each name keeps its top-5
+    # positively-correlated peers at r >= 0.60. Powers the "highly
+    # correlated with names you already hold" warning — scoped to tracked
+    # names, which is disclosed wherever it's shown.
+    try:
+        import pandas as pd
+        closes = {}
+        for tk in list(facts.keys()):
+            df = frame(tk)
+            if df is not None:
+                closes[tk] = df["Close"]
+        cm = (pd.DataFrame(closes).pct_change().tail(60)
+              .corr(min_periods=40))
+        for tk in facts:
+            if tk not in cm.columns:
+                continue
+            peers = cm[tk].drop(labels=[tk], errors="ignore").dropna()
+            top = peers[peers >= 0.60].sort_values(ascending=False)[:5]
+            if len(top):
+                facts[tk]["corr"] = [
+                    {"t": p, "r": round(float(r), 2)}
+                    for p, r in top.items()]
+    except Exception as e:
+        print(f"  correlation map skipped (non-fatal): {e}")
+
     print(f"  computed {len(facts)} names ({skipped} skipped — thin history)")
     return {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),

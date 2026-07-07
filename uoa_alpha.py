@@ -822,6 +822,132 @@ def _counterfactuals(scored):
     return out
 
 
+# ── Stop × target counterfactual grid ────────────────────────────────────
+# "What if every signal ran with a X% stop and a Y% target?" — answerable
+# from the per-signal MFE/MAE already in the ledger. Frame + assumptions
+# (stated in the payload, and they matter):
+#   • +20-session window (that's what MFE/MAE measure), RAW underlying
+#     return (stops/targets act on price, not on SPY-excess)
+#   • direction-aware: for bearish signals favorable = −MAE, adverse = −MFE
+#   • PESSIMISTIC ordering: when both stop and target were breached inside
+#     the window, the STOP is assumed to have hit first. Daily bars can't
+#     order intraweek extremes, so we take the conservative branch — real
+#     results can only be better than shown.
+GRID_STOPS   = (5.0, 8.0, 12.0)
+GRID_TARGETS = (8.0, 15.0, 25.0)
+GRID_MIN_N   = 500
+
+
+def _stop_target_grid(scored):
+    rows = []
+    for s in scored:
+        d = s.get("direction")
+        if d not in ("bullish", "bearish"):
+            continue
+        exc = s.get("excursion") or {}
+        r20 = (s.get("returns") or {}).get(20) or \
+              (s.get("returns") or {}).get("20")
+        mfe, mae = exc.get("mfe"), exc.get("mae")
+        fin = (r20 or {}).get("ret")
+        if mfe is None or mae is None or fin is None:
+            continue
+        if d == "bullish":
+            rows.append((mfe, mae, fin, (s.get("trade_score") or 0)))
+        else:
+            rows.append((-mae, -mfe, -fin, (s.get("trade_score") or 0)))
+    if len(rows) < GRID_MIN_N:
+        return {"status": "accruing", "n": len(rows),
+                "activates_at": GRID_MIN_N}
+
+    def cell(rs, stop, target):
+        outs = []
+        for fav, adv, fin, _ in rs:
+            if adv <= -stop:
+                outs.append(-stop)          # pessimistic: stop first
+            elif fav >= target:
+                outs.append(target)
+            else:
+                outs.append(fin)
+        n = len(outs)
+        return {"n": n,
+                "hit": round(100 * sum(1 for r in outs if r > 0) / n),
+                "avg": round(sum(outs) / n, 2),
+                "stopped_pct": round(100 * sum(1 for _, a, _f, _sc in rs
+                                               if a <= -stop) / n)}
+
+    def table(rs):
+        base_rets = [f for _, _, f, _ in rs]
+        base = {"n": len(base_rets),
+                "hit": round(100 * sum(1 for r in base_rets if r > 0)
+                             / len(base_rets)),
+                "avg": round(sum(base_rets) / len(base_rets), 2)}
+        grid = {}
+        for st in GRID_STOPS:
+            for tg in GRID_TARGETS:
+                grid[f"{st:g}/{tg:g}"] = cell(rs, st, tg)
+        return {"baseline_hold20": base, "grid": grid}
+
+    hi = [r for r in rows if r[3] >= 80]
+    out = {"status": "active",
+           "assumptions": ("20-session window, raw underlying return, "
+                           "direction-aware, pessimistic ordering (stop "
+                           "assumed first when both levels hit)"),
+           "stops": list(GRID_STOPS), "targets": list(GRID_TARGETS),
+           "all": table(rows)}
+    if len(hi) >= GRID_MIN_N:
+        out["score_80_plus"] = table(hi)
+    return out
+
+
+# ── Rank-quality audit: outcomes by trade-score decile ───────────────────
+# The whole product publishes a ranking; this checks the ranking is real.
+# Deciles of trade_score vs direction-signed +5d excess. If the top decile
+# doesn't beat the bottom, the scoring needs re-examination — better we
+# find out here than a customer does.
+DECILE_MIN_N = 1000
+
+
+def _score_deciles(scored):
+    rows = []
+    for s in scored:
+        w = _ew_win(s)
+        if w is None:
+            continue
+        r5 = (s.get("returns") or {}).get(5) or \
+             (s.get("returns") or {}).get("5")
+        exc = (r5 or {}).get("excess")
+        if exc is None:
+            continue
+        signed = exc if s.get("direction") == "bullish" else -exc
+        rows.append(((s.get("trade_score") or 0), signed))
+    if len(rows) < DECILE_MIN_N:
+        return {"status": "accruing", "n": len(rows),
+                "activates_at": DECILE_MIN_N}
+    rows.sort(key=lambda x: x[0])
+    n = len(rows)
+    deciles = []
+    for i in range(10):
+        chunk = rows[i * n // 10:(i + 1) * n // 10]
+        if not chunk:
+            continue
+        vals = [v for _, v in chunk]
+        deciles.append({
+            "d": i + 1,
+            "score_lo": round(chunk[0][0]), "score_hi": round(chunk[-1][0]),
+            "n": len(chunk),
+            "hit": round(100 * sum(1 for v in vals if v > 0) / len(vals)),
+            "avg_exc": round(sum(vals) / len(vals), 2),
+        })
+    top, bot = deciles[-1], deciles[0]
+    mono_up = sum(1 for a, b in zip(deciles, deciles[1:])
+                  if b["avg_exc"] >= a["avg_exc"])
+    return {"status": "active", "n": n, "deciles": deciles,
+            "top_minus_bottom": round(top["avg_exc"] - bot["avg_exc"], 2),
+            "monotonic_steps": f"{mono_up}/{len(deciles) - 1}",
+            "note": ("direction-signed +5d excess vs SPY by trade-score "
+                     "decile — the ranking's own report card")}
+
+
 def _emit_edge_weights(scored):
     """Compute per-feature adjustments from matured directional outcomes and
     publish the versioned weights file the scanner reads next run."""
@@ -914,6 +1040,24 @@ def run():
                   f"avg {v['avg_exc']:+.2f}%/trade (dir-signed +5d excess)")
     except Exception as e:
         print(f"  counterfactuals failed (non-fatal): {e}")
+    try:
+        edge["stop_target_grid"] = _stop_target_grid(scored)
+        g = edge["stop_target_grid"]
+        if g.get("status") == "active":
+            b = g["all"]["baseline_hold20"]
+            print(f"  stop/target grid: n={b['n']} baseline hold-20d "
+                  f"hit {b['hit']}% avg {b['avg']:+.2f}%")
+    except Exception as e:
+        print(f"  stop_target_grid failed (non-fatal): {e}")
+    try:
+        edge["score_deciles"] = _score_deciles(scored)
+        sd = edge["score_deciles"]
+        if sd.get("status") == "active":
+            print(f"  rank audit: top-bottom decile spread "
+                  f"{sd['top_minus_bottom']:+.2f}pp "
+                  f"({sd['monotonic_steps']} steps monotonic, n={sd['n']})")
+    except Exception as e:
+        print(f"  score_deciles failed (non-fatal): {e}")
     cohorts = {"generated": edge.get("generated"),
                "by_ticker": edge.pop("by_ticker", {}),
                "by_theme":  edge.pop("by_theme", {})}

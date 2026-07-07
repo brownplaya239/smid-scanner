@@ -120,12 +120,21 @@ def mature(log):
             window = vals[i0 + 1: i0 + HOLD_D + 1]
             if r["dir"] == "bull":
                 dd = 100.0 * (min(window) / e - 1.0)
+                peak_i = max(range(len(window)), key=lambda i: window[i])
+                trough_i = min(range(len(window)), key=lambda i: window[i])
                 win = ret > 0
             else:
                 dd = 100.0 * (max(window) / e - 1.0)   # adverse = rally
+                peak_i = min(range(len(window)), key=lambda i: window[i])
+                trough_i = max(range(len(window)), key=lambda i: window[i])
                 win = ret < 0
             r["ret"] = round(ret, 2)
             r["dd"] = round(dd, 2)
+            # time-to-target labels (Tier-1 completion): sessions until the
+            # best and worst closes of the hold — powers "how long do these
+            # setups take to work?" once per-grade stats activate
+            r["peak_d"] = peak_i + 1
+            r["trough_d"] = trough_i + 1
             r["win"] = win
             graded += 1
     return graded

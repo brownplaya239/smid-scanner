@@ -234,6 +234,21 @@ def build():
                     chg[c["t"]] = c["chg"]
 
     picks = compute_picks(swing, uoa, qm, sb)
+    # Attribution context, stamped AT PICK TIME (Tier-5 completion): the
+    # market regime and the name's technical state when we recommended it.
+    # Six months from now "stopped: entered extended in risk-off" becomes
+    # a query instead of an anecdote. Missing sources degrade to None.
+    regime = None
+    rh = _load("regime_history.json")
+    if rh and rh.get("days"):
+        regime = rh["days"][-1].get("label")
+    fmap = (_load("technical_facts.json") or {}).get("facts") or {}
+    for p in picks:
+        f = fmap.get(p["t"]) or {}
+        p["ctx"] = {"regime": regime,
+                    "ext20": f.get("ema20_dist"),
+                    "rs_rank": f.get("rs_rank"),
+                    "trend": f.get("trend")}
     hist = append_picks(today, picks)
     graded = grade_prior(hist, today, chg)
     calibration, record = calibration_and_record(hist)

@@ -62,20 +62,24 @@ jobs:
         continue-on-error: true
         run: python missed_opportunities.py
 
-      - name: Evening review (self-grade + tomorrow's watchlist)
-        # Grades yesterday's picks against today's closes, logs tonight's
-        # picks, folds in learner status + the missed audit. File-only
-        # inputs (no network) — runs after the steps that produce them.
-        continue-on-error: true
-        run: python evening_review.py
-
       - name: Technical fact table (EMAs/RSI/ATR/RS for surfaced names)
         # One nightly computation feeding grade decomposition, the Daily
-        # Brief hero trade plan, RS panels, and upgrade reasons. Runs
-        # AFTER evening_review so the picks are in the fact universe.
+        # Brief hero trade plan, RS panels, upgrade reasons, and the
+        # correlation map. Runs BEFORE evening_review so tonight's picks
+        # get stamped with their technical context at pick time (the
+        # facts universe covers the grade ladders picks are drawn from;
+        # yesterday's picks keep it warm for tomorrow's universe).
         # Non-fatal: yfinance flakes must never block the publish step.
         continue-on-error: true
         run: python technical_facts.py
+
+      - name: Evening review (self-grade + tomorrow's watchlist)
+        # Grades yesterday's picks against today's closes, logs tonight's
+        # picks (with regime + technical attribution context), folds in
+        # learner status + the missed audit. File-only inputs (no
+        # network) — runs after the steps that produce them.
+        continue-on-error: true
+        run: python evening_review.py
 
       - name: Setup outcome tracker (gated historical performance)
         # Logs tonight's top-graded cohort and matures 5-session-old
@@ -83,6 +87,14 @@ jobs:
         # ("accruing") until n>=30 — nothing publishes before it's real.
         continue-on-error: true
         run: python setup_outcomes.py
+
+      - name: Hypothesis lab (weekly, self-gated)
+        # Pairwise feature hypotheses over the matured ledger; three
+        # gates (sample, split-half stability, time-ordered holdout).
+        # Survivors are review candidates ONLY — nothing auto-applies.
+        # Internally no-ops except Fridays / stale output.
+        continue-on-error: true
+        run: python hypothesis_lab.py
 
       - name: Refresh economic calendar
         run: python economic_calendar.py

@@ -19862,6 +19862,22 @@
           rpush("options flow disagrees with the trend");
         if ((card.mcap || 0) > 0 && card.mcap < 500e6)
           rpush("sub-$500M — size for liquidity");
+        // Portfolio awareness: warn when this pick moves with names the
+        // user already stars (60d daily-return correlation from the fact
+        // table, r>=0.70, among tracked names). Adding a fourth NVDA
+        // isn't a new idea — it's the same bet, bigger.
+        try {
+          const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
+          const peers = (((window.TD_DATA || {}).facts || {})[t] || {}).corr;
+          if (wl.size && peers) {
+            const hits = peers.filter(function (p) {
+              return p.r >= 0.70 && wl.has(p.t) && p.t !== t; }).slice(0, 2);
+            if (hits.length)
+              rpush("moves with your " + hits.map(function (p) {
+                return p.t + " (r " + p.r.toFixed(2) + ")"; }).join(", ") +
+                " — concentration, not diversification");
+          }
+        } catch (_) {}
         const risk = risks.slice(0, 3);
 
         // scores: conviction = confluence strength; opportunity = conviction
@@ -20344,6 +20360,9 @@
         fetchJSON("./reports/missed_opportunities.json"),
         // Nightly self-grade: yesterday's picks vs today's closes.
         fetchJSON("./reports/evening_review.json"),
+        // Technical fact table (~10KB): EMA/RSI/ATR/RS + correlation map
+        // for surfaced names — powers the correlation warning chips.
+        fetchJSON("./reports/technical_facts.json"),
       ]).then(function (arr) {
         const swing = arr[1], uoaMeta = arr[6];
         DESK_DATE = (swing && swing.runs && swing.runs.length)
@@ -20360,6 +20379,7 @@
         window.TD_DATA.carryover = arr[7];
         window.TD_DATA.missed = arr[8];
         window.TD_DATA.evening = arr[9];
+        window.TD_DATA.facts = ((arr[10] || {}).facts) || {};
       });
     }
     // Render the desk grid from whatever is already in window.TD_DATA — no
@@ -22200,6 +22220,51 @@
             'window.</div></div>');
         }
       } catch (_) {}
+      // Rank audit — the ranking's own report card. If the top decile
+      // doesn't beat the bottom, we say so here before a customer does.
+      try {
+        const sd = edge.score_deciles || {};
+        if (sd.status === "active" && sd.deciles && sd.deciles.length >= 10) {
+          const top = sd.deciles[sd.deciles.length - 1], bot = sd.deciles[0];
+          const spread = sd.top_minus_bottom;
+          const cls = spread >= 1 ? "pos" : spread <= 0 ? "neg" : "neutral";
+          cards.push('<div class="ecard"><div class="et">Rank Audit — raw score deciles</div>' +
+            '<div class="ev ' + cls + '">' + (spread > 0 ? "+" : "") + spread + 'pp</div>' +
+            '<div class="es">Top decile (score ' + top.score_lo + '–' + top.score_hi +
+            ') ' + (top.avg_exc > 0 ? "+" : "") + top.avg_exc + '% vs bottom ' +
+            (bot.avg_exc > 0 ? "+" : "") + bot.avg_exc + '% (+5d excess, dir-signed, n=' +
+            sd.n.toLocaleString() + '). ' + sd.monotonic_steps + ' steps monotonic. ' +
+            'Raw score only — the learned edge adjustments are where ' +
+            'ranking power comes from; this audit keeps that claim honest.</div></div>');
+        }
+      } catch (_) {}
+      // Stop×target counterfactual grid — headline finding + best cell.
+      try {
+        const g = edge.stop_target_grid || {};
+        if (g.status === "active" && g.all) {
+          const base = g.all.baseline_hold20;
+          const cells = g.all.grid || {};
+          let bestK = null;
+          Object.keys(cells).forEach(function (k) {
+            if (!bestK || cells[k].avg > cells[bestK].avg) bestK = k;
+          });
+          const tight = cells["5/8"] || cells["5/15"];
+          if (bestK) {
+            const b = cells[bestK];
+            cards.push('<div class="ecard"><div class="et">Stop/Target Lab — 20-session grid</div>' +
+              '<div class="ev neutral" style="font-size:12px;line-height:1.5;font-weight:500">' +
+              '<div style="margin:2px 0">hold to +20d: <b class="' + (base.avg > 0 ? "pos" : "neg") + '">' +
+                (base.avg > 0 ? "+" : "") + base.avg + '%</b> (' + base.hit + '% hit)</div>' +
+              '<div style="margin:2px 0">best cell ' + bestK + '% stop/target: <b class="' +
+                (b.avg > 0 ? "pos" : "neg") + '">' + (b.avg > 0 ? "+" : "") + b.avg + '%</b> (' +
+                b.hit + '% hit)</div>' +
+              (tight ? '<div style="margin:2px 0" class="neg">⚠ 5% stops fired ' +
+                tight.stopped_pct + '% of the time — too tight for these names</div>' : '') +
+              '</div><div class="es">n=' + base.n.toLocaleString() + ' matured signals. ' +
+              (g.assumptions || "") + '</div></div>');
+          }
+        }
+      } catch (_) {}
       // Edge-freshness card — the decay tracker, surfaced. An edge that
       // worked 90 days ago may be dead today; show the dying + improving
       // features so users stop leaning on stale patterns.
@@ -22237,6 +22302,34 @@
               'learner; this is your early warning.</div>';
             const host = $("uoa-edge");
             if (host) host.appendChild(el2);
+          }).catch(function () {});
+      } catch (_) {}
+      // Hypothesis Lab card — the weekly quant lab's survivors. Candidates
+      // for review, never auto-applied; the honesty line ships with them.
+      try {
+        fetch("./reports/hypothesis_lab.json", { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (hl) {
+            if (!hl || hl.status !== "active") return;
+            const sv = hl.survivors || [];
+            const rows = sv.slice(0, 3).map(function (s) {
+              return '<div style="margin:2px 0">' +
+                window.escapeHtml(s.hypothesis.replace(/tag:/g, "")) +
+                ': <b class="pos">+' + s.oos_lift_pp + 'pp OOS</b> ' +
+                '<span class="scp-edge-n">(n=' + s.train.n.toLocaleString() +
+                ' · ' + s.train.hit + '% hit)</span></div>';
+            }).join("");
+            const el3 = document.createElement("div");
+            el3.className = "ecard";
+            el3.innerHTML = '<div class="et">Hypothesis Lab — weekly survivors</div>' +
+              '<div class="ev neutral" style="font-size:12px;line-height:1.5;font-weight:500">' +
+              (rows || '<div>0 survivors this week — no new edge found</div>') +
+              '</div><div class="es">' + hl.n_tested + ' pair hypotheses tested; ' +
+              (hl.graveyard || 0) + ' failed sample/stability/holdout gates. ' +
+              'Survivors are review candidates — with ' + hl.n_tested +
+              ' tested, a few will be luck. Nothing auto-applies.</div>';
+            const host3 = $("uoa-edge");
+            if (host3) host3.appendChild(el3);
           }).catch(function () {});
       } catch (_) {}
       // False-positive honesty card — the inverse of the hit rate, per
