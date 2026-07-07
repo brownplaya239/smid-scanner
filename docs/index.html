@@ -14558,7 +14558,13 @@
           if (c.chg != null) score += Math.min(c.chg * 2, 20);
           candidates.push({
             ticker: c.t, name: c.n || "", grade: g,
-            sector: c.sec || "", theme: (c.th && c.th[0]) || "",
+            sector: c.sec || "",
+            // curated theme when the name is in the taxonomy; sector
+            // fallback otherwise (only ~1/4 of A-tier names are in the
+            // hand-curated theme map — a blank cell reads as missing
+            // data when it just means "no marquee narrative")
+            theme: (c.th && c.th[0]) ||
+              (c.sec ? c.sec.split("/")[0].trim() : ""),
             price: c.p, chg: c.chg, ext: c.ext, mcap: c.mcap,
             flow: flow, score: Math.round(score),
             watched: watchlist.has(c.t),
@@ -14603,7 +14609,13 @@
           else label = "Needs Volume";
           candidates.push({
             ticker: c.t, name: c.n || "", grade: g,
-            sector: c.sec || "", theme: (c.th && c.th[0]) || "",
+            sector: c.sec || "",
+            // curated theme when the name is in the taxonomy; sector
+            // fallback otherwise (only ~1/4 of A-tier names are in the
+            // hand-curated theme map — a blank cell reads as missing
+            // data when it just means "no marquee narrative")
+            theme: (c.th && c.th[0]) ||
+              (c.sec ? c.sec.split("/")[0].trim() : ""),
             price: c.p, chg: c.chg, ext: ext,
             flow: flow, score: Math.round(score),
             watched: watchlist.has(c.t),
