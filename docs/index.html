@@ -2175,8 +2175,17 @@
     padding-top:7px; border-top:1px solid var(--line); line-height:1.5; }
 
   /* Opportunities — universal decision cards (Today's Desk spine) */
-  .opc-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; }
-  .opc { flex:1 0 228px; min-width:228px; max-width:300px; cursor:pointer;
+  /* Desktop: exactly 5 across — 10 picks form two clean rows. Tablet
+     drops to 3 columns; phones keep the original swipe row (a 10-card
+     vertical stack would swallow the desk). */
+  .opc-row { display:grid; grid-template-columns:repeat(5, minmax(0,1fr));
+    gap:10px; padding-bottom:4px; }
+  @media (max-width:1150px) {
+    .opc-row { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+  @media (max-width:860px) {
+    .opc-row { display:flex; overflow-x:auto; }
+    .opc { flex:1 0 228px; min-width:228px; max-width:300px; } }
+  .opc { cursor:pointer;
     background:var(--navy2); border:1px solid var(--line); border-radius:9px;
     display:flex; flex-direction:column; overflow:hidden;
     transition:border-color .12s ease; }
@@ -19774,7 +19783,7 @@
       };
       let bulls = entries.filter(function (x) { return x.cat === "confirm-bull"; })
                          .sort(rank("bull"));
-      if (bulls.length < 4) {
+      if (bulls.length < 8) {
         bulls = bulls.concat(
           entries.filter(function (x) {
             return x.cat === "hedge" && /^A/.test(x.e.grade || "");
@@ -19782,8 +19791,10 @@
       }
       const bears = entries.filter(function (x) { return x.cat === "confirm-bear"; })
                            .sort(rank("bear"));
-      const picks = bulls.slice(0, 4).map(function (x) { x.dir = "bull"; return x; });
-      if (bears.length) { bears[0].dir = "bear"; picks.push(bears[0]); }
+      // 10 picks = two clean rows of 5 on desktop: 8 ranked bulls + up to
+      // 2 bears so the second row still carries the other side of the tape.
+      const picks = bulls.slice(0, 8).map(function (x) { x.dir = "bull"; return x; });
+      bears.slice(0, 2).forEach(function (b) { b.dir = "bear"; picks.push(b); });
       if (!picks.length) return "";
 
       const clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
