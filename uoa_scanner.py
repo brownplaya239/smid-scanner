@@ -560,6 +560,71 @@ def is_golden_sweep(row, flow):
     return True
 
 
+# ─── Learned edge adjustment (self-learning feedback loop) ───────────────────
+# uoa_alpha.py grades every ledger signal's +5d direction-aware outcome and
+# publishes per-feature adjustments to data/edge_weights.json (shrunk toward
+# the prior, min-N gated, per-feature clamped ±4). The scanner applies the
+# bounded sum here — so the rank reflects what has ACTUALLY worked, not just
+# today's print anatomy. Walk-forward: weights are computed only from signals
+# whose outcomes matured ≥5 sessions ago. Fail-open: any problem with the
+# file means zero adjustment (identical to pre-learning behavior).
+EDGE_WEIGHTS_PATH = os.path.join(_BASE, "data", "edge_weights.json")
+EDGE_TOTAL_MAX = 8.0     # total learned adjustment clamp (points)
+_EDGE_W = None           # lazy cache: {"features": {...}} or {} once loaded
+
+
+def _edge_weights():
+    global _EDGE_W
+    if _EDGE_W is None:
+        try:
+            with open(EDGE_WEIGHTS_PATH, encoding="utf-8") as f:
+                data = json.load(f)
+            feats = data.get("features") or {}
+            # sanity: adjs must be small numbers, else treat file as bad
+            ok = all(isinstance(v.get("adj"), (int, float)) and abs(v["adj"]) <= 10
+                     for v in feats.values())
+            _EDGE_W = {"features": feats, "version": data.get("version")} if ok else {}
+            if _EDGE_W:
+                print(f"  edge_weights: {len(feats)} features "
+                      f"(v{data.get('version', '?')[:10]})")
+        except Exception:
+            _EDGE_W = {}       # no file / malformed -> no adjustment
+    return _EDGE_W
+
+
+def _dte_bucket_ew(dte):
+    """Mirror of uoa_alpha._dte_bucket — keep in lockstep."""
+    if dte is None:  return "unknown"
+    if dte <= 14:    return "urgent"
+    if dte <= 90:    return "swing"
+    if dte <= 365:   return "positioning"
+    return "leaps"
+
+
+def edge_adjust(row):
+    """(bounded adjustment, ["Golden Sweep +2.1", ...]) for one ranked row.
+    Feature keys mirror uoa_alpha._ew_features exactly."""
+    w = _edge_weights().get("features")
+    if not w:
+        return 0.0, []
+    sig_type = ("golden_sweep" if row.get("golden")
+                else ("sweep" if (row.get("flow") or {}).get("sweeps") else "voloi"))
+    keys = [f"type:{sig_type}",
+            f"dte:{_dte_bucket_ew(row.get('dte'))}",
+            f"cap:{row.get('cap_bucket') or 'unknown'}",
+            f"liq:{row.get('liquidity') or 'C'}"]
+    keys += [f"tag:{t}" for t in (row.get("tags") or [])]
+    total, why = 0.0, []
+    for k in keys:
+        f = w.get(k)
+        if not f or not f.get("adj"):
+            continue
+        total += f["adj"]
+        why.append(f"{k.split(':', 1)[1]} {f['adj']:+.1f}")
+    total = max(-EDGE_TOTAL_MAX, min(EDGE_TOTAL_MAX, total))
+    return round(total, 1), why
+
+
 # ─── Trade Score ──────────────────────────────────────────────────────────────
 
 def trade_score(row, flow):
@@ -930,6 +995,14 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
                 tags.append("Into ERN")
             if row["in_universe"]:       tags.append("In Universe")
             row["tags"] = tags
+            # learned edge adjustment — bounded, explainable, fail-open.
+            # Applied after tags exist (they're features) and re-tiers.
+            adj, ewhy = edge_adjust(row)
+            row["edge_adj"] = adj
+            row["edge_why"] = ewhy
+            if adj:
+                row["trade_score"] = max(0, min(100, round(row["trade_score"] + adj)))
+                row["tier"] = _tier(row["trade_score"], row["golden"])
             row["why"]  = _why(row, flow)
             return row
         except Exception as e:
@@ -979,6 +1052,9 @@ def append_ledger(rows, min_score=55):
                 "open_interest": r["open_interest"], # flag-day OI — baseline for
                                                      # next-day OI-retention check
                 "tags":        r["tags"],
+                # learned-edge adjustment baked into trade_score above —
+                # recorded so future analysis can separate raw vs learned rank
+                "edge_adj":    r.get("edge_adj", 0),
             }) + "\n")
             n += 1
     print(f"  Ledger: appended {n} signals (score >= {min_score})")
@@ -1168,6 +1244,10 @@ def emit_latest(rows):
             "in_universe":   r["in_universe"],
             "trade_score":   r["trade_score"],
             "score_components": r.get("score_components", {}),
+            # learned-edge feedback (self-learning loop) — surfaced so the
+            # score popover can show "Learned edge +3.2 (Golden Sweep +2.1…)"
+            "edge_adj":      r.get("edge_adj", 0),
+            "edge_why":      r.get("edge_why", []),
             "tier":          r.get("tier", "C"),
             "flow_side":     r.get("flow_side", "unknown"),
             "direction":     r.get("direction", "hedge"),

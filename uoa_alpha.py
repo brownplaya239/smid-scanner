@@ -628,6 +628,109 @@ def _emit_scored(scored):
         json.dump(payload, f, separators=(",", ":"))
 
 
+# ── Learning loop: outcome-derived edge weights ──────────────────────────
+# Turns the matured-outcome ledger into a small, bounded feedback signal the
+# scanner consumes on its NEXT run. Walk-forward by construction: a signal's
+# +5d outcome only exists ≥5 sessions after it was scored, so today's weights
+# never see today's signals. Guardrails, in order of importance:
+#   • min-N gate (EW_MIN_N) — features without a real sample emit nothing
+#   • shrinkage toward the global prior (EW_SHRINK_K pseudo-observations) —
+#     small cohorts barely move, huge cohorts converge to their true rate
+#   • per-feature clamp (±EW_PER_MAX pts) and scanner-side total clamp —
+#     learning can nudge a rank, never flip the board
+#   • versioned output with previous-version adjs — every change observable,
+#     rollback = git revert of one small JSON
+EW_PATH        = os.path.join(_BASE, "data", "edge_weights.json")
+EW_SITE_PATH   = os.path.join(_BASE, "docs", "reports", "edge_weights.json")
+EW_MIN_N       = 200    # min matured signals before a feature may emit
+EW_SHRINK_K    = 200    # pseudo-observations pulled toward the prior
+EW_SCALE       = 80     # 5% shrunk lift -> 4.0 score points
+EW_PER_MAX     = 4.0    # per-feature clamp (points)
+
+
+def _ew_win(s):
+    """Direction-aware +5d excess win, or None if not gradeable. Bullish
+    wins when excess > 0; bearish when excess < 0. Income/hedge structures
+    aren't graded by underlying direction, so they're excluded."""
+    d = s.get("direction")
+    if d not in ("bullish", "bearish"):
+        return None
+    r5 = (s.get("returns") or {}).get(5) or (s.get("returns") or {}).get("5")
+    exc = (r5 or {}).get("excess")
+    if exc is None:
+        return None
+    return (exc > 0) if d == "bullish" else (exc < 0)
+
+
+def _ew_features(s):
+    """Feature keys for one signal — must be computable at SCAN time from the
+    same fields, so the scanner can mirror this exactly."""
+    feats = [f"type:{s.get('signal_type')}",
+             f"dte:{_dte_bucket(s.get('dte'))}",
+             f"cap:{s.get('cap_bucket') or 'unknown'}",
+             f"liq:{s.get('liquidity') or 'C'}"]
+    feats += [f"tag:{t}" for t in (s.get("tags") or []) if t in ATTRIB_TAGS]
+    return feats
+
+
+def _emit_edge_weights(scored):
+    """Compute per-feature adjustments from matured directional outcomes and
+    publish the versioned weights file the scanner reads next run."""
+    graded = [(s, w) for s in scored for w in [_ew_win(s)] if w is not None]
+    if len(graded) < EW_MIN_N * 2:
+        print(f"  edge_weights: only {len(graded)} gradeable signals — skipping")
+        return None
+    prior = sum(1 for _, w in graded if w) / len(graded)
+
+    stats = {}
+    for s, w in graded:
+        for f in _ew_features(s):
+            st = stats.setdefault(f, [0, 0])          # [n, wins]
+            st[0] += 1
+            st[1] += 1 if w else 0
+
+    prev = {}
+    prev_version = None
+    try:
+        with open(EW_PATH, encoding="utf-8") as f:
+            old = json.load(f)
+        prev_version = old.get("version")
+        prev = {k: v.get("adj") for k, v in (old.get("features") or {}).items()}
+    except Exception:
+        pass
+
+    features = {}
+    for key, (n, wins) in sorted(stats.items()):
+        if n < EW_MIN_N:
+            continue
+        shrunk = (wins + EW_SHRINK_K * prior) / (n + EW_SHRINK_K)
+        lift = shrunk - prior
+        adj = round(max(-EW_PER_MAX, min(EW_PER_MAX, lift * EW_SCALE)), 1)
+        features[key] = {
+            "n": n, "win": round(wins / n, 3), "shrunk": round(shrunk, 3),
+            "lift": round(lift, 3), "adj": adj,
+        }
+        if prev.get(key) is not None and abs(adj - prev[key]) >= 0.5:
+            print(f"  edge_weights Δ {key}: {prev[key]:+.1f} -> {adj:+.1f}")
+
+    payload = {
+        "version":      datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "prev_version": prev_version,
+        "prior":        round(prior, 4),
+        "graded":       len(graded),
+        "params": {"min_n": EW_MIN_N, "shrink_k": EW_SHRINK_K,
+                   "scale": EW_SCALE, "per_max": EW_PER_MAX},
+        "features":     features,
+    }
+    for path in (EW_PATH, EW_SITE_PATH):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=1)
+    print(f"  Wrote edge_weights.json — {len(features)} features from "
+          f"{len(graded)} graded signals (prior {prior:.1%})")
+    return payload
+
+
 def run():
     """Compute edge stats + per-signal scorecards; publish both JSON files."""
     edge, scored = compute_edge()
@@ -635,6 +738,10 @@ def run():
     with open(EDGE_PATH, "w", encoding="utf-8") as f:
         json.dump(edge, f, indent=1)
     _emit_scored(scored)
+    try:
+        _emit_edge_weights(scored)
+    except Exception as e:
+        print(f"  edge_weights failed (non-fatal): {e}")
     o5 = edge["overall"].get("5", {})
     oc = edge["oi_confirmation"]
     print(f"  Wrote uoa_edge.json + uoa_signals_scored.json — "
