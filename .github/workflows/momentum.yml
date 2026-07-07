@@ -75,6 +75,13 @@ jobs:
       - name: Refresh Earnings Whisper anticipated calendar
         run: python earnings_anticipated.py
 
+      - name: Earnings edge (implied vs realized move + verdicts)
+        # yfinance (keyless) history vs the flow scanner's front-expiry
+        # option read. Non-fatal — Yahoo rate limits must never block
+        # the publish step.
+        continue-on-error: true
+        run: python earnings_edge.py
+
       - name: Auto-discover @eWhispers weekly tweet image
         # Twitter's syndication endpoint rate-limits aggressively; a 429
         # or any other failure here must NEVER block the publish step

@@ -629,6 +629,36 @@
   .evr-bull { background:rgba(31,179,99,0.14); color:#7ddfa1; }
   .evr-bear { background:rgba(214,68,68,0.14); color:#f08585; }
   .evr-pick:hover { outline:1px solid var(--gold); }
+  /* Earnings Edge table (Earnings tab) */
+  .ee-card { background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:13px 15px; margin-bottom:16px; }
+  .ee-head { font-size:13px; font-weight:800; color:var(--text);
+    margin-bottom:9px; }
+  .ee-sub { display:block; font-size:10.5px; font-weight:500;
+    color:var(--muted); margin-top:3px; line-height:1.45; }
+  .ee-row { display:grid; align-items:baseline; gap:6px 10px;
+    grid-template-columns:60px 92px 64px 64px 56px 56px 70px;
+    padding:5px 2px; border-bottom:1px solid var(--line); font-size:12px;
+    cursor:default; }
+  .ee-row:last-child { border-bottom:0; }
+  .ee-hdr { font-size:9px; font-weight:800; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--muted); }
+  .ee-tk { font-weight:800; color:var(--text); cursor:pointer; }
+  .ee-row:hover .ee-tk { color:var(--gold); }
+  .ee-when { color:var(--muted); font-size:11px; }
+  .ee-num { text-align:right; font-variant-numeric:tabular-nums;
+    color:var(--textdim); }
+  .ee-num.pos { color:var(--green); font-weight:700; }
+  .ee-num.neg { color:var(--red); font-weight:700; }
+  .ee-verdict { font-size:9.5px; font-weight:800; padding:1px 7px;
+    border-radius:4px; }
+  .ee-trade { background:rgba(31,179,99,0.16); color:#7ddfa1; }
+  .ee-watch { background:rgba(255,200,0,0.14); color:var(--gold); }
+  .ee-avoid { background:rgba(214,68,68,0.16); color:#f08585; }
+  @media (max-width:640px) {
+    .ee-row { grid-template-columns:52px 74px 54px 54px 46px 46px 60px;
+      font-size:11px; }
+  }
 
   /* "What's New Since Last Visit" widget — top of My Desk */
   .whats-new { background:linear-gradient(135deg,
@@ -5447,6 +5477,9 @@
            so traders see what matters TODAY without scrolling through
            the full week grid. -->
       <div id="whisper-summary"></div>
+      <!-- Earnings Edge — implied vs historically-realized move + verdict,
+           generated post-close by earnings_edge.py. -->
+      <div id="earnings-edge"></div>
       <!-- The actionable scrape table goes ABOVE the EW chart image now.
            EW's image is secondary (still discoverable below) but no
            longer the first thing the user sees on this tab. -->
@@ -15519,6 +15552,57 @@
     const meta  = document.getElementById("whisper-meta");
     const tweet = document.getElementById("whisper-tweet");
     if (!body) return;
+
+    // ── Earnings Edge — trade / watch / avoid each report ─────────────
+    // implied (front-expiry option read, only when a contract truly
+    // brackets the report) vs the median realized reaction over the last
+    // ≤8 reports (session-aware BMO/AMC pairing) + post-earnings drift.
+    (function loadEarningsEdge() {
+      const el = document.getElementById("earnings-edge");
+      if (!el) return;
+      fetch("./reports/earnings_edge.json", { cache: "no-cache" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !(d.names || []).length) return;
+          const esc = window.escapeHtml;
+          const vCls = { "Trade": "ee-trade", "Watch": "ee-watch",
+                         "Avoid": "ee-avoid" };
+          const rows = d.names.slice(0, 20).map(function (r) {
+            const imp = r.implied != null ? "±" + r.implied + "%" : "—";
+            const typ = r.realized_med != null ? "±" + r.realized_med + "%" : "—";
+            const ratio = r.edge_ratio != null ? r.edge_ratio + "×" : "—";
+            const drift = r.drift_5d != null
+              ? (r.drift_5d > 0 ? "+" : "") + r.drift_5d + "%" : "—";
+            const rCls = r.edge_ratio == null ? ""
+              : r.edge_ratio >= 1.35 ? "neg" : r.edge_ratio <= 0.85 ? "pos" : "";
+            return '<div class="ee-row" title="' + esc(r.why || "") + '">' +
+              '<span class="ee-tk" data-t="' + esc(r.t) + '">' + esc(r.t) + '</span>' +
+              '<span class="ee-when">' + (r.days === 0 ? "today" :
+                "in " + r.days + "d") + ' · ' + esc(r.session) + '</span>' +
+              '<span class="ee-num">' + typ + '</span>' +
+              '<span class="ee-num">' + imp + '</span>' +
+              '<span class="ee-num ' + rCls + '">' + ratio + '</span>' +
+              '<span class="ee-num">' + drift + '</span>' +
+              '<span><span class="ee-verdict ' + (vCls[r.verdict] || "") + '">' +
+                esc(r.verdict) + '</span></span></div>';
+          }).join("");
+          el.innerHTML =
+            '<div class="ee-card"><div class="ee-head">Earnings Edge — ' +
+            'is the move worth paying for?' +
+            '<span class="ee-sub">typical = median |reaction| last ' +
+            '≤8 reports (BMO/AMC-aware) · implied = front-expiry option ' +
+            'read when one brackets the report · hover a row for the ' +
+            'reasoning</span></div>' +
+            '<div class="ee-row ee-hdr">' +
+              '<span>Ticker</span><span>Reports</span>' +
+              '<span class="ee-num" title="Median absolute reaction move over the last ≤8 reports">Typical</span>' +
+              '<span class="ee-num" title="Options-priced move from the contract expiring just after the report">Implied</span>' +
+              '<span class="ee-num" title="Implied ÷ typical: ≥1.35× rich (long premium overpays) · ≤0.85× cheap">Ratio</span>' +
+              '<span class="ee-num" title="Avg move from reaction close to +5 sessions — continuation vs fade">Drift</span>' +
+              '<span>Verdict</span></div>' +
+            rows + '</div>';
+        }).catch(function () {});
+    })();
 
     // ── Lightbox for full-size image view on click ──
     function showLightbox(src) {
