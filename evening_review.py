@@ -127,6 +127,9 @@ def append_picks(date, picks):
 # ── 2. grade the prior session's picks ─────────────────────────────────────
 
 def grade_prior(hist, today, chg_by_ticker):
+    """Grade the most recent prior day's picks AND persist the outcomes back
+    into that day's history entry — the accumulating record is what powers
+    calibration + the rolling track record."""
     prior = [d for d in hist if (d.get("date") or "") < today]
     if not prior:
         return None
@@ -140,8 +143,59 @@ def grade_prior(hist, today, chg_by_ticker):
         results.append({**p, "chg": chg, "win": win})
     graded = [r for r in results if r["win"] is not None]
     wins = sum(1 for r in graded if r["win"])
+    # persist outcomes onto the history entry (idempotent per date)
+    day["graded_results"] = [{"t": r["t"], "dir": r["dir"],
+                              "conviction": r["conviction"],
+                              "chg": r["chg"], "win": r["win"]}
+                             for r in results]
+    try:
+        with open(PICKS_PATH, "w", encoding="utf-8") as f:
+            json.dump({"days": hist}, f, separators=(",", ":"))
+    except Exception:
+        pass
     return {"date": day["date"], "n": len(graded), "wins": wins,
             "results": results}
+
+
+# ── 2b. calibration + rolling record from the accumulated history ──────────
+# Calibration: displayed conviction vs REALIZED next-day win rate, per band.
+# GATED like every learned quantity: nothing is published until >=30 graded
+# picks exist and a band has >=10 of its own — small-sample calibration is
+# worse than none. Until then the payload says "accruing", honestly.
+CAL_MIN_TOTAL = 30
+CAL_MIN_BAND  = 10
+CAL_BANDS = ((0, 69, "<70"), (70, 79, "70-79"), (80, 89, "80-89"),
+             (90, 200, "90+"))
+RECORD_WINDOW_D = 30
+
+
+def calibration_and_record(hist):
+    graded = []
+    for d in hist:
+        for r in d.get("graded_results") or []:
+            if r.get("win") is not None:
+                graded.append(r)
+    rec_days = [d for d in hist if d.get("graded_results")][-RECORD_WINDOW_D:]
+    rec_g = [r for d in rec_days for r in d.get("graded_results") or []
+             if r.get("win") is not None]
+    record = {"sessions": len(rec_days), "n": len(rec_g),
+              "wins": sum(1 for r in rec_g if r["win"])} if rec_g else None
+    if len(graded) < CAL_MIN_TOTAL:
+        return ({"status": "accruing", "graded": len(graded),
+                 "activates_at": CAL_MIN_TOTAL}, record)
+    bands = {}
+    for lo, hi, label in CAL_BANDS:
+        rows = [r for r in graded if lo <= (r.get("conviction") or 0) <= hi]
+        if len(rows) < CAL_MIN_BAND:
+            continue
+        bands[label] = {"n": len(rows),
+                        "win_rate": round(100 * sum(1 for r in rows
+                                                    if r["win"]) / len(rows))}
+    if not bands:
+        return ({"status": "accruing", "graded": len(graded),
+                 "activates_at": CAL_MIN_TOTAL}, record)
+    return ({"status": "active", "graded": len(graded), "bands": bands},
+            record)
 
 
 # ── 3+4. learning + missed summaries ───────────────────────────────────────
@@ -182,11 +236,14 @@ def build():
     picks = compute_picks(swing, uoa, qm, sb)
     hist = append_picks(today, picks)
     graded = grade_prior(hist, today, chg)
+    calibration, record = calibration_and_record(hist)
 
     payload = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "session_date": today,
         "graded": graded,
+        "calibration": calibration,
+        "record": record,
         "learning": learning_summary(),
         "missed": ({"missed_count": missed.get("missed_count"),
                     "checked": missed.get("checked"),

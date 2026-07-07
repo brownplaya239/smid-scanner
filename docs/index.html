@@ -19634,6 +19634,22 @@
       return bits.length ? bits.join("+") : null;
     };
 
+    // Calibrated confidence — realized next-day win rate of this conviction
+    // band, from the graded picks history. Returns "" until the calibration
+    // gate opens (>=30 graded picks; evening_review.py enforces the gate),
+    // so nothing fake is ever shown.
+    function tdCalibrated(conviction) {
+      try {
+        const cal = ((window.TD_DATA || {}).evening || {}).calibration;
+        if (!cal || cal.status !== "active") return "";
+        const band = conviction >= 90 ? "90+" : conviction >= 80 ? "80-89"
+                   : conviction >= 70 ? "70-79" : "<70";
+        const b = (cal.bands || {})[band];
+        if (!b) return "";
+        return ' · cal <b>' + b.win_rate + '%</b>';
+      } catch (_) { return ""; }
+    }
+
     // ── Evening Review — the system grading itself, nightly ─────────────
     // Yesterday's picks vs today's actual closes (next-day horizon), what
     // the learner currently weights, what's decaying, and tomorrow's
@@ -19646,14 +19662,23 @@
         { character: "post-close", label: "Reviewed" });
       let head;
       const g = d.graded;
+      // rolling track record (ROI #8) — cumulative graded picks over the
+      // last ~30 sessions, appended to the headline once it exists
+      let recStr = "";
+      if (d.record && d.record.n >= 5) {
+        const rp = Math.round(100 * d.record.wins / d.record.n);
+        recStr = ' &middot; record: <b>' + d.record.wins + '/' +
+          d.record.n + '</b> (' + rp + '%) over ' + d.record.sessions +
+          ' sessions';
+      }
       if (g && g.n) {
         const pct = Math.round(100 * g.wins / g.n);
         const cls = pct >= 55 ? "pos" : pct <= 40 ? "neg" : "";
         head = insight('<b>' + g.wins + '/' + g.n + '</b> of ' +
           esc(g.date) + "'s picks worked next-day " +
-          '<span class="' + cls + '">(' + pct + '%)</span>');
+          '<span class="' + cls + '">(' + pct + '%)</span>' + recStr);
       } else {
-        head = insight('First review — grading starts next session.');
+        head = insight('First review — grading starts next session.' + recStr);
       }
       const rows = (g && g.results || []).map(function (r) {
         const w = r.win === true ? '<span class="pos">✓</span>'
@@ -19825,8 +19850,11 @@
           (risk.length ? '<ul class="opc-risk">' + risk.map(function (s) {
             return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>' : "") +
           '<div class="opc-act ' + actCls + '"><b>' + act + '</b>' +
-            '<span title="Self-assessed odds this action is right — calibrated by the outcome tracker over time">conf ' +
-            confidence + '</span></div></div>';
+            '<span title="Self-assessed odds this action is right. When the ' +
+            'outcome tracker has graded ≥30 picks, the calibrated value ' +
+            '(realized next-day win rate of this conviction band) is shown ' +
+            'alongside — reality over self-assessment.">conf ' +
+            confidence + tdCalibrated(conviction) + '</span></div></div>';
       }).join("");
 
       const stamp = { cls: "current", label: "Ranked · confluence + learned edge",
