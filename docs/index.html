@@ -2431,8 +2431,6 @@
   }
   /* Top Movers slot — sits above the Live news wire on Today's Desk.
      Collapses cleanly when empty (pre-render / no live quotes). */
-  .desk-movers-slot { margin-bottom:14px; }
-  .desk-movers-slot:empty { display:none; margin:0; }
 
   /* Economic calendar rows (Today's Desk card) */
   .cal-row { display:grid;
@@ -4979,10 +4977,11 @@
           <button class="sh-next" id="sh-next" type="button">Next &rarr;</button>
         </div>
       </div>
-      <!-- Top Movers rendered here (above the news wire) by renderDesk. -->
-      <!-- Regime banner — one-line tape classification, filled by renderDesk. -->
+      <!-- Regime banner — one-line tape classification, filled by renderDesk.
+           (Top Movers tile retired 2026-07 — redundant with Market Buzz,
+           which carries the same movers PLUS catalysts; watchlist movers
+           live on My Desk.) -->
       <div id="desk-regime"></div>
-      <div id="desk-movers" class="desk-movers-slot"></div>
       <div class="md-news-card" id="desk-news">
         <div class="md-news-head">
           <span class="md-news-title">Live news wire</span>
@@ -17079,149 +17078,11 @@
       });
     }
 
-    // ── Live Movers (part B) — biggest intraday % moves among the names
-    // this desk covers, straight from the live 15m-delayed quote cache.
-    // Pure real-time: no EOD data involved. ─────────────────────────────
-    function liveMoversUniverse(swing, uoa) {
-      const set = new Set();
-      const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
-      // Market-cap map so we can screen out sub-$500M noise (low-float
-      // momentum names flood the raw flow feed). Sourced from the swing
-      // cards' raw mcap + the UOA meta cache; watchlist names are exempt
-      // (the user curated those, so we always keep them).
-      const MIN_MC = 500e6;
-      const mcap = {};
-      const meta = (window.TD_DATA && window.TD_DATA.uoaMeta) || DESK_META || {};
-      if (swing && swing.runs && swing.runs.length) {
-        const r0 = swing.runs[swing.runs.length - 1];
-        Object.keys(r0.grades || {}).forEach(function (g) {
-          (r0.grades[g] || []).forEach(function (c) {
-            if (c.t && typeof c.mcap === "number") mcap[c.t] = c.mcap;
-          });
-        });
-      }
-      const mcOf = function (t) {
-        if (typeof mcap[t] === "number") return mcap[t];
-        const m = meta[t];
-        const v = m && (m.mkt_cap != null ? m.mkt_cap : m.market_cap);
-        return typeof v === "number" ? v : null;
-      };
-      // Legit = on the watchlist OR a known market cap ≥ $500M. Unknown-cap
-      // non-watchlist names are dropped (that's where the noise lives).
-      const legit = function (t) {
-        if (wl.has(t)) return true;
-        const v = mcOf(t);
-        return v != null && v >= MIN_MC;
-      };
-      wl.forEach(function (t) { if (/^[A-Z\.\-]{1,8}$/.test(t)) set.add(t); });
-      if (swing && swing.runs && swing.runs.length) {
-        const r = swing.runs[swing.runs.length - 1];
-        ["A+", "A", "A-", "B+"].forEach(function (g) {
-          (r.grades && r.grades[g] || []).slice(0, 20).forEach(function (c) {
-            if (c.t && legit(c.t)) set.add(c.t);
-          });
-        });
-      }
-      if (uoa && uoa.rows) uoa.rows.slice(0, 50).forEach(function (x) {
-        if (x.ticker && legit(x.ticker)) set.add(x.ticker);
-      });
-      return Array.from(set).slice(0, 100);
-    }
-    function cardLiveMovers(swing, uoa) {
-      const open = (typeof isMarketOpenET === "function") ? isMarketOpenET() : false;
-      const t = new Date().toLocaleTimeString([],
-        { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
-      const stamp = open
-        ? { cls: "fresh", label: "Latest · " + t + " ET",
-            full: "Biggest intraday % moves across your watchlist + desk " +
-                  "coverage. 15-min delayed, refreshed every ~30s." }
-        : { cls: "current", label: "Market closed",
-            full: "Shows the last session's moves until the next open." };
-      return desk("Top Movers",
-        '<div class="lm-wrap" id="desk-live-movers-body">' +
-          '<div class="desk-empty">Loading latest moves…</div></div>',
-        "desk-card--wide", stamp);
-    }
-    function renderLiveMovers(univ) {
-      const el = document.getElementById("desk-live-movers-body");
-      if (!el) return;
-      const cache = window.LIVE_QUOTE_CACHE || {};
-      const rows = (univ || []).map(function (t) {
-        const q = cache[t];
-        return (q && typeof q.change === "number")
-          ? { t: t, chg: q.change, px: q.price } : null;
-      }).filter(Boolean);
-      if (!rows.length) {
-        el.innerHTML = '<div class="desk-empty">Waiting for live quotes…</div>';
-        return;
-      }
-      const up = rows.filter(function (r) { return r.chg > 0; })
-        .sort(function (a, b) { return b.chg - a.chg; }).slice(0, 10);
-      const dn = rows.filter(function (r) { return r.chg < 0; })
-        .sort(function (a, b) { return a.chg - b.chg; }).slice(0, 10);
-      const row = function (r) {
-        const cls = r.chg >= 0 ? "up" : "down";
-        const sign = r.chg >= 0 ? "+" : "";
-        return '<div class="lm-row"><span class="lm-tk" data-t="' + r.t +
-          '">' + r.t + '</span>' +
-          '<span class="lm-px">' +
-            (r.px != null ? "$" + r.px.toFixed(2) : "—") + '</span>' +
-          '<span class="lm-pct ' + cls + '">' + sign +
-            r.chg.toFixed(1) + '%</span></div>';
-      };
-      el.innerHTML =
-        '<div class="lm-cols">' +
-          '<div class="lm-col"><div class="lm-hd lm-hd-up">▲ Gainers</div>' +
-            (up.length ? up.map(row).join("") : '<div class="lm-none">—</div>') +
-          '</div>' +
-          '<div class="lm-col"><div class="lm-hd lm-hd-dn">▼ Losers</div>' +
-            (dn.length ? dn.map(row).join("") : '<div class="lm-none">—</div>') +
-          '</div>' +
-        '</div>' +
-        '<div class="lm-foot">' + rows.length +
-          ' names · watchlist + desk coverage (&ge;$500M mcap) · 15m delayed</div>';
-    }
-    function hydrateLiveMovers(univ) {
-      window._lmUniv = univ || window._lmUniv || [];
-      univ = window._lmUniv;
-      renderLiveMovers(univ);                 // paint from cache immediately
-      if (!univ.length || window._lmInFlight) return;
-      const cache = window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
-      const stale = univ.filter(function (t) {
-        const c = cache[t];
-        return !c || Date.now() - (c.ts || 0) > 60 * 1000;
-      });
-      if (!stale.length) return;
-      window._lmInFlight = true;
-      const chunk = 50, jobs = [];
-      for (let i = 0; i < stale.length; i += chunk) {
-        const cs = stale.slice(i, i + chunk);
-        jobs.push(
-          fetch(WORKER_URL + "?quotes=" + encodeURIComponent(cs.join(",")))
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (d) {
-              if (!d || !d.quotes) return;
-              d.quotes.forEach(function (q) {
-                if (q && q.symbol) cache[q.symbol] = {
-                  price: q.price, change: q.change,
-                  prevClose: q.prevClose, ts: Date.now() };
-              });
-              renderLiveMovers(univ);
-            }).catch(function () {})
-        );
-      }
-      Promise.all(jobs).finally(function () { window._lmInFlight = false; });
-      // One shared 30s refresher, gated on the desk being visible.
-      if (!window._lmTimer) {
-        window._lmTimer = setInterval(function () {
-          const p = document.getElementById("panel-desk");
-          if (p && p.classList.contains("active") &&
-              document.visibilityState === "visible") {
-            hydrateLiveMovers(window._lmUniv);
-          }
-        }, 30000);
-      }
-    }
+    // (Top Movers tile + its hydration retired 2026-07 — Market Buzz is the
+    // single market-wide movers surface (movers + catalysts, worker-side
+    // $100M cap gate); watchlist-scoped movers remain on My Desk with their
+    // own hydrateMyDeskQuotes path. hydrateDeskLiveQuotes still fills
+    // LIVE_QUOTE_CACHE for chg-pills + Market Health breadth.)
     // ── insight ────────────────────────────────────────────────────
     // Top-of-card 1-line aggregate read. Goes BEFORE the table/hdr so
     // a scanning user can take the takeaway in 1 second without
@@ -19628,10 +19489,6 @@
         // Regime banner — the desk's one-line "what tape is this?" strip.
         const rgEl = document.getElementById("desk-regime");
         if (rgEl) rgEl.innerHTML = deskRegimeBanner(swing, cal, uoaMeta, todayET);
-        // Top Movers lives ABOVE the news wire now — render it into its own
-        // slot there rather than as a grid card.
-        const moversEl = document.getElementById("desk-movers");
-        if (moversEl) moversEl.innerHTML = cardLiveMovers(swing, uoa);
         // Rescue the persistent Market Buzz node out of the grid BEFORE we
         // rebuild grid.innerHTML (which would otherwise destroy it, since it
         // gets re-slotted into the Earnings column each pass). Moving a node
@@ -19673,7 +19530,6 @@
         // initial "yesterday close" tooltip cohort into "today 15m
         // delayed" intraday values without a full re-render.
         hydrateDeskLiveQuotes();
-        hydrateLiveMovers(liveMoversUniverse(swing, uoa));
     }
     function loadAndRender() {
       return fetchDeskData().then(renderDesk);
