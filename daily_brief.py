@@ -336,12 +336,51 @@ def load_market_context() -> dict:
         }
     cal = _safe_load(os.path.join(REPORTS_DIR, "economic_calendar.json"))
     if cal:
-        today_ff = datetime.now(ET).strftime("%m-%d-%Y")
-        todays = [e for e in (cal.get("events") or []) if e.get("date") == today_ff]
+        now_et = datetime.now(ET)
+        today_ff = now_et.strftime("%m-%d-%Y")
+        tomorrow_ff = (now_et + timedelta(days=1)).strftime("%m-%d-%Y")
+        evs = cal.get("events") or []
+        todays = [e for e in evs if e.get("date") == today_ff]
         hi = [e for e in todays
               if (e.get("impact") or "").lower() in ("high", "medium")]
-        ctx["events"] = (hi or todays)[:6]
+        # Rank by expected market impact (stars), not calendar order —
+        # traders care about volatility, not chronology.
+        ctx["events"] = sorted((hi or todays)[:6],
+                               key=lambda e: -_event_stars(e))
+        ctx["tomorrow_events"] = sorted(
+            [e for e in evs if e.get("date") == tomorrow_ff
+             and (e.get("impact") or "").lower() == "high"],
+            key=lambda e: -_event_stars(e))[:3]
     return ctx
+
+
+# Marquee release names that move the whole tape — these get the extra
+# stars over a generic "high impact" stamp.
+_MARQUEE = ("cpi", "fomc", "rate decision", "nonfarm", "non-farm", "payroll",
+            "pce", "gdp", "powell", "jobless claims", "ppi", "ism")
+
+
+def _event_stars(ev) -> int:
+    """1-5 ★ expected-impact rank: feed impact level + marquee-name boost."""
+    impact = (ev.get("impact") or "").lower()
+    stars = 3 if impact == "high" else 2 if impact == "medium" else 1
+    title = (ev.get("title") or "").lower()
+    if any(k in title for k in _MARQUEE):
+        stars += 2
+    return min(stars, 5)
+
+
+def load_intel() -> dict:
+    """The decision-engine bundle for the redesigned brief — evening-review
+    picks (the playbook source), the technical fact table, the outcome edge
+    DB (historical cohorts), and gated setup-level stats. Every consumer
+    degrades gracefully when a file is absent."""
+    ev = _safe_load(os.path.join(REPORTS_DIR, "evening_review.json")) or {}
+    facts = (_safe_load(os.path.join(REPORTS_DIR, "technical_facts.json"))
+             or {}).get("facts") or {}
+    edge = _safe_load(os.path.join(REPORTS_DIR, "uoa_edge.json")) or {}
+    setup = _safe_load(os.path.join(REPORTS_DIR, "setup_outcomes.json")) or {}
+    return {"evening": ev, "facts": facts, "edge": edge, "setup": setup}
 
 
 def load_premarket() -> dict:
@@ -607,22 +646,29 @@ def compute_confluence(tickers, swing, uoa, earnings, reports_by_tk) -> list[dic
         rep = reports_by_tk.get(tk)
         score = 0.0
         bull, bear, ctx = [], [], []
+        parts = []          # (label, signed pts) — the transparency breakdown
+
+        def _pt(label, pts):
+            nonlocal score
+            score += pts
+            parts.append((label, pts))
 
         if grade:
             if _is_a_tier(grade):
-                score += 3 if grade == "A+" else 2 if grade == "A" else 1.5
+                _pt(f"grade {grade}",
+                    3 if grade == "A+" else 2 if grade == "A" else 1.5)
                 bull.append(f"{grade} swing grade")
             elif grade[0] in ("D", "E", "F", "G"):
-                score -= 1.5
+                _pt(f"grade {grade}", -1.5)
                 bear.append(f"weak {grade} grade")
         if sw.get("change") == "upgrade":
-            score += 1
+            _pt("upgrade", 1)
             bull.append(f"upgraded from {sw.get('prev_grade')}")
         elif sw.get("change") == "downgrade":
-            score -= 1
+            _pt("downgrade", -1)
             bear.append(f"downgraded from {sw.get('prev_grade')}")
         elif sw.get("change") == "new" and _is_a_tier(grade):
-            score += 0.5
+            _pt("new A-tier", 0.5)
             bull.append("new A-tier today")
 
         if top:
@@ -635,10 +681,12 @@ def compute_confluence(tickers, swing, uoa, earnings, reports_by_tk) -> list[dic
                          f"({_fmt_premium(top.get('premium'))}"
                          f"{', ' + voi_txt if voi_txt else ''}, score {int(ts)})")
             if direction == "bullish":
-                score += 3 if golden else 2 if ts >= 70 else 1
+                _pt("golden flow" if golden else "bullish flow",
+                    3 if golden else 2 if ts >= 70 else 1)
                 bull.append(flow_desc)
             elif direction == "bearish":
-                score -= 3 if golden else 2 if ts >= 70 else 1
+                _pt("golden bear flow" if golden else "bearish flow",
+                    -(3 if golden else 2 if ts >= 70 else 1))
                 bear.append(flow_desc.replace("bullish", "bearish"))
 
         if er:
@@ -669,7 +717,7 @@ def compute_confluence(tickers, swing, uoa, earnings, reports_by_tk) -> list[dic
 
         out.append({
             "ticker": tk, "score": round(score, 1), "net": net,
-            "grade": grade, "reason": reason,
+            "grade": grade, "reason": reason, "parts": parts,
             "top": top, "earnings": er,
         })
     out.sort(key=lambda r: -abs(r["score"]))
@@ -951,6 +999,235 @@ def _badge(text, color, bg=None) -> str:
             f'margin:2px 4px 2px 0;letter-spacing:.3px;">{esc(text)}</span>')
 
 
+def _fmt_px(v) -> str:
+    if not isinstance(v, (int, float)):
+        return "—"
+    return f"{v:,.2f}"
+
+
+def _calibrated(intel, conviction) -> str:
+    """' · cal NN%' when the outcome tracker's calibration gate is open for
+    this conviction band; '' otherwise. Mirrors the site logic."""
+    cal = ((intel.get("evening") or {}).get("calibration")) or {}
+    if cal.get("status") != "active" or not isinstance(conviction, (int, float)):
+        return ""
+    band = ("90+" if conviction >= 90 else "80-89" if conviction >= 80
+            else "70-79" if conviction >= 70 else "<70")
+    b = (cal.get("bands") or {}).get(band)
+    return f" · cal {b['win_rate']}%" if b else ""
+
+
+def _setup_hist_line(intel, grade) -> str:
+    """Historical per-grade stats (gated) — real numbers when the tracker
+    has matured n>=30, an honest accrual note otherwise."""
+    st = ((intel.get("setup") or {}).get("grades") or {}).get(grade)
+    hold = (intel.get("setup") or {}).get("hold_days", 5)
+    if st and st.get("status") == "active":
+        return (f'{esc(grade)} setups historically (+{hold} sessions, '
+                f'n={st["n"]}): <b style="color:{CSS_TEXT};">{st["win_rate"]}% '
+                f'win</b> · avg {st["avg"]:+.1f}% · median {st["median"]:+.1f}% '
+                f'· avg drawdown {st["avg_dd"]:.1f}%')
+    n = (st or {}).get("n", 0)
+    tot = (intel.get("setup") or {}).get("total_graded", 0)
+    return (f"Setup-level track record accruing — {n or tot} graded of 30 "
+            f"needed before {esc(grade or 'these')} stats publish. "
+            f"No number is shown before it's real.")
+
+
+def _ema_check(f, span) -> str:
+    v = f.get(f"ema{span}")
+    if v == "above":
+        return f'<span style="color:{CSS_GREEN};">✓ {span}EMA</span>'
+    if v == "below":
+        return f'<span style="color:{CSS_RED};">✗ {span}EMA</span>'
+    return ""
+
+
+def _render_hero(intel, swing, earnings) -> str:
+    """TODAY'S PLAYBOOK hero — the single best setup with an ATR-derived
+    trade plan, technical decomposition, and gated historical context.
+    The 30-second answer to 'where should capital go today?'."""
+    picks = (intel.get("evening") or {}).get("tomorrow") or []
+    if not picks:
+        return ""
+    pick = next((p for p in picks if p.get("dir") == "bull"), picks[0])
+    t = pick.get("t")
+    is_bull = pick.get("dir") != "bear"
+    f = (intel.get("facts") or {}).get(t) or {}
+    grade = (swing.get(t) or {}).get("grade")
+    conviction = pick.get("conviction")
+
+    # ── ATR-unit trade plan (transparent formula, not fake precision) ──
+    close, atr_pct = f.get("close"), f.get("atr_pct")
+    levels_html = ""
+    if isinstance(close, (int, float)) and isinstance(atr_pct, (int, float)):
+        a = close * atr_pct / 100.0
+        sgn = 1 if is_bull else -1
+        e_lo, e_hi = close - 0.25 * a, close + 0.25 * a
+        stop = close - sgn * 1.5 * a
+        target = close + sgn * 2.5 * a
+        rr = 2.5 / 1.5
+        cell = (lambda lab, val, col=CSS_TEXT:
+                f'<div style="display:inline-block;width:24%;min-width:110px;'
+                f'vertical-align:top;padding:6px 0;">'
+                f'<div style="font-size:10px;color:{CSS_MUTED};text-transform:'
+                f'uppercase;letter-spacing:.5px;">{lab}</div>'
+                f'<div style="font-size:14px;font-weight:700;color:{col};'
+                f'font-variant-numeric:tabular-nums;">{val}</div></div>')
+        levels_html = (
+            '<div style="padding:8px 14px;border-bottom:1px solid '
+            + CSS_BORDER + ';">'
+            + cell("Entry zone", f"{_fmt_px(e_lo)}–{_fmt_px(e_hi)}")
+            + cell("Stop", _fmt_px(stop), CSS_RED)
+            + cell("Target", _fmt_px(target), CSS_GREEN)
+            + cell("R:R", f"{rr:.1f}", CSS_GOLD)
+            + f'<div style="font-size:10px;color:{CSS_MUTED};margin-top:3px;">'
+              f'ATR-unit plan (ATR {atr_pct:.1f}%): entry ±0.25×ATR of last '
+              f'close · stop 1.5×ATR · target 2.5×ATR. Adjust to your own '
+              f'structure levels.</div></div>')
+
+    # ── technical decomposition — the "why", never just a letter ──
+    tech_html = ""
+    if f:
+        bits = [b for b in (_ema_check(f, 20), _ema_check(f, 50),
+                            _ema_check(f, 200)) if b]
+        rsi, vr, rk = f.get("rsi14"), f.get("vol_ratio"), f.get("rs_rank")
+        if isinstance(rsi, (int, float)):
+            bits.append(f'RSI {int(rsi)}')
+        if isinstance(vr, (int, float)):
+            bits.append(f'vol {vr:.1f}×')
+        if isinstance(rk, (int, float)):
+            bits.append(f'RS rank {int(rk)}')
+        trend = f.get("trend")
+        rs = f.get("rs") or {}
+        rs_cells = " ".join(
+            f'<span style="color:{CSS_GREEN if (rs.get(k) or 0) >= 0 else CSS_RED};'
+            f'font-variant-numeric:tabular-nums;">{lab} {rs[k]:+.1f}</span>'
+            for k, lab in (("d1", "1D"), ("d5", "5D"), ("d20", "20D"),
+                           ("d60", "60D")) if isinstance(rs.get(k), (int, float)))
+        tech_html = (
+            f'<div style="padding:8px 14px;border-bottom:1px solid {CSS_BORDER};'
+            f'font-size:12px;color:{CSS_TEXT};line-height:1.7;">'
+            f'<span style="color:{CSS_MUTED};">Trend</span> '
+            f'<b>{esc(trend or "—")}</b> · ' + " · ".join(bits)
+            + (f'<br><span style="color:{CSS_MUTED};">vs SPY (pp)</span> '
+               + rs_cells if rs_cells else "") + '</div>')
+
+    # ── evidence checklist + event risk ──
+    ev_items = [f"✓ {e}" for e in (pick.get("evidence") or [])]
+    er = (earnings or {}).get(t)
+    if er and isinstance(er.get("days_away"), int):
+        ev_items.append(f"⚠ earnings in {er['days_away']}d "
+                        f"({er.get('bmo_amc', '')})")
+    else:
+        ev_items.append("✓ no earnings ≤7d")
+    ev_html = ('<div style="padding:8px 14px;border-bottom:1px solid '
+               + CSS_BORDER + ';font-size:12px;line-height:1.8;color:'
+               + CSS_TEXT + ';">' + "<br>".join(esc(i) for i in ev_items)
+               + '</div>')
+
+    conf_txt = (f'{conviction}' if isinstance(conviction, (int, float)) else "—")
+    hist = _setup_hist_line(intel, grade)
+    gcol = _grade_color(grade)
+    dir_lab = "LONG" if is_bull else "SHORT"
+    dir_col = CSS_GREEN if is_bull else CSS_RED
+
+    return f'''
+    <div style="margin-top:4px;">
+      <div style="font-size:13px;font-weight:800;color:{CSS_GOLD};text-transform:uppercase;letter-spacing:1.2px;margin-bottom:9px;">🎯 Today's Playbook — Best Setup</div>
+      <div style="background:{CSS_PANEL};border:1px solid {CSS_GOLD};border-radius:10px;overflow:hidden;">
+        <div style="padding:12px 14px;border-bottom:1px solid {CSS_BORDER};display:flex;align-items:baseline;justify-content:space-between;">
+          <div>{_ticker_link(t, 19)}
+            <span style="color:{gcol};font-weight:800;font-size:14px;margin-left:8px;">{esc(grade or "")}</span>
+            <span style="color:{dir_col};font-weight:800;font-size:11px;margin-left:8px;letter-spacing:.5px;">{dir_lab}</span></div>
+          <div style="font-size:12px;color:{CSS_MUTED};">conviction <b style="color:{CSS_TEXT};font-size:14px;">{conf_txt}</b>{_calibrated(intel, conviction)}</div>
+        </div>
+        {levels_html}{tech_html}{ev_html}
+        <div style="padding:8px 14px;font-size:10.5px;color:{CSS_MUTED};line-height:1.5;">{hist}</div>
+      </div>
+    </div>'''
+
+
+def _render_top3(intel, swing, market) -> str:
+    """The five-second capital map: highest-conviction flow, strongest
+    technical grades, and today's ranked risk events — side by side."""
+    cols = []
+
+    # conviction board rows arrive pre-sorted by conviction
+    cf = intel.get("carryover") or {}
+    contracts = [c for c in (cf.get("contracts") or [])
+                 if c.get("conviction") is not None][:3]
+    if contracts:
+        rows = "".join(
+            f'<div style="padding:3px 0;font-size:12.5px;">'
+            f'{_ticker_link(c.get("ticker"), 13)} '
+            f'<span style="color:{CSS_MUTED};font-size:11px;">{c.get("conviction")} conv · {_fmt_premium(c.get("premium"))}</span></div>'
+            for c in contracts)
+        cols.append(("Highest-conviction flow", rows))
+
+    facts = intel.get("facts") or {}
+    aplus = [(tk, sw) for tk, sw in swing.items() if sw.get("grade") == "A+"]
+    aplus.sort(key=lambda x: -(facts.get(x[0], {}).get("rs_rank") or 0))
+    if aplus:
+        rows = "".join(
+            f'<div style="padding:3px 0;font-size:12.5px;">'
+            f'{_ticker_link(tk, 13)} '
+            f'<span style="color:{CSS_MUTED};font-size:11px;">A+'
+            + (f' · RS {int(facts[tk]["rs_rank"])}' if facts.get(tk, {}).get("rs_rank") is not None else "")
+            + '</span></div>'
+            for tk, _ in aplus[:3])
+        cols.append(("Top technical grades", rows))
+
+    evs = [(e, "today") for e in (market.get("events") or [])[:3]]
+    evs += [(e, "tmrw") for e in (market.get("tomorrow_events") or [])[:2]]
+    evs.sort(key=lambda x: -_event_stars(x[0]))
+    if evs:
+        rows = "".join(
+            f'<div style="padding:3px 0;font-size:11.5px;color:{CSS_TEXT};">'
+            f'<span style="color:{CSS_GOLD};">{"★" * _event_stars(e)}</span> '
+            f'{esc((e.get("title") or "")[:30])} '
+            f'<span style="color:{CSS_MUTED};font-size:10px;">{lab}</span></div>'
+            for e, lab in evs[:3])
+        cols.append(("Ranked risk events", rows))
+
+    if not cols:
+        return ""
+    col_html = "".join(
+        f'<div style="display:inline-block;vertical-align:top;width:32%;'
+        f'min-width:170px;padding:10px 8px 10px 14px;">'
+        f'<div style="font-size:10px;font-weight:700;color:{CSS_MUTED};'
+        f'text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">{esc(title)}</div>'
+        f'{rows}</div>'
+        for title, rows in cols)
+    return (f'<div style="margin-top:14px;background:{CSS_PANEL};'
+            f'border:1px solid {CSS_BORDER};border-radius:10px;">{col_html}</div>')
+
+
+def _similar_line(top, edge) -> str:
+    """Honest 'signals like this' cohort from the outcome DB: the row's
+    most-populated tag cohort at the +5d horizon. Marginal (same-tag), not
+    joint-feature matching — labeled as such via the tag name."""
+    by_tag = (edge or {}).get("by_tag") or {}
+    tags = list(top.get("tags") or [])
+    if top.get("is_golden") or top.get("golden"):
+        tags.append("Golden Sweep")
+    best = None
+    for tag in tags:
+        h5 = ((by_tag.get(tag) or {}).get("h") or {}).get("5")
+        if h5 and h5.get("n", 0) >= 200:
+            if best is None or h5["n"] > best[1]["n"]:
+                best = (tag, h5)
+    if not best:
+        return ""
+    tag, h5 = best
+    col = CSS_GREEN if (h5.get("avg_excess") or 0) > 0 else CSS_RED
+    return (f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:3px;">'
+            f'Similar prints ({esc(tag)}, n={h5["n"]:,}): '
+            f'<b style="color:{CSS_TEXT};">{h5["hit_rate"]}% hit</b> · '
+            f'<span style="color:{col};">{h5["avg_excess"]:+.1f}% avg excess'
+            f'</span> vs SPY over 5 sessions</div>')
+
+
 def _render_playbook(playbook, ideas=None) -> str:
     icons = {"Best opportunity": ("🎯", CSS_GREEN),
              "Watch today": ("👁", CSS_ACCENT),
@@ -1003,25 +1280,69 @@ def _render_confluence(conf) -> str:
         gtxt = (f'<span style="color:{gcol};font-weight:700;font-size:12px;'
                 f'margin-left:8px;">{esc(c["grade"])}</span>' if c.get("grade") else "")
         sign = "+" if c["score"] >= 0 else ""
+        # Transparent score: every component shown, so the total is
+        # auditable at a glance — never a bare number.
+        parts = c.get("parts") or []
+        parts_txt = " · ".join(
+            f'{lab} {"+" if pts >= 0 else ""}{pts:g}' for lab, pts in parts)
+        breakdown = (f'<div style="font-size:10.5px;color:{CSS_MUTED};'
+                     f'margin-top:3px;">= {esc(parts_txt)}</div>'
+                     if parts else "")
         rows.append(_row_wrap(
             f'<div style="display:flex;align-items:baseline;justify-content:space-between;">'
             f'<div>{_ticker_link(c["ticker"])}{gtxt}</div>'
             f'<div style="font-size:12px;font-weight:700;color:{col};">{sign}{c["score"]}</div></div>'
-            f'<div style="font-size:12.5px;color:{CSS_MUTED};margin-top:4px;line-height:1.4;">{esc(c["reason"])}</div>'))
+            f'<div style="font-size:12.5px;color:{CSS_MUTED};margin-top:4px;line-height:1.4;">{esc(c["reason"])}</div>'
+            + breakdown))
     return _card("Confluence", "".join(rows),
                  "where grade + flow + catalyst align")
 
 
-def _render_changed(ch) -> str:
+def _grade_move_why(facts, tk) -> str:
+    """The technical state behind a grade move — current supporting facts
+    from the fact table (what the grade engine is 'seeing'), so a move is
+    never just two letters and an arrow."""
+    f = (facts or {}).get(tk)
+    if not f:
+        return ""
+    bits = []
+    above = [str(s) for s in (20, 50, 200) if f.get(f"ema{s}") == "above"]
+    below = [str(s) for s in (20, 50, 200) if f.get(f"ema{s}") == "below"]
+    if above:
+        bits.append("above " + "/".join(above) + "EMA")
+    elif below:
+        bits.append("below " + "/".join(below) + "EMA")
+    if isinstance(f.get("rsi14"), (int, float)):
+        bits.append(f"RSI {int(f['rsi14'])}")
+    if isinstance(f.get("vol_ratio"), (int, float)) and f["vol_ratio"] >= 1.5:
+        bits.append(f"vol {f['vol_ratio']:.1f}×")
+    if isinstance(f.get("rs_rank"), (int, float)):
+        bits.append(f"RS {int(f['rs_rank'])}")
+    return " — " + ", ".join(bits[:4]) if bits else ""
+
+
+def _render_changed(ch, facts=None) -> str:
     lines = []
 
     def _tk_list(items, fmt):
         return ", ".join(fmt(i) for i in items)
 
+    def _moves(items):
+        """Grade moves with the technical why for the top 3; the rest
+        stay compact."""
+        out = []
+        for i, x in enumerate(items):
+            base = f'{esc(x[0])} {esc(x[1])}→{esc(x[2])}'
+            why = _grade_move_why(facts, x[0]) if i < 3 else ""
+            out.append(base + f'<span style="color:{CSS_MUTED};">{esc(why)}</span>')
+        return "<br>".join(out[:3]) + (
+            ('<br><span style="color:' + CSS_MUTED + ';">'
+             + ", ".join(f'{esc(x[0])} {esc(x[1])}→{esc(x[2])}'
+                         for x in items[3:8]) + '</span>')
+            if len(items) > 3 else "")
+
     if ch["upgrades"]:
-        lines.append((CSS_GREEN, "▲ Upgrades",
-                      _tk_list(ch["upgrades"],
-                               lambda x: f'{esc(x[0])} {esc(x[1])}→{esc(x[2])}')))
+        lines.append((CSS_GREEN, "▲ Upgrades", _moves(ch["upgrades"])))
     if ch["new_a"]:
         lines.append((CSS_GOLD, "★ New A-tier",
                       _tk_list(ch["new_a"], lambda x: f'{esc(x[0])} ({esc(x[1])})')))
@@ -1037,9 +1358,7 @@ def _render_changed(ch) -> str:
         lines.append((CSS_ACCENT, "📄 New reports",
                       _tk_list(ch["new_reports"][:5], lambda x: esc(x[0]))))
     if ch["downgrades"]:
-        lines.append((CSS_RED, "▼ Downgrades",
-                      _tk_list(ch["downgrades"],
-                               lambda x: f'{esc(x[0])} {esc(x[1])}→{esc(x[2])}')))
+        lines.append((CSS_RED, "▼ Downgrades", _moves(ch["downgrades"])))
     if not lines:
         return ""
     inner = "".join(
@@ -1051,7 +1370,7 @@ def _render_changed(ch) -> str:
     return _card("What changed since yesterday", inner)
 
 
-def _render_flow(flow) -> str:
+def _render_flow(flow, edge=None) -> str:
     rows = []
     for r in flow:
         top = r["contracts"][0]
@@ -1085,13 +1404,22 @@ def _render_flow(flow) -> str:
         for tag in (top.get("tags") or [])[:2]:
             if tag not in ("In Universe",):
                 badges += _badge(tag, CSS_MUTED)
-        # Break-even + earnings risk line
+        # Opportunity math: expected move vs room to break-even — the
+        # "is there anything left in this trade?" line.
         meta_bits = []
         be = top.get("break_even")
         bed = top.get("be_distance_pct")
         if isinstance(be, (int, float)):
             bd = (f" ({bed:+.1f}% away)" if isinstance(bed, (int, float)) else "")
             meta_bits.append(f"B/E ${be:.2f}{bd}")
+        em = top.get("expected_move_pct")
+        if isinstance(em, (int, float)):
+            meta_bits.append(f"expected move ±{em:.1f}%")
+            if isinstance(bed, (int, float)):
+                room = em - abs(bed)
+                meta_bits.append(
+                    f"room {'+' if room >= 0 else ''}{room:.1f}%"
+                    + ("" if room >= 0 else " (B/E beyond priced move)"))
         ed = top.get("earnings_days")
         if isinstance(ed, (int, float)) and 0 <= ed <= 21:
             meta_bits.append(f"⚠ earns in {int(ed)}d")
@@ -1111,7 +1439,8 @@ def _render_flow(flow) -> str:
             f'<span style="color:{CSS_MUTED};"> · {_fmt_num(top.get("vol_oi"),"{:.0f}")}× OI</span>{more}</div>'
             f'<div style="margin-top:5px;">{badges}</div>'
             + (f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:4px;line-height:1.4;">{esc(why)}</div>' if why else "")
-            + (f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:3px;">{esc(" · ".join(meta_bits))}</div>' if meta_bits else "")))
+            + (f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:3px;">{esc(" · ".join(meta_bits))}</div>' if meta_bits else "")
+            + _similar_line(top, edge)))
     return _card("Unusual options flow", "".join(rows), "intraday batch · 15m delayed")
 
 
@@ -1149,7 +1478,7 @@ _OVF_PBADGE = {
 }
 
 
-def _render_carryover(cf) -> str:
+def _render_carryover(cf, edge=None) -> str:
     """Conviction board (mirrors the Desk tile): yesterday's notable prints
     re-checked against this morning's OCC-settled OI, ranked 0–100 by whether
     the whale held + OI confirmed. Contracts arrive pre-sorted by conviction."""
@@ -1179,6 +1508,12 @@ def _render_carryover(cf) -> str:
             col = CSS_GREEN if oc >= 0.70 else ("#d8b74a" if oc >= 0.40 else CSS_RED)
             oc_txt = f'<span style="color:{col};font-weight:700;">{round(oc*100)}% OI conf</span>'
         conv_txt = "" if conv is None else f' · <b style="color:{CSS_TEXT};">{conv}</b> conv'
+        # where the bet sits: strike distance from spot at flag time
+        sd_txt = ""
+        strike, spot = c.get("strike"), c.get("spot_at_flag")
+        if isinstance(strike, (int, float)) and isinstance(spot, (int, float)) and spot > 0:
+            sd = 100.0 * (strike / spot - 1.0)
+            sd_txt = f' · strike {sd:+.0f}% (at flag)'
         rows.append(
             f'<div style="padding:7px 14px;border-bottom:1px solid {CSS_BORDER};">'
             f'<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">'
@@ -1189,7 +1524,7 @@ def _render_carryover(cf) -> str:
             f'<span style="color:{CSS_MUTED};font-size:11px;margin-left:7px;">{esc(c.get("dir_label") or "")}</span></div>'
             f'<div>{_pbadge(c.get("priority"))}</div></div>'
             f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:2px;">'
-            f'{esc(prem)} · {oc_txt}{conv_txt}</div></div>')
+            f'{esc(prem)} · {oc_txt}{conv_txt}{sd_txt}</div></div>')
 
     parts = []
     if interp:
@@ -1198,6 +1533,27 @@ def _render_carryover(cf) -> str:
             f'padding:10px 14px;background:rgba(255,200,0,0.05);'
             f'border-bottom:1px solid {CSS_BORDER};">💡 {esc(interp)}</div>')
     parts.append("".join(rows))
+    # Why OI confirmation matters — the historical base rates behind the
+    # board, from the outcome DB (real counts, not folklore).
+    hist_bits = []
+    oi = (edge or {}).get("oi_confirmation") or {}
+    if oi.get("checked"):
+        hist_bits.append(
+            f'{oi.get("confirm_rate")}% of {oi["checked"]:,} checked signals '
+            f'historically confirm in next-day OI — held positions are the '
+            f'minority worth following')
+    exc = (edge or {}).get("excursion") or {}
+    if exc.get("n"):
+        hist_bits.append(
+            f'across {exc["n"]:,} matured signals the avg best/worst 5-day '
+            f'excursion is +{exc["avg_mfe"]:.1f}% / {exc["avg_mae"]:.1f}% — '
+            f'size for the drawdown, not the hope')
+    if hist_bits:
+        parts.append(
+            f'<div style="font-size:10.5px;color:{CSS_MUTED};padding:9px 14px 0;'
+            f'line-height:1.5;border-top:1px solid {CSS_BORDER};">'
+            f'📊 {esc(hist_bits[0])}' +
+            (f'<br>{esc(hist_bits[1])}' if len(hist_bits) > 1 else "") + '</div>')
     parts.append(
         f'<div style="font-size:10.5px;color:{CSS_MUTED};padding:9px 14px;line-height:1.5;">'
         f'Conviction 0–100 (held 35% · OI-confirmed 35% · premium 15% · OI-vs-prior 10% · '
@@ -1239,8 +1595,13 @@ def _render_premarket(premarket, overnight, brief) -> str:
             pct = m.get("pct")
             pct_txt = f'{arrow}{abs(pct):.1f}%' if isinstance(pct, (int, float)) else ""
             cat = (m.get("catalyst") or {}).get("label") if isinstance(m.get("catalyst"), dict) else m.get("catalyst")
+            # A move without a known reason IS information — say so plainly
+            # instead of leaving a blank the reader fills with guesses.
             cat_txt = (f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:2px;'
-                       f'line-height:1.35;">{esc(str(cat)[:88])}</div>' if cat else "")
+                       f'line-height:1.35;">{esc(str(cat)[:88])}</div>' if cat
+                       else f'<div style="font-size:11px;color:{CSS_MUTED};'
+                            f'margin-top:2px;font-style:italic;">No verified '
+                            f'catalyst — treat the move as flow-driven.</div>')
             out.append(
                 f'<div style="padding:6px 0;border-bottom:1px solid {CSS_BORDER};">'
                 f'<div style="display:flex;justify-content:space-between;gap:8px;">'
@@ -1314,17 +1675,26 @@ def _render_market(market, market_top) -> str:
             f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:3px;">'
             f'Leaders {leaders or "—"} · Laggards {laggards or "—"} '
             f'<span style="color:{CSS_MUTED};">(YTD vs SPY)</span></div></div>')
-    for ev in market.get("events", []):
-        impact = (ev.get("impact") or "").lower()
-        icol = CSS_RED if impact == "high" else CSS_AMBER if impact == "medium" else CSS_MUTED
+    # Events arrive pre-ranked by expected impact (stars), not clock order —
+    # the reader's question is "what can hurt me", not "what's at 10am".
+    def _ev_row(ev, day_label=""):
+        stars = _event_stars(ev)
         act = ev.get("actual")
         act_html = (f'<span style="color:{CSS_TEXT};font-weight:700;"> · actual {esc(act)}</span>'
                     if act else "")
-        inner += (
+        day_html = (f'<span style="font-size:10px;color:{CSS_MUTED};'
+                    f'font-weight:700;margin-right:6px;">{day_label}</span>'
+                    if day_label else "")
+        return (
             f'<div style="padding:9px 14px;border-bottom:1px solid {CSS_BORDER};">'
-            f'<span style="color:{icol};font-weight:700;font-size:11px;">●</span> '
-            f'<span style="font-size:12.5px;color:{CSS_TEXT};">{esc(ev.get("time"))} {esc(ev.get("title"))}</span>'
+            f'<span style="color:{CSS_GOLD};font-size:11px;letter-spacing:1px;">{"★" * stars}{"☆" * (5 - stars)}</span> '
+            f'{day_html}<span style="font-size:12.5px;color:{CSS_TEXT};">{esc(ev.get("time"))} {esc(ev.get("title"))}</span>'
             f'<span style="font-size:11px;color:{CSS_MUTED};"> · fcst {esc(ev.get("forecast") or "—")} · prior {esc(ev.get("previous") or "—")}</span>{act_html}</div>')
+
+    for ev in market.get("events", []):
+        inner += _ev_row(ev)
+    for ev in (market.get("tomorrow_events") or []):
+        inner += _ev_row(ev, "TMRW")
     # Bonus: tape's top edge (market-wide) so the email always has alpha
     if market_top:
         tape = " · ".join(
@@ -1373,9 +1743,13 @@ def _render_snapshot(snapshot) -> str:
 
 
 def render_html(user, brief, brief_date, carryover=None,
-                premarket=None, overnight=None) -> tuple[str, str]:
+                premarket=None, overnight=None, intel=None) -> tuple[str, str]:
     name = esc((user.get("display_name") or "").strip() or "trader")
     subject, preheader = build_subject(brief)
+    intel = dict(intel or {})
+    intel["carryover"] = carryover or {}
+    edge = intel.get("edge") or {}
+    facts = intel.get("facts") or {}
 
     parts = []
     # Preheader (hidden preview text) + spacer so Gmail doesn't pull body text
@@ -1394,7 +1768,17 @@ def render_html(user, brief, brief_date, carryover=None,
         f'<div style="font-size:13px;color:{CSS_MUTED};margin-top:5px;">Good morning, {name}. {esc(preheader)}</div>'
         f'</div>')
 
-    parts.append(_render_playbook(brief["playbook"], brief.get("ideas")))
+    # ── Above the fold: the 30-second answer ──
+    # 1. Best setup with a trade plan (hero) → 2. the five-second capital
+    # map (top-3 strips) → 3. the classic playbook bullets (watch + risk).
+    hero = _render_hero(intel, intel.get("swing_map") or {}, intel.get("earnings_map") or {})
+    if hero:
+        parts.append(hero)
+        parts.append(_render_top3(intel, intel.get("swing_map") or {}, brief["market"]))
+        # hero already covers "best opportunity" — keep watch + risk bullets
+        parts.append(_render_playbook(brief["playbook"][1:], brief.get("ideas")))
+    else:
+        parts.append(_render_playbook(brief["playbook"], brief.get("ideas")))
     # Pre-market pulse — what reports before the bell, what's already moving,
     # and overnight headlines on your names. Pre-open context up top.
     pm_html = _render_premarket(premarket, overnight, brief)
@@ -1402,14 +1786,14 @@ def render_html(user, brief, brief_date, carryover=None,
         parts.append(pm_html)
     # Overnight OI-confirmed carryover — pre-open flow context, so it sits
     # high, right under the playbook.
-    co_html = _render_carryover(carryover)
+    co_html = _render_carryover(carryover, edge)
     if co_html:
         parts.append(co_html)
     if brief["confluence"]:
         parts.append(_render_confluence(brief["confluence"]))
-    parts.append(_render_changed(brief["changed"]))
+    parts.append(_render_changed(brief["changed"], facts))
     if brief["flow"]:
-        parts.append(_render_flow(brief["flow"]))
+        parts.append(_render_flow(brief["flow"], edge))
     if brief["earnings"]:
         parts.append(_render_earnings(brief["earnings"]))
     parts.append(_render_market(brief["market"], brief["market_top"]))
@@ -1425,6 +1809,11 @@ def render_html(user, brief, brief_date, carryover=None,
         f'Quotes: delayed 15m where shown · '
         f'Calendar: live feed, actuals fill in through the day · '
         f'News: cached intraday.<br>'
+        f'Methods: trade-plan levels are ATR-derived (formula shown in the '
+        f'playbook), not hand-picked. Historical cohort stats come from the '
+        f'signal outcome DB; any stat below its minimum sample is labeled '
+        f'"accruing" and never estimated. Technicals computed nightly from '
+        f'daily bars; RS rank is relative to tonight\'s surfaced universe.<br>'
         f'Not investment advice. Verify against your broker before trading.'
         f'</div>')
     uurl = unsub_url(user.get("user_id") or "")
@@ -1558,6 +1947,13 @@ def main():
     if premarket.get("gainers") or premarket.get("losers"):
         print(f"    premarket: {len(premarket.get('gainers', []))}↑ "
               f"{len(premarket.get('losers', []))}↓")
+    intel = load_intel()
+    intel["swing_map"] = swing          # full-universe grade map for the hero
+    intel["earnings_map"] = earnings
+    n_picks = len((intel.get("evening") or {}).get("tomorrow") or [])
+    print(f"    intel: {n_picks} evening picks · {len(intel.get('facts') or {})} "
+          f"fact rows · edge DB {'yes' if intel.get('edge') else 'no'} · "
+          f"setup stats {(intel.get('setup') or {}).get('total_graded', 0)} graded")
     print(f"    swing:{len(swing)} uoa:{len(uoa)} earn/7d:{len(earnings)} "
           f"reports:{len(new_reports_all)} events:{len(market.get('events', []))}")
 
@@ -1586,7 +1982,7 @@ def main():
                             reports_by_tk, new_reports_all, market)
         overnight = load_overnight_news(u["tickers"])
         subject, html_body = render_html(u, brief, brief_date, carryover,
-                                         premarket, overnight)
+                                         premarket, overnight, intel)
         prefix = f"  → {u['email']:32s} ({len(u['tickers'])} tickers): "
 
         # Always write the first rendered email to the preview file.

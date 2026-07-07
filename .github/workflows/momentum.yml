@@ -69,6 +69,21 @@ jobs:
         continue-on-error: true
         run: python evening_review.py
 
+      - name: Technical fact table (EMAs/RSI/ATR/RS for surfaced names)
+        # One nightly computation feeding grade decomposition, the Daily
+        # Brief hero trade plan, RS panels, and upgrade reasons. Runs
+        # AFTER evening_review so the picks are in the fact universe.
+        # Non-fatal: yfinance flakes must never block the publish step.
+        continue-on-error: true
+        run: python technical_facts.py
+
+      - name: Setup outcome tracker (gated historical performance)
+        # Logs tonight's top-graded cohort and matures 5-session-old
+        # cohorts against actual closes. Per-grade stats stay gated
+        # ("accruing") until n>=30 — nothing publishes before it's real.
+        continue-on-error: true
+        run: python setup_outcomes.py
+
       - name: Refresh economic calendar
         run: python economic_calendar.py
 
