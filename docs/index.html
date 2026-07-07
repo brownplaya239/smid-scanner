@@ -2119,6 +2119,45 @@
   .ovf-pr-pend { background:rgba(255,255,255,0.06); color:var(--muted); }
   .ovf-foot { font-size:10px; color:var(--muted); margin-top:9px;
     padding-top:7px; border-top:1px solid var(--line); line-height:1.5; }
+
+  /* Opportunities — universal decision cards (Today's Desk spine) */
+  .opc-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; }
+  .opc { flex:1 0 228px; min-width:228px; max-width:300px; cursor:pointer;
+    background:var(--navy2); border:1px solid var(--line); border-radius:9px;
+    display:flex; flex-direction:column; overflow:hidden;
+    transition:border-color .12s ease; }
+  .opc:hover { border-color:var(--gold); }
+  .opc-h { display:flex; align-items:center; gap:8px; padding:9px 11px 7px;
+    border-bottom:1px solid var(--line); }
+  .opc-tk { font-weight:800; font-size:15px; color:var(--text); }
+  .opc:hover .opc-tk { color:var(--gold); }
+  .opc-sc { text-align:center; line-height:1.05; }
+  .opc-sc b { display:block; font-size:14px; color:var(--gold);
+    font-variant-numeric:tabular-nums; }
+  .opc-sc i { font-style:normal; font-size:7.5px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .opc-dir { margin-left:auto; font-size:9px; font-weight:800;
+    padding:2px 6px; border-radius:4px; letter-spacing:.04em; }
+  .opc-d-bull { background:rgba(31,179,99,0.16); color:#7ddfa1; }
+  .opc-d-bear { background:rgba(214,68,68,0.16); color:#f08585; }
+  .opc-ev, .opc-risk { list-style:none; margin:0; padding:7px 11px;
+    display:flex; flex-direction:column; gap:3px; flex:1; }
+  .opc-ev li, .opc-risk li { font-size:10.5px; line-height:1.35;
+    color:var(--textdim); padding-left:11px; position:relative; }
+  .opc-ev li::before { content:"+"; position:absolute; left:0;
+    color:var(--green); font-weight:800; }
+  .opc-risk { flex:0 0 auto; padding-top:0; }
+  .opc-risk li::before { content:"!"; position:absolute; left:0;
+    color:var(--red); font-weight:800; }
+  .opc-act { display:flex; align-items:baseline; gap:8px; padding:7px 11px;
+    background:rgba(0,0,0,0.22); border-top:1px solid var(--line); }
+  .opc-act b { font-size:11px; letter-spacing:.05em; color:#7ddfa1; }
+  .opc-act.opc-a-watch b { color:var(--gold); }
+  .opc-act.opc-a-wait  b { color:var(--muted); }
+  .opc-act.opc-a-avoid b { color:#f08585; }
+  .opc-act span { margin-left:auto; font-size:9.5px; color:var(--muted);
+    font-variant-numeric:tabular-nums; }
+  @media (max-width:700px) { .opc { flex:0 0 228px; } }
   .lm-foot { margin-top:9px; padding-top:7px; border-top:1px solid var(--line);
     font-size:10px; color:var(--muted); }
   /* Full-width divider between the live block and the EOD cards */
@@ -18799,6 +18838,189 @@
       return freshness(anchor,
         { character: character, label: "Confluence as of" });
     }
+    // ── Metrics → decisions: plain-language interpreter ─────────────────
+    // One shared translator so every surface says WHY a number matters
+    // instead of printing the number. Returns "" when there's nothing
+    // worth saying — callers skip empty lines rather than pad.
+    window.tdInterpret = function (kind, v, x) {
+      x = x || {};
+      switch (kind) {
+        case "rvol":
+          if (v == null) return "";
+          if (v >= 3)   return v.toFixed(1) + "× volume — institutional accumulation likely";
+          if (v >= 1.5) return v.toFixed(1) + "× volume — above-normal interest";
+          return "";
+        case "grade":
+          if (!v) return "";
+          if (v === "A+") return "A+ trend — top swing grade on the tape";
+          if (/^A/.test(v)) return v + " trend — top-tier momentum";
+          if (/^B/.test(v)) return v + " trend — constructive, not yet leading";
+          if (/^[GF]/.test(v)) return v + " — confirmed downtrend";
+          return "";
+        case "flow": {                     // x = top uoa row for the ticker
+          if (!v) return "";
+          const prem = x.premium >= 1e6 ? "$" + (x.premium / 1e6).toFixed(1) + "M "
+                     : x.premium >= 1e3 ? "$" + Math.round(x.premium / 1e3) + "K " : "";
+          const base = v === "bullish" ? prem + "bullish options flow"
+                     : v === "bearish" ? prem + "bearish options flow"
+                     : "mixed options flow — no clean read";
+          return (x.edge_adj || 0) > 1
+            ? base + " (profile historically outperforms)" : base;
+        }
+        case "ext":
+          if (v == null) return "";
+          if (v >= 12) return "extended +" + Math.round(v) + "% above trend — chase risk";
+          if (v >= 7)  return "+" + Math.round(v) + "% above trend — late entry";
+          return "";
+        case "chg":
+          if (v == null) return "";
+          if (v >= 8)  return "already +" + v.toFixed(1) + "% today — wait for a pullback";
+          if (v <= -8) return v.toFixed(1) + "% today — falling knife risk";
+          return "";
+        case "earnings":
+          if (v == null || v < 0) return "";
+          if (v === 0) return "earnings TODAY — binary event risk";
+          if (v <= 5)  return "earnings in " + v + "d — event risk inside the trade";
+          if (v <= 10) return "earnings in " + v + "d — plan the exit";
+          return "";
+        case "held":
+          return v ? "whale held overnight — OI confirmed the position" : "";
+        case "theme":
+          return v ? v + " — active theme" : "";
+        case "mom":
+          return v === "qm" ? "monthly momentum leader"
+               : v === "sb" ? "weekly momentum gainer" : "";
+      }
+      return "";
+    };
+
+    // ── Opportunities — the decision-first spine of Today's Desk ────────
+    // Top confluence names as universal cards: scores → evidence → risk →
+    // ACTION + confidence. Composed entirely from data already on the desk
+    // (confluence ctx, swing cards, flow rows, earnings meta, overnight
+    // carryover). Every card ends in a verb, never a number.
+    function cardOpportunities(ctx, swing, uoa, uoaMeta, carryover) {
+      const meta = uoaMeta || {};
+      const heldSet = new Set(((carryover && carryover.contracts) || [])
+        .filter(function (c) { return c.held === true; })
+        .map(function (c) { return c.ticker; }));
+      const topFlow = {};
+      ((uoa && uoa.rows) || []).forEach(function (r) {
+        if (!topFlow[r.ticker] ||
+            (r.trade_score || 0) > (topFlow[r.ticker].trade_score || 0))
+          topFlow[r.ticker] = r;
+      });
+      const edays = function (t) {
+        const m = meta[t];
+        if (!m || !m.earnings_date) return null;
+        const d = Math.round((Date.parse(m.earnings_date) - Date.now()) / 864e5);
+        return isNaN(d) ? null : d;
+      };
+      // Candidates: confirmed bulls ranked by confluence score, A-tier
+      // hedges as backfill, plus the single strongest confirmed bear so the
+      // row always carries the other side of the tape.
+      const entries = Object.keys(ctx).map(function (t) {
+        return { t: t, e: ctx[t], cat: biasCategory(ctx[t]) };
+      });
+      const rank = function (dir) {
+        return function (a, b) {
+          return (scoreCtx(b.e, dir) || {score:0}).score -
+                 (scoreCtx(a.e, dir) || {score:0}).score;
+        };
+      };
+      let bulls = entries.filter(function (x) { return x.cat === "confirm-bull"; })
+                         .sort(rank("bull"));
+      if (bulls.length < 4) {
+        bulls = bulls.concat(
+          entries.filter(function (x) {
+            return x.cat === "hedge" && /^A/.test(x.e.grade || "");
+          }).sort(rank("bull")));
+      }
+      const bears = entries.filter(function (x) { return x.cat === "confirm-bear"; })
+                           .sort(rank("bear"));
+      const picks = bulls.slice(0, 4).map(function (x) { x.dir = "bull"; return x; });
+      if (bears.length) { bears[0].dir = "bear"; picks.push(bears[0]); }
+      if (!picks.length) return "";
+
+      const clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
+      const cards = picks.map(function (x) {
+        const t = x.t, e = x.e, dir = x.dir;
+        const sc = scoreCtx(e, dir) || { score: 0, sigs: 0 };
+        const card = DESK_TKMAP[t] || {};
+        const fl = topFlow[t];
+        const ed = edays(t);
+        const held = heldSet.has(t);
+
+        // evidence — collect, keep the 5 strongest in priority order
+        const ev = [];
+        const push = function (s) { if (s) ev.push(s); };
+        if (held) push(tdInterpret("held", true));
+        push(tdInterpret("grade", e.grade));
+        if (fl) push(tdInterpret("flow", e.flow, fl));
+        push(tdInterpret("rvol", card.rvol));
+        push(tdInterpret("mom", e.qm ? "qm" : (e.sb ? "sb" : null)));
+        push(tdInterpret("theme", (e.themes || [])[0]));
+        const evidence = ev.slice(0, 5);
+
+        // risk — up to 3, real ones only
+        const risks = [];
+        const rpush = function (s) { if (s) risks.push(s); };
+        rpush(tdInterpret("earnings", ed));
+        rpush(tdInterpret("ext", card.ext));
+        rpush(tdInterpret("chg", dir === "bull" ? card.chg : null));
+        if (dir === "bull" && e.flow === "bearish")
+          rpush("options flow disagrees with the trend");
+        if ((card.mcap || 0) > 0 && card.mcap < 500e6)
+          rpush("sub-$500M — size for liquidity");
+        const risk = risks.slice(0, 3);
+
+        // scores: conviction = confluence strength; opportunity = conviction
+        // net of timing/risk; confidence = the action's self-assessed odds
+        const conviction = clamp(38 + sc.score * 6 + sc.sigs * 4 +
+                                 (held ? 6 : 0), 35, 96);
+        const opp = clamp(conviction
+          - (card.ext >= 12 ? 8 : card.ext >= 8 ? 4 : 0)
+          - (ed != null && ed >= 0 && ed <= 5 ? 10 : ed != null && ed <= 10 ? 4 : 0)
+          + ((fl && fl.premium >= 1e6) ? 4 : 0), 30, 97);
+        const confidence = clamp(Math.round(conviction * 0.55 + opp * 0.35)
+          - risk.length * 4 + (held ? 6 : 0), 20, 95);
+
+        // the verb — every card ends in an action
+        let act, actCls = "opc-a-buy";
+        if (dir === "bear") { act = "AVOID LONGS"; actCls = "opc-a-avoid"; }
+        else if (ed != null && ed >= 0 && ed <= 5) { act = "WAIT — EARNINGS"; actCls = "opc-a-wait"; }
+        else if ((card.ext || 0) >= 12 || (card.chg || 0) >= 8) { act = "WATCH PULLBACK"; actCls = "opc-a-watch"; }
+        else if (conviction >= 72) { act = "BUY PULLBACK"; }
+        else if (conviction >= 55) { act = "WATCH BREAKOUT"; actCls = "opc-a-watch"; }
+        else { act = "MONITOR"; actCls = "opc-a-watch"; }
+
+        const esc = window.escapeHtml;
+        return '<div class="opc" data-t="' + esc(t) + '" role="button" tabindex="0">' +
+          '<div class="opc-h"><span class="opc-tk">' + esc(t) + '</span>' +
+            '<span class="opc-sc" title="Opportunity: conviction net of timing/event risk">' +
+              '<b>' + opp + '</b><i>opp</i></span>' +
+            '<span class="opc-sc" title="Conviction: cross-signal confluence strength">' +
+              '<b>' + conviction + '</b><i>conv</i></span>' +
+            '<span class="opc-dir ' + (dir === "bull" ? "opc-d-bull" : "opc-d-bear") + '">' +
+              (dir === "bull" ? "LONG" : "SHORT") + '</span></div>' +
+          '<ul class="opc-ev">' + evidence.map(function (s) {
+            return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>' +
+          (risk.length ? '<ul class="opc-risk">' + risk.map(function (s) {
+            return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>' : "") +
+          '<div class="opc-act ' + actCls + '"><b>' + act + '</b>' +
+            '<span title="Self-assessed odds this action is right — calibrated by the outcome tracker over time">conf ' +
+            confidence + '</span></div></div>';
+      }).join("");
+
+      const stamp = { cls: "current", label: "Ranked · confluence + learned edge",
+        full: "Top opportunities ranked by cross-signal confluence (trend grade, " +
+              "options flow, momentum lists, themes), adjusted for timing and event " +
+              "risk. Evidence and risks in plain language; every card ends in an " +
+              "action + confidence. 15-min delayed data; not advice." };
+      return desk("Opportunities — what to trade today",
+        '<div class="opc-row">' + cards + '</div>', "desk-card--wide", stamp);
+    }
+
     function cardTopBullish(ctx, swing, uoa) {
       return renderConfluenceCard("Top Bullish",
         buildConfluenceList(ctx, "bull"), confluenceStamp(swing, uoa));
@@ -19299,6 +19521,7 @@
         // Flow sits next to Market Health instead of leaving an empty
         // half-cell. Then the EOD divider + post-close cards.
         grid.innerHTML = [
+          cardOpportunities(ctx, swing, uoa, uoaMeta, D.carryover), // decision-first spine
           cardWhatChangedToday(swing, uoa),    // full-width, LIVE-first
           '<div class="desk-pair">' +          // Market Health | Top Flow
             cardMarketHealth(swing) +          //   live intraday breadth (left)
