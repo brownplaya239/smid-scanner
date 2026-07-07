@@ -2075,34 +2075,50 @@
   .lm-row .lm-pct.down { color:var(--red); }
   .lm-none { color:var(--muted); font-size:11px; padding:4px 0; }
   .md-movers-card { margin-bottom:12px; }
-  /* Overnight Flow (OI-confirmed) tile */
-  .ovf-sub { font-size:9px; font-weight:800; letter-spacing:.5px;
-    text-transform:uppercase; color:var(--muted); margin:10px 0 5px;
-    padding-bottom:4px; border-bottom:1px solid var(--line); }
-  .ovf-sub:first-child { margin-top:2px; }
-  .ovf-idea { display:flex; align-items:baseline; gap:8px; padding:4px 0;
-    font-size:12px; cursor:pointer; }
-  .ovf-idea:hover .ovf-tk { color:var(--gold); }
-  .ovf-tk { font-weight:800; color:var(--text); min-width:52px; }
-  .ovf-con { color:var(--textdim); flex:1; min-width:0; }
+  /* Overnight Flow — OI-confirmation conviction dashboard */
+  .ovf-interp { font-size:11.5px; line-height:1.5; color:var(--textdim);
+    background:rgba(255,200,0,0.05); border:1px solid var(--line);
+    border-left:3px solid var(--gold); border-radius:6px;
+    padding:8px 11px; margin-bottom:10px; }
+  .ovf-interp-i { margin-right:5px; }
+  .ovf-tblwrap { overflow-x:auto; }
+  .ovf-tbl { min-width:640px; font-variant-numeric:tabular-nums; }
+  .ovf-tr { display:grid; align-items:center; gap:6px 8px;
+    grid-template-columns:64px minmax(84px,1.3fr) 46px 62px 52px 74px 78px 74px 56px;
+    padding:5px 4px; border-bottom:1px solid var(--line); font-size:12px; }
+  .ovf-tr:not(.ovf-hd) { cursor:pointer; }
+  .ovf-tr:not(.ovf-hd):hover { background:var(--rowhov); }
+  .ovf-tr:not(.ovf-hd):hover .ovf-tk { color:var(--gold); }
+  .ovf-hd { font-size:9px; font-weight:800; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line);
+    position:sticky; top:0; background:var(--card); }
+  .ovf-c { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ovf-th { cursor:pointer; user-select:none; }
+  .ovf-th:hover { color:var(--text); }
+  .ovf-num { text-align:right; font-weight:700; }
+  .ovf-hd .ovf-num, .ovf-tr .ovf-num { justify-self:end; }
+  .ovf-tk { font-weight:800; color:var(--text); }
+  .ovf-con { color:var(--textdim); font-size:11px; }
   .ovf-exp { color:var(--muted); }
-  .ovf-prem { font-weight:700; color:var(--green); white-space:nowrap;
-    font-variant-numeric:tabular-nums; }
-  .ovf-oi-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr));
-    gap:2px 14px; }
-  .ovf-oi { display:flex; align-items:baseline; justify-content:space-between;
-    gap:8px; padding:3px 0; font-size:12px; cursor:pointer; }
-  .ovf-oi:hover .ovf-tk { color:var(--gold); }
-  .ovf-frac { font-weight:700; font-variant-numeric:tabular-nums;
-    white-space:nowrap; }
-  .ovf-frac.ovf-held { color:var(--green); }
-  .ovf-frac.ovf-cut  { color:var(--red); }
-  .ovf-frac.ovf-pend { color:var(--muted); font-weight:500; }
+  .ovf-conv { font-size:13px; }
+  .ovf-g { color:var(--green); }
+  .ovf-y { color:var(--gold); }
+  .ovf-r { color:var(--red); }
+  .ovf-m { color:var(--muted); font-weight:500; }
+  .ovf-warn { color:var(--gold); cursor:help; font-size:11px; }
+  .ovf-badge { display:inline-block; font-size:9px; font-weight:800;
+    padding:1px 5px; border-radius:4px; letter-spacing:.2px; white-space:nowrap; }
+  .ovf-d-bull  { background:rgba(31,179,99,0.16);  color:#7ddfa1; }
+  .ovf-d-bear  { background:rgba(214,68,68,0.16);  color:#f08585; }
+  .ovf-d-hedge { background:rgba(255,200,0,0.14);  color:var(--gold); }
+  .ovf-d-unk   { background:rgba(255,255,255,0.06); color:var(--muted); }
+  .ovf-pr-ap { background:rgba(31,179,99,0.22); color:#8ee9ac; }
+  .ovf-pr-a  { background:rgba(31,179,99,0.14); color:#7ddfa1; }
+  .ovf-pr-b  { background:rgba(255,200,0,0.14); color:var(--gold); }
+  .ovf-pr-av { background:rgba(214,68,68,0.16); color:#f08585; }
+  .ovf-pr-pend { background:rgba(255,255,255,0.06); color:var(--muted); }
   .ovf-foot { font-size:10px; color:var(--muted); margin-top:9px;
     padding-top:7px; border-top:1px solid var(--line); line-height:1.5; }
-  @media (max-width:560px) {
-    .ovf-oi-grid { grid-template-columns:minmax(0,1fr); }
-  }
   .lm-foot { margin-top:9px; padding-top:7px; border-top:1px solid var(--line);
     font-size:10px; color:var(--muted); }
   /* Full-width divider between the live block and the EOD cards */
@@ -16846,71 +16862,155 @@
     // held = (today_OI − flag_OI) / flag_volume ≥ 0.5. Generated pre-open
     // by carryover_flow.py; most relevant before the open, so it relabels
     // (not hides) once RTH starts. Returns "" when there's no data yet.
+    // ── Overnight Flow / OI-Confirmation — conviction dashboard ─────────
+    // Ranks yesterday's notable prints by a 0–100 conviction score and tells
+    // the user, at a glance: did the whale hold, did next-day OI confirm it,
+    // how much stayed open, and which names deserve follow-through today.
+    // All metrics are computed upstream in carryover_flow.py (single source
+    // of truth, shared with the Daily Brief); this only renders + sorts.
+    let _ovfData = null;                          // last carryover payload (for sort re-render)
+    let _ovfSort = { k: "conviction", dir: -1 };  // persists across desk re-renders
+    const OVF_PRANK = { "A+": 5, "A": 4, "B": 3, "Avoid": 2, "Pending": 1 };
+    const escHtml = function (s) { return window.escapeHtml(s); };
+    const escAttr = function (s) { return window.escapeHtml(s); };
+    function ovfPrem(p) {
+      if (!p && p !== 0) return "—";
+      return p >= 1e6 ? "$" + (p / 1e6).toFixed(1) + "M"
+           : p >= 1e3 ? "$" + Math.round(p / 1e3) + "K" : "$" + p;
+    }
+    function ovfExp(iso) {
+      const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso || "");
+      return m ? (+m[1]) + "/" + (+m[2]) : "";
+    }
+    // Green ≥70% · yellow 40–69% · red <40% (confirmation buckets).
+    function ovfBucket(frac) {
+      if (frac == null) return "ovf-m";
+      return frac >= 0.70 ? "ovf-g" : frac >= 0.40 ? "ovf-y" : "ovf-r";
+    }
+    function ovfConvCls(v) {
+      if (v == null) return "ovf-m";
+      return v >= 75 ? "ovf-g" : v >= 50 ? "ovf-y" : "ovf-r";
+    }
+    function ovfSortVal(c, k) {
+      if (k === "ticker")   return c.ticker || "";
+      if (k === "priority") return OVF_PRANK[c.priority] || 0;
+      const v = c[k];
+      return (v == null) ? -Infinity : v;
+    }
+    // The dashboard's inner HTML — interpretation + sortable table.
+    function ovfDashHTML(co) {
+      _ovfData = co;
+      const rows = (co && co.contracts || []).slice();
+      const k = _ovfSort.k, dir = _ovfSort.dir;
+      rows.sort(function (a, b) {
+        const va = ovfSortVal(a, k), vb = ovfSortVal(b, k);
+        if (va < vb) return -dir;
+        if (va > vb) return dir;
+        return (b.conviction || 0) - (a.conviction || 0);   // stable tiebreak
+      });
+      // Column defs: [label, sortKey|null, tooltip]
+      const cols = [
+        ["Ticker", "ticker", "Underlying. Click any row to open its drilldown."],
+        ["Contract", null, "Strike · type · expiry of the flagged print."],
+        ["Dir", "direction", "Bullish call / bearish put — direction of the positioning."],
+        ["Premium", "premium", "Dollar value of the original flagged print."],
+        ["Held %", "whale_held", "Estimated share of the whale's print still open overnight (Δ OI ÷ contracts traded, capped 100%)."],
+        ["OI Conf %", "oi_confirmed", "Percentage of yesterday's opening trade that appeared in today's open interest (Δ OI ÷ contracts traded)."],
+        ["Net New OI", "net_new_oi", "OI increase beyond the original print — positive means other traders joined (follow-on buying)."],
+        ["Conviction", "conviction", "0–100: whale-held 35% · OI-confirmed 35% · premium 15% · OI-vs-prior 10% · strike relevance 5%."],
+        ["Priority", "priority", "Follow-through watch priority: A+/A strong · B watch · Avoid likely closed/scalped · Pending awaiting OI."],
+      ];
+      const arrow = function (key) {
+        return key === k ? (dir < 0 ? " ▾" : " ▴") : "";
+      };
+      const head = '<div class="ovf-tr ovf-hd">' + cols.map(function (col) {
+        const sortable = col[1] ? ' ovf-th" data-k="' + col[1] + '"' : '"';
+        return '<span class="ovf-c' + (col[1] ? sortable : '"') +
+          ' title="' + escAttr(col[2]) + '">' + col[0] + arrow(col[1]) + '</span>';
+      }).join("") + '</div>';
+      const body = rows.map(function (c) {
+        const typ = /^p/i.test(c.type || "") ? "P" : "C";
+        const dirCls = c.direction === "bullish" ? "ovf-d-bull"
+          : c.direction === "bearish" ? "ovf-d-bear"
+          : c.direction === "hedge" ? "ovf-d-hedge" : "ovf-d-unk";
+        const dirTxt = c.direction === "bullish" ? "Bull"
+          : c.direction === "bearish" ? "Bear"
+          : c.direction === "hedge" ? "Hedge" : "?";
+        const oc = c.oi_confirmed;
+        const ocTxt = oc == null ? "<span class='ovf-m'>pending</span>"
+          : '<b>' + Math.round(oc * 100) + '%</b>';
+        const ocTip = (c.delta == null || !c.volume) ? "OI not yet settled"
+          : "+" + Math.max(0, c.delta).toLocaleString() + " new OI vs " +
+            c.volume.toLocaleString() + " contracts traded";
+        const held = c.whale_held == null ? "<span class='ovf-m'>—</span>"
+          : Math.round(c.whale_held * 100) + "%";
+        const nno = c.net_new_oi;
+        const nnoTxt = nno == null ? "<span class='ovf-m'>—</span>"
+          : (nno > 0 ? "<span class='ovf-g'>+" + nno.toLocaleString() + "</span>"
+                     : "<span class='ovf-m'>" + nno.toLocaleString() + "</span>");
+        const conv = c.conviction;
+        const prCls = { "A+": "ovf-pr-ap", "A": "ovf-pr-a", "B": "ovf-pr-b",
+          "Avoid": "ovf-pr-av", "Pending": "ovf-pr-pend" }[c.priority] || "ovf-pr-pend";
+        const warn = (c.warnings && c.warnings.length)
+          ? ' <span class="ovf-warn" title="' + escAttr(c.warnings.join("\n")) +
+            '">⚠</span>' : '';
+        return '<div class="ovf-tr" data-t="' + escAttr(c.ticker) +
+            '" role="button" tabindex="0">' +
+          '<span class="ovf-c ovf-tk">' + escHtml(c.ticker) + warn + '</span>' +
+          '<span class="ovf-c ovf-con">' + (c.strike != null ? c.strike : "") +
+            typ + ' <span class="ovf-exp">' + ovfExp(c.expiry) + '</span></span>' +
+          '<span class="ovf-c"><span class="ovf-badge ' + dirCls + '">' + dirTxt + '</span></span>' +
+          '<span class="ovf-c ovf-num">' + ovfPrem(c.premium) + '</span>' +
+          '<span class="ovf-c ovf-num">' + held + '</span>' +
+          '<span class="ovf-c ovf-num ' + ovfBucket(oc) + '" title="' + escAttr(ocTip) + '">' + ocTxt + '</span>' +
+          '<span class="ovf-c ovf-num">' + nnoTxt + '</span>' +
+          '<span class="ovf-c ovf-num ovf-conv ' + ovfConvCls(conv) + '">' +
+            (conv == null ? "<span class='ovf-m'>—</span>" : conv) + '</span>' +
+          '<span class="ovf-c"><span class="ovf-badge ' + prCls + '">' +
+            escHtml(c.priority || "—") + '</span></span>' +
+          '</div>';
+      }).join("");
+      const interp = co.interpretation
+        ? '<div class="ovf-interp"><span class="ovf-interp-i">💡</span>' +
+          escHtml(co.interpretation) + '</div>' : "";
+      return interp +
+        '<div class="ovf-tblwrap"><div class="ovf-tbl">' + head + body + '</div></div>';
+    }
     function cardOvernightFlow(carryover) {
       const co = carryover || (window.TD_DATA && window.TD_DATA.carryover);
-      const contracts = (co && co.contracts) || [];
-      if (!contracts.length) return "";
+      if (!co || !(co.contracts || []).length) return "";
       const open = (typeof isMarketOpenET === "function") ? isMarketOpenET() : false;
-      const title = open ? "Yesterday's Flow · OI-confirmed"
-                         : "Overnight Flow · OI-confirmed";
-      const fmtPrem = function (p) {
-        if (!p && p !== 0) return "";
-        return p >= 1e6 ? "$" + (p / 1e6).toFixed(1) + "M"
-             : p >= 1e3 ? "$" + Math.round(p / 1e3) + "K" : "$" + p;
-      };
-      const fmtExp = function (iso) {
-        const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso || "");
-        return m ? (+m[1]) + "/" + (+m[2]) : "";
-      };
-      const fmtStrike = function (v) {
-        return (typeof v === "number")
-          ? (Number.isInteger(v) ? String(v) : String(v)) : (v || "");
-      };
-      const held = contracts.filter(function (c) { return c.held === true; });
-      // Block 1 — confirmed ideas (held), capped for readability.
-      const ideaRows = held.slice(0, 6).map(function (c) {
-        const typ = /^p/i.test(c.type || "") ? "Put" : "Call";
-        const px = (typeof c.avg_px === "number") ? " @ " + c.avg_px : "";
-        return '<div class="ovf-idea" data-t="' + c.ticker + '">' +
-          '<span class="ovf-tk">' + c.ticker + '</span>' +
-          '<span class="ovf-con">' + fmtStrike(c.strike) + ' ' + typ +
-            ' <span class="ovf-exp">(' + fmtExp(c.expiry) + ')</span></span>' +
-          '<span class="ovf-prem">' + fmtPrem(c.premium) + px + ' ✅</span>' +
-          '</div>';
-      }).join("");
-      // Block 2 — OI update for every carried contract (✅/❌).
-      const oiRows = contracts.map(function (c) {
-        let frac, mark, cls;
-        if (c.held === null || c.delta === null || !c.volume) {
-          frac = "OI pending"; mark = "…"; cls = "ovf-pend";
-        } else {
-          frac = Math.max(0, c.delta).toLocaleString() + "/" +
-                 c.volume.toLocaleString();
-          mark = c.held ? "✅" : "❌";
-          cls = c.held ? "ovf-held" : "ovf-cut";
-        }
-        return '<div class="ovf-oi" data-t="' + c.ticker + '">' +
-          '<span class="ovf-tk">' + c.ticker + '</span>' +
-          '<span class="ovf-frac ' + cls + '">' + frac + ' ' + mark + '</span>' +
-          '</div>';
-      }).join("");
-      const sess = fmtExp(co.session_date) || "prior session";
+      const title = open ? "Yesterday's Flow · Conviction Board"
+                         : "Overnight Flow · Conviction Board";
+      const sess = ovfExp(co.session_date) || "prior session";
+      const nConf = co.confirmed_count != null ? co.confirmed_count : co.total;
       const stamp = { cls: open ? "current" : "fresh",
         label: (open ? "Pre-open · " : "Latest · ") + "session " + sess,
         full: "Yesterday's notable prints re-checked against this morning's " +
-              "OCC-settled open interest. ✅ = whale held >50% of the print " +
-              "(Δ OI ÷ flag-day volume ≥ 0.5). 15-min delayed source data." };
-      const body =
-        (ideaRows
-          ? '<div class="ovf-sub">Held overnight — whale kept &gt;50%</div>' +
-            ideaRows
-          : '<div class="desk-empty">No prints confirmed held overnight.</div>') +
-        '<div class="ovf-sub">Open interest update</div>' +
-        '<div class="ovf-oi-grid">' + oiRows + '</div>' +
-        '<div class="ovf-foot">' + (co.held_count || held.length) + '/' +
-          (co.total || contracts.length) + ' held &middot; ✅ = Δ OI ' +
-          '&ge; 50% of flag-day volume</div>';
+              "OCC-settled open interest, ranked by a 0–100 conviction score. " +
+              "Click a column to sort; hover any metric for its definition. " +
+              "15-min delayed source data." };
+      const body = '<div class="ovf-dash">' + ovfDashHTML(co) + '</div>' +
+        '<div class="ovf-foot">' + nConf + '/' + co.total +
+          ' OI-confirmed &middot; conviction = held 35% · OI-conf 35% · premium 15% ' +
+          '· OI-vs-prior 10% · strike 5% &middot; sortable</div>';
       return desk(title, body, "desk-card--wide", stamp);
+    }
+    // One-time delegated sort handler — clicking a sortable header re-sorts
+    // and re-renders the table in place (survives desk re-renders via the
+    // persisted _ovfSort + cached _ovfData).
+    if (!window._ovfWired) {
+      window._ovfWired = true;
+      document.addEventListener("click", function (e) {
+        const th = e.target.closest && e.target.closest(".ovf-th[data-k]");
+        if (!th) return;
+        const dash = th.closest(".ovf-dash");
+        if (!dash || !_ovfData) return;
+        const key = th.getAttribute("data-k");
+        if (_ovfSort.k === key) _ovfSort.dir = -_ovfSort.dir;
+        else _ovfSort = { k: key, dir: key === "ticker" ? 1 : -1 };
+        dash.innerHTML = ovfDashHTML(_ovfData);
+      });
     }
 
     // ── Live Movers (part B) — biggest intraday % moves among the names

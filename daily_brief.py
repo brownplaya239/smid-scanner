@@ -1140,71 +1140,72 @@ def _fmt_strike(v) -> str:
     return str(int(v)) if float(v).is_integer() else f"{v:g}"
 
 
+_OVF_PBADGE = {
+    "A+":     ("rgba(31,179,99,0.22)", "#8ee9ac"),
+    "A":      ("rgba(31,179,99,0.14)", "#7ddfa1"),
+    "B":      ("rgba(202,166,58,0.16)", "#d8b74a"),
+    "Avoid":  ("rgba(214,68,68,0.16)", "#f08585"),
+    "Pending": ("rgba(255,255,255,0.06)", CSS_MUTED),
+}
+
+
 def _render_carryover(cf) -> str:
-    """@flowgod-style 'did the whales hold?' section: yesterday's notable
-    prints re-checked against this morning's OCC-settled open interest."""
+    """Conviction board (mirrors the Desk tile): yesterday's notable prints
+    re-checked against this morning's OCC-settled OI, ranked 0–100 by whether
+    the whale held + OI confirmed. Contracts arrive pre-sorted by conviction."""
     contracts = (cf or {}).get("contracts") or []
     if not contracts:
         return ""
     sess = _fmt_expiry_short(cf.get("session_date") or "") or "yesterday"
-    held = [c for c in contracts if c.get("held") is True]
+    interp = (cf or {}).get("interpretation") or ""
 
-    # Block 1 — the confirmed ideas (whale held > half), as trade lines.
-    idea_rows = []
-    for c in held:
-        typ = (c.get("type") or "").upper().replace("CALL", "Call").replace("PUT", "Put")
-        typ = "Call" if typ.startswith("C") else ("Put" if typ.startswith("P") else typ)
+    def _pbadge(p):
+        bg, fg = _OVF_PBADGE.get(p, ("rgba(255,255,255,0.06)", CSS_MUTED))
+        return (f'<span style="display:inline-block;font-size:10px;font-weight:800;'
+                f'padding:1px 6px;border-radius:4px;background:{bg};color:{fg};'
+                f'white-space:nowrap;">{esc(p or "—")}</span>')
+
+    rows = []
+    for c in contracts:
+        t = (c.get("type") or "")
+        typ = "C" if t.startswith("c") else ("P" if t.startswith("p") else "")
         exp = _fmt_expiry_short(c.get("expiry") or "")
         prem = _fmt_premium(c.get("premium"))
-        px = c.get("avg_px")
-        px_txt = f" @ {px:g}" if isinstance(px, (int, float)) else ""
-        idea_rows.append(_row_wrap(
+        oc = c.get("oi_confirmed")
+        conv = c.get("conviction")
+        if oc is None:
+            oc_txt = f'<span style="color:{CSS_MUTED};">OI pending</span>'
+        else:
+            col = CSS_GREEN if oc >= 0.70 else ("#d8b74a" if oc >= 0.40 else CSS_RED)
+            oc_txt = f'<span style="color:{col};font-weight:700;">{round(oc*100)}% OI conf</span>'
+        conv_txt = "" if conv is None else f' · <b style="color:{CSS_TEXT};">{conv}</b> conv'
+        rows.append(
+            f'<div style="padding:7px 14px;border-bottom:1px solid {CSS_BORDER};">'
             f'<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">'
             f'<div>{_ticker_link(c.get("ticker"))}'
-            f'<span style="color:{CSS_TEXT};font-size:12.5px;margin-left:8px;">'
-            f'{_fmt_strike(c.get("strike"))} {esc(typ)} '
-            f'<span style="color:{CSS_MUTED};">({esc(exp)})</span></span></div>'
-            f'<div style="font-size:12px;color:{CSS_GREEN};font-weight:700;white-space:nowrap;">'
-            f'{esc(prem)}{esc(px_txt)} ✅</div></div>'))
-
-    # Block 2 — the OI update line for every carried contract (✅/❌).
-    oi_rows = []
-    for c in contracts:
-        held_c = c.get("held")
-        delta = c.get("delta")
-        vol = c.get("volume")
-        if held_c is None or delta is None or not vol:
-            frac = '<span style="color:%s;">OI pending</span>' % CSS_MUTED
-            mark = "…"
-            col = CSS_MUTED
-        else:
-            num = max(0, int(delta))
-            frac = f"{num:,}/{int(vol):,}"
-            mark = "✅" if held_c else "❌"
-            col = CSS_GREEN if held_c else CSS_RED
-        oi_rows.append(
-            f'<div style="display:flex;align-items:baseline;justify-content:space-between;'
-            f'padding:6px 14px;border-bottom:1px solid {CSS_BORDER};">'
-            f'<span>{_ticker_link(c.get("ticker"), 13)}</span>'
-            f'<span style="font-size:12px;color:{col};font-weight:700;'
-            f'font-variant-numeric:tabular-nums;">{frac} {mark}</span></div>')
+            f'<span style="color:{CSS_TEXT};font-size:12px;margin-left:7px;">'
+            f'{_fmt_strike(c.get("strike"))}{typ} '
+            f'<span style="color:{CSS_MUTED};">{esc(exp)}</span></span>'
+            f'<span style="color:{CSS_MUTED};font-size:11px;margin-left:7px;">{esc(c.get("dir_label") or "")}</span></div>'
+            f'<div>{_pbadge(c.get("priority"))}</div></div>'
+            f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:2px;">'
+            f'{esc(prem)} · {oc_txt}{conv_txt}</div></div>')
 
     parts = []
-    if idea_rows:
+    if interp:
         parts.append(
-            f'<div style="font-size:11px;font-weight:700;color:{CSS_MUTED};'
-            f'padding:10px 14px 4px;text-transform:uppercase;letter-spacing:.5px;">'
-            f'Noteworthy flow — OI confirmed</div>' + "".join(idea_rows))
-    parts.append(
-        f'<div style="font-size:11px;font-weight:700;color:{CSS_MUTED};'
-        f'padding:10px 14px 4px;text-transform:uppercase;letter-spacing:.5px;">'
-        f'Open interest update</div>' + "".join(oi_rows))
+            f'<div style="font-size:12px;line-height:1.5;color:{CSS_TEXT};'
+            f'padding:10px 14px;background:rgba(255,200,0,0.05);'
+            f'border-bottom:1px solid {CSS_BORDER};">💡 {esc(interp)}</div>')
+    parts.append("".join(rows))
     parts.append(
         f'<div style="font-size:10.5px;color:{CSS_MUTED};padding:9px 14px;line-height:1.5;">'
-        f'✅ = whale held &gt;50% of the print overnight (Δ open interest ÷ flag-day volume). '
-        f'Not advice.</div>')
-    sub = f"{cf.get('held_count', len(held))}/{cf.get('total', len(contracts))} held · session {sess}"
-    return _card("Overnight flow — did the whales hold?", "".join(parts), sub)
+        f'Conviction 0–100 (held 35% · OI-confirmed 35% · premium 15% · OI-vs-prior 10% · '
+        f'strike 5%). OI confirmed = Δ open interest ÷ contracts traded. Not advice.</div>')
+    nconf = cf.get("confirmed_count",
+                   len([c for c in contracts if c.get("conviction") is not None]))
+    sub = f"{nconf}/{cf.get('total', len(contracts))} OI-confirmed · session {sess}"
+    return _card("Overnight flow — conviction board", "".join(parts), sub)
 
 
 def _render_premarket(premarket, overnight, brief) -> str:
