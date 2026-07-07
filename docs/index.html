@@ -2240,6 +2240,11 @@
   .sk-row { display:flex; gap:10px; margin-top:12px; }
   .sk-block { flex:1; height:120px; border-radius:9px; }
   .sk-card { pointer-events:none; }
+  /* What-Changed grade-moves strip (absorbs the Upgrades/Downgrades cards) */
+  .wct-grades { font-size:11px; color:var(--textdim); padding:6px 10px;
+    background:var(--navy2); border-radius:6px; margin-bottom:8px;
+    line-height:1.6; cursor:help; }
+  .wct-grades .dr-tk { margin-left:6px; }
   /* Momentum Lab cross-engine table */
   #momentum-lab { margin-bottom:16px; }
   .mlab-row { display:grid; align-items:baseline; gap:6px 10px;
@@ -5042,21 +5047,22 @@
         <line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
     </button>
+    <!-- v3 IA: 9 workspace tabs. QM Monthly / Stockbee / Alt-Data left the
+         nav (panels + hash routes still work; the Momentum Lab and
+         Research headers link into them as deep-dives). Breakouts/Setups
+         remain one release pending the Lab absorbing their tables. -->
     <button data-tab="desk" class="active">Desk</button>
     <button data-tab="mydesk">My Desk</button>
     <button data-tab="watchlist">Watchlist</button>
     <button data-tab="uoa">Options Flow</button>
-    <button data-tab="charts">Charts</button>
-    <button data-tab="adhoc">Research</button>
-    <button data-tab="alt-data">Alt-Data</button>
+    <button data-tab="swing">Momentum Lab</button>
     <button data-tab="breakout">Breakouts</button>
     <button data-tab="setup">Setups</button>
-    <button data-tab="swing">Swing</button>
-    <button data-tab="qm-monthly">QM Monthly</button>
-    <button data-tab="stockbee-weekly">Stockbee</button>
-    <button data-tab="news">News</button>
     <button data-tab="whisper">Earnings</button>
+    <button data-tab="news">News</button>
     <button data-tab="global">Global</button>
+    <button data-tab="charts">Charts</button>
+    <button data-tab="adhoc">Research</button>
     <button data-tab="pricing" class="nav-pricing">Pricing</button>
   </nav>
 
@@ -5350,7 +5356,9 @@
             <option value="buy">Buy</option>
             <option value="sell">Sell</option>
             <option value="watch">Watch</option>
-            <option value="signal_acted">Signal acted</option>
+<!-- "signal_acted" removed (v3 audit): an undefined third verb between buy
+     and watch. Signal provenance is captured properly by the [setup:…] tag
+     stamped on buys. Old entries with the value still render fine. -->
           </select>
           <input type="number" id="tl-price"    placeholder="Entry price"
                  inputmode="decimal" step="0.01" min="0" />
@@ -5409,6 +5417,11 @@
 
     <!-- Ad-Hoc -->
     <section class="panel" id="panel-adhoc">
+      <!-- v3 IA: Alt-Data left the nav; Research is the one report surface.
+           The alt-data panel + route still exist as a deep-dive. -->
+      <p class="tab-sub" style="margin-bottom:10px">Looking for satellite /
+        app-usage / web-traffic lookups? <a href="#alt-data">Alt-data
+        reports &rarr;</a></p>
       <!-- Generate new ad-hoc report — primary action -->
       <div class="card">
         <h2>Generate a new ad-hoc report
@@ -15830,76 +15843,28 @@
         }).catch(function () {});
     })();
 
-    // ── Lightbox for full-size image view on click ──
-    function showLightbox(src) {
-      let lb = document.getElementById("ew-lightbox");
-      if (!lb) {
-        lb = document.createElement("div");
-        lb.id = "ew-lightbox";
-        lb.className = "ew-lightbox";
-        document.body.appendChild(lb);
-        lb.addEventListener("click", function () {
-          lb.classList.remove("show");
-        });
-      }
-      lb.innerHTML = '<img src="' + src + '" alt="" />';
-      lb.classList.add("show");
-    }
+    // (Tweet-image lightbox removed with the image pane — v3 audit kill.)
 
     function escHTML(s) {
       return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
         .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
     function loadTweetImage() {
+      // v3 audit kill: the scraped @eWhispers chart IMAGE is gone — it sat
+      // below our own scrape table + Earnings Edge, duplicated their data
+      // at lower fidelity, and broke silently whenever Twitter's
+      // syndication endpoint changed. A text link preserves discovery;
+      // the scrape pipeline keeps running for the cashtag/anticipation
+      // data other panes consume.
       if (!tweet) return;
       fetch("./reports/whisper_tweet.json?t=" + Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
-          if (!d || !d.image_url) {
-            tweet.innerHTML = '';   // no image, hide the section silently
-            return;
-          }
-          const week = d.week_of
-            ? new Date(d.week_of + "T00:00:00").toLocaleDateString([],
-                { month: "long", day: "numeric", year: "numeric" })
-            : "";
-          // Universe overlap: highlight cashtags also tracked by our site
-          const univ = new Set();
-          const D = window.TD_DATA || {};
-          if (D.swing && D.swing.runs && D.swing.runs.length) {
-            const r = D.swing.runs[D.swing.runs.length - 1];
-            Object.keys(r.grades || {}).forEach(function (g) {
-              (r.grades[g] || []).forEach(function (c) { univ.add(c.t); });
-            });
-          }
-          if (D.uoaMeta) Object.keys(D.uoaMeta).forEach(function (t) {
-            univ.add(t);
-          });
-          const cashHtml = (d.tickers || []).map(function (t) {
-            const cls = univ.has(t) ? "ew-ct ew-in-univ" : "ew-ct";
-            return '<span class="' + cls + '" data-t="' + escHTML(t) +
-              '" title="' + escHTML(t) +
-              (univ.has(t) ? " (in our universe)" : "") + '">$' +
-              escHTML(t) + '</span>';
-          }).join("");
-          tweet.innerHTML = '<div class="ew-tweet-wrap">' +
-            '<img id="ew-tweet-img" src="' + escHTML(d.image_url) +
-              '" alt="Earnings Whisper Most Anticipated — week of ' +
-              escHTML(week) + '" />' +
-            '<div class="ew-tweet-meta">' +
-              '<span class="ew-week">Week of ' + escHTML(week) + '</span>' +
-              (d.favorites ? '<span>❤ ' + d.favorites.toLocaleString() +
-                ' likes</span>' : '') +
-              '<a href="' + escHTML(d.tweet_url) +
-                '" target="_blank" rel="noopener">view on X &rarr;</a>' +
-            '</div>' +
-            (cashHtml ? '<div class="ew-tweet-meta">' +
-              '<div class="ew-cashtags">' + cashHtml + '</div></div>' : '') +
-            '</div>';
-          const img = document.getElementById("ew-tweet-img");
-          if (img) img.addEventListener("click", function () {
-            showLightbox(d.image_url);
-          });
+          const url = (d && d.tweet_url) || "https://x.com/eWhispers";
+          tweet.innerHTML = '<div class="ew-tweet-meta" style="padding:6px 0">' +
+            'Weekly &ldquo;Most Anticipated&rdquo; chart: ' +
+            '<a href="' + escHTML(url) + '" target="_blank" rel="noopener">' +
+            '@eWhispers on X &rarr;</a></div>';
         })
         .catch(function () { tweet.innerHTML = ''; });
     }
@@ -17369,7 +17334,11 @@
         '<span class="ee-sub">One ranking across Swing grades · QM Monthly ' +
         '· Stockbee Weekly · Breakout screen · bullish flow. Confirmations ' +
         'count: a name on 3+ engines is the strongest momentum read this ' +
-        'site produces. Deep-dives stay on their tabs.</span></div>' +
+        'site produces. Deep-dives: ' +
+        '<a href="#qm-monthly">QM Monthly</a> · ' +
+        '<a href="#stockbee-weekly">Stockbee Weekly</a> · ' +
+        '<a href="#breakout">Breakouts</a> · ' +
+        '<a href="#setup">Setups</a></span></div>' +
         '<div class="mlab-row mlab-hdr"><span>Ticker</span><span>Engines</span>' +
         '<span class="ee-num">Day %</span><span class="ee-num">RVol</span>' +
         '<span class="ee-num">Ext</span>' +
@@ -17383,6 +17352,8 @@
           return '<div class="mlab-row">' +
             '<span class="ee-tk" data-t="' + esc(x.t) + '">' + esc(x.t) +
               (x.e.grade ? ' <i class="mlab-gr">' + x.e.grade + '</i>' : '') +
+              (window.tdActionStripCompact
+                ? window.tdActionStripCompact(x.t) : "") +
               '</span>' +
             '<span class="mlab-srcs">' +
               Object.keys(x.e.srcs).map(srcChip).join("") + '</span>' +
@@ -17912,6 +17883,52 @@
             { character: "post-close", label: "Diff against" })
         : { cls: "none", label: "Pending first run" };
 
+      // Grade-moves strip — absorbs the retired Top Upgrades / Downgrades
+      // cards (v3 audit merge: the same diff was rendered three times —
+      // two dedicated cards, per-name chips, and the Lab). One summary
+      // line with the biggest movers; chips + drilldowns carry the detail.
+      let gradeMoves = "";
+      try {
+        if (swing && swing.runs && swing.runs.length >= 2) {
+          const GR = ["A+","A","A-","B+","B","B-","C+","C","C-","D+",
+                      "D","D-","E+","E","E-","F+","F","F-","G+","G"];
+          const gm = function (run) {
+            const m = {};
+            GR.forEach(function (g, gi) {
+              (run.grades[g] || []).forEach(function (c) { m[c.t] = gi; });
+            });
+            return m;
+          };
+          const now = gm(swing.runs[swing.runs.length - 1]);
+          const was = gm(swing.runs[swing.runs.length - 2]);
+          const moves = [];
+          Object.keys(now).forEach(function (t) {
+            if (was[t] != null && now[t] !== was[t])
+              moves.push({ t: t, d: was[t] - now[t] });   // + = upgrade
+          });
+          const ups = moves.filter(function (m) { return m.d > 0; });
+          const dns = moves.filter(function (m) { return m.d < 0; });
+          if (moves.length) {
+            const top = function (arr, sign) {
+              return arr.sort(function (a, b) {
+                return Math.abs(b.d) - Math.abs(a.d); }).slice(0, 3)
+                .map(function (m) {
+                  return '<span class="dr-tk" data-t="' + m.t + '">' + m.t +
+                    '</span><span class="' + (sign > 0 ? "pos" : "neg") +
+                    '">' + (sign > 0 ? "↑" : "↓") + Math.abs(m.d) + '</span>';
+                }).join(" ");
+            };
+            gradeMoves = '<div class="wct-grades" title="Grade ladder moves ' +
+              'vs the prior session — steps up/down the 20-grade ladder. ' +
+              'Full ladder on the Momentum Lab tab.">' +
+              '<b class="pos">' + ups.length + '↑</b> / <b class="neg">' +
+              dns.length + '↓</b> grade moves &middot; biggest: ' +
+              top(ups, 1) + (dns.length ? ' &middot; ' + top(dns, -1) : "") +
+              '</div>';
+          }
+        }
+      } catch (_) {}
+
       const user = window.tdUser && window.tdUser();
       const watchlist = (window.tdWatchlist && window.tdWatchlist()) ||
                         new Set();
@@ -17977,7 +17994,7 @@
           : '<div class="wct-empty">' +
             'Building today\'s diff — comes online after market close.</div>';
         return desk("What changed",
-          sampleHtml +
+          gradeMoves + sampleHtml +
           '<div class="wct-cta">' +
           (signed
             ? "★ Star tickers anywhere to see YOUR changes here instead."
@@ -18070,7 +18087,7 @@
       });
       if (!changes.length) {
         return desk("What changed",
-          '<div class="wct-empty">⭐ Quiet day across your ' +
+          gradeMoves + '<div class="wct-empty">⭐ Quiet day across your ' +
             watchlist.size + '-name watchlist. ' +
             'Check the Action List below for market-wide opportunities.' +
           '</div>',
@@ -18095,6 +18112,7 @@
           'close); does not change intraday.">Feed</span>' +
         '</div>';
       return desk("What changed",
+        gradeMoves +
         '<div class="wct-list">' + wctHdr +
           changes.map(function (item) {
             var live = item.pri === 3;
@@ -19838,6 +19856,7 @@
           ? '<div class="opc-meta">' + esc(metaBits) + '</div>' : "";
         return '<div class="opc" data-t="' + esc(t) + '" role="button" tabindex="0">' +
           '<div class="opc-h"><span class="opc-tk">' + esc(t) + '</span>' +
+          (window.tdActionStripCompact ? window.tdActionStripCompact(t) : "") +
             '<span class="opc-sc" title="Opportunity: conviction net of timing/event risk">' +
               '<b>' + opp + '</b><i>opp</i></span>' +
             '<span class="opc-sc" title="Conviction: cross-signal confluence strength">' +
@@ -20410,8 +20429,9 @@
           '<div class="desk-divider"><span>End-of-day — grades &amp; ' +
             'setups from the last post-close batch (4:30 PM ET); these ' +
             'don’t change intraday</span></div>',
-          cardSwingUpgrades(swing),
-          cardSwingDowngrades(swing),
+          // (Top Upgrades / Downgrades cards retired — v3 merge: the grade
+          // diff now lives as the What-Changed grade-moves strip + per-name
+          // chips + the Momentum Lab. Same data, one fewer desk row.)
           eodColumns,                          // (breakouts+calendar) | (themes+earnings+buzz)
           topBullBearRow,                      // bullish | bearish, below
           // Nightly self-grade row: Evening Review | What We Missed. Either
