@@ -1630,16 +1630,23 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         else:
             interpret_lines.append(("13D/13G:", "No 5%+ stake filings in last 12 months. Either nobody's gone over the threshold or the company is too large for 5% to be common (>$10B caps rarely see 13D/G activity)."))
 
-        # Insider context
+        # Insider context — the verdict must weigh buys AGAINST sales.
+        # (Old logic said "net bullish" on 3+ buys regardless of sales —
+        # 4 buys vs 20 sales got labeled bullish. Caught in user review.)
         if insider_transactions:
             buys = [t for t in insider_transactions if t["code"] == "P"]
             sales = [t for t in insider_transactions if t["code"] == "S"]
-            if len(buys) >= 3:
-                interpret_lines.append(("Insider Tape:", f"{len(buys)} open-market buys vs {len(sales)} sales in last 12 months — net bullish insider behavior."))
-            elif len(buys) >= 1:
-                interpret_lines.append(("Insider Tape:", f"{len(buys)} buy / {len(sales)} sales over 12 months — mixed picture, watch for cluster patterns."))
+            nb, ns = len(buys), len(sales)
+            if nb >= 3 and nb >= ns:
+                interpret_lines.append(("Insider Tape:", f"{nb} open-market buys vs {ns} sales in last 12 months — net bullish insider behavior."))
+            elif nb >= 3 and ns >= 2 * nb:
+                interpret_lines.append(("Insider Tape:", f"{nb} open-market buys vs {ns} sales — selling heavily outweighs the buying; net bearish tilt despite some genuine purchases."))
+            elif nb >= 3:
+                interpret_lines.append(("Insider Tape:", f"{nb} open-market buys vs {ns} sales — real buying against routine selling; mixed, watch for cluster patterns."))
+            elif nb >= 1:
+                interpret_lines.append(("Insider Tape:", f"{nb} buy / {ns} sales over 12 months — mixed picture, watch for cluster patterns."))
             else:
-                interpret_lines.append(("Insider Tape:", f"{len(sales)} insider sales in 12 months, no open-market purchases — neutral to bearish (but typical for unprofitable growth companies)."))
+                interpret_lines.append(("Insider Tape:", f"{ns} insider sales in 12 months, no open-market purchases — neutral to bearish (but typical for unprofitable growth companies)."))
 
         # Render
         pdf.set_text_color(20, 20, 40)
