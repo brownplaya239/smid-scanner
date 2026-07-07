@@ -3823,6 +3823,24 @@
     cursor:help; vertical-align:1px; }
   .dr-lrn.up { background:rgba(31,179,99,0.14); color:#7ddfa1; }
   .dr-lrn.dn { background:rgba(214,68,68,0.14); color:#f08585; }
+
+  /* Regime banner — one-line tape classification above the desk grid */
+  .rg-banner { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    background:var(--card); border:1px solid var(--line); border-radius:8px;
+    padding:7px 12px; margin-bottom:12px; font-size:11px; cursor:help; }
+  .rg-banner.rg-on    { border-left:3px solid var(--green); }
+  .rg-banner.rg-off   { border-left:3px solid var(--red); }
+  .rg-banner.rg-mixed { border-left:3px solid var(--gold); }
+  .rg-label { font-weight:800; font-size:11px; letter-spacing:.08em; }
+  .rg-on  .rg-label { color:#7ddfa1; }
+  .rg-off .rg-label { color:#f08585; }
+  .rg-mixed .rg-label { color:var(--gold); }
+  .rg-item { color:var(--textdim); white-space:nowrap;
+    font-variant-numeric:tabular-nums; }
+  .rg-item i { font-style:normal; color:var(--muted); font-size:10px; }
+  .rg-macro { color:var(--gold); }
+  .rg-read { margin-left:auto; color:var(--muted); font-style:italic; }
+  @media (max-width:700px) { .rg-read { margin-left:0; width:100%; } }
   .scp-popover .scp-foot { font-size:10px; color:var(--muted);
     border-top:1px solid var(--line); margin-top:7px; padding-top:6px; }
   /* Historical-edge footer ── shows hit-rate + avg-return for this
@@ -4962,6 +4980,8 @@
         </div>
       </div>
       <!-- Top Movers rendered here (above the news wire) by renderDesk. -->
+      <!-- Regime banner — one-line tape classification, filled by renderDesk. -->
+      <div id="desk-regime"></div>
       <div id="desk-movers" class="desk-movers-slot"></div>
       <div class="md-news-card" id="desk-news">
         <div class="md-news-head">
@@ -18911,6 +18931,89 @@
       return "";
     };
 
+    // ── Regime banner — one-line answer to "what tape is this?" ─────────
+    // Classifies the session from universe breadth (post-close grades'
+    // day-% across ~1k names), surfaces the leading theme, today's
+    // high-impact macro, and the earnings window. The same classification
+    // is persisted daily by swing_report.py into regime_history.json —
+    // learning loop 7's dataset (strategy performance per regime).
+    function deskRegimeBanner(swing, cal, uoaMeta, todayISO) {
+      try {
+        if (!swing || !swing.runs || !swing.runs.length) return "";
+        const r = swing.runs[swing.runs.length - 1];
+        const cards = [];
+        Object.keys(r.grades || {}).forEach(function (g) {
+          (r.grades[g] || []).forEach(function (c) { cards.push({ g: g, c: c }); });
+        });
+        const chg = cards.map(function (x) { return x.c.chg; })
+          .filter(function (v) { return typeof v === "number"; });
+        if (chg.length < 50) return "";
+        const up = chg.filter(function (v) { return v > 0; }).length;
+        const breadth = Math.round(100 * up / chg.length);
+        const aT = cards.filter(function (x) { return /^A/.test(x.g); }).length;
+        const fgT = cards.filter(function (x) { return /^[FG]/.test(x.g); }).length;
+        let label, cls, read;
+        if (breadth >= 58)      { label = "RISK-ON";   cls = "rg-on";
+          read = "breadth broad — favor longs, buy pullbacks"; }
+        else if (breadth <= 42) { label = "RISK-OFF";  cls = "rg-off";
+          read = "breadth weak — smaller size, respect stops"; }
+        else                    { label = "MIXED TAPE"; cls = "rg-mixed";
+          read = "selective tape — A-grade setups only"; }
+        // leading theme = best avg day-% with ≥4 constituents
+        const th = {};
+        cards.forEach(function (x) {
+          (x.c.th || []).forEach(function (t) {
+            (th[t] = th[t] || []).push(x.c.chg);
+          });
+        });
+        let lead = null, leadAvg = -1e9;
+        Object.keys(th).forEach(function (t) {
+          const arr = th[t].filter(function (v) { return typeof v === "number"; });
+          if (arr.length >= 4) {
+            const a = arr.reduce(function (s, v) { return s + v; }, 0) / arr.length;
+            if (a > leadAvg) { leadAvg = a; lead = t; }
+          }
+        });
+        // today's high-impact macro (FF dates are MM-DD-YYYY)
+        let macro = "";
+        try {
+          const p = todayISO.split("-");
+          const ff = p[1] + "-" + p[2] + "-" + p[0];
+          const highs = ((cal && cal.events) || []).filter(function (e) {
+            return e.date === ff && /high/i.test(e.impact || e.imp || "");
+          });
+          if (highs.length) macro = highs.slice(0, 2).map(function (e) {
+            return (e.title || "").slice(0, 26) + (e.time ? " " + e.time : "");
+          }).join(" · ");
+        } catch (_) {}
+        // earnings inside 7 days across covered names
+        let ern = 0;
+        try {
+          const now = Date.now();
+          Object.keys(uoaMeta || {}).forEach(function (t) {
+            const d = Date.parse((uoaMeta[t] || {}).earnings_date || "");
+            if (!isNaN(d)) {
+              const days = (d - now) / 864e5;
+              if (days >= 0 && days <= 7) ern++;
+            }
+          });
+        } catch (_) {}
+        const esc = window.escapeHtml;
+        return '<div class="rg-banner ' + cls + '" title="Regime read from ' +
+          'universe breadth (post-close day-% across the graded universe) + ' +
+          'themes + macro calendar. Logged daily to regime_history.json so ' +
+          'strategy performance can be measured per regime.">' +
+          '<span class="rg-label">' + label + '</span>' +
+          '<span class="rg-item">' + breadth + '% adv <i>· ' + chg.length +
+            ' names</i></span>' +
+          '<span class="rg-item">' + aT + ' A-tier / ' + fgT + ' weak</span>' +
+          (lead ? '<span class="rg-item">' + esc(lead) + ' leading</span>' : '') +
+          (macro ? '<span class="rg-item rg-macro">⚠ ' + esc(macro) + '</span>' : '') +
+          (ern ? '<span class="rg-item">' + ern + ' earnings ≤7d</span>' : '') +
+          '<span class="rg-read">' + read + '</span></div>';
+      } catch (_) { return ""; }
+    }
+
     // ── Opportunities — the decision-first spine of Today's Desk ────────
     // Top confluence names as universal cards: scores → evidence → risk →
     // ACTION + confidence. Composed entirely from data already on the desk
@@ -19522,6 +19625,9 @@
             cardTopBullish(ctx, swing, uoa) +
             cardTopBearish(ctx, swing, uoa) +
           '</div>';
+        // Regime banner — the desk's one-line "what tape is this?" strip.
+        const rgEl = document.getElementById("desk-regime");
+        if (rgEl) rgEl.innerHTML = deskRegimeBanner(swing, cal, uoaMeta, todayET);
         // Top Movers lives ABOVE the news wire now — render it into its own
         // slot there rather than as a grid card.
         const moversEl = document.getElementById("desk-movers");

@@ -529,9 +529,67 @@ def _emit(run_obj):
                   separators=(",", ":"))
     print(f"  Wrote swing_report.json ({len(runs)} run(s) in history)")
     try:
+        _append_regime_history(run_obj)
+    except Exception as e:
+        print(f"  regime history append failed (non-fatal): {e}")
+    try:
         _emit_summaries(runs)
     except Exception as e:
         print(f"  (summary emit skipped: {type(e).__name__}: {e})")
+
+
+REGIME_PATH = os.path.join(_BASE, "docs", "reports", "regime_history.json")
+
+
+def _append_regime_history(run_obj, cap=250):
+    """Learning loop 7's dataset: one labeled entry per trading day so
+    strategy performance can eventually be measured PER REGIME and ranking
+    weights conditioned on it. Stores the raw features alongside the label
+    (thresholds may improve later; the features let history be relabeled).
+    Label thresholds match the Today's Desk regime banner: breadth >=58%
+    risk_on, <=42% risk_off, else mixed."""
+    grades = run_obj.get("grades") or {}
+    chg, a_tier, fg_tier = [], 0, 0
+    for g, cards in grades.items():
+        for c in cards or []:
+            v = c.get("chg")
+            if isinstance(v, (int, float)):
+                chg.append(v)
+        if g.startswith("A"):
+            a_tier += len(cards or [])
+        elif g[:1] in ("F", "G"):
+            fg_tier += len(cards or [])
+    if len(chg) < 50:
+        print("  regime history: not enough graded names — skipped")
+        return
+    up = sum(1 for v in chg if v > 0)
+    breadth = round(100 * up / len(chg))
+    avg_chg = round(sum(chg) / len(chg), 3)
+    label = ("risk_on" if breadth >= 58 else
+             "risk_off" if breadth <= 42 else "mixed")
+    entry = {
+        "date":     run_obj.get("date"),
+        "label":    label,
+        "breadth":  breadth,
+        "avg_chg":  avg_chg,
+        "a_tier":   a_tier,
+        "fg_tier":  fg_tier,
+        "universe": len(chg),
+    }
+    hist = []
+    try:
+        with open(REGIME_PATH, encoding="utf-8") as f:
+            hist = json.load(f).get("days") or []
+    except Exception:
+        pass
+    hist = [d for d in hist if d.get("date") != entry["date"]]
+    hist.append(entry)
+    hist = hist[-cap:]
+    with open(REGIME_PATH, "w", encoding="utf-8") as f:
+        json.dump({"updated": run_obj.get("generated"), "days": hist}, f,
+                  separators=(",", ":"))
+    print(f"  Regime history: {entry['date']} -> {label} "
+          f"(breadth {breadth}%, {len(hist)} days logged)")
 
 
 def _emit_summaries(runs):
