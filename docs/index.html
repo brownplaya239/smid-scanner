@@ -5520,6 +5520,9 @@
            engine (Swing grades, QM Monthly, Stockbee Weekly, Breakout
            screen, bullish flow). A name on 3 engines ≫ a name on 1; the
            legacy tabs stay as deep-dives while agreement lives here. -->
+      <!-- Engine Room — the nightly closed-loop commentary on the grade
+           engine itself: what changed, why, did it work, what it learned -->
+      <div id="engine-room"></div>
       <div id="momentum-lab"></div>
       <!-- "New today" insights strip — diffs latest run vs prior session
            to surface what just changed: new A+, upgrades, demotions,
@@ -17260,6 +17263,173 @@
     setInterval(pollWatchlist, 20000);
   })();
 
+  /* ── Engine Room — nightly closed-loop commentary on the grade engine.
+        Four questions: what changed, why (context), did it work, what did
+        the learner adjust. Every stat below its gate says "accruing" with
+        the real count — nothing is estimated. Reads grade_engine.json. ── */
+  (function setupEngineRoom() {
+    const el = document.getElementById("engine-room");
+    if (!el) return;
+    const esc = window.escapeHtml;
+    const pos = 'style="color:var(--green);font-weight:700"';
+    const neg = 'style="color:var(--red);font-weight:700"';
+    const mut = 'style="color:var(--muted)"';
+    const BK = { up_1: "+1 step", up_2: "+2 steps", up_3plus: "+3 or more",
+                 dn_1: "−1 step", dn_2: "−2 steps", dn_3plus: "−3 or more" };
+
+    function sec(title, body) {
+      return '<div style="margin-top:9px"><div style="font-size:10px;' +
+        'font-weight:800;color:var(--muted);text-transform:uppercase;' +
+        'letter-spacing:.6px;margin-bottom:3px">' + title + '</div>' +
+        '<div style="font-size:12px;line-height:1.55;color:var(--text)">' +
+        body + '</div></div>';
+    }
+
+    fetch("./reports/grade_engine.json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.migrations) return;
+        const h = d.health || {}, acc = h.accuracy || {};
+        // 1 — health
+        let health;
+        if (acc.status === "active") {
+          const gs = Object.keys(acc.grades || {}).map(function (g) {
+            return g + " " + acc.grades[g].win + "% (n=" +
+              acc.grades[g].n + ")"; }).join(" · ");
+          health = 'Blended +5-session hit rate <b ' + pos + '>' + acc.pct +
+            '%</b> — ' + gs;
+        } else {
+          health = 'Per-grade accuracy <b>accruing</b> — ' +
+            (acc.graded || 0) + ' outcomes graded of ' +
+            (acc.activates_at || 30) + ' needed per grade. Real hit rates ' +
+            'publish then; nothing is shown before it exists.';
+        }
+        const sc = h.scorecard;
+        if (sc && sc.n) {
+          const p = Math.round(100 * sc.wins / sc.n);
+          health += '<br>Yesterday’s picks: <b class="' +
+            (p >= 55 ? "pos" : p <= 40 ? "neg" : "") + '">' + sc.wins +
+            '/' + sc.n + ' (' + p + '%)</b> worked next-day';
+        }
+        if (h.record && h.record.n >= 5) {
+          health += ' · record ' + h.record.wins + '/' + h.record.n +
+            ' over ' + h.record.sessions + ' sessions';
+        }
+        health += '<br>Regime: <b>' + esc(h.regime || "—") + '</b>' +
+          (h.breadth != null ? ' <span ' + mut + '>(breadth ' + h.breadth +
+           ')</span>' : '') +
+          ' · confidence calibration: ' + esc(h.calibration || "—");
+
+        // 2 — what changed
+        const m = d.migrations;
+        const flows = Object.keys(m.matrix || {})
+          .sort(function (a, b) { return m.matrix[b] - m.matrix[a]; })
+          .slice(0, 6).map(function (k) {
+            return k.replace("->", "→") + ' <b>' + m.matrix[k] + '</b>';
+          }).join(' · ');
+        const mover = function (x, up) {
+          return '<span class="dr-tk" data-t="' + esc(x.t) + '">' + esc(x.t) +
+            '</span> <span ' + (up ? pos : neg) + '>' + esc(x.from) +
+            '→' + esc(x.to) + '</span>&nbsp; ';
+        };
+        const changed =
+          '<b class="pos">' + m.n_up + '↑</b> / <b class="neg">' +
+          m.n_down + '↓</b> across ' + m.graded_universe +
+          ' graded names<br><span ' + mut + '>Biggest flows:</span> ' +
+          flows + '<br><span ' + mut + '>Movers:</span> ' +
+          m.top_up.slice(0, 3).map(function (x) { return mover(x, 1); })
+            .join(" ") + ' ' +
+          m.top_down.slice(0, 3).map(function (x) { return mover(x, 0); })
+            .join(" ");
+
+        // 3 — do transitions pay? + rarity + persistence
+        const tr = d.transition_outcomes || {};
+        const trParts = [];
+        Object.keys(BK).forEach(function (b) {
+          const v = tr[b];
+          if (!v) return;
+          if (v.status === "active") {
+            trParts.push(BK[b] + ': <b>' + v.hit + '% hit</b>, avg ' +
+              (v.avg > 0 ? "+" : "") + v.avg + '% (+' + v.hold_d +
+              's, n=' + v.n + ')');
+          }
+        });
+        const accruingTr = Object.keys(tr).filter(function (b) {
+          return tr[b] && tr[b].status === "accruing"; }).length;
+        let trHtml = trParts.length ? trParts.join('<br>') : '';
+        if (accruingTr) {
+          trHtml += (trHtml ? '<br>' : '') + '<span ' + mut + '>' +
+            accruingTr + ' transition buckets accruing toward n=30 — ' +
+            'stats publish when real.</span>';
+        }
+        const rar = d.rarity || {};
+        if (rar.status === "active") {
+          const pct = rar.pct_of_all_moves || {};
+          trHtml += '<br><span ' + mut + '>Rarity:</span> +3-step moves = ' +
+            '<b>' + (pct.up_3plus != null ? pct.up_3plus : "—") +
+            '%</b> of all moves (' + rar.days + ' days logged)';
+        } else {
+          trHtml += '<br><span ' + mut + '>Move-size rarity accruing (' +
+            (rar.days || 0) + '/' + (rar.activates_at || 20) +
+            ' days logged).</span>';
+        }
+        const pers = (d.persistence || {}).by_letter || {};
+        const persHtml = ["A", "B", "C", "D", "F", "G"].filter(function (L) {
+          return pers[L] != null; }).map(function (L) {
+            return L + ' <b>' + pers[L] + '</b>'; }).join(' · ') +
+          ' <span ' + mut + '>avg sessions current holders have held ' +
+          'their grade (' + ((d.persistence || {}).window_sessions || 0) +
+          '-session window) — long A-persistence reads as accumulation</span>';
+
+        // 4 — factor shifts + learned
+        const fs = d.factor_shifts || {};
+        let fsHtml;
+        if (fs.status === "active") {
+          fsHtml = '20EMA crosses <b class="pos">' + fs.ema20_cross_up +
+            '↑</b>/<b class="neg">' + fs.ema20_cross_down +
+            '↓</b> · 50EMA <b class="pos">' + fs.ema50_cross_up +
+            '↑</b>/<b class="neg">' + fs.ema50_cross_down +
+            '↓</b> · volume expansions <b>' + fs.vol_expansions +
+            '</b> · avg 5d RS shift <b>' +
+            (fs.avg_rs5_shift_pp > 0 ? "+" : "") + fs.avg_rs5_shift_pp +
+            'pp</b> <span ' + mut + '>(among ' + fs.names +
+            ' tracked names, day-over-day)</span>';
+        } else {
+          fsHtml = '<span ' + mut + '>' +
+            esc(fs.note || "fact-table diff pending") + '</span>';
+        }
+        const le = d.learned || {};
+        const learnedHtml =
+          (le.strongest || []).map(function (x) {
+            return esc(x.f.split(":").pop()) + ' <b class="' +
+              (x.adj > 0 ? "pos" : "neg") + '">' +
+              (x.adj > 0 ? "+" : "") + x.adj + '</b>';
+          }).join(' · ') +
+          ((le.dying || []).length ? '<br><span class="neg" style="font-size:10px;font-weight:800">FADING</span> ' +
+            le.dying.map(function (x) { return esc(x.f.split(":").pop()) +
+              ' ' + x.prior + '%→' + x.recent + '%'; }).join(' · ') : '') +
+          ((le.rising || []).length ? '<br><span class="pos" style="font-size:10px;font-weight:800">STRENGTHENING</span> ' +
+            le.rising.map(function (x) { return esc(x.f.split(":").pop()) +
+              ' ' + x.prior + '%→' + x.recent + '%'; }).join(' · ') : '') +
+          '<br><span ' + mut + ' style="font-size:10.5px">' +
+          esc(le.note || "") + '</span>';
+
+        el.innerHTML =
+          '<div class="ee-card"><div class="ee-head">Engine Room — is the ' +
+          'grading engine working?' +
+          '<span class="ee-sub">Nightly closed-loop commentary · session ' +
+          esc(d.session_date || "") + ' · every stat below its minimum ' +
+          'sample says “accruing” instead of guessing.</span></div>' +
+          sec('1 · Engine health — did it work?', health) +
+          sec('2 · What changed', changed) +
+          sec('3 · Do grade moves pay? (matured +5 sessions)', trHtml) +
+          sec('Grade persistence', persHtml) +
+          sec('4 · What moved inside the engine', fsHtml) +
+          sec('What the learner adjusted (UOA outcome loop)', learnedHtml) +
+          '</div>';
+      }).catch(function () {});
+  })();
+
   /* ── Momentum Lab — one cross-confirmed ranking over every momentum
         engine. A name on 3 engines ≫ a name on 1; this table IS that
         agreement. Reads window.TD_DATA (filled by the desk fetch);
@@ -17920,9 +18090,33 @@
                     '">' + (sign > 0 ? "↑" : "↓") + Math.abs(m.d) + '</span>';
                 }).join(" ");
             };
+            // Engine-health line — the "should I trust these changes?"
+            // answer above the change log. Full commentary lives in the
+            // Momentum Lab Engine Room; this is the one-line read.
+            let engLine = "";
+            try {
+              const eng = (window.TD_DATA || {}).engine || {};
+              const hh = eng.health || {};
+              const a2 = hh.accuracy || {};
+              const bits = [];
+              bits.push(a2.status === "active"
+                ? 'accuracy <b>' + a2.pct + '%</b> (+5s hit)'
+                : 'accuracy accruing (' + (a2.graded || 0) + '/' +
+                  (a2.activates_at || 30) + ')');
+              const sc2 = hh.scorecard;
+              if (sc2 && sc2.n)
+                bits.push("yesterday’s picks " + sc2.wins + "/" + sc2.n);
+              if (hh.regime) bits.push('regime <b>' +
+                window.escapeHtml(String(hh.regime)) + '</b>');
+              engLine = '<div style="margin-bottom:3px;">Engine: ' +
+                bits.join(' · ') +
+                ' · <a href="#swing" data-go-tab="swing" ' +
+                'style="color:var(--gold);text-decoration:none;">' +
+                'Engine Room →</a></div>';
+            } catch (_) {}
             gradeMoves = '<div class="wct-grades" title="Grade ladder moves ' +
               'vs the prior session — steps up/down the 20-grade ladder. ' +
-              'Full ladder on the Momentum Lab tab.">' +
+              'Full commentary in the Momentum Lab Engine Room.">' + engLine +
               '<b class="pos">' + ups.length + '↑</b> / <b class="neg">' +
               dns.length + '↓</b> grade moves &middot; biggest: ' +
               top(ups, 1) + (dns.length ? ' &middot; ' + top(dns, -1) : "") +
@@ -20328,6 +20522,8 @@
         // Technical fact table (~10KB): EMA/RSI/ATR/RS + correlation map
         // for surfaced names — powers the correlation warning chips.
         fetchJSON("./reports/technical_facts.json"),
+        // Engine Room summary (tiny) — health line on the What-Changed tile.
+        fetchJSON("./reports/grade_engine.json"),
       ]).then(function (arr) {
         const swing = arr[1], uoaMeta = arr[6];
         DESK_DATE = (swing && swing.runs && swing.runs.length)
@@ -20345,6 +20541,7 @@
         window.TD_DATA.missed = arr[8];
         window.TD_DATA.evening = arr[9];
         window.TD_DATA.facts = ((arr[10] || {}).facts) || {};
+        window.TD_DATA.engine = arr[11] || null;
       });
     }
     // Render the desk grid from whatever is already in window.TD_DATA — no

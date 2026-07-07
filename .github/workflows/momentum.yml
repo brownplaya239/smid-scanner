@@ -88,6 +88,15 @@ jobs:
         continue-on-error: true
         run: python setup_outcomes.py
 
+      - name: Grade engine room (migrations, persistence, health, learned)
+        # The nightly closed-loop commentary: migration matrix + rarity,
+        # transition outcomes (matured +5d, gated n>=30), persistence,
+        # factor shifts vs yesterday's fact table, engine health from the
+        # outcome trackers, and what the learner adjusted. Runs after
+        # setup_outcomes + evening_review (it reads their outputs).
+        continue-on-error: true
+        run: python grade_engine.py
+
       - name: Hypothesis lab (weekly, self-gated)
         # Pairwise feature hypotheses over the matured ledger; three
         # gates (sample, split-half stability, time-ordered holdout).
