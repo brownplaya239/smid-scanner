@@ -2228,6 +2228,18 @@
     background:var(--card); border:1px solid var(--line); border-radius:8px;
     margin:10px 0; cursor:help; }
   .tl-setups b { color:var(--text); }
+  /* Loading skeletons — shimmer placeholders shown before first data paint */
+  .sk { background:linear-gradient(90deg, var(--navy2) 25%,
+    rgba(150,170,205,0.10) 50%, var(--navy2) 75%);
+    background-size:200% 100%; border-radius:5px;
+    animation:sk-shimmer 1.4s ease-in-out infinite; }
+  @keyframes sk-shimmer { 0% { background-position:200% 0; }
+    100% { background-position:-200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .sk { animation:none; } }
+  .sk-line { height:13px; margin:9px 0; }
+  .sk-row { display:flex; gap:10px; margin-top:12px; }
+  .sk-block { flex:1; height:120px; border-radius:9px; }
+  .sk-card { pointer-events:none; }
   /* Momentum Lab cross-engine table */
   #momentum-lab { margin-bottom:16px; }
   .mlab-row { display:grid; align-items:baseline; gap:6px 10px;
@@ -5114,7 +5126,33 @@
            grid it describes) via the .fresh-anchor slot in tdSetFreshness. -->
       <div class="fresh-anchor"></div>
       <div class="desk-grid" id="desk-grid">
-        <div class="desk-card"><div class="desk-empty">Loading the day&rsquo;s desk&hellip;</div></div>
+        <!-- Static loading skeletons — visible during HTML parse, before any
+             JS runs; renderDesk() replaces the grid contents wholesale.
+             Shapes mirror the real layout (regime strip → opportunity card
+             row → wide card → pair) so nothing jumps on hydration. -->
+        <div class="desk-card desk-card--wide sk-card">
+          <div class="sk sk-line" style="width:32%"></div>
+          <div class="sk-row">
+            <div class="sk sk-block"></div><div class="sk sk-block"></div>
+            <div class="sk sk-block"></div><div class="sk sk-block"></div>
+          </div>
+        </div>
+        <div class="desk-card desk-card--wide sk-card">
+          <div class="sk sk-line" style="width:24%"></div>
+          <div class="sk sk-line" style="width:88%"></div>
+          <div class="sk sk-line" style="width:74%"></div>
+          <div class="sk sk-line" style="width:81%"></div>
+        </div>
+        <div class="desk-card sk-card">
+          <div class="sk sk-line" style="width:40%"></div>
+          <div class="sk sk-line" style="width:90%"></div>
+          <div class="sk sk-line" style="width:76%"></div>
+        </div>
+        <div class="desk-card sk-card">
+          <div class="sk sk-line" style="width:36%"></div>
+          <div class="sk sk-line" style="width:84%"></div>
+          <div class="sk sk-line" style="width:70%"></div>
+        </div>
       </div>
       <!-- Market Buzz — top gainers/losers + catalyst per name, live
            priced (Yahoo extended-hours), sub-$100M micro-caps filtered.
