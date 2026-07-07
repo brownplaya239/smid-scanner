@@ -22082,6 +22082,76 @@
           '<div class="es">'+oc.confirmed+' of '+oc.checked+
           ' positions stuck (OI retained next day)</div></div>');
       }
+      // Counterfactual card — "took EVERY signal in the cohort, +5d,
+      // equal-weight, direction-signed excess vs SPY." The graded ledger
+      // makes this a query; nobody else publishes theirs.
+      try {
+        const cf = edge.counterfactuals || {};
+        const LBL = { into_earnings: "every into-earnings signal",
+                      score_80_plus: "every 80+ score signal",
+                      positioning_dte: "every positioning-DTE signal",
+                      golden_sweeps: "every golden sweep" };
+        const best = Object.keys(cf)
+          .filter(function (k) { return LBL[k]; })
+          .sort(function (a, b) { return cf[b].avg_exc - cf[a].avg_exc; })
+          .slice(0, 3);
+        if (best.length) {
+          const rows = best.map(function (k) {
+            const c = cf[k];
+            const cls = c.avg_exc > 0 ? "pos" : "neg";
+            return '<div style="margin:2px 0">' + LBL[k] + ': <b class="' +
+              cls + '">' + (c.avg_exc > 0 ? "+" : "") + c.avg_exc +
+              '%/trade</b> <span class="scp-edge-n">(' +
+              c.n.toLocaleString() + ' trades · ' + c.hit + '% hit)</span></div>';
+          }).join("");
+          cards.push('<div class="ecard"><div class="et">Counterfactual — ' +
+            'if you took them all</div>' +
+            '<div class="ev neutral" style="font-size:12px;line-height:1.5;' +
+            'font-weight:500">' + rows + '</div>' +
+            '<div class="es">Direction-signed +5d excess vs SPY, ' +
+            'equal-weight, every matured signal counted — no cherry-picked ' +
+            'window.</div></div>');
+        }
+      } catch (_) {}
+      // Edge-freshness card — the decay tracker, surfaced. An edge that
+      // worked 90 days ago may be dead today; show the dying + improving
+      // features so users stop leaning on stale patterns.
+      try {
+        fetch("./reports/edge_weights.json", { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (w) {
+            const d = (w && w.decay) || {};
+            const keys = Object.keys(d);
+            if (!keys.length) return;
+            keys.sort(function (a, b) { return d[a].delta - d[b].delta; });
+            const fmt = function (k) {
+              const v = d[k];
+              const cls = v.delta <= -0.05 ? "neg"
+                        : v.delta >= 0.05 ? "pos" : "";
+              return '<div style="margin:2px 0">' +
+                k.split(":").pop() + ': <b class="' + cls + '">' +
+                Math.round(v.prior_hit * 100) + '%→' +
+                Math.round(v.recent_hit * 100) + '%</b></div>';
+            };
+            const dying = keys.slice(0, 2).filter(function (k) {
+              return d[k].delta <= -0.05; }).map(fmt).join("");
+            const rising = keys.slice(-2).filter(function (k) {
+              return d[k].delta >= 0.05; }).map(fmt).join("");
+            if (!dying && !rising) return;
+            const el2 = document.createElement("div");
+            el2.className = "ecard";
+            el2.innerHTML = '<div class="et">Edge Freshness (30d vs 90d)</div>' +
+              '<div class="ev neutral" style="font-size:12px;line-height:1.5;' +
+              'font-weight:500">' +
+              (dying ? '<div class="neg" style="font-size:10px;font-weight:800">FADING</div>' + dying : '') +
+              (rising ? '<div class="pos" style="font-size:10px;font-weight:800">STRENGTHENING</div>' + rising : '') +
+              '</div><div class="es">Per-feature hit rate, last 30 days vs ' +
+              'the prior 60. Fading edges get demoted by the nightly ' +
+              'learner; this is your early warning.</div>';
+            const host = $("uoa-edge");
+            if (host) host.appendChild(el2);
+          }).catch(function () {});
+      } catch (_) {}
       // False-positive honesty card — the inverse of the hit rate, per
       // score band at +5d. Users calibrate trust better against "how
       // often does this FAIL" than against a hit rate alone.

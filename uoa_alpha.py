@@ -773,6 +773,55 @@ def _ew_features(s):
     return feats
 
 
+# ── Counterfactual engine ────────────────────────────────────────────────
+# "If you had taken EVERY signal in this cohort and exited +5 sessions,
+# equal-weight" — the graded ledger makes this a query, not a promise.
+# Honest math: per-trade EXCESS return vs SPY (already computed per signal),
+# equal-weight average × N, best/worst, hit rate. No compounding fiction,
+# no cherry-picked windows: every matured signal in the cohort counts.
+def _counterfactuals(scored):
+    def graded_rows(pred):
+        out = []
+        for s in scored:
+            if not pred(s):
+                continue
+            w = _ew_win(s)
+            if w is None:
+                continue
+            r5 = (s.get("returns") or {}).get(5) or \
+                 (s.get("returns") or {}).get("5")
+            exc = (r5 or {}).get("excess")
+            d = s.get("direction")
+            if exc is None:
+                continue
+            # direction-signed: a bearish signal "earns" when the stock falls
+            out.append(exc if d == "bullish" else -exc)
+        return out
+
+    cohorts = {
+        "score_80_plus":  lambda s: (s.get("trade_score") or 0) >= 80,
+        "score_65_plus":  lambda s: (s.get("trade_score") or 0) >= 65,
+        "golden_sweeps":  lambda s: s.get("signal_type") == "golden_sweep",
+        "into_earnings":  lambda s: "Into ERN" in (s.get("tags") or []),
+        "positioning_dte": lambda s: _dte_bucket(s.get("dte")) == "positioning",
+    }
+    out = {}
+    for name, pred in cohorts.items():
+        rets = graded_rows(pred)
+        if len(rets) < 30:
+            continue
+        wins = sum(1 for r in rets if r > 0)
+        out[name] = {
+            "n":        len(rets),
+            "hit":      round(100 * wins / len(rets)),
+            "avg_exc":  round(sum(rets) / len(rets), 2),
+            "total_units": round(sum(rets), 1),   # sum of 1-unit trades
+            "best":     round(max(rets), 1),
+            "worst":    round(min(rets), 1),
+        }
+    return out
+
+
 def _emit_edge_weights(scored):
     """Compute per-feature adjustments from matured directional outcomes and
     publish the versioned weights file the scanner reads next run."""
@@ -858,6 +907,13 @@ def run():
     # no client code reads them from the main payload (verified), yet they
     # were ~90% of a 656 KB file fetched with the Flow tab. The cohorts
     # file exists for future lazy consumption (drilldowns, Performance).
+    try:
+        edge["counterfactuals"] = _counterfactuals(scored)
+        for k, v in edge["counterfactuals"].items():
+            print(f"  counterfactual {k}: n={v['n']} hit={v['hit']}% "
+                  f"avg {v['avg_exc']:+.2f}%/trade (dir-signed +5d excess)")
+    except Exception as e:
+        print(f"  counterfactuals failed (non-fatal): {e}")
     cohorts = {"generated": edge.get("generated"),
                "by_ticker": edge.pop("by_ticker", {}),
                "by_theme":  edge.pop("by_theme", {})}
