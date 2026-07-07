@@ -2273,6 +2273,38 @@ def _abort_invalid_ticker(ticker, hist):
     print("\nDone (invalid ticker - lookup aborted before pipeline).")
 
 
+def _insider_quality(transactions):
+    """Insider QUALITY score, not a count. -100 (heavy distribution) to
+    +100 (conviction accumulation), with reasons. Weighs net buy/sell
+    balance, seniority of buyers, and buying absence vs heavy selling.
+    Deterministic - the memo prompt receives it as insider_quality."""
+    if not transactions:
+        return None
+    buys = [t for t in transactions if t.get("code") == "P"]
+    sales = [t for t in transactions if t.get("code") == "S"]
+    nb, ns = len(buys), len(sales)
+    if nb + ns == 0:
+        return None
+    score, why = 0, []
+    bal = (nb - ns) / max(1, nb + ns)
+    score += round(60 * bal)
+    why.append(f"{nb} open-market buys vs {ns} sales (balance {bal:+.2f})")
+    senior = sum(1 for t in buys if any(k in str(t.get("title", "")).upper()
+                 for k in ("CEO", "CFO", "PRES", "CHAIR", "FOUNDER", "10%")))
+    if senior:
+        score += min(25, senior * 10)
+        why.append(f"{senior} senior-officer/10%-holder buys - highest-signal cohort")
+    elif nb:
+        why.append("buys are non-senior - weaker signal")
+    if nb == 0 and ns >= 10:
+        score -= 15
+        why.append("no open-market buying against heavy selling")
+    score = max(-100, min(100, score))
+    label = ("bullish accumulation" if score >= 30 else
+             "bearish distribution" if score <= -30 else "neutral/routine")
+    return {"score": score, "label": label, "why": why[:3]}
+
+
 def _gather_site_signals(ticker):
     """TickerDesk's own quant stack for one name — swing grade, technical
     facts, best flow read, overnight conviction. Injected into the memo
@@ -2467,6 +2499,14 @@ def run_single_ticker_lookup(ticker):
     print(f"  Smart money signal: {smart_money['label']}  (score={smart_money['score']})")
     if filings_13:
         print(f"  13D/13G filings (last 12mo): {len(filings_13)}")
+
+    try:
+        iq = _insider_quality(insider_log)
+        if iq:
+            candidates[0]["insider_quality"] = iq
+            print(f"  Insider quality: {iq['score']:+d} ({iq['label']})")
+    except Exception as e:
+        print(f"  insider quality skipped (non-fatal): {e}")
 
     # TickerDesk's own signal stack — the memo must synthesize with it
     try:
