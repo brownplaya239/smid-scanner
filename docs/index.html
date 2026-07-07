@@ -2225,6 +2225,28 @@
     background:var(--card); border:1px solid var(--line); border-radius:8px;
     margin:10px 0; cursor:help; }
   .tl-setups b { color:var(--text); }
+  /* Momentum Lab cross-engine table */
+  #momentum-lab { margin-bottom:16px; }
+  .mlab-row { display:grid; align-items:baseline; gap:6px 10px;
+    grid-template-columns:86px minmax(120px,1fr) 62px 52px 48px 52px 110px;
+    padding:5px 2px; border-bottom:1px solid var(--line); font-size:12px; }
+  .mlab-row:last-child { border-bottom:0; }
+  .mlab-hdr { font-size:9px; font-weight:800; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--muted); }
+  .mlab-gr { font-style:normal; font-size:9.5px; font-weight:800;
+    color:var(--gold); }
+  .mlab-srcs { display:flex; gap:3px; flex-wrap:wrap; }
+  .mlab-src { font-size:8px; font-weight:800; letter-spacing:.04em;
+    padding:1px 4px; border-radius:3px; cursor:help;
+    background:rgba(255,255,255,0.07); color:var(--dim, var(--muted)); }
+  .mlab-sw   { background:rgba(227,178,60,0.16); color:var(--gold); }
+  .mlab-flow { background:rgba(31,179,99,0.16); color:#7ddfa1; }
+  .mlab-brk  { background:rgba(94,160,224,0.16); color:#9ac6f0; }
+  .mlab-qm, .mlab-sb { background:rgba(155,140,240,0.16); color:#b9aef5; }
+  @media (max-width:640px) {
+    .mlab-row { grid-template-columns:70px minmax(90px,1fr) 52px 44px 40px 44px 92px;
+      font-size:11px; }
+  }
   .opc-d-bull { background:rgba(31,179,99,0.16); color:#7ddfa1; }
   .opc-d-bear { background:rgba(214,68,68,0.16); color:#f08585; }
   .opc-ev, .opc-risk { list-style:none; margin:0; padding:7px 11px;
@@ -5460,6 +5482,11 @@
         graded A+ &rarr; G on Relative Strength <em>and</em> price-structure
         Trend Strength. A+ = highest RS and strongest trend. Universe:
         above-average ATR, $50M+ daily dollar volume. 4:30 PM ET weekdays.</p>
+      <!-- Momentum Lab — ONE cross-confirmed ranking across every momentum
+           engine (Swing grades, QM Monthly, Stockbee Weekly, Breakout
+           screen, bullish flow). A name on 3 engines ≫ a name on 1; the
+           legacy tabs stay as deep-dives while agreement lives here. -->
+      <div id="momentum-lab"></div>
       <!-- "New today" insights strip — diffs latest run vs prior session
            to surface what just changed: new A+, upgrades, demotions,
            and any watchlist grade movement. -->
@@ -17223,6 +17250,124 @@
     pollWatchlist();
     setInterval(pollGeneral, 20000);
     setInterval(pollWatchlist, 20000);
+  })();
+
+  /* ── Momentum Lab — one cross-confirmed ranking over every momentum
+        engine. A name on 3 engines ≫ a name on 1; this table IS that
+        agreement. Reads window.TD_DATA (filled by the desk fetch);
+        retries until data lands, re-renders on Swing-tab visits. ── */
+  (function setupMomentumLab() {
+    const el = document.getElementById("momentum-lab");
+    if (!el) return;
+    const GP = { "A+": 5, "A": 4, "A-": 3, "B+": 2, "B": 1 };
+    function render() {
+      const D = window.TD_DATA || {};
+      if (!D.swing || !D.swing.runs || !D.swing.runs.length) return false;
+      const run = D.swing.runs[D.swing.runs.length - 1];
+      const map = {};
+      Object.keys(run.grades || {}).forEach(function (g) {
+        if (!(g in GP)) return;
+        (run.grades[g] || []).forEach(function (c) {
+          map[c.t] = { c: c, grade: g, srcs: { SW: 1 }, fs: 0 };
+          if (c.ext == null || c.ext < 5) map[c.t].srcs.BRK = 1;
+        });
+      });
+      [["QM", D.qm], ["SB", D.sb]].forEach(function (pair) {
+        const d = pair[1];
+        if (d && d.runs && d.runs.length)
+          (d.runs[d.runs.length - 1].rows || []).forEach(function (r) {
+            if (map[r.ticker]) map[r.ticker].srcs[pair[0]] = 1;
+            else map[r.ticker] = { c: { t: r.ticker }, grade: null,
+                                   srcs: (function (o) { o[pair[0]] = 1;
+                                     return o; })({}), fs: 0 };
+          });
+      });
+      (((D.uoa || {}).rows) || []).forEach(function (r) {
+        const e = map[r.ticker];
+        if (e && r.direction === "bullish" && (r.trade_score || 0) >= 60) {
+          e.srcs.FLOW = 1;
+          e.fs = Math.max(e.fs, r.trade_score || 0);
+        }
+      });
+      const meta = D.uoaMeta || {};
+      const rows = Object.keys(map).map(function (t) {
+        const e = map[t], c = e.c;
+        const conf = Object.keys(e.srcs).length;
+        const score = (GP[e.grade] || 0) * 6 + conf * 8 +
+          ((typeof c.rvol === "number" && c.rvol >= 1.5) ? 6 : 0) +
+          (e.fs >= 75 ? 6 : e.fs >= 60 ? 3 : 0) -
+          ((typeof c.ext === "number" && c.ext >= 8) ? 6
+            : (typeof c.ext === "number" && c.ext >= 5) ? 3 : 0);
+        let ed = null;
+        const m = meta[t];
+        if (m && m.earnings_date) {
+          const dd = Math.round((Date.parse(m.earnings_date) - Date.now()) / 864e5);
+          if (!isNaN(dd) && dd >= 0) ed = dd;
+        }
+        let act = "WATCH", cls = "ck-mon";
+        if (ed != null && ed <= 5) { act = "WAIT — ERN"; cls = "ck-ern"; }
+        else if (typeof c.ext === "number" && c.ext >= 8) { act = "EXTENDED — WAIT"; cls = "ck-ern"; }
+        else if (conf >= 3 && (GP[e.grade] || 0) >= 4) { act = "BUY PULLBACK"; cls = "ck-win"; }
+        else if (conf >= 2) { act = "WATCH BREAKOUT"; cls = "ck-sig"; }
+        return { t: t, e: e, c: c, conf: conf, score: score, act: act, cls: cls };
+      }).filter(function (x) { return x.conf >= 2; })
+        .sort(function (a, b) { return b.score - a.score; })
+        .slice(0, 15);
+      if (!rows.length) return false;
+      const esc = window.escapeHtml;
+      const lq = window.LIVE_QUOTE_CACHE || {};
+      const srcChip = function (k) {
+        return '<span class="mlab-src mlab-' + k.toLowerCase() + '" title="' +
+          ({ SW: "Swing Report Card A/B tier", QM: "QM Monthly momentum list",
+             SB: "Stockbee Weekly gainers", BRK: "Breakout screen (A-tier, not extended)",
+             FLOW: "Bullish options flow ≥60 score" }[k] || k) + '">' + k + '</span>';
+      };
+      el.innerHTML =
+        '<div class="ee-card"><div class="ee-head">Momentum Lab — ' +
+        'cross-engine agreement' +
+        '<span class="ee-sub">One ranking across Swing grades · QM Monthly ' +
+        '· Stockbee Weekly · Breakout screen · bullish flow. Confirmations ' +
+        'count: a name on 3+ engines is the strongest momentum read this ' +
+        'site produces. Deep-dives stay on their tabs.</span></div>' +
+        '<div class="mlab-row mlab-hdr"><span>Ticker</span><span>Engines</span>' +
+        '<span class="ee-num">Day %</span><span class="ee-num">RVol</span>' +
+        '<span class="ee-num">Ext</span>' +
+        '<span class="ee-num" title="Grade ×6 + confirmations ×8 + volume/flow bonuses − extension penalty">Score</span>' +
+        '<span>Action</span></div>' +
+        rows.map(function (x) {
+          const q = lq[x.t];
+          const chg = (q && typeof q.change === "number") ? q.change
+            : (typeof x.c.chg === "number" ? x.c.chg : null);
+          const cls = chg == null ? "" : chg > 0 ? "pos" : "neg";
+          return '<div class="mlab-row">' +
+            '<span class="ee-tk" data-t="' + esc(x.t) + '">' + esc(x.t) +
+              (x.e.grade ? ' <i class="mlab-gr">' + x.e.grade + '</i>' : '') +
+              '</span>' +
+            '<span class="mlab-srcs">' +
+              Object.keys(x.e.srcs).map(srcChip).join("") + '</span>' +
+            '<span class="ee-num ' + cls + '">' +
+              (chg == null ? "—" : (chg > 0 ? "+" : "") + chg.toFixed(1) + "%") +
+              '</span>' +
+            '<span class="ee-num">' + (typeof x.c.rvol === "number"
+              ? x.c.rvol.toFixed(1) + "×" : "—") + '</span>' +
+            '<span class="ee-num">' + (x.c.ext != null ? x.c.ext + "×" : "—") +
+              '</span>' +
+            '<span class="ee-num"><b>' + x.score + '</b></span>' +
+            '<span><span class="ck-act ' + x.cls + '">' + x.act +
+              '</span></span></div>';
+        }).join("") + '</div>';
+      return true;
+    }
+    // Desk fetch fills TD_DATA a few seconds after load — retry, then
+    // refresh whenever the user lands on the Swing tab.
+    let tries = 0;
+    const t0 = setInterval(function () {
+      if (render() || ++tries > 12) clearInterval(t0);
+    }, 2000);
+    document.addEventListener("click", function (e) {
+      const tab = e.target.closest && e.target.closest('[data-tab="swing"]');
+      if (tab) setTimeout(render, 250);
+    });
   })();
 
   /* ── Today's Desk — daily command center ── */
