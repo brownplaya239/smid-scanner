@@ -113,10 +113,18 @@ async function fetchYahooQuote(sym) {
     sym2 + "?range=5d&interval=1d";
   const headers = { "User-Agent": "Mozilla/5.0" };
   try {
-    const [r, rd] = await Promise.all([
+    let [r, rd] = await Promise.all([
       fetch(intradayUrl, { headers: headers, cf: { cacheTtl: 30 } }),
       fetch(dailyUrl,    { headers: headers, cf: { cacheTtl: 60 } }),
     ]);
+    // Yahoo rate-limits query1 from Workers IPs in intermittent bursts —
+    // when that happens the desk's candle charts blank out ("No intraday
+    // data") while Polygon keeps the price chips alive. query2 sits in a
+    // separate rate-limit pool; one retry there rides out most bursts.
+    if (!r.ok) {
+      r = await fetch(intradayUrl.replace("query1.", "query2."),
+                      { headers: headers, cf: { cacheTtl: 30 } });
+    }
     if (!r.ok) return { symbol: sym, price: null, change: null, bars: [] };
     const j = await r.json();
     const res = j && j.chart && j.chart.result && j.chart.result[0];
@@ -2618,6 +2626,24 @@ export default {
             source:             "yahoo+polygon",
           });
         }));
+        // Last-good bar retention: when Yahoo drops out entirely (both
+        // query hosts rate-limited) the Polygon fallback carries price +
+        // change but no intraday bars — which used to blank the desk
+        // candle charts. Serve the isolate's last-good bars (≤30 min old,
+        // stamped bars_stale so the client can disclose it) instead of
+        // an empty chart. Fresh bars always overwrite the stash.
+        quotes.forEach(function (q) {
+          if (!q || !q.symbol) return;
+          if (q.bars && q.bars.length) {
+            memPut("bars:" + q.symbol, q.bars);
+          } else {
+            const stash = memGet("bars:" + q.symbol, 1_800_000);
+            if (stash && stash.length) {
+              q.bars = stash;
+              q.bars_stale = true;
+            }
+          }
+        });
         // Edge cache 15s (was 30s) — concurrent users share one fan-out
         // but each user gets a near-fresh price within 15s of the last
         // upstream call. Upstream (Yahoo + Polygon) is already 15-min

@@ -11874,9 +11874,19 @@
       }
       return out;
     }
+    let _mcLoaded = false;   // first ?quotes= response arrived
     function candleSVG(q) {
       const bars = aggregate(q.bars || [], 36);
-      if (bars.length < 2) return '<div class="mc-empty">No intraday data.</div>';
+      if (bars.length < 2) {
+        // Three distinct states, told apart honestly: still loading,
+        // upstream chart feed down (prices remain live via Polygon), or
+        // genuinely no session bars yet (overnight/weekend).
+        if (!_mcLoaded) return '<div class="mc-empty">Loading…</div>';
+        if (typeof q.price === "number")
+          return '<div class="mc-empty">Chart feed rate-limited — ' +
+                 'price is live, candles resume shortly.</div>';
+        return '<div class="mc-empty">No intraday data.</div>';
+      }
       const W = 210, H = 74;
       const base = (typeof q.prevClose === "number") ? q.prevClose : null;
       let lo = Infinity, hi = -Infinity;
@@ -11925,8 +11935,20 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (!d || !d.quotes) return;
-          QMAP = {};
-          d.quotes.forEach(function (q) { QMAP[q.symbol] = q; });
+          _mcLoaded = true;
+          const next = {};
+          d.quotes.forEach(function (q) {
+            // Keep the last good bars when a refresh comes back bar-less
+            // (Yahoo rate-limit burst) — a 60s-old chart beats a blank one.
+            const old = QMAP[q.symbol];
+            if ((!q.bars || !q.bars.length) && old && old.bars
+                && old.bars.length) {
+              q.bars = old.bars;
+              q.bars_stale = true;
+            }
+            next[q.symbol] = q;
+          });
+          QMAP = next;
           renderCards();
         })
         .catch(function () {});
