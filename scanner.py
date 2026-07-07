@@ -2522,6 +2522,34 @@ def run_single_ticker_lookup(ticker):
     candidates[0]["distribution_bars_count"] = sum(1 for b in sig_bars if b["classification"] == "DISTRIBUTION")
     candidates[0]["absorption_bars_count"] = sum(1 for b in sig_bars if b["classification"] == "ABSORPTION")
 
+    # Phase-2 learning loop: log the memo's rating + entry so the nightly
+    # report_outcomes.py grader can mature it at +21 sessions. Every memo
+    # becomes training data; stats stay gated until n>=30 per rating.
+    try:
+        if results and results[0].get("memo_rating"):
+            lp = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "data", "report_outcomes_log.json")
+            try:
+                with open(lp, encoding="utf-8") as f:
+                    rlog = json.load(f)
+            except Exception:
+                rlog = {"reports": []}
+            rlog["reports"] = (rlog.get("reports") or [])[-2000:]
+            rlog["reports"].append({
+                "date": datetime.now(ET).date().isoformat(),
+                "t": ticker,
+                "rating": results[0].get("memo_rating"),
+                "confidence": results[0].get("memo_confidence"),
+                "horizon": results[0].get("memo_horizon"),
+            })
+            os.makedirs(os.path.dirname(lp), exist_ok=True)
+            with open(lp, "w", encoding="utf-8") as f:
+                json.dump(rlog, f, separators=(",", ":"))
+            print(f"  Memo logged for outcome grading: "
+                  f"{results[0]['memo_rating']} {ticker}")
+    except Exception as e:
+        print(f"  memo outcome log skipped (non-fatal): {e}")
+
     print("[4/5] Generating one-pager PDF + insider + institutional + vol intelligence pages...")
     pdf_bytes = generate_pdf(
         results,

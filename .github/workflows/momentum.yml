@@ -97,6 +97,13 @@ jobs:
         continue-on-error: true
         run: python grade_engine.py
 
+      - name: Report outcome grader (memo self-grading, gated)
+        # Matures logged memo ratings at +21 sessions vs actual closes;
+        # per-rating win rates + stated-vs-realized confidence publish
+        # only at n>=30. The loop that makes memo confidence measurable.
+        continue-on-error: true
+        run: python report_outcomes.py
+
       - name: Hypothesis lab (weekly, self-gated)
         # Pairwise feature hypotheses over the matured ledger; three
         # gates (sample, split-half stability, time-ordered holdout).
