@@ -2212,6 +2212,19 @@
     padding:0 10px; }
   .th-lag-tk { font-weight:800; color:var(--gold); cursor:pointer; }
   .th-lag-tk:hover { text-decoration:underline; }
+  /* My Desk PM cockpit + personal setup stats */
+  .md-cockpit { margin-bottom:12px; border-left:3px solid var(--gold); }
+  .ck-act { font-size:9px; font-weight:800; letter-spacing:.04em;
+    padding:2px 7px; border-radius:4px; white-space:nowrap; }
+  .ck-risk { background:rgba(214,68,68,0.18); color:#f19089; }
+  .ck-ern  { background:rgba(255,200,0,0.16); color:var(--gold); }
+  .ck-sig  { background:rgba(94,160,224,0.16); color:#9ac6f0; }
+  .ck-win  { background:rgba(31,179,99,0.18); color:#8ee9ac; }
+  .ck-mon  { background:rgba(255,255,255,0.07); color:var(--muted); }
+  .tl-setups { font-size:11.5px; color:var(--textdim); padding:8px 12px;
+    background:var(--card); border:1px solid var(--line); border-radius:8px;
+    margin:10px 0; cursor:help; }
+  .tl-setups b { color:var(--text); }
   .opc-d-bull { background:rgba(31,179,99,0.16); color:#7ddfa1; }
   .opc-d-bear { background:rgba(214,68,68,0.16); color:#f08585; }
   .opc-ev, .opc-risk { list-style:none; margin:0; padding:7px 11px;
@@ -5287,6 +5300,9 @@
           <button class="wlt-add-btn" id="tl-add-btn">Log Entry</button>
         </div>
       </div>
+      <!-- Personal edge by setup — computed from [setup: …] tags stamped on
+           logged buys, matched FIFO against later sells. -->
+      <div id="tl-setup-stats"></div>
       <div class="wlt-tl-wrap">
         <table class="wlt-tl" id="wlt-tl"></table>
       </div>
@@ -9343,7 +9359,52 @@
         _tlWriteLocal(TRADE_LOG);
       }
     }
+    // Personal edge by setup — parses the [setup: …] tags stamped on
+    // logged buys and matches each against the NEXT sell of the same
+    // ticker (FIFO). Win = sell price > buy price. This is loop 3's seed:
+    // the user's own hit rate per system setup, from their own journal.
+    function renderSetupStats() {
+      const el = document.getElementById("tl-setup-stats");
+      if (!el) return;
+      const byTk = {};
+      TRADE_LOG.slice().sort(function (a, b) {
+        return (a.ts || "").localeCompare(b.ts || "");
+      }).forEach(function (e) { (byTk[e.ticker] = byTk[e.ticker] || []).push(e); });
+      const stats = {};
+      Object.keys(byTk).forEach(function (t) {
+        const fifo = [];
+        byTk[t].forEach(function (e) {
+          const act = (e.action || "").toLowerCase();
+          const m = /\[setup:\s*([^\]]+)\]/.exec(e.notes || "");
+          if (act === "buy" && e.price != null) {
+            fifo.push({ setup: m ? m[1].trim() : null, price: e.price });
+          } else if (act === "sell" && e.price != null && fifo.length) {
+            const b = fifo.shift();
+            if (!b.setup) return;
+            const s = stats[b.setup] = stats[b.setup] || { n: 0, w: 0 };
+            s.n++;
+            if (e.price > b.price) s.w++;
+          }
+        });
+      });
+      const keys = Object.keys(stats).filter(function (k) {
+        return stats[k].n >= 1; });
+      if (!keys.length) { el.innerHTML = ""; return; }
+      keys.sort(function (a, b) { return stats[b].n - stats[a].n; });
+      el.innerHTML = '<div class="tl-setups" title="Your own closed-trade ' +
+        'hit rate per system setup, from the [setup:…] tags stamped on ' +
+        'logged buys. Small samples — treat as a journal, not a stat, ' +
+        'until n grows.">Your edge by setup: ' +
+        keys.slice(0, 4).map(function (k) {
+          const s = stats[k];
+          const pct = Math.round(100 * s.w / s.n);
+          const cls = pct >= 55 ? "pos" : pct <= 40 ? "neg" : "";
+          return '<b>' + window.escapeHtml(k) + '</b> <span class="' + cls +
+            '">' + s.w + '/' + s.n + '</span>';
+        }).join(" &middot; ") + '</div>';
+    }
     function renderTradeLog() {
+      try { renderSetupStats(); } catch (_) {}
       if (!TRADE_LOG.length) {
         // Useful empty state — explain the value + give the user a
         // concrete sample of what a logged entry looks like + a
@@ -9920,13 +9981,25 @@
       const ts = tlDate.value
         ? new Date(tlDate.value + "T12:00:00").toISOString()
         : new Date().toISOString();
+      // Journal ↔ signal link: stamp entries (BUY side — the decision) with
+      // the system signals active on the name RIGHT NOW, as a compact
+      // parseable notes tag. Schema-safe (notes is a plain string column)
+      // and durable — the per-setup hit-rate strip parses it back out.
+      let notes = tlNotes.value || "";
+      try {
+        if (/buy/i.test(tlAction.value) && window.tdSetupTag &&
+            !/\[setup:/.test(notes)) {
+          const tag = window.tdSetupTag(tk);
+          if (tag) notes = (notes ? notes + " " : "") + "[setup: " + tag + "]";
+        }
+      } catch (_) {}
       addTradeLogEntry({
         ticker: tk,
         action: tlAction.value,
         ts: ts,
         price: tlPrice.value ? parseFloat(tlPrice.value) : null,
         quantity: tlQty.value ? parseFloat(tlQty.value) : null,
-        notes: tlNotes.value || null,
+        notes: notes || null,
         source: "manual",
       });
       // Clear form (keep date + action)
@@ -10392,7 +10465,69 @@
                          : '<div class="lm-none">—</div>') + '</div>' +
           '</div></div>';
       }
-      body.innerHTML = statStrip + mdMoversHTML +
+      // ── PM Cockpit — what needs YOU first ─────────────────────────────
+      // Urgency-ranked feed over the watchlist: earnings proximity, fresh
+      // signal changes (chips), live moves, flow, weak-trend risk. Every
+      // row ends in an action. This leads My Desk — priorities, not tiles.
+      let cockpitHTML = "";
+      try {
+        const meta = window.TD_DATA.uoaMeta || {};
+        const scored = rows.map(function (r) {
+          let urg = 0;
+          const why = [];
+          let act = "MONITOR", actCls = "ck-mon";
+          const m = meta[r.tk];
+          let ed = null;
+          if (m && m.earnings_date) {
+            const dd = Math.round((Date.parse(m.earnings_date) - Date.now()) / 864e5);
+            if (!isNaN(dd) && dd >= 0) ed = dd;
+          }
+          if (ed != null && ed <= 2) { urg += 10; why.push("earnings in " + ed + "d"); }
+          else if (ed != null && ed <= 5) { urg += 6; why.push("earnings in " + ed + "d"); }
+          const chips = (window.tdChangeChips ? window.tdChangeChips(r.tk) : []);
+          chips.forEach(function (c) {
+            if (c.l === "NEW WHALE") { urg += 8; why.push("new whale flow"); }
+            else if (c.l === "NEW A-TIER") { urg += 7; why.push("entered A-tier"); }
+            else if (c.l === "UPGRADED") { urg += 6; why.push("grade upgraded"); }
+            else if (c.l === "DOWNGRADED") { urg += 7; why.push("grade downgraded"); }
+          });
+          const chg = liveChg(r);
+          if (chg != null && Math.abs(chg) >= 5) { urg += 7; why.push("moving " + (chg > 0 ? "+" : "") + chg.toFixed(1) + "% now"); }
+          else if (chg != null && Math.abs(chg) >= 3) { urg += 4; why.push((chg > 0 ? "+" : "") + chg.toFixed(1) + "% today"); }
+          if (r.flow === "bullish" || r.flow === "bearish") { urg += 3; why.push(r.flow + " flow"); }
+          if (r.grade && /^[FG]/.test(r.grade)) { urg += 4; why.push(r.grade + " weak trend"); }
+          // action verb — risk first, then events, then signals, then winners
+          const down = chips.some(function (c) { return c.l === "DOWNGRADED"; });
+          if (down || (r.grade && /^[FG]/.test(r.grade)) || (chg != null && chg <= -5)) {
+            act = "REVIEW RISK"; actCls = "ck-risk";
+          } else if (ed != null && ed <= 2) { act = "EARNINGS PREP"; actCls = "ck-ern"; }
+          else if (chips.length) { act = "REVIEW SIGNAL"; actCls = "ck-sig"; }
+          else if (chg != null && chg >= 5) { act = "MANAGE WINNER"; actCls = "ck-win"; }
+          return { r: r, urg: urg, why: why, act: act, actCls: actCls, chg: chg };
+        }).filter(function (x) { return x.urg >= 6; })
+          .sort(function (a, b) { return b.urg - a.urg; })
+          .slice(0, 6);
+        if (scored.length) {
+          cockpitHTML = '<div class="desk-card md-cockpit"><h3>Cockpit — ' +
+            'needs you first<span class="desk-stamp dst-fresh" title="Your ' +
+            'names ranked by urgency: earnings proximity, fresh signal ' +
+            'changes, live moves, flow, weak-trend risk. Every row ends in ' +
+            'an action.">ranked by urgency</span></h3>' +
+            scored.map(function (x) {
+              const cls = x.chg == null ? "" : x.chg > 0 ? "sc-up" : "sc-down";
+              return '<div class="desk-row">' +
+                '<span class="dr-tk" data-t="' + x.r.tk + '">' + x.r.tk + '</span>' +
+                '<span class="dr-meta">' +
+                  window.escapeHtml(x.why.slice(0, 2).join(" · ") || "—") + '</span>' +
+                '<span class="dr-val ' + cls + '">' +
+                  (x.chg == null ? "—" : (x.chg > 0 ? "+" : "") +
+                    x.chg.toFixed(1) + "%") + '</span>' +
+                '<span><span class="ck-act ' + x.actCls + '">' + x.act +
+                  '</span></span></div>';
+            }).join("") + '</div>';
+        }
+      } catch (e) {}
+      body.innerHTML = statStrip + cockpitHTML + mdMoversHTML +
         '<div class="mydesk-grid">' + header + out + '</div>';
     }
     // ── Live quotes for My Desk (Day % column + vs-SPY square) ───────
@@ -19266,6 +19401,52 @@
         return '<span class="chg-chip chg-' + ch.c + '">' + ch.l + '</span>';
       }).join("") + '</div>';
     }
+    // Shared with My Desk (cockpit) + the Trade Log (journal↔signal link).
+    window.tdChangeChips = tdChangeChips;
+    window.tdChangeChipsHTML = tdChangeChipsHTML;
+    // Snapshot of the active system signals on a ticker — captured onto
+    // trade-log entries at log time so the journal can compute the user's
+    // personal hit rate PER SETUP ("A-tier+flow: 4/5"), and reused by the
+    // My Desk urgency ranking.
+    window.tdSignalContext = function (t) {
+      const D = window.TD_DATA || {};
+      const out = { grade: null, flow: null, flowScore: 0, whale: false,
+                    chips: [] };
+      try {
+        const runs = (D.swing && D.swing.runs) || [];
+        const r0 = runs[runs.length - 1];
+        if (r0) Object.keys(r0.grades || {}).some(function (g) {
+          return (r0.grades[g] || []).some(function (c) {
+            if (c.t === t) { out.grade = g; return true; }
+            return false;
+          });
+        });
+        (((D.uoa || {}).rows) || []).forEach(function (r) {
+          if (r.ticker !== t) return;
+          if ((r.trade_score || 0) > out.flowScore) {
+            out.flowScore = r.trade_score || 0;
+            out.flow = r.direction || null;
+          }
+          if ((r.premium || 0) >= 1e6 && (r.trade_score || 0) >= 65)
+            out.whale = true;
+        });
+        out.chips = tdChangeChips(t).map(function (c) { return c.l; });
+      } catch (e) {}
+      return out;
+    };
+    // Compact setup tag for the journal — the parseable link between a
+    // logged trade and the signals that spawned it.
+    window.tdSetupTag = function (t) {
+      const s = window.tdSignalContext(t);
+      const bits = [];
+      if (s.grade) bits.push(/^A/.test(s.grade) ? "A-tier"
+        : /^B/.test(s.grade) ? "B-tier"
+        : /^[FG]/.test(s.grade) ? "weak-trend" : s.grade);
+      if (s.flow === "bullish" || s.flow === "bearish")
+        bits.push(s.flow + "-flow");
+      if (s.whale) bits.push("whale");
+      return bits.length ? bits.join("+") : null;
+    };
 
     // ── Evening Review — the system grading itself, nightly ─────────────
     // Yesterday's picks vs today's actual closes (next-day horizon), what
