@@ -14559,14 +14559,17 @@
           candidates.push({
             ticker: c.t, name: c.n || "", grade: g,
             sector: c.sec || "", theme: (c.th && c.th[0]) || "",
-            price: c.p, chg: c.chg, ext: c.ext,
+            price: c.p, chg: c.chg, ext: c.ext, mcap: c.mcap,
             flow: flow, score: Math.round(score),
             watched: watchlist.has(c.t),
           });
         });
       });
       candidates.sort(function (a, b) { return b.score - a.score; });
-      return candidates.slice(0, 15);
+      // full ranked list — the caller applies the cap filter, THEN caps
+      // at 15, so the SMID view is the top-15 SMID names (not whatever
+      // small-caps happened to survive an all-cap top-15 cut)
+      return candidates;
     }
 
     // ── Setups: A+/A grade + LOW extension (tight base near highs) ──
@@ -14700,20 +14703,66 @@
       // pinned to the card edge; the table itself lives inside an
       // overflow-x:auto wrapper so iPhone users can swipe to see the
       // full column set.
+      // Honest source label: this live table is derived from the swing
+      // grade batch (all caps), NOT from the SMID/IWM scanner PDFs below.
       return '<div class="lst-wrap">' +
         '<div class="lst-h">' + label + ' &middot; ' + rows.length +
-          ' candidates from latest scan</div>' +
+          ' candidates &middot; <span style="font-weight:400;color:var(--muted)">' +
+          'latest swing grade batch (PDF scans below are separate)</span></div>' +
         '<div class="desk-insight" style="margin:0 0 10px">' +
           _insightHTML + '</div>' +
         '<div class="lst-table-wrap">' +
         '<table class="lst-table">' + head + '<tbody>' + body +
           '</tbody></table></div></div>';
     }
-    if (breakoutEl) breakoutEl.innerHTML =
-      renderTable(buildBreakoutRows(), "Top Breakout Candidates");
+    // Cap-lens chips for the breakout table — one list, user picks the
+    // universe. Cap proxy, not index membership (the client doesn't know
+    // Russell constituents), and the label says so.
+    const _brkChip = function (key, lab) {
+      const on = _brkCap === key;
+      return '<button data-brkcap="' + key + '" style="background:' +
+        (on ? 'var(--gold)' : 'var(--navy2)') + ';color:' +
+        (on ? 'var(--accink)' : 'var(--muted)') + ';border:1px solid ' +
+        'var(--border2);border-radius:6px;font-family:inherit;' +
+        'font-size:10.5px;font-weight:700;padding:4px 10px;cursor:pointer;' +
+        'margin-right:6px;">' + lab + '</button>';
+    };
+    if (breakoutEl) {
+      let rows = buildBreakoutRows();
+      if (_brkCap === "smid") {
+        rows = rows.filter(function (r) {
+          return (r.mcap || 0) > 0 && r.mcap < 10e9; });
+      } else if (_brkCap === "large") {
+        rows = rows.filter(function (r) { return (r.mcap || 0) >= 10e9; });
+      }
+      rows = rows.slice(0, 15);
+      const chips = '<div style="margin:0 0 10px">' +
+        _brkChip("all", "All caps") +
+        _brkChip("smid", "SMID / Russell-cap (<$10B)") +
+        _brkChip("large", "Large ($10B+)") +
+        '<span style="font-size:10px;color:var(--muted)">by market cap, ' +
+        'not index membership</span></div>';
+      breakoutEl.innerHTML = chips + (rows.length
+        ? renderTable(rows, "Top Breakout Candidates")
+        : '<div class="lst-wrap"><div class="lst-h">Top Breakout ' +
+          'Candidates</div><div class="desk-insight" style="margin:0">' +
+          'No A-tier names in this cap bucket today.</div></div>');
+    }
     if (setupEl) setupEl.innerHTML =
       renderTable(buildSetupRows(), "Top Setup Candidates (low-extension VCPs)");
   }
+  // cap-lens state + one delegated handler (survives re-renders)
+  let _brkCap = "all";
+  (function () {
+    const host = document.getElementById("breakout-live-table");
+    if (!host) return;
+    host.addEventListener("click", function (e) {
+      const b = e.target.closest && e.target.closest("[data-brkcap]");
+      if (!b) return;
+      _brkCap = b.dataset.brkcap;
+      renderLiveScanTables();
+    });
+  })();
   // Re-render live tables whenever the user lands on Breakouts or Setups
   // (in case the watchlist toggled or swing data refreshed)
   document.getElementById("nav").addEventListener("click", function (e) {
