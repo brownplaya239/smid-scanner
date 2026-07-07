@@ -1069,7 +1069,7 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         elif grade_letter == "C":
             badge_rgb, badge_label = (200, 130, 20), "C  WATCH LIST"
         else:
-            badge_rgb, badge_label = (110, 110, 120), grade_letter or "—"
+            badge_rgb, badge_label = (110, 110, 120), grade_letter or "N/A"
         pdf.set_fill_color(*badge_rgb)
         pdf.rect(140, 4, 62, 24, "F")
         pdf.set_text_color(*WHITE)
@@ -1114,17 +1114,17 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         elif ps and ps > 0:
             valuation_label, valuation_val = "P/Sales", f"{ps:.1f}x"
         else:
-            valuation_label, valuation_val = "Fwd P/E", "—"
+            valuation_label, valuation_val = "Fwd P/E", "-"
 
         # Days to cover — yfinance shortRatio IS days-to-cover
         short_ratio = s.get("short_ratio", 0) or 0
         short_pct   = s.get("short_pct", "")
-        d2c_str     = f"{short_ratio:.1f}d" if short_ratio else "—"
+        d2c_str     = f"{short_ratio:.1f}d" if short_ratio else "-"
 
         # Inst. own — display dash for missing data instead of "0%"
         inst_own_raw = s.get("inst_own", "")
         if inst_own_raw in (None, "", "0%", "0.0%", 0, "0", "0.0"):
-            inst_own_str = "— (data lag)"
+            inst_own_str = "- (data lag)"
         else:
             inst_own_str = str(inst_own_raw)
 
