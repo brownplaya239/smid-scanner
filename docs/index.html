@@ -18875,6 +18875,38 @@
       } catch (_) { return ""; }
     }
 
+    // ── What We Missed — the scan pipeline auditing itself (loop 5) ─────
+    // Post-close: the session's biggest tradable movers we never surfaced,
+    // each attributed to the exact gate that hid it. Radical honesty as a
+    // feature — and over time the by_reason counts tell us which filter is
+    // costing the most coverage.
+    function cardMissed(missed) {
+      const m = missed || (window.TD_DATA && window.TD_DATA.missed);
+      if (!m || !m.checked) return "";
+      const stamp = freshness(m.generated,
+        { character: "post-close", label: "Audited" });
+      const esc = window.escapeHtml;
+      const insightLine = insight(
+        '<b>' + m.covered_count + '/' + m.checked + ' big movers covered</b>' +
+        (m.missed_count
+          ? ' &middot; ' + m.missed_count + ' missed — each attributed to the gate that hid it'
+          : ' &middot; full coverage today'));
+      const rows = (m.missed || []).slice(0, 8).map(function (x) {
+        const cls = x.pct >= 0 ? "up" : "down";
+        const sign = x.pct >= 0 ? "+" : "";
+        return '<div class="desk-row">' +
+          '<span class="dr-tk" data-t="' + esc(x.ticker) + '">' + esc(x.ticker) + '</span>' +
+          '<span class="dr-val ' + (cls === "up" ? "sc-up" : "sc-down") + '">' +
+            sign + x.pct.toFixed(1) + '%</span>' +
+          '<span class="dr-meta">' + esc(x.reason || "") + '</span>' +
+          '</div>';
+      }).join("");
+      const body = insightLine + (rows ||
+        '<div class="desk-empty">Nothing missed — every big tradable mover ' +
+        'was on a surfaced list today.</div>');
+      return desk("What We Missed — scan self-audit", body, null, stamp);
+    }
+
     // ── Opportunities — the decision-first spine of Today's Desk ────────
     // Top confluence names as universal cards: scores → evidence → risk →
     // ACTION + confidence. Composed entirely from data already on the desk
@@ -19394,6 +19426,8 @@
         // Pre-open OI-confirmed carryover (tiny — a few KB) for the
         // "Overnight Flow" tile. Absent/empty until the morning brief run.
         fetchJSON("./reports/carryover_flow.json"),
+        // Post-close missed-opportunity self-audit (learning loop 5).
+        fetchJSON("./reports/missed_opportunities.json"),
       ]).then(function (arr) {
         const swing = arr[1], uoaMeta = arr[6];
         DESK_DATE = (swing && swing.runs && swing.runs.length)
@@ -19408,6 +19442,7 @@
         window.TD_DATA.cal = arr[5];
         window.TD_DATA.uoaMeta = arr[6];
         window.TD_DATA.carryover = arr[7];
+        window.TD_DATA.missed = arr[8];
       });
     }
     // Render the desk grid from whatever is already in window.TD_DATA — no
@@ -19516,6 +19551,7 @@
           cardSwingDowngrades(swing),
           cardBreakouts(swing, uoaMeta),
           cardThemes(swing),
+          cardMissed(D.missed),                // loop 5 — post-close self-audit
           calEarnRow,                          // calendar | (earnings + Market Buzz)
           topBullBearRow,                      // bullish | bearish, below
         ].join("");

@@ -55,6 +55,13 @@ jobs:
       - name: Run swing report card
         run: python swing_report.py
 
+      - name: Missed-opportunity self-audit (learning loop 5)
+        # Compares the session's biggest movers against everything we
+        # surfaced and attributes each miss to the gate that hid it.
+        # Non-fatal: the publish step must never block on this audit.
+        continue-on-error: true
+        run: python missed_opportunities.py
+
       - name: Refresh economic calendar
         run: python economic_calendar.py
 
