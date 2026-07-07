@@ -1481,18 +1481,15 @@
     color:var(--muted); font-family:inherit; font-size:9.5px;
     font-weight:700; line-height:1; }
   .freshness .fr-info:hover { color:var(--gold); border-color:var(--gold); }
-  .theme-toggle, .density-toggle { display:flex;
+  .theme-toggle { display:flex;
     border:1px solid var(--border2); border-radius:6px; overflow:hidden; }
-  .theme-toggle button, .density-toggle button { background:var(--navy2);
+  .theme-toggle button { background:var(--navy2);
     color:var(--muted); border:0; font-family:inherit; font-size:10.5px;
     font-weight:600; letter-spacing:.3px; padding:5px 11px; cursor:pointer;
     line-height:1.2; white-space:nowrap; }
-  .theme-toggle button + button,
-  .density-toggle button + button { border-left:1px solid var(--border2); }
-  .theme-toggle button:hover,
-  .density-toggle button:hover { color:var(--textdim); }
-  .theme-toggle button.on,
-  .density-toggle button.on { background:var(--gold); color:var(--accink); }
+  .theme-toggle button + button { border-left:1px solid var(--border2); }
+  .theme-toggle button:hover { color:var(--textdim); }
+  .theme-toggle button.on { background:var(--gold); color:var(--accink); }
 
   nav { background:var(--navy2); display:flex; gap:2px; padding:0 16px;
     justify-content:safe center;
@@ -3584,26 +3581,6 @@
   .earn-sess .er-tk { display:inline-block; font-weight:700;
     color:var(--text); cursor:default; font-size:10px; }
 
-  /* Density: compact preset */
-  html[data-density="dense"] .desk-card { padding:9px 12px; }
-  html[data-density="dense"] .desk-card h3 { font-size:10px; margin-bottom:7px; }
-  html[data-density="dense"] .desk-row { padding:3px 0; font-size:11px; }
-  html[data-density="dense"] .desk-stat b { font-size:17px; }
-  html[data-density="dense"] .cal-row { padding:3px 0; font-size:11px; }
-  html[data-density="dense"] .conf-row { padding:5px 0; }
-  html[data-density="dense"] .conf-row .cr-narr { font-size:11px; }
-  html[data-density="dense"] .perf-card { padding:11px 13px; }
-  html[data-density="dense"] .perf-card table { font-size:11px; }
-  html[data-density="dense"] .perf-card td,
-  html[data-density="dense"] .perf-card th { padding:4px 5px; }
-  html[data-density="dense"] table.uoa td { padding:6px 6px; font-size:11px; }
-  html[data-density="dense"] table.uoa th { padding:7px 6px; }
-  html[data-density="dense"] table.mom-table td { padding:6px 8px; font-size:11.5px; }
-  html[data-density="dense"] .uoa-cluster { padding:6px 10px; }
-  html[data-density="dense"] .src-tk { padding:1px 2px; font-size:9.5px; }
-  html[data-density="dense"] .src-cnt { padding:1px 0; font-size:9.5px; }
-  html[data-density="dense"] .src-head { padding:2px 0; font-size:11px; }
-
   main { flex:1; padding:34px 22px; display:flex; justify-content:center; }
   .panel { display:none; width:100%; max-width:760px; }
   .panel.active { display:block; }
@@ -4731,9 +4708,7 @@
   table.uoa .uoa-star.is-on  { color:var(--gold); }
   table.uoa .uoa-star.is-on:hover { color:var(--red); }
   /* Tighter cell padding on UOA Latest so the 23 data columns fit on
-     standard MacBook widths without horizontal scroll. Was 8px; the
-     density-aware override at the top of this file already covers
-     dense mode — this just makes the default narrower. */
+     standard MacBook widths without horizontal scroll. */
   table.uoa td { padding:5px 6px; font-size:11.5px; }
   table.uoa th { padding:7px 6px; font-size:10.5px; }
   table.uoa td.uoa-tags-cell {
@@ -4803,7 +4778,7 @@
     .head-toggles { position:static; flex-direction:row; gap:8px;
       margin-top:10px; align-items:center; justify-content:flex-start;
       flex-wrap:wrap; }
-    .theme-toggle button, .density-toggle button {
+    .theme-toggle button {
       font-size:10px; padding:5px 9px; letter-spacing:.2px; }
 
     nav { padding:0 6px; }
@@ -4844,12 +4819,10 @@
   }
 </style>
 <script>
-  /* apply saved color scheme + density before first paint — avoids a flash */
+  /* apply saved color scheme before first paint — avoids a flash */
   (function () {
     try { document.documentElement.dataset.theme =
       localStorage.getItem("td-theme") || "dark"; } catch (e) {}
-    try { document.documentElement.dataset.density =
-      localStorage.getItem("td-density") || "comfy"; } catch (e) {}
   })();
 </script>
 </head>
@@ -4924,10 +4897,8 @@
         <button data-theme="mid"   title="Mid (market) theme">Market</button>
         <button data-theme="dark"  title="Dark theme">Dark</button>
       </div>
-      <div class="density-toggle" id="density-toggle" title="Layout density">
-        <button data-density="comfy" title="Comfortable spacing">Comfort</button>
-        <button data-density="dense" title="Dense / compact layout">Dense</button>
-      </div>
+      <!-- (Comfort/Dense density toggle removed — the two modes barely
+           differed; one well-tuned density beats a lever nobody felt.) -->
     </div>
 
     <!-- Pricing modal — opens when a free user hits a limit -->
@@ -11955,23 +11926,6 @@
     }
     load();
     setInterval(load, 60000);
-  })();
-
-  /* ── Layout density toggle (Comfortable / Dense) ── */
-  (function () {
-    const dg = document.getElementById("density-toggle");
-    if (!dg) return;
-    function apply(d) {
-      document.documentElement.dataset.density = d;
-      try { localStorage.setItem("td-density", d); } catch (e) {}
-      dg.querySelectorAll("button").forEach(function (b) {
-        b.classList.toggle("on", b.dataset.density === d);
-      });
-    }
-    dg.addEventListener("click", function (e) {
-      if (e.target.dataset.density) apply(e.target.dataset.density);
-    });
-    apply(document.documentElement.dataset.density || "comfy");
   })();
 
   /* ── Live market-hours pill ──────────────────────────────────────
