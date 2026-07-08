@@ -1606,6 +1606,11 @@
   .lst-h { font-size:10.5px; color:var(--muted);
     text-transform:uppercase; letter-spacing:.4px; font-weight:700;
     padding:4px 14px 8px; border-bottom:1px solid var(--line); }
+  .lst-table td.up { color:var(--green); font-weight:700; }
+  .lst-table td.down { color:var(--red); font-weight:700; }
+  .lst-table th.lst-sort { cursor:pointer; user-select:none; white-space:nowrap; }
+  .lst-table th.lst-sort:hover { color:var(--text); }
+  .lst-table th.lst-sort.is-on { color:var(--gold); }
   .lst-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .lst-table { width:100%; border-collapse:collapse; font-size:11.5px; }
   .lst-table td:first-child, .lst-table th:first-child {
@@ -14616,7 +14621,7 @@
             // data when it just means "no marquee narrative")
             theme: (c.th && c.th[0]) ||
               (c.sec ? c.sec.split("/")[0].trim() : ""),
-            price: c.p, chg: c.chg, ext: ext,
+            price: c.p, chg: c.chg, ext: ext, mcap: c.mcap,
             flow: flow, score: Math.round(score),
             watched: watchlist.has(c.t),
             label: label,
@@ -14640,20 +14645,54 @@
       if (p >= 1e3) return "$" + Math.round(p / 1e3) + "K";
       return "$" + p;
     }
-    function renderTable(rows, label) {
+    function _fmtMcap(v) {
+      if (!v || v <= 0) return "\u2014";
+      return v >= 1e9 ? "$" + (v / 1e9).toFixed(1) + "B"
+                      : "$" + Math.round(v / 1e6) + "M";
+    }
+    function renderTable(rows, label, tkey) {
       if (!rows.length) {
         return '<div class="lst-empty">No qualifying names from ' +
           'today\'s scan yet.</div>';
       }
+      // Sort by the active column. Nulls sink to the bottom regardless
+      // of direction; grade sorts by ladder rank, flow by premium.
+      const st = _lstSort[tkey] || { k: "score", d: -1 };
+      const sv = function (r) {
+        switch (st.k) {
+          case "ticker": return r.ticker || "";
+          case "grade":  return _GRADE_ORD[r.grade] != null
+                                ? -_GRADE_ORD[r.grade] : null;
+          case "theme":  return (r.theme || "").toLowerCase() || null;
+          case "flow":   return r.flow ? (r.flow.premium || 0) : null;
+          default:       return r[st.k] != null ? r[st.k] : null;
+        }
+      };
+      rows = rows.slice().sort(function (a, b) {
+        const va = sv(a), vb = sv(b);
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        if (typeof va === "string") return st.d * va.localeCompare(vb);
+        return st.d * (va - vb);
+      });
       // Include the Type column only when ANY row has a label set
       // (Setups have labels; Breakouts don't). Keeps the Breakouts
       // table compact while adding the interpretation column to Setups.
       const hasLabels = rows.some(function (r) { return r.label; });
+      const th = function (lab, key) {
+        if (!key) return '<th>' + lab + '</th>';
+        const on = st.k === key;
+        return '<th class="lst-sort' + (on ? ' is-on' : '') +
+          '" data-sk="' + key + '" title="Sort by ' + lab + '">' + lab +
+          (on ? (st.d < 0 ? ' \u25BC' : ' \u25B2') : '') + '</th>';
+      };
       const head = '<thead><tr>' +
-        '<th>Ticker</th><th>Grade</th><th>Score</th>' +
+        th('Ticker', 'ticker') + th('Grade', 'grade') + th('Score', 'score') +
         (hasLabels ? '<th>Type</th>' : '') +
-        '<th>Theme</th><th>Price</th><th>1D %</th>' +
-        '<th>Extension</th><th>Flow today</th><th>Actions</th></tr></thead>';
+        th('Theme', 'theme') + th('Mcap', 'mcap') + th('Price', 'price') +
+        th('1D %', 'chg') + th('Extension', 'ext') + th('Flow today', 'flow') +
+        '<th title="Save to watchlist">\u2605</th></tr></thead>';
       const body = rows.map(function (r) {
         const fcls = r.flow ? flowCls(r.flow.direction) : "";
         const labelCell = hasLabels
@@ -14670,6 +14709,7 @@
           '<td><span class="lst-score">' + r.score + '</span></td>' +
           labelCell +
           '<td>' + (r.theme || '<span class="lst-empty-c">—</span>') + '</td>' +
+          '<td>' + _fmtMcap(r.mcap) + '</td>' +
           '<td>$' + (r.price != null ? r.price.toFixed(2) : '—') + '</td>' +
           '<td class="' + (r.chg > 0 ? "up" : r.chg < 0 ? "down" : "") +
             '">' + (r.chg != null ? (r.chg > 0 ? "+" : "") +
@@ -14680,8 +14720,12 @@
               (r.flow.type || '').toUpperCase() + ' ' + fmtPrem(r.flow.premium) +
               '</span>'
             : '<span class="lst-empty-c">—</span>') + '</td>' +
-          '<td>' + (window.tdActionStrip
-            ? window.tdActionStrip(r.ticker) : "") + '</td>' +
+          // star only — alert/note/drilldown live in the drilldown panel
+          '<td><button class="tda-btn ' + (r.watched ? "is-on" : "") +
+            '" data-act-save="' + r.ticker + '" title="' +
+            (r.watched ? "Remove from watchlist" : "Save to watchlist") +
+            '" onclick="event.stopPropagation()">' +
+            (r.watched ? "★" : "☆") + '</button></td>' +
           '</tr>';
       }).join("");
       // Aggregate insight: blend grade strength + flow agreement so the
@@ -14755,14 +14799,35 @@
         '<span style="font-size:10px;color:var(--muted)">by market cap, ' +
         'not index membership</span></div>';
       breakoutEl.innerHTML = chips + (rows.length
-        ? renderTable(rows, "Top Breakout Candidates")
+        ? renderTable(rows, "Top Breakout Candidates", "brk")
         : '<div class="lst-wrap"><div class="lst-h">Top Breakout ' +
           'Candidates</div><div class="desk-insight" style="margin:0">' +
           'No A-tier names in this cap bucket today.</div></div>');
     }
     if (setupEl) setupEl.innerHTML =
-      renderTable(buildSetupRows(), "Top Setup Candidates (low-extension VCPs)");
+      renderTable(buildSetupRows(), "Top Setup Candidates (low-extension VCPs)", "setup");
   }
+  // per-table sort state — OUTER scope so it survives re-renders and is
+  // reachable from both renderTable (nested) and the click handlers below
+  const _lstSort = { brk: { k: "score", d: -1 },
+                     setup: { k: "score", d: -1 } };
+  const _GRADE_ORD = { "A+": 0, "A": 1, "A-": 2, "B+": 3, "B": 4 };
+
+  // sortable headers — one delegated handler per live table
+  [["breakout-live-table", "brk"], ["setup-live-table", "setup"]]
+    .forEach(function (pair) {
+      const host = document.getElementById(pair[0]);
+      if (!host) return;
+      host.addEventListener("click", function (e) {
+        const h = e.target.closest && e.target.closest("th[data-sk]");
+        if (!h) return;
+        const st = _lstSort[pair[1]];
+        if (st.k === h.dataset.sk) st.d = -st.d;
+        else { st.k = h.dataset.sk; st.d = -1; }
+        renderLiveScanTables();
+      });
+    });
+
   // cap-lens state + one delegated handler (survives re-renders)
   let _brkCap = "all";
   (function () {
