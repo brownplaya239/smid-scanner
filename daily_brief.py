@@ -1711,9 +1711,14 @@ def _render_market(market, market_top) -> str:
 def _render_reports(reports) -> str:
     if not reports:
         return ""
+    # Link the viewer page, not the raw PDF: raw filenames die when the
+    # archive prunes (~30 runs/type) or before the morning's first Pages
+    # deploy. view.html embeds the PDF in-browser and falls back to the
+    # newest report of the same type if the exact run is gone — a brief
+    # link can never 404.
     inner = "".join(
         f'<div style="padding:9px 14px;border-bottom:1px solid {CSS_BORDER};">'
-        f'<a href="{SITE_URL}/reports/{esc(r["file"])}" style="color:{CSS_ACCENT};text-decoration:none;font-size:12.5px;">📄 {esc(r["label"])}</a>'
+        f'<a href="{SITE_URL}/reports/view.html?f={esc(r["file"])}" style="color:{CSS_ACCENT};text-decoration:none;font-size:12.5px;">📄 {esc(r["label"])}</a>'
         f'<span style="font-size:11px;color:{CSS_MUTED};"> · {r["when"].strftime("%I:%M %p").lstrip("0")} ET</span></div>'
         for r in reports)
     return _card("New research (24h)", inner)
