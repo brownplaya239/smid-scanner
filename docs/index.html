@@ -14670,8 +14670,12 @@
           case "theme":  return (r.theme || "").toLowerCase() || null;
           case "flow":   return r.flow ? (r.flow.premium || 0) : null;
           case "live":   var lc = (window.LIVE_QUOTE_CACHE || {})[r.ticker];
-                         return lc && typeof lc.change === "number"
-                                ? lc.change : null;
+                         // follow-through since the scan-day close (r.price),
+                         // NOT vs prior close — that is what makes col 2
+                         // differ from col 1
+                         return (lc && typeof lc.price === "number"
+                                 && r.price > 0)
+                                ? (lc.price / r.price - 1) * 100 : null;
           default:       return r[st.k] != null ? r[st.k] : null;
         }
       };
@@ -14704,7 +14708,7 @@
         th('Ticker', 'ticker') + th('Grade', 'grade') + th('Score', 'score') +
         (hasLabels ? '<th>Type</th>' : '') +
         th('Theme', 'theme') + th('Mcap', 'mcap') + th('Price', 'price') +
-        th('1D % (' + _bd + ')', 'chg', 'Prior close-to-close from the post-close batch (' + _bd + ')') + th('Today %', 'live', 'Live intraday return vs prior close (delayed 15m)') + th('Extension', 'ext') + th('Flow today', 'flow') +
+        th('1D % (' + _bd + ')', 'chg', 'Close-to-close return ON the scan day ' + _bd + ' — the session this name was flagged') + th('Since ' + _bd + '', 'live', 'Live follow-through since the ' + _bd + ' close (how it trades the next/current session, delayed 15m) — NOT the same as the 1D% left of it') + th('Extension', 'ext') + th('Flow today', 'flow') +
         '<th title="Save to watchlist">\u2605</th></tr></thead>';
       const body = rows.map(function (r) {
         const fcls = r.flow ? flowCls(r.flow.direction) : "";
@@ -14729,13 +14733,17 @@
               r.chg.toFixed(2) + "%" : "—") + '</td>' +
           (function () {
             var lc = (window.LIVE_QUOTE_CACHE || {})[r.ticker];
-            if (lc && typeof lc.change === "number") {
-              return '<td class="' + (lc.change > 0 ? "up" : lc.change < 0
-                ? "down" : "") + '" data-live-tk="' + r.ticker + '">' +
-                (lc.change > 0 ? "+" : "") + lc.change.toFixed(2) + "%</td>";
+            var ref = r.price;
+            var attrs = ' data-live-tk="' + r.ticker + '"' +
+              (ref > 0 ? ' data-ref="' + ref + '"' : '');
+            if (lc && typeof lc.price === "number" && ref > 0) {
+              var ft = (lc.price / ref - 1) * 100;
+              return '<td class="' + (ft > 0 ? "up" : ft < 0 ? "down" : "") +
+                '"' + attrs + '>' + (ft > 0 ? "+" : "") + ft.toFixed(2) +
+                "%</td>";
             }
-            return '<td data-live-tk="' + r.ticker +
-              '"><span style="color:var(--muted)">\u00b7</span></td>';
+            return '<td' + attrs +
+              '><span style="color:var(--muted)">\u00b7</span></td>';
           })() +
           '<td>' + (r.ext != null ? r.ext.toFixed(1) + "%" : "—") + '</td>' +
           '<td>' + (r.flow
@@ -14848,9 +14856,11 @@
     const paint = function () {
       cells.forEach(function (c) {
         const q = cache[c.dataset.liveTk];
-        if (q && typeof q.change === "number") {
-          c.className = q.change > 0 ? "up" : q.change < 0 ? "down" : "";
-          c.textContent = (q.change > 0 ? "+" : "") + q.change.toFixed(2) + "%";
+        const ref = parseFloat(c.dataset.ref);
+        if (q && typeof q.price === "number" && ref > 0) {
+          const ft = (q.price / ref - 1) * 100;   // since scan-day close
+          c.className = ft > 0 ? "up" : ft < 0 ? "down" : "";
+          c.textContent = (ft > 0 ? "+" : "") + ft.toFixed(2) + "%";
         }
       });
     };
