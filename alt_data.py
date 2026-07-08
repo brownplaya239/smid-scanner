@@ -93,6 +93,55 @@ def compute_baseline(hist, ticker):
     }
 
 
+def sentiment_persistence(hist, ticker):
+    """3/7/30-day sentiment persistence + acceleration from this ticker's
+    PRIOR lookups. Sparse-honest: alt-data runs on demand, not daily, so
+    windows are labeled by how many prior lookups they contain and the
+    whole read gates at >=2 prior runs. A one-day sentiment spike and a
+    persistent regime read very differently - this is what tells them
+    apart."""
+    from datetime import datetime, timezone
+    runs = hist.get(ticker.upper(), [])
+    pts = []
+    now = datetime.now(timezone.utc)
+    for r in runs:
+        s = r.get("sentiment")
+        try:
+            ts = datetime.fromisoformat(str(r.get("ts")).replace("Z", "+00:00"))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+        if isinstance(s, (int, float)):
+            pts.append(((now - ts).days, float(s)))
+    if len(pts) < 2:
+        return {"status": "accruing", "prior_runs": len(pts),
+                "note": "persistence read activates at 2+ prior lookups"}
+    win = {}
+    for label, d in (("d3", 3), ("d7", 7), ("d30", 30)):
+        vals = [s for age, s in pts if age <= d]
+        if vals:
+            win[label] = {"avg": round(sum(vals) / len(vals)), "n": len(vals)}
+    out = {"status": "active", "prior_runs": len(pts), "windows": win,
+           "note": ("averages of PRIOR on-demand lookups in each window - "
+                    "not continuous daily sampling")}
+    a3 = (win.get("d3") or {}).get("avg")
+    a7 = (win.get("d7") or {}).get("avg")
+    a30 = (win.get("d30") or {}).get("avg")
+    ref_new = a3 if a3 is not None else a7
+    ref_old = a30 if a30 is not None else a7
+    if ref_new is not None and ref_old is not None and ref_new != ref_old:
+        d_total = ref_new - ref_old
+        out["trend"] = ("improving" if d_total > 10 else
+                        "deteriorating" if d_total < -10 else "stable")
+        if a3 is not None and a7 is not None and a30 is not None:
+            recent_slope, older_slope = a3 - a7, a7 - a30
+            if (recent_slope * older_slope > 0
+                    and abs(recent_slope) > abs(older_slope) + 5):
+                out["acceleration"] = ("accelerating " + out["trend"])
+    return out
+
+
 # ─── Quantified scores ────────────────────────────────────────────────────────
 
 def compute_scores(alt, baseline):
@@ -185,7 +234,11 @@ Return ONLY a raw JSON object (no markdown) with these fields:
   messagesNeutral    : integer - how many neutral/non-directional.
   sentimentIndex     : integer -100..+100 - overall social sentiment from your
                        full-message read (negative = bearish).
-  sentimentSummary   : 1-2 sentences - the real-time sentiment read.
+  sentimentSummary   : 1-2 sentences - the real-time sentiment read. If
+                       `sentiment_history` is active, you MUST anchor today's
+                       read against it: a one-day spike against a stable base
+                       is a blip; a 3-window deterioration is a regime change.
+                       Cite the trend/acceleration explicitly when present.
   narrative          : 2-3 sentences - the dominant story/catalyst driving attention.
   divergenceVerdict  : one of CONFIRM / DIVERGE-BULLISH / DIVERGE-BEARISH / NEUTRAL
                        - does the chatter agree with the price tape? (Euphoric
@@ -221,7 +274,7 @@ Return ONLY a raw JSON object (no markdown) with these fields:
                        if [specific event / price / data point]." """
 
 
-def synthesize(alt, scores):
+def synthesize(alt, scores, persist=None):
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     s, price = alt["social"], alt.get("price", {})
     payload = {
@@ -255,6 +308,7 @@ def synthesize(alt, scores):
         "buzz_score":      scores["buzz"],
         "baseline_deltas": scores["deltas"] or "first run - no baseline yet",
         "computed_divergence": scores["divergence_raw"],
+        "sentiment_history": persist or {"status": "accruing"},
     }
     msg = f"{SYNTH_PROMPT}\n\nAlt-data for {alt['ticker']}:\n{json.dumps(payload, indent=1)}"
     print("  Sending alt-data to Claude for synthesis...")
@@ -280,7 +334,7 @@ def synthesize(alt, scores):
 
 # ─── PDF ──────────────────────────────────────────────────────────────────────
 
-def generate_altdata_pdf(ticker, alt, scores, synth):
+def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
     now   = datetime.now(ET)
     s     = alt["social"]
     price = alt.get("price", {})
@@ -400,6 +454,16 @@ def generate_altdata_pdf(ticker, alt, scores, synth):
 
     if synth:
         _section("Real-Time Sentiment Read", synth.get("sentimentSummary", ""))
+        if persist and persist.get("status") == "active":
+            w = persist.get("windows", {})
+            trend_txt = "  |  ".join(
+                f"{k.replace('d', '')}d avg {v['avg']:+d} ({v['n']} lookups)"
+                for k, v in w.items())
+            extra = persist.get("acceleration") or persist.get("trend") or ""
+            _section("Sentiment Persistence (prior lookups)",
+                     f"{trend_txt}" + (f"  ->  {extra.upper()}" if extra else "")
+                     + ".  Windowed averages of prior on-demand lookups, "
+                     "not continuous daily sampling.")
         _section("Dominant Narrative / Catalyst", synth.get("narrative", ""))
         dv = synth.get("divergenceVerdict", "")
         dcol = (120, 35, 30) if "DIVERGE" in str(dv) else (22, 90, 55)
@@ -596,17 +660,27 @@ def run_altdata_lookup(ticker):
           f"Divergence {scores['divergence_raw']}  |  baseline runs: "
           f"{baseline['runs'] if baseline else 0}")
 
+    persist = sentiment_persistence(hist, ticker)
+    if persist.get("status") == "active":
+        w = persist.get("windows", {})
+        print("  Sentiment persistence: " + " | ".join(
+            f"{k} {v['avg']:+d} (n={v['n']})" for k, v in w.items())
+            + f"  trend={persist.get('trend', '-')}"
+            + (f" ({persist['acceleration']})" if persist.get("acceleration") else ""))
+    else:
+        print(f"  Sentiment persistence: accruing ({persist.get('prior_runs', 0)}/2 prior lookups)")
+
     print("[3/5] Claude synthesis...")
     synth = {}
     if ANTHROPIC_API_KEY:
         try:
-            synth = synthesize(alt, scores)
+            synth = synthesize(alt, scores, persist)
         except Exception as e:
             print(f"  Synthesis failed (report will still generate): {e}")
 
     print("[4/5] Generating PDF + updating history...")
     try:
-        pdf_bytes = generate_altdata_pdf(ticker, alt, scores, synth)
+        pdf_bytes = generate_altdata_pdf(ticker, alt, scores, synth, persist)
     except Exception as e:
         print(f"  PDF generation failed: {e}")
         return
@@ -622,7 +696,7 @@ def run_altdata_lookup(ticker):
             "buzz":      scores["buzz"],
             "sentiment": synth.get("sentimentIndex", scores["sentiment_raw"]),
         })
-        hist[ticker] = hist[ticker][-20:]   # keep last 20 runs per ticker
+        hist[ticker] = hist[ticker][-40:]   # 40 runs -> real 30d windows
         save_history(hist)
     except Exception as e:
         print(f"  history update failed: {e}")
