@@ -72,7 +72,8 @@ def upcoming_names():
         days = (dt - today).days
         if 0 <= days <= HORIZON_D:
             out.append({"t": t, "date": d, "days": days,
-                        "session": (m or {}).get("earnings_session") or "TBD"})
+                        "session": (m or {}).get("earnings_session") or "TBD",
+                        "mcap": (m or {}).get("mkt_cap")})
     out.sort(key=lambda x: (x["days"], x["t"]))
     return out[:MAX_NAMES]
 

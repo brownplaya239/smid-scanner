@@ -639,10 +639,15 @@
     margin-bottom:9px; }
   .ee-sub { display:block; font-size:10.5px; font-weight:500;
     color:var(--muted); margin-top:3px; line-height:1.45; }
+  .ee-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .ee-scroll .ee-row { min-width:600px; }
   .ee-row { display:grid; align-items:baseline; gap:6px 10px;
-    grid-template-columns:60px 92px 64px 64px 56px 56px 70px;
+    grid-template-columns:54px 44px 78px 58px 58px 58px 48px 50px 64px;
     padding:5px 2px; border-bottom:1px solid var(--line); font-size:12px;
     cursor:default; }
+  .ee-hdr [data-ek] { cursor:pointer; user-select:none; }
+  .ee-hdr [data-ek]:hover { color:var(--text); }
+  .ee-hdr [data-ek].is-on { color:var(--gold); }
   .ee-row:last-child { border-bottom:0; }
   .ee-hdr { font-size:9px; font-weight:800; letter-spacing:.06em;
     text-transform:uppercase; color:var(--muted); }
@@ -659,8 +664,7 @@
   .ee-watch { background:rgba(255,200,0,0.14); color:var(--gold); }
   .ee-avoid { background:rgba(214,68,68,0.16); color:#f08585; }
   @media (max-width:640px) {
-    .ee-row { grid-template-columns:52px 74px 54px 54px 46px 46px 60px;
-      font-size:11px; }
+    .ee-row { font-size:11px; }
   }
 
   /* "What's New Since Last Visit" widget — top of My Desk */
@@ -15930,48 +15934,105 @@
     (function loadEarningsEdge() {
       const el = document.getElementById("earnings-edge");
       if (!el) return;
+      let _eeData = null;
+      const _eeSort = { k: "days", d: 1 };     // default: soonest report first
+      function eeRender() {
+        const d = _eeData;
+        if (!d || !(d.names || []).length) return;
+        const esc = window.escapeHtml;
+        const vCls = { "Trade": "ee-trade", "Watch": "ee-watch",
+                       "Avoid": "ee-avoid" };
+        const sv = function (r) {
+          switch (_eeSort.k) {
+            case "t":       return r.t || "";
+            case "verdict": return r.verdict || "";
+            default:
+              return r[_eeSort.k] != null ? r[_eeSort.k] : null;
+          }
+        };
+        const names = d.names.slice().sort(function (a, b) {
+          const va = sv(a), vb = sv(b);
+          if (va == null && vb == null) return 0;
+          if (va == null) return 1;            // blanks sink, both directions
+          if (vb == null) return -1;
+          if (typeof va === "string") return _eeSort.d * va.localeCompare(vb);
+          return _eeSort.d * (va - vb);
+        }).slice(0, 20);
+        const fmtD = function (iso) {
+          const p = String(iso || "").split("-");
+          return p.length === 3 ? (+p[1]) + "/" + (+p[2]) : "—";
+        };
+        const fmtM = function (v) {
+          if (!v || v <= 0) return "—";
+          return v >= 1e9 ? "$" + (v / 1e9).toFixed(1) + "B"
+                          : "$" + Math.round(v / 1e6) + "M";
+        };
+        // blanks are HONEST gaps — each dash explains itself on hover
+        const T_IMP = "No option contract expires just after this report — " +
+          "implied is left blank rather than faked from longer-dated " +
+          "contracts (they overstate the event move)";
+        const T_TYP = "Fewer than 4 past reports with usable price history " +
+          "— not enough to trust a 'typical move'";
+        const rows = names.map(function (r) {
+          const imp = r.implied != null
+            ? '<span class="ee-num">±' + r.implied + '%</span>'
+            : '<span class="ee-num" title="' + T_IMP + '">—</span>';
+          const typ = r.realized_med != null
+            ? '<span class="ee-num">±' + r.realized_med + '%</span>'
+            : '<span class="ee-num" title="' + T_TYP + '">—</span>';
+          const rCls = r.edge_ratio == null ? ""
+            : r.edge_ratio >= 1.35 ? "neg" : r.edge_ratio <= 0.85 ? "pos" : "";
+          const ratio = r.edge_ratio != null ? r.edge_ratio + "×" : "—";
+          const drift = r.drift_5d != null
+            ? (r.drift_5d > 0 ? "+" : "") + r.drift_5d + "%" : "—";
+          return '<div class="ee-row" title="' + esc(r.why || "") + '">' +
+            '<span class="ee-tk" data-t="' + esc(r.t) + '">' + esc(r.t) + '</span>' +
+            '<span class="ee-when">' + fmtD(r.date) + '</span>' +
+            '<span class="ee-when">' + (r.days === 0 ? "today" :
+              "in " + r.days + "d") + ' · ' + esc(r.session) + '</span>' +
+            '<span class="ee-num">' + fmtM(r.mcap) + '</span>' +
+            typ + imp +
+            '<span class="ee-num ' + rCls + '">' + ratio + '</span>' +
+            '<span class="ee-num">' + drift + '</span>' +
+            '<span><span class="ee-verdict ' + (vCls[r.verdict] || "") + '">' +
+              esc(r.verdict) + '</span></span></div>';
+        }).join("");
+        const th = function (lab, key, tip, num) {
+          const on = _eeSort.k === key;
+          return '<span class="' + (num ? "ee-num " : "") +
+            (on ? "is-on" : "") + '" data-ek="' + key + '" title="' +
+            (tip || "Sort by " + lab) + '">' + lab +
+            (on ? (_eeSort.d < 0 ? " ▼" : " ▲") : "") + '</span>';
+        };
+        el.innerHTML =
+          '<div class="ee-card"><div class="ee-head">Earnings Edge — ' +
+          'is the move worth paying for?' +
+          '<span class="ee-sub">typical = median |reaction| last ' +
+          '≤8 reports (BMO/AMC-aware) · implied = front-expiry option ' +
+          'read when one brackets the report — dashes are honest gaps, ' +
+          'hover them · click headers to sort</span></div>' +
+          '<div class="ee-scroll">' +
+          '<div class="ee-row ee-hdr">' +
+            th('Ticker', 't') + th('Date', 'days') + '<span>When</span>' +
+            th('Mcap', 'mcap', null, 1) +
+            th('Typical', 'realized_med', 'Median absolute reaction move over the last ≤8 reports', 1) +
+            th('Implied', 'implied', 'Options-priced move from the contract expiring just after the report', 1) +
+            th('Ratio', 'edge_ratio', 'Implied ÷ typical: ≥1.35× rich (long premium overpays) · ≤0.85× cheap', 1) +
+            th('Drift', 'drift_5d', 'Avg move from reaction close to +5 sessions — continuation vs fade', 1) +
+            th('Verdict', 'verdict') + '</div>' +
+          rows + '</div></div>';
+      }
+      el.addEventListener("click", function (e) {
+        const h = e.target.closest && e.target.closest("[data-ek]");
+        if (!h) return;
+        if (_eeSort.k === h.dataset.ek) _eeSort.d = -_eeSort.d;
+        else { _eeSort.k = h.dataset.ek; _eeSort.d = h.dataset.ek === "t" || h.dataset.ek === "days" || h.dataset.ek === "verdict" ? 1 : -1; }
+        eeRender();
+      });
       fetch("./reports/earnings_edge.json", { cache: "no-cache" })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) {
-          if (!d || !(d.names || []).length) return;
-          const esc = window.escapeHtml;
-          const vCls = { "Trade": "ee-trade", "Watch": "ee-watch",
-                         "Avoid": "ee-avoid" };
-          const rows = d.names.slice(0, 20).map(function (r) {
-            const imp = r.implied != null ? "±" + r.implied + "%" : "—";
-            const typ = r.realized_med != null ? "±" + r.realized_med + "%" : "—";
-            const ratio = r.edge_ratio != null ? r.edge_ratio + "×" : "—";
-            const drift = r.drift_5d != null
-              ? (r.drift_5d > 0 ? "+" : "") + r.drift_5d + "%" : "—";
-            const rCls = r.edge_ratio == null ? ""
-              : r.edge_ratio >= 1.35 ? "neg" : r.edge_ratio <= 0.85 ? "pos" : "";
-            return '<div class="ee-row" title="' + esc(r.why || "") + '">' +
-              '<span class="ee-tk" data-t="' + esc(r.t) + '">' + esc(r.t) + '</span>' +
-              '<span class="ee-when">' + (r.days === 0 ? "today" :
-                "in " + r.days + "d") + ' · ' + esc(r.session) + '</span>' +
-              '<span class="ee-num">' + typ + '</span>' +
-              '<span class="ee-num">' + imp + '</span>' +
-              '<span class="ee-num ' + rCls + '">' + ratio + '</span>' +
-              '<span class="ee-num">' + drift + '</span>' +
-              '<span><span class="ee-verdict ' + (vCls[r.verdict] || "") + '">' +
-                esc(r.verdict) + '</span></span></div>';
-          }).join("");
-          el.innerHTML =
-            '<div class="ee-card"><div class="ee-head">Earnings Edge — ' +
-            'is the move worth paying for?' +
-            '<span class="ee-sub">typical = median |reaction| last ' +
-            '≤8 reports (BMO/AMC-aware) · implied = front-expiry option ' +
-            'read when one brackets the report · hover a row for the ' +
-            'reasoning</span></div>' +
-            '<div class="ee-row ee-hdr">' +
-              '<span>Ticker</span><span>Reports</span>' +
-              '<span class="ee-num" title="Median absolute reaction move over the last ≤8 reports">Typical</span>' +
-              '<span class="ee-num" title="Options-priced move from the contract expiring just after the report">Implied</span>' +
-              '<span class="ee-num" title="Implied ÷ typical: ≥1.35× rich (long premium overpays) · ≤0.85× cheap">Ratio</span>' +
-              '<span class="ee-num" title="Avg move from reaction close to +5 sessions — continuation vs fade">Drift</span>' +
-              '<span>Verdict</span></div>' +
-            rows + '</div>';
-        }).catch(function () {});
+        .then(function (d) { _eeData = d; eeRender(); })
+        .catch(function () {});
     })();
 
     // (Tweet-image lightbox removed with the image pane — v3 audit kill.)
