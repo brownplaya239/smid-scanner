@@ -14669,9 +14669,18 @@
                                 ? -_GRADE_ORD[r.grade] : null;
           case "theme":  return (r.theme || "").toLowerCase() || null;
           case "flow":   return r.flow ? (r.flow.premium || 0) : null;
+          case "live":   var lc = (window.LIVE_QUOTE_CACHE || {})[r.ticker];
+                         return lc && typeof lc.change === "number"
+                                ? lc.change : null;
           default:       return r[st.k] != null ? r[st.k] : null;
         }
       };
+      // Batch date for the 1D% header — the swing grades + close-to-close
+      // chg are from this post-close run, NOT intraday.
+      const _bd = (function () {
+        const p = String(run.date || "").split("-");
+        return p.length === 3 ? (+p[1]) + "/" + (+p[2]) + "/" + p[0] : "";
+      })();
       rows = rows.slice().sort(function (a, b) {
         const va = sv(a), vb = sv(b);
         if (va == null && vb == null) return 0;
@@ -14695,7 +14704,7 @@
         th('Ticker', 'ticker') + th('Grade', 'grade') + th('Score', 'score') +
         (hasLabels ? '<th>Type</th>' : '') +
         th('Theme', 'theme') + th('Mcap', 'mcap') + th('Price', 'price') +
-        th('1D %', 'chg') + th('Extension', 'ext') + th('Flow today', 'flow') +
+        th('1D % (' + _bd + ')', 'chg', 'Prior close-to-close from the post-close batch (' + _bd + ')') + th('Today %', 'live', 'Live intraday return vs prior close (delayed 15m)') + th('Extension', 'ext') + th('Flow today', 'flow') +
         '<th title="Save to watchlist">\u2605</th></tr></thead>';
       const body = rows.map(function (r) {
         const fcls = r.flow ? flowCls(r.flow.direction) : "";
@@ -14718,6 +14727,16 @@
           '<td class="' + (r.chg > 0 ? "up" : r.chg < 0 ? "down" : "") +
             '">' + (r.chg != null ? (r.chg > 0 ? "+" : "") +
               r.chg.toFixed(2) + "%" : "—") + '</td>' +
+          (function () {
+            var lc = (window.LIVE_QUOTE_CACHE || {})[r.ticker];
+            if (lc && typeof lc.change === "number") {
+              return '<td class="' + (lc.change > 0 ? "up" : lc.change < 0
+                ? "down" : "") + '" data-live-tk="' + r.ticker + '">' +
+                (lc.change > 0 ? "+" : "") + lc.change.toFixed(2) + "%</td>";
+            }
+            return '<td data-live-tk="' + r.ticker +
+              '"><span style="color:var(--muted)">\u00b7</span></td>';
+          })() +
           '<td>' + (r.ext != null ? r.ext.toFixed(1) + "%" : "—") + '</td>' +
           '<td>' + (r.flow
             ? '<span class="lst-flow ' + fcls + '">' +
@@ -14810,12 +14829,60 @@
     }
     if (setupEl) setupEl.innerHTML =
       renderTable(buildSetupRows(), "Top Setup Candidates (low-extension VCPs)", "setup");
+    try { hydrateScanLive(); } catch (_) {}
   }
   // per-table sort state — OUTER scope so it survives re-renders and is
   // reachable from both renderTable (nested) and the click handlers below
   const _lstSort = { brk: { k: "score", d: -1 },
                      setup: { k: "score", d: -1 } };
   const _GRADE_ORD = { "A+": 0, "A": 1, "A-": 2, "B+": 3, "B": 4 };
+
+  // Live intraday % for the scan tables. Shares window.LIVE_QUOTE_CACHE
+  // with My Desk (a name pulled there paints instantly here). Direct DOM
+  // patch — no re-render — so the active sort + scroll stay put.
+  function hydrateScanLive() {
+    const cells = document.querySelectorAll(
+      '#breakout-live-table [data-live-tk], #setup-live-table [data-live-tk]');
+    if (!cells.length) return;
+    const cache = window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
+    const paint = function () {
+      cells.forEach(function (c) {
+        const q = cache[c.dataset.liveTk];
+        if (q && typeof q.change === "number") {
+          c.className = q.change > 0 ? "up" : q.change < 0 ? "down" : "";
+          c.textContent = (q.change > 0 ? "+" : "") + q.change.toFixed(2) + "%";
+        }
+      });
+    };
+    paint();
+    const want = new Set();
+    cells.forEach(function (c) { want.add(c.dataset.liveTk); });
+    const stale = Array.from(want).filter(function (t) {
+      const c = cache[t]; return !c || Date.now() - (c.ts || 0) > 60000;
+    });
+    const chunk = 50;
+    for (let i = 0; i < stale.length; i += chunk) {
+      fetch(WORKER_URL + "?quotes=" +
+            encodeURIComponent(stale.slice(i, i + chunk).join(",")))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.quotes) return;
+          d.quotes.forEach(function (q) {
+            if (q && q.symbol) cache[q.symbol] = {
+              price: q.price, change: q.change, prevClose: q.prevClose,
+              ts: Date.now() };
+          });
+          paint();
+        }).catch(function () {});
+    }
+  }
+  // 60s repaint while either scan tab is open (never re-sorts underfoot)
+  setInterval(function () {
+    const b = document.getElementById("panel-breakout");
+    const s = document.getElementById("panel-setup");
+    if ((b && b.classList.contains("active")) ||
+        (s && s.classList.contains("active"))) hydrateScanLive();
+  }, 60000);
 
   // sortable headers — one delegated handler per live table
   [["breakout-live-table", "brk"], ["setup-live-table", "setup"]]
