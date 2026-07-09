@@ -104,6 +104,15 @@ jobs:
         continue-on-error: true
         run: python report_outcomes.py
 
+      - name: 0DTE idea grader (self-reinforcing, gated)
+        # Reconstructs the morning level map + regime for SPY/QQQ/IWM,
+        # regenerates the deterministic trade ideas the live Index-Levels
+        # card shows, grades each on the session frame (trigger→target vs
+        # invalidation), and accrues per-setup-type hit rates gated at
+        # n>=30. Same-day resolution → matures fast. Non-fatal.
+        continue-on-error: true
+        run: python zdte_ideas.py
+
       - name: Hypothesis lab (weekly, self-gated)
         # Pairwise feature hypotheses over the matured ledger; three
         # gates (sample, split-half stability, time-ordered holdout).

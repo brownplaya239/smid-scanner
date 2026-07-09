@@ -2326,6 +2326,32 @@
   .zdte-chain tr.z-fl td.zk::after { content:" FLIP"; font-size:8px;
     color:var(--gold); }
   .zdte-chain td.z-itm { background:rgba(255,200,0,0.045); }
+  /* 0DTE trade ideas */
+  #zdte-ideas { margin-top:14px; }
+  .zi-card { background:var(--navy2); border:1px solid var(--gold);
+    border-radius:10px; padding:13px 15px; }
+  .zi-h { font-size:12.5px; font-weight:800; color:var(--gold);
+    margin-bottom:5px; }
+  .zi-regime { font-size:11.5px; color:var(--textdim); line-height:1.5;
+    margin-bottom:10px; }
+  .zi-row { border-top:1px solid var(--line); padding:8px 0; }
+  .zi-row:first-of-type { border-top:0; }
+  .zi-top { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  .zi-dir { font-size:9.5px; font-weight:800; letter-spacing:.05em;
+    padding:2px 7px; border-radius:4px; }
+  .zi-long .zi-dir { color:var(--green); background:rgba(31,179,99,0.14); }
+  .zi-short .zi-dir { color:var(--red); background:rgba(214,68,68,0.14); }
+  .zi-name { font-size:12.5px; font-weight:700; color:var(--text); }
+  .zi-rec { margin-left:auto; font-size:10px; font-weight:700;
+    color:var(--muted); background:var(--navy); border:1px solid var(--line);
+    border-radius:5px; padding:2px 7px; white-space:nowrap; }
+  .zi-rec.on { color:var(--gold); border-color:var(--gold); }
+  .zi-lv { display:flex; flex-wrap:wrap; gap:5px 16px; margin-top:4px;
+    font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .zi-lv b { color:var(--text); font-weight:700; }
+  .zi-empty { font-size:11.5px; color:var(--muted); padding:6px 0; }
+  .zi-foot { font-size:10px; color:var(--muted); line-height:1.5;
+    margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
 
   /* What-Changed grade-moves strip (absorbs the Upgrades/Downgrades cards) */
   .wct-grades { font-size:11px; color:var(--textdim); padding:6px 10px;
@@ -6153,6 +6179,7 @@
           <span class="zdte-stamp">last · OI · vol per contract · delayed 15m</span>
         </div>
         <div class="zdte-chain-wrap"><table class="zdte-chain" id="zdte-chain"></table></div>
+        <div id="zdte-ideas"></div>
       </div>
       <div id="charts-tv-wrap">
       <p class="tab-sub">Full TradingView charting — search any ticker, all
@@ -14569,11 +14596,114 @@
       $id("zdte-legend").innerHTML = allE.map(function (e) {
         return entry(e.n, e.c, e.v, e.d); }).join("");
 
-      renderConfluence(vals, shown.length ? shown[shown.length - 1].c : spot,
-                       gex, spot);
+      const lastPx = shown.length ? shown[shown.length - 1].c : spot;
+      renderConfluence(vals, lastPx, gex, spot);
+      renderIdeas(vals, lastPx, gex, spot, lv.L);
       $id("zdte-stamp").textContent = sym + " · " + ziv +
         "m candles · updated " + new Date().toLocaleTimeString() +
         " · data delayed 15m";
+    }
+
+    // ── 0DTE trade-idea generator (deterministic, regime-aware) ─────────
+    // Mirrors zdte_ideas.py exactly so the live card and the nightly
+    // grader agree on setup TYPES. Each idea shows trigger / target /
+    // invalidation + its self-graded track record (accruing until n>=30).
+    let _zStats = null;
+    fetch("./reports/zdte_ideas_stats.json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { _zStats = d; }).catch(function () {});
+
+    const IDEA_LABEL = {
+      posgamma_fade_short: "Fade the ceiling → VWAP",
+      posgamma_fade_long:  "Fade the floor → VWAP",
+      neggamma_break_short:"Support break → downside",
+      neggamma_break_long: "Resistance break → upside",
+      or_break_long:  "Opening-range break up",
+      or_break_short: "Opening-range break down",
+      vwap_reclaim_long: "VWAP reclaim → long",
+      vwap_loss_short:   "VWAP loss → short",
+    };
+
+    function renderIdeas(vals, last, gex, spot, L) {
+      const host = $id("zdte-ideas");
+      if (!host || !last) return;
+      const cw = gex.call_wall, pw = gex.put_wall, flip = gex.flip;
+      const regime = (flip != null && spot >= flip) ? "positive" : "negative";
+      const above = function () { const c = [].slice.call(arguments)
+        .filter(function (x) { return x != null && x > spot; });
+        return c.length ? Math.min.apply(null, c) : null; };
+      const below = function () { const c = [].slice.call(arguments)
+        .filter(function (x) { return x != null && x < spot; });
+        return c.length ? Math.max.apply(null, c) : null; };
+      const B = 0.0018, vwap = vals.VWAP, emh = vals["EM+"], eml = vals["EM−"];
+      const ideas = [];
+      if (regime === "positive") {
+        const res = above(cw, emh, vals.VAH, vals.ORH);
+        if (res && vwap && vwap < res) ideas.push({ type:"posgamma_fade_short",
+          dir:"short", trigger:res, target:vwap, invalid:res*(1+B) });
+        const sup = below(pw, eml, vals.VAL, vals.ORL);
+        if (sup && vwap && vwap > sup) ideas.push({ type:"posgamma_fade_long",
+          dir:"long", trigger:sup, target:vwap, invalid:sup*(1-B) });
+      } else {
+        const sup = below(vals.VAL, vals.ORL, pw), tgt = below(pw, eml);
+        if (sup && tgt && tgt < sup) ideas.push({ type:"neggamma_break_short",
+          dir:"short", trigger:sup*(1-0.0003), target:tgt, invalid:sup*(1+B) });
+        const res = above(vals.VAH, vals.ORH, cw), tgt2 = above(cw, emh);
+        if (res && tgt2 && tgt2 > res) ideas.push({ type:"neggamma_break_long",
+          dir:"long", trigger:res*(1+0.0003), target:tgt2, invalid:res*(1-B) });
+      }
+      if (vals.ORH && above(vals.VAH, cw, emh)) ideas.push({ type:"or_break_long",
+        dir:"long", trigger:vals.ORH*(1+0.0003), target:above(vals.VAH, cw, emh),
+        invalid:vals.ORH*(1-B) });
+      if (vals.ORL && below(vals.VAL, pw, eml)) ideas.push({ type:"or_break_short",
+        dir:"short", trigger:vals.ORL*(1-0.0003), target:below(vals.VAL, pw, eml),
+        invalid:vals.ORL*(1+B) });
+      if (vwap) {
+        if (spot < vwap && above(vals.VAH, vals.ORH)) ideas.push({
+          type:"vwap_reclaim_long", dir:"long", trigger:vwap,
+          target:above(vals.VAH, vals.ORH), invalid:vwap*(1-B) });
+        if (spot > vwap && below(vals.VAL, vals.ORL)) ideas.push({
+          type:"vwap_loss_short", dir:"short", trigger:vwap,
+          target:below(vals.VAL, vals.ORL), invalid:vwap*(1+B) });
+      }
+
+      const regTxt = regime === "positive"
+        ? "Positive-gamma — dealers dampen moves; the tape favors <b>fading the extremes back to VWAP</b>."
+        : "Negative-gamma — dealers amplify moves; the tape favors <b>momentum on level breaks</b>.";
+      const st = (_zStats && _zStats.by_type) || {};
+      const tot = (_zStats && _zStats.total_graded) || 0;
+      const $f = function (v) { return "$" + v.toFixed(2); };
+      const rows = ideas.map(function (it) {
+        const rr = Math.abs(it.target - it.trigger) /
+                   Math.max(0.01, Math.abs(it.invalid - it.trigger));
+        const s = st[it.type];
+        let rec;
+        if (s && s.status === "active")
+          rec = '<span class="zi-rec on">' + s.win_rate + '% · n=' + s.n + '</span>';
+        else rec = '<span class="zi-rec">track record ' +
+          ((s && s.n) || 0) + '/' + 30 + '</span>';
+        return '<div class="zi-row zi-' + it.dir + '">' +
+          '<div class="zi-top"><span class="zi-dir">' +
+          (it.dir === "long" ? "▲ LONG" : "▼ SHORT") + '</span>' +
+          '<span class="zi-name">' + (IDEA_LABEL[it.type] || it.type) + '</span>' +
+          rec + '</div>' +
+          '<div class="zi-lv"><span>Trigger <b>' + $f(it.trigger) + '</b></span>' +
+          '<span>Target <b class="pos">' + $f(it.target) + '</b></span>' +
+          '<span>Invalid <b class="neg">' + $f(it.invalid) + '</b></span>' +
+          '<span>R:R <b>' + rr.toFixed(1) + '</b></span></div></div>';
+      }).join("");
+
+      host.innerHTML = '<div class="zi-card">' +
+        '<div class="zi-h">🎯 ' + sym + ' 0DTE trade ideas — ' +
+        (regime === "positive" ? "fade regime" : "momentum regime") + '</div>' +
+        '<div class="zi-regime">' + regTxt + '</div>' +
+        (rows || '<div class="zi-empty">No high-confluence setup right now — ' +
+          'price sits clear of the key levels.</div>') +
+        '<div class="zi-foot">Deterministic setups from the plotted levels + ' +
+        'gamma regime — <b>not advice</b>, 15-min-delayed. The track record ' +
+        'on each is <b>self-graded nightly</b> (trigger fired → target before ' +
+        'invalidation, session frame) and earns itself over ~6 weeks: ' + tot +
+        ' ideas graded so far. Same rules as the nightly grader.</div></div>';
     }
 
     // ── rule-based confluence read (deterministic — no model call) ──
