@@ -19088,7 +19088,12 @@
         v = c.chg;
         label = "Yesterday's close-to-close (live quote loading…)";
       }
-      if (v == null) return "";
+      if (v == null)
+        // No batch value and no quote yet (e.g. earnings names outside
+        // the graded universe). Emit a tagged placeholder so the 60s
+        // quote cycle fetches it and fills the % in place.
+        return '<span class="chg-pill flat" data-chg-tk="' + t +
+          '" title="Live quote loading…">–</span>';
       const cls = v > 0 ? "up" : v < 0 ? "down" : "flat";
       const sign = v > 0 ? "+" : "";
       return '<span class="chg-pill ' + cls + '" data-chg-tk="' + t +
@@ -20115,7 +20120,8 @@
         return '<div class="brk-row" title="' +
             cleanName(c.n).replace(/"/g, "&quot;") + '">' +
           '<span class="bk-tk" data-t="' + c.t + '">' + c.t + '</span>' +
-          '<span class="bk-dy ' + day.cls + '">' + day.txt + '</span>' +
+          '<span class="bk-dy ' + day.cls + '" data-chg-tk="' + c.t +
+            '">' + day.txt + '</span>' +
           '<span class="bk-th">' + th + '</span>' +
           '<span class="bk-mc">' + mcap + '</span>' +
           '<span class="bk-rv' + rvCls + '">' + rvol + '</span>' +
@@ -21864,7 +21870,7 @@
     function updateDeskChgPills() {
       const cache = window.LIVE_QUOTE_CACHE || {};
       document.querySelectorAll(
-        ".chg-pill[data-chg-tk], .mh-pct[data-chg-tk]"
+        ".chg-pill[data-chg-tk], .mh-pct[data-chg-tk], .bk-dy[data-chg-tk]"
       ).forEach(function (el) {
         const t = el.dataset.chgTk;
         const live = cache[t];
@@ -21872,11 +21878,13 @@
         const v = live.change;
         const cls = v > 0 ? "up" : v < 0 ? "down" : "flat";
         const sign = v > 0 ? "+" : "";
-        // Market Health % spans keep their own class family; chg pills
-        // keep theirs — same data, different chrome.
+        // Each surface keeps its own class family (pill chrome vs grid
+        // cell vs Market Health span) — same data, different chrome.
         el.className = el.classList.contains("mh-pct")
           ? "mh-pct " + (v > 0 ? "up" : v < 0 ? "down" : "")
-          : "chg-pill " + cls;
+          : el.classList.contains("bk-dy")
+            ? "bk-dy " + cls
+            : "chg-pill " + cls;
         el.textContent = sign + v.toFixed(1) + "%";
         el.setAttribute("title", live.extended
           ? (live.market_state === "post"
@@ -21887,6 +21895,38 @@
       // Whenever chips refresh, also update the intraday breadth
       // strip on Market Health so the two stay synchronized.
       updateDeskIntradayBreadth();
+      // …and the theme averages, which are equal-weighted rollups of
+      // the same per-ticker quotes.
+      updateThemeCardLive();
+    }
+
+    // In-place refresh of the Strongest/Weakest Themes card: recompute
+    // the rollup (buildThemeRollup already prefers live quotes per
+    // constituent) and rewrite each row's Avg % + direction class.
+    // Row ORDER and the strongest/weakest insight line stay as rendered
+    // — we never re-sort a list under the user; ranking refreshes on
+    // the next full Desk render. Hover popups read THEME_ROLLUP, so
+    // keep that index in sync too.
+    function updateThemeCardLive() {
+      const sw = window.TD_DATA && window.TD_DATA.swing;
+      if (!sw) return;
+      const rows = document.querySelectorAll(".th-row[data-th]");
+      if (!rows.length) return;
+      const all = buildThemeRollup(sw);
+      if (!all.length) return;
+      const map = {};
+      all.forEach(function (t) { map[t.theme] = t; });
+      THEME_ROLLUP = map;
+      rows.forEach(function (el) {
+        const t = map[el.dataset.th];
+        if (!t) return;
+        const avg = el.querySelector(".tr-avg");
+        if (!avg) return;
+        const sign = t.chg_avg > 0 ? "+" : "";
+        avg.textContent = sign + t.chg_avg.toFixed(1) + "%";
+        el.className = "th-row " +
+          (t.chg_avg > 0 ? "up" : t.chg_avg < 0 ? "down" : "flat");
+      });
     }
 
     // Keep visible tiles ticking through the session. The desk/My-Desk chg
@@ -21904,13 +21944,31 @@
       // caps like DAL/PANW/MCD stuck on yesterday's close).
       document.querySelectorAll(
         "#panel-desk .chg-pill[data-chg-tk], #panel-mydesk .chg-pill[data-chg-tk], " +
-        "#panel-desk .mh-pct[data-chg-tk]"   // Market Health columns — the
-                                             // tile stamps 'Latest · HH:MM',
-                                             // so its %s must be live too
+        "#panel-desk .mh-pct[data-chg-tk], "  // Market Health columns — the
+                                              // tile stamps 'Latest · HH:MM',
+                                              // so its %s must be live too
+        + "#panel-desk .bk-dy[data-chg-tk]"   // Top Breakout Candidates Day col
       ).forEach(function (el) {
         const t = el.dataset.chgTk;
         if (t && /^[A-Z.\-]{1,8}$/.test(t)) tickers.add(t);
       });
+      // Theme constituents (~180 curated names): the Strongest/Weakest
+      // Themes rollup averages per-ticker moves, so its constituents
+      // need quotes even when they aren't on screen anywhere. Bounded —
+      // only names carrying a theme tag in the latest grade batch.
+      try {
+        const sw = window.TD_DATA && window.TD_DATA.swing;
+        const r0 = sw && sw.runs && sw.runs.length
+          ? sw.runs[sw.runs.length - 1] : null;
+        if (r0 && document.querySelector(".th-row[data-th]")) {
+          Object.keys(r0.grades || {}).forEach(function (g) {
+            (r0.grades[g] || []).forEach(function (c) {
+              if (c.th && c.th.length && /^[A-Z.\-]{1,8}$/.test(c.t))
+                tickers.add(c.t);
+            });
+          });
+        }
+      } catch (_) {}
       if (!tickers.size) return;                        // no tiles on screen
       const list = Array.from(tickers);
       let pending = 0;
