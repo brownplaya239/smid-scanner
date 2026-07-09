@@ -146,69 +146,64 @@ def generate(sym, spot, L, gex, em):
     emh = spot + em["usd"] if em else None
     eml = spot - em["usd"] if em else None
     vwap = L.get("VWAP")
-    ideas = []
     B = 0.0018   # invalidation buffer (~0.18%)
 
-    def above(*xs):   # nearest level strictly above spot
-        c = [x for x in xs if x is not None and x > spot]
+    def up_of(x, *xs):   # nearest candidate strictly above reference x
+        c = [v for v in xs if v is not None and v > x]
         return min(c) if c else None
 
-    def below(*xs):
-        c = [x for x in xs if x is not None and x < spot]
+    def dn_of(x, *xs):
+        c = [v for v in xs if v is not None and v < x]
         return max(c) if c else None
 
+    def s_up(*xs): return up_of(spot, *xs)
+    def s_dn(*xs): return dn_of(spot, *xs)
+
+    ideas = []
+
+    def mk(type_, direction, trigger, target):
+        # enforce valid ordering — long: invalid<trigger<target,
+        # short: target<trigger<invalid — else DROP (a short can never
+        # target upward; caught the OR-break-short target bug).
+        if trigger is None or target is None:
+            return
+        inv = trigger * (1 - B) if direction == "long" else trigger * (1 + B)
+        if direction == "long" and not (inv < trigger < target):
+            return
+        if direction == "short" and not (target < trigger < inv):
+            return
+        ideas.append({"type": type_, "dir": direction, "trigger": trigger,
+                      "target": target, "invalid": inv, "regime": regime})
+
     if regime == "positive":
-        # fade the extremes back to VWAP
-        res = above(cw, emh, L.get("VAH"), L.get("ORH"))
-        if res and vwap and vwap < res:
-            ideas.append({"type": "posgamma_fade_short", "dir": "short",
-                          "trigger": res, "target": vwap,
-                          "invalid": res * (1 + B)})
-        sup = below(pw, eml, L.get("VAL"), L.get("ORL"))
-        if sup and vwap and vwap > sup:
-            ideas.append({"type": "posgamma_fade_long", "dir": "long",
-                          "trigger": sup, "target": vwap,
-                          "invalid": sup * (1 - B)})
+        mk("posgamma_fade_short", "short",
+           s_up(cw, emh, L.get("VAH"), L.get("ORH")), vwap)
+        mk("posgamma_fade_long", "long",
+           s_dn(pw, eml, L.get("VAL"), L.get("ORL")), vwap)
     else:
-        # momentum: break of support/resistance runs to the next wall
-        sup = below(L.get("VAL"), L.get("ORL"), pw)
-        tgt = below(pw, eml)
-        if sup and tgt and tgt < sup:
-            ideas.append({"type": "neggamma_break_short", "dir": "short",
-                          "trigger": sup * (1 - 0.0003), "target": tgt,
-                          "invalid": sup * (1 + B)})
-        res = above(L.get("VAH"), L.get("ORH"), cw)
-        tgt2 = above(cw, emh)
-        if res and tgt2 and tgt2 > res:
-            ideas.append({"type": "neggamma_break_long", "dir": "long",
-                          "trigger": res * (1 + 0.0003), "target": tgt2,
-                          "invalid": res * (1 - B)})
+        sup = s_dn(L.get("VAL"), L.get("ORL"), pw)
+        if sup:
+            mk("neggamma_break_short", "short", sup,
+               dn_of(sup, pw, eml, L.get("PDL")))
+        res = s_up(L.get("VAH"), L.get("ORH"), cw)
+        if res:
+            mk("neggamma_break_long", "long", res,
+               up_of(res, cw, emh, L.get("PDH")))
 
-    # OR break (both regimes)
     orh, orl = L.get("ORH"), L.get("ORL")
-    if orh and above(L.get("VAH"), cw, emh):
-        ideas.append({"type": "or_break_long", "dir": "long",
-                      "trigger": orh * (1 + 0.0003),
-                      "target": above(L.get("VAH"), cw, emh),
-                      "invalid": orh * (1 - B)})
-    if orl and below(L.get("VAL"), pw, eml):
-        ideas.append({"type": "or_break_short", "dir": "short",
-                      "trigger": orl * (1 - 0.0003),
-                      "target": below(L.get("VAL"), pw, eml),
-                      "invalid": orl * (1 + B)})
+    if orh:
+        mk("or_break_long", "long", orh,
+           up_of(orh, L.get("VAH"), cw, emh, L.get("PDH")))
+    if orl:
+        mk("or_break_short", "short", orl,
+           dn_of(orl, L.get("VAL"), pw, eml, L.get("PDL")))
 
-    # VWAP reclaim / loss
-    if vwap:
-        if spot < vwap and above(L.get("VAH"), L.get("ORH")):
-            ideas.append({"type": "vwap_reclaim_long", "dir": "long",
-                          "trigger": vwap, "target": above(L.get("VAH"), L.get("ORH")),
-                          "invalid": vwap * (1 - B)})
-        if spot > vwap and below(L.get("VAL"), L.get("ORL")):
-            ideas.append({"type": "vwap_loss_short", "dir": "short",
-                          "trigger": vwap, "target": below(L.get("VAL"), L.get("ORL")),
-                          "invalid": vwap * (1 + B)})
-    for it in ideas:
-        it["regime"] = regime
+    if vwap and spot < vwap:
+        mk("vwap_reclaim_long", "long", vwap,
+           up_of(vwap, L.get("VAH"), L.get("ORH"), cw))
+    if vwap and spot > vwap:
+        mk("vwap_loss_short", "short", vwap,
+           dn_of(vwap, L.get("VAL"), L.get("ORL"), pw))
     return ideas, regime
 
 

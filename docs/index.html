@@ -2352,34 +2352,36 @@
   .zi-empty { font-size:11.5px; color:var(--muted); padding:6px 0; }
   .zi-foot { font-size:10px; color:var(--muted); line-height:1.5;
     margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
-  /* Notable index options activity */
+  /* Notable index options activity (3 columns) */
   #zdte-flow { margin-top:14px; }
   .zf-card { background:var(--navy2); border:1px solid var(--line);
     border-radius:10px; padding:13px 15px; }
   .zf-h { font-size:12.5px; font-weight:800; color:var(--text);
     margin-bottom:3px; }
   .zf-sub { font-size:10.5px; color:var(--muted); line-height:1.5;
-    margin-bottom:9px; }
-  .zf-row { display:flex; align-items:center; gap:9px; padding:6px 0;
-    border-top:1px solid var(--line); font-size:11.5px; flex-wrap:wrap; }
-  .zf-row:first-of-type { border-top:0; }
-  .zf-conf { position:relative; min-width:30px; text-align:center;
-    font-weight:800; color:var(--gold);
-    background:linear-gradient(90deg, rgba(255,200,0,.18) var(--w), transparent 0);
-    border-radius:4px; padding:2px 4px; font-variant-numeric:tabular-nums; }
-  .zf-tk { font-weight:800; color:var(--text); min-width:34px; }
-  .zf-con { font-weight:800; padding:1px 6px; border-radius:4px;
-    font-variant-numeric:tabular-nums; }
+    margin-bottom:10px; }
+  .zf-cols { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+  @media (max-width:640px) { .zf-cols { grid-template-columns:1fr; } }
+  .zf-col { background:var(--navy); border:1px solid var(--line);
+    border-radius:8px; padding:8px 9px; }
+  .zf-col-h { font-size:11px; font-weight:800; color:var(--gold);
+    text-align:center; padding-bottom:5px; margin-bottom:4px;
+    border-bottom:1px solid var(--line); letter-spacing:.04em; }
+  .zf-fr { display:flex; align-items:center; gap:5px; padding:4px 0;
+    font-size:10.5px; font-variant-numeric:tabular-nums; }
+  .zf-fr + .zf-fr { border-top:1px solid rgba(255,255,255,0.04); }
+  .zf-none { color:var(--muted); justify-content:center; font-style:italic; }
+  .zf-conf { min-width:22px; text-align:center; font-weight:800;
+    color:var(--gold); border-radius:3px; padding:1px 3px;
+    background:linear-gradient(90deg, rgba(255,200,0,.20) var(--w), transparent 0); }
+  .zf-con { font-weight:800; padding:1px 4px; border-radius:3px; }
   .zf-con.pos { color:var(--green); background:rgba(31,179,99,0.13); }
   .zf-con.neg { color:var(--red); background:rgba(214,68,68,0.13); }
-  .zf-exp { font-size:10.5px; color:var(--muted); min-width:44px; }
-  .zf-exp i { color:var(--gold); font-style:normal; font-size:9px; }
-  .zf-m { font-weight:700; color:var(--amber, #e0a72b); min-width:52px;
-    font-variant-numeric:tabular-nums; }
-  .zf-d { font-size:10px; color:var(--muted); margin-left:auto;
-    font-variant-numeric:tabular-nums; }
+  .zf-tag { font-size:8.5px; font-weight:700; color:var(--muted); }
+  .zf-m { font-weight:700; color:#e0a72b; margin-left:auto; }
+  .zf-r { color:var(--muted); min-width:26px; text-align:right; }
   .zf-foot { font-size:10px; color:var(--muted); line-height:1.5;
-    margin-top:9px; border-top:1px solid var(--line); padding-top:8px; }
+    margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
 
   /* What-Changed grade-moves strip (absorbs the Upgrades/Downgrades cards) */
   .wct-grades { font-size:11px; color:var(--textdim); padding:6px 10px;
@@ -14658,43 +14660,54 @@
       if (!host || !last) return;
       const cw = gex.call_wall, pw = gex.put_wall, flip = gex.flip;
       const regime = (flip != null && spot >= flip) ? "positive" : "negative";
-      const above = function () { const c = [].slice.call(arguments)
-        .filter(function (x) { return x != null && x > spot; });
+      // nearest candidate strictly above / below a REFERENCE price (the
+      // trigger, not spot — this is what keeps target on the correct side)
+      const upOf = function (x) { const c = [].slice.call(arguments, 1)
+        .filter(function (v) { return v != null && isFinite(v) && v > x; });
         return c.length ? Math.min.apply(null, c) : null; };
-      const below = function () { const c = [].slice.call(arguments)
-        .filter(function (x) { return x != null && x < spot; });
+      const dnOf = function (x) { const c = [].slice.call(arguments, 1)
+        .filter(function (v) { return v != null && isFinite(v) && v < x; });
         return c.length ? Math.max.apply(null, c) : null; };
+      const spotUp = function () { return upOf.apply(null, [spot].concat(
+        [].slice.call(arguments))); };
+      const spotDn = function () { return dnOf.apply(null, [spot].concat(
+        [].slice.call(arguments))); };
       const B = 0.0018, vwap = vals.VWAP, emh = vals["EM+"], eml = vals["EM−"];
       const ideas = [];
+      // mk enforces the only ordering that makes a trade valid:
+      //   LONG  → invalid < trigger < target
+      //   SHORT → target  < trigger < invalid
+      // any idea that fails is DROPPED, so a short can never target upward.
+      const mk = function (type, dir, trigger, target) {
+        if (trigger == null || target == null || !isFinite(trigger)
+            || !isFinite(target)) return;
+        const inv = dir === "long" ? trigger * (1 - B) : trigger * (1 + B);
+        if (dir === "long" && !(inv < trigger && trigger < target)) return;
+        if (dir === "short" && !(target < trigger && trigger < inv)) return;
+        ideas.push({ type: type, dir: dir, trigger: trigger,
+                     target: target, invalid: inv, regime: regime });
+      };
       if (regime === "positive") {
-        const res = above(cw, emh, vals.VAH, vals.ORH);
-        if (res && vwap && vwap < res) ideas.push({ type:"posgamma_fade_short",
-          dir:"short", trigger:res, target:vwap, invalid:res*(1+B) });
-        const sup = below(pw, eml, vals.VAL, vals.ORL);
-        if (sup && vwap && vwap > sup) ideas.push({ type:"posgamma_fade_long",
-          dir:"long", trigger:sup, target:vwap, invalid:sup*(1-B) });
+        // fade the ceiling / floor back to VWAP
+        mk("posgamma_fade_short", "short", spotUp(cw, emh, vals.VAH, vals.ORH), vwap);
+        mk("posgamma_fade_long",  "long",  spotDn(pw, eml, vals.VAL, vals.ORL), vwap);
       } else {
-        const sup = below(vals.VAL, vals.ORL, pw), tgt = below(pw, eml);
-        if (sup && tgt && tgt < sup) ideas.push({ type:"neggamma_break_short",
-          dir:"short", trigger:sup*(1-0.0003), target:tgt, invalid:sup*(1+B) });
-        const res = above(vals.VAH, vals.ORH, cw), tgt2 = above(cw, emh);
-        if (res && tgt2 && tgt2 > res) ideas.push({ type:"neggamma_break_long",
-          dir:"long", trigger:res*(1+0.0003), target:tgt2, invalid:res*(1-B) });
+        // momentum: break the near support/resistance → next level beyond it
+        const sup = spotDn(vals.VAL, vals.ORL, pw);
+        if (sup) mk("neggamma_break_short", "short", sup, dnOf(sup, pw, eml, vals.PDL));
+        const res = spotUp(vals.VAH, vals.ORH, cw);
+        if (res) mk("neggamma_break_long", "long", res, upOf(res, cw, emh, vals.PDH));
       }
-      if (vals.ORH && above(vals.VAH, cw, emh)) ideas.push({ type:"or_break_long",
-        dir:"long", trigger:vals.ORH*(1+0.0003), target:above(vals.VAH, cw, emh),
-        invalid:vals.ORH*(1-B) });
-      if (vals.ORL && below(vals.VAL, pw, eml)) ideas.push({ type:"or_break_short",
-        dir:"short", trigger:vals.ORL*(1-0.0003), target:below(vals.VAL, pw, eml),
-        invalid:vals.ORL*(1+B) });
-      if (vwap) {
-        if (spot < vwap && above(vals.VAH, vals.ORH)) ideas.push({
-          type:"vwap_reclaim_long", dir:"long", trigger:vwap,
-          target:above(vals.VAH, vals.ORH), invalid:vwap*(1-B) });
-        if (spot > vwap && below(vals.VAL, vals.ORL)) ideas.push({
-          type:"vwap_loss_short", dir:"short", trigger:vwap,
-          target:below(vals.VAL, vals.ORL), invalid:vwap*(1+B) });
-      }
+      // OR break — target is the next level BEYOND the OR edge, not beyond spot
+      if (vals.ORH) mk("or_break_long", "long", vals.ORH,
+        upOf(vals.ORH, vals.VAH, cw, emh, vals.PDH));
+      if (vals.ORL) mk("or_break_short", "short", vals.ORL,
+        dnOf(vals.ORL, vals.VAL, pw, eml, vals.PDL));
+      // VWAP reclaim / loss — target beyond VWAP in the trade direction
+      if (vwap && spot < vwap)
+        mk("vwap_reclaim_long", "long", vwap, upOf(vwap, vals.VAH, vals.ORH, cw));
+      if (vwap && spot > vwap)
+        mk("vwap_loss_short", "short", vwap, dnOf(vwap, vals.VAL, vals.ORL, pw));
 
       const regTxt = regime === "positive"
         ? "Positive-gamma — dealers dampen moves; the tape favors <b>fading the extremes back to VWAP</b>."
@@ -14828,10 +14841,13 @@
         if (r.e !== e) return;
         (byK[r.k] = byK[r.k] || {})[r.t] = r;
       });
-      const ks = Object.keys(byK).map(Number).sort(function (a, b) { return a - b; });
-      let atmK = null, best = 1e9;
-      ks.forEach(function (k) { if (Math.abs(k - spot) < best) {
-        best = Math.abs(k - spot); atmK = k; } });
+      let ks = Object.keys(byK).map(Number).sort(function (a, b) { return a - b; });
+      let atmK = null, best = 1e9, atmI = 0;
+      ks.forEach(function (k, i) { if (Math.abs(k - spot) < best) {
+        best = Math.abs(k - spot); atmK = k; atmI = i; } });
+      // truncate to ±15 strikes around ATM (keeps the liquid 0DTE zone,
+      // drops the noise tails)
+      ks = ks.slice(Math.max(0, atmI - 15), atmI + 16);
       const g = cp.gex || {};
       const f = function (v, d) { return v == null ? "—" :
         (d ? v.toFixed(d) : v.toLocaleString()); };
@@ -14900,55 +14916,61 @@
           .then(function (r) { return r.ok ? r.json() : null; })
           .catch(function () { return null; });
       })).then(function (chains) {
-        const items = [];
         const today = new Date().toISOString().slice(0, 10);
-        chains.forEach(function (c) {
-          if (!c || c.error || !c.rows) return;
-          const spot = c.spot;
-          c.rows.forEach(function (r) {
-            if (!r.vol || r.last == null || r.vol < 200) return;
-            const dv = r.vol * r.last * 100;               // $ notional traded
-            const voi = r.vol / Math.max(1, r.oi);         // freshness
-            // confidence: big AND fresh, capped so one term can't dominate
-            const score = dv * Math.min(6, Math.max(0.25, voi));
-            const otm = r.t === "call" ? r.k > spot : r.k < spot;
-            items.push({ sym: c.sym, t: r.t, k: r.k, e: r.e, vol: r.vol,
-              oi: r.oi, iv: r.iv, last: r.last, dv: dv, voi: voi,
-              score: score, otm: otm, zero: r.e === today });
-          });
-        });
-        items.sort(function (a, b) { return b.score - a.score; });
-        const top = items.slice(0, 5);
-        const mx = top.length ? top[0].score : 1;
         const fMoney = function (v) {
           return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "M"
                           : "$" + Math.round(v / 1e3) + "K"; };
-        const fNum = function (v) { return (v || 0).toLocaleString(); };
-        if (!top.length) { host.innerHTML = ""; return; }
-        const rows = top.map(function (x) {
-          const conf = Math.round(100 * x.score / mx);
-          const dc = x.t === "call" ? "pos" : "neg";
-          return '<div class="zf-row">' +
-            '<span class="zf-conf" style="--w:' + conf + '%"><b>' + conf +
-              '</b></span>' +
-            '<span class="zf-tk">' + x.sym + '</span>' +
-            '<span class="zf-con ' + dc + '">' + x.k +
-              (x.t === "call" ? "C" : "P") + '</span>' +
-            '<span class="zf-exp">' + (x.zero ? "0DTE" : x.e.slice(5)) +
-              (x.otm ? "" : " <i>ITM</i>") + '</span>' +
-            '<span class="zf-m">' + fMoney(x.dv) + '</span>' +
-            '<span class="zf-d">vol ' + fNum(x.vol) + ' · OI ' + fNum(x.oi) +
-              ' · ' + x.voi.toFixed(1) + '×' +
-              (x.iv != null ? ' · IV ' + x.iv + '%' : '') + '</span></div>';
+        // per-symbol top 5 (NOT best-5-overall) -- one column each. Score
+        // leans toward ALPHA over raw size: dampen dollar volume (^0.55 so
+        // the biggest at-the-money hedges don't dominate) x reward high
+        // vol/OI (fresh positioning) x OTM (directional conviction).
+        const colFor = function (c) {
+          if (!c || c.error || !c.rows) return { sym: null, rows: [] };
+          const spot = c.spot, items = [];
+          c.rows.forEach(function (r) {
+            if (!r.vol || r.last == null || r.vol < 200) return;
+            const dv = r.vol * r.last * 100;
+            const voi = r.vol / Math.max(1, r.oi);
+            const otm = r.t === "call" ? r.k > spot : r.k < spot;
+            const score = Math.pow(dv, 0.55) *
+                          Math.min(8, Math.max(0.3, voi)) * (otm ? 1.6 : 1);
+            items.push({ t: r.t, k: r.k, e: r.e, vol: r.vol, oi: r.oi,
+              iv: r.iv, dv: dv, voi: voi, score: score, otm: otm });
+          });
+          items.sort(function (a, b) { return b.score - a.score; });
+          return { sym: c.sym, rows: items.slice(0, 5) };
+        };
+        const cols = chains.map(colFor).filter(function (c) { return c.sym; });
+        if (!cols.length) { host.innerHTML = ""; return; }
+        const colHTML = cols.map(function (col) {
+          const mx = col.rows.length ? col.rows[0].score : 1;
+          const rows = col.rows.map(function (x) {
+            const conf = Math.round(100 * x.score / mx);
+            const dc = x.t === "call" ? "pos" : "neg";
+            return '<div class="zf-fr" title="vol ' + x.vol.toLocaleString() +
+              ' \u00b7 OI ' + x.oi.toLocaleString() + ' \u00b7 ' +
+              x.voi.toFixed(1) + '\u00d7 vol/OI' +
+              (x.iv != null ? ' \u00b7 IV ' + x.iv + '%' : '') + '">' +
+              '<span class="zf-conf" style="--w:' + conf + '%">' + conf + '</span>' +
+              '<span class="zf-con ' + dc + '">' + x.k +
+                (x.t === "call" ? "C" : "P") + '</span>' +
+              '<span class="zf-tag">' + (x.otm ? "OTM" : "ITM") + '</span>' +
+              '<span class="zf-m">' + fMoney(x.dv) + '</span>' +
+              '<span class="zf-r">' + x.voi.toFixed(0) + '\u00d7</span></div>';
+          }).join("") || '<div class="zf-fr zf-none">no notable flow</div>';
+          return '<div class="zf-col"><div class="zf-col-h">' + col.sym +
+            '</div>' + rows + '</div>';
         }).join("");
         host.innerHTML = '<div class="zf-card">' +
-          '<div class="zf-h">⚡ Notable index options activity — top 5 today</div>' +
-          '<div class="zf-sub">SPY · QQQ · IWM, ranked by size × freshness ' +
-          '(volume ÷ open interest). Cumulative session volume, refreshes ' +
-          'each cycle.</div>' + rows +
+          '<div class="zf-h">\u26a1 Notable index options activity \u2014 top 5 each</div>' +
+          '<div class="zf-sub">Per symbol, ranked toward <b>alpha</b>: ' +
+          'volume \u00f7 open interest (fresh positioning) \u00d7 OTM bias, ' +
+          'with raw size dampened so the big at-the-money hedges don\'t ' +
+          'dominate. Hover a row for full stats.</div>' +
+          '<div class="zf-cols">' + colHTML + '</div>' +
           '<div class="zf-foot">The UOA scanner excludes index ETFs, so this ' +
-          'is derived from the <b>delayed options chain snapshot</b> (day ' +
-          'volume, 15-min delayed) — notable strike activity, <b>not</b> ' +
+          'is derived from the <b>delayed chain snapshot</b> (cumulative day ' +
+          'volume, 15-min delayed) \u2014 notable strike activity, <b>not</b> ' +
           'trade-level sweep/block detection. Educational, not advice.</div></div>';
       }).catch(function () {});
     }
