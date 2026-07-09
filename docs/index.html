@@ -19687,19 +19687,34 @@
           : "rgba(214,68,68," + (0.30 + ((i - 10) / 9) * 0.55).toFixed(2) + ")";
       };
       const tkRow = function (c) {
-        const v = (typeof c.chg === "number") ? c.chg : null;
+        // Prefer the LIVE intraday % when a quote is cached (the stamp
+        // says "Latest · HH:MM" — the numbers must match it). Fall back
+        // to the batch close-to-close until the first quote chunk lands;
+        // data-chg-tk enrolls the span in the 60s live repaint.
+        const live = (window.LIVE_QUOTE_CACHE || {})[c.t];
+        const isLive = live && typeof live.change === "number";
+        const v = isLive ? live.change
+          : (typeof c.chg === "number") ? c.chg : null;
         const cls = v == null ? "" : v > 0 ? "up" : v < 0 ? "down" : "";
         const sign = v != null && v > 0 ? "+" : "";
         return '<div class="mh-tk-row">' +
           '<span class="mh-tk" data-t="' + c.t + '">' + c.t + '</span>' +
-          '<span class="mh-pct ' + cls + '">' +
+          '<span class="mh-pct ' + cls + '" data-chg-tk="' + c.t +
+            '" title="' + (isLive ? "Today’s % (delayed 15m)"
+              : "Prior-session close-to-close — flips to today’s % when the live quote lands") + '">' +
             (v != null ? sign + v.toFixed(1) + "%" : "—") + '</span></div>';
       };
       const pick = function (grade, dir) {
+        // Rank by the live intraday % when a quote is cached (matches what
+        // the rows display) — batch close-to-close only pre-hydration.
+        const eff = function (c) {
+          const q = (window.LIVE_QUOTE_CACHE || {})[c.t];
+          return (q && typeof q.change === "number") ? q.change : c.chg;
+        };
         const arr = (r.grades[grade] || []).slice()
-          .filter(function (c) { return typeof c.chg === "number"; })
+          .filter(function (c) { return typeof eff(c) === "number"; })
           .sort(function (a, b) {
-            return dir === "asc" ? a.chg - b.chg : b.chg - a.chg;
+            return dir === "asc" ? eff(a) - eff(b) : eff(b) - eff(a);
           })
           .slice(0, 25);
         return arr;
@@ -21848,14 +21863,20 @@
     // window.LIVE_QUOTE_CACHE. Avoids the cost of a full Desk re-render.
     function updateDeskChgPills() {
       const cache = window.LIVE_QUOTE_CACHE || {};
-      document.querySelectorAll(".chg-pill[data-chg-tk]").forEach(function (el) {
+      document.querySelectorAll(
+        ".chg-pill[data-chg-tk], .mh-pct[data-chg-tk]"
+      ).forEach(function (el) {
         const t = el.dataset.chgTk;
         const live = cache[t];
         if (!live || typeof live.change !== "number") return;
         const v = live.change;
         const cls = v > 0 ? "up" : v < 0 ? "down" : "flat";
         const sign = v > 0 ? "+" : "";
-        el.className = "chg-pill " + cls;
+        // Market Health % spans keep their own class family; chg pills
+        // keep theirs — same data, different chrome.
+        el.className = el.classList.contains("mh-pct")
+          ? "mh-pct " + (v > 0 ? "up" : v < 0 ? "down" : "")
+          : "chg-pill " + cls;
         el.textContent = sign + v.toFixed(1) + "%";
         el.setAttribute("title", live.extended
           ? (live.market_state === "post"
@@ -21882,7 +21903,10 @@
       // hidden-desk pills are still covered (this was leaving normal large
       // caps like DAL/PANW/MCD stuck on yesterday's close).
       document.querySelectorAll(
-        "#panel-desk .chg-pill[data-chg-tk], #panel-mydesk .chg-pill[data-chg-tk]"
+        "#panel-desk .chg-pill[data-chg-tk], #panel-mydesk .chg-pill[data-chg-tk], " +
+        "#panel-desk .mh-pct[data-chg-tk]"   // Market Health columns — the
+                                             // tile stamps 'Latest · HH:MM',
+                                             // so its %s must be live too
       ).forEach(function (el) {
         const t = el.dataset.chgTk;
         if (t && /^[A-Z.\-]{1,8}$/.test(t)) tickers.add(t);
