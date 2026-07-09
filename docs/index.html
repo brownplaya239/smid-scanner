@@ -20798,19 +20798,86 @@
           });
         } catch (_) {}
         const esc = window.escapeHtml;
+        // rg-breadth / rg-lead / rg-asof are stable hooks for
+        // updateDeskRegimeLive(), which re-classifies from live quotes
+        // during the session. Until then the marker says exactly what
+        // the numbers are: the prior session's close.
         return '<div class="rg-banner ' + cls + '" title="Regime read from ' +
           'universe breadth (post-close day-% across the graded universe) + ' +
-          'themes + macro calendar. Logged daily to regime_history.json so ' +
-          'strategy performance can be measured per regime.">' +
+          'themes + macro calendar. Re-classifies intraday from live quotes ' +
+          'once coverage is sufficient. Logged daily to regime_history.json ' +
+          'so strategy performance can be measured per regime.">' +
           '<span class="rg-label">' + label + '</span>' +
-          '<span class="rg-item">' + breadth + '% adv <i>· ' + chg.length +
-            ' names</i></span>' +
+          '<span class="rg-item rg-breadth">' + breadth + '% adv <i>· ' +
+            chg.length + ' names</i></span>' +
           '<span class="rg-item">' + aT + ' A-tier / ' + fgT + ' weak</span>' +
-          (lead ? '<span class="rg-item">' + esc(lead) + ' leading</span>' : '') +
+          '<span class="rg-item rg-lead">' +
+            (lead ? esc(lead) + ' leading' : '') + '</span>' +
           (macro ? '<span class="rg-item rg-macro">⚠ ' + esc(macro) + '</span>' : '') +
           (ern ? '<span class="rg-item">' + ern + ' earnings ≤7d</span>' : '') +
+          '<span class="rg-item rg-asof"><i>prior session close</i></span>' +
           '<span class="rg-read">' + read + '</span></div>';
       } catch (_) { return ""; }
+    }
+
+    // In-place intraday re-classification of the regime banner. Same
+    // quote source and universe as the Market Health breadth strip, so
+    // the two surfaces can never contradict each other again (banner
+    // reading yesterday's RISK-OFF while the strip shows 75% green).
+    // Grade counts stay from the EOD batch — grades ARE post-close.
+    // The persisted regime_history.json (learning loop 7) is untouched:
+    // swing_report.py still logs the EOD classification.
+    function updateDeskRegimeLive() {
+      const el = document.querySelector("#panel-desk .rg-banner");
+      if (!el || typeof DESK_TKMAP !== "object") return;
+      const cache = window.LIVE_QUOTE_CACHE || {};
+      const tks = Object.keys(DESK_TKMAP);
+      let up = 0, n = 0;
+      tks.forEach(function (t) {
+        const q = cache[t];
+        if (!q || typeof q.change !== "number") return;
+        n++;
+        if (q.change > 0) up++;
+      });
+      // Don't override the post-close read on thin coverage — a biased
+      // sub-sample mislabeled "intraday" is worse than an honest
+      // "prior session close".
+      if (n < Math.max(200, Math.floor(tks.length * 0.25))) return;
+      const breadth = Math.round(100 * up / n);
+      let label, cls, read;
+      if (breadth >= 58)      { label = "RISK-ON";   cls = "rg-on";
+        read = "breadth broad — favor longs, buy pullbacks"; }
+      else if (breadth <= 42) { label = "RISK-OFF";  cls = "rg-off";
+        read = "breadth weak — smaller size, respect stops"; }
+      else                    { label = "MIXED TAPE"; cls = "rg-mixed";
+        read = "selective tape — A-grade setups only"; }
+      el.className = "rg-banner " + cls;
+      const lb = el.querySelector(".rg-label");
+      if (lb) lb.textContent = label;
+      const bd = el.querySelector(".rg-breadth");
+      if (bd) bd.innerHTML = breadth + '% adv <i>· ' + n + '/' +
+        tks.length + ' live</i>';
+      const rd = el.querySelector(".rg-read");
+      if (rd) rd.textContent = read;
+      // Leading theme from the live rollup (same source as the Themes
+      // card); keep the render-time lead if the rollup is empty.
+      try {
+        const sw = window.TD_DATA && window.TD_DATA.swing;
+        const all = sw ? buildThemeRollup(sw) : [];
+        const lead = all.find(function (t) { return t.n >= 4; });
+        const le = el.querySelector(".rg-lead");
+        if (le && lead) le.textContent = lead.theme + " leading";
+      } catch (_) {}
+      const asOf = new Date().toLocaleTimeString([],
+        { hour: "numeric", minute: "2-digit",
+          timeZone: "America/New_York" }) + " ET";
+      const ao = el.querySelector(".rg-asof");
+      if (ao) ao.innerHTML = '<i>intraday · as of ' + asOf + '</i>';
+      el.title = "Intraday regime read: live universe breadth (" + n +
+        " of " + tks.length + " graded names with quotes, delayed 15m) + " +
+        "live theme rollup. Grade counts remain from the post-close " +
+        "batch. The nightly regime_history.json log still records the " +
+        "EOD classification.";
     }
 
     // ── What We Missed — the scan pipeline auditing itself (loop 5) ─────
@@ -21898,6 +21965,8 @@
       // …and the theme averages, which are equal-weighted rollups of
       // the same per-ticker quotes.
       updateThemeCardLive();
+      // …and the regime banner, which classifies from the same breadth.
+      updateDeskRegimeLive();
     }
 
     // In-place refresh of the Strongest/Weakest Themes card: recompute
