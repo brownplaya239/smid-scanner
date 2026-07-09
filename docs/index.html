@@ -2280,9 +2280,17 @@
   #zdte-chart-wrap { background:var(--navy2); border:1px solid var(--line);
     border-radius:10px; padding:10px; margin-bottom:14px; }
   #zdte-chart { height:460px; }
-  #zdte-legend { display:flex; flex-wrap:wrap; gap:5px 12px; padding:9px 4px 2px;
-    font-size:10px; color:var(--muted); }
+  #zdte-legend { display:grid; gap:4px 16px; padding:10px 4px 2px;
+    grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
+    font-size:10.5px; color:var(--muted); }
   #zdte-legend b { font-weight:700; }
+  .zl-e { display:flex; align-items:baseline; gap:6px; line-height:1.45;
+    min-width:0; }
+  .zl-e.zl-off { opacity:.35; }
+  .zl-n { font-weight:800; color:var(--text); white-space:nowrap; }
+  .zl-v { font-weight:700; color:var(--gold); white-space:nowrap;
+    font-variant-numeric:tabular-nums; }
+  .zl-d { color:var(--muted); overflow:hidden; text-overflow:ellipsis; }
   #zdte-conf { margin-bottom:12px; }
   .zdte-conf-card { background:var(--navy2); border:1px solid var(--gold);
     border-radius:10px; padding:12px 15px; }
@@ -14430,20 +14438,20 @@
     }
 
     const LINE_DEFS = [
-      ["PDH",  "#8fb4ff", 2, "Prev-day high"],
-      ["PDL",  "#8fb4ff", 2, "Prev-day low"],
-      ["PMH",  "#b48fff", 2, "Premarket high"],
-      ["PML",  "#b48fff", 2, "Premarket low"],
-      ["ORH",  "#ffd54a", 3, "Opening-range high (15m)"],
-      ["ORL",  "#ffd54a", 3, "Opening-range low (15m)"],
-      ["VPOC", "#ff9d3c", 0, "Volume point of control"],
-      ["VAH",  "#ff9d3c", 2, "Value-area high (70%)"],
-      ["VAL",  "#ff9d3c", 2, "Value-area low (70%)"],
-      ["CALL WALL", "#46dc8b", 0, "Max +dealer-gamma strike (delayed)"],
-      ["PUT WALL",  "#f26f6f", 0, "Max −dealer-gamma strike (delayed)"],
-      ["FLIP",      "#ffc61a", 3, "Cumulative gamma flip (delayed)"],
-      ["EM+", "#93a0bd", 3, "Expected move high (ATM straddle, indicative)"],
-      ["EM−", "#93a0bd", 3, "Expected move low"],
+      ["PDH",  "#8fb4ff", 2, "Prior session high — classic breakout / rejection reference"],
+      ["PDL",  "#8fb4ff", 2, "Prior session low — breakdown level; losing it turns the day defensive"],
+      ["PMH",  "#b48fff", 2, "Premarket high — early conviction ceiling before the open"],
+      ["PML",  "#b48fff", 2, "Premarket low — early conviction floor before the open"],
+      ["ORH",  "#ffd54a", 3, "Opening-range (first 15m) high — break above favors trend-up day"],
+      ["ORL",  "#ffd54a", 3, "Opening-range (first 15m) low — break below favors trend-down day"],
+      ["VPOC", "#ff9d3c", 0, "Highest-volume price today — the market's fairest price; magnets reverts"],
+      ["VAH",  "#ff9d3c", 2, "Value-area high — top of where 70% of today's volume traded"],
+      ["VAL",  "#ff9d3c", 2, "Value-area low — bottom of the 70% volume zone"],
+      ["CALL WALL", "#46dc8b", 0, "Biggest +gamma strike — dealers sell rallies into it; acts as resistance (delayed OI)"],
+      ["PUT WALL",  "#f26f6f", 0, "Biggest −gamma strike — dealers buy dips into it; acts as support (delayed OI)"],
+      ["FLIP",      "#ffc61a", 3, "Gamma flip — above: dealers dampen moves; below: they amplify them"],
+      ["EM+", "#93a0bd", 3, "Expected-move top — spot + ATM straddle; options-implied session ceiling"],
+      ["EM−", "#93a0bd", 3, "Expected-move bottom — spot − ATM straddle; options-implied session floor"],
     ];
 
     function draw(barsPayload, chainPayload) {
@@ -14523,14 +14531,32 @@
           price: v, color: d[1], lineWidth: 1, lineStyle: d[2],
           axisLabelVisible: true, title: d[0] }));
       });
-      $id("zdte-legend").innerHTML = LINE_DEFS.map(function (d) {
-        return (vals[d[0]] == null ? '<span style="opacity:.35">' : '<span>') +
-          '<b style="color:' + d[1] + '">━</b> ' + d[0] +
-          ' <span title="' + d[3] + '">ⓘ</span></span>';
-      }).join("") +
-      '<span><b style="color:#7fb2ff">━</b> VWAP</span>' +
-      '<span><b style="color:#e8b34c">━</b> EMA20</span>' +
-      '<span><b style="color:#c76bd1">━</b> EMA200</span>';
+      // Explained legend: mark (the actual level) + a one-line meaning
+      const e20d = mkE(e20), e200d = mkE(e200);
+      const lastOf = function (arr) {
+        return arr.length ? arr[arr.length - 1].value : null; };
+      const dyn = [
+        ["VWAP",   "#7fb2ff", lastOf(lv.vwap),
+         "Volume-weighted avg price today — institutional fair value; above = buyers in control"],
+        ["EMA20",  "#e8b34c", lastOf(e20d),
+         "20-period EMA on this timeframe — the intraday trend rail"],
+        ["EMA200", "#c76bd1", lastOf(e200d),
+         "200-period EMA — the slow regime line; sharp fights happen here"],
+      ];
+      const fmtV = function (v) {
+        return v == null || !isFinite(v) ? "—" : "$" + v.toFixed(2); };
+      const entry = function (name, color, v, desc) {
+        return '<div class="zl-e' + (v == null ? ' zl-off' : '') + '">' +
+          '<b style="color:' + color + '">━</b>' +
+          '<span class="zl-n">' + name + '</span>' +
+          '<span class="zl-v">' + fmtV(v) + '</span>' +
+          '<span class="zl-d">' + desc + '</span></div>';
+      };
+      $id("zdte-legend").innerHTML =
+        LINE_DEFS.map(function (d) {
+          return entry(d[0], d[1], vals[d[0]], d[3]); }).join("") +
+        dyn.map(function (d) {
+          return entry(d[0], d[1], d[2], d[3]); }).join("");
 
       renderConfluence(vals, shown.length ? shown[shown.length - 1].c : spot,
                        gex, spot);
