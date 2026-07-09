@@ -2280,17 +2280,17 @@
   #zdte-chart-wrap { background:var(--navy2); border:1px solid var(--line);
     border-radius:10px; padding:10px; margin-bottom:14px; }
   #zdte-chart { height:460px; }
-  #zdte-legend { display:grid; gap:4px 16px; padding:10px 4px 2px;
-    grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
-    font-size:10.5px; color:var(--muted); }
+  #zdte-legend { display:flex; flex-direction:column; gap:1px;
+    padding:8px 4px 2px; font-size:9.5px; color:var(--muted); }
   #zdte-legend b { font-weight:700; }
-  .zl-e { display:flex; align-items:baseline; gap:6px; line-height:1.45;
-    min-width:0; }
+  .zl-e { display:flex; align-items:baseline; gap:6px; line-height:1.5;
+    white-space:nowrap; overflow:hidden; }
   .zl-e.zl-off { opacity:.35; }
-  .zl-n { font-weight:800; color:var(--text); white-space:nowrap; }
-  .zl-v { font-weight:700; color:var(--gold); white-space:nowrap;
-    font-variant-numeric:tabular-nums; }
-  .zl-d { color:var(--muted); overflow:hidden; text-overflow:ellipsis; }
+  .zl-n { font-weight:800; color:var(--text); min-width:66px; }
+  .zl-v { font-weight:700; color:var(--gold);
+    font-variant-numeric:tabular-nums; min-width:56px; text-align:right; }
+  .zl-d { color:var(--muted); overflow:hidden; text-overflow:ellipsis;
+    min-width:0; }
   #zdte-conf { margin-bottom:12px; }
   .zdte-conf-card { background:var(--navy2); border:1px solid var(--gold);
     border-radius:10px; padding:12px 15px; }
@@ -14552,11 +14552,22 @@
           '<span class="zl-v">' + fmtV(v) + '</span>' +
           '<span class="zl-d">' + desc + '</span></div>';
       };
-      $id("zdte-legend").innerHTML =
-        LINE_DEFS.map(function (d) {
-          return entry(d[0], d[1], vals[d[0]], d[3]); }).join("") +
-        dyn.map(function (d) {
-          return entry(d[0], d[1], d[2], d[3]); }).join("");
+      // One combined list, sorted by mark HIGH → LOW so the legend reads
+      // top-to-bottom exactly like the levels stack on the chart. Levels
+      // with no value yet sink to the bottom.
+      const allE = LINE_DEFS.map(function (d) {
+        return { n: d[0], c: d[1], v: vals[d[0]], d: d[3] }; })
+        .concat(dyn.map(function (d) {
+          return { n: d[0], c: d[1], v: d[2], d: d[3] }; }));
+      allE.sort(function (a, b) {
+        const av = (a.v == null || !isFinite(a.v)), bv = (b.v == null || !isFinite(b.v));
+        if (av && bv) return 0;
+        if (av) return 1;
+        if (bv) return -1;
+        return b.v - a.v;
+      });
+      $id("zdte-legend").innerHTML = allE.map(function (e) {
+        return entry(e.n, e.c, e.v, e.d); }).join("");
 
       renderConfluence(vals, shown.length ? shown[shown.length - 1].c : spot,
                        gex, spot);
