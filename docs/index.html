@@ -21246,6 +21246,7 @@
           ? '<div class="opc-meta">' + esc(metaBits) + '</div>' : "";
         return '<div class="opc" data-t="' + esc(t) + '" role="button" tabindex="0">' +
           '<div class="opc-h"><span class="opc-tk">' + esc(t) + '</span>' +
+          chgBadge(t) +
           (window.tdActionStripCompact ? window.tdActionStripCompact(t) : "") +
             '<span class="opc-sc" title="Opportunity: conviction net of timing/event risk">' +
               '<b>' + opp + '</b><i>opp</i></span>' +
