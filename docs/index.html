@@ -12661,13 +12661,25 @@
           "most recent one was made; generate a fresh one anytime.",
       };
       const note = SOURCE_NOTE[character] || "Batch data of unknown cadence.";
+      // Panels whose lists/grades are EOD but whose % chips, breadth,
+      // themes and regime hydrate live every 60s (delayed 15m). The
+      // visible label spells out the split — an unqualified "EOD batch"
+      // reads as "everything here is 20h old", which is no longer true.
+      const LIVE_OVERLAY = { "panel-desk": 1, "panel-mydesk": 1,
+        "panel-watchlist": 1, "panel-breakout": 1, "panel-setup": 1 };
+      const hybrid = character === "post-close" && LIVE_OVERLAY[panelId];
       fr.innerHTML =
         '<span class="fr-dot"></span>' +
         '<span class="fr-stamp">' + etStamp(isoStr) + '</span>' +
         '<span class="fr-sep">·</span>' +
         '<span>' + timeAgo(isoStr) + '</span>' +
         '<span class="fr-sep">·</span>' +
-        '<span class="fr-char">' + charLabel + '</span>' +
+        '<span class="fr-char">' +
+          (hybrid ? "lists/grades EOD batch" : charLabel) + '</span>' +
+        (hybrid
+          ? '<span class="fr-sep">·</span>' +
+            '<span class="fr-char">prices update live (delayed 15m)</span>'
+          : '') +
         '<button class="fr-info" type="button" aria-label="Data source"' +
           ' title="' + window.escapeHtml(note) + '">?</button>';
       // Stash config for the 30-sec auto-refresher (recomputes "X ago"
