@@ -23738,19 +23738,42 @@
       // score band at +5d. Users calibrate trust better against "how
       // often does this FAIL" than against a hit rate alone.
       try {
+        // Band × horizon matrix instead of a single +5d snapshot: the
+        // per-horizon ledger (n in the thousands per cell) shows FP
+        // RISING with hold time — the signal's edge decays. That decay
+        // is the actionable read, and a lone +5d number hides it.
         const bs = edge.by_score || {};
-        const fps = ["55-64", "65-79", "80-100"].map(function (b) {
-          const h5 = bs[b] && bs[b].h && bs[b].h["5"];
-          if (!h5 || !h5.n || h5.hit_rate == null) return null;
-          return b.replace("-100", "+") + ': <b>' +
-            (100 - h5.hit_rate) + '%</b>';
-        }).filter(Boolean);
-        if (fps.length) {
+        const FP_HZ = ["1", "3", "5", "10", "20"];
+        const gridCss = 'display:grid;grid-template-columns:46px repeat(' +
+          FP_HZ.length + ',1fr);gap:1px 6px;align-items:baseline';
+        const fpHdr = '<div style="' + gridCss + '">' +
+          '<span class="scp-edge-n"></span>' + FP_HZ.map(function (k) {
+            return '<span class="scp-edge-n">+' + k + 'd</span>';
+          }).join("") + '</div>';
+        let fpAny = false;
+        const fpRows = ["55-64", "65-79", "80-100"].map(function (b) {
+          const h = (bs[b] && bs[b].h) || {};
+          const cells = FP_HZ.map(function (k) {
+            const e = h[k];
+            if (!e || !e.n || e.hit_rate == null)
+              return '<span class="scp-edge-n">—</span>';
+            fpAny = true;
+            return '<span title="n=' + e.n.toLocaleString() + ' matured">' +
+              '<b>' + (100 - e.hit_rate) + '</b>%</span>';
+          }).join("");
+          return '<div style="' + gridCss + '">' +
+            '<span class="scp-edge-n">' + b.replace("-100", "+") + '</span>' +
+            cells + '</div>';
+        }).join("");
+        if (fpAny) {
           cards.push('<div class="ecard"><div class="et">False-Positive Rate ' +
-            '+5d</div><div class="ev neutral" style="font-size:14px;' +
-            'line-height:1.7">' + fps.join(' &middot; ') + '</div>' +
+            'by horizon</div><div class="ev neutral" style="font-size:12.5px;' +
+            'line-height:1.6;font-variant-numeric:tabular-nums">' +
+            fpHdr + fpRows + '</div>' +
             '<div class="es">Share of signals per score band that did NOT ' +
-            'work at +5 days — size and stop accordingly.</div></div>');
+            'work at each hold horizon (hover a cell for its matured n). ' +
+            'FP rises with hold time — flow edge decays, so favor shorter ' +
+            'holds and time-based stops.</div></div>');
         }
       } catch (_) {}
       // Explicit maturity card. Tells the user WHICH horizons have
