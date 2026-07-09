@@ -94,6 +94,151 @@ function etMarketPhase() {
     return "closed";
   } catch (_) { return "regular"; }              // safe default = RTH behavior
 }
+
+// ── Index Levels (0DTE tool) data ─────────────────────────────────────
+// HONESTY: Polygon Options Starter is 15-min DELAYED and open interest is
+// prior-session OCC-settled. Everything below is a *delayed snapshot* —
+// the client labels it as such. GEX here is the standard dealer-gamma
+// approximation (calls +, puts −, per 1% move), computed from delayed
+// greeks × settled OI. Levels move slowly enough intraday that a delayed
+// map is still useful — but it is a map, not a live tape.
+const ZDTE_SYMS = { SPY: 1, QQQ: 1, IWM: 1 };
+
+async function fetchChain0(sym, env) {
+  const cached = memGet("chain0:" + sym, 60_000);
+  if (cached) return cached;
+  // 1) spot from the stocks snapshot (15-min delayed)
+  const snap = await fetchPolygonSnapshot(sym, env);
+  const spot = snap && snap.price;
+  if (!spot) return { error: "no spot for " + sym };
+  // 2) chain: nearest expiries, ±$27 window (≈ ±25 one-dollar strikes)
+  const today = new Date().toISOString().slice(0, 10);
+  const lte = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
+  const url = "https://api.polygon.io/v3/snapshot/options/" + sym +
+    "?limit=250&expiration_date.gte=" + today +
+    "&expiration_date.lte=" + lte +
+    "&strike_price.gte=" + Math.floor(spot - 27) +
+    "&strike_price.lte=" + Math.ceil(spot + 27) +
+    "&apiKey=" + env.POLYGON_API_KEY;
+  let j;
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(10000),
+                                 cf: { cacheTtl: 45 } });
+    if (!r.ok) return { error: "chain HTTP " + r.status };
+    j = await r.json();
+  } catch (e) { return { error: "chain fetch failed" }; }
+  const raw = (j && j.results) || [];
+  // first two distinct expiries, ascending
+  const exps = Array.from(new Set(raw.map(function (c) {
+    return c.details && c.details.expiration_date; }).filter(Boolean))).sort();
+  const use = exps.slice(0, 2);
+  const rows = [];
+  raw.forEach(function (c) {
+    const d = c.details || {};
+    if (use.indexOf(d.expiration_date) < 0) return;
+    const g = c.greeks || {};
+    rows.push({
+      e: d.expiration_date,
+      t: d.contract_type,                       // "call" | "put"
+      k: d.strike_price,
+      last: (c.last_trade && c.last_trade.price) != null
+              ? c.last_trade.price
+              : (c.day && c.day.close) != null ? c.day.close : null,
+      vol: (c.day && c.day.volume) || 0,
+      oi:  c.open_interest || 0,
+      iv:  c.implied_volatility != null
+             ? Math.round(c.implied_volatility * 1000) / 10 : null,
+      delta: g.delta != null ? Math.round(g.delta * 100) / 100 : null,
+      gamma: g.gamma != null ? g.gamma : null,
+    });
+  });
+  // 3) dealer-gamma per strike (both expiries; 0DTE dominates anyway)
+  const gexByK = {};
+  rows.forEach(function (r) {
+    if (r.gamma == null || !r.oi) return;
+    // $ gamma exposure per 1% underlying move; calls +, puts −
+    const gex = r.gamma * r.oi * 100 * spot * spot * 0.0001 *
+                (r.t === "call" ? 1 : -1);
+    gexByK[r.k] = (gexByK[r.k] || 0) + gex;
+  });
+  const ks = Object.keys(gexByK).map(Number).sort(function (a, b) { return a - b; });
+  let callWall = null, putWall = null, largest = null, flip = null;
+  let maxPos = 0, maxNeg = 0, maxAbs = 0, cum = 0, prevCum = 0;
+  ks.forEach(function (k) {
+    const v = gexByK[k];
+    if (v > maxPos) { maxPos = v; callWall = k; }
+    if (v < maxNeg) { maxNeg = v; putWall = k; }
+    if (Math.abs(v) > maxAbs) { maxAbs = Math.abs(v); largest = k; }
+    prevCum = cum; cum += v;
+    if (flip == null && prevCum < 0 && cum >= 0) flip = k;
+  });
+  // 4) expected move: nearest-expiry ATM straddle (indicative — last
+  //    prices, Starter often has no live bid/ask)
+  let em = null;
+  if (use.length) {
+    const near = rows.filter(function (r) { return r.e === use[0]; });
+    let atmK = null, best = 1e9;
+    near.forEach(function (r) {
+      if (Math.abs(r.k - spot) < best) { best = Math.abs(r.k - spot); atmK = r.k; }
+    });
+    const c0 = near.find(function (r) { return r.k === atmK && r.t === "call"; });
+    const p0 = near.find(function (r) { return r.k === atmK && r.t === "put"; });
+    if (c0 && p0 && c0.last != null && p0.last != null) {
+      const usd = c0.last + p0.last;
+      em = { strike: atmK, usd: Math.round(usd * 100) / 100,
+             pct: Math.round(usd / spot * 10000) / 100, expiry: use[0] };
+    }
+  }
+  const out = {
+    sym: sym, spot: spot, expiries: use, rows: rows,
+    gex: {
+      call_wall: callWall, put_wall: putWall, largest: largest, flip: flip,
+      per_strike: ks.map(function (k) {
+        return { k: k, gex: Math.round(gexByK[k] / 1e6) }; }),  // $M per 1%
+      note: "dealer-gamma approximation from DELAYED greeks × prior-session OI",
+    },
+    expected_move: em,
+    delay_minutes: 15,
+    oi_note: "OI is prior-session OCC-settled; quotes/greeks 15-min delayed",
+    fetched_at: new Date().toISOString(),
+  };
+  memPut("chain0:" + sym, out);
+  return out;
+}
+
+async function fetchBars0(sym) {
+  const cached = memGet("bars0:" + sym, 60_000);
+  if (cached) return cached;
+  const u = "https://query1.finance.yahoo.com/v8/finance/chart/" +
+    encodeURIComponent(sym) + "?range=5d&interval=5m&includePrePost=true";
+  const headers = { "User-Agent": "Mozilla/5.0" };
+  let r;
+  try { r = await fetch(u, { headers: headers, cf: { cacheTtl: 45 } }); }
+  catch (e) { r = null; }
+  if (!r || !r.ok) {
+    try { r = await fetch(u.replace("query1.", "query2."),
+                          { headers: headers, cf: { cacheTtl: 45 } }); }
+    catch (e) { return { error: "bars fetch failed" }; }
+  }
+  if (!r.ok) return { error: "bars HTTP " + r.status };
+  const j = await r.json();
+  const res = j && j.chart && j.chart.result && j.chart.result[0];
+  const q = res && res.indicators && res.indicators.quote &&
+            res.indicators.quote[0];
+  if (!res || !q) return { error: "no bars" };
+  const ts = res.timestamp || [];
+  const bars = [];
+  for (let i = 0; i < ts.length; i++) {
+    if (typeof q.close[i] !== "number") continue;
+    bars.push({ t: ts[i], o: q.open[i], h: q.high[i], l: q.low[i],
+                c: q.close[i], v: q.volume[i] || 0 });
+  }
+  const out = { sym: sym, bars: bars, delay_minutes: 15,
+                fetched_at: new Date().toISOString() };
+  memPut("bars0:" + sym, out);
+  return out;
+}
+
 async function fetchYahooQuote(sym) {
   const r2 = function (x) { return Math.round(x * 100) / 100; };
   // Two parallel calls so we can derive a TRUSTWORTHY previous close.
@@ -2679,6 +2824,29 @@ export default {
       // SEC filings list — ?filings=TICKER returns the last ~25 filings
       // with form, date, items, primary doc URL, and a heuristic
       // category flag the dashboard uses to color-code each row.
+      // ── Index Levels (0DTE tool): chain+GEX and intraday bars ──
+      const chain0Param = url.searchParams.get("chain0");
+      if (chain0Param) {
+        const s = chain0Param.trim().toUpperCase();
+        if (!ZDTE_SYMS[s]) {
+          return Response.json({ error: "chain0 supports SPY, QQQ, IWM only" },
+                               { status: 400, headers: cors });
+        }
+        const data = await fetchChain0(s, env);
+        return Response.json(data, { headers: { ...cors,
+          "Cache-Control": "public, max-age=60" } });
+      }
+      const bars0Param = url.searchParams.get("bars0");
+      if (bars0Param) {
+        const s = bars0Param.trim().toUpperCase();
+        if (!ZDTE_SYMS[s]) {
+          return Response.json({ error: "bars0 supports SPY, QQQ, IWM only" },
+                               { status: 400, headers: cors });
+        }
+        const data = await fetchBars0(s);
+        return Response.json(data, { headers: { ...cors,
+          "Cache-Control": "public, max-age=60" } });
+      }
       const filingsParam = url.searchParams.get("filings");
       if (filingsParam) {
         const cache = caches.default;
