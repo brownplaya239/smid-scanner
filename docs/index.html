@@ -2255,6 +2255,70 @@
   .sk-row { display:flex; gap:10px; margin-top:12px; }
   .sk-block { flex:1; height:120px; border-radius:9px; }
   .sk-card { pointer-events:none; }
+  /* ── Index Levels (0DTE structure map) ── */
+  .subnav { display:flex; gap:6px; margin:0 0 12px; }
+  .subnav button { background:var(--navy2); color:var(--muted);
+    border:1px solid var(--border2); border-radius:6px; font-family:inherit;
+    font-size:12px; font-weight:700; padding:7px 14px; cursor:pointer; }
+  .subnav button.active { background:var(--gold); color:var(--accink);
+    border-color:var(--gold); }
+  .zdte-beta { font-size:9px; letter-spacing:.05em; opacity:.75;
+    margin-left:5px; }
+  .zdte-banner { font-size:11px; color:var(--textdim);
+    background:rgba(255,200,0,0.07); border:1px solid rgba(255,200,0,0.3);
+    border-radius:8px; padding:8px 12px; margin-bottom:10px; line-height:1.5; }
+  .zdte-controls { display:flex; align-items:center; gap:14px;
+    flex-wrap:wrap; margin-bottom:10px; }
+  .zdte-group { display:inline-flex; border:1px solid var(--border2);
+    border-radius:6px; overflow:hidden; }
+  .zdte-group button { background:var(--navy2); color:var(--muted); border:0;
+    font-family:inherit; font-size:11.5px; font-weight:700; padding:6px 13px;
+    cursor:pointer; }
+  .zdte-group button + button { border-left:1px solid var(--border2); }
+  .zdte-group button.on { background:var(--gold); color:var(--accink); }
+  .zdte-stamp { font-size:10.5px; color:var(--muted); }
+  #zdte-chart-wrap { background:var(--navy2); border:1px solid var(--line);
+    border-radius:10px; padding:10px; margin-bottom:14px; }
+  #zdte-chart { height:460px; }
+  #zdte-legend { display:flex; flex-wrap:wrap; gap:5px 12px; padding:9px 4px 2px;
+    font-size:10px; color:var(--muted); }
+  #zdte-legend b { font-weight:700; }
+  #zdte-conf { margin-bottom:12px; }
+  .zdte-conf-card { background:var(--navy2); border:1px solid var(--gold);
+    border-radius:10px; padding:12px 15px; }
+  .zdte-conf-card .zc-h { font-size:10px; font-weight:800; color:var(--gold);
+    letter-spacing:.08em; text-transform:uppercase; margin-bottom:5px; }
+  .zdte-conf-card .zc-zone { font-size:14px; font-weight:800;
+    color:var(--text); }
+  .zdte-conf-card .zc-why { font-size:12px; color:var(--textdim);
+    margin-top:3px; line-height:1.5; }
+  .zdte-conf-card .zc-thesis { font-size:12px; color:var(--text);
+    margin-top:6px; line-height:1.5; }
+  .zdte-conf-card .zc-foot { font-size:10px; color:var(--muted);
+    margin-top:7px; }
+  .zdte-chain-head { display:flex; align-items:center; gap:14px;
+    flex-wrap:wrap; margin-bottom:8px; }
+  .zdte-chain-title { font-size:12px; font-weight:800; color:var(--text); }
+  .zdte-chain-wrap { overflow-x:auto; border:1px solid var(--line);
+    border-radius:10px; background:var(--navy2); }
+  table.zdte-chain { width:100%; border-collapse:collapse; font-size:11px;
+    min-width:760px; font-variant-numeric:tabular-nums; }
+  .zdte-chain th { background:var(--navy); color:var(--muted); font-size:9.5px;
+    text-transform:uppercase; letter-spacing:.06em; padding:7px 8px;
+    position:sticky; top:0; }
+  .zdte-chain td { padding:4px 8px; border-bottom:1px solid var(--line);
+    text-align:right; color:var(--textdim); }
+  .zdte-chain td.zk { text-align:center; font-weight:800; color:var(--text);
+    background:rgba(255,255,255,0.03); }
+  .zdte-chain tr.z-atm td.zk { color:var(--gold); }
+  .zdte-chain tr.z-cw td.zk::after { content:" CW"; font-size:8px;
+    color:var(--green); }
+  .zdte-chain tr.z-pw td.zk::after { content:" PW"; font-size:8px;
+    color:var(--red); }
+  .zdte-chain tr.z-fl td.zk::after { content:" FLIP"; font-size:8px;
+    color:var(--gold); }
+  .zdte-chain td.z-itm { background:rgba(255,200,0,0.045); }
+
   /* What-Changed grade-moves strip (absorbs the Upgrades/Downgrades cards) */
   .wct-grades { font-size:11px; color:var(--textdim); padding:6px 10px;
     background:var(--navy2); border-radius:6px; margin-bottom:8px;
@@ -6046,6 +6110,43 @@
          ──────────────────────────────────────────────────────────── -->
     <section class="panel" id="panel-charts">
       <h2 class="tab-title">Charts</h2>
+      <div class="subnav" id="charts-subnav">
+        <button data-csub="tv" class="active">TradingView</button>
+        <button data-csub="zdte">Index Levels <span class="zdte-beta">SPY · QQQ · IWM</span></button>
+      </div>
+      <!-- ── Index Levels: the 0DTE structure map. DELAYED data by design
+           until a real-time feed + display license exist — every banner
+           below says so. Levels move slowly; tape does not. ── -->
+      <div id="zdte" style="display:none">
+        <div class="zdte-banner">⏱ 15-min delayed quotes &amp; options ·
+          OI is prior-session OCC-settled · this is a <b>structure map</b>,
+          not a live tape — use your broker for execution timing.</div>
+        <div class="zdte-controls">
+          <span class="zdte-group" id="zdte-syms">
+            <button data-zsym="SPY" class="on">SPY</button>
+            <button data-zsym="QQQ">QQQ</button>
+            <button data-zsym="IWM">IWM</button>
+          </span>
+          <span class="zdte-group" id="zdte-ivs">
+            <button data-ziv="1">1m</button>
+            <button data-ziv="2">2m</button>
+            <button data-ziv="5" class="on">5m</button>
+          </span>
+          <span id="zdte-stamp" class="zdte-stamp"></span>
+        </div>
+        <div id="zdte-conf"></div>
+        <div id="zdte-chart-wrap">
+          <div id="zdte-chart"></div>
+          <div id="zdte-legend"></div>
+        </div>
+        <div class="zdte-chain-head">
+          <span class="zdte-chain-title">Options chain — ±25 strikes</span>
+          <span class="zdte-group" id="zdte-exps"></span>
+          <span class="zdte-stamp">last · OI · vol per contract · delayed 15m</span>
+        </div>
+        <div class="zdte-chain-wrap"><table class="zdte-chain" id="zdte-chain"></table></div>
+      </div>
+      <div id="charts-tv-wrap">
       <p class="tab-sub">Full TradingView charting — search any ticker, all
         timeframes (1m→1W), candles / bars / line / Heikin Ashi, and the
         complete indicator set (SMA, EMA, VWAP, RSI, MACD, ATR, Bollinger,
@@ -6080,6 +6181,7 @@
         Auto-drawn levels (premarket H/L, prior-day H/L, 52-wk high,
         support/resistance, gap zones, earnings markers) are planned as a
         next phase on our own data feed.</p>
+    </div>
     </section>
 
     <!-- ────────────────────────────────────────────────────────────────
@@ -14203,6 +14305,430 @@
       });
     } catch (_) { /* old browsers — silent no-op */ }
   });
+
+
+  /* ── Index Levels (0DTE structure map) ──────────────────────────────
+     Lightweight-Charts candles + the price-derived level set (VWAP,
+     prev-day H/L, premarket H/L, opening range, VPOC/VAH/VAL, EMA20/200)
+     + delayed dealer-gamma levels (call/put wall, flip, largest, expected
+     move) from the worker's ?chain0= endpoint, an options T-chain, and a
+     RULE-BASED confluence read. All data 15-min delayed and labeled. */
+  (function setupIndexLevels() {
+    const root = document.getElementById("zdte");
+    if (!root) return;
+    const LWC_SRC = "https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js";
+    let sym = "SPY", ziv = "5", expSel = 0;
+    let chart = null, candles = null, vwapS = null, e20S = null, e200S = null,
+        volS = null, priceLines = [], lastChain = null, booted = false,
+        lwcLoading = null;
+
+    const $id = function (x) { return document.getElementById(x); };
+    const etParts = (function () {
+      const f = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hour12: false });
+      return function (epochS) {
+        const p = {};
+        f.formatToParts(new Date(epochS * 1000)).forEach(function (x) {
+          p[x.type] = x.value; });
+        return { d: p.year + "-" + p.month + "-" + p.day,
+                 m: (+p.hour) * 60 + (+p.minute) };
+      };
+    })();
+
+    function loadLWC() {
+      if (window.LightweightCharts) return Promise.resolve();
+      if (lwcLoading) return lwcLoading;
+      lwcLoading = new Promise(function (res, rej) {
+        const s = document.createElement("script");
+        s.src = LWC_SRC; s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+      return lwcLoading;
+    }
+
+    function ema(closes, span) {
+      const k = 2 / (span + 1); const out = new Array(closes.length).fill(null);
+      if (closes.length < span) return out;
+      let e = 0;
+      for (let i = 0; i < span; i++) e += closes[i];
+      e /= span; out[span - 1] = e;
+      for (let i = span; i < closes.length; i++) {
+        e = closes[i] * k + e * (1 - k); out[i] = e;
+      }
+      return out;
+    }
+
+    // level computation from 5d bars — sessions resolved in ET
+    function computeLevels(bars) {
+      const days = {};
+      bars.forEach(function (b) {
+        const p = etParts(b.t); b._d = p.d; b._m = p.m;
+        (days[p.d] = days[p.d] || []).push(b);
+      });
+      const dates = Object.keys(days).sort();
+      const today = dates[dates.length - 1];
+      const prev = dates[dates.length - 2];
+      const rth = function (arr) { return arr.filter(function (b) {
+        return b._m >= 570 && b._m < 960; }); };
+      const L = {};
+      if (prev) {
+        const pr = rth(days[prev]);
+        if (pr.length) {
+          L.PDH = Math.max.apply(null, pr.map(function (b) { return b.h; }));
+          L.PDL = Math.min.apply(null, pr.map(function (b) { return b.l; }));
+        }
+      }
+      const pre = (days[today] || []).filter(function (b) {
+        return b._m >= 240 && b._m < 570; });
+      if (pre.length) {
+        L.PMH = Math.max.apply(null, pre.map(function (b) { return b.h; }));
+        L.PML = Math.min.apply(null, pre.map(function (b) { return b.l; }));
+      }
+      const tr = rth(days[today] || []);
+      const orMin = 15;
+      const orBars = tr.filter(function (b) { return b._m < 570 + orMin; });
+      if (orBars.length) {
+        L.ORH = Math.max.apply(null, orBars.map(function (b) { return b.h; }));
+        L.ORL = Math.min.apply(null, orBars.map(function (b) { return b.l; }));
+      }
+      // volume profile: 40 bins over today's RTH range → VPOC + 70% VA
+      if (tr.length > 4) {
+        const hi = Math.max.apply(null, tr.map(function (b) { return b.h; }));
+        const lo = Math.min.apply(null, tr.map(function (b) { return b.l; }));
+        const nb = 40, w = (hi - lo) / nb || 1;
+        const bins = new Array(nb).fill(0);
+        let tot = 0;
+        tr.forEach(function (b) {
+          const px = (b.h + b.l + b.c) / 3;
+          let i = Math.floor((px - lo) / w);
+          if (i >= nb) i = nb - 1; if (i < 0) i = 0;
+          bins[i] += b.v; tot += b.v;
+        });
+        let poc = 0;
+        for (let i = 1; i < nb; i++) if (bins[i] > bins[poc]) poc = i;
+        let acc = bins[poc], loI = poc, hiI = poc;
+        while (acc < tot * 0.70 && (loI > 0 || hiI < nb - 1)) {
+          const dn = loI > 0 ? bins[loI - 1] : -1;
+          const up = hiI < nb - 1 ? bins[hiI + 1] : -1;
+          if (up >= dn) { hiI++; acc += bins[hiI]; }
+          else { loI--; acc += bins[loI]; }
+        }
+        L.VPOC = lo + (poc + 0.5) * w;
+        L.VAH = lo + (hiI + 1) * w;
+        L.VAL = lo + loI * w;
+      }
+      // VWAP series (today RTH, cumulative)
+      const vwap = [];
+      let pv = 0, vv = 0;
+      tr.forEach(function (b) {
+        const tp = (b.h + b.l + b.c) / 3;
+        pv += tp * b.v; vv += b.v;
+        if (vv > 0) vwap.push({ time: b.t, value: pv / vv });
+      });
+      return { L: L, vwap: vwap, today: today, prev: prev };
+    }
+
+    const LINE_DEFS = [
+      ["PDH",  "#8fb4ff", 2, "Prev-day high"],
+      ["PDL",  "#8fb4ff", 2, "Prev-day low"],
+      ["PMH",  "#b48fff", 2, "Premarket high"],
+      ["PML",  "#b48fff", 2, "Premarket low"],
+      ["ORH",  "#ffd54a", 3, "Opening-range high (15m)"],
+      ["ORL",  "#ffd54a", 3, "Opening-range low (15m)"],
+      ["VPOC", "#ff9d3c", 0, "Volume point of control"],
+      ["VAH",  "#ff9d3c", 2, "Value-area high (70%)"],
+      ["VAL",  "#ff9d3c", 2, "Value-area low (70%)"],
+      ["CALL WALL", "#46dc8b", 0, "Max +dealer-gamma strike (delayed)"],
+      ["PUT WALL",  "#f26f6f", 0, "Max −dealer-gamma strike (delayed)"],
+      ["FLIP",      "#ffc61a", 3, "Cumulative gamma flip (delayed)"],
+      ["EM+", "#93a0bd", 3, "Expected move high (ATM straddle, indicative)"],
+      ["EM−", "#93a0bd", 3, "Expected move low"],
+    ];
+
+    function draw(barsPayload, chainPayload) {
+      const bars = (barsPayload.bars || []);
+      const lv = computeLevels(bars);
+      // chart shows prev + today only (context without clutter)
+      const shown = bars.filter(function (b) {
+        return b._d === lv.today || b._d === lv.prev; });
+      const closesAll = bars.map(function (b) { return b.c; });
+      const e20 = ema(closesAll, 20), e200 = ema(closesAll, 200);
+
+      if (!chart) {
+        const el = $id("zdte-chart");
+        chart = LightweightCharts.createChart(el, {
+          layout: { background: { color: "transparent" },
+                    textColor: "#93a0bd", fontSize: 10 },
+          grid: { vertLines: { color: "rgba(255,255,255,0.04)" },
+                  horzLines: { color: "rgba(255,255,255,0.04)" } },
+          rightPriceScale: { borderColor: "rgba(255,255,255,0.1)" },
+          timeScale: { borderColor: "rgba(255,255,255,0.1)",
+                       timeVisible: true, secondsVisible: false },
+          crosshair: { mode: 0 },
+          autoSize: true,
+        });
+        candles = chart.addCandlestickSeries({
+          upColor: "#1fc36e", downColor: "#e05252",
+          wickUpColor: "#1fc36e", wickDownColor: "#e05252",
+          borderVisible: false });
+        volS = chart.addHistogramSeries({ priceScaleId: "vol",
+          priceFormat: { type: "volume" } });
+        chart.priceScale("vol").applyOptions({
+          scaleMargins: { top: 0.82, bottom: 0 } });
+        vwapS = chart.addLineSeries({ color: "#7fb2ff", lineWidth: 2,
+          priceLineVisible: false, lastValueVisible: false });
+        e20S = chart.addLineSeries({ color: "#e8b34c", lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false });
+        e200S = chart.addLineSeries({ color: "#c76bd1", lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false });
+      }
+      candles.setData(shown.map(function (b) {
+        return { time: b.t, open: b.o, high: b.h, low: b.l, close: b.c }; }));
+      volS.setData(shown.map(function (b) {
+        return { time: b.t, value: b.v,
+                 color: b.c >= b.o ? "rgba(31,195,110,.35)"
+                                   : "rgba(224,82,82,.35)" }; }));
+      vwapS.setData(lv.vwap);
+      const mkE = function (arr) {
+        const out = [];
+        bars.forEach(function (b, i) {
+          if (arr[i] != null && (b._d === lv.today || b._d === lv.prev))
+            out.push({ time: b.t, value: arr[i] });
+        });
+        return out;
+      };
+      e20S.setData(mkE(e20));
+      e200S.setData(mkE(e200));
+
+      // price lines: price-derived + gamma
+      priceLines.forEach(function (pl) { candles.removePriceLine(pl); });
+      priceLines = [];
+      const spot = chainPayload && chainPayload.spot;
+      const gex = (chainPayload && chainPayload.gex) || {};
+      const em = chainPayload && chainPayload.expected_move;
+      const vals = {
+        "PDH": lv.L.PDH, "PDL": lv.L.PDL, "PMH": lv.L.PMH, "PML": lv.L.PML,
+        "ORH": lv.L.ORH, "ORL": lv.L.ORL, "VPOC": lv.L.VPOC,
+        "VAH": lv.L.VAH, "VAL": lv.L.VAL,
+        "CALL WALL": gex.call_wall, "PUT WALL": gex.put_wall,
+        "FLIP": gex.flip,
+        "EM+": (em && spot) ? spot + em.usd : null,
+        "EM−": (em && spot) ? spot - em.usd : null,
+      };
+      LINE_DEFS.forEach(function (d) {
+        const v = vals[d[0]];
+        if (v == null || !isFinite(v)) return;
+        priceLines.push(candles.createPriceLine({
+          price: v, color: d[1], lineWidth: 1, lineStyle: d[2],
+          axisLabelVisible: true, title: d[0] }));
+      });
+      $id("zdte-legend").innerHTML = LINE_DEFS.map(function (d) {
+        return (vals[d[0]] == null ? '<span style="opacity:.35">' : '<span>') +
+          '<b style="color:' + d[1] + '">━</b> ' + d[0] +
+          ' <span title="' + d[3] + '">ⓘ</span></span>';
+      }).join("") +
+      '<span><b style="color:#7fb2ff">━</b> VWAP</span>' +
+      '<span><b style="color:#e8b34c">━</b> EMA20</span>' +
+      '<span><b style="color:#c76bd1">━</b> EMA200</span>';
+
+      renderConfluence(vals, shown.length ? shown[shown.length - 1].c : spot,
+                       gex, spot);
+      $id("zdte-stamp").textContent = sym + " · " + ziv +
+        "m candles · updated " + new Date().toLocaleTimeString() +
+        " · data delayed 15m";
+    }
+
+    // ── rule-based confluence read (deterministic — no model call) ──
+    function renderConfluence(vals, last, gex, spot) {
+      const host = $id("zdte-conf");
+      if (!host || !last) return;
+      const W = { "CALL WALL": 3, "PUT WALL": 3, "FLIP": 3, "VPOC": 2.5,
+                  "PDH": 2, "PDL": 2, "VAH": 2, "VAL": 2, "EM+": 2, "EM−": 2,
+                  "ORH": 1.5, "ORL": 1.5, "PMH": 1.5, "PML": 1.5 };
+      const pts = [];
+      Object.keys(W).forEach(function (k) {
+        if (vals[k] != null && isFinite(vals[k]))
+          pts.push({ k: k, p: vals[k], w: W[k] });
+      });
+      if (pts.length < 2) { host.innerHTML = ""; return; }
+      pts.sort(function (a, b) { return a.p - b.p; });
+      const tol = last * 0.0018;                 // ~0.18% cluster width
+      const clusters = [];
+      let cur = [pts[0]];
+      for (let i = 1; i < pts.length; i++) {
+        if (pts[i].p - cur[cur.length - 1].p <= tol) cur.push(pts[i]);
+        else { clusters.push(cur); cur = [pts[i]]; }
+      }
+      clusters.push(cur);
+      clusters.forEach(function (c) {
+        c.score = c.reduce(function (s, x) { return s + x.w; }, 0);
+        c.lo = c[0].p; c.hi = c[c.length - 1].p;
+        c.mid = (c.lo + c.hi) / 2;
+      });
+      clusters.sort(function (a, b) { return b.score - a.score ||
+        Math.abs(a.mid - last) - Math.abs(b.mid - last); });
+      const top = clusters[0];
+      const fmt = function (v) { return "$" + v.toFixed(2); };
+      const dist = (top.mid - last) / last * 100;
+      let rel, thesis;
+      if (Math.abs(dist) <= 0.15) {
+        rel = "TESTING NOW";
+        thesis = "Price is trading inside the zone — expect a decision here: " +
+          "acceptance through it opens the next level; rejection sends price " +
+          "back toward " + (last > top.mid ? "the highs" : "the lows") + ".";
+      } else if (dist > 0) {
+        rel = dist.toFixed(2) + "% overhead";
+        thesis = "The zone sits above price — treat it as the resistance shelf " +
+          "for longs and the reclaim level that flips the session bullish.";
+      } else {
+        rel = Math.abs(dist).toFixed(2) + "% below";
+        thesis = "The zone sits under price — the support shelf for dips and " +
+          "the level whose loss turns the session defensive.";
+      }
+      let regime = "";
+      if (gex && gex.flip != null && spot) {
+        regime = spot >= gex.flip
+          ? "Positive-gamma regime (spot above flip) — dealers hedge " +
+            "against moves; ranges compress, fade-the-extreme favored."
+          : "Negative-gamma regime (spot below flip) — dealer hedging " +
+            "amplifies moves; trends extend, chase risk cuts both ways.";
+      }
+      host.innerHTML = '<div class="zdte-conf-card">' +
+        '<div class="zc-h">Highest-confluence zone · rule-based read</div>' +
+        '<div class="zc-zone">' + fmt(top.lo) +
+          (top.hi - top.lo > 0.01 ? " – " + fmt(top.hi) : "") +
+          ' <span style="font-size:11px;color:var(--muted)">(' + rel +
+          ')</span></div>' +
+        '<div class="zc-why">' + top.map(function (x) { return x.k; })
+          .join(" + ") + ' cluster · weight ' + top.score.toFixed(1) +
+          (clusters[1] ? ' · next: ' + fmt(clusters[1].mid) + ' (' +
+            clusters[1].map(function (x) { return x.k; }).join("+") + ')'
+            : '') + '</div>' +
+        '<div class="zc-thesis">' + thesis +
+          (regime ? "<br>" + regime : "") + '</div>' +
+        '<div class="zc-foot">Deterministic clustering of the plotted ' +
+          'levels (±0.18%), weighted by type — not an AI prediction, and ' +
+          'built on 15-min-delayed data. Re-reads every refresh.</div>' +
+        '</div>';
+    }
+
+    // ── options T-chain ──
+    function renderChain(cp) {
+      lastChain = cp;
+      const t = $id("zdte-chain");
+      if (!t || !cp || !cp.rows) { return; }
+      const exps = cp.expiries || [];
+      $id("zdte-exps").innerHTML = exps.map(function (e, i) {
+        const today = new Date().toISOString().slice(0, 10);
+        const lab = (e === today ? "0DTE " : "") + e.slice(5);
+        return '<button data-zexp="' + i + '" class="' +
+          (i === expSel ? "on" : "") + '">' + lab + '</button>';
+      }).join("");
+      const e = exps[Math.min(expSel, exps.length - 1)];
+      const spot = cp.spot;
+      const byK = {};
+      cp.rows.forEach(function (r) {
+        if (r.e !== e) return;
+        (byK[r.k] = byK[r.k] || {})[r.t] = r;
+      });
+      const ks = Object.keys(byK).map(Number).sort(function (a, b) { return a - b; });
+      let atmK = null, best = 1e9;
+      ks.forEach(function (k) { if (Math.abs(k - spot) < best) {
+        best = Math.abs(k - spot); atmK = k; } });
+      const g = cp.gex || {};
+      const f = function (v, d) { return v == null ? "—" :
+        (d ? v.toFixed(d) : v.toLocaleString()); };
+      const rows = ks.map(function (k) {
+        const c = byK[k].call || {}, p = byK[k].put || {};
+        const cls = (k === atmK ? "z-atm " : "") +
+          (k === g.call_wall ? "z-cw " : "") +
+          (k === g.put_wall ? "z-pw " : "") +
+          (k === g.flip ? "z-fl" : "");
+        return '<tr class="' + cls + '">' +
+          '<td' + (k < spot ? ' class="z-itm"' : '') + '>' + f(c.vol) + '</td>' +
+          '<td' + (k < spot ? ' class="z-itm"' : '') + '>' + f(c.oi) + '</td>' +
+          '<td' + (k < spot ? ' class="z-itm"' : '') + '>' + f(c.iv, 1) + '</td>' +
+          '<td' + (k < spot ? ' class="z-itm"' : '') + '>' + f(c.delta, 2) + '</td>' +
+          '<td' + (k < spot ? ' class="z-itm"' : '') + '>' + f(c.last, 2) + '</td>' +
+          '<td class="zk">' + k + '</td>' +
+          '<td' + (k > spot ? ' class="z-itm"' : '') + '>' + f(p.last, 2) + '</td>' +
+          '<td' + (k > spot ? ' class="z-itm"' : '') + '>' + f(p.delta, 2) + '</td>' +
+          '<td' + (k > spot ? ' class="z-itm"' : '') + '>' + f(p.iv, 1) + '</td>' +
+          '<td' + (k > spot ? ' class="z-itm"' : '') + '>' + f(p.oi) + '</td>' +
+          '<td' + (k > spot ? ' class="z-itm"' : '') + '>' + f(p.vol) + '</td>' +
+          '</tr>';
+      }).join("");
+      t.innerHTML = '<thead><tr>' +
+        '<th>C Vol</th><th>C OI</th><th>C IV%</th><th>C Δ</th><th>C Last</th>' +
+        '<th>Strike</th>' +
+        '<th>P Last</th><th>P Δ</th><th>P IV%</th><th>P OI</th><th>P Vol</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody>';
+    }
+
+    function refresh() {
+      Promise.all([
+        fetch(WORKER_URL + "?bars0=" + sym + "&i=" + ziv)
+          .then(function (r) { return r.ok ? r.json() : null; }),
+        fetch(WORKER_URL + "?chain0=" + sym)
+          .then(function (r) { return r.ok ? r.json() : null; }),
+      ]).then(function (a) {
+        const b = a[0], c = a[1];
+        if (!b || !b.bars || !b.bars.length) return;
+        draw(b, c && !c.error ? c : null);
+        if (c && !c.error) renderChain(c);
+      }).catch(function () {});
+    }
+
+    function boot() {
+      loadLWC().then(function () { refresh(); }).catch(function () {
+        $id("zdte-chart").innerHTML =
+          '<div style="padding:30px;color:var(--muted);font-size:12px">' +
+          'Chart library failed to load (network filter blocking unpkg.com?).' +
+          '</div>';
+      });
+    }
+
+    // subnav toggle
+    const sub = document.getElementById("charts-subnav");
+    if (sub) sub.addEventListener("click", function (ev) {
+      const b = ev.target.closest("button[data-csub]");
+      if (!b) return;
+      sub.querySelectorAll("button").forEach(function (x) {
+        x.classList.toggle("active", x === b); });
+      const z = b.dataset.csub === "zdte";
+      root.style.display = z ? "" : "none";
+      const tv = document.getElementById("charts-tv-wrap");
+      if (tv) tv.style.display = z ? "none" : "";
+      if (z && !booted) { booted = true; boot(); }
+      else if (z) refresh();
+    });
+    // sym / interval / expiry controls
+    root.addEventListener("click", function (ev) {
+      const bs = ev.target.closest("button[data-zsym]");
+      if (bs) {
+        sym = bs.dataset.zsym;
+        $id("zdte-syms").querySelectorAll("button").forEach(function (x) {
+          x.classList.toggle("on", x === bs); });
+        refresh(); return;
+      }
+      const bi = ev.target.closest("button[data-ziv]");
+      if (bi) {
+        ziv = bi.dataset.ziv;
+        $id("zdte-ivs").querySelectorAll("button").forEach(function (x) {
+          x.classList.toggle("on", x === bi); });
+        refresh(); return;
+      }
+      const be = ev.target.closest("button[data-zexp]");
+      if (be) { expSel = +be.dataset.zexp; if (lastChain) renderChain(lastChain); }
+    });
+    // 60s refresh while visible
+    setInterval(function () {
+      const p = document.getElementById("panel-charts");
+      if (p && p.classList.contains("active") &&
+          root.style.display !== "none" && booted) refresh();
+    }, 60000);
+  })();
 
   /* ── Charts tab — TradingView Advanced Chart embed ──────────────────
      Lazily injects tv.js the first time the Charts tab is opened (so the

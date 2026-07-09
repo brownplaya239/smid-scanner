@@ -206,11 +206,14 @@ async function fetchChain0(sym, env) {
   return out;
 }
 
-async function fetchBars0(sym) {
-  const cached = memGet("bars0:" + sym, 60_000);
+async function fetchBars0(sym, iv) {
+  iv = { "1": "1m", "2": "2m", "5": "5m" }[String(iv)] || "5m";
+  const key = "bars0:" + sym + ":" + iv;
+  const cached = memGet(key, 60_000);
   if (cached) return cached;
   const u = "https://query1.finance.yahoo.com/v8/finance/chart/" +
-    encodeURIComponent(sym) + "?range=5d&interval=5m&includePrePost=true";
+    encodeURIComponent(sym) + "?range=5d&interval=" + iv +
+    "&includePrePost=true";
   const headers = { "User-Agent": "Mozilla/5.0" };
   let r;
   try { r = await fetch(u, { headers: headers, cf: { cacheTtl: 45 } }); }
@@ -233,9 +236,9 @@ async function fetchBars0(sym) {
     bars.push({ t: ts[i], o: q.open[i], h: q.high[i], l: q.low[i],
                 c: q.close[i], v: q.volume[i] || 0 });
   }
-  const out = { sym: sym, bars: bars, delay_minutes: 15,
+  const out = { sym: sym, interval: iv, bars: bars, delay_minutes: 15,
                 fetched_at: new Date().toISOString() };
-  memPut("bars0:" + sym, out);
+  memPut(key, out);
   return out;
 }
 
@@ -2843,7 +2846,7 @@ export default {
           return Response.json({ error: "bars0 supports SPY, QQQ, IWM only" },
                                { status: 400, headers: cors });
         }
-        const data = await fetchBars0(s);
+        const data = await fetchBars0(s, url.searchParams.get("i"));
         return Response.json(data, { headers: { ...cors,
           "Cache-Control": "public, max-age=60" } });
       }
