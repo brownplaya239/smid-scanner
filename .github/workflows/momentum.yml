@@ -113,6 +113,16 @@ jobs:
         continue-on-error: true
         run: python zdte_ideas.py
 
+      - name: Index level statistics (touch/hold/break engine)
+        # ~250 sessions of 5m bars per SPY/QQQ/IWM (Polygon; one aggs
+        # request each) → per-level touch rate, first-touch hold/break,
+        # extension/rejection sizes, second-touch break rate, plus daily
+        # ATR/SMA/period-H-L context for the Index Levels page. Runs are
+        # incremental — per-session results cached in data/, only new
+        # dates compute. Non-fatal.
+        continue-on-error: true
+        run: python level_stats.py
+
       - name: Hypothesis lab (weekly, self-gated)
         # Pairwise feature hypotheses over the matured ledger; three
         # gates (sample, split-half stability, time-ordered holdout).
