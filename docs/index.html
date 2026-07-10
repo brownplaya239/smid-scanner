@@ -14513,6 +14513,37 @@
       return out;
     }
 
+    // Bad-print scrub: Yahoo 1m extended-hours data occasionally carries
+    // a wild single-bar spike (e.g. a $751 index printing $690 for one
+    // minute) that wrecks the y-axis autoscale AND poisons PDL/VPOC.
+    // An index ETF doesn't move 1.5% in one minute — compare each bar
+    // to the median close of its ±5-bar neighborhood: drop bars whose
+    // CLOSE deviates that far, clamp wicks that do.
+    function scrubBars(bars) {
+      if (bars.length < 12) return bars;
+      const TOL = 0.015;
+      const med = function (i) {
+        const w = [];
+        for (let j = Math.max(0, i - 5);
+             j <= Math.min(bars.length - 1, i + 5); j++)
+          if (j !== i) w.push(bars[j].c);
+        w.sort(function (a, b) { return a - b; });
+        return w[Math.floor(w.length / 2)];
+      };
+      const out = [];
+      bars.forEach(function (b, i) {
+        const m = med(i);
+        if (!m) { out.push(b); return; }
+        if (Math.abs(b.c / m - 1) > TOL) return;      // bad print — drop
+        let h = b.h, l = b.l;
+        if (h / m - 1 > TOL) h = Math.max(b.o, b.c);  // clamp wild wicks
+        if (1 - l / m > TOL) l = Math.min(b.o, b.c);
+        out.push(h === b.h && l === b.l ? b
+          : { t: b.t, o: b.o, h: h, l: l, c: b.c, v: b.v });
+      });
+      return out;
+    }
+
     // level computation from 5d bars — sessions resolved in ET
     function computeLevels(bars) {
       const days = {};
@@ -14616,13 +14647,15 @@
     ];
 
     function draw(barsPayload, chainPayload) {
-      const bars = (barsPayload.bars || []);
+      const bars = scrubBars(barsPayload.bars || []);
       const lv = computeLevels(bars);
-      // clean 1-day view: today's session only (incl pre/post). Prior
-      // days still feed level computation + EMA warm-up, just not the
-      // visible candles.
+      // clean 1-day view: today's REGULAR session only. Pre/post bars
+      // still feed the level computation (PMH/PML, overnight mid/VWAP)
+      // and EMA warm-up — but drawing them stretched the chart into a
+      // flat thread and let one thin extended-hours print wreck the
+      // y-axis autoscale.
       const shown = bars.filter(function (b) {
-        return b._d === lv.today; });
+        return b._d === lv.today && b._m >= 570 && b._m < 960; });
       const closesAll = bars.map(function (b) { return b.c; });
       const e20 = ema(closesAll, 20), e200 = ema(closesAll, 200);
 
@@ -14682,7 +14715,8 @@
       const mkE = function (arr) {
         const out = [];
         bars.forEach(function (b, i) {
-          if (arr[i] != null && b._d === lv.today)
+          if (arr[i] != null && b._d === lv.today &&
+              b._m >= 570 && b._m < 960)
             out.push({ time: b.t, value: arr[i] });
         });
         return out;
