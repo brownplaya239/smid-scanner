@@ -96,6 +96,128 @@ def _bars(sym):
     return out
 
 
+def _vix_close():
+    """Latest ^VIX daily close (best-effort; None on any failure)."""
+    try:
+        import yfinance as yf
+        df = yf.Ticker("^VIX").history(period="5d", interval="1d")
+        if len(df):
+            return round(float(df["Close"].iloc[-1]), 2)
+    except Exception:
+        pass
+    return None
+
+
+def _event_day(date_iso):
+    """True when the econ calendar lists a high-impact event today."""
+    try:
+        p = os.path.join(_BASE, "docs", "reports", "economic_calendar.json")
+        with open(p, encoding="utf-8") as f:
+            cal = json.load(f)
+        ff = date_iso[5:7] + "-" + date_iso[8:10] + "-" + date_iso[0:4]
+        return any(e.get("date") == ff
+                   and "high" in (e.get("impact") or "").lower()
+                   for e in cal.get("events") or [])
+    except Exception:
+        return None
+
+
+def _session_observations(bars, L, decision_m, date):
+    """Learning-loop raw material: which level was touched FIRST after
+    the decision bar, and which levels broke cleanly (a close beyond by
+    >0.1% with the session also CLOSING beyond on that side)."""
+    seq = [b for b in bars if b["date"] == date
+           and decision_m <= b["m"] < 960]
+    if not seq or not L:
+        return {}
+    lv = {k: v for k, v in L.items() if isinstance(v, (int, float))}
+    first = None
+    for b in seq:
+        hits = [k for k, v in lv.items() if b["l"] <= v <= b["h"]]
+        if hits:
+            first = min(hits, key=lambda k: abs(lv[k] - b["c"]))
+            break
+    close = seq[-1]["c"]
+    breaks = []
+    for k, v in lv.items():
+        if close > v and any(b["c"] > v * 1.001 for b in seq):
+            breaks.append(k + "+")
+        elif close < v and any(b["c"] < v * 0.999 for b in seq):
+            breaks.append(k + "-")
+    return {"first_touch": first, "clean_breaks": sorted(breaks)}
+
+
+def _ivem_snapshot(ch):
+    """EOD IV/EM snapshot from the chain payload: expected move as % of
+    spot + ATM IV (avg of the nearest-expiry call/put closest to spot)."""
+    try:
+        spot = ch.get("spot")
+        em = (ch.get("expected_move") or {}).get("usd")
+        rows = ch.get("rows") or []
+        exps = ch.get("expiries") or []
+        out = {}
+        if spot and em:
+            out["em_pct"] = round(em / spot * 100, 3)
+        if spot and rows and exps:
+            near = [r for r in rows if r.get("e") == exps[0]
+                    and r.get("iv") is not None]
+            if near:
+                atm_k = min({r["k"] for r in near},
+                            key=lambda k: abs(k - spot))
+                ivs = [r["iv"] for r in near if r["k"] == atm_k]
+                if ivs:
+                    out["atm_iv"] = round(sum(ivs) / len(ivs), 2)
+        return out or None
+    except Exception:
+        return None
+
+
+IVEM_LOG = os.path.join(_BASE, "data", "iv_em_log.json")
+IVEM_OUT = os.path.join(_BASE, "docs", "reports", "iv_em_context.json")
+IVEM_CAP_D = 120
+IVEM_MIN_N = 20           # sessions before the EM/IV context publishes
+
+
+def _ivem_update(snaps, date):
+    """Append today's IV/EM snapshots and build the gated context file
+    the Index Levels NOW panel reads. Publishes real comparisons only
+    once IVEM_MIN_N sessions are logged — 'accruing' until then."""
+    try:
+        with open(IVEM_LOG, encoding="utf-8") as f:
+            ivlog = json.load(f)
+    except Exception:
+        ivlog = {}
+    for sym, snap in (snaps or {}).items():
+        if not snap:
+            continue
+        days = [d for d in ivlog.get(sym) or [] if d.get("date") != date]
+        days.append({"date": date, **snap})
+        days.sort(key=lambda d: d["date"])
+        ivlog[sym] = days[-IVEM_CAP_D:]
+    ctx = {"generated": datetime.now(timezone.utc)
+           .isoformat(timespec="seconds"), "min_n": IVEM_MIN_N,
+           "by_sym": {}}
+    for sym, days in ivlog.items():
+        ems = [d["em_pct"] for d in days if d.get("em_pct") is not None]
+        ivs = [d["atm_iv"] for d in days if d.get("atm_iv") is not None]
+        n = len(ems)
+        if n < IVEM_MIN_N:
+            ctx["by_sym"][sym] = {"status": "accruing", "n": n}
+            continue
+        today_em = ems[-1]
+        avg20 = sum(ems[-20:]) / len(ems[-20:])
+        entry = {"status": "active", "n": n,
+                 "em_pct": round(today_em, 2),
+                 "em_avg20": round(avg20, 2)}
+        if len(ivs) >= IVEM_MIN_N:
+            last_iv = ivs[-1]
+            win = ivs[-60:]
+            entry["iv_pctile"] = round(
+                100 * sum(1 for v in win if v <= last_iv) / len(win))
+        ctx["by_sym"][sym] = entry
+    return ivlog, ctx
+
+
 def _levels(bars, decision_m):
     """Level map from bars strictly up to the decision minute (today only —
     single-day feed, so prev-day/premarket come from the pre-open bars)."""
@@ -247,6 +369,7 @@ def build():
         pass
     today_out = []
     date = None
+    obs_by_sym, ivem_snaps = {}, {}
     for sym in SYMS:
         ch = _chain(sym)
         bars = _bars(sym)
@@ -254,6 +377,7 @@ def build():
             print(f"  {sym}: insufficient data — skip")
             continue
         date = bars[-1]["date"]
+        ivem_snaps[sym] = _ivem_snapshot(ch)
         # spot at decision = close of first bar at/after 10:00
         dec = next((b for b in bars if b["date"] == date and b["m"] >= DECISION_MIN),
                    None)
@@ -266,6 +390,10 @@ def build():
             continue
         ideas, regime = generate(sym, spot, L, ch.get("gex") or {},
                                  ch.get("expected_move"))
+        obs = _session_observations(bars, L, dec["m"], date)
+        if obs:
+            obs["regime"] = regime
+            obs_by_sym[sym] = obs
         for it in ideas:
             res = grade(it, bars, dec["m"])
             rec = {"sym": sym, "date": date, "regime": regime,
@@ -279,20 +407,38 @@ def build():
                           for i, r in zip(ideas, today_out[-len(ideas):])))
 
     if date and today_out:
+        # session context for the learning loop: VIX + event-day tags
+        # condition the hit rates; first-touch / clean-break observations
+        # accrue the level-behavior dataset the redesign review asked for
+        day_ctx = {"vix": _vix_close(), "event_day": _event_day(date),
+                   "by_sym": obs_by_sym}
         log["days"] = [d for d in log.get("days") or [] if d.get("date") != date]
-        log["days"].append({"date": date, "ideas": today_out})
+        log["days"].append({"date": date, "ideas": today_out,
+                            "ctx": day_ctx})
         log["days"].sort(key=lambda d: d["date"])
         log["days"] = log["days"][-LOG_CAP_D:]
 
     # accrue gated stats over all graded (triggered) ideas
-    by_type, by_tr = {}, {}
+    by_type, by_tr, by_cond, by_ev = {}, {}, {}, {}
     for d in log.get("days") or []:
+        ctx = d.get("ctx") or {}
+        vix = ctx.get("vix")
+        vb = None if vix is None else (
+            "low" if vix < 15 else "mid" if vix <= 20 else "high")
+        ev = ctx.get("event_day")
         for r in d.get("ideas") or []:
             if r["result"] not in ("win", "loss"):
                 continue
-            by_type.setdefault(r["type"], []).append(r["result"] == "win")
+            w = r["result"] == "win"
+            by_type.setdefault(r["type"], []).append(w)
             key = r["type"] + "|" + r["regime"]
-            by_tr.setdefault(key, []).append(r["result"] == "win")
+            by_tr.setdefault(key, []).append(w)
+            if vb:
+                by_cond.setdefault("vix_" + vb + "|" + r["regime"] +
+                                   "_gamma", []).append(w)
+            if ev is not None:
+                by_ev.setdefault("event_day" if ev else "no_event",
+                                 []).append(w)
 
     def summarise(m):
         out = {}
@@ -314,25 +460,34 @@ def build():
         "total_graded": total_graded,
         "by_type": summarise(by_type),
         "by_type_regime": summarise(by_tr),
+        "by_vix_regime": summarise(by_cond),
+        "by_event_day": summarise(by_ev),
         "today": today_out,
         "note": ("Session-frame directional hit rate (trigger fired, then "
                  "target before invalidation) on 15-min-delayed data. Gated "
                  "at n>=30 triggered ideas per type. 0DTE resolves same-day, "
-                 "so cohorts mature fast. Educational, not advice."),
+                 "so cohorts mature fast. VIX-bucket, gamma-regime and "
+                 "event-day conditioning accrue from the per-day ctx tags "
+                 "and publish only when their own n>=30. Educational, "
+                 "not advice."),
     }
     print(f"  zdte ideas: {len(today_out)} today · {total_graded} graded "
           f"total · {len([1 for v in payload['by_type'].values() if v.get('status')=='active'])} "
           f"types active")
-    return log, payload
+    ivem_log, ivem_ctx = _ivem_update(ivem_snaps, date) if date \
+        else (None, None)
+    return log, payload, ivem_log, ivem_ctx
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
-    log, payload = build()
+    log, payload, ivem_log, ivem_ctx = build()
     if args.dry_run:
         print(json.dumps(payload, indent=1)[:3000])
+        if ivem_ctx:
+            print(json.dumps(ivem_ctx, indent=1)[:800])
         return
     os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
     with open(LOG_PATH, "w", encoding="utf-8") as f:
@@ -340,7 +495,12 @@ def main():
     os.makedirs(REPORTS, exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
-    print(f"  Wrote {os.path.relpath(OUT_PATH, _BASE)} + log")
+    if ivem_log is not None:
+        with open(IVEM_LOG, "w", encoding="utf-8") as f:
+            json.dump(ivem_log, f, separators=(",", ":"))
+        with open(IVEM_OUT, "w", encoding="utf-8") as f:
+            json.dump(ivem_ctx, f, separators=(",", ":"))
+    print(f"  Wrote {os.path.relpath(OUT_PATH, _BASE)} + log + IV/EM context")
 
 
 if __name__ == "__main__":
