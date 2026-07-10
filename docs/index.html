@@ -2291,6 +2291,65 @@
     font-variant-numeric:tabular-nums; min-width:56px; text-align:right; }
   .zl-d { color:var(--muted); overflow:hidden; text-overflow:ellipsis;
     min-width:0; }
+  /* Decision engine: Now panel / tiers / playbook */
+  #zdte-now { display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(185px, 1fr));
+    gap:8px; margin-bottom:12px; }
+  .zn-b { background:var(--navy2); border:1px solid var(--line);
+    border-radius:8px; padding:8px 10px; font-size:11px; min-width:0; }
+  .zn-bt { font-size:9.5px; font-weight:800; letter-spacing:.06em;
+    color:var(--muted); text-transform:uppercase; margin-bottom:5px; }
+  .zn-bt i { text-transform:none; letter-spacing:0; font-weight:600; }
+  .zn-big { font-size:17px; font-weight:800; color:var(--text);
+    font-variant-numeric:tabular-nums; }
+  .zn-kv { display:flex; justify-content:space-between; gap:8px;
+    padding:1px 0; font-variant-numeric:tabular-nums; }
+  .zn-kv span:first-child { color:var(--muted); }
+  .zn-chip { display:inline-block; font-size:10px; font-weight:800;
+    padding:1px 6px; border-radius:4px; margin:1px 3px 1px 0;
+    background:rgba(255,255,255,0.05); }
+  .zn-chip.pos { color:var(--green); } .zn-chip.neg { color:var(--red); }
+  .zn-ev { padding:1px 0; }
+  .zn-em { position:relative; height:8px; border-radius:4px; margin:5px 0;
+    background:linear-gradient(90deg, rgba(214,68,68,.4),
+      rgba(255,255,255,.10), rgba(31,179,99,.4)); }
+  .zn-em-mk { position:absolute; top:-3px; width:2px; height:14px;
+    background:var(--gold); transform:translateX(-1px); }
+  .zn-bs { font-size:10px; color:var(--muted); }
+  #zdte-legend { display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));
+    gap:10px; padding:8px 4px 2px; font-size:10px; color:var(--muted);
+    align-items:start; }
+  .zt-tier { border:1px solid var(--line); border-radius:8px;
+    padding:6px 8px; background:rgba(0,0,0,0.12); }
+  .zt-th { font-size:9px; font-weight:800; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--gold); padding-bottom:4px; }
+  .zt-th i { color:var(--muted); font-weight:600; text-transform:none;
+    letter-spacing:0; }
+  .zt-r { display:flex; align-items:baseline; gap:5px; line-height:1.6;
+    white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .zt-n { font-weight:800; color:var(--text); min-width:58px;
+    font-size:9.5px; }
+  .zt-v { font-weight:700; min-width:54px; text-align:right; }
+  .zt-v.zt-abv { color:var(--green); } .zt-v.zt-blw { color:var(--red); }
+  .zt-x { min-width:46px; text-align:right; color:var(--textdim); }
+  .zt-s { min-width:36px; text-align:right; color:var(--muted);
+    font-size:9px; }
+  #zdte-playbook { margin-top:14px; }
+  .zp-card { background:var(--navy2); border:1px solid var(--line);
+    border-radius:10px; padding:12px 15px; }
+  .zp-h { font-size:12.5px; font-weight:800; color:var(--text);
+    margin-bottom:6px; }
+  .zp-r { display:flex; gap:8px; align-items:baseline; padding:5px 0;
+    border-top:1px solid rgba(255,255,255,.05); font-size:11.5px;
+    flex-wrap:wrap; }
+  .zp-if { font-weight:800; min-width:180px; }
+  .zp-r.bull .zp-if { color:var(--green); }
+  .zp-r.bear .zp-if { color:var(--red); }
+  .zp-st { flex-basis:100%; font-size:10px; color:var(--muted);
+    padding-left:2px; }
+  .zp-foot { font-size:10px; color:var(--muted); margin-top:8px;
+    line-height:1.5; }
   #zdte-conf { margin-bottom:12px; }
   .zdte-conf-card { background:var(--navy2); border:1px solid var(--gold);
     border-radius:10px; padding:12px 15px; }
@@ -6199,17 +6258,19 @@
           <span id="zdte-stamp" class="zdte-stamp"></span>
         </div>
         <div id="zdte-conf"></div>
+        <div id="zdte-now"></div>
         <div id="zdte-chart-wrap">
           <div id="zdte-chart"></div>
           <div id="zdte-legend"></div>
         </div>
         <div class="zdte-chain-head">
-          <span class="zdte-chain-title">Options chain — ±25 strikes</span>
+          <span class="zdte-chain-title">Options chain — ±15 strikes</span>
           <span class="zdte-group" id="zdte-exps"></span>
           <span class="zdte-stamp">last · OI · vol per contract · delayed 15m</span>
         </div>
         <div class="zdte-chain-wrap"><table class="zdte-chain" id="zdte-chain"></table></div>
         <div id="zdte-ideas"></div>
+        <div id="zdte-playbook"></div>
         <div id="zdte-flow"></div>
       </div>
       <div id="charts-tv-wrap">
@@ -14455,6 +14516,19 @@
         if (pr.length) {
           L.PDH = Math.max.apply(null, pr.map(function (b) { return b.h; }));
           L.PDL = Math.min.apply(null, pr.map(function (b) { return b.l; }));
+          L.PC = pr[pr.length - 1].c;
+        }
+        // overnight session: prev-day post-market + today's premarket
+        const on = (days[prev] || []).filter(function (b) { return b._m >= 960; })
+          .concat((days[today] || []).filter(function (b) { return b._m < 570; }));
+        if (on.length > 2) {
+          const oh = Math.max.apply(null, on.map(function (b) { return b.h; }));
+          const ol = Math.min.apply(null, on.map(function (b) { return b.l; }));
+          L.ONM = (oh + ol) / 2;
+          let opv = 0, ovv = 0;
+          on.forEach(function (b) {
+            opv += ((b.h + b.l + b.c) / 3) * b.v; ovv += b.v; });
+          if (ovv > 0) L.OVWAP = opv / ovv;
         }
       }
       const pre = (days[today] || []).filter(function (b) {
@@ -14522,6 +14596,8 @@
       ["FLIP",      "#ffc61a", 3, "Gamma flip — above: dealers dampen moves; below: they amplify them"],
       ["EM+", "#93a0bd", 3, "Expected-move top — spot + ATM straddle; options-implied session ceiling"],
       ["EM−", "#93a0bd", 3, "Expected-move bottom — spot − ATM straddle; options-implied session floor"],
+      ["PC",  "#9aa7c4", 1, "Prior session close — the day's gap reference"],
+      ["MAX PAIN", "#6fd3f2", 1, "OI max-pain settle for the nearest expiry — pin magnet into the close (delayed OI)"],
     ];
 
     function draw(barsPayload, chainPayload) {
@@ -14593,6 +14669,8 @@
         "FLIP": gex.flip,
         "EM+": (em && spot) ? spot + em.usd : null,
         "EM−": (em && spot) ? spot - em.usd : null,
+        "PC": lv.L.PC,
+        "MAX PAIN": maxPain(chainPayload),
       };
       LINE_DEFS.forEach(function (d) {
         const v = vals[d[0]];
@@ -14601,43 +14679,28 @@
           price: v, color: d[1], lineWidth: 1, lineStyle: d[2],
           axisLabelVisible: true, title: d[0] }));
       });
-      // Explained legend: mark (the actual level) + a one-line meaning
-      const e20d = mkE(e20), e200d = mkE(e200);
-      const lastOf = function (arr) {
-        return arr.length ? arr[arr.length - 1].value : null; };
-      const dyn = [
-        ["VWAP",   "#7fb2ff", lastOf(lv.vwap),
-         "Volume-weighted avg price today — institutional fair value; above = buyers in control"],
-        ["EMA20",  "#e8b34c", lastOf(e20d),
-         "20-period EMA on this timeframe — the intraday trend rail"],
-        ["EMA200", "#c76bd1", lastOf(e200d),
-         "200-period EMA — the slow regime line; sharp fights happen here"],
-      ];
-      const fmtV = function (v) {
-        return v == null || !isFinite(v) ? "—" : "$" + v.toFixed(2); };
-      const entry = function (name, color, v, desc) {
-        return '<div class="zl-e' + (v == null ? ' zl-off' : '') + '">' +
-          '<b style="color:' + color + '">━</b>' +
-          '<span class="zl-n">' + name + '</span>' +
-          '<span class="zl-v">' + fmtV(v) + '</span>' +
-          '<span class="zl-d">' + desc + '</span></div>';
+      // Decision engine: the flat legend is replaced by renderTiers();
+      // renderNow() answers “what matters right now”, renderPlaybook()
+      // turns the level map into if/then scenarios. All three re-read on
+      // every refresh alongside the chart.
+      const e9 = ema(closesAll, 9);
+      const lastNonNull = function (arr) {
+        for (let i = arr.length - 1; i >= 0; i--)
+          if (arr[i] != null) return arr[i];
+        return null;
       };
-      // One combined list, sorted by mark HIGH → LOW so the legend reads
-      // top-to-bottom exactly like the levels stack on the chart. Levels
-      // with no value yet sink to the bottom.
-      const allE = LINE_DEFS.map(function (d) {
-        return { n: d[0], c: d[1], v: vals[d[0]], d: d[3] }; })
-        .concat(dyn.map(function (d) {
-          return { n: d[0], c: d[1], v: d[2], d: d[3] }; }));
-      allE.sort(function (a, b) {
-        const av = (a.v == null || !isFinite(a.v)), bv = (b.v == null || !isFinite(b.v));
-        if (av && bv) return 0;
-        if (av) return 1;
-        if (bv) return -1;
-        return b.v - a.v;
-      });
-      $id("zdte-legend").innerHTML = allE.map(function (e) {
-        return entry(e.n, e.c, e.v, e.d); }).join("");
+      const dyn = {
+        VWAP: lv.vwap.length ? lv.vwap[lv.vwap.length - 1].value : null,
+        EMA9: lastNonNull(e9), EMA20: lastNonNull(e20),
+        EMA200: lastNonNull(e200),
+      };
+      const lastPx0 = shown.length ? shown[shown.length - 1].c : spot;
+      const dctx = { vals: vals, dyn: dyn, last: lastPx0,
+                     spot: spot || lastPx0, gex: gex, em: em,
+                     cp: chainPayload, lv: lv, sym: sym };
+      renderNow(dctx);
+      renderTiers(dctx);
+      renderPlaybook(dctx);
 
       const lastPx = shown.length ? shown[shown.length - 1].c : spot;
       renderConfluence(vals, lastPx, gex, spot);
@@ -14645,6 +14708,366 @@
       $id("zdte-stamp").textContent = sym + " · " + ziv +
         "m candles · updated " + new Date().toLocaleTimeString() +
         " · data delayed 15m";
+    }
+
+    // ── Decision engine: stats + calendar + IV-context feeds ──────────
+    // level_stats.json = nightly historical touch/hold/break stats
+    // (~250 sessions of 5m bars, published by level_stats.py).
+    // iv_em_context.json = accrual-gated EOD IV/EM log (zdte_ideas.py).
+    let _lvStats = null, _econ = null, _ivCtx = null;
+    fetch("./reports/level_stats.json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { _lvStats = d; }).catch(function () {});
+    fetch("./reports/economic_calendar.json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { _econ = d; }).catch(function () {});
+    fetch("./reports/iv_em_context.json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { _ivCtx = d; }).catch(function () {});
+
+    const fmt2 = function (v) {
+      return v == null || !isFinite(v) ? "—" : "$" + v.toFixed(2); };
+
+    // Max pain on the nearest expiry: the settle strike that pays option
+    // holders the least in aggregate. OI is prior-session OCC-settled.
+    function maxPain(cp) {
+      if (!cp || !cp.rows || !cp.expiries || !cp.expiries.length) return null;
+      const e0 = cp.expiries[0];
+      const rows = cp.rows.filter(function (r) { return r.e === e0 && r.oi; });
+      if (rows.length < 6) return null;
+      const seen = {}, ks = [];
+      rows.forEach(function (r) {
+        if (!seen[r.k]) { seen[r.k] = 1; ks.push(r.k); } });
+      let best = null, bestPay = Infinity;
+      ks.forEach(function (K) {
+        let pay = 0;
+        rows.forEach(function (r) {
+          if (r.t === "call" && K > r.k) pay += r.oi * (K - r.k);
+          else if (r.t === "put" && K < r.k) pay += r.oi * (r.k - K);
+        });
+        if (pay < bestPay) { bestPay = pay; best = K; }
+      });
+      return best;
+    }
+
+    // [name, tier, color, statsKey (level_stats join), one-line meaning]
+    const TIER_META = [
+      ["PDH", 1, "#8fb4ff", "PDH", "Prior session high"],
+      ["PDL", 1, "#8fb4ff", "PDL", "Prior session low"],
+      ["PC", 1, "#9aa7c4", "PC", "Prior session close"],
+      ["PMH", 1, "#b48fff", "PMH", "Premarket high"],
+      ["PML", 1, "#b48fff", "PML", "Premarket low"],
+      ["ORH", 1, "#ffd54a", "ORH", "Opening-range (15m) high"],
+      ["ORL", 1, "#ffd54a", "ORL", "Opening-range (15m) low"],
+      ["VWAP", 1, "#7fb2ff", "VWAP", "Session VWAP"],
+      ["EM+", 1, "#93a0bd", null, "Expected-move top (ATM straddle)"],
+      ["EM−", 1, "#93a0bd", null, "Expected-move bottom"],
+      ["ONM", 2, "#7c8db0", null, "Overnight midpoint (post-mkt + premkt)"],
+      ["OVWAP", 2, "#7c8db0", null, "Overnight VWAP (extended session)"],
+      ["VPOC", 2, "#ff9d3c", null, "Today's highest-volume price"],
+      ["VAH", 2, "#ff9d3c", null, "Value-area high (70% of volume)"],
+      ["VAL", 2, "#ff9d3c", null, "Value-area low"],
+      ["WK H", 2, "#6fa8dc", null, "Prior week high"],
+      ["WK L", 2, "#6fa8dc", null, "Prior week low"],
+      ["MO H", 2, "#6fa8dc", null, "Prior month high"],
+      ["MO L", 2, "#6fa8dc", null, "Prior month low"],
+      ["QTR H", 2, "#6fa8dc", null, "Prior quarter high"],
+      ["QTR L", 2, "#6fa8dc", null, "Prior quarter low"],
+      ["CALL WALL", 3, "#46dc8b", null, "Largest +gamma strike (delayed OI)"],
+      ["PUT WALL", 3, "#f26f6f", null, "Largest −gamma strike"],
+      ["FLIP", 3, "#ffc61a", null, "Gamma flip / zero-gamma"],
+      ["MAX PAIN", 3, "#6fd3f2", null, "OI max-pain settle, nearest expiry"],
+      ["LG", 3, "#46dc8b", null, "Largest absolute-gamma strike"],
+      ["EMA9", 4, "#7ee3c3", null, "9 EMA (this timeframe)"],
+      ["EMA20", 4, "#e8b34c", null, "20 EMA (this timeframe)"],
+      ["EMA200", 4, "#c76bd1", null, "200 EMA (this timeframe)"],
+      ["SMA50d", 4, "#d3b26f", null, "50-day SMA"],
+      ["SMA200d", 4, "#b06fd3", null, "200-day SMA"],
+    ];
+    const TIER_NAMES = { 1: "Core session levels",
+      2: "Institutional / structure", 3: "Dealer positioning",
+      4: "Moving averages" };
+
+    function lvStatsFor(symbol) {
+      return (_lvStats && _lvStats.by_sym && _lvStats.by_sym[symbol]) || null;
+    }
+
+    // one flat list of every level with its tier + value (null = not
+    // available yet); daily-timeframe extras come from level_stats.json
+    function levelRows(ctx) {
+      const S = lvStatsFor(ctx.sym);
+      const ext = {
+        "WK H": S && S.week ? S.week.h : null,
+        "WK L": S && S.week ? S.week.l : null,
+        "MO H": S && S.month ? S.month.h : null,
+        "MO L": S && S.month ? S.month.l : null,
+        "QTR H": S && S.quarter ? S.quarter.h : null,
+        "QTR L": S && S.quarter ? S.quarter.l : null,
+        "SMA50d": S ? S.sma50 : null, "SMA200d": S ? S.sma200 : null,
+        "ONM": ctx.lv.L.ONM, "OVWAP": ctx.lv.L.OVWAP, "PC": ctx.lv.L.PC,
+        "VWAP": ctx.dyn.VWAP, "EMA9": ctx.dyn.EMA9,
+        "EMA20": ctx.dyn.EMA20, "EMA200": ctx.dyn.EMA200,
+        "MAX PAIN": ctx.vals["MAX PAIN"],
+        "LG": ctx.gex ? ctx.gex.largest : null,
+      };
+      return TIER_META.map(function (m) {
+        let v = Object.prototype.hasOwnProperty.call(ext, m[0])
+          ? ext[m[0]] : ctx.vals[m[0]];
+        if (v == null || !isFinite(v)) v = null;
+        return { n: m[0], tier: m[1], c: m[2], sk: m[3], d: m[4], v: v };
+      });
+    }
+
+    // ── tiered level table (replaces the flat legend) ──
+    function renderTiers(ctx) {
+      const host = $id("zdte-legend");
+      if (!host) return;
+      const S = lvStatsFor(ctx.sym);
+      const atr = S ? S.atr14 : null;
+      const st = (S && S.levels) || {};
+      const last = ctx.last;
+      const rows = levelRows(ctx);
+      const html = [1, 2, 3, 4].map(function (t) {
+        const rs = rows.filter(function (r) { return r.tier === t; });
+        rs.sort(function (a, b) {
+          if (a.v == null && b.v == null) return 0;
+          if (a.v == null) return 1;
+          if (b.v == null) return -1;
+          return b.v - a.v;
+        });
+        const body = rs.map(function (r) {
+          const off = r.v == null;
+          const dist = off ? null : (r.v / last - 1) * 100;
+          const atrX = (off || !atr) ? null : Math.abs(r.v - last) / atr;
+          const s = r.sk ? st[r.sk] : null;
+          const side = off ? "" : (r.v >= last ? "zt-abv" : "zt-blw");
+          const tip = r.d + (s
+            ? " · touched " + s.touch + "% of sessions; first touch held " +
+              s.held + "%; avg break extension " + s.brk_ext + "% (n=" + s.n + ")"
+            : "");
+          return '<div class="zt-r' + (off ? " zl-off" : "") + '" title="' +
+            tip.replace(/"/g, "&quot;") + '">' +
+            '<b style="color:' + r.c + '">━</b>' +
+            '<span class="zt-n">' + r.n + '</span>' +
+            '<span class="zt-v ' + side + '">' + fmt2(r.v) + '</span>' +
+            '<span class="zt-x">' + (dist == null ? "" :
+              (dist > 0 ? "+" : "") + dist.toFixed(2) + "%") + '</span>' +
+            '<span class="zt-x">' + (atrX == null ? "" :
+              atrX.toFixed(2) + " ATR") + '</span>' +
+            '<span class="zt-s">' + (s ? "T" + s.touch + "%" : "") + '</span>' +
+            '<span class="zt-s">' + (s ? "H" + s.held + "%" : "") + '</span>' +
+            '</div>';
+        }).join("");
+        const note = t === 1
+          ? (S ? ' <i>· T=touch rate · H=first-touch held · ' +
+              ((_lvStats && _lvStats.sessions) || "?") + " sessions</i>"
+               : " <i>· historical stats pending first nightly run</i>")
+          : "";
+        return '<div class="zt-tier"><div class="zt-th">' + TIER_NAMES[t] +
+          note + '</div>' + body + '</div>';
+      }).join("");
+      host.innerHTML = html;
+    }
+
+    // ── “what matters NOW” panel ──
+    function etNowET() {
+      const f = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York", year: "numeric", month: "2-digit",
+        day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+      const p = {};
+      f.formatToParts(new Date()).forEach(function (x) { p[x.type] = x.value; });
+      return { ff: p.month + "-" + p.day + "-" + p.year,
+               min: (+p.hour) * 60 + (+p.minute) };
+    }
+    function parseETTime(s) {
+      const m = /^(\d{1,2}):(\d{2})(am|pm)$/i.exec((s || "").trim());
+      if (!m) return null;
+      let h = +m[1] % 12;
+      if (/pm/i.test(m[3])) h += 12;
+      return h * 60 + (+m[2]);
+    }
+
+    function renderNow(ctx) {
+      const host = $id("zdte-now");
+      if (!host) return;
+      const last = ctx.last;
+      if (!last) { host.innerHTML = ""; return; }
+      const rows = levelRows(ctx).filter(function (r) { return r.v != null; });
+      let sup = null, res = null;
+      rows.forEach(function (r) {
+        if (r.v < last && (!sup || r.v > sup.v)) sup = r;
+        if (r.v > last && (!res || r.v < res.v)) res = r;
+      });
+      const pc = ctx.lv.L.PC;
+      const day = pc ? (last / pc - 1) * 100 : null;
+      const blocks = [];
+      // spot
+      blocks.push('<div class="zn-b"><div class="zn-bt">' + ctx.sym +
+        ' <i>· delayed 15m</i></div><div class="zn-big">' + fmt2(last) +
+        (day == null ? "" : ' <span class="' + (day >= 0 ? "pos" : "neg") +
+          '" style="font-size:12px">' + (day > 0 ? "+" : "") +
+          day.toFixed(2) + "%</span>") + '</div></div>');
+      // nearest levels
+      blocks.push('<div class="zn-b"><div class="zn-bt">Nearest levels</div>' +
+        '<div class="zn-kv"><span>Resistance</span><b>' + (res
+          ? res.n + " " + fmt2(res.v) + " (+" +
+            ((res.v / last - 1) * 100).toFixed(2) + "%)" : "—") +
+        '</b></div>' +
+        '<div class="zn-kv"><span>Support</span><b>' + (sup
+          ? sup.n + " " + fmt2(sup.v) + " (" +
+            ((sup.v / last - 1) * 100).toFixed(2) + "%)" : "—") +
+        '</b></div></div>');
+      // opening drive + trend chips
+      const orh = ctx.vals.ORH, orl = ctx.vals.ORL;
+      let drive = "no opening range yet", dCls = "";
+      if (orh != null && orl != null) {
+        if (last > orh) { drive = "above OR → bullish drive"; dCls = "pos"; }
+        else if (last < orl) { drive = "below OR → bearish drive"; dCls = "neg"; }
+        else { drive = "inside opening range → no drive yet"; }
+      }
+      const chip = function (name, v) {
+        if (v == null) return "";
+        const up = last >= v;
+        return '<span class="zn-chip ' + (up ? "pos" : "neg") + '">' + name +
+          (up ? " ▲" : " ▼") + '</span>';
+      };
+      blocks.push('<div class="zn-b"><div class="zn-bt">Opening drive & trend' +
+        '</div><div class="' + dCls + '" style="font-weight:700;margin-bottom:4px">' +
+        drive + '</div>' + chip("VWAP", ctx.dyn.VWAP) +
+        chip("9e", ctx.dyn.EMA9) + chip("20e", ctx.dyn.EMA20) +
+        chip("200e", ctx.dyn.EMA200) + '</div>');
+      // dealer
+      const g = ctx.gex || {};
+      const reg = (g.flip != null && ctx.spot != null)
+        ? (ctx.spot >= g.flip ? ["LONG gamma · moves dampened", "pos"]
+                              : ["SHORT gamma · moves amplified", "neg"])
+        : null;
+      blocks.push('<div class="zn-b"><div class="zn-bt">Dealer positioning ' +
+        '<i>· delayed OI</i></div>' +
+        (reg ? '<div class="' + reg[1] + '" style="font-weight:800;margin-bottom:3px">' +
+          reg[0] + '</div>' : "") +
+        '<div class="zn-kv"><span>Call wall</span><b>' + (g.call_wall || "—") +
+        '</b></div><div class="zn-kv"><span>Put wall</span><b>' +
+        (g.put_wall || "—") + '</b></div>' +
+        '<div class="zn-kv"><span>Max pain</span><b>' +
+        (ctx.vals["MAX PAIN"] || "—") + '</b></div></div>');
+      // expected-move strip
+      const emh = ctx.vals["EM+"], eml = ctx.vals["EM−"];
+      if (emh != null && eml != null && emh > eml) {
+        let p = (last - eml) / (emh - eml) * 100;
+        p = Math.max(0, Math.min(100, p));
+        blocks.push('<div class="zn-b"><div class="zn-bt">Expected move</div>' +
+          '<div class="zn-kv"><span>' + fmt2(eml) + '</span><span>' +
+          fmt2(emh) + '</span></div>' +
+          '<div class="zn-em"><div class="zn-em-mk" style="left:' +
+          p.toFixed(0) + '%"></div></div>' +
+          '<div class="zn-bs">' + p.toFixed(0) +
+          '% through the options-implied range</div></div>');
+      }
+      // IV context (accrual-gated EOD log)
+      if (_ivCtx && _ivCtx.by_sym && _ivCtx.by_sym[ctx.sym]) {
+        const ic = _ivCtx.by_sym[ctx.sym];
+        blocks.push('<div class="zn-b"><div class="zn-bt">IV context ' +
+          '<i>· EOD log</i></div>' +
+          (ic.status === "active"
+            ? '<div class="zn-kv"><span>EM today</span><b>' + ic.em_pct +
+              '%</b></div><div class="zn-kv"><span>20d avg</span><b>' +
+              ic.em_avg20 + '%</b></div>' +
+              '<div class="zn-kv"><span>ATM IV pctile</span><b>' +
+              ic.iv_pctile + '</b></div>'
+            : '<div class="zn-bs">accruing — ' + (ic.n || 0) +
+              '/20 sessions logged; publishes when real</div>') + '</div>');
+      }
+      // event risk countdown
+      try {
+        const evs = (_econ && _econ.events) || [];
+        const nowET = etNowET();
+        const up = evs.filter(function (e) {
+          if (e.date !== nowET.ff || !/high/i.test(e.impact || "")) return false;
+          const m = parseETTime(e.time);
+          return m != null && m >= nowET.min;
+        }).slice(0, 2);
+        if (up.length) {
+          blocks.push('<div class="zn-b"><div class="zn-bt">Event risk today' +
+            '</div>' + up.map(function (e) {
+              const m = parseETTime(e.time) - nowET.min;
+              return '<div class="zn-ev">⚠ ' + window.escapeHtml(e.title) +
+                ' <b>in ' + (m >= 60
+                  ? Math.floor(m / 60) + "h " + (m % 60) + "m"
+                  : m + "m") + '</b></div>';
+            }).join("") +
+            '<div class="zn-bs">levels often fail into scheduled macro</div>' +
+            '</div>');
+        }
+      } catch (_) {}
+      host.innerHTML = blocks.join("");
+    }
+
+    // ── scenario playbook (if/then paths off the live level map) ──
+    function renderPlaybook(ctx) {
+      const host = $id("zdte-playbook");
+      if (!host) return;
+      const last = ctx.last;
+      if (!last) { host.innerHTML = ""; return; }
+      const rows = levelRows(ctx).filter(function (r) { return r.v != null; });
+      const val = {};
+      rows.forEach(function (r) { val[r.n] = r.v; });
+      const near = function (x, names, above) {
+        let b = null;
+        names.forEach(function (n) {
+          const v = val[n];
+          if (v == null) return;
+          if (above && v > x && (!b || v < b.v)) b = { n: n, v: v };
+          if (!above && v < x && (!b || v > b.v)) b = { n: n, v: v };
+        });
+        return b;
+      };
+      const S = lvStatsFor(ctx.sym);
+      const st = (S && S.levels) || {};
+      const RES = ["ORH", "VAH", "PDH", "CALL WALL", "EM+", "WK H"];
+      const SUP = ["ORL", "VAL", "PDL", "PUT WALL", "EM−", "WK L"];
+      const sc = [];
+      const vwap = val.VWAP;
+      if (vwap != null) {
+        const t1 = near(Math.max(last, vwap), RES, true);
+        if (t1) sc.push({ dir: "bull", cond: "Hold VWAP " + fmt2(vwap),
+          txt: "buy dips against it → target " + t1.n + " " + fmt2(t1.v),
+          st: st.VWAP ? "VWAP touched in " + st.VWAP.touch +
+            "% of sessions; first touch held " + st.VWAP.held + "%" : null });
+        const t2 = near(Math.min(last, vwap), SUP, false);
+        if (t2) sc.push({ dir: "bear", cond: "Lose VWAP " + fmt2(vwap),
+          txt: "sell rallies → target " + t2.n + " " + fmt2(t2.v) });
+      }
+      if (val.PDH != null) {
+        const t = near(val.PDH, ["CALL WALL", "EM+", "WK H", "MO H"], true);
+        sc.push({ dir: "bull", cond: "Break + hold PDH " + fmt2(val.PDH),
+          txt: "continuation → " + (t ? t.n + " " + fmt2(t.v)
+            : "trail the move"),
+          st: st.PDH ? "PDH first touch broke " + (100 - st.PDH.held) +
+            "%; avg extension after break " + st.PDH.brk_ext + "%" : null });
+      }
+      if (val.PDL != null) {
+        const t = near(val.PDL, ["PUT WALL", "EM−", "WK L", "MO L"], false);
+        sc.push({ dir: "bear", cond: "Break + hold PDL " + fmt2(val.PDL),
+          txt: "continuation → " + (t ? t.n + " " + fmt2(t.v)
+            : "trail the move"),
+          st: st.PDL ? "PDL first touch broke " + (100 - st.PDL.held) +
+            "%; avg extension after break " + st.PDL.brk_ext + "%" : null });
+      }
+      if (!sc.length) { host.innerHTML = ""; return; }
+      host.innerHTML = '<div class="zp-card"><div class="zp-h">🗺 ' +
+        ctx.sym + ' scenario playbook — if / then paths</div>' +
+        sc.map(function (s) {
+          return '<div class="zp-r ' + s.dir + '"><span class="zp-if">' +
+            s.cond + '</span><span>' + s.txt + '</span>' +
+            (s.st ? '<span class="zp-st">📐 ' + s.st + '</span>' : "") +
+            '</div>';
+        }).join("") +
+        '<div class="zp-foot">Deterministic paths from the live level map ' +
+        '(15-min delayed) — conditions, not predictions. Historical ' +
+        'stats (📐) are measured on ~250 real sessions by the ' +
+        'nightly level-stats engine; where absent, the sample hasn\'t been ' +
+        'built yet. Educational, not advice.</div></div>';
     }
 
     // ── 0DTE trade-idea generator (deterministic, regime-aware) ─────────
