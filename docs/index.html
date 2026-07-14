@@ -2199,20 +2199,31 @@
     display:flex; flex-direction:column; overflow:hidden;
     transition:border-color .12s ease; }
   .opc:hover { border-color:var(--gold); }
-  .opc-h { display:flex; align-items:center; gap:8px; padding:9px 11px 7px;
+  /* Header holds ticker + day-% chip + action strip + 2 scores + dir
+     pill — tight gaps and a compact chip so the dir pill never clips
+     ("LONG" was truncating to "LON" at tile width). */
+  .opc-h { display:flex; align-items:center; gap:5px; padding:9px 9px 7px;
     border-bottom:1px solid var(--line); }
-  .opc-tk { font-weight:800; font-size:15px; color:var(--text); }
+  .opc-tk { font-weight:800; font-size:14px; color:var(--text); }
   .opc:hover .opc-tk { color:var(--gold); }
-  .opc-sc { text-align:center; line-height:1.05; }
-  .opc-sc b { display:block; font-size:14px; color:var(--gold);
+  .opc-h .chg-pill { font-size:9px; padding:1px 4px; flex:0 0 auto; }
+  .opc-sc { text-align:center; line-height:1.05; flex:0 0 auto; }
+  .opc-sc b { display:block; font-size:13.5px; color:var(--gold);
     font-variant-numeric:tabular-nums; }
   .opc-sc i { font-style:normal; font-size:7.5px; letter-spacing:.08em;
     text-transform:uppercase; color:var(--muted); font-weight:700; }
-  .opc-dir { margin-left:auto; font-size:9px; font-weight:800;
-    padding:2px 6px; border-radius:4px; letter-spacing:.04em; }
+  .opc-dir { margin-left:auto; font-size:8.5px; font-weight:800;
+    padding:2px 5px; border-radius:4px; letter-spacing:.03em;
+    flex:0 0 auto; }
   .opc-meta { font-size:10px; color:var(--muted); padding:5px 11px 0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     font-variant-numeric:tabular-nums; }
+  /* second header line: meta text left, opp/conv scores right */
+  .opc-sub { display:flex; align-items:center; gap:8px;
+    padding:5px 11px 0; }
+  .opc-meta2 { flex:1 1 auto; min-width:0; font-size:10px;
+    color:var(--muted); white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
   /* "what changed" chips — on cards, lab rows, drilldowns */
   .chg-chips { display:flex; gap:4px; flex-wrap:wrap; padding:4px 11px 0; }
   .chg-chip { font-size:8px; font-weight:800; letter-spacing:.05em;
@@ -21756,19 +21767,23 @@
         const themeOrSec = (e.themes || [])[0] ||
           (card.sec ? card.sec.split("/")[0].trim() : "");
         const metaBits = [mc, themeOrSec].filter(Boolean).join(" · ");
-        const metaLine = metaBits
-          ? '<div class="opc-meta">' + esc(metaBits) + '</div>' : "";
+        // Header = identity row (ticker · day% · actions · direction);
+        // scores share the second line with the meta text — everything
+        // in one header row overflowed the 220px tile and clipped the
+        // direction pill.
         return '<div class="opc" data-t="' + esc(t) + '" role="button" tabindex="0">' +
           '<div class="opc-h"><span class="opc-tk">' + esc(t) + '</span>' +
           chgBadge(t) +
           (window.tdActionStripCompact ? window.tdActionStripCompact(t) : "") +
+            '<span class="opc-dir ' + (dir === "bull" ? "opc-d-bull" : "opc-d-bear") + '">' +
+              (dir === "bull" ? "LONG" : "SHORT") + '</span></div>' +
+          '<div class="opc-sub">' +
+            '<span class="opc-meta2">' + esc(metaBits) + '</span>' +
             '<span class="opc-sc" title="Opportunity: conviction net of timing/event risk">' +
               '<b>' + opp + '</b><i>opp</i></span>' +
             '<span class="opc-sc" title="Conviction: cross-signal confluence strength">' +
-              '<b>' + conviction + '</b><i>conv</i></span>' +
-            '<span class="opc-dir ' + (dir === "bull" ? "opc-d-bull" : "opc-d-bear") + '">' +
-              (dir === "bull" ? "LONG" : "SHORT") + '</span></div>' +
-          metaLine + tdChangeChipsHTML(t) +
+              '<b>' + conviction + '</b><i>conv</i></span></div>' +
+          tdChangeChipsHTML(t) +
           '<ul class="opc-ev">' + evidence.map(function (s) {
             return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>' +
           (risk.length ? '<ul class="opc-risk">' + risk.map(function (s) {
