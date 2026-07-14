@@ -11134,8 +11134,23 @@
       if (hrs < 8) return '<span class="adm-badge warn">Aging</span>';
       return '<span class="adm-badge err">Stale</span>';
     }
-    async function fetchTs(path) {
+    async function fetchTs(path, heavy) {
       try {
+        if (heavy) {
+          // Multi-MB file: range-fetch the first 2KB — the generated/
+          // count header fields sit before the signals array — instead
+          // of downloading + JSON-parsing the whole thing just to paint
+          // a freshness badge. raw is a stub: no validation rule reads
+          // into this module's payload.
+          const r = await fetch(path, { cache: "no-cache",
+            headers: { "Range": "bytes=0-2047" } });
+          if (!r.ok && r.status !== 206) return null;
+          const txt = await r.text();
+          const g = /"generated"\s*:\s*"([^"]+)"/.exec(txt);
+          const c = /"count"\s*:\s*(\d+)/.exec(txt);
+          return { ts: g ? g[1] : null, rowCount: c ? +c[1] : null,
+                   raw: { heavy: true } };
+        }
         const r = await fetch(path, { cache: "no-cache" });
         if (!r.ok) return null;
         const d = await r.json();
@@ -11160,7 +11175,8 @@
         { id: "uoa_latest", path: "./reports/uoa_latest.json",
           char: "intraday-batch", desc: "Unusual flow (Options Flow, drilldown). Polygon Options Starter — delayed 15m, 6 scans/day." },
         { id: "uoa_signals_scored", path: "./reports/uoa_signals_scored.json",
-          char: "intraday-batch", desc: "Scored signals (Tracked Signals subtab). Rebuilt each UOA scan." },
+          char: "intraday-batch", heavy: true,
+          desc: "Scored signals (Tracked Signals subtab). Rebuilt each UOA scan." },
         { id: "uoa_edge", path: "./reports/uoa_edge.json",
           char: "post-close", desc: "Historical edge stats — recomputed once per day after close." },
         { id: "earnings_anticipated", path: "./reports/earnings_anticipated.json",
@@ -11180,7 +11196,7 @@
       ];
 
       const results = await Promise.all(modules.map(async function (m) {
-        const r = await fetchTs(m.path);
+        const r = await fetchTs(m.path, m.heavy);
         return { ...m, ...r };
       }));
 
@@ -25052,7 +25068,9 @@
     function loadScoredIfNeeded() {
       if (_scoredLoaded) return Promise.resolve();
       _scoredLoaded = true;
-      // Parse the ~19.7MB scored-signals file in a Web Worker so opening
+      // Parse the scored-signals file (~2.3MB — capped at 4,000 recent
+      // signals server-side; it was 8.6MB/15k rows, whose parse +
+      // retained heap slowed whole browsers) in a Web Worker so opening
       // the Tracked Signals subtab doesn't freeze the main thread on
       // first load. Falls back to main-thread fetch on any worker issue.
       if (typeof Worker === "undefined") return _scoredMainThread();
@@ -25759,13 +25777,23 @@
       populateTrackedSectors(); populateTrackedThemes();
       renderTrackedHead(); renderTrackedBody();
     }
+    // Text filters debounce: re-filtering + re-sorting thousands of
+    // signals on EVERY keystroke made typing in the ticker box feel
+    // laggy on slower machines. Selects still apply immediately.
+    let _trkDebT = null;
+    function renderTrackedDebounced() {
+      clearTimeout(_trkDebT);
+      _trkDebT = setTimeout(renderTrackedBody, 160);
+    }
     ["trk-q","trk-type","trk-side","trk-dte","trk-cap","trk-sector","trk-theme",
      "trk-score","trk-prem","trk-status","trk-group","trk-golden","trk-otm",
      "trk-open","trk-liqab","trk-repeat","trk-ern","trk-noseller","trk-univ"]
         .forEach(function (id) {
       const el = document.getElementById(id);
-      if (el) el.addEventListener(
-        (el.tagName==="INPUT" && el.type==="text") ? "input" : "change", renderTrackedBody);
+      if (!el) return;
+      const isText = el.tagName === "INPUT" && el.type === "text";
+      el.addEventListener(isText ? "input" : "change",
+        isText ? renderTrackedDebounced : renderTrackedBody);
     });
     (function () {
       const b = $("trk-reset");

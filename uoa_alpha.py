@@ -615,7 +615,11 @@ def _emit_scored(scored):
     # trims the per-signal "Tracked Signals" list — while keeping the file
     # small enough that GitHub Pages can actually deploy it. (The old
     # indent=1 full dump ballooned to ~42MB and timed out the Pages deploy.)
-    SITE_MAX = 15000
+    # 15000 rows made an 8.6MB payload whose parse + retained heap slowed
+    # whole browsers on the Flow tab; the Tracked view renders at most 400
+    # rows post-filter, so 4000 recent signals (~2 months) lose nothing
+    # user-visible. Deep history stays in the ledger + edge aggregates.
+    SITE_MAX = 4000
     total = len(rows)
     rows = rows[:SITE_MAX]
     payload = {
