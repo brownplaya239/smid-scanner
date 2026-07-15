@@ -22,8 +22,9 @@ go-live; +5d stats become meaningful within ~2 weeks.
 import os
 import json
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
-from statistics import mean, median
+from datetime import datetime, timedelta, timezone
+from math import sqrt
+from statistics import mean, median, pstdev
 
 import polygon_data as pg
 
@@ -438,6 +439,7 @@ def compute_edge():
         if items:
             by_type[typ] = {"signals": len(items), "h": _group(items),
                             "oi": _oi_summary(items),
+                            "rich": _rich(items),
                             "alpha_confidence": _alpha_confidence(items)}
 
     by_score = {}
@@ -446,6 +448,8 @@ def compute_edge():
         if items:
             by_score[label] = {"signals": len(items), "h": _group(items),
                                "oi": _oi_summary(items),
+                               "rich": _rich(items),
+                               "excursion": _excursion_avg(items),
                                "alpha_confidence": _alpha_confidence(items)}
 
     by_dte = {}
@@ -454,6 +458,7 @@ def compute_edge():
         if items:
             by_dte[b] = {"signals": len(items), "h": _group(items),
                          "oi": _oi_summary(items),
+                         "rich": _rich(items),
                          "alpha_confidence": _alpha_confidence(items)}
 
     by_tag = {}
@@ -462,6 +467,7 @@ def compute_edge():
         if items:
             by_tag[tag] = {"signals": len(items), "h": _group(items),
                            "oi": _oi_summary(items),
+                           "rich": _rich(items),
                            "alpha_confidence": _alpha_confidence(items)}
 
     # ── Per-ticker and per-theme cohorts — power the dashboard's
@@ -524,6 +530,11 @@ def compute_edge():
         "oldest_signal_ts": oldest_signal_ts,
         "horizons":      HORIZONS,
         "overall":       _group(scored),
+        "rich_overall":  {str(h): _rich(scored, h) for h in (1, 3, 5, 10, 20)},
+        "ic":            _ic_suite(scored),
+        "by_regime":     _by_regime(scored),
+        "calibration":   _calibration(scored),
+        "lifecycle":     _lifecycle(scored),
         "excursion":     _excursion_avg(scored),
         "by_type":       by_type,
         "by_score":      by_score,
@@ -560,6 +571,206 @@ def _empty_edge():
         "oi_confirmation": {"checked": 0, "confirmed": 0, "weak": 0,
                             "closed": 0, "confirm_rate": None},
     }
+
+
+# ─── EV-first decision-support stats (Flow redesign) ─────────────────────────
+# Everything below is computed from the matured ledger — no estimates, no
+# hand-set numbers. Cohorts below their sample gate publish {"status":
+# "accruing"} instead of thin statistics.
+
+def _r2(v):
+    return round(v, 2)
+
+
+def _rich(items, horizon=5):
+    """Expected-value-first stats for one cohort at one horizon, with
+    uncertainty. Hit rate alone is misleading — a 49% hit rate with big
+    winners and small losers is a positive-EV system. Uses EXCESS return
+    vs SPY so beta doesn't masquerade as edge."""
+    xs = [s.get("returns", {}).get(horizon, {}).get("excess") for s in items]
+    xs = [v for v in xs if v is not None]
+    n = len(xs)
+    if n < 20:
+        return {"n": n, "status": "accruing"}
+    srt = sorted(xs)
+    q = lambda p: srt[min(n - 1, int(p * n))]
+    wins = [v for v in xs if v > 0]
+    losses = [v for v in xs if v <= 0]
+    avg = mean(xs)
+    sd = pstdev(xs) if n > 1 else 0.0
+    se = sd / sqrt(n) if n else 0.0
+    gross_w = sum(wins)
+    gross_l = abs(sum(losses))
+    sig = abs(avg) > 1.96 * se if se else False
+    return {
+        "n": n, "status": "active",
+        "ev": _r2(avg),                      # expected excess per trade (%)
+        "median": _r2(q(0.5)),
+        "std": _r2(sd),
+        "win_rate": round(100 * len(wins) / n),
+        "avg_win": _r2(mean(wins)) if wins else None,
+        "avg_loss": _r2(mean(losses)) if losses else None,
+        "profit_factor": _r2(gross_w / gross_l) if gross_l else None,
+        "ci95": [_r2(avg - 1.96 * se), _r2(avg + 1.96 * se)],
+        "p25": _r2(q(0.25)), "p75": _r2(q(0.75)), "p90": _r2(q(0.90)),
+        "ir": _r2(avg / sd) if sd else None,  # per-trade information ratio
+        "significant": sig,
+        # sample-size + significance confidence badge
+        "confidence": ("high" if n >= 800 and sig
+                       else "medium" if n >= 200 else "low"),
+    }
+
+
+def _spearman(pairs):
+    """Spearman rank correlation of (score, outcome) pairs. Crude ranks
+    (ties broken by order) — fine at these sample sizes."""
+    n = len(pairs)
+    if n < 50:
+        return None
+    def ranks(vals):
+        order = sorted(range(n), key=lambda i: vals[i])
+        r = [0] * n
+        for rank, i in enumerate(order):
+            r[i] = rank
+        return r
+    a = ranks([p[0] for p in pairs])
+    b = ranks([p[1] for p in pairs])
+    ma, mb = mean(a), mean(b)
+    num = sum((a[i] - ma) * (b[i] - mb) for i in range(n))
+    da = sqrt(sum((v - ma) ** 2 for v in a))
+    db = sqrt(sum((v - mb) ** 2 for v in b))
+    return round(num / (da * db), 3) if da and db else None
+
+
+def _ic_suite(scored):
+    """Institutional ranking quality: does a higher trade_score actually
+    predict a better +5d excess return? IC ~0 = the score ranks noise."""
+    pairs = []
+    for s in scored:
+        sc = s.get("trade_score")
+        x = s.get("returns", {}).get(5, {}).get("excess")
+        if sc is not None and x is not None:
+            pairs.append((sc, x, s.get("flagged_at") or ""))
+    base = [(p[0], p[1]) for p in pairs]
+    now = datetime.now(timezone.utc)
+    def window(days):
+        cut = (now - timedelta(days=days)).isoformat()
+        return _spearman([(p[0], p[1]) for p in pairs if p[2] >= cut])
+    return {
+        "n": len(base),
+        "ic_spearman": _spearman(base),
+        "ic_30d": window(30),
+        "ic_90d": window(90),
+        "note": ("Spearman rank IC of trade_score vs +5d excess. For daily "
+                 "signals, |IC| >= 0.05 is meaningful; the score_deciles "
+                 "block carries the top/bottom decile spread."),
+    }
+
+
+def _by_regime(scored):
+    """Cohort stats sliced by the market regime on the FLAG day (labels
+    from regime_history.json — loop 7's dataset). History only reaches
+    back to when regime logging started, so most cells accrue honestly."""
+    try:
+        with open(os.path.join(_BASE, "docs", "reports",
+                               "regime_history.json"), encoding="utf-8") as f:
+            hist = json.load(f)
+        lab = {d.get("date"): d.get("label")
+               for d in hist.get("days") or [] if d.get("date")}
+    except Exception:
+        return {}
+    groups = {}
+    for s in scored:
+        d = (s.get("flagged_at") or "")[:10]
+        lb = lab.get(d)
+        if lb:
+            groups.setdefault(lb, []).append(s)
+    out = {}
+    for lb, items in groups.items():
+        r = _rich(items)
+        out[lb] = r if r.get("n", 0) >= 200 else \
+            {"n": r.get("n", 0), "status": "accruing"}
+    return out
+
+
+def _calibration(scored):
+    """Time-split calibration per score band: 'predicted' = the band's
+    win rate on signals older than 45 days (training window), 'observed'
+    = the last 45 days. Drift = observed - predicted. A well-calibrated
+    band drifts near zero; big drift = the band's meaning has changed."""
+    cut = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
+    out = {}
+    for label, lo, hi in SCORE_BUCKETS:
+        items = [s for s in scored if lo <= s.get("trade_score", 0) < hi]
+        def wr(sub):
+            xs = [s.get("returns", {}).get(5, {}).get("excess") for s in sub]
+            xs = [v for v in xs if v is not None]
+            return (round(100 * sum(1 for v in xs if v > 0) / len(xs)),
+                    len(xs)) if xs else (None, 0)
+        pred, n_tr = wr([s for s in items if (s.get("flagged_at") or "") < cut])
+        obs, n_lv = wr([s for s in items if (s.get("flagged_at") or "") >= cut])
+        if n_tr >= 200 and n_lv >= 50 and pred is not None and obs is not None:
+            out[label] = {"predicted": pred, "observed": obs,
+                          "drift": obs - pred, "n_train": n_tr, "n_live": n_lv}
+        else:
+            out[label] = {"status": "accruing", "n_train": n_tr, "n_live": n_lv}
+    return out
+
+
+LIFECYCLE_PATH = os.path.join(_BASE, "data", "oi_lifecycle.json")
+LIFECYCLE_CAP = 8000
+
+
+def _lifecycle(scored):
+    """Position-lifecycle accrual: each nightly run snapshots whether a
+    young signal's contract OI is still elevated (confirmed/weak) at its
+    current day-offset. Aggregates into a retention curve — held +1d,
+    +2d, +3d, +5d, +10d. Accrues going forward from first deploy; gates
+    at n>=200 per offset. Calendar-day offsets (noted in the payload)."""
+    try:
+        with open(LIFECYCLE_PATH, encoding="utf-8") as f:
+            log = json.load(f)
+    except Exception:
+        log = {}
+    today = datetime.now(timezone.utc).date()
+    for s in scored:
+        oi = s.get("oi") or {}
+        if oi.get("status") in (None, "pending"):
+            continue
+        sid = s.get("id")
+        fd = (s.get("flagged_at") or "")[:10]
+        if not sid or not fd:
+            continue
+        try:
+            off = (today - datetime.strptime(fd, "%Y-%m-%d").date()).days
+        except Exception:
+            continue
+        if off < 1 or off > 12:
+            continue
+        e = log.setdefault(str(sid), {})
+        k = str(off)
+        if k not in e:
+            e[k] = 1 if oi["status"] in ("confirmed", "weak") else 0
+    if len(log) > LIFECYCLE_CAP:                    # drop oldest entries
+        for k in list(log)[:len(log) - LIFECYCLE_CAP]:
+            del log[k]
+    try:
+        os.makedirs(os.path.dirname(LIFECYCLE_PATH), exist_ok=True)
+        with open(LIFECYCLE_PATH, "w", encoding="utf-8") as f:
+            json.dump(log, f, separators=(",", ":"))
+    except Exception as e:
+        print(f"  lifecycle log write failed (non-fatal): {e}")
+    out = {}
+    for off in ("1", "2", "3", "5", "10"):
+        vals = [e[off] for e in log.values() if off in e]
+        out[off] = ({"n": len(vals),
+                     "held_rate": round(100 * sum(vals) / len(vals))}
+                    if len(vals) >= 200
+                    else {"n": len(vals), "status": "accruing"})
+    out["note"] = ("Share of tracked signals whose contract OI stayed "
+                   "elevated N calendar days after the flag. Accrues from "
+                   "2026-07-14 forward; publishes per offset at n>=200.")
+    return out
 
 
 def _emit_scored(scored):
@@ -1076,6 +1287,46 @@ def run():
         _emit_edge_weights(scored)
     except Exception as e:
         print(f"  edge_weights failed (non-fatal): {e}")
+    # Nightly model-health report: one small JSON answering "is the
+    # ranking engine itself healthy?" — rolling IC, calibration drift,
+    # feature freshness counts, ledger depth. Read by the Flow tab.
+    try:
+        cal = edge.get("calibration") or {}
+        drifts = [abs(v.get("drift", 0)) for v in cal.values()
+                  if isinstance(v, dict) and v.get("drift") is not None]
+        try:
+            with open(os.path.join(_BASE, "data", "edge_weights.json"),
+                      encoding="utf-8") as f:
+                dec = (json.load(f).get("decay") or {})
+        except Exception:
+            dec = {}
+        fading = sum(1 for v in dec.values()
+                     if (v.get("delta") or 0) <= -0.08)
+        improving = sum(1 for v in dec.values()
+                        if (v.get("delta") or 0) >= 0.08)
+        health = {
+            "generated": edge["generated"],
+            "ledger": {"total": edge["total_signals"],
+                       "matured_5d": edge["matured_5d"]},
+            "ic": edge.get("ic"),
+            "calibration_max_drift": max(drifts) if drifts else None,
+            "features": {"tracked": len(dec), "fading": fading,
+                         "improving": improving},
+            "note": ("Nightly self-check of the ranking engine. IC = rank "
+                     "correlation of score vs realized +5d excess; drift = "
+                     "per-band predicted-vs-live win-rate gap. Nothing here "
+                     "auto-changes production weights."),
+        }
+        with open(os.path.join(_BASE, "docs", "reports",
+                               "model_health.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump(health, f, separators=(",", ":"))
+        ic = edge.get("ic") or {}
+        print(f"  model health: IC {ic.get('ic_spearman')} "
+              f"· 30d {ic.get('ic_30d')} "
+              f"· fading {fading} / improving {improving}")
+    except Exception as e:
+        print(f"  model_health failed (non-fatal): {e}")
     o5 = edge["overall"].get("5", {})
     oc = edge["oi_confirmation"]
     print(f"  Wrote uoa_edge.json + uoa_signals_scored.json — "

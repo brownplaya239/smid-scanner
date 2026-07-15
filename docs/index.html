@@ -4754,6 +4754,42 @@
      contain-intrinsic-size keeps the scrollbar geometry stable. */
   table.uoa tbody tr { cursor:pointer;
     content-visibility:auto; contain-intrinsic-size:auto 34px; }
+  /* Flow decision-support: scorecard grid + detail drawer section */
+  .ecard-wide { grid-column: 1 / -1; }
+  .ecf-badge { font-size:8.5px; font-weight:800; letter-spacing:.06em;
+    text-transform:uppercase; padding:1px 6px; border-radius:4px;
+    margin-left:6px; vertical-align:1px; }
+  .ecf-high { background:rgba(31,179,99,.18); color:var(--green); }
+  .ecf-medium { background:rgba(232,179,76,.18); color:#e8b34c; }
+  .ecf-low { background:rgba(214,68,68,.18); color:var(--red); }
+  .ecf-ci { font-size:11px; color:var(--muted); font-weight:600; }
+  .ecf-grid { display:grid; grid-template-columns:repeat(4, 1fr);
+    gap:4px 12px; margin:7px 0 2px; }
+  @media (max-width:640px) { .ecf-grid { grid-template-columns:repeat(2,1fr); } }
+  .ecf-kv i { display:block; font-style:normal; font-size:8.5px;
+    letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+    font-weight:700; }
+  .ecf-kv b { font-size:13px; color:var(--text);
+    font-variant-numeric:tabular-nums; }
+  .dd-wrap { margin-top:10px; padding-top:8px;
+    border-top:1px solid var(--line); }
+  .dd-h { font-size:9px; font-weight:800; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--gold); margin-bottom:5px; }
+  .dd-row { display:flex; gap:8px; padding:3px 0; font-size:11px;
+    line-height:1.5; align-items:baseline; }
+  .dd-k { flex:0 0 92px; color:var(--muted); font-weight:700;
+    font-size:10px; }
+  .dd-chips { display:flex; flex-wrap:wrap; gap:3px; }
+  .dd-chip { font-size:9.5px; font-weight:700; padding:1px 5px;
+    border-radius:4px; background:rgba(255,255,255,.05); }
+  .dd-chip.pos { color:var(--green); } .dd-chip.neg { color:var(--red); }
+  .dd-badge { font-size:8.5px; font-weight:800; text-transform:uppercase;
+    padding:1px 5px; border-radius:4px; }
+  .dd-high { background:rgba(31,179,99,.18); color:var(--green); }
+  .dd-medium { background:rgba(232,179,76,.18); color:#e8b34c; }
+  .dd-low { background:rgba(214,68,68,.18); color:var(--red); }
+  .dd-note { color:var(--muted); font-style:italic; font-size:10px; }
+  .dd-spark { vertical-align:middle; margin-right:6px; }
   .uoa-detail { display:none; position:fixed; inset:0; z-index:50;
     background:rgba(4,8,20,.74); align-items:center; justify-content:center; padding:20px; }
   .uoa-detail.show { display:flex; }
@@ -24098,6 +24134,77 @@
         return out;
       }
       const cards = [];
+      // ── EV Scorecard — expected value first, hit rate demoted. A 49%
+      // win rate with winners ~1.6x losers is a positive-EV system; the
+      // old headline buried that. All stats = matured +5d excess vs SPY.
+      const kv = function (k, v) {
+        return '<span class="ecf-kv"><i>' + k + '</i><b>' + v + '</b></span>';
+      };
+      const ro5 = (edge.rich_overall || {})["5"];
+      if (ro5 && ro5.status === "active") {
+        const evCls = ro5.ev > 0 ? "pos" : "neg";
+        cards.push('<div class="ecard ecard-wide"><div class="et">' +
+          'Edge Scorecard · +5d excess vs SPY ' +
+          '<span class="ecf-badge ecf-' + ro5.confidence + '">' +
+          ro5.confidence + ' confidence</span></div>' +
+          '<div class="ev ' + evCls + '">' + (ro5.ev > 0 ? '+' : '') + ro5.ev +
+          '%<span class="ecf-ci"> EV per trade · 95% CI ' +
+          (ro5.ci95[0] > 0 ? '+' : '') + ro5.ci95[0] + '% … ' +
+          (ro5.ci95[1] > 0 ? '+' : '') + ro5.ci95[1] + '%</span></div>' +
+          '<div class="ecf-grid">' +
+          kv('Win rate', ro5.win_rate + '%') +
+          kv('Avg winner', '+' + ro5.avg_win + '%') +
+          kv('Avg loser', ro5.avg_loss + '%') +
+          kv('Profit factor', ro5.profit_factor) +
+          kv('Median', (ro5.median > 0 ? '+' : '') + ro5.median + '%') +
+          kv('IR / trade', ro5.ir) +
+          kv('P25 … P75', ro5.p25 + '% … +' + ro5.p75 + '%') +
+          kv('Sample', ro5.n.toLocaleString()) +
+          '</div><div class="es">Expected value is the headline — the win ' +
+          'rate alone hides that winners run ~' +
+          (ro5.avg_loss ? Math.abs(ro5.avg_win / ro5.avg_loss).toFixed(1) : '?') +
+          '× losers. P90 ' + (ro5.p90 > 0 ? '+' : '') + ro5.p90 +
+          '% — the average carries a fat right tail, so partial profit-taking ' +
+          'beats all-or-nothing exits.</div></div>');
+      }
+      // ── Rank Quality — does a HIGHER score predict a BETTER outcome? ──
+      const icd = edge.ic || {};
+      if (icd.ic_spearman != null) {
+        const sd0 = edge.score_deciles || {};
+        const good = icd.ic_spearman >= 0.05;
+        cards.push('<div class="ecard"><div class="et">Rank Quality (IC)</div>' +
+          '<div class="ev ' + (good ? 'pos' : 'neg') + '">' + icd.ic_spearman +
+          '</div><div class="es">Spearman IC of raw score vs +5d excess (n=' +
+          (icd.n || 0).toLocaleString() + ')' +
+          (icd.ic_90d != null ? ' · 90d ' + icd.ic_90d : '') +
+          (icd.ic_30d != null ? ' · 30d ' + icd.ic_30d : ' · 30d accruing') +
+          (sd0.status === 'active' && sd0.top_minus_bottom != null
+            ? ' · decile spread ' + (sd0.top_minus_bottom > 0 ? '+' : '') +
+              sd0.top_minus_bottom + 'pp' : '') + '. ' +
+          (good ? 'The score ranking carries real signal.'
+                : 'The raw score barely ranks outcomes — the nightly learned ' +
+                  'edge adjustments carry the ranking power. Treat raw score ' +
+                  'as a quality FILTER, not a ranking.') + '</div></div>');
+      }
+      // ── Calibration — do the bands still mean what history says? ──
+      const calD = edge.calibration || {};
+      const calKeys = Object.keys(calD).filter(function (k) {
+        return calD[k] && calD[k].drift != null; });
+      if (calKeys.length) {
+        cards.push('<div class="ecard"><div class="et">Calibration · ' +
+          'trained vs last 45d</div>' +
+          '<div class="ev neutral" style="font-size:12px;line-height:1.8">' +
+          calKeys.map(function (k) {
+            const c = calD[k];
+            const cls = Math.abs(c.drift) <= 5 ? 'pos' : 'neg';
+            return k + ': ' + c.predicted + '% → <b class="' + cls + '">' +
+              c.observed + '%</b> (' + (c.drift > 0 ? '+' : '') + c.drift + 'pp)';
+          }).join('<br>') + '</div>' +
+          '<div class="es">Win rate the band earned historically (predicted) ' +
+          'vs the last 45 days (observed). Big negative drift = the current ' +
+          'tape pays these signals less than history did — size down until ' +
+          'it normalizes.</div></div>');
+      }
       const ovMature = matureHorizons(edge.overall || {});
       const ov = bestHorizon(edge.overall || {});
       cards.push(edgeCard("Overall +"+ov.h+"d", ov.st));
@@ -24211,10 +24318,15 @@
               const v = d[k];
               const cls = v.delta <= -0.05 ? "neg"
                         : v.delta >= 0.05 ? "pos" : "";
+              // one-step exponential-smoothing extrapolation — a model
+              // estimate of where the edge is heading, labeled as such
+              const fc = Math.max(0, Math.min(100, Math.round(
+                (v.recent_hit + 0.5 * (v.recent_hit - v.prior_hit)) * 100)));
               return '<div style="margin:2px 0">' +
                 k.split(":").pop() + ': <b class="' + cls + '">' +
                 Math.round(v.prior_hit * 100) + '%→' +
-                Math.round(v.recent_hit * 100) + '%</b></div>';
+                Math.round(v.recent_hit * 100) + '%</b>' +
+                ' <span class="scp-edge-n">fcst ' + fc + '%</span></div>';
             };
             const dying = keys.slice(0, 2).filter(function (k) {
               return d[k].delta <= -0.05; }).map(fmt).join("");
@@ -24229,8 +24341,9 @@
               (dying ? '<div class="neg" style="font-size:10px;font-weight:800">FADING</div>' + dying : '') +
               (rising ? '<div class="pos" style="font-size:10px;font-weight:800">STRENGTHENING</div>' + rising : '') +
               '</div><div class="es">Per-feature hit rate, last 30 days vs ' +
-              'the prior 60. Fading edges get demoted by the nightly ' +
-              'learner; this is your early warning.</div>';
+              'the prior 60; fcst = simple exponential-smoothing ' +
+              'extrapolation (model estimate, not a promise). Fading edges ' +
+              'get demoted by the nightly learner.</div>';
             const host = $("uoa-edge");
             if (host) host.appendChild(el2);
           }).catch(function () {});
@@ -24295,14 +24408,22 @@
             cells + '</div>';
         }).join("");
         if (fpAny) {
-          cards.push('<div class="ecard"><div class="et">False-Positive Rate ' +
-            'by horizon</div><div class="ev neutral" style="font-size:12.5px;' +
-            'line-height:1.6;font-variant-numeric:tabular-nums">' +
+          const roAll = edge.rich_overall || {};
+          const evLine = FP_HZ.map(function (h) {
+            const rr = roAll[h];
+            return rr && rr.ev != null
+              ? '+' + h + 'd <b>' + (rr.ev > 0 ? '+' : '') + rr.ev + '%</b>'
+              : '+' + h + 'd —';
+          }).join(' · ');
+          cards.push('<div class="ecard"><div class="et">Signal Survival · ' +
+            'edge decay by horizon</div><div class="ev neutral" ' +
+            'style="font-size:12.5px;line-height:1.6;' +
+            'font-variant-numeric:tabular-nums">' +
             fpHdr + fpRows + '</div>' +
-            '<div class="es">Share of signals per score band that did NOT ' +
-            'work at each hold horizon (hover a cell for its matured n). ' +
-            'FP rises with hold time — flow edge decays, so favor shorter ' +
-            'holds and time-based stops.</div></div>');
+            '<div class="es"><b>EV by horizon:</b> ' + evLine +
+            '<br>Cells = share of signals per score band that did NOT work ' +
+            'at each hold (hover for matured n). Edge decays with hold ' +
+            'time — favor shorter holds and time-based stops.</div></div>');
         }
       } catch (_) {}
       // Explicit maturity card. Tells the user WHICH horizons have
@@ -26121,6 +26242,148 @@
       }
     }
 
+    // ── per-signal decision support (historical cohort, not advice) ──
+    function _sparkEV(hobj) {
+      const hs = ["1", "3", "5", "10", "20"];
+      const pts = hs.map(function (h) {
+        const st = hobj && hobj[h];
+        if (!st) return null;
+        return st.avg_excess != null ? st.avg_excess
+             : st.avg != null ? st.avg : null;
+      });
+      const vals = pts.filter(function (v) { return v != null; });
+      if (vals.length < 3) return "";
+      const mn = Math.min.apply(null, vals.concat(0));
+      const mx = Math.max.apply(null, vals.concat(0));
+      const W = 110, H = 24, span = (mx - mn) || 1;
+      const xy = [];
+      pts.forEach(function (v, i) {
+        if (v == null) return;
+        xy.push((i * (W / 4)).toFixed(0) + "," +
+                (H - (v - mn) / span * (H - 2) - 1).toFixed(1));
+      });
+      const z = (H - (0 - mn) / span * (H - 2) - 1).toFixed(1);
+      return '<svg class="dd-spark" width="' + W + '" height="' + H +
+        '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' +
+        '<line x1="0" y1="' + z + '" x2="' + W + '" y2="' + z +
+        '" stroke="rgba(255,255,255,.18)" stroke-width="1"/>' +
+        '<polyline points="' + xy.join(" ") +
+        '" fill="none" stroke="#e8b34c" stroke-width="1.5"/></svg>';
+    }
+    function _detailDecision(r) {
+      try {
+        const E = window.EDGE || {};
+        const sc = r.trade_score || 0;
+        const band = sc >= 80 ? "80-100" : sc >= 65 ? "65-79"
+                   : sc >= 55 ? "55-64" : null;
+        const bk = band && E.by_score ? E.by_score[band] : null;
+        const rich = bk && bk.rich && bk.rich.status === "active"
+          ? bk.rich : null;
+        let html = '<div class="dd-h">Decision support · historical ' +
+          'cohort stats — educational, not advice</div>';
+        // why this score — signed contribution chips (SHAP-style)
+        const comp = r.score_components || {};
+        const F = [["premium", "Premium"], ["vol_oi", "Vol/OI"],
+                   ["opening", "Opening"], ["repeat", "Repeat"],
+                   ["liquidity", "Liquidity"], ["catalyst", "Catalyst"],
+                   ["directional", "Directional"]];
+        const chips = [];
+        F.forEach(function (f) {
+          const v = comp[f[0]] || 0;
+          if (v > 0) chips.push('<span class="dd-chip pos">+' + v + ' ' +
+            f[1] + '</span>');
+        });
+        if ((comp.penalty || 0) < 0)
+          chips.push('<span class="dd-chip neg">' + comp.penalty +
+            ' Penalty</span>');
+        if (r.edge_adj)
+          chips.push('<span class="dd-chip ' +
+            (r.edge_adj > 0 ? "pos" : "neg") + '" title="' +
+            ((r.edge_why || []).join(", ")).replace(/"/g, "&quot;") + '">' +
+            (r.edge_adj > 0 ? "+" : "") + r.edge_adj + ' Learned</span>');
+        if (chips.length)
+          html += '<div class="dd-row"><span class="dd-k">Why ' + sc +
+            '</span><span class="dd-chips">' + chips.join("") +
+            '</span></div>';
+        // cohort expected value with uncertainty + confidence badge
+        if (rich) {
+          const cls = rich.ev > 0 ? "pos" : "neg";
+          html += '<div class="dd-row"><span class="dd-k">Score ' + band +
+            ' cohort</span><span><b class="' + cls + '">' +
+            (rich.ev > 0 ? "+" : "") + rich.ev + '% EV</b> / trade ' +
+            '(+5d excess · 95% CI ' + rich.ci95[0] + '…' + rich.ci95[1] +
+            '%) · win ' + rich.win_rate + '% · winners +' + rich.avg_win +
+            '% / losers ' + rich.avg_loss + '% · PF ' + rich.profit_factor +
+            ' · n=' + rich.n.toLocaleString() +
+            ' <span class="dd-badge dd-' + rich.confidence + '">' +
+            rich.confidence + '</span></span></div>';
+          const W = rich.win_rate / 100;
+          const R = rich.avg_win / Math.abs(rich.avg_loss || 1);
+          const k = W - (1 - W) / R;
+          if (isFinite(k))
+            html += '<div class="dd-row"><span class="dd-k">Sizing context' +
+              '</span><span>' + (k > 0
+                ? 'cohort half-Kelly ≈ <b>' + (50 * k).toFixed(1) +
+                  '% of risk budget</b>'
+                : 'cohort EV does not support sizing (half-Kelly ≤ 0)') +
+              ' <i class="dd-note">derived from cohort stats only — ' +
+              'not sizing advice</i></span></div>';
+        } else if (band) {
+          html += '<div class="dd-row"><span class="dd-k">Score ' + band +
+            ' cohort</span><span class="dd-note">EV stats accruing — ' +
+            'publish after tonight\'s scan</span></div>';
+        }
+        // optimal hold from the cohort's per-horizon curve
+        if (bk && bk.h) {
+          const hs = ["1", "3", "5", "10", "20"];
+          let best = null;
+          hs.forEach(function (h) {
+            const st = bk.h[h];
+            const v = st && (st.avg_excess != null ? st.avg_excess : st.avg);
+            if (v != null && st.n >= 100 && (!best || v > best.v))
+              best = { h: h, v: v };
+          });
+          if (best)
+            html += '<div class="dd-row"><span class="dd-k">Hold guidance' +
+              '</span><span>' + _sparkEV(bk.h) +
+              ' cohort EV peaks at <b>+' + best.h + 'd</b> (' +
+              (best.v > 0 ? "+" : "") + best.v +
+              '%) then decays — time-stop beats hoping</span></div>';
+        }
+        // institutional positioning lifecycle (accrual-gated)
+        const lc = E.lifecycle || {};
+        const lcOn = ["1", "2", "3", "5", "10"].filter(function (k) {
+          return lc[k] && lc[k].held_rate != null; });
+        html += '<div class="dd-row"><span class="dd-k">OI lifecycle</span>' +
+          '<span>' + (lcOn.length
+            ? 'held ' + lcOn.map(function (k) {
+                return '+' + k + 'd <b>' + lc[k].held_rate + '%</b>';
+              }).join(' · ')
+            : '<span class="dd-note">retention curve accruing (' +
+              ((lc["1"] || {}).n || 0) +
+              ' tracked) — publishes at n≥200 per day-offset</span>') +
+          '</span></div>';
+        // earnings window context from the counterfactual engine
+        if ((comp.catalyst || 0) > 0) {
+          let cf = "";
+          try {
+            const c = E.counterfactuals || {};
+            Object.keys(c).forEach(function (k) {
+              const e = c[k];
+              if (!cf && /earn/i.test(k) && e && e.avg != null)
+                cf = ' — into-earnings cohort historically ' +
+                  (e.avg > 0 ? '+' : '') + e.avg + '%/trade' +
+                  (e.n ? ' (n=' + e.n.toLocaleString() + ')' : '');
+            });
+          } catch (_) {}
+          html += '<div class="dd-row"><span class="dd-k">Earnings window' +
+            '</span><span>binary event risk inside the trade' + cf +
+            '</span></div>';
+        }
+        return '<div class="dd-wrap">' + html + '</div>';
+      } catch (_) { return ""; }
+    }
+
     function drow(k,v) {
       return '<div class="drow"><span class="dk">'+k+'</span><span class="dv">'+v+'</span></div>';
     }
@@ -26202,6 +26465,7 @@
           }
           return line;
         })() +
+        _detailDecision(r) +
         '<div class="dwhy">'+(r.why||"")+'</div>'+
       '</div>';
       d.classList.add("show");
