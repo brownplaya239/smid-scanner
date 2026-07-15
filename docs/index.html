@@ -25023,11 +25023,21 @@
         ths.map(function (t) { return '<option value="'+t+'">'+t+'</option>'; }).join("");
       sel.value = cur;          // preserve the selection across auto-refresh
     }
+    // Batch guard: the UOA scan publishes ~6×/day (75-min cadence), but
+    // this refresher polls every 90s. Re-parsing a 1.4MB JSON + fully
+    // re-rendering the table/clusters/edge + re-fetching 300 spot quotes
+    // on EVERY poll froze slower machines every 90 seconds. Now: HTTP
+    // revalidation instead of ?t= cache-busters (304 when unchanged),
+    // and a full skip when d.generated matches the batch already
+    // rendered — the heavy path runs ~6×/day, not ~250×.
+    let _uoaLastGen = null;
     function loadUoa() {
-      fetch("./reports/uoa_latest.json?t="+Date.now())
+      fetch("./reports/uoa_latest.json", { cache: "no-cache" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
+          if (d && d.generated && d.generated === _uoaLastGen) return;
           if (d) {
+            _uoaLastGen = d.generated || null;
             DATA = d.rows || [];
             const dt = d.generated ? new Date(d.generated) : null;
             $("uoa-updated").textContent = dt
@@ -25053,7 +25063,7 @@
           hydrateCurrentSpots(DATA);
         })
         .catch(function () { DATA = []; renderHead(); renderClusters(); renderBody(); });
-      fetch("./reports/uoa_edge.json?t="+Date.now())
+      fetch("./reports/uoa_edge.json", { cache: "no-cache" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (e) {
           EDGE = e;
@@ -26560,7 +26570,22 @@
       if (cm) cm.addEventListener("change", renderClusters);
     })();
     loadUoa();
-    setInterval(loadUoa, 90000);   // auto-refresh every 90s
+    // Auto-refresh only while the Flow tab is actually being looked at —
+    // polling (and potentially re-rendering) a hidden panel from a
+    // backgrounded browser was pure waste. The batch guard in loadUoa
+    // makes the visible-poll cheap (304 + generated check); switching
+    // back to the tab triggers an immediate check so data is never
+    // staler than one batch.
+    setInterval(function () {
+      const p = document.getElementById("panel-uoa");
+      if (!p || !p.classList.contains("active") || document.hidden) return;
+      loadUoa();
+    }, 90000);
+    const _navUoa = document.getElementById("nav");
+    if (_navUoa) _navUoa.addEventListener("click", function (e) {
+      if (e.target && e.target.dataset && e.target.dataset.tab === "uoa")
+        loadUoa();
+    });
   })();
 </script>
 </body>
