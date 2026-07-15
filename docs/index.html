@@ -4290,10 +4290,15 @@
     align-self:center; margin-right:4px;
     text-transform:uppercase; letter-spacing:.3px; font-weight:700; }
 
-  .uoa-edge { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
+  /* Grid (was flex): lets the Edge Scorecard span the full row via
+     .ecard-wide, sizes the stat cards evenly, and stops every card
+     stretching to the tallest sibling's height. */
+  .uoa-edge { display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(215px, 1fr));
+    gap:10px; margin-bottom:18px; align-items:start; }
   .uoa-edge .ecard {
     background:var(--card); border:1px solid var(--line); border-radius:8px;
-    padding:12px 14px; flex:1; min-width:155px;
+    padding:12px 14px; min-width:0;
   }
   .uoa-edge .et { font-size:10px; color:var(--muted); text-transform:uppercase;
     letter-spacing:.4px; margin-bottom:5px; }
