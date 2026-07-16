@@ -2127,6 +2127,51 @@ async function fetchMktCap(ticker, key) {
   if (mc !== null) memPut("mc:" + ticker, mc);
   return mc;
 }
+// Day movers ≥ a % threshold, with today's cumulative volume — the raw
+// material for the desk's recent-IPO runner scan. Deliberately dumb: it
+// returns every liquid name above the threshold and lets the client join
+// against the published IPO universe + average-volume table, so the
+// universe definition lives in one place (ipo_universe.py) instead of
+// being duplicated here. Full-market snapshot = one Polygon call.
+async function fetchDayMovers(env, minPct) {
+  if (!env.POLYGON_API_KEY) {
+    return { error: "POLYGON_API_KEY not configured", movers: [] };
+  }
+  try {
+    const r = await fetch(
+      "https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey=" +
+      env.POLYGON_API_KEY, { signal: AbortSignal.timeout(12000) });
+    if (!r.ok) return { error: "snapshot " + r.status, movers: [] };
+    const j = await r.json();
+    const all = Array.isArray(j.tickers) ? j.tickers : [];
+    const out = [];
+    for (const t of all) {
+      const pct = t.todaysChangePerc;
+      if (pct == null || pct < minPct) continue;
+      const tk = (t.ticker || "").toUpperCase();
+      if (!tk || /[.\-]/.test(tk)) continue;
+      const px = (t.day && t.day.c) || (t.lastTrade && t.lastTrade.p) ||
+                 (t.prevDay && t.prevDay.c) || null;
+      if (px == null || px < 2) continue;          // no sub-$2 pennies
+      const vol = (t.day && t.day.v) || 0;
+      out.push({ t: tk, pct: Math.round(pct * 10) / 10,
+                 px: Math.round(px * 100) / 100, vol: vol });
+    }
+    out.sort(function (a, b) { return b.pct - a.pct; });
+    return {
+      generated: new Date().toISOString(),
+      min_pct: minPct,
+      scanned: all.length,
+      count: out.length,
+      movers: out.slice(0, 400),
+      delay_minutes: 15,
+      note: ("Polygon full-market snapshot (15-min delayed). vol = today's " +
+             "cumulative regular-session volume."),
+    };
+  } catch (e) {
+    return { error: String(e), movers: [] };
+  }
+}
 async function fetchPremarketBuzz(env) {
   if (!env.POLYGON_API_KEY) {
     return { error: "POLYGON_API_KEY not configured", gainers: [], losers: [] };
@@ -3052,6 +3097,25 @@ export default {
         }));
         return Response.json({ ok: true, mcap: out },
           { headers: { ...cors, "Cache-Control": "public, max-age=3600" } });
+      }
+      // Day movers — ?daymovers=1[&min=4] returns every liquid name up at
+      // least `min`% today with its cumulative volume. Edge- + mem-cached
+      // 90s: one upstream snapshot serves every viewer, and the feed is
+      // 15-min delayed anyway so sub-minute polling would buy nothing.
+      if (url.searchParams.get("daymovers")) {
+        const minPct = Math.max(1, Math.min(50,
+          parseFloat(url.searchParams.get("min") || "4") || 4));
+        const cache = caches.default;
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const mk = "dm:" + minPct;
+        let data = memGet(mk, 90_000);
+        if (!data) { data = await fetchDayMovers(env, minPct); memPut(mk, data); }
+        const resp = Response.json(data, {
+          headers: { ...cors, "Cache-Control": "public, max-age=90" },
+        });
+        ctx.waitUntil(cache.put(request, resp.clone()));
+        return resp;
       }
       if (url.searchParams.get("premarket")) {
         const cache = caches.default;

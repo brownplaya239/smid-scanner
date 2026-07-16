@@ -113,6 +113,15 @@ jobs:
         continue-on-error: true
         run: python zdte_ideas.py
 
+      - name: Recent-IPO universe + average volume
+        # Listing dates (permanent — cached once in data/, later runs only
+        # date NEW listings) + 30-session average volume for names that
+        # listed inside the IPO window. Feeds the desk's recent-IPO runner
+        # scan, which joins this against the worker's live snapshot.
+        # Non-fatal: a reference-API hiccup must never block the publish.
+        continue-on-error: true
+        run: python ipo_universe.py
+
       - name: Index level statistics (touch/hold/break engine)
         # ~250 sessions of 5m bars per SPY/QQQ/IWM (Polygon; one aggs
         # request each) → per-level touch rate, first-touch hold/break,
