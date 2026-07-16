@@ -2611,7 +2611,12 @@ async function handleMyReports(request, env, cors) {
         headers: { "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
                    "apikey": env.SUPABASE_SERVICE_KEY,
                    "Content-Type": "application/json" },
-        body: JSON.stringify({ expiresIn: 600 }) });
+        // 6h reading window (was 600s — a 10-minute link meant anyone
+        // opening a report from a list rendered earlier hit Supabase's
+        // raw InvalidJWT "exp claim timestamp check failed" JSON where
+        // the PDF should be). The client ALSO re-fetches a fresh URL at
+        // click time now, so this is belt-and-braces, not the only guard.
+        body: JSON.stringify({ expiresIn: 21600 }) });
       if (sr.ok) {
         const sj = await sr.json();
         const rel = sj.signedURL || sj.signedUrl || "";

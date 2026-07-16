@@ -16850,14 +16850,49 @@
         " " + d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     } catch (e) {}
     var kind = rp.kind === "altdata" ? "Alt-Data" : "Research";
+    // No baked signed URL: those expire, and a click on a list rendered
+    // earlier used to open Supabase's raw InvalidJWT JSON instead of the
+    // PDF. The delegated handler below fetches a FRESH signed URL at
+    // click time, so an open always works while signed in.
     var right = rp.url
-      ? '<a href="' + rp.url + '" target="_blank" rel="noopener" class="mr-open">Open &rarr;</a>'
-      : '<span class="mr-exp">link expired — regenerate</span>';
+      ? '<a href="#" class="mr-open" data-mr-t="' + (rp.ticker || "") +
+        '" data-mr-kind="' + (rp.kind || "") + '" data-mr-at="' +
+        (rp.created_at || "") + '">Open &rarr;</a>'
+      : '<span class="mr-exp">file missing — regenerate</span>';
     return '<div class="mr-row">' +
       '<span class="mr-tk">' + (rp.ticker || "") + '</span>' +
       '<span class="mr-kind">' + kind + '</span>' +
       '<span class="mr-when">' + when + '</span>' + right + '</div>';
   }
+  // Click-time signed-URL fetch. Opens the tab SYNCHRONOUSLY (popup
+  // blockers kill window.open after an await) and navigates it once the
+  // fresh URL arrives.
+  document.addEventListener("click", async function (e) {
+    const a = e.target.closest && e.target.closest("a.mr-open[data-mr-t]");
+    if (!a) return;
+    e.preventDefault();
+    const win = window.open("", "_blank");
+    try {
+      const { session } = await getSessionSafe();
+      if (!session || !session.access_token) throw new Error("signed out");
+      const r = await fetch(WORKER_URL + "/my-reports?ticker=" +
+        encodeURIComponent(a.dataset.mrT),
+        { headers: { "Authorization": "Bearer " + session.access_token } });
+      const j = r.ok ? await r.json() : {};
+      const reps = (j && j.reports) || [];
+      const hit = reps.find(function (x) {
+        return (x.created_at || "") === a.dataset.mrAt && x.url; }) ||
+        reps.find(function (x) {
+          return (x.kind || "") === a.dataset.mrKind && x.url; }) ||
+        reps.find(function (x) { return x.url; });
+      if (hit && win) { win.location = hit.url; return; }
+      throw new Error("no fresh link");
+    } catch (err) {
+      if (win) win.close();
+      a.textContent = "sign in again to open";
+      setTimeout(function () { a.innerHTML = "Open &rarr;"; }, 3000);
+    }
+  });
   async function loadMyReports(opts) {
     opts = opts || {};
     const listId = opts.listId || "my-reports-list";
