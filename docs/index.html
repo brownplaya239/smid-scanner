@@ -2332,20 +2332,28 @@
     gap:10px; padding:8px 4px 2px; font-size:10px; color:var(--muted);
     align-items:start; }
   .zt-tier { border:1px solid var(--line); border-radius:8px;
-    padding:6px 8px; background:rgba(0,0,0,0.12); }
+    padding:6px 8px; background:rgba(0,0,0,0.12);
+    min-width:0; overflow:hidden; }
   .zt-th { font-size:9px; font-weight:800; letter-spacing:.07em;
     text-transform:uppercase; color:var(--gold); padding-bottom:4px; }
   .zt-th i { color:var(--muted); font-weight:600; text-transform:none;
     letter-spacing:0; }
-  .zt-r { display:flex; align-items:baseline; gap:5px; line-height:1.6;
+  /* Grid rows (was flex + min-widths): min-widths on nowrap cells made
+     each row ~316px of min-content, which forced the 1fr tier columns
+     wider than the panel — the Moving Averages tier ran off-screen and
+     the T/H cells spilled into the next card. Fixed tracks + a
+     shrinkable name column keep every tier inside its box and align the
+     numbers vertically. */
+  .zt-r { display:grid;
+    grid-template-columns:9px minmax(0,1fr) 56px 46px 44px 30px 30px;
+    gap:4px; align-items:baseline; line-height:1.65;
     white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .zt-n { font-weight:800; color:var(--text); min-width:58px;
-    font-size:9.5px; }
-  .zt-v { font-weight:700; min-width:54px; text-align:right; }
+  .zt-n { font-weight:800; color:var(--text); font-size:9.5px;
+    overflow:hidden; text-overflow:ellipsis; }
+  .zt-v { font-weight:700; text-align:right; }
   .zt-v.zt-abv { color:var(--green); } .zt-v.zt-blw { color:var(--red); }
-  .zt-x { min-width:46px; text-align:right; color:var(--textdim); }
-  .zt-s { min-width:36px; text-align:right; color:var(--muted);
-    font-size:9px; }
+  .zt-x { text-align:right; color:var(--textdim); }
+  .zt-s { text-align:right; color:var(--muted); font-size:9px; }
   #zdte-playbook { margin-top:14px; }
   .zp-card { background:var(--navy2); border:1px solid var(--line);
     border-radius:10px; padding:12px 15px; }
