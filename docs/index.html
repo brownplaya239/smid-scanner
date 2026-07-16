@@ -611,6 +611,31 @@
   @media (max-width:560px) {
     .desk-earn-stack .pmb-cols { grid-template-columns:minmax(0,1fr); }
   }
+  /* Recent-IPO runners (under the economic calendar) */
+  .ipr { background:var(--navy2); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; margin-top:12px; }
+  .ipr-head { display:flex; align-items:baseline; gap:8px;
+    flex-wrap:wrap; margin-bottom:6px; }
+  .ipr-title { font-size:12px; font-weight:800; color:var(--text); }
+  .ipr-stamp { font-size:9.5px; color:var(--muted); margin-left:auto; }
+  .ipr-r { display:grid;
+    grid-template-columns:minmax(0,1fr) 52px 62px 52px 60px;
+    gap:6px; align-items:baseline; padding:4px 0; cursor:pointer;
+    font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .ipr-r + .ipr-r { border-top:1px solid rgba(255,255,255,0.05); }
+  .ipr-r:hover { background:rgba(255,255,255,0.05); }
+  .ipr-tk { font-weight:800; color:var(--text); overflow:hidden;
+    text-overflow:ellipsis; }
+  .ipr-ipo { font-size:8.5px; font-weight:700; color:var(--gold);
+    background:rgba(255,200,0,.13); border-radius:3px; padding:1px 3px;
+    text-align:center; }
+  .ipr-px { text-align:right; color:var(--textdim); }
+  .ipr-pct { text-align:right; font-weight:800; }
+  .ipr-rv { text-align:right; color:var(--muted); font-size:10px; }
+  .ipr-empty { font-size:11px; color:var(--muted); font-style:italic;
+    padding:6px 0; }
+  .ipr-foot { font-size:9.5px; color:var(--muted); line-height:1.5;
+    margin-top:7px; padding-top:6px; border-top:1px solid var(--line); }
   /* Compact Upcoming Earnings (under the Themes pane) */
   .es-more { font-size:10px; font-weight:700; color:var(--muted);
     padding:1px 6px; border:1px dashed var(--line); border-radius:4px;
@@ -5474,6 +5499,19 @@
            relocated into #pmb-slot inside the Earnings column, where it
            stacks under the Upcoming Earnings tile (filling the dead space
            next to the tall economic calendar). -->
+      <!-- Recent-IPO runners — persistent node like #pmb, relocated into
+           #ipo-slot (under the economic calendar) after each grid rebuild
+           so the innerHTML swap can't destroy it. Filled by setupIpoRunners()
+           from the worker's ?daymovers= snapshot joined against the nightly
+           ipo_universe.json (listing date + 30d avg volume). -->
+      <div class="ipr" id="ipo-runners" style="display:none">
+        <div class="ipr-head">
+          <span class="ipr-title">🚀 Recent-IPO runners</span>
+          <span class="ipr-stamp" id="ipr-stamp"></span>
+        </div>
+        <div class="ipr-list" id="ipr-list"></div>
+        <div class="ipr-foot" id="ipr-foot"></div>
+      </div>
       <div class="pmb pmb--compact" id="pmb" style="display:none">
         <div class="pmb-head">
           <span class="pmb-title">📊 Market Buzz</span>
@@ -22699,6 +22737,7 @@
             '<div class="desk-earn-stack">' +
               cardBreakouts(swing, uoaMeta) +
               cardCalendar(cal, todayET) +
+              '<div id="ipo-slot"></div>' +   // recent-IPO runners, live
             '</div>' +
             '<div class="desk-earn-stack">' +
               cardThemes(swing) +
@@ -22726,6 +22765,8 @@
         // keeps its content + setupPremarketBuzz's cached refs intact.
         const _pmbNode = document.getElementById("pmb");
         if (_pmbNode) grid.parentNode.appendChild(_pmbNode);
+        const _iprNode = document.getElementById("ipo-runners");
+        if (_iprNode) grid.parentNode.appendChild(_iprNode);
         // Real-time-first ordering, packed to kill dead space. What Changed
         // and Action List are full-width cards; the two HALF-width cards —
         // Market Health + Top Options Flow — are paired left/right so Top
@@ -22767,6 +22808,8 @@
         // above, so there's no repaint in between (no flicker).
         const pmbSlot = document.getElementById("pmb-slot");
         if (pmbSlot && _pmbNode) pmbSlot.appendChild(_pmbNode);
+        const iprSlot = document.getElementById("ipo-slot");
+        if (iprSlot && _iprNode) iprSlot.appendChild(_iprNode);
         // Kick off live-quote hydration in the background. Once each
         // batch of /quotes lands, hydrateDeskLiveQuotes() walks the
         // DOM and refreshes every chg-pill in place — converting the
@@ -25636,6 +25679,131 @@
     // sub-$100M micro-caps filtered at the worker. Refreshes on desk-tab
     // activation + every 5 min while the desk is visible (matches the
     // worker's edge cache). Honest label with the session phase.
+    // ── Recent-IPO runners ───────────────────────────────────────────
+    // "Which recent IPOs are running RIGHT NOW?" — names that listed
+    // within the IPO window (ipo_universe.json, nightly) that are up
+    // >=4% today on >=1.5x their 30-day average volume.
+    //
+    // The relative-volume read is honest about its one assumption: at
+    // 11:36 AM only ~1/3 of the session has traded, so today's raw
+    // volume is compared against the average PRORATED to the elapsed
+    // session. That assumes volume spreads evenly through the day; it
+    // doesn't (the open and close are heavy), so early-session RVol
+    // reads a little hot. Stated in the footer rather than hidden.
+    (function setupIpoRunners() {
+      const wrap = document.getElementById("ipo-runners");
+      if (!wrap) return;
+      const MIN_PCT = 4, MIN_RVOL = 1.5;
+      let UNIV = null;
+      function esc(s) {
+        return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? "" : s);
+      }
+      // fraction of the RTH session elapsed, ET (0 pre-open, 1 after close)
+      function sessionElapsed() {
+        try {
+          const p = {};
+          new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York",
+            hour: "2-digit", minute: "2-digit", hour12: false })
+            .formatToParts(new Date()).forEach(function (x) { p[x.type] = x.value; });
+          const m = (+p.hour) * 60 + (+p.minute);
+          return Math.max(0, Math.min(1, (m - 570) / 390));
+        } catch (_) { return 1; }
+      }
+      function ipoAge(iso) {
+        const d = Date.parse(iso + "T00:00:00Z");
+        if (isNaN(d)) return "";
+        const yrs = (Date.now() - d) / (365.25 * 864e5);
+        return yrs < 1 ? Math.max(1, Math.round(yrs * 12)) + "mo"
+                       : yrs.toFixed(1) + "y";
+      }
+      function render(mv) {
+        const el = (window.escapeHtml, document.getElementById("ipr-list"));
+        const foot = document.getElementById("ipr-foot");
+        const stamp = document.getElementById("ipr-stamp");
+        if (!UNIV || !UNIV.tickers) {
+          el.innerHTML = '<div class="ipr-empty">Listing-date universe ' +
+            'not published yet — the nightly backfill fills this in.</div>';
+          if (foot) foot.textContent = "";
+          wrap.style.display = "";
+          return;
+        }
+        const el2 = sessionElapsed();
+        const rows = [];
+        (mv.movers || []).forEach(function (m) {
+          const u = UNIV.tickers[m.t];
+          if (!u || m.pct < MIN_PCT) return;
+          // prorate the average to the elapsed session so an 11 AM read
+          // isn't automatically "low volume"
+          const expect = u.avgvol * Math.max(0.08, el2);
+          const rv = expect > 0 ? m.vol / expect : 0;
+          if (rv < MIN_RVOL) return;
+          rows.push({ t: m.t, pct: m.pct, px: m.px, rv: rv, ipo: u.ipo });
+        });
+        rows.sort(function (a, b) { return b.pct - a.pct; });
+        const shown = rows.slice(0, 10);
+        if (stamp) {
+          const t = mv.generated ? new Date(mv.generated)
+            .toLocaleTimeString([], { hour: "numeric", minute: "2-digit",
+              timeZone: "America/New_York" }) + " ET" : "";
+          stamp.textContent = "as of " + t + " · delayed 15m";
+        }
+        el.innerHTML = shown.length
+          ? shown.map(function (r) {
+              return '<div class="ipr-r" data-t="' + esc(r.t) + '" ' +
+                'role="button" tabindex="0" title="Open ' + esc(r.t) +
+                ' drilldown">' +
+                '<span class="ipr-tk">' + esc(r.t) + '</span>' +
+                '<span class="ipr-ipo">IPO ' + ipoAge(r.ipo) + '</span>' +
+                '<span class="ipr-px">$' + r.px.toFixed(2) + '</span>' +
+                '<span class="ipr-pct pos">+' + r.pct.toFixed(1) + '%</span>' +
+                '<span class="ipr-rv">' + r.rv.toFixed(1) + '× vol</span>' +
+                '</div>';
+            }).join("")
+          : '<div class="ipr-empty">No recent IPO is up ' + MIN_PCT +
+            '%+ on ' + MIN_RVOL + '×+ volume right now.</div>';
+        if (foot)
+          foot.innerHTML = 'IPO &lt; ' + (UNIV.ipo_window_years || 5) +
+            'y · up ≥' + MIN_PCT + '% · ≥' + MIN_RVOL + '× the 30-day ' +
+            'average volume, prorated to the ' +
+            Math.round(el2 * 100) + '% of the session elapsed (assumes even ' +
+            'intraday volume — early reads run hot). ' + rows.length +
+            ' match of ' + (mv.count || 0) + ' movers ≥' + MIN_PCT + '%.';
+        wrap.style.display = "";
+      }
+      let _t = 0;
+      function load() {
+        if (Date.now() - _t < 80 * 1000 && wrap.style.display !== "none") return;
+        _t = Date.now();
+        const univP = UNIV ? Promise.resolve(UNIV)
+          : fetch("./reports/ipo_universe.json", { cache: "no-cache" })
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (d) { UNIV = d; return d; })
+              .catch(function () { return null; });
+        Promise.all([univP,
+          fetch(WORKER_URL + "/?daymovers=1&min=" + MIN_PCT)
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+        ]).then(function (a) { if (a[1]) render(a[1]); });
+      }
+      load();
+      const nav = document.getElementById("nav");
+      if (nav) nav.addEventListener("click", function (e) {
+        if (e.target && e.target.dataset && e.target.dataset.tab === "desk")
+          setTimeout(load, 120);
+      });
+      setInterval(function () {
+        const p = document.getElementById("panel-desk");
+        if (p && p.classList.contains("active") &&
+            document.visibilityState === "visible" &&
+            typeof isMarketOpenET === "function" && isMarketOpenET()) load();
+      }, 90 * 1000);
+      wrap.addEventListener("click", function (e) {
+        const r = e.target.closest(".ipr-r");
+        if (r && r.dataset.t && window.openTickerPanel)
+          window.openTickerPanel(r.dataset.t);
+      });
+    })();
+
     (function setupPremarketBuzz() {
       const wrap = document.getElementById("pmb");
       if (!wrap) return;
