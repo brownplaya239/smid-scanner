@@ -2415,6 +2415,15 @@
   .zp-v { font-weight:700; text-align:right; color:var(--text); }
   .zp-d { text-align:right; font-weight:700; }
   .zp-a { text-align:right; color:var(--muted); font-size:9px; }
+  /* Live price anchor, spliced into its true rank in the ladder:
+     everything above it is overhead supply, everything below support. */
+  .zp-spot { display:flex; align-items:center; gap:6px; margin:3px 0;
+    white-space:nowrap; }
+  .zp-spot-l { flex:1; height:1px; background:linear-gradient(90deg,
+    transparent, var(--gold), transparent); }
+  .zp-spot-t { font-size:10.5px; font-weight:800; color:var(--gold);
+    font-variant-numeric:tabular-nums; }
+  .zp-spot-t i { font-style:normal; font-weight:700; font-size:9.5px; }
   .zp-vd { font-size:8.5px; font-weight:800; text-align:center;
     border-radius:3px; padding:1px 3px; }
   .zp-fade { background:rgba(31,179,99,.16); color:var(--green); }
@@ -15262,7 +15271,18 @@
         if (grp.length >= 2 && (!cluster || grp.length > cluster.length))
           cluster = grp;
       }
-      const body = rows.map(function (r) {
+      // Live spot marker, spliced into its TRUE position in the stack so
+      // the pane reads like a ladder: everything above the band is
+      // overhead supply, everything below is support. Repaints on the
+      // same 60s cycle as the chart (quotes are 15-min delayed).
+      const pc = ctx.lv.L.PC;
+      const dayPct = pc ? (last / pc - 1) * 100 : null;
+      const spotRow = '<div class="zp-spot"><span class="zp-spot-l"></span>' +
+        '<span class="zp-spot-t">' + ctx.sym + ' ' + fmt2(last) +
+        (dayPct == null ? "" : ' <i class="' + (dayPct >= 0 ? "pos" : "neg") +
+          '">' + (dayPct > 0 ? "+" : "") + dayPct.toFixed(2) + '% today</i>') +
+        '</span><span class="zp-spot-l"></span></div>';
+      const body0 = rows.map(function (r) {
         const s = r.sk ? st[r.sk] : null;
         const above = r.v >= last;
         const tb = PLAY_TIER[r.tier] || ["", ""];
@@ -15289,7 +15309,13 @@
           '<span class="zp-a">' + (atr
             ? (Math.abs(r.v - last) / atr).toFixed(2) + " ATR" : "") + '</span>' +
           verdict + '</div>';
-      }).join("");
+      });
+      // splice the spot marker in at its true rank (rows are price-desc,
+      // so it lands after the last level above price)
+      let cut = rows.findIndex(function (r) { return r.v < last; });
+      if (cut < 0) cut = rows.length;
+      const body = body0.slice(0, cut).join("") + spotRow +
+        body0.slice(cut).join("");
       // headline read
       let read;
       if (!rows.length) {
