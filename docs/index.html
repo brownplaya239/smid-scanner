@@ -2389,6 +2389,37 @@
   .zt-def { cursor:help; border-bottom:1px dotted var(--muted); }
   .zt-hint { grid-column:1 / -1; font-size:9.5px; color:var(--muted);
     font-style:italic; padding-top:2px; }
+  /* In-play radar — sits bottom-right inside the same legend box, under
+     the Dealer / Moving-average tiers (negative line numbers = last two
+     columns; full width once the grid drops to <=2 columns). */
+  .zt-play { grid-column:-3 / -1; border-color:var(--gold); }
+  @media (max-width:900px) { .zt-play { grid-column:1 / -1; } }
+  .zp-read { font-size:10.5px; line-height:1.55; color:var(--text);
+    padding:2px 0 6px; border-bottom:1px solid var(--line);
+    margin-bottom:4px; }
+  .zp-r { display:grid;
+    grid-template-columns:10px minmax(0,1fr) 44px 56px 46px 48px 58px;
+    gap:4px; align-items:baseline; line-height:1.7; white-space:nowrap;
+    font-variant-numeric:tabular-nums; cursor:help; }
+  .zp-r:hover { background:rgba(255,255,255,0.05); border-radius:3px; }
+  .zp-ar { font-size:7px; }
+  .zp-n { font-weight:800; color:var(--text); font-size:9.5px;
+    overflow:hidden; text-overflow:ellipsis; }
+  .zp-t { font-size:8px; font-weight:800; text-transform:uppercase;
+    letter-spacing:.04em; text-align:center; border-radius:3px;
+    padding:1px 3px; }
+  .zp-core { background:rgba(255,213,74,.16); color:#ffd54a; }
+  .zp-struct { background:rgba(255,157,60,.16); color:#ff9d3c; }
+  .zp-dealer { background:rgba(70,220,139,.16); color:#46dc8b; }
+  .zp-ma { background:rgba(199,107,209,.16); color:#c76bd1; }
+  .zp-v { font-weight:700; text-align:right; color:var(--text); }
+  .zp-d { text-align:right; font-weight:700; }
+  .zp-a { text-align:right; color:var(--muted); font-size:9px; }
+  .zp-vd { font-size:8.5px; font-weight:800; text-align:center;
+    border-radius:3px; padding:1px 3px; }
+  .zp-fade { background:rgba(31,179,99,.16); color:var(--green); }
+  .zp-brk { background:rgba(214,68,68,.16); color:var(--red); }
+  .zp-flip { background:rgba(255,255,255,.06); color:var(--muted); }
   #zdte-conf { margin-bottom:12px; }
   .zdte-conf-card { background:var(--navy2); border:1px solid var(--gold);
     border-radius:10px; padding:12px 15px; }
@@ -15183,9 +15214,118 @@
         return '<div class="zt-tier"><div class="zt-th">' + TIER_NAMES[t] +
           note + '</div>' + body + '</div>';
       }).join("");
-      host.innerHTML = html +
+      host.innerHTML = html + renderInPlay(ctx) +
         '<div class="zt-hint">Hover (or tap) any level for its full name, ' +
         'what it is, how it\'s traded, and its measured track record.</div>';
+    }
+
+    // ── "In Play Now" — the proximity radar ─────────────────────────────
+    // 30 levels are on the board; only the handful price is about to run
+    // into matter in the next few minutes. This pane answers "what am I
+    // approaching, what KIND of level is it, and does it usually hold?"
+    // Verdicts come from the measured first-touch-held rate (level_stats,
+    // ~253 sessions) — not opinion. Where the sample says a level is a
+    // coin flip, it says so.
+    const PLAY_TIER = { 1: ["core", "zp-core"], 2: ["struct", "zp-struct"],
+                        3: ["dealer", "zp-dealer"], 4: ["MA", "zp-ma"] };
+    function renderInPlay(ctx) {
+      const last = ctx.last;
+      if (!last) return "";
+      const S = lvStatsFor(ctx.sym);
+      const st = (S && S.levels) || {};
+      const atr = S && S.atr14;
+      // band = how far ahead we look, ATR-scaled so the radar means the
+      // same thing on SPY as on IWM. 0.35 ATR ~ the next 15-60 minutes
+      // of range; wider than that and it stops being "in play" (0.6 ATR
+      // pulled in 22 of the 30 levels — a second full table, not a
+      // radar). Hard-capped at 8 nearest so it stays scannable, then
+      // re-sorted by price so it reads top-to-bottom like the chart.
+      const band = atr ? 0.35 * atr : last * 0.0025;
+      let rows = levelRows(ctx).filter(function (r) {
+        return r.v != null && Math.abs(r.v - last) <= band; });
+      rows.sort(function (a, b) {
+        return Math.abs(a.v - last) - Math.abs(b.v - last); });
+      const hidden = Math.max(0, rows.length - 8);
+      rows = rows.slice(0, 8);
+      rows.sort(function (a, b) { return b.v - a.v; });
+      const fmtD = function (r) {
+        const d = (r.v / last - 1) * 100;
+        return (d > 0 ? "+" : "") + d.toFixed(2) + "%";
+      };
+      // cluster = levels stacked within 0.1 ATR — the real walls
+      const tol = atr ? 0.1 * atr : last * 0.0007;
+      let cluster = null;
+      for (let i = 0; i < rows.length - 1; i++) {
+        const grp = [rows[i]];
+        for (let j = i + 1; j < rows.length; j++)
+          if (Math.abs(rows[j].v - rows[i].v) <= tol) grp.push(rows[j]);
+        if (grp.length >= 2 && (!cluster || grp.length > cluster.length))
+          cluster = grp;
+      }
+      const body = rows.map(function (r) {
+        const s = r.sk ? st[r.sk] : null;
+        const above = r.v >= last;
+        const tb = PLAY_TIER[r.tier] || ["", ""];
+        let verdict = '<span class="zp-vd zp-flip">no sample</span>';
+        if (s && s.held != null) {
+          verdict = s.held >= 58
+            ? '<span class="zp-vd zp-fade" title="First touch held ' + s.held +
+              '% of the time — this level tends to reject.">holds ' + s.held + '%</span>'
+            : s.held <= 42
+              ? '<span class="zp-vd zp-brk" title="First touch broke ' +
+                (100 - s.held) + '% of the time — this level tends to give way.">breaks ' +
+                (100 - s.held) + '%</span>'
+              : '<span class="zp-vd zp-flip" title="First touch held ' + s.held +
+                '% — statistically a coin flip. Trade the reaction, not the level.">' +
+                'coin flip</span>';
+        }
+        return '<div class="zp-r" data-zdef="' + r.n + '">' +
+          '<span class="zp-ar ' + (above ? "pos" : "neg") + '">' +
+            (above ? "▲" : "▼") + '</span>' +
+          '<span class="zp-n">' + r.n + '</span>' +
+          '<span class="zp-t ' + tb[1] + '">' + tb[0] + '</span>' +
+          '<span class="zp-v">' + fmt2(r.v) + '</span>' +
+          '<span class="zp-d ' + (above ? "pos" : "neg") + '">' + fmtD(r) + '</span>' +
+          '<span class="zp-a">' + (atr
+            ? (Math.abs(r.v - last) / atr).toFixed(2) + " ATR" : "") + '</span>' +
+          verdict + '</div>';
+      }).join("");
+      // headline read
+      let read;
+      if (!rows.length) {
+        const all = levelRows(ctx).filter(function (r) { return r.v != null; });
+        let up = null, dn = null;
+        all.forEach(function (r) {
+          if (r.v > last && (!up || r.v < up.v)) up = r;
+          if (r.v < last && (!dn || r.v > dn.v)) dn = r;
+        });
+        read = 'Clear air — nothing marked within ' +
+          (atr ? "0.35 ATR" : "0.25%") + '. Next up: ' +
+          (up ? '<b>' + up.n + '</b> ' + fmt2(up.v) : "—") + ' · next down: ' +
+          (dn ? '<b>' + dn.n + '</b> ' + fmt2(dn.v) : "—") + '.';
+      } else {
+        const near = rows.slice().sort(function (a, b) {
+          return Math.abs(a.v - last) - Math.abs(b.v - last); })[0];
+        const ns = near.sk ? st[near.sk] : null;
+        const touching = Math.abs(near.v - last) <= (atr ? 0.05 * atr : last * 0.0004);
+        read = (touching ? 'Testing <b>' : 'Approaching <b>') + near.n +
+          '</b> ' + fmt2(near.v) + ' (' + fmtD(near) + ')' +
+          (ns && ns.held != null
+            ? ' — first touch holds <b>' + ns.held + '%</b> of the time' +
+              (ns.held >= 58 ? ': a genuine fade level.'
+               : ns.held <= 42 ? ': it usually gives way — favor the break.'
+               : ': a coin flip, so trade the reaction, not the level.')
+            : '.') +
+          (cluster ? ' <b>' + cluster.map(function (x) { return x.n; })
+            .join(" + ") + '</b> stack within 0.1 ATR — the real wall here.'
+            : '');
+      }
+      return '<div class="zt-tier zt-play"><div class="zt-th">⌖ In play now ' +
+        '<i>· within ' + (atr ? "0.35 ATR" : "0.25%") + ' of ' + fmt2(last) +
+        '</i></div>' +
+        '<div class="zp-read">' + read + '</div>' + body +
+        (hidden ? '<div class="zt-hint" style="padding-top:4px">+' + hidden +
+          ' more in the band — nearest 8 shown</div>' : '') + '</div>';
     }
 
     // ── “what matters NOW” panel ──
