@@ -17044,24 +17044,43 @@
           return;
         }
       }
-      // Log the generation attempt for credit tracking
-      if (SUPA && CURRENT_USER) {
-        try {
-          await SUPA.from("report_generations").insert({
-            user_id: CURRENT_USER.id,
-            ticker: ticker,
-            report_type: cfg.reportType,
-            status: "queued",
-          });
-          if (typeof refreshPlanState === "function") {
-            await refreshPlanState();
-          }
-        } catch (e) { console.warn("Report log failed:", e); }
-      }
+      // Paint FIRST. Everything below (Supabase insert, manifest fetch,
+      // worker POST) can stall, and any stall before the first paint makes
+      // the button look stone dead — no status, no spinner, no error. That
+      // was the bug: the credit-log insert below was awaited BEFORE this,
+      // so a stalled supabase-js call (see refreshPlanState's note on
+      // post-token-refresh hangs) silently swallowed the whole click, but
+      // only when signed in.
       button.disabled = true;
       viewer.className = ""; viewer.innerHTML = "";
       setStatus("working", "Researching <strong>" + ticker + "</strong> &mdash; triggering&hellip;");
-      const base = await fetchManifest();
+      // Log the generation attempt for credit tracking. BOUNDED: this is
+      // bookkeeping only — the worker re-validates the plan server-side
+      // from the JWT — so a slow or failed log must never block the report.
+      if (SUPA && CURRENT_USER) {
+        try {
+          await Promise.race([
+            SUPA.from("report_generations").insert({
+              user_id: CURRENT_USER.id,
+              ticker: ticker,
+              report_type: cfg.reportType,
+              status: "queued",
+            }),
+            new Promise(function (_, rej) {
+              setTimeout(function () {
+                rej(new Error("supabase insert timed out")); }, 6000);
+            }),
+          ]);
+          if (typeof refreshPlanState === "function") {
+            await refreshPlanState();
+          }
+        } catch (e) { console.warn("Report log failed (non-blocking):", e); }
+      }
+      // Manifest is only used to diff for the NEW file; a failure here must
+      // not abort the run (it was unguarded, so a throw left the button
+      // disabled forever with "triggering…" on screen).
+      let base = {};
+      try { base = await fetchManifest(); } catch (_) { base = {}; }
       const baseline = new Set(
         ((base.reports && base.reports[cfg.listKey]) || []).map(function (e) { return e.file; })
       );
