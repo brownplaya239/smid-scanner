@@ -2361,6 +2361,26 @@
     padding-left:2px; }
   .zp-foot { font-size:10px; color:var(--muted); margin-top:8px;
     line-height:1.5; }
+  /* Level glossary hover card — instant + formatted (native title= has a
+     ~1s delay, can't be styled, and truncates on some platforms). */
+  .ztip { position:fixed; z-index:70; display:none; max-width:330px;
+    background:var(--navy2); border:1px solid var(--gold);
+    border-radius:8px; padding:9px 11px; pointer-events:none;
+    box-shadow:0 8px 26px rgba(0,0,0,.55); }
+  .ztip-k { font-size:9px; font-weight:800; letter-spacing:.08em;
+    color:var(--gold); text-transform:uppercase; }
+  .ztip-n { font-size:13px; font-weight:800; color:var(--text);
+    margin-bottom:3px; }
+  .ztip-d { font-size:11px; color:var(--textdim); line-height:1.5; }
+  .ztip-u { font-size:11px; color:var(--text); line-height:1.5;
+    margin-top:4px; }
+  .ztip-s { font-size:10px; color:var(--muted); line-height:1.5;
+    margin-top:5px; padding-top:5px; border-top:1px solid var(--line); }
+  .zt-r { cursor:help; }
+  .zt-r:hover { background:rgba(255,255,255,0.05); border-radius:3px; }
+  .zt-def { cursor:help; border-bottom:1px dotted var(--muted); }
+  .zt-hint { grid-column:1 / -1; font-size:9.5px; color:var(--muted);
+    font-style:italic; padding-top:2px; }
   #zdte-conf { margin-bottom:12px; }
   .zdte-conf-card { background:var(--navy2); border:1px solid var(--gold);
     border-radius:10px; padding:12px 15px; }
@@ -14893,6 +14913,155 @@
       return best;
     }
 
+    // ── Level glossary — every acronym on this page, spelled out ──
+    // [full name, what it is, how it's traded]. Surfaced by the hover
+    // card below on the tier table + NOW panel, so no label on this
+    // page is ever an unexplained acronym.
+    const ZDEF = {
+      "PDH": ["Prior Day High",
+        "Yesterday's regular-session (9:30–16:00 ET) high.",
+        "Classic breakout trigger: a clean break AND hold opens continuation; rejection fades back into yesterday's range."],
+      "PDL": ["Prior Day Low",
+        "Yesterday's regular-session low.",
+        "Losing it turns the session defensive — the reference short trigger."],
+      "PC": ["Prior Close",
+        "Yesterday's 4:00 PM closing print.",
+        "The gap reference: holding above a gap-up is bullish acceptance; slipping back through it invites a gap fill."],
+      "PMH": ["Premarket High",
+        "Highest print between 4:00 and 9:30 AM ET.",
+        "Early conviction ceiling. The first test after the open is a classic reversal spot."],
+      "PML": ["Premarket Low",
+        "Lowest print between 4:00 and 9:30 AM ET.",
+        "Early conviction floor; breaking it after the open often extends."],
+      "ORH": ["Opening Range High",
+        "High of the first 15 minutes of regular trading.",
+        "Break above favors a trend-up day; failure back inside favors chop."],
+      "ORL": ["Opening Range Low",
+        "Low of the first 15 minutes of regular trading.",
+        "Break below favors a trend-down day."],
+      "VWAP": ["Volume-Weighted Average Price",
+        "Session average price weighted by volume — the institutional fair-value line.",
+        "Above = buyers in control (buy dips to it); below = sellers (sell rallies to it)."],
+      "EM+": ["Expected Move — upper",
+        "Spot + the at-the-money straddle price: the options-implied session ceiling.",
+        "Reaching it early means the day already paid its implied move — chasing beyond it is negative-expectancy more often than not."],
+      "EM−": ["Expected Move — lower",
+        "Spot − the at-the-money straddle price: the options-implied session floor.",
+        "Same logic inverted — the tape has already paid its implied move down here."],
+      "ONM": ["Overnight Midpoint",
+        "Midpoint of the overnight range (prior post-market + this morning's premarket).",
+        "Fair value of the overnight session; a magnet when the day opens directionless."],
+      "OVWAP": ["Overnight VWAP",
+        "Volume-weighted average price across the extended (post + pre) session.",
+        "Where overnight size actually traded — reclaiming it flips the overnight bias."],
+      "VPOC": ["Volume Point of Control",
+        "Today's single highest-volume price.",
+        "The market's fairest price — it acts as a magnet; price tends to revert toward it."],
+      "VAH": ["Value Area High",
+        "Top of the range where 70% of today's volume traded.",
+        "Edge of value: acceptance above opens higher value, rejection sends price back to VPOC."],
+      "VAL": ["Value Area Low",
+        "Bottom of the 70%-volume range.",
+        "Edge of value on the downside — the dip-buy shelf while value holds."],
+      "WK H": ["Prior Week High", "Highest print of the last completed week.",
+        "Higher-timeframe supply; swing traders defend it."],
+      "WK L": ["Prior Week Low", "Lowest print of the last completed week.",
+        "Higher-timeframe demand."],
+      "MO H": ["Prior Month High", "Highest print of the last completed month.",
+        "Monthly supply — rarely tagged intraday without a catalyst."],
+      "MO L": ["Prior Month Low", "Lowest print of the last completed month.",
+        "Monthly demand."],
+      "QTR H": ["Prior Quarter High", "Highest print of the last completed quarter.",
+        "Institutional-timeframe reference."],
+      "QTR L": ["Prior Quarter Low", "Lowest print of the last completed quarter.",
+        "Institutional-timeframe reference."],
+      "CALL WALL": ["Call Wall — largest positive-gamma strike",
+        "The strike with the biggest dealer call gamma (prior-session settled OI).",
+        "Dealers sell rallies into it to stay hedged — it acts as a ceiling until it breaks."],
+      "PUT WALL": ["Put Wall — largest negative-gamma strike",
+        "The strike with the biggest dealer put gamma (settled OI).",
+        "Dealers buy dips into it — it acts as a floor while it holds."],
+      "FLIP": ["Gamma Flip (zero gamma)",
+        "The price where net dealer gamma crosses from positive to negative.",
+        "Above: dealer hedging DAMPENS moves (fade the extremes). Below: hedging AMPLIFIES them (play momentum)."],
+      "MAX PAIN": ["Max Pain",
+        "The settle price where option holders lose the most in aggregate (nearest-expiry OI).",
+        "A pin magnet into expiration — strongest on expiry afternoons, weak otherwise."],
+      "LG": ["Largest Gamma Strike",
+        "The single strike carrying the largest absolute gamma exposure.",
+        "The most-hedged price on the board — reactions cluster here."],
+      "EMA9": ["9-period EMA", "Fast exponential moving average on the chart's timeframe.",
+        "The momentum rail on a trending day."],
+      "EMA20": ["20-period EMA", "Exponential moving average on the chart's timeframe.",
+        "The intraday trend rail — pullbacks to it are the standard trend entry."],
+      "EMA200": ["200-period EMA", "Slow exponential average on the chart's timeframe.",
+        "The regime line — sharp fights happen here."],
+      "SMA50d": ["50-day SMA", "Daily simple moving average over 50 sessions.",
+        "Swing-trend reference the whole market watches."],
+      "SMA200d": ["200-day SMA", "Daily simple moving average over 200 sessions.",
+        "The long-term bull/bear line."],
+      "T": ["Touch rate",
+        "Share of the measured sessions where price touched this level at all.",
+        "High T = the level gets tested nearly every day (plan for it); low T = a rare visit."],
+      "H": ["First-touch held",
+        "Of the sessions that touched it, the share where the FIRST touch held (no clean break).",
+        "H near 50% is a coin flip — trade the reaction, not the level. Well above 50% = a genuine fade level; well below = a break level."]
+    };
+
+    // Instant styled hover card — native title= waits ~1s, can't be
+    // formatted, and truncates. One node on body, moved to the cursor.
+    let _zTip = null;
+    function zTipShow(key, x, y) {
+      const d = ZDEF[key];
+      if (!d) return;
+      if (!_zTip) {
+        _zTip = document.createElement("div");
+        _zTip.className = "ztip";
+        document.body.appendChild(_zTip);
+      }
+      const S = lvStatsFor(sym);
+      const sk = ((S && S.levels) || {})[key];
+      _zTip.innerHTML = '<div class="ztip-k">' + key + '</div>' +
+        '<div class="ztip-n">' + d[0] + '</div>' +
+        '<div class="ztip-d">' + d[1] + '</div>' +
+        '<div class="ztip-u">' + d[2] + '</div>' +
+        (sk && sk.touch != null
+          ? '<div class="ztip-s">Measured on ' +
+            ((_lvStats && _lvStats.sessions) || "?") +
+            ' sessions: touched <b>' + sk.touch + '%</b> of them · first ' +
+            'touch held <b>' + sk.held + '%</b>' +
+            (sk.brk_ext != null ? ' · avg extension after a break <b>' +
+              sk.brk_ext + '%</b>' : '') + ' · n=' + sk.n + '</div>'
+          : '');
+      _zTip.style.display = "block";
+      const w = _zTip.offsetWidth, h = _zTip.offsetHeight;
+      let left = x + 14, top = y + 14;
+      if (left + w > window.innerWidth - 8) left = x - w - 14;
+      if (top + h > window.innerHeight - 8) top = y - h - 14;
+      _zTip.style.left = Math.max(8, left) + "px";
+      _zTip.style.top = Math.max(8, top) + "px";
+    }
+    function zTipHide() { if (_zTip) _zTip.style.display = "none"; }
+    // Delegated on the panel: tier rows, NOW-panel labels and the T/H
+    // header all get the same card from one listener.
+    root.addEventListener("mouseover", function (e) {
+      const el = e.target.closest("[data-zdef]");
+      if (el) zTipShow(el.dataset.zdef, e.clientX, e.clientY);
+    });
+    root.addEventListener("mousemove", function (e) {
+      const el = e.target.closest("[data-zdef]");
+      if (!el) { zTipHide(); return; }
+      zTipShow(el.dataset.zdef, e.clientX, e.clientY);
+    });
+    root.addEventListener("mouseleave", zTipHide);
+    // Tap-to-explain on touch devices (no hover there).
+    root.addEventListener("click", function (e) {
+      const el = e.target.closest("[data-zdef]");
+      if (!el) { zTipHide(); return; }
+      const r = el.getBoundingClientRect();
+      zTipShow(el.dataset.zdef, r.left, r.bottom);
+    });
+
     // [name, tier, color, statsKey (level_stats join), one-line meaning]
     const TIER_META = [
       ["PDH", 1, "#8fb4ff", "PDH", "Prior session high"],
@@ -14984,12 +15153,8 @@
           const atrX = (off || !atr) ? null : Math.abs(r.v - last) / atr;
           const s = r.sk ? st[r.sk] : null;
           const side = off ? "" : (r.v >= last ? "zt-abv" : "zt-blw");
-          const tip = r.d + (s
-            ? " · touched " + s.touch + "% of sessions; first touch held " +
-              s.held + "%; avg break extension " + s.brk_ext + "% (n=" + s.n + ")"
-            : "");
-          return '<div class="zt-r' + (off ? " zl-off" : "") + '" title="' +
-            tip.replace(/"/g, "&quot;") + '">' +
+          return '<div class="zt-r' + (off ? " zl-off" : "") +
+            '" data-zdef="' + r.n + '">' +
             '<b style="color:' + r.c + '">━</b>' +
             '<span class="zt-n">' + r.n + '</span>' +
             '<span class="zt-v ' + side + '">' + fmt2(r.v) + '</span>' +
@@ -15002,14 +15167,17 @@
             '</div>';
         }).join("");
         const note = t === 1
-          ? (S ? ' <i>· T=touch rate · H=first-touch held · ' +
+          ? (S ? ' <i>· <span data-zdef="T" class="zt-def">T</span>=touch rate' +
+              ' · <span data-zdef="H" class="zt-def">H</span>=first-touch held · ' +
               ((_lvStats && _lvStats.sessions) || "?") + " sessions</i>"
                : " <i>· historical stats pending first nightly run</i>")
           : "";
         return '<div class="zt-tier"><div class="zt-th">' + TIER_NAMES[t] +
           note + '</div>' + body + '</div>';
       }).join("");
-      host.innerHTML = html;
+      host.innerHTML = html +
+        '<div class="zt-hint">Hover (or tap) any level for its full name, ' +
+        'what it is, how it\'s traded, and its measured track record.</div>';
     }
 
     // ── “what matters NOW” panel ──
@@ -15089,17 +15257,21 @@
         '<i>· delayed OI</i></div>' +
         (reg ? '<div class="' + reg[1] + '" style="font-weight:800;margin-bottom:3px">' +
           reg[0] + '</div>' : "") +
-        '<div class="zn-kv"><span>Call wall</span><b>' + (g.call_wall || "—") +
-        '</b></div><div class="zn-kv"><span>Put wall</span><b>' +
+        '<div class="zn-kv"><span data-zdef="CALL WALL" class="zt-def">' +
+        'Call wall</span><b>' + (g.call_wall || "—") +
+        '</b></div><div class="zn-kv"><span data-zdef="PUT WALL" ' +
+        'class="zt-def">Put wall</span><b>' +
         (g.put_wall || "—") + '</b></div>' +
-        '<div class="zn-kv"><span>Max pain</span><b>' +
+        '<div class="zn-kv"><span data-zdef="MAX PAIN" class="zt-def">' +
+        'Max pain</span><b>' +
         (ctx.vals["MAX PAIN"] || "—") + '</b></div></div>');
       // expected-move strip
       const emh = ctx.vals["EM+"], eml = ctx.vals["EM−"];
       if (emh != null && eml != null && emh > eml) {
         let p = (last - eml) / (emh - eml) * 100;
         p = Math.max(0, Math.min(100, p));
-        blocks.push('<div class="zn-b"><div class="zn-bt">Expected move</div>' +
+        blocks.push('<div class="zn-b"><div class="zn-bt zt-def" ' +
+          'data-zdef="EM+">Expected move</div>' +
           '<div class="zn-kv"><span>' + fmt2(eml) + '</span><span>' +
           fmt2(emh) + '</span></div>' +
           '<div class="zn-em"><div class="zn-em-mk" style="left:' +
