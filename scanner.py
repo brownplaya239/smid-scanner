@@ -992,14 +992,22 @@ def _memo_page(pdf, r, hist_cache):
         pdf.set_font("Helvetica", "B", 10)
         pdf.set_xy(10, y)
         pdf.cell(100, 6, "Position plan (ATR-derived, not advice)")
+        # Two lines, both via multi_cell so nothing can run off the page
+        # (a single cell() never wraps — the old one-liner overflowed the
+        # right margin whenever the prices were 3+ digits).
         pdf.set_font("Helvetica", "", 8.5)
         pdf.set_xy(12, y + 6)
-        pdf.cell(186, 5, _safe(
+        pdf.multi_cell(184, 4.5, _safe(
             f"Entry zone {c0 - 0.25 * a:.2f}-{c0 + 0.25 * a:.2f}  |  "
-            f"Stop {c0 - sgn * 1.5 * a:.2f}  |  Target {c0 + sgn * 2.5 * a:.2f}"
-            f"  |  R:R 1.7  (ATR14 {a:.2f}; entry +/-0.25xATR, stop 1.5x, "
-            f"target 2.5x - adjust to your structure)"))
-        y += 14
+            f"Stop {c0 - sgn * 1.5 * a:.2f}  |  "
+            f"Target {c0 + sgn * 2.5 * a:.2f}  |  R:R 1.7"))
+        pdf.set_font("Helvetica", "I", 7.5)
+        pdf.set_text_color(*MUTED)
+        pdf.set_x(12)
+        pdf.multi_cell(184, 4, _safe(
+            f"ATR14 {a:.2f}; entry +/-0.25xATR, stop 1.5x, target 2.5x "
+            f"- adjust to your structure"))
+        y = max(y + 16, pdf.get_y() + 2)
     except Exception:
         pass
 
