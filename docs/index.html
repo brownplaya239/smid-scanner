@@ -2363,14 +2363,13 @@
     text-transform:uppercase; color:var(--gold); padding-bottom:4px; }
   .zt-th i { color:var(--muted); font-weight:600; text-transform:none;
     letter-spacing:0; }
-  /* Grid rows (was flex + min-widths): min-widths on nowrap cells made
-     each row ~316px of min-content, which forced the 1fr tier columns
-     wider than the panel — the Moving Averages tier ran off-screen and
-     the T/H cells spilled into the next card. Fixed tracks + a
-     shrinkable name column keep every tier inside its box and align the
-     numbers vertically. */
+  /* Grid rows. The fixed tracks must leave the NAME column real width:
+     at 290px tier cards, carrying value+dist+ATR+T+H left 1fr with only
+     ~33px, so every label ellipsised to "P." / "E." / "O.". The ATR
+     multiple moved to the hover card + the in-play pane (both have room),
+     which buys the name ~77px — enough for CALL WALL / SMA200d. */
   .zt-r { display:grid;
-    grid-template-columns:9px minmax(0,1fr) 56px 46px 44px 30px 30px;
+    grid-template-columns:9px minmax(56px,1fr) 54px 46px 28px 28px;
     gap:4px; align-items:baseline; line-height:1.65;
     white-space:nowrap; font-variant-numeric:tabular-nums; }
   .zt-n { font-weight:800; color:var(--text); font-size:9.5px;
@@ -2422,9 +2421,11 @@
   .zp-read { font-size:10.5px; line-height:1.55; color:var(--text);
     padding:2px 0 6px; border-bottom:1px solid var(--line);
     margin-bottom:4px; }
+  /* Full level names here — the pane spans two tier columns, so unlike
+     the cramped tier table there's room to spell them out. */
   .zp-r { display:grid;
-    grid-template-columns:10px minmax(0,1fr) 44px 56px 46px 48px 58px;
-    gap:4px; align-items:baseline; line-height:1.7; white-space:nowrap;
+    grid-template-columns:10px minmax(112px,1fr) 46px 58px 48px 50px 60px;
+    gap:5px; align-items:baseline; line-height:1.7; white-space:nowrap;
     font-variant-numeric:tabular-nums; cursor:help; }
   .zp-r:hover { background:rgba(255,255,255,0.05); border-radius:3px; }
   .zp-ar { font-size:7px; }
@@ -14744,6 +14745,8 @@
         if (on.length > 2) {
           const oh = Math.max.apply(null, on.map(function (b) { return b.h; }));
           const ol = Math.min.apply(null, on.map(function (b) { return b.l; }));
+          L.ONH = oh;               // overnight high — the extended-session
+          L.ONL = ol;               // ceiling/floor the RTH open reacts to
           L.ONM = (oh + ol) / 2;
           let opv = 0, ovv = 0;
           on.forEach(function (b) {
@@ -15034,6 +15037,12 @@
       "EM−": ["Expected Move — lower",
         "Spot − the at-the-money straddle price: the options-implied session floor.",
         "Same logic inverted — the tape has already paid its implied move down here."],
+      "ONH": ["Overnight High",
+        "Highest print of the extended session — prior post-market plus this morning's premarket.",
+        "The ceiling overnight size defended. Taking it out after the open is the cleanest early continuation signal."],
+      "ONL": ["Overnight Low",
+        "Lowest print of the extended session (prior post-market + this morning's premarket).",
+        "The floor overnight size defended; losing it after the open opens the downside."],
       "ONM": ["Overnight Midpoint",
         "Midpoint of the overnight range (prior post-market + this morning's premarket).",
         "Fair value of the overnight session; a magnet when the day opens directionless."],
@@ -15160,6 +15169,8 @@
       ["VWAP", 1, "#7fb2ff", "VWAP", "Session VWAP"],
       ["EM+", 1, "#93a0bd", null, "Expected-move top (ATM straddle)"],
       ["EM−", 1, "#93a0bd", null, "Expected-move bottom"],
+      ["ONH", 2, "#7c8db0", null, "Overnight high (post-mkt + premkt)"],
+      ["ONL", 2, "#7c8db0", null, "Overnight low (post-mkt + premkt)"],
       ["ONM", 2, "#7c8db0", null, "Overnight midpoint (post-mkt + premkt)"],
       ["OVWAP", 2, "#7c8db0", null, "Overnight VWAP (extended session)"],
       ["VPOC", 2, "#ff9d3c", null, "Today's highest-volume price"],
@@ -15202,6 +15213,7 @@
         "QTR H": S && S.quarter ? S.quarter.h : null,
         "QTR L": S && S.quarter ? S.quarter.l : null,
         "SMA50d": S ? S.sma50 : null, "SMA200d": S ? S.sma200 : null,
+        "ONH": ctx.lv.L.ONH, "ONL": ctx.lv.L.ONL,
         "ONM": ctx.lv.L.ONM, "OVWAP": ctx.lv.L.OVWAP, "PC": ctx.lv.L.PC,
         "VWAP": ctx.dyn.VWAP, "EMA9": ctx.dyn.EMA9,
         "EMA20": ctx.dyn.EMA20, "EMA200": ctx.dyn.EMA200,
@@ -15244,10 +15256,9 @@
             '<b style="color:' + r.c + '">━</b>' +
             '<span class="zt-n">' + r.n + '</span>' +
             '<span class="zt-v ' + side + '">' + fmt2(r.v) + '</span>' +
-            '<span class="zt-x">' + (dist == null ? "" :
+            '<span class="zt-x" title="' + (atrX == null ? "" :
+              atrX.toFixed(2) + " ATR away") + '">' + (dist == null ? "" :
               (dist > 0 ? "+" : "") + dist.toFixed(2) + "%") + '</span>' +
-            '<span class="zt-x">' + (atrX == null ? "" :
-              atrX.toFixed(2) + " ATR") + '</span>' +
             '<span class="zt-s">' + (s ? "T" + s.touch + "%" : "") + '</span>' +
             '<span class="zt-s">' + (s ? "H" + s.held + "%" : "") + '</span>' +
             '</div>';
@@ -15275,6 +15286,20 @@
     // coin flip, it says so.
     const PLAY_TIER = { 1: ["core", "zp-core"], 2: ["struct", "zp-struct"],
                         3: ["dealer", "zp-dealer"], 4: ["MA", "zp-ma"] };
+    // The radar carries ONLY the levels a 0DTE trader actually reacts to
+    // — the session skeleton plus the two dealer levels that move the
+    // tape. Value-area/MA/weekly-monthly noise stays in the tier table.
+    // Full names here (the pane spans two columns and has the room).
+    const PLAY_KEYS = ["PDH", "PDL", "PC", "ONH", "ONL", "VWAP", "ORH",
+                       "ORL", "EM+", "EM−", "FLIP", "LG"];
+    const PLAY_NAME = {
+      "PDH": "Previous Day High", "PDL": "Previous Day Low",
+      "PC": "Previous Close", "ONH": "Overnight High",
+      "ONL": "Overnight Low", "VWAP": "VWAP",
+      "ORH": "Opening Range High", "ORL": "Opening Range Low",
+      "EM+": "Expected Move High", "EM−": "Expected Move Low",
+      "FLIP": "Gamma Flip", "LG": "Largest Gamma Strike",
+    };
     function renderInPlay(ctx) {
       const last = ctx.last;
       if (!last) return "";
@@ -15289,7 +15314,8 @@
       // re-sorted by price so it reads top-to-bottom like the chart.
       const band = atr ? 0.35 * atr : last * 0.0025;
       let rows = levelRows(ctx).filter(function (r) {
-        return r.v != null && Math.abs(r.v - last) <= band; });
+        return r.v != null && PLAY_KEYS.indexOf(r.n) >= 0 &&
+               Math.abs(r.v - last) <= band; });
       rows.sort(function (a, b) {
         return Math.abs(a.v - last) - Math.abs(b.v - last); });
       const hidden = Math.max(0, rows.length - 8);
@@ -15340,7 +15366,7 @@
         return '<div class="zp-r" data-zdef="' + r.n + '">' +
           '<span class="zp-ar ' + (above ? "pos" : "neg") + '">' +
             (above ? "▲" : "▼") + '</span>' +
-          '<span class="zp-n">' + r.n + '</span>' +
+          '<span class="zp-n">' + (PLAY_NAME[r.n] || r.n) + '</span>' +
           '<span class="zp-t ' + tb[1] + '">' + tb[0] + '</span>' +
           '<span class="zp-v">' + fmt2(r.v) + '</span>' +
           '<span class="zp-d ' + (above ? "pos" : "neg") + '">' + fmtD(r) + '</span>' +
@@ -15363,16 +15389,18 @@
           if (r.v > last && (!up || r.v < up.v)) up = r;
           if (r.v < last && (!dn || r.v > dn.v)) dn = r;
         });
-        read = 'Clear air — nothing marked within ' +
+        read = 'Clear air — no key level within ' +
           (atr ? "0.35 ATR" : "0.25%") + '. Next up: ' +
-          (up ? '<b>' + up.n + '</b> ' + fmt2(up.v) : "—") + ' · next down: ' +
-          (dn ? '<b>' + dn.n + '</b> ' + fmt2(dn.v) : "—") + '.';
+          (up ? '<b>' + (PLAY_NAME[up.n] || up.n) + '</b> ' + fmt2(up.v) : "—") +
+          ' · next down: ' +
+          (dn ? '<b>' + (PLAY_NAME[dn.n] || dn.n) + '</b> ' + fmt2(dn.v) : "—") + '.';
       } else {
         const near = rows.slice().sort(function (a, b) {
           return Math.abs(a.v - last) - Math.abs(b.v - last); })[0];
         const ns = near.sk ? st[near.sk] : null;
         const touching = Math.abs(near.v - last) <= (atr ? 0.05 * atr : last * 0.0004);
-        read = (touching ? 'Testing <b>' : 'Approaching <b>') + near.n +
+        read = (touching ? 'Testing <b>' : 'Approaching <b>') +
+          (PLAY_NAME[near.n] || near.n) +
           '</b> ' + fmt2(near.v) + ' (' + fmtD(near) + ')' +
           (ns && ns.held != null
             ? ' — first touch holds <b>' + ns.held + '%</b> of the time' +
@@ -15380,7 +15408,8 @@
                : ns.held <= 42 ? ': it usually gives way — favor the break.'
                : ': a coin flip, so trade the reaction, not the level.')
             : '.') +
-          (cluster ? ' <b>' + cluster.map(function (x) { return x.n; })
+          (cluster ? ' <b>' + cluster.map(function (x) {
+              return PLAY_NAME[x.n] || x.n; })
             .join(" + ") + '</b> stack within 0.1 ATR — the real wall here.'
             : '');
       }
