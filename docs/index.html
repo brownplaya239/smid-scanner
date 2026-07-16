@@ -636,6 +636,32 @@
     padding:6px 0; }
   .ipr-foot { font-size:9.5px; color:var(--muted); line-height:1.5;
     margin-top:7px; padding-top:6px; border-top:1px solid var(--line); }
+  /* Earnings Trade Ideas (Earnings tab, under the Edge table) */
+  .ei-wrap { margin-top:16px; }
+  .ei-h { font-size:14px; font-weight:800; color:var(--text);
+    margin:0 0 8px; }
+  .ei-sub { font-size:10.5px; font-weight:600; color:var(--muted); }
+  .ei-card { background:var(--navy2); border:1px solid var(--line);
+    border-radius:9px; padding:9px 12px; margin-bottom:7px; }
+  .ei-top { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .ei-tk { font-weight:800; font-size:13px; color:var(--text);
+    cursor:pointer; }
+  .ei-tk:hover { color:var(--gold); }
+  .ei-when { font-size:10px; color:var(--muted); font-weight:700; }
+  .ei-type { font-size:8.5px; font-weight:800; letter-spacing:.05em;
+    padding:1px 6px; border-radius:4px; }
+  .ei-bull { background:rgba(31,179,99,.16); color:var(--green); }
+  .ei-drift { background:rgba(111,168,220,.16); color:#6fa8dc; }
+  .ei-vol { background:rgba(232,179,76,.16); color:#e8b34c; }
+  .ei-warn { background:rgba(214,68,68,.16); color:var(--red); }
+  .ei-rec { margin-left:auto; font-size:9px; font-weight:700;
+    color:var(--muted); }
+  .ei-rec.on { color:var(--gold); }
+  .ei-thesis { font-size:11.5px; line-height:1.55; color:var(--text);
+    margin-top:4px; }
+  .ei-ev { font-size:10px; color:var(--muted); margin-top:4px; }
+  .ei-foot { font-size:10px; color:var(--muted); line-height:1.5;
+    margin-top:9px; padding-top:7px; border-top:1px solid var(--line); }
   /* Compact Upcoming Earnings (under the Themes pane) */
   .es-more { font-size:10px; font-weight:700; color:var(--muted);
     padding:1px 6px; border:1px dashed var(--line); border-radius:4px;
@@ -5944,6 +5970,12 @@
       <!-- Earnings Edge — implied vs historically-realized move + verdict,
            generated post-close by earnings_edge.py. -->
       <div id="earnings-edge"></div>
+      <!-- Earnings Trade Ideas — rule-based cards joining the site's own
+           signals (grade / RS / flow / implied-vs-realized / drift) per
+           name reporting <=7d. Self-grading: earnings_ideas.py logs each
+           idea and grades it on real closes; per-type hit rates gate at
+           n>=30, shown as track-record chips. -->
+      <div id="earnings-ideas"></div>
       <!-- The actionable scrape table goes ABOVE the EW chart image now.
            EW's image is secondary (still discoverable below) but no
            longer the first thing the user sees on this tab. -->
@@ -17932,6 +17964,83 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) { _eeData = d; eeRender(); })
         .catch(function () {});
+    })();
+
+    // ── Earnings Trade Ideas — the site's signals, synthesized per print ──
+    // Rendered from earnings_ideas.json (nightly, after earnings_edge).
+    // Every card cites its evidence; every idea type carries its own
+    // self-graded track record (gated n>=30, "accruing" until real).
+    (function setupEarningsIdeas() {
+      const host = document.getElementById("earnings-ideas");
+      if (!host) return;
+      const TYPE_META = {
+        momentum_into_print: ["MOMENTUM INTO PRINT", "ei-bull",
+          "Leader with bullish flow and positive historical post-report drift"],
+        post_report_drift: ["POST-REPORT DRIFT", "ei-drift",
+          "Trades the historical drift AFTER the print — no binary overnight risk"],
+        vol_rich: ["VOL RICH", "ei-vol",
+          "Options price more than this name historically delivers"],
+        vol_cheap: ["VOL CHEAP", "ei-vol",
+          "Options price less than this name historically moves"],
+        binary_caution: ["BINARY CAUTION", "ei-warn",
+          "Crowded event risk — size down or trade the reaction"],
+      };
+      function esc(s) {
+        return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? "" : s);
+      }
+      function render(d) {
+        if (!d || !(d.ideas || []).length) { host.innerHTML = ""; return; }
+        const st = d.by_type || {};
+        const rows = d.ideas.map(function (i) {
+          const tm = TYPE_META[i.type] || [i.type, "", ""];
+          const s = st[i.type];
+          const rec = s && s.status === "active"
+            ? '<span class="ei-rec on">' + s.win_rate + '% · n=' + s.n + '</span>'
+            : '<span class="ei-rec">track record ' + ((s && s.n) || 0) +
+              '/30</span>';
+          const when = i.days === 0 ? "today" : i.days === 1 ? "tomorrow"
+            : "in " + i.days + "d";
+          return '<div class="ei-card">' +
+            '<div class="ei-top">' +
+              '<span class="ei-tk" data-t="' + esc(i.t) + '">' + esc(i.t) + '</span>' +
+              '<span class="ei-when">' + (i.session || "") + " " + when + '</span>' +
+              '<span class="ei-type ' + tm[1] + '" title="' +
+                esc(tm[2]) + '">' + tm[0] + '</span>' +
+              rec + '</div>' +
+            '<div class="ei-thesis">' + esc(i.thesis) + '</div>' +
+            (i.evidence && i.evidence.length
+              ? '<div class="ei-ev">' + i.evidence.map(function (e) {
+                  return '<span>' + esc(e) + '</span>'; }).join(" · ") + '</div>'
+              : '') +
+            '</div>';
+        }).join("");
+        host.innerHTML = '<div class="ei-wrap">' +
+          '<h3 class="ei-h">💡 Earnings trade ideas <span class="ei-sub">· ' +
+          'the site\'s own signals, synthesized per print · self-graded</span></h3>' +
+          rows +
+          '<div class="ei-foot">Rule-based cards from signals already on ' +
+          'this site — swing grade, RS, options flow into the print, ' +
+          'implied vs realized history, post-report drift. Each idea type ' +
+          'is logged and graded against real closes 3+ sessions after the ' +
+          'report; hit rates publish at n≥30 (' + (d.total_graded || 0) +
+          ' graded so far). Educational, not advice.</div></div>';
+      }
+      function load() {
+        fetch("./reports/earnings_ideas.json", { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(render).catch(function () {});
+      }
+      load();
+      const nav = document.getElementById("nav");
+      if (nav) nav.addEventListener("click", function (e) {
+        if (e.target && e.target.dataset &&
+            e.target.dataset.tab === "whisper") load();
+      });
+      host.addEventListener("click", function (e) {
+        const tk = e.target.closest(".ei-tk");
+        if (tk && tk.dataset.t && window.openTickerPanel)
+          window.openTickerPanel(tk.dataset.t);
+      });
     })();
 
     // (Tweet-image lightbox removed with the image pane — v3 audit kill.)

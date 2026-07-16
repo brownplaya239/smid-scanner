@@ -153,6 +153,14 @@ jobs:
         continue-on-error: true
         run: python earnings_edge.py
 
+      - name: Earnings trade ideas (rule-based + self-grading, gated)
+        # Joins earnings_edge with swing grades / RS / flow into idea
+        # cards for the Earnings tab; logs each idea and grades it
+        # against real closes 3+ sessions after the report; per-type
+        # hit rates gate at n>=30. Runs AFTER earnings_edge (its input).
+        continue-on-error: true
+        run: python earnings_ideas.py
+
       - name: Auto-discover @eWhispers weekly tweet image
         # Twitter's syndication endpoint rate-limits aggressively; a 429
         # or any other failure here must NEVER block the publish step
