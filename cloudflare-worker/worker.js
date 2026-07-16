@@ -2179,8 +2179,17 @@ async function fetchPremarketBuzz(env) {
       if (dir === "up" ? pct <= 0 : pct >= 0) continue;
       const px = snapPx(t);
       if (px == null || px < PRICE_FLOOR) continue;
-      const vol = (t.day && t.day.v) || 0;
-      if (px * vol < DOLLARVOL_FLOOR) continue;
+      // Liquidity = "is this a real, tradable name", so measure it on
+      // TODAY's dollar volume OR yesterday's — whichever is larger.
+      // day.v is 0 until the opening bell, so gating on it alone
+      // emptied the entire board pre-market (the pane's whole purpose)
+      // and starved it through the first minutes of RTH while volume
+      // ramped. prevDay volume is a fine liquidity proxy at those hours;
+      // micro-cap pumps still fail both legs.
+      const dayDV = px * ((t.day && t.day.v) || 0);
+      const prevDV = (((t.prevDay && t.prevDay.c) || px) *
+                      ((t.prevDay && t.prevDay.v) || 0));
+      if (Math.max(dayDV, prevDV) < DOLLARVOL_FLOOR) continue;
       out.push(t);
     }
     out.sort(function (a, b) {

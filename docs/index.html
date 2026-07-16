@@ -25343,7 +25343,23 @@
       function render(d) {
         if (!d) return;
         const _g0 = (d.gainers || []).length, _l0 = (d.losers || []).length;
-        if (!_g0 && !_l0) return; // keep pane hidden if nothing to show
+        // Empty board: still SHOW the pane with an honest reason. Hiding
+        // it silently made a whole desk tile disappear with no way to
+        // tell "nothing qualifies right now" from "this feature broke".
+        if (!_g0 && !_l0) {
+          const gE0 = document.getElementById("pmb-gainers");
+          const lE0 = document.getElementById("pmb-losers");
+          const msg = '<div class="pmb-empty">No qualifying movers in this ' +
+            'session yet — the board needs ≥$100M cap and real ' +
+            'liquidity.</div>';
+          if (gE0) gE0.innerHTML = msg;
+          if (lE0) lE0.innerHTML = "";
+          const st0 = document.getElementById("pmb-stats");
+          if (st0) st0.innerHTML = 'Scanned <b>' + (d.total || 0) +
+            '</b> movers · none cleared the filters';
+          wrap.style.display = "";
+          return;
+        }
         // Compact tile under the Earnings row — show a fuller board now that
         // the worker surfaces more ≥$100M names. The stats line still
         // reports the true totals.
