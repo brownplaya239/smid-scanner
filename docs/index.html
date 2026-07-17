@@ -619,13 +619,16 @@
   .ipr-title { font-size:12px; font-weight:800; color:var(--text); }
   .ipr-stamp { font-size:9.5px; color:var(--muted); margin-left:auto; }
   .ipr-r { display:grid;
-    grid-template-columns:minmax(0,1fr) 52px 62px 52px 60px;
+    grid-template-columns:46px minmax(0,1fr) 50px 46px 48px 54px;
     gap:6px; align-items:baseline; padding:4px 0; cursor:pointer;
     font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
   .ipr-r + .ipr-r { border-top:1px solid rgba(255,255,255,0.05); }
   .ipr-r:hover { background:rgba(255,255,255,0.05); }
   .ipr-tk { font-weight:800; color:var(--text); overflow:hidden;
     text-overflow:ellipsis; }
+  .ipr-nm { color:var(--muted); font-size:10px; overflow:hidden;
+    text-overflow:ellipsis; }
+  .ipr-mc { text-align:right; color:var(--textdim); font-size:10px; }
   .ipr-ipo { font-size:8.5px; font-weight:700; color:var(--gold);
     background:rgba(255,200,0,.13); border-radius:3px; padding:1px 3px;
     text-align:center; }
@@ -25933,7 +25936,8 @@
           const expect = u.avgvol * Math.max(0.08, el2);
           const rv = expect > 0 ? m.vol / expect : 0;
           if (rv < MIN_RVOL) return;
-          rows.push({ t: m.t, pct: m.pct, px: m.px, rv: rv, ipo: u.ipo });
+          rows.push({ t: m.t, pct: m.pct, px: m.px, rv: rv, ipo: u.ipo,
+                      name: u.name || "", mcap: u.mcap || null });
         });
         rows.sort(function (a, b) { return b.pct - a.pct; });
         const shown = rows.slice(0, 10);
@@ -25943,14 +25947,25 @@
               timeZone: "America/New_York" }) + " ET" : "";
           stamp.textContent = "as of " + t + " · delayed 15m";
         }
+        const fmtCap = function (v) {
+          if (!v) return "—";
+          return v >= 1e9 ? "$" + (v / 1e9).toFixed(v >= 10e9 ? 0 : 1) + "B"
+                          : "$" + Math.round(v / 1e6) + "M";
+        };
         el.innerHTML = shown.length
           ? shown.map(function (r) {
+              // company name inline (truncated) + full name/price/listing
+              // date in the hover title; mcap gets its own column
+              const tip = (r.name ? r.name + " · " : "") + "$" +
+                r.px.toFixed(2) + " · listed " + esc(r.ipo) +
+                " · open " + esc(r.t) + " drilldown";
               return '<div class="ipr-r" data-t="' + esc(r.t) + '" ' +
-                'role="button" tabindex="0" title="Open ' + esc(r.t) +
-                ' drilldown">' +
+                'role="button" tabindex="0" title="' +
+                tip.replace(/"/g, "&quot;") + '">' +
                 '<span class="ipr-tk">' + esc(r.t) + '</span>' +
+                '<span class="ipr-nm">' + esc(r.name || "") + '</span>' +
                 '<span class="ipr-ipo">IPO ' + ipoAge(r.ipo) + '</span>' +
-                '<span class="ipr-px">$' + r.px.toFixed(2) + '</span>' +
+                '<span class="ipr-mc">' + fmtCap(r.mcap) + '</span>' +
                 '<span class="ipr-pct pos">+' + r.pct.toFixed(1) + '%</span>' +
                 '<span class="ipr-rv">' + r.rv.toFixed(1) + '× vol</span>' +
                 '</div>';

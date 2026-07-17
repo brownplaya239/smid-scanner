@@ -115,6 +115,25 @@ def build_dates(universe, cache):
     return cache
 
 
+def market_caps(tickers):
+    """{ticker: market_cap} via reference details — only for the recent-IPO
+    set (~1.5k names), threaded, refreshed each nightly run since caps move
+    with price. Failures return no entry; the frontend renders a dash."""
+    out = {}
+    def one(t):
+        try:
+            d = pg.ticker_details(t) or {}
+            v = d.get("market_cap")
+            return t, float(v) if v else None
+        except Exception:
+            return t, None
+    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        for t, v in ex.map(one, tickers):
+            if v:
+                out[t] = v
+    return out
+
+
 def avg_volumes(tickers):
     """{ticker: avg 30-session volume} — whole-market grouped bars, so the
     cost is AVG_SESSIONS calls regardless of how many tickers we want."""
@@ -158,11 +177,15 @@ def main():
               if d and d >= cutoff and t in universe}
     print(f"  {len(recent)} listed on/after {cutoff}")
     avg = avg_volumes(recent.keys())
+    caps = market_caps([t for t in recent if t in avg])
+    print(f"  market caps for {len(caps)} of {len(avg)} names")
 
     tickers = {}
     for t, d in recent.items():
         if t in avg:
-            tickers[t] = {"ipo": d, "avgvol": avg[t]}
+            tickers[t] = {"ipo": d, "avgvol": avg[t],
+                          "name": (universe.get(t) or "")[:60] or None,
+                          "mcap": round(caps[t]) if t in caps else None}
     payload = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "ipo_window_years": IPO_YEARS,
