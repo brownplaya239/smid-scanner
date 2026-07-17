@@ -21,16 +21,31 @@ Joins what the site already knows about each name reporting in the next
     binary_caution         big typical mover + big pre-print run-up —
                            the "size down or sit out" flag
 
+Universe: hard floor at $1B market cap — names below it (or with no cap
+on file) never generate ideas. Sub-$1B earnings reactions are dominated
+by liquidity/squeeze noise the signal stack can't price.
+
 LEARNED LAYER (house pattern — log → grade vs real closes → gate n>=30):
-every published idea is logged; once the report is >=3 sessions old the
-idea is graded against actual price action (yfinance closes):
-    momentum_into_print    win = 3-session post-report move in bias dir
-    post_report_drift      win = 5-session move matches drift sign
-    vol_rich               win = |report-day move| < implied
-    vol_cheap              win = |report-day move| > implied
-Per-type hit rates publish at n>=30 ("accruing" until then) and render
-as track-record chips on the cards — identical contract to the 0DTE
-idea loop. Nothing is estimated; nothing publishes before it's real.
+every published idea is logged with its feature bands; once the report
+is >=3 sessions old the idea is graded against actual price action
+(yfinance closes) AND the graded move itself is stored as a uniform
+margin metric `mv` (positive == win by construction):
+    momentum_into_print    mv = signed 3-session post-report move in bias dir
+    post_report_drift      mv = signed 5-session drift (from day-1 close)
+    vol_rich               mv = implied - |report reaction|
+    vol_cheap              mv = |report reaction| - implied
+Per-type hit rates + EV (mean mv) publish at n>=30 ("accruing" until
+then) and render as track-record chips on the cards.
+
+FEEDBACK LOOP (same guardrail contract as the UOA edge-weight loop —
+guardrails sacred: min-N 30 / shrinkage n/(n+30) / clamp ±15pp /
+fail-open): graded outcomes are bucketed into cohorts (type, type×bias,
+type×cap-band, type×RS-band, type×session). Cohorts with n>=30 real
+grades produce a shrunk, clamped win-rate delta; each new idea's `conf`
+score = 50 + the summed deltas of its matching cohorts, and ideas
+re-rank by conf within each day. No cohort gated in yet → no conf, no
+re-rank, cards unchanged. Nothing is estimated; nothing publishes
+before it's real.
 """
 
 import json
@@ -45,6 +60,9 @@ OUT_PATH = R("docs", "reports", "earnings_ideas.json")
 MIN_N = 30
 LOG_CAP = 1200
 GRADE_AFTER_SESSIONS = 3
+MIN_MCAP = 1e9          # hard floor — no ideas on sub-$1B names
+SHRINK_K = 30           # shrinkage constant: delta *= n / (n + K)
+CLAMP_PP = 15.0         # max +/- percentage-point adjustment, per cohort AND total
 
 
 def _load(path, default):
@@ -76,6 +94,8 @@ def generate(names, swing, facts):
         t = n.get("t")
         if not t or n.get("days") is None or n["days"] > 7:
             continue
+        if (n.get("mcap") or 0) < MIN_MCAP:
+            continue                        # tradable size only
         sw = swing.get(t) or {}
         fa = (facts or {}).get(t) or {}
         ev = []                             # evidence strings, all sourced
@@ -145,14 +165,25 @@ def generate(names, swing, facts):
                       "and trade the reaction.")
         if typ is None:
             continue
+        cap = n.get("mcap") or 0
         ideas.append({
             "t": t, "date": n.get("date"), "days": n.get("days"),
             "session": n.get("session"), "type": typ, "bias": bias,
             "thesis": thesis, "evidence": ev[:5],
             "implied": implied, "realized_med": rmed,
-            "mcap_b": round((n.get("mcap") or 0) / 1e9, 1) or None,
+            "mcap_b": round(cap / 1e9, 1) or None,
             "grade": grade or None, "rs_rank": rs_rank,
             "drift_5d": drift,
+            # feature bands — logged with the idea so graded outcomes can
+            # be bucketed into learnable cohorts (fail-open on "na")
+            "feat": {
+                "cap": (">100B" if cap >= 100e9 else
+                        "10-100B" if cap >= 10e9 else "1-10B"),
+                "rs": ("na" if rs_rank is None else
+                       "hi" if rs_rank >= 80 else
+                       "mid" if rs_rank >= 50 else "lo"),
+                "session": n.get("session") or "na",
+            },
         })
     order = {"momentum_into_print": 0, "vol_rich": 1, "vol_cheap": 1,
              "post_report_drift": 2, "binary_caution": 3}
@@ -178,13 +209,18 @@ def _closes_around(t, event_date):
 
 
 def _grade(idea):
-    """win/loss/None(not gradeable yet). Session frames per idea type."""
+    """(result, mv) — result win/loss/None(not gradeable yet).
+
+    mv is a uniform margin metric: the graded move expressed so that
+    mv > 0 == win for every idea type. Storing it makes the learned
+    layer EV-capable (mean mv per cohort), not just hit-rate-capable.
+    Session frames per idea type."""
     ev = idea.get("date")
     if not ev:
-        return None
+        return None, None
     rows = _closes_around(idea["t"], ev)
     if not rows:
-        return None
+        return None, None
     # pre = last close strictly BEFORE the event date (AMC: the event-day
     # close is also pre-report, but the 1-day frame from the prior close
     # still brackets the reaction — coarse and stated, consistent for all)
@@ -193,24 +229,90 @@ def _grade(idea):
         if d < ev:
             pre_i = i
     if pre_i is None or pre_i + GRADE_AFTER_SESSIONS >= len(rows):
-        return None                       # not enough post-event sessions
+        return None, None                 # not enough post-event sessions
     pre = rows[pre_i][1]
     day1 = rows[pre_i + 1][1]
     d3 = rows[pre_i + 3][1] if pre_i + 3 < len(rows) else None
     d5 = rows[pre_i + 5][1] if pre_i + 5 < len(rows) else None
     move1 = (day1 / pre - 1) * 100
     typ = idea["type"]
+    sign = 1 if idea.get("bias") == "bull" else -1
+    mv = None
     if typ == "vol_rich":
-        return "win" if abs(move1) < (idea.get("implied") or 0) else "loss"
-    if typ == "vol_cheap":
-        return "win" if abs(move1) > (idea.get("implied") or 0) else "loss"
-    if typ == "momentum_into_print" and d3 is not None:
-        m = (d3 / pre - 1) * 100
-        return "win" if (m > 0) == (idea["bias"] == "bull") else "loss"
-    if typ == "post_report_drift" and d5 is not None:
-        m = (d5 / day1 - 1) * 100         # drift measured AFTER the print
-        return "win" if (m > 0) == (idea["bias"] == "bull") else "loss"
-    return None                           # binary_caution isn't a trade
+        mv = (idea.get("implied") or 0) - abs(move1)
+    elif typ == "vol_cheap":
+        mv = abs(move1) - (idea.get("implied") or 0)
+    elif typ == "momentum_into_print" and d3 is not None:
+        mv = sign * (d3 / pre - 1) * 100
+    elif typ == "post_report_drift" and d5 is not None:
+        mv = sign * (d5 / day1 - 1) * 100  # drift measured AFTER the print
+    if mv is None:
+        return None, None                 # binary_caution isn't a trade
+    return ("win" if mv > 0 else "loss"), round(mv, 2)
+
+
+# ── feedback loop: graded outcomes → cohort deltas → conf on new ideas ──
+
+def _cohort_keys(e):
+    """Cohort keys for a log entry OR a fresh idea (same fields).
+    Fail-open: missing fields simply produce fewer cohorts."""
+    typ = e.get("type")
+    if not typ:
+        return []
+    keys = ["type:" + typ]
+    if e.get("bias"):
+        keys.append("type:%s|bias:%s" % (typ, e["bias"]))
+    f = e.get("feat") or {}
+    for k in ("cap", "rs", "session"):
+        if f.get(k) and f[k] != "na":
+            keys.append("type:%s|%s:%s" % (typ, k, f[k]))
+    return keys
+
+
+def _learned(entries):
+    """Per-cohort learned stats from REAL graded outcomes only.
+
+    Guardrails (same contract as the UOA edge-weight loop — sacred):
+    min-N 30, shrinkage n/(n+SHRINK_K) toward zero, clamp ±CLAMP_PP,
+    fail-open (cohort below gate → simply absent → no adjustment)."""
+    coh = {}
+    for e in entries:
+        r = e.get("result")
+        if r not in ("win", "loss"):
+            continue
+        for k in _cohort_keys(e):
+            coh.setdefault(k, []).append((r == "win", e.get("mv")))
+    out = {}
+    for k, obs in coh.items():
+        n = len(obs)
+        if n < MIN_N:
+            continue
+        wr = 100.0 * sum(1 for w, _ in obs if w) / n
+        delta = (wr - 50.0) * (n / (n + SHRINK_K))
+        mvs = [m for _, m in obs if m is not None]
+        out[k] = {"n": n, "wr": round(wr, 1),
+                  "delta": round(max(-CLAMP_PP, min(CLAMP_PP, delta)), 2),
+                  "ev": round(sum(mvs) / len(mvs), 2) if mvs else None}
+    return out
+
+
+def _apply_conf(ideas, learned):
+    """conf = 50 + summed cohort deltas (clamped total), only when at
+    least one matching cohort has gated in. Re-rank by conf within each
+    day. With no active cohorts this is a no-op — cards unchanged."""
+    if not learned:
+        return
+    any_conf = False
+    for i in ideas:
+        hits = [learned[k] for k in _cohort_keys(i) if k in learned]
+        if not hits:
+            continue
+        adj = max(-CLAMP_PP, min(CLAMP_PP, sum(h["delta"] for h in hits)))
+        i["conf"] = int(round(50 + adj))
+        i["conf_cohorts"] = len(hits)
+        any_conf = True
+    if any_conf:                          # stable — preserves type order
+        ideas.sort(key=lambda i: (i["days"], -(i.get("conf") or 50)))
 
 
 def main():
@@ -232,6 +334,7 @@ def main():
         log["ideas"].append({"t": i["t"], "date": i["date"],
                              "type": i["type"], "bias": i["bias"],
                              "implied": i.get("implied"),
+                             "feat": i.get("feat"),
                              "published": today, "result": "pending"})
         added += 1
 
@@ -242,23 +345,35 @@ def main():
     for i in log["ideas"]:
         if i.get("result") == "pending" and i.get("date") and \
                 i["date"] <= cutoff:
-            res = _grade(i)
+            res, mv = _grade(i)
             if res:
                 i["result"] = res
+                if mv is not None:
+                    i["mv"] = mv
                 graded += 1
     log["ideas"] = log["ideas"][-LOG_CAP:]
 
     by_type = {}
     for i in log["ideas"]:
         if i.get("result") in ("win", "loss"):
-            by_type.setdefault(i["type"], []).append(i["result"] == "win")
+            by_type.setdefault(i["type"], []).append(
+                (i["result"] == "win", i.get("mv")))
     stats = {}
-    for k, wins in by_type.items():
-        n = len(wins)
-        stats[k] = ({"status": "active", "n": n,
-                     "win_rate": round(100 * sum(wins) / n)}
-                    if n >= MIN_N else
-                    {"status": "accruing", "n": n, "activates_at": MIN_N})
+    for k, obs in by_type.items():
+        n = len(obs)
+        if n >= MIN_N:
+            mvs = [m for _, m in obs if m is not None]
+            stats[k] = {"status": "active", "n": n,
+                        "win_rate": round(100 * sum(1 for w, _ in obs
+                                                    if w) / n),
+                        "ev": (round(sum(mvs) / len(mvs), 2)
+                               if mvs else None)}
+        else:
+            stats[k] = {"status": "accruing", "n": n, "activates_at": MIN_N}
+
+    # feedback loop: graded cohorts adjust conf on today's ideas
+    learned = _learned(log["ideas"])
+    _apply_conf(ideas, learned)
 
     payload = {
         "generated": datetime.now(timezone.utc)
@@ -267,13 +382,24 @@ def main():
         "ideas": ideas,
         "by_type": stats,
         "total_graded": sum(len(v) for v in by_type.values()),
+        "min_mcap_b": round(MIN_MCAP / 1e9),
+        "learned": {
+            "status": "active" if learned else "accruing",
+            "cohorts_active": len(learned),
+            "activates_at": MIN_N,
+            # publish the gated cohorts themselves — transparency over
+            # a black box (small dict; only n>=MIN_N cohorts appear)
+            "cohorts": learned,
+        },
         "note": ("Deterministic idea cards from the site's own signals "
                  "(swing grade, RS, flow-into-print, implied vs realized "
-                 "history, post-report drift). Self-graded against real "
-                 "closes once each report is " +
+                 "history, post-report drift). $" +
+                 str(round(MIN_MCAP / 1e9)) + "B market-cap floor. "
+                 "Self-graded against real closes once each report is " +
                  str(GRADE_AFTER_SESSIONS) + "+ sessions old; per-type "
-                 "hit rates publish at n>=" + str(MIN_N) +
-                 ". Educational, not advice."),
+                 "hit rates + EV publish at n>=" + str(MIN_N) +
+                 "; graded cohorts feed back into each idea's conf score "
+                 "(shrunk, clamped, fail-open). Educational, not advice."),
     }
     os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
     with open(LOG_PATH, "w", encoding="utf-8") as f:

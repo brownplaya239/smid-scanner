@@ -668,6 +668,12 @@
   .ei-rec { margin-left:auto; font-size:9px; font-weight:700;
     color:var(--muted); }
   .ei-rec.on { color:var(--gold); }
+  /* learned-confidence chip — appears only once graded cohorts gate in */
+  .ei-conf { font-size:9px; font-weight:800; padding:1px 6px;
+    border-radius:4px; border:1px solid var(--line); color:var(--muted);
+    cursor:help; }
+  .ei-conf.up { border-color:rgba(31,179,99,.4); color:var(--green); }
+  .ei-conf.dn { border-color:rgba(214,68,68,.4); color:var(--red); }
   .ei-thesis { font-size:11.5px; line-height:1.55; color:var(--text);
     margin-top:4px; }
   .ei-ev { font-size:10px; color:var(--muted); margin-top:4px; }
@@ -18046,9 +18052,20 @@
           const tm = TYPE_META[i.type] || [i.type, "", ""];
           const s = st[i.type];
           const rec = s && s.status === "active"
-            ? '<span class="ei-rec on">' + s.win_rate + '% · n=' + s.n + '</span>'
+            ? '<span class="ei-rec on">' + s.win_rate + '%' +
+              (s.ev != null ? ' · EV ' + (s.ev > 0 ? '+' : '') + s.ev + '%' : '') +
+              ' · n=' + s.n + '</span>'
             : '<span class="ei-rec">track record ' + ((s && s.n) || 0) +
               '/30</span>';
+          // conf only exists once graded cohorts gate in (n>=30) — the
+          // learned layer's adjustment on THIS idea's feature cohorts
+          const conf = typeof i.conf === "number"
+            ? '<span class="ei-conf' + (i.conf >= 55 ? ' up' : i.conf <= 45 ? ' dn' : '') +
+              '" title="Learned confidence: 50 baseline ± graded win-rate deltas from ' +
+              i.conf_cohorts + ' matching cohort(s) of this idea type/cap/RS/session ' +
+              '(n≥30 each, shrunk & clamped). Ideas re-rank by this within each day.">' +
+              'conf ' + i.conf + '</span>'
+            : '';
           const when = i.days === 0 ? "today" : i.days === 1 ? "tomorrow"
             : "in " + i.days + "d";
           return '<div class="ei-card">' +
@@ -18057,7 +18074,7 @@
               '<span class="ei-when">' + (i.session || "") + " " + when + '</span>' +
               '<span class="ei-type ' + tm[1] + '" title="' +
                 esc(tm[2]) + '">' + tm[0] + '</span>' +
-              rec + '</div>' +
+              conf + rec + '</div>' +
             '<div class="ei-thesis">' + esc(i.thesis) + '</div>' +
             (i.evidence && i.evidence.length
               ? '<div class="ei-ev">' + i.evidence.map(function (e) {
@@ -18071,10 +18088,17 @@
           rows +
           '<div class="ei-foot">Rule-based cards from signals already on ' +
           'this site — swing grade, RS, options flow into the print, ' +
-          'implied vs realized history, post-report drift. Each idea type ' +
-          'is logged and graded against real closes 3+ sessions after the ' +
-          'report; hit rates publish at n≥30 (' + (d.total_graded || 0) +
-          ' graded so far). Educational, not advice.</div></div>';
+          'implied vs realized history, post-report drift. $' +
+          (d.min_mcap_b || 1) + 'B market-cap floor. Each idea is logged ' +
+          'and graded against real closes 3+ sessions after the report; ' +
+          'hit rates + EV publish at n≥30 (' + (d.total_graded || 0) +
+          ' graded so far)' +
+          (d.learned && d.learned.status === "active"
+            ? ', and ' + d.learned.cohorts_active + ' graded cohort(s) now ' +
+              'feed back into each idea’s conf score'
+            : '; graded outcomes will feed back into a per-idea conf score ' +
+              'once cohorts reach n≥30') +
+          '. Educational, not advice.</div></div>';
       }
       function load() {
         fetch("./reports/earnings_ideas.json", { cache: "no-cache" })
