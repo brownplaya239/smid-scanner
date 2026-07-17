@@ -2448,12 +2448,16 @@
     padding:2px 0 6px; border-bottom:1px solid var(--line);
     margin-bottom:4px; }
   /* Full level names here — the pane spans two tier columns, so unlike
-     the cramped tier table there's room to spell them out. */
-  .zp-r { display:grid;
+     the cramped tier table there's room to spell them out.
+     Class is .zpl-r, NOT .zp-r: the scenario playbook's flex rows use
+     .zp-r, and sharing the name let this grid definition win the
+     cascade and crush the playbook's condition text into the 10px
+     marker track (text painted on top of text). */
+  .zpl-r { display:grid;
     grid-template-columns:10px minmax(112px,1fr) 46px 58px 48px 50px 60px;
     gap:5px; align-items:baseline; line-height:1.7; white-space:nowrap;
     font-variant-numeric:tabular-nums; cursor:help; }
-  .zp-r:hover { background:rgba(255,255,255,0.05); border-radius:3px; }
+  .zpl-r:hover { background:rgba(255,255,255,0.05); border-radius:3px; }
   .zp-ar { font-size:7px; }
   .zp-n { font-weight:800; color:var(--text); font-size:9.5px;
     overflow:hidden; text-overflow:ellipsis; }
@@ -15395,7 +15399,7 @@
                 '% — statistically a coin flip. Trade the reaction, not the level.">' +
                 'coin flip</span>';
         }
-        return '<div class="zp-r" data-zdef="' + r.n + '">' +
+        return '<div class="zpl-r" data-zdef="' + r.n + '">' +
           '<span class="zp-ar ' + (above ? "pos" : "neg") + '">' +
             (above ? "▲" : "▼") + '</span>' +
           '<span class="zp-n">' + (PLAY_NAME[r.n] || r.n) + '</span>' +
