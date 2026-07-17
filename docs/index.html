@@ -25900,7 +25900,12 @@
     (function setupIpoRunners() {
       const wrap = document.getElementById("ipo-runners");
       if (!wrap) return;
-      const MIN_PCT = 4, MIN_RVOL = 1.5;
+      // $500M cap floor: measured 2026-07-17, it keeps 463 of 1,479
+      // recent IPOs (31%) and cuts the day's matches roughly in half —
+      // removing exactly the sub-$100M pumps that aren't tradable size.
+      // Names with no cap on file are dropped too (on a recent IPO that
+      // almost always means tiny/odd).
+      const MIN_PCT = 4, MIN_RVOL = 1.5, MIN_MCAP = 500e6;
       let UNIV = null;
       function esc(s) {
         return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? "" : s);
@@ -25959,6 +25964,7 @@
           (list || []).forEach(function (m) {
             const u = UNIV.tickers[m.t];
             if (!u || Math.abs(m.pct) < MIN_PCT) return;
+            if ((u.mcap || 0) < MIN_MCAP) return;   // tradable size only
             const expect = u.avgvol * Math.max(0.08, el2);
             const rv = expect > 0 ? m.vol / expect : 0;
             if (rv < MIN_RVOL) return;
@@ -26010,15 +26016,17 @@
         };
         el.innerHTML = '<div class="ipr-cols">' +
           colHtml('▲ Runners', 'pos', shown,
-            'None up ' + MIN_PCT + '%+ on ' + MIN_RVOL + '×+ vol.') +
+            'No $500M+ recent IPO up ' + MIN_PCT + '%+ on ' + MIN_RVOL +
+            '×+ vol.') +
           colHtml('▼ Breakdowns', 'neg', shownDn,
-            (mv.losers ? 'None down ' + MIN_PCT + '%+ on ' + MIN_RVOL +
-              '×+ vol.' : 'Loser feed arrives with the next worker deploy.')) +
+            (mv.losers ? 'No $500M+ recent IPO down ' + MIN_PCT + '%+ on ' +
+              MIN_RVOL + '×+ vol.'
+              : 'Loser feed arrives with the next worker deploy.')) +
           '</div>';
         if (foot)
           foot.innerHTML = 'IPO &lt; ' + (UNIV.ipo_window_years || 5) +
-            'y · ±' + MIN_PCT + '%+ on ≥' + MIN_RVOL + '× the 30-day ' +
-            'average volume, prorated to the ' +
+            'y · cap ≥$500M · ±' + MIN_PCT + '%+ on ≥' + MIN_RVOL +
+            '× the 30-day average volume, prorated to the ' +
             Math.round(el2 * 100) + '% of the session elapsed (assumes even ' +
             'intraday volume — early reads run hot). ' + rows.length +
             ' runners / ' + downs.length + ' breakdowns matched. Recent-IPO ' +
