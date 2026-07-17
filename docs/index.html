@@ -25916,6 +25916,24 @@
           return Math.max(0, Math.min(1, (m - 570) / 390));
         } catch (_) { return 1; }
       }
+      // SEC registry names carry share-class boilerplate ("Class A
+      // Ordinary Shares", "Common Stock", "Inc.") that eats the whole
+      // column. Strip suffix chains for display; the full registered
+      // name stays in the hover title.
+      function cleanNm(n) {
+        let s = String(n || "");
+        for (let i = 0; i < 3; i++) {
+          s = s.replace(/,?\s*(Class [A-C]\s+)?(Common Stock|Ordinary Shares?|American Depositary Shares?.*|Depositary Shares?.*|ADSs?|Units?|Warrants?)\s*$/i, "")
+               .replace(/,?\s*(Inc|Corp(oration)?|Ltd|Limited|PLC|Co|Company|Group|Holdings?|N\.V\.|S\.A\.)\.?\s*$/i,
+                 function (m, w) {
+                   // keep meaningful trailing words when they ARE the name
+                   return /^(Group|Holdings?|Company|Co)$/i.test(w) &&
+                          s.trim().split(/\s+/).length <= 2 ? m : "";
+                 })
+               .trim();
+        }
+        return s || String(n || "");
+      }
       function ipoAge(iso) {
         const d = Date.parse(iso + "T00:00:00Z");
         if (isNaN(d)) return "";
@@ -25977,7 +25995,7 @@
             'role="button" tabindex="0" title="' +
             tip.replace(/"/g, "&quot;") + '">' +
             '<span class="ipr-tk">' + esc(r.t) + '</span>' +
-            '<span class="ipr-nm">' + esc(r.name || "") + '</span>' +
+            '<span class="ipr-nm">' + esc(cleanNm(r.name)) + '</span>' +
             '<span class="ipr-mc">' + fmtCap(r.mcap) + '</span>' +
             '<span class="ipr-pct ' + (up ? "pos" : "neg") + '">' +
             (up ? "+" : "") + r.pct.toFixed(1) + '%</span>' +
