@@ -618,10 +618,18 @@
     flex-wrap:wrap; margin-bottom:6px; }
   .ipr-title { font-size:12px; font-weight:800; color:var(--text); }
   .ipr-stamp { font-size:9.5px; color:var(--muted); margin-left:auto; }
+  .ipr-cols { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:560px) { .ipr-cols { grid-template-columns:1fr; } }
+  .ipr-col { min-width:0; }
+  .ipr-col-h { font-size:10px; font-weight:800; letter-spacing:.05em;
+    padding-bottom:3px; margin-bottom:2px;
+    border-bottom:1px solid var(--line); }
+  .ipr-col-h i { font-style:normal; font-weight:600; color:var(--muted); }
   .ipr-r { display:grid;
-    grid-template-columns:46px minmax(0,1fr) 50px 46px 48px 54px;
-    gap:6px; align-items:baseline; padding:4px 0; cursor:pointer;
-    font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    grid-template-columns:42px minmax(0,1fr) 44px 46px 34px;
+    gap:5px; align-items:baseline; padding:3px 0; cursor:pointer;
+    font-size:10.5px; font-variant-numeric:tabular-nums;
+    white-space:nowrap; }
   .ipr-r + .ipr-r { border-top:1px solid rgba(255,255,255,0.05); }
   .ipr-r:hover { background:rgba(255,255,255,0.05); }
   .ipr-tk { font-weight:800; color:var(--text); overflow:hidden;
@@ -25927,20 +25935,26 @@
           return;
         }
         const el2 = sessionElapsed();
-        const rows = [];
-        (mv.movers || []).forEach(function (m) {
-          const u = UNIV.tickers[m.t];
-          if (!u || m.pct < MIN_PCT) return;
-          // prorate the average to the elapsed session so an 11 AM read
-          // isn't automatically "low volume"
-          const expect = u.avgvol * Math.max(0.08, el2);
-          const rv = expect > 0 ? m.vol / expect : 0;
-          if (rv < MIN_RVOL) return;
-          rows.push({ t: m.t, pct: m.pct, px: m.px, rv: rv, ipo: u.ipo,
-                      name: u.name || "", mcap: u.mcap || null });
-        });
+        // same universe join + prorated-RVol gate for both directions
+        const join = function (list) {
+          const out = [];
+          (list || []).forEach(function (m) {
+            const u = UNIV.tickers[m.t];
+            if (!u || Math.abs(m.pct) < MIN_PCT) return;
+            const expect = u.avgvol * Math.max(0.08, el2);
+            const rv = expect > 0 ? m.vol / expect : 0;
+            if (rv < MIN_RVOL) return;
+            out.push({ t: m.t, pct: m.pct, px: m.px, rv: rv, ipo: u.ipo,
+                       name: u.name || "", mcap: u.mcap || null });
+          });
+          return out;
+        };
+        const rows = join(mv.movers);
         rows.sort(function (a, b) { return b.pct - a.pct; });
-        const shown = rows.slice(0, 10);
+        const downs = join(mv.losers);
+        downs.sort(function (a, b) { return a.pct - b.pct; });
+        const shown = rows.slice(0, 6);
+        const shownDn = downs.slice(0, 6);
         if (stamp) {
           const t = mv.generated ? new Date(mv.generated)
             .toLocaleTimeString([], { hour: "numeric", minute: "2-digit",
@@ -25952,33 +25966,46 @@
           return v >= 1e9 ? "$" + (v / 1e9).toFixed(v >= 10e9 ? 0 : 1) + "B"
                           : "$" + Math.round(v / 1e6) + "M";
         };
-        el.innerHTML = shown.length
-          ? shown.map(function (r) {
-              // company name inline (truncated) + full name/price/listing
-              // date in the hover title; mcap gets its own column
-              const tip = (r.name ? r.name + " · " : "") + "$" +
-                r.px.toFixed(2) + " · listed " + esc(r.ipo) +
-                " · open " + esc(r.t) + " drilldown";
-              return '<div class="ipr-r" data-t="' + esc(r.t) + '" ' +
-                'role="button" tabindex="0" title="' +
-                tip.replace(/"/g, "&quot;") + '">' +
-                '<span class="ipr-tk">' + esc(r.t) + '</span>' +
-                '<span class="ipr-nm">' + esc(r.name || "") + '</span>' +
-                '<span class="ipr-ipo">IPO ' + ipoAge(r.ipo) + '</span>' +
-                '<span class="ipr-mc">' + fmtCap(r.mcap) + '</span>' +
-                '<span class="ipr-pct pos">+' + r.pct.toFixed(1) + '%</span>' +
-                '<span class="ipr-rv">' + r.rv.toFixed(1) + '× vol</span>' +
-                '</div>';
-            }).join("")
-          : '<div class="ipr-empty">No recent IPO is up ' + MIN_PCT +
-            '%+ on ' + MIN_RVOL + '×+ volume right now.</div>';
+        // IPO age + price + full name live in the hover title — the
+        // side-by-side columns don't have the width for every field
+        const rowHtml = function (r) {
+          const up = r.pct > 0;
+          const tip = (r.name ? r.name + " · " : "") + "$" +
+            r.px.toFixed(2) + " · IPO " + ipoAge(r.ipo) + " (" +
+            esc(r.ipo) + ") · open " + esc(r.t) + " drilldown";
+          return '<div class="ipr-r" data-t="' + esc(r.t) + '" ' +
+            'role="button" tabindex="0" title="' +
+            tip.replace(/"/g, "&quot;") + '">' +
+            '<span class="ipr-tk">' + esc(r.t) + '</span>' +
+            '<span class="ipr-nm">' + esc(r.name || "") + '</span>' +
+            '<span class="ipr-mc">' + fmtCap(r.mcap) + '</span>' +
+            '<span class="ipr-pct ' + (up ? "pos" : "neg") + '">' +
+            (up ? "+" : "") + r.pct.toFixed(1) + '%</span>' +
+            '<span class="ipr-rv">' + r.rv.toFixed(1) + '×</span>' +
+            '</div>';
+        };
+        const colHtml = function (title, cls, list, emptyMsg) {
+          return '<div class="ipr-col"><div class="ipr-col-h ' + cls + '">' +
+            title + ' <i>(' + list.length + ')</i></div>' +
+            (list.length ? list.map(rowHtml).join("")
+              : '<div class="ipr-empty">' + emptyMsg + '</div>') + '</div>';
+        };
+        el.innerHTML = '<div class="ipr-cols">' +
+          colHtml('▲ Runners', 'pos', shown,
+            'None up ' + MIN_PCT + '%+ on ' + MIN_RVOL + '×+ vol.') +
+          colHtml('▼ Breakdowns', 'neg', shownDn,
+            (mv.losers ? 'None down ' + MIN_PCT + '%+ on ' + MIN_RVOL +
+              '×+ vol.' : 'Loser feed arrives with the next worker deploy.')) +
+          '</div>';
         if (foot)
           foot.innerHTML = 'IPO &lt; ' + (UNIV.ipo_window_years || 5) +
-            'y · up ≥' + MIN_PCT + '% · ≥' + MIN_RVOL + '× the 30-day ' +
+            'y · ±' + MIN_PCT + '%+ on ≥' + MIN_RVOL + '× the 30-day ' +
             'average volume, prorated to the ' +
             Math.round(el2 * 100) + '% of the session elapsed (assumes even ' +
             'intraday volume — early reads run hot). ' + rows.length +
-            ' match of ' + (mv.count || 0) + ' movers ≥' + MIN_PCT + '%.';
+            ' runners / ' + downs.length + ' breakdowns matched. Recent-IPO ' +
+            'breakdowns on volume are often lockup expirations or dilutive ' +
+            'offerings — check the filing before fading the move.';
         wrap.style.display = "";
       }
       let _t = 0;

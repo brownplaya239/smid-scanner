@@ -2144,29 +2144,33 @@ async function fetchDayMovers(env, minPct) {
     if (!r.ok) return { error: "snapshot " + r.status, movers: [] };
     const j = await r.json();
     const all = Array.isArray(j.tickers) ? j.tickers : [];
-    const out = [];
+    const out = [], dn = [];
     for (const t of all) {
       const pct = t.todaysChangePerc;
-      if (pct == null || pct < minPct) continue;
+      if (pct == null || Math.abs(pct) < minPct) continue;
       const tk = (t.ticker || "").toUpperCase();
       if (!tk || /[.\-]/.test(tk)) continue;
       const px = (t.day && t.day.c) || (t.lastTrade && t.lastTrade.p) ||
                  (t.prevDay && t.prevDay.c) || null;
       if (px == null || px < 2) continue;          // no sub-$2 pennies
       const vol = (t.day && t.day.v) || 0;
-      out.push({ t: tk, pct: Math.round(pct * 10) / 10,
-                 px: Math.round(px * 100) / 100, vol: vol });
+      const row = { t: tk, pct: Math.round(pct * 10) / 10,
+                    px: Math.round(px * 100) / 100, vol: vol };
+      (pct > 0 ? out : dn).push(row);
     }
     out.sort(function (a, b) { return b.pct - a.pct; });
+    dn.sort(function (a, b) { return a.pct - b.pct; });
     return {
       generated: new Date().toISOString(),
       min_pct: minPct,
       scanned: all.length,
       count: out.length,
-      movers: out.slice(0, 400),
+      movers: out.slice(0, 400),          // up-side (back-compat field)
+      losers: dn.slice(0, 400),           // down-side, most-negative first
       delay_minutes: 15,
       note: ("Polygon full-market snapshot (15-min delayed). vol = today's " +
-             "cumulative regular-session volume."),
+             "cumulative regular-session volume. movers = up >= min%, " +
+             "losers = down >= min%."),
     };
   } catch (e) {
     return { error: String(e), movers: [] };
