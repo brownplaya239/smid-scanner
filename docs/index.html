@@ -12744,6 +12744,13 @@
     function tick() {
       const et = etNow();
       const isWeekend = (et.dow === "Sat" || et.dow === "Sun");
+      // Full-closure holidays via the canonical table (2026-27). The
+      // pill is what isMarketOpenET() trusts, so without this check a
+      // holiday like Thanksgiving reads "Open" and every open-gated
+      // surface (intraday regime relabel, open-cadence refresh) runs
+      // on a closed market.
+      const hol = !isWeekend && window.tdMarketClosedReason &&
+        window.tdMarketClosedReason(new Date());
       const md = minutesIntoDay(et);
       // RTH 9:30 AM – 4:00 PM ET
       const PRE_START   =  4 * 60;        //  4:00 AM ET pre-market opens
@@ -12752,7 +12759,7 @@
       const AFTER_END   = 20 * 60;        //  8:00 PM ET after-hours ends
       let state, label, cdSecs;
       const secsRem = (mins) => (mins - md) * 60 - et.s;
-      if (isWeekend) {
+      if (isWeekend || hol) {
         state = "closed";  label = "Closed";  cdSecs = 0;
       } else if (md < PRE_START) {
         state = "closed";  label = "Closed";  cdSecs = secsRem(PRE_START);
@@ -12774,7 +12781,9 @@
       labelEl.textContent = label;
       timeEl.textContent  = FMT_TIME.format(new Date()) + " ET";
 
-      if (cdSecs > 0 && state !== "closed") {
+      if (hol) {
+        cdEl.textContent = "· " + hol.label;
+      } else if (cdSecs > 0 && state !== "closed") {
         const next = state === "pre"   ? "opens"
                    : state === "open"  ? "closes"
                    : state === "after" ? "ends"
@@ -23351,17 +23360,16 @@
     // ── Market-hours-aware auto-refresh helpers ──────────────────────
     function isMarketOpenET() {
       // Read the market-pill state if it's rendered; cheapest path
-      // since the pill already does ET + holiday math.
+      // since the pill does the ET + weekend + holiday-table math.
       const pill = document.getElementById("market-pill");
       if (pill) return pill.classList.contains("state-open");
-      // Fallback: weekday 9:30 AM - 4:00 PM ET. No holiday calendar
-      // in this fallback — pill is the canonical source.
+      // Fallback: weekend/holiday via the canonical table, then RTH.
       try {
+        if (window.tdMarketClosedReason &&
+            window.tdMarketClosedReason(new Date())) return false;
         const et = new Date(
           new Date().toLocaleString("en-US", {
             timeZone: "America/New_York" }));
-        const dow = et.getDay();
-        if (dow === 0 || dow === 6) return false;
         const mins = et.getHours() * 60 + et.getMinutes();
         return mins >= 9 * 60 + 30 && mins < 16 * 60;
       } catch (e) { return false; }
