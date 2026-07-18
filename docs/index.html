@@ -22022,6 +22022,12 @@
     // The persisted regime_history.json (learning loop 7) is untouched:
     // swing_report.py still logs the EOD classification.
     function updateDeskRegimeLive() {
+      // Only during regular trading hours. Off-hours (weekends, pre/post,
+      // holidays) the quote cache still fills with the PRIOR session's
+      // day-changes — relabeling those "intraday · as of <now>" showed
+      // Friday's RISK-OFF as a live Saturday read. The render-time
+      // "prior session close" marker is the honest state then.
+      if (!isMarketOpenET()) return;
       const el = document.querySelector("#panel-desk .rg-banner");
       if (!el || typeof DESK_TKMAP !== "object") return;
       const cache = window.LIVE_QUOTE_CACHE || {};
