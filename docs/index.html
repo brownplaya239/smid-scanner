@@ -19794,8 +19794,22 @@
     });
     pollGeneral();
     pollWatchlist();
-    setInterval(pollGeneral, 20000);
-    setInterval(pollWatchlist, 20000);
+    // Backoff + visibility pause. These desk/My-Desk headline lists were
+    // polling news_live every 20s each, unconditionally, even on a
+    // backgrounded tab (~the 56 fetches/session the audit flagged). The
+    // dedicated News tab is the real-time surface (Supabase Realtime +
+    // its own faster poll); these ambient lists only need periodic
+    // freshness, so 45s + skip-when-hidden, with an immediate refresh
+    // when the tab regains focus.
+    function newsMiniTick() {
+      if (document.hidden) return;
+      pollGeneral();
+      pollWatchlist();
+    }
+    setInterval(newsMiniTick, 45000);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) newsMiniTick();
+    });
   })();
 
   /* ── Engine Room — nightly closed-loop commentary on the grade engine.
@@ -25674,6 +25688,19 @@
     function renderBody() {
       renderChips();
       const tb = $("uoa-body");
+      // Lazy-render: this table is ~2/3 of the entire page's DOM (300
+      // rows × ~45 nodes). Don't build it until the user is actually on
+      // Options Flow — on the Desk landing that saves ~13k nodes and the
+      // tab-switch jank the audit flagged. Rebuilt on tab activation
+      // (the nav hook forces a renderBody; the poll is panel-active
+      // gated). Desk-facing derived data (renderTodayEdge / clusters)
+      // is computed separately, so deferring the table costs nothing
+      // elsewhere.
+      if (document.body.dataset.route !== "uoa") {
+        tb.innerHTML = '<tr><td colspan="17" class="uoa-empty">' +
+          'Open Options Flow to load the live table&hellip;</td></tr>';
+        return;
+      }
       if (!DATA.length) {
         tb.innerHTML = '<tr><td colspan="17" class="uoa-empty">Awaiting the first UOA scan '+
           '&mdash; scheduled runs at ~11:00 AM, 1:30 PM &amp; 3:45 PM ET will populate this.</td></tr>';
@@ -28024,8 +28051,14 @@
     }, 90000);
     const _navUoa = document.getElementById("nav");
     if (_navUoa) _navUoa.addEventListener("click", function (e) {
-      if (e.target && e.target.dataset && e.target.dataset.tab === "uoa")
+      if (e.target && e.target.dataset && e.target.dataset.tab === "uoa") {
+        // Build the (lazily-deferred) table now that the panel is active
+        // — loadUoa's batch guard would otherwise skip renderBody when
+        // the data hasn't changed since the load-time fetch, leaving the
+        // placeholder up. setActivePanel has already stamped route=uoa.
+        renderBody();
         loadUoa();
+      }
     });
   })();
 </script>
