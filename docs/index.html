@@ -741,6 +741,14 @@
   .scan-track .sk-stat.dn { color:var(--red); border-color:rgba(214,68,68,.4); }
   .scan-track .sk-acc { font-style:italic; }
   .scan-track .sk-note { color:var(--muted); }
+  /* My Desk header row + "add watchlist" affordance */
+  .mydesk-titlerow { display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap; gap:10px; }
+  .md-add-wl { background:var(--gold); color:var(--accink); border:0;
+    border-radius:7px; padding:7px 14px; font-size:12.5px; font-weight:800;
+    font-family:inherit; cursor:pointer; white-space:nowrap; }
+  .md-add-wl:hover { filter:brightness(1.08); }
+  .md-news-empty .md-add-wl { margin-left:8px; padding:4px 10px; font-size:11.5px; }
   /* Screen-reader / crawler-only text (descriptive H1 tail) */
   .sr-only { position:absolute; width:1px; height:1px; padding:0;
     margin:-1px; overflow:hidden; clip:rect(0,0,0,0);
@@ -5902,7 +5910,13 @@
 
     <!-- My Desk — watchlist-personalized view of Today's Desk data -->
     <section class="panel" id="panel-mydesk">
-      <h2 class="tab-title">My Desk</h2>
+      <div class="mydesk-titlerow">
+        <h2 class="tab-title">My Desk</h2>
+        <button type="button" class="md-add-wl"
+                onclick="window.tdOpenWatchlist&&window.tdOpenWatchlist()"
+                title="Add or edit the tickers on your watchlist">
+          ★ Add / edit watchlist</button>
+      </div>
       <p class="tab-sub" id="mydesk-sub">
         Your watchlist, surfaced with every signal we have for those names &mdash;
         grades, options flow, news, upcoming earnings, recent reports.
@@ -11871,6 +11885,9 @@
       backdrop.classList.remove("show");
     }
     trigger.addEventListener("click", openDrawer);
+    // Exposed so empty-state "Add tickers" affordances elsewhere (My Desk,
+    // watchlist news wire) can open the same add-ticker drawer.
+    window.tdOpenWatchlist = openDrawer;
     closeBtn.addEventListener("click", closeDrawer);
     backdrop.addEventListener("click", closeDrawer);
     document.addEventListener("keydown", function (e) {
@@ -19890,8 +19907,11 @@
       const tickers = Array.from(wl).filter(function (t) {
         return /^[A-Z][A-Z.\-]{0,5}$/.test(t); });   // safe for the URL filter
       if (!tickers.length) {
-        mdEl.innerHTML = '<div class="md-news-empty">Add tickers to your ' +
-          'watchlist to see their headlines here.</div>';
+        mdEl.innerHTML = '<div class="md-news-empty">Your watchlist is empty ' +
+          '&mdash; add tickers to see their headlines and signals here. ' +
+          '<button type="button" class="md-add-wl" ' +
+          'onclick="window.tdOpenWatchlist&&window.tdOpenWatchlist()">' +
+          '★ Add tickers</button></div>';
         return;
       }
       const filter = "symbols=ov.%7B" + tickers.join(",") + "%7D";
