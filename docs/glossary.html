@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Plain-English glossary of the options-flow, momentum and technical terms used on TickerDesk: VCP, ADR%, IC, MFE/MAE, volume/OI, golden sweep, OCC-settled, expected move, and more." />
+<link rel="icon" href="favicon.png" />
+<link rel="canonical" href="https://tickerdesk.io/glossary" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="TickerDesk" />
+<meta property="og:title" content="Trading Glossary — Options Flow, Momentum & Technicals | TickerDesk" />
+<meta property="og:description" content="Plain-English definitions for the options-flow and momentum terms used across TickerDesk — VCP, ADR%, IC, MFE/MAE, volume/OI, golden sweeps and more." />
+<meta property="og:url" content="https://tickerdesk.io/glossary" />
+<meta property="og:image" content="https://tickerdesk.io/og-image.jpg" />
+<title>Trading Glossary — Options Flow, Momentum &amp; Technicals | TickerDesk</title>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"DefinedTermSet","name":"TickerDesk Trading Glossary","url":"https://tickerdesk.io/glossary","hasDefinedTerm":[
+{"@type":"DefinedTerm","name":"Unusual Options Activity (UOA)","description":"Options trading that stands out from a contract's normal behavior — outsized volume, volume exceeding open interest, or aggressive sweeps — often read as informed positioning."},
+{"@type":"DefinedTerm","name":"Golden sweep","description":"An aggressive options order large and urgent enough to sweep multiple exchanges and pay the ask, the strongest single conviction footprint in the flow."},
+{"@type":"DefinedTerm","name":"Volume / Open Interest (vol/OI)","description":"The ratio of a day's contract volume to its existing open interest. A ratio above 1 means more contracts traded than were previously open — a sign of new positioning rather than existing books changing hands."},
+{"@type":"DefinedTerm","name":"Open interest confirmation","description":"Re-reading a flagged contract's open interest the next trading day to see whether the position was actually opened and held (OI rose), was weak, or was closed (OI fell)."},
+{"@type":"DefinedTerm","name":"Expected move","description":"The market-implied one–standard-deviation price range into an event or expiry, derived from the at-the-money straddle or implied volatility."},
+{"@type":"DefinedTerm","name":"VCP (Volatility Contraction Pattern)","description":"A base that tightens through progressively smaller pullbacks on declining volume before a breakout, popularized by Mark Minervini."},
+{"@type":"DefinedTerm","name":"ADR% (Average Daily Range percent)","description":"A stock's average high-to-low range over recent sessions, expressed as a percent of price — a measure of how much it typically moves in a day."},
+{"@type":"DefinedTerm","name":"Relative strength (RS)","description":"How a stock is performing versus the broad market or its peers; high relative strength means it is outperforming."},
+{"@type":"DefinedTerm","name":"IC (Information Coefficient)","description":"The rank correlation between a predictive score and realized returns. For daily signals, an absolute IC of about 0.05 or more is meaningful; near zero means the score has no ranking power."},
+{"@type":"DefinedTerm","name":"MFE / MAE","description":"Maximum Favorable Excursion and Maximum Adverse Excursion — the best and worst unrealized moves a signal reached over its holding window; together they describe how much heat a trade took and how far it ran."},
+{"@type":"DefinedTerm","name":"OCC-settled","description":"Refers to official open-interest figures settled once per day by the Options Clearing Corporation — the authoritative next-morning OI used for confirmation."},
+{"@type":"DefinedTerm","name":"Gamma flip","description":"The underlying price level at which aggregate dealer gamma switches sign, marking the boundary between a mean-reverting (positive-gamma) and trend-amplifying (negative-gamma) regime."}
+]}
+</script>
+<style>
+  body { margin:0; padding:48px 20px 80px; background:#000; color:#e8e8e8;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    line-height:1.6; }
+  main { max-width:720px; margin:0 auto; }
+  .nav { display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid #2b2b2b; padding-bottom:16px; margin-bottom:32px; }
+  .nav a { color:#ff9e1b; text-decoration:none; font-size:13px; font-weight:600; }
+  .nav a:hover { text-decoration:underline; }
+  h1 { font-size:30px; font-weight:800; margin:0 0 10px; }
+  .sub { color:#9a9a9a; font-size:15px; margin-bottom:30px; }
+  h2 { font-size:15px; font-weight:700; color:#ff9e1b; margin:30px 0 6px;
+    text-transform:uppercase; letter-spacing:.04em; }
+  dl { margin:0; }
+  dt { font-weight:700; font-size:15px; color:#e8e8e8; margin-top:18px; }
+  dd { margin:4px 0 0; font-size:14px; color:#c9c9c9; }
+  dd .aka { color:#7a7a7a; font-style:italic; }
+  a { color:#ff9e1b; }
+  footer { margin-top:44px; padding-top:16px; border-top:1px solid #2b2b2b;
+    font-size:12px; color:#7a7a7a; }
+  footer a { color:#7a7a7a; }
+</style>
+</head>
+<body>
+<main>
+  <div class="nav">
+    <a href="/">&larr; TickerDesk</a>
+    <a href="/#uoa">Open the app &rarr;</a>
+  </div>
+  <h1>Trading glossary</h1>
+  <p class="sub">Plain-English definitions for the options-flow, momentum and
+    technical terms used across TickerDesk. Educational, not investment advice.</p>
+
+  <h2>Options flow</h2>
+  <dl>
+    <dt>Unusual Options Activity (UOA)</dt>
+    <dd>Options trading that stands out from a contract's normal behavior —
+      outsized volume, volume exceeding open interest, or aggressive sweeps.
+      Often read as informed positioning, though on its own it's a filter,
+      not a verdict.</dd>
+    <dt>Golden sweep</dt>
+    <dd>An aggressive options order large and urgent enough to sweep multiple
+      exchanges and pay the ask — the strongest single conviction footprint
+      in the flow. <a href="/golden-sweeps-scanner">More on golden sweeps &rarr;</a></dd>
+    <dt>Volume / Open Interest <span class="aka">(vol/OI)</span></dt>
+    <dd>The ratio of a day's contract volume to its existing open interest. A
+      ratio above 1 means more contracts traded than were previously open —
+      new positioning rather than existing books changing hands.</dd>
+    <dt>Open interest (OI) confirmation</dt>
+    <dd>Re-reading a flagged contract's open interest the next trading day to
+      see whether the position was actually opened and held (OI rose), was
+      weak, or was closed (OI fell).
+      <a href="/options-open-interest-confirmation">How OI confirmation works &rarr;</a></dd>
+    <dt>Opening buyer</dt>
+    <dd>Flow that appears to establish a new position (buying to open) rather
+      than closing an existing one — generally a stronger directional tell.</dd>
+    <dt>Premium</dt>
+    <dd>The total dollar value of an options trade (price per contract ×
+      contracts × 100). Bull vs bear premium tilt summarizes where the money
+      is leaning.</dd>
+  </dl>
+
+  <h2>Options structure</h2>
+  <dl>
+    <dt>Expected move</dt>
+    <dd>The market-implied one–standard-deviation price range into an event or
+      expiry, derived from the at-the-money straddle or implied volatility.</dd>
+    <dt>Implied vs realized move</dt>
+    <dd>What the options are pricing in (implied) versus how much the stock has
+      historically actually moved (realized). A large gap is the earnings-flow
+      edge. <a href="/earnings-options-flow">Earnings options flow &rarr;</a></dd>
+    <dt>Gamma flip</dt>
+    <dd>The underlying price where aggregate dealer gamma switches sign — the
+      boundary between a mean-reverting (positive-gamma) and a
+      trend-amplifying (negative-gamma) regime.</dd>
+    <dt>OCC-settled</dt>
+    <dd>Official open-interest figures settled once per day by the Options
+      Clearing Corporation — the authoritative next-morning OI used for
+      confirmation.</dd>
+  </dl>
+
+  <h2>Momentum &amp; setups</h2>
+  <dl>
+    <dt>VCP <span class="aka">(Volatility Contraction Pattern)</span></dt>
+    <dd>A base that tightens through progressively smaller pullbacks on
+      declining volume before a breakout, popularized by Mark Minervini.
+      <a href="/vcp-screener">VCP screener &rarr;</a></dd>
+    <dt>ADR% <span class="aka">(Average Daily Range percent)</span></dt>
+    <dd>A stock's average high-to-low range over recent sessions as a percent
+      of price — how much it typically moves in a day. Higher ADR% means more
+      room and more risk per position.</dd>
+    <dt>Relative strength <span class="aka">(RS)</span></dt>
+    <dd>How a stock is performing versus the broad market or its peers. High
+      relative strength means it is outperforming — a core momentum filter.</dd>
+    <dt>Extension</dt>
+    <dd>How far a stock has stretched above a moving average or base. Extended
+      names carry higher pullback (fade) risk.</dd>
+  </dl>
+
+  <h2>Model &amp; validation</h2>
+  <dl>
+    <dt>IC <span class="aka">(Information Coefficient)</span></dt>
+    <dd>The rank correlation between a predictive score and realized returns.
+      For daily signals, an absolute IC around 0.05+ is meaningful; near zero
+      means the score has no ranking power — it's a filter, not a ranking.</dd>
+    <dt>MFE / MAE</dt>
+    <dd>Maximum Favorable Excursion and Maximum Adverse Excursion — the best
+      and worst unrealized moves a signal reached over its window. Together
+      they describe how much heat a trade took and how far it ran.</dd>
+    <dt>Expected value <span class="aka">(EV)</span></dt>
+    <dd>The average return per signal across all outcomes, winners and losers.
+      A positive EV with a confidence interval that excludes zero is the bar
+      that matters — more than win rate alone.</dd>
+    <dt>Profit factor</dt>
+    <dd>Gross winnings divided by gross losses. Above 1 means the winners
+      outweigh the losers; right at 1 means no net edge.</dd>
+    <dt>Calibration drift</dt>
+    <dd>The gap between a model's trained win-rate expectation and its live
+      performance. Persistent negative drift means the tape is paying the
+      signal less than history implied.</dd>
+  </dl>
+
+  <p style="margin-top:28px"><a href="/transparency">See these metrics on our
+    live, self-graded track record &rarr;</a></p>
+
+  <footer>
+    <a href="/">TickerDesk</a> &middot; <a href="/transparency">Transparency</a>
+    &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a>
+    &middot; Educational research, not investment advice.
+  </footer>
+</main>
+</body>
+</html>

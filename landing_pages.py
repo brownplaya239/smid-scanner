@@ -485,6 +485,8 @@ def _write_sitemap(slugs):
     static = [
         ("/", "daily", "1.0"),
         ("/transparency", "weekly", "0.8"),
+        ("/glossary", "monthly", "0.6"),
+        ("/sample-report", "monthly", "0.6"),
     ]
     lp = [("/" + s, "weekly", "0.7") for s in slugs]
     legal = [("/privacy", "monthly", "0.3"), ("/terms", "monthly", "0.3")]
