@@ -161,6 +161,14 @@ jobs:
         continue-on-error: true
         run: python earnings_ideas.py
 
+      - name: Regenerate SEO landing pages
+        # Static keyword pages built from the freshly-published report
+        # JSONs (live stat callouts track the latest ledger). Rebuilds
+        # sitemap.xml too. Must run AFTER uoa_edge / level_stats so the
+        # numbers are current. Pure output — non-fatal.
+        continue-on-error: true
+        run: python landing_pages.py
+
       - name: Auto-discover @eWhispers weekly tweet image
         # Twitter's syndication endpoint rate-limits aggressively; a 429
         # or any other failure here must NEVER block the publish step

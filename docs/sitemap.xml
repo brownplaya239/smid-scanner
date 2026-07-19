@@ -1,34 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-
-  <!-- Dashboard / app root. Single-page; tabs are anchors not paths,
-       so this one URL covers Today's Desk + Watchlist + Options Flow
-       + Earnings + News + every other tab. -->
-  <url>
-    <loc>https://tickerdesk.io/</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-
-  <!-- Transparency — the self-graded track record page. The primary
-       editorial/SEO surface ("does options flow work"). -->
-  <url>
-    <loc>https://tickerdesk.io/transparency</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- Legal pages. Lower priority but valuable for trust-signal
-       crawling by Google when verifying the OAuth consent screen. -->
-  <url>
-    <loc>https://tickerdesk.io/privacy</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://tickerdesk.io/terms</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-
+  <url><loc>https://tickerdesk.io/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+  <url><loc>https://tickerdesk.io/transparency</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://tickerdesk.io/options-flow-scanner</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://tickerdesk.io/options-open-interest-confirmation</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://tickerdesk.io/golden-sweeps-scanner</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://tickerdesk.io/spy-qqq-iwm-levels</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://tickerdesk.io/earnings-options-flow</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://tickerdesk.io/swing-trading-scanner</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://tickerdesk.io/vcp-screener</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://tickerdesk.io/ai-stock-research-reports</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://tickerdesk.io/stock-market-morning-brief</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://tickerdesk.io/privacy</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://tickerdesk.io/terms</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
 </urlset>

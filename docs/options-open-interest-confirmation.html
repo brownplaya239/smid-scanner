@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Next-day open-interest confirmation on every flagged options signal: was the position actually opened and held, or gone by the next session? A check most flow scanners skip." />
+<link rel="icon" href="favicon.png" />
+<link rel="canonical" href="https://tickerdesk.io/options-open-interest-confirmation" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="TickerDesk" />
+<meta property="og:title" content="Options Open-Interest Confirmation — Did the Flow Actually Stick? | TickerDesk" />
+<meta property="og:description" content="Next-day open-interest confirmation on every flagged options signal: was the position actually opened and held, or gone by the next session? A check most flow scanners skip." />
+<meta property="og:url" content="https://tickerdesk.io/options-open-interest-confirmation" />
+<meta property="og:image" content="https://tickerdesk.io/og-image.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<title>Options Open-Interest Confirmation — Did the Flow Actually Stick? | TickerDesk</title>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Options Open-Interest Confirmation \u2014 Did the Flow Actually Stick? | TickerDesk","url":"https://tickerdesk.io/options-open-interest-confirmation","description":"Next-day open-interest confirmation on every flagged options signal: was the position actually opened and held, or gone by the next session? A check most flow scanners skip.","isPartOf":{"@type":"WebApplication","name":"TickerDesk","url":"https://tickerdesk.io/"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How is confirmation measured?","acceptedAnswer":{"@type":"Answer","text":"By comparing each flagged contract's open interest the session after the flag to its level at flag time. OCC-settled OI updates once per day, so this is a next-morning read."}},{"@type":"Question","name":"Why does it matter?","acceptedAnswer":{"@type":"Answer","text":"Positioning that persists is a stronger signal than a print that's gone by the close. Confirmation separates the two."}}]}</script>
+<style>
+  body { margin:0; padding:48px 20px 80px; background:#000; color:#e8e8e8;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    line-height:1.6; }
+  main { max-width:680px; margin:0 auto; }
+  .nav { display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid #2b2b2b; padding-bottom:16px; margin-bottom:32px; }
+  .nav a { color:#ff9e1b; text-decoration:none; font-size:13px; font-weight:600; }
+  .nav a:hover { text-decoration:underline; }
+  h1 { font-size:30px; font-weight:800; margin:0 0 10px; line-height:1.2; }
+  h2 { font-size:18px; font-weight:700; margin:34px 0 10px; }
+  .sub { color:#9a9a9a; font-size:15px; margin-bottom:26px; }
+  p, li { font-size:14.5px; color:#c9c9c9; }
+  a { color:#ff9e1b; }
+  ul { padding-left:20px; }
+  li { margin:6px 0; }
+  .callout { background:#0e0e0e; border:1px solid #2b2b2b; border-radius:10px;
+    padding:16px 18px; margin:20px 0; }
+  .callout b { color:#e8e8e8; }
+  .stat-row { display:flex; flex-wrap:wrap; gap:22px; margin:6px 0 2px; }
+  .stat-row div { font-size:12px; color:#7a7a7a; }
+  .stat-row b { display:block; font-size:22px; color:#e8e8e8;
+    font-variant-numeric:tabular-nums; }
+  .faq { margin-top:12px; }
+  .faq details { border-bottom:1px solid #1e1e1e; padding:10px 0; }
+  .faq summary { cursor:pointer; font-weight:600; font-size:14px; color:#e8e8e8; }
+  .faq p { margin:8px 0 0; }
+  .cta { display:inline-block; background:#ff9e1b; color:#000; font-weight:700;
+    padding:11px 24px; border-radius:8px; text-decoration:none; margin-top:10px; }
+  .related { padding-left:20px; }
+  .related li { margin:4px 0; }
+  .disc { margin-top:30px; font-size:12px; color:#7a7a7a; }
+  footer { margin-top:44px; padding-top:16px; border-top:1px solid #2b2b2b;
+    font-size:12px; color:#7a7a7a; }
+  footer a { color:#7a7a7a; }
+</style>
+</head>
+<body>
+<main>
+  <div class="nav">
+    <a href="/">&larr; TickerDesk</a>
+    <a href="/#uoa">Open the app &rarr;</a>
+  </div>
+  <h1>Open-interest confirmation on every flow signal</h1>
+  <p class="sub">A big print only matters if the position is still there the next morning. We check.</p>
+  <p>Unusual options activity is noisy: a lot of eye-catching prints are closed, rolled, or hedged by the next session. TickerDesk re-reads each flagged contract's <b>open interest the next trading day</b> and tells you whether the position was confirmed (OI grew), weak, or already closed.</p>
+  <div class="callout"><div class="stat-row"><div><b>72%</b>of flagged positions confirmed by next-day OI</div><div><b>24,390</b>signals OI-checked</div></div></div>
+  <h2>Three outcomes, tracked</h2><ul><li><b>Confirmed</b> — open interest rose next day; the position was opened and held.</li><li><b>Weak</b> — little or no OI follow-through.</li><li><b>Closed</b> — OI fell; the flow was likely a same-day trade, not positioning.</li></ul><p>This is the differentiator most flow products don't offer. A sweep that shows up on a dozen scanners looks identical everywhere — until you check whether the money actually stayed in the trade.</p>
+  <h2>Frequently asked</h2>
+  <div class="faq"><details><summary>How is confirmation measured?</summary><p>By comparing each flagged contract's open interest the session after the flag to its level at flag time. OCC-settled OI updates once per day, so this is a next-morning read.</p></details><details><summary>Why does it matter?</summary><p>Positioning that persists is a stronger signal than a print that's gone by the close. Confirmation separates the two.</p></details></div>
+  <p style="margin-top:24px"><a class="cta" href="/#uoa">See confirmed flow</a></p>
+  <p class="disc">Every signal referenced is logged and graded against real closes; see the <a href='/transparency'>transparency page</a> for the full self-graded track record.</p>
+  <h2>More from TickerDesk</h2>
+  <ul class="related"><li><a href="/options-flow-scanner">Options flow scanner</a></li><li><a href="/golden-sweeps-scanner">Golden sweeps scanner</a></li><li><a href="/spy-qqq-iwm-levels">SPY / QQQ / IWM key levels</a></li><li><a href="/earnings-options-flow">Earnings options flow</a></li><li><a href="/swing-trading-scanner">Swing trading scanner</a></li><li><a href="/vcp-screener">VCP screener</a></li><li><a href="/ai-stock-research-reports">AI stock research reports</a></li><li><a href="/stock-market-morning-brief">Stock market morning brief</a></li><li><a href="/transparency">Does options flow work? Our self-graded numbers</a></li></ul>
+  <footer>
+    <a href="/">TickerDesk</a> &middot; <a href="/transparency">Transparency</a>
+    &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a>
+    &middot; Educational research, not investment advice. Market data
+    15-minute delayed.
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="A daily options-flow scanner that flags unusual options activity, sweeps, and repeat buyers — then grades every signal against real closes. See what actually predicts moves." />
+<link rel="icon" href="favicon.png" />
+<link rel="canonical" href="https://tickerdesk.io/options-flow-scanner" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="TickerDesk" />
+<meta property="og:title" content="Options Flow Scanner — Unusual Options Activity, Graded | TickerDesk" />
+<meta property="og:description" content="A daily options-flow scanner that flags unusual options activity, sweeps, and repeat buyers — then grades every signal against real closes. See what actually predicts moves." />
+<meta property="og:url" content="https://tickerdesk.io/options-flow-scanner" />
+<meta property="og:image" content="https://tickerdesk.io/og-image.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<title>Options Flow Scanner — Unusual Options Activity, Graded | TickerDesk</title>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Options Flow Scanner \u2014 Unusual Options Activity, Graded | TickerDesk","url":"https://tickerdesk.io/options-flow-scanner","description":"A daily options-flow scanner that flags unusual options activity, sweeps, and repeat buyers \u2014 then grades every signal against real closes. See what actually predicts moves.","isPartOf":{"@type":"WebApplication","name":"TickerDesk","url":"https://tickerdesk.io/"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is the options flow real-time?","acceptedAnswer":{"@type":"Answer","text":"Data is 15-minute delayed (Polygon Options Starter), clearly labeled everywhere. The scan runs six times per market day."}},{"@type":"Question","name":"Does options flow actually work?","acceptedAnswer":{"@type":"Answer","text":"On the full ledger, following flow blindly is close to a coin flip \u2014 we publish that. The edge is in specific cohorts and decays within days. The transparency page has the numbers."}}]}</script>
+<style>
+  body { margin:0; padding:48px 20px 80px; background:#000; color:#e8e8e8;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    line-height:1.6; }
+  main { max-width:680px; margin:0 auto; }
+  .nav { display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid #2b2b2b; padding-bottom:16px; margin-bottom:32px; }
+  .nav a { color:#ff9e1b; text-decoration:none; font-size:13px; font-weight:600; }
+  .nav a:hover { text-decoration:underline; }
+  h1 { font-size:30px; font-weight:800; margin:0 0 10px; line-height:1.2; }
+  h2 { font-size:18px; font-weight:700; margin:34px 0 10px; }
+  .sub { color:#9a9a9a; font-size:15px; margin-bottom:26px; }
+  p, li { font-size:14.5px; color:#c9c9c9; }
+  a { color:#ff9e1b; }
+  ul { padding-left:20px; }
+  li { margin:6px 0; }
+  .callout { background:#0e0e0e; border:1px solid #2b2b2b; border-radius:10px;
+    padding:16px 18px; margin:20px 0; }
+  .callout b { color:#e8e8e8; }
+  .stat-row { display:flex; flex-wrap:wrap; gap:22px; margin:6px 0 2px; }
+  .stat-row div { font-size:12px; color:#7a7a7a; }
+  .stat-row b { display:block; font-size:22px; color:#e8e8e8;
+    font-variant-numeric:tabular-nums; }
+  .faq { margin-top:12px; }
+  .faq details { border-bottom:1px solid #1e1e1e; padding:10px 0; }
+  .faq summary { cursor:pointer; font-weight:600; font-size:14px; color:#e8e8e8; }
+  .faq p { margin:8px 0 0; }
+  .cta { display:inline-block; background:#ff9e1b; color:#000; font-weight:700;
+    padding:11px 24px; border-radius:8px; text-decoration:none; margin-top:10px; }
+  .related { padding-left:20px; }
+  .related li { margin:4px 0; }
+  .disc { margin-top:30px; font-size:12px; color:#7a7a7a; }
+  footer { margin-top:44px; padding-top:16px; border-top:1px solid #2b2b2b;
+    font-size:12px; color:#7a7a7a; }
+  footer a { color:#7a7a7a; }
+</style>
+</head>
+<body>
+<main>
+  <div class="nav">
+    <a href="/">&larr; TickerDesk</a>
+    <a href="/#uoa">Open the app &rarr;</a>
+  </div>
+  <h1>Options flow scanner that grades itself</h1>
+  <p class="sub">Unusual options activity, golden sweeps, and repeat-buyer flow — with the one thing most scanners hide: what happened next.</p>
+  <p>Most options-flow tools show you a firehose of big trades and leave you to guess which ones matter. TickerDesk scans ~180 liquid optionable names six times a market day (15-minute delayed), flags the unusual activity, and then <b>tracks every flagged signal to a real outcome</b> at +1/+3/+5/+10/+20 days versus SPY.</p>
+  <div class="callout"><div class="stat-row"><div><b>79,484</b>signals tracked</div><div><b>+0.03%</b>avg +5d excess vs SPY</div><div><b>46%</b>win rate · PF 1.01</div></div><p style="margin:10px 0 0;font-size:13px;color:#9a9a9a">These are the honest aggregate numbers — a near-coin-flip baseline. The edge lives in specific cohorts, and we publish where it doesn't work too.</p></div>
+  <h2>What it flags</h2><ul><li><b>Golden sweeps</b> — aggressive, multi-exchange sweep orders paying the ask.</li><li><b>Volume &gt; open interest</b> — new positioning, not existing books being traded.</li><li><b>Repeat buyers</b> — the same contract accumulating across sessions.</li><li><b>Opening-buyer premium</b> — bull vs bear dollar-premium tilt per name and market-wide.</li></ul><h2>Why the grading matters</h2><p>A scan is only worth what it predicts. Every cohort — by signal type, DTE bucket, liquidity tier and flag — carries its own expected value, win rate, and confidence interval, recomputed nightly. Where a cohort shows no edge, the app says so instead of dressing it up.</p>
+  <h2>Frequently asked</h2>
+  <div class="faq"><details><summary>Is the options flow real-time?</summary><p>Data is 15-minute delayed (Polygon Options Starter), clearly labeled everywhere. The scan runs six times per market day.</p></details><details><summary>Does options flow actually work?</summary><p>On the full ledger, following flow blindly is close to a coin flip — we publish that. The edge is in specific cohorts and decays within days. The <a href='/transparency'>transparency page</a> has the numbers.</p></details></div>
+  <p style="margin-top:24px"><a class="cta" href="/#uoa">Open the flow scanner</a></p>
+  <p class="disc">Every signal referenced is logged and graded against real closes; see the <a href='/transparency'>transparency page</a> for the full self-graded track record.</p>
+  <h2>More from TickerDesk</h2>
+  <ul class="related"><li><a href="/options-open-interest-confirmation">Open-interest confirmation</a></li><li><a href="/golden-sweeps-scanner">Golden sweeps scanner</a></li><li><a href="/spy-qqq-iwm-levels">SPY / QQQ / IWM key levels</a></li><li><a href="/earnings-options-flow">Earnings options flow</a></li><li><a href="/swing-trading-scanner">Swing trading scanner</a></li><li><a href="/vcp-screener">VCP screener</a></li><li><a href="/ai-stock-research-reports">AI stock research reports</a></li><li><a href="/stock-market-morning-brief">Stock market morning brief</a></li><li><a href="/transparency">Does options flow work? Our self-graded numbers</a></li></ul>
+  <footer>
+    <a href="/">TickerDesk</a> &middot; <a href="/transparency">Transparency</a>
+    &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a>
+    &middot; Educational research, not investment advice. Market data
+    15-minute delayed.
+  </footer>
+</main>
+</body>
+</html>

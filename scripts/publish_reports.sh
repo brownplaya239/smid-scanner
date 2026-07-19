@@ -28,7 +28,14 @@ git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 # data/ — committed for cross-run persistence, but OUT of the Pages folder.
 python -c "from report_archive import rebuild_manifest; rebuild_manifest(keep_per_type=10)" || true
 
-git add docs/reports/ data/ || true
+# Machine-generated paths this job publishes. Landing pages + sitemap are
+# regenerated each run by landing_pages.py and live in docs/ root; the
+# keyword slugs all contain a hyphen, which the static pages (index /
+# privacy / terms / transparency) do not — so docs/*-*.html captures the
+# landing set without ever staging a hand-edited page.
+PUBLISH_PATHS="docs/reports/ data/ docs/sitemap.xml docs/*-*.html"
+
+git add ${PUBLISH_PATHS} || true
 if git diff --staged --quiet; then
   echo "No new reports to publish"
   exit 0
