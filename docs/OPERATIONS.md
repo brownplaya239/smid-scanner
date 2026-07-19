@@ -103,7 +103,7 @@ On-demand → Ticker One-Pager Lookup, Alt-Data Intelligence Lookup (user button
 echo "=== Site ===" && curl -s -o /dev/null -w "HTTP %{http_code}\n" https://tickerdesk.io
 
 echo "=== Worker ===" && curl -s -o /dev/null -w "HTTP %{http_code}\n" \
-  "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev/?quotes=SPY"
+  "https://api.tickerdesk.io/?quotes=SPY"
 
 echo "=== Recent workflow runs ===" && gh run list --repo brownplaya239/smid-scanner --limit 8
 

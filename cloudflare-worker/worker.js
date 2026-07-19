@@ -2434,9 +2434,12 @@ async function fetchPremarketBuzz(env) {
 }
 
 // ── In-memory micro-cache ────────────────────────────────────────────────
-// The Cache API (caches.default) is INERT on *.workers.dev domains, so the
-// edge cache wired into the live-flow / premarket / news handlers below never
-// actually hits there — every poll re-ran the full Polygon fan-out (live-flow
+// The Cache API (caches.default) is INERT on *.workers.dev domains but LIVE on
+// the custom domain (api.tickerdesk.io) that production traffic now uses — so
+// the edge cache in the handlers below is real for users, and this in-memory
+// layer is a second-tier fallback (covers *.workers.dev hits + cross-POP
+// misses). Before the custom-domain cutover the edge cache never hit and
+// every poll re-ran the full Polygon fan-out (live-flow
 // measured 5-7s, and N× the upstream load under concurrent pollers, the kind
 // of burst that can trip the Polygon Starter rate limit). This module-global
 // TTL cache lives on the warm isolate and works regardless of domain, so

@@ -9,7 +9,7 @@
 <link rel="icon" href="favicon.png" type="image/png" />
 <!-- Warm the worker connection before the first quote/news poll — saves a
      DNS+TLS round trip on the first live data fetch of every session. -->
-<link rel="preconnect" href="https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev" crossorigin />
+<link rel="preconnect" href="https://api.tickerdesk.io" crossorigin />
 <link rel="apple-touch-icon" href="favicon.png" />
 <!-- Link preview (iMessage, Slack, social) -->
 <meta property="og:type" content="website" />
@@ -7027,7 +7027,7 @@
 <script src="./vendor/supabase-2.45.0.min.js" defer></script>
 
 <script>
-  const WORKER_URL = "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev";
+  const WORKER_URL = "https://api.tickerdesk.io";
 
   // ── Supabase config ── paste your project URL + anon key here.
   // Both keys are SAFE in client code — RLS gates every table on auth.uid()
@@ -13084,7 +13084,7 @@
      loaded JSON (swing, uoa, uoaMeta, manifest, ...) and renders a
      right-side slide-out panel with a per-name briefing.
      ──────────────────────────────────────────────────────────────── */
-  const TDP_WORKER_URL = "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev";
+  const TDP_WORKER_URL = "https://api.tickerdesk.io";
   window.TD_DATA = window.TD_DATA || {};   // populated by setupDesk + setupSwing
 
   (function () {

@@ -28,7 +28,10 @@ To wire it up end-to-end:
    Copy each `price_...` ID (NOT the product ID) into the worker secrets above.
 
 2. **Register the webhook** at https://dashboard.stripe.com/webhooks:
-   - Endpoint URL: `https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev/stripe/webhook`
+   - Endpoint URL: `https://api.tickerdesk.io/stripe/webhook`
+     (the legacy `…workers.dev/stripe/webhook` still hits the same worker,
+     so an already-registered Stripe webhook keeps working — update it in
+     the Stripe dashboard at your convenience, not urgently)
    - Listen for events:
      - `checkout.session.completed`
      - `customer.subscription.created`

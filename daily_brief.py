@@ -74,7 +74,7 @@ SITE_URL = os.environ.get("SITE_URL") or "https://tickerdesk.io"
 # Worker that hosts the one-click /unsubscribe endpoint (flips
 # profiles.daily_brief_enabled=false after verifying the signed token).
 WORKER_URL = (os.environ.get("WORKER_URL")
-              or "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev")
+              or "https://api.tickerdesk.io")
 
 
 def _unsub_sig(user_id: str) -> str:

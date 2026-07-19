@@ -45,7 +45,7 @@ LOG_PATH = os.path.join(_BASE, "data", "zdte_ideas_log.json")
 OUT_PATH = os.path.join(REPORTS, "zdte_ideas_stats.json")
 
 SYMS = ("SPY", "QQQ", "IWM")
-WORKER = "https://smid-scanner-discord-bot.sumeetsancheti97.workers.dev"
+WORKER = "https://api.tickerdesk.io"
 MIN_N = 30                # gate per setup type
 DECISION_MIN = 600        # 10:00 ET, minutes from midnight
 OPEN_MIN, ORC_MIN, CLOSE_MIN = 570, 585, 960    # 9:30, 9:45, 16:00
