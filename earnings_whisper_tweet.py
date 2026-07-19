@@ -191,27 +191,53 @@ def _week_of_from_text(text):
         return None
 
 
+def _stamp_attempt(ok, note=""):
+    """Record that the scraper RAN, on the existing JSON, without touching
+    the last-good data. Lets the frontend show 'chart as of <week_of>,
+    last checked <n> ago' and flag a stale chart honestly instead of
+    silently serving an old image with no context. Safe no-op if there's
+    no prior file yet."""
+    try:
+        with open(OUT_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception:
+        return
+    d["last_attempt"] = datetime.now(ET).isoformat(timespec="seconds")
+    d["last_attempt_ok"] = bool(ok)
+    if note:
+        d["last_attempt_note"] = note
+    try:
+        with open(OUT_PATH, "w", encoding="utf-8") as f:
+            json.dump(d, f, indent=1)
+    except Exception:
+        pass
+
+
 def run():
     """Best-effort weekly tweet discovery. Always returns exit code 0 —
     Twitter's syndication endpoint rate-limits aggressively and a 429
     here should NEVER fail the parent workflow (publishing swing report,
     momentum scans, etc. all live in the same job and must run regardless).
     The existing whisper_tweet.json stays in place until the next
-    successful fetch."""
+    successful fetch; every run stamps last_attempt so the frontend can
+    date the chart and flag staleness."""
     print("Finding latest @eWhispers Most Anticipated tweet...")
     try:
         tweet = find_latest_anticipated_tweet()
     except urllib.error.HTTPError as e:
         print(f"  Twitter syndication returned HTTP {e.code} — "
               f"keeping prior whisper_tweet.json untouched, exiting 0.")
+        _stamp_attempt(False, f"HTTP {e.code}")
         return
     except Exception as e:
         print(f"  Timeline fetch failed ({type(e).__name__}: {e}) — "
               f"keeping prior whisper_tweet.json untouched, exiting 0.")
+        _stamp_attempt(False, type(e).__name__)
         return
     if not tweet:
         print("  No matching tweet found in current timeline — keeping "
               "prior whisper_tweet.json untouched.")
+        _stamp_attempt(False, "no match in timeline")
         return
     print(f"  Found tweet {tweet['id']}  ({tweet['created']})")
     print(f"  Text: {tweet['text'][:100]}...")
@@ -220,9 +246,11 @@ def run():
         media = fetch_tweet_image(tweet["id"])
     except Exception as e:
         print(f"  Tweet-result fetch failed ({e}) — keeping prior json.")
+        _stamp_attempt(False, "tweet-result failed")
         return
     if not media:
         print("  Tweet has no attached photo — skipping (prior json kept).")
+        _stamp_attempt(False, "no photo on tweet")
         return
 
     payload = {
@@ -236,6 +264,8 @@ def run():
         "tickers":      media["tickers"],
         "favorites":    media["favorites"],
         "updated":      datetime.now(ET).isoformat(timespec="seconds"),
+        "last_attempt": datetime.now(ET).isoformat(timespec="seconds"),
+        "last_attempt_ok": True,
         "source":       "syndication.twitter.com (no auth, public timeline)",
     }
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)

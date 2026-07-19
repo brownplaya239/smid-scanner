@@ -18403,10 +18403,30 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           const url = (d && d.tweet_url) || "https://x.com/eWhispers";
+          // Dated "as of" state: the scrape is fragile (self-disclosed),
+          // so show which week's chart this is and, when the scraper has
+          // been unable to refresh, how long ago it last succeeded —
+          // instead of silently linking a possibly-stale chart.
+          let wk = "";
+          if (d && d.week_of) wk = ' <span class="ew-week">(week of ' +
+            escHTML(fmtWeekOf(d.week_of)) + ')</span>';
+          let stale = "";
+          const stamp = d && (d.updated || d.last_attempt);
+          if (stamp) {
+            const ms = Date.parse(stamp);
+            if (ms) {
+              const days = Math.floor((Date.now() - ms) / 864e5);
+              // A weekly chart older than ~8 days means the refresh has
+              // been failing — flag it honestly.
+              if (days >= 8) stale = ' <span style="color:var(--muted)">' +
+                '&middot; chart may be stale (last updated ' + days +
+                'd ago)</span>';
+            }
+          }
           tweet.innerHTML = '<div class="ew-tweet-meta" style="padding:6px 0">' +
-            'Weekly &ldquo;Most Anticipated&rdquo; chart: ' +
+            'Weekly &ldquo;Most Anticipated&rdquo; chart' + wk + ': ' +
             '<a href="' + escHTML(url) + '" target="_blank" rel="noopener">' +
-            '@eWhispers on X &rarr;</a></div>';
+            '@eWhispers on X &rarr;</a>' + stale + '</div>';
         })
         .catch(function () { tweet.innerHTML = ''; });
     }
