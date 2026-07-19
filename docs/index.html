@@ -14853,7 +14853,10 @@
         ? TAB_TITLES[tab] + " — TickerDesk" : HOME_TITLE;
       const want = (tab === "desk") ? "" : tab;
       const cur = (window.location.hash || "").replace(/^#/, "");
-      if (cur !== want) {
+      // Preserve a sub-route of the SAME tab (e.g. uoa/sig/<id>) — only
+      // rewrite the hash when switching to a different top-level tab.
+      const curTab = cur.split("/")[0];
+      if (curTab !== want) {
         if (want) window.location.hash = want;
         else history.pushState(null, "",
           window.location.pathname + window.location.search);
@@ -14867,7 +14870,21 @@
   // still fires; falls back to setActivePanel for delisted tabs.
   // Unknown fragments (OAuth #access_token=..., anchors) are ignored.
   function routeFromHash() {
-    const t = (window.location.hash || "").replace(/^#/, "") || "desk";
+    const raw = (window.location.hash || "").replace(/^#/, "") || "desk";
+    const parts = raw.split("/");
+    const t = parts[0] || "desk";
+    // Per-signal permalink: #uoa/sig/<id> — route to Options Flow, then
+    // open the signal once its data has loaded (retry briefly).
+    if (t === "uoa" && parts[1] === "sig" && parts[2]) {
+      if (document.body.dataset.route !== "uoa") goTab("uoa");
+      const id = decodeURIComponent(parts[2]);
+      let tries = 0;
+      (function tryOpen() {
+        if (window.tdOpenSig && window.tdOpenSig(id)) return;
+        if (tries++ < 40) setTimeout(tryOpen, 150);   // ~6s of retries
+      })();
+      return;
+    }
     if (document.body.dataset.route === t) return;   // self-triggered
     const btn = document.querySelector('nav button[data-tab="' + t + '"]');
     if (btn) btn.click();
@@ -27484,15 +27501,44 @@
     function drow(k,v) {
       return '<div class="drow"><span class="dk">'+k+'</span><span class="dv">'+v+'</span></div>';
     }
+    // Stable, shareable natural key for a signal (survives re-fetch as
+    // long as the contract is still flagged). ticker-type-strike-expiry.
+    function _uoaSig(r) {
+      return [r.ticker, r.type, r.strike, r.expiry]
+        .map(function (x) { return String(x == null ? "" : x); })
+        .join("-");
+    }
+    // Open a signal by its permalink id (used by the hash router). Finds
+    // the row in the current flagged set; no-op if it's no longer live.
+    function openSigById(id) {
+      if (!id) return false;
+      if (window._uoaOpenSig === id &&
+          $("uoa-detail").classList.contains("show")) return true;
+      const r = (DATA || []).find(function (x) { return _uoaSig(x) === id; });
+      if (!r) return false;
+      openDetail(r);
+      return true;
+    }
+    window.tdOpenSig = openSigById;
+
     function openDetail(r) {
       if (!r) return;
       const d = $("uoa-detail");
+      const _sig = _uoaSig(r);
+      window._uoaOpenSig = _sig;
+      // Reflect the open signal in the URL so it's shareable / reloadable.
+      try {
+        const want = "uoa/sig/" + encodeURIComponent(_sig);
+        if ((location.hash || "").replace(/^#/, "") !== want)
+          location.hash = want;
+      } catch (e) {}
       d.innerHTML = '<div class="dcard">'+
         '<div class="dhead"><div><div class="dt">'+r.ticker+' '+
         (r.type==="call"?"CALL":"PUT")+' $'+r.strike+'</div>'+
         '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+r.expiry+
         ' &middot; '+(r.dte!=null?r.dte+"d":"")+'</div></div>'+
-        '<div class="dbtns"><button class="dbtn" id="dcopy" title="Copy trade idea">Copy</button>'+
+        '<div class="dbtns"><button class="dbtn" id="dshare" title="Copy shareable link">Share</button>'+
+        '<button class="dbtn" id="dcopy" title="Copy trade idea">Copy</button>'+
         '<button class="dbtn" id="dclose">&times;</button></div></div>'+
         drow("Tier / Score", '<span class="uoa-tier '+tierCls(r.tier)+'">'+r.tier+
           '</span> &nbsp; '+r.trade_score)+
@@ -27567,6 +27613,31 @@
       '</div>';
       d.classList.add("show");
       $("dclose").onclick = closeDetail;
+      $("dshare").onclick = function () {
+        // Share the worker /s URL: it serves a per-signal OG unfurl
+        // (rich title + card) to link crawlers and redirects humans into
+        // the app permalink. A bare app-hash URL would only unfurl the
+        // generic site card (the server never sees the # fragment).
+        const p = new URLSearchParams({
+          sig: _sig, tk: r.ticker || "", ty: r.type || "",
+          st: r.strike != null ? String(r.strike) : "",
+          ex: r.expiry || "",
+        });
+        if (r.premium != null) p.set("pr", fmtNum(r.premium));
+        if (r.trade_score != null) p.set("sc", String(r.trade_score));
+        if (r.tier) p.set("ti", r.tier);
+        const side = r.flow_side || r.direction;
+        if (side && side !== "unknown" && side !== "neutral")
+          p.set("si", side);
+        const url = WORKER_URL + "/s?" + p.toString();
+        navigator.clipboard.writeText(url).then(function () {
+          $("dshare").textContent = "Link copied";
+          setTimeout(function () {
+            const b = document.getElementById("dshare");
+            if (b) b.textContent = "Share";
+          }, 1500);
+        }).catch(function () {});
+      };
       $("dcopy").onclick = function () {
         const txt = r.ticker+" "+(r.type==="call"?"CALL":"PUT")+" $"+r.strike+
           " "+r.expiry+"  ("+(r.dte!=null?r.dte+"d":"")+")\n"+
@@ -27586,7 +27657,16 @@
       };
       d.onclick = function (e) { if (e.target===d) closeDetail(); };
     }
-    function closeDetail() { $("uoa-detail").classList.remove("show"); }
+    function closeDetail() {
+      $("uoa-detail").classList.remove("show");
+      window._uoaOpenSig = null;
+      // Drop the /sig/<id> sub-route back to the plain tab hash so the
+      // URL no longer points at a closed modal.
+      try {
+        if (/^uoa\/sig\//.test((location.hash || "").replace(/^#/, "")))
+          location.hash = "uoa";
+      } catch (e) {}
+    }
 
     /* ── filter chips + High-Conviction preset ── */
     function renderChips() {

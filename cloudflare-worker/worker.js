@@ -2759,6 +2759,124 @@ function rateLimited(request) {
   } catch (_) { return false; }
 }
 
+// ── Signal share cards (OG unfurl + redirect) ──────────────────────────────
+const APP_ORIGIN = "https://tickerdesk.io";
+
+function _xmlEsc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function _shareFacts(url) {
+  const q = url.searchParams;
+  const tk = (q.get("tk") || "").toUpperCase().slice(0, 8);
+  const ty = q.get("ty") === "put" ? "PUT" : "CALL";
+  const st = q.get("st") || "";
+  const ex = q.get("ex") || "";
+  const sig = q.get("sig") || [q.get("tk"), q.get("ty"), st, ex].join("-");
+  const contract = tk + " " + ty + (st ? " $" + st : "");
+  // Optional richer fields for the description / card.
+  const prem = q.get("pr");          // premium (already formatted, e.g. 1.2M)
+  const score = q.get("sc");         // trade score
+  const tier = q.get("ti");          // tier label
+  const side = q.get("si");          // bullish / bearish
+  const bits = [];
+  if (side) bits.push(side);
+  if (prem) bits.push("$" + prem + " premium");
+  if (score) bits.push("score " + score + (tier ? " (" + tier + ")" : ""));
+  const desc = (bits.length ? bits.join(" · ") + " · " : "") +
+    "Unusual options flow tracked and graded on TickerDesk. Data 15-min " +
+    "delayed. Educational, not advice.";
+  return { tk, ty, st, ex, sig, contract, prem, score, tier, side, desc };
+}
+
+function handleShareSignal(request) {
+  const url = new URL(request.url);
+  const f = _shareFacts(url);
+  const appUrl = APP_ORIGIN + "/#uoa/sig/" + encodeURIComponent(f.sig);
+  const title = f.contract + (f.ex ? " · exp " + f.ex : "") +
+    " — Options Flow | TickerDesk";
+  const cardUrl = "https://api.tickerdesk.io/s/card.svg?" +
+    url.searchParams.toString();
+  const html = "<!DOCTYPE html><html lang=\"en\"><head>" +
+    "<meta charset=\"UTF-8\">" +
+    "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+    "<title>" + _xmlEsc(title) + "</title>" +
+    "<meta name=\"description\" content=\"" + _xmlEsc(f.desc) + "\">" +
+    "<meta property=\"og:type\" content=\"article\">" +
+    "<meta property=\"og:site_name\" content=\"TickerDesk\">" +
+    "<meta property=\"og:title\" content=\"" + _xmlEsc(title) + "\">" +
+    "<meta property=\"og:description\" content=\"" + _xmlEsc(f.desc) + "\">" +
+    "<meta property=\"og:url\" content=\"" + _xmlEsc(appUrl) + "\">" +
+    "<meta property=\"og:image\" content=\"" + _xmlEsc(cardUrl) + "\">" +
+    "<meta name=\"twitter:card\" content=\"summary_large_image\">" +
+    "<meta name=\"twitter:title\" content=\"" + _xmlEsc(title) + "\">" +
+    "<meta name=\"twitter:description\" content=\"" + _xmlEsc(f.desc) + "\">" +
+    "<meta name=\"twitter:image\" content=\"" + _xmlEsc(cardUrl) + "\">" +
+    "<link rel=\"canonical\" href=\"" + _xmlEsc(appUrl) + "\">" +
+    "<meta http-equiv=\"refresh\" content=\"0; url=" + _xmlEsc(appUrl) + "\">" +
+    "</head><body style=\"background:#000;color:#e8e8e8;font-family:" +
+    "-apple-system,Segoe UI,Helvetica,Arial,sans-serif;text-align:center;" +
+    "padding:60px 20px\">" +
+    "<p>Opening " + _xmlEsc(f.contract) + " on TickerDesk…</p>" +
+    "<p><a href=\"" + _xmlEsc(appUrl) + "\" style=\"color:#ff9e1b\">" +
+    "Continue to the app →</a></p>" +
+    "<script>location.replace(" + JSON.stringify(appUrl) + ")</script>" +
+    "</body></html>";
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=300",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+function handleShareCard(request) {
+  const url = new URL(request.url);
+  const f = _shareFacts(url);
+  const isCall = f.ty === "CALL";
+  const accent = isCall ? "#1fb363" : "#ff5b5b";
+  const rows = [];
+  if (f.ex) rows.push(["Expiry", f.ex]);
+  if (f.prem) rows.push(["Premium", "$" + f.prem]);
+  if (f.score) rows.push(["Score", f.score + (f.tier ? "  (" + f.tier + ")" : "")]);
+  if (f.side) rows.push(["Bias", f.side]);
+  let y = 300;
+  const rowSvg = rows.slice(0, 4).map(function (r) {
+    const line = '<text x="80" y="' + y + '" fill="#8a8a8a" ' +
+      'font-size="26">' + _xmlEsc(r[0]) + '</text>' +
+      '<text x="1120" y="' + y + '" fill="#e8e8e8" font-size="30" ' +
+      'font-weight="700" text-anchor="end">' + _xmlEsc(r[1]) + '</text>';
+    y += 62;
+    return line;
+  }).join("");
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" ' +
+    'height="630" viewBox="0 0 1200 630">' +
+    '<rect width="1200" height="630" fill="#000"/>' +
+    '<rect x="0" y="0" width="12" height="630" fill="' + accent + '"/>' +
+    '<text x="80" y="110" fill="#ff9e1b" font-size="30" ' +
+    'font-weight="700" font-family="Segoe UI,Helvetica,Arial">TickerDesk' +
+    '</text>' +
+    '<text x="80" y="210" fill="#e8e8e8" font-size="72" ' +
+    'font-weight="800" font-family="Segoe UI,Helvetica,Arial">' +
+    _xmlEsc(f.contract) + '</text>' +
+    '<text x="80" y="255" fill="' + accent + '" font-size="30" ' +
+    'font-weight="700">' + _xmlEsc(f.ty) + ' FLOW</text>' +
+    rowSvg +
+    '<text x="80" y="590" fill="#6a6a6a" font-size="22" ' +
+    'font-family="Segoe UI,Helvetica,Arial">Options flow, self-graded ' +
+    '· 15-min delayed · not advice</text>' +
+    '</svg>';
+  return new Response(svg, {
+    headers: {
+      "Content-Type": "image/svg+xml; charset=utf-8",
+      "Cache-Control": "public, max-age=600",
+    },
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -2810,6 +2928,16 @@ export default {
     // Portfolio screenshot OCR — vision extract of tickers/weights.
     if (urlPath === "/portfolio-ocr" && request.method === "POST") {
       return handlePortfolioOCR(request, env, cors);
+    }
+    // Signal share card — /s?sig=<id>&tk=..&ty=..&st=..&ex=.. renders an
+    // OG unfurl (rich title/description + SVG card) for a flow signal and
+    // redirects humans into the app permalink. Static Pages can't do
+    // per-signal OG, so the worker is the SSR surface.
+    if (urlPath === "/s" && request.method === "GET") {
+      return handleShareSignal(request);
+    }
+    if (urlPath === "/s/card.svg" && request.method === "GET") {
+      return handleShareCard(request);
     }
     // My Reports — the signed-in user's private report history + signed URLs.
     if (urlPath === "/my-reports" && request.method === "GET") {
