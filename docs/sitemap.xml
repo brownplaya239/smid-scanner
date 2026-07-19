@@ -10,6 +10,14 @@
     <priority>1.0</priority>
   </url>
 
+  <!-- Transparency — the self-graded track record page. The primary
+       editorial/SEO surface ("does options flow work"). -->
+  <url>
+    <loc>https://tickerdesk.io/transparency</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
   <!-- Legal pages. Lower priority but valuable for trust-signal
        crawling by Google when verifying the OAuth consent screen. -->
   <url>

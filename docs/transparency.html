@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Does options flow actually work? We track every signal we publish — 79,245 and counting — and grade them against real closes. Here are the honest numbers: EV, win rates, decay, and what doesn't work." />
+<link rel="icon" href="favicon.png" />
+<link rel="canonical" href="https://tickerdesk.io/transparency" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="TickerDesk" />
+<meta property="og:title" content="Does Options Flow Work? Our Self-Graded Numbers — TickerDesk" />
+<meta property="og:description" content="79,245 signals tracked, every one graded against real closes. EV, win rates, decay curves, and the cohorts that don't work — published, not hidden." />
+<meta property="og:url" content="https://tickerdesk.io/transparency" />
+<meta property="og:image" content="https://tickerdesk.io/og-image.jpg" />
+<title>Does Options Flow Work? Our Self-Graded Numbers — TickerDesk</title>
+<style>
+  body { margin:0; padding:48px 20px 80px;
+    background:#000; color:#e8e8e8;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    line-height:1.6; }
+  main { max-width:680px; margin:0 auto; }
+  .nav { display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid #2b2b2b; padding-bottom:16px; margin-bottom:32px; }
+  .nav a { color:#ff9e1b; text-decoration:none; font-size:13px; font-weight:600; }
+  .nav a:hover { text-decoration:underline; }
+  h1 { font-size:28px; font-weight:800; margin:0 0 8px; }
+  h2 { font-size:18px; font-weight:700; margin:36px 0 10px; }
+  .sub { color:#7a7a7a; font-size:13px; margin-bottom:32px; }
+  p, li { font-size:14.5px; color:#c9c9c9; }
+  a { color:#ff9e1b; }
+  .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:10px; margin:18px 0; }
+  .stat { background:#0e0e0e; border:1px solid #2b2b2b; border-radius:8px;
+    padding:14px 12px; }
+  .stat b { display:block; font-size:20px; font-weight:800; color:#e8e8e8;
+    font-variant-numeric:tabular-nums; }
+  .stat span { font-size:11px; color:#7a7a7a; line-height:1.4; display:block;
+    margin-top:4px; }
+  .neg b { color:#ff5b5b; }
+  .pos b { color:#1fc36e; }
+  table { width:100%; border-collapse:collapse; margin:14px 0; font-size:13px; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid #1e1e1e;
+    font-variant-numeric:tabular-nums; }
+  th { color:#7a7a7a; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .note { background:#0e0e0e; border-left:3px solid #ff9e1b; border-radius:0 8px 8px 0;
+    padding:12px 16px; font-size:13.5px; color:#b4b4b4; margin:18px 0; }
+  .cta { display:inline-block; background:#ff9e1b; color:#000; font-weight:700;
+    padding:10px 22px; border-radius:8px; text-decoration:none; margin-top:8px; }
+  footer { margin-top:48px; padding-top:16px; border-top:1px solid #2b2b2b;
+    font-size:12px; color:#7a7a7a; }
+</style>
+</head>
+<body>
+<main>
+  <div class="nav">
+    <a href="/">&larr; TickerDesk</a>
+    <a href="/#uoa">Live dashboard &rarr;</a>
+  </div>
+
+  <h1>Does options flow actually work?</h1>
+  <p class="sub">Numbers as of July 17, 2026 &middot; updated nightly on the
+    <a href="/#uoa">live Performance dashboard</a> &middot; every figure below is
+    self-graded against real closing prices, never estimated</p>
+
+  <p>Most options-flow products show you the winners. We log <b>every</b> signal
+  our scanner publishes — 79,245 so far — wait for real market closes, and grade
+  all of them. Wins, losses, and the cohorts that turned out to be noise. This
+  page is the summary; the app carries the always-current version with
+  confidence intervals on every number.</p>
+
+  <h2>The headline, honestly</h2>
+  <div class="stat-grid">
+    <div class="stat"><b>79,245</b><span>signals tracked since inception</span></div>
+    <div class="stat"><b>66,945</b><span>matured &amp; graded at the +5-day horizon</span></div>
+    <div class="stat"><b>+0.03%</b><span>average +5d excess return vs SPY —
+      the 95% CI spans zero</span></div>
+    <div class="stat"><b>46%</b><span>win rate &middot; winners average +8.3%,
+      losers &minus;6.9% &middot; profit factor 1.01</span></div>
+  </div>
+  <p><b>Translation: buying every flow signal blindly is a coin flip.</b>
+  We publish that because it's true — and because it's the honest baseline that
+  makes the cohort-level findings below meaningful instead of marketing.</p>
+
+  <h2>Where edge shows up</h2>
+  <p>The signal isn't "flow good." It's <i>which</i> flow, held <i>how long</i>.
+  Cohorts with statistically meaningful spreads on our ledger (each shown with
+  sample size and confidence in the app):</p>
+  <table>
+    <tr><th>Cohort</th><th>Win rate</th><th>vs. baseline</th><th>n</th></tr>
+    <tr><td>Positioning-window DTE (2&ndash;8 wk)</td><td>50.0%</td><td>+4.2pp</td><td>4,182</td></tr>
+    <tr><td>Flow into earnings</td><td>48.5%</td><td>+2.8pp</td><td>3,330</td></tr>
+    <tr><td>Golden sweeps (+5d vs SPY)</td><td>47%</td><td>+0.40% excess</td><td>18,358</td></tr>
+    <tr><td>Highest-liquidity names</td><td>41.3%</td><td>&minus;4.0pp</td><td>3,703</td></tr>
+    <tr><td>Small caps (recent window)</td><td>17.7%</td><td>collapsed from 50%</td><td>141</td></tr>
+  </table>
+  <p>Those last two rows matter most: the most-watched flow is the most faded,
+  and small-cap flow edge died in the recent tape — our decay tracker caught it
+  and demoted the cohort automatically.</p>
+
+  <h2>What we've proven doesn't work</h2>
+  <ul>
+    <li><b>Raw signal scores don't rank.</b> The rank correlation (IC) of our own
+      trade score vs realized returns is &minus;0.03 — statistically nothing. We
+      publish that on the dashboard and treat the score as an admission filter,
+      not a ranking. Learned cohort adjustments carry the ranking instead.</li>
+    <li><b>Holding long kills it.</b> +5d excess is ~zero; +10d is &minus;1.0%;
+      +20d is &minus;1.9%. Flow information decays in days. No stop/target
+      combination we tested makes 20-day holds positive.</li>
+    <li><b>Most hypotheses fail.</b> Our hypothesis lab has auto-tested 268
+      feature combinations against out-of-sample data. 258 are in the graveyard.
+      10 survived, and each survivor ships with its sample size and OOS numbers
+      attached.</li>
+  </ul>
+
+  <h2>How the grading works</h2>
+  <ul>
+    <li>Every published signal is logged the moment it appears — no retroactive
+      additions, no deletions.</li>
+    <li>Returns are graded against real closing prices at +1/+3/+5/+10/+20 days,
+      benchmarked vs SPY.</li>
+    <li>Next-day open-interest confirmation tells us whether flagged positions
+      were actually opened and held — a check most flow products skip.</li>
+    <li>Cohort statistics gate at minimum sample sizes and ship with 95%
+      confidence intervals. Cohorts below the gate say "accruing," never a
+      made-up number.</li>
+    <li>A nightly calibration check compares trained expectations vs the live
+      tape and publishes the drift — currently &minus;2 to &minus;8pp depending
+      on band, shown in the app.</li>
+  </ul>
+
+  <div class="note">
+    <b>What this isn't:</b> a track record of trades, a promise of returns, or
+    financial advice. It's the measured, out-of-sample behavior of a signal
+    engine, published so you can judge it the way we do. Data is 15-minute
+    delayed. Transaction costs are not modeled and matter at these margins.
+  </div>
+
+  <p><a class="cta" href="/#uoa">See the live numbers &rarr;</a></p>
+
+  <footer>
+    <a href="/">TickerDesk</a> &middot; <a href="/terms">Terms</a> &middot;
+    <a href="/privacy">Privacy</a> &middot; Educational research, not investment
+    advice. Signals and grades update nightly; this page is refreshed
+    periodically and may trail the dashboard.
+  </footer>
+</main>
+</body>
+</html>

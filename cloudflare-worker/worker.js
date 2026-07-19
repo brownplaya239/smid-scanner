@@ -2708,6 +2708,54 @@ async function handleUnsubscribe(request, env) {
     "them back on anytime from your Watchlist settings.");
 }
 
+// ── Abuse guards (audit item: unauthenticated market-data proxy) ────
+// 1) Origin gate — CSRF-style. Browsers attach an Origin header to
+//    cross-site fetch; a request carrying a foreign Origin means some
+//    OTHER website is embedding this API in its frontend, and gets a
+//    403. Requests with NO Origin (same-origin loads, curl, CI
+//    graders, Stripe webhooks, mail-provider unsubscribe POSTs) pass:
+//    this is an embed gate, not an auth wall — the site stays free to
+//    use while third-party frontends can't ride the Polygon license.
+const ALLOWED_ORIGINS = new Set([
+  "https://tickerdesk.io",
+  "https://www.tickerdesk.io",
+  "https://brownplaya239.github.io",   // Pages origin behind the domain
+]);
+function originBlocked(request) {
+  const o = request.headers.get("Origin");
+  if (!o) return false;                              // no Origin → pass
+  if (ALLOWED_ORIGINS.has(o)) return false;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o)) return false;
+  return true;
+}
+
+// 2) Per-IP rate limit — in-memory token window per isolate. This is
+//    a soft cap on hammering (isolate memory resets on recycle and is
+//    per-POP), not a billing wall; 300 GET/min/IP is ~10× the app's
+//    heaviest real polling. Fail-open on any error.
+const RL_WINDOW_MS = 60000;
+const RL_MAX_GETS  = 300;
+const RL_BUCKETS   = new Map();
+function rateLimited(request) {
+  try {
+    if (request.method !== "GET") return false;      // POSTs are few + authed
+    const ip = request.headers.get("CF-Connecting-IP") || "?";
+    const now = Date.now();
+    let b = RL_BUCKETS.get(ip);
+    if (!b || now - b.start >= RL_WINDOW_MS) {
+      b = { start: now, n: 0 };
+      RL_BUCKETS.set(ip, b);
+    }
+    b.n++;
+    if (RL_BUCKETS.size > 5000) {                    // bound the map
+      for (const [k, v] of RL_BUCKETS) {
+        if (now - v.start >= RL_WINDOW_MS) RL_BUCKETS.delete(k);
+      }
+    }
+    return b.n > RL_MAX_GETS;
+  } catch (_) { return false; }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -2728,6 +2776,17 @@ export default {
     // by browsers; we keep cors as-is for simplicity.
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: cors });
+    }
+
+    // ── Abuse guards (defined above export) ──
+    if (originBlocked(request)) {
+      return new Response(JSON.stringify({ error: "origin not allowed" }),
+        { status: 403, headers: cors });
+    }
+    if (rateLimited(request)) {
+      return new Response(JSON.stringify(
+        { error: "rate limited", retry_after_sec: 60 }),
+        { status: 429, headers: { ...cors, "Retry-After": "60" } });
     }
 
     // ── Stripe Checkout + webhook routing ─────────────────────────
