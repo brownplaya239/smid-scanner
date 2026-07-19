@@ -140,6 +140,14 @@ jobs:
         continue-on-error: true
         run: python level_stats.py
 
+      - name: Dealer positioning (full-chain gamma + vanna)
+        # Full options chain for SPY/QQQ/IWM aggregated into GEX + VEX
+        # surfaces (gamma flip, vanna flip, call/put walls) via BS greeks
+        # x settled OI. Uses POLYGON_API_KEY (job-level env). Delayed,
+        # labeled; non-fatal.
+        continue-on-error: true
+        run: python dealer_positioning.py
+
       - name: Hypothesis lab (weekly, self-gated)
         # Pairwise feature hypotheses over the matured ledger; three
         # gates (sample, split-half stability, time-ordered holdout).

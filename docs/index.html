@@ -705,6 +705,31 @@
   .ei-drift { background:rgba(111,168,220,.16); color:#6fa8dc; }
   .ei-vol { background:rgba(232,179,76,.16); color:#e8b34c; }
   .ei-warn { background:rgba(214,68,68,.16); color:var(--red); }
+  /* Full-chain dealer positioning card (Index Levels) */
+  .zdp-card { background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:14px 16px; margin:14px 0; }
+  .zdp-h { font-size:13px; font-weight:800; color:var(--text);
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .zdp-badge { font-size:9px; font-weight:800; padding:1px 6px;
+    border-radius:4px; border:1px solid var(--line); letter-spacing:.03em; }
+  .zdp-badge.up { color:var(--green); border-color:rgba(31,179,99,.4); }
+  .zdp-badge.dn { color:var(--red); border-color:rgba(214,68,68,.4); }
+  .zdp-sub { font-size:10px; font-weight:600; color:var(--muted);
+    margin-left:auto; }
+  .zdp-regime { font-size:11.5px; margin:8px 0 10px; line-height:1.5; }
+  .zdp-regime.up { color:var(--green); }
+  .zdp-regime.dn { color:var(--red); }
+  .zdp-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px 16px; }
+  @media (max-width:520px){ .zdp-grid { grid-template-columns:1fr 1fr; } }
+  .zdp-row { display:flex; flex-direction:column; cursor:help; }
+  .zdp-k { font-size:10px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.03em; }
+  .zdp-v { font-size:15px; font-weight:700; color:var(--text);
+    font-variant-numeric:tabular-nums; }
+  .zdp-empty { font-size:11.5px; color:var(--muted); margin-top:8px;
+    line-height:1.5; }
+  .zdp-foot { font-size:10px; color:var(--muted); line-height:1.5;
+    margin-top:10px; padding-top:8px; border-top:1px solid var(--line); }
   /* Momentum-scan self-graded track record chip */
   .scan-track { margin:-4px 0 14px; font-size:11.5px; color:var(--muted);
     display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
@@ -6595,6 +6620,7 @@
           <span class="zdte-stamp">last · OI · vol per contract · delayed 15m</span>
         </div>
         <div class="zdte-chain-wrap"><table class="zdte-chain" id="zdte-chain"></table></div>
+        <div id="zdte-dealer"></div>
         <div id="zdte-ideas"></div>
         <div id="zdte-playbook"></div>
         <div id="zdte-flow"></div>
@@ -16215,6 +16241,71 @@
         draw(b, c && !c.error ? c : null);
         if (c && !c.error) renderChain(c);
       }).catch(function () {});
+      renderDealerPositioning();
+    }
+
+    // ── Full-chain dealer positioning (dealer_positioning.json) ──
+    // Nightly GEX + VEX surfaces across the WHOLE chain (vs the worker's
+    // nearest-expiry ?chain0=). Gated on the file existing — until the CI
+    // job produces it, the card shows an honest "computing overnight".
+    let _dpCache = null;
+    function _fmtSigned(v, suffix) {
+      if (v == null) return "&mdash;";
+      return (v > 0 ? "+" : "") + v + (suffix || "");
+    }
+    function renderDealerPositioning() {
+      const host = $id("zdte-dealer");
+      if (!host) return;
+      const paint = function (d) {
+        const s = d && d.symbols && d.symbols[sym];
+        if (!s) {
+          host.innerHTML = '<div class="zdp-card"><div class="zdp-h">' +
+            'Full-chain dealer positioning</div><div class="zdp-empty">' +
+            'Computing overnight &mdash; full-chain gamma &amp; vanna for ' +
+            window.escapeHtml(sym) + ' publish after the close. ' +
+            'Nearest-expiry gamma walls are on the chart above.</div></div>';
+          return;
+        }
+        const regClass = s.regime === "positive" ? "up" : "dn";
+        const regTxt = s.regime === "positive"
+          ? "Positive gamma — dealer hedging dampens moves (mean-revert bias)"
+          : "Negative gamma — dealer hedging amplifies moves (trend/volatility bias)";
+        const row = function (k, v, title) {
+          return '<div class="zdp-row"' + (title ? ' title="' + title + '"' : '') +
+            '><span class="zdp-k">' + k + '</span><span class="zdp-v">' +
+            v + '</span></div>';
+        };
+        host.innerHTML = '<div class="zdp-card">' +
+          '<div class="zdp-h">Full-chain dealer positioning ' +
+            '<span class="zdp-badge ' + regClass + '">' +
+            (s.regime === "positive" ? "+GAMMA" : "−GAMMA") + '</span>' +
+            '<span class="zdp-sub">' + s.n_strikes + ' strikes &middot; ' +
+            'delayed</span></div>' +
+          '<div class="zdp-regime ' + regClass + '">' + regTxt + '</div>' +
+          '<div class="zdp-grid">' +
+          row("Gamma flip", s.gamma_flip != null ? "$" + s.gamma_flip : "&mdash;",
+              "Spot level where cumulative dealer gamma crosses zero. Below = negative-gamma (moves amplify); above = positive-gamma (moves dampen).") +
+          row("Vanna flip", s.vanna_flip != null ? "$" + s.vanna_flip : "&mdash;",
+              "Spot level where cumulative vanna exposure crosses zero — where dealer delta stops rising and starts falling with vol.") +
+          row("Call wall", s.call_wall != null ? "$" + s.call_wall : "&mdash;",
+              "Largest positive-gamma strike — tends to cap/pin price from above.") +
+          row("Put wall", s.put_wall != null ? "$" + s.put_wall : "&mdash;",
+              "Largest negative-gamma strike — tends to support price from below.") +
+          row("Total GEX", _fmtSigned(s.total_gex_mm, " $mm/1%"),
+              "Net dealer gamma across the full chain, in $mm of hedging per 1% underlying move.") +
+          row("Total VEX", _fmtSigned(s.total_vex_mm, " $mm/vol"),
+              "Net dealer vanna across the full chain, in $mm of delta shift per 1 vol-point move.") +
+          '</div>' +
+          '<div class="zdp-foot">Black-Scholes greeks from each contract’s ' +
+          'IV × OCC-settled OI, all strikes within 20% of spot to ~45d. ' +
+          'Dealer convention (calls +, puts −) is the standard ' +
+          'simplification. 15-min delayed. Educational, not advice.</div></div>';
+      };
+      if (_dpCache) { paint(_dpCache); return; }
+      fetch("./reports/dealer_positioning.json", { cache: "no-cache" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { _dpCache = d || {}; paint(_dpCache); })
+        .catch(function () { paint(null); });
     }
 
     function boot() {
@@ -16313,6 +16404,10 @@
       if (tv) tv.style.display = z ? "none" : "";
       if (z && !booted) { booted = true; boot(); }
       else if (z) refresh();
+      // Render the dealer-positioning card directly on activation — it's
+      // independent of the LWC chart (boot's refresh only fires after the
+      // chart lib loads, which shouldn't gate this JSON-only card).
+      if (z) renderDealerPositioning();
     });
     // sym / interval / expiry controls
     root.addEventListener("click", function (ev) {
