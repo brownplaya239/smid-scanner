@@ -88,6 +88,14 @@ jobs:
         continue-on-error: true
         run: python setup_outcomes.py
 
+      - name: Scan outcome tracker (QM + Stockbee, gated)
+        # Extends the outcome DB to the two momentum breakout scans.
+        # Seeds from each scan file's full run history so real per-scan
+        # +5d win rate / EV publish immediately (gated n>=30). Runs after
+        # the momentum scans that produce momentum_qm/stockbee.json.
+        continue-on-error: true
+        run: python scan_outcomes.py
+
       - name: Grade engine room (migrations, persistence, health, learned)
         # The nightly closed-loop commentary: migration matrix + rarity,
         # transition outcomes (matured +5d, gated n>=30), persistence,

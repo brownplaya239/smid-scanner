@@ -705,6 +705,17 @@
   .ei-drift { background:rgba(111,168,220,.16); color:#6fa8dc; }
   .ei-vol { background:rgba(232,179,76,.16); color:#e8b34c; }
   .ei-warn { background:rgba(214,68,68,.16); color:var(--red); }
+  /* Momentum-scan self-graded track record chip */
+  .scan-track { margin:-4px 0 14px; font-size:11.5px; color:var(--muted);
+    display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .scan-track .sk-lbl { font-weight:700; color:var(--textdim); }
+  .scan-track .sk-stat { font-weight:700; padding:2px 8px; border-radius:5px;
+    border:1px solid var(--line); color:var(--textdim); cursor:help;
+    font-variant-numeric:tabular-nums; }
+  .scan-track .sk-stat.up { color:var(--green); border-color:rgba(31,179,99,.4); }
+  .scan-track .sk-stat.dn { color:var(--red); border-color:rgba(214,68,68,.4); }
+  .scan-track .sk-acc { font-style:italic; }
+  .scan-track .sk-note { color:var(--muted); }
   /* Screen-reader / crawler-only text (descriptive H1 tail) */
   .sr-only { position:absolute; width:1px; height:1px; padding:0;
     margin:-1px; overflow:hidden; clip:rect(0,0,0,0);
@@ -6042,6 +6053,7 @@
       <h2 class="tab-title">QM Monthly Gainers</h2>
       <p class="tab-sub">Qullamaggie's biggest one-month gainers &mdash; top 2% of the
         market by 1-month gain, ADR% &ge; 5, $100M+ dollar volume. 4:30 PM ET weekdays.</p>
+      <div class="scan-track" id="qm-track"></div>
       <div class="mom-bar">
         <select id="qm-date"></select>
         <span class="mom-count" id="qm-count"></span>
@@ -6056,6 +6068,7 @@
         to <b>15%+</b> over the last 5 trading days, with the $100M liquidity
         floor. On quiet weeks an "Approaching" fallback surfaces names within
         5% of the threshold. 4:30 PM ET weekdays.</p>
+      <div class="scan-track" id="sb-track"></div>
       <div class="mom-bar">
         <select id="sb-date"></select>
         <span class="mom-count" id="sb-count"></span>
@@ -17797,6 +17810,43 @@
                   countId:"qm-count", chgLabel:"1-Mo %" });
   setupMomentum({ file:"momentum_stockbee.json", dateId:"sb-date", tableId:"sb-table",
                   countId:"sb-count", chgLabel:"1-Wk %" });
+
+  // ── Scan track record (scan_outcomes.py) ──
+  // Honest self-graded +5-session outcomes of each momentum scan's names,
+  // gated n>=30. Shows good OR bad — these scans have historically faded
+  // over a week, and the site says so rather than hiding it.
+  (function setupScanTrack() {
+    function pill(s) {
+      if (!s || s.status !== "active") {
+        const n = (s && s.n) || 0;
+        return '<span class="sk-acc">track record accruing · ' + n +
+          '/30 graded</span>';
+      }
+      const evCls = s.ev > 0 ? "up" : s.ev < 0 ? "dn" : "";
+      const sign = s.ev > 0 ? "+" : "";
+      return '<span class="sk-stat ' + evCls + '" title="Average and median ' +
+        'forward return of this scan’s names ' + s.hold_d + ' sessions ' +
+        'after they were screened, across ' + s.n + ' graded picks. ' +
+        'Long/bullish; educational, not advice.">' +
+        s.win_rate + '% win · EV ' + sign + s.ev + '% · ' + s.hold_d +
+        'd · n=' + s.n + '</span>';
+    }
+    fetch("./reports/scan_outcomes.json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.by_scan) return;
+        const map = { "qm-track": "qm", "sb-track": "stockbee" };
+        Object.keys(map).forEach(function (elId) {
+          const el = document.getElementById(elId);
+          if (!el) return;
+          const s = d.by_scan[map[elId]];
+          el.innerHTML = '<span class="sk-lbl">Self-graded track record:</span> ' +
+            pill(s) + '<span class="sk-note"> · +5-session outcomes of ' +
+            'screened names, graded vs real closes</span>';
+        });
+      })
+      .catch(function () {});
+  })();
 
   /* ────────────────────────────────────────────────────────────────
      News Flow tab — reads from the Cloudflare Worker's ?news endpoint
