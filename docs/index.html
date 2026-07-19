@@ -1640,6 +1640,28 @@
   }
   nav button:hover { color:var(--textdim); }
   nav button.active { color:var(--gold); border-bottom-color:var(--gold); }
+  /* Compatibility buttons — real event targets, never visible. */
+  nav button.nav-hidden-btn { display:none !important; }
+  /* Group header caret (rotates when the group is the active one). */
+  .nav-caret { font-size:9px; margin-left:3px; opacity:.6;
+    display:inline-block; transition:transform .15s ease; }
+  nav button[data-group].active .nav-caret { transform:rotate(180deg);
+    opacity:1; }
+  /* Group subtab row — sits under the main nav; mirrors the primary
+     nav's dark bar but one notch quieter. Horizontal-scrolls on mobile
+     like the nav itself. */
+  .tab-subnav { display:flex; gap:2px; background:var(--navy);
+    padding:0 16px; overflow-x:auto; scrollbar-width:none;
+    border-bottom:1px solid var(--line); }
+  .tab-subnav::-webkit-scrollbar { display:none; }
+  @media (min-width: 760px) { .tab-subnav { padding-left:16px; } }
+  .tab-subnav button { background:none; border:0; color:var(--muted);
+    cursor:pointer; font-size:11.5px; font-weight:600; padding:9px 12px;
+    white-space:nowrap; border-bottom:2px solid transparent;
+    font-family:inherit; }
+  .tab-subnav button:hover { color:var(--textdim); }
+  .tab-subnav button.active { color:var(--gold);
+    border-bottom-color:var(--gold); }
 
   /* ── Market ticker tape ── */
   /* change pill — shared by the candlestick cards */
@@ -5470,24 +5492,38 @@
         <line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
     </button>
-    <!-- v3 IA: 9 workspace tabs. QM Monthly / Stockbee / Alt-Data left the
-         nav (panels + hash routes still work; the Momentum Lab and
-         Research headers link into them as deep-dives). Breakouts/Setups
-         remain one release pending the Lab absorbing their tables. -->
+    <!-- v4 IA: 8 workspace tabs + Pricing. Three groups collapse the old
+         flat 13-tab bar: My Desk (My Desk / Watchlist), Scanners (Momentum
+         Lab / Breakouts / Setups / QM Monthly / Stockbee), Markets (Charts
+         / Global). A group header opens a subtab row (#tab-subnav) below.
+         Every grouped panel keeps a REAL data-tab <button> here, hidden
+         (.nav-hidden-btn) — that button stays the single event target so
+         all per-tab refresh hooks (they listen on #nav click bubbling) and
+         hash deep-links (routeFromHash clicks nav[data-tab=X]) work
+         unchanged. Group headers + subnav just re-drive those buttons. -->
     <button data-tab="desk" class="active">Desk</button>
-    <button data-tab="mydesk">My Desk</button>
-    <button data-tab="watchlist">Watchlist</button>
+    <button data-group="mydesk" data-default="mydesk" type="button">My Desk<span class="nav-caret">▾</span></button>
     <button data-tab="uoa">Options Flow</button>
-    <button data-tab="swing">Momentum Lab</button>
-    <button data-tab="breakout">Breakouts</button>
-    <button data-tab="setup">Setups</button>
+    <button data-group="scanners" data-default="swing" type="button">Scanners<span class="nav-caret">▾</span></button>
     <button data-tab="whisper">Earnings</button>
     <button data-tab="news">News</button>
-    <button data-tab="global">Global</button>
-    <button data-tab="charts">Charts</button>
+    <button data-group="markets" data-default="charts" type="button">Markets<span class="nav-caret">▾</span></button>
     <button data-tab="adhoc">Research</button>
     <button data-tab="pricing" class="nav-pricing">Pricing</button>
+    <!-- Hidden compatibility buttons — real event targets for grouped
+         panels; never shown (subnav renders the visible versions). -->
+    <button data-tab="mydesk"          class="nav-hidden-btn">My Desk</button>
+    <button data-tab="watchlist"       class="nav-hidden-btn">Watchlist</button>
+    <button data-tab="swing"           class="nav-hidden-btn">Momentum Lab</button>
+    <button data-tab="breakout"        class="nav-hidden-btn">Breakouts</button>
+    <button data-tab="setup"           class="nav-hidden-btn">Setups</button>
+    <button data-tab="qm-monthly"      class="nav-hidden-btn">QM Monthly</button>
+    <button data-tab="stockbee-weekly" class="nav-hidden-btn">Stockbee</button>
+    <button data-tab="charts"          class="nav-hidden-btn">Charts</button>
+    <button data-tab="global"          class="nav-hidden-btn">Global</button>
   </nav>
+  <!-- Group subtab row — populated + shown when a grouped panel is active. -->
+  <div class="tab-subnav" id="tab-subnav" role="tablist" hidden></div>
 
   <div class="market-cards" id="market-cards"></div>
 
@@ -14667,10 +14703,54 @@
   };
   const HOME_TITLE = document.title;
 
+  // ── Tab groups (v4 IA) ──
+  // A group header opens a subtab row; each member is an existing panel.
+  const TAB_GROUPS = {
+    mydesk:   { tabs: [["mydesk", "My Desk"], ["watchlist", "Watchlist"]] },
+    scanners: { tabs: [["swing", "Momentum Lab"], ["breakout", "Breakouts"],
+                       ["setup", "Setups"], ["qm-monthly", "QM Monthly"],
+                       ["stockbee-weekly", "Stockbee"]] },
+    markets:  { tabs: [["charts", "Charts"], ["global", "Global"]] },
+  };
+  const PANEL_GROUP = {};                 // member tab -> group key
+  Object.keys(TAB_GROUPS).forEach(function (g) {
+    TAB_GROUPS[g].tabs.forEach(function (t) { PANEL_GROUP[t[0]] = g; });
+  });
+  const GROUP_LAST = {};                  // group -> last member the user viewed
+
+  // Navigate to any tab, always via the real nav button when one exists,
+  // so every per-tab refresh hook (they listen on #nav click bubbling)
+  // and both the top-level + hidden compatibility buttons fire uniformly.
+  function goTab(tab) {
+    const btn = document.querySelector('nav button[data-tab="' + tab + '"]');
+    if (btn) btn.click();
+    else if (document.getElementById("panel-" + tab)) setActivePanel(tab);
+  }
+  window.tdGoTab = goTab;
+
+  // Sync the group header highlight + subtab row to the active panel.
+  function syncGroupNav(tab) {
+    const group = PANEL_GROUP[tab] || null;
+    if (group) GROUP_LAST[group] = tab;
+    document.querySelectorAll("nav button[data-group]").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.group === group);
+    });
+    const sub = document.getElementById("tab-subnav");
+    if (!sub) return;
+    if (!group) { sub.hidden = true; sub.innerHTML = ""; return; }
+    sub.innerHTML = TAB_GROUPS[group].tabs.map(function (t) {
+      return '<button type="button" data-subtab="' + t[0] + '"' +
+        (t[0] === tab ? ' class="active"' : '') + '>' +
+        window.escapeHtml(t[1]) + '</button>';
+    }).join("");
+    sub.hidden = false;
+  }
+
   function setActivePanel(tab) {
     document.querySelectorAll("nav button").forEach(function (b) {
       b.classList.toggle("active", b.dataset.tab === tab);
     });
+    syncGroupNav(tab);
     let activatedId = null;
     document.querySelectorAll(".panel").forEach(function (p) {
       const active = (p.id === "panel-" + tab);
@@ -14765,35 +14845,44 @@
                 " (tab: " + initialTab + ")");
   }
   // Deep links: any element with data-go-tab switches panels exactly like
-  // a nav click. Needed since the v3 IA delisted some tabs from the nav —
-  // plain #hash hrefs do NOT route (the router is button-driven; hash was
-  // never wired to it).
-  window.tdGoTab = setActivePanel;
+  // a nav click. Routes through goTab so grouped panels fire their nav
+  // button (and thus every per-tab refresh hook). (window.tdGoTab = goTab
+  // is already set where goTab is defined.)
   document.addEventListener("click", function (e) {
     const a = e.target.closest && e.target.closest("[data-go-tab]");
     if (!a) return;
     e.preventDefault();
-    setActivePanel(a.dataset.goTab);
+    goTab(a.dataset.goTab);
     try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (_) {}
   });
 
   const nav = document.getElementById("nav");
   nav.addEventListener("click", function (e) {
-    if (e.target.tagName !== "BUTTON") return;
-    setActivePanel(e.target.dataset.tab);
-    // Mobile: nav is horizontally scrollable across 15 tabs. After the
-    // user switches tabs, scroll the active button into view so they
-    // can see what they just tapped — otherwise the leftmost active
-    // button can sit offscreen on iPhones with only 4-5 tabs visible
-    // at once. block:"nearest" keeps vertical scroll unchanged;
-    // inline:"center" centers horizontally when possible.
+    const btn = e.target.closest && e.target.closest("button");
+    if (!btn) return;
+    // Group header → open its remembered (or default) member.
+    if (btn.dataset.group) {
+      const g = btn.dataset.group;
+      goTab(GROUP_LAST[g] || btn.dataset.default ||
+            TAB_GROUPS[g].tabs[0][0]);
+      return;
+    }
+    if (!btn.dataset.tab) return;         // e.g. the group caret span's parent
+    setActivePanel(btn.dataset.tab);
+    // Mobile: nav horizontally scrolls. After switching, scroll the active
+    // button into view so it isn't left offscreen. block:"nearest" keeps
+    // vertical scroll; inline:"center" centers horizontally when possible.
     try {
-      e.target.scrollIntoView({
-        behavior: "smooth",
-        block:    "nearest",
-        inline:   "center",
-      });
+      btn.scrollIntoView({ behavior: "smooth", block: "nearest",
+        inline: "center" });
     } catch (_) { /* old browsers — silent no-op */ }
+  });
+
+  // Group subtab row — same effect as clicking the (hidden) nav button.
+  const tabSub = document.getElementById("tab-subnav");
+  if (tabSub) tabSub.addEventListener("click", function (e) {
+    const btn = e.target.closest && e.target.closest("button[data-subtab]");
+    if (btn) goTab(btn.dataset.subtab);
   });
 
   // Deep-link entry: honor #<tab> on first load. MUST run after the
