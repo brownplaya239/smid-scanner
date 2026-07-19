@@ -1703,21 +1703,22 @@
     display:inline-block; transition:transform .15s ease; }
   nav button[data-group].active .nav-caret { transform:rotate(180deg);
     opacity:1; }
-  /* Group subtab row — sits under the main nav; mirrors the primary
-     nav's dark bar but one notch quieter. Horizontal-scrolls on mobile
-     like the nav itself. */
-  .tab-subnav { display:flex; gap:2px; background:var(--navy);
-    padding:0 16px; overflow-x:auto; scrollbar-width:none;
-    border-bottom:1px solid var(--line); }
-  .tab-subnav::-webkit-scrollbar { display:none; }
-  @media (min-width: 760px) { .tab-subnav { padding-left:16px; } }
-  .tab-subnav button { background:none; border:0; color:var(--muted);
-    cursor:pointer; font-size:11.5px; font-weight:600; padding:9px 12px;
-    white-space:nowrap; border-bottom:2px solid transparent;
+  /* Group dropdown — a floating menu of the group's members, anchored
+     under the group header button (positioned in JS). Replaces the old
+     left-aligned subtab row. */
+  .tab-subnav { position:fixed; z-index:60; min-width:168px;
+    background:var(--card); border:1px solid var(--border2);
+    border-radius:9px; box-shadow:0 10px 30px rgba(0,0,0,.55);
+    padding:5px; display:flex; flex-direction:column; }
+  .tab-subnav[hidden] { display:none; }
+  .tab-subnav button { background:none; border:0; color:var(--textdim);
+    cursor:pointer; font-size:12.5px; font-weight:600; padding:9px 12px;
+    text-align:left; white-space:nowrap; border-radius:6px;
     font-family:inherit; }
-  .tab-subnav button:hover { color:var(--textdim); }
-  .tab-subnav button.active { color:var(--gold);
-    border-bottom-color:var(--gold); }
+  .tab-subnav button:hover { background:var(--rowhov); color:var(--text); }
+  .tab-subnav button.active { color:var(--gold); }
+  .tab-subnav button.active::after { content:"✓"; float:right;
+    margin-left:14px; }
 
   /* ── Market ticker tape ── */
   /* change pill — shared by the candlestick cards */
@@ -12489,7 +12490,11 @@
       { y: "^VIX",    label: "VIX"   },
       { y: "GLD",     label: "GLD"   },
       { y: "BTC-USD", label: "BTC"   },
-      { y: "CL=F",    label: "Crude" },
+      // WTI futures (CL=F) give the price traders expect but Yahoo returns
+      // no intraday BARS for it, so the card was permanently stuck on the
+      // "feed rate-limited" fallback. Draw the candles from USO (the oil
+      // ETF, ~95% intraday-correlated to WTI) while keeping CL=F's price/%.
+      { y: "CL=F",    label: "Crude", chartFrom: "USO" },
     ];
     let QMAP = {};
 
@@ -12566,18 +12571,26 @@
     }
     function renderCards() {
       cards.innerHTML = SYMS.map(function (s) {
-        const q = QMAP[s.y] || {};
+        const q = QMAP[s.y] || {};                 // price + % (headline)
+        const cq = QMAP[s.chartFrom || s.y] || q;  // bars for the chart
         return '<div class="mcard"><div class="mc-head">' +
           '<span class="mc-sym">' + s.label + '</span>' +
           chgSpan(typeof q.change === "number" ? q.change : null) + '</div>' +
-          candleSVG(q) +
+          candleSVG(cq) +
           '<div class="mc-foot">' + fmtPx(q.price) + '</div></div>';
       }).join("");
     }
     renderCards();
     function load() {
+      // Include any chartFrom proxies (e.g. USO for Crude) in the fetch.
+      const fetchSyms = [];
+      SYMS.forEach(function (s) {
+        if (fetchSyms.indexOf(s.y) < 0) fetchSyms.push(s.y);
+        if (s.chartFrom && fetchSyms.indexOf(s.chartFrom) < 0)
+          fetchSyms.push(s.chartFrom);
+      });
       fetch(WORKER_URL + "?quotes=" +
-            encodeURIComponent(SYMS.map(function (s) { return s.y; }).join(",")))
+            encodeURIComponent(fetchSyms.join(",")))
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (!d || !d.quotes) return;
@@ -14834,21 +14847,44 @@
   window.tdGoTab = goTab;
 
   // Sync the group header highlight + subtab row to the active panel.
+  // Highlight the active group header. The member list lives in a
+  // dropdown (openGroupMenu), not a persistent row — so this only syncs
+  // the header state and dismisses any open menu on a route change.
   function syncGroupNav(tab) {
     const group = PANEL_GROUP[tab] || null;
     if (group) GROUP_LAST[group] = tab;
     document.querySelectorAll("nav button[data-group]").forEach(function (b) {
       b.classList.toggle("active", b.dataset.group === group);
     });
+    closeGroupMenu();
+  }
+
+  // ── Group dropdown menu (replaces the left-aligned subtab row) ──
+  let _openGroupMenu = null;
+  function closeGroupMenu() {
     const sub = document.getElementById("tab-subnav");
-    if (!sub) return;
-    if (!group) { sub.hidden = true; sub.innerHTML = ""; return; }
+    if (sub && !sub.hidden) { sub.hidden = true; sub.innerHTML = ""; }
+    _openGroupMenu = null;
+  }
+  function openGroupMenu(group, btn) {
+    const sub = document.getElementById("tab-subnav");
+    if (!sub || !TAB_GROUPS[group]) return;
+    const active = document.body.dataset.route;
     sub.innerHTML = TAB_GROUPS[group].tabs.map(function (t) {
       return '<button type="button" data-subtab="' + t[0] + '"' +
-        (t[0] === tab ? ' class="active"' : '') + '>' +
+        (t[0] === active ? ' class="active"' : '') + '>' +
         window.escapeHtml(t[1]) + '</button>';
     }).join("");
     sub.hidden = false;
+    // Anchor under the group header button (fixed → viewport coords).
+    const r = btn.getBoundingClientRect();
+    sub.style.top = Math.round(r.bottom + 2) + "px";
+    sub.style.left = Math.round(r.left) + "px";
+    // Keep it on-screen if the header is near the right edge.
+    const sw = sub.getBoundingClientRect().width;
+    if (r.left + sw > window.innerWidth - 8)
+      sub.style.left = Math.round(window.innerWidth - sw - 8) + "px";
+    _openGroupMenu = group;
   }
 
   function setActivePanel(tab) {
@@ -14982,11 +15018,16 @@
   nav.addEventListener("click", function (e) {
     const btn = e.target.closest && e.target.closest("button");
     if (!btn) return;
-    // Group header → open its remembered (or default) member.
+    // Group header → dropdown of its members. Second click on an
+    // already-open group toggles the menu shut without navigating.
     if (btn.dataset.group) {
       const g = btn.dataset.group;
+      if (_openGroupMenu === g) { closeGroupMenu(); return; }
+      // Navigate to the remembered/default member (so there's content
+      // behind the menu), then open the dropdown for quick switching.
       goTab(GROUP_LAST[g] || btn.dataset.default ||
             TAB_GROUPS[g].tabs[0][0]);
+      openGroupMenu(g, btn);
       return;
     }
     if (!btn.dataset.tab) return;         // e.g. the group caret span's parent
@@ -15000,12 +15041,24 @@
     } catch (_) { /* old browsers — silent no-op */ }
   });
 
-  // Group subtab row — same effect as clicking the (hidden) nav button.
+  // Group dropdown — selecting a member navigates and closes the menu.
   const tabSub = document.getElementById("tab-subnav");
   if (tabSub) tabSub.addEventListener("click", function (e) {
     const btn = e.target.closest && e.target.closest("button[data-subtab]");
-    if (btn) goTab(btn.dataset.subtab);
+    if (btn) { goTab(btn.dataset.subtab); closeGroupMenu(); }
   });
+  // Dismiss the dropdown on outside click, Escape, or scroll/resize.
+  document.addEventListener("click", function (e) {
+    if (!_openGroupMenu) return;
+    if (e.target.closest && (e.target.closest("#tab-subnav") ||
+        e.target.closest("nav button[data-group]"))) return;
+    closeGroupMenu();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeGroupMenu();
+  });
+  window.addEventListener("resize", closeGroupMenu);
+  window.addEventListener("scroll", closeGroupMenu, true);
 
   // Deep-link entry: honor #<tab> on first load. MUST run after the
   // nav click listener above is attached — routeFromHash() re-drives
