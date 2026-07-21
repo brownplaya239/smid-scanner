@@ -4554,12 +4554,17 @@
     align-self:center; margin-right:4px;
     text-transform:uppercase; letter-spacing:.3px; font-weight:700; }
 
-  /* Grid (was flex): lets the Edge Scorecard span the full row via
-     .ecard-wide, sizes the stat cards evenly, and stops every card
-     stretching to the tallest sibling's height. */
-  .uoa-edge { display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(215px, 1fr));
-    gap:10px; margin-bottom:18px; align-items:start; }
+  /* Two-tier layout (was one grid): a uniform strip of small headline
+     stat cards on top, then a masonry column flow for the dense
+     analysis cards below. The old single grid sized every row to its
+     tallest card, so short stat cards next to tall analysis cards left
+     big empty holes; columns pack mixed heights tightly instead. */
+  .uoa-edge { margin-bottom:8px; }
+  .uoa-edge-stats { display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(170px, 1fr));
+    gap:10px; margin-bottom:10px; }
+  .uoa-edge-deep { columns:3 290px; column-gap:10px; }
+  .uoa-edge-deep .ecard { break-inside:avoid; margin-bottom:10px; }
   .uoa-edge .ecard {
     background:var(--card); border:1px solid var(--line); border-radius:8px;
     padding:12px 14px; min-width:0;
@@ -25293,7 +25298,8 @@
         });
         return out;
       }
-      const cards = [];
+      const cards = [];   // dense analysis cards — masonry flow below
+      const stats = [];   // small headline stat cards — uniform top strip
       // ── EV Scorecard — expected value first, hit rate demoted. A 49%
       // win rate with winners ~1.6x losers is a positive-EV system; the
       // old headline buried that. All stats = matured +5d excess vs SPY.
@@ -25303,7 +25309,7 @@
       const ro5 = (edge.rich_overall || {})["5"];
       if (ro5 && ro5.status === "active") {
         const evCls = ro5.ev > 0 ? "pos" : "neg";
-        cards.push('<div class="ecard ecard-wide"><div class="et">' +
+        stats.push('<div class="ecard ecard-wide"><div class="et">' +
           'Edge Scorecard · +5d excess vs SPY ' +
           '<span class="ecf-badge ecf-' + ro5.confidence + '">' +
           ro5.confidence + ' confidence</span></div>' +
@@ -25367,21 +25373,21 @@
       }
       const ovMature = matureHorizons(edge.overall || {});
       const ov = bestHorizon(edge.overall || {});
-      cards.push(edgeCard("Overall +"+ov.h+"d", ov.st));
+      stats.push(edgeCard("Overall +"+ov.h+"d", ov.st));
       const bt = edge.by_type || {};
       if (bt.golden_sweep && bt.golden_sweep.h) {
         const g = bestHorizon(bt.golden_sweep.h);
-        cards.push(edgeCard("Golden Sweeps +"+g.h+"d", g.st));
+        stats.push(edgeCard("Golden Sweeps +"+g.h+"d", g.st));
       }
       if (bt.sweep && bt.sweep.h) {
         const s = bestHorizon(bt.sweep.h);
-        cards.push(edgeCard("Sweeps +"+s.h+"d", s.st));
+        stats.push(edgeCard("Sweeps +"+s.h+"d", s.st));
       }
       const oc = edge.oi_confirmation || {};
       if (oc.checked > 0) {
         const ocls = oc.confirm_rate >= 50 ? "pos"
                    : oc.confirm_rate != null ? "neg" : "neutral";
-        cards.push('<div class="ecard"><div class="et">Next-Day OI Held</div>'+
+        stats.push('<div class="ecard"><div class="et">Next-Day OI Held</div>'+
           '<div class="ev '+ocls+'">'+
           (oc.confirm_rate!=null?oc.confirm_rate+"%":"&mdash;")+'</div>'+
           '<div class="es">'+oc.confirmed+' of '+oc.checked+
@@ -25504,7 +25510,7 @@
               'the prior 60; fcst = simple exponential-smoothing ' +
               'extrapolation (model estimate, not a promise). Fading edges ' +
               'get demoted by the nightly learner.</div>';
-            const host = $("uoa-edge");
+            const host = $("uoa-edge-deep") || $("uoa-edge");
             if (host) host.appendChild(el2);
           }).catch(function () {});
       } catch (_) {}
@@ -25532,7 +25538,7 @@
               (hl.graveyard || 0) + ' failed sample/stability/holdout gates. ' +
               'Survivors are review candidates — with ' + hl.n_tested +
               ' tested, a few will be luck. Nothing auto-applies.</div>';
-            const host3 = $("uoa-edge");
+            const host3 = $("uoa-edge-deep") || $("uoa-edge");
             if (host3) host3.appendChild(el3);
           }).catch(function () {});
       } catch (_) {}
@@ -25631,13 +25637,15 @@
               'd history yet — needs more time to backfill.') +
           '</span>';
       }
-      cards.push('<div class="ecard"><div class="et">Tracked History</div>'+
+      stats.push('<div class="ecard"><div class="et">Tracked History</div>'+
         '<div class="ev neutral">'+edge.total_signals+'</div>'+
         '<div class="es">cumulative signals logged &middot; ' +
         maturedSig + ' matured to +5d<br>' +
         '<span style="color:var(--textdim)">' + matStr + '</span>' +
         longCopy + '</div></div>');
-      el.innerHTML = cards.join("");
+      el.innerHTML =
+        '<div class="uoa-edge-stats">' + stats.join("") + '</div>' +
+        '<div class="uoa-edge-deep" id="uoa-edge-deep">' + cards.join("") + '</div>';
     }
 
     function renderHead() {
