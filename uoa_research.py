@@ -79,23 +79,37 @@ def _dte_bucket(d):
 
 
 def load_rows():
+    """Returns (rows, spy5, capmap). spy5 = per-flag-date SPY +5d forward
+    return, recovered as median(ret - excess) across that date's graded
+    rows (identical by construction of the grading). capmap = best-known
+    cap bucket per ticker from the FULL ledger — used only for the
+    data-quality-ADJUSTED PSI (early-history 'unknown' caps were mostly
+    metadata-cache misses, resolvable retroactively)."""
     try:
         cache = json.load(open(CACHE, encoding="utf-8"))
     except Exception:
-        return []
+        return [], {}, {}
     rows = []
+    spy_acc = {}
+    capmap = {}
     with open(LEDGER, encoding="utf-8") as f:
         for line in f:
             try:
                 s = json.loads(line)
             except Exception:
                 continue
+            cb = s.get("cap_bucket")
+            if cb and cb != "unknown" and s.get("ticker"):
+                capmap[s["ticker"]] = cb
             c = cache.get(s.get("id"))
             if not c:
                 continue
             r5 = (c.get("returns") or {}).get("5")
             if not r5 or r5.get("excess") is None:
                 continue
+            if r5.get("ret") is not None:
+                spy_acc.setdefault((s.get("flagged_at") or "")[:10],
+                                   []).append(r5["ret"] - r5["excess"])
             con = s.get("contract", "")
             typ = s.get("type") or (
                 "put" if len(con) > 9 and con[-9] == "P" else "call")
@@ -117,6 +131,7 @@ def load_rows():
                 "sector": s.get("sector") or "?",
                 "liq": s.get("liquidity") or "C",
                 "ern": (ed is not None and 0 <= ed <= 7),
+                "premium": s.get("premium") or 0,
                 "f": [                          # categorical features
                     "side:" + side,
                     _dte_bucket(s.get("dte")),
@@ -129,7 +144,11 @@ def load_rows():
                 ],
             })
     rows.sort(key=lambda r: r["date"])
-    return rows
+    spy5 = {}
+    for d, v in spy_acc.items():
+        sv = sorted(v)
+        spy5[d] = sv[len(sv) // 2]
+    return rows, spy5, capmap
 
 
 def _week(d):
@@ -446,7 +465,107 @@ def _ci95(v):
     return [round(m - 1.96 * se, 3), round(m + 1.96 * se, 3)]
 
 
-def avoidance_candidate(rows):
+def _cluster_ci(items, keyfn):
+    """Cluster-robust CI of the mean via equal-weight cluster means."""
+    G = defaultdict(list)
+    for r in items:
+        G[keyfn(r)].append(r["exc"])
+    means = [_mean(v) for v in G.values()]
+    g = len(means)
+    if g < 5:
+        return None
+    cm = _mean(means)
+    var = sum((x - cm) ** 2 for x in means) / (g - 1)
+    se = (var / g) ** 0.5
+    return {"clusters": g, "ev": round(cm, 3),
+            "ci95": [round(cm - 1.96 * se, 3), round(cm + 1.96 * se, 3)]}
+
+
+def hedge_utility(sel, rows, spy5):
+    """Hedge-utility audit (2026-07-21): is the pocket poor alpha,
+    insurance, or both? Dependence-aware CIs (same-day and overlapping
+    5d windows are NOT independent), conditional EV on recovered SPY
+    forward returns, and portfolio variants. LIMITATION carried in the
+    payload: the sample contains essentially ONE adverse market episode
+    — every insurance estimate is a single-event read."""
+    import random
+    random.seed(42)
+    out = {}
+    # 1. dependence-aware uncertainty
+    out["uncertainty"] = {
+        "trade_level_ci95": _ci95([r["exc"] for r in sel]),
+        "clustered_by_date": _cluster_ci(sel, lambda r: r["date"]),
+        "clustered_by_ticker_date": _cluster_ci(
+            sel, lambda r: (r["ticker"], r["date"])),
+    }
+    byw = defaultdict(list)
+    for r in sel:
+        byw[_week(r["date"])].append(r["exc"])
+    weeks = list(byw.values())
+    if len(weeks) >= 4:
+        boots = []
+        for _ in range(2000):
+            samp = [weeks[random.randrange(len(weeks))]
+                    for _ in range(len(weeks))]
+            boots.append(_mean([x for w in samp for x in w]))
+        boots.sort()
+        out["uncertainty"]["week_block_bootstrap"] = {
+            "weeks": len(weeks), "ev": round(_mean(boots), 3),
+            "ci95": [round(boots[int(0.025 * len(boots))], 3),
+                     round(boots[int(0.975 * len(boots))], 3)]}
+    # 2. conditional on SPY forward
+    _sel_ids = set(id(r) for r in sel)
+    rest = [r for r in rows if id(r) not in _sel_ids]
+    def cond(pred):
+        v = [r["exc"] for r in sel if r["date"] in spy5
+             and pred(spy5[r["date"]])]
+        b = [r["exc"] for r in rest if r["date"] in spy5
+             and pred(spy5[r["date"]])]
+        if len(v) < 30:
+            return None
+        return {"n": len(v), "pocket_ev": round(_mean(v), 3),
+                "rest_ev": round(_mean(b), 3) if len(b) >= 30 else None}
+    out["conditional"] = {
+        "spy5_positive": cond(lambda s: s > 0),
+        "spy5_negative": cond(lambda s: s < 0),
+        "spy5_dd_le_-2": cond(lambda s: s <= -2),
+        "adverse_episodes_in_sample": len(set(
+            _week(d) for d, s in spy5.items() if s < 0)),
+    }
+    # 3. portfolio variants (daily equal-weight, overlapping 5d units)
+    def variant(wfn):
+        D = defaultdict(list)
+        for r in rows:
+            D[r["date"]].append(r["exc"] * wfn(r))
+        ser = [ _mean(v) for _, v in sorted(D.items()) ]
+        mu = _mean(ser)
+        sd = (sum((x - mu) ** 2 for x in ser) / (len(ser) - 1)) ** 0.5
+        cvar = _mean(sorted(ser)[:max(1, len(ser) // 20)])
+        return {"total_units": round(sum(ser), 1),
+                "sharpe_daily": round(mu / sd, 3),
+                "cvar5_daily": round(cvar, 2)}
+    pocket_ids = set(id(r) for r in sel)
+    out["portfolio_variants"] = {
+        "pocket_1.0x": variant(lambda r: 1.0),
+        "pocket_excluded": variant(
+            lambda r: 0.0 if id(r) in pocket_ids else 1.0),
+        "pocket_0.2x": variant(
+            lambda r: 0.2 if id(r) in pocket_ids else 1.0),
+    }
+    adverse = [r["exc"] for r in sel if spy5.get(r["date"], 0) < 0]
+    carry = [r["exc"] for r in sel if spy5.get(r["date"], 0) >= 0]
+    if adverse and carry and _mean(carry):
+        out["payoff_per_unit_carry"] = round(
+            abs(_mean(adverse) / _mean(carry)), 2)
+    out["premium_observed_musd"] = round(
+        sum(r.get("premium") or 0 for r in sel) / 1e6)
+    out["limitation"] = ("effectively one adverse market episode in "
+                         "sample; insurance value is a single-event "
+                         "estimate, not a distribution")
+    return out
+
+
+def avoidance_candidate(rows, spy5=None):
     """Formal report for the medium-dated put-buy pocket. STATUS:
     VERIFIED HISTORICAL AVOIDANCE CANDIDATE — historical evidence only;
     NOT yet prospectively confirmed. Preregistered confirmation window:
@@ -494,7 +613,24 @@ def avoidance_candidate(rows):
             sens["dte%d-%d" % (lo, hi)] = {"n": len(v),
                                            "ev": round(_mean(v), 3)}
     return {
-        "status": "verified_historical_avoidance_candidate",
+        "status": "shadow",
+        "label": ("DUAL-USE: REJECT AS ALPHA / POTENTIAL HEDGE COHORT "
+                  "(insurance value single-event, cost-efficiency "
+                  "unproven — payoff/carry < 1 in sample)"),
+        "mandates": {
+            "directional_alpha": ("ALPHA AVOIDANCE CANDIDATE — negative "
+                                  "EV robust to date/ticker-date "
+                                  "clustering and week bootstrap; still "
+                                  "SHADOW pending prospective window"),
+            "hedge_sleeve": ("POTENTIAL HEDGE COHORT — sign flips "
+                             "positive exactly when SPY 5d fwd < 0 "
+                             "while the rest of the book bleeds; but "
+                             "carry cost exceeded observed payoff and "
+                             "the sample holds ~one adverse episode. "
+                             "Separate mandate, separate gates — never "
+                             "one global exclusion rule for both."),
+        },
+        "hedge_utility": hedge_utility(sel, rows, spy5 or {}),
         "definition": "side:put_buy AND 22<=dte<=60",
         "n": len(sel),
         "ev_pooled": round(ev, 3),
@@ -525,15 +661,37 @@ def avoidance_candidate(rows):
                             "eliminate selection. Hence prospective "
                             "confirmation is REQUIRED before any "
                             "production avoidance."),
-        "preregistered_confirmation": ("4 unseen ISO weeks post "
-                                       "2026-07-21; promote only if "
-                                       "pocket EV<0 with 95% CI "
-                                       "excluding 0 in that window"),
+        "preregistered_confirmation": {
+            "frozen": "2026-07-21 (hypothesis + thresholds frozen "
+                      "BEFORE observing confirmation-window results)",
+            "alpha_mandate_gates": [
+                ">=4 unseen ISO weeks",
+                ">=15 independent trade DATES in window",
+                ">=1 adverse-market period (SPY 5d fwd <= -1%) "
+                "represented in window",
+                "date-CLUSTERED 95% CI excludes 0 (not trade-level)",
+                "pooled EV < 0",
+            ],
+            "hedge_mandate_gates": [
+                ">=2 distinct adverse episodes observed (insurance "
+                "cannot be judged on one event)",
+                "payoff_per_unit_carry >= 1.0 across those episodes",
+                "evaluated as a separate sleeve, never via the alpha "
+                "exclusion rule",
+            ],
+        },
     }
 
 
-def psi_detail(rows):
-    """Per-feature PSI contributions + the deployment gate."""
+def psi_detail(rows, capmap=None):
+    """Per-feature PSI contributions + the deployment gate. Publishes
+    BOTH raw PSI and a data-quality-ADJUSTED PSI: the 2026-07-21
+    investigation found cap:unknown drift was dominantly early-history
+    metadata-cache misses (May 12.1% unknown -> June 1.9%; ~97% of
+    unknown rows resolvable via the ticker's later-known cap; the
+    unresolvable remainder are ETFs, a universe-policy fact). The raw
+    number and its promotion-blocking observation are PRESERVED — the
+    gate keys on raw until adjusted methodology is standing policy."""
     import math
     weeks = sorted(set(_week(r["date"]) for r in rows))
     recent = [r for r in rows if _week(r["date"]) in weeks[-2:]]
@@ -560,8 +718,38 @@ def psi_detail(rows):
     contribs.sort(key=lambda x: -x["psi"])
     ev_recent = _mean([r["exc"] for r in recent])
     ev_prior = _mean([r["exc"] for r in prior])
+    # data-quality-adjusted PSI: remap unknown caps via later-known
+    adj_total = None
+    if capmap:
+        def fixed(r):
+            out2 = []
+            for f in r["f"]:
+                if f == "cap:unknown":
+                    out2.append("cap:" + capmap.get(r["ticker"], "unknown"))
+                else:
+                    out2.append(f)
+            return out2
+        fr2, fp2 = defaultdict(int), defaultdict(int)
+        for r in recent:
+            for f in fixed(r):
+                fr2[f] += 1
+        for r in prior:
+            for f in fixed(r):
+                fp2[f] += 1
+        adj_total = 0.0
+        for f in set(list(fr2) + list(fp2)):
+            a = max(fr2[f] / len(recent), 1e-4)
+            b = max(fp2[f] / len(prior), 1e-4)
+            adj_total += (a - b) * math.log(a / b)
+        adj_total = round(adj_total, 4)
     return {
         "psi_total": round(total, 4),
+        "psi_adjusted": adj_total,
+        "cap_unknown_root_cause": ("early-history metadata-cache misses "
+                                   "(resolvable retroactively ~97%) + "
+                                   "ETFs with no market cap (policy); "
+                                   "NOT new listings or normalization "
+                                   "failures"),
         "promotion_blocked": total >= 0.25,
         "gate": ("PSI >= 0.25 BLOCKS automatic challenger promotion "
                  "(deployment gate, not just an alarm)"),
@@ -587,10 +775,13 @@ def deployment_table(psi_blocked):
              "gate": "PSI>=0.25 blocks challenger promotion",
              "version": "uoa_research v1", "window": "rolling 2w vs prior",
              "rollback": "n/a (read-only)"},
-            {"finding": "Disaster-pocket avoidance (put_buy dte22-60)",
-             "evidence": "verified historical avoidance candidate",
+            {"finding": "Disaster-pocket (put_buy dte22-60)",
+             "evidence": ("dual-use: reject-as-alpha / potential hedge "
+                          "(single adverse episode; payoff/carry < 1)"),
              "production": "SHADOW",
-             "gate": "preregistered 4 unseen wks, EV<0 CI excl 0",
+             "gate": ("alpha: 4 unseen wks + 15 trade dates + adverse "
+                      "period + clustered CI excl 0 · hedge: >=2 "
+                      "adverse episodes + payoff/carry >= 1"),
              "version": "uoa_research v1", "window": "same",
              "rollback": "n/a (not applied)"},
             {"finding": "score2 ranking",
@@ -624,7 +815,7 @@ def deployment_table(psi_blocked):
 
 
 def main():
-    rows = load_rows()
+    rows, spy5, capmap = load_rows()
     if len(rows) < 1000:
         print("  research: only %d joined matured rows — skipping" % len(rows))
         return
@@ -637,7 +828,7 @@ def main():
     sz["decision"] = ("SHADOW — derived from score2 which failed OOS "
                       "stability; NOT consumed by production; "
                       "counterfactual recorded nightly")
-    psi = psi_detail(rows)
+    psi = psi_detail(rows, capmap)
     payload = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "joined_matured_n": len(rows),
@@ -648,7 +839,7 @@ def main():
         "sizing": sz,
         "stability": stability(rows),
         "psi_detail": psi,
-        "avoidance_candidate": avoidance_candidate(rows),
+        "avoidance_candidate": avoidance_candidate(rows, spy5),
         "interactions": interactions(rows),
         "deployment": deployment_table(psi.get("promotion_blocked", False)),
         "pit_safety": {
