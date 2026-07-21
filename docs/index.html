@@ -4589,8 +4589,8 @@
   .t25-refresh:hover { color:var(--text); border-color:var(--muted); }
   .t25-scroll { max-height:430px; overflow-y:auto; margin-top:8px; }
   .t25-grid { display:grid; align-items:baseline;
-    grid-template-columns:26px 54px minmax(190px,1.2fr) 38px 52px 44px
-      64px 54px 70px 50px 52px 38px 44px minmax(120px,1fr);
+    grid-template-columns:26px 54px minmax(185px,1.1fr) 36px 74px 44px
+      60px 56px 66px 44px 52px 36px 44px minmax(150px,1fr);
     gap:2px 8px; font-size:11px;
     font-variant-numeric:tabular-nums; }
   .t25-grid > .t25-hdr { font-size:8.5px; font-weight:800;
@@ -4612,6 +4612,13 @@
   .t25-dim { color:var(--muted); }
   .t25-reason { font-size:9px; font-weight:800; letter-spacing:.04em;
     color:var(--textdim); }
+  /* Recurrence badge — separate from the primary reason label */
+  .t25-badge { font-style:normal; font-size:8px; font-weight:800;
+    letter-spacing:.05em; padding:1px 4px; border-radius:4px;
+    margin-left:4px; vertical-align:1px; }
+  .t25-badge-new { background:rgba(31,179,99,.16); color:var(--green); }
+  .t25-badge-act { background:rgba(232,179,76,.16); color:#e8b34c; }
+  .t25-badge-prst { background:rgba(255,255,255,.06); color:var(--muted); }
   .t25-state { font-size:11px; color:var(--muted); padding:14px 0 6px;
     font-style:italic; }
   /* Ticker hover preview card — singleton, follows the hovered cell */
@@ -26421,11 +26428,11 @@
     // instead of pulling different contracts into view.
     let _t25Sort = { k: "rank", d: 1 };   // d: 1 asc, -1 desc
     const T25_KEYS = { "#": "rank", TKR: "ticker", CONTRACT: "expiry",
-      DTE: "dte", BIAS: "bias", SCORE: "score", PREM: "premium",
-      FILL: "last_price", WHEN: "last_print_ts", "V/OI": "vol_oi",
-      "ΔOI": "oi_delta", BAT: "batch_count", LAST: "last_print_ts",
-      REASON: "reason" };
-    const T25_STR = { ticker: 1, expiry: 1, bias: 1, reason: 1,
+      DTE: "dte", SIDE: "side", SCORE: "score", PREM: "premium",
+      "LAST FILL": "last_price", WHEN: "last_print_ts",
+      "V/OI": "vol_oi", "OI CHG": "oi_delta", ACT: "active_batches",
+      "LAST SEEN": "last_print_ts", REASON: "reason" };
+    const T25_STR = { ticker: 1, expiry: 1, side: 1, reason: 1,
       last_print_ts: 1 };
     function fmtT25Money(v) {
       if (v == null) return "—";
@@ -26508,20 +26515,21 @@
           '.</div>';
         host.innerHTML = h;
       } else {
-        const HDRS = ["#", "TKR", "CONTRACT", "DTE", "BIAS", "SCORE",
-                      "PREM", "FILL", "WHEN", "V/OI", "ΔOI", "BAT",
-                      "LAST", "REASON"];
-        const HM = { DTE: 1, FILL: 1, WHEN: 1, "V/OI": 1, "ΔOI": 1,
-                     BAT: 1, LAST: 1 };
+        const HDRS = ["#", "TKR", "CONTRACT", "DTE", "SIDE", "SCORE",
+                      "PREM", "LAST FILL", "WHEN", "V/OI", "OI CHG",
+                      "ACT", "LAST SEEN", "REASON"];
+        const HM = { DTE: 1, "LAST FILL": 1, WHEN: 1, "V/OI": 1,
+                     "OI CHG": 1, ACT: 1, "LAST SEEN": 1 };
         const TIPS = {
-          BIAS: "Direction from contract type, confirmed by execution: plain = ≥55% of prints at/near the ask (aggressive buying). ? = mixed or bid-leaning tape. * = scanner-classified premium selling (read inverted).",
-          PREM: "Cumulative premium traded in this contract today",
-          FILL: "Last fill price per contract (delayed)",
+          SIDE: "Explicit trade-side read: CALL/PUT BUY = ≥55% of prints at/near the ask (aggressive buying). CALL/PUT SELL = scanner-classified premium selling (directional read inverts). MIXED = tape doesn't confirm a side.",
+          SCORE: "Daily unusual score 0-100 — hover a value for its full component breakdown. 90+ requires 3+ independent strong signals.",
+          PREM: "Cumulative premium traded in this contract today (day total from the latest snapshot — never summed across scans)",
+          "LAST FILL": "Price of the most recent trade in this contract (delayed) — a last fill, not an average",
           WHEN: "How long ago the most recent print hit (vs your clock)",
-          "V/OI": "Today's volume vs prior open interest",
-          "ΔOI": "Open interest change vs yesterday (settles overnight)",
-          BAT: "Distinct scan batches this contract appeared in today / batches run so far — repeat appearances signal sustained interest",
-          LAST: "Most recent print time (ET)",
+          "V/OI": "Today's cumulative volume vs PRIOR-day open interest",
+          "OI CHG": "Open interest change: yesterday vs prior day, settled overnight by the OCC. NOT live intraday OI — it cannot move between today's scans.",
+          ACT: "Batches with VERIFIED new activity (volume / premium / print-time increased) out of scans run today. Mere presence in a cumulative snapshot does not count.",
+          "LAST SEEN": "Time of the most recent print (ET, 24h)",
         };
         let g = '<div class="t25-grid">' + HDRS.map(function (x) {
           const k = T25_KEYS[x];
@@ -26533,33 +26541,61 @@
             '" data-k="' + k + '" title="' + tip + '">' +
             x + arrow + '</span>';
         }).join("");
+        const SIDE_TIPS = {
+          "CALL BUY": "Calls bought aggressively (≥55% of prints at/near the ask) — confirmed bullish bet.",
+          "PUT BUY": "Puts bought aggressively (≥55% of prints at/near the ask) — confirmed bearish bet.",
+          "CALL SELL": "Calls SOLD for premium (scanner-classified) — income flow, bearish-leaning. The seller profits if the stock stalls.",
+          "PUT SELL": "Puts SOLD for premium (scanner-classified) — income flow, bullish-leaning. The seller profits if the stock holds up.",
+          "MIXED": "Prints split between bid and ask — the tape doesn't confirm a side. Lower conviction.",
+        };
         rows.forEach(function (r) {
-          const income = r.bias.indexOf("income") >= 0;
-          const mixed = r.bias.indexOf("mixed") >= 0;
-          const bull = r.bias.indexOf("bull") === 0;
+          const bull = r.bias && r.bias.indexOf("bull") === 0;
           const bCls = bull ? "t25-bull" : "t25-bear";
-          const bTxt = (bull ? "BULL" : "BEAR") +
-            (income ? "*" : mixed ? "?" : "");
-          // Every bias variant gets a hover explaining what it means and
-          // how it differs from the others.
-          const bTip = income
-            ? (bull
-              ? "BULL* — puts SOLD for premium (income flow). The seller profits if the stock holds up, so the directional read inverts to bullish. Lower conviction than bought flow."
-              : "BEAR* — calls SOLD for premium (income flow). The seller profits if the stock stalls, so the directional read inverts to bearish. Lower conviction than bought flow.")
-            : mixed
-            ? (bull
-              ? "BULL? — calls, but prints were NOT clearly at the ask (mixed or bid-leaning tape). Direction implied by the contract type, unconfirmed by execution."
-              : "BEAR? — puts, but prints were NOT clearly at the ask (mixed or bid-leaning tape). Direction implied by the contract type, unconfirmed by execution.")
-            : (bull
-              ? "BULL — calls bought aggressively (≥55% of prints at/near the ask). Buyers paying up = confirmed bullish bet."
-              : "BEAR — puts bought aggressively (≥55% of prints at/near the ask). Buyers paying up = confirmed bearish bet.");
+          const side = r.side || "MIXED";
+          const sideCls = side === "CALL BUY" ? "t25-bull"
+            : side === "PUT BUY" ? "t25-bear"
+            : side === "PUT SELL" ? "t25-bull t25-mixed"
+            : side === "CALL SELL" ? "t25-bear t25-mixed" : "t25-amber";
           const scoreCls = r.score >= 70 ? "t25-amber" : "";
+          // Score-component breakdown on hover (from score_parts)
+          const sp = r.score_parts || {};
+          const spTip = Object.keys(sp).filter(function (k) {
+            return sp[k]; }).map(function (k) {
+            return k.replace(/_/g, " ") + " " +
+              (sp[k] > 0 ? "+" : "") + sp[k]; }).join("  ·  ") +
+            (r.strong_signals != null
+              ? "  ·  strong signals: " + r.strong_signals +
+                " (90+ requires 3)" : "");
           // "TSLA $382.5 CALL 07/24/2026" — explicit type + full expiry
           const ep = (r.expiry || "").split("-");
           const expFull = ep.length === 3
             ? ep[1] + "/" + ep[2] + "/" + ep[0] : (r.expiry || "");
           const con = r.ticker + " $" + r.strike + " " +
             r.type.toUpperCase() + " " + expFull;
+          // Recurrence badge — separate from the primary reason. Only
+          // VERIFIED new activity across batches earns ACT; unchanged
+          // snapshot re-appearances read PRST (persisting).
+          const nB = d.batches_today || 1;
+          let badge, badgeCls, badgeTip;
+          if ((r.seen_scans || 1) <= 1) {
+            badge = "NEW"; badgeCls = "t25-badge-new";
+            badgeTip = "First appeared in the latest scan batch";
+          } else if ((r.active_batches || 1) >= 2) {
+            badge = r.active_batches + " ACT"; badgeCls = "t25-badge-act";
+            badgeTip = "Verified NEW flow (volume/premium/print-time increase) in " +
+              r.active_batches + " of " + nB + " batches today" +
+              (r.unique_prints ? " · ~" + r.unique_prints +
+                " deduped prints (scanner approx — feed has no trade IDs)" : "");
+          } else {
+            badge = "PRST"; badgeCls = "t25-badge-prst";
+            badgeTip = "Persisting in " + r.seen_scans + "/" + nB +
+              " scans WITHOUT verified new flow — cumulative snapshots " +
+              "re-list contracts, so presence alone is not repeat flow";
+          }
+          const rTip = (r.reason || "") +
+            (r.reason === "PRE-EARNINGS FLOW" && r.earnings_date_est
+              ? " — earnings ≈ " + r.earnings_date_est + " (est, " +
+                r.earnings_days + "d)" : "");
           g += '<span class="t25-cell t25-rank">' + r.rank + '</span>' +
             '<span class="t25-cell t25-tkr" data-t="' +
               window.escapeHtml(r.ticker) +
@@ -26570,10 +26606,10 @@
               window.escapeHtml(con) + '</span>' +
             '<span class="t25-cell t25-dim t25-hm">' +
               (r.dte != null ? r.dte + "d" : "—") + '</span>' +
-            '<span class="t25-cell ' + bCls + (mixed ? " t25-mixed" : "") +
-              '" title="' + bTip + '">' +
-              bTxt + '</span>' +
-            '<span class="t25-cell ' + scoreCls + '"><b>' + r.score +
+            '<span class="t25-cell ' + sideCls + '" title="' +
+              (SIDE_TIPS[side] || "") + '">' + side + '</span>' +
+            '<span class="t25-cell ' + scoreCls + '" title="' +
+              window.escapeHtml(spTip) + '"><b>' + r.score +
               '</b></span>' +
             '<span class="t25-cell">' + fmtT25Money(r.premium) + '</span>' +
             '<span class="t25-cell t25-hm t25-dim">' +
@@ -26588,15 +26624,16 @@
               ((r.oi_delta || 0) > 0 ? "+" + r.oi_delta
                 : r.oi_delta != null ? r.oi_delta : "—") + '</span>' +
             '<span class="t25-cell t25-hm' +
-              ((r.batch_count || 0) >= 2 ? " t25-amber" : " t25-dim") +
-              '" title="Seen in ' + r.batch_count + ' of ' +
-              (d.batches_today || 1) + ' batches today">' +
-              r.batch_count + '/' + (d.batches_today || 1) + '</span>' +
+              ((r.active_batches || 0) >= 2 ? " t25-amber" : " t25-dim") +
+              '" title="' + window.escapeHtml(badgeTip) + '">' +
+              (r.active_batches || 1) + '/' + nB + '</span>' +
             '<span class="t25-cell t25-dim t25-hm">' +
               fmtT25Time(r.last_print_ts || r.last_seen) + '</span>' +
             '<span class="t25-cell t25-reason" title="' +
-              window.escapeHtml(r.reason || "") + '">' +
-              window.escapeHtml(r.reason || "") + '</span>' +
+              window.escapeHtml(rTip) + '">' +
+              window.escapeHtml(r.reason || "") +
+              ' <i class="t25-badge ' + badgeCls + '" title="' +
+              window.escapeHtml(badgeTip) + '">' + badge + '</i></span>' +
             '<span class="t25-row-line"></span>';
         });
         g += '</div>';
