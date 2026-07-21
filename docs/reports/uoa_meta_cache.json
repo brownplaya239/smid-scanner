@@ -1988,10 +1988,10 @@
 "sector": "Materials / Chemicals"
 },
 "CFG": {
-"earnings_date": "2026-07-16",
-"earnings_session": null,
-"fetched": "2026-07-16",
-"mkt_cap": 30075363715.04,
+"earnings_date": "2026-10-16",
+"earnings_session": "BMO",
+"fetched": "2026-07-21",
+"mkt_cap": 30221452690.0,
 "sector": "Financials / Banks"
 },
 "CG": {
@@ -4062,8 +4062,8 @@
 "GFS": {
 "earnings_date": "2026-08-05",
 "earnings_session": "BMO",
-"fetched": "2026-07-07",
-"mkt_cap": 38321266176.72,
+"fetched": "2026-07-21",
+"mkt_cap": 31171694322.73,
 "sector": "Other"
 },
 "GGAL": {
@@ -5593,10 +5593,10 @@
 "sector": "Industrials"
 },
 "LMND": {
-"earnings_date": "2026-08-04",
+"earnings_date": "2026-07-29",
 "earnings_session": "BMO",
-"fetched": "2026-07-07",
-"mkt_cap": 5494222829.28,
+"fetched": "2026-07-21",
+"mkt_cap": 5181562218.05,
 "sector": "Financials"
 },
 "LMT": {
@@ -7035,10 +7035,10 @@
 "sector": "Consumer / Retail"
 },
 "OSCR": {
-"earnings_date": "2026-08-10",
+"earnings_date": "2026-08-06",
 "earnings_session": "BMO",
-"fetched": "2026-07-06",
-"mkt_cap": 9702044740.0,
+"fetched": "2026-07-21",
+"mkt_cap": 8924192800.0,
 "sector": "Financials"
 },
 "OSK": {
@@ -10407,6 +10407,13 @@
 "fetched": "2026-07-17",
 "mkt_cap": 8909676957.1,
 "sector": "Financials / Banks"
+},
+"WY": {
+"earnings_date": "2026-07-30",
+"earnings_session": "AMC",
+"fetched": "2026-07-21",
+"mkt_cap": 17276180911.64,
+"sector": "Real Estate"
 },
 "WYFI": {
 "earnings_date": "2026-08-14",
