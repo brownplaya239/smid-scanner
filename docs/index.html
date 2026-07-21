@@ -4590,7 +4590,7 @@
   .t25-scroll { max-height:430px; overflow-y:auto; margin-top:8px; }
   .t25-grid { display:grid; align-items:baseline;
     grid-template-columns:26px 54px minmax(190px,1.2fr) 38px 52px 44px
-      64px 54px 50px 52px 38px 56px minmax(120px,1fr);
+      64px 54px 70px 50px 52px 38px 44px minmax(120px,1fr);
     gap:2px 8px; font-size:11px;
     font-variant-numeric:tabular-nums; }
   .t25-grid > .t25-hdr { font-size:8.5px; font-weight:800;
@@ -26404,8 +26404,9 @@
     let _t25Sort = { k: "rank", d: 1 };   // d: 1 asc, -1 desc
     const T25_KEYS = { "#": "rank", TKR: "ticker", CONTRACT: "expiry",
       DTE: "dte", BIAS: "bias", SCORE: "score", PREM: "premium",
-      FILL: "last_price", "V/OI": "vol_oi", "ΔOI": "oi_delta",
-      BAT: "batch_count", LAST: "last_print_ts", REASON: "reason" };
+      FILL: "last_price", WHEN: "last_print_ts", "V/OI": "vol_oi",
+      "ΔOI": "oi_delta", BAT: "batch_count", LAST: "last_print_ts",
+      REASON: "reason" };
     const T25_STR = { ticker: 1, expiry: 1, bias: 1, reason: 1,
       last_print_ts: 1 };
     function fmtT25Money(v) {
@@ -26414,12 +26415,24 @@
                       : "$" + Math.round(v / 1e3) + "K";
     }
     function fmtT25Time(iso) {
+      // 24-hour ET clock, always 5 chars ("13:55") — no AM/PM.
       if (!iso) return "—";
       try {
-        return new Date(iso).toLocaleTimeString("en-US",
-          { hour: "numeric", minute: "2-digit",
-            timeZone: "America/New_York" }) + " ET";
+        return new Date(iso).toLocaleTimeString("en-GB",
+          { hour: "2-digit", minute: "2-digit", hour12: false,
+            timeZone: "America/New_York" });
       } catch (_) { return "—"; }
+    }
+    function fmtT25Ago(iso) {
+      // Relative age vs now: "8m ago", "1hr ago", "1hr 8m ago"
+      if (!iso) return "—";
+      const t = Date.parse(iso);
+      if (isNaN(t)) return "—";
+      const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+      if (mins < 1) return "now";
+      if (mins < 60) return mins + "m ago";
+      const h = Math.floor(mins / 60), m = mins % 60;
+      return h + "hr" + (m ? " " + m + "m" : "") + " ago";
     }
     function renderTop25(d, errNote) {
       const host = $("uoa-top25"); if (!host) return;
@@ -26478,12 +26491,15 @@
         host.innerHTML = h;
       } else {
         const HDRS = ["#", "TKR", "CONTRACT", "DTE", "BIAS", "SCORE",
-                      "PREM", "FILL", "V/OI", "ΔOI", "BAT", "LAST", "REASON"];
-        const HM = { DTE: 1, FILL: 1, "V/OI": 1, "ΔOI": 1, BAT: 1, LAST: 1 };
+                      "PREM", "FILL", "WHEN", "V/OI", "ΔOI", "BAT",
+                      "LAST", "REASON"];
+        const HM = { DTE: 1, FILL: 1, WHEN: 1, "V/OI": 1, "ΔOI": 1,
+                     BAT: 1, LAST: 1 };
         const TIPS = {
           BIAS: "Direction from contract type, confirmed by execution: plain = ≥55% of prints at/near the ask (aggressive buying). ? = mixed or bid-leaning tape. * = scanner-classified premium selling (read inverted).",
           PREM: "Cumulative premium traded in this contract today",
           FILL: "Last fill price per contract (delayed)",
+          WHEN: "How long ago the most recent print hit (vs your clock)",
           "V/OI": "Today's volume vs prior open interest",
           "ΔOI": "Open interest change vs yesterday (settles overnight)",
           BAT: "Distinct scan batches this contract appeared in today / batches run so far — repeat appearances signal sustained interest",
@@ -26506,9 +26522,19 @@
           const bCls = bull ? "t25-bull" : "t25-bear";
           const bTxt = (bull ? "BULL" : "BEAR") +
             (income ? "*" : mixed ? "?" : "");
+          // Every bias variant gets a hover explaining what it means and
+          // how it differs from the others.
           const bTip = income
-            ? "Premium-selling flow — directional read inverted"
-            : mixed ? "Execution not clearly at the ask — mixed or bid-leaning tape, lower conviction" : "";
+            ? (bull
+              ? "BULL* — puts SOLD for premium (income flow). The seller profits if the stock holds up, so the directional read inverts to bullish. Lower conviction than bought flow."
+              : "BEAR* — calls SOLD for premium (income flow). The seller profits if the stock stalls, so the directional read inverts to bearish. Lower conviction than bought flow.")
+            : mixed
+            ? (bull
+              ? "BULL? — calls, but prints were NOT clearly at the ask (mixed or bid-leaning tape). Direction implied by the contract type, unconfirmed by execution."
+              : "BEAR? — puts, but prints were NOT clearly at the ask (mixed or bid-leaning tape). Direction implied by the contract type, unconfirmed by execution.")
+            : (bull
+              ? "BULL — calls bought aggressively (≥55% of prints at/near the ask). Buyers paying up = confirmed bullish bet."
+              : "BEAR — puts bought aggressively (≥55% of prints at/near the ask). Buyers paying up = confirmed bearish bet.");
           const scoreCls = r.score >= 70 ? "t25-amber" : "";
           // "TSLA $382.5 CALL 07/24/2026" — explicit type + full expiry
           const ep = (r.expiry || "").split("-");
@@ -26524,7 +26550,7 @@
             '<span class="t25-cell t25-dim t25-hm">' +
               (r.dte != null ? r.dte + "d" : "—") + '</span>' +
             '<span class="t25-cell ' + bCls + (mixed ? " t25-mixed" : "") +
-              '"' + (bTip ? ' title="' + bTip + '"' : '') + '>' +
+              '" title="' + bTip + '">' +
               bTxt + '</span>' +
             '<span class="t25-cell ' + scoreCls + '"><b>' + r.score +
               '</b></span>' +
@@ -26532,6 +26558,8 @@
             '<span class="t25-cell t25-hm t25-dim">' +
               (r.last_price != null
                 ? "$" + Number(r.last_price).toFixed(2) : "—") + '</span>' +
+            '<span class="t25-cell t25-hm t25-dim">' +
+              fmtT25Ago(r.last_print_ts || r.last_seen) + '</span>' +
             '<span class="t25-cell t25-hm">' +
               (r.vol_oi != null ? r.vol_oi : "—") + '</span>' +
             '<span class="t25-cell t25-hm ' +
