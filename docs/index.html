@@ -4589,8 +4589,8 @@
   .t25-refresh:hover { color:var(--text); border-color:var(--muted); }
   .t25-scroll { max-height:430px; overflow-y:auto; margin-top:8px; }
   .t25-grid { display:grid; align-items:baseline;
-    grid-template-columns:26px 54px minmax(185px,1.1fr) 36px 74px 44px
-      60px 56px 66px 44px 52px 36px 44px minmax(150px,1fr);
+    grid-template-columns:26px 54px minmax(175px,1fr) 34px 72px 42px
+      58px 54px 62px 42px 50px 34px 78px 44px minmax(140px,1fr);
     gap:2px 8px; font-size:11px;
     font-variant-numeric:tabular-nums; }
   .t25-grid > .t25-hdr { font-size:8.5px; font-weight:800;
@@ -26530,11 +26530,61 @@
     // daily rank), THEN sorted — so re-sorting reorders the same set
     // instead of pulling different contracts into view.
     let _t25Sort = { k: "rank", d: 1 };   // d: 1 asc, -1 desc
+    // OI-lifecycle lookup (flow_lifecycle.json), keyed identically to
+    // the pane's contract identity. Loaded once per pane render cycle;
+    // absent file = every row falls back to "—" (fail-open).
+    let _t25Life = null;
+    const T25_LIFE = {
+      PENDING:  ["PENDING", "t25-dim",
+                 "Flagged today — open interest settles overnight at the OCC, so this position's verdict arrives tomorrow. Never guessed."],
+      OPEN:     ["OPEN", "t25-bull",
+                 "Next-day OI rose by ≥50% of the flagged volume: the flow opened positions that stuck."],
+      PARTIAL:  ["PARTIAL", "t25-amber",
+                 "Next-day OI rose by 15–50% of flagged volume: part of the position stuck, the rest closed intraday."],
+      CLOSED:   ["CLOSED", "t25-bear",
+                 "Next-day OI barely moved (<15% of volume): the flow was day-traded or closed out, not a new position."],
+      HELD:     ["HELD", "t25-bull",
+                 "Position opened and OI is still ≥80% of its peak — the size is still on."],
+      TRIMMED:  ["TRIMMED", "t25-amber",
+                 "OI has fallen to 30–80% of peak: net positions in this contract were reduced."],
+      UNWOUND:  ["UNWOUND", "t25-bear",
+                 "OI is back at/below the pre-flag baseline (or <30% of peak): the position is effectively gone."],
+      UNKNOWN:  ["—", "t25-dim", "No usable OI baseline for this contract."],
+    };
+    function t25LifeCell(r) {
+      const rec = _t25Life && _t25Life.contracts
+        ? _t25Life.contracts[r.ticker + "|" + r.expiry + "|" + r.type +
+                             "|" + String(r.strike)] : null;
+      if (!rec) return ["—", "t25-dim",
+                        "Lifecycle tracking starts when a contract enters the daily Top list; the verdict needs the next OI settlement."];
+      let st = rec.status || "PENDING";
+      let expired = false;
+      if (st.indexOf("EXPIRED") === 0) {
+        expired = true;
+        st = st.replace("EXPIRED_", "").replace("UNRESOLVED", "UNKNOWN");
+      }
+      const base = T25_LIFE[st] || T25_LIFE.UNKNOWN;
+      let label = base[0], tip = base[2];
+      if (expired) {
+        label = "EXPIRED";
+        tip = "Contract has expired — open interest necessarily goes to zero at expiration, so this is never read as an unwind. Last known state: " + st + ".";
+      } else if (rec.retained_pct != null && (st === "OPEN" || st === "PARTIAL" || st === "CLOSED")) {
+        label += " " + rec.retained_pct + "%";
+        tip += " Retained " + rec.retained_pct + "% of flagged volume as new OI (" +
+          (rec.baseline_oi != null ? rec.baseline_oi : "?") + " → " +
+          (rec.current_oi != null ? rec.current_oi : "?") + ").";
+      } else if (rec.pct_of_peak != null) {
+        label += " " + rec.pct_of_peak + "%";
+        tip += " Now at " + rec.pct_of_peak + "% of peak OI.";
+      }
+      tip += " OI is NET across all participants — a decline cannot be attributed to the specific trader flagged.";
+      return [label, expired ? "t25-dim" : base[1], tip];
+    }
     const T25_KEYS = { "#": "rank", TKR: "ticker", CONTRACT: "expiry",
       DTE: "dte", SIDE: "side", SCORE: "score", PREM: "premium",
       "LAST FILL": "last_price", WHEN: "last_print_ts",
       "V/OI": "vol_oi", "OI CHG": "oi_delta", ACT: "active_batches",
-      "LAST SEEN": "last_print_ts", REASON: "reason" };
+      LIFE: "_life", "LAST SEEN": "last_print_ts", REASON: "reason" };
     const T25_STR = { ticker: 1, expiry: 1, side: 1, reason: 1,
       last_print_ts: 1 };
     function fmtT25Money(v) {
@@ -26578,6 +26628,17 @@
         const bull = r.bias && r.bias.indexOf("bull") === 0;
         return _t25Bias === "bull" ? bull : !bull;
       }).slice(0, perView);
+      // lifecycle status stamped on each row so LIFE is sortable like
+      // any other column (ordered worst-stuck -> best-stuck)
+      const LIFE_ORD = { CLOSED: 0, UNWOUND: 1, TRIMMED: 2, PARTIAL: 3,
+                         HELD: 4, OPEN: 5 };
+      rows.forEach(function (r) {
+        const rec = _t25Life && _t25Life.contracts
+          ? _t25Life.contracts[r.ticker + "|" + r.expiry + "|" + r.type +
+                               "|" + String(r.strike)] : null;
+        const st = (rec && rec.status || "PENDING").replace("EXPIRED_", "");
+        r._life = LIFE_ORD[st] != null ? LIFE_ORD[st] : -1;
+      });
       // 2) ordering: sort that fixed set by the selected column
       const sk = _t25Sort.k, sd = _t25Sort.d;
       rows = rows.slice().sort(function (a, b) {
@@ -26620,7 +26681,7 @@
       } else {
         const HDRS = ["#", "TKR", "CONTRACT", "DTE", "SIDE", "SCORE",
                       "PREM", "LAST FILL", "WHEN", "V/OI", "OI CHG",
-                      "ACT", "LAST SEEN", "REASON"];
+                      "ACT", "LIFE", "LAST SEEN", "REASON"];
         const HM = { DTE: 1, "LAST FILL": 1, WHEN: 1, "V/OI": 1,
                      "OI CHG": 1, ACT: 1, "LAST SEEN": 1 };
         const TIPS = {
@@ -26632,6 +26693,7 @@
           "V/OI": "Today's cumulative volume vs PRIOR-day open interest",
           "OI CHG": "Open interest change: yesterday vs prior day, settled overnight by the OCC. NOT live intraday OI — it cannot move between today's scans.",
           ACT: "Batches with VERIFIED new activity (volume / premium / print-time increased) out of scans run today. Mere presence in a cumulative snapshot does not count.",
+          LIFE: "Did the flagged position actually stick? Open interest settles OVERNIGHT, so same-day rows read PENDING and the verdict arrives next session. OPEN/PARTIAL/CLOSED = share of flagged volume retained as new OI; HELD/TRIMMED/UNWOUND = later decay from peak. OI is NET across all participants — a decline can never be pinned on the specific trader flagged, and expiry is never read as an unwind.",
           "LAST SEEN": "Time of the most recent print (ET, 24h)",
         };
         let g = '<div class="t25-grid">' + HDRS.map(function (x) {
@@ -26695,6 +26757,7 @@
               " scans WITHOUT verified new flow — cumulative snapshots " +
               "re-list contracts, so presence alone is not repeat flow";
           }
+          const lf = t25LifeCell(r);
           const rTip = (r.reason || "") +
             (r.reason === "PRE-EARNINGS FLOW" && r.earnings_date_est
               ? " — earnings ≈ " + r.earnings_date_est + " (est, " +
@@ -26730,6 +26793,8 @@
               ((r.active_batches || 0) >= 2 ? " t25-amber" : " t25-dim") +
               '" title="' + window.escapeHtml(badgeTip) + '">' +
               (r.active_batches || 1) + '/' + nB + '</span>' +
+            '<span class="t25-cell ' + lf[1] + '" title="' +
+              window.escapeHtml(lf[2]) + '">' + lf[0] + '</span>' +
             '<span class="t25-cell t25-dim t25-hm">' +
               fmtT25Time(r.last_print_ts || r.last_seen) + '</span>' +
             '<span class="t25-cell t25-reason" title="' +
@@ -26849,6 +26914,13 @@
       _t25HoverEl.style.top = Math.max(8, y) + "px";
     }
     function loadTop25() {
+      // OI-lifecycle lookup first (fail-open: pane renders without it)
+      fetch("./reports/flow_lifecycle.json", { cache: "no-cache" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (d) { _t25Life = d; if (_t25Last) renderTop25(_t25Last, null); }
+        })
+        .catch(function () {});
       fetch("./reports/uoa_top25_daily.json", { cache: "no-cache" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
