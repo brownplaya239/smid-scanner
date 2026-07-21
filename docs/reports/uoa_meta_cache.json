@@ -1241,8 +1241,8 @@
 "BHVN": {
 "earnings_date": "2026-08-10",
 "earnings_session": "AMC",
-"fetched": "2026-06-16",
-"mkt_cap": 1827810418.6000001,
+"fetched": "2026-07-21",
+"mkt_cap": 2237336311.4,
 "sector": "Healthcare / Biotech"
 },
 "BIDU": {
@@ -1545,6 +1545,13 @@
 "fetched": "2026-06-05",
 "mkt_cap": null,
 "sector": "Financials"
+},
+"BSP": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-07-21",
+"mkt_cap": 21229029340.2,
+"sector": "Other"
 },
 "BSX": {
 "earnings_date": "2026-07-29",
@@ -2172,8 +2179,8 @@
 "CMCSA": {
 "earnings_date": "2026-07-23",
 "earnings_session": "BMO",
-"fetched": "2026-07-08",
-"mkt_cap": 83625870519.37,
+"fetched": "2026-07-21",
+"mkt_cap": 84947595085.46,
 "sector": "Communications"
 },
 "CME": {
@@ -2382,8 +2389,8 @@
 "CPNG": {
 "earnings_date": "2026-08-04",
 "earnings_session": "AMC",
-"fetched": "2026-07-10",
-"mkt_cap": 34393430091.16,
+"fetched": "2026-07-21",
+"mkt_cap": 29510855464.440002,
 "sector": "Consumer / Retail"
 },
 "CPRI": {
@@ -3978,8 +3985,8 @@
 "GAP": {
 "earnings_date": "2026-08-27",
 "earnings_session": "AMC",
-"fetched": "2026-06-29",
-"mkt_cap": 7275174235.93,
+"fetched": "2026-07-21",
+"mkt_cap": 7156381188.04,
 "sector": "Consumer / Retail"
 },
 "GCT": {
@@ -4048,8 +4055,8 @@
 "GEV": {
 "earnings_date": "2026-07-22",
 "earnings_session": "BMO",
-"fetched": "2026-07-06",
-"mkt_cap": 299114913634.44995,
+"fetched": "2026-07-21",
+"mkt_cap": 289997244204.10004,
 "sector": "Other"
 },
 "GFI": {
@@ -4766,6 +4773,13 @@
 "mkt_cap": null,
 "sector": "Other"
 },
+"IE": {
+"earnings_date": "2026-08-05",
+"earnings_session": "AMC",
+"fetched": "2026-07-21",
+"mkt_cap": 1278996071.44,
+"sector": "Materials / Metals"
+},
 "IEX": {
 "earnings_date": "2026-07-29",
 "earnings_session": "BMO",
@@ -5156,6 +5170,13 @@
 "earnings_session": "AMC",
 "fetched": "2026-06-18",
 "mkt_cap": 3284021055.32,
+"sector": "Industrials"
+},
+"KBR": {
+"earnings_date": "2026-07-30",
+"earnings_session": "BMO",
+"fetched": "2026-07-21",
+"mkt_cap": 4383128813.49,
 "sector": "Industrials"
 },
 "KBWB": {
@@ -5819,7 +5840,7 @@
 "MAGS": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-06",
+"fetched": "2026-07-21",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -7279,6 +7300,13 @@
 "mkt_cap": 39108263628.96,
 "sector": "Utilities"
 },
+"PEGA": {
+"earnings_date": "2026-07-21",
+"earnings_session": "AMC",
+"fetched": "2026-07-21",
+"mkt_cap": 5295907656.190001,
+"sector": "Tech / Software"
+},
 "PENG": {
 "earnings_date": "2026-10-13",
 "earnings_session": "AMC",
@@ -7408,8 +7436,8 @@
 "PLAB": {
 "earnings_date": "2026-08-26",
 "earnings_session": "BMO",
-"fetched": "2026-07-10",
-"mkt_cap": 1721150344.6200001,
+"fetched": "2026-07-21",
+"mkt_cap": 1706409420.1200001,
 "sector": "Semiconductors"
 },
 "PLAY": {
@@ -9564,8 +9592,8 @@
 "TTD": {
 "earnings_date": "2026-08-06",
 "earnings_session": "AMC",
-"fetched": "2026-07-06",
-"mkt_cap": 8979069695.1,
+"fetched": "2026-07-21",
+"mkt_cap": 8762819849.04,
 "sector": "Tech / Software"
 },
 "TTE": {
