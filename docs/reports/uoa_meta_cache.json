@@ -1759,8 +1759,8 @@
 "CAPR": {
 "earnings_date": "2026-08-11",
 "earnings_session": "AMC",
-"fetched": "2026-07-08",
-"mkt_cap": 1286802262.46,
+"fetched": "2026-07-21",
+"mkt_cap": 1129281913.5,
 "sector": "Healthcare / Biotech"
 },
 "CAR": {
@@ -4921,10 +4921,10 @@
 "sector": "Tech / Software"
 },
 "IONS": {
-"earnings_date": "2026-08-05",
+"earnings_date": "2026-07-29",
 "earnings_session": "BMO",
-"fetched": "2026-07-10",
-"mkt_cap": 10621424474.119999,
+"fetched": "2026-07-21",
+"mkt_cap": 8750652340.2,
 "sector": "Healthcare / Biotech"
 },
 "IOT": {
@@ -8808,8 +8808,8 @@
 "SPOT": {
 "earnings_date": "2026-08-04",
 "earnings_session": "BMO",
-"fetched": "2026-07-07",
-"mkt_cap": 99925181044.17,
+"fetched": "2026-07-21",
+"mkt_cap": 101230868431.52,
 "sector": "Other"
 },
 "SPTM": {
@@ -10281,6 +10281,13 @@
 "fetched": "2026-07-06",
 "mkt_cap": 1638133504.0,
 "sector": "Consumer / Retail"
+},
+"WES": {
+"earnings_date": "2026-08-05",
+"earnings_session": "AMC",
+"fetched": "2026-07-21",
+"mkt_cap": 19257880640.579998,
+"sector": "Utilities"
 },
 "WFC": {
 "earnings_date": "2026-10-13",
