@@ -59,7 +59,7 @@ import bisect
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytz
 
@@ -68,6 +68,9 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 LATEST_PATH = os.path.join(_BASE, "docs", "reports", "uoa_latest.json")
 ACC_PATH = os.path.join(_BASE, "data", "uoa_daily_top.json")
 OUT_PATH = os.path.join(_BASE, "docs", "reports", "uoa_top25_daily.json")
+ARCHIVE_DIR = os.path.join(_BASE, "docs", "reports", "top_daily")
+ARCHIVE_INDEX = os.path.join(ARCHIVE_DIR, "index.json")
+ARCHIVE_KEEP = 45      # trading days retained (see --archive docstring)
 
 # ── single tunable config object ────────────────────────────────────────
 CFG = {
@@ -552,13 +555,88 @@ def self_test():
     return 0 if not fails else 1
 
 
+def archive():
+    """Freeze the session's FINAL cumulative list to
+    docs/reports/top_daily/<ET-date>.json and refresh the index.
+
+    Run ONCE nightly (momentum.yml, after the last scan batch) so the
+    archived list is the complete session, not a mid-day snapshot.
+    Idempotent: re-running the same session date overwrites with the
+    same content.
+
+    Archives drop score_parts (the score-component breakdown): it is
+    ~26% of the payload and only powers a live hover. This repo's git
+    history was cleaned from 564MB to 38MB in 2026-07 — daily archives
+    are worth the space, verbose per-row diagnostics are not. Retention
+    is """ + str(ARCHIVE_KEEP) + """ trading days; older files are pruned.
+    """
+    payload = _load(OUT_PATH)
+    if not payload or not payload.get("rows"):
+        print("  archive: no published list to freeze")
+        return
+    day = payload.get("et_date")
+    if not day:
+        print("  archive: payload carries no et_date — skipping")
+        return
+    slim = dict(payload)
+    slim["rows"] = [{k: v for k, v in r.items() if k != "score_parts"}
+                    for r in payload["rows"]]
+    slim["final"] = True
+    slim["archived_at"] = datetime.now(ET).isoformat(timespec="seconds")
+    os.makedirs(ARCHIVE_DIR, exist_ok=True)
+    with open(os.path.join(ARCHIVE_DIR, day + ".json"), "w",
+              encoding="utf-8") as f:
+        json.dump(slim, f, separators=(",", ":"))
+    # index: newest-first list of available sessions + a summary line
+    idx = _load(ARCHIVE_INDEX) or {"days": []}
+    days = {d["date"]: d for d in idx.get("days") or []}
+    bulls = sum(1 for r in slim["rows"]
+                if (r.get("bias") or "").startswith("bull"))
+    days[day] = {
+        "date": day,
+        "n": len(slim["rows"]),
+        "batches": payload.get("batches_today"),
+        "bull": bulls, "bear": len(slim["rows"]) - bulls,
+        "top": (slim["rows"][0]["ticker"] if slim["rows"] else None),
+    }
+    # self-heal: an index row whose file is gone (manual delete, failed
+    # publish, retention race) would advertise a session the pane can't
+    # load. Drop those rows rather than serve a broken date option.
+    days = {d: v for d, v in days.items()
+            if os.path.exists(os.path.join(ARCHIVE_DIR, d + ".json"))}
+    keep = sorted(days, reverse=True)[:ARCHIVE_KEEP]
+    for stale in [d for d in days if d not in keep]:
+        try:
+            os.remove(os.path.join(ARCHIVE_DIR, stale + ".json"))
+        except OSError:
+            pass
+    idx = {
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "retained_days": ARCHIVE_KEEP,
+        "days": [days[d] for d in keep],
+        "note": ("Final cumulative Top list per session, frozen after "
+                 "the last scan batch. Score-component breakdowns are "
+                 "omitted from archives (live view only)."),
+    }
+    with open(ARCHIVE_INDEX, "w", encoding="utf-8") as f:
+        json.dump(idx, f, separators=(",", ":"))
+    print("  archive: froze %s (%d rows, %d batches) · %d sessions "
+          "available" % (day, len(slim["rows"]),
+                         payload.get("batches_today") or 0, len(keep)))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--self-test", action="store_true")
+    ap.add_argument("--archive", action="store_true",
+                    help="freeze the session's final list (nightly)")
     args = ap.parse_args()
     if args.self_test:
         sys.exit(self_test())
+    if args.archive:
+        archive()
+        return
 
     snap = _load(LATEST_PATH)
     if not snap or not snap.get("rows"):

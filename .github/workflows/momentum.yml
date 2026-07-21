@@ -156,6 +156,14 @@ jobs:
         continue-on-error: true
         run: python uoa_research.py
 
+      - name: Archive the session's final Top list
+        # Freezes today's cumulative list to docs/reports/top_daily/
+        # <date>.json for the pane's date toggle. Runs BEFORE
+        # flow_lifecycle so the lifecycle window and the archive index
+        # agree on which sessions exist. Non-fatal.
+        continue-on-error: true
+        run: python uoa_daily_top.py --archive
+
       - name: Flow lifecycle (did the flagged flow stick?)
         # Registers each day's Top-list contracts with their flag-day OI
         # baseline, then reads settled OI forward to mark positions

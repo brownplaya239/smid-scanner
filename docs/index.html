@@ -4586,6 +4586,14 @@
   .t25-refresh { background:none; border:1px solid var(--line);
     color:var(--muted); border-radius:6px; cursor:pointer; font-size:11px;
     padding:2px 8px; }
+  .t25-nav { background:none; border:1px solid var(--line);
+    color:var(--muted); border-radius:6px; cursor:pointer; font-size:9px;
+    padding:3px 6px; }
+  .t25-nav:hover:not(:disabled) { color:var(--text); border-color:var(--muted); }
+  .t25-nav:disabled { opacity:.3; cursor:default; }
+  .t25-datesel { background:var(--navy2); color:var(--text);
+    border:1px solid var(--line); border-radius:6px; font-family:inherit;
+    font-size:10px; font-weight:600; padding:2px 4px; cursor:pointer; }
   .t25-refresh:hover { color:var(--text); border-color:var(--muted); }
   .t25-scroll { max-height:430px; overflow-y:auto; margin-top:8px; }
   .t25-grid { display:grid; align-items:baseline;
@@ -26534,6 +26542,11 @@
     // the pane's contract identity. Loaded once per pane render cycle;
     // absent file = every row falls back to "—" (fail-open).
     let _t25Life = null;
+    // Date toggle: null = today's live cumulative list; otherwise an
+    // archived ET session date (final list frozen after its last scan).
+    let _t25Date = null;
+    let _t25Index = null;      // archive index (newest-first sessions)
+    let _t25Live = null;       // today's payload, kept while browsing back
     const T25_LIFE = {
       PENDING:  ["PENDING", "t25-dim",
                  "Flagged today — open interest settles overnight at the OCC, so this position's verdict arrives tomorrow. Never guessed."],
@@ -26551,10 +26564,19 @@
                  "OI is back at/below the pre-flag baseline (or <30% of peak): the position is effectively gone."],
       UNKNOWN:  ["—", "t25-dim", "No usable OI baseline for this contract."],
     };
-    function t25LifeCell(r) {
-      const rec = _t25Life && _t25Life.contracts
+    // flow_lifecycle publishes a compact array per contract:
+    // [status, retained_pct, pct_of_peak, baseline_oi, current_oi, flag_date]
+    function t25LifeRec(r) {
+      const raw = _t25Life && _t25Life.contracts
         ? _t25Life.contracts[r.ticker + "|" + r.expiry + "|" + r.type +
                              "|" + String(r.strike)] : null;
+      if (!raw) return null;
+      if (!Array.isArray(raw)) return raw;          // legacy object form
+      return { status: raw[0], retained_pct: raw[1], pct_of_peak: raw[2],
+               baseline_oi: raw[3], current_oi: raw[4], flag_date: raw[5] };
+    }
+    function t25LifeCell(r) {
+      const rec = t25LifeRec(r);
       if (!rec) return ["—", "t25-dim",
                         "Lifecycle tracking starts when a contract enters the daily Top list; the verdict needs the next OI settlement."];
       let st = rec.status || "PENDING";
@@ -26633,10 +26655,9 @@
       const LIFE_ORD = { CLOSED: 0, UNWOUND: 1, TRIMMED: 2, PARTIAL: 3,
                          HELD: 4, OPEN: 5 };
       rows.forEach(function (r) {
-        const rec = _t25Life && _t25Life.contracts
-          ? _t25Life.contracts[r.ticker + "|" + r.expiry + "|" + r.type +
-                               "|" + String(r.strike)] : null;
-        const st = (rec && rec.status || "PENDING").replace("EXPIRED_", "");
+        const rec = t25LifeRec(r);
+        const st = ((rec && rec.status) || "PENDING")
+          .replace("EXPIRED_", "");
         r._life = LIFE_ORD[st] != null ? LIFE_ORD[st] : -1;
       });
       // 2) ordering: sort that fixed set by the selected column
@@ -26658,17 +26679,44 @@
         return '<button data-bias="' + k + '"' +
           (_t25Bias === k ? ' class="active"' : '') + '>' + label + '</button>';
       };
+      // date picker: today (live) + archived sessions, newest first.
+      // t25Days() is the SINGLE source for both the dropdown and the
+      // ◀ ▶ nav — using the raw index for nav would let "newer" land on
+      // today's own archive, which the dropdown deliberately hides.
+      const days = t25Days();
+      const opts = ['<option value="">Today · live</option>'].concat(
+        days.map(function (x) {
+          return '<option value="' + x.date + '"' +
+            (_t25Date === x.date ? ' selected' : '') + '>' + x.date +
+            ' · final</option>';
+        })).join("");
+      const idx = days.findIndex(function (x) { return x.date === _t25Date; });
+      const archived = !!_t25Date;
       let h =
         '<div class="t25-head">' +
         '<span class="t25-title">Top Daily Unusual Contracts</span>' +
         '<span class="t25-sub">top ' + (d.per_view || 50) +
-        ' per view · cumulative today · ' + (d.batches_today || 0) +
-        ' batch' + (d.batches_today === 1 ? '' : 'es') +
-        ' · refreshes after each scan batch (delayed data) · updated ' +
-        fmtT25Time(d.generated) +
+        ' per view · ' +
+        (archived
+          ? '<b class="t25-amber">FINAL list for ' + d.et_date + '</b> · ' +
+            (d.batches_today || 0) + ' batches that session · LIFE column ' +
+            'shows what happened to these positions since'
+          : 'cumulative today · ' + (d.batches_today || 0) +
+            ' batch' + (d.batches_today === 1 ? '' : 'es') +
+            ' · refreshes after each scan batch (delayed data) · updated ' +
+            fmtT25Time(d.generated)) +
         (errNote ? ' · <span class="t25-err">' + errNote + '</span>' : '') +
         '</span>' +
-        '<span class="t25-tools"><span class="t25-seg">' +
+        '<span class="t25-tools">' +
+        (days.length
+          ? '<button class="t25-nav" data-dir="-1" title="Older session"' +
+            (idx >= 0 && idx === days.length - 1 ? ' disabled' : '') +
+            '>&#9664;</button>' +
+            '<select class="t25-datesel" title="Jump to a session">' +
+            opts + '</select>' +
+            '<button class="t25-nav" data-dir="1" title="Newer session"' +
+            (!archived ? ' disabled' : '') + '>&#9654;</button>' : '') +
+        '<span class="t25-seg">' +
         seg("all", "ALL") + seg("bull", "BULLISH") + seg("bear", "BEARISH") +
         '</span>' +
         '<button class="t25-refresh" title="Refresh ranking">&#8635;</button>' +
@@ -26828,6 +26876,20 @@
       });
       const rf = host.querySelector(".t25-refresh");
       if (rf) rf.onclick = function () { _t25Gen = null; loadTop25(); };
+      const sel = host.querySelector(".t25-datesel");
+      if (sel) sel.onchange = function () {
+        t25GoDate(sel.value || null);
+      };
+      host.querySelectorAll(".t25-nav").forEach(function (b) {
+        b.onclick = function () {
+          const ds = t25Days();
+          const dir = parseInt(b.dataset.dir, 10);
+          let i = ds.findIndex(function (x) { return x.date === _t25Date; });
+          // index is newest-first: older = i+1, newer = i-1 (-1 -> live)
+          i = (i < 0 ? -1 : i) - dir;
+          t25GoDate(i < 0 ? null : (ds[i] ? ds[i].date : _t25Date));
+        };
+      });
       // Hover preview — wired ONCE on the host (innerHTML rebuilds don't
       // drop host-level listeners). Click-through to the drilldown panel
       // is free: the ticker cell carries [data-t], which the global
@@ -26913,7 +26975,50 @@
       _t25HoverEl.style.left = x + "px";
       _t25HoverEl.style.top = Math.max(8, y) + "px";
     }
+    // Switch the pane between today's live list and an archived session.
+    // Archived files are immutable finals, so they're fetched once and
+    // then served from the browser cache.
+    // Archived sessions the toggle can reach, newest first. Today's own
+    // archive (written by the nightly job) is excluded because "Today ·
+    // live" already shows that session.
+    function t25Days() {
+      const all = (_t25Index && _t25Index.days) || [];
+      const liveDate = _t25Live && _t25Live.et_date;
+      return all.filter(function (x) { return x.date !== liveDate; });
+    }
+    function t25GoDate(date) {
+      _t25Date = date || null;
+      if (!_t25Date) {
+        if (_t25Live) { _t25Last = _t25Live; renderTop25(_t25Live, null); }
+        _t25Gen = null;
+        loadTop25();
+        return;
+      }
+      fetch("./reports/top_daily/" + _t25Date + ".json")
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d) { renderTop25(_t25Last, "session " + _t25Date +
+                                " unavailable"); return; }
+          _t25Last = d;
+          renderTop25(d, null);
+        })
+        .catch(function () {
+          renderTop25(_t25Last, "session " + _t25Date + " failed to load");
+        });
+    }
     function loadTop25() {
+      // archive index (drives the date picker; fail-open when absent)
+      if (!_t25Index) {
+        fetch("./reports/top_daily/index.json", { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (d && d.days && d.days.length) {
+              _t25Index = d;
+              if (_t25Last) renderTop25(_t25Last, null);
+            }
+          })
+          .catch(function () {});
+      }
       // OI-lifecycle lookup first (fail-open: pane renders without it)
       fetch("./reports/flow_lifecycle.json", { cache: "no-cache" })
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -26925,6 +27030,10 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (!d) { renderTop25(_t25Last, _t25Last ? "refresh failed — showing last good" : null); return; }
+          _t25Live = d;
+          // browsing an archived session: keep today's payload fresh in
+          // the background but never yank the view out from under it
+          if (_t25Date) return;
           if (d.generated && d.generated === _t25Gen && _t25Last) return;
           _t25Gen = d.generated || null;
           _t25Last = d;

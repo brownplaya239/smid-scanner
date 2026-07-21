@@ -62,6 +62,7 @@ CFG = {
     "held_frac": 0.80,     # >= this share of peak OI -> HELD
     "trimmed_frac": 0.30,  # >= this -> TRIMMED, below -> UNWOUND
     "retain_days": 45,     # drop tracked contracts older than this
+    "publish_window_days": 45,  # lookup window (matches archive depth)
     "min_stats_n": 30,     # gate for published aggregate stats
     "max_fetch_tickers": 60,   # per-night chain fetches (API budget)
 }
@@ -244,21 +245,22 @@ def prune(state, today):
 # ── 4. publish ─────────────────────────────────────────────────────────
 
 def publish(state, today):
-    top = _load(TOPLIST) or {}
-    want = set(key_of(r["ticker"], r["expiry"], r["type"], r["strike"])
-               for r in (top.get("rows") or []))
+    # Covers the live Top list AND the archived sessions the date
+    # toggle can reach, so looking back at an old list shows which of
+    # those positions actually stuck. Compact array encoding keeps the
+    # whole window ~40% the size of per-key objects:
+    #   [status, retained_pct, pct_of_peak, baseline_oi, current_oi,
+    #    flag_date]
+    cutoff = (datetime.strptime(today, "%Y-%m-%d")
+              - timedelta(days=CFG["publish_window_days"])
+              ).strftime("%Y-%m-%d")
     lookup = {}
     for k, c in state["contracts"].items():
-        if k not in want:
+        if (c.get("flag_date") or "") < cutoff:
             continue
-        lookup[k] = {
-            "status": c.get("status", "PENDING"),
-            "flag_date": c.get("flag_date"),
-            "retained_pct": c.get("retained_pct"),
-            "pct_of_peak": c.get("pct_of_peak"),
-            "baseline_oi": c.get("baseline_oi"),
-            "current_oi": c.get("current_oi"),
-        }
+        lookup[k] = [c.get("status", "PENDING"), c.get("retained_pct"),
+                     c.get("pct_of_peak"), c.get("baseline_oi"),
+                     c.get("current_oi"), c.get("flag_date")]
     # gated aggregate: how often does flagged flow actually stick?
     resolved = [c for c in state["contracts"].values()
                 if c.get("first_verdict")]
@@ -285,6 +287,8 @@ def publish(state, today):
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "et_date": today,
         "tracked_total": len(state["contracts"]),
+        "encoding": ["status", "retained_pct", "pct_of_peak",
+                     "baseline_oi", "current_oi", "flag_date"],
         "contracts": lookup,
         "stats": stats,
         "thresholds": {k: CFG[k] for k in
