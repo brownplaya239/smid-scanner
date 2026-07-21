@@ -163,17 +163,27 @@ def forward_returns(signal, bars, spy_closes):
     spy_dates = sorted(spy_closes)
     spy0 = spy_closes.get(base)
     spy_idx = spy_dates.index(base) if base in spy_closes else None
+    # Dual anchor (2026-07 bias audit): p0 is the INTRADAY flag price but
+    # the SPY leg anchors at that day's CLOSE — asymmetric, and the
+    # flag->close drift of day 0 leaks into ret. Keep p0 for continuity
+    # (it's what a subscriber acting on the intraday alert could get) but
+    # ALSO store a close-anchored excess (exc_c) so the inflation is
+    # measurable instead of assumed. Same-anchor legs on both sides.
+    p0c = bars[base]["c"]
     out = {}
     for h in HORIZONS:
         if idx + h >= len(dates):
             continue
         ret = (bars[dates[idx + h]]["c"] / p0 - 1) * 100
-        excess = None
+        excess = exc_c = None
         if spy0 and spy_idx is not None and spy_idx + h < len(spy_dates):
             spy_ret = (spy_closes[spy_dates[spy_idx + h]] / spy0 - 1) * 100
             excess = ret - spy_ret
+            if p0c:
+                exc_c = (bars[dates[idx + h]]["c"] / p0c - 1) * 100 - spy_ret
         out[h] = {"ret": round(ret, 2),
-                  "excess": round(excess, 2) if excess is not None else None}
+                  "excess": round(excess, 2) if excess is not None else None,
+                  "exc_c": round(exc_c, 2) if exc_c is not None else None}
     return out
 
 
@@ -515,6 +525,38 @@ def compute_edge():
     except Exception as e:
         print(f"  by_theme aggregation skipped: {e}")
 
+    # Direction split — the 2026-07 alpha decomposition's headline: the
+    # book's EV separates almost entirely by trade side. Published gated
+    # (n>=30) so the site can show call-book vs put-follow vs seller EV
+    # honestly. Dir-signed +5d excess: bullish sides earn +excess,
+    # bearish earn -excess; sellers graded on their income lean.
+    direction_split = {}
+    try:
+        side_rows = {}
+        for s in scored:
+            r5 = (s.get("returns") or {}).get(5) or \
+                 (s.get("returns") or {}).get("5")
+            exc = (r5 or {}).get("excess")
+            if exc is None:
+                continue
+            side = _side_of_signal(s)
+            t = s.get("type") or ""
+            seller = side == "seller"
+            bull = (t != "put") != seller
+            side_rows.setdefault(side, []).append(exc if bull else -exc)
+        for side, v in side_rows.items():
+            if len(v) < 30:
+                direction_split[side] = {"status": "accruing", "n": len(v)}
+                continue
+            wins = sum(1 for x in v if x > 0)
+            direction_split[side] = {
+                "status": "active", "n": len(v),
+                "ev": round(sum(v) / len(v), 2),
+                "hit": round(100 * wins / len(v)),
+            }
+    except Exception as e:
+        print(f"  direction_split skipped: {e}")
+
     oc = [s["oi"]["status"] for s in scored if s["oi"]["status"] != "pending"]
     # Find the oldest signal so the client can compute "expected mature
     # on YYYY-MM-DD" for horizons that haven't accumulated samples yet
@@ -542,6 +584,7 @@ def compute_edge():
         "by_tag":        by_tag,
         "by_ticker":     by_ticker,
         "by_theme":      by_theme,
+        "direction_split": direction_split,
         "oi_confirmation": {
             "checked":      len(oc),
             "confirmed":    sum(1 for x in oc if x == "confirmed"),
@@ -977,10 +1020,27 @@ def _ew_win(s):
     return (exc > 0) if d == "bullish" else (exc < 0)
 
 
+def _side_of_signal(s):
+    """Trade-side key: seller / call_buy / put_buy. The 2026-07 alpha
+    decomposition showed this is the single largest EV differentiator in
+    the ledger (call_buy ≈ +1.5%, put_buy ≈ -2.6% dir-signed +5d): put
+    flow in this momentum universe is dominantly hedging, not directional
+    conviction. Falls back to the OCC contract letter for early ledger
+    rows that predate the `type` field."""
+    if s.get("flow_side") in ("put_seller", "call_seller"):
+        return "seller"
+    t = s.get("type")
+    if not t:
+        con = s.get("contract") or ""
+        t = "put" if len(con) > 9 and con[-9] == "P" else "call"
+    return t + "_buy"
+
+
 def _ew_features(s):
     """Feature keys for one signal — must be computable at SCAN time from the
     same fields, so the scanner can mirror this exactly."""
     feats = [f"type:{s.get('signal_type')}",
+             f"side:{_side_of_signal(s)}",
              f"dte:{_dte_bucket(s.get('dte'))}",
              f"cap:{s.get('cap_bucket') or 'unknown'}",
              f"liq:{s.get('liquidity') or 'C'}"]

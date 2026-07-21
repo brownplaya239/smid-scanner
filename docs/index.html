@@ -25455,6 +25455,35 @@
           'tape pays these signals less than history did — size down until ' +
           'it normalizes.</div></div>');
       }
+      // ── Direction Split — where the book's EV actually lives. The
+      // 2026-07 alpha decomposition found the ledger separates almost
+      // entirely by trade side; published gated (n>=30) by uoa_alpha.
+      const ds = edge.direction_split || {};
+      const DS_LBL = { call_buy: "Call buying",
+                       put_buy: "Put buying (followed bearishly)",
+                       seller: "Premium selling" };
+      const dsKeys = Object.keys(DS_LBL).filter(function (k) { return ds[k]; });
+      if (dsKeys.length) {
+        cards.push('<div class="ecard"><div class="et">Direction Split · ' +
+          '+5d dir-signed excess</div>' +
+          '<div class="ev neutral" style="font-size:12px;line-height:1.7">' +
+          dsKeys.map(function (k) {
+            const v = ds[k];
+            if (v.status !== "active")
+              return DS_LBL[k] + ': accruing (n=' + v.n + ')';
+            const cls = v.ev > 0 ? "pos" : "neg";
+            return DS_LBL[k] + ': <b class="' + cls + '">' +
+              (v.ev > 0 ? "+" : "") + v.ev + '%</b> ' +
+              '<span class="scp-edge-n">(' + v.n.toLocaleString() +
+              ' · ' + v.hit + '% hit)</span>';
+          }).join('<br>') + '</div>' +
+          '<div class="es">The graded ledger separates almost entirely by ' +
+          'trade side: bought calls have carried the edge, while ' +
+          'direction-following bought puts has bled — put flow in this ' +
+          'momentum universe is dominantly hedging, not conviction. ' +
+          'Sellers are graded on their income lean. The nightly learner ' +
+          'now sees side as a first-class feature (gated, clamped).</div></div>');
+      }
       const ovMature = matureHorizons(edge.overall || {});
       const ov = bestHorizon(edge.overall || {});
       stats.push(edgeCard("Overall +"+ov.h+"d", ov.st));

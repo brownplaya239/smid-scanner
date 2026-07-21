@@ -37,6 +37,14 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 # public GitHub Pages artifact — still committed to git for cross-run state.
 LEDGER_PATH = os.path.join(_BASE, "data", "uoa_signals.jsonl")
 LATEST_PATH = os.path.join(_BASE, "docs", "reports", "uoa_latest.json")
+
+# Strategy version stamp, logged per ledger signal. Bump whenever the
+# universe screen, score recipe, or flag thresholds materially change so
+# ledger research never silently pools across strategy regimes (the
+# 2026-07 bias audit found at least 4 unversioned regime shifts since
+# May: universe screen 05-22, 12-feature score 05-30, learner v1 07-06,
+# learner v2 07-06).
+SCANNER_VER = "v5-2026-07"
 META_CACHE_PATH = os.path.join(_BASE, "docs", "reports", "uoa_meta_cache.json")
 # OI history cache — one entry per contract OCC ticker. Each scan reads
 # the previous day's OI for delta computation, then writes today's.
@@ -643,7 +651,10 @@ def edge_adjust(row):
         return 0.0, []
     sig_type = ("golden_sweep" if row.get("golden")
                 else ("sweep" if (row.get("flow") or {}).get("sweeps") else "voloi"))
+    side = ("seller" if row.get("flow_side") in ("put_seller", "call_seller")
+            else (row.get("type") or "call") + "_buy")
     keys = [f"type:{sig_type}",
+            f"side:{side}",
             f"dte:{_dte_bucket_ew(row.get('dte'))}",
             f"cap:{row.get('cap_bucket') or 'unknown'}",
             f"liq:{row.get('liquidity') or 'C'}"]
@@ -1034,6 +1045,13 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
             adj, ewhy = edge_adjust(row)
             row["edge_adj"] = adj
             row["edge_why"] = ewhy
+            # raw_score = PRE-adjustment score. The 2026-07 bias audit
+            # found the learner's own adjustment folded into the logged
+            # trade_score, contaminating the very ledger (score bands,
+            # calibration, IC) used to evaluate the learner. All
+            # research keys on raw_score; trade_score stays the display
+            # value users see.
+            row["raw_score"] = row["trade_score"]
             if adj:
                 row["trade_score"] = max(0, min(100, round(row["trade_score"] + adj)))
                 row["tier"] = _tier(row["trade_score"], row["golden"])
@@ -1277,6 +1295,12 @@ def emit_latest(rows):
             "golden":        r["golden"],
             "in_universe":   r["in_universe"],
             "trade_score":   r["trade_score"],
+            # raw_score = pre-learner score; scanner_ver = strategy
+            # version stamp. Both exist so future ledger research can
+            # separate learner feedback from raw signal quality and
+            # avoid pooling across threshold regimes (2026-07 audit).
+            "raw_score":     r.get("raw_score", r["trade_score"]),
+            "scanner_ver":   SCANNER_VER,
             "score_components": r.get("score_components", {}),
             # learned-edge feedback (self-learning loop) — surfaced so the
             # score popover can show "Learned edge +3.2 (Golden Sweep +2.1…)"
