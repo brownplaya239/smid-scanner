@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>TickerDesk — Report Viewer</title>
+<style>
+  html,body{margin:0;height:100%;background:#0c1430;color:#e8ecf6;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+  #bar{display:flex;align-items:center;gap:10px;padding:9px 14px;
+    background:#162246;border-bottom:2px solid #ffc800;font-size:13px}
+  #bar b{color:#ffc800}
+  #bar a{color:#7fb2ff;text-decoration:none;margin-left:auto;white-space:nowrap}
+  #note{display:none;padding:8px 14px;background:rgba(255,200,0,.12);
+    border-bottom:1px solid rgba(255,200,0,.4);font-size:12px;line-height:1.45}
+  #pdf{width:100%;height:calc(100% - 42px);border:0}
+  #err{display:none;padding:40px 20px;text-align:center;font-size:14px;line-height:1.7}
+  #err a{color:#7fb2ff}
+</style>
+</head>
+<body>
+<div id="bar"><b>TickerDesk</b><span id="ttl">Report</span>
+  <a href="https://tickerdesk.io">Open TickerDesk →</a></div>
+<div id="note"></div>
+<embed id="pdf" type="application/pdf" style="display:none">
+<div id="err"></div>
+<script>
+(async function () {
+  // Never-404 report viewer. Emails link view.html?f=<file> instead of the
+  // raw PDF: if the exact run is still archived we embed it inline; if it
+  // was pruned (archive keeps ~30 runs/type), we fall back to the NEWEST
+  // report of the same type from manifest.json with an honest banner.
+  const q = new URLSearchParams(location.search);
+  const want = (q.get("f") || "").replace(/[^A-Za-z0-9._-]/g, "");
+  const ttl = document.getElementById("ttl"),
+        note = document.getElementById("note"),
+        pdf = document.getElementById("pdf"),
+        err = document.getElementById("err");
+  function show(file, fallbackLabel) {
+    ttl.textContent = file;
+    if (fallbackLabel) {
+      note.style.display = "block";
+      note.innerHTML = "The exact run you were emailed has rotated out of " +
+        "the archive (we keep the most recent ~30 per report type). " +
+        "Showing the <b>latest " + fallbackLabel + "</b> instead.";
+    }
+    pdf.style.display = "block";
+    pdf.src = file + "#view=FitH";
+  }
+  async function exists(file) {
+    try { return (await fetch(file, { method: "HEAD" })).ok; }
+    catch (e) { return false; }
+  }
+  if (want && await exists(want)) { show(want); return; }
+  // fallback: newest of the same type via manifest
+  try {
+    const m = await (await fetch("manifest.json", { cache: "no-cache" })).json();
+    const type = want.replace(/_\d{4}-\d{2}-\d{2}_\d{4}\.pdf$/, "")
+                     .replace(/_[A-Z.]+$/, "");   // ticker_DELL -> ticker
+    let best = null, bestType = null;
+    for (const [rtype, files] of Object.entries(m.reports || {})) {
+      const key = rtype.replace(/-/g, "_");
+      if (want.startsWith(key) || key.startsWith(type)) {
+        if (files && files.length) { best = files[0].file; bestType = rtype; break; }
+      }
+    }
+    if (!best) {   // last resort: newest file overall
+      for (const files of Object.values(m.reports || {}))
+        if (files && files.length && (!best || files[0].file > best))
+          { best = files[0].file; }
+      bestType = "available report";
+    }
+    if (best && await exists(best)) {
+      show(best, (bestType || "report").replace(/-/g, " "));
+      return;
+    }
+  } catch (e) {}
+  err.style.display = "block";
+  err.innerHTML = "This report has rotated out of the archive and no " +
+    "replacement of the same type is available right now.<br><br>" +
+    '<a href="https://tickerdesk.io/#adhoc">Generate a fresh report on TickerDesk →</a>';
+})();
+</script>
+</body>
+</html>

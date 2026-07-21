@@ -1,0 +1,433 @@
+{
+ "week_of": "2026-07-13",
+ "generated": "2026-07-17T18:24:13-04:00",
+ "source": "earningswhispers.com (Most Anticipated calendar)",
+ "total": 39,
+ "days": [
+  {
+   "date": "2026-07-13",
+   "dow": "Monday",
+   "bmo": [],
+   "amc": []
+  },
+  {
+   "date": "2026-07-14",
+   "dow": "Tuesday",
+   "bmo": [],
+   "amc": []
+  },
+  {
+   "date": "2026-07-15",
+   "dow": "Wednesday",
+   "bmo": [
+    {
+     "ticker": "SIFY",
+     "company": "Sify Technologies Limited",
+     "score": 1,
+     "analysts": 1,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-15T00:00:00",
+     "q": "9/2026"
+    }
+   ],
+   "amc": [
+    {
+     "ticker": "BULL",
+     "company": "Webull Corporation",
+     "score": 1,
+     "analysts": 4,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-15T00:00:00",
+     "q": "6/2026"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-16",
+   "dow": "Thursday",
+   "bmo": [
+    {
+     "ticker": "UNH",
+     "company": "UnitedHealth Group, Inc.",
+     "score": 2,
+     "analysts": 26,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "WIT",
+     "company": "Wipro Limited",
+     "score": 1,
+     "analysts": 10,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "USB",
+     "company": "U.S. Bancorp",
+     "score": 1,
+     "analysts": 23,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "TSM",
+     "company": "Taiwan Semiconductor Manufacturing Company Limited",
+     "score": 1,
+     "analysts": 17,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "TELNY",
+     "company": "Telenor ASA",
+     "score": 1,
+     "analysts": 13,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "STT",
+     "company": "State Street Corp.",
+     "score": 1,
+     "analysts": 18,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "PLD",
+     "company": "Prologis, Inc.",
+     "score": 1,
+     "analysts": 19,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "NRDBY",
+     "company": "Nordea Bank Abp",
+     "score": 1,
+     "analysts": 11,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "MAN",
+     "company": "ManpowerGroup",
+     "score": 1,
+     "analysts": 12,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "IIIN",
+     "company": "Insteel Industries Inc.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "GE",
+     "company": "GE Aerospace",
+     "score": 1,
+     "analysts": 22,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "CFG",
+     "company": "Citizens Financial Group Inc",
+     "score": 1,
+     "analysts": 20,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "CBSH",
+     "company": "Commerce Bancshares Inc.",
+     "score": 1,
+     "analysts": 11,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "BSVN",
+     "company": "Bank7 Corp.",
+     "score": 1,
+     "analysts": 4,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "ABT",
+     "company": "Abbott",
+     "score": 1,
+     "analysts": 29,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "HOVR",
+     "company": "New Horizon Aircraft Ltd.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "8/2026"
+    },
+    {
+     "ticker": "TTE",
+     "company": "TotalEnergies SE",
+     "score": 1,
+     "analysts": 21,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "6/2026"
+    }
+   ],
+   "amc": [
+    {
+     "ticker": "WSE",
+     "company": "Wise Group plc ",
+     "score": 5,
+     "analysts": 10,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "NFLX",
+     "company": "Netflix, Inc.",
+     "score": 3,
+     "analysts": 49,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "ISRG",
+     "company": "Intuitive Surgical, Inc.",
+     "score": 2,
+     "analysts": 31,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "INDB",
+     "company": "Independent Bank Corp.",
+     "score": 2,
+     "analysts": 8,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "WAFD",
+     "company": "Washington Federal, Inc.",
+     "score": 1,
+     "analysts": 5,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "SFNC",
+     "company": "Simmons First National Corp.",
+     "score": 1,
+     "analysts": 8,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "FNB",
+     "company": "F.N.B. Corporation",
+     "score": 1,
+     "analysts": 10,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "FFIN",
+     "company": "First Financial Bankshares, Inc.",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "CNS",
+     "company": "Cohen & Steers Inc",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    },
+    {
+     "ticker": "AA",
+     "company": "Alcoa, Inc.",
+     "score": 1,
+     "analysts": 12,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-16T00:00:00",
+     "q": "9/2026"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-17",
+   "dow": "Friday",
+   "bmo": [
+    {
+     "ticker": "RF",
+     "company": "Regions Financial Corporation",
+     "score": 20,
+     "analysts": 23,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-17T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "TFC",
+     "company": "Truist Financial Corporation",
+     "score": 15,
+     "analysts": 21,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-17T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "FITB",
+     "company": "Fifth Third Bancorp",
+     "score": 11,
+     "analysts": 22,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-17T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "ALV",
+     "company": "Autoliv Inc.",
+     "score": 8,
+     "analysts": 19,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-17T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "TRV",
+     "company": "Travelers Companies, Inc.",
+     "score": 6,
+     "analysts": 29,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-17T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "SPFI",
+     "company": "South Plains Financial, Inc.",
+     "score": 4,
+     "analysts": 5,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-17T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "SDVKY",
+     "company": "Sandvik AB",
+     "score": 3,
+     "analysts": 13,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-17T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "VLVLY",
+     "company": "AB Volvo",
+     "score": 3,
+     "analysts": 13,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-17T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "SKFRY",
+     "company": "SKF AB",
+     "score": 1,
+     "analysts": 13,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-17T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "ASAZY",
+     "company": "Assa Abloy AB",
+     "score": 1,
+     "analysts": 17,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-17T00:00:00",
+     "q": "6/2026"
+    }
+   ],
+   "amc": []
+  }
+ ]
+}

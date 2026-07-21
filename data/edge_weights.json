@@ -1,0 +1,349 @@
+{
+ "version": "2026-07-19T15:12:13+00:00",
+ "prev_version": "2026-07-19T13:53:50+00:00",
+ "prior": 0.4554,
+ "graded": 34397,
+ "params": {
+  "min_n": 200,
+  "shrink_k": 200,
+  "scale": 80,
+  "per_max": 4.0,
+  "decay_windows_d": [
+   30,
+   90
+  ],
+  "regime_min_days": 40
+ },
+ "features": {
+  "cap:large": {
+   "n": 11716,
+   "win": 0.438,
+   "shrunk": 0.438,
+   "lift": -0.017,
+   "adj": -1.4
+  },
+  "cap:mega": {
+   "n": 18420,
+   "win": 0.466,
+   "shrunk": 0.466,
+   "lift": 0.011,
+   "adj": 0.9
+  },
+  "cap:mid": {
+   "n": 2698,
+   "win": 0.456,
+   "shrunk": 0.456,
+   "lift": 0.0,
+   "adj": 0.0
+  },
+  "cap:small": {
+   "n": 609,
+   "win": 0.429,
+   "shrunk": 0.435,
+   "lift": -0.02,
+   "adj": -1.6
+  },
+  "cap:unknown": {
+   "n": 954,
+   "win": 0.479,
+   "shrunk": 0.475,
+   "lift": 0.02,
+   "adj": 1.6
+  },
+  "dte:leaps": {
+   "n": 651,
+   "win": 0.49,
+   "shrunk": 0.482,
+   "lift": 0.026,
+   "adj": 2.1
+  },
+  "dte:positioning": {
+   "n": 4182,
+   "win": 0.5,
+   "shrunk": 0.498,
+   "lift": 0.042,
+   "adj": 3.4
+  },
+  "dte:swing": {
+   "n": 8830,
+   "win": 0.462,
+   "shrunk": 0.461,
+   "lift": 0.006,
+   "adj": 0.5
+  },
+  "dte:urgent": {
+   "n": 20734,
+   "win": 0.443,
+   "shrunk": 0.443,
+   "lift": -0.013,
+   "adj": -1.0
+  },
+  "liq:A": {
+   "n": 3703,
+   "win": 0.413,
+   "shrunk": 0.415,
+   "lift": -0.04,
+   "adj": -3.2
+  },
+  "liq:B": {
+   "n": 10523,
+   "win": 0.45,
+   "shrunk": 0.45,
+   "lift": -0.005,
+   "adj": -0.4
+  },
+  "liq:C": {
+   "n": 17700,
+   "win": 0.465,
+   "shrunk": 0.465,
+   "lift": 0.009,
+   "adj": 0.8
+  },
+  "liq:D": {
+   "n": 2471,
+   "win": 0.471,
+   "shrunk": 0.47,
+   "lift": 0.015,
+   "adj": 1.2
+  },
+  "tag:Block": {
+   "n": 23079,
+   "win": 0.458,
+   "shrunk": 0.458,
+   "lift": 0.002,
+   "adj": 0.2
+  },
+  "tag:Golden Sweep": {
+   "n": 6456,
+   "win": 0.454,
+   "shrunk": 0.454,
+   "lift": -0.001,
+   "adj": -0.1
+  },
+  "tag:In Universe": {
+   "n": 23240,
+   "win": 0.46,
+   "shrunk": 0.46,
+   "lift": 0.005,
+   "adj": 0.4
+  },
+  "tag:Into ERN": {
+   "n": 3330,
+   "win": 0.485,
+   "shrunk": 0.483,
+   "lift": 0.028,
+   "adj": 2.2
+  },
+  "tag:Repeat": {
+   "n": 29090,
+   "win": 0.455,
+   "shrunk": 0.455,
+   "lift": -0.001,
+   "adj": -0.0
+  },
+  "tag:Size>OI": {
+   "n": 11469,
+   "win": 0.461,
+   "shrunk": 0.461,
+   "lift": 0.006,
+   "adj": 0.5
+  },
+  "tag:Sweep": {
+   "n": 20365,
+   "win": 0.451,
+   "shrunk": 0.451,
+   "lift": -0.004,
+   "adj": -0.3
+  },
+  "type:golden_sweep": {
+   "n": 6456,
+   "win": 0.454,
+   "shrunk": 0.454,
+   "lift": -0.001,
+   "adj": -0.1
+  },
+  "type:sweep": {
+   "n": 20365,
+   "win": 0.451,
+   "shrunk": 0.451,
+   "lift": -0.004,
+   "adj": -0.3
+  },
+  "type:voloi": {
+   "n": 7576,
+   "win": 0.468,
+   "shrunk": 0.467,
+   "lift": 0.012,
+   "adj": 0.9
+  }
+ },
+ "decay": {
+  "dte:swing": {
+   "recent_n": 3446,
+   "recent_hit": 0.465,
+   "prior_n": 5384,
+   "prior_hit": 0.46,
+   "delta": 0.005
+  },
+  "dte:leaps": {
+   "recent_n": 196,
+   "recent_hit": 0.536,
+   "prior_n": 455,
+   "prior_hit": 0.47,
+   "delta": 0.065
+  },
+  "type:sweep": {
+   "recent_n": 7797,
+   "recent_hit": 0.465,
+   "prior_n": 12568,
+   "prior_hit": 0.443,
+   "delta": 0.023
+  },
+  "dte:urgent": {
+   "recent_n": 8469,
+   "recent_hit": 0.451,
+   "prior_n": 12265,
+   "prior_hit": 0.437,
+   "delta": 0.015
+  },
+  "type:golden_sweep": {
+   "recent_n": 2499,
+   "recent_hit": 0.461,
+   "prior_n": 3957,
+   "prior_hit": 0.45,
+   "delta": 0.012
+  },
+  "cap:large": {
+   "recent_n": 4190,
+   "recent_hit": 0.414,
+   "prior_n": 7526,
+   "prior_hit": 0.451,
+   "delta": -0.037
+  },
+  "cap:small": {
+   "recent_n": 137,
+   "recent_hit": 0.153,
+   "prior_n": 472,
+   "prior_hit": 0.508,
+   "delta": -0.355
+  },
+  "cap:unknown": {
+   "recent_n": 388,
+   "recent_hit": 0.443,
+   "prior_n": 566,
+   "prior_hit": 0.504,
+   "delta": -0.06
+  },
+  "dte:positioning": {
+   "recent_n": 1666,
+   "recent_hit": 0.472,
+   "prior_n": 2516,
+   "prior_hit": 0.517,
+   "delta": -0.045
+  },
+  "tag:Block": {
+   "recent_n": 9172,
+   "recent_hit": 0.46,
+   "prior_n": 13907,
+   "prior_hit": 0.456,
+   "delta": 0.003
+  },
+  "tag:In Universe": {
+   "recent_n": 9408,
+   "recent_hit": 0.47,
+   "prior_n": 13832,
+   "prior_hit": 0.453,
+   "delta": 0.017
+  },
+  "tag:Into ERN": {
+   "recent_n": 950,
+   "recent_hit": 0.458,
+   "prior_n": 2380,
+   "prior_hit": 0.495,
+   "delta": -0.037
+  },
+  "liq:C": {
+   "recent_n": 7362,
+   "recent_hit": 0.45,
+   "prior_n": 10338,
+   "prior_hit": 0.476,
+   "delta": -0.026
+  },
+  "liq:A": {
+   "recent_n": 1386,
+   "recent_hit": 0.433,
+   "prior_n": 2317,
+   "prior_hit": 0.401,
+   "delta": 0.032
+  },
+  "cap:mid": {
+   "recent_n": 829,
+   "recent_hit": 0.448,
+   "prior_n": 1869,
+   "prior_hit": 0.459,
+   "delta": -0.012
+  },
+  "tag:Repeat": {
+   "recent_n": 11722,
+   "recent_hit": 0.459,
+   "prior_n": 17368,
+   "prior_hit": 0.452,
+   "delta": 0.008
+  },
+  "tag:Size>OI": {
+   "recent_n": 4457,
+   "recent_hit": 0.455,
+   "prior_n": 7012,
+   "prior_hit": 0.465,
+   "delta": -0.011
+  },
+  "liq:D": {
+   "recent_n": 1005,
+   "recent_hit": 0.484,
+   "prior_n": 1466,
+   "prior_hit": 0.463,
+   "delta": 0.02
+  },
+  "type:voloi": {
+   "recent_n": 3481,
+   "recent_hit": 0.441,
+   "prior_n": 4095,
+   "prior_hit": 0.49,
+   "delta": -0.049
+  },
+  "cap:mega": {
+   "recent_n": 8233,
+   "recent_hit": 0.488,
+   "prior_n": 10187,
+   "prior_hit": 0.449,
+   "delta": 0.04
+  },
+  "tag:Sweep": {
+   "recent_n": 7797,
+   "recent_hit": 0.465,
+   "prior_n": 12568,
+   "prior_hit": 0.443,
+   "delta": 0.023
+  },
+  "liq:B": {
+   "recent_n": 4024,
+   "recent_hit": 0.477,
+   "prior_n": 6499,
+   "prior_hit": 0.434,
+   "delta": 0.043
+  },
+  "tag:Golden Sweep": {
+   "recent_n": 2499,
+   "recent_hit": 0.461,
+   "prior_n": 3957,
+   "prior_hit": 0.45,
+   "delta": 0.012
+  }
+ },
+ "regimes": {
+  "status": "accruing",
+  "labeled_days": 10,
+  "labeled_days_with_outcomes": 5,
+  "activates_at_days": 40
+ }
+}
