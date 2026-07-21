@@ -216,6 +216,12 @@ def score_all(contracts, n_batches):
 # ── 4. bias + reason labels ─────────────────────────────────────────────
 
 def bias_of(c):
+    """Direction starts from the contract type (call=bull, put=bear),
+    then the execution tape must CONFIRM it: only >=55% of prints at/near
+    the ask (aggressive buying) earns the plain label. Anything less —
+    balanced tape OR bid-heavy prints that look like selling the scanner
+    didn't classify — gets the '?' qualifier. Scanner-classified premium
+    selling (flow_side) inverts to the income read ('*')."""
     fs = c.get("flow_side")
     if fs == "put_seller":
         return "bull_income"       # premium selling: directionally bullish
@@ -225,7 +231,7 @@ def bias_of(c):
     base = "bull" if c["type"] == "call" else "bear"
     if ap is None:
         return base
-    return base if abs(ap - 50) >= 5 else base + "_mixed"
+    return base if ap >= 55 else base + "_mixed"
 
 
 def reason_of(c, n_batches):
@@ -279,7 +285,8 @@ def build_payload(acc, ranked, n_elig, n_total):
             "strike": c["strike"], "expiry": c["expiry"],
             "dte": c.get("dte"), "bias": bias_of(c),
             "score": c["daily_score"],
-            "premium": c.get("premium"), "vol_oi": c.get("vol_oi"),
+            "premium": c.get("premium"), "last_price": c.get("last_price"),
+            "vol_oi": c.get("vol_oi"),
             "oi_delta": c.get("oi_delta"),
             "batch_count": c["batch_count"],
             "obs_count": c.get("repeat_count"),

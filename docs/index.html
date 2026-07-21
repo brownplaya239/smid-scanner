@@ -4589,8 +4589,8 @@
   .t25-refresh:hover { color:var(--text); border-color:var(--muted); }
   .t25-scroll { max-height:430px; overflow-y:auto; margin-top:8px; }
   .t25-grid { display:grid; align-items:baseline;
-    grid-template-columns:26px 54px minmax(130px,1.1fr) 38px 52px 44px
-      64px 50px 52px 34px 56px minmax(120px,1fr);
+    grid-template-columns:26px 54px minmax(190px,1.2fr) 38px 52px 44px
+      64px 54px 50px 52px 38px 56px minmax(120px,1fr);
     gap:2px 8px; font-size:11px;
     font-variant-numeric:tabular-nums; }
   .t25-grid > .t25-hdr { font-size:8.5px; font-weight:800;
@@ -4613,7 +4613,7 @@
     font-style:italic; }
   .t25-err { color:#e8b34c; }
   @media (max-width:900px) {
-    .t25-grid { grid-template-columns:24px 50px minmax(110px,1.2fr)
+    .t25-grid { grid-template-columns:24px 50px minmax(150px,1.3fr)
       44px 40px 60px minmax(100px,1fr); }
     .t25-hm { display:none; }
   }
@@ -26447,10 +26447,20 @@
         host.innerHTML = h;
       } else {
         const HDRS = ["#", "TKR", "CONTRACT", "DTE", "BIAS", "SCORE",
-                      "PREM", "V/OI", "ΔOI", "BAT", "LAST", "REASON"];
-        const HM = { DTE: 1, "V/OI": 1, "ΔOI": 1, BAT: 1, LAST: 1 };
+                      "PREM", "FILL", "V/OI", "ΔOI", "BAT", "LAST", "REASON"];
+        const HM = { DTE: 1, FILL: 1, "V/OI": 1, "ΔOI": 1, BAT: 1, LAST: 1 };
+        const TIPS = {
+          BIAS: "Direction from contract type, confirmed by execution: plain = ≥55% of prints at/near the ask (aggressive buying). ? = mixed or bid-leaning tape. * = scanner-classified premium selling (read inverted).",
+          PREM: "Cumulative premium traded in this contract today",
+          FILL: "Last fill price per contract (delayed)",
+          "V/OI": "Today's volume vs prior open interest",
+          "ΔOI": "Open interest change vs yesterday (settles overnight)",
+          BAT: "Distinct scan batches this contract appeared in today / batches run so far — repeat appearances signal sustained interest",
+          LAST: "Most recent print time (ET)",
+        };
         let g = '<div class="t25-grid">' + HDRS.map(function (x) {
-          return '<span class="t25-hdr' + (HM[x] ? ' t25-hm' : '') + '">' +
+          return '<span class="t25-hdr' + (HM[x] ? ' t25-hm' : '') + '"' +
+            (TIPS[x] ? ' title="' + TIPS[x] + '"' : '') + '>' +
             x + '</span>';
         }).join("");
         rows.forEach(function (r) {
@@ -26462,10 +26472,14 @@
             (income ? "*" : mixed ? "?" : "");
           const bTip = income
             ? "Premium-selling flow — directional read inverted"
-            : mixed ? "Mixed execution tape — lower conviction" : "";
+            : mixed ? "Execution not clearly at the ask — mixed or bid-leaning tape, lower conviction" : "";
           const scoreCls = r.score >= 70 ? "t25-amber" : "";
-          const con = r.ticker + " " + (r.type === "call" ? "C" : "P") +
-            "$" + r.strike + " " + (r.expiry || "").slice(5);
+          // "TSLA $382.5 CALL 07/24/2026" — explicit type + full expiry
+          const ep = (r.expiry || "").split("-");
+          const expFull = ep.length === 3
+            ? ep[1] + "/" + ep[2] + "/" + ep[0] : (r.expiry || "");
+          const con = r.ticker + " $" + r.strike + " " +
+            r.type.toUpperCase() + " " + expFull;
           g += '<span class="t25-cell t25-rank">' + r.rank + '</span>' +
             '<span class="t25-cell t25-tkr">' +
               window.escapeHtml(r.ticker) + '</span>' +
@@ -26479,6 +26493,9 @@
             '<span class="t25-cell ' + scoreCls + '"><b>' + r.score +
               '</b></span>' +
             '<span class="t25-cell">' + fmtT25Money(r.premium) + '</span>' +
+            '<span class="t25-cell t25-hm t25-dim">' +
+              (r.last_price != null
+                ? "$" + Number(r.last_price).toFixed(2) : "—") + '</span>' +
             '<span class="t25-cell t25-hm">' +
               (r.vol_oi != null ? r.vol_oi : "—") + '</span>' +
             '<span class="t25-cell t25-hm ' +
