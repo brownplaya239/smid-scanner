@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-17T18:21:30-04:00",
+ "updated": "2026-07-21T16:33:57-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -7538,6 +7538,63 @@
      "adr_pct": 5.29,
      "dollar_vol": 2495492640,
      "ern": "Aug 18"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-21",
+   "generated": "2026-07-21T16:33:57-04:00",
+   "count": 3,
+   "rows": [
+    {
+     "ticker": "PYPL",
+     "price": 55.85,
+     "chg": 17.9,
+     "adr_pct": 3.19,
+     "dollar_vol": 1010191388,
+     "ern": "Jul 28"
+    },
+    {
+     "ticker": "CIFR",
+     "price": 22.89,
+     "chg": 15.2,
+     "adr_pct": 10.99,
+     "dollar_vol": 572834722,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "AEHR",
+     "price": 98.91,
+     "chg": 37.36,
+     "adr_pct": 12.29,
+     "dollar_vol": 253638700,
+     "ern": "Oct 08"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "CLSK",
+     "price": 15.38,
+     "chg": 14.35,
+     "adr_pct": 9.95,
+     "dollar_vol": 329283169,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "ABT",
+     "price": 99.67,
+     "chg": 12.04,
+     "adr_pct": 2.85,
+     "dollar_vol": 1290193108,
+     "ern": "Oct 14"
+    },
+    {
+     "ticker": "HUT",
+     "price": 108.98,
+     "chg": 10.83,
+     "adr_pct": 10.21,
+     "dollar_vol": 477098485,
+     "ern": "Aug 04"
     }
    ]
   }

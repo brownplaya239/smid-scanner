@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-17T18:21:30-04:00",
+ "updated": "2026-07-21T16:33:57-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -4692,6 +4692,69 @@
      "chg": 40.4,
      "adr_pct": 6.74,
      "dollar_vol": 112360045,
+     "ern": "Jul 28"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-21",
+   "generated": "2026-07-21T16:33:57-04:00",
+   "count": 7,
+   "rows": [
+    {
+     "ticker": "DAVE",
+     "price": 438.9,
+     "chg": 39.58,
+     "adr_pct": 6.58,
+     "dollar_vol": 217910610,
+     "ern": "--"
+    },
+    {
+     "ticker": "DFTX",
+     "price": 45.08,
+     "chg": 84.15,
+     "adr_pct": 7.77,
+     "dollar_vol": 172433096,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "PBF",
+     "price": 66.05,
+     "chg": 77.13,
+     "adr_pct": 5.51,
+     "dollar_vol": 158965750,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "ORKA",
+     "price": 94.32,
+     "chg": 30.38,
+     "adr_pct": 6.39,
+     "dollar_vol": 144012967,
+     "ern": "Aug 10"
+    },
+    {
+     "ticker": "TXG",
+     "price": 47.2,
+     "chg": 35.81,
+     "adr_pct": 6.93,
+     "dollar_vol": 133654975,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "QLYS",
+     "price": 143.78,
+     "chg": 29.18,
+     "adr_pct": 5.79,
+     "dollar_vol": 121823151,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "VRNS",
+     "price": 46.18,
+     "chg": 38.35,
+     "adr_pct": 6.58,
+     "dollar_vol": 113623133,
      "ern": "Jul 28"
     }
    ]

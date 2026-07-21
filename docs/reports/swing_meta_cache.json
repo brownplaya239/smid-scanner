@@ -222,9 +222,9 @@
 "ABT": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 154446572365.18,
+"market_cap": 177072725235.63998,
 "mcap_bucket": "Large",
 "name": "Abbott Laboratories",
 "sector": "Healthcare / Biotech"
@@ -358,6 +358,16 @@
 "mcap_bucket": "Large",
 "name": "Accenture PLC",
 "sector": "Other"
+},
+"ACT": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-07-21",
+"industry": "INSURANCE AGENTS, BROKERS & SERVICE",
+"market_cap": 6476078560.55,
+"mcap_bucket": "Mid",
+"name": "Enact Holdings, Inc. Common Stock",
+"sector": "Financials"
 },
 "ACVA": {
 "country": "USA",
@@ -702,10 +712,10 @@
 "AGIO": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-15",
+"fetched": "2026-07-21",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 1752033601.14,
-"mcap_bucket": "Small",
+"market_cap": 2382432656.54,
+"mcap_bucket": "Mid",
 "name": "Agios Pharmaceuticals, Inc.",
 "sector": "Healthcare / Biotech"
 },
@@ -742,9 +752,9 @@
 "AGNC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "REAL ESTATE INVESTMENT TRUSTS",
-"market_cap": 12007340185.12,
+"market_cap": 12535387650.24,
 "mcap_bucket": "Large",
 "name": "AGNC Investment Corp. Common Stock",
 "sector": "Real Estate"
@@ -872,9 +882,9 @@
 "AIR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "AIRCRAFT & PARTS",
-"market_cap": 5216276676.240001,
+"market_cap": 5395613524.92,
 "mcap_bucket": "Mid",
 "name": "AAR Corp.",
 "sector": "Industrials / Transport Eq"
@@ -992,9 +1002,9 @@
 "ALC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-07-21",
 "industry": "",
-"market_cap": 32173569000.0,
+"market_cap": 34158508000.000004,
 "mcap_bucket": "Large",
 "name": "Alcon Inc. Ordinary Shares",
 "sector": "Other"
@@ -1082,9 +1092,9 @@
 "ALLY": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-15",
+"fetched": "2026-07-21",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 13600428260.939999,
+"market_cap": 13952929782.240002,
 "mcap_bucket": "Large",
 "name": "Ally Financial Inc.",
 "sector": "Financials / Banks"
@@ -1500,9 +1510,9 @@
 "AN": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-07-21",
 "industry": "RETAIL-AUTO DEALERS & GASOLINE STATIONS",
-"market_cap": 6087984400.3,
+"market_cap": 6622364475.45,
 "mcap_bucket": "Mid",
 "name": "AutoNation, Inc.",
 "sector": "Consumer / Retail"
@@ -1570,9 +1580,9 @@
 "AON": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "INSURANCE AGENTS, BROKERS & SERVICE",
-"market_cap": 69773453468.81,
+"market_cap": 77481445558.22,
 "mcap_bucket": "Large",
 "name": "Aon plc Class A",
 "sector": "Financials"
@@ -2060,9 +2070,9 @@
 "ASAN": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-28",
+"fetched": "2026-07-21",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 1521498855.56,
+"market_cap": 1751874685.1999998,
 "mcap_bucket": "Small",
 "name": "Asana, Inc. Class A Common Stock",
 "sector": "Tech / Software"
@@ -2550,9 +2560,9 @@
 "AVY": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "CONVERTED PAPER & PAPERBOARD PRODS (NO CONTANERS/BOXES)",
-"market_cap": 12204040926.75,
+"market_cap": 12113017368.6,
 "mcap_bucket": "Large",
 "name": "Avery Dennison Corp.",
 "sector": "Other"
@@ -2730,9 +2740,9 @@
 "BABA": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-07-21",
 "industry": "",
-"market_cap": 319697468963.69995,
+"market_cap": 288439604398.88,
 "mcap_bucket": "Mega",
 "name": "Alibaba Group Holding Limited American Depositary Shares, each represents eight Ordinary Shares",
 "sector": "Other"
@@ -2800,9 +2810,9 @@
 "BANC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-16",
+"fetched": "2026-07-21",
 "industry": "NATIONAL COMMERCIAL BANKS",
-"market_cap": 3043949611.9199996,
+"market_cap": 3208945867.48,
 "mcap_bucket": "Mid",
 "name": "Banc of California, Inc.",
 "sector": "Financials / Banks"
@@ -2840,9 +2850,9 @@
 "BAX": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "SURGICAL & MEDICAL INSTRUMENTS & APPARATUS",
-"market_cap": 10747720056.48,
+"market_cap": 11398471006.56,
 "mcap_bucket": "Large",
 "name": "Baxter International Inc.",
 "sector": "Other"
@@ -3227,6 +3237,16 @@
 "name": "Benchmark Electronics",
 "sector": "Tech / Hardware"
 },
+"BHF": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-07-21",
+"industry": "LIFE INSURANCE",
+"market_cap": 3728805904.35,
+"mcap_bucket": "Mid",
+"name": "Brighthouse Financial, Inc.",
+"sector": "Financials"
+},
 "BHP": {
 "country": "USA",
 "exchange": "NYSE",
@@ -3570,9 +3590,9 @@
 "BLDR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "RETAIL-LUMBER & OTHER BUILDING MATERIALS DEALERS",
-"market_cap": 8189608958.64,
+"market_cap": 7819602985.200001,
 "mcap_bucket": "Mid",
 "name": "Builders FirstSource, Inc.",
 "sector": "Consumer / Retail"
@@ -3810,9 +3830,9 @@
 "BOKF": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "NATIONAL COMMERCIAL BANKS",
-"market_cap": 8023356943.6,
+"market_cap": 8534956076.24,
 "mcap_bucket": "Mid",
 "name": "BOK Financial Corp",
 "sector": "Financials / Banks"
@@ -3890,9 +3910,9 @@
 "BPOP": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 10281502420.79,
+"market_cap": 11108230473.08,
 "mcap_bucket": "Large",
 "name": "Popular Inc",
 "sector": "Financials / Banks"
@@ -4435,6 +4455,16 @@
 "mcap_bucket": "Mid",
 "name": "Cal-Maine Foods Inc",
 "sector": "Other"
+},
+"CALX": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-07-21",
+"industry": "COMMUNICATIONS SERVICES, NEC",
+"market_cap": 2446051166.65,
+"mcap_bucket": "Mid",
+"name": "CALIX, INC.",
+"sector": "Communications"
 },
 "CALY": {
 "country": "USA",
@@ -5777,9 +5807,9 @@
 "COLB": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-16",
+"fetched": "2026-07-21",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 8959726827.699999,
+"market_cap": 9495284004.8,
 "mcap_bucket": "Mid",
 "name": "Columbia Banking Systems Inc",
 "sector": "Financials / Banks"
@@ -6332,6 +6362,16 @@
 "market_cap": 12438515078.9,
 "mcap_bucket": "Large",
 "name": "CoStar Group Inc",
+"sector": "Other"
+},
+"CSHP": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-07-21",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares Dynamic Short-Term Active ETF",
 "sector": "Other"
 },
 "CSIQ": {
@@ -7117,9 +7157,9 @@
 "DGX": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "SERVICES-MEDICAL LABORATORIES",
-"market_cap": 22380604015.22,
+"market_cap": 22987220446.14,
 "mcap_bucket": "Large",
 "name": "Quest Diagnostics Inc.",
 "sector": "Healthcare / Services"
@@ -7157,9 +7197,9 @@
 "DHI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "OPERATIVE BUILDERS",
-"market_cap": 43240219390.24,
+"market_cap": 41059492166.27,
 "mcap_bucket": "Large",
 "name": "D.R. Horton Inc.",
 "sector": "Industrials"
@@ -8647,9 +8687,9 @@
 "ESS": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "REAL ESTATE INVESTMENT TRUSTS",
-"market_cap": 18082610737.21,
+"market_cap": 18882026770.37,
 "mcap_bucket": "Large",
 "name": "Essex Property Trust, Inc",
 "sector": "Real Estate"
@@ -8757,9 +8797,9 @@
 "ETR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-11",
+"fetched": "2026-07-21",
 "industry": "ELECTRIC SERVICES",
-"market_cap": 50587338856.560005,
+"market_cap": 52216656521.9,
 "mcap_bucket": "Large",
 "name": "Entergy Corporation",
 "sector": "Utilities"
@@ -9017,9 +9057,9 @@
 "EXPD": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-07-21",
 "industry": "ARRANGEMENT OF TRANSPORTATION OF FREIGHT & CARGO",
-"market_cap": 20504125920.41,
+"market_cap": 23198423260.21,
 "mcap_bucket": "Large",
 "name": "Expeditors International of Washington, Inc.",
 "sector": "Industrials"
@@ -9147,9 +9187,9 @@
 "FAST": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "RETAIL-BUILDING MATERIALS, HARDWARE, GARDEN SUPPLY",
-"market_cap": 52924416312.1,
+"market_cap": 51361991367.479996,
 "mcap_bucket": "Large",
 "name": "Fastenal Co",
 "sector": "Consumer / Retail"
@@ -9167,9 +9207,9 @@
 "FBIN": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "MILLWOOD, VENEER, PLYWOOD, & STRUCTURAL WOOD MEMBERS",
-"market_cap": 4842119796.030001,
+"market_cap": 5989722467.57,
 "mcap_bucket": "Mid",
 "name": "Fortune Brands Innovations, Inc.",
 "sector": "Other"
@@ -9367,9 +9407,9 @@
 "FE": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "ELECTRIC SERVICES",
-"market_cap": 27382931824.500004,
+"market_cap": 28077049234.5,
 "mcap_bucket": "Large",
 "name": "FirstEnergy Corp.",
 "sector": "Utilities"
@@ -9487,9 +9527,9 @@
 "FFBC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "NATIONAL COMMERCIAL BANKS",
-"market_cap": 3301078106.04,
+"market_cap": 3722894189.5199995,
 "mcap_bucket": "Mid",
 "name": "First Financial Bancorp",
 "sector": "Financials / Banks"
@@ -9527,9 +9567,9 @@
 "FHB": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 3376975490.48,
+"market_cap": 3511576546.14,
 "mcap_bucket": "Mid",
 "name": "First Hawaiian, Inc. Common Stock",
 "sector": "Financials / Banks"
@@ -9915,9 +9955,9 @@
 "FNB": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "NATIONAL COMMERCIAL BANKS",
-"market_cap": 6510580627.21,
+"market_cap": 6674324043.75,
 "mcap_bucket": "Mid",
 "name": "F.N.B. Corp",
 "sector": "Financials / Banks"
@@ -10115,9 +10155,9 @@
 "FRO": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "",
-"market_cap": 8648899237.65,
+"market_cap": 8221463290.7699995,
 "mcap_bucket": "Mid",
 "name": "Frontline Plc",
 "sector": "Other"
@@ -10474,9 +10514,9 @@
 "GBCI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 6419937121.82,
+"market_cap": 6806460804.2,
 "mcap_bucket": "Mid",
 "name": "Glacier Bancorp Inc",
 "sector": "Financials / Banks"
@@ -10524,9 +10564,9 @@
 "GD": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-12",
+"fetched": "2026-07-21",
 "industry": "SHIP & BOAT BUILDING & REPAIRING",
-"market_cap": 97046576906.82,
+"market_cap": 100221427302.20001,
 "mcap_bucket": "Large",
 "name": "General Dynamics Corporation",
 "sector": "Industrials / Transport Eq"
@@ -10564,9 +10604,9 @@
 "GE": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-11",
+"fetched": "2026-07-21",
 "industry": "ELECTRONIC & OTHER ELECTRICAL EQUIPMENT (NO COMPUTER EQUIP)",
-"market_cap": 332522010166.85,
+"market_cap": 354120085686.9,
 "mcap_bucket": "Mega",
 "name": "GE Aerospace",
 "sector": "Other"
@@ -10680,6 +10720,16 @@
 "mcap_bucket": "Mid",
 "name": "Gerdau S.A.",
 "sector": "Other"
+},
+"GGG": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-07-21",
+"industry": "PUMPS & PUMPING EQUIPMENT",
+"market_cap": 12220236872.509998,
+"mcap_bucket": "Large",
+"name": "Graco Inc",
+"sector": "Industrials / Machinery"
 },
 "GGLL": {
 "country": "USA",
@@ -11223,9 +11273,9 @@
 "GSK": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "",
-"market_cap": 104501483558.84999,
+"market_cap": 100219996007.28,
 "mcap_bucket": "Large",
 "name": "GSK plc American Depositary Shares (Each representing two Ordinary Shares)",
 "sector": "Other"
@@ -11263,11 +11313,11 @@
 "GTES": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "GENERAL INDUSTRIAL MACHINERY & EQUIPMENT",
-"market_cap": 6946898030.8,
+"market_cap": 6527798149.599999,
 "mcap_bucket": "Mid",
-"name": "Gates Industrial Corporation plc",
+"name": "Gates Industrial Corporation Ltd.",
 "sector": "Industrials / Machinery"
 },
 "GTLB": {
@@ -11373,9 +11423,9 @@
 "GXO": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-07-21",
 "industry": "TRANSPORTATION SERVICES",
-"market_cap": 5423390485.46,
+"market_cap": 6074565499.2,
 "mcap_bucket": "Mid",
 "name": "GXO Logistics, Inc.",
 "sector": "Industrials"
@@ -11433,9 +11483,9 @@
 "HAS": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-20",
+"fetched": "2026-07-21",
 "industry": "GAMES, TOYS & CHILDREN'S VEHICLES (NO DOLLS & BICYCLES)",
-"market_cap": 13260507654.24,
+"market_cap": 11544225560.28,
 "mcap_bucket": "Large",
 "name": "Hasbro, Inc.",
 "sector": "Other"
@@ -11803,9 +11853,9 @@
 "HOMB": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 5605335562.089999,
+"market_cap": 6093984000.0,
 "mcap_bucket": "Mid",
 "name": "Home BancShares, Inc.",
 "sector": "Financials / Banks"
@@ -12093,9 +12143,9 @@
 "HWC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-04",
+"fetched": "2026-07-21",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 5456250188.64,
+"market_cap": 6272699346.72,
 "mcap_bucket": "Mid",
 "name": "Hancock Whitney Corporation Common Stock",
 "sector": "Financials / Banks"
@@ -12863,9 +12913,9 @@
 "ING": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-09",
+"fetched": "2026-07-21",
 "industry": "",
-"market_cap": 83479595643.83,
+"market_cap": 92048341726.6,
 "mcap_bucket": "Large",
 "name": "ING Groep N.V. American Depositary Shares",
 "sector": "Other"
@@ -13182,9 +13232,9 @@
 "IR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "GENERAL INDUSTRIAL MACHINERY & EQUIPMENT",
-"market_cap": 30042928746.18,
+"market_cap": 31377387350.120003,
 "mcap_bucket": "Large",
 "name": "Ingersoll Rand Inc. Common Stock",
 "sector": "Industrials / Machinery"
@@ -13392,7 +13442,7 @@
 "IVE": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-10",
+"fetched": "2026-07-21",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -13988,6 +14038,16 @@
 "mcap_bucket": "Large",
 "name": "Jones Lang LaSalle, Inc.",
 "sector": "Real Estate"
+},
+"JMOM": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-07-21",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "JPMorgan U.S. Momentum Factor ETF",
+"sector": "Other"
 },
 "JMST": {
 "country": "USA",
@@ -14912,9 +14972,9 @@
 "LECO": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-15",
+"fetched": "2026-07-21",
 "industry": "METALWORKG MACHINERY & EQUIPMENT",
-"market_cap": 14148771157.5,
+"market_cap": 13446948278.4,
 "mcap_bucket": "Large",
 "name": "Lincoln Electric Holdings Inc",
 "sector": "Industrials / Machinery"
@@ -15232,9 +15292,9 @@
 "LMT": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "GUIDED MISSILES & SPACE VEHICLES & PARTS",
-"market_cap": 122733619810.56001,
+"market_cap": 117481380820.32,
 "mcap_bucket": "Large",
 "name": "Lockheed Martin Corp.",
 "sector": "Industrials / Transport Eq"
@@ -15572,9 +15632,9 @@
 "LXP": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "REAL ESTATE INVESTMENT TRUSTS",
-"market_cap": 3089701153.9199996,
+"market_cap": 3587260355.2000003,
 "mcap_bucket": "Mid",
 "name": "LXP Industrial Trust",
 "sector": "Real Estate"
@@ -16419,6 +16479,16 @@
 "name": "MAXIMUS, Inc.",
 "sector": "Other"
 },
+"MMSI": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-07-21",
+"industry": "SURGICAL & MEDICAL INSTRUMENTS & APPARATUS",
+"market_cap": 4484255450.35,
+"mcap_bucket": "Mid",
+"name": "Merit Medical Systems Inc",
+"sector": "Other"
+},
 "MMYT": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -17001,9 +17071,9 @@
 "MUFG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "",
-"market_cap": 227567286888.56,
+"market_cap": 241437840053.72,
 "mcap_bucket": "Mega",
 "name": "Mitsubishi UFJ Financial Group, Inc.",
 "sector": "Other"
@@ -17121,9 +17191,9 @@
 "NAMS": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-29",
+"fetched": "2026-07-21",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 4140738936.1800003,
+"market_cap": 3468541056.9300003,
 "mcap_bucket": "Mid",
 "name": "NewAmsterdam Pharma Company N.V. Ordinary Shares",
 "sector": "Healthcare / Biotech"
@@ -17601,9 +17671,9 @@
 "NOC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "SEARCH, DETECTION, NAVIGATION, GUIDANCE, AERONAUTICAL SYS",
-"market_cap": 78139716821.4,
+"market_cap": 74419860084.96,
 "mcap_bucket": "Large",
 "name": "Northrop Grumman Corp.",
 "sector": "Other"
@@ -18171,9 +18241,9 @@
 "NWG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "",
-"market_cap": 65585590097.76,
+"market_cap": 70342855314.16,
 "mcap_bucket": "Large",
 "name": "NatWest Group plc American Depositary Shares, (each representing two (2) Ordinary Shares)",
 "sector": "Other"
@@ -18531,10 +18601,10 @@
 "OMCL": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "ELECTRONIC COMPUTERS",
-"market_cap": 1750937996.5,
-"mcap_bucket": "Small",
+"market_cap": 2056556264.98,
+"mcap_bucket": "Mid",
 "name": "Omnicell Inc",
 "sector": "Tech / Hardware"
 },
@@ -18561,9 +18631,9 @@
 "OMF": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "PERSONAL CREDIT INSTITUTIONS",
-"market_cap": 6662670001.84,
+"market_cap": 6954963310.400001,
 "mcap_bucket": "Mid",
 "name": "OneMain Holdings, Inc.",
 "sector": "Financials / Banks"
@@ -19110,9 +19180,9 @@
 "PB": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 7176819669.24,
+"market_cap": 8746995203.220001,
 "mcap_bucket": "Mid",
 "name": "Prosperity Bancshares Inc",
 "sector": "Financials / Banks"
@@ -19330,9 +19400,9 @@
 "PEG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-16",
+"fetched": "2026-07-21",
 "industry": "ELECTRIC & OTHER SERVICES COMBINED",
-"market_cap": 39940460370.3,
+"market_cap": 38784354717.659996,
 "mcap_bucket": "Large",
 "name": "Public Service Enterprise Group Incorporated",
 "sector": "Utilities"
@@ -19530,9 +19600,9 @@
 "PHM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "OPERATIVE BUILDERS",
-"market_cap": 23216476703.64,
+"market_cap": 23464108962.54,
 "mcap_bucket": "Large",
 "name": "Pultegroup, Inc.",
 "sector": "Industrials"
@@ -19660,9 +19730,9 @@
 "PKG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-11",
+"fetched": "2026-07-21",
 "industry": "PAPERBOARD CONTAINERS & BOXES",
-"market_cap": 19302330886.079998,
+"market_cap": 20352803934.21,
 "mcap_bucket": "Large",
 "name": "Packaging Corp of America",
 "sector": "Other"
@@ -19990,9 +20060,9 @@
 "PPL": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "ELECTRIC SERVICES",
-"market_cap": 27212512593.54,
+"market_cap": 26655773325.66,
 "mcap_bucket": "Large",
 "name": "PPL Corporation",
 "sector": "Utilities"
@@ -20790,9 +20860,9 @@
 "QTWO": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 2740020514.71,
+"market_cap": 3479331510.3399997,
 "mcap_bucket": "Mid",
 "name": "Q2 Holdings Inc",
 "sector": "Tech / Software"
@@ -21150,9 +21220,9 @@
 "REXR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "REAL ESTATE INVESTMENT TRUSTS",
-"market_cap": 7854990541.2,
+"market_cap": 8331255772.289999,
 "mcap_bucket": "Mid",
 "name": "REXFORD INDUSTRIAL REALTY, INC.",
 "sector": "Real Estate"
@@ -21700,9 +21770,9 @@
 "RSI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "SERVICES-MISCELLANEOUS AMUSEMENT & RECREATION",
-"market_cap": 3100961618.76,
+"market_cap": 3553957339.9600005,
 "mcap_bucket": "Mid",
 "name": "Rush Street Interactive, Inc.",
 "sector": "Consumer / Services"
@@ -21740,9 +21810,9 @@
 "RTX": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-11",
+"fetched": "2026-07-21",
 "industry": "AIRCRAFT ENGINES & ENGINE PARTS",
-"market_cap": 238915106961.47998,
+"market_cap": 261849125740.32,
 "mcap_bucket": "Mega",
 "name": "RTX Corporation",
 "sector": "Industrials / Transport Eq"
@@ -21890,9 +21960,9 @@
 "RYAAY": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-20",
+"fetched": "2026-07-21",
 "industry": "",
-"market_cap": 29177823255.52,
+"market_cap": 30594174599.219997,
 "mcap_bucket": "Large",
 "name": "Ryanair Holdings plc American Depositary Shares",
 "sector": "Other"
@@ -23940,9 +24010,9 @@
 "SRE": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-07-21",
 "industry": "GAS & OTHER SERVICES COMBINED",
-"market_cap": 58982452850.58,
+"market_cap": 59284724196.689995,
 "mcap_bucket": "Large",
 "name": "Sempra",
 "sector": "Utilities"
@@ -24380,9 +24450,9 @@
 "SWK": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "CUTLERY, HANDTOOLS & GENERAL HARDWARE",
-"market_cap": 13182631827.199999,
+"market_cap": 13602361850.0,
 "mcap_bucket": "Large",
 "name": "Stanley Black & Decker, Inc.",
 "sector": "Industrials / Machinery"
@@ -25829,9 +25899,9 @@
 "UBS": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "",
-"market_cap": 163005250805.72,
+"market_cap": 168806965946.0,
 "mcap_bucket": "Large",
 "name": "UBS Group AG",
 "sector": "Other"
@@ -27366,7 +27436,7 @@
 "VTIP": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -27586,9 +27656,9 @@
 "WBS": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-18",
+"fetched": "2026-07-21",
 "industry": "NATIONAL COMMERCIAL BANKS",
-"market_cap": 12153607614.980001,
+"market_cap": 12208696624.3,
 "mcap_bucket": "Large",
 "name": "Webster Financial Corporation Waterbury",
 "sector": "Financials / Banks"
@@ -27606,7 +27676,7 @@
 "WCLD": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-29",
+"fetched": "2026-07-21",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -28106,9 +28176,9 @@
 "WT": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-11",
+"fetched": "2026-07-21",
 "industry": "SECURITY BROKERS, DEALERS & FLOTATION COMPANIES",
-"market_cap": 2564825047.59,
+"market_cap": 3095531244.08,
 "mcap_bucket": "Mid",
 "name": "WisdomTree, Inc.",
 "sector": "Financials"
@@ -28126,9 +28196,9 @@
 "WTFC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-09",
+"fetched": "2026-07-21",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 10224405332.04,
+"market_cap": 11038499746.96,
 "mcap_bucket": "Large",
 "name": "Wintrust Financial Corp",
 "sector": "Financials / Banks"
@@ -28206,9 +28276,9 @@
 "WWD": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "ELECTRICAL INDUSTRIAL APPARATUS",
-"market_cap": 23982101552.5,
+"market_cap": 23282002935.75,
 "mcap_bucket": "Large",
 "name": "Woodward, Inc.",
 "sector": "Other"
@@ -28271,6 +28341,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "BondBloxx BB-Rated USD High Yield Corporate Bond ETF",
+"sector": "Other"
+},
+"XBOX": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-07-21",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Roundhill Ultra Short Duration No Dividend Target ETF",
 "sector": "Other"
 },
 "XEL": {
@@ -28406,9 +28486,9 @@
 "XRAY": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-17",
+"fetched": "2026-07-21",
 "industry": "DENTAL EQUIPMENT & SUPPLIES",
-"market_cap": 2031312565.6200001,
+"market_cap": 2696397153.1800003,
 "mcap_bucket": "Mid",
 "name": "DENTSPLY SIRONA Inc.",
 "sector": "Other"
