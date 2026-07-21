@@ -25686,11 +25686,12 @@
               (sb.n ? 'Short (put-follow): <b class="neg">' + sb.dir_ev +
                 '%</b> <span class="scp-edge-n">flow alpha ' +
                 sb.flow_alpha + '</span><br>' : '') +
-              (iv ? '<span class="neg" style="font-size:10px;font-weight:800">' +
-                'WORST VERIFIED POCKET</span> ' +
+              (iv ? '<span class="neg" style="font-size:10px;font-weight:800" ' +
+                'title="Historical evidence only — requires the preregistered 4-week prospective confirmation before any production avoidance">' +
+                'AVOIDANCE CANDIDATE (historical)</span> ' +
                 window.escapeHtml(iv.combo.join(" + ")) +
                 ' <span class="scp-edge-n">(holdout ' + iv.lift_holdout +
-                'pp)</span>' : '') +
+                'pp · unconfirmed)</span>' : '') +
               '</div>' +
               '<div class="es">Most of the book\'s upside is the flagged ' +
               'universe itself drifting up (selection), not direction-' +
@@ -25698,6 +25699,34 @@
               'auto-applies without walk-forward survival.</div>';
             const host4 = $("uoa-edge-deep") || $("uoa-edge");
             if (host4) host4.appendChild(el4);
+            // Deployment Status card — the audit's source-of-truth table
+            const dep = rs.deployment;
+            if (dep && dep.rows && dep.rows.length) {
+              const el5 = document.createElement("div");
+              el5.className = "ecard";
+              const CLS = { LIVE: "pos", REJECTED: "neg" };
+              el5.innerHTML = '<div class="et">Deployment Status · ' +
+                'research findings</div>' +
+                '<div class="ev neutral" style="font-size:11px;line-height:1.7">' +
+                dep.rows.map(function (r2) {
+                  const st = r2.production;
+                  const cls = CLS[st] || "";
+                  return '<div title="Gate: ' +
+                    window.escapeHtml(r2.gate || "") + ' · Rollback: ' +
+                    window.escapeHtml(r2.rollback || "") + '">' +
+                    window.escapeHtml(r2.finding).replace(/\(.*\)/, "") +
+                    ' <b class="' + cls + '">' + st + '</b></div>';
+                }).join("") + '</div>' +
+                '<div class="es">' +
+                (dep.psi_promotion_blocked_now
+                  ? '⚠ PSI ≥ 0.25 — challenger promotion BLOCKED until feature drift settles. '
+                  : '') +
+                'Shadow/challenger findings are recorded nightly and ' +
+                'compared prospectively; promotion requires the listed ' +
+                'gates over unseen weeks. Hover a row for its gate and ' +
+                'rollback target.</div>';
+              host4.appendChild(el5);
+            }
           }).catch(function () {});
       } catch (_) {}
       // False-positive honesty card — the inverse of the hit rate, per

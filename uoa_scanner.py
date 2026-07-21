@@ -660,13 +660,31 @@ def edge_adjust(row):
             f"liq:{row.get('liquidity') or 'C'}"]
     keys += [f"tag:{t}" for t in (row.get("tags") or [])]
     total, why = 0.0, []
+    ch_total, ch_why = 0.0, []
     for k in keys:
         f = w.get(k)
         if not f or not f.get("adj"):
             continue
+        if k.startswith("side:"):
+            # CHALLENGER / SHADOW (deployment-safety audit 2026-07-21):
+            # side-aware weights are computed + persisted nightly by
+            # uoa_alpha but are NOT applied to live scores. The would-be
+            # adjustment is recorded per row (challenger_adj) so the
+            # challenger can be compared to the incumbent prospectively.
+            # PROMOTION GATES (all required, predefined): >=4 unseen ISO
+            # weeks of challenger predictions; pooled OOS EV lift
+            # >= +0.15pp vs incumbent; better in >=60% of weeks; feature
+            # -mix PSI < 0.25 at promotion time. Rollback = this skip
+            # (incumbent behavior is exactly current behavior).
+            ch_total += f["adj"]
+            ch_why.append(f"{k.split(':', 1)[1]} {f['adj']:+.1f}")
+            continue
         total += f["adj"]
         why.append(f"{k.split(':', 1)[1]} {f['adj']:+.1f}")
     total = max(-EDGE_TOTAL_MAX, min(EDGE_TOTAL_MAX, total))
+    ch_total = max(-EDGE_TOTAL_MAX, min(EDGE_TOTAL_MAX, ch_total))
+    row["challenger_adj"] = round(ch_total, 1)
+    row["challenger_why"] = ch_why
     return round(total, 1), why
 
 
@@ -1301,6 +1319,10 @@ def emit_latest(rows):
             # avoid pooling across threshold regimes (2026-07 audit).
             "raw_score":     r.get("raw_score", r["trade_score"]),
             "scanner_ver":   SCANNER_VER,
+            # shadow challenger: the side-aware adjustment that WOULD
+            # have applied — persisted for prospective incumbent-vs-
+            # challenger comparison; never applied to trade_score.
+            "challenger_adj": r.get("challenger_adj", 0),
             "score_components": r.get("score_components", {}),
             # learned-edge feedback (self-learning loop) — surfaced so the
             # score popover can show "Learned edge +3.2 (Golden Sweep +2.1…)"

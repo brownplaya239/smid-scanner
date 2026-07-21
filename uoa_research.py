@@ -104,6 +104,7 @@ def load_rows():
             bull = (typ == "call") != seller
             raw = r5["excess"]                  # underlying excess (unsigned)
             mae = (c.get("excursion") or {}).get("mae")
+            ed = s.get("earnings_days")
             rows.append({
                 "date": (s.get("flagged_at") or "")[:10],
                 "ticker": s.get("ticker"),
@@ -112,6 +113,10 @@ def load_rows():
                 "bull": bull,
                 "score": s.get("raw_score") or s.get("trade_score") or 0,
                 "mae": abs(mae) if mae is not None else None,
+                "dte": s.get("dte"),
+                "sector": s.get("sector") or "?",
+                "liq": s.get("liquidity") or "C",
+                "ern": (ed is not None and 0 <= ed <= 7),
                 "f": [                          # categorical features
                     "side:" + side,
                     _dte_bucket(s.get("dte")),
@@ -431,21 +436,243 @@ def interactions(rows):
                      "nothing auto-applies.")}
 
 
+def _ci95(v):
+    n = len(v)
+    if n < 30:
+        return None
+    m = _mean(v)
+    var = sum((x - m) ** 2 for x in v) / (n - 1)
+    se = (var / n) ** 0.5
+    return [round(m - 1.96 * se, 3), round(m + 1.96 * se, 3)]
+
+
+def avoidance_candidate(rows):
+    """Formal report for the medium-dated put-buy pocket. STATUS:
+    VERIFIED HISTORICAL AVOIDANCE CANDIDATE — historical evidence only;
+    NOT yet prospectively confirmed. Preregistered confirmation window:
+    4 unseen ISO weeks after 2026-07-21 with pocket EV < 0 and 95% CI
+    excluding 0; only then may it be promoted to an avoidance rule.
+    Note on costs: EV is measured on the UNDERLYING's excess move, so
+    option spread/slippage does not enter the metric itself; the
+    net-of-costs rows model the additional round-trip haircut a trader
+    executing via the OPTIONS would pay (assumption-labeled)."""
+    sel = [r for r in rows if r.get("dte") is not None
+           and 22 <= r["dte"] <= 60 and "side:put_buy" in r["f"]]
+    if len(sel) < 200:
+        return {"status": "accruing", "n": len(sel)}
+    ev = _mean([r["exc"] for r in sel])
+    # weekly
+    byw = defaultdict(list)
+    for r in sel:
+        byw[_week(r["date"])].append(r["exc"])
+    weekly = [{"week": w, "n": len(v), "ev": round(_mean(v), 3)}
+              for w, v in sorted(byw.items())]
+    # split-half + time-ordered holdout
+    h = len(sel) // 2
+    cut = int(len(sel) * (1 - CFG["holdout_frac"]))
+    # cost haircuts by liquidity (round-trip option execution assumption)
+    HAIRCUT = {"A": 0.4, "B": 0.7, "C": 1.5, "D": 2.5}
+    by_liq = {}
+    for lg in ("A", "B", "C", "D"):
+        v = [r["exc"] for r in sel if r["liq"] == lg]
+        if len(v) >= 50:
+            by_liq[lg] = {"n": len(v), "ev": round(_mean(v), 3),
+                          "ev_net_haircut": round(_mean(v) - HAIRCUT[lg], 3)}
+    # concentration
+    tk = defaultdict(int); sec = defaultdict(int)
+    for r in sel:
+        tk[r["ticker"]] += 1; sec[r["sector"]] += 1
+    top_tk = sorted(tk.items(), key=lambda x: -x[1])[:5]
+    top_sec = sorted(sec.items(), key=lambda x: -x[1])[:3]
+    n_ern = sum(1 for r in sel if r["ern"])
+    # DTE boundary sensitivity
+    sens = {}
+    for lo, hi in ((8, 21), (15, 45), (22, 60), (30, 75), (45, 90)):
+        v = [r["exc"] for r in rows if r.get("dte") is not None
+             and lo <= r["dte"] <= hi and "side:put_buy" in r["f"]]
+        if len(v) >= 100:
+            sens["dte%d-%d" % (lo, hi)] = {"n": len(v),
+                                           "ev": round(_mean(v), 3)}
+    return {
+        "status": "verified_historical_avoidance_candidate",
+        "definition": "side:put_buy AND 22<=dte<=60",
+        "n": len(sel),
+        "ev_pooled": round(ev, 3),
+        "ci95": _ci95([r["exc"] for r in sel]),
+        "weekly": weekly,
+        "split_half": [round(_mean([r["exc"] for r in sel[:h]]), 3),
+                       round(_mean([r["exc"] for r in sel[h:]]), 3)],
+        "holdout_last30pct": {"n": len(sel) - cut,
+                              "ev": round(_mean([r["exc"]
+                                                 for r in sel[cut:]]), 3)},
+        "by_liquidity_net_costs": by_liq,
+        "cost_assumption": ("underlying-move metric has no execution "
+                            "cost; haircuts model option round-trip by "
+                            "liq grade (A 0.4 / B 0.7 / C 1.5 / D 2.5 "
+                            "pp) — assumptions, not measurements"),
+        "concentration": {
+            "top_tickers": [{"t": t, "n": n2,
+                             "share": round(n2 / len(sel), 3)}
+                            for t, n2 in top_tk],
+            "top_sectors": [{"s": s2, "share": round(n2 / len(sel), 3)}
+                            for s2, n2 in top_sec],
+            "into_earnings_share": round(n_ern / len(sel), 3),
+        },
+        "dte_boundary_sensitivity": sens,
+        "multiple_testing": ("selected from 489 tested interactions; "
+                            "Bonferroni-style caution applies — the "
+                            "holdout gate mitigates but does not "
+                            "eliminate selection. Hence prospective "
+                            "confirmation is REQUIRED before any "
+                            "production avoidance."),
+        "preregistered_confirmation": ("4 unseen ISO weeks post "
+                                       "2026-07-21; promote only if "
+                                       "pocket EV<0 with 95% CI "
+                                       "excluding 0 in that window"),
+    }
+
+
+def psi_detail(rows):
+    """Per-feature PSI contributions + the deployment gate."""
+    import math
+    weeks = sorted(set(_week(r["date"]) for r in rows))
+    recent = [r for r in rows if _week(r["date"]) in weeks[-2:]]
+    prior = [r for r in rows if _week(r["date"]) not in weeks[-2:]]
+    if len(recent) < 500 or len(prior) < 500:
+        return {"status": "accruing"}
+    fr, fp = defaultdict(int), defaultdict(int)
+    for r in recent:
+        for f in r["f"]:
+            fr[f] += 1
+    for r in prior:
+        for f in r["f"]:
+            fp[f] += 1
+    contribs = []
+    total = 0.0
+    for f in set(list(fr) + list(fp)):
+        a = max(fr[f] / len(recent), 1e-4)
+        b = max(fp[f] / len(prior), 1e-4)
+        c = (a - b) * math.log(a / b)
+        total += c
+        contribs.append({"feature": f, "psi": round(c, 4),
+                         "share_recent": round(a, 3),
+                         "share_prior": round(b, 3)})
+    contribs.sort(key=lambda x: -x["psi"])
+    ev_recent = _mean([r["exc"] for r in recent])
+    ev_prior = _mean([r["exc"] for r in prior])
+    return {
+        "psi_total": round(total, 4),
+        "promotion_blocked": total >= 0.25,
+        "gate": ("PSI >= 0.25 BLOCKS automatic challenger promotion "
+                 "(deployment gate, not just an alarm)"),
+        "top_contributors": contribs[:6],
+        "ev_before_drift": round(ev_prior, 3),
+        "ev_after_drift": round(ev_recent, 3),
+    }
+
+
+def deployment_table(psi_blocked):
+    """Item 8: explicit production status of every finding. This table
+    is the source of truth the scorecard renders."""
+    return {
+        "as_of": "2026-07-21",
+        "rows": [
+            {"finding": "OOS evaluation framework (walk-forward weekly)",
+             "evidence": "self-validating", "production": "LIVE",
+             "gate": "n/a", "version": "uoa_research v1",
+             "window": "2026-05-18..2026-06-16",
+             "rollback": "remove momentum.yml step"},
+            {"finding": "Drift monitoring (PSI + per-feature)",
+             "evidence": "descriptive", "production": "LIVE",
+             "gate": "PSI>=0.25 blocks challenger promotion",
+             "version": "uoa_research v1", "window": "rolling 2w vs prior",
+             "rollback": "n/a (read-only)"},
+            {"finding": "Disaster-pocket avoidance (put_buy dte22-60)",
+             "evidence": "verified historical avoidance candidate",
+             "production": "SHADOW",
+             "gate": "preregistered 4 unseen wks, EV<0 CI excl 0",
+             "version": "uoa_research v1", "window": "same",
+             "rollback": "n/a (not applied)"},
+            {"finding": "score2 ranking",
+             "evidence": "FAILED weekly OOS stability",
+             "production": "REJECTED",
+             "gate": "would need regime-conditioned revalidation",
+             "version": "uoa_research v1", "window": "3 OOS weeks",
+             "rollback": "n/a (never applied)"},
+            {"finding": "score2-quintile sizing table",
+             "evidence": "in-sample descriptive; depends on score2",
+             "production": "SHADOW",
+             "gate": "score2 must pass OOS stability first",
+             "version": "uoa_research v1", "window": "full sample",
+             "rollback": "n/a (not consumed by production)"},
+            {"finding": "Side-aware learner weights",
+             "evidence": "walk-forward 3/5 wks, mechanism-backed",
+             "production": "CHALLENGER/SHADOW",
+             "gate": (">=4 unseen wks · pooled lift >=+0.15pp · "
+                      "better >=60% wks · PSI<0.25 at promotion"),
+             "version": "scanner v5-2026-07 challenger_adj",
+             "window": "prospective from 2026-07-21",
+             "rollback": "side: keys skipped in edge_adjust (current)"},
+            {"finding": "Loser model (categorical odds)",
+             "evidence": "FAILED OOS (1/3 weeks, pooled worse)",
+             "production": "REJECTED",
+             "gate": "n/a", "version": "uoa_research v1",
+             "window": "3 OOS weeks", "rollback": "n/a (never applied)"},
+        ],
+        "psi_promotion_blocked_now": psi_blocked,
+    }
+
+
 def main():
     rows = load_rows()
     if len(rows) < 1000:
         print("  research: only %d joined matured rows — skipping" % len(rows))
         return
+    lm = loser_model(rows)
+    lm["decision"] = "REJECTED — failed OOS (1/3 weeks improved, pooled worse); never applied"
+    s2 = score2_eval(rows)
+    s2["decision"] = ("REJECTED for ranking (weekly OOS IC unstable); "
+                      "retained as SHADOW research only")
+    sz = sizing(rows)
+    sz["decision"] = ("SHADOW — derived from score2 which failed OOS "
+                      "stability; NOT consumed by production; "
+                      "counterfactual recorded nightly")
+    psi = psi_detail(rows)
     payload = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "joined_matured_n": len(rows),
         "span": [rows[0]["date"], rows[-1]["date"]],
         "attribution": attribution(rows),
-        "loser_model": loser_model(rows),
-        "score2": score2_eval(rows),
-        "sizing": sizing(rows),
+        "loser_model": lm,
+        "score2": s2,
+        "sizing": sz,
         "stability": stability(rows),
+        "psi_detail": psi,
+        "avoidance_candidate": avoidance_candidate(rows),
         "interactions": interactions(rows),
+        "deployment": deployment_table(psi.get("promotion_blocked", False)),
+        "pit_safety": {
+            "side_feature": ("point-in-time safe: side derives from "
+                             "flow_side + contract type, both computed "
+                             "at scan time from day-so-far prints "
+                             "(ask/bid approximation) and the contract "
+                             "symbol — no completed-day volume, later "
+                             "prints, revised classifications, future "
+                             "OI, or outcomes enter the feature. "
+                             "Ledger logs it at flag time."),
+        },
+        "regime_conditioning_design": {
+            "status": "DESIGN ONLY — not activated",
+            "regimes": ("existing regime_history labels (breadth "
+                        "58/42 thresholds) — point-in-time observable, "
+                        "definitions FROZEN as of 2026-07-06"),
+            "gates": ("min 150 matured/regime AND >=40 labeled days "
+                      "(existing machinery); UNKNOWN regime falls back "
+                      "to global weights; regime weights shrink toward "
+                      "global by n/(n+200); walk-forward evaluation vs "
+                      "the unconditioned incumbent required before "
+                      "activation"),
+        },
         "note": ("Nightly alpha-research engine. All OOS claims are "
                  "walk-forward (train strictly on prior ISO weeks). "
                  "Joined-n covers the per-signal outcome retention "
