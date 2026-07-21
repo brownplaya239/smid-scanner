@@ -1,7 +1,7 @@
 {
- "version": "2026-07-21T15:11:32+00:00",
- "prev_version": "2026-07-19T15:12:13+00:00",
- "prior": 0.4607,
+ "version": "2026-07-21T16:23:18+00:00",
+ "prev_version": "2026-07-21T15:11:32+00:00",
+ "prior": 0.4612,
  "graded": 36612,
  "params": {
   "min_n": 200,
@@ -17,8 +17,8 @@
  "features": {
   "cap:large": {
    "n": 12311,
-   "win": 0.441,
-   "shrunk": 0.442,
+   "win": 0.442,
+   "shrunk": 0.443,
    "lift": -0.019,
    "adj": -1.5
   },
@@ -26,22 +26,22 @@
    "n": 19829,
    "win": 0.474,
    "shrunk": 0.474,
-   "lift": 0.014,
-   "adj": 1.1
+   "lift": 0.013,
+   "adj": 1.0
   },
   "cap:mid": {
    "n": 2815,
-   "win": 0.453,
-   "shrunk": 0.453,
-   "lift": -0.007,
-   "adj": -0.6
+   "win": 0.456,
+   "shrunk": 0.456,
+   "lift": -0.005,
+   "adj": -0.4
   },
   "cap:small": {
    "n": 630,
    "win": 0.422,
-   "shrunk": 0.431,
-   "lift": -0.029,
-   "adj": -2.3
+   "shrunk": 0.432,
+   "lift": -0.03,
+   "adj": -2.4
   },
   "cap:unknown": {
    "n": 1027,
@@ -59,23 +59,23 @@
   },
   "dte:positioning": {
    "n": 4414,
-   "win": 0.488,
-   "shrunk": 0.487,
-   "lift": 0.027,
-   "adj": 2.1
+   "win": 0.49,
+   "shrunk": 0.489,
+   "lift": 0.028,
+   "adj": 2.2
   },
   "dte:swing": {
    "n": 9469,
-   "win": 0.469,
+   "win": 0.47,
    "shrunk": 0.469,
    "lift": 0.008,
-   "adj": 0.6
+   "adj": 0.7
   },
   "dte:urgent": {
    "n": 22040,
    "win": 0.45,
    "shrunk": 0.451,
-   "lift": -0.01,
+   "lift": -0.011,
    "adj": -0.8
   },
   "liq:A": {
@@ -89,13 +89,13 @@
    "n": 11115,
    "win": 0.456,
    "shrunk": 0.456,
-   "lift": -0.004,
-   "adj": -0.3
+   "lift": -0.005,
+   "adj": -0.4
   },
   "liq:C": {
    "n": 18989,
-   "win": 0.472,
-   "shrunk": 0.472,
+   "win": 0.473,
+   "shrunk": 0.473,
    "lift": 0.011,
    "adj": 0.9
   },
@@ -115,7 +115,7 @@
   },
   "tag:Golden Sweep": {
    "n": 6747,
-   "win": 0.455,
+   "win": 0.456,
    "shrunk": 0.456,
    "lift": -0.005,
    "adj": -0.4
@@ -124,15 +124,15 @@
    "n": 24888,
    "win": 0.467,
    "shrunk": 0.467,
-   "lift": 0.006,
-   "adj": 0.5
+   "lift": 0.005,
+   "adj": 0.4
   },
   "tag:Into ERN": {
    "n": 4188,
-   "win": 0.503,
-   "shrunk": 0.501,
-   "lift": 0.04,
-   "adj": 3.2
+   "win": 0.501,
+   "shrunk": 0.499,
+   "lift": 0.038,
+   "adj": 3.1
   },
   "tag:Repeat": {
    "n": 31005,
@@ -152,12 +152,12 @@
    "n": 21531,
    "win": 0.455,
    "shrunk": 0.455,
-   "lift": -0.005,
-   "adj": -0.4
+   "lift": -0.006,
+   "adj": -0.5
   },
   "type:golden_sweep": {
    "n": 6747,
-   "win": 0.455,
+   "win": 0.456,
    "shrunk": 0.456,
    "lift": -0.005,
    "adj": -0.4
@@ -166,19 +166,89 @@
    "n": 21531,
    "win": 0.455,
    "shrunk": 0.455,
-   "lift": -0.005,
-   "adj": -0.4
+   "lift": -0.006,
+   "adj": -0.5
   },
   "type:voloi": {
    "n": 8334,
-   "win": 0.479,
-   "shrunk": 0.479,
-   "lift": 0.018,
-   "adj": 1.4
+   "win": 0.481,
+   "shrunk": 0.481,
+   "lift": 0.02,
+   "adj": 1.6
   }
  },
  "decay": {
-  "type:golden_sweep": {
+  "tag:In Universe": {
+   "recent_n": 10437,
+   "recent_hit": 0.49,
+   "prior_n": 14451,
+   "prior_hit": 0.45,
+   "delta": 0.04
+  },
+  "liq:C": {
+   "recent_n": 8208,
+   "recent_hit": 0.474,
+   "prior_n": 10781,
+   "prior_hit": 0.472,
+   "delta": 0.002
+  },
+  "type:sweep": {
+   "recent_n": 8377,
+   "recent_hit": 0.479,
+   "prior_n": 13154,
+   "prior_hit": 0.44,
+   "delta": 0.039
+  },
+  "dte:positioning": {
+   "recent_n": 1790,
+   "recent_hit": 0.455,
+   "prior_n": 2624,
+   "prior_hit": 0.515,
+   "delta": -0.06
+  },
+  "tag:Size>OI": {
+   "recent_n": 4857,
+   "recent_hit": 0.466,
+   "prior_n": 7325,
+   "prior_hit": 0.459,
+   "delta": 0.007
+  },
+  "liq:B": {
+   "recent_n": 4250,
+   "recent_hit": 0.498,
+   "prior_n": 6865,
+   "prior_hit": 0.43,
+   "delta": 0.067
+  },
+  "cap:small": {
+   "recent_n": 143,
+   "recent_hit": 0.147,
+   "prior_n": 487,
+   "prior_hit": 0.503,
+   "delta": -0.356
+  },
+  "dte:leaps": {
+   "recent_n": 219,
+   "recent_hit": 0.571,
+   "prior_n": 470,
+   "prior_hit": 0.468,
+   "delta": 0.103
+  },
+  "type:voloi": {
+   "recent_n": 4067,
+   "recent_hit": 0.473,
+   "prior_n": 4267,
+   "prior_hit": 0.489,
+   "delta": -0.016
+  },
+  "tag:Repeat": {
+   "recent_n": 12863,
+   "recent_hit": 0.479,
+   "prior_n": 18142,
+   "prior_hit": 0.448,
+   "delta": 0.031
+  },
+  "tag:Golden Sweep": {
    "recent_n": 2613,
    "recent_hit": 0.475,
    "prior_n": 4134,
@@ -192,75 +262,26 @@
    "prior_hit": 0.44,
    "delta": 0.039
   },
-  "tag:Repeat": {
-   "recent_n": 12863,
-   "recent_hit": 0.478,
-   "prior_n": 18142,
-   "prior_hit": 0.448,
-   "delta": 0.03
-  },
-  "type:sweep": {
-   "recent_n": 8377,
-   "recent_hit": 0.479,
-   "prior_n": 13154,
-   "prior_hit": 0.44,
-   "delta": 0.039
+  "cap:mid": {
+   "recent_n": 900,
+   "recent_hit": 0.453,
+   "prior_n": 1915,
+   "prior_hit": 0.457,
+   "delta": -0.004
   },
   "dte:swing": {
    "recent_n": 3875,
-   "recent_hit": 0.486,
+   "recent_hit": 0.488,
    "prior_n": 5594,
    "prior_hit": 0.457,
-   "delta": 0.029
+   "delta": 0.031
   },
   "tag:Block": {
    "recent_n": 9848,
-   "recent_hit": 0.469,
+   "recent_hit": 0.471,
    "prior_n": 14585,
    "prior_hit": 0.453,
-   "delta": 0.015
-  },
-  "dte:urgent": {
-   "recent_n": 9173,
-   "recent_hit": 0.474,
-   "prior_n": 12867,
-   "prior_hit": 0.434,
-   "delta": 0.04
-  },
-  "tag:Into ERN": {
-   "recent_n": 1740,
-   "recent_hit": 0.506,
-   "prior_n": 2448,
-   "prior_hit": 0.501,
-   "delta": 0.005
-  },
-  "liq:A": {
-   "recent_n": 1405,
-   "recent_hit": 0.436,
-   "prior_n": 2406,
-   "prior_hit": 0.403,
-   "delta": 0.033
-  },
-  "tag:Size>OI": {
-   "recent_n": 4857,
-   "recent_hit": 0.465,
-   "prior_n": 7325,
-   "prior_hit": 0.459,
-   "delta": 0.006
-  },
-  "cap:mid": {
-   "recent_n": 900,
-   "recent_hit": 0.443,
-   "prior_n": 1915,
-   "prior_hit": 0.457,
-   "delta": -0.014
-  },
-  "liq:B": {
-   "recent_n": 4250,
-   "recent_hit": 0.498,
-   "prior_n": 6865,
-   "prior_hit": 0.43,
-   "delta": 0.068
+   "delta": 0.017
   },
   "liq:D": {
    "recent_n": 1194,
@@ -269,47 +290,19 @@
    "prior_hit": 0.462,
    "delta": 0.008
   },
-  "type:voloi": {
-   "recent_n": 4067,
-   "recent_hit": 0.469,
-   "prior_n": 4267,
-   "prior_hit": 0.489,
-   "delta": -0.02
-  },
-  "tag:In Universe": {
-   "recent_n": 10437,
-   "recent_hit": 0.49,
-   "prior_n": 14451,
-   "prior_hit": 0.45,
-   "delta": 0.04
-  },
-  "cap:small": {
-   "recent_n": 143,
-   "recent_hit": 0.147,
-   "prior_n": 487,
-   "prior_hit": 0.503,
-   "delta": -0.356
-  },
   "cap:large": {
    "recent_n": 4530,
-   "recent_hit": 0.424,
+   "recent_hit": 0.427,
    "prior_n": 7781,
    "prior_hit": 0.451,
-   "delta": -0.027
+   "delta": -0.025
   },
-  "tag:Golden Sweep": {
+  "type:golden_sweep": {
    "recent_n": 2613,
    "recent_hit": 0.475,
    "prior_n": 4134,
    "prior_hit": 0.443,
    "delta": 0.032
-  },
-  "dte:positioning": {
-   "recent_n": 1790,
-   "recent_hit": 0.45,
-   "prior_n": 2624,
-   "prior_hit": 0.515,
-   "delta": -0.065
   },
   "cap:mega": {
    "recent_n": 9082,
@@ -325,19 +318,26 @@
    "prior_hit": 0.493,
    "delta": -0.048
   },
-  "dte:leaps": {
-   "recent_n": 219,
-   "recent_hit": 0.571,
-   "prior_n": 470,
-   "prior_hit": 0.468,
-   "delta": 0.103
+  "tag:Into ERN": {
+   "recent_n": 1740,
+   "recent_hit": 0.502,
+   "prior_n": 2448,
+   "prior_hit": 0.501,
+   "delta": 0.001
   },
-  "liq:C": {
-   "recent_n": 8208,
-   "recent_hit": 0.471,
-   "prior_n": 10781,
-   "prior_hit": 0.472,
-   "delta": -0.001
+  "dte:urgent": {
+   "recent_n": 9173,
+   "recent_hit": 0.474,
+   "prior_n": 12867,
+   "prior_hit": 0.434,
+   "delta": 0.04
+  },
+  "liq:A": {
+   "recent_n": 1405,
+   "recent_hit": 0.436,
+   "prior_n": 2406,
+   "prior_hit": 0.403,
+   "delta": 0.034
   }
  },
  "regimes": {
