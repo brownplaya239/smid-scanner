@@ -1,6 +1,6 @@
 {
  "week_of": "2026-07-20",
- "generated": "2026-07-21T16:44:57-04:00",
+ "generated": "2026-07-21T18:32:17-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 262,
  "days": [
@@ -229,7 +229,7 @@
     {
      "ticker": "SCHW",
      "company": "Charles Schwab Corp.",
-     "score": 15,
+     "score": 16,
      "analysts": 23,
      "release_time": 1,
      "confirmed": true,
@@ -727,7 +727,7 @@
     {
      "ticker": "PM",
      "company": "Philip Morris International Inc",
-     "score": 14,
+     "score": 15,
      "analysts": 13,
      "release_time": 1,
      "confirmed": true,
@@ -969,7 +969,7 @@
     {
      "ticker": "TSLA",
      "company": "Tesla, Inc.",
-     "score": 166,
+     "score": 167,
      "analysts": 43,
      "release_time": 3,
      "confirmed": true,
@@ -979,7 +979,7 @@
     {
      "ticker": "GOOGL",
      "company": "Alphabet Inc.",
-     "score": 121,
+     "score": 122,
      "analysts": 54,
      "release_time": 3,
      "confirmed": true,
@@ -989,7 +989,7 @@
     {
      "ticker": "NOW",
      "company": "ServiceNow, Inc.",
-     "score": 86,
+     "score": 90,
      "analysts": 45,
      "release_time": 3,
      "confirmed": true,
@@ -1513,19 +1513,9 @@
      "q": "6/2026"
     },
     {
-     "ticker": "STM",
-     "company": "STMicroelectronics N.V.",
-     "score": 11,
-     "analysts": 18,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-07-23T00:00:00",
-     "q": "6/2026"
-    },
-    {
      "ticker": "LMT",
      "company": "Lockheed Martin Corp.",
-     "score": 11,
+     "score": 12,
      "analysts": 23,
      "release_time": 1,
      "confirmed": true,
@@ -1535,8 +1525,18 @@
     {
      "ticker": "FCX",
      "company": "Freeport-McMoRan Copper & Gold, Inc.",
-     "score": 11,
+     "score": 12,
      "analysts": 23,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-23T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "STM",
+     "company": "STMicroelectronics N.V.",
+     "score": 11,
+     "analysts": 18,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-07-23T00:00:00",
