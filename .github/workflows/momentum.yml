@@ -156,6 +156,14 @@ jobs:
         continue-on-error: true
         run: python uoa_research.py
 
+      - name: Hedge-cohort prospective evaluation (nightly, gated)
+        # Non-overlapping predictive tests + adverse-episode detection
+        # over the append-only monitor log. Promotion requires >=2
+        # independent adverse episodes AND payoff/carry >= 1.0
+        # executable. Non-fatal.
+        continue-on-error: true
+        run: python hedge_monitor.py --evaluate
+
       - name: Hypothesis lab (weekly, self-gated)
         # Pairwise feature hypotheses over the matured ledger; three
         # gates (sample, split-half stability, time-ordered holdout).

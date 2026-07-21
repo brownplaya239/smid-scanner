@@ -65,6 +65,13 @@ jobs:
             exit 1
           fi
 
+      - name: Hedge-cohort prospective monitor (append-only record)
+        # Records the potential-hedge cohort's point-in-time state each
+        # batch (frozen spec v1-2026-07-21; any spec change forks a new
+        # version). Append-only; never affects ranking. Non-fatal.
+        continue-on-error: true
+        run: python hedge_monitor.py --record
+
       - name: Top 25 daily cumulative ranking
         # Folds this batch into the per-day accumulator and republishes
         # the diversified Top 25 (docs/reports/uoa_top25_daily.json).
