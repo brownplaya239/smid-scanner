@@ -1,7 +1,7 @@
 {
- "version": "2026-07-21T19:48:45+00:00",
+ "version": "2026-07-21T19:50:53+00:00",
  "prev_version": "2026-07-21T18:43:37+00:00",
- "prior": 0.4616,
+ "prior": 0.4617,
  "graded": 36612,
  "params": {
   "min_n": 200,
@@ -33,7 +33,7 @@
    "n": 2815,
    "win": 0.457,
    "shrunk": 0.457,
-   "lift": -0.004,
+   "lift": -0.005,
    "adj": -0.4
   },
   "cap:small": {
@@ -47,7 +47,7 @@
    "n": 1027,
    "win": 0.474,
    "shrunk": 0.472,
-   "lift": 0.011,
+   "lift": 0.01,
    "adj": 0.8
   },
   "dte:leaps": {
@@ -82,14 +82,14 @@
    "n": 3811,
    "win": 0.415,
    "shrunk": 0.417,
-   "lift": -0.045,
+   "lift": -0.044,
    "adj": -3.6
   },
   "liq:B": {
    "n": 11115,
    "win": 0.457,
    "shrunk": 0.457,
-   "lift": -0.004,
+   "lift": -0.005,
    "adj": -0.4
   },
   "liq:C": {
@@ -118,7 +118,7 @@
    "win": 0.456,
    "shrunk": 0.456,
    "lift": -0.006,
-   "adj": -0.5
+   "adj": -0.4
   },
   "tag:In Universe": {
    "n": 24888,
@@ -160,7 +160,7 @@
    "win": 0.456,
    "shrunk": 0.456,
    "lift": -0.006,
-   "adj": -0.5
+   "adj": -0.4
   },
   "type:sweep": {
    "n": 21531,
@@ -185,12 +185,33 @@
    "prior_hit": 0.489,
    "delta": -0.015
   },
-  "tag:In Universe": {
-   "recent_n": 10437,
-   "recent_hit": 0.49,
-   "prior_n": 14451,
-   "prior_hit": 0.45,
-   "delta": 0.04
+  "type:golden_sweep": {
+   "recent_n": 2613,
+   "recent_hit": 0.476,
+   "prior_n": 4134,
+   "prior_hit": 0.443,
+   "delta": 0.033
+  },
+  "tag:Block": {
+   "recent_n": 9848,
+   "recent_hit": 0.472,
+   "prior_n": 14585,
+   "prior_hit": 0.453,
+   "delta": 0.019
+  },
+  "liq:B": {
+   "recent_n": 4250,
+   "recent_hit": 0.5,
+   "prior_n": 6865,
+   "prior_hit": 0.43,
+   "delta": 0.07
+  },
+  "tag:Size>OI": {
+   "recent_n": 4857,
+   "recent_hit": 0.467,
+   "prior_n": 7325,
+   "prior_hit": 0.459,
+   "delta": 0.008
   },
   "tag:Into ERN": {
    "recent_n": 1740,
@@ -199,46 +220,11 @@
    "prior_hit": 0.501,
    "delta": 0.007
   },
-  "tag:Repeat": {
-   "recent_n": 12863,
-   "recent_hit": 0.48,
-   "prior_n": 18142,
-   "prior_hit": 0.448,
-   "delta": 0.032
-  },
-  "cap:mid": {
-   "recent_n": 900,
-   "recent_hit": 0.456,
-   "prior_n": 1915,
-   "prior_hit": 0.457,
-   "delta": -0.002
-  },
-  "dte:swing": {
-   "recent_n": 3875,
-   "recent_hit": 0.49,
-   "prior_n": 5594,
-   "prior_hit": 0.457,
-   "delta": 0.033
-  },
-  "dte:positioning": {
-   "recent_n": 1790,
-   "recent_hit": 0.456,
-   "prior_n": 2624,
-   "prior_hit": 0.515,
-   "delta": -0.059
-  },
-  "cap:unknown": {
-   "recent_n": 402,
-   "recent_hit": 0.445,
-   "prior_n": 625,
-   "prior_hit": 0.493,
-   "delta": -0.048
-  },
-  "dte:urgent": {
-   "recent_n": 9173,
-   "recent_hit": 0.474,
-   "prior_n": 12867,
-   "prior_hit": 0.434,
+  "tag:In Universe": {
+   "recent_n": 10437,
+   "recent_hit": 0.491,
+   "prior_n": 14451,
+   "prior_hit": 0.45,
    "delta": 0.041
   },
   "dte:leaps": {
@@ -248,61 +234,26 @@
    "prior_hit": 0.468,
    "delta": 0.103
   },
-  "tag:Block": {
-   "recent_n": 9848,
-   "recent_hit": 0.472,
-   "prior_n": 14585,
-   "prior_hit": 0.453,
-   "delta": 0.019
-  },
-  "tag:Size>OI": {
-   "recent_n": 4857,
-   "recent_hit": 0.466,
-   "prior_n": 7325,
-   "prior_hit": 0.459,
-   "delta": 0.008
-  },
-  "liq:C": {
-   "recent_n": 8208,
-   "recent_hit": 0.474,
-   "prior_n": 10781,
-   "prior_hit": 0.472,
-   "delta": 0.002
-  },
-  "tag:Golden Sweep": {
-   "recent_n": 2613,
-   "recent_hit": 0.476,
-   "prior_n": 4134,
-   "prior_hit": 0.443,
-   "delta": 0.033
-  },
   "cap:mega": {
    "recent_n": 9082,
-   "recent_hit": 0.511,
+   "recent_hit": 0.512,
    "prior_n": 10747,
    "prior_hit": 0.444,
    "delta": 0.068
   },
-  "type:golden_sweep": {
-   "recent_n": 2613,
-   "recent_hit": 0.476,
-   "prior_n": 4134,
-   "prior_hit": 0.443,
-   "delta": 0.033
+  "cap:mid": {
+   "recent_n": 900,
+   "recent_hit": 0.456,
+   "prior_n": 1915,
+   "prior_hit": 0.457,
+   "delta": -0.002
   },
-  "cap:small": {
-   "recent_n": 143,
-   "recent_hit": 0.147,
-   "prior_n": 487,
-   "prior_hit": 0.503,
-   "delta": -0.356
-  },
-  "liq:D": {
-   "recent_n": 1194,
-   "recent_hit": 0.471,
-   "prior_n": 1503,
-   "prior_hit": 0.462,
-   "delta": 0.008
+  "cap:unknown": {
+   "recent_n": 402,
+   "recent_hit": 0.445,
+   "prior_n": 625,
+   "prior_hit": 0.493,
+   "delta": -0.048
   },
   "tag:Sweep": {
    "recent_n": 8377,
@@ -311,19 +262,75 @@
    "prior_hit": 0.44,
    "delta": 0.04
   },
+  "cap:small": {
+   "recent_n": 143,
+   "recent_hit": 0.147,
+   "prior_n": 487,
+   "prior_hit": 0.503,
+   "delta": -0.356
+  },
+  "tag:Golden Sweep": {
+   "recent_n": 2613,
+   "recent_hit": 0.476,
+   "prior_n": 4134,
+   "prior_hit": 0.443,
+   "delta": 0.033
+  },
+  "liq:C": {
+   "recent_n": 8208,
+   "recent_hit": 0.475,
+   "prior_n": 10781,
+   "prior_hit": 0.472,
+   "delta": 0.003
+  },
   "liq:A": {
    "recent_n": 1405,
-   "recent_hit": 0.435,
+   "recent_hit": 0.436,
    "prior_n": 2406,
    "prior_hit": 0.403,
-   "delta": 0.032
+   "delta": 0.033
   },
-  "liq:B": {
-   "recent_n": 4250,
-   "recent_hit": 0.5,
-   "prior_n": 6865,
-   "prior_hit": 0.43,
-   "delta": 0.07
+  "cap:large": {
+   "recent_n": 4530,
+   "recent_hit": 0.428,
+   "prior_n": 7781,
+   "prior_hit": 0.451,
+   "delta": -0.023
+  },
+  "dte:swing": {
+   "recent_n": 3875,
+   "recent_hit": 0.49,
+   "prior_n": 5594,
+   "prior_hit": 0.457,
+   "delta": 0.033
+  },
+  "liq:D": {
+   "recent_n": 1194,
+   "recent_hit": 0.471,
+   "prior_n": 1503,
+   "prior_hit": 0.462,
+   "delta": 0.008
+  },
+  "dte:urgent": {
+   "recent_n": 9173,
+   "recent_hit": 0.475,
+   "prior_n": 12867,
+   "prior_hit": 0.434,
+   "delta": 0.041
+  },
+  "dte:positioning": {
+   "recent_n": 1790,
+   "recent_hit": 0.456,
+   "prior_n": 2624,
+   "prior_hit": 0.515,
+   "delta": -0.059
+  },
+  "tag:Repeat": {
+   "recent_n": 12863,
+   "recent_hit": 0.48,
+   "prior_n": 18142,
+   "prior_hit": 0.448,
+   "delta": 0.032
   },
   "type:sweep": {
    "recent_n": 8377,
@@ -331,13 +338,6 @@
    "prior_n": 13154,
    "prior_hit": 0.44,
    "delta": 0.04
-  },
-  "cap:large": {
-   "recent_n": 4530,
-   "recent_hit": 0.428,
-   "prior_n": 7781,
-   "prior_hit": 0.451,
-   "delta": -0.024
   }
  },
  "regimes": {
