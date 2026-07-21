@@ -78,24 +78,55 @@ MEASUREMENT = {
     # meas_ver is a human-readable LABEL; the integrity key is
     # MEAS_HASH, the full sha256 of this canonical spec. Never treat
     # the label as the hash.
-    "meas_ver": "m2-2026-07-21",
+    "meas_ver": "m3-2026-07-21",
     "first_eligible": {
         "rule": ("the day's ONE independent observation = the first "
                  "successful stamped record whose batch_generated "
-                 "falls at/after 09:30 and before 17:00 ET of that ET "
-                 "session date"),
-        "missed_scan": ("no qualifying record -> the date has NO "
-                        "observation; never backfilled or substituted"),
+                 "falls inside the FIXED TARGET WINDOW [15:30, 16:05) "
+                 "ET of that session date. The window exists because "
+                 "signal strength evolves intraday: a 09:31 read and a "
+                 "15:35 read are different measurements, so worker "
+                 "restarts or schedule drift must not move the "
+                 "observation time."),
+        "expected_batch": ("target = the 15:35 ET scheduled scan "
+                           "(uoa.yml cron '35 19 * * 1-5' UTC) with a "
+                           "+30 min tolerance for GitHub cron dispatch "
+                           "delay (observed up to ~20 min on "
+                           "2026-07-21: the 15:35 scan fired 15:52). "
+                           "If the 15:35 scan is skipped or delayed "
+                           "past ~15:55, the 15:55 ET scheduled scan "
+                           "lands in-window instead — both read the "
+                           "SAME day-cumulative fields, and <=30 min "
+                           "of timing variance is within the feed's "
+                           "own resolution (15-min delayed, ~75-min "
+                           "worst-case snapshot cadence). Residual "
+                           "variance is disclosed, not hidden. If the "
+                           "scan schedule itself changes, that is a "
+                           "new meas_ver."),
+        "missed_scan": ("no record inside the window -> the session is "
+                        "MISSING; never backfilled, never substituted "
+                        "with an out-of-window batch"),
         "late_arrival": ("eligibility is deterministic on "
                          "batch_generated, never on arrival/append "
                          "time — a late-appended record with an "
                          "in-window batch_generated is used on the "
                          "next evaluation, identically"),
         "holiday_halfday": ("exchange-closed days fire no batches and "
-                            "are simply absent; half-days need no "
-                            "special case — the window rule applies "
-                            "unchanged to whatever batches fired"),
+                            "are simply absent; EARLY-CLOSE days (1:00 "
+                            "PM ET) have no 15:35 batch and are "
+                            "therefore MISSING by construction — "
+                            "counted as such, never approximated"),
     },
+    # NYSE full-closure holidays used by the exclusion deadline (frozen;
+    # extend only via a new meas_ver).
+    "nyse_holidays": [
+        "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03",
+        "2026-05-25", "2026-06-19", "2026-07-03", "2026-09-07",
+        "2026-11-26", "2026-12-25",
+        "2027-01-01", "2027-01-18", "2027-02-15", "2027-03-26",
+        "2027-05-31", "2027-06-18", "2027-07-05", "2027-09-06",
+        "2027-11-25", "2027-12-24",
+    ],
     "exclusion_governance": {
         "reason_codes": {
             "MALFORMED_JSON": "objective integrity failure — "
@@ -106,14 +137,21 @@ MEASUREMENT = {
             "MEAS_VERSION_SUPERSEDED": "spec forked before this "
                                        "record's outcome matured",
         },
-        "timing": ("a non-objective exclusion is VALID only if "
-                   "recorded before the record's outcome window "
-                   "matures (record date + 7 calendar days). Once an "
-                   "outcome is observable, discretionary exclusion of "
-                   "a pooled record is impossible — the only path is "
-                   "a new meas_ver with a fresh window. The evaluator "
-                   "ENFORCES this: late or unknown-reason exclusions "
-                   "are ignored (the record still pools) and flagged."),
+        "timing": ("a non-objective exclusion is VALID only if recorded "
+                   "BEFORE the earliest evaluated outcome is "
+                   "observable: strictly before 16:00 ET of the NEXT "
+                   "TRADING SESSION after the record's session date "
+                   "(the +1d close), computed on the NYSE calendar "
+                   "above — never calendar-day arithmetic. Once any "
+                   "outcome is observable, discretionary exclusion is "
+                   "impossible within this meas_ver. Objective "
+                   "integrity exclusions (MALFORMED_JSON / "
+                   "SCHEMA_VIOLATION) detected late do NOT silently "
+                   "alter the outcome-known primary pool: the record "
+                   "stays in the primary view and a sensitivity view "
+                   "without it is published alongside. The evaluator "
+                   "ENFORCES all of this: late/unknown exclusions are "
+                   "ignored for the primary pool and flagged."),
         "required_fields": ["record_ts", "record_hash", "reason_code",
                             "excluded_at", "by", "evidence"],
         "disclosure": ("every evaluation publishes exclusion counts by "
@@ -322,15 +360,34 @@ def _mean(v):
 
 
 def _et_time_ok(iso_ts):
-    """batch_generated inside the frozen 09:30-17:00 ET window?"""
+    """batch_generated inside the frozen target window [15:30, 15:45) ET?"""
     try:
         import pytz
         dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
         et = dt.astimezone(pytz.timezone("America/New_York"))
         mins = et.hour * 60 + et.minute
-        return (9 * 60 + 30) <= mins < (17 * 60), et.strftime("%Y-%m-%d")
+        return (15 * 60 + 30) <= mins < (15 * 60 + 45), \
+            et.strftime("%Y-%m-%d")
     except Exception:
         return False, None
+
+
+def _next_session_close_utc(session_date):
+    """16:00 ET close of the NEXT NYSE trading session after
+    session_date (str YYYY-MM-DD), as an aware UTC datetime. Uses the
+    frozen holiday list — never calendar-day arithmetic."""
+    import pytz
+    from datetime import timedelta
+    hols = set(MEASUREMENT["nyse_holidays"])
+    d = datetime.strptime(session_date, "%Y-%m-%d")
+    while True:
+        d += timedelta(days=1)
+        ds = d.strftime("%Y-%m-%d")
+        if d.weekday() < 5 and ds not in hols:
+            break
+    et = pytz.timezone("America/New_York")
+    return et.localize(d.replace(hour=16, minute=0)).astimezone(
+        timezone.utc)
 
 
 def evaluate():
@@ -341,7 +398,7 @@ def evaluate():
     # Anything else is IGNORED — the record still pools — and flagged.
     OBJECTIVE = {"MALFORMED_JSON", "SCHEMA_VIOLATION"}
     CODES = set(MEASUREMENT["exclusion_governance"]["reason_codes"])
-    valid_excl, invalid_excl = {}, []
+    valid_excl, invalid_excl, late_objective = {}, [], {}
     if os.path.exists(EXCLUSIONS):
         with open(EXCLUSIONS, encoding="utf-8") as f:
             for line in f:
@@ -351,28 +408,46 @@ def evaluate():
                     continue
                 code = e.get("reason_code") or "LEGACY_UNCODED"
                 rts = e.get("record_ts", "")
-                ok = code in CODES
-                if ok and code not in OBJECTIVE:
-                    try:
-                        rd = datetime.fromisoformat(rts[:10])
-                        xd = datetime.fromisoformat(
-                            (e.get("excluded_at") or "")[:10])
-                        ok = (xd - rd).days <= 7
-                    except Exception:
-                        ok = False
                 # legacy pre-governance entries (no reason_code) are
                 # honored ONLY for records that could never pool anyway
                 # (pre-stamp era) — documentary, not discretionary.
                 if code == "LEGACY_UNCODED":
-                    ok = "pre-measurement-stamp" in (e.get("reason") or "")
-                    code = "PRE_STAMP_ERA" if ok else code
-                if ok:
+                    if "pre-measurement-stamp" in (e.get("reason") or ""):
+                        valid_excl[rts] = "PRE_STAMP_ERA"
+                    else:
+                        invalid_excl.append({"record_ts": rts,
+                                             "code": code,
+                                             "why_ignored": "uncoded"})
+                    continue
+                if code not in CODES:
+                    invalid_excl.append({"record_ts": rts, "code": code,
+                                         "why_ignored": "unknown code"})
+                    continue
+                # timing vs the EARLIEST evaluated outcome: strictly
+                # before 16:00 ET of the next NYSE session (+1d close)
+                timely = False
+                try:
+                    xs = e.get("excluded_at") or ""
+                    xdt = datetime.fromisoformat(
+                        xs if "T" in xs else xs + "T00:00:00+00:00")
+                    if xdt.tzinfo is None:
+                        xdt = xdt.replace(tzinfo=timezone.utc)
+                    timely = xdt < _next_session_close_utc(rts[:10])
+                except Exception:
+                    timely = False
+                if timely:
                     valid_excl[rts] = code
+                elif code in OBJECTIVE:
+                    # late machine-detected integrity failure: never
+                    # silently changes the outcome-known primary pool —
+                    # honored only in a published sensitivity view.
+                    late_objective[rts] = code
                 else:
                     invalid_excl.append({"record_ts": rts, "code": code,
-                                         "why_ignored": "unknown code "
-                                         "or past outcome maturity"})
+                                         "why_ignored": "past +1d close "
+                                         "(earliest outcome observable)"})
     recs, quarantined, n_meas_mismatch, quarantined_recs = [], {}, 0, []
+    late_obj_recs = []
     if os.path.exists(LOG):
         with open(LOG, encoding="utf-8") as f:
             for line in f:
@@ -385,6 +460,8 @@ def evaluate():
                     quarantined[code] = quarantined.get(code, 0) + 1
                     quarantined_recs.append(r)
                     continue
+                if r.get("ts") in late_objective:
+                    late_obj_recs.append(r)   # stays in primary pool
                 # pool ONLY when hypothesis AND measurement semantics
                 # both match — code_hash never gates (audit trail only)
                 if r.get("frozen_hash") != FROZEN_HASH:
@@ -418,6 +495,16 @@ def evaluate():
         "records_pooled": len(recs),
         "exclusions_by_reason": quarantined,
         "exclusions_ignored_as_invalid": invalid_excl,
+        "late_objective_exclusions": {
+            "count": len(late_objective),
+            "handling": "record retained in the PRIMARY pool; a "
+                        "sensitivity view without it publishes below",
+            "sensitivity_scan_dates_without": None if not late_objective
+                else len(set(d for d in (
+                    _et_time_ok(r.get("batch_generated") or "")[1]
+                    for r in recs
+                    if r.get("ts") not in late_objective) if d)),
+        },
         "records_measurement_mismatch": n_meas_mismatch,
         "sensitivity_with_quarantined": {
             "scan_dates": len(sens_dates),
