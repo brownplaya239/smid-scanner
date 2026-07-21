@@ -65,5 +65,13 @@ jobs:
             exit 1
           fi
 
+      - name: Top 25 daily cumulative ranking
+        # Folds this batch into the per-day accumulator and republishes
+        # the diversified Top 25 (docs/reports/uoa_top25_daily.json).
+        # Idempotent per batch timestamp; ET-date keyed daily reset.
+        # Non-fatal: the publish step must never block on this pane.
+        continue-on-error: true
+        run: python uoa_daily_top.py
+
       - name: Publish UOA data to site
         run: bash scripts/publish_reports.sh

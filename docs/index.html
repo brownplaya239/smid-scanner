@@ -4565,6 +4565,58 @@
     gap:10px; margin-bottom:10px; }
   .uoa-edge-deep { columns:3 290px; column-gap:10px; }
   .uoa-edge-deep .ecard { break-inside:avoid; margin-bottom:10px; }
+
+  /* ── Top 25 Daily Unusual Contracts pane ──────────────────────────
+     Dense text ranking, cumulative across all of today's scan batches.
+     Fixed-height scroller so refreshes never resize the dashboard. */
+  .t25-pane { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:12px 14px; margin-bottom:14px; }
+  .t25-head { display:flex; align-items:baseline; gap:10px;
+    flex-wrap:wrap; }
+  .t25-title { font-size:11px; font-weight:800; letter-spacing:.5px;
+    color:var(--gold); text-transform:uppercase; }
+  .t25-sub { font-size:10px; color:var(--muted); }
+  .t25-tools { margin-left:auto; display:flex; gap:6px; align-items:center; }
+  .t25-seg { display:flex; border:1px solid var(--line); border-radius:6px;
+    overflow:hidden; }
+  .t25-seg button { background:none; border:none; color:var(--muted);
+    font-family:inherit; font-size:9.5px; font-weight:700; padding:3px 9px;
+    cursor:pointer; letter-spacing:.3px; }
+  .t25-seg button.active { background:var(--gold); color:var(--accink); }
+  .t25-refresh { background:none; border:1px solid var(--line);
+    color:var(--muted); border-radius:6px; cursor:pointer; font-size:11px;
+    padding:2px 8px; }
+  .t25-refresh:hover { color:var(--text); border-color:var(--muted); }
+  .t25-scroll { max-height:430px; overflow-y:auto; margin-top:8px; }
+  .t25-grid { display:grid; align-items:baseline;
+    grid-template-columns:26px 54px minmax(130px,1.1fr) 38px 52px 44px
+      64px 50px 52px 34px 56px minmax(120px,1fr);
+    gap:2px 8px; font-size:11px;
+    font-variant-numeric:tabular-nums; }
+  .t25-grid > .t25-hdr { font-size:8.5px; font-weight:800;
+    letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+    position:sticky; top:0; background:var(--card); padding:2px 0 4px; }
+  .t25-cell { padding:2px 0; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; }
+  .t25-row-line { grid-column:1 / -1; border-top:1px solid
+    rgba(255,255,255,.045); height:0; }
+  .t25-rank { color:var(--muted); font-weight:700; }
+  .t25-tkr { font-weight:800; color:var(--text); }
+  .t25-bull { color:var(--green); font-weight:700; }
+  .t25-bear { color:var(--red); font-weight:700; }
+  .t25-mixed { opacity:.65; }
+  .t25-amber { color:#e8b34c; font-weight:700; }
+  .t25-dim { color:var(--muted); }
+  .t25-reason { font-size:9px; font-weight:800; letter-spacing:.04em;
+    color:var(--textdim); }
+  .t25-state { font-size:11px; color:var(--muted); padding:14px 0 6px;
+    font-style:italic; }
+  .t25-err { color:#e8b34c; }
+  @media (max-width:900px) {
+    .t25-grid { grid-template-columns:24px 50px minmax(110px,1.2fr)
+      44px 40px 60px minmax(100px,1fr); }
+    .t25-hm { display:none; }
+  }
   .uoa-edge .ecard {
     background:var(--card); border:1px solid var(--line); border-radius:8px;
     padding:12px 14px; min-width:0;
@@ -6302,6 +6354,10 @@
            opening-buyer count, watchlist flow count. Shown above the
            historical edge tracking so users see TODAY's signal first. -->
       <div class="uoa-today-edge" id="uoa-today-edge"></div>
+      <!-- Top 25 Daily Unusual Contracts — cumulative ranking across ALL
+           of today's scan batches (uoa_daily_top.py accumulator), not just
+           the latest batch. Dedup by exact contract, max 2 per ticker. -->
+      <div class="t25-pane" id="uoa-top25"><div class="t25-state">Loading daily ranking…</div></div>
       <div class="uoa-edge" id="uoa-edge"></div>
 
       <div class="uoa-cluster-mode">
@@ -26332,8 +26388,147 @@
     // revalidation instead of ?t= cache-busters (304 when unchanged),
     // and a full skip when d.generated matches the batch already
     // rendered — the heavy path runs ~6×/day, not ~250×.
+    // ── Top 25 Daily Unusual Contracts pane ────────────────────────────
+    // Cumulative-day ranking published by uoa_daily_top.py after every
+    // scan batch. Independent of the table's visible filters by design.
+    // Error handling preserves the last valid render (spec requirement).
+    let _t25Last = null;      // last good payload
+    let _t25Gen = null;       // dedupe re-renders per batch
+    let _t25Bias = "all";     // segmented filter state
+    function fmtT25Money(v) {
+      if (v == null) return "—";
+      return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "M"
+                      : "$" + Math.round(v / 1e3) + "K";
+    }
+    function fmtT25Time(iso) {
+      if (!iso) return "—";
+      try {
+        return new Date(iso).toLocaleTimeString("en-US",
+          { hour: "numeric", minute: "2-digit",
+            timeZone: "America/New_York" }) + " ET";
+      } catch (_) { return "—"; }
+    }
+    function renderTop25(d, errNote) {
+      const host = $("uoa-top25"); if (!host) return;
+      if (!d) {
+        // No payload at all (first deploy / fetch failed with no cache)
+        host.innerHTML =
+          '<div class="t25-head"><span class="t25-title">Top 25 Daily Unusual Contracts</span></div>' +
+          '<div class="t25-state">No qualifying daily flow yet — the ranking builds after the first scan batch of the session.</div>';
+        return;
+      }
+      const rows = (d.rows || []).filter(function (r) {
+        if (_t25Bias === "all") return true;
+        const bull = r.bias && r.bias.indexOf("bull") === 0;
+        return _t25Bias === "bull" ? bull : !bull;
+      });
+      const seg = function (k, label) {
+        return '<button data-bias="' + k + '"' +
+          (_t25Bias === k ? ' class="active"' : '') + '>' + label + '</button>';
+      };
+      let h =
+        '<div class="t25-head">' +
+        '<span class="t25-title">Top 25 Daily Unusual Contracts</span>' +
+        '<span class="t25-sub">cumulative today · ' + (d.batches_today || 0) +
+        ' batch' + (d.batches_today === 1 ? '' : 'es') +
+        ' · refreshes after each scan batch (delayed data) · updated ' +
+        fmtT25Time(d.generated) +
+        (errNote ? ' · <span class="t25-err">' + errNote + '</span>' : '') +
+        '</span>' +
+        '<span class="t25-tools"><span class="t25-seg">' +
+        seg("all", "ALL") + seg("bull", "BULLISH") + seg("bear", "BEARISH") +
+        '</span>' +
+        '<button class="t25-refresh" title="Refresh ranking">&#8635;</button>' +
+        '</span></div>';
+      if (!rows.length) {
+        h += '<div class="t25-state">No qualifying daily flow yet' +
+          (_t25Bias !== "all" ? ' on the ' + _t25Bias + ' side' : '') +
+          '.</div>';
+        host.innerHTML = h;
+      } else {
+        const HDRS = ["#", "TKR", "CONTRACT", "DTE", "BIAS", "SCORE",
+                      "PREM", "V/OI", "ΔOI", "BAT", "LAST", "REASON"];
+        const HM = { DTE: 1, "V/OI": 1, "ΔOI": 1, BAT: 1, LAST: 1 };
+        let g = '<div class="t25-grid">' + HDRS.map(function (x) {
+          return '<span class="t25-hdr' + (HM[x] ? ' t25-hm' : '') + '">' +
+            x + '</span>';
+        }).join("");
+        rows.forEach(function (r) {
+          const income = r.bias.indexOf("income") >= 0;
+          const mixed = r.bias.indexOf("mixed") >= 0;
+          const bull = r.bias.indexOf("bull") === 0;
+          const bCls = bull ? "t25-bull" : "t25-bear";
+          const bTxt = (bull ? "BULL" : "BEAR") +
+            (income ? "*" : mixed ? "?" : "");
+          const bTip = income
+            ? "Premium-selling flow — directional read inverted"
+            : mixed ? "Mixed execution tape — lower conviction" : "";
+          const scoreCls = r.score >= 70 ? "t25-amber" : "";
+          const con = r.ticker + " " + (r.type === "call" ? "C" : "P") +
+            "$" + r.strike + " " + (r.expiry || "").slice(5);
+          g += '<span class="t25-cell t25-rank">' + r.rank + '</span>' +
+            '<span class="t25-cell t25-tkr">' +
+              window.escapeHtml(r.ticker) + '</span>' +
+            '<span class="t25-cell ' + bCls + '" style="font-weight:600">' +
+              window.escapeHtml(con) + '</span>' +
+            '<span class="t25-cell t25-dim t25-hm">' +
+              (r.dte != null ? r.dte + "d" : "—") + '</span>' +
+            '<span class="t25-cell ' + bCls + (mixed ? " t25-mixed" : "") +
+              '"' + (bTip ? ' title="' + bTip + '"' : '') + '>' +
+              bTxt + '</span>' +
+            '<span class="t25-cell ' + scoreCls + '"><b>' + r.score +
+              '</b></span>' +
+            '<span class="t25-cell">' + fmtT25Money(r.premium) + '</span>' +
+            '<span class="t25-cell t25-hm">' +
+              (r.vol_oi != null ? r.vol_oi : "—") + '</span>' +
+            '<span class="t25-cell t25-hm ' +
+              ((r.oi_delta || 0) > 0 ? "t25-bull" : "t25-dim") + '">' +
+              ((r.oi_delta || 0) > 0 ? "+" + r.oi_delta
+                : r.oi_delta != null ? r.oi_delta : "—") + '</span>' +
+            '<span class="t25-cell t25-hm' +
+              ((r.batch_count || 0) >= 2 ? " t25-amber" : " t25-dim") +
+              '" title="Seen in ' + r.batch_count + ' of ' +
+              (d.batches_today || 1) + ' batches today">' +
+              r.batch_count + '/' + (d.batches_today || 1) + '</span>' +
+            '<span class="t25-cell t25-dim t25-hm">' +
+              fmtT25Time(r.last_print_ts || r.last_seen) + '</span>' +
+            '<span class="t25-cell t25-reason" title="' +
+              window.escapeHtml(r.reason || "") + '">' +
+              window.escapeHtml(r.reason || "") + '</span>' +
+            '<span class="t25-row-line"></span>';
+        });
+        g += '</div>';
+        h += '<div class="t25-scroll">' + g + '</div>';
+        host.innerHTML = h;
+      }
+      // handlers (innerHTML rebuild drops old ones)
+      host.querySelectorAll(".t25-seg button").forEach(function (b) {
+        b.onclick = function () {
+          _t25Bias = b.dataset.bias;
+          renderTop25(_t25Last, errNote);
+        };
+      });
+      const rf = host.querySelector(".t25-refresh");
+      if (rf) rf.onclick = function () { _t25Gen = null; loadTop25(); };
+    }
+    function loadTop25() {
+      fetch("./reports/uoa_top25_daily.json", { cache: "no-cache" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d) { renderTop25(_t25Last, _t25Last ? "refresh failed — showing last good" : null); return; }
+          if (d.generated && d.generated === _t25Gen && _t25Last) return;
+          _t25Gen = d.generated || null;
+          _t25Last = d;
+          renderTop25(d, null);
+        })
+        .catch(function () {
+          // Preserve the last valid ranking on error (spec requirement)
+          renderTop25(_t25Last, _t25Last ? "refresh failed — showing last good" : null);
+        });
+    }
     let _uoaLastGen = null;
     function loadUoa() {
+      loadTop25();
       fetch("./reports/uoa_latest.json", { cache: "no-cache" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
