@@ -64,7 +64,7 @@ FROZEN = {
     },
 }
 FROZEN_HASH = hashlib.sha256(
-    json.dumps(FROZEN, sort_keys=True).encode()).hexdigest()[:16]
+    json.dumps(FROZEN, sort_keys=True).encode()).hexdigest()
 
 # ── MEASUREMENT SEMANTICS (separate role from the hypothesis) ──────────
 # How quantities are MEASURED: parsing, normalization, quote selection,
@@ -75,7 +75,51 @@ FROZEN_HASH = hashlib.sha256(
 # refactors) explicitly RETAIN the measurement version. code_hash is an
 # audit trail only and never gates pooling.
 MEASUREMENT = {
-    "meas_ver": "m1-2026-07-21",
+    # meas_ver is a human-readable LABEL; the integrity key is
+    # MEAS_HASH, the full sha256 of this canonical spec. Never treat
+    # the label as the hash.
+    "meas_ver": "m2-2026-07-21",
+    "first_eligible": {
+        "rule": ("the day's ONE independent observation = the first "
+                 "successful stamped record whose batch_generated "
+                 "falls at/after 09:30 and before 17:00 ET of that ET "
+                 "session date"),
+        "missed_scan": ("no qualifying record -> the date has NO "
+                        "observation; never backfilled or substituted"),
+        "late_arrival": ("eligibility is deterministic on "
+                         "batch_generated, never on arrival/append "
+                         "time — a late-appended record with an "
+                         "in-window batch_generated is used on the "
+                         "next evaluation, identically"),
+        "holiday_halfday": ("exchange-closed days fire no batches and "
+                            "are simply absent; half-days need no "
+                            "special case — the window rule applies "
+                            "unchanged to whatever batches fired"),
+    },
+    "exclusion_governance": {
+        "reason_codes": {
+            "MALFORMED_JSON": "objective integrity failure — "
+                              "permitted at ANY time",
+            "SCHEMA_VIOLATION": "objective — permitted at any time",
+            "PRE_STAMP_ERA": "record predates measurement stamping",
+            "PARSER_DEFECT_OBJECTIVE": "documented recording defect",
+            "MEAS_VERSION_SUPERSEDED": "spec forked before this "
+                                       "record's outcome matured",
+        },
+        "timing": ("a non-objective exclusion is VALID only if "
+                   "recorded before the record's outcome window "
+                   "matures (record date + 7 calendar days). Once an "
+                   "outcome is observable, discretionary exclusion of "
+                   "a pooled record is impossible — the only path is "
+                   "a new meas_ver with a fresh window. The evaluator "
+                   "ENFORCES this: late or unknown-reason exclusions "
+                   "are ignored (the record still pools) and flagged."),
+        "required_fields": ["record_ts", "record_hash", "reason_code",
+                            "excluded_at", "by", "evidence"],
+        "disclosure": ("every evaluation publishes exclusion counts by "
+                       "reason code + a sensitivity read including "
+                       "quarantined records where parseable"),
+    },
     "membership_parse": ("uoa_latest rows: type=='put' AND flow_side not "
                          "in (put_seller, call_seller) AND 22<=dte<=60"),
     "strength_calc": "sum(member premium) / sum(all-row premium)",
@@ -97,7 +141,7 @@ MEASUREMENT = {
     "market_quotes": "yfinance daily closes; VIX ^VIX; trend = 5d pct",
 }
 MEAS_HASH = hashlib.sha256(
-    json.dumps(MEASUREMENT, sort_keys=True).encode()).hexdigest()[:16]
+    json.dumps(MEASUREMENT, sort_keys=True).encode()).hexdigest()
 HAIRCUT = {"A": 0.4, "B": 0.7, "C": 1.5, "D": 2.5}
 EXCLUSIONS = os.path.join(_BASE, "data", "hedge_monitor_exclusions.jsonl")
 
@@ -277,19 +321,58 @@ def _mean(v):
     return sum(v) / len(v) if v else None
 
 
+def _et_time_ok(iso_ts):
+    """batch_generated inside the frozen 09:30-17:00 ET window?"""
+    try:
+        import pytz
+        dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
+        et = dt.astimezone(pytz.timezone("America/New_York"))
+        mins = et.hour * 60 + et.minute
+        return (9 * 60 + 30) <= mins < (17 * 60), et.strftime("%Y-%m-%d")
+    except Exception:
+        return False, None
+
+
 def evaluate():
-    # append-only exclusion manifest: quarantined records stay immutable
-    # in the log but never pool; each exclusion documents its reason.
-    excluded = {}
+    # ── governed exclusion manifest (append-only). The evaluator
+    # ENFORCES governance: an exclusion is honored only if its reason
+    # code is in the frozen enum AND (it is objective, or it was
+    # recorded before the target record's outcome window matured).
+    # Anything else is IGNORED — the record still pools — and flagged.
+    OBJECTIVE = {"MALFORMED_JSON", "SCHEMA_VIOLATION"}
+    CODES = set(MEASUREMENT["exclusion_governance"]["reason_codes"])
+    valid_excl, invalid_excl = {}, []
     if os.path.exists(EXCLUSIONS):
         with open(EXCLUSIONS, encoding="utf-8") as f:
             for line in f:
                 try:
                     e = json.loads(line)
-                    excluded[e["record_ts"]] = e.get("reason", "?")
                 except Exception:
                     continue
-    recs, n_quarantined, n_meas_mismatch = [], 0, 0
+                code = e.get("reason_code") or "LEGACY_UNCODED"
+                rts = e.get("record_ts", "")
+                ok = code in CODES
+                if ok and code not in OBJECTIVE:
+                    try:
+                        rd = datetime.fromisoformat(rts[:10])
+                        xd = datetime.fromisoformat(
+                            (e.get("excluded_at") or "")[:10])
+                        ok = (xd - rd).days <= 7
+                    except Exception:
+                        ok = False
+                # legacy pre-governance entries (no reason_code) are
+                # honored ONLY for records that could never pool anyway
+                # (pre-stamp era) — documentary, not discretionary.
+                if code == "LEGACY_UNCODED":
+                    ok = "pre-measurement-stamp" in (e.get("reason") or "")
+                    code = "PRE_STAMP_ERA" if ok else code
+                if ok:
+                    valid_excl[rts] = code
+                else:
+                    invalid_excl.append({"record_ts": rts, "code": code,
+                                         "why_ignored": "unknown code "
+                                         "or past outcome maturity"})
+    recs, quarantined, n_meas_mismatch, quarantined_recs = [], {}, 0, []
     if os.path.exists(LOG):
         with open(LOG, encoding="utf-8") as f:
             for line in f:
@@ -297,8 +380,10 @@ def evaluate():
                     r = json.loads(line)
                 except Exception:
                     continue
-                if r.get("ts") in excluded:
-                    n_quarantined += 1
+                if r.get("ts") in valid_excl:
+                    code = valid_excl[r["ts"]]
+                    quarantined[code] = quarantined.get(code, 0) + 1
+                    quarantined_recs.append(r)
                     continue
                 # pool ONLY when hypothesis AND measurement semantics
                 # both match — code_hash never gates (audit trail only)
@@ -308,14 +393,20 @@ def evaluate():
                     n_meas_mismatch += 1
                     continue
                 recs.append(r)
-    # FIRST eligible record per ET session date = the day's independent
-    # observation (fixed ex-ante in MEASUREMENT["daily_aggregation"])
+    # FIRST eligible record per ET session date, frozen window rule
     by_date = {}
-    for r in recs:
-        d = (r.get("batch_generated") or r.get("ts") or "")[:10]
-        if d and d not in by_date:
+    for r in sorted(recs, key=lambda x: x.get("batch_generated") or ""):
+        ok, d = _et_time_ok(r.get("batch_generated") or r.get("ts") or "")
+        if ok and d and d not in by_date:
             by_date[d] = r
     dates = sorted(by_date)
+    # sensitivity: same per-date read INCLUDING quarantined records
+    sens_dates = {}
+    for r in sorted(recs + quarantined_recs,
+                    key=lambda x: x.get("batch_generated") or ""):
+        ok, d = _et_time_ok(r.get("batch_generated") or r.get("ts") or "")
+        if ok and d and d not in sens_dates:
+            sens_dates[d] = r
     payload = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "hm_ver": FROZEN["hm_ver"],
@@ -325,8 +416,18 @@ def evaluate():
         "frozen_spec": FROZEN,
         "measurement_semantics": MEASUREMENT,
         "records_pooled": len(recs),
-        "records_quarantined": n_quarantined,
+        "exclusions_by_reason": quarantined,
+        "exclusions_ignored_as_invalid": invalid_excl,
         "records_measurement_mismatch": n_meas_mismatch,
+        "sensitivity_with_quarantined": {
+            "scan_dates": len(sens_dates),
+            "mean_strength": round(sum(
+                r.get("strength") or 0 for r in sens_dates.values())
+                / len(sens_dates), 4) if sens_dates else None,
+            "note": "same first-eligible rule applied over pooled + "
+                    "quarantined records; deeper sensitivity stats "
+                    "publish once the pooled evaluation is active",
+        },
         "proxy_only_caveat": ("recorded index-put quotes are PROXY_ONLY "
                               "(short-dated) — no duration-matched "
                               "comparative-efficiency promotion claim "
