@@ -148,6 +148,14 @@ jobs:
         continue-on-error: true
         run: python dealer_positioning.py
 
+      - name: Alpha research engine (attribution, loser model, score2,
+              sizing, stability, interactions)
+        # Nightly OOS research over the joined matured ledger. All
+        # walk-forward; nothing auto-applies — outputs are review
+        # inputs for the gated learner. Non-fatal.
+        continue-on-error: true
+        run: python uoa_research.py
+
       - name: Hypothesis lab (weekly, self-gated)
         # Pairwise feature hypotheses over the matured ledger; three
         # gates (sample, split-half stability, time-ordered holdout).

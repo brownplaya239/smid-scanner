@@ -25655,6 +25655,51 @@
             if (host3) host3.appendChild(el3);
           }).catch(function () {});
       } catch (_) {}
+      // Alpha Attribution card — the research engine's decomposition of
+      // WHERE the book's EV comes from: universe selection (flagged
+      // names drift up) vs genuine flow-direction alpha. Plus the
+      // current worst verified interaction pocket. Honest by design:
+      // failed OOS experiments (loser model, score2) publish as failed.
+      try {
+        fetch("./reports/uoa_research.json", { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (rs) {
+            if (!rs || !rs.attribution) return;
+            const at = rs.attribution, lb = at.long_book || {},
+                  sb = at.short_book || {};
+            const iv = ((rs.interactions || {}).survivors || [])[0];
+            const el4 = document.createElement("div");
+            el4.className = "ecard";
+            el4.innerHTML = '<div class="et">Alpha Attribution · +5d ' +
+              '(research engine)</div>' +
+              '<div class="ev neutral" style="font-size:12px;line-height:1.7">' +
+              'Flagged-universe drift: <b class="pos">+' +
+                at.universe_drift_ev + '%</b><br>' +
+              (lb.n ? 'Long book: <b class="' +
+                (lb.dir_ev > 0 ? 'pos' : 'neg') + '">' +
+                (lb.dir_ev > 0 ? '+' : '') + lb.dir_ev +
+                '%</b> <span class="scp-edge-n">= selection ' +
+                (lb.selection_component > 0 ? '+' : '') +
+                lb.selection_component + ' + flow alpha ' +
+                (lb.flow_alpha > 0 ? '+' : '') + lb.flow_alpha +
+                '</span><br>' : '') +
+              (sb.n ? 'Short (put-follow): <b class="neg">' + sb.dir_ev +
+                '%</b> <span class="scp-edge-n">flow alpha ' +
+                sb.flow_alpha + '</span><br>' : '') +
+              (iv ? '<span class="neg" style="font-size:10px;font-weight:800">' +
+                'WORST VERIFIED POCKET</span> ' +
+                window.escapeHtml(iv.combo.join(" + ")) +
+                ' <span class="scp-edge-n">(holdout ' + iv.lift_holdout +
+                'pp)</span>' : '') +
+              '</div>' +
+              '<div class="es">Most of the book\'s upside is the flagged ' +
+              'universe itself drifting up (selection), not direction-' +
+              'reading. Failed experiments publish as failed: nothing ' +
+              'auto-applies without walk-forward survival.</div>';
+            const host4 = $("uoa-edge-deep") || $("uoa-edge");
+            if (host4) host4.appendChild(el4);
+          }).catch(function () {});
+      } catch (_) {}
       // False-positive honesty card — the inverse of the hit rate, per
       // score band at +5d. Users calibrate trust better against "how
       // often does this FAIL" than against a hit rate alone.
