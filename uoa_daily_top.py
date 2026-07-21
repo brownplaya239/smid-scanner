@@ -64,9 +64,15 @@ CFG = {
     "golden_bonus": 4, "sweep_bonus": 2,
     "otm_knee": 15.0, "otm_slope": 0.4, "otm_cap": 8,
     "seller_penalty": 6, "mixed_penalty": 3,
-    # diversification
+    # diversification / list depth. The pane shows up to per_view rows in
+    # each of its three views (ALL / BULLISH / BEARISH), so the published
+    # list keeps accepting ranked contracts until BOTH sides have
+    # per_view rows (or the eligible universe runs out), hard-capped at
+    # max_rows. The ALL view is simply the first per_view rows in rank
+    # order; side views filter then take their first per_view.
     "per_ticker_cap": 2,
-    "top_n": 25,
+    "per_view": 50,
+    "max_rows": 120,
 }
 
 # Point-in-time fields refreshed from the newest observation of a contract;
@@ -266,13 +272,25 @@ def top_n(elig, n_batches):
         contract_key(c),
     ))
     out, per_tk = [], {}
+    n_bull = n_bear = 0
+    per = CFG["per_view"]
     for c in elig:
+        if n_bull >= per and n_bear >= per:
+            break
+        if len(out) >= CFG["max_rows"]:
+            break
         if per_tk.get(c["ticker"], 0) >= CFG["per_ticker_cap"]:
+            continue
+        is_bull = bias_of(c).startswith("bull")
+        # side quota full -> skip so remaining slots fill the thin side
+        if (is_bull and n_bull >= per) or (not is_bull and n_bear >= per):
             continue
         out.append(c)
         per_tk[c["ticker"]] = per_tk.get(c["ticker"], 0) + 1
-        if len(out) >= CFG["top_n"]:
-            break
+        if is_bull:
+            n_bull += 1
+        else:
+            n_bear += 1
     return out
 
 
@@ -305,10 +323,13 @@ def build_payload(acc, ranked, n_elig, n_total):
         "universe_total": n_total,
         "universe_eligible": n_elig,
         "rows": rows,
+        "per_view": CFG["per_view"],
         "note": ("Cumulative ranking across all of today's scan batches "
                  "(delayed data). Contracts dedup by exact identity; "
                  "day-cumulative volume/premium merge as max across "
-                 "batches. Max 2 per ticker. Educational, not advice."),
+                 "batches. Max 2 per ticker; up to " +
+                 str(CFG["per_view"]) + " rows per view (all/bull/bear). "
+                 "Educational, not advice."),
     }
 
 

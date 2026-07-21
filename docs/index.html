@@ -4596,6 +4596,9 @@
   .t25-grid > .t25-hdr { font-size:8.5px; font-weight:800;
     letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
     position:sticky; top:0; background:var(--card); padding:2px 0 4px; }
+  .t25-grid > .t25-hdr[data-k] { cursor:pointer; user-select:none; }
+  .t25-grid > .t25-hdr[data-k]:hover { color:var(--text); }
+  .t25-grid > .t25-hdr.t25-sorted { color:var(--gold); }
   .t25-cell { padding:2px 0; white-space:nowrap; overflow:hidden;
     text-overflow:ellipsis; }
   .t25-row-line { grid-column:1 / -1; border-top:1px solid
@@ -26395,6 +26398,16 @@
     let _t25Last = null;      // last good payload
     let _t25Gen = null;       // dedupe re-renders per batch
     let _t25Bias = "all";     // segmented filter state
+    // Column sort state. Membership is fixed first (top N per view by
+    // daily rank), THEN sorted — so re-sorting reorders the same set
+    // instead of pulling different contracts into view.
+    let _t25Sort = { k: "rank", d: 1 };   // d: 1 asc, -1 desc
+    const T25_KEYS = { "#": "rank", TKR: "ticker", CONTRACT: "expiry",
+      DTE: "dte", BIAS: "bias", SCORE: "score", PREM: "premium",
+      FILL: "last_price", "V/OI": "vol_oi", "ΔOI": "oi_delta",
+      BAT: "batch_count", LAST: "last_print_ts", REASON: "reason" };
+    const T25_STR = { ticker: 1, expiry: 1, bias: 1, reason: 1,
+      last_print_ts: 1 };
     function fmtT25Money(v) {
       if (v == null) return "—";
       return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "M"
@@ -26413,14 +26426,31 @@
       if (!d) {
         // No payload at all (first deploy / fetch failed with no cache)
         host.innerHTML =
-          '<div class="t25-head"><span class="t25-title">Top 25 Daily Unusual Contracts</span></div>' +
+          '<div class="t25-head"><span class="t25-title">Top Daily Unusual Contracts</span></div>' +
           '<div class="t25-state">No qualifying daily flow yet — the ranking builds after the first scan batch of the session.</div>';
         return;
       }
-      const rows = (d.rows || []).filter(function (r) {
+      const perView = d.per_view || 50;
+      // 1) membership: filter side, take top-N by daily rank
+      let rows = (d.rows || []).filter(function (r) {
         if (_t25Bias === "all") return true;
         const bull = r.bias && r.bias.indexOf("bull") === 0;
         return _t25Bias === "bull" ? bull : !bull;
+      }).slice(0, perView);
+      // 2) ordering: sort that fixed set by the selected column
+      const sk = _t25Sort.k, sd = _t25Sort.d;
+      rows = rows.slice().sort(function (a, b) {
+        let va = a[sk], vb = b[sk];
+        if (sk === "last_print_ts") {
+          va = va || a.last_seen || ""; vb = vb || b.last_seen || "";
+        }
+        const nullA = va == null || va === "", nullB = vb == null || vb === "";
+        if (nullA && nullB) return a.rank - b.rank;
+        if (nullA) return 1;                 // nulls always last
+        if (nullB) return -1;
+        if (va < vb) return -1 * sd;
+        if (va > vb) return 1 * sd;
+        return a.rank - b.rank;              // stable fallback
       });
       const seg = function (k, label) {
         return '<button data-bias="' + k + '"' +
@@ -26428,8 +26458,9 @@
       };
       let h =
         '<div class="t25-head">' +
-        '<span class="t25-title">Top 25 Daily Unusual Contracts</span>' +
-        '<span class="t25-sub">cumulative today · ' + (d.batches_today || 0) +
+        '<span class="t25-title">Top Daily Unusual Contracts</span>' +
+        '<span class="t25-sub">top ' + (d.per_view || 50) +
+        ' per view · cumulative today · ' + (d.batches_today || 0) +
         ' batch' + (d.batches_today === 1 ? '' : 'es') +
         ' · refreshes after each scan batch (delayed data) · updated ' +
         fmtT25Time(d.generated) +
@@ -26459,9 +26490,14 @@
           LAST: "Most recent print time (ET)",
         };
         let g = '<div class="t25-grid">' + HDRS.map(function (x) {
-          return '<span class="t25-hdr' + (HM[x] ? ' t25-hm' : '') + '"' +
-            (TIPS[x] ? ' title="' + TIPS[x] + '"' : '') + '>' +
-            x + '</span>';
+          const k = T25_KEYS[x];
+          const arrow = _t25Sort.k === k
+            ? (_t25Sort.d < 0 ? " ▼" : " ▲") : "";
+          const tip = (TIPS[x] ? TIPS[x] + " " : "") + "Click to sort.";
+          return '<span class="t25-hdr' + (HM[x] ? ' t25-hm' : '') +
+            (_t25Sort.k === k ? ' t25-sorted' : '') +
+            '" data-k="' + k + '" title="' + tip + '">' +
+            x + arrow + '</span>';
         }).join("");
         rows.forEach(function (r) {
           const income = r.bias.indexOf("income") >= 0;
@@ -26522,6 +26558,17 @@
       host.querySelectorAll(".t25-seg button").forEach(function (b) {
         b.onclick = function () {
           _t25Bias = b.dataset.bias;
+          renderTop25(_t25Last, errNote);
+        };
+      });
+      host.querySelectorAll(".t25-hdr[data-k]").forEach(function (hd) {
+        hd.onclick = function () {
+          const k = hd.dataset.k;
+          if (_t25Sort.k === k) { _t25Sort.d *= -1; }
+          else {
+            // strings + rank default ascending; stat columns descending
+            _t25Sort = { k: k, d: (k === "rank" || T25_STR[k]) ? 1 : -1 };
+          }
           renderTop25(_t25Last, errNote);
         };
       });
