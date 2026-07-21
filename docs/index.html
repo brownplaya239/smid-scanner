@@ -4614,6 +4614,24 @@
     color:var(--textdim); }
   .t25-state { font-size:11px; color:var(--muted); padding:14px 0 6px;
     font-style:italic; }
+  /* Ticker hover preview card — singleton, follows the hovered cell */
+  .t25-tkr[data-t] { cursor:pointer; }
+  .t25-tkr[data-t]:hover { color:var(--gold); text-decoration:underline; }
+  .t25-hovercard { position:fixed; z-index:60; width:252px; display:none;
+    background:var(--card); border:1px solid var(--line); border-radius:8px;
+    padding:10px 12px; font-size:11px; line-height:1.5;
+    box-shadow:0 10px 28px rgba(0,0,0,.55); pointer-events:none; }
+  .t25h-head { display:flex; align-items:baseline; gap:8px;
+    font-size:13px; margin-bottom:3px; }
+  .t25h-px { font-variant-numeric:tabular-nums; font-weight:700; }
+  .t25h-dim { color:var(--muted); font-size:10px; }
+  .t25h-line { padding:1px 0; }
+  .t25h-amber { color:#e8b34c; font-weight:700; }
+  .t25h-bull { color:var(--green); }
+  .t25h-bear { color:var(--red); }
+  .t25h-foot { margin-top:6px; padding-top:5px;
+    border-top:1px solid var(--line); color:var(--gold);
+    font-size:9.5px; font-weight:700; }
   .t25-err { color:#e8b34c; }
   @media (max-width:900px) {
     .t25-grid { grid-template-columns:24px 50px minmax(150px,1.3fr)
@@ -26543,7 +26561,10 @@
           const con = r.ticker + " $" + r.strike + " " +
             r.type.toUpperCase() + " " + expFull;
           g += '<span class="t25-cell t25-rank">' + r.rank + '</span>' +
-            '<span class="t25-cell t25-tkr">' +
+            '<span class="t25-cell t25-tkr" data-t="' +
+              window.escapeHtml(r.ticker) +
+              '" role="button" tabindex="0" aria-label="Open ' +
+              window.escapeHtml(r.ticker) + ' drilldown">' +
               window.escapeHtml(r.ticker) + '</span>' +
             '<span class="t25-cell ' + bCls + '" style="font-weight:600">' +
               window.escapeHtml(con) + '</span>' +
@@ -26602,6 +26623,90 @@
       });
       const rf = host.querySelector(".t25-refresh");
       if (rf) rf.onclick = function () { _t25Gen = null; loadTop25(); };
+      // Hover preview — wired ONCE on the host (innerHTML rebuilds don't
+      // drop host-level listeners). Click-through to the drilldown panel
+      // is free: the ticker cell carries [data-t], which the global
+      // document click handler routes to openTickerPanel.
+      if (!host._t25HoverWired) {
+        host._t25HoverWired = true;
+        host.addEventListener("mouseover", function (e) {
+          const el = e.target.closest(".t25-tkr[data-t]");
+          if (el) showT25Hover(el);
+        });
+        host.addEventListener("mouseout", function (e) {
+          if (e.target.closest(".t25-tkr[data-t]")) hideT25Hover();
+        });
+        host.addEventListener("click", function (e) {
+          if (e.target.closest(".t25-tkr[data-t]")) hideT25Hover();
+        });
+      }
+    }
+    // ── Ticker hover preview card (Top Contracts pane) ─────────────────
+    // Singleton, pointer-events:none, built from data already on the
+    // client: current batch rows (DATA), delayed current spots
+    // (CURRENT_SPOTS), and the pane's own payload. Same card language
+    // as the rest of the dashboard.
+    let _t25HoverEl = null;
+    function hideT25Hover() {
+      if (_t25HoverEl) _t25HoverEl.style.display = "none";
+    }
+    function showT25Hover(cell) {
+      const t = cell.dataset.t;
+      if (!t) return;
+      if (!_t25HoverEl) {
+        _t25HoverEl = document.createElement("div");
+        _t25HoverEl.className = "t25-hovercard";
+        document.body.appendChild(_t25HoverEl);
+      }
+      const rows = (typeof DATA !== "undefined" && DATA)
+        ? DATA.filter(function (r) { return r.ticker === t; }) : [];
+      const meta = rows[0] || {};
+      const spot = (window.CURRENT_SPOTS || {})[t] || meta.spot;
+      let callP = 0, putP = 0;
+      rows.forEach(function (r) {
+        const p = r.premium || 0;
+        if (r.type === "call") callP += p; else putP += p;
+      });
+      const mine = ((_t25Last && _t25Last.rows) || []).filter(function (r) {
+        return r.ticker === t; });
+      const esc = window.escapeHtml;
+      let h = '<div class="t25h-head"><b>' + esc(t) + '</b>' +
+        (spot != null ? '<span class="t25h-px">$' +
+          Number(spot).toFixed(2) + '</span>' : '') +
+        '<span class="t25h-dim">delayed</span></div>';
+      const metaBits = [];
+      if (meta.sector) metaBits.push(esc(meta.sector));
+      if (meta.cap_bucket) metaBits.push(esc(meta.cap_bucket) + " cap");
+      if (metaBits.length)
+        h += '<div class="t25h-line t25h-dim">' + metaBits.join(" · ") + '</div>';
+      if (meta.themes && meta.themes.length)
+        h += '<div class="t25h-line t25h-dim">' +
+          meta.themes.slice(0, 2).map(esc).join(" · ") + '</div>';
+      if (meta.earnings_days != null && meta.earnings_days >= 0 &&
+          meta.earnings_days <= 7)
+        h += '<div class="t25h-line t25h-amber">⚠ Earnings in ' +
+          meta.earnings_days + 'd</div>';
+      if (rows.length)
+        h += '<div class="t25h-line">Today: <b>' + rows.length +
+          '</b> flagged contract' + (rows.length === 1 ? '' : 's') +
+          ' · <span class="t25h-bull">calls ' + fmtT25Money(callP) +
+          '</span> · <span class="t25h-bear">puts ' + fmtT25Money(putP) +
+          '</span></div>';
+      if (mine.length)
+        h += '<div class="t25h-line">In today\'s Top list: ' +
+          mine.map(function (r) { return '#' + r.rank; }).join(', ') +
+          '</div>';
+      h += '<div class="t25h-foot">Click ticker for full drilldown →</div>';
+      _t25HoverEl.innerHTML = h;
+      // Position beside the cell; clamp to viewport.
+      const rc = cell.getBoundingClientRect();
+      _t25HoverEl.style.display = "block";
+      const cw = _t25HoverEl.offsetWidth, ch = _t25HoverEl.offsetHeight;
+      let x = rc.right + 10, y = rc.top - 4;
+      if (x + cw > window.innerWidth - 8) x = Math.max(8, rc.left - cw - 10);
+      if (y + ch > window.innerHeight - 8) y = window.innerHeight - ch - 8;
+      _t25HoverEl.style.left = x + "px";
+      _t25HoverEl.style.top = Math.max(8, y) + "px";
     }
     function loadTop25() {
       fetch("./reports/uoa_top25_daily.json", { cache: "no-cache" })
