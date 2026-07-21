@@ -1,0 +1,2 @@
+{"record_ts":"2026-07-21T20:23:44+00:00","excluded_at":"2026-07-21","by":"measurement-versioning correction","reason":"pre-measurement-stamp era AND index-put parser defect (quotes absent): measurement semantics differ from m1"}
+{"record_ts":"2026-07-21T20:24:46+00:00","excluded_at":"2026-07-21","by":"measurement-versioning correction","reason":"pre-measurement-stamp era: semantics match m1 by inspection but record carries no measurement_hash \u2014 excluded for strictness"}
