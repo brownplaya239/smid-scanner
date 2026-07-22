@@ -29,8 +29,19 @@ def chk(name, cond, detail=""):
         FAILS.append(name)
 
 
-def codes(problems):
-    return {p["code"] for p in problems}
+# Checks about the document as an object (metadata, language, bookmarks,
+# links). A bare reportlab canvas built inside a test has none of these by
+# construction, so the page-content controls below exclude them; the real
+# brief is checked against them in test_build.
+DOC_PROPERTY = {"PDF_METADATA", "PDF_LANGUAGE", "PDF_BOOKMARKS",
+                "PDF_LINKS", "PDF_TAGGED"}
+
+
+def codes(checks, ignore_doc_properties=False):
+    """v3.1 returns one object per check; a "code" in the old sense is a
+    check that came back FAIL."""
+    out = {c["check_id"] for c in checks if c["status"] == V.FAIL}
+    return out - DOC_PROPERTY if ignore_doc_properties else out
 
 
 def fact(v, **kw):
@@ -107,15 +118,43 @@ def base_snap():
                       "classification": "MIXED", "news": [
                           {"headline": "Test Co wins a multi-year service "
                                        "contract", "publisher": "Reuters",
+                           "url": "https://example.com/a",
+                           "article_check": {"company_mentions": 9,
+                                             "first_mention_pct": 6},
                            "published_at": "2026-07-15T14:00:00+00:00"},
                           {"headline": "Analysts weigh the margin outlook "
                                        "after the quarter",
                            "publisher": "Bloomberg",
+                           "url": "https://example.com/b",
                            "published_at": "2026-07-14T18:30:00+00:00"},
                           {"headline": "Process automation orders steady "
                                        "into the second half",
                            "publisher": "Dow Jones",
+                           "url": "https://example.com/c",
                            "published_at": "2026-07-12T11:05:00+00:00"}]},
+        # A live run always attempts the Item 2.02 exhibit, so the fixture
+        # carries one too. Without it page 2 is genuinely thin and the
+        # page gate says so — correctly.
+        "exhibit": {
+            "disposition": "ADMITTED",
+            "accession": "0000000000-26-000001",
+            "accepted": "2026-05-27T20:06:07+00:00",
+            "url": "https://www.sec.gov/Archives/edgar/data/1/x/ex-991.htm",
+            "period_label": "May 2, 2026",
+            "guidance_period": "Q2 FY2027",
+            "reported": {
+                "non_gaap_gross_margin": {"value": 58.9, "unit": "%"},
+                "non_gaap_operating_margin": {"value": 35.0, "unit": "%"},
+                "gaap_eps": {"value": 0.04, "unit": "USD/share"},
+                "non_gaap_eps": {"value": 0.80, "unit": "USD/share"}},
+            "guidance": {
+                "revenue": {"midpoint": 2700.0, "low": 2565.0,
+                            "high": 2835.0, "basis": "midpoint +/- 5.0%"},
+                "non_gaap_gross_margin": {"low": 58.25, "high": 59.25,
+                                          "midpoint": 58.75,
+                                          "basis": "stated range"},
+                "non_gaap_eps": {"low": 0.88, "high": 0.98, "midpoint": 0.93,
+                                 "basis": "midpoint +/- 0.05"}}},
         "evidence": {"evidence_quality": "moderate"},
     }
 
@@ -237,54 +276,54 @@ def test_changed():
 
 MUTATIONS = [
     ("recovery stages out of order",
-     lambda v, s: v["recovery"].reverse(), "ladder_unordered"),
+     lambda v, s: v["recovery"].reverse(), "LADDER_ORDER"),
     ("an upside trigger sitting below spot",
      lambda v, s: v["recovery"].insert(0, {"label": "fake", "value": 1.0,
                                            "side": "above",
                                            "distance_pct": -99.0}),
-     "ladder_below_spot"),
+     "LADDER_VS_SPOT"),
     ("market data stamped after the report",
      lambda v, s: v.__setitem__("quote_time_utc", "2027-01-01T00:00:00Z"),
-     "timestamp_mismatch"),
+     "TIMESTAMP_CONSISTENCY"),
     ("a timestamp with no zone",
      lambda v, s: v.__setitem__("quote_tz_warning", "no zone"),
-     "timestamp_no_zone"),
+     "TIMESTAMP_ZONE"),
     ("a stale filing presented as the current driver",
      lambda v, s: (v["catalysts"]["last_reported"].__setitem__(
          "age_days", 90),
          v["catalysts"]["current_driver"].__setitem__("grade", M.DERIVED)),
-     "stale_catalyst_as_driver"),
+     "STALE_CATALYST"),
     ("an exit inside one day's normal range",
      lambda v, s: v["exit"].update({"atr_multiple": 0.4, "floor": 2.0}),
-     "exit_horizon_mismatch"),
+     "EXIT_VS_HORIZON"),
     ("an exit with no stated basis",
      lambda v, s: v["exit"].update({"basis": None, "value": 88.0}),
-     "exit_undocumented"),
+     "EXIT_DOCUMENTED"),
     ("'invalidation' used with no position on the book",
      lambda v, s: v["exit"].update({"label": "Invalidation",
                                     "active_entry": False}),
-     "invalidation_without_entry"),
+     "INVALIDATION_WITHOUT_ENTRY"),
     ("a filing counted with no accession number",
      lambda v, s: v["ownership"]["rows"][0].__setitem__("accession", None),
-     "filing_count_without_accession"),
+     "FILING_ACCESSIONS"),
     ("unparsed filers with no 'interpretation unavailable' notice",
      lambda v, s: v["ownership"].update({"filers_parsed": False,
                                          "interpretation": None}),
-     "ownership_overclaimed"),
+     "OWNERSHIP_COVERAGE"),
     ("an empty options section with no coverage note",
      lambda v, s: v["options"].update({"available": False, "note": None}),
-     "missing_read_as_negative"),
+     "MISSING_VS_NEGATIVE"),
     ("a self-assessment presented as calibrated",
      lambda v, s: s["evidence"].__setitem__("calibrated_confidence", 0.8),
-     "uncalibrated_confidence"),
+     "CALIBRATION_LANGUAGE"),
     ("a social population that does not add up",
      lambda v, s: v["social"].__setitem__("n_rejected", 1),
-     "population_mismatch"),
+     "POPULATION_ARITHMETIC"),
     ("a coordination verdict with no phrase groups behind it",
      lambda v, s: v["social"]["coordination"].update(
          {"label": "5 phrases repeated across 3+ accounts",
           "phrase_groups": None}),
-     "coordination_contradiction"),
+     "COORDINATION_CONSISTENCY"),
 ]
 
 
@@ -292,14 +331,15 @@ def test_model_gate():
     print("\nsemantic gate — each case injects exactly one defect")
     snap = base_snap()
     view = M.build(snap)
-    clean = V.validate_model(view, snap)
-    chk("CONTROL: a clean model passes", clean == [], clean)
+    clean = [c for c in V.check_model(view, snap) if c["status"] == V.FAIL]
+    chk("CONTROL: a clean model passes", not clean,
+        [c["check_id"] for c in clean])
 
     for name, mutate, want in MUTATIONS:
         s = copy.deepcopy(snap)
         v = M.build(s)
         mutate(v, s)
-        got = codes(V.validate_model(v, s))
+        got = codes(V.check_model(v, s))
         chk("blocks: %s" % name, want in got, "got %s" % (sorted(got) or "[]"))
 
 
@@ -325,42 +365,42 @@ def test_pdf_gate():
         for i in range(60):
             cv.drawString(50, 720 - i * 11, "Ordinary body copy on line %d."
                           % i)
-    clean = V.validate_pdf(_pdf(good), core=True)
-    chk("CONTROL: a well-filled page passes", clean == [], clean)
+    clean = codes(V.check_pdf(_pdf(good), core=True), True)
+    chk("CONTROL: a well-filled page passes", not clean, sorted(clean))
 
     def tiny(cv, p):
         good(cv, p)
         cv.setFont(R3.FONT, 7.5)
         cv.drawString(50, 60, "a footnote nobody can read")
     chk("blocks: type below the 9pt floor",
-        "type_too_small" in codes(V.validate_pdf(_pdf(tiny))), "")
+        "TYPE_SIZE" in codes(V.check_pdf(_pdf(tiny)), True), "")
 
     def intent(cv, p):
         good(cv, p)
         cv.setFont(R3.FONT, 10)
         cv.drawString(50, 40, "Institutions are accumulating the shares.")
     chk("blocks: a claim to know why an institution traded",
-        "institutional_intent_claim" in codes(V.validate_pdf(_pdf(intent))),
+        "INSTITUTIONAL_INTENT" in codes(V.check_pdf(_pdf(intent)), True),
         "")
 
     def smart(cv, p):
         good(cv, p)
         cv.drawString(50, 40, "Smart money is positioning here.")
     chk("blocks: 'smart money'",
-        "institutional_intent_claim" in codes(V.validate_pdf(_pdf(smart))),
+        "INSTITUTIONAL_INTENT" in codes(V.check_pdf(_pdf(smart)), True),
         "")
 
     def entity(cv, p):
         good(cv, p)
         cv.drawString(50, 40, "Revenue &amp; margin")
     chk("blocks: an HTML entity reaching the page",
-        "html_entity" in codes(V.validate_pdf(_pdf(entity))), "")
+        "HTML_ENTITIES" in codes(V.check_pdf(_pdf(entity)), True), "")
 
     def blank(cv, p):
         if p == 0:
             good(cv, p)
     chk("blocks: a page with no text",
-        "blank_page" in codes(V.validate_pdf(_pdf(blank, pages=2))), "")
+        "BLANK_PAGE" in codes(V.check_pdf(_pdf(blank, pages=2)), True), "")
 
     def short(cv, p):
         cv.setFont(R3.FONT, 10)
@@ -369,9 +409,9 @@ def test_pdf_gate():
                 cv.drawString(50, 720 - i * 11, "only a few lines")
         else:
             good(cv, p)
-    got = codes(V.validate_pdf(_pdf(short, pages=2)))
+    got = codes(V.check_pdf(_pdf(short, pages=2)), True)
     chk("blocks: a half-empty page with content after it",
-        "nearly_blank_page" in got, sorted(got))
+        "NEARLY_BLANK_PAGE" in got, sorted(got))
 
     def short_last(cv, p):
         cv.setFont(R3.FONT, 10)
@@ -381,15 +421,15 @@ def test_pdf_gate():
             for i in range(6):
                 cv.drawString(50, 720 - i * 11, "a short closing page")
     chk("allows: a final page that simply ends",
-        "nearly_blank_page" not in codes(
-            V.validate_pdf(_pdf(short_last, pages=2))), "")
+        "NEARLY_BLANK_PAGE" not in codes(
+            V.check_pdf(_pdf(short_last, pages=2)), True), "")
 
     chk("blocks: a core brief longer than four pages",
-        "core_too_long" in codes(V.validate_pdf(_pdf(good, pages=5),
-                                                core=True)), "")
+        "PAGE_COUNT" in codes(V.check_pdf(_pdf(good, pages=5),
+                                                core=True), True), "")
     chk("allows: an appendix longer than four pages",
-        "core_too_long" not in codes(V.validate_pdf(_pdf(good, pages=5),
-                                                    core=False)), "")
+        "PAGE_COUNT" not in codes(V.check_pdf(_pdf(good, pages=5),
+                                                    core=False), True), "")
 
     # raw message-board text must never appear in the core brief
     snap = base_snap()
@@ -400,11 +440,11 @@ def test_pdf_gate():
         good(cv, p)
         cv.drawString(50, 40, excerpt)
     chk("blocks: a raw post excerpt in the core brief",
-        "raw_social_in_core" in codes(
-            V.validate_pdf(_pdf(social), snap, core=True)), "")
+        "RAW_SOCIAL_CONTAINMENT" in codes(
+            V.check_pdf(_pdf(social), snap, core=True), True), "")
     chk("allows: the same excerpt in the appendix",
-        "raw_social_in_core" not in codes(
-            V.validate_pdf(_pdf(social), snap, core=False)), "")
+        "RAW_SOCIAL_CONTAINMENT" not in codes(
+            V.check_pdf(_pdf(social), snap, core=False), True), "")
 
 
 # ── end to end ──────────────────────────────────────────────────────────
@@ -440,7 +480,7 @@ def test_build():
         " ET" in txt and "T20:00:00Z" not in txt, "")
     chk("every grade legend entry appears",
         all(g in txt for g in ("[OBS]", "[DER]")), "")
-    probs = codes(V.validate_pdf(core, snap, core=True))
+    probs = codes(V.check_pdf(core, snap, core=True))
     chk("the rendered brief passes its own page gate", not probs,
         sorted(probs))
     ev = M.build(snap)

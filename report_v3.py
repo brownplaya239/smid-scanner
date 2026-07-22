@@ -40,6 +40,7 @@ from reportlab.platypus import (BaseDocTemplate, Frame, Image, KeepTogether,
                                 PageBreak, PageTemplate, Paragraph, Spacer,
                                 Table, TableStyle)
 
+import report_v3_evidence as EV
 import report_v3_model as M
 import report_v3_validate as V
 import research_snapshot as rs
@@ -91,15 +92,15 @@ def _styles():
                      textColor=colors.white),
         "action": mk("action", 15, 17, fontName=FONT_B),
         "h2": mk("h2", 11, 13.5, fontName=FONT_B, textColor=ACCENT,
-                 spaceBefore=8, spaceAfter=3),
+                 spaceBefore=6, spaceAfter=2.5),
         "h3": mk("h3", 9.6, 12, fontName=FONT_B, textColor=INK,
                  spaceBefore=4, spaceAfter=2),
-        "body": mk("body", 9.4, 12.4),
-        "small": mk("small", 9.0, 11.4, textColor=MUTED),
-        "cell": mk("cell", 9.0, 11.2),
-        "cellb": mk("cellb", 9.0, 11.2, fontName=FONT_B),
+        "body": mk("body", 9.6, 12.8),
+        "small": mk("small", 9.2, 11.8, textColor=MUTED),
+        "cell": mk("cell", 9.5, 11.9),
+        "cellb": mk("cellb", 9.5, 11.9, fontName=FONT_B),
         "num": mk("num", 10.6, 12.6, fontName=FONT_B),
-        "lab": mk("lab", 9.0, 10.6, textColor=MUTED),
+        "lab": mk("lab", 9.2, 11.0, textColor=MUTED),
     }
 
 
@@ -114,7 +115,7 @@ def tag(g):
     or our opinion."""
     if not g:
         return ""
-    return ('  <font size="9" color="%s">[%s]</font>'
+    return ('  <font size="9.2" color="%s">[%s]</font>'
             % (GRADE_COLOR.get(g, MUTED).hexval(), GRADE_SHORT.get(g, "?")))
 
 
@@ -142,19 +143,52 @@ def para(text, style="body", g=None):
     return Paragraph(_clean(safe(text)) + (tag(g) if g else ""), ST[style])
 
 
+def linked(url, label, before="", after="", style="small"):
+    """A paragraph carrying a real hyperlink.
+
+    `para` escapes its whole argument — correct for untrusted text, fatal
+    for markup, which is why the exhibit source line printed a literal
+    <link href=...> on the page. Here each text fragment is escaped
+    individually and only the anchor is emitted as markup."""
+    body = "%s<link href=\"%s\" color=\"%s\">%s</link>%s" % (
+        _clean(safe(before)), _clean(safe(url)), ACCENT.hexval(),
+        _clean(safe(label)), _clean(safe(after)))
+    return Paragraph(body, ST[style])
+
+
+def clip(text, limit):
+    """Truncate on a word boundary. A hard slice left the page reading
+    '...digital signal processing functio'."""
+    t = str(text or "")
+    if len(t) <= limit:
+        return t
+    cut = t[:limit]
+    sp = cut.rfind(" ")
+    return (cut[:sp] if sp > limit * 0.6 else cut).rstrip(" ,;:") + "..."
+
+
 # ── document ────────────────────────────────────────────────────────────
 
 class _Doc(BaseDocTemplate):
     """One frame per page. A frame that overflows raises rather than
     clipping, so 'text ran off the page' cannot ship silently."""
 
+    SECTIONS = ["Decision dashboard", "Company and financials",
+                "Market, positioning and flow", "Catalysts, news and alt data"]
+
     def __init__(self, buf, snap, kind="Research Brief",
-                 legend=True, **kw):
+                 legend=True, sections=None, **kw):
         super().__init__(buf, pagesize=LETTER, leftMargin=MARGIN,
                          rightMargin=MARGIN, topMargin=TOP_PAD,
                          bottomMargin=BOT_PAD, **kw)
         self.snap, self.kind = snap, kind
         self.legend = legend
+        self.sections = sections or self.SECTIONS
+        self.title = "%s - %s" % (snap.get("ticker", ""), kind)
+        self.author = "TickerDesk Research"
+        self.subject = ("Educational equity research brief for %s; every "
+                        "figure is traceable in the accompanying evidence "
+                        "package." % snap.get("ticker", ""))
         self.addPageTemplates([PageTemplate(
             id="std",
             frames=[Frame(self.leftMargin, self.bottomMargin, self.width,
@@ -164,6 +198,13 @@ class _Doc(BaseDocTemplate):
 
     def _furniture(self, cv, doc):
         s = self.snap
+        # One outline entry per page. Without these a four-page PDF opens
+        # with an empty bookmark pane and no way to jump to a section.
+        key = "sec%d" % doc.page
+        cv.bookmarkPage(key)
+        idx = doc.page - 1
+        cv.addOutlineEntry(self.sections[idx] if idx < len(self.sections)
+                           else "Page %d" % doc.page, key, level=0)
         if rs.is_demo(s):
             cv.saveState()
             cv.setFillColor(colors.Color(0.85, 0.12, 0.12, alpha=0.13))
@@ -369,51 +410,61 @@ def _page1(snap, view, chart_png=None):
         st.append(para("No moving-average series was admitted, so the trend "
                        "state cannot be stated.", "body", M.OBSERVED))
 
-    # the ladder — ordered by price, always
-    st += [para("Trigger ladder", "h2"),
-           para("Sorted by price, nearest first — not by convention.",
-                "small")]
-    rows = []
-    for s in view["recovery"][:3]:
-        rows.append([s["label"], "%.2f" % s["value"],
-                     "%+.1f%%" % s["distance_pct"],
-                     "Reclaims %s" % s["label"]])
-    for s in view["downside"][:2]:
-        rows.append([s["label"], "%.2f" % s["value"],
-                     "%+.1f%%" % s["distance_pct"],
-                     "Loses %s" % s["label"]])
-    if rows:
-        st.append(_table(rows, [BODY_W * .30, BODY_W * .14, BODY_W * .14,
-                                BODY_W * .42],
-                         header=["Level", "Price", "Distance", "If reached"],
-                         zebra=True))
-    else:
-        st.append(para("No level series was admitted, so no ladder can be "
-                       "built.", "small"))
-
+    # Three kinds of level, kept apart. v3 listed them in one ladder,
+    # which invited a 60-session low to be read as a swing stop.
+    lg = view.get("levels") or {}
+    up, down = lg.get("upside_confirmation") or [],         lg.get("downside_deterioration") or []
+    struct = lg.get("structural") or []
+    if up:
+        st += [para("Upside confirmation", "h2"),
+               _table([[r["label"], "%.2f" % r["value"],
+                        "%+.1f%%" % r["distance_pct"]] for r in up[:3]],
+                      [BODY_W * .42, BODY_W * .20, BODY_W * .20],
+                      header=["Level", "Price", "Distance"], zebra=True)]
+    if down:
+        st += [para("Downside deterioration", "h2"),
+               _table([[r["label"], "%.2f" % r["value"],
+                        "%+.1f%%" % r["distance_pct"]] for r in down[:2]],
+                      [BODY_W * .42, BODY_W * .20, BODY_W * .20],
+                      header=["Level", "Price", "Distance"], zebra=True)]
     ex = view["exit"]
     if ex.get("value") is not None:
-        st += [para(ex["label"], "h2"),
-               para("%.2f — %s. That is %.1f x ATR(14) below spot, against "
-                    "a %.1f x floor for this holding period (%s)."
+        bound = ex.get("bound_by")
+        st += [para("%s — %s" % (ex["label"],
+                                 "structural" if bound == "documented low"
+                                 else "horizon-derived"), "h2"),
+               para("%.2f. %s. That is %.1f x ATR(14) below spot, against a "
+                    "%.1f x floor for this holding period (%s)."
                     % (ex["value"], ex["basis"], ex.get("atr_multiple") or 0,
                        ex.get("floor") or 0,
                        ex.get("horizon") or "horizon not stated"),
                     "body", M.DERIVED)]
-        if not ex["active_entry"]:
+        if bound == "documented low":
+            st.append(para("Structural boundary: the edge of the range price "
+                           "has traded, not a swing stop. %s. It marks where "
+                           "the structural read stops holding; it is not an "
+                           "order level and no position is implied."
+                           % "; ".join("%s %.2f" % (r["label"], r["value"])
+                                       for r in struct), "small"))
+        elif not ex["active_entry"]:
             st.append(para("No entry is on the book: a boundary for the "
                            "read, not a stop for a position.", "small"))
 
     facts = (dec.get("supporting_facts") or [])[:3]
-    risks = (dec.get("risks") or [])[:3]
-    if facts or risks:
+    prosp = view.get("prospective") or []
+    if facts or prosp:
         lft = [para("Thesis", "h3")] + [
             para("• " + str(f.get("text") if isinstance(f, dict) else f),
                  "body") for f in facts]
-        rgt = [para("What would break it", "h3")] + [
-            para("• " + str(r.get("text") if isinstance(r, dict) else r),
-                 "body") for r in risks]
-        t = Table([[lft, rgt]], colWidths=[BODY_W * .49, BODY_W * .51],
+        # Prospective, not retrospective: each line is a condition that has
+        # not happened yet and can be checked on a stated date. v3 listed
+        # things already true, which is an observation, not a risk.
+        rgt = [para("What would change the read", "h3")] + [
+            para("• %s <font color=\"%s\">[%s]</font>"
+                 % (_clean(c["text"]), MUTED.hexval(),
+                    _clean(c.get("testable_at") or "no date")), "body")
+            for c in prosp[:3]]
+        t = Table([[lft, rgt]], colWidths=[BODY_W * .47, BODY_W * .53],
                   hAlign="LEFT")
         t.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
                                ("LEFTPADDING", (0, 0), (0, 0), 0),
@@ -457,9 +508,14 @@ def _fit_chart(story, png, floor=0.75 * inch):
     # chart is sized into room that does not exist.
     left = _avail_height() - _story_height(story) - 8
     if left < floor:
-        return story + [Spacer(1, 4),
-                        para("Price chart is on page 3 at full width.",
-                             "small")]
+        # Even the "see page 3" note has a height. Adding it to a page
+        # that is already full pushed eight points onto a fifth page that
+        # then carried nothing else.
+        note = [Spacer(1, 4), para("Price chart is on page 3 at full "
+                                   "width.", "small")]
+        if _story_height(note) <= left + 8:
+            return story + note
+        return story
     return story + [Spacer(1, 5), _image(png, BODY_W, left)]
 
 
@@ -527,13 +583,22 @@ def _src_of(f):
     return f.get("src") if isinstance(f, dict) else None
 
 
-def _fund_rows(fu):
+def _fund_rows(fu, co=None):
     """Render every fundamental the snapshot actually carries, in a fixed
     order, then anything else it has. A hardcoded list silently dropped
     four populated fields when the snapshot shape differed."""
     order = [k for k in FUND_LABEL if k in (fu or {})]
     order += [k for k in (fu or {}) if k not in FUND_LABEL]
     rows = []
+    sh = rs.fv((co or {}).get("shares_outstanding"))
+    if sh:
+        f = (co or {}).get("shares_outstanding")
+        rows.append(["Shares outstanding",
+                     Paragraph(_clean("{:,}".format(int(sh)))
+                               + tag(M.grade(f)), ST["cellb"]),
+                     (f.get("period_end") or "—") if isinstance(f, dict)
+                     else "—",
+                     (f.get("src") or "—") if isinstance(f, dict) else "—"])
     for key in order:
         f = fu.get(key)
         v = rs.fv(f)
@@ -568,13 +633,15 @@ def _page2(snap, view):
     val = snap.get("valuation") or {}
     st = [para("Company and financial overview", "h2")]
 
-    txt = ov.get("text") or rs.fv(co.get("business_2s"))
-    if txt:
-        st += [para(str(txt)[:700], "body", M.OBSERVED),
-               para("Source: %s"
-                    % (ov.get("source") or _src_of(co.get("business_2s"))
-                       or "issuer profile"), "small")]
-    else:
+    bd = view.get("business") or {}
+    if bd.get("vendor_text"):
+        st += [para(clip(bd["vendor_text"], 400), "body", M.OBSERVED),
+               para("Source: %s" % bd.get("vendor_source"), "small")]
+    if bd.get("plain"):
+        # The vendor sentence is registration prose. These are the filed
+        # figures that actually describe the business, each traceable.
+        st.append(para(bd["plain"], "body", M.OBSERVED))
+    if not bd.get("vendor_text") and not bd.get("plain"):
         st.append(para("No business description was admitted from a cited "
                        "source. We do not paraphrase one.", "body",
                        M.OBSERVED))
@@ -586,41 +653,11 @@ def _page2(snap, view):
     if bits:
         st.append(para("  ·  ".join(bits), "small"))
 
-    # Company-level facts belong on the company page. v2 scattered these
-    # across the header and left page 2 half empty underneath.
-    crows = []
-    for key, label, kind in (("shares_outstanding", "Shares outstanding",
-                              "count"),
-                             ("market_cap", "Market capitalisation", "money"),
-                             ("universe", "Size classification", "text"),
-                             ("profitable", "Profitable, latest quarter",
-                              "bool"),
-                             ("sector", "Sector", "text")):
-        f = co.get(key)
-        v = rs.fv(f)
-        if v is None:
-            continue
-        if kind == "money":
-            shown = _money(f, float(v))
-        elif kind == "count":
-            shown = "{:,}".format(int(v))
-        elif kind == "bool":
-            shown = "Yes" if v else "No"
-        else:
-            shown = str(v)
-        crows.append([label, Paragraph(_clean(shown) + tag(M.grade(f)),
-                                       ST["cellb"]),
-                      _src_of(f) or "—"])
-    if crows:
-        st += [para("Company facts", "h2"),
-               _table(crows, [BODY_W * .32, BODY_W * .22, BODY_W * .46],
-                      header=["Fact", "Value", "Source"], zebra=True)]
-
     st += [para("Reported results", "h2"),
            para("Every figure below is a GAAP tag from an SEC filing "
                 "accepted before this report's timestamp. Nothing is "
                 "estimated or annualised.", "small")]
-    rows = _fund_rows(fu)
+    rows = _fund_rows(fu, co)
     if rows:
         st.append(_table(rows, [BODY_W * .30, BODY_W * .18, BODY_W * .16,
                                 BODY_W * .36],
@@ -630,41 +667,91 @@ def _page2(snap, view):
         st.append(para("No filing figure cleared the point-in-time gate for "
                        "this report.", "body", M.OBSERVED))
 
+    # ── company-reported non-GAAP and guidance ─────────────────────────
+    ex = view.get("exhibit") or {}
+    rep, gui = ex.get("reported") or {}, ex.get("guidance") or {}
+    if rep or gui:
+        st += [para("As the company reports it", "h2"),
+               para("Read from the Item 2.02 8-K exhibit; these are not "
+                    "XBRL-tagged. Non-GAAP measures exclude items management "
+                    "considers non-recurring and are not comparable across "
+                    "issuers.", "small")]
+        rows = []
+        for key, label, fmt in (
+                ("non_gaap_gross_margin", "Non-GAAP gross margin", "%.1f%%"),
+                ("non_gaap_operating_margin", "Non-GAAP operating margin",
+                 "%.1f%%"),
+                ("non_gaap_eps", "Non-GAAP diluted EPS", "$%.2f")):
+            r = rep.get(key)
+            if not r or r.get("value") is None:
+                continue
+            g = gui.get(key)
+            gtxt = "—"
+            if g and g.get("low") is not None:
+                gtxt = ("%s - %s" % (fmt % g["low"], fmt % g["high"])
+                        if g.get("high") != g.get("low")
+                        else fmt % g["low"])
+            rows.append([label, fmt % r["value"], gtxt])
+        gr = gui.get("revenue")
+        if gr and gr.get("low") is not None:
+            rows.append(["Revenue", "—", "$%.2fB - $%.2fB"
+                         % (gr["low"] / 1000.0, gr["high"] / 1000.0)])
+        if rows:
+            st.append(_table(rows, [BODY_W * .34, BODY_W * .20,
+                                    BODY_W * .30],
+                             header=["Measure", "Reported", "Guided, next "
+                                                            "quarter"],
+                             zebra=True))
+        if ex.get("url"):
+            st.append(linked(ex["url"], "8-K Exhibit 99.1", before="Source: ",
+                             after=", accession %s, accepted %s."
+                                   % (ex.get("accession"),
+                                      M.to_et(ex.get("accepted"))[0] or "-")))
+    elif ex.get("reason"):
+        st += [para("As the company reports it", "h2"),
+               para("AVAILABLE_NOT_INGESTED — the earnings exhibit is public "
+                    "and fetchable, but this report could not read it: %s. "
+                    "That is a gap in our parser, not an absence of "
+                    "disclosure." % ex["reason"], "body", M.OBSERVED)]
+
     if val:
         st += [para("Valuation", "h2")]
         vr = []
+        px = view.get("price")
+        eps = rs.fv((snap.get("fundamentals") or {}).get("eps_ttm"))
         for key, label in (("pe_trailing", "P/E, trailing"),
                            ("pe_forward", "P/E, forward")):
             f = val.get(key)
             v = rs.fv(f)
             if v is None:
                 continue
-            vr.append([label, "%.1fx" % v,
-                       (f.get("basis") or "—") if isinstance(f, dict)
-                       else "—",
+            # Show the division, not just its answer. A multiple with no
+            # operands cannot be checked or argued with.
+            if key == "pe_trailing" and px and eps:
+                operands = "$%.2f / $%.2f" % (px, eps)
+            else:
+                operands = (f.get("basis") or "—") if isinstance(f, dict)                     else "—"
+            vr.append([label, operands, "%.1fx" % v,
                        (f.get("note") or f.get("src") or "—")
                        if isinstance(f, dict) else "—"])
-        st.append(_table(vr, [BODY_W * .20, BODY_W * .12, BODY_W * .26,
-                              BODY_W * .42],
-                         header=["Multiple", "Value", "Basis",
-                                 "Operands and caveat"], zebra=True))
+        st.append(_table(vr, [BODY_W * .18, BODY_W * .22, BODY_W * .12,
+                              BODY_W * .48],
+                         header=["Multiple", "Operands", "Value",
+                                 "Basis and caveat"], zebra=True))
+        # A trailing multiple built on a quarter carrying a large one-time
+        # charge is arithmetically right and economically misleading unless
+        # the charge is named.
+        g_eps, ng_eps = rep.get("gaap_eps"), rep.get("non_gaap_eps")
+        if g_eps and ng_eps and g_eps.get("value") is not None                 and ng_eps.get("value") is not None                 and ng_eps["value"] > 2 * max(g_eps["value"], 0.01):
+            st.append(para("One-time effects: the company reported $%.2f "
+                           "GAAP diluted EPS against $%.2f non-GAAP for the "
+                           "same quarter. A trailing multiple built on GAAP "
+                           "earnings therefore carries those excluded items "
+                           "in full, and is not comparable with a multiple "
+                           "quoted on a non-GAAP basis."
+                           % (g_eps["value"], ng_eps["value"]),
+                           "body", M.DERIVED))
 
-    # What we do not have, stated as a coverage gap rather than implied
-    gaps = []
-    if not fu.get("gross_margin"):
-        gaps.append("gross margin (no GrossProfit tag filed)")
-    gaps.append("non-GAAP margins — companies publish these in press-release "
-                "exhibits, which are not XBRL-tagged, so there is no figure "
-                "to admit")
-    gaps.append("revenue by end market or geography — segment detail is not "
-                "exposed by the company-concept API this report reads")
-    gaps.append("management guidance and analyst estimates — neither is a "
-                "filed fact")
-    st += [para("Not covered, and why", "h2"),
-           para("These are gaps in what we can source. None of them is a "
-                "negative finding about the business.", "small")]
-    for g in gaps:
-        st.append(para("• " + g, "body", M.OBSERVED))
     return st
 
 
@@ -694,9 +781,10 @@ def _page3(snap, view, chart_png=None):
                        "separately because they carry different information."
                        % (ins.get("window_days") or "180"), "small"))
         st.append(_table([[r["label"], str(r["n"]),
-                           "carries a view" if r["carries_view"]
+                           "potentially informative; discretionary "
+                           "status unknown" if r["carries_view"]
                            else "mechanical"] for r in ins["rows"]],
-                         [BODY_W * .50, BODY_W * .14, BODY_W * .36],
+                         [BODY_W * .38, BODY_W * .10, BODY_W * .52],
                          header=["Transaction type", "Count", "Reading"],
                          zebra=True))
         if ins.get("plan_status"):
@@ -706,23 +794,25 @@ def _page3(snap, view, chart_png=None):
         st.append(para("No Form 4 transaction was parsed in the window.",
                        "body", M.OBSERVED))
 
+    # Ownership is not on the core page. Every filing we hold is 4+ years
+    # old, and no filer name or stake size is parsed from any filing body,
+    # so the section could only ever have shown a count. A count of
+    # filings is not an ownership read, and printing it beside the tape
+    # invites it to be used as one. The full records — accession, form,
+    # acceptance time and link — are in the appendix and the evidence
+    # package, where they can be checked without implying a conclusion.
     own = view["ownership"]
-    st += [para("Schedule 13D / 13G filings", "h2")]
-    if own.get("rows"):
-        st.append(_table([[r["form"] or "—", r["filer"] or "not parsed",
-                           r["accepted"] or "—", r["accession"] or "—"]
-                          for r in own["rows"][:6]],
-                         [BODY_W * .14, BODY_W * .30, BODY_W * .26,
-                          BODY_W * .30],
-                         header=["Form", "Filer", "Accepted", "Accession"],
-                         zebra=True))
-    if own.get("interpretation"):
-        st.append(para(own["interpretation"], "body", M.OBSERVED))
-    ip = own.get("institutional_pct")
-    st.append(para("Institutional ownership percentage: %s"
-                   % ("%.1f%%" % ip if ip is not None else
-                      "not aggregated by this report; 13F holdings are not "
-                      "collected."), "small"))
+    st += [para("Institutional ownership", "h2"),
+           para("Not reported here. %s Schedule 13D/G filings are on record; "
+                "the most recent is %s days old, and this report parses no "
+                "filer identity or stake size from any filing body. The "
+                "filings are listed in the appendix with their accession "
+                "numbers so they can be read directly. 13F holdings are not "
+                "collected."
+                % (own.get("n") or 0,
+                   own.get("newest_age_days")
+                   if own.get("newest_age_days") is not None else "an unknown "
+                   "number of"), "body", M.OBSERVED)]
 
     op = view["options"]
     st += [para("Options", "h2"),
@@ -778,22 +868,33 @@ def _page4(snap, view):
                      header=["Stage", "What", "Date confirmation", "Grade"],
                      zebra=True))
 
-    news = ((snap.get("sentiment") or {}).get("news") or [])[:5]
+    all_news = ((snap.get("sentiment") or {}).get("news") or [])
+    news = all_news[:M.CORE_NEWS_SHOWN]
     st += [para("Coverage", "h2")]
     if news:
         nr = []
         for n in news:
             et, _ = M.to_et(n.get("published_at"))
-            nr.append([_clean(str(n.get("headline") or "")[:110]),
+            head = _clean(safe(clip(n.get("headline"), 100)))
+            if n.get("url"):
+                head = ('<link href="%s" color="#1f3a5f">%s</link>'
+                        % (_clean(n["url"]), head))
+            imp = M.news_implication(n)
+            nr.append([Paragraph(head + "<br/>"
+                                 + '<font color="%s">%s</font>'
+                                 % (MUTED.hexval(), _clean(imp["text"])),
+                                 ST["cell"]),
                        "%s · %s" % (n.get("publisher") or "unattributed",
                                     et or "undated")])
-        st.append(_table(nr, [BODY_W * .66, BODY_W * .34],
-                         header=["Headline", "Publisher and time"],
-                         zebra=True))
-        st.append(para("Each item was fetched and checked for whether it "
-                       "actually discusses the company; items that failed "
-                       "that check are listed in the appendix with the "
-                       "reason.", "small"))
+        st.append(_table(nr, [BODY_W * .64, BODY_W * .32],
+                         header=["Item and what it is",
+                                 "Publisher and time"], zebra=True))
+        # The stated count must describe THIS document, not the pipeline.
+        st.append(para("%d of %d items that cleared the article-level "
+                       "relevance check are shown here, highest relevance "
+                       "first; the rest, and every rejected item with its "
+                       "reason, are in the appendix."
+                       % (len(news), len(all_news)), "small"))
     else:
         st.append(para("No article cleared the relevance check in this "
                        "window.", "body", M.OBSERVED))
@@ -851,6 +952,21 @@ def _page4(snap, view):
 
 # ── build ───────────────────────────────────────────────────────────────
 
+def _finalize(data, doc):
+    """Attach document metadata and /Lang, then return the FINAL bytes.
+
+    This has to run before anything hashes the file: the manifest must
+    name the bytes we ship, not an intermediate the reader never sees."""
+    try:
+        import pdf_postprocess
+        out, status = pdf_postprocess.finalize(
+            data, title=doc.title, author=doc.author, subject=doc.subject,
+            lang="en-US")
+        return out
+    except Exception:
+        return data
+
+
 def build_core(snap, view=None, chart_png=None, chart_full=None,
                out_path=None, allow_demo=False):
     """The four-page brief. Nothing else goes in this file."""
@@ -863,7 +979,7 @@ def build_core(snap, view=None, chart_png=None, chart_full=None,
              + _page3(snap, view, chart_full) + [PageBreak()]
              + _page4(snap, view))
     doc.build(story)
-    data = buf.getvalue()
+    data = _finalize(buf.getvalue(), doc)
     if out_path:
         with open(out_path, "wb") as fh:
             fh.write(data)
@@ -916,7 +1032,46 @@ def build_appendix(snap, view=None, recs=None, prov=None, out_path=None,
                      empty="No figure in this brief was derived; every value "
                            "shown came directly from a source."))
 
-    st += [para("C. Sampled message-board records", "h2"),
+    # What we could not source, and why. This is an inventory of gaps,
+    # which belongs with the audit trail rather than in the middle of the
+    # company page where it crowded out the reported figures.
+    own = view.get("ownership") or {}
+    if own.get("rows"):
+        st += [para("C. Schedule 13D / 13G filings on record", "h2"),
+               para(own.get("interpretation") or "", "small"),
+               _table([[r["form"] or "—", r["filer"] or "not parsed",
+                        r["accepted"] or "—",
+                        (Paragraph('<link href="%s" color="#1f3a5f">%s</link>'
+                                   % (_clean(r["url"]),
+                                      _clean(r["accession"])), ST["cell"])
+                         if r.get("url") and r.get("accession")
+                         else (r["accession"] or "—"))]
+                       for r in own["rows"]],
+                      [BODY_W * .12, BODY_W * .26, BODY_W * .26,
+                       BODY_W * .34],
+                      header=["Form", "Filer", "Accepted", "Accession"],
+                      zebra=True)]
+
+    st += [para("D. Not covered, and why", "h2"),
+           para("These are gaps in what we can source. None of them is a "
+                "negative finding about the business.", "small")]
+    ex = (view.get("exhibit") or {})
+    gaps = []
+    if not (snap.get("fundamentals") or {}).get("gross_margin"):
+        gaps.append("gross margin — no GrossProfit tag filed")
+    if not ex.get("reported"):
+        gaps.append("non-GAAP margins — published in the press-release "
+                    "exhibit; this run did not ingest it (%s)"
+                    % (ex.get("reason") or "reason not recorded"))
+    gaps.append("revenue by end market or geography — segment detail is not "
+                "exposed by the company-concept API this report reads")
+    gaps.append("analyst estimates — not a filed fact")
+    gaps.append("options chain, open interest and implied volatility — no "
+                "feed is wired into this report")
+    for g in gaps:
+        st.append(para("• " + g, "body", M.OBSERVED))
+
+    st += [para("E. Sampled message-board records", "h2"),
            para("Raw, unverified, anonymous. Kept out of the brief on "
                 "purpose and reproduced here only so the counts on page 4 "
                 "can be checked.", "small")]
@@ -936,7 +1091,7 @@ def build_appendix(snap, view=None, recs=None, prov=None, out_path=None,
         st.append(para("No records were sampled.", "small"))
 
     if prov and prov.get("news_rejected"):
-        st += [para("D. Coverage rejected, with reason", "h2")]
+        st += [para("F. Coverage rejected, with reason", "h2")]
         st.append(_table([[_clean(str(r.get("headline") or ""))[:80],
                            str(r.get("reason") or "")]
                           for r in prov["news_rejected"][:20]],
@@ -944,7 +1099,7 @@ def build_appendix(snap, view=None, recs=None, prov=None, out_path=None,
                          header=["Headline", "Why it was excluded"],
                          zebra=True))
     if prov and prov.get("deferred"):
-        st += [para("E. Filing facts deferred by the point-in-time gate",
+        st += [para("G. Filing facts deferred by the point-in-time gate",
                     "h2"),
                para("Filed after this report's timestamp, so excluded from "
                     "every figure above.", "small")]
@@ -956,7 +1111,7 @@ def build_appendix(snap, view=None, recs=None, prov=None, out_path=None,
                          header=["Metric", "Period end", "Form", "Accepted"],
                          zebra=True))
     doc.build(st)
-    data = buf.getvalue()
+    data = _finalize(buf.getvalue(), doc)
     if out_path:
         with open(out_path, "wb") as fh:
             fh.write(data)
@@ -964,8 +1119,16 @@ def build_appendix(snap, view=None, recs=None, prov=None, out_path=None,
 
 
 def build_all(snap, out_dir=".", chart_png=None, chart_full=None, recs=None,
-              prov=None, allow_demo=False, stem=None):
-    """Produce the four artefacts and validate them. Returns a manifest."""
+              prov=None, allow_demo=False, stem=None, led=None,
+              published_only=True):
+    """Produce the four artefacts and validate them.
+
+    Order matters and is not incidental. The PDFs are built first and
+    hashed; the evidence package records those hashes; the evidence
+    payload is then serialised and hashed itself; and only then does the
+    validator run over all three. That way the manifest names the exact
+    bytes that were checked, and a file edited afterwards no longer
+    matches its own manifest."""
     view = M.build(snap)
     tk = snap.get("ticker") or "TICKER"
     stem = stem or "%s_research_brief_v3" % tk
@@ -977,26 +1140,35 @@ def build_all(snap, out_dir=".", chart_png=None, chart_full=None, recs=None,
     core = build_core(snap, view, chart_png, chart_full, core_p, allow_demo)
     apx = build_appendix(snap, view, recs, prov, apx_p, allow_demo)
 
-    evidence = {"schema": "stock_research_brief_evidence/v3",
-                "ticker": tk,
-                "report_time_utc": view["report_time_utc"],
-                "market_data_time_utc": view["quote_time_utc"],
-                "display_timezone": M.ET,
-                "grades": M.GRADE_NOTE,
-                "view": _jsonable(view),
-                "snapshot_schema": snap.get("schema"),
-                "evidence_index": snap.get("evidence_index"),
-                "count_statements": snap.get("count_statements")}
-    with open(ev_p, "w", encoding="utf-8") as fh:
-        json.dump(evidence, fh, indent=1, default=str)
+    artifacts = {
+        "core_pdf": {"path": os.path.basename(core_p), "bytes": len(core),
+                     "sha256": EV.payload_hash(core)},
+        "appendix_pdf": {"path": os.path.basename(apx_p), "bytes": len(apx),
+                         "sha256": EV.payload_hash(apx)},
+    }
+    evidence = EV.build(snap, view, prov=prov, led=led, artifacts=artifacts)
+    ev_bytes = json.dumps(evidence, indent=1, default=str,
+                          sort_keys=True).encode("utf-8")
+    with open(ev_p, "wb") as fh:
+        fh.write(ev_bytes)
+    artifacts["evidence_json"] = {"path": os.path.basename(ev_p),
+                                  "bytes": len(ev_bytes),
+                                  "sha256": EV.payload_hash(ev_bytes)}
 
-    val = V.report(view, snap, core, apx)
+    val = V.report(view, snap, core, apx, evidence=evidence,
+                   artifacts=artifacts, prov=prov,
+                   published_only=published_only, ev_bytes=ev_bytes)
     with open(val_p, "w", encoding="utf-8") as fh:
         json.dump(val, fh, indent=1, default=str)
     if val["ok"]:
-        M.save_state(snap)
+        # Only a package that passed becomes the baseline the next report
+        # compares against. A failed or preview run must never be the
+        # thing "what changed" is measured from.
+        M.publish_state(snap, artifacts, val)
     return {"core": core_p, "appendix": apx_p, "evidence": ev_p,
-            "validation": val_p, "ok": val["ok"], "problems": val["problems"],
+            "validation": val_p, "ok": val["ok"],
+            "problems": [c for c in val["checks"] if c["status"] == "FAIL"],
+            "checks": val["checks"], "artifacts": artifacts,
             "core_bytes": len(core), "appendix_bytes": len(apx)}
 
 

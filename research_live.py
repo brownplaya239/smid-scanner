@@ -145,6 +145,16 @@ def acceptance_map(cik):
     return out, subs
 
 
+def sec_text(url):
+    """Fetch a filing document as text. `_sec_json` raises on anything
+    that is not JSON, and an EX-99.1 exhibit is HTML."""
+    _throttle()
+    r = requests.get(url, headers=SEC_HEADERS, timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError("SEC %s -> HTTP %d" % (url, r.status_code))
+    return r.text
+
+
 def concept(cik, tag, unit="USD", taxonomy="us-gaap"):
     try:
         j = _sec_json("https://data.sec.gov/api/xbrl/companyconcept/"
@@ -273,7 +283,7 @@ def _admit(rows, acc, report_time, dedupe_by_end=True):
 
 # ── market data: one canonical series ───────────────────────────────────
 
-def fetch_market(ticker):
+def fetch_market(ticker, as_of=None):
     import yfinance as yf
     tk = yf.Ticker(ticker)
     bars = tk.history(period="2y", interval="1d", auto_adjust=False)
@@ -291,8 +301,19 @@ def fetch_market(ticker):
         last_bar = last_bar.replace(tzinfo=timezone(timedelta(hours=-4)))
     session_close = last_bar.replace(hour=16, minute=0, second=0,
                                      microsecond=0)
-    partial = session_close > datetime.now(timezone.utc).astimezone(
-        session_close.tzinfo)
+    # One clock for the whole report. build_snapshot stamps report_time
+    # before calling this, so reading the wall clock again here put the
+    # quote a second *after* the gate instant it is meant to sit inside.
+    ref = as_of or datetime.now(timezone.utc)
+    now_local = ref.astimezone(session_close.tzinfo)
+    partial = session_close > now_local
+    if partial:
+        # The session has not closed yet. Publishing the nominal 16:00
+        # stamp would date the quote to a close that has not happened —
+        # a report written at 09:31 ET claimed market data from 16:00 ET.
+        # While the bar is still forming, the honest "as of" is the
+        # moment we read it.
+        session_close = now_local.replace(microsecond=0)
 
     def ma(n):
         return round(sum(closes[-n:]) / n, 2)
@@ -658,7 +679,7 @@ def build_snapshot(ticker, report_time=None):
     prov = {"warnings": [], "coverage": {}, "deferred": []}
 
     print("[1/7] market data (canonical series)...")
-    mk = fetch_market(ticker)
+    mk = fetch_market(ticker, as_of=now)
     prov["coverage"]["market"] = ("yahoo daily bars, %d issuer sessions"
                                   % mk["n_bars"])
 
@@ -764,11 +785,20 @@ def build_snapshot(ticker, report_time=None):
             retrieved_at=retrieved_at, calc_version="rs/v1",
             quality=rs.Q_DERIVED, evidence_refs=["CALC-rs_vs_spy"],
             note="12-week price return minus SPY's, same vendor and bars")
-    if mk.get("rel_volume") is not None:
+    # Relative volume compares one session's total against full-session
+    # averages. Mid-session that ratio is meaningless — four minutes into
+    # the day MRVL printed "0.04x", which reads as a volume collapse and
+    # is really just a day that has barely started. Publish it only once
+    # the session is complete, and say why when it is withheld.
+    if mk.get("rel_volume") is not None and not mk.get("partial_session"):
         snap["levels"]["rel_volume"] = mfact(
             mk["rel_volume"], "volume vs 20-day average", unit="x",
             refs=["CALC-rel_volume"],
             note="latest session volume / mean of the prior 20 sessions")
+    elif mk.get("partial_session"):
+        prov["coverage"]["rel_volume"] = (
+            "withheld: the session is still open, so today's partial "
+            "volume cannot be compared with completed-session averages")
 
     # shares outstanding: cover page of the most recent filing that was
     # ACCEPTED before report_time. Market cap is then derived, so the
@@ -813,7 +843,12 @@ def build_snapshot(ticker, report_time=None):
             evidence_id=ev_shares, evidence_refs=[ev_shares],
             quality=rs.Q_OK)
         cap = mk["last"] * shares
-        led.calc("market_cap", "last close x cover-page shares outstanding",
+        # Naming this "last close" mid-session is wrong: the price is the
+        # last observed trade, not a close that has not happened.
+        px_basis = ("last observed price (session still open)"
+                    if mk.get("partial_session") else "last close")
+        led.calc("market_cap",
+                 "%s x cover-page shares outstanding" % px_basis,
                  ["CALC-last_close", ev_shares], round(cap, 2), "USD")
         company["market_cap"] = rs.fact(
             cap, metric="market cap", unit="USD",
@@ -1060,6 +1095,34 @@ def build_snapshot(ticker, report_time=None):
     # tagged figure to admit and we will not reconstruct one.
     prov.setdefault("coverage", {})["non_gaap_margin"] = (
         "not available — non-GAAP measures are not XBRL-tagged")
+
+    # ── earnings exhibit: guidance and non-GAAP ─────────────────────────
+    # These are public and addressable; only our parser stood between the
+    # reader and them. Where it still cannot read a layout, the record
+    # says AVAILABLE_NOT_INGESTED rather than letting the gap read as an
+    # absence of disclosure.
+    print("[3b/7] earnings exhibit (guidance + non-GAAP)...")
+    try:
+        import sec_exhibit as SX
+        ex = SX.ingest(cik, acc, sec_text, report_time=report_time)
+    except Exception as e:
+        ex = {"disposition": "AVAILABLE_NOT_INGESTED", "reported": {},
+              "guidance": {}, "reason": "exhibit ingestion failed: %s" % e,
+              "url": None, "accession": None}
+    snap["exhibit"] = ex
+    if ex.get("accession"):
+        led.add("catalyst_records", "CAT-%s" % ex["accession"],
+                {"form": "8-K", "item": "2.02", "kind": "earnings exhibit",
+                 "accn": ex["accession"], "accepted": ex.get("accepted"),
+                 "url": ex.get("url"),
+                 "exhibit_disposition": ex.get("disposition"),
+                 "exhibit_reason": ex.get("reason")})
+    prov["coverage"]["earnings_exhibit"] = (
+        ("EX-99.1 parsed from 8-K %s: %d reported figures, %d guidance lines"
+         % (ex.get("accession"), len(ex.get("reported") or {}),
+            len(ex.get("guidance") or {})))
+        if ex.get("disposition") == "ADMITTED" else
+        ("AVAILABLE_NOT_INGESTED - %s" % (ex.get("reason") or "unparsed")))
 
     prov["deferred"] = [
         {"metric": m, "period_end": r.get("end"), "form": r.get("_form"),

@@ -29,7 +29,27 @@ def run(ticker, out_dir="out_v3", want_spy=True):
     import research_live as RL
 
     os.makedirs(out_dir, exist_ok=True)
-    snap, alt, recs, prov = RL.build_snapshot(ticker)
+    # A full snapshot costs three minutes of network. TD_SNAP_CACHE lets a
+    # layout or wording change be re-rendered against the identical
+    # snapshot instead of refetching, which also makes the output
+    # byte-comparable between runs.
+    cache = os.environ.get("TD_SNAP_CACHE")
+    cpath = os.path.join(cache, "%s.pkl" % ticker) if cache else None
+    if cpath and os.path.exists(cpath):
+        import pickle
+        with open(cpath, "rb") as fh:
+            snap, alt, recs, prov = pickle.load(fh)
+        print("  [cache] snapshot reused from %s" % cpath)
+    else:
+        snap, alt, recs, prov = RL.build_snapshot(ticker)
+        if cpath:
+            import pickle
+            os.makedirs(cache, exist_ok=True)
+            try:
+                with open(cpath, "wb") as fh:
+                    pickle.dump((snap, alt, recs, prov), fh)
+            except Exception as e:
+                print("  [cache] not saved: %s" % e)
     if alt and not snap.get("sentiment"):
         snap["sentiment"] = alt
 
@@ -49,13 +69,16 @@ def run(ticker, out_dir="out_v3", want_spy=True):
         print("  no bar series in the snapshot — charts omitted")
 
     res = R3.build_all(snap, out_dir=out_dir, chart_png=mini,
-                       chart_full=full, recs=recs, prov=prov)
+                       chart_full=full, recs=recs, prov=prov,
+                       led=(prov or {}).get("_ledger"))
     print("\n%s" % ticker)
     for k in ("core", "appendix", "evidence", "validation"):
         print("  %-11s %s" % (k, res[k]))
     print("  %-11s %s" % ("result", "PASS" if res["ok"] else "PROBLEMS"))
-    for p in res["problems"]:
-        print("     [%s] %s: %s" % (p["stage"], p["code"], p["detail"]))
+    for c in res["checks"]:
+        if c["status"] in ("FAIL", "WARN"):
+            print("     %-6s %-30s %s"
+                  % (c["status"], c["check_id"], c["observed"]))
     return res
 
 

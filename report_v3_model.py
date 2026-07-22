@@ -192,6 +192,19 @@ def ladder(levels, price):
         out.append({"key": key, "label": label, "value": v,
                     "grade": grade((levels or {}).get(key))})
     out.sort(key=lambda r: r["value"])
+    # Two levels can legitimately land on the same price — a stock that
+    # just made a 52-week high has a 60-session high equal to it. Listing
+    # both is a duplicate rung, not two triggers, so they merge into one
+    # stage that names both. MRVL surfaced this at 329.88.
+    merged = []
+    for r in out:
+        if merged and abs(merged[-1]["value"] - r["value"]) < 0.005:
+            prev = merged[-1]
+            prev["label"] = "%s / %s" % (prev["label"], r["label"])
+            prev["key"] = "%s+%s" % (prev["key"], r["key"])
+            continue
+        merged.append(r)
+    out = merged
     if price is None:
         return out
     for r in out:
@@ -399,19 +412,21 @@ def catalysts(snap, now=None):
                              "%d day%s ago" % (whole,
                                                "" if whole == 1 else "s")))
         driver["grade"] = DERIVED
-    elif news:
-        driver["text"] = ("No company disclosure inside the last %d days. "
-                          "The most recent coverage is \"%s\" (%s)."
-                          % (CURRENT_DRIVER_DAYS,
-                             news[0].get("headline") or "",
-                             news[0].get("publisher") or "unattributed"))
+        driver["references_catalyst"] = True
+    else:
+        # Reading a cause out of a news headline is inference dressed as
+        # explanation. With no company disclosure inside the window the
+        # honest answer is that we do not know, and coverage is listed
+        # separately without being promoted to a cause.
+        driver["text"] = ("No verified company-specific driver. No issuer "
+                          "disclosure inside the last %d days explains the "
+                          "current tape; press coverage is listed below but "
+                          "is not evidence of cause."
+                          % CURRENT_DRIVER_DAYS)
+        driver["grade"] = OBSERVED
+        driver["references_catalyst"] = False
         driver["stale_catalyst"] = bool(age is not None
                                         and age > CURRENT_DRIVER_DAYS)
-    else:
-        driver["text"] = ("No confirmed company event and no qualifying "
-                          "coverage inside the window. We cannot name a "
-                          "driver, which is a gap in evidence and not a "
-                          "statement about the business.")
     nxt = []
     for u in cat.get("upcoming") or []:
         when = u.get("when")
@@ -441,6 +456,12 @@ def catalysts(snap, now=None):
 
 # ── ownership and insiders ──────────────────────────────────────────────
 
+# How many filing rows the core brief prints. The evidence package keeps
+# all of them; the page shows this many, and the count it states must be
+# this number rather than the admitted total.
+OWNERSHIP_SHOWN = 4
+
+
 def ownership_view(snap):
     """A count of 13D/G filings is only meaningful if each one can be
     named. Our filer parser does not read the filing body, so we can
@@ -460,6 +481,7 @@ def ownership_view(snap):
             unnamed += 1
         et, _ = to_et(f.get("accepted"))
         rows.append({"form": f.get("form"), "filer": f.get("filer"),
+                     "accepted_raw": f.get("accepted"),
                      "accepted": et or f.get("accepted"),
                      "accession": accn, "url": f.get("url"),
                      "stake": None, "ref": ref})
@@ -485,8 +507,15 @@ def ownership_view(snap):
         note = ("Ownership interpretation unavailable: %s. No stake size is "
                 "parsed from any filing body, so the count below is a count "
                 "of filings and nothing more." % "; ".join(gaps))
+    ages = [_days_between(r.get("accepted_raw") or r.get("accepted"),
+                          snap.get("report_time")) for r in rows]
+    ages = [a for a in ages if a is not None]
     return {"rows": rows, "n": len(rows), "filers_parsed": complete,
             "unnamed": unnamed, "without_accession": no_accn,
+            "shown_count": min(len(rows), OWNERSHIP_SHOWN),
+            "oldest_age_days": max(ages) if ages else None,
+            "newest_age_days": min(ages) if ages else None,
+            "window_days": (own.get("window_days") or 1825),
             "institutional_pct": own.get("institutional_pct"),
             "interpretation": note, "grade": OBSERVED}
 
@@ -604,22 +633,56 @@ def _state_path(ticker):
     return os.path.join(STATE_DIR, "%s.json" % str(ticker).upper())
 
 
-def prior_state(ticker):
+# A baseline is a *published* report, not whatever ran last. Two things
+# disqualify a candidate: it never passed validation, and it is so recent
+# that it is obviously the same working session rather than a prior
+# edition. Comparing "what changed" against a draft written a minute ago
+# invents a delta out of nothing.
+MIN_BASELINE_AGE_MINUTES = 60
+
+
+def prior_state(ticker, published_only=True, now=None):
+    """Return the last published baseline, or None with the reason it was
+    refused. Callers get (state, refusal_reason)."""
     try:
         with open(_state_path(ticker), "r", encoding="utf-8") as fh:
-            return json.load(fh)
+            st = json.load(fh)
     except Exception:
-        return None
+        return None, "no prior report on file"
+    if not published_only:
+        return st, None
+    if not st.get("published"):
+        return None, ("the most recent run was not published (it did not "
+                      "pass validation), so it cannot be a baseline")
+    if not st.get("validation_ok"):
+        return None, "the most recent run recorded a failed validation"
+    if not (st.get("artifacts") or {}).get("core_pdf", {}).get("sha256"):
+        return None, ("the most recent run recorded no artifact hash, so "
+                      "there is no published document to compare against")
+    age = _hours_between(st.get("published_at"),
+                         now or dt.datetime.now(dt.timezone.utc).isoformat())
+    if age is not None and age * 60.0 < MIN_BASELINE_AGE_MINUTES:
+        return None, ("the previous package was published %d minute(s) ago; "
+                      "that is a draft from this working session, not a "
+                      "prior edition"
+                      % int(round(age * 60.0)))
+    return st, None
 
 
-def save_state(snap):
-    """Persist the handful of scalars the next report needs to answer
-    'what changed'. Deliberately tiny — this is a diff key, not a cache
-    of the report."""
+def publish_state(snap, artifacts=None, validation=None, now=None):
+    """Record a baseline. Called only after a package validates, so the
+    next report's 'what changed' can only ever point at something that
+    was actually delivered."""
     lv = snap.get("levels") or {}
     dec = snap.get("decision") or {}
     st = {"ticker": snap.get("ticker"),
           "report_time": snap.get("report_time"),
+          "published": True,
+          "published_at": now or dt.datetime.now(
+              dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+          "validation_ok": bool((validation or {}).get("ok")),
+          "validator_version": (validation or {}).get("validator_version"),
+          "artifacts": artifacts or {},
           "price": spot(snap),
           "action": dec.get("current_action"),
           "ma20": rs.fv(lv.get("ma20")), "ma50": rs.fv(lv.get("ma50")),
@@ -643,16 +706,21 @@ def _side(price, ma):
     return "above" if price > ma else "below"
 
 
-def what_changed(snap, prior=None):
+def what_changed(snap, prior=None, published_only=True):
     """The single most useful line in a recurring report, and the one the
     old brief never had: a reader who saw last week's version wants the
     delta, not a re-read."""
-    prior = prior if prior is not None else prior_state(snap.get("ticker"))
+    refusal = None
+    if prior is None:
+        prior, refusal = prior_state(snap.get("ticker"),
+                                     published_only=published_only)
     if not prior:
-        return {"first_report": True, "items": [],
-                "note": "No prior report on file for %s; this is the first "
-                        "brief in the series, so there is nothing to compare "
-                        "against." % snap.get("ticker", "this name"),
+        return {"first_report": True, "items": [], "baseline": None,
+                "refusal": refusal,
+                "note": ("No published prior report to compare against for "
+                         "%s: %s. Nothing below is a change measurement."
+                         % (snap.get("ticker", "this name"),
+                            refusal or "no baseline on file")),
                 "grade": OBSERVED}
     lv = snap.get("levels") or {}
     dec = snap.get("decision") or {}
@@ -685,8 +753,13 @@ def what_changed(snap, prior=None):
         items.append({"text": "Evidence quality moved from %s to %s."
                               % (prior.get("evidence_quality"), eq),
                       "grade": DERIVED})
-    et, _ = to_et(prior.get("report_time"))
+    et, _ = to_et(prior.get("published_at") or prior.get("report_time"))
     return {"first_report": False, "items": items, "since": et,
+            "baseline": {"published_at": prior.get("published_at"),
+                         "core_pdf_sha256": (prior.get("artifacts") or {})
+                         .get("core_pdf", {}).get("sha256"),
+                         "validator_version": prior.get("validator_version")},
+            "refusal": None,
             "note": None if items else
             "Nothing material changed since the previous report.",
             "grade": DERIVED}
@@ -717,6 +790,10 @@ def build(snap, mk=None, prior=None):
         "ladder": ladder(lv, price),
         "recovery": recovery_stages(lv, price),
         "downside": downside_stages(lv, price),
+        "levels": level_groups(snap, price),
+        "prospective": prospective_conditions(snap, price),
+        "business": business_description(snap),
+        "exhibit": snap.get("exhibit") or {},
         "exit": exit_level(snap),
         "changed": what_changed(snap, prior),
         "catalysts": catalysts(snap),
@@ -726,3 +803,190 @@ def build(snap, mk=None, prior=None):
         "social": social_view(snap),
         "grades": GRADE_NOTE,
     }
+
+# ── levels, grouped by what they would actually mean ────────────────────
+
+def level_groups(snap, price=None):
+    """Three different kinds of level, which v3 ran together in one
+    ladder:
+
+      upside confirmation   a level whose reclaim would confirm the read
+      downside deterioration  a level whose loss would weaken it
+      structural boundary   the edge of the range price has traded in
+
+    The distinction is not cosmetic. A 60-session low is a structural
+    fact about where the stock has been; it is not a stop, and printing
+    it beside actionable triggers invites it to be used as one."""
+    price = price if price is not None else spot(snap)
+    lv = snap.get("levels") or {}
+    rungs = ladder(lv, price)
+    struct_keys = ("support", "resistance", "resistance_major")
+    up, down, struct = [], [], []
+    for r in rungs:
+        is_struct = all(k in struct_keys for k in r["key"].split("+"))
+        if is_struct:
+            struct.append(r)
+        elif r.get("side") == "above":
+            up.append(r)
+        else:
+            down.append(r)
+    return {"upside_confirmation": up,
+            "downside_deterioration": list(reversed(down)),
+            "structural": struct,
+            "structural_note":
+                "Range edges, not trade levels. These describe where price "
+                "has traded; none of them is an entry, a target or a stop."}
+
+
+# ── prospective conditions ──────────────────────────────────────────────
+
+def prospective_conditions(snap, price=None):
+    """Forward, checkable conditions — the things that would change the
+    read, stated before the fact.
+
+    v3's "What would break it" listed things already true (price is below
+    its averages, the multiple is high). A condition you can already tick
+    off is an observation, not a risk."""
+    price = price if price is not None else spot(snap)
+    ex = snap.get("exhibit") or {}
+    g = ex.get("guidance") or {}
+    rep = ex.get("reported") or {}
+    lv = snap.get("levels") or {}
+    out = []
+
+    rev = g.get("revenue")
+    if rev and rev.get("low") is not None:
+        out.append({
+            "text": "Next quarter's revenue prints below the guided low of "
+                    "$%.2fB (guide $%.2fB %s)."
+                    % (rev["low"] / 1000.0, rev["midpoint"] / 1000.0,
+                       rev.get("basis") or ""),
+            "kind": "financial", "grade": OBSERVED,
+            "testable_at": ex.get("guidance_period") or "next results",
+            "source": "8-K EX-99.1 outlook table"})
+    ngm_g, ngm_r = g.get("non_gaap_gross_margin"), rep.get(
+        "non_gaap_gross_margin")
+    if ngm_g and ngm_g.get("low") is not None:
+        tail = ""
+        if ngm_r and ngm_r.get("value") is not None:
+            tail = (" against %.1f%% just reported" % ngm_r["value"])
+        out.append({
+            "text": "Non-GAAP gross margin guides or prints below %.2f%%%s."
+                    % (ngm_g["low"], tail),
+            "kind": "financial", "grade": OBSERVED,
+            "testable_at": ex.get("guidance_period") or "next results",
+            "source": "8-K EX-99.1 outlook table"})
+    eps_g = g.get("non_gaap_eps")
+    if eps_g and eps_g.get("low") is not None:
+        out.append({
+            "text": "Non-GAAP diluted EPS comes in below the guided low of "
+                    "$%.2f (guide $%.2f %s)."
+                    % (eps_g["low"], eps_g["midpoint"],
+                       eps_g.get("basis") or ""),
+            "kind": "financial", "grade": OBSERVED,
+            "testable_at": ex.get("guidance_period") or "next results",
+            "source": "8-K EX-99.1 outlook table"})
+
+    ma200 = rs.fv(lv.get("ma200"))
+    if ma200 and price:
+        if price > ma200:
+            out.append({"text": "A daily close below the 200-day average at "
+                                "%.2f (%.1f%% away) ends the long-term "
+                                "uptrend." % (ma200,
+                                              (ma200 - price) / price * 100.0),
+                        "kind": "technical", "grade": DERIVED,
+                        "testable_at": "any session close"})
+        else:
+            out.append({"text": "Failure to reclaim the 200-day average at "
+                                "%.2f keeps the long-term trend broken."
+                                % ma200,
+                        "kind": "technical", "grade": DERIVED,
+                        "testable_at": "any session close"})
+    sup = rs.fv(lv.get("support"))
+    if sup and price:
+        out.append({"text": "A close below the 60-session low at %.2f puts "
+                            "price outside the range it has held."
+                            % sup,
+                    "kind": "structural", "grade": DERIVED,
+                    "testable_at": "any session close"})
+    return out[:4]
+
+
+# ── company description ─────────────────────────────────────────────────
+
+def business_description(snap):
+    """Plain English, and sourced.
+
+    The vendor profile is a single 40-word sentence of registration-style
+    prose ("develops, manufactures and markets products that enable..."),
+    which tells a reader nothing they could act on. We keep it as the
+    cited source, then state what the filings actually show — each clause
+    tied to a figure we admitted — rather than paraphrasing the boilerplate
+    back at them."""
+    co = snap.get("company") or {}
+    ov = co.get("overview") or {}
+    fu = snap.get("fundamentals") or {}
+    ex = snap.get("exhibit") or {}
+    rep = ex.get("reported") or {}
+    vendor = ov.get("text") or rs.fv(co.get("business_2s"))
+    src = ov.get("source") or "issuer profile (vendor)"
+
+    facts, refs = [], []
+    rev = rs.fv(fu.get("revenue_q"))
+    if rev:
+        facts.append("It reported $%.2fB of revenue in the most recent "
+                     "quarter" % (rev / 1e9))
+        refs.append("fundamentals.revenue_q")
+    gm = rs.fv(fu.get("gross_margin"))
+    ngm = (rep.get("non_gaap_gross_margin") or {}).get("value")
+    if gm and ngm:
+        facts.append("at a %.1f%% GAAP gross margin (%.1f%% non-GAAP, as the "
+                     "company presents it)" % (gm, ngm))
+        refs.append("exhibit.non_gaap_gross_margin")
+    elif gm:
+        facts.append("at a %.1f%% GAAP gross margin" % gm)
+    ocf = rs.fv(fu.get("operating_cash_flow"))
+    if ocf:
+        facts.append("and generated $%.0fM of operating cash flow"
+                     % (ocf / 1e6))
+        refs.append("fundamentals.operating_cash_flow")
+    plain = (", ".join(facts) + ".") if facts else None
+    return {"vendor_text": vendor, "vendor_source": src,
+            "plain": plain, "refs": refs,
+            "grade": OBSERVED if plain else INFERRED,
+            "note": "The first sentence is the vendor's own description. "
+                    "The figures after it are filed numbers, each traceable "
+                    "in the evidence package."}
+
+
+# ── news ────────────────────────────────────────────────────────────────
+
+CORE_NEWS_SHOWN = 3
+
+
+def news_implication(item):
+    """One line saying what the item IS, built from the relevance check we
+    already ran — not a reading of what it means for the price.
+
+    Summarising a headline's investment implication would be inference
+    presented as reporting. What we can state is whether the piece
+    actually discusses the company, how centrally, and whether an issuer
+    disclosure sits behind it."""
+    chk = item.get("article_check") or {}
+    m = chk.get("company_mentions") or chk.get("mentions")
+    first = chk.get("first_mention_pct")
+    tier = item.get("tier")
+    bits = []
+    if m:
+        bits.append("%d company mention%s" % (m, "" if m == 1 else "s"))
+    if first is not None:
+        try:
+            bits.append("first at %d%% of the body" % round(float(first)))
+        except (TypeError, ValueError):
+            pass
+    body = ", ".join(bits) if bits else "relevance verified"
+    kind = ("wire report" if str(tier or "").lower() in ("1", "tier1", "wire")
+            else "third-party commentary")
+    return {"text": "%s; %s. No issuer disclosure sits behind it."
+                    % (kind.capitalize(), body),
+            "grade": DERIVED}
