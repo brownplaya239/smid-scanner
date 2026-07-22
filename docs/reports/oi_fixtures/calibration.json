@@ -1,0 +1,25 @@
+{
+ "ok": true,
+ "version": "2026-07-22.oos-v1",
+ "strong_min": 0.5,
+ "partial_min": 0.35,
+ "n_train": 96,
+ "n_test": 64,
+ "in_sample_strong_rate": 1.0,
+ "in_sample_strong_n": 50,
+ "out_of_sample": {
+  "strong": {
+   "rate": 1.0,
+   "n": 30
+  },
+  "partial": {
+   "rate": 0.111,
+   "n": 9
+  },
+  "none": {
+   "rate": 0.12,
+   "n": 25
+  }
+ },
+ "monotonic": false
+}
