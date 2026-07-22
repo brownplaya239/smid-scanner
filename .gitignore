@@ -7,3 +7,6 @@ __pycache__/
 .wrangler/
 .dev.vars*
 !.dev.vars.example
+
+# local agent/session state — never commit (contains launch.json)
+.claude/

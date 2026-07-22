@@ -6055,9 +6055,11 @@
           <span class="report-credits" id="report-credits"></span>
         </h2>
         <p class="sub">
-          Full institutional one-pager: setup analysis, 12-month insider
-          transactions, institutional ownership, and price/volume
-          intelligence. PDF lands in the inline viewer below in
+          Five-page research brief: decision read, SEC point-in-time
+          fundamentals, Form 4 insider economics, price chart with levels,
+          and the alt-data social read as a built-in appendix. Every
+          figure carries an evidence reference. PDF lands in the inline
+          viewer below in
           ~60&ndash;90 seconds. Free accounts get 3 lifetime reports;
           Pro gets 10/month.
         </p>
@@ -6102,25 +6104,27 @@
         <div id="ir-results" class="ir-results"></div>
       </div>
 
-      <!-- Alt-Data pane — merged from the former Alt-Data tab (v3 IA).
-           Same element IDs, so the generator/archive JS is untouched. -->
+      <!-- Alt-Data: the generator is RETIRED. The social read is now an
+           appendix inside the research brief above, built from the same
+           evidence ledger, so the two can no longer disagree. The history
+           list stays so previously generated reports remain reachable.
+           Element IDs are preserved for the archive JS. -->
       <div class="card">
         <h2>Alt-Data Intelligence</h2>
         <p class="sub">
-          Real-time alt-data for any ticker &mdash; news flow, StockTwits social
-          sentiment, Reddit chatter, and Nimble-extracted web context, synthesized
-          by Claude into a sentiment + narrative read. The PDF appears in the
-          archive below in ~1&ndash;2 minutes.
+          <strong>Now included in the research brief.</strong> Social and news
+          evidence &mdash; post counts, unique authors, directional split,
+          repeated-phrase checks and baseline status &mdash; ships as an
+          appendix inside every brief generated above, drawn from the same
+          evidence ledger as the decision pages. Generate a research report
+          to get it.
         </p>
-        <div class="input-row">
-          <input type="text" id="ticker-alt" placeholder="NVDA" maxlength="8"
-                 autocomplete="off" autocapitalize="characters" />
-          <button class="go" id="go-alt">Generate</button>
-        </div>
         <div id="status-alt"></div>
         <div id="viewer-alt"></div>
-        <h3 class="alt-hist-h">Your Recent Alt-Data Reports</h3>
-        <p class="sub">Private to your account &mdash; newest first. Only you can see these.</p>
+        <h3 class="alt-hist-h">Your Earlier Alt-Data Reports</h3>
+        <p class="sub">Standalone alt-data reports generated before the merge
+          &mdash; private to your account, newest first. No new ones are
+          created; the social read now arrives inside the research brief.</p>
         <div class="report-list" id="list-alt-data"></div>
       </div>
 
@@ -6918,7 +6922,8 @@
               <td>—</td><td>✓</td><td>✓</td></tr>
             <tr><td>Research reports</td>
               <td>3 lifetime</td><td>10/month</td><td>100/month</td></tr>
-            <tr><td>Alt-Data intelligence reports</td>
+            <tr><td>Alt-data social &amp; news appendix
+              <span class="muted">(inside every research report)</span></td>
               <td>—</td><td>Included</td><td>Included</td></tr>
             <tr><td>Report archive depth</td>
               <td>7 days</td><td>Full archive</td><td>Full archive</td></tr>
@@ -17789,8 +17794,9 @@
 
   setupLookup({ inputId:"ticker", btnId:"go", statusId:"status", viewerId:"viewer",
     listKey:"adhoc", reportType:"adhoc", runtime:"2-3 min" });
-  setupLookup({ inputId:"ticker-alt", btnId:"go-alt", statusId:"status-alt", viewerId:"viewer-alt",
-    listKey:"alt-data", reportType:"altdata", runtime:"1-2 min" });
+  // Alt-data generator retired — the social read is an appendix of the
+  // research brief. No input/button remain to bind, and the history list
+  // below still renders previously generated reports.
 
   // Paint the per-user recents on first load (empty state until sign-in);
   // onAuthStateChange + the per-tab nav handler refresh them thereafter.

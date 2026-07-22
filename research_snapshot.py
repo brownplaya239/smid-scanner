@@ -55,14 +55,86 @@ from datetime import datetime, timedelta, timezone
 # that is finding #10, enforced structurally rather than by review.
 
 
-def fact(value, source, as_of, basis=None, unit=None, note=None):
-    """value + where it came from + when it was true.
+PROD = "production"
+DEMO = "demo"
 
-    basis is REQUIRED for ratios/multiples (forward | trailing | ntm |
-    ltm) — the July 16 brief printed 33.8x and 50x with no denominator
-    stated, which is how two valid numbers became a contradiction."""
+# Quality states a value may carry.
+Q_OK = "ok"                  # reconciled to a cited primary source
+Q_UNVERIFIED = "unverified"  # sourced but not reconciled
+Q_DERIVED = "derived"        # computed from other facts in this snapshot
+Q_DEMO = "DEMO"              # synthetic — can never leave as a real report
+Q_STALE = "stale"
+
+
+def fact(value, source=None, as_of=None, basis=None, unit=None, note=None,
+         metric=None, source_url=None, source_type=None, period_end=None,
+         published_at=None, retrieved_at=None, market_asof=None,
+         calc_version=None, quality=Q_UNVERIFIED, evidence_id=None,
+         series_id=None, gaap=None, evidence_refs=None):
+    """A value plus everything needed to audit it.
+
+    period_end is WHEN THE PERIOD ENDED; published_at is WHEN THE NUMBER
+    BECAME PUBLIC. Conflating the two is what let a report written at
+    17:49 UTC quote results released at 20:05 UTC — a quarter-end date of
+    2026-06-30 says nothing about availability. The point-in-time gate
+    below keys on published_at ONLY.
+
+    basis stays REQUIRED for ratios (forward | trailing | ntm | ltm), and
+    gaap must be stated for income-statement figures."""
     return {"v": value, "src": source, "as_of": as_of,
-            "basis": basis, "unit": unit, "note": note}
+            "basis": basis, "unit": unit, "note": note,
+            "metric": metric, "source_url": source_url,
+            "source_type": source_type, "period_end": period_end,
+            "published_at": published_at, "retrieved_at": retrieved_at,
+            "market_asof": market_asof, "calc_version": calc_version,
+            "quality": quality, "evidence_id": evidence_id,
+            "series_id": series_id, "gaap": gaap,
+            # exact records/calculations this value stands on, so a reader
+            # can reproduce it from the companion export
+            "evidence_refs": list(evidence_refs or [])}
+
+
+def demo_fact(value, **kw):
+    """Synthetic value. Permanently marked; a snapshot containing one
+    cannot be exported as a normal research report."""
+    kw["quality"] = Q_DEMO
+    kw.setdefault("source", "SYNTHETIC DEMO FIXTURE")
+    kw.setdefault("source_type", "demo")
+    return fact(value, **kw)
+
+
+def is_demo(snap):
+    """True if the snapshot is demo-mode or carries ANY synthetic value.
+    Checked recursively so a single demo fact poisons the whole export."""
+    if (snap or {}).get("mode") == DEMO:
+        return True
+    def walk(o):
+        if isinstance(o, dict):
+            if o.get("quality") == Q_DEMO:
+                return True
+            return any(walk(v) for v in o.values())
+        if isinstance(o, (list, tuple)):
+            return any(walk(v) for v in o)
+        return False
+    return walk(snap)
+
+
+def demo_fact_paths(snap):
+    """Where the synthetic values are — so the block message can name
+    them instead of just refusing."""
+    out = []
+    def walk(o, path):
+        if isinstance(o, dict):
+            if o.get("quality") == Q_DEMO:
+                out.append(path or "?")
+                return
+            for k, v in o.items():
+                walk(v, "%s.%s" % (path, k) if path else str(k))
+        elif isinstance(o, (list, tuple)):
+            for i, v in enumerate(o):
+                walk(v, "%s[%d]" % (path, i))
+    walk(snap, "")
+    return out
 
 
 def fv(f, default=None):
@@ -259,19 +331,31 @@ def score_alt_data(posts, ticker, options_feed_verified=False):
     messages as 'heavy institutional call flow'."""
     tk = (ticker or "").upper()
     pat = re.compile(r"(?:^|[^A-Z])\$?" + re.escape(tk) + r"(?:[^A-Z]|$)")
-    kept, dropped, authors, seen_text = [], [], set(), set()
+    kept, dropped, authors = [], [], set()
+    seen_pairs = set()          # (author, text) — self-repeats only
+    text_authors = {}           # text -> distinct authors saying it
     for p in posts or []:
         body = str(p.get("text") or p.get("body") or "")
         if not pat.search(body.upper()):
             dropped.append(p)
             continue
         norm = re.sub(r"\s+", " ", body.strip().lower())
-        if norm in seen_text:
+        who = str(p.get("author") or p.get("user") or "?")
+        # De-dup is PER AUTHOR. The same wording from DIFFERENT accounts
+        # is not noise to be discarded — it is the only evidence that
+        # could reveal coordination, so it is counted and measured below.
+        if (who, norm) in seen_pairs:
             dropped.append(p)
             continue
-        seen_text.add(norm)
-        authors.add(str(p.get("author") or p.get("user") or "?"))
+        seen_pairs.add((who, norm))
+        text_authors.setdefault(norm, set()).add(who)
+        authors.add(who)
         kept.append(p)
+    # coordination = identical wording repeated across >=3 distinct
+    # accounts, expressed as a share of the relevant sample
+    echoed = [t for t, a in text_authors.items() if len(a) >= 3]
+    echo_posts = sum(len(text_authors[t]) for t in echoed)
+    echo_share = (100.0 * echo_posts / len(kept)) if kept else 0.0
     srcs = {}
     for p in kept:
         s = str(p.get("source") or "unknown")
@@ -289,9 +373,14 @@ def score_alt_data(posts, ticker, options_feed_verified=False):
         "unique_authors": len(authors),
         "source_mix": srcs,
         "flow_language": flow_language,
-        "coordination": ("no coordination detected in this limited "
-                         "sample" if len(kept) else
-                         "sample too small to assess"),
+        "echoed_phrases": len(echoed),
+        "echoed_share_pct": round(echo_share, 1),
+        "coordination": (
+            "sample too small to assess" if len(kept) < 20 else
+            ("%d phrase(s) repeated verbatim across 3+ accounts "
+             "(%.0f%% of the sample) — possible echo, not verified"
+             % (len(echoed), echo_share)) if echoed else
+            "no coordination detected in this limited sample"),
         "sample_adequacy": ("adequate" if len(kept) >= 50 and
                             len(authors) >= 25 else "thin"),
         "note": ("Buzz and sentiment count only ticker-relevant, "
@@ -342,6 +431,645 @@ def summarize_ownership(filings, institutional_pct=None):
 
 class Contradiction(Exception):
     pass
+
+
+def _iter_facts(o, path=""):
+    if isinstance(o, dict):
+        if "v" in o and "quality" in o:
+            yield path, o
+            return
+        for k, v in o.items():
+            yield from _iter_facts(v, "%s.%s" % (path, k) if path else str(k))
+    elif isinstance(o, (list, tuple)):
+        for i, v in enumerate(o):
+            yield from _iter_facts(v, "%s[%d]" % (path, i))
+
+
+def _parse_ts(v):
+    if not v:
+        return None
+    s = str(v).strip().replace("Z", "+00:00")
+    for fmt in (None, "%Y-%m-%d"):
+        try:
+            dt = (datetime.fromisoformat(s) if fmt is None
+                  else datetime.strptime(s, fmt))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+    return None
+
+
+def check_point_in_time(snap):
+    """A value may enter a report only if it was PUBLIC when the report
+    was written. Quarter-end is not publication."""
+    v = []
+    asof = _parse_ts(snap.get("report_time"))
+    if not asof:
+        return ["report_time missing or unparseable — point-in-time gate "
+                "cannot run"]
+    for path, f in _iter_facts(snap):
+        if f.get("v") is None:
+            continue
+        pub = _parse_ts(f.get("published_at"))
+        pe = _parse_ts(f.get("period_end"))
+        if pub is None:
+            if f.get("source_type") in ("filing", "press_release",
+                                        "company_release", "transcript"):
+                v.append("%s: %s has no published_at — a filing figure "
+                         "cannot be admitted without its publication time"
+                         % (path, f.get("metric") or "value"))
+            continue
+        if pub > asof:
+            v.append("%s: published_at %s is AFTER report_time %s — this "
+                     "information was not available when the report was "
+                     "written" % (path, f.get("published_at"),
+                                  snap.get("report_time")))
+        if pe and pub and pe > pub:
+            v.append("%s: period_end %s is after published_at %s "
+                     "(impossible)" % (path, f.get("period_end"),
+                                       f.get("published_at")))
+    return v
+
+
+def check_market_data_coherence(snap):
+    """One point-in-time price series behind every derived level, and
+    market cap that survives arithmetic."""
+    v = []
+    px = snap.get("price") or {}
+    lv = snap.get("levels") or {}
+    co = snap.get("company") or {}
+    head = fv(px.get("last"))
+    tech = fv(lv.get("price_used"))
+    if head is not None and tech is not None and head:
+        if abs(head - tech) / abs(head) > 0.001:
+            v.append("headline price %.2f differs from the price used for "
+                     "technical levels %.2f — levels must derive from one "
+                     "point-in-time series" % (head, tech))
+    # every level must declare the same series id
+    sid = None
+    for k in ("ma20", "ma50", "ma200", "support", "resistance",
+              "resistance_major", "atr14", "price_used"):
+        f = lv.get(k)
+        if isinstance(f, dict) and f.get("series_id"):
+            if sid is None:
+                sid = f["series_id"]
+            elif f["series_id"] != sid:
+                v.append("level '%s' derives from series '%s' but others "
+                         "use '%s'" % (k, f["series_id"], sid))
+    # market cap must reconcile with price x shares
+    cap = fv(co.get("market_cap"))
+    sh = fv(co.get("shares_outstanding"))
+    if cap is not None and sh and head:
+        implied = head * sh
+        if abs(implied - cap) / max(abs(cap), 1) > 0.02:
+            v.append("market cap %.1fB disagrees with price %.2f x shares "
+                     "%.1fM = %.1fB (>2%%) — one of them is wrong"
+                     % (cap / 1e9, head, sh / 1e6, implied / 1e9))
+    elif cap is not None and not sh:
+        v.append("market cap supplied without shares_outstanding — cannot "
+                 "verify the arithmetic")
+    # resistance ordering must be explained
+    r1, r2 = fv(lv.get("resistance")), fv(lv.get("resistance_major"))
+    if r1 is not None and r2 is not None:
+        if r2 < r1:
+            v.append("major resistance %.2f below first resistance %.2f"
+                     % (r2, r1))
+        if not (lv.get("resistance") or {}).get("note") or \
+           not (lv.get("resistance_major") or {}).get("note"):
+            v.append("first and major resistance are both present but not "
+                     "distinguished — each needs a note explaining what it "
+                     "is")
+    return v
+
+
+def check_evidence_links(snap, decision_claims=None):
+    """Every decision claim must point at an appendix evidence record,
+    and 'complete' may not be claimed unless every dependency is there."""
+    v = []
+    ap = snap.get("appendix") or {}
+    ids = set(ap.get("evidence_ids") or [])
+    claims = decision_claims or (snap.get("decision") or {}).get("claims") or []
+    for c in claims:
+        eid = (c or {}).get("evidence_id")
+        if not eid:
+            v.append("decision claim %r has no evidence_id"
+                     % str((c or {}).get("text", ""))[:60])
+        elif eid not in ids:
+            v.append("decision claim cites evidence_id '%s' which is not "
+                     "in the appendix" % eid)
+    if ap.get("claims_complete"):
+        need = set()
+        for path, f in _iter_facts(snap):
+            if f.get("v") is not None and f.get("evidence_id"):
+                need.add(f["evidence_id"])
+        # a completeness claim also covers everything the decision cites,
+        # including claims that cite nothing at all
+        uncited = sum(1 for c in claims if not (c or {}).get("evidence_id"))
+        for c in claims:
+            if (c or {}).get("evidence_id"):
+                need.add(c["evidence_id"])
+        if uncited:
+            v.append("appendix claims completeness while %d decision "
+                     "claim(s) cite no evidence record at all" % uncited)
+        missing = sorted(need - ids)
+        if missing:
+            v.append("appendix claims completeness but %d referenced "
+                     "record(s) are absent: %s"
+                     % (len(missing), ", ".join(missing[:5])))
+    return v
+
+
+# ── alt-data provenance, baseline and accounting ────────────────────────
+
+BASELINE_LIVE = "LIVE_PIT_BASELINE"          # archived before each report
+BASELINE_RECON = "RECONSTRUCTED_BASELINE"    # fetched/rebuilt after the fact
+BASELINE_NONE = "NO_BASELINE"
+BASELINE_KINDS = (BASELINE_LIVE, BASELINE_RECON, BASELINE_NONE)
+
+# Only originators qualify as PRIMARY. Channel checks and media are
+# secondary no matter how good the outlet.
+PRIMARY_NEWS_TYPES = ("company_ir", "sec", "regulator", "exchange",
+                      "company_release")
+SENTIMENT_CLASSES = ("bullish", "bearish", "neutral", "uncertain")
+COORD_MIN_AUTHORS = 3            # frozen: phrase shared by >=3 accounts
+ALT_MIN_AUTHORS = 10
+
+
+def social_record(source, record_id, published_at, retrieved_at, text,
+                  author_hash, url=None, relevance=None, sentiment=None,
+                  dup_group=None, disposition=None, reason=None,
+                  text_hash=None, quality=Q_UNVERIFIED):
+    """One auditable social/news observation. Every field is required for
+    production; a record missing provenance is rejected rather than
+    quietly counted. author_hash (not the handle) keeps the appendix
+    publishable without exposing individual accounts."""
+    import hashlib
+    return {
+        "source": source, "record_id": record_id, "url": url,
+        "author_hash": author_hash, "published_at": published_at,
+        "retrieved_at": retrieved_at,
+        "text_hash": text_hash or hashlib.sha256(
+            str(text or "").encode("utf-8")).hexdigest()[:16],
+        "relevance": relevance, "sentiment": sentiment,
+        "dup_group": dup_group, "disposition": disposition,
+        "reason": reason, "quality": quality, "_text": text,
+    }
+
+
+def validate_social_records(records):
+    """Provenance gate for the raw feed."""
+    v = []
+    need = ("source", "record_id", "author_hash", "published_at",
+            "retrieved_at", "text_hash", "relevance", "disposition")
+    for i, r in enumerate(records or []):
+        for k in need:
+            if r.get(k) in (None, ""):
+                v.append("social record %s missing '%s'"
+                         % (r.get("record_id") or "#%d" % i, k))
+        if r.get("disposition") == "counted" and not r.get("sentiment"):
+            v.append("counted record %s has no sentiment classification"
+                     % r.get("record_id"))
+        if r.get("disposition") not in (None, "counted", "rejected"):
+            v.append("record %s has unknown disposition '%s'"
+                     % (r.get("record_id"), r.get("disposition")))
+        if r.get("disposition") == "rejected" and not r.get("reason"):
+            v.append("rejected record %s gives no reason"
+                     % r.get("record_id"))
+    return v
+
+
+def build_alt_block(records, baseline=None, news=None,
+                    options_feed_verified=False):
+    """Full alt-data accounting from provenance-carrying records.
+
+    Every published number is derived here so the identities below
+    cannot drift apart: considered = counted + rejected, and
+    counted = bullish + bearish + neutral + uncertain."""
+    recs = list(records or [])
+    counted = [r for r in recs if r.get("disposition") == "counted"]
+    rejected = [r for r in recs if r.get("disposition") == "rejected"]
+    by_class, authors_by_class = {}, {}
+    for c in SENTIMENT_CLASSES:
+        sel = [r for r in counted if (r.get("sentiment") or "").lower() == c]
+        by_class[c] = len(sel)
+        authors_by_class[c] = len({r.get("author_hash") for r in sel})
+    authors = {r.get("author_hash") for r in counted}
+    # coordination: a phrase shared by >= COORD_MIN_AUTHORS distinct
+    # accounts. Reported as posts AND authors affected, never as a bare
+    # percentage that could be mistaken for the whole sample.
+    groups = {}
+    for r in counted:
+        groups.setdefault(r.get("dup_group") or r.get("text_hash"),
+                          []).append(r)
+    echo = {g: rs_ for g, rs_ in groups.items()
+            if len({x.get("author_hash") for x in rs_}) >= COORD_MIN_AUTHORS}
+    echo_posts = sum(len(v) for v in echo.values())
+    echo_authors = len({x.get("author_hash")
+                        for v in echo.values() for x in v})
+    src_mix = {}
+    for r in counted:
+        src_mix[r.get("source")] = src_mix.get(r.get("source"), 0) + 1
+    # author- vs post-weighted direction, reported separately
+    # Directional share is computed on the DIRECTIONAL subset (bull+bear),
+    # which on a real feed is usually a minority of the counted sample —
+    # a live ISRG run produced "100% bullish" from 6 bullish, 0 bearish
+    # and 15 neutral posts. The base travels with the number so the
+    # renderer cannot print the percentage without it.
+    dir_posts = by_class["bullish"] + by_class["bearish"]
+    dir_authors = authors_by_class["bullish"] + authors_by_class["bearish"]
+
+    def _pw():
+        return round(100.0 * by_class["bullish"] / dir_posts) if dir_posts \
+            else None
+
+    def _aw():
+        return round(100.0 * authors_by_class["bullish"] / dir_authors) \
+            if dir_authors else None
+    bl = dict(baseline or {"kind": BASELINE_NONE})
+    if bl.get("kind") not in BASELINE_KINDS:
+        bl["kind"] = BASELINE_NONE
+    cur = len(counted)
+    if bl.get("mean") is not None and bl.get("stdev"):
+        bl["z_score"] = round((cur - bl["mean"]) / bl["stdev"], 2)
+    block = {
+        "n_considered": len(recs),
+        "n_relevant": cur,
+        "n_rejected": len(rejected),
+        "unique_authors": len(authors),
+        "by_class": by_class,
+        "authors_by_class": authors_by_class,
+        "post_weighted_bull_pct": _pw(),
+        "author_weighted_bull_pct": _aw(),
+        "directional_posts": dir_posts,
+        "directional_authors": dir_authors,
+        "non_directional_posts": len(counted) - dir_posts,
+        "source_mix": src_mix,
+        "baseline": bl,
+        "coordination": {
+            "phrase_groups": len(echo),
+            "posts_affected": echo_posts,
+            "authors_affected": echo_authors,
+            "pct_of_relevant_posts": round(100.0 * echo_posts / cur, 1)
+                                     if cur else 0.0,
+            "threshold": "phrase shared verbatim by >=%d distinct accounts"
+                         % COORD_MIN_AUTHORS,
+            "label": ("possible echo — not verified as manipulation"
+                      if echo else "no repeated-phrase groups detected"),
+        },
+        "flow_language": ("options feed shows institutional-size execution"
+                          if options_feed_verified else
+                          "retail discussion — social posts cannot evidence "
+                          "institutional activity"),
+        "news": list(news or []),
+    }
+    block["classification"] = ("INSUFFICIENT SAMPLE"
+                               if len(authors) < ALT_MIN_AUTHORS else "SCORED")
+    # "Divergence" is a claim about a comparison. It requires a defined
+    # baseline, a stated comparison period, a sample above the floor,
+    # comparable source coverage, and a stored calculation. Absent any of
+    # those this is CONTEXT, and the heading says so.
+    _div_reqs = {
+        "baseline_defined": bl.get("kind") in (BASELINE_LIVE, BASELINE_RECON),
+        "comparison_period_stated": bl.get("sessions") is not None,
+        "sample_above_floor": len(authors) >= ALT_MIN_AUTHORS,
+        "calculation_stored": bl.get("z_score") is not None,
+    }
+    block["divergence_requirements"] = _div_reqs
+    block["divergence_supported"] = all(_div_reqs.values())
+    block["section_title"] = ("Alt-data divergence" if block["divergence_supported"]
+                              else "Alt-data context")
+    # decision read — explicitly observational when evidence is weak
+    weak = (block["classification"] == "INSUFFICIENT SAMPLE"
+            or bl.get("kind") != BASELINE_LIVE)
+    block["decision_read"] = {
+        "attention": ("elevated" if bl.get("z_score") and bl["z_score"] >= 2
+                      else "normal" if bl.get("z_score") is not None
+                      else "unknown (no baseline)"),
+        "direction": (
+            "no directional read — sample below author floor"
+            if block["classification"] == "INSUFFICIENT SAMPLE"
+            else "no directional posts — every counted post is neutral "
+                 "or uncertain"
+            if not dir_posts
+            else "%s%% bullish of the %d directional posts (%d of %d "
+                 "counted posts express no direction); author-weighted "
+                 "%s%% of %d directional authors"
+                 % (block["post_weighted_bull_pct"], dir_posts,
+                    block["non_directional_posts"], len(counted),
+                    block["author_weighted_bull_pct"], dir_authors)),
+        "reliability": ("weak" if weak else "moderate"),
+        "changed_vs_baseline": (
+            "no baseline available" if bl["kind"] == BASELINE_NONE else
+            "z=%s vs %s (%s)" % (bl.get("z_score"), bl["kind"],
+                                 bl.get("sessions"))),
+        # the mandated conclusion wording, used verbatim in PDF and JSON
+        "implication": ("Observational context only; not an independent "
+                        "trade signal." if weak else
+                        "Corroborating context only; not a standalone "
+                        "signal."),
+    }
+    return block
+
+
+def migrate_alt_block(block):
+    """Upgrade a v1-shaped alt-data block to the v2 schema.
+
+    v1 stored `coordination` as a bare sentence and carried no
+    directional base or section title. The v2 renderer reads those as
+    structured fields, so a stored v1 block crashed it outright. This
+    normalizes rather than guesses: counts that v1 never recorded stay
+    absent, and the block is marked so a reader knows which fields were
+    reconstructed and which were simply never captured.
+    """
+    b = dict(block or {})
+    if b.get("schema_version") == 2:
+        return b
+    migrated = []
+    co = b.get("coordination")
+    if isinstance(co, str):
+        b["coordination"] = {"label": co, "phrase_groups": None,
+                             "posts_affected": None,
+                             "authors_affected": None,
+                             "pct_of_relevant_posts": None,
+                             "threshold": None,
+                             "note": "counts not recorded in v1"}
+        migrated.append("coordination")
+    elif co is None:
+        b["coordination"] = {"label": "not assessed",
+                             "phrase_groups": None}
+        migrated.append("coordination")
+    bc = b.get("by_class") or {}
+    if bc and b.get("directional_posts") is None:
+        b["directional_posts"] = bc.get("bullish", 0) + bc.get("bearish", 0)
+        ac = b.get("authors_by_class") or {}
+        b["directional_authors"] = (ac.get("bullish", 0)
+                                    + ac.get("bearish", 0)) or None
+        if b.get("n_relevant") is not None:
+            b["non_directional_posts"] = (b["n_relevant"]
+                                          - b["directional_posts"])
+        migrated.append("directional_base")
+    if not b.get("section_title"):
+        bl = b.get("baseline") or {}
+        ok = (bl.get("kind") in (BASELINE_LIVE, BASELINE_RECON)
+              and bl.get("z_score") is not None)
+        b["section_title"] = ("Alt-data divergence" if ok
+                              else "Alt-data context")
+        b["divergence_supported"] = bool(ok)
+        migrated.append("section_title")
+    if b.get("baseline") is None:
+        b["baseline"] = {"kind": BASELINE_NONE}
+        migrated.append("baseline")
+    b["schema_version"] = 2
+    b["migrated_fields"] = migrated
+    return b
+
+
+def classify_news_tier(source_type):
+    """PRIMARY is reserved for originators."""
+    return ("PRIMARY SOURCE" if source_type in PRIMARY_NEWS_TYPES
+            else "SECONDARY")
+
+
+def check_alt_data_integrity(snap):
+    """Accounting identities, baseline honesty, and appendix truthfulness.
+    Any failure blocks export."""
+    v = []
+    s = snap.get("sentiment") or {}
+    if not s:
+        return v
+    con, rel, rej = (s.get("n_considered"), s.get("n_relevant"),
+                     s.get("n_rejected"))
+    if None not in (con, rel, rej) and con != rel + rej:
+        v.append("alt-data accounting fails: considered %d != relevant %d + "
+                 "rejected %d" % (con, rel, rej))
+    bc = s.get("by_class") or {}
+    if bc:
+        tot = sum(bc.get(c, 0) for c in SENTIMENT_CLASSES)
+        if rel is not None and tot != rel:
+            v.append("sentiment classes sum to %d but relevant is %d "
+                     "(bull/bear/neutral/uncertain must partition the "
+                     "counted sample)" % (tot, rel))
+    elif rel and s.get("classification") != "INSUFFICIENT SAMPLE":
+        # below the author floor the sample is descriptive-only, so no
+        # breakdown is required (and none may be scored). Above it, a
+        # directional read without the counts is unpublishable.
+        v.append("alt-data reports %d relevant posts with no directional "
+                 "breakdown — a signal cannot be called bullish without "
+                 "bull/bear/neutral/uncertain counts" % rel)
+    # A directional share is computed on bull+bear only. Publishing it
+    # without that base reads as a share of the whole sample: a live run
+    # produced "100% bullish" from 6 bullish / 0 bearish / 15 neutral.
+    pw = s.get("post_weighted_bull_pct")
+    if pw is not None:
+        dp = s.get("directional_posts")
+        if dp is None:
+            v.append("directional share of %s%% published without the "
+                     "number of directional posts it was computed on"
+                     % pw)
+        else:
+            if rel is not None and dp > rel:
+                v.append("directional posts %d exceed the counted sample "
+                         "%d" % (dp, rel))
+            dirline = str((s.get("decision_read") or {}).get("direction")
+                          or "")
+            if dirline and re.search(r"\d+\s*%", dirline) and \
+                    not re.search(r"\b%d\b" % dp, dirline):
+                v.append("direction reads %r without stating that it "
+                         "covers %d of %s counted posts"
+                         % (dirline[:60], dp, rel))
+    bl = s.get("baseline") or {}
+    kind = bl.get("kind")
+    if kind and kind not in BASELINE_KINDS:
+        v.append("unknown baseline kind '%s'" % kind)
+    if kind == BASELINE_RECON and bl.get("presented_as_live"):
+        v.append("reconstructed baseline is presented as information "
+                 "available at report time — it was not")
+    if kind in (BASELINE_LIVE, BASELINE_RECON):
+        for k in ("sessions", "missing_sessions", "mean", "median", "stdev"):
+            if bl.get(k) is None:
+                v.append("baseline missing '%s'" % k)
+    co = s.get("coordination") or {}
+    if isinstance(co, str):        # legacy string form carries no counts
+        co = {"label": co}
+    if co:
+        pa, rp = co.get("posts_affected"), s.get("n_relevant")
+        if pa is not None and rp and pa > rp:
+            v.append("coordination claims %d affected posts out of %d "
+                     "relevant" % (pa, rp))
+        if co.get("pct_of_relevant_posts") == 100 and pa != rp:
+            v.append("coordination reports 100%% of the sample but only "
+                     "%s of %s posts are covered" % (pa, rp))
+        lab = str(co.get("label") or "")
+        # flag an ASSERTION of manipulation, not an explicit denial such
+        # as "possible echo — not verified as manipulation"
+        if re.search(r"manipulat", lab, re.I) and not re.search(
+                r"not verified|no evidence|possible echo|cannot confirm",
+                lab, re.I):
+            v.append("coordination label asserts manipulation — use "
+                     "'possible echo' without stronger evidence")
+    for n in (s.get("news") or []):
+        if not n.get("url"):
+            v.append("news item %r has no URL" % str(n.get("headline"))[:48])
+        if not n.get("published_at"):
+            v.append("news item %r has no publication time"
+                     % str(n.get("headline"))[:48])
+        if n.get("tier") == "PRIMARY SOURCE" and \
+                n.get("source_type") not in PRIMARY_NEWS_TYPES:
+            v.append("news item %r marked PRIMARY but source_type '%s' is "
+                     "not an originator" % (str(n.get("headline"))[:40],
+                                            n.get("source_type")))
+    ap = snap.get("appendix") or {}
+    shown, total = ap.get("rows_shown"), ap.get("rows_total")
+    if shown is not None and total is not None and shown < total:
+        if not ap.get("sample_label"):
+            v.append("appendix shows %d of %d records without a 'sample "
+                     "showing X of Y' label" % (shown, total))
+        if not ap.get("machine_readable_export"):
+            v.append("appendix is truncated (%d of %d) with no "
+                     "machine-readable companion export" % (shown, total))
+    return v
+
+
+def check_alt_data_sample(snap):
+    """Below the author floor, alt-data may be described but never
+    scored directionally."""
+    v = []
+    s = snap.get("sentiment") or {}
+    if not s:
+        return v
+    ua = s.get("unique_authors") or 0
+    if ua < ALT_MIN_AUTHORS:
+        if s.get("classification") != "INSUFFICIENT SAMPLE":
+            v.append("alt-data has %d unique authors (<%d) and must be "
+                     "classified INSUFFICIENT SAMPLE, not scored"
+                     % (ua, ALT_MIN_AUTHORS))
+        for k in ("sentiment_score", "divergence_score", "bull_bear_ratio"):
+            if s.get(k) is not None:
+                v.append("alt-data carries directional '%s' on a sample of "
+                         "%d authors — descriptive only below %d"
+                         % (k, ua, ALT_MIN_AUTHORS))
+    return v
+
+
+def check_evidence_refs(snap, ledger_ids=None):
+    """Every rendered number and every decision claim must name the exact
+    records it stands on, and those records must exist.
+
+    `evidence_id` said WHICH FILING; `evidence_refs` says which fact,
+    which bar, which calculation — the difference between a citation and
+    a reproducible one.
+    """
+    v = []
+    known = set(ledger_ids or snap.get("evidence_index") or [])
+
+    def _resolve(refs):
+        bad = []
+        for r in refs:
+            r = str(r)
+            if ".." in r:
+                a, b = r.split("..", 1)
+                if not (a.strip() in known and b.strip() in known):
+                    bad.append(r)
+            elif r not in known:
+                bad.append(r)
+        return bad
+
+    for path, f in _iter_facts(snap):
+        if f.get("v") is None:
+            continue
+        if f.get("source_type") == "vendor" and not f.get("evidence_refs"):
+            continue                      # descriptive vendor strings
+        refs = f.get("evidence_refs") or []
+        if not refs:
+            v.append("%s: %s is rendered with no evidence_refs — a "
+                     "published number must name the records it derives "
+                     "from" % (path, f.get("metric") or "value"))
+        elif known:
+            bad = _resolve(refs)
+            if bad:
+                v.append("%s cites %d evidence ref(s) absent from the "
+                         "export: %s" % (path, len(bad), ", ".join(bad[:4])))
+    dec = snap.get("decision") or {}
+    for c in dec.get("claims") or []:
+        if not (c or {}).get("evidence_refs"):
+            v.append("decision claim %r carries no evidence_refs"
+                     % str((c or {}).get("text", ""))[:60])
+        elif known:
+            bad = _resolve(c["evidence_refs"])
+            if bad:
+                v.append("decision claim %r cites missing record(s): %s"
+                         % (str(c.get("text", ""))[:40], ", ".join(bad[:3])))
+    for key in ("business_quality", "setup_quality", "monitor_next"):
+        if dec.get(key) and not dec.get(key + "_refs"):
+            v.append("decision field '%s' is displayed without "
+                     "evidence_refs" % key)
+    return v
+
+
+def check_catalyst_discovery(snap):
+    """The catalyst must be the earliest VERIFIED primary disclosure.
+
+    Reading the 10-Q as the event when an 8-K item 2.02 released the same
+    results days earlier dates the event late and silently changes what
+    counts as the reaction window.
+    """
+    v = []
+    cat = snap.get("catalyst") or {}
+    if not cat.get("event_dt"):
+        return v
+    disc = cat.get("discovery") or {}
+    if not disc:
+        v.append("catalyst is published without a discovery record — the "
+                 "set of candidate disclosures scanned must be shown")
+        return v
+    if not disc.get("candidates_scanned"):
+        v.append("catalyst discovery scanned no candidates")
+    ep = disc.get("earliest_primary_release")
+    chosen = _parse_ts(cat.get("event_dt"))
+    if ep:
+        epd = _parse_ts(ep)
+        if epd and chosen and epd < chosen:
+            v.append("catalyst dated %s but an earlier primary release "
+                     "exists at %s (%s) — the company's own disclosure is "
+                     "the event, not the later filing"
+                     % (cat["event_dt"], ep,
+                        disc.get("earliest_primary_ref") or "unref'd"))
+    ver = cat.get("verification") or {}
+    if cat.get("event_kind") == "primary_release":
+        if not ver.get("fetched"):
+            v.append("primary release was not fetched, so it is unverified "
+                     "(%s)" % (ver.get("reason") or "no reason given"))
+        elif ver.get("is_results_disclosure") is False:
+            v.append("document chosen as the earnings catalyst does not "
+                     "read as a results disclosure: %s"
+                     % (ver.get("reason") or ""))
+    g = cat.get("grading") or {}
+    if not g:
+        v.append("catalyst carries no grading block")
+    elif g.get("state") != "POST_EVENT_GRADED" and \
+            not g.get("missing_condition"):
+        v.append("catalyst is ungraded but states no missing condition — "
+                 "say precisely what has not happened yet")
+    return v
+
+
+def check_decision_completeness(snap):
+    """Fields a reader acts on may not be blank."""
+    v = []
+    dec = snap.get("decision") or {}
+    if not dec:
+        return v
+    if not str(dec.get("monitor_next") or "").strip():
+        v.append("'Monitor next' is empty — a report that names no next "
+                 "condition cannot be acted on or reviewed")
+    if not str(dec.get("review_date") or "").strip():
+        v.append("no review date — 'revisit periodically' is not a date")
+    for key in ("business_quality", "setup_quality"):
+        if not str(dec.get(key) or "").strip():
+            v.append("'%s' is not stated; business quality and setup "
+                     "quality must be reported separately"
+                     % key.replace("_", " "))
+    return v
 
 
 def check_contradictions(snap, prose_sections=None):
@@ -543,7 +1271,39 @@ def check_contradictions(snap, prose_sections=None):
             v.append("[%s] treats 13G as 'lower conviction' — it denotes "
                      "passive/non-control filing status" % sec)
 
+    # 12-15. provenance, availability, arithmetic, evidence, sample floor
+    v += check_point_in_time(snap)
+    v += check_market_data_coherence(snap)
+    v += check_evidence_links(snap)
+    v += check_alt_data_sample(snap)
+    v += check_alt_data_integrity(snap)
+    v += check_evidence_refs(snap)
+    v += check_catalyst_discovery(snap)
+    v += check_decision_completeness(snap)
+
     return v
+
+
+class DemoExportBlocked(Exception):
+    """Raised when synthetic data is asked to leave as a real report."""
+
+
+def assert_exportable(snap, allow_demo=False):
+    """Hard gate between prototypes and research output.
+
+    A snapshot in demo mode, or containing ANY value marked Q_DEMO,
+    cannot be exported as a normal research report. Renderers must call
+    this; the only way past it is an explicit demo export, which is
+    watermarked and named so it can never be mistaken for research."""
+    if is_demo(snap) and not allow_demo:
+        paths = demo_fact_paths(snap)
+        raise DemoExportBlocked(
+            "SYNTHETIC DATA — export as a research report is blocked.\n"
+            "  mode: %s\n  %d demo value(s): %s\n"
+            "  Use build_demo(...) for a watermarked prototype, or supply "
+            "sourced facts." % (snap.get("mode"), len(paths),
+                                ", ".join(paths[:8]) or "(mode flag only)"))
+    return True
 
 
 def gate(snap, prose_sections=None, raise_on_fail=True):
@@ -635,10 +1395,103 @@ def isrg_july16_fixture():
     return snap, prose
 
 
+def isrg_v2_prototype_fixture():
+    """The v2 VISUAL PROTOTYPE exactly as rendered on 2026-07-21.
+
+    It looked clean, which is the danger. This fixture pins every way it
+    was not publishable so no future change can quietly re-admit them:
+      A. Q2 figures dated period_end 2026-06-30 but published 20:05 UTC,
+         quoted in a report written at 17:49 UTC (future information)
+      B. $445 price with a $178B market cap — ~357M shares implies ~$159B
+      C. Form 4 identity not verified against the filing
+      D. appendix asserting completeness while records are missing
+      E. first vs major resistance conflicting/unexplained
+      F. synthetic values throughout -> normal export must be impossible
+    """
+    now = "2026-07-16T17:49:00+00:00"
+    snap = new_snapshot("ISRG", now, "2026-07-16T17:45:00+00:00")
+    snap["mode"] = DEMO
+    snap["company"] = {
+        "name": demo_fact("Intuitive Surgical", metric="company name"),
+        # B: arithmetic that does not reconcile
+        "market_cap": demo_fact(178e9, metric="market cap",
+                                market_asof="2026-07-16T17:45:00+00:00"),
+        "shares_outstanding": demo_fact(357e6, metric="shares outstanding"),
+        "profitable": demo_fact(True, metric="profitable"),
+        "universe": "LARGE",
+    }
+    snap["price"] = {"last": demo_fact(445.0, metric="last price",
+                                       market_asof="2026-07-16T17:45:00+00:00")}
+    snap["levels"] = {
+        # A canonical series is claimed but the technical price disagrees
+        "price_used": demo_fact(447.5, metric="price used for levels",
+                                series_id="yf-1d-A"),
+        "ma20": demo_fact(470.0, metric="20d MA", series_id="yf-1d-A"),
+        "ma50": demo_fact(478.0, metric="50d MA", series_id="yf-1d-B"),
+        "ma200": demo_fact(486.0, metric="200d MA", series_id="yf-1d-A"),
+        "support": demo_fact(390.0, metric="support", series_id="yf-1d-A"),
+        # E: two resistances, unexplained, and inverted
+        "resistance": demo_fact(505.0, metric="first resistance",
+                                series_id="yf-1d-A"),
+        "resistance_major": demo_fact(486.0, metric="major resistance",
+                                      series_id="yf-1d-A"),
+    }
+    # A: Q2 results published AFTER the report was written
+    snap["fundamentals"] = {
+        "revenue_growth": demo_fact(
+            21.0, metric="revenue growth y/y", source_type="filing",
+            source_url="https://investor.intuitive.com/q2",
+            period_end="2026-06-30", published_at="2026-07-16T20:05:00+00:00",
+            basis="gaap"),
+        "installed_base": demo_fact(
+            "11,710", metric="da Vinci installed base",
+            source_type="company_release", period_end="2026-06-30",
+            published_at="2026-07-16T20:05:00+00:00"),
+    }
+    snap["valuation"] = {
+        "pe_forward": demo_fact(33.8, metric="P/E", basis="forward"),
+    }
+    snap["catalyst"] = {
+        "event_dt": "2026-07-16T20:05:00+00:00",
+        "state": PRE_EVENT,
+        "stated_times": {"brief": "2026-07-16T20:05Z"},
+    }
+    # C: Form 4 rows not reconciled to the filing
+    snap["insiders"] = summarize_insiders([
+        {"code": "F", "shares": 1200, "owner": "Gary Guthart",
+         "title": "CEO", "shares_owned_after": 48000,
+         "identity_verified": False},
+    ])
+    snap["ownership"] = summarize_ownership(
+        [{"form": "SC 13G/A", "filer": "Vanguard Group"}],
+        institutional_pct=88.0)
+    snap["sentiment"] = score_alt_data(
+        [{"text": "$ISRG calls", "author": "a"}], "ISRG")
+    # alt-data scored despite a 1-author sample
+    snap["sentiment"]["sentiment_score"] = 0.7
+    snap["decision"] = {
+        "current_action": "WAIT",
+        "position_plan": {},
+        "upgrade_trigger": "reclaim of $486 on volume",
+        "downside_confirmation": "loss of $390 support",
+        # every claim should cite an appendix record; these do not
+        "claims": [{"text": "Procedure growth 17% y/y"},
+                   {"text": "Recurring revenue 84% of mix",
+                    "evidence_id": "EV-NOT-IN-APPENDIX"}],
+    }
+    # D: completeness asserted while records are missing
+    snap["appendix"] = {"evidence_ids": [], "claims_complete": True}
+    snap["evidence"] = {"conviction": "low", "evidence_quality": "limited"}
+    return snap
+
+
 def self_test():
     fails = []
 
+    ran = []
+
     def chk(name, cond):
+        ran.append(name)
         print(("  PASS  " if cond else "  FAIL  ") + name)
         if not cond:
             fails.append(name)
@@ -672,15 +1525,30 @@ def self_test():
     # --- alt-data relevance (findings 8, 9) ---
     sc = score_alt_data(
         [{"text": "$ISRG calls", "author": "a"},
-         {"text": "$ISRG calls", "author": "a"},          # duplicate
+         {"text": "$ISRG calls", "author": "a"},          # self-repeat
          {"text": "NRED to the moon", "author": "b"},
          {"text": "earnings calendar", "author": "c"}], "ISRG")
-    chk("alt-data: irrelevant + duplicate posts dropped",
+    chk("alt-data: irrelevant + self-repeat posts dropped",
         sc["n_relevant"] == 1 and sc["n_dropped_irrelevant"] == 3)
+    # same wording from DIFFERENT accounts must be kept and measured,
+    # not silently collapsed — that is the coordination signal
+    echo = score_alt_data([{"text": "$ISRG to the moon", "author": u}
+                           for u in "abcdefghijklmnopqrstuvwxy"], "ISRG")
+    chk("alt-data: cross-author echo kept, not dropped",
+        echo["n_relevant"] == 25 and echo["unique_authors"] == 25)
+    chk("alt-data: coordination quantified on echo",
+        echo["echoed_phrases"] == 1 and "3+ accounts" in echo["coordination"])
     chk("alt-data: never claims institutional from social",
         "retail call discussion" in sc["flow_language"])
+    chk("alt-data: tiny sample says 'too small', never 'clean'",
+        "too small to assess" in sc["coordination"])
+    # adequate sample, no echo -> the honest non-verdict (never "CLEAN")
+    varied = score_alt_data(
+        [{"text": "$ISRG note number %d" % i, "author": "u%d" % i}
+         for i in range(30)], "ISRG")
     chk("alt-data: CLEAN replaced with limited-sample wording",
-        "limited sample" in sc["coordination"])
+        "no coordination detected in this limited sample"
+        == varied["coordination"])
     chk("analyst: PT cut with rating held is not a downgrade",
         classify_analyst_action("Buy", "Buy", 600, 520)
         == "price_target_cut_rating_maintained")
@@ -731,14 +1599,45 @@ def self_test():
 
     # --- a corrected snapshot must PASS ---
     good, _ = isrg_july16_fixture()
+    # the new provenance/arithmetic gate applies here too: supply the
+    # share count so market cap can be verified, and drop the directional
+    # score on a 1-author alt-data sample.
+    good["company"]["shares_outstanding"] = fact(357e6, "10-Q",
+                                                 "2026-06-30")
+    good["company"]["market_cap"] = fact(445.0 * 357e6, "derived",
+                                         "2026-07-16", quality=Q_DERIVED)
+    good["sentiment"]["classification"] = "INSUFFICIENT SAMPLE"
     good["company"]["universe"] = "LARGE"
     good["levels"]["ma200"] = fact(486.0, "calc", "2026-07-16")
     good["decision"] = {
         "current_action": "AVOID",
+        "action_display": "AVOID NEW SWING LONGS",
         "position_plan": {},
         "upgrade_trigger": "reclaim of $486 (200-day) on above-average volume",
         "downside_confirmation": "loss of $390 support on expanding volume",
+        # fields a reader acts on may not be blank
+        "business_quality": "solid",
+        "business_quality_basis": "GAAP margin and filed growth",
+        "business_quality_refs": ["REC-business_quality"],
+        "setup_quality": "damaged",
+        "setup_quality_basis": "price below all three moving averages",
+        "setup_quality_refs": ["CALC-ma200"],
+        "monitor_next": "reclaim of $486, or a close below $390",
+        "monitor_next_refs": ["CALC-ma200"],
+        "review_date": "2026-07-23",
     }
+    good["catalyst"]["discovery"] = {
+        "candidates_scanned": 3,
+        "earliest_primary_release": "2026-07-16T20:05:00+00:00",
+        "earliest_primary_ref": "CAT-8K-2202",
+    }
+    good["catalyst"]["event_dt"] = "2026-07-16T20:05:00+00:00"
+    good["catalyst"]["event_kind"] = "primary_release"
+    good["catalyst"]["verification"] = {"fetched": True,
+                                        "is_results_disclosure": True}
+    good["catalyst"]["grading"] = {
+        "state": POST_EVENT_GRADED, "reaction_pct": -14.15,
+        "missing_condition": None}
     good["valuation"] = {
         "pe_forward": fact(33.8, "yfinance", "2026-07-16", basis="forward"),
         "pe_trailing": fact(50.0, "yfinance", "2026-07-16", basis="trailing"),
@@ -747,6 +1646,19 @@ def self_test():
                         "data_completeness": 0.8}
     good["catalyst"]["stated_times"] = {
         "alt_data": "2026-07-16T20:05Z", "ticker_report": "2026-07-16T20:05Z"}
+    # stamp every fact with a resolvable ref so this fixture exercises the
+    # OTHER gates; the ref gate has its own dedicated cases below. This
+    # runs LAST so sections assigned above are all covered.
+    _idx = ["REC-business_quality", "CALC-ma200", "CAT-8K-2202"]
+    for _p, _f in _iter_facts(good):
+        if _f.get("v") is not None and not _f.get("evidence_refs"):
+            _rid = "FIX-" + _p.replace(".", "-")
+            _f["evidence_refs"] = [_rid]
+            _idx.append(_rid)
+    for _c in good["decision"].get("claims") or []:
+        _c["evidence_refs"] = ["CALC-ma200"]
+    good["evidence_index"] = _idx
+
     clean_prose = {
         "page1": ("Intuitive Surgical is a large-cap medtech leader. Price "
                   "sits below the 20- and 50-day averages ahead of "
@@ -763,7 +1675,141 @@ def self_test():
             print("      ! " + x)
     chk("CORRECTED snapshot publishes cleanly", len(gv) == 0)
 
-    total = 26
+    # --- reproducibility: evidence_refs must exist and must resolve ---
+    import copy
+    r1 = copy.deepcopy(good)
+    r1["levels"]["ma200"]["evidence_refs"] = []
+    chk("R-A rendered number without evidence_refs is blocked",
+        any("no evidence_refs" in x for x in check_evidence_refs(r1)))
+    r2 = copy.deepcopy(good)
+    r2["levels"]["ma200"]["evidence_refs"] = ["CALC-does-not-exist"]
+    chk("R-B evidence_ref absent from the export is blocked",
+        any("absent from the export" in x for x in check_evidence_refs(r2)))
+    r3 = copy.deepcopy(good)
+    r3["decision"]["claims"] = [{"text": "Procedure growth 17%",
+                                 "evidence_id": "X"}]
+    chk("R-C decision claim without evidence_refs is blocked",
+        any("no evidence_refs" in x for x in check_evidence_refs(r3)))
+    r4 = copy.deepcopy(good)
+    r4["decision"]["monitor_next_refs"] = []
+    chk("R-D displayed decision field without refs is blocked",
+        any("without evidence_refs" in x for x in check_evidence_refs(r4)))
+
+    # --- catalyst discovery: the earliest primary release wins ---
+    c1 = copy.deepcopy(good)
+    c1["catalyst"]["event_dt"] = "2026-07-21T21:25:51+00:00"
+    chk("C-A later periodic filing chosen over earlier release is blocked",
+        any("earlier primary release exists" in x
+            for x in check_catalyst_discovery(c1)))
+    c2 = copy.deepcopy(good)
+    c2["catalyst"].pop("discovery")
+    chk("C-B catalyst without a discovery record is blocked",
+        any("without a discovery record" in x
+            for x in check_catalyst_discovery(c2)))
+    c3 = copy.deepcopy(good)
+    c3["catalyst"]["verification"] = {"fetched": False,
+                                      "reason": "HTTP 404"}
+    chk("C-C unverified primary release is blocked",
+        any("unverified" in x for x in check_catalyst_discovery(c3)))
+    c4 = copy.deepcopy(good)
+    c4["catalyst"]["grading"] = {"state": "POST_EVENT_UNGRADED",
+                                 "missing_condition": None}
+    chk("C-D ungraded event with no stated missing condition is blocked",
+        any("states no missing condition" in x
+            for x in check_catalyst_discovery(c4)))
+    c5 = copy.deepcopy(good)
+    c5["catalyst"]["grading"] = {
+        "state": "POST_EVENT_UNGRADED",
+        "missing_condition": "no full session has closed after the release"}
+    chk("C-E ungraded WITH a precise missing condition is allowed",
+        not check_catalyst_discovery(c5))
+
+    # --- decision completeness ---
+    d1 = copy.deepcopy(good)
+    d1["decision"]["monitor_next"] = ""
+    chk("D-A empty 'Monitor next' is blocked",
+        any("Monitor next' is empty" in x
+            for x in check_decision_completeness(d1)))
+    d2 = copy.deepcopy(good)
+    d2["decision"]["review_date"] = ""
+    chk("D-B missing review date is blocked",
+        any("no review date" in x for x in check_decision_completeness(d2)))
+    d3 = copy.deepcopy(good)
+    d3["decision"]["business_quality"] = ""
+    chk("D-C business quality not stated separately is blocked",
+        any("business quality" in x
+            for x in check_decision_completeness(d3)))
+
+    # --- alt-data accounting, as named assertions ---
+    a1 = copy.deepcopy(good)
+    a1["sentiment"] = {"n_considered": 30, "n_relevant": 24,
+                       "n_rejected": 3}
+    chk("A-A sample accounting that does not balance is blocked",
+        any("accounting fails" in x for x in check_alt_data_integrity(a1)))
+    a2 = copy.deepcopy(good)
+    a2["sentiment"] = {"n_considered": 30, "n_relevant": 24, "n_rejected": 6,
+                       "post_weighted_bull_pct": 100,
+                       "unique_authors": 20, "classification": "SCORED",
+                       "by_class": {"bullish": 6, "bearish": 0,
+                                    "neutral": 15, "uncertain": 3},
+                       "decision_read": {"direction": "100% bullish"}}
+    chk("A-B bare directional percentage without its base is blocked",
+        any("without stating that it covers" in x or
+            "without the number of directional posts" in x
+            for x in check_alt_data_integrity(a2)))
+
+    # ── v2 prototype regression: every blocking condition ─────────────
+    proto = isrg_v2_prototype_fixture()
+    pv = check_contradictions(proto)
+    pblob = " || ".join(pv).lower()
+    print("  v2 prototype fixture -> %d contradictions:" % len(pv))
+    for x in pv:
+        print("      * " + x)
+    print("")
+    chk("P-A future-published Q2 data blocked", "after report_time" in pblob)
+    chk("P-B $445/$178B arithmetic inconsistency blocked",
+        "disagrees with price" in pblob)
+    chk("P-C conflicting/unexplained resistance blocked", "resistance" in pblob)
+    chk("P-D incomplete appendix completeness claim blocked",
+        "claims completeness" in pblob)
+    chk("P-E decision claim without evidence_id blocked",
+        "no evidence_id" in pblob)
+    chk("P-F alt-data scored below author floor blocked",
+        "insufficient sample" in pblob or "directional" in pblob)
+    chk("P-G mixed price series blocked",
+        "one point-in-time series" in pblob or "derives from series" in pblob)
+    blocked = False
+    try:
+        assert_exportable(proto)
+    except DemoExportBlocked:
+        blocked = True
+    chk("P-H demo fixture cannot export as a normal report", blocked)
+    chk("P-I demo export allowed only when explicitly requested",
+        assert_exportable(proto, allow_demo=True) is True)
+    chk("P-J demo values individually traceable",
+        len(demo_fact_paths(proto)) >= 8)
+    mixed = new_snapshot("TEST", "2026-07-16T17:49:00+00:00", "x")
+    mixed["mode"] = PROD
+    mixed["price"] = {"last": demo_fact(100.0, metric="price")}
+    chk("P-K one demo fact poisons a production snapshot", is_demo(mixed))
+    pit = new_snapshot("T", "2026-07-16T17:49:00+00:00", "x")
+    pit["fundamentals"] = {"rev": fact(1.0, metric="rev",
+        source_type="filing", period_end="2026-06-30",
+        published_at="2026-07-16T20:05:00+00:00")}
+    chk("P-L quarter-end alone does not admit a figure",
+        any("after report_time" in x.lower()
+            for x in check_point_in_time(pit)))
+    pit2 = new_snapshot("T", "2026-07-16T17:49:00+00:00", "x")
+    pit2["fundamentals"] = {"rev": fact(1.0, metric="rev",
+        source_type="filing", period_end="2026-03-31",
+        published_at="2026-04-18T20:05:00+00:00")}
+    chk("P-M prior-quarter figure published pre-report is admitted",
+        not check_point_in_time(pit2))
+
+
+    # count what actually ran: a hardcoded total reported "42/42" no
+    # matter how many checks existed, so new checks were invisible
+    total = len(ran)
     print("\n%d/%d checks passed" % (total - len(fails), total))
     return 0 if not fails else 1
 

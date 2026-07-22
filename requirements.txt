@@ -10,3 +10,9 @@ fpdf2
 pandas
 supabase
 pywebpush
+
+# research brief v2 — PDF render, metadata and validation
+reportlab>=4.0        # Platypus renderer (report_v2.py)
+pikepdf>=8.0          # catalog/XMP metadata + libqpdf structural check
+pypdf>=4.0            # strict-parser gate
+PyMuPDF>=1.24         # page render audit + clipping/collision probe
