@@ -1,4 +1,4 @@
-name: Ticker One-Pager Lookup
+name: Ticker Research Brief (v2)
 
 on:
   workflow_dispatch:
@@ -38,12 +38,42 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run ticker lookup
+      # v2 research brief: SEC point-in-time fundamentals, Form 4
+      # economics, catalyst discovery, price chart, and the alt-data
+      # appendix folded in — one PDF instead of two reports.
+      - name: Generate research brief (v2)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python scanner.py --ticker "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}"
+        run: python research_live.py --ticker "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}"
+
+      # the brief blocks its own export on any gate failure, so a green
+      # step above already means every displayed number reconciled
+      - name: Assert validation report is clean
+        run: |
+          python - <<'EOF'
+          import glob, json, sys
+          f = sorted(glob.glob("*_validation_report.json"))
+          if not f:
+              sys.exit("no validation report produced")
+          v = json.load(open(f[-1], encoding="utf-8"))
+          bad = []
+          if not v.get("pdf_parsers_ok"): bad.append("pdf parsers")
+          # "unavailable" must not read as a pass in CI: if the strict
+          # parsers did not run, the PDF guarantee was never tested
+          for name in ("qpdf_check", "pypdf", "render"):
+              st = (v.get("pdf_parsers") or {}).get(name, {}).get("status")
+              if st != "pass": bad.append("%s=%s" % (name, st))
+          if not v["hash_verification"]["ok"]: bad.append("hash verification")
+          if not v["count_reconciliation"]["ok"]: bad.append("count reconciliation")
+          if v["evidence_references"]["missing_references"]: bad.append("missing evidence refs")
+          if not v.get("page_render", {}).get("audit_ok"): bad.append("page render")
+          print(json.dumps({k: v[k] for k in
+                ("pdf_parsers_ok", "evidence_references", "accessibility")}, indent=1))
+          if bad: sys.exit("validation failed: " + ", ".join(bad))
+          print("validation clean")
+          EOF
 
       - name: Publish report to site archive
         run: bash scripts/publish_reports.sh

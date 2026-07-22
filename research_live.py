@@ -2094,7 +2094,62 @@ def _claim_index(snap):
     return out
 
 
+def run_for_user(ticker, user_id="", out_dir=None):
+    """CI entry point for a user-requested research brief.
+
+    Mirrors scanner.py's contract: build, then upload to the requester's
+    private Storage, falling back to the public archive when Storage is
+    not configured. The alt-data appendix rides inside this one PDF, so
+    a user no longer needs a second report to get the social read.
+
+    The evidence bundle is uploaded alongside it. The PRIVATE audit
+    snapshot is NOT uploaded — it is retained build-side only, which is
+    exactly why the public bundle says hashes need it to verify.
+    """
+    out_dir = out_dir or os.getcwd()
+    ticker = ticker.upper().strip()
+    print("=" * 62)
+    print("RESEARCH BRIEF v2: %s (user %s)"
+          % (ticker, user_id or "<public archive>"))
+    print("=" * 62)
+    snap, rep, pdf_path, ev_path, led, audit_path, val_path, val = \
+        render(ticker, out_dir)
+
+    if not val.get("pdf_parsers_ok") or not rep.get("ok"):
+        raise SystemExit("brief failed validation; nothing uploaded: %s"
+                         % (rep.get("notes") or val.get("pdf_parsers")))
+
+    with open(pdf_path, "rb") as fh:
+        pdf_bytes = fh.read()
+    now = datetime.now(timezone.utc)
+    filename = "research_%s_%s.pdf" % (ticker, now.strftime("%Y-%m-%d_%H%M"))
+    try:
+        from report_archive import archive, upload_user_report
+        uploaded = False
+        if user_id:
+            uploaded = upload_user_report(pdf_bytes, filename, user_id,
+                                          ticker, "research")
+        if not uploaded:
+            archive(pdf_bytes, filename)
+            print("  Archived publicly: %s" % filename)
+    except Exception as e:
+        print("  archive/upload failed: %s" % e)
+
+    print("\n%s | %d pages | evidence records %d | %s"
+          % (filename, rep.get("pages"),
+             val["evidence_references"]["records_total"],
+             "hashes verified" if val["hash_verification"]["ok"]
+             else "HASH VERIFICATION FAILED"))
+    return 0
+
+
 def main():
+    if "--user-id" in sys.argv or "--for-user" in sys.argv:
+        def _opt(name, default=""):
+            return (sys.argv[sys.argv.index(name) + 1]
+                    if name in sys.argv else default)
+        return run_for_user(_opt("--ticker", "ISRG"), _opt("--user-id"),
+                            _opt("--out") or None)
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     ticker = (args[0] if args else "ISRG").upper()
     out_dir = os.getcwd()
