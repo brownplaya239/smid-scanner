@@ -135,8 +135,8 @@
 "ACI": {
 "earnings_date": "2026-07-23",
 "earnings_session": "BMO",
-"fetched": "2026-07-09",
-"mkt_cap": 6847102353.54,
+"fetched": "2026-07-22",
+"mkt_cap": 7209538386.56,
 "sector": "Consumer / Retail"
 },
 "ACLS": {
@@ -1223,6 +1223,13 @@
 "fetched": "2026-07-17",
 "mkt_cap": 17319506609.46,
 "sector": "Financials"
+},
+"BETA": {
+"earnings_date": "2026-08-12",
+"earnings_session": "BMO",
+"fetched": "2026-07-22",
+"mkt_cap": 4511280171.45,
+"sector": "Industrials / Transport Eq"
 },
 "BFLY": {
 "earnings_date": "2026-07-31",
@@ -3544,8 +3551,8 @@
 "FANG": {
 "earnings_date": "2026-08-03",
 "earnings_session": "AMC",
-"fetched": "2026-07-02",
-"mkt_cap": 49449251346.66,
+"fetched": "2026-07-22",
+"mkt_cap": 56206396740.600006,
 "sector": "Energy"
 },
 "FAST": {
@@ -4479,6 +4486,13 @@
 "mkt_cap": 4295951637.45,
 "sector": "Real Estate"
 },
+"HIG": {
+"earnings_date": "2026-07-23",
+"earnings_session": "AMC",
+"fetched": "2026-07-22",
+"mkt_cap": 38921093823.6,
+"sector": "Financials"
+},
 "HIMS": {
 "earnings_date": "2026-08-10",
 "earnings_session": "AMC",
@@ -4622,8 +4636,8 @@
 "HRMY": {
 "earnings_date": "2026-08-04",
 "earnings_session": "BMO",
-"fetched": "2026-07-07",
-"mkt_cap": 2142607938.76,
+"fetched": "2026-07-22",
+"mkt_cap": 2132766183.8400002,
 "sector": "Healthcare / Biotech"
 },
 "HSAI": {
@@ -7681,8 +7695,8 @@
 "PSN": {
 "earnings_date": "2026-07-29",
 "earnings_session": "BMO",
-"fetched": "2026-07-02",
-"mkt_cap": 5604604715.190001,
+"fetched": "2026-07-22",
+"mkt_cap": 5903074788.78,
 "sector": "Tech / Software"
 },
 "PSNL": {
@@ -7705,6 +7719,13 @@
 "fetched": "2026-06-03",
 "mkt_cap": 4452915069.690001,
 "sector": "Energy"
+},
+"PTGX": {
+"earnings_date": "2026-08-06",
+"earnings_session": "AMC",
+"fetched": "2026-07-22",
+"mkt_cap": 8894905999.630001,
+"sector": "Healthcare / Biotech"
 },
 "PTON": {
 "earnings_date": "2026-08-06",
@@ -8094,8 +8115,8 @@
 "RLAY": {
 "earnings_date": "2026-08-06",
 "earnings_session": "AMC",
-"fetched": "2026-06-30",
-"mkt_cap": 4044972561.9199996,
+"fetched": "2026-07-22",
+"mkt_cap": 4206248407.6000004,
 "sector": "Healthcare / Biotech"
 },
 "RMBS": {
@@ -8463,10 +8484,10 @@
 "sector": "Consumer / Retail"
 },
 "SGHC": {
-"earnings_date": "2026-08-05",
+"earnings_date": "2026-08-04",
 "earnings_session": "AMC",
-"fetched": "2026-07-08",
-"mkt_cap": 7544940301.8,
+"fetched": "2026-07-22",
+"mkt_cap": 7920917124.92,
 "sector": "Other"
 },
 "SGI": {
@@ -8878,8 +8899,8 @@
 "SRAD": {
 "earnings_date": "2026-07-28",
 "earnings_session": "BMO",
-"fetched": "2026-06-09",
-"mkt_cap": 4514175385.72,
+"fetched": "2026-07-22",
+"mkt_cap": 4345559398.18,
 "sector": "Other"
 },
 "SRE": {
@@ -9408,10 +9429,10 @@
 "sector": "Industrials"
 },
 "TMO": {
-"earnings_date": "2026-07-22",
+"earnings_date": "2026-07-23",
 "earnings_session": "BMO",
-"fetched": "2026-06-29",
-"mkt_cap": 190652960188.94998,
+"fetched": "2026-07-22",
+"mkt_cap": 194528972068.90002,
 "sector": "Other"
 },
 "TMUS": {
@@ -10309,6 +10330,13 @@
 "fetched": "2026-07-17",
 "mkt_cap": 160901065572.11002,
 "sector": "Tech / Hardware"
+},
+"WEAT": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-07-22",
+"mkt_cap": null,
+"sector": "Financials"
 },
 "WELL": {
 "earnings_date": "2026-07-27",
