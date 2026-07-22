@@ -68,11 +68,27 @@ MARGIN = 0.55 * inch
 def _register_fonts():
     """Embed real TTFs so the PDF renders identically everywhere and does
     not emit the core-font warnings the review flagged."""
-    cands = [
-        ("Brief", "C:/Windows/Fonts/calibri.ttf", "C:/Windows/Fonts/calibrib.ttf"),
-        ("Brief", "C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
+    # DejaVu FIRST, and from matplotlib's own copy so it resolves on every
+    # platform without installing anything. Page fitting is measured in
+    # glyph widths: with Calibri picked up on Windows and DejaVu on the
+    # Linux CI runner, every layout decision was calibrated against a font
+    # production never uses. NOW passed locally at 88% of page 4 and
+    # rendered a fifth page in CI, which the PAGE_COUNT gate caught.
+    # Matching the two is the only way local measurement means anything.
+    cands = []
+    try:
+        import matplotlib as _mpl
+        _d = os.path.join(os.path.dirname(_mpl.__file__), "mpl-data",
+                          "fonts", "ttf")
+        cands.append(("Brief", os.path.join(_d, "DejaVuSans.ttf"),
+                      os.path.join(_d, "DejaVuSans-Bold.ttf")))
+    except Exception:
+        pass
+    cands += [
         ("Brief", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
          "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+        ("Brief", "C:/Windows/Fonts/calibri.ttf", "C:/Windows/Fonts/calibrib.ttf"),
+        ("Brief", "C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
     ]
     for name, reg, bold in cands:
         if os.path.exists(reg) and os.path.exists(bold):

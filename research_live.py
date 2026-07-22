@@ -2608,6 +2608,13 @@ def _claim_index(snap):
 def run_for_user(ticker, user_id="", out_dir=None):
     """CI entry point for a user-requested research brief.
 
+    REVERTED TO v2 2026-07-22. render_v3() below is complete and tested,
+    but the v3 core overflows four pages under the font CI actually uses
+    (DejaVuSans; local dev was silently resolving Calibri), and PAGE_COUNT
+    correctly refused to publish. MRVL and TXN both failed. Switching this
+    back to render_v3 is a one-line change once the layout is
+    font-robust — nothing else here needs to move.
+
     Mirrors scanner.py's contract: build, then upload to the requester's
     private Storage, falling back to the public archive when Storage is
     not configured. The alt-data appendix rides inside this one PDF, so
@@ -2620,61 +2627,37 @@ def run_for_user(ticker, user_id="", out_dir=None):
     out_dir = out_dir or os.getcwd()
     ticker = ticker.upper().strip()
     print("=" * 62)
-    print("RESEARCH BRIEF v3: %s (user %s)"
+    print("RESEARCH BRIEF v2: %s (user %s)"
           % (ticker, user_id or "<public archive>"))
     print("=" * 62)
-    res = render_v3(ticker, out_dir)
+    snap, rep, pdf_path, ev_path, led, audit_path, val_path, val = \
+        render(ticker, out_dir)
 
-    # The v3 verdict is one boolean over 66 structured checks, and it is
-    # only true when the mutation suite also proved each numeric check can
-    # fail. Publishing a brief that does not pass its own gate is the
-    # thing this whole pipeline exists to prevent.
-    for c in res["checks"]:
-        if c["status"] in ("FAIL", "WARN"):
-            print("  %-6s %-30s %s"
-                  % (c["status"], c["check_id"], c["observed"]))
-    if not res.get("ok"):
-        bad = [c["check_id"] for c in res["checks"] if c["status"] == "FAIL"]
+    if not val.get("pdf_parsers_ok") or not rep.get("ok"):
         raise SystemExit("brief failed validation; nothing uploaded: %s"
-                         % ", ".join(bad) or "see validation report")
+                         % (rep.get("notes") or val.get("pdf_parsers")))
 
+    with open(pdf_path, "rb") as fh:
+        pdf_bytes = fh.read()
     now = datetime.now(timezone.utc)
-    stamp = now.strftime("%Y-%m-%d_%H%M")
-    # The core brief is the report. The appendix is its audit trail and
-    # ships beside it under a matching name so a reader who wants the
-    # evidence can reach it from the filename alone.
-    parts = [("core", res["core"], "research_%s_%s.pdf" % (ticker, stamp)),
-             ("appendix", res["appendix"],
-              "research_%s_%s_appendix.pdf" % (ticker, stamp))]
-    filename = parts[0][2]
+    filename = "research_%s_%s.pdf" % (ticker, now.strftime("%Y-%m-%d_%H%M"))
     try:
         from report_archive import archive, upload_user_report
-        for kind, path, name in parts:
-            with open(path, "rb") as fh:
-                blob = fh.read()
-            uploaded = False
-            if user_id:
-                uploaded = upload_user_report(blob, name, user_id,
-                                              ticker, "research")
-            if not uploaded:
-                archive(blob, name)
-                print("  Archived publicly: %s" % name)
+        uploaded = False
+        if user_id:
+            uploaded = upload_user_report(pdf_bytes, filename, user_id,
+                                          ticker, "research")
+        if not uploaded:
+            archive(pdf_bytes, filename)
+            print("  Archived publicly: %s" % filename)
     except Exception as e:
         print("  archive/upload failed: %s" % e)
 
-    # build_all returns the paths and the verdict; the counts and the
-    # mutation result live in the validation artifact it just wrote.
-    try:
-        with open(res["validation"], encoding="utf-8") as fh:
-            v = json.load(fh)
-    except Exception:
-        v = {}
-    cnt, mut = v.get("counts") or {}, v.get("mutation_tests") or {}
-    print("\n%s + appendix | %d checks (%d pass, %d warn) | mutation %s/%s %s"
-          % (filename, cnt.get("total", 0), cnt.get("pass", 0),
-             cnt.get("warn", 0), mut.get("passed", 0), mut.get("total", 0),
-             "all checks proven" if mut.get("all_checks_proven")
-             else "NOT PROVEN"))
+    print("\n%s | %d pages | evidence records %d | %s"
+          % (filename, rep.get("pages"),
+             val["evidence_references"]["records_total"],
+             "hashes verified" if val["hash_verification"]["ok"]
+             else "HASH VERIFICATION FAILED"))
     return 0
 
 

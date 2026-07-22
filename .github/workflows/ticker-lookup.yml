@@ -41,7 +41,7 @@ jobs:
       # v2 research brief: SEC point-in-time fundamentals, Form 4
       # economics, catalyst discovery, price chart, and the alt-data
       # appendix folded in — one PDF instead of two reports.
-      - name: Generate research brief (v3)
+      - name: Generate research brief (v2)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -54,43 +54,24 @@ jobs:
         run: |
           python - <<'EOF'
           import glob, json, sys
-          # v3 writes <TICKER>_research_brief_v3_validation.json. The v2
-          # report_validation/v1 shape (pdf_parsers_ok, hash_verification,
-          # count_reconciliation, page_render) does not exist here: v3
-          # replaced it with one structured object per check plus a
-          # mutation suite, so this asserts the v3 contract instead.
-          f = sorted(glob.glob("*_research_brief_v3_validation.json"))
+          f = sorted(glob.glob("*_validation_report.json"))
           if not f:
-              sys.exit("no v3 validation report produced")
+              sys.exit("no validation report produced")
           v = json.load(open(f[-1], encoding="utf-8"))
-          checks = v.get("checks") or []
-          fails = [c for c in checks
-                   if c.get("status") == "FAIL"
-                   and c.get("severity") in ("FATAL", "ERROR")]
-          mut = v.get("mutation_tests") or {}
           bad = []
-          if not checks:
-              bad.append("no checks ran")
-          if fails:
-              bad.append("%d blocking failure(s): %s"
-                         % (len(fails), ", ".join(c["check_id"]
-                                                  for c in fails[:6])))
-          # A green run whose gates were never exercised proves nothing.
-          if not mut.get("all_checks_proven"):
-              bad.append("mutation suite did not prove every check can fail "
-                         "(%s/%s)" % (mut.get("passed"), mut.get("total")))
-          if not v.get("ok"):
-              bad.append("validator reports ok=false")
-          print(json.dumps({
-              "validator": v.get("validator_version"),
-              "counts": v.get("counts"),
-              "mutation": {k: mut.get(k)
-                           for k in ("passed", "total", "all_checks_proven")},
-              "warnings": [c["check_id"] for c in checks
-                           if c.get("status") == "WARN"],
-          }, indent=1))
-          if bad:
-              sys.exit("validation failed: " + "; ".join(bad))
+          if not v.get("pdf_parsers_ok"): bad.append("pdf parsers")
+          # "unavailable" must not read as a pass in CI: if the strict
+          # parsers did not run, the PDF guarantee was never tested
+          for name in ("qpdf_check", "pypdf", "render"):
+              st = (v.get("pdf_parsers") or {}).get(name, {}).get("status")
+              if st != "pass": bad.append("%s=%s" % (name, st))
+          if not v["hash_verification"]["ok"]: bad.append("hash verification")
+          if not v["count_reconciliation"]["ok"]: bad.append("count reconciliation")
+          if v["evidence_references"]["missing_references"]: bad.append("missing evidence refs")
+          if not v.get("page_render", {}).get("audit_ok"): bad.append("page render")
+          print(json.dumps({k: v[k] for k in
+                ("pdf_parsers_ok", "evidence_references", "accessibility")}, indent=1))
+          if bad: sys.exit("validation failed: " + ", ".join(bad))
           print("validation clean")
           EOF
 

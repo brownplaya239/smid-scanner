@@ -943,7 +943,7 @@ def _page4(snap, view):
     news = all_news[:M.CORE_NEWS_SHOWN]
     st += [para("Coverage", "h2")]
     if news:
-        nr = []
+        nr, imps = [], []
         for n in news:
             et, _ = M.to_et(n.get("published_at"))
             head = _clean(safe(clip(n.get("headline"), 100)))
@@ -951,15 +951,24 @@ def _page4(snap, view):
                 head = ('<link href="%s" color="#1f3a5f">%s</link>'
                         % (_clean(n["url"]), head))
             imp = M.news_implication(n)
-            nr.append([Paragraph(head + "<br/>"
-                                 + '<font color="%s">%s</font>'
-                                 % (MUTED.hexval(), _clean(imp["text"])),
-                                 ST["cell"]),
+            imps.append(imp["text"])
+            nr.append([Paragraph(head, ST["cell"]),
                        "%s · %s" % (n.get("publisher") or "unattributed",
                                     et or "undated")])
         st.append(_table(nr, [BODY_W * .64, BODY_W * .32],
                          header=["Item and what it is",
                                  "Publisher and time"], zebra=True))
+        # Every row carried the same sentence — "third-party commentary,
+        # no issuer disclosure sits behind it" — three times over, two
+        # lines each. Identical text repeated per row is not per-row
+        # evidence; where the reads differ they are still listed
+        # individually.
+        uniq = []
+        for t in imps:
+            if t not in uniq:
+                uniq.append(t)
+        st.append(para(uniq[0] if len(uniq) == 1
+                       else "  ·  ".join(uniq), "small"))
         # The stated count must describe THIS document, not the pipeline.
         # Every count names the artifact it counts. "5 records displayed"
         # meant three different things depending on which document the
