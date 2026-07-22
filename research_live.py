@@ -1633,9 +1633,11 @@ def build_snapshot(ticker, report_time=None):
     snap["sentiment"] = dict(alt)
 
     print("[6/7] catalyst discovery (earliest primary release)...")
+    # step [3b/7] already resolved the earnings exhibit; handing it over
+    # lets verification read the release instead of the cover page.
     cat = discover_catalyst(acc, report_time,
                             (rev_cur or {}).get("end") if rev_cur else None,
-                            mk, led)
+                            mk, led, exhibit=snap.get("exhibit"))
     ev_dt = cat["event_dt"]
     grading = cat["grading"]
     snap["catalyst"] = {
@@ -1655,14 +1657,19 @@ def build_snapshot(ticker, report_time=None):
                                "company-confirmed)",
                        "when": mk["next_earnings"]}]
                      if mk.get("next_earnings") else []),
+        "refusal": cat.get("refusal"),
+        # An unverified candidate must not be described as "the earliest
+        # verified public disclosure" — that is the one sentence in this
+        # block a reader would act on, and it would be false.
         "description": (
-            "%s — the earliest verified public disclosure of these "
-            "results, found by scanning %d filings; the later periodic "
-            "filing is not the catalyst"
-            % ("company earnings release (8-K item 2.02)"
-               if cat["event_kind"] == "primary_release"
-               else "periodic filing (no 8-K results release found)",
-               cat["discovery"]["candidates_scanned"])
+            (cat["refusal"] if cat.get("refusal") else
+             "%s — the earliest verified public disclosure of these "
+             "results, found by scanning %d filings; the later periodic "
+             "filing is not the catalyst"
+             % ("company earnings release (8-K item 2.02)"
+                if cat["event_kind"] == "primary_release"
+                else "periodic filing (no 8-K results release found)",
+                cat["discovery"]["candidates_scanned"]))
             if ev_dt else "no dated catalyst in window"),
     }
 
@@ -1787,7 +1794,7 @@ def build_snapshot(ticker, report_time=None):
 
 
 def discover_catalyst(acc, report_time, period_end, bars, ledger,
-                      lookback_days=120):
+                      lookback_days=120, exhibit=None):
     """Find the EARLIEST verified public disclosure of the results, not
     the most convenient one.
 
@@ -1838,7 +1845,7 @@ def discover_catalyst(acc, report_time, period_end, bars, ledger,
     # fetchable and mention results
     verification = None
     if chosen:
-        verification = _verify_release(chosen)
+        verification = _verify_release(chosen, exhibit=exhibit)
         chosen = dict(chosen, verification=verification)
     for c in candidates:
         ledger.add("catalyst_records", "CAT-%s" % c["accn"],
@@ -1848,11 +1855,30 @@ def discover_catalyst(acc, report_time, period_end, bars, ledger,
         "state": "UNGRADED",
         "missing_condition": "no catalyst disclosure found in the "
                              "%d-day lookback" % lookback_days}
+    # A candidate we could not verify is not a verified release, and the
+    # honest move is to stop calling it one rather than to publish it and
+    # let the gate kill the whole brief. Demoting the kind means the
+    # catalyst no longer CLAIMS to be a results disclosure, so there is
+    # nothing left to contradict — and the gate's check keeps its teeth
+    # for the case it was written for: something published AS a verified
+    # primary release that is not one.
+    kind = chosen["kind"] if chosen else None
+    refusal = None
+    if kind == "primary_release" and verification \
+            and verification.get("is_results_disclosure") is not True:
+        kind = "unverified_release"
+        refusal = ("An 8-K carrying item 2.02 was filed at %s, but this "
+                   "report could not confirm it discloses results: %s. It "
+                   "is listed as a filing, not read as the catalyst."
+                   % (chosen["accepted"],
+                      verification.get("reason") or "no reason recorded"))
+
     return {
         "event_dt": chosen["accepted"] if chosen else None,
         "event_ref": "CAT-%s" % chosen["accn"] if chosen else None,
-        "event_kind": chosen["kind"] if chosen else None,
+        "event_kind": kind,
         "verification": verification,
+        "refusal": refusal,
         "discovery": {
             "lookback_days": lookback_days,
             "candidates_scanned": len(candidates),
@@ -1870,10 +1896,33 @@ def discover_catalyst(acc, report_time, period_end, bars, ledger,
     }
 
 
-def _verify_release(cand):
-    """Fetch the release and confirm it reads as a results disclosure."""
-    out = {"fetched": False, "is_results_disclosure": None, "reason": None}
+def _verify_release(cand, exhibit=None):
+    """Fetch the release and confirm it reads as a results disclosure.
+
+    Read the EXHIBIT, not the cover page. An 8-K carrying item 2.02 is
+    almost always a wrapper that says "a press release is attached hereto
+    as Exhibit 99.1" and nothing else; the results live in the exhibit.
+    Checking the wrapper for results language and concluding the company
+    did not report results is a bug about which file we opened.
+
+    Measured on TXN's 2026-04-22 filing: the wrapper is 4,250 characters
+    and matches one phrase, the exhibit is 19,292 and matches five. Across
+    a 20-issuer sample the exhibit clears the bar 20/20 while the wrapper
+    clears it 19/20 — and 11 of those 19 clear it by exactly one hit, on
+    boilerplate. Passing was luck, and TXN's counsel writing "first-quarter"
+    with a hyphen was enough to lose it.
+
+    step [3b/7] has already resolved the exhibit for the results 8-K, so
+    when its accession matches the chosen candidate the URL is in hand and
+    no extra fetch is needed to point at the right document."""
+    out = {"fetched": False, "is_results_disclosure": None, "reason": None,
+           "document": "primary"}
     url = cand.get("url")
+    ex = exhibit or {}
+    if ex.get("url") and ex.get("accession") \
+            and ex["accession"] == cand.get("accn"):
+        url, out["document"] = ex["url"], "exhibit"
+    out["document_url"] = url
     if not url:
         out["reason"] = "no primary document URL in the submissions index"
         return out
@@ -1894,8 +1943,9 @@ def _verify_release(cand):
         out["matched_phrases"] = hits
         out["is_results_disclosure"] = len(hits) >= 2
         if not out["is_results_disclosure"]:
-            out["reason"] = ("document does not read as a results "
-                             "disclosure (matched %d phrases)" % len(hits))
+            out["reason"] = ("the %s document does not read as a results "
+                             "disclosure (matched %d of %d phrases)"
+                             % (out["document"], len(hits), 8))
     except Exception as e:
         out["reason"] = "fetch failed: %s" % e
     return out

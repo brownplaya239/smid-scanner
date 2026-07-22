@@ -1036,6 +1036,10 @@ def check_catalyst_discovery(snap):
                         disc.get("earliest_primary_ref") or "unref'd"))
     ver = cat.get("verification") or {}
     if cat.get("event_kind") == "primary_release":
+        # Still fatal, and deliberately so: this fires only when something
+        # is published AS a verified results release while its own
+        # verification says otherwise. That is a lie about provenance and
+        # no brief should carry it.
         if not ver.get("fetched"):
             v.append("primary release was not fetched, so it is unverified "
                      "(%s)" % (ver.get("reason") or "no reason given"))
@@ -1043,6 +1047,14 @@ def check_catalyst_discovery(snap):
             v.append("document chosen as the earnings catalyst does not "
                      "read as a results disclosure: %s"
                      % (ver.get("reason") or ""))
+    elif cat.get("event_kind") == "unverified_release":
+        # The pipeline found a candidate, could not confirm it, and said
+        # so instead of claiming it. Nothing is being misrepresented, so
+        # this is not a contradiction — but the refusal has to be on the
+        # record, or the demotion becomes a silent downgrade.
+        if not str(cat.get("refusal") or "").strip():
+            v.append("catalyst was demoted to unverified but states no "
+                     "refusal — say what could not be confirmed")
     g = cat.get("grading") or {}
     if not g:
         v.append("catalyst carries no grading block")
