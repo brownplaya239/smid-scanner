@@ -63,7 +63,19 @@ def run(ticker, out_dir="out_v3", want_spy=True):
             print("  SPY series unavailable (%s) — the relative-strength "
                   "panel will be omitted and labelled" % e)
 
+    return build_from_snapshot(snap, recs, prov, out_dir, mk=mk, spy=spy)
+
+
+def build_from_snapshot(snap, recs, prov, out_dir, mk=None, spy=None):
+    """Render the four v3 artefacts from a snapshot that already exists.
+
+    Split out of run() so the live CI path and this CLI build the brief
+    through the same code. A second copy of the chart-annotation and
+    build_all wiring is a second thing to drift, and the whole point of
+    shipping v3 to the site is that what a user downloads is what we
+    tested here."""
     import research_snapshot as _rs
+    mk = mk if mk is not None else ((prov or {}).get("_mk") or {})
     _lv = snap.get("levels") or {}
     _px = _rs.fv(_lv.get("price_used")) or _rs.fv(
         (snap.get("price") or {}).get("last"))
@@ -87,6 +99,10 @@ def run(ticker, out_dir="out_v3", want_spy=True):
                        chart_full=trading, chart_structural=structural,
                        recs=recs, prov=prov, chart_meta=tmeta,
                        led=(prov or {}).get("_ledger"))
+    return res
+
+
+def _report(ticker, res):
     print("\n%s" % ticker)
     for k in ("core", "appendix", "evidence", "validation"):
         print("  %-11s %s" % (k, res[k]))
@@ -104,7 +120,8 @@ def main():
     ap.add_argument("--out", default="out_v3")
     ap.add_argument("--no-spy", action="store_true")
     a = ap.parse_args()
-    res = run(a.ticker.upper(), a.out, not a.no_spy)
+    res = _report(a.ticker.upper(), run(a.ticker.upper(), a.out,
+                                        not a.no_spy))
     return 0 if res["ok"] else 1
 
 

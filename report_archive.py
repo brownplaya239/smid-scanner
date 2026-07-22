@@ -104,6 +104,16 @@ def rebuild_manifest(keep_per_type=30):
                 os.remove(os.path.join(REPORTS_DIR, e["file"]))
             except Exception:
                 pass
+            # The v3 brief ships an appendix beside it. That file does not
+            # match the timestamp pattern above, so it never lands in
+            # `entries` and would never be pruned — an unbounded pile of
+            # ~200KB PDFs in git, which is how this repo got to 564MB once
+            # already. It is retired with the report it documents.
+            try:
+                os.remove(os.path.join(
+                    REPORTS_DIR, e["file"][:-4] + "_appendix.pdf"))
+            except Exception:
+                pass
         manifest["reports"][typ] = [
             {k: v for k, v in e.items() if k != "sort"} for e in keep
         ]

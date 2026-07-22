@@ -17,3 +17,11 @@ __pycache__/
 .report_state_test/
 out_v3/
 .snapcache/
+
+# v3 build scratch written to the repo root by the CI report job.
+# publish_reports.sh stages only explicit paths so these are never
+# committed, but an accidental `git add -A` should not ship a 200KB PDF.
+*_research_brief_v3.pdf
+*_research_brief_v3_appendix.pdf
+*_research_brief_v3_evidence.json
+*_research_brief_v3_validation.json
