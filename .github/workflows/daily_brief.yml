@@ -22,6 +22,10 @@ on:
         description: 'Only send to this email (for testing)'
         required: false
         default: ''
+      skip_idempotency:
+        description: 'Re-send even if already sent today (test re-runs only)'
+        required: false
+        default: 'false'
 
 jobs:
   daily-brief:
@@ -78,6 +82,13 @@ jobs:
           fi
           if [ -n "${{ github.event.inputs.restrict_email }}" ]; then
             ARGS="$ARGS --me ${{ github.event.inputs.restrict_email }}"
+          fi
+          # Only meaningful alongside restrict_email: re-running a test
+          # send to one address should not be blocked by the day's
+          # idempotency record. Guarded so a scheduled run can never
+          # double-send to the whole list.
+          if [ "${{ github.event.inputs.skip_idempotency }}" = "true" ]              && [ -n "${{ github.event.inputs.restrict_email }}" ]; then
+            ARGS="$ARGS --skip-idempotency"
           fi
           python daily_brief.py $ARGS
 

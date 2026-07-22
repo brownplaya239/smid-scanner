@@ -2,8 +2,8 @@
  "schema": "tickerdesk_daily_brief/v1",
  "meta": {
   "subject": "Tape in transition \u00b7 11 watchlist changes",
-  "preheader": "SPY +0.83%  QQQ +1.85%  IWM +1.45%  DIA +0.69% VIX 17.6 +3.40% 10Y 4.64% (+1 bp) \u00b7 Crude Oil Inventories 10:30 a.m. ET",
-  "as_of": "2026-07-22 08:45 ET",
+  "preheader": "SPY +0.83%  QQQ +1.85%  IWM +1.45%  DIA +0.69% VIX 17.6 +2.93% 10Y 4.64% (+1 bp) \u00b7 Crude Oil Inventories 10:30 a.m. ET",
+  "as_of": "2026-07-22 08:48 ET",
   "session": "Pre-Market Brief",
   "preview": true,
   "regime": "TRANSITION",
@@ -15,7 +15,7 @@
    "id": "market",
    "title": "Market in 30 seconds",
    "kind": "index",
-   "sub": "Pre-Market Brief \u00b7 as of 2026-07-22 08:45 ET",
+   "sub": "Pre-Market Brief \u00b7 as of 2026-07-22 08:48 ET",
    "records": [
     {
      "key": "SPY",
@@ -64,13 +64,13 @@
    ],
    "regime": {
     "label": "TRANSITION",
-    "why": "55% of the 754-name universe is above its 20-day average; 1 of 4 major indices above their 20-day; VIX 17.6 (+3.4%); 10-year yield 4.64% (+1 bp).",
+    "why": "55% of the 754-name universe is above its 20-day average; 1 of 4 major indices above their 20-day; VIX 17.6 (+2.9%); 10-year yield 4.64% (+1 bp).",
     "inputs": {
      "breadth_pct": 55,
      "indices_above_20d": "1 of 4",
-     "vix": 17.63,
-     "vix_1d_pct": 3.4,
-     "ten_year_1d_pct": 0.26
+     "vix": 17.55,
+     "vix_1d_pct": 2.93,
+     "ten_year_1d_pct": 0.22
     },
     "changed_from": "RISK-OFF",
     "display": "TRANSITION",
@@ -132,10 +132,10 @@
       "value": 1078.81,
       "basis": "pre-market",
       "session_basis": "pre_market",
-      "as_of": "2026-07-22 08:45 ET",
+      "as_of": "2026-07-22 08:48 ET",
       "source": "swing scan",
       "stale_after": "2026-07-22 09:30 ET",
-      "text": "$1078.81 \u00b7 pre-market 08:45 ET"
+      "text": "$1078.81 \u00b7 pre-market 08:48 ET"
      },
      "flow_quality": "C",
      "evidence": "moderate",
@@ -164,10 +164,10 @@
       "value": 188.04,
       "basis": "pre-market",
       "session_basis": "pre_market",
-      "as_of": "2026-07-22 08:45 ET",
+      "as_of": "2026-07-22 08:48 ET",
       "source": "swing scan",
       "stale_after": "2026-07-22 09:30 ET",
-      "text": "$188.04 \u00b7 pre-market 08:45 ET"
+      "text": "$188.04 \u00b7 pre-market 08:48 ET"
      },
      "flow_quality": "C",
      "evidence": "moderate",
@@ -192,10 +192,10 @@
       "value": 47.2,
       "basis": "pre-market",
       "session_basis": "pre_market",
-      "as_of": "2026-07-22 08:45 ET",
+      "as_of": "2026-07-22 08:48 ET",
       "source": "swing scan",
       "stale_after": "2026-07-22 09:30 ET",
-      "text": "$47.20 \u00b7 pre-market 08:45 ET"
+      "text": "$47.20 \u00b7 pre-market 08:48 ET"
      },
      "flow_quality": null,
      "evidence": "limited",
@@ -220,10 +220,10 @@
       "value": 43.78,
       "basis": "pre-market",
       "session_basis": "pre_market",
-      "as_of": "2026-07-22 08:45 ET",
+      "as_of": "2026-07-22 08:48 ET",
       "source": "swing scan",
       "stale_after": "2026-07-22 09:30 ET",
-      "text": "$43.78 \u00b7 pre-market 08:45 ET"
+      "text": "$43.78 \u00b7 pre-market 08:48 ET"
      },
      "flow_quality": null,
      "evidence": "limited",
@@ -248,10 +248,10 @@
       "value": 102.7,
       "basis": "pre-market",
       "session_basis": "pre_market",
-      "as_of": "2026-07-22 08:45 ET",
+      "as_of": "2026-07-22 08:48 ET",
       "source": "swing scan",
       "stale_after": "2026-07-22 09:30 ET",
-      "text": "$102.70 \u00b7 pre-market 08:45 ET"
+      "text": "$102.70 \u00b7 pre-market 08:48 ET"
      },
      "flow_quality": null,
      "evidence": "limited",
@@ -386,6 +386,58 @@
    "sub": "Prints on your names that did not move a status",
    "records": [
     {
+     "key": "T",
+     "ticker": "T",
+     "verdict": "OI PENDING BEARISH",
+     "direction": "BEARISH",
+     "score": "0 of 2 confirmed \u00b7 2 pending",
+     "explain": "Two call sales; open interest for the session has not posted yet.",
+     "contract_count_total": 2,
+     "contract_count_displayed": 2,
+     "contract_count_omitted": 0,
+     "confirmed_count": 0,
+     "pending_count": 2,
+     "unresolved_count": 0,
+     "omitted_line": "",
+     "url": "https://tickerdesk.io/#ticker=T",
+     "contracts": [
+      {
+       "key": "T|CALL|22.5|2026-07-24",
+       "ticker": "T",
+       "right": "CALL",
+       "strike": 22.5,
+       "expiry": "2026-07-24",
+       "action": "SELL",
+       "direction": "bearish",
+       "side_label": "CALL SELL \u00b7 bearish",
+       "premium": "$0.6M",
+       "spot": 22.3,
+       "flow_at": "2026-07-21 15:59 ET",
+       "oi_state": "OI PENDING",
+       "oi_as_of": "",
+       "sweep": true,
+       "url": "https://tickerdesk.io/#ticker=T"
+      },
+      {
+       "key": "T|CALL|22|2026-07-31",
+       "ticker": "T",
+       "right": "CALL",
+       "strike": 22,
+       "expiry": "2026-07-31",
+       "action": "SELL",
+       "direction": "bearish",
+       "side_label": "CALL SELL \u00b7 bearish",
+       "premium": "$0.4M",
+       "spot": 22.3,
+       "flow_at": "2026-07-21 15:59 ET",
+       "oi_state": "OI PENDING",
+       "oi_as_of": "",
+       "sweep": true,
+       "url": "https://tickerdesk.io/#ticker=T"
+      }
+     ]
+    },
+    {
      "key": "PBF",
      "ticker": "PBF",
      "verdict": "OI PENDING BEARISH",
@@ -417,58 +469,6 @@
        "oi_as_of": "",
        "sweep": false,
        "url": "https://tickerdesk.io/#ticker=PBF"
-      }
-     ]
-    },
-    {
-     "key": "CVX",
-     "ticker": "CVX",
-     "verdict": "OI PENDING BULLISH",
-     "direction": "BULLISH",
-     "score": "0 of 3 confirmed \u00b7 3 pending",
-     "explain": "Three call purchases; open interest for the session has not posted yet.",
-     "contract_count_total": 3,
-     "contract_count_displayed": 2,
-     "contract_count_omitted": 1,
-     "confirmed_count": 0,
-     "pending_count": 3,
-     "unresolved_count": 0,
-     "omitted_line": "showing 2 of 3 contracts",
-     "url": "https://tickerdesk.io/#ticker=CVX",
-     "contracts": [
-      {
-       "key": "CVX|CALL|205|2026-08-21",
-       "ticker": "CVX",
-       "right": "CALL",
-       "strike": 205,
-       "expiry": "2026-08-21",
-       "action": "BUY",
-       "direction": "bullish",
-       "side_label": "CALL BUY \u00b7 bullish",
-       "premium": "$4.1M",
-       "spot": 190.68,
-       "flow_at": "2026-07-21 15:53 ET",
-       "oi_state": "OI PENDING",
-       "oi_as_of": "",
-       "sweep": true,
-       "url": "https://tickerdesk.io/#ticker=CVX"
-      },
-      {
-       "key": "CVX|CALL|195|2026-07-31",
-       "ticker": "CVX",
-       "right": "CALL",
-       "strike": 195,
-       "expiry": "2026-07-31",
-       "action": "BUY",
-       "direction": "bullish",
-       "side_label": "CALL BUY \u00b7 bullish",
-       "premium": "$0.8M",
-       "spot": 190.68,
-       "flow_at": "2026-07-21 15:59 ET",
-       "oi_state": "OI PENDING",
-       "oi_as_of": "",
-       "sweep": true,
-       "url": "https://tickerdesk.io/#ticker=CVX"
       }
      ]
     }
@@ -898,7 +898,7 @@
    {
     "check": "meta.preheader_present",
     "ok": true,
-    "detail": "SPY +0.83%  QQQ +1.85%  IWM +1.45%  DIA +0.69% VIX 17.6 +3.40% 10Y 4.64% (+1 bp) \u00b7 Crude Oil Inventories 10:30 a.m. ET"
+    "detail": "SPY +0.83%  QQQ +1.85%  IWM +1.45%  DIA +0.69% VIX 17.6 +2.93% 10Y 4.64% (+1 bp) \u00b7 Crude Oil Inventories 10:30 a.m. ET"
    },
    {
     "check": "schema.sections_present",
@@ -948,9 +948,9 @@
   ]
  },
  "artifact_hashes": {
-  "html": "0312c1c0f729f22b294de60f801e8fd169f49ed2354612270d037d3f75da3a3b",
-  "text": "9276ee81e7014750c749cbc7e08e9a79bb60949dc79c68474f4931e94f887643",
+  "html": "cfacec06bf59c54f2feec23caa396567d08daceccb0174326c75118dfa8c1ebf",
+  "text": "3a7330155d8c511947fb0265c827ed1173732b27e4f6d539eccf6db5c58a4d3e",
   "eml": "",
-  "model": "77afe9e17328f5846bd50a42ee6a737639ce800fdf4aa79940ea8c4e146d2aa7"
+  "model": "64b2289e6855882bcfaf5a91ccf2a512ee134c0ad7efccea5ff19a47f6196a80"
  }
 }

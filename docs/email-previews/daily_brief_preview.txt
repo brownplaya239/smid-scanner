@@ -3,11 +3,11 @@ Tape in transition · 11 watchlist changes
 
 MARKET IN 30 SECONDS
 --------------------------------------------------------------------------
-Pre-Market Brief · as of 2026-07-22 08:45 ET
+Pre-Market Brief · as of 2026-07-22 08:48 ET
 
 TRANSITION
 55% of the 754-name universe is above its 20-day average; 1 of 4 major
-  indices above their 20-day; VIX 17.6 (+3.4%); 10-year yield 4.64% (+1
+  indices above their 20-day; VIX 17.6 (+2.9%); 10-year yield 4.64% (+1
   bp).
 
              Last        1D        1W       YTD    vs 20d
@@ -34,21 +34,21 @@ YOUR WATCH LIST
 --------------------------------------------------------------------------
 Ranked by what changed since the last brief
 
-[MIXED SETUP] GEV $1078.81 · pre-market 08:45 ET
+[MIXED SETUP] GEV $1078.81 · pre-market 08:48 ET
   evidence points both ways
   grade improved B → A-; short-dated bearish flow ahead of earnings in 1d
   Flow quality C · Evidence moderate · Rules: GRADE_TRANSITION,
     FLOW_PRESENT, EARNINGS_CONFIRMED
   https://tickerdesk.io/#ticker=GEV
 
-[MATERIAL WEAKENING] PM $188.04 · pre-market 08:45 ET
+[MATERIAL WEAKENING] PM $188.04 · pre-market 08:48 ET
   on grade B+ → B
   grade B+ → B; new options flow; Earnings in 1d
   Flow quality C · Evidence moderate · Rules: GRADE_TRANSITION,
     FLOW_PRESENT, EARNINGS_CONFIRMED
   https://tickerdesk.io/#ticker=PM
 
-[MATERIAL STRENGTHENING] TXG $47.20 · pre-market 08:45 ET
+[MATERIAL STRENGTHENING] TXG $47.20 · pre-market 08:48 ET
   on +9.2% session move
   +9.2% move
   strong up; above the 20-day by 16.3%; RSI 71
@@ -56,13 +56,13 @@ Ranked by what changed since the last brief
   Evidence limited · Rules: PRICE_MOVE
   https://tickerdesk.io/#ticker=TXG
 
-[MATERIAL STRENGTHENING] URGN $43.78 · pre-market 08:45 ET
+[MATERIAL STRENGTHENING] URGN $43.78 · pre-market 08:48 ET
   on +6.5% session move
   +6.5% move
   Evidence limited · Rules: PRICE_MOVE
   https://tickerdesk.io/#ticker=URGN
 
-[MATERIAL STRENGTHENING] SYRE $102.70 · pre-market 08:45 ET
+[MATERIAL STRENGTHENING] SYRE $102.70 · pre-market 08:48 ET
   on +5.5% session move
   +5.5% move
   strong up; above the 20-day by 9.3%; RSI 62
@@ -101,21 +101,19 @@ OTHER NOTABLE WATCH-LIST FLOW
 --------------------------------------------------------------------------
 Prints on your names that did not move a status
 
+  T — OI PENDING BEARISH (0 of 2 confirmed · 2 pending)
+    Two call sales; open interest for the session has not posted yet.
+    CALL 22.5 2026-07-24 · SELL · bearish · $0.6M · spot 22.3 · sweep
+      printed 2026-07-21 15:59 ET · OI PENDING
+    CALL 22 2026-07-31 · SELL · bearish · $0.4M · spot 22.3 · sweep
+      printed 2026-07-21 15:59 ET · OI PENDING
+    https://tickerdesk.io/#ticker=T
+
   PBF — OI PENDING BEARISH (0 of 1 confirmed · 1 pending)
     One call sale; open interest for the session has not posted yet.
     CALL 70 2026-08-21 · SELL · bearish · $1.7M · spot 66.02
       printed 2026-07-21 15:50 ET · OI PENDING
     https://tickerdesk.io/#ticker=PBF
-
-  CVX — OI PENDING BULLISH (0 of 3 confirmed · 3 pending)
-    Three call purchases; open interest for the session has not posted
-      yet.
-    CALL 205 2026-08-21 · BUY · bullish · $4.1M · spot 190.68 · sweep
-      printed 2026-07-21 15:53 ET · OI PENDING
-    CALL 195 2026-07-31 · BUY · bullish · $0.8M · spot 190.68 · sweep
-      printed 2026-07-21 15:59 ET · OI PENDING
-    (showing 2 of 3 contracts)
-    https://tickerdesk.io/#ticker=CVX
 
 
 MARKET-WIDE FLOW

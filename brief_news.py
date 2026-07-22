@@ -273,11 +273,7 @@ def select(market_articles, watch_articles, watch_tickers,
             min((prio.get(t, 999) for t in r.get("watch_tickers") or []),
                 default=999),
             r["tier"] != PRIMARY, -_ts(r["published_sort"])))
-    # one shared quota across both sections: the validator counts the
-    # union, so capping each section independently let a single outlet
-    # supply four of five displayed stories
-    quota = {}
-    w = _cap_publisher(w_all, max_watch, used=quota)
+    w = w_all[:max_watch]
     # the reader's own names win the story: showing it again under Market
     # would present one event as two
     claimed = {r["key"] for r in w} | {
@@ -287,7 +283,10 @@ def select(market_articles, watch_articles, watch_tickers,
              if r["key"] not in claimed
              and "".join(ch for ch in r["headline"].lower()
                          if ch.isalnum())[:80] not in claimed]
-    m = _cap_publisher(m_all, max_market, used=quota)
+    m = m_all[:max_market]
+    # diversity is enforced on the UNION, exactly as the validator
+    # measures it, after both sections are chosen
+    m, w = _enforce_diversity(m, w)
 
     shown = m + w
     notes = []
@@ -312,36 +311,42 @@ def select(market_articles, watch_articles, watch_tickers,
     }
 
 
-def _cap_publisher(records, cap, share=0.5, used=None):
-    """No outlet may supply more than `share` of the DISPLAYED news while
-    another outlet has something to say.
+def _enforce_diversity(market, watchlist, share=0.5):
+    """Drop from the over-represented outlet until no outlet supplies more
+    than `share` of the DISPLAYED news.
 
-    The first version deferred over-quota items and then backfilled them
-    when the section came up short, which defeated the cap entirely: four
-    of five displayed stories came from one outlet and the schema check
-    caught it in production. Shipping fewer, more varied stories is the
-    point — a short section is a smaller problem than one outlet's
-    editorial line presented as the day's news.
+    Two earlier attempts approximated this rule per section and both were
+    wrong in production. The first deferred over-quota items and backfilled
+    them, which is the cap with extra steps. The second shared a quota
+    across sections but exempted a section whose candidates were all from
+    one outlet — so an all-Motley-Fool market section filled to three and
+    the union came out at 75%.
 
-    `used` is shared across sections so the quota applies to the union,
-    which is what the validator measures.
+    This is the validator's rule, applied to the union, iterated until it
+    holds. Market items are dropped before watch-list items: a story about
+    a name the reader owns is worth more than a general one.
     """
-    if not records:
-        return []
-    counts = used if used is not None else {}
-    sources = {r["source"] for r in records}
-    limit = max(1, int(cap * share))
-    out = []
-    for r in records:
-        if len(out) >= cap:
+    m, w = list(market), list(watchlist)
+    for _ in range(64):                      # bounded; each pass drops one
+        shown = m + w
+        if not shown:
             break
-        # a single available outlet cannot be diversified; the coverage
-        # note discloses that rather than the section going empty
-        if len(sources) > 1 and counts.get(r["source"], 0) >= limit:
-            continue
-        counts[r["source"]] = counts.get(r["source"], 0) + 1
-        out.append(r)
-    return out
+        pubs = {}
+        for r in shown:
+            pubs[r["source"]] = pubs.get(r["source"], 0) + 1
+        if len(pubs) <= 1:
+            break                            # nothing to diversify toward
+        top, n = max(pubs.items(), key=lambda kv: kv[1])
+        if n * 2 <= len(shown):
+            break                            # rule already satisfied
+        for lst in (m, w):
+            idx = [i for i, r in enumerate(lst) if r["source"] == top]
+            if idx:
+                lst.pop(idx[-1])             # lowest-ranked offender
+                break
+        else:
+            break
+    return m, w
 
 
 def _ts(iso):
