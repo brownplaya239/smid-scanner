@@ -352,7 +352,9 @@ def fetch_market(ticker, as_of=None):
         ticker.upper(), last_bar.date().isoformat())
     opens = [float(x) for x in bars["Open"].tolist()]
     dates = [d.to_pydatetime().date() for d in bars.index]
-    rs, spy_window = _rs_vs_spy(c_closes, weeks=12)
+    rs, spy_window = _rs_vs_spy(
+        c_closes, c_dates, weeks=12,
+        through=(c_dates[-1].isoformat() if c_dates else None))
     return {
         "series_id": series_id,
         "dates": dates, "opens": opens, "closes": closes,
@@ -388,14 +390,17 @@ def fetch_market(ticker, as_of=None):
     }
 
 
-def _rs_vs_spy(closes, weeks=12):
-    """Relative strength: the name's 12-week return minus SPY's, on the
-    same bar count and the same vendor.
+def _rs_vs_spy(closes, dates, weeks=12, through=None):
+    """Relative strength on IDENTICAL trading sessions for both legs.
 
-    Returns the benchmark observations it consumed alongside the number.
-    Publishing the difference while keeping the benchmark series private
-    made the figure unverifiable: a reader could see +22.0% and had no
-    way to reproduce either leg."""
+    Taking "the last 61 bars" from each series independently does not
+    give the same 61 dates: the vendor's SPY history ran a session ahead
+    of the issuer's completed window at both ends, so the two returns
+    were measured over different spans and the difference between them
+    meant nothing. The legs are now intersected by date, truncated at
+    the issuer's last completed session, and both date arrays are
+    exported so a reader can confirm they match.
+    """
     import yfinance as yf
     n = weeks * 5
     if len(closes) <= n:
@@ -403,23 +408,41 @@ def _rs_vs_spy(closes, weeks=12):
     try:
         h = yf.Ticker("SPY").history(period="1y", interval="1d",
                                      auto_adjust=False)
-        spy = [float(x) for x in h["Close"].tolist()]
-        sdates = [d.to_pydatetime().date().isoformat() for d in h.index]
+        spy_close = [float(x) for x in h["Close"].tolist()]
+        spy_dates = [d.to_pydatetime().date().isoformat() for d in h.index]
     except Exception:
         return None, None
-    if len(spy) <= n:
+
+    iso = [d.isoformat() if hasattr(d, "isoformat") else str(d)
+           for d in dates]
+    cutoff = through or (iso[-1] if iso else None)
+    # A session later than the issuer's last completed bar is either
+    # still open or simply not part of this comparison.
+    spy_map = {d: c for d, c in zip(spy_dates, spy_close)
+               if cutoff is None or d <= cutoff}
+    common = [d for d in iso if d in spy_map and (cutoff is None
+                                                  or d <= cutoff)]
+    if len(common) <= n:
         return None, None
-    win_c, win_d = spy[-1 - n:], sdates[-1 - n:]
-    mine = 100.0 * (closes[-1] / closes[-1 - n] - 1)
-    bench = 100.0 * (win_c[-1] / win_c[0] - 1)
+    win = common[-(n + 1):]
+    issuer = {d: c for d, c in zip(iso, closes)}
+    a0, a1 = issuer[win[0]], issuer[win[-1]]
+    b0, b1 = spy_map[win[0]], spy_map[win[-1]]
+    mine = 100.0 * (a1 / a0 - 1)
+    bench = 100.0 * (b1 / b0 - 1)
     return round(mine - bench, 1), {
         "series_id": "yahoo:SPY:1d:unadjusted",
-        "dates": win_d, "closes": win_c,
-        "start": win_d[0], "end": win_d[-1],
-        "sessions": len(win_c),
-        "start_close": win_c[0], "end_close": win_c[-1],
+        "dates": win, "closes": [spy_map[d] for d in win],
+        "issuer_dates": win,
+        "start": win[0], "end": win[-1], "sessions": len(win),
+        "aligned": True,
+        "alignment_rule": ("both legs use the identical trading sessions, "
+                           "intersected by date and truncated at the "
+                           "issuer's last completed session"),
+        "start_close": b0, "end_close": b1,
         "benchmark_return_pct": round(bench, 4),
-        "issuer_return_pct": round(mine, 4)}
+        "issuer_return_pct": round(mine, 4),
+        "issuer_start_close": a0, "issuer_end_close": a1}
 
 
 def _next_earnings(tk):
@@ -807,7 +830,8 @@ def build_snapshot(ticker, report_time=None):
                  "12w return of %s minus 12w return of SPY, both from "
                  "completed-session closes over %s..%s"
                  % (ticker, w["start"], w["end"]),
-                 [_win(61), "SPY-%s..SPY-%s" % (w["start"], w["end"])],
+                 ["BAR-%s..BAR-%s" % (w["start"], w["end"]),
+                  "SPY-%s..SPY-%s" % (w["start"], w["end"])],
                  mk["rs_vs_spy"], "%",
                  note="both legs reproducible from the bars in this "
                       "package: issuer %s%%, benchmark %s%%"
@@ -1209,6 +1233,13 @@ def build_snapshot(ticker, report_time=None):
                  "url": ex.get("url"),
                  "exhibit_disposition": ex.get("disposition"),
                  "exhibit_reason": ex.get("reason")})
+    # The appendix renders prov["coverage"] directly. Overriding this only
+    # in the evidence package left the two artifacts contradicting each
+    # other about whether non-GAAP was available.
+    if ex.get("disposition") == "ADMITTED" and ex.get("reported"):
+        prov["coverage"]["non_gaap_margin"] = (
+            "ADMITTED - parsed from 8-K Item 2.02 Exhibit 99.1 (%s)"
+            % ex.get("accession"))
     prov["coverage"]["earnings_exhibit"] = (
         ("EX-99.1 parsed from 8-K %s: %d reported figures, %d guidance lines"
          % (ex.get("accession"), len(ex.get("reported") or {}),

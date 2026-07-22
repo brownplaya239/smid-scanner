@@ -1062,3 +1062,29 @@ def thesis_facts(snap, limit=3):
             break
         out.append(e)
     return {"facts": out[:limit], "dropped_social": dropped}
+
+
+# Message-board text the rendered appendix should not carry. The records
+# stay in evidence.json in full — hash, classification, disposition — so
+# nothing is hidden from the audit trail. What is filtered is only what
+# gets typeset: explicit or abusive text adds nothing a reader checking a
+# count needs, and a content-free post adds nothing at all.
+_UGC_BLOCK = re.compile(
+    r"\b(fuck\w*|shit\w*|cunt\w*|bitch\w*|slut\w*|whore\w*|rape\w*|"
+    r"nigg\w*|fag\w*|retard\w*|cock|dick|pussy|tits|porn|sex+y?|"
+    r"kill\s+your|kys)\b", re.I)
+
+
+def presentable_samples(records, limit=10, min_chars=25):
+    """Neutral, representative excerpts for the rendered appendix."""
+    out = []
+    for r in records or []:
+        txt = str(r.get("excerpt") or "").strip()
+        if len(txt) < min_chars:
+            continue                      # content-free
+        if _UGC_BLOCK.search(txt):
+            continue                      # explicit or abusive
+        out.append(r)
+        if len(out) >= limit:
+            break
+    return out

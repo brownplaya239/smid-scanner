@@ -10,7 +10,7 @@ reader can see the gates were exercised on the same run that passed them.
 
 Every fixture below is a defect v3.1 shipped or would have shipped:
 
-  BAR_CARDINALITY              a 200-day average over 199 delivered bars
+  BAR_CARDINALITY              a declared window wider than the bars sent
   BAR_RANGE_PRESENT            a declared range whose endpoint is absent
   BENCHMARK_OPERANDS           RS vs SPY citing a null placeholder
   PARTIAL_SESSION_NOT_A_CLOSE  an open session published as a close
@@ -84,7 +84,9 @@ def clean_package():
         "CALC-rs_vs_spy": {
             "calculation_id": "CALC-rs_vs_spy",
             "formula": "12w return minus SPY",
-            "operands": [{"evidence_id": "SPY-%s..SPY-%s"
+            "operands": [{"evidence_id": "BAR-%s..BAR-%s"
+                          % (days[0], days[-1]), "resolved": True},
+                         {"evidence_id": "SPY-%s..SPY-%s"
                           % (days[0], days[-1]), "resolved": True}],
             "operands_complete": True, "result_unrounded": 4.0,
             "benchmark_sessions_delivered": 20, "recomputed": 4.0,
@@ -96,8 +98,14 @@ def clean_package():
             "result_unrounded": 119.0, "recomputed": 119.0,
             "reproducible": True, "displayed": True},
     }
+    for _r in recs.values():
+        _r.pop("record_hash", None)
+        _r["record_hash"] = EV.record_hash(_r)
     return {
         "schema": EV.SCHEMA, "records": recs, "calculations": calcs,
+        "calculation_coverage": {"numeric_reproduced": 4, "numeric_failed": 0,
+                                 "nonnumeric_exempt": 0, "total": 4,
+                                 "failed_detail": [], "exempt_detail": []},
         "populations": {"news": {"admitted": 6, "shown_core": 3,
                                  "shown_appendix": 6}},
         "source_coverage": {"non_gaap_margin": "ADMITTED - parsed from 8-K"},
@@ -171,10 +179,32 @@ def m_display_count_scope(pkg, txt):
     return pkg, txt
 
 
+def m_record_hash(pkg, txt):
+    """Edit a value and leave the hash alone - the exact tamper the
+    recompute check exists to catch."""
+    k = "BAR-2026-01-05"
+    pkg["records"][k]["value"]["c"] = 999.99
+    return pkg, txt
+
+
+def m_date_alignment(pkg, txt):
+    c = pkg["calculations"]["CALC-rs_vs_spy"]
+    c["operands"] = [
+        {"evidence_id": "BAR-2026-01-01..BAR-2026-01-20", "resolved": True},
+        {"evidence_id": "SPY-2026-01-02..SPY-2026-01-21", "resolved": True}]
+    return pkg, txt
+
+
 def m_calc_reproducible(pkg, txt):
     c = pkg["calculations"]["CALC-ma20"]
     c["reproducible"] = False
     c["recompute_note"] = "published 109.50 but the delivered bars give 131.87"
+    pkg["calculation_coverage"] = {
+        "numeric_reproduced": 3, "numeric_failed": 1, "nonnumeric_exempt": 0,
+        "total": 4,
+        "failed_detail": [{"calculation_id": "CALC-ma20",
+                           "note": c["recompute_note"]}],
+        "exempt_detail": []}
     return pkg, txt
 
 
@@ -184,7 +214,8 @@ def m_hash_coverage(pkg, txt):
 
 
 MUTATIONS = [
-    ("BAR_CARDINALITY", "a 200-day window delivering 199 bars",
+    ("BAR_CARDINALITY",
+     "CALC-ma20 declaring a 20-session window with 19 bars delivered",
      m_bar_cardinality),
     ("BAR_RANGE_PRESENT", "a declared range whose start bar is absent",
      m_bar_range_present),
@@ -202,10 +233,17 @@ MUTATIONS = [
      m_coverage_consistency),
     ("DISPLAY_COUNT_SCOPE", "a bare displayed count with no artifact scope",
      m_display_count_scope),
-    ("CALC_REPRODUCIBLE", "a published figure the delivered bars do not give",
+    ("CALC_REPRODUCIBLE",
+     "a numeric calculation the delivered bars do not reproduce",
      m_calc_reproducible),
     ("HASH_COVERAGE", "records shipped without a canonical hash",
      m_hash_coverage),
+    ("RECORD_HASH_RECOMPUTE",
+     "one record value edited without updating its record_hash",
+     m_record_hash),
+    ("BENCHMARK_DATE_ALIGNMENT",
+     "benchmark leg spanning different sessions from the issuer leg",
+     m_date_alignment),
 ]
 
 

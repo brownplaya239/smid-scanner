@@ -36,7 +36,7 @@ import re
 import report_v3_evidence as EV
 import report_v3_model as M
 
-VALIDATOR_VERSION = "3.2.0"
+VALIDATOR_VERSION = "3.3.0"
 
 FATAL, ERROR, WARN, INFO = "FATAL", "ERROR", "WARN", "INFO"
 PASS, FAIL, WARN_S, SKIP = "PASS", "FAIL", "WARN", "SKIP"
@@ -88,6 +88,8 @@ CHECK_IDS = [
     "GUIDANCE_PRECISION", "GUIDANCE_PDF_MATCH",
     "COVERAGE_CONSISTENCY", "DISPLAY_COUNT_SCOPE",
     "CALC_REPRODUCIBLE", "HASH_COVERAGE",
+    "RECORD_HASH_RECOMPUTE", "BENCHMARK_DATE_ALIGNMENT",
+    "PDF_SOURCE_COVERAGE_MATCH", "APPENDIX_COUNT_SCOPE",
 ]
 
 
@@ -780,22 +782,99 @@ def check_numerics(evidence, view, snap=None, pdf_text=""):
                    "%d populations scoped" % len(pops)))
 
     # the arithmetic has to redo from the delivered records
-    broken = [k for k, v in calcs.items() if v.get("reproducible") is False]
-    out.append(chk("CALC_REPRODUCIBLE", not broken, FATAL,
-                   "every calculation redoes from the delivered evidence",
-                   "; ".join("%s: %s" % (k, calcs[k].get("recompute_note"))
-                             for k in broken[:3]) if broken else
-                   "%d of %d calculations independently reproduced"
-                   % (len([1 for v in calcs.values()
-                           if v.get("reproducible")]), len(calcs)),
-                   refs=broken))
+    # "17 of 22" invited the reader to assume five figures had quietly
+    # failed. Numeric results that must reproduce are counted separately
+    # from narrative inputs that cannot, and the exempt ones are named.
+    cov = ev.get("calculation_coverage") or {}
+    failed = cov.get("failed_detail") or []
+    exempt = cov.get("exempt_detail") or []
+    out.append(chk("CALC_REPRODUCIBLE", not failed, FATAL,
+                   "every numeric calculation redoes from delivered evidence",
+                   ("numeric_reproduced=%s numeric_failed=%s "
+                    "nonnumeric_exempt=%s (%s)"
+                    % (cov.get("numeric_reproduced"),
+                       cov.get("numeric_failed"),
+                       cov.get("nonnumeric_exempt"),
+                       ", ".join(x["calculation_id"] for x in exempt)))
+                   if cov else "no coverage report in the package",
+                   refs=[x.get("calculation_id") for x in failed],
+                   detail="; ".join("%s: %s" % (x["calculation_id"],
+                                                x.get("note"))
+                                    for x in failed[:3]) or None))
+    # The appendix renders source coverage from its own copy of prov.
+    # When only the evidence package was corrected, the two artifacts
+    # disagreed about whether non-GAAP was available.
+    if pdf_text:
+        cov_txt = ev.get("source_coverage") or {}
+        clash = []
+        ex_ok = any(str(v.get("evidence_type", "")).startswith("exhibit_")
+                    and v.get("disposition") == EV.ADMITTED
+                    for v in recs.values())
+        if ex_ok and "non-GAAP measures are not XBRL-tagged" in pdf_text:
+            clash.append("a rendered page still calls non-GAAP unavailable "
+                         "while the package marks it ADMITTED")
+        out.append(chk("PDF_SOURCE_COVERAGE_MATCH", not clash, FATAL,
+                       "rendered source-coverage states match evidence.json",
+                       "; ".join(clash) if clash else
+                       "%d coverage lines agree across artifacts"
+                       % len(cov_txt)))
+
+        # a count printed in an artifact must name the artifact it counts
+        vague_txt = re.search(r"(\d+)\s+records?\s+displayed", pdf_text)
+        out.append(chk("APPENDIX_COUNT_SCOPE", not vague_txt, ERROR,
+                       "counts in the rendered artifacts carry a scope",
+                       ("a rendered count says %r with no artifact named"
+                        % vague_txt.group(0)) if vague_txt else
+                       "no unscoped display counts rendered"))
+
     hv = ev.get("hash_verification") or {}
     out.append(chk("HASH_COVERAGE", (hv.get("coverage_pct") or 0) >= 99.9,
-                   ERROR, "every record carries a canonical raw_hash",
+                   ERROR, "every record carries a canonical record_hash",
                    "%s%% of %s records" % (hv.get("coverage_pct"),
                                            hv.get("records_total")),
                    threshold=100,
                    detail="hash version %s" % hv.get("hash_version")))
+
+    # Presence is not verification. Recompute every hash from the file
+    # itself: v3.2 shipped 497 hashes, all present, none reproducible.
+    rc = EV.verify_record_hashes(ev)
+    out.append(chk("RECORD_HASH_RECOMPUTE", rc["all_match"], FATAL,
+                   "every record_hash recomputes from the delivered record",
+                   "%d of %d match%s" % (rc["matched"], rc["total"],
+                                         "" if rc["all_match"] else
+                                         "; mismatched: %s"
+                                         % ", ".join(rc["mismatched"][:6])),
+                   refs=rc["mismatched"][:20],
+                   detail=EV.HASH_CANONICALIZATION))
+
+    # Relative strength is only meaningful if both legs cover the same
+    # sessions. The vendor series ran a day ahead at both ends.
+    bench_dates = sorted(k[4:] for k, v in recs.items()
+                         if v.get("evidence_type") == "benchmark_bar")
+    align_note, aligned = "no benchmark window in this package", True
+    for cid, c in calcs.items():
+        if "rs_" not in cid:
+            continue
+        rng = [str(o.get("evidence_id")) for o in (c.get("operands") or [])]
+        iss = [r for r in rng if r.startswith("BAR-")]
+        ben = [r for r in rng if r.startswith("SPY-")]
+        if not iss or not ben:
+            aligned, align_note = False, "%s cites no paired windows" % cid
+            break
+        i_lo, i_hi = iss[0].split("..")
+        b_lo, b_hi = ben[0].split("..")
+        if i_lo[4:] != b_lo[4:] or i_hi[4:] != b_hi[4:]:
+            aligned = False
+            align_note = ("%s spans %s..%s while the benchmark spans %s..%s"
+                          % (cid, i_lo[4:], i_hi[4:], b_lo[4:], b_hi[4:]))
+            break
+        align_note = ("both legs span %s..%s across %d benchmark sessions"
+                      % (i_lo[4:], i_hi[4:], len(bench_dates)))
+    out.append(chk("BENCHMARK_DATE_ALIGNMENT", aligned, FATAL,
+                   "issuer and benchmark legs cover identical sessions",
+                   align_note,
+                   detail="A return difference measured over two different "
+                          "spans is not a relative-strength figure."))
     return out
 
 

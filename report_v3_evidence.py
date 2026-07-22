@@ -43,10 +43,22 @@ SCHEMA = "stock_research_brief_evidence/v3.2"
 # How raw_hash is produced. Named and versioned so a reader can
 # reproduce it: sha256 over UTF-8 JSON with sorted keys, no
 # whitespace between separators, non-JSON values coerced with str().
-HASH_VERSION = "sha256/json-sorted-compact/v1"
+HASH_VERSION = "sha256/json-sorted-compact/v2"
 HASH_CANONICALIZATION = (
-    "json.dumps(record, sort_keys=True, separators=(',', ':'), "
-    "default=str).encode('utf-8') -> sha256 hexdigest")
+    "record_hash = sha256(json.dumps({k: v for k, v in record.items() "
+    "if k != 'record_hash'}, sort_keys=True, separators=(',', ':'), "
+    "default=str).encode('utf-8')).hexdigest()")
+
+# v1 documented hashing the exported record but actually hashed the
+# upstream source object, so not one of 497 published hashes reproduced
+# under its own stated method. The two are now separate fields with
+# separate meanings, and validation recomputes the first.
+SOURCE_HASH_NOTE = (
+    "source_raw_hash is sha256 over the UPSTREAM payload this record was "
+    "built from - the ledger row, filing row or API object - canonicalised "
+    "the same way. It answers 'is this the row we ingested'. record_hash "
+    "answers 'is this the record we published'. Only record_hash is "
+    "recomputable from evidence.json alone.")
 
 # disposition vocabulary
 ADMITTED = "ADMITTED"
@@ -119,6 +131,25 @@ def payload_hash(obj):
     return _hash(obj)
 
 
+def record_hash(rec):
+    """The published record's own hash: sha256 over the record with the
+    hash field itself removed. Recomputable from evidence.json alone."""
+    return _hash({k: v for k, v in rec.items() if k != "record_hash"})
+
+
+def verify_record_hashes(pkg):
+    """Recompute every record_hash and report what did not match."""
+    recs = (pkg or {}).get("records") or {}
+    bad = []
+    for rid, r in recs.items():
+        want = r.get("record_hash")
+        if not want or want != record_hash(r):
+            bad.append(rid)
+    return {"total": len(recs), "matched": len(recs) - len(bad),
+            "mismatched": sorted(bad),
+            "all_match": not bad and bool(recs)}
+
+
 def _rec(eid, etype, source=None, url=None, accession=None, value=None,
          unit=None, period=None, timestamps=None, disposition=ADMITTED,
          reason=None, grade=M.OBSERVED, raw=None, immutable=None,
@@ -132,8 +163,9 @@ def _rec(eid, etype, source=None, url=None, accession=None, value=None,
         "value": value,
         "unit": unit,
         "period": period,
-        "raw_hash": _hash(raw if raw is not None else
-                          {"id": eid, "v": value, "p": period}),
+        # the upstream object, not this record; see SOURCE_HASH_NOTE
+        "source_raw_hash": _hash(raw if raw is not None else
+                                 {"id": eid, "v": value, "p": period}),
         "disposition": disposition,
         "reason": reason,
         "grade": grade,
@@ -680,6 +712,12 @@ def build(snap, view, prov=None, led=None, artifacts=None,
                 str(c.get("value")), "rounding_rule": "none",
             "unit": None, "note": c.get("name"), "grade": M.INFERRED}
 
+    # record_hash is stamped last, over the finished record, so it can be
+    # recomputed from evidence.json with nothing else in hand.
+    for _rid, _r in records.items():
+        _r.pop("record_hash", None)
+        _r["record_hash"] = record_hash(_r)
+
     coverage = dict((prov.get("coverage") or {}))
     # The exhibit was parsed, so the coverage line that says non-GAAP is
     # unavailable is now contradicted by the report itself.
@@ -693,10 +731,12 @@ def build(snap, view, prov=None, led=None, artifacts=None,
     def _scope(domain, pop):
         core = {"news": M.CORE_NEWS_SHOWN,
                 "ownership": 0}.get(domain)
-        apx = {"ownership": pop.get("records_in_window")
+        apx = {"news": 0,
+               "ownership": pop.get("records_in_window")
                or pop.get("records_admitted"),
-               "social": len((snap.get("sentiment") or {})
-                             .get("sample_records") or [])}.get(domain)
+               "social": len(M.presentable_samples(
+                   (snap.get("sentiment") or {})
+                   .get("sample_records") or []))}.get(domain)
         out = dict(pop)
         legacy = out.pop("records_displayed", None)
         adm = out.get("records_admitted")
@@ -708,6 +748,10 @@ def build(snap, view, prov=None, led=None, artifacts=None,
             "available_evidence": len([r for r in records.values()
                                        if r.get("evidence_type", "")
                                        .startswith(domain[:4])]) or None,
+            "scope_note": ("shown_core = rows in the four-page brief; "
+                           "shown_appendix = rows in the appendix PDF; "
+                           "available_evidence = records in this file; "
+                           "admitted = rows that passed their gate"),
             "legacy_records_displayed": legacy,
         })
         return out
@@ -716,19 +760,29 @@ def build(snap, view, prov=None, led=None, artifacts=None,
                    (ld.get("counts") or {}).items()}
 
     # Every record is hash-verified, not a sample of thirty.
+    _hashed = len([r for r in records.values() if r.get("record_hash")])
+    _selfcheck = {"total": len(records),
+                  "matched": len([1 for r in records.values()
+                                  if r.get("record_hash")
+                                  == record_hash(r)]),
+                  "mismatched": sorted(rid for rid, r in records.items()
+                                       if r.get("record_hash")
+                                       != record_hash(r))}
     hash_report = {
         "algorithm": "sha256",
         "hash_version": HASH_VERSION,
         "canonicalization": HASH_CANONICALIZATION,
+        "source_hash_note": SOURCE_HASH_NOTE,
         "records_total": len(records),
-        "records_hashed": len([r for r in records.values()
-                               if r.get("raw_hash")]),
-        "coverage_pct": (round(100.0 * len([r for r in records.values()
-                                            if r.get("raw_hash")])
-                               / max(1, len(records)), 1)),
-        "note": ("every record carries a raw_hash produced by the "
-                 "canonicalisation named above; v3.1 verified only the "
-                 "30 records that happened to have a private audit twin"),
+        "records_hashed": _hashed,
+        "coverage_pct": round(100.0 * _hashed / max(1, len(records)), 1),
+        "recompute": _selfcheck,
+        "recompute_pct": round(100.0 * _selfcheck["matched"]
+                               / max(1, len(records)), 1),
+        "note": ("record_hash is recomputable from this file alone. "
+                 "source_raw_hash is not: it covers the upstream payload. "
+                 "v3.2 documented one and published the other, so none of "
+                 "the 497 hashes reproduced under its own stated method."),
         "ledger_audit_sample": (ld.get("hash_verification") or {}),
     }
     pkg = {
@@ -764,10 +818,45 @@ def build(snap, view, prov=None, led=None, artifacts=None,
         "snapshot_schema": snap.get("schema"),
         "record_count": len(records),
         "calculation_count": len(calcs),
+        "calculation_coverage": _calc_coverage(calcs),
     }
     if artifacts:
         pkg["artifacts"] = artifacts
     return pkg
+
+
+# Narrative inputs are not arithmetic and cannot be "reproduced".
+# Reporting "17 of 22" without saying what the other five were invited
+# the reader to assume five figures had quietly failed.
+NONNUMERIC_EXEMPT = {
+    "CALC-social-summary": "a population summary object, not a scalar",
+    "REC-profile": "vendor profile text carried as a recommendation input",
+    "REC-business_overview": "narrative business description",
+    "REC-business_quality": "qualitative assessment, INFERRED",
+    "REC-setup_quality": "qualitative assessment, INFERRED",
+}
+
+
+def _calc_coverage(calcs):
+    numeric_ok, numeric_bad, exempt = [], [], []
+    for cid, c in sorted((calcs or {}).items()):
+        if cid in NONNUMERIC_EXEMPT or not isinstance(
+                c.get("result_unrounded"), (int, float)):
+            exempt.append({"calculation_id": cid,
+                           "reason": NONNUMERIC_EXEMPT.get(
+                               cid, "result is not a scalar")})
+        elif c.get("reproducible"):
+            numeric_ok.append(cid)
+        else:
+            numeric_bad.append({"calculation_id": cid,
+                                "note": c.get("recompute_note")})
+    return {"numeric_reproduced": len(numeric_ok),
+            "numeric_failed": len(numeric_bad),
+            "nonnumeric_exempt": len(exempt),
+            "total": len(calcs or {}),
+            "failed_detail": numeric_bad,
+            "exempt_detail": exempt,
+            "reproduced_ids": numeric_ok}
 
 
 def _jsonable(o):

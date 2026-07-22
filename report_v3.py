@@ -686,10 +686,10 @@ def _page2(snap, view):
     rep, gui = ex.get("reported") or {}, ex.get("guidance") or {}
     if rep or gui:
         st += [para("As the company reports it", "h2"),
-               para("Read from the Item 2.02 8-K exhibit; these are not "
-                    "XBRL-tagged. Non-GAAP measures exclude items management "
-                    "considers non-recurring and are not comparable across "
-                    "issuers.", "small")]
+               para("From the Item 2.02 8-K exhibit; not XBRL-tagged. "
+                    "Non-GAAP measures exclude items management considers "
+                    "non-recurring and are not comparable across issuers.",
+                    "small")]
         rows = []
         # Issuer precision, preserved. Rounding 58.25%-59.25% to one
         # decimal changes a number the company was deliberately exact
@@ -727,9 +727,7 @@ def _page2(snap, view):
                              zebra=True))
         if ex.get("url"):
             st.append(linked(ex["url"], "8-K Exhibit 99.1", before="Source: ",
-                             after=", accession %s, accepted %s."
-                                   % (ex.get("accession"),
-                                      M.to_et(ex.get("accepted"))[0] or "-")))
+                             after=", accession %s." % ex.get("accession")))
     elif ex.get("reason"):
         st += [para("As the company reports it", "h2"),
                para("AVAILABLE_NOT_INGESTED — the earnings exhibit is public "
@@ -766,18 +764,25 @@ def _page2(snap, view):
         # the charge is named.
         g_eps, ng_eps = rep.get("gaap_eps"), rep.get("non_gaap_eps")
         if g_eps and ng_eps and g_eps.get("value") is not None                 and ng_eps.get("value") is not None                 and ng_eps["value"] > 2 * max(g_eps["value"], 0.01):
-            st.append(para("One-time effects: the company reported $%.2f "
-                           "GAAP diluted EPS against $%.2f non-GAAP for the "
-                           "same quarter — a gap of $%.2f per share driven by "
-                           "items management excludes, including the fair-"
-                           "value remeasurement tied to the fiscal-2026 "
-                           "business divestiture. The trailing multiple above "
-                           "is computed on GAAP earnings and therefore "
-                           "carries those items in full; it is not comparable "
-                           "with a multiple quoted on a non-GAAP basis."
+            # The issuer's own line items. Tying the remeasurement to a
+            # "fiscal-2026 divestiture" was our inference: Exhibit 99.1
+            # names contingent consideration and a forward stock purchase
+            # contract and attributes neither to a specific transaction.
+            # An adjustment is never assigned to a deal the filing does
+            # not assign it to.
+            st.append(para("One-time effects: $%.2f GAAP diluted EPS against "
+                           "$%.2f non-GAAP for the same quarter, a $%.2f "
+                           "gap. Exhibit 99.1 reconciles it as stock-based "
+                           "compensation, amortization of acquired "
+                           "intangible assets, restructuring and related "
+                           "charges, the change in fair value of the "
+                           "contingent consideration liability net of the "
+                           "forward stock purchase contract, and income-tax "
+                           "effects. The multiple above is on GAAP earnings "
+                           "and carries all of them."
                            % (g_eps["value"], ng_eps["value"],
                               ng_eps["value"] - g_eps["value"]),
-                           "body", M.DERIVED))
+                           "body", M.OBSERVED))
 
     return st
 
@@ -1106,8 +1111,12 @@ def build_appendix(snap, view=None, recs=None, prov=None, out_path=None,
     st += [para("E. Sampled message-board records", "h2"),
            para("Raw, unverified, anonymous. Kept out of the brief on "
                 "purpose and reproduced here only so the counts on page 4 "
-                "can be checked.", "small")]
-    samples = ((snap.get("sentiment") or {}).get("sample_records") or [])
+                "can be checked. Every fetched post is in the evidence "
+                "package with its hash, classification and disposition; "
+                "this page carries neutral representative excerpts only.",
+                "small")]
+    samples = M.presentable_samples(
+        (snap.get("sentiment") or {}).get("sample_records") or [])
     if samples:
         st.append(_table([[(s.get("author_hash") or "")[:10],
                            M.to_et(s.get("published_at"))[0]
