@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-22T19:54:15+00:00",
+  "generated": "2026-07-22T20:04:01+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -255,6 +255,11 @@
     ],
     "adhoc": [
       {
+        "file": "research_TXN_2026-07-22_2004.pdf",
+        "label": "Jul 22, 2026  -  8:04 PM ET",
+        "ticker": "TXN"
+      },
+      {
         "file": "research_MRVL_2026-07-22_0921.pdf",
         "label": "Jul 22, 2026  -  9:21 AM ET",
         "ticker": "MRVL"
@@ -290,19 +295,14 @@
         "ticker": "BB"
       },
       {
-        "file": "ticker_CEVA_2026-06-01_2051.pdf",
-        "label": "Jun 01, 2026  -  8:51 PM ET",
-        "ticker": "CEVA"
-      },
-      {
         "file": "ticker_IMSR_2026-06-01_2051.pdf",
         "label": "Jun 01, 2026  -  8:51 PM ET",
         "ticker": "IMSR"
       },
       {
-        "file": "ticker_NVDA_2026-06-01_2036.pdf",
-        "label": "Jun 01, 2026  -  8:36 PM ET",
-        "ticker": "NVDA"
+        "file": "ticker_CEVA_2026-06-01_2051.pdf",
+        "label": "Jun 01, 2026  -  8:51 PM ET",
+        "ticker": "CEVA"
       }
     ],
     "alt-data": [
