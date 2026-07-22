@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-21T22:32:29+00:00",
+  "generated": "2026-07-22T04:29:38+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -307,6 +307,11 @@
     ],
     "alt-data": [
       {
+        "file": "altdata_MRVL_2026-07-22_0029.pdf",
+        "label": "Jul 22, 2026  -  12:29 AM ET",
+        "ticker": "MRVL"
+      },
+      {
         "file": "altdata_PLTR_2026-07-07_2210.pdf",
         "label": "Jul 07, 2026  -  10:10 PM ET",
         "ticker": "PLTR"
@@ -350,11 +355,6 @@
         "file": "altdata_SOFI_2026-05-15_1806.pdf",
         "label": "May 15, 2026  -  6:06 PM ET",
         "ticker": "SOFI"
-      },
-      {
-        "file": "altdata_PLTR_2026-05-15_1759.pdf",
-        "label": "May 15, 2026  -  5:59 PM ET",
-        "ticker": "PLTR"
       }
     ]
   }
