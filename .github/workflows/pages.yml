@@ -37,11 +37,22 @@ on:
   # the named workflow COMPLETES regardless of the committing token, so
   # each scan's freshly-committed data gets published.
   workflow_run:
+    # INVARIANT: every workflow that commits to docs/ belongs in this list.
+    # A committer missing from it does not publish until the ~20-min cron
+    # sweeper runs, which is invisible for scheduled scans and fatal for
+    # anything a user is waiting on. "Ticker Research Brief (v2)" was
+    # missing: on-demand reports generated in ~60s, committed, and then sat
+    # unpublished past the page's 7-minute poll deadline, so every
+    # user-triggered report ended in "Timed out waiting for the report"
+    # even though the PDF existed. Both lookup workflows are dispatchable
+    # from the worker (WORKFLOWS = {adhoc, altdata}), so both are listed.
     workflows:
       - "Unusual Options Activity"
       - "SMID Breakout Scanner"
       - "Momentum Scans"
       - "Daily Brief"
+      - "Ticker Research Brief (v2)"
+      - "Alt-Data Intelligence Lookup"
     types: [completed]
   # Catch-all sweeper — republish the latest docs/ periodically so a
   # committer not in the list above (or a missed workflow_run) still lands
