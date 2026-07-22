@@ -69,6 +69,8 @@ BODY_W = PAGE_W - 2 * MARGIN
 TOP_PAD = MARGIN + 0.26 * inch
 BOT_PAD = MARGIN + 0.56 * inch
 MIN_CHART_H = 2.0 * inch
+# Below this fill, page 2 has room for the valuation table.
+VAL_TABLE_ROOM = 0.62
 C3_SESSIONS = C3.TRADING_SESSIONS
 
 GRADE_COLOR = {M.OBSERVED: GREEN, M.DERIVED: ACCENT, M.INFERRED: AMBER}
@@ -613,6 +615,14 @@ def _level_blocks(snap, view):
         # stays in prose: that is the level a reader might otherwise
         # mistake for a stop.
         rows.sort(key=lambda x: x[0]["value"])
+        # Record what was actually drawn. LADDER_RENDER_ORDER used to scan
+        # the page for every stage in view["recovery"], which is the whole
+        # ladder — six entries for ISRG against three rendered rows, so it
+        # reported two "missing" levels and a false ordering fault. The
+        # check can only be about the rows that exist, and only the
+        # renderer knows which those are.
+        view["levels_shown"] = [{"label": r["label"], "value": r["value"]}
+                                for r, _ in rows]
         st += [para("Moving-average levels", "h2"),
                _table([[r["label"], "%.2f" % r["value"],
                         "%+.1f%%" % r["distance_pct"], reads]
@@ -763,13 +773,23 @@ def _page2(snap, view):
             vr.append([label, operands, "%.1fx" % v,
                        (f.get("note") or f.get("src") or "—")
                        if isinstance(f, dict) else "—"])
-        # A four-column table with a header row spent sixty points on one
-        # or two multiples. The operands and the caveat are the reason the
-        # section exists, so they stay; the scaffolding around them goes.
-        for lab, ops, valx, note in vr:
-            st.append(para("<b>%s %s</b> — %s. %s"
-                           % (_clean(lab), _clean(valx), _clean(ops),
-                              _clean(note)), "body"))
+        # Table where there is room, sentences where there is not. v3.4
+        # made this a sentence unconditionally to buy back sixty points
+        # for the business block — right for a name carrying a full
+        # exhibit section, wrong for one without it: ISRG has no parseable
+        # 8-K exhibit, so page 2 lost that block AND the table and came
+        # out under the nearly-blank threshold. Same figures either way;
+        # only the scaffolding is conditional.
+        if _story_height(st) < VAL_TABLE_ROOM * _avail_height():
+            st.append(_table(vr, [BODY_W * .18, BODY_W * .22, BODY_W * .12,
+                                  BODY_W * .48],
+                             header=["Multiple", "Operands", "Value",
+                                     "Basis and caveat"], zebra=True))
+        else:
+            for lab, ops, valx, note in vr:
+                st.append(para("<b>%s %s</b> — %s. %s"
+                               % (_clean(lab), _clean(valx), _clean(ops),
+                                  _clean(note)), "body"))
         # A trailing multiple built on a quarter carrying a large one-time
         # charge is arithmetically right and economically misleading unless
         # the charge is named.

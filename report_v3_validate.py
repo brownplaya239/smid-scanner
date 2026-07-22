@@ -593,7 +593,11 @@ def check_agreement(pdf_bytes, evidence, view, snap=None):
 
     # "nearest first" has to be true of the rendered rows, not just the
     # model. A correct list rendered in the wrong order is still wrong.
-    stages = view.get("recovery") or []
+    # The rows the renderer drew, not the whole ladder. view["recovery"]
+    # is every rung the model produced; the table shows the moving-average
+    # subset. Checking the former against the latter reports levels as
+    # "missing" that were never meant to be there.
+    stages = view.get("levels_shown") or []
     if len(stages) >= 2:
         # Scan only the rows under the "Upside confirmation" heading.
         # A table cell extracts as its own line, so label and value never
@@ -616,9 +620,17 @@ def check_agreement(pdf_bytes, evidence, view, snap=None):
                        "the model",
                        "model %s -> row positions %s"
                        % ([round(x["value"], 2) for x in stages], pos)))
+    elif (view.get("levels") or {}).get("upside_confirmation"):
+        # The model produced levels but the renderer recorded none, which
+        # means the row list stopped being written. Skipping here would
+        # silently disable this check the next time the layout moves.
+        out.append(chk("LADDER_RENDER_ORDER", False, ERROR,
+                       "the renderer records the level rows it drew",
+                       "model has %d upside level(s), renderer recorded none"
+                       % len(view["levels"]["upside_confirmation"])))
     else:
         out.append(skipped("LADDER_RENDER_ORDER", ERROR,
-                           "fewer than two upside stages to order"))
+                           "fewer than two level rows were rendered"))
 
     # Counts stated in the document must describe the document. The
     # brief writes "N of M items ... are shown here"; N has to equal the
