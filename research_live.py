@@ -167,6 +167,12 @@ def _quarterly(rows, want_days=(80, 100)):
     return out
 
 
+def _instant(rows):
+    """XBRL point-in-time facts — a balance-sheet line has an `end` and
+    no `start`, so the duration filters above reject every one of them."""
+    return [r for r in rows if r.get("end") and not r.get("start")]
+
+
 def _annual(rows, want_days=(350, 380)):
     out = []
     for r in rows:
@@ -979,6 +985,82 @@ def build_snapshot(ticker, report_time=None):
                 evidence_id=eid, evidence_refs=["CALC-pe_trailing"],
                 quality=rs.Q_DERIVED,
                 note="GAAP diluted, not vendor-adjusted")
+    # ── gross profit, cash flow and balance sheet ───────────────────────
+    # The v3 brief reports margin structure, cash generation and the
+    # balance sheet. Every figure below comes from the same XBRL endpoint
+    # and the same acceptance gate as revenue — nothing here is modelled.
+    # A tag an issuer does not file simply produces no row: an absent
+    # gross-margin tag is a gap in disclosure, never a weak margin.
+    def _duration_fact(tag, key, metric, unit="USD", pct_of_rev=None):
+        raw = concept(cik, tag)
+        rows, _d = _admit(_fill_q4(_quarterly(raw),
+                                   _admit(_annual(raw), acc, report_time)[0]),
+                          acc, report_time)
+        if not rows:
+            return None
+        r = rows[-1]
+        ref = _xf(r, "us-gaap:" + tag)
+        eid = "SEC-%s" % r["accn"]
+        if eid not in evids:
+            evids.append(eid)
+        fund[key] = rs.fact(
+            r["val"], metric=metric, unit=unit,
+            source="SEC XBRL %s" % (r.get("_form") or ""),
+            source_type="filing", source_url=r.get("_url"),
+            period_end=r["end"], published_at=r.get("_accepted"),
+            retrieved_at=retrieved_at, basis="gaap", gaap=True,
+            evidence_id=eid, evidence_refs=[ref], quality=rs.Q_OK)
+        if pct_of_rev and rev_ok and rev_ok[-1]["end"] == r["end"] \
+                and rev_ok[-1]["val"]:
+            r_rev = _xf(rev_ok[-1], "us-gaap:" + t)
+            val = round(100.0 * r["val"] / rev_ok[-1]["val"], 1)
+            led.calc(pct_of_rev, "%s[%s] / revenue[%s] x 100"
+                     % (metric, r["end"], r["end"]), [ref, r_rev], val, "%")
+            fund[pct_of_rev] = rs.fact(
+                val, metric=pct_of_rev.replace("_", " "), unit="%",
+                source="derived from XBRL", source_type="derived",
+                basis="gaap, quarter ended %s" % r["end"],
+                period_end=r["end"], published_at=r.get("_accepted"),
+                calc_version="margin/v1", evidence_id=eid,
+                evidence_refs=["CALC-" + pct_of_rev, ref, r_rev],
+                quality=rs.Q_DERIVED)
+        return r
+
+    def _instant_fact(tags, key, metric):
+        for tag in tags:
+            rows, _d = _admit(_instant(concept(cik, tag)), acc, report_time)
+            if not rows:
+                continue
+            r = rows[-1]
+            ref = _xf(r, "us-gaap:" + tag)
+            fund[key] = rs.fact(
+                r["val"], metric=metric, unit="USD",
+                source="SEC XBRL %s" % (r.get("_form") or ""),
+                source_type="filing", source_url=r.get("_url"),
+                period_end=r["end"], published_at=r.get("_accepted"),
+                retrieved_at=retrieved_at, basis="gaap, as of %s" % r["end"],
+                gaap=True, evidence_id="SEC-%s" % r["accn"],
+                evidence_refs=[ref], quality=rs.Q_OK)
+            return r
+        return None
+
+    try:
+        _duration_fact("GrossProfit", "gross_profit", "quarterly gross profit",
+                       pct_of_rev="gross_margin")
+        _duration_fact("NetCashProvidedByUsedInOperatingActivities",
+                       "operating_cash_flow", "quarterly operating cash flow")
+        _instant_fact(["CashAndCashEquivalentsAtCarryingValue"],
+                      "cash", "cash and equivalents")
+        _instant_fact(["LongTermDebtNoncurrent", "LongTermDebt"],
+                      "debt", "long-term debt")
+    except Exception as e:                       # a missing tag is normal
+        prov["warnings"].append("extended fundamentals partial: %s" % e)
+    # Non-GAAP margin is deliberately absent: companies publish it in
+    # press-release exhibits, not in the XBRL taxonomy, so there is no
+    # tagged figure to admit and we will not reconstruct one.
+    prov.setdefault("coverage", {})["non_gaap_margin"] = (
+        "not available — non-GAAP measures are not XBRL-tagged")
+
     prov["deferred"] = [
         {"metric": m, "period_end": r.get("end"), "form": r.get("_form"),
          "accepted": r.get("_accepted"), "value": r.get("val")}

@@ -10,3 +10,9 @@ __pycache__/
 
 # local agent/session state — never commit (contains launch.json)
 .claude/
+
+# v3 report runtime state (per-ticker "what changed" diff keys) and
+# generated report artefacts — both are outputs, not sources.
+.report_state/
+.report_state_test/
+out_v3/
