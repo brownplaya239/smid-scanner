@@ -1301,7 +1301,8 @@ def setup_metrics(snap):
     below = rs.fv(lv.get("pct_below_hi52"))
     out.append(_m("Below 52w closing high",
                   "%.1f%%" % below if below is not None else "Unavailable",
-                  DERIVED if below is not None else None, calc="CALC-hi52"))
+                  DERIVED if below is not None else None,
+                  calc="CALC-pct_below_hi52"))
 
     bt = rs.fv(lv.get("base_tightness_pct"))
     out.append(_m("Base tightness",
@@ -1341,7 +1342,9 @@ def setup_metrics(snap):
                   "%.2f / %.1f%%" % (atr, atrp)
                   if (atr is not None and atrp is not None)
                   else ("%.2f" % atr if atr is not None else "Unavailable"),
-                  DERIVED if atr is not None else None, calc="CALC-atr14"))
+                  DERIVED if atr is not None else None,
+                  calc="CALC-atr14_pct" if atrp is not None
+                  else "CALC-atr14"))
 
     pe = rs.fv(val.get("pe_trailing"))
     out.append(_m("P/E trailing", "%.1fx" % pe if pe is not None

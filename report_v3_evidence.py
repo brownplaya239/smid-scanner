@@ -420,6 +420,10 @@ def _recompute_operands(slug, ops):
         return round(100.0 * (nums[-2] / nums[-1] - 1), 1), None
     if slug == "eps_ttm" and len(nums) >= 4:
         return round(sum(nums[-4:]), 2), None
+    if slug == "atr14_pct" and len(nums) == 2 and nums[1]:
+        return round(100.0 * nums[0] / nums[1], 2), None
+    if slug == "pct_below_hi52" and len(nums) == 2 and nums[0]:
+        return round(100.0 * (nums[0] - nums[1]) / nums[0], 1), None
     if slug == "session_change" and len(ops) == 2:
         # The second operand is a whole bar, so its close has to be dug
         # out rather than read off the operand value like a scalar.

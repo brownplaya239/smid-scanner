@@ -925,6 +925,20 @@ def build_snapshot(ticker, report_time=None):
           mk.get("ma9"), "USD")
     _calc("ma21", "mean(close, last 21 completed sessions)", 21,
           mk.get("ma21"), "USD")
+    # These two are ratios OF other calculations rather than windows over
+    # bars, so _calc's window helper does not fit them and they were
+    # published citing CALC- ids that were never emitted. The v2 gate
+    # catches exactly that (check_evidence_refs) and refused to render any
+    # ticker; the v3 validator did not, because it has no equivalent check
+    # over snapshot facts. Both are real divisions, so they get real
+    # records naming the two operands they divide.
+    if mk.get("atr14_pct") is not None:
+        led.calc("atr14_pct", "ATR(14) / price x 100",
+                 ["CALC-atr14", px_ref], mk["atr14_pct"], "%")
+    if mk.get("pct_below_hi52") is not None:
+        led.calc("pct_below_hi52",
+                 "(52-week closing high - price) / 52-week closing high "
+                 "x 100", ["CALC-hi52", px_ref], mk["pct_below_hi52"], "%")
     if mk.get("rel_volume") is not None:
         _calc("rel_volume",
               "volume(latest completed) / mean(volume, prior 20 completed)",
