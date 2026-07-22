@@ -1,6 +1,6 @@
 {
  "week_of": "2026-07-20",
- "generated": "2026-07-22T16:48:10-04:00",
+ "generated": "2026-07-22T18:37:06-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 245,
  "days": [
@@ -797,7 +797,7 @@
     {
      "ticker": "TSLA",
      "company": "Tesla, Inc.",
-     "score": 234,
+     "score": 235,
      "analysts": 43,
      "release_time": 3,
      "confirmed": true,
@@ -817,7 +817,7 @@
     {
      "ticker": "NOW",
      "company": "ServiceNow, Inc.",
-     "score": 132,
+     "score": 133,
      "analysts": 45,
      "release_time": 3,
      "confirmed": true,
@@ -827,7 +827,7 @@
     {
      "ticker": "IBM",
      "company": "International Business Machines Corp.",
-     "score": 61,
+     "score": 62,
      "analysts": 22,
      "release_time": 3,
      "confirmed": true,
@@ -915,19 +915,9 @@
      "q": "6/2026"
     },
     {
-     "ticker": "SLG",
-     "company": "SL Green Realty Corp.",
-     "score": 6,
-     "analysts": 19,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-07-22T00:00:00",
-     "q": "6/2026"
-    },
-    {
      "ticker": "QS",
      "company": "Quantumscape Corp",
-     "score": 5,
+     "score": 6,
      "analysts": 10,
      "release_time": 3,
      "confirmed": true,
@@ -937,8 +927,18 @@
     {
      "ticker": "KNX",
      "company": "Knight-Swift Transportation Holdings Inc.",
-     "score": 5,
+     "score": 6,
      "analysts": 20,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-22T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "SLG",
+     "company": "SL Green Realty Corp.",
+     "score": 6,
+     "analysts": 19,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-07-22T00:00:00",
@@ -999,6 +999,16 @@
      "company": "Medpace Holdings Inc.",
      "score": 3,
      "analysts": 13,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-22T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "CYH",
+     "company": "Community Health Systems, Inc.",
+     "score": 3,
+     "analysts": 10,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-07-22T00:00:00",
@@ -1129,16 +1139,6 @@
      "company": "Globe Life Inc.",
      "score": 2,
      "analysts": 15,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-07-22T00:00:00",
-     "q": "6/2026"
-    },
-    {
-     "ticker": "CYH",
-     "company": "Community Health Systems, Inc.",
-     "score": 2,
-     "analysts": 10,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-07-22T00:00:00",
@@ -1303,7 +1303,7 @@
     {
      "ticker": "NOK",
      "company": "Nokia Corp.",
-     "score": 62,
+     "score": 63,
      "analysts": 18,
      "release_time": 1,
      "confirmed": true,
@@ -1805,7 +1805,7 @@
     {
      "ticker": "INTC",
      "company": "Intel Corp.",
-     "score": 147,
+     "score": 151,
      "analysts": 45,
      "release_time": 3,
      "confirmed": true,
@@ -1815,7 +1815,7 @@
     {
      "ticker": "FIX",
      "company": "Comfort Systems USA, Inc.",
-     "score": 26,
+     "score": 28,
      "analysts": 12,
      "release_time": 3,
      "confirmed": true,
@@ -1825,7 +1825,7 @@
     {
      "ticker": "MXL",
      "company": "MaxLinear, Inc.",
-     "score": 20,
+     "score": 21,
      "analysts": 10,
      "release_time": 3,
      "confirmed": true,
@@ -1835,7 +1835,7 @@
     {
      "ticker": "DECK",
      "company": "Deckers Brands",
-     "score": 10,
+     "score": 11,
      "analysts": 26,
      "release_time": 3,
      "confirmed": true,
@@ -1845,7 +1845,7 @@
     {
      "ticker": "NEM",
      "company": "Newmont Mining Corp.",
-     "score": 7,
+     "score": 8,
      "analysts": 24,
      "release_time": 3,
      "confirmed": true,
@@ -1855,7 +1855,7 @@
     {
      "ticker": "SAP",
      "company": "SAP SE",
-     "score": 6,
+     "score": 7,
      "analysts": 26,
      "release_time": 3,
      "confirmed": true,
@@ -1865,8 +1865,18 @@
     {
      "ticker": "BYD",
      "company": "Boyd Gaming Corp.",
-     "score": 6,
+     "score": 7,
      "analysts": 19,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-23T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "RNG",
+     "company": "RingCentral, Inc.",
+     "score": 5,
+     "analysts": 15,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-07-23T00:00:00",
@@ -1887,16 +1897,6 @@
      "company": "Edwards Lifesciences Corp.",
      "score": 4,
      "analysts": 29,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-07-23T00:00:00",
-     "q": "6/2026"
-    },
-    {
-     "ticker": "RNG",
-     "company": "RingCentral, Inc.",
-     "score": 4,
-     "analysts": 15,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-07-23T00:00:00",
@@ -2371,7 +2371,7 @@
     {
      "ticker": "LW",
      "company": "Lamb Weston Holdings, Inc.",
-     "score": 4,
+     "score": 5,
      "analysts": 13,
      "release_time": 1,
      "confirmed": true,
