@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-22T04:29:38+00:00",
+  "generated": "2026-07-22T04:30:27+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -255,6 +255,11 @@
     ],
     "adhoc": [
       {
+        "file": "ticker_MRVL_2026-07-22_0030.pdf",
+        "label": "Jul 22, 2026  -  12:30 AM ET",
+        "ticker": "MRVL"
+      },
+      {
         "file": "ticker_AAPL_2026-07-16_1342.pdf",
         "label": "Jul 16, 2026  -  1:42 PM ET",
         "ticker": "AAPL"
@@ -298,11 +303,6 @@
         "file": "ticker_SW_2026-05-29_1208.pdf",
         "label": "May 29, 2026  -  12:08 PM ET",
         "ticker": "SW"
-      },
-      {
-        "file": "ticker_ATI_2026-05-29_1145.pdf",
-        "label": "May 29, 2026  -  11:45 AM ET",
-        "ticker": "ATI"
       }
     ],
     "alt-data": [
