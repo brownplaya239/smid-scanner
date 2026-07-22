@@ -206,6 +206,53 @@ async function fetchChain0(sym, env) {
   return out;
 }
 
+/* sanitizeWicks — kill Yahoo's orphan bad-tick wicks in intraday bars.
+ *
+ * Observed 2026-07-21 on the dashboard's market cards: SPY printed a bar
+ * with o=748.00 c=748.00 but l=696.82 (-6.8% wick) while the median bar
+ * range that session was 0.042%; GLD printed h=399.61 AND l=359.80 around
+ * an o/c of ~374. These are erroneous prints captured in Yahoo's
+ * high/low aggregation — the open/close series is clean.
+ *
+ * The discriminator is ORPHANHOOD, not size: a genuine fast move shows
+ * up in the open/close of that bar or its neighbours, whereas a bad tick
+ * leaves a spike that no o/c anywhere near it corroborates. So we clamp
+ * h/l to the local o/c envelope (+/- a tolerance), never touching o/c
+ * and never dropping bars. Real volatility survives; orphan spikes do not.
+ *
+ * Returns the number of bars clamped so the payload can disclose it. */
+function sanitizeWicks(bars) {
+  if (!Array.isArray(bars) || bars.length < 8) return 0;
+  // median bar range as the scale of "normal" movement for this symbol
+  const ranges = bars.map(function (b) { return b.h - b.l; })
+                     .filter(function (x) { return x >= 0; })
+                     .sort(function (a, b) { return a - b; });
+  if (!ranges.length) return 0;
+  const medRange = ranges[Math.floor(ranges.length / 2)];
+  const ref = bars[bars.length - 1].c || bars[0].c || 1;
+  // tolerance: generous vs typical movement, tiny vs a bad tick
+  const tol = Math.max(medRange * 6, Math.abs(ref) * 0.004);
+  const W = 3;                      // local window of corroborating bars
+  let fixed = 0;
+  for (let i = 0; i < bars.length; i++) {
+    let lo = Infinity, hi = -Infinity;
+    for (let j = Math.max(0, i - W); j <= Math.min(bars.length - 1, i + W); j++) {
+      lo = Math.min(lo, bars[j].o, bars[j].c);
+      hi = Math.max(hi, bars[j].o, bars[j].c);
+    }
+    const capHi = hi + tol, capLo = lo - tol;
+    let touched = false;
+    if (bars[i].h > capHi) { bars[i].h = Math.round(capHi * 100) / 100; touched = true; }
+    if (bars[i].l < capLo) { bars[i].l = Math.round(capLo * 100) / 100; touched = true; }
+    // keep OHLC internally consistent after clamping
+    const b = bars[i];
+    b.h = Math.max(b.h, b.o, b.c);
+    b.l = Math.min(b.l, b.o, b.c);
+    if (touched) fixed++;
+  }
+  return fixed;
+}
+
 async function fetchBars0(sym, iv) {
   iv = { "1": "1m", "2": "2m", "5": "5m" }[String(iv)] || "5m";
   const key = "bars0:" + sym + ":" + iv;
@@ -327,6 +374,7 @@ async function fetchYahooQuote(sym) {
         }
       }
     }
+    const wickFix = sanitizeWicks(bars);
     // Freshness metadata so the client can disclose the 15m delay
     // truthfully rather than implying real-time. regularMarketTime is
     // the Yahoo-reported last-trade timestamp (epoch seconds);
@@ -375,7 +423,7 @@ async function fetchYahooQuote(sym) {
     const stale = effLastMs
       ? (Date.now() - effLastMs > 25 * 60 * 1000) : false;
     return { symbol: sym, price: effPrice, change: effChange,
-             prevClose: effPrev, bars: bars,
+             prevClose: effPrev, bars: bars, wicks_clamped: wickFix,
              last_trade_ts: effLastMs
                ? new Date(effLastMs).toISOString() : null,
              // Wall-clock age of the last trade — lets the chip render
