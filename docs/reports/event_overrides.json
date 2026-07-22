@@ -1,0 +1,29 @@
+{
+  "_readme": [
+    "Corrections applied to vendor calendar rows whose title is a category",
+    "rather than an event, or whose scheduled time is stated in the venue's",
+    "local zone rather than the vendor's.",
+    "",
+    "Each entry MUST carry `authority` (who says so) and `source_url`. An",
+    "override with no attribution is just a different guess, so the loader",
+    "refuses to apply one. `local_time` + `venue_tz` are converted to",
+    "Eastern at load; when present they REPLACE the vendor timestamp,",
+    "because the vendor time is what was wrong.",
+    "",
+    "`match` is a case-insensitive substring of the vendor title, scoped to",
+    "the given date."
+  ],
+  "overrides": [
+    {
+      "date": "2026-07-22",
+      "match": "President Trump Speaks",
+      "title": "State Arrival Ceremony and Honor Guard Review",
+      "venue": "Ankara",
+      "venue_tz": "Europe/Istanbul",
+      "local_time": "3:00pm",
+      "authority": "operator-supplied schedule correction",
+      "source_url": "",
+      "note": "Vendor row carried the generic label 'President Trump Speaks' and a 19:00Z stamp. The ceremony is scheduled 15:00 Europe/Istanbul, which is 08:00 America/New_York."
+    }
+  ]
+}

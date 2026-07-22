@@ -22,6 +22,8 @@ import os
 import sys
 from datetime import datetime, timedelta
 
+import brief_time as BT
+
 try:
     import pytz
     ET = pytz.timezone("America/New_York")
@@ -70,7 +72,7 @@ def _pct(a, b):
     return None if not b else round(100.0 * (a - b) / b, 2)
 
 
-def fetch_quotes(tickers, period="3mo"):
+def fetch_quotes(tickers, period="1y"):
     """Last close, 1D, 1W and distance from the 20-day mean, from ONE
     daily series per ticker so the three derived numbers cannot disagree."""
     out = {}
@@ -93,11 +95,20 @@ def fetch_quotes(tickers, period="3mo"):
             idx = df["Close"].dropna().index
             last_dt = idx[-1].to_pydatetime()
             ma20 = sum(closes[-20:]) / 20.0
+            # YTD measured from the first session of the current year in
+            # this same series — never a second vendor field
+            yr = last_dt.year
+            ytd_base = None
+            for i, ts in enumerate(idx):
+                if ts.year == yr:
+                    ytd_base = closes[i]
+                    break
             out[tk] = {
                 "last": round(closes[-1], 2),
                 "chg_1d_pct": _pct(closes[-1], closes[-2]),
                 "chg_1w_pct": _pct(closes[-1], closes[-6]) if len(closes) >= 6
                               else None,
+                "chg_ytd_pct": _pct(closes[-1], ytd_base) if ytd_base else None,
                 "ma20": round(ma20, 2),
                 "dist_ma20_pct": _pct(closes[-1], ma20),
                 "above_ma20": closes[-1] > ma20,
@@ -183,16 +194,21 @@ def classify_regime(indices, vix, tnx, breadth):
 
     bits = []
     if b is not None:
-        bits.append("breadth %d%% of %s names"
-                    % (b, format(breadth.get("universe") or 0, ",")))
+        uni = breadth.get("universe") or 0
+        bits.append("%d%% of the %s-name universe is above its 20-day average"
+                    % (b, format(uni, ",")) if uni else
+                    "breadth %d%% (universe size unavailable)" % b)
     if above:
         bits.append("%d of %d major indices above their 20-day"
                     % (n_above, len(above)))
     if vix_last is not None:
         bits.append("VIX %.1f%s" % (vix_last,
-                    (" %+.1f%%" % vix_chg) if vix_chg is not None else ""))
-    if tnx_chg is not None:
-        bits.append("10-year yield %+.1f%%" % tnx_chg)
+                    (" (%+.1f%%)" % vix_chg) if vix_chg is not None else ""))
+    ty = (tnx or {}).get("yield_pct")
+    if ty is not None:
+        bp = round(ty * tnx_chg) if tnx_chg is not None else None
+        bits.append("10-year yield %.2f%%%s"
+                    % (ty, (" (%+d bp)" % bp) if bp is not None else ""))
     why = ("; ".join(bits) + ".") if bits else \
         "insufficient market data to explain the regime."
     return {"label": label, "why": why, "inputs": inputs,
@@ -216,33 +232,42 @@ def event_impact(ev):
 
 
 def _ev_time_et(ev, now_et):
-    """Parse the feed's ET clock string onto today's date."""
-    t = (ev.get("time") or "").strip().lower().replace(".", "")
-    if not t or "all day" in t or "tentative" in t:
+    """When the event actually starts, as an aware Eastern datetime.
+
+    Prefers `starts_at`, which the calendar writer produces by converting
+    from the feed's own zone. The older `time` key held the feed's clock
+    (UTC) and was previously copied into `time_et` unchanged, which is how
+    a 10:30 ET release came to be printed as 2:30pm.
+    """
+    iso = ev.get("starts_at")
+    if iso:
+        dt = BT.parse_iso(iso)
+        if dt is not None and dt.tzinfo is not None:
+            return BT.to_et(dt)
+    # legacy payload: the clock is whatever zone the file was written in,
+    # so trust the label only when the writer says it converted
+    c = BT.parse_clock(ev.get("time_et") or "")
+    if c is None:
         return None
-    try:
-        for fmt in ("%I:%M%p", "%I%p", "%H:%M"):
-            try:
-                p = datetime.strptime(t.replace(" ", ""), fmt)
-                break
-            except ValueError:
-                p = None
-        if p is None:
-            return None
-        return now_et.replace(hour=p.hour, minute=p.minute, second=0,
-                              microsecond=0)
-    except Exception:
-        return None
+    return now_et.replace(hour=c[0], minute=c[1], second=0, microsecond=0)
+
+
+UNSCHEDULED = "UNSCHEDULED"
 
 
 def event_status(ev, now_et, grace_min=30):
     """A released number is never shown as upcoming. Once the actual is
-    published the event leaves the action queue."""
+    published the event leaves the action queue.
+
+    An event with no resolvable clock is UNSCHEDULED, not UPCOMING:
+    calling it upcoming asserts it has not happened yet, which is exactly
+    what we do not know.
+    """
     if ev.get("actual") not in (None, "", "-"):
         return COMPLETED
     when = _ev_time_et(ev, now_et)
     if when is None:
-        return UPCOMING
+        return UNSCHEDULED
     if now_et < when:
         return UPCOMING
     if now_et < when + timedelta(minutes=grace_min):
@@ -258,14 +283,87 @@ def load_events(now_et=None):
             cal = json.load(fh)
     except Exception:
         return []
-    today = now_et.strftime("%m-%d-%Y")
-    evs = [e for e in (cal.get("events") or []) if e.get("date") == today]
+    # the writer emits ISO dates now; accept the legacy MM-DD-YYYY too so a
+    # stale file still filters to the right day instead of silently
+    # returning nothing
+    today = {now_et.strftime("%Y-%m-%d"), now_et.strftime("%m-%d-%Y")}
+    evs = [e for e in (cal.get("events") or []) if e.get("date") in today]
     for e in evs:
         e["status"] = event_status(e, now_et)
         e["stars"] = event_impact(e)
-        e["time_et"] = e.get("time")
-    evs.sort(key=lambda e: (-e["stars"], e.get("time") or ""))
+        when = _ev_time_et(e, now_et)
+        e["_when"] = when
+        if not e.get("time_et"):
+            e["time_et"] = BT.fmt_time(when) if when else ""
+    evs.sort(key=lambda e: (-e["stars"],
+                            e["_when"].isoformat() if e.get("_when") else "~"))
     return evs
+
+
+def calendar_problems(now_et=None):
+    """Send-time check: is the on-disk calendar converted, and do its
+    releases still land on their published times?"""
+    p = os.path.join(REPORTS_DIR, "economic_calendar.json")
+    try:
+        with open(p, encoding="utf-8") as fh:
+            cal = json.load(fh)
+    except Exception:
+        return []                       # no calendar is not a wrong calendar
+    evs = cal.get("events") or []
+    if not evs:
+        return []
+    if not cal.get("converted"):
+        return ["economic_calendar.json predates timezone conversion "
+                "(no `converted` flag); regenerate before sending"]
+    v = []
+    bad = [e for e in evs if e.get("on_schedule") is False]
+    if bad:
+        v.append("%d calendar event(s) disagree with their published release "
+                 "time, e.g. %s at %s (published %s ET)"
+                 % (len(bad), bad[0].get("title"), bad[0].get("time_et"),
+                    bad[0].get("anchor_et")))
+    return v + event_problems(evs, now_et)
+
+
+def event_problems(events, now_et=None):
+    """Blocking checks on the events that will actually be DISPLAYED.
+
+    Provenance is only useful if something refuses to ship without it, so
+    each of these corresponds to a way the calendar has been wrong:
+    a zone nobody declared, a conversion that does not reproduce, a vendor
+    category standing in for an event title, and a past event still
+    advertised as upcoming.
+    """
+    now = now_et or datetime.now(ET)
+    v = []
+    for e in events or []:
+        t = e.get("title") or "(untitled)"
+        if not e.get("source_tz"):
+            v.append("%s has no source timezone; its time cannot be "
+                     "converted, only relabelled" % t)
+        if e.get("generic_title"):
+            v.append("%r is a vendor category, not an event title; it needs "
+                     "an attributed override before it can be displayed" % t)
+        # the conversion must reproduce from the stored provenance
+        src_tz = BT.zone(e.get("source_tz")) or (
+            BT.UTC if (e.get("source_tz") or "").upper() == "UTC" else None)
+        if src_tz is not None and e.get("source_time") and e.get("starts_at"):
+            want = BT.aware(e.get("source_date") or e.get("date"),
+                            e["source_time"], src_tz)
+            got = BT.parse_iso(e["starts_at"])
+            if want is not None and got is not None:
+                delta = abs((BT.to_et(want) - BT.to_et(got)).total_seconds())
+                # a date-line shift shows up as a whole number of days and
+                # is a date bug, not a zone bug; either way it is wrong
+                if delta % 86400 > 60:
+                    v.append("%s: stored ET time %s does not reproduce from "
+                             "%s %s" % (t, e.get("time_et"), e["source_time"],
+                                        e["source_tz"]))
+        when = _ev_time_et(e, now)
+        if when is not None and when < now and e.get("status") == UPCOMING:
+            v.append("%s was scheduled for %s but is still labelled UPCOMING"
+                     % (t, e.get("time_et")))
+    return v
 
 
 # ── assembly ────────────────────────────────────────────────────────────
@@ -320,6 +418,10 @@ def build(now_et=None, with_sectors=True):
         "session_key": key,
         "session_label": label,
         "as_of_et": now_et.strftime("%Y-%m-%d %H:%M ET"),
+        # the absolute instant, for consumers that must compare
+        # against source timestamps rather than display them
+        "as_of_utc": now_et.astimezone(BT.UTC).isoformat(
+            timespec="seconds"),
         "session_date": session_date,
         "indices": idx,
         "vix": vix,
@@ -355,8 +457,14 @@ def summary_lines(m):
         vix_s = "VIX %.1f %s" % (m["vix"]["last"],
                                  _fmt(m["vix"].get("chg_1d_pct")))
     ty = (m["ten_year"] or {}).get("yield_pct")
-    ty_s = ("10Y %.2f%% %s" % (ty, _fmt(m["ten_year"].get("chg_1d_pct")))
-            ) if ty is not None else ""
+    ty_s = ""
+    if ty is not None:
+        # basis points, matching the regime sentence. The preheader used to
+        # say "+0.65%" for the same move the body called "+3 bp" -- two
+        # different units for one number, side by side in the inbox.
+        chg = (m["ten_year"] or {}).get("chg_1d_pct")
+        bp = ("(%+d bp)" % round(ty * chg)) if chg is not None else ""
+        ty_s = ("10Y %.2f%% %s" % (ty, bp)).strip()
     return {"indices": "  ".join(parts), "vix": vix_s, "ten_year": ty_s}
 
 
@@ -415,17 +523,51 @@ def self_test():
 
     now = mk(14, 0)
     chk("event with an actual is COMPLETED",
-        event_status({"time": "8:30am", "actual": "3.1%"}, now) == COMPLETED)
+        event_status({"time_et": "8:30am", "actual": "3.1%"}, now) == COMPLETED)
     chk("future event is UPCOMING",
-        event_status({"time": "3:00pm"}, now) == UPCOMING)
+        event_status({"time_et": "3:00pm"}, now) == UPCOMING)
     chk("just-released event is IN PROGRESS",
-        event_status({"time": "1:45pm"}, now) == IN_PROGRESS)
+        event_status({"time_et": "1:45pm"}, now) == IN_PROGRESS)
     chk("old event with no actual is COMPLETED",
-        event_status({"time": "9:00am"}, now) == COMPLETED)
+        event_status({"time_et": "9:00am"}, now) == COMPLETED)
+    # a converted payload carries an absolute instant; status must follow
+    # that, not a clock string that could be in any zone
+    chk("status follows the converted instant, not a bare clock",
+        event_status({"starts_at": "2026-07-22T15:00:00-04:00"},
+                     now) == UPCOMING)
+    chk("the pre-conversion `time` key can no longer drive status",
+        event_status({"time": "1:45pm"}, now) == UNSCHEDULED)
+    chk("an event with no resolvable clock is not called UPCOMING",
+        event_status({"title": "Tentative"}, now) == UNSCHEDULED)
+    # provenance gates
+    chk("an event with no source timezone is blocked",
+        event_problems([{"title": "X", "starts_at":
+                         "2026-07-22T10:30:00-04:00"}], now))
+    chk("a vendor category standing in for a title is blocked",
+        event_problems([{"title": "President Trump Speaks",
+                         "source_tz": "UTC", "generic_title": True}], now))
+    chk("an attributed override clears the generic-title gate",
+        event_problems([{"title": "State Arrival Ceremony",
+                         "source_tz": "Europe/Istanbul",
+                         "generic_title": False}], now) == [])
+    chk("a conversion that does not reproduce is blocked",
+        event_problems([{"title": "Crude Oil Inventories", "source_tz": "UTC",
+                         "date": "2026-07-22", "source_time": "2:30pm",
+                         "starts_at": "2026-07-22T14:30:00-04:00"}], now))
+    chk("a reproducible conversion passes",
+        event_problems([{"title": "Crude Oil Inventories", "source_tz": "UTC",
+                         "date": "2026-07-22", "source_time": "2:30pm",
+                         "starts_at": "2026-07-22T10:30:00-04:00"}],
+                       now) == [])
+    chk("a past event still labelled UPCOMING is blocked",
+        event_problems([{"title": "Old", "source_tz": "UTC",
+                         "starts_at": "2026-07-22T08:00:00-04:00",
+                         "status": UPCOMING}], now))
 
     on = classify_regime(
         {"SPY": {"above_ma20": True}, "QQQ": {"above_ma20": True}},
-        {"last": 14.0, "chg_1d_pct": -3.0}, {"chg_1d_pct": 0.1},
+        {"last": 14.0, "chg_1d_pct": -3.0},
+        {"yield_pct": 4.63, "chg_1d_pct": 0.1},
         {"breadth_pct": 62, "universe": 1000})
     chk("breadth 62 + above 20d + VIX down -> RISK-ON",
         on["label"] == RISK_ON, on)
@@ -440,8 +582,12 @@ def self_test():
         {"breadth_pct": 50, "universe": 1000,
          "label_prior": "risk_off", "label_current": "risk_on"})
     chk("label flip -> TRANSITION", trans["label"] == TRANSITION, trans)
+    # the sentence states breadth as a measured number, not the word
+    # "breadth" — checking for the label would pass on a sentence that
+    # never says what the reading actually was
     chk("regime sentence cites breadth, indices, VIX and rates",
-        all(k in on["why"] for k in ("breadth", "20-day", "VIX", "10-year")),
+        all(k in on["why"] for k in ("62%", "1,000-name", "20-day", "VIX",
+                                     "10-year")),
         on["why"])
     chk("regime never returns an unknown label",
         all(r["label"] in (RISK_ON, RISK_OFF, BALANCED, TRANSITION)
