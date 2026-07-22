@@ -273,7 +273,11 @@ def select(market_articles, watch_articles, watch_tickers,
             min((prio.get(t, 999) for t in r.get("watch_tickers") or []),
                 default=999),
             r["tier"] != PRIMARY, -_ts(r["published_sort"])))
-    w = _cap_publisher(w_all, max_watch)
+    # one shared quota across both sections: the validator counts the
+    # union, so capping each section independently let a single outlet
+    # supply four of five displayed stories
+    quota = {}
+    w = _cap_publisher(w_all, max_watch, used=quota)
     # the reader's own names win the story: showing it again under Market
     # would present one event as two
     claimed = {r["key"] for r in w} | {
@@ -283,7 +287,7 @@ def select(market_articles, watch_articles, watch_tickers,
              if r["key"] not in claimed
              and "".join(ch for ch in r["headline"].lower()
                          if ch.isalnum())[:80] not in claimed]
-    m = _cap_publisher(m_all, max_market)
+    m = _cap_publisher(m_all, max_market, used=quota)
 
     shown = m + w
     notes = []
@@ -308,27 +312,34 @@ def select(market_articles, watch_articles, watch_tickers,
     }
 
 
-def _cap_publisher(records, cap, share=0.5):
-    """No outlet may supply more than `share` of a section while another
-    outlet has something to say. Three Motley Fool items in a three-item
-    section is one outlet's editorial line presented as the day's news."""
+def _cap_publisher(records, cap, share=0.5, used=None):
+    """No outlet may supply more than `share` of the DISPLAYED news while
+    another outlet has something to say.
+
+    The first version deferred over-quota items and then backfilled them
+    when the section came up short, which defeated the cap entirely: four
+    of five displayed stories came from one outlet and the schema check
+    caught it in production. Shipping fewer, more varied stories is the
+    point — a short section is a smaller problem than one outlet's
+    editorial line presented as the day's news.
+
+    `used` is shared across sections so the quota applies to the union,
+    which is what the validator measures.
+    """
     if not records:
         return []
+    counts = used if used is not None else {}
+    sources = {r["source"] for r in records}
     limit = max(1, int(cap * share))
-    used, out, deferred = {}, [], []
+    out = []
     for r in records:
         if len(out) >= cap:
             break
-        n = used.get(r["source"], 0)
-        if n >= limit and len({x["source"] for x in records}) > 1:
-            deferred.append(r)
+        # a single available outlet cannot be diversified; the coverage
+        # note discloses that rather than the section going empty
+        if len(sources) > 1 and counts.get(r["source"], 0) >= limit:
             continue
-        used[r["source"]] = n + 1
-        out.append(r)
-    # if diversity could not fill the section, take the deferred ones back
-    for r in deferred:
-        if len(out) >= cap:
-            break
+        counts[r["source"]] = counts.get(r["source"], 0) + 1
         out.append(r)
     return out
 
@@ -448,6 +459,31 @@ def self_test():
         len({r["headline"] for r in sel["watchlist"]})
         == len(sel["watchlist"]))
     chk("market cap respected", len(sel["market"]) <= 3)
+    # the production failure: one outlet supplied 4 of 5 displayed stories
+    # because over-quota items were deferred and then backfilled
+    flood = [{"title": "Fed signals patience on rates %d" % i,
+              "url": "https://www.fool.com/a%d" % i,
+              "publisher": "The Motley Fool",
+              "published": "2026-07-22T11:0%d:00Z" % i} for i in range(6)]
+    flood.append({"title": "Treasury yields ease after auction",
+                  "url": "https://reuters.com/t", "publisher": "Reuters",
+                  "published": "2026-07-22T11:30:00Z"})
+    fl = select(flood, [], [], as_of="2026-07-22T12:00:00Z")
+    shown = fl["market"] + fl["watchlist"]
+    pubs = {}
+    for r in shown:
+        pubs[r["source"]] = pubs.get(r["source"], 0) + 1
+    top = max(pubs.values())
+    chk("no outlet exceeds half of the displayed stories",
+        len(pubs) == 1 or top * 2 <= len(shown), pubs)
+    chk("the cap ships fewer stories rather than violating itself",
+        len(shown) < 3 or len(pubs) > 1, (len(shown), pubs))
+    solo = select(flood[:3], [], [], as_of="2026-07-22T12:00:00Z")
+    chk("a single available outlet still fills the section",
+        len(solo["market"]) == 3, len(solo["market"]))
+    chk("...and that lack of diversity is disclosed",
+        "no second outlet" in (solo.get("coverage_note") or ""),
+        solo.get("coverage_note"))
     chk("a corporate notice is not called market-moving",
         not is_market_moving({"headline": "Kalmar extends service agreement",
                               "tickers": ["KALM"]}))

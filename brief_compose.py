@@ -1260,6 +1260,19 @@ def self_test():
     chk("missing lang is blocked",
         check_document(ok_doc.replace(' lang="en"', "")))
     chk("negative zero is blocked", check_no_negative_zero("QQQ -0.0%"))
+    # a ceremony has no "actual" to publish; demanding one blocked a whole
+    # brief in production on an arrival ceremony that had simply finished
+    chk("a completed data release with no actual is blocked",
+        check_temporal([], [{"title": "Unemployment Claims",
+                             "status": "COMPLETED", "forecast": "211K",
+                             "anchor_et": "08:30"}], None))
+    chk("a completed ceremony needs no actual",
+        check_temporal([], [{"title": "State Arrival Ceremony",
+                             "status": "COMPLETED"}], None) == [])
+    chk("a released number with its actual passes",
+        check_temporal([], [{"title": "CPI", "status": "COMPLETED",
+                             "forecast": "3.1%", "actual": "3.0%"}],
+                       None) == [])
     chk("plain zero passes", check_no_negative_zero("QQQ 0.0%") == [])
     chk("unsupported sector claim in the subject is blocked",
         check_subject_supported("Risk-off tape - Semis leads", "no sectors",
@@ -1461,8 +1474,15 @@ def check_temporal(news, events, as_of):
                      % str(it.get("headline"))[:48])
     for e in (events or []):
         st = (e.get("status") or "").upper()
-        if st in ("COMPLETED", "RELEASED") and not e.get("actual"):
-            v.append("event %r marked %s with no published actual"
+        # Only a DATA RELEASE publishes an "actual". A ceremony, a speech
+        # or a bank holiday completes by the clock passing and has no
+        # number to print, so demanding one blocked the whole brief on an
+        # 8:00 a.m. arrival ceremony that had simply finished.
+        is_release = bool(e.get("forecast") or e.get("previous")
+                          or e.get("anchor_et"))
+        if st in ("COMPLETED", "RELEASED") and is_release \
+                and not e.get("actual"):
+            v.append("release %r marked %s with no published actual"
                      % (str(e.get("title"))[:40], st))
     return v
 
