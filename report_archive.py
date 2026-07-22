@@ -51,8 +51,12 @@ def _classify(fn):
     if fn.startswith("iwm_setup_"):       return "iwm-setup",       None
     if fn.startswith("qm_monthly_"):      return "qm-monthly",      None
     if fn.startswith("stockbee_weekly_"): return "stockbee-weekly", None
-    if fn.startswith("ticker_"):
-        m = re.match(r"ticker_([A-Za-z.\-]+)_", fn)
+    # v2 briefs ship as research_<TICKER>_*.pdf and belong in the same
+    # ad-hoc bucket as the v1 ticker_* one-pagers. Without this the file
+    # is generated and committed but classified as None, so it never
+    # reaches the manifest and is invisible in the site archive.
+    if fn.startswith(("ticker_", "research_")):
+        m = re.match(r"(?:ticker|research)_([A-Za-z.\-]+)_", fn)
         return "adhoc", (m.group(1).upper() if m else None)
     if fn.startswith("altdata_"):
         m = re.match(r"altdata_([A-Za-z.\-]+)_", fn)
