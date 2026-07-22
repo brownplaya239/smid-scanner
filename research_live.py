@@ -315,36 +315,65 @@ def fetch_market(ticker, as_of=None):
         # moment we read it.
         session_close = now_local.replace(microsecond=0)
 
+    # Every daily indicator is computed from COMPLETED sessions only.
+    # Folding a half-formed bar into a 200-day average silently mixes a
+    # partial day into a series of full ones, and the reader has no way
+    # to tell. The live observation is carried separately and compared
+    # against those completed-session indicators.
+    c_closes = closes[:-1] if partial else closes
+    c_highs = highs[:-1] if partial else highs
+    c_lows = lows[:-1] if partial else lows
+    c_vols = vols[:-1] if partial else vols
+    c_dates = [d.to_pydatetime().date() for d in bars.index]
+    c_dates = c_dates[:-1] if partial else c_dates
+
     def ma(n):
-        return round(sum(closes[-n:]) / n, 2)
+        return round(sum(c_closes[-n:]) / n, 2) if len(c_closes) >= n else None
 
     trs = []
-    for i in range(1, len(bars)):
-        trs.append(max(highs[i] - lows[i],
-                       abs(highs[i] - closes[i - 1]),
-                       abs(lows[i] - closes[i - 1])))
-    atr14 = round(sum(trs[-14:]) / 14.0, 2)
+    for i in range(1, len(c_closes)):
+        trs.append(max(c_highs[i] - c_lows[i],
+                       abs(c_highs[i] - c_closes[i - 1]),
+                       abs(c_lows[i] - c_closes[i - 1])))
+    atr14 = round(sum(trs[-14:]) / 14.0, 2) if len(trs) >= 14 else None
 
-    px = round(closes[-1], 2)
-    prev = round(closes[-2], 2)
+    px = round(closes[-1], 2)                 # live or last completed
+    prev = round(c_closes[-1], 2) if partial else round(c_closes[-2], 2)
     win = 60
-    swing_hi = round(max(highs[-win:]), 2)
-    swing_lo = round(min(lows[-win:]), 2)
-    hi52 = round(max(highs[-252:]), 2)
-    lo52 = round(min(lows[-252:]), 2)
+    # Close basis, to match how the report describes these levels. A
+    # boundary quoted as "the lowest close" must not be computed from
+    # intraday lows.
+    swing_hi = round(max(c_closes[-win:]), 2) if len(c_closes) >= win else None
+    swing_lo = round(min(c_closes[-win:]), 2) if len(c_closes) >= win else None
+    hi52 = round(max(c_closes[-252:]), 2) if len(c_closes) >= 252 else None
+    lo52 = round(min(c_closes[-252:]), 2) if len(c_closes) >= 252 else None
 
     series_id = "yahoo:%s:1d:unadjusted:asof=%s" % (
         ticker.upper(), last_bar.date().isoformat())
     opens = [float(x) for x in bars["Open"].tolist()]
     dates = [d.to_pydatetime().date() for d in bars.index]
+    rs, spy_window = _rs_vs_spy(c_closes, weeks=12)
     return {
         "series_id": series_id,
         "dates": dates, "opens": opens, "closes": closes,
         "highs": highs, "lows": lows, "volumes": vols,
+        # the completed-session series every indicator above was built on
+        "completed_dates": c_dates, "completed_closes": c_closes,
+        "completed_highs": c_highs, "completed_lows": c_lows,
+        "completed_volumes": c_vols,
+        "completed_sessions": len(c_closes),
+        "last_completed_session": (c_dates[-1].isoformat() if c_dates
+                                   else None),
+        "intraday": ({"session": dates[-1].isoformat(), "last": px,
+                      "open": opens[-1], "high": highs[-1], "low": lows[-1],
+                      "volume": vols[-1], "complete": False}
+                     if partial else None),
         "bar_time": _iso(session_close),
         "session_date": last_bar.date().isoformat(),
         "partial_session": partial,
         "last": px, "prev_close": prev,
+        "price_basis": ("intraday last trade, session open" if partial
+                        else "last completed session close"),
         "change_pct": round(100.0 * (px - prev) / prev, 2),
         "ma20": ma(20), "ma50": ma(50), "ma200": ma(200),
         "atr14": atr14,
@@ -353,29 +382,44 @@ def fetch_market(ticker, as_of=None):
         "n_bars": len(bars),
         "info": _safe_info(tk),
         "next_earnings": _next_earnings(tk),
-        "rel_volume": (round(vols[-1] / (sum(vols[-21:-1]) / 20.0), 2)
-                       if len(vols) > 21 and sum(vols[-21:-1]) else None),
-        "rs_vs_spy": _rs_vs_spy(closes, weeks=12),
+        "rel_volume": (round(c_vols[-1] / (sum(c_vols[-21:-1]) / 20.0), 2)
+                       if len(c_vols) > 21 and sum(c_vols[-21:-1]) else None),
+        "rs_vs_spy": rs, "spy_window": spy_window,
     }
 
 
 def _rs_vs_spy(closes, weeks=12):
     """Relative strength: the name's 12-week return minus SPY's, on the
-    same bar count and the same vendor."""
+    same bar count and the same vendor.
+
+    Returns the benchmark observations it consumed alongside the number.
+    Publishing the difference while keeping the benchmark series private
+    made the figure unverifiable: a reader could see +22.0% and had no
+    way to reproduce either leg."""
     import yfinance as yf
     n = weeks * 5
     if len(closes) <= n:
-        return None
+        return None, None
     try:
-        spy = yf.Ticker("SPY").history(period="1y", interval="1d",
-                                       auto_adjust=False)["Close"].tolist()
+        h = yf.Ticker("SPY").history(period="1y", interval="1d",
+                                     auto_adjust=False)
+        spy = [float(x) for x in h["Close"].tolist()]
+        sdates = [d.to_pydatetime().date().isoformat() for d in h.index]
     except Exception:
-        return None
+        return None, None
     if len(spy) <= n:
-        return None
+        return None, None
+    win_c, win_d = spy[-1 - n:], sdates[-1 - n:]
     mine = 100.0 * (closes[-1] / closes[-1 - n] - 1)
-    bench = 100.0 * (float(spy[-1]) / float(spy[-1 - n]) - 1)
-    return round(mine - bench, 1)
+    bench = 100.0 * (win_c[-1] / win_c[0] - 1)
+    return round(mine - bench, 1), {
+        "series_id": "yahoo:SPY:1d:unadjusted",
+        "dates": win_d, "closes": win_c,
+        "start": win_d[0], "end": win_d[-1],
+        "sessions": len(win_c),
+        "start_close": win_c[0], "end_close": win_c[-1],
+        "benchmark_return_pct": round(bench, 4),
+        "issuer_return_pct": round(mine, 4)}
 
 
 def _next_earnings(tk):
@@ -688,46 +732,90 @@ def build_snapshot(ticker, report_time=None):
         led.bar(d.isoformat(), mk["opens"][i], mk["highs"][i], mk["lows"][i],
                 mk["closes"][i], mk["volumes"][i])
     dstr = [d.isoformat() for d in mk["dates"]]
-    # issuer sessions and the benchmark reference are different things
+    # Completed sessions are the basis for every daily indicator. The
+    # window strings below must name completed bars only: quoting a
+    # 200-session range that ends on a half-formed bar declares a window
+    # the data does not contain.
+    cstr = [d.isoformat() for d in (mk.get("completed_dates") or mk["dates"])]
     led.population("market", issuer_sessions=len(mk["dates"]),
+                   completed_sessions=len(cstr),
                    benchmark_references=0)
 
     def _win(n):
-        return "BAR-%s..BAR-%s" % (dstr[-n], dstr[-1])
+        """A closed range over completed sessions, or None when the
+        series is too short to satisfy it. Naming a window we cannot
+        fill is how a 200-day average came to cite 199 bars."""
+        if len(cstr) < n:
+            return None
+        return "BAR-%s..BAR-%s" % (cstr[-n], cstr[-1])
+
+    def _calc(slug, formula, n, value, unit, extra=None):
+        w = _win(n)
+        if w is None or value is None:
+            return
+        led.calc(slug, formula, [w] + list(extra or []), value, unit)
 
     # every published level gets a calculation record naming its formula
-    # and the exact bars it consumed
-    led.calc("ma20", "mean(close, last 20 sessions)", [_win(20)],
-             mk["ma20"], "USD")
-    led.calc("ma50", "mean(close, last 50 sessions)", [_win(50)],
-             mk["ma50"], "USD")
-    led.calc("ma200", "mean(close, last 200 sessions)", [_win(200)],
-             mk["ma200"], "USD")
-    led.calc("atr14", "mean(true range, last 14 sessions); TR = max(h-l, "
-             "|h-prev_close|, |l-prev_close|)", [_win(15)], mk["atr14"], "USD")
-    led.calc("support60", "min(low, last 60 sessions)", [_win(60)],
-             mk["support"], "USD")
-    led.calc("resistance60", "max(high, last 60 sessions)", [_win(60)],
-             mk["resistance"], "USD")
-    led.calc("hi52", "max(high, last 252 sessions)", [_win(252)],
-             mk["hi52"], "USD")
-    led.calc("lo52", "min(low, last 252 sessions)", [_win(252)],
-             mk["lo52"], "USD")
-    led.calc("last_close", "close of the most recent session",
-             ["BAR-%s" % dstr[-1]], mk["last"], "USD")
+    # and the exact completed bars it consumed
+    _calc("ma20", "mean(close, last 20 completed sessions)", 20,
+          mk["ma20"], "USD")
+    _calc("ma50", "mean(close, last 50 completed sessions)", 50,
+          mk["ma50"], "USD")
+    _calc("ma200", "mean(close, last 200 completed sessions)", 200,
+          mk["ma200"], "USD")
+    _calc("atr14", "mean(true range, last 14 completed sessions); TR = "
+          "max(h-l, |h-prev_close|, |l-prev_close|)", 15, mk["atr14"], "USD")
+    # Close basis, matching the wording the report uses for these levels.
+    _calc("support60", "min(close, last 60 completed sessions)", 60,
+          mk["support"], "USD")
+    _calc("resistance60", "max(close, last 60 completed sessions)", 60,
+          mk["resistance"], "USD")
+    _calc("hi52", "max(close, last 252 completed sessions)", 252,
+          mk["hi52"], "USD")
+    _calc("lo52", "min(close, last 252 completed sessions)", 252,
+          mk["lo52"], "USD")
+    # An open session's last trade is not a close, and naming it one
+    # invites every downstream figure to treat it as settled.
+    if mk.get("partial_session"):
+        led.calc("intraday_last", "last trade of the open session %s"
+                 % mk.get("session_date"), ["INTRADAY-%s" % dstr[-1]],
+                 mk["last"], "USD")
+    else:
+        led.calc("last_close", "close of the most recent completed session",
+                 ["BAR-%s" % cstr[-1]], mk["last"], "USD")
+    # Downstream figures cite the price record by name. Renaming the
+    # open-session record without updating them left market cap and P/E
+    # pointing at an id that no longer exists.
+    px_ref = ("CALC-intraday_last" if mk.get("partial_session")
+              else "CALC-last_close")
     if mk.get("rel_volume") is not None:
-        led.calc("rel_volume", "volume(latest) / mean(volume, prior 20)",
-                 [_win(21)], mk["rel_volume"], "x")
-    if mk.get("rs_vs_spy") is not None:
-        led.calc("rs_vs_spy", "12w return of %s minus 12w return of SPY"
-                 % ticker, [_win(61), "EXT-yahoo:SPY:1d"], mk["rs_vs_spy"],
-                 "%", note="SPY series is external to this ledger and is "
-                           "named, not embedded")
-        led.add("market_bars", "EXT-yahoo:SPY:1d",
-                {"note": "SPY daily closes, same vendor and window; used "
-                         "only as the relative-strength benchmark",
-                 "record_kind": "benchmark_reference", "embedded": False})
-        led.population("market", benchmark_references=1)
+        _calc("rel_volume",
+              "volume(latest completed) / mean(volume, prior 20 completed)",
+              21, mk["rel_volume"], "x")
+    if mk.get("rs_vs_spy") is not None and mk.get("spy_window"):
+        w = mk["spy_window"]
+        # The benchmark window is EMBEDDED, not merely named. A reader
+        # cannot reproduce a relative-strength number from a label, and
+        # the placeholder record this replaces sat in `market_bars`,
+        # where it was counted as an issuer session.
+        for i, d in enumerate(w["dates"]):
+            led.add("benchmark_bars", "SPY-%s" % d,
+                    {"session": d, "close": w["closes"][i],
+                     "series_id": w["series_id"],
+                     "record_kind": "benchmark_bar"})
+        led.calc("rs_vs_spy",
+                 "12w return of %s minus 12w return of SPY, both from "
+                 "completed-session closes over %s..%s"
+                 % (ticker, w["start"], w["end"]),
+                 [_win(61), "SPY-%s..SPY-%s" % (w["start"], w["end"])],
+                 mk["rs_vs_spy"], "%",
+                 note="both legs reproducible from the bars in this "
+                      "package: issuer %s%%, benchmark %s%%"
+                      % (w["issuer_return_pct"], w["benchmark_return_pct"]))
+        led.population("market", benchmark_references=len(w["dates"]))
+        prov["coverage"]["benchmark"] = (
+            "SPY %d completed sessions %s..%s, embedded"
+            % (w["sessions"], w["start"], w["end"]))
 
     print("[2/7] SEC EDGAR (CIK, acceptance times, XBRL)...")
     cik = cik_for(ticker)
@@ -747,7 +835,7 @@ def build_snapshot(ticker, report_time=None):
 
     snap["price"] = {
         "last": mfact(mk["last"], "last close", unit="USD",
-                      refs=["CALC-last_close"]),
+                      refs=[px_ref]),
         "prev_close": mfact(mk["prev_close"], "previous close", unit="USD",
                             refs=["BAR-%s" % dstr[-2]]),
         "change_pct": mfact(mk["change_pct"], "session change", unit="%",
@@ -756,7 +844,7 @@ def build_snapshot(ticker, report_time=None):
     }
     snap["levels"] = {
         "price_used": mfact(mk["last"], "price used for levels", unit="USD",
-                            refs=["CALC-last_close"]),
+                            refs=[px_ref]),
         "ma20": mfact(mk["ma20"], "20-day moving average", unit="USD",
                       note="simple, closing basis", refs=["CALC-ma20"]),
         "ma50": mfact(mk["ma50"], "50-day moving average", unit="USD",
@@ -790,6 +878,10 @@ def build_snapshot(ticker, report_time=None):
     # the day MRVL printed "0.04x", which reads as a volume collapse and
     # is really just a day that has barely started. Publish it only once
     # the session is complete, and say why when it is withheld.
+    snap["levels"]["partial_session"] = mk.get("partial_session")
+    snap["levels"]["last_completed_session"] = mk.get(
+        "last_completed_session")
+    snap["levels"]["price_basis"] = mk.get("price_basis")
     if mk.get("rel_volume") is not None and not mk.get("partial_session"):
         snap["levels"]["rel_volume"] = mfact(
             mk["rel_volume"], "volume vs 20-day average", unit="x",
@@ -849,7 +941,7 @@ def build_snapshot(ticker, report_time=None):
                     if mk.get("partial_session") else "last close")
         led.calc("market_cap",
                  "%s x cover-page shares outstanding" % px_basis,
-                 ["CALC-last_close", ev_shares], round(cap, 2), "USD")
+                 [px_ref, ev_shares], round(cap, 2), "USD")
         company["market_cap"] = rs.fact(
             cap, metric="market cap", unit="USD",
             source="derived: last close x shares outstanding",
@@ -1010,7 +1102,7 @@ def build_snapshot(ticker, report_time=None):
             evidence_refs=["CALC-eps_ttm"] + r_eps, quality=rs.Q_DERIVED)
         if ttm > 0:
             led.calc("pe_trailing", "last close / GAAP TTM diluted EPS",
-                     ["CALC-last_close", "CALC-eps_ttm"],
+                     [px_ref, "CALC-eps_ttm"],
                      round(mk["last"] / ttm, 1), "x")
             valuation["pe_trailing"] = rs.fact(
                 round(mk["last"] / ttm, 1), metric="P/E", unit="x",
@@ -1725,7 +1817,9 @@ def _quality_reads(snap, mk, led):
     setup = ("constructive" if above == 3 else
              "repairing" if above == 2 else
              "damaged" if above <= 1 else "mixed")
-    srefs = ["CALC-last_close", "CALC-ma20", "CALC-ma50", "CALC-ma200"]
+    srefs = [("CALC-intraday_last" if mk.get("partial_session")
+              else "CALC-last_close"),
+             "CALC-ma20", "CALC-ma50", "CALC-ma200"]
     led.rec_input("setup_quality", "setup quality (swing timeframe)", setup,
                   refs=srefs,
                   rationale="price above %d of 3 moving averages; %.1f%% "

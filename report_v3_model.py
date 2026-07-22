@@ -791,6 +791,14 @@ def build(snap, mk=None, prior=None):
         "recovery": recovery_stages(lv, price),
         "downside": downside_stages(lv, price),
         "levels": level_groups(snap, price),
+        "indicator_basis": {
+            "partial_session": bool((snap.get("levels") or {})
+                                    .get("partial_session")),
+            "last_completed": (snap.get("levels") or {})
+            .get("last_completed_session"),
+            "note": "moving averages, ATR and relative strength are "
+                    "computed from completed sessions only",
+        },
         "prospective": prospective_conditions(snap, price),
         "business": business_description(snap),
         "exhibit": snap.get("exhibit") or {},
@@ -858,8 +866,9 @@ def prospective_conditions(snap, price=None):
     if rev and rev.get("low") is not None:
         out.append({
             "text": "Next quarter's revenue prints below the guided low of "
-                    "$%.2fB (guide $%.2fB %s)."
-                    % (rev["low"] / 1000.0, rev["midpoint"] / 1000.0,
+                    "$%sB (guide $%sB %s)."
+                    % (g_str(rev["low"], scale=1000.0),
+                       g_str(rev["midpoint"], scale=1000.0),
                        rev.get("basis") or ""),
             "kind": "financial", "grade": OBSERVED,
             "testable_at": ex.get("guidance_period") or "next results",
@@ -871,8 +880,8 @@ def prospective_conditions(snap, price=None):
         if ngm_r and ngm_r.get("value") is not None:
             tail = (" against %.1f%% just reported" % ngm_r["value"])
         out.append({
-            "text": "Non-GAAP gross margin guides or prints below %.2f%%%s."
-                    % (ngm_g["low"], tail),
+            "text": "Non-GAAP gross margin guides or prints below %s%%%s."
+                    % (g_str(ngm_g["low"]), tail),
             "kind": "financial", "grade": OBSERVED,
             "testable_at": ex.get("guidance_period") or "next results",
             "source": "8-K EX-99.1 outlook table"})
@@ -880,8 +889,8 @@ def prospective_conditions(snap, price=None):
     if eps_g and eps_g.get("low") is not None:
         out.append({
             "text": "Non-GAAP diluted EPS comes in below the guided low of "
-                    "$%.2f (guide $%.2f %s)."
-                    % (eps_g["low"], eps_g["midpoint"],
+                    "$%s (guide $%s %s)."
+                    % (g_str(eps_g["low"]), g_str(eps_g["midpoint"]),
                        eps_g.get("basis") or ""),
             "kind": "financial", "grade": OBSERVED,
             "testable_at": ex.get("guidance_period") or "next results",
@@ -990,3 +999,66 @@ def news_implication(item):
     return {"text": "%s; %s. No issuer disclosure sits behind it."
                     % (kind.capitalize(), body),
             "grade": DERIVED}
+
+
+def g_str(x, unit=None, scale=1.0, prefix="", suffix=""):
+    """Format a guidance figure at the precision the issuer stated.
+
+    "$2.700 billion +/- 5%" is $2.565B-$2.835B. Printing $2.56B-$2.83B
+    truncates a number the issuer was deliberately precise about, and
+    understates both ends of the range."""
+    if x is None:
+        return None
+    v = float(x) / float(scale or 1.0)
+    txt = ("%.4f" % v).rstrip("0").rstrip(".")
+    return "%s%s%s" % (prefix, txt, suffix or "")
+
+
+SOCIAL_FACT_RX = re.compile(r"social post|message board|stocktwits|"
+                            r"posts from \d+ authors", re.I)
+
+
+def thesis_facts(snap, limit=3):
+    """The thesis carries filed facts, not chatter counts.
+
+    A bullet reading "21 relevant social posts from 13 authors" spends
+    one of three slots on the weakest evidence in the package, and the
+    line itself concedes it is not a trade signal. Filed figures and the
+    issuer's own guidance go in front of it."""
+    dec = snap.get("decision") or {}
+    fu = snap.get("fundamentals") or {}
+    ex = snap.get("exhibit") or {}
+    raw = [f for f in (dec.get("supporting_facts") or [])]
+
+    def _txt(f):
+        return str(f.get("text") if isinstance(f, dict) else f)
+
+    kept = [f for f in raw if not SOCIAL_FACT_RX.search(_txt(f))]
+    dropped = len(raw) - len(kept)
+
+    extra = []
+    ocf = rs.fv(fu.get("operating_cash_flow"))
+    if ocf:
+        extra.append({"text": "Operating cash flow of $%.0fM in the quarter "
+                              "(GAAP, as filed)." % (ocf / 1e6),
+                      "grade": OBSERVED})
+    g_rev = (ex.get("guidance") or {}).get("revenue")
+    if g_rev and g_rev.get("midpoint") is not None:
+        extra.append({"text": "Company guides next-quarter revenue to $%sB "
+                              "%s (8-K Exhibit 99.1)."
+                              % (g_str(g_rev["midpoint"], scale=1000.0),
+                                 g_rev.get("basis") or ""),
+                      "grade": OBSERVED})
+    g_gm = (ex.get("guidance") or {}).get("non_gaap_gross_margin")
+    if g_gm and g_gm.get("low") is not None:
+        extra.append({"text": "Non-GAAP gross margin guided to %s%%-%s%% "
+                              "(8-K Exhibit 99.1)."
+                              % (g_str(g_gm["low"]), g_str(g_gm["high"])),
+                      "grade": OBSERVED})
+
+    out = kept[:]
+    for e in extra:
+        if len(out) >= limit:
+            break
+        out.append(e)
+    return {"facts": out[:limit], "dropped_social": dropped}

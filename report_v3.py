@@ -404,6 +404,17 @@ def _page1(snap, view, chart_png=None):
         st.append(para(ch.get("note") or "", "body", ch.get("grade")))
 
     st += [para("Where price stands", "h2")]
+    basis = view.get("indicator_basis") or {}
+    if basis.get("partial_session"):
+        # The reader is comparing a live price with settled averages, and
+        # should be told so explicitly rather than left to assume the
+        # whole row was measured at the same instant.
+        st.append(para("Price is a live intraday quote. Every average, "
+                       "ATR and relative-strength figure below is computed "
+                       "from completed sessions through the %s close — "
+                       "today's forming bar is excluded."
+                       % (basis.get("last_completed") or "prior"),
+                       "small"))
     if view.get("technical_state"):
         st.append(para(view["technical_state"], "body", M.DERIVED))
     else:
@@ -450,8 +461,8 @@ def _page1(snap, view, chart_png=None):
             st.append(para("No entry is on the book: a boundary for the "
                            "read, not a stop for a position.", "small"))
 
-    facts = (dec.get("supporting_facts") or [])[:3]
-    prosp = view.get("prospective") or []
+    tf = M.thesis_facts(snap, limit=3)
+    facts, prosp = tf["facts"], (view.get("prospective") or [])
     if facts or prosp:
         lft = [para("Thesis", "h3")] + [
             para("• " + str(f.get("text") if isinstance(f, dict) else f),
@@ -634,14 +645,17 @@ def _page2(snap, view):
     st = [para("Company and financial overview", "h2")]
 
     bd = view.get("business") or {}
-    if bd.get("vendor_text"):
-        st += [para(clip(bd["vendor_text"], 400), "body", M.OBSERVED),
-               para("Source: %s" % bd.get("vendor_source"), "small")]
+    # The vendor paragraph was registration prose — "provides data
+    # infrastructure semiconductor solutions and spanning the data center
+    # core to network edge" — which told a reader nothing and cut off
+    # mid-word. The filed-figure sentence says more in one line, so it
+    # leads and the boilerplate is gone.
     if bd.get("plain"):
-        # The vendor sentence is registration prose. These are the filed
-        # figures that actually describe the business, each traceable.
         st.append(para(bd["plain"], "body", M.OBSERVED))
-    if not bd.get("vendor_text") and not bd.get("plain"):
+    elif bd.get("vendor_text"):
+        st += [para(clip(bd["vendor_text"], 260), "body", M.OBSERVED),
+               para("Source: %s" % bd.get("vendor_source"), "small")]
+    else:
         st.append(para("No business description was admitted from a cited "
                        "source. We do not paraphrase one.", "body",
                        M.OBSERVED))
@@ -677,28 +691,37 @@ def _page2(snap, view):
                     "considers non-recurring and are not comparable across "
                     "issuers.", "small")]
         rows = []
-        for key, label, fmt in (
-                ("non_gaap_gross_margin", "Non-GAAP gross margin", "%.1f%%"),
+        # Issuer precision, preserved. Rounding 58.25%-59.25% to one
+        # decimal changes a number the company was deliberately exact
+        # about; the same is true of $2.565B-$2.835B.
+        def _rng(g, pre="", suf="", scale=1.0):
+            if not g or g.get("low") is None:
+                return None
+            lo = M.g_str(g["low"], scale=scale, prefix=pre, suffix=suf)
+            hi = M.g_str(g["high"], scale=scale, prefix=pre, suffix=suf)
+            return lo if lo == hi else "%s - %s" % (lo, hi)
+
+        for key, label, pre, suf, sc in (
+                ("non_gaap_gross_margin", "Non-GAAP gross margin", "", "%", 1.0),
+                ("gaap_gross_margin", "GAAP gross margin", "", "%", 1.0),
                 ("non_gaap_operating_margin", "Non-GAAP operating margin",
-                 "%.1f%%"),
-                ("non_gaap_eps", "Non-GAAP diluted EPS", "$%.2f")):
-            r = rep.get(key)
-            if not r or r.get("value") is None:
+                 "", "%", 1.0),
+                ("non_gaap_eps", "Non-GAAP diluted EPS", "$", "", 1.0),
+                ("gaap_eps", "GAAP diluted EPS", "$", "", 1.0),
+                ("revenue", "Revenue", "$", "B", 1000.0),
+                ("non_gaap_opex", "Non-GAAP operating expenses", "$", "M",
+                 1.0),
+                ("gaap_opex", "GAAP operating expenses", "$", "M", 1.0)):
+            r, g = rep.get(key), gui.get(key)
+            if not r and not g:
                 continue
-            g = gui.get(key)
-            gtxt = "—"
-            if g and g.get("low") is not None:
-                gtxt = ("%s - %s" % (fmt % g["low"], fmt % g["high"])
-                        if g.get("high") != g.get("low")
-                        else fmt % g["low"])
-            rows.append([label, fmt % r["value"], gtxt])
-        gr = gui.get("revenue")
-        if gr and gr.get("low") is not None:
-            rows.append(["Revenue", "—", "$%.2fB - $%.2fB"
-                         % (gr["low"] / 1000.0, gr["high"] / 1000.0)])
+            rtxt = "—"
+            if r and r.get("value") is not None:
+                rtxt = M.g_str(r["value"], scale=sc, prefix=pre, suffix=suf)
+            rows.append([label, rtxt, _rng(g, pre, suf, sc) or "—"])
         if rows:
             st.append(_table(rows, [BODY_W * .34, BODY_W * .20,
-                                    BODY_W * .30],
+                                    BODY_W * .34],
                              header=["Measure", "Reported", "Guided, next "
                                                             "quarter"],
                              zebra=True))
@@ -745,11 +768,15 @@ def _page2(snap, view):
         if g_eps and ng_eps and g_eps.get("value") is not None                 and ng_eps.get("value") is not None                 and ng_eps["value"] > 2 * max(g_eps["value"], 0.01):
             st.append(para("One-time effects: the company reported $%.2f "
                            "GAAP diluted EPS against $%.2f non-GAAP for the "
-                           "same quarter. A trailing multiple built on GAAP "
-                           "earnings therefore carries those excluded items "
-                           "in full, and is not comparable with a multiple "
-                           "quoted on a non-GAAP basis."
-                           % (g_eps["value"], ng_eps["value"]),
+                           "same quarter — a gap of $%.2f per share driven by "
+                           "items management excludes, including the fair-"
+                           "value remeasurement tied to the fiscal-2026 "
+                           "business divestiture. The trailing multiple above "
+                           "is computed on GAAP earnings and therefore "
+                           "carries those items in full; it is not comparable "
+                           "with a multiple quoted on a non-GAAP basis."
+                           % (g_eps["value"], ng_eps["value"],
+                              ng_eps["value"] - g_eps["value"]),
                            "body", M.DERIVED))
 
     return st
@@ -828,9 +855,14 @@ def _page3(snap, view, chart_png=None):
     # are the evidence. Sizing the chart from the space the text actually
     # leaves keeps both on one page for any ticker.
     room = _avail_height() - _story_height(head + st) - 22
-    cap = para("Close with 20, 50 and 200-day averages, session volume, and "
-               "relative strength against SPY where the benchmark series was "
-               "retained.", "small")
+    cap_txt = ("Close with 20, 50 and 200-day averages, session volume, and "
+               "relative strength against SPY. The benchmark closes are "
+               "embedded in the evidence package, so both legs of the "
+               "relative-strength figure can be reproduced.")
+    if (view.get("indicator_basis") or {}).get("partial_session"):
+        cap_txt += (" The final bar and its volume are marked PARTIAL: that "
+                    "session was still open when the chart was drawn.")
+    cap = para(cap_txt, "small")
     room -= _story_height([cap])
     if room < 2.0 * inch:
         return head + st + [Spacer(1, 5),

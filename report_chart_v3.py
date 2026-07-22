@@ -38,6 +38,15 @@ def _sma(vals, n):
     return out
 
 
+def _partial_index(mk, n):
+    """Position of the still-forming session inside the tail window, or
+    None. Drawing it identically to a settled bar invites the reader to
+    treat a half-day of volume as a full one."""
+    if not mk.get("intraday"):
+        return None
+    return n - 1
+
+
 def _tail(mk, months):
     n = max(30, int(months * 21))
     d = mk.get("dates") or []
@@ -127,6 +136,16 @@ def full_chart(mk, spy_closes=None, months=12):
                 ("#e08a1e" if v < 3 * mean else "#b3261e") for v in vols]
         av.bar(x, vols, color=cols, width=0.9)
         av.axhline(mean, color=MUTED, linewidth=0.7, linestyle="--")
+    pi = _partial_index(mk, len(x))
+    if pi is not None and vols and len(vols) == len(closes):
+        # hatch the forming session so it cannot be read as a full day
+        av.bar([x[pi]], [vols[pi]], color="#ffffff", edgecolor="#b3261e",
+               hatch="////", linewidth=0.8, width=0.9, zorder=6)
+        ax.axvline(x[pi], color="#b3261e", linewidth=0.7, alpha=0.5,
+                   linestyle=":")
+        ax.annotate("PARTIAL", xy=(x[pi], closes[pi]),
+                    xytext=(-46, 8), textcoords="offset points",
+                    fontsize=7, color="#b3261e", weight="bold")
     _style(av)
     av.set_ylabel("Volume", fontsize=8, color=MUTED)
     av.yaxis.set_major_formatter(
@@ -150,6 +169,9 @@ def full_chart(mk, spy_closes=None, months=12):
     note = ("" if have_rs else
             "  ·  relative-strength panel omitted: benchmark series not "
             "retained for this run")
+    if mk.get("intraday"):
+        note += ("  ·  final bar and its volume are PARTIAL: the session "
+                 "was open when this was drawn")
     axes[0].set_title("%s — %d months, unadjusted daily closes%s"
                       % (mk.get("ticker", ""), months, note),
                       fontsize=8.5, color=MUTED, loc="left")

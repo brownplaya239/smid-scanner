@@ -36,7 +36,7 @@ import re
 import report_v3_evidence as EV
 import report_v3_model as M
 
-VALIDATOR_VERSION = "3.1.0"
+VALIDATOR_VERSION = "3.2.0"
 
 FATAL, ERROR, WARN, INFO = "FATAL", "ERROR", "WARN", "INFO"
 PASS, FAIL, WARN_S, SKIP = "PASS", "FAIL", "WARN", "SKIP"
@@ -74,13 +74,20 @@ CHECK_IDS = [
     "MISSING_VS_NEGATIVE", "UNAVAILABLE_VS_NOT_INGESTED",
     "CALIBRATION_LANGUAGE", "POPULATION_ARITHMETIC",
     "COORDINATION_CONSISTENCY", "MARKET_CAP_BASIS",
-    "CALC_OPERAND_COMPLETENESS", "PE_OPERANDS_SHOWN",
+    "CALC_OPERAND_COMPLETENESS", "REC_INPUT_TRACEABILITY",
+    "PE_OPERANDS_SHOWN",
     "NEWS_COUNT_RECONCILE", "PDF_MATCHES_EVIDENCE",
     "PAGE_COUNT", "BLANK_PAGE", "NEARLY_BLANK_PAGE", "TYPE_SIZE",
     "HTML_ENTITIES", "GLYPH_INTEGRITY", "CONTENT_BOUNDS",
     "INSTITUTIONAL_INTENT", "RAW_SOCIAL_CONTAINMENT",
     "PDF_METADATA", "PDF_LANGUAGE", "PDF_BOOKMARKS", "PDF_LINKS",
     "PDF_TAGGED", "ARTIFACT_HASHES",
+    # v3.2 numerical integrity
+    "BAR_CARDINALITY", "BAR_RANGE_PRESENT", "BENCHMARK_OPERANDS",
+    "PARTIAL_SESSION_NOT_A_CLOSE", "LEVEL_WORDING_BASIS",
+    "GUIDANCE_PRECISION", "GUIDANCE_PDF_MATCH",
+    "COVERAGE_CONSISTENCY", "DISPLAY_COUNT_SCOPE",
+    "CALC_REPRODUCIBLE", "HASH_COVERAGE",
 ]
 
 
@@ -306,7 +313,18 @@ def check_model(view, snap=None, evidence=None):
 
     # ── calculations ────────────────────────────────────────────────────
     incomplete = [k for k, v in calcs.items()
-                  if v.get("operands") and not v.get("operands_complete")]
+                  if k.startswith("CALC-") and v.get("operands")
+                  and not v.get("operands_complete")]
+    rec_incomplete = [k for k, v in calcs.items()
+                      if k.startswith("REC-") and v.get("operands")
+                      and not v.get("operands_complete")]
+    out.append(chk("REC_INPUT_TRACEABILITY", not rec_incomplete, WARN,
+                   "every recommendation input resolves its references",
+                   ", ".join(sorted(rec_incomplete)) or "all resolve",
+                   warn_only=True,
+                   detail="A judgement input is not a calculated metric, "
+                          "but an unresolvable reference still means the "
+                          "reader cannot follow the reasoning."))
     out.append(chk("CALC_OPERAND_COMPLETENESS", not incomplete, ERROR,
                    "every calculated figure resolves all of its operands",
                    "%d incomplete: %s" % (len(incomplete),
@@ -318,7 +336,9 @@ def check_model(view, snap=None, evidence=None):
     if mc:
         ops = mc.get("operands") or []
         named = {str(o.get("evidence_id")) for o in ops}
-        has_px = any("last_close" in n or n.startswith("BAR-") for n in named)
+        has_px = any("last_close" in n or "intraday_last" in n
+                     or n.startswith("BAR-") or n.startswith("INTRADAY-")
+                     for n in named)
         has_sh = any(n.startswith("SHR-") or "shares" in n for n in named)
         out.append(chk("MARKET_CAP_BASIS", has_px and has_sh, ERROR,
                        "market cap = observed price x latest filed shares, "
@@ -582,6 +602,203 @@ def check_agreement(pdf_bytes, evidence, view, snap=None):
 
 # ── artifact identity ───────────────────────────────────────────────────
 
+# -- v3.2: numbers must be reproducible from what we shipped -------------
+
+# A level described one way and computed another. The report says "the
+# lowest close"; if the formula reads min(low) the sentence is false even
+# though the number is arithmetically correct.
+BASIS_WORDS = [
+    (re.compile(r"min\(close", re.I), "lowest close", "lowest intraday low"),
+    (re.compile(r"max\(close", re.I), "highest close", "highest intraday high"),
+    (re.compile(r"min\(low", re.I), "lowest intraday low", "lowest close"),
+    (re.compile(r"max\(high", re.I), "highest intraday high", "highest close"),
+]
+
+
+def check_numerics(evidence, view, snap=None, pdf_text=""):
+    out, ev = [], evidence or {}
+    calcs = ev.get("calculations") or {}
+    recs = ev.get("records") or {}
+
+    # cardinality: the window a formula declares must be the window the
+    # package delivers
+    short = []
+    for cid, c in sorted(calcs.items()):
+        d, g = c.get("window_declared"), c.get("window_delivered")
+        if d and g is not None and d != g:
+            short.append("%s declares %d, delivers %d" % (cid, d, g))
+    out.append(chk("BAR_CARDINALITY", not short, FATAL,
+                   "delivered sessions equal the declared window",
+                   "; ".join(short) if short else
+                   "%d windowed calculations agree"
+                   % len([c for c in calcs.values()
+                          if c.get("window_declared")]),
+                   refs=[x.split()[0] for x in short]))
+
+    # a declared range whose endpoints are not in the package at all
+    missing = []
+    for cid, c in sorted(calcs.items()):
+        for o in (c.get("operands") or []):
+            r = str(o.get("evidence_id") or "")
+            if ".." not in r:
+                continue
+            lo, hi = r.split("..", 1)
+            if lo not in recs or hi not in recs:
+                missing.append("%s: %s" % (cid, r))
+    out.append(chk("BAR_RANGE_PRESENT", not missing, FATAL,
+                   "both endpoints of every declared range are delivered",
+                   "; ".join(missing[:4]) if missing else "all present"))
+
+    # benchmark legs must be real observations, not nulls
+    bench_bad = []
+    for cid, c in sorted(calcs.items()):
+        if "rs_" not in cid:
+            continue
+        if not c.get("benchmark_sessions_delivered"):
+            bench_bad.append("%s has no embedded benchmark window" % cid)
+    nulls = [k for k, v in recs.items()
+             if v.get("evidence_type") == "benchmark_bar"
+             and v.get("value") is None]
+    if nulls:
+        bench_bad.append("%d benchmark records carry null values" % len(nulls))
+    out.append(chk("BENCHMARK_OPERANDS", not bench_bad, FATAL,
+                   "relative strength cites an embedded, non-null benchmark",
+                   "; ".join(bench_bad) if bench_bad else
+                   "%d benchmark sessions embedded"
+                   % len([1 for v in recs.values()
+                          if v.get("evidence_type") == "benchmark_bar"]),
+                   detail="A null placeholder must set resolved=false, not "
+                          "pass as a resolved operand."))
+
+    # an open session is not a close
+    intraday = [k for k, v in recs.items()
+                if v.get("evidence_type") == "intraday_observation"]
+    bad_name = []
+    if intraday:
+        if "CALC-last_close" in calcs:
+            bad_name.append("CALC-last_close published while the session "
+                            "is open")
+        for cid, c in calcs.items():
+            for o in (c.get("operands") or []):
+                if str(o.get("evidence_id", "")).startswith("INTRADAY-") \
+                        and "close" in str(c.get("formula") or "").lower():
+                    bad_name.append("%s calls an open-session observation a "
+                                    "close" % cid)
+    out.append(chk("PARTIAL_SESSION_NOT_A_CLOSE", not bad_name, FATAL,
+                   "no incomplete session is presented as a close",
+                   "; ".join(sorted(set(bad_name))) if bad_name else
+                   ("open session carried as %s" % intraday[0]) if intraday
+                   else "session closed; no intraday record"))
+
+    # the words and the formula must describe the same basis
+    mismatch = []
+    for cid, c in sorted(calcs.items()):
+        f = str(c.get("formula") or "")
+        for rx, phrase, anti in BASIS_WORDS:
+            if not rx.search(f):
+                continue
+            if pdf_text and anti in pdf_text and phrase not in pdf_text:
+                mismatch.append("%s computes the %s; the page says %r"
+                                % (cid, phrase, anti))
+            break
+    out.append(chk("LEVEL_WORDING_BASIS", not mismatch, FATAL,
+                   "the page describes the basis the formula uses",
+                   "; ".join(mismatch) if mismatch else "wording matches"))
+
+    # guidance must keep the precision the issuer published
+    trunc = []
+    for k, v in sorted(recs.items()):
+        if v.get("evidence_type") != "exhibit_guidance":
+            continue
+        val = v.get("value") or {}
+        disp = v.get("display")
+        if not disp or not pdf_text:
+            continue
+        for part in [x.strip() for x in str(disp).split(" - ")]:
+            body = part.lstrip("$").rstrip("%MB")
+            if "." not in body:
+                continue
+            short = body[:body.index(".") + 3].rstrip("0").rstrip(".")
+            short_token = part.replace(body, short)
+            # Deliberately NOT "and the exact form is absent". A page that
+            # prints $2.565B in the table and $2.56B in the prose has shown
+            # the reader two different numbers for one guide.
+            if short != body and short_token in pdf_text:
+                trunc.append("%s: page shows %s, issuer stated %s"
+                             % (k, short_token, part))
+    out.append(chk("GUIDANCE_PRECISION", not trunc, FATAL,
+                   "guidance is displayed at the precision the issuer stated",
+                   "; ".join(trunc[:4]) if trunc else
+                   "issuer precision preserved"))
+
+    # every guidance value the package holds should appear on the page
+    if pdf_text:
+        absent = []
+        for k, v in sorted(recs.items()):
+            if v.get("evidence_type") != "exhibit_guidance":
+                continue
+            disp = v.get("display")
+            if not disp:
+                continue
+            # Compare the package's own rendering, which is produced from
+            # a documented rule rather than by reading the renderer.
+            parts = [x.strip() for x in str(disp).split(" - ")]
+            if not all(pt in pdf_text for pt in parts):
+                absent.append("%s (%s)" % (k, disp))
+        out.append(chk("GUIDANCE_PDF_MATCH", not absent, ERROR,
+                       "each guidance line in the package appears on the page",
+                       "%d absent: %s" % (len(absent), "; ".join(absent[:4]))
+                       if absent else "all guidance rendered", refs=absent))
+
+    # coverage must not contradict what the report shows
+    cov = ev.get("source_coverage") or {}
+    contra = []
+    ex_ok = any(str(v.get("evidence_type", "")).startswith("exhibit_")
+                and v.get("disposition") == EV.ADMITTED
+                for v in recs.values())
+    for key, txt in cov.items():
+        t = str(txt or "").lower()
+        if ex_ok and "non_gaap" in key and ("not available" in t
+                                            or "unavailable" in t):
+            contra.append("%s says unavailable while exhibit figures are "
+                          "admitted" % key)
+    out.append(chk("COVERAGE_CONSISTENCY", not contra, FATAL,
+                   "source coverage agrees with the evidence admitted",
+                   "; ".join(contra) if contra else
+                   "%d coverage lines consistent" % len(cov)))
+
+    # a displayed count must say which artifact it counts
+    pops = ev.get("populations") or {}
+    vague = [d for d, pp in pops.items()
+             if pp.get("legacy_records_displayed") is not None
+             and pp.get("shown_core") is None
+             and pp.get("shown_appendix") is None]
+    out.append(chk("DISPLAY_COUNT_SCOPE", not vague, ERROR,
+                   "every population reports shown_core / shown_appendix "
+                   "rather than a bare displayed count",
+                   ", ".join(sorted(vague)) if vague else
+                   "%d populations scoped" % len(pops)))
+
+    # the arithmetic has to redo from the delivered records
+    broken = [k for k, v in calcs.items() if v.get("reproducible") is False]
+    out.append(chk("CALC_REPRODUCIBLE", not broken, FATAL,
+                   "every calculation redoes from the delivered evidence",
+                   "; ".join("%s: %s" % (k, calcs[k].get("recompute_note"))
+                             for k in broken[:3]) if broken else
+                   "%d of %d calculations independently reproduced"
+                   % (len([1 for v in calcs.values()
+                           if v.get("reproducible")]), len(calcs)),
+                   refs=broken))
+    hv = ev.get("hash_verification") or {}
+    out.append(chk("HASH_COVERAGE", (hv.get("coverage_pct") or 0) >= 99.9,
+                   ERROR, "every record carries a canonical raw_hash",
+                   "%s%% of %s records" % (hv.get("coverage_pct"),
+                                           hv.get("records_total")),
+                   threshold=100,
+                   detail="hash version %s" % hv.get("hash_version")))
+    return out
+
+
 def check_artifacts(artifacts, core, apx, ev_bytes):
     """Hash what we were actually handed and compare it with the manifest
     the package advertises."""
@@ -656,8 +873,26 @@ def report(view, snap, core_pdf, appendix_pdf=None, evidence=None,
                 c["status"], c["severity"] = WARN_S, WARN
             checks.append(c)
     checks += check_agreement(core_pdf, evidence, view, snap)
+    try:
+        import fitz
+        _d = fitz.open(stream=core_pdf, filetype="pdf")
+        _txt = chr(10).join(_d[i].get_text()
+                            for i in range(_d.page_count))
+        _d.close()
+    except Exception:
+        _txt = ""
+    checks += check_numerics(evidence, view, snap, _txt)
     checks += check_artifacts(artifacts, core_pdf, appendix_pdf or b"",
                               ev_bytes)
+
+    # Prove the gates on the same run that passes them. A validator that
+    # has never been shown to fail is a validator nobody has tested.
+    try:
+        import report_v3_mutation as MUT
+        mutation = MUT.summary()
+    except Exception as e:                       # pragma: no cover
+        mutation = {"all_checks_proven": False, "error": str(e),
+                    "note": "mutation suite could not run"}
 
     fatal = [c for c in checks if c["status"] == FAIL
              and c["severity"] in (FATAL, ERROR)]
@@ -682,6 +917,11 @@ def report(view, snap, core_pdf, appendix_pdf=None, evidence=None,
             "skip": len([c for c in checks if c["status"] == SKIP]),
         },
         "checks": checks,
-        "blocking_failures": [c["check_id"] for c in fatal],
-        "ok": not fatal,
+        "mutation_tests": mutation,
+        "blocking_failures": ([c["check_id"] for c in fatal]
+                              + ([] if mutation.get("all_checks_proven")
+                                 else ["MUTATION_SUITE"])),
+        # A package is only valid if its checks passed AND those checks
+        # were demonstrated to be capable of failing.
+        "ok": bool(not fatal and mutation.get("all_checks_proven")),
     }

@@ -56,7 +56,8 @@ def content_hash(normalized_text):
 class Ledger(object):
     """Append-only evidence store keyed by stable ids."""
 
-    SECTIONS = ("market_bars", "shares_outstanding", "xbrl_facts",
+    SECTIONS = ("market_bars", "benchmark_bars", "shares_outstanding",
+                "xbrl_facts",
                 "form4_records", "ownership_filings",
                 "technical_calculations", "catalyst_records",
                 "recommendation_inputs", "social_records", "news_records")

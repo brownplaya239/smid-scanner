@@ -38,7 +38,15 @@ import json
 import report_v3_model as M
 import research_snapshot as rs
 
-SCHEMA = "stock_research_brief_evidence/v3.1"
+SCHEMA = "stock_research_brief_evidence/v3.2"
+
+# How raw_hash is produced. Named and versioned so a reader can
+# reproduce it: sha256 over UTF-8 JSON with sorted keys, no
+# whitespace between separators, non-JSON values coerced with str().
+HASH_VERSION = "sha256/json-sorted-compact/v1"
+HASH_CANONICALIZATION = (
+    "json.dumps(record, sort_keys=True, separators=(',', ':'), "
+    "default=str).encode('utf-8') -> sha256 hexdigest")
 
 # disposition vocabulary
 ADMITTED = "ADMITTED"
@@ -67,9 +75,21 @@ PREFIX_TYPE = [
     ("EXT-", "external_reference"),
 ]
 
-# Bars needed to reproduce every indicator the brief displays. The
-# 200-day average is the longest window; everything shorter is a subset.
-BARS_FOR_INDICATORS = 200
+# Completed sessions the package must carry. The 52-week high and low
+# declare a 252-session window, which is longer than the 200-day average,
+# so 252 is the floor. v3.1 exported 200 *records* — but the SPY
+# placeholder sorted after "BAR-" and took one of those slots, leaving
+# 199 issuer bars behind a formula that declared 200.
+BARS_FOR_INDICATORS = 252
+
+# Declared window length per calculation slug. The formula string says
+# "last N sessions"; this is that N, checked against the bars actually
+# delivered. A mismatch is a fatal defect, not a rounding difference.
+DECLARED_WINDOW = {
+    "ma20": 20, "ma50": 50, "ma200": 200, "atr14": 15,
+    "support60": 60, "resistance60": 60, "hi52": 252, "lo52": 252,
+    "rel_volume": 21, "rs_vs_spy": 61,
+}
 
 
 def ev_type(eid):
@@ -81,11 +101,17 @@ def ev_type(eid):
 
 def _hash(obj):
     """Stable hash of a record's content, so a reader can tell whether
-    the row they are looking at is the row we admitted."""
+    the row they are looking at is the row we admitted.
+
+    Canonicalisation is fixed and versioned (HASH_VERSION): sorted keys,
+    compact separators, str() for anything JSON cannot represent. Any
+    change to this function is a new hash version, because otherwise
+    every previously published hash silently stops verifying."""
     if isinstance(obj, (str, bytes)):
         b = obj.encode("utf-8") if isinstance(obj, str) else obj
     else:
-        b = json.dumps(obj, sort_keys=True, default=str).encode("utf-8")
+        b = json.dumps(obj, sort_keys=True, separators=(",", ":"),
+                       default=str).encode("utf-8")
     return hashlib.sha256(b).hexdigest()
 
 
@@ -133,6 +159,29 @@ def _round_half_up(x, places):
     return float(Decimal(repr(float(x))).quantize(q, rounding=ROUND_HALF_UP))
 
 
+# How a guidance figure is displayed, by unit. This is a SPECIFICATION,
+# implemented independently here and in the renderer, so comparing the
+# two is a real check rather than one module reading the other. Precision
+# is whatever the issuer stated: 58.25% stays 58.25%, and $2,565M is
+# $2.565B, not $2.56B.
+GUIDANCE_DISPLAY = {
+    "%": (1.0, "", "%"),
+    "USD/share": (1.0, "$", ""),
+    "USD_M": (1.0, "$", "M"),
+}
+GUIDANCE_DISPLAY_OVERRIDE = {"revenue": (1000.0, "$", "B")}
+
+
+def guidance_display(key, unit, x):
+    """Exact-precision rendering of a guidance value."""
+    if x is None:
+        return None
+    scale, pre, suf = GUIDANCE_DISPLAY_OVERRIDE.get(
+        key, GUIDANCE_DISPLAY.get(unit or "", (1.0, "", "")))
+    v = float(x) / scale
+    return "%s%s%s" % (pre, ("%.4f" % v).rstrip("0").rstrip("."), suf)
+
+
 # metric -> (format string, decimal places, human rounding rule)
 DISPLAY = {
     "pe_trailing": ("%.1fx", 1, "half-up to 1 decimal place"),
@@ -169,15 +218,27 @@ def _calc(cid, rec, records, calcs):
     for ref in (rec.get("inputs") or []):
         op = {"evidence_id": ref, "value": None, "resolved": False}
         if ".." in str(ref):
-            # a bar range, e.g. BAR-2026-01-02..BAR-2026-06-30
+            # a bar range, e.g. BAR-2026-01-02..BAR-2026-06-30, or the
+            # benchmark equivalent SPY-...
             lo, hi = str(ref).split("..", 1)
+            pre = "SPY-" if lo.startswith("SPY-") else "BAR-"
             member = [k for k in records
-                      if k.startswith("BAR-") and lo <= k <= hi]
+                      if k.startswith(pre) and lo <= k <= hi]
+            want = DECLARED_WINDOW.get(
+                cid[5:] if cid.startswith("CALC-") else cid)
+            # Cardinality, not mere presence. "Some bars matched" is how a
+            # 200-session window validated against 199 delivered bars.
+            enough = bool(member) and (want is None or len(member) == want)
             op.update({"kind": "range", "members": len(member),
-                       "resolved": bool(member),
-                       "value": ("%d bars" % len(member)) if member else None})
-            if not member:
+                       "expected_members": want, "resolved": enough,
+                       "value": ("%d %s" % (len(member),
+                                            "benchmark sessions"
+                                            if pre == "SPY-" else "bars"))
+                       if member else None})
+            if not enough:
                 complete = False
+                op["note"] = ("window declares %s sessions; %d delivered"
+                              % (want, len(member)))
         elif ref in records:
             op.update({"value": records[ref].get("value"), "resolved": True,
                        "kind": ev_type(ref)})
@@ -213,6 +274,147 @@ def _calc(cid, rec, records, calcs):
     }
 
 
+# ── independent recomputation ───────────────────────────────────────────
+#
+# The whole point of shipping the bars is that a reader can redo the
+# arithmetic. This does exactly that, from the records in this package
+# and nothing else, and compares the answer with what the pipeline
+# published. v3.1 copied the pipeline's output into the package and
+# called it evidence, so a 200-day average built on 199 bars validated
+# cleanly.
+
+def _series(members, key):
+    out = []
+    for m in members:
+        v = m.get("value")
+        if not isinstance(v, dict) or v.get(key) is None:
+            return None
+        out.append(float(v[key]))
+    return out
+
+
+def _mean(xs):
+    return sum(xs) / float(len(xs))
+
+
+def _recompute(slug, members, bench=None):
+    """Return (value, note) recomputed from delivered bars, or (None, why)."""
+    n = DECLARED_WINDOW.get(slug)
+    if n and len(members) != n:
+        return None, ("window declares %d sessions, package delivers %d"
+                      % (n, len(members)))
+    closes = _series(members, "c")
+    if slug in ("ma20", "ma50", "ma200"):
+        if closes is None:
+            return None, "a close is missing from the delivered window"
+        return round(_mean(closes), 2), None
+    if slug in ("support60", "lo52"):
+        if closes is None:
+            return None, "a close is missing from the delivered window"
+        return round(min(closes), 2), None
+    if slug in ("resistance60", "hi52"):
+        if closes is None:
+            return None, "a close is missing from the delivered window"
+        return round(max(closes), 2), None
+    if slug == "atr14":
+        hs, ls = _series(members, "h"), _series(members, "l")
+        if None in (hs, ls, closes):
+            return None, "an OHLC field is missing from the delivered window"
+        trs = [max(hs[i] - ls[i], abs(hs[i] - closes[i - 1]),
+                   abs(ls[i] - closes[i - 1])) for i in range(1, len(closes))]
+        return round(_mean(trs[-14:]), 2), None
+    if slug == "rel_volume":
+        vs = _series(members, "v")
+        if vs is None or not sum(vs[:-1]):
+            return None, "volumes missing from the delivered window"
+        return round(vs[-1] / _mean(vs[:-1]), 2), None
+    if slug in ("last_close", "intraday_last"):
+        if closes is None or len(closes) != 1:
+            return None, "the named bar is not in the package"
+        return round(closes[0], 2), None
+    if slug == "rs_vs_spy":
+        if closes is None:
+            return None, "a close is missing from the issuer window"
+        if not bench:
+            return None, ("the benchmark window is not embedded, so the "
+                          "second leg cannot be reproduced")
+        b = [r.get("value") for r in bench]
+        if any(x is None for x in b) or len(b) < 2:
+            return None, "benchmark closes are missing or null"
+        mine = 100.0 * (closes[-1] / closes[0] - 1)
+        bench_r = 100.0 * (float(b[-1]) / float(b[0]) - 1)
+        return round(mine - bench_r, 1), None
+    return None, None                      # no rule; not a failure
+
+
+def _recompute_operands(slug, ops):
+    """Redo the arithmetic of a two- or four-operand figure from the
+    operand values already resolved in this package."""
+    vals = [o.get("value") for o in ops if o.get("resolved")]
+    nums = [float(v) for v in vals if isinstance(v, (int, float))]
+    if slug == "market_cap" and len(nums) == 2:
+        return round(nums[0] * nums[1], 2), None
+    if slug == "pe_trailing" and len(nums) == 2 and nums[1]:
+        return round(nums[0] / nums[1], 1), None
+    if slug in ("net_margin", "gross_margin") and len(nums) >= 2:
+        # operands arrive as (numerator, revenue) after the CALC ref
+        num = [n for n in nums]
+        if len(num) >= 2 and num[-1]:
+            return round(100.0 * num[-2] / num[-1], 1), None
+    if slug == "revenue_yoy" and len(nums) >= 2 and nums[-1]:
+        return round(100.0 * (nums[-2] / nums[-1] - 1), 1), None
+    if slug == "eps_ttm" and len(nums) >= 4:
+        return round(sum(nums[-4:]), 2), None
+    return None, None
+
+
+def _reproduce(cid, rec, records, calcs, benchmark, operands=None):
+    """Attach the independent recomputation to a calculation record."""
+    slug = cid[5:] if cid.startswith("CALC-") else cid
+    members, bench, ranges = [], [], 0
+    for ref in (rec.get("inputs") or []):
+        r = str(ref)
+        if ".." in r:
+            ranges += 1
+            lo, hi = r.split("..", 1)
+            pre = "SPY-" if lo.startswith("SPY-") else "BAR-"
+            pool = benchmark if pre == "SPY-" else records
+            got = sorted(k for k in pool if k.startswith(pre)
+                         and lo <= k <= hi)
+            if pre == "SPY-":
+                bench = [pool[k] for k in got]
+            else:
+                members = [pool[k] for k in got]
+        elif r.startswith("BAR-") and r in records:
+            members.append(records[r])
+        elif r.startswith("INTRADAY-") and r in records:
+            members.append(records[r])
+    got, why = _recompute(slug, members, bench)
+    if got is None and why is None:
+        got, why = _recompute_operands(slug, operands or [])
+    published = rec.get("output")
+    out = {"window_declared": DECLARED_WINDOW.get(slug),
+           "window_delivered": len(members) or None,
+           "benchmark_sessions_delivered": len(bench) or None,
+           "recomputed": got, "recompute_note": why}
+    if got is None:
+        out["reproducible"] = None if why is None else False
+        if why is None:
+            out["recompute_note"] = ("no independent rule for this slug; "
+                                     "operands are named but the arithmetic "
+                                     "is not re-derived here")
+    else:
+        tol = 0.011 if isinstance(published, float) else 0.011
+        ok = (isinstance(published, (int, float))
+              and abs(float(published) - got) <= tol)
+        out["reproducible"] = bool(ok)
+        if not ok:
+            out["recompute_note"] = (
+                "published %s but the delivered bars give %s"
+                % (published, got))
+    return out
+
+
 # ── build ───────────────────────────────────────────────────────────────
 
 def build(snap, view, prov=None, led=None, artifacts=None,
@@ -225,26 +427,67 @@ def build(snap, view, prov=None, led=None, artifacts=None,
     def put(r):
         records[r["evidence_id"]] = r
 
-    # market bars — only the window the displayed indicators actually
-    # need, so the package is reproducible without carrying two years
-    bars = sorted([b for b in (ld.get("market_bars") or [])],
-                  key=lambda b: b.get("id", ""))
-    kept = bars[-BARS_FOR_INDICATORS:]
+    # Issuer bars ONLY. The benchmark reference used to live in this
+    # same ledger section, and because "EXT-" sorts after "BAR-" the
+    # tail slice swallowed it — 199 issuer bars behind formulas that
+    # declared 200 and 252.
+    bars = sorted([b for b in (ld.get("market_bars") or [])
+                   if str(b.get("id", "")).startswith("BAR-")],
+                  key=lambda b: b["id"])
+    partial_session = (snap.get("levels") or {}).get("partial_session")         or (prov.get("_mk") or {}).get("partial_session")
+    last_completed = (prov.get("_mk") or {}).get("last_completed_session")
+    completed = [b for b in bars
+                 if not (last_completed and b["id"][4:] > last_completed)]
+    kept = completed[-BARS_FOR_INDICATORS:]
     for b in kept:
         put(_rec(b["id"], "market_bar", source="Yahoo Finance daily bars",
                  value={"o": b.get("open"), "h": b.get("high"),
                         "l": b.get("low"), "c": b.get("close"),
                         "v": b.get("volume")},
-                 unit="USD", period={"session": b["id"][4:]},
+                 unit="USD", period={"session": b["id"][4:],
+                                     "complete": True},
                  timestamps={"observed": b["id"][4:]},
-                 raw=b, immutable={"kind": "vendor_series", "immutable": False,
-                                   "ref": snap.get("levels", {}).get(
+                 raw=b, immutable={"kind": "vendor_series",
+                                   "immutable": False,
+                                   "ref": (prov.get("_mk") or {}).get(
                                        "series_id")}))
-    if len(bars) > len(kept):
-        notes.append("%d of %d daily bars are carried: the last %d, which is "
-                     "every bar the displayed indicators consume (the 200-day "
-                     "average is the longest window)."
-                     % (len(kept), len(bars), BARS_FOR_INDICATORS))
+    if len(completed) > len(kept):
+        notes.append("%d of %d completed sessions carried: the last %d, "
+                     "which satisfies the longest declared window (252 "
+                     "sessions, for the 52-week high and low)."
+                     % (len(kept), len(completed), BARS_FOR_INDICATORS))
+
+    # The open session is an observation, not a bar. It is carried under
+    # its own id so nothing can fold it into a completed-session window.
+    mk = prov.get("_mk") or {}
+    intr = mk.get("intraday")
+    if intr:
+        put(_rec("INTRADAY-%s" % intr["session"], "intraday_observation",
+                 source="Yahoo Finance intraday",
+                 value={"o": intr.get("open"), "h": intr.get("high"),
+                        "l": intr.get("low"), "c": intr.get("last"),
+                        "v": intr.get("volume")},
+                 unit="USD",
+                 period={"session": intr["session"], "complete": False},
+                 timestamps={"observed": view.get("quote_time_utc")},
+                 raw=intr,
+                 extra={"partial": True,
+                        "note": "the session was open when this was read; "
+                                "close, high, low and volume are not final"}))
+
+    # Benchmark closes, embedded. RS vs SPY cannot be checked against a
+    # label, and the placeholder this replaces carried null OHLCV while
+    # the validator marked its operand resolved.
+    benchmark = {}
+    for b in (ld.get("benchmark_bars") or []):
+        r = _rec(b["id"], "benchmark_bar", source="Yahoo Finance daily bars",
+                 value=b.get("close"), unit="USD",
+                 period={"session": b.get("session"), "complete": True},
+                 timestamps={"observed": b.get("session")}, raw=b,
+                 immutable={"kind": "vendor_series", "immutable": False,
+                            "ref": b.get("series_id")})
+        benchmark[b["id"]] = r
+        put(r)
 
     for x in (ld.get("xbrl_facts") or []):
         put(_rec(x["id"], "xbrl_fact", source="SEC XBRL companyconcept",
@@ -343,6 +586,46 @@ def build(snap, view, prov=None, led=None, artifacts=None,
                         "duplicate_group": s.get("dup_group"),
                         "author_hash": s.get("author_hash")}))
 
+    # Earnings-exhibit figures are evidence, not decoration: each becomes
+    # its own record with the accession and URL behind it.
+    ex = snap.get("exhibit") or {}
+    for kind, block in (("reported", ex.get("reported") or {}),
+                        ("guidance", ex.get("guidance") or {})):
+        for key, val in block.items():
+            eid = "EXH-%s-%s" % (kind[:3].upper(), key)
+            if kind == "reported":
+                value, unit = val.get("value"), val.get("unit")
+                period = {"label": ex.get("period_label"),
+                          "kind": "reported quarter"}
+            else:
+                value = {"low": val.get("low"), "midpoint": val.get("midpoint"),
+                         "high": val.get("high")}
+                unit = val.get("unit")
+                period = {"label": ex.get("guidance_period"),
+                          "kind": "guided quarter"}
+            disp = None
+            if kind == "guidance":
+                lo = guidance_display(key, unit, val.get("low"))
+                hi = guidance_display(key, unit, val.get("high"))
+                disp = lo if lo == hi else "%s - %s" % (lo, hi)
+            else:
+                disp = guidance_display(key, unit, val.get("value"))
+            put(_rec(eid, "exhibit_%s" % kind,
+                     source="SEC 8-K Item 2.02 Exhibit 99.1",
+                     url=ex.get("url"), accession=ex.get("accession"),
+                     value=value, unit=unit, period=period,
+                     timestamps={"accepted": ex.get("accepted")},
+                     disposition=(ADMITTED
+                                  if ex.get("disposition") == "ADMITTED"
+                                  else AVAILABLE_NOT_INGESTED),
+                     reason=ex.get("reason"), raw=val,
+                     extra={"issuer_label": val.get("label"),
+                            "issuer_raw": val.get("raw"),
+                            "basis": val.get("basis"),
+                            "display": disp,
+                            "display_rule": "issuer-stated precision; "
+                                            "trailing zeros stripped"}))
+
     # filing facts the point-in-time gate held back
     for d in (prov.get("deferred") or []):
         did = "DEFER-%s-%s" % (d.get("metric"), d.get("period_end"))
@@ -358,6 +641,8 @@ def build(snap, view, prov=None, led=None, artifacts=None,
     lv = snap.get("levels") or {}
     for c in (ld.get("technical_calculations") or []):
         rec = _calc(c["id"], c, records, calcs)
+        rec.update(_reproduce(c["id"], c, records, calcs, benchmark,
+                              operands=rec.get("operands")))
         slug = c["id"][5:] if c["id"].startswith("CALC-") else c["id"]
         # A calculation the snapshot withheld is recorded with its reason
         # rather than dropped: the reader can still see it was computed
@@ -396,6 +681,56 @@ def build(snap, view, prov=None, led=None, artifacts=None,
             "unit": None, "note": c.get("name"), "grade": M.INFERRED}
 
     coverage = dict((prov.get("coverage") or {}))
+    # The exhibit was parsed, so the coverage line that says non-GAAP is
+    # unavailable is now contradicted by the report itself.
+    if (snap.get("exhibit") or {}).get("disposition") == "ADMITTED":
+        coverage["non_gaap_margin"] = (
+            "ADMITTED - parsed from 8-K Item 2.02 Exhibit 99.1 (%s)"
+            % (snap.get("exhibit") or {}).get("accession"))
+
+    # "displayed" meant three different things depending on who was
+    # asking. Each population now says which artifact it counts.
+    def _scope(domain, pop):
+        core = {"news": M.CORE_NEWS_SHOWN,
+                "ownership": 0}.get(domain)
+        apx = {"ownership": pop.get("records_in_window")
+               or pop.get("records_admitted"),
+               "social": len((snap.get("sentiment") or {})
+                             .get("sample_records") or [])}.get(domain)
+        out = dict(pop)
+        legacy = out.pop("records_displayed", None)
+        adm = out.get("records_admitted")
+        out.update({
+            "admitted": adm,
+            "shown_core": (min(core, adm) if (core is not None
+                                              and adm is not None) else core),
+            "shown_appendix": apx,
+            "available_evidence": len([r for r in records.values()
+                                       if r.get("evidence_type", "")
+                                       .startswith(domain[:4])]) or None,
+            "legacy_records_displayed": legacy,
+        })
+        return out
+
+    populations = {d: _scope(d, p) for d, p in
+                   (ld.get("counts") or {}).items()}
+
+    # Every record is hash-verified, not a sample of thirty.
+    hash_report = {
+        "algorithm": "sha256",
+        "hash_version": HASH_VERSION,
+        "canonicalization": HASH_CANONICALIZATION,
+        "records_total": len(records),
+        "records_hashed": len([r for r in records.values()
+                               if r.get("raw_hash")]),
+        "coverage_pct": (round(100.0 * len([r for r in records.values()
+                                            if r.get("raw_hash")])
+                               / max(1, len(records)), 1)),
+        "note": ("every record carries a raw_hash produced by the "
+                 "canonicalisation named above; v3.1 verified only the "
+                 "30 records that happened to have a private audit twin"),
+        "ledger_audit_sample": (ld.get("hash_verification") or {}),
+    }
     pkg = {
         "schema": SCHEMA,
         "ticker": snap.get("ticker"),
@@ -417,10 +752,13 @@ def build(snap, view, prov=None, led=None, artifacts=None,
         },
         "records": records,
         "calculations": calcs,
-        "populations": ld.get("counts") or {},
+        "populations": populations,
         "count_statements": ld.get("count_statements") or {},
         "source_coverage": coverage,
-        "hash_verification": ld.get("hash_verification"),
+        "hash_verification": hash_report,
+        "benchmark_sessions": len(benchmark),
+        "completed_sessions_carried": len(kept),
+        "intraday_observation": bool(intr),
         "notes": notes,
         "view": _jsonable(view),
         "snapshot_schema": snap.get("schema"),
