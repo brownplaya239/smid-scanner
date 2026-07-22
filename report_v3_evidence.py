@@ -87,7 +87,8 @@ PREFIX_TYPE = [
     ("EXT-", "external_reference"),
 ]
 
-# Completed sessions the package must carry. The 52-week high and low
+# Completed sessions the package must carry. The 52-week closing
+# high and low
 # declare a 252-session window, which is longer than the 200-day average,
 # so 252 is the floor. v3.1 exported 200 *records* — but the SPY
 # placeholder sorted after "BAR-" and took one of those slots, leaving
@@ -486,7 +487,7 @@ def build(snap, view, prov=None, led=None, artifacts=None,
     if len(completed) > len(kept):
         notes.append("%d of %d completed sessions carried: the last %d, "
                      "which satisfies the longest declared window (252 "
-                     "sessions, for the 52-week high and low)."
+                     "sessions, for the 52-week closing high and low)."
                      % (len(kept), len(completed), BARS_FOR_INDICATORS))
 
     # The open session is an observation, not a bar. It is carried under

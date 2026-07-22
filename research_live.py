@@ -885,7 +885,7 @@ def build_snapshot(ticker, report_time=None):
                             note="highest high of the last 60 sessions",
                             refs=["CALC-resistance60"]),
         "resistance_major": mfact(mk["hi52"], "major resistance", unit="USD",
-                                  note="52-week high (252 sessions)",
+                                  note="52-week closing high (252 completed sessions)",
                                   refs=["CALC-hi52"]),
     }
     if mk.get("rs_vs_spy") is not None:
@@ -1941,7 +1941,8 @@ def _decision(snap, mk, evids, led=None):
     up = ("reclaim of the 200-day at $%.2f on above-average volume" % ma200
           if px < ma200 else
           "reclaim of the 20-day at $%.2f after any pullback" % ma20)
-    down = ("loss of the 60-session low at $%.2f" % mk["support"])
+    down = ("loss of the 60-session closing low at $%.2f"
+        % mk["support"])
     atr = mk["atr14"]
     risks = []
     if above == 0:
@@ -1980,7 +1981,8 @@ def _decision(snap, mk, evids, led=None):
          "reclaim the 200-day at $%.2f" % ma200,
          "level": ma200, "met": px > ma200, "evidence_refs": ["CALC-ma200"]},
         {"stage": "Invalidation", "condition":
-         "daily close below the 60-session low at $%.2f" % mk["support"],
+         "daily close below the 60-session closing low at $%.2f"
+         % mk["support"],
          "level": mk["support"], "met": px < mk["support"],
          "evidence_refs": ["CALC-support60"]},
     ]
@@ -2020,13 +2022,15 @@ def _decision(snap, mk, evids, led=None):
                     "one ATR is $%.2f (%.1f%%)"
                     % (mk["support"], ma20, atr, 100.0 * atr / px),
             "bull": "Reclaim and hold the 20-day at $%.2f, opening the "
-                    "60-session high at $%.2f" % (ma20, mk["resistance"]),
-            # the 60-session low and the 52-week low coincide when a name
+                    "60-session closing high at $%.2f"
+                    % (ma20, mk["resistance"]),
+            # the 60-session and 52-week closing lows coincide when a name
             # is at its lows; saying "loss of X puts X in play" is nonsense
-            "bear": ("Loss of $%.2f is a fresh 52-week low, with no prior "
+            "bear": ("Loss of $%.2f is a fresh 52-week closing low, with "
+                     "no prior "
                      "reference level beneath it" % mk["support"]
                      if abs(mk["support"] - mk["lo52"]) < 0.01 else
-                     "Loss of $%.2f puts the 52-week low at $%.2f in play"
+                     "Loss of $%.2f puts the 52-week closing low at $%.2f in play"
                      % (mk["support"], mk["lo52"])),
         },
         "claims": claims,

@@ -422,7 +422,7 @@ def _page1(snap, view, chart_png=None):
                        "state cannot be stated.", "body", M.OBSERVED))
 
     # Three kinds of level, kept apart. v3 listed them in one ladder,
-    # which invited a 60-session low to be read as a swing stop.
+    # which invited a 60-session closing low to be read as a stop.
     lg = view.get("levels") or {}
     up, down = lg.get("upside_confirmation") or [],         lg.get("downside_deterioration") or []
     struct = lg.get("structural") or []
@@ -668,8 +668,8 @@ def _page2(snap, view):
         st.append(para("  ·  ".join(bits), "small"))
 
     st += [para("Reported results", "h2"),
-           para("Every figure below is a GAAP tag from an SEC filing "
-                "accepted before this report's timestamp. Nothing is "
+           para("Every figure below is sourced from, or derived from, "
+                "filed SEC data; derived figures are labeled. Nothing is "
                 "estimated or annualised.", "small")]
     rows = _fund_rows(fu, co)
     if rows:
@@ -927,11 +927,20 @@ def _page4(snap, view):
                          header=["Item and what it is",
                                  "Publisher and time"], zebra=True))
         # The stated count must describe THIS document, not the pipeline.
-        st.append(para("%d of %d items that cleared the article-level "
-                       "relevance check are shown here, highest relevance "
-                       "first; the rest, and every rejected item with its "
-                       "reason, are in the appendix."
-                       % (len(news), len(all_news)), "small"))
+        # Every count names the artifact it counts. "5 records displayed"
+        # meant three different things depending on which document the
+        # reader was holding.
+        pop = ((view.get("populations") or {}).get("news") or {})
+        st.append(para("%s evidence records · %s admitted · %d shown in "
+                       "core · %d shown in appendix. Rejected items and "
+                       "their reasons are in the appendix."
+                       % (pop.get("available_evidence")
+                          if pop.get("available_evidence") is not None
+                          else len(all_news),
+                          pop.get("admitted") if pop.get("admitted")
+                          is not None else len(all_news),
+                          len(news), pop.get("shown_appendix") or 0),
+                       "small"))
     else:
         st.append(para("No article cleared the relevance check in this "
                        "window.", "body", M.OBSERVED))
@@ -1113,7 +1122,7 @@ def build_appendix(snap, view=None, recs=None, prov=None, out_path=None,
                 "purpose and reproduced here only so the counts on page 4 "
                 "can be checked. Every fetched post is in the evidence "
                 "package with its hash, classification and disposition; "
-                "this page carries neutral representative excerpts only.",
+                "this page carries screened representative excerpts.",
                 "small")]
     samples = M.presentable_samples(
         (snap.get("sentiment") or {}).get("sample_records") or [])

@@ -164,12 +164,12 @@ def _days_between(a, b):
 # ── the trigger ladder ──────────────────────────────────────────────────
 
 LADDER_KEYS = [
-    ("support", "60-session low"),
+    ("support", "60-session closing low"),
     ("ma200", "200-day average"),
     ("ma50", "50-day average"),
     ("ma20", "20-day average"),
-    ("resistance", "60-session high"),
-    ("resistance_major", "52-week high"),
+    ("resistance", "60-session closing high"),
+    ("resistance_major", "52-week closing high"),
 ]
 
 
@@ -193,7 +193,8 @@ def ladder(levels, price):
                     "grade": grade((levels or {}).get(key))})
     out.sort(key=lambda r: r["value"])
     # Two levels can legitimately land on the same price — a stock that
-    # just made a 52-week high has a 60-session high equal to it. Listing
+    # just made a 52-week closing high has a 60-session closing high
+    # equal to it. Listing
     # both is a duplicate rung, not two triggers, so they merge into one
     # stage that names both. MRVL surfaced this at 329.88.
     merged = []
@@ -310,7 +311,7 @@ def exit_level(snap):
     floor = out["floor"]
     # Two candidates: the level the stock has actually traded to, and the
     # distance the stated holding period requires. Take the WIDER of the
-    # two. When price is sitting just above its 60-session low that low
+    # two. When price sits just above its 60-session closing low that
     # is only a fraction of a day's range away, and quoting it as the
     # boundary for a multi-week thesis promises an exit that ordinary
     # noise would trigger. Which rule bound the level is stated, so the
@@ -321,18 +322,19 @@ def exit_level(snap):
     if documented is not None and horizon_based is not None:
         if documented <= horizon_based:
             out["value"], out["bound_by"] = documented, "documented low"
-            out["basis"] = ("60-session low, the lowest close the stock has "
-                            "actually traded to in this window")
+            out["basis"] = ("60-session closing low, the lowest close the "
+                            "stock has printed in this window")
         else:
             out["value"], out["bound_by"] = horizon_based, "horizon"
-            out["basis"] = ("spot less %.1f x ATR(14) — the 60-session low "
-                            "at %.2f sits inside one %.1f x ATR band, too "
-                            "close to survive normal daily range over this "
-                            "holding period" % (floor, documented, floor))
+            out["basis"] = ("spot less %.1f x ATR(14) — the 60-session "
+                            "closing low at %.2f sits inside one %.1f x ATR "
+                            "band, too close to survive normal daily range "
+                            "over this holding period"
+                            % (floor, documented, floor))
     elif documented is not None:
         out["value"], out["bound_by"] = documented, "documented low"
-        out["basis"] = ("60-session low, the lowest close the stock has "
-                        "actually traded to in this window")
+        out["basis"] = ("60-session closing low, the lowest close the stock "
+                        "has printed in this window")
     elif horizon_based is not None:
         out["value"], out["bound_by"] = horizon_based, "horizon"
         out["basis"] = ("spot less %.1f x ATR(14); no documented low in the "
@@ -801,6 +803,7 @@ def build(snap, mk=None, prior=None):
         },
         "prospective": prospective_conditions(snap, price),
         "business": business_description(snap),
+        "populations": {"news": news_scope(snap)},
         "exhibit": snap.get("exhibit") or {},
         "exit": exit_level(snap),
         "changed": what_changed(snap, prior),
@@ -822,7 +825,8 @@ def level_groups(snap, price=None):
       downside deterioration  a level whose loss would weaken it
       structural boundary   the edge of the range price has traded in
 
-    The distinction is not cosmetic. A 60-session low is a structural
+    The distinction is not cosmetic. A 60-session closing low is a
+    structural
     fact about where the stock has been; it is not a stop, and printing
     it beside actionable triggers invites it to be used as one."""
     price = price if price is not None else spot(snap)
@@ -913,7 +917,8 @@ def prospective_conditions(snap, price=None):
                         "testable_at": "any session close"})
     sup = rs.fv(lv.get("support"))
     if sup and price:
-        out.append({"text": "A close below the 60-session low at %.2f puts "
+        out.append({"text": "A close below the 60-session closing low at "
+                            "%.2f puts "
                             "price outside the range it has held."
                             % sup,
                     "kind": "structural", "grade": DERIVED,
@@ -1088,3 +1093,23 @@ def presentable_samples(records, limit=10, min_chars=25):
         if len(out) >= limit:
             break
     return out
+
+
+def news_scope(snap, shown_core=None):
+    """Counts that each name the artifact they count.
+
+    "5 records displayed" meant the pipeline population, the core page
+    and the appendix at three different call sites. Every number here
+    says which document it refers to."""
+    pop = ((snap.get("count_populations") or {}).get("news") or {})
+    admitted = pop.get("records_admitted")
+    if admitted is None:
+        admitted = len(((snap.get("sentiment") or {}).get("news") or []))
+    fetched = pop.get("records_fetched")
+    if fetched is None:
+        fetched = admitted
+    core = CORE_NEWS_SHOWN if shown_core is None else shown_core
+    return {"available_evidence": fetched,
+            "admitted": admitted,
+            "shown_core": min(core, admitted) if admitted is not None else core,
+            "shown_appendix": 0}

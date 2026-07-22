@@ -195,7 +195,8 @@ def test_exit():
     chk("with no position the exit is a risk boundary",
         ex["label"] == "Risk boundary", ex["label"])
     chk("the boundary cites a documented low, not a round number",
-        "60-session low" in (ex["basis"] or ""), ex["basis"])
+        "60-session closing low" in (ex["basis"] or ""),
+        ex["basis"])
     s2 = base_snap()
     s2["decision"]["position_plan"] = {"entry": 99.0}
     chk("with a position on the book it becomes an invalidation",

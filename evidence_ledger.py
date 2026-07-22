@@ -244,7 +244,8 @@ class Ledger(object):
                 ("records parsed", "records_parsed"),
                 ("records admitted", "records_admitted"),
                 ("rejected", "records_rejected"),
-                ("records displayed", "records_displayed"))
+                ("shown in core", "shown_core"),
+                ("shown in appendix", "shown_appendix"))
         if self.counts.get("news"):
             s["news"] = self.statement(
                 "news",
@@ -252,7 +253,8 @@ class Ledger(object):
                 ("records admitted after article-level relevance",
                  "records_admitted"),
                 ("rejected", "records_rejected"),
-                ("records displayed", "records_displayed"))
+                ("shown in core", "shown_core"),
+                ("shown in appendix", "shown_appendix"))
         return s
 
     def reconcile(self):
@@ -315,7 +317,8 @@ class Ledger(object):
                 "analysis window": "the dated span a population was drawn from",
                 "records parsed": "rows extracted from the source documents",
                 "records admitted": "rows that survived validation",
-                "records displayed": "rows shown in the report",
+                "shown in core": "rows printed in the four-page brief",
+                "shown in appendix": "rows printed in the appendix PDF",
                 "benchmark reference":
                     "an external series used for comparison, never counted "
                     "as issuer data",

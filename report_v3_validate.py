@@ -36,7 +36,7 @@ import re
 import report_v3_evidence as EV
 import report_v3_model as M
 
-VALIDATOR_VERSION = "3.3.0"
+VALIDATOR_VERSION = "3.3.1"
 
 FATAL, ERROR, WARN, INFO = "FATAL", "ERROR", "WARN", "INFO"
 PASS, FAIL, WARN_S, SKIP = "PASS", "FAIL", "WARN", "SKIP"
@@ -90,6 +90,9 @@ CHECK_IDS = [
     "CALC_REPRODUCIBLE", "HASH_COVERAGE",
     "RECORD_HASH_RECOMPUTE", "BENCHMARK_DATE_ALIGNMENT",
     "PDF_SOURCE_COVERAGE_MATCH", "APPENDIX_COUNT_SCOPE",
+    # v3.3.1 editorial precision
+    "DISPLAY_COUNT_UNSCOPED", "SOCIAL_SAMPLE_DESCRIPTION",
+    "CLOSE_EXTREMA_LABELLED",
 ]
 
 
@@ -178,7 +181,7 @@ def check_model(view, snap=None, evidence=None):
                    "the exit level is named and its basis stated",
                    "%s at %s, bound by %s"
                    % (ex.get("label"), ex.get("value"), ex.get("bound_by")),
-                   detail="A level derived from a 60-session low is a "
+                   detail="A level derived from a 60-session closing low is a "
                           "structural boundary, not an actionable swing "
                           "stop, and must not be presented as one."))
 
@@ -878,6 +881,74 @@ def check_numerics(evidence, view, snap=None, pdf_text=""):
     return out
 
 
+# -- v3.3.1: the words have to be as precise as the numbers -------------
+
+# A count with no artifact behind it. "5 records displayed" was true of
+# the pipeline, the core page and the appendix at different call sites,
+# and meant a different number in each.
+UNSCOPED_COUNT_RX = re.compile(
+    r"\b\d+\s+(?:records?|items?|rows?|posts?)\s+displayed\b", re.I)
+
+# Close-derived extrema that do not say so. A "60-session low" computed
+# from closes reads as an intraday low to anyone who trades.
+UNLABELLED_EXTREMA_RX = re.compile(
+    r"\b(?:60-session|52-week|252-session)\s+(?!closing\b)(?:high|low)\b",
+    re.I)
+
+
+def check_editorial(evidence, view, snap=None, pdf_text="", appendix_text=""):
+    """Wording that would mislead a careful reader, even where every
+    number behind it is correct."""
+    out, ev = [], evidence or {}
+    both = "\n".join(t for t in (pdf_text, appendix_text) if t)
+
+    hits = sorted(set(m.group(0) for m in UNSCOPED_COUNT_RX.finditer(both)))
+    out.append(chk("DISPLAY_COUNT_UNSCOPED", not hits, ERROR,
+                   "every rendered count names the artifact it counts",
+                   "; ".join(hits) if hits else
+                   "no unscoped display counts in either artifact",
+                   detail="Expected form: N evidence records - N admitted - "
+                          "N shown in core - N shown in appendix."))
+
+    # The appendix filter removes explicit, abusive and content-free
+    # posts. What survives still spans bullish, bearish and neutral, so
+    # describing the sample as "neutral" states the wrong property.
+    classes = set()
+    for r in (ev.get("records") or {}).values():
+        if r.get("evidence_type") == "social_post" and r.get("classification"):
+            classes.add(str(r["classification"]).lower())
+    mixed = len(classes) > 1
+    claims_neutral = bool(re.search(r"neutral[, ]+representative|"
+                                    r"neutral representative", both, re.I))
+    out.append(chk("SOCIAL_SAMPLE_DESCRIPTION", not (mixed and claims_neutral),
+                   ERROR,
+                   "a multi-classification sample is described as screened, "
+                   "not neutral",
+                   ("sample spans %s but the page calls it neutral"
+                    % ", ".join(sorted(classes))) if (mixed and claims_neutral)
+                   else "sample described as %s across %d classification(s)"
+                   % ("screened" if "screened" in both.lower() else "unlabelled",
+                      len(classes))))
+
+    # A range statistic computed from closes must say "closing".
+    bad = []
+    for cid, c in sorted((ev.get("calculations") or {}).items()):
+        f = str(c.get("formula") or "")
+        if re.search(r"(?:min|max)\(close", f, re.I):
+            bad.extend(sorted(set(m.group(0)
+                                  for m in UNLABELLED_EXTREMA_RX.finditer(
+                                      both))))
+            break
+    bad = sorted(set(bad))
+    out.append(chk("CLOSE_EXTREMA_LABELLED", not bad, ERROR,
+                   "close-derived extrema are labelled 'closing'",
+                   "; ".join(bad) if bad else
+                   "all range extrema labelled on a close basis",
+                   detail="A 60-session low computed from closes reads as an "
+                          "intraday low unless it says otherwise."))
+    return out
+
+
 def check_artifacts(artifacts, core, apx, ev_bytes):
     """Hash what we were actually handed and compare it with the manifest
     the package advertises."""
@@ -960,7 +1031,18 @@ def report(view, snap, core_pdf, appendix_pdf=None, evidence=None,
         _d.close()
     except Exception:
         _txt = ""
+    _atxt = ""
+    if appendix_pdf:
+        try:
+            import fitz as _f
+            _ad = _f.open(stream=appendix_pdf, filetype="pdf")
+            _atxt = chr(10).join(_ad[i].get_text()
+                                 for i in range(_ad.page_count))
+            _ad.close()
+        except Exception:
+            _atxt = ""
     checks += check_numerics(evidence, view, snap, _txt)
+    checks += check_editorial(evidence, view, snap, _txt, _atxt)
     checks += check_artifacts(artifacts, core_pdf, appendix_pdf or b"",
                               ev_bytes)
 

@@ -51,6 +51,11 @@ def clean_package():
                               "evidence_type": "benchmark_bar",
                               "value": 400.0 + i, "raw_hash": "0" * 64,
                               "disposition": EV.ADMITTED}
+    for i, cls in enumerate(("bullish", "bearish", "neutral")):
+        recs["SOC-x%d" % i] = {"evidence_id": "SOC-x%d" % i,
+                               "evidence_type": "social_post",
+                               "classification": cls, "value": "h%d" % i,
+                               "disposition": EV.ADMITTED}
     recs["EXH-GUI-revenue"] = {
         "evidence_id": "EXH-GUI-revenue", "evidence_type": "exhibit_guidance",
         "value": {"low": 2565.0, "midpoint": 2700.0, "high": 2835.0},
@@ -115,7 +120,11 @@ def clean_package():
 
 
 CLEAN_PDF = ("109.50 the lowest close 58.9% $2.565B $2.835B "
-             "3 of 6 items are shown here")
+             "3 of 6 items are shown here "
+             "10 evidence records - 6 admitted - 3 shown in core - "
+             "0 shown in appendix "
+             "screened representative excerpts "
+             "60-session closing low 52-week closing high")
 
 
 # ── one corruption each ─────────────────────────────────────────────────
@@ -213,6 +222,19 @@ def m_hash_coverage(pkg, txt):
     return pkg, txt
 
 
+def m_display_count_unscoped(pkg, txt):
+    return pkg, txt + " 5 records displayed"
+
+
+def m_social_sample_description(pkg, txt):
+    return pkg, txt.replace("screened representative excerpts",
+                            "neutral representative excerpts only")
+
+
+def m_close_extrema_labelled(pkg, txt):
+    return pkg, txt.replace("60-session closing low", "60-session low")
+
+
 MUTATIONS = [
     ("BAR_CARDINALITY",
      "CALC-ma20 declaring a 20-session window with 19 bars delivered",
@@ -244,6 +266,15 @@ MUTATIONS = [
     ("BENCHMARK_DATE_ALIGNMENT",
      "benchmark leg spanning different sessions from the issuer leg",
      m_date_alignment),
+    ("DISPLAY_COUNT_UNSCOPED",
+     "a rendered count reading '5 records displayed' with no artifact named",
+     m_display_count_unscoped),
+    ("SOCIAL_SAMPLE_DESCRIPTION",
+     "a multi-classification sample described as neutral",
+     m_social_sample_description),
+    ("CLOSE_EXTREMA_LABELLED",
+     "a close-derived 60-session low printed without 'closing'",
+     m_close_extrema_labelled),
 ]
 
 
@@ -251,7 +282,8 @@ def run():
     """Return one result per mutation, plus the clean control."""
     results = []
     base = clean_package()
-    ctrl = [c for c in V.check_numerics(base, {}, {}, CLEAN_PDF)
+    ctrl = [c for c in (V.check_numerics(base, {}, {}, CLEAN_PDF)
+                        + V.check_editorial(base, {}, {}, CLEAN_PDF))
             if c["status"] == V.FAIL]
     results.append({
         "check_id": "CONTROL", "mutation": "none - the clean package",
@@ -264,7 +296,8 @@ def run():
     for check_id, description, mutate in MUTATIONS:
         pkg, txt = mutate(copy.deepcopy(base), CLEAN_PDF)
         got = None
-        for c in V.check_numerics(pkg, {}, {}, txt):
+        for c in (V.check_numerics(pkg, {}, {}, txt)
+                  + V.check_editorial(pkg, {}, {}, txt)):
             if c["check_id"] == check_id:
                 got = c
                 break
