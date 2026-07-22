@@ -1,7 +1,11 @@
 {
-  "generated": "2026-07-22T13:52:20+00:00",
+  "generated": "2026-07-22T14:12:19+00:00",
   "reports": {
     "smid-scanner": [
+      {
+        "file": "smid_scanner_2026-07-22_1010.pdf",
+        "label": "Jul 22, 2026  -  10:10 AM ET"
+      },
       {
         "file": "smid_scanner_2026-07-21_1817.pdf",
         "label": "Jul 21, 2026  -  6:17 PM ET"
@@ -37,13 +41,13 @@
       {
         "file": "smid_scanner_2026-07-17_1613.pdf",
         "label": "Jul 17, 2026  -  4:13 PM ET"
-      },
-      {
-        "file": "smid_scanner_2026-07-17_1510.pdf",
-        "label": "Jul 17, 2026  -  3:10 PM ET"
       }
     ],
     "iwm-scanner": [
+      {
+        "file": "iwm_scanner_2026-07-22_1012.pdf",
+        "label": "Jul 22, 2026  -  10:12 AM ET"
+      },
       {
         "file": "iwm_scanner_2026-07-21_1820.pdf",
         "label": "Jul 21, 2026  -  6:20 PM ET"
@@ -79,10 +83,6 @@
       {
         "file": "iwm_scanner_2026-07-17_1615.pdf",
         "label": "Jul 17, 2026  -  4:15 PM ET"
-      },
-      {
-        "file": "iwm_scanner_2026-07-17_1511.pdf",
-        "label": "Jul 17, 2026  -  3:11 PM ET"
       }
     ],
     "smid-setup": [
@@ -290,14 +290,14 @@
         "ticker": "BB"
       },
       {
-        "file": "ticker_CEVA_2026-06-01_2051.pdf",
-        "label": "Jun 01, 2026  -  8:51 PM ET",
-        "ticker": "CEVA"
-      },
-      {
         "file": "ticker_IMSR_2026-06-01_2051.pdf",
         "label": "Jun 01, 2026  -  8:51 PM ET",
         "ticker": "IMSR"
+      },
+      {
+        "file": "ticker_CEVA_2026-06-01_2051.pdf",
+        "label": "Jun 01, 2026  -  8:51 PM ET",
+        "ticker": "CEVA"
       },
       {
         "file": "ticker_NVDA_2026-06-01_2036.pdf",
