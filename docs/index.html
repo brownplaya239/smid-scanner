@@ -4159,6 +4159,33 @@
   .archive-freshness .af-chip.is-stale { border-color:rgba(255,158,27,0.45);
     background:rgba(255,158,27,0.08); }
   .archive-freshness .af-chip.is-stale .af-age { color:var(--gold); }
+  /* Alt-Data card, collapsed by default. The generator is retired and the
+     social read now ships inside the research brief, so this square is an
+     archive: it should not occupy a full card of vertical space above the
+     thing that replaced it. Closed <details> keeps #list-alt-data in the
+     DOM, so loadMyReports() still populates it on page load. */
+  .alt-fold { padding:0; }
+  .alt-fold > summary { list-style:none; cursor:pointer; padding:18px 32px;
+    position:relative; text-align:center; }
+  .alt-fold > summary::-webkit-details-marker { display:none; }
+  .alt-fold > summary::after { content:"+"; position:absolute; right:24px;
+    top:50%; transform:translateY(-50%); font-size:20px; font-weight:300;
+    color:var(--muted); line-height:1; }
+  .alt-fold[open] > summary::after { content:"\2212"; color:var(--gold); }
+  .alt-fold > summary:hover .alt-fold-t { color:var(--gold); }
+  /* Still an <h2> so it stays a heading landmark; the card's own h2 rule
+     already centres it, this only removes the trailing gap. */
+  .alt-fold-t { display:block; margin-bottom:0; }
+  .alt-fold-n { display:block; margin-top:4px; font-size:12px;
+    color:var(--muted); line-height:1.5; }
+  .alt-fold-body { padding:0 32px 32px; border-top:1px solid var(--line);
+    padding-top:20px; }
+  .alt-fold-body .sub:first-child { margin-bottom:18px; }
+  @media (max-width:560px) {
+    .alt-fold > summary { padding:16px 40px 16px 18px; }
+    .alt-fold > summary::after { right:16px; }
+    .alt-fold-body { padding:18px 18px 24px; }
+  }
   /* Alt-Data history heading — sits inside the merged Research-tab card */
   .alt-hist-h { margin:16px 0 2px; font-size:13.5px; color:var(--text);
     border-top:1px solid var(--line); padding-top:14px; }
@@ -6109,24 +6136,30 @@
            evidence ledger, so the two can no longer disagree. The history
            list stays so previously generated reports remain reachable.
            Element IDs are preserved for the archive JS. -->
-      <div class="card">
-        <h2>Alt-Data Intelligence</h2>
-        <p class="sub">
-          <strong>Now included in the research brief.</strong> Social and news
-          evidence &mdash; post counts, unique authors, directional split,
-          repeated-phrase checks and baseline status &mdash; ships as an
-          appendix inside every brief generated above, drawn from the same
-          evidence ledger as the decision pages. Generate a research report
-          to get it.
-        </p>
-        <div id="status-alt"></div>
-        <div id="viewer-alt"></div>
-        <h3 class="alt-hist-h">Your Earlier Alt-Data Reports</h3>
-        <p class="sub">Standalone alt-data reports generated before the merge
-          &mdash; private to your account, newest first. No new ones are
-          created; the social read now arrives inside the research brief.</p>
-        <div class="report-list" id="list-alt-data"></div>
-      </div>
+      <details class="card alt-fold">
+        <summary>
+          <h2 class="alt-fold-t">Alt-Data Intelligence</h2>
+          <span class="alt-fold-n">Now inside every research brief &middot;
+            earlier standalone reports archived here</span>
+        </summary>
+        <div class="alt-fold-body">
+          <p class="sub">
+            <strong>Now included in the research brief.</strong> Social and news
+            evidence &mdash; post counts, unique authors, directional split,
+            repeated-phrase checks and baseline status &mdash; ships as an
+            appendix inside every brief generated above, drawn from the same
+            evidence ledger as the decision pages. Generate a research report
+            to get it.
+          </p>
+          <div id="status-alt"></div>
+          <div id="viewer-alt"></div>
+          <h3 class="alt-hist-h">Your Earlier Alt-Data Reports</h3>
+          <p class="sub">Standalone alt-data reports generated before the merge
+            &mdash; private to your account, newest first. No new ones are
+            created; the social read now arrives inside the research brief.</p>
+          <div class="report-list" id="list-alt-data"></div>
+        </div>
+      </details>
 
       <div id="viewer"></div>
     </section>
