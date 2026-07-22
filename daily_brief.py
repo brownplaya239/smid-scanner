@@ -48,6 +48,7 @@ import hmac
 import html
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -87,9 +88,17 @@ def _unsub_sig(user_id: str) -> str:
 
 
 def unsub_url(user_id: str) -> str:
-    """Signed one-click unsubscribe link for a given user."""
+    """Signed one-click unsubscribe link for a given user.
+
+    Returns "" when there is no subscriber to sign for. It used to fall
+    back to the site's watch-list page, which is not an unsubscribe at
+    all: the visible link and the List-Unsubscribe header then pointed at
+    different places, and the reader who clicked "Unsubscribe" landed on
+    their portfolio and stayed subscribed. An empty string is caught by
+    the send gate; a plausible wrong URL is not.
+    """
     if not user_id:
-        return f"{SITE_URL}/#watchlist"
+        return ""
     q = urllib.parse.urlencode({"u": user_id, "t": _unsub_sig(user_id)})
     return f"{WORKER_URL}/unsubscribe?{q}"
 
@@ -337,10 +346,15 @@ def load_market_context() -> dict:
     cal = _safe_load(os.path.join(REPORTS_DIR, "economic_calendar.json"))
     if cal:
         now_et = datetime.now(ET)
-        today_ff = now_et.strftime("%m-%d-%Y")
-        tomorrow_ff = (now_et + timedelta(days=1)).strftime("%m-%d-%Y")
+        # the calendar writer emits ISO dates once it converts from the
+        # feed's zone; accept the legacy MM-DD-YYYY too so a stale file
+        # still matches instead of quietly yielding zero events
+        def _days(d):
+            return {d.strftime("%Y-%m-%d"), d.strftime("%m-%d-%Y")}
+        today_ff = _days(now_et)
+        tomorrow_ff = _days(now_et + timedelta(days=1))
         evs = cal.get("events") or []
-        todays = [e for e in evs if e.get("date") == today_ff]
+        todays = [e for e in evs if e.get("date") in today_ff]
         hi = [e for e in todays
               if (e.get("impact") or "").lower() in ("high", "medium")]
         # Rank by expected market impact (stars), not calendar order —
@@ -348,7 +362,7 @@ def load_market_context() -> dict:
         ctx["events"] = sorted((hi or todays)[:6],
                                key=lambda e: -_event_stars(e))
         ctx["tomorrow_events"] = sorted(
-            [e for e in evs if e.get("date") == tomorrow_ff
+            [e for e in evs if e.get("date") in tomorrow_ff
              and (e.get("impact") or "").lower() == "high"],
             key=lambda e: -_event_stars(e))[:3]
     return ctx
@@ -1688,7 +1702,7 @@ def _render_market(market, market_top) -> str:
         return (
             f'<div style="padding:9px 14px;border-bottom:1px solid {CSS_BORDER};">'
             f'<span style="color:{CSS_GOLD};font-size:11px;letter-spacing:1px;">{"★" * stars}{"☆" * (5 - stars)}</span> '
-            f'{day_html}<span style="font-size:12.5px;color:{CSS_TEXT};">{esc(ev.get("time"))} {esc(ev.get("title"))}</span>'
+            f'{day_html}<span style="font-size:12.5px;color:{CSS_TEXT};">{esc(ev.get("time_et") or "")} {esc(ev.get("title"))}</span>'
             f'<span style="font-size:11px;color:{CSS_MUTED};"> · fcst {esc(ev.get("forecast") or "—")} · prior {esc(ev.get("previous") or "—")}</span>{act_html}</div>')
 
     for ev in market.get("events", []):
@@ -1748,6 +1762,40 @@ def _render_snapshot(snapshot) -> str:
 
 
 BRIEF_V3 = os.environ.get("BRIEF_V3", "1") not in ("0", "false", "no")
+# Headlines come from the public worker endpoint. Set NEWS_LIVE=0 to skip
+# the network entirely (offline runs and tests): the section then states
+# its empty case rather than silently disappearing.
+NEWS_LIVE = os.environ.get("NEWS_LIVE", "1") not in ("0", "false", "no")
+# Preview runs render a synthetic subscriber. Production sends must not.
+PREVIEW_MODE = True
+
+
+def production_guard(user_id: str, unsub: str) -> list:
+    """A real send needs a real subscriber.
+
+    The preview path signs its links for `u=demo`, which is a valid HMAC
+    over a user that does not exist: every recipient would get the same
+    token, and unsubscribing would flip a row nobody owns. Placeholder
+    identities are fine in a preview and disqualifying in a send.
+    """
+    v = []
+    uid = (user_id or "").strip().lower()
+    if not uid:
+        v.append("no recipient id; cannot sign a subscriber-specific "
+                 "unsubscribe token")
+    if uid in ("demo", "preview", "test", "example", "fixture", "sample"):
+        v.append("recipient id %r is a placeholder, not a subscriber" % uid)
+    if not unsub or not unsub.startswith("http"):
+        v.append("no signed unsubscribe URL")
+    else:
+        q = urllib.parse.urlparse(unsub).query
+        p = urllib.parse.parse_qs(q)
+        if (p.get("u") or [""])[0].strip().lower() in ("demo", "preview",
+                                                       "test", ""):
+            v.append("unsubscribe token is signed for a placeholder user")
+        if not (p.get("t") or [""])[0]:
+            v.append("unsubscribe URL carries no signature")
+    return v
 
 
 def render_html_v3(user, brief, brief_date, carryover=None,
@@ -1775,22 +1823,96 @@ def render_html_v3(user, brief, brief_date, carryover=None,
     uoa_by = brief.get("_uoa_by_ticker") or {}
     earnings = brief.get("_earnings") or {}
 
+    import brief_model as BM
+    import brief_news as BN
+    import brief_text as BX
+
     changes = BA.build_changes(tickers, swing, uoa_by, facts, earnings)
-    wl = BC.rank_watchlist(changes)
+    wl = BC.rank_watchlist(changes, facts=facts)
     mkt_flow, watch_flow = BA.split_flow(brief.get("_market_top") or [],
                                          uoa_by, tickers)
-    news = BC.select_news(brief.get("_news") or [], set(tickers))
+    # a dedicated adapter against the public endpoint. The old path read
+    # Supabase with a CI-only key, so outside CI the section vanished and
+    # the reader could not tell "nothing happened" from "we did not look".
+    # headlines about the names that moved most outrank headlines about
+    # names that merely appear on the list
+    priority = [x["ticker"] for x in (wl.get("shown") or [])]
+    news = BN.load(tickers, as_of=market.get("as_of_utc"),
+                   live=NEWS_LIVE, priority=priority)
+    discovery = BA.build_discovery(brief.get("_market_top") or [], tickers,
+                                   exclude=[c.get("ticker")
+                                            for c in mkt_flow])
+    weekly = BA.build_weekly(market)
 
-    flow_head = None
-    if watch_flow:
-        flow_head = "%s flow" % sorted(watch_flow)[0]
-    subject = BC.build_subject(market, wl, flow_headline=flow_head)
-    preheader = BC.build_preheader(market, wl, lines)
-    html_doc = BR.render(market, wl, news=news, market_flow=mkt_flow,
-                         watch_flow=watch_flow, site=SITE_URL,
-                         unsub_url=unsub_url(user.get("id") or ""),
-                         preheader=preheader)
-    return subject, html_doc
+    # the user id key is `user_id` everywhere else in this file; reading
+    # `id` here silently produced no URL and the footer fell back to the
+    # watch-list page, so "Unsubscribe" opened the reader's portfolio
+    unsub = unsub_url(user.get("user_id") or user.get("id") or "")
+
+    # ONE model, both bodies. Each renderer used to cap its own lists, so
+    # the plain text advertised six market contracts where the HTML showed
+    # three — the same email describing itself two ways.
+    import brief_earnings as BE
+    import brief_schema as BS
+    # `brief_date` is a DISPLAY string ("Wednesday, July 22, 2026"), so
+    # slicing it yields "Wednesday,". The market layer's as-of is already
+    # an ISO date in Eastern, which is the calendar day we want.
+    day = (market.get("as_of_et") or "")[:10]
+    earnings_pane = BE.build(day, tickers, live=NEWS_LIVE)
+
+    # Yesterday's cleared open interest, against yesterday's prints. The
+    # desk payload is produced by the T+1 worker; the email reads it and
+    # shows the disclosure when the vendor has not delivered.
+    import oi_pipeline as OP
+    ft_payload = OP.load_desk()
+    prior = None
+    try:
+        import exchange_calendar as EC2
+        prior = EC2.previous_session(day) if day else None
+    except Exception:
+        prior = None
+    if ft_payload.get("session_date") and prior and \
+            ft_payload["session_date"] != prior.isoformat():
+        # a stale payload from an older session must not be presented as
+        # yesterday's result
+        ft_payload = {}
+    followthrough = OP.email_section(ft_payload, prior)
+
+    model = BM.build(market, wl, news=news, market_flow=mkt_flow,
+                     watch_flow=watch_flow, discovery=discovery,
+                     weekly=weekly, earnings=earnings_pane,
+                     followthrough=followthrough,
+                     site=SITE_URL, unsub=unsub,
+                     as_of=market.get("as_of_et"), summary_lines=lines,
+                     preview=PREVIEW_MODE)
+    sections = BM.section_ids(model)
+    # subject and preheader now live ON the model, so the headers, the two
+    # bodies and the envelope cannot describe different emails
+    subject = model["meta"]["subject"]
+    preheader = model["meta"]["preheader"]
+    html_doc = BR.render(model)
+    text_doc = BX.render_text(model)
+    model["artifact_hashes"] = BS.artifact_hashes(html=html_doc,
+                                                  text=text_doc, model=model)
+
+    # send-time invariants. A brief that renders is not the same as a
+    # brief that is true, so contradictions BLOCK rather than ship.
+    problems = BC.validate_send(
+        market=market, wl=wl, news=(news.get("market") or [])
+        + (news.get("watchlist") or []),
+        events=market.get("events"), watch_flow=watch_flow,
+        market_flow=mkt_flow, html_doc=html_doc, text_doc=text_doc,
+        as_of=market.get("as_of_et"), eligible_total=len(tickers),
+        subject=subject, preheader=preheader, unsub=unsub,
+        sections=sections, urls=BX.urls_in(SITE_URL, unsub),
+        calendar_problems=ML.calendar_problems(), model=model)
+    # the schema's own verdict is a blocking input, not a report
+    problems += BS.failures(model["validation"]["checks"])
+    if problems:
+        raise ValueError("send-time validation failed (%d): "
+                         % len(problems) + "; ".join(problems[:6]))
+    render_html_v3.last_model = model
+    return subject, html_doc, text_doc
 
 
 def render_html(user, brief, brief_date, carryover=None,
@@ -1883,13 +2005,18 @@ def render_html(user, brief, brief_date, carryover=None,
 # ─────────────────────────────────────────────────────────────────────
 
 def send_email(to_email: str, subject: str, html_body: str,
-               unsub: str = "") -> tuple[bool, str]:
+               text_body: str = "", unsub: str = "") -> tuple[bool, str]:
     if not RESEND_API_KEY:
         return False, "RESEND_API_KEY not set"
     payload: dict[str, Any] = {
         "from": FROM_EMAIL, "to": [to_email],
         "subject": subject, "html": html_body,
     }
+    # supplying both parts makes Resend build multipart/alternative. Without
+    # the text part the message is html-only, which costs deliverability and
+    # leaves plain-text readers with nothing.
+    if text_body:
+        payload["text"] = text_body
     # RFC 8058 one-click unsubscribe. Gmail/Yahoo/Apple render a native
     # "Unsubscribe" control from these headers and (for List-Unsubscribe-Post)
     # POST the URL directly — no login, no round trip through the inbox.
@@ -1929,16 +2056,85 @@ def send_email(to_email: str, subject: str, html_body: str,
 # ─────────────────────────────────────────────────────────────────────
 
 def write_preview(subject: str, html_body: str) -> None:
+    """Write EXACTLY the bytes that would be sent.
+
+    This used to wrap html_body in a second <!doctype><html><head><body>
+    shell. The v3 renderer already emits a complete document, so the
+    preview — and the .eml built from it — carried two nested documents
+    while the real send carried one. Anything validated against the
+    preview was therefore validating a file the subscriber never receives.
+    The v2 renderer emits a fragment, so wrap only when there is no
+    document there already.
+    """
     os.makedirs(os.path.dirname(PREVIEW_PATH), exist_ok=True)
-    doc = (f'<!doctype html><html><head><meta charset="utf-8">'
-           f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-           f'<title>{esc(subject)}</title></head>'
-           f'<body style="margin:0;background:{CSS_BG};">{html_body}</body></html>')
+    if re.match(r"\s*<!doctype", html_body, re.I):
+        doc = html_body
+    else:
+        doc = (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
+               f'<meta name="viewport" content="width=device-width,initial-scale=1">'
+               f'<title>{esc(subject)}</title></head>'
+               f'<body style="margin:0;background:{CSS_BG};">{html_body}</body></html>')
     with open(PREVIEW_PATH, "w", encoding="utf-8") as f:
         f.write(doc)
     kb = len(doc.encode("utf-8")) / 1024
     print(f"  Preview written: {PREVIEW_PATH} ({kb:.0f} KB"
           + (" ⚠ over 102KB Gmail clip limit" if kb > 102 else "") + ")")
+
+
+def write_text_preview(text_body: str) -> None:
+    p = os.path.join(os.path.dirname(PREVIEW_PATH), "daily_brief_preview.txt")
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(text_body)
+    print(f"  Text preview written: {p} "
+          f"({len(text_body.encode('utf-8')) / 1024:.0f} KB)")
+
+
+def write_model(model: dict) -> str:
+    """Dump the canonical view model beside the rendered bodies.
+
+    Both renderings are derived from this file, so it is the artefact to
+    diff when the two disagree — and the one to read when asking why a
+    name carries the status it does.
+    """
+    p = os.path.join(os.path.dirname(PREVIEW_PATH), "daily_brief_model.json")
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(model, f, indent=1, default=str)
+    print(f"  View model written: {p} "
+          f"({os.path.getsize(p) / 1024:.0f} KB, "
+          f"{len(model.get('sections') or [])} sections)")
+    return p
+
+
+def write_eml(subject: str, html_body: str, text_body: str = "",
+              to_email: str = "preview@tickerdesk.io", unsub: str = "") -> str:
+    """Assemble the exact MIME message that would be delivered.
+
+    Built from the same two bodies handed to send_email, so what gets
+    validated and eyeballed is the artefact itself rather than a preview
+    file that has been through a different code path.
+    """
+    from email.message import EmailMessage
+    from email.utils import formatdate, make_msgid
+
+    m = EmailMessage()
+    m["Subject"] = subject
+    m["From"] = FROM_EMAIL
+    m["To"] = to_email
+    m["Date"] = formatdate(localtime=True)
+    m["Message-ID"] = make_msgid(domain="tickerdesk.io")
+    m["Reply-To"] = os.environ.get("REPLY_TO", "hello@tickerdesk.io")
+    if unsub and unsub.startswith("http"):
+        m["List-Unsubscribe"] = f"<{unsub}>"
+        m["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+    m.set_content(text_body or "This message requires an HTML client.",
+                  charset="utf-8")
+    m.add_alternative(html_body, subtype="html", charset="utf-8")
+
+    p = os.path.join(os.path.dirname(PREVIEW_PATH), "daily_brief_preview.eml")
+    with open(p, "wb") as f:
+        f.write(m.as_bytes())
+    print(f"  EML written: {p} ({os.path.getsize(p) / 1024:.0f} KB)")
+    return p
 
 
 def demo_user(swing, uoa, market_top, earnings) -> dict:
@@ -2039,16 +2235,16 @@ def main():
         brief["_market_top"] = market_top
         brief["_earnings"] = earnings
         brief["_news"] = overnight
-        subject = html_body = None
+        subject = html_body = text_body = None
         if BRIEF_V3:
             try:
-                subject, html_body = render_html_v3(
+                subject, html_body, text_body = render_html_v3(
                     u, brief, brief_date, carryover, premarket, overnight,
                     intel)
             except Exception as e:
                 # a layout change must never cost a subscriber their brief
                 print(f"  v3 render failed, falling back to v2: {e}")
-                subject = html_body = None
+                subject = html_body = text_body = None
         if not html_body:
             subject, html_body = render_html(u, brief, brief_date, carryover,
                                              premarket, overnight, intel)
@@ -2057,6 +2253,14 @@ def main():
         # Always write the first rendered email to the preview file.
         if (args.dry_run or args.preview) and not preview_written:
             write_preview(subject, html_body)
+            if text_body:
+                write_text_preview(text_body)
+            write_eml(subject, html_body, text_body,
+                      to_email=u["email"],
+                      unsub=unsub_url(u.get("user_id") or ""))
+            model = getattr(render_html_v3, "last_model", None)
+            if model:
+                write_model(model)
             preview_written = True
 
         if args.dry_run or args.preview:
@@ -2069,7 +2273,17 @@ def main():
             skipped += 1
             continue
 
+        # last gate before the wire: a preview artefact must never be the
+        # thing that goes out
+        guard = production_guard(u.get("user_id") or "",
+                                 unsub_url(u.get("user_id") or ""))
+        if guard:
+            print(prefix + "BLOCKED: " + "; ".join(guard))
+            failed += 1
+            continue
+
         ok, resp = send_email(u["email"], subject, html_body,
+                              text_body=text_body,
                               unsub=unsub_url(u.get("user_id") or ""))
         if ok:
             print(prefix + f"sent ({subject})")

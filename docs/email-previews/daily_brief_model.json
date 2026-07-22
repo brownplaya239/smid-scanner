@@ -1,0 +1,962 @@
+{
+ "schema": "tickerdesk_daily_brief/v1",
+ "meta": {
+  "subject": "Tape in transition \u00b7 11 watchlist changes",
+  "preheader": "SPY +0.83%  QQQ +1.85%  IWM +1.45%  DIA +0.69% VIX 17.6 +3.28% 10Y 4.63% (+3 bp)",
+  "as_of": "2026-07-22 08:29 ET",
+  "session": "Pre-Market Brief",
+  "preview": true,
+  "regime": "TRANSITION",
+  "site": "https://tickerdesk.io",
+  "unsub": "https://api.tickerdesk.io/unsubscribe?u=demo&t=732585e0f7ce66f8eb3ef92204ffd180ec5911e9"
+ },
+ "sections": [
+  {
+   "id": "market",
+   "title": "Market in 30 seconds",
+   "kind": "index",
+   "sub": "Pre-Market Brief \u00b7 as of 2026-07-22 08:29 ET",
+   "records": [
+    {
+     "key": "SPY",
+     "ticker": "SPY",
+     "last": 748.28,
+     "d1": 0.83,
+     "w1": -0.47,
+     "ytd": 9.53,
+     "vs20": 0.44,
+     "ma_state": "above",
+     "url": "https://tickerdesk.io/#ticker=SPY"
+    },
+    {
+     "key": "QQQ",
+     "ticker": "QQQ",
+     "last": 708.97,
+     "d1": 1.85,
+     "w1": -1.49,
+     "ytd": 15.63,
+     "vs20": -0.8,
+     "ma_state": "below",
+     "url": "https://tickerdesk.io/#ticker=QQQ"
+    },
+    {
+     "key": "IWM",
+     "ticker": "IWM",
+     "last": 296.54,
+     "d1": 1.45,
+     "w1": 0.69,
+     "ytd": 19.2,
+     "vs20": -0.01,
+     "ma_state": "at",
+     "url": "https://tickerdesk.io/#ticker=IWM"
+    },
+    {
+     "key": "DIA",
+     "ticker": "DIA",
+     "last": 521.51,
+     "d1": 0.69,
+     "w1": -0.61,
+     "ytd": 7.83,
+     "vs20": -0.27,
+     "ma_state": "below",
+     "url": "https://tickerdesk.io/#ticker=DIA"
+    }
+   ],
+   "regime": {
+    "label": "TRANSITION",
+    "why": "55% of the 754-name universe is above its 20-day average; 1 of 4 major indices above their 20-day; VIX 17.6 (+3.3%); 10-year yield 4.63% (+3 bp).",
+    "inputs": {
+     "breadth_pct": 55,
+     "indices_above_20d": "1 of 4",
+     "vix": 17.61,
+     "vix_1d_pct": 3.28,
+     "ten_year_1d_pct": 0.65
+    },
+    "changed_from": "RISK-OFF",
+    "display": "TRANSITION",
+    "prior_display": "RISK-OFF"
+   },
+   "ma_summary": "1 above \u00b7 1 at \u00b7 2 below their 20-day averages",
+   "event": {
+    "date": "2026-07-22",
+    "title": "State Arrival Ceremony and Honor Guard Review",
+    "impact": "Medium",
+    "forecast": "",
+    "previous": "",
+    "actual": "",
+    "url": "https://www.forexfactory.com/calendar/645-us-president-trump-speaks",
+    "source_time": "3:00pm",
+    "source_tz": "Europe/Istanbul",
+    "source_url": "https://www.forexfactory.com/calendar/645-us-president-trump-speaks",
+    "title_authority": "operator-supplied schedule correction",
+    "venue_tz": "Europe/Istanbul",
+    "venue": "Ankara",
+    "vendor_title": "President Trump Speaks",
+    "vendor_time": "7:00pm",
+    "vendor_tz": "UTC",
+    "vendor_url": "https://www.forexfactory.com/calendar/645-us-president-trump-speaks",
+    "correction": {
+     "corrected_title": "State Arrival Ceremony and Honor Guard Review",
+     "corrected_start": "2026-07-22T08:00-04:00",
+     "correction_source_url": "",
+     "correction_authority": "operator-supplied schedule correction",
+     "correction_timestamp": "2026-07-22T08:06:56-04:00",
+     "correction_reason": "Vendor row carried the generic label 'President Trump Speaks' and a 19:00Z stamp. The ceremony is scheduled 15:00 Europe/Istanbul, which is 08:00 America/New_York."
+    },
+    "time_et": "8:00 a.m. ET",
+    "time_utc": "12:00Z",
+    "starts_at": "2026-07-22T08:00-04:00",
+    "scheduled": true,
+    "generic_title": false,
+    "status": "IN PROGRESS",
+    "stars": 2,
+    "_when": "2026-07-22 08:00:00-04:00"
+   },
+   "alert_line": "11 of your 16 watch list names changed materially: GEV grade improved B \u2192 A-; short-dated bearish flow ahead of earnings in 1d; PM grade B+ \u2192 B; TXG +9.2% move.",
+   "mixed_sessions": true
+  },
+  {
+   "id": "watchlist",
+   "title": "Your watch list",
+   "kind": "watch",
+   "sub": "Ranked by what changed since the last brief",
+   "records": [
+    {
+     "key": "GEV",
+     "ticker": "GEV",
+     "status": "MIXED SETUP",
+     "status_basis": "evidence points both ways",
+     "reason_codes": [
+      "GRADE_TRANSITION",
+      "FLOW_PRESENT",
+      "EARNINGS_CONFIRMED"
+     ],
+     "reasons": [
+      "grade improved B \u2192 A-; short-dated bearish flow ahead of earnings in 1d"
+     ],
+     "price": {
+      "value": 1078.81,
+      "basis": "pre-market",
+      "session_basis": "pre_market",
+      "as_of": "2026-07-22 08:29 ET",
+      "source": "swing scan",
+      "stale_after": "2026-07-22 09:30 ET",
+      "text": "$1078.81 \u00b7 pre-market 08:29 ET"
+     },
+     "flow_quality": "C",
+     "evidence": "moderate",
+     "edge": null,
+     "technical": "",
+     "next_confirmation": "",
+     "invalidation": "",
+     "url": "https://tickerdesk.io/#ticker=GEV"
+    },
+    {
+     "key": "PM",
+     "ticker": "PM",
+     "status": "MATERIAL WEAKENING",
+     "status_basis": "on grade B+ \u2192 B",
+     "reason_codes": [
+      "GRADE_TRANSITION",
+      "FLOW_PRESENT",
+      "EARNINGS_CONFIRMED"
+     ],
+     "reasons": [
+      "grade B+ \u2192 B",
+      "new options flow",
+      "Earnings in 1d"
+     ],
+     "price": {
+      "value": 188.04,
+      "basis": "pre-market",
+      "session_basis": "pre_market",
+      "as_of": "2026-07-22 08:29 ET",
+      "source": "swing scan",
+      "stale_after": "2026-07-22 09:30 ET",
+      "text": "$188.04 \u00b7 pre-market 08:29 ET"
+     },
+     "flow_quality": "C",
+     "evidence": "moderate",
+     "edge": null,
+     "technical": "",
+     "next_confirmation": "",
+     "invalidation": "",
+     "url": "https://tickerdesk.io/#ticker=PM"
+    },
+    {
+     "key": "TXG",
+     "ticker": "TXG",
+     "status": "MATERIAL STRENGTHENING",
+     "status_basis": "on +9.2% session move",
+     "reason_codes": [
+      "PRICE_MOVE"
+     ],
+     "reasons": [
+      "+9.2% move"
+     ],
+     "price": {
+      "value": 47.2,
+      "basis": "pre-market",
+      "session_basis": "pre_market",
+      "as_of": "2026-07-22 08:29 ET",
+      "source": "swing scan",
+      "stale_after": "2026-07-22 09:30 ET",
+      "text": "$47.20 \u00b7 pre-market 08:29 ET"
+     },
+     "flow_quality": null,
+     "evidence": "limited",
+     "edge": null,
+     "technical": "strong up; above the 20-day by 16.3%; RSI 71",
+     "next_confirmation": "",
+     "invalidation": "a daily close below the 20-day at $40.58",
+     "url": "https://tickerdesk.io/#ticker=TXG"
+    },
+    {
+     "key": "URGN",
+     "ticker": "URGN",
+     "status": "MATERIAL STRENGTHENING",
+     "status_basis": "on +6.5% session move",
+     "reason_codes": [
+      "PRICE_MOVE"
+     ],
+     "reasons": [
+      "+6.5% move"
+     ],
+     "price": {
+      "value": 43.78,
+      "basis": "pre-market",
+      "session_basis": "pre_market",
+      "as_of": "2026-07-22 08:29 ET",
+      "source": "swing scan",
+      "stale_after": "2026-07-22 09:30 ET",
+      "text": "$43.78 \u00b7 pre-market 08:29 ET"
+     },
+     "flow_quality": null,
+     "evidence": "limited",
+     "edge": null,
+     "technical": "",
+     "next_confirmation": "",
+     "invalidation": "",
+     "url": "https://tickerdesk.io/#ticker=URGN"
+    },
+    {
+     "key": "SYRE",
+     "ticker": "SYRE",
+     "status": "MATERIAL STRENGTHENING",
+     "status_basis": "on +5.5% session move",
+     "reason_codes": [
+      "PRICE_MOVE"
+     ],
+     "reasons": [
+      "+5.5% move"
+     ],
+     "price": {
+      "value": 102.7,
+      "basis": "pre-market",
+      "session_basis": "pre_market",
+      "as_of": "2026-07-22 08:29 ET",
+      "source": "swing scan",
+      "stale_after": "2026-07-22 09:30 ET",
+      "text": "$102.70 \u00b7 pre-market 08:29 ET"
+     },
+     "flow_quality": null,
+     "evidence": "limited",
+     "edge": null,
+     "technical": "strong up; above the 20-day by 9.3%; RSI 62",
+     "next_confirmation": "",
+     "invalidation": "",
+     "url": "https://tickerdesk.io/#ticker=SYRE"
+    }
+   ],
+   "overflow_line": "Showing the top 5 of 11 material changes \u00b7 6 more on your desk.",
+   "notable_line": "Notable but not material: TSLA, TEL",
+   "quiet_line": "No material change: DK, ORKA, CRNX",
+   "overflow_url": "https://tickerdesk.io/#watchlist"
+  },
+  {
+   "id": "flow_driving",
+   "title": "Driving today's watch-list changes",
+   "kind": "flow_group",
+   "sub": "The contracts behind the statuses above",
+   "records": [
+    {
+     "key": "GEV",
+     "ticker": "GEV",
+     "verdict": "OI PENDING BEARISH",
+     "direction": "BEARISH",
+     "score": "0 of 2 confirmed \u00b7 2 pending",
+     "explain": "Two put purchases; open interest for the session has not posted yet.",
+     "contract_count_total": 2,
+     "contract_count_displayed": 2,
+     "contract_count_omitted": 0,
+     "confirmed_count": 0,
+     "pending_count": 2,
+     "unresolved_count": 0,
+     "omitted_line": "",
+     "url": "https://tickerdesk.io/#ticker=GEV",
+     "contracts": [
+      {
+       "key": "GEV|PUT|880|2026-07-24",
+       "ticker": "GEV",
+       "right": "PUT",
+       "strike": 880,
+       "expiry": "2026-07-24",
+       "action": "BUY",
+       "direction": "bearish",
+       "side_label": "PUT BUY \u00b7 bearish",
+       "premium": "$0.2M",
+       "spot": 1088.57,
+       "flow_at": "2026-07-21 15:59 ET",
+       "oi_state": "OI PENDING",
+       "oi_as_of": "",
+       "sweep": false,
+       "url": "https://tickerdesk.io/#ticker=GEV"
+      },
+      {
+       "key": "GEV|PUT|930|2026-07-24",
+       "ticker": "GEV",
+       "right": "PUT",
+       "strike": 930,
+       "expiry": "2026-07-24",
+       "action": "BUY",
+       "direction": "bearish",
+       "side_label": "PUT BUY \u00b7 bearish",
+       "premium": "$0.2M",
+       "spot": 1088.57,
+       "flow_at": "2026-07-21 15:59 ET",
+       "oi_state": "OI PENDING",
+       "oi_as_of": "",
+       "sweep": false,
+       "url": "https://tickerdesk.io/#ticker=GEV"
+      }
+     ]
+    },
+    {
+     "key": "PM",
+     "ticker": "PM",
+     "verdict": "OI PENDING BEARISH",
+     "direction": "BEARISH",
+     "score": "0 of 3 confirmed \u00b7 3 pending",
+     "explain": "Two put purchases and one call sale; open interest for the session has not posted yet.",
+     "contract_count_total": 3,
+     "contract_count_displayed": 2,
+     "contract_count_omitted": 1,
+     "confirmed_count": 0,
+     "pending_count": 3,
+     "unresolved_count": 0,
+     "omitted_line": "showing 2 of 3 contracts",
+     "url": "https://tickerdesk.io/#ticker=PM",
+     "contracts": [
+      {
+       "key": "PM|PUT|175|2026-11-20",
+       "ticker": "PM",
+       "right": "PUT",
+       "strike": 175,
+       "expiry": "2026-11-20",
+       "action": "BUY",
+       "direction": "bearish",
+       "side_label": "PUT BUY \u00b7 bearish",
+       "premium": "$0.4M",
+       "spot": 188.3,
+       "flow_at": "2026-07-21 15:39 ET",
+       "oi_state": "OI PENDING",
+       "oi_as_of": "",
+       "sweep": true,
+       "url": "https://tickerdesk.io/#ticker=PM"
+      },
+      {
+       "key": "PM|CALL|190|2026-07-24",
+       "ticker": "PM",
+       "right": "CALL",
+       "strike": 190,
+       "expiry": "2026-07-24",
+       "action": "SELL",
+       "direction": "bearish",
+       "side_label": "CALL SELL \u00b7 bearish",
+       "premium": "$0.3M",
+       "spot": 188.3,
+       "flow_at": "2026-07-21 15:59 ET",
+       "oi_state": "OI PENDING",
+       "oi_as_of": "",
+       "sweep": true,
+       "url": "https://tickerdesk.io/#ticker=PM"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "flow_other",
+   "title": "Other notable watch-list flow",
+   "kind": "flow_group",
+   "sub": "Prints on your names that did not move a status",
+   "records": [
+    {
+     "key": "PBF",
+     "ticker": "PBF",
+     "verdict": "OI PENDING BEARISH",
+     "direction": "BEARISH",
+     "score": "0 of 1 confirmed \u00b7 1 pending",
+     "explain": "One call sale; open interest for the session has not posted yet.",
+     "contract_count_total": 1,
+     "contract_count_displayed": 1,
+     "contract_count_omitted": 0,
+     "confirmed_count": 0,
+     "pending_count": 1,
+     "unresolved_count": 0,
+     "omitted_line": "",
+     "url": "https://tickerdesk.io/#ticker=PBF",
+     "contracts": [
+      {
+       "key": "PBF|CALL|70|2026-08-21",
+       "ticker": "PBF",
+       "right": "CALL",
+       "strike": 70,
+       "expiry": "2026-08-21",
+       "action": "SELL",
+       "direction": "bearish",
+       "side_label": "CALL SELL \u00b7 bearish",
+       "premium": "$1.7M",
+       "spot": 66.02,
+       "flow_at": "2026-07-21 15:50 ET",
+       "oi_state": "OI PENDING",
+       "oi_as_of": "",
+       "sweep": false,
+       "url": "https://tickerdesk.io/#ticker=PBF"
+      }
+     ]
+    },
+    {
+     "key": "TEL",
+     "ticker": "TEL",
+     "verdict": "MIXED",
+     "direction": "MIXED",
+     "score": "0 of 3 confirmed \u00b7 3 pending",
+     "explain": "One print points bullish, one bearish, one print the tape could not resolve to a buyer or seller.",
+     "contract_count_total": 3,
+     "contract_count_displayed": 2,
+     "contract_count_omitted": 1,
+     "confirmed_count": 0,
+     "pending_count": 3,
+     "unresolved_count": 0,
+     "omitted_line": "showing 2 of 3 contracts",
+     "url": "https://tickerdesk.io/#ticker=TEL",
+     "contracts": [
+      {
+       "key": "TEL|CALL|240|2026-08-21",
+       "ticker": "TEL",
+       "right": "CALL",
+       "strike": 240,
+       "expiry": "2026-08-21",
+       "action": "BUY",
+       "direction": "bullish",
+       "side_label": "CALL BUY \u00b7 bullish",
+       "premium": "$4.6M",
+       "spot": 213.19,
+       "flow_at": "2026-07-21 15:56 ET",
+       "oi_state": "OI PENDING",
+       "oi_as_of": "",
+       "sweep": true,
+       "url": "https://tickerdesk.io/#ticker=TEL"
+      },
+      {
+       "key": "TEL|CALL|240|2026-09-18",
+       "ticker": "TEL",
+       "right": "CALL",
+       "strike": 240,
+       "expiry": "2026-09-18",
+       "action": "TWO-SIDED",
+       "direction": "unresolved",
+       "side_label": "CALL TWO-SIDED \u00b7 unresolved",
+       "premium": "$2.4M",
+       "spot": 213.19,
+       "flow_at": "2026-07-21 15:39 ET",
+       "oi_state": "OI PENDING",
+       "oi_as_of": "",
+       "sweep": true,
+       "url": "https://tickerdesk.io/#ticker=TEL"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "flow_market",
+   "title": "Market-wide flow",
+   "kind": "flow_flat",
+   "sub": "Largest unusual prints outside your list",
+   "records": [
+    {
+     "key": "META|PUT|625|2026-08-07",
+     "ticker": "META",
+     "right": "PUT",
+     "strike": 625,
+     "expiry": "2026-08-07",
+     "action": "BUY",
+     "direction": "bearish",
+     "side_label": "PUT BUY \u00b7 bearish",
+     "premium": "$3.0M",
+     "spot": 642.03,
+     "flow_at": "2026-07-21 15:49 ET",
+     "oi_state": "OI PENDING",
+     "oi_as_of": "",
+     "sweep": true,
+     "url": "https://tickerdesk.io/#ticker=META"
+    },
+    {
+     "key": "IBM|CALL|250|2027-06-17",
+     "ticker": "IBM",
+     "right": "CALL",
+     "strike": 250,
+     "expiry": "2027-06-17",
+     "action": "BUY",
+     "direction": "bullish",
+     "side_label": "CALL BUY \u00b7 bullish",
+     "premium": "$4.9M",
+     "spot": 210.7,
+     "flow_at": "2026-07-21 15:39 ET",
+     "oi_state": "OI PENDING",
+     "oi_as_of": "",
+     "sweep": false,
+     "url": "https://tickerdesk.io/#ticker=IBM"
+    },
+    {
+     "key": "COIN|CALL|310|2027-03-19",
+     "ticker": "COIN",
+     "right": "CALL",
+     "strike": 310,
+     "expiry": "2027-03-19",
+     "action": "BUY",
+     "direction": "bullish",
+     "side_label": "CALL BUY \u00b7 bullish",
+     "premium": "$3.3M",
+     "spot": 176.29,
+     "flow_at": "2026-07-21 11:03 ET",
+     "oi_state": "OI PENDING",
+     "oi_as_of": "",
+     "sweep": true,
+     "url": "https://tickerdesk.io/#ticker=COIN"
+    }
+   ]
+  },
+  {
+   "id": "flow_link",
+   "title": "",
+   "kind": "link",
+   "sub": "",
+   "records": [
+    {
+     "key": "all_flow",
+     "text": "View all flow",
+     "url": "https://tickerdesk.io/#flow"
+    }
+   ]
+  },
+  {
+   "id": "calendar",
+   "title": "Macro calendar",
+   "kind": "event",
+   "records": [
+    {
+     "key": "9b83408a56ac8b98",
+     "time_et": "8:00 a.m. ET",
+     "title": "State Arrival Ceremony and Honor Guard Review",
+     "status": "IN PROGRESS",
+     "source_time": "3:00pm",
+     "source_tz": "Europe/Istanbul",
+     "venue": "Ankara",
+     "venue_tz": "Europe/Istanbul",
+     "vendor_title": "President Trump Speaks",
+     "vendor_time": "7:00pm",
+     "vendor_tz": "UTC",
+     "vendor_url": "https://www.forexfactory.com/calendar/645-us-president-trump-speaks",
+     "corrected": true,
+     "corrected_title": "State Arrival Ceremony and Honor Guard Review",
+     "corrected_start": "2026-07-22T08:00-04:00",
+     "correction_source_url": "",
+     "correction_authority": "operator-supplied schedule correction",
+     "correction_timestamp": "2026-07-22T08:06:56-04:00",
+     "correction_reason": "Vendor row carried the generic label 'President Trump Speaks' and a 19:00Z stamp. The ceremony is scheduled 15:00 Europe/Istanbul, which is 08:00 America/New_York.",
+     "url": "",
+     "authority": "operator-supplied schedule correction"
+    },
+    {
+     "key": "d51ac83f6eaf6cea",
+     "time_et": "10:30 a.m. ET",
+     "title": "Crude Oil Inventories",
+     "status": "UPCOMING",
+     "source_time": "2:30pm",
+     "source_tz": "UTC",
+     "venue": "",
+     "venue_tz": "",
+     "vendor_title": "Crude Oil Inventories",
+     "vendor_time": "2:30pm",
+     "vendor_tz": "UTC",
+     "vendor_url": "https://www.forexfactory.com/calendar/10-us-crude-oil-inventories",
+     "corrected": false,
+     "corrected_title": "",
+     "corrected_start": "",
+     "correction_source_url": "",
+     "correction_authority": "",
+     "correction_timestamp": "",
+     "correction_reason": "",
+     "url": "https://www.forexfactory.com/calendar/10-us-crude-oil-inventories",
+     "authority": "vendor"
+    }
+   ],
+   "sub": "Times converted to Eastern from each source's own zone."
+  },
+  {
+   "id": "news",
+   "title": "Top news",
+   "kind": "news",
+   "records": [
+    {
+     "key": "3d5320249aa689ab",
+     "scope": "market",
+     "headline": "Quantum Computing Stocks IonQ, Rigetti, and D-Wave Are Sending Shockwaves Through Wall Street With This $988 Million Warning",
+     "source": "The Motley Fool",
+     "published_et": "2026-07-22 05:06 ET",
+     "tier": "SECONDARY",
+     "why": "Despite massive gains in quantum computing stocks IonQ, Rigetti, and D-Wave since mid-2024, insiders at these companies have collectively \u2026",
+     "url": "https://www.fool.com/investing/2026/07/22/quantum-computing-stocks-ionq-988-million-warning/?source=iedfolrf0000001",
+     "tickers": []
+    },
+    {
+     "key": "45df52e0120bd243",
+     "scope": "market",
+     "headline": "Buckle Up! Cleveland Fed President Beth Hammack Just Said the Quiet Part Out Loud About Inflation.",
+     "source": "The Motley Fool",
+     "published_et": "2026-07-22 04:06 ET",
+     "tier": "SECONDARY",
+     "why": "Cleveland Federal Reserve President Beth Hammack has signaled that broad-based inflation remains a significant concern for the Fed, with \u2026",
+     "url": "https://www.fool.com/investing/2026/07/22/buckle-up-fed-said-quiet-part-out-loud-inflation/?source=iedfolrf0000001",
+     "tickers": []
+    },
+    {
+     "key": "928206e9896c11b7",
+     "scope": "watchlist",
+     "headline": "Which Is the Better Energy ETF for the AI Era: State Street's XLE or VanEck's Nuclear NLR?",
+     "source": "The Motley Fool",
+     "published_et": "2026-07-21 13:18 ET",
+     "tier": "SECONDARY",
+     "why": "State Street's XLE energy ETF delivered 39% returns over one year with a 0.08% expense ratio, significantly outperforming VanEck's NLR \u2026",
+     "url": "https://www.fool.com/coverage/etfs/2026/07/21/which-is-the-better-energy-etf-for-the-ai-era-state-street-s-xle-or-vaneck-s-nuclear-nlr/?source=iedfolrf0000001",
+     "tickers": [
+      "CVX"
+     ]
+    },
+    {
+     "key": "db55fb9c7a4e8e25",
+     "scope": "watchlist",
+     "headline": "Goldman Sachs Says Oil Could Surpass $120 a Barrel if Hormuz Disruptions Don't Ease. Here's What That Means for Oil Stocks.",
+     "source": "The Motley Fool",
+     "published_et": "2026-07-21 13:15 ET",
+     "tier": "SECONDARY",
+     "why": "Goldman Sachs projects Brent crude could exceed $120/barrel in Q4 2026 if Strait of Hormuz disruptions persist, with an average of \u2026",
+     "url": "https://www.fool.com/investing/2026/07/21/goldman-sachs-says-oil-could-surpass-120-a-barrel-if-hormuz-disruptions-dont-ease-heres-what-that-means-for-oil-stocks/?source=iedfolrf0000001",
+     "tickers": [
+      "CVX"
+     ]
+    }
+   ],
+   "sub": "Market first, then your names. PRIMARY marks the issuer's own statement.",
+   "empty_line": "No high-relevance headlines since the previous brief."
+  },
+  {
+   "id": "oi_followthrough",
+   "title": "Yesterday's OI Follow-Through",
+   "kind": "followthrough",
+   "records": [],
+   "sub": "Cleared open interest against the prior session's prints",
+   "empty_line": "Jul 21 end-of-day OI has not posted yet. Results will appear on the desk once the dataset arrives; this email is a snapshot and will not update.",
+   "desk_url": "https://tickerdesk.io/#flow",
+   "desk_line": "Check the desk for the full table"
+  },
+  {
+   "id": "earnings",
+   "title": "Earnings today",
+   "kind": "earnings",
+   "records": [
+    {
+     "key": "GEV|BMO",
+     "ticker": "GEV",
+     "company": "GE Vernova Inc.",
+     "session": "BMO",
+     "on_watchlist": true,
+     "implied_move_pct": 10.3,
+     "iv_pct": 249.3,
+     "iv_level": "high",
+     "realized_med_pct": 2.9,
+     "n_reports": 8,
+     "dte": 2,
+     "expiry": "2026-07-24",
+     "verdict": "RICH",
+     "why": "options price \u00b110.3% against a \u00b12.9% typical move (3.55\u00d7)",
+     "url": "https://tickerdesk.io/#ticker=GEV"
+    },
+    {
+     "key": "T|BMO",
+     "ticker": "T",
+     "company": "AT&T Corp.",
+     "session": "BMO",
+     "on_watchlist": true,
+     "implied_move_pct": 5.6,
+     "iv_pct": 83.5,
+     "iv_level": "high",
+     "realized_med_pct": null,
+     "n_reports": null,
+     "dte": 2,
+     "expiry": "2026-07-24",
+     "verdict": "",
+     "why": "",
+     "url": "https://tickerdesk.io/#ticker=T"
+    },
+    {
+     "key": "PM|BMO",
+     "ticker": "PM",
+     "company": "Philip Morris International Inc",
+     "session": "BMO",
+     "on_watchlist": true,
+     "implied_move_pct": 5.4,
+     "iv_pct": 84.3,
+     "iv_level": "high",
+     "realized_med_pct": null,
+     "n_reports": null,
+     "dte": 2,
+     "expiry": "2026-07-24",
+     "verdict": "",
+     "why": "",
+     "url": "https://tickerdesk.io/#ticker=PM"
+    },
+    {
+     "key": "TEL|BMO",
+     "ticker": "TEL",
+     "company": "TE Connectivity Ltd.",
+     "session": "BMO",
+     "on_watchlist": true,
+     "implied_move_pct": 15,
+     "iv_pct": 65.6,
+     "iv_level": "elevated",
+     "realized_med_pct": null,
+     "n_reports": null,
+     "dte": 30,
+     "expiry": "2026-08-21",
+     "verdict": "",
+     "why": "",
+     "url": "https://tickerdesk.io/#ticker=TEL"
+    },
+    {
+     "key": "TSLA|AMC",
+     "ticker": "TSLA",
+     "company": "Tesla, Inc.",
+     "session": "AMC",
+     "on_watchlist": true,
+     "implied_move_pct": 6,
+     "iv_pct": 91,
+     "iv_level": "high",
+     "realized_med_pct": null,
+     "n_reports": null,
+     "dte": 2,
+     "expiry": "2026-07-24",
+     "verdict": "",
+     "why": "",
+     "url": "https://tickerdesk.io/#ticker=TSLA"
+    },
+    {
+     "key": "GOOGL|AMC",
+     "ticker": "GOOGL",
+     "company": "Alphabet Inc.",
+     "session": "AMC",
+     "on_watchlist": false,
+     "implied_move_pct": 7,
+     "iv_pct": 181.8,
+     "iv_level": "high",
+     "realized_med_pct": 2.7,
+     "n_reports": 8,
+     "dte": 0,
+     "expiry": "2026-07-22",
+     "verdict": "RICH",
+     "why": "options price \u00b17.0% against a \u00b12.7% typical move (2.59\u00d7)",
+     "url": "https://tickerdesk.io/#ticker=GOOGL"
+    },
+    {
+     "key": "NOW|AMC",
+     "ticker": "NOW",
+     "company": "ServiceNow, Inc.",
+     "session": "AMC",
+     "on_watchlist": false,
+     "implied_move_pct": 12.4,
+     "iv_pct": 189.6,
+     "iv_level": "high",
+     "realized_med_pct": null,
+     "n_reports": null,
+     "dte": 2,
+     "expiry": "2026-07-24",
+     "verdict": "",
+     "why": "",
+     "url": "https://tickerdesk.io/#ticker=NOW"
+    },
+    {
+     "key": "IBM|AMC",
+     "ticker": "IBM",
+     "company": "International Business Machines Corp.",
+     "session": "AMC",
+     "on_watchlist": false,
+     "implied_move_pct": 6.3,
+     "iv_pct": 95.4,
+     "iv_level": "high",
+     "realized_med_pct": 6.4,
+     "n_reports": 8,
+     "dte": 2,
+     "expiry": "2026-07-24",
+     "verdict": "FAIR",
+     "why": "options price \u00b16.3% against a \u00b16.4% typical move",
+     "url": "https://tickerdesk.io/#ticker=IBM"
+    }
+   ],
+   "sub": "26 before the open \u00b7 50 after the close \u00b7 implied move from the front expiry",
+   "note": ""
+  },
+  {
+   "id": "weekly",
+   "title": "Weekly lens",
+   "kind": "prose",
+   "sub": "Five-session view",
+   "weekly_regime": {
+    "label": "TRANSITION",
+    "prior_display": "RISK-OFF"
+   },
+   "records": [
+    {
+     "key": "weekly",
+     "text": "Participation widened over the week: 55% of the 754-name universe is above its 20-day average, against 38% five sessions ago. The regime label moved from RISK-OFF to TRANSITION."
+    }
+   ]
+  },
+  {
+   "id": "discovery",
+   "title": "Market discovery",
+   "kind": "discovery",
+   "records": [
+    {
+     "key": "BE",
+     "rank": 1,
+     "ticker": "BE",
+     "contract": "PUT 215 2026-07-31",
+     "side_label": "PUT BUY \u00b7 bearish",
+     "premium": "$8.0M",
+     "oi_state": "OI PENDING",
+     "why": "swept across exchanges, golden sweep, tier A, Other, earnings in 7d",
+     "url": "https://tickerdesk.io/#ticker=BE"
+    },
+    {
+     "key": "SIMO",
+     "rank": 2,
+     "ticker": "SIMO",
+     "contract": "CALL 280 2026-08-21",
+     "side_label": "CALL BUY \u00b7 bullish",
+     "premium": "$7.1M",
+     "oi_state": "OI PENDING",
+     "why": "swept across exchanges, tier A, Other, earnings in 8d",
+     "url": "https://tickerdesk.io/#ticker=SIMO"
+    },
+    {
+     "key": "TXN",
+     "rank": 3,
+     "ticker": "TXN",
+     "contract": "CALL 340 2026-08-21",
+     "side_label": "CALL SELL \u00b7 bearish",
+     "premium": "$4.2M",
+     "oi_state": "OI PENDING",
+     "why": "swept across exchanges, tier A, Semiconductors, earnings in 1d",
+     "url": "https://tickerdesk.io/#ticker=TXN"
+    }
+   ],
+   "sub": "Not on your watch list \u00b7 ranked by signal strength"
+  }
+ ],
+ "validation": {
+  "ok": true,
+  "passed": 14,
+  "failed": 0,
+  "checks": [
+   {
+    "check": "schema.version",
+    "ok": true,
+    "detail": "tickerdesk_daily_brief/v1"
+   },
+   {
+    "check": "schema.top_level_keys",
+    "ok": true,
+    "detail": "all present"
+   },
+   {
+    "check": "schema.meta_keys",
+    "ok": true,
+    "detail": "all present"
+   },
+   {
+    "check": "meta.subject_present",
+    "ok": true,
+    "detail": "Tape in transition \u00b7 11 watchlist changes"
+   },
+   {
+    "check": "meta.preheader_present",
+    "ok": true,
+    "detail": "SPY +0.83%  QQQ +1.85%  IWM +1.45%  DIA +0.69% VIX 17.6 +3.28% 10Y 4.63% (+3 bp)"
+   },
+   {
+    "check": "schema.sections_present",
+    "ok": true,
+    "detail": "12"
+   },
+   {
+    "check": "schema.section_shape",
+    "ok": true,
+    "detail": "[]"
+   },
+   {
+    "check": "schema.record_keys_unique",
+    "ok": true,
+    "detail": "[]"
+   },
+   {
+    "check": "calendar.correction_provenance",
+    "ok": true,
+    "detail": "clean"
+   },
+   {
+    "check": "prices.timestamped_and_sourced",
+    "ok": true,
+    "detail": "5 checked; clean"
+   },
+   {
+    "check": "flow.population_reconciles",
+    "ok": true,
+    "detail": "clean"
+   },
+   {
+    "check": "regime.single_vocabulary",
+    "ok": true,
+    "detail": "clean"
+   },
+   {
+    "check": "news.formatting_and_diversity",
+    "ok": true,
+    "detail": "clean"
+   },
+   {
+    "check": "model.internal_consistency",
+    "ok": true,
+    "detail": "clean"
+   }
+  ]
+ },
+ "artifact_hashes": {
+  "html": "cceac380f87916e129fd4e836e33059ec93f4ccdaaa739e091a2c118bf6e76fc",
+  "text": "0b0b5ad171c30e5c692e58443dd878dadbca564eae4ca3e6fbdaddf77cfabf41",
+  "eml": "",
+  "model": "08cbad5a6f8e3a5a38f63a818c32a86802efb745f2605f0d97a7feba9735e803"
+ }
+}
