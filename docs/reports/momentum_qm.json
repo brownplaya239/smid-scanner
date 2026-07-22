@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-21T18:28:38-04:00",
+ "updated": "2026-07-22T16:38:59-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -4756,6 +4756,53 @@
      "adr_pct": 6.58,
      "dollar_vol": 113623330,
      "ern": "Jul 28"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-22",
+   "generated": "2026-07-22T16:38:59-04:00",
+   "count": 5,
+   "rows": [
+    {
+     "ticker": "DAVE",
+     "price": 423.66,
+     "chg": 36.79,
+     "adr_pct": 6.46,
+     "dollar_vol": 218195890,
+     "ern": "--"
+    },
+    {
+     "ticker": "PBF",
+     "price": 64.33,
+     "chg": 63.73,
+     "adr_pct": 5.45,
+     "dollar_vol": 162955385,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "TENB",
+     "price": 32.83,
+     "chg": 24.64,
+     "adr_pct": 7.78,
+     "dollar_vol": 148614665,
+     "ern": "Jul 29"
+    },
+    {
+     "ticker": "TXG",
+     "price": 47.05,
+     "chg": 42.84,
+     "adr_pct": 6.81,
+     "dollar_vol": 135201078,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "QLYS",
+     "price": 140.23,
+     "chg": 29.23,
+     "adr_pct": 5.91,
+     "dollar_vol": 123573581,
+     "ern": "Aug 04"
     }
    ]
   }

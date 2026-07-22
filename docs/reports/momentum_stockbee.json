@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-21T18:28:38-04:00",
+ "updated": "2026-07-22T16:38:59-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -7595,6 +7595,87 @@
      "adr_pct": 10.21,
      "dollar_vol": 477204009,
      "ern": "Aug 04"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-22",
+   "generated": "2026-07-22T16:38:59-04:00",
+   "count": 4,
+   "rows": [
+    {
+     "ticker": "CIFR",
+     "price": 24.46,
+     "chg": 23.1,
+     "adr_pct": 10.87,
+     "dollar_vol": 578044862,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "DOCN",
+     "price": 142.68,
+     "chg": 19.25,
+     "adr_pct": 8.54,
+     "dollar_vol": 552851374,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "RIOT",
+     "price": 23.38,
+     "chg": 16.32,
+     "adr_pct": 8.86,
+     "dollar_vol": 402808839,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "ARWR",
+     "price": 88.7,
+     "chg": 23.5,
+     "adr_pct": 5.57,
+     "dollar_vol": 259298277,
+     "ern": "Aug 04"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "SMCI",
+     "price": 30.56,
+     "chg": 13.65,
+     "adr_pct": 6.54,
+     "dollar_vol": 1323969306,
+     "ern": "Aug 11"
+    },
+    {
+     "ticker": "ABT",
+     "price": 100.57,
+     "chg": 12.66,
+     "adr_pct": 2.78,
+     "dollar_vol": 1293296770,
+     "ern": "Oct 14"
+    },
+    {
+     "ticker": "LQDA",
+     "price": 87.04,
+     "chg": 11.95,
+     "adr_pct": 6.45,
+     "dollar_vol": 130711107,
+     "ern": "Aug 12"
+    },
+    {
+     "ticker": "LEU",
+     "price": 174.28,
+     "chg": 11.33,
+     "adr_pct": 6.8,
+     "dollar_vol": 140929077,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "SM",
+     "price": 33.19,
+     "chg": 10.89,
+     "adr_pct": 3.51,
+     "dollar_vol": 107834587,
+     "ern": "Aug 05"
     }
    ]
   }
