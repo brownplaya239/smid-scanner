@@ -1747,6 +1747,52 @@ def _render_snapshot(snapshot) -> str:
     </div>'''
 
 
+BRIEF_V3 = os.environ.get("BRIEF_V3", "1") not in ("0", "false", "no")
+
+
+def render_html_v3(user, brief, brief_date, carryover=None,
+                   premarket=None, overnight=None, intel=None):
+    """Market Intelligence + Watchlist layout.
+
+    Market first, then the user's names. Falls back to the v2 renderer on
+    any failure — a formatting change must never cost a subscriber their
+    brief.
+    """
+    import brief_adapters as BA
+    import brief_compose as BC
+    import brief_render as BR
+    import market_layer as ML
+
+    market = ML.build()
+    lines = ML.summary_lines(market)
+    intel = intel or {}
+    facts = intel.get("facts") or {}
+    # the USER object is the source of truth for the watch list;
+    # build_brief() returns rendered sections and carries no ticker list,
+    # so reading it here silently produced "0 names changed"
+    tickers = [t for t in (user.get("tickers") or []) if t]
+    swing = brief.get("_swing") or {}
+    uoa_by = brief.get("_uoa_by_ticker") or {}
+    earnings = brief.get("_earnings") or {}
+
+    changes = BA.build_changes(tickers, swing, uoa_by, facts, earnings)
+    wl = BC.rank_watchlist(changes)
+    mkt_flow, watch_flow = BA.split_flow(brief.get("_market_top") or [],
+                                         uoa_by, tickers)
+    news = BC.select_news(brief.get("_news") or [], set(tickers))
+
+    flow_head = None
+    if watch_flow:
+        flow_head = "%s flow" % sorted(watch_flow)[0]
+    subject = BC.build_subject(market, wl, flow_headline=flow_head)
+    preheader = BC.build_preheader(market, wl, lines)
+    html_doc = BR.render(market, wl, news=news, market_flow=mkt_flow,
+                         watch_flow=watch_flow, site=SITE_URL,
+                         unsub_url=unsub_url(user.get("id") or ""),
+                         preheader=preheader)
+    return subject, html_doc
+
+
 def render_html(user, brief, brief_date, carryover=None,
                 premarket=None, overnight=None, intel=None) -> tuple[str, str]:
     name = esc((user.get("display_name") or "").strip() or "trader")
@@ -1986,8 +2032,26 @@ def main():
         brief = build_brief(u["tickers"], swing, uoa, market_top, earnings,
                             reports_by_tk, new_reports_all, market)
         overnight = load_overnight_news(u["tickers"])
-        subject, html_body = render_html(u, brief, brief_date, carryover,
-                                         premarket, overnight, intel)
+        # raw inputs the v3 adapters need, carried on the brief so the
+        # v2 path is untouched
+        brief["_swing"] = swing
+        brief["_uoa_by_ticker"] = uoa
+        brief["_market_top"] = market_top
+        brief["_earnings"] = earnings
+        brief["_news"] = overnight
+        subject = html_body = None
+        if BRIEF_V3:
+            try:
+                subject, html_body = render_html_v3(
+                    u, brief, brief_date, carryover, premarket, overnight,
+                    intel)
+            except Exception as e:
+                # a layout change must never cost a subscriber their brief
+                print(f"  v3 render failed, falling back to v2: {e}")
+                subject = html_body = None
+        if not html_body:
+            subject, html_body = render_html(u, brief, brief_date, carryover,
+                                             premarket, overnight, intel)
         prefix = f"  → {u['email']:32s} ({len(u['tickers'])} tickers): "
 
         # Always write the first rendered email to the preview file.
