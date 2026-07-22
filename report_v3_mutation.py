@@ -21,6 +21,12 @@ Every fixture below is a defect v3.1 shipped or would have shipped:
   DISPLAY_COUNT_SCOPE          a bare "displayed" count with no artifact
   CALC_REPRODUCIBLE            a published figure the bars do not give
   HASH_COVERAGE                records shipped without a canonical hash
+  METRIC_FORMULA_TRACEABLE     a DER metric citing no calculation
+  METRIC_SOURCE_DATED          a vendor figure with no as-of date
+  MARKET_DATA_FRESHNESS        a report drawn on a stale tape
+  CHART_WINDOW_CARDINALITY     a caption naming a window the chart did not draw
+  PARTIAL_BAR_EXCLUDED         the open session inside a moving average
+  INTERPRETIVE_PHRASE          "dead-cat bounce" on the page
 
     python report_v3_mutation.py
 """
@@ -119,7 +125,29 @@ def clean_package():
     }
 
 
-CLEAN_PDF = ("109.50 the lowest close 58.9% $2.565B $2.835B "
+def clean_view():
+    """The smallest view check_setup will accept as complete: one derived
+    metric that cites a calculation in the package, one unavailable metric
+    that says why, and a chart that reports what it drew."""
+    return {"setup_metrics": [
+        {"label": "vs 20-day average", "value": "above (109.50)",
+         "grade": V.M.DERIVED, "basis": None, "calc": "CALC-ma20",
+         "unavailable_reason": None},
+        {"label": "Float", "value": "872M", "grade": V.M.OBSERVED,
+         "basis": "vendor profile, no as-of date published",
+         "calc": None, "unavailable_reason": None},
+        {"label": "Short interest", "value": "Unavailable", "grade": None,
+         "basis": None, "calc": None,
+         "unavailable_reason": "no settlement date accompanies the figure"}],
+        "chart": {"sessions": 20, "log_scale": False, "partial": False}}
+
+
+def clean_snap():
+    return {"report_time": "2026-01-21T16:00:00-05:00", "ticker": "TEST"}
+
+
+CLEAN_PDF = ("20 completed sessions: candles "
+             "109.50 the lowest close 58.9% $2.565B $2.835B "
              "3 of 6 items are shown here "
              "10 evidence records - 6 admitted - 3 shown in core - "
              "0 shown in appendix "
@@ -129,24 +157,24 @@ CLEAN_PDF = ("109.50 the lowest close 58.9% $2.565B $2.835B "
 
 # ── one corruption each ─────────────────────────────────────────────────
 
-def m_bar_cardinality(pkg, txt):
+def m_bar_cardinality(pkg, txt, view, snap):
     pkg["calculations"]["CALC-ma20"]["window_delivered"] = 19
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_bar_range_present(pkg, txt):
+def m_bar_range_present(pkg, txt, view, snap):
     pkg["records"].pop("BAR-2026-01-01")
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_benchmark_operands(pkg, txt):
+def m_benchmark_operands(pkg, txt, view, snap):
     for k, v in pkg["records"].items():
         if v.get("evidence_type") == "benchmark_bar":
             v["value"] = None
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_partial_session(pkg, txt):
+def m_partial_session(pkg, txt, view, snap):
     pkg["records"]["INTRADAY-2026-01-21"] = {
         "evidence_id": "INTRADAY-2026-01-21",
         "evidence_type": "intraday_observation",
@@ -159,52 +187,53 @@ def m_partial_session(pkg, txt):
                       "resolved": True}],
         "operands_complete": True, "result_unrounded": 120.0,
         "reproducible": True, "displayed": True}
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_level_wording(pkg, txt):
+def m_level_wording(pkg, txt, view, snap):
     pkg["calculations"]["CALC-support60"]["formula"] = \
         "min(low, last 60 completed sessions)"
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_guidance_precision(pkg, txt):
-    return pkg, txt.replace("$2.565B", "$2.56B")
+def m_guidance_precision(pkg, txt, view, snap):
+    return pkg, txt.replace("$2.565B", "$2.56B"), view, snap
 
 
-def m_guidance_pdf_match(pkg, txt):
-    return pkg, txt.replace("$2.565B", "").replace("$2.835B", "")
+def m_guidance_pdf_match(pkg, txt, view, snap):
+    return (pkg, txt.replace("$2.565B", "").replace("$2.835B", ""),
+            view, snap)
 
 
-def m_coverage_consistency(pkg, txt):
+def m_coverage_consistency(pkg, txt, view, snap):
     pkg["source_coverage"]["non_gaap_margin"] = \
         "not available - non-GAAP measures are not XBRL-tagged"
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_display_count_scope(pkg, txt):
+def m_display_count_scope(pkg, txt, view, snap):
     pkg["populations"]["news"] = {"records_displayed": 6,
                                   "legacy_records_displayed": 6}
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_record_hash(pkg, txt):
+def m_record_hash(pkg, txt, view, snap):
     """Edit a value and leave the hash alone - the exact tamper the
     recompute check exists to catch."""
     k = "BAR-2026-01-05"
     pkg["records"][k]["value"]["c"] = 999.99
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_date_alignment(pkg, txt):
+def m_date_alignment(pkg, txt, view, snap):
     c = pkg["calculations"]["CALC-rs_vs_spy"]
     c["operands"] = [
         {"evidence_id": "BAR-2026-01-01..BAR-2026-01-20", "resolved": True},
         {"evidence_id": "SPY-2026-01-02..SPY-2026-01-21", "resolved": True}]
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_calc_reproducible(pkg, txt):
+def m_calc_reproducible(pkg, txt, view, snap):
     c = pkg["calculations"]["CALC-ma20"]
     c["reproducible"] = False
     c["recompute_note"] = "published 109.50 but the delivered bars give 131.87"
@@ -214,25 +243,62 @@ def m_calc_reproducible(pkg, txt):
         "failed_detail": [{"calculation_id": "CALC-ma20",
                            "note": c["recompute_note"]}],
         "exempt_detail": []}
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_hash_coverage(pkg, txt):
+def m_hash_coverage(pkg, txt, view, snap):
     pkg["hash_verification"]["coverage_pct"] = 8.2
-    return pkg, txt
+    return pkg, txt, view, snap
 
 
-def m_display_count_unscoped(pkg, txt):
-    return pkg, txt + " 5 records displayed"
+def m_display_count_unscoped(pkg, txt, view, snap):
+    return pkg, txt + " 5 records displayed", view, snap
 
 
-def m_social_sample_description(pkg, txt):
+def m_social_sample_description(pkg, txt, view, snap):
     return pkg, txt.replace("screened representative excerpts",
-                            "neutral representative excerpts only")
+                            "neutral representative excerpts only"),         view, snap
 
 
-def m_close_extrema_labelled(pkg, txt):
-    return pkg, txt.replace("60-session closing low", "60-session low")
+def m_close_extrema_labelled(pkg, txt, view, snap):
+    return (pkg, txt.replace("60-session closing low",
+                             "60-session low"), view, snap)
+
+
+def m_metric_formula_traceable(pkg, txt, view, snap):
+    view["setup_metrics"][0]["calc"] = "CALC-does-not-exist"
+    return pkg, txt, view, snap
+
+
+def m_metric_source_dated(pkg, txt, view, snap):
+    view["setup_metrics"][1]["basis"] = "vendor profile"
+    return pkg, txt, view, snap
+
+
+def m_market_data_freshness(pkg, txt, view, snap):
+    snap["report_time"] = "2026-03-01T16:00:00-05:00"
+    return pkg, txt, view, snap
+
+
+def m_chart_window_cardinality(pkg, txt, view, snap):
+    return (pkg, txt.replace("20 completed sessions: candles",
+                             "120 completed sessions: candles"), view, snap)
+
+
+def m_partial_bar_excluded(pkg, txt, view, snap):
+    pkg["records"]["INTRADAY-2026-01-21"] = {
+        "evidence_id": "INTRADAY-2026-01-21",
+        "evidence_type": "intraday_observation",
+        "value": {"c": 120.0}, "raw_hash": "0" * 64,
+        "disposition": EV.ADMITTED}
+    pkg["calculations"]["CALC-ma20"]["operands"].append(
+        {"evidence_id": "INTRADAY-2026-01-21", "resolved": True})
+    return pkg, txt, view, snap
+
+
+def m_interpretive_phrase(pkg, txt, view, snap):
+    return (pkg, txt + " the move looks like a dead-cat bounce",
+            view, snap)
 
 
 MUTATIONS = [
@@ -275,15 +341,41 @@ MUTATIONS = [
     ("CLOSE_EXTREMA_LABELLED",
      "a close-derived 60-session low printed without 'closing'",
      m_close_extrema_labelled),
+    # v3.4 setup layer
+    ("METRIC_FORMULA_TRACEABLE",
+     "a derived metric citing a calculation the package does not carry",
+     m_metric_formula_traceable),
+    ("METRIC_SOURCE_DATED",
+     "a vendor metric with neither an as-of date nor a statement that none "
+     "is published", m_metric_source_dated),
+    ("MARKET_DATA_FRESHNESS",
+     "a report time 40 days after the newest completed session",
+     m_market_data_freshness),
+    ("CHART_WINDOW_CARDINALITY",
+     "a caption claiming 120 sessions for a 20-session chart",
+     m_chart_window_cardinality),
+    ("PARTIAL_BAR_EXCLUDED",
+     "the still-open session used as an operand of a moving average",
+     m_partial_bar_excluded),
+    ("INTERPRETIVE_PHRASE",
+     "'dead-cat bounce' rendered on the page", m_interpretive_phrase),
 ]
+
+
+def _all(pkg, view, snap, txt):
+    """Every check a fixture can trip. check_setup joined the list in
+    v3.4; a fixture whose check is not run here reports NOT_RUN and fails
+    the suite, which is the behaviour we want when one is forgotten."""
+    return (V.check_numerics(pkg, view, snap, txt)
+            + V.check_setup(pkg, view, snap, txt)
+            + V.check_editorial(pkg, view, snap, txt))
 
 
 def run():
     """Return one result per mutation, plus the clean control."""
     results = []
-    base = clean_package()
-    ctrl = [c for c in (V.check_numerics(base, {}, {}, CLEAN_PDF)
-                        + V.check_editorial(base, {}, {}, CLEAN_PDF))
+    base, bview, bsnap = clean_package(), clean_view(), clean_snap()
+    ctrl = [c for c in _all(base, bview, bsnap, CLEAN_PDF)
             if c["status"] == V.FAIL]
     results.append({
         "check_id": "CONTROL", "mutation": "none - the clean package",
@@ -294,10 +386,11 @@ def run():
         if ctrl else "every numeric check passes on clean input"})
 
     for check_id, description, mutate in MUTATIONS:
-        pkg, txt = mutate(copy.deepcopy(base), CLEAN_PDF)
+        pkg, txt, view, snap = mutate(copy.deepcopy(base), CLEAN_PDF,
+                                      copy.deepcopy(bview),
+                                      copy.deepcopy(bsnap))
         got = None
-        for c in (V.check_numerics(pkg, {}, {}, txt)
-                  + V.check_editorial(pkg, {}, {}, txt)):
+        for c in _all(pkg, view, snap, txt):
             if c["check_id"] == check_id:
                 got = c
                 break

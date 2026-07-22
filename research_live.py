@@ -337,6 +337,43 @@ def fetch_market(ticker, as_of=None):
                        abs(c_lows[i] - c_closes[i - 1])))
     atr14 = round(sum(trs[-14:]) / 14.0, 2) if len(trs) >= 14 else None
 
+    # Wilder RSI(14) on completed closes. Seeded with the simple mean of
+    # the first 14 changes, then smoothed — the same definition the
+    # legacy chart used, so the number means what a reader expects.
+    # Wilder RSI is path-dependent, so the answer depends on how far back
+    # you start. Running it over the whole 500-session history would
+    # declare a window the evidence package does not carry and could not
+    # be reproduced from it. It is bounded to RSI_WINDOW completed
+    # sessions, which sits inside the 252 the package ships.
+    RSI_WINDOW = 250
+
+    def _rsi(vals, n=14, window=RSI_WINDOW):
+        if len(vals) < n + 1:
+            return None
+        vals = vals[-window:]
+        d = [vals[i] - vals[i - 1] for i in range(1, len(vals))]
+        gains = [x if x > 0 else 0.0 for x in d]
+        losses = [-x if x < 0 else 0.0 for x in d]
+        ag, al = sum(gains[:n]) / n, sum(losses[:n]) / n
+        for i in range(n, len(d)):
+            ag = (ag * (n - 1) + gains[i]) / n
+            al = (al * (n - 1) + losses[i]) / n
+        if al == 0:
+            return 100.0
+        return round(100.0 - 100.0 / (1.0 + ag / al), 1)
+
+    # Base tightness: how narrow the recent range is, as a percentage of
+    # its own floor. Stated with its window because "tight" is meaningless
+    # without one.
+    BASE_WIN = 20
+
+    def _base_tightness(vals, n=BASE_WIN):
+        if len(vals) < n:
+            return None
+        w = vals[-n:]
+        lo = min(w)
+        return round(100.0 * (max(w) - lo) / lo, 1) if lo else None
+
     px = round(closes[-1], 2)                 # live or last completed
     prev = round(c_closes[-1], 2) if partial else round(c_closes[-2], 2)
     win = 60
@@ -377,11 +414,31 @@ def fetch_market(ticker, as_of=None):
         "price_basis": ("intraday last trade, session open" if partial
                         else "last completed session close"),
         "change_pct": round(100.0 * (px - prev) / prev, 2),
+        "ma9": ma(9), "ma21": ma(21),
         "ma20": ma(20), "ma50": ma(50), "ma200": ma(200),
         "atr14": atr14,
+        "atr14_pct": (round(100.0 * atr14 / px, 2)
+                      if (atr14 and px) else None),
+        "rsi14": _rsi(c_closes),
+        "base_tightness_pct": _base_tightness(c_closes),
+        "base_tightness_window": BASE_WIN,
+        "base_tightness_formula": ("(max(close) - min(close)) / min(close) "
+                                   "x 100 over the last %d completed "
+                                   "sessions" % BASE_WIN),
+        "pct_below_hi52": (round(100.0 * (hi52 - px) / hi52, 1)
+                           if (hi52 and px) else None),
         "support": swing_lo, "resistance": swing_hi,
         "hi52": hi52, "lo52": lo52,
         "n_bars": len(bars),
+        "float_shares": _safe_info(tk).get("floatShares"),
+        # Short interest is a dated, settled figure. Institutional
+        # ownership from this vendor carries no reporting date, so it is
+        # returned with the date field empty and the renderer says
+        # "Unavailable" rather than printing an undated percentage as if
+        # it were a holdings fact.
+        "short_interest": _short_interest(_safe_info(tk)),
+        "institutional_pct_undated": _safe_info(tk).get(
+            "heldPercentInstitutions"),
         "info": _safe_info(tk),
         "next_earnings": _next_earnings(tk),
         "rel_volume": (round(c_vols[-1] / (sum(c_vols[-21:-1]) / 20.0), 2)
@@ -430,7 +487,19 @@ def _rs_vs_spy(closes, dates, weeks=12, through=None):
     b0, b1 = spy_map[win[0]], spy_map[win[-1]]
     mine = 100.0 * (a1 / a0 - 1)
     bench = 100.0 * (b1 / b0 - 1)
+    # The relative-strength LINE (issuer close / benchmark close) and
+    # whether it sits at its own high for the window. This is a fact about
+    # the ratio series, not a claim about who is buying.
+    ratio = [issuer[d] / spy_map[d] for d in win if spy_map[d]]
+    rs_high = None
+    if ratio:
+        peak = max(ratio)
+        rs_high = {"at_window_high": abs(ratio[-1] - peak) < 1e-12,
+                   "pct_below_window_high": round(
+                       100.0 * (peak - ratio[-1]) / peak, 1) if peak else None,
+                   "window_sessions": len(ratio)}
     return round(mine - bench, 1), {
+        "rs_line": rs_high,
         "series_id": "yahoo:SPY:1d:unadjusted",
         "dates": win, "closes": [spy_map[d] for d in win],
         "issuer_dates": win,
@@ -443,6 +512,34 @@ def _rs_vs_spy(closes, dates, weeks=12, through=None):
         "benchmark_return_pct": round(bench, 4),
         "issuer_return_pct": round(mine, 4),
         "issuer_start_close": a0, "issuer_end_close": a1}
+
+
+def _short_interest(info):
+    """Short interest with its settlement date, or nothing.
+
+    A short-interest percentage without a settlement date cannot be aged
+    by the reader, and these figures are reported twice a month with a
+    lag — an undated one invites the assumption that it is current."""
+    pct = info.get("shortPercentOfFloat")
+    dtc = info.get("shortRatio")
+    epoch = info.get("dateShortInterest")
+    settle = None
+    if epoch:
+        try:
+            settle = datetime.fromtimestamp(
+                int(epoch), timezone.utc).date().isoformat()
+        except Exception:
+            settle = None
+    if pct is None and dtc is None:
+        return None
+    return {"pct_of_float": (round(100.0 * float(pct), 2)
+                             if pct is not None else None),
+            "days_to_cover": (round(float(dtc), 2)
+                              if dtc is not None else None),
+            "shares_short": info.get("sharesShort"),
+            "settlement_date": settle,
+            "source": "Yahoo Finance short-interest summary",
+            "admissible": bool(settle)}
 
 
 def _next_earnings(tk):
@@ -811,6 +908,23 @@ def build_snapshot(ticker, report_time=None):
     # pointing at an id that no longer exists.
     px_ref = ("CALC-intraday_last" if mk.get("partial_session")
               else "CALC-last_close")
+    # The session change is a division over two named bars, so it gets a
+    # calculation record like every other derived figure. Publishing it
+    # with a DER tag and nothing behind it is the exact gap
+    # METRIC_FORMULA_TRACEABLE was written to catch.
+    if mk.get("change_pct") is not None:
+        led.calc("session_change",
+                 "(last - previous close) / previous close x 100",
+                 [px_ref, "BAR-%s" % dstr[-2]], mk["change_pct"], "%")
+    _calc("rsi14", "Wilder RSI(14) over the last 250 completed-session "
+          "closes; seeded with the mean of the first 14 changes then "
+          "smoothed", 250, mk.get("rsi14"), None)
+    _calc("base_tightness_pct", mk.get("base_tightness_formula") or "", 20,
+          mk.get("base_tightness_pct"), "%")
+    _calc("ma9", "mean(close, last 9 completed sessions)", 9,
+          mk.get("ma9"), "USD")
+    _calc("ma21", "mean(close, last 21 completed sessions)", 21,
+          mk.get("ma21"), "USD")
     if mk.get("rel_volume") is not None:
         _calc("rel_volume",
               "volume(latest completed) / mean(volume, prior 20 completed)",
@@ -902,6 +1016,30 @@ def build_snapshot(ticker, report_time=None):
     # the day MRVL printed "0.04x", which reads as a volume collapse and
     # is really just a day that has barely started. Publish it only once
     # the session is complete, and say why when it is withheld.
+    # setup-panel inputs, each as a Fact so it carries its own grade
+    for _k, _metric, _unit in (
+            ("rsi14", "RSI(14), Wilder, completed sessions", None),
+            ("atr14_pct", "ATR(14) as a percent of price", "%"),
+            ("base_tightness_pct", "base tightness", "%"),
+            ("pct_below_hi52", "below the 52-week closing high", "%"),
+            ("ma9", "9-day average", "USD"),
+            ("ma21", "21-day average", "USD")):
+        if mk.get(_k) is not None:
+            snap["levels"][_k] = mfact(mk[_k], _metric, unit=_unit,
+                                       refs=["CALC-%s" % _k])
+    snap["levels"]["base_tightness_formula"] = mk.get(
+        "base_tightness_formula")
+    snap["levels"]["base_tightness_window"] = mk.get("base_tightness_window")
+    snap["levels"]["rs_line"] = (mk.get("spy_window") or {}).get("rs_line")
+    snap["short_interest"] = mk.get("short_interest")
+    snap["ownership_vendor"] = {
+        "institutional_pct": mk.get("institutional_pct_undated"),
+        "reporting_date": None,
+        "admissible": False,
+        "reason": ("the vendor publishes this percentage without a "
+                   "holdings-report date, so it cannot be aged or tied to "
+                   "a filing"),
+    }
     snap["levels"]["partial_session"] = mk.get("partial_session")
     snap["levels"]["last_completed_session"] = mk.get(
         "last_completed_session")
@@ -943,6 +1081,14 @@ def build_snapshot(ticker, report_time=None):
         "universe": None,
         "profitable": None,
     }
+    # Float rides with the profile it came from, and only after the
+    # company dict exists — it is a vendor figure, so Q_UNVERIFIED.
+    if mk.get("float_shares"):
+        company["float_shares"] = rs.fact(
+            float(mk["float_shares"]), metric="float", unit="shares",
+            source="Yahoo Finance profile", source_type="vendor",
+            retrieved_at=retrieved_at, evidence_refs=["REC-profile"],
+            quality=rs.Q_UNVERIFIED)
     led.rec_input("profile", "company profile (vendor)",
                   {"name": info.get("longName"), "sector": info.get("sector"),
                    "industry": info.get("industry"),
@@ -1110,9 +1256,13 @@ def build_snapshot(ticker, report_time=None):
                  r_eps, round(ttm, 2), "USD/share")
         fund["eps_ttm"] = rs.fact(
             round(ttm, 2), metric="diluted EPS (TTM)", unit="USD/share",
-            source="SEC XBRL: %s" % " + ".join(
-                r["end"] + ("*" if r.get("_derived_q4") else "")
-                for r in ttm_win),
+            # The four period ends wrapped the table row onto a second
+            # line for a cell nobody looks up here; the appendix and the
+            # evidence package both carry the accessions.
+            source="SEC XBRL, four quarters to %s%s" % (
+                cur["end"],
+                " (*reconstructed)" if any(r.get("_derived_q4")
+                                           for r in ttm_win) else ""),
             source_type="derived",
             basis="gaap, four contiguous quarters (%s to %s)"
                   % (ttm_win[0]["start"], cur["end"]),

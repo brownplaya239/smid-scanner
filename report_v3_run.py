@@ -63,13 +63,29 @@ def run(ticker, out_dir="out_v3", want_spy=True):
             print("  SPY series unavailable (%s) — the relative-strength "
                   "panel will be omitted and labelled" % e)
 
-    mini = C.mini_chart(mk) if mk.get("closes") else None
-    full = C.full_chart(mk, spy) if mk.get("closes") else None
-    if not mini:
-        print("  no bar series in the snapshot — charts omitted")
+    import research_snapshot as _rs
+    _lv = snap.get("levels") or {}
+    _px = _rs.fv(_lv.get("price_used")) or _rs.fv(
+        (snap.get("price") or {}).get("last"))
+    _ann = {}
+    for _k, _lab in (("ma50", "50-day average"), ("ma20", "20-day average")):
+        _v = _rs.fv(_lv.get(_k))
+        if _v and _px and _v > _px:
+            _ann["confirmation"] = {"value": _v, "label": _lab}
+            break
+    if _rs.fv(_lv.get("support")):
+        _ann["boundary"] = {"value": _rs.fv(_lv["support"])}
+    # page 3 gets the chart a reader trades from; the 12-month structural
+    # view moves to the appendix
+    trading, tmeta = (C.trading_chart(mk, levels=_ann)
+                      if mk.get("closes") else (None, None))
+    structural = C.full_chart(mk, spy) if mk.get("closes") else None
+    if not trading:
+        print("  no bar series in the snapshot - charts omitted")
 
-    res = R3.build_all(snap, out_dir=out_dir, chart_png=mini,
-                       chart_full=full, recs=recs, prov=prov,
+    res = R3.build_all(snap, out_dir=out_dir, chart_png=None,
+                       chart_full=trading, chart_structural=structural,
+                       recs=recs, prov=prov, chart_meta=tmeta,
                        led=(prov or {}).get("_ledger"))
     print("\n%s" % ticker)
     for k in ("core", "appendix", "evidence", "validation"):

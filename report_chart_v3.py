@@ -5,8 +5,13 @@ v2 shipped with no chart at all, which is the single feature readers of
 the original one-pager missed most: a table of moving averages does not
 tell you whether price is rolling over or basing.
 
-    mini_chart(mk)              page 1 — close and the three averages
-    full_chart(mk, spy_closes)  page 3 — price, volume, relative strength
+    trading_chart(mk, ...)      page 3 — the chart a reader trades from:
+                                120 completed sessions, candles, SMA 9/21/
+                                50/200, volume against its own average,
+                                and RSI(14)
+    mini_chart(mk)              close and the three averages, compact
+    full_chart(mk, spy_closes)  appendix — 12-month structural view with
+                                relative strength
 
 Both take the market dict `research_live.fetch_market()` already builds,
 so no new data is fetched and nothing is recomputed from a second
@@ -19,7 +24,8 @@ import io
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt                            # noqa: E402
-from matplotlib.ticker import FuncFormatter                # noqa: E402
+from matplotlib.ticker import (FuncFormatter, LogLocator,
+                               NullFormatter, NullLocator)                # noqa: E402
 
 INK = "#111418"
 MUTED = "#5b6570"
@@ -124,10 +130,27 @@ def full_chart(mk, spy_closes=None, months=12):
         ma = _sma(full, n)[off:]
         if any(v is not None for v in ma):
             ax.plot(x, ma, color=col, linewidth=1.1, label=lab, alpha=0.9)
+    # Same reasoning as the trading chart, on the close series this one
+    # plots. The axis label carries the disclosure here: the appendix
+    # caption is not threaded through the renderer.
+    log_scale = (max(closes) / min(closes)) >= LOG_SPAN if min(closes) else 0
+    if log_scale:
+        ax.set_yscale("log")
+        # A 4x range crosses one decade boundary, so the default decade
+        # locator puts a single labelled tick on the whole axis. These
+        # subdivisions give a readable price gridline every 30-50%.
+        ax.yaxis.set_major_locator(LogLocator(base=10.0, numticks=14,
+                                              subs=(1.0, 1.5, 2.0, 3.0,
+                                                    5.0, 7.0)))
+        ax.yaxis.set_major_formatter(FuncFormatter(
+            lambda v, p: "%.0f" % v if v >= 10 else "%.1f" % v))
+        ax.yaxis.set_minor_locator(NullLocator())
+        ax.yaxis.set_minor_formatter(NullFormatter())
     _style(ax)
     ax.legend(loc="upper left", fontsize=7.5, frameon=False, ncol=4,
               labelcolor=MUTED)
-    ax.set_ylabel("Price", fontsize=8, color=MUTED)
+    ax.set_ylabel("Price (log)" if log_scale else "Price", fontsize=8,
+                  color=MUTED)
 
     av = axes[1]
     if vols and len(vols) == len(closes):
@@ -150,7 +173,7 @@ def full_chart(mk, spy_closes=None, months=12):
     av.set_ylabel("Volume", fontsize=8, color=MUTED)
     av.yaxis.set_major_formatter(
         FuncFormatter(lambda v, p: "%.0fM" % (v / 1e6) if v >= 1e6
-                      else "%.0fk" % (v / 1e3)))
+                      else ("%.0fk" % (v / 1e3) if v >= 1e3 else "0")))
 
     if have_rs:
         rax = axes[2]
@@ -176,3 +199,197 @@ def full_chart(mk, spy_closes=None, months=12):
                       % (mk.get("ticker", ""), months, note),
                       fontsize=8.5, color=MUTED, loc="left")
     return _finish(fig)
+
+
+# ── the trading chart ───────────────────────────────────────────────────
+#
+# The 12-month line chart shows structure. It does not show what a trader
+# needs to judge a setup: where each session opened and closed, whether
+# participation confirmed the move, and whether momentum is stretched.
+# This is the legacy chart's readability rebuilt on v3's data discipline —
+# completed sessions only, with the forming bar drawn so it cannot be
+# mistaken for a settled one.
+
+TRADING_SESSIONS = 120
+SMA_SET = ((9, "#e08a1e"), (21, "#1a7f4b"), (50, "#1f3a5f"),
+           (200, "#b3261e"))
+VOL_AVG_WIN = 20
+LOG_SPAN = 2.5
+
+
+def trading_chart(mk, levels=None, sessions=TRADING_SESSIONS):
+    """Candles, moving averages, volume against its average, and RSI.
+
+    Everything is computed on completed sessions. The open session, if
+    there is one, is drawn hollow in red and annotated PARTIAL, and is
+    excluded from every average on the page."""
+    levels = levels or {}
+    cd = list(mk.get("completed_dates") or [])
+    cc = list(mk.get("completed_closes") or [])
+    ch = list(mk.get("completed_highs") or [])
+    cl = list(mk.get("completed_lows") or [])
+    cv = list(mk.get("completed_volumes") or [])
+    if len(cc) < 30:
+        return None
+    opens_all = list(mk.get("opens") or [])
+    n_all = len(mk.get("closes") or [])
+    o_off = n_all - len(cc) if mk.get("partial_session") else 0
+    co = opens_all[:len(opens_all) - o_off] if o_off else opens_all
+    co = co[-len(cc):] if len(co) >= len(cc) else cc[:]
+
+    k = min(sessions, len(cc))
+    d = [str(x)[:10] for x in cd[-k:]]
+    o, c = co[-k:], cc[-k:]
+    hi, lo, vol = ch[-k:], cl[-k:], cv[-k:]
+    x = list(range(k))
+
+    intr = mk.get("intraday") or None
+    rows = 3
+    # Wide and short. Page 3 carries the level tables and the insider
+    # evidence as well, so the chart gets roughly three inches of height;
+    # a 9.4x6.4 figure scaled into that comes out two-thirds page width
+    # and the candles stop being legible. Drawing it at this aspect keeps
+    # the full text width and spends the height on the price panel.
+    fig, axes = plt.subplots(
+        rows, 1, figsize=(11.5, 4.3), sharex=True,
+        gridspec_kw={"height_ratios": [3.0, 0.8, 1.0], "hspace": 0.10})
+    ax, av, rx = axes
+
+    # candles
+    up = "#1a7f4b"
+    down = "#b3261e"
+    for i in range(k):
+        col = up if c[i] >= o[i] else down
+        ax.vlines(i, lo[i], hi[i], color=col, linewidth=0.7, zorder=3)
+        body_lo, body_hi = min(o[i], c[i]), max(o[i], c[i])
+        ax.add_patch(plt.Rectangle((i - 0.32, body_lo), 0.64,
+                                   max(body_hi - body_lo, 1e-6),
+                                   facecolor=col if c[i] >= o[i] else "white",
+                                   edgecolor=col, linewidth=0.7, zorder=4))
+    for win, colr in SMA_SET:
+        ma = _sma(cc, win)[-k:]
+        if any(v is not None for v in ma):
+            ax.plot(x, ma, color=colr, linewidth=1.0, alpha=0.9,
+                    label="SMA %d" % win, zorder=5)
+
+    # the still-forming session, unmistakably marked and never averaged
+    if intr:
+        xp = k
+        ax.vlines(xp, intr.get("low") or intr["last"],
+                  intr.get("high") or intr["last"], color=down,
+                  linewidth=0.8, linestyle=":", zorder=6)
+        ax.add_patch(plt.Rectangle(
+            (xp - 0.32, min(intr.get("open") or intr["last"], intr["last"])),
+            0.64, max(abs(intr["last"] - (intr.get("open") or intr["last"])),
+                      1e-6),
+            facecolor="none", edgecolor=down, hatch="////", linewidth=0.9,
+            zorder=7))
+        # above the candle, not across it
+        ax.annotate("PARTIAL", xy=(xp, max(intr.get("high") or intr["last"],
+                                           intr["last"])),
+                    xytext=(0, 22), textcoords="offset points",
+                    fontsize=7, color=down, weight="bold", ha="center",
+                    arrowprops=dict(arrowstyle="-", color=down,
+                                    linewidth=0.6, shrinkB=2))
+        x = x + [xp]
+
+    # annotations a reader acts on
+    last = (intr or {}).get("last", c[-1])
+    ax.axhline(last, color=INK, linewidth=0.7, linestyle="--", alpha=0.55)
+    ax.annotate("last %.2f" % last, xy=(0, last), xytext=(2, 3),
+                textcoords="offset points", fontsize=7.5, color=INK)
+    conf = levels.get("confirmation")
+    if conf:
+        ax.axhline(conf["value"], color=up, linewidth=0.8, linestyle="-.",
+                   alpha=0.75)
+        ax.annotate("confirmation %.2f (%s)" % (conf["value"], conf["label"]),
+                    xy=(0, conf["value"]), xytext=(2, 3),
+                    textcoords="offset points", fontsize=7.5, color=up)
+    bnd = levels.get("boundary")
+    if bnd:
+        ax.axhline(bnd["value"], color=down, linewidth=0.8, linestyle="-.",
+                   alpha=0.75)
+        ax.annotate("structural boundary %.2f" % bnd["value"],
+                    xy=(0, bnd["value"]), xytext=(2, 3),
+                    textcoords="offset points", fontsize=7.5, color=down)
+    span = (max(hi) / min(lo)) if min(lo) else 1.0
+    log_scale = span >= LOG_SPAN
+    if log_scale:
+        ax.set_yscale("log")
+        # A 4x range crosses one decade boundary, so the default decade
+        # locator puts a single labelled tick on the whole axis. These
+        # subdivisions give a readable price gridline every 30-50%.
+        ax.yaxis.set_major_locator(LogLocator(base=10.0, numticks=14,
+                                              subs=(1.0, 1.5, 2.0, 3.0,
+                                                    5.0, 7.0)))
+        ax.yaxis.set_major_formatter(FuncFormatter(
+            lambda v, p: "%.0f" % v if v >= 10 else "%.1f" % v))
+        ax.yaxis.set_minor_locator(NullLocator())
+        ax.yaxis.set_minor_formatter(NullFormatter())
+    _style(ax)
+    ax.legend(loc="upper left", fontsize=7.5, frameon=False, ncol=4,
+              labelcolor=MUTED)
+    ax.set_ylabel("Price (log)" if log_scale else "Price", fontsize=8,
+                  color=MUTED)
+
+    # volume against its own 20-session average
+    cols = [up if c[i] >= o[i] else down for i in range(k)]
+    av.bar(range(k), vol, color=cols, width=0.7, alpha=0.55)
+    vma = _sma(cv, VOL_AVG_WIN)[-k:]
+    if any(v is not None for v in vma):
+        av.plot(range(k), vma, color=INK, linewidth=1.0,
+                label="%d-session average" % VOL_AVG_WIN)
+        av.legend(loc="upper left", fontsize=7, frameon=False,
+                  labelcolor=MUTED)
+    if intr:
+        av.bar([k], [intr.get("volume") or 0], color="white", edgecolor=down,
+               hatch="////", linewidth=0.8, width=0.7)
+    _style(av)
+    av.set_ylabel("Volume", fontsize=8, color=MUTED)
+    av.yaxis.set_major_formatter(
+        FuncFormatter(lambda v, p: "%.0fM" % (v / 1e6) if v >= 1e6
+                      else ("%.0fk" % (v / 1e3) if v >= 1e3 else "0")))
+
+    # RSI(14), completed sessions only
+    r = _rsi_series(cc)[-k:]
+    rx.plot(range(k), r, color=ACCENT, linewidth=1.2)
+    rx.axhline(70, color=down, linewidth=0.7, linestyle="--", alpha=0.7)
+    rx.axhline(30, color=up, linewidth=0.7, linestyle="--", alpha=0.7)
+    rx.set_ylim(0, 100)
+    rx.set_yticks([30, 50, 70])
+    _style(rx)
+    rx.set_ylabel("RSI(14)", fontsize=8, color=MUTED)
+
+    step = max(1, k // 9)
+    rx.set_xticks(list(range(0, k, step)))
+    rx.set_xticklabels([d[i] for i in range(0, k, step)], fontsize=7)
+    note = ""
+    if intr:
+        note = ("  ·  final bar PARTIAL and excluded from every average "
+                "on this page")
+    ax.set_title("%s — %d completed sessions%s"
+                 % (mk.get("ticker", ""), k, note),
+                 fontsize=8.5, color=MUTED, loc="left")
+    # The caption has to describe the chart that exists, not the chart
+    # the constants asked for: a name with 60 sessions of history gets 60,
+    # and a log axis is only announced when one was actually used.
+    return _finish(fig), {"sessions": k, "log_scale": log_scale,
+                          "partial": bool(intr),
+                          "last_completed": d[-1] if d else None}
+
+
+def _rsi_series(closes, n=14):
+    """Wilder RSI at every point, for the panel."""
+    out = [None] * len(closes)
+    if len(closes) < n + 1:
+        return out
+    d = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+    g = [v if v > 0 else 0.0 for v in d]
+    l = [-v if v < 0 else 0.0 for v in d]
+    ag, al = sum(g[:n]) / n, sum(l[:n]) / n
+    out[n] = 100.0 if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
+    for i in range(n, len(d)):
+        ag = (ag * (n - 1) + g[i]) / n
+        al = (al * (n - 1) + l[i]) / n
+        out[i + 1] = 100.0 if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
+    return out

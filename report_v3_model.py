@@ -541,10 +541,22 @@ def insider_view(snap):
     ins = snap.get("insiders") or {}
     econ = ins.get("economics") or {}
     by = ins.get("by_class") or {}
-    rows = [{"label": lab, "n": by.get(k, 0), "carries_view":
+    # Every category, including the ones at zero. Dropping an empty row
+    # is what made "9 open-market sales" read as bearish: the reader
+    # never saw that open-market *purchases* were also counted, found
+    # none, and were reported. A zero is a measurement.
+    any_parsed = bool(by)
+    rows = [{"label": lab, "key": k, "n": by.get(k, 0), "carries_view":
              k in ("open_market_buy", "open_market_sale")}
-            for k, lab in INSIDER_LABEL if by.get(k)]
+            for k, lab in INSIDER_LABEL] if any_parsed else []
     return {"rows": rows, "window_days": ins.get("window_days"),
+            "categories": len(INSIDER_LABEL),
+            "reading": ("A Form 4 records what an insider did, not why. "
+                        "Sales under a plan adopted earlier, shares "
+                        "surrendered to cover tax on a vest, and a "
+                        "discretionary open-market sale all file the same "
+                        "way, and this report does not read any of them as "
+                        "a view on the stock."),
             "window_start": econ.get("window_start"),
             "window_end": econ.get("window_end"),
             "plan_status": econ.get("plan_status"),
@@ -804,6 +816,7 @@ def build(snap, mk=None, prior=None):
         "prospective": prospective_conditions(snap, price),
         "business": business_description(snap),
         "populations": {"news": news_scope(snap)},
+        "setup_metrics": setup_metrics(snap),
         "exhibit": snap.get("exhibit") or {},
         "exit": exit_level(snap),
         "changed": what_changed(snap, prior),
@@ -928,49 +941,153 @@ def prospective_conditions(snap, price=None):
 
 # ── company description ─────────────────────────────────────────────────
 
-def business_description(snap):
-    """Plain English, and sourced.
+BUSINESS_MIN_SENTENCES = 3
+BUSINESS_MAX_SENTENCES = 5
 
-    The vendor profile is a single 40-word sentence of registration-style
-    prose ("develops, manufactures and markets products that enable..."),
-    which tells a reader nothing they could act on. We keep it as the
-    cited source, then state what the filings actually show — each clause
-    tied to a figure we admitted — rather than paraphrasing the boilerplate
-    back at them."""
+
+_DANGLING = {"the", "a", "an", "and", "or", "in", "of", "to", "for",
+             "with", "its", "at", "on", "by", "from", "as", "that", "which",
+             "including", "such"}
+
+
+def _clip_sentences(text, limit=170, n=1):
+    """Vendor prose, quoted. Cut on a sentence boundary where one fits,
+    otherwise on a word boundary with an ellipsis — never mid-word, and
+    never rewritten into something the source did not say."""
+    if not text:
+        return None
+    out, count = [], 0
+    for part in re.split(r"(?<=\.)\s+", text.strip()):
+        if count >= n or (out and len(" ".join(out)) + len(part) > limit):
+            break
+        out.append(part)
+        count += 1
+    got = " ".join(out)
+    if not got:
+        got = text.strip()
+    if len(got) > limit:
+        words = got[:limit].split(" ")[:-1]
+        # "...to network edge in the ..." reads as a truncation bug rather
+        # than an elision. Drop trailing function words so the quote ends
+        # on something that carries meaning.
+        while words and words[-1].strip(",;:").lower() in _DANGLING:
+            words.pop()
+        got = " ".join(words).rstrip(",;: ") + " \u2026"
+    return got or None
+
+
+def business_description(snap):
+    """Business position and themes, in at most five sentences, each one
+    tied to a source that cleared admission.
+
+    Two rules shape this block. The vendor description is quoted, not
+    paraphrased: rewriting a source into cleaner prose produces a claim
+    nobody filed, and the earlier version of this block dropped it for
+    reading badly, which left page 2 opening with an "It" that had no
+    antecedent. Quoting it verbatim and attributing it fixes the sentence
+    without inventing one.
+
+    The second rule is the last sentence. Market share, revenue mix by
+    segment or product, and installed base are the three claims a reader
+    most wants here, and this pipeline ingests none of them: no segment
+    table is parsed from the 10-Q and no third-party share estimate is
+    collected. Saying so is the only honest option — a share figure with
+    no filing behind it is exactly the sentence this report exists not to
+    print."""
     co = snap.get("company") or {}
     ov = co.get("overview") or {}
     fu = snap.get("fundamentals") or {}
     ex = snap.get("exhibit") or {}
-    rep = ex.get("reported") or {}
+    rep, gui = ex.get("reported") or {}, ex.get("guidance") or {}
+    admitted_ex = (ex.get("disposition") == "ADMITTED")
     vendor = ov.get("text") or rs.fv(co.get("business_2s"))
     src = ov.get("source") or "issuer profile (vendor)"
+    exref = (["CAT-%s" % ex["accession"]] if ex.get("accession") else [])
 
-    facts, refs = [], []
-    rev = rs.fv(fu.get("revenue_q"))
-    if rev:
-        facts.append("It reported $%.2fB of revenue in the most recent "
-                     "quarter" % (rev / 1e9))
-        refs.append("fundamentals.revenue_q")
+    sent = []
+
+    def add(text, grade, refs, source):
+        if text:
+            sent.append({"text": text, "grade": grade,
+                         "refs": [r for r in refs if r], "source": source})
+
+    # 1 — what the company says it does, in its own words
+    quote = _clip_sentences(vendor)
+    if quote:
+        tail = []
+        if ov.get("industry"):
+            tail.append(ov["industry"])
+        if ov.get("employees"):
+            tail.append("%s employees" % f"{ov['employees']:,}"
+                        if isinstance(ov.get("employees"), int)
+                        else str(ov["employees"]))
+        add("\u201c%s\u201d%s" % (quote,
+                                  (" (%s)" % "; ".join(tail)) if tail else ""),
+            OBSERVED, list(ov.get("evidence_refs") or []), src)
+
+    # 2 — scale and direction, from the filings
+    # Scale, direction and the margin on it, in one sentence. Net margin
+    # and operating cash flow are not repeated here: the Reported results
+    # table below carries them with their period end and their source,
+    # and a narrative that restates a table is a second place for the two
+    # to disagree.
+    rev, grw = rs.fv(fu.get("revenue_q")), rs.fv(fu.get("revenue_growth"))
     gm = rs.fv(fu.get("gross_margin"))
     ngm = (rep.get("non_gaap_gross_margin") or {}).get("value")
+    ocf = rs.fv(fu.get("operating_cash_flow"))
+    if rev:
+        txt = "Revenue was $%.2fB in the most recent reported quarter" % (
+            rev / 1e9)
+        if grw is not None:
+            txt += ", %+.1f%% against the same quarter a year earlier" % grw
+        if gm is not None:
+            txt += ", at a %.1f%% GAAP gross margin%s" % (
+                gm, (" (%.1f%% as the company presents it)" % ngm)
+                if (ngm is not None and admitted_ex) else "")
+        add(txt + ".", OBSERVED if grw is None else DERIVED,
+            ["fundamentals.revenue_q", "CALC-revenue_yoy",
+             "fundamentals.gross_margin"] + (exref if ngm else []),
+            "SEC XBRL 10-Q"
+            + ("; 8-K Exhibit 99.1 for the non-GAAP figure" if ngm else ""))
+
+    # 4 — what the company has told the market to expect
+    g = gui.get("revenue") or {}
+    if admitted_ex and g.get("raw"):
+        txt = "Guidance as filed in the earnings exhibit: revenue %s" % (
+            g["raw"])
+        gg = gui.get("non_gaap_gross_margin") or {}
+        if gg.get("raw"):
+            txt += ", non-GAAP gross margin %s" % gg["raw"]
+        add(txt + ".", OBSERVED, exref, "8-K Exhibit 99.1")
+
+    # 5 — and the part we cannot source, named rather than skipped
+    add("No segment revenue mix, market-share estimate or installed-base "
+        "figure is ingested here, so none is claimed.", OBSERVED, [],
+        "coverage statement")
+
+    sent = sent[:BUSINESS_MAX_SENTENCES]
+    facts, refs = [], []
+    rev_ = rs.fv(fu.get("revenue_q"))
+    if rev_:
+        facts.append("It reported $%.2fB of revenue in the most recent "
+                     "quarter" % (rev_ / 1e9))
+        refs.append("fundamentals.revenue_q")
     if gm and ngm:
         facts.append("at a %.1f%% GAAP gross margin (%.1f%% non-GAAP, as the "
                      "company presents it)" % (gm, ngm))
         refs.append("exhibit.non_gaap_gross_margin")
-    elif gm:
-        facts.append("at a %.1f%% GAAP gross margin" % gm)
-    ocf = rs.fv(fu.get("operating_cash_flow"))
     if ocf:
         facts.append("and generated $%.0fM of operating cash flow"
                      % (ocf / 1e6))
         refs.append("fundamentals.operating_cash_flow")
     plain = (", ".join(facts) + ".") if facts else None
     return {"vendor_text": vendor, "vendor_source": src,
-            "plain": plain, "refs": refs,
-            "grade": OBSERVED if plain else INFERRED,
-            "note": "The first sentence is the vendor's own description. "
-                    "The figures after it are filed numbers, each traceable "
-                    "in the evidence package."}
+            "plain": plain, "refs": refs, "sentences": sent,
+            "sufficient": len(sent) >= BUSINESS_MIN_SENTENCES,
+            "grade": OBSERVED if sent else INFERRED,
+            "note": "The first sentence is the vendor's own description, "
+                    "quoted. The figures after it are filed numbers, each "
+                    "traceable in the evidence package."}
 
 
 # ── news ────────────────────────────────────────────────────────────────
@@ -1113,3 +1230,242 @@ def news_scope(snap, shown_core=None):
             "admitted": admitted,
             "shown_core": min(core, admitted) if admitted is not None else core,
             "shown_appendix": 0}
+
+
+# ── setup metrics ───────────────────────────────────────────────────────
+#
+# The legacy one-pager put the whole setup on one screen, and that was
+# its real advantage: a reader could see trend, participation, relative
+# strength and valuation without turning a page. What it did not do was
+# say where any number came from, so a vendor field and a computed one
+# looked identical.
+#
+# This restores the panel and keeps the provenance. Every row is OBS or
+# DER, and a field we cannot source says "Unavailable" WITH the reason —
+# never an estimate, never a silent omission. An undated percentage is
+# treated as unavailable, because a holdings or short-interest figure the
+# reader cannot age is not a fact they can use.
+
+def _sentence(text):
+    """Upper-case the first letter and leave the rest alone."""
+    return text[:1].upper() + text[1:] if text else text
+
+
+def _m(label, value, grade, basis=None, reason=None, calc=None):
+    """`calc` names the calculation in the evidence package this cell was
+    formatted from. A DERIVED number with no calculation behind it cannot
+    be checked by a reader or by the validator, so the panel carries the
+    link and METRIC_FORMULA_TRACEABLE fails when it is missing."""
+    return {"label": label, "value": value, "grade": grade,
+            "basis": basis, "unavailable_reason": reason, "calc": calc}
+
+
+def _unavail(label, reason):
+    return _m(label, "Unavailable", None, reason=reason)
+
+
+def setup_metrics(snap):
+    lv = snap.get("levels") or {}
+    co = snap.get("company") or {}
+    pr = snap.get("price") or {}
+    val = snap.get("valuation") or {}
+    px = spot(snap)
+    out = []
+
+    ch = rs.fv(pr.get("change_pct"))
+    out.append(_m("Price", "%.2f" % px if px else "Unavailable",
+                  OBSERVED if px else None,
+                  basis=(lv.get("price_basis") or "last completed close")))
+    out.append(_m("Session change", "%+.2f%%" % ch if ch is not None
+                  else "Unavailable", DERIVED if ch is not None else None,
+                  calc="CALC-session_change"))
+
+    cap = rs.fv(co.get("market_cap"))
+    out.append(_m("Market cap", "$%.1fB" % (cap / 1e9) if cap
+                  else "Unavailable", DERIVED if cap else None,
+                  basis="observed price x latest filed shares",
+                  calc="CALC-market_cap"))
+    fl = rs.fv(co.get("float_shares"))
+    out.append(_m("Float", "%.0fM" % (fl / 1e6) if fl else "Unavailable",
+                  OBSERVED if fl else None,
+                  basis="vendor profile, no as-of date published"
+                  if fl else None) if fl else
+               _unavail("Float", "no float figure from an admitted source"))
+
+    rsv = rs.fv(lv.get("rs_vs_spy"))
+    out.append(_m("RS vs SPY (12w)", "%+.1f%%" % rsv if rsv is not None
+                  else "Unavailable", DERIVED if rsv is not None else None,
+                  basis="identical completed sessions, both legs",
+                  calc="CALC-rs_vs_spy"))
+
+    below = rs.fv(lv.get("pct_below_hi52"))
+    out.append(_m("Below 52w closing high",
+                  "%.1f%%" % below if below is not None else "Unavailable",
+                  DERIVED if below is not None else None, calc="CALC-hi52"))
+
+    bt = rs.fv(lv.get("base_tightness_pct"))
+    out.append(_m("Base tightness",
+                  "%.1f%% / %ds" % (bt, lv.get("base_tightness_window") or 20)
+                  if bt is not None else "Unavailable",
+                  DERIVED if bt is not None else None,
+                  basis=lv.get("base_tightness_formula"),
+                  calc="CALC-base_tightness_pct"))
+
+    rv = rs.fv(lv.get("rel_volume"))
+    out.append(_m("Volume vs 20-session", "%.2fx" % rv, DERIVED,
+                  calc="CALC-rel_volume")
+               if rv is not None else
+               _unavail("Volume vs 20-session",
+                        "the session is open; a partial day cannot be "
+                        "compared with completed-session averages"))
+
+    rsi = rs.fv(lv.get("rsi14"))
+    out.append(_m("RSI(14)", "%.1f" % rsi if rsi is not None else
+                 "Unavailable", DERIVED if rsi is not None else None,
+                 basis="Wilder, completed sessions", calc="CALC-rsi14"))
+
+    for key, name in (("ma20", "20-day"), ("ma50", "50-day"),
+                      ("ma200", "200-day")):
+        v = rs.fv(lv.get(key))
+        if v is None or px is None:
+            out.append(_unavail("vs %s average" % name,
+                                "the average could not be computed from "
+                                "admitted bars"))
+        else:
+            out.append(_m("vs %s average" % name,
+                          "%s (%.2f)" % ("above" if px > v else "below", v),
+                          DERIVED, calc="CALC-%s" % key))
+
+    atr, atrp = rs.fv(lv.get("atr14")), rs.fv(lv.get("atr14_pct"))
+    out.append(_m("ATR(14)",
+                  "%.2f / %.1f%%" % (atr, atrp)
+                  if (atr is not None and atrp is not None)
+                  else ("%.2f" % atr if atr is not None else "Unavailable"),
+                  DERIVED if atr is not None else None, calc="CALC-atr14"))
+
+    pe = rs.fv(val.get("pe_trailing"))
+    out.append(_m("P/E trailing", "%.1fx" % pe if pe is not None
+                  else "Unavailable", DERIVED if pe is not None else None,
+                  basis="observed price / GAAP TTM diluted EPS",
+                  calc="CALC-pe_trailing"))
+    # A forward multiple needs the estimate set behind it and the date it
+    # was struck. The vendor publishes neither, so this stays unavailable
+    # rather than printing a number nobody can source.
+    fpe = val.get("pe_forward")
+    out.append(_m("P/E forward", "%.1fx" % rs.fv(fpe), DERIVED)
+               if fpe and (fpe.get("as_of") or fpe.get("src")) else
+               _unavail("P/E forward",
+                        "no estimate source or as-of date is available for "
+                        "the forward EPS"))
+
+    si = snap.get("short_interest") or {}
+    if si.get("admissible") and si.get("pct_of_float") is not None:
+        out.append(_m("Short interest",
+                      "%.2f%% of float · %.2f days to cover"
+                      % (si["pct_of_float"], si.get("days_to_cover") or 0),
+                      OBSERVED,
+                      basis="settled %s, %s" % (si.get("settlement_date"),
+                                                si.get("source"))))
+    else:
+        out.append(_unavail("Short interest",
+                            "no settlement date accompanies the figure"))
+
+    ov = snap.get("ownership_vendor") or {}
+    out.append(_unavail("Institutional ownership",
+                        ov.get("reason") or "no dated holdings source")
+               if not ov.get("admissible") else
+               _m("Institutional ownership", "%.1f%%"
+                  % (100.0 * ov["institutional_pct"]), OBSERVED,
+                  basis="as of %s" % ov.get("reporting_date")))
+
+    rl = lv.get("rs_line") or {}
+    if rl:
+        out.append(_m("RS line",
+                      "at window high" if rl.get("at_window_high")
+                      else "%.1f%% below window high"
+                           % (rl.get("pct_below_window_high") or 0.0),
+                      DERIVED,
+                      basis="issuer close / benchmark close over %d sessions"
+                            % (rl.get("window_sessions") or 0),
+                      calc="CALC-rs_vs_spy"))
+    else:
+        out.append(_unavail("RS line",
+                            "the benchmark window is not available"))
+    return out
+
+
+# ── setup read ──────────────────────────────────────────────────────────
+
+def setup_read(snap, view=None):
+    """Five bounded statements. Descriptive, dated, and silent about who
+    is trading.
+
+    Volume tells you how much changed hands, never who was on which side,
+    so nothing here converts participation into buyer identity."""
+    view = view or {}
+    lv = snap.get("levels") or {}
+    px = spot(snap)
+    out = []
+
+    state = view.get("technical_state") or technical_state(lv, px)[0]
+    bt = rs.fv(lv.get("base_tightness_pct"))
+    if state:
+        txt = state
+        if bt is not None:
+            txt += (" Range over the last %d completed sessions spans "
+                    "%.1f%% of its floor."
+                    % (lv.get("base_tightness_window") or 20, bt))
+        out.append({"label": "Trend and setup", "text": txt, "grade": DERIVED})
+
+    up = (view.get("levels") or {}).get("upside_confirmation") or []
+    if up:
+        first = up[0]
+        out.append({"label": "What confirms improvement",
+                    "text": "A completed-session close above the %s at %.2f "
+                            "(%+.1f%%), on participation above the 20-session "
+                            "average." % (first["label"], first["value"],
+                                          first.get("distance_pct") or 0.0),
+                    "grade": DERIVED})
+
+    ex = view.get("exit") or {}
+    if ex.get("value") is not None:
+        out.append({"label": "What weakens it",
+                    "text": "A completed-session close below %.2f (%s). That "
+                            "is a structural level, not an order level."
+                            % (ex["value"], ex.get("bound_by")
+                               or "documented low"),
+                    "grade": DERIVED})
+
+    rv = rs.fv(lv.get("rel_volume"))
+    rsv = rs.fv(lv.get("rs_vs_spy"))
+    rl = lv.get("rs_line") or {}
+    bits = []
+    if rv is None:
+        bits.append("relative volume is withheld while the session is open")
+    else:
+        bits.append("turnover is %.2fx the 20-session average" % rv)
+    if rsv is not None:
+        bits.append("the 12-week return is %+.1f%% against SPY over identical "
+                    "sessions" % rsv)
+    if rl.get("pct_below_window_high") is not None:
+        bits.append("the relative-strength line sits %.1f%% below its window "
+                    "high" % rl["pct_below_window_high"])
+    if bits:
+        out.append({"label": "Participation and relative strength",
+                    # str.capitalize() lower-cases everything after the
+                    # first character, which turned "against SPY" into
+                    # "against spy" on every report.
+                    "text": _sentence("; ".join(bits))
+                            + ". Volume is a measure of how much traded, not "
+                              "of who traded it.",
+                    "grade": DERIVED})
+
+    cat = (view.get("catalysts") or {}).get("current_driver") or {}
+    nxt = (view.get("catalysts") or {}).get("next") or []
+    ctxt = cat.get("text") or "No verified company-specific driver."
+    if nxt:
+        ctxt += " Next dated event: %s (%s)." % (nxt[0].get("when"),
+                                                 nxt[0].get("confirmation"))
+    out.append({"label": "Catalyst status", "text": ctxt,
+                "grade": cat.get("grade") or OBSERVED})
+    return out[:5]

@@ -36,7 +36,7 @@ import re
 import report_v3_evidence as EV
 import report_v3_model as M
 
-VALIDATOR_VERSION = "3.3.1"
+VALIDATOR_VERSION = "3.4"
 
 FATAL, ERROR, WARN, INFO = "FATAL", "ERROR", "WARN", "INFO"
 PASS, FAIL, WARN_S, SKIP = "PASS", "FAIL", "WARN", "SKIP"
@@ -93,7 +93,42 @@ CHECK_IDS = [
     # v3.3.1 editorial precision
     "DISPLAY_COUNT_UNSCOPED", "SOCIAL_SAMPLE_DESCRIPTION",
     "CLOSE_EXTREMA_LABELLED",
+    # v3.4 setup layer
+    "METRIC_FORMULA_TRACEABLE", "METRIC_SOURCE_DATED",
+    "MARKET_DATA_FRESHNESS", "CHART_WINDOW_CARDINALITY",
+    "PARTIAL_BAR_EXCLUDED", "INTERPRETIVE_PHRASE",
 ]
+
+# Vocabulary the restored setup layer must not reach for. The first group
+# asserts a cause the tape cannot show; the second dresses a guess as a
+# measured quantity. Both were in the legacy report this layer draws
+# from, and neither comes back without a validated rule behind it.
+INTERPRETIVE_RX = re.compile(
+    r"\b(dead[- ]cat\s+bounce"
+    r"|(?:severe|major|serious|huge)\s+red\s+flag"
+    r"|bull\s+trap|bear\s+trap"
+    r"|(?:model|our)\s+confidence\s*[:=]?\s*\d"
+    r"|confidence\s+score"
+    r"|\d{1,3}\s*%\s+(?:probability|chance|odds)\s+of"
+    r"|probability\s+of\s+(?:upside|downside|a\s+move)"
+    r"|(?:base|bull|bear)[- ]case\s+probability"
+    r"|price\s+target\s+of\s+\$"
+    r"|(?:screaming|table[- ]pounding)\s+(?:buy|sell))", re.I)
+
+# A completed session older than this is not "the tape" any more.
+MAX_MARKET_DATA_AGE_DAYS = 5
+
+# A basis naming one of these is a third-party figure rather than a
+# filing or a bar we hold, so it has to say when it was struck.
+VENDOR_WORDS = ("vendor", "profile", "provider", "estimate", "settled",
+                "as of", "holdings")
+DATE_RX = re.compile(r"(20\d{2}-\d{2}-\d{2}|as of \d)")
+# A vendor that publishes no date can still be shown, provided the basis
+# says so. Silence is what the check refuses, not the absence of a date.
+UNDATED_RX = re.compile(r"no as-of date|undated", re.I)
+
+# The one calculation that is supposed to read the still-forming session.
+PARTIAL_OK = ("CALC-intraday_last",)
 
 
 def _sha(b):
@@ -560,17 +595,27 @@ def check_agreement(pdf_bytes, evidence, view, snap=None):
     # model. A correct list rendered in the wrong order is still wrong.
     stages = view.get("recovery") or []
     if len(stages) >= 2:
+        # Scan only the rows under the "Upside confirmation" heading.
+        # A table cell extracts as its own line, so label and value never
+        # share one; and scanning the whole document finds the setup-
+        # metrics panel first, which lists the same levels in a different
+        # order for a different reason. Neither is a ladder defect.
+        head = next((i for i, l in enumerate(lines)
+                     if l.strip().lower().startswith("moving-average levels")),
+                    None)
+        scope = lines[head:] if head is not None else lines
         pos, order_ok = [], True
-        for s in stages:
-            key = "%.2f" % s["value"]
-            idx = next((i for i, l in enumerate(lines) if key in l), None)
+        for st_ in stages:
+            key = "%.2f" % st_["value"]
+            idx = next((i for i, l in enumerate(scope) if key in l), None)
             pos.append(idx)
         seen = [p for p in pos if p is not None]
         order_ok = seen == sorted(seen) and len(seen) == len(stages)
         out.append(chk("LADDER_RENDER_ORDER", order_ok, ERROR,
-                       "rendered rows appear nearest-first, matching the model",
-                       "model %s -> page positions %s"
-                       % ([round(s["value"], 2) for s in stages], pos)))
+                       "rendered level rows ascend by price, matching "
+                       "the model",
+                       "model %s -> row positions %s"
+                       % ([round(x["value"], 2) for x in stages], pos)))
     else:
         out.append(skipped("LADDER_RENDER_ORDER", ERROR,
                            "fewer than two upside stages to order"))
@@ -896,6 +941,140 @@ UNLABELLED_EXTREMA_RX = re.compile(
     re.I)
 
 
+def check_setup(evidence, view, snap=None, pdf_text=""):
+    """The setup layer restored in v3.4: the metric panel, the chart
+    window, and the freshness of the tape behind both.
+
+    These sit apart from check_numerics because they fail for a different
+    reason. check_numerics asks whether a published number can be rebuilt
+    from the delivered evidence. These ask whether the panel a reader
+    scans in five seconds says where each cell came from, how old it is,
+    and how many sessions the picture covers."""
+    out, ev = [], evidence or {}
+    calcs = ev.get("calculations") or {}
+    recs = ev.get("records") or {}
+    view = view or {}
+    metrics = view.get("setup_metrics") or []
+
+    # Every derived cell names a calculation, and that calculation
+    # reproduced. A DER tag with nothing behind it is decoration.
+    if metrics:
+        bad = []
+        for m in metrics:
+            if m.get("value") == "Unavailable" or m.get("grade") != M.DERIVED:
+                continue
+            cid = m.get("calc")
+            if not cid:
+                bad.append("%s cites no calculation" % m["label"])
+            elif cid not in calcs:
+                bad.append("%s cites %s, absent from the package"
+                           % (m["label"], cid))
+            elif calcs[cid].get("reproducible") is False:
+                bad.append("%s: %s did not reproduce" % (m["label"], cid))
+        n_der = len([m for m in metrics if m.get("grade") == M.DERIVED
+                     and m.get("value") != "Unavailable"])
+        out.append(chk("METRIC_FORMULA_TRACEABLE", not bad, ERROR,
+                       "every derived setup metric cites a calculation that "
+                       "reproduced from the delivered evidence",
+                       "; ".join(bad[:4]) if bad else
+                       "%d derived metric(s) traced" % n_der,
+                       refs=sorted(set(m["calc"] for m in metrics
+                                       if m.get("calc")))))
+
+        # A vendor figure a reader cannot age is not a fact. Anything
+        # sourced outside the filings or our own bars carries an as-of
+        # date, or says Unavailable and why.
+        undated = []
+        for m in metrics:
+            if m.get("value") == "Unavailable":
+                if not m.get("unavailable_reason"):
+                    undated.append("%s is unavailable with no reason given"
+                                   % m["label"])
+                continue
+            b = str(m.get("basis") or "")
+            if any(w in b.lower() for w in VENDOR_WORDS) \
+                    and not DATE_RX.search(b) and not UNDATED_RX.search(b):
+                undated.append("%s: vendor basis %r carries no date"
+                               % (m["label"], b))
+        out.append(chk("METRIC_SOURCE_DATED", not undated, ERROR,
+                       "a vendor-sourced metric carries an as-of date or "
+                       "states that none is published, and an unavailable "
+                       "metric carries a reason",
+                       "; ".join(undated[:4]) if undated else
+                       "%d metric(s) carry a source date or a reason"
+                       % len(metrics)))
+    else:
+        out.append(skipped("METRIC_FORMULA_TRACEABLE", ERROR,
+                           "no setup metric panel in this view"))
+        out.append(skipped("METRIC_SOURCE_DATED", ERROR,
+                           "no setup metric panel in this view"))
+
+    # Freshness of the newest completed session the package carries.
+    sessions = sorted(r["period"]["session"] for r in recs.values()
+                      if r.get("evidence_type") == "market_bar"
+                      and (r.get("period") or {}).get("session"))
+    rt = (snap or {}).get("report_time")
+    age = M._days_between(sessions[-1], rt) if (sessions and rt) else None
+    out.append(chk("MARKET_DATA_FRESHNESS",
+                   age is None or age <= MAX_MARKET_DATA_AGE_DAYS, ERROR,
+                   "the newest completed session is no more than %d days "
+                   "before the report time" % MAX_MARKET_DATA_AGE_DAYS,
+                   ("newest completed session %s is %s days old"
+                    % (sessions[-1], age)) if age is not None
+                   else "no dated market bar to age",
+                   threshold=MAX_MARKET_DATA_AGE_DAYS,
+                   refs=["BAR-%s" % sessions[-1]] if sessions else []))
+
+    # The chart reports how many sessions it drew. The package must hold
+    # at least that many, and the caption must state the same number.
+    cm = view.get("chart") or {}
+    drew = cm.get("sessions")
+    if drew:
+        have, problems = len(sessions), []
+        if have and drew > have:
+            problems.append("chart drew %d sessions from %d delivered bars"
+                            % (drew, have))
+        # Anchored on the caption's own wording. A bare "N completed
+        # sessions" also appears in the base-tightness sentence on page 1,
+        # and matching that reported a 20-session chart.
+        m_ = re.search(r"(\d+)\s+completed sessions: candles",
+                       pdf_text or "")
+        if m_ and int(m_.group(1)) != drew:
+            problems.append("caption states %s, chart drew %d"
+                            % (m_.group(1), drew))
+        out.append(chk("CHART_WINDOW_CARDINALITY", not problems, ERROR,
+                       "the chart window, its caption and the delivered bars "
+                       "agree",
+                       "; ".join(problems) if problems else
+                       "%d sessions drawn, stated and delivered" % drew,
+                       threshold=drew))
+    else:
+        out.append(skipped("CHART_WINDOW_CARDINALITY", ERROR,
+                           "no chart metadata was recorded for this run"))
+
+    # The open session must not be inside an average.
+    intra = set(k for k, r in recs.items()
+                if r.get("evidence_type") == "intraday_observation"
+                or str(k).startswith("INTRADAY-"))
+    leaked = []
+    for cid, c in sorted(calcs.items()):
+        if cid in PARTIAL_OK:
+            continue
+        for o in (c.get("operands") or []):
+            oid = str(o.get("evidence_id") or "")
+            if any(i == oid or i in oid.split("..") for i in intra):
+                leaked.append("%s takes %s" % (cid, oid))
+    out.append(chk("PARTIAL_BAR_EXCLUDED", not leaked, FATAL,
+                   "no average, extreme or window statistic takes the open "
+                   "session as an operand",
+                   "; ".join(leaked[:4]) if leaked else
+                   ("%d intraday record(s), none inside a window calculation"
+                    % len(intra)) if intra else "no open session in this run",
+                   detail="CALC-intraday_last is the only calculation that "
+                          "is supposed to read it."))
+    return out
+
+
 def check_editorial(evidence, view, snap=None, pdf_text="", appendix_text=""):
     """Wording that would mislead a careful reader, even where every
     number behind it is correct."""
@@ -946,6 +1125,21 @@ def check_editorial(evidence, view, snap=None, pdf_text="", appendix_text=""):
                    "all range extrema labelled on a close basis",
                    detail="A 60-session low computed from closes reads as an "
                           "intraday low unless it says otherwise."))
+
+    # The setup layer restored the legacy report's visibility. It does
+    # not restore its vocabulary: a "dead-cat bounce" asserts a cause the
+    # tape cannot show, and a confidence score or scenario probability is
+    # a guess wearing a measurement's clothes. INSTITUTIONAL_INTENT bans
+    # the who; this bans the why and the fake precision.
+    hits = sorted(set(m.group(0).strip()
+                      for m in INTERPRETIVE_RX.finditer(both)))
+    out.append(chk("INTERPRETIVE_PHRASE", not hits, ERROR,
+                   "no categorical read, confidence score or scenario "
+                   "probability appears in either artifact",
+                   "; ".join(hits[:4]) if hits else
+                   "no unsupported interpretive phrasing",
+                   detail="Allowed only behind a validated rule and the "
+                          "evidence that supports it."))
     return out
 
 
@@ -1042,6 +1236,7 @@ def report(view, snap, core_pdf, appendix_pdf=None, evidence=None,
         except Exception:
             _atxt = ""
     checks += check_numerics(evidence, view, snap, _txt)
+    checks += check_setup(evidence, view, snap, _txt)
     checks += check_editorial(evidence, view, snap, _txt, _atxt)
     checks += check_artifacts(artifacts, core_pdf, appendix_pdf or b"",
                               ev_bytes)

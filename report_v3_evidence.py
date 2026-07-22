@@ -99,7 +99,8 @@ BARS_FOR_INDICATORS = 252
 # "last N sessions"; this is that N, checked against the bars actually
 # delivered. A mismatch is a fatal defect, not a rounding difference.
 DECLARED_WINDOW = {
-    "ma20": 20, "ma50": 50, "ma200": 200, "atr14": 15,
+    "ma9": 9, "ma21": 21, "ma20": 20, "ma50": 50, "ma200": 200, "atr14": 15,
+    "rsi14": 250, "base_tightness_pct": 20,
     "support60": 60, "resistance60": 60, "hi52": 252, "lo52": 252,
     "rel_volume": 21, "rs_vs_spy": 61,
 }
@@ -337,7 +338,7 @@ def _recompute(slug, members, bench=None):
         return None, ("window declares %d sessions, package delivers %d"
                       % (n, len(members)))
     closes = _series(members, "c")
-    if slug in ("ma20", "ma50", "ma200"):
+    if slug in ("ma9", "ma21", "ma20", "ma50", "ma200"):
         if closes is None:
             return None, "a close is missing from the delivered window"
         return round(_mean(closes), 2), None
@@ -356,6 +357,27 @@ def _recompute(slug, members, bench=None):
         trs = [max(hs[i] - ls[i], abs(hs[i] - closes[i - 1]),
                    abs(ls[i] - closes[i - 1])) for i in range(1, len(closes))]
         return round(_mean(trs[-14:]), 2), None
+    if slug == "rsi14":
+        if closes is None:
+            return None, "a close is missing from the delivered window"
+        d = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+        gains = [x if x > 0 else 0.0 for x in d]
+        losses = [-x if x < 0 else 0.0 for x in d]
+        if len(d) < 14:
+            return None, "fewer than 14 changes in the delivered window"
+        ag, al = _mean(gains[:14]), _mean(losses[:14])
+        for i in range(14, len(d)):
+            ag = (ag * 13 + gains[i]) / 14.0
+            al = (al * 13 + losses[i]) / 14.0
+        return (100.0 if al == 0 else
+                round(100.0 - 100.0 / (1.0 + ag / al), 1)), None
+    if slug == "base_tightness_pct":
+        if closes is None:
+            return None, "a close is missing from the delivered window"
+        lo = min(closes)
+        if not lo:
+            return None, "the window floor is zero"
+        return round(100.0 * (max(closes) - lo) / lo, 1), None
     if slug == "rel_volume":
         vs = _series(members, "v")
         if vs is None or not sum(vs[:-1]):
@@ -398,6 +420,16 @@ def _recompute_operands(slug, ops):
         return round(100.0 * (nums[-2] / nums[-1] - 1), 1), None
     if slug == "eps_ttm" and len(nums) >= 4:
         return round(sum(nums[-4:]), 2), None
+    if slug == "session_change" and len(ops) == 2:
+        # The second operand is a whole bar, so its close has to be dug
+        # out rather than read off the operand value like a scalar.
+        last, prev = ops[0].get("value"), ops[1].get("value")
+        if isinstance(prev, dict):
+            prev = prev.get("c")
+        if isinstance(last, (int, float)) and isinstance(prev, (int, float)) \
+                and prev:
+            return round(100.0 * (float(last) - float(prev)) / float(prev),
+                         2), None
     return None, None
 
 
