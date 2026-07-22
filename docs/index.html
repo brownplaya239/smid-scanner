@@ -26708,12 +26708,23 @@
         (errNote ? ' · <span class="t25-err">' + errNote + '</span>' : '') +
         '</span>' +
         '<span class="t25-tools">' +
-        (days.length
-          ? '<button class="t25-nav" data-dir="-1" title="Older session"' +
-            (idx >= 0 && idx === days.length - 1 ? ' disabled' : '') +
+        // Render the date control as soon as the archive index exists —
+        // even on day one when the only archived session IS today and
+        // there is nothing else to switch to. Hiding it entirely made
+        // the feature undiscoverable; a visible, self-explaining
+        // control that fills up nightly is the honest presentation.
+        (_t25Index
+          ? '<button class="t25-nav" data-dir="-1" title="' +
+            (days.length ? 'Older session'
+                         : 'No earlier sessions archived yet') + '"' +
+            (!days.length || (idx >= 0 && idx === days.length - 1)
+              ? ' disabled' : '') +
             '>&#9664;</button>' +
-            '<select class="t25-datesel" title="Jump to a session">' +
-            opts + '</select>' +
+            '<select class="t25-datesel" title="' +
+            (days.length
+              ? 'Jump to a past session — its LIFE column shows what happened to those positions since'
+              : 'Past sessions are archived nightly and appear here — each one keeps its LIFE column so you can see which positions stuck') +
+            '">' + opts + '</select>' +
             '<button class="t25-nav" data-dir="1" title="Newer session"' +
             (!archived ? ' disabled' : '') + '>&#9654;</button>' : '') +
         '<span class="t25-seg">' +
