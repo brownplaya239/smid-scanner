@@ -27,6 +27,7 @@ Every fixture below is a defect v3.1 shipped or would have shipped:
   CHART_WINDOW_CARDINALITY     a caption naming a window the chart did not draw
   PARTIAL_BAR_EXCLUDED         the open session inside a moving average
   INTERPRETIVE_PHRASE          "dead-cat bounce" on the page
+  SNAPSHOT_REFS_RESOLVE        a fact citing a CALC- id nobody emitted
 
     python report_v3_mutation.py
 """
@@ -143,7 +144,20 @@ def clean_view():
 
 
 def clean_snap():
-    return {"report_time": "2026-01-21T16:00:00-05:00", "ticker": "TEST"}
+    """A snapshot with one published fact whose ref resolves.
+
+    check_evidence_refs walks facts, so an empty snapshot proves nothing.
+    This mirrors the shape that actually broke: a levels fact citing a
+    CALC- id, and an evidence_index that either does or does not carry
+    it."""
+    return {
+        "report_time": "2026-01-21T16:00:00-05:00", "ticker": "TEST",
+        "evidence_index": ["CALC-ma20", "BAR-2026-01-20"],
+        "levels": {"ma20": {"v": 109.5, "quality": "derived",
+                            "metric": "20-day moving average",
+                            "source_type": "derived",
+                            "evidence_refs": ["CALC-ma20"]}},
+    }
 
 
 CLEAN_PDF = ("20 completed sessions: candles "
@@ -296,6 +310,16 @@ def m_partial_bar_excluded(pkg, txt, view, snap):
     return pkg, txt, view, snap
 
 
+def m_snapshot_refs_resolve(pkg, txt, view, snap):
+    """The atr14_pct defect, exactly: publish a fact citing a calculation
+    that was never emitted. v3 exported a clean package and passed every
+    one of its own checks while the v2 gate refused every ticker."""
+    snap["levels"]["atr14_pct"] = {
+        "v": 9.12, "quality": "derived", "metric": "ATR(14) percent",
+        "source_type": "derived", "evidence_refs": ["CALC-atr14_pct"]}
+    return pkg, txt, view, snap
+
+
 def m_interpretive_phrase(pkg, txt, view, snap):
     return (pkg, txt + " the move looks like a dead-cat bounce",
             view, snap)
@@ -359,6 +383,9 @@ MUTATIONS = [
      m_partial_bar_excluded),
     ("INTERPRETIVE_PHRASE",
      "'dead-cat bounce' rendered on the page", m_interpretive_phrase),
+    ("SNAPSHOT_REFS_RESOLVE",
+     "a published fact citing a CALC- id the export never emitted",
+     m_snapshot_refs_resolve),
 ]
 
 
@@ -368,6 +395,7 @@ def _all(pkg, view, snap, txt):
     the suite, which is the behaviour we want when one is forgotten."""
     return (V.check_numerics(pkg, view, snap, txt)
             + V.check_setup(pkg, view, snap, txt)
+            + V.check_shared_snapshot(snap)
             + V.check_editorial(pkg, view, snap, txt))
 
 

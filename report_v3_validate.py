@@ -35,6 +35,7 @@ import re
 
 import report_v3_evidence as EV
 import report_v3_model as M
+import research_snapshot as rs
 
 VALIDATOR_VERSION = "3.4"
 
@@ -97,6 +98,7 @@ CHECK_IDS = [
     "METRIC_FORMULA_TRACEABLE", "METRIC_SOURCE_DATED",
     "MARKET_DATA_FRESHNESS", "CHART_WINDOW_CARDINALITY",
     "PARTIAL_BAR_EXCLUDED", "INTERPRETIVE_PHRASE",
+    "SNAPSHOT_REFS_RESOLVE",
 ]
 
 # Vocabulary the restored setup layer must not reach for. The first group
@@ -953,6 +955,41 @@ UNLABELLED_EXTREMA_RX = re.compile(
     re.I)
 
 
+def check_shared_snapshot(snap=None):
+    """Run the v2 gate's snapshot checks here too.
+
+    Two renderers read one snapshot. v3 verifies the calculations it
+    exports; v2 verifies the refs the snapshot claims. Neither looked at
+    the other's territory, so a snapshot could be internally wrong in a
+    way that took v2 down while v3 reported every one of its checks
+    green — which is exactly what happened: two setup facts published
+    citing CALC- ids that were never emitted, v3 PASS 78/78, v2 refusing
+    every ticker.
+
+    This calls research_snapshot's own function rather than
+    reimplementing it. A second implementation of "do these refs
+    resolve" is a second thing to drift; the point of this check is that
+    both pipelines agree because they are asking the same code."""
+    out = []
+    if not snap:
+        return [skipped("SNAPSHOT_REFS_RESOLVE", FATAL,
+                        "no snapshot handed to the validator")]
+    try:
+        bad = rs.check_evidence_refs(snap)
+    except Exception as e:                            # pragma: no cover
+        return [chk("SNAPSHOT_REFS_RESOLVE", False, FATAL,
+                    "the shared snapshot check runs",
+                    "check_evidence_refs raised: %s" % e)]
+    out.append(chk("SNAPSHOT_REFS_RESOLVE", not bad, FATAL,
+                   "every published fact cites evidence ids the export "
+                   "actually carries (research_snapshot.check_evidence_refs)",
+                   "; ".join(bad[:3]) if bad else
+                   "all snapshot evidence refs resolve",
+                   detail="Shared with the v2 publication gate: a failure "
+                          "here would refuse the v2 brief too."))
+    return out
+
+
 def check_setup(evidence, view, snap=None, pdf_text=""):
     """The setup layer restored in v3.4: the metric panel, the chart
     window, and the freshness of the tape behind both.
@@ -1249,6 +1286,7 @@ def report(view, snap, core_pdf, appendix_pdf=None, evidence=None,
             _atxt = ""
     checks += check_numerics(evidence, view, snap, _txt)
     checks += check_setup(evidence, view, snap, _txt)
+    checks += check_shared_snapshot(snap)
     checks += check_editorial(evidence, view, snap, _txt, _atxt)
     checks += check_artifacts(artifacts, core_pdf, appendix_pdf or b"",
                               ev_bytes)
