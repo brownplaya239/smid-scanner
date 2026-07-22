@@ -382,6 +382,34 @@ def _setup_metrics(snap, view):
 
 # ── page 1 ──────────────────────────────────────────────────────────────
 
+def _fit_page(story, trims, label):
+    """Keep a page inside its frame by compressing, never by overflowing.
+
+    Page composition was tuned against Calibri on a dev box while CI
+    renders DejaVuSans, which is wider — so MRVL measured 99% of page 2
+    locally and 108% in production, and the brief came out six pages. The
+    lesson is not "re-measure"; it is that a page whose fit depends on a
+    font metric will eventually break on some ticker.
+
+    Each trim is (name, fn). They are applied in order, worst-value
+    first, until the story fits. Whatever a trim removes must still be
+    reachable — these move content to the appendix or shorten a repeated
+    line, they do not delete evidence. The trim that fired is returned so
+    the page can say so.
+    """
+    avail = _avail_height()
+    if _story_height(story) <= avail:
+        return story, None
+    for name, fn in trims:
+        story = fn(story)
+        if _story_height(story) <= avail:
+            return story, name
+    # Still over: hand it back anyway. PAGE_COUNT will fail the package,
+    # which is the correct outcome — a silent squeeze would be worse than
+    # a refused publish.
+    return story, "exhausted"
+
+
 def _page1(snap, view, chart_png=None):
     dec = snap.get("decision") or {}
     st = [_header_band(snap, view), Spacer(1, 6),
@@ -389,12 +417,15 @@ def _page1(snap, view, chart_png=None):
           _setup_metrics(snap, view)]
 
     read = M.setup_read(snap, view)
+    read_ps = []
     if read:
         st.append(para("Setup read", "h2"))
         for r in read:
-            st.append(para("<b>%s.</b> %s" % (_clean(r["label"]),
-                                              _clean(r["text"])),
-                           "body", r.get("grade")))
+            pp = para("<b>%s.</b> %s" % (_clean(r["label"]),
+                                         _clean(r["text"])),
+                      "body", r.get("grade"))
+            read_ps.append(pp)
+            st.append(pp)
 
     st += [para("What changed since the previous report", "h2")]
     ch = view["changed"]
@@ -427,6 +458,22 @@ def _page1(snap, view, chart_png=None):
                                ("LEFTPADDING", (1, 0), (1, 0), 8)]))
         st += [Spacer(1, 5), t]
 
+    def _drop_read(n):
+        """Keep the first n statements. Trend, confirmation and what
+        weakens it are the read; participation and catalyst detail repeat
+        the metric panel above and page 4 below. Matched by identity —
+        para() escapes its own markup, so the text cannot be matched."""
+        def fn(story):
+            drop = set(id(x) for x in read_ps[n:])
+            return [f for f in story if id(f) not in drop]
+        return fn
+
+    st, trimmed = _fit_page(st, [("setup read to 3", _drop_read(3)),
+                                 ("setup read to 2", _drop_read(2)),
+                                 ("setup read to 1", _drop_read(1))], "page1")
+    if trimmed and trimmed != "exhausted":
+        st.append(para("Setup read abbreviated to fit the page; the full "
+                       "metric panel above is unchanged.", "small"))
     return st
 
 
@@ -660,6 +707,7 @@ def _level_blocks(snap, view):
 # ── page 2 ──────────────────────────────────────────────────────────────
 
 def _page2(snap, view):
+    ex_rows, ex_tbl, biz_ps = [], [], []
     co = snap.get("company") or {}
     ov = co.get("overview") or {}
     fu = snap.get("fundamentals") or {}
@@ -672,13 +720,17 @@ def _page2(snap, view):
         # One flowing paragraph, each sentence carrying its own grade. The
         # vendor sentence is quoted rather than rewritten: paraphrasing a
         # source produces a claim nobody filed.
-        st.append(para(" ".join(_clean(safe(x["text"])) + tag(x["grade"])
-                                for x in sents), "body"))
+        _b = para(" ".join(_clean(safe(x["text"])) + tag(x["grade"])
+                            for x in sents), "body")
+        biz_ps.append(_b)
+        st.append(_b)
         srcs = []
         for x in sents:
             if x["source"] not in srcs and x["source"] != "coverage statement":
                 srcs.append(x["source"])
-        st.append(para("Sources: %s." % "; ".join(srcs), "small"))
+        _bs = para("Sources: %s." % "; ".join(srcs), "small")
+        biz_ps.append(_bs)
+        st.append(_bs)
     elif bd.get("plain"):
         st.append(para(bd["plain"], "body", M.OBSERVED))
     else:
@@ -737,12 +789,13 @@ def _page2(snap, view):
             if r and r.get("value") is not None:
                 rtxt = M.g_str(r["value"], scale=sc, prefix=pre, suffix=suf)
             rows.append([label, rtxt, _rng(g, pre, suf, sc) or "—"])
+        ex_rows = rows
         if rows:
-            st.append(_table(rows, [BODY_W * .34, BODY_W * .20,
-                                    BODY_W * .34],
-                             header=["Measure", "Reported", "Guided, next "
-                                                            "quarter"],
-                             zebra=True))
+            ex_tbl.append(_table(rows, [BODY_W * .34, BODY_W * .20,
+                                        BODY_W * .34],
+                                 header=["Measure", "Reported",
+                                         "Guided, next quarter"], zebra=True))
+            st.append(ex_tbl[0])
         if ex.get("url"):
             st.append(linked(ex["url"], "8-K Exhibit 99.1", before="Source: ",
                              after=", accession %s." % ex.get("accession")))
@@ -815,6 +868,26 @@ def _page2(snap, view):
                               ng_eps["value"] - g_eps["value"]),
                            "body", M.OBSERVED))
 
+    def _compact_business(story):
+        """Fall back to the one-sentence filed-figure summary.
+
+        Capping the exhibit table was the obvious lever and the wrong one:
+        it drops guidance lines that GUIDANCE_PDF_MATCH requires on the
+        page, trading a fitting failure for a provenance one. The business
+        block is the compressible part — the same figures, stated in one
+        line instead of four, with the sources note dropped because the
+        Reported results table below names a source per row."""
+        if not biz_ps:
+            return story
+        drop = set(id(x) for x in biz_ps)
+        out = [f for f in story if id(f) not in drop]
+        plain = (view.get("business") or {}).get("plain")
+        if plain:
+            out.insert(1, para(plain, "body", M.OBSERVED))
+        return out
+
+    st, _ = _fit_page(st, [("business block compacted", _compact_business)],
+                      "page2")
     return st
 
 
@@ -915,6 +988,7 @@ def _page3(snap, view, chart_png=None, chart_meta=None):
 # ── page 4 ──────────────────────────────────────────────────────────────
 
 def _page4(snap, view):
+    news_rows, news_tbl = [], []
     cat = view["catalysts"]
     st = [para("Catalysts, news and data coverage", "h2")]
 
@@ -955,9 +1029,11 @@ def _page4(snap, view):
             nr.append([Paragraph(head, ST["cell"]),
                        "%s · %s" % (n.get("publisher") or "unattributed",
                                     et or "undated")])
-        st.append(_table(nr, [BODY_W * .64, BODY_W * .32],
-                         header=["Item and what it is",
-                                 "Publisher and time"], zebra=True))
+        news_rows = nr
+        news_tbl.append(_table(nr, [BODY_W * .64, BODY_W * .32],
+                               header=["Item and what it is",
+                                       "Publisher and time"], zebra=True))
+        st.append(news_tbl[0])
         # Every row carried the same sentence — "third-party commentary,
         # no issuer disclosure sits behind it" — three times over, two
         # lines each. Identical text repeated per row is not per-row
@@ -1036,7 +1112,25 @@ def _page4(snap, view):
                    "accountability. They are summarised here as counts only; "
                    "the sampled records themselves are in the appendix.",
                    "small"))
-    return st + _coverage_sections(snap, view)
+    def _fewer_news(keep):
+        """Show fewer articles. The count line already names how many were
+        admitted versus shown and the appendix lists the rest with their
+        reasons, so the arithmetic stays true."""
+        def fn(story):
+            if not news_tbl or news_tbl[0] not in story:
+                return story
+            k = min(keep, len(news_rows))
+            t = _table(news_rows[:k], [BODY_W * .64, BODY_W * .32],
+                       header=["Item and what it is",
+                               "Publisher and time"], zebra=True)
+            return [t if f is news_tbl[0] else f for f in story]
+        return fn
+
+    st = st + _coverage_sections(snap, view)
+    st, _ = _fit_page(st, [("news shown reduced to 2", _fewer_news(2)),
+                           ("news shown reduced to 1", _fewer_news(1))],
+                      "page4")
+    return st
 
 
 # ── build ───────────────────────────────────────────────────────────────
