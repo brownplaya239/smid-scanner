@@ -26,13 +26,14 @@ the same machinery, already fixed and tested.
 
 import io
 
+from reportlab.lib.units import inch
 from reportlab.platypus import PageBreak, Spacer, Table, TableStyle
 
 import report_v3 as R
 import report_v4_model as M4
 import research_snapshot as rs
 from report_v3 import (para, safe, _clean, tag, _table, _fit_page,
-                       _avail_height, _story_height, BODY_W, ST,
+                       _avail_height, _story_height, _image, BODY_W, ST,
                        INK, MUTED, ACCENT, GREEN, RED, AMBER, LINE, BG_SOFT)
 
 OBSERVED, DERIVED, INFERRED = M4.OBSERVED, M4.DERIVED, M4.INFERRED
@@ -395,6 +396,141 @@ def _page4(snap, view):
     return st
 
 
+# ── page 5: the technical chart ─────────────────────────────────────────
+
+def _page5(snap, view, chart_png=None, chart_meta=None):
+    """The chart a reader trades from, full text width, with the levels it
+    plots tabulated beneath it and our technical read in words. The chart
+    is built by the runner (it needs the raw bar series, which the view
+    does not carry) and passed in; absent, the page says so plainly."""
+    st = [para("Price and technicals", "h2")]
+    lv = snap.get("levels") or {}
+
+    if chart_png:
+        st.append(_image(chart_png, BODY_W, 4.4 * inch))
+        cm = chart_meta or {}
+        bits = []
+        if cm.get("sessions"):
+            bits.append("%d completed sessions" % cm["sessions"])
+        if cm.get("log_scale"):
+            bits.append("log price axis")
+        bits.append("relative strength vs SPY rebased to 100 at the window "
+                    "start" if cm.get("rs_panel") else
+                    "relative-strength panel omitted: benchmark series not "
+                    "retained for this run")
+        if cm.get("earnings_marked"):
+            bits.append("E marks a verified earnings release")
+        if cm.get("partial"):
+            bits.append("final bar PARTIAL and excluded from every average")
+        st.append(para("Candles with SMA 20/50/200, volume against its "
+                       "20-session average, and RSI(14). %s."
+                       % ("; ".join(bits)), "small", DERIVED))
+    else:
+        st.append(para("Price chart unavailable: no bar series was retained "
+                       "for this run.", "small"))
+
+    rows = []
+    px = view.get("price")
+    if px is not None:
+        rows.append(["Last (completed session)", "$%.2f" % px])
+    for key, lab in (("resistance_major", "52-week closing high"),
+                     ("resistance", "60-session closing high"),
+                     ("support", "60-session closing low"),
+                     ("support_major", "52-week closing low")):
+        val = rs.fv(lv.get(key))
+        if val is not None:
+            rows.append([lab, "$%.2f" % val])
+    if len(rows) > 1:
+        st.append(para("Key levels on the chart", "h2"))
+        st.append(_table(rows, [BODY_W * 0.55, BODY_W * 0.37],
+                         header=["Level", "Price"], zebra=True))
+
+    tac = (view.get("ratings") or {}).get("tactical") or {}
+    if tac.get("available") and tac.get("detail"):
+        detail = _clean(tac["detail"]).rstrip(".")
+        st.append(para("Technical read", "h2"))
+        st.append(para("%s. Tactical stance: <b>%s</b> (%d of the 20/50/200 "
+                       "averages reclaimed)."
+                       % (detail, _clean(tac["band"]),
+                          tac.get("above_mas", 0)), "body", DERIVED))
+
+    st, _ = _fit_page(st, [], "v4-p5")
+    return st
+
+
+# ── page 6: catalysts, variant, thesis triggers, monitoring ─────────────
+
+def _page6(snap, view):
+    """What moves the name next, where our view differs, and the specific
+    prices that would confirm or break the thesis — the page a reader keeps
+    open. Every trigger is a dated, evidence-linked level the v3 decision
+    block already computed; nothing here is a fresh opinion."""
+    st = [para("Catalysts, variant view and what to monitor", "h2")]
+
+    cat = view.get("catalysts") or {}
+    lr = cat.get("last_reported") or {}
+    dr = cat.get("current_driver") or {}
+    nxt = cat.get("next") or []
+    st.append(para("Catalysts", "h3"))
+    if lr.get("what"):
+        st.append(para("<b>Last confirmed:</b> %s (%s). %s"
+                       % (_clean(lr.get("what")), _clean(lr.get("when") or ""),
+                          _clean(lr.get("confirmation") or "")), "small",
+                       lr.get("grade")))
+    if dr.get("text"):
+        st.append(para(_clean(dr["text"]), "small", dr.get("grade")))
+    if nxt:
+        n0 = nxt[0]
+        st.append(para("<b>Next:</b> %s%s (%s)"
+                       % (_clean(n0.get("what") or ""),
+                          " on %s" % _clean(n0["when"]) if n0.get("when")
+                          else "", _clean(n0.get("confirmation") or "")),
+                       "small", n0.get("grade")))
+
+    st.append(para("Ranked risks", "h3"))
+    for r in (view.get("risks") or [])[:3]:
+        st.append(para("&bull; %s" % _clean(r.get("text") or ""), "small",
+                       r.get("grade")))
+    if not view.get("risks"):
+        st.append(para("No risk rose above the filing-evidence bar for this "
+                       "name.", "small"))
+
+    var = view.get("variant") or {}
+    st.append(para("Variant perception", "h3"))
+    if var.get("available"):
+        st.append(para(_clean(var["text"]), "body", var.get("grade")))
+    else:
+        st.append(_wh_line("Variant perception", var, "small"))
+
+    mon = view.get("monitoring") or {}
+    st.append(para("Thesis confirm / break", "h3"))
+    if mon.get("upgrade_trigger"):
+        st.append(para("<b>Confirms on:</b> %s" % _clean(mon["upgrade_trigger"]),
+                       "small", DERIVED))
+    if mon.get("downside_confirmation"):
+        st.append(para("<b>Breaks on:</b> %s"
+                       % _clean(mon["downside_confirmation"]), "small",
+                       DERIVED))
+
+    stages = mon.get("recovery_stages") or []
+    if stages:
+        st.append(para("Monitoring checklist", "h3"))
+        srows = [["met" if s.get("met") else "open",
+                  _clean(s.get("stage") or ""),
+                  _clean(s.get("condition") or "")] for s in stages]
+        st.append(_table(srows, [BODY_W * 0.12, BODY_W * 0.26, BODY_W * 0.54],
+                         header=["State", "Stage", "Condition"], zebra=True))
+    if mon.get("monitor_next"):
+        st.append(para("<b>Next to watch:</b> %s" % _clean(mon["monitor_next"]),
+                       "small", DERIVED))
+    if mon.get("review_date"):
+        st.append(para("Scheduled review: %s." % _clean(mon["review_date"]),
+                       "small"))
+
+    st, _ = _fit_page(st, [], "v4-p6")
+    return st
+
+
 # ── the DATA HOLD flash ─────────────────────────────────────────────────
 
 def _flash_page(snap, view):
@@ -412,11 +548,13 @@ def _flash_page(snap, view):
     ]
 
 
-# NOTE: pages 3-6 and the appendix are built in the next slices. build_core
-# below renders the flash (DATA HOLD) or pages 1-2; it grows as the pages
-# land, each verified before the next.
+def build_core(snap, view, out_path=None, chart_png=None, chart_meta=None):
+    """The 6-page core report, or the one-page flash in DATA HOLD.
 
-def build_core(snap, view, out_path=None):
+    chart_png/chart_meta are the page-5 technical chart, built by the
+    runner from the raw bar series (which the view does not carry) and
+    passed in. Absent, page 5 says the chart was unavailable rather than
+    dropping the page."""
     from report_v3 import _Doc, _finalize
     buf = io.BytesIO()
     doc = _Doc(buf, snap, kind="Equity Research v4")
@@ -426,7 +564,9 @@ def build_core(snap, view, out_path=None):
         story = (_page1(snap, view) + [PageBreak()]
                  + _page2(snap, view) + [PageBreak()]
                  + _page3(snap, view) + [PageBreak()]
-                 + _page4(snap, view))
+                 + _page4(snap, view) + [PageBreak()]
+                 + _page5(snap, view, chart_png, chart_meta) + [PageBreak()]
+                 + _page6(snap, view))
     doc.build(story)
     data = _finalize(buf.getvalue(), doc)
     if out_path:

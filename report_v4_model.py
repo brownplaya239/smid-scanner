@@ -260,6 +260,103 @@ def risks(snap, event):
     return out[:3]
 
 
+# ── page 6: catalysts, variant, monitoring ──────────────────────────────
+
+_BULL = {"Buy", "Outperform"}
+_BEAR = {"Underperform", "Sell"}
+_STRONG_TAPE = {"Constructive", "Improving"}
+_WEAK_TAPE = {"Cautious", "Weak"}
+
+
+def variant_perception(ratings, snap):
+    """The one thing this report says that the tape or the Street does not.
+
+    A variant is not a slogan — it is the specific disagreement between the
+    two lenses we actually hold: the Street's consensus rating and our read
+    of the tape. When they diverge, that gap IS the variant. When they
+    agree, the honest variant is that there is none, and the risk is a
+    crowded consensus. With no estimate feed we fall back to the tension
+    between the reported fundamentals and the tape. Always DERIVED — it is
+    our synthesis, never an observed fact."""
+    fr = ratings.get("fundamental") or {}
+    tr = ratings.get("tactical") or {}
+    tape = tr.get("band") if tr.get("available") else None
+    street = fr.get("band") if fr.get("available") else None
+
+    if street and tape:
+        if street in _BULL and tape in _WEAK_TAPE:
+            text = ("The Street rates the name %s, but price sits below its "
+                    "own structure. Our variant is that the fundamental bull "
+                    "case is not yet confirmed by the trend — the tape has "
+                    "not validated the rating, so an entry waits on a "
+                    "reclaim rather than fronts it." % street)
+        elif street in _BEAR and tape in _STRONG_TAPE:
+            text = ("The Street rates the name %s while the tape is %s. Our "
+                    "variant is that price is repairing ahead of the "
+                    "consensus view — the technical turn leads the estimates "
+                    "here." % (street, tape.lower()))
+        elif street in _BULL and tape in _STRONG_TAPE:
+            text = ("Consensus (%s) and our tape read (%s) agree. The honest "
+                    "variant is that there isn't one: the view is crowded, "
+                    "and the risk is owning what everyone already owns into "
+                    "any disappointment." % (street, tape.lower()))
+        else:
+            text = ("Consensus is %s and the tape is %s; the two are not far "
+                    "apart. The variant, such as it is, sits in execution and "
+                    "timing rather than direction." % (street, tape.lower()))
+        return {"available": True, "text": text, "grade": DERIVED}
+
+    # No consensus feed: contrast the reported fundamentals with the tape.
+    fu = snap.get("fundamentals") or {}
+    fcf = _fv(fu.get("free_cash_flow"))
+    nm = _fv(fu.get("net_margin"))
+    if tape and (fcf is not None or nm is not None):
+        cash = ("positive free cash flow" if (fcf or 0) > 0
+                else "negative free cash flow")
+        text = ("No admitted consensus to lean on, so the variant is ours to "
+                "carry: the business shows %s while the tape is %s. The "
+                "report weights the filed cash economics over the momentum, "
+                "and says so." % (cash, tape.lower()))
+        return {"available": True, "text": text, "grade": DERIVED}
+    return _withheld("no consensus and no tape read to form a variant from")
+
+
+def earnings_marker_dates(snap):
+    """The earnings-release dates a chart may honestly mark: only ones the
+    snapshot actually carries as events, never a guessed cadence. The
+    verified latest release is the catalyst event; the 8-K acceptance is
+    the same event's filing. Deduped by day."""
+    out = []
+    cat = snap.get("catalyst") or {}
+    if cat.get("event_kind") in ("primary_release", "earnings") and \
+            cat.get("event_dt"):
+        out.append(str(cat["event_dt"])[:10])
+    ex = snap.get("exhibit") or {}
+    if ex.get("accepted"):
+        out.append(str(ex["accepted"])[:10])
+    seen, uniq = set(), []
+    for d in out:
+        if d and d not in seen:
+            seen.add(d)
+            uniq.append(d)
+    return uniq
+
+
+def monitoring(snap):
+    """The confirm/break triggers and the checklist, taken verbatim from
+    the decision block the v3 model already computed and validated — the
+    same dated, evidence-linked levels, not a second copy that could
+    drift."""
+    dec = snap.get("decision") or {}
+    return {
+        "upgrade_trigger": dec.get("upgrade_trigger"),
+        "downside_confirmation": dec.get("downside_confirmation"),
+        "monitor_next": dec.get("monitor_next"),
+        "recovery_stages": dec.get("recovery_stages") or [],
+        "review_date": dec.get("review_date"),
+    }
+
+
 # ── the whole view ──────────────────────────────────────────────────────
 
 def build(snap, estimates=None, peers=None, report_time=None):
@@ -285,22 +382,27 @@ def build(snap, estimates=None, peers=None, report_time=None):
         else:
             thesis.append({"text": str(f), "grade": OBSERVED})
 
+    ratings = {
+        "fundamental": fundamental_rating(estimates, event),
+        "tactical": tactical_rating(snap),
+        "target": price_target(estimates, event, price),
+    }
+
     return {
         "ticker": snap.get("ticker"),
         "price": price,
         "event": event,
         "flash": event.get("flash"),
-        "ratings": {
-            "fundamental": fundamental_rating(estimates, event),
-            "tactical": tactical_rating(snap),
-            "target": price_target(estimates, event, price),
-        },
+        "ratings": ratings,
         "thesis": thesis,
         "risks": risks(snap, event),
         "business": M3.business_description(snap),
         "financials": financials(snap, estimates),
         "valuation": valuation(snap, estimates, peers, price),
         "catalysts": M3.catalysts(snap),
+        "variant": variant_perception(ratings, snap),
+        "monitoring": monitoring(snap),
+        "chart": {"earnings_dates": earnings_marker_dates(snap)},
         "insiders": M3.insider_view(snap),
         "ownership": M3.ownership_view(snap),
         "options": M3.options_view(snap),

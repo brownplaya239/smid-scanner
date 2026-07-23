@@ -174,5 +174,30 @@ chk("no 52-week range -> band withheld", nb.get("available") is False)
 chk("withheld reason names the range, not EPS",
     "52-week" in nb["reason"] and "EPS" not in nb["reason"])
 
+print("\npage 6: variant, monitoring, earnings markers")
+# free tier: no consensus, so the variant is the fundamentals-vs-tape one
+v = V4.build(snap)
+var = v["variant"]
+chk("variant present without a feed (fundamentals vs tape)",
+    var.get("available") is True and var.get("grade") == V4.DERIVED)
+chk("free-tier variant names the absent consensus",
+    "no admitted consensus" in var["text"].lower())
+mon = v["monitoring"]
+chk("monitoring carries the confirm/break triggers",
+    mon.get("upgrade_trigger") and mon.get("downside_confirmation"))
+chk("monitoring checklist is a list of stages",
+    isinstance(mon.get("recovery_stages"), list))
+chk("earnings markers are a list of ISO dates",
+    isinstance(v["chart"]["earnings_dates"], list)
+    and all(len(d) == 10 for d in v["chart"]["earnings_dates"]))
+
+# with a consensus feed the variant becomes the street-vs-tape divergence
+v = V4.build(snap, estimates=EST_FREE)
+var = v["variant"]
+chk("consensus present -> variant references the Street/consensus",
+    var.get("available") is True
+    and ("street" in var["text"].lower()
+         or "consensus" in var["text"].lower()))
+
 print("\n%d/%d checks passed" % (_pass, _pass + _fail))
 sys.exit(1 if _fail else 0)

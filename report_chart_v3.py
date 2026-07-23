@@ -217,13 +217,23 @@ VOL_AVG_WIN = 20
 LOG_SPAN = 2.5
 
 
-def trading_chart(mk, levels=None, sessions=TRADING_SESSIONS):
+def trading_chart(mk, levels=None, sessions=TRADING_SESSIONS,
+                  sma_set=None, earnings_dates=None, spy_closes=None):
     """Candles, moving averages, volume against its average, and RSI.
 
     Everything is computed on completed sessions. The open session, if
     there is one, is drawn hollow in red and annotated PARTIAL, and is
-    excluded from every average on the page."""
+    excluded from every average on the page.
+
+    Three optional inputs are strictly additive, so the v3 call that
+    passes none of them draws exactly the chart it always has:
+      * sma_set overrides the moving-average windows (v4 wants 20/50/200).
+      * earnings_dates draws a dotted marker at each earnings session in
+        the window — only dates that fall inside the window are drawn.
+      * spy_closes adds a fourth relative-strength panel (stock/SPY rebased
+        to 100 at the window start); absent, the panel is not drawn."""
     levels = levels or {}
+    smaset = sma_set or SMA_SET
     cd = list(mk.get("completed_dates") or [])
     cc = list(mk.get("completed_closes") or [])
     ch = list(mk.get("completed_highs") or [])
@@ -244,16 +254,21 @@ def trading_chart(mk, levels=None, sessions=TRADING_SESSIONS):
     x = list(range(k))
 
     intr = mk.get("intraday") or None
-    rows = 3
+    have_rs = bool(spy_closes) and len(spy_closes) >= len(cc)
+    rows = 4 if have_rs else 3
     # Wide and short. Page 3 carries the level tables and the insider
     # evidence as well, so the chart gets roughly three inches of height;
     # a 9.4x6.4 figure scaled into that comes out two-thirds page width
     # and the candles stop being legible. Drawing it at this aspect keeps
-    # the full text width and spends the height on the price panel.
+    # the full text width and spends the height on the price panel. The v4
+    # relative-strength panel adds a fourth row and a little height.
+    hr = [3.2, 0.8, 1.0, 0.9] if have_rs else [3.0, 0.8, 1.0]
+    figsize = (10.6, 6.2) if have_rs else (11.5, 4.3)
     fig, axes = plt.subplots(
-        rows, 1, figsize=(11.5, 4.3), sharex=True,
-        gridspec_kw={"height_ratios": [3.0, 0.8, 1.0], "hspace": 0.10})
-    ax, av, rx = axes
+        rows, 1, figsize=figsize, sharex=True,
+        gridspec_kw={"height_ratios": hr, "hspace": 0.10})
+    ax, av, rx = axes[0], axes[1], axes[2]
+    rs_ax = axes[3] if have_rs else None
 
     # candles
     up = "#1a7f4b"
@@ -266,7 +281,7 @@ def trading_chart(mk, levels=None, sessions=TRADING_SESSIONS):
                                    max(body_hi - body_lo, 1e-6),
                                    facecolor=col if c[i] >= o[i] else "white",
                                    edgecolor=col, linewidth=0.7, zorder=4))
-    for win, colr in SMA_SET:
+    for win, colr in smaset:
         ma = _sma(cc, win)[-k:]
         if any(v is not None for v in ma):
             ax.plot(x, ma, color=colr, linewidth=1.0, alpha=0.9,
@@ -312,6 +327,31 @@ def trading_chart(mk, levels=None, sessions=TRADING_SESSIONS):
         ax.annotate("structural boundary %.2f" % bnd["value"],
                     xy=(0, bnd["value"]), xytext=(2, 3),
                     textcoords="offset points", fontsize=7.5, color=down)
+    # Earnings markers: a dotted vertical at each earnings session that
+    # falls inside the drawn window, tagged E at the foot of the price
+    # panel. A date not on a completed session snaps to the last session
+    # on or before it; dates outside the window are simply not drawn.
+    if earnings_dates:
+        di = {d[i]: i for i in range(k)}
+        drawn = False
+        for e in earnings_dates:
+            es = str(e)[:10]
+            if not es or es < d[0] or es > d[-1]:
+                continue
+            xi = di.get(es)
+            if xi is None:
+                prior = [i for i in range(k) if d[i] <= es]
+                if not prior:
+                    continue
+                xi = prior[-1]
+            ax.axvline(xi, color=ACCENT, linewidth=0.8, alpha=0.55,
+                       linestyle=(0, (2, 2)), zorder=2)
+            ax.annotate("E", xy=(xi, 0.015), xycoords=("data", "axes fraction"),
+                        fontsize=7, color=ACCENT, ha="center", weight="bold")
+            drawn = True
+        if drawn:
+            ax.plot([], [], color=ACCENT, linewidth=0.8, linestyle=(0, (2, 2)),
+                    alpha=0.7, label="earnings")
     span = (max(hi) / min(lo)) if min(lo) else 1.0
     log_scale = span >= LOG_SPAN
     if log_scale:
@@ -360,9 +400,29 @@ def trading_chart(mk, levels=None, sessions=TRADING_SESSIONS):
     _style(rx)
     rx.set_ylabel("RSI(14)", fontsize=8, color=MUTED)
 
+    # Relative strength vs SPY, rebased to 100 at the window start. Above
+    # 100 is outperformance since then; the method matches the appendix
+    # structural chart so the two never disagree. Drawn only when a
+    # benchmark series was supplied for this window.
+    if rs_ax is not None:
+        spy = list(spy_closes)[-k:]
+        base = (c[0] / spy[0]) if spy and spy[0] else 1.0
+        rsl = [((c[i] / spy[i]) / base * 100.0) if spy[i] else None
+               for i in range(min(k, len(spy)))]
+        rs_ax.plot(range(len(rsl)), rsl, color=ACCENT, linewidth=1.2)
+        rs_ax.axhline(100.0, color=MUTED, linewidth=0.7, linestyle="--",
+                      alpha=0.7)
+        _style(rs_ax)
+        rs_ax.set_ylabel("RS vs SPY", fontsize=8, color=MUTED)
+
+    # x-axis dates belong on the true bottom panel — RS when it exists,
+    # otherwise RSI.
+    bottom = axes[-1]
     step = max(1, k // 9)
-    rx.set_xticks(list(range(0, k, step)))
-    rx.set_xticklabels([d[i] for i in range(0, k, step)], fontsize=7)
+    bottom.set_xticks(list(range(0, k, step)))
+    bottom.set_xticklabels([d[i] for i in range(0, k, step)], fontsize=7)
+    ax.legend(loc="upper left", fontsize=7.5, frameon=False, ncol=5,
+              labelcolor=MUTED)
     note = ""
     if intr:
         note = ("  ·  final bar PARTIAL and excluded from every average "
@@ -374,7 +434,8 @@ def trading_chart(mk, levels=None, sessions=TRADING_SESSIONS):
     # the constants asked for: a name with 60 sessions of history gets 60,
     # and a log axis is only announced when one was actually used.
     return _finish(fig), {"sessions": k, "log_scale": log_scale,
-                          "partial": bool(intr),
+                          "partial": bool(intr), "rs_panel": bool(rs_ax),
+                          "earnings_marked": bool(earnings_dates),
                           "last_completed": d[-1] if d else None}
 
 

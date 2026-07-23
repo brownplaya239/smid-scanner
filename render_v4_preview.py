@@ -23,8 +23,13 @@ import sys
 
 import fitz  # PyMuPDF
 
+import report_chart_v3 as C
 import report_v4 as R4
 import report_v4_model as V4
+import research_snapshot as rs
+
+# v4 wants the classic 20/50/200 set, not v3's 9/21/50/200.
+SMA_V4 = ((20, "#e08a1e"), (50, "#1a7f4b"), (200, "#b3261e"))
 
 # Synthetic provider records, shaped like estimates_provider output.
 EST_WITHKEY = {
@@ -53,8 +58,43 @@ PEERS = {"rows": [{"ticker": "CRM", "pe": 42.3}, {"ticker": "WDAY", "pe": 38.0},
 
 
 def load(ticker, cache):
+    """Returns (snap, prov). The pickle is (snap, alt, recs, prov); prov
+    carries the raw market series the chart needs under _mk."""
     obj = pickle.load(io.open(os.path.join(cache, "%s.pkl" % ticker), "rb"))
-    return obj[0] if isinstance(obj, tuple) else obj
+    if isinstance(obj, tuple):
+        return obj[0], (obj[3] if len(obj) > 3 else {})
+    return obj, {}
+
+
+def build_chart(ticker, snap, prov, view, want_spy=True):
+    """Build the page-5 technical chart the way report_v4_run will: the raw
+    bar series from prov, 20/50/200 averages, verified earnings markers, and
+    the SPY series for the relative-strength panel when it can be fetched."""
+    mk = (prov or {}).get("_mk") or {}
+    mk.setdefault("ticker", ticker)
+    if not mk.get("completed_closes"):
+        return None, None
+    lv = snap.get("levels") or {}
+    px = rs.fv(lv.get("price_used")) or view.get("price")
+    ann = {}
+    for k, lab in (("ma50", "50-day average"), ("ma20", "20-day average")):
+        v = rs.fv(lv.get(k))
+        if v and px and v > px:
+            ann["confirmation"] = {"value": v, "label": lab}
+            break
+    if rs.fv(lv.get("support")):
+        ann["boundary"] = {"value": rs.fv(lv["support"])}
+    spy = None
+    if want_spy:
+        try:
+            import research_live as RL
+            spy = (RL.fetch_market("SPY") or {}).get("closes")
+        except Exception as e:
+            print("  SPY unavailable (%s) — RS panel will be omitted" % e)
+    return C.trading_chart(
+        mk, levels=ann, sma_set=SMA_V4,
+        earnings_dates=(view.get("chart") or {}).get("earnings_dates"),
+        spy_closes=spy)
 
 
 def main():
@@ -64,16 +104,21 @@ def main():
     ap.add_argument("--variant", default="full",
                     choices=("free", "withkey", "full"))
     ap.add_argument("--out", default="out_v4")
+    ap.add_argument("--no-spy", action="store_true",
+                    help="skip the SPY fetch (RS panel omitted)")
     a = ap.parse_args()
 
-    snap = load(a.ticker, a.cache)
+    snap, prov = load(a.ticker, a.cache)
     est = {"free": None, "withkey": EST_WITHKEY, "full": EST_FULL}[a.variant]
     peers = PEERS if a.variant == "full" else None
     view = V4.build(snap, estimates=est, peers=peers)
 
+    chart_png, chart_meta = build_chart(a.ticker, snap, prov, view,
+                                        want_spy=not a.no_spy)
+
     os.makedirs(os.path.join(a.out, "png"), exist_ok=True)
     pdf = os.path.join(a.out, "%s_%s.pdf" % (a.ticker, a.variant))
-    R4.build_core(snap, view, pdf)
+    R4.build_core(snap, view, pdf, chart_png=chart_png, chart_meta=chart_meta)
 
     doc = fitz.open(pdf)
     print("pages=%d  ->  %s" % (doc.page_count, pdf))
