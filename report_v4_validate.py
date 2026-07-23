@@ -184,6 +184,23 @@ def check_view(view, snap=None, estimates=None):
                        WARN, "variant grade is DERIVED",
                        "grade=%s" % var.get("grade"), warn_only=True))
 
+    # 10a. A full report must not ship when the primary release exhibit is
+    #      filed but unparsed — its guidance and operating KPIs are the read.
+    #      The event gate turns this into DATA HOLD; this is the backstop.
+    ex = snap.get("exhibit") or {}
+    released = state in (EV.RELEASED_PRE_CALL, EV.CALL_IN_PROGRESS,
+                         EV.POST_CALL_UNVERIFIED, EV.POST_CALL_VERIFIED)
+    if released and not view.get("flash"):
+        ok = ex.get("disposition") != "AVAILABLE_NOT_INGESTED"
+        out.append(chk("PRIMARY_RELEASE_INGESTED", ok, ERROR,
+                       "a full post-release report ingested the release "
+                       "exhibit (or is a DATA HOLD flash)",
+                       "exhibit disposition: %s"
+                       % (ex.get("disposition") or "none"),
+                       detail="Shipping GAAP figures while the release's "
+                              "guidance and KPIs are unparsed is an "
+                              "incomplete quarter dressed as complete."))
+
     # 10. Metric-period consistency: everything grouped as the latest quarter
     #     must share the revenue quarter's period_end. This is the check that
     #     would have caught Q1 cash flow printed beside Q2 revenue.

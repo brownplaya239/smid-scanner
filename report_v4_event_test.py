@@ -118,10 +118,26 @@ r = E.event_state(
 chk("unverified release -> DATA HOLD (not a clean rating)",
     r["state"] == E.DATA_HOLD)
 
-print("\nverified results but guidance did not parse")
+print("\nverified results but the release exhibit could not be parsed")
+# The release is filed and verified, but its exhibit (guidance + KPIs) is
+# AVAILABLE_NOT_INGESTED — the quarter cannot be read in full, so the gate
+# holds rather than shipping GAAP figures without the metrics that define it.
 r = E.event_state(_cat("primary_release", REL, is_results_disclosure=True),
                   EXHIBIT_UNPARSED, report_time=REL + dt.timedelta(hours=20))
-chk("readable results, unreadable guidance -> POST-CALL (not a hold)",
+chk("readable results, UNINGESTED exhibit -> DATA HOLD",
+    r["state"] == E.DATA_HOLD)
+chk("no rating when the release detail is unreadable",
+    r["rating_allowed"] is False)
+chk("flash names the missing guidance and KPIs",
+    "cRPO" in r["flash"]["body"] or "operating metrics" in r["flash"]["body"])
+
+print("\nverified results with a PARSED exhibit but thin guidance")
+# disposition ADMITTED but the guidance block happens to be empty: the
+# release WAS read, so this is not a hold — only a completeness note.
+r = E.event_state(_cat("primary_release", REL, is_results_disclosure=True),
+                  {"disposition": "ADMITTED", "guidance": {}},
+                  report_time=REL + dt.timedelta(hours=20))
+chk("parsed exhibit, empty guidance -> POST-CALL (not a hold)",
     r["state"] == E.POST_CALL_UNVERIFIED)
 chk("but guidance-incomplete is on the record",
     any("Guidance did not parse" in x for x in r["reasons"]))

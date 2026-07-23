@@ -152,6 +152,14 @@ def summary():
             "bear": {"price": 80.0}, "base": {"price": 100.0}}
     model("VALUATION_NON_CIRCULAR", m_circular)
 
+    def m_uningested(v, s):
+        # a full post-release report whose release exhibit was never parsed
+        v["event"] = dict(v["event"], state=EV.POST_CALL_UNVERIFIED)
+        v["flash"] = None
+        s["exhibit"] = {"disposition": "AVAILABLE_NOT_INGESTED",
+                        "reason": "tables not parsed"}
+    model("PRIMARY_RELEASE_INGESTED", m_uningested)
+
     def m_variant(v, s):
         v["variant"] = {"available": True, "text": "x", "grade": "OBSERVED"}
     model("VARIANT_IS_DERIVED", m_variant)

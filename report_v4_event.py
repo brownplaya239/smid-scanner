@@ -148,6 +148,21 @@ def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
         reasons.append("Results appear released but the primary document "
                        "did not verify as a results disclosure: %s"
                        % (ver.get("reason") or "not verified"))
+    elif (exhibit or {}).get("disposition") == "AVAILABLE_NOT_INGESTED":
+        # The release IS filed and verified, but the exhibit carrying the
+        # guidance and the operating KPIs (subscription revenue, cRPO/RPO,
+        # ACV, customer metrics) could not be parsed. Shipping GAAP
+        # financials while silently missing the numbers that define the
+        # quarter is exactly the incomplete-read-dressed-as-complete the
+        # spec forbids — hold rather than half-report.
+        state = DATA_HOLD
+        reasons.append("The earnings release is filed and verified, but its "
+                       "exhibit (guidance and operating metrics: subscription "
+                       "revenue, cRPO/RPO, ACV, customer counts) could not be "
+                       "parsed (%s). The quarter cannot be read in full, so "
+                       "the report is held rather than shipped without them."
+                       % ((exhibit or {}).get("reason")
+                          or "exhibit not ingested"))
     elif call_status == "live":
         state = CALL_IN_PROGRESS
         reasons.append("A call-status feed reports the earnings call is "
@@ -207,14 +222,26 @@ def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
 def flash(catalyst, exhibit=None, now=None):
     ver = (catalyst or {}).get("verification") or {}
     ev = (catalyst or {}).get("event_dt")
-    why = ver.get("reason") or "the primary release could not be parsed"
+    ex = exhibit or {}
+    if ex.get("disposition") == "AVAILABLE_NOT_INGESTED":
+        why = (ex.get("reason") or "the exhibit could not be parsed")
+        body = ("The results for the period dated %s are filed, but the "
+                "exhibit carrying guidance and the operating metrics "
+                "(subscription revenue, cRPO/RPO, ACV, customer counts) "
+                "could not be parsed: %s. Those figures are central to the "
+                "read, so no rating is issued until they are ingested from "
+                "the filed release. This is a data-availability hold, not a "
+                "view on the company." % (ev or "recently", why))
+    else:
+        why = ver.get("reason") or "the primary release could not be parsed"
+        body = ("A results release dated %s appears to be out, but this "
+                "report could not verify it: %s. No rating is issued until "
+                "the primary release and its guidance are read from a filed "
+                "source. This is a data-availability hold, not a view on the "
+                "company." % (ev or "recently", why))
     return {
         "headline": "Earnings update pending verification",
-        "body": ("A results release dated %s appears to be out, but this "
-                 "report could not verify it: %s. No rating is issued until "
-                 "the primary release and its guidance are read from a filed "
-                 "source. This is a data-availability hold, not a view on "
-                 "the company." % (ev or "recently", why)),
+        "body": body,
         "rating": None,
         "state": DATA_HOLD,
     }

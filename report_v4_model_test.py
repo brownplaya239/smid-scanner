@@ -80,7 +80,11 @@ for t in CACHED:
         isinstance(v["thesis"], list)
         and all(isinstance(b, dict) and b.get("text") for b in v["thesis"]))
 
-t0 = CACHED[0]
+# The consensus/target tests need a ticker the event gate lets rate — not
+# one held in DATA HOLD because its release exhibit could not be parsed.
+t0 = next((t for t in CACHED
+           if V4.build(_load(t)).get("event", {}).get("rating_allowed")),
+          CACHED[0])
 snap = _load(t0)
 
 print("\nfree Finnhub key: consensus present, target still gated")
