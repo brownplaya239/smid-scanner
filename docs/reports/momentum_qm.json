@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-22T18:34:14-04:00",
+ "updated": "2026-07-23T16:34:06-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -4803,6 +4803,37 @@
      "adr_pct": 5.91,
      "dollar_vol": 123573581,
      "ern": "Aug 04"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-23",
+   "generated": "2026-07-23T16:34:06-04:00",
+   "count": 3,
+   "rows": [
+    {
+     "ticker": "DAVE",
+     "price": 408.59,
+     "chg": 28.5,
+     "adr_pct": 6.45,
+     "dollar_vol": 215133349,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "PBF",
+     "price": 61.95,
+     "chg": 52.25,
+     "adr_pct": 5.68,
+     "dollar_vol": 169288303,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "TXG",
+     "price": 48.06,
+     "chg": 50.8,
+     "adr_pct": 6.71,
+     "dollar_vol": 137782119,
+     "ern": "Aug 06"
     }
    ]
   }

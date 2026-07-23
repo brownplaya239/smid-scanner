@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-22T18:34:14-04:00",
+ "updated": "2026-07-23T16:34:06-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -7675,6 +7675,151 @@
      "chg": 10.89,
      "adr_pct": 3.51,
      "dollar_vol": 107835772,
+     "ern": "Aug 05"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-23",
+   "generated": "2026-07-23T16:34:06-04:00",
+   "count": 12,
+   "rows": [
+    {
+     "ticker": "MU",
+     "price": 990.21,
+     "chg": 16.06,
+     "adr_pct": 6.93,
+     "dollar_vol": 49233952109,
+     "ern": "Sep 23"
+    },
+    {
+     "ticker": "WDC",
+     "price": 558.3,
+     "chg": 19.6,
+     "adr_pct": 8.13,
+     "dollar_vol": 4840396005,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "STX",
+     "price": 913.36,
+     "chg": 22.52,
+     "adr_pct": 8.13,
+     "dollar_vol": 4467056225,
+     "ern": "Jul 28"
+    },
+    {
+     "ticker": "SMCI",
+     "price": 31.2,
+     "chg": 26.42,
+     "adr_pct": 6.53,
+     "dollar_vol": 1372274661,
+     "ern": "Aug 11"
+    },
+    {
+     "ticker": "CIFR",
+     "price": 25.82,
+     "chg": 45.71,
+     "adr_pct": 10.95,
+     "dollar_vol": 588720682,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "HUT",
+     "price": 117.67,
+     "chg": 28.03,
+     "adr_pct": 10.13,
+     "dollar_vol": 484811602,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "RIOT",
+     "price": 23.86,
+     "chg": 26.78,
+     "adr_pct": 8.84,
+     "dollar_vol": 411672711,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "MXL",
+     "price": 91.24,
+     "chg": 22.63,
+     "adr_pct": 12.48,
+     "dollar_vol": 387465838,
+     "ern": "Jul 23"
+    },
+    {
+     "ticker": "CLSK",
+     "price": 15.61,
+     "chg": 21.01,
+     "adr_pct": 9.21,
+     "dollar_vol": 326750825,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "ARWR",
+     "price": 86.78,
+     "chg": 21.58,
+     "adr_pct": 5.52,
+     "dollar_vol": 261898490,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "LEU",
+     "price": 170.78,
+     "chg": 16.12,
+     "adr_pct": 6.65,
+     "dollar_vol": 140719257,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "LQDA",
+     "price": 89.03,
+     "chg": 18.28,
+     "adr_pct": 6.52,
+     "dollar_vol": 130130017,
+     "ern": "Aug 12"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "SNDK",
+     "price": 1610.33,
+     "chg": 14.12,
+     "adr_pct": 10.05,
+     "dollar_vol": 23893683121,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "CORZ",
+     "price": 23.96,
+     "chg": 13.99,
+     "adr_pct": 7.32,
+     "dollar_vol": 261717141,
+     "ern": "Aug 07"
+    },
+    {
+     "ticker": "ACHR",
+     "price": 5.11,
+     "chg": 13.81,
+     "adr_pct": 7.35,
+     "dollar_vol": 175066276,
+     "ern": "Aug 10"
+    },
+    {
+     "ticker": "CRDO",
+     "price": 236.5,
+     "chg": 13.72,
+     "adr_pct": 9.59,
+     "dollar_vol": 1994049174,
+     "ern": "Sep 02"
+    },
+    {
+     "ticker": "VIAV",
+     "price": 41.8,
+     "chg": 13.19,
+     "adr_pct": 6.97,
+     "dollar_vol": 272726807,
      "ern": "Aug 05"
     }
    ]
