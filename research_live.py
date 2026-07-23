@@ -195,6 +195,62 @@ def _annual(rows, want_days=(350, 380)):
     return out
 
 
+def _cumulative(rows):
+    """Duration facts spanning roughly one quarter up to a full year —
+    i.e. every interim cumulative period a cash-flow statement files.
+    Cash-flow statements in 10-Qs are year-to-date, not three-month, so
+    the quarterly filter alone finds no Q2/Q3 figure and silently falls
+    back to the prior quarter. These are the rows to difference instead."""
+    out = []
+    for r in rows:
+        s, e = r.get("start"), r.get("end")
+        if not (s and e):
+            continue
+        d = (datetime.fromisoformat(e) - datetime.fromisoformat(s)).days
+        if 80 <= d <= 380:
+            out.append(r)
+    return out
+
+
+def _quarter_at(raw, target_end, acc, report_time):
+    """The single-quarter value ending on target_end, computed correctly
+    from cumulative (year-to-date) filings.
+
+    Cash-flow lines are filed YTD: Q1 is three months, Q2 is six, Q3 is
+    nine, the 10-K is twelve — all sharing the fiscal-year start date. The
+    quarter ending E is therefore the YTD figure ending E minus the YTD
+    figure ending at the previous quarter within the SAME fiscal year
+    (identified by the shared start). Q1 has no predecessor, so the YTD
+    figure is already the quarter. Returns a row dict with the derived
+    value, its true start/end, duration, and provenance — or None when no
+    cumulative fact aligns to the revenue quarter, which the caller treats
+    as 'not separately disclosed for the quarter' rather than borrowing a
+    different period."""
+    cum, _ = _admit(_cumulative(raw), acc, report_time)
+    at_end = [r for r in cum if r["end"] == target_end]
+    if not at_end:
+        return None
+    f = at_end[-1]
+    dur = (datetime.fromisoformat(f["end"])
+           - datetime.fromisoformat(f["start"])).days
+    base = {"accn": f["accn"], "_form": f.get("_form"), "_url": f.get("_url"),
+            "_accepted": f.get("_accepted"), "end": f["end"], "_cur": f}
+    if dur <= 100:                                   # already one quarter (Q1)
+        return dict(base, val=f["val"], start=f["start"], duration_days=dur,
+                    _quarter_direct=True, _prev=None)
+    prior = [r for r in cum if r["start"] == f["start"] and r["end"] < f["end"]]
+    if not prior:                                    # Q1-length YTD == quarter
+        return dict(base, val=f["val"], start=f["start"], duration_days=dur,
+                    _quarter_direct=True, _prev=None)
+    p = max(prior, key=lambda r: r["end"])
+    qdur = (datetime.fromisoformat(f["end"])
+            - datetime.fromisoformat(p["end"])).days
+    return dict(base, val=f["val"] - p["val"], start=p["end"],
+                duration_days=qdur, _derived_quarter=True, _prev=p,
+                _ytd_end=f["end"], _ytd_prev_end=p["end"],
+                _ytd_val=f["val"], _ytd_prev_val=p["val"])
+
+
 def _fill_q4(quarters, annuals):
     """Reconstruct the missing fourth quarter.
 
@@ -1201,6 +1257,11 @@ def build_snapshot(ticker, report_time=None):
             period_end=cur["end"], published_at=cur.get("_accepted"),
             retrieved_at=retrieved_at, basis="gaap", gaap=True,
             evidence_id=eid, evidence_refs=[r_cur], quality=rs.Q_OK)
+        fund["revenue_q"]["period_start"] = cur.get("start")
+        fund["revenue_q"]["duration_days"] = (
+            (datetime.fromisoformat(cur["end"])
+             - datetime.fromisoformat(cur["start"])).days
+            if cur.get("start") else None)
         fund["revenue_growth"] = rs.fact(
             round(g, 1), metric="revenue growth y/y", unit="%",
             source="derived from two SEC XBRL quarters",
@@ -1235,6 +1296,11 @@ def build_snapshot(ticker, report_time=None):
             period_end=cur["end"], published_at=cur.get("_accepted"),
             retrieved_at=retrieved_at, basis="gaap", gaap=True,
             evidence_id=eid, evidence_refs=[r_ni], quality=rs.Q_OK)
+        fund["net_income_q"]["period_start"] = cur.get("start")
+        fund["net_income_q"]["duration_days"] = (
+            (datetime.fromisoformat(cur["end"])
+             - datetime.fromisoformat(cur["start"])).days
+            if cur.get("start") else None)
         company["profitable"] = rs.fact(
             cur["val"] > 0, metric="profitable",
             source="SEC XBRL net income, latest admitted quarter",
@@ -1373,46 +1439,98 @@ def build_snapshot(ticker, report_time=None):
     try:
         _duration_fact("GrossProfit", "gross_profit", "quarterly gross profit",
                        pct_of_rev="gross_margin")
-        ocf_row = _duration_fact(
+        # Cash-flow lines (OCF, capex) are filed YEAR-TO-DATE, not per
+        # quarter, so the quarterly filter alone borrows the PRIOR quarter
+        # — the v4 defect where Q1 cash flow was shown beside Q2 revenue.
+        # Align them to the revenue quarter and difference the YTD facts;
+        # if none aligns, say so rather than showing a mismatched period.
+        qend = rev_cur["end"] if rev_cur else None
+
+        def _cf_quarter(tag, key, metric):
+            if not qend:
+                return None
+            r = _quarter_at(concept(cik, tag), qend, acc, report_time)
+            if not r:
+                prov.setdefault("coverage", {})[key] = (
+                    "not separately disclosed for the quarter ended %s; the "
+                    "cash-flow statement is filed year-to-date only" % qend)
+                return None
+            ref_cur = _xf(r["_cur"], "us-gaap:" + tag)
+            note = None
+            if r.get("_derived_quarter"):
+                ref_prev = _xf(r["_prev"], "us-gaap:" + tag)
+                led.calc("q_" + key,
+                         "%s: year-to-date ending %s minus year-to-date "
+                         "ending %s" % (metric, r["_ytd_end"],
+                                        r["_ytd_prev_end"]),
+                         [ref_cur, ref_prev], round(r["val"], 0), "USD")
+                r["_valueref"] = "CALC-q_" + key
+                refs = ["CALC-q_" + key, ref_cur, ref_prev]
+                note = ("three-month figure derived from year-to-date "
+                        "filings (%s YTD minus %s YTD); cash-flow statements "
+                        "are filed cumulatively"
+                        % (r["_ytd_end"], r["_ytd_prev_end"]))
+            else:
+                r["_valueref"] = ref_cur
+                refs = [ref_cur]
+            eid = "SEC-%s" % r["accn"]
+            if eid not in evids:
+                evids.append(eid)
+            f = rs.fact(
+                r["val"], metric=metric, unit="USD",
+                source="SEC XBRL %s" % (r.get("_form") or ""),
+                source_type="derived" if r.get("_derived_quarter") else
+                "filing", source_url=r.get("_url"), period_end=r["end"],
+                published_at=r.get("_accepted"), retrieved_at=retrieved_at,
+                basis="gaap, quarter ended %s" % r["end"], gaap=True,
+                evidence_id=eid, evidence_refs=refs, note=note,
+                quality=rs.Q_DERIVED if r.get("_derived_quarter")
+                else rs.Q_OK)
+            f["period_start"] = r["start"]
+            f["duration_days"] = r["duration_days"]
+            fund[key] = f
+            return r
+
+        ocf_row = _cf_quarter(
             "NetCashProvidedByUsedInOperatingActivities",
             "operating_cash_flow", "quarterly operating cash flow")
-        # Capex, and from it free cash flow. Both are the same class of
-        # filed XBRL fact as everything above; FCF is OCF minus capex, a
-        # derivation over two admitted facts of the SAME period, so it
-        # gets a calc record citing both — never published citing a
-        # CALC id that was never emitted (the v3.4 regression).
         capex_row = None
         for _cx in ("PaymentsToAcquirePropertyPlantAndEquipment",
                     "PaymentsToAcquireProductiveAssets"):
-            capex_row = _duration_fact(_cx, "capex",
-                                       "quarterly capital expenditure")
+            capex_row = _cf_quarter(_cx, "capex",
+                                    "quarterly capital expenditure")
             if capex_row:
                 _capex_tag = _cx
                 break
+        # FCF is OCF minus capex over the SAME, revenue-aligned quarter.
         if ocf_row and capex_row and ocf_row["end"] == capex_row["end"] \
                 and (ocf_row.get("val") is not None) \
                 and (capex_row.get("val") is not None):
-            # us-gaap:PaymentsToAcquire* is filed as a positive outflow.
             fcf = ocf_row["val"] - capex_row["val"]
-            ref_ocf = _xf(ocf_row,
-                          "us-gaap:NetCashProvidedByUsedInOperatingActivities")
-            ref_cx = _xf(capex_row, "us-gaap:" + _capex_tag)
             led.calc("fcf",
-                     "operating cash flow[%s] - capital expenditure[%s]"
+                     "operating cash flow[q ended %s] - capital "
+                     "expenditure[q ended %s]"
                      % (ocf_row["end"], capex_row["end"]),
-                     [ref_ocf, ref_cx], round(fcf, 0), "USD")
+                     [ocf_row["_valueref"], capex_row["_valueref"]],
+                     round(fcf, 0), "USD")
             eid = "SEC-%s" % ocf_row["accn"]
-            fund["free_cash_flow"] = rs.fact(
+            ff = rs.fact(
                 fcf, metric="free cash flow", unit="USD",
                 source="derived: operating cash flow - capex (SEC XBRL)",
                 source_type="derived",
                 basis="gaap, quarter ended %s" % ocf_row["end"],
                 period_end=ocf_row["end"],
                 published_at=ocf_row.get("_accepted"),
-                retrieved_at=retrieved_at, calc_version="fcf/v1",
+                retrieved_at=retrieved_at, calc_version="fcf/v2-period-aligned",
                 evidence_id=eid,
-                evidence_refs=["CALC-fcf", ref_ocf, ref_cx],
-                quality=rs.Q_DERIVED)
+                evidence_refs=["CALC-fcf", ocf_row["_valueref"],
+                               capex_row["_valueref"]],
+                quality=rs.Q_DERIVED,
+                note="OCF and capex are the same quarter (ended %s)"
+                     % ocf_row["end"])
+            ff["period_start"] = ocf_row["start"]
+            ff["duration_days"] = ocf_row["duration_days"]
+            fund["free_cash_flow"] = ff
         _instant_fact(["CashAndCashEquivalentsAtCarryingValue"],
                       "cash", "cash and equivalents")
         _instant_fact(["LongTermDebtNoncurrent", "LongTermDebt"],
