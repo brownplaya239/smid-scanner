@@ -120,19 +120,17 @@ def main():
     pdf = os.path.join(a.out, "%s_%s.pdf" % (a.ticker, a.variant))
     R4.build_core(snap, view, pdf, chart_png=chart_png, chart_meta=chart_meta)
 
-    doc = fitz.open(pdf)
-    print("pages=%d  ->  %s" % (doc.page_count, pdf))
-    fills = []
-    for i, page in enumerate(doc, 1):
-        pm = page.get_pixmap(dpi=120)
-        png = os.path.join(a.out, "png", "%s_%s_%d.png"
-                           % (a.ticker, a.variant, i))
-        pm.save(png)
-        # rough content-fill: fraction of the page above the last text line
-        txt = page.get_text("blocks")
-        maxy = max((b[3] for b in txt), default=0)
-        fills.append("p%d %d%%" % (i, round(100.0 * maxy / page.rect.height)))
-    print("  fill:", " ".join(fills))
+    apx = os.path.join(a.out, "%s_%s_appendix.pdf" % (a.ticker, a.variant))
+    R4.build_appendix(snap, view, apx, estimates=est, prov=prov)
+
+    for label, path, tag in (("core", pdf, ""), ("appendix", apx, "apx")):
+        doc = fitz.open(path)
+        print("%s pages=%d  ->  %s" % (label, doc.page_count, path))
+        for i, page in enumerate(doc, 1):
+            pm = page.get_pixmap(dpi=120)
+            name = "%s_%s%s_%d.png" % (a.ticker, a.variant,
+                                       "_" + tag if tag else "", i)
+            pm.save(os.path.join(a.out, "png", name))
     return 0
 
 

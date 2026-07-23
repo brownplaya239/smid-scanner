@@ -30,6 +30,7 @@ from reportlab.lib.units import inch
 from reportlab.platypus import PageBreak, Spacer, Table, TableStyle
 
 import report_v3 as R
+import report_v3_model as M3
 import report_v4_model as M4
 import research_snapshot as rs
 from report_v3 import (para, safe, _clean, tag, _table, _fit_page,
@@ -546,6 +547,222 @@ def _flash_page(snap, view):
              "the primary release and its guidance can be read from a "
              "filed source.", "small"),
     ]
+
+
+# ── the appendix: evidence and methodology ──────────────────────────────
+
+def _acc_cell(accession, url):
+    """An accession number, hyperlinked to the filing when we hold the URL
+    — the reader can open the primary source, not just read its id."""
+    if url and accession:
+        return R.Paragraph('<link href="%s" color="#1f3a5f">%s</link>'
+                           % (_clean(url), _clean(accession)), ST["cell"])
+    return accession or "—"
+
+
+def _appendix_story(snap, view, estimates=None, prov=None):
+    """The v4 audit trail: the event-state reconciliation and the estimates
+    ledger it turns on, the valuation formulas, the source inventory, the
+    raw insider and institutional tables with their accession numbers, and
+    the evidence that was sampled or rejected. Everything the six pages
+    cite but do not print, so any figure can be traced to its filing."""
+    est = estimates or {}
+    when = snap.get("market_data_time") or snap.get("report_time") or ""
+    _n = [0]
+
+    def sec(title):
+        _n[0] += 1
+        return para("%d. %s" % (_n[0], title), "h2")
+
+    st = [para("Appendix &mdash; evidence and methodology", "h2"),
+          para("The audit trail for the six-page Equity Research v4 report on "
+               "%s. It is not a summary: it records the event reconciliation, "
+               "where every figure came from, what was withheld and why, and "
+               "the formula behind each derived value. Market data as of %s."
+               % (_clean(view.get("ticker") or ""), _clean(str(when))),
+               "small")]
+
+    # Event-state reconciliation
+    ev = view.get("event") or {}
+    st.append(sec("Event-state reconciliation"))
+    st.append(para("Before any rating the report reconciles the ET clock, the "
+                   "earnings calendar, the issuer's filings and the call "
+                   "status into one event state. This run resolved to <b>%s</b> "
+                   "and a directional rating was %s."
+                   % (_clean(ev.get("state") or "?"),
+                      "permitted" if ev.get("rating_allowed") else "withheld"),
+                   "small", OBSERVED))
+    for r in (ev.get("reasons") or [])[:6]:
+        st.append(para("&bull; " + _clean(str(r)), "small"))
+
+    # 2. Estimates and consensus ledger
+    st.append(sec("Estimates and consensus ledger"))
+    if est.get("configured"):
+        cov = est.get("coverage") or {}
+        st.append(_table([[k, v] for k, v in cov.items()],
+                         [BODY_W * 0.3, BODY_W * 0.62],
+                         header=["Endpoint", "Coverage"], zebra=True,
+                         empty="No coverage recorded."))
+        rec = est.get("recommendation")
+        if rec:
+            st.append(para("Consensus recommendation: <b>%s</b> (weighted "
+                           "score %.2f on the 1&ndash;5 scale, as of %s), "
+                           "from %s /stock/recommendation."
+                           % (_clean(rec.get("band") or ""), rec.get("score"),
+                              _clean(rec.get("as_of") or ""),
+                              _clean(est.get("provider") or "vendor")),
+                           "small", OBSERVED))
+        pt = est.get("price_target")
+        if pt:
+            st.append(para("12-month target: mean $%s (as of %s), from "
+                           "/stock/price-target."
+                           % (pt.get("mean"), _clean(pt.get("as_of") or "")),
+                           "small", OBSERVED))
+    else:
+        st.append(para("No estimate feed was configured for this run (%s), so "
+                       "the fundamental rating and the 12-month target were "
+                       "withheld rather than invented."
+                       % _clean(est.get("reason") or "no key present"),
+                       "small"))
+
+    # 3. Valuation method
+    val = view.get("valuation") or {}
+    band = val.get("historical_band") or {}
+    st.append(sec("Valuation method"))
+    if band.get("available"):
+        st.append(para("52-week P/E band: high = 52-week closing high $%.2f "
+                       "&divide; TTM EPS $%.2f = %.1fx; low = $%.2f &divide; "
+                       "$%.2f = %.1fx. The bear/base/bull scenario prices "
+                       "re-rate to that band on UNCHANGED TTM EPS, so they are "
+                       "the 52-week closing range itself &mdash; a description "
+                       "of the multiple's history, not a price target."
+                       % (band.get("hi52"), band.get("eps_ttm"),
+                          band.get("pe_high"), band.get("lo52"),
+                          band.get("eps_ttm"), band.get("pe_low")),
+                       "small", DERIVED))
+    else:
+        st.append(para("52-week P/E band not built: %s."
+                       % _clean(band.get("reason") or "unavailable"), "small"))
+    if rs.fv((snap.get("fundamentals") or {}).get("free_cash_flow")) \
+            is not None:
+        st.append(para("Free cash flow = operating cash flow &minus; capital "
+                       "expenditure (PP&amp;E purchases), both taken from the "
+                       "latest filed cash-flow statement.", "small", DERIVED))
+
+    # 4. Source inventory
+    cov = (snap.get("evidence") or {}).get("coverage") or {}
+    st.append(sec("Source inventory"))
+    st.append(_table([[str(k), _clean(str(v))] for k, v in cov.items()],
+                     [BODY_W * 0.24, BODY_W * 0.68],
+                     header=["Source", "Note"], zebra=True,
+                     empty="This snapshot carries no source-coverage "
+                           "inventory."))
+
+    # 5. Derived figures and their formulas
+    calc = []
+    for domain in ("levels", "fundamentals", "valuation"):
+        for k, f in (snap.get(domain) or {}).items():
+            if isinstance(f, dict) and f.get("calc_version"):
+                calc.append([k, _clean(f.get("basis") or "—"),
+                             ", ".join(f.get("evidence_refs") or []) or "—"])
+    st.append(sec("Derived figures and their formulas"))
+    st.append(_table(calc, [BODY_W * 0.22, BODY_W * 0.44, BODY_W * 0.26],
+                     header=["Figure", "Basis", "Evidence refs"], zebra=True,
+                     empty="No figure in this report was derived; every value "
+                           "came directly from a source."))
+
+    # 6. Insider transactions
+    ins = view.get("insiders") or {}
+    st.append(sec("Insider transactions (Form 4)"))
+    if ins.get("reading"):
+        st.append(para(_clean(ins["reading"]), "small", ins.get("grade")))
+    irows = [[_clean(c.get("label") or ""), str(c.get("n")),
+              "view-bearing" if c.get("carries_view") else "mechanical"]
+             for c in (ins.get("rows") or []) if c.get("n")]
+    st.append(_table(irows, [BODY_W * 0.5, BODY_W * 0.16, BODY_W * 0.26],
+                     header=["Category", "Count", "Kind"], zebra=True,
+                     empty="No Form 4 filings in the window."))
+
+    # 7. Institutional filings
+    own = view.get("ownership") or {}
+    st.append(sec("Institutional filings (Schedule 13D / 13G)"))
+    if own.get("interpretation"):
+        st.append(para(_clean(own["interpretation"]), "small",
+                       own.get("grade")))
+    st.append(_table([[r.get("form") or "—", r.get("filer") or "not parsed",
+                       r.get("accepted") or "—",
+                       _acc_cell(r.get("accession"), r.get("url"))]
+                      for r in (own.get("rows") or [])],
+                     [BODY_W * 0.14, BODY_W * 0.26, BODY_W * 0.24,
+                      BODY_W * 0.28],
+                     header=["Form", "Filer", "Accepted", "Accession"],
+                     zebra=True,
+                     empty="No 13D/13G filings on record in the window."))
+
+    # 8. Options
+    st.append(sec("Options, open interest and implied volatility"))
+    st.append(para("unavailable &mdash; no options feed is wired into this "
+                   "report; a chain, its open interest and implied volatility "
+                   "are not filed facts and were not sourced.", "small"))
+
+    # 9. Rejected and deferred evidence
+    if prov and prov.get("news_rejected"):
+        st.append(sec("Coverage rejected, with reason"))
+        st.append(_table([[_clean(str(r.get("headline") or ""))[:80],
+                           _clean(str(r.get("reason") or ""))]
+                          for r in prov["news_rejected"][:20]],
+                         [BODY_W * 0.5, BODY_W * 0.42],
+                         header=["Headline", "Why it was excluded"],
+                         zebra=True))
+    if prov and prov.get("deferred"):
+        st.append(sec("Filing facts deferred by the point-in-time gate"))
+        st.append(para("Filed after this report's timestamp, so excluded from "
+                       "every figure above.", "small"))
+        st.append(_table([[_clean(str(d.get("metric"))),
+                           str(d.get("period_end")), str(d.get("form")),
+                           str(d.get("accepted"))]
+                          for d in prov["deferred"][:20]],
+                         [BODY_W * 0.28, BODY_W * 0.2, BODY_W * 0.16,
+                          BODY_W * 0.28],
+                         header=["Metric", "Period end", "Form", "Accepted"],
+                         zebra=True))
+
+    # 11. Sampled social records
+    samples = M3.presentable_samples(
+        (snap.get("sentiment") or {}).get("sample_records") or [])
+    st.append(sec("Sampled message-board records"))
+    st.append(para("Raw, unverified, anonymous. Kept out of the report and "
+                   "reproduced here only so any sentiment count can be "
+                   "checked.", "small"))
+    if samples:
+        st.append(_table([[(s.get("author_hash") or "")[:10],
+                           M3.to_et(s.get("published_at"))[0]
+                           or s.get("published_at") or "—",
+                           s.get("sentiment") or "unclassified",
+                           _clean(safe(str(s.get("excerpt") or "")))[:150]]
+                          for s in samples],
+                         [BODY_W * 0.14, BODY_W * 0.2, BODY_W * 0.12,
+                          BODY_W * 0.46],
+                         header=["Author", "Posted", "Class", "Excerpt"],
+                         zebra=True))
+    else:
+        st.append(para("No records were sampled.", "small"))
+    return st
+
+
+def build_appendix(snap, view, out_path=None, estimates=None, prov=None):
+    """Render the evidence and methodology appendix to PDF. Separate
+    document from the core report, as the spec requires."""
+    from report_v3 import _Doc, _finalize
+    rs.assert_exportable(snap, allow_demo=True)
+    buf = io.BytesIO()
+    doc = _Doc(buf, snap, kind="Equity Research v4 — Appendix", legend=False)
+    doc.build(_appendix_story(snap, view, estimates, prov))
+    data = _finalize(buf.getvalue(), doc)
+    if out_path:
+        with open(out_path, "wb") as fh:
+            fh.write(data)
+    return data
 
 
 def build_core(snap, view, out_path=None, chart_png=None, chart_meta=None):
