@@ -133,5 +133,46 @@ v = V4.build(snap, estimates=EST_FREE,
              peers={"rows": [{"ticker": "CRM", "pe": 42.0}]})
 chk("peer rows -> shown", v["valuation"]["peers"].get("rows") is not None)
 
+print("\nP/E band from the 52-week closing range")
+# Inject a clean 52-week range and EPS. The band pairs the high
+# (resistance_major) with the low (support_major); its edges are the range
+# divided by TTM EPS, and the scenarios re-rate to those edges on the SAME
+# EPS — so the implied prices are the range itself, not a forecast.
+band_snap = _load(t0)
+# price_used is what spot() reads first, so it must be overridden too.
+band_snap["levels"] = dict(band_snap.get("levels") or {},
+                           resistance_major={"v": 200.0},
+                           support_major={"v": 80.0},
+                           price_used={"v": 100.0})
+band_snap["fundamentals"] = dict(band_snap.get("fundamentals") or {},
+                                 eps_ttm={"v": 2.0})
+band_snap["price"] = dict(band_snap.get("price") or {}, last={"v": 100.0})
+vb = V4.build(band_snap)["valuation"]
+bd, sc2 = vb["historical_band"], vb["scenarios"]
+chk("band available", bd.get("available") is True)
+chk("pe_now = price/eps", bd["pe_now"] == 50.0)
+chk("pe_high = hi52/eps", bd["pe_high"] == 100.0)
+chk("pe_low = lo52/eps", bd["pe_low"] == 40.0)
+chk("position is 1/6 of the way up (100 in [80,200])",
+    round(bd["position_pct"]) == 17)
+chk("scenarios re-rate to the range on unchanged EPS",
+    sc2["bull"]["price"] == 200.0 and sc2["bear"]["price"] == 80.0
+    and sc2["base"]["price"] == 100.0)
+chk("scenario basis disowns being a target",
+    "not a" in sc2["basis"] and "target" in sc2["basis"])
+
+# EPS present but no 52-week range -> band withheld, and the reason names
+# the range, not the EPS (the honesty of the fail message matters).
+no_range = _load(t0)
+no_range["levels"] = {k: x for k, x in (no_range.get("levels") or {}).items()
+                      if k not in ("resistance_major", "support_major",
+                                   "hi52", "lo52")}
+no_range["fundamentals"] = dict(no_range.get("fundamentals") or {},
+                                eps_ttm={"v": 2.0})
+nb = V4.build(no_range)["valuation"]["historical_band"]
+chk("no 52-week range -> band withheld", nb.get("available") is False)
+chk("withheld reason names the range, not EPS",
+    "52-week" in nb["reason"] and "EPS" not in nb["reason"])
+
 print("\n%d/%d checks passed" % (_pass, _pass + _fail))
 sys.exit(1 if _fail else 0)

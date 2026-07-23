@@ -118,5 +118,32 @@ chk("all-strong-sell -> Sell", P._rec_consensus(0, 0, 0, 0, 5)[1] == "Sell")
 chk("skew to sell -> Underperform",
     P._rec_consensus(0, 0, 2, 8, 0)[1] == "Underperform")
 
+print("\npeer parsing")
+PEERS = ["NOW", "CRM", "WDAY", "TEAM"]
+METRICS = {
+    "CRM": ({"metric": {"peTTM": 42.3}, "symbol": "CRM"}, None),
+    "WDAY": ({"metric": {"peBasicExclExtraTTM": 38.0}, "symbol": "WDAY"},
+             None),
+    "TEAM": (None, "HTTP 403"),
+}
+pr = P.parse_peers(PEERS, METRICS, "NOW")
+chk("subject dropped from peer rows",
+    all(r["ticker"] != "NOW" for r in pr["rows"]))
+chk("three peer rows", len(pr["rows"]) == 3)
+chk("CRM peTTM parsed", any(r["ticker"] == "CRM" and r["pe"] == 42.3
+                            for r in pr["rows"]))
+chk("WDAY fallback pe key parsed",
+    any(r["ticker"] == "WDAY" and r["pe"] == 38.0 for r in pr["rows"]))
+chk("peer with no metric kept with blank pe",
+    any(r["ticker"] == "TEAM" and r["pe"] is None for r in pr["rows"]))
+
+saved = os.environ.pop(P.ENV_KEY, None)
+try:
+    chk("fetch_peers fails closed with no key",
+        P.fetch_peers("NOW") is None)
+finally:
+    if saved is not None:
+        os.environ[P.ENV_KEY] = saved
+
 print("\n%d/%d checks passed" % (_pass, _pass + _fail))
 sys.exit(1 if _fail else 0)

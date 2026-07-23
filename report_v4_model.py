@@ -155,20 +155,70 @@ def financials(snap, estimates):
 
 def valuation(snap, estimates, peers, price):
     """What the free tier and our own data can honestly value on: the
-    trailing multiple and a peer table when a peer set is available. The
-    12-month target, forward multiples and the price-target bridge are
-    withheld on a target-gated tier; the historical band is computed in a
-    later slice."""
+    trailing multiple, its position in the 52-week P/E band, a peer table
+    when a peer set is available, and re-rating scenarios on unchanged
+    EPS. The 12-month consensus target and the price-target bridge are
+    withheld on a target-gated tier — a scenario range built from a
+    multiple band is NOT a price target and is labelled as such."""
     val = snap.get("valuation") or {}
+    lv = snap.get("levels") or {}
+    fu = snap.get("fundamentals") or {}
     pe_t = _fv(val.get("pe_trailing"))
+    eps = _fv(fu.get("eps_ttm"))
+    # The 52-week closing range. The snapshot surfaces the high as
+    # `resistance_major` and the low as `support_major`; the plain hi52/lo52
+    # keys are a fallback for any snapshot that carries them directly.
+    hi52 = _fv(lv.get("resistance_major")) or _fv(lv.get("hi52"))
+    lo52 = _fv(lv.get("support_major")) or _fv(lv.get("lo52"))
+
+    # Name the actual reason the band is withheld — a missing EPS and a
+    # missing 52-week range are different gaps, and a reader deciding
+    # whether the hole is fixable needs to know which one it is.
+    if not (eps and eps > 0):
+        band_reason = "no positive TTM EPS to build a P/E band"
+    elif not (hi52 and lo52):
+        band_reason = ("no 52-week closing range in the snapshot to build a "
+                       "P/E band")
+    else:
+        band_reason = "P/E band unavailable"
+    band = _withheld(band_reason)
+    scenarios = _withheld("no P/E band to derive scenarios from")
+    if eps and eps > 0 and hi52 and lo52 and price:
+        pe_hi, pe_lo = hi52 / eps, lo52 / eps
+        pe_now = price / eps
+        pos = ((price - lo52) / (hi52 - lo52)
+               if hi52 > lo52 else None)
+        band = {"available": True, "pe_now": round(pe_now, 1),
+                "pe_low": round(pe_lo, 1), "pe_high": round(pe_hi, 1),
+                "eps_ttm": eps, "hi52": hi52, "lo52": lo52,
+                "position_pct": round(100.0 * pos, 0) if pos is not None
+                else None,
+                "basis": "the band is the trailing P/E measured over the "
+                         "52-week closing range, holding the current TTM EPS "
+                         "constant", "grade": DERIVED}
+        # Re-rating scenarios on unchanged EPS. Because the band edges are
+        # price/eps, the implied prices are the 52-week closing range
+        # itself — which is the honest ceiling of what can be said without
+        # a forward estimate, and it is labelled a re-rating range, not a
+        # target.
+        scenarios = {"available": True, "eps_ttm": eps,
+                     "bear": {"pe": round(pe_lo, 1), "price": round(lo52, 2)},
+                     "base": {"pe": round(pe_now, 1),
+                              "price": round(price, 2)},
+                     "bull": {"pe": round(pe_hi, 1), "price": round(hi52, 2)},
+                     "basis": "re-rating to the 52-week P/E band on "
+                              "UNCHANGED TTM EPS; not a forward estimate or "
+                              "a price target", "grade": DERIVED}
+
     return {
         "pe_trailing": pe_t,
+        "historical_band": band,
+        "scenarios": scenarios,
         "peers": peers if (peers and peers.get("rows")) else _withheld(
             "no admitted peer set" if peers is None else
             (peers.get("reason") or "peer multiples unavailable")),
         "target_bridge": _withheld(
             "no admitted price target to bridge to on this estimate tier"),
-        "historical_band": _withheld("computed in the valuation slice"),
         "grade": DERIVED,
     }
 

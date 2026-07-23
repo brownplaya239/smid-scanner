@@ -1015,7 +1015,18 @@ def build_snapshot(ticker, report_time=None):
         "resistance_major": mfact(mk["hi52"], "major resistance", unit="USD",
                                   note="52-week closing high (252 completed sessions)",
                                   refs=["CALC-hi52"]),
+        # The 52-week closing low is computed alongside the high and used in
+        # the bear scenario, but until now it was never surfaced as its own
+        # level. v4's P/E band pairs it with resistance_major to describe the
+        # trailing multiple's 52-week range; it is not rendered by v3 (its
+        # ladder keys are a closed list), so this is additive only.
+        "support_major": mfact(mk["lo52"], "52-week closing low", unit="USD",
+                               note="52-week closing low (252 completed sessions)",
+                               refs=["CALC-lo52"]) if mk.get("lo52")
+        is not None else None,
     }
+    if snap["levels"].get("support_major") is None:
+        snap["levels"].pop("support_major", None)
     if mk.get("rs_vs_spy") is not None:
         # blends two series, so it does not claim the single canonical id
         snap["levels"]["rs_vs_spy"] = rs.fact(

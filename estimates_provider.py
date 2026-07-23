@@ -187,6 +187,54 @@ def not_configured(reason="FINNHUB_API_KEY not set"):
             "surprises": [], "coverage": {}}
 
 
+def parse_peers(peers_json, metric_payloads, subject):
+    """Build the peer-multiple rows from Finnhub /stock/peers and a
+    /stock/metric response per peer. Split from the fetch so it is
+    testable without a key. metric_payloads maps symbol -> (json, error).
+
+    Finnhub's peer list is vendor-grouped by sector/industry — that is
+    what makes it a sourced peer set rather than our judgement. The
+    subject is dropped from its own peer list, and a peer with no trailing
+    P/E is listed with a blank multiple rather than omitted, so the reader
+    sees the whole set."""
+    if not isinstance(peers_json, list):
+        return None
+    rows = []
+    for sym in peers_json:
+        if not sym or sym.upper() == str(subject).upper():
+            continue
+        mj, _ = metric_payloads.get(sym, (None, None))
+        pe = None
+        if isinstance(mj, dict):
+            m = mj.get("metric") or {}
+            pe = (m.get("peTTM") or m.get("peBasicExclExtraTTM")
+                  or m.get("peExclExtraTTM"))
+        rows.append({"ticker": sym,
+                     "pe": round(pe, 1) if isinstance(pe, (int, float))
+                     else None})
+    return {"rows": rows} if rows else None
+
+
+def fetch_peers(ticker, http=None, limit=6):
+    """Finnhub peer set with a trailing P/E per peer. Free-tier endpoints.
+    Fails closed with no key."""
+    if not os.environ.get(ENV_KEY):
+        return None
+    sym = str(ticker).upper().strip()
+    pj, _ = _get("/stock/peers", {"symbol": sym}, http)
+    if not isinstance(pj, list):
+        return None
+    peers = [p for p in pj if p and p.upper() != sym][:limit]
+    metrics = {}
+    for p in peers:
+        metrics[p] = _get("/stock/metric",
+                          {"symbol": p, "metric": "all"}, http)
+    rec = parse_peers([sym] + peers, metrics, sym)
+    if rec:
+        rec["source"] = "finnhub /stock/peers + /stock/metric"
+    return rec
+
+
 def fetch_estimates(ticker, report_time=None, http=None):
     """Fetch the consensus record for one ticker.
 
