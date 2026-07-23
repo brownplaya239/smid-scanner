@@ -46,6 +46,12 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          # v4 consensus/price-target feed (estimates_provider.py). Absent
+          # until this secret is added under Settings -> Secrets and
+          # variables -> Actions; the provider fails closed without it and
+          # the report withholds the rating. Adding it lights the rating
+          # up with no code change.
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
         run: python research_live.py --ticker "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}"
 
       # the brief blocks its own export on any gate failure, so a green
