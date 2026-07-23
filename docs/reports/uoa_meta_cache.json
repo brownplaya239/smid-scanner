@@ -2704,8 +2704,8 @@
 "DAL": {
 "earnings_date": "2026-10-08",
 "earnings_session": "BMO",
-"fetched": "2026-07-12",
-"mkt_cap": 57414735372.6,
+"fetched": "2026-07-23",
+"mkt_cap": 54924675465.6,
 "sector": "Industrials"
 },
 "DAR": {
@@ -6581,9 +6581,9 @@
 },
 "NKE": {
 "earnings_date": "2026-09-29",
-"earnings_session": "AMC",
-"fetched": "2026-07-12",
-"mkt_cap": 65706957654.21,
+"earnings_session": null,
+"fetched": "2026-07-23",
+"mkt_cap": 62618480253.630005,
 "sector": "Other"
 },
 "NKTR": {
@@ -7173,6 +7173,13 @@
 "fetched": "2026-07-22",
 "mkt_cap": 23245076894.760002,
 "sector": "Tech / Hardware"
+},
+"PAA": {
+"earnings_date": "2026-08-07",
+"earnings_session": "BMO",
+"fetched": "2026-07-23",
+"mkt_cap": 17250249649.35,
+"sector": "Industrials"
 },
 "PAAS": {
 "earnings_date": "2026-08-05",
