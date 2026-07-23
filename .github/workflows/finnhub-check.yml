@@ -1,0 +1,69 @@
+name: Finnhub estimates check
+
+# A one-off confirmation that FINNHUB_API_KEY works and which fields the
+# account's tier returns. Dispatch it, read the log. It prints only public
+# market data (a consensus recommendation, a mean price target) and the
+# per-field coverage map — never the key. estimates_provider.py uses only
+# the Python standard library, so there is nothing to pip install.
+#
+# The point is to learn the tier BEFORE the v4 report is wired to the
+# feed: a free key gates the price target (page 1 shows the rating but
+# withholds the 12-month target), a premium key returns both.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "Ticker to probe"
+        required: true
+        default: "NOW"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+      - name: Probe Finnhub
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: |
+          python - <<'EOF'
+          import json, os, sys
+          import estimates_provider as P
+
+          if not os.environ.get(P.ENV_KEY):
+              sys.exit("FINNHUB_API_KEY is not visible to this job — the "
+                       "secret is missing or misnamed.")
+
+          tkr = "${{ inputs.ticker }}".upper().strip()
+          r = P.fetch_estimates(tkr)
+          print("configured:", r["configured"])
+          print("coverage   :", json.dumps(r.get("coverage") or {}, indent=1))
+
+          rec = r.get("recommendation")
+          if rec:
+              print("consensus  : %s  (%d strong-buy / %d buy / %d hold / "
+                    "%d sell / %d strong-sell, as of %s)"
+                    % (rec["band"], rec["strong_buy"], rec["buy"],
+                       rec["hold"], rec["sell"], rec["strong_sell"],
+                       rec["as_of"]))
+          pt = r.get("price_target")
+          if pt:
+              print("price tgt  : mean %s (low %s / high %s), %s analysts, "
+                    "as of %s" % (pt["mean"], pt["low"], pt["high"],
+                                  pt["n_analysts"], pt["as_of"]))
+          else:
+              print("price tgt  : withheld — %s"
+                    % (r.get("coverage", {}).get("price_target")))
+
+          gated = [k for k, v in (r.get("coverage") or {}).items()
+                   if v == "premium-gated"]
+          if gated:
+              print("\nTIER: free — these are premium-gated: %s"
+                    % ", ".join(gated))
+          else:
+              print("\nTIER: premium — all probed fields returned.")
+          EOF
