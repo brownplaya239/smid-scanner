@@ -327,60 +327,47 @@ def _page3(snap, view):
 # ── page 4: valuation ───────────────────────────────────────────────────
 
 def _page4(snap, view):
+    """Valuation on real inputs only. Rendered when at least one honest
+    multiple exists; build_core omits the page entirely otherwise, rather
+    than padding six pages with a near-empty one."""
     val = view["valuation"]
     st = [para("Valuation", "h2")]
 
-    pe = val.get("pe_trailing")
-    band = val["historical_band"]
-    if band.get("available"):
-        pos = ("currently %.0f%% of the way up the band"
-               % band["position_pct"]
-               if band.get("position_pct") is not None else "")
-        basis = _clean(band["basis"])
-        basis = basis[:1].upper() + basis[1:] if basis else basis
-        st.append(para("Trailing P/E of <b>%.1fx</b> against a 52-week band "
-                       "of <b>%.1fx&ndash;%.1fx</b>%s. %s."
-                       % (band["pe_now"], band["pe_low"], band["pe_high"],
-                          " &mdash; %s" % pos if pos else "", basis),
-                       "body", DERIVED))
-    elif pe is not None:
-        st.append(para("Trailing P/E %.1fx. A 52-week P/E band could not be "
-                       "built &mdash; %s." % (pe, _clean(band.get("reason")
-                                              or "band unavailable")),
-                       "body", DERIVED))
-    else:
-        st.append(para("No trailing multiple could be computed for this "
-                       "name.", "small"))
+    # Headline multiples: trailing P/E, EV, EV/run-rate revenue, FCF yield.
+    tp = val.get("trailing_pe") or {}
+    ev = val.get("enterprise_value") or {}
+    evr = val.get("ev_to_revenue") or {}
+    fy = val.get("fcf_yield") or {}
+    rows = []
+    if tp.get("available"):
+        rows.append(["Trailing P/E", "%.1fx" % tp["value"],
+                     "price / TTM EPS"])
+    if ev.get("available"):
+        rows.append(["Enterprise value", _money(ev["value"]),
+                     "market cap + debt &minus; cash"])
+    if evr.get("available"):
+        rows.append(["EV / revenue (run-rate)", "%.1fx" % evr["value"],
+                     "EV / annualised latest quarter"])
+    if fy.get("available"):
+        rows.append(["FCF yield (run-rate)", "%.1f%%" % fy["value"],
+                     "annualised quarterly FCF / market cap"])
+    if rows:
+        st.append(_table([[r[0], r[1], R.Paragraph(r[2], ST["small"])]
+                          for r in rows],
+                         [BODY_W * 0.32, BODY_W * 0.22, BODY_W * 0.38],
+                         header=["Metric", "Value", "Basis"], zebra=True))
+        st.append(para("Run-rate multiples annualise the latest quarter and "
+                       "are labelled as such; they are not trailing-twelve-"
+                       "month figures.", "small", DERIVED))
 
-    # scenarios: re-rating on unchanged EPS, explicitly not a target
-    sc = val["scenarios"]
-    st.append(para("Scenario range (re-rating on unchanged EPS)", "h2"))
-    if sc.get("available"):
-        srows = [
-            ["Bear", "%.1fx" % sc["bear"]["pe"],
-             "$%.2f" % sc["bear"]["price"]],
-            ["Base", "%.1fx" % sc["base"]["pe"],
-             "$%.2f" % sc["base"]["price"]],
-            ["Bull", "%.1fx" % sc["bull"]["pe"],
-             "$%.2f" % sc["bull"]["price"]],
-        ]
-        st.append(_table(srows, [BODY_W * 0.3, BODY_W * 0.3, BODY_W * 0.32],
-                         header=["Scenario", "P/E", "Implied price"],
-                         zebra=True))
-        _sb = _clean(sc["basis"])
-        st.append(para((_sb[:1].upper() + _sb[1:] if _sb else _sb) + ".",
-                       "small"))
-    else:
-        st.append(_wh_line("Scenario range", sc, "small"))
-
-    # peers
+    # Peer multiples.
     st.append(para("Peer multiples", "h2"))
     pr = val["peers"]
     if pr.get("rows"):
         prows = [[r["ticker"],
                   "%.1fx" % r["pe"] if r.get("pe") is not None else "n/a"]
                  for r in pr["rows"]]
-        subj = "%.1fx" % pe if pe is not None else "n/a"
+        subj = "%.1fx" % tp["value"] if tp.get("available") else "n/a"
         prows.insert(0, ["%s (subject)" % (view.get("ticker") or ""), subj])
         st.append(_table(prows, [BODY_W * 0.5, BODY_W * 0.42],
                          header=["Ticker", "Trailing P/E"], zebra=True))
@@ -390,8 +377,12 @@ def _page4(snap, view):
     else:
         st.append(_wh_line("Peer multiples", pr, "small"))
 
-    st.append(_wh_line("12-month price target and price-target bridge",
-                       val["target_bridge"], "small"))
+    # What this tier cannot value on, said plainly — never manufactured.
+    st.append(para("Not valued here", "h2"))
+    st.append(_wh_line("Historical multiple band", val["historical_multiples"],
+                       "small"))
+    st.append(_wh_line("Forward / bull-base-bear scenarios",
+                       val["forward_scenarios"], "small"))
 
     st, _ = _fit_page(st, [], "v4-p4")
     return st
@@ -627,22 +618,24 @@ def _appendix_story(snap, view, estimates=None, prov=None):
 
     # 3. Valuation method
     val = view.get("valuation") or {}
-    band = val.get("historical_band") or {}
+    ev = val.get("enterprise_value") or {}
     st.append(sec("Valuation method"))
-    if band.get("available"):
-        st.append(para("52-week P/E band: high = 52-week closing high $%.2f "
-                       "&divide; TTM EPS $%.2f = %.1fx; low = $%.2f &divide; "
-                       "$%.2f = %.1fx. The bear/base/bull scenario prices "
-                       "re-rate to that band on UNCHANGED TTM EPS, so they are "
-                       "the 52-week closing range itself &mdash; a description "
-                       "of the multiple's history, not a price target."
-                       % (band.get("hi52"), band.get("eps_ttm"),
-                          band.get("pe_high"), band.get("lo52"),
-                          band.get("eps_ttm"), band.get("pe_low")),
+    if ev.get("available"):
+        st.append(para("Enterprise value = market cap $%s + total debt $%s "
+                       "&minus; cash $%s = $%s. EV / revenue uses the latest "
+                       "quarter annualised (run-rate), and FCF yield uses "
+                       "annualised quarterly free cash flow over market cap; "
+                       "both are labelled run-rate, not trailing-twelve-month."
+                       % (_money(ev.get("market_cap")), _money(ev.get("debt")),
+                          _money(ev.get("cash")), _money(ev.get("value"))),
                        "small", DERIVED))
-    else:
-        st.append(para("52-week P/E band not built: %s."
-                       % _clean(band.get("reason") or "unavailable"), "small"))
+    st.append(para("A historical MULTIPLE band and forward bull/base/bear "
+                   "prices are deliberately NOT produced: the first needs a "
+                   "point-in-time historical EPS series and the second needs "
+                   "issuer guidance, neither available on this tier. Dividing "
+                   "the 52-week PRICE range by current EPS &mdash; which the "
+                   "prior version did &mdash; is circular (the implied prices "
+                   "are just the price range) and has been removed.", "small"))
     if rs.fv((snap.get("fundamentals") or {}).get("free_cash_flow")) \
             is not None:
         st.append(para("Free cash flow = operating cash flow &minus; capital "
@@ -780,10 +773,14 @@ def build_core(snap, view, out_path=None, chart_png=None, chart_meta=None):
     else:
         story = (_page1(snap, view) + [PageBreak()]
                  + _page2(snap, view) + [PageBreak()]
-                 + _page3(snap, view) + [PageBreak()]
-                 + _page4(snap, view) + [PageBreak()]
-                 + _page5(snap, view, chart_png, chart_meta) + [PageBreak()]
-                 + _page6(snap, view))
+                 + _page3(snap, view) + [PageBreak()])
+        # Page 4 (valuation) is included only when at least one honest
+        # multiple exists — the spec's 'omit rather than pad' rule. Its
+        # absence makes the core five pages, not a near-empty sixth.
+        if (view.get("valuation") or {}).get("available"):
+            story += _page4(snap, view) + [PageBreak()]
+        story += (_page5(snap, view, chart_png, chart_meta) + [PageBreak()]
+                  + _page6(snap, view))
     doc.build(story)
     data = _finalize(buf.getvalue(), doc)
     if out_path:

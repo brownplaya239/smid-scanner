@@ -154,71 +154,86 @@ def financials(snap, estimates):
 # ── valuation ───────────────────────────────────────────────────────────
 
 def valuation(snap, estimates, peers, price):
-    """What the free tier and our own data can honestly value on: the
-    trailing multiple, its position in the 52-week P/E band, a peer table
-    when a peer set is available, and re-rating scenarios on unchanged
-    EPS. The 12-month consensus target and the price-target bridge are
-    withheld on a target-gated tier — a scenario range built from a
-    multiple band is NOT a price target and is labelled as such."""
-    val = snap.get("valuation") or {}
-    lv = snap.get("levels") or {}
-    fu = snap.get("fundamentals") or {}
-    pe_t = _fv(val.get("pe_trailing"))
-    eps = _fv(fu.get("eps_ttm"))
-    # The 52-week closing range. The snapshot surfaces the high as
-    # `resistance_major` and the low as `support_major`; the plain hi52/lo52
-    # keys are a fallback for any snapshot that carries them directly.
-    hi52 = _fv(lv.get("resistance_major")) or _fv(lv.get("hi52"))
-    lo52 = _fv(lv.get("support_major")) or _fv(lv.get("lo52"))
+    """Value on inputs that are real, never on a tautology.
 
-    # Name the actual reason the band is withheld — a missing EPS and a
-    # missing 52-week range are different gaps, and a reader deciding
-    # whether the hole is fixable needs to know which one it is.
-    if not (eps and eps > 0):
-        band_reason = "no positive TTM EPS to build a P/E band"
-    elif not (hi52 and lo52):
-        band_reason = ("no 52-week closing range in the snapshot to build a "
-                       "P/E band")
+    v4.0 divided the 52-week PRICE range by today's EPS and called it a P/E
+    band — which made the bear/bull 'implied prices' identical to the price
+    low and high by construction. That is circular and is gone. What
+    remains is what the filings and this tier actually support: the
+    trailing P/E, enterprise value and the multiples that derive from it
+    (EV / run-rate revenue, run-rate FCF yield), and a sourced peer table.
+
+    A true historical MULTIPLE band needs point-in-time historical EPS, and
+    forward scenarios need issuer guidance — neither is available on this
+    tier, so both are WITHHELD with their reason rather than manufactured.
+    """
+    val = snap.get("valuation") or {}
+    fu = snap.get("fundamentals") or {}
+    co = snap.get("company") or {}
+    pe_t = _fv(val.get("pe_trailing"))
+    mcap = _fv(co.get("market_cap"))
+    cash = _fv(fu.get("cash"))
+    debt = _fv(fu.get("debt"))
+    rev_q = _fv(fu.get("revenue_q"))
+    fcf_q = _fv(fu.get("free_cash_flow"))
+
+    trailing_pe = ({"available": True, "value": round(pe_t, 1),
+                    "basis": "price / trailing-twelve-month EPS",
+                    "grade": DERIVED} if pe_t else
+                   _withheld("no positive TTM EPS"))
+
+    ev = None
+    if mcap is not None and cash is not None and debt is not None:
+        ev = mcap + debt - cash
+        enterprise = {"available": True, "value": round(ev, 0),
+                      "market_cap": mcap, "debt": debt, "cash": cash,
+                      "basis": "market cap + total debt - cash & equivalents",
+                      "grade": DERIVED}
     else:
-        band_reason = "P/E band unavailable"
-    band = _withheld(band_reason)
-    scenarios = _withheld("no P/E band to derive scenarios from")
-    if eps and eps > 0 and hi52 and lo52 and price:
-        pe_hi, pe_lo = hi52 / eps, lo52 / eps
-        pe_now = price / eps
-        pos = ((price - lo52) / (hi52 - lo52)
-               if hi52 > lo52 else None)
-        band = {"available": True, "pe_now": round(pe_now, 1),
-                "pe_low": round(pe_lo, 1), "pe_high": round(pe_hi, 1),
-                "eps_ttm": eps, "hi52": hi52, "lo52": lo52,
-                "position_pct": round(100.0 * pos, 0) if pos is not None
-                else None,
-                "basis": "the band is the trailing P/E measured over the "
-                         "52-week closing range, holding the current TTM EPS "
-                         "constant", "grade": DERIVED}
-        # Re-rating scenarios on unchanged EPS. Because the band edges are
-        # price/eps, the implied prices are the 52-week closing range
-        # itself — which is the honest ceiling of what can be said without
-        # a forward estimate, and it is labelled a re-rating range, not a
-        # target.
-        scenarios = {"available": True, "eps_ttm": eps,
-                     "bear": {"pe": round(pe_lo, 1), "price": round(lo52, 2)},
-                     "base": {"pe": round(pe_now, 1),
-                              "price": round(price, 2)},
-                     "bull": {"pe": round(pe_hi, 1), "price": round(hi52, 2)},
-                     "basis": "re-rating to the 52-week P/E band on "
-                              "UNCHANGED TTM EPS; not a forward estimate or "
-                              "a price target", "grade": DERIVED}
+        enterprise = _withheld("enterprise value needs market cap, debt and "
+                               "cash; one is missing")
+
+    # Run-rate multiples: the latest quarter annualised. Labelled run-rate,
+    # never presented as a trailing-twelve-month figure, since only the
+    # single quarter is filed for these lines on this tier.
+    if ev is not None and rev_q:
+        ev_rev = {"available": True, "value": round(ev / (rev_q * 4.0), 1),
+                  "basis": "EV / annualised latest-quarter revenue "
+                           "(run-rate, not LTM)", "grade": DERIVED}
+    else:
+        ev_rev = _withheld("no enterprise value or quarterly revenue")
+
+    if mcap and fcf_q is not None:
+        fcf_yield = {"available": True,
+                     "value": round(100.0 * (fcf_q * 4.0) / mcap, 1),
+                     "basis": "annualised latest-quarter free cash flow / "
+                              "market cap (run-rate)", "grade": DERIVED}
+    else:
+        fcf_yield = _withheld("no market cap or quarterly free cash flow")
+
+    peer_block = (peers if (peers and peers.get("rows")) else _withheld(
+        "no admitted peer set" if peers is None else
+        (peers.get("reason") or "peer multiples unavailable")))
+
+    available = any(b.get("available") for b in
+                    (trailing_pe, enterprise, ev_rev, fcf_yield, peer_block))
 
     return {
-        "pe_trailing": pe_t,
-        "historical_band": band,
-        "scenarios": scenarios,
-        "peers": peers if (peers and peers.get("rows")) else _withheld(
-            "no admitted peer set" if peers is None else
-            (peers.get("reason") or "peer multiples unavailable")),
-        "target_bridge": _withheld(
-            "no admitted price target to bridge to on this estimate tier"),
+        "available": available,
+        "pe_trailing": pe_t,                     # kept for masthead/back-compat
+        "trailing_pe": trailing_pe,
+        "enterprise_value": enterprise,
+        "ev_to_revenue": ev_rev,
+        "fcf_yield": fcf_yield,
+        "peers": peer_block,
+        "historical_multiples": _withheld(
+            "a point-in-time historical EPS series is not available on this "
+            "tier, so a real historical multiple band cannot be built; the "
+            "52-week PRICE range divided by current EPS would be circular"),
+        "forward_scenarios": _withheld(
+            "no admitted forward guidance or consensus estimates on this "
+            "tier; bull/base/bear prices are withheld until the issuer "
+            "release is ingested rather than derived from the price range"),
         "grade": DERIVED,
     }
 

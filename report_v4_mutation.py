@@ -141,13 +141,16 @@ def summary():
         v["valuation"]["pe_trailing"] = 100.0
     model("SPLIT_MAGNITUDE", m_split)
 
-    def m_band(v, s):
-        v["valuation"]["historical_band"]["pe_now"] = 999.0
-    model("BAND_RECONCILES", m_band)
-
-    def m_scen(v, s):
-        v["valuation"]["scenarios"]["bull"] = {"pe": 1, "price": 12.34}
-    model("SCENARIOS_ARE_THE_RANGE", m_scen)
+    def m_circular(v, s):
+        # reintroduce the v4.0 tautology: scenario prices ARE the 52-week
+        # price range, which is what SPLIT the range by EPS and back.
+        lv = s.setdefault("levels", {})
+        lv["resistance_major"] = {"v": 200.0}
+        lv["support_major"] = {"v": 80.0}
+        v["valuation"]["forward_scenarios"] = {
+            "available": True, "bull": {"price": 200.0},
+            "bear": {"price": 80.0}, "base": {"price": 100.0}}
+    model("VALUATION_NON_CIRCULAR", m_circular)
 
     def m_variant(v, s):
         v["variant"] = {"available": True, "text": "x", "grade": "OBSERVED"}

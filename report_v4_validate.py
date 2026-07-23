@@ -156,24 +156,26 @@ def check_view(view, snap=None, estimates=None):
                               "split factor means price and EPS were adjusted "
                               "on different bases."))
 
-    # 8. The band and its scenarios reconcile to the same inputs.
-    band = val.get("historical_band") or {}
-    if band.get("available"):
-        pn = band.get("pe_now")
-        implied = (price / eps) if (price and eps and eps > 0) else None
-        out.append(chk("BAND_RECONCILES", _near(pn, implied, 0.03), ERROR,
-                       "band pe_now == price / EPS",
-                       "pe_now=%s price/eps=%s" % (pn, round(implied, 2)
-                       if implied else None)))
-        sc = val.get("scenarios") or {}
-        if sc.get("available"):
-            ok = (_near(sc["bull"]["price"], band.get("hi52"))
-                  and _near(sc["bear"]["price"], band.get("lo52")))
-            out.append(chk("SCENARIOS_ARE_THE_RANGE", ok, ERROR,
-                           "bull/bear prices are the 52-week range",
-                           "bull=%s hi52=%s bear=%s lo52=%s"
-                           % (sc["bull"]["price"], band.get("hi52"),
-                              sc["bear"]["price"], band.get("lo52"))))
+    # 8. Valuation is not circular: no bull/base/bear price equals the
+    #    52-week price range (which would mean it was the range divided by
+    #    EPS and multiplied back — the v4.0 tautology). Scenarios are
+    #    withheld on this tier, so this passes; it fails the moment a
+    #    price-range-derived scenario is reintroduced.
+    lv = snap.get("levels") or {}
+    hi52 = _fv(lv.get("resistance_major")) or _fv(lv.get("hi52"))
+    lo52 = _fv(lv.get("support_major")) or _fv(lv.get("lo52"))
+    sc = val.get("forward_scenarios") or val.get("scenarios") or {}
+    circular = False
+    if sc.get("available") and hi52 and lo52:
+        bull = ((sc.get("bull") or {}).get("price"))
+        bear = ((sc.get("bear") or {}).get("price"))
+        circular = _near(bull, hi52) and _near(bear, lo52)
+    out.append(chk("VALUATION_NON_CIRCULAR", not circular, ERROR,
+                   "no scenario price is the 52-week price range / EPS x EPS",
+                   "circular price-range scenarios present" if circular
+                   else "no circular scenarios",
+                   detail="Dividing the 52-week price range by current EPS "
+                          "makes the implied prices identical to that range."))
 
     # 9. The variant is our synthesis: DERIVED, never dressed as observed.
     var = view.get("variant") or {}
@@ -239,11 +241,12 @@ def check_pdfs(core, appendix, view=None):
         return [chk("CORE_RENDERS", False, ERROR, "core is a valid PDF",
                     "open failed: %s" % e)]
 
-    want = 1 if is_flash else 6
-    out.append(chk("CORE_PAGE_COUNT", n == want, ERROR,
-                   "%d core pages" % want, "%d" % n,
-                   detail="Flash is one page; the full report is exactly six."
-                   if not is_flash else None))
+    ok_n = (n == 1) if is_flash else (5 <= n <= 6)
+    out.append(chk("CORE_PAGE_COUNT", ok_n, ERROR,
+                   "1 flash page" if is_flash else "5 or 6 core pages", "%d" % n,
+                   detail=None if is_flash else
+                   "Six with valuation, five when valuation is omitted rather "
+                   "than padded; never more."))
 
     lit = [e for e in _ENTITIES if e in txt]
     out.append(chk("HTML_ENTITIES", not lit, ERROR,

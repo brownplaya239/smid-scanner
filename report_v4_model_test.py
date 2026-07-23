@@ -133,46 +133,45 @@ v = V4.build(snap, estimates=EST_FREE,
              peers={"rows": [{"ticker": "CRM", "pe": 42.0}]})
 chk("peer rows -> shown", v["valuation"]["peers"].get("rows") is not None)
 
-print("\nP/E band from the 52-week closing range")
-# Inject a clean 52-week range and EPS. The band pairs the high
-# (resistance_major) with the low (support_major); its edges are the range
-# divided by TTM EPS, and the scenarios re-rate to those edges on the SAME
-# EPS — so the implied prices are the range itself, not a forecast.
-band_snap = _load(t0)
-# price_used is what spot() reads first, so it must be overridden too.
-band_snap["levels"] = dict(band_snap.get("levels") or {},
-                           resistance_major={"v": 200.0},
-                           support_major={"v": 80.0},
-                           price_used={"v": 100.0})
-band_snap["fundamentals"] = dict(band_snap.get("fundamentals") or {},
-                                 eps_ttm={"v": 2.0})
-band_snap["price"] = dict(band_snap.get("price") or {}, last={"v": 100.0})
-vb = V4.build(band_snap)["valuation"]
-bd, sc2 = vb["historical_band"], vb["scenarios"]
-chk("band available", bd.get("available") is True)
-chk("pe_now = price/eps", bd["pe_now"] == 50.0)
-chk("pe_high = hi52/eps", bd["pe_high"] == 100.0)
-chk("pe_low = lo52/eps", bd["pe_low"] == 40.0)
-chk("position is 1/6 of the way up (100 in [80,200])",
-    round(bd["position_pct"]) == 17)
-chk("scenarios re-rate to the range on unchanged EPS",
-    sc2["bull"]["price"] == 200.0 and sc2["bear"]["price"] == 80.0
-    and sc2["base"]["price"] == 100.0)
-chk("scenario basis disowns being a target",
-    "not a" in sc2["basis"] and "target" in sc2["basis"])
+print("\nvaluation is real, not circular")
+# Inject clean EV inputs + a positive quarter, and confirm the multiples
+# derive from them — and that no bull/base/bear price is manufactured from
+# the 52-week price range (the v4.0 tautology).
+vsnap = _load(t0)
+vsnap["company"] = dict(vsnap.get("company") or {},
+                        market_cap=100e9, shares_outstanding=1e9)
+vsnap["fundamentals"] = dict(vsnap.get("fundamentals") or {},
+                             cash={"v": 5e9}, debt={"v": 15e9},
+                             revenue_q={"v": 5e9, "period_end": "2026-06-30"},
+                             free_cash_flow={"v": 1e9,
+                                             "period_end": "2026-06-30"})
+vv = V4.build(vsnap)["valuation"]
+chk("valuation available on real inputs", vv.get("available") is True)
+chk("EV = mcap + debt - cash", vv["enterprise_value"]["value"] == 110e9)
+chk("EV/revenue is run-rate (EV / 4x quarter)",
+    vv["ev_to_revenue"]["value"] == round(110e9 / (5e9 * 4), 1))
+chk("FCF yield is run-rate (4x quarterly FCF / mcap)",
+    vv["fcf_yield"]["value"] == round(100.0 * (1e9 * 4) / 100e9, 1))
+chk("no historical multiple band is produced",
+    vv["historical_multiples"]["available"] is False)
+chk("no forward bull/base/bear prices",
+    vv["forward_scenarios"]["available"] is False)
+chk("withheld reasons name the circularity we removed",
+    "circular" in vv["historical_multiples"]["reason"].lower())
 
-# EPS present but no 52-week range -> band withheld, and the reason names
-# the range, not the EPS (the honesty of the fail message matters).
-no_range = _load(t0)
-no_range["levels"] = {k: x for k, x in (no_range.get("levels") or {}).items()
-                      if k not in ("resistance_major", "support_major",
-                                   "hi52", "lo52")}
-no_range["fundamentals"] = dict(no_range.get("fundamentals") or {},
-                                eps_ttm={"v": 2.0})
-nb = V4.build(no_range)["valuation"]["historical_band"]
-chk("no 52-week range -> band withheld", nb.get("available") is False)
-chk("withheld reason names the range, not EPS",
-    "52-week" in nb["reason"] and "EPS" not in nb["reason"])
+# No EV inputs -> valuation withholds the multiples but does not invent
+# a price-range band.
+no_ev = _load(t0)
+no_ev["company"] = {k: x for k, x in (no_ev.get("company") or {}).items()
+                    if k != "market_cap"}
+no_ev["fundamentals"] = {k: x for k, x
+                         in (no_ev.get("fundamentals") or {}).items()
+                         if k not in ("cash", "debt")}
+nv = V4.build(no_ev)["valuation"]
+chk("no EV inputs -> enterprise value withheld",
+    nv["enterprise_value"]["available"] is False)
+chk("still never a price-range band",
+    "historical_band" not in nv and "scenarios" not in nv)
 
 print("\npage 6: variant, monitoring, earnings markers")
 # free tier: no consensus, so the variant is the fundamentals-vs-tape one
