@@ -223,6 +223,18 @@ def build(snap, estimates=None, peers=None, report_time=None):
     event = EV.event_state(cat, exhibit, report_time=report_time)
     price = M3.spot(snap)
 
+    # thesis_facts returns {"facts": [...], "dropped_social": N} where a
+    # fact is a bare string or a {text, grade} dict. Normalise to a list
+    # of {text, grade} so every consumer reads one shape.
+    _tf = M3.thesis_facts(snap, limit=3)
+    thesis = []
+    for f in (_tf.get("facts") or []):
+        if isinstance(f, dict):
+            thesis.append({"text": f.get("text") or "",
+                           "grade": f.get("grade") or OBSERVED})
+        else:
+            thesis.append({"text": str(f), "grade": OBSERVED})
+
     return {
         "ticker": snap.get("ticker"),
         "price": price,
@@ -233,7 +245,7 @@ def build(snap, estimates=None, peers=None, report_time=None):
             "tactical": tactical_rating(snap),
             "target": price_target(estimates, event, price),
         },
-        "thesis": M3.thesis_facts(snap, limit=3),
+        "thesis": thesis,
         "risks": risks(snap, event),
         "business": M3.business_description(snap),
         "financials": financials(snap, estimates),

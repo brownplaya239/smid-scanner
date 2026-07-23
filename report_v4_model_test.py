@@ -76,6 +76,9 @@ for t in CACHED:
         len(v["risks"]) <= 3 and all(r.get("text") for r in v["risks"]))
     chk("%s SaaS KPIs marked unavailable" % t,
         v["financials"]["saas_kpis"]["available"] is False)
+    chk("%s thesis is a list of {text} (not the raw dict)" % t,
+        isinstance(v["thesis"], list)
+        and all(isinstance(b, dict) and b.get("text") for b in v["thesis"]))
 
 t0 = CACHED[0]
 snap = _load(t0)
