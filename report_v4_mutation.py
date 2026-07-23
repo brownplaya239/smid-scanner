@@ -193,6 +193,38 @@ def summary():
                    and c["status"] == FAIL for c in ea)
      else unproven).append("HTML_ENTITIES_APPENDIX")
 
+    # ── v4.1 checks: rendered document + metric period ──────────────────
+    def model_period(cid, mutate):
+        s = copy.deepcopy(snap)
+        mutate(s)
+        (proven if any(c["check_id"] == cid and c["status"] == FAIL
+                       for c in VV.check_view(view, s, est))
+         else unproven).append(cid)
+
+    def m_period(s):
+        # cash flow from a different quarter than revenue — the v4.0 defect
+        s["fundamentals"] = dict(s.get("fundamentals") or {},
+                                 operating_cash_flow={"v": 1e9,
+                                                      "period_end": "2020-01-01"})
+    model_period("METRIC_PERIOD_CONSISTENCY", m_period)
+
+    def rendered(cid, ctext, snap_over):
+        s = dict(snap)
+        s.update(snap_over or {})
+        (proven if any(c["check_id"] == cid and c["status"] == FAIL
+                       for c in VV.check_rendered(ctext, "", view, s))
+         else unproven).append(cid)
+
+    body = "x" * 1200                                # enough to pass length
+    rendered("NO_PAST_NEXT_EVENT_RENDERED",
+             body + " Next earnings are on 2020-05-01 (vendor estimate).",
+             {"report_time": "2026-07-23T12:00:00+00:00"})
+    rendered("INTERNAL_CONFIG_NOT_EXPOSED",
+             body + " estimate feed FINNHUB_API_KEY not set for this run",
+             {"report_time": "2026-07-23T12:00:00+00:00"})
+    rendered("PDF_TEXT_ROUNDTRIP", "tiny stub",   # < 800 chars
+             {"report_time": "2026-07-23T12:00:00+00:00"})
+
     return {"all_checks_proven": not unproven,
             "proven": sorted(proven), "unproven": sorted(unproven),
             "n_proven": len(proven)}

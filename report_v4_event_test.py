@@ -56,21 +56,32 @@ r = E.event_state(_cat("periodic_filing", REL, is_results_disclosure=True),
                   None, report_time=REL + dt.timedelta(hours=3))
 chk("10-Q alone stays PRE-EVENT", r["state"] == E.PRE_EVENT)
 
-print("\nresults released, verified, call not concluded")
+print("\nresults out, before the call starts")
 r = E.event_state(_cat("primary_release", REL, is_results_disclosure=True,
                        document="exhibit"),
-                  EXHIBIT_OK, report_time=REL + dt.timedelta(hours=2))
-chk("2h after verified release -> RESULTS RELEASED",
-    r["state"] == E.RESULTS_RELEASED)
-chk("rating allowed", r["rating_allowed"] is True)
+                  EXHIBIT_OK, report_time=REL + dt.timedelta(minutes=10))
+chk("10 min after release -> RELEASED PRE-CALL",
+    r["state"] == E.RELEASED_PRE_CALL)
+chk("rating allowed pre-call", r["rating_allowed"] is True)
 chk("next earnings NOT labelled pending after release",
     r["next_earnings_is_pending"] is False)
 
-print("\nresults released, verified, call concluded by next session")
+print("\nthe call's likely window, same session, no feed")
+r = E.event_state(_cat("primary_release", REL, is_results_disclosure=True),
+                  EXHIBIT_OK, report_time=REL + dt.timedelta(minutes=60))
+chk("1h after (same ET day) -> CALL IN PROGRESS",
+    r["state"] == E.CALL_IN_PROGRESS)
+chk("no rating while the call may be live", r["rating_allowed"] is False)
+
+print("\nthe morning after: call concluded, transcript not verified")
 r = E.event_state(_cat("primary_release", REL, is_results_disclosure=True),
                   EXHIBIT_OK, report_time=REL + dt.timedelta(hours=20))
-chk("20h after -> POST-CALL VERIFIED", r["state"] == E.POST_CALL_VERIFIED)
+chk("20h / next ET day -> POST-CALL NOT TRANSCRIPT-VERIFIED",
+    r["state"] == E.POST_CALL_UNVERIFIED)
 chk("rating allowed post-call", r["rating_allowed"] is True)
+chk("call_concluded flag set", r["call_concluded"] is True)
+chk("a later ET day is never still 'in progress'",
+    r["state"] != E.CALL_IN_PROGRESS)
 
 print("\ncall-status feed overrides the clock")
 r = E.event_state(_cat("primary_release", REL, is_results_disclosure=True),
@@ -110,8 +121,8 @@ chk("unverified release -> DATA HOLD (not a clean rating)",
 print("\nverified results but guidance did not parse")
 r = E.event_state(_cat("primary_release", REL, is_results_disclosure=True),
                   EXHIBIT_UNPARSED, report_time=REL + dt.timedelta(hours=20))
-chk("readable results, unreadable guidance -> POST-CALL VERIFIED "
-    "(not a hold)", r["state"] == E.POST_CALL_VERIFIED)
+chk("readable results, unreadable guidance -> POST-CALL (not a hold)",
+    r["state"] == E.POST_CALL_UNVERIFIED)
 chk("but guidance-incomplete is on the record",
     any("Guidance did not parse" in x for x in r["reasons"]))
 

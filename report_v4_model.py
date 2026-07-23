@@ -247,10 +247,14 @@ def risks(snap, event):
         out.append({"text": "%d open-market insider sale(s) filed in the "
                             "window; discretionary intent is not disclosed."
                             % ins["open_market_sale"], "grade": OBSERVED})
-    if event["state"] in (EV.RESULTS_RELEASED,):
-        out.append({"text": "The earnings call had not verifiably concluded "
-                            "at report time; guidance colour may still "
-                            "revise the read.", "grade": OBSERVED})
+    if event["state"] in (EV.RELEASED_PRE_CALL, EV.CALL_IN_PROGRESS):
+        out.append({"text": "The earnings call has not concluded; management "
+                            "guidance on the call may still revise the read.",
+                    "grade": OBSERVED})
+    elif event["state"] == EV.POST_CALL_UNVERIFIED:
+        out.append({"text": "The call has concluded, but its transcript is "
+                            "not yet verified; any guidance nuance beyond the "
+                            "filed release is unconfirmed.", "grade": OBSERVED})
     d = _fv(fu.get("debt"))
     if d and _fv(fu.get("cash")) is not None and d > (_fv(fu.get("cash"))
                                                       or 0):
@@ -321,6 +325,56 @@ def variant_perception(ratings, snap):
     return _withheld("no consensus and no tape read to form a variant from")
 
 
+def _report_date(report_time):
+    try:
+        return EV._et_date(EV._parse(report_time))
+    except Exception:
+        return None
+
+
+def fix_catalysts(cat, report_time):
+    """Never present a past date as a 'next' event. The vendor next-earnings
+    estimate is often the just-released quarter's own date; once that date
+    is on or before the report, it is not 'next'. Drop past next-events and,
+    when none remain, estimate the following print roughly one quarter after
+    the last release, clearly labelled as an estimate."""
+    import datetime as _dt
+    cat = dict(cat or {})
+    rt = _report_date(report_time)
+    nxt = cat.get("next") or []
+
+    def _d(x):
+        try:
+            return _dt.date.fromisoformat(str(x.get("when"))[:10])
+        except Exception:
+            return None
+
+    future = [n for n in nxt if not (rt and _d(n) and _d(n) <= rt)]
+    dropped = len(nxt) - len(future)
+    cat["next"] = future
+    if dropped:
+        cat["dropped_past_next"] = dropped
+
+    if not future:
+        lr = cat.get("last_reported") or {}
+        base = None
+        try:
+            base = _dt.date.fromisoformat(str(lr.get("when_utc")
+                                              or lr.get("when"))[:10])
+        except Exception:
+            base = None
+        if base:
+            est = base + _dt.timedelta(days=91)
+            cat["next"] = [{
+                "what": "next earnings (estimated ~one quarter after the "
+                        "last release; not company-confirmed)",
+                "when": est.isoformat(), "when_utc": est.isoformat(),
+                "confirmation": "estimated from the last release date",
+                "grade": DERIVED, "estimated": True}]
+            cat["next_estimated"] = True
+    return cat
+
+
 def earnings_marker_dates(snap):
     """The earnings-release dates a chart may honestly mark: only ones the
     snapshot actually carries as events, never a guessed cadence. The
@@ -343,15 +397,23 @@ def earnings_marker_dates(snap):
 
 
 def monitoring(snap):
-    """The confirm/break triggers and the checklist, taken verbatim from
-    the decision block the v3 model already computed and validated — the
-    same dated, evidence-linked levels, not a second copy that could
-    drift."""
+    """The confirm/break triggers and the checklist, taken from the v3
+    decision block — the same dated, evidence-linked levels. One thing is
+    sanitised: v3's monitor_next prose can carry a '; next earnings
+    estimated <date>' tail with the just-released quarter's own date, which
+    would render a past 'next' event. v4 shows next earnings in its own
+    catalyst section, so that redundant clause is stripped here rather than
+    left to contradict the event state."""
+    import re as _re
     dec = snap.get("decision") or {}
+    mn = dec.get("monitor_next")
+    if isinstance(mn, str):
+        mn = _re.sub(r";?\s*next earnings estimated \d{4}-\d{2}-\d{2}",
+                     "", mn).strip().rstrip(";").strip()
     return {
         "upgrade_trigger": dec.get("upgrade_trigger"),
         "downside_confirmation": dec.get("downside_confirmation"),
-        "monitor_next": dec.get("monitor_next"),
+        "monitor_next": mn,
         "recovery_stages": dec.get("recovery_stages") or [],
         "review_date": dec.get("review_date"),
     }
@@ -399,7 +461,7 @@ def build(snap, estimates=None, peers=None, report_time=None):
         "business": M3.business_description(snap),
         "financials": financials(snap, estimates),
         "valuation": valuation(snap, estimates, peers, price),
-        "catalysts": M3.catalysts(snap),
+        "catalysts": fix_catalysts(M3.catalysts(snap), report_time),
         "variant": variant_perception(ratings, snap),
         "monitoring": monitoring(snap),
         "chart": {"earnings_dates": earnings_marker_dates(snap)},

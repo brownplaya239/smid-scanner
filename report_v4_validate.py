@@ -17,7 +17,9 @@ split-magnitude reconciliation are the two the spec calls out by name.
     report(view, snap, core_pdf, appendix_pdf, estimates) -> dict
 """
 
+import datetime as dt
 import json
+import re
 
 import report_v3_validate as V3
 import report_v4_event as EV
@@ -96,7 +98,8 @@ def check_view(view, snap=None, estimates=None):
                        "present" if view.get("flash") else "MISSING"))
 
     # 3. Earnings are never "next" after they have been released.
-    if state in (EV.RESULTS_RELEASED, EV.POST_CALL_VERIFIED):
+    if state in (EV.RELEASED_PRE_CALL, EV.POST_CALL_UNVERIFIED,
+                 EV.POST_CALL_VERIFIED):
         pending = ev.get("next_earnings_is_pending")
         out.append(chk("NO_NEXT_AFTER_RELEASE", not pending, ERROR,
                        "next-earnings not pending after release",
@@ -179,7 +182,33 @@ def check_view(view, snap=None, estimates=None):
                        WARN, "variant grade is DERIVED",
                        "grade=%s" % var.get("grade"), warn_only=True))
 
+    # 10. Metric-period consistency: everything grouped as the latest quarter
+    #     must share the revenue quarter's period_end. This is the check that
+    #     would have caught Q1 cash flow printed beside Q2 revenue.
+    fu = snap.get("fundamentals") or {}
+    ref = (fu.get("revenue_q") or {}).get("period_end")
+    if ref:
+        bad = []
+        for k in _QUARTER_FLOW:
+            f = fu.get(k)
+            pe = f.get("period_end") if isinstance(f, dict) else None
+            if pe and pe != ref:
+                bad.append("%s@%s" % (k, pe))
+        out.append(chk("METRIC_PERIOD_CONSISTENCY", not bad, ERROR,
+                       "latest-quarter flow metrics all end %s" % ref,
+                       "mismatched: %s" % (", ".join(bad) or "none"),
+                       detail="A section labelled 'latest quarter' may hold "
+                              "only metrics from that quarter."))
+
     return out
+
+
+# Flow metrics that must all belong to the same reported quarter. eps_ttm
+# (trailing) and cash/debt (balance-sheet instants) are period-different by
+# nature and excluded.
+_QUARTER_FLOW = ("revenue_q", "net_income_q", "gross_profit",
+                 "operating_cash_flow", "free_cash_flow", "capex",
+                 "gross_margin", "net_margin")
 
 
 # ── pdf-level checks ────────────────────────────────────────────────────
@@ -243,6 +272,62 @@ def check_pdfs(core, appendix, view=None):
     return out
 
 
+# ── rendered-document checks (the meaning a reader gets) ────────────────
+
+_DATE_RX = re.compile(r"(\d{4}-\d{2}-\d{2})")
+_NEXT_RX = re.compile(r"[Nn]ext[^.\n]{0,80}?(\d{4}-\d{2}-\d{2})")
+# Engineering detail that must never reach a client-facing document.
+_INTERNAL_RX = re.compile(
+    r"FINNHUB_API_KEY|[A-Z_]*API_KEY|os\.environ|ENV_KEY|Traceback|"
+    r"not configured for this run", re.IGNORECASE)
+
+
+def _as_date(s):
+    try:
+        return dt.date.fromisoformat(str(s)[:10])
+    except Exception:
+        return None
+
+
+def check_rendered(core_text, apx_text, view, snap):
+    """Checks on the TEXT a reader actually extracts from the PDF, not the
+    model objects behind it — the gap the first v4 fell through when the
+    validator passed a report whose page 6 still showed a past 'next
+    earnings' date."""
+    out = []
+    full = (core_text or "") + "\n" + (apx_text or "")
+    prepared = _as_date(snap.get("report_time"))
+
+    # No engineering detail in the client document.
+    hits = sorted(set(m.group(0) for m in _INTERNAL_RX.finditer(full)))
+    out.append(chk("INTERNAL_CONFIG_NOT_EXPOSED", not hits, ERROR,
+                   "no internal config or engineering detail in the document",
+                   "found: %s" % (", ".join(hits) or "none")))
+
+    # No 'next' event dated before the report was generated.
+    past = []
+    if prepared:
+        for m in _NEXT_RX.finditer(core_text or ""):
+            d = _as_date(m.group(1))
+            if d and d < prepared:
+                past.append(m.group(1))
+    out.append(chk("NO_PAST_NEXT_EVENT_RENDERED", not past, ERROR,
+                   "no 'next' event earlier than the prepared date (%s)"
+                   % prepared, "past next-dates: %s"
+                   % (", ".join(sorted(set(past))) or "none"),
+                   detail="A 'next' event in the past means the event state "
+                          "was not advanced after the release."))
+
+    # The text roundtrips cleanly: real content, no mojibake.
+    body = (core_text or "").strip()
+    g = V3.GLYPH_RX.search(full)
+    out.append(chk("PDF_TEXT_ROUNDTRIP", len(body) > 800 and not g, ERROR,
+                   "core text extracts cleanly with real content",
+                   "len=%d%s" % (len(body),
+                                 ", mojibake %r" % g.group(0) if g else "")))
+    return out
+
+
 # ── the whole report ────────────────────────────────────────────────────
 
 def report(view, snap, core_pdf, appendix_pdf=None, estimates=None,
@@ -250,6 +335,15 @@ def report(view, snap, core_pdf, appendix_pdf=None, estimates=None,
     checks = []
     checks += check_view(view, snap, estimates)
     checks += check_pdfs(core_pdf, appendix_pdf, view)
+    if not view.get("flash"):
+        try:
+            _, ctext = _pdf_pages_text(core_pdf)
+            _, atext = (_pdf_pages_text(appendix_pdf) if appendix_pdf
+                        else (0, ""))
+            checks += check_rendered(ctext, atext, view, snap)
+        except Exception as e:                       # pragma: no cover
+            checks.append(chk("RENDERED_CHECKS_RAN", False, ERROR,
+                              "rendered-text checks ran", "error: %s" % e))
 
     if run_mutation:
         try:
