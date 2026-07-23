@@ -1,6 +1,6 @@
 {
  "week_of": "2026-07-20",
- "generated": "2026-07-23T16:45:31-04:00",
+ "generated": "2026-07-23T18:38:00-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 191,
  "days": [
@@ -1263,7 +1263,7 @@
     {
      "ticker": "INTC",
      "company": "Intel Corp.",
-     "score": 200,
+     "score": 201,
      "analysts": 45,
      "release_time": 3,
      "confirmed": true,
@@ -1769,7 +1769,7 @@
     {
      "ticker": "VZ",
      "company": "Verizon Communications",
-     "score": 28,
+     "score": 30,
      "analysts": 30,
      "release_time": 1,
      "confirmed": true,
@@ -1789,7 +1789,7 @@
     {
      "ticker": "NEE",
      "company": "NextEra Energy Inc",
-     "score": 15,
+     "score": 16,
      "analysts": 21,
      "release_time": 1,
      "confirmed": true,
@@ -1877,6 +1877,16 @@
      "q": "6/2026"
     },
     {
+     "ticker": "EAF",
+     "company": "GrafTech International Ltd.",
+     "score": 2,
+     "analysts": 5,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-24T00:00:00",
+     "q": "6/2026"
+    },
+    {
      "ticker": "THC",
      "company": "Tenet Healthcare Corp.",
      "score": 2,
@@ -1917,30 +1927,20 @@
      "q": "6/2026"
     },
     {
-     "ticker": "FHB",
-     "company": "First Hawaiian, Inc",
-     "score": 1,
-     "analysts": 12,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-07-24T00:00:00",
-     "q": "6/2026"
-    },
-    {
-     "ticker": "EAF",
-     "company": "GrafTech International Ltd.",
-     "score": 1,
-     "analysts": 5,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-07-24T00:00:00",
-     "q": "6/2026"
-    },
-    {
      "ticker": "CPF",
      "company": "Central Pacific Financial Corp",
      "score": 1,
      "analysts": 5,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-24T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "FHB",
+     "company": "First Hawaiian, Inc",
+     "score": 1,
+     "analysts": 12,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-07-24T00:00:00",
