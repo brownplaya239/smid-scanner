@@ -610,11 +610,12 @@ def _appendix_story(snap, view, estimates=None, prov=None):
                            % (pt.get("mean"), _clean(pt.get("as_of") or "")),
                            "small", OBSERVED))
     else:
-        st.append(para("No estimate feed was configured for this run (%s), so "
-                       "the fundamental rating and the 12-month target were "
-                       "withheld rather than invented."
-                       % _clean(est.get("reason") or "no key present"),
-                       "small"))
+        # Never name the missing key or any environment variable in a
+        # client document — the fact that a feed was not configured is all
+        # a reader needs; the fix is operational, not editorial.
+        st.append(para("No admitted estimate feed for this run, so the "
+                       "consensus rating and the 12-month target were "
+                       "withheld rather than invented.", "small"))
 
     # 3. Valuation method
     val = view.get("valuation") or {}

@@ -51,8 +51,10 @@ def fundamental_rating(estimates, event):
                          % event["state"])
     est = estimates or {}
     if not est.get("configured"):
-        return _withheld("no admitted estimate source (%s)"
-                         % (est.get("reason") or "estimates feed absent"))
+        # Never surface the provider's raw reason (it can name the missing
+        # API-key env var) in a client-facing withheld line.
+        return _withheld("no admitted estimate source (estimates feed not "
+                         "configured for this run)")
     rec = est.get("recommendation")
     if not rec:
         return _withheld("estimate feed returned no recommendation "
