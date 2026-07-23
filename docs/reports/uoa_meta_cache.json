@@ -1030,9 +1030,9 @@
 },
 "AXP": {
 "earnings_date": "2026-07-24",
-"earnings_session": "BMO",
-"fetched": "2026-07-08",
-"mkt_cap": 238527677943.94,
+"earnings_session": null,
+"fetched": "2026-07-23",
+"mkt_cap": 237954523731.82,
 "sector": "Financials / Banks"
 },
 "AXSM": {
@@ -2949,8 +2949,8 @@
 "DOW": {
 "earnings_date": "2026-07-23",
 "earnings_session": "BMO",
-"fetched": "2026-07-06",
-"mkt_cap": 19971745246.98,
+"fetched": "2026-07-23",
+"mkt_cap": 22523169937.5,
 "sector": "Materials / Chemicals"
 },
 "DOX": {
@@ -3120,6 +3120,13 @@
 "fetched": "2026-06-18",
 "mkt_cap": 39447419623.200005,
 "sector": "Utilities"
+},
+"EFX": {
+"earnings_date": "2026-10-20",
+"earnings_session": "BMO",
+"fetched": "2026-07-23",
+"mkt_cap": 20025300523.199997,
+"sector": "Other"
 },
 "EG": {
 "earnings_date": "2026-07-29",
@@ -3474,7 +3481,7 @@
 "EWG": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-09",
+"fetched": "2026-07-23",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -4026,9 +4033,9 @@
 },
 "GCT": {
 "earnings_date": "2026-08-06",
-"earnings_session": "BMO",
-"fetched": "2026-06-02",
-"mkt_cap": 1288252809.72,
+"earnings_session": null,
+"fetched": "2026-07-23",
+"mkt_cap": 1383424571.2,
 "sector": "Consumer / Retail"
 },
 "GD": {
@@ -4262,6 +4269,13 @@
 "mkt_cap": 3730510153.44,
 "sector": "Financials"
 },
+"GO": {
+"earnings_date": "2026-08-04",
+"earnings_session": "AMC",
+"fetched": "2026-07-23",
+"mkt_cap": 926905436.6399999,
+"sector": "Consumer / Retail"
+},
 "GOOG": {
 "earnings_date": "2026-10-28",
 "earnings_session": "AMC",
@@ -4370,8 +4384,8 @@
 "GSK": {
 "earnings_date": "2026-07-28",
 "earnings_session": "BMO",
-"fetched": "2026-06-30",
-"mkt_cap": 105174309187.5,
+"fetched": "2026-07-23",
+"mkt_cap": 101662010338.31999,
 "sector": "Other"
 },
 "GT": {
@@ -6965,10 +6979,10 @@
 "sector": "Industrials"
 },
 "OHI": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-07-29",
 "earnings_session": "AMC",
-"fetched": "2026-06-09",
-"mkt_cap": 13043727600.0,
+"fetched": "2026-07-23",
+"mkt_cap": 15071759220.0,
 "sector": "Real Estate"
 },
 "OI": {
@@ -9044,10 +9058,10 @@
 "sector": "Other"
 },
 "STNG": {
-"earnings_date": "2026-07-29",
+"earnings_date": "2026-07-30",
 "earnings_session": "BMO",
-"fetched": "2026-07-06",
-"mkt_cap": 3633602127.5400004,
+"fetched": "2026-07-23",
+"mkt_cap": 3904840746.8399997,
 "sector": "Other"
 },
 "STRC": {
