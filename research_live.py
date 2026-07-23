@@ -1362,8 +1362,46 @@ def build_snapshot(ticker, report_time=None):
     try:
         _duration_fact("GrossProfit", "gross_profit", "quarterly gross profit",
                        pct_of_rev="gross_margin")
-        _duration_fact("NetCashProvidedByUsedInOperatingActivities",
-                       "operating_cash_flow", "quarterly operating cash flow")
+        ocf_row = _duration_fact(
+            "NetCashProvidedByUsedInOperatingActivities",
+            "operating_cash_flow", "quarterly operating cash flow")
+        # Capex, and from it free cash flow. Both are the same class of
+        # filed XBRL fact as everything above; FCF is OCF minus capex, a
+        # derivation over two admitted facts of the SAME period, so it
+        # gets a calc record citing both — never published citing a
+        # CALC id that was never emitted (the v3.4 regression).
+        capex_row = None
+        for _cx in ("PaymentsToAcquirePropertyPlantAndEquipment",
+                    "PaymentsToAcquireProductiveAssets"):
+            capex_row = _duration_fact(_cx, "capex",
+                                       "quarterly capital expenditure")
+            if capex_row:
+                _capex_tag = _cx
+                break
+        if ocf_row and capex_row and ocf_row["end"] == capex_row["end"] \
+                and (ocf_row.get("val") is not None) \
+                and (capex_row.get("val") is not None):
+            # us-gaap:PaymentsToAcquire* is filed as a positive outflow.
+            fcf = ocf_row["val"] - capex_row["val"]
+            ref_ocf = _xf(ocf_row,
+                          "us-gaap:NetCashProvidedByUsedInOperatingActivities")
+            ref_cx = _xf(capex_row, "us-gaap:" + _capex_tag)
+            led.calc("fcf",
+                     "operating cash flow[%s] - capital expenditure[%s]"
+                     % (ocf_row["end"], capex_row["end"]),
+                     [ref_ocf, ref_cx], round(fcf, 0), "USD")
+            eid = "SEC-%s" % ocf_row["accn"]
+            fund["free_cash_flow"] = rs.fact(
+                fcf, metric="free cash flow", unit="USD",
+                source="derived: operating cash flow - capex (SEC XBRL)",
+                source_type="derived",
+                basis="gaap, quarter ended %s" % ocf_row["end"],
+                period_end=ocf_row["end"],
+                published_at=ocf_row.get("_accepted"),
+                retrieved_at=retrieved_at, calc_version="fcf/v1",
+                evidence_id=eid,
+                evidence_refs=["CALC-fcf", ref_ocf, ref_cx],
+                quality=rs.Q_DERIVED)
         _instant_fact(["CashAndCashEquivalentsAtCarryingValue"],
                       "cash", "cash and equivalents")
         _instant_fact(["LongTermDebtNoncurrent", "LongTermDebt"],

@@ -420,6 +420,8 @@ def _recompute_operands(slug, ops):
         return round(100.0 * (nums[-2] / nums[-1] - 1), 1), None
     if slug == "eps_ttm" and len(nums) >= 4:
         return round(sum(nums[-4:]), 2), None
+    if slug == "fcf" and len(nums) == 2:
+        return round(nums[0] - nums[1], 0), None
     if slug == "atr14_pct" and len(nums) == 2 and nums[1]:
         return round(100.0 * nums[0] / nums[1], 2), None
     if slug == "pct_below_hi52" and len(nums) == 2 and nums[0]:

@@ -567,6 +567,8 @@ FUND_LABEL = {
     "net_income_q": ("Net income", "money"),
     "net_margin": ("Net margin (GAAP)", "pct"),
     "operating_cash_flow": ("Operating cash flow", "money"),
+    "capex": ("Capital expenditure", "money"),
+    "free_cash_flow": ("Free cash flow", "money"),
     "eps_ttm": ("Diluted EPS (TTM)", "usd"),
     "eps_growth": ("EPS growth y/y", "pct"),
     "cash": ("Cash and equivalents", "money"),
@@ -601,8 +603,15 @@ def _fund_rows(fu, co=None):
     """Render every fundamental the snapshot actually carries, in a fixed
     order, then anything else it has. A hardcoded list silently dropped
     four populated fields when the snapshot shape differed."""
-    order = [k for k in FUND_LABEL if k in (fu or {})]
-    order += [k for k in (fu or {}) if k not in FUND_LABEL]
+    # capex and free_cash_flow are the v4 data layer. They live in the
+    # snapshot and the evidence package (CALC-fcf reproduces from them),
+    # but they are NOT rendered in v3's four-page core: it had no budget
+    # for them, and adding them pushed MRVL to a fifth page. v4's dedicated
+    # financials page has the room; v3 stays exactly as it was.
+    _hide = {"capex", "free_cash_flow"}
+    order = [k for k in FUND_LABEL if k in (fu or {}) and k not in _hide]
+    order += [k for k in (fu or {})
+              if k not in FUND_LABEL and k not in _hide]
     rows = []
     sh = rs.fv((co or {}).get("shares_outstanding"))
     if sh:
@@ -629,7 +638,11 @@ def _fund_rows(fu, co=None):
         elif kind == "count":
             shown = "{:,}".format(int(v))
         else:
-            shown = ("%,.0f" % v).replace(",", ",") if abs(v) > 999                 else "%.2f" % v
+            # "%,.0f" is not a valid format string — it raised whenever
+            # this raw branch met a value over 999. It never fired until a
+            # large-USD fundamental with no explicit kind reached it.
+            shown = ("{:,.0f}".format(v) if abs(v) > 999
+                     else "%.2f" % v)
         rows.append([label,
                      Paragraph(_clean(shown) + tag(M.grade(f)), ST["cellb"]),
                      (f.get("period_end") or "—") if isinstance(f, dict)
