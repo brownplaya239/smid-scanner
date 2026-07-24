@@ -300,19 +300,31 @@ def _page3(snap, view):
                            "small"))
 
     # guidance from the exhibit, when it parsed
-    cat = view.get("catalysts") or {}
     st.append(para("Guidance", "h2"))
     ex = (snap.get("exhibit") or {})
-    gui = ex.get("guidance") if ex.get("disposition") == "ADMITTED" else None
-    if gui:
-        grows = []
-        for k, g in gui.items():
-            if isinstance(g, dict) and g.get("raw"):
-                grows.append([_clean(g.get("label") or k),
-                              _clean(str(g["raw"]))])
-        if grows:
-            st.append(_table(grows, [BODY_W * 0.5, BODY_W * 0.42],
-                             header=["Metric", "Guided"], zebra=True))
+    admitted = ex.get("disposition") == "ADMITTED"
+    hl = ex.get("guidance_highlights") if admitted else None
+    gui = ex.get("guidance") if admitted else None
+    grows = []
+    if hl:
+        for key, lab in (("fy_subscription_revenue",
+                          "Subscription revenue (full-year outlook)"),
+                         ("next_q_subscription_revenue",
+                          "Subscription revenue (next-quarter outlook)")):
+            g = hl.get(key)
+            if isinstance(g, dict) and g.get("low") is not None:
+                grows.append([lab, "%s &ndash; %s"
+                              % (_money(g["low"]), _money(g["high"]))])
+        if hl.get("fx_commentary"):
+            grows.append(["FX commentary", _clean(hl["fx_commentary"])])
+    for k, g in (gui or {}).items():
+        if isinstance(g, dict) and g.get("raw"):
+            grows.append([_clean(g.get("label") or k), _clean(str(g["raw"]))])
+    if grows:
+        st.append(_table(grows, [BODY_W * 0.42, BODY_W * 0.5],
+                         header=["Metric", "Guided"], zebra=True))
+        st.append(para("From the issuer's earnings release (8-K exhibit).",
+                       "small", OBSERVED))
     else:
         st.append(para("No guidance parsed from a filed earnings exhibit "
                        "for this period.", "small"))

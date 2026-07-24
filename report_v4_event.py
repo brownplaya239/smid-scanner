@@ -120,7 +120,7 @@ def _guidance_ok(exhibit):
     ex = exhibit or {}
     if ex.get("disposition") != "ADMITTED":
         return False
-    return bool(ex.get("guidance"))
+    return bool(ex.get("guidance") or ex.get("guidance_highlights"))
 
 
 def event_state(catalyst, exhibit=None, report_time=None, call_status=None):

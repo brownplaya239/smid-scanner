@@ -124,7 +124,9 @@ def exhibit_url(cik, accession, fetch_text):
 # ── segmentation ────────────────────────────────────────────────────────
 
 OUTLOOK_RX = re.compile(r"Outlook\s+for\s+the\b|Financial\s+Outlook\b", re.I)
-RECON_RX = re.compile(r"Reconciliations?\s+from\s+GAAP\s+to\s+Non-GAAP", re.I)
+RECON_RX = re.compile(r"GAAP\s+to\s+Non-GAAP\s+Reconciliation|"
+                      r"Reconciliations?\s+(?:from|of)\s+GAAP\s+to\s+Non-GAAP",
+                      re.I)
 
 
 def segment(doc):
@@ -306,6 +308,32 @@ def parse_kpis(doc):
     return out
 
 
+def parse_guidance_prose(doc):
+    """The forward outlook stated in the release's Financial Outlook prose:
+    the subscription-revenue guidance ranges (full-year and next quarter,
+    told apart by magnitude) and the FX commentary. Prose extraction, so it
+    survives a Financial Outlook table the table parser cannot map."""
+    t = _text(doc)
+    out = {}
+    for m in re.finditer(r"Subscription revenues\s+\$([\d,]+)\s*[-–—]"
+                         r"\s*\$([\d,]+)", t):
+        lo = _money(m.group(1), "million")
+        hi = _money(m.group(2), "million")
+        if lo is None or hi is None:
+            continue
+        key = ("fy_subscription_revenue" if lo >= 10e9
+               else "next_q_subscription_revenue")
+        out.setdefault(key, {"low": lo, "high": hi, "unit": "USD",
+                             "basis": ("full-year subscription-revenue "
+                                       "guidance" if lo >= 10e9 else
+                                       "next-quarter subscription-revenue "
+                                       "guidance")})
+    m = re.search(r"\$[\d.,]+\s*million[^.]{0,80}?headwind[^.]{0,60}", t, re.I)
+    if m:
+        out["fx_commentary"] = " ".join(m.group(0).split())[:200]
+    return out
+
+
 def arithmetic_ok(guide):
     """The issuer publishes a reconciliation that must close. If it does
     not, our column mapping is wrong and every number here is suspect."""
@@ -349,9 +377,9 @@ def ingest(cik, acc, fetch_text, report_time=None):
     reason attached, which is a true statement about our software rather
     than a false one about the company."""
     base = {"schema": "sec_exhibit/v2", "disposition": DISPOSITION_BLOCKED,
-            "reported": {}, "guidance": {}, "kpis": {}, "reason": None,
-            "url": None, "accession": None, "accepted": None,
-            "period_label": None}
+            "reported": {}, "guidance": {}, "guidance_highlights": {},
+            "kpis": {}, "reason": None, "url": None, "accession": None,
+            "accepted": None, "period_label": None}
     hit = find_results_8k(acc)
     if not hit:
         base["reason"] = "no 8-K carrying Item 2.02 in the acceptance window"
@@ -373,10 +401,11 @@ def ingest(cik, acc, fetch_text, report_time=None):
         base["reason"] = "exhibit fetch failed: %s" % e
         return base
 
-    # The operating KPIs live in the release prose and are the heart of a
-    # SaaS read — extract them first, independent of the reconciliation
-    # table the table parser may not handle.
+    # The operating KPIs and the forward outlook live in the release prose
+    # and are the heart of a SaaS read — extract them first, independent of
+    # the reconciliation table the table parser may not handle.
     base["kpis"] = parse_kpis(doc)
+    base["guidance_highlights"] = parse_guidance_prose(doc)
 
     # Best-effort GAAP-reconciliation / guidance tables. A failure here no
     # longer blocks the whole release when the KPIs came through.
@@ -393,10 +422,11 @@ def ingest(cik, acc, fetch_text, report_time=None):
     else:
         base["segment_error"] = why
 
-    # Admit the release if it yielded any admissible content. The KPIs are
-    # filed facts that stand on their own, so a name whose reconciliation
-    # table defeats the parser still gets a full report from its prose.
-    if base["kpis"] or base["reported"] or base["guidance"]:
+    # Admit the release if it yielded any admissible content. The KPIs and
+    # the prose outlook are filed facts that stand on their own, so a name
+    # whose reconciliation table defeats the parser still gets a full report.
+    if (base["kpis"] or base["guidance_highlights"] or base["reported"]
+            or base["guidance"]):
         base["disposition"] = DISPOSITION_OK
     else:
         base["reason"] = why or ("the exhibit was fetched but neither the "
