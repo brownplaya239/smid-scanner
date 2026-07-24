@@ -281,11 +281,35 @@ def valuation(snap, estimates, peers, price):
 
 def risks(snap, event):
     """Three ranked risks, each anchored to a filed fact or the event
-    state — never a generic list. Ordered most-concrete first."""
+    state — never a generic list. Ordered most-concrete first, so the
+    company-specific ones the release surfaces lead over the generic ones."""
     out = []
     fu = snap.get("fundamentals") or {}
     lv = snap.get("levels") or {}
+    ex = snap.get("exhibit") or {}
+    kpis = ex.get("kpis") or {}
+    hl = ex.get("guidance_highlights") or {}
     px = M3.spot(snap)
+
+    # Forward bookings decelerating below reported revenue — the specific,
+    # data-grounded risk a SaaS release surfaces, not a generic one.
+    sub, crpo = kpis.get("subscription_revenue"), kpis.get("crpo")
+    if sub and crpo and sub.get("growth_yoy_pct") is not None \
+            and crpo.get("growth_yoy_pct") is not None \
+            and crpo["growth_yoy_pct"] < sub["growth_yoy_pct"] - 1.5:
+        out.append({"text": "Forward bookings are growing below reported "
+                            "revenue: cRPO +%.0f%% versus subscription revenue "
+                            "+%.0f%%, so current growth may not sustain into "
+                            "the next year absent re-acceleration."
+                            % (crpo["growth_yoy_pct"], sub["growth_yoy_pct"]),
+                    "grade": OBSERVED})
+    # FX headwind, when the issuer flags one in guidance.
+    if hl.get("fx_commentary"):
+        out.append({"text": "Currency headwind flagged in guidance (%s); a "
+                            "stronger dollar pressures reported and cRPO "
+                            "growth." % str(hl["fx_commentary"]).rstrip(". "),
+                    "grade": OBSERVED})
+
     nm = _fv(fu.get("net_margin"))
     if nm is not None and nm < 5:
         out.append({"text": "Thin GAAP profitability: net margin %.1f%% "
@@ -340,6 +364,38 @@ def variant_perception(ratings, snap):
     tr = ratings.get("tactical") or {}
     tape = tr.get("band") if tr.get("available") else None
     street = fr.get("band") if fr.get("available") else None
+
+    # When the issuer release gives forward bookings, the sharpest variant
+    # is grounded in the data: is cRPO (12-month forward revenue) growing
+    # with, ahead of, or behind reported revenue — the real growth-durability
+    # debate, not a tape-vs-consensus abstraction.
+    kpis = (snap.get("exhibit") or {}).get("kpis") or {}
+    sub, crpo = kpis.get("subscription_revenue"), kpis.get("crpo")
+    ai = kpis.get("ai_acv")
+    if sub and crpo and sub.get("growth_yoy_pct") is not None \
+            and crpo.get("growth_yoy_pct") is not None:
+        sg, cg = sub["growth_yoy_pct"], crpo["growth_yoy_pct"]
+        ai_note = (" The AI ACV inflection (now past $%.0fB) is the swing "
+                   "factor for whether that gap closes."
+                   % (ai["value"] / 1e9) if ai and ai.get("value") else "")
+        if cg < sg - 1.5:
+            text = ("Forward bookings are decelerating below reported "
+                    "revenue: cRPO +%.0f%% versus subscription revenue "
+                    "+%.0f%%. The debate the multiple has to resolve is "
+                    "whether that gap is a temporary comparison or the start "
+                    "of a durable slowdown.%s" % (cg, sg, ai_note))
+        elif cg > sg + 1.5:
+            text = ("Forward bookings are outrunning reported revenue: cRPO "
+                    "+%.0f%% versus subscription +%.0f%%, a leading signal "
+                    "that current growth understates demand — the variant is "
+                    "that the P/E is looking at the trailing, not the "
+                    "forward, curve.%s" % (cg, sg, ai_note))
+        else:
+            text = ("Forward bookings track reported revenue closely (cRPO "
+                    "+%.0f%% versus subscription +%.0f%%); the debate is "
+                    "durability of that rate against the multiple the stock "
+                    "still carries.%s" % (cg, sg, ai_note))
+        return {"available": True, "text": text, "grade": DERIVED}
 
     if street and tape:
         if street in _BULL and tape in _WEAK_TAPE:
