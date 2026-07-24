@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-23T18:32:16-04:00",
+ "updated": "2026-07-24T16:33:55-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -7821,6 +7821,95 @@
      "adr_pct": 6.97,
      "dollar_vol": 272731420,
      "ern": "Aug 05"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-24",
+   "generated": "2026-07-24T16:33:55-04:00",
+   "count": 5,
+   "rows": [
+    {
+     "ticker": "SMCI",
+     "price": 30.1,
+     "chg": 24.48,
+     "adr_pct": 6.51,
+     "dollar_vol": 1377249282,
+     "ern": "Aug 11"
+    },
+    {
+     "ticker": "CIFR",
+     "price": 23.15,
+     "chg": 31.83,
+     "adr_pct": 10.84,
+     "dollar_vol": 585082518,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "HUT",
+     "price": 109.99,
+     "chg": 20.27,
+     "adr_pct": 9.96,
+     "dollar_vol": 486408248,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "RIOT",
+     "price": 22.53,
+     "chg": 23.38,
+     "adr_pct": 8.58,
+     "dollar_vol": 403801870,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "ARWR",
+     "price": 85.6,
+     "chg": 15.21,
+     "adr_pct": 5.31,
+     "dollar_vol": 259979546,
+     "ern": "Aug 04"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "MARA",
+     "price": 12.12,
+     "chg": 13.38,
+     "adr_pct": 8.74,
+     "dollar_vol": 631430014,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "SLB",
+     "price": 52.42,
+     "chg": 11.56,
+     "adr_pct": 2.44,
+     "dollar_vol": 602944253,
+     "ern": "Jul 24"
+    },
+    {
+     "ticker": "CLSK",
+     "price": 14.52,
+     "chg": 11.44,
+     "adr_pct": 8.93,
+     "dollar_vol": 321436443,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "T",
+     "price": 24.13,
+     "chg": 10.64,
+     "adr_pct": 3.34,
+     "dollar_vol": 2031845457,
+     "ern": "Oct 21"
+    },
+    {
+     "ticker": "DELL",
+     "price": 437.5,
+     "chg": 10.39,
+     "adr_pct": 7.19,
+     "dollar_vol": 2975344579,
+     "ern": "Sep 03"
     }
    ]
   }

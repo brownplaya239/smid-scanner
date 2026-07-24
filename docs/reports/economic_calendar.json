@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-23T18:37:56-04:00",
+ "updated": "2026-07-24T16:38:24-04:00",
  "tz": "America/New_York",
  "source_tz": "UTC",
  "converted": true,
@@ -135,7 +135,7 @@
     "corrected_start": "2026-07-22T08:00-04:00",
     "correction_source_url": "",
     "correction_authority": "operator-supplied schedule correction",
-    "correction_timestamp": "2026-07-23T18:37:56-04:00",
+    "correction_timestamp": "2026-07-24T16:38:24-04:00",
     "correction_reason": "Vendor row carried the generic label 'President Trump Speaks' and a 19:00Z stamp. The ceremony is scheduled 15:00 Europe/Istanbul, which is 08:00 America/New_York."
    },
    "time_et": "8:00 a.m. ET",
@@ -297,6 +297,30 @@
    "anchor_et": "10:00",
    "on_schedule": true,
    "generic_title": false
+  },
+  {
+   "date": "2026-07-24",
+   "title": "President Trump Speaks",
+   "impact": "Medium",
+   "forecast": "",
+   "previous": "",
+   "actual": "",
+   "url": "https://www.forexfactory.com/calendar/645-us-president-trump-speaks",
+   "source_time": "12:55am",
+   "source_tz": "UTC",
+   "source_url": "https://www.forexfactory.com/calendar/645-us-president-trump-speaks",
+   "title_authority": "vendor",
+   "venue_tz": null,
+   "venue": null,
+   "vendor_title": "President Trump Speaks",
+   "vendor_time": "12:55am",
+   "vendor_tz": "UTC",
+   "vendor_url": "https://www.forexfactory.com/calendar/645-us-president-trump-speaks",
+   "time_et": "8:55 p.m. ET",
+   "time_utc": "00:55Z",
+   "starts_at": "2026-07-24T20:55-04:00",
+   "scheduled": true,
+   "generic_title": true
   }
  ]
 }
