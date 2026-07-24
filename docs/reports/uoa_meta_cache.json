@@ -133,10 +133,10 @@
 "sector": "Industrials / Transport Eq"
 },
 "ACI": {
-"earnings_date": "2026-07-23",
+"earnings_date": "2026-10-13",
 "earnings_session": "BMO",
-"fetched": "2026-07-22",
-"mkt_cap": 7209538386.56,
+"fetched": "2026-07-24",
+"mkt_cap": 5603065159.12,
 "sector": "Consumer / Retail"
 },
 "ACLS": {
@@ -2947,10 +2947,10 @@
 "sector": "Industrials / Machinery"
 },
 "DOW": {
-"earnings_date": "2026-07-23",
+"earnings_date": "2026-10-22",
 "earnings_session": "BMO",
-"fetched": "2026-07-23",
-"mkt_cap": 22523169937.5,
+"fetched": "2026-07-24",
+"mkt_cap": 22320327969.899998,
 "sector": "Materials / Chemicals"
 },
 "DOX": {
@@ -3761,8 +3761,8 @@
 "FLEX": {
 "earnings_date": "2026-07-29",
 "earnings_session": "BMO",
-"fetched": "2026-07-13",
-"mkt_cap": 49755701433.200005,
+"fetched": "2026-07-24",
+"mkt_cap": 46875879538.76,
 "sector": "Tech / Hardware"
 },
 "FLG": {
@@ -8295,10 +8295,10 @@
 "sector": "Other"
 },
 "RTX": {
-"earnings_date": "2026-07-23",
+"earnings_date": "2026-10-20",
 "earnings_session": "BMO",
-"fetched": "2026-07-13",
-"mkt_cap": 263855684048.04,
+"fetched": "2026-07-24",
+"mkt_cap": 281672305800.48,
 "sector": "Industrials / Transport Eq"
 },
 "RUM": {
@@ -8343,6 +8343,13 @@
 "mkt_cap": 1089102320.63,
 "sector": "Tech / Software"
 },
+"RY": {
+"earnings_date": "2026-08-27",
+"earnings_session": "BMO",
+"fetched": "2026-07-24",
+"mkt_cap": 289689010354.10004,
+"sector": "Other"
+},
 "RYN": {
 "earnings_date": "2026-08-05",
 "earnings_session": "AMC",
@@ -8360,8 +8367,8 @@
 "S": {
 "earnings_date": "2026-08-27",
 "earnings_session": "AMC",
-"fetched": "2026-07-09",
-"mkt_cap": 6105334306.629999,
+"fetched": "2026-07-24",
+"mkt_cap": 5957928705.74,
 "sector": "Tech / Software"
 },
 "SA": {
@@ -8400,10 +8407,10 @@
 "sector": "Tech / Hardware"
 },
 "SAP": {
-"earnings_date": "2026-07-23",
+"earnings_date": "2026-10-21",
 "earnings_session": "AMC",
-"fetched": "2026-07-22",
-"mkt_cap": 184882975250.8,
+"fetched": "2026-07-24",
+"mkt_cap": 170907293446.24,
 "sector": "Other"
 },
 "SARO": {
@@ -8696,8 +8703,8 @@
 "SLB": {
 "earnings_date": "2026-07-24",
 "earnings_session": "BMO",
-"fetched": "2026-07-09",
-"mkt_cap": 70910584861.23,
+"fetched": "2026-07-24",
+"mkt_cap": 70596622752.42,
 "sector": "Energy"
 },
 "SLF": {
@@ -9732,8 +9739,8 @@
 "TWLO": {
 "earnings_date": "2026-08-06",
 "earnings_session": "AMC",
-"fetched": "2026-06-11",
-"mkt_cap": 31430848667.4,
+"fetched": "2026-07-24",
+"mkt_cap": 28087270531.6,
 "sector": "Tech / Software"
 },
 "TWM": {
@@ -9823,7 +9830,7 @@
 "UCO": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-08",
+"fetched": "2026-07-24",
 "mkt_cap": null,
 "sector": "Financials"
 },
