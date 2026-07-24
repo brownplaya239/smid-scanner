@@ -317,8 +317,29 @@ def _page3(snap, view):
         st.append(para("No guidance parsed from a filed earnings exhibit "
                        "for this period.", "small"))
 
-    st.append(_wh_line("Subscription revenue, cRPO/RPO, ACV, customers and "
-                       "net revenue retention", fin["saas_kpis"], "small"))
+    st.append(para("Subscription and operating KPIs", "h2"))
+    kp = fin["saas_kpis"]
+    if kp.get("rows"):
+        krows = []
+        for r in kp["rows"]:
+            if r.get("kind") in ("money", "money_floor"):
+                val = _money(r.get("value"))
+                if r.get("kind") == "money_floor":
+                    val = "&ge; " + val
+            else:
+                val = "{:,}".format(int(r["value"])) if r.get("value") \
+                    is not None else "n/a"
+            gy = ("+%.1f%%" % r["growth_yoy_pct"]
+                  if r.get("growth_yoy_pct") is not None else "—")
+            krows.append([_clean(r["label"]), val, gy])
+        st.append(_table(krows, [BODY_W * 0.5, BODY_W * 0.24, BODY_W * 0.18],
+                         header=["Metric", "Value", "YoY"], zebra=True))
+        st.append(para("From the issuer's earnings release (8-K exhibit %s). "
+                       "These are stated facts in the filed release."
+                       % _clean(kp.get("accession") or ""), "small", OBSERVED))
+    else:
+        st.append(_wh_line("Subscription revenue, cRPO/RPO, ACV, customers",
+                           kp, "small"))
 
     st, _ = _fit_page(st, [], "v4-p3")
     return st

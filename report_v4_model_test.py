@@ -74,8 +74,14 @@ for t in CACHED:
     chk("%s event state resolved" % t, v["event"]["state"] in EV.STATES)
     chk("%s <=3 risks, each with text" % t,
         len(v["risks"]) <= 3 and all(r.get("text") for r in v["risks"]))
-    chk("%s SaaS KPIs marked unavailable" % t,
-        v["financials"]["saas_kpis"]["available"] is False)
+    # SaaS KPIs are present iff the issuer exhibit was ingested with them;
+    # otherwise withheld. Both are correct — assert the right one per snap.
+    _has_kpis = bool((snap.get("exhibit") or {}).get("kpis"))
+    _kp = v["financials"]["saas_kpis"]
+    chk("%s SaaS KPIs match exhibit ingestion (%s)"
+        % (t, "present" if _has_kpis else "withheld"),
+        _kp.get("available") is (_has_kpis or False)
+        and (not _has_kpis or _kp.get("grade") == V4.OBSERVED))
     chk("%s thesis is a list of {text} (not the raw dict)" % t,
         isinstance(v["thesis"], list)
         and all(isinstance(b, dict) and b.get("text") for b in v["thesis"]))

@@ -240,6 +240,72 @@ def parse_guidance(section):
     return out
 
 
+def _money(num, unit):
+    try:
+        v = float(str(num).replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+    return v * 1e9 if unit and str(unit)[:1].lower() == "b" else v * 1e6
+
+
+# The operating KPIs a SaaS release states in prose. Each is a FILED fact —
+# the issuer asserts it — so it is admissible on its own, independent of the
+# GAAP-to-non-GAAP reconciliation table that the table parser may not read.
+# Counts anchor on the stable dollar phrase and grab the nearest preceding
+# integer, tolerant of the stray intra-word spaces the HTML->text conversion
+# introduces ("cu stomers").
+KPI_RX = {
+    "subscription_revenue": (
+        r"[Ss]ubscription revenues?\s+of\s+\$([\d,]+)\s*(million|billion)"
+        r".{0,80}?representing\s+([\d.]+)%\s+year", "money_growth"),
+    "crpo": (
+        r"[Cc]urrent remaining performance obligations[^$]{0,140}?"
+        r"\$([\d.,]+)\s*(billion|million).{0,80}?([\d.]+)%\s+year",
+        "money_growth"),
+    "rpo": (
+        r"(?<!Current )[Rr]emaining performance obligations\s+of\s+"
+        r"\$([\d.,]+)\s*(billion|million).{0,80}?([\d.]+)%\s+year",
+        "money_growth"),
+    "ai_acv": (
+        r"AI crossed\s+\$([\d.]+)\s*(billion|million)\s+in annual "
+        r"contract value", "money_floor"),
+    "acv_over_1m_net_new_deals": (
+        r"(\d+)[^\d$]{0,24}?over\s+\$1\s*million\s+in\s+net\s+new", "count"),
+    "acv_over_5m_customers": (
+        r"(\d+)[^\d$]{0,24}?more\s+than\s+\$5\s*million\s+in\s+ACV", "count"),
+}
+
+
+def parse_kpis(doc):
+    """Operating metrics stated in the release prose: subscription revenue,
+    cRPO, RPO, AI ACV, and the $1M-net-new-ACV and $5M-ACV counts. These are
+    the numbers a SaaS equity report turns on, and they are filed facts the
+    issuer states directly — admitted on their own even when the GAAP table
+    layout defeats the reconciliation parser."""
+    t = _text(doc)
+    out = {}
+    for name, (rx, kind) in KPI_RX.items():
+        m = re.search(rx, t, re.I)
+        if not m:
+            continue
+        if kind == "money_growth":
+            val = _money(m.group(1), m.group(2))
+            if val is not None:
+                out[name] = {"value": val, "unit": "USD",
+                             "growth_yoy_pct": float(m.group(3)),
+                             "raw": " ".join(m.group(0).split())[:160]}
+        elif kind == "money_floor":
+            val = _money(m.group(1), m.group(2))
+            if val is not None:
+                out[name] = {"value": val, "unit": "USD",
+                             "basis": "crossed (floor)",
+                             "raw": " ".join(m.group(0).split())[:160]}
+        elif kind == "count":
+            out[name] = {"value": int(m.group(1)),
+                         "raw": " ".join(m.group(0).split())[:160]}
+    return out
+
+
 def arithmetic_ok(guide):
     """The issuer publishes a reconciliation that must close. If it does
     not, our column mapping is wrong and every number here is suspect."""
@@ -282,9 +348,10 @@ def ingest(cik, acc, fetch_text, report_time=None):
     Never raises: a parse failure becomes AVAILABLE_NOT_INGESTED with the
     reason attached, which is a true statement about our software rather
     than a false one about the company."""
-    base = {"schema": "sec_exhibit/v1", "disposition": DISPOSITION_BLOCKED,
-            "reported": {}, "guidance": {}, "reason": None, "url": None,
-            "accession": None, "accepted": None, "period_label": None}
+    base = {"schema": "sec_exhibit/v2", "disposition": DISPOSITION_BLOCKED,
+            "reported": {}, "guidance": {}, "kpis": {}, "reason": None,
+            "url": None, "accession": None, "accepted": None,
+            "period_label": None}
     hit = find_results_8k(acc)
     if not hit:
         base["reason"] = "no 8-K carrying Item 2.02 in the acceptance window"
@@ -305,22 +372,34 @@ def ingest(cik, acc, fetch_text, report_time=None):
     except Exception as e:
         base["reason"] = "exhibit fetch failed: %s" % e
         return base
+
+    # The operating KPIs live in the release prose and are the heart of a
+    # SaaS read — extract them first, independent of the reconciliation
+    # table the table parser may not handle.
+    base["kpis"] = parse_kpis(doc)
+
+    # Best-effort GAAP-reconciliation / guidance tables. A failure here no
+    # longer blocks the whole release when the KPIs came through.
     rep_sec, gui_sec, why = segment(doc)
-    if rep_sec is None:
-        base["reason"] = why
-        return base
-    base["period_label"] = column_period(rep_sec)
-    base["reported"] = parse_reported(rep_sec)
-    base["guidance"] = parse_guidance(gui_sec) if gui_sec else {}
-    if not base["reported"] and not base["guidance"]:
-        base["reason"] = ("the exhibit was fetched but no recognised "
-                          "reconciliation row matched; the layout differs "
-                          "from the one this parser handles")
-        return base
-    ok, why = arithmetic_ok(base["guidance"])
-    if not ok:
-        base.update({"reported": {}, "guidance": {}, "reason": why})
-        return base
-    base["disposition"] = DISPOSITION_OK
-    base["guidance_period"] = _period_label(gui_sec) if gui_sec else None
+    if rep_sec is not None:
+        base["period_label"] = column_period(rep_sec)
+        base["reported"] = parse_reported(rep_sec)
+        base["guidance"] = parse_guidance(gui_sec) if gui_sec else {}
+        ok, aerr = arithmetic_ok(base["guidance"])
+        if not ok:
+            base["guidance"] = {}          # mis-mapped columns: drop, don't ship
+            base["guidance_error"] = aerr
+        base["guidance_period"] = _period_label(gui_sec) if gui_sec else None
+    else:
+        base["segment_error"] = why
+
+    # Admit the release if it yielded any admissible content. The KPIs are
+    # filed facts that stand on their own, so a name whose reconciliation
+    # table defeats the parser still gets a full report from its prose.
+    if base["kpis"] or base["reported"] or base["guidance"]:
+        base["disposition"] = DISPOSITION_OK
+    else:
+        base["reason"] = why or ("the exhibit was fetched but neither the "
+                                 "prose KPIs nor the reconciliation table "
+                                 "could be read")
     return base

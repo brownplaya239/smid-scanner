@@ -116,10 +116,50 @@ def price_target(estimates, event, price):
 
 # ── financials ──────────────────────────────────────────────────────────
 
+_KPI_LABELS = [
+    ("subscription_revenue", "Subscription revenue", "money"),
+    ("crpo", "cRPO (current RPO, next 12 mo)", "money"),
+    ("rpo", "RPO (total remaining performance obligations)", "money"),
+    ("ai_acv", "AI annual contract value", "money_floor"),
+    ("acv_over_1m_net_new_deals", "Deals over $1M net-new ACV", "count"),
+    ("acv_over_5m_customers", "Customers over $5M ACV", "count"),
+]
+
+
+def saas_kpis(snap):
+    """The operating KPIs — subscription revenue, cRPO/RPO, ACV milestones,
+    deal and customer counts — parsed from the issuer's earnings-release
+    exhibit (sec_exhibit). These are filed facts stated in the release, so
+    they are OBSERVED, dated to the release. Withheld only when the exhibit
+    was not ingested (in which case the event gate has already held the
+    report)."""
+    ex = snap.get("exhibit") or {}
+    kpis = ex.get("kpis") or {}
+    if not kpis:
+        return _withheld(
+            "the earnings-release exhibit was not ingested, so cRPO/RPO, "
+            "ACV and customer metrics could not be read")
+    rows = []
+    for key, label, kind in _KPI_LABELS:
+        rec = kpis.get(key)
+        if not rec:
+            continue
+        rows.append({"key": key, "label": label, "kind": kind,
+                     "value": rec.get("value"),
+                     "growth_yoy_pct": rec.get("growth_yoy_pct"),
+                     "basis": rec.get("basis"), "raw": rec.get("raw")})
+    if not rows:
+        return _withheld("the exhibit was ingested but carried no recognised "
+                         "operating KPIs")
+    return {"available": True, "rows": rows, "grade": OBSERVED,
+            "source": "issuer earnings release (8-K exhibit)",
+            "accession": ex.get("accession"), "as_of": ex.get("accepted")}
+
+
 def financials(snap, estimates):
-    """The reported quarter, its margins and cash, plus the surprise
-    history the free tier does supply. Forward consensus and the SaaS
-    operating KPIs are withheld with their reason."""
+    """The reported quarter, its margins and cash, the surprise history the
+    free tier supplies, and the SaaS operating KPIs when the issuer release
+    was ingested. Forward consensus is withheld on a gated tier."""
     fu = snap.get("fundamentals") or {}
     est = estimates or {}
 
@@ -146,10 +186,7 @@ def financials(snap, estimates):
                 % ("requires premium estimates"
                    if (est.get("coverage") or {}).get("eps_estimate")
                    == "premium-gated" else "not available"))),
-        "saas_kpis": _withheld(
-            "cRPO/RPO, ACV, customers and net retention are not ingested "
-            "by this report — they appear only as prose in filings, with "
-            "no structured source"),
+        "saas_kpis": saas_kpis(snap),
     }
 
 

@@ -201,6 +201,20 @@ def check_view(view, snap=None, estimates=None):
                               "guidance and KPIs are unparsed is an "
                               "incomplete quarter dressed as complete."))
 
+    # 10b. KPI completeness: a release that states subscription revenue is a
+    #      subscription business, and its cRPO and RPO are core to the read —
+    #      if we parsed one but not the others, the ingestion is partial.
+    kp = (view.get("financials") or {}).get("saas_kpis") or {}
+    if kp.get("available"):
+        keys = {r.get("key") for r in (kp.get("rows") or [])}
+        if "subscription_revenue" in keys:
+            ok = "crpo" in keys and "rpo" in keys
+            out.append(chk("REQUIRED_KPI_COMPLETENESS", ok, WARN,
+                           "a subscription release carries cRPO and RPO",
+                           "parsed: %s" % ", ".join(sorted(k for k in keys
+                                                            if k)),
+                           warn_only=True))
+
     # 10. Metric-period consistency: everything grouped as the latest quarter
     #     must share the revenue quarter's period_end. This is the check that
     #     would have caught Q1 cash flow printed beside Q2 revenue.
