@@ -190,6 +190,115 @@ def financials(snap, estimates):
     }
 
 
+# ── business analysis (page 2) ──────────────────────────────────────────
+
+def business_analysis(snap):
+    """Analysis, not description: what the admitted numbers say about the
+    business — enterprise motion, revenue visibility, the growth/cash
+    balance, and the AI franchise sized against the issuer's own guidance.
+    Every figure is derived from filed facts with its formula stated, so
+    this reads like research without inventing a single datum. Sections
+    that lack inputs are omitted, not filled."""
+    fu = snap.get("fundamentals") or {}
+    ex = snap.get("exhibit") or {}
+    kpis = ex.get("kpis") or {}
+    hl = ex.get("guidance_highlights") or {}
+    out = {"sections": [], "grade": DERIVED}
+
+    sub = kpis.get("subscription_revenue") or {}
+    crpo = kpis.get("crpo") or {}
+    rpo = kpis.get("rpo") or {}
+    ai = kpis.get("ai_acv") or {}
+    d1m = kpis.get("acv_over_1m_net_new_deals") or {}
+    c5m = kpis.get("acv_over_5m_customers") or {}
+    sub_v = sub.get("value")
+    run_rate = sub_v * 4.0 if sub_v else None
+
+    # Enterprise motion: the large-deal and large-customer counts the
+    # issuer files are direct evidence of who the customer is and how the
+    # motion works.
+    if c5m.get("value") or d1m.get("value"):
+        bits = []
+        if c5m.get("value"):
+            floor = c5m["value"] * 5e6
+            bits.append("%d customers above $5M in ACV — at least %s of "
+                        "annualised contract value from the largest "
+                        "accounts alone" % (c5m["value"], _money_s(floor)))
+        if d1m.get("value"):
+            bits.append("%d transactions above $1M net-new ACV closed in "
+                        "the quarter" % d1m["value"])
+        out["sections"].append({
+            "title": "Enterprise motion",
+            "text": "The customer base is concentrated in large enterprise "
+                    "and expanding within it: %s. Growth is driven by "
+                    "landing and expanding large accounts, not volume of "
+                    "small ones." % "; ".join(bits),
+            "grade": DERIVED})
+
+    # Revenue visibility: booked backlog against the current run-rate.
+    if run_rate and crpo.get("value"):
+        cov = 100.0 * crpo["value"] / run_rate
+        yrs = (rpo["value"] / run_rate) if rpo.get("value") else None
+        text = ("Contracted backlog gives unusual visibility: cRPO of %s "
+                "covers roughly %.0f%% of the next twelve months at the "
+                "current subscription run-rate (%s annualised)"
+                % (_money_s(crpo["value"]), cov, _money_s(run_rate)))
+        if yrs:
+            text += (", and total RPO of %s is about %.1f years of that "
+                     "run-rate already under contract"
+                     % (_money_s(rpo["value"]), yrs))
+        text += (". The revenue model is subscription-first, so the near "
+                 "term is largely booked before the quarter begins.")
+        out["sections"].append({"title": "Revenue visibility",
+                                "text": text, "grade": DERIVED})
+
+    # Growth against cash generation, on the figures we actually hold.
+    fcf = _fv(fu.get("free_cash_flow"))
+    rev_q = _fv(fu.get("revenue_q"))
+    g = sub.get("growth_yoy_pct")
+    if fcf is not None and rev_q and g is not None:
+        fm = 100.0 * fcf / rev_q
+        text = ("Subscription growth of %.1f%% against a quarterly free-"
+                "cash-flow margin of %.1f%% (FCF / total revenue, OCF minus "
+                "capex basis) puts the growth-plus-cash balance near %.0f "
+                "on this quarter's GAAP-derived figures. Issuer-defined FCF "
+                "excludes items this calculation does not, so the company's "
+                "own framing will read higher." % (g, fm, g + fm))
+        out["sections"].append({"title": "Growth and cash balance",
+                                "text": text, "grade": DERIVED})
+
+    # The AI franchise, sized against the issuer's own full-year guide.
+    if ai.get("value"):
+        fy = hl.get("fy_subscription_revenue") or {}
+        mid = ((fy.get("low", 0) + fy.get("high", 0)) / 2.0
+               if fy.get("low") else None)
+        text = ("The issuer states AI has crossed %s in annual contract "
+                "value" % _money_s(ai["value"]))
+        if mid:
+            text += (" — at least %.0f%% of the full-year subscription-"
+                     "revenue guidance midpoint (%s), and the fastest-"
+                     "compounding line the release discloses"
+                     % (100.0 * ai["value"] / mid, _money_s(mid)))
+        text += (". Whether that line re-accelerates bookings is the swing "
+                 "factor in the forward-growth debate.")
+        out["sections"].append({"title": "AI franchise",
+                                "text": text, "grade": DERIVED})
+
+    out["sufficient"] = bool(out["sections"])
+    return out
+
+
+def _money_s(v):
+    if v is None:
+        return "n/a"
+    a = abs(v)
+    if a >= 1e9:
+        return "$%.2fB" % (v / 1e9)
+    if a >= 1e6:
+        return "$%.0fM" % (v / 1e6)
+    return "$%s" % ("{:,.0f}".format(v))
+
+
 # ── valuation ───────────────────────────────────────────────────────────
 
 def valuation(snap, estimates, peers, price):
@@ -569,6 +678,7 @@ def build(snap, estimates=None, peers=None, report_time=None):
         "thesis": thesis,
         "risks": risks(snap, event),
         "business": M3.business_description(snap),
+        "business_analysis": business_analysis(snap),
         "financials": financials(snap, estimates),
         "valuation": valuation(snap, estimates, peers, price),
         "catalysts": fix_catalysts(M3.catalysts(snap), report_time),

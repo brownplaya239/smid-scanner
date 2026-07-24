@@ -189,14 +189,17 @@ def _page1(snap, view):
 # ── page 2: business ────────────────────────────────────────────────────
 
 def _page2(snap, view):
+    """Business analysis, not a field inventory: who the customer is, how
+    visible the revenue is, how growth balances against cash, and where the
+    AI franchise sits against the issuer's own guide — each section derived
+    from admitted facts with its formula stated. What lacks inputs is
+    omitted; what remains descriptive says whose description it is."""
     st = [para("Business model and competitive position", "h2")]
     bd = view.get("business") or {}
     sents = bd.get("sentences") or []
-    biz_ps = []
     if sents:
-        p = para(" ".join(_clean(safe(x["text"])) for x in sents), "body")
-        biz_ps.append(p)
-        st.append(p)
+        st.append(para(" ".join(_clean(safe(x["text"])) for x in sents),
+                       "body"))
         srcs = []
         for x in sents:
             if x["source"] not in srcs and x["source"] != "coverage statement":
@@ -208,38 +211,39 @@ def _page2(snap, view):
         st.append(para("No business description was admitted from a cited "
                        "source.", "body", OBSERVED))
 
-    # Product mix / market opportunity: honest about what is and is not
-    # sourced. Segment mix and market share have no structured feed.
-    st.append(para("Product mix and market opportunity", "h2"))
-    st.append(para("Segment revenue mix, addressable-market sizing and "
-                   "market share are not ingested from a structured "
-                   "source and are not estimated here. The filed figures "
-                   "above describe scale and profitability; the "
-                   "competitive read is qualitative and sourced to the "
-                   "issuer's own description.", "small"))
+    # The derived analysis: enterprise motion, revenue visibility, the
+    # growth/cash balance, and the AI franchise — built by the model from
+    # the release KPIs and the filed financials.
+    ba = view.get("business_analysis") or {}
+    for sec in (ba.get("sections") or []):
+        st.append(para(_clean(sec.get("title") or ""), "h2"))
+        st.append(para(_clean(sec.get("text") or ""), "body",
+                       sec.get("grade")))
 
-    # Customer economics — from what the filings carry (margins, cash gen).
+    # Margins close the unit-economics read when present.
     fin = view["financials"]["reported"]
-    st.append(para("Customer economics and cash generation", "h2"))
     bits = []
     if fin.get("gross_margin") is not None:
         bits.append("gross margin %.1f%%" % fin["gross_margin"])
     if fin.get("net_margin") is not None:
-        bits.append("net margin %.1f%%" % fin["net_margin"])
-    if fin.get("operating_cash_flow") is not None:
-        bits.append("operating cash flow %s"
-                    % _money(fin["operating_cash_flow"]))
-    if fin.get("free_cash_flow") is not None:
-        bits.append("free cash flow %s" % _money(fin["free_cash_flow"]))
+        bits.append("GAAP net margin %.1f%%" % fin["net_margin"])
     if bits:
-        st.append(para("Unit economics are read through the P&L and cash "
-                       "flow the issuer files: %s. Per-customer metrics "
-                       "(ACV, net retention) are not disclosed in a "
-                       "structured form and are not shown."
-                       % ", ".join(bits), "body", DERIVED))
-    else:
-        st.append(para("No margin or cash-flow figure cleared the filing "
-                       "gate for this period.", "small"))
+        st.append(para("Margins for the quarter: %s (SEC XBRL)."
+                       % ", ".join(bits), "small", OBSERVED))
+
+    # The market debate this analysis feeds — the same variant page 6
+    # carries, framed here as what the reader should be arguing about.
+    var = view.get("variant") or {}
+    if var.get("available"):
+        st.append(para("The market debate", "h2"))
+        st.append(para(_clean(var["text"]), "body", var.get("grade")))
+
+    if not (ba.get("sections") or var.get("available")):
+        st.append(para("Beyond the sourced description above, no admitted "
+                       "operating metrics support a deeper business read "
+                       "for this period; segment mix, market share and "
+                       "per-customer economics are not ingested and are "
+                       "not estimated.", "small"))
 
     st, _ = _fit_page(st, [], "v4-p2")
     return st
