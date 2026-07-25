@@ -105,16 +105,22 @@ def check_finnhub(ticker):
 
 
 def check_market(ticker):
-    """Price and volume bars — every level, average, RSI and chart."""
+    """Price and volume bars — every level, average, RSI and chart. Reports
+    the feed that ACTUALLY served, so a silent fallback to the unofficial
+    source shows up here instead of being assumed away."""
     try:
         import research_live as RL
         mk = RL.fetch_market(ticker)
         n = len(mk.get("closes") or [])
-        row("Market bars (yfinance)", UNOFFICIAL, n > 200,
-            "%d daily bars, last close %.2f, asof %s"
-            % (n, (mk.get("closes") or [0])[-1], mk.get("bar_time")))
+        src = mk.get("bar_source") or "unknown"
+        grade = VENDOR if mk.get("bar_source_licensed") else UNOFFICIAL
+        row("Market bars (%s)" % src, grade, n > 200,
+            "%d daily bars, last close %.2f, asof %s%s"
+            % (n, (mk.get("closes") or [0])[-1], mk.get("bar_time"),
+               "" if mk.get("bar_source_licensed")
+               else "  [FELL BACK to unofficial feed]"))
     except Exception as e:
-        row("Market bars (yfinance)", UNOFFICIAL, False, "error: %s" % e)
+        row("Market bars", UNOFFICIAL, False, "error: %s" % e)
 
 
 def check_news(ticker):

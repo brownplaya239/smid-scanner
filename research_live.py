@@ -339,20 +339,102 @@ def _admit(rows, acc, report_time, dedupe_by_end=True):
 
 # ── market data: one canonical series ───────────────────────────────────
 
+def _bar_src_label(mk):
+    """How a price fact names its own feed. A reader auditing a level has
+    to be able to tell a contracted source from an unofficial one, so the
+    label carries that distinction rather than a generic 'daily bars'."""
+    src = (mk or {}).get("bar_source") or "unknown"
+    if src == "polygon":
+        return "Polygon.io daily bars (licensed)"
+    if src == "yahoo":
+        return "Yahoo Finance daily bars (unofficial feed)"
+    return "%s daily bars" % src
+
+
+def _licensed_daily_bars(ticker, min_bars=210):
+    """Daily OHLCV from the licensed market-data provider (Polygon).
+
+    Every level, moving average, RSI reading, 52-week bound, the chart and
+    the relative-strength line are computed from this one series, so its
+    provenance is the provenance of the whole technical half of the report.
+    Polygon is a contracted feed with a redistribution licence; the
+    yfinance fallback is an unofficial endpoint with neither, and is
+    labelled as such wherever it is used.
+
+    Polygon's `adjusted=true` adjusts for SPLITS ONLY — the same basis as
+    the Yahoo Close column this report has always used, which is why the
+    two agree to the cent. Dividends are deliberately not back-adjusted:
+    a price level a reader checks on a chart must be the price that
+    traded.
+
+    Returns the normalised arrays plus the source label, or None so the
+    caller can fall back rather than fail.
+    """
+    try:
+        import polygon_data as PG
+        if not PG.available():
+            return None
+        # daily_bars pads its own window (days * 1.6), so 460 lands on
+        # roughly two years of sessions — the same span the report has
+        # always described, and comfortably more than the 252 the
+        # 52-week bounds need.
+        raw = PG.daily_bars(ticker, days=460)
+        if not raw or len(raw) < min_bars:
+            return None
+        rows = sorted(raw, key=lambda r: r.get("t") or 0)
+        out = {"closes": [], "highs": [], "lows": [], "vols": [],
+               "opens": [], "dates": []}
+        for r in rows:
+            c, h, l = r.get("c"), r.get("h"), r.get("l")
+            o, v, t = r.get("o"), r.get("v"), r.get("t")
+            if None in (c, h, l, o, t):
+                continue
+            out["closes"].append(float(c))
+            out["highs"].append(float(h))
+            out["lows"].append(float(l))
+            out["vols"].append(float(v or 0))
+            out["opens"].append(float(o))
+            out["dates"].append(
+                datetime.fromtimestamp(t / 1000.0, tz=timezone.utc).date())
+        if len(out["closes"]) < min_bars:
+            return None
+        out["source"] = "polygon"
+        out["licensed"] = True
+        return out
+    except Exception:
+        return None
+
+
 def fetch_market(ticker, as_of=None):
     import yfinance as yf
     tk = yf.Ticker(ticker)
+    lic = _licensed_daily_bars(ticker)
     bars = tk.history(period="2y", interval="1d", auto_adjust=False)
-    if bars is None or len(bars) < 210:
+    if lic is None and (bars is None or len(bars) < 210):
         raise RuntimeError("insufficient daily history for %s" % ticker)
-    closes = [float(x) for x in bars["Close"].tolist()]
-    highs = [float(x) for x in bars["High"].tolist()]
-    lows = [float(x) for x in bars["Low"].tolist()]
-    vols = [float(x) for x in bars["Volume"].tolist()]
+    if lic is not None:
+        closes, highs = lic["closes"], lic["highs"]
+        lows, vols = lic["lows"], lic["vols"]
+        bar_source = "polygon"
+    else:
+        if bars is None or len(bars) < 210:
+            raise RuntimeError("insufficient daily history for %s" % ticker)
+        closes = [float(x) for x in bars["Close"].tolist()]
+        highs = [float(x) for x in bars["High"].tolist()]
+        lows = [float(x) for x in bars["Low"].tolist()]
+        vols = [float(x) for x in bars["Volume"].tolist()]
+        bar_source = "yahoo"
     # A daily bar is indexed at MIDNIGHT of the session, so publishing that
     # timestamp as "market data as of" understates the data by a full
     # trading day. The bar represents the 16:00 ET close.
-    last_bar = bars.index[-1].to_pydatetime()
+    # Session dates come from whichever series was actually used, so the
+    # "as of" stamp can never describe a different feed's last bar.
+    if lic is not None:
+        _all_dates = list(lic["dates"])
+        last_bar = datetime.combine(_all_dates[-1], datetime.min.time())
+    else:
+        _all_dates = [d.to_pydatetime().date() for d in bars.index]
+        last_bar = bars.index[-1].to_pydatetime()
     if last_bar.tzinfo is None:
         last_bar = last_bar.replace(tzinfo=timezone(timedelta(hours=-4)))
     session_close = last_bar.replace(hour=16, minute=0, second=0,
@@ -380,7 +462,7 @@ def fetch_market(ticker, as_of=None):
     c_highs = highs[:-1] if partial else highs
     c_lows = lows[:-1] if partial else lows
     c_vols = vols[:-1] if partial else vols
-    c_dates = [d.to_pydatetime().date() for d in bars.index]
+    c_dates = list(_all_dates)
     c_dates = c_dates[:-1] if partial else c_dates
 
     def ma(n):
@@ -441,15 +523,23 @@ def fetch_market(ticker, as_of=None):
     hi52 = round(max(c_closes[-252:]), 2) if len(c_closes) >= 252 else None
     lo52 = round(min(c_closes[-252:]), 2) if len(c_closes) >= 252 else None
 
-    series_id = "yahoo:%s:1d:unadjusted:asof=%s" % (
-        ticker.upper(), last_bar.date().isoformat())
-    opens = [float(x) for x in bars["Open"].tolist()]
-    dates = [d.to_pydatetime().date() for d in bars.index]
+    # The series id names the feed that actually served the bars, so a
+    # fallback run can never be mistaken for a licensed one downstream.
+    series_id = "%s:%s:1d:split-adjusted:asof=%s" % (
+        bar_source, ticker.upper(), last_bar.date().isoformat())
+    opens = (list(lic["opens"]) if lic is not None
+             else [float(x) for x in bars["Open"].tolist()])
+    dates = list(_all_dates)
     rs, spy_window = _rs_vs_spy(
         c_closes, c_dates, weeks=12,
         through=(c_dates[-1].isoformat() if c_dates else None))
     return {
         "series_id": series_id,
+        # Which feed served these bars, and whether it is a contracted
+        # source. Every level, average, RSI reading and chart on the report
+        # inherits this provenance.
+        "bar_source": bar_source,
+        "bar_source_licensed": bar_source == "polygon",
         "dates": dates, "opens": opens, "closes": closes,
         "highs": highs, "lows": lows, "volumes": vols,
         # the completed-session series every indicator above was built on
@@ -900,8 +990,11 @@ def build_snapshot(ticker, report_time=None):
 
     print("[1/7] market data (canonical series)...")
     mk = fetch_market(ticker, as_of=now)
-    prov["coverage"]["market"] = ("yahoo daily bars, %d issuer sessions"
-                                  % mk["n_bars"])
+    prov["coverage"]["market"] = (
+        "%s daily bars (split-adjusted), %d issuer sessions%s"
+        % (mk.get("bar_source", "unknown"), mk["n_bars"],
+           "" if mk.get("bar_source_licensed") else
+           " — UNOFFICIAL feed, no data licence or SLA"))
 
     led = EL.Ledger(ticker, report_time)
     for i, d in enumerate(mk["dates"]):
@@ -1035,7 +1128,7 @@ def build_snapshot(ticker, report_time=None):
     sid = mk["series_id"]
 
     def mfact(v, metric, refs=None, **kw):
-        return rs.fact(v, metric=metric, source="Yahoo Finance daily bars",
+        return rs.fact(v, metric=metric, source=_bar_src_label(mk),
                        source_type="market_data", series_id=sid,
                        market_asof=mk["bar_time"], retrieved_at=retrieved_at,
                        quality=rs.Q_UNVERIFIED,
@@ -1087,7 +1180,7 @@ def build_snapshot(ticker, report_time=None):
         # blends two series, so it does not claim the single canonical id
         snap["levels"]["rs_vs_spy"] = rs.fact(
             mk["rs_vs_spy"], metric="relative strength vs SPY", unit="%",
-            source="Yahoo Finance daily bars", source_type="derived",
+            source=_bar_src_label(mk), source_type="derived",
             series_id=sid + " vs yahoo:SPY:1d", market_asof=mk["bar_time"],
             retrieved_at=retrieved_at, calc_version="rs/v1",
             quality=rs.Q_DERIVED, evidence_refs=["CALC-rs_vs_spy"],
@@ -1905,7 +1998,7 @@ def build_snapshot(ticker, report_time=None):
          "options chain not wired into this report"),
     ]
     led.coverage = {
-        "sources_used": ["Yahoo Finance daily bars", "SEC EDGAR submissions",
+        "sources_used": [_bar_src_label(mk), "SEC EDGAR submissions",
                          "SEC XBRL companyconcept", "SEC Form 4",
                          "StockTwits", "Yahoo Finance news"],
         "sources_unavailable": [
