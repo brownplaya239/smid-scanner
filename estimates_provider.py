@@ -36,6 +36,17 @@ import os
 import urllib.error
 import urllib.request
 
+# Load the local .env the way every other module in this project does, so a
+# developer run picks the key up from the same gitignored file that holds
+# the rest of the credentials. In CI there is no .env and the key arrives
+# as a real environment secret; both paths end at os.environ, and neither
+# the key nor any other value is ever logged.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=False)
+except Exception:
+    pass
+
 PROVIDER = "finnhub"
 ENV_KEY = "FINNHUB_API_KEY"
 BASE = "https://finnhub.io/api/v1"
