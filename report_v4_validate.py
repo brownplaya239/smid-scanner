@@ -303,6 +303,23 @@ def check_pdfs(core, appendix, view=None):
             out.append(chk("HTML_ENTITIES_APPENDIX", not alit, ERROR,
                            "no literal HTML entities in the appendix",
                            "found: %s" % (", ".join(alit) or "none")))
+        # No orphaned tail: a final appendix page carrying only a scrap of
+        # a table looks unfinished. The furniture (header + footer) alone
+        # extracts ~100 chars, so 300 means the page has real content.
+        if appendix and an > 1:
+            try:
+                import fitz
+                d = fitz.open(stream=appendix, filetype="pdf")
+                last_len = len(d[d.page_count - 1].get_text().strip())
+                d.close()
+            except Exception:
+                last_len = None
+            if last_len is not None:
+                out.append(chk("APPENDIX_TABLE_PAGINATION", last_len >= 300,
+                               WARN, "final appendix page carries real "
+                               "content, not an orphaned table tail",
+                               "last page %d chars" % last_len,
+                               warn_only=True))
     return out
 
 

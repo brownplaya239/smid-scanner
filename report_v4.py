@@ -579,6 +579,11 @@ def _flash_page(snap, view):
 
 # ── the appendix: evidence and methodology ──────────────────────────────
 
+# Sampled social records shown in the appendix. Enough to check the counts
+# against; the full sampled set lives in the evidence record, and the cap
+# keeps the section small enough to KeepTogether on one page.
+_SAMPLE_CAP = 6
+
 def _acc_cell(accession, url):
     """An accession number, hyperlinked to the filing when we hold the URL
     — the reader can open the primary source, not just read its id."""
@@ -690,17 +695,48 @@ def _appendix_story(snap, view, estimates=None, prov=None):
                            "inventory."))
 
     # 5. Derived figures and their formulas
+    import re as _re
+    _XBRL_REF_RX = _re.compile(
+        r"^XBRL-([\d-]+)-([a-z-]+):([A-Za-z\d]+)-(\d{4}-\d{2}-\d{2})$")
+
+    def _refs_cell(refs):
+        """Evidence IDs, one per line. An XBRL id is one long unbroken
+        token that reportlab hard-wraps at arbitrary characters — machine
+        noise, not an audit trail. Each XBRL ref is typeset as its parts
+        (accession &middot; tag words &middot; period end), which wraps at
+        real spaces; the caption below the table states how the exact id
+        reconstructs. Non-XBRL refs (CALC-*, BAR-*) are short and pass
+        through unchanged."""
+        if not refs:
+            return "—"
+        lines = []
+        for r in refs:
+            m = _XBRL_REF_RX.match(str(r))
+            if m:
+                accn, taxo, tag, end = m.groups()
+                words = _re.sub(r"([a-z\d])([A-Z])", r"\1 \2", tag)
+                lines.append("%s &middot; %s &middot; %s"
+                             % (accn, _clean(words), end))
+            else:
+                lines.append(_clean(str(r)))
+        return R.Paragraph("<br/>".join(lines), ST["cell"])
+
     calc = []
     for domain in ("levels", "fundamentals", "valuation"):
         for k, f in (snap.get(domain) or {}).items():
             if isinstance(f, dict) and f.get("calc_version"):
                 calc.append([k, _clean(f.get("basis") or "—"),
-                             ", ".join(f.get("evidence_refs") or []) or "—"])
+                             _refs_cell(f.get("evidence_refs"))])
     st.append(sec("Derived figures and their formulas"))
-    st.append(_table(calc, [BODY_W * 0.22, BODY_W * 0.44, BODY_W * 0.26],
+    st.append(_table(calc, [BODY_W * 0.18, BODY_W * 0.38, BODY_W * 0.36],
                      header=["Figure", "Basis", "Evidence refs"], zebra=True,
                      empty="No figure in this report was derived; every value "
                            "came directly from a source."))
+    if calc:
+        st.append(para("An XBRL reference reads accession &middot; tag "
+                       "&middot; period end; the tag is a us-gaap concept "
+                       "shown with word breaks (remove the spaces to "
+                       "reconstruct the exact tag).", "small"))
 
     # 6. Insider transactions
     ins = view.get("insiders") or {}
@@ -758,26 +794,36 @@ def _appendix_story(snap, view, estimates=None, prov=None):
                          header=["Metric", "Period end", "Form", "Accepted"],
                          zebra=True))
 
-    # 11. Sampled social records
+    # 11. Sampled social records. The whole section is kept together so a
+    # page break never strands the last rows of the table alone on a final
+    # page — the section either fits after the prior one or moves to the
+    # next page as one intentional block. The sample is capped; the full
+    # set lives in the evidence record, and the cap is disclosed.
+    from reportlab.platypus import KeepTogether
     samples = M3.presentable_samples(
         (snap.get("sentiment") or {}).get("sample_records") or [])
-    st.append(sec("Sampled message-board records"))
-    st.append(para("Raw, unverified, anonymous. Kept out of the report and "
-                   "reproduced here only so any sentiment count can be "
-                   "checked.", "small"))
-    if samples:
-        st.append(_table([[(s.get("author_hash") or "")[:10],
-                           M3.to_et(s.get("published_at"))[0]
-                           or s.get("published_at") or "—",
-                           s.get("sentiment") or "unclassified",
-                           _clean(safe(str(s.get("excerpt") or "")))[:150]]
-                          for s in samples],
-                         [BODY_W * 0.14, BODY_W * 0.2, BODY_W * 0.12,
-                          BODY_W * 0.46],
-                         header=["Author", "Posted", "Class", "Excerpt"],
-                         zebra=True))
+    shown = samples[:_SAMPLE_CAP]
+    sec_flow = [sec("Sampled message-board records"),
+                para("Raw, unverified, anonymous. Kept out of the report and "
+                     "reproduced here only so any sentiment count can be "
+                     "checked.%s" % (
+                         " Showing %d of %d sampled records; the full set is "
+                         "in the evidence record." % (len(shown), len(samples))
+                         if len(samples) > len(shown) else ""), "small")]
+    if shown:
+        sec_flow.append(_table([[(s.get("author_hash") or "")[:10],
+                                 M3.to_et(s.get("published_at"))[0]
+                                 or s.get("published_at") or "—",
+                                 s.get("sentiment") or "unclassified",
+                                 _clean(safe(str(s.get("excerpt") or "")))[:150]]
+                                for s in shown],
+                               [BODY_W * 0.14, BODY_W * 0.2, BODY_W * 0.12,
+                                BODY_W * 0.46],
+                               header=["Author", "Posted", "Class", "Excerpt"],
+                               zebra=True))
     else:
-        st.append(para("No records were sampled.", "small"))
+        sec_flow.append(para("No records were sampled.", "small"))
+    st.append(KeepTogether(sec_flow))
     return st
 
 

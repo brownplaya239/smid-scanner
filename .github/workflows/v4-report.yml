@@ -1,0 +1,56 @@
+name: Equity Research v4 (manual)
+
+# Manual, on-demand v4 package for one ticker, run where the Finnhub key
+# lives so the consensus rating and surprise history populate instead of
+# reading NR. Deliberately NOT part of the site's lookup path — v3 still
+# ships there; this exists so the full-tier v4 output can be reviewed as
+# a downloadable artifact before any cutover.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: 'Ticker symbol (e.g. NOW, MRVL, NVDA)'
+        required: true
+        type: string
+
+jobs:
+  v4:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate Equity Research v4 package
+        env:
+          # With the key present the Finnhub consensus recommendation and
+          # earnings-surprise history populate (free tier); a premium key
+          # additionally lights up the 12-month target and forward
+          # estimates with no code change. Without it the provider fails
+          # closed and the rating reads NR.
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: python report_v4_run.py "${{ inputs.ticker }}" --out out_v4_ci
+
+      - name: Upload report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: equity-research-v4-${{ inputs.ticker }}
+          path: out_v4_ci/
+          retention-days: 14
