@@ -19072,8 +19072,8 @@
         " · " + (d.iv_level_method || "");
       const html = '<span class="ant-iv-pill ' + cls +
         '" title="' + tooltip.replace(/"/g, "&quot;") + '">' +
-        '±' + im.toFixed(1) + '% IV' +
-        (iv != null ? iv.toFixed(0) : '—') +
+        '±' + im.toFixed(1) + '% IV ' +
+        (iv != null ? iv.toFixed(0) + '%' : '—') +
         '</span>';
       return { html: html, cls: cls };
     }
@@ -19105,35 +19105,19 @@
           (j && j.quotes || []).forEach(function (q) {
             const els = byTk.get((q.symbol || "").toUpperCase());
             if (!els || q.price == null) return;
-            // The DAY move is the regular session; an extended print is
-            // its own number. "+6.5% AH+0.2%" — the stock moved 6.5%
-            // during the day and drifted 0.2% after hours, not "moved
-            // 6.5% after hours". Pre-market has no regular session yet,
-            // so the whole move renders as "pre +1.4%".
+            // One number: the TOTAL day return — live print (extended
+            // hours included) vs the previous regular close. The
+            // regular/AH split lives in the tooltip.
+            const chg = typeof q.change === "number" ? q.change : null;
             const reg = typeof q.regular_change === "number"
-              ? q.regular_change : (q.market_state === "pre" ? null
-                : typeof q.change === "number" ? q.change : null);
+              ? q.regular_change : null;
             const ext = typeof q.ext_change_pct === "number"
               ? q.ext_change_pct : null;
-            const lead = reg != null ? reg
-                        : ext != null ? ext
-                        : typeof q.change === "number" ? q.change : null;
-            const dir = lead == null ? "" : lead >= 0 ? "ant-px-up"
-                                                      : "ant-px-dn";
+            const dir = chg == null ? "" : chg >= 0 ? "ant-px-up"
+                                                    : "ant-px-dn";
             const pct = function (v) {
               return (v >= 0 ? "+" : "") + v.toFixed(1) + "%"; };
-            let tail = "";
-            if (q.market_state === "pre" && ext != null) {
-              tail = ' <b><span class="ant-px-sess">pre</span> ' +
-                pct(ext) + "</b>";
-            } else {
-              if (reg != null) tail = " <b>" + pct(reg) + "</b>";
-              if (q.market_state === "post" && ext != null &&
-                  Math.abs(ext) >= 0.05) {
-                tail += ' <span class="ant-px-sess">AH' + pct(ext) +
-                  "</span>";
-              }
-            }
+            const tail = chg == null ? "" : " <b>" + pct(chg) + "</b>";
             const ts = q.last_trade_ts
               ? new Date(q.last_trade_ts).toLocaleTimeString([],
                   { hour: "numeric", minute: "2-digit" })
@@ -19144,8 +19128,9 @@
                   ? Math.round(q.price)
                   : q.price >= 10 ? q.price.toFixed(1)
                   : q.price.toFixed(2)) + tail;
-              el.title = (reg != null
-                  ? "Regular session " + pct(reg) + ". " : "") +
+              el.title = (chg != null
+                  ? "Total 1D " + pct(chg) + " incl. extended hours. " : "") +
+                (reg != null ? "Regular session " + pct(reg) + ". " : "") +
                 (ext != null ? (q.market_state === "pre" ? "Pre-market "
                     : "After hours ") + pct(ext) + ". " : "") +
                 "Last trade " + ts +

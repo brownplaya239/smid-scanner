@@ -118,6 +118,55 @@ def _finnhub_sessions(monday):
     return out
 
 
+MCAP_CACHE = os.path.join(_BASE, "data", "earnings_mcap_cache.json")
+MCAP_TTL_DAYS = 7
+
+
+def _market_caps(tickers):
+    """Polygon market cap per ticker, behind a committed 7-day cache so a
+    scrape only fetches names it has not seen this week. Caps drive the
+    calendar sort; a name Polygon does not know sorts last with mcap
+    None rather than being dropped."""
+    try:
+        with open(MCAP_CACHE, encoding="utf-8") as f:
+            cache = json.load(f)
+    except Exception:
+        cache = {}
+    now = datetime.now(ET).timestamp()
+    out, fetched = {}, 0
+    try:
+        import polygon_data as PG
+        ok = PG.available()
+    except Exception:
+        ok = False
+    for t in tickers:
+        ent = cache.get(t)
+        if ent and now - ent.get("ts", 0) < MCAP_TTL_DAYS * 86400:
+            out[t] = ent.get("mcap")
+            continue
+        if not ok:
+            out[t] = (ent or {}).get("mcap")
+            continue
+        try:
+            det = PG.ticker_details(t) or {}
+            mc = det.get("market_cap")
+        except Exception:
+            mc = (ent or {}).get("mcap")
+        out[t] = mc
+        cache[t] = {"mcap": mc, "ts": now}
+        fetched += 1
+    try:
+        os.makedirs(os.path.dirname(MCAP_CACHE), exist_ok=True)
+        with open(MCAP_CACHE, "w", encoding="utf-8") as f:
+            json.dump(cache, f)
+    except Exception:
+        pass
+    if fetched:
+        print(f"  Market caps: {fetched} fetched, "
+              f"{len(tickers) - fetched} cached")
+    return out
+
+
 def run():
     today = datetime.now(ET).date()
     monday = _week_monday(today)
@@ -165,8 +214,6 @@ def run():
             bmo_s, amc_s = keep_b, keep_a
             if moved:
                 print(f"  {d} session corrections: {', '.join(moved)}")
-        bmo_s.sort(key=lambda x: x.get("score") or 0, reverse=True)
-        amc_s.sort(key=lambda x: x.get("score") or 0, reverse=True)
         days.append({
             "date": d.strftime("%Y-%m-%d"),
             "dow":  d.strftime("%A"),
@@ -174,6 +221,20 @@ def run():
             "amc":  amc_s,
         })
         print(f"  {d.strftime('%a %Y-%m-%d')}  BMO={len(bmo_s):3d}  AMC={len(amc_s):3d}")
+
+    # Sort every session largest company first. Anticipation score stays
+    # on the row (tooltip + marquee); the ordering a reader scans a
+    # calendar in is by size.
+    all_tk = sorted({r["ticker"] for day in days
+                     for k in ("bmo", "amc") for r in day[k]
+                     if r.get("ticker")})
+    caps = _market_caps(all_tk)
+    for day in days:
+        for k in ("bmo", "amc"):
+            for r in day[k]:
+                r["mcap"] = caps.get(r.get("ticker"))
+            day[k].sort(key=lambda x: (x.get("mcap") is None,
+                                       -(x.get("mcap") or 0)))
 
     total = sum(len(x["bmo"]) + len(x["amc"]) for x in days)
     payload = {
