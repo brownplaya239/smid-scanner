@@ -3722,11 +3722,11 @@
   .ant-sess-hdr.ant-bmo { background:rgba(31,179,99,0.85); }
   .ant-sess-hdr.ant-amc { background:rgba(214,68,68,0.85); }
 
-  .ant-row { display:grid; align-items:center; column-gap:6px; row-gap:1px;
-    grid-template-columns:auto 1fr auto;
+  .ant-row { display:grid; align-items:center; column-gap:5px; row-gap:1px;
+    grid-template-columns:minmax(34px,auto) minmax(0,1fr) minmax(0,auto);
     grid-template-areas:"tk px act" "co bar iv";
     padding:4px 4px; font-size:11px; line-height:1.3; cursor:pointer;
-    border-radius:3px; margin:0 -4px; min-width:0; }
+    border-radius:3px; margin:0 -4px; min-width:0; overflow:hidden; }
   .ant-row .ant-tk { grid-area:tk; }
   .ant-row .ant-px { grid-area:px; justify-self:end; }
   .ant-row .ant-co { grid-area:co; }
@@ -3737,7 +3737,7 @@
   .ant-row + .ant-row { border-top:1px solid var(--line); }
   .ant-row:hover { background:rgba(255,200,0,0.06); }
   .ant-row:hover .ant-tk { color:var(--gold); }
-  .ant-row .ant-tk { font-weight:800; color:var(--text); min-width:46px;
+  .ant-row .ant-tk { font-weight:800; color:var(--text);
     transition:color .15s ease; }
   .ant-row .ant-co { color:var(--textdim); font-size:9.5px; flex:1;
     min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -3753,8 +3753,9 @@
      starts as "…" until the worker /iv response lands. Color encodes
      the absolute IV bucket — not a true 0-100 rank since we lack
      52-week history; tooltip discloses the methodology. */
-  .ant-row .ant-px { font-size:10.5px; color:var(--muted);
-    white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .ant-row .ant-px { font-size:10px; color:var(--muted);
+    white-space:nowrap; font-variant-numeric:tabular-nums;
+    overflow:hidden; text-overflow:ellipsis; }
   .ant-row .ant-px .ant-px-sess { color:var(--textdim); font-weight:400;
     font-size:9.5px; }
   .ant-row .ant-px b { font-weight:600; }
@@ -3763,9 +3764,9 @@
   .ant-row .ant-iv { font-size:9.5px; line-height:1.3;
     margin-left:auto; padding:0 4px; flex-shrink:0; }
   .ant-row .ant-iv-loading { color:var(--muted); font-style:italic; }
-  .ant-row .ant-iv-pill { display:inline-block; padding:2px 7px;
+  .ant-row .ant-iv-pill { display:inline-block; padding:1px 5px;
     border-radius:9px; font-weight:700; font-variant-numeric:tabular-nums;
-    border:1px solid var(--line); white-space:nowrap; }
+    border:1px solid var(--line); white-space:nowrap; font-size:9px; }
   .ant-row .ant-iv-low      { color:var(--green);
     border-color:rgba(31,179,99,0.4);
     background:rgba(31,179,99,0.10); }
@@ -19078,8 +19079,8 @@
         " · " + (d.iv_level_method || "");
       const html = '<span class="ant-iv-pill ' + cls +
         '" title="' + tooltip.replace(/"/g, "&quot;") + '">' +
-        '±' + im.toFixed(1) + '% &middot; IV ' +
-        (iv != null ? iv.toFixed(0) + '%' : '—') +
+        '±' + im.toFixed(1) + '% IV' +
+        (iv != null ? iv.toFixed(0) : '—') +
         '</span>';
       return { html: html, cls: cls };
     }
@@ -19147,7 +19148,9 @@
             els.forEach(function (el) {
               el.classList.add("ant-px-done", dir || "x");
               el.innerHTML = "$" + (q.price >= 100
-                  ? Math.round(q.price) : q.price.toFixed(2)) + tail;
+                  ? Math.round(q.price)
+                  : q.price >= 10 ? q.price.toFixed(1)
+                  : q.price.toFixed(2)) + tail;
               el.title = (reg != null
                   ? "Regular session " + pct(reg) + ". " : "") +
                 (ext != null ? (q.market_state === "pre" ? "Pre-market "
