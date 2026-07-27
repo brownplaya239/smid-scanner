@@ -1,6 +1,6 @@
 {
  "week_of": "2026-07-27",
- "generated": "2026-07-27T16:47:53-04:00",
+ "generated": "2026-07-27T16:55:21-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 391,
  "days": [
@@ -73,16 +73,6 @@
      "company": "Perfect Corp. ",
      "score": 5,
      "analysts": 3,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-07-27T00:00:00",
-     "q": "6/2026"
-    },
-    {
-     "ticker": "NE",
-     "company": "Noble Corporation plc",
-     "score": 5,
-     "analysts": 14,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-07-27T00:00:00",
@@ -239,6 +229,17 @@
      "confirmed": true,
      "next_eps": "2026-07-27T00:00:00",
      "q": "6/2026"
+    },
+    {
+     "ticker": "NE",
+     "company": "Noble Corporation plc",
+     "score": 5,
+     "analysts": 14,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-27T00:00:00",
+     "q": "6/2026",
+     "session_corrected": "EW listed BMO; Finnhub AMC"
     },
     {
      "ticker": "AGYS",
@@ -787,6 +788,17 @@
      "q": "6/2026"
     },
     {
+     "ticker": "CNP",
+     "company": "CenterPoint Energy Inc.",
+     "score": 3,
+     "analysts": 19,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-28T00:00:00",
+     "q": "6/2026",
+     "session_corrected": "EW listed AMC; Finnhub BMO"
+    },
+    {
      "ticker": "TXT",
      "company": "Textron, Inc.",
      "score": 2,
@@ -981,7 +993,7 @@
     {
      "ticker": "BE",
      "company": "Bloom Energy Corporation",
-     "score": 70,
+     "score": 71,
      "analysts": 27,
      "release_time": 3,
      "confirmed": true,
@@ -1153,16 +1165,6 @@
      "company": "NXP Semiconductors N.V.",
      "score": 3,
      "analysts": 27,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-07-28T00:00:00",
-     "q": "6/2026"
-    },
-    {
-     "ticker": "CNP",
-     "company": "CenterPoint Energy Inc.",
-     "score": 3,
-     "analysts": 19,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-07-28T00:00:00",
