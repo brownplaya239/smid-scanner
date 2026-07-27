@@ -3744,6 +3744,11 @@
      starts as "…" until the worker /iv response lands. Color encodes
      the absolute IV bucket — not a true 0-100 rank since we lack
      52-week history; tooltip discloses the methodology. */
+  .ant-row .ant-px { font-size:10px; color:var(--muted); white-space:nowrap;
+    font-variant-numeric:tabular-nums; margin-left:2px; min-width:74px; }
+  .ant-row .ant-px b { font-weight:600; }
+  .ant-row .ant-px.ant-px-up b { color:var(--green); }
+  .ant-row .ant-px.ant-px-dn b { color:var(--red); }
   .ant-row .ant-iv { font-size:9.5px; line-height:1.3;
     margin-left:auto; padding:0 4px; flex-shrink:0; }
   .ant-row .ant-iv-loading { color:var(--muted); font-style:italic; }
@@ -18952,12 +18957,15 @@
                 escHTML(r.ticker) + '" data-iv-date="' + (dayDate || "") +
                 '" title="Implied move + IV loading…">&hellip;</span>'
             : '';
+          const pxSlot = '<span class="ant-px" data-px-tk="' +
+            escHTML(r.ticker) + '" title="Live price loading…"></span>';
           return '<div class="ant-row' + (isMarquee ? ' ant-marquee' : '') +
             '" data-t="' + escHTML(r.ticker) +
             '" title="' + escHTML(r.company || "") +
             (r.score ? '\nAnticipation score: ' + r.score : '') +
             (r.analysts ? '\nAnalyst estimates: ' + r.analysts : '') + '">' +
             '<span class="ant-tk">' + escHTML(r.ticker) + '</span>' +
+            pxSlot +
             '<span class="ant-co">' + escHTML((r.company || "")
               .replace(/[,.]?\s*(Inc|Corp|Corporation|Ltd|N\.V|S\.A)\.?$/i, "")
               .slice(0, 28)) + '</span>' +
@@ -19035,6 +19043,7 @@
       // one upstream Polygon call. Chunk 5 at a time to avoid spawning
       // 40 simultaneous fetches when the page loads.
       hydrateIvBadges();
+      hydrateCalPrices();
     }
     // De-dup hydration: if multiple .ant-iv slots reference the same
     // ticker+date we only fetch once and fan the result out to all DOM
@@ -19062,6 +19071,61 @@
         (iv != null ? iv.toFixed(0) + '%' : '—') +
         '</span>';
       return { html: html, cls: cls };
+    }
+    // Live 1D price chips on the calendar rows, extended hours included.
+    // The ?quotes= endpoint merges Yahoo extended-hours with Polygon's
+    // snapshot and serves 12 symbols per call from the edge cache, so a
+    // full rendered week (top 10 x 2 sessions x 5 days, deduped) is a
+    // handful of round-trips. "pre"/"post" states get a session marker so
+    // an after-hours move reads as one.
+    async function hydrateCalPrices() {
+      const slots = Array.from(document.querySelectorAll(
+        ".ant-px[data-px-tk]:not(.ant-px-done)"));
+      if (!slots.length) return;
+      const byTk = new Map();
+      slots.forEach(function (el) {
+        const tk = (el.dataset.pxTk || "").toUpperCase();
+        if (!tk) return;
+        if (!byTk.has(tk)) byTk.set(tk, []);
+        byTk.get(tk).push(el);
+      });
+      const syms = Array.from(byTk.keys());
+      const CHUNK = 12;                      // worker cap per ?quotes= call
+      for (let i = 0; i < syms.length; i += CHUNK) {
+        const slice = syms.slice(i, i + CHUNK);
+        try {
+          const r = await fetch(WORKER_URL + "/?quotes=" +
+            encodeURIComponent(slice.join(",")), { cache: "default" });
+          const j = r.ok ? await r.json() : null;
+          (j && j.quotes || []).forEach(function (q) {
+            const els = byTk.get((q.symbol || "").toUpperCase());
+            if (!els || q.price == null) return;
+            const chg = typeof q.change === "number" ? q.change : null;
+            const dir = chg == null ? "" : chg >= 0 ? "ant-px-up"
+                                                    : "ant-px-dn";
+            const sess = q.market_state === "pre" ? " &middot; pre"
+                       : q.market_state === "post" ? " &middot; AH" : "";
+            const ts = q.last_trade_ts
+              ? new Date(q.last_trade_ts).toLocaleTimeString([],
+                  { hour: "numeric", minute: "2-digit" })
+              : "";
+            els.forEach(function (el) {
+              el.classList.add("ant-px-done", dir || "x");
+              el.innerHTML = "$" + (q.price >= 100
+                  ? Math.round(q.price) : q.price.toFixed(2)) +
+                (chg == null ? "" :
+                  " <b>" + (chg >= 0 ? "+" : "") + chg.toFixed(1) + "%" +
+                  sess + "</b>");
+              el.title = "Last trade " + ts +
+                (q.extended ? " (extended hours)" : "") +
+                (q.delay_minutes ? " — delayed " + q.delay_minutes + "m"
+                                 : " — real-time");
+            });
+          });
+        } catch (e) { /* leave the slots blank; rows still render */ }
+      }
+      // mark misses done so we do not refetch a dead symbol every render
+      slots.forEach(function (el) { el.classList.add("ant-px-done"); });
     }
     async function hydrateIvBadges() {
       const slots = Array.from(document.querySelectorAll(
