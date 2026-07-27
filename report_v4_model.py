@@ -143,9 +143,18 @@ def saas_kpis(snap):
     ex = snap.get("exhibit") or {}
     kpis = ex.get("kpis") or {}
     if not kpis:
+        # Distinguish "we could not read the release" from "the release
+        # does not state these metrics". A restaurant's filed release has
+        # no cRPO or ACV — that is not a data gap, it is a different
+        # business, and the section should vanish rather than imply the
+        # metrics exist somewhere unread.
+        if ex.get("disposition") == "ADMITTED":
+            return {"available": False, "not_applicable": True,
+                    "reason": "the filed release states no subscription-"
+                              "style operating metrics"}
         return _withheld(
-            "the earnings-release exhibit was not ingested, so cRPO/RPO, "
-            "ACV and customer metrics could not be read")
+            "the earnings-release exhibit was not ingested, so any "
+            "operating metrics it states could not be read")
     rows = []
     for key, label, kind in _KPI_LABELS:
         rec = kpis.get(key)

@@ -334,6 +334,85 @@ def parse_guidance_prose(doc):
     return out
 
 
+# A generic outlook item: "<Label> of/between X to/and Y" where the bounds
+# are dollars (with a million/billion word) or percentages. Written against
+# real releases (Sweetgreen FY26: "Same-Store Sales Change between (4.0)% to
+# (2.0)%", "Adjusted EBITDA between $1.0 million to $6.0 million"), not an
+# imagined format. Parenthesised numbers are negatives, GAAP-style.
+_OUT_HEAD_RX = re.compile(
+    r"(?:Fiscal\s+Year\s+\d{4}|Full[\s-]?Year|Financial|Q\d\s+\d{4})?"
+    r"\s*Outlook", re.I)
+_OUT_NUM = r"\(?-?[\d.,]+\)?"
+_OUT_ITEM_RX = re.compile(
+    r"([A-Z][A-Za-z][A-Za-z\s\-&/]{2,48}?)\s+(?:of|between|in the range of)"
+    r"\s+(\$?" + _OUT_NUM + r"%?)(?:\s*(million|billion))?"
+    r"\s*(?:to|and|[-–—])\s*"
+    r"(\$?" + _OUT_NUM + r"%?)(?:\s*(million|billion))?")
+
+
+def _out_val(tok, unit_word, other_unit):
+    """One outlook bound -> (value, unit). Percent stays a percent; a
+    dollar figure scales by its million/billion word (or its partner's,
+    for '$1.0 to $6.0 million')."""
+    tok = tok.strip()
+    neg = tok.startswith("(")
+    is_pct = tok.endswith("%")
+    raw = tok.rstrip("%").strip("()")
+    is_usd = raw.startswith("$")
+    raw = raw.strip("$%").replace(",", "")
+    try:
+        v = float(raw)
+    except ValueError:
+        return None, None
+    if neg:
+        v = -v
+    if is_pct:
+        return v, "%"
+    unit = unit_word or other_unit
+    if is_usd or unit:
+        mult = {"million": 1e6, "billion": 1e9}.get((unit or "").lower(), 1)
+        return v * mult, "USD"
+    return v, "count"
+
+
+def parse_outlook_prose(doc):
+    """Issuer-agnostic guidance: every '<Label> of X to Y' range in the
+    LAST Outlook section of the release. This is what lets a restaurant
+    or an industrial clear the gate — the SaaS-specific parser above only
+    reads subscription-revenue ranges, and a gate that can only ingest
+    ServiceNow's format holds every other issuer forever."""
+    t = _text(doc)
+    heads = [m.start() for m in _OUT_HEAD_RX.finditer(t)]
+    if not heads:
+        return {}
+    # "outlook" also appears in call announcements and safe-harbor
+    # boilerplate, so walk the headings from the end and keep the first
+    # one whose following text actually yields ranges.
+    for h in reversed(heads):
+        out = _outlook_items(t[h:h + 4000])
+        if out:
+            return out
+    return {}
+
+
+def _outlook_items(seg):
+    out = {}
+    for m in _OUT_ITEM_RX.finditer(seg):
+        label = " ".join(m.group(1).split())
+        # skip boilerplate verbs that satisfy the label shape
+        if re.search(r"(?i)(call|website|statements?|press|webcast)",
+                     label):
+            continue
+        lo, lu = _out_val(m.group(2), m.group(3), m.group(5))
+        hi, hu = _out_val(m.group(4), m.group(5), m.group(3))
+        if lo is None or hi is None or lu != hu:
+            continue
+        key = re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
+        out[key] = {"label": label, "low": lo, "high": hi, "unit": lu,
+                    "basis": "issuer outlook range, filed release prose"}
+    return out
+
+
 def arithmetic_ok(guide):
     """The issuer publishes a reconciliation that must close. If it does
     not, our column mapping is wrong and every number here is suspect."""
@@ -406,6 +485,10 @@ def ingest(cik, acc, fetch_text, report_time=None):
     # the reconciliation table the table parser may not handle.
     base["kpis"] = parse_kpis(doc)
     base["guidance_highlights"] = parse_guidance_prose(doc)
+    # Generic outlook ranges fill in what the SaaS-specific parse did not
+    # claim; a subscription-revenue range keeps its richer basis text.
+    for k, v in parse_outlook_prose(doc).items():
+        base["guidance_highlights"].setdefault(k, v)
 
     # Best-effort GAAP-reconciliation / guidance tables. A failure here no
     # longer blocks the whole release when the KPIs came through.

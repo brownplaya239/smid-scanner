@@ -406,14 +406,27 @@ def _page3(snap, view):
     gui = ex.get("guidance") if admitted else None
     grows = []
     if hl:
-        for key, lab in (("fy_subscription_revenue",
-                          "Subscription revenue (full-year outlook)"),
-                         ("next_q_subscription_revenue",
-                          "Subscription revenue (next-quarter outlook)")):
-            g = hl.get(key)
-            if isinstance(g, dict) and g.get("low") is not None:
-                grows.append([lab, "%s &ndash; %s"
-                              % (_money(g["low"]), _money(g["high"]))])
+        # Named SaaS keys first (their labels carry the period), then every
+        # generic outlook range the release stated — a restaurant guides on
+        # margins and EBITDA, not subscription revenue, and its guidance
+        # deserves the same table.
+        _named = {"fy_subscription_revenue":
+                  "Subscription revenue (full-year outlook)",
+                  "next_q_subscription_revenue":
+                  "Subscription revenue (next-quarter outlook)"}
+
+        def _grange(g):
+            if g.get("unit") == "%":
+                return "%.1f%% &ndash; %.1f%%" % (g["low"], g["high"])
+            if g.get("unit") == "USD":
+                return "%s &ndash; %s" % (_money(g["low"]), _money(g["high"]))
+            return "%s &ndash; %s" % (g["low"], g["high"])
+
+        for key, g in hl.items():
+            if key == "fx_commentary" or not isinstance(g, dict)                     or g.get("low") is None:
+                continue
+            grows.append([_clean(_named.get(key) or g.get("label") or key),
+                          _grange(g)])
         if hl.get("fx_commentary"):
             grows.append(["FX commentary", _clean(hl["fx_commentary"])])
     for k, g in (gui or {}).items():
@@ -429,7 +442,8 @@ def _page3(snap, view):
                        "for this period.", "small"))
 
     kp = fin["saas_kpis"]
-    if kp.get("rows") or not fin.get("no_reported_period"):
+    if kp.get("rows") or not (fin.get("no_reported_period")
+                              or kp.get("not_applicable")):
         st.append(para("Subscription and operating KPIs", "h2"))
     if kp.get("rows"):
         krows = []
@@ -449,7 +463,7 @@ def _page3(snap, view):
         st.append(para("From the issuer's earnings release (8-K exhibit %s). "
                        "These are stated facts in the filed release."
                        % _clean(kp.get("accession") or ""), "small", OBSERVED))
-    elif not fin.get("no_reported_period"):
+    elif not (fin.get("no_reported_period") or kp.get("not_applicable")):
         st.append(_wh_line("Subscription revenue, cRPO/RPO, ACV, customers",
                            kp, "small"))
 

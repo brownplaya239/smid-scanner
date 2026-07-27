@@ -143,6 +143,24 @@ def _guidance_ok(exhibit):
     return bool(ex.get("guidance") or ex.get("guidance_highlights"))
 
 
+# How long an unparseable exhibit holds the report. Inside this window the
+# unread release is the live story; beyond it the print is digested, the
+# periodic filing carries the numbers, and the gap is labelled instead.
+HOLD_WINDOW_DAYS = 5
+
+
+def _release_age_days(exhibit, now):
+    """Calendar days since the results 8-K was accepted, or None."""
+    acc = (exhibit or {}).get("accepted")
+    if not acc:
+        return None
+    try:
+        d = dt.datetime.fromisoformat(str(acc)[:19])
+        return (now.date() - d.date()).days
+    except ValueError:
+        return None
+
+
 def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
     """Resolve the single v4 event state and the permissions that follow.
 
@@ -168,21 +186,30 @@ def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
         reasons.append("Results appear released but the primary document "
                        "did not verify as a results disclosure: %s"
                        % (ver.get("reason") or "not verified"))
-    elif (exhibit or {}).get("disposition") == "AVAILABLE_NOT_INGESTED":
+    elif ((exhibit or {}).get("disposition") == "AVAILABLE_NOT_INGESTED"
+          and _release_age_days(exhibit, now) is not None
+          and _release_age_days(exhibit, now) <= HOLD_WINDOW_DAYS):
         # The release IS filed and verified, but the exhibit carrying the
-        # guidance and the operating KPIs (subscription revenue, cRPO/RPO,
-        # ACV, customer metrics) could not be parsed. Shipping GAAP
-        # financials while silently missing the numbers that define the
-        # quarter is exactly the incomplete-read-dressed-as-complete the
-        # spec forbids — hold rather than half-report.
+        # guidance and operating metrics could not be parsed, and the
+        # print is fresh: the missing numbers are exactly what the market
+        # is trading on right now, so hold rather than half-report.
+        #
+        # ONLY while fresh. The first cutover held EVERY report whose
+        # exhibit defeated the parser, forever — a Sweetgreen lookup in
+        # late July was blocked over a May 7 release. Months later the
+        # market has fully digested that print and the 10-Q carries the
+        # filed numbers; an unreadable exhibit is then a labelled gap in
+        # the guidance section, not grounds to withhold the whole report.
         state = DATA_HOLD
-        reasons.append("The earnings release is filed and verified, but its "
-                       "exhibit (guidance and operating metrics: subscription "
-                       "revenue, cRPO/RPO, ACV, customer counts) could not be "
-                       "parsed (%s). The quarter cannot be read in full, so "
-                       "the report is held rather than shipped without them."
+        reasons.append("The earnings release is filed and verified, but the "
+                       "exhibit carrying its guidance and operating metrics "
+                       "could not be parsed (%s), and the release is %d "
+                       "day(s) old. Until it is read in, any post-earnings "
+                       "view would be missing the numbers the market is "
+                       "repricing on — held rather than shipped incomplete."
                        % ((exhibit or {}).get("reason")
-                          or "exhibit not ingested"))
+                          or "exhibit not ingested",
+                          _release_age_days(exhibit, now)))
     elif call_status == "live":
         state = CALL_IN_PROGRESS
         reasons.append("A call-status feed reports the earnings call is "
@@ -247,12 +274,12 @@ def flash(catalyst, exhibit=None, now=None):
     if ex.get("disposition") == "AVAILABLE_NOT_INGESTED":
         why = (ex.get("reason") or "the exhibit could not be parsed")
         body = ("The results for the period dated %s are filed, but the "
-                "exhibit carrying guidance and the operating metrics "
-                "(subscription revenue, cRPO/RPO, ACV, customer counts) "
-                "could not be parsed: %s. Those figures are central to the "
-                "read, so no rating is issued until they are ingested from "
-                "the filed release. This is a data-availability hold, not a "
-                "view on the company." % (ev or "recently", why))
+                "exhibit carrying the company's guidance and operating "
+                "metrics could not be read by this pipeline: %s. Those "
+                "figures are what the market is repricing on, so no rating "
+                "is issued until they are read from the filed release. This "
+                "is a limitation of our software, not a view on the "
+                "company." % (ev or "recently", why))
     else:
         why = ver.get("reason") or "the primary release could not be parsed"
         body = ("A results release dated %s appears to be out, but this "
