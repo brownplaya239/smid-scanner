@@ -17456,10 +17456,20 @@
     // earlier used to open Supabase's raw InvalidJWT JSON instead of the
     // PDF. The delegated handler below fetches a FRESH signed URL at
     // click time, so an open always works while signed in.
+    // "Report" + a smaller "Appendix" link when the worker found the
+    // evidence sidecar beside it. Two labelled links on ONE row — the
+    // appendix is no longer its own identical-looking entry, which used
+    // to make the preview open the appendix instead of the report.
+    var attrs = ' data-mr-t="' + (rp.ticker || "") +
+      '" data-mr-kind="' + (rp.kind || "") + '" data-mr-at="' +
+      (rp.created_at || "") + '"';
     var right = rp.url
-      ? '<a href="#" class="mr-open" data-mr-t="' + (rp.ticker || "") +
-        '" data-mr-kind="' + (rp.kind || "") + '" data-mr-at="' +
-        (rp.created_at || "") + '">Open &rarr;</a>'
+      ? '<a href="#" class="mr-open"' + attrs + '>Report &rarr;</a>' +
+        (rp.appendix_url
+          ? ' &nbsp;<a href="#" class="mr-open mr-apx"' + attrs +
+            ' data-mr-apx="1" style="font-weight:400;font-size:11.5px">' +
+            'Appendix</a>'
+          : '')
       : '<span class="mr-exp">file missing — regenerate</span>';
     return '<div class="mr-row">' +
       '<span class="mr-tk">' + (rp.ticker || "") + '</span>' +
@@ -17487,7 +17497,8 @@
         reps.find(function (x) {
           return (x.kind || "") === a.dataset.mrKind && x.url; }) ||
         reps.find(function (x) { return x.url; });
-      if (hit && win) { win.location = hit.url; return; }
+      const dest = hit && (a.dataset.mrApx ? hit.appendix_url : hit.url);
+      if (dest && win) { win.location = dest; return; }
       throw new Error("no fresh link");
     } catch (err) {
       if (win) win.close();

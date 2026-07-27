@@ -220,12 +220,14 @@ def run_for_user(ticker, user_id="", out_dir=None):
                          + why)
 
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d_%H%M")
-    # The validation JSON is a sidecar: it ships beside the PDFs (its
-    # hashes prove the pair) but must not surface as a third entry in the
-    # My Reports listing, so it uploads with link=False.
+    # Only the CORE report claims the My Reports row. The appendix and
+    # the validation JSON are sidecars under the same filename stem —
+    # linking the appendix too inserted a second identical ticker entry
+    # whose newer timestamp made the preview open the appendix instead of
+    # the report. The worker derives the appendix link from the stem.
     parts = [(res["core"], "research_%s_%s.pdf" % (ticker, stamp), True),
              (res["appendix"], "research_%s_%s_appendix.pdf"
-              % (ticker, stamp), True),
+              % (ticker, stamp), False),
              (res["validation"], "research_%s_%s_validation.json"
               % (ticker, stamp), False)]
     try:

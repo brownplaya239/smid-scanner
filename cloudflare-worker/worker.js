@@ -2656,30 +2656,50 @@ async function handleMyReports(request, env, cors) {
     rows = r.ok ? await r.json() : [];
   } catch (e) { rows = []; }
 
-  const out = [];
-  for (const row of rows) {
-    let signedUrl = null;
+  // 6h reading window (was 600s — a 10-minute link meant anyone opening
+  // a report from a list rendered earlier hit Supabase's raw InvalidJWT
+  // "exp claim timestamp check failed" JSON where the PDF should be).
+  // The client ALSO re-fetches a fresh URL at click time now, so this is
+  // belt-and-braces, not the only guard.
+  const sign = async (path) => {
     try {
       const sr = await fetch(env.SUPABASE_URL +
-        "/storage/v1/object/sign/user-reports/" + row.storage_path, {
+        "/storage/v1/object/sign/user-reports/" + path, {
         method: "POST",
         headers: { "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
                    "apikey": env.SUPABASE_SERVICE_KEY,
                    "Content-Type": "application/json" },
-        // 6h reading window (was 600s — a 10-minute link meant anyone
-        // opening a report from a list rendered earlier hit Supabase's
-        // raw InvalidJWT "exp claim timestamp check failed" JSON where
-        // the PDF should be). The client ALSO re-fetches a fresh URL at
-        // click time now, so this is belt-and-braces, not the only guard.
         body: JSON.stringify({ expiresIn: 21600 }) });
-      if (sr.ok) {
-        const sj = await sr.json();
-        const rel = sj.signedURL || sj.signedUrl || "";
-        if (rel) signedUrl = env.SUPABASE_URL + "/storage/v1" + rel;
-      }
-    } catch (e) {}
+      if (!sr.ok) return null;
+      const sj = await sr.json();
+      const rel = sj.signedURL || sj.signedUrl || "";
+      return rel ? env.SUPABASE_URL + "/storage/v1" + rel : null;
+    } catch (e) { return null; }
+  };
+
+  // Rows linked before the sidecar fix point AT an appendix file and
+  // duplicate their report's row — drop them from the listing so the
+  // history shows one entry per report retroactively.
+  rows = rows.filter((r) => !/_appendix\.pdf$/i.test(r.storage_path || ""));
+
+  const out = [];
+  for (const row of rows) {
+    const signedUrl = await sign(row.storage_path);
+    // v4 ships an evidence appendix beside the core under the same stem
+    // (<stem>_appendix.pdf). It is deliberately NOT its own
+    // report_generations row — that produced two identical ticker
+    // entries with the appendix on top — so surface it here as a
+    // secondary link on the report's row. Signing an absent object just
+    // returns null, which older (v3-era) rows hit harmlessly.
+    let appendixUrl = null;
+    if (/\.pdf$/i.test(row.storage_path) &&
+        !/_appendix\.pdf$/i.test(row.storage_path)) {
+      appendixUrl = await sign(
+        row.storage_path.replace(/\.pdf$/i, "_appendix.pdf"));
+    }
     out.push({ ticker: row.ticker, kind: row.kind || row.report_type,
-      created_at: row.completed_at || row.created_at, url: signedUrl });
+      created_at: row.completed_at || row.created_at, url: signedUrl,
+      appendix_url: appendixUrl });
   }
   return Response.json({ ok: true, reports: out }, { headers: cors });
 }
