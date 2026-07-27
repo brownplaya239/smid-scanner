@@ -155,6 +155,21 @@ def _page1(snap, view):
           para("Investment summary", "h2"),
           _rating_panel(view)]
 
+    # A recently listed security is the single most decision-relevant fact
+    # about itself: no 200-day average, no 52-week range, no filed
+    # financials, and a price history too short for any base-rate read.
+    # It belongs above the thesis, not buried in a level table's gaps.
+    _hist = view.get("trading_history") or {}
+    if _hist.get("listing_date") and not _hist.get("full_history"):
+        st.append(para("Limited trading history", "h2"))
+        st.append(para(
+            "Listed %s &mdash; %d completed sessions. The 50- and 200-day "
+            "averages, the 52-week range and any multi-year base rate are "
+            "undefined at this history length and are not shown. Every "
+            "technical read below is drawn from the sessions that exist."
+            % (_clean(_hist["listing_date"]), _hist.get("sessions") or 0),
+            "body"))
+
     st.append(para("Thesis", "h2"))
     th = view.get("thesis") or []
     if th:
@@ -262,7 +277,18 @@ def _page3(snap, view):
     rep = fin["reported"]
     st = [para("Latest quarter and estimate context", "h2")]
 
-    rows = [
+    if fin.get("no_reported_period"):
+        th = view.get("trading_history") or {}
+        st.append(para(
+            "No periodic report (10-K or 10-Q) has been filed with the SEC "
+            "under this CIK%s, so there is no reported revenue, margin, "
+            "cash-flow or EPS figure to show. Nothing here is estimated in "
+            "its place."
+            % (" since the %s listing" % _clean(th["listing_date"])
+               if th.get("listing_date") else ""), "small"))
+        rows = None
+    else:
+        rows = [
         ["Revenue", _money(rep.get("revenue_q")),
          "y/y " + _pct(rep.get("revenue_growth"), signed=True)],
         ["Gross margin", _pct(rep.get("gross_margin")), ""],
@@ -274,9 +300,10 @@ def _page3(snap, view):
          "$%.2f" % rep["eps_ttm"] if rep.get("eps_ttm") is not None
          else "n/a", ""],
     ]
-    st.append(_table(rows, [BODY_W * 0.34, BODY_W * 0.28, BODY_W * 0.30],
-                     header=["Reported (latest quarter, SEC XBRL)", "Value",
-                             "Change"], zebra=True))
+    if rows:
+        st.append(_table(rows, [BODY_W * 0.34, BODY_W * 0.28, BODY_W * 0.30],
+                         header=["Reported (latest quarter, SEC XBRL)",
+                                 "Value", "Change"], zebra=True))
 
     # vs consensus: the free tier gives past surprises, not forward
     # estimates. Show what it gives; withhold what it does not.
@@ -333,8 +360,9 @@ def _page3(snap, view):
         st.append(para("No guidance parsed from a filed earnings exhibit "
                        "for this period.", "small"))
 
-    st.append(para("Subscription and operating KPIs", "h2"))
     kp = fin["saas_kpis"]
+    if kp.get("rows") or not fin.get("no_reported_period"):
+        st.append(para("Subscription and operating KPIs", "h2"))
     if kp.get("rows"):
         krows = []
         for r in kp["rows"]:
@@ -353,7 +381,7 @@ def _page3(snap, view):
         st.append(para("From the issuer's earnings release (8-K exhibit %s). "
                        "These are stated facts in the filed release."
                        % _clean(kp.get("accession") or ""), "small", OBSERVED))
-    else:
+    elif not fin.get("no_reported_period"):
         st.append(_wh_line("Subscription revenue, cRPO/RPO, ACV, customers",
                            kp, "small"))
 
@@ -455,16 +483,24 @@ def _page5(snap, view, chart_png=None, chart_meta=None):
                        "20-session average, and RSI(14). %s."
                        % ("; ".join(bits)), "small", DERIVED))
     else:
-        st.append(para("Price chart unavailable: no bar series was retained "
-                       "for this run.", "small"))
+        _h = view.get("trading_history") or {}
+        st.append(para(
+            "Price chart unavailable: only %d completed sessions since the "
+            "%s listing, fewer than the 30 the chart requires."
+            % (_h.get("sessions") or 0, _clean(_h["listing_date"]))
+            if _h.get("listing_date") and (_h.get("sessions") or 0) < 30
+            else "Price chart unavailable: no bar series was retained for "
+                 "this run.", "small"))
 
     rows = []
     px = view.get("price")
     if px is not None:
         rows.append(["Last (completed session)", "$%.2f" % px])
+    _sw = ((snap.get("levels") or {}).get("swing_window")
+           or (view.get("trading_history") or {}).get("swing_window") or 60)
     for key, lab in (("resistance_major", "52-week closing high"),
-                     ("resistance", "60-session closing high"),
-                     ("support", "60-session closing low"),
+                     ("resistance", "%d-session closing high" % _sw),
+                     ("support", "%d-session closing low" % _sw),
                      ("support_major", "52-week closing low")):
         val = rs.fv(lv.get(key))
         if val is not None:
@@ -478,10 +514,15 @@ def _page5(snap, view, chart_png=None, chart_meta=None):
     if tac.get("available") and tac.get("detail"):
         detail = _clean(tac["detail"]).rstrip(".")
         st.append(para("Technical read", "h2"))
-        st.append(para("%s. Tactical stance: <b>%s</b> (%d of the 20/50/200 "
-                       "averages reclaimed)."
+        _n = tac.get("mas_available")
+        _which = ("the 20/50/200 averages" if _n in (None, 3) else
+                  "the 1 moving average defined at this history length"
+                  if _n == 1 else
+                  "the %d moving averages defined at this history length"
+                  % _n)
+        st.append(para("%s. Tactical stance: <b>%s</b> (%d of %s reclaimed)."
                        % (detail, _clean(tac["band"]),
-                          tac.get("above_mas", 0)), "body", DERIVED))
+                          tac.get("above_mas", 0), _which), "body", DERIVED))
 
     st, _ = _fit_page(st, [], "v4-p5")
     return st

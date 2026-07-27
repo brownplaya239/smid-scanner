@@ -79,12 +79,19 @@ def tactical_rating(snap):
     state, _ = M3.technical_state(lv, px)
     if not state:
         return _withheld("insufficient price history for a technical read")
+    # A name too young for a 50- or 200-day average is scored against the
+    # averages it HAS. The count of those is published so the renderer
+    # never claims "0 of the 20/50/200" about a stock with one average.
+    n_mas = sum(1 for k in ("ma20", "ma50", "ma200")
+                if _fv(lv.get(k)) is not None)
     above = sum(1 for k in ("ma20", "ma50", "ma200")
                 if _fv(lv.get(k)) is not None and px is not None
                 and px > _fv(lv.get(k)))
-    band = ("Constructive" if above == 3 else "Improving" if above == 2
-            else "Cautious" if above == 1 else "Weak")
+    band = ("Constructive" if above == n_mas and n_mas else
+            "Improving" if above >= 2 else
+            "Cautious" if above == 1 else "Weak")
     return {"available": True, "band": band, "above_mas": above,
+            "mas_available": n_mas,
             "grade": DERIVED, "detail": state,
             "source": "technical, completed sessions"}
 
@@ -175,8 +182,13 @@ def financials(snap, estimates):
         "cash": f("cash"), "debt": f("debt"),
     }
     surprises = est.get("surprises") or []
+    # An issuer that has never filed a 10-K or 10-Q has no reported
+    # quarter — not a quarter of blanks. Seven rows of "n/a" is filler
+    # dressed as a table; one line that says why is the honest render.
+    no_filings = not any(v is not None for v in reported.values())
     return {
         "reported": reported,
+        "no_reported_period": no_filings,
         "surprises": surprises,
         "forward_consensus": (
             {"available": True}
@@ -685,6 +697,7 @@ def build(snap, estimates=None, peers=None, report_time=None):
         "variant": variant_perception(ratings, snap),
         "monitoring": monitoring(snap),
         "chart": {"earnings_dates": earnings_marker_dates(snap)},
+        "trading_history": snap.get("trading_history") or {},
         "insiders": M3.insider_view(snap),
         "ownership": M3.ownership_view(snap),
         "options": M3.options_view(snap),

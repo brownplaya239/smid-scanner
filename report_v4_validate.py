@@ -233,6 +233,36 @@ def check_view(view, snap=None, estimates=None):
                        detail="A section labelled 'latest quarter' may hold "
                               "only metrics from that quarter."))
 
+    # 11. Listing-date integrity. Ticker symbols are recycled: bars dated
+    #     before a security's listing date belong to a DIFFERENT company,
+    #     and splicing them on silently corrupts the 200-day average, the
+    #     52-week range and RSI while every other check still passes. This
+    #     is the check that would have caught SPCX carrying 435 sessions of
+    #     a prior issuer's $22 tape under a $161 IPO.
+    th = view.get("trading_history") or {}
+    ld = th.get("listing_date")
+    lv = snap.get("levels") or {}
+    if ld:
+        first = th.get("first_session")
+        clean = (not first) or str(first)[:10] >= str(ld)[:10]
+        out.append(chk("LISTING_DATE_INTEGRITY", clean, ERROR,
+                       "no bar predates the %s listing" % ld,
+                       "earliest session %s" % (first or "not recorded"),
+                       detail="Symbols are reused. A bar dated before the "
+                              "listing date belongs to a different security "
+                              "and must be dropped, not averaged in."))
+        # A short history must be DECLARED, not inferred by the reader from
+        # a level table with holes in it.
+        if not th.get("full_history"):
+            out.append(chk("SHORT_HISTORY_DECLARED",
+                           bool(th.get("sessions")), ERROR,
+                           "session count published for a short history",
+                           "sessions=%s" % th.get("sessions"),
+                           detail="With under a year of trading the report "
+                                  "must state the history length, because "
+                                  "the 200-day average and 52-week range "
+                                  "do not exist."))
+
     return out
 
 

@@ -379,9 +379,41 @@ def _licensed_daily_bars(ticker, min_bars=210):
         # always described, and comfortably more than the 252 the
         # 52-week bounds need.
         raw = PG.daily_bars(ticker, days=460)
-        if not raw or len(raw) < min_bars:
+        if not raw:
             return None
         rows = sorted(raw, key=lambda r: r.get("t") or 0)
+
+        # Truncate at the listing date. Ticker symbols are RECYCLED: SPCX
+        # carried a different, thinly-traded instrument (~$22 on a few
+        # thousand shares a day) until SpaceX listed on it at $161 on
+        # 522m shares. Splicing those series produces a 200-day average,
+        # a 52-week range and a "long-term uptrend" belonging to two
+        # different companies. Everything before the listing date is a
+        # different security and is dropped.
+        listing = None
+        try:
+            det = PG.ticker_details(ticker) or {}
+            ld = det.get("list_date")
+            if ld:
+                listing = datetime.fromisoformat(str(ld)[:10]).date()
+        except Exception:
+            listing = None
+        if listing:
+            keep = [r for r in rows
+                    if datetime.fromtimestamp(
+                        (r.get("t") or 0) / 1000.0,
+                        tz=timezone.utc).date() >= listing]
+            dropped = len(rows) - len(keep)
+            if keep:
+                rows = keep
+        else:
+            dropped = 0
+
+        # A newly listed name legitimately has a short history. That is a
+        # fact to report (and to withhold long-window indicators over), not
+        # a reason to fall back to a feed with the same splice problem.
+        if len(rows) < min_bars and not listing:
+            return None
         out = {"closes": [], "highs": [], "lows": [], "vols": [],
                "opens": [], "dates": []}
         for r in rows:
@@ -396,10 +428,13 @@ def _licensed_daily_bars(ticker, min_bars=210):
             out["opens"].append(float(o))
             out["dates"].append(
                 datetime.fromtimestamp(t / 1000.0, tz=timezone.utc).date())
-        if len(out["closes"]) < min_bars:
+        # Short history is only acceptable when a listing date explains it.
+        if len(out["closes"]) < min_bars and not listing:
             return None
         out["source"] = "polygon"
         out["licensed"] = True
+        out["listing_date"] = listing.isoformat() if listing else None
+        out["pre_listing_bars_dropped"] = dropped
         return out
     except Exception:
         return None
@@ -409,6 +444,18 @@ def fetch_market(ticker, as_of=None):
     import yfinance as yf
     tk = yf.Ticker(ticker)
     lic = _licensed_daily_bars(ticker)
+    # A name that listed recently has a legitimately short series. Refusing
+    # to report on it is wrong; so is padding it with a prior ticker's
+    # history. Accept the short series, and let the window guards below
+    # withhold every indicator it cannot support.
+    # 20 sessions is the floor for the shortest indicator the report draws
+    # (the 20-day average and RSI(14)). Above it, each longer window guards
+    # itself and withholds; below it nothing technical is computable.
+    _min_ok = 20
+    if lic is not None and len(lic["closes"]) < _min_ok:
+        raise RuntimeError("only %d sessions since listing for %s — too few "
+                           "for any technical read"
+                           % (len(lic["closes"]), ticker))
     bars = tk.history(period="2y", interval="1d", auto_adjust=False)
     if lic is None and (bars is None or len(bars) < 210):
         raise RuntimeError("insufficient daily history for %s" % ticker)
@@ -514,12 +561,16 @@ def fetch_market(ticker, as_of=None):
 
     px = round(closes[-1], 2)                 # live or last completed
     prev = round(c_closes[-1], 2) if partial else round(c_closes[-2], 2)
-    win = 60
+    # The swing window shrinks to the history that exists. A name six
+    # weeks past its listing has no 60-session range; quoting one would
+    # describe sessions it did not trade. The ACTUAL window is published
+    # so every label can state the real number.
+    win = min(60, len(c_closes))
     # Close basis, to match how the report describes these levels. A
     # boundary quoted as "the lowest close" must not be computed from
     # intraday lows.
-    swing_hi = round(max(c_closes[-win:]), 2) if len(c_closes) >= win else None
-    swing_lo = round(min(c_closes[-win:]), 2) if len(c_closes) >= win else None
+    swing_hi = round(max(c_closes[-win:]), 2) if c_closes else None
+    swing_lo = round(min(c_closes[-win:]), 2) if c_closes else None
     hi52 = round(max(c_closes[-252:]), 2) if len(c_closes) >= 252 else None
     lo52 = round(min(c_closes[-252:]), 2) if len(c_closes) >= 252 else None
 
@@ -540,6 +591,11 @@ def fetch_market(ticker, as_of=None):
         # inherits this provenance.
         "bar_source": bar_source,
         "bar_source_licensed": bar_source == "polygon",
+        # Listing provenance: bars before a listing date belong to whatever
+        # instrument previously held the symbol, so they are dropped and the
+        # short history is disclosed rather than silently back-filled.
+        "listing_date": (lic or {}).get("listing_date"),
+        "pre_listing_bars_dropped": (lic or {}).get("pre_listing_bars_dropped", 0),
         "dates": dates, "opens": opens, "closes": closes,
         "highs": highs, "lows": lows, "volumes": vols,
         # the completed-session series every indicator above was built on
@@ -574,6 +630,7 @@ def fetch_market(ticker, as_of=None):
         "pct_below_hi52": (round(100.0 * (hi52 - px) / hi52, 1)
                            if (hi52 and px) else None),
         "support": swing_lo, "resistance": swing_hi,
+        "swing_window": win,
         "hi52": hi52, "lo52": lo52,
         "n_bars": len(bars),
         "float_shares": _safe_info(tk).get("floatShares"),
@@ -1037,10 +1094,14 @@ def build_snapshot(ticker, report_time=None):
     print("[1/7] market data (canonical series)...")
     mk = fetch_market(ticker, as_of=now)
     prov["coverage"]["market"] = (
-        "%s daily bars (split-adjusted), %d issuer sessions%s"
+        "%s daily bars (split-adjusted), %d issuer sessions%s%s"
         % (mk.get("bar_source", "unknown"), mk["n_bars"],
            "" if mk.get("bar_source_licensed") else
-           " — UNOFFICIAL feed, no data licence or SLA"))
+           " — UNOFFICIAL feed, no data licence or SLA",
+           "" if not mk.get("pre_listing_bars_dropped") else
+           "; %d bars before the %s listing date dropped (a recycled "
+           "symbol's prior history)" % (mk["pre_listing_bars_dropped"],
+                                        mk.get("listing_date"))))
 
     led = EL.Ledger(ticker, report_time)
     for i, d in enumerate(mk["dates"]):
@@ -1081,9 +1142,11 @@ def build_snapshot(ticker, report_time=None):
     _calc("atr14", "mean(true range, last 14 completed sessions); TR = "
           "max(h-l, |h-prev_close|, |l-prev_close|)", 15, mk["atr14"], "USD")
     # Close basis, matching the wording the report uses for these levels.
-    _calc("support60", "min(close, last 60 completed sessions)", 60,
+    _calc("support60", "min(close, last %d completed sessions)"
+          % mk["swing_window"], mk["swing_window"],
           mk["support"], "USD")
-    _calc("resistance60", "max(close, last 60 completed sessions)", 60,
+    _calc("resistance60", "max(close, last %d completed sessions)"
+          % mk["swing_window"], mk["swing_window"],
           mk["resistance"], "USD")
     _calc("hi52", "max(close, last 252 completed sessions)", 252,
           mk["hi52"], "USD")
@@ -1202,10 +1265,10 @@ def build_snapshot(ticker, report_time=None):
                        note="Wilder true range, simple mean",
                        refs=["CALC-atr14"]),
         "support": mfact(mk["support"], "support", unit="USD",
-                         note="lowest low of the last 60 sessions",
+                         note="lowest low of the last %d sessions" % mk["swing_window"],
                          refs=["CALC-support60"]),
         "resistance": mfact(mk["resistance"], "first resistance", unit="USD",
-                            note="highest high of the last 60 sessions",
+                            note="highest high of the last %d sessions" % mk["swing_window"],
                             refs=["CALC-resistance60"]),
         "resistance_major": mfact(mk["hi52"], "major resistance", unit="USD",
                                   note="52-week closing high (252 completed sessions)",
@@ -1260,6 +1323,23 @@ def build_snapshot(ticker, report_time=None):
                    "holdings-report date, so it cannot be aged or tied to "
                    "a filing"),
     }
+    # Trading history. A symbol six weeks past its listing has no 200-day
+    # average and no 52-week range, and every reader needs to know that
+    # BEFORE reading a level table with gaps in it. Carried as a fact, not
+    # inferred downstream from which averages happen to be missing.
+    snap["trading_history"] = {
+        "listing_date": mk.get("listing_date"),
+        "sessions": mk.get("n_bars"),
+        "first_session": (mk["dates"][0].isoformat() if mk.get("dates")
+                          else None),
+        "swing_window": mk.get("swing_window"),
+        "pre_listing_bars_dropped": mk.get("pre_listing_bars_dropped") or 0,
+        # 252 sessions is the year the 52-week range needs; 200 is the
+        # longest average the report draws.
+        "full_history": bool(mk.get("ma200") is not None
+                             and mk.get("hi52") is not None),
+    }
+    snap["levels"]["swing_window"] = mk.get("swing_window")
     snap["levels"]["partial_session"] = mk.get("partial_session")
     snap["levels"]["last_completed_session"] = mk.get(
         "last_completed_session")
@@ -2363,31 +2443,39 @@ def _quality_reads(snap, mk, led):
                   rationale="GAAP margin and filed revenue growth only; no "
                             "vendor adjustments, no narrative")
 
-    above = sum(1 for m in (ma20, mk["ma50"], ma200) if px > m)
-    dist = 100.0 * (px / ma200 - 1)
-    setup = ("constructive" if above == 3 else
-             "repairing" if above == 2 else
-             "damaged" if above <= 1 else "mixed")
+    # A name that has not traded 200 sessions has no 200-day average. The
+    # swing grade is defined over three averages; with fewer than three it
+    # is not a weaker read, it is an unavailable one, and saying so beats
+    # grading against averages that do not exist.
+    _mas = [("CALC-ma20", ma20), ("CALC-ma50", mk["ma50"]),
+            ("CALC-ma200", ma200)]
+    _have = [(r, m) for r, m in _mas if m is not None]
+    above = sum(1 for _r, m in _have if px > m)
     srefs = [("CALC-intraday_last" if mk.get("partial_session")
-              else "CALC-last_close"),
-             "CALC-ma20", "CALC-ma50", "CALC-ma200"]
+              else "CALC-last_close")] + [r for r, _m in _have]
+    if len(_have) < 3:
+        setup = "not assessable — %d of 3 moving averages available" % len(
+            _have)
+        basis = ("%d completed sessions of trading history, short of the "
+                 "200 the swing grade requires" % len(mk.get("closes") or []))
+    else:
+        dist = 100.0 * (px / ma200 - 1)
+        setup = ("constructive" if above == 3 else
+                 "repairing" if above == 2 else
+                 "damaged" if above <= 1 else "mixed")
+        basis = ("price above %d of 3 moving averages; %.1f%% %s the 200-day"
+                 % (above, abs(dist), "above" if dist >= 0 else "below"))
     led.rec_input("setup_quality", "setup quality (swing timeframe)", setup,
-                  refs=srefs,
-                  rationale="price above %d of 3 moving averages; %.1f%% "
-                            "%s the 200-day" % (above, abs(dist),
-                                                "above" if dist >= 0
-                                                else "below"))
+                  refs=srefs, rationale=basis)
     return {
         "business_quality": biz,
         "business_quality_basis": ", ".join(bbits) or "no admitted figures",
         "business_quality_refs": sorted(set(brefs)) or ["REC-business_quality"],
         "setup_quality": setup,
-        "setup_quality_basis": "price above %d of 3 moving averages; %.1f%% %s "
-                               "the 200-day" % (above, abs(dist),
-                                                "above" if dist >= 0
-                                                else "below"),
+        "setup_quality_basis": basis,
         "setup_quality_refs": srefs,
         "above_count": above,
+        "mas_available": len(_have),
     }
 
 
@@ -2396,10 +2484,18 @@ def _decision(snap, mk, evids, led=None):
     actually in the appendix — the July 16 brief's claims cited nothing."""
     px = mk["last"]
     ma20, ma50, ma200 = mk["ma20"], mk["ma50"], mk["ma200"]
-    above = sum(1 for m in (ma20, ma50, ma200) if px > m)
+    # A recently listed name has no 50- or 200-day average yet, because it
+    # has not traded that long. Count only the averages that exist and say
+    # so, rather than treating an absent average as a level price failed.
+    _mas = [m for m in (ma20, ma50, ma200) if m is not None]
+    above = sum(1 for m in _mas if px > m)
+    n_mas = len(_mas)
     ins = snap.get("insiders") or {}
     sent = snap.get("sentiment") or {}
-    if above == 3:
+    if n_mas < 3:
+        # Not enough trading history for the trend read the action rests on.
+        action = "WAIT"
+    elif above == 3:
         action = "HOLD"
     elif above == 0:
         action = "AVOID"
@@ -2458,14 +2554,19 @@ def _decision(snap, mk, evids, led=None):
             c["evidence_refs"] = ["CALC-social-summary"]
     claims = [c for c in claims
               if c.get("evidence_id") and c.get("evidence_refs")]
-    up = ("reclaim of the 200-day at $%.2f on above-average volume" % ma200
-          if px < ma200 else
-          "reclaim of the 20-day at $%.2f after any pullback" % ma20)
-    down = ("loss of the 60-session closing low at $%.2f"
-        % mk["support"])
+    # Name the longest average that exists and price sits below; with only
+    # a 20-day (a new listing) the upgrade trigger is that average.
+    if ma200 is not None and px < ma200:
+        up = "reclaim of the 200-day at $%.2f on above-average volume" % ma200
+    elif ma50 is not None and px < ma50:
+        up = "reclaim of the 50-day at $%.2f on above-average volume" % ma50
+    else:
+        up = "reclaim of the 20-day at $%.2f after any pullback" % ma20
+    down = ("loss of the %d-session closing low at $%.2f"
+        % (mk["swing_window"], mk["support"]))
     atr = mk["atr14"]
     risks = []
-    if above == 0:
+    if above == 0 and ma20 is not None and ma50 is not None:
         # "every rally has been supply" asserts a behavioural pattern the
         # ledger contains no test for. State what the levels ARE.
         lo, hi = sorted((ma20, ma50))
@@ -2490,28 +2591,37 @@ def _decision(snap, mk, evids, led=None):
     # Recovery is staged, not binary: an early-improvement trigger and a
     # full-upgrade trigger are different milestones, and presenting them
     # as competing recommendations reads as self-contradiction.
-    stages = [
-        {"stage": "Early improvement", "condition":
-         "daily close above the 20-day at $%.2f" % ma20,
-         "level": ma20, "met": px > ma20, "evidence_refs": ["CALC-ma20"]},
-        {"stage": "Intermediate confirmation", "condition":
-         "reclaim the 50-day at $%.2f" % ma50,
-         "level": ma50, "met": px > ma50, "evidence_refs": ["CALC-ma50"]},
-        {"stage": "Full technical upgrade", "condition":
-         "reclaim the 200-day at $%.2f" % ma200,
-         "level": ma200, "met": px > ma200, "evidence_refs": ["CALC-ma200"]},
+    # Only ladder the averages that exist. A stage keyed to a 200-day a
+    # six-week-old listing does not have is not a trigger, it is fiction.
+    stages = []
+    if ma20 is not None:
+        stages.append({"stage": "Early improvement", "condition":
+                       "daily close above the 20-day at $%.2f" % ma20,
+                       "level": ma20, "met": px > ma20,
+                       "evidence_refs": ["CALC-ma20"]})
+    if ma50 is not None:
+        stages.append({"stage": "Intermediate confirmation", "condition":
+                       "reclaim the 50-day at $%.2f" % ma50,
+                       "level": ma50, "met": px > ma50,
+                       "evidence_refs": ["CALC-ma50"]})
+    if ma200 is not None:
+        stages.append({"stage": "Full technical upgrade", "condition":
+                       "reclaim the 200-day at $%.2f" % ma200,
+                       "level": ma200, "met": px > ma200,
+                       "evidence_refs": ["CALC-ma200"]})
+    stages += [
         {"stage": "Invalidation", "condition":
-         "daily close below the 60-session closing low at $%.2f"
-         % mk["support"],
+         "daily close below the %d-session closing low at $%.2f"
+         % (mk["swing_window"], mk["support"]),
          "level": mk["support"], "met": px < mk["support"],
          "evidence_refs": ["CALC-support60"]},
     ]
-    nxt = next((s for s in stages[:3] if not s["met"]), None)
+    nxt = next((s for s in stages[:-1] if not s["met"]), None)
     monitor = ("%s — %s (next stage of %d); invalidation on a close below "
                "$%.2f" % (nxt["stage"], nxt["condition"], len(stages) - 1,
                           mk["support"])) if nxt else (
-        "All three moving averages reclaimed; monitor for a close back "
-        "below the 20-day at $%.2f" % ma20)
+        "Every available moving average reclaimed; monitor for a close "
+        "back below the 20-day at $%.2f" % ma20)
     upcoming = ((snap.get("catalyst") or {}).get("upcoming") or [])
     if upcoming and upcoming[0].get("when"):
         monitor += ("; next earnings estimated %s" % upcoming[0]["when"])
@@ -2545,8 +2655,13 @@ def _decision(snap, mk, evids, led=None):
                     "60-session closing high at $%.2f"
                     % (ma20, mk["resistance"]),
             # the 60-session and 52-week closing lows coincide when a name
-            # is at its lows; saying "loss of X puts X in play" is nonsense
-            "bear": ("Loss of $%.2f is a fresh 52-week closing low, with "
+            # is at its lows; saying "loss of X puts X in play" is nonsense.
+            # With under a year of trading there is no 52-week low to name.
+            "bear": ("Loss of $%.2f, the lowest close of the %d sessions "
+                     "since listing, with no prior reference level beneath "
+                     "it" % (mk["support"], mk["swing_window"])
+                     if mk.get("lo52") is None else
+                     "Loss of $%.2f is a fresh 52-week closing low, with "
                      "no prior "
                      "reference level beneath it" % mk["support"]
                      if abs(mk["support"] - mk["lo52"]) < 0.01 else
@@ -2555,8 +2670,12 @@ def _decision(snap, mk, evids, led=None):
         },
         "claims": claims,
         "horizon": "swing (2-8 weeks), the window the 20/50-day levels speak to",
-        "basis": ("price %.2f vs 20/50/200-day (%.2f/%.2f/%.2f): above %d of 3"
-                  % (px, ma20, ma50, ma200, above)),
+        "basis": ("price %.2f vs %s: above %d of %d"
+                  % (px,
+                     ", ".join("%s-day %.2f" % (d, m) for d, m in
+                               ((20, ma20), (50, ma50), (200, ma200))
+                               if m is not None),
+                     above, n_mas)),
     }
 
 

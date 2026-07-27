@@ -92,10 +92,17 @@ def _chart(ticker, snap, prov, view, want_spy=True):
             spy = (RL.fetch_market("SPY") or {}).get("closes")
         except Exception as e:
             print("  SPY series unavailable (%s) — RS panel omitted" % e)
-    return C.trading_chart(
+    # trading_chart returns a bare None when there are too few completed
+    # sessions to draw — a name weeks past its listing. Omitting the chart
+    # is the correct outcome there; crashing on the unpack is not.
+    res = C.trading_chart(
         mk, levels=ann, sma_set=SMA_V4,
         earnings_dates=(view.get("chart") or {}).get("earnings_dates"),
         spy_closes=spy)
+    if not res:
+        print("  too few completed sessions to draw a chart — omitted")
+        return None, None
+    return res
 
 
 def run(ticker, out_dir="out_v4", want_spy=True):
