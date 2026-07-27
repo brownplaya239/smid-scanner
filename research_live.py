@@ -1443,13 +1443,19 @@ def build_snapshot(ticker, report_time=None):
         return rid
     rev_tags = ["RevenueFromContractWithCustomerExcludingAssessedTax",
                 "Revenues", "RevenueFromContractWithCustomerIncludingAssessedTax"]
-    rev_rows, rev_ann = [], []
+    # Pick the tag whose quarters run LATEST, not the first tag with any
+    # rows. Issuers migrate concepts (Robinhood tagged contract revenue
+    # only through 2021, then switched to plain Revenues) — stopping at
+    # the first hit anchored the whole report to a five-year-old series.
+    rev_rows, rev_ann, _best_end = [], [], ""
     for t in rev_tags:
         raw = concept(cik, t)
-        rev_rows = _quarterly(raw)
-        if rev_rows:
-            rev_ann = _annual(raw)
-            break
+        rows_t = _quarterly(raw)
+        if not rows_t:
+            continue
+        end_t = max(str(r.get("end") or "") for r in rows_t)
+        if end_t > _best_end:
+            rev_rows, rev_ann, _best_end = rows_t, _annual(raw), end_t
     rev_ok, rev_def = _admit(rev_rows, acc, report_time)
     ann_ok, _ = _admit(rev_ann, acc, report_time)
     rev_ok = _fill_q4(rev_ok, ann_ok)

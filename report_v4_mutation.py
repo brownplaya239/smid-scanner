@@ -159,11 +159,17 @@ def summary():
     model("VALUATION_NON_CIRCULAR", m_circular)
 
     def m_uningested(v, s):
-        # a full post-release report whose release exhibit was never parsed
+        # a full post-release report whose FRESH release exhibit was never
+        # parsed. The check only blocks inside HOLD_WINDOW_DAYS (a stale
+        # unparsed exhibit is a labelled gap the gate allows), so the
+        # mutation stamps acceptance "now" to be unambiguously fresh.
+        import datetime as _d
         v["event"] = dict(v["event"], state=EV.POST_CALL_UNVERIFIED)
         v["flash"] = None
         s["exhibit"] = {"disposition": "AVAILABLE_NOT_INGESTED",
-                        "reason": "tables not parsed"}
+                        "reason": "tables not parsed",
+                        "accepted": _d.datetime.now(
+                            _d.timezone.utc).isoformat()}
     model("PRIMARY_RELEASE_INGESTED", m_uningested)
 
     def m_variant(v, s):
@@ -219,9 +225,11 @@ def summary():
          else unproven).append(cid)
 
     def m_period(s):
-        # cash flow from a different quarter than revenue — the v4.0 defect
+        # cash flow from a different quarter than revenue — the v4.0 defect.
+        # The metric must CARRY a value: a value-less fact renders "n/a",
+        # asserts no period, and is exempt from the check by design.
         s["fundamentals"] = dict(s.get("fundamentals") or {},
-                                 operating_cash_flow={"v": 1e9,
+                                 operating_cash_flow={"v": 1e9, "value": 1e9,
                                                       "period_end": "2020-01-01"})
     model_period("METRIC_PERIOD_CONSISTENCY", m_period)
 

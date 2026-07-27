@@ -191,15 +191,26 @@ def check_view(view, snap=None, estimates=None):
     released = state in (EV.RELEASED_PRE_CALL, EV.CALL_IN_PROGRESS,
                          EV.POST_CALL_UNVERIFIED, EV.POST_CALL_VERIFIED)
     if released and not view.get("flash"):
-        ok = ex.get("disposition") != "AVAILABLE_NOT_INGESTED"
+        # Mirror the gate's freshness window: inside HOLD_WINDOW_DAYS an
+        # unparsed exhibit must have produced a DATA HOLD (so reaching
+        # here un-ingested is a real failure); beyond it the gate
+        # deliberately proceeds with the gap labelled, and this backstop
+        # must not re-block what the gate chose to allow.
+        age = EV._release_age_days(ex, dt.datetime.now(dt.timezone.utc))
+        fresh = age is not None and age <= EV.HOLD_WINDOW_DAYS
+        ok = (ex.get("disposition") != "AVAILABLE_NOT_INGESTED"
+              or not fresh)
         out.append(chk("PRIMARY_RELEASE_INGESTED", ok, ERROR,
-                       "a full post-release report ingested the release "
-                       "exhibit (or is a DATA HOLD flash)",
-                       "exhibit disposition: %s"
-                       % (ex.get("disposition") or "none"),
-                       detail="Shipping GAAP figures while the release's "
-                              "guidance and KPIs are unparsed is an "
-                              "incomplete quarter dressed as complete."))
+                       "a fresh post-release report ingested the release "
+                       "exhibit (or held); a stale unparsed exhibit is a "
+                       "labelled gap",
+                       "exhibit disposition: %s, release age: %s day(s)"
+                       % (ex.get("disposition") or "none",
+                          "unknown" if age is None else age),
+                       detail="Shipping GAAP figures while a FRESH "
+                              "release's guidance and KPIs are unparsed "
+                              "is an incomplete quarter dressed as "
+                              "complete."))
 
     # 10b. KPI completeness: a release that states subscription revenue is a
     #      subscription business, and its cRPO and RPO are core to the read —
@@ -219,12 +230,18 @@ def check_view(view, snap=None, estimates=None):
     #     must share the revenue quarter's period_end. This is the check that
     #     would have caught Q1 cash flow printed beside Q2 revenue.
     fu = snap.get("fundamentals") or {}
-    ref = (fu.get("revenue_q") or {}).get("period_end")
+    _rev = fu.get("revenue_q") or {}
+    # Anchor only on a revenue quarter that actually carries a value, and
+    # judge only metrics that do: a value-less fact renders "n/a" and
+    # asserts no period, so its stray period_end (HOOD's retired 2021
+    # revenue concept) must not fail a table that never printed it.
+    ref = _rev.get("period_end") if rs.fv(_rev) is not None else None
     if ref:
         bad = []
         for k in _QUARTER_FLOW:
             f = fu.get(k)
-            pe = f.get("period_end") if isinstance(f, dict) else None
+            pe = (f.get("period_end") if isinstance(f, dict)
+                  and rs.fv(f) is not None else None)
             if pe and pe != ref:
                 bad.append("%s@%s" % (k, pe))
         out.append(chk("METRIC_PERIOD_CONSISTENCY", not bad, ERROR,
