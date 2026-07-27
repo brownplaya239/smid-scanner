@@ -19016,6 +19016,8 @@
       });
       const top5 = allRows.filter(function (r) { return r.mcap; })
         .sort(function (a, b) { return b.mcap - a.mcap; }).slice(0, 5);
+      const week = d.week_of
+        ? "Week of " + fmtWeekOf(d.week_of) : "Current week";
       const totalReporters = d.total != null ? d.total :
         d.days.reduce(function (s, day) {
           return s + (day.bmo||[]).length + (day.amc||[]).length;
