@@ -1,6 +1,6 @@
 {
  "week_of": "2026-07-27",
- "generated": "2026-07-27T17:01:02-04:00",
+ "generated": "2026-07-27T18:37:36-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 392,
  "days": [
@@ -40,6 +40,17 @@
      "next_eps": "2026-07-27T00:00:00",
      "q": "6/2026",
      "mcap": 21577648142.46
+    },
+    {
+     "ticker": "NE",
+     "company": "Noble Corporation plc",
+     "score": 5,
+     "analysts": 14,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-27T00:00:00",
+     "q": "6/2026",
+     "mcap": 6901957537.44
     },
     {
      "ticker": "BOH",
@@ -332,25 +343,13 @@
     {
      "ticker": "APLD",
      "company": "Applied Digital Corporation",
-     "score": 72,
+     "score": 73,
      "analysts": 13,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-07-27T00:00:00",
      "q": "5/2026",
      "mcap": 7770073765.410001
-    },
-    {
-     "ticker": "NE",
-     "company": "Noble Corporation plc",
-     "score": 5,
-     "analysts": 14,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-07-27T00:00:00",
-     "q": "6/2026",
-     "session_corrected": "EW listed BMO; Finnhub AMC",
-     "mcap": 6901957537.44
     },
     {
      "ticker": "KRC",
@@ -537,7 +536,7 @@
     {
      "ticker": "BA",
      "company": "Boeing Co.",
-     "score": 35,
+     "score": 36,
      "analysts": 29,
      "release_time": 1,
      "confirmed": true,
@@ -559,7 +558,7 @@
     {
      "ticker": "GLW",
      "company": "Corning Inc.",
-     "score": 25,
+     "score": 26,
      "analysts": 14,
      "release_time": 1,
      "confirmed": true,
@@ -669,7 +668,7 @@
     {
      "ticker": "PYPL",
      "company": "PayPal",
-     "score": 51,
+     "score": 53,
      "analysts": 45,
      "release_time": 1,
      "confirmed": true,
@@ -720,18 +719,6 @@
      "next_eps": "2026-07-28T00:00:00",
      "q": "6/2026",
      "mcap": 31091911660.980003
-    },
-    {
-     "ticker": "CNP",
-     "company": "CenterPoint Energy Inc.",
-     "score": 3,
-     "analysts": 19,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-07-28T00:00:00",
-     "q": "6/2026",
-     "session_corrected": "EW listed AMC; Finnhub BMO",
-     "mcap": 29149792028.800003
     },
     {
      "ticker": "HUBB",
@@ -1101,7 +1088,7 @@
     {
      "ticker": "KLAC",
      "company": "KLA Corporation",
-     "score": 18,
+     "score": 19,
      "analysts": 28,
      "release_time": 3,
      "confirmed": true,
@@ -1112,7 +1099,7 @@
     {
      "ticker": "STX",
      "company": "Seagate Technology plc",
-     "score": 39,
+     "score": 42,
      "analysts": 26,
      "release_time": 3,
      "confirmed": true,
@@ -1167,7 +1154,7 @@
     {
      "ticker": "TER",
      "company": "Teradyne, Inc.",
-     "score": 15,
+     "score": 16,
      "analysts": 17,
      "release_time": 3,
      "confirmed": true,
@@ -1178,7 +1165,7 @@
     {
      "ticker": "BE",
      "company": "Bloom Energy Corporation",
-     "score": 71,
+     "score": 75,
      "analysts": 27,
      "release_time": 3,
      "confirmed": true,
@@ -1207,6 +1194,17 @@
      "next_eps": "2026-07-28T00:00:00",
      "q": "6/2026",
      "mcap": 31205352856.56
+    },
+    {
+     "ticker": "CNP",
+     "company": "CenterPoint Energy Inc.",
+     "score": 3,
+     "analysts": 19,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-07-28T00:00:00",
+     "q": "6/2026",
+     "mcap": 29149792028.800003
     },
     {
      "ticker": "FE",
@@ -1365,7 +1363,7 @@
     {
      "ticker": "CAR",
      "company": "Avis Budget Group, Inc.",
-     "score": 9,
+     "score": 11,
      "analysts": 9,
      "release_time": 3,
      "confirmed": true,
@@ -1387,7 +1385,7 @@
     {
      "ticker": "ENPH",
      "company": "Enphase Energy Inc",
-     "score": 32,
+     "score": 33,
      "analysts": 29,
      "release_time": 3,
      "confirmed": true,
@@ -1431,7 +1429,7 @@
     {
      "ticker": "CAKE",
      "company": "Cheesecake Factory",
-     "score": 8,
+     "score": 10,
      "analysts": 21,
      "release_time": 3,
      "confirmed": true,
@@ -1635,7 +1633,7 @@
     {
      "ticker": "PG",
      "company": "Procter & Gamble Co.",
-     "score": 6,
+     "score": 7,
      "analysts": 26,
      "release_time": 1,
      "confirmed": true,
@@ -1668,7 +1666,7 @@
     {
      "ticker": "VRT",
      "company": "Vertiv Holdings Co",
-     "score": 24,
+     "score": 26,
      "analysts": 26,
      "release_time": 1,
      "confirmed": true,
@@ -1723,7 +1721,7 @@
     {
      "ticker": "BSX",
      "company": "Boston Scientific Corporation",
-     "score": 38,
+     "score": 39,
      "analysts": 29,
      "release_time": 1,
      "confirmed": true,
@@ -1866,7 +1864,7 @@
     {
      "ticker": "SOFI",
      "company": "SoFi",
-     "score": 68,
+     "score": 71,
      "analysts": 25,
      "release_time": 1,
      "confirmed": true,
@@ -2187,7 +2185,7 @@
     {
      "ticker": "MSFT",
      "company": "Microsoft Corp.",
-     "score": 180,
+     "score": 182,
      "analysts": 51,
      "release_time": 3,
      "confirmed": true,
@@ -2198,7 +2196,7 @@
     {
      "ticker": "META",
      "company": "Meta Platforms, Inc.",
-     "score": 82,
+     "score": 84,
      "analysts": 54,
      "release_time": 3,
      "confirmed": true,
@@ -3295,7 +3293,7 @@
     {
      "ticker": "AAPL",
      "company": "Apple, Inc.",
-     "score": 100,
+     "score": 103,
      "analysts": 42,
      "release_time": 3,
      "confirmed": true,
@@ -3394,7 +3392,7 @@
     {
      "ticker": "RDDT",
      "company": "Reddit, Inc.",
-     "score": 15,
+     "score": 16,
      "analysts": 30,
      "release_time": 3,
      "confirmed": true,
