@@ -124,13 +124,17 @@ def check_market(ticker):
 
 
 def check_news(ticker):
+    """Reports the feed that actually served the headlines."""
     try:
-        import yfinance as yf
-        items = yf.Ticker(ticker).news or []
-        row("News (yfinance)", UNOFFICIAL, len(items) > 0,
-            "%d headlines" % len(items))
+        import research_live as RL
+        items, src = RL._news_items(ticker, 8)
+        grade = VENDOR if src == "polygon" else UNOFFICIAL
+        row("News (%s)" % src, grade, len(items) > 0,
+            "%d headlines%s" % (len(items),
+                                "" if src == "polygon"
+                                else "  [FELL BACK to unofficial feed]"))
     except Exception as e:
-        row("News (yfinance)", UNOFFICIAL, False, "error: %s" % e)
+        row("News", UNOFFICIAL, False, "error: %s" % e)
 
 
 def check_social(ticker):

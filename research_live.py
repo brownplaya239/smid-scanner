@@ -912,27 +912,73 @@ def _article_relevance(url, ticker, company_words):
     return out
 
 
+def _news_items(ticker, limit=8):
+    """Headlines, normalised, from the licensed feed where possible.
+
+    Polygon's news carries a structured publisher, a stable article URL and
+    an explicit published_utc, so the fields the relevance gate depends on
+    do not shift under us the way an undocumented payload can. The
+    yfinance fallback is retained and labelled; an empty licensed response
+    is treated as a miss rather than as "no news".
+
+    Returns (items, source) where each item is
+    {headline, url, publisher, published_at_raw}.
+    """
+    try:
+        import polygon_data as PG
+        if PG.available():
+            data = PG._get("/v2/reference/news",
+                           {"ticker": ticker.upper(),
+                            "limit": max(int(limit) * 3, 20),
+                            "order": "desc", "sort": "published_utc"})
+            res = (data or {}).get("results") or []
+            out = []
+            for r in res:
+                out.append({
+                    "headline": (r.get("title") or "").strip(),
+                    "url": r.get("article_url"),
+                    "publisher": ((r.get("publisher") or {}).get("name")
+                                  or "unknown"),
+                    "published_at_raw": r.get("published_utc"),
+                })
+            if out:
+                return out, "polygon"
+    except Exception:
+        pass
+    try:
+        import yfinance as yf
+        raw = yf.Ticker(ticker).news or []
+    except Exception:
+        raw = []
+    out = []
+    for it in raw:
+        c = it.get("content") or it
+        out.append({
+            "headline": (c.get("title") or "").strip(),
+            "url": (((c.get("canonicalUrl") or {}) or {}).get("url")
+                    or ((c.get("clickThroughUrl") or {}) or {}).get("url")),
+            "publisher": (((c.get("provider") or {}) or {})
+                          .get("displayName") or "unknown"),
+            "published_at_raw": c.get("pubDate") or c.get("displayTime"),
+        })
+    return out, "yahoo"
+
+
 def fetch_news(ticker, report_time, company_name="", limit=8, verify=True):
-    import yfinance as yf
     kept, rejected = [], []
     cutoff = rs._parse_ts(report_time)
     words = [w for w in re.split(r"[,\s]+", company_name or "")
              if len(w) > 4 and w.lower() not in ("inc.", "inc", "corp",
                                                  "corporation", "company")]
-    try:
-        items = yf.Ticker(ticker).news or []
-    except Exception:
-        items = []
+    items, news_source = _news_items(ticker, limit)
     for it in items:
-        c = it.get("content") or it
-        pub = rs._parse_ts(c.get("pubDate") or c.get("displayTime"))
-        head = (c.get("title") or "").strip()
-        u = ((c.get("canonicalUrl") or {}) or {}).get("url") \
-            or ((c.get("clickThroughUrl") or {}) or {}).get("url")
-        pubr = ((c.get("provider") or {}) or {}).get("displayName") or "unknown"
+        pub = rs._parse_ts(it.get("published_at_raw"))
+        head = it.get("headline") or ""
+        u = it.get("url")
+        pubr = it.get("publisher") or "unknown"
         base = {"headline": head, "publisher": pubr, "url": u,
                 "published_at": _iso(pub) if pub else None,
-                "source_type": "media",
+                "source_type": "media", "feed": news_source,
                 "tier": rs.classify_news_tier("media")}
         if not pub or pub > cutoff:
             rejected.append(dict(base, reason="published after report_time"))
