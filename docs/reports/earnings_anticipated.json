@@ -1,6 +1,6 @@
 {
  "week_of": "2026-07-27",
- "generated": "2026-07-27T16:00:51-04:00",
+ "generated": "2026-07-27T16:37:24-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 391,
  "days": [
@@ -153,7 +153,7 @@
     {
      "ticker": "CLS",
      "company": "Celestica, Inc.",
-     "score": 27,
+     "score": 29,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
@@ -479,7 +479,7 @@
     {
      "ticker": "PYPL",
      "company": "PayPal",
-     "score": 50,
+     "score": 51,
      "analysts": 45,
      "release_time": 1,
      "confirmed": true,
@@ -497,20 +497,20 @@
      "q": "6/2026"
     },
     {
-     "ticker": "GLW",
-     "company": "Corning Inc.",
+     "ticker": "UPS",
+     "company": "United Parcel Service, Inc.",
      "score": 25,
-     "analysts": 14,
+     "analysts": 27,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-07-28T00:00:00",
      "q": "6/2026"
     },
     {
-     "ticker": "UPS",
-     "company": "United Parcel Service, Inc.",
-     "score": 24,
-     "analysts": 27,
+     "ticker": "GLW",
+     "company": "Corning Inc.",
+     "score": 25,
+     "analysts": 14,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-07-28T00:00:00",
@@ -549,8 +549,18 @@
     {
      "ticker": "SPGI",
      "company": "S&P Global",
-     "score": 8,
+     "score": 9,
      "analysts": 26,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-28T00:00:00",
+     "q": "6/2026"
+    },
+    {
+     "ticker": "JBLU",
+     "company": "JetBlue Airways Corporation",
+     "score": 9,
+     "analysts": 16,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-07-28T00:00:00",
@@ -561,16 +571,6 @@
      "company": "Hubbell Incorporated",
      "score": 8,
      "analysts": 13,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-07-28T00:00:00",
-     "q": "6/2026"
-    },
-    {
-     "ticker": "JBLU",
-     "company": "JetBlue Airways Corporation",
-     "score": 8,
-     "analysts": 16,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-07-28T00:00:00",
@@ -657,6 +657,16 @@
      "q": "6/2026"
     },
     {
+     "ticker": "IVZ",
+     "company": "Invesco PLC",
+     "score": 4,
+     "analysts": 14,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-28T00:00:00",
+     "q": "6/2026"
+    },
+    {
      "ticker": "ALKS",
      "company": "Alkermes, Inc.",
      "score": 3,
@@ -681,16 +691,6 @@
      "company": "Fomento Economico Mexicano S.A",
      "score": 3,
      "analysts": 9,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-07-28T00:00:00",
-     "q": "6/2026"
-    },
-    {
-     "ticker": "IVZ",
-     "company": "Invesco PLC",
-     "score": 3,
-     "analysts": 14,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-07-28T00:00:00",
@@ -981,7 +981,7 @@
     {
      "ticker": "BE",
      "company": "Bloom Energy Corporation",
-     "score": 68,
+     "score": 70,
      "analysts": 27,
      "release_time": 3,
      "confirmed": true,
@@ -991,7 +991,7 @@
     {
      "ticker": "STX",
      "company": "Seagate Technology plc",
-     "score": 38,
+     "score": 39,
      "analysts": 26,
      "release_time": 3,
      "confirmed": true,
@@ -1001,7 +1001,7 @@
     {
      "ticker": "ENPH",
      "company": "Enphase Energy Inc",
-     "score": 30,
+     "score": 32,
      "analysts": 29,
      "release_time": 3,
      "confirmed": true,
@@ -1011,7 +1011,7 @@
     {
      "ticker": "V",
      "company": "Visa Inc",
-     "score": 21,
+     "score": 22,
      "analysts": 40,
      "release_time": 3,
      "confirmed": true,
@@ -1051,7 +1051,7 @@
     {
      "ticker": "F",
      "company": "Ford Motor Company",
-     "score": 10,
+     "score": 11,
      "analysts": 23,
      "release_time": 3,
      "confirmed": true,
@@ -1655,6 +1655,16 @@
      "q": "6/2026"
     },
     {
+     "ticker": "BIIB",
+     "company": "Biogen Inc.",
+     "score": 4,
+     "analysts": 34,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-29T00:00:00",
+     "q": "6/2026"
+    },
+    {
      "ticker": "CVE",
      "company": "Cenovus Energy Inc",
      "score": 4,
@@ -1709,16 +1719,6 @@
      "company": "HudBay Minerals Inc.",
      "score": 3,
      "analysts": 18,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-07-29T00:00:00",
-     "q": "6/2026"
-    },
-    {
-     "ticker": "BIIB",
-     "company": "Biogen Inc.",
-     "score": 3,
-     "analysts": 34,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-07-29T00:00:00",
@@ -1989,7 +1989,7 @@
     {
      "ticker": "MSFT",
      "company": "Microsoft Corp.",
-     "score": 179,
+     "score": 180,
      "analysts": 51,
      "release_time": 3,
      "confirmed": true,
@@ -2997,7 +2997,7 @@
     {
      "ticker": "AAPL",
      "company": "Apple, Inc.",
-     "score": 99,
+     "score": 100,
      "analysts": 42,
      "release_time": 3,
      "confirmed": true,
@@ -3007,7 +3007,7 @@
     {
      "ticker": "AMZN",
      "company": "Amazon.com, Inc.",
-     "score": 83,
+     "score": 85,
      "analysts": 57,
      "release_time": 3,
      "confirmed": true,

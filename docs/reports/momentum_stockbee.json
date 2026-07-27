@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-26T16:41:59-04:00",
+ "updated": "2026-07-27T16:33:56-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -7910,6 +7910,79 @@
      "adr_pct": 7.19,
      "dollar_vol": 2977201732,
      "ern": "Sep 03"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-27",
+   "generated": "2026-07-27T16:33:56-04:00",
+   "count": 3,
+   "rows": [
+    {
+     "ticker": "SMCI",
+     "price": 29.81,
+     "chg": 25.09,
+     "adr_pct": 6.7,
+     "dollar_vol": 1356279445,
+     "ern": "Aug 11"
+    },
+    {
+     "ticker": "QBTS",
+     "price": 19.51,
+     "chg": 16.69,
+     "adr_pct": 6.86,
+     "dollar_vol": 375669753,
+     "ern": "Aug 06"
+    },
+    {
+     "ticker": "ARWR",
+     "price": 85.53,
+     "chg": 19.37,
+     "adr_pct": 5.16,
+     "dollar_vol": 195625912,
+     "ern": "Aug 04"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "LEU",
+     "price": 175.98,
+     "chg": 12.53,
+     "adr_pct": 6.73,
+     "dollar_vol": 136072951,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "RTX",
+     "price": 218.42,
+     "chg": 12.33,
+     "adr_pct": 2.38,
+     "dollar_vol": 950754253,
+     "ern": "Oct 20"
+    },
+    {
+     "ticker": "MMM",
+     "price": 178.23,
+     "chg": 12.02,
+     "adr_pct": 2.48,
+     "dollar_vol": 609777785,
+     "ern": "Oct 20"
+    },
+    {
+     "ticker": "DELL",
+     "price": 426.91,
+     "chg": 11.79,
+     "adr_pct": 7.42,
+     "dollar_vol": 2865809333,
+     "ern": "Sep 03"
+    },
+    {
+     "ticker": "T",
+     "price": 24.42,
+     "chg": 11.25,
+     "adr_pct": 3.35,
+     "dollar_vol": 2025824978,
+     "ern": "Oct 21"
     }
    ]
   }

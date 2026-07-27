@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-26T16:41:59-04:00",
+ "updated": "2026-07-27T16:33:56-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -4864,6 +4864,45 @@
      "chg": 33.73,
      "adr_pct": 6.72,
      "dollar_vol": 138701321,
+     "ern": "Aug 06"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-27",
+   "generated": "2026-07-27T16:33:56-04:00",
+   "count": 4,
+   "rows": [
+    {
+     "ticker": "VSAT",
+     "price": 74.87,
+     "chg": 24.78,
+     "adr_pct": 8.55,
+     "dollar_vol": 209143592,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "DAVE",
+     "price": 405.65,
+     "chg": 25.69,
+     "adr_pct": 6.07,
+     "dollar_vol": 202405524,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "PBF",
+     "price": 62.76,
+     "chg": 48.4,
+     "adr_pct": 5.75,
+     "dollar_vol": 168291750,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "TXG",
+     "price": 45.92,
+     "chg": 28.52,
+     "adr_pct": 6.62,
+     "dollar_vol": 126511235,
      "ern": "Aug 06"
     }
    ]
