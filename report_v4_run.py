@@ -195,6 +195,52 @@ def run(ticker, out_dir="out_v4", want_spy=True):
             "flash": bool(view.get("flash"))}
 
 
+def run_for_user(ticker, user_id="", out_dir=None):
+    """CI entry point for a user-requested v4 report — the site's lookup
+    path. Same contract research_live.run_for_user honoured for v3:
+    build, refuse to ship anything that fails its own validation, then
+    upload core + appendix to the requester's private Storage, falling
+    back to the public archive. The validation JSON (with the PDF hashes
+    it is bound to) ships beside them so a reader can prove the pair."""
+    import datetime as dt
+    ticker = ticker.upper().strip()
+    out_dir = out_dir or "out_v4_user"
+    print("=" * 62)
+    print("EQUITY RESEARCH v4: %s (user %s)"
+          % (ticker, user_id or "<public archive>"))
+    print("=" * 62)
+    res = _print(run(ticker, out_dir))
+    if not res["result"]["ok"]:
+        raise SystemExit("v4 package failed validation; nothing uploaded: %s"
+                         % ", ".join(res["result"]["blocking_failures"])
+                         or "see validation report")
+
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d_%H%M")
+    # The validation JSON is a sidecar: it ships beside the PDFs (its
+    # hashes prove the pair) but must not surface as a third entry in the
+    # My Reports listing, so it uploads with link=False.
+    parts = [(res["core"], "research_%s_%s.pdf" % (ticker, stamp), True),
+             (res["appendix"], "research_%s_%s_appendix.pdf"
+              % (ticker, stamp), True),
+             (res["validation"], "research_%s_%s_validation.json"
+              % (ticker, stamp), False)]
+    try:
+        from report_archive import archive, upload_user_report
+        for path, name, link in parts:
+            with open(path, "rb") as fh:
+                blob = fh.read()
+            uploaded = False
+            if user_id:
+                uploaded = upload_user_report(blob, name, user_id,
+                                              ticker, "research", link=link)
+            if not uploaded:
+                archive(blob, name)
+                print("  Archived publicly: %s" % name)
+    except Exception as e:
+        print("  archive/upload failed: %s" % e)
+    return 0
+
+
 def _print(res):
     r = res["result"]
     print("\n%s  (%s)" % (res["ticker"], res["event_state"]))
@@ -217,6 +263,11 @@ def main():
     ap.add_argument("ticker", nargs="?")
     ap.add_argument("--out", default="out_v4")
     ap.add_argument("--no-spy", action="store_true")
+    ap.add_argument("--user-id", default="",
+                    help="deliver to this user's private Storage (CI); "
+                         "falls back to the public archive")
+    ap.add_argument("--for-user", action="store_true",
+                    help="run the site lookup path: build, gate, upload")
     ap.add_argument("--verify", metavar="DIR",
                     help="re-hash the PDFs in DIR against the validation "
                          "JSON beside them and exit")
@@ -225,6 +276,8 @@ def main():
         return verify(a.verify)
     if not a.ticker:
         ap.error("a ticker is required unless --verify is given")
+    if a.for_user or a.user_id:
+        return run_for_user(a.ticker, a.user_id, a.out)
     res = _print(run(a.ticker, a.out, not a.no_spy))
     return 0 if res["result"]["ok"] else 1
 

@@ -1,0 +1,247 @@
+{
+ "artifacts": {
+  "NOW_equity_research_v4.pdf": {
+   "bytes": 202586,
+   "sha256": "a0d05f48f975a2bb35de46057013946e7cc2b50a34d1f031d213543281da3989"
+  },
+  "NOW_equity_research_v4_appendix.pdf": {
+   "bytes": 53346,
+   "sha256": "e974a73ea121d2b3032024ea2808a47a8380dd29a2633e869c57c7beeb502405"
+  }
+ },
+ "blocking_failures": [],
+ "checks": [
+  {
+   "check_id": "EVENT_RATING_CONSISTENCY",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "rating permitted",
+   "observed": "state POST-CALL NOT TRANSCRIPT-VERIFIED",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "NO_NEXT_AFTER_RELEASE",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "next-earnings not pending after release",
+   "observed": "pending=False",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "CONSENSUS_SOURCED",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "consensus is OBSERVED, dated, analyst-counted",
+   "observed": "grade=OBSERVED as_of=2026-07-01 n=54",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "WITHHELD_LABELLED",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "every withheld datum carries a reason",
+   "observed": "unlabelled: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "SPLIT_MAGNITUDE",
+   "detail": "A trailing P/E off from price/EPS by a whole split factor means price and EPS were adjusted on different bases.",
+   "evidence_refs": [],
+   "expected": "trailing P/E reconciles to price / EPS",
+   "observed": "pe=61.70, price/eps=61.74, ratio=0.999",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "VALUATION_NON_CIRCULAR",
+   "detail": "Dividing the 52-week price range by current EPS makes the implied prices identical to that range.",
+   "evidence_refs": [],
+   "expected": "no scenario price is the 52-week price range / EPS x EPS",
+   "observed": "no circular scenarios",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "VARIANT_IS_DERIVED",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "variant grade is DERIVED",
+   "observed": "grade=DERIVED",
+   "severity": "WARN",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "PRIMARY_RELEASE_INGESTED",
+   "detail": "Shipping GAAP figures while the release's guidance and KPIs are unparsed is an incomplete quarter dressed as complete.",
+   "evidence_refs": [],
+   "expected": "a full post-release report ingested the release exhibit (or is a DATA HOLD flash)",
+   "observed": "exhibit disposition: ADMITTED",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "REQUIRED_KPI_COMPLETENESS",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "a subscription release carries cRPO and RPO",
+   "observed": "parsed: acv_over_1m_net_new_deals, acv_over_5m_customers, ai_acv, crpo, rpo, subscription_revenue",
+   "severity": "WARN",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "METRIC_PERIOD_CONSISTENCY",
+   "detail": "A section labelled 'latest quarter' may hold only metrics from that quarter.",
+   "evidence_refs": [],
+   "expected": "latest-quarter flow metrics all end 2026-06-30",
+   "observed": "mismatched: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "LISTING_DATE_INTEGRITY",
+   "detail": "Symbols are reused. A bar dated before the listing date belongs to a different security and must be dropped, not averaged in.",
+   "evidence_refs": [],
+   "expected": "no bar predates the 2012-06-29 listing",
+   "observed": "earliest session 2024-07-11",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "CORE_PAGE_COUNT",
+   "detail": "Six with valuation, five when valuation is omitted rather than padded; never more.",
+   "evidence_refs": [],
+   "expected": "5 or 6 core pages",
+   "observed": "6",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "HTML_ENTITIES",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "no literal HTML entities in the rendered text",
+   "observed": "found: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "GLYPH_INTEGRITY",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "no unrenderable or mis-decoded character",
+   "observed": "clean",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "APPENDIX_PRESENT",
+   "detail": "The methodology appendix is a required, separate document.",
+   "evidence_refs": [],
+   "expected": "appendix present, >= 2 pages",
+   "observed": "3 pages",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "HTML_ENTITIES_APPENDIX",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "no literal HTML entities in the appendix",
+   "observed": "found: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "APPENDIX_TABLE_PAGINATION",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "final appendix page carries real content, not an orphaned table tail",
+   "observed": "last page 1826 chars",
+   "severity": "WARN",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "INTERNAL_CONFIG_NOT_EXPOSED",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "no internal config or engineering detail in the document",
+   "observed": "found: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "NO_PAST_NEXT_EVENT_RENDERED",
+   "detail": "A 'next' event in the past means the event state was not advanced after the release.",
+   "evidence_refs": [],
+   "expected": "no 'next' event earlier than the prepared date (2026-07-27)",
+   "observed": "past next-dates: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "PDF_TEXT_ROUNDTRIP",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "core text extracts cleanly with real content",
+   "observed": "len=9777",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  }
+ ],
+ "event_state": "POST-CALL NOT TRANSCRIPT-VERIFIED",
+ "generated_at": "2026-07-27T11:01:30+00:00",
+ "mutation_tests": {
+  "all_checks_proven": true,
+  "n_proven": 19,
+  "proven": [
+   "APPENDIX_PRESENT",
+   "CONSENSUS_SOURCED",
+   "CORE_PAGE_COUNT",
+   "EVENT_RATING_CONSISTENCY",
+   "FLASH_ON_DATA_HOLD",
+   "GLYPH_INTEGRITY",
+   "HTML_ENTITIES",
+   "HTML_ENTITIES_APPENDIX",
+   "INTERNAL_CONFIG_NOT_EXPOSED",
+   "METRIC_PERIOD_CONSISTENCY",
+   "NO_NEXT_AFTER_RELEASE",
+   "NO_PAST_NEXT_EVENT_RENDERED",
+   "PDF_TEXT_ROUNDTRIP",
+   "PRIMARY_RELEASE_INGESTED",
+   "SPLIT_MAGNITUDE",
+   "TARGET_SOURCED",
+   "VALUATION_NON_CIRCULAR",
+   "VARIANT_IS_DERIVED",
+   "WITHHELD_LABELLED"
+  ],
+  "unproven": []
+ },
+ "ok": true,
+ "schema": "equity-research-v4-validation/1",
+ "ticker": "NOW",
+ "validator_code_sha256": "9b5c9e0e5038cca9e4f9b0d41a07007530f3f1db1f2731aa586dff98bd3d2e18"
+}

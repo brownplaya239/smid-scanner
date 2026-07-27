@@ -1,4 +1,4 @@
-name: Ticker Research Brief (v2)
+name: Ticker Research Brief (v4)
 
 on:
   workflow_dispatch:
@@ -38,40 +38,38 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # v2 research brief: SEC point-in-time fundamentals, Form 4
-      # economics, catalyst discovery, price chart, and the alt-data
-      # appendix folded in — one PDF instead of two reports.
-      - name: Generate research brief (v3)
+      # Equity Research v4: event-gated 5/6-page core + evidence appendix,
+      # Finnhub consensus, issuer-exhibit KPIs, and a validation JSON that
+      # records the sha256 of the exact PDFs it validated. run_for_user
+      # refuses to upload anything that fails its own gate.
+      - name: Generate Equity Research v4
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          # v4 consensus/price-target feed (estimates_provider.py). Absent
-          # until this secret is added under Settings -> Secrets and
-          # variables -> Actions; the provider fails closed without it and
-          # the report withholds the rating. Adding it lights the rating
-          # up with no code change.
+          # Free tier lights the consensus rating + surprise history; a
+          # premium key adds the target and forward estimates with no
+          # code change. Without it the provider fails closed and the
+          # rating reads NR.
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-        run: python research_live.py --ticker "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}"
+        run: python report_v4_run.py "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}" --for-user --out out_v4_user
 
       # the brief blocks its own export on any gate failure, so a green
       # step above already means every displayed number reconciled
-      - name: Assert validation report is clean
+      # Independent of the generator's own gate: re-read the v4 validation
+      # JSON, assert no blocking failure and that the mutation suite proved
+      # every check can fail, then re-hash the shipped PDFs against the
+      # hashes the validation recorded — a stale or mismatched validation
+      # fails the job instead of shipping.
+      - name: Assert validation clean and hash-bound
         run: |
           python - <<'EOF'
           import glob, json, sys
-          # v3 writes <TICKER>_research_brief_v3_validation.json. The v2
-          # report_validation/v1 shape (pdf_parsers_ok, hash_verification,
-          # count_reconciliation, page_render) does not exist here: v3
-          # replaced it with one structured object per check plus a
-          # mutation suite, so this asserts the v3 contract instead.
-          f = sorted(glob.glob("*_research_brief_v3_validation.json"))
+          f = sorted(glob.glob("out_v4_user/*_validation.json"))
           if not f:
-              sys.exit("no v3 validation report produced")
+              sys.exit("no v4 validation report produced")
           v = json.load(open(f[-1], encoding="utf-8"))
           checks = v.get("checks") or []
-          fails = [c for c in checks
-                   if c.get("status") == "FAIL"
+          fails = [c for c in checks if c.get("status") == "FAIL"
                    and c.get("severity") in ("FATAL", "ERROR")]
           mut = v.get("mutation_tests") or {}
           bad = []
@@ -81,23 +79,33 @@ jobs:
               bad.append("%d blocking failure(s): %s"
                          % (len(fails), ", ".join(c["check_id"]
                                                   for c in fails[:6])))
-          # A green run whose gates were never exercised proves nothing.
           if not mut.get("all_checks_proven"):
-              bad.append("mutation suite did not prove every check can fail "
-                         "(%s/%s)" % (mut.get("passed"), mut.get("total")))
+              bad.append("mutation suite did not prove every check can "
+                         "fail (%s/%s)" % (mut.get("passed"),
+                                           mut.get("total")))
           if not v.get("ok"):
               bad.append("validator reports ok=false")
+          import report_v4_run as RR
+          arts = v.get("artifacts") or {}
+          if not arts:
+              bad.append("validation carries no artifact hashes")
+          for name, want in arts.items():
+              got = RR._artifact_hashes("out_v4_user/" + name).get(name, {})
+              if got.get("sha256") != want.get("sha256"):
+                  bad.append("hash mismatch: %s" % name)
           print(json.dumps({
-              "validator": v.get("validator_version"),
-              "counts": v.get("counts"),
+              "generated_at": v.get("generated_at"),
+              "event_state": v.get("event_state"),
+              "artifacts": sorted(arts),
               "mutation": {k: mut.get(k)
-                           for k in ("passed", "total", "all_checks_proven")},
+                           for k in ("passed", "total",
+                                     "all_checks_proven")},
               "warnings": [c["check_id"] for c in checks
                            if c.get("status") == "WARN"],
           }, indent=1))
           if bad:
               sys.exit("validation failed: " + "; ".join(bad))
-          print("validation clean")
+          print("validation clean and hash-bound")
           EOF
 
       - name: Publish report to site archive

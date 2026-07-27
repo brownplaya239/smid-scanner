@@ -173,31 +173,41 @@ def _link_report_generation(url_base, key, user_id, ticker, kind, storage_path):
         urllib.request.urlopen(ins, timeout=20).read()
 
 
-def upload_user_report(pdf_bytes, filename, user_id, ticker, kind):
-    """Upload an ad-hoc/alt-data PDF to user-reports/<user_id>/<filename> and
-    link it onto the user's report_generations row. Returns True on success.
-    Returns False (so the caller falls back to the public archive) when the
-    Storage bucket / creds aren't configured yet — safe pre-setup rollout."""
+def upload_user_report(pdf_bytes, filename, user_id, ticker, kind,
+                       link=True):
+    """Upload an ad-hoc/alt-data report file to
+    user-reports/<user_id>/<filename> and (when link=True) link it onto the
+    user's report_generations row. Returns True on success. Returns False
+    (so the caller falls back to the public archive) when the Storage
+    bucket / creds aren't configured yet — safe pre-setup rollout.
+
+    link=False is for sidecar files (the v4 validation JSON) that must
+    live beside the report but should NOT appear as their own entry in
+    the My Reports listing."""
     url_base, key = _sb_env()
     if not (url_base and key and user_id):
         return False
     storage_path = f"{user_id}/{filename}"
+    ctype = ("application/json" if filename.lower().endswith(".json")
+             else "application/pdf")
     try:
         req = urllib.request.Request(
             f"{url_base}/storage/v1/object/user-reports/{storage_path}",
             data=pdf_bytes,
             headers={"Authorization": f"Bearer {key}", "apikey": key,
-                     "Content-Type": "application/pdf", "x-upsert": "true"},
+                     "Content-Type": ctype, "x-upsert": "true"},
             method="POST")
         with urllib.request.urlopen(req, timeout=45) as r:
             r.read()
     except Exception as e:
         print(f"  Private upload failed ({e}); falling back to public archive.")
         return False
-    try:
-        _link_report_generation(url_base, key, user_id, ticker, kind, storage_path)
-    except Exception as e:
-        print(f"  report_generations link failed (non-fatal): {e}")
+    if link:
+        try:
+            _link_report_generation(url_base, key, user_id, ticker, kind,
+                                    storage_path)
+        except Exception as e:
+            print(f"  report_generations link failed (non-fatal): {e}")
     print(f"  Uploaded private report: user-reports/{storage_path}")
     return True
 
