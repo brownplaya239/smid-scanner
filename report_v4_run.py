@@ -105,6 +105,52 @@ def _chart(ticker, snap, prov, view, want_spy=True):
     return res
 
 
+def _artifact_hashes(*paths):
+    """sha256 and byte length of each rendered PDF, keyed by basename."""
+    import hashlib
+    out = {}
+    for pth in paths:
+        try:
+            with open(pth, "rb") as fh:
+                blob = fh.read()
+            out[os.path.basename(pth)] = {
+                "sha256": hashlib.sha256(blob).hexdigest(),
+                "bytes": len(blob)}
+        except OSError as e:
+            out[os.path.basename(pth)] = {"sha256": None, "error": str(e)}
+    return out
+
+
+def verify(out_dir):
+    """Re-hash the PDFs in out_dir and compare against the hashes recorded
+    in the validation JSON beside them. Prints one line per artifact and
+    returns a non-zero exit code on any mismatch or missing record, so a
+    stale validation cannot be mistaken for a current one."""
+    vals = [f for f in sorted(os.listdir(out_dir))
+            if f.endswith("_validation.json")]
+    if not vals:
+        print("no validation JSON in %s" % out_dir)
+        return 2
+    bad = 0
+    for v in vals:
+        with open(os.path.join(out_dir, v)) as fh:
+            rec = json.load(fh)
+        arts = rec.get("artifacts") or {}
+        if not arts:
+            print("  %-46s NO HASHES RECORDED (pre-hash run)" % v)
+            bad += 1
+            continue
+        for name, want in sorted(arts.items()):
+            got = _artifact_hashes(os.path.join(out_dir, name)).get(name, {})
+            ok = got.get("sha256") and got["sha256"] == want.get("sha256")
+            bad += 0 if ok else 1
+            print("  %-46s %s" % (name, "matches validation" if ok
+                                  else "MISMATCH — validation is stale for "
+                                       "this PDF"))
+        print("  %-46s validated %s" % (v, rec.get("generated_at") or "?"))
+    return 1 if bad else 0
+
+
 def run(ticker, out_dir="out_v4", want_spy=True):
     import report_v4_validate as VV
     os.makedirs(out_dir, exist_ok=True)
@@ -134,6 +180,12 @@ def run(ticker, out_dir="out_v4", want_spy=True):
                             prov=prov)
     result = VV.report(view, snap, core, apx, estimates=estimates,
                        run_mutation=True)
+    # Bind the validation to the exact bytes it validated. Without this a
+    # reader comparing file timestamps cannot tell a current validation
+    # from one left over beside a newer PDF — and a stale PASS is worse
+    # than no PASS. Hashed AFTER both PDFs are written, and re-checkable
+    # with `python report_v4_run.py --verify <dir>`.
+    result["artifacts"] = _artifact_hashes(core_p, apx_p)
     with open(val_p, "w") as fh:
         json.dump(result, fh, indent=1, default=str, sort_keys=True)
 
@@ -162,10 +214,17 @@ def _print(res):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("ticker")
+    ap.add_argument("ticker", nargs="?")
     ap.add_argument("--out", default="out_v4")
     ap.add_argument("--no-spy", action="store_true")
+    ap.add_argument("--verify", metavar="DIR",
+                    help="re-hash the PDFs in DIR against the validation "
+                         "JSON beside them and exit")
     a = ap.parse_args()
+    if a.verify:
+        return verify(a.verify)
+    if not a.ticker:
+        ap.error("a ticker is required unless --verify is given")
     res = _print(run(a.ticker, a.out, not a.no_spy))
     return 0 if res["result"]["ok"] else 1
 

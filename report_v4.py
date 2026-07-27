@@ -92,7 +92,8 @@ def _masthead(snap, view):
     fr = (band_f["band"] if band_f.get("available") else "NR")
     tr = (band_t["band"] if band_t.get("available") else "NR")
     right = [
-        para("<b>Event state:</b> %s" % _clean(ev["state"]), "small"),
+        para("<b>Where we are:</b> %s" % _clean(ev.get("state_label")
+                                            or ev["state"]), "small"),
         para("Fundamental (consensus): <b>%s</b>" % _clean(fr), "small"),
         para("Tactical (technical): <b>%s</b>" % _clean(tr), "small"),
     ]
@@ -124,6 +125,17 @@ def _rating_panel(view):
 
     rows.append(["Fundamental rating", band_cell(fr, "f")])
     rows.append(["Tactical rating", band_cell(tr, "t")])
+    dc = view.get("data_confidence") or {}
+    if dc.get("level"):
+        _dc_col = {"High": "#1a7a3c", "Medium": "#a67c00",
+                   "Low": "#b03a2e"}.get(dc["level"], INK.hexval())
+        rows.append(["Data confidence",
+                     R.Paragraph("<font color='%s'><b>%s</b></font><br/>"
+                                 "<font size='8' color='%s'>%s</font>"
+                                 % (_dc_col, dc["level"], MUTED.hexval(),
+                                    _clean("; ".join(dc.get("reasons")
+                                                     or []))),
+                                 ST["body"])])
     if tg.get("available"):
         er = tg.get("expected_return_pct")
         rows.append(["12-month target",
@@ -137,9 +149,21 @@ def _rating_panel(view):
                      R.Paragraph("unavailable &mdash; %s"
                                  % _clean(tg.get("reason") or ""),
                                  ST["body"])])
+    if (fr.get("available") and tr.get("available")
+            and fr.get("band") in ("Buy", "Outperform")
+            and tr.get("band") in ("Weak", "Cautious")):
+        rows.append(["Reading the split",
+                     R.Paragraph("Analyst consensus is positive; the "
+                                 "technical setup is negative. These "
+                                 "measure different things &mdash; the "
+                                 "Street's view of the business vs where "
+                                 "price sits in its own trend &mdash; and "
+                                 "right now they disagree.", ST["body"])])
     rows.append(["Horizon", R.Paragraph(_clean(view.get("horizon") or ""),
                                         ST["body"])])
-    rows.append(["Event state", R.Paragraph(_clean(view["event"]["state"]),
+    rows.append(["Where we are", R.Paragraph(
+        _clean(view["event"].get("state_label")
+               or view["event"]["state"]),
                                             ST["body"])])
     t = _table(rows, [BODY_W * 0.26, BODY_W * 0.74], zebra=True)
     return t
@@ -176,7 +200,19 @@ def _page1(snap, view):
         for b in th:
             st.append(para("&bull; %s" % _clean(b["text"]), "body"))
     else:
-        st.append(para("No thesis point cleared the evidence gate.", "small"))
+        # An empty thesis under a consensus Buy reads as a contradiction
+        # unless the split is stated: the rating is the Street's, and this
+        # report has no independent filed-fact case of its own yet.
+        fr = (view.get("ratings") or {}).get("fundamental") or {}
+        if fr.get("available"):
+            st.append(para(
+                "Consensus is positive, but this report has no independent "
+                "fundamental thesis yet: no filed figure or issuer "
+                "disclosure met our sourcing bar. The rating above is the "
+                "Street's view, not a case we have built.", "small"))
+        else:
+            st.append(para("No filed figure or issuer disclosure met the "
+                           "sourcing bar for a thesis point.", "small"))
 
     st.append(para("Key risks", "h2"))
     rk = view.get("risks") or []
@@ -225,6 +261,38 @@ def _page2(snap, view):
     else:
         st.append(para("No business description was admitted from a cited "
                        "source.", "body", OBSERVED))
+
+    # For a recently listed security, the listing IS the business context
+    # a reader needs first: how long it has traded, the range it has
+    # traded in, and the structural caveats every new listing carries.
+    # Only facts we hold are stated; the offer price and lock-up terms
+    # live in the prospectus, which this pipeline does not parse, and the
+    # section says so instead of guessing at the standard 180 days.
+    th = view.get("trading_history") or {}
+    if th.get("listing_date") and not th.get("full_history"):
+        lv = snap.get("levels") or {}
+        hi, lo = rs.fv(lv.get("resistance")), rs.fv(lv.get("support"))
+        bits = ["Listed %s; %d completed trading sessions."
+                % (_clean(th["listing_date"]), th.get("sessions") or 0)]
+        if hi is not None and lo is not None:
+            bits.append("Closing range since listing: $%.2f to $%.2f."
+                        % (lo, hi))
+        bits.append(
+            "Structural caveats common to new listings apply: the public "
+            "float is typically a small fraction of shares outstanding "
+            "until insider and early-investor lock-ups expire, which can "
+            "add supply when they do. The offer price and the specific "
+            "lock-up terms are stated in the IPO prospectus (SEC Form "
+            "424B4), which this report does not parse &mdash; they are "
+            "not estimated here.")
+        cat = snap.get("catalyst") or {}
+        if (view.get("event") or {}).get("state") == "PRE-RELEASE":
+            bits.append(
+                "The company has not yet reported a quarter as a public "
+                "company; any first-earnings date circulating is a vendor "
+                "estimate until the issuer confirms one.")
+        st.append(para("Newly listed: trading and disclosure context", "h2"))
+        st.append(para(" ".join(bits), "body", OBSERVED))
 
     # The derived analysis: enterprise motion, revenue visibility, the
     # growth/cash balance, and the AI franchise — built by the model from
@@ -436,9 +504,12 @@ def _page4(snap, view):
         prows.insert(0, ["%s (subject)" % (view.get("ticker") or ""), subj])
         st.append(_table(prows, [BODY_W * 0.5, BODY_W * 0.42],
                          header=["Ticker", "Trailing P/E"], zebra=True))
-        st.append(para("Peers are Finnhub's sector grouping; multiples are "
-                       "vendor trailing P/E. %s." % _clean(pr.get("source")
-                                                           or ""), "small"))
+        st.append(para("This peer list is vendor-provided (Finnhub's "
+                       "sector/industry grouping) and NOT curated by us "
+                       "&mdash; some names may be poor business comparisons "
+                       "and are shown only because the vendor groups them "
+                       "together. Multiples are vendor trailing P/E. %s."
+                       % _clean(pr.get("source") or ""), "small"))
     else:
         st.append(_wh_line("Peer multiples", pr, "small"))
 
@@ -573,7 +644,7 @@ def _page6(snap, view):
         st.append(_wh_line("Variant perception", var, "small"))
 
     mon = view.get("monitoring") or {}
-    st.append(para("Thesis confirm / break", "h3"))
+    st.append(para("What would change our mind", "h3"))
     if mon.get("upgrade_trigger"):
         st.append(para("<b>Confirms on:</b> %s" % _clean(mon["upgrade_trigger"]),
                        "small", DERIVED))
@@ -649,7 +720,7 @@ def _appendix_story(snap, view, estimates=None, prov=None):
         return para("%d. %s" % (_n[0], title), "h2")
 
     st = [para("Appendix &mdash; evidence and methodology", "h2"),
-          para("The audit trail for the six-page Equity Research v4 report on "
+          para("The audit trail for the Equity Research v4 report on "
                "%s. It is not a summary: it records the event reconciliation, "
                "where every figure came from, what was withheld and why, and "
                "the formula behind each derived value. Market data as of %s."
@@ -771,8 +842,11 @@ def _appendix_story(snap, view, estimates=None, prov=None):
     st.append(sec("Derived figures and their formulas"))
     st.append(_table(calc, [BODY_W * 0.18, BODY_W * 0.38, BODY_W * 0.36],
                      header=["Figure", "Basis", "Evidence refs"], zebra=True,
-                     empty="No figure in this report was derived; every value "
-                           "came directly from a source."))
+                     empty="No FIGURE was computed here &mdash; every number "
+                           "in the report came straight from a source. The "
+                           "interpretation and the technical thresholds "
+                           "marked [DER] are still ours; they are reasoning "
+                           "over those numbers, not new measurements."))
     if calc:
         st.append(para("An XBRL reference reads accession &middot; tag "
                        "&middot; period end; the tag is a us-gaap concept "

@@ -308,25 +308,38 @@ def trading_chart(mk, levels=None, sessions=TRADING_SESSIONS,
                                     linewidth=0.6, shrinkB=2))
         x = x + [xp]
 
-    # annotations a reader acts on
+    # annotations a reader acts on. Each label gets a white backing box so
+    # it stays legible over candles, and labels whose levels sit close
+    # together are pushed apart vertically instead of printing on top of
+    # each other — the overlap made the confirmation label unreadable.
     last = (intr or {}).get("last", c[-1])
     ax.axhline(last, color=INK, linewidth=0.7, linestyle="--", alpha=0.55)
-    ax.annotate("last %.2f" % last, xy=(0, last), xytext=(2, 3),
-                textcoords="offset points", fontsize=7.5, color=INK)
+    _lab = [(last, "last %.2f" % last, INK)]
     conf = levels.get("confirmation")
     if conf:
         ax.axhline(conf["value"], color=up, linewidth=0.8, linestyle="-.",
                    alpha=0.75)
-        ax.annotate("confirmation %.2f (%s)" % (conf["value"], conf["label"]),
-                    xy=(0, conf["value"]), xytext=(2, 3),
-                    textcoords="offset points", fontsize=7.5, color=up)
+        _lab.append((conf["value"], "confirmation %.2f (%s)"
+                     % (conf["value"], conf["label"]), up))
     bnd = levels.get("boundary")
     if bnd:
         ax.axhline(bnd["value"], color=down, linewidth=0.8, linestyle="-.",
                    alpha=0.75)
-        ax.annotate("structural boundary %.2f" % bnd["value"],
-                    xy=(0, bnd["value"]), xytext=(2, 3),
-                    textcoords="offset points", fontsize=7.5, color=down)
+        _lab.append((bnd["value"], "structural boundary %.2f"
+                     % bnd["value"], down))
+    _lab.sort(key=lambda t: t[0])
+    _ymin, _ymax = ax.get_ylim()
+    _min_gap = (_ymax - _ymin) * 0.085         # a label height plus air
+    _ys = [v for v, _t, _c in _lab]
+    for i in range(1, len(_ys)):               # push overlapping labels up
+        if _ys[i] - _ys[i - 1] < _min_gap:
+            _ys[i] = _ys[i - 1] + _min_gap
+    _bbox = dict(boxstyle="round,pad=0.18", facecolor="white",
+                 edgecolor="none", alpha=0.88)
+    for (_v, txt, col), y in zip(_lab, _ys):
+        ax.annotate(txt, xy=(0, y), xytext=(2, 3),
+                    textcoords="offset points", fontsize=7.5, color=col,
+                    bbox=_bbox, zorder=12)
     # Earnings markers: a dotted vertical at each earnings session that
     # falls inside the drawn window, tagged E at the foot of the price
     # panel. A date not on a completed session snaps to the last session

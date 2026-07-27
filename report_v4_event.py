@@ -53,6 +53,26 @@ RESULTS_RELEASED = RELEASED_PRE_CALL
 STATES = (PRE_RELEASE, RELEASED_PRE_CALL, CALL_IN_PROGRESS,
           POST_CALL_UNVERIFIED, POST_CALL_VERIFIED, DATA_HOLD)
 
+# The state IDs above are machine keys — stable, greppable, and checked by
+# the validator. They are not English. Every rendered surface uses these
+# labels instead, so a reader is never handed "POST-CALL NOT
+# TRANSCRIPT-VERIFIED" and left to parse it.
+PLAIN = {
+    PRE_RELEASE: "Before the next earnings release",
+    RELEASED_PRE_CALL: "Results out; call not yet held",
+    CALL_IN_PROGRESS: "Earnings call in progress",
+    POST_CALL_UNVERIFIED: "Post-earnings; call complete; transcript not "
+                          "verified",
+    POST_CALL_VERIFIED: "Post-earnings; call complete; transcript verified",
+    DATA_HOLD: "On hold — a filed release is available but not yet read in",
+}
+
+
+def plain(state):
+    """Reader-facing name for a state ID."""
+    return PLAIN.get(state, state)
+
+
 # A rating is only meaningful where its inputs are settled. CALL IN
 # PROGRESS and DATA HOLD withhold it.
 RATING_ALLOWED = {PRE_RELEASE, RELEASED_PRE_CALL, POST_CALL_UNVERIFIED,
@@ -204,6 +224,7 @@ def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
 
     return {
         "state": state,
+        "state_label": plain(state),
         "rating_allowed": rating_allowed,
         "next_earnings_is_pending": next_earnings_is_pending,
         "call_concluded": state in (POST_CALL_UNVERIFIED, POST_CALL_VERIFIED),

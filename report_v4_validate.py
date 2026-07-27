@@ -436,9 +436,16 @@ def report(view, snap, core_pdf, appendix_pdf=None, estimates=None,
         mutation = {"all_checks_proven": None, "note": "not run"}
 
     fatal = [c for c in checks if c["status"] == FAIL]
+    import datetime as _dt
     return {
         "schema": "equity-research-v4-validation/1",
         "validator_code_sha256": V3.validator_code_hash(),
+        # Stamped so a reader can tell at a glance whether this record was
+        # produced by the same run as the PDFs beside it. `artifacts`,
+        # filled in by the runner after both PDFs are written, is the
+        # authoritative binding — a timestamp only narrates.
+        "generated_at": _dt.datetime.now(
+            _dt.timezone.utc).isoformat(timespec="seconds"),
         "ticker": view.get("ticker"),
         "event_state": (view.get("event") or {}).get("state"),
         "checks": checks,

@@ -108,7 +108,7 @@ def price_target(estimates, event, price):
     if not pt:
         cov = (est.get("coverage") or {}).get("price_target")
         return _withheld("price target %s"
-                         % ("requires premium estimates"
+                         % ("is not included in our data plan"
                             if cov == "premium-gated" else
                             "not available from the estimate feed"))
     mean = pt.get("mean")
@@ -195,7 +195,7 @@ def financials(snap, estimates):
             if (est.get("eps_estimate_next") or est.get("rev_estimate_next"))
             else _withheld(
                 "forward consensus %s"
-                % ("requires premium estimates"
+                % ("is not included in our data plan"
                    if (est.get("coverage") or {}).get("eps_estimate")
                    == "premium-gated" else "not available"))),
         "saas_kpis": saas_kpis(snap),
@@ -652,6 +652,41 @@ def monitoring(snap):
 
 # ── the whole view ──────────────────────────────────────────────────────
 
+def data_confidence(snap, estimates, view_bits=None):
+    """One page-1 line: High / Medium / Low, with the two or three facts
+    that set it. Graded mechanically from what actually loaded — filed
+    financials, an estimate feed, and trading history — never from how the
+    narrative feels. The reasons are the grade; a level with no reasons
+    would be an opinion."""
+    reasons_neg, reasons_pos = [], []
+    fu = snap.get("fundamentals") or {}
+    has_filed = any(isinstance(v, dict) and v.get("value") is not None
+                    for k, v in fu.items() if k in
+                    ("revenue_q", "net_income_q", "operating_cash_flow"))
+    if has_filed:
+        reasons_pos.append("filed SEC financials ingested")
+    else:
+        reasons_neg.append("no filed 10-K/10-Q financials")
+    est = estimates or {}
+    if est.get("recommendation"):
+        reasons_pos.append("analyst consensus feed connected")
+    else:
+        reasons_neg.append("no analyst estimate feed")
+    th = snap.get("trading_history") or {}
+    if th.get("full_history") is False:
+        reasons_neg.append("only %s trading sessions since the %s listing"
+                           % (th.get("sessions"), th.get("listing_date")))
+    else:
+        reasons_pos.append("full-year trading history")
+    ex = (snap.get("exhibit") or {})
+    if ex.get("disposition") == "ADMITTED":
+        reasons_pos.append("issuer earnings release read in")
+    n_bad = len(reasons_neg)
+    level = "High" if n_bad == 0 else "Medium" if n_bad == 1 else "Low"
+    return {"level": level,
+            "reasons": (reasons_neg + reasons_pos)[:3]}
+
+
 def build(snap, estimates=None, peers=None, report_time=None):
     """Assemble the v4 view. estimates/peers are injected so the model is
     testable without a key or a network; report_v4_run fetches them in
@@ -703,5 +738,6 @@ def build(snap, estimates=None, peers=None, report_time=None):
         "options": M3.options_view(snap),
         "horizon": "12-month fundamental view; swing (2-8 week) tactical "
                    "overlay",
+        "data_confidence": data_confidence(snap, estimates),
         "estimates_configured": bool((estimates or {}).get("configured")),
     }
