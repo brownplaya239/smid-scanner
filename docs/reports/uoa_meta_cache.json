@@ -4823,10 +4823,10 @@
 "sector": "Other"
 },
 "IBKR": {
-"earnings_date": "2026-07-21",
+"earnings_date": "2026-10-20",
 "earnings_session": "AMC",
-"fetched": "2026-07-21",
-"mkt_cap": 40842043163.520004,
+"fetched": "2026-07-27",
+"mkt_cap": 40868772249.36,
 "sector": "Financials"
 },
 "IBM": {
@@ -7548,8 +7548,8 @@
 "PINS": {
 "earnings_date": "2026-08-04",
 "earnings_session": "AMC",
-"fetched": "2026-07-15",
-"mkt_cap": 12665157163.47,
+"fetched": "2026-07-27",
+"mkt_cap": 12396281646.51,
 "sector": "Tech / Software"
 },
 "PK": {
@@ -10771,6 +10771,13 @@
 "fetched": "2026-06-11",
 "mkt_cap": 1335174293.1200001,
 "sector": "Consumer / Services"
+},
+"YETI": {
+"earnings_date": "2026-08-13",
+"earnings_session": "BMO",
+"fetched": "2026-07-27",
+"mkt_cap": 3816704312.7400002,
+"sector": "Other"
 },
 "YMM": {
 "earnings_date": "2026-08-20",
