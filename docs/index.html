@@ -18951,7 +18951,7 @@
         // is one underlying), (b) the further out the report, the less
         // a "what's the market pricing" read matters. Beyond tomorrow
         // we leave the row without the badge.
-        const showIv = dayDate === todayStr || dayDate === tomorrowStr;
+        const showIv = true;   // all five days — worker /iv is edge-cached
         // Show top 10 per session; sorted high-to-low by score already.
         // One line per name: ticker · company · price · live 1D% · IV.
         // The anticipation score stays in the tooltip and the marquee
@@ -19003,33 +19003,43 @@
                 '</div>')) +
           '</div>';
       };
-      // Marquee summary — pick the single highest-scored name of the week
-      let marquee = null;
+      // Marquee strip — the five largest companies reporting this week,
+      // in market-cap order, each with its day and session.
+      const allRows = [];
       d.days.forEach(function (day) {
         ["bmo", "amc"].forEach(function (k) {
           (day[k] || []).forEach(function (r) {
-            if (!marquee || (r.score || 0) > (marquee.score || 0)) {
-              marquee = { ...r, day: day.dow, date: day.date,
-                          sess: k === "bmo" ? "Before Open" : "After Close" };
-            }
+            allRows.push({ ...r, date: day.date,
+                           sess: k === "bmo" ? "BMO" : "AMC" });
           });
         });
       });
-      const week = d.week_of
-        ? "Week of " + fmtWeekOf(d.week_of) : "Current week";
+      const top5 = allRows.filter(function (r) { return r.mcap; })
+        .sort(function (a, b) { return b.mcap - a.mcap; }).slice(0, 5);
       const totalReporters = d.total != null ? d.total :
         d.days.reduce(function (s, day) {
           return s + (day.bmo||[]).length + (day.amc||[]).length;
         }, 0);
-      const banner = marquee
+      const fmtMd = function (iso) {
+        const t = new Date(iso + "T12:00:00-04:00");
+        return (t.getMonth() + 1) + "/" + t.getDate();
+      };
+      const fmtCap = function (v) {
+        return v >= 1e12 ? (v / 1e12).toFixed(1) + "T"
+                         : Math.round(v / 1e9) + "B";
+      };
+      const banner = top5.length
         ? '<div class="ant-meta-strip">' +
-            '<b>Marquee print this week:</b> ' +
-            '<span style="color:var(--gold);font-weight:700;cursor:pointer" ' +
-              'data-t="' + escHTML(marquee.ticker) + '">' + marquee.ticker +
-              '</span> &mdash; ' + escHTML(marquee.company || "") + ' &middot; ' +
-            marquee.day + ' ' + marquee.sess +
-            ' &middot; Anticipation score <b>' + (marquee.score || "—") +
-            '</b> &middot; ' + totalReporters + ' total reporters this week.' +
+            '<b>Marquee prints this week:</b> ' +
+            top5.map(function (r) {
+              return '<span style="color:var(--gold);font-weight:700;' +
+                'cursor:pointer" data-t="' + escHTML(r.ticker) + '">' +
+                escHTML(r.ticker) + '</span> <span style="color:' +
+                'var(--textdim)">$' + fmtCap(r.mcap) + ' &middot; ' +
+                fmtMd(r.date) + ' ' + r.sess + '</span>';
+            }).join(' &nbsp;&middot;&nbsp; ') +
+            ' &nbsp;&middot;&nbsp; ' + totalReporters +
+            ' reporters this week.' +
           '</div>'
         : "";
       body.innerHTML = banner +

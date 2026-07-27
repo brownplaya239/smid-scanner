@@ -106,6 +106,71 @@ def flow_context():
     return cands, into
 
 
+def implied_direct(ticker, report_date, session, window=5):
+    """Front-expiry ATM straddle straight from the Polygon chain — the
+    same read the calendar's IV badge uses, computed here per reporter
+    instead of hoping the name also fired a UOA signal (it almost never
+    did, which left the implied column structurally dashed).
+
+    An AMC print realizes at the NEXT session's open, so the contract
+    must expire strictly after the report date; BMO can use same-day
+    expiry. Only an expiry within `window` days after that is event-
+    priced. Monthlies-only names return (None, nearest_expiry) so the
+    gap can say WHY."""
+    try:
+        import polygon_data as PG
+        if not PG.available():
+            return None, None
+        rows = PG.option_chain(ticker, max_pages=4)
+    except Exception:
+        return None, None
+    if not rows:
+        return None, None
+    spot = None
+    for r in rows:
+        u = (r.get("underlying_asset") or {}).get("price")
+        if u:
+            spot = u
+            break
+    if not spot:
+        return None, None
+    try:
+        rep = datetime.strptime(report_date, "%Y-%m-%d").date()
+    except Exception:
+        return None, None
+    eff = rep if (session or "").upper() == "BMO" else rep + timedelta(days=1)
+    lim = eff + timedelta(days=window)
+
+    def px(c):
+        lq = (c.get("last_quote") or {}).get("midpoint")
+        if lq:
+            return lq
+        return ((c.get("day") or {}).get("close")
+                or (c.get("last_trade") or {}).get("price"))
+
+    by_exp = {}
+    nearest = None
+    for c in rows:
+        det = c.get("details") or {}
+        exp, k = det.get("expiration_date"), det.get("strike_price")
+        if not exp or not k:
+            continue
+        if exp >= eff.isoformat() and (nearest is None or exp < nearest):
+            nearest = exp
+        if not (eff.isoformat() <= exp <= lim.isoformat()):
+            continue
+        by_exp.setdefault(exp, {}).setdefault(k, {})[
+            det.get("contract_type")] = c
+    for exp in sorted(by_exp):
+        strikes = sorted(by_exp[exp], key=lambda k: abs(k - spot))
+        for k in strikes[:3]:
+            pair = by_exp[exp][k]
+            cp, pp = px(pair.get("call") or {}), px(pair.get("put") or {})
+            if cp and pp:
+                return round((cp + pp) / spot * 100, 1), exp
+    return None, nearest
+
+
 def implied_for(cands, days_to_report, window=3):
     """The front-expiry read: only a contract expiring within `window` days
     AFTER the report is near-pure event pricing (longer-dated contracts add
@@ -220,11 +285,19 @@ def build():
         except Exception as e:
             print(f"    {n['t']}: history failed ({str(e)[:60]})")
             stats = None
-        implied = implied_for(cands_by.get(n["t"]), n["days"])
+        implied, exp = implied_direct(n["t"], n["date"], n["session"])
+        if implied is None:
+            # legacy fallback: a UOA candidate that brackets the report
+            implied = implied_for(cands_by.get(n["t"]), n["days"])
         flow = into_by.get(n["t"])
         v, why = verdict_for(implied, stats, flow)
-        row = {**n, "implied": implied, "flow_into": flow,
-               "verdict": v, "why": why}
+        if implied is None and exp:
+            why = why.replace(
+                "no liquid option read to compare against",
+                "nearest expiry %s does not bracket the print (no "
+                "weeklies)" % exp)
+        row = {**n, "implied": implied, "implied_expiry": exp,
+               "flow_into": flow, "verdict": v, "why": why}
         if stats:
             row.update(stats)
             if implied is not None and stats["realized_med"]:
