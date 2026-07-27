@@ -422,7 +422,23 @@ async function fetchYahooQuote(sym) {
     // stale by design.
     const stale = effLastMs
       ? (Date.now() - effLastMs > 25 * 60 * 1000) : false;
+    // Split the day into its two sessions so a chip can say "the stock
+    // moved +6.5% in the regular session and another +0.2% after hours"
+    // instead of one merged number labelled AH. POST: regular_change is
+    // today's close vs prev, ext_change_pct the AH print vs that close.
+    // PRE: there is no regular session yet — ext_change_pct carries the
+    // whole pre-market move and regular_change is null.
+    let extChangePct = null, regChange = change;
+    if (extended && phase === "post" && price != null && effPrice != null
+        && price > 0) {
+      extChangePct = Math.round((effPrice / price - 1) * 10000) / 100;
+    } else if (extended && phase === "pre") {
+      extChangePct = effChange;
+      regChange = null;
+    }
     return { symbol: sym, price: effPrice, change: effChange,
+             regular_price: price, regular_change: regChange,
+             ext_change_pct: extChangePct,
              prevClose: effPrev, bars: bars, wicks_clamped: wickFix,
              last_trade_ts: effLastMs
                ? new Date(effLastMs).toISOString() : null,
