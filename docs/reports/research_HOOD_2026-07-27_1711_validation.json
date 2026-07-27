@@ -1,0 +1,217 @@
+{
+ "artifacts": {
+  "HOOD_equity_research_v4.pdf": {
+   "bytes": 215770,
+   "sha256": "83eb90702316e3e6092a0db3eb52da96fdd585460536bee435c6b9c0453eb672"
+  },
+  "HOOD_equity_research_v4_appendix.pdf": {
+   "bytes": 59507,
+   "sha256": "b949efe34ac12a2f2c7349c5d88ea06c031c05ad73014d548050c7cd8f022995"
+  }
+ },
+ "blocking_failures": [],
+ "checks": [
+  {
+   "check_id": "EVENT_RATING_CONSISTENCY",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "rating permitted",
+   "observed": "state POST-CALL NOT TRANSCRIPT-VERIFIED",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "NO_NEXT_AFTER_RELEASE",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "next-earnings not pending after release",
+   "observed": "pending=False",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "WITHHELD_LABELLED",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "every withheld datum carries a reason",
+   "observed": "unlabelled: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "SPLIT_MAGNITUDE",
+   "detail": "A trailing P/E off from price/EPS by a whole split factor means price and EPS were adjusted on different bases.",
+   "evidence_refs": [],
+   "expected": "trailing P/E reconciles to price / EPS",
+   "observed": "pe=45.70, price/eps=45.73, ratio=0.999",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "VALUATION_NON_CIRCULAR",
+   "detail": "Dividing the 52-week price range by current EPS makes the implied prices identical to that range.",
+   "evidence_refs": [],
+   "expected": "no scenario price is the 52-week price range / EPS x EPS",
+   "observed": "no circular scenarios",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "VARIANT_IS_DERIVED",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "variant grade is DERIVED",
+   "observed": "grade=DERIVED",
+   "severity": "WARN",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "PRIMARY_RELEASE_INGESTED",
+   "detail": "Shipping GAAP figures while a FRESH release's guidance and KPIs are unparsed is an incomplete quarter dressed as complete.",
+   "evidence_refs": [],
+   "expected": "a fresh post-release report ingested the release exhibit (or held); a stale unparsed exhibit is a labelled gap",
+   "observed": "exhibit disposition: AVAILABLE_NOT_INGESTED, release age: 90 day(s)",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "METRIC_PERIOD_CONSISTENCY",
+   "detail": "A section labelled 'latest quarter' may hold only metrics from that quarter.",
+   "evidence_refs": [],
+   "expected": "latest-quarter flow metrics all end 2026-03-31",
+   "observed": "mismatched: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "CORE_PAGE_COUNT",
+   "detail": "Six with valuation, five when valuation is omitted rather than padded; never more.",
+   "evidence_refs": [],
+   "expected": "5 or 6 core pages",
+   "observed": "6",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "HTML_ENTITIES",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "no literal HTML entities in the rendered text",
+   "observed": "found: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "GLYPH_INTEGRITY",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "no unrenderable or mis-decoded character",
+   "observed": "clean",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "APPENDIX_PRESENT",
+   "detail": "The methodology appendix is a required, separate document.",
+   "evidence_refs": [],
+   "expected": "appendix present, >= 2 pages",
+   "observed": "4 pages",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "HTML_ENTITIES_APPENDIX",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "no literal HTML entities in the appendix",
+   "observed": "found: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "APPENDIX_TABLE_PAGINATION",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "final appendix page carries real content, not an orphaned table tail",
+   "observed": "last page 1008 chars",
+   "severity": "WARN",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "INTERNAL_CONFIG_NOT_EXPOSED",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "no internal config or engineering detail in the document",
+   "observed": "found: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "NO_PAST_NEXT_EVENT_RENDERED",
+   "detail": "A 'next' event in the past means the event state was not advanced after the release.",
+   "evidence_refs": [],
+   "expected": "no 'next' event earlier than the prepared date (2026-07-27)",
+   "observed": "past next-dates: none",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  },
+  {
+   "check_id": "PDF_TEXT_ROUNDTRIP",
+   "detail": null,
+   "evidence_refs": [],
+   "expected": "core text extracts cleanly with real content",
+   "observed": "len=6864",
+   "severity": "ERROR",
+   "status": "PASS",
+   "threshold": null
+  }
+ ],
+ "event_state": "POST-CALL NOT TRANSCRIPT-VERIFIED",
+ "generated_at": "2026-07-27T17:11:48+00:00",
+ "mutation_tests": {
+  "all_checks_proven": true,
+  "n_proven": 19,
+  "proven": [
+   "APPENDIX_PRESENT",
+   "CONSENSUS_SOURCED",
+   "CORE_PAGE_COUNT",
+   "EVENT_RATING_CONSISTENCY",
+   "FLASH_ON_DATA_HOLD",
+   "GLYPH_INTEGRITY",
+   "HTML_ENTITIES",
+   "HTML_ENTITIES_APPENDIX",
+   "INTERNAL_CONFIG_NOT_EXPOSED",
+   "METRIC_PERIOD_CONSISTENCY",
+   "NO_NEXT_AFTER_RELEASE",
+   "NO_PAST_NEXT_EVENT_RENDERED",
+   "PDF_TEXT_ROUNDTRIP",
+   "PRIMARY_RELEASE_INGESTED",
+   "SPLIT_MAGNITUDE",
+   "TARGET_SOURCED",
+   "VALUATION_NON_CIRCULAR",
+   "VARIANT_IS_DERIVED",
+   "WITHHELD_LABELLED"
+  ],
+  "unproven": []
+ },
+ "ok": true,
+ "schema": "equity-research-v4-validation/1",
+ "ticker": "HOOD",
+ "validator_code_sha256": "844d0a50baa77e53104434d8e7d59a15b0037a9a2b49d7af214b277435ef4c1c"
+}
