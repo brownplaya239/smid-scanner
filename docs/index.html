@@ -3724,7 +3724,7 @@
 
   .ant-row { display:grid; align-items:center; column-gap:6px;
     grid-template-columns:38px minmax(0,1fr) auto auto;
-    padding:3px 4px; font-size:10px; line-height:1.35; cursor:pointer;
+    padding:2px 4px; font-size:9.5px; line-height:1.3; cursor:pointer;
     border-radius:3px; margin:0 -4px; min-width:0; overflow:hidden; }
   .ant-row .ant-iv { margin-left:0 !important; padding:0 !important;
     justify-self:end; }
@@ -3734,7 +3734,7 @@
   .ant-row:hover .ant-tk { color:var(--gold); }
   .ant-row .ant-tk { font-weight:800; color:var(--text);
     transition:color .15s ease; }
-  .ant-row .ant-co { color:var(--textdim); font-size:9px;
+  .ant-row .ant-co { color:var(--textdim); font-size:8.5px;
     min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .ant-row .ant-bar-wrap { width:46px; height:6px; border-radius:3px;
     background:rgba(160,178,210,0.1); overflow:hidden; flex-shrink:0; }
@@ -3748,7 +3748,7 @@
      starts as "…" until the worker /iv response lands. Color encodes
      the absolute IV bucket — not a true 0-100 rank since we lack
      52-week history; tooltip discloses the methodology. */
-  .ant-row .ant-px { font-size:10px; color:var(--muted);
+  .ant-row .ant-px { font-size:9.5px; color:var(--muted);
     white-space:nowrap; font-variant-numeric:tabular-nums;
     justify-self:end; }
   .ant-row .ant-px .ant-px-sess { color:var(--textdim); font-weight:400;
@@ -3761,7 +3761,7 @@
   .ant-row .ant-iv-loading { color:var(--muted); font-style:italic; }
   .ant-row .ant-iv-pill { display:inline-block; padding:1px 5px;
     border-radius:9px; font-weight:700; font-variant-numeric:tabular-nums;
-    border:1px solid var(--line); white-space:nowrap; font-size:9px; }
+    border:1px solid var(--line); white-space:nowrap; font-size:8.5px; }
   .ant-row .ant-iv-low      { color:var(--green);
     border-color:rgba(31,179,99,0.4);
     background:rgba(31,179,99,0.10); }
@@ -6272,20 +6272,15 @@
         target="_blank" rel="noopener">earningswhispers.com</a>'s API with
         clickable tickers into the drilldown panel.
         <span id="whisper-meta"></span></p>
-      <!-- Today/Tomorrow summary cards — actionable above the EW image.
-           These four cards summarize what's reporting in the next 24h
-           so traders see what matters TODAY without scrolling through
-           the full week grid. -->
-      <div id="whisper-summary"></div>
-      <!-- Earnings Edge — implied vs historically-realized move + verdict,
-           generated post-close by earnings_edge.py. -->
-      <div id="earnings-edge"></div>
-      <!-- The actionable scrape table goes ABOVE the EW chart image now.
-           EW's image is secondary (still discoverable below) but no
-           longer the first thing the user sees on this tab. -->
+      <!-- Marquee prints + the Monday-to-Friday grid lead the tab —
+           front and center. The old today/tomorrow count cards are gone
+           (the grid's first two columns ARE today and tomorrow). -->
       <div id="whisper-body">
         <div class="uoa-empty">Loading...</div>
       </div>
+      <!-- Earnings Edge — implied vs historically-realized move + verdict,
+           generated post-close by earnings_edge.py. -->
+      <div id="earnings-edge"></div>
       <!-- @eWhispers weekly chart image — moved below the actionable
            summary + scrape grid, but still preserved for reference. -->
       <div id="whisper-tweet"></div>
@@ -18918,8 +18913,6 @@
     }
 
     function render(d) {
-      // Render summary cards FIRST (above the body grid)
-      renderWhisperSummary(d);
       if (!d || !d.days || !d.days.length) {
         body.innerHTML = '<div class="uoa-empty">' +
           'No anticipated calendar on file yet. Next scheduled scrape ' +
@@ -18975,8 +18968,9 @@
               escHTML(r.session_corrected) : '') + '">' +
             '<span class="ant-tk">' + escHTML(r.ticker) + '</span>' +
             '<span class="ant-co">' + escHTML((r.company || "")
-              .replace(/[,.]?\s*(Inc|Corp|Corporation|Ltd|N\.V|S\.A)\.?$/i, "")
-              .slice(0, 20)) + '</span>' +
+              .replace(/[,.]?\s*(Inc|Corp|Corporation|Incorporated|Ltd|plc|N\.V|S\.A|Co|Company|Holdings?|Group|Technologies|Technology|International|Enterprises?)\.?$/gi, "")
+              .replace(/[,.]?\s*(Inc|Corp|Ltd|plc|Co)\.?$/gi, "")
+              .slice(0, 14)) + '</span>' +
             pxSlot +
             ivSlot +
             '</div>';
