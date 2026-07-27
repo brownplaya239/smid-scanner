@@ -74,7 +74,14 @@ def _shape(r):
 
 
 def _week_monday(d):
-    """Monday of the week containing `d` (date object)."""
+    """Monday of the trading week a reader cares about. On Saturday or
+    Sunday that is NEXT week — EW purges the finished week from its API
+    over the weekend, so scraping the week containing a Saturday returns
+    five days of zeros and (before the empty-write guard below) clobbered
+    the file the dashboard renders. The 2026-07-26 Saturday run did
+    exactly that."""
+    if d.weekday() >= 5:                          # Sat/Sun -> next Monday
+        return d + timedelta(days=7 - d.weekday())
     return d - timedelta(days=d.weekday())
 
 
@@ -116,6 +123,22 @@ def run():
         "total":     total,
         "days":      days,
     }
+    # Last-good guard: a scrape that found NOBODY reporting all week is a
+    # broken scrape or a purged source, not a market fact — never replace
+    # a populated file with it. The stale file at least says when it was
+    # generated; five days of dashes says nothing.
+    if total == 0:
+        try:
+            with open(OUT_PATH, encoding="utf-8") as f:
+                prev = json.load(f)
+        except Exception:
+            prev = None
+        if prev and prev.get("total"):
+            print("  Scrape returned 0 reporters — keeping the previous "
+                  "file (week of %s, %s reporters) instead of writing an "
+                  "empty one" % (prev.get("week_of"), prev.get("total")))
+            return
+
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
