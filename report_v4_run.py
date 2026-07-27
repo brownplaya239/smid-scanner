@@ -211,9 +211,13 @@ def run_for_user(ticker, user_id="", out_dir=None):
     print("=" * 62)
     res = _print(run(ticker, out_dir))
     if not res["result"]["ok"]:
-        raise SystemExit("v4 package failed validation; nothing uploaded: %s"
-                         % ", ".join(res["result"]["blocking_failures"])
-                         or "see validation report")
+        mut = res["result"].get("mutation_tests") or {}
+        why = ", ".join(res["result"]["blocking_failures"]) or (
+            "mutation suite unproven: %s"
+            % (mut.get("note") or mut.get("error") or "see validation JSON")
+            if not mut.get("all_checks_proven") else "see validation JSON")
+        raise SystemExit("v4 package failed validation; nothing uploaded: "
+                         + why)
 
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d_%H%M")
     # The validation JSON is a sidecar: it ships beside the PDFs (its

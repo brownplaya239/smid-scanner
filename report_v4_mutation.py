@@ -40,9 +40,15 @@ EST = {"configured": True, "provider": "finnhub",
 def _base():
     """A snapshot with a clean 52-week band and positive EPS injected, so
     the consensus, target, band and split checks all have inputs and all
-    pass before mutation. Loaded from the committed fixtures so this runs
-    in CI without a refetch."""
-    paths = sorted(glob.glob(".snapcache/*.pkl"))
+    pass before mutation.
+
+    fixtures_v4/mutation_base.pkl is the COMMITTED fixture and the one CI
+    sees — .snapcache/ is gitignored, and depending on it silently made
+    every CI run report "no ratable cached snapshot to mutate", which
+    fails the gate and blocks the upload (the 2026-07-27 SG lookup). The
+    local cache is only a fallback for development."""
+    paths = (sorted(glob.glob("fixtures_v4/*.pkl"))
+             + sorted(glob.glob(".snapcache/*.pkl")))
     snap = None
     for p in paths:
         obj = pickle.load(io.open(p, "rb"))
