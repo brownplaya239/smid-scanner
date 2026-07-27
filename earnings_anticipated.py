@@ -29,6 +29,12 @@ from datetime import datetime, timedelta
 
 import pytz
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=False)
+except Exception:
+    pass
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -85,10 +91,40 @@ def _week_monday(d):
     return d - timedelta(days=d.weekday())
 
 
+def _finnhub_sessions(monday):
+    """Finnhub's earnings calendar for the week -> {SYMBOL: 'bmo'|'amc'},
+    used to arbitrate the report session. EW's quickcaldata buckets are
+    wrong often enough to matter (2026-07-27: it listed Noble Corp as
+    before-open; NE reported after the close and fell 4% AH while sitting
+    in the site's morning column). Finnhub sources the hour from company
+    confirmations. Keyless runs return {} and EW stands unchallenged."""
+    key = os.environ.get("FINNHUB_API_KEY", "")
+    if not key:
+        return {}
+    friday = monday + timedelta(days=4)
+    url = ("https://finnhub.io/api/v1/calendar/earnings?from=%s&to=%s"
+           "&token=%s" % (monday, friday, key))
+    try:
+        with urllib.request.urlopen(url, timeout=30) as r:
+            data = json.loads(r.read().decode("utf-8"))
+    except Exception as e:
+        print(f"  Finnhub session cross-check unavailable: {e}")
+        return {}
+    out = {}
+    for e in data.get("earningsCalendar") or []:
+        sym, hour = e.get("symbol"), (e.get("hour") or "").lower()
+        if sym and hour in ("bmo", "amc"):
+            out[(sym.upper(), e.get("date"))] = hour
+    return out
+
+
 def run():
     today = datetime.now(ET).date()
     monday = _week_monday(today)
     print(f"Scraping Earnings Whisper week of {monday}...")
+    fh = _finnhub_sessions(monday)
+    if fh:
+        print(f"  Finnhub session cross-check: {len(fh)} confirmed hours")
     days = []
     for i in range(5):                           # Mon-Fri only
         d = monday + timedelta(days=i)
@@ -103,10 +139,34 @@ def run():
         except Exception as e:
             print(f"  {d} AMC failed: {e}")
             amc = []
-        bmo.sort(key=lambda x: x.get("total", 0) or 0, reverse=True)
-        amc.sort(key=lambda x: x.get("total", 0) or 0, reverse=True)
         bmo_s = [_shape(r) for r in bmo]
         amc_s = [_shape(r) for r in amc]
+        # Re-bucket where Finnhub's confirmed hour disagrees with EW.
+        if fh:
+            dstr_iso = d.strftime("%Y-%m-%d")
+            moved = []
+            keep_b, keep_a = [], []
+            for r in bmo_s:
+                hour = fh.get(((r.get("ticker") or "").upper(), dstr_iso))
+                if hour == "amc":
+                    r["session_corrected"] = "EW listed BMO; Finnhub AMC"
+                    keep_a.append(r)
+                    moved.append(r["ticker"] + "->AMC")
+                else:
+                    keep_b.append(r)
+            for r in amc_s:
+                hour = fh.get(((r.get("ticker") or "").upper(), dstr_iso))
+                if hour == "bmo":
+                    r["session_corrected"] = "EW listed AMC; Finnhub BMO"
+                    keep_b.append(r)
+                    moved.append(r["ticker"] + "->BMO")
+                else:
+                    keep_a.append(r)
+            bmo_s, amc_s = keep_b, keep_a
+            if moved:
+                print(f"  {d} session corrections: {', '.join(moved)}")
+        bmo_s.sort(key=lambda x: x.get("score") or 0, reverse=True)
+        amc_s.sort(key=lambda x: x.get("score") or 0, reverse=True)
         days.append({
             "date": d.strftime("%Y-%m-%d"),
             "dow":  d.strftime("%A"),

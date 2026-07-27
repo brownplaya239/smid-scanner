@@ -3722,24 +3722,19 @@
   .ant-sess-hdr.ant-bmo { background:rgba(31,179,99,0.85); }
   .ant-sess-hdr.ant-amc { background:rgba(214,68,68,0.85); }
 
-  .ant-row { display:grid; align-items:center; column-gap:5px; row-gap:1px;
-    grid-template-columns:minmax(34px,auto) minmax(0,1fr) minmax(0,auto);
-    grid-template-areas:"tk px act" "co bar iv";
-    padding:4px 4px; font-size:11px; line-height:1.3; cursor:pointer;
+  .ant-row { display:grid; align-items:center; column-gap:6px;
+    grid-template-columns:38px minmax(0,1fr) auto auto;
+    padding:3px 4px; font-size:10px; line-height:1.35; cursor:pointer;
     border-radius:3px; margin:0 -4px; min-width:0; overflow:hidden; }
-  .ant-row .ant-tk { grid-area:tk; }
-  .ant-row .ant-px { grid-area:px; justify-self:end; }
-  .ant-row .ant-co { grid-area:co; }
-  .ant-row .ant-bar-wrap { grid-area:bar; justify-self:stretch;
-    width:auto !important; }
-  .ant-row .ant-iv { grid-area:iv; margin-left:0 !important; }
-  .ant-row .td-action-strip { grid-area:act; justify-self:end; }
+  .ant-row .ant-iv { margin-left:0 !important; padding:0 !important;
+    justify-self:end; }
+  .ant-row .ant-bar-wrap, .ant-row .td-action-strip { display:none; }
   .ant-row + .ant-row { border-top:1px solid var(--line); }
   .ant-row:hover { background:rgba(255,200,0,0.06); }
   .ant-row:hover .ant-tk { color:var(--gold); }
   .ant-row .ant-tk { font-weight:800; color:var(--text);
     transition:color .15s ease; }
-  .ant-row .ant-co { color:var(--textdim); font-size:9.5px; flex:1;
+  .ant-row .ant-co { color:var(--textdim); font-size:9px;
     min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .ant-row .ant-bar-wrap { width:46px; height:6px; border-radius:3px;
     background:rgba(160,178,210,0.1); overflow:hidden; flex-shrink:0; }
@@ -3755,7 +3750,7 @@
      52-week history; tooltip discloses the methodology. */
   .ant-row .ant-px { font-size:10px; color:var(--muted);
     white-space:nowrap; font-variant-numeric:tabular-nums;
-    overflow:hidden; text-overflow:ellipsis; }
+    justify-self:end; }
   .ant-row .ant-px .ant-px-sess { color:var(--textdim); font-weight:400;
     font-size:9.5px; }
   .ant-row .ant-px b { font-weight:600; }
@@ -18957,35 +18952,33 @@
         // a "what's the market pricing" read matters. Beyond tomorrow
         // we leave the row without the badge.
         const showIv = dayDate === todayStr || dayDate === tomorrowStr;
-        // Show top 10 per session; sorted high-to-low by score already
+        // Show top 10 per session; sorted high-to-low by score already.
+        // One line per name: ticker · company · price · live 1D% · IV.
+        // The anticipation score stays in the tooltip and the marquee
+        // highlight — the old score bar ate a whole grid track for a
+        // number nobody could read off it.
         return rows.slice(0, 10).map(function (r, i) {
           const isMarquee = (r.score && r.score >= maxScore * 0.5);
-          const barW = Math.max(2, Math.round(100 * (r.score || 0) / maxScore));
-          // data-t on the ROW (not just the ticker span) so a click
-          // anywhere on the row — name, bar, blank space — opens the
-          // drilldown panel. Same for hover.
           const ivSlot = showIv
             ? '<span class="ant-iv ant-iv-loading" data-iv-tk="' +
                 escHTML(r.ticker) + '" data-iv-date="' + (dayDate || "") +
                 '" title="Implied move + IV loading…">&hellip;</span>'
-            : '';
+            : '<span class="ant-iv"></span>';
           const pxSlot = '<span class="ant-px" data-px-tk="' +
             escHTML(r.ticker) + '" title="Live price loading…"></span>';
           return '<div class="ant-row' + (isMarquee ? ' ant-marquee' : '') +
             '" data-t="' + escHTML(r.ticker) +
             '" title="' + escHTML(r.company || "") +
             (r.score ? '\nAnticipation score: ' + r.score : '') +
-            (r.analysts ? '\nAnalyst estimates: ' + r.analysts : '') + '">' +
+            (r.analysts ? '\nAnalyst estimates: ' + r.analysts : '') +
+            (r.session_corrected ? '\nSession: ' +
+              escHTML(r.session_corrected) : '') + '">' +
             '<span class="ant-tk">' + escHTML(r.ticker) + '</span>' +
-            pxSlot +
             '<span class="ant-co">' + escHTML((r.company || "")
               .replace(/[,.]?\s*(Inc|Corp|Corporation|Ltd|N\.V|S\.A)\.?$/i, "")
-              .slice(0, 28)) + '</span>' +
-            '<span class="ant-bar-wrap"><span class="ant-bar" ' +
-              'style="width:' + barW + '%"></span></span>' +
+              .slice(0, 20)) + '</span>' +
+            pxSlot +
             ivSlot +
-            (window.tdActionStripCompact
-              ? window.tdActionStripCompact(r.ticker) : "") +
             '</div>';
         }).join("");
       };
