@@ -294,6 +294,11 @@ def build(ticker, years=WINDOW_YEARS):
         "bar_source": mk.get("bar_source"),
         "pe": multiple_band(bars, eps_events, years, "pe"),
         "ps": multiple_band(bars, rps_events, years, "ps"),
+        # Filed-history depth for the archetype router: distinct filed
+        # quarterly periods, straight from the same event streams the
+        # bands were computed on.
+        "n_eps_quarters": len({e["end"] for e in eps_events}),
+        "n_rev_quarters": len({e["end"] for e in rev_events}),
         "eps_events": eps_events[-10:],
         "point_in_time_rule": "facts usable from the day after filing; "
                               "as-first-reported values",
