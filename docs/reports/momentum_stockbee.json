@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-27T18:34:45-04:00",
+ "updated": "2026-07-28T16:34:12-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -7983,6 +7983,71 @@
      "adr_pct": 3.35,
      "dollar_vol": 2026131077,
      "ern": "Oct 21"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-28",
+   "generated": "2026-07-28T16:34:12-04:00",
+   "count": 2,
+   "rows": [
+    {
+     "ticker": "ACN",
+     "price": 164.66,
+     "chg": 16.9,
+     "adr_pct": 4.55,
+     "dollar_vol": 1207971083,
+     "ern": "Sep 24"
+    },
+    {
+     "ticker": "ARWR",
+     "price": 85.78,
+     "chg": 15.11,
+     "adr_pct": 5.24,
+     "dollar_vol": 196403930,
+     "ern": "Aug 04"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "HPQ",
+     "price": 28.29,
+     "chg": 14.03,
+     "adr_pct": 3.94,
+     "dollar_vol": 354687786,
+     "ern": "Aug 26"
+    },
+    {
+     "ticker": "RTX",
+     "price": 218.58,
+     "chg": 12.86,
+     "adr_pct": 2.43,
+     "dollar_vol": 1001586692,
+     "ern": "Oct 20"
+    },
+    {
+     "ticker": "HCA",
+     "price": 418.19,
+     "chg": 12.09,
+     "adr_pct": 3.49,
+     "dollar_vol": 704630334,
+     "ern": "Oct 23"
+    },
+    {
+     "ticker": "SHAK",
+     "price": 63.2,
+     "chg": 11.98,
+     "adr_pct": 4.31,
+     "dollar_vol": 106252456,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "SMCI",
+     "price": 28.45,
+     "chg": 11.57,
+     "adr_pct": 6.39,
+     "dollar_vol": 1280295253,
+     "ern": "Aug 11"
     }
    ]
   }
