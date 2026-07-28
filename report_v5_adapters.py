@@ -78,6 +78,13 @@ _POLICIES = {
                             "industrial cash-conversion logic do not "
                             "apply, and book-value methods are not "
                             "ingested yet",
+        # §3 (v5.8): a bank's top line is net revenue (interest +
+        # non-interest), never a generic contract-revenue tag — the
+        # grid's revenue stream must come from these concepts or stay
+        # suppressed
+        "revenue_concepts": ("RevenuesNetOfInterestExpense",
+                             "InterestAndDividendIncomeOperating",
+                             "Revenues"),
     },
     "reit": {
         "quality_metrics_forbidden": ("cash_conversion", "net_cash",
@@ -102,6 +109,22 @@ _POLICIES = {
         "valuation_reason": "no revenue or earnings base exists to "
                             "support a multiple",
     },
+}
+
+# §1 (v5.8): the restrictions a PRE_REVENUE business stage adds ON TOP
+# of whatever sector adapter was selected — stage is an overlay, never
+# the selector. A development-stage biotech keeps the biotech adapter
+# (its dashboard, its KPIs) and gains these restrictions; missing data
+# never triggers them.
+_PRE_REVENUE_OVERLAY = {
+    "quality_metrics_forbidden": ("revenue_growth", "net_margin",
+                                  "gross_margin", "cash_conversion"),
+    "claims_forbidden": ("growth-above-bar", "revenue-decline",
+                         "cash-conversion", "valuation-vs-history"),
+    "valuation_allowed": (),
+    "valuation_reason": "no commercial revenue or earnings base exists "
+                        "to support a multiple (development-stage "
+                        "issuer)",
 }
 
 
@@ -223,6 +246,27 @@ ADAPTERS = {
         ],
         "notes": [],
     },
+    "biotech": {
+        "label": "Biotechnology / drug development",
+        "cash_conversion_industrial_valid": False,
+        "slots": [
+            {"label": "Cash / debt", "kind": "fact2", "key": "cash",
+             "key2": "debt", "fmt": "money"},
+            {"label": "Quarterly cash flow (burn)", "kind": "fact",
+             "key": "operating_cash_flow", "fmt": "money"},
+            {"label": "Collaboration / grant revenue", "kind": "fact",
+             "key": "revenue_q", "fmt": "money"},
+            _absent("Runway at current burn", "derivable only when "
+                    "burn and cash are both admitted"),
+            _absent("Clinical pipeline and trial milestones", _KPI_WHY),
+            _absent("Partnership economics and milestone payments",
+                    _KPI_WHY),
+        ],
+        "notes": ["Solvency, burn and clinical milestones decide a "
+                  "development-stage biotech; any reported revenue is "
+                  "collaboration or grant income unless a commercial "
+                  "launch is filed."],
+    },
     "pre_revenue": {
         "label": "Pre-revenue company",
         "cash_conversion_industrial_valid": True,
@@ -254,9 +298,16 @@ ADAPTERS = {
 }
 
 
-def classify(profile, snap, archetype=None):
+def classify(profile, snap, archetype=None, stage=None):
     """Adapter selection from admitted classification facts only.
-    Returns the adapter record + the classification reason."""
+    Returns the adapter record + the classification reason.
+
+    §1 (v5.8): the SECTOR selects the adapter; the business STAGE (an
+    established fact from report_v5_classify, never inferred from
+    missing data) is applied as a policy overlay on top. An issuer
+    whose revenue our ingestion failed to parse keeps its sector
+    adapter with NOT_ASSESSED metrics — it is never re-imagined as a
+    pre-revenue company."""
     sector = (profile or {}).get("sector") or ""
     biz = snap.get("business") or {}
     ov = (snap.get("company") or {}).get("overview") or {}
@@ -267,9 +318,9 @@ def classify(profile, snap, archetype=None):
     if archetype == "NEW_LISTING":
         key, why = "new_listing", "archetype NEW_LISTING: no filed " \
             "periodic history"
-    elif (profile or {}).get("pre_revenue_status"):
-        key, why = "pre_revenue", "no filed revenue and no filed " \
-            "quarters"
+    elif "biotech" in i or ("drug manufacturers" in i
+                            and stage == "PRE_REVENUE"):
+        key, why = "biotech", "vendor industry %r" % industry
     elif "restaurant" in i:
         key, why = "restaurant", "vendor industry %r" % industry
     elif "reit" in i or s == "real estate":
@@ -294,13 +345,43 @@ def classify(profile, snap, archetype=None):
                                "classification %r / %r — generic "
                                "dashboard, nothing borrowed"
                                % (sector, industry))
+
+    # §1 (v5.8) stage overlay: an ESTABLISHED pre-revenue stage narrows
+    # the policy on top of the sector adapter. A generic pre-revenue
+    # issuer (no sector family) gets the dedicated pre_revenue
+    # dashboard; a sector-classified one keeps its sector dashboard.
+    stage_applied = False
+    pol = policy_for(key)
+    if stage == "PRE_REVENUE" and key not in ("new_listing",
+                                              "pre_revenue"):
+        if key == "generic":
+            key = "pre_revenue"
+            why += " — established pre-revenue stage selects the " \
+                   "pre-revenue dashboard"
+            pol = policy_for(key)
+        else:
+            merged = dict(pol)
+            for f in ("quality_metrics_forbidden", "claims_forbidden"):
+                merged[f] = tuple(sorted(
+                    set(pol.get(f) or ())
+                    | set(_PRE_REVENUE_OVERLAY[f])))
+            merged["valuation_allowed"] = ()
+            merged["valuation_reason"] = \
+                _PRE_REVENUE_OVERLAY["valuation_reason"]
+            pol = merged
+            why += " — established pre-revenue stage restricts the " \
+                   "policy (no revenue-based grading or valuation)"
+        stage_applied = True
+
     a = ADAPTERS[key]
     return {"schema": SCHEMA, "key": key, "label": a["label"],
             "reason": why, "sector": sector or None,
             "industry": industry or None,
+            "business_stage": stage,
+            "stage_policy_applied": stage_applied,
             "cash_conversion_industrial_valid":
                 a["cash_conversion_industrial_valid"],
-            "policy": policy_for(key),
+            "policy": pol,
             "notes": list(a["notes"])}
 
 
@@ -330,7 +411,7 @@ def one_time_items(ticker, snap):
     out = []
     try:
         import research_live as RL
-        cik = RL.cik_for(ticker)
+        cik = RL.cik_for_filed(ticker)[0]
         for tag in _DISPOSAL_TAGS:
             try:
                 rows = RL.concept(cik, tag)
@@ -395,14 +476,42 @@ def build_dashboard(adapter, snap):
                          "filed (SEC XBRL)" if v is not None
                          else "not filed / not parsed"])
         elif slot["kind"] == "fact2":
+            # §2 (v5.8): paired balance-sheet instants render only from
+            # one reporting date, each value dated; incompatible
+            # periods render the canonical not-assessed sentence
+            import report_v5_checks as _CK
+            f1 = fu.get(slot["key"])
+            f2 = fu.get(slot.get("key2"))
             v1, v2 = fv(slot["key"]), fv(slot.get("key2"))
+            p1 = _CK._fact_period(f1)
+            p2 = _CK._fact_period(f2)
             if v1 is None and v2 is None:
                 rows.append([slot["label"], "no admitted source",
                              "not filed / not parsed"])
+            elif v1 is not None and v2 is not None:
+                pair = _CK.balance_sheet_pairing(
+                    {"cash": f1, "debt": f2})
+                if not pair["ok"]:
+                    rows.append([slot["label"],
+                                 _CK.BS_NOT_ASSESSED_MSG,
+                                 "instants dated %s vs %s — different "
+                                 "reporting dates, not comparable"
+                                 % (p1, p2)])
+                else:
+                    rows.append([slot["label"],
+                                 "%s (as of %s) / %s (as of %s)"
+                                 % (fmt(v1, "money"), p1 or "n/a",
+                                    fmt(v2, "money"), p2 or "n/a"),
+                                 "filed (SEC XBRL)"])
             else:
-                rows.append([slot["label"], "%s / %s"
-                             % (fmt(v1, "money") or "n/a",
-                                fmt(v2, "money") or "n/a"),
+                only_v = v1 if v1 is not None else v2
+                only_p = p1 if v1 is not None else p2
+                only_n = "cash" if v1 is not None else "debt"
+                rows.append([slot["label"],
+                             "%s %s (as of %s) / other side not "
+                             "admitted" % (only_n,
+                                           fmt(only_v, "money"),
+                                           only_p or "n/a"),
                              "filed (SEC XBRL)"])
         else:
             rows.append([slot["label"], "no admitted source",

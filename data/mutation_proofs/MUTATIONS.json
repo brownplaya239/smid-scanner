@@ -428,7 +428,7 @@
    "expected_failure": "sparse tail detected",
    "intended_check": "NO_LOW_DENSITY_FINAL_PAGE",
    "mutation_id": "M43-sparse-final-page",
-   "observed_failure": "final page occupancy 6% (min 20%)",
+   "observed_failure": "final page occupancy 6% (min 45%)",
    "proven": true,
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   },
@@ -485,9 +485,180 @@
    "observed_failure": "report_v5_claims.py:2 'HOOD'; report_v5_claims.py:2",
    "proven": true,
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "mature issuer's stage rewritten PRE_REVENUE with a data-availability basis (revenue not parsed)",
+   "expected_failure": "data-gap basis rejected",
+   "intended_check": "MISSING_DATA_IS_NOT_PRE_REVENUE",
+   "mutation_id": "M47-missing-revenue-called-pre-revenue",
+   "observed_failure": "PRE_REVENUE basis is not an admitted-evidence rule: 'revenue not parsed from the vendor snapshot; concept fetch unavailable'; PRE_REVENUE basis cites a data gap ('revenue not parsed from the vendor snapshot; concept fetch unavailable') \u2014 missing data never implies pre-revenue",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "PRE_REVENUE stage with no resolvable evidence refs",
+   "expected_failure": "missing admitted evidence detected",
+   "intended_check": "PRE_REVENUE_REQUIRES_ADMITTED_EVIDENCE",
+   "mutation_id": "M47b-pre-revenue-without-evidence",
+   "observed_failure": "PRE_REVENUE carries no classification evidence refs",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "an actual pre-revenue biotech's stage flipped to OPERATING / generic adapter against its registered expectation",
+   "expected_failure": "stage mismatch detected",
+   "intended_check": "EXPECTED_BUSINESS_STAGE_MATCHES_ACTUAL",
+   "mutation_id": "M48-pre-revenue-issuer-made-generic",
+   "observed_failure": "('expected_business_stage', 'PRE_REVENUE', 'OPERATING')",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "energy fixture routed to the pre-revenue adapter",
+   "expected_failure": "adapter mismatch detected",
+   "intended_check": "EXPECTED_ADAPTER_MATCHES_ACTUAL",
+   "mutation_id": "M49-adapter-mismatch",
+   "observed_failure": "('expected_adapter', 'energy_materials', 'pre_revenue')",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "IFRS filer recorded as us-gaap against its expectation",
+   "expected_failure": "regime mismatch detected",
+   "intended_check": "EXPECTED_ACCOUNTING_REGIME_MATCHES_ACTUAL",
+   "mutation_id": "M49b-regime-mismatch",
+   "observed_failure": "('expected_accounting_regime', 'ifrs', 'us-gaap')",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "issuer with unparsed IFRS facts labelled PRE_REVENUE",
+   "expected_failure": "ifrs data gap rejected as a stage basis",
+   "intended_check": "MISSING_DATA_IS_NOT_PRE_REVENUE",
+   "mutation_id": "M50-ifrs-absence-called-pre-revenue",
+   "observed_failure": "PRE_REVENUE basis is not an admitted-evidence rule: 'no us-gaap facts parsed (ifrs filer) \u2014 fetch degraded, revenue missing'; PRE_REVENUE basis cites a data gap ('no us-gaap facts parsed (ifrs filer) \u2014 fetch degraded, revenue missing') \u2014 missing data never implies pre-revenue",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "cash (2026-03-31) and debt (2025-09-30, two quarters older) joined in a framework conclusion",
+   "expected_failure": "cross-period pairing detected on a serialized surface",
+   "intended_check": "SERIALIZED_BALANCE_SHEET_FACTS_SHARE_PERIOD",
+   "mutation_id": "M51-cross-period-balance-sheet",
+   "observed_failure": "framework dimension 'balance_sheet' joins cash $2.00B and debt $1.50B from different reporting dates (2026-03-31 vs 2025-09-30)",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "dashboard renders both instants despite incompatible periods",
+   "expected_failure": "dashboard pairing violation detected",
+   "intended_check": "DASHBOARD_CONCLUSIONS_RESPECT_FRESHNESS",
+   "mutation_id": "M51b-dashboard-cross-period",
+   "observed_failure": "dashboard renders '$2.00B / $1.50B' despite cash 2026-03-31 / debt 2025-09-30 reporting dates",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "framework prose says 'latest' while a supporting fact is dated 2021",
+   "expected_failure": "stale fact behind 'latest' wording detected",
+   "intended_check": "LATEST_LABEL_MATCHES_EACH_SUPPORTING_FACT",
+   "mutation_id": "M52-latest-with-stale-fact",
+   "observed_failure": "dimension 'balance_sheet' says 'latest' but cites a fact dated 2021-12-31",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "graded dimension quotes figures whose newest fact is from 2021",
+   "expected_failure": "stale-supported conclusion detected",
+   "intended_check": "STALE_EVIDENCE_CANNOT_SUPPORT_ANY_RENDERED_CONCLUSION",
+   "mutation_id": "M52b-stale-supported-conclusion",
+   "observed_failure": "dimension 'balance_sheet' quotes figures whose newest supporting fact is dated 2021-12-31",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "'TTM suppressed' footnote printed while the revenue TTM cell keeps a value",
+   "expected_failure": "populated cell beside a suppression note detected",
+   "intended_check": "TTM_FOOTNOTE_MATCHES_RENDERED_VALUES",
+   "mutation_id": "M53-suppressed-ttm-still-populated",
+   "observed_failure": "metric revenue is listed suppressed but its TTM value is populated",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "the JPM defect: net-income TTM displayed although its own stream failed the four-quarter test (only the P/E stream was checked)",
+   "expected_failure": "per-cell validation catches the displayed invalid cell",
+   "intended_check": "EVERY_DISPLAYED_TTM_CELL_VALID",
+   "mutation_id": "M54-grid-cell-invalid-but-displayed",
+   "observed_failure": "TTM net_income is populated (4.2e+09) but its cell failed validation: quarter ends are not contiguous",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "two populated TTM cells with endpoints twelve years apart in one unlabeled column",
+   "expected_failure": "mixed endpoints detected",
+   "intended_check": "TTM_GRID_ENDPOINTS_ARE_CONSISTENT",
+   "mutation_id": "M54b-mixed-ttm-endpoints",
+   "observed_failure": "TTM net_income ends 2014-09-30 but the column is dated 2026-06-30",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "sparse registration first; richer record discarded by first-write-wins (v5.7 behaviour)",
+   "expected_failure": "null-kind survivor detected; merge path proven to enrich",
+   "intended_check": "LEDGER_MERGE_PRESERVES_RICHEST_RECORD",
+   "mutation_id": "M55-sparse-record-blocks-rich",
+   "observed_failure": "record 'CALC-fcf_margin' has kind null",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "cited XBRL record stripped of value, units, URL and issuer CIK",
+   "expected_failure": "incomplete provenance detected",
+   "intended_check": "XBRL_CLAIM_REF_IS_COMPLETE",
+   "mutation_id": "M56-incomplete-xbrl-claim-ref",
+   "observed_failure": "XBRL record 'XBRL-9-us-gaap:Revenues-2026-03-31' missing value, units, url, issuer_cik",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "cited CALC record stripped of formula and inputs",
+   "expected_failure": "formula-less CALC record detected",
+   "intended_check": "CALC_RECORD_HAS_FORMULA_AND_INPUTS",
+   "mutation_id": "M56b-calc-without-formula",
+   "observed_failure": "CALC record 'CALC-revenue_growth' missing calculation, input_evidence_ids",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "claim quotes 23.5% while its only cited record stores 11.2",
+   "expected_failure": "irreproducible quoted figure detected",
+   "intended_check": "CLAIM_EVIDENCE_IS_REPRODUCIBLE",
+   "mutation_id": "M56c-claim-figure-not-reproducible",
+   "observed_failure": "claim 'growth-above-bar' quotes 23.5% \u2014 no cited record stores that value",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "final appendix pages at 29%, 37% and 44% occupancy (each below the 45% floor; 46% passes)",
+   "expected_failure": "all three sparse finals detected",
+   "intended_check": "NO_LOW_DENSITY_FINAL_PAGE",
+   "mutation_id": "M57-sparse-final-pages",
+   "observed_failure": "final page occupancy 29% (min 45%); final page occupancy 37% (min 45%); final page occupancy 44% (min 45%)",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "final page holding only the section-14 binding table at 30%",
+   "expected_failure": "isolated hash block detected",
+   "intended_check": "NO_STRANDED_VALIDATION_SUMMARY",
+   "mutation_id": "M58-stranded-validation-summary",
+   "observed_failure": "final page is an isolated validation/hash block at 30% occupancy (min 45%)",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   }
  ],
- "proven": 54,
+ "proven": 73,
  "schema": "v5-mutation-proofs/1",
- "total": 54
+ "total": 73
 }

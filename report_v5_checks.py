@@ -433,11 +433,11 @@ def issuer_issues(ledger, expected_cik):
 
 # ── §5 rendered-layout checks (bbox/occupancy based) ─────────────────
 
-def page_occupancy_issues(occupancy, final_min=0.20, body_min=0.30):
+def page_occupancy_issues(occupancy, final_min=0.45, body_min=0.30):
     """occupancy: list of per-page content-height ratios (0..1),
-    measured from real text bounding boxes. The final page may be
-    shorter but must not be a sparse tail; interior pages must carry
-    real content."""
+    measured from text AND graphical bounding boxes. §5 (v5.8): a final
+    page below 45%% is a layout failure — the repagination chain must
+    pull content down or move the binding block up."""
     bad = []
     for i, r in enumerate(occupancy or []):
         last = i == len(occupancy) - 1
@@ -451,25 +451,57 @@ def page_occupancy_issues(occupancy, final_min=0.20, body_min=0.30):
 
 
 def measure_occupancy(pdf_path):
-    """Per-page content-height ratio from real text bounding boxes
-    (top of first block to bottom of last, over page height),
-    excluding the running header/footer margins."""
+    """Per-page content-height ratio from text AND graphical (table
+    rule / drawing) bounding boxes — top of first element to bottom of
+    last, over page height, excluding the running header/footer
+    margins. Accepts a path or raw PDF bytes (§5: the repagination
+    chain measures candidates before a file is written)."""
     import fitz
     out = []
-    doc = fitz.open(pdf_path)
+    doc = fitz.open(stream=pdf_path, filetype="pdf") \
+        if isinstance(pdf_path, (bytes, bytearray)) else \
+        fitz.open(pdf_path)
     for page in doc:
         h = page.rect.height
-        blocks = [b for b in page.get_text("blocks")
-                  if (b[4] or "").strip()]
-        # drop the two header lines and the footer line by position
-        body = [b for b in blocks if 60 < b[1] < h - 50]
+        spans = []
+        for b in page.get_text("blocks"):
+            if (b[4] or "").strip():
+                spans.append((b[1], b[3]))
+        try:
+            for d in page.get_drawings():
+                r = d.get("rect")
+                if r is not None and r.height < h * 0.9:
+                    spans.append((r.y0, r.y1))
+        except Exception:
+            pass
+        body = [(t, b) for t, b in spans if 60 < t < h - 50]
         if not body:
             out.append(0.0)
             continue
-        top = min(b[1] for b in body)
-        bot = max(b[3] for b in body)
+        top = min(t for t, _ in body)
+        bot = max(b for _, b in body)
         out.append(max(0.0, min(1.0, (bot - top) / (h - 110))))
     return out
+
+
+def stranded_validation_summary_issues(page_texts, occupancy,
+                                       final_min=0.45):
+    """NO_STRANDED_VALIDATION_SUMMARY (§5, v5.8): the final page must
+    not be an isolated validation/hash block — the binding table alone
+    on a sparse tail page."""
+    if not page_texts or len(page_texts) < 2:
+        return []
+    last = re.sub(r"\s+", " ", page_texts[-1] or "")
+    occ_last = (occupancy or [1.0])[-1]
+    has_binding = ("Binding record for this package" in last
+                   or "sha256" in last.lower())
+    headings = re.findall(r"\b(\d{1,2})\.\s+[A-Z]", last)
+    only_binding = has_binding and len(set(headings)) <= 1
+    if only_binding and occ_last < final_min:
+        return ["final page is an isolated validation/hash block at "
+                "%.0f%% occupancy (min %.0f%%)"
+                % (occ_last * 100, final_min * 100)]
+    return []
 
 
 def sundheim_render_issues(apx_text, sd):
@@ -696,3 +728,538 @@ def invalidation_separation_issues(core_text):
     if "Tactical invalidation:" not in t:
         bad.append("no tactical-invalidation line")
     return bad
+
+
+# ── v5.8 §1: classification integrity ────────────────────────────────
+
+_PRE_REVENUE_ADMITTED_BASES = ("no revenue concept in any taxonomy",
+                               "development-stage condition")
+_DATA_GAP_MARKERS = ("not parsed", "no filed quarters", "fetch",
+                     "unavailable", "missing")
+
+
+def classification_present_issues(classification):
+    c = classification or {}
+    out = []
+    for f in ("business_stage", "accounting_regime", "listing_type",
+              "classification_confidence"):
+        if not c.get(f):
+            out.append("classification field %r absent" % f)
+    if c.get("business_stage") not in ("OPERATING", "PRE_REVENUE",
+                                       "UNKNOWN"):
+        out.append("business_stage %r not a defined stage"
+                   % c.get("business_stage"))
+    return out
+
+
+def missing_data_pre_revenue_issues(classification):
+    """§1: PRE_REVENUE may never be a synonym for 'we could not parse
+    revenue'. The basis must be one of the admitted-evidence rules and
+    must not read like a data-availability statement."""
+    c = classification or {}
+    if c.get("business_stage") != "PRE_REVENUE":
+        return []
+    basis = (c.get("business_stage_basis") or "").lower()
+    out = []
+    if not any(m in basis for m in _PRE_REVENUE_ADMITTED_BASES):
+        out.append("PRE_REVENUE basis is not an admitted-evidence "
+                   "rule: %r" % basis[:100])
+    if any(m in basis for m in _DATA_GAP_MARKERS):
+        out.append("PRE_REVENUE basis cites a data gap (%r) — missing "
+                   "data never implies pre-revenue" % basis[:100])
+    return out
+
+
+def pre_revenue_evidence_issues(classification, ledger):
+    """§1: PRE_REVENUE requires resolvable admitted evidence."""
+    c = classification or {}
+    if c.get("business_stage") != "PRE_REVENUE":
+        return []
+    refs = c.get("classification_evidence_refs") or []
+    if not refs:
+        return ["PRE_REVENUE carries no classification evidence refs"]
+    known = (ledger or {}).get("ids") or {}
+    return ["classification ref %r unresolved in ledger" % r
+            for r in refs if r not in known]
+
+
+def classification_refs_issues(classification, ledger):
+    known = (ledger or {}).get("ids") or {}
+    return ["classification ref %r unresolved in ledger" % r
+            for r in (classification or {}).get(
+                "classification_evidence_refs") or []
+            if r not in known]
+
+
+def expected_routing_issues(expected, classification, adapter):
+    """§1/§6: expected-vs-actual routing for registered fixtures.
+    Returns [(field, expected, actual), ...]; empty when no expectation
+    is registered or everything matches."""
+    if not expected:
+        return []
+    out = []
+    pairs = (("expected_adapter", (adapter or {}).get("key")),
+             ("expected_business_stage",
+              (classification or {}).get("business_stage")),
+             ("expected_accounting_regime",
+              (classification or {}).get("accounting_regime")))
+    for field, actual in pairs:
+        want = expected.get(field)
+        if want and actual != want:
+            out.append((field, want, actual))
+    return out
+
+
+# ── v5.8 §3: per-cell grid TTM validation ────────────────────────────
+
+_GRID_TTM_METRICS = ("revenue", "net_income", "eps", "ocf")
+
+
+def grid_ttm_cell_issues(grid):
+    """EVERY_DISPLAYED_TTM_CELL_VALID: a populated top-level TTM value
+    must be backed by a cell that passed its own four-quarter test."""
+    ttm = (grid or {}).get("ttm") or {}
+    cells = ttm.get("cells") or {}
+    out = []
+    for m in _GRID_TTM_METRICS:
+        v = ttm.get(m)
+        c = cells.get(m) or {}
+        if v is not None and not c.get("ok"):
+            out.append("TTM %s is populated (%.4g) but its cell failed "
+                       "validation: %s"
+                       % (m, v, "; ".join(c.get("reasons") or
+                                          ["no cell record"])))
+    # derived rows must come only from validated bases
+    if ttm.get("net_margin") is not None and not (
+            (cells.get("revenue") or {}).get("ok")
+            and (cells.get("net_income") or {}).get("ok")):
+        out.append("TTM net margin derived without validated revenue "
+                   "and net-income cells")
+    if ttm.get("fcf") is not None and not (
+            (cells.get("ocf") or {}).get("ok")
+            and (cells.get("capex") or {}).get("ok")):
+        out.append("TTM FCF derived without validated OCF and capex "
+                   "cells")
+    return out
+
+
+def grid_ttm_endpoint_issues(grid):
+    """TTM_GRID_ENDPOINTS_ARE_CONSISTENT: all populated cells share the
+    one displayed column date."""
+    ttm = (grid or {}).get("ttm") or {}
+    cells = ttm.get("cells") or {}
+    thru = ttm.get("through")
+    out = []
+    populated = [m for m in _GRID_TTM_METRICS if ttm.get(m) is not None]
+    if populated and not thru:
+        out.append("TTM cells populated (%s) with no column "
+                   "through-date" % ", ".join(populated))
+    for m in populated:
+        c = cells.get(m) or {}
+        if c.get("through") and thru and c["through"] != thru:
+            out.append("TTM %s ends %s but the column is dated %s"
+                       % (m, c["through"], thru))
+    if thru and not populated and ttm.get("eps") is None \
+            and ttm.get("fcf") is None:
+        out.append("column through-date %s shown with no populated "
+                   "cell" % thru)
+    return out
+
+
+def grid_ttm_footnote_issues(grid, core_text):
+    """TTM_FOOTNOTE_MATCHES_RENDERED_VALUES +
+    SUPPRESSED_TTM_HAS_NO_POPULATED_CELL: the note and the cells tell
+    one story — a metric named suppressed has no populated value, and
+    populated values render in the PDF."""
+    ttm = (grid or {}).get("ttm") or {}
+    gaps = " ".join((grid or {}).get("gaps") or [])
+    out = []
+    for s in ttm.get("suppressed") or []:
+        m = s.get("metric")
+        label = s.get("label") or m
+        if m in _GRID_TTM_METRICS and ttm.get(m) is not None:
+            out.append("metric %s is listed suppressed but its TTM "
+                       "value is populated" % m)
+        if m and ("TTM suppressed" in gaps) \
+                and m not in gaps and (label or "") not in gaps:
+            out.append("suppression note does not name metric %s" % m)
+    if (ttm.get("suppressed") and (grid or {}).get("years")
+            and core_text and "TTM suppressed" not in core_text):
+        out.append("cells are suppressed but the rendered core carries "
+                   "no TTM-suppression note")
+    return out
+
+
+def grid_ttm_pdf_issues(grid, core_text, fmt_money=None):
+    """PDF_TTM_VALUES_MATCH_VALIDATION_MODEL: every populated money TTM
+    cell's formatted value appears in the extracted core text."""
+    if not (grid or {}).get("years"):
+        return []
+    ttm = (grid or {}).get("ttm") or {}
+    t = re.sub(r"\s+", " ", core_text or "")
+    out = []
+
+    def _fmt(v):                      # mirrors the renderer's $M cell
+        return (fmt_money or (lambda x: "{:,.0f}".format(x / 1e6)))(v)
+
+    for m in ("revenue", "net_income", "ocf"):
+        v = ttm.get(m)
+        if v is None:
+            continue
+        if _fmt(v) not in t:
+            out.append("TTM %s (%s) not found in the rendered core"
+                       % (m, _fmt(v)))
+    return out
+
+
+def bank_revenue_concept_issues(grid, adapter):
+    """BANK_REVENUE_CONCEPT_IS_SECTOR_APPROPRIATE: a bank/insurer grid
+    whose revenue stream populated must have used one of the sector's
+    net-revenue concepts."""
+    ad = adapter or {}
+    if ad.get("key") != "bank_insurer":
+        return []
+    allowed = (ad.get("policy") or {}).get("revenue_concepts") or ()
+    if not allowed:
+        return []
+    ttm = (grid or {}).get("ttm") or {}
+    used = ttm.get("revenue_concept")
+    if ttm.get("revenue") is not None and used not in allowed:
+        return ["bank grid revenue uses concept %r — not in the "
+                "sector-appropriate set %s" % (used, list(allowed))]
+    return []
+
+
+# ── v5.8 §2: same-period balance-sheet rule ──────────────────────────
+
+BS_PAIR_MAX_GAP_DAYS = 100
+BS_NOT_ASSESSED_MSG = ("Not assessed: comparable cash and debt facts "
+                       "for the same reporting date were not admitted.")
+# newest admitted instant a "latest"/current-position wording may cite
+BS_LATEST_MAX_AGE_DAYS = 400
+
+_REF_DATE_RX = re.compile(r"-(\d{4}-\d{2}-\d{2})$")
+
+
+def _fact_period(fact):
+    if isinstance(fact, dict) and fact.get("period_end"):
+        return str(fact["period_end"])[:10]
+    return None
+
+
+def balance_sheet_pairing(fu):
+    """The ONE pairing decision every surface consults: cash and debt
+    may be presented together only when their reporting dates match
+    within BS_PAIR_MAX_GAP_DAYS."""
+    from datetime import date
+    cash_f, debt_f = (fu or {}).get("cash"), (fu or {}).get("debt")
+
+    def _v(f):
+        return f.get("v") if isinstance(f, dict) else None
+
+    cp, dp = _fact_period(cash_f), _fact_period(debt_f)
+    gap = None
+    if cp and dp:
+        gap = abs((date.fromisoformat(cp) - date.fromisoformat(dp)
+                   ).days)
+    ok = not (
+        _v(cash_f) is not None and _v(debt_f) is not None
+        and cp and dp and gap is not None
+        and gap > BS_PAIR_MAX_GAP_DAYS)
+    return {"cash_value": _v(cash_f), "debt_value": _v(debt_f),
+            "cash_period": cp, "debt_period": dp,
+            "gap_days": gap, "ok": ok,
+            "message": None if ok else BS_NOT_ASSESSED_MSG}
+
+
+def _money(v):
+    if v is None:
+        return None
+    a = abs(v)
+    if a >= 1e9:
+        return "$%.2fB" % (v / 1e9)
+    if a >= 1e6:
+        return "$%.1fM" % (v / 1e6)
+    return "$%.2f" % v
+
+
+def serialized_bs_issues(snap, view5, dashboard_rows=None):
+    """SERIALIZED_BALANCE_SHEET_FACTS_SHARE_PERIOD: when the pairing is
+    incompatible, NO serialized surface may join the two formatted
+    values — framework conclusions, Sundheim answers, claims, quality
+    reasons or dashboard rows."""
+    fu = (snap or {}).get("fundamentals") or {}
+    pair = balance_sheet_pairing(fu)
+    if pair["ok"]:
+        return []
+    c_s, d_s = _money(pair["cash_value"]), _money(pair["debt_value"])
+    if not (c_s and d_s):
+        return []
+    out = []
+
+    def _scan(label, s):
+        if isinstance(s, str) and c_s in s and d_s in s:
+            out.append("%s joins cash %s and debt %s from different "
+                       "reporting dates (%s vs %s)"
+                       % (label, c_s, d_s, pair["cash_period"],
+                          pair["debt_period"]))
+
+    fw = (view5 or {}).get("framework") or {}
+    for k, dim in (fw.get("dimensions") or {}).items():
+        _scan("framework dimension %r" % k,
+              (dim or {}).get("conclusion"))
+    for q in ((view5 or {}).get("sundheim") or {}).get(
+            "questions") or []:
+        _scan("Sundheim answer %r" % (q.get("id")
+                                      or str(q.get("question"))[:30]),
+              q.get("answer"))
+    cl = (view5 or {}).get("claims") or {}
+    for c in (cl.get("published") or []):
+        _scan("claim %r" % c.get("claim_id"), c.get("claim"))
+    bq = ((view5 or {}).get("assessment") or {}).get(
+        "business_quality") or {}
+    for r in bq.get("reasons") or []:
+        _scan("business-quality reason", r)
+    for row in dashboard_rows or []:
+        if isinstance(row, (list, tuple)) and len(row) > 1:
+            _scan("dashboard row %r" % row[0], str(row[1]))
+    return out
+
+
+def bs_value_period_issues(dashboard_rows, framework):
+    """EVERY_BALANCE_SHEET_VALUE_HAS_PERIOD: a displayed cash or debt
+    value carries its own reporting date."""
+    out = []
+    for row in dashboard_rows or []:
+        if not (isinstance(row, (list, tuple)) and len(row) >= 2):
+            continue
+        label, val = str(row[0]), str(row[1])
+        if "/" in label and "cash" in label.lower() \
+                and "$" in val and "as of" not in val \
+                and "Not assessed" not in val:
+            out.append("dashboard row %r shows balance-sheet values "
+                       "without their reporting dates" % label)
+    dim = ((framework or {}).get("dimensions") or {}).get(
+        "balance_sheet") or {}
+    concl = dim.get("conclusion") or ""
+    if dim.get("status") == "PARTIAL" and "$" in concl \
+            and "as of" not in concl:
+        out.append("balance-sheet conclusion cites values without "
+                   "their reporting dates: %r" % concl[:80])
+    return out
+
+
+def framework_bs_freshness_issues(framework, today=None):
+    """FRAMEWORK_CONCLUSIONS_RESPECT_FRESHNESS +
+    LATEST_LABEL_MATCHES_EACH_SUPPORTING_FACT (framework side): a dim
+    graded above NOT_ASSESSED must not join instants from different
+    periods, and any 'latest' wording requires every supporting fact to
+    be current."""
+    from datetime import date, timedelta
+    today = today or date.today()
+    out = []
+    for k, dim in ((framework or {}).get("dimensions") or {}).items():
+        if (dim or {}).get("status") == "NOT_ASSESSED":
+            continue
+        dates = []
+        for r in dim.get("evidence_refs") or []:
+            m = _REF_DATE_RX.search(str(r))
+            if m:
+                dates.append(m.group(1))
+        if len(set(dates)) > 1:
+            ds = sorted(set(dates))
+            gap = (date.fromisoformat(ds[-1])
+                   - date.fromisoformat(ds[0])).days
+            joined = "$" in (dim.get("conclusion") or "") \
+                and " vs " in (dim.get("conclusion") or "")
+            if gap > BS_PAIR_MAX_GAP_DAYS and joined:
+                out.append("dimension %r joins facts dated %s and %s "
+                           "(%d days apart)" % (k, ds[0], ds[-1], gap))
+        if "latest" in (dim.get("conclusion") or "").lower() and dates:
+            oldest = min(dates)
+            if date.fromisoformat(oldest) < today - timedelta(
+                    days=BS_LATEST_MAX_AGE_DAYS):
+                out.append("dimension %r says 'latest' but cites a "
+                           "fact dated %s" % (k, oldest))
+    return out
+
+
+def stale_rendered_support_issues(framework, today=None):
+    """STALE_EVIDENCE_CANNOT_SUPPORT_ANY_RENDERED_CONCLUSION: a graded
+    dimension quoting dollar figures must rest on at least one current
+    fact."""
+    from datetime import date, timedelta
+    today = today or date.today()
+    out = []
+    for k, dim in ((framework or {}).get("dimensions") or {}).items():
+        if (dim or {}).get("status") == "NOT_ASSESSED":
+            continue
+        if "$" not in (dim.get("conclusion") or ""):
+            continue
+        dates = []
+        for r in dim.get("evidence_refs") or []:
+            m = _REF_DATE_RX.search(str(r))
+            if m:
+                dates.append(m.group(1))
+        if dates and max(dates) < (today - timedelta(
+                days=BS_LATEST_MAX_AGE_DAYS)).isoformat():
+            out.append("dimension %r quotes figures whose newest "
+                       "supporting fact is dated %s"
+                       % (k, max(dates)))
+    return out
+
+
+def dashboard_bs_issues(snap, dashboard_rows):
+    """DASHBOARD_CONCLUSIONS_RESPECT_FRESHNESS: an incompatible pairing
+    renders the canonical not-assessed sentence, never the two values."""
+    fu = (snap or {}).get("fundamentals") or {}
+    pair = balance_sheet_pairing(fu)
+    out = []
+    for row in dashboard_rows or []:
+        if not (isinstance(row, (list, tuple)) and len(row) >= 2):
+            continue
+        label, val = str(row[0]), str(row[1])
+        if "cash" in label.lower() and "/" in label:
+            if not pair["ok"] and "Not assessed" not in val:
+                out.append("dashboard renders %r despite cash %s / "
+                           "debt %s reporting dates"
+                           % (val[:60], pair["cash_period"],
+                              pair["debt_period"]))
+    return out
+
+
+# ── v5.8 §4: reproducible ledger checks ──────────────────────────────
+
+_PCT_RX = re.compile(r"(-?\d+(?:\.\d+)?)%")
+_DOLLAR_RX = re.compile(r"\$(-?\d+(?:\.\d+)?)([BM])\b")
+
+
+def ledger_kind_issues(ledger):
+    """LEDGER_MERGE_PRESERVES_RICHEST_RECORD (structural half): no
+    registered record may end up with a null kind — a sparse first
+    sighting can no longer block enrichment."""
+    out = []
+    for rid, rec in ((ledger or {}).get("ids") or {}).items():
+        if not isinstance(rec, dict) or rec.get("kind") is None:
+            out.append("record %r has kind null" % rid)
+    return out[:20]
+
+
+def calc_record_issues(claims, ledger):
+    """CALC_RECORD_HAS_FORMULA_AND_INPUTS: every CALC record cited by a
+    published claim carries its formula and ordered inputs."""
+    known = (ledger or {}).get("ids") or {}
+    out = []
+    seen = set()
+    for c in (claims or {}).get("published") or []:
+        for r in (c.get("evidence_refs") or []) + (
+                c.get("counterevidence_refs") or []):
+            if not (isinstance(r, str) and r.startswith("CALC-")) \
+                    or r in seen:
+                continue
+            seen.add(r)
+            rec = known.get(r)
+            if not isinstance(rec, dict):
+                out.append("CALC ref %r unregistered" % r)
+                continue
+            missing = [f for f in ("kind", "metric", "calculation")
+                       if not rec.get(f)]
+            if not rec.get("input_evidence_ids"):
+                missing.append("input_evidence_ids")
+            if missing:
+                out.append("CALC record %r missing %s"
+                           % (r, ", ".join(missing)))
+    return out
+
+
+def xbrl_claim_ref_issues(claims, ledger):
+    """XBRL_CLAIM_REF_IS_COMPLETE: every XBRL fact cited by a published
+    claim is fully reproducible — accession, taxonomy, concept, value,
+    units, period_end, filing URL, issuer CIK."""
+    known = (ledger or {}).get("ids") or {}
+    out = []
+    seen = set()
+    for c in (claims or {}).get("published") or []:
+        for r in (c.get("evidence_refs") or []) + (
+                c.get("counterevidence_refs") or []):
+            if not (isinstance(r, str) and r.startswith("XBRL-")) \
+                    or r in seen:
+                continue
+            seen.add(r)
+            rec = known.get(r)
+            if not isinstance(rec, dict):
+                out.append("XBRL ref %r unregistered" % r)
+                continue
+            missing = [f for f in ("accession", "taxonomy", "concept",
+                                   "value", "units", "period_end",
+                                   "url", "issuer_cik")
+                       if rec.get(f) is None]
+            if missing:
+                out.append("XBRL record %r missing %s"
+                           % (r, ", ".join(missing)))
+    return out
+
+
+def all_refs_resolve_issues(view5, classification, ledger):
+    """ALL_EVIDENCE_REFS_RESOLVE: every reference on every serialized
+    surface resolves in the ledger — claims (both directions),
+    framework dimensions and the classification record."""
+    known = (ledger or {}).get("ids") or {}
+    out = []
+
+    def _chk(label, refs):
+        for r in refs or []:
+            if not isinstance(r, str) or r not in known:
+                out.append("%s ref %r unresolved" % (label, str(r)[:50]))
+
+    cl = (view5 or {}).get("claims") or {}
+    for c in cl.get("published") or []:
+        _chk("claim %s" % c.get("claim_id"), c.get("evidence_refs"))
+        _chk("claim %s counter" % c.get("claim_id"),
+             c.get("counterevidence_refs"))
+    for k, dim in (((view5 or {}).get("framework") or {}).get(
+            "dimensions") or {}).items():
+        _chk("framework %s" % k, (dim or {}).get("evidence_refs"))
+    _chk("classification",
+         (classification or {}).get("classification_evidence_refs"))
+    return out[:25]
+
+
+def claim_reproduction_issues(claims, ledger):
+    """CLAIM_EVIDENCE_IS_REPRODUCIBLE +
+    REPRODUCED_CLAIM_MATCHES_RENDERED_VALUE: a published claim quoting
+    a figure must have at least one cited ledger record whose stored
+    value reproduces that figure."""
+    known = (ledger or {}).get("ids") or {}
+    out = []
+    for c in (claims or {}).get("published") or []:
+        text = c.get("claim") or ""
+        refs = [r for r in (c.get("evidence_refs") or [])
+                if isinstance(r, str)]
+        recs = [known.get(r) for r in refs if isinstance(known.get(r),
+                                                        dict)]
+        if len(recs) != len(refs):
+            out.append("claim %r cites unregistered evidence"
+                       % c.get("claim_id"))
+            continue
+        vals = [rec.get("value") for rec in recs
+                if isinstance(rec.get("value"), (int, float))]
+        # percentages quoted in the claim reproduce from a cited value
+        for m in _PCT_RX.finditer(text):
+            q = float(m.group(1))
+            if not any(abs(v - q) < 0.06 or (
+                    v and abs(100.0 * v - q) < 0.06) for v in vals):
+                out.append("claim %r quotes %s%% — no cited record "
+                           "stores that value"
+                           % (c.get("claim_id"), m.group(1)))
+                break
+        for m in _DOLLAR_RX.finditer(text):
+            q = float(m.group(1)) * (1e9 if m.group(2) == "B" else 1e6)
+            if not any(v and abs(v - q) / max(abs(q), 1) < 0.006
+                       for v in vals):
+                out.append("claim %r quotes $%s%s — no cited record "
+                           "stores that value"
+                           % (c.get("claim_id"), m.group(1),
+                              m.group(2)))
+                break
+    return out

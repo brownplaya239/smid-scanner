@@ -445,8 +445,11 @@ def _p3_grid(snap, view5):
         w = BODY_W * 0.30
         cw = [w] + [(BODY_W - w) / (len(years) + 1)] * (len(years) + 1)
         st.append(_table(body, cw, header=head, zebra=True))
-        st.append(para("TTM through %s. %s." % (
-            _clean((g.get("ttm") or {}).get("through") or "n/a"),
+        _thru = (g.get("ttm") or {}).get("through")
+        st.append(para("%s %s." % (
+            ("TTM through %s." % _clean(_thru)) if _thru
+            else "TTM column suppressed &mdash; no metric has four "
+                 "contiguous current quarters (see notes below).",
             _clean(g.get("basis") or "")), "small", OBSERVED))
     for gap in g.get("gaps") or []:
         st.append(para(_clean(gap), "small"))

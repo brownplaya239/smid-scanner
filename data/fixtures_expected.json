@@ -1,0 +1,31 @@
+{
+  "schema": "v5-fixtures-expected/1",
+  "note": "Regression fixtures and unseen holdouts with their EXPECTED classification. This file is test data: the generator never reads it to make decisions; validation reads it to prove the router's actual output matches the registered expectation (EXPECTED_ADAPTER_MATCHES_ACTUAL et al.). A ticker absent from this file simply has no registered expectation.",
+  "fixtures": {
+    "CAT":  {"expected_adapter": "industrial",            "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "industrial"},
+    "CB":   {"expected_adapter": "bank_insurer",          "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "insurer"},
+    "HOOD": {"expected_adapter": "financial_platform",    "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "financial_platform"},
+    "JPM":  {"expected_adapter": "bank_insurer",          "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "bank"},
+    "MRVL": {"expected_adapter": "generic",               "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "semiconductor (degrades to generic family)"},
+    "NOW":  {"expected_adapter": "subscription_software", "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "software"},
+    "O":    {"expected_adapter": "reit",                  "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "reit"},
+    "RDDT": {"expected_adapter": "generic",               "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "internet content / dual-class (degrades to generic family)"},
+    "SANA": {"expected_adapter": "biotech",               "expected_business_stage": "PRE_REVENUE", "expected_accounting_regime": "us-gaap", "family": "pre-revenue biotechnology"},
+    "SAP":  {"expected_adapter": "subscription_software", "expected_business_stage": "OPERATING",   "expected_accounting_regime": "ifrs",    "family": "enterprise software / foreign private issuer"},
+    "SG":   {"expected_adapter": "restaurant",            "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "restaurant"},
+    "SPCX": {"expected_adapter": "new_listing",           "expected_business_stage": "UNKNOWN",     "expected_accounting_regime": "unknown", "family": "new listing"},
+    "XOM":  {"expected_adapter": "energy_materials",      "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "integrated energy"}
+  },
+  "holdouts": {
+    "ADBE": {"expected_adapter": "subscription_software", "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "software"},
+    "COP":  {"expected_adapter": "energy_materials",      "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "energy"},
+    "USB":  {"expected_adapter": "bank_insurer",          "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "bank"},
+    "PGR":  {"expected_adapter": "bank_insurer",          "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "insurer"},
+    "SPG":  {"expected_adapter": "reit",                  "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "reit"},
+    "DE":   {"expected_adapter": "industrial",            "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "industrial"},
+    "CMG":  {"expected_adapter": "restaurant",            "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "restaurant"},
+    "SCHW": {"expected_adapter": "financial_platform",    "expected_business_stage": "OPERATING",   "expected_accounting_regime": "us-gaap", "family": "financial_platform"},
+    "PRME": {"expected_adapter": "biotech",               "expected_business_stage": "PRE_REVENUE", "expected_accounting_regime": "us-gaap", "family": "pre-revenue biotechnology"},
+    "TM":   {"expected_adapter": "generic",               "expected_business_stage": "OPERATING",   "expected_accounting_regime": "ifrs",    "family": "foreign private issuer / IFRS (degrades to generic family)"}
+  }
+}

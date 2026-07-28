@@ -129,11 +129,13 @@ def business_quality(snap, grid=None, adapter=None):
     if cash is not None and debt is not None \
             and "net_cash" not in banned:
         if not bs_period_ok:
-            # §1: instants from different reporting dates never net
+            # §1/§2 (v5.8): instants from different reporting dates
+            # never net — the canonical sentence renders verbatim
+            import report_v5_checks as _CK
             not_assessed.append(
-                "balance-sheet position (cash instant %s vs debt "
-                "instant %s — different reporting dates, not netted)"
-                % (cp, dp))
+                "balance-sheet position — %s (cash instant %s vs debt "
+                "instant %s)"
+                % (_CK.BS_NOT_ASSESSED_MSG.rstrip("."), cp, dp))
         else:
             assessed += 1
             metrics_used.append("net_cash")

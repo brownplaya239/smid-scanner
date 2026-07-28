@@ -200,18 +200,49 @@ def build_coverage(profile, capability, snap, grid=None, multiples=None,
         unknowns=["revenue-recognition policy detail",
                   "non-GAAP adjustment quality"],
         need=["full accounting-policy review of the 10-K"])
-    d["balance_sheet"] = _dim(
-        PARTIAL if cap_ok("balance_sheet_history") else NOT_ASSESSED,
-        ("cash %s vs debt %s from the latest filed balance sheet"
-         % ("$%.1fB" % (cash / 1e9) if cash is not None else "n/a",
-            "$%.1fB" % (debt / 1e9) if debt is not None else "n/a"))
-        if cap_ok("balance_sheet_history")
-        else cap_why("balance_sheet_history"),
-        ev=_refs(fu.get("cash")) + _refs(fu.get("debt")),
-        confidence="medium" if cap_ok("balance_sheet_history") else "low",
-        freshness=q_end,
-        unknowns=["off-balance-sheet commitments", "debt maturities"],
-        need=["debt-footnote parsing"])
+    # §2 (v5.8): balance-sheet instants join only from one reporting
+    # date; each displayed value carries its own period_end, and an
+    # incompatible pairing is NOT_ASSESSED with the canonical sentence
+    import report_v5_checks as _CK
+    _pair = _CK.balance_sheet_pairing(fu)
+    _cp = _CK._fact_period(fu.get("cash"))
+    _dp = _CK._fact_period(fu.get("debt"))
+    if cash is not None and debt is not None and not _pair["ok"]:
+        d["balance_sheet"] = _dim(
+            NOT_ASSESSED,
+            "%s (cash instant %s vs debt instant %s)"
+            % (_CK.BS_NOT_ASSESSED_MSG, _cp, _dp),
+            ev=_refs(fu.get("cash")) + _refs(fu.get("debt")),
+            confidence="low", freshness=min(p for p in (_cp, _dp) if p),
+            unknowns=["off-balance-sheet commitments",
+                      "debt maturities"],
+            need=["a filed balance sheet carrying both instants at one "
+                  "reporting date"])
+    else:
+        _bs_concl = None
+        if cash is not None and debt is not None:
+            _bs_concl = ("cash %s (as of %s) vs debt %s (as of %s), "
+                         "same reporting basis"
+                         % ("$%.1fB" % (cash / 1e9), _cp or "n/a",
+                            "$%.1fB" % (debt / 1e9), _dp or "n/a"))
+        elif cash is not None or debt is not None:
+            _v, _p, _n = ((cash, _cp, "cash") if cash is not None
+                          else (debt, _dp, "debt"))
+            _bs_concl = ("%s %s (as of %s); the other instant was not "
+                         "admitted" % (_n, "$%.1fB" % (_v / 1e9),
+                                       _p or "n/a"))
+        d["balance_sheet"] = _dim(
+            PARTIAL if (cap_ok("balance_sheet_history") and _bs_concl)
+            else NOT_ASSESSED,
+            _bs_concl if (cap_ok("balance_sheet_history") and _bs_concl)
+            else cap_why("balance_sheet_history"),
+            ev=_refs(fu.get("cash")) + _refs(fu.get("debt")),
+            confidence="medium" if cap_ok("balance_sheet_history")
+            else "low",
+            freshness=min((p for p in (_cp, _dp) if p), default=q_end),
+            unknowns=["off-balance-sheet commitments",
+                      "debt maturities"],
+            need=["debt-footnote parsing"])
     conv_note = None
     if ad.get("cash_conversion_industrial_valid") is False:
         conv_note = ("operating cash flow is distorted by customer and "
@@ -274,15 +305,22 @@ def build_coverage(profile, capability, snap, grid=None, multiples=None,
         if cap_ok("catalysts") else "low",
         unknowns=["issuer-confirmed date vs vendor estimate"],
         need=["issuer press release confirming the date"])
+    # §2 (v5.8): a net-cash / net-debt read is a comparison — it needs
+    # both instants from one reporting date
+    _tlr_ok = cash is not None and debt is not None and _pair["ok"]
     d["total_loss_risks"] = _dim(
-        PARTIAL if (cash is not None and debt is not None)
-        else NOT_ASSESSED,
-        ("near-term solvency observable from the filed balance sheet "
-         "(%s)" % ("net cash" if (cash or 0) > (debt or 0)
-                   else "net debt")) if cash is not None
-        and debt is not None else "no balance-sheet instants admitted",
+        PARTIAL if _tlr_ok else NOT_ASSESSED,
+        ("near-term solvency observable from the balance sheet dated "
+         "%s (%s)" % (_cp or _dp or "n/a",
+                      "net cash" if (cash or 0) > (debt or 0)
+                      else "net debt")) if _tlr_ok
+        else (("%s (cash instant %s vs debt instant %s)"
+               % (_CK.BS_NOT_ASSESSED_MSG, _cp, _dp))
+              if cash is not None and debt is not None
+              else "no balance-sheet instants admitted"),
         ev=_refs(fu.get("cash")) + _refs(fu.get("debt")),
-        confidence="low", freshness=q_end,
+        confidence="low",
+        freshness=min((p for p in (_cp, _dp) if p), default=q_end),
         unknowns=["covenants", "contingent liabilities", "dilution "
                   "capacity"],
         need=["debt-agreement and legal-proceedings parsing"])
