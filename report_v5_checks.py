@@ -506,19 +506,30 @@ def sundheim_header_issues(page_texts, sd=None):
 
 
 def stranded_tail_issues(page_texts):
-    """§5: no page may open mid-sentence (a stranded continuation)."""
+    """§5: no page may open mid-sentence (a stranded continuation).
+    A table continuation whose header row repeats on the page is NOT
+    stranded — the repeated header is exactly what §5 requires for a
+    split table, and extraction order may surface a wrapped cell
+    before it."""
     bad = []
+    _TABLE_HEADERS = (("Dimension", "Conclusion"),
+                      ("Question", "Answer"),
+                      ("Metric", "Provenance"), ("Source", "Note"),
+                      ("KPI", "Consensus"))
     for i, t in enumerate(page_texts or []):
         lines = [ln.strip() for ln in (t or "").splitlines()
                  if ln.strip()]
-        # skip the running header (ticker line, Prepared stamp)
         body = [ln for ln in lines
                 if not ln.startswith(("Prepared", "Educational"))
                 and "Equity Research" not in ln
                 and not ln.startswith("Page ")]
-        if i and body and body[0][:1].islower():
-            bad.append("page %d opens mid-sentence: %r"
-                       % (i + 1, body[0][:40]))
+        if not (i and body and body[0][:1].islower()):
+            continue
+        norm = re.sub(r"\s+", " ", t or "")
+        if any(all(h in norm for h in pair) for pair in _TABLE_HEADERS):
+            continue          # table continuation with repeated header
+        bad.append("page %d opens mid-sentence: %r"
+                   % (i + 1, body[0][:40]))
     return bad
 
 

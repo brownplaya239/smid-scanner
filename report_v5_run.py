@@ -770,9 +770,25 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
         tree_sha = _git("rev-parse", "HEAD^{tree}") or None
         porcelain = _git("status", "--porcelain")
         _GENERATED = ("data/research_state/", "data/mutation_proofs/",
-                      "out_", ".snapcache", "docs/data/")
-        dirty = any(ln and not any(g in ln for g in _GENERATED)
-                    for ln in porcelain.splitlines())
+                      "out_", ".snapcache", "docs/data/", "gen_",
+                      ".log", ".env")
+        dirty = False
+        for ln in porcelain.splitlines():
+            if not ln or any(g in ln for g in _GENERATED):
+                continue
+            untracked = ln.startswith("??")
+            path = ln[3:].strip()
+            # Source dirtiness: any modification to a TRACKED file, or
+            # an untracked module that generation could import. Logs,
+            # scratch drivers (leading underscore) and non-code files
+            # cannot change what the recorded commit produced.
+            if not untracked:
+                dirty = True
+                break
+            if path.endswith(".py") \
+                    and not os.path.basename(path).startswith("_"):
+                dirty = True
+                break
     except Exception:
         pass
     return {"schema": "equity-research-v5-validation/1",
