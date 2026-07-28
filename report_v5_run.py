@@ -57,6 +57,16 @@ def build_view(ticker, override=None):
     expectations = E5.build(snap, grid, multiples, scenarios, estimates,
                             asm)
     claims = C5.build(snap, v4, scenarios, estimates)
+    import report_v5_assessment as AS
+    import report_v5 as _R5
+    bq = AS.business_quality(snap, grid)
+    _conf = _R5.confidence({"v4": v4, "multiples": multiples})
+    ia = AS.investment_attractiveness(scenarios, expectations,
+                                      v4.get("event") or {},
+                                      _conf.get("level"))
+    assessment = {"business_quality": bq,
+                  "investment_attractiveness": ia,
+                  "tension": AS.tension(bq, ia)}
     has_options = None
     try:
         import polygon_data as PG
@@ -81,7 +91,8 @@ def build_view(ticker, override=None):
     view5 = {"v4": v4, "archetype": arch, "multiples": multiples,
              "scenarios": scenarios, "claims": claims, "grid": grid,
              "has_options": has_options, "estimates": estimates,
-             "profile": profile, "expectations": expectations}
+             "profile": profile, "expectations": expectations,
+             "assessment": assessment}
     return snap, prov, view5
 
 
@@ -144,6 +155,38 @@ def validate(view5, core_pdf, rendered, apx_pdf=None):
                 "no probability weights without a user assumptions file",
                 "clean" if "Probability-weighted" not in text
                 else "weighted value rendered without a source"))
+
+    # ── dual assessment + EV checks (v5.5 phases D/E) ────────────────
+    asx = view5.get("assessment") or {}
+    bq, ia = asx.get("business_quality") or {},         asx.get("investment_attractiveness") or {}
+    checks.append(VV.chk("BUSINESS_AND_STOCK_QUALITY_SEPARATE",
+                         bool(bq.get("level")) and bool(ia.get("level"))
+                         and bool(asx.get("tension")), VV.ERROR,
+                         "two categorical assessments plus the tension "
+                         "line; never a composite",
+                         "%s / %s" % (bq.get("level"), ia.get("level"))))
+    w = (view5.get("scenarios") or {}).get("weighted")
+    if w:
+        probs = w.get("probabilities") or {}
+        ssum = sum(probs.values())
+        checks.append(VV.chk("SCENARIO_PROBABILITIES_SUM_TO_100",
+                             abs(ssum - 1.0) < 0.011, VV.ERROR,
+                             "scenario probabilities sum to 100%",
+                             "%.3f" % ssum))
+        rows = {r["leg"]: r for r in view5["scenarios"]["rows"]}
+        ev = sum(rows[l]["price"] * probs[l] for l in probs)
+        checks.append(VV.chk("SCENARIO_EXPECTED_VALUE_ARITHMETIC",
+                             abs(ev - w["price"]) < 0.02, VV.ERROR,
+                             "expected value recomputes from "
+                             "probability x price",
+                             "%.2f vs %.2f" % (ev, w["price"])))
+    ia_lvl = ia.get("level")
+    checks.append(VV.chk("NO_PROBABILITY_WHEN_NOT_UNDERWRITTEN",
+                         not (w and ia_lvl == "NOT_UNDERWRITTEN"),
+                         VV.ERROR,
+                         "no probability weighting on a NOT_UNDERWRITTEN "
+                         "name", "weighted=%s, ia=%s"
+                         % (bool(w), ia_lvl)))
 
     # ── expectations checks (v5.5 phase C) ───────────────────────────
     exp = view5.get("expectations") or {}

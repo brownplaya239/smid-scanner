@@ -180,7 +180,38 @@ def build(ticker, multiples, spot, assumptions=None, note=None):
                 + " probabilities ignored: must cover bear/base/bull and "
                   "sum to 1").strip()
 
+    # ── asymmetry + expected value (phase E) ─────────────────────────
+    rd = {r["leg"]: r for r in rows}
+    bear_p, bull_p = rd["bear"]["price"], rd["bull"]["price"]
+    downside = round(100.0 * (bear_p / spot - 1), 1)
+    upside = round(100.0 * (bull_p / spot - 1), 1)
+    asym = {"downside_to_bear_pct": downside,
+            "upside_to_bull_pct": upside,
+            "up_down_ratio": (round(abs(upside) / abs(downside), 2)
+                              if downside < 0 and upside > 0 else None),
+            "basis": "bull/bear scenario prices vs spot"}
+    if weighted:
+        probs = weighted["probabilities"]
+        ev = weighted["price"]
+        weighted["expected_value_contribution"] = {
+            l: round(rd[l]["price"] * probs[l], 2)
+            for l in ("bear", "base", "bull")}
+        weighted["expected_return_pct"] = round(
+            100.0 * (ev / spot - 1), 1)
+        hz = fields.get("horizon_years")
+        if hz and isinstance(hz.get("value"), (int, float))                 and hz["value"] > 0:
+            yrs = float(hz["value"])
+            weighted["annualized_return_pct"] = round(
+                100.0 * ((ev / spot) ** (1.0 / yrs) - 1), 1)
+            weighted["horizon_years"] = yrs
+        else:
+            weighted["annualized_return_pct"] = None
+        weighted["caveat"] = ("probability weighting reflects the "
+                              "stated judgments; it does not remove "
+                              "model uncertainty")
+
     out.update({"available": True, "rows": rows, "weighted": weighted,
+                "asymmetry": asym,
                 "band_ref": {k: band.get(k) for k in
                              ("kind", "window_years", "window_start",
                               "window_end", "coverage")},

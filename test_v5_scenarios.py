@@ -89,6 +89,36 @@ check("probabilities only via file, and weighted price recomputes",
               - (0.2 * 80 + 0.5 * 68 + 0.3 * 120)) < 0.01,
       str(rec2["weighted"]))
 
+# ── phase E: EV, asymmetry, annualized ───────────────────────────────
+w2 = rec2["weighted"]
+check("EV contributions recompute (sum == price)",
+      abs(sum(w2["expected_value_contribution"].values())
+          - w2["price"]) < 0.02, str(w2["expected_value_contribution"]))
+check("expected return derived from EV vs spot",
+      abs(w2["expected_return_pct"]
+          - round(100.0 * (w2["price"] / 100.0 - 1), 1)) < 0.11)
+check("no horizon -> no annualized figure",
+      w2["annualized_return_pct"] is None)
+check("weighted carries the uncertainty caveat",
+      "uncertainty" in (w2.get("caveat") or ""))
+asym = rec2["asymmetry"]
+check("asymmetry block: bear/bull vs spot with ratio",
+      asym["downside_to_bear_pct"] == -20.0
+      and asym["upside_to_bull_pct"] == 20.0
+      and asym["up_down_ratio"] == 1.0, str(asym))
+
+hz = json.loads(json.dumps(GOOD))
+hz["fields"]["horizon_years"] = {"value": 3, "basis": "underwriting"}
+write_asm(hz)
+asm_h, _ = S.load_assumptions("TEST", today="2026-07-28")
+rec_h = S.build("TEST", BAND, spot=100.0, assumptions=asm_h)
+wh = rec_h["weighted"]
+check("horizon -> annualized return computed",
+      wh["annualized_return_pct"] is not None
+      and abs(wh["annualized_return_pct"]
+              - 100.0 * ((wh["price"] / 100.0) ** (1 / 3.0) - 1)) < 0.11,
+      str(wh["annualized_return_pct"]))
+
 write_asm({**GOOD, "expires": "2026-07-27"})
 asm3, note3 = S.load_assumptions("TEST", today="2026-07-28")
 check("expired assumptions dropped with a loud note",

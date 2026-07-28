@@ -90,6 +90,22 @@ def _p1_dashboard(snap, view5):
     st.append(para("Investment summary", "h2"))
     st.append(R4._rating_panel(v4))
 
+    asx = view5.get("assessment") or {}
+    bq = asx.get("business_quality") or {}
+    ia = asx.get("investment_attractiveness") or {}
+    if bq.get("level"):
+        st.append(para("<b>Business quality: %s</b> &mdash; %s. Not "
+                       "assessed (no admitted source): %s."
+                       % (bq["level"], _clean("; ".join(bq["reasons"])),
+                          _clean(", ".join(bq.get("not_assessed") or []))),
+                       "small"))
+    if ia.get("level"):
+        st.append(para("<b>Investment attractiveness: %s</b> &mdash; %s."
+                       % (ia["level"],
+                          _clean("; ".join(ia["reasons"]))), "small"))
+    if asx.get("tension"):
+        st.append(para("<i>%s</i>" % _clean(asx["tension"]), "body"))
+
     sc = view5.get("scenarios") or {}
     if sc.get("available"):
         st.append(para("Scenarios &mdash; own-history multiples, filed "
@@ -308,6 +324,27 @@ def _p4_valuation(snap, view5):
             st.append(para("Sensitivity: &plusmn;1 turn of the base "
                            "multiple = &plusmn;$%.2f on the base price."
                            % sens, "small", DERIVED))
+        asym = sc.get("asymmetry") or {}
+        if asym:
+            st.append(para("Asymmetry: bear %s%% &middot; bull %s%% "
+                           "&middot; upside/downside %s"
+                           % (asym.get("downside_to_bear_pct"),
+                              asym.get("upside_to_bull_pct"),
+                              ("%.1fx" % asym["up_down_ratio"])
+                              if asym.get("up_down_ratio") else "n/a"),
+                           "body", DERIVED))
+        w = sc.get("weighted")
+        if w:
+            st.append(para("Probability-weighted value $%.2f "
+                           "(%+.1f%% expected%s) [ASM] &mdash; %s. %s."
+                           % (w["price"], w.get("expected_return_pct", 0),
+                              (", %.1f%%/yr over %gy"
+                               % (w["annualized_return_pct"],
+                                  w["horizon_years"]))
+                              if w.get("annualized_return_pct")
+                              is not None else "",
+                              _clean(w["basis"]),
+                              _clean(w.get("caveat") or "")), "small"))
         for r in sc["rows"]:
             if r["multiple"]["grade"] == "ASM":
                 st.append(para("%s multiple is an assumption: %s"
