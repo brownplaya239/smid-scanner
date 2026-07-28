@@ -486,7 +486,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                   else SECTION_TITLES[i])]
                 for i in range(14)],
                [BODY_W * .08, BODY_W * .62],
-               header=["Section", "Contents"], zebra=True),
+               header=["No.", "Contents"], zebra=True),
         para("Full hashes appear once in the introduction; the "
              "appendix PDF's own sha256 and the complete ID-to-source "
              "ledger are in the validation JSON and the companion "
