@@ -52,8 +52,11 @@ def build_view(ticker, override=None):
     asm, note = S5.load_assumptions(ticker)
     scenarios = S5.build(ticker, multiples, spot, asm, note)
     print("  [v5] claims + grid...")
-    claims = C5.build(snap, v4, scenarios, estimates)
     grid = G5.build(ticker)
+    import report_v5_expectations as E5
+    expectations = E5.build(snap, grid, multiples, scenarios, estimates,
+                            asm)
+    claims = C5.build(snap, v4, scenarios, estimates)
     has_options = None
     try:
         import polygon_data as PG
@@ -78,7 +81,7 @@ def build_view(ticker, override=None):
     view5 = {"v4": v4, "archetype": arch, "multiples": multiples,
              "scenarios": scenarios, "claims": claims, "grid": grid,
              "has_options": has_options, "estimates": estimates,
-             "profile": profile}
+             "profile": profile, "expectations": expectations}
     return snap, prov, view5
 
 
@@ -141,6 +144,30 @@ def validate(view5, core_pdf, rendered, apx_pdf=None):
                 "no probability weights without a user assumptions file",
                 "clean" if "Probability-weighted" not in text
                 else "weighted value rendered without a source"))
+
+    # ── expectations checks (v5.5 phase C) ───────────────────────────
+    exp = view5.get("expectations") or {}
+    var = exp.get("variant") or {}
+    if var.get("available"):
+        checks.append(VV.chk("VARIANT_HAS_EXPECTATIONS_GAP",
+                             var.get("gap_pct") is not None
+                             and bool(var.get("source")), VV.ERROR,
+                             "a rendered variant carries a sourced gap",
+                             "gap %s%% vs %s" % (var.get("gap_pct"),
+                                                 var.get("source"))))
+    else:
+        checks.append(VV.chk("VARIANT_HAS_EXPECTATIONS_GAP", True,
+                             VV.ERROR,
+                             "no variant claimed without sourced "
+                             "expectations",
+                             var.get("reason") or "unavailable"))
+    bad = [k["metric"] for k in exp.get("kpis") or []
+           if k.get("consensus") is not None
+           and not (k.get("consensus_source") and k.get("consensus_as_of"))]
+    checks.append(VV.chk("EXPECTATIONS_CANONICAL_AND_SOURCED", not bad,
+                         VV.ERROR,
+                         "every consensus figure carries source + as_of",
+                         ", ".join(bad) or "all sourced"))
 
     # ── claim-contract checks (v5.5 phase B) ─────────────────────────
     cl = view5.get("claims") or {}

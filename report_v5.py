@@ -314,6 +314,35 @@ def _p4_valuation(snap, view5):
                                % (r["leg"].title(),
                                   _clean(r["multiple"]["basis"])),
                                "small"))
+    # ── expectations matrix (canonical object, phase C) ──────────────
+    exp = view5.get("expectations") or {}
+    if exp.get("matrix"):
+        st.append(para("Expectations &mdash; who expects what", "h2"))
+        rows = [[_clean(m["topic"])[:34], _clean(m["market"])[:38],
+                 _clean(m["tickerdesk"])[:30], m["evidence"],
+                 _clean(m["implication"])[:26]]
+                for m in exp["matrix"]]
+        st.append(_table(rows, [BODY_W * .22, BODY_W * .26, BODY_W * .2,
+                                BODY_W * .07, BODY_W * .17],
+                         header=["Topic", "Market / guidance",
+                                 "TickerDesk", "Ev.", "Implication"],
+                         zebra=True))
+        if exp.get("justify_price"):
+            st.append(para("<b>Priced in:</b> %s."
+                           % _clean(exp["justify_price"]), "small",
+                           DERIVED))
+        var = exp.get("variant") or {}
+        if var.get("available"):
+            st.append(para("<b>Variant perception:</b> TickerDesk %.4g "
+                           "vs market %.4g on %s &mdash; a %+.1f%% gap "
+                           "(%s)." % (var["tickerdesk"], var["market"],
+                                      _clean(var["metric"]),
+                                      var["gap_pct"],
+                                      _clean(var["source"])), "body"))
+        else:
+            st.append(para("No variant perception is claimed: %s."
+                           % _clean(var.get("reason") or ""), "small"))
+
     # peer cross-check from the v4 view, if present
     val4 = (view5["v4"].get("valuation") or {})
     pr = val4.get("peers") or {}
