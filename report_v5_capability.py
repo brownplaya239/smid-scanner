@@ -146,7 +146,7 @@ def evidence_capability(snap, multiples=None, estimates=None,
 
 def route(profile, capability, event, multiples=None, has_options=None,
           override=None, override_author=None, override_reason=None,
-          framework=None):
+          framework=None, adapter=None):
     """Deterministic archetype from capabilities AND framework coverage
     (§6). FULL is earned by diligence coverage — financial statements,
     price history and a multiple band alone route FULL_THIN, with the
@@ -197,16 +197,27 @@ def route(profile, capability, event, multiples=None, has_options=None,
     contract = {k: list(v) if isinstance(v, tuple) else v
                 for k, v in A.CONTRACTS[decision].items()}
     if decision in (A.FULL, A.FULL_THIN, A.THIN):
-        if ok("valuation_range_construction"):
+        # §2 (v5.7): the promotion respects the sector adapter — a band
+        # that computed for a method the model's economics cannot
+        # support must not make the valuation table REQUIRED
+        _pol = ((adapter or {}).get("policy") or {})
+        _allowed = tuple(_pol.get("valuation_allowed", ("pe", "ps")))
+        _band_allowed = any(((multiples or {}).get(k) or {}).get(
+            "available") for k in _allowed)
+        if ok("valuation_range_construction") and _band_allowed:
             A._promote(contract, "valuation_table")
             A._promote(contract, "valuation_detail")
-            reasons.append("a multiple band survived coverage — the "
-                           "valuation table is required (historical "
-                           "percentiles; forward legs only when "
-                           "underwritten)")
+            reasons.append("a permitted multiple band survived coverage "
+                           "— the valuation table is required "
+                           "(historical percentiles; forward legs only "
+                           "when underwritten)")
         else:
             reasons.append("valuation table stays optional: %s"
-                           % caps["valuation_range_construction"]["reason"])
+                           % (_pol.get("valuation_reason")
+                              if not _band_allowed and _allowed != (
+                                  "pe", "ps")
+                              else caps["valuation_range_construction"
+                                        ]["reason"]))
         if decision in (A.FULL, A.FULL_THIN):
             if ok("technical_analysis"):
                 A._promote(contract, "technicals")

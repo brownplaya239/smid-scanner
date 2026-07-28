@@ -383,7 +383,7 @@
    "expected_failure": "governance gap detected",
    "intended_check": "ADAPTER_GOVERNS_ARGUMENT_BUILDER",
    "mutation_id": "M39b-ungoverned-builder",
-   "observed_failure": "argument builder ran without the adapter policy (None vs 'reit')",
+   "observed_failure": "argument builder ran without the adapter policy (None vs ['reit'])",
    "proven": true,
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   },
@@ -455,7 +455,7 @@
    "expected_failure": "governance gap detected",
    "intended_check": "ADAPTER_GOVERNS_VALUATION",
    "mutation_id": "M39c-ungoverned-valuation",
-   "observed_failure": "valuation selection ran without the adapter policy (None vs 'reit')",
+   "observed_failure": "valuation selection ran without the adapter policy (None vs ['reit'])",
    "proven": true,
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   },

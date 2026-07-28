@@ -428,23 +428,26 @@ def _p3_grid(snap, view5):
     st = [para("Financial dashboard &mdash; as filed", "h2")]
     years = g.get("years") or []
     if not years:
+        # a missing annual grid must not short-circuit the SECTOR
+        # dashboard below — a thin filing history is exactly when the
+        # sector-appropriate slots (and their absences) matter most
         st.append(para("No comparably filed annual history.", "small"))
-        return st
-    head = ["$M unless noted"] + [y[:4] for y in years] + ["TTM"]
-    body = []
-    for key, label, kind in g["rows"]:
-        row = [label]
-        for y in years:
-            v = (g["columns"][y] or {}).get(key)
-            row.append(_grid_cell(v, kind))
-        row.append(_grid_cell((g.get("ttm") or {}).get(key), kind))
-        body.append(row)
-    w = BODY_W * 0.30
-    cw = [w] + [(BODY_W - w) / (len(years) + 1)] * (len(years) + 1)
-    st.append(_table(body, cw, header=head, zebra=True))
-    st.append(para("TTM through %s. %s." % (
-        _clean((g.get("ttm") or {}).get("through") or "n/a"),
-        _clean(g.get("basis") or "")), "small", OBSERVED))
+    else:
+        head = ["$M unless noted"] + [y[:4] for y in years] + ["TTM"]
+        body = []
+        for key, label, kind in g["rows"]:
+            row = [label]
+            for y in years:
+                v = (g["columns"][y] or {}).get(key)
+                row.append(_grid_cell(v, kind))
+            row.append(_grid_cell((g.get("ttm") or {}).get(key), kind))
+            body.append(row)
+        w = BODY_W * 0.30
+        cw = [w] + [(BODY_W - w) / (len(years) + 1)] * (len(years) + 1)
+        st.append(_table(body, cw, header=head, zebra=True))
+        st.append(para("TTM through %s. %s." % (
+            _clean((g.get("ttm") or {}).get("through") or "n/a"),
+            _clean(g.get("basis") or "")), "small", OBSERVED))
     for gap in g.get("gaps") or []:
         st.append(para(_clean(gap), "small"))
 

@@ -561,15 +561,21 @@ def provenance_issues(result, head_sha=None, tree_sha=None, dirty=None):
 
 
 def adapter_governance_issues(cl, sc, adapter):
+    # a post-routing reclassification (pre-revenue -> new-listing) is
+    # legitimate: analysis ran under the pre-routing policy, which the
+    # adapter records
+    keys = {(adapter or {}).get("key"),
+            (adapter or {}).get("reclassified_from")}
+    keys.discard(None)
     bad = []
-    key = (adapter or {}).get("key")
-    if (cl or {}).get("adapter_key") != key:
+    if (cl or {}).get("adapter_key") not in keys:
         bad.append("argument builder ran without the adapter policy "
-                   "(%r vs %r)" % ((cl or {}).get("adapter_key"), key))
+                   "(%r vs %r)" % ((cl or {}).get("adapter_key"),
+                                   sorted(keys)))
     vp = ((sc or {}).get("valuation_policy") or {})
-    if vp.get("adapter") != key:
+    if vp.get("adapter") not in keys:
         bad.append("valuation selection ran without the adapter policy "
-                   "(%r vs %r)" % (vp.get("adapter"), key))
+                   "(%r vs %r)" % (vp.get("adapter"), sorted(keys)))
     return bad
 
 

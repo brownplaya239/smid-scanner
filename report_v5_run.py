@@ -101,12 +101,15 @@ def build_view(ticker, override=None):
                      override=override,
                      override_author="cli" if override else None,
                      override_reason="--archetype flag" if override
-                     else None, framework=framework)
+                     else None, framework=framework, adapter=adapter)
     if arch["archetype"] == "NEW_LISTING" \
             and adapter.get("key") != "new_listing":
+        # presentation reclassification only — the analysis already ran
+        # (and is recorded) under the pre-routing policy
         adapter = dict(ADP.classify(profile, snap,
                                     archetype="NEW_LISTING"),
-                       one_time_items=[])
+                       one_time_items=[],
+                       reclassified_from=adapter.get("key"))
     print("  [v5] archetype: %s (%s)" % (arch["archetype"],
                                          arch["routing_reason"][:70]))
     view5 = {"v4": v4, "archetype": arch, "multiples": multiples,
