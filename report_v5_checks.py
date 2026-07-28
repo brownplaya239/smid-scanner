@@ -491,15 +491,22 @@ def sundheim_header_issues(page_texts, sd=None):
     only when at least two DISTINCT substantial answers appear — short
     answers ('not established') recur in ordinary prose and must not
     trip the detector."""
+    qs = (sd or {}).get("questions") or []
     answers = [re.sub(r"\s+", " ", str(q.get("answer") or ""))[:40]
-               for q in ((sd or {}).get("questions") or [])
-               if len(str(q.get("answer") or "")) >= 25]
+               for q in qs if len(str(q.get("answer") or "")) >= 25]
+    questions = [re.sub(r"\s+", " ", str(q.get("question") or ""))
+                 for q in qs if q.get("question")]
     bad = []
     for i, t in enumerate(page_texts or []):
         norm = re.sub(r"\s+", " ", t or "")
         n_rows = sum(1 for a in set(answers) if a and a in norm)
+        # answers alone are not proof of table rows — several answers
+        # quote claim texts that legitimately recur in the claims
+        # section. A continuation page shows the QUESTION column too.
+        n_qs = sum(1 for q in set(questions) if q and q in norm)
         starts_here = "Sundheim decision record" in norm
-        if n_rows >= 2 and not starts_here and "Question" not in norm:
+        if n_rows >= 2 and n_qs >= 1 and not starts_here \
+                and "Question" not in norm:
             bad.append("page %d carries Sundheim rows without a "
                        "repeated header" % (i + 1))
     return bad

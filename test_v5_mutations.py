@@ -337,7 +337,7 @@ prove("M42-missing-repeated-header", "a continuation page with rows "
       "missing header detected",
       CK.sundheim_header_issues(
           ["Sundheim decision record\nQuestion\nQ1",
-           "the full answer that must render without clipping "
+           "Q2\nthe full answer that must render without clipping "
            "anywhere\na second substantial answer that also flows "
            "onto the next page"],
           _sd_fix))
