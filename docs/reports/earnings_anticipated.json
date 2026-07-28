@@ -1,6 +1,6 @@
 {
  "week_of": "2026-07-27",
- "generated": "2026-07-28T16:48:36-04:00",
+ "generated": "2026-07-28T18:37:53-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 393,
  "days": [
@@ -567,17 +567,6 @@
      "mcap": 126212537036.25
     },
     {
-     "ticker": "GSK",
-     "company": "GlaxoSmithKline plc",
-     "score": 2,
-     "analysts": 19,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-07-28T00:00:00",
-     "q": "6/2026",
-     "mcap": 102843660970.7
-    },
-    {
      "ticker": "UPS",
      "company": "United Parcel Service, Inc.",
      "score": 29,
@@ -941,6 +930,17 @@
      "mcap": 4665201876.88
     },
     {
+     "ticker": "PJT",
+     "company": "PJT Partners Inc.",
+     "score": 2,
+     "analysts": 8,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-07-28T00:00:00",
+     "q": "6/2026",
+     "mcap": 4366164783.86
+    },
+    {
      "ticker": "ABG",
      "company": "Asbury Automotive Group Inc",
      "score": 3,
@@ -954,7 +954,7 @@
     {
      "ticker": "ITRI",
      "company": "Itron, Inc.",
-     "score": 3,
+     "score": 4,
      "analysts": 13,
      "release_time": 1,
      "confirmed": true,
@@ -1666,7 +1666,7 @@
     {
      "ticker": "VRT",
      "company": "Vertiv Holdings Co",
-     "score": 30,
+     "score": 32,
      "analysts": 26,
      "release_time": 1,
      "confirmed": true,
@@ -1765,7 +1765,7 @@
     {
      "ticker": "HUM",
      "company": "Humana, Inc.",
-     "score": 12,
+     "score": 13,
      "analysts": 26,
      "release_time": 1,
      "confirmed": true,
@@ -1787,7 +1787,7 @@
     {
      "ticker": "VMC",
      "company": "Vulcan Materials Company",
-     "score": 7,
+     "score": 8,
      "analysts": 23,
      "release_time": 1,
      "confirmed": true,
@@ -1853,7 +1853,7 @@
     {
      "ticker": "SOFI",
      "company": "SoFi",
-     "score": 89,
+     "score": 92,
      "analysts": 25,
      "release_time": 1,
      "confirmed": true,
@@ -1919,7 +1919,7 @@
     {
      "ticker": "ARCC",
      "company": "Ares Capital Corp",
-     "score": 4,
+     "score": 5,
      "analysts": 15,
      "release_time": 1,
      "confirmed": true,
@@ -2185,7 +2185,7 @@
     {
      "ticker": "MSFT",
      "company": "Microsoft Corp.",
-     "score": 210,
+     "score": 214,
      "analysts": 51,
      "release_time": 3,
      "confirmed": true,
@@ -2196,7 +2196,7 @@
     {
      "ticker": "META",
      "company": "Meta Platforms, Inc.",
-     "score": 104,
+     "score": 106,
      "analysts": 54,
      "release_time": 3,
      "confirmed": true,
@@ -2218,7 +2218,7 @@
     {
      "ticker": "ARM",
      "company": "Arm Holdings plc ",
-     "score": 30,
+     "score": 31,
      "analysts": 31,
      "release_time": 3,
      "confirmed": true,
@@ -2229,7 +2229,7 @@
     {
      "ticker": "QCOM",
      "company": "Qualcomm Incorporated",
-     "score": 31,
+     "score": 32,
      "analysts": 34,
      "release_time": 3,
      "confirmed": true,
@@ -2807,7 +2807,7 @@
     {
      "ticker": "VLO",
      "company": "Valero Energy Corp.",
-     "score": 11,
+     "score": 12,
      "analysts": 20,
      "release_time": 1,
      "confirmed": true,
@@ -3293,7 +3293,7 @@
     {
      "ticker": "AAPL",
      "company": "Apple, Inc.",
-     "score": 119,
+     "score": 121,
      "analysts": 42,
      "release_time": 3,
      "confirmed": true,
@@ -3304,7 +3304,7 @@
     {
      "ticker": "AMZN",
      "company": "Amazon.com, Inc.",
-     "score": 96,
+     "score": 98,
      "analysts": 57,
      "release_time": 3,
      "confirmed": true,
@@ -3849,7 +3849,7 @@
     {
      "ticker": "XOM",
      "company": "Exxon Mobil Corp.",
-     "score": 15,
+     "score": 16,
      "analysts": 27,
      "release_time": 1,
      "confirmed": true,
@@ -3860,7 +3860,7 @@
     {
      "ticker": "ABBV",
      "company": "AbbVie Inc.",
-     "score": 4,
+     "score": 5,
      "analysts": 31,
      "release_time": 1,
      "confirmed": true,
@@ -3871,7 +3871,7 @@
     {
      "ticker": "CVX",
      "company": "Chevron Corporation",
-     "score": 7,
+     "score": 8,
      "analysts": 26,
      "release_time": 1,
      "confirmed": true,
@@ -3893,7 +3893,7 @@
     {
      "ticker": "ETN",
      "company": "Eaton Corp.",
-     "score": 4,
+     "score": 5,
      "analysts": 24,
      "release_time": 1,
      "confirmed": true,
@@ -3915,7 +3915,7 @@
     {
      "ticker": "CL",
      "company": "Colgate-Palmolive Co.",
-     "score": 2,
+     "score": 3,
      "analysts": 22,
      "release_time": 1,
      "confirmed": true,
@@ -3926,7 +3926,7 @@
     {
      "ticker": "D",
      "company": "Dominion Energy, Inc.",
-     "score": 3,
+     "score": 4,
      "analysts": 17,
      "release_time": 1,
      "confirmed": true,
@@ -3959,7 +3959,7 @@
     {
      "ticker": "CCJ",
      "company": "Cameco Corp.",
-     "score": 6,
+     "score": 7,
      "analysts": 20,
      "release_time": 1,
      "confirmed": true,
@@ -4025,7 +4025,7 @@
     {
      "ticker": "CHD",
      "company": "Church & Dwight Co., Inc.",
-     "score": 2,
+     "score": 3,
      "analysts": 20,
      "release_time": 1,
      "confirmed": true,
@@ -4036,7 +4036,7 @@
     {
      "ticker": "MRNA",
      "company": "Moderna, Inc.,",
-     "score": 6,
+     "score": 7,
      "analysts": 23,
      "release_time": 1,
      "confirmed": true,
@@ -4069,7 +4069,7 @@
     {
      "ticker": "MGA",
      "company": "Magna International Inc.",
-     "score": 3,
+     "score": 4,
      "analysts": 19,
      "release_time": 1,
      "confirmed": true,
@@ -4091,7 +4091,7 @@
     {
      "ticker": "BTSG",
      "company": "BrightSpring Health Services, Inc.",
-     "score": 2,
+     "score": 3,
      "analysts": 19,
      "release_time": 1,
      "confirmed": true,
@@ -4157,7 +4157,7 @@
     {
      "ticker": "AN",
      "company": "AutoNation Inc.",
-     "score": 5,
+     "score": 6,
      "analysts": 15,
      "release_time": 1,
      "confirmed": true,
@@ -4311,7 +4311,7 @@
     {
      "ticker": "ABR",
      "company": "Arbor Realty Trust Inc.",
-     "score": 3,
+     "score": 4,
      "analysts": 6,
      "release_time": 1,
      "confirmed": true,
