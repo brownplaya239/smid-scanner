@@ -64,6 +64,10 @@ _COMPACT = [0]
 
 
 def _cap(n):
+    # positive levels shorten the printed samples; NEGATIVE levels
+    # lengthen them (more of the already-recorded population printed —
+    # more disclosure, never invention) so a sparse final page can be
+    # filled with real content when nothing can be pulled up
     return max(3, n - 3 * _COMPACT[0])
 
 
@@ -541,7 +545,9 @@ def build(snap, view5, prov, core_hash, ledger, report_id,
         if len(occ) > 1 and occ[-1] < _FINAL_MIN:
             best, best_occ = data, occ
             for compact, pull in ((0, 2), (0, 3), (1, 0), (1, 2),
-                                  (2, 0), (2, 2), (2, 3)):
+                                  (2, 0), (2, 2), (2, 3),
+                                  (-1, 0), (-1, 2), (-2, 0), (-2, 2),
+                                  (-3, 0)):
                 _COMPACT[0] = compact
                 story = _story(snap, view5, prov, core_hash, ledger,
                                report_id)
@@ -549,13 +555,18 @@ def build(snap, view5, prov, core_hash, ledger, report_id,
                     story = _pull_up(story, pull)
                 cand = _render(story)
                 c_occ = _CK.measure_occupancy(cand)
+                print("    [apx §5] compact=%d pull=%d -> %s"
+                      % (compact, pull,
+                         ["%.0f%%" % (r * 100) for r in c_occ]),
+                      file=__import__("sys").stderr)
                 if _score(c_occ) > _score(best_occ):
                     best, best_occ = cand, c_occ
                 if _score(best_occ)[0]:
                     break
             data = best
     except Exception:
-        pass                       # measurement failure keeps pass one
+        import traceback
+        traceback.print_exc()      # measurement failure keeps pass one
     finally:
         _COMPACT[0] = 0
     if out_path:
