@@ -26,15 +26,91 @@ MAX_AGE_H = 26
 
 
 def fetch_finnhub():
+    """Finnhub /news is NOT included in the current key's plan (401
+    from every IP — the estimates endpoints are what the plan covers).
+    Tried first anyway: if the plan is ever upgraded this path starts
+    working with no code change. Returns [] on any failure."""
     key = (os.environ.get("FINNHUB_API_KEY") or "").strip()
     if not key:
-        sys.exit("FINNHUB_API_KEY not set — this relay is CI-only")
-    req = urllib.request.Request(
-        "https://finnhub.io/api/v1/news?category=general",
-        headers={"X-Finnhub-Token": key, "Accept": "application/json",
-                 "User-Agent": "TickerDesk-MacroRelay/1.0"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return json.loads(r.read().decode("utf-8"))
+        return []
+    try:
+        req = urllib.request.Request(
+            "https://finnhub.io/api/v1/news?category=general",
+            headers={"X-Finnhub-Token": key,
+                     "Accept": "application/json",
+                     "User-Agent": "TickerDesk-MacroRelay/1.0"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            out = json.loads(r.read().decode("utf-8"))
+            return out if isinstance(out, list) else []
+    except Exception as e:
+        print("  finnhub unavailable (%s) — falling back to RSS wires"
+              % e)
+        return []
+
+
+# Public macro/market RSS wires — the sources that actually carry the
+# "Brent falls 5%" / "US-Iran talks" tape. Parsed with stdlib only.
+RSS_FEEDS = (
+    ("CNBC", "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
+    ("MarketWatch",
+     "https://feeds.content.dowjones.io/public/rss/mw_topstories"),
+    ("MarketWatch",
+     "https://feeds.content.dowjones.io/public/rss/mw_marketpulse"),
+    ("Google News · Markets",
+     "https://news.google.com/rss/search?q=markets%20OR%20oil%20OR%20"
+     "fed%20OR%20treasury%20OR%20opec%20when:1d&hl=en-US&gl=US"
+     "&ceid=US:en"),
+)
+
+
+def fetch_rss():
+    """-> list of Finnhub-shaped article dicts from the RSS wires."""
+    import email.utils
+    import hashlib
+    import xml.etree.ElementTree as ET
+    out = []
+    for name, url in RSS_FEEDS:
+        try:
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "TickerDesk-MacroRelay/1.0",
+                              "Accept": "application/rss+xml, text/xml"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                root = ET.fromstring(r.read())
+        except Exception as e:
+            print("  rss %s failed (non-fatal): %s" % (name, e))
+            continue
+        for item in root.iter("item"):
+            title = (item.findtext("title") or "").strip()
+            link = (item.findtext("link") or "").strip()
+            if not title:
+                continue
+            ts = None
+            pd = item.findtext("pubDate")
+            if pd:
+                try:
+                    ts = int(email.utils.parsedate_to_datetime(pd)
+                             .timestamp())
+                except Exception:
+                    ts = None
+            out.append({
+                "id": hashlib.sha1((link or title).encode()
+                                   ).hexdigest()[:16],
+                "headline": title,
+                "summary": (item.findtext("description") or "")[:400],
+                "source": name,
+                "url": link,
+                "datetime": ts,
+                "related": "",
+            })
+    # newest first, dedupe by normalized title
+    seen, uniq = set(), []
+    for a in sorted(out, key=lambda x: -(x.get("datetime") or 0)):
+        k = "".join(ch for ch in a["headline"].lower() if ch.isalnum())
+        if k in seen:
+            continue
+        seen.add(k)
+        uniq.append(a)
+    return uniq
 
 
 def to_row(a):
@@ -77,10 +153,8 @@ def upsert(rows):
 
 
 def main():
-    arts = fetch_finnhub()
-    if not isinstance(arts, list):
-        sys.exit("unexpected Finnhub response shape: %r" % type(arts))
-    rows = [r for r in (to_row(a) for a in arts[: MAX_ITEMS * 2])
+    arts = fetch_finnhub() or fetch_rss()
+    rows = [r for r in (to_row(a) for a in arts[: MAX_ITEMS * 3])
             if r][:MAX_ITEMS]
     if not rows:
         print("no fresh macro headlines in the window — nothing to relay")
