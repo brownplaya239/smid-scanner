@@ -1479,13 +1479,24 @@ async function fetchFinnhubMacroNews(env, limit) {
              articles: [] };
   }
   try {
+    // Header auth + explicit UA: Finnhub 401s bare fetches from edge
+    // runtimes that pass the token only in the query string.
+    const key = String(env.FINNHUB_API_KEY).trim();
     const r = await fetch(
-      "https://finnhub.io/api/v1/news?category=general&token="
-        + env.FINNHUB_API_KEY,
-      { cf: { cacheTtl: 60 }, signal: AbortSignal.timeout(8000) }
+      "https://finnhub.io/api/v1/news?category=general",
+      {
+        headers: {
+          "X-Finnhub-Token": key,
+          "User-Agent": "TickerDesk/1.0 (+https://tickerdesk.io)",
+          "Accept": "application/json",
+        },
+        cf: { cacheTtl: 60 },
+        signal: AbortSignal.timeout(8000),
+      }
     );
     if (!r.ok) {
-      return { error: "finnhub " + r.status, status: r.status, articles: [] };
+      return { error: "finnhub " + r.status, status: r.status,
+               keylen: key.length, articles: [] };
     }
     const j = await r.json();
     const lim = Math.min(Math.max(parseInt(limit) || 60, 1), 200);
