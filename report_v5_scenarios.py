@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""report_v5_scenarios.py — bear/base/bull scenario engine (v5 slice 2).
+
+A scenario price is (multiple x trailing metric). Nothing else. The
+multiples come from the historical-multiples engine (DER — the name's
+own P25/P50/P75, filing-date aligned); the metric is the current
+trailing figure from filed quarters (OBS-derived); the arithmetic is
+written out so the validator can recompute every cell from the rendered
+text.
+
+ASSUMPTIONS (the only place judgment enters, and it is labelled)
+    assumptions/<TICKER>.json, schema v5-assumptions/1. User-supplied
+    multiple overrides, forward metrics, and scenario probabilities
+    render as ASM with their basis and as-of date. An expired file is
+    DROPPED — noted in the record, never silently used. Probabilities
+    exist ONLY via this file: no file, no weights, no invented
+    precision.
+
+    {
+      "schema": "v5-assumptions/1",
+      "as_of": "2026-07-28", "expires": "2026-10-28",
+      "source": "user", "currency": "USD",
+      "units": "per-share", "fiscal_basis": "FY-Dec",
+      "fields": {
+        "base_multiple":  {"value": 17.0, "basis": "own 5yr median"},
+        "bull_multiple":  {"value": 21.0, "basis": "re-rate to peers"},
+        "bear_multiple":  {"value": 13.0, "basis": "2022 trough"},
+        "forward_metric": {"value": 3.47, "basis": "FY17 EPS est"},
+        "probabilities":  {"bear": 0.2, "base": 0.5, "bull": 0.3}
+      }
+    }
+"""
+
+import json
+import os
+from datetime import datetime, timezone
+
+_BASE = os.path.dirname(os.path.abspath(__file__))
+ASSUMPTIONS_DIR = os.path.join(_BASE, "assumptions")
+SCHEMA = "v5-assumptions/1"
+
+OBS, DER, ASM = "OBS", "DER", "ASM"
+
+REQUIRED_ENVELOPE = ("schema", "as_of", "source", "currency", "units",
+                     "fiscal_basis")
+
+
+def load_assumptions(ticker, today=None):
+    """The versioned contract. Returns (fields|None, note). Anything
+    malformed or expired yields None plus a note that the report and the
+    validation file both carry — a bad assumptions file must be visible,
+    not silently ignored."""
+    path = os.path.join(ASSUMPTIONS_DIR, "%s.json" % ticker.upper())
+    if not os.path.exists(path):
+        return None, None
+    try:
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+    except Exception as e:
+        return None, "assumptions file unreadable (%s) — ignored" % e
+    if doc.get("schema") != SCHEMA:
+        return None, ("assumptions schema %r is not %s — ignored"
+                      % (doc.get("schema"), SCHEMA))
+    missing = [k for k in REQUIRED_ENVELOPE if not doc.get(k)]
+    if missing:
+        return None, ("assumptions missing %s — ignored"
+                      % ", ".join(missing))
+    today = today or datetime.now(timezone.utc).date().isoformat()
+    exp = doc.get("expires")
+    if exp and str(exp) < today:
+        return None, ("user assumptions dated %s expired %s — scenarios "
+                      "revert to historical bands" % (doc["as_of"], exp))
+    fields = doc.get("fields") or {}
+    for k, v in fields.items():
+        if k == "probabilities":
+            continue
+        if not isinstance(v, dict) or v.get("value") is None \
+                or not v.get("basis"):
+            return None, ("assumption %r lacks value+basis — file "
+                          "ignored" % k)
+    meta = {k: doc[k] for k in REQUIRED_ENVELOPE}
+    meta["expires"] = exp
+    return {"meta": meta, "fields": fields}, None
+
+
+def _cell(value, grade, basis):
+    return {"value": value, "grade": grade, "basis": basis}
+
+
+def build(ticker, multiples, spot, assumptions=None, note=None):
+    """The scenario table.
+
+    multiples : record from report_v5_multiples.build()
+    spot      : last completed close (OBS)
+    Returns {available, metric_kind, rows, weighted, assumptions_note,
+             arithmetic[]} — or a withheld record naming the reason.
+    Selection: P/E when its band survived coverage, else P/S, else
+    withheld. The metric is ALWAYS the trailing figure the band was
+    computed against, so multiple x metric is internally consistent —
+    unless a forward_metric assumption replaces it, labelled ASM."""
+    out = {"ticker": ticker.upper(), "spot": spot,
+           "assumptions_note": note}
+    band = None
+    for kind in ("pe", "ps"):
+        b = multiples.get(kind) or {}
+        if b.get("available"):
+            band, out["metric_kind"] = b, kind
+            break
+    if band is None:
+        reasons = [(multiples.get(k) or {}).get("reason")
+                   or "band unavailable" for k in ("pe", "ps")]
+        out.update({"available": False,
+                    "reason": "no multiple band survived its coverage "
+                              "floor (P/E: %s; P/S: %s)" % tuple(reasons)})
+        return out
+
+    # trailing metric implied by the band's own current multiple — the
+    # exact series the percentiles came from, no re-derivation drift
+    cur_mult = band.get("current")
+    if not cur_mult or not spot:
+        out.update({"available": False,
+                    "reason": "no current multiple/spot to anchor the "
+                              "metric"})
+        return out
+    metric = round(spot / cur_mult, 4)
+    metric_cell = _cell(metric, DER,
+                        "spot / current trailing multiple — the trailing "
+                        "%s the band itself was computed on"
+                        % ("EPS" if out["metric_kind"] == "pe"
+                           else "revenue/share"))
+
+    fields = (assumptions or {}).get("fields") or {}
+    fmeta = (assumptions or {}).get("meta") or {}
+    stamp = ("user-supplied %s" % fmeta.get("as_of")) if fields else None
+    fwd = fields.get("forward_metric")
+    if fwd:
+        metric_cell = _cell(float(fwd["value"]), ASM,
+                            "%s (%s)" % (fwd["basis"], stamp))
+        metric = float(fwd["value"])
+
+    legs = {"bear": band.get("p25"), "base": band.get("p50"),
+            "bull": band.get("p75")}
+    rows, arithmetic = [], []
+    for leg in ("bear", "base", "bull"):
+        ov = fields.get("%s_multiple" % leg)
+        if ov:
+            mult_cell = _cell(float(ov["value"]), ASM,
+                              "%s (%s)" % (ov["basis"], stamp))
+        else:
+            mult_cell = _cell(legs[leg], DER,
+                              "own %d-yr %s of daily trailing %s"
+                              % (band["window_years"],
+                                 {"bear": "P25", "base": "P50",
+                                  "bull": "P75"}[leg],
+                                 out["metric_kind"].upper()))
+        price = round(mult_cell["value"] * metric, 2)
+        rows.append({"leg": leg, "multiple": mult_cell,
+                     "metric": metric_cell, "price": price,
+                     "vs_spot_pct": round(100.0 * (price / spot - 1), 1)})
+        arithmetic.append("%s: %.2f x %.4f = %.2f"
+                          % (leg, mult_cell["value"], metric, price))
+
+    # probabilities exist only via the assumptions file, and only when
+    # they cover all three legs and sum to ~1
+    weighted = None
+    probs = fields.get("probabilities")
+    if isinstance(probs, dict):
+        vals = [probs.get(l) for l in ("bear", "base", "bull")]
+        if all(isinstance(v, (int, float)) for v in vals) \
+                and abs(sum(vals) - 1.0) < 0.01:
+            wp = sum(r["price"] * p for r, p in zip(rows, vals))
+            weighted = {"price": round(wp, 2),
+                        "probabilities": {l: probs[l] for l in
+                                          ("bear", "base", "bull")},
+                        "grade": ASM,
+                        "basis": "user-supplied probabilities (%s)"
+                                 % fmeta.get("as_of")}
+        else:
+            out["assumptions_note"] = ((out.get("assumptions_note") or "")
+                + " probabilities ignored: must cover bear/base/bull and "
+                  "sum to 1").strip()
+
+    out.update({"available": True, "rows": rows, "weighted": weighted,
+                "band_ref": {k: band.get(k) for k in
+                             ("kind", "window_years", "window_start",
+                              "window_end", "coverage")},
+                "arithmetic": arithmetic})
+    return out
