@@ -116,8 +116,15 @@ def classify_security(ticker, snap, profile):
     ifrs = taxes.get("ifrs-full") or []
     forms = (idx or {}).get("forms") or []
 
-    # accounting regime: from the taxonomies the issuer actually files
-    if gaap:
+    # accounting regime: the taxonomy the issuer CURRENTLY files under.
+    # A transitioned foreign private issuer (US GAAP until year N, IFRS
+    # after) keeps both taxonomies in companyfacts — the regime is the
+    # one still receiving facts, decided by per-taxonomy recency.
+    latest = (idx or {}).get("latest_end") or {}
+    if gaap and ifrs:
+        regime = "ifrs" if (latest.get("ifrs-full") or "") \
+            >= (latest.get("us-gaap") or "") else "us-gaap"
+    elif gaap:
         regime = "us-gaap"
     elif ifrs:
         regime = "ifrs"

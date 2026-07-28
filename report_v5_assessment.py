@@ -79,6 +79,15 @@ def business_quality(snap, grid=None, adapter=None):
         except ValueError:
             gap = 9999
         bs_period_ok = gap <= 100
+    # §2 (v5.8): same-period relics still cannot grade a CURRENT
+    # position — instants older than the recency floor are not netted
+    if bs_period_ok and (cp or dp):
+        from datetime import date as _d, timedelta as _t
+        import report_v5_checks as _CK8
+        _newest = max(p for p in (cp, dp) if p)
+        if _newest < (_d.today() - _t(
+                days=_CK8.BS_LATEST_MAX_AGE_DAYS)).isoformat():
+            bs_period_ok = False
 
     pos, neg, reasons = 0, 0, []
     assessed = 0
@@ -129,13 +138,16 @@ def business_quality(snap, grid=None, adapter=None):
     if cash is not None and debt is not None \
             and "net_cash" not in banned:
         if not bs_period_ok:
-            # §1/§2 (v5.8): instants from different reporting dates
-            # never net — the canonical sentence renders verbatim
+            # §1/§2 (v5.8): instants from different reporting dates —
+            # or instants too old to describe a current position —
+            # never net; the canonical sentence renders verbatim
             import report_v5_checks as _CK
             not_assessed.append(
                 "balance-sheet position — %s (cash instant %s vs debt "
-                "instant %s)"
-                % (_CK.BS_NOT_ASSESSED_MSG.rstrip("."), cp, dp))
+                "instant %s%s)"
+                % (_CK.BS_NOT_ASSESSED_MSG.rstrip("."), cp, dp,
+                   "; instants predate the recency floor"
+                   if cp == dp else ""))
         else:
             assessed += 1
             metrics_used.append("net_cash")

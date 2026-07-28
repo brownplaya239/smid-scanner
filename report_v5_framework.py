@@ -207,7 +207,38 @@ def build_coverage(profile, capability, snap, grid=None, multiples=None,
     _pair = _CK.balance_sheet_pairing(fu)
     _cp = _CK._fact_period(fu.get("cash"))
     _dp = _CK._fact_period(fu.get("debt"))
-    if cash is not None and debt is not None and not _pair["ok"]:
+    # §2 (v5.8): a stale instant can DESCRIBE history but never support
+    # a current-position grade — an insurer whose generic cash/debt
+    # concepts died years ago is NOT_ASSESSED, not graded on relics
+    from datetime import date as _date, timedelta as _td
+    _bs_stale_limit = (_date.today() - _td(
+        days=_CK.BS_LATEST_MAX_AGE_DAYS)).isoformat()
+    _newest_instant = max((p for p in (_cp, _dp) if p), default=None)
+    if _newest_instant and _newest_instant < _bs_stale_limit:
+        _stale_msg = ("balance-sheet instants last filed under these "
+                      "concepts on %s — too stale to support a current "
+                      "position read" % _newest_instant)
+        d["balance_sheet"] = _dim(
+            NOT_ASSESSED, _stale_msg,
+            ev=_refs(fu.get("cash")) + _refs(fu.get("debt")),
+            confidence="low", freshness=_newest_instant,
+            unknowns=["current balance-sheet position"],
+            need=["parsing of the issuer's current balance-sheet "
+                  "concepts"])
+        d["total_loss_risks"] = _dim(
+            NOT_ASSESSED, _stale_msg,
+            ev=_refs(fu.get("cash")) + _refs(fu.get("debt")),
+            confidence="low", freshness=_newest_instant,
+            unknowns=["covenants", "contingent liabilities",
+                      "dilution capacity"],
+            need=["debt-agreement and legal-proceedings parsing"])
+        cash = debt = None       # downstream reads never grade relics
+        _bs_done = True
+    else:
+        _bs_done = False
+    if _bs_done:
+        pass                     # stale branch already graded both dims
+    elif cash is not None and debt is not None and not _pair["ok"]:
         d["balance_sheet"] = _dim(
             NOT_ASSESSED,
             "%s (cash instant %s vs debt instant %s)"
