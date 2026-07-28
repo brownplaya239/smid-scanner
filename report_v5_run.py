@@ -304,6 +304,15 @@ def run(ticker, out_dir="out_v5", override=None):
         except Exception as e:
             print("  chart: %s" % e)
 
+    # pre-render changeset (analysis-object diff only; the persisted
+    # state with artifact hashes is written after validation)
+    import report_v5_memory as MEM0
+    _prior, _prior_reason = MEM0.load_prior(ticker)
+    _pre_state = MEM0.build_state(ticker, view5, {"artifacts": {}},
+                                  prior_id=(_prior or {}).get(
+                                      "report_id"))
+    view5["changeset"] = MEM0.changeset(_prior, _pre_state)
+
     core_p = os.path.join(out_dir, "%s_equity_research_v5.pdf" % ticker)
     apx_p = os.path.join(out_dir,
                          "%s_equity_research_v5_appendix.pdf" % ticker)
@@ -320,6 +329,40 @@ def run(ticker, out_dir="out_v5", override=None):
     result = validate(view5, data, rendered, apx)
     import report_v4_run as RR
     result["artifacts"] = RR._artifact_hashes(core_p, apx_p)
+
+    # ── research memory (v5.5 phase F) ───────────────────────────────
+    import report_v5_memory as MEM
+    import report_v4_validate as VV
+    prior, prior_reason = MEM.load_prior(ticker)
+    state = MEM.build_state(ticker, view5, result,
+                            prior_id=(prior or {}).get("report_id"))
+    cs = MEM.changeset(prior, state)
+    if prior_reason and not cs["initial_underwriting"]:
+        cs["note"] = prior_reason
+    result["changeset"] = cs
+    result["research_state_id"] = state["report_id"]
+    result["checks"].append(VV.chk(
+        "PRIOR_REPORT_HASH_VALID",
+        cs["initial_underwriting"] or bool(cs.get("prior_core_pdf_hash")),
+        VV.ERROR,
+        "comparisons only against a hash-verified prior (or initial "
+        "underwriting)",
+        prior_reason or ("prior %s verified"
+                         % cs.get("prior_report_id"))))
+    mat = [c for c in cs["changes"]
+           if c["category"] in ("rating_change", "assessment_change",
+                                "scenario_change", "archetype_change")]
+    result["checks"].append(VV.chk(
+        "CHANGESET_MATERIAL_CHANGE_EXPLAINED",
+        all(c.get("reason") and c.get("evidence_refs") is not None
+            for c in mat), VV.ERROR,
+        "every material change carries a machine-readable reason",
+        "%d material change(s)" % len(mat)))
+    result["blocking_failures"] = [c["check_id"]
+                                   for c in result["checks"]
+                                   if c["status"] == "FAIL"]
+    result["ok"] = not result["blocking_failures"]
+    MEM.append_state(state)
     result["v5_inputs"] = {
         "multiples": {k: view5["multiples"].get(k) for k in ("pe", "ps")},
         "scenarios": view5.get("scenarios"),

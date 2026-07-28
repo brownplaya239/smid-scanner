@@ -149,6 +149,27 @@ def _p1_dashboard(snap, view5):
         st.append(para("Assumptions: %s" % _clean(sc["assumptions_note"]),
                        "small"))
 
+    cs = view5.get("changeset") or {}
+    st.append(para("What changed since the prior report", "h2"))
+    if cs.get("initial_underwriting") or not cs:
+        st.append(para("Initial underwriting &mdash; no prior admitted "
+                       "report for this name.", "small"))
+    else:
+        st.append(para("Prior: %s (core sha %s&hellip;)."
+                       % (_clean(cs.get("prior_as_of") or ""),
+                          (cs.get("prior_core_pdf_hash") or "")[:12]),
+                       "small"))
+        changes = cs.get("changes") or []
+        if not changes:
+            st.append(para("No material change against the prior "
+                           "admitted report.", "small"))
+        for c in changes[:5]:
+            st.append(para("&bull; %s: %s &rarr; %s (%s)"
+                           % (_clean(c["category"]),
+                              _clean(str(c.get("from"))[:38]),
+                              _clean(str(c.get("to"))[:38]),
+                              _clean(c.get("reason") or "")), "small"))
+
     cl = view5.get("claims") or {}
     st.append(para("The argument in one look", "h2"))
     if cl.get("claims"):
