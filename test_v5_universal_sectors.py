@@ -121,9 +121,23 @@ for tk, sector, industry, want_key, want_slot in SECTORS:
 snap, profile, multiples = make("Healthcare", "Biotechnology",
                                 sessions=400, quarters=0,
                                 pre_revenue=True)
-ad = ADP.classify(profile, snap)
-check("pre-revenue -> pre_revenue adapter", ad["key"] == "pre_revenue",
-      ad["key"])
+# §1 (v5.8): the SECTOR selects the adapter (biotech); the established
+# PRE_REVENUE stage is an overlay — and crucially, missing data alone
+# (no stage argument) must NEVER route a sector-classified issuer to
+# the pre-revenue dashboard
+ad = ADP.classify(profile, snap, stage="PRE_REVENUE")
+check("pre-revenue biotech -> biotech adapter (stage overlay)",
+      ad["key"] == "biotech" and not ad["policy"]["valuation_allowed"],
+      "%s / valuation_allowed=%s" % (ad["key"],
+                                     ad["policy"]["valuation_allowed"]))
+ad_missing = ADP.classify(profile, snap)          # no established stage
+check("missing data alone never selects the pre-revenue dashboard",
+      ad_missing["key"] == "biotech", ad_missing["key"])
+ad_gen = ADP.classify({"sector": "", "industry": ""}, {"business": {}},
+                      stage="PRE_REVENUE")
+check("sector-less established pre-revenue -> pre_revenue dashboard",
+      ad_gen["key"] == "pre_revenue", ad_gen["key"])
+ad = ADP.classify(profile, snap, stage="PRE_REVENUE")
 rows = ADP.build_dashboard(ad, snap)
 check("pre-revenue dashboard carries no revenue-value metric",
       all(not r[0].lower().startswith("quarterly revenue")

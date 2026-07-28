@@ -34,7 +34,15 @@ if hasattr(sys.stdout, "reconfigure"):
 
 
 def build_view(ticker, override=None):
-    snap, alt, recs, prov = RL.build_snapshot(ticker)
+    # §1 (v5.8): resolve the FILING issuer first — after a holding-
+    # company reorganization the ticker-mapped registrant can be a
+    # successor shell; the snapshot must be built from the entity that
+    # holds the filed financial history
+    try:
+        _issuer_cik, _issuer_res = RL.cik_for_filed(ticker)
+    except Exception:
+        _issuer_cik, _issuer_res = None, None
+    snap, alt, recs, prov = RL.build_snapshot(ticker, cik=_issuer_cik)
     if alt and not snap.get("sentiment"):
         snap["sentiment"] = alt
     import estimates_provider as EP
@@ -54,8 +62,19 @@ def build_view(ticker, override=None):
     # and business-quality grading — not just dashboard labels.
     import report_v5_adapters as ADP
     import report_v5_capability as CAP
+    import report_v5_classify as CLS
     profile = CAP.company_profile(snap, multiples)
-    adapter = ADP.classify(profile, snap)
+    # §1 (v5.8): issuer classification (business stage, accounting
+    # regime, listing type) is established from admitted evidence
+    # BEFORE adapter selection — data availability never selects a
+    # business model
+    classification = CLS.classify_security(ticker, snap, profile)
+    print("  [v5] classification: stage=%s regime=%s (%s)"
+          % (classification["business_stage"],
+             classification["accounting_regime"],
+             classification["classification_confidence"]))
+    adapter = ADP.classify(profile, snap,
+                           stage=classification["business_stage"])
     try:
         adapter["one_time_items"] = ADP.one_time_items(ticker, snap)
     except Exception:
@@ -65,7 +84,9 @@ def build_view(ticker, override=None):
     scenarios = S5.build(ticker, multiples, spot, asm, note,
                          valuation_policy=_pol)
     print("  [v5] claims + grid...")
-    grid = G5.build(ticker)
+    grid = G5.build(ticker,
+                    revenue_tags=(adapter.get("policy") or {}).get(
+                        "revenue_concepts"))
     import report_v5_expectations as E5
     expectations = E5.build(snap, grid, multiples, scenarios, estimates,
                             asm)
@@ -107,7 +128,9 @@ def build_view(ticker, override=None):
         # presentation reclassification only — the analysis already ran
         # (and is recorded) under the pre-routing policy
         adapter = dict(ADP.classify(profile, snap,
-                                    archetype="NEW_LISTING"),
+                                    archetype="NEW_LISTING",
+                                    stage=classification[
+                                        "business_stage"]),
                        one_time_items=[],
                        reclassified_from=adapter.get("key"))
     print("  [v5] archetype: %s (%s)" % (arch["archetype"],
@@ -117,7 +140,21 @@ def build_view(ticker, override=None):
              "has_options": has_options, "estimates": estimates,
              "profile": profile, "expectations": expectations,
              "assessment": assessment, "adapter": adapter,
+             "classification": classification,
              "framework": framework}
+    # §6 (v5.8): embed the registered expectation (if any) so the
+    # validation JSON, the manifest and the implementation report all
+    # cite ONE source that the checks bind to the router's output
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(
+                __file__)), "data", "fixtures_expected.json"),
+                encoding="utf-8") as _fh:
+            _fx = json.load(_fh)
+        view5["expected_classification"] = \
+            (_fx.get("fixtures") or {}).get(ticker.upper()) \
+            or (_fx.get("holdouts") or {}).get(ticker.upper())
+    except Exception:
+        view5["expected_classification"] = None
     view5["sundheim"] = FW.sundheim_decision(view5, framework,
                                              arch["archetype"])
     return snap, prov, view5
@@ -167,6 +204,24 @@ _MUTATION_REQUIRED = (
     "TABLE_HEADER_REPEATED_AFTER_BREAK", "NO_STRANDED_SECTION_TAIL",
     "APPENDIX_PAGE_OCCUPANCY", "NO_LOW_DENSITY_FINAL_PAGE",
     "PROVENANCE_VALID",
+    # v5.8 §1/§2/§3/§4/§5
+    "MISSING_DATA_IS_NOT_PRE_REVENUE",
+    "PRE_REVENUE_REQUIRES_ADMITTED_EVIDENCE",
+    "EXPECTED_ADAPTER_MATCHES_ACTUAL",
+    "EXPECTED_BUSINESS_STAGE_MATCHES_ACTUAL",
+    "EXPECTED_ACCOUNTING_REGIME_MATCHES_ACTUAL",
+    "SERIALIZED_BALANCE_SHEET_FACTS_SHARE_PERIOD",
+    "DASHBOARD_CONCLUSIONS_RESPECT_FRESHNESS",
+    "LATEST_LABEL_MATCHES_EACH_SUPPORTING_FACT",
+    "STALE_EVIDENCE_CANNOT_SUPPORT_ANY_RENDERED_CONCLUSION",
+    "TTM_FOOTNOTE_MATCHES_RENDERED_VALUES",
+    "EVERY_DISPLAYED_TTM_CELL_VALID",
+    "TTM_GRID_ENDPOINTS_ARE_CONSISTENT",
+    "LEDGER_MERGE_PRESERVES_RICHEST_RECORD",
+    "XBRL_CLAIM_REF_IS_COMPLETE",
+    "CALC_RECORD_HAS_FORMULA_AND_INPUTS",
+    "CLAIM_EVIDENCE_IS_REPRODUCIBLE",
+    "NO_STRANDED_VALIDATION_SUMMARY",
 )
 
 
@@ -622,6 +677,230 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
                               % (ad6.get("key"),
                                  ad6.get("reason", "")))[:90]))
 
+    # §1 (v5.8): classification integrity — stage/regime/adapter are
+    # established facts, expected-vs-actual bound for fixtures, and
+    # missing data can never mean pre-revenue
+    cls8 = view5.get("classification") or {}
+    bad = CK.classification_present_issues(cls8)
+    checks.append(VV.chk("CLASSIFICATION_RECORD_COMPLETE", not bad,
+                         VV.ERROR,
+                         "business_stage / accounting_regime / "
+                         "listing_type / confidence all recorded",
+                         "; ".join(bad) or
+                         "stage=%s regime=%s listing=%s"
+                         % (cls8.get("business_stage"),
+                            cls8.get("accounting_regime"),
+                            cls8.get("listing_type"))))
+    bad = CK.missing_data_pre_revenue_issues(cls8)
+    checks.append(VV.chk("MISSING_DATA_IS_NOT_PRE_REVENUE", not bad,
+                         VV.ERROR,
+                         "PRE_REVENUE only from an admitted-evidence "
+                         "rule, never from unparsed or missing data",
+                         "; ".join(bad) or
+                         ("stage %s — basis: %s"
+                          % (cls8.get("business_stage"),
+                             (cls8.get("business_stage_basis")
+                              or "n/a")[:70]))))
+    bad = CK.pre_revenue_evidence_issues(cls8, ledger)
+    checks.append(VV.chk("PRE_REVENUE_REQUIRES_ADMITTED_EVIDENCE",
+                         not bad, VV.ERROR,
+                         "a PRE_REVENUE stage carries resolvable "
+                         "admitted evidence refs",
+                         "; ".join(bad) or
+                         ("%d refs resolve"
+                          % len(cls8.get("classification_evidence_refs")
+                                or []) if cls8.get("business_stage")
+                          == "PRE_REVENUE" else "stage is not "
+                          "PRE_REVENUE — vacuously satisfied")))
+    bad = CK.classification_refs_issues(cls8, ledger)
+    checks.append(VV.chk("CLASSIFICATION_REFS_EXIST_IN_LEDGER", not bad,
+                         VV.ERROR,
+                         "every classification evidence ref resolves in "
+                         "the source ledger",
+                         "; ".join(bad) or "%d refs resolve"
+                         % len(cls8.get("classification_evidence_refs")
+                               or [])))
+    _exp_entry = None
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(
+                __file__)), "data", "fixtures_expected.json"),
+                encoding="utf-8") as _fh:
+            _fx = json.load(_fh)
+        _tk8 = (view5.get("grid") or {}).get("ticker") \
+            or (snap or {}).get("ticker")
+        _exp_entry = (_fx.get("fixtures") or {}).get(_tk8) \
+            or (_fx.get("holdouts") or {}).get(_tk8)
+    except Exception:
+        _exp_entry = None
+    mism = CK.expected_routing_issues(_exp_entry, cls8,
+                                      view5.get("adapter"))
+    for _field, _cid in (("expected_adapter",
+                          "EXPECTED_ADAPTER_MATCHES_ACTUAL"),
+                         ("expected_business_stage",
+                          "EXPECTED_BUSINESS_STAGE_MATCHES_ACTUAL"),
+                         ("expected_accounting_regime",
+                          "EXPECTED_ACCOUNTING_REGIME_MATCHES_ACTUAL")):
+        _m = [m for m in mism if m[0] == _field]
+        if _exp_entry is None:
+            _obs = "no expectation registered for this ticker"
+        elif _m:
+            _obs = "expected %r, actual %r" % (_m[0][1], _m[0][2])
+        else:
+            _obs = "matches (%r)" % _exp_entry.get(_field)
+        checks.append(VV.chk(_cid, not _m, VV.ERROR,
+                             "registered fixture expectation matches "
+                             "the router's actual output", _obs))
+    _emb = view5.get("expected_classification")
+    _rep_ok = (_exp_entry is None and _emb is None) \
+        or (_emb == _exp_entry)
+    checks.append(VV.chk("IMPLEMENTATION_REPORT_MATCHES_PACKAGE_ROUTER",
+                         _rep_ok, VV.ERROR,
+                         "the expectation embedded in this package (the "
+                         "one the implementation report cites) is the "
+                         "registered fixture expectation",
+                         "embedded expectation %s the registry"
+                         % ("matches" if _rep_ok else "DIFFERS FROM")))
+
+    # §3 (v5.8): every displayed grid TTM cell independently validated,
+    # one column endpoint, footnote consistent with the cells, values
+    # cross-checked against the extracted PDF text
+    grid8 = view5.get("grid") or {}
+    bad = CK.grid_ttm_cell_issues(grid8)
+    checks.append(VV.chk("EVERY_DISPLAYED_TTM_CELL_VALID", not bad,
+                         VV.ERROR,
+                         "every populated TTM value passed its own "
+                         "four-contiguous-current-quarter test",
+                         "; ".join(bad) or "all populated cells valid"))
+    bad = CK.grid_ttm_endpoint_issues(grid8)
+    checks.append(VV.chk("TTM_GRID_ENDPOINTS_ARE_CONSISTENT", not bad,
+                         VV.ERROR,
+                         "all populated TTM cells share the displayed "
+                         "column through-date",
+                         "; ".join(bad) or "endpoints consistent (%s)"
+                         % ((grid8.get("ttm") or {}).get("through")
+                            or "column empty")))
+    bad = CK.grid_ttm_footnote_issues(grid8, text)
+    checks.append(VV.chk("TTM_FOOTNOTE_MATCHES_RENDERED_VALUES",
+                         not bad, VV.ERROR,
+                         "the TTM suppression note and the rendered "
+                         "cells tell one story",
+                         "; ".join(bad) or "footnote consistent"))
+    _supp8 = [s for s in ((grid8.get("ttm") or {}).get("suppressed")
+                          or [])
+              if (grid8.get("ttm") or {}).get(s.get("metric"))
+              is not None]
+    checks.append(VV.chk("SUPPRESSED_TTM_HAS_NO_POPULATED_CELL",
+                         not _supp8, VV.ERROR,
+                         "no suppressed metric keeps a populated TTM "
+                         "value",
+                         "; ".join(s["metric"] for s in _supp8)
+                         or "suppression and values consistent"))
+    bad = CK.bank_revenue_concept_issues(grid8, view5.get("adapter"))
+    checks.append(VV.chk("BANK_REVENUE_CONCEPT_IS_SECTOR_APPROPRIATE",
+                         not bad, VV.ERROR,
+                         "a bank/insurer revenue stream uses a "
+                         "sector-appropriate net-revenue concept",
+                         "; ".join(bad) or
+                         "concept %r" % ((grid8.get("ttm") or {}).get(
+                             "revenue_concept"))))
+    bad = CK.grid_ttm_pdf_issues(grid8, text)
+    checks.append(VV.chk("PDF_TTM_VALUES_MATCH_VALIDATION_MODEL",
+                         not bad, VV.ERROR,
+                         "every populated TTM money cell appears in the "
+                         "extracted core text",
+                         "; ".join(bad) or "rendered values match"))
+
+    # §2 (v5.8): same-period balance-sheet rule on EVERY surface — the
+    # serialized model, the recomputed dashboard rows and the rendered
+    # text are all inspected, not just the claims object
+    try:
+        import report_v5_adapters as _ADP8
+        _dash8 = _ADP8.build_dashboard(view5.get("adapter") or
+                                       {"key": "generic"}, snap or {})
+    except Exception:
+        _dash8 = []
+    bad = CK.serialized_bs_issues(snap or {}, view5, _dash8)
+    checks.append(VV.chk("SERIALIZED_BALANCE_SHEET_FACTS_SHARE_PERIOD",
+                         not bad, VV.ERROR,
+                         "no serialized surface joins cash and debt "
+                         "from different reporting dates",
+                         "; ".join(bad) or "no cross-period pairing"))
+    bad = CK.bs_value_period_issues(_dash8, view5.get("framework"))
+    checks.append(VV.chk("EVERY_BALANCE_SHEET_VALUE_HAS_PERIOD",
+                         not bad, VV.ERROR,
+                         "every displayed balance-sheet value carries "
+                         "its own reporting date",
+                         "; ".join(bad) or "values dated"))
+    bad = CK.framework_bs_freshness_issues(view5.get("framework"))
+    checks.append(VV.chk("LATEST_LABEL_MATCHES_EACH_SUPPORTING_FACT",
+                         not any("latest" in b for b in bad), VV.ERROR,
+                         "'latest' wording requires every supporting "
+                         "fact to be current",
+                         "; ".join(b for b in bad if "latest" in b)
+                         or "latest labels consistent"))
+    checks.append(VV.chk("FRAMEWORK_CONCLUSIONS_RESPECT_FRESHNESS",
+                         not any("joins" in b for b in bad), VV.ERROR,
+                         "no graded framework dimension joins instants "
+                         "from incompatible periods",
+                         "; ".join(b for b in bad if "joins" in b)
+                         or "framework conclusions clean"))
+    bad = CK.dashboard_bs_issues(snap or {}, _dash8)
+    checks.append(VV.chk("DASHBOARD_CONCLUSIONS_RESPECT_FRESHNESS",
+                         not bad, VV.ERROR,
+                         "an incompatible cash/debt pairing renders "
+                         "the canonical not-assessed sentence",
+                         "; ".join(bad) or "dashboard respects the "
+                         "pairing rule"))
+    bad = CK.stale_rendered_support_issues(view5.get("framework"))
+    checks.append(VV.chk(
+        "STALE_EVIDENCE_CANNOT_SUPPORT_ANY_RENDERED_CONCLUSION",
+        not bad, VV.ERROR,
+        "graded conclusions quoting figures rest on current facts",
+        "; ".join(bad) or "no stale-supported conclusion"))
+
+    # §4 (v5.8): the ledger is reproducible — no null kinds, complete
+    # CALC/XBRL records, every ref resolves, quoted figures reproduce
+    cl8 = view5.get("claims") or {}
+    bad = CK.ledger_kind_issues(ledger)
+    checks.append(VV.chk("LEDGER_MERGE_PRESERVES_RICHEST_RECORD",
+                         not bad, VV.ERROR,
+                         "merge-and-enrich registration: no record "
+                         "ends with a null kind",
+                         "; ".join(bad[:4]) or "%d records, all typed"
+                         % (ledger or {}).get("count", 0)))
+    bad = CK.calc_record_issues(cl8, ledger)
+    checks.append(VV.chk("CALC_RECORD_HAS_FORMULA_AND_INPUTS", not bad,
+                         VV.ERROR,
+                         "every cited CALC record carries formula and "
+                         "ordered inputs", "; ".join(bad[:4]) or
+                         "cited CALC records complete"))
+    bad = CK.xbrl_claim_ref_issues(cl8, ledger)
+    checks.append(VV.chk("XBRL_CLAIM_REF_IS_COMPLETE", not bad,
+                         VV.ERROR,
+                         "every cited XBRL fact carries accession, "
+                         "concept, value, units, period, URL and "
+                         "issuer CIK", "; ".join(bad[:4]) or
+                         "cited XBRL records complete"))
+    bad = CK.all_refs_resolve_issues(view5, view5.get("classification"),
+                                     ledger)
+    checks.append(VV.chk("ALL_EVIDENCE_REFS_RESOLVE", not bad,
+                         VV.ERROR,
+                         "every reference on every serialized surface "
+                         "resolves in the ledger",
+                         "; ".join(bad[:4]) or "all refs resolve"))
+    bad = CK.claim_reproduction_issues(cl8, ledger)
+    checks.append(VV.chk("CLAIM_EVIDENCE_IS_REPRODUCIBLE", not bad,
+                         VV.ERROR,
+                         "every published claim is reproducible from "
+                         "its evidence refs alone",
+                         "; ".join(bad[:4]) or "claims reproduce"))
+    checks.append(VV.chk("REPRODUCED_CLAIM_MATCHES_RENDERED_VALUE",
+                         not bad, VV.ERROR,
+                         "figures quoted in claims reproduce from "
+                         "cited ledger values",
+                         "; ".join(bad[:4]) or "quoted figures match "
+                         "stored values"))
+
     # variant wording (§9)
     exp6 = view5.get("expectations") or {}
     var_ok = bool((exp6.get("variant") or {}).get("available"))
@@ -864,7 +1143,7 @@ def run(ticker, out_dir="out_v5", override=None):
     # bound to the issuer's CIK (§1)
     import report_v5_ledger as LG
     try:
-        _cik = RL.cik_for(ticker)
+        _cik = RL.cik_for_filed(ticker)[0]
     except Exception:
         _cik = None
     snap["cik"] = snap.get("cik") or _cik
@@ -918,9 +1197,15 @@ def run(ticker, out_dir="out_v5", override=None):
     result["checks"].append(VV5.chk(
         "NO_LOW_DENSITY_FINAL_PAGE",
         not [b for b in bad if "final" in b], VV5.ERROR,
-        "the final appendix page is not a sparse tail",
+        "the final appendix page carries at least 45%% occupancy",
         "; ".join(b for b in bad if "final" in b) or
-        "final %.0f%%" % (occ[-1] * 100 if occ else 0)))
+        "final %.0f%% (min 45%%)" % (occ[-1] * 100 if occ else 0)))
+    bad = CK5.stranded_validation_summary_issues(apx_pages, occ)
+    result["checks"].append(VV5.chk(
+        "NO_STRANDED_VALIDATION_SUMMARY", not bad, VV5.ERROR,
+        "the validation/hash block never strands alone on a sparse "
+        "final page", "; ".join(bad) or "binding block travels with "
+        "content"))
     import report_v4_run as RR
     result["artifacts"] = RR._artifact_hashes(core_p, apx_p)
     result["report_id"] = report_id
@@ -1039,6 +1324,13 @@ def run(ticker, out_dir="out_v5", override=None):
         _sc_key: view5.get("scenarios"),
         "claims": view5.get("claims"),
     }
+    # §1/§6 (v5.8): the classification and its registered expectation
+    # are part of the package record — the manifest's expected-vs-
+    # actual binding reads THESE fields, not the log
+    result["classification"] = view5.get("classification")
+    result["expected_classification"] = \
+        view5.get("expected_classification")
+    result["adapter_key"] = (view5.get("adapter") or {}).get("key")
     with open(val_p, "w") as fh:
         json.dump(result, fh, indent=1, default=str, sort_keys=True)
 

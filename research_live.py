@@ -155,6 +155,93 @@ def sec_text(url):
     return r.text
 
 
+_CONCEPT_INDEX_CACHE = {}
+
+
+def concept_index(cik):
+    """v5.8 §1: the issuer's FULL companyfacts concept index — every
+    taxonomy and concept the issuer has ever filed facts under, plus the
+    form types observed. Classification must distinguish "this issuer
+    has never filed a revenue concept" (admitted evidence of stage) from
+    "our shortlist of tags missed this issuer's revenue concept" (a data
+    gap) — only the full index can make that distinction.
+
+    Additive helper: nothing in the v4 production path calls this."""
+    if cik in _CONCEPT_INDEX_CACHE:
+        return _CONCEPT_INDEX_CACHE[cik]
+    url = ("https://data.sec.gov/api/xbrl/companyfacts/CIK%s.json" % cik)
+    j = _sec_json(url)
+    facts = j.get("facts") or {}
+    taxonomies = {}
+    forms = set()
+    for tax, concepts in facts.items():
+        names = sorted(concepts)
+        taxonomies[tax] = names
+        for c in names[:200]:
+            for rows in (concepts[c].get("units") or {}).values():
+                for r in rows[:4]:
+                    f = r.get("form")
+                    if f:
+                        forms.add(f)
+                break
+    out = {"cik": cik, "url": url,
+           "entity_name": j.get("entityName"),
+           "taxonomies": taxonomies,
+           "concept_counts": {t: len(v) for t, v in taxonomies.items()},
+           "forms": sorted(forms)}
+    _CONCEPT_INDEX_CACHE[cik] = out
+    return out
+
+
+def _has_financial_facts(idx):
+    taxes = (idx or {}).get("taxonomies") or {}
+    return bool(taxes.get("us-gaap") or taxes.get("ifrs-full"))
+
+
+def cik_for_filed(ticker):
+    """v5.8 §1: ticker -> the CIK that actually FILES financial facts.
+
+    `company_tickers.json` maps a ticker to its current registrant of
+    record; after a holding-company reorganization that can be a
+    successor entity with no financial history yet, while the operating
+    predecessor holds every filed fact. EDGAR's own company search
+    resolves a ticker to the entity with periodic filings, so when the
+    mapped registrant's companyfacts contain no financial taxonomy we
+    resolve through it — a universal succession rule, never a ticker
+    branch. Returns (cik, resolution_record)."""
+    mapped = cik_for(ticker)
+    rec = {"mapped_cik": mapped, "resolved_cik": mapped,
+           "resolution": "company_tickers.json registrant of record"}
+    try:
+        if _has_financial_facts(concept_index(mapped)):
+            return mapped, rec
+    except Exception:
+        return mapped, rec          # cannot judge: keep the mapping
+    try:
+        _throttle()
+        r = requests.get(
+            "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany"
+            "&ticker=%s&type=10-K&dateb=&owner=include&count=10"
+            "&output=atom" % ticker.upper(),
+            headers=SEC_HEADERS, timeout=30)
+        m = re.search(r"CIK=(\d{10})", r.text)
+        if m and m.group(1) != mapped:
+            alt = m.group(1)
+            idx2 = concept_index(alt)
+            if _has_financial_facts(idx2):
+                rec["resolved_cik"] = alt
+                rec["resolution"] = (
+                    "EDGAR company search: the ticker-mapped registrant "
+                    "CIK %s has no filed financial taxonomy (successor/"
+                    "holding entity); CIK %s (%s) holds the filed "
+                    "financial history"
+                    % (mapped, alt, idx2.get("entity_name")))
+                return alt, rec
+    except Exception:
+        pass
+    return mapped, rec
+
+
 def concept(cik, tag, unit="USD", taxonomy="us-gaap"):
     try:
         j = _sec_json("https://data.sec.gov/api/xbrl/companyconcept/"
@@ -1084,7 +1171,11 @@ def fetch_news(ticker, report_time, company_name="", limit=8, verify=True):
 
 # ── snapshot assembly ───────────────────────────────────────────────────
 
-def build_snapshot(ticker, report_time=None):
+def build_snapshot(ticker, report_time=None, cik=None):
+    """`cik` (v5.8, optional): issuer override for callers that resolved
+    the filing entity themselves (successor/holding reorganizations).
+    Default None keeps the historical ticker->CIK mapping — the v4
+    production path is byte-identical when the argument is omitted."""
     ticker = ticker.upper()
     now = datetime.now(timezone.utc)
     report_time = report_time or _iso(now)
@@ -1228,7 +1319,7 @@ def build_snapshot(ticker, report_time=None):
             % (w["sessions"], w["start"], w["end"]))
 
     print("[2/7] SEC EDGAR (CIK, acceptance times, XBRL)...")
-    cik = cik_for(ticker)
+    cik = cik or cik_for(ticker)
     acc, subs = acceptance_map(cik)
     prov["coverage"]["sec"] = "CIK %s, %d filings indexed" % (cik, len(acc))
 

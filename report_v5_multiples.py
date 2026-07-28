@@ -303,7 +303,7 @@ def build(ticker, years=WINDOW_YEARS):
     uses; multiples derive from close prices, so the split-adjusted
     basis matches the split-adjusted per-share XBRL facts."""
     import research_live as RL
-    cik = RL.cik_for(ticker)
+    cik = RL.cik_for_filed(ticker)[0]
     mk = RL.fetch_market(ticker)
     dates = [d.isoformat() for d in mk["dates"]]
     closes = mk["closes"]

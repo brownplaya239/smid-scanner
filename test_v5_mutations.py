@@ -395,6 +395,257 @@ prove("M26-ticker-branch", "pilot-symbol comparison injected into a "
 os.remove(_mod)
 os.rmdir(_tmp)
 
+# ── v5.8 §7: classification, balance-sheet, grid-TTM, ledger, layout ─
+
+prove("M47-missing-revenue-called-pre-revenue",
+      "mature issuer's stage rewritten PRE_REVENUE with a "
+      "data-availability basis (revenue not parsed)",
+      "MISSING_DATA_IS_NOT_PRE_REVENUE",
+      "data-gap basis rejected",
+      CK.missing_data_pre_revenue_issues({
+          "business_stage": "PRE_REVENUE",
+          "business_stage_basis": "revenue not parsed from the vendor "
+                                  "snapshot; concept fetch unavailable",
+          "classification_evidence_refs": []}))
+
+prove("M47b-pre-revenue-without-evidence",
+      "PRE_REVENUE stage with no resolvable evidence refs",
+      "PRE_REVENUE_REQUIRES_ADMITTED_EVIDENCE",
+      "missing admitted evidence detected",
+      CK.pre_revenue_evidence_issues({
+          "business_stage": "PRE_REVENUE",
+          "business_stage_basis": "the issuer's full SEC concept index "
+                                  "contains no revenue concept in any "
+                                  "taxonomy",
+          "classification_evidence_refs": []}, CLEAN_LEDGER))
+
+prove("M48-pre-revenue-issuer-made-generic",
+      "an actual pre-revenue biotech's stage flipped to OPERATING / "
+      "generic adapter against its registered expectation",
+      "EXPECTED_BUSINESS_STAGE_MATCHES_ACTUAL",
+      "stage mismatch detected",
+      [m for m in CK.expected_routing_issues(
+          {"expected_adapter": "biotech",
+           "expected_business_stage": "PRE_REVENUE",
+           "expected_accounting_regime": "us-gaap"},
+          {"business_stage": "OPERATING",
+           "accounting_regime": "us-gaap"},
+          {"key": "generic"})
+       if m[0] == "expected_business_stage"])
+
+prove("M49-adapter-mismatch",
+      "energy fixture routed to the pre-revenue adapter",
+      "EXPECTED_ADAPTER_MATCHES_ACTUAL",
+      "adapter mismatch detected",
+      [m for m in CK.expected_routing_issues(
+          {"expected_adapter": "energy_materials",
+           "expected_business_stage": "OPERATING",
+           "expected_accounting_regime": "us-gaap"},
+          {"business_stage": "OPERATING",
+           "accounting_regime": "us-gaap"},
+          {"key": "pre_revenue"})
+       if m[0] == "expected_adapter"])
+
+prove("M49b-regime-mismatch",
+      "IFRS filer recorded as us-gaap against its expectation",
+      "EXPECTED_ACCOUNTING_REGIME_MATCHES_ACTUAL",
+      "regime mismatch detected",
+      [m for m in CK.expected_routing_issues(
+          {"expected_adapter": "subscription_software",
+           "expected_business_stage": "OPERATING",
+           "expected_accounting_regime": "ifrs"},
+          {"business_stage": "OPERATING",
+           "accounting_regime": "us-gaap"},
+          {"key": "subscription_software"})
+       if m[0] == "expected_accounting_regime"])
+
+prove("M50-ifrs-absence-called-pre-revenue",
+      "issuer with unparsed IFRS facts labelled PRE_REVENUE",
+      "MISSING_DATA_IS_NOT_PRE_REVENUE",
+      "ifrs data gap rejected as a stage basis",
+      CK.missing_data_pre_revenue_issues({
+          "business_stage": "PRE_REVENUE",
+          "business_stage_basis": "no us-gaap facts parsed (ifrs "
+                                  "filer) — fetch degraded, revenue "
+                                  "missing",
+          "classification_evidence_refs": ["SEC-CONCEPT-INDEX-1"]}))
+
+_M51_FU = {"cash": {"v": 2.0e9, "period_end": "2026-03-31"},
+           "debt": {"v": 1.5e9, "period_end": "2025-09-30"}}
+prove("M51-cross-period-balance-sheet",
+      "cash (2026-03-31) and debt (2025-09-30, two quarters older) "
+      "joined in a framework conclusion",
+      "SERIALIZED_BALANCE_SHEET_FACTS_SHARE_PERIOD",
+      "cross-period pairing detected on a serialized surface",
+      CK.serialized_bs_issues(
+          {"fundamentals": _M51_FU},
+          {"framework": {"dimensions": {"balance_sheet": {
+              "status": "PARTIAL",
+              "conclusion": "cash $2.00B vs debt $1.50B from the "
+                            "latest filed balance sheet"}}}},
+          []))
+
+prove("M51b-dashboard-cross-period",
+      "dashboard renders both instants despite incompatible periods",
+      "DASHBOARD_CONCLUSIONS_RESPECT_FRESHNESS",
+      "dashboard pairing violation detected",
+      CK.dashboard_bs_issues(
+          {"fundamentals": _M51_FU},
+          [["Cash / debt", "$2.00B / $1.50B", "filed (SEC XBRL)"]]))
+
+prove("M52-latest-with-stale-fact",
+      "framework prose says 'latest' while a supporting fact is dated "
+      "2021",
+      "LATEST_LABEL_MATCHES_EACH_SUPPORTING_FACT",
+      "stale fact behind 'latest' wording detected",
+      [b for b in CK.framework_bs_freshness_issues(
+          {"dimensions": {"balance_sheet": {
+              "status": "PARTIAL",
+              "conclusion": "cash $2.00B from the latest filed "
+                            "balance sheet",
+              "evidence_refs": [
+                  "XBRL-1-us-gaap:CashAndCashEquivalentsAtCarrying"
+                  "Value-2021-12-31"]}}},
+          today=date(2026, 7, 28)) if "latest" in b])
+
+prove("M52b-stale-supported-conclusion",
+      "graded dimension quotes figures whose newest fact is from 2021",
+      "STALE_EVIDENCE_CANNOT_SUPPORT_ANY_RENDERED_CONCLUSION",
+      "stale-supported conclusion detected",
+      CK.stale_rendered_support_issues(
+          {"dimensions": {"balance_sheet": {
+              "status": "PARTIAL",
+              "conclusion": "cash $2.00B on hand",
+              "evidence_refs": [
+                  "XBRL-1-us-gaap:CashAndCashEquivalentsAtCarrying"
+                  "Value-2021-12-31"]}}},
+          today=date(2026, 7, 28)))
+
+_M53_GRID = {"years": ["2025-12-31"],
+             "gaps": ["TTM suppressed for revenue: revenue — newest "
+                      "quarter end 2014-09-30 is stale"],
+             "ttm": {"revenue": 5.1e9, "net_income": None,
+                     "eps": None, "ocf": None, "fcf": None,
+                     "net_margin": None, "through": "2026-06-30",
+                     "cells": {"revenue": {"ok": False, "value": None,
+                                           "through": "2014-09-30",
+                                           "reasons": ["newest quarter "
+                                                       "end stale"]}},
+                     "suppressed": [{"metric": "revenue",
+                                     "reasons": ["stale"]}]}}
+prove("M53-suppressed-ttm-still-populated",
+      "'TTM suppressed' footnote printed while the revenue TTM cell "
+      "keeps a value",
+      "TTM_FOOTNOTE_MATCHES_RENDERED_VALUES",
+      "populated cell beside a suppression note detected",
+      CK.grid_ttm_footnote_issues(_M53_GRID, "TTM suppressed"))
+
+prove("M54-grid-cell-invalid-but-displayed",
+      "the JPM defect: net-income TTM displayed although its own "
+      "stream failed the four-quarter test (only the P/E stream was "
+      "checked)",
+      "EVERY_DISPLAYED_TTM_CELL_VALID",
+      "per-cell validation catches the displayed invalid cell",
+      CK.grid_ttm_cell_issues(
+          {"ttm": {"net_income": 4.2e9,
+                   "cells": {"net_income": {
+                       "ok": False,
+                       "reasons": ["quarter ends are not contiguous"],
+                       "through": "2014-09-30"}}}}))
+
+prove("M54b-mixed-ttm-endpoints",
+      "two populated TTM cells with endpoints twelve years apart in "
+      "one unlabeled column",
+      "TTM_GRID_ENDPOINTS_ARE_CONSISTENT",
+      "mixed endpoints detected",
+      CK.grid_ttm_endpoint_issues(
+          {"ttm": {"revenue": 9e9, "net_income": 4e9,
+                   "through": "2026-06-30",
+                   "cells": {"revenue": {"ok": True,
+                                         "through": "2026-06-30"},
+                             "net_income": {"ok": True,
+                                            "through": "2014-09-30"}
+                             }}}))
+
+# sparse-first registration: the legacy first-write-wins path leaves a
+# null-kind record; the v5.8 merge path enriches it. Both halves are
+# asserted — the defect detected AND the fix effective.
+_legacy = {"CALC-fcf_margin": {"kind": None}}
+_rich = {"kind": "derived_figure", "metric": "fcf_margin",
+         "calculation": "fcf / revenue",
+         "input_evidence_ids": ["CALC-fcf", "XBRL-1-us-gaap:"
+                                "Revenues-2026-03-31"]}
+_legacy.setdefault("CALC-fcf_margin", _rich)      # first-write-wins
+_merged = {"CALC-fcf_margin": {"kind": None}}
+LG._register(_merged, "CALC-fcf_margin", _rich)
+assert _merged["CALC-fcf_margin"]["kind"] == "derived_figure", \
+    "merge failed to enrich"
+prove("M55-sparse-record-blocks-rich",
+      "sparse registration first; richer record discarded by "
+      "first-write-wins (v5.7 behaviour)",
+      "LEDGER_MERGE_PRESERVES_RICHEST_RECORD",
+      "null-kind survivor detected; merge path proven to enrich",
+      CK.ledger_kind_issues({"ids": _legacy}))
+
+_M56_LEDGER = {"ids": {
+    "XBRL-9-us-gaap:Revenues-2026-03-31": {
+        "kind": "xbrl_fact", "accession": "9",
+        "taxonomy": "us-gaap", "concept": "Revenues",
+        "period_end": "2026-03-31"},          # no value/units/url/cik
+    "CALC-revenue_growth": {"kind": "derived_figure",
+                            "metric": "revenue_growth"},
+}}
+_M56_CLAIMS = {"published": [
+    {"claim_id": "growth-above-bar", "claim": "revenue grew",
+     "evidence_refs": ["XBRL-9-us-gaap:Revenues-2026-03-31",
+                       "CALC-revenue_growth"]}]}
+prove("M56-incomplete-xbrl-claim-ref",
+      "cited XBRL record stripped of value, units, URL and issuer CIK",
+      "XBRL_CLAIM_REF_IS_COMPLETE",
+      "incomplete provenance detected",
+      CK.xbrl_claim_ref_issues(_M56_CLAIMS, _M56_LEDGER))
+
+prove("M56b-calc-without-formula",
+      "cited CALC record stripped of formula and inputs",
+      "CALC_RECORD_HAS_FORMULA_AND_INPUTS",
+      "formula-less CALC record detected",
+      CK.calc_record_issues(_M56_CLAIMS, _M56_LEDGER))
+
+prove("M56c-claim-figure-not-reproducible",
+      "claim quotes 23.5% while its only cited record stores 11.2",
+      "CLAIM_EVIDENCE_IS_REPRODUCIBLE",
+      "irreproducible quoted figure detected",
+      CK.claim_reproduction_issues(
+          {"published": [{"claim_id": "growth-above-bar",
+                          "claim": "revenue grew 23.5% year over year",
+                          "evidence_refs": ["CALC-revenue_growth"]}]},
+          {"ids": {"CALC-revenue_growth": {
+              "kind": "derived_figure", "value": 11.2}}}))
+
+_m57 = []
+for _r in (0.29, 0.37, 0.44):
+    _m57 += [b for b in CK.page_occupancy_issues([0.9, 0.9, _r])
+             if "final" in b]
+assert not [b for b in CK.page_occupancy_issues([0.9, 0.9, 0.46])
+            if "final" in b], "45% threshold must pass 46%"
+prove("M57-sparse-final-pages",
+      "final appendix pages at 29%, 37% and 44% occupancy (each below "
+      "the 45% floor; 46% passes)",
+      "NO_LOW_DENSITY_FINAL_PAGE",
+      "all three sparse finals detected",
+      _m57 if len(_m57) == 3 else [])
+
+prove("M58-stranded-validation-summary",
+      "final page holding only the section-14 binding table at 30%",
+      "NO_STRANDED_VALIDATION_SUMMARY",
+      "isolated hash block detected",
+      CK.stranded_validation_summary_issues(
+          ["1. Framework coverage ...", "14. Validation summary and "
+           "artifact hashes Binding record for this package sha256 "
+           "abc123"],
+          [0.9, 0.30]))
+
+
 # ── write the proofs file ────────────────────────────────────────────
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 proven = [r for r in RESULTS if r["proven"]]

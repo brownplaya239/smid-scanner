@@ -56,6 +56,17 @@ def _fv(x):
     return rs.fv(x) if isinstance(x, dict) else x
 
 
+# §5 (v5.8) trim chain: sampled-table caps shrink one notch per
+# compact level so the story can fit its final page above the 45%
+# floor without starving an interior page. The full populations are
+# always in the validation JSON — only the printed SAMPLE shortens.
+_COMPACT = [0]
+
+
+def _cap(n):
+    return max(3, n - 3 * _COMPACT[0])
+
+
 def _story(snap, view5, prov, core_hash, ledger, report_id):
     import report_v5_framework as FW
     v4 = view5.get("v4") or {}
@@ -330,7 +341,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                                            or []) or "none (declared "
                                  "absent)"),
                           _clean(c.get("breaks_if") or "")), "small"))
-    for r in (cl.get("rejected") or [])[:5]:
+    for r in (cl.get("rejected") or [])[:_cap(5)]:
         st.append(para("&bull; REJECTED: %s &mdash; %s"
                        % (_clean(r["claim"][:70]),
                           _clean("; ".join(r["failed_gates"]))),
@@ -352,7 +363,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
     own = v4.get("ownership") or {}
     orows = [[r.get("form") or "-", r.get("filer") or "not parsed",
               r.get("accepted") or "-"]
-             for r in (own.get("rows") or [])[:8]]
+             for r in (own.get("rows") or [])[:_cap(8)]]
     st.append(_table(orows, [BODY_W * .14, BODY_W * .38, BODY_W * .3],
                      header=["Form", "Filer", "Accepted"], zebra=True,
                      empty="No 13D/13G filings on record in the "
@@ -411,7 +422,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
         st.append(_table([[r.get("ticker") or "-",
                            ("%.1fx" % r["pe"]) if r.get("pe") else "n/a",
                            "not curated"]
-                          for r in pr["rows"][:8]],
+                          for r in pr["rows"][:_cap(8)]],
                          [BODY_W * .2, BODY_W * .2, BODY_W * .3],
                          header=["Candidate", "Trailing P/E",
                                  "Inclusion status"], zebra=True))
@@ -419,7 +430,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
         st.append(para("Coverage rejected, with reason:", "small"))
         st.append(_table([[_clean(str(r.get("headline") or ""))[:70],
                            _clean(str(r.get("reason") or ""))[:60]]
-                          for r in prov["news_rejected"][:8]],
+                          for r in prov["news_rejected"][:_cap(8)]],
                          [BODY_W * .48, BODY_W * .4],
                          header=["Headline", "Why excluded"],
                          zebra=True))
@@ -429,7 +440,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                        "small"))
         st.append(_table([[_clean(str(d.get("metric"))),
                            str(d.get("period_end")), str(d.get("form"))]
-                          for d in prov["deferred"][:8]],
+                          for d in prov["deferred"][:_cap(8)]],
                          [BODY_W * .34, BODY_W * .22, BODY_W * .16],
                          header=["Metric", "Period end", "Form"],
                          zebra=True))
@@ -469,13 +480,84 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
     return st
 
 
+def _pull_up(story, n_tail_sections):
+    """§5 (v5.8) repagination: wrap the last N numbered sections in one
+    KeepTogether so the binding block travels with real content instead
+    of stranding alone on a sparse final page. ReportLab splits an
+    oversized KeepTogether, so the worst case is the original layout."""
+    import re as _re
+
+    from reportlab.platypus import KeepTogether, Paragraph
+    idxs = [i for i, f in enumerate(story)
+            if isinstance(f, Paragraph)
+            and _re.match(r"^\d{1,2}\.\s", getattr(f, "text", "")
+                          or "")]
+    # the final section is already a KeepTogether (not a Paragraph), so
+    # grouping the last (n_tail_sections - 1) headings pulls it up
+    take = n_tail_sections - 1
+    if take < 1 or len(idxs) < take:
+        return story
+    start = idxs[-take]
+    return story[:start] + [KeepTogether(story[start:])]
+
+
+_FINAL_MIN = 0.45
+_BODY_MIN = 0.30
+
+
 def build(snap, view5, prov, core_hash, ledger, report_id,
           out_path=None):
     rs.assert_exportable(snap, allow_demo=True)
-    buf = io.BytesIO()
-    doc = _Doc(buf, snap, kind=APPENDIX_KIND, legend=False)
-    doc.build(_story(snap, view5, prov, core_hash, ledger, report_id))
-    data = _finalize(buf.getvalue(), doc)
+
+    def _render(story):
+        buf = io.BytesIO()
+        doc = _Doc(buf, snap, kind=APPENDIX_KIND, legend=False)
+        doc.build(story)
+        return _finalize(buf.getvalue(), doc)
+
+    _COMPACT[0] = 0
+    data = _render(_story(snap, view5, prov, core_hash, ledger,
+                          report_id))
+    # §5 (v5.8): trim + repagination chain BEFORE the final write.
+    # Both floors are enforced together: pulling the tail sections onto
+    # one page must not starve an interior page, so candidates combine
+    # a compact level (shorter printed samples; full populations stay
+    # in the validation JSON) with a pull-up level, and the best
+    # candidate by (both floors met, final floor, interior floor,
+    # final occupancy) wins.
+    try:
+        import report_v5_checks as _CK
+
+        def _score(occ):
+            if not occ:
+                return (True, True, True, 1.0)
+            interior_ok = all(r >= _BODY_MIN for r in occ[:-1]) \
+                if len(occ) > 1 else True
+            final_ok = occ[-1] >= _FINAL_MIN or len(occ) == 1
+            return (final_ok and interior_ok, final_ok, interior_ok,
+                    occ[-1])
+
+        occ = _CK.measure_occupancy(data)
+        if len(occ) > 1 and occ[-1] < _FINAL_MIN:
+            best, best_occ = data, occ
+            for compact, pull in ((0, 2), (0, 3), (1, 0), (1, 2),
+                                  (2, 0), (2, 2), (2, 3)):
+                _COMPACT[0] = compact
+                story = _story(snap, view5, prov, core_hash, ledger,
+                               report_id)
+                if pull:
+                    story = _pull_up(story, pull)
+                cand = _render(story)
+                c_occ = _CK.measure_occupancy(cand)
+                if _score(c_occ) > _score(best_occ):
+                    best, best_occ = cand, c_occ
+                if _score(best_occ)[0]:
+                    break
+            data = best
+    except Exception:
+        pass                       # measurement failure keeps pass one
+    finally:
+        _COMPACT[0] = 0
     if out_path:
         with open(out_path, "wb") as fh:
             fh.write(data)
