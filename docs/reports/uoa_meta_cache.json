@@ -9,8 +9,8 @@
 "AA": {
 "earnings_date": "2026-10-15",
 "earnings_session": "AMC",
-"fetched": "2026-07-17",
-"mkt_cap": 12363339778.35,
+"fetched": "2026-07-28",
+"mkt_cap": 11632358963.279999,
 "sector": "Materials / Metals"
 },
 "AADX": {
@@ -534,8 +534,8 @@
 "AMGN": {
 "earnings_date": "2026-08-04",
 "earnings_session": "AMC",
-"fetched": "2026-07-17",
-"mkt_cap": 200544800452.91998,
+"fetched": "2026-07-28",
+"mkt_cap": 203070635175.24,
 "sector": "Healthcare / Biotech"
 },
 "AMKR": {
@@ -663,6 +663,13 @@
 "fetched": "2026-07-21",
 "mkt_cap": 12314902708.68,
 "sector": "Energy"
+},
+"APAM": {
+"earnings_date": "2026-07-28",
+"earnings_session": "AMC",
+"fetched": "2026-07-28",
+"mkt_cap": 2860318324.5299997,
+"sector": "Financials"
 },
 "APD": {
 "earnings_date": "2026-07-30",
@@ -1486,8 +1493,8 @@
 "BNTX": {
 "earnings_date": "2026-08-04",
 "earnings_session": "BMO",
-"fetched": "2026-07-15",
-"mkt_cap": 22860737194.4,
+"fetched": "2026-07-28",
+"mkt_cap": 23035227334.49,
 "sector": "Other"
 },
 "BNY": {
@@ -5217,8 +5224,8 @@
 "JBS": {
 "earnings_date": "2026-08-10",
 "earnings_session": "AMC",
-"fetched": "2026-06-22",
-"mkt_cap": 39238094865.83,
+"fetched": "2026-07-28",
+"mkt_cap": 44566567297.350006,
 "sector": "Other"
 },
 "JCI": {
@@ -6834,8 +6841,8 @@
 "NTLA": {
 "earnings_date": "2026-08-06",
 "earnings_session": "BMO",
-"fetched": "2026-06-08",
-"mkt_cap": 1891839630.58,
+"fetched": "2026-07-28",
+"mkt_cap": 1490836695.59,
 "sector": "Healthcare / Biotech"
 },
 "NTNX": {
@@ -8738,7 +8745,7 @@
 "SIL": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-06",
+"fetched": "2026-07-28",
 "mkt_cap": null,
 "sector": "Other"
 },
