@@ -42,20 +42,24 @@ def snap(growth=None, margin=None, rev=None, fcf=None, px=None,
 
 V4 = {"ratings": {"tactical": {"available": False}}}
 
-# growth claim + market-not-paying counterevidence
+# SAME-PROPOSITION RULE: technical price action is NOT counterevidence
+# to revenue durability — the 200-day must not appear against a
+# fundamental growth claim.
 r = C.build(snap(growth=25.0, rev=1e9, px=90.0, ma200=100.0), V4)
 g = [c for c in r["claims"] if "growth" in c["claim"]][0]
-check("growth claim carries structure counterevidence",
-      any("200-day" in x for x in g["counterevidence"]), g)
+check("technical structure NEVER counters a fundamental claim",
+      not any("200-day" in x for x in g["counterevidence"]), g)
 check("claims carry an invalidation", bool(g["breaks_if"]))
-check("claim with counterevidence downgrades to medium",
-      g["confidence"] == C.MEDIUM)
+check("same-domain counterevidence downgrades to medium",
+      C.build(snap(growth=25.0, margin=-5.0, rev=1e9), V4
+              )["claims"][0]["confidence"] == C.MEDIUM)
 
-# decline claim: outlier margin reframed, never cited as strength
+# decline claim: a one-time gain is NOT counterevidence to a decline
 r2 = C.build(snap(growth=-3.0, margin=78.0, rev=1e9), V4)
 d = [c for c in r2["claims"] if "DECLINED" in c["claim"]][0]
-check("outlier margin reframed as likely one-time",
-      any("one-time" in x for x in d["counterevidence"]), d)
+check("one-time gain never counters a revenue decline",
+      not any("one-time" in x or "78" in x
+              for x in d["counterevidence"]), d)
 check("outlier margin never cited as 'profitability holds'",
       not any("profitability holds" in x for x in d["counterevidence"]))
 
@@ -96,8 +100,8 @@ check("technical-free claim carries mechanism + implication",
 
 r7 = C.build(snap(growth=25.0, rev=1e9, px=90.0, ma200=100.0), V4)
 g7 = [c for c in r7["claims"] if c["claim_id"] == "growth-above-bar"][0]
-check("direction-conflicting counterevidence -> CONFLICTED",
-      g7["status"] == C.CONFLICTED, g7["status"])
+check("tape weakness no longer conflicts a fundamental claim",
+      g7["status"] == C.SUPPORTED, g7["status"])
 
 # stale evidence fails the gate with the reason recorded
 import report_v5_claims as _C

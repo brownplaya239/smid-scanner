@@ -138,12 +138,17 @@ def _lifecycle(cat, today):
     for c in sorted(cands):
         try:
             if datetime.strptime(c, "%Y-%m-%d").date() > today:
-                nxt = c
+                nxt = {"type": "estimated_date", "date": c,
+                       "source": "data-vendor earnings calendar",
+                       "confidence": "medium"}
                 break
         except ValueError:
             continue
     if nxt is None:
-        nxt = "next filed quarter (date not yet scheduled)"
+        nxt = {"type": "unscheduled_event", "date": None,
+               "source": "next periodic filing",
+               "confidence": "high",
+               "label": "next filed quarter (date not yet scheduled)"}
     return {
         "next_checkpoint": nxt,
         "reunderwrite_when": [
@@ -207,14 +212,13 @@ def build(snap, view4, scenarios=None, estimates=None):
     # ── growth ───────────────────────────────────────────────────────
     if growth is not None and rev:
         if growth >= GROWTH_STRONG:
+            # Counterevidence must address the SAME causal proposition.
+            # Price below the 200-day is a tactical fact — it cannot
+            # counter revenue durability and lives in tactical context.
             ce, conflicted = [], False
             if margin is not None and margin < 0:
                 ce.append("growth is unprofitable: net margin %.1f%%"
                           % margin)
-            if ma200 is not None and px is not None and px < ma200:
-                ce.append("the market is not paying for it — price below "
-                          "the 200-day")
-                conflicted = True
             g = _guidance_counter(ex)
             if g:
                 ce.append(g)
@@ -263,11 +267,9 @@ def build(snap, view4, scenarios=None, estimates=None):
                     and MARGIN_STRONG <= margin <= MARGIN_OUTLIER:
                 ce.append("profitability holds: net margin %.1f%%"
                           % margin)
-            elif margin is not None and margin > MARGIN_OUTLIER:
-                ce.append("the quarter shows a %.0f%% net margin — far "
-                          "outside steady state, likely one-time items; "
-                          "not treated as recurring profitability"
-                          % margin)
+            # a one-time net-income gain is NOT counterevidence to a
+            # revenue decline; it is noted in accounting quality, not
+            # here (same-proposition rule)
             g = _guidance_support(ex)
             if g:
                 ce.append(g)
@@ -374,8 +376,8 @@ def build(snap, view4, scenarios=None, estimates=None):
                 ce = []
                 if cheap and growth is not None and growth < GROWTH_WEAK:
                     ce.append("the de-rate tracks shrinking revenue "
-                              "(%.1f%% y/y) — cheap for a reason is the "
-                              "base case until growth stabilises"
+                              "(%.1f%% y/y) — the discount may simply track "
+                              "the decline until growth stabilises"
                               % growth)
                 if not cheap and growth is not None \
                         and growth >= GROWTH_STRONG:
@@ -384,12 +386,14 @@ def build(snap, view4, scenarios=None, estimates=None):
                 cands.append({
                     "claim_id": "valuation-vs-history",
                     "claim": "The stock trades at a %.0f%% %s the "
-                             "price its available %.1f-year median "
-                             "trailing multiple implies"
+                             "price its %s median trailing multiple "
+                             "implies"
                              % (abs(gap), "discount to" if cheap
                                 else "premium over",
-                                band.get("actual_years")
-                                or band.get("window_years") or 3),
+                                ("available %.1f-year"
+                                 % band["actual_years"])
+                                if band.get("actual_years")
+                                else "available-history"),
                     "claim_type": "valuation",
                     "thesis_role": "core",
                     "direction": "bullish" if cheap else "bearish",
@@ -440,9 +444,6 @@ def build(snap, view4, scenarios=None, estimates=None):
         strong = tac.get("above_mas", 0) == 3
         if weak or strong:
             ce = []
-            if weak and growth is not None and growth >= GROWTH_STRONG:
-                ce.append("fundamentals are not confirming the tape: "
-                          "filed growth %.1f%%" % growth)
             if strong and rsi is not None and rsi >= RSI_STRETCH:
                 ce.append("RSI %.0f is stretched above %.0f — entry "
                           "timing risk, not thesis risk"

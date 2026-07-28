@@ -226,7 +226,7 @@ def build(ticker, multiples, spot, assumptions=None, note=None):
     out.update({"available": True, "rows": rows, "weighted": weighted,
                 "asymmetry": asym,
                 "band_ref": {k: band.get(k) for k in
-                             ("kind", "window_years", "window_start",
-                              "window_end", "coverage")},
+                             ("kind", "window_years", "actual_years",
+                              "window_start", "window_end", "coverage")},
                 "arithmetic": arithmetic})
     return out

@@ -70,7 +70,8 @@ def build_state(ticker, view5, result, prior_id=None):
         "spot": sc.get("spot"),
         "weighted_value": (sc.get("weighted") or {}).get("price"),
         "catalysts": [c.get("next_checkpoint")
-                      for c in (cl.get("claims") or [])[:1]],
+                      for c in (cl.get("claims") or [])[:1]
+                      if c.get("next_checkpoint")],
         "invalidation_conditions": [c["breaks_if"]
                                     for c in cl.get("claims") or []],
         "confidence": None,

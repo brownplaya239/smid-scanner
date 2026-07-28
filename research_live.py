@@ -2049,6 +2049,12 @@ def build_snapshot(ticker, report_time=None):
                                "company-confirmed)",
                        "when": mk["next_earnings"]}]
                      if mk.get("next_earnings") else []),
+        # vendor-estimated NEXT print, surfaced for the event gate's
+        # pre-event window and the claims engine's typed checkpoint
+        "next_event_date": (str(mk["next_earnings"])[:10]
+                            if mk.get("next_earnings") else None),
+        "next_event_source": "data-vendor estimate, not "
+                             "company-confirmed",
         "refusal": cat.get("refusal"),
         # An unverified candidate must not be described as "the earliest
         # verified public disclosure" — that is the one sentence in this

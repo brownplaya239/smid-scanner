@@ -148,6 +148,10 @@ def _guidance_ok(exhibit):
 # periodic filing carries the numbers, and the gap is labelled instead.
 HOLD_WINDOW_DAYS = 5
 
+# Days before the next expected print inside which a report is
+# classified pre-earnings even when the prior call concluded.
+PRE_EVENT_WINDOW_DAYS = 3
+
 
 def _release_age_days(exhibit, now):
     """Calendar days since the results 8-K was accepted, or None."""
@@ -243,6 +247,25 @@ def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
                            "exhibit; the forward view is incomplete.")
 
     rating_allowed = state in RATING_ALLOWED
+
+    # UPCOMING-EVENT OVERRIDE: a report generated inside the pre-event
+    # window of the NEXT expected print is a pre-earnings document even
+    # though the prior call concluded long ago — the reader's live
+    # question is the imminent report, not the stale one.
+    nxt_ev = catalyst.get("next_event_date")
+    if state in (POST_CALL_UNVERIFIED, POST_CALL_VERIFIED) and nxt_ev:
+        try:
+            nd = dt.datetime.fromisoformat(str(nxt_ev)[:10]).date()
+            days_to = (nd - now.date()).days
+            if 0 <= days_to <= PRE_EVENT_WINDOW_DAYS:
+                state = PRE_RELEASE
+                reasons.append("next expected report %s is %d day(s) "
+                               "away (within the %d-day pre-event "
+                               "window) — classified pre-earnings"
+                               % (nd.isoformat(), days_to,
+                                  PRE_EVENT_WINDOW_DAYS))
+        except ValueError:
+            pass
 
     # Once results are out, the vendor next-earnings date belongs to the
     # FOLLOWING period and must never be shown as this period's pending

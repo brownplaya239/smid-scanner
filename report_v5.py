@@ -23,6 +23,15 @@ from report_v3 import (BODY_W, _Doc, _clean, _finalize, _fit_page, _table,
                        para)
 from report_v4 import DERIVED, INFERRED, OBSERVED
 
+def _fmt_checkpoint(cp):
+    """Typed checkpoint -> reader text."""
+    if isinstance(cp, dict):
+        if cp.get("date"):
+            return "%s (%s)" % (cp["date"], cp.get("source") or "")
+        return cp.get("label") or cp.get("source") or "unscheduled"
+    return str(cp or "")
+
+
 ASM_NOTE = ("[ASM] assumption, stated basis — ours or user-supplied, "
             "never a measurement")
 
@@ -49,30 +58,49 @@ def _pct(v, signed=False):
 # ── data confidence box (P1) ─────────────────────────────────────────
 
 def confidence(view5):
-    """High/Medium/Low + 2-3 reasons, from coverage facts only."""
-    reasons, score = [], 0
+    """Five separate axes — strong filing coverage must never imply a
+    complete thesis. Each axis: HIGH/MEDIUM/LOW/NOT_AVAILABLE + reason."""
     m = view5.get("multiples") or {}
     nq = max(m.get("n_eps_quarters") or 0, m.get("n_rev_quarters") or 0)
-    if nq >= 12:
-        score += 1
-        reasons.append("%d filed quarters of history" % nq)
-    elif nq:
-        reasons.append("only %d filed quarters" % nq)
     band = next((m[k] for k in ("pe", "ps")
                  if (m.get(k) or {}).get("available")), None)
-    if band:
-        score += 1
-        reasons.append("multiple band at %.0f%% session coverage"
-                       % (100 * band.get("coverage", 0)))
-    else:
-        reasons.append("no multiple band survived coverage")
-    if (view5.get("v4") or {}).get("estimates_configured"):
-        score += 1
-        reasons.append("consensus feed connected")
-    else:
-        reasons.append("no consensus feed this run")
-    level = "High" if score >= 3 else "Medium" if score == 2 else "Low"
-    return {"level": level, "reasons": reasons[:3]}
+    est = (view5.get("v4") or {}).get("estimates_configured")
+    exp_var = ((view5.get("expectations") or {}).get("variant")
+               or {}).get("available")
+    cl = view5.get("claims") or {}
+    fund_claims = [c for c in cl.get("claims") or []
+                   if c.get("claim_type") in ("fundamental", "valuation")]
+
+    axes = {
+        "source_integrity": (
+            "HIGH", "filed SEC facts, licensed bars, dated vendor feeds"),
+        "quantitative_coverage": (
+            ("HIGH" if nq >= 12 and band else
+             "MEDIUM" if nq >= 4 else "LOW"),
+            "%d filed quarters; band %s" % (nq,
+                "%.0f%% coverage" % (100 * band["coverage"])
+                if band else "withheld")),
+        "qualitative_coverage": (
+            "LOW", "industry, moat, management and unit economics have "
+                   "no admitted source"),
+        "expectations_coverage": (
+            ("MEDIUM" if est else "LOW") if not exp_var else "HIGH",
+            "consensus feed %s; KPI-level expectations %s"
+            % ("connected" if est else "absent",
+               "sourced" if exp_var else "not sourced")),
+        "thesis_completeness": (
+            ("MEDIUM" if len(fund_claims) >= 2 else "LOW"),
+            "%d published fundamental claim(s); no underwritten "
+            "forecasts" % len(fund_claims)),
+    }
+    # legacy single level = the weakest of the five (conservative)
+    order = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "NOT_AVAILABLE": 0}
+    worst = min(axes.values(), key=lambda v: order[v[0]])[0]
+    return {"level": worst.title(),
+            "axes": {k: {"level": v[0], "reason": v[1]}
+                     for k, v in axes.items()},
+            "reasons": ["%s: %s" % (k.replace("_", " "), v[0])
+                        for k, v in axes.items()]}
 
 
 # ── FULL pages ───────────────────────────────────────────────────────
@@ -249,9 +277,9 @@ def _p2_argument(snap, view5):
                 st.append(para("&bull; <i>Against:</i> %s" % _clean(x),
                                "body"))
         else:
-            st.append(para("&bull; <i>Against:</i> none found in filed "
-                           "data (searched: %s)"
-                           % _clean("; ".join(cl.get("searched") or [])),
+            st.append(para("&bull; <i>Counterevidence:</i> none "
+                           "identified in admitted evidence. Coverage "
+                           "limitations are detailed in the appendix.",
                            "small"))
         st.append(para("<i>Implication:</i> %s &middot; %s"
                        % (_clean(c.get("financial_implication") or ""),
@@ -260,7 +288,8 @@ def _p2_argument(snap, view5):
         st.append(para("<i>Breaks:</i> %s &middot; <i>next checkpoint:"
                        "</i> %s &middot; <i>valid until:</i> %s"
                        % (_clean(c["breaks_if"]),
-                          _clean(c.get("next_checkpoint") or ""),
+                          _clean(_fmt_checkpoint(
+                              c.get("next_checkpoint"))),
                           _clean(c.get("maximum_valid_until") or "")),
                        "small", DERIVED))
     rej = cl.get("rejected") or []
@@ -376,11 +405,12 @@ def _p4_valuation(snap, view5):
         base = rows.get("base")
         if base:
             sens = base["metric"]["value"]
-            st.append(para("Sensitivity: &plusmn;1 turn of the base "
-                           "multiple = &plusmn;$%.2f on the base price."
-                           % sens, "small", DERIVED))
+            st.append(para("Sensitivity: &plusmn;1 turn of the "
+                           "median multiple = &plusmn;$%.2f on the "
+                           "median-implied price." % sens, "small",
+                           DERIVED))
         asym = sc.get("asymmetry") or {}
-        if asym:
+        if asym and sc.get("mode") == "underwritten":
             st.append(para("Range span: P25 %s%% &middot; P75 %s%% vs spot "
                            "&middot; upside/downside %s"
                            % (asym.get("downside_to_bear_pct"),

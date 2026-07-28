@@ -142,21 +142,45 @@ def investment_attractiveness(scenarios, expectations, event,
     sc = scenarios or {}
     if not sc.get("available"):
         return {"level": "NOT_UNDERWRITTEN",
+                "missing": ["valuation basis", "forecasts",
+                            "expectations", "downside assumptions"],
                 "reasons": [sc.get("reason")
                             or "no valuation basis survived"],
-                "basis": "no scenario table"}
-    rows = {r["leg"]: r for r in sc.get("rows") or []}
-    base, bear, bull = rows.get("base"), rows.get("bear"), rows.get("bull")
-    pos, neg, reasons = 0, 0, []
+                "basis": "no valuation basis"}
 
+    # Attractiveness must rest on ACTUAL underwriting. The historical
+    # range holds the trailing metric constant with no operating
+    # assumptions — mean reversion toward a median is context, never an
+    # expected return, so it contributes NOTHING to the level here.
+    if sc.get("mode") != "underwritten":
+        missing = ["operating forecasts (assumptions file)",
+                   "scenario probabilities (assumptions file)"]
+        var = (expectations or {}).get("variant") or {}
+        if not var.get("available"):
+            missing.append("sourced KPI-level market expectations")
+        return {"level": "PROVISIONAL",
+                "qualifier": "PROVISIONAL",
+                "display": "PROVISIONAL",
+                "missing": missing,
+                "reasons": ["not underwritten: the historical valuation "
+                            "range is descriptive context only",
+                            "missing inputs: %s" % "; ".join(missing)],
+                "basis": "no forecasts, expectations or downside "
+                         "assumptions admitted"}
+
+    rows = {r["leg"]: r for r in sc.get("rows") or []}
+    base = rows.get("base")
+    pos, neg, reasons = 0, 0, []
     if base:
         gap = base["vs_spot_pct"]
         if gap >= DISCOUNT_BIG:
             pos += 1
-            reasons.append("base scenario %+.0f%% vs spot" % gap)
+            reasons.append("underwritten base case %+.0f%% vs spot"
+                           % gap)
         elif gap <= -DISCOUNT_BIG:
             neg += 1
-            reasons.append("base scenario %+.0f%% vs spot" % gap)
+            reasons.append("underwritten base case %+.0f%% vs spot"
+                           % gap)
     asym = sc.get("asymmetry") or {}
     ratio = asym.get("up_down_ratio")
     if ratio is not None:
@@ -171,8 +195,6 @@ def investment_attractiveness(scenarios, expectations, event,
         pos += 1
         reasons.append("sourced expectations gap %+.1f%%"
                        % var.get("gap_pct", 0))
-    else:
-        reasons.append("no sourced expectations gap")
     if confidence_level == "Low":
         neg += 1
         reasons.append("low data confidence")
@@ -185,18 +207,10 @@ def investment_attractiveness(scenarios, expectations, event,
         level = "UNATTRACTIVE"
     else:
         level = "LOW"
-    # A read built on the historical range alone is PROVISIONAL: the
-    # percentile legs hold the metric constant and carry no operating
-    # assumptions, so "the median implies +78%" is context, not an
-    # underwritten expected return.
-    provisional = sc.get("mode") != "underwritten"
-    return {"level": level,
-            "qualifier": "PROVISIONAL" if provisional else None,
-            "display": level + ("_PROVISIONAL" if provisional else ""),
-            "reasons": reasons[:4] + (
-                ["historical range only — no forecasts or "
-                 "probabilities underwritten"] if provisional else []),
-            "basis": "price-relative only; quality assessed separately"}
+    return {"level": level, "qualifier": None, "display": level,
+            "missing": [],
+            "reasons": reasons[:4],
+            "basis": "underwritten scenarios with stated assumptions"}
 
 
 def tension(bq, ia):
@@ -206,8 +220,8 @@ def tension(bq, ia):
          "NOT_ESTABLISHED": "not-established"}[bq["level"]]
     a = {"HIGH": "high", "MODERATE": "moderate", "LOW": "low",
          "UNATTRACTIVE": "unattractive",
+         "PROVISIONAL": "provisional (not underwritten)",
          "NOT_UNDERWRITTEN": "not underwritten"}[ia["level"]]
-    prov = " (provisional)" if ia.get("qualifier") == "PROVISIONAL"         else ""
     return ("Reported financial quality %s (overall: partially "
-            "underwritten); %s%s investment attractiveness at the "
-            "current price." % (q, a, prov))
+            "underwritten); investment attractiveness %s at the "
+            "current price." % (q, a))

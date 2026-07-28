@@ -188,6 +188,54 @@ def validate(view5, core_pdf, rendered, apx_pdf=None):
                          "name", "weighted=%s, ia=%s"
                          % (bool(w), ia_lvl)))
 
+    # ── historical-range semantics + IA underwriting (v5.6) ──────────
+    sc6 = view5.get("scenarios") or {}
+    if sc6.get("available") and sc6.get("mode") == "historical_range":
+        low = text.lower()
+        banned = [w for w in ("bear case", "base case", "bull case",
+                              "expected return", "target price",
+                              "margin of safety", "upside/downside")
+                  if w in low]
+        checks.append(VV.chk("NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE",
+                             not banned, VV.ERROR,
+                             "historical mode renders no scenario/"
+                             "forecast vocabulary",
+                             ", ".join(banned) or "clean"))
+        import re as _re6
+        ay = (sc6.get("band_ref") or {}).get("actual_years")
+        yrs = set(_re6.findall(r"available (\d+\.\d)-year", text))
+        checks.append(VV.chk("HISTORICAL_WINDOW_LABEL_MATCHES_ACTUAL",
+                             (not yrs) or (ay is not None
+                                           and yrs == {"%.1f" % ay}),
+                             VV.ERROR,
+                             "the rendered window label equals "
+                             "actual_years",
+                             "labels %s vs actual %s" % (sorted(yrs),
+                                                         ay)))
+    ia6 = (view5.get("assessment") or {}).get(
+        "investment_attractiveness") or {}
+    checks.append(VV.chk("INVESTMENT_ATTRACTIVENESS_HAS_UNDERWRITING",
+                         ia6.get("level") in ("PROVISIONAL",
+                                              "NOT_UNDERWRITTEN")
+                         or sc6.get("mode") == "underwritten",
+                         VV.ERROR,
+                         "graded attractiveness requires underwritten "
+                         "scenarios; otherwise PROVISIONAL/"
+                         "NOT_UNDERWRITTEN",
+                         "%s (mode %s)" % (ia6.get("level"),
+                                           sc6.get("mode"))))
+    conf6 = None
+    try:
+        import report_v5 as _R56
+        conf6 = _R56.confidence(view5)
+    except Exception:
+        pass
+    checks.append(VV.chk("DATA_CONFIDENCE_DECOMPOSED",
+                         bool(conf6 and len(conf6.get("axes") or {})
+                              == 5), VV.ERROR,
+                         "confidence splits into five named axes",
+                         ", ".join((conf6 or {}).get("axes") or {})))
+
     # ── expectations checks (v5.5 phase C) ───────────────────────────
     exp = view5.get("expectations") or {}
     var = exp.get("variant") or {}
@@ -248,14 +296,32 @@ def validate(view5, core_pdf, rendered, apx_pdf=None):
                or not c.get("next_checkpoint")]
         from datetime import datetime as _dt2, timezone as _tz2
         _today = _dt2.now(_tz2.utc).date().isoformat()
+        VALID_CP = ("exact_date", "estimated_date", "unscheduled_event")
+        bad_t = [c["claim_id"] for c in pubs
+                 if not isinstance(c.get("next_checkpoint"), dict)
+                 or c["next_checkpoint"].get("type") not in VALID_CP
+                 or (c["next_checkpoint"]["type"] != "unscheduled_event"
+                     and not c["next_checkpoint"].get("date"))]
+        checks.append(VV.chk("NEXT_CHECKPOINT_TYPE_VALID", not bad_t,
+                             VV.ERROR,
+                             "checkpoints are typed objects (dated "
+                             "types carry a date)",
+                             ", ".join(bad_t) or "all typed"))
         stale_cp = [c["claim_id"] for c in pubs
-                    if len(str(c.get("next_checkpoint"))) == 10
-                    and str(c.get("next_checkpoint")) <= _today]
+                    if isinstance(c.get("next_checkpoint"), dict)
+                    and c["next_checkpoint"].get("date")
+                    and str(c["next_checkpoint"]["date"]) <= _today]
+        undated = sum(1 for c in pubs
+                      if isinstance(c.get("next_checkpoint"), dict)
+                      and c["next_checkpoint"].get("type")
+                      == "unscheduled_event")
         checks.append(VV.chk("NEXT_CHECKPOINT_AFTER_AS_OF",
                              not stale_cp, VV.ERROR,
-                             "every dated checkpoint lies after the "
-                             "report date",
-                             ", ".join(stale_cp) or "all future"))
+                             "every DATED checkpoint lies after the "
+                             "report date (unscheduled: not applicable)",
+                             (", ".join(stale_cp) or
+                              "%d dated future, %d unscheduled (n/a)"
+                              % (len(pubs) - undated, undated))))
         checks.append(VV.chk("THESIS_REUNDERWRITE_TRIGGER_PRESENT",
                              not bad, VV.ERROR,
                              "every claim carries re-underwriting "

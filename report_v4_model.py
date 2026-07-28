@@ -529,19 +529,19 @@ def variant_perception(ratings, snap):
 
     if street and tape:
         if street in _BULL and tape in _WEAK_TAPE:
-            text = ("The Street rates the name %s, but price sits below its "
-                    "own structure. Our variant is that the fundamental bull "
-                    "case is not yet confirmed by the trend — the tape has "
-                    "not validated the rating, so an entry waits on a "
-                    "reclaim rather than fronts it." % street)
+            text = ("The Street rates the name %s, but price sits below "
+                    "its own structure. The open question is whether the "
+                    "tape will confirm the positive consensus — it has not "
+                    "yet, so tactical confirmation would require a reclaim "
+                    "of the broken levels." % street)
         elif street in _BEAR and tape in _STRONG_TAPE:
-            text = ("The Street rates the name %s while the tape is %s. Our "
-                    "variant is that price is repairing ahead of the "
-                    "consensus view — the technical turn leads the estimates "
+            text = ("The Street rates the name %s while the tape is %s. "
+                    "The open question is whether price is repairing ahead "
+                    "of the consensus view — the technical turn may lead "
                     "here." % (street, tape.lower()))
         elif street in _BULL and tape in _STRONG_TAPE:
-            text = ("Consensus (%s) and our tape read (%s) agree. The honest "
-                    "variant is that there isn't one: the view is crowded, "
+            text = ("Consensus (%s) and our tape read (%s) agree. There is "
+                    "no differentiated view here: the position is crowded, "
                     "and the risk is owning what everyone already owns into "
                     "any disappointment." % (street, tape.lower()))
         else:
