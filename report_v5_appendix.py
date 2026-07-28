@@ -472,6 +472,21 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
              ["Archetype", _clean((view5.get("archetype") or {}).get(
                  "archetype") or "")]],
             [BODY_W * .3, BODY_W * .6], zebra=True),
+        # §5 (v5.8): the binding block certifies WHAT it binds — the
+        # complete section inventory travels with the hashes, so the
+        # closing page is a genuine certification record rather than a
+        # stranded hash table
+        para("Sections certified by this record:", "body"),
+        _table([[str(i + 1),
+                 # the inventory prints the RENDERED titles — section 9
+                 # is mode-aware so no scenario vocabulary attaches to
+                 # a historical range (§2/§4)
+                 ("Historical valuation range and assumptions status"
+                  if i == 8 and sc.get("mode") != "underwritten"
+                  else SECTION_TITLES[i])]
+                for i in range(14)],
+               [BODY_W * .08, BODY_W * .62],
+               header=["Section", "Contents"], zebra=True),
         para("Full hashes appear once in the introduction; the "
              "appendix PDF's own sha256 and the complete ID-to-source "
              "ledger are in the validation JSON and the companion "
