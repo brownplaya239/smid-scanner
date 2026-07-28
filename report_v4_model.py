@@ -669,7 +669,11 @@ def data_confidence(snap, estimates, view_bits=None):
     would be an opinion."""
     reasons_neg, reasons_pos = [], []
     fu = snap.get("fundamentals") or {}
-    has_filed = any(isinstance(v, dict) and v.get("value") is not None
+    # rs.fact stores the value under "v" — reading .get("value") made
+    # this False for EVERY issuer, so each report claimed "no filed
+    # 10-K/10-Q financials" regardless of what was ingested.
+    import research_snapshot as _rs
+    has_filed = any(isinstance(v, dict) and _rs.fv(v) is not None
                     for k, v in fu.items() if k in
                     ("revenue_q", "net_income_q", "operating_cash_flow"))
     if has_filed:
