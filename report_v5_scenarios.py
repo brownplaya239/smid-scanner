@@ -87,6 +87,23 @@ def _cell(value, grade, basis):
     return {"value": value, "grade": grade, "basis": basis}
 
 
+def anchor(record):
+    """The central row — 'median' in historical mode, 'base' when
+    underwritten. Downstream consumers use this instead of assuming a
+    leg name that §2 removed from historical-range objects."""
+    for r in (record or {}).get("rows") or []:
+        if r["leg"] in ("median", "base"):
+            return r
+    return None
+
+
+def row_by(record, *names):
+    for r in (record or {}).get("rows") or []:
+        if r["leg"] in names:
+            return r
+    return None
+
+
 def build(ticker, multiples, spot, assumptions=None, note=None):
     """The scenario table.
 
@@ -141,43 +158,54 @@ def build(ticker, multiples, spot, assumptions=None, note=None):
     # MODE: without user operating assumptions AND probabilities this is
     # a HISTORICAL VALUATION RANGE — percentiles of the name's own past
     # multiples applied to a constant trailing metric. It is context,
-    # not a forecast, and the legs are named P25/Median/P75. Only a
-    # forward metric plus probabilities upgrades the mode to
-    # "underwritten" and earns Bear/Base/Bull language.
+    # not a forecast, and its legs ARE p25/median/p75: no bear/base/bull
+    # leg exists on a historical-range object (§2). Only a forward
+    # metric plus probabilities upgrades the mode to "underwritten" and
+    # earns Bear/Base/Bull scenario legs.
     underwritten = bool(fields.get("forward_metric")
                         and fields.get("probabilities"))
     out["mode"] = "underwritten" if underwritten else "historical_range"
-    leg_labels = ({"bear": "Bear", "base": "Base", "bull": "Bull"}
-                  if underwritten else
-                  {"bear": "P25", "base": "Median", "bull": "P75"})
-    legs = {"bear": band.get("p25"), "base": band.get("p50"),
-            "bull": band.get("p75")}
+    # (leg name, display label, percentile source, assumption-field key)
+    LEG_SPECS = ([("bear", "Bear", "p25", "bear_multiple"),
+                  ("base", "Base", "p50", "base_multiple"),
+                  ("bull", "Bull", "p75", "bull_multiple")]
+                 if underwritten else
+                 [("p25", "P25", "p25", "bear_multiple"),
+                  ("median", "Median", "p50", "base_multiple"),
+                  ("p75", "P75", "p75", "bull_multiple")])
     rows, arithmetic = [], []
-    for leg in ("bear", "base", "bull"):
-        ov = fields.get("%s_multiple" % leg)
+    for leg, label, pkey, fkey in LEG_SPECS:
+        ov = fields.get(fkey)
         if ov:
             mult_cell = _cell(float(ov["value"]), ASM,
                               "%s (%s)" % (ov["basis"], stamp))
         else:
-            mult_cell = _cell(legs[leg], DER,
+            mult_cell = _cell(band.get(pkey), DER,
                               "own %d-yr %s of daily trailing %s"
                               % (band["window_years"],
-                                 {"bear": "P25", "base": "P50",
-                                  "bull": "P75"}[leg],
+                                 {"p25": "P25", "p50": "P50",
+                                  "p75": "P75"}[pkey],
                                  out["metric_kind"].upper()))
         price = round(mult_cell["value"] * metric, 2)
-        rows.append({"leg": leg, "label": leg_labels[leg],
+        rows.append({"leg": leg, "label": label,
                      "multiple": mult_cell,
                      "metric": metric_cell, "price": price,
                      "vs_spot_pct": round(100.0 * (price / spot - 1), 1)})
         arithmetic.append("%s: %.2f x %.4f = %.2f"
-                          % (leg, mult_cell["value"], metric, price))
+                          % (label, mult_cell["value"], metric, price))
 
-    # probabilities exist only via the assumptions file, and only when
-    # they cover all three legs and sum to ~1
+    # probabilities exist only via the assumptions file, only when they
+    # cover all three legs and sum to ~1, and ONLY in underwritten mode:
+    # a historical range with no operating forecast cannot be
+    # probability-weighted into an expected value.
     weighted = None
     probs = fields.get("probabilities")
-    if isinstance(probs, dict):
+    if isinstance(probs, dict) and not underwritten:
+        out["assumptions_note"] = ((out.get("assumptions_note") or "")
+            + " probabilities ignored: no forward_metric (operating "
+              "forecast) — a historical range is never "
+              "probability-weighted").strip()
+    elif isinstance(probs, dict):
         vals = [probs.get(l) for l in ("bear", "base", "bull")]
         if all(isinstance(v, (int, float)) for v in vals) \
                 and abs(sum(vals) - 1.0) < 0.01:
@@ -193,16 +221,20 @@ def build(ticker, multiples, spot, assumptions=None, note=None):
                 + " probabilities ignored: must cover bear/base/bull and "
                   "sum to 1").strip()
 
-    # ── asymmetry + expected value (phase E) ─────────────────────────
-    rd = {r["leg"]: r for r in rows}
-    bear_p, bull_p = rd["bear"]["price"], rd["bull"]["price"]
-    downside = round(100.0 * (bear_p / spot - 1), 1)
-    upside = round(100.0 * (bull_p / spot - 1), 1)
-    asym = {"downside_to_bear_pct": downside,
-            "upside_to_bull_pct": upside,
-            "up_down_ratio": (round(abs(upside) / abs(downside), 2)
-                              if downside < 0 and upside > 0 else None),
-            "basis": "bull/bear scenario prices vs spot"}
+    # ── asymmetry + expected value (phase E; underwritten mode only —
+    # a historical range carries no asymmetry/EV vocabulary) ─────────
+    asym = None
+    if underwritten:
+        rd = {r["leg"]: r for r in rows}
+        bear_p, bull_p = rd["bear"]["price"], rd["bull"]["price"]
+        downside = round(100.0 * (bear_p / spot - 1), 1)
+        upside = round(100.0 * (bull_p / spot - 1), 1)
+        asym = {"downside_to_bear_pct": downside,
+                "upside_to_bull_pct": upside,
+                "up_down_ratio": (round(abs(upside) / abs(downside), 2)
+                                  if downside < 0 and upside > 0
+                                  else None),
+                "basis": "bull/bear scenario prices vs spot"}
     if weighted:
         probs = weighted["probabilities"]
         ev = weighted["price"]

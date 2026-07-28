@@ -33,8 +33,11 @@ SCHEMA = "v5-expectations/1"
 
 
 def _leg(scenarios, name):
+    """Anchor lookup — 'base' resolves to 'median' in historical mode,
+    where no base leg exists (§2)."""
+    names = ("base", "median") if name == "base" else (name,)
     for r in (scenarios or {}).get("rows") or []:
-        if r["leg"] == name:
+        if r["leg"] in names:
             return r
     return None
 
@@ -116,8 +119,9 @@ def build(snap, grid, multiples, scenarios, estimates, assumptions=None):
             if k == "fx_commentary" or not isinstance(g, dict) \
                     or g.get("low") is None:
                 continue
+            from report_v5_checks import human_metric_label
             kpis.append({
-                "metric": g.get("label") or k,
+                "metric": g.get("label") or human_metric_label(k),
                 "period": "guided period (see exhibit)",
                 "company_guidance": {"low": g["low"], "high": g["high"],
                                      "unit": g.get("unit")},

@@ -103,8 +103,8 @@ chk("rating grade OBSERVED (consensus, not our opinion)",
     fr["grade"] == V4.OBSERVED)
 chk("target still withheld on free tier",
     v["ratings"]["target"]["available"] is False)
-chk("target reason names premium",
-    "premium" in v["ratings"]["target"]["reason"])
+chk("target reason states the plan gap without naming tiers",
+    "data plan" in v["ratings"]["target"]["reason"])
 chk("surprise history flows through",
     len(v["financials"]["surprises"]) == 1)
 chk("forward consensus withheld (gated)",

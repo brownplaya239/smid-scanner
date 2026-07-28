@@ -620,7 +620,12 @@ def _page6(snap, view):
     prices that would confirm or break the thesis — the page a reader keeps
     open. Every trigger is a dated, evidence-linked level the v3 decision
     block already computed; nothing here is a fresh opinion."""
-    st = [para("Catalysts, variant view and what to monitor", "h2")]
+    # "variant view" appears in the title only when a variant actually
+    # exists (§9); otherwise the page is catalysts, risks and monitoring.
+    _var0 = view.get("variant") or {}
+    st = [para("Catalysts, variant view and what to monitor"
+               if _var0.get("available")
+               else "Catalysts, risks and monitoring", "h2")]
 
     cat = view.get("catalysts") or {}
     lr = cat.get("last_reported") or {}

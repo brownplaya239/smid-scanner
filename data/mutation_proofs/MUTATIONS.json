@@ -1,0 +1,259 @@
+{
+ "mutation_tests": [
+  {
+   "changed_field_or_artifact": "appended a 12-char final page",
+   "expected_failure": "text-starved page detected",
+   "intended_check": "NO_ORPHAN_PAGE",
+   "mutation_id": "M01-orphan-page",
+   "observed_failure": "page 3: 10 chars",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "final page reduced to one bullet",
+   "expected_failure": "single stranded bullet detected",
+   "intended_check": "NO_ORPHAN_BULLET",
+   "mutation_id": "M02-orphan-bullet",
+   "observed_failure": "page 2: single stranded bullet",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "injected 'revenue_q' into core text",
+   "expected_failure": "raw schema identifier detected",
+   "intended_check": "HUMAN_READABLE_METRIC_LABELS",
+   "mutation_id": "M03-raw-identifier",
+   "observed_failure": "revenue_q",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "page text grown past the frame budget",
+   "expected_failure": "overlong page detected",
+   "intended_check": "CORE_LAYOUT_NO_OVERFLOW",
+   "mutation_id": "M04-overflow",
+   "observed_failure": "page 1: 6000 chars",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "free-form sentence used as an evidence ref",
+   "expected_failure": "unresolved reference",
+   "intended_check": "EVIDENCE_REF_EXISTS_IN_LEDGER",
+   "mutation_id": "M05-prose-ref",
+   "observed_failure": "growth is strong because the market is big",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "prose used as a counterevidence ref",
+   "expected_failure": "unresolved reference",
+   "intended_check": "COUNTEREVIDENCE_REF_EXISTS_IN_LEDGER",
+   "mutation_id": "M06-prose-counter-ref",
+   "observed_failure": "profitability holds: net margin 12%",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "CALC-ma200 attached as counterevidence to a fundamental claim",
+   "expected_failure": "same-proposition rule violated",
+   "intended_check": "COUNTEREVIDENCE_RELEVANT_TO_CLAIM",
+   "mutation_id": "M07-technical-counter",
+   "observed_failure": "CALC-ma200",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "unit_economics removed from coverage",
+   "expected_failure": "missing dimension detected",
+   "intended_check": "FRAMEWORK_COVERAGE_PRESENT",
+   "mutation_id": "M08-missing-dimension",
+   "observed_failure": "unit_economics",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "archetype forced FULL with NOT_ASSESSED framework dimensions",
+   "expected_failure": "missing dimensions listed",
+   "intended_check": "FULL_REQUIRES_DILIGENCE_COVERAGE",
+   "mutation_id": "M09-full-without-coverage",
+   "observed_failure": "industry_structure; management_record",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "adapter record cleared before render",
+   "expected_failure": "no adapter selected",
+   "intended_check": "SECTOR_ADAPTER_APPLIED",
+   "mutation_id": "M10-adapter-dropped",
+   "observed_failure": "no adapter selected",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "dashboard heading missing from core text",
+   "expected_failure": "dashboard not rendered",
+   "intended_check": "SECTOR_ADAPTER_APPLIED",
+   "mutation_id": "M10b-adapter-not-rendered",
+   "observed_failure": "adapter 'restaurant' dashboard not rendered",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "'Our variant' injected with no sourced gap",
+   "expected_failure": "banned variant wording detected",
+   "intended_check": "VARIANT_WORDING_REQUIRES_EXPECTATIONS_GAP",
+   "mutation_id": "M11-our-variant",
+   "observed_failure": "'Our variant' rendered",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "affirmative 'Variant perception:' without expectations",
+   "expected_failure": "affirmative variant without gap",
+   "intended_check": "VARIANT_WORDING_REQUIRES_EXPECTATIONS_GAP",
+   "mutation_id": "M11b-affirmative-variant",
+   "observed_failure": "affirmative variant wording without a sourced expectations gap",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "POST-CALL state one day before the next print",
+   "expected_failure": "post-call inside pre-event window",
+   "intended_check": "EVENT_STATE_RESPECTS_UPCOMING_EVENT",
+   "mutation_id": "M12-stale-event-state",
+   "observed_failure": "state POST-CALL VERIFIED with next event 2026-07-29 inside the pre-event window",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "'base case' injected into historical text",
+   "expected_failure": "banned vocabulary detected",
+   "intended_check": "NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE",
+   "mutation_id": "M13-scenario-language",
+   "observed_failure": "base case",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "'3.0-year' label with actual_years 2.0",
+   "expected_failure": "label mismatch",
+   "intended_check": "HISTORICAL_WINDOW_LABEL_MATCHES_ACTUAL",
+   "mutation_id": "M14-window-label",
+   "observed_failure": "labels ['3.0'] vs actual 2.0",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "'expected return' rendered in historical mode",
+   "expected_failure": "return language on a historical range",
+   "intended_check": "HISTORICAL_RANGE_NOT_USED_AS_EXPECTED_RETURN",
+   "mutation_id": "M15-expected-return",
+   "observed_failure": "'expected return' rendered in historical mode",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "IA graded MODERATE in historical mode",
+   "expected_failure": "grade without underwriting",
+   "intended_check": "INVESTMENT_ATTRACTIVENESS_HAS_UNDERWRITING",
+   "mutation_id": "M16-graded-ia",
+   "observed_failure": "graded level MODERATE without underwritten scenarios (mode historical_range)",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "tactical invalidation line removed",
+   "expected_failure": "missing invalidation line",
+   "intended_check": "FUNDAMENTAL_AND_TACTICAL_INVALIDATION_SEPARATE",
+   "mutation_id": "M17-merged-invalidation",
+   "observed_failure": "no tactical-invalidation line",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "monitoring stages shuffled out of order",
+   "expected_failure": "non-monotonic thresholds",
+   "intended_check": "TECHNICAL_STAGES_ORDERED",
+   "mutation_id": "M18-shuffled-stages",
+   "observed_failure": "upward stage thresholds not ascending: [30.0, 20.0, 25.0]",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "one confidence axis removed",
+   "expected_failure": "missing axis detected",
+   "intended_check": "DATA_CONFIDENCE_DECOMPOSED",
+   "mutation_id": "M19-four-axes",
+   "observed_failure": "missing axes: thesis_completeness",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "checkpoint replaced by 'someday'",
+   "expected_failure": "untyped checkpoint detected",
+   "intended_check": "NEXT_CHECKPOINT_TYPE_VALID",
+   "mutation_id": "M20-untyped-checkpoint",
+   "observed_failure": "c1",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "appendix headed 'Equity Research v4'",
+   "expected_failure": "v4 metadata detected",
+   "intended_check": "APPENDIX_VERSION_MATCH",
+   "mutation_id": "M21-v4-appendix",
+   "observed_failure": "v5 appendix header missing; v4 metadata present in appendix",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "appendix carries a different report ID",
+   "expected_failure": "report ID absent",
+   "intended_check": "APPENDIX_REPORT_ID_MATCH",
+   "mutation_id": "M22-wrong-report-id",
+   "observed_failure": "report ID 'TT-2026-07-28T12:00:00' not found in appendix",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "appendix claims the band was not produced while the core renders one",
+   "expected_failure": "method contradiction detected",
+   "intended_check": "APPENDIX_METHOD_MATCHES_CORE",
+   "mutation_id": "M23-band-denial",
+   "observed_failure": "appendix denies a band the core renders; metric kind 'pe' absent from appendix",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "core hash stripped from the appendix",
+   "expected_failure": "hash absent",
+   "intended_check": "APPENDIX_HASH_MATCH",
+   "mutation_id": "M24-hash-flip",
+   "observed_failure": "core PDF sha256 not recorded in appendix",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "ledger hash stripped from the appendix",
+   "expected_failure": "ledger hash absent",
+   "intended_check": "SOURCE_LEDGER_HASH_MATCH",
+   "mutation_id": "M25-ledger-hash-flip",
+   "observed_failure": "source-ledger hash not recorded in appendix",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "pilot-symbol comparison injected into a shared module",
+   "expected_failure": "ticker-keyed branch detected",
+   "intended_check": "NO_TICKER_SPECIFIC_BRANCH",
+   "mutation_id": "M26-ticker-branch",
+   "observed_failure": "report_v5_claims.py:2 'HOOD'; report_v5_claims.py:2",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  }
+ ],
+ "proven": 28,
+ "schema": "v5-mutation-proofs/1",
+ "total": 28
+}

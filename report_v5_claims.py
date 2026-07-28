@@ -215,13 +215,16 @@ def build(snap, view4, scenarios=None, estimates=None):
             # Counterevidence must address the SAME causal proposition.
             # Price below the 200-day is a tactical fact — it cannot
             # counter revenue durability and lives in tactical context.
-            ce, conflicted = [], False
+            # Refs are LEDGER IDs, never the prose (§8).
+            ce, ce_refs, conflicted = [], [], False
             if margin is not None and margin < 0:
                 ce.append("growth is unprofitable: net margin %.1f%%"
                           % margin)
+                ce_refs += _refs(fu.get("net_margin")) or ["CALC-net_margin"]
             g = _guidance_counter(ex)
             if g:
                 ce.append(g)
+                ce_refs.append("EXHIBIT-GUIDANCE")
             cands.append({
                 "claim_id": "growth-above-bar",
                 "claim": "Filed revenue growth of %.1f%% y/y clears the "
@@ -238,22 +241,22 @@ def build(snap, view4, scenarios=None, estimates=None):
                 "market_expectation": consensus_view,
                 "market_expectation_source": consensus_src,
                 "differentiated_view": None,   # phase C decides gaps
-                "mechanism": "revenue compounding at this rate grows the "
-                             "earnings base faster than the multiple "
-                             "de-rates in the base scenario",
+                "mechanism": "revenue compounding at this rate grows "
+                             "the earnings base faster than the median "
+                             "multiple would de-rate it",
                 "support": ["latest filed quarter revenue growth %.1f%% "
                             "y/y (SEC XBRL)" % growth],
                 "evidence_refs": _refs(fu.get("revenue_growth"))
                 + _refs(fu.get("revenue_q")),
                 "counterevidence": ce,
-                "counterevidence_refs": ce if ce else [],
+                "counterevidence_refs": ce_refs,
                 "_conflicted": conflicted,
                 "financial_implication": "sustaining >%.0f%% growth "
                                          "compounds the trailing metric "
-                                         "the scenario table prices"
+                                         "the valuation range prices"
                                          % GROWTH_STRONG,
-                "valuation_implication": "base-case multiple applies to "
-                                         "a growing metric",
+                "valuation_implication": "the median multiple applies "
+                                         "to a growing metric",
                 "catalyst": life["next_checkpoint"],
                 "breaks_if": "the next filed quarter's y/y growth prints "
                              "below %.0f%%" % GROWTH_STRONG,
@@ -262,17 +265,19 @@ def build(snap, view4, scenarios=None, estimates=None):
                 "freshness": fresh_fund,
             })
         elif growth < GROWTH_WEAK:
-            ce = []
+            ce, ce_refs = [], []
             if margin is not None \
                     and MARGIN_STRONG <= margin <= MARGIN_OUTLIER:
                 ce.append("profitability holds: net margin %.1f%%"
                           % margin)
+                ce_refs += _refs(fu.get("net_margin")) or ["CALC-net_margin"]
             # a one-time net-income gain is NOT counterevidence to a
             # revenue decline; it is noted in accounting quality, not
             # here (same-proposition rule)
             g = _guidance_support(ex)
             if g:
                 ce.append(g)
+                ce_refs.append("EXHIBIT-GUIDANCE")
             cands.append({
                 "claim_id": "revenue-decline",
                 "claim": "Filed revenue DECLINED %.1f%% y/y — the top "
@@ -288,17 +293,17 @@ def build(snap, view4, scenarios=None, estimates=None):
                 "market_expectation_source": consensus_src,
                 "differentiated_view": None,
                 "mechanism": "a shrinking revenue base compresses the "
-                             "trailing metric every scenario leg is "
+                             "trailing metric the valuation range is "
                              "priced on",
                 "support": ["latest filed quarter revenue growth %.1f%% "
                             "y/y (SEC XBRL)" % growth],
                 "evidence_refs": _refs(fu.get("revenue_growth"))
                 + _refs(fu.get("revenue_q")),
                 "counterevidence": ce,
-                "counterevidence_refs": ce if ce else [],
+                "counterevidence_refs": ce_refs,
                 "financial_implication": "each further quarter of "
                                          "decline lowers the trailing "
-                                         "metric under the scenario "
+                                         "metric under the range "
                                          "multiples",
                 "valuation_implication": "cheap-vs-history readings "
                                          "shrink as the metric falls",
@@ -318,10 +323,12 @@ def build(snap, view4, scenarios=None, estimates=None):
                             "revenue reflects balance-sheet flows, not "
                             "operating conversion)" % conv)
         elif conv >= FCF_CONV_STRONG:
-            ce = []
+            ce, ce_refs = [], []
             if growth is not None and growth < GROWTH_WEAK:
                 ce.append("cash conversion on a shrinking revenue base "
                           "(%.1f%% y/y)" % growth)
+                ce_refs += _refs(fu.get("revenue_growth")) \
+                    or ["CALC-revenue_growth"]
             cands.append({
                 "claim_id": "cash-conversion",
                 "claim": "Cash conversion of %.0f%% of revenue clears "
@@ -348,7 +355,7 @@ def build(snap, view4, scenarios=None, estimates=None):
                                        or fu.get("operating_cash_flow"))
                 + _refs(fu.get("revenue_q")),
                 "counterevidence": ce,
-                "counterevidence_refs": ce if ce else [],
+                "counterevidence_refs": ce_refs,
                 "financial_implication": "FCF accrues to the share "
                                          "count the trailing metric is "
                                          "measured over",
@@ -365,24 +372,28 @@ def build(snap, view4, scenarios=None, estimates=None):
     # ── valuation vs own history ─────────────────────────────────────
     sc = scenarios or {}
     if sc.get("available"):
+        import report_v5_scenarios as _S5
         band = sc.get("band_ref") or {}
-        rows = {r["leg"]: r for r in sc.get("rows") or []}
-        base = rows.get("base")
+        base = _S5.anchor(sc)
         if base and sc.get("spot"):
             cheap = base["price"] > sc["spot"]
             gap = (100.0 * (1 - sc["spot"] / base["price"]) if cheap
                    else 100.0 * (sc["spot"] / base["price"] - 1))
             if abs(gap) >= 15:
-                ce = []
+                ce, ce_refs = [], []
                 if cheap and growth is not None and growth < GROWTH_WEAK:
                     ce.append("the de-rate tracks shrinking revenue "
                               "(%.1f%% y/y) — the discount may simply track "
                               "the decline until growth stabilises"
                               % growth)
+                    ce_refs += _refs(fu.get("revenue_growth")) \
+                        or ["CALC-revenue_growth"]
                 if not cheap and growth is not None \
                         and growth >= GROWTH_STRONG:
                     ce.append("the premium tracks %.1f%% filed growth"
                               % growth)
+                    ce_refs += _refs(fu.get("revenue_growth")) \
+                        or ["CALC-revenue_growth"]
                 cands.append({
                     "claim_id": "valuation-vs-history",
                     "claim": "The stock trades at a %.0f%% %s the "
@@ -408,25 +419,32 @@ def build(snap, view4, scenarios=None, estimates=None):
                     "mechanism": "mean reversion toward the name's own "
                                  "multiple distribution, if the metric "
                                  "holds",
-                    "support": ["base scenario $%.2f vs spot $%.2f — "
-                                "own-history band, filing-date aligned"
-                                % (base["price"], sc["spot"])],
+                    "support": ["%s-implied price $%.2f vs spot $%.2f "
+                                "— own-history band, filing-date "
+                                "aligned"
+                                % ("median" if sc.get("mode")
+                                   != "underwritten" else "base-case",
+                                   base["price"], sc["spot"])],
                     "evidence_refs": ["V5-BAND-%s" % (band.get("kind")
                                                       or "pe"),
-                                      "V5-SCENARIO-BASE"],
+                                      "V5-SCENARIO-ANCHOR"],
                     "counterevidence": ce,
-                    "counterevidence_refs": ce if ce else [],
+                    "counterevidence_refs": ce_refs,
                     "financial_implication": "none claimed — this is a "
                                              "pricing observation, not "
                                              "an earnings driver",
-                    "valuation_implication": "%.0f%% %s to the base "
-                                             "scenario at an unchanged "
-                                             "metric"
+                    "valuation_implication": "a %.0f%% gap to the "
+                                             "%s-implied price at an "
+                                             "unchanged metric — "
+                                             "descriptive, not a "
+                                             "return forecast"
                                              % (abs(100.0 * (
                                                  base["price"]
                                                  / sc["spot"] - 1)),
-                                                "upside" if cheap
-                                                else "downside"),
+                                                "median"
+                                                if sc.get("mode")
+                                                != "underwritten"
+                                                else "base-case"),
                     "catalyst": life["next_checkpoint"],
                     "breaks_if": "the trailing metric falls enough to "
                                  "close the gap without the price "
@@ -443,11 +461,12 @@ def build(snap, view4, scenarios=None, estimates=None):
         weak = tac.get("above_mas", 0) == 0
         strong = tac.get("above_mas", 0) == 3
         if weak or strong:
-            ce = []
+            ce, ce_refs = [], []
             if strong and rsi is not None and rsi >= RSI_STRETCH:
                 ce.append("RSI %.0f is stretched above %.0f — entry "
                           "timing risk, not thesis risk"
                           % (rsi, RSI_STRETCH))
+                ce_refs += _refs(lv.get("rsi14")) or ["CALC-rsi14"]
             cands.append({
                 "claim_id": "trend-regime",
                 "claim": "Price is %s all three moving averages — the "
@@ -472,7 +491,7 @@ def build(snap, view4, scenarios=None, estimates=None):
                             "sessions (%s)" % (tac.get("detail") or "")],
                 "evidence_refs": ["CALC-ma20", "CALC-ma50", "CALC-ma200"],
                 "counterevidence": ce,
-                "counterevidence_refs": ce if ce else [],
+                "counterevidence_refs": ce_refs,
                 "financial_implication": "none — tactical context only",
                 "valuation_implication": "affects entry, not value",
                 "catalyst": "daily closes vs the 50-day",

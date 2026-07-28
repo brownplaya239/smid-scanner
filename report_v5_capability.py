@@ -39,6 +39,8 @@ def company_profile(snap, multiples=None, sector=None, industry=None):
     """Descriptive facts only — no judgments, no ticker branches."""
     th = snap.get("trading_history") or {}
     biz = snap.get("business") or {}
+    co = snap.get("company") or {}
+    ov = co.get("overview") or {}
     m = multiples or {}
     nq = max(m.get("n_eps_quarters") or 0, m.get("n_rev_quarters") or 0)
     fu = snap.get("fundamentals") or {}
@@ -52,8 +54,9 @@ def company_profile(snap, multiples=None, sector=None, industry=None):
         "reporting_history_quarters": nq,
         "sessions": th.get("sessions") or 0,
         "full_price_history": bool(th.get("full_history")),
-        "sector": sector or biz.get("sector"),
-        "industry": industry or biz.get("industry"),
+        "sector": sector or co.get("sector") or biz.get("sector"),
+        "industry": industry or ov.get("industry")
+        or biz.get("industry"),
         "pre_revenue_status": rev is None and nq == 0,
         "business_model_tags": [],          # adapter phase populates
         "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -142,14 +145,19 @@ def evidence_capability(snap, multiples=None, estimates=None,
 
 
 def route(profile, capability, event, multiples=None, has_options=None,
-          override=None, override_author=None, override_reason=None):
-    """Deterministic archetype from capabilities. Returns the v5.5
-    routing record, wrapping the phase-3 contract machinery."""
+          override=None, override_author=None, override_reason=None,
+          framework=None):
+    """Deterministic archetype from capabilities AND framework coverage
+    (§6). FULL is earned by diligence coverage — financial statements,
+    price history and a multiple band alone route FULL_THIN, with the
+    missing framework dimensions recorded."""
     caps = capability["categories"]
 
     def ok(name):
         return caps.get(name, {}).get("sufficient")
 
+    missing_dims = list(((framework or {}).get("summary") or {})
+                        .get("missing_for_full") or [])
     reasons = []
     if (event or {}).get("flash"):
         decision = A.DATA_HOLD
@@ -164,9 +172,16 @@ def route(profile, capability, event, multiples=None, has_options=None,
                        % (profile["listing_date"], profile["sessions"]))
     elif ok("operating_history") and ok("financial_statements") \
             and ok("market_price_history") and ok("historical_valuation"):
-        decision = A.FULL
-        reasons.append("operating history, filed statements, price "
-                       "history and valuation support all sufficient")
+        if framework is None or not missing_dims:
+            decision = A.FULL
+            reasons.append("operating history, filed statements, price "
+                           "history, valuation support and framework "
+                           "coverage all sufficient")
+        else:
+            decision = A.FULL_THIN
+            reasons.append("financial record sufficient, but FULL "
+                           "requires underwritten framework coverage — "
+                           "NOT_ASSESSED: %s" % ", ".join(missing_dims))
     else:
         decision = A.THIN
         missing = [n for n in ("operating_history", "financial_statements",
@@ -181,20 +196,24 @@ def route(profile, capability, event, multiples=None, has_options=None,
     # Contract from phase-3 machinery, refined by capabilities.
     contract = {k: list(v) if isinstance(v, tuple) else v
                 for k, v in A.CONTRACTS[decision].items()}
-    if decision in (A.FULL, A.THIN):
+    if decision in (A.FULL, A.FULL_THIN, A.THIN):
         if ok("scenario_construction"):
             A._promote(contract, "scenario_table")
             A._promote(contract, "valuation_detail")
             reasons.append("scenario construction capability present — "
-                           "scenario table required")
+                           "range/scenario table required")
         else:
-            reasons.append("scenario table stays optional: %s"
+            reasons.append("range table stays optional: %s"
                            % caps["scenario_construction"]["reason"])
-        if decision == A.FULL and has_options is False:
-            if "flow_positioning" in contract["optional"]:
-                contract["optional"].remove("flow_positioning")
-            contract["forbidden"].append("flow_positioning")
-            reasons.append("no listed options — flow page forbidden")
+        if decision in (A.FULL, A.FULL_THIN):
+            if ok("technical_analysis"):
+                A._promote(contract, "technicals")
+                A._promote(contract, "event_path")
+            if has_options is False:
+                if "flow_positioning" in contract["optional"]:
+                    contract["optional"].remove("flow_positioning")
+                contract["forbidden"].append("flow_positioning")
+                reasons.append("no listed options — flow page forbidden")
 
     rec = {
         "schema": SCHEMA,
@@ -208,6 +227,7 @@ def route(profile, capability, event, multiples=None, has_options=None,
         "categories_absent": sorted(n for n in CATEGORIES
                                     if not caps.get(n, {}).get(
                                         "sufficient")),
+        "missing_framework_dimensions": missing_dims,
         "capability": capability,
         "override": None,
     }

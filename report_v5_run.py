@@ -74,25 +74,44 @@ def build_view(ticker, override=None):
     except Exception:
         pass
     # v5.5 capability routing: archetype from CompanyProfile +
-    # EvidenceCapability, never ticker identity. The record carries the
-    # categories present/absent and the full reason chain.
+    # EvidenceCapability + FrameworkCoverage (§6) — never ticker
+    # identity. The record carries the categories present/absent, the
+    # missing framework dimensions and the full reason chain.
+    import report_v5_adapters as ADP
     import report_v5_capability as CAP
+    import report_v5_framework as FW
     profile = CAP.company_profile(snap, multiples)
     capability = CAP.evidence_capability(snap, multiples, estimates,
                                          has_options)
+    adapter = ADP.classify(profile, snap)
+    try:
+        adapter["one_time_items"] = ADP.one_time_items(ticker, snap)
+    except Exception:
+        adapter["one_time_items"] = []
+    framework = FW.build_coverage(profile, capability, snap, grid,
+                                  multiples, adapter, claims,
+                                  expectations, assessment)
     arch = CAP.route(profile, capability, v4.get("event") or {},
                      multiples, has_options=has_options,
                      override=override,
                      override_author="cli" if override else None,
                      override_reason="--archetype flag" if override
-                     else None)
+                     else None, framework=framework)
+    if arch["archetype"] == "NEW_LISTING" \
+            and adapter.get("key") != "new_listing":
+        adapter = dict(ADP.classify(profile, snap,
+                                    archetype="NEW_LISTING"),
+                       one_time_items=[])
     print("  [v5] archetype: %s (%s)" % (arch["archetype"],
                                          arch["routing_reason"][:70]))
     view5 = {"v4": v4, "archetype": arch, "multiples": multiples,
              "scenarios": scenarios, "claims": claims, "grid": grid,
              "has_options": has_options, "estimates": estimates,
              "profile": profile, "expectations": expectations,
-             "assessment": assessment}
+             "assessment": assessment, "adapter": adapter,
+             "framework": framework}
+    view5["sundheim"] = FW.sundheim_decision(view5, framework,
+                                             arch["archetype"])
     return snap, prov, view5
 
 
@@ -102,8 +121,39 @@ def _pdf_text(data):
                      for p in PdfReader(io.BytesIO(data)).pages)
 
 
-def validate(view5, core_pdf, rendered, apx_pdf=None):
-    """Pilot checks; slice 7 grows this into the full suite."""
+# Checks whose PASS is meaningless without a recorded negative proof.
+_MUTATION_REQUIRED = (
+    "NO_ORPHAN_PAGE", "NO_ORPHAN_BULLET", "HUMAN_READABLE_METRIC_LABELS",
+    "CORE_LAYOUT_NO_OVERFLOW", "EVIDENCE_REF_EXISTS_IN_LEDGER",
+    "COUNTEREVIDENCE_REF_EXISTS_IN_LEDGER",
+    "COUNTEREVIDENCE_RELEVANT_TO_CLAIM", "FRAMEWORK_COVERAGE_PRESENT",
+    "FULL_REQUIRES_DILIGENCE_COVERAGE", "SECTOR_ADAPTER_APPLIED",
+    "VARIANT_WORDING_REQUIRES_EXPECTATIONS_GAP",
+    "EVENT_STATE_RESPECTS_UPCOMING_EVENT",
+    "HISTORICAL_RANGE_NOT_USED_AS_EXPECTED_RETURN",
+    "FUNDAMENTAL_AND_TACTICAL_INVALIDATION_SEPARATE",
+    "TECHNICAL_STAGES_ORDERED", "NO_TICKER_SPECIFIC_BRANCH",
+    "APPENDIX_VERSION_MATCH", "APPENDIX_REPORT_ID_MATCH",
+    "APPENDIX_METHOD_MATCHES_CORE", "APPENDIX_HASH_MATCH",
+    "SOURCE_LEDGER_HASH_MATCH",
+    "NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE",
+    "HISTORICAL_WINDOW_LABEL_MATCHES_ACTUAL",
+    "INVESTMENT_ATTRACTIVENESS_HAS_UNDERWRITING",
+    "DATA_CONFIDENCE_DECOMPOSED", "NEXT_CHECKPOINT_TYPE_VALID",
+)
+
+
+def _page_texts(data):
+    from pypdf import PdfReader
+    return [p.extract_text() or ""
+            for p in PdfReader(io.BytesIO(data)).pages]
+
+
+def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
+             report_id=None):
+    """The v5.6 semantic suite: rendered-content checks over the core
+    AND appendix PDFs, evidence-ledger resolution, framework/adapter
+    presence, and the appendix binding checks."""
     import report_v4_validate as VV
     checks = []
     arch = view5["archetype"]
@@ -189,51 +239,44 @@ def validate(view5, core_pdf, rendered, apx_pdf=None):
                          % (bool(w), ia_lvl)))
 
     # ── historical-range semantics + IA underwriting (v5.6) ──────────
+    import report_v5_checks as CK0
     sc6 = view5.get("scenarios") or {}
     if sc6.get("available") and sc6.get("mode") == "historical_range":
-        low = text.lower()
-        banned = [w for w in ("bear case", "base case", "bull case",
-                              "expected return", "target price",
-                              "margin of safety", "upside/downside")
-                  if w in low]
+        banned = CK0.scenario_language_issues(text, sc6.get("mode"))
         checks.append(VV.chk("NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE",
                              not banned, VV.ERROR,
                              "historical mode renders no scenario/"
                              "forecast vocabulary",
                              ", ".join(banned) or "clean"))
-        import re as _re6
         ay = (sc6.get("band_ref") or {}).get("actual_years")
-        yrs = set(_re6.findall(r"available (\d+\.\d)-year", text))
+        bad = CK0.window_label_issues(text, ay)
         checks.append(VV.chk("HISTORICAL_WINDOW_LABEL_MATCHES_ACTUAL",
-                             (not yrs) or (ay is not None
-                                           and yrs == {"%.1f" % ay}),
-                             VV.ERROR,
+                             not bad, VV.ERROR,
                              "the rendered window label equals "
                              "actual_years",
-                             "labels %s vs actual %s" % (sorted(yrs),
-                                                         ay)))
+                             "; ".join(bad) or "labels match %.1f" % ay
+                             if ay else "no label rendered"))
     ia6 = (view5.get("assessment") or {}).get(
         "investment_attractiveness") or {}
+    bad = CK0.ia_underwriting_issues(ia6.get("level"), sc6.get("mode"))
     checks.append(VV.chk("INVESTMENT_ATTRACTIVENESS_HAS_UNDERWRITING",
-                         ia6.get("level") in ("PROVISIONAL",
-                                              "NOT_UNDERWRITTEN")
-                         or sc6.get("mode") == "underwritten",
-                         VV.ERROR,
+                         not bad, VV.ERROR,
                          "graded attractiveness requires underwritten "
                          "scenarios; otherwise PROVISIONAL/"
                          "NOT_UNDERWRITTEN",
-                         "%s (mode %s)" % (ia6.get("level"),
-                                           sc6.get("mode"))))
+                         "; ".join(bad) or "%s (mode %s)"
+                         % (ia6.get("level"), sc6.get("mode"))))
     conf6 = None
     try:
         import report_v5 as _R56
         conf6 = _R56.confidence(view5)
     except Exception:
         pass
+    bad = CK0.confidence_axes_issues(conf6)
     checks.append(VV.chk("DATA_CONFIDENCE_DECOMPOSED",
-                         bool(conf6 and len(conf6.get("axes") or {})
-                              == 5), VV.ERROR,
+                         bool(conf6) and not bad, VV.ERROR,
                          "confidence splits into five named axes",
+                         "; ".join(bad) or
                          ", ".join((conf6 or {}).get("axes") or {})))
 
     # ── expectations checks (v5.5 phase C) ───────────────────────────
@@ -296,12 +339,7 @@ def validate(view5, core_pdf, rendered, apx_pdf=None):
                or not c.get("next_checkpoint")]
         from datetime import datetime as _dt2, timezone as _tz2
         _today = _dt2.now(_tz2.utc).date().isoformat()
-        VALID_CP = ("exact_date", "estimated_date", "unscheduled_event")
-        bad_t = [c["claim_id"] for c in pubs
-                 if not isinstance(c.get("next_checkpoint"), dict)
-                 or c["next_checkpoint"].get("type") not in VALID_CP
-                 or (c["next_checkpoint"]["type"] != "unscheduled_event"
-                     and not c["next_checkpoint"].get("date"))]
+        bad_t = CK0.checkpoint_type_issues(pubs)
         checks.append(VV.chk("NEXT_CHECKPOINT_TYPE_VALID", not bad_t,
                              VV.ERROR,
                              "checkpoints are typed objects (dated "
@@ -337,6 +375,194 @@ def validate(view5, core_pdf, rendered, apx_pdf=None):
                              % ("present" if cl.get("note") else "absent",
                                 len(cl.get("rejected") or []))))
 
+    # ── v5.6 semantic suite: rendered artifacts + ledger + binding ───
+    import hashlib as _hl
+
+    import report_v5_checks as CK
+    import report_v5_ledger as LG
+    pages = _page_texts(core_pdf)
+    is_flash = bool((view5["v4"] or {}).get("flash"))
+    cl6 = view5.get("claims") or {}
+    pubs6 = cl6.get("claims") or []
+
+    # presentation (§13)
+    bad = CK.orphan_pages(pages)
+    checks.append(VV.chk("NO_ORPHAN_PAGE", not bad, VV.ERROR,
+                         "no text-starved orphan page",
+                         "; ".join(bad) or "clean"))
+    bad = CK.orphan_bullets(pages)
+    checks.append(VV.chk("NO_ORPHAN_BULLET", not bad, VV.ERROR,
+                         "no page reduced to a single stranded bullet",
+                         "; ".join(bad) or "clean"))
+    bad = CK.raw_identifiers(text)
+    checks.append(VV.chk("HUMAN_READABLE_METRIC_LABELS", not bad,
+                         VV.ERROR,
+                         "no raw schema identifiers in reader-facing "
+                         "core text", ", ".join(bad[:6]) or "clean"))
+    over = CK.overflow_pages(pages)
+    checks.append(VV.chk("CORE_LAYOUT_NO_OVERFLOW", not over, VV.ERROR,
+                         "no page carries more text than its frame "
+                         "holds legibly", "; ".join(over) or "clean"))
+
+    # evidence-ledger resolution (§8)
+    if ledger:
+        bad = []
+        for c in pubs6:
+            bad += ["%s: %s" % (c["claim_id"], r) for r in
+                    LG.unresolved(c.get("evidence_refs"), ledger)]
+        checks.append(VV.chk("EVIDENCE_REF_EXISTS_IN_LEDGER", not bad,
+                             VV.ERROR,
+                             "every claim evidence ref resolves to a "
+                             "registered ledger ID",
+                             "; ".join(bad[:4]) or
+                             "%d refs resolve" % sum(
+                                 len(c.get("evidence_refs") or [])
+                                 for c in pubs6)))
+        bad = []
+        for c in pubs6:
+            bad += ["%s: %s" % (c["claim_id"], r) for r in
+                    LG.unresolved(c.get("counterevidence_refs"),
+                                  ledger)]
+        checks.append(VV.chk("COUNTEREVIDENCE_REF_EXISTS_IN_LEDGER",
+                             not bad, VV.ERROR,
+                             "every counterevidence ref resolves to a "
+                             "registered ledger ID",
+                             "; ".join(bad[:4]) or "all resolve"))
+    bad = []
+    for c in pubs6:
+        bad += ["%s: %s" % (c["claim_id"], r)
+                for r in LG.irrelevant_counters(c)]
+    checks.append(VV.chk("COUNTEREVIDENCE_RELEVANT_TO_CLAIM", not bad,
+                         VV.ERROR,
+                         "technical/price refs never counter a "
+                         "fundamental or valuation claim",
+                         "; ".join(bad[:4]) or "same-proposition rule "
+                         "holds"))
+
+    # framework + adapter (§4/§6/§7)
+    fw = view5.get("framework") or {}
+    fw_bad = CK.framework_issues(fw)
+    checks.append(VV.chk("FRAMEWORK_COVERAGE_PRESENT", not fw_bad,
+                         VV.ERROR,
+                         "all 26 Tiger dimensions present with valid "
+                         "statuses",
+                         ", ".join(fw_bad[:5]) or "26/26"))
+    if arch["archetype"] == "FULL":
+        miss = CK.full_coverage_issues(arch["archetype"], fw)
+        checks.append(VV.chk("FULL_REQUIRES_DILIGENCE_COVERAGE",
+                             not miss, VV.ERROR,
+                             "FULL only with framework coverage on the "
+                             "decision dimensions",
+                             ", ".join(miss) or "coverage sufficient"))
+    ad6 = view5.get("adapter") or {}
+    if not is_flash:
+        bad = CK.adapter_issues(ad6, text, arch["archetype"])
+        checks.append(VV.chk("SECTOR_ADAPTER_APPLIED", not bad,
+                             VV.ERROR,
+                             "a sector adapter was selected and its "
+                             "dashboard rendered",
+                             ("; ".join(bad) or "%s (%s)"
+                              % (ad6.get("key"),
+                                 ad6.get("reason", "")))[:90]))
+
+    # variant wording (§9)
+    exp6 = view5.get("expectations") or {}
+    var_ok = bool((exp6.get("variant") or {}).get("available"))
+    bad = CK.variant_wording_issues(text, var_ok)
+    checks.append(VV.chk("VARIANT_WORDING_REQUIRES_EXPECTATIONS_GAP",
+                         not bad, VV.ERROR,
+                         "variant wording only with a sourced "
+                         "expectations gap",
+                         "; ".join(bad) or "clean"))
+
+    # event state (§10)
+    ev6 = dict((view5["v4"] or {}).get("event") or {})
+    bad = CK.event_state_issues(ev6)
+    checks.append(VV.chk("EVENT_STATE_RESPECTS_UPCOMING_EVENT", not bad,
+                         VV.ERROR,
+                         "no post-call state inside the pre-event "
+                         "window", "; ".join(bad) or
+                         "state %s" % ev6.get("state")))
+
+    # historical range never a return (§2/§3)
+    bad = CK.historical_expected_return_issues(
+        text, sc6.get("mode"), sc6.get("weighted"))
+    checks.append(VV.chk("HISTORICAL_RANGE_NOT_USED_AS_EXPECTED_RETURN",
+                         not bad, VV.ERROR,
+                         "the historical range is never presented as an "
+                         "expected return", "; ".join(bad) or "clean"))
+
+    # invalidation separation + stage ordering (§12)
+    if pubs6 and arch["archetype"] in ("FULL", "FULL_THIN", "THIN"):
+        bad = CK.invalidation_separation_issues(text)
+        checks.append(VV.chk(
+            "FUNDAMENTAL_AND_TACTICAL_INVALIDATION_SEPARATE", not bad,
+            VV.ERROR, "fundamental and tactical invalidation lines "
+            "both render", "; ".join(bad) or "both present"))
+    stages6 = ((view5["v4"] or {}).get("monitoring")
+               or {}).get("recovery_stages") or []
+    if stages6:
+        bad = CK.stage_order_issues(stages6)
+        checks.append(VV.chk("TECHNICAL_STAGES_ORDERED", not bad,
+                             VV.ERROR,
+                             "monitoring stages progress monotonically "
+                             "by threshold",
+                             "; ".join(bad) or
+                             "%d stages ordered" % len(stages6)))
+
+    # universal-ticker scan as a validation check (§18)
+    try:
+        import test_v5_no_ticker_branches as TB
+        tb_bad = TB.scan()
+    except Exception as e:
+        tb_bad = ["scan failed: %s" % e]
+    checks.append(VV.chk("NO_TICKER_SPECIFIC_BRANCH", not tb_bad,
+                         VV.ERROR,
+                         "no pilot symbol or company name in shared "
+                         "production logic",
+                         "; ".join(tb_bad[:3]) or
+                         "%d shared modules clean" % len(
+                             TB.SHARED_MODULES)))
+
+    # appendix binding (§1)
+    if apx_pdf:
+        apx_text = "\n".join(_page_texts(apx_pdf))
+        core_hash = _hl.sha256(core_pdf).hexdigest()
+        bad = CK.appendix_version_issues(apx_text)
+        checks.append(VV.chk("APPENDIX_VERSION_MATCH", not bad,
+                             VV.ERROR,
+                             "appendix headed 'Equity Research v5 - "
+                             "Appendix' with no v4 metadata",
+                             "; ".join(bad) or "v5 throughout"))
+        bad = CK.appendix_report_id_issues(apx_text, report_id)
+        checks.append(VV.chk("APPENDIX_REPORT_ID_MATCH", not bad,
+                             VV.ERROR,
+                             "appendix carries this run's report ID",
+                             "; ".join(bad) or report_id or ""))
+        band6 = next(((view5.get("multiples") or {}).get(k) or {}
+                      for k in ("pe", "ps")
+                      if ((view5.get("multiples") or {}).get(k)
+                          or {}).get("available")), None)
+        bad = CK.appendix_method_issues(apx_text, bool(band6),
+                                        (band6 or {}).get("kind"))
+        checks.append(VV.chk("APPENDIX_METHOD_MATCHES_CORE", not bad,
+                             VV.ERROR,
+                             "appendix methodology matches what the "
+                             "core actually rendered",
+                             "; ".join(bad) or "methods agree"))
+        bad = CK.appendix_hash_issues(apx_text, core_hash)
+        checks.append(VV.chk("APPENDIX_HASH_MATCH", not bad, VV.ERROR,
+                             "appendix records the core PDF's sha256",
+                             "; ".join(bad) or core_hash[:16]))
+        if ledger:
+            bad = CK.ledger_hash_issues(apx_text, ledger.get("hash"))
+            checks.append(VV.chk("SOURCE_LEDGER_HASH_MATCH", not bad,
+                                 VV.ERROR,
+                                 "appendix records the source-ledger "
+                                 "hash",
+                                 "; ".join(bad)
+                                 or (ledger.get("hash") or "")[:16]))
+
     # v4's PDF checks minus its fixed 5/6-page rule: v5 page counts are
     # the archetype's to define, so the range comes from the contract.
     v4_checks = [c for c in VV.check_pdfs(core_pdf, apx_pdf, view5["v4"])
@@ -370,9 +596,14 @@ def run(ticker, out_dir="out_v5", override=None):
     os.makedirs(out_dir, exist_ok=True)
     ticker = ticker.upper().strip()
     snap, prov, view5 = build_view(ticker, override)
+    report_id = "%s-%s" % (ticker, datetime.now(timezone.utc
+                                                ).isoformat(
+                                                    timespec="seconds"))
+    view5["report_id"] = report_id
 
     chart_png = chart_meta = None
-    if view5["archetype"]["archetype"] in (A.FULL, A.NEW_LISTING):
+    if view5["archetype"]["archetype"] in (A.FULL, A.FULL_THIN,
+                                           A.NEW_LISTING):
         try:
             import report_v4_run as RR
             chart_png, chart_meta = RR._chart(ticker, snap, prov,
@@ -406,24 +637,40 @@ def run(ticker, out_dir="out_v5", override=None):
                          "%s_equity_research_v5_appendix.pdf" % ticker)
     val_p = os.path.join(out_dir,
                          "%s_equity_research_v5_validation.json" % ticker)
+
+    # evidence ledger (§8) — built before the render so the appendix and
+    # the validation JSON bind to the same evidence universe
+    import report_v5_ledger as LG
+    ledger = LG.build(snap, view5, report_id)
+    view5["ledger_hash"] = ledger["hash"]
+
     data, rendered = R5.build_core(snap, view5, core_p, chart_png,
                                    chart_meta)
-    # v4's evidence appendix is the audit trail for every OBS/DER figure
-    # v5 shares with it; the v5-only artifacts (bands, scenarios, claims)
-    # ship inside the validation JSON until slice 7 extends the appendix.
-    import report_v4 as R4
-    apx = R4.build_appendix(snap, view5["v4"], apx_p,
-                            estimates=view5.get("estimates"), prov=prov)
-    result = validate(view5, data, rendered, apx)
+    # v5 appendix (§1): generated from the SAME canonical view/state as
+    # the core, hash-bound to it. The v4 appendix no longer ships on v5
+    # packages.
+    import hashlib as _hl
+
+    import report_v5_appendix as APX
+    core_hash = _hl.sha256(data).hexdigest()
+    apx = APX.build(snap, view5, prov, core_hash, ledger, report_id,
+                    apx_p)
+    result = validate(view5, data, rendered, apx, ledger=ledger,
+                      report_id=report_id)
     import report_v4_run as RR
     result["artifacts"] = RR._artifact_hashes(core_p, apx_p)
+    result["report_id"] = report_id
+    result["source_ledger_hash"] = ledger["hash"]
+    result["ledger_ids"] = ledger["count"]
 
     # ── research memory (v5.5 phase F) ───────────────────────────────
     import report_v5_memory as MEM
     import report_v4_validate as VV
     prior, prior_reason = MEM.load_prior(ticker)
     state = MEM.build_state(ticker, view5, result,
-                            prior_id=(prior or {}).get("report_id"))
+                            prior_id=(prior or {}).get("report_id"),
+                            report_id=report_id,
+                            ledger_hash=ledger["hash"])
     cs = MEM.changeset(prior, state)
     if prior_reason and not cs["initial_underwriting"]:
         cs["note"] = prior_reason
@@ -446,6 +693,32 @@ def run(ticker, out_dir="out_v5", override=None):
             for c in mat), VV.ERROR,
         "every material change carries a machine-readable reason",
         "%d material change(s)" % len(mat)))
+    # ── mutation proofs (§16): every new semantic check must carry a
+    # recorded, reproducible mutation that fails it. The harness
+    # (test_v5_mutations.py) writes data/mutation_proofs/MUTATIONS.json;
+    # each validation JSON embeds the collection so a clean PASS is
+    # never presented without its negative proof.
+    mut_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "data", "mutation_proofs", "MUTATIONS.json")
+    mutations = []
+    if os.path.exists(mut_path):
+        try:
+            with open(mut_path, encoding="utf-8") as fh:
+                mutations = json.load(fh).get("mutation_tests") or []
+        except Exception:
+            mutations = []
+    result["mutation_tests"] = mutations
+    proven = {m.get("intended_check") for m in mutations
+              if m.get("proven")}
+    need_proof = [c["check_id"] for c in result["checks"]
+                  if c["check_id"] in _MUTATION_REQUIRED
+                  and c["check_id"] not in proven]
+    result["checks"].append(VV.chk(
+        "MUTATION_PROOF_PRESENT", not need_proof, VV.ERROR,
+        "every new semantic check carries a recorded mutation proof",
+        ("missing: " + ", ".join(need_proof[:6])) if need_proof
+        else "%d checks proven by %d mutations" % (len(proven),
+                                                   len(mutations))))
     result["blocking_failures"] = [c["check_id"]
                                    for c in result["checks"]
                                    if c["status"] == "FAIL"]

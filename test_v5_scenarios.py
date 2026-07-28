@@ -37,11 +37,21 @@ check("metric derived from the band's own current multiple",
       rec["rows"][0]["metric"])
 ok = all(abs(r["price"] - r["multiple"]["value"]
              * r["metric"]["value"]) < 0.01 for r in rec["rows"])
-check("every scenario price recomputes from its own row", ok,
+check("every range price recomputes from its own row", ok,
       json.dumps(rec["arithmetic"]))
-check("bear/base/bull = P25/P50/P75",
+check("historical mode has NO bear/base/bull legs — p25/median/p75",
+      [r["leg"] for r in rec["rows"]] == ["p25", "median", "p75"]
+      and [r["label"] for r in rec["rows"]] == ["P25", "Median", "P75"],
+      str([r["leg"] for r in rec["rows"]]))
+check("percentile multiples land on P25/P50/P75",
       [r["multiple"]["value"] for r in rec["rows"]] == [20.0, 25.0, 30.0])
+check("mode is historical_range without operating assumptions",
+      rec["mode"] == "historical_range", rec["mode"])
 check("no probabilities without a user file", rec["weighted"] is None)
+check("historical range carries no asymmetry block",
+      rec["asymmetry"] is None)
+check("anchor() resolves the median row in historical mode",
+      S.anchor(rec)["leg"] == "median")
 check("default cells are DER with a stated basis",
       all(r["multiple"]["grade"] == "DER" and r["multiple"]["basis"]
           for r in rec["rows"]))
@@ -63,10 +73,15 @@ def write_asm(doc):
         json.dump(doc, f)
 
 
+# Underwritten requires an operating forecast (forward_metric) AND
+# probabilities — §2. The forward value equals the derived trailing
+# metric so the arithmetic expectations below stay exact.
 GOOD = {"schema": "v5-assumptions/1", "as_of": "2026-07-01",
         "expires": "2026-12-31", "source": "user", "currency": "USD",
         "units": "per-share", "fiscal_basis": "FY-Dec",
         "fields": {"base_multiple": {"value": 17.0, "basis": "my view"},
+                   "forward_metric": {"value": 4.0,
+                                      "basis": "my FY est"},
                    "probabilities": {"bear": 0.2, "base": 0.5,
                                      "bull": 0.3}}}
 write_asm(GOOD)
@@ -74,6 +89,10 @@ asm, note = S.load_assumptions("TEST", today="2026-07-28")
 check("valid assumptions load", asm is not None and note is None,
       str(note))
 rec2 = S.build("TEST", BAND, spot=100.0, assumptions=asm, note=note)
+check("forward metric + probabilities -> underwritten Bear/Base/Bull",
+      rec2["mode"] == "underwritten"
+      and [r["leg"] for r in rec2["rows"]] == ["bear", "base", "bull"],
+      "%s %s" % (rec2["mode"], [r["leg"] for r in rec2["rows"]]))
 base = [r for r in rec2["rows"] if r["leg"] == "base"][0]
 check("override renders ASM with basis + as-of",
       base["multiple"]["grade"] == "ASM"
@@ -145,6 +164,21 @@ check("malformed probabilities ignored, noted, never weighted",
       rec6["weighted"] is None
       and "probabilities ignored" in (rec6["assumptions_note"] or ""),
       str(rec6["assumptions_note"]))
+
+# ── §2: probabilities without an operating forecast are ignored ──────
+no_fwd = json.loads(json.dumps(GOOD))
+del no_fwd["fields"]["forward_metric"]
+write_asm(no_fwd)
+asm7, _ = S.load_assumptions("TEST", today="2026-07-28")
+rec7 = S.build("TEST", BAND, spot=100.0, assumptions=asm7)
+check("probabilities without forward_metric -> historical range, "
+      "ignored loudly",
+      rec7["mode"] == "historical_range" and rec7["weighted"] is None
+      and "no forward_metric" in (rec7["assumptions_note"] or ""),
+      str(rec7["assumptions_note"]))
+check("that range still has no bear/base/bull legs",
+      [r["leg"] for r in rec7["rows"]] == ["p25", "median", "p75"],
+      str([r["leg"] for r in rec7["rows"]]))
 
 print("\n%d/%d checks passed" % (PASS, PASS + len(FAIL)))
 if FAIL:

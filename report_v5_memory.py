@@ -32,7 +32,8 @@ def _line_hash(rec):
                                      default=str).encode()).hexdigest()
 
 
-def build_state(ticker, view5, result, prior_id=None):
+def build_state(ticker, view5, result, prior_id=None, report_id=None,
+                ledger_hash=None):
     """The persisted snapshot of everything a future diff needs."""
     v4 = view5.get("v4") or {}
     sc = view5.get("scenarios") or {}
@@ -44,7 +45,7 @@ def build_state(ticker, view5, result, prior_id=None):
     rec = {
         "schema": SCHEMA,
         "ticker": ticker.upper(),
-        "report_id": "%s-%s" % (ticker.upper(), as_of),
+        "report_id": report_id or "%s-%s" % (ticker.upper(), as_of),
         "report_version": "v5",
         "as_of": as_of,
         "prior_report_id": prior_id,
@@ -65,7 +66,7 @@ def build_state(ticker, view5, result, prior_id=None):
         "rejected_claims": [r["claim_id"]
                             for r in cl.get("rejected") or []],
         "scenario_prices": rows,
-        "valuation_range": ([rows.get("bear"), rows.get("bull")]
+        "valuation_range": ([min(rows.values()), max(rows.values())]
                             if rows else None),
         "spot": sc.get("spot"),
         "weighted_value": (sc.get("weighted") or {}).get("price"),
@@ -79,7 +80,7 @@ def build_state(ticker, view5, result, prior_id=None):
         "guidance_snapshot": _guidance(view5),
         "core_pdf_hash": _hash_of(arts, ".pdf", "_appendix"),
         "appendix_pdf_hash": _hash_of(arts, "_appendix.pdf"),
-        "source_ledger_hash": None,
+        "source_ledger_hash": ledger_hash,
     }
     rec["state_hash"] = _line_hash(rec)
     return rec
@@ -144,10 +145,28 @@ def append_state(rec):
     return path
 
 
+# §17 change taxonomy: every change is classed so a reader can separate
+# new research facts from re-presented ones.
+_CHANGE_CLASS = {
+    "event_state_change": "research_fact",
+    "consensus_change": "research_fact",
+    "scenario_change": "research_fact",
+    "rating_change": "conclusion",
+    "assessment_change": "conclusion",
+    "archetype_change": "presentation",
+    "claim_added": "claim",
+    "claim_removed": "claim",
+    "claim_status_change": "claim",
+}
+
+
 def changeset(prior, cur):
-    """Deterministic diff; every material change carries a reason."""
+    """Deterministic diff; every material change carries a reason and a
+    §17 change class (research_fact / assumption / claim / conclusion /
+    presentation)."""
     if not prior:
-        return {"initial_underwriting": True, "changes": []}
+        return {"initial_underwriting": True, "changes": [],
+                "taxonomy": {}}
     ch = []
 
     def field(name, label, reason_tpl):
@@ -192,7 +211,7 @@ def changeset(prior, cur):
 
     a, b = prior.get("scenario_prices") or {}, \
         cur.get("scenario_prices") or {}
-    for leg in ("bear", "base", "bull"):
+    for leg in sorted(set(a) & set(b)):
         if a.get(leg) is not None and b.get(leg) is not None \
                 and abs(a[leg] - b[leg]) > 0.005 * max(abs(a[leg]), 1):
             ch.append({"category": "scenario_change",
@@ -208,8 +227,25 @@ def changeset(prior, cur):
         ch.append({"category": "consensus_change", "from": pg, "to": cg,
                    "reason": "vendor consensus snapshot moved",
                    "evidence_refs": []})
+    for c in ch:
+        c["change_class"] = _CHANGE_CLASS.get(c["category"], "other")
+    taxonomy = {}
+    for c in ch:
+        taxonomy[c["change_class"]] = taxonomy.get(c["change_class"],
+                                                   0) + 1
+    elapsed = None
+    try:
+        elapsed = round((datetime.fromisoformat(cur["as_of"])
+                         - datetime.fromisoformat(prior["as_of"])
+                         ).total_seconds() / 3600.0, 1)
+    except Exception:
+        pass
+    if not ch:
+        taxonomy["artifact_regenerated"] = 1
     return {"initial_underwriting": False,
             "prior_report_id": prior["report_id"],
             "prior_as_of": prior["as_of"],
             "prior_core_pdf_hash": prior.get("core_pdf_hash"),
+            "elapsed_underwriting_hours": elapsed,
+            "taxonomy": taxonomy,
             "changes": ch}

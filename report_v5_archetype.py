@@ -17,11 +17,12 @@ it renders as a WARN in validation.
 """
 
 FULL = "FULL"
+FULL_THIN = "FULL_THIN"
 THIN = "THIN"
 NEW_LISTING = "NEW_LISTING"
 DATA_HOLD = "DATA_HOLD"
 
-ARCHETYPES = (FULL, THIN, NEW_LISTING, DATA_HOLD)
+ARCHETYPES = (FULL, FULL_THIN, THIN, NEW_LISTING, DATA_HOLD)
 
 # Section vocabulary. Presentation renders sections; validation checks
 # the rendered document against this contract by archetype.
@@ -41,6 +42,20 @@ CONTRACTS = {
         "forbidden": ("listing_factsheet", "listing_timeline",
                       "listing_trading", "flash"),
         "pages": (5, 8),
+    },
+    # FULL_THIN (§6): financially complete but framework-incomplete —
+    # the quantitative record is strong while industry structure,
+    # management, moat, unit economics or expectations remain
+    # NOT_ASSESSED. Same page family as FULL; the label and the
+    # framework-coverage display say what has NOT been underwritten.
+    FULL_THIN: {
+        "required": ("dashboard", "argument", "financial_grid",
+                     "variant_risks"),
+        "optional": ("scenario_table", "valuation_detail", "event_path",
+                     "technicals", "flow_positioning"),
+        "forbidden": ("listing_factsheet", "listing_timeline",
+                      "listing_trading", "flash"),
+        "pages": (4, 8),
     },
     THIN: {
         "required": ("dashboard", "argument", "financial_grid",

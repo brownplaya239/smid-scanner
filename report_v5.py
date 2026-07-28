@@ -140,18 +140,37 @@ def _p1_dashboard(snap, view5):
     if asx.get("tension"):
         st.append(para("<i>%s</i>" % _clean(asx["tension"]), "body"))
 
+    # ── underwriting decision (Sundheim object, §5) ──────────────────
+    sd = view5.get("sundheim") or {}
+    fw = view5.get("framework") or {}
+    fsum = fw.get("summary") or {}
+    if sd:
+        st.append(para("<b>Underwriting status: %s</b> &middot; thesis "
+                       "type: %s &middot; framework coverage: %d of %d "
+                       "dimensions assessed."
+                       % (_clean((sd.get("underwriting_status") or ""
+                                  ).replace("_", " ").title()),
+                          _clean((sd.get("thesis_type") or ""
+                                  ).replace("_", " ").lower()),
+                          fsum.get("assessed") or 0,
+                          fsum.get("total") or 26), "small"))
+        if fsum.get("missing_for_full"):
+            st.append(para("Not underwritten (no admitted source): %s. "
+                           "Full matrix in the appendix."
+                           % _clean(", ".join(
+                               d.replace("_", " ") for d in
+                               fsum["missing_for_full"])), "small"))
+
     sc = view5.get("scenarios") or {}
     if sc.get("available"):
         _under = sc.get("mode") == "underwritten"
         st.append(para("Underwritten scenarios" if _under else
                        "Historical valuation range &mdash; not a "
                        "forecast", "h2"))
-        rows = {r["leg"]: r for r in sc["rows"]}
-        head = [""] + [rows[l].get("label") or l.title()
-                       for l in ("bear", "base", "bull")]
+        head = [""] + [r.get("label") or r["leg"].title()
+                       for r in sc["rows"]]
         mults, prices, vs = ["Multiple"], ["Price"], ["vs last"]
-        for leg in ("bear", "base", "bull"):
-            r = rows[leg]
+        for r in sc["rows"]:
             mults.append("%.1fx [%s]" % (r["multiple"]["value"],
                                          r["multiple"]["grade"]))
             prices.append("$%.2f" % r["price"])
@@ -167,22 +186,33 @@ def _p1_dashboard(snap, view5):
         st.append(para(
             ("Probability-weighted value $%.2f [ASM] &mdash; %s. "
              % (w["price"], _clean(w["basis"]))) if w else
-            "Scenarios are unweighted: probabilities render only when "
-            "user-supplied.", "small"))
+            ("Scenarios are unweighted: probabilities render only when "
+             "user-supplied." if _under else
+             "Percentile prices only &mdash; the range carries no "
+             "probabilities and no return forecast."), "small"))
         band = sc.get("band_ref") or {}
         _ay = band.get("actual_years")
-        st.append(para("Percentiles of this name's own daily trailing "
-                       "%s over the available %s history "
-                       "(%s&ndash;%s), each day computed only from "
-                       "filings available before that session, applied "
-                       "to a CONSTANT trailing metric. This is where "
-                       "the stock has traded, not where it is going. "
-                       "Full arithmetic on the valuation page."
-                       % ((band.get("kind") or "").upper(),
-                          ("%.1f-year" % _ay) if _ay else "",
-                          _clean(band.get("window_start") or ""),
-                          _clean(band.get("window_end") or "")),
-                       "small", DERIVED))
+        band_note = para("Percentiles of this name's own daily trailing "
+                         "%s over the available %s history "
+                         "(%s&ndash;%s), each day computed only from "
+                         "filings available before that session, applied "
+                         "to a CONSTANT trailing metric. This is where "
+                         "the stock has traded, not where it is going. "
+                         "Full arithmetic on the valuation page."
+                         % ((band.get("kind") or "").upper(),
+                            ("%.1f-year" % _ay) if _ay else "",
+                            _clean(band.get("window_start") or ""),
+                            _clean(band.get("window_end") or "")),
+                         "small", DERIVED)
+        band_note_short = para("Own-history trailing-%s percentiles "
+                               "over the available %s window, constant "
+                               "metric &mdash; descriptive, not a "
+                               "forecast. Method and arithmetic on the "
+                               "valuation page."
+                               % ((band.get("kind") or "").upper(),
+                                  ("%.1f-year" % _ay) if _ay else ""),
+                               "small", DERIVED)
+        st.append(band_note)
     else:
         st.append(para("Scenarios", "h2"))
         st.append(para("Withheld: %s." % _clean(sc.get("reason")
@@ -206,9 +236,18 @@ def _p1_dashboard(snap, view5):
         st.append(para("Initial underwriting &mdash; no prior admitted "
                        "report for this name.", "small"))
     else:
-        st.append(para("Prior: %s (core sha %s&hellip;)."
+        _tax = cs.get("taxonomy") or {}
+        st.append(para("Prior: %s (core sha %s&hellip;)%s."
                        % (_clean(cs.get("prior_as_of") or ""),
-                          (cs.get("prior_core_pdf_hash") or "")[:12]),
+                          (cs.get("prior_core_pdf_hash") or "")[:12],
+                          " &middot; %.1f h elapsed &middot; changes by "
+                          "class: %s" % (
+                              cs.get("elapsed_underwriting_hours"),
+                              _clean(", ".join("%s %d" % (k.replace(
+                                  "_", " "), v)
+                                  for k, v in sorted(_tax.items()))))
+                          if cs.get("elapsed_underwriting_hours")
+                          is not None and _tax else ""),
                        "small"))
         changes = cs.get("changes") or []
         if not changes:
@@ -233,17 +272,64 @@ def _p1_dashboard(snap, view5):
                    % (_clean(_fund_inv or "not established"),
                       _clean(_tact_inv or "not established")), "small"))
 
-    st.append(para("Investment case in one look", "h2"))
+    one_look = [para("Investment case in one look", "h2")]
     if cl.get("claims"):
         for c in cl["claims"]:
-            st.append(para("&bull; [%s, %s confidence] %s"
-                           % (c["direction"], c["confidence"],
-                              _clean(c["claim"])), "body"))
+            one_look.append(para("&bull; [%s, %s confidence] %s"
+                                 % (c["direction"], c["confidence"],
+                                    _clean(c["claim"])), "body"))
     else:
-        st.append(para(_clean(cl.get("note") or "No claim cleared the "
-                              "evidence bar."), "small"))
-    st.append(para(ASM_NOTE, "small"))
-    st, _ = _fit_page(st, [], "v5-p1")
+        one_look.append(para(_clean(cl.get("note") or "No claim "
+                                    "cleared the evidence bar."),
+                             "small"))
+    st += one_look
+    asm_para = para(ASM_NOTE, "small")
+    st.append(asm_para)
+
+    # Page 1 must fit its frame (§13) — an overflow strands the tail on
+    # a near-blank page 2. Trims move content, never delete evidence:
+    # the one-look list duplicates page 2's full argument, the change
+    # log lives complete in the appendix, and the band note keeps a
+    # compact form that still points at the full method.
+    def _drop_one_look(story):
+        # page 2's "Investment case" heading carries the full argument;
+        # no pointer line is appended — it would just become the next
+        # spilled tail
+        return [f for f in story if f not in one_look]
+
+    change_paras = [f for f in st
+                    if getattr(f, "text", "").startswith("&bull; ")
+                    and f not in one_look]
+
+    def _drop_changes(story):
+        return [f for f in story if f not in change_paras]
+
+    def _shorten_band_note(story):
+        try:
+            return [band_note_short if f is band_note else f
+                    for f in story]
+        except NameError:
+            return story
+
+    def _drop_asm_note(story):
+        # the [ASM] grade is restated wherever an assumption renders
+        # (valuation page) and defined in the appendix — the standalone
+        # legend line is the last thing to keep over a page spill
+        return [f for f in story if f is not asm_para]
+
+    trims = [("change detail moved to appendix", _drop_changes),
+             ("band note compacted", _shorten_band_note),
+             ("one-look moved to page 2", _drop_one_look),
+             ("ASM legend moved to appendix", _drop_asm_note)]
+    st, _trim = _fit_page(st, trims, "v5-p1")
+    # Font-metric drift (tuned vs rendered face) makes a "fits" page
+    # spill a two-line tail onto a near-blank page 2. Keep a safety
+    # margin: trim further while within 15% of the frame budget.
+    from report_v3 import _avail_height, _story_height
+    for _name, fn in trims:
+        if _story_height(st) <= _avail_height() * 0.85:
+            break
+        st = fn(st)
     return st
 
 
@@ -330,6 +416,45 @@ def _p3_grid(snap, view5):
     for gap in g.get("gaps") or []:
         st.append(para(_clean(gap), "small"))
 
+    # ── sector KPI dashboard (adapter, §7) ───────────────────────────
+    # Core shows the admitted values plus the first few sector slots;
+    # the complete slot inventory lives in appendix section 4 — the
+    # page must not trade its guidance table for empty rows.
+    ad = view5.get("adapter") or {}
+    adapter_extras = []
+    if ad.get("key") and ad.get("key") not in ("new_listing",):
+        st.append(para("%s dashboard" % _clean(ad.get("label")
+                                               or "Sector"), "h2"))
+        import report_v5_adapters as ADP
+        drows = ADP.build_dashboard(ad, snap)
+        have = [r for r in drows if r[1] != "no admitted source"]
+        absent = [r for r in drows if r[1] == "no admitted source"]
+        shown = have + absent[:3]
+        if shown:
+            st.append(_table([[_clean(a), _clean(b), _clean(c)]
+                              for a, b, c in shown],
+                             [BODY_W * .38, BODY_W * .26, BODY_W * .28],
+                             header=["Metric", "Value", "Provenance"],
+                             zebra=True))
+        if len(absent) > 3:
+            st.append(para("+%d further sector metrics have no admitted "
+                           "source; the full inventory is in the "
+                           "appendix." % (len(absent) - 3), "small"))
+        for o in ad.get("one_time_items") or []:
+            st.append(para("<b>One-time item, named:</b> the latest "
+                           "quarter includes a %s. Margins including it "
+                           "are not graded as quality."
+                           % _clean(o["label"]), "small", OBSERVED))
+        for note in (ad.get("notes") or [])[:1]:
+            st.append(para("&bull; %s" % _clean(note), "small"))
+        prov_para = para("Adapter selected from the admitted vendor "
+                         "classification (%s); slots without an "
+                         "admitted source say so rather than borrowing "
+                         "another sector's metrics."
+                         % _clean(ad.get("reason") or ""), "small")
+        adapter_extras.append(prov_para)
+        st.append(prov_para)
+
     # guidance block reuses the v4 page-3 rendering via the view
     v4 = view5["v4"]
     ex = snap.get("exhibit") or {}
@@ -345,7 +470,9 @@ def _p3_grid(snap, view5):
             rng = ("%.1f%% &ndash; %.1f%%" % (gd["low"], gd["high"])
                    if gd.get("unit") == "%" else
                    "%s &ndash; %s" % (_money(gd["low"]), _money(gd["high"])))
-            rows.append([_clean(gd.get("label") or k), rng])
+            from report_v5_checks import human_metric_label
+            rows.append([_clean(gd.get("label")
+                                or human_metric_label(k)), rng])
         if rows:
             st.append(_table(rows, [BODY_W * .45, BODY_W * .45],
                              header=["Metric", "Guided"], zebra=True))
@@ -355,7 +482,18 @@ def _p3_grid(snap, view5):
     else:
         st.append(para("No guidance admitted from a filed exhibit.",
                        "small"))
-    st, _ = _fit_page(st, [], "v5-p3")
+
+    # The guidance table must never be traded for adapter boilerplate:
+    # the provenance line trims first (it lives in the appendix).
+    def _drop_adapter_extras(story):
+        return [f for f in story if f not in adapter_extras]
+
+    trims = [("adapter provenance moved to appendix",
+              _drop_adapter_extras)]
+    st, _ = _fit_page(st, trims, "v5-p3")
+    from report_v3 import _avail_height, _story_height
+    if _story_height(st) > _avail_height() * 0.90:
+        st = _drop_adapter_extras(st)
     return st
 
 
@@ -401,8 +539,8 @@ def _p4_valuation(snap, view5):
         st.append(para("Range arithmetic (constant trailing metric)", "h2"))
         for line in sc.get("arithmetic") or []:
             st.append(para(_clean(line), "body", DERIVED))
-        rows = {r["leg"]: r for r in sc["rows"]}
-        base = rows.get("base")
+        import report_v5_scenarios as S5
+        base = S5.anchor(sc)
         if base:
             sens = base["metric"]["value"]
             st.append(para("Sensitivity: &plusmn;1 turn of the "
@@ -433,7 +571,8 @@ def _p4_valuation(snap, view5):
         for r in sc["rows"]:
             if r["multiple"]["grade"] == "ASM":
                 st.append(para("%s multiple is an assumption: %s"
-                               % (r["leg"].title(),
+                               % (_clean(r.get("label")
+                                         or r["leg"].title()),
                                   _clean(r["multiple"]["basis"])),
                                "small"))
     # ── expectations matrix (canonical object, phase C) ──────────────
@@ -465,28 +604,64 @@ def _p4_valuation(snap, view5):
             st.append(para("No variant perception is claimed: %s."
                            % _clean(var.get("reason") or ""), "small"))
 
-    # peer cross-check from the v4 view, if present
+    # Peer comparison (§14): the vendor grouping is NOT curated for
+    # business-model similarity, revenue mix, growth, margins, capital
+    # intensity, geography or method comparability — so it does not
+    # publish in the core. The candidate list lives in the appendix
+    # with its exclusion reason.
     val4 = (view5["v4"].get("valuation") or {})
     pr = val4.get("peers") or {}
     if pr.get("rows"):
-        st.append(para("Preliminary peer reference (vendor grouping)",
-                       "h2"))
-        prows = [[r["ticker"], "%.1fx" % r["pe"] if r.get("pe") else "n/a"]
-                 for r in pr["rows"][:6]]
-        st.append(_table(prows, [BODY_W * .4, BODY_W * .3],
-                         header=["Peer", "Trailing P/E"], zebra=True))
+        st.append(para("Peer comparison omitted: the vendor peer "
+                       "candidates are not curated for comparability; "
+                       "the preliminary list and exclusion criteria are "
+                       "in the appendix.", "small"))
     st, _ = _fit_page(st, [], "v5-p4")
     return st
 
 
 # ── NEW_LISTING pages ────────────────────────────────────────────────
 
+def _listing_facts(ticker):
+    """Admitted listing-record facts (IPO price, shares, proceeds,
+    lock-up terms) from data/listing_facts/<TICKER>.json — a user-
+    admitted input file like the assumptions contract. Absent file ->
+    absent facts, never a convention-based guess."""
+    import json
+    import os
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "data", "listing_facts",
+                        "%s.json" % (ticker or "").upper())
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+        if doc.get("schema") != "v5-listing-facts/1":
+            return None
+        return doc
+    except Exception:
+        return None
+
+
 def _nl_factsheet(snap, view5):
     v4 = view5["v4"]
     th = snap.get("trading_history") or {}
     lv = snap.get("levels") or {}
     st = [R4._masthead(snap, v4), Spacer(1, 6),
-          para("New listing &mdash; fact sheet", "h2")]
+          para("New listing &mdash; fact sheet", "h2"),
+          para("<b>Underwriting status: NOT UNDERWRITTEN.</b> No "
+               "fundamental claim is published: sufficient prospectus "
+               "and periodic operating evidence has not been admitted.",
+               "body")]
+    est = view5.get("estimates") or {}
+    rec = est.get("recommendation") or {}
+    if rec.get("band"):
+        st.append(para("<b>Street consensus (vendor, dated %s):</b> %s. "
+                       "<b>TickerDesk holds no view</b> &mdash; the "
+                       "consensus is reported, not endorsed."
+                       % (_clean(rec.get("as_of") or ""),
+                          _clean(rec.get("band") or "")), "small"))
     px = rs.fv(lv.get("price_used")) or rs.fv(lv.get("last_close"))
     rows = [["Listed", _clean(th.get("listing_date") or "n/a")],
             ["Completed sessions", str(th.get("sessions") or 0)],
@@ -495,14 +670,38 @@ def _nl_factsheet(snap, view5):
              "$%.2f &ndash; $%.2f" % (rs.fv(lv.get("support")) or 0,
                                       rs.fv(lv.get("resistance")) or 0)
              if rs.fv(lv.get("support")) else "n/a"]]
+    lf = _listing_facts(v4.get("ticker"))
+    if lf:
+        for label, key in (("IPO price", "ipo_price"),
+                           ("Shares offered", "shares_offered"),
+                           ("Gross proceeds", "gross_proceeds"),
+                           ("Float", "float_shares"),
+                           ("Lock-up terms", "lockup_terms")):
+            v = lf.get(key)
+            if v is not None:
+                rows.append([label, _clean(str(v))])
+        st.append(para("Offering facts from the admitted listing record "
+                       "(%s)." % _clean(lf.get("source") or
+                                        "user-admitted"), "small",
+                       OBSERVED))
+    else:
+        rows.append(["IPO price / proceeds / lock-up",
+                     "not admitted &mdash; prospectus not parsed"])
     st.append(_table(rows, [BODY_W * .34, BODY_W * .5], zebra=True))
     st.append(para("What does not exist yet (stated once): no filed 10-K "
                    "or 10-Q, so no revenue, margin or cash-flow history; "
                    "no 50/200-day averages or 52-week range at this "
                    "history length; no own-history multiple band, so no "
-                   "scenario table &mdash; a valuation anchored to six "
+                   "valuation range &mdash; a valuation anchored to six "
                    "weeks of trading would be invented, not computed.",
                    "body"))
+    q = ((view5.get("framework") or {}).get("summary")
+         or {}).get("unanswered") or []
+    if q:
+        st.append(para("Highest-value unanswered diligence questions",
+                       "h3"))
+        for line in q[:5]:
+            st.append(para("&bull; %s" % _clean(line), "small"))
     st.append(para("Sources: exchange listing data (Polygon reference), "
                    "SEC EDGAR filings index, licensed daily bars.",
                    "small", OBSERVED))
@@ -517,18 +716,21 @@ def _nl_timeline(snap, view5):
     listed = th.get("listing_date")
     rows = []
     if listed:
-        import datetime as dt
-        d0 = dt.date.fromisoformat(listed)
         rows.append(["Listing", listed, "exchange record"])
-        rows.append(["Customary quiet period ends",
-                     "~%s" % (d0 + dt.timedelta(days=25)).isoformat(),
-                     "25-day convention &mdash; prospectus not parsed "
-                     "[INF]"])
-        rows.append(["Customary lock-up expiry",
-                     "~%s" % (d0 + dt.timedelta(days=180)).isoformat(),
-                     "180-day convention &mdash; the actual terms are in "
-                     "the prospectus, which this report does not parse "
-                     "[INF]"])
+        lf = _listing_facts((view5.get("v4") or {}).get("ticker"))
+        if lf and lf.get("lockup_expiry"):
+            rows.append(["Lock-up expiry",
+                         _clean(str(lf["lockup_expiry"])),
+                         "admitted listing record (%s)"
+                         % _clean(lf.get("source") or "user-admitted")])
+        else:
+            # No convention-based estimates (§7): the actual quiet-period
+            # and lock-up terms live in the prospectus, which is not
+            # parsed — so no date is stated at all.
+            rows.append(["Quiet period / lock-up expiry", "not stated",
+                         "prospectus terms not parsed &mdash; customary "
+                         "conventions are not substituted for the "
+                         "actual terms"])
     nxt = cat.get("next_event_date") or cat.get("event_dt")
     if nxt:
         rows.append(["First expected report", _clean(str(nxt)[:10]),
@@ -605,7 +807,7 @@ def build_core(snap, view5, out_path=None, chart_png=None,
         rendered["argument"] = True
         story += _p3_grid(snap, view5) + [PageBreak()]
         rendered["financial_grid"] = True
-        if rendered["scenario_table"] or arch == A.FULL:
+        if rendered["scenario_table"] or arch in (A.FULL, A.FULL_THIN):
             story += _p4_valuation(snap, view5) + [PageBreak()]
             rendered["valuation_detail"] = True
         # Page-6 variant must obey the SAME gate as pages 2 and 4:
@@ -629,7 +831,7 @@ def build_core(snap, view5, out_path=None, chart_png=None,
                                "&mdash; not a variant view)", "h2"),
                           para(_clean(debate), "body", INFERRED)]
                          if debate else [])
-        if arch == A.FULL:
+        if arch in (A.FULL, A.FULL_THIN):
             story += R4._page5(snap, v4, chart_png, chart_meta) \
                 + [PageBreak()]
             rendered["technicals"] = True
