@@ -47,6 +47,70 @@ def _absent(label, why):
     return {"label": label, "kind": "absent", "why": why}
 
 
+# §2 (v5.7): the adapter governs the whole analytical pipeline, not
+# just dashboard labels. Each policy names what the sector's economics
+# permit; anything forbidden is suppressed to NOT_ASSESSED — never
+# graded with another sector's logic.
+#   quality_metrics_forbidden : business-quality dimensions that are
+#       economically meaningless for the model (a bank's "revenue
+#       growth", a REIT's industrial cash conversion, ...)
+#   claims_forbidden          : claim ids the argument builder must not
+#       generate for this model
+#   valuation_allowed         : multiple kinds usable as the range
+#       anchor; empty means no supportable method is ingested yet
+#   valuation_reason          : stated when the allowed set is reduced
+_POLICY_DEFAULT = {
+    "quality_metrics_forbidden": (),
+    "claims_forbidden": (),
+    "valuation_allowed": ("pe", "ps"),
+    "valuation_reason": None,
+}
+
+_POLICIES = {
+    "bank_insurer": {
+        "quality_metrics_forbidden": ("revenue_growth", "gross_margin",
+                                      "cash_conversion", "net_cash"),
+        "claims_forbidden": ("growth-above-bar", "revenue-decline",
+                             "cash-conversion"),
+        "valuation_allowed": ("pe",),
+        "valuation_reason": "banks/insurers are graded on earnings and "
+                            "book value; revenue multiples and "
+                            "industrial cash-conversion logic do not "
+                            "apply, and book-value methods are not "
+                            "ingested yet",
+    },
+    "reit": {
+        "quality_metrics_forbidden": ("cash_conversion", "net_cash",
+                                      "gross_margin"),
+        "claims_forbidden": ("cash-conversion",),
+        "valuation_allowed": (),
+        "valuation_reason": "REIT valuation requires FFO/AFFO, which "
+                            "is not ingested — P/E on depreciation-"
+                            "distorted GAAP earnings is not a "
+                            "supportable primary method",
+    },
+    "financial_platform": {
+        "quality_metrics_forbidden": ("cash_conversion",),
+        "claims_forbidden": ("cash-conversion",),
+    },
+    "pre_revenue": {
+        "quality_metrics_forbidden": ("revenue_growth", "net_margin",
+                                      "gross_margin", "cash_conversion"),
+        "claims_forbidden": ("growth-above-bar", "revenue-decline",
+                             "cash-conversion", "valuation-vs-history"),
+        "valuation_allowed": (),
+        "valuation_reason": "no revenue or earnings base exists to "
+                            "support a multiple",
+    },
+}
+
+
+def policy_for(key):
+    p = dict(_POLICY_DEFAULT)
+    p.update(_POLICIES.get(key) or {})
+    return p
+
+
 _KPI_WHY = "requires segment/KPI exhibit parsing — not implemented"
 _PROXY_WHY = "requires proxy (DEF 14A) parsing — not implemented"
 
@@ -236,6 +300,7 @@ def classify(profile, snap, archetype=None):
             "industry": industry or None,
             "cash_conversion_industrial_valid":
                 a["cash_conversion_industrial_valid"],
+            "policy": policy_for(key),
             "notes": list(a["notes"])}
 
 

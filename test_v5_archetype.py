@@ -40,8 +40,8 @@ BANDS_NONE = {"pe": {"available": False, "reason": "r"},
 r = A.decide(MATURE, NO_EVENT, BANDS_OK, has_options=True)
 check("mature name routes FULL", r["archetype"] == A.FULL, r)
 check("router records reasons", bool(r["reasons"]), r)
-check("band ok -> scenario_table becomes REQUIRED",
-      "scenario_table" in r["contract"]["required"], r["contract"])
+check("band ok -> valuation_table becomes REQUIRED",
+      "valuation_table" in r["contract"]["required"], r["contract"])
 
 r2 = A.decide(LISTING, NO_EVENT, {"pe": {"available": False},
                                   "ps": {"available": False},
@@ -50,7 +50,7 @@ r2 = A.decide(LISTING, NO_EVENT, {"pe": {"available": False},
 check("new listing routes NEW_LISTING",
       r2["archetype"] == A.NEW_LISTING, r2["archetype"])
 check("NEW_LISTING forbids the scenario table and argument",
-      "scenario_table" in r2["contract"]["forbidden"]
+      "valuation_table" in r2["contract"]["forbidden"]
       and "argument" in r2["contract"]["forbidden"])
 
 r3 = A.decide(MATURE, HOLDING, BANDS_OK)
@@ -62,11 +62,11 @@ r4 = A.decide(MATURE, NO_EVENT, thin_m)
 check("two filed quarters routes THIN", r4["archetype"] == A.THIN,
       r4["archetype"])
 check("THIN with a surviving band still requires the scenario table",
-      "scenario_table" in r4["contract"]["required"])
+      "valuation_table" in r4["contract"]["required"])
 
 r5 = A.decide(MATURE, NO_EVENT, BANDS_NONE, has_options=False)
 check("no band -> scenario stays optional, reason recorded",
-      "scenario_table" not in r5["contract"]["required"]
+      "valuation_table" not in r5["contract"]["required"]
       and any("withheld" in x for x in r5["reasons"]))
 check("no options -> flow page forbidden with reason",
       "flow_positioning" in r5["contract"]["forbidden"]
@@ -84,9 +84,9 @@ check("override reason names both archetypes",
 c = A.CONTRACTS[A.NEW_LISTING]
 viol = A.check_rendered_sections(
     {"listing_factsheet": True, "listing_timeline": True,
-     "listing_trading": True, "scenario_table": True}, c)
+     "listing_trading": True, "valuation_table": True}, c)
 check("forbidden section rendered -> violation",
-      viol == ["forbidden section rendered: scenario_table"], viol)
+      viol == ["forbidden section rendered: valuation_table"], viol)
 viol2 = A.check_rendered_sections(
     {"listing_factsheet": True, "listing_trading": True}, c)
 check("missing required section -> violation",

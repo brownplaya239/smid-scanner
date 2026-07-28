@@ -275,7 +275,11 @@ def _table(rows, widths, header=None, zebra=False,
                      for c in r])
     if not data:
         return para("Not available for this report.", "small")
-    t = Table(data, colWidths=widths, hAlign="LEFT")
+    # repeatRows: when a table splits across a page break, the header
+    # row repeats on the continuation page (v5.7 §5) — benign for
+    # tables that fit on one page.
+    t = Table(data, colWidths=widths, hAlign="LEFT",
+              repeatRows=1 if header else 0)
     st = [("VALIGN", (0, 0), (-1, -1), "TOP"),
           ("LINEBELOW", (0, 0), (-1, -2), 0.4, LINE),
           ("TOPPADDING", (0, 0), (-1, -1), 3),

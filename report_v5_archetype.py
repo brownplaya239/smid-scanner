@@ -26,7 +26,7 @@ ARCHETYPES = (FULL, FULL_THIN, THIN, NEW_LISTING, DATA_HOLD)
 
 # Section vocabulary. Presentation renders sections; validation checks
 # the rendered document against this contract by archetype.
-SECTIONS = ("dashboard", "scenario_table", "argument", "financial_grid",
+SECTIONS = ("dashboard", "valuation_table", "argument", "financial_grid",
             "valuation_detail", "event_path", "technicals",
             "flow_positioning", "variant_risks", "listing_factsheet",
             "listing_timeline", "listing_trading", "flash")
@@ -35,9 +35,9 @@ CONTRACTS = {
     FULL: {
         "required": ("dashboard", "argument", "financial_grid",
                      "event_path", "technicals", "variant_risks"),
-        # scenario_table required only when a band survived coverage —
+        # valuation_table required only when a band survived coverage —
         # the router refines this per name (see decide()).
-        "optional": ("scenario_table", "valuation_detail",
+        "optional": ("valuation_table", "valuation_detail",
                      "flow_positioning"),
         "forbidden": ("listing_factsheet", "listing_timeline",
                       "listing_trading", "flash"),
@@ -51,7 +51,7 @@ CONTRACTS = {
     FULL_THIN: {
         "required": ("dashboard", "argument", "financial_grid",
                      "variant_risks"),
-        "optional": ("scenario_table", "valuation_detail", "event_path",
+        "optional": ("valuation_table", "valuation_detail", "event_path",
                      "technicals", "flow_positioning"),
         "forbidden": ("listing_factsheet", "listing_timeline",
                       "listing_trading", "flash"),
@@ -60,7 +60,7 @@ CONTRACTS = {
     THIN: {
         "required": ("dashboard", "argument", "financial_grid",
                      "variant_risks"),
-        "optional": ("scenario_table", "valuation_detail", "event_path",
+        "optional": ("valuation_table", "valuation_detail", "event_path",
                      "technicals"),
         "forbidden": ("flow_positioning", "listing_factsheet",
                       "listing_timeline", "listing_trading", "flash"),
@@ -70,7 +70,7 @@ CONTRACTS = {
         "required": ("listing_factsheet", "listing_timeline",
                      "listing_trading"),
         "optional": (),
-        "forbidden": ("scenario_table", "argument", "financial_grid",
+        "forbidden": ("valuation_table", "argument", "financial_grid",
                       "valuation_detail", "flow_positioning", "flash"),
         "pages": (2, 4),
     },
@@ -92,7 +92,7 @@ def decide(snap, event, multiples=None, has_options=None, override=None):
 
     snap      : the research snapshot (trading_history, fundamentals)
     event     : the resolved event-gate record (state, flash)
-    multiples : slice-1 record, if computed (refines scenario_table)
+    multiples : slice-1 record, if computed (refines valuation_table)
     has_options : bool|None — whether a listed chain exists
     override  : force an archetype (recorded, WARNed, never silent)
     """
@@ -141,7 +141,7 @@ def decide(snap, event, multiples=None, has_options=None, override=None):
         band_ok = any((multiples or {}).get(k, {}).get("available")
                       for k in ("pe", "ps"))
         if band_ok:
-            _promote(contract, "scenario_table")
+            _promote(contract, "valuation_table")
             _promote(contract, "valuation_detail")
             reasons.append("a multiple band survived coverage — scenario "
                            "table required")

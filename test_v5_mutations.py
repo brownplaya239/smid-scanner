@@ -214,6 +214,174 @@ prove("M30-appendix-scenario-language", "'scenario table' injected "
       CK.scenario_language_issues("methodology: the scenario table "
                                   "was computed", "historical_range"))
 
+# ── v5.7 §1: point-in-time integrity ─────────────────────────────────
+import report_v5_multiples as MU
+
+_now = date(2026, 7, 28)
+_stale_events = [{"end": e, "val": 1.0,
+                  "available_from": "2014-%02d-01" % (i + 3)}
+                 for i, e in enumerate(("2013-09-30", "2013-12-31",
+                                        "2014-03-31", "2014-06-30"))]
+_rec_stale = MU.ttm_integrity(_stale_events, _now)
+prove("M31-2014-quarter-in-ttm", "a 2014 quarter series presented as "
+      "the current TTM", "TTM_END_DATE_IS_CURRENT",
+      "stale trailing year detected",
+      ["not current"] if not _rec_stale["current"] else [])
+prove("M31b-ttm-suppressed", "ttm_at() must refuse the stale series",
+      "TTM_END_DATE_IS_CURRENT", "value suppressed",
+      ["suppressed"] if MU.ttm_at(_stale_events, _now) is None else [])
+_gap_events = [{"end": e, "val": 1.0, "available_from": "2026-01-01"}
+               for e in ("2024-03-31", "2024-06-30", "2025-12-31",
+                         "2026-03-31")]
+prove("M32-noncontiguous-quarters", "a filing gap inside the four "
+      "quarters", "TTM_HAS_FOUR_CONTIGUOUS_QUARTERS",
+      "non-contiguous quarters detected",
+      MU.ttm_integrity(_gap_events, _now)["reasons"])
+prove("M33-mixed-concepts", "band published with no recorded concept "
+      "(mixed-source series)", "TTM_CONCEPT_IS_CONSISTENT",
+      "missing concept detected",
+      CK.ttm_integrity_issues({"pe": {"available": True},
+                               "ttm_integrity": {"pe": {
+                                   "ok": True, "concept": None}}}))
+prove("M34-stale-debt-current-cash", "a 2017 debt instant netted "
+      "against current cash", "BALANCE_SHEET_FACTS_SHARE_PERIOD",
+      "cross-period netting detected",
+      CK.balance_sheet_period_issues(
+          {"cash": {"v": 1e9, "period_end": "2026-03-31"},
+           "debt": {"v": 2e9, "period_end": "2017-12-31"}},
+          {"metrics_used": ["net_cash"]}))
+prove("M35-freshness-from-newest", "conclusion freshness copied from "
+      "the newest reference", "FRESHNESS_MATCHES_OLDEST_MATERIAL_REF",
+      "wrong freshness basis detected",
+      CK.freshness_basis_issues(
+          {"metrics_used": ["net_margin", "net_cash"],
+           "freshness_basis": "2026-03-31"},
+          {"net_margin": {"period_end": "2026-03-31"},
+           "cash": {"period_end": "2026-03-31"},
+           "debt": {"period_end": "2021-12-31"}}))
+prove("M36-wrong-issuer", "ledger stamped with a different issuer's "
+      "CIK", "EVIDENCE_BELONGS_TO_ISSUER", "issuer mismatch detected",
+      CK.issuer_issues({"issuer_cik": "0000320193"}, "0000789019"))
+prove("M36b-stale-support", "a published claim resting on stale "
+      "critical evidence", "STALE_EVIDENCE_CANNOT_SUPPORT_CONCLUSION",
+      "stale support detected",
+      CK.stale_support_issues([{"claim_id": "c1",
+                                "freshness": {"stale": True}}]))
+prove("M36c-mixed-claim-periods", "one claim citing facts from two "
+      "different years", "MATERIAL_EVIDENCE_PERIODS_COMPATIBLE",
+      "incompatible periods detected",
+      CK.claim_period_issues([{
+          "claim_id": "c1", "claim_type": "fundamental",
+          "evidence_refs": ["XBRL-1-us-gaap:Revenues-2026-03-31",
+                            "XBRL-2-us-gaap:NetIncomeLoss-2021-12-31"],
+          "counterevidence_refs": []}]))
+
+# ── v5.7 §2: sector compatibility ────────────────────────────────────
+import report_v5_adapters as ADP2
+
+_reit = {"key": "reit", "policy": ADP2.policy_for("reit")}
+_bank = {"key": "bank_insurer",
+         "policy": ADP2.policy_for("bank_insurer")}
+prove("M37-reit-cash-conversion-claim", "an OCF self-funding claim "
+      "published for a REIT", "CLAIM_IS_COMPATIBLE_WITH_SECTOR",
+      "sector-incompatible claim detected",
+      CK.claim_sector_issues(
+          {"claims": [{"claim_id": "cash-conversion"}]}, _reit))
+prove("M38-reit-pe-without-ffo", "P/E used as a REIT's valuation "
+      "anchor with no FFO",
+      "VALUATION_METHOD_IS_COMPATIBLE_WITH_SECTOR",
+      "incompatible method detected",
+      CK.valuation_sector_issues({"available": True,
+                                  "metric_kind": "pe"}, _reit))
+prove("M39-bank-generic-revenue", "a bank graded on generic revenue "
+      "growth", "BUSINESS_QUALITY_USES_PERMITTED_METRICS",
+      "forbidden quality metric detected",
+      CK.quality_metric_issues({"metrics_used": ["revenue_growth"]},
+                               _bank))
+prove("M39b-ungoverned-builder", "argument builder ran without the "
+      "adapter policy", "ADAPTER_GOVERNS_ARGUMENT_BUILDER",
+      "governance gap detected",
+      CK.adapter_governance_issues({"adapter_key": None},
+                                   {"valuation_policy":
+                                    {"adapter": "reit"}}, _reit))
+
+# ── v5.7 §4: whole-word vocabulary + JSON surface ────────────────────
+prove("M40-scenario-probabilities", "'scenario probabilities' in a "
+      "historical-mode surface",
+      "NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE",
+      "whole-word scenario token detected",
+      CK.scenario_language_issues(
+          "the range carries no scenario probabilities",
+          "historical_range"))
+prove("M40b-json-surface", "'scenario' leaked into the validation "
+      "JSON", "NO_SCENARIO_LANGUAGE_IN_VALIDATION_JSON",
+      "token detected in serialized record",
+      CK.json_scenario_issues({"router": {"reasons":
+                                          ["scenario table required"]},
+                               "checks": []}, "historical_range"))
+
+# ── v5.7 §5: rendered layout ─────────────────────────────────────────
+_sd_fix = {"questions": [{"question": "Q1",
+                          "answer": "the full answer that must render "
+                                    "without clipping anywhere"},
+                         {"question": "Q2",
+                          "answer": "a second substantial answer that "
+                                    "also flows onto the next page"}]}
+prove("M41-clipped-sundheim-row", "a Sundheim answer clipped from the "
+      "rendered appendix", "APPENDIX_TABLE_CELL_NOT_CLIPPED",
+      "clipped cell detected",
+      CK.sundheim_render_issues("Question Answer (sourced) Q1 the "
+                                "full ans", _sd_fix))
+prove("M42-missing-repeated-header", "a continuation page with rows "
+      "but no repeated header", "TABLE_HEADER_REPEATED_AFTER_BREAK",
+      "missing header detected",
+      CK.sundheim_header_issues(
+          ["Sundheim decision record\nQuestion\nQ1",
+           "the full answer that must render without clipping "
+           "anywhere\na second substantial answer that also flows "
+           "onto the next page"],
+          _sd_fix))
+prove("M43-sparse-final-page", "a 6%-occupancy final appendix page",
+      "NO_LOW_DENSITY_FINAL_PAGE", "sparse tail detected",
+      [b for b in CK.page_occupancy_issues([0.8, 0.7, 0.06])
+       if "final" in b])
+prove("M43b-stranded-tail", "a page opening mid-sentence",
+      "NO_STRANDED_SECTION_TAIL", "stranded continuation detected",
+      CK.stranded_tail_issues(["TICK Equity Research v5\nnormal page",
+                               "TICK Equity Research v5\ncontinued "
+                               "sentence fragment here"]))
+
+prove("M45-latest-label-stale-fact", "'latest filed quarter' rendered "
+      "over a 2024 quarter", "LATEST_LABEL_REQUIRES_CURRENT_FACT",
+      "stale 'latest' label detected",
+      CK.latest_label_issues(
+          "growth from the latest filed quarter",
+          {"revenue_q": {"v": 1e9, "period_end": "2024-06-30"}},
+          today=date(2026, 7, 28)))
+prove("M39c-ungoverned-valuation", "valuation selection ran without "
+      "the adapter policy", "ADAPTER_GOVERNS_VALUATION",
+      "governance gap detected",
+      [g for g in CK.adapter_governance_issues(
+          {"adapter_key": "reit"},
+          {"valuation_policy": {"adapter": None}}, _reit)
+       if "valuation" in g])
+prove("M46-sparse-interior-page", "a 10%-occupancy interior appendix "
+      "page", "APPENDIX_PAGE_OCCUPANCY", "sparse interior page "
+      "detected",
+      [b for b in CK.page_occupancy_issues([0.8, 0.10, 0.7, 0.5])
+       if "final" not in b])
+
+# ── v5.7 §6: provenance ──────────────────────────────────────────────
+prove("M44-wrong-source-commit", "artifact recording a commit that is "
+      "not the generating commit", "PROVENANCE_VALID",
+      "commit mismatch detected",
+      CK.provenance_issues({"generator_version": "v5.7",
+                            "source_commit_sha": "aaaa",
+                            "git_tree_sha": "t", "generated_at": "x",
+                            "report_id": "r",
+                            "dirty_worktree": False},
+                           head_sha="bbbb"))
+
 # ── universal-ticker scan ────────────────────────────────────────────
 _tmp = tempfile.mkdtemp()
 _mod = os.path.join(_tmp, "report_v5_claims.py")

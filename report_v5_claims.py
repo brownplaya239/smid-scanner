@@ -165,9 +165,15 @@ def _lifecycle(cat, today, valuation_mode=None):
     }
 
 
-def build(snap, view4, scenarios=None, estimates=None):
+def build(snap, view4, scenarios=None, estimates=None, adapter=None):
     """-> {claims: [published], rejected: [{claim, failed_gates}],
-           searched: [...], note}"""
+           searched: [...], note, adapter_key, policy_suppressed}
+
+    §2 (v5.7): the sector adapter's policy governs the argument
+    builder — claim shapes the business model's economics cannot
+    support (a bank graded on generic revenue growth, a REIT or broker
+    on industrial cash conversion) are suppressed with the reason
+    recorded, never generated and never silently dropped."""
     today = datetime.now(timezone.utc).date()
     fu = snap.get("fundamentals") or {}
     lv = snap.get("levels") or {}
@@ -509,6 +515,32 @@ def build(snap, view4, scenarios=None, estimates=None):
                               "stale": False},
             })
 
+    # ── sector policy (§2): forbidden claim shapes never reach the
+    # gate; the suppression is recorded so the reader sees WHY the
+    # section is thinner for this business model ────────────────────
+    pol = ((adapter or {}).get("policy") or {})
+    forbidden = set(pol.get("claims_forbidden") or ())
+    policy_suppressed = []
+    if forbidden:
+        kept = []
+        for c in cands:
+            if c["claim_id"] in forbidden:
+                policy_suppressed.append({
+                    "claim_id": c["claim_id"],
+                    "reason": "suppressed by the %s adapter: this "
+                              "claim shape does not fit the business "
+                              "model's economics"
+                              % ((adapter or {}).get("label")
+                                 or "sector")})
+                searched.append("%s (suppressed: not economically "
+                                "meaningful for a %s)"
+                                % (c["claim_id"],
+                                   (adapter or {}).get("label")
+                                   or "this model"))
+            else:
+                kept.append(c)
+        cands = kept
+
     # ── the gate ─────────────────────────────────────────────────────
     published, rejected = [], []
     for c in cands:
@@ -538,6 +570,8 @@ def build(snap, view4, scenarios=None, estimates=None):
                 "searched across: %s." % "; ".join(searched))
     return {"claims": published[:5], "rejected": rejected,
             "searched": searched, "note": note,
+            "adapter_key": (adapter or {}).get("key"),
+            "policy_suppressed": policy_suppressed,
             "schema": "v5-claims/2"}
 
 

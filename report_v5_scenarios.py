@@ -68,8 +68,9 @@ def load_assumptions(ticker, today=None):
     today = today or datetime.now(timezone.utc).date().isoformat()
     exp = doc.get("expires")
     if exp and str(exp) < today:
-        return None, ("user assumptions dated %s expired %s — scenarios "
-                      "revert to historical bands" % (doc["as_of"], exp))
+        return None, ("user assumptions dated %s expired %s — the "
+                      "valuation legs revert to historical percentiles"
+                      % (doc["as_of"], exp))
     fields = doc.get("fields") or {}
     for k, v in fields.items():
         if k == "probabilities":
@@ -104,7 +105,8 @@ def row_by(record, *names):
     return None
 
 
-def build(ticker, multiples, spot, assumptions=None, note=None):
+def build(ticker, multiples, spot, assumptions=None, note=None,
+          valuation_policy=None):
     """The scenario table.
 
     multiples : record from report_v5_multiples.build()
@@ -117,18 +119,35 @@ def build(ticker, multiples, spot, assumptions=None, note=None):
     unless a forward_metric assumption replaces it, labelled ASM."""
     out = {"ticker": ticker.upper(), "spot": spot,
            "assumptions_note": note}
+    # §2: the sector adapter governs which multiple kinds are
+    # economically supportable — a method the model's economics cannot
+    # support is never selected just because a band computed.
+    pol = valuation_policy or {}
+    allowed = tuple(pol.get("valuation_allowed", ("pe", "ps")))
+    out["valuation_policy"] = {
+        "adapter": pol.get("adapter"),
+        "allowed": list(allowed),
+        "reason": pol.get("valuation_reason"),
+    }
+    if not allowed:
+        out.update({"available": False,
+                    "reason": pol.get("valuation_reason")
+                    or "no valuation method is supportable for this "
+                       "business model"})
+        return out
     band = None
-    for kind in ("pe", "ps"):
+    for kind in allowed:
         b = multiples.get(kind) or {}
         if b.get("available"):
             band, out["metric_kind"] = b, kind
             break
     if band is None:
-        reasons = [(multiples.get(k) or {}).get("reason")
-                   or "band unavailable" for k in ("pe", "ps")]
+        reasons = ["%s: %s" % (k.upper(),
+                               (multiples.get(k) or {}).get("reason")
+                               or "band unavailable") for k in allowed]
         out.update({"available": False,
-                    "reason": "no multiple band survived its coverage "
-                              "floor (P/E: %s; P/S: %s)" % tuple(reasons)})
+                    "reason": "no permitted multiple band survived its "
+                              "coverage floor (%s)" % "; ".join(reasons)})
         return out
 
     # trailing metric implied by the band's own current multiple — the
@@ -203,8 +222,8 @@ def build(ticker, multiples, spot, assumptions=None, note=None):
     if isinstance(probs, dict) and not underwritten:
         out["assumptions_note"] = ((out.get("assumptions_note") or "")
             + " probabilities ignored: no forward_metric (operating "
-              "forecast) — a historical range is never "
-              "probability-weighted").strip()
+              "forecast) — a historical range carries no "
+              "probabilities").strip()
     elif isinstance(probs, dict):
         vals = [probs.get(l) for l in ("bear", "base", "bull")]
         if all(isinstance(v, (int, float)) for v in vals) \

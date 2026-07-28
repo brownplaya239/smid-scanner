@@ -49,17 +49,30 @@ def build_view(ticker, override=None):
     closes = mk.get("closes") or []
     spot = (closes[-2] if mk.get("partial_session") and len(closes) > 1
             else closes[-1]) if closes else None
+    # §2 (v5.7): the adapter is selected BEFORE any analysis so its
+    # policy governs valuation-method selection, the argument builder
+    # and business-quality grading — not just dashboard labels.
+    import report_v5_adapters as ADP
+    import report_v5_capability as CAP
+    profile = CAP.company_profile(snap, multiples)
+    adapter = ADP.classify(profile, snap)
+    try:
+        adapter["one_time_items"] = ADP.one_time_items(ticker, snap)
+    except Exception:
+        adapter["one_time_items"] = []
+    _pol = dict(adapter.get("policy") or {}, adapter=adapter.get("key"))
     asm, note = S5.load_assumptions(ticker)
-    scenarios = S5.build(ticker, multiples, spot, asm, note)
+    scenarios = S5.build(ticker, multiples, spot, asm, note,
+                         valuation_policy=_pol)
     print("  [v5] claims + grid...")
     grid = G5.build(ticker)
     import report_v5_expectations as E5
     expectations = E5.build(snap, grid, multiples, scenarios, estimates,
                             asm)
-    claims = C5.build(snap, v4, scenarios, estimates)
+    claims = C5.build(snap, v4, scenarios, estimates, adapter=adapter)
     import report_v5_assessment as AS
     import report_v5 as _R5
-    bq = AS.business_quality(snap, grid)
+    bq = AS.business_quality(snap, grid, adapter=adapter)
     _conf = _R5.confidence({"v4": v4, "multiples": multiples})
     ia = AS.investment_attractiveness(scenarios, expectations,
                                       v4.get("event") or {},
@@ -77,17 +90,9 @@ def build_view(ticker, override=None):
     # EvidenceCapability + FrameworkCoverage (§6) — never ticker
     # identity. The record carries the categories present/absent, the
     # missing framework dimensions and the full reason chain.
-    import report_v5_adapters as ADP
-    import report_v5_capability as CAP
     import report_v5_framework as FW
-    profile = CAP.company_profile(snap, multiples)
     capability = CAP.evidence_capability(snap, multiples, estimates,
                                          has_options)
-    adapter = ADP.classify(profile, snap)
-    try:
-        adapter["one_time_items"] = ADP.one_time_items(ticker, snap)
-    except Exception:
-        adapter["one_time_items"] = []
     framework = FW.build_coverage(profile, capability, snap, grid,
                                   multiples, adapter, claims,
                                   expectations, assessment)
@@ -142,6 +147,23 @@ _MUTATION_REQUIRED = (
     "HISTORICAL_WINDOW_LABEL_MATCHES_ACTUAL",
     "INVESTMENT_ATTRACTIVENESS_HAS_UNDERWRITING",
     "DATA_CONFIDENCE_DECOMPOSED", "NEXT_CHECKPOINT_TYPE_VALID",
+    # v5.7 §1/§2/§4/§5/§6
+    "TTM_HAS_FOUR_CONTIGUOUS_QUARTERS", "TTM_END_DATE_IS_CURRENT",
+    "TTM_CONCEPT_IS_CONSISTENT", "BALANCE_SHEET_FACTS_SHARE_PERIOD",
+    "FRESHNESS_MATCHES_OLDEST_MATERIAL_REF",
+    "LATEST_LABEL_REQUIRES_CURRENT_FACT",
+    "MATERIAL_EVIDENCE_PERIODS_COMPATIBLE",
+    "STALE_EVIDENCE_CANNOT_SUPPORT_CONCLUSION",
+    "EVIDENCE_BELONGS_TO_ISSUER",
+    "CLAIM_IS_COMPATIBLE_WITH_SECTOR",
+    "VALUATION_METHOD_IS_COMPATIBLE_WITH_SECTOR",
+    "BUSINESS_QUALITY_USES_PERMITTED_METRICS",
+    "ADAPTER_GOVERNS_ARGUMENT_BUILDER", "ADAPTER_GOVERNS_VALUATION",
+    "NO_SCENARIO_LANGUAGE_IN_VALIDATION_JSON",
+    "APPENDIX_TABLE_CELL_NOT_CLIPPED",
+    "TABLE_HEADER_REPEATED_AFTER_BREAK", "NO_STRANDED_SECTION_TAIL",
+    "APPENDIX_PAGE_OCCUPANCY", "NO_LOW_DENSITY_FINAL_PAGE",
+    "PROVENANCE_VALID",
 )
 
 
@@ -152,7 +174,7 @@ def _page_texts(data):
 
 
 def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
-             report_id=None):
+             report_id=None, snap=None):
     """The v5.6 semantic suite: rendered-content checks over the core
     AND appendix PDFs, evidence-ledger resolution, framework/adapter
     presence, and the appendix binding checks."""
@@ -176,7 +198,7 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
 
     text = _pdf_text(core_pdf)
     sc = view5.get("scenarios") or {}
-    if sc.get("available") and rendered.get("scenario_table"):
+    if sc.get("available") and rendered.get("valuation_table"):
         norm = re.sub(r"\s+", " ", text)
         ok_all, seen = True, []
         for r in sc["rows"]:
@@ -268,9 +290,9 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
     bad = CK0.ia_underwriting_issues(ia6.get("level"), sc6.get("mode"))
     checks.append(VV.chk("INVESTMENT_ATTRACTIVENESS_HAS_UNDERWRITING",
                          not bad, VV.ERROR,
-                         "graded attractiveness requires underwritten "
-                         "scenarios; otherwise PROVISIONAL/"
-                         "NOT_UNDERWRITTEN",
+                         "graded attractiveness requires an "
+                         "underwritten forward view; otherwise "
+                         "PROVISIONAL/NOT_UNDERWRITTEN",
                          "; ".join(bad) or "%s (mode %s)"
                          % (ia6.get("level"), sc6.get("mode"))))
     conf6 = None
@@ -446,6 +468,131 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
                          "; ".join(bad[:4]) or "same-proposition rule "
                          "holds"))
 
+    # ── §1 point-in-time financial integrity (v5.7) ──────────────────
+    m7 = view5.get("multiples") or {}
+    integ7 = m7.get("ttm_integrity") or {}
+    fu7 = (snap or {}).get("fundamentals") or {}
+    bq7 = (view5.get("assessment") or {}).get("business_quality") or {}
+    _avail_streams = [k for k in ("pe", "ps")
+                      if (m7.get(k) or {}).get("available")]
+    for cid, field, expect in (
+            ("TTM_HAS_FOUR_CONTIGUOUS_QUARTERS", "contiguous",
+             "every published TTM uses four contiguous fiscal "
+             "quarters"),
+            ("TTM_END_DATE_IS_CURRENT", "current",
+             "every published TTM ends within the normal reporting "
+             "lag")):
+        bad = ["%s: %s" % (k, "; ".join((integ7.get(k) or {}).get(
+            "reasons") or ["no integrity record"]))
+            for k in _avail_streams
+            if not (integ7.get(k) or {}).get(field)]
+        checks.append(VV.chk(cid, not bad, VV.ERROR, expect,
+                             "; ".join(bad) or
+                             ("streams %s ok" % _avail_streams
+                              if _avail_streams else
+                              "no stream published")))
+    bad = [k for k in _avail_streams
+           if not (integ7.get(k) or {}).get("concept")]
+    checks.append(VV.chk("TTM_CONCEPT_IS_CONSISTENT", not bad,
+                         VV.ERROR,
+                         "each TTM stream uses one named accounting "
+                         "concept",
+                         ", ".join(bad) or ", ".join(
+                             str((integ7.get(k) or {}).get("concept"))
+                             for k in _avail_streams) or "n/a"))
+    bad = CK.balance_sheet_period_issues(fu7, bq7)
+    checks.append(VV.chk("BALANCE_SHEET_FACTS_SHARE_PERIOD", not bad,
+                         VV.ERROR,
+                         "balance-sheet instants are only netted from "
+                         "the same reporting date",
+                         "; ".join(bad) or "periods compatible"))
+    bad = CK.freshness_basis_issues(bq7, fu7)
+    checks.append(VV.chk("FRESHNESS_MATCHES_OLDEST_MATERIAL_REF",
+                         not bad, VV.ERROR,
+                         "conclusion freshness equals the oldest "
+                         "material supporting period",
+                         "; ".join(bad) or
+                         str(bq7.get("freshness_basis"))))
+    bad = CK.latest_label_issues(text, fu7)
+    checks.append(VV.chk("LATEST_LABEL_REQUIRES_CURRENT_FACT", not bad,
+                         VV.ERROR,
+                         "'latest' language only with a current fact",
+                         "; ".join(bad) or "clean"))
+    bad = CK.claim_period_issues(pubs6)
+    checks.append(VV.chk("MATERIAL_EVIDENCE_PERIODS_COMPATIBLE",
+                         not bad, VV.ERROR,
+                         "one claim's XBRL facts share a reporting "
+                         "period", "; ".join(bad) or "compatible"))
+    bad = CK.stale_support_issues(pubs6)
+    checks.append(VV.chk("STALE_EVIDENCE_CANNOT_SUPPORT_CONCLUSION",
+                         not bad, VV.ERROR,
+                         "no published claim rests on stale critical "
+                         "evidence", ", ".join(bad) or "none stale"))
+    if ledger:
+        _cik = (snap or {}).get("cik") or ledger.get("issuer_cik")
+        bad = CK.issuer_issues(ledger, _cik)
+        checks.append(VV.chk("EVIDENCE_BELONGS_TO_ISSUER", not bad,
+                             VV.ERROR,
+                             "every evidence record is bound to the "
+                             "intended issuer",
+                             "; ".join(bad) or
+                             "issuer CIK %s" % ledger.get("issuer_cik")))
+
+    # ── §2 sector-aware claims and valuation (v5.7) ──────────────────
+    ad7 = view5.get("adapter") or {}
+    sc7 = view5.get("scenarios") or {}
+    bad = CK.claim_sector_issues(cl6, ad7)
+    checks.append(VV.chk("CLAIM_IS_COMPATIBLE_WITH_SECTOR", not bad,
+                         VV.ERROR,
+                         "no published claim shape the sector's "
+                         "economics cannot support",
+                         ", ".join(bad) or "compatible"))
+    bad = CK.valuation_sector_issues(sc7, ad7)
+    checks.append(VV.chk("VALUATION_METHOD_IS_COMPATIBLE_WITH_SECTOR",
+                         not bad, VV.ERROR,
+                         "the valuation method is economically "
+                         "applicable to the sector",
+                         "; ".join(bad) or
+                         "method %s" % sc7.get("metric_kind")))
+    bad = CK.quality_metric_issues(bq7, ad7)
+    checks.append(VV.chk("BUSINESS_QUALITY_USES_PERMITTED_METRICS",
+                         not bad, VV.ERROR,
+                         "quality grading uses only sector-permitted "
+                         "metrics",
+                         ", ".join(bad) or
+                         "used: %s" % ", ".join(bq7.get("metrics_used")
+                                                or []) or "none"))
+    gov = CK.adapter_governance_issues(cl6, sc7, ad7)
+    checks.append(VV.chk("ADAPTER_GOVERNS_ARGUMENT_BUILDER",
+                         not any("argument" in g for g in gov),
+                         VV.ERROR,
+                         "the argument builder ran under the adapter "
+                         "policy", "; ".join(g for g in gov
+                                             if "argument" in g)
+                         or "governed (%s)" % ad7.get("key")))
+    checks.append(VV.chk("ADAPTER_GOVERNS_VALUATION",
+                         not any("valuation" in g for g in gov),
+                         VV.ERROR,
+                         "valuation selection ran under the adapter "
+                         "policy", "; ".join(g for g in gov
+                                             if "valuation" in g)
+                         or "governed (%s)" % ad7.get("key")))
+    if not is_flash and arch["archetype"] in ("FULL", "FULL_THIN",
+                                              "THIN"):
+        _needs = any(s.get("kind") == "absent" for s in
+                     __import__("report_v5_adapters").ADAPTERS.get(
+                         ad7.get("key") or "generic",
+                         {}).get("slots") or [])
+        ok7 = (not _needs) or ("no admitted source" in text)
+        checks.append(VV.chk("REQUIRED_SECTOR_METRIC_OR_NOT_ASSESSED",
+                             ok7, VV.ERROR,
+                             "required sector metrics render their "
+                             "values or a visible no-admitted-source "
+                             "state",
+                             "absent slots disclosed" if ok7 else
+                             "sector metric slots missing from the "
+                             "rendered core"))
+
     # framework + adapter (§4/§6/§7)
     fw = view5.get("framework") or {}
     fw_bad = CK.framework_issues(fw)
@@ -605,18 +752,35 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
                                                      lo, hi),
                          "%d" % n_pages))
     fatal = [c for c in checks if c["status"] == "FAIL"]
+    # §6 release provenance: the exact clean source state. Generated
+    # artifacts (research-state appends, mutation catalogues, output
+    # dirs) are excluded from the dirty computation — "clean" means the
+    # SOURCE files match the recorded commit.
+    commit_sha = tree_sha = None
+    dirty = None
     try:
         import subprocess
-        commit_sha = subprocess.run(
-            ["git", "rev-parse", "HEAD"], capture_output=True,
-            text=True, timeout=10,
-            cwd=os.path.dirname(os.path.abspath(__file__))
-        ).stdout.strip() or None
+        _cwd = os.path.dirname(os.path.abspath(__file__))
+
+        def _git(*args):
+            return subprocess.run(["git"] + list(args),
+                                  capture_output=True, text=True,
+                                  timeout=10, cwd=_cwd).stdout.strip()
+        commit_sha = _git("rev-parse", "HEAD") or None
+        tree_sha = _git("rev-parse", "HEAD^{tree}") or None
+        porcelain = _git("status", "--porcelain")
+        _GENERATED = ("data/research_state/", "data/mutation_proofs/",
+                      "out_", ".snapcache", "docs/data/")
+        dirty = any(ln and not any(g in ln for g in _GENERATED)
+                    for ln in porcelain.splitlines())
     except Exception:
-        commit_sha = None
+        pass
     return {"schema": "equity-research-v5-validation/1",
-            "generator_version": "v5.6",
+            "generator_version": "v5.7",
             "commit_sha": commit_sha,
+            "source_commit_sha": commit_sha,
+            "git_tree_sha": tree_sha,
+            "dirty_worktree": dirty,
             "generated_at": datetime.now(timezone.utc
                                          ).isoformat(timespec="seconds"),
             "ticker": (view5["v4"] or {}).get("ticker"),
@@ -676,10 +840,16 @@ def run(ticker, out_dir="out_v5", override=None):
     val_p = os.path.join(out_dir,
                          "%s_equity_research_v5_validation.json" % ticker)
 
-    # evidence ledger (§8) — built before the render so the appendix and
-    # the validation JSON bind to the same evidence universe
+    # evidence ledger (§8/§3) — built before the render so the appendix
+    # and the validation JSON bind to the same evidence universe, and
+    # bound to the issuer's CIK (§1)
     import report_v5_ledger as LG
-    ledger = LG.build(snap, view5, report_id)
+    try:
+        _cik = RL.cik_for(ticker)
+    except Exception:
+        _cik = None
+    snap["cik"] = snap.get("cik") or _cik
+    ledger = LG.build(snap, view5, report_id, issuer_cik=_cik)
     view5["ledger_hash"] = ledger["hash"]
 
     data, rendered = R5.build_core(snap, view5, core_p, chart_png,
@@ -694,7 +864,44 @@ def run(ticker, out_dir="out_v5", override=None):
     apx = APX.build(snap, view5, prov, core_hash, ledger, report_id,
                     apx_p)
     result = validate(view5, data, rendered, apx, ledger=ledger,
-                      report_id=report_id)
+                      report_id=report_id, snap=snap)
+
+    # ── §5 rendered-layout checks on the written appendix ────────────
+    import report_v4_validate as VV5
+    import report_v5_checks as CK5
+    apx_pages = _page_texts(apx)
+    sd5 = view5.get("sundheim") or {}
+    apx_full = "\n".join(apx_pages)
+    bad = CK5.sundheim_render_issues(apx_full, sd5)
+    result["checks"].append(VV5.chk(
+        "APPENDIX_TABLE_CELL_NOT_CLIPPED", not bad, VV5.ERROR,
+        "every Sundheim answer renders in full (wrapped, never "
+        "clipped)", "; ".join(bad) or
+        "%d answers verified" % len(sd5.get("questions") or [])))
+    bad = CK5.sundheim_header_issues(apx_pages, sd5)
+    result["checks"].append(VV5.chk(
+        "TABLE_HEADER_REPEATED_AFTER_BREAK", not bad, VV5.ERROR,
+        "a split table repeats its header on the continuation page",
+        "; ".join(bad) or "headers repeat"))
+    bad = CK5.stranded_tail_issues(apx_pages)
+    result["checks"].append(VV5.chk(
+        "NO_STRANDED_SECTION_TAIL", not bad, VV5.ERROR,
+        "no appendix page opens mid-sentence",
+        "; ".join(bad) or "clean"))
+    occ = CK5.measure_occupancy(apx_p)
+    bad = CK5.page_occupancy_issues(occ)
+    result["checks"].append(VV5.chk(
+        "APPENDIX_PAGE_OCCUPANCY",
+        not [b for b in bad if "final" not in b], VV5.ERROR,
+        "interior appendix pages carry real content",
+        "; ".join(b for b in bad if "final" not in b) or
+        "occupancy %s" % ["%.0f%%" % (r * 100) for r in occ]))
+    result["checks"].append(VV5.chk(
+        "NO_LOW_DENSITY_FINAL_PAGE",
+        not [b for b in bad if "final" in b], VV5.ERROR,
+        "the final appendix page is not a sparse tail",
+        "; ".join(b for b in bad if "final" in b) or
+        "final %.0f%%" % (occ[-1] * 100 if occ else 0)))
     import report_v4_run as RR
     result["artifacts"] = RR._artifact_hashes(core_p, apx_p)
     result["report_id"] = report_id
@@ -704,7 +911,7 @@ def run(ticker, out_dir="out_v5", override=None):
     # both embedded in the validation JSON and as its own artifact, so
     # an outside reviewer can resolve every reference without trusting
     # the validator's own PASS.
-    result["evidence_ledger"] = [{"id": k, "source": v}
+    result["evidence_ledger"] = [{"id": k, "record": v}
                                  for k, v in sorted(
                                      (ledger.get("ids") or {}).items())]
     ledger_p = os.path.join(out_dir,
@@ -712,6 +919,7 @@ def run(ticker, out_dir="out_v5", override=None):
     with open(ledger_p, "w", encoding="utf-8") as fh:
         json.dump({"schema": ledger["schema"], "report_id": report_id,
                    "ticker": ticker, "hash": ledger["hash"],
+                   "issuer_cik": ledger.get("issuer_cik"),
                    "count": ledger["count"], "ids": ledger["ids"]},
                   fh, indent=1, sort_keys=True)
     with open(ledger_p, "rb") as fh:
@@ -745,7 +953,7 @@ def run(ticker, out_dir="out_v5", override=None):
                          % cs.get("prior_report_id"))))
     mat = [c for c in cs["changes"]
            if c["category"] in ("rating_change", "assessment_change",
-                                "scenario_change", "archetype_change")]
+                                "valuation_row_change", "archetype_change")]
     result["checks"].append(VV.chk(
         "CHANGESET_MATERIAL_CHANGE_EXPLAINED",
         all(c.get("reason") and c.get("evidence_refs") is not None
@@ -778,6 +986,27 @@ def run(ticker, out_dir="out_v5", override=None):
         ("missing: " + ", ".join(need_proof[:6])) if need_proof
         else "%d checks proven by %d mutations" % (len(proven),
                                                    len(mutations))))
+    # §4 (v5.7): the validation JSON is itself a surface — in
+    # historical mode the serialized result may carry no scenario
+    # token outside the exempt language-check ids and the mutation
+    # catalogue.
+    import report_v5_checks as CKJ
+    _mode7 = (view5.get("scenarios") or {}).get("mode")
+    bad = CKJ.json_scenario_issues(result, _mode7)
+    result["checks"].append(VV.chk(
+        "NO_SCENARIO_LANGUAGE_IN_VALIDATION_JSON", not bad, VV.ERROR,
+        "the serialized validation record carries no scenario "
+        "vocabulary in historical mode",
+        "; ".join(bad) or "clean"))
+    # §6: the artifact identifies its exact clean source state
+    bad = CKJ.provenance_issues(result)
+    result["checks"].append(VV.chk(
+        "PROVENANCE_VALID", not bad, VV.ERROR,
+        "generator version, source commit, tree sha, clean-worktree "
+        "flag, timestamp and report ID all recorded",
+        "; ".join(bad) or "%s @ %s"
+        % (result.get("generator_version"),
+           (result.get("source_commit_sha") or "")[:10])))
     result["blocking_failures"] = [c["check_id"]
                                    for c in result["checks"]
                                    if c["status"] == "FAIL"]

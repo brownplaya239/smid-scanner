@@ -246,7 +246,7 @@ def _p1_dashboard(snap, view5):
                                "small", DERIVED)
         st.append(band_note)
     else:
-        st.append(para("Scenarios", "h2"))
+        st.append(para("Valuation range", "h2"))
         st.append(para("Withheld: %s." % _clean(sc.get("reason")
                                                 or "no basis"), "small"))
     if sc.get("assumptions_note"):
@@ -833,13 +833,13 @@ def build_core(snap, view5, out_path=None, chart_png=None,
     else:
         story = _p1_dashboard(snap, view5) + [PageBreak()]
         rendered["dashboard"] = True
-        rendered["scenario_table"] = bool(
+        rendered["valuation_table"] = bool(
             (view5.get("scenarios") or {}).get("available"))
         story += _p2_argument(snap, view5) + [PageBreak()]
         rendered["argument"] = True
         story += _p3_grid(snap, view5) + [PageBreak()]
         rendered["financial_grid"] = True
-        if rendered["scenario_table"] or arch in (A.FULL, A.FULL_THIN):
+        if rendered["valuation_table"] or arch in (A.FULL, A.FULL_THIN):
             story += _p4_valuation(snap, view5) + [PageBreak()]
             rendered["valuation_detail"] = True
         # Page-6 variant must obey the SAME gate as pages 2 and 4:

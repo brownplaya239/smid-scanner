@@ -266,7 +266,214 @@
    "expected_failure": "banned vocabulary detected in the appendix surface",
    "intended_check": "NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE_APPENDIX",
    "mutation_id": "M30-appendix-scenario-language",
-   "observed_failure": "scenario table",
+   "observed_failure": "word 'scenario'",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a 2014 quarter series presented as the current TTM",
+   "expected_failure": "stale trailing year detected",
+   "intended_check": "TTM_END_DATE_IS_CURRENT",
+   "mutation_id": "M31-2014-quarter-in-ttm",
+   "observed_failure": "not current",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "ttm_at() must refuse the stale series",
+   "expected_failure": "value suppressed",
+   "intended_check": "TTM_END_DATE_IS_CURRENT",
+   "mutation_id": "M31b-ttm-suppressed",
+   "observed_failure": "suppressed",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a filing gap inside the four quarters",
+   "expected_failure": "non-contiguous quarters detected",
+   "intended_check": "TTM_HAS_FOUR_CONTIGUOUS_QUARTERS",
+   "mutation_id": "M32-noncontiguous-quarters",
+   "observed_failure": "quarter ends are not contiguous (gaps [91, 549, 90] days)",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "band published with no recorded concept (mixed-source series)",
+   "expected_failure": "missing concept detected",
+   "intended_check": "TTM_CONCEPT_IS_CONSISTENT",
+   "mutation_id": "M33-mixed-concepts",
+   "observed_failure": "pe: no accounting concept recorded",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a 2017 debt instant netted against current cash",
+   "expected_failure": "cross-period netting detected",
+   "intended_check": "BALANCE_SHEET_FACTS_SHARE_PERIOD",
+   "mutation_id": "M34-stale-debt-current-cash",
+   "observed_failure": "cash (2026-03-31) netted against debt (2017-12-31) \u2014 3012 days apart",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "conclusion freshness copied from the newest reference",
+   "expected_failure": "wrong freshness basis detected",
+   "intended_check": "FRESHNESS_MATCHES_OLDEST_MATERIAL_REF",
+   "mutation_id": "M35-freshness-from-newest",
+   "observed_failure": "freshness_basis '2026-03-31' but the oldest material period is 2021-12-31",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "ledger stamped with a different issuer's CIK",
+   "expected_failure": "issuer mismatch detected",
+   "intended_check": "EVIDENCE_BELONGS_TO_ISSUER",
+   "mutation_id": "M36-wrong-issuer",
+   "observed_failure": "ledger issuer 0000320193 does not match the report's issuer 0000789019",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a published claim resting on stale critical evidence",
+   "expected_failure": "stale support detected",
+   "intended_check": "STALE_EVIDENCE_CANNOT_SUPPORT_CONCLUSION",
+   "mutation_id": "M36b-stale-support",
+   "observed_failure": "c1",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "one claim citing facts from two different years",
+   "expected_failure": "incompatible periods detected",
+   "intended_check": "MATERIAL_EVIDENCE_PERIODS_COMPATIBLE",
+   "mutation_id": "M36c-mixed-claim-periods",
+   "observed_failure": "c1: evidence periods span 2021-12-31 to 2026-03-31 across different concepts",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "an OCF self-funding claim published for a REIT",
+   "expected_failure": "sector-incompatible claim detected",
+   "intended_check": "CLAIM_IS_COMPATIBLE_WITH_SECTOR",
+   "mutation_id": "M37-reit-cash-conversion-claim",
+   "observed_failure": "cash-conversion",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "P/E used as a REIT's valuation anchor with no FFO",
+   "expected_failure": "incompatible method detected",
+   "intended_check": "VALUATION_METHOD_IS_COMPATIBLE_WITH_SECTOR",
+   "mutation_id": "M38-reit-pe-without-ffo",
+   "observed_failure": "method 'pe' used but the reit adapter permits []",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a bank graded on generic revenue growth",
+   "expected_failure": "forbidden quality metric detected",
+   "intended_check": "BUSINESS_QUALITY_USES_PERMITTED_METRICS",
+   "mutation_id": "M39-bank-generic-revenue",
+   "observed_failure": "revenue_growth",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "argument builder ran without the adapter policy",
+   "expected_failure": "governance gap detected",
+   "intended_check": "ADAPTER_GOVERNS_ARGUMENT_BUILDER",
+   "mutation_id": "M39b-ungoverned-builder",
+   "observed_failure": "argument builder ran without the adapter policy (None vs 'reit')",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "'scenario probabilities' in a historical-mode surface",
+   "expected_failure": "whole-word scenario token detected",
+   "intended_check": "NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE",
+   "mutation_id": "M40-scenario-probabilities",
+   "observed_failure": "word 'scenario'",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "'scenario' leaked into the validation JSON",
+   "expected_failure": "token detected in serialized record",
+   "intended_check": "NO_SCENARIO_LANGUAGE_IN_VALIDATION_JSON",
+   "mutation_id": "M40b-json-surface",
+   "observed_failure": "validation JSON carries 'scenario'",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a Sundheim answer clipped from the rendered appendix",
+   "expected_failure": "clipped cell detected",
+   "intended_check": "APPENDIX_TABLE_CELL_NOT_CLIPPED",
+   "mutation_id": "M41-clipped-sundheim-row",
+   "observed_failure": "answer clipped or missing: 'the full answer that must render without'; answer clipped or missing: 'a second substantial answer that also fl'",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a continuation page with rows but no repeated header",
+   "expected_failure": "missing header detected",
+   "intended_check": "TABLE_HEADER_REPEATED_AFTER_BREAK",
+   "mutation_id": "M42-missing-repeated-header",
+   "observed_failure": "page 2 carries Sundheim rows without a repeated header",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a 6%-occupancy final appendix page",
+   "expected_failure": "sparse tail detected",
+   "intended_check": "NO_LOW_DENSITY_FINAL_PAGE",
+   "mutation_id": "M43-sparse-final-page",
+   "observed_failure": "final page occupancy 6% (min 20%)",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a page opening mid-sentence",
+   "expected_failure": "stranded continuation detected",
+   "intended_check": "NO_STRANDED_SECTION_TAIL",
+   "mutation_id": "M43b-stranded-tail",
+   "observed_failure": "page 2 opens mid-sentence: 'continued sentence fragment here'",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "'latest filed quarter' rendered over a 2024 quarter",
+   "expected_failure": "stale 'latest' label detected",
+   "intended_check": "LATEST_LABEL_REQUIRES_CURRENT_FACT",
+   "mutation_id": "M45-latest-label-stale-fact",
+   "observed_failure": "'latest filed quarter' rendered but the quarter ended 2024-06-30 (758 days ago)",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "valuation selection ran without the adapter policy",
+   "expected_failure": "governance gap detected",
+   "intended_check": "ADAPTER_GOVERNS_VALUATION",
+   "mutation_id": "M39c-ungoverned-valuation",
+   "observed_failure": "valuation selection ran without the adapter policy (None vs 'reit')",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a 10%-occupancy interior appendix page",
+   "expected_failure": "sparse interior page detected",
+   "intended_check": "APPENDIX_PAGE_OCCUPANCY",
+   "mutation_id": "M46-sparse-interior-page",
+   "observed_failure": "page 2 occupancy 10% (min 30%)",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "artifact recording a commit that is not the generating commit",
+   "expected_failure": "commit mismatch detected",
+   "intended_check": "PROVENANCE_VALID",
+   "mutation_id": "M44-wrong-source-commit",
+   "observed_failure": "source_commit_sha 'aaaa' is not the generating commit 'bbbb'",
    "proven": true,
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   },
@@ -280,7 +487,7 @@
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   }
  ],
- "proven": 31,
+ "proven": 54,
  "schema": "v5-mutation-proofs/1",
- "total": 31
+ "total": 54
 }

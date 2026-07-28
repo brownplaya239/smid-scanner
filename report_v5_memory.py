@@ -150,7 +150,7 @@ def append_state(rec):
 _CHANGE_CLASS = {
     "event_state_change": "research_fact",
     "consensus_change": "research_fact",
-    "scenario_change": "research_fact",
+    "valuation_row_change": "research_fact",
     "rating_change": "conclusion",
     "assessment_change": "conclusion",
     "archetype_change": "presentation",
@@ -214,7 +214,7 @@ def changeset(prior, cur):
     for leg in sorted(set(a) & set(b)):
         if a.get(leg) is not None and b.get(leg) is not None \
                 and abs(a[leg] - b[leg]) > 0.005 * max(abs(a[leg]), 1):
-            ch.append({"category": "scenario_change",
+            ch.append({"category": "valuation_row_change",
                        "from": "%s $%.2f" % (leg, a[leg]),
                        "to": "%s $%.2f" % (leg, b[leg]),
                        "reason": "band percentiles and/or trailing "

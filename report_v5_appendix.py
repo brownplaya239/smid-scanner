@@ -136,8 +136,11 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                                   ).replace("_", " ").lower()),
                           _clean(sd.get("principal_uncertainty")
                                  or "")), "small"))
+        # Full answers, never truncated (§5): _table wraps cells as
+        # Paragraphs, so long answers grow the row instead of clipping,
+        # and the header row repeats after any page break.
         st.append(_table([[_clean(q["question"]),
-                           _clean(str(q["answer"]))[:150]]
+                           _clean(str(q["answer"]))]
                           for q in sd["questions"]],
                          [BODY_W * .34, BODY_W * .56],
                          header=["Question", "Answer (sourced inputs "
@@ -414,33 +417,38 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                          header=["Metric", "Period end", "Form"],
                          zebra=True))
 
-    # 14. Validation summary and artifact hashes
-    st.append(sec(14))
-    st.append(para("Binding record for this package:", "body"))
-    # Short checksums here; the FULL hashes are recorded once in the
-    # introduction paragraph (page 1), which is what the binding
-    # checks verify against.
-    st.append(_table(
-        [["Report ID", _clean(report_id)],
-         ["Core PDF sha256 (prefix)",
-          _clean((core_hash or "n/a")[:16])],
-         ["Source-ledger hash (prefix)",
-          _clean(((ledger or {}).get("hash") or "n/a")[:16])],
-         ["Registered evidence IDs", str((ledger or {}).get("count")
-                                         or 0)],
-         ["Assumptions schema", "v5-assumptions/1"],
-         ["Generated (UTC)", _clean(gen_at)],
-         ["Archetype", _clean((view5.get("archetype") or {}).get(
-             "archetype") or "")]],
-        [BODY_W * .3, BODY_W * .6], zebra=True))
-    st.append(para("Full hashes appear once in the introduction; the "
-                   "appendix PDF's own sha256 and the complete "
-                   "ID-to-source ledger are in the validation JSON and "
-                   "the companion source-ledger file (an appendix "
-                   "cannot contain its own final hash). Validation "
-                   "fails the package when the version, report ID, "
-                   "method, or any hash disagrees with the core or the "
-                   "validation JSON.", "small"))
+    # 14. Validation summary and artifact hashes — the whole section is
+    # kept together so a page break never strands a fragment of the
+    # binding table as a sparse final page (§5). Short checksums here;
+    # the FULL hashes are recorded once in the introduction paragraph,
+    # which is what the binding checks verify against.
+    from reportlab.platypus import KeepTogether
+    _n[0] += 1
+    sec14 = [
+        para("%d. %s" % (_n[0], SECTION_TITLES[13]), "h2"),
+        para("Binding record for this package:", "body"),
+        _table(
+            [["Report ID", _clean(report_id)],
+             ["Core PDF sha256 (prefix)",
+              _clean((core_hash or "n/a")[:16])],
+             ["Source-ledger hash (prefix)",
+              _clean(((ledger or {}).get("hash") or "n/a")[:16])],
+             ["Registered evidence IDs",
+              str((ledger or {}).get("count") or 0)],
+             ["Assumptions schema", "v5-assumptions/1"],
+             ["Generated (UTC)", _clean(gen_at)],
+             ["Archetype", _clean((view5.get("archetype") or {}).get(
+                 "archetype") or "")]],
+            [BODY_W * .3, BODY_W * .6], zebra=True),
+        para("Full hashes appear once in the introduction; the "
+             "appendix PDF's own sha256 and the complete ID-to-source "
+             "ledger are in the validation JSON and the companion "
+             "source-ledger file (an appendix cannot contain its own "
+             "final hash). Validation fails the package when the "
+             "version, report ID, method, or any hash disagrees with "
+             "the core or the validation JSON.", "small"),
+    ]
+    st.append(KeepTogether(sec14))
     return st
 
 

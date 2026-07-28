@@ -124,9 +124,56 @@ def derive_q4(quarters, annuals):
     return out
 
 
+# Point-in-time integrity thresholds (v5.7 §1), named so reasons can
+# cite them. A quarter-to-quarter gap outside [60, 130] days means the
+# four ends are not four CONTIGUOUS fiscal quarters; a newest end more
+# than 200 days before the valuation date means the "trailing year" is
+# stale relative to that session (90-day quarter + normal filing lag,
+# with headroom for 52/53-week calendars).
+QTR_GAP_DAYS = (60, 130)
+TTM_MAX_END_AGE = 200
+
+
+def ttm_integrity(events, d):
+    """The §1 record for the TTM as of date d: which quarters, whether
+    they are contiguous, and whether the newest is current relative to
+    d. ttm_at() enforces exactly these rules — this is the auditable
+    form the validator and the grid disclose."""
+    known = [e for e in events if _dt(e["available_from"]) <= d]
+    by_end = {}
+    for e in known:
+        by_end.setdefault(e["end"], e)
+    ends = sorted(by_end)[-4:]
+    rec = {"quarters": ends, "as_of": d.isoformat(),
+           "contiguous": None, "current": None, "ok": False,
+           "reasons": []}
+    if len(ends) < 4:
+        rec["reasons"].append("only %d filed quarter(s) knowable"
+                              % len(ends))
+        return rec
+    gaps = [(_dt(b) - _dt(a)).days for a, b in zip(ends, ends[1:])]
+    rec["contiguous"] = all(QTR_GAP_DAYS[0] <= g <= QTR_GAP_DAYS[1]
+                            for g in gaps)
+    if not rec["contiguous"]:
+        rec["reasons"].append("quarter ends are not contiguous "
+                              "(gaps %s days)" % gaps)
+    age = (d - _dt(ends[-1])).days
+    rec["current"] = age <= TTM_MAX_END_AGE
+    rec["newest_end_age_days"] = age
+    if not rec["current"]:
+        rec["reasons"].append("newest quarter end %s is %d days before "
+                              "the valuation date (max %d) — the "
+                              "concept's filed series has gone stale"
+                              % (ends[-1], age, TTM_MAX_END_AGE))
+    rec["ok"] = rec["contiguous"] and rec["current"]
+    return rec
+
+
 def ttm_at(events, d):
     """Sum of the last four known quarters as of date d (a date object),
-    or None when four consecutive quarters were not yet knowable."""
+    or None when four CONTIGUOUS, CURRENT quarters were not knowable —
+    a gap or a dead concept must suppress the value, never produce a
+    stale trailing year (v5.7 §1)."""
     known = [e for e in events if _dt(e["available_from"]) <= d]
     # newest fact per quarter-end
     by_end = {}
@@ -137,6 +184,11 @@ def ttm_at(events, d):
         return None
     if (_dt(ends[-1]) - _dt(ends[0])).days > MAX_TTM_SPAN:
         return None                       # a gap, not a trailing year
+    gaps = [(_dt(b) - _dt(a)).days for a, b in zip(ends, ends[1:])]
+    if not all(QTR_GAP_DAYS[0] <= g <= QTR_GAP_DAYS[1] for g in gaps):
+        return None                       # non-contiguous quarters
+    if (d - _dt(ends[-1])).days > TTM_MAX_END_AGE:
+        return None                       # stale relative to this date
     return sum(by_end[e]["val"] for e in ends)
 
 
@@ -275,7 +327,10 @@ def build(ticker, years=WINDOW_YEARS):
     # Revenue per share for EV-free EV/S proxy: price / TTM-revenue-per-
     # share equals marketcap / TTM revenue under the same share count —
     # the honest form available without point-in-time debt history.
-    rev_events = []
+    # ONE concept per stream (§1): candidates are tried and the single
+    # concept with the freshest filed series wins outright — events from
+    # different concepts are never mixed into one TTM.
+    rev_events, rev_concept = [], None
     for tag in ("RevenueFromContractWithCustomerExcludingAssessedTax",
                 "Revenues",
                 "RevenueFromContractWithCustomerIncludingAssessedTax"):
@@ -286,6 +341,7 @@ def build(ticker, years=WINDOW_YEARS):
                    > max(e["end"] for e in rev_events)):
             rev_events = sorted(qq + derive_q4(qq, annual_events(rows)),
                                 key=lambda x: x["end"])
+            rev_concept = tag
     sh_rows = RL.concept(cik, "WeightedAverageNumberOfDilutedSharesOutstanding",
                          unit="shares")
     sh_events = _rebase(quarterly_events(sh_rows), adj, per_share=False)
@@ -303,8 +359,21 @@ def build(ticker, years=WINDOW_YEARS):
         "n_eps_quarters": len({e["end"] for e in eps_events}),
         "n_rev_quarters": len({e["end"] for e in rev_events}),
         "eps_events": eps_events[-10:],
+        # §1 auditable TTM integrity as of the last completed session:
+        # the quarters used, contiguity, and currency, per stream.
+        "ttm_integrity": {
+            "pe": dict(ttm_integrity(eps_events, _dt(dates[-1]))
+                       if dates else {},
+                       concept="us-gaap:EarningsPerShareDiluted"),
+            "ps": dict(ttm_integrity(rev_events, _dt(dates[-1]))
+                       if dates else {},
+                       concept=("us-gaap:%s" % rev_concept)
+                       if rev_concept else None),
+        },
         "point_in_time_rule": "facts usable from the day after filing; "
-                              "as-first-reported values",
+                              "as-first-reported values; TTM requires "
+                              "four contiguous, current quarters of one "
+                              "concept",
     }
 
 

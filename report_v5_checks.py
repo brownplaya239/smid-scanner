@@ -215,18 +215,344 @@ def overflow_pages(page_texts, limit=OVERFLOW_MAX_CHARS):
 
 BANNED_HISTORICAL = ("bear case", "base case", "bull case",
                      "bear-case", "base-case", "bull-case",
-                     "bear scenario", "base scenario", "bull scenario",
-                     "scenario table", "scenario price",
                      "expected return", "target price",
-                     "margin of safety", "upside/downside")
+                     "margin of safety", "upside/downside",
+                     "probability-weighted", "expected value")
+
+_SCENARIO_RX = re.compile(r"\bscenario\w*\b", re.I)
 
 
 def scenario_language_issues(core_text, mode):
-    """§2: historical mode renders no scenario/forecast vocabulary."""
+    """§4 (v5.7): historical mode carries NO scenario vocabulary on any
+    surface — the whole word family (\\bscenario\\w*\\b), plus the
+    forecast-language phrase list."""
     if mode != "historical_range":
         return []
     low = (core_text or "").lower()
-    return [w for w in BANNED_HISTORICAL if w in low]
+    hits = [w for w in BANNED_HISTORICAL if w in low]
+    m = _SCENARIO_RX.search(core_text or "")
+    if m:
+        hits.append("word %r" % m.group(0))
+    return hits
+
+
+def json_scenario_issues(result, mode):
+    """§4: the validation JSON itself is a surface. Serialized minus
+    the exempt fields (the language checks' own ids/messages and the
+    mutation catalogue, which by definition describe the defects) it
+    must carry no scenario token in historical mode."""
+    if mode != "historical_range":
+        return []
+    import copy
+    import json as _json
+    doc = copy.deepcopy({k: v for k, v in (result or {}).items()
+                         if k != "mutation_tests"})
+    doc["checks"] = [c for c in doc.get("checks") or []
+                     if "SCENARIO" not in (c.get("check_id") or "")]
+    doc["blocking_failures"] = [b for b in doc.get("blocking_failures")
+                                or [] if "SCENARIO" not in str(b)]
+    blob = _json.dumps(doc, default=str)
+    m = _SCENARIO_RX.search(blob)
+    return (["validation JSON carries %r" % m.group(0)] if m else [])
+
+
+# ── §1 point-in-time integrity ───────────────────────────────────────
+
+def ttm_integrity_issues(multiples):
+    """A band that is AVAILABLE must rest on four contiguous, current
+    quarters of one named concept — per stream."""
+    bad = []
+    integ = (multiples or {}).get("ttm_integrity") or {}
+    for kind in ("pe", "ps"):
+        if not ((multiples or {}).get(kind) or {}).get("available"):
+            continue
+        rec = integ.get(kind) or {}
+        if not rec.get("ok"):
+            bad.append("%s: %s" % (kind,
+                                   "; ".join(rec.get("reasons")
+                                             or ["no integrity record"])))
+        if not rec.get("concept"):
+            bad.append("%s: no accounting concept recorded" % kind)
+    return bad
+
+
+def balance_sheet_period_issues(fu, bq):
+    """§1: instants from different reporting dates must never be netted
+    — when they differ, the quality record must have declined the
+    pairing."""
+    def _p(f):
+        return str(f.get("period_end"))[:10] \
+            if isinstance(f, dict) and f.get("period_end") else None
+    cp, dp = _p((fu or {}).get("cash")), _p((fu or {}).get("debt"))
+    if not cp or not dp or cp == dp:
+        return []
+    from datetime import date
+    try:
+        gap = abs((date.fromisoformat(cp) - date.fromisoformat(dp)).days)
+    except ValueError:
+        gap = 9999
+    if gap <= 100:
+        return []
+    if "net_cash" in ((bq or {}).get("metrics_used") or []):
+        return ["cash (%s) netted against debt (%s) — %d days apart"
+                % (cp, dp, gap)]
+    return []
+
+
+def latest_label_issues(core_text, fu, max_age_days=200, today=None):
+    """§1: 'latest' language requires a current fact."""
+    t = re.sub(r"\s+", " ", core_text or "")
+    if "latest filed quarter" not in t.lower():
+        return []
+    f = (fu or {}).get("revenue_q")
+    pe = str(f.get("period_end"))[:10] \
+        if isinstance(f, dict) and f.get("period_end") else None
+    if not pe:
+        return []
+    from datetime import date
+    today = today or date.today()
+    try:
+        age = (today - date.fromisoformat(pe)).days
+    except ValueError:
+        return []
+    if age > max_age_days:
+        return ["'latest filed quarter' rendered but the quarter ended "
+                "%s (%d days ago)" % (pe, age)]
+    return []
+
+
+_XBRL_TAG_PERIOD_RX = re.compile(
+    r"^XBRL-.*:(\w+)-(\d{4}-\d{2}-\d{2})$")
+
+
+def claim_period_issues(claims, max_gap_days=100):
+    """§1: the XBRL facts supporting one claim must share a reporting
+    period — with one deliberate exception: two periods of the SAME
+    concept are a time comparison (a y/y growth pair), which is the
+    claim's whole point, not a mixing error. Only facts of DIFFERENT
+    concepts must be contemporaneous."""
+    from datetime import date
+    bad = []
+    for c in claims or []:
+        if c.get("claim_type") not in ("fundamental",):
+            continue
+        newest_by_tag = {}
+        for r in (c.get("evidence_refs") or []) \
+                + (c.get("counterevidence_refs") or []):
+            m = _XBRL_TAG_PERIOD_RX.match(str(r))
+            if not m:
+                continue
+            try:
+                d = date.fromisoformat(m.group(2))
+            except ValueError:
+                continue
+            tag = m.group(1)
+            if tag not in newest_by_tag or d > newest_by_tag[tag]:
+                newest_by_tag[tag] = d
+        periods = list(newest_by_tag.values())
+        if len(periods) >= 2 \
+                and (max(periods) - min(periods)).days > max_gap_days:
+            bad.append("%s: evidence periods span %s to %s across "
+                       "different concepts"
+                       % (c.get("claim_id"), min(periods), max(periods)))
+    return bad
+
+
+def stale_support_issues(claims):
+    """§1: no published claim may rest on stale critical evidence."""
+    return [c.get("claim_id") for c in claims or []
+            if (c.get("freshness") or {}).get("stale")]
+
+
+# ── §2 sector compatibility ──────────────────────────────────────────
+
+def claim_sector_issues(cl, adapter):
+    pol = ((adapter or {}).get("policy") or {})
+    forbidden = set(pol.get("claims_forbidden") or ())
+    return [c["claim_id"] for c in (cl or {}).get("claims") or []
+            if c.get("claim_id") in forbidden]
+
+
+def valuation_sector_issues(sc, adapter):
+    pol = ((adapter or {}).get("policy") or {})
+    allowed = tuple(pol.get("valuation_allowed", ("pe", "ps")))
+    if not (sc or {}).get("available"):
+        return []
+    mk = (sc or {}).get("metric_kind")
+    if mk and mk not in allowed:
+        return ["method %r used but the %s adapter permits %s"
+                % (mk, (adapter or {}).get("key"), list(allowed))]
+    return []
+
+
+def quality_metric_issues(bq, adapter):
+    pol = ((adapter or {}).get("policy") or {})
+    banned = set(pol.get("quality_metrics_forbidden") or ())
+    used = set((bq or {}).get("metrics_used") or [])
+    return sorted(used & banned)
+
+
+def freshness_basis_issues(bq, fu):
+    """§1: the quality record's freshness must equal the OLDEST period
+    among the facts it actually used — never the newest."""
+    used = (bq or {}).get("metrics_used") or []
+    if not used:
+        return []
+    keymap = {"revenue_growth": ("revenue_growth", "revenue_q"),
+              "net_margin": ("net_margin",),
+              "gross_margin": ("gross_margin",),
+              "cash_conversion": ("free_cash_flow",
+                                  "operating_cash_flow", "revenue_q"),
+              "net_cash": ("cash", "debt")}
+    periods = []
+    for m in used:
+        for k in keymap.get(m, ()):
+            f = (fu or {}).get(k)
+            if isinstance(f, dict) and f.get("period_end"):
+                periods.append(str(f["period_end"])[:10])
+    if not periods:
+        return []
+    oldest = min(periods)
+    got = (bq or {}).get("freshness_basis")
+    if got != oldest:
+        return ["freshness_basis %r but the oldest material period "
+                "is %s" % (got, oldest)]
+    return []
+
+
+def issuer_issues(ledger, expected_cik):
+    """§1: every evidence record must belong to the intended issuer."""
+    lc = (ledger or {}).get("issuer_cik")
+    if not lc:
+        return ["ledger carries no issuer identifier"]
+    if expected_cik and str(lc) != str(expected_cik):
+        return ["ledger issuer %s does not match the report's issuer %s"
+                % (lc, expected_cik)]
+    return []
+
+
+# ── §5 rendered-layout checks (bbox/occupancy based) ─────────────────
+
+def page_occupancy_issues(occupancy, final_min=0.20, body_min=0.30):
+    """occupancy: list of per-page content-height ratios (0..1),
+    measured from real text bounding boxes. The final page may be
+    shorter but must not be a sparse tail; interior pages must carry
+    real content."""
+    bad = []
+    for i, r in enumerate(occupancy or []):
+        last = i == len(occupancy) - 1
+        if last and len(occupancy) > 1 and r < final_min:
+            bad.append("final page occupancy %.0f%% (min %.0f%%)"
+                       % (r * 100, final_min * 100))
+        elif not last and r < body_min:
+            bad.append("page %d occupancy %.0f%% (min %.0f%%)"
+                       % (i + 1, r * 100, body_min * 100))
+    return bad
+
+
+def measure_occupancy(pdf_path):
+    """Per-page content-height ratio from real text bounding boxes
+    (top of first block to bottom of last, over page height),
+    excluding the running header/footer margins."""
+    import fitz
+    out = []
+    doc = fitz.open(pdf_path)
+    for page in doc:
+        h = page.rect.height
+        blocks = [b for b in page.get_text("blocks")
+                  if (b[4] or "").strip()]
+        # drop the two header lines and the footer line by position
+        body = [b for b in blocks if 60 < b[1] < h - 50]
+        if not body:
+            out.append(0.0)
+            continue
+        top = min(b[1] for b in body)
+        bot = max(b[3] for b in body)
+        out.append(max(0.0, min(1.0, (bot - top) / (h - 110))))
+    return out
+
+
+def sundheim_render_issues(apx_text, sd):
+    """§5: every Sundheim answer renders in full — the first words of
+    each stored answer must appear in the extracted appendix text
+    (wrapped cells reflow but never clip)."""
+    t = re.sub(r"\s+", " ", apx_text or "")
+    bad = []
+    for q in (sd or {}).get("questions") or []:
+        probe = re.sub(r"\s+", " ", str(q.get("answer") or ""))[:60]
+        if probe and probe not in t:
+            bad.append("answer clipped or missing: %r" % probe[:40])
+    return bad
+
+
+def sundheim_header_issues(page_texts, sd=None):
+    """§5: a page carrying Sundheim answer rows without the section
+    start must repeat the table header. A page counts as carrying rows
+    only when at least two DISTINCT substantial answers appear — short
+    answers ('not established') recur in ordinary prose and must not
+    trip the detector."""
+    answers = [re.sub(r"\s+", " ", str(q.get("answer") or ""))[:40]
+               for q in ((sd or {}).get("questions") or [])
+               if len(str(q.get("answer") or "")) >= 25]
+    bad = []
+    for i, t in enumerate(page_texts or []):
+        norm = re.sub(r"\s+", " ", t or "")
+        n_rows = sum(1 for a in set(answers) if a and a in norm)
+        starts_here = "Sundheim decision record" in norm
+        if n_rows >= 2 and not starts_here and "Question" not in norm:
+            bad.append("page %d carries Sundheim rows without a "
+                       "repeated header" % (i + 1))
+    return bad
+
+
+def stranded_tail_issues(page_texts):
+    """§5: no page may open mid-sentence (a stranded continuation)."""
+    bad = []
+    for i, t in enumerate(page_texts or []):
+        lines = [ln.strip() for ln in (t or "").splitlines()
+                 if ln.strip()]
+        # skip the running header (ticker line, Prepared stamp)
+        body = [ln for ln in lines
+                if not ln.startswith(("Prepared", "Educational"))
+                and "Equity Research" not in ln
+                and not ln.startswith("Page ")]
+        if i and body and body[0][:1].islower():
+            bad.append("page %d opens mid-sentence: %r"
+                       % (i + 1, body[0][:40]))
+    return bad
+
+
+# ── §6 release provenance ────────────────────────────────────────────
+
+def provenance_issues(result, head_sha=None, tree_sha=None, dirty=None):
+    """§6: artifacts must identify the exact clean source state."""
+    bad = []
+    for k in ("generator_version", "source_commit_sha", "git_tree_sha",
+              "generated_at", "report_id"):
+        if not (result or {}).get(k):
+            bad.append("missing %s" % k)
+    if (result or {}).get("dirty_worktree") is not False:
+        bad.append("dirty_worktree is not false")
+    if head_sha and (result or {}).get("source_commit_sha") != head_sha:
+        bad.append("source_commit_sha %r is not the generating commit "
+                   "%r" % ((result or {}).get("source_commit_sha"),
+                           head_sha))
+    if tree_sha and (result or {}).get("git_tree_sha") != tree_sha:
+        bad.append("git_tree_sha mismatch")
+    return bad
+
+
+def adapter_governance_issues(cl, sc, adapter):
+    bad = []
+    key = (adapter or {}).get("key")
+    if (cl or {}).get("adapter_key") != key:
+        bad.append("argument builder ran without the adapter policy "
+                   "(%r vs %r)" % ((cl or {}).get("adapter_key"), key))
+    vp = ((sc or {}).get("valuation_policy") or {})
+    if vp.get("adapter") != key:
+        bad.append("valuation selection ran without the adapter policy "
+                   "(%r vs %r)" % (vp.get("adapter"), key))
+    return bad
 
 
 def window_label_issues(core_text, actual_years):

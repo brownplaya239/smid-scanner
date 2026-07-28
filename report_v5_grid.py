@@ -117,7 +117,10 @@ def _ytd_quarters(RL, cik, tags, unit="USD"):
     return best
 
 
-def _ttm(events):
+def _ttm(events, today=None):
+    """§1: four CONTIGUOUS quarters whose newest end is CURRENT
+    relative to today — a dead concept or a filing gap suppresses the
+    value rather than producing a stale trailing year."""
     if len({e["end"] for e in events}) < 4:
         return None
     by_end = {}
@@ -125,6 +128,15 @@ def _ttm(events):
         by_end.setdefault(e["end"], e)
     ends = sorted(by_end)[-4:]
     if (M._dt(ends[-1]) - M._dt(ends[0])).days > M.MAX_TTM_SPAN:
+        return None
+    gaps = [(M._dt(b) - M._dt(a)).days for a, b in zip(ends, ends[1:])]
+    if not all(M.QTR_GAP_DAYS[0] <= g <= M.QTR_GAP_DAYS[1]
+               for g in gaps):
+        return None
+    if today is None:
+        from datetime import date
+        today = date.today()
+    if (today - M._dt(ends[-1])).days > M.TTM_MAX_END_AGE:
         return None
     return sum(by_end[e]["val"] for e in ends)
 
@@ -191,6 +203,14 @@ def build(ticker):
                       per_share=True)
     t_rev, t_ni = _ttm(q_rev), _ttm(q_ni)
     t_ocf, t_capex = _ttm(q_ocf), _ttm(q_capex)
+    from datetime import date as _date
+    integrity = M.ttm_integrity(q_rev, _date.today()) if q_rev else \
+        {"ok": False, "reasons": ["no quarterly revenue events"]}
+    if t_rev is None and q_rev:
+        gaps.append("TTM suppressed: %s"
+                    % "; ".join(integrity.get("reasons")
+                                or ["four contiguous current quarters "
+                                    "not available"]))
     ttm = {"revenue": t_rev,
            "revenue_growth": None,
            "gross_margin": None,
@@ -201,7 +221,11 @@ def build(ticker):
            "ocf": t_ocf,
            "fcf": (t_ocf - t_capex
                    if t_ocf is not None and t_capex is not None else None),
-           "through": max((e["end"] for e in q_rev), default=None)}
+           # "through" only when a valid current TTM exists — a stale
+           # quarter end must never be labelled the trailing period
+           "through": (max((e["end"] for e in q_rev), default=None)
+                       if t_rev is not None else None),
+           "integrity": integrity}
 
     return {"ticker": ticker.upper(),
             "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),

@@ -31,7 +31,7 @@ CATEGORIES = (
     "consensus_estimates", "historical_valuation", "peer_valuation",
     "management_assessment", "ownership", "insider_activity",
     "market_price_history", "technical_analysis", "catalysts",
-    "scenario_construction", "expectations_analysis",
+    "valuation_range_construction", "expectations_analysis",
 )
 
 
@@ -134,7 +134,7 @@ def evidence_capability(snap, multiples=None, estimates=None,
         "catalyst discovery %s" % ("dated" if cat.get("event_dt")
                                    or cat.get("next_event_date")
                                    else "empty"))
-    put("scenario_construction", band_ok,
+    put("valuation_range_construction", band_ok,
         "requires a surviving multiple band")
     put("expectations_analysis",
         bool(est.get("recommendation"))
@@ -197,15 +197,16 @@ def route(profile, capability, event, multiples=None, has_options=None,
     contract = {k: list(v) if isinstance(v, tuple) else v
                 for k, v in A.CONTRACTS[decision].items()}
     if decision in (A.FULL, A.FULL_THIN, A.THIN):
-        if ok("scenario_construction"):
-            A._promote(contract, "scenario_table")
+        if ok("valuation_range_construction"):
+            A._promote(contract, "valuation_table")
             A._promote(contract, "valuation_detail")
             reasons.append("a multiple band survived coverage — the "
-                           "valuation table (historical range, or "
-                           "scenarios when underwritten) is required")
+                           "valuation table is required (historical "
+                           "percentiles; forward legs only when "
+                           "underwritten)")
         else:
             reasons.append("valuation table stays optional: %s"
-                           % caps["scenario_construction"]["reason"])
+                           % caps["valuation_range_construction"]["reason"])
         if decision in (A.FULL, A.FULL_THIN):
             if ok("technical_analysis"):
                 A._promote(contract, "technicals")
@@ -240,8 +241,8 @@ def route(profile, capability, event, multiples=None, has_options=None,
         # of a name with no band.
         oc = {k: list(v) if isinstance(v, tuple) else v
               for k, v in A.CONTRACTS[override].items()}
-        if not ok("scenario_construction"):
-            for sec in ("scenario_table", "valuation_detail"):
+        if not ok("valuation_range_construction"):
+            for sec in ("valuation_table", "valuation_detail"):
                 if sec in oc["required"]:
                     oc["required"].remove(sec)
                 if sec not in oc["forbidden"] and sec not in oc["optional"]:
