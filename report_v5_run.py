@@ -1074,7 +1074,7 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
     except Exception:
         pass
     return {"schema": "equity-research-v5-validation/1",
-            "generator_version": "v5.7",
+            "generator_version": "v5.8",
             "commit_sha": commit_sha,
             "source_commit_sha": commit_sha,
             "git_tree_sha": tree_sha,
