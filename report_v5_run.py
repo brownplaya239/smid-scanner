@@ -246,6 +246,16 @@ def validate(view5, core_pdf, rendered, apx_pdf=None):
         bad = [c["claim_id"] for c in pubs
                if not c.get("reunderwrite_when")
                or not c.get("next_checkpoint")]
+        from datetime import datetime as _dt2, timezone as _tz2
+        _today = _dt2.now(_tz2.utc).date().isoformat()
+        stale_cp = [c["claim_id"] for c in pubs
+                    if len(str(c.get("next_checkpoint"))) == 10
+                    and str(c.get("next_checkpoint")) <= _today]
+        checks.append(VV.chk("NEXT_CHECKPOINT_AFTER_AS_OF",
+                             not stale_cp, VV.ERROR,
+                             "every dated checkpoint lies after the "
+                             "report date",
+                             ", ".join(stale_cp) or "all future"))
         checks.append(VV.chk("THESIS_REUNDERWRITE_TRIGGER_PRESENT",
                              not bad, VV.ERROR,
                              "every claim carries re-underwriting "
@@ -311,7 +321,19 @@ def run(ticker, out_dir="out_v5", override=None):
     _pre_state = MEM0.build_state(ticker, view5, {"artifacts": {}},
                                   prior_id=(_prior or {}).get(
                                       "report_id"))
-    view5["changeset"] = MEM0.changeset(_prior, _pre_state)
+    _cs = MEM0.changeset(_prior, _pre_state)
+    if _prior:
+        from datetime import datetime as _dtc
+        try:
+            _age_h = (_dtc.fromisoformat(_pre_state["as_of"])
+                      - _dtc.fromisoformat(_prior["as_of"])
+                      ).total_seconds() / 3600.0
+        except Exception:
+            _age_h = 999
+        if _age_h < 6:
+            _cs["same_session"] = True
+            _cs["prior_as_of"] = _prior["as_of"]
+    view5["changeset"] = _cs
 
     core_p = os.path.join(out_dir, "%s_equity_research_v5.pdf" % ticker)
     apx_p = os.path.join(out_dir,

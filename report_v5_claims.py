@@ -125,11 +125,27 @@ def _status(cand, published):
 
 
 def _lifecycle(cat, today):
-    """Shared horizon/checkpoint fields from the catalyst calendar."""
-    nxt = (cat or {}).get("next_event_date") or (cat or {}).get("event_dt")
-    nxt = str(nxt)[:10] if nxt else None
+    """Shared horizon/checkpoint fields. The checkpoint must lie AFTER
+    the report date — a July 28 report pointing at a July 22 print is a
+    stale pointer, not a checkpoint. Candidates in the past fall back
+    to "next filed quarter (date not yet scheduled)"."""
+    cands = []
+    for k in ("next_event_date", "event_dt"):
+        v = (cat or {}).get(k)
+        if v:
+            cands.append(str(v)[:10])
+    nxt = None
+    for c in sorted(cands):
+        try:
+            if datetime.strptime(c, "%Y-%m-%d").date() > today:
+                nxt = c
+                break
+        except ValueError:
+            continue
+    if nxt is None:
+        nxt = "next filed quarter (date not yet scheduled)"
     return {
-        "next_checkpoint": nxt or "next filed quarter",
+        "next_checkpoint": nxt,
         "reunderwrite_when": [
             "next 10-Q/10-K or earnings release",
             "guidance revision in a filed exhibit",
@@ -367,12 +383,13 @@ def build(snap, view4, scenarios=None, estimates=None):
                               % growth)
                 cands.append({
                     "claim_id": "valuation-vs-history",
-                    "claim": "The stock trades at a %.0f%% %s the price "
-                             "its own %d-year median trailing multiple "
-                             "implies"
+                    "claim": "The stock trades at a %.0f%% %s the "
+                             "price its available %.1f-year median "
+                             "trailing multiple implies"
                              % (abs(gap), "discount to" if cheap
                                 else "premium over",
-                                band.get("window_years") or 3),
+                                band.get("actual_years")
+                                or band.get("window_years") or 3),
                     "claim_type": "valuation",
                     "thesis_role": "core",
                     "direction": "bullish" if cheap else "bearish",

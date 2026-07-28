@@ -94,7 +94,7 @@ def _masthead(snap, view):
     right = [
         para("<b>Where we are:</b> %s" % _clean(ev.get("state_label")
                                             or ev["state"]), "small"),
-        para("Fundamental (consensus): <b>%s</b>" % _clean(fr), "small"),
+        para("Street consensus: <b>%s</b>" % _clean(fr), "small"),
         para("Tactical (technical): <b>%s</b>" % _clean(tr), "small"),
     ]
     t = Table([[left, right]], colWidths=[BODY_W * 0.62, BODY_W * 0.38],
@@ -123,7 +123,7 @@ def _rating_panel(view):
                            % (col, _clean(x["band"]), MUTED.hexval(),
                               _clean(sub)), ST["body"])
 
-    rows.append(["Fundamental rating", band_cell(fr, "f")])
+    rows.append(["Street consensus", band_cell(fr, "f")])
     rows.append(["Tactical rating", band_cell(tr, "t")])
     dc = view.get("data_confidence") or {}
     if dc.get("level"):
@@ -658,7 +658,7 @@ def _page6(snap, view):
         st.append(_wh_line("Variant perception", var, "small"))
 
     mon = view.get("monitoring") or {}
-    st.append(para("What would change our mind", "h3"))
+    st.append(para("Tactical confirmation / invalidation", "h3"))
     if mon.get("upgrade_trigger"):
         st.append(para("<b>Confirms on:</b> %s" % _clean(mon["upgrade_trigger"]),
                        "small", DERIVED))

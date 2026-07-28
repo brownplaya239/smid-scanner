@@ -138,6 +138,18 @@ def build(ticker, multiples, spot, assumptions=None, note=None):
                             "%s (%s)" % (fwd["basis"], stamp))
         metric = float(fwd["value"])
 
+    # MODE: without user operating assumptions AND probabilities this is
+    # a HISTORICAL VALUATION RANGE — percentiles of the name's own past
+    # multiples applied to a constant trailing metric. It is context,
+    # not a forecast, and the legs are named P25/Median/P75. Only a
+    # forward metric plus probabilities upgrades the mode to
+    # "underwritten" and earns Bear/Base/Bull language.
+    underwritten = bool(fields.get("forward_metric")
+                        and fields.get("probabilities"))
+    out["mode"] = "underwritten" if underwritten else "historical_range"
+    leg_labels = ({"bear": "Bear", "base": "Base", "bull": "Bull"}
+                  if underwritten else
+                  {"bear": "P25", "base": "Median", "bull": "P75"})
     legs = {"bear": band.get("p25"), "base": band.get("p50"),
             "bull": band.get("p75")}
     rows, arithmetic = [], []
@@ -154,7 +166,8 @@ def build(ticker, multiples, spot, assumptions=None, note=None):
                                   "bull": "P75"}[leg],
                                  out["metric_kind"].upper()))
         price = round(mult_cell["value"] * metric, 2)
-        rows.append({"leg": leg, "multiple": mult_cell,
+        rows.append({"leg": leg, "label": leg_labels[leg],
+                     "multiple": mult_cell,
                      "metric": metric_cell, "price": price,
                      "vs_spot_pct": round(100.0 * (price / spot - 1), 1)})
         arithmetic.append("%s: %.2f x %.4f = %.2f"

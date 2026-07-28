@@ -2615,6 +2615,14 @@ def _decision(snap, mk, evids, led=None):
                        "reclaim the 200-day at $%.2f" % ma200,
                        "level": ma200, "met": px > ma200,
                        "evidence_refs": ["CALC-ma200"]})
+    # Stages must ladder in PRICE order — "early improvement" above a
+    # later stage's threshold is not a sequence. Sort ascending and
+    # rename by ordinal so the labels always match the actual levels.
+    stages.sort(key=lambda x: x["level"])
+    _names = ["Early improvement", "Intermediate confirmation",
+              "Full technical upgrade"]
+    for _i, _st in enumerate(stages):
+        _st["stage"] = _names[_i] if _i < len(_names) else _st["stage"]
     stages += [
         {"stage": "Invalidation", "condition":
          "daily close below the %d-session closing low at $%.2f"

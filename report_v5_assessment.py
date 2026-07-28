@@ -82,7 +82,7 @@ def business_quality(snap, grid=None):
         assessed += 1
         if gross_m >= GM_STRONG:
             pos += 1
-            reasons.append("gross margin %.0f%% (pricing power proxy)"
+            reasons.append("gross margin %.0f%%; pricing power not independently assessed"
                            % gross_m)
     if fcf is not None and rev:
         conv = 100.0 * fcf / rev
@@ -119,9 +119,18 @@ def business_quality(snap, grid=None):
         level = "AVERAGE"
     else:
         level = "WEAK"
-    return {"level": level, "reasons": reasons[:4],
+    # The filed record can grade REPORTED financial quality; it cannot
+    # grade moat, management, industry structure or unit economics. A
+    # STRONG with all four unassessed is overreach — the overall read
+    # is "partially underwritten" until those have admitted sources.
+    return {"level": level,
+            "reported_financial_quality": level,
+            "overall": "PARTIALLY_UNDERWRITTEN",
+            "display": "%s / Partially underwritten" % level.title(),
+            "reasons": reasons[:4],
             "not_assessed": not_assessed,
-            "basis": "filed facts only; %d dimensions assessed"
+            "basis": "filed facts only; %d dimensions assessed; "
+                     "qualitative dimensions not underwritten"
                      % assessed}
 
 
@@ -176,7 +185,17 @@ def investment_attractiveness(scenarios, expectations, event,
         level = "UNATTRACTIVE"
     else:
         level = "LOW"
-    return {"level": level, "reasons": reasons[:4],
+    # A read built on the historical range alone is PROVISIONAL: the
+    # percentile legs hold the metric constant and carry no operating
+    # assumptions, so "the median implies +78%" is context, not an
+    # underwritten expected return.
+    provisional = sc.get("mode") != "underwritten"
+    return {"level": level,
+            "qualifier": "PROVISIONAL" if provisional else None,
+            "display": level + ("_PROVISIONAL" if provisional else ""),
+            "reasons": reasons[:4] + (
+                ["historical range only — no forecasts or "
+                 "probabilities underwritten"] if provisional else []),
             "basis": "price-relative only; quality assessed separately"}
 
 
@@ -188,5 +207,7 @@ def tension(bq, ia):
     a = {"HIGH": "high", "MODERATE": "moderate", "LOW": "low",
          "UNATTRACTIVE": "unattractive",
          "NOT_UNDERWRITTEN": "not underwritten"}[ia["level"]]
-    return ("%s business quality; %s investment attractiveness at the "
-            "current price." % (q.capitalize(), a))
+    prov = " (provisional)" if ia.get("qualifier") == "PROVISIONAL"         else ""
+    return ("Reported financial quality %s (overall: partially "
+            "underwritten); %s%s investment attractiveness at the "
+            "current price." % (q, a, prov))

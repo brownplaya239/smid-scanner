@@ -94,24 +94,33 @@ def _p1_dashboard(snap, view5):
     bq = asx.get("business_quality") or {}
     ia = asx.get("investment_attractiveness") or {}
     if bq.get("level"):
-        st.append(para("<b>Business quality: %s</b> &mdash; %s. Not "
-                       "assessed (no admitted source): %s."
-                       % (bq["level"], _clean("; ".join(bq["reasons"])),
-                          _clean(", ".join(bq.get("not_assessed") or []))),
-                       "small"))
+        st.append(para("<b>Reported financial quality: %s &middot; "
+                       "overall business quality: Partially "
+                       "underwritten</b> &mdash; %s. Not assessed (no "
+                       "admitted source): %s."
+                       % (bq["level"].title(),
+                          _clean("; ".join(bq["reasons"])),
+                          _clean(", ".join(bq.get("not_assessed")
+                                           or []))), "small"))
     if ia.get("level"):
-        st.append(para("<b>Investment attractiveness: %s</b> &mdash; %s."
-                       % (ia["level"],
-                          _clean("; ".join(ia["reasons"]))), "small"))
+        st.append(para("<b>Investment attractiveness: %s%s</b> &mdash; "
+                       "%s." % (ia["level"],
+                                " (provisional)" if ia.get("qualifier")
+                                == "PROVISIONAL" else "",
+                                _clean("; ".join(ia["reasons"]))),
+                       "small"))
     if asx.get("tension"):
         st.append(para("<i>%s</i>" % _clean(asx["tension"]), "body"))
 
     sc = view5.get("scenarios") or {}
     if sc.get("available"):
-        st.append(para("Scenarios &mdash; own-history multiples, filed "
-                       "trailing metric", "h2"))
-        head = ["", "Bear", "Base", "Bull"]
+        _under = sc.get("mode") == "underwritten"
+        st.append(para("Underwritten scenarios" if _under else
+                       "Historical valuation range &mdash; not a "
+                       "forecast", "h2"))
         rows = {r["leg"]: r for r in sc["rows"]}
+        head = [""] + [rows[l].get("label") or l.title()
+                       for l in ("bear", "base", "bull")]
         mults, prices, vs = ["Multiple"], ["Price"], ["vs last"]
         for leg in ("bear", "base", "bull"):
             r = rows[leg]
@@ -133,11 +142,16 @@ def _p1_dashboard(snap, view5):
             "Scenarios are unweighted: probabilities render only when "
             "user-supplied.", "small"))
         band = sc.get("band_ref") or {}
-        st.append(para("Multiples are the P25/P50/P75 of this name's own "
-                       "daily trailing %s over %s&ndash;%s, each day "
-                       "computed only from filings available before that "
-                       "session. Full arithmetic on the valuation page."
+        _ay = band.get("actual_years")
+        st.append(para("Percentiles of this name's own daily trailing "
+                       "%s over the available %s history "
+                       "(%s&ndash;%s), each day computed only from "
+                       "filings available before that session, applied "
+                       "to a CONSTANT trailing metric. This is where "
+                       "the stock has traded, not where it is going. "
+                       "Full arithmetic on the valuation page."
                        % ((band.get("kind") or "").upper(),
+                          ("%.1f-year" % _ay) if _ay else "",
                           _clean(band.get("window_start") or ""),
                           _clean(band.get("window_end") or "")),
                        "small", DERIVED))
@@ -151,7 +165,16 @@ def _p1_dashboard(snap, view5):
 
     cs = view5.get("changeset") or {}
     st.append(para("What changed since the prior report", "h2"))
-    if cs.get("initial_underwriting") or not cs:
+    if cs.get("same_session"):
+        st.append(para("Prior report generated in the same session "
+                       "(%s) &mdash; no re-underwriting interval has "
+                       "elapsed; change tracking begins with the next "
+                       "dated run." % _clean(cs.get("prior_as_of")
+                                             or ""), "small"))
+        cs = {"suppressed": True}
+    if cs.get("suppressed"):
+        pass
+    elif cs.get("initial_underwriting") or not cs:
         st.append(para("Initial underwriting &mdash; no prior admitted "
                        "report for this name.", "small"))
     else:
@@ -171,7 +194,18 @@ def _p1_dashboard(snap, view5):
                               _clean(c.get("reason") or "")), "small"))
 
     cl = view5.get("claims") or {}
-    st.append(para("The argument in one look", "h2"))
+    _pubs = cl.get("claims") or []
+    _fund_inv = next((c["breaks_if"] for c in _pubs
+                      if c.get("claim_type") in ("fundamental",
+                                                 "valuation")), None)
+    _tact_inv = next((c["breaks_if"] for c in _pubs
+                      if c.get("claim_type") == "technical"), None)
+    st.append(para("<b>Fundamental invalidation:</b> %s &middot; "
+                   "<b>Tactical invalidation:</b> %s"
+                   % (_clean(_fund_inv or "not established"),
+                      _clean(_tact_inv or "not established")), "small"))
+
+    st.append(para("Investment case in one look", "h2"))
     if cl.get("claims"):
         for c in cl["claims"]:
             st.append(para("&bull; [%s, %s confidence] %s"
@@ -187,7 +221,7 @@ def _p1_dashboard(snap, view5):
 
 def _p2_argument(snap, view5):
     cl = view5.get("claims") or {}
-    st = [para("The argument", "h2")]
+    st = [para("Investment case", "h2")]
     if not cl.get("claims"):
         st.append(para(_clean(cl.get("note") or "no claims"), "body"))
         return st
@@ -335,7 +369,7 @@ def _p4_valuation(snap, view5):
                    "reported; per-share facts are rebased across splits "
                    "by filing date.", "small"))
     if sc.get("available"):
-        st.append(para("Scenario arithmetic", "h2"))
+        st.append(para("Range arithmetic (constant trailing metric)", "h2"))
         for line in sc.get("arithmetic") or []:
             st.append(para(_clean(line), "body", DERIVED))
         rows = {r["leg"]: r for r in sc["rows"]}
@@ -347,7 +381,7 @@ def _p4_valuation(snap, view5):
                            % sens, "small", DERIVED))
         asym = sc.get("asymmetry") or {}
         if asym:
-            st.append(para("Asymmetry: bear %s%% &middot; bull %s%% "
+            st.append(para("Range span: P25 %s%% &middot; P75 %s%% vs spot "
                            "&middot; upside/downside %s"
                            % (asym.get("downside_to_bear_pct"),
                               asym.get("upside_to_bull_pct"),
@@ -405,7 +439,7 @@ def _p4_valuation(snap, view5):
     val4 = (view5["v4"].get("valuation") or {})
     pr = val4.get("peers") or {}
     if pr.get("rows"):
-        st.append(para("Peer cross-check (vendor grouping, uncurated)",
+        st.append(para("Preliminary peer reference (vendor grouping)",
                        "h2"))
         prows = [[r["ticker"], "%.1fx" % r["pe"] if r.get("pe") else "n/a"]
                  for r in pr["rows"][:6]]
@@ -544,15 +578,38 @@ def build_core(snap, view5, out_path=None, chart_png=None,
         if rendered["scenario_table"] or arch == A.FULL:
             story += _p4_valuation(snap, view5) + [PageBreak()]
             rendered["valuation_detail"] = True
+        # Page-6 variant must obey the SAME gate as pages 2 and 4:
+        # the canonical expectations decision. Unsourced -> the v4
+        # variant text renders as "Key debate", never "Variant
+        # perception".
+        exp_var = ((view5.get("expectations") or {}).get("variant")
+                   or {})
+        v4_p6 = v4
+        debate = None
+        if not exp_var.get("available"):
+            old_var = v4.get("variant") or {}
+            if old_var.get("available"):
+                debate = old_var.get("text") or old_var.get("detail")
+            v4_p6 = dict(v4, variant={
+                "available": False,
+                "reason": "no sourced market expectation — the debate "
+                          "renders as a business insight, not a "
+                          "variant"})
+        _debate_story = ([para("Key debate (no sourced expectations "
+                               "&mdash; not a variant view)", "h2"),
+                          para(_clean(debate), "body", INFERRED)]
+                         if debate else [])
         if arch == A.FULL:
             story += R4._page5(snap, v4, chart_png, chart_meta) \
                 + [PageBreak()]
             rendered["technicals"] = True
-            story += R4._page6(snap, v4)
+            story += _debate_story
+            story += R4._page6(snap, v4_p6)
             rendered["event_path"] = True
             rendered["variant_risks"] = True
         else:
-            story += R4._page6(snap, v4)
+            story += _debate_story
+            story += R4._page6(snap, v4_p6)
             rendered["variant_risks"] = True
 
     doc.build(story)

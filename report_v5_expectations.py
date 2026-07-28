@@ -160,8 +160,21 @@ def build(snap, grid, multiples, scenarios, estimates, assumptions=None):
         market = None
         if k["company_guidance"]:
             cg = k["company_guidance"]
-            market = "guides %s-%s%s" % (cg["low"], cg["high"],
-                                         cg.get("unit") or "")
+
+            def _gfmt(v, unit):
+                if unit == "%":
+                    return "%.1f%%" % v
+                if unit == "USD" or (isinstance(v, (int, float))
+                                     and abs(v) >= 1e6):
+                    a = abs(v)
+                    if a >= 1e9:
+                        return "$%.3gB" % (v / 1e9)
+                    if a >= 1e6:
+                        return "$%.0fM" % (v / 1e6)
+                return "%.4g" % v
+            u = cg.get("unit")
+            market = "guides %s-%s" % (_gfmt(cg["low"], u),
+                                       _gfmt(cg["high"], u))
         elif k["consensus"] is not None:
             market = "consensus %.4g (%s)" % (k["consensus"],
                                               k["consensus_as_of"])
@@ -173,7 +186,7 @@ def build(snap, grid, multiples, scenarios, estimates, assumptions=None):
             "market": market,
             "tickerdesk": ("%.4g [ASM] (%s)" % (td["value"], td["basis"])
                            if td.get("value") is not None
-                           else "no estimate — none invented"),
+                           else "not available"),
             "evidence": k["evidence_grade"],
             "implication": (
                 "price implies %.4g" % k["valuation_implied_value"]
@@ -187,8 +200,8 @@ def build(snap, grid, multiples, scenarios, estimates, assumptions=None):
             "kpis": kpis, "matrix": matrix, "gaps": gaps,
             "variant": variant,
             "justify_price": (
-                "to justify today's price at the own-history median "
-                "multiple, the trailing metric must reach %.4g "
+                "at the historical median multiple, today's price "
+                "corresponds to a trailing metric of %.4g "
                 "(%+.1f%% vs today's %.4g)"
                 % (implied, 100.0 * (implied / cur_metric - 1),
                    cur_metric)

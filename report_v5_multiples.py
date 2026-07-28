@@ -174,8 +174,11 @@ def multiple_band(bars, events, years=WINDOW_YEARS, kind="pe"):
         series.append(round(close / ttm, 3))
     n = len(series)
     coverage = n / len(window) if window else 0.0
+    actual_years = (round(((_dt(window[-1][0]) - _dt(window[0][0])).days)
+                          / 365.25, 1) if window else 0.0)
     base = {
         "kind": kind, "window_years": years,
+        "actual_years": actual_years,
         "window_start": window[0][0] if window else None,
         "window_end": window[-1][0] if window else None,
         "sessions_in_window": len(window),
