@@ -116,6 +116,13 @@ def daily_bars(ticker, days=120):
     return data["results"]
 
 
+def splits(ticker, limit=20):
+    """Historical stock splits (execution_date, split_from, split_to),
+    newest first. Returns [] on failure."""
+    data = _get("/v3/reference/splits", {"ticker": ticker, "limit": limit})
+    return (data or {}).get("results") or []
+
+
 def snapshot(ticker):
     """Current-session snapshot for one ticker (latest price + today's bar +
     prev close). Returns the snapshot dict or None."""
