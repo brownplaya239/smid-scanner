@@ -137,6 +137,8 @@ _MUTATION_REQUIRED = (
     "APPENDIX_METHOD_MATCHES_CORE", "APPENDIX_HASH_MATCH",
     "SOURCE_LEDGER_HASH_MATCH",
     "NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE",
+    "NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE_APPENDIX",
+    "SUNDHEIM_DECISION_COMPLETE",
     "HISTORICAL_WINDOW_LABEL_MATCHES_ACTUAL",
     "INVESTMENT_ATTRACTIVENESS_HAS_UNDERWRITING",
     "DATA_CONFIDENCE_DECOMPOSED", "NEXT_CHECKPOINT_TYPE_VALID",
@@ -185,9 +187,14 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
             ok_all = ok_all and good
             seen.append("%s=%s%s" % (r["leg"], want,
                                      "" if good else "(MISSING)"))
-        checks.append(VV.chk("SCENARIO_ARITHMETIC", ok_all, VV.ERROR,
-                             "every rendered scenario price recomputes "
-                             "from its multiple x metric",
+        # the check id follows the mode (§2): no "scenario" vocabulary
+        # attaches to a historical range, validation names included
+        _arith_id = ("SCENARIO_ARITHMETIC"
+                     if sc.get("mode") == "underwritten"
+                     else "HISTORICAL_RANGE_ARITHMETIC")
+        checks.append(VV.chk(_arith_id, ok_all, VV.ERROR,
+                             "every rendered price recomputes from its "
+                             "multiple x metric",
                              ", ".join(seen)))
         asm_rows = [r for r in sc["rows"]
                     if r["multiple"]["grade"] == "ASM"]
@@ -524,10 +531,30 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
                          "%d shared modules clean" % len(
                              TB.SHARED_MODULES)))
 
+    # Sundheim decision object must be complete AND serialized (§5)
+    sd6 = view5.get("sundheim") or {}
+    bad = CK.sundheim_issues(sd6)
+    checks.append(VV.chk("SUNDHEIM_DECISION_COMPLETE", not bad,
+                         VV.ERROR,
+                         "the twelve-question Sundheim decision object "
+                         "is complete and serialized",
+                         "; ".join(bad) or
+                         "%d questions + stored fields"
+                         % len(sd6.get("questions") or [])))
+
     # appendix binding (§1)
     if apx_pdf:
         apx_text = "\n".join(_page_texts(apx_pdf))
         core_hash = _hl.sha256(core_pdf).hexdigest()
+        # the scenario-vocabulary ban covers the appendix surface too
+        if sc6.get("available") and sc6.get("mode") == "historical_range":
+            banned_apx = CK.scenario_language_issues(apx_text,
+                                                     sc6.get("mode"))
+            checks.append(VV.chk(
+                "NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE_APPENDIX",
+                not banned_apx, VV.ERROR,
+                "the appendix carries no scenario vocabulary in "
+                "historical mode", ", ".join(banned_apx) or "clean"))
         bad = CK.appendix_version_issues(apx_text)
         checks.append(VV.chk("APPENDIX_VERSION_MATCH", not bad,
                              VV.ERROR,
@@ -578,7 +605,18 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
                                                      lo, hi),
                          "%d" % n_pages))
     fatal = [c for c in checks if c["status"] == "FAIL"]
-    return {"schema": "equity-research-v5-validation/pilot",
+    try:
+        import subprocess
+        commit_sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True,
+            text=True, timeout=10,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        ).stdout.strip() or None
+    except Exception:
+        commit_sha = None
+    return {"schema": "equity-research-v5-validation/1",
+            "generator_version": "v5.6",
+            "commit_sha": commit_sha,
             "generated_at": datetime.now(timezone.utc
                                          ).isoformat(timespec="seconds"),
             "ticker": (view5["v4"] or {}).get("ticker"),
@@ -662,6 +700,27 @@ def run(ticker, out_dir="out_v5", override=None):
     result["report_id"] = report_id
     result["source_ledger_hash"] = ledger["hash"]
     result["ledger_ids"] = ledger["count"]
+    # Independent auditability: the complete ID-to-source ledger ships
+    # both embedded in the validation JSON and as its own artifact, so
+    # an outside reviewer can resolve every reference without trusting
+    # the validator's own PASS.
+    result["evidence_ledger"] = [{"id": k, "source": v}
+                                 for k, v in sorted(
+                                     (ledger.get("ids") or {}).items())]
+    ledger_p = os.path.join(out_dir,
+                            "%s_source_ledger.json" % ticker)
+    with open(ledger_p, "w", encoding="utf-8") as fh:
+        json.dump({"schema": ledger["schema"], "report_id": report_id,
+                   "ticker": ticker, "hash": ledger["hash"],
+                   "count": ledger["count"], "ids": ledger["ids"]},
+                  fh, indent=1, sort_keys=True)
+    with open(ledger_p, "rb") as fh:
+        result["artifacts"][os.path.basename(ledger_p)] = {
+            "sha256": _hl.sha256(fh.read()).hexdigest()}
+    # Serialized decision objects (§4/§5): the complete Sundheim object
+    # and the full framework matrix travel with the validation JSON.
+    result["sundheim"] = view5.get("sundheim")
+    result["framework"] = view5.get("framework")
 
     # ── research memory (v5.5 phase F) ───────────────────────────────
     import report_v5_memory as MEM
@@ -724,9 +783,12 @@ def run(ticker, out_dir="out_v5", override=None):
                                    if c["status"] == "FAIL"]
     result["ok"] = not result["blocking_failures"]
     MEM.append_state(state)
+    _sc_key = ("scenarios"
+               if (view5.get("scenarios") or {}).get("mode")
+               == "underwritten" else "historical_valuation_range")
     result["v5_inputs"] = {
         "multiples": {k: view5["multiples"].get(k) for k in ("pe", "ps")},
-        "scenarios": view5.get("scenarios"),
+        _sc_key: view5.get("scenarios"),
         "claims": view5.get("claims"),
     }
     with open(val_p, "w") as fh:

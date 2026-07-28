@@ -109,7 +109,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                      [BODY_W * .4, BODY_W * .2],
                      header=["Status", "Dimensions"], zebra=True))
 
-    # 2. Tiger diligence matrix (full)
+    # 2. Tiger diligence matrix (full) + the Sundheim decision record
     st.append(sec(2))
     rows = []
     for k in FW.TIGER_DIMENSIONS:
@@ -123,6 +123,25 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                             BODY_W * .26],
                      header=["Dimension", "Status", "Conclusion",
                              "Next evidence needed"], zebra=True))
+    sd = view5.get("sundheim") or {}
+    if sd.get("questions"):
+        st.append(para("Sundheim decision record", "h3"))
+        st.append(para("Underwriting status %s &middot; thesis type %s "
+                       "&middot; principal uncertainty: %s. The "
+                       "complete object is serialized in the "
+                       "validation JSON."
+                       % (_clean((sd.get("underwriting_status") or ""
+                                  ).replace("_", " ").lower()),
+                          _clean((sd.get("thesis_type") or ""
+                                  ).replace("_", " ").lower()),
+                          _clean(sd.get("principal_uncertainty")
+                                 or "")), "small"))
+        st.append(_table([[_clean(q["question"]),
+                           _clean(str(q["answer"]))[:150]]
+                          for q in sd["questions"]],
+                         [BODY_W * .34, BODY_W * .56],
+                         header=["Question", "Answer (sourced inputs "
+                                 "only)"], zebra=True))
 
     # 3. Industry structure and competitive power
     st.append(sec(3))
@@ -229,8 +248,17 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                             else (var.get("reason") or "unavailable")),
                    "small"))
 
-    # 9. Historical valuation and scenario assumptions
-    st.append(sec(9))
+    # 9. Historical valuation range (or scenario assumptions when a
+    # user assumptions file underwrote real scenarios) — the section
+    # title itself is mode-aware so no scenario vocabulary attaches to
+    # a historical range (§2).
+    _n[0] += 1
+    st.append(para("%d. %s" % (_n[0],
+                               "Historical valuation and scenario "
+                               "assumptions"
+                               if sc.get("mode") == "underwritten" else
+                               "Historical valuation range and "
+                               "assumptions status"), "h2"))
     if band:
         ay = band.get("actual_years")
         st.append(para("The core RENDERS a historical multiple band: "
@@ -389,11 +417,15 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
     # 14. Validation summary and artifact hashes
     st.append(sec(14))
     st.append(para("Binding record for this package:", "body"))
+    # Short checksums here; the FULL hashes are recorded once in the
+    # introduction paragraph (page 1), which is what the binding
+    # checks verify against.
     st.append(_table(
         [["Report ID", _clean(report_id)],
-         ["Core PDF sha256", _clean(core_hash or "n/a")],
-         ["Source-ledger hash", _clean((ledger or {}).get("hash")
-                                       or "n/a")],
+         ["Core PDF sha256 (prefix)",
+          _clean((core_hash or "n/a")[:16])],
+         ["Source-ledger hash (prefix)",
+          _clean(((ledger or {}).get("hash") or "n/a")[:16])],
          ["Registered evidence IDs", str((ledger or {}).get("count")
                                          or 0)],
          ["Assumptions schema", "v5-assumptions/1"],
@@ -401,12 +433,14 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
          ["Archetype", _clean((view5.get("archetype") or {}).get(
              "archetype") or "")]],
         [BODY_W * .3, BODY_W * .6], zebra=True))
-    st.append(para("The appendix PDF's own sha256 is recorded in the "
-                   "validation JSON (it cannot contain its own final "
-                   "hash). Validation fails the package when the "
-                   "version, report ID, method, or any hash here "
-                   "disagrees with the core or the validation JSON.",
-                   "small"))
+    st.append(para("Full hashes appear once in the introduction; the "
+                   "appendix PDF's own sha256 and the complete "
+                   "ID-to-source ledger are in the validation JSON and "
+                   "the companion source-ledger file (an appendix "
+                   "cannot contain its own final hash). Validation "
+                   "fails the package when the version, report ID, "
+                   "method, or any hash disagrees with the core or the "
+                   "validation JSON.", "small"))
     return st
 
 

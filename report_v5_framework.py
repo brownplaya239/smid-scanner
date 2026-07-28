@@ -402,8 +402,10 @@ def sundheim_decision(view5, coverage, archetype=None):
             (c.get("expected_recognition_window") for c in fund), None),
         "principal_uncertainty": (
             "qualitative coverage: %s"
-            % "; ".join((coverage or {}).get("summary", {}).get(
-                "missing_for_full", [])[:3])
+            % "; ".join(DIM_LABELS.get(d, d.replace("_", " "))
+                        for d in (coverage or {}).get(
+                            "summary", {}).get("missing_for_full",
+                                               [])[:3])
             if (coverage or {}).get("summary", {}).get("missing_for_full")
             else "forward operating trajectory"),
         "next_evidence_needed": need,

@@ -279,6 +279,34 @@ def checkpoint_type_issues(claims):
     return bad
 
 
+SUNDHEIM_REQUIRED_FIELDS = (
+    "underwriting_status", "thesis_type", "business_quality",
+    "investment_attractiveness", "principal_uncertainty",
+    "next_evidence_needed", "reunderwrite_when", "questions",
+)
+SUNDHEIM_QUESTION_COUNT = 12
+
+
+def sundheim_issues(sd):
+    """§5: the Sundheim decision object must be complete and
+    serialized — all stored fields present and all twelve questions
+    answered (an honest 'not established' is an answer; a missing
+    question is not)."""
+    if not isinstance(sd, dict):
+        return ["no Sundheim decision object"]
+    bad = [k for k in SUNDHEIM_REQUIRED_FIELDS if k not in sd]
+    qs = sd.get("questions") or []
+    if len(qs) != SUNDHEIM_QUESTION_COUNT:
+        bad.append("%d of %d questions present"
+                   % (len(qs), SUNDHEIM_QUESTION_COUNT))
+    for q in qs:
+        if not isinstance(q, dict) or not q.get("question") \
+                or not q.get("answer"):
+            bad.append("unanswered question object")
+            break
+    return bad
+
+
 def framework_issues(framework):
     """§4: all 26 dimensions present with valid statuses."""
     import report_v5_framework as FW
@@ -309,7 +337,9 @@ def adapter_issues(adapter, core_text, archetype):
 
 
 def invalidation_separation_issues(core_text):
-    t = core_text or ""
+    # whitespace-tolerant: PDF extraction can wrap a phrase across
+    # lines mid-way ("Tactical\ninvalidation:")
+    t = re.sub(r"\s+", " ", core_text or "")
     bad = []
     if "Fundamental invalidation:" not in t:
         bad.append("no fundamental-invalidation line")

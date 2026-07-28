@@ -244,6 +244,33 @@
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   },
   {
+   "changed_field_or_artifact": "one of the twelve questions removed from the decision object",
+   "expected_failure": "incomplete question set detected",
+   "intended_check": "SUNDHEIM_DECISION_COMPLETE",
+   "mutation_id": "M29-sundheim-question-dropped",
+   "observed_failure": "11 of 12 questions present",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "reunderwrite_when removed from the decision object",
+   "expected_failure": "missing stored field detected",
+   "intended_check": "SUNDHEIM_DECISION_COMPLETE",
+   "mutation_id": "M29b-sundheim-field-dropped",
+   "observed_failure": "reunderwrite_when",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "'scenario table' injected into a historical-mode appendix",
+   "expected_failure": "banned vocabulary detected in the appendix surface",
+   "intended_check": "NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE_APPENDIX",
+   "mutation_id": "M30-appendix-scenario-language",
+   "observed_failure": "scenario table",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
    "changed_field_or_artifact": "pilot-symbol comparison injected into a shared module",
    "expected_failure": "ticker-keyed branch detected",
    "intended_check": "NO_TICKER_SPECIFIC_BRANCH",
@@ -253,7 +280,7 @@
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   }
  ],
- "proven": 28,
+ "proven": 31,
  "schema": "v5-mutation-proofs/1",
- "total": 28
+ "total": 31
 }

@@ -131,10 +131,8 @@ def _p1_dashboard(snap, view5):
                           _clean(", ".join(bq.get("not_assessed")
                                            or []))), "small"))
     if ia.get("level"):
-        st.append(para("<b>Investment attractiveness: %s%s</b> &mdash; "
+        st.append(para("<b>Investment attractiveness: %s</b> &mdash; "
                        "%s." % (ia["level"],
-                                " (provisional)" if ia.get("qualifier")
-                                == "PROVISIONAL" else "",
                                 _clean("; ".join(ia["reasons"]))),
                        "small"))
     if asx.get("tension"):
@@ -145,15 +143,49 @@ def _p1_dashboard(snap, view5):
     fw = view5.get("framework") or {}
     fsum = fw.get("summary") or {}
     if sd:
+        _sc0 = view5.get("scenarios") or {}
+        _mode = ("underwritten scenarios"
+                 if _sc0.get("mode") == "underwritten"
+                 else "historical range (descriptive)"
+                 if _sc0.get("available") else "no valuation basis")
+        _var0 = ((view5.get("expectations") or {}).get("variant")
+                 or {})
+        _cl0 = (view5.get("claims") or {}).get("claims") or []
+        _cp0 = next((c.get("next_checkpoint") for c in _cl0
+                     if c.get("next_checkpoint")), None)
         st.append(para("<b>Underwriting status: %s</b> &middot; thesis "
                        "type: %s &middot; framework coverage: %d of %d "
-                       "dimensions assessed."
+                       "dimensions assessed &middot; valuation basis: "
+                       "%s."
                        % (_clean((sd.get("underwriting_status") or ""
                                   ).replace("_", " ").title()),
                           _clean((sd.get("thesis_type") or ""
                                   ).replace("_", " ").lower()),
                           fsum.get("assessed") or 0,
-                          fsum.get("total") or 26), "small"))
+                          fsum.get("total") or 26, _mode), "small"))
+        st.append(para("Expectations gap: %s &middot; principal "
+                       "uncertainty: %s &middot; next checkpoint: %s."
+                       % ("sourced (%+.1f%% on %s)"
+                          % (_var0.get("gap_pct", 0),
+                             _clean(_var0.get("metric") or ""))
+                          if _var0.get("available")
+                          else "none sourced &mdash; no variant view "
+                               "held",
+                          _clean(sd.get("principal_uncertainty")
+                                 or "not stated"),
+                          _clean(_fmt_checkpoint(_cp0))
+                          or "not scheduled"), "small"))
+        _fund_inv = next((c["breaks_if"] for c in _cl0
+                          if c.get("claim_type") in ("fundamental",
+                                                     "valuation")),
+                         None)
+        _tact_inv = next((c["breaks_if"] for c in _cl0
+                          if c.get("claim_type") == "technical"), None)
+        st.append(para("<b>Fundamental invalidation:</b> %s &middot; "
+                       "<b>Tactical invalidation:</b> %s"
+                       % (_clean(_fund_inv or "not established"),
+                          _clean(_tact_inv or "not established")),
+                       "small"))
         if fsum.get("missing_for_full"):
             st.append(para("Not underwritten (no admitted source): %s. "
                            "Full matrix in the appendix."
@@ -221,57 +253,51 @@ def _p1_dashboard(snap, view5):
         st.append(para("Assumptions: %s" % _clean(sc["assumptions_note"]),
                        "small"))
 
+    # What-changed is built as a discrete block so the fit logic can
+    # move it wholesale to the appendix (section 12 carries it in full)
+    # rather than stranding its tail on a spilled page.
     cs = view5.get("changeset") or {}
-    st.append(para("What changed since the prior report", "h2"))
+    changed_block = [para("What changed since the prior report", "h2")]
     if cs.get("same_session"):
-        st.append(para("Prior report generated in the same session "
-                       "(%s) &mdash; no re-underwriting interval has "
-                       "elapsed; change tracking begins with the next "
-                       "dated run." % _clean(cs.get("prior_as_of")
-                                             or ""), "small"))
+        changed_block.append(para(
+            "Prior report generated in the same session (%s) &mdash; "
+            "no re-underwriting interval has elapsed; change tracking "
+            "begins with the next dated run."
+            % _clean(cs.get("prior_as_of") or ""), "small"))
         cs = {"suppressed": True}
     if cs.get("suppressed"):
         pass
     elif cs.get("initial_underwriting") or not cs:
-        st.append(para("Initial underwriting &mdash; no prior admitted "
-                       "report for this name.", "small"))
+        changed_block.append(para(
+            "Initial underwriting &mdash; no prior admitted report for "
+            "this name.", "small"))
     else:
         _tax = cs.get("taxonomy") or {}
-        st.append(para("Prior: %s (core sha %s&hellip;)%s."
-                       % (_clean(cs.get("prior_as_of") or ""),
-                          (cs.get("prior_core_pdf_hash") or "")[:12],
-                          " &middot; %.1f h elapsed &middot; changes by "
-                          "class: %s" % (
-                              cs.get("elapsed_underwriting_hours"),
-                              _clean(", ".join("%s %d" % (k.replace(
-                                  "_", " "), v)
-                                  for k, v in sorted(_tax.items()))))
-                          if cs.get("elapsed_underwriting_hours")
-                          is not None and _tax else ""),
-                       "small"))
+        changed_block.append(para(
+            "Prior: %s (core sha %s&hellip;)%s."
+            % (_clean(cs.get("prior_as_of") or ""),
+               (cs.get("prior_core_pdf_hash") or "")[:12],
+               " &middot; %.1f h elapsed &middot; changes by class: %s"
+               % (cs.get("elapsed_underwriting_hours"),
+                  _clean(", ".join("%s %d" % (k.replace("_", " "), v)
+                                   for k, v in sorted(_tax.items()))))
+               if cs.get("elapsed_underwriting_hours") is not None
+               and _tax else ""), "small"))
         changes = cs.get("changes") or []
         if not changes:
-            st.append(para("No material change against the prior "
-                           "admitted report.", "small"))
+            changed_block.append(para(
+                "No material change against the prior admitted "
+                "report.", "small"))
         for c in changes[:5]:
-            st.append(para("&bull; %s: %s &rarr; %s (%s)"
-                           % (_clean(c["category"]),
-                              _clean(str(c.get("from"))[:38]),
-                              _clean(str(c.get("to"))[:38]),
-                              _clean(c.get("reason") or "")), "small"))
+            changed_block.append(para(
+                "&bull; %s: %s &rarr; %s (%s)"
+                % (_clean(c["category"]),
+                   _clean(str(c.get("from"))[:38]),
+                   _clean(str(c.get("to"))[:38]),
+                   _clean(c.get("reason") or "")), "small"))
+    st += changed_block
 
     cl = view5.get("claims") or {}
-    _pubs = cl.get("claims") or []
-    _fund_inv = next((c["breaks_if"] for c in _pubs
-                      if c.get("claim_type") in ("fundamental",
-                                                 "valuation")), None)
-    _tact_inv = next((c["breaks_if"] for c in _pubs
-                      if c.get("claim_type") == "technical"), None)
-    st.append(para("<b>Fundamental invalidation:</b> %s &middot; "
-                   "<b>Tactical invalidation:</b> %s"
-                   % (_clean(_fund_inv or "not established"),
-                      _clean(_tact_inv or "not established")), "small"))
-
     one_look = [para("Investment case in one look", "h2")]
     if cl.get("claims"):
         for c in cl["claims"]:
@@ -317,10 +343,16 @@ def _p1_dashboard(snap, view5):
         # legend line is the last thing to keep over a page spill
         return [f for f in story if f is not asm_para]
 
+    def _drop_changed_block(story):
+        # appendix section 12 carries the complete change log; the
+        # whole block moves rather than stranding its tail
+        return [f for f in story if f not in changed_block]
+
     trims = [("change detail moved to appendix", _drop_changes),
              ("band note compacted", _shorten_band_note),
              ("one-look moved to page 2", _drop_one_look),
-             ("ASM legend moved to appendix", _drop_asm_note)]
+             ("ASM legend moved to appendix", _drop_asm_note),
+             ("change log moved to appendix", _drop_changed_block)]
     st, _trim = _fit_page(st, trims, "v5-p1")
     # Font-metric drift (tuned vs rendered face) makes a "fits" page
     # spill a two-line tail onto a near-blank page 2. Keep a safety

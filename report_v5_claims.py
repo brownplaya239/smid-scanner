@@ -124,7 +124,7 @@ def _status(cand, published):
     return PARTIAL
 
 
-def _lifecycle(cat, today):
+def _lifecycle(cat, today, valuation_mode=None):
     """Shared horizon/checkpoint fields. The checkpoint must lie AFTER
     the report date — a July 28 report pointing at a July 22 print is a
     stale pointer, not a checkpoint. Candidates in the past fall back
@@ -154,7 +154,9 @@ def _lifecycle(cat, today):
         "reunderwrite_when": [
             "next 10-Q/10-K or earnings release",
             "guidance revision in a filed exhibit",
-            "price crossing a scenario boundary",
+            "price crossing a %s boundary"
+            % ("scenario" if valuation_mode == "underwritten"
+               else "historical-range"),
             "invalidation condition breaching",
             "evidence passing %d days old" % STALE_DAYS,
         ],
@@ -184,7 +186,8 @@ def build(snap, view4, scenarios=None, estimates=None):
     q_end = (fu.get("revenue_q") or {}).get("period_end") \
         if isinstance(fu.get("revenue_q"), dict) else None
     fresh_fund = _freshness(q_end, today)
-    life = _lifecycle(cat, today)
+    life = _lifecycle(cat, today,
+                      valuation_mode=(scenarios or {}).get("mode"))
 
     # The one sourced market-expectation proxy available pre-phase-C:
     # the dated consensus recommendation. It supports directional
@@ -427,7 +430,10 @@ def build(snap, view4, scenarios=None, estimates=None):
                                    base["price"], sc["spot"])],
                     "evidence_refs": ["V5-BAND-%s" % (band.get("kind")
                                                       or "pe"),
-                                      "V5-SCENARIO-ANCHOR"],
+                                      "V5-SCENARIO-ANCHOR"
+                                      if sc.get("mode") == "underwritten"
+                                      else "V5-HISTORICAL-METRIC-"
+                                           "ANCHOR"],
                     "counterevidence": ce,
                     "counterevidence_refs": ce_refs,
                     "financial_implication": "none claimed — this is a "

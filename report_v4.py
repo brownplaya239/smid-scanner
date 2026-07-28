@@ -655,12 +655,14 @@ def _page6(snap, view):
         st.append(para("No risk rose above the filing-evidence bar for this "
                        "name.", "small"))
 
+    # A variant section exists only when a variant exists (§9): the
+    # unavailable state is covered by the "Key debate" treatment, so a
+    # heading followed by a withheld line would be a stub, not a
+    # section.
     var = view.get("variant") or {}
-    st.append(para("Variant perception", "h3"))
     if var.get("available"):
+        st.append(para("Variant perception", "h3"))
         st.append(para(_clean(var["text"]), "body", var.get("grade")))
-    else:
-        st.append(_wh_line("Variant perception", var, "small"))
 
     mon = view.get("monitoring") or {}
     st.append(para("Tactical confirmation / invalidation", "h3"))

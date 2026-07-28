@@ -192,6 +192,28 @@ prove("M25-ledger-hash-flip", "ledger hash stripped from the appendix",
       "SOURCE_LEDGER_HASH_MATCH", "ledger hash absent",
       CK.ledger_hash_issues("nothing bound", "deadbeef01"))
 
+# ── Sundheim completeness + appendix scenario language ───────────────
+_good_sd = {k: "x" for k in CK.SUNDHEIM_REQUIRED_FIELDS}
+_good_sd["questions"] = [{"question": "q%d" % i, "answer": "a"}
+                         for i in range(12)]
+_mut_sd = dict(_good_sd)
+_mut_sd["questions"] = _mut_sd["questions"][:11]
+prove("M29-sundheim-question-dropped", "one of the twelve questions "
+      "removed from the decision object", "SUNDHEIM_DECISION_COMPLETE",
+      "incomplete question set detected",
+      CK.sundheim_issues(_mut_sd))
+prove("M29b-sundheim-field-dropped", "reunderwrite_when removed from "
+      "the decision object", "SUNDHEIM_DECISION_COMPLETE",
+      "missing stored field detected",
+      CK.sundheim_issues({k: v for k, v in _good_sd.items()
+                          if k != "reunderwrite_when"}))
+prove("M30-appendix-scenario-language", "'scenario table' injected "
+      "into a historical-mode appendix",
+      "NO_SCENARIO_LANGUAGE_IN_HISTORICAL_RANGE_APPENDIX",
+      "banned vocabulary detected in the appendix surface",
+      CK.scenario_language_issues("methodology: the scenario table "
+                                  "was computed", "historical_range"))
+
 # ── universal-ticker scan ────────────────────────────────────────────
 _tmp = tempfile.mkdtemp()
 _mod = os.path.join(_tmp, "report_v5_claims.py")

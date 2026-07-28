@@ -200,10 +200,11 @@ def route(profile, capability, event, multiples=None, has_options=None,
         if ok("scenario_construction"):
             A._promote(contract, "scenario_table")
             A._promote(contract, "valuation_detail")
-            reasons.append("scenario construction capability present — "
-                           "range/scenario table required")
+            reasons.append("a multiple band survived coverage — the "
+                           "valuation table (historical range, or "
+                           "scenarios when underwritten) is required")
         else:
-            reasons.append("range table stays optional: %s"
+            reasons.append("valuation table stays optional: %s"
                            % caps["scenario_construction"]["reason"])
         if decision in (A.FULL, A.FULL_THIN):
             if ok("technical_analysis"):

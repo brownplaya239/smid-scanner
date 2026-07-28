@@ -49,12 +49,21 @@ def build(snap, view5, report_id=None):
             ids.setdefault("V5-BAND-%s" % kind,
                            "own-history multiple band (%s)" % kind)
     sc = view5.get("scenarios") or {}
+    # ID vocabulary follows the mode (§2): a historical range registers
+    # V5-RANGE-* rows and a metric anchor; only underwritten scenarios
+    # register V5-SCENARIO-* rows.
+    _under = sc.get("mode") == "underwritten"
     for r in sc.get("rows") or []:
-        ids.setdefault("V5-SCENARIO-%s" % str(r["leg"]).upper(),
-                       "range/scenario row (%s)" % r.get("label"))
+        ids.setdefault("V5-%s-%s" % ("SCENARIO" if _under else "RANGE",
+                                     str(r["leg"]).upper()),
+                       "%s row (%s)" % ("scenario" if _under
+                                        else "historical-range",
+                                        r.get("label")))
     if sc.get("available"):
-        ids.setdefault("V5-SCENARIO-ANCHOR",
-                       "median/base row of the range")
+        ids.setdefault("V5-SCENARIO-ANCHOR" if _under
+                       else "V5-HISTORICAL-METRIC-ANCHOR",
+                       "base row of the scenario set" if _under
+                       else "median row of the historical range")
     ex = snap.get("exhibit") or {}
     if ex.get("disposition") == "ADMITTED":
         ids.setdefault("EXHIBIT-GUIDANCE",
