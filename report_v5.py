@@ -155,11 +155,24 @@ def _p2_argument(snap, view5):
         st.append(para(_clean(cl.get("note") or "no claims"), "body"))
         return st
     for i, c in enumerate(cl["claims"], 1):
-        st.append(para("%d. %s  <b>[%s, %s confidence]</b>"
+        st.append(para("%d. %s  <b>[%s &middot; %s &middot; %s "
+                       "confidence]</b>"
                        % (i, _clean(c["claim"]), c["direction"],
+                          _clean(c.get("status") or ""),
                           c["confidence"]), "h3"))
-        for s in c["support"]:
-            st.append(para("&bull; %s" % _clean(s), "body"))
+        if c.get("market_expectation"):
+            st.append(para("<i>Market:</i> %s (%s)"
+                           % (_clean(c["market_expectation"]),
+                              _clean(c.get("market_expectation_source")
+                                     or "")), "small"))
+        else:
+            st.append(para("<i>Business insight</i> &mdash; no sourced "
+                           "market expectation; no variant view is "
+                           "claimed.", "small"))
+        st.append(para("<i>Mechanism:</i> %s"
+                       % _clean(c.get("mechanism") or ""), "body"))
+        for sline in c["support"]:
+            st.append(para("&bull; %s" % _clean(sline), "body"))
         if c["counterevidence"]:
             for x in c["counterevidence"]:
                 st.append(para("&bull; <i>Against:</i> %s" % _clean(x),
@@ -169,8 +182,25 @@ def _p2_argument(snap, view5):
                            "data (searched: %s)"
                            % _clean("; ".join(cl.get("searched") or [])),
                            "small"))
-        st.append(para("<i>Breaks:</i> %s" % _clean(c["invalidation"]),
+        st.append(para("<i>Implication:</i> %s &middot; %s"
+                       % (_clean(c.get("financial_implication") or ""),
+                          _clean(c.get("valuation_implication") or "")),
+                       "small"))
+        st.append(para("<i>Breaks:</i> %s &middot; <i>next checkpoint:"
+                       "</i> %s &middot; <i>valid until:</i> %s"
+                       % (_clean(c["breaks_if"]),
+                          _clean(c.get("next_checkpoint") or ""),
+                          _clean(c.get("maximum_valid_until") or "")),
                        "small", DERIVED))
+    rej = cl.get("rejected") or []
+    if rej:
+        st.append(para("Candidates that failed the publication gate",
+                       "h3"))
+        for r in rej[:4]:
+            st.append(para("&bull; %s &mdash; %s"
+                           % (_clean(r["claim"][:70]),
+                              _clean("; ".join(r["failed_gates"]))),
+                           "small"))
     st, _ = _fit_page(st, [], "v5-p2")
     return st
 

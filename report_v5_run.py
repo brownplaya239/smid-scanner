@@ -52,7 +52,7 @@ def build_view(ticker, override=None):
     asm, note = S5.load_assumptions(ticker)
     scenarios = S5.build(ticker, multiples, spot, asm, note)
     print("  [v5] claims + grid...")
-    claims = C5.build(snap, v4, scenarios)
+    claims = C5.build(snap, v4, scenarios, estimates)
     grid = G5.build(ticker)
     has_options = None
     try:
@@ -141,6 +141,55 @@ def validate(view5, core_pdf, rendered, apx_pdf=None):
                 "no probability weights without a user assumptions file",
                 "clean" if "Probability-weighted" not in text
                 else "weighted value rendered without a source"))
+
+    # ── claim-contract checks (v5.5 phase B) ─────────────────────────
+    cl = view5.get("claims") or {}
+    pubs = cl.get("claims") or []
+    if pubs:
+        bad = [c["claim_id"] for c in pubs
+               if len(c.get("evidence_refs") or []) < 2
+               or not c.get("mechanism")
+               or not (c.get("financial_implication")
+                       or c.get("valuation_implication"))]
+        checks.append(VV.chk("CLAIM_EVIDENCE_COMPLETE", not bad, VV.ERROR,
+                             "every published claim has >=2 refs, a "
+                             "mechanism and an implication",
+                             ", ".join(bad) or "all complete"))
+        bad = [c["claim_id"] for c in pubs
+               if c.get("counterevidence_refs") is None]
+        checks.append(VV.chk("CLAIM_HAS_COUNTEREVIDENCE", not bad,
+                             VV.ERROR,
+                             "counterevidence found or declared absent "
+                             "per claim", ", ".join(bad) or "all"))
+        bad = [c["claim_id"] for c in pubs if not c.get("breaks_if")]
+        checks.append(VV.chk("CLAIM_HAS_INVALIDATION", not bad, VV.ERROR,
+                             "every published claim carries breaks_if",
+                             ", ".join(bad) or "all"))
+        bad = [c["claim_id"] for c in pubs
+               if c.get("market_expectation")
+               and not c.get("market_expectation_source")]
+        checks.append(VV.chk("VARIANT_EXPECTATION_SOURCED", not bad,
+                             VV.ERROR,
+                             "expectation language only with a sourced "
+                             "market expectation",
+                             ", ".join(bad) or "all sourced"))
+        bad = [c["claim_id"] for c in pubs
+               if not c.get("reunderwrite_when")
+               or not c.get("next_checkpoint")]
+        checks.append(VV.chk("THESIS_REUNDERWRITE_TRIGGER_PRESENT",
+                             not bad, VV.ERROR,
+                             "every claim carries re-underwriting "
+                             "triggers and a checkpoint",
+                             ", ".join(bad) or "all"))
+    else:
+        checks.append(VV.chk("CLAIM_GATE_EXPLAINED",
+                             bool(cl.get("note"))
+                             or not (cl.get("rejected")), VV.ERROR,
+                             "zero published claims come with the gate "
+                             "explanation",
+                             "note %s, %d rejected"
+                             % ("present" if cl.get("note") else "absent",
+                                len(cl.get("rejected") or []))))
 
     # v4's PDF checks minus its fixed 5/6-page rule: v5 page counts are
     # the archetype's to define, so the range comes from the contract.
