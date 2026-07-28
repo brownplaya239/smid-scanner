@@ -557,7 +557,10 @@ def build(snap, view5, prov, core_hash, ledger, report_id,
                     occ[-1])
 
         occ = _CK.measure_occupancy(data)
-        if len(occ) > 1 and occ[-1] < _FINAL_MIN:
+        _needs_work = len(occ) > 1 and (
+            occ[-1] < _FINAL_MIN
+            or any(r < _BODY_MIN for r in occ[:-1]))
+        if _needs_work:
             best, best_occ = data, occ
             for compact, pull in ((0, 2), (0, 3), (1, 0), (1, 2),
                                   (2, 0), (2, 2), (2, 3),

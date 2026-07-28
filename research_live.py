@@ -173,21 +173,35 @@ def concept_index(cik):
     j = _sec_json(url)
     facts = j.get("facts") or {}
     taxonomies = {}
+    latest_end = {}
     forms = set()
     for tax, concepts in facts.items():
         names = sorted(concepts)
         taxonomies[tax] = names
+        newest = None
         for c in names[:200]:
             for rows in (concepts[c].get("units") or {}).values():
                 for r in rows[:4]:
                     f = r.get("form")
                     if f:
                         forms.add(f)
+                # per-taxonomy recency: a filer that TRANSITIONED
+                # regimes (US GAAP -> IFRS) keeps both taxonomies in
+                # companyfacts; the CURRENT regime is the one still
+                # receiving facts
+                for r in rows[-2:]:
+                    e = r.get("end")
+                    if isinstance(e, str) and (newest is None
+                                               or e > newest):
+                        newest = e
                 break
+        if newest:
+            latest_end[tax] = newest
     out = {"cik": cik, "url": url,
            "entity_name": j.get("entityName"),
            "taxonomies": taxonomies,
            "concept_counts": {t: len(v) for t, v in taxonomies.items()},
+           "latest_end": latest_end,
            "forms": sorted(forms)}
     _CONCEPT_INDEX_CACHE[cik] = out
     return out
