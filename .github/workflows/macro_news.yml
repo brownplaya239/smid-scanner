@@ -1,0 +1,41 @@
+name: Macro News Relay
+
+# Relays Finnhub's macro/general wire (commodities, Fed, geopolitics)
+# into Supabase news_live — the table the live tape already merges.
+# Runs from Actions because Finnhub rejects Cloudflare Workers egress
+# IPs; see macro_news_relay.py for the full story.
+
+on:
+  schedule:
+    # every 20 min, 07:00–17:40 ET (11:00–21:40 UTC), weekdays —
+    # premarket through after-hours
+    - cron: '*/20 11-21 * * 1-5'
+  workflow_dispatch:
+
+concurrency:
+  group: macro-news-relay
+  cancel-in-progress: true
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            macro_news_relay.py
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Relay macro headlines
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python macro_news_relay.py

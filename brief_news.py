@@ -17,6 +17,7 @@ rather than vanishing.
 """
 
 import json
+import os
 import sys
 import urllib.parse
 import urllib.request
@@ -98,6 +99,45 @@ def fetch(query, limit=25, timeout=20):
         print("  news fetch failed (non-fatal): %s: %s"
               % (type(e).__name__, e))
         return []
+
+
+def _fetch_finnhub_direct(limit=40, timeout=20):
+    """Direct Finnhub general-news fetch, mapped to the worker's
+    article shape. Only fires when the env key is present (CI); returns
+    [] on any failure — same non-fatal contract as fetch()."""
+    key = (os.environ.get("FINNHUB_API_KEY") or "").strip()
+    if not key:
+        return []
+    try:
+        req = urllib.request.Request(
+            "https://finnhub.io/api/v1/news?category=general",
+            headers={"X-Finnhub-Token": key,
+                     "Accept": "application/json",
+                     "User-Agent": "TickerDesk-Brief/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            raw = json.loads(r.read().decode("utf-8"))
+    except Exception as e:
+        print("  macro direct fetch failed (non-fatal): %s: %s"
+              % (type(e).__name__, e))
+        return []
+    out = []
+    from datetime import datetime, timezone
+    for a in (raw or [])[:limit]:
+        if not a or not a.get("headline"):
+            continue
+        ts = a.get("datetime")
+        out.append({
+            "id": "fh-%s" % (a.get("id") or ts or a.get("url")),
+            "title": a.get("headline") or "",
+            "url": a.get("url") or "",
+            "publisher": a.get("source") or "Finnhub",
+            "published": datetime.fromtimestamp(
+                ts, tz=timezone.utc).isoformat() if ts else "",
+            "tickers": [s for s in str(a.get("related") or ""
+                                       ).split(",") if s][:6],
+            "insights": [], "keywords": ["macro"], "macro": True,
+        })
+    return out
 
 
 WHY_MAX = 140
@@ -376,8 +416,13 @@ def load(watch_tickers, as_of=None, max_market=3, max_watch=3, live=True,
     general = fetch("general", limit=60)
     # the Finnhub macro wire (commodities / Fed / geopolitics) — the
     # Polygon feed carries none of it, so without this the market
-    # section can only ever show company press releases
-    general.extend(fetch("macro", limit=40))
+    # section can only ever show company press releases. Worker first;
+    # direct Finnhub as fallback (the brief runs in CI where the key
+    # works — Finnhub rejects the worker's Cloudflare egress IPs).
+    macro = fetch("macro", limit=40)
+    if not macro:
+        macro = _fetch_finnhub_direct(limit=40)
+    general.extend(macro)
     for ix in ("SPY", "QQQ"):
         general.extend(fetch(ix, limit=10))
     per = []
