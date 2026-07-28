@@ -19802,6 +19802,28 @@
     // dependency on the supabase-js client (which loads slowly/flakily here),
     // so it's reliable; the Realtime websocket below is a best-effort instant
     // bonus on top.
+    // Macro wire (?news=macro): Finnhub's general-news category —
+    // commodities, Fed, geopolitics — which the Polygon company-news
+    // feed never carries. Merged into the same tape, same dedup.
+    let firstMacro = true;
+    function loadMacroNews() {
+      fetch(TDP_WORKER_URL + "?news=macro&limit=40")
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !Array.isArray(d.articles) || !d.articles.length) return;
+          const arts = preprocessArticles(d.articles);
+          const before = new Set(GENERAL.map(titleKey));
+          const added = mergeIntoGeneral(arts);
+          if (!added) { firstMacro = false; return; }
+          if (!firstMacro) {
+            arts.forEach(function (a) {
+              if (a.id && !before.has(titleKey(a))) FRESH_IDS.add(a.id);
+            });
+          }
+          firstMacro = false;
+          if (newsMode === "tape" && newsTabVisible()) renderGeneral();
+        }).catch(function () {});
+    }
     let firstLive = true;
     function loadLiveNews() {
       fetch(SUPA_URL + "/rest/v1/news_live?select=id,headline,summary,source," +
@@ -19908,7 +19930,7 @@
       if (pulse)      pulse.classList.toggle("nc-hidden", !tape);
       if (colTicker)  colTicker.classList.toggle("nc-hidden", tape);
       setLiveStatus();
-      if (tape) { loadGeneral(); loadLiveNews(); }
+      if (tape) { loadGeneral(); loadLiveNews(); loadMacroNews(); }
       else if (tkInput.value.trim()) loadTicker(tkInput.value.trim().toUpperCase());
       else tkInput.focus();
     }
@@ -19937,6 +19959,8 @@
     pollT = setInterval(function () { if (tapeActive()) loadGeneral(); }, POLL_MS);
     // Live wire backbone — poll news_live every 15s (REST, no SUPA dependency).
     setInterval(function () { if (tapeActive()) loadLiveNews(); }, 15000);
+    // macro wire refreshes on a 60s cadence (worker caches it at 60s)
+    setInterval(function () { if (tapeActive()) loadMacroNews(); }, 60000);
 
     // ── Real-time push layer (Phase 2) ──
     // The Alpaca→Supabase ingestor writes the news_live table; subscribe to

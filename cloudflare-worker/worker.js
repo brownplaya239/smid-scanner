@@ -1466,6 +1466,58 @@ function simplifyArticle(a) {
 /** News headlines via the Polygon News API. `ticker` either a specific
  *  symbol or "general" for the firehose. Cached at the edge for 5 minutes
  *  since news cadence is well under that. */
+/** Macro/market wire — Finnhub's general-news category. Polygon's news
+ *  product is company-press-release coverage indexed by equity ticker;
+ *  it carries no commodities, Fed, or geopolitics tape, which is why
+ *  headlines like an oil selloff never reached the site. Finnhub's
+ *  general feed (Reuters/CNBC/MarketWatch-sourced) fills that hole.
+ *  Articles are mapped to the same simplified shape the Polygon feed
+ *  uses so every consumer (tape, brief, badges) works unchanged. */
+async function fetchFinnhubMacroNews(env, limit) {
+  if (!env.FINNHUB_API_KEY) {
+    return { error: "FINNHUB_API_KEY not configured in worker environment.",
+             articles: [] };
+  }
+  try {
+    const r = await fetch(
+      "https://finnhub.io/api/v1/news?category=general&token="
+        + env.FINNHUB_API_KEY,
+      { cf: { cacheTtl: 60 }, signal: AbortSignal.timeout(8000) }
+    );
+    if (!r.ok) {
+      return { error: "finnhub " + r.status, status: r.status, articles: [] };
+    }
+    const j = await r.json();
+    const lim = Math.min(Math.max(parseInt(limit) || 60, 1), 200);
+    const articles = (Array.isArray(j) ? j : []).slice(0, lim)
+      .map(function (a) {
+        if (!a || !a.headline) return null;
+        return {
+          id:        "fh-" + (a.id || a.datetime || a.url || ""),
+          title:     a.headline || "",
+          url:       a.url || "",
+          publisher: a.source || "Finnhub",
+          favicon:   "",
+          published: a.datetime
+            ? new Date(a.datetime * 1000).toISOString() : "",
+          tickers:   a.related
+            ? String(a.related).split(",").filter(Boolean).slice(0, 6)
+            : [],
+          description: a.summary ? String(a.summary).slice(0, 400) : "",
+          keywords:  [a.category || "general", "macro"],
+          image:     a.image || "",
+          insights:  [],
+          macro:     true,
+        };
+      }).filter(Boolean);
+    return { count: articles.length, articles: articles, source: "finnhub" };
+  } catch (e) {
+    const msg = e && e.name === "TimeoutError"
+      ? "Finnhub news upstream timeout" : String(e);
+    return { error: msg, articles: [] };
+  }
+}
+
 async function fetchPolygonNews(env, ticker, limit) {
   if (!env.POLYGON_API_KEY) {
     return { error: "POLYGON_API_KEY not configured in worker environment.",
@@ -3442,6 +3494,23 @@ export default {
         const hit = await cache.match(request);
         if (hit) return hit;
         const tk = newsParam.trim();
+        // ?news=macro — the Finnhub macro/market wire (commodities,
+        // Fed, geopolitics). Cached ~60s: Finnhub free tier allows
+        // 60 req/min and the in-memory cache shares one batch.
+        if (tk.toLowerCase() === "macro") {
+          const mlim = url.searchParams.get("limit") || 60;
+          const mkey = "news:macro:" + mlim;
+          let mdata = memGet(mkey, 60_000);
+          if (!mdata) {
+            mdata = await fetchFinnhubMacroNews(env, mlim);
+            memPut(mkey, mdata);
+          }
+          const mresp = Response.json(mdata, {
+            headers: { ...cors, "Cache-Control": "public, max-age=60" },
+          });
+          ctx.waitUntil(cache.put(request, mresp.clone()));
+          return mresp;
+        }
         if (tk !== "general" && !/^[A-Z.\-]{1,8}$/i.test(tk)) {
           return Response.json(
             { error: `Invalid ticker: "${tk}"`, articles: [] },

@@ -164,6 +164,10 @@ def to_record(article, tickers=()):
         "tier": source_tier(article),
         "tickers": [t.upper() for t in (article.get("tickers") or [])],
         "why": _why(article, tickers),
+        # the macro wire (?news=macro) is market news by construction —
+        # the flag survives into the record so the market-moving gate
+        # never re-litigates it against the keyword lexicon
+        "macro": bool(article.get("macro")),
     }
 
 
@@ -184,14 +188,17 @@ def _dedupe(records):
 # instrument -- otherwise it is somebody's press release.
 MACRO_TERMS = (
     "federal reserve", "fed ", "fomc", "interest rate", "rate cut",
-    "rate hike", "inflation", "cpi", "ppi", "jobs report", "payroll",
-    "unemployment", "gdp", "recession", "tariff", "treasury yield",
-    "treasury yields", "bond yields", "s&p 500", "nasdaq composite",
-    "nasdaq 100", "dow jones", "russell 2000", "stock market",
-    "wall street", "crude oil", "oil prices", "opec", "dollar index",
-    "earnings season", "jobless claims", "consumer confidence",
-    "market rebound", "market selloff", "market rally", "risk-off",
-    "risk-on", "volatility", "vix",
+    "rate hike", "rate decision", "inflation", "cpi", "ppi",
+    "jobs report", "payroll", "unemployment", "gdp", "recession",
+    "tariff", "treasury yield", "treasury yields", "bond yields",
+    "s&p 500", "nasdaq composite", "nasdaq 100", "dow jones",
+    "russell 2000", "stock market", "wall street", "crude oil",
+    "oil prices", "brent", "wti", "natural gas", "gold prices", "opec",
+    "dollar index", "earnings season", "jobless claims",
+    "consumer confidence", "market rebound", "market selloff",
+    "market rally", "risk-off", "risk-on", "volatility", "vix",
+    "iran", "sanctions", "ceasefire", "middle east", "geopolitical",
+    "ecb", "bank of japan", "trade deal", "trade war", "trade talks",
 )
 INDEX_TICKERS = ("SPY", "QQQ", "IWM", "DIA", "VOO", "IVV")
 MAX_AGE_HOURS = 26          # one session plus the overnight tape
@@ -203,6 +210,8 @@ _MACRO_RX = None
 def is_market_moving(record):
     """Matched on word boundaries: substring matching made "fed " miss
     "Fed holds" at the start of a line and let "oil" match "spoiled"."""
+    if record.get("macro"):
+        return True
     global _MACRO_RX
     if _MACRO_RX is None:
         import re
@@ -365,6 +374,10 @@ def load(watch_tickers, as_of=None, max_market=3, max_watch=3, live=True,
         return select([], [], watch_tickers, max_market, max_watch, as_of,
                       priority=priority)
     general = fetch("general", limit=60)
+    # the Finnhub macro wire (commodities / Fed / geopolitics) — the
+    # Polygon feed carries none of it, so without this the market
+    # section can only ever show company press releases
+    general.extend(fetch("macro", limit=40))
     for ix in ("SPY", "QQQ"):
         general.extend(fetch(ix, limit=10))
     per = []
@@ -406,6 +419,23 @@ def self_test():
     chk("a real headline is kept",
         not is_low_value({"url": "https://reuters.com/x",
                           "title": "GE Vernova raises full-year guidance"}))
+    # macro wire + expanded lexicon: the headlines the Polygon feed
+    # never carried must classify as market-moving once they arrive
+    chk("a Brent headline is market-moving",
+        is_market_moving({"headline": "Brent oil falls more than 5%, "
+                                      "trades below $84 a barrel",
+                          "tickers": []}))
+    chk("a geopolitics headline is market-moving",
+        is_market_moving({"headline": "US-Iran close to resurrecting "
+                                      "failed MoU deal", "tickers": []}))
+    chk("a macro-wire record passes the gate regardless of wording",
+        is_market_moving({"headline": "Stocks jump at the open",
+                          "tickers": [], "macro": True}))
+    chk("the macro flag survives to_record",
+        to_record({"title": "Gold prices hit record", "url":
+                   "https://reuters.com/g", "publisher": "Reuters",
+                   "published": "2026-07-22T12:00:00Z",
+                   "macro": True})["macro"] is True)
 
     mkt = [{"title": "Treasury yields ease after auction",
             "url": "https://treasury.gov/z", "publisher": "US Treasury",

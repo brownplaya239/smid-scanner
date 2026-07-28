@@ -46,3 +46,10 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: cloudflare-worker
           command: deploy
+          # Sync the Finnhub key (already a GitHub Actions secret) into
+          # the worker's environment for the ?news=macro wire. The value
+          # never touches the repo or any local machine.
+          secrets: |
+            FINNHUB_API_KEY
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
