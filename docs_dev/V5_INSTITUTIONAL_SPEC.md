@@ -54,3 +54,17 @@ This file is the canonical build contract; phases track in the task list.)
 
 ## Full original specification
 (verbatim, for reference)
+
+## Completion contract (2026-07-28, sections 1-20 + universal engine)
+Received in full; governs tasks #262-266 and successors. Key gates:
+v5 appendices (14-section order, hash-tied), HistoricalValuationRange
+vs ScenarioSet split (no scenario language in historical mode),
+IA underwriting-based (PROVISIONAL/NOT_UNDERWRITTEN; never mean
+reversion as expected return), FrameworkCoverage 26 dims,
+Sundheim decision object, FULL_THIN routing (NOW/HOOD/SG expected),
+sector adapters (brokerage/restaurant/subscription/new-listing),
+evidence-ledger-resolving refs + counterevidence relevance,
+pre-earnings event state, typed checkpoints, 5-way confidence split,
+semantic validation set (~27 checks) each with recorded mutation
+proofs, universal-ticker enforcement incl. company names, unseen-
+ticker suite across 9 sectors. Definition of done as stated.
