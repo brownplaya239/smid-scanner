@@ -375,7 +375,7 @@ prove("M46-sparse-interior-page", "a 10%-occupancy interior appendix "
 prove("M44-wrong-source-commit", "artifact recording a commit that is "
       "not the generating commit", "PROVENANCE_VALID",
       "commit mismatch detected",
-      CK.provenance_issues({"generator_version": "v5.7",
+      CK.provenance_issues({"generator_version": "v5.8",
                             "source_commit_sha": "aaaa",
                             "git_tree_sha": "t", "generated_at": "x",
                             "report_id": "r",
