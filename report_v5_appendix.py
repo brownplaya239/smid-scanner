@@ -76,6 +76,18 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
         _n[0] += 1
         return para("%d. %s" % (_n[0], SECTION_TITLES[idx - 1]), "h2")
 
+    # §5: a section that opens with prose keeps its heading and the
+    # intro paragraph together — a page break must never strand half a
+    # sentence at the top of the next page.
+    from reportlab.platypus import KeepTogether as _KT
+
+    def _keep_intro(st_list):
+        """Fold the last two appended flowables (heading + intro para)
+        into one KeepTogether block."""
+        intro = st_list.pop()
+        head = st_list.pop()
+        st_list.append(_KT([head, intro]))
+
     st = [para(APPENDIX_KIND, "h2"),
           para("Companion to the Equity Research v5 core report on %s "
                "(report ID %s). Generated from the same canonical "
@@ -153,6 +165,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                    "NOT_ASSESSED with the evidence that would move it. "
                    "No industry conclusion in the core rests on them.",
                    "body"))
+    _keep_intro(st)
     st.append(_table([[FW.DIM_LABELS[k],
                        _clean("; ".join((dims.get(k) or {}).get(
                            "next_evidence_needed") or []))]
@@ -170,6 +183,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                       _clean(ad.get("reason") or "no adapter"),
                       _clean((dims.get("unit_economics") or {}).get(
                           "conclusion") or "not assessed")), "body"))
+    _keep_intro(st)
     for note in ad.get("notes") or []:
         st.append(para("&bull; %s" % _clean(note), "small"))
     if ad.get("key"):
@@ -188,6 +202,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                    "makes no management claim. Insider transactions "
                    "(section 11) are mechanical records, not a "
                    "management assessment.", "body"))
+    _keep_intro(st)
     st.append(_table([[FW.DIM_LABELS[k],
                        _clean("; ".join((dims.get(k) or {}).get(
                            "next_evidence_needed") or []))]
@@ -200,6 +215,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
     st.append(sec(6))
     st.append(para(_clean((dims.get("accounting_quality") or {}).get(
         "conclusion") or "not assessed"), "body"))
+    _keep_intro(st)
     st.append(para("Earnings quality: %s. Cash conversion: %s."
                    % (_clean((dims.get("earnings_quality") or {}).get(
                        "conclusion") or "not assessed"),
@@ -220,6 +236,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
                       _clean((g.get("ttm") or {}).get("through")
                              or "n/a"),
                       _clean(g.get("basis") or "n/a")), "body"))
+    _keep_intro(st)
     for gap in g.get("gaps") or []:
         st.append(para("&bull; %s" % _clean(gap), "small"))
 
