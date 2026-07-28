@@ -60,13 +60,25 @@ def build_view(ticker, override=None):
         has_options = bool(PG.option_chain(ticker, limit=10, max_pages=1))
     except Exception:
         pass
-    arch = A.decide(snap, v4.get("event") or {}, multiples,
-                    has_options=has_options, override=override)
+    # v5.5 capability routing: archetype from CompanyProfile +
+    # EvidenceCapability, never ticker identity. The record carries the
+    # categories present/absent and the full reason chain.
+    import report_v5_capability as CAP
+    profile = CAP.company_profile(snap, multiples)
+    capability = CAP.evidence_capability(snap, multiples, estimates,
+                                         has_options)
+    arch = CAP.route(profile, capability, v4.get("event") or {},
+                     multiples, has_options=has_options,
+                     override=override,
+                     override_author="cli" if override else None,
+                     override_reason="--archetype flag" if override
+                     else None)
     print("  [v5] archetype: %s (%s)" % (arch["archetype"],
-                                         arch["reasons"][0][:70]))
+                                         arch["routing_reason"][:70]))
     view5 = {"v4": v4, "archetype": arch, "multiples": multiples,
              "scenarios": scenarios, "claims": claims, "grid": grid,
-             "has_options": has_options, "estimates": estimates}
+             "has_options": has_options, "estimates": estimates,
+             "profile": profile}
     return snap, prov, view5
 
 
@@ -151,7 +163,9 @@ def validate(view5, core_pdf, rendered, apx_pdf=None):
             "ticker": (view5["v4"] or {}).get("ticker"),
             "archetype": arch["archetype"],
             "router": {"reasons": arch["reasons"],
-                       "override": arch.get("override")},
+                       "override": arch.get("override"),
+                       "categories_present": arch.get("categories_present"),
+                       "categories_absent": arch.get("categories_absent")},
             "checks": checks,
             "blocking_failures": [c["check_id"] for c in fatal],
             "ok": not fatal}
