@@ -24213,7 +24213,19 @@
     //
     // When the market is closed, both tiers stop firing. Static
     // last-quote state is what the user wants overnight.
-    loadAndRender();
+    //
+    // Boot: when the user lands on a non-Desk route (deep link like
+    // #uoa), delay this 12-file fetch+parse burst a few seconds so the
+    // active tab renders first — it was competing with the visible
+    // route's own load for CPU/network (audible as audio stutter on
+    // machines mid-call). TD_DATA consumers (search, drilldowns, scan
+    // tables) all tolerate late population.
+    const _bootRoute = document.body.dataset.route;
+    if (_bootRoute && _bootRoute !== "desk" && _bootRoute !== "mydesk") {
+      setTimeout(loadAndRender, 3000);
+    } else {
+      loadAndRender();
+    }
     // Hydrate on Desk ACTIVATION — the route-gated initial pass above
     // skips hidden panels, so the first switch to Desk fills the chips
     // immediately instead of waiting for the 60s tick.
@@ -26332,6 +26344,15 @@
           '<span class="ufh-chips-label">Top 5 by score:</span>' +
           chips + '</div>' : '');
     }
+    // Hoisted out of the row loop below: constructing a timezone-aware
+    // Intl.DateTimeFormat is ~0.5-1ms each — at 300 rows per render that
+    // was the largest single main-thread cost of every table build.
+    const UOA_ET_FMT = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      month: "2-digit", day: "2-digit",
+      hour: "numeric", minute: "2-digit", second: "2-digit",
+      hour12: true,
+    });
     function renderBody() {
       renderChips();
       const tb = $("uoa-body");
@@ -26413,12 +26434,7 @@
           // NYC standard format — 12-hour clock with AM/PM. Tab-aligned
           // via tabular-nums on the parent. dayPeriod gives the AM/PM
           // token in its own part so we render it as a small superscript.
-          const etParts = new Intl.DateTimeFormat("en-US", {
-            timeZone: "America/New_York",
-            month: "2-digit", day: "2-digit",
-            hour: "numeric", minute: "2-digit", second: "2-digit",
-            hour12: true,
-          }).formatToParts(d).reduce(function (acc, p) {
+          const etParts = UOA_ET_FMT.formatToParts(d).reduce(function (acc, p) {
             acc[p.type] = p.value; return acc;
           }, {});
           const dateLbl = etParts.month + "/" + etParts.day;
