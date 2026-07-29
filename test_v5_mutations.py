@@ -375,7 +375,7 @@ prove("M46-sparse-interior-page", "a 10%-occupancy interior appendix "
 prove("M44-wrong-source-commit", "artifact recording a commit that is "
       "not the generating commit", "PROVENANCE_VALID",
       "commit mismatch detected",
-      CK.provenance_issues({"generator_version": "v5.8",
+      CK.provenance_issues({"generator_version": "v5.8.1",
                             "source_commit_sha": "aaaa",
                             "git_tree_sha": "t", "generated_at": "x",
                             "report_id": "r",
@@ -680,6 +680,22 @@ prove("M61-sparse-core-page",
       CK.page_occupancy_issues([0.9, 0.09, 0.5], final_min=0.30,
                                body_min=0.30))
 
+
+
+prove("M62-untraversable-calc-input",
+      "cited CALC whose bar-range input endpoints are not registered",
+      "CALC_INPUTS_RESOLVE_IN_LEDGER",
+      "unresolved input chain detected",
+      CK.calc_input_traversal_issues(
+          {"schema": "v5-claims/2",
+           "claims": [{"claim_id": "x", "claim": "y",
+                       "counterevidence_refs": ["CALC-rsi14"],
+                       "evidence_refs": []}]},
+          {"ids": {"CALC-rsi14": {
+              "kind": "derived_figure", "metric": "rsi14",
+              "calculation": "Wilder RSI(14)",
+              "input_evidence_ids":
+                  ["BAR-2026-06-30..BAR-2026-07-28"]}}}))
 
 # ── write the proofs file ────────────────────────────────────────────
 os.makedirs(os.path.dirname(OUT), exist_ok=True)

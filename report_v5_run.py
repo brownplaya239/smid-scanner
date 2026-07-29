@@ -229,6 +229,7 @@ _MUTATION_REQUIRED = (
     "LEDGER_MERGE_PRESERVES_RICHEST_RECORD",
     "XBRL_CLAIM_REF_IS_COMPLETE",
     "CALC_RECORD_HAS_FORMULA_AND_INPUTS",
+    "CALC_INPUTS_RESOLVE_IN_LEDGER",
     "CLAIM_EVIDENCE_IS_REPRODUCIBLE",
     "NO_STRANDED_VALIDATION_SUMMARY",
     # v5.8.1 review fixes
@@ -930,6 +931,14 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
                          "every published claim is reproducible from "
                          "its evidence refs alone",
                          "; ".join(bad[:4]) or "%d claims reproduce" % _pub_n))
+    bad = CK.calc_input_traversal_issues(cl8, ledger)
+    checks.append(VV.chk("CALC_INPUTS_RESOLVE_IN_LEDGER", not bad,
+                         VV.ERROR,
+                         "every cited CALC's input chain traverses to "
+                         "registered records (range endpoints carry "
+                         "values)",
+                         "; ".join(bad[:3]) or "input chains resolve "
+                         "(%d claims inspected)" % _pub_n))
     checks.append(VV.chk("REPRODUCED_CLAIM_MATCHES_RENDERED_VALUE",
                          not bad, VV.ERROR,
                          "figures quoted in claims reproduce from "
@@ -1110,7 +1119,7 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
     except Exception:
         pass
     return {"schema": "equity-research-v5-validation/1",
-            "generator_version": "v5.8",
+            "generator_version": "v5.8.1",
             "commit_sha": commit_sha,
             "source_commit_sha": commit_sha,
             "git_tree_sha": tree_sha,

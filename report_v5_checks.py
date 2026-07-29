@@ -1352,3 +1352,42 @@ def dashboard_currency_issues(dashboard_rows, core_text=None,
                 out.append("dashboard row %r value %r not found in the "
                            "rendered core" % (label, probe[:30]))
     return out
+
+
+def calc_input_traversal_issues(claims, ledger):
+    """CALC_INPUTS_RESOLVE_IN_LEDGER (v5.8.1 review): the input chain
+    of every cited CALC record must be TRAVERSABLE — each entry in
+    input_evidence_ids resolves to a registered record, or is a bar
+    range "BAR-a..BAR-b" whose BOTH endpoint bars are registered with
+    their values. Interior bars of a range are attested by the closed
+    notation; the full daily series is not shipped (stated
+    limitation)."""
+    known = (ledger or {}).get("ids") or {}
+    out = []
+    seen = set()
+    pub, sch = _published_claims(claims)
+    out.extend(sch)
+    for c in pub:
+        for r in (c.get("evidence_refs") or []) + (
+                c.get("counterevidence_refs") or []):
+            if not (isinstance(r, str) and r.startswith("CALC-")) \
+                    or r in seen:
+                continue
+            seen.add(r)
+            rec = known.get(r)
+            if not isinstance(rec, dict):
+                continue                # completeness check covers this
+            for x in rec.get("input_evidence_ids") or []:
+                x = str(x)
+                if ".." in x:
+                    a, b = (p.strip() for p in x.split("..", 1))
+                    for endp in (a, b):
+                        er = known.get(endp)
+                        if not (isinstance(er, dict)
+                                and er.get("value") is not None):
+                            out.append("CALC %r range input %r: "
+                                       "endpoint %r not registered "
+                                       "with a value" % (r, x, endp))
+                elif x not in known:
+                    out.append("CALC %r input %r unresolved" % (r, x))
+    return out[:15]

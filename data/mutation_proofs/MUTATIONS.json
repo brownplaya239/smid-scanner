@@ -683,9 +683,18 @@
    "observed_failure": "page 2 occupancy 9% (min 30%)",
    "proven": true,
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "cited CALC whose bar-range input endpoints are not registered",
+   "expected_failure": "unresolved input chain detected",
+   "intended_check": "CALC_INPUTS_RESOLVE_IN_LEDGER",
+   "mutation_id": "M62-untraversable-calc-input",
+   "observed_failure": "CALC 'CALC-rsi14' range input 'BAR-2026-06-30..BAR-2026-07-28': endpoint 'BAR-2026-06-30' not registered with a value; CALC 'CALC-rsi14' range input 'BAR-2026-06-30..BAR-2026-07-28': endpoint 'BAR-2026-07-28' not registered with a value",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   }
  ],
- "proven": 76,
+ "proven": 77,
  "schema": "v5-mutation-proofs/1",
- "total": 76
+ "total": 77
 }

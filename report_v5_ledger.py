@@ -131,6 +131,7 @@ def build(snap, view5, report_id=None, issuer_cik=None,
 
     if el_ledger is not None:
         try:
+            _bars = el_ledger._store.get("market_bars") or {}
             for rid, rec in (el_ledger._store.get(
                     "technical_calculations") or {}).items():
                 inputs = rec.get("inputs")
@@ -146,6 +147,31 @@ def build(snap, view5, report_id=None, issuer_cik=None,
                     "units": rec.get("unit"),
                     "note": rec.get("note"),
                 })
+                # §review (v5.8.1): a range input "BAR-a..BAR-b" is only
+                # traversable when its ENDPOINT bars are themselves
+                # registered records — register both with their OHLCV
+                # so the input chain resolves one level down. Interior
+                # bars are attested by the closed range notation; the
+                # full daily series is not shipped (stated limitation).
+                for x in inputs:
+                    if ".." not in str(x):
+                        continue
+                    for bid in (p.strip()
+                                for p in str(x).split("..", 1)):
+                        b = _bars.get(bid)
+                        if b:
+                            _register(ids, bid, {
+                                "kind": "market_bar",
+                                "metric": "daily bar %s"
+                                % b.get("date"),
+                                "value": b.get("close"),
+                                "units": "USD",
+                                "bar": {k: b.get(k) for k in
+                                        ("date", "open", "high",
+                                         "low", "close", "volume")},
+                                "source_type": "licensed market data "
+                                               "(split-adjusted)",
+                            })
         except Exception:
             pass
 
@@ -219,12 +245,37 @@ def build(snap, view5, report_id=None, issuer_cik=None,
                         "calculation": "multiple x trailing metric",
                         "value": r.get("price")})
     if sc.get("available"):
+        # §review (v5.8.1): the anchor stores its INPUT VALUES so a
+        # claim's quoted valuation gap recomputes from this record
+        # alone (price = multiple x metric, gap vs spot)
+        _anchor_vals = None
+        try:
+            import report_v5_scenarios as _S5r
+            _arow = _S5r.anchor(sc)
+            if _arow:
+                _anchor_vals = {
+                    "value": _arow.get("price"),
+                    "input_values": {
+                        "multiple": (_arow.get("multiple")
+                                     or {}).get("value"),
+                        "trailing_metric": (_arow.get("metric")
+                                            or {}).get("value"),
+                        "spot": sc.get("spot")},
+                }
+        except Exception:
+            pass
         _register(ids, "V5-SCENARIO-ANCHOR" if _under
                        else "V5-HISTORICAL-METRIC-ANCHOR",
-                       {"kind": "derived_row",
-                        "metric": "central row of the valuation table",
-                        "calculation": "median multiple x trailing "
-                                       "metric"})
+                       dict({"kind": "derived_row",
+                             "metric": "central row of the valuation "
+                                       "table",
+                             "calculation": "median multiple x "
+                                            "trailing metric",
+                             "input_evidence_ids": [
+                                 "V5-BAND-%s"
+                                 % ((sc.get("band_ref") or {}).get(
+                                     "kind") or "pe")]},
+                            **(_anchor_vals or {})))
     ex = snap.get("exhibit") or {}
     if ex.get("disposition") == "ADMITTED":
         _register(ids, "EXHIBIT-GUIDANCE",

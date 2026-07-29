@@ -334,15 +334,26 @@ def build(ticker, revenue_tags=None):
 
 # ── v5.8 review fix: current balance-sheet instants ──────────────────
 
-# Instant (point-in-time) concept candidates. An issuer that stopped
-# reporting a generic tag (ServiceNow's LongTermDebt died in 2021;
-# Realty Income files NotesPayable) still discloses the position under
-# a successor concept — selection is freshest-end-wins, components
-# summed only at ONE common reporting date.
-INSTANT_DEBT_COMPONENTS = ("LongTermDebtNoncurrent",
-                           "LongTermDebtCurrent")
-INSTANT_DEBT_SINGLE = ("LongTermDebt", "NotesPayable",
-                       "DebtLongtermAndShorttermCombinedAmount")
+# Instant (point-in-time) concept candidates, combined at ONE
+# reporting date with explicit non-overlap rules:
+#   long-term base : LongTermDebtNoncurrent (+ LongTermDebtCurrent at
+#                    the same date), else LongTermDebt (the total-LTD
+#                    tag — current maturities included per taxonomy,
+#                    so LongTermDebtCurrent is NOT re-added), else
+#                    NotesPayable.
+#   short-term add : ONE of DebtCurrent > ShortTermBorrowings >
+#                    CommercialPaper at the same date — these nest
+#                    (commercial paper sits inside short-term
+#                    borrowings), so exactly one is taken. Review
+#                    finding: an issuer whose long-term tag stood
+#                    alone (ServiceNow: LongTermDebt $5.4B) was
+#                    missing its live $2.1B short-term borrowings.
+INSTANT_DEBT_LT_COMPONENTS = ("LongTermDebtNoncurrent",
+                              "LongTermDebtCurrent")
+INSTANT_DEBT_LT_SINGLE = ("LongTermDebt", "NotesPayable",
+                          "DebtLongtermAndShorttermCombinedAmount")
+INSTANT_DEBT_ST = ("DebtCurrent", "ShortTermBorrowings",
+                   "CommercialPaper")
 INSTANT_CASH_TAGS = ("CashAndCashEquivalentsAtCarryingValue",
                      "CashCashEquivalentsRestrictedCashAndRestricted"
                      "CashEquivalents")
@@ -370,38 +381,64 @@ def fresh_instant(ticker, kind):
     the fallback. Universal: concept candidates only, never tickers."""
     import research_live as RL
     cik = RL.cik_for_filed(ticker)[0]
-    if kind == "cash":
-        candidates = [(t,) for t in INSTANT_CASH_TAGS]
-    else:
-        candidates = [INSTANT_DEBT_COMPONENTS] + [
-            (t,) for t in INSTANT_DEBT_SINGLE]
     best = None
-    for tags in candidates:
-        series = [_instants(RL, cik, t) for t in tags]
-        if not series[0]:
-            continue
-        common = set(series[0])
-        for s in series[1:]:
-            common &= set(s)
-        if not common and len(tags) > 1:
-            # noncurrent without a current component still stands alone
-            series, tags = series[:1], tags[:1]
-            common = set(series[0])
-        if not common:
-            continue
-        end = max(common)
-        val = sum(s[end][0] for s in series)
-        cand = {
-            "end": end, "value": val,
-            "concepts": list(tags),
-            "refs": ["XBRL-%s-us-gaap:%s-%s"
-                     % (s[end][1] or "na", t, end)
-                     for t, s in zip(tags, series)],
-            "basis": " + ".join("us-gaap:%s" % t for t in tags)
-            + (" (same reporting date)" if len(tags) > 1 else ""),
-        }
-        if best is None or cand["end"] > best["end"]:
-            best = cand
+    if kind == "cash":
+        for tag in INSTANT_CASH_TAGS:
+            s = _instants(RL, cik, tag)
+            if not s:
+                continue
+            end = max(s)
+            cand = {"end": end, "value": s[end][0], "concepts": [tag],
+                    "refs": ["XBRL-%s-us-gaap:%s-%s"
+                             % (s[end][1] or "na", tag, end)],
+                    "basis": "us-gaap:%s" % tag}
+            if best is None or cand["end"] > best["end"]:
+                best = cand
+    else:
+        # long-term base first: the component pair when the issuer
+        # files it, else a total tag — freshest reporting date wins
+        nc = _instants(RL, cik, "LongTermDebtNoncurrent")
+        cu = _instants(RL, cik, "LongTermDebtCurrent")
+        base = None
+        if nc:
+            end = max(nc)
+            parts = [("LongTermDebtNoncurrent", nc[end])]
+            if end in cu:
+                parts.append(("LongTermDebtCurrent", cu[end]))
+            base = {"end": end, "parts": parts}
+        for tag in INSTANT_DEBT_LT_SINGLE:
+            s = _instants(RL, cik, tag)
+            if s and (base is None or max(s) > base["end"]):
+                end = max(s)
+                base = {"end": end, "parts": [(tag, s[end])]}
+        if base is not None:
+            end = base["end"]
+            parts = list(base["parts"])
+            # exactly ONE short-term instrument at the SAME date —
+            # DebtCurrent > ShortTermBorrowings > CommercialPaper
+            # (they nest; summing two double-counts). DebtCurrent also
+            # SUBSUMES the current-LTD portion, so when the base
+            # already carries LongTermDebtCurrent only the narrower
+            # instruments may add.
+            _has_cu = any(p[0] == "LongTermDebtCurrent" for p in parts)
+            _st = INSTANT_DEBT_ST[1:] if _has_cu else INSTANT_DEBT_ST
+            for tag in _st:
+                s = _instants(RL, cik, tag)
+                if end in s:
+                    parts.append((tag, s[end]))
+                    break
+            best = {
+                "end": end,
+                "value": sum(p[1][0] for p in parts),
+                "concepts": [p[0] for p in parts],
+                "refs": ["XBRL-%s-us-gaap:%s-%s"
+                         % (p[1][1] or "na", p[0], end)
+                         for p in parts],
+                "basis": " + ".join("us-gaap:%s" % p[0]
+                                    for p in parts)
+                + (" (same reporting date)" if len(parts) > 1
+                   else ""),
+            }
     if best is None:
         return None
     from datetime import datetime as _dtm, timezone as _tz
