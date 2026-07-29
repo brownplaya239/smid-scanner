@@ -1283,19 +1283,27 @@ def claim_reproduction_issues(claims, ledger):
             continue
         vals = [rec.get("value") for rec in recs
                 if isinstance(rec.get("value"), (int, float))]
+
+        def _half_unit(numstr):
+            """Rounding tolerance implied by the quoted precision:
+            '19%' was rounded to a whole unit, '19.3%' to a tenth."""
+            dec = len(numstr.split(".")[1]) if "." in numstr else 0
+            return 0.5 * (10 ** -dec) + 0.02
+
         # percentages quoted in the claim reproduce from a cited value
         for m in _PCT_RX.finditer(text):
-            q = float(m.group(1))
-            if not any(abs(v - q) < 0.06 or (
-                    v and abs(100.0 * v - q) < 0.06) for v in vals):
+            q, tol = float(m.group(1)), _half_unit(m.group(1))
+            if not any(abs(v - q) <= tol or (
+                    v and abs(100.0 * v - q) <= tol) for v in vals):
                 out.append("claim %r quotes %s%% — no cited record "
                            "stores that value"
                            % (c.get("claim_id"), m.group(1)))
                 break
         for m in _DOLLAR_RX.finditer(text):
-            q = float(m.group(1)) * (1e9 if m.group(2) == "B" else 1e6)
-            if not any(v and abs(v - q) / max(abs(q), 1) < 0.006
-                       for v in vals):
+            scale = 1e9 if m.group(2) == "B" else 1e6
+            q = float(m.group(1)) * scale
+            tol = _half_unit(m.group(1)) * scale
+            if not any(v and abs(v - q) <= tol for v in vals):
                 out.append("claim %r quotes $%s%s — no cited record "
                            "stores that value"
                            % (c.get("claim_id"), m.group(1),

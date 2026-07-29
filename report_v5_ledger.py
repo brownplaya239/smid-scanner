@@ -239,6 +239,24 @@ def build(snap, view5, report_id=None, issuer_cik=None,
                                "value": o.get("value"),
                                "period_end": o.get("period_end"),
                                "accession": o.get("accession")})
+    # v5.8.1: derived figures quoted inside published claims register
+    # as first-class CALC records (value + formula + inputs), so every
+    # number a claim quotes resolves to a reproducible record
+    for c in ((view5.get("claims") or {}).get("claims") or []) \
+            + ((view5.get("claims") or {}).get("rejected") or []):
+        for df in c.get("derived_figures") or []:
+            if df.get("id"):
+                _register(ids, df["id"], {
+                    "kind": "derived_figure",
+                    "metric": df.get("label"),
+                    "calculation": df.get("formula"),
+                    "value": df.get("value"),
+                    "units": df.get("units"),
+                    "input_evidence_ids":
+                        list(df.get("input_evidence_ids") or []),
+                    "note": df.get("note"),
+                })
+
     # §1 (v5.8): classification evidence — the concept-index record
     # that establishes business stage is registered so the stage is
     # independently reproducible from the ledger
