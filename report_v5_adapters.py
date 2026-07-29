@@ -553,12 +553,21 @@ def build_dashboard(adapter, snap, grid=None):
                 only_v = v1 if v1 is not None else v2
                 only_p = p1 if v1 is not None else p2
                 only_n = "cash" if v1 is not None else "debt"
-                rows.append([slot["label"],
-                             "%s %s (as of %s) / other side not "
-                             "admitted" % (only_n,
-                                           fmt(only_v, "money"),
-                                           only_p or "n/a"),
-                             "filed (SEC XBRL)"])
+                if only_p and only_p < _floor:
+                    # a lone stale instant is no more current than a
+                    # stale pair (the TM 2013 case)
+                    rows.append([slot["label"],
+                                 "not current — %s last filed %s"
+                                 % (only_n, only_p),
+                                 "concept no longer reported by the "
+                                 "issuer"])
+                else:
+                    rows.append([slot["label"],
+                                 "%s %s (as of %s) / other side not "
+                                 "admitted" % (only_n,
+                                               fmt(only_v, "money"),
+                                               only_p or "n/a"),
+                                 "filed (SEC XBRL)"])
         else:
             rows.append([slot["label"], "no admitted source",
                          slot["why"]])

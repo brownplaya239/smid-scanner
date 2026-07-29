@@ -236,6 +236,13 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
                 ce_refs.append("EXHIBIT-GUIDANCE")
             cands.append({
                 "claim_id": "growth-above-bar",
+                "derived_figures": [{
+                    "id": "CALC-claim-growth-bar",
+                    "label": "growth publication bar",
+                    "value": GROWTH_STRONG, "units": "%",
+                    "formula": "policy constant GROWTH_STRONG "
+                               "(v5-claims/2)",
+                    "input_evidence_ids": []}],
                 "claim": "Filed revenue growth of %.1f%% y/y clears the "
                          "%.0f%% bar for a growth thesis"
                          % (growth, GROWTH_STRONG),
@@ -340,6 +347,22 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
                     or ["CALC-revenue_growth"]
             cands.append({
                 "claim_id": "cash-conversion",
+                "derived_figures": [{
+                    "id": "CALC-claim-conversion",
+                    "label": "cash conversion of revenue",
+                    "value": round(conv, 4), "units": "%",
+                    "formula": "100 x quarterly cash flow / quarterly "
+                               "revenue",
+                    "input_evidence_ids": ["CALC-free_cash_flow"
+                                           if fu.get("free_cash_flow")
+                                           else "CALC-operating_cash_"
+                                           "flow", "CALC-revenue_q"]},
+                    {"id": "CALC-claim-conversion-bar",
+                     "label": "cash-conversion publication bar",
+                     "value": FCF_CONV_STRONG, "units": "%",
+                     "formula": "policy constant FCF_CONV_STRONG "
+                                "(v5-claims/2)",
+                     "input_evidence_ids": []}],
                 "claim": "Cash conversion of %.0f%% of revenue clears "
                          "the %.0f%% bar — the model self-funds"
                          % (conv, FCF_CONV_STRONG),
@@ -403,7 +426,29 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
                               % growth)
                     ce_refs += _refs(fu.get("revenue_growth")) \
                         or ["CALC-revenue_growth"]
+                # v5.8.1: the quoted gap is itself a derived figure the
+                # ledger must store — a claim is reproducible only when
+                # every number it quotes resolves to a record
+                _anchor_id = ("V5-SCENARIO-ANCHOR"
+                              if sc.get("mode") == "underwritten"
+                              else "V5-HISTORICAL-METRIC-ANCHOR")
+                _gap_fig = {
+                    "id": "CALC-claim-valuation-gap",
+                    "label": "valuation gap vs the median-implied "
+                             "price",
+                    "value": round(abs(gap), 4),
+                    "units": "%",
+                    "formula": ("100 x (1 - spot / "
+                                "median_implied_price)" if cheap else
+                                "100 x (spot / median_implied_price "
+                                "- 1)"),
+                    "input_evidence_ids": [_anchor_id],
+                    "note": "spot and the median-implied price are "
+                            "quoted verbatim in this claim's support "
+                            "line",
+                }
                 cands.append({
+                    "derived_figures": [_gap_fig],
                     "claim_id": "valuation-vs-history",
                     "claim": "The stock trades at a %.0f%% %s the "
                              "price its %s median trailing multiple "
@@ -542,6 +587,14 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
         cands = kept
 
     # ── the gate ─────────────────────────────────────────────────────
+    # v5.8.1: every derived figure a claim quotes is cited like any
+    # other evidence — its ledger record (registered from
+    # derived_figures) makes the quoted number reproducible
+    for c in cands:
+        for df in c.get("derived_figures") or []:
+            refs = c.setdefault("evidence_refs", [])
+            if df.get("id") and df["id"] not in refs:
+                refs.append(df["id"])
     published, rejected = [], []
     for c in cands:
         # explicit-absence handling: an empty list means "searched and
