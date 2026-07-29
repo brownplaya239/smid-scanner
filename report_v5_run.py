@@ -51,6 +51,15 @@ def build_view(ticker, override=None):
     peers = EP.fetch_peers(ticker)
     v4 = V4.build(snap, estimates=estimates, peers=peers)
 
+    # v5.8 review fix (P1): a stale snapshot cash/debt instant is
+    # replaced by the issuer's freshest filed position (component
+    # concepts summed at one reporting date) BEFORE any analysis runs
+    try:
+        _bs_changed = G5.refresh_balance_instants(snap, ticker)
+        if _bs_changed:
+            print("  [v5] balance instants refreshed: %s" % _bs_changed)
+    except Exception:
+        _bs_changed = {}
     print("  [v5] historical multiples...")
     multiples = M5.build(ticker)
     mk = (prov or {}).get("_mk") or {}
@@ -222,6 +231,9 @@ _MUTATION_REQUIRED = (
     "CALC_RECORD_HAS_FORMULA_AND_INPUTS",
     "CLAIM_EVIDENCE_IS_REPRODUCIBLE",
     "NO_STRANDED_VALIDATION_SUMMARY",
+    # v5.8.1 review fixes
+    "DASHBOARD_VALUES_ARE_CURRENT_AND_SOURCED",
+    "CORE_PAGE_OCCUPANCY",
 )
 
 
@@ -816,7 +828,8 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
     try:
         import report_v5_adapters as _ADP8
         _dash8 = _ADP8.build_dashboard(view5.get("adapter") or
-                                       {"key": "generic"}, snap or {})
+                                       {"key": "generic"}, snap or {},
+                                       view5.get("grid"))
     except Exception:
         _dash8 = []
     bad = CK.serialized_bs_issues(snap or {}, view5, _dash8)
@@ -851,6 +864,28 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
                          "the canonical not-assessed sentence",
                          "; ".join(bad) or "dashboard respects the "
                          "pairing rule"))
+    # v5.8 review fix (P0-2): the VISIBLE dashboard values are dated,
+    # current, and re-found in the rendered core text
+    bad = CK.dashboard_currency_issues(_dash8, text)
+    checks.append(VV.chk("DASHBOARD_VALUES_ARE_CURRENT_AND_SOURCED",
+                         not bad, VV.ERROR,
+                         "every displayed dashboard value is dated, "
+                         "within the recency floor, and present in the "
+                         "rendered core",
+                         "; ".join(bad[:4]) or
+                         "%d rows current and sourced" % len(_dash8)))
+    # v5.8 review fix (P1-3): core pages meet the same density bar the
+    # appendix already meets
+    _core_occ = CK.measure_occupancy(core_pdf)
+    bad = CK.page_occupancy_issues(_core_occ, final_min=0.30,
+                                   body_min=0.30) \
+        if len(_core_occ) > 1 else []
+    checks.append(VV.chk("CORE_PAGE_OCCUPANCY", not bad, VV.ERROR,
+                         "every core page carries at least 30%% "
+                         "occupancy (collapse instead of reserving "
+                         "empty pages)",
+                         "; ".join(bad[:3]) or "pages %s"
+                         % ["%.0f%%" % (r * 100) for r in _core_occ]))
     bad = CK.stale_rendered_support_issues(view5.get("framework"))
     checks.append(VV.chk(
         "STALE_EVIDENCE_CANNOT_SUPPORT_ANY_RENDERED_CONCLUSION",
@@ -861,6 +896,7 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
     # §4 (v5.8): the ledger is reproducible — no null kinds, complete
     # CALC/XBRL records, every ref resolves, quoted figures reproduce
     cl8 = view5.get("claims") or {}
+    _pub_n = len(CK._published_claims(cl8)[0])
     bad = CK.ledger_kind_issues(ledger)
     checks.append(VV.chk("LEDGER_MERGE_PRESERVES_RICHEST_RECORD",
                          not bad, VV.ERROR,
@@ -873,33 +909,33 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
                          VV.ERROR,
                          "every cited CALC record carries formula and "
                          "ordered inputs", "; ".join(bad[:4]) or
-                         "cited CALC records complete"))
+                         "cited CALC records complete (%d claims inspected)" % _pub_n))
     bad = CK.xbrl_claim_ref_issues(cl8, ledger)
     checks.append(VV.chk("XBRL_CLAIM_REF_IS_COMPLETE", not bad,
                          VV.ERROR,
                          "every cited XBRL fact carries accession, "
                          "concept, value, units, period, URL and "
                          "issuer CIK", "; ".join(bad[:4]) or
-                         "cited XBRL records complete"))
+                         "cited XBRL records complete (%d claims inspected)" % _pub_n))
     bad = CK.all_refs_resolve_issues(view5, view5.get("classification"),
                                      ledger)
     checks.append(VV.chk("ALL_EVIDENCE_REFS_RESOLVE", not bad,
                          VV.ERROR,
                          "every reference on every serialized surface "
                          "resolves in the ledger",
-                         "; ".join(bad[:4]) or "all refs resolve"))
+                         "; ".join(bad[:4]) or "all refs resolve (%d claims inspected)" % _pub_n))
     bad = CK.claim_reproduction_issues(cl8, ledger)
     checks.append(VV.chk("CLAIM_EVIDENCE_IS_REPRODUCIBLE", not bad,
                          VV.ERROR,
                          "every published claim is reproducible from "
                          "its evidence refs alone",
-                         "; ".join(bad[:4]) or "claims reproduce"))
+                         "; ".join(bad[:4]) or "%d claims reproduce" % _pub_n))
     checks.append(VV.chk("REPRODUCED_CLAIM_MATCHES_RENDERED_VALUE",
                          not bad, VV.ERROR,
                          "figures quoted in claims reproduce from "
                          "cited ledger values",
-                         "; ".join(bad[:4]) or "quoted figures match "
-                         "stored values"))
+                         "; ".join(bad[:4]) or "quoted figures match stored values "
+                         "(%d claims inspected)" % _pub_n))
 
     # variant wording (§9)
     exp6 = view5.get("expectations") or {}
@@ -1147,7 +1183,8 @@ def run(ticker, out_dir="out_v5", override=None):
     except Exception:
         _cik = None
     snap["cik"] = snap.get("cik") or _cik
-    ledger = LG.build(snap, view5, report_id, issuer_cik=_cik)
+    ledger = LG.build(snap, view5, report_id, issuer_cik=_cik,
+                      el_ledger=(prov or {}).get("_ledger"))
     view5["ledger_hash"] = ledger["hash"]
 
     data, rendered = R5.build_core(snap, view5, core_p, chart_png,

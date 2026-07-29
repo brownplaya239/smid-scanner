@@ -116,11 +116,38 @@ def _walk(obj, found, key=None):
             _walk(v, found, key=key)
 
 
-def build(snap, view5, report_id=None, issuer_cik=None):
-    """-> {schema, ids: {id: record}, hash, issuer_cik}"""
+def build(snap, view5, report_id=None, issuer_cik=None,
+          el_ledger=None):
+    """-> {schema, ids: {id: record}, hash, issuer_cik}
+
+    `el_ledger` (v5.8 review fix): the snapshot's evidence ledger,
+    whose technical_calculations records carry the FORMULA and exact
+    input-bar ranges for every level/indicator CALC — provenance the
+    v5 ledger previously dropped because the snapshot facts only carry
+    refs, not the calc records themselves."""
     ids = {}
     _walk(snap, ids)
     _walk(view5.get("v4") or {}, ids)
+
+    if el_ledger is not None:
+        try:
+            for rid, rec in (el_ledger._store.get(
+                    "technical_calculations") or {}).items():
+                inputs = rec.get("inputs")
+                if not isinstance(inputs, list):
+                    inputs = [inputs] if inputs else []
+                _register(ids, rid, {
+                    "kind": "derived_figure",
+                    "metric": rid[5:] if rid.startswith("CALC-")
+                    else rid,
+                    "calculation": rec.get("formula"),
+                    "input_evidence_ids": [str(x) for x in inputs],
+                    "value": rec.get("output"),
+                    "units": rec.get("unit"),
+                    "note": rec.get("note"),
+                })
+        except Exception:
+            pass
 
     # calc IDs for every calc-versioned figure (CALC-<key>) — the
     # record carries the formula (basis), the ORDERED input evidence

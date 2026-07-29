@@ -474,6 +474,13 @@ def measure_occupancy(pdf_path):
                     spans.append((r.y0, r.y1))
         except Exception:
             pass
+        try:
+            for im in page.get_image_info():
+                bb = im.get("bbox")
+                if bb:
+                    spans.append((bb[1], bb[3]))
+        except Exception:
+            pass
         body = [(t, b) for t, b in spans if 60 < t < h - 50]
         if not body:
             out.append(0.0)
@@ -1014,7 +1021,7 @@ def serialized_bs_issues(snap, view5, dashboard_rows=None):
                                       or str(q.get("question"))[:30]),
               q.get("answer"))
     cl = (view5 or {}).get("claims") or {}
-    for c in (cl.get("published") or []):
+    for c in _published_claims(cl)[0]:
         _scan("claim %r" % c.get("claim_id"), c.get("claim"))
     bq = ((view5 or {}).get("assessment") or {}).get(
         "business_quality") or {}
@@ -1145,13 +1152,39 @@ def ledger_kind_issues(ledger):
     return out[:20]
 
 
+
+def _published_claims(claims_obj):
+    """The published claims of a v5-claims/2 object, plus explicit
+    schema issues. The v5.8 review found five validators iterating a
+    key the builder never wrote ('published'), silently inspecting
+    ZERO claims — so an unrecognized shape now returns loud issues,
+    never a quiet empty list."""
+    cl = claims_obj or {}
+    pub = cl.get("claims")
+    if isinstance(pub, list):
+        return pub, []
+    issues = []
+    for k, v in cl.items():
+        if k != "rejected" and isinstance(v, list) and v                 and isinstance(v[0], dict) and "claim" in v[0]:
+            issues.append("claims object carries %d claim(s) under "
+                          "unrecognized key %r — zero claims would "
+                          "have been inspected" % (len(v), k))
+    if not issues and cl:
+        issues.append("claims object has no 'claims' list "
+                      "(schema %r) — zero claims inspected"
+                      % cl.get("schema"))
+    return [], issues
+
+
 def calc_record_issues(claims, ledger):
     """CALC_RECORD_HAS_FORMULA_AND_INPUTS: every CALC record cited by a
     published claim carries its formula and ordered inputs."""
     known = (ledger or {}).get("ids") or {}
     out = []
     seen = set()
-    for c in (claims or {}).get("published") or []:
+    pub, out2 = _published_claims(claims)
+    out.extend(out2)
+    for c in pub:
         for r in (c.get("evidence_refs") or []) + (
                 c.get("counterevidence_refs") or []):
             if not (isinstance(r, str) and r.startswith("CALC-")) \
@@ -1179,7 +1212,9 @@ def xbrl_claim_ref_issues(claims, ledger):
     known = (ledger or {}).get("ids") or {}
     out = []
     seen = set()
-    for c in (claims or {}).get("published") or []:
+    pub, out2 = _published_claims(claims)
+    out.extend(out2)
+    for c in pub:
         for r in (c.get("evidence_refs") or []) + (
                 c.get("counterevidence_refs") or []):
             if not (isinstance(r, str) and r.startswith("XBRL-")) \
@@ -1213,7 +1248,9 @@ def all_refs_resolve_issues(view5, classification, ledger):
                 out.append("%s ref %r unresolved" % (label, str(r)[:50]))
 
     cl = (view5 or {}).get("claims") or {}
-    for c in cl.get("published") or []:
+    pub_cl, sch_iss = _published_claims(cl)
+    out.extend(sch_iss)
+    for c in pub_cl:
         _chk("claim %s" % c.get("claim_id"), c.get("evidence_refs"))
         _chk("claim %s counter" % c.get("claim_id"),
              c.get("counterevidence_refs"))
@@ -1232,7 +1269,9 @@ def claim_reproduction_issues(claims, ledger):
     value reproduces that figure."""
     known = (ledger or {}).get("ids") or {}
     out = []
-    for c in (claims or {}).get("published") or []:
+    pub, out2 = _published_claims(claims)
+    out.extend(out2)
+    for c in pub:
         text = c.get("claim") or ""
         refs = [r for r in (c.get("evidence_refs") or [])
                 if isinstance(r, str)]
@@ -1262,4 +1301,41 @@ def claim_reproduction_issues(claims, ledger):
                            % (c.get("claim_id"), m.group(1),
                               m.group(2)))
                 break
+    return out
+
+
+# ── v5.8 review fix: dashboard value currency + sourcing ─────────────
+
+def dashboard_currency_issues(dashboard_rows, core_text=None,
+                              today=None):
+    """DASHBOARD_VALUES_ARE_CURRENT_AND_SOURCED: every displayed money
+    or percentage value on the sector dashboard carries its own
+    reporting date, that date is within the recency floor, and (when
+    the rendered core text is supplied) the value string actually
+    appears on the page — the visible dashboard and the validated model
+    can no longer diverge."""
+    from datetime import date, timedelta
+    today = today or date.today()
+    floor = (today - timedelta(days=BS_LATEST_MAX_AGE_DAYS)).isoformat()
+    out = []
+    for row in dashboard_rows or []:
+        if not (isinstance(row, (list, tuple)) and len(row) >= 2):
+            continue
+        label, val = str(row[0]), str(row[1])
+        if "$" not in val and "%" not in val:
+            continue                       # absence/staleness rows
+        m = re.search(r"\(as of (\d{4}-\d{2}-\d{2})\)", val)
+        if not m:
+            out.append("dashboard row %r shows %r without its "
+                       "reporting date" % (label, val[:40]))
+            continue
+        if m.group(1) < floor:
+            out.append("dashboard row %r dated %s — older than the "
+                       "recency floor yet displayed as a value"
+                       % (label, m.group(1)))
+        if core_text is not None:
+            probe = val.split(" (as of")[0]
+            if probe and probe not in re.sub(r"\s+", " ", core_text):
+                out.append("dashboard row %r value %r not found in the "
+                           "rendered core" % (label, probe[:30]))
     return out
