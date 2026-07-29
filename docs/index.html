@@ -7323,7 +7323,11 @@
   // Raw worker quote objects come back untouched, so each caller keeps
   // its own field handling (price/change/prevClose/extended/...).
   const TD_QUOTES = (function () {
-    const TTL = 5 * 60 * 1000, BATCH = 50, MAX_CONC = 3;
+    // BATCH must not exceed the worker's ?quotes= per-request symbol cap
+    // (slice(0,12) server-side) — anything above it is SILENTLY dropped,
+    // which surfaced as permanently blank price chips on the Earnings
+    // calendar (slots got marked done with no data).
+    const TTL = 5 * 60 * 1000, BATCH = 12, MAX_CONC = 3;
     const cache = Object.create(null);     // SYM -> {q, at}
     const pending = Object.create(null);   // SYM -> {promise, resolve}
     let queue = [], timer = null, active = 0;
@@ -19159,8 +19163,15 @@
       });
       const syms = Array.from(byTk.keys());
       {
+        let _map;
         try {
-          const _map = await TD_QUOTES.get(syms);
+          _map = await TD_QUOTES.get(syms);
+        } catch (e) { return; /* transient — retry on next activation */ }
+        // Whole call yielded nothing (worker down / offline): leave the
+        // slots un-marked so the next tab activation retries, instead of
+        // permanently blanking the calendar.
+        if (!_map || (syms.length && !Object.keys(_map).length)) return;
+        {
           Object.keys(_map).map(function (s) { return _map[s]; }
           ).forEach(function (q) {
             const els = byTk.get((q.symbol || "").toUpperCase());
@@ -19199,7 +19210,7 @@
                                  : " — real-time");
             });
           });
-        } catch (e) { /* leave the slots blank; rows still render */ }
+        }
       }
       // mark misses done so we do not refetch a dead symbol every render
       slots.forEach(function (el) { el.classList.add("ant-px-done"); });
