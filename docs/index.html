@@ -19053,8 +19053,25 @@
       // (e.g. NVDA appears across multiple session lists) only cost
       // one upstream Polygon call. Chunk 5 at a time to avoid spawning
       // 40 simultaneous fetches when the page loads.
-      hydrateIvBadges();
-      hydrateCalPrices();
+      //
+      // Route-gated: hydrating a HIDDEN Earnings panel's price/IV
+      // slots on every page load competed with the visible route's
+      // own data. Both hydrators are idempotent (slots marked done),
+      // so the nav hook below re-runs them on tab activation.
+      if (document.body.dataset.route === "whisper") {
+        hydrateIvBadges();
+        hydrateCalPrices();
+      }
+    }
+    const _navWhisperHydrate = document.getElementById("nav");
+    if (_navWhisperHydrate) {
+      _navWhisperHydrate.addEventListener("click", function (e) {
+        if (e.target && e.target.dataset
+            && e.target.dataset.tab === "whisper") {
+          hydrateIvBadges();
+          hydrateCalPrices();
+        }
+      });
     }
     // De-dup hydration: if multiple .ant-iv slots reference the same
     // ticker+date we only fetch once and fan the result out to all DOM
@@ -23825,12 +23842,16 @@
         if (pmbSlot && _pmbNode) pmbSlot.appendChild(_pmbNode);
         const iprSlot = document.getElementById("ipo-slot");
         if (iprSlot && _iprNode) iprSlot.appendChild(_iprNode);
-        // Kick off live-quote hydration in the background. Once each
-        // batch of /quotes lands, hydrateDeskLiveQuotes() walks the
-        // DOM and refreshes every chg-pill in place — converting the
-        // initial "yesterday close" tooltip cohort into "today 15m
-        // delayed" intraday values without a full re-render.
-        hydrateDeskLiveQuotes();
+        // Kick off live-quote hydration in the background — but ONLY
+        // when the Desk is the active route. Landing on another tab
+        // (e.g. Options Flow) must not burn ~20 worker /quotes calls
+        // hydrating a hidden panel's chips and breadth strip; that
+        // burst was measured competing with the visible page's own
+        // data. Desk activation is covered by the nav hook below and
+        // the 60s desk tick.
+        if (document.body.dataset.route === "desk") {
+          hydrateDeskLiveQuotes();
+        }
     }
     function loadAndRender() {
       return fetchDeskData().then(renderDesk);
@@ -24172,6 +24193,18 @@
     // When the market is closed, both tiers stop firing. Static
     // last-quote state is what the user wants overnight.
     loadAndRender();
+    // Hydrate on Desk ACTIVATION — the route-gated initial pass above
+    // skips hidden panels, so the first switch to Desk fills the chips
+    // immediately instead of waiting for the 60s tick.
+    const _navDeskHydrate = document.getElementById("nav");
+    if (_navDeskHydrate) {
+      _navDeskHydrate.addEventListener("click", function (e) {
+        if (e.target && e.target.dataset
+            && e.target.dataset.tab === "desk") {
+          hydrateDeskLiveQuotes();
+        }
+      });
+    }
     setInterval(function () {
       const deskPanel = document.getElementById("panel-desk");
       if (!deskPanel || !deskPanel.classList.contains("active")) return;

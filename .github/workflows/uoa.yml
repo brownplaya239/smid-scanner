@@ -16,11 +16,17 @@ on:
     # dispatches ~9:50, so the open is well-covered. emit_latest dedups.
     - cron: '35 13 * * 1-5'   # ~9:35 AM ET — open
     - cron: '5 14 * * 1-5'    # ~10:05 AM ET
-    # ~Hourly through midday.
+    # ~Every 30 min through the session (v5.8-era lag fix: hourly gaps
+    # + GitHub's 5-20 min cron delay left data up to ~80 min old).
+    - cron: '35 14 * * 1-5'   # ~10:35 AM ET
     - cron: '5 15 * * 1-5'    # ~11:05 AM ET
+    - cron: '35 15 * * 1-5'   # ~11:35 AM ET
     - cron: '5 16 * * 1-5'    # ~12:05 PM ET
+    - cron: '35 16 * * 1-5'   # ~12:35 PM ET
     - cron: '5 17 * * 1-5'    # ~1:05 PM ET
+    - cron: '35 17 * * 1-5'   # ~1:35 PM ET
     - cron: '5 18 * * 1-5'    # ~2:05 PM ET
+    - cron: '35 18 * * 1-5'   # ~2:35 PM ET
     # Denser into the close for final positioning.
     - cron: '5 19 * * 1-5'    # ~3:05 PM ET
     - cron: '35 19 * * 1-5'   # ~3:35 PM ET
