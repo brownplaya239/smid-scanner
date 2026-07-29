@@ -946,6 +946,20 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
                          "; ".join(bad[:4]) or "quoted figures match stored values "
                          "(%d claims inspected)" % _pub_n))
 
+    # named Tiger-26 diligence section in the core (v5.8.3)
+    bad = CK.diligence_matrix_issues(text, view5.get("framework"))
+    _fw_sum = ((view5.get("framework") or {}).get("summary") or {})
+    checks.append(VV.chk("CORE_DILIGENCE_MATRIX_RENDERED", not bad,
+                         VV.ERROR,
+                         "the core carries the named Tiger-26 section: "
+                         "one bullet per assessed dimension with its "
+                         "conclusion, not-assessed count stated",
+                         "; ".join(bad[:4]) or
+                         "%d assessed bullets + %d not-assessed stated"
+                         % (_fw_sum.get("assessed") or 0,
+                            (_fw_sum.get("counts") or {}
+                             ).get("NOT_ASSESSED", 0))))
+
     # variant wording (§9)
     exp6 = view5.get("expectations") or {}
     var_ok = bool((exp6.get("variant") or {}).get("available"))
@@ -1119,7 +1133,7 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None,
     except Exception:
         pass
     return {"schema": "equity-research-v5-validation/1",
-            "generator_version": "v5.8.1",
+            "generator_version": "v5.8.3",
             "commit_sha": commit_sha,
             "source_commit_sha": commit_sha,
             "git_tree_sha": tree_sha,

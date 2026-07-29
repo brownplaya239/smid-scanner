@@ -524,6 +524,42 @@ def sundheim_render_issues(apx_text, sd):
     return bad
 
 
+def diligence_matrix_issues(core_text, fw):
+    """v5.8.3: the Tiger-26 diligence section renders in the CORE, by
+    name — heading present; every assessed dimension appears as a
+    bullet carrying the leading words of its stored conclusion; the
+    not-assessed count is stated (never silently dropped)."""
+    import report_v5_framework as FW
+    t = re.sub(r"\s+", " ", core_text or "")
+    dims = (fw or {}).get("dimensions") or {}
+    if not dims:
+        return []
+    if "Diligence matrix (Tiger 26 dimensions)" not in t:
+        return ["core is missing the named 'Diligence matrix (Tiger 26 "
+                "dimensions)' section"]
+    bad = []
+    for k in FW.TIGER_DIMENSIONS:
+        d = dims.get(k) or {}
+        if d.get("status") not in (FW.UNDERWRITTEN, FW.PARTIAL):
+            continue
+        label = FW.DIM_LABELS.get(k, k)
+        if label not in t:
+            bad.append("assessed dimension %r has no bullet in the "
+                       "core diligence section" % label)
+            continue
+        probe = re.sub(r"\s+", " ",
+                       str(d.get("conclusion") or ""))[:24].strip()
+        if probe and probe not in t:
+            bad.append("dimension %r bullet does not carry its "
+                       "conclusion (probe %r)" % (label, probe))
+    counts = ((fw or {}).get("summary") or {}).get("counts") or {}
+    na = counts.get(FW.NOT_ASSESSED, 0)
+    if na and ("Not assessed (%d" % na) not in t:
+        bad.append("core diligence section does not state the %d "
+                   "not-assessed dimensions" % na)
+    return bad
+
+
 def sundheim_header_issues(page_texts, sd=None):
     """§5: a page carrying Sundheim answer rows without the section
     start must repeat the table header. A page counts as carrying rows
