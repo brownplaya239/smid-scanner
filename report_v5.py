@@ -155,7 +155,8 @@ def _p1_dashboard(snap, view5):
         _cl0 = (view5.get("claims") or {}).get("claims") or []
         _cp0 = next((c.get("next_checkpoint") for c in _cl0
                      if c.get("next_checkpoint")), None)
-        st.append(para("<b>Underwriting status: %s</b> &middot; thesis "
+        st.append(para("<b>Underwriting decision (Sundheim record) "
+                       "&mdash; status: %s</b> &middot; thesis "
                        "type: %s &middot; framework coverage: %d of %d "
                        "dimensions assessed &middot; valuation basis: "
                        "%s."
@@ -422,6 +423,59 @@ def _p2_argument(snap, view5):
                               _clean("; ".join(r["failed_gates"]))),
                            "small"))
     st, _ = _fit_page(st, [], "v5-p2")
+    return st
+
+
+def _p_diligence(snap, view5):
+    """Named Tiger-26 diligence section: one bullet per assessed
+    dimension with its conclusion; unassessed dimensions stay a single
+    honest line (no admitted source -> never inferred)."""
+    import report_v5_framework as FW
+    fw = view5.get("framework") or {}
+    dims = fw.get("dimensions") or {}
+    if not dims:
+        return []
+    fsum = fw.get("summary") or {}
+    st = [para("Diligence matrix (Tiger 26 dimensions)", "h2"),
+          para("%d of %d dimensions carry at least a partial "
+               "underwriting. Full per-dimension table (evidence refs, "
+               "next evidence needed) and the Sundheim decision record: "
+               "appendix sections 1&ndash;2."
+               % (fsum.get("assessed") or 0,
+                  fsum.get("total") or len(FW.TIGER_DIMENSIONS)),
+               "small")]
+    _status_h = {FW.UNDERWRITTEN: "underwritten",
+                 FW.PARTIAL: "partially assessed"}
+    n_assessed = 0
+    na, inapplicable = [], []
+    for k in FW.TIGER_DIMENSIONS:
+        d = dims.get(k) or {}
+        label = FW.DIM_LABELS.get(k, k)
+        if d.get("status") in (FW.UNDERWRITTEN, FW.PARTIAL):
+            n_assessed += 1
+            st.append(para("&bull; <b>%s</b> &mdash; %s <i>(%s, %s "
+                           "confidence)</i>"
+                           % (_clean(label),
+                              _clean(d.get("conclusion") or ""),
+                              _status_h[d["status"]],
+                              _clean(d.get("confidence") or "low")),
+                           "small", INFERRED))
+        elif d.get("status") == FW.NOT_APPLICABLE:
+            inapplicable.append(label)
+        else:
+            na.append(label)
+    if not n_assessed:
+        st.append(para("No dimension carries an admitted source; "
+                       "nothing is inferred in its place.", "small"))
+    if na:
+        st.append(para("Not assessed (%d &mdash; no admitted source; "
+                       "not inferred): %s." % (len(na),
+                                               _clean(", ".join(na))),
+                       "small"))
+    if inapplicable:
+        st.append(para("Not applicable under the sector policy: %s."
+                       % _clean(", ".join(inapplicable)), "small"))
+    st, _ = _fit_page(st, [], "v5-diligence")
     return st
 
 
@@ -903,8 +957,10 @@ def build_core(snap, view5, out_path=None, chart_png=None,
             (view5.get("scenarios") or {}).get("available"))
         rendered["argument"] = True
         rendered["financial_grid"] = True
+        rendered["diligence_matrix"] = True
         seg_builders = [lambda: _p1_dashboard(snap, view5),
                         lambda: _p2_argument(snap, view5),
+                        lambda: _p_diligence(snap, view5),
                         lambda: _p3_grid(snap, view5)]
         if rendered["valuation_table"] or arch in (A.FULL, A.FULL_THIN):
             seg_builders.append(lambda: _p4_valuation(snap, view5))
