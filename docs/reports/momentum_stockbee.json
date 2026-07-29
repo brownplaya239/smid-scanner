@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-28T18:34:46-04:00",
+ "updated": "2026-07-29T16:34:03-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -8048,6 +8048,111 @@
      "adr_pct": 6.39,
      "dollar_vol": 1280681554,
      "ern": "Aug 11"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-29",
+   "generated": "2026-07-29T16:34:03-04:00",
+   "count": 7,
+   "rows": [
+    {
+     "ticker": "NOW",
+     "price": 115.76,
+     "chg": 21.27,
+     "adr_pct": 5.62,
+     "dollar_vol": 2529402860,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "CRM",
+     "price": 188.38,
+     "chg": 15.57,
+     "adr_pct": 4.03,
+     "dollar_vol": 2177137676,
+     "ern": "Sep 02"
+    },
+    {
+     "ticker": "ADBE",
+     "price": 263.43,
+     "chg": 20.64,
+     "adr_pct": 4.28,
+     "dollar_vol": 1319167749,
+     "ern": "Sep 10"
+    },
+    {
+     "ticker": "INTU",
+     "price": 333.13,
+     "chg": 17.11,
+     "adr_pct": 4.68,
+     "dollar_vol": 1257799620,
+     "ern": "Aug 20"
+    },
+    {
+     "ticker": "ACN",
+     "price": 173.17,
+     "chg": 23.61,
+     "adr_pct": 4.78,
+     "dollar_vol": 1236765252,
+     "ern": "Sep 24"
+    },
+    {
+     "ticker": "ROP",
+     "price": 408.07,
+     "chg": 21.19,
+     "adr_pct": 3.31,
+     "dollar_vol": 324564768,
+     "ern": "Oct 22"
+    },
+    {
+     "ticker": "CAKE",
+     "price": 101.14,
+     "chg": 18.04,
+     "adr_pct": 3.72,
+     "dollar_vol": 143790888,
+     "ern": "Oct 27"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "SYK",
+     "price": 352.25,
+     "chg": 13.91,
+     "adr_pct": 2.91,
+     "dollar_vol": 775955468,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "HPQ",
+     "price": 28.41,
+     "chg": 13.19,
+     "adr_pct": 4.02,
+     "dollar_vol": 358251977,
+     "ern": "Aug 26"
+    },
+    {
+     "ticker": "BKNG",
+     "price": 201.3,
+     "chg": 13.18,
+     "adr_pct": 3.49,
+     "dollar_vol": 1122447382,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "SHAK",
+     "price": 63.05,
+     "chg": 12.71,
+     "adr_pct": 4.35,
+     "dollar_vol": 106717050,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "ADP",
+     "price": 273.37,
+     "chg": 12.44,
+     "adr_pct": 2.87,
+     "dollar_vol": 598430679,
+     "ern": "Jul 29"
     }
    ]
   }
