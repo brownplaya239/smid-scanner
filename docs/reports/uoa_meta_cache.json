@@ -742,10 +742,10 @@
 "sector": "Energy"
 },
 "ARCC": {
-"earnings_date": "2026-07-28",
+"earnings_date": "2026-07-29",
 "earnings_session": "BMO",
-"fetched": "2026-06-23",
-"mkt_cap": 12945951895.35,
+"fetched": "2026-07-29",
+"mkt_cap": 13671154968.8,
 "sector": "Other"
 },
 "ARE": {
@@ -1689,8 +1689,8 @@
 "BUD": {
 "earnings_date": "2026-07-30",
 "earnings_session": "BMO",
-"fetched": "2026-06-29",
-"mkt_cap": 164538386219.75,
+"fetched": "2026-07-29",
+"mkt_cap": 160707185516.80002,
 "sector": "Other"
 },
 "BUG": {
@@ -3138,8 +3138,8 @@
 "DXYZ": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-16",
-"mkt_cap": 808254065.9200001,
+"fetched": "2026-07-29",
+"mkt_cap": 687914693.12,
 "sector": "Other"
 },
 "EA": {
@@ -4097,8 +4097,8 @@
 "FVRR": {
 "earnings_date": "2026-07-29",
 "earnings_session": "BMO",
-"fetched": "2026-06-18",
-"mkt_cap": 345846003.35999995,
+"fetched": "2026-07-29",
+"mkt_cap": 416668937.52,
 "sector": "Other"
 },
 "FWONK": {
@@ -6337,8 +6337,8 @@
 "MP": {
 "earnings_date": "2026-08-06",
 "earnings_session": "AMC",
-"fetched": "2026-07-13",
-"mkt_cap": 9294538957.58,
+"fetched": "2026-07-29",
+"mkt_cap": 7348756333.440001,
 "sector": "Materials / Metals"
 },
 "MPC": {
@@ -7380,8 +7380,8 @@
 "PANW": {
 "earnings_date": "2026-08-18",
 "earnings_session": "AMC",
-"fetched": "2026-07-17",
-"mkt_cap": 288501850000.0,
+"fetched": "2026-07-29",
+"mkt_cap": 259985000000.0,
 "sector": "Tech / Hardware"
 },
 "PAR": {
@@ -10813,6 +10813,13 @@
 "fetched": "2026-07-07",
 "mkt_cap": 1445014000.35,
 "sector": "Healthcare / Biotech"
+},
+"XIFR": {
+"earnings_date": "2026-10-28",
+"earnings_session": "BMO",
+"fetched": "2026-07-29",
+"mkt_cap": 1114304436.9,
+"sector": "Utilities"
 },
 "XMTR": {
 "earnings_date": "2026-08-04",
