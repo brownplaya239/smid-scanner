@@ -595,7 +595,7 @@ _M56_LEDGER = {"ids": {
     "CALC-revenue_growth": {"kind": "derived_figure",
                             "metric": "revenue_growth"},
 }}
-_M56_CLAIMS = {"published": [
+_M56_CLAIMS = {"schema": "v5-claims/2", "claims": [
     {"claim_id": "growth-above-bar", "claim": "revenue grew",
      "evidence_refs": ["XBRL-9-us-gaap:Revenues-2026-03-31",
                        "CALC-revenue_growth"]}]}
@@ -616,9 +616,10 @@ prove("M56c-claim-figure-not-reproducible",
       "CLAIM_EVIDENCE_IS_REPRODUCIBLE",
       "irreproducible quoted figure detected",
       CK.claim_reproduction_issues(
-          {"published": [{"claim_id": "growth-above-bar",
-                          "claim": "revenue grew 23.5% year over year",
-                          "evidence_refs": ["CALC-revenue_growth"]}]},
+          {"schema": "v5-claims/2",
+           "claims": [{"claim_id": "growth-above-bar",
+                       "claim": "revenue grew 23.5% year over year",
+                       "evidence_refs": ["CALC-revenue_growth"]}]},
           {"ids": {"CALC-revenue_growth": {
               "kind": "derived_figure", "value": 11.2}}}))
 
@@ -644,6 +645,40 @@ prove("M58-stranded-validation-summary",
            "artifact hashes Binding record for this package sha256 "
            "abc123"],
           [0.9, 0.30]))
+
+
+
+prove("M59-wrong-claims-schema",
+      "the v5.7 defect itself: claims delivered under a key the "
+      "validators never read ('published') — five checks inspected "
+      "ZERO claims and passed",
+      "XBRL_CLAIM_REF_IS_COMPLETE",
+      "unrecognized claims shape is an explicit failure, never a "
+      "silent PASS",
+      CK.xbrl_claim_ref_issues(
+          {"schema": "v5-claims/2",
+           "published": [{"claim_id": "x", "claim": "y",
+                          "evidence_refs": [
+                              "XBRL-9-us-gaap:Revenues-2026-03-31"]}]},
+          _M56_LEDGER))
+
+prove("M60-stale-dashboard-value",
+      "the JPM defect: a 2014 quarterly-revenue value displayed on the "
+      "sector dashboard as if current",
+      "DASHBOARD_VALUES_ARE_CURRENT_AND_SOURCED",
+      "stale or undated displayed value detected",
+      CK.dashboard_currency_issues(
+          [["Quarterly revenue", "$23.42B (as of 2014-09-30)",
+            "filed (SEC XBRL)"],
+           ["Net margin", "31.0%", "filed (SEC XBRL)"]]))
+
+prove("M61-sparse-core-page",
+      "a core report reserving a 9%-occupancy page instead of "
+      "collapsing",
+      "CORE_PAGE_OCCUPANCY",
+      "sparse core page detected",
+      CK.page_occupancy_issues([0.9, 0.09, 0.5], final_min=0.30,
+                               body_min=0.30))
 
 
 # ── write the proofs file ────────────────────────────────────────────

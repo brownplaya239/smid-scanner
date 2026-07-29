@@ -203,7 +203,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
         st.append(para("&bull; %s" % _clean(note), "small"))
     if ad.get("key"):
         import report_v5_adapters as ADP
-        drows = ADP.build_dashboard(ad, snap)
+        drows = ADP.build_dashboard(ad, snap, view5.get("grid"))
         st.append(_table([[_clean(a), _clean(b), _clean(c)]
                           for a, b, c in drows],
                          [BODY_W * .38, BODY_W * .26, BODY_W * .26],

@@ -310,6 +310,16 @@ def build(ticker, revenue_tags=None):
            "cells": cells,
            "suppressed": suppressed,
            "revenue_concept": rev_tag,
+           # §2 review fix: the SECTOR DASHBOARD consumes this — the
+           # latest validated quarter of the adapter-aware revenue
+           # stream, period-qualified, so the visible dashboard can
+           # never show a stale generic-tag quarter while the grid
+           # validates a different, current stream
+           "latest_quarter": (
+               {"value": q_rev[-1]["val"], "end": q_rev[-1]["end"],
+                "concept": rev_tag}
+               if q_rev and (_today - M._dt(q_rev[-1]["end"])).days
+               <= M.TTM_MAX_END_AGE else None),
            "integrity": integrity}
 
     return {"ticker": ticker.upper(),
@@ -320,3 +330,115 @@ def build(ticker, revenue_tags=None):
                      "rows rebased to the current share basis); TTM from "
                      "the last four filed quarters; derived rows carry "
                      "their formula"}
+
+
+# ── v5.8 review fix: current balance-sheet instants ──────────────────
+
+# Instant (point-in-time) concept candidates. An issuer that stopped
+# reporting a generic tag (ServiceNow's LongTermDebt died in 2021;
+# Realty Income files NotesPayable) still discloses the position under
+# a successor concept — selection is freshest-end-wins, components
+# summed only at ONE common reporting date.
+INSTANT_DEBT_COMPONENTS = ("LongTermDebtNoncurrent",
+                           "LongTermDebtCurrent")
+INSTANT_DEBT_SINGLE = ("LongTermDebt", "NotesPayable",
+                       "DebtLongtermAndShorttermCombinedAmount")
+INSTANT_CASH_TAGS = ("CashAndCashEquivalentsAtCarryingValue",
+                     "CashCashEquivalentsRestrictedCashAndRestricted"
+                     "CashEquivalents")
+
+
+def _instants(RL, cik, tag):
+    """As-first-reported instant facts {end: (val, accn)} for one tag."""
+    out = {}
+    for r in RL.concept(cik, tag):
+        if r.get("start") or r.get("val") is None or not r.get("end"):
+            continue
+        if r.get("form") not in ("10-Q", "10-K", "20-F", "40-F"):
+            continue
+        e = str(r["end"])[:10]
+        filed = r.get("filed") or "9999"
+        if e not in out or filed < out[e][2]:
+            out[e] = (float(r["val"]), r.get("accn"), filed)
+    return out
+
+
+def fresh_instant(ticker, kind):
+    """-> a snapshot-shaped fact dict for the FRESHEST filed cash or
+    debt position, or None. Debt prefers the component pair
+    (noncurrent + current) at one common date; single-tag concepts are
+    the fallback. Universal: concept candidates only, never tickers."""
+    import research_live as RL
+    cik = RL.cik_for_filed(ticker)[0]
+    if kind == "cash":
+        candidates = [(t,) for t in INSTANT_CASH_TAGS]
+    else:
+        candidates = [INSTANT_DEBT_COMPONENTS] + [
+            (t,) for t in INSTANT_DEBT_SINGLE]
+    best = None
+    for tags in candidates:
+        series = [_instants(RL, cik, t) for t in tags]
+        if not series[0]:
+            continue
+        common = set(series[0])
+        for s in series[1:]:
+            common &= set(s)
+        if not common and len(tags) > 1:
+            # noncurrent without a current component still stands alone
+            series, tags = series[:1], tags[:1]
+            common = set(series[0])
+        if not common:
+            continue
+        end = max(common)
+        val = sum(s[end][0] for s in series)
+        cand = {
+            "end": end, "value": val,
+            "concepts": list(tags),
+            "refs": ["XBRL-%s-us-gaap:%s-%s"
+                     % (s[end][1] or "na", t, end)
+                     for t, s in zip(tags, series)],
+            "basis": " + ".join("us-gaap:%s" % t for t in tags)
+            + (" (same reporting date)" if len(tags) > 1 else ""),
+        }
+        if best is None or cand["end"] > best["end"]:
+            best = cand
+    if best is None:
+        return None
+    from datetime import datetime as _dtm, timezone as _tz
+    return {"v": best["value"], "unit": "USD",
+            "period_end": best["end"],
+            "source": "SEC XBRL companyconcept (as first reported)",
+            "evidence_refs": best["refs"],
+            "basis": best["basis"],
+            "calc_version": "v5.8-instants/1",
+            "quality": "verified",
+            "retrieved_at": _dtm.now(_tz.utc).isoformat(
+                timespec="seconds")}
+
+
+def refresh_balance_instants(snap, ticker, max_age_days=400):
+    """Replace stale (or missing) snapshot cash/debt instants with the
+    issuer's freshest filed position. Only ever REPLACES with strictly
+    newer facts; records what changed. The snapshot's own facts stay
+    untouched when already current."""
+    import report_v5_checks as CK
+    from datetime import date, timedelta
+    fu = snap.setdefault("fundamentals", {})
+    floor = (date.today() - timedelta(days=max_age_days)).isoformat()
+    changed = {}
+    for key in ("cash", "debt"):
+        cur = fu.get(key) if isinstance(fu.get(key), dict) else None
+        cur_end = CK._fact_period(cur)
+        if cur_end and cur_end >= floor:
+            continue
+        try:
+            fresh = fresh_instant(ticker, key)
+        except Exception:
+            fresh = None
+        if fresh and (cur_end is None
+                      or fresh["period_end"] > cur_end):
+            fu[key] = fresh
+            changed[key] = {"was": cur_end,
+                            "now": fresh["period_end"],
+                            "basis": fresh["basis"]}
+    return changed

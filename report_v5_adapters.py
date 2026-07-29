@@ -441,16 +441,33 @@ def one_time_items(ticker, snap):
     return out
 
 
-def build_dashboard(adapter, snap):
+def build_dashboard(adapter, snap, grid=None):
     """-> rows for the sector KPI dashboard: [label, value-or-absent,
     provenance]. Values come only from admitted facts; absent slots keep
-    their sector-correct label with the reason."""
+    their sector-correct label with the reason.
+
+    v5.8 review fix: every displayed value is PERIOD-QUALIFIED and
+    CURRENT. The revenue slot consumes the grid's validated,
+    adapter-aware quarterly stream (a bank shows its net-revenue
+    quarter, never a dead generic contract-revenue tag), and any fact
+    older than the recency floor renders its staleness instead of its
+    value — the dashboard can never show a 2014 quarter as if it were
+    the latest."""
+    import report_v5_checks as _CK
     import research_snapshot as rs
+    from datetime import date, timedelta
     fu = snap.get("fundamentals") or {}
+    _floor = (date.today() - timedelta(
+        days=_CK.BS_LATEST_MAX_AGE_DAYS)).isoformat()
+    _lq = (grid or {}).get("ttm", {}).get("latest_quarter") \
+        if isinstance(grid, dict) else None
 
     def fv(key):
         f = fu.get(key)
         return rs.fv(f) if isinstance(f, dict) else None
+
+    def fperiod(key):
+        return _CK._fact_period(fu.get(key))
 
     def fmt(v, kind):
         if v is None:
@@ -468,13 +485,36 @@ def build_dashboard(adapter, snap):
     spec = ADAPTERS[adapter["key"]]["slots"]
     for slot in spec:
         if slot["kind"] == "fact":
-            v = fv(slot["key"])
+            key = slot["key"]
+            v, p = fv(key), fperiod(key)
             if v is None and slot.get("alt_key"):
-                v = fv(slot["alt_key"])
-            rows.append([slot["label"],
-                         fmt(v, slot["fmt"]) or "no admitted source",
-                         "filed (SEC XBRL)" if v is not None
-                         else "not filed / not parsed"])
+                v, p = fv(slot["alt_key"]), fperiod(slot["alt_key"])
+            # the revenue slot follows the grid's validated
+            # adapter-aware stream when it is fresher than (or as
+            # fresh as) the snapshot fact
+            if key == "revenue_q" and _lq \
+                    and (p is None or _lq["end"] >= p):
+                rows.append([slot["label"],
+                             "%s (as of %s)" % (fmt(_lq["value"],
+                                                    "money"),
+                                                _lq["end"]),
+                             "filed (SEC XBRL, %s)" % _lq["concept"]])
+                continue
+            if v is None:
+                rows.append([slot["label"], "no admitted source",
+                             "not filed / not parsed"])
+            elif p and p < _floor:
+                # a stale fact renders its staleness, never its value
+                rows.append([slot["label"],
+                             "not current — last filed under this "
+                             "concept %s" % p,
+                             "concept no longer reported by the "
+                             "issuer"])
+            else:
+                rows.append([slot["label"],
+                             "%s (as of %s)" % (fmt(v, slot["fmt"]),
+                                                p or "n/a"),
+                             "filed (SEC XBRL)"])
         elif slot["kind"] == "fact2":
             # §2 (v5.8): paired balance-sheet instants render only from
             # one reporting date, each value dated; incompatible
@@ -497,6 +537,12 @@ def build_dashboard(adapter, snap):
                                  "instants dated %s vs %s — different "
                                  "reporting dates, not comparable"
                                  % (p1, p2)])
+                elif max(p for p in (p1, p2) if p) < _floor:
+                    rows.append([slot["label"],
+                                 "not current — instants last filed "
+                                 "%s" % max(p for p in (p1, p2) if p),
+                                 "concepts no longer reported by the "
+                                 "issuer"])
                 else:
                     rows.append([slot["label"],
                                  "%s (as of %s) / %s (as of %s)"

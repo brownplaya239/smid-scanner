@@ -122,12 +122,14 @@ def _p1_dashboard(snap, view5):
     bq = asx.get("business_quality") or {}
     ia = asx.get("investment_attractiveness") or {}
     if bq.get("level"):
+        _bq_r = "; ".join(bq.get("reasons") or [])
         st.append(para("<b>Reported financial quality: %s &middot; "
                        "overall business quality: Partially "
-                       "underwritten</b> &mdash; %s. Not assessed (no "
+                       "underwritten</b>%s Not assessed (no "
                        "admitted source): %s."
                        % (bq["level"].title(),
-                          _clean("; ".join(bq["reasons"])),
+                          (" &mdash; %s." % _clean(_bq_r)) if _bq_r
+                          else ".",
                           _clean(", ".join(bq.get("not_assessed")
                                            or []))), "small"))
     if ia.get("level"):
@@ -464,7 +466,7 @@ def _p3_grid(snap, view5):
         st.append(para("%s dashboard" % _clean(ad.get("label")
                                                or "Sector"), "h2"))
         import report_v5_adapters as ADP
-        drows = ADP.build_dashboard(ad, snap)
+        drows = ADP.build_dashboard(ad, snap, view5.get("grid"))
         have = [r for r in drows if r[1] != "no admitted source"]
         absent = [r for r in drows if r[1] == "no admitted source"]
         shown = have + absent[:3]
@@ -816,6 +818,63 @@ def _nl_trading(snap, view5, chart_png=None, chart_meta=None):
 
 # ── assembly ─────────────────────────────────────────────────────────
 
+# v5.8 review fix (P1): a core page below this floor is a layout
+# failure — THIN reports collapse to fewer, denser pages instead of
+# reserving near-empty ones.
+CORE_PAGE_MIN = 0.30
+
+
+def _fit_core_segments(snap, seg_builders):
+    """Assemble segment stories with page breaks, then greedily REMOVE
+    breaks while any rendered page falls below CORE_PAGE_MIN — a THIN
+    argument page flows into the grid page instead of standing at 9%
+    occupancy. Segment builders are re-invoked per attempt (reportlab
+    consumes flowables); candidates are scored by (sparse pages, page
+    count)."""
+    import report_v5_checks as CK
+
+    def render(story):
+        buf = io.BytesIO()
+        doc = _Doc(buf, snap, kind="Equity Research v5")
+        doc.build(story)
+        return _finalize(buf.getvalue(), doc)
+
+    def assemble(drop):
+        story = []
+        segs = [b() for b in seg_builders]
+        for i, s in enumerate(segs):
+            story += s
+            if i < len(segs) - 1 and i not in drop:
+                story.append(PageBreak())
+        return story
+
+    def sparse(occ):
+        if len(occ) <= 1:
+            return []
+        return [i for i, r in enumerate(occ) if r < CORE_PAGE_MIN]
+
+    drop = set()
+    data = render(assemble(drop))
+    occ = CK.measure_occupancy(data)
+    for _ in range(len(seg_builders)):
+        if not sparse(occ):
+            break
+        best = None
+        for k in range(len(seg_builders) - 1):
+            if k in drop:
+                continue
+            cdata = render(assemble(drop | {k}))
+            cocc = CK.measure_occupancy(cdata)
+            score = (len(sparse(cocc)), len(cocc))
+            if best is None or score < best[0]:
+                best = (score, k, cdata, cocc)
+        if best is None or best[0] >= (len(sparse(occ)), len(occ)):
+            break                      # no break-removal helps further
+        drop.add(best[1])
+        data, occ = best[2], best[3]
+    return data
+
+
 def build_core(snap, view5, out_path=None, chart_png=None,
                chart_meta=None):
     """-> (pdf_bytes, rendered_sections) — the section map feeds the
@@ -825,28 +884,30 @@ def build_core(snap, view5, out_path=None, chart_png=None,
     buf = io.BytesIO()
     doc = _Doc(buf, snap, kind="Equity Research v5")
     rendered = {}
+    seg_builders = None
 
     if arch == A.DATA_HOLD or v4.get("flash"):
         story = R4._flash_page(snap, v4)
         rendered["flash"] = True
     elif arch == A.NEW_LISTING:
-        story = (_nl_factsheet(snap, view5) + [PageBreak()]
-                 + _nl_timeline(snap, view5) + [PageBreak()]
-                 + _nl_trading(snap, view5, chart_png, chart_meta))
+        seg_builders = [
+            lambda: _nl_factsheet(snap, view5),
+            lambda: _nl_timeline(snap, view5),
+            lambda: _nl_trading(snap, view5, chart_png, chart_meta)]
         rendered.update({"listing_factsheet": True,
                          "listing_timeline": True,
                          "listing_trading": True})
     else:
-        story = _p1_dashboard(snap, view5) + [PageBreak()]
         rendered["dashboard"] = True
         rendered["valuation_table"] = bool(
             (view5.get("scenarios") or {}).get("available"))
-        story += _p2_argument(snap, view5) + [PageBreak()]
         rendered["argument"] = True
-        story += _p3_grid(snap, view5) + [PageBreak()]
         rendered["financial_grid"] = True
+        seg_builders = [lambda: _p1_dashboard(snap, view5),
+                        lambda: _p2_argument(snap, view5),
+                        lambda: _p3_grid(snap, view5)]
         if rendered["valuation_table"] or arch in (A.FULL, A.FULL_THIN):
-            story += _p4_valuation(snap, view5) + [PageBreak()]
+            seg_builders.append(lambda: _p4_valuation(snap, view5))
             rendered["valuation_detail"] = True
         # Page-6 variant must obey the SAME gate as pages 2 and 4:
         # the canonical expectations decision. Unsourced -> the v4
@@ -865,25 +926,28 @@ def build_core(snap, view5, out_path=None, chart_png=None,
                 "reason": "no sourced market expectation — the debate "
                           "renders as a business insight, not a "
                           "variant"})
-        _debate_story = ([para("Key debate (no sourced expectations "
-                               "&mdash; not a variant view)", "h2"),
-                          para(_clean(debate), "body", INFERRED)]
-                         if debate else [])
-        if arch in (A.FULL, A.FULL_THIN):
-            story += R4._page5(snap, v4, chart_png, chart_meta) \
-                + [PageBreak()]
-            rendered["technicals"] = True
-            story += _debate_story
-            story += R4._page6(snap, v4_p6)
-            rendered["event_path"] = True
-            rendered["variant_risks"] = True
-        else:
-            story += _debate_story
-            story += R4._page6(snap, v4_p6)
-            rendered["variant_risks"] = True
 
-    doc.build(story)
-    data = _finalize(buf.getvalue(), doc)
+        def _last_segment():
+            _debate_story = ([para("Key debate (no sourced "
+                                   "expectations &mdash; not a "
+                                   "variant view)", "h2"),
+                              para(_clean(debate), "body", INFERRED)]
+                             if debate else [])
+            return _debate_story + R4._page6(snap, v4_p6)
+
+        if arch in (A.FULL, A.FULL_THIN):
+            seg_builders.append(
+                lambda: R4._page5(snap, v4, chart_png, chart_meta))
+            rendered["technicals"] = True
+            rendered["event_path"] = True
+        seg_builders.append(_last_segment)
+        rendered["variant_risks"] = True
+
+    if seg_builders is not None:
+        data = _fit_core_segments(snap, seg_builders)
+    else:
+        doc.build(story)
+        data = _finalize(buf.getvalue(), doc)
     if out_path:
         with open(out_path, "wb") as fh:
             fh.write(data)

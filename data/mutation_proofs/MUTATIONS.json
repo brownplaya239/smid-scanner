@@ -122,7 +122,7 @@
    "expected_failure": "post-call inside pre-event window",
    "intended_check": "EVENT_STATE_RESPECTS_UPCOMING_EVENT",
    "mutation_id": "M12-stale-event-state",
-   "observed_failure": "state POST-CALL VERIFIED with next event 2026-07-29 inside the pre-event window",
+   "observed_failure": "state POST-CALL VERIFIED with next event 2026-07-30 inside the pre-event window",
    "proven": true,
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   },
@@ -656,9 +656,36 @@
    "observed_failure": "final page is an isolated validation/hash block at 30% occupancy (min 45%)",
    "proven": true,
    "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "the v5.7 defect itself: claims delivered under a key the validators never read ('published') \u2014 five checks inspected ZERO claims and passed",
+   "expected_failure": "unrecognized claims shape is an explicit failure, never a silent PASS",
+   "intended_check": "XBRL_CLAIM_REF_IS_COMPLETE",
+   "mutation_id": "M59-wrong-claims-schema",
+   "observed_failure": "claims object carries 1 claim(s) under unrecognized key 'published' \u2014 zero claims would have been inspected",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "the JPM defect: a 2014 quarterly-revenue value displayed on the sector dashboard as if current",
+   "expected_failure": "stale or undated displayed value detected",
+   "intended_check": "DASHBOARD_VALUES_ARE_CURRENT_AND_SOURCED",
+   "mutation_id": "M60-stale-dashboard-value",
+   "observed_failure": "dashboard row 'Quarterly revenue' dated 2014-09-30 \u2014 older than the recency floor yet displayed as a value; dashboard row 'Net margin' shows '31.0%' without its reporting date",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
+  },
+  {
+   "changed_field_or_artifact": "a core report reserving a 9%-occupancy page instead of collapsing",
+   "expected_failure": "sparse core page detected",
+   "intended_check": "CORE_PAGE_OCCUPANCY",
+   "mutation_id": "M61-sparse-core-page",
+   "observed_failure": "page 2 occupancy 9% (min 30%)",
+   "proven": true,
+   "restoration_status": "mutation applied to a copy; clean artifact untouched (clean-run PASS is the restored proof)"
   }
  ],
- "proven": 73,
+ "proven": 76,
  "schema": "v5-mutation-proofs/1",
- "total": 73
+ "total": 76
 }
