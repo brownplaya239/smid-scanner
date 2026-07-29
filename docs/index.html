@@ -7310,6 +7310,74 @@
 <script>
   const WORKER_URL = "https://api.tickerdesk.io";
 
+  // ── Shared quote gateway ─────────────────────────────────────────
+  // Every panel used to run its OWN ?quotes= chunk loop (desk pills,
+  // tiles, flow Δ-spots, watchlist, earnings price chips, drilldowns)
+  // with only per-caller caches — a measured 28 overlapping worker
+  // calls on one page load. This gateway is the single path to the
+  // quotes endpoint: symbol-level 5-min cache (matches the worker edge
+  // cache), in-flight coalescing (a symbol two panels want is fetched
+  // once), 50-symbol batches, and a 3-request concurrency cap so
+  // hydration never starves the visible route's own data.
+  //   TD_QUOTES.get(["NVDA","SPY"]) -> Promise<{SYM: rawQuoteObj}>
+  // Raw worker quote objects come back untouched, so each caller keeps
+  // its own field handling (price/change/prevClose/extended/...).
+  const TD_QUOTES = (function () {
+    const TTL = 5 * 60 * 1000, BATCH = 50, MAX_CONC = 3;
+    const cache = Object.create(null);     // SYM -> {q, at}
+    const pending = Object.create(null);   // SYM -> {promise, resolve}
+    let queue = [], timer = null, active = 0;
+    function drain() {
+      timer = null;
+      while (active < MAX_CONC && queue.length) {
+        const syms = queue.splice(0, BATCH);
+        active++;
+        fetch(WORKER_URL + "?quotes=" +
+              encodeURIComponent(syms.join(",")))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            ((d && d.quotes) || []).forEach(function (q) {
+              if (!q || !q.symbol) return;
+              cache[q.symbol.toUpperCase()] = { q: q, at: Date.now() };
+            });
+          })
+          .catch(function () {})
+          .finally(function () {
+            syms.forEach(function (s) {
+              const p = pending[s];
+              delete pending[s];
+              if (p) p.resolve(cache[s] ? cache[s].q : null);
+            });
+            active--;
+            if (queue.length && !timer) timer = setTimeout(drain, 0);
+          });
+      }
+    }
+    function get(symbols) {
+      const out = {}, waits = [];
+      (symbols || []).forEach(function (raw) {
+        const s = String(raw || "").toUpperCase().trim();
+        if (!s) return;
+        const c = cache[s];
+        if (c && Date.now() - c.at < TTL) { out[s] = c.q; return; }
+        if (!pending[s]) {
+          let resolve;
+          const promise = new Promise(function (r) { resolve = r; });
+          pending[s] = { promise: promise, resolve: resolve };
+          queue.push(s);
+        }
+        waits.push(pending[s].promise.then(function (q) {
+          if (q) out[s] = q;
+        }));
+      });
+      if (queue.length && !timer) timer = setTimeout(drain, 80);
+      return waits.length
+        ? Promise.all(waits).then(function () { return out; })
+        : Promise.resolve(out);
+    }
+    return { get: get };
+  })();
+
   // ── Supabase config ── paste your project URL + anon key here.
   // Both keys are SAFE in client code — RLS gates every table on auth.uid()
   // so the anon key alone cannot read/write any user's data. The service
@@ -9433,30 +9501,18 @@
       });
       if (!stale.length) { renderPortfolio(); renderBench(); return; }
       wlQuotesInFlight = true;
-      const chunkSize = 50;
-      const jobs = [];
-      for (let i = 0; i < stale.length; i += chunkSize) {
-        const chunk = stale.slice(i, i + chunkSize);
-        jobs.push(
-          fetch(WORKER_URL + "?quotes=" + encodeURIComponent(chunk.join(",")))
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (d) {
-              if (!d || !d.quotes) return;
-              d.quotes.forEach(function (q) {
-                if (!q || !q.symbol) return;
-                cache[q.symbol] = {
-                  price: q.price, change: q.change,
-                  prevClose: q.prevClose,
-                  extended: q.extended, market_state: q.market_state,
-                  ts: Date.now(),
-                };
-              });
-              renderPortfolio();   // progressive: light up as chunks land
-            })
-            .catch(function () {})
-        );
-      }
-      Promise.all(jobs).finally(function () {
+      TD_QUOTES.get(stale).then(function (map) {
+        Object.keys(map).forEach(function (sym) {
+          const q = map[sym];
+          cache[sym] = {
+            price: q.price, change: q.change,
+            prevClose: q.prevClose,
+            extended: q.extended, market_state: q.market_state,
+            ts: Date.now(),
+          };
+        });
+        renderPortfolio();
+      }).finally(function () {
         wlQuotesInFlight = false;
         renderBench();
       });
@@ -11404,30 +11460,18 @@
       });
       if (!stale.length) return;
       mdQuotesInFlight = true;
-      const chunkSize = 50;
-      const jobs = [];
-      for (let i = 0; i < stale.length; i += chunkSize) {
-        const chunk = stale.slice(i, i + chunkSize);
-        jobs.push(
-          fetch(WORKER_URL + "?quotes=" + encodeURIComponent(chunk.join(",")))
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (d) {
-              if (!d || !d.quotes) return;
-              d.quotes.forEach(function (q) {
-                if (!q || !q.symbol) return;
-                cache[q.symbol] = {
-                  price: q.price, change: q.change,
-                  prevClose: q.prevClose,
-                  extended: q.extended, market_state: q.market_state,
-                  ts: Date.now(),
-                };
-              });
-              render();   // progressive repaint as chunks land
-            })
-            .catch(function () {})
-        );
-      }
-      Promise.all(jobs).finally(function () { mdQuotesInFlight = false; });
+      TD_QUOTES.get(stale).then(function (map) {
+        Object.keys(map).forEach(function (sym) {
+          const q = map[sym];
+          cache[sym] = {
+            price: q.price, change: q.change,
+            prevClose: q.prevClose,
+            extended: q.extended, market_state: q.market_state,
+            ts: Date.now(),
+          };
+        });
+        render();
+      }).finally(function () { mdQuotesInFlight = false; });
     }
     // Expose render so the What's New widget (different IIFE) can
     // re-trigger My Desk after it finishes computing the
@@ -17314,20 +17358,16 @@
     const stale = Array.from(want).filter(function (t) {
       const c = cache[t]; return !c || Date.now() - (c.ts || 0) > 60000;
     });
-    const chunk = 50;
-    for (let i = 0; i < stale.length; i += chunk) {
-      fetch(WORKER_URL + "?quotes=" +
-            encodeURIComponent(stale.slice(i, i + chunk).join(",")))
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) {
-          if (!d || !d.quotes) return;
-          d.quotes.forEach(function (q) {
-            if (q && q.symbol) cache[q.symbol] = {
-              price: q.price, change: q.change, prevClose: q.prevClose,
-              ts: Date.now() };
-          });
-          paint();
-        }).catch(function () {});
+    if (stale.length) {
+      TD_QUOTES.get(stale).then(function (map) {
+        Object.keys(map).forEach(function (sym) {
+          const q = map[sym];
+          cache[sym] = {
+            price: q.price, change: q.change, prevClose: q.prevClose,
+            ts: Date.now() };
+        });
+        paint();
+      });
     }
   }
   // 60s repaint while either scan tab is open (never re-sorts underfoot)
@@ -19118,14 +19158,11 @@
         byTk.get(tk).push(el);
       });
       const syms = Array.from(byTk.keys());
-      const CHUNK = 12;                      // worker cap per ?quotes= call
-      for (let i = 0; i < syms.length; i += CHUNK) {
-        const slice = syms.slice(i, i + CHUNK);
+      {
         try {
-          const r = await fetch(WORKER_URL + "/?quotes=" +
-            encodeURIComponent(slice.join(",")), { cache: "default" });
-          const j = r.ok ? await r.json() : null;
-          (j && j.quotes || []).forEach(function (q) {
+          const _map = await TD_QUOTES.get(syms);
+          Object.keys(_map).map(function (s) { return _map[s]; }
+          ).forEach(function (q) {
             const els = byTk.get((q.symbol || "").toUpperCase());
             if (!els || q.price == null) return;
             // One number: the TOTAL day return — live print (extended
@@ -23908,34 +23945,22 @@
         return;
       }
       deskQuotesInFlight = true;
-      const chunkSize = 50;
-      const promises = [];
-      for (let i = 0; i < stale.length; i += chunkSize) {
-        const chunk = stale.slice(i, i + chunkSize);
-        promises.push(
-          fetch(WORKER_URL + "?quotes=" + encodeURIComponent(chunk.join(",")))
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (d) {
-              if (!d || !d.quotes) return;
-              d.quotes.forEach(function (q) {
-                if (!q.symbol) return;
-                cache[q.symbol] = {
-                  price: q.price, change: q.change,
-                  prevClose: q.prevClose,
-                  extended: q.extended, market_state: q.market_state,
-                  ts: Date.now(),
-                };
-              });
-              // Progressive update: redraw chips for the tickers in
-              // THIS chunk as soon as it lands, so users see the
-              // page light up incrementally instead of waiting for
-              // every batch to finish.
-              updateDeskChgPills();
-            })
-            .catch(function () {})
-        );
-      }
-      Promise.all(promises).finally(function () {
+      // Shared gateway: symbol-level cache + coalescing means tickers
+      // other panels already fetched cost nothing here, and the
+      // concurrency cap keeps this ~1000-symbol hydration from
+      // starving the active route's data.
+      TD_QUOTES.get(stale).then(function (map) {
+        Object.keys(map).forEach(function (sym) {
+          const q = map[sym];
+          cache[sym] = {
+            price: q.price, change: q.change,
+            prevClose: q.prevClose,
+            extended: q.extended, market_state: q.market_state,
+            ts: Date.now(),
+          };
+        });
+        updateDeskChgPills();
+      }).finally(function () {
         deskQuotesInFlight = false;
       });
     }
@@ -24014,6 +24039,11 @@
     // repaint. Values are still 15m-delayed by the data license.
     function refreshTilesLive() {
       if (document.visibilityState !== "visible") return;
+      // Route-gated: the tile pills live in the Desk/My Desk panels —
+      // refreshing them every 30s while the user reads another tab
+      // was part of the measured background /quotes churn.
+      const _r = document.body.dataset.route;
+      if (_r !== "desk" && _r !== "mydesk") return;
       const cache = window.LIVE_QUOTE_CACHE = window.LIVE_QUOTE_CACHE || {};
       const tickers = new Set();
       // Both desks' pills — no offsetParent check so late-rendered or
@@ -24047,25 +24077,16 @@
         }
       } catch (_) {}
       if (!tickers.size) return;                        // no tiles on screen
-      const list = Array.from(tickers);
-      let pending = 0;
-      for (let i = 0; i < list.length; i += 50) {
-        const chunk = list.slice(i, i + 50);
-        pending++;
-        fetch(WORKER_URL + "?quotes=" + encodeURIComponent(chunk.join(",")))
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (d) {
-            if (d && d.quotes) d.quotes.forEach(function (q) {
-              if (q.symbol) cache[q.symbol] = {
-                price: q.price, change: q.change, prevClose: q.prevClose,
-                extended: q.extended, market_state: q.market_state,
-                ts: Date.now(),
-              };
-            });
-          })
-          .catch(function () {})
-          .finally(function () { if (--pending === 0) updateDeskChgPills(); });
-      }
+      TD_QUOTES.get(Array.from(tickers)).then(function (map) {
+        Object.keys(map).forEach(function (sym) {
+          const q = map[sym];
+          cache[sym] = {
+            price: q.price, change: q.change, prevClose: q.prevClose,
+            extended: q.extended, market_state: q.market_state,
+            ts: Date.now(),
+          };
+        });
+      }).finally(function () { updateDeskChgPills(); });
     }
     setTimeout(refreshTilesLive, 3000);    // fast first fill (covers late-render gaps)
     setInterval(refreshTilesLive, 30000);
@@ -25198,28 +25219,17 @@
       });
       if (!tickers.length) return;
       _spotsInFlight = true;
-      const chunkSize = 50;
-      const promises = [];
-      for (let i = 0; i < tickers.length; i += chunkSize) {
-        const chunk = tickers.slice(i, i + chunkSize);
-        promises.push(
-          fetch(WORKER_URL + "?quotes=" + encodeURIComponent(chunk.join(",")))
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (d) {
-              if (!d || !d.quotes) return;
-              d.quotes.forEach(function (q) {
-                if (q.symbol && typeof q.price === "number") {
-                  window.CURRENT_SPOTS[q.symbol] = q.price;
-                }
-              });
-            })
-            .catch(function () {})
-        );
-      }
-      Promise.all(promises).finally(function () {
+      TD_QUOTES.get(tickers).then(function (map) {
+        Object.keys(map).forEach(function (sym) {
+          const q = map[sym];
+          if (typeof q.price === "number") {
+            window.CURRENT_SPOTS[sym] = q.price;
+          }
+        });
+      }).finally(function () {
         _spotsInFlight = false;
         _spotsHydratedAt = Date.now();
-        // Single re-render after all chunks land so the delta cells
+        // Single re-render once the batch lands so the delta cells
         // populate. renderBody is closed over via the IIFE's scope.
         if (typeof renderBody === "function") renderBody();
       });
