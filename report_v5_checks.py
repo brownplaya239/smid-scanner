@@ -1197,7 +1197,12 @@ def calc_record_issues(claims, ledger):
                 continue
             missing = [f for f in ("kind", "metric", "calculation")
                        if not rec.get(f)]
-            if not rec.get("input_evidence_ids"):
+            # a versioned policy constant is self-contained — its
+            # calculation IS its provenance; everything else needs
+            # ordered inputs
+            if not rec.get("input_evidence_ids") \
+                    and "constant" not in str(
+                        rec.get("calculation") or "").lower():
                 missing.append("input_evidence_ids")
             if missing:
                 out.append("CALC record %r missing %s"
