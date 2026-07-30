@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-29T18:30:10-04:00",
+ "updated": "2026-07-30T16:34:06-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -8153,6 +8153,135 @@
      "adr_pct": 2.87,
      "dollar_vol": 599110017,
      "ern": "Jul 29"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-30",
+   "generated": "2026-07-30T16:34:06-04:00",
+   "count": 10,
+   "rows": [
+    {
+     "ticker": "MSFT",
+     "price": 451.1,
+     "chg": 18.22,
+     "adr_pct": 2.74,
+     "dollar_vol": 14089793622,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "NOW",
+     "price": 110.07,
+     "chg": 19.72,
+     "adr_pct": 5.7,
+     "dollar_vol": 2552715288,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "CRM",
+     "price": 180.71,
+     "chg": 15.15,
+     "adr_pct": 4.08,
+     "dollar_vol": 2180411460,
+     "ern": "Sep 02"
+    },
+    {
+     "ticker": "ADBE",
+     "price": 247.9,
+     "chg": 16.84,
+     "adr_pct": 4.39,
+     "dollar_vol": 1340750977,
+     "ern": "Sep 10"
+    },
+    {
+     "ticker": "ACN",
+     "price": 163.29,
+     "chg": 17.69,
+     "adr_pct": 4.68,
+     "dollar_vol": 1205091205,
+     "ern": "Sep 24"
+    },
+    {
+     "ticker": "DASH",
+     "price": 197.53,
+     "chg": 16.35,
+     "adr_pct": 4.27,
+     "dollar_vol": 701507445,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "CMG",
+     "price": 38.52,
+     "chg": 20.34,
+     "adr_pct": 3.71,
+     "dollar_vol": 605986636,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "PBF",
+     "price": 73.1,
+     "chg": 18.0,
+     "adr_pct": 6.13,
+     "dollar_vol": 189642834,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "CAKE",
+     "price": 101.31,
+     "chg": 19.95,
+     "adr_pct": 3.81,
+     "dollar_vol": 151163714,
+     "ern": "Oct 27"
+    },
+    {
+     "ticker": "ITRI",
+     "price": 98.85,
+     "chg": 17.78,
+     "adr_pct": 4.08,
+     "dollar_vol": 100310466,
+     "ern": "Oct 29"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "EAT",
+     "price": 209.86,
+     "chg": 13.44,
+     "adr_pct": 4.25,
+     "dollar_vol": 199978743,
+     "ern": "Aug 12"
+    },
+    {
+     "ticker": "REGN",
+     "price": 738.34,
+     "chg": 13.26,
+     "adr_pct": 2.73,
+     "dollar_vol": 526128171,
+     "ern": "Jul 30"
+    },
+    {
+     "ticker": "SHAK",
+     "price": 63.07,
+     "chg": 12.65,
+     "adr_pct": 4.39,
+     "dollar_vol": 108017085,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "SNOW",
+     "price": 298.1,
+     "chg": 12.44,
+     "adr_pct": 5.09,
+     "dollar_vol": 1277998700,
+     "ern": "Aug 26"
+    },
+    {
+     "ticker": "INTU",
+     "price": 315.5,
+     "chg": 12.07,
+     "adr_pct": 4.75,
+     "dollar_vol": 1269226859,
+     "ern": "Aug 20"
     }
    ]
   }
