@@ -2289,10 +2289,10 @@
 "sector": "Financials"
 },
 "CMG": {
-"earnings_date": "2026-07-29",
-"earnings_session": "AMC",
-"fetched": "2026-07-24",
-"mkt_cap": 41060315340.0,
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-07-30",
+"mkt_cap": 43920812160.0,
 "sector": "Consumer / Retail"
 },
 "CMPS": {
@@ -3367,10 +3367,10 @@
 "sector": "Tech / Software"
 },
 "EPD": {
-"earnings_date": "2026-07-28",
+"earnings_date": "2026-07-30",
 "earnings_session": "BMO",
-"fetched": "2026-05-26",
-"mkt_cap": 85740229079.73001,
+"fetched": "2026-07-30",
+"mkt_cap": 83663251539.57,
 "sector": "Utilities"
 },
 "EQIX": {
@@ -5159,16 +5159,16 @@
 "sector": "Industrials / Machinery"
 },
 "IRDM": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-10-22",
 "earnings_session": "BMO",
-"fetched": "2026-06-29",
-"mkt_cap": 4601271418.88,
+"fetched": "2026-07-30",
+"mkt_cap": 4700402589.88,
 "sector": "Communications"
 },
 "IRE": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-05-26",
+"fetched": "2026-07-30",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -5584,6 +5584,13 @@
 "fetched": "2026-07-27",
 "mkt_cap": 2034395874.42,
 "sector": "Consumer / Retail"
+},
+"KSTR": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-07-30",
+"mkt_cap": null,
+"sector": "Other"
 },
 "KTOS": {
 "earnings_date": "2026-08-06",
@@ -6015,8 +6022,8 @@
 "MA": {
 "earnings_date": "2026-07-30",
 "earnings_session": "BMO",
-"fetched": "2026-07-13",
-"mkt_cap": 465418959782.7,
+"fetched": "2026-07-30",
+"mkt_cap": 497740457198.60004,
 "sector": "Other"
 },
 "MAA": {
@@ -7072,8 +7079,8 @@
 "NXT": {
 "earnings_date": "2026-07-30",
 "earnings_session": "AMC",
-"fetched": "2026-07-13",
-"mkt_cap": 16909339047.5,
+"fetched": "2026-07-30",
+"mkt_cap": 14053708067.550001,
 "sector": "Other"
 },
 "NYT": {
@@ -8220,8 +8227,8 @@
 "RARE": {
 "earnings_date": "2026-08-04",
 "earnings_session": "AMC",
-"fetched": "2026-07-19",
-"mkt_cap": 2976344349.2799997,
+"fetched": "2026-07-30",
+"mkt_cap": 2462230600.0,
 "sector": "Healthcare / Biotech"
 },
 "RBLX": {
@@ -8360,8 +8367,8 @@
 "RIVN": {
 "earnings_date": "2026-07-30",
 "earnings_session": "AMC",
-"fetched": "2026-07-19",
-"mkt_cap": 24735528912.57,
+"fetched": "2026-07-30",
+"mkt_cap": 23635528797.089996,
 "sector": "Industrials / Transport Eq"
 },
 "RKLB": {
