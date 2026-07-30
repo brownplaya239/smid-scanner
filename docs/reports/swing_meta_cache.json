@@ -9327,9 +9327,9 @@
 "EXPO": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-22",
+"fetched": "2026-07-30",
 "industry": "SERVICES-MANAGEMENT CONSULTING SERVICES",
-"market_cap": 2759826573.81,
+"market_cap": 3194248211.505,
 "mcap_bucket": "Mid",
 "name": "Exponent Inc",
 "sector": "Other"
@@ -20692,10 +20692,10 @@
 "PRI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-28",
+"fetched": "2026-07-30",
 "industry": "LIFE INSURANCE",
-"market_cap": 8462092410.88,
-"mcap_bucket": "Mid",
+"market_cap": 10085843707.44,
+"mcap_bucket": "Large",
 "name": "PRIMERICA, INC.",
 "sector": "Financials"
 },
@@ -25938,6 +25938,16 @@
 "name": "Tandem Diabetes Care, Inc.",
 "sector": "Other"
 },
+"TNET": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-07-30",
+"industry": "SERVICES-BUSINESS SERVICES, NEC",
+"market_cap": 3226692277.8900003,
+"mcap_bucket": "Mid",
+"name": "TRINET GROUP, INC.",
+"sector": "Other"
+},
 "TNGX": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -26931,9 +26941,9 @@
 "UNIT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-18",
+"fetched": "2026-07-30",
 "industry": "TELEPHONE COMMUNICATIONS (NO RADIOTELEPHONE)",
-"market_cap": 2838514971.88,
+"market_cap": 2517998311.24,
 "mcap_bucket": "Mid",
 "name": "Uniti Group Inc. Common Stock",
 "sector": "Communications"
