@@ -4451,6 +4451,31 @@
   .dr-lrn.dn { background:rgba(214,68,68,0.14); color:#f08585; }
 
   /* Regime banner — one-line tape classification above the desk grid */
+  /* ── Risk-off playbook / Defense watch / calibration honesty ── */
+  .ro-card { border-left:3px solid var(--red, #e5484d); }
+  .ro-read { font-size:12px; color:var(--textdim); line-height:1.5;
+    margin:6px 0 8px; }
+  .ro-sub { font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--muted); margin:10px 0 4px; }
+  .ro-side { font-size:9.5px; font-weight:700; color:var(--red, #e5484d);
+    border:1px solid currentColor; border-radius:3px; padding:1px 5px;
+    align-self:center; white-space:nowrap; }
+  .ro-fades { display:flex; flex-wrap:wrap; gap:6px; }
+  .ro-fade-chip { font-size:11px; font-weight:600; cursor:pointer;
+    background:var(--navy2); border:1px solid var(--border2);
+    border-radius:4px; padding:2px 7px; color:var(--text); }
+  .ro-fade-chip:hover { border-color:var(--gold); }
+  .ro-foot { font-size:10.5px; color:var(--muted); margin-top:8px;
+    line-height:1.45; }
+  .dw-card { border-left:3px solid var(--gold); }
+  .dst-warn { color:var(--red, #e5484d); }
+  .uoa-obs { display:block; font-size:9px; color:var(--muted);
+    margin-top:1px; white-space:nowrap; }
+  .mom-caution { display:none; font-size:11.5px; line-height:1.5;
+    color:var(--textdim); background:rgba(229,72,77,0.07);
+    border:1px solid rgba(229,72,77,0.35); border-radius:6px;
+    padding:8px 12px; margin:8px 0 12px; }
+  .td-riskoff .mom-caution { display:block; }
   .rg-banner { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
     background:var(--card); border:1px solid var(--line); border-radius:8px;
     padding:7px 12px; margin-bottom:12px; font-size:11px; cursor:help; }
@@ -6183,6 +6208,7 @@
       <!-- Live ticker table — extracts top breakout candidates from
            today's swing run (A/A+ grades + bull flow if present)
            so users see actionable names without opening every PDF. -->
+      <div class="mom-caution">RISK-OFF tape &mdash; measured outcomes say these long screens run 44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups win just 20%. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
       <div class="live-scan-table" id="breakout-live-table"></div>
       <div class="uoa-subnav" id="breakout-subnav">
         <button data-sub="smid-scanner" class="active">SMID</button>
@@ -6197,6 +6223,7 @@
       <!-- Live ticker table — extracts top setup candidates (A/A+ grade
            tight bases, lower volatility, near 52-wk highs) so users see
            actionable VCP names without opening every PDF. -->
+      <div class="mom-caution">RISK-OFF tape &mdash; measured outcomes say these long screens run 44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups win just 20%. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
       <div class="live-scan-table" id="setup-live-table"></div>
       <div class="uoa-subnav" id="setup-subnav">
         <button data-sub="smid-setup" class="active">SMID</button>
@@ -6235,6 +6262,7 @@
       <h2 class="tab-title">QM Monthly Gainers</h2>
       <p class="tab-sub">Qullamaggie's biggest one-month gainers &mdash; top 2% of the
         market by 1-month gain, ADR% &ge; 5, $100M+ dollar volume. 4:30 PM ET weekdays.</p>
+      <div class="mom-caution">RISK-OFF tape &mdash; measured outcomes say these long screens run 44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups win just 20%. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
       <div class="scan-track" id="qm-track"></div>
       <div class="mom-bar">
         <select id="qm-date"></select>
@@ -6250,6 +6278,7 @@
         to <b>15%+</b> over the last 5 trading days, with the $100M liquidity
         floor. On quiet weeks an "Approaching" fallback surfaces names within
         5% of the threshold. 4:30 PM ET weekdays.</p>
+      <div class="mom-caution">RISK-OFF tape &mdash; measured outcomes say these long screens run 44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups win just 20%. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
       <div class="scan-track" id="sb-track"></div>
       <div class="mom-bar">
         <select id="sb-date"></select>
@@ -22794,6 +22823,9 @@
           read = "breadth weak — smaller size, respect stops"; }
         else                    { label = "MIXED TAPE"; cls = "rg-mixed";
           read = "selective tape — A-grade setups only"; }
+        // Shared regime state — the Risk-off Playbook card and momentum
+        // caution strips key off this instead of re-deriving breadth.
+        window.TD_REGIME = { label: label, breadth: breadth, src: "eod" };
         // leading theme = best avg day-% with ≥4 constituents
         const th = {};
         cards.forEach(function (x) {
@@ -22894,6 +22926,8 @@
       else                    { label = "MIXED TAPE"; cls = "rg-mixed";
         read = "selective tape — A-grade setups only"; }
       el.className = "rg-banner " + cls;
+      window.TD_REGIME = { label: label, breadth: breadth, src: "live" };
+      if (typeof renderRiskOffSlot === "function") renderRiskOffSlot();
       const lb = el.querySelector(".rg-label");
       if (lb) lb.textContent = label;
       const bd = el.querySelector(".rg-breadth");
@@ -23760,6 +23794,149 @@
     // Splitting them lets watchlist/auth changes (which only affect the
     // Action List's urgencies) re-render from memory instead of
     // re-downloading ~2.3MB of mostly-static JSON on every weight edit.
+    // ── Risk-off Playbook + Defense Watch ────────────────────────────
+    // Both cards surface the ONLY signals the outcome database measures
+    // as positive-edge in weak tape: informed put flow (57% hit /
+    // +0.88% avg excess, n≈20.5k) and the fade side of the momentum
+    // inversion (A+ setups 20% win / −5.1% avg at a 5-day hold; hot
+    // weekly screen profit factor 0.64). Numbers here are the measured
+    // aggregates from uoa_edge/setup_outcomes/scan_outcomes — the card
+    // never invents a stat. Educational research, not advice.
+    function _putClusters(uoa) {
+      const by = {};
+      ((uoa && uoa.rows) || []).forEach(function (r) {
+        if (r.type !== "put" || r.flow_side !== "put_buyer") return;
+        const t = r.ticker;
+        if (!t) return;
+        const g = by[t] || (by[t] = { t: t, prem: 0, n: 0, ern: null });
+        g.prem += r.premium || 0;
+        g.n += 1;
+        if (typeof r.earnings_days === "number" && r.earnings_days >= 0 &&
+            r.earnings_days <= 7) g.ern = r.earnings_days;
+      });
+      return Object.keys(by).map(function (t) { return by[t]; })
+        .sort(function (a, b) { return b.prem - a.prem; });
+    }
+    function _fmtPrem(p) {
+      return p >= 1e6 ? "$" + (p / 1e6).toFixed(1) + "M"
+                      : "$" + Math.round(p / 1e3) + "K";
+    }
+    function buildRiskOffHTML(uoa, qm, sb, swing) {
+      const rg = window.TD_REGIME || {};
+      if (rg.label !== "RISK-OFF") return "";
+      const esc = window.escapeHtml;
+      // informed put clusters (top 8 by premium)
+      const puts = _putClusters(uoa).slice(0, 8);
+      const putRows = puts.map(function (g) {
+        return '<div class="desk-row">' +
+          '<span class="dr-tk" data-t="' + esc(g.t) + '">' + esc(g.t) +
+          '</span><span class="dr-meta">' + _fmtPrem(g.prem) + " across " +
+          g.n + " print" + (g.n === 1 ? "" : "s") +
+          (g.ern != null ? " · earnings in " + g.ern + "d" : "") +
+          '</span><span class="ro-side">PUT BUY</span></div>';
+      }).join("");
+      // fade candidates: measured momentum inversion (RO-4)
+      const fade = [], seen = {};
+      function addFade(t, why, chg) {
+        if (!t || seen[t]) return;
+        seen[t] = 1;
+        fade.push({ t: t, why: why, chg: chg });
+      }
+      (((qm || {}).runs || []).slice(-1)[0] || { rows: [] }).rows
+        .forEach(function (r) {
+          if ((r.chg || 0) >= 50 && (r.adr_pct || 0) >= 8)
+            addFade(r.ticker, "Explosive 1-mo +" + Math.round(r.chg) + "%",
+                    r.chg);
+        });
+      (((sb || {}).runs || []).slice(-1)[0] || { rows: [] }).rows
+        .forEach(function (r) {
+          if ((r.chg || 0) >= 35)
+            addFade(r.ticker, "Hot 1-wk +" + Math.round(r.chg) + "%", r.chg);
+        });
+      try {
+        const run = swing.runs[swing.runs.length - 1];
+        (run.grades["A+"] || []).forEach(function (c) {
+          addFade(c.t, "A+ grade (extended)", c.chg);
+        });
+      } catch (_) {}
+      fade.sort(function (a, b) { return (b.chg || 0) - (a.chg || 0); });
+      const fadeRows = fade.slice(0, 10).map(function (f) {
+        return '<span class="ro-fade-chip" data-t="' + esc(f.t) + '" title="' +
+          esc(f.why) + ' — cohort historically mean-reverts at a 5-day ' +
+          'hold (A+ setups: 20% win, −5.1% avg; hot weekly screen: ' +
+          'profit factor 0.64, n=292).">' + esc(f.t) + '</span>';
+      }).join("");
+      return '<div class="desk-card ro-card"><h3>Risk-off playbook' +
+        '<span class="desk-stamp dst-warn" title="Shown only while the ' +
+        'regime read is RISK-OFF (universe breadth ≤ 42%). Every number ' +
+        'is a measured aggregate from the outcome database — nothing is ' +
+        'a forecast. Educational research, not investment advice.">' +
+        'measured stats · not advice</span></h3>' +
+        '<div class="ro-read">Breadth ' + (rg.breadth || 0) + "% — the " +
+        "outcome DB says offense loses here: momentum-long screens run " +
+        "44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups " +
+        "win just 20%. The one measured positive edge is informed put " +
+        "flow (57% hit, +0.88% avg excess, n≈20.5k).</div>" +
+        (putRows ? '<div class="ro-sub">Informed put flow today ' +
+          "(largest premium)</div>" + putRows
+          : '<div class="ro-sub">No put-buyer clusters in the latest ' +
+            "batch.</div>") +
+        (fadeRows ? '<div class="ro-sub">Extended names — historically ' +
+          "fade candidates, not longs, at this horizon</div>" +
+          '<div class="ro-fades">' + fadeRows + "</div>" : "") +
+        '<div class="ro-foot">Momentum/breakout lists below are ' +
+        "post-close longs — in this tape treat them as watchlists, not " +
+        "entries. Educational research, not investment advice.</div>" +
+        "</div>";
+    }
+    function cardRiskOff(uoa, qm, sb, swing) {
+      return '<div id="riskoff-slot">' +
+        buildRiskOffHTML(uoa, qm, sb, swing) + "</div>";
+    }
+    // Re-render in place when the intraday regime read flips.
+    function renderRiskOffSlot() {
+      const slot = document.getElementById("riskoff-slot");
+      const off = (window.TD_REGIME || {}).label === "RISK-OFF";
+      // Body-level flag: the momentum/breakout tabs carry CSS-gated
+      // caution strips that only show while the tape reads risk-off.
+      document.body.classList.toggle("td-riskoff", off);
+      if (!slot) return;
+      const D = window.TD_DATA || {};
+      slot.innerHTML = buildRiskOffHTML(D.uoa, D.qm, D.sb, D.swing);
+    }
+    // Defense Watch — informed puts printing on the user's own names.
+    // NOT regime-gated: put positioning on names you hold matters in
+    // any tape. Empty (no card) when signed out, no watchlist, or no
+    // put-buyer flow on watched names today.
+    function cardDefenseWatch(uoa) {
+      try {
+        const wl = (window.tdWatchlist && window.tdWatchlist()) || null;
+        if (!wl || !wl.size) return "";
+        const esc = window.escapeHtml;
+        const hits = _putClusters(uoa).filter(function (g) {
+          return wl.has(g.t);
+        }).slice(0, 6);
+        if (!hits.length) return "";
+        return '<div class="desk-card dw-card"><h3>Defense watch — ' +
+          "informed puts on your names" +
+          '<span class="desk-stamp dst-warn" title="Put-buyer flow ' +
+          "detected today on tickers in your watchlist. Historically the " +
+          "single strongest cohort in the outcome database: 57% hit " +
+          "rate, +0.88% average 5-day excess for the put side across " +
+          "≈20,500 matured signals. Delayed 15m. Educational research, " +
+          'not investment advice.">57% hit cohort · delayed 15m</span>' +
+          "</h3>" +
+          hits.map(function (g) {
+            return '<div class="desk-row">' +
+              '<span class="dr-tk" data-t="' + esc(g.t) + '">' + esc(g.t) +
+              '</span><span class="dr-meta">' + _fmtPrem(g.prem) +
+              " put premium · " + g.n + " print" + (g.n === 1 ? "" : "s") +
+              (g.ern != null ? " · earnings in " + g.ern + "d" : "") +
+              '</span><span class="ro-side">PUT BUY</span></div>';
+          }).join("") + "</div>";
+      } catch (_) { return ""; }
+    }
+
     function renderDesk() {
       const D = window.TD_DATA || {};
       const uoa = D.uoa, swing = D.swing, qm = D.qm, sb = D.sb;
@@ -23839,6 +24016,8 @@
         // Regime banner — the desk's one-line "what tape is this?" strip.
         const rgEl = document.getElementById("desk-regime");
         if (rgEl) rgEl.innerHTML = deskRegimeBanner(swing, cal, uoaMeta, todayET);
+        document.body.classList.toggle("td-riskoff",
+          (window.TD_REGIME || {}).label === "RISK-OFF");
         // Rescue the persistent Market Buzz node out of the grid BEFORE we
         // rebuild grid.innerHTML (which would otherwise destroy it, since it
         // gets re-slotted into the Earnings column each pass). Moving a node
@@ -23853,6 +24032,8 @@
         // Flow sits next to Market Health instead of leaving an empty
         // half-cell. Then the EOD divider + post-close cards.
         grid.innerHTML = [
+          cardRiskOff(uoa, qm, sb, swing),     // regime-gated defense spine
+          cardDefenseWatch(uoa),               // informed puts on watchlist names
           cardOpportunities(ctx, swing, uoa, uoaMeta, D.carryover), // decision-first spine
           cardWhatChangedToday(swing, uoa),    // full-width, LIVE-first
           '<div class="desk-pair">' +          // Market Health | Top Flow
@@ -26364,6 +26545,28 @@
       hour: "numeric", minute: "2-digit", second: "2-digit",
       hour12: true,
     });
+    // Calibration honesty: the OBSERVED live hit rate for this score's
+    // band, from uoa_edge.json's calibration block (predicted vs
+    // observed, live cohort). The raw score alone overstated conviction
+    // by 9-13pp across every band — this puts the measured number next
+    // to it so 80 never silently reads as "80% likely".
+    function _obsHitHtml(score) {
+      try {
+        const cal = (window.EDGE || {}).calibration;
+        if (!cal || typeof score !== "number") return "";
+        const band = score >= 80 ? "80-100"
+                   : score >= 65 ? "65-79"
+                   : score >= 55 ? "55-64" : null;
+        const b = band && cal[band];
+        if (!b || b.observed == null) return "";
+        return '<span class="uoa-obs" title="Observed 5-day hit rate of ' +
+          "the " + band + " score band in the LIVE cohort (n=" +
+          (b.n_live || 0).toLocaleString() + "). The band's predicted " +
+          "rate was " + b.predicted + "% — displayed conviction " +
+          "overstates by " + Math.abs(b.drift || 0) + "pp, so trust " +
+          'this number, not the score.">obs ' + b.observed + "%</span>";
+      } catch (_) { return ""; }
+    }
     function renderBody() {
       renderChips();
       const tb = $("uoa-body");
@@ -26702,7 +26905,8 @@
           '<td><span class="uoa-score has-breakdown '+scoreCls(r.trade_score)+
             '" data-score-comp="'+i+'" tabindex="0" ' +
             'role="button" aria-label="Score breakdown" '+
-            'title="Click for score breakdown">'+r.trade_score+'</span></td>'+
+            'title="Click for score breakdown">'+r.trade_score+'</span>'+
+            _obsHitHtml(r.trade_score)+'</td>'+
           '<td>'+biasPill(r.flow_side, r.direction)+'</td>'+
           '<td>'+openPill(r.opening)+'</td>'+
           '<td class="'+(r.type==="call"?"uoa-call":"uoa-put")+'">'+(r.type==="call"?"CALL":"PUT")+'</td>'+
@@ -27328,6 +27532,10 @@
           // by_score buckets for its historical-edge footer without
           // re-fetching.
           window.EDGE = e;
+          // Re-render so the per-row "obs %" calibration labels pick up
+          // the bands (EDGE resolves after the first table build; the
+          // route guard inside renderBody makes this a no-op elsewhere).
+          renderBody();
           renderEdge(e);
         })
         .catch(function () { renderEdge(null); });
