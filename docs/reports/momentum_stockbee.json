@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-30T18:37:05-04:00",
+ "updated": "2026-07-31T16:34:07-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -8282,6 +8282,127 @@
      "adr_pct": 4.75,
      "dollar_vol": 1269396298,
      "ern": "Aug 25"
+    }
+   ]
+  },
+  {
+   "date": "2026-07-31",
+   "generated": "2026-07-31T16:34:07-04:00",
+   "count": 9,
+   "rows": [
+    {
+     "ticker": "MSFT",
+     "price": 464.72,
+     "chg": 21.75,
+     "adr_pct": 2.82,
+     "dollar_vol": 14689469885,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "AMZN",
+     "price": 271.58,
+     "chg": 17.0,
+     "adr_pct": 2.6,
+     "dollar_vol": 11190165800,
+     "ern": "Oct 29"
+    },
+    {
+     "ticker": "CMG",
+     "price": 37.22,
+     "chg": 17.08,
+     "adr_pct": 3.8,
+     "dollar_vol": 606561131,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "REGN",
+     "price": 762.63,
+     "chg": 16.25,
+     "adr_pct": 2.77,
+     "dollar_vol": 535641590,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "PBF",
+     "price": 72.28,
+     "chg": 17.28,
+     "adr_pct": 6.29,
+     "dollar_vol": 194296098,
+     "ern": "Oct 29"
+    },
+    {
+     "ticker": "CAKE",
+     "price": 101.42,
+     "chg": 19.71,
+     "adr_pct": 3.74,
+     "dollar_vol": 155594520,
+     "ern": "Oct 27"
+    },
+    {
+     "ticker": "AMBA",
+     "price": 86.0,
+     "chg": 26.36,
+     "adr_pct": 8.85,
+     "dollar_vol": 149972289,
+     "ern": "Aug 27"
+    },
+    {
+     "ticker": "IESC",
+     "price": 744.54,
+     "chg": 18.92,
+     "adr_pct": 6.91,
+     "dollar_vol": 143456220,
+     "ern": "Jul 31"
+    },
+    {
+     "ticker": "ITRI",
+     "price": 99.66,
+     "chg": 18.33,
+     "adr_pct": 4.04,
+     "dollar_vol": 101323622,
+     "ern": "Oct 29"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "EAT",
+     "price": 213.7,
+     "chg": 14.29,
+     "adr_pct": 4.2,
+     "dollar_vol": 201123027,
+     "ern": "Aug 12"
+    },
+    {
+     "ticker": "DASH",
+     "price": 196.16,
+     "chg": 13.45,
+     "adr_pct": 4.28,
+     "dollar_vol": 688385108,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "ORCL",
+     "price": 129.87,
+     "chg": 12.94,
+     "adr_pct": 5.0,
+     "dollar_vol": 4981384682,
+     "ern": "Sep 09"
+    },
+    {
+     "ticker": "ZETA",
+     "price": 21.6,
+     "chg": 12.91,
+     "adr_pct": 6.38,
+     "dollar_vol": 163665811,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "ACN",
+     "price": 165.92,
+     "chg": 12.88,
+     "adr_pct": 4.7,
+     "dollar_vol": 1190569655,
+     "ern": "Sep 24"
     }
    ]
   }
