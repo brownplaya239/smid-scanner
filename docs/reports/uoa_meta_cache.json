@@ -749,10 +749,10 @@
 "sector": "Industrials / Transport Eq"
 },
 "AR": {
-"earnings_date": "2026-07-29",
+"earnings_date": "2026-10-28",
 "earnings_session": "AMC",
-"fetched": "2026-07-02",
-"mkt_cap": 10887637040.0,
+"fetched": "2026-07-31",
+"mkt_cap": 10852596700.0,
 "sector": "Energy"
 },
 "ARCC": {
@@ -4053,10 +4053,10 @@
 "sector": "Other"
 },
 "FSLR": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-07-28",
-"mkt_cap": 22117125706.29,
+"fetched": "2026-07-31",
+"mkt_cap": 22136467311.629997,
 "sector": "Semiconductors"
 },
 "FSLY": {
@@ -5140,8 +5140,8 @@
 "IOVA": {
 "earnings_date": "2026-08-06",
 "earnings_session": "BMO",
-"fetched": "2026-07-09",
-"mkt_cap": 1911030254.88,
+"fetched": "2026-07-31",
+"mkt_cap": 2094096237.2400002,
 "sector": "Healthcare / Biotech"
 },
 "IP": {
@@ -6748,10 +6748,10 @@
 "sector": "Tech / Software"
 },
 "NFG": {
-"earnings_date": "2026-07-29",
-"earnings_session": "AMC",
-"fetched": "2026-06-29",
-"mkt_cap": 7455524148.900001,
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-07-31",
+"mkt_cap": 7837566304.14,
 "sector": "Utilities"
 },
 "NFLX": {
@@ -10708,6 +10708,13 @@
 "fetched": "2026-07-24",
 "mkt_cap": 1365746188.8,
 "sector": "Consumer / Retail"
+},
+"WERN": {
+"earnings_date": "2026-10-29",
+"earnings_session": "AMC",
+"fetched": "2026-07-31",
+"mkt_cap": 2211957513.28,
+"sector": "Industrials"
 },
 "WES": {
 "earnings_date": "2026-08-05",
