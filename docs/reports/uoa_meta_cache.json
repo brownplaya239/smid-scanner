@@ -1498,10 +1498,10 @@
 "sector": "Healthcare / Biotech"
 },
 "BMY": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-07-26",
-"mkt_cap": 126792203726.23001,
+"fetched": "2026-07-31",
+"mkt_cap": 132448741080.42,
 "sector": "Healthcare / Biotech"
 },
 "BN": {
@@ -1983,8 +1983,8 @@
 "CCJ": {
 "earnings_date": "2026-07-31",
 "earnings_session": "BMO",
-"fetched": "2026-07-19",
-"mkt_cap": 38048160958.08,
+"fetched": "2026-07-31",
+"mkt_cap": 38427074648.94,
 "sector": "Other"
 },
 "CCL": {
@@ -2548,10 +2548,10 @@
 "sector": "Semiconductors"
 },
 "CRH": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-07-27",
-"mkt_cap": 66733155571.920006,
+"fetched": "2026-07-31",
+"mkt_cap": 63867313056.0,
 "sector": "Other"
 },
 "CRK": {
@@ -8150,7 +8150,7 @@
 "QQQI": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-16",
+"fetched": "2026-07-31",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -8400,10 +8400,10 @@
 "sector": "Other"
 },
 "RKT": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-08-06",
 "earnings_session": "AMC",
-"fetched": "2026-07-19",
-"mkt_cap": 42158502857.8,
+"fetched": "2026-07-31",
+"mkt_cap": 37518238113.72,
 "sector": "Financials / Banks"
 },
 "RLAY": {
@@ -9361,8 +9361,8 @@
 "SU": {
 "earnings_date": "2026-08-04",
 "earnings_session": "AMC",
-"fetched": "2026-07-13",
-"mkt_cap": 69959152448.25,
+"fetched": "2026-07-31",
+"mkt_cap": 78791126461.97,
 "sector": "Other"
 },
 "SUI": {
@@ -9534,10 +9534,10 @@
 "sector": "Industrials / Transport Eq"
 },
 "TDOC": {
-"earnings_date": "2026-07-29",
+"earnings_date": "2026-10-28",
 "earnings_session": "AMC",
-"fetched": "2026-07-29",
-"mkt_cap": 1689602494.32,
+"fetched": "2026-07-31",
+"mkt_cap": 1195254308.78,
 "sector": "Healthcare / Services"
 },
 "TDS": {
@@ -9683,8 +9683,8 @@
 "TIGO": {
 "earnings_date": "2026-08-06",
 "earnings_session": "BMO",
-"fetched": "2026-07-07",
-"mkt_cap": 15884604305.640001,
+"fetched": "2026-07-31",
+"mkt_cap": 15944919225.48,
 "sector": "Other"
 },
 "TIGR": {
@@ -10015,6 +10015,13 @@
 "fetched": "2026-06-09",
 "mkt_cap": null,
 "sector": "Other"
+},
+"TWST": {
+"earnings_date": "2026-08-03",
+"earnings_session": "BMO",
+"fetched": "2026-07-31",
+"mkt_cap": 5687239107.62,
+"sector": "Healthcare / Biotech"
 },
 "TXG": {
 "earnings_date": "2026-08-06",
