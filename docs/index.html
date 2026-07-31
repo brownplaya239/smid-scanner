@@ -22816,16 +22816,32 @@
         const breadth = Math.round(100 * up / chg.length);
         const aT = cards.filter(function (x) { return /^A/.test(x.g); }).length;
         const fgT = cards.filter(function (x) { return /^[FG]/.test(x.g); }).length;
+        // Canonical EOD label: loop-7's persisted regime_history entry
+        // (full ~830-name universe from swing_report) wins over the
+        // local recompute (trimmed 2-run summary) when it covers the
+        // same session — the two disagreed by up to 8 breadth points
+        // right at the risk-off threshold, which gated the Risk-off
+        // Playbook off on a day the canonical log said risk_off.
+        let breadthShown = breadth;
+        try {
+          const rh = (window.TD_DATA || {}).regimeHist;
+          const lastDay = rh && rh.days && rh.days[rh.days.length - 1];
+          if (lastDay && lastDay.date === r.date &&
+              typeof lastDay.breadth === "number") {
+            breadthShown = lastDay.breadth;
+          }
+        } catch (_) {}
         let label, cls, read;
-        if (breadth >= 58)      { label = "RISK-ON";   cls = "rg-on";
+        if (breadthShown >= 58)      { label = "RISK-ON";   cls = "rg-on";
           read = "breadth broad — favor longs, buy pullbacks"; }
-        else if (breadth <= 42) { label = "RISK-OFF";  cls = "rg-off";
+        else if (breadthShown <= 42) { label = "RISK-OFF";  cls = "rg-off";
           read = "breadth weak — smaller size, respect stops"; }
         else                    { label = "MIXED TAPE"; cls = "rg-mixed";
           read = "selective tape — A-grade setups only"; }
         // Shared regime state — the Risk-off Playbook card and momentum
         // caution strips key off this instead of re-deriving breadth.
-        window.TD_REGIME = { label: label, breadth: breadth, src: "eod" };
+        window.TD_REGIME = { label: label, breadth: breadthShown,
+                             src: "eod" };
         // leading theme = best avg day-% with ≥4 constituents
         const th = {};
         cards.forEach(function (x) {
@@ -22876,8 +22892,8 @@
           'once coverage is sufficient. Logged daily to regime_history.json ' +
           'so strategy performance can be measured per regime.">' +
           '<span class="rg-label">' + label + '</span>' +
-          '<span class="rg-item rg-breadth">' + breadth + '% adv <i>· ' +
-            chg.length + ' names</i></span>' +
+          '<span class="rg-item rg-breadth">' + breadthShown +
+            '% adv <i>· ' + chg.length + ' names</i></span>' +
           '<span class="rg-item">' + aT + ' A-tier / ' + fgT + ' weak</span>' +
           '<span class="rg-item rg-lead">' +
             (lead ? esc(lead) + ' leading' : '') + '</span>' +
@@ -23769,6 +23785,11 @@
         fetchJSON("./reports/technical_facts.json"),
         // Engine Room summary (tiny) — health line on the What-Changed tile.
         fetchJSON("./reports/grade_engine.json"),
+        // Loop-7 regime log (tiny) — the CANONICAL full-universe EOD
+        // regime label. The banner's own recompute uses the trimmed
+        // 2-run swing summary, which can disagree by several breadth
+        // points right at the risk-off threshold.
+        fetchJSON("./reports/regime_history.json"),
       ]).then(function (arr) {
         const swing = arr[1], uoaMeta = arr[6];
         DESK_DATE = (swing && swing.runs && swing.runs.length)
@@ -23787,6 +23808,7 @@
         window.TD_DATA.evening = arr[9];
         window.TD_DATA.facts = ((arr[10] || {}).facts) || {};
         window.TD_DATA.engine = arr[11] || null;
+        window.TD_DATA.regimeHist = arr[12] || null;
       });
     }
     // Render the desk grid from whatever is already in window.TD_DATA — no
