@@ -2242,8 +2242,8 @@
 "CLMT": {
 "earnings_date": "2026-08-07",
 "earnings_session": "BMO",
-"fetched": "2026-06-03",
-"mkt_cap": 3146883478.17,
+"fetched": "2026-07-31",
+"mkt_cap": 3812687681.25,
 "sector": "Energy"
 },
 "CLOV": {
@@ -3177,6 +3177,13 @@
 "mkt_cap": 28994495491.78,
 "sector": "Other"
 },
+"DXJ": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-07-31",
+"mkt_cap": null,
+"sector": "Other"
+},
 "DXYZ": {
 "earnings_date": null,
 "earnings_session": null,
@@ -4081,10 +4088,10 @@
 "sector": "Other"
 },
 "FTAI": {
-"earnings_date": "2026-07-29",
+"earnings_date": "2026-10-26",
 "earnings_session": "AMC",
-"fetched": "2026-07-24",
-"mkt_cap": 22241014159.32,
+"fetched": "2026-07-31",
+"mkt_cap": 20268521240.0,
 "sector": "Other"
 },
 "FTDR": {
@@ -7455,10 +7462,10 @@
 "sector": "Tech / Hardware"
 },
 "PAR": {
-"earnings_date": "2026-08-07",
+"earnings_date": "2026-08-06",
 "earnings_session": "AMC",
-"fetched": "2026-06-26",
-"mkt_cap": 656639488.08,
+"fetched": "2026-07-31",
+"mkt_cap": 694998453.1500001,
 "sector": "Industrials / Machinery"
 },
 "PARR": {
@@ -8455,6 +8462,13 @@
 "mkt_cap": null,
 "sector": "Other"
 },
+"ROCK": {
+"earnings_date": "2026-08-05",
+"earnings_session": "BMO",
+"fetched": "2026-07-31",
+"mkt_cap": 1271606467.53,
+"sector": "Materials / Metals"
+},
 "ROIV": {
 "earnings_date": "2026-08-10",
 "earnings_session": "BMO",
@@ -8836,8 +8850,8 @@
 "SHLS": {
 "earnings_date": "2026-08-04",
 "earnings_session": "BMO",
-"fetched": "2026-07-15",
-"mkt_cap": 1805224750.92,
+"fetched": "2026-07-31",
+"mkt_cap": 1493169171.3,
 "sector": "Semiconductors"
 },
 "SHOO": {
@@ -8937,6 +8951,13 @@
 "fetched": "2026-06-15",
 "mkt_cap": 1801380479.22,
 "sector": "Semiconductors"
+},
+"SKYW": {
+"earnings_date": "2026-10-29",
+"earnings_session": "AMC",
+"fetched": "2026-07-31",
+"mkt_cap": 4293622021.0600004,
+"sector": "Industrials"
 },
 "SLAB": {
 "earnings_date": "2026-08-04",
@@ -10022,6 +10043,13 @@
 "fetched": "2026-06-09",
 "mkt_cap": null,
 "sector": "Other"
+},
+"TWO": {
+"earnings_date": "2026-10-26",
+"earnings_session": "AMC",
+"fetched": "2026-07-31",
+"mkt_cap": 1273160726.8799999,
+"sector": "Real Estate"
 },
 "TWST": {
 "earnings_date": "2026-08-03",
