@@ -301,10 +301,10 @@
 "sector": "Financials / Banks"
 },
 "AG": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-11-04",
 "earnings_session": "BMO",
-"fetched": "2026-07-26",
-"mkt_cap": 8053381654.079999,
+"fetched": "2026-07-31",
+"mkt_cap": 7733701149.2699995,
 "sector": "Other"
 },
 "AGEN": {
@@ -2648,8 +2648,8 @@
 "CSCO": {
 "earnings_date": "2026-08-12",
 "earnings_session": "AMC",
-"fetched": "2026-07-19",
-"mkt_cap": 432217725363.89996,
+"fetched": "2026-07-31",
+"mkt_cap": 447589320557.4,
 "sector": "Tech / Hardware"
 },
 "CSGP": {
@@ -2886,8 +2886,8 @@
 "DG": {
 "earnings_date": "2026-08-27",
 "earnings_session": "BMO",
-"fetched": "2026-07-06",
-"mkt_cap": 26066724075.99,
+"fetched": "2026-07-31",
+"mkt_cap": 28124797492.5,
 "sector": "Consumer / Retail"
 },
 "DGX": {
@@ -5460,10 +5460,10 @@
 "sector": "Real Estate"
 },
 "KKR": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-11-05",
 "earnings_session": "BMO",
-"fetched": "2026-07-27",
-"mkt_cap": 89212655417.76,
+"fetched": "2026-07-31",
+"mkt_cap": 90667209582.18001,
 "sector": "Financials"
 },
 "KLAC": {
@@ -9994,6 +9994,13 @@
 "fetched": "2026-07-27",
 "mkt_cap": 43009682483.950005,
 "sector": "Tech / Software"
+},
+"TVTX": {
+"earnings_date": "2026-08-04",
+"earnings_session": "AMC",
+"fetched": "2026-07-31",
+"mkt_cap": 5326633598.400001,
+"sector": "Healthcare / Biotech"
 },
 "TWLO": {
 "earnings_date": "2026-08-06",
