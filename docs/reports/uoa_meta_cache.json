@@ -1484,10 +1484,10 @@
 "sector": "Other"
 },
 "BLZE": {
-"earnings_date": "2026-08-06",
+"earnings_date": "2026-08-03",
 "earnings_session": "AMC",
-"fetched": "2026-07-09",
-"mkt_cap": 985441883.0200001,
+"fetched": "2026-08-03",
+"mkt_cap": 823402109.32,
 "sector": "Tech / Software"
 },
 "BMA": {
@@ -7714,10 +7714,10 @@
 "sector": "Materials / Chemicals"
 },
 "PGEN": {
-"earnings_date": "2026-08-11",
+"earnings_date": "2026-08-04",
 "earnings_session": "AMC",
-"fetched": "2026-06-22",
-"mkt_cap": 1718382923.6000001,
+"fetched": "2026-08-03",
+"mkt_cap": 2235323844.6,
 "sector": "Healthcare / Biotech"
 },
 "PGNY": {
@@ -7877,8 +7877,8 @@
 "POET": {
 "earnings_date": "2026-08-11",
 "earnings_session": "AMC",
-"fetched": "2026-07-21",
-"mkt_cap": 1289247300.0,
+"fetched": "2026-08-03",
+"mkt_cap": 1206404100.0,
 "sector": "Other"
 },
 "PONY": {
@@ -8638,10 +8638,10 @@
 "sector": "Healthcare / Biotech"
 },
 "RXT": {
-"earnings_date": "2026-08-06",
+"earnings_date": "2026-08-11",
 "earnings_session": "BMO",
-"fetched": "2026-07-10",
-"mkt_cap": 1089102320.63,
+"fetched": "2026-08-03",
+"mkt_cap": 1048642518.0,
 "sector": "Tech / Software"
 },
 "RY": {
@@ -10589,6 +10589,13 @@
 "fetched": "2026-07-16",
 "mkt_cap": 1576373110.2,
 "sector": "Industrials / Transport Eq"
+},
+"VPG": {
+"earnings_date": "2026-08-05",
+"earnings_session": "BMO",
+"fetched": "2026-08-03",
+"mkt_cap": 1224357050.0,
+"sector": "Tech / Hardware"
 },
 "VRNS": {
 "earnings_date": "2026-07-28",
