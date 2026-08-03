@@ -681,8 +681,8 @@
 "APA": {
 "earnings_date": "2026-08-05",
 "earnings_session": "AMC",
-"fetched": "2026-07-21",
-"mkt_cap": 12314902708.68,
+"fetched": "2026-08-03",
+"mkt_cap": 13191508871.64,
 "sector": "Energy"
 },
 "APAM": {
@@ -940,15 +940,15 @@
 "ASTX": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-02",
+"fetched": "2026-08-03",
 "mkt_cap": null,
 "sector": "Other"
 },
 "ASX": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-07-27",
-"mkt_cap": 80824962866.76001,
+"fetched": "2026-08-03",
+"mkt_cap": 77332337231.13,
 "sector": "Other"
 },
 "ATAI": {
@@ -3192,10 +3192,10 @@
 "sector": "Tech / Software"
 },
 "DXCM": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-07-30",
-"mkt_cap": 28994495491.78,
+"fetched": "2026-08-03",
+"mkt_cap": 31490755839.25,
 "sector": "Other"
 },
 "DXJ": {
@@ -11135,6 +11135,13 @@
 "fetched": "2026-07-02",
 "mkt_cap": 1602325108.26,
 "sector": "Healthcare / Biotech"
+},
+"ZBRA": {
+"earnings_date": "2026-08-04",
+"earnings_session": "BMO",
+"fetched": "2026-08-03",
+"mkt_cap": 13995643237.44,
+"sector": "Industrials / Machinery"
 },
 "ZD": {
 "earnings_date": "2026-08-06",
