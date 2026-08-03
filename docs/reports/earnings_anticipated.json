@@ -1,6 +1,6 @@
 {
  "week_of": "2026-08-03",
- "generated": "2026-08-03T16:38:17-04:00",
+ "generated": "2026-08-03T16:48:56-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 417,
  "days": [
@@ -277,7 +277,7 @@
     {
      "ticker": "PLTR",
      "company": "Palantir Technologies Inc.",
-     "score": 258,
+     "score": 259,
      "analysts": 29,
      "release_time": 3,
      "confirmed": true,
@@ -1020,7 +1020,7 @@
     {
      "ticker": "Q",
      "company": "Qnity Electronics, Inc. ",
-     "score": 2,
+     "score": 3,
      "analysts": 9,
      "release_time": 1,
      "confirmed": true,
@@ -1385,7 +1385,7 @@
     {
      "ticker": "SPCX",
      "company": "Space Exploration Technologies Corp.",
-     "score": 95,
+     "score": 97,
      "analysts": 33,
      "release_time": 3,
      "confirmed": true,
@@ -1396,7 +1396,7 @@
     {
      "ticker": "AMD",
      "company": "Advanced Micro Devices, Inc.",
-     "score": 134,
+     "score": 136,
      "analysts": 45,
      "release_time": 3,
      "confirmed": true,
@@ -1847,7 +1847,7 @@
     {
      "ticker": "LDI",
      "company": "loanDepot, Inc. ",
-     "score": 2,
+     "score": 3,
      "analysts": 6,
      "release_time": 3,
      "confirmed": true,
@@ -3432,6 +3432,17 @@
      "mcap": 1771194314.86
     },
     {
+     "ticker": "VIA",
+     "company": "Via Transportation, Inc",
+     "score": 2,
+     "analysts": 12,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-06T00:00:00",
+     "q": "6/2026",
+     "mcap": 1653558016.14
+    },
+    {
      "ticker": "TRIP",
      "company": "TripAdvisor, Inc.",
      "score": 2,
@@ -3551,17 +3562,6 @@
      "next_eps": "2026-08-06T00:00:00",
      "q": "6/2026",
      "mcap": 617390446.4
-    },
-    {
-     "ticker": "DNUT",
-     "company": "Krispy Kreme, Inc.",
-     "score": 1,
-     "analysts": 8,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-08-06T00:00:00",
-     "q": "6/2026",
-     "mcap": 548232000.0
     },
     {
      "ticker": "ASPN",
@@ -3777,7 +3777,7 @@
     {
      "ticker": "TTD",
      "company": "Trade Desk, Inc.",
-     "score": 11,
+     "score": 12,
      "analysts": 37,
      "release_time": 3,
      "confirmed": true,
