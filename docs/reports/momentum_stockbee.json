@@ -1,5 +1,5 @@
 {
- "updated": "2026-08-02T16:41:49-04:00",
+ "updated": "2026-08-03T16:34:06-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -8403,6 +8403,151 @@
      "adr_pct": 4.7,
      "dollar_vol": 1190914129,
      "ern": "Sep 24"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-03",
+   "generated": "2026-08-03T16:34:06-04:00",
+   "count": 12,
+   "rows": [
+    {
+     "ticker": "MSFT",
+     "price": 487.65,
+     "chg": 25.33,
+     "adr_pct": 2.89,
+     "dollar_vol": 15605927568,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "AMZN",
+     "price": 284.02,
+     "chg": 22.75,
+     "adr_pct": 2.66,
+     "dollar_vol": 11973558756,
+     "ern": "Oct 29"
+    },
+    {
+     "ticker": "ORCL",
+     "price": 141.85,
+     "chg": 18.31,
+     "adr_pct": 5.33,
+     "dollar_vol": 5071243601,
+     "ern": "Sep 09"
+    },
+    {
+     "ticker": "BE",
+     "price": 218.32,
+     "chg": 16.02,
+     "adr_pct": 12.26,
+     "dollar_vol": 3658887902,
+     "ern": "Oct 27"
+    },
+    {
+     "ticker": "AEHR",
+     "price": 91.71,
+     "chg": 18.37,
+     "adr_pct": 12.67,
+     "dollar_vol": 273896314,
+     "ern": "Oct 08"
+    },
+    {
+     "ticker": "EAT",
+     "price": 225.3,
+     "chg": 15.28,
+     "adr_pct": 4.24,
+     "dollar_vol": 211380938,
+     "ern": "Aug 12"
+    },
+    {
+     "ticker": "CAKE",
+     "price": 104.89,
+     "chg": 20.52,
+     "adr_pct": 3.74,
+     "dollar_vol": 159206010,
+     "ern": "Oct 27"
+    },
+    {
+     "ticker": "AMBA",
+     "price": 82.68,
+     "chg": 21.18,
+     "adr_pct": 8.48,
+     "dollar_vol": 154904283,
+     "ern": "Aug 27"
+    },
+    {
+     "ticker": "IESC",
+     "price": 724.99,
+     "chg": 20.18,
+     "adr_pct": 7.22,
+     "dollar_vol": 144078377,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "ITGR",
+     "price": 124.45,
+     "chg": 25.2,
+     "adr_pct": 3.84,
+     "dollar_vol": 131854393,
+     "ern": "Aug 03"
+    },
+    {
+     "ticker": "TWST",
+     "price": 101.06,
+     "chg": 16.78,
+     "adr_pct": 8.29,
+     "dollar_vol": 131828659,
+     "ern": "Aug 03"
+    },
+    {
+     "ticker": "ITRI",
+     "price": 100.95,
+     "chg": 19.07,
+     "adr_pct": 3.89,
+     "dollar_vol": 103185332,
+     "ern": "Oct 29"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "FSLY",
+     "price": 23.03,
+     "chg": 14.92,
+     "adr_pct": 7.41,
+     "dollar_vol": 102353553,
+     "ern": "Aug 05"
+    },
+    {
+     "ticker": "QLYS",
+     "price": 154.89,
+     "chg": 14.91,
+     "adr_pct": 5.96,
+     "dollar_vol": 110538848,
+     "ern": "Aug 04"
+    },
+    {
+     "ticker": "GOOGL",
+     "price": 373.51,
+     "chg": 14.38,
+     "adr_pct": 2.86,
+     "dollar_vol": 10582605221,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "GOOG",
+     "price": 372.47,
+     "chg": 14.06,
+     "adr_pct": 2.87,
+     "dollar_vol": 7027945643,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "REGN",
+     "price": 759.24,
+     "chg": 13.8,
+     "adr_pct": 2.72,
+     "dollar_vol": 544426638,
+     "ern": "Oct 28"
     }
    ]
   }

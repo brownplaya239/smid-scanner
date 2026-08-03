@@ -1,5 +1,5 @@
 {
- "updated": "2026-08-02T16:41:49-04:00",
+ "updated": "2026-08-03T16:34:06-04:00",
  "runs": [
   {
    "date": "2026-05-19",
@@ -4980,6 +4980,37 @@
      "adr_pct": 6.29,
      "dollar_vol": 194317005,
      "ern": "Oct 29"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-03",
+   "generated": "2026-08-03T16:34:06-04:00",
+   "count": 3,
+   "rows": [
+    {
+     "ticker": "AEHR",
+     "price": 91.71,
+     "chg": 31.09,
+     "adr_pct": 12.67,
+     "dollar_vol": 273896314,
+     "ern": "Oct 08"
+    },
+    {
+     "ticker": "PBF",
+     "price": 67.91,
+     "chg": 42.04,
+     "adr_pct": 6.37,
+     "dollar_vol": 205686686,
+     "ern": "Oct 29"
+    },
+    {
+     "ticker": "FSLY",
+     "price": 23.03,
+     "chg": 27.03,
+     "adr_pct": 7.41,
+     "dollar_vol": 102353553,
+     "ern": "Aug 05"
     }
    ]
   }
