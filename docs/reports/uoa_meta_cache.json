@@ -2270,8 +2270,8 @@
 "CLF": {
 "earnings_date": "2026-10-19",
 "earnings_session": "BMO",
-"fetched": "2026-07-24",
-"mkt_cap": 6251744640.72,
+"fetched": "2026-08-04",
+"mkt_cap": 6401459327.34,
 "sector": "Materials / Metals"
 },
 "CLMT": {
@@ -3969,10 +3969,10 @@
 "sector": "Tech / Hardware"
 },
 "FLG": {
-"earnings_date": "2026-07-24",
+"earnings_date": "2026-10-23",
 "earnings_session": "BMO",
-"fetched": "2026-07-09",
-"mkt_cap": 6060491873.88,
+"fetched": "2026-08-04",
+"mkt_cap": 5930009781.84,
 "sector": "Financials / Banks"
 },
 "FLNC": {
@@ -4683,10 +4683,10 @@
 "sector": "Financials / Banks"
 },
 "HBM": {
-"earnings_date": "2026-07-31",
+"earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-06-24",
-"mkt_cap": 10072893577.84,
+"fetched": "2026-08-04",
+"mkt_cap": 10392987384.0,
 "sector": "Other"
 },
 "HCA": {
@@ -5467,10 +5467,10 @@
 "sector": "Industrials"
 },
 "KBR": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-10-22",
 "earnings_session": "BMO",
-"fetched": "2026-07-21",
-"mkt_cap": 4383128813.49,
+"fetched": "2026-08-04",
+"mkt_cap": 4675853032.950001,
 "sector": "Industrials"
 },
 "KBWB": {
@@ -5798,8 +5798,8 @@
 "LCID": {
 "earnings_date": "2026-08-04",
 "earnings_session": "AMC",
-"fetched": "2026-07-21",
-"mkt_cap": 2774725904.88,
+"fetched": "2026-08-04",
+"mkt_cap": 3004977421.6,
 "sector": "Industrials / Transport Eq"
 },
 "LCII": {
@@ -7821,8 +7821,8 @@
 "PH": {
 "earnings_date": "2026-08-06",
 "earnings_session": "BMO",
-"fetched": "2026-06-12",
-"mkt_cap": 113776574841.93001,
+"fetched": "2026-08-04",
+"mkt_cap": 125773694755.28,
 "sector": "Industrials / Machinery"
 },
 "PHG": {
@@ -8713,6 +8713,13 @@
 "fetched": "2026-06-16",
 "mkt_cap": 1106781873.3,
 "sector": "Other"
+},
+"RVLV": {
+"earnings_date": "2026-08-04",
+"earnings_session": "AMC",
+"fetched": "2026-08-04",
+"mkt_cap": 1861875228.86,
+"sector": "Consumer / Retail"
 },
 "RVMD": {
 "earnings_date": "2026-08-05",
@@ -9640,9 +9647,9 @@
 },
 "SYY": {
 "earnings_date": "2026-08-04",
-"earnings_session": "BMO",
-"fetched": "2026-07-15",
-"mkt_cap": 39617429072.799995,
+"earnings_session": null,
+"fetched": "2026-08-04",
+"mkt_cap": 40683353413.36,
 "sector": "Other"
 },
 "T": {
@@ -10540,6 +10547,13 @@
 "fetched": "2026-08-02",
 "mkt_cap": 64091787873.420006,
 "sector": "Other"
+},
+"VCTR": {
+"earnings_date": "2026-08-05",
+"earnings_session": "AMC",
+"fetched": "2026-08-04",
+"mkt_cap": 6488852869.62,
+"sector": "Financials"
 },
 "VCX": {
 "earnings_date": null,
