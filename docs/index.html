@@ -2338,7 +2338,7 @@
   .ovf-tblwrap { overflow-x:auto; }
   .ovf-tbl { min-width:640px; font-variant-numeric:tabular-nums; }
   .ovf-tr { display:grid; align-items:center; gap:6px 8px;
-    grid-template-columns:64px minmax(84px,1.3fr) 46px 62px 52px 74px 78px 74px 56px;
+    grid-template-columns:64px 88px minmax(84px,1.3fr) 46px 62px 52px 74px 78px 74px 56px;
     padding:5px 4px; border-bottom:1px solid var(--line); font-size:12px; }
   .ovf-tr:not(.ovf-hd) { cursor:pointer; }
   .ovf-tr:not(.ovf-hd):hover { background:var(--rowhov); }
@@ -4490,6 +4490,16 @@
     font-size:11px; }
   .off-card .off-side { min-width:100px; text-align:center; }
   .dw-card .ro-side { min-width:70px; text-align:center; }
+  /* Price/1D cells reused across surfaces (Action List chips, Overnight
+     Flow table, Top Bullish/Bearish rows) — color classes are global,
+     each surface sizes its own cell. */
+  .epx { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .epx.sc-up   { color:var(--green); }
+  .epx.sc-down { color:var(--red); }
+  .al-chip .al-px { font-size:10px; font-weight:600; color:var(--textdim); }
+  .conf-row .cr-px { min-width:44px; font-size:10.5px;
+    color:var(--textdim); font-weight:600; }
+  .ovf-tr .epx { font-size:11px; }
   .dst-warn { color:var(--red, #e5484d); }
   .uoa-obs { display:block; font-size:9px; color:var(--muted);
     margin-top:1px; white-space:nowrap; }
@@ -20796,6 +20806,7 @@
       // Column defs: [label, sortKey|null, tooltip]
       const cols = [
         ["Ticker", "ticker", "Underlying. Click any row to open its drilldown."],
+        ["Px · 1D", null, "Last price + today's % change in the underlying (delayed 15m)."],
         ["Contract", null, "Strike · type · expiry of the flagged print."],
         ["Dir", "direction", "Bullish call / bearish put — direction of the positioning."],
         ["Premium", "premium", "Dollar value of the original flagged print."],
@@ -20842,6 +20853,8 @@
         return '<div class="ovf-tr" data-t="' + escAttr(c.ticker) +
             '" role="button" tabindex="0">' +
           '<span class="ovf-c ovf-tk">' + escHtml(c.ticker) + warn + '</span>' +
+          '<span class="ovf-c ovf-num epx" data-epx-t="' +
+            escAttr(c.ticker) + '">&mdash;</span>' +
           '<span class="ovf-c ovf-con">' + (c.strike != null ? c.strike : "") +
             typ + ' <span class="ovf-exp">' + ovfExp(c.expiry) + '</span></span>' +
           '<span class="ovf-c"><span class="ovf-badge ' + dirCls + '">' + dirTxt + '</span></span>' +
@@ -20895,6 +20908,10 @@
         if (_ovfSort.k === key) _ovfSort.dir = -_ovfSort.dir;
         else _ovfSort = { k: key, dir: key === "ticker" ? 1 : -1 };
         dash.innerHTML = ovfDashHTML(_ovfData);
+        // Re-fill the Px·1D cells after the sort re-render (gateway
+        // cache-served — no new network within the 5-min TTL).
+        if (typeof hydrateEdgePaneQuotes === "function")
+          hydrateEdgePaneQuotes();
       });
     }
 
@@ -21664,6 +21681,8 @@
         return '<div class="al-chip ' + dirCls + '" data-t="' + item.tk + '" ' +
                  'title="' + (why || item.tk) + '">' +
           '<span class="al-tk">' + item.tk + '</span>' +
+          '<span class="al-px epx" data-epx-t="' + item.tk +
+            '">&mdash;</span>' +
           (g ? '<span class="al-grade ' + gradeCls + '">' + g + '</span>' : '') +
           (item.flow && item.flow.premium
             ? '<span class="al-prem">' + fmtPrem(item.flow.premium) + '</span>'
@@ -22701,6 +22720,8 @@
         '<span class="cr-tk" data-tip="1" title="' +
           'Underlying stock symbol. Tap to open the drilldown panel.">' +
           'Ticker</span>' +
+        '<span class="cr-px" data-tip="1" title="' +
+          'Last traded price (delayed 15m).">Px</span>' +
         '<span class="chg-pill" data-tip="1" title="' +
           'Today\'s % change in the underlying (delayed 15m).">' +
           'Day %</span>' +
@@ -22728,6 +22749,8 @@
           const rows = groups[cat].map(function (x) {
             return '<div class="conf-row">' +
               '<span class="cr-tk" data-t="' + x.t + '">' + x.t + '</span>' +
+              '<span class="cr-px epx" data-epx-t="' + x.t +
+                '" data-epx-px="1">&mdash;</span>' +
               chgBadge(x.t) + biasBadge(x.cat) +
               '<span class="cr-narr">' + narrative(x.e) + '</span></div>';
           }).join("");
@@ -24116,14 +24139,22 @@
           const q = map[el.dataset.epxT];
           if (!q || q.price == null) return;
           const c = typeof q.change === "number" ? q.change : null;
-          el.className = "dr-val epx " +
-            (c == null ? "" : c > 0 ? "sc-up" : c < 0 ? "sc-down" : "");
-          el.innerHTML = "$" + (q.price >= 100 ? Math.round(q.price)
-            : q.price >= 10 ? q.price.toFixed(1) : q.price.toFixed(2)) +
-            (c != null ? " <b>" + (c > 0 ? "+" : "") + c.toFixed(1) +
-              "%</b>" : "");
-          el.title = "Last price + total 1D change (delayed ~15m, " +
-            "extended hours included when available).";
+          // Toggle color classes only — surfaces reuse this hydrator
+          // (edge panes, Action List chips, Overnight Flow, confluence
+          // rows) and each carries its own base classes.
+          el.classList.remove("sc-up", "sc-down");
+          if (c != null && c !== 0)
+            el.classList.add(c > 0 ? "sc-up" : "sc-down");
+          const px = "$" + (q.price >= 100 ? Math.round(q.price)
+            : q.price >= 10 ? q.price.toFixed(1) : q.price.toFixed(2));
+          // data-epx-px="1" → price only (surfaces that already show
+          // the day-% elsewhere in the row, e.g. Top Bullish/Bearish).
+          el.innerHTML = el.dataset.epxPx === "1" ? px
+            : px + (c != null ? " <b>" + (c > 0 ? "+" : "") +
+              c.toFixed(1) + "%</b>" : "");
+          el.title = "Last price" + (el.dataset.epxPx === "1" ? ""
+            : " + total 1D change") + " (delayed ~15m, extended hours " +
+            "included when available).";
         });
       });
     }
