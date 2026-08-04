@@ -8198,6 +8198,44 @@
     return window.escapeHtml(s);
   };
 
+  // ── Soft-failure reporter ────────────────────────────────────────
+  // Card builders wrap themselves in try/catch and return "" so one bad
+  // record can't take down the whole desk. The cost is that a genuine
+  // bug renders as a MISSING card with no trace — that is how an empty
+  // Offense pane and a never-painting index-flow card both went
+  // unnoticed. Failures now surface in devtools.
+  //
+  // Deduped by site+message: a card that throws on every 60s re-render
+  // logs once, not forever. window.tdSoftFails() dumps the table.
+  window.__tdSoftFails = Object.create(null);
+  window.tdSoftFail = function (where, err) {
+    try {
+      const msg = (err && (err.message || err.toString())) || "unknown";
+      const key = where + " :: " + msg;
+      const rec = window.__tdSoftFails[key];
+      if (rec) { rec.count++; return; }
+      window.__tdSoftFails[key] = {
+        where: where, message: msg, count: 1,
+        firstAt: new Date().toISOString(),
+        stack: (err && err.stack) || null,
+      };
+      console.warn("[TickerDesk] " + where + " failed to render — " +
+                   msg + " (further repeats suppressed; run " +
+                   "tdSoftFails() for details)", err);
+    } catch (_) { /* reporting must never itself throw */ }
+  };
+  window.tdSoftFails = function () {
+    const rows = Object.keys(window.__tdSoftFails)
+      .map(function (k) { return window.__tdSoftFails[k]; })
+      .sort(function (a, b) { return b.count - a.count; });
+    if (!rows.length) { console.log("[TickerDesk] no render failures"); return rows; }
+    if (console.table) console.table(rows.map(function (r) {
+      return { where: r.where, message: r.message, count: r.count,
+               firstAt: r.firstAt };
+    }));
+    return rows;
+  };
+
   // ── ET calendar helpers ──────────────────────────────────────────
   // The market day is an ET calendar day. Two bugs kept recurring from
   // doing this with UTC:
@@ -9181,7 +9219,7 @@
         if (h < 24)  return "since " + Math.round(h) + "h ago";
         const d = Math.round(h / 24);
         return "since " + d + " day" + (d === 1 ? "" : "s") + " ago";
-      } catch (e) { return ""; }
+      } catch (e) { window.tdSoftFail("watchlist:fmtSince", e); return ""; }
     }
     function build() {
       // Show ONLY when signed in and has watchlist items
@@ -13689,7 +13727,7 @@
     // Per-ticker private notes (localStorage). Cleared with Reset link.
     function loadNotes(t) {
       try { return localStorage.getItem("td-notes-" + t) || ""; }
-      catch (e) { return ""; }
+      catch (e) { window.tdSoftFail("drilldown:loadNotes", e); return ""; }
     }
     function saveNotes(t, v) {
       try {
@@ -20372,7 +20410,7 @@
       try {
         return new Date(iso).toLocaleTimeString([],
           { hour: "numeric", minute: "2-digit" });
-      } catch (_) { return ""; }
+      } catch (_e) { window.tdSoftFail("momentumLab:fmtT", _e); return ""; }
     }
     function buildHtml(rows, emptyMsg) {
       // Quality gate: drop Benzinga's algorithmic filler (backtest /
@@ -23069,7 +23107,7 @@
           (ern ? '<span class="rg-item">' + ern + ' earnings ≤7d</span>' : '') +
           '<span class="rg-item rg-asof"><i>prior session close</i></span>' +
           '<span class="rg-read">' + read + '</span></div>';
-      } catch (_) { return ""; }
+      } catch (_e) { window.tdSoftFail("desk:regimeBanner", _e); return ""; }
     }
 
     // In-place intraday re-classification of the regime banner. Same
@@ -23285,7 +23323,7 @@
         const b = (cal.bands || {})[band];
         if (!b) return "";
         return ' · cal <b>' + b.win_rate + '%</b>';
-      } catch (_) { return ""; }
+      } catch (_e) { window.tdSoftFail("flow:tdCalibrated", _e); return ""; }
     }
 
     // ── Evening Review — the system grading itself, nightly ─────────────
@@ -24203,7 +24241,7 @@
               dnRows : "") +
           '<div class="ro-foot">Thin by design — in this dataset most ' +
           "long signals lose; an empty pane is honest.</div></div>";
-      } catch (_) { return ""; }
+      } catch (_e) { window.tdSoftFail("desk:cardOffense", _e); return ""; }
     }
     // Defense Watch — informed put buying, in two scopes:
     //   1) YOUR NAMES — put-buyer clusters on watchlist tickers (needs
@@ -24260,7 +24298,7 @@
               "get the personal section — puts printing on names you " +
               "hold.</div>") +
           "</div>";
-      } catch (_) { return ""; }
+      } catch (_e) { window.tdSoftFail("desk:defenseRow", _e); return ""; }
     }
 
     // Build the Offense|Defense pair (shared by the initial desk render
@@ -26971,7 +27009,7 @@
           "rate was " + b.predicted + "% — displayed conviction " +
           "overstates by " + Math.abs(b.drift || 0) + "pp, so trust " +
           'this number, not the score.">obs ' + b.observed + "%</span>";
-      } catch (_) { return ""; }
+      } catch (_e) { window.tdSoftFail("flow:obsHitLabel", _e); return ""; }
     }
     function renderBody() {
       renderChips();
@@ -29339,7 +29377,7 @@
             '</span></div>';
         }
         return '<div class="dd-wrap">' + html + '</div>';
-      } catch (_) { return ""; }
+      } catch (_e) { window.tdSoftFail("flow:detailDecision", _e); return ""; }
     }
 
     function drow(k,v) {
