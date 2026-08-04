@@ -3,6 +3,29 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Content-Security-Policy (2026-08 security audit). GitHub Pages cannot
+     set response headers, so this ships as a meta policy. Defence in depth
+     behind escapeHtml(): this page builds most of its DOM with innerHTML
+     from external feeds (news, SEC, scraped calendars), so any escape we
+     miss should fail closed rather than become script execution.
+     'unsafe-inline' is unavoidable while the app is one big inline script
+     with inline styles; it still blocks the two things that matter most —
+     loading script from an attacker host, and exfiltrating to one.
+     script-src hosts: unpkg (lightweight-charts), s3.tradingview (tv.js).
+     connect-src hosts: our worker + Supabase. frame-src: TradingView. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://unpkg.com https://s3.tradingview.com https://www.tradingview.com;
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob: https:;
+  font-src 'self' data:;
+  connect-src 'self' https://api.tickerdesk.io https://uaeojibmhxbwkhpvmjwy.supabase.co;
+  frame-src https://www.tradingview.com https://s.tradingview.com;
+  worker-src 'self' blob:;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+" />
 <meta name="theme-color" content="#000000" />
 <meta name="description" content="Options flow scanner with next-day open-interest confirmation, breakout &amp; VCP scans, earnings trade ideas, and on-demand AI research reports — every signal self-graded against real closes, wins and losses published." />
 <link rel="icon" href="favicon.ico" sizes="any" />
@@ -8157,6 +8180,18 @@
       .replace(/'/g, "&#39;");
   };
 
+  // ── safeUrl ──────────────────────────────────────────────────────
+  // href= sanitizer for links whose URL comes from an external feed
+  // (news RSS, EDGAR filings, eWhispers). escapeHtml alone stops
+  // attribute breakout but NOT a "javascript:" / "data:" scheme, which
+  // renders as an ordinary-looking headline and runs on click. Anything
+  // that is not http(s) collapses to "#".
+  window.safeUrl = function (u) {
+    const s = String(u == null ? "" : u).trim();
+    if (!/^https?:\/\//i.test(s)) return "#";
+    return window.escapeHtml(s);
+  };
+
   // ── Missing-data helper ─────────────────────────────────────────
   // "Never silent stale": every missing value should communicate WHY
   // it's missing so users can tell intentional gaps from broken
@@ -13907,7 +13942,7 @@
         ? '<span class="watch-badge" title="' + watchN +
           ' traders watching">' + watchN + '</span>'
         : '';
-      nameEl.innerHTML = '<span>' + cleanedName + '</span> ' +
+      nameEl.innerHTML = '<span>' + window.escapeHtml(cleanedName) + '</span> ' +
         confluenceBadge(confScore) + ' ' + starHtml + watchHtml;
 
       // ── Body sections ──
@@ -14225,14 +14260,19 @@
           const showAI = f.needsAI;
           const willAutoSummarize = showAI && aiSummariesQueued < 3;
           if (willAutoSummarize) aiSummariesQueued++;
+          // SEC-sourced strings (headline, form, category, accession) and
+          // the filing URL are all escaped — an 8-K headline is attacker
+          // -influenceable text and this template renders five of them.
+          const esc = window.escapeHtml;
           return '<div class="tdp-filing" id="' + id + '" data-acc="' +
-              f.accession + '">' +
-            '<div class="tf-dot ' + f.category + '"></div>' +
+              esc(f.accession) + '">' +
+            '<div class="tf-dot ' + esc(f.category) + '"></div>' +
             '<div class="tf-date">' + fmtFilingAge(f.filingDate) + '</div>' +
             '<div class="tf-body">' +
               '<div class="tf-headline">' +
-                '<a class="tf-link" href="' + f.url + '" target="_blank" ' +
-                  'rel="noopener">' + (f.headline || f.form) + '</a>' +
+                '<a class="tf-link" href="' + window.safeUrl(f.url) +
+                  '" target="_blank" ' +
+                  'rel="noopener">' + esc(f.headline || f.form) + '</a>' +
               '</div>' +
               (showAI
                 ? '<div class="tf-summary">' +
@@ -14518,12 +14558,13 @@
             : '';
           return '<div class="tdp-news-row">' +
             '<div class="tnr-time">' + fmtNewsAge(a.published) + '</div>' +
-            '<a class="tnr-title" href="' + (a.url || "#") +
+            '<a class="tnr-title" href="' + window.safeUrl(a.url) +
               '" target="_blank" rel="noopener">' +
-              (a.title || "(no title)").replace(/&/g, "&amp;").replace(/</g, "&lt;") +
+              window.escapeHtml(a.title || "(no title)") +
               '</a>' +
             '<div class="tnr-foot">' +
-              '<span class="tnr-src">' + (a.publisher || "—") + '</span>' +
+              '<span class="tnr-src">' +
+                window.escapeHtml(a.publisher || "—") + '</span>' +
               sentTag +
             '</div></div>';
         }).join("");
@@ -18007,11 +18048,12 @@
           encodeURIComponent(tk) + "&limit=30");
         const d = await r.json();
         if (!d || d.error || !d.filings || !d.filings.length) {
-          setStatus("err", "&#10007; " + (d && d.error
+          setStatus("err", "&#10007; " + window.escapeHtml(d && d.error
             ? d.error : "No EDGAR filings found for " + tk + "."));
           return;
         }
-        setStatus("ok", "&#10003; <strong>" + (d.name || tk) + "</strong> · " +
+        setStatus("ok", "&#10003; <strong>" +
+          window.escapeHtml(d.name || tk) + "</strong> · " +
           d.filings.length + " recent filings · " +
           '<a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=' +
           encodeURIComponent(d.cik || tk) + '&type=&dateb=&owner=include&count=40" ' +
@@ -18032,7 +18074,7 @@
               '<div class="ir-sum" id="ir-sum-' + i + '"></div>' +
             '</span>' +
             '<span class="ir-acts">' +
-              '<a href="' + window.escapeHtml(f.url) + '" target="_blank" ' +
+              '<a href="' + window.safeUrl(f.url) + '" target="_blank" ' +
                 'rel="noopener" class="ir-open">Open &rarr;</a>' +
               aiBtn +
             '</span>' +
@@ -18903,7 +18945,7 @@
           }
           tweet.innerHTML = '<div class="ew-tweet-meta" style="padding:6px 0">' +
             'Weekly &ldquo;Most Anticipated&rdquo; chart' + wk + ': ' +
-            '<a href="' + escHTML(url) + '" target="_blank" rel="noopener">' +
+            '<a href="' + window.safeUrl(url) + '" target="_blank" rel="noopener">' +
             '@eWhispers on X &rarr;</a>' + stale + '</div>';
         })
         .catch(function () { tweet.innerHTML = ''; });
@@ -19600,7 +19642,7 @@
         '<div class="ni-time">' + fmtAge(a.published) +
           '<span class="ni-src">' + escHTML(a.publisher || "—") + '</span></div>' +
         '<div class="ni-body">' +
-          '<a class="ni-title" href="' + escHTML(a.url) +
+          '<a class="ni-title" href="' + window.safeUrl(a.url) +
             '" target="_blank" rel="noopener">' + escHTML(a.title) + '</a>' +
           (a.description ? '<div class="ni-desc">' + escHTML(a.description) +
             '</div>' : '') +
@@ -19824,7 +19866,8 @@
         '<div class="nts-cell">30-day<b>' + buckets.month + '</b></div>' +
         '<div class="nts-cell">Bull%<b><span class="pos">' + posPct + '%</span></b></div>' +
         '<div class="nts-cell" style="grid-column:span 2">Top sources' +
-          '<b style="font-size:11px;font-weight:600">' + (topSrc || "—") + '</b></div>';
+          '<b style="font-size:11px;font-weight:600">' +
+            window.escapeHtml(topSrc || "—") + '</b></div>';
       if (!arts.length) {
         tkList.innerHTML = '<div class="news-empty">' +
           'No news on file for ' + t + '.</div>';
@@ -22243,6 +22286,7 @@
     }
 
     function cardCalendar(cal, todayISO) {
+      const esc = window.escapeHtml;
       // Live feed (worker ForexFactory proxy) → live stamp so users know
       // the Actual column is filling in through the day. Static fallback
       // (post-close batch) keeps the pre-market "Calendar pulled" stamp.
@@ -22283,14 +22327,17 @@
       return desk("Today's Economic Calendar", hdr +
         todays.map(function (e) {
           return '<div class="cal-row">' +
-            '<span class="cal-time">' + (e.time || "") + '</span>' +
-            '<span class="cal-title" title="' + (e.title || "").replace(/"/g,"&quot;") +
-              '">' + (e.title || "") + '</span>' +
+            // Every field here is scraped (ForexFactory / Nasdaq) — the
+            // title attribute was quote-escaped but the visible text was
+            // raw, so an event NAME could inject on every desk load.
+            '<span class="cal-time">' + esc(e.time || "") + '</span>' +
+            '<span class="cal-title" title="' + esc(e.title || "") +
+              '">' + esc(e.title || "") + '</span>' +
             '<span class="cal-imp ' + impCls(e.impact) + '" title="' +
-              (e.impact || "") + '"></span>' +
-            '<span class="cal-act">'  + (e.actual   || "—") + '</span>' +
-            '<span class="cal-fcst">' + (e.forecast || "—") + '</span>' +
-            '<span class="cal-prev">' + (e.previous || "—") + '</span>' +
+              esc(e.impact || "") + '"></span>' +
+            '<span class="cal-act">'  + esc(e.actual   || "—") + '</span>' +
+            '<span class="cal-fcst">' + esc(e.forecast || "—") + '</span>' +
+            '<span class="cal-prev">' + esc(e.previous || "—") + '</span>' +
             '</div>';
         }).join(""), null, stamp);
     }
@@ -23639,7 +23686,7 @@
         '<span class="tape-chg ' + cls + '">' + arrow +
           (dc == null ? "" : (dc > 0 ? "+" : "") + dc.toFixed(2) + "%") +
           '</span></div>' +
-        '<div class="sp-name">' + cleanName(name) + '</div>' +
+        '<div class="sp-name">' + window.escapeHtml(cleanName(name)) + '</div>' +
         '<div><span class="sp-px">$' + (px != null ? px.toFixed(2) : "—") +
           '</span><span class="sp-pxs">' + pxLabel + '</span></div>' +
         (row1 ? '<div class="sp-row">' + row1 + '</div>' : '') +
@@ -25195,7 +25242,7 @@
         '<span class="tape-chg ' + cls + '">' + arrow +
           (dc == null ? "" : (dc > 0 ? "+" : "") + dc.toFixed(2) + "%") +
           '</span></div>' +
-        '<div class="sp-name">' + clean(c.n || c.t) + '</div>' +
+        '<div class="sp-name">' + window.escapeHtml(clean(c.n || c.t)) + '</div>' +
         '<div><span class="sp-px">$' + (c.p != null ? c.p.toFixed(2) : "—") +
           '</span><span class="sp-pxs">Close · ' + RUN_DATE + '</span></div>' +
         (row1 ? '<div class="sp-row">' + row1 + '</div>' : '') +
