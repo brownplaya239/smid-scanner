@@ -23974,7 +23974,9 @@
             esc(x.ticker) + '</span><span class="dr-meta">' +
             esc(x.dir_label || "Bullish") + " · " + _fmtPrem(x.premium || 0) +
             " · " + Math.round((x.retention || 0) * 100) +
-            "% held</span>" + _splitChip(x.ticker, splitSet) +
+            "% held</span>" +
+            '<span class="dr-val epx" data-epx-t="' + esc(x.ticker) +
+            '">&mdash;</span>' + _splitChip(x.ticker, splitSet) +
             '<span class="off-side">OI CONFIRMED</span></div>';
         }).join("");
         const dnRows = downs.map(function (m) {
@@ -23982,7 +23984,8 @@
             '<span class="dr-tk" data-t="' + esc(m.t) + '">' + esc(m.t) +
             '</span><span class="dr-meta">' + esc(m.from) + " → " +
             esc(m.to) + " (" + m.step + " notches)</span>" +
-            _splitChip(m.t, splitSet) +
+            '<span class="dr-val epx" data-epx-t="' + esc(m.t) +
+            '">&mdash;</span>' + _splitChip(m.t, splitSet) +
             '<span class="off-side">BOUNCE COHORT</span></div>';
         }).join("");
         return '<div class="desk-card off-card"><h3>Offense — measured ' +
@@ -24037,7 +24040,9 @@
             '</span><span class="dr-meta">' + _fmtPrem(g.prem) +
             " put premium · " + g.n + " print" + (g.n === 1 ? "" : "s") +
             (g.ern != null ? " · earnings in " + g.ern + "d" : "") +
-            "</span>" + _splitChip(g.t, splitSet) +
+            "</span>" +
+            '<span class="dr-val epx" data-epx-t="' + esc(g.t) +
+            '">&mdash;</span>' + _splitChip(g.t, splitSet) +
             '<span class="ro-side">PUT BUY</span></div>';
         }
         return '<div class="desk-card dw-card"><h3>Defense — informed ' +
@@ -24061,6 +24066,64 @@
           "</div>";
       } catch (_) { return ""; }
     }
+
+    // Build the Offense|Defense pair (shared by the initial desk render
+    // and the in-place slot re-render on watchlist arrival).
+    function buildEdgePairHTML(uoa, D) {
+      const offTk = new Set();
+      (((D.carryover || {}).contracts) || []).forEach(function (x) {
+        if (x.held && x.direction === "bullish") offTk.add(x.ticker);
+      });
+      ((((D.engine || {}).migrations) || {}).top_down || [])
+        .forEach(function (m) {
+          if ((m.step || 0) <= -3) offTk.add(m.t);
+        });
+      const split = new Set(_putClusters(uoa)
+        .map(function (g) { return g.t; })
+        .filter(function (t) { return offTk.has(t); }));
+      const off = cardOffense(D.carryover, D.engine, split);
+      const dw = cardDefenseWatch(uoa, split);
+      return (off && dw)
+        ? '<div class="desk-pair">' + off + dw + '</div>'
+        : (off || dw || "");
+    }
+    // Fill the price/day-return cell on every Offense/Defense row from
+    // the shared quote gateway (batched at the worker's 12-symbol cap,
+    // 5-min TTL — repeat renders are cache hits).
+    function hydrateEdgePaneQuotes() {
+      const els = Array.prototype.slice.call(
+        document.querySelectorAll(".epx[data-epx-t]"));
+      if (!els.length || typeof TD_QUOTES === "undefined") return;
+      const syms = Array.from(new Set(els.map(function (e) {
+        return e.dataset.epxT;
+      })));
+      TD_QUOTES.get(syms).then(function (map) {
+        els.forEach(function (el) {
+          const q = map[el.dataset.epxT];
+          if (!q || q.price == null) return;
+          const c = typeof q.change === "number" ? q.change : null;
+          el.className = "dr-val epx " +
+            (c == null ? "" : c > 0 ? "sc-up" : c < 0 ? "sc-down" : "");
+          el.innerHTML = "$" + (q.price >= 100 ? Math.round(q.price)
+            : q.price >= 10 ? q.price.toFixed(1) : q.price.toFixed(2)) +
+            (c != null ? " <b>" + (c > 0 ? "+" : "") + c.toFixed(1) +
+              "%</b>" : "");
+          el.title = "Last price + total 1D change (delayed ~15m, " +
+            "extended hours included when available).";
+        });
+      });
+    }
+    function renderEdgePairSlot() {
+      const slot = document.getElementById("edge-pair-slot");
+      if (!slot) return;
+      const D = window.TD_DATA || {};
+      slot.innerHTML = buildEdgePairHTML(D.uoa, D);
+      hydrateEdgePaneQuotes();
+    }
+    // Watchlist resolves asynchronously (Supabase) — rebuild the pair
+    // when it lands or changes so the "Your names" section appears
+    // without waiting for the next full desk tick.
+    if (typeof onWatchChange === "function") onWatchChange(renderEdgePairSlot);
 
     function renderDesk() {
       const D = window.TD_DATA || {};
@@ -24162,26 +24225,13 @@
           // full-width so the grid never shows a dead half-cell.
           // Names on BOTH sides the same day get a SPLIT FLOW chip in
           // each pane instead of silently contradicting each other.
-          (function () {
-            const roHtml = cardRiskOff(uoa, qm, sb, swing);
-            const offTk = new Set();
-            (((D.carryover || {}).contracts) || []).forEach(function (x) {
-              if (x.held && x.direction === "bullish") offTk.add(x.ticker);
-            });
-            ((((D.engine || {}).migrations) || {}).top_down || [])
-              .forEach(function (m) {
-                if ((m.step || 0) <= -3) offTk.add(m.t);
-              });
-            const split = new Set(_putClusters(uoa)
-              .map(function (g) { return g.t; })
-              .filter(function (t) { return offTk.has(t); }));
-            const off = cardOffense(D.carryover, D.engine, split);
-            const dw = cardDefenseWatch(uoa, split);
-            const pair = (off && dw)
-              ? '<div class="desk-pair">' + off + dw + '</div>'
-              : (off || dw || "");
-            return roHtml + pair;
-          })(),
+          // Slot-wrapped so renderEdgePairSlot() can rebuild it in
+          // place when the watchlist arrives (Supabase resolves AFTER
+          // the first desk render — without this, signed-in users saw
+          // the signed-out footer until the next full tick).
+          cardRiskOff(uoa, qm, sb, swing) +
+            '<div id="edge-pair-slot">' + buildEdgePairHTML(uoa, D) +
+            '</div>',
           cardOpportunities(ctx, swing, uoa, uoaMeta, D.carryover), // decision-first spine
           cardWhatChangedToday(swing, uoa),    // full-width, LIVE-first
           '<div class="desk-pair">' +          // Market Health | Top Flow
@@ -24219,6 +24269,9 @@
         if (pmbSlot && _pmbNode) pmbSlot.appendChild(_pmbNode);
         const iprSlot = document.getElementById("ipo-slot");
         if (iprSlot && _iprNode) iprSlot.appendChild(_iprNode);
+        // Price/day-return cells on the Offense|Defense rows — small
+        // symbol set (≤20), served from the shared gateway cache.
+        hydrateEdgePaneQuotes();
         // Kick off live-quote hydration in the background — but ONLY
         // when the Desk is the active route. Landing on another tab
         // (e.g. Options Flow) must not burn ~20 worker /quotes calls
