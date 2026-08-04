@@ -4527,8 +4527,10 @@
   /* AH / PRE marker on the earnings calendar price chip — the chip
      leads with the extended-hours move, so it must say which session
      that number belongs to. */
-  .ant-px-sess { font-size:8px; font-weight:700; letter-spacing:.04em;
-    opacity:.75; margin-left:2px; vertical-align:super; }
+  .ant-px-sess { font-size:8.5px; font-weight:700; letter-spacing:.03em;
+    margin-left:3px; opacity:.9; white-space:nowrap; }
+  .ant-px-sess.px-sess-up { color:var(--green); }
+  .ant-px-sess.px-sess-dn { color:var(--red); }
   /* Direction colors must beat every surface's own .epx sizing rule —
      .al-chip .al-px previously re-set color AFTER these with equal
      specificity, muting the green/red back to grey. */
@@ -19386,14 +19388,13 @@
           ).forEach(function (q) {
             const els = byTk.get((q.symbol || "").toUpperCase());
             if (!els || q.price == null) return;
-            // On the EARNINGS calendar the number that matters is the
-            // reaction to the print — i.e. the extended-hours move —
-            // not the total day return. Those two can point OPPOSITE
-            // ways: a name up +7% into the close and down -8% on the
-            // report nets to about -2%, and showing only that total
-            // reads as "barely moved" on the night it dropped 8%.
-            // So: lead with the AH/pre move when one exists, mark it,
-            // and keep regular + total in the tooltip.
+            // Headline = the FULL-SESSION 1D return: prior regular
+            // close -> latest print, so pre-market + regular + after
+            // hours are all inside one number (q.change). The separate
+            // extended-hours leg is appended as a small secondary so a
+            // print reaction stays visible without replacing the total
+            // — the two can point opposite ways (up into the close,
+            // down on the report) and a trader wants both.
             const chg = typeof q.change === "number" ? q.change : null;
             const reg = typeof q.regular_change === "number"
               ? q.regular_change : null;
@@ -19401,17 +19402,15 @@
               ? q.ext_change_pct : null;
             const extSess = q.market_state === "pre" ? "PRE"
                           : q.market_state === "post" ? "AH" : "";
-            // Only lead with the session move when it is real (>=0.1%)
-            // and we know which session it belongs to.
-            const useExt = ext != null && extSess && Math.abs(ext) >= 0.1;
-            const shown = useExt ? ext : chg;
-            const dir = shown == null ? "" : shown >= 0 ? "ant-px-up"
-                                                        : "ant-px-dn";
+            const showExt = ext != null && extSess && Math.abs(ext) >= 0.1;
+            const dir = chg == null ? "" : chg >= 0 ? "ant-px-up"
+                                                    : "ant-px-dn";
             const pct = function (v) {
               return (v >= 0 ? "+" : "") + v.toFixed(1) + "%"; };
-            const tail = shown == null ? "" : " <b>" + pct(shown) + "</b>" +
-              (useExt ? '<span class="ant-px-sess">' + extSess + "</span>"
-                      : "");
+            const tail = chg == null ? "" : " <b>" + pct(chg) + "</b>" +
+              (showExt ? '<span class="ant-px-sess ' +
+                 (ext >= 0 ? "px-sess-up" : "px-sess-dn") + '">' +
+                 extSess + " " + pct(ext) + "</span>" : "");
             const ts = q.last_trade_ts
               ? new Date(q.last_trade_ts).toLocaleTimeString([],
                   { hour: "numeric", minute: "2-digit" })
@@ -19422,17 +19421,14 @@
                   ? Math.round(q.price)
                   : q.price >= 10 ? q.price.toFixed(1)
                   : q.price.toFixed(2)) + tail;
-              el.title = (useExt
-                  ? "Showing the " + (q.market_state === "pre"
-                      ? "pre-market" : "after-hours") + " move " +
-                    pct(ext) + " — the reaction to the print. "
-                  : "") +
+              el.title = (chg != null
+                  ? "Total 1D " + pct(chg) +
+                    " — prior close to latest print (pre-market + " +
+                    "regular + after hours). " : "") +
                 (reg != null ? "Regular session " + pct(reg) + ". " : "") +
-                (ext != null && !useExt
+                (ext != null
                   ? (q.market_state === "pre" ? "Pre-market "
                      : "After hours ") + pct(ext) + ". " : "") +
-                (chg != null
-                  ? "Total 1D " + pct(chg) + " incl. extended hours. " : "") +
                 "Last trade " + ts +
                 (q.extended ? " (extended hours)" : "") +
                 (q.delay_minutes ? " — delayed " + q.delay_minutes + "m"
