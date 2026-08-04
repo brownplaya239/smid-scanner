@@ -744,11 +744,65 @@ async function summarizeFiling(env, ticker, form, items, primaryUrl) {
 const OCR_MEDIA_OK = {
   "image/png": 1, "image/jpeg": 1, "image/webp": 1, "image/gif": 1,
 };
+
+/** Resolve the caller's Supabase user id from the Bearer token, or
+ *  explain why not. Used to gate the endpoints that spend real money
+ *  (vision OCR, LLM filing summaries) — the Origin allowlist is an
+ *  embed deterrent, not an access control: any non-browser client
+ *  simply omits Origin, and POSTs bypass the GET rate limiter.
+ *  -> { ok:true, uid } | { ok:false, status, error, code } */
+async function requireUser(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  if (!bearer) {
+    return { ok: false, status: 401, code: "auth_required",
+             error: "Sign in to use this feature." };
+  }
+  if (!env.SUPABASE_URL) {
+    // Fail CLOSED: without a way to verify we do not spend.
+    return { ok: false, status: 503, code: "auth_unavailable",
+             error: "Service temporarily unavailable." };
+  }
+  try {
+    const r = await fetch(env.SUPABASE_URL + "/auth/v1/user", {
+      headers: {
+        "Authorization": "Bearer " + bearer,
+        "apikey": env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY || "",
+      },
+    });
+    if (!r.ok) {
+      return { ok: false, status: 401, code: "auth_expired",
+               error: "Sign-in expired. Please sign in again." };
+    }
+    const body = await r.json();
+    const uid = body && body.id;
+    if (!uid) {
+      return { ok: false, status: 401, code: "auth_invalid",
+               error: "Sign-in could not be verified." };
+    }
+    return { ok: true, uid: uid };
+  } catch (e) {
+    console.log("requireUser lookup failed:", e.message);
+    return { ok: false, status: 503, code: "auth_unavailable",
+             error: "Service temporarily unavailable." };
+  }
+}
 async function handlePortfolioOCR(request, env, cors) {
   if (!env.ANTHROPIC_API_KEY) {
     return Response.json(
       { ok: false, error: "Vision not configured (ANTHROPIC_API_KEY unset)." },
       { status: 500, headers: cors });
+  }
+  // SECURITY (2026-08 audit): this endpoint bills a vision model per
+  // call and previously took no caller identity — the Origin gate is
+  // not auth (a script sends no Origin at all), and POSTs skip the
+  // rate limiter. A signed-in user is now required so spend is
+  // attributable and capped by Supabase-side auth.
+  const ocrUid = await requireUser(request, env);
+  if (!ocrUid.ok) {
+    return Response.json(
+      { ok: false, error: ocrUid.error, code: ocrUid.code },
+      { status: ocrUid.status, headers: cors });
   }
   let payload;
   try { payload = await request.json(); }
@@ -3300,6 +3354,23 @@ export default {
             { ok: false, error: "Missing ticker, form, or url param" },
             { status: 400, headers: cors });
         }
+        // SECURITY (2026-08 audit): `url` was fetched verbatim. That made
+        // this an open SSRF proxy (arbitrary host, fetched from Cloudflare
+        // egress with our UA) AND an unauthenticated LLM proxy — the body
+        // becomes the prompt, so an attacker could put ~12K tokens of
+        // their own text through our Anthropic key and have the reply
+        // served, edge-cached 7 days, from api.tickerdesk.io. Only SEC
+        // hosts are summarizable; `form` is also attacker-controlled and
+        // feeds needsAISummary(), so the host check is the real gate.
+        const SEC_HOSTS = { "www.sec.gov": 1, "sec.gov": 1, "data.sec.gov": 1 };
+        let primUrl = null;
+        try { primUrl = new URL(prim); } catch (_) { primUrl = null; }
+        if (!primUrl || primUrl.protocol !== "https:" ||
+            !SEC_HOSTS[primUrl.hostname.toLowerCase()]) {
+          return Response.json(
+            { ok: false, error: "Only sec.gov filing URLs can be summarized." },
+            { status: 400, headers: cors });
+        }
         // Defence in depth: only call Anthropic for forms we expect to need it
         if (!needsAISummary(form, items)) {
           return Response.json(
@@ -3594,10 +3665,15 @@ export default {
     // but a devtools user can disable the button and POST anyway. So
     // the worker re-validates: identify the user from the Supabase
     // JWT, look up their tier and 30-day report count, reject if
-    // they're over the cap. Anonymous calls (no Authorization header)
-    // are allowed through with free-tier limits — they will fail at
-    // the client gate, but we treat them as best-effort and let the
-    // GitHub workflow itself be the backstop.
+    // they're over the cap.
+    //
+    // SECURITY (2026-08 audit): anonymous POSTs were previously allowed
+    // through — and because the whole quota block below is gated on
+    // `bearer`, dropping the Authorization header skipped EVERY check
+    // and dispatched a GitHub workflow anyway. That made report
+    // generation both free and unlimited for anyone with curl, and let
+    // a capped user bypass their tier by removing one header. A token
+    // is now mandatory: no bearer -> 401 before any dispatch.
     //
     // Tier caps mirror PLAN_LIMITS in docs/index.html. Keep in sync.
     const TIER_REPORT_CAPS_30D = {
@@ -3608,7 +3684,21 @@ export default {
     };
     const authHeader = request.headers.get("Authorization") || "";
     const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-    if (bearer && env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY) {
+    if (!bearer) {
+      return Response.json(
+        { ok: false, error: "Sign in to generate a report.",
+          code: "auth_required" },
+        { status: 401, headers: cors });
+    }
+    // Quota enforcement needs Supabase reachable. If it is not
+    // configured we fail CLOSED rather than dispatching unmetered work.
+    if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+      return Response.json(
+        { ok: false, error: "Report service temporarily unavailable.",
+          code: "quota_unavailable" },
+        { status: 503, headers: cors });
+    }
+    {
       try {
         // 1. Validate the user's access token by asking Supabase who
         //    it represents. Anon key is enough for /auth/v1/user.
