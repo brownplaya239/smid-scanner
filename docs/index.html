@@ -23855,16 +23855,9 @@
       const rg = window.TD_REGIME || {};
       if (rg.label !== "RISK-OFF") return "";
       const esc = window.escapeHtml;
-      // informed put clusters (top 8 by premium)
-      const puts = _putClusters(uoa).slice(0, 8);
-      const putRows = puts.map(function (g) {
-        return '<div class="desk-row">' +
-          '<span class="dr-tk" data-t="' + esc(g.t) + '">' + esc(g.t) +
-          '</span><span class="dr-meta">' + _fmtPrem(g.prem) + " across " +
-          g.n + " print" + (g.n === 1 ? "" : "s") +
-          (g.ern != null ? " · earnings in " + g.ern + "d" : "") +
-          '</span><span class="ro-side">PUT BUY</span></div>';
-      }).join("");
+      // Put clusters live in ONE place — the Defense pane (watchlist +
+      // market-wide, every regime). Duplicating them here made the same
+      // data live in a different card depending on regime.
       // fade candidates: measured momentum inversion (RO-4)
       const fade = [], seen = {};
       function addFade(t, why, chg) {
@@ -23907,10 +23900,8 @@
         "44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups " +
         "win just 20%. The one measured positive edge is informed put " +
         "flow (57% hit, +0.88% avg excess, n≈20.5k).</div>" +
-        (putRows ? '<div class="ro-sub">Informed put flow today ' +
-          "(largest premium)</div>" + putRows
-          : '<div class="ro-sub">No put-buyer clusters in the latest ' +
-            "batch.</div>") +
+        '<div class="ro-sub">Informed put clusters: see the Defense ' +
+        "pane below (your names + market-wide).</div>" +
         (fadeRows ? '<div class="ro-sub">Extended names — historically ' +
           "fade candidates, not longs, at this horizon</div>" +
           '<div class="ro-fades">' + fadeRows + "</div>" : "") +
@@ -24020,13 +24011,12 @@
     // Defense Watch — informed put buying, in two scopes:
     //   1) YOUR NAMES — put-buyer clusters on watchlist tickers (needs
     //      a watchlist; the personal alarm).
-    //   2) MARKET-WIDE — the day's largest put clusters, shown only
-    //      when the Risk-off Playbook is NOT on screen (the playbook
-    //      carries its own copy; duplicating it wasted a card). This
-    //      also keeps the pane's depth comparable to Offense — before,
-    //      Offense scanned the whole market while Defense saw only the
-    //      watchlist, so the two lists looked lopsided.
-    function cardDefenseWatch(uoa, splitSet, marketWide) {
+    //   2) MARKET-WIDE — the day's largest put clusters, always shown.
+    //      This is the single home for put clusters in every regime
+    //      (the Risk-off Playbook links here instead of duplicating),
+    //      and it keeps the pane's depth comparable to Offense — which
+    //      scans the whole market on its side.
+    function cardDefenseWatch(uoa, splitSet) {
       try {
         const esc = window.escapeHtml;
         const wl = (window.tdWatchlist && window.tdWatchlist()) || null;
@@ -24037,10 +24027,9 @@
           : [];
         const mineTk = {};
         mine.forEach(function (g) { mineTk[g.t] = 1; });
-        const market = marketWide
-          ? clusters.filter(function (g) { return !mineTk[g.t]; })
-              .slice(0, 4)
-          : [];
+        const market = clusters.filter(function (g) {
+          return !mineTk[g.t];
+        }).slice(0, 5);
         if (!mine.length && !market.length) return "";
         function row(g) {
           return '<div class="desk-row">' +
@@ -24175,7 +24164,6 @@
           // each pane instead of silently contradicting each other.
           (function () {
             const roHtml = cardRiskOff(uoa, qm, sb, swing);
-            const roShown = roHtml.indexOf("ro-card") !== -1;
             const offTk = new Set();
             (((D.carryover || {}).contracts) || []).forEach(function (x) {
               if (x.held && x.direction === "bullish") offTk.add(x.ticker);
@@ -24188,7 +24176,7 @@
               .map(function (g) { return g.t; })
               .filter(function (t) { return offTk.has(t); }));
             const off = cardOffense(D.carryover, D.engine, split);
-            const dw = cardDefenseWatch(uoa, split, !roShown);
+            const dw = cardDefenseWatch(uoa, split);
             const pair = (off && dw)
               ? '<div class="desk-pair">' + off + dw + '</div>'
               : (off || dw || "");
