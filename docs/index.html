@@ -4474,8 +4474,22 @@
     align-self:center; white-space:nowrap; }
   .split-chip { font-size:9px; font-weight:700; color:var(--gold);
     border:1px dashed currentColor; border-radius:3px; padding:1px 4px;
-    margin-right:4px; align-self:center; white-space:nowrap;
-    cursor:help; }
+    align-self:center; white-space:nowrap; cursor:help;
+    min-width:70px; text-align:center; }
+  /* The re-render slots are grid CHILDREN wrapping full-width content —
+     without an explicit span they collapse to one column and the whole
+     Offense|Defense pair squeezes into half the desk (the pair's own
+     grid-column:1/-1 only works as a direct grid child). */
+  #edge-pair-slot, #riskoff-slot { grid-column:1 / -1; }
+  /* Row alignment inside the edge panes: fixed-width price + side-chip
+     columns so every row's numbers and badges line up; the meta text
+     ellipsizes in the middle instead of crushing the price cell. */
+  .off-card .desk-row, .dw-card .desk-row { padding:5px 0; gap:8px; }
+  .off-card .dr-tk, .dw-card .dr-tk { min-width:48px; }
+  .off-card .epx, .dw-card .epx { min-width:92px; text-align:right;
+    font-size:11px; }
+  .off-card .off-side { min-width:100px; text-align:center; }
+  .dw-card .ro-side { min-width:70px; text-align:center; }
   .dst-warn { color:var(--red, #e5484d); }
   .uoa-obs { display:block; font-size:9px; color:var(--muted);
     margin-top:1px; white-space:nowrap; }
