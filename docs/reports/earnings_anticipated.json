@@ -1,6 +1,6 @@
 {
  "week_of": "2026-08-03",
- "generated": "2026-08-04T16:41:17-04:00",
+ "generated": "2026-08-04T16:49:25-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 418,
  "days": [
@@ -1407,7 +1407,7 @@
     {
      "ticker": "AMD",
      "company": "Advanced Micro Devices, Inc.",
-     "score": 220,
+     "score": 221,
      "analysts": 45,
      "release_time": 3,
      "confirmed": true,
@@ -1952,7 +1952,7 @@
     {
      "ticker": "LLY",
      "company": "Eli Lilly & Co.",
-     "score": 56,
+     "score": 57,
      "analysts": 29,
      "release_time": 1,
      "confirmed": true,
@@ -2504,7 +2504,7 @@
     {
      "ticker": "WDC",
      "company": "Western Digital Corp.",
-     "score": 41,
+     "score": 43,
      "analysts": 24,
      "release_time": 3,
      "confirmed": true,
@@ -2515,7 +2515,7 @@
     {
      "ticker": "SNDK",
      "company": "SanDisk Corp.",
-     "score": 163,
+     "score": 164,
      "analysts": 22,
      "release_time": 3,
      "confirmed": true,
@@ -2537,7 +2537,7 @@
     {
      "ticker": "MELI",
      "company": "MercadoLibre Inc",
-     "score": 22,
+     "score": 23,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
@@ -2588,6 +2588,17 @@
      "next_eps": "2026-08-05T00:00:00",
      "q": "6/2026",
      "mcap": 42538552157.52
+    },
+    {
+     "ticker": "RVMD",
+     "company": "Revolution Medicines ",
+     "score": 3,
+     "analysts": 23,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-05T00:00:00",
+     "q": "6/2026",
+     "mcap": 38788224491.899994
     },
     {
      "ticker": "EXPE",
@@ -2995,17 +3006,6 @@
      "next_eps": "2026-08-05T00:00:00",
      "q": "6/2026",
      "mcap": 530713867.26
-    },
-    {
-     "ticker": "ALTO",
-     "company": "Alto Ingredients, Inc.",
-     "score": 2,
-     "analysts": 3,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-08-05T00:00:00",
-     "q": "6/2026",
-     "mcap": 368833593.24
     },
     {
      "ticker": "MRAM",
@@ -3777,7 +3777,7 @@
     {
      "ticker": "TTD",
      "company": "Trade Desk, Inc.",
-     "score": 14,
+     "score": 15,
      "analysts": 37,
      "release_time": 3,
      "confirmed": true,
@@ -4129,7 +4129,7 @@
     {
      "ticker": "SERV",
      "company": "Serve Robotics ",
-     "score": 7,
+     "score": 8,
      "analysts": 10,
      "release_time": 3,
      "confirmed": true,
