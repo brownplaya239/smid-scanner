@@ -3774,11 +3774,17 @@
   .ant-row .ant-px { font-size:9.5px; color:var(--muted);
     white-space:nowrap; font-variant-numeric:tabular-nums;
     justify-self:end; }
-  .ant-row .ant-px .ant-px-sess { color:var(--textdim); font-weight:400;
-    font-size:9.5px; }
+  /* The per-session colour lives on the px-up / px-dn modifiers below;
+     this row-scoped rule must NOT set colour or it out-specifies them
+     and greys both columns out. */
+  .ant-row .ant-px .ant-px-sess { font-weight:700; font-size:8.5px; }
+  .ant-row .ant-px .ant-px-rth.px-up,
+  .ant-row .ant-px .ant-px-sess.px-sess-up { color:var(--green); }
+  .ant-row .ant-px .ant-px-rth.px-dn,
+  .ant-row .ant-px .ant-px-sess.px-sess-dn { color:var(--red); }
+  .ant-row .ant-px .ant-px-rth.px-na,
+  .ant-row .ant-px .ant-px-sess.px-na { color:var(--muted); opacity:.5; }
   .ant-row .ant-px b { font-weight:600; }
-  .ant-row .ant-px.ant-px-up b { color:var(--green); }
-  .ant-row .ant-px.ant-px-dn b { color:var(--red); }
   .ant-row .ant-iv { font-size:9.5px; line-height:1.3;
     margin-left:auto; padding:0 4px; flex-shrink:0; }
   .ant-row .ant-iv-loading { color:var(--muted); font-style:italic; }
@@ -4527,10 +4533,18 @@
   /* AH / PRE marker on the earnings calendar price chip — the chip
      leads with the extended-hours move, so it must say which session
      that number belongs to. */
-  .ant-px-sess { font-size:8.5px; font-weight:700; letter-spacing:.03em;
-    margin-left:3px; opacity:.9; white-space:nowrap; }
-  .ant-px-sess.px-sess-up { color:var(--green); }
-  .ant-px-sess.px-sess-dn { color:var(--red); }
+  /* Two session columns on the earnings price chip: regular-session %
+     then extended-hours %. Fixed widths so the numbers line up as
+     columns down the calendar, each coloured on its own sign. */
+  .ant-px-rth { display:inline-block; min-width:44px; text-align:right;
+    font-weight:700; font-variant-numeric:tabular-nums; }
+  .ant-px-sess { display:inline-block; min-width:62px; text-align:right;
+    font-size:8.5px; font-weight:700; letter-spacing:.03em;
+    white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .ant-px-rth.px-up,   .ant-px-sess.px-sess-up { color:var(--green); }
+  .ant-px-rth.px-dn,   .ant-px-sess.px-sess-dn { color:var(--red); }
+  .ant-px-rth.px-na,   .ant-px-sess.px-na      { color:var(--muted);
+    opacity:.5; }
   /* Direction colors must beat every surface's own .epx sizing rule —
      .al-chip .al-px previously re-set color AFTER these with equal
      specificity, muting the green/red back to grey. */
@@ -19388,13 +19402,13 @@
           ).forEach(function (q) {
             const els = byTk.get((q.symbol || "").toUpperCase());
             if (!els || q.price == null) return;
-            // Headline = the FULL-SESSION 1D return: prior regular
-            // close -> latest print, so pre-market + regular + after
-            // hours are all inside one number (q.change). The separate
-            // extended-hours leg is appended as a small secondary so a
-            // print reaction stays visible without replacing the total
-            // — the two can point opposite ways (up into the close,
-            // down on the report) and a trader wants both.
+            // TWO session columns, never one blended number: the
+            // regular-session move and the extended-hours move are
+            // separate facts and routinely point opposite ways on a
+            // print night (up into the close, down on the report).
+            // Blending them into a 1D total made an 8% after-hours
+            // drop read as "-2%". Each column is coloured on its own
+            // sign; the tooltip carries the blended total.
             const chg = typeof q.change === "number" ? q.change : null;
             const reg = typeof q.regular_change === "number"
               ? q.regular_change : null;
@@ -19403,14 +19417,24 @@
             const extSess = q.market_state === "pre" ? "PRE"
                           : q.market_state === "post" ? "AH" : "";
             const showExt = ext != null && extSess && Math.abs(ext) >= 0.1;
-            const dir = chg == null ? "" : chg >= 0 ? "ant-px-up"
-                                                    : "ant-px-dn";
             const pct = function (v) {
               return (v >= 0 ? "+" : "") + v.toFixed(1) + "%"; };
-            const tail = chg == null ? "" : " <b>" + pct(chg) + "</b>" +
-              (showExt ? '<span class="ant-px-sess ' +
-                 (ext >= 0 ? "px-sess-up" : "px-sess-dn") + '">' +
-                 extSess + " " + pct(ext) + "</span>" : "");
+            const sgn = function (v) { return v >= 0 ? "up" : "dn"; };
+            // Column 1 — regular session. In PRE the regular session
+            // has not happened yet, so the column is left empty rather
+            // than borrowing another session's number.
+            const regCol = reg != null
+              ? '<span class="ant-px-rth px-' + sgn(reg) + '">' +
+                pct(reg) + "</span>"
+              : '<span class="ant-px-rth px-na">&mdash;</span>';
+            // Column 2 — extended hours (AH after the close, PRE before
+            // the open). Empty when there is no meaningful ext move.
+            const extCol = showExt
+              ? '<span class="ant-px-sess px-sess-' + sgn(ext) + '">' +
+                extSess + " " + pct(ext) + "</span>"
+              : '<span class="ant-px-sess px-na"></span>';
+            const dir = "";   // colour lives on the per-session columns
+            const tail = " " + regCol + extCol;
             const ts = q.last_trade_ts
               ? new Date(q.last_trade_ts).toLocaleTimeString([],
                   { hour: "numeric", minute: "2-digit" })
@@ -19421,14 +19445,18 @@
                   ? Math.round(q.price)
                   : q.price >= 10 ? q.price.toFixed(1)
                   : q.price.toFixed(2)) + tail;
-              el.title = (chg != null
-                  ? "Total 1D " + pct(chg) +
-                    " — prior close to latest print (pre-market + " +
-                    "regular + after hours). " : "") +
-                (reg != null ? "Regular session " + pct(reg) + ". " : "") +
+              el.title =
+                (reg != null ? "Regular session " + pct(reg) +
+                   (q.regular_price != null
+                     ? " (close $" + q.regular_price + ")" : "") + ". "
+                 : "") +
                 (ext != null
                   ? (q.market_state === "pre" ? "Pre-market "
-                     : "After hours ") + pct(ext) + ". " : "") +
+                     : "After hours ") + pct(ext) +
+                    " (last $" + q.price + "). " : "") +
+                (chg != null
+                  ? "Combined 1D " + pct(chg) +
+                    " — prior close to latest print. " : "") +
                 "Last trade " + ts +
                 (q.extended ? " (extended hours)" : "") +
                 (q.delay_minutes ? " — delayed " + q.delay_minutes + "m"
