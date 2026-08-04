@@ -4493,10 +4493,14 @@
   /* Price/1D cells reused across surfaces (Action List chips, Overnight
      Flow table, Top Bullish/Bearish rows) — color classes are global,
      each surface sizes its own cell. */
-  .epx { font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .epx.sc-up   { color:var(--green); }
-  .epx.sc-down { color:var(--red); }
-  .al-chip .al-px { font-size:10px; font-weight:600; color:var(--textdim); }
+  .epx { font-variant-numeric:tabular-nums; white-space:nowrap;
+    color:var(--textdim); }
+  /* Direction colors must beat every surface's own .epx sizing rule —
+     .al-chip .al-px previously re-set color AFTER these with equal
+     specificity, muting the green/red back to grey. */
+  .epx.sc-up,   .al-chip .al-px.sc-up   { color:var(--green); }
+  .epx.sc-down, .al-chip .al-px.sc-down { color:var(--red); }
+  .al-chip .al-px { font-size:10px; font-weight:600; }
   .conf-row .cr-px { min-width:44px; font-size:10.5px;
     color:var(--textdim); font-weight:600; }
   .ovf-tr .epx { font-size:11px; }
