@@ -1299,6 +1299,16 @@
 "name": "Advanced Micro Devices",
 "sector": "Semiconductors"
 },
+"AMDD": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-04",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Direxion Shares ETF Trust Direxion Daily AMD Bear 1X ETF",
+"sector": "Other"
+},
 "AMDL": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -8638,9 +8648,9 @@
 "EMA": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-23",
+"fetched": "2026-08-04",
 "industry": "",
-"market_cap": 15842561000.0,
+"market_cap": 16111753000.0,
 "mcap_bucket": "Large",
 "name": "Emera Incorporated",
 "sector": "Other"
@@ -18184,7 +18194,7 @@
 "NEEpS": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-08-04",
 "industry": "ELECTRIC SERVICES",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -20434,10 +20444,10 @@
 "PGEN": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-26",
+"fetched": "2026-08-04",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 1967940609.6,
-"mcap_bucket": "Small",
+"market_cap": 2356537577.8,
+"mcap_bucket": "Mid",
 "name": "Precigen, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
 },
@@ -29580,9 +29590,9 @@
 "WTM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-02",
+"fetched": "2026-08-04",
 "industry": "FIRE, MARINE & CASUALTY INSURANCE",
-"market_cap": 5135102811.299999,
+"market_cap": 5204647704.9,
 "mcap_bucket": "Mid",
 "name": "White Mountains Insurance Group Ltd.",
 "sector": "Financials"
