@@ -4468,6 +4468,10 @@
   .ro-foot { font-size:10.5px; color:var(--muted); margin-top:8px;
     line-height:1.45; }
   .dw-card { border-left:3px solid var(--gold); }
+  .off-card { border-left:3px solid var(--green, #46a758); }
+  .off-side { font-size:9.5px; font-weight:700; color:var(--green, #46a758);
+    border:1px solid currentColor; border-radius:3px; padding:1px 5px;
+    align-self:center; white-space:nowrap; }
   .dst-warn { color:var(--red, #e5484d); }
   .uoa-obs { display:block; font-size:9px; color:var(--muted);
     margin-top:1px; white-space:nowrap; }
@@ -23926,6 +23930,73 @@
       const D = window.TD_DATA || {};
       slot.innerHTML = buildRiskOffHTML(D.uoa, D.qm, D.sb, D.swing);
     }
+    // Offense pane — the ONLY long-side cohorts the outcome database
+    // measures at or above coin-flip. Deliberately thin: momentum-long
+    // lists (44% hit, PF<1) never appear here. Sections:
+    //   1) OI-confirmed bullish carryover — whale positions HELD
+    //      overnight (OI printed next morning; the confirmed cohort is
+    //      a hypothesis-lab survivor at +4pp over baseline).
+    //   2) 3+-notch downgrade bounces — the measured inversion; stats
+    //      read LIVE from grade_engine's transition_outcomes, never
+    //      hardcoded, and the section drops itself if the cohort's
+    //      status leaves "active".
+    function cardOffense(carry, engine) {
+      try {
+        const esc = window.escapeHtml;
+        const held = ((carry || {}).contracts || []).filter(function (x) {
+          return x.held && x.direction === "bullish";
+        }).sort(function (a, b) {
+          return (b.premium || 0) - (a.premium || 0);
+        }).slice(0, 5);
+        const to = (((engine || {}).transition_outcomes) || {}).dn_3plus
+          || {};
+        const dnActive = to.status === "active" && typeof to.hit ===
+          "number" && to.hit >= 50;
+        const downs = dnActive
+          ? ((((engine || {}).migrations) || {}).top_down || [])
+              .filter(function (m) { return (m.step || 0) <= -3; })
+              .slice(0, 5)
+          : [];
+        if (!held.length && !downs.length) return "";
+        const heldRows = held.map(function (x) {
+          return '<div class="desk-row">' +
+            '<span class="dr-tk" data-t="' + esc(x.ticker) + '">' +
+            esc(x.ticker) + '</span><span class="dr-meta">' +
+            esc(x.dir_label || "Bullish") + " · " + _fmtPrem(x.premium || 0) +
+            " · " + Math.round((x.retention || 0) * 100) +
+            "% held</span>" +
+            '<span class="off-side">OI CONFIRMED</span></div>';
+        }).join("");
+        const dnRows = downs.map(function (m) {
+          return '<div class="desk-row">' +
+            '<span class="dr-tk" data-t="' + esc(m.t) + '">' + esc(m.t) +
+            '</span><span class="dr-meta">' + esc(m.from) + " → " +
+            esc(m.to) + " (" + m.step + " notches)</span>" +
+            '<span class="off-side">BOUNCE COHORT</span></div>';
+        }).join("");
+        return '<div class="desk-card off-card"><h3>Offense — measured ' +
+          "long-side edges" +
+          '<span class="desk-stamp dst-fresh" title="Only cohorts the ' +
+          "outcome database measures at or above coin-flip appear here " +
+          "— momentum-long screens (44% hit, profit factor < 1 at 5d) " +
+          "are deliberately excluded. Educational research, not " +
+          'investment advice.">outcome-DB gated · not advice</span></h3>' +
+          (heldRows
+            ? '<div class="ro-sub">Whale positions held overnight ' +
+              "(OI-confirmed" +
+              ((carry || {}).session_date
+                ? " · flagged " + esc(carry.session_date) : "") +
+              ")</div>" + heldRows : "") +
+          (dnRows
+            ? '<div class="ro-sub">Deep downgrades — historical bounce ' +
+              "cohort (" + to.hit + "% hit, " +
+              (to.avg >= 0 ? "+" : "") + to.avg + "% avg @" +
+              (to.hold_d || 5) + "d, n=" + to.n + " — modest edge)</div>" +
+              dnRows : "") +
+          '<div class="ro-foot">Thin by design — in this dataset most ' +
+          "long signals lose; an empty pane is honest.</div></div>";
+      } catch (_) { return ""; }
+    }
     // Defense Watch — informed puts printing on the user's own names.
     // NOT regime-gated: put positioning on names you hold matters in
     // any tape. Empty (no card) when signed out, no watchlist, or no
@@ -24055,7 +24126,16 @@
         // half-cell. Then the EOD divider + post-close cards.
         grid.innerHTML = [
           cardRiskOff(uoa, qm, sb, swing),     // regime-gated defense spine
-          cardDefenseWatch(uoa),               // informed puts on watchlist names
+          // Offense (left) | Defense (right) — measured edges only on
+          // both sides. Either may be empty; a lone card renders
+          // full-width so the grid never shows a dead half-cell.
+          (function () {
+            const off = cardOffense(D.carryover, D.engine);
+            const dw = cardDefenseWatch(uoa);
+            if (off && dw)
+              return '<div class="desk-pair">' + off + dw + '</div>';
+            return off || dw || "";
+          })(),
           cardOpportunities(ctx, swing, uoa, uoaMeta, D.carryover), // decision-first spine
           cardWhatChangedToday(swing, uoa),    // full-width, LIVE-first
           '<div class="desk-pair">' +          // Market Health | Top Flow
