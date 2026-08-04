@@ -395,7 +395,14 @@ async function fetchYahooQuote(sym) {
     let effPrice = price, effChange = change, effLastMs = lastTradeMs, effPrev = prev;
     let extended = false;
     const phase = etMarketPhase();
-    if (phase === "pre" || phase === "post") {
+    // CLOSED is included: the post-market session label ends at 8 PM ET,
+    // but the day's last after-hours print stays the truest price all
+    // evening/overnight — without this, a +15% earnings AH move silently
+    // reverted to the 4 PM close the moment the clock hit 8 (PLTR bug).
+    // Guard below: in CLOSED we only adopt a print NEWER than the
+    // regular-session close, so a rolled-over chart or a session with no
+    // extended trades keeps the honest close.
+    if (phase === "pre" || phase === "post" || phase === "closed") {
       // Prior REGULAR close basis: chartPreviousClose is correct pre/post
       // (the daily-bar derivation can miss yesterday when today's bar
       // isn't created yet pre-open). Falls back to the daily-derived prev.
@@ -405,10 +412,14 @@ async function fetchYahooQuote(sym) {
         const ts = Array.isArray(res.timestamp) ? res.timestamp : null;
         for (let i = q.close.length - 1; i >= 0; i--) {
           if (typeof q.close[i] === "number" && q.close[i] > 0) {
+            const pMs = (ts && typeof ts[i] === "number")
+              ? ts[i] * 1000 : null;
+            if (phase === "closed"
+                && !(pMs && lastTradeMs && pMs > lastTradeMs)) break;
             effPrice  = r2(q.close[i]);
             effPrev   = r2(xprev);
             effChange = Math.round((q.close[i] / xprev - 1) * 10000) / 100;
-            if (ts && typeof ts[i] === "number") effLastMs = ts[i] * 1000;
+            if (pMs) effLastMs = pMs;
             extended  = true;
             break;
           }
@@ -429,8 +440,8 @@ async function fetchYahooQuote(sym) {
     // PRE: there is no regular session yet — ext_change_pct carries the
     // whole pre-market move and regular_change is null.
     let extChangePct = null, regChange = change;
-    if (extended && phase === "post" && price != null && effPrice != null
-        && price > 0) {
+    if (extended && (phase === "post" || phase === "closed")
+        && price != null && effPrice != null && price > 0) {
       extChangePct = Math.round((effPrice / price - 1) * 10000) / 100;
     } else if (extended && phase === "pre") {
       extChangePct = effChange;
