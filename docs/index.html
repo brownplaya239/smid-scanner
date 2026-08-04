@@ -4480,6 +4480,12 @@
     margin:6px 0 8px; }
   .ro-sub { font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase;
     color:var(--muted); margin:10px 0 4px; }
+  /* Per-section age. The Offense/Defense panes mix cadences (flow batch
+     vs once-daily OI confirmation vs post-close grades), so each section
+     states its own "as of" rather than inheriting the desk stamp. */
+  .ro-asof { float:right; text-transform:none; letter-spacing:0;
+    font-size:9.5px; color:var(--muted); opacity:.85; font-weight:400;
+    cursor:help; }
   .ro-side { font-size:9.5px; font-weight:700; color:var(--red, #e5484d);
     border:1px solid currentColor; border-radius:3px; padding:1px 5px;
     align-self:center; white-space:nowrap; }
@@ -24110,6 +24116,32 @@
           '">SPLIT FLOW</span>'
         : "";
     }
+    // Per-section "as of" line. The two edge panes mix cadences (flow
+    // batch vs once-daily OI confirmation vs post-close grades), and
+    // they used to inherit only the desk-level stamp — so a 6:34 PM
+    // stamp sat above whale positions flagged the PREVIOUS session.
+    // Each section now states its own age.
+    function _asOf(iso, label) {
+      if (!iso) return "";
+      const t = Date.parse(iso);
+      if (isNaN(t)) return "";
+      let et = "";
+      try {
+        et = new Date(t).toLocaleString("en-US", {
+          timeZone: "America/New_York", month: "short", day: "numeric",
+          hour: "numeric", minute: "2-digit" }) + " ET";
+      } catch (_) { et = iso; }
+      // Self-contained relative time: timeAgo() is closure-scoped in
+      // other modules and is NOT reachable here — calling it threw and
+      // the callers' try/catch silently rendered an EMPTY pane.
+      const secs = Math.max(0, Math.floor((Date.now() - t) / 1000));
+      const ago = secs < 3600 ? Math.floor(secs / 60) + "m ago"
+                : secs < 86400 ? Math.floor(secs / 3600) + "h ago"
+                : Math.floor(secs / 86400) + "d ago";
+      return '<span class="ro-asof" title="' +
+        window.escapeHtml((label || "Built") + " " + et + " (" + ago + ")") +
+        '">' + window.escapeHtml(et) + " · " + ago + "</span>";
+    }
     function cardOffense(carry, engine, splitSet) {
       try {
         const esc = window.escapeHtml;
@@ -24160,12 +24192,14 @@
               "(OI-confirmed" +
               ((carry || {}).session_date
                 ? " · flagged " + esc(carry.session_date) : "") +
-              ")</div>" + heldRows : "") +
+              ")" + _asOf((carry || {}).generated, "OI confirmed") +
+              "</div>" + heldRows : "") +
           (dnRows
             ? '<div class="ro-sub">Deep downgrades — historical bounce ' +
               "cohort (" + to.hit + "% hit, " +
               (to.avg >= 0 ? "+" : "") + to.avg + "% avg @" +
-              (to.hold_d || 5) + "d, n=" + to.n + " — modest edge)</div>" +
+              (to.hold_d || 5) + "d, n=" + to.n + " — modest edge)" +
+              _asOf((engine || {}).generated, "Graded") + "</div>" +
               dnRows : "") +
           '<div class="ro-foot">Thin by design — in this dataset most ' +
           "long signals lose; an empty pane is honest.</div></div>";
@@ -24214,10 +24248,12 @@
           "signals. Delayed 15m. Educational research, not investment " +
           'advice.">57% hit cohort · delayed 15m</span></h3>' +
           (mine.length
-            ? '<div class="ro-sub">Your names</div>' +
+            ? '<div class="ro-sub">Your names' +
+              _asOf((uoa || {}).generated, "Flow batch") + "</div>" +
               mine.map(row).join("") : "") +
           (market.length
-            ? '<div class="ro-sub">Market-wide largest clusters</div>' +
+            ? '<div class="ro-sub">Market-wide largest clusters' +
+              _asOf((uoa || {}).generated, "Flow batch") + "</div>" +
               market.map(row).join("") : "") +
           ((wl && wl.size) || mine.length ? ""
             : '<div class="ro-foot">Sign in and build a watchlist to ' +
