@@ -8192,6 +8192,35 @@
     return window.escapeHtml(s);
   };
 
+  // ── ET calendar helpers ──────────────────────────────────────────
+  // The market day is an ET calendar day. Two bugs kept recurring from
+  // doing this with UTC:
+  //   new Date().toISOString().slice(0,10)  -> rolls to TOMORROW at
+  //     8 PM ET, so evening users saw tomorrow's earnings as "today".
+  //   Date.parse("YYYY-MM-DD")              -> UTC midnight = 8 PM ET
+  //     the PRIOR evening, so a "days until earnings" subtraction went
+  //     negative during the session ON the earnings day and any
+  //     `days >= 0` guard silently dropped the warning.
+  // tdTodayET() is the current ET calendar date as YYYY-MM-DD.
+  // tdDaysUntilET(d) counts whole ET calendar days from today to d,
+  // so the earnings day itself is 0 all session long, not -1.
+  window.tdTodayET = function () {
+    try {
+      return new Date().toLocaleDateString("en-CA",
+        { timeZone: "America/New_York" });
+    } catch (_) { return new Date().toISOString().slice(0, 10); }
+  };
+  window.tdDaysUntilET = function (dateStr) {
+    const s = String(dateStr || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    // Compare two YYYY-MM-DD dates as UTC midnights: both sides share
+    // the same offset so the difference is exact whole calendar days.
+    const target = Date.parse(s + "T00:00:00Z");
+    const today  = Date.parse(window.tdTodayET() + "T00:00:00Z");
+    if (isNaN(target) || isNaN(today)) return null;
+    return Math.round((target - today) / 864e5);
+  };
+
   // ── Missing-data helper ─────────────────────────────────────────
   // "Never silent stale": every missing value should communicate WHY
   // it's missing so users can tell intentional gaps from broken
@@ -9227,7 +9256,10 @@
         Object.keys(D.manifest.reports).forEach(function (k) {
           (D.manifest.reports[k] || []).forEach(function (r) {
             if (!r.ticker || wl.indexOf(r.ticker) < 0) return;
-            if (!(r.file || "").indexOf(todayStr) >= 0) return;
+            // Was: !(...).indexOf(todayStr) >= 0 — the ! binds first,
+            // and both true>=0 and false>=0 are true, so this always
+            // returned and the "new report today" group was never built.
+            if ((r.file || "").indexOf(todayStr) < 0) return;
             if (seen.has(r.ticker)) return;
             seen.add(r.ticker);
             groups.reports.push({ t: r.ticker,
@@ -11490,8 +11522,10 @@
           const m = meta[r.tk];
           let ed = null;
           if (m && m.earnings_date) {
-            const dd = Math.round((Date.parse(m.earnings_date) - Date.now()) / 864e5);
-            if (!isNaN(dd) && dd >= 0) ed = dd;
+            // ET calendar days — the earnings day itself must read 0
+            // all session, not -1 (which the >= 0 guard silently ate).
+            const dd = window.tdDaysUntilET(m.earnings_date);
+            if (dd != null && dd >= 0) ed = dd;
           }
           if (ed != null && ed <= 2) { urg += 10; why.push("earnings in " + ed + "d"); }
           else if (ed != null && ed <= 5) { urg += 6; why.push("earnings in " + ed + "d"); }
@@ -16546,7 +16580,7 @@
       if (!t || !cp || !cp.rows) { return; }
       const exps = cp.expiries || [];
       $id("zdte-exps").innerHTML = exps.map(function (e, i) {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = window.tdTodayET();
         const lab = (e === today ? "0DTE " : "") + e.slice(5);
         return '<button data-zexp="' + i + '" class="' +
           (i === expSel ? "on" : "") + '">' + lab + '</button>';
@@ -16670,7 +16704,13 @@
       if (_dpCache) { paint(_dpCache); return; }
       fetch("./reports/dealer_positioning.json", { cache: "no-cache" })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) { _dpCache = d || {}; paint(_dpCache); })
+        .then(function (d) {
+          // Only memoize a REAL payload. Caching {} on a 404/parse
+          // failure short-circuited every later 60s refresh, leaving
+          // the card stuck on "Computing overnight" until a reload.
+          if (d) _dpCache = d;
+          paint(d || null);
+        })
         .catch(function () { paint(null); });
     }
 
@@ -16698,7 +16738,7 @@
           .then(function (r) { return r.ok ? r.json() : null; })
           .catch(function () { return null; });
       })).then(function (chains) {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = window.tdTodayET();
         const fMoney = function (v) {
           return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "M"
                           : "$" + Math.round(v / 1e3) + "K"; };
@@ -16710,7 +16750,13 @@
           if (!c || c.error || !c.rows) return { sym: null, rows: [] };
           const spot = c.spot, items = [];
           c.rows.forEach(function (r) {
+            // oi must be a real number: the chain feed can carry null
+            // OI, which made voi/score NaN and then threw on
+            // oi.toLocaleString() while building the HTML — swallowed by
+            // the trailing catch, so the whole card silently never
+            // painted instead of just skipping the row.
             if (!r.vol || r.last == null || r.vol < 200) return;
+            if (typeof r.oi !== "number" || !isFinite(r.oi)) return;
             const dv = r.vol * r.last * 100;
             const voi = r.vol / Math.max(1, r.oi);
             const otm = r.t === "call" ? r.k > spot : r.k < spot;
@@ -16941,9 +16987,16 @@
           hit.when || null;
       } catch (_) { return null; }
     }
+    var _levelsGen = 0;
     async function renderLevels(symbol) {
       var host = document.getElementById("chart-levels");
       if (!host) return;
+      // Generation token: switching symbols quickly used to let the
+      // PREVIOUS symbol's still-inflight candles resolve last and paint
+      // its pivots/52-wk under the new symbol's chart. The old guard
+      // (getElementById(...) === host) compared the persistent host node
+      // to itself and was always true.
+      var myGen = ++_levelsGen;
       host.innerHTML = '<span class="chart-levels-note">Loading key levels…</span>';
       var data;
       try {
@@ -17004,18 +17057,19 @@
           '<span class="clv-dist">' + fmtPx(prevClose) + "→" +
           fmtPx(today.o) + '</span></div>';
       }
+      if (myGen !== _levelsGen) return;   // a newer symbol won the race
       host.innerHTML = html;   // render the core immediately
 
       // Best-effort async extras: premarket H/L + next earnings.
       getPremarket(symbol).then(function (pm) {
-        if (pm && document.getElementById("chart-levels") === host) {
+        if (pm && myGen === _levelsGen) {
           host.insertAdjacentHTML("beforeend",
             chipHtml(clsFor(pm.hi, spot), "Premkt H", pm.hi, spot) +
             chipHtml(clsFor(pm.lo, spot), "Premkt L", pm.lo, spot));
         }
       });
       getEarnings(symbol).then(function (dt) {
-        if (dt && document.getElementById("chart-levels") === host) {
+        if (dt && myGen === _levelsGen) {
           host.insertAdjacentHTML("beforeend",
             '<div class="clv-chip clv-evt"><span class="clv-lbl">Earnings</span>' +
             '<span class="clv-val" style="font-size:11px">' + esc(String(dt)) +
@@ -18957,10 +19011,10 @@
                                          year: "numeric" });
     }
     function todayET() {
-      // Approximation — uses local-clock + a Date pinned to today's
-      // ET-equivalent calendar day. Good enough for "is this Wednesday's
-      // column the current day?" highlighting.
-      return new Date().toISOString().slice(0, 10);
+      // The ET calendar day. Was a UTC slice, which rolls to TOMORROW
+      // at 8 PM ET — so all evening the "today" earnings buckets showed
+      // tomorrow's reporters and tonight's AMC names vanished.
+      return window.tdTodayET();
     }
     function escHTML(s) {
       return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -19319,8 +19373,15 @@
           });
         }
       }
-      // mark misses done so we do not refetch a dead symbol every render
-      slots.forEach(function (el) { el.classList.add("ant-px-done"); });
+      // Mark done ONLY what actually rendered a price. Previously every
+      // slot was stamped, so one failed 12-symbol batch (others fine, so
+      // the all-empty early-return above did not trigger) permanently
+      // excluded those tickers from future hydrations — up to a dozen
+      // names showed no price for the rest of the visit.
+      slots.forEach(function (el) {
+        if (el.textContent && el.textContent.trim().length > 1)
+          el.classList.add("ant-px-done");
+      });
     }
     async function hydrateIvBadges() {
       const slots = Array.from(document.querySelectorAll(
@@ -19356,6 +19417,12 @@
               .then(function (r) { return r.ok ? r.json() : null; })
               .catch(function () { return null; });
             _IV_INFLIGHT.set(key, dataP);
+            // Evict failures so a transient blip does not pin a
+            // null-resolving promise (and a permanent "no IV" pill)
+            // for the rest of the session. Successes stay memoized.
+            dataP.then(function (d) {
+              if (!d) _IV_INFLIGHT.delete(key);
+            }, function () { _IV_INFLIGHT.delete(key); });
           }
           const data = await dataP;
           const out = _fmtIv(data);
@@ -20699,8 +20766,8 @@
         let ed = null;
         const m = meta[t];
         if (m && m.earnings_date) {
-          const dd = Math.round((Date.parse(m.earnings_date) - Date.now()) / 864e5);
-          if (!isNaN(dd) && dd >= 0) ed = dd;
+          const dd = window.tdDaysUntilET(m.earnings_date);
+          if (dd != null && dd >= 0) ed = dd;
         }
         let act = "WATCH", cls = "ck-mon";
         if (ed != null && ed <= 5) { act = "WAIT — ERN"; cls = "ck-ern"; }
@@ -22968,11 +23035,10 @@
         // earnings inside 7 days across covered names
         let ern = 0;
         try {
-          const now = Date.now();
           Object.keys(uoaMeta || {}).forEach(function (t) {
-            const d = Date.parse((uoaMeta[t] || {}).earnings_date || "");
-            if (!isNaN(d)) {
-              const days = (d - now) / 864e5;
+            const days = window.tdDaysUntilET(
+              (uoaMeta[t] || {}).earnings_date);
+            if (days != null) {
               if (days >= 0 && days <= 7) ern++;
             }
           });
@@ -23312,8 +23378,7 @@
       const edays = function (t) {
         const m = meta[t];
         if (!m || !m.earnings_date) return null;
-        const d = Math.round((Date.parse(m.earnings_date) - Date.now()) / 864e5);
-        return isNaN(d) ? null : d;
+        return window.tdDaysUntilET(m.earnings_date);
       };
       // Candidates: confirmed bulls ranked by confluence score, A-tier
       // hedges as backfill, plus the single strongest confirmed bear so the
@@ -23881,6 +23946,12 @@
         fetchJSON("./reports/technical_facts.json"),
         // Engine Room summary (tiny) — health line on the What-Changed tile.
         fetchJSON("./reports/grade_engine.json"),
+        // Earnings calendar. TD_DATA.earnings had THREE consumers
+        // (watchlist Earnings column, "earnings <=7 days" list, Start
+        // Here "reporting within 3 days") but was never assigned — so
+        // the column showed "—" for every ticker forever, which reads
+        // as "no earnings upcoming" on a name reporting tomorrow.
+        fetchJSON("./reports/earnings_anticipated.json"),
         // Loop-7 regime log (tiny) — the CANONICAL full-universe EOD
         // regime label. The banner's own recompute uses the trimmed
         // 2-run swing summary, which can disagree by several breadth
@@ -23905,6 +23976,7 @@
         window.TD_DATA.facts = ((arr[10] || {}).facts) || {};
         window.TD_DATA.engine = arr[11] || null;
         window.TD_DATA.regimeHist = arr[12] || null;
+        window.TD_DATA.earnings = arr[13] || null;
       });
     }
     // Render the desk grid from whatever is already in window.TD_DATA — no
@@ -24936,11 +25008,12 @@
             });
           }
           if (D.earnings && D.earnings.days) {
-            const today = new Date().toISOString().slice(0, 10);
+            // Was string math on the day-of-month: near month end this
+            // built "2026-08-33" and the comparison silently matched
+            // nothing. Count real ET calendar days instead.
             D.earnings.days.forEach(function (day) {
-              if (day.date < today || day.date > today.slice(0, 8) +
-                  String(parseInt(today.slice(8), 10) + 3).padStart(2, "0"))
-                return;
+              const dd = window.tdDaysUntilET(day.date);
+              if (dd == null || dd < 0 || dd > 3) return;
               ["bmo", "amc"].forEach(function (k) {
                 (day[k] || []).forEach(function (r) {
                   if (wl.has(r.ticker)) earningsSoon++;
