@@ -1,7 +1,11 @@
 {
-  "generated": "2026-08-05T20:49:54+00:00",
+  "generated": "2026-08-05T22:40:29+00:00",
   "reports": {
     "smid-scanner": [
+      {
+        "file": "smid_scanner_2026-08-05_1834.pdf",
+        "label": "Aug 05, 2026  -  6:34 PM ET"
+      },
       {
         "file": "smid_scanner_2026-08-05_1645.pdf",
         "label": "Aug 05, 2026  -  4:45 PM ET"
@@ -37,13 +41,13 @@
       {
         "file": "smid_scanner_2026-08-04_1643.pdf",
         "label": "Aug 04, 2026  -  4:43 PM ET"
-      },
-      {
-        "file": "smid_scanner_2026-08-04_1512.pdf",
-        "label": "Aug 04, 2026  -  3:12 PM ET"
       }
     ],
     "iwm-scanner": [
+      {
+        "file": "iwm_scanner_2026-08-05_1838.pdf",
+        "label": "Aug 05, 2026  -  6:38 PM ET"
+      },
       {
         "file": "iwm_scanner_2026-08-05_1649.pdf",
         "label": "Aug 05, 2026  -  4:49 PM ET"
@@ -79,10 +83,6 @@
       {
         "file": "iwm_scanner_2026-08-04_1650.pdf",
         "label": "Aug 04, 2026  -  4:50 PM ET"
-      },
-      {
-        "file": "iwm_scanner_2026-08-04_1648.pdf",
-        "label": "Aug 04, 2026  -  4:48 PM ET"
       }
     ],
     "smid-setup": [
@@ -171,6 +171,10 @@
     ],
     "qm-monthly": [
       {
+        "file": "qm_monthly_2026-08-05_1835.pdf",
+        "label": "Aug 05, 2026  -  6:35 PM ET"
+      },
+      {
         "file": "qm_monthly_2026-08-05_1641.pdf",
         "label": "Aug 05, 2026  -  4:41 PM ET"
       },
@@ -205,13 +209,13 @@
       {
         "file": "qm_monthly_2026-08-02_1641.pdf",
         "label": "Aug 02, 2026  -  4:41 PM ET"
-      },
-      {
-        "file": "qm_monthly_2026-07-31_1833.pdf",
-        "label": "Jul 31, 2026  -  6:33 PM ET"
       }
     ],
     "stockbee-weekly": [
+      {
+        "file": "stockbee_weekly_2026-08-05_1835.pdf",
+        "label": "Aug 05, 2026  -  6:35 PM ET"
+      },
       {
         "file": "stockbee_weekly_2026-08-05_1641.pdf",
         "label": "Aug 05, 2026  -  4:41 PM ET"
@@ -247,10 +251,6 @@
       {
         "file": "stockbee_weekly_2026-08-02_1641.pdf",
         "label": "Aug 02, 2026  -  4:41 PM ET"
-      },
-      {
-        "file": "stockbee_weekly_2026-07-31_1833.pdf",
-        "label": "Jul 31, 2026  -  6:33 PM ET"
       }
     ],
     "adhoc": [
