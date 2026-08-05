@@ -441,11 +441,19 @@ async function fetchYahooQuote(sym) {
     // regular-session close, so a rolled-over chart or a session with no
     // extended trades keeps the honest close.
     if (phase === "pre" || phase === "post" || phase === "closed") {
-      // Prior REGULAR close basis: chartPreviousClose is correct pre/post
-      // (the daily-bar derivation can miss yesterday when today's bar
-      // isn't created yet pre-open). Falls back to the daily-derived prev.
-      const xprev = (typeof m.chartPreviousClose === "number"
-        && m.chartPreviousClose > 0) ? m.chartPreviousClose : prev;
+      // Prior REGULAR close basis. This used to PREFER
+      // meta.chartPreviousClose, on the rationale that the daily-bar
+      // derivation missed yesterday pre-open. That rationale is now
+      // fixed above — and chartPreviousClose is itself wrong pre-market:
+      // it means "the close before this CHART's window", and the 1d
+      // intraday window already spans yesterday's session, so pre-open
+      // it returns the day-before-yesterday (AMD 484.64 instead of
+      // 518.58 -> every pre-market move understated). Prefer the
+      // daily-bar derivation; fall back to meta only if it is missing.
+      const xprev = (typeof prev === "number" && prev > 0)
+        ? prev
+        : ((typeof m.chartPreviousClose === "number"
+            && m.chartPreviousClose > 0) ? m.chartPreviousClose : null);
       if (q && Array.isArray(q.close) && xprev) {
         const ts = Array.isArray(res.timestamp) ? res.timestamp : null;
         for (let i = q.close.length - 1; i >= 0; i--) {
