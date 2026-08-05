@@ -3772,8 +3772,8 @@
      the absolute IV bucket — not a true 0-100 rank since we lack
      52-week history; tooltip discloses the methodology. */
   .ant-row .ant-px { font-size:9.5px; color:var(--muted);
-    white-space:nowrap; font-variant-numeric:tabular-nums;
-    justify-self:end; }
+    white-space:normal; text-align:right;
+    font-variant-numeric:tabular-nums; justify-self:end; min-width:0; }
   /* The per-session colour lives on the px-up / px-dn modifiers below;
      this row-scoped rule must NOT set colour or it out-specifies them
      and greys both columns out. */
@@ -4533,14 +4533,16 @@
   /* AH / PRE marker on the earnings calendar price chip — the chip
      leads with the extended-hours move, so it must say which session
      that number belongs to. */
-  /* Two session columns on the earnings price chip: regular-session %
-     then extended-hours %. Fixed widths so the numbers line up as
-     columns down the calendar, each coloured on its own sign. */
-  .ant-px-rth { display:inline-block; min-width:44px; text-align:right;
-    font-weight:700; font-variant-numeric:tabular-nums; }
-  .ant-px-sess { display:inline-block; min-width:62px; text-align:right;
-    font-size:8.5px; font-weight:700; letter-spacing:.03em;
-    white-space:nowrap; font-variant-numeric:tabular-nums; }
+  /* Two session figures on the earnings price chip: regular-session %
+     then extended-hours %. Each stays on one piece (nowrap) but the
+     CELL may wrap, so on a narrow calendar card the AH figure drops to
+     a second line instead of overflowing and clipping the IV pill.
+     No fixed min-widths — an empty column must cost zero. */
+  .ant-px-rth { white-space:nowrap; font-weight:700;
+    font-variant-numeric:tabular-nums; margin-left:4px; }
+  .ant-px-sess { white-space:nowrap; font-size:8.5px; font-weight:700;
+    letter-spacing:.03em; font-variant-numeric:tabular-nums;
+    margin-left:5px; }
   .ant-px-rth.px-up,   .ant-px-sess.px-sess-up { color:var(--green); }
   .ant-px-rth.px-dn,   .ant-px-sess.px-sess-dn { color:var(--red); }
   .ant-px-rth.px-na,   .ant-px-sess.px-na      { color:var(--muted);
@@ -19414,8 +19416,14 @@
               ? q.regular_change : null;
             const ext = typeof q.ext_change_pct === "number"
               ? q.ext_change_pct : null;
+            // "closed" (after 8 PM ET, and overnight) still carries the
+            // session's last extended print — the worker deliberately
+            // holds it so an earnings move does not vanish at 8 PM. It
+            // was missing from this map, so the AH column disappeared
+            // every evening exactly when it mattered most.
             const extSess = q.market_state === "pre" ? "PRE"
-                          : q.market_state === "post" ? "AH" : "";
+                          : (q.market_state === "post" ||
+                             q.market_state === "closed") ? "AH" : "";
             const showExt = ext != null && extSess && Math.abs(ext) >= 0.1;
             const pct = function (v) {
               return (v >= 0 ? "+" : "") + v.toFixed(1) + "%"; };
@@ -19429,10 +19437,13 @@
               : '<span class="ant-px-rth px-na">&mdash;</span>';
             // Column 2 — extended hours (AH after the close, PRE before
             // the open). Empty when there is no meaningful ext move.
+            // Emit nothing when there is no extended move — an empty
+            // span still reserved its column width and pushed the IV
+            // pill out of the (210px) card, clipping it.
             const extCol = showExt
               ? '<span class="ant-px-sess px-sess-' + sgn(ext) + '">' +
                 extSess + " " + pct(ext) + "</span>"
-              : '<span class="ant-px-sess px-na"></span>';
+              : "";
             const dir = "";   // colour lives on the per-session columns
             const tail = " " + regCol + extCol;
             const ts = q.last_trade_ts
@@ -19450,7 +19461,7 @@
                    (q.regular_price != null
                      ? " (close $" + q.regular_price + ")" : "") + ". "
                  : "") +
-                (ext != null
+                (showExt
                   ? (q.market_state === "pre" ? "Pre-market "
                      : "After hours ") + pct(ext) +
                     " (last $" + q.price + "). " : "") +
