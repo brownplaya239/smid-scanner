@@ -3745,8 +3745,12 @@
   .ant-sess-hdr.ant-bmo { background:rgba(31,179,99,0.85); }
   .ant-sess-hdr.ant-amc { background:rgba(214,68,68,0.85); }
 
-  .ant-row { display:grid; align-items:center; column-gap:6px;
-    grid-template-columns:38px minmax(0,1fr) auto auto;
+  /* ticker | price+1D% (flexes, right-aligned) | IV pill.
+     The company-name column was removed — at card width it only ever
+     rendered a truncated "S…" and stole space from the two figures
+     that matter. */
+  .ant-row { display:grid; align-items:center; column-gap:8px;
+    grid-template-columns:42px minmax(0,1fr) auto;
     padding:2px 4px; font-size:9.5px; line-height:1.3; cursor:pointer;
     border-radius:3px; margin:0 -4px; min-width:0; overflow:hidden; }
   .ant-row .ant-iv { margin-left:0 !important; padding:0 !important;
@@ -19238,11 +19242,10 @@
             (r.analysts ? '\nAnalyst estimates: ' + r.analysts : '') +
             (r.session_corrected ? '\nSession: ' +
               escHTML(r.session_corrected) : '') + '">' +
+            // Company name removed: at 210px it truncated to "S…"/"A…"
+            // and added nothing beside the ticker. The full name is
+            // still in the row's title tooltip.
             '<span class="ant-tk">' + escHTML(r.ticker) + '</span>' +
-            '<span class="ant-co">' + escHTML((r.company || "")
-              .replace(/[,.]?\s*(Inc|Corp|Corporation|Incorporated|Ltd|plc|N\.V|S\.A|Co|Company|Holdings?|Group|Technologies|Technology|International|Enterprises?)\.?$/gi, "")
-              .replace(/[,.]?\s*(Inc|Corp|Ltd|plc|Co)\.?$/gi, "")
-              .slice(0, 14)) + '</span>' +
             pxSlot +
             ivSlot +
             '</div>';
@@ -19435,21 +19438,15 @@
             // rather than a dash placeholder. The dash reserved a
             // column, which forced the AH/PRE figure to wrap onto a
             // second line and left every pre-market row looking ragged.
-            const regCol = reg != null
-              ? '<span class="ant-px-rth px-' + sgn(reg) + '">' +
-                pct(reg) + "</span>"
+            // ONE figure: the 1D total from the prior regular close to
+            // the latest print, so pre-market + regular + after hours
+            // are all inside it. The session split stays in the tooltip.
+            const totCol = chg != null
+              ? '<span class="ant-px-rth px-' + sgn(chg) + '">' +
+                pct(chg) + "</span>"
               : "";
-            // Column 2 — extended hours (AH after the close, PRE before
-            // the open). Empty when there is no meaningful ext move.
-            // Emit nothing when there is no extended move — an empty
-            // span still reserved its column width and pushed the IV
-            // pill out of the (210px) card, clipping it.
-            const extCol = showExt
-              ? '<span class="ant-px-sess px-sess-' + sgn(ext) + '">' +
-                extSess + " " + pct(ext) + "</span>"
-              : "";
-            const dir = "";   // colour lives on the per-session columns
-            const tail = " " + regCol + extCol;
+            const dir = "";   // colour lives on the figure itself
+            const tail = " " + totCol;
             const ts = q.last_trade_ts
               ? new Date(q.last_trade_ts).toLocaleTimeString([],
                   { hour: "numeric", minute: "2-digit" })
