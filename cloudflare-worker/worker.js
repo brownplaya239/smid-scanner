@@ -360,13 +360,26 @@ async function fetchYahooQuote(sym) {
           }
           let start = closes.length - 2;          // legacy default
           if (last >= 0 && tsd && typeof tsd[last] === "number") {
-            try {
-              const fmt = { timeZone: "America/New_York" };
-              const barET = new Date(tsd[last] * 1000)
-                .toLocaleDateString("en-CA", fmt);
-              const todayET = new Date().toLocaleDateString("en-CA", fmt);
-              start = (barET === todayET) ? last - 1 : last;
-            } catch (_) { start = last - 1; }
+            // Use Intl.DateTimeFormat + formatToParts — the same
+            // pattern etMarketPhase() already relies on here. An
+            // earlier attempt used toLocaleDateString(..., {timeZone}),
+            // which THROWS on the Workers ICU build; the catch then
+            // silently restored the buggy last-1 behaviour, so the fix
+            // shipped and changed nothing.
+            const etDay = function (ms) {
+              const pr = new Intl.DateTimeFormat("en-US", {
+                timeZone: "America/New_York", year: "numeric",
+                month: "2-digit", day: "2-digit",
+              }).formatToParts(new Date(ms));
+              const g = function (t) {
+                return (pr.find(function (x) { return x.type === t; })
+                        || {}).value;
+              };
+              return g("year") + "-" + g("month") + "-" + g("day");
+            };
+            const barET = etDay(tsd[last] * 1000);
+            const todayET = etDay(Date.now());
+            start = (barET === todayET) ? last - 1 : last;
           }
           for (let i = start; i >= 0; i--) {
             if (typeof closes[i] === "number" && closes[i] > 0) {
