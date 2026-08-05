@@ -339,11 +339,36 @@ async function fetchYahooQuote(sym) {
         const qd = resd && resd.indicators
                 && resd.indicators.quote && resd.indicators.quote[0];
         const closes = (qd && Array.isArray(qd.close)) ? qd.close : null;
+        const tsd = (resd && Array.isArray(resd.timestamp))
+          ? resd.timestamp : null;
         if (closes && closes.length >= 2) {
-          // Walk back from the end skipping nulls (the current bar may
-          // not have closed yet — close[-1] could be null intraday).
-          // bars[-1] = today, bars[-2] = yesterday's real close.
-          for (let i = closes.length - 2; i >= 0; i--) {
+          // Which bar is "previous close" depends on whether TODAY has a
+          // bar yet. Yahoo only creates today's daily bar once the
+          // session opens, so:
+          //   during/after RTH -> bars[-1] is today  -> prev = bars[-2]
+          //   PRE-market       -> bars[-1] is YESTERDAY (a completed
+          //                       session) -> prev = bars[-1]
+          // The old code always skipped the last bar, so every
+          // pre-market quote measured against the day BEFORE the last
+          // close: AMD showed -2.2% off Aug-3's 484.64 when the real
+          // basis was Aug-4's 518.58 (-8.6%). Decide by comparing the
+          // last bar's ET calendar date to today's.
+          let last = closes.length - 1;
+          while (last >= 0 &&
+                 !(typeof closes[last] === "number" && closes[last] > 0)) {
+            last--;
+          }
+          let start = closes.length - 2;          // legacy default
+          if (last >= 0 && tsd && typeof tsd[last] === "number") {
+            try {
+              const fmt = { timeZone: "America/New_York" };
+              const barET = new Date(tsd[last] * 1000)
+                .toLocaleDateString("en-CA", fmt);
+              const todayET = new Date().toLocaleDateString("en-CA", fmt);
+              start = (barET === todayET) ? last - 1 : last;
+            } catch (_) { start = last - 1; }
+          }
+          for (let i = start; i >= 0; i--) {
             if (typeof closes[i] === "number" && closes[i] > 0) {
               prev = closes[i]; break;
             }

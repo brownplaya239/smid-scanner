@@ -19431,10 +19431,14 @@
             // Column 1 — regular session. In PRE the regular session
             // has not happened yet, so the column is left empty rather
             // than borrowing another session's number.
+            // Pre-market has no regular session yet — emit NOTHING
+            // rather than a dash placeholder. The dash reserved a
+            // column, which forced the AH/PRE figure to wrap onto a
+            // second line and left every pre-market row looking ragged.
             const regCol = reg != null
               ? '<span class="ant-px-rth px-' + sgn(reg) + '">' +
                 pct(reg) + "</span>"
-              : '<span class="ant-px-rth px-na">&mdash;</span>';
+              : "";
             // Column 2 — extended hours (AH after the close, PRE before
             // the open). Empty when there is no meaningful ext move.
             // Emit nothing when there is no extended move — an empty
