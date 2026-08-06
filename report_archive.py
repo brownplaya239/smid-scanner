@@ -64,8 +64,24 @@ def _classify(fn):
     return None, None
 
 
-def rebuild_manifest(keep_per_type=30):
-    """Scan docs/reports/, prune old PDFs, write manifest.json."""
+# Retention policy — the ONE knob for how deep each report tab's archive
+# goes. Everything past the cap is deleted from docs/reports/ (and from
+# git on the next publish), keeping the Pages artifact small enough to
+# deploy inside deploy-pages' hard 10-minute ceiling. The setup builders
+# run once per day and weigh ~1.3MB per PDF (charts), so they keep one
+# trading week; everything else is ~0.2MB and keeps 10.
+KEEP_DEFAULT  = 10
+KEEP_PER_TYPE = {
+    "smid-setup": 5,
+    "iwm-setup":  5,
+}
+
+
+def rebuild_manifest(keep_per_type=None):
+    """Scan docs/reports/, prune old PDFs, write manifest.json.
+
+    keep_per_type overrides the global cap for every type when given;
+    normally leave it None so KEEP_DEFAULT/KEEP_PER_TYPE above apply."""
     if not os.path.isdir(REPORTS_DIR):
         return
 
@@ -98,7 +114,9 @@ def rebuild_manifest(keep_per_type=30):
     }
     for typ, entries in groups.items():
         entries.sort(key=lambda e: e["sort"], reverse=True)
-        keep, prune = entries[:keep_per_type], entries[keep_per_type:]
+        cap = (keep_per_type if keep_per_type is not None
+               else KEEP_PER_TYPE.get(typ, KEEP_DEFAULT))
+        keep, prune = entries[:cap], entries[cap:]
         for e in prune:
             try:
                 os.remove(os.path.join(REPORTS_DIR, e["file"]))
@@ -112,6 +130,13 @@ def rebuild_manifest(keep_per_type=30):
             try:
                 os.remove(os.path.join(
                     REPORTS_DIR, e["file"][:-4] + "_appendix.pdf"))
+            except Exception:
+                pass
+            # v4 research briefs ship a *_validation.json sidecar with the
+            # same orphaning problem as the appendix.
+            try:
+                os.remove(os.path.join(
+                    REPORTS_DIR, e["file"][:-4] + "_validation.json"))
             except Exception:
                 pass
         manifest["reports"][typ] = [

@@ -21,12 +21,13 @@ set -u
 git config user.name  "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-# Cap the public archive so the GitHub Pages artifact stays small: keep only
-# the 10 most-recent PDFs per report type (older ones removed here + pruned
-# from manifest.json). git history retains everything. Internal ETL state
+# Cap the public archive so the GitHub Pages artifact stays small. The
+# per-type retention caps live in ONE place — KEEP_DEFAULT/KEEP_PER_TYPE in
+# report_archive.py — older PDFs are removed here + pruned from
+# manifest.json; git history retains everything. Internal ETL state
 # (uoa_signals.jsonl / uoa_oi_history.json / uoa_alpha_cache.json) lives in
 # data/ — committed for cross-run persistence, but OUT of the Pages folder.
-python -c "from report_archive import rebuild_manifest; rebuild_manifest(keep_per_type=10)" || true
+python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || true
 
 # Machine-generated paths this job publishes. Landing pages + sitemap are
 # regenerated each run by landing_pages.py and live in docs/ root; the
@@ -68,7 +69,7 @@ for attempt in 1 2 3 4 5; do
     fi
     # Manifest is derived from the PDF set — rebuild after taking theirs
     # so it reflects this run's newly-added reports too.
-    python -c "from report_archive import rebuild_manifest; rebuild_manifest(keep_per_type=10)" || true
+    python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || true
     git add docs/reports/ data/
     if ! GIT_EDITOR=true git rebase --continue; then
       git rebase --abort || true
