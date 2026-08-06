@@ -1,101 +1,6 @@
 {
- "updated": "2026-08-05T18:35:47-04:00",
+ "updated": "2026-08-06T16:43:57-04:00",
  "runs": [
-  {
-   "date": "2026-05-20",
-   "generated": "2026-05-20T19:01:38-04:00",
-   "count": 11,
-   "rows": [
-    {
-     "ticker": "MU",
-     "price": 731.99,
-     "chg": 62.89,
-     "adr_pct": 6.81,
-     "dollar_vol": 33451249983,
-     "ern": "Jun 24"
-    },
-    {
-     "ticker": "SNDK",
-     "price": 1392.56,
-     "chg": 54.13,
-     "adr_pct": 7.87,
-     "dollar_vol": 19715355447,
-     "ern": "--"
-    },
-    {
-     "ticker": "AMD",
-     "price": 447.58,
-     "chg": 57.33,
-     "adr_pct": 5.88,
-     "dollar_vol": 17725345018,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "INTC",
-     "price": 118.96,
-     "chg": 79.54,
-     "adr_pct": 7.59,
-     "dollar_vol": 17267651040,
-     "ern": "Jul 23"
-    },
-    {
-     "ticker": "DDOG",
-     "price": 212.24,
-     "chg": 64.16,
-     "adr_pct": 5.14,
-     "dollar_vol": 1205936578,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "NVTS",
-     "price": 22.99,
-     "chg": 49.97,
-     "adr_pct": 14.58,
-     "dollar_vol": 701437020,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "DOCN",
-     "price": 160.11,
-     "chg": 69.05,
-     "adr_pct": 8.11,
-     "dollar_vol": 573209031,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "MXL",
-     "price": 96.77,
-     "chg": 187.15,
-     "adr_pct": 14.22,
-     "dollar_vol": 565705118,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "STRL",
-     "price": 752.0,
-     "chg": 59.04,
-     "adr_pct": 6.45,
-     "dollar_vol": 526244008,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "SYNA",
-     "price": 129.82,
-     "chg": 49.51,
-     "adr_pct": 7.39,
-     "dollar_vol": 122344488,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "COCO",
-     "price": 77.88,
-     "chg": 64.37,
-     "adr_pct": 5.18,
-     "dollar_vol": 112982612,
-     "ern": "Jul 29"
-    }
-   ]
-  },
   {
    "date": "2026-05-21",
    "generated": "2026-05-21T16:34:28-04:00",
@@ -4978,6 +4883,21 @@
      "adr_pct": 7.61,
      "dollar_vol": 121079620,
      "ern": "Aug 05"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-06",
+   "generated": "2026-08-06T16:43:57-04:00",
+   "count": 1,
+   "rows": [
+    {
+     "ticker": "AEHR",
+     "price": 99.74,
+     "chg": 46.91,
+     "adr_pct": 13.5,
+     "dollar_vol": 287026499,
+     "ern": "Oct 08"
     }
    ]
   }
