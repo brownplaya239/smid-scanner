@@ -222,6 +222,34 @@ def run():
         })
         print(f"  {d.strftime('%a %Y-%m-%d')}  BMO={len(bmo_s):3d}  AMC={len(amc_s):3d}")
 
+    # Past days keep their report-day rows. EW's calendar API deletes a
+    # company the moment it has reported, so a mid-week re-scrape
+    # retroactively guts finished days — Wednesday's run returned Monday
+    # as 3 stragglers because PLTR, MAR, TSN and everyone else who
+    # printed had vanished from the source. The calendar should read as
+    # a record of the week: for days already behind us, the previously
+    # captured rows win and the fresh scrape can only add names, never
+    # remove them. A new week starts clean — week_of no longer matches.
+    try:
+        with open(OUT_PATH, encoding="utf-8") as f:
+            prior = json.load(f)
+    except Exception:
+        prior = None
+    if prior and prior.get("week_of") == monday.strftime("%Y-%m-%d"):
+        prior_days = {d.get("date"): d for d in (prior.get("days") or [])}
+        today_iso = today.strftime("%Y-%m-%d")
+        for day in days:
+            pd = prior_days.get(day["date"])
+            if day["date"] >= today_iso or not pd:
+                continue
+            kept = {r.get("ticker")
+                    for k in ("bmo", "amc") for r in (pd.get(k) or [])}
+            for k in ("bmo", "amc"):
+                day[k] = list(pd.get(k) or []) + \
+                    [r for r in day[k] if r.get("ticker") not in kept]
+            print(f"  {day['date']} is past — kept {len(kept)} "
+                  "report-day rows over the re-scrape")
+
     # Sort every session largest company first. Anticipation score stays
     # on the row (tooltip + marquee); the ordering a reader scans a
     # calendar in is by size.
@@ -232,7 +260,9 @@ def run():
     for day in days:
         for k in ("bmo", "amc"):
             for r in day[k]:
-                r["mcap"] = caps.get(r.get("ticker"))
+                # `or` keeps a preserved row's report-day mcap when the
+                # re-fetch comes back empty for a name Polygon dropped.
+                r["mcap"] = caps.get(r.get("ticker")) or r.get("mcap")
             day[k].sort(key=lambda x: (x.get("mcap") is None,
                                        -(x.get("mcap") or 0)))
 
