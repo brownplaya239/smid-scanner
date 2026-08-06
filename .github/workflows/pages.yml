@@ -113,3 +113,8 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # Default is 10 min; the ~56MB site's CDN propagation exceeded
+          # it on 2026-08-06 (status stuck deployment_in_progress, deploy
+          # aborted+canceled twice in a row while the build was fine).
+          timeout: 1800000
