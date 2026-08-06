@@ -111,10 +111,10 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # deploy-pages clamps its timeout input to a 10-minute maximum
+      # (tried 30 min on 2026-08-06; the action warned and capped it), so
+      # slow Pages propagation cannot be waited out — keep the artifact
+      # small instead (report_archive.py retention) and let the cron
+      # sweeper retry failed deploys.
       - id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          # Default is 10 min; the ~56MB site's CDN propagation exceeded
-          # it on 2026-08-06 (status stuck deployment_in_progress, deploy
-          # aborted+canceled twice in a row while the build was fine).
-          timeout: 1800000
