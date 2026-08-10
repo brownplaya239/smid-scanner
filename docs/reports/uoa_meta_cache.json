@@ -352,7 +352,7 @@
 "AGQ": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-06",
+"fetched": "2026-08-10",
 "mkt_cap": null,
 "sector": "Financials"
 },
@@ -1834,10 +1834,10 @@
 "sector": "Industrials / Machinery"
 },
 "BWA": {
-"earnings_date": "2026-08-05",
+"earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-08-04",
-"mkt_cap": 12985826914.710001,
+"fetched": "2026-08-10",
+"mkt_cap": 13934851940.68,
 "sector": "Industrials / Transport Eq"
 },
 "BWIN": {
@@ -4930,8 +4930,8 @@
 "HPQ": {
 "earnings_date": "2026-08-26",
 "earnings_session": "AMC",
-"fetched": "2026-07-30",
-"mkt_cap": 25981589622.9,
+"fetched": "2026-08-10",
+"mkt_cap": 27481406834.5,
 "sector": "Industrials / Machinery"
 },
 "HQY": {
@@ -4996,6 +4996,13 @@
 "fetched": "2026-08-06",
 "mkt_cap": 36082229484.060005,
 "sector": "Consumer / Food & Bev"
+},
+"HTGC": {
+"earnings_date": "2026-10-29",
+"earnings_session": "AMC",
+"fetched": "2026-08-10",
+"mkt_cap": 3228579000.0,
+"sector": "Other"
 },
 "HTZ": {
 "earnings_date": "2026-11-03",
@@ -5392,8 +5399,8 @@
 "ISRG": {
 "earnings_date": "2026-10-20",
 "earnings_session": "AMC",
-"fetched": "2026-07-17",
-"mkt_cap": 142490336221.86,
+"fetched": "2026-08-10",
+"mkt_cap": 133825253574.78,
 "sector": "Other"
 },
 "IT": {
@@ -10626,10 +10633,10 @@
 "sector": "Financials / Banks"
 },
 "UPWK": {
-"earnings_date": "2026-08-05",
+"earnings_date": "2026-08-10",
 "earnings_session": "AMC",
-"fetched": "2026-07-01",
-"mkt_cap": 1032611625.3199999,
+"fetched": "2026-08-10",
+"mkt_cap": 1194420384.79,
 "sector": "Tech / Software"
 },
 "URA": {
