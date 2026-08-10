@@ -3709,6 +3709,13 @@
 "mkt_cap": null,
 "sector": "Other"
 },
+"EVC": {
+"earnings_date": "2026-08-10",
+"earnings_session": "AMC",
+"fetched": "2026-08-10",
+"mkt_cap": 1101708984.6000001,
+"sector": "Communications"
+},
 "EVH": {
 "earnings_date": "2026-08-06",
 "earnings_session": "BMO",
@@ -4163,6 +4170,13 @@
 "fetched": "2026-07-21",
 "mkt_cap": 10008890006.5,
 "sector": "Other"
+},
+"FR": {
+"earnings_date": "2026-10-21",
+"earnings_session": "AMC",
+"fetched": "2026-08-10",
+"mkt_cap": 8435616553.9800005,
+"sector": "Real Estate"
 },
 "FRMI": {
 "earnings_date": "2026-08-13",
@@ -5462,7 +5476,7 @@
 "IYZ": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-28",
+"fetched": "2026-08-10",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -8827,10 +8841,10 @@
 "sector": "Consumer / Retail"
 },
 "RPD": {
-"earnings_date": "2026-08-06",
+"earnings_date": "2026-08-10",
 "earnings_session": "AMC",
-"fetched": "2026-07-06",
-"mkt_cap": 620856441.2199999,
+"fetched": "2026-08-10",
+"mkt_cap": 773230250.26,
 "sector": "Tech / Software"
 },
 "RR": {
