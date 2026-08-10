@@ -45,7 +45,8 @@
  ],
  "favorites": 722,
  "updated": "2026-08-09T16:45:17-04:00",
- "last_attempt": "2026-08-09T16:45:17-04:00",
- "last_attempt_ok": true,
- "source": "syndication.twitter.com (no auth, public timeline)"
+ "last_attempt": "2026-08-10T16:38:30-04:00",
+ "last_attempt_ok": false,
+ "source": "syndication.twitter.com (no auth, public timeline)",
+ "last_attempt_note": "HTTP 429"
 }

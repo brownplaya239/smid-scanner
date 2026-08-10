@@ -1,167 +1,6 @@
 {
- "updated": "2026-08-09T16:41:32-04:00",
+ "updated": "2026-08-10T16:34:12-04:00",
  "runs": [
-  {
-   "date": "2026-05-22",
-   "generated": "2026-05-22T16:45:20-04:00",
-   "count": 14,
-   "rows": [
-    {
-     "ticker": "QCOM",
-     "price": 238.16,
-     "chg": 18.2,
-     "adr_pct": 8.54,
-     "dollar_vol": 6239611750,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "ARM",
-     "price": 306.51,
-     "chg": 46.54,
-     "adr_pct": 7.56,
-     "dollar_vol": 2784581835,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "IONQ",
-     "price": 63.64,
-     "chg": 22.5,
-     "adr_pct": 9.6,
-     "dollar_vol": 1784173898,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "IBM",
-     "price": 253.84,
-     "chg": 15.75,
-     "adr_pct": 2.88,
-     "dollar_vol": 1760708337,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "DELL",
-     "price": 295.19,
-     "chg": 21.98,
-     "adr_pct": 5.69,
-     "dollar_vol": 1521171173,
-     "ern": "May 28"
-    },
-    {
-     "ticker": "CRDO",
-     "price": 218.41,
-     "chg": 26.86,
-     "adr_pct": 9.13,
-     "dollar_vol": 1150288479,
-     "ern": "Jun 01"
-    },
-    {
-     "ticker": "RGTI",
-     "price": 26.42,
-     "chg": 48.01,
-     "adr_pct": 9.68,
-     "dollar_vol": 877737074,
-     "ern": "--"
-    },
-    {
-     "ticker": "QBTS",
-     "price": 29.4,
-     "chg": 44.47,
-     "adr_pct": 9.6,
-     "dollar_vol": 849246289,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "NVTS",
-     "price": 29.25,
-     "chg": 37.2,
-     "adr_pct": 14.91,
-     "dollar_vol": 731742205,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "HPQ",
-     "price": 25.24,
-     "chg": 21.29,
-     "adr_pct": 4.57,
-     "dollar_vol": 366425194,
-     "ern": "May 27"
-    },
-    {
-     "ticker": "CLSK",
-     "price": 15.97,
-     "chg": 21.82,
-     "adr_pct": 7.69,
-     "dollar_vol": 308075232,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "GH",
-     "price": 118.95,
-     "chg": 25.32,
-     "adr_pct": 6.16,
-     "dollar_vol": 221169636,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "VSH",
-     "price": 47.25,
-     "chg": 26.91,
-     "adr_pct": 6.04,
-     "dollar_vol": 192534951,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "AAP",
-     "price": 57.95,
-     "chg": 22.85,
-     "adr_pct": 5.33,
-     "dollar_vol": 116957802,
-     "ern": "Aug 13"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "SMCI",
-     "price": 35.58,
-     "chg": 14.63,
-     "adr_pct": 6.52,
-     "dollar_vol": 1217864278,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "SMTC",
-     "price": 156.78,
-     "chg": 13.91,
-     "adr_pct": 7.04,
-     "dollar_vol": 366908103,
-     "ern": "May 26"
-    },
-    {
-     "ticker": "TTMI",
-     "price": 189.92,
-     "chg": 13.49,
-     "adr_pct": 7.84,
-     "dollar_vol": 412766326,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "LUNR",
-     "price": 38.26,
-     "chg": 12.89,
-     "adr_pct": 11.42,
-     "dollar_vol": 380051092,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "RMBS",
-     "price": 142.98,
-     "chg": 12.54,
-     "adr_pct": 7.24,
-     "dollar_vol": 358506095,
-     "ern": "Jul 27"
-    }
-   ]
-  },
   {
    "date": "2026-05-23",
    "generated": "2026-05-23T03:20:43-04:00",
@@ -9880,6 +9719,239 @@
      "adr_pct": 4.01,
      "dollar_vol": 129925446,
      "ern": "Nov 06"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-10",
+   "generated": "2026-08-10T16:34:12-04:00",
+   "count": 23,
+   "rows": [
+    {
+     "ticker": "SPCX",
+     "price": 138.74,
+     "chg": 21.14,
+     "adr_pct": 7.73,
+     "dollar_vol": 12198434569,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "PLTR",
+     "price": 175.23,
+     "chg": 39.46,
+     "adr_pct": 5.36,
+     "dollar_vol": 6745703081,
+     "ern": "Nov 02"
+    },
+    {
+     "ticker": "SHOP",
+     "price": 155.18,
+     "chg": 32.62,
+     "adr_pct": 4.97,
+     "dollar_vol": 1533441015,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "AAOI",
+     "price": 132.81,
+     "chg": 20.51,
+     "adr_pct": 12.53,
+     "dollar_vol": 1307610137,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "ABNB",
+     "price": 184.7,
+     "chg": 22.61,
+     "adr_pct": 2.98,
+     "dollar_vol": 709206636,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "HL",
+     "price": 17.55,
+     "chg": 21.62,
+     "adr_pct": 4.99,
+     "dollar_vol": 652228798,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "CDE",
+     "price": 18.15,
+     "chg": 16.65,
+     "adr_pct": 5.23,
+     "dollar_vol": 550533685,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "FN",
+     "price": 527.07,
+     "chg": 15.6,
+     "adr_pct": 6.81,
+     "dollar_vol": 383006345,
+     "ern": "Aug 17"
+    },
+    {
+     "ticker": "JOBY",
+     "price": 8.81,
+     "chg": 19.38,
+     "adr_pct": 6.16,
+     "dollar_vol": 355894598,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "SITM",
+     "price": 689.96,
+     "chg": 25.37,
+     "adr_pct": 7.19,
+     "dollar_vol": 303517173,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "AEHR",
+     "price": 106.2,
+     "chg": 15.8,
+     "adr_pct": 13.98,
+     "dollar_vol": 301817155,
+     "ern": "Oct 08"
+    },
+    {
+     "ticker": "SOUN",
+     "price": 7.46,
+     "chg": 22.3,
+     "adr_pct": 7.0,
+     "dollar_vol": 264523736,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "ZETA",
+     "price": 27.54,
+     "chg": 22.07,
+     "adr_pct": 6.66,
+     "dollar_vol": 221496724,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "KTOS",
+     "price": 62.42,
+     "chg": 26.84,
+     "adr_pct": 6.97,
+     "dollar_vol": 211995762,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "AVAV",
+     "price": 189.15,
+     "chg": 18.83,
+     "adr_pct": 6.24,
+     "dollar_vol": 209640098,
+     "ern": "Sep 02"
+    },
+    {
+     "ticker": "ACHR",
+     "price": 6.26,
+     "chg": 29.34,
+     "adr_pct": 7.59,
+     "dollar_vol": 200360417,
+     "ern": "Aug 10"
+    },
+    {
+     "ticker": "USAR",
+     "price": 19.04,
+     "chg": 20.05,
+     "adr_pct": 7.33,
+     "dollar_vol": 185130769,
+     "ern": "Aug 10"
+    },
+    {
+     "ticker": "TWST",
+     "price": 124.88,
+     "chg": 23.57,
+     "adr_pct": 8.59,
+     "dollar_vol": 156310631,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "TXG",
+     "price": 58.57,
+     "chg": 24.59,
+     "adr_pct": 7.34,
+     "dollar_vol": 152533337,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "FSLY",
+     "price": 27.75,
+     "chg": 20.5,
+     "adr_pct": 8.76,
+     "dollar_vol": 148002368,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "QLYS",
+     "price": 185.8,
+     "chg": 19.96,
+     "adr_pct": 6.34,
+     "dollar_vol": 131951792,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "LUNR",
+     "price": 15.78,
+     "chg": 20.46,
+     "adr_pct": 7.85,
+     "dollar_vol": 131626328,
+     "ern": "Aug 13"
+    },
+    {
+     "ticker": "PRAX",
+     "price": 366.96,
+     "chg": 20.11,
+     "adr_pct": 5.85,
+     "dollar_vol": 129827483,
+     "ern": "Reported"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "NVTS",
+     "price": 13.17,
+     "chg": 14.32,
+     "adr_pct": 9.51,
+     "dollar_vol": 176614869,
+     "ern": "--"
+    },
+    {
+     "ticker": "NXT",
+     "price": 102.91,
+     "chg": 13.5,
+     "adr_pct": 6.1,
+     "dollar_vol": 323713320,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "ARM",
+     "price": 267.85,
+     "chg": 12.04,
+     "adr_pct": 8.41,
+     "dollar_vol": 1621761616,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "NOW",
+     "price": 127.44,
+     "chg": 11.6,
+     "adr_pct": 5.57,
+     "dollar_vol": 2754173557,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "LBRT",
+     "price": 21.13,
+     "chg": 11.33,
+     "adr_pct": 8.27,
+     "dollar_vol": 119815979,
+     "ern": "Oct 14"
     }
    ]
   }
