@@ -2382,8 +2382,8 @@
 "CMG": {
 "earnings_date": "2026-11-04",
 "earnings_session": null,
-"fetched": "2026-07-30",
-"mkt_cap": 43920812160.0,
+"fetched": "2026-08-10",
+"mkt_cap": 41493056220.0,
 "sector": "Consumer / Retail"
 },
 "CMPS": {
@@ -4207,10 +4207,10 @@
 "sector": "Semiconductors"
 },
 "FSLY": {
-"earnings_date": "2026-08-05",
-"earnings_session": "AMC",
-"fetched": "2026-07-27",
-"mkt_cap": 3167559999.9999995,
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-08-10",
+"mkt_cap": 3657528000.0,
 "sector": "Tech / Software"
 },
 "FSM": {
@@ -5320,10 +5320,10 @@
 "sector": "Tech / Software"
 },
 "IOVA": {
-"earnings_date": "2026-08-06",
+"earnings_date": "2026-11-05",
 "earnings_session": "BMO",
-"fetched": "2026-07-31",
-"mkt_cap": 2094096237.2400002,
+"fetched": "2026-08-10",
+"mkt_cap": 2871838878.88,
 "sector": "Healthcare / Biotech"
 },
 "IP": {
@@ -9963,7 +9963,7 @@
 "TECL": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-27",
+"fetched": "2026-08-10",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -11135,6 +11135,13 @@
 "fetched": "2026-08-06",
 "mkt_cap": 178948621951.27,
 "sector": "Tech / Hardware"
+},
+"WDCX": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-08-10",
+"mkt_cap": null,
+"sector": "Other"
 },
 "WEAT": {
 "earnings_date": null,
