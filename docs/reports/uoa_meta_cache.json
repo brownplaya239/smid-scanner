@@ -58,8 +58,8 @@
 "AAPL": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-07-31",
-"mkt_cap": 4897205111080.0,
+"fetched": "2026-08-11",
+"mkt_cap": 4498801926800.0,
 "sector": "Tech / Hardware"
 },
 "ABAT": {
@@ -653,8 +653,8 @@
 "AMZN": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-07-31",
-"mkt_cap": 2533299272178.0,
+"fetched": "2026-08-11",
+"mkt_cap": 2999565941237.4795,
 "sector": "Consumer / Retail"
 },
 "ANAB": {
@@ -1164,8 +1164,8 @@
 "AXTI": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-07-31",
-"mkt_cap": 3070964256.96,
+"fetched": "2026-08-11",
+"mkt_cap": 4828885211.04,
 "sector": "Semiconductors"
 },
 "AZN": {
@@ -4230,8 +4230,8 @@
 "FSLR": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-07-31",
-"mkt_cap": 22136467311.629997,
+"fetched": "2026-08-11",
+"mkt_cap": 25720744362.04,
 "sector": "Semiconductors"
 },
 "FSLY": {
@@ -4844,10 +4844,10 @@
 "sector": "Financials"
 },
 "HIMS": {
-"earnings_date": "2026-08-10",
-"earnings_session": "AMC",
-"fetched": "2026-08-09",
-"mkt_cap": 7311748585.05,
+"earnings_date": "2026-11-09",
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": 7353410970.15,
 "sector": "Healthcare / Services"
 },
 "HIMX": {
@@ -5469,7 +5469,7 @@
 "IYR": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-28",
+"fetched": "2026-08-11",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -6827,8 +6827,8 @@
 "MSTR": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-07-31",
-"mkt_cap": 35706340147.5,
+"fetched": "2026-08-11",
+"mkt_cap": 38330772540.02,
 "sector": "Financials / Banks"
 },
 "MT": {
@@ -7163,8 +7163,8 @@
 "NOK": {
 "earnings_date": "2026-10-22",
 "earnings_session": "BMO",
-"fetched": "2026-07-24",
-"mkt_cap": 54318057483.83,
+"fetched": "2026-08-11",
+"mkt_cap": 50968536981.23,
 "sector": "Other"
 },
 "NOV": {
@@ -8699,6 +8699,13 @@
 "fetched": "2026-07-24",
 "mkt_cap": 3871812343.65,
 "sector": "Other"
+},
+"RHP": {
+"earnings_date": "2026-11-02",
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": 7569957176.400001,
+"sector": "Real Estate"
 },
 "RIG": {
 "earnings_date": "2026-10-28",
