@@ -1,93 +1,6 @@
 {
- "updated": "2026-08-10T18:08:08-04:00",
+ "updated": "2026-08-11T16:33:58-04:00",
  "runs": [
-  {
-   "date": "2026-05-23",
-   "generated": "2026-05-23T03:20:43-04:00",
-   "count": 10,
-   "rows": [
-    {
-     "ticker": "SNDK",
-     "price": 1478.69,
-     "chg": 58.58,
-     "adr_pct": 8.09,
-     "dollar_vol": 20338980605,
-     "ern": "--"
-    },
-    {
-     "ticker": "INTC",
-     "price": 119.84,
-     "chg": 79.45,
-     "adr_pct": 7.49,
-     "dollar_vol": 16686461841,
-     "ern": "Jul 23"
-    },
-    {
-     "ticker": "QCOM",
-     "price": 238.16,
-     "chg": 77.8,
-     "adr_pct": 8.54,
-     "dollar_vol": 6241648288,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "DDOG",
-     "price": 222.32,
-     "chg": 73.88,
-     "adr_pct": 5.07,
-     "dollar_vol": 1245593828,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "RGTI",
-     "price": 26.42,
-     "chg": 56.7,
-     "adr_pct": 9.68,
-     "dollar_vol": 880194647,
-     "ern": "--"
-    },
-    {
-     "ticker": "NVTS",
-     "price": 29.25,
-     "chg": 58.02,
-     "adr_pct": 14.91,
-     "dollar_vol": 732341680,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "DOCN",
-     "price": 158.46,
-     "chg": 65.3,
-     "adr_pct": 8.04,
-     "dollar_vol": 597836490,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "MXL",
-     "price": 99.16,
-     "chg": 189.52,
-     "adr_pct": 13.99,
-     "dollar_vol": 505513339,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "VSH",
-     "price": 47.25,
-     "chg": 72.89,
-     "adr_pct": 6.04,
-     "dollar_vol": 193195633,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "SYNA",
-     "price": 143.69,
-     "chg": 69.15,
-     "adr_pct": 7.34,
-     "dollar_vol": 122874714,
-     "ern": "Aug 06"
-    }
-   ]
-  },
   {
    "date": "2026-05-25",
    "generated": "2026-05-25T16:33:55-04:00",
@@ -4793,6 +4706,77 @@
      "chg": 41.65,
      "adr_pct": 8.76,
      "dollar_vol": 148034440,
+     "ern": "Nov 04"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-11",
+   "generated": "2026-08-11T16:33:58-04:00",
+   "count": 8,
+   "rows": [
+    {
+     "ticker": "AEHR",
+     "price": 117.18,
+     "chg": 72.27,
+     "adr_pct": 14.24,
+     "dollar_vol": 298492451,
+     "ern": "Oct 08"
+    },
+    {
+     "ticker": "ZETA",
+     "price": 29.15,
+     "chg": 33.29,
+     "adr_pct": 6.54,
+     "dollar_vol": 234648190,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "ACHR",
+     "price": 6.79,
+     "chg": 49.23,
+     "adr_pct": 8.0,
+     "dollar_vol": 224401724,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "AVAV",
+     "price": 196.02,
+     "chg": 38.24,
+     "adr_pct": 6.36,
+     "dollar_vol": 211926182,
+     "ern": "Sep 02"
+    },
+    {
+     "ticker": "KTOS",
+     "price": 63.73,
+     "chg": 35.71,
+     "adr_pct": 6.94,
+     "dollar_vol": 208785433,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "TWST",
+     "price": 123.12,
+     "chg": 36.27,
+     "adr_pct": 8.62,
+     "dollar_vol": 157492892,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "TXG",
+     "price": 58.48,
+     "chg": 40.0,
+     "adr_pct": 7.23,
+     "dollar_vol": 157088878,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "FSLY",
+     "price": 28.78,
+     "chg": 43.68,
+     "adr_pct": 8.75,
+     "dollar_vol": 155088230,
      "ern": "Nov 04"
     }
    ]

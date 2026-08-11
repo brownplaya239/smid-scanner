@@ -1,167 +1,6 @@
 {
- "updated": "2026-08-10T18:08:08-04:00",
+ "updated": "2026-08-11T16:33:58-04:00",
  "runs": [
-  {
-   "date": "2026-05-23",
-   "generated": "2026-05-23T03:20:43-04:00",
-   "count": 14,
-   "rows": [
-    {
-     "ticker": "QCOM",
-     "price": 238.16,
-     "chg": 18.2,
-     "adr_pct": 8.54,
-     "dollar_vol": 6241648288,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "ARM",
-     "price": 306.51,
-     "chg": 46.54,
-     "adr_pct": 7.56,
-     "dollar_vol": 2787105045,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "IONQ",
-     "price": 63.64,
-     "chg": 22.5,
-     "adr_pct": 9.6,
-     "dollar_vol": 1785369572,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "IBM",
-     "price": 253.84,
-     "chg": 15.75,
-     "adr_pct": 2.88,
-     "dollar_vol": 1761861262,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "DELL",
-     "price": 295.19,
-     "chg": 21.98,
-     "adr_pct": 5.69,
-     "dollar_vol": 1524316814,
-     "ern": "May 28"
-    },
-    {
-     "ticker": "CRDO",
-     "price": 218.41,
-     "chg": 26.86,
-     "adr_pct": 9.13,
-     "dollar_vol": 1151047730,
-     "ern": "Jun 01"
-    },
-    {
-     "ticker": "RGTI",
-     "price": 26.42,
-     "chg": 48.01,
-     "adr_pct": 9.68,
-     "dollar_vol": 880194647,
-     "ern": "--"
-    },
-    {
-     "ticker": "QBTS",
-     "price": 29.4,
-     "chg": 44.47,
-     "adr_pct": 9.6,
-     "dollar_vol": 850808341,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "NVTS",
-     "price": 29.25,
-     "chg": 37.2,
-     "adr_pct": 14.91,
-     "dollar_vol": 732341680,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "HPQ",
-     "price": 25.24,
-     "chg": 21.29,
-     "adr_pct": 4.57,
-     "dollar_vol": 366614752,
-     "ern": "May 27"
-    },
-    {
-     "ticker": "CLSK",
-     "price": 15.97,
-     "chg": 21.82,
-     "adr_pct": 7.69,
-     "dollar_vol": 308184444,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "GH",
-     "price": 118.95,
-     "chg": 25.32,
-     "adr_pct": 6.16,
-     "dollar_vol": 222274741,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "VSH",
-     "price": 47.25,
-     "chg": 26.91,
-     "adr_pct": 6.04,
-     "dollar_vol": 193195633,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "AAP",
-     "price": 57.95,
-     "chg": 22.85,
-     "adr_pct": 5.33,
-     "dollar_vol": 116972927,
-     "ern": "Aug 13"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "SMCI",
-     "price": 35.58,
-     "chg": 14.63,
-     "adr_pct": 6.52,
-     "dollar_vol": 1218604468,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "SMTC",
-     "price": 156.78,
-     "chg": 13.91,
-     "adr_pct": 7.04,
-     "dollar_vol": 366958978,
-     "ern": "May 26"
-    },
-    {
-     "ticker": "TTMI",
-     "price": 189.92,
-     "chg": 13.49,
-     "adr_pct": 7.84,
-     "dollar_vol": 413113253,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "LUNR",
-     "price": 38.26,
-     "chg": 12.89,
-     "adr_pct": 11.42,
-     "dollar_vol": 380283486,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "RMBS",
-     "price": 142.98,
-     "chg": 12.54,
-     "adr_pct": 7.24,
-     "dollar_vol": 358514096,
-     "ern": "Jul 27"
-    }
-   ]
-  },
   {
    "date": "2026-05-25",
    "generated": "2026-05-25T16:33:55-04:00",
@@ -9952,6 +9791,159 @@
      "adr_pct": 8.27,
      "dollar_vol": 119928115,
      "ern": "Oct 14"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-11",
+   "generated": "2026-08-11T16:33:58-04:00",
+   "count": 13,
+   "rows": [
+    {
+     "ticker": "SHOP",
+     "price": 152.61,
+     "chg": 23.77,
+     "adr_pct": 4.83,
+     "dollar_vol": 1551839338,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "ABNB",
+     "price": 184.98,
+     "chg": 23.39,
+     "adr_pct": 3.11,
+     "dollar_vol": 772870463,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "HL",
+     "price": 17.76,
+     "chg": 15.4,
+     "adr_pct": 4.94,
+     "dollar_vol": 660695709,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "ZETA",
+     "price": 29.15,
+     "chg": 20.16,
+     "adr_pct": 6.54,
+     "dollar_vol": 234648190,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "ACHR",
+     "price": 6.79,
+     "chg": 27.87,
+     "adr_pct": 8.0,
+     "dollar_vol": 224401724,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "AVAV",
+     "price": 196.02,
+     "chg": 15.97,
+     "adr_pct": 6.36,
+     "dollar_vol": 211926182,
+     "ern": "Sep 02"
+    },
+    {
+     "ticker": "KTOS",
+     "price": 63.73,
+     "chg": 22.86,
+     "adr_pct": 6.94,
+     "dollar_vol": 208785433,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "TWST",
+     "price": 123.12,
+     "chg": 23.81,
+     "adr_pct": 8.62,
+     "dollar_vol": 157492892,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "TXG",
+     "price": 58.48,
+     "chg": 22.19,
+     "adr_pct": 7.23,
+     "dollar_vol": 157088878,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "FSLY",
+     "price": 28.78,
+     "chg": 15.35,
+     "adr_pct": 8.75,
+     "dollar_vol": 155088230,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "QLYS",
+     "price": 188.31,
+     "chg": 16.92,
+     "adr_pct": 6.06,
+     "dollar_vol": 132531925,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "PRAX",
+     "price": 370.68,
+     "chg": 19.55,
+     "adr_pct": 5.73,
+     "dollar_vol": 132084075,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "LUNR",
+     "price": 16.48,
+     "chg": 18.05,
+     "adr_pct": 7.86,
+     "dollar_vol": 130789286,
+     "ern": "Aug 13"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "CDE",
+     "price": 18.58,
+     "chg": 14.62,
+     "adr_pct": 5.21,
+     "dollar_vol": 569911413,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "SITM",
+     "price": 667.1,
+     "chg": 14.41,
+     "adr_pct": 7.2,
+     "dollar_vol": 308212133,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "SOUN",
+     "price": 7.41,
+     "chg": 13.82,
+     "adr_pct": 6.76,
+     "dollar_vol": 262542073,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "ROAD",
+     "price": 120.79,
+     "chg": 13.19,
+     "adr_pct": 4.89,
+     "dollar_vol": 149870524,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "RIG",
+     "price": 5.81,
+     "chg": 11.3,
+     "adr_pct": 4.29,
+     "dollar_vol": 227609323,
+     "ern": "Oct 28"
     }
    ]
   }
