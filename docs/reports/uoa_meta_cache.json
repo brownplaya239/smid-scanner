@@ -35,10 +35,10 @@
 "sector": "Semiconductors"
 },
 "AAON": {
-"earnings_date": "2026-08-10",
-"earnings_session": "AMC",
-"fetched": "2026-08-06",
-"mkt_cap": 7630075786.5,
+"earnings_date": "2026-11-05",
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": 7309801000.4,
 "sector": "Industrials / Machinery"
 },
 "AAOX": {
@@ -140,10 +140,10 @@
 "sector": "Financials"
 },
 "ACHR": {
-"earnings_date": "2026-08-10",
-"earnings_session": "AMC",
-"fetched": "2026-08-10",
-"mkt_cap": 4264414673.6099997,
+"earnings_date": "2026-11-05",
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": 4775534142.54,
 "sector": "Industrials / Transport Eq"
 },
 "ACI": {
@@ -4355,9 +4355,9 @@
 },
 "GE": {
 "earnings_date": "2026-10-20",
-"earnings_session": "BMO",
-"fetched": "2026-07-29",
-"mkt_cap": 377247354101.67,
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": 380474173517.1,
 "sector": "Other"
 },
 "GEHC": {
@@ -6533,8 +6533,8 @@
 "MHK": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-07-31",
-"mkt_cap": 7287558016.2,
+"fetched": "2026-08-11",
+"mkt_cap": 9188679369.25,
 "sector": "Other"
 },
 "MIAX": {
@@ -9209,6 +9209,13 @@
 "earnings_session": "BMO",
 "fetched": "2026-07-31",
 "mkt_cap": 250422941195.49002,
+"sector": "Other"
+},
+"SHLD": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": null,
 "sector": "Other"
 },
 "SHLS": {
