@@ -762,6 +762,13 @@
 "mkt_cap": 140355531873.80002,
 "sector": "Tech / Software"
 },
+"APPF": {
+"earnings_date": "2026-10-29",
+"earnings_session": "AMC",
+"fetched": "2026-08-11",
+"mkt_cap": 7067106583.679999,
+"sector": "Tech / Software"
+},
 "APPN": {
 "earnings_date": "2026-08-06",
 "earnings_session": "BMO",
@@ -980,10 +987,10 @@
 "sector": "Other"
 },
 "ASTS": {
-"earnings_date": "2026-08-10",
-"earnings_session": "AMC",
-"fetched": "2026-08-09",
-"mkt_cap": 21491814793.02,
+"earnings_date": "2026-11-09",
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": 20541801295.08,
 "sector": "Communications"
 },
 "ASTX": {
@@ -1888,6 +1895,13 @@
 "fetched": "2026-06-29",
 "mkt_cap": 5581321551.969999,
 "sector": "Other"
+},
+"BYND": {
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": 268225868.56,
+"sector": "Consumer / Food & Bev"
 },
 "C": {
 "earnings_date": "2026-10-13",
@@ -3066,10 +3080,10 @@
 "sector": "Consumer / Services"
 },
 "DJT": {
-"earnings_date": "2026-08-04",
-"earnings_session": "AMC",
-"fetched": "2026-08-04",
-"mkt_cap": 2772307818.2799997,
+"earnings_date": "2026-11-06",
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": 2600596444.92,
 "sector": "Tech / Software"
 },
 "DK": {
@@ -3775,8 +3789,8 @@
 "EXE": {
 "earnings_date": "2026-10-27",
 "earnings_session": "AMC",
-"fetched": "2026-07-30",
-"mkt_cap": 21404840330.94,
+"fetched": "2026-08-11",
+"mkt_cap": 22585509654.84,
 "sector": "Energy"
 },
 "EXEL": {
@@ -4417,10 +4431,10 @@
 "sector": "Other"
 },
 "GGAL": {
-"earnings_date": "2026-08-18",
+"earnings_date": "2026-08-25",
 "earnings_session": "AMC",
-"fetched": "2026-07-17",
-"mkt_cap": 8060181217.14,
+"fetched": "2026-08-11",
+"mkt_cap": 7456229814.66,
 "sector": "Other"
 },
 "GH": {
@@ -5133,8 +5147,8 @@
 "ICE": {
 "earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-07-31",
-"mkt_cap": 87729116483.49,
+"fetched": "2026-08-11",
+"mkt_cap": 84512326072.98,
 "sector": "Financials"
 },
 "ICLR": {
@@ -5299,10 +5313,10 @@
 "sector": "Healthcare / Biotech"
 },
 "INSW": {
-"earnings_date": "2026-08-10",
+"earnings_date": "2026-11-05",
 "earnings_session": "BMO",
-"fetched": "2026-07-29",
-"mkt_cap": 4633639545.599999,
+"fetched": "2026-08-11",
+"mkt_cap": 4475224518.400001,
 "sector": "Industrials"
 },
 "INTC": {
@@ -8246,10 +8260,10 @@
 "sector": "Tech / Software"
 },
 "PRIM": {
-"earnings_date": "2026-08-04",
-"earnings_session": "AMC",
-"fetched": "2026-08-03",
-"mkt_cap": 4579659063.349999,
+"earnings_date": "2026-11-02",
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": 4346960405.25,
 "sector": "Industrials"
 },
 "PRM": {
@@ -8463,10 +8477,10 @@
 "sector": "Other"
 },
 "QLYS": {
-"earnings_date": "2026-08-04",
-"earnings_session": "AMC",
-"fetched": "2026-08-04",
-"mkt_cap": 5454762214.23,
+"earnings_date": "2026-11-03",
+"earnings_session": null,
+"fetched": "2026-08-11",
+"mkt_cap": 6427751185.8,
 "sector": "Tech / Software"
 },
 "QMCO": {
@@ -10075,8 +10089,8 @@
 "TFC": {
 "earnings_date": "2026-10-16",
 "earnings_session": "BMO",
-"fetched": "2026-07-21",
-"mkt_cap": 62302926000.0,
+"fetched": "2026-08-11",
+"mkt_cap": 63353534109.68,
 "sector": "Financials / Banks"
 },
 "TGB": {
