@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-12T22:13:16+00:00",
+  "generated": "2026-08-12T22:17:23+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -131,6 +131,10 @@
     ],
     "qm-monthly": [
       {
+        "file": "qm_monthly_2026-08-12_1810.pdf",
+        "label": "Aug 12, 2026  -  6:10 PM ET"
+      },
+      {
         "file": "qm_monthly_2026-08-12_1641.pdf",
         "label": "Aug 12, 2026  -  4:41 PM ET"
       },
@@ -165,13 +169,13 @@
       {
         "file": "qm_monthly_2026-08-09_1641.pdf",
         "label": "Aug 09, 2026  -  4:41 PM ET"
-      },
-      {
-        "file": "qm_monthly_2026-08-07_1806.pdf",
-        "label": "Aug 07, 2026  -  6:06 PM ET"
       }
     ],
     "stockbee-weekly": [
+      {
+        "file": "stockbee_weekly_2026-08-12_1810.pdf",
+        "label": "Aug 12, 2026  -  6:10 PM ET"
+      },
       {
         "file": "stockbee_weekly_2026-08-12_1641.pdf",
         "label": "Aug 12, 2026  -  4:41 PM ET"
@@ -207,10 +211,6 @@
       {
         "file": "stockbee_weekly_2026-08-09_1641.pdf",
         "label": "Aug 09, 2026  -  4:41 PM ET"
-      },
-      {
-        "file": "stockbee_weekly_2026-08-07_1806.pdf",
-        "label": "Aug 07, 2026  -  6:06 PM ET"
       }
     ],
     "adhoc": [
