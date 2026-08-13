@@ -398,6 +398,13 @@
 "mkt_cap": 272950216.76,
 "sector": "Industrials / Machinery"
 },
+"AIRO": {
+"earnings_date": "2026-08-13",
+"earnings_session": null,
+"fetched": "2026-08-13",
+"mkt_cap": 266973517.56,
+"sector": "Industrials / Transport Eq"
+},
 "AKAM": {
 "earnings_date": "2026-11-05",
 "earnings_session": null,
@@ -6929,6 +6936,13 @@
 "mkt_cap": 6154272930.12,
 "sector": "Energy"
 },
+"MTG": {
+"earnings_date": "2026-10-28",
+"earnings_session": "AMC",
+"fetched": "2026-08-13",
+"mkt_cap": 6285025097.6,
+"sector": "Financials"
+},
 "MTN": {
 "earnings_date": "2026-09-28",
 "earnings_session": "AMC",
@@ -7832,6 +7846,13 @@
 "mkt_cap": 6630029830.64,
 "sector": "Healthcare / Services"
 },
+"PAG": {
+"earnings_date": "2026-10-28",
+"earnings_session": "BMO",
+"fetched": "2026-08-13",
+"mkt_cap": 14314506314.0,
+"sector": "Consumer / Retail"
+},
 "PAGP": {
 "earnings_date": "2026-11-04",
 "earnings_session": "BMO",
@@ -8682,8 +8703,8 @@
 "RBLX": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-07-31",
-"mkt_cap": 34846685519.15,
+"fetched": "2026-08-13",
+"mkt_cap": 25388920943.14,
 "sector": "Tech / Software"
 },
 "RBRK": {
