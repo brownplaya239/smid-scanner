@@ -1548,9 +1548,9 @@
 },
 "BLSH": {
 "earnings_date": "2026-08-13",
-"earnings_session": "BMO",
-"fetched": "2026-07-02",
-"mkt_cap": 3553120746.7799997,
+"earnings_session": null,
+"fetched": "2026-08-13",
+"mkt_cap": 3735098761.98,
 "sector": "Other"
 },
 "BLZE": {
@@ -2058,10 +2058,10 @@
 "sector": "Consumer / Retail"
 },
 "CBRS": {
-"earnings_date": "2026-08-12",
-"earnings_session": "AMC",
-"fetched": "2026-08-11",
-"mkt_cap": 51257858915.67,
+"earnings_date": "2026-11-10",
+"earnings_session": null,
+"fetched": "2026-08-13",
+"mkt_cap": 58400219588.020004,
 "sector": "Semiconductors"
 },
 "CBT": {
@@ -2109,8 +2109,8 @@
 "CCJ": {
 "earnings_date": "2026-10-30",
 "earnings_session": "BMO",
-"fetched": "2026-08-02",
-"mkt_cap": 37621338639.64,
+"fetched": "2026-08-13",
+"mkt_cap": 43130830910.37,
 "sector": "Other"
 },
 "CCL": {
@@ -7812,10 +7812,10 @@
 "sector": "Industrials"
 },
 "PAAS": {
-"earnings_date": "2026-08-12",
-"earnings_session": "AMC",
-"fetched": "2026-08-06",
-"mkt_cap": 20325924000.0,
+"earnings_date": "2026-11-16",
+"earnings_session": null,
+"fetched": "2026-08-13",
+"mkt_cap": 22070313000.0,
 "sector": "Other"
 },
 "PACS": {
@@ -10680,6 +10680,13 @@
 "fetched": "2026-05-28",
 "mkt_cap": 9886448875.2,
 "sector": "Other"
+},
+"UHS": {
+"earnings_date": "2026-10-26",
+"earnings_session": "AMC",
+"fetched": "2026-08-13",
+"mkt_cap": 10163602011.75,
+"sector": "Healthcare / Services"
 },
 "UL": {
 "earnings_date": "2027-02-09",
