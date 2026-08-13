@@ -4870,10 +4870,10 @@
 "CAPR": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-29",
+"fetched": "2026-08-13",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 1531190450.92,
-"mcap_bucket": "Small",
+"market_cap": 242650831.67000002,
+"mcap_bucket": "Micro",
 "name": "Capricor Therapeutics Inc",
 "sector": "Healthcare / Biotech"
 },
@@ -20777,9 +20777,9 @@
 "PEB": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-08",
+"fetched": "2026-08-13",
 "industry": "REAL ESTATE INVESTMENT TRUSTS",
-"market_cap": 2084860231.65,
+"market_cap": 2040196305.2799997,
 "mcap_bucket": "Mid",
 "name": "Pebblebrook Hotel Trust",
 "sector": "Real Estate"
@@ -26032,6 +26032,16 @@
 "market_cap": 58673693825.92999,
 "mcap_bucket": "Large",
 "name": "STMicroelectronics N.V.",
+"sector": "Other"
+},
+"STN": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-08-13",
+"industry": "",
+"market_cap": 8469474378.75,
+"mcap_bucket": "Mid",
+"name": "Stantec, Inc.",
 "sector": "Other"
 },
 "STNG": {

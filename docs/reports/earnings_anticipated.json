@@ -1,6 +1,6 @@
 {
  "week_of": "2026-08-10",
- "generated": "2026-08-13T16:48:02-04:00",
+ "generated": "2026-08-13T18:16:16-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 449,
  "days": [
@@ -4151,7 +4151,7 @@
     {
      "ticker": "AMAT",
      "company": "Applied Materials, Inc.",
-     "score": 116,
+     "score": 117,
      "analysts": 38,
      "release_time": 3,
      "confirmed": true,
@@ -4272,7 +4272,7 @@
     {
      "ticker": "GLOB",
      "company": "Globant S.A.",
-     "score": 13,
+     "score": 14,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
@@ -4448,7 +4448,7 @@
     {
      "ticker": "ACOG",
      "company": "Alpha Cognition Inc.",
-     "score": 2,
+     "score": 3,
      "analysts": 5,
      "release_time": 3,
      "confirmed": true,
@@ -4556,6 +4556,17 @@
      "mcap": 79587298.53
     },
     {
+     "ticker": "GNSS",
+     "company": "Genasys Inc.",
+     "score": 1,
+     "analysts": 4,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "6/2026",
+     "mcap": 79243095.66
+    },
+    {
      "ticker": "AEYE",
      "company": "AudioEye, Inc.",
      "score": 5,
@@ -4598,17 +4609,6 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 47758870.32
-    },
-    {
-     "ticker": "NXXT",
-     "company": "NextNRG, Inc.",
-     "score": 1,
-     "analysts": 3,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-08-13T00:00:00",
-     "q": "6/2026",
-     "mcap": 46909231.992000006
     },
     {
      "ticker": "PETS",
@@ -4868,24 +4868,13 @@
      "next_eps": "2026-08-14T00:00:00",
      "q": "6/2026",
      "mcap": 4649862.61
-    },
-    {
-     "ticker": "BKYI",
-     "company": "BIO-key International, Inc.",
-     "score": 1,
-     "analysts": 2,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-08-14T00:00:00",
-     "q": "6/2026",
-     "mcap": 4534291.2
     }
    ],
    "amc": [
     {
      "ticker": "HIVE",
      "company": "HIVE Digital Technologies Ltd.",
-     "score": 11,
+     "score": 13,
      "analysts": 9,
      "release_time": 3,
      "confirmed": true,
@@ -4894,9 +4883,20 @@
      "mcap": 749769616.0400001
     },
     {
+     "ticker": "BALY",
+     "company": "Bally's Corporation",
+     "score": 2,
+     "analysts": 6,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-14T00:00:00",
+     "q": "6/2026",
+     "mcap": 670598491.5
+    },
+    {
      "ticker": "DUOT",
      "company": "Duos Technologies Group, Inc.",
-     "score": 7,
+     "score": 8,
      "analysts": 3,
      "release_time": 3,
      "confirmed": true,
@@ -4907,7 +4907,7 @@
     {
      "ticker": "HSDT",
      "company": "Solana Company",
-     "score": 1,
+     "score": 2,
      "analysts": 3,
      "release_time": 3,
      "confirmed": true,
@@ -4918,7 +4918,7 @@
     {
      "ticker": "FSI",
      "company": "Flexible Solutions International, Inc.",
-     "score": 5,
+     "score": 6,
      "analysts": 3,
      "release_time": 3,
      "confirmed": true,
@@ -4929,7 +4929,7 @@
     {
      "ticker": "BRFH",
      "company": "Barfresh Food Group, Inc.",
-     "score": 1,
+     "score": 2,
      "analysts": 3,
      "release_time": 3,
      "confirmed": true,
@@ -4950,8 +4950,8 @@
     },
     {
      "ticker": "PARA",
-     "company": "Paramount Global",
-     "score": 2,
+     "company": "Parabolic Technologies, Inc.",
+     "score": 3,
      "analysts": 2,
      "release_time": 3,
      "confirmed": true,
@@ -4962,7 +4962,7 @@
     {
      "ticker": "NWTG",
      "company": "Newton Golf Company, Inc.",
-     "score": 1,
+     "score": 2,
      "analysts": 0,
      "release_time": 3,
      "confirmed": true,
@@ -4973,7 +4973,7 @@
     {
      "ticker": "CSAI",
      "company": "Cloudastructure, Inc. ",
-     "score": 2,
+     "score": 3,
      "analysts": 2,
      "release_time": 3,
      "confirmed": true,
