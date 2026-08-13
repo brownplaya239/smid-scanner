@@ -217,10 +217,10 @@
 "sector": "Healthcare / Biotech"
 },
 "ADNT": {
-"earnings_date": "2026-08-05",
+"earnings_date": "2026-11-04",
 "earnings_session": "BMO",
-"fetched": "2026-07-09",
-"mkt_cap": 1452215927.24,
+"fetched": "2026-08-13",
+"mkt_cap": 1435544873.8400002,
 "sector": "Industrials / Transport Eq"
 },
 "ADP": {
@@ -2975,10 +2975,10 @@
 "sector": "Other"
 },
 "DAVE": {
-"earnings_date": "2026-08-05",
-"earnings_session": "AMC",
-"fetched": "2026-08-05",
-"mkt_cap": 5457717667.22,
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-08-13",
+"mkt_cap": 4033163758.33,
 "sector": "Financials / Banks"
 },
 "DB": {
@@ -5831,10 +5831,10 @@
 "sector": "Consumer / Food & Bev"
 },
 "KOD": {
-"earnings_date": "2026-08-12",
+"earnings_date": "2026-08-13",
 "earnings_session": "AMC",
-"fetched": "2026-07-10",
-"mkt_cap": 2508143915.2799997,
+"fetched": "2026-08-13",
+"mkt_cap": 2716530123.81,
 "sector": "Healthcare / Biotech"
 },
 "KOLD": {
@@ -9643,6 +9643,13 @@
 "earnings_session": "AMC",
 "fetched": "2026-07-28",
 "mkt_cap": 13935369074.64,
+"sector": "Other"
+},
+"SONO": {
+"earnings_date": "2026-11-11",
+"earnings_session": null,
+"fetched": "2026-08-13",
+"mkt_cap": 1863130169.25,
 "sector": "Other"
 },
 "SONY": {
