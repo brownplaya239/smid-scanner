@@ -1,5 +1,5 @@
 {
- "updated": "2026-08-13T16:40:28-04:00",
+ "updated": "2026-08-13T16:47:53-04:00",
  "tz": "America/New_York",
  "source_tz": "UTC",
  "converted": true,
@@ -561,6 +561,30 @@
    "starts_at": "2026-08-13T13:01-04:00",
    "scheduled": true,
    "generic_title": false
+  },
+  {
+   "date": "2026-08-13",
+   "title": "FOMC Member Goolsbee Speaks",
+   "impact": "Low",
+   "forecast": "",
+   "previous": "",
+   "actual": "",
+   "url": "https://www.forexfactory.com/calendar/889-us-fomc-member-goolsbee-speaks",
+   "source_time": "10:00pm",
+   "source_tz": "UTC",
+   "source_url": "https://www.forexfactory.com/calendar/889-us-fomc-member-goolsbee-speaks",
+   "title_authority": "vendor",
+   "venue_tz": null,
+   "venue": null,
+   "vendor_title": "FOMC Member Goolsbee Speaks",
+   "vendor_time": "10:00pm",
+   "vendor_tz": "UTC",
+   "vendor_url": "https://www.forexfactory.com/calendar/889-us-fomc-member-goolsbee-speaks",
+   "time_et": "6:00 p.m. ET",
+   "time_utc": "22:00Z",
+   "starts_at": "2026-08-13T18:00-04:00",
+   "scheduled": true,
+   "generic_title": true
   },
   {
    "date": "2026-08-14",
