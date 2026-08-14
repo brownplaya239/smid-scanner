@@ -1470,10 +1470,10 @@
 "sector": "Other"
 },
 "BIRK": {
-"earnings_date": "2026-08-13",
+"earnings_date": "2026-12-17",
 "earnings_session": "BMO",
-"fetched": "2026-08-06",
-"mkt_cap": 6892798978.879999,
+"fetched": "2026-08-14",
+"mkt_cap": 6756708497.440001,
 "sector": "Other"
 },
 "BITI": {
@@ -1841,10 +1841,10 @@
 "sector": "Other"
 },
 "BULL": {
-"earnings_date": "2026-08-13",
+"earnings_date": "2026-08-19",
 "earnings_session": "AMC",
-"fetched": "2026-08-04",
-"mkt_cap": 3861003507.9,
+"fetched": "2026-08-14",
+"mkt_cap": 4079049160.55,
 "sector": "Other"
 },
 "BURL": {
@@ -3913,10 +3913,10 @@
 "sector": "Other"
 },
 "EYPT": {
-"earnings_date": "2026-08-12",
+"earnings_date": "2026-11-11",
 "earnings_session": "BMO",
-"fetched": "2026-08-04",
-"mkt_cap": 1041308921.16,
+"fetched": "2026-08-14",
+"mkt_cap": 1166450227.1399999,
 "sector": "Other"
 },
 "EZPW": {
@@ -4263,9 +4263,9 @@
 "sector": "Real Estate"
 },
 "FRMI": {
-"earnings_date": "2026-08-13",
-"earnings_session": null,
-"fetched": "2026-08-13",
+"earnings_date": "2026-11-09",
+"earnings_session": "BMO",
+"fetched": "2026-08-14",
 "mkt_cap": 4849433528.4,
 "sector": "Real Estate"
 },
@@ -4655,10 +4655,10 @@
 "sector": "Financials"
 },
 "GO": {
-"earnings_date": "2026-08-12",
-"earnings_session": "AMC",
-"fetched": "2026-08-11",
-"mkt_cap": 972409865.76,
+"earnings_date": "2026-11-03",
+"earnings_session": null,
+"fetched": "2026-08-14",
+"mkt_cap": 1006043574.24,
 "sector": "Consumer / Retail"
 },
 "GOOG": {
@@ -10966,6 +10966,13 @@
 "earnings_session": "AMC",
 "fetched": "2026-08-13",
 "mkt_cap": 61368099676.94,
+"sector": "Other"
+},
+"VCLT": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-08-14",
+"mkt_cap": null,
 "sector": "Other"
 },
 "VCTR": {
