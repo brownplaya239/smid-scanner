@@ -2037,10 +2037,10 @@
 "sector": "Financials"
 },
 "CBOE": {
-"earnings_date": "2026-07-31",
+"earnings_date": "2026-10-30",
 "earnings_session": "BMO",
-"fetched": "2026-06-28",
-"mkt_cap": 25348193022.64,
+"fetched": "2026-08-14",
+"mkt_cap": 30387337908.620003,
 "sector": "Financials"
 },
 "CBRE": {
@@ -5215,10 +5215,10 @@
 "sector": "Industrials / Machinery"
 },
 "IBRX": {
-"earnings_date": "2026-08-04",
+"earnings_date": "2026-11-03",
 "earnings_session": "BMO",
-"fetched": "2026-06-07",
-"mkt_cap": 7247689520.84,
+"fetched": "2026-08-14",
+"mkt_cap": 8203132753.02,
 "sector": "Healthcare / Biotech"
 },
 "ICE": {
@@ -5273,7 +5273,7 @@
 "IHI": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-06-23",
+"fetched": "2026-08-14",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -7104,6 +7104,13 @@
 "mkt_cap": 70464872505.59999,
 "sector": "Other"
 },
+"NBIZ": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-08-14",
+"mkt_cap": null,
+"sector": "Other"
+},
 "NCLD": {
 "earnings_date": null,
 "earnings_session": null,
@@ -7212,8 +7219,8 @@
 "NKE": {
 "earnings_date": "2026-09-29",
 "earnings_session": "AMC",
-"fetched": "2026-08-03",
-"mkt_cap": 61876730902.130005,
+"fetched": "2026-08-14",
+"mkt_cap": 60096532458.53,
 "sector": "Other"
 },
 "NKTR": {
@@ -9627,8 +9634,8 @@
 "SO": {
 "earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-07-31",
-"mkt_cap": 108525242212.44,
+"fetched": "2026-08-14",
+"mkt_cap": 106431581614.31999,
 "sector": "Utilities"
 },
 "SOC": {
@@ -9956,7 +9963,7 @@
 "SVIX": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-07-06",
+"fetched": "2026-08-14",
 "mkt_cap": null,
 "sector": "Financials"
 },
@@ -10971,7 +10978,7 @@
 "VCX": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-06-08",
+"fetched": "2026-08-14",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -11004,10 +11011,10 @@
 "sector": "Industrials / Machinery"
 },
 "VERA": {
-"earnings_date": "2026-08-05",
-"earnings_session": "BMO",
-"fetched": "2026-08-04",
-"mkt_cap": 2313562995.9199996,
+"earnings_date": "2026-11-05",
+"earnings_session": null,
+"fetched": "2026-08-14",
+"mkt_cap": 2161179416.65,
 "sector": "Healthcare / Biotech"
 },
 "VFC": {
