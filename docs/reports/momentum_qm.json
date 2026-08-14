@@ -1,109 +1,6 @@
 {
- "updated": "2026-08-13T18:12:10-04:00",
+ "updated": "2026-08-14T16:33:58-04:00",
  "runs": [
-  {
-   "date": "2026-05-27",
-   "generated": "2026-05-27T16:34:18-04:00",
-   "count": 12,
-   "rows": [
-    {
-     "ticker": "MU",
-     "price": 928.41,
-     "chg": 76.99,
-     "adr_pct": 7.29,
-     "dollar_vol": 39110964698,
-     "ern": "Jun 24"
-    },
-    {
-     "ticker": "QCOM",
-     "price": 233.4,
-     "chg": 55.33,
-     "adr_pct": 8.81,
-     "dollar_vol": 6439721902,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "DDOG",
-     "price": 221.81,
-     "chg": 67.2,
-     "adr_pct": 5.0,
-     "dollar_vol": 1290162909,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "NVTS",
-     "price": 28.88,
-     "chg": 57.81,
-     "adr_pct": 14.58,
-     "dollar_vol": 805617440,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "STRL",
-     "price": 782.12,
-     "chg": 54.74,
-     "adr_pct": 6.4,
-     "dollar_vol": 562908521,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "HUT",
-     "price": 117.64,
-     "chg": 55.38,
-     "adr_pct": 8.08,
-     "dollar_vol": 536151667,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "MXL",
-     "price": 101.1,
-     "chg": 95.74,
-     "adr_pct": 13.59,
-     "dollar_vol": 519486771,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "LUNR",
-     "price": 40.34,
-     "chg": 53.97,
-     "adr_pct": 13.74,
-     "dollar_vol": 508497209,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "SMTC",
-     "price": 157.2,
-     "chg": 55.2,
-     "adr_pct": 7.43,
-     "dollar_vol": 467789305,
-     "ern": "Aug 24"
-    },
-    {
-     "ticker": "VSH",
-     "price": 48.9,
-     "chg": 76.09,
-     "adr_pct": 6.2,
-     "dollar_vol": 224024516,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "SYNA",
-     "price": 141.64,
-     "chg": 54.41,
-     "adr_pct": 7.4,
-     "dollar_vol": 129181308,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "ACMR",
-     "price": 88.64,
-     "chg": 66.52,
-     "adr_pct": 8.45,
-     "dollar_vol": 119214353,
-     "ern": "Aug 05"
-    }
-   ]
-  },
   {
    "date": "2026-05-28",
    "generated": "2026-05-28T16:34:17-04:00",
@@ -4698,6 +4595,77 @@
      "adr_pct": 8.49,
      "dollar_vol": 159865829,
      "ern": "Reported"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-14",
+   "generated": "2026-08-14T16:33:58-04:00",
+   "count": 8,
+   "rows": [
+    {
+     "ticker": "SMCI",
+     "price": 39.84,
+     "chg": 61.43,
+     "adr_pct": 7.2,
+     "dollar_vol": 1997275304,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "AAOI",
+     "price": 150.28,
+     "chg": 49.92,
+     "adr_pct": 12.31,
+     "dollar_vol": 1455068779,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "AEHR",
+     "price": 134.06,
+     "chg": 59.22,
+     "adr_pct": 13.39,
+     "dollar_vol": 263704961,
+     "ern": "Oct 08"
+    },
+    {
+     "ticker": "ACHR",
+     "price": 6.62,
+     "chg": 47.44,
+     "adr_pct": 8.89,
+     "dollar_vol": 260081323,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "ZETA",
+     "price": 29.05,
+     "chg": 35.75,
+     "adr_pct": 6.28,
+     "dollar_vol": 239841256,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "KTOS",
+     "price": 64.58,
+     "chg": 37.52,
+     "adr_pct": 6.7,
+     "dollar_vol": 212755629,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "LUNR",
+     "price": 19.01,
+     "chg": 41.44,
+     "adr_pct": 8.71,
+     "dollar_vol": 156536140,
+     "ern": "Nov 10"
+    },
+    {
+     "ticker": "FSLY",
+     "price": 29.93,
+     "chg": 47.29,
+     "adr_pct": 8.17,
+     "dollar_vol": 153288898,
+     "ern": "Nov 04"
     }
    ]
   }

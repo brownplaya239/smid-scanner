@@ -1,8 +1,8 @@
 {
  "week_of": "2026-08-10",
- "generated": "2026-08-13T18:16:16-04:00",
+ "generated": "2026-08-14T16:39:48-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 449,
+ "total": 480,
  "days": [
   {
    "date": "2026-08-10",
@@ -3597,6 +3597,17 @@
    "dow": "Thursday",
    "bmo": [
     {
+     "ticker": "BN",
+     "company": "Brookfield Corporation",
+     "score": 1,
+     "analysts": 10,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 108047634783.04
+    },
+    {
      "ticker": "JD",
      "company": "JD.com, Inc.",
      "score": 13,
@@ -3727,6 +3738,17 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 5191412957.42
+    },
+    {
+     "ticker": "ALH",
+     "company": "Alliance Laundry Holdings Inc.",
+     "score": 1,
+     "analysts": 8,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 5145950173.32
     },
     {
      "ticker": "GLNG",
@@ -3905,6 +3927,17 @@
      "mcap": 997503828.7499999
     },
     {
+     "ticker": "TSAT",
+     "company": "Telesat Corporation",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "6/2026",
+     "mcap": 934440214.4
+    },
+    {
      "ticker": "CRMD",
      "company": "CorMedix Inc.",
      "score": 2,
@@ -3914,6 +3947,17 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 583682069.0400001
+    },
+    {
+     "ticker": "IDR",
+     "company": "Idaho Strategic Resources, Inc.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 548918304.48
     },
     {
      "ticker": "ESEA",
@@ -3960,6 +4004,17 @@
      "mcap": 481519011.59999996
     },
     {
+     "ticker": "ABEO",
+     "company": "Abeona Therapeutics Inc.",
+     "score": 1,
+     "analysts": 5,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 425183774.24
+    },
+    {
      "ticker": "PSFE",
      "company": "Paysafe Limited",
      "score": 2,
@@ -3980,6 +4035,17 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 360896706.99
+    },
+    {
+     "ticker": "FATE",
+     "company": "Fate Therapeutics, Inc.",
+     "score": 1,
+     "analysts": 13,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 317040985.92
     },
     {
      "ticker": "AIRO",
@@ -4070,6 +4136,28 @@
      "mcap": 173166085.44
     },
     {
+     "ticker": "ADCT",
+     "company": "ADC Therapeutics SA",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 156445124.34
+    },
+    {
+     "ticker": "CING",
+     "company": "Cingulate Inc.",
+     "score": 1,
+     "analysts": 4,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 70173677.56
+    },
+    {
      "ticker": "DWTX",
      "company": "Dogwood Therapeutics, Inc. ",
      "score": 1,
@@ -4081,6 +4169,17 @@
      "mcap": 64736889.525
     },
     {
+     "ticker": "AFCG",
+     "company": "Advanced Flower Capital Inc.",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 64321560.48
+    },
+    {
      "ticker": "INKT",
      "company": "MiNK Therapeutics, Inc.",
      "score": 1,
@@ -4090,6 +4189,17 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 54551794.05
+    },
+    {
+     "ticker": "BRAG",
+     "company": "Bragg Gaming Group Inc.",
+     "score": 1,
+     "analysts": 5,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 51787224.72
     },
     {
      "ticker": "KPTI",
@@ -4145,6 +4255,17 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 16260246.88
+    },
+    {
+     "ticker": "AMS",
+     "company": "American Shared Hospital Services",
+     "score": 1,
+     "analysts": 0,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 9871250.0
     }
    ],
    "amc": [
@@ -4182,6 +4303,17 @@
      "mcap": 30740937296.81
     },
     {
+     "ticker": "BLTE",
+     "company": "Belite Bio, Inc.",
+     "score": 1,
+     "analysts": 9,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 7172826183.54
+    },
+    {
      "ticker": "CELC",
      "company": "Celcuity Inc.",
      "score": 2,
@@ -4202,6 +4334,17 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 4238946860.865
+    },
+    {
+     "ticker": "AYA",
+     "company": "Aya Gold & Silver Inc.",
+     "score": 1,
+     "analysts": 9,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 4019526961.96
     },
     {
      "ticker": "KOD",
@@ -4292,6 +4435,17 @@
      "mcap": 1392819171.0
     },
     {
+     "ticker": "AKTS",
+     "company": "Aktis Oncology Inc.",
+     "score": 1,
+     "analysts": 7,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 1326658728.0
+    },
+    {
      "ticker": "JCAP",
      "company": "Jefferson Capital, Inc.",
      "score": 1,
@@ -4301,6 +4455,17 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 1307440019.06
+    },
+    {
+     "ticker": "AFYA",
+     "company": "Afya Limited",
+     "score": 1,
+     "analysts": 7,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 1256559040.02
     },
     {
      "ticker": "ETON",
@@ -4334,6 +4499,17 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 853617329.6200001
+    },
+    {
+     "ticker": "CTGO",
+     "company": "Contango ORE, Inc.",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 656551392.0
     },
     {
      "ticker": "KLC",
@@ -4391,6 +4567,17 @@
      "mcap": 428566790.88000005
     },
     {
+     "ticker": "API",
+     "company": "Agora, Inc.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 377092045.56
+    },
+    {
      "ticker": "TSSI",
      "company": "TSS, Inc.",
      "score": 2,
@@ -4400,6 +4587,17 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 316112744.56
+    },
+    {
+     "ticker": "ELDN",
+     "company": "Eledon Pharmaceuticals, Inc.",
+     "score": 1,
+     "analysts": 8,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 290998092.71
     },
     {
      "ticker": "INV",
@@ -4433,6 +4631,17 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 255523754.45999998
+    },
+    {
+     "ticker": "CAPR",
+     "company": "Capricor Therapeutics, Inc.",
+     "score": 1,
+     "analysts": 10,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 236859642.37
     },
     {
      "ticker": "IVVD",
@@ -4512,6 +4721,17 @@
      "mcap": 138160257.54
     },
     {
+     "ticker": "EQ",
+     "company": "Equillium, Inc.",
+     "score": 1,
+     "analysts": 11,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 137833892.08
+    },
+    {
      "ticker": "KULR",
      "company": "KULR Technology Group, Inc.",
      "score": 3,
@@ -4532,6 +4752,28 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 114295812.36
+    },
+    {
+     "ticker": "FTLF",
+     "company": "FitLife Brands, Inc.",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 94192452.16
+    },
+    {
+     "ticker": "FBIO",
+     "company": "Fortress Biotech, Inc.",
+     "score": 1,
+     "analysts": 1,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 91352448.0
     },
     {
      "ticker": "GOSS",
@@ -4666,6 +4908,17 @@
      "mcap": 23679043.720000003
     },
     {
+     "ticker": "DARE",
+     "company": "Dar\u00e9 Bioscience, Inc.",
+     "score": 1,
+     "analysts": 4,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 20971302.799999997
+    },
+    {
      "ticker": "SMSI",
      "company": "Smith Micro Software Inc.",
      "score": 2,
@@ -4697,6 +4950,61 @@
      "next_eps": "2026-08-13T00:00:00",
      "q": "6/2026",
      "mcap": 10743388.88
+    },
+    {
+     "ticker": "CWD",
+     "company": "CaliberCos Inc",
+     "score": 1,
+     "analysts": 1,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 4604872.681600001
+    },
+    {
+     "ticker": "BKYI",
+     "company": "BIO-key International, Inc.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 4534291.2
+    },
+    {
+     "ticker": "AEMD",
+     "company": "Aethlon Medical, Inc.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": 1659142.8
+    },
+    {
+     "ticker": "ASNS",
+     "company": "Actelis Networks, Inc.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "9/2026",
+     "mcap": null
+    },
+    {
+     "ticker": "ZSPC",
+     "company": "zSpace, Inc.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-13T00:00:00",
+     "q": "6/2026",
+     "mcap": null
     }
    ]
   },
@@ -4707,13 +5015,24 @@
     {
      "ticker": "SIND",
      "company": "Sinda Ltd.",
-     "score": 2,
+     "score": 3,
      "analysts": 4,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-08-14T00:00:00",
      "q": "6/2026",
      "mcap": 2512071800.7
+    },
+    {
+     "ticker": "REPL",
+     "company": "Replimune Group, Inc.",
+     "score": 2,
+     "analysts": 9,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-14T00:00:00",
+     "q": "6/2026",
+     "mcap": 1428408029.64
     },
     {
      "ticker": "RMIX",
@@ -4738,9 +5057,20 @@
      "mcap": 521177003.76
     },
     {
+     "ticker": "NMRA",
+     "company": "Neumora Therapeutics, Inc. ",
+     "score": 1,
+     "analysts": 10,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-14T00:00:00",
+     "q": "6/2026",
+     "mcap": 316836057.24
+    },
+    {
      "ticker": "OTLK",
      "company": "Outlook Therapeutics, Inc.",
-     "score": 6,
+     "score": 8,
      "analysts": 5,
      "release_time": 1,
      "confirmed": true,
@@ -4769,17 +5099,6 @@
      "next_eps": "2026-08-14T00:00:00",
      "q": "6/2026",
      "mcap": 41721837.400000006
-    },
-    {
-     "ticker": "BBGI",
-     "company": "Beasley Broadcast Group, Inc.",
-     "score": 1,
-     "analysts": 2,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-08-14T00:00:00",
-     "q": "9/2026",
-     "mcap": 40016667.9
     },
     {
      "ticker": "PAVM",
@@ -4833,18 +5152,29 @@
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-08-14T00:00:00",
-     "q": "6/2026",
+     "q": "9/2026",
      "mcap": 9238008.013
     },
     {
-     "ticker": "ACXP",
-     "company": "Acurx Pharmaceuticals, Inc.",
-     "score": 3,
-     "analysts": 3,
+     "ticker": "SURG",
+     "company": "SurgePays, Inc.",
+     "score": 1,
+     "analysts": 2,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-08-14T00:00:00",
      "q": "6/2026",
+     "mcap": 6858277.335000001
+    },
+    {
+     "ticker": "ACXP",
+     "company": "Acurx Pharmaceuticals, Inc.",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-14T00:00:00",
+     "q": "9/2026",
      "mcap": 6618516.5200000005
     },
     {
@@ -4874,7 +5204,7 @@
     {
      "ticker": "HIVE",
      "company": "HIVE Digital Technologies Ltd.",
-     "score": 13,
+     "score": 18,
      "analysts": 9,
      "release_time": 3,
      "confirmed": true,
@@ -4885,7 +5215,7 @@
     {
      "ticker": "BALY",
      "company": "Bally's Corporation",
-     "score": 2,
+     "score": 4,
      "analysts": 6,
      "release_time": 3,
      "confirmed": true,
@@ -4896,7 +5226,7 @@
     {
      "ticker": "DUOT",
      "company": "Duos Technologies Group, Inc.",
-     "score": 8,
+     "score": 10,
      "analysts": 3,
      "release_time": 3,
      "confirmed": true,
@@ -4918,7 +5248,7 @@
     {
      "ticker": "FSI",
      "company": "Flexible Solutions International, Inc.",
-     "score": 6,
+     "score": 8,
      "analysts": 3,
      "release_time": 3,
      "confirmed": true,
@@ -4929,7 +5259,7 @@
     {
      "ticker": "BRFH",
      "company": "Barfresh Food Group, Inc.",
-     "score": 2,
+     "score": 3,
      "analysts": 3,
      "release_time": 3,
      "confirmed": true,
@@ -4973,13 +5303,24 @@
     {
      "ticker": "CSAI",
      "company": "Cloudastructure, Inc. ",
-     "score": 3,
+     "score": 6,
      "analysts": 2,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-08-14T00:00:00",
      "q": "6/2026",
      "mcap": 4466284.32
+    },
+    {
+     "ticker": "VVOS",
+     "company": "Vivos Therapeutics, Inc.",
+     "score": 2,
+     "analysts": 3,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-14T00:00:00",
+     "q": "6/2026",
+     "mcap": 3973855.5999999996
     }
    ]
   }

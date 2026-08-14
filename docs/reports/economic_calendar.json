@@ -1,5 +1,5 @@
 {
- "updated": "2026-08-13T18:16:14-04:00",
+ "updated": "2026-08-14T16:39:43-04:00",
  "tz": "America/New_York",
  "source_tz": "UTC",
  "converted": true,
@@ -711,6 +711,30 @@
    "starts_at": "2026-08-14T10:00-04:00",
    "scheduled": true,
    "generic_title": false
+  },
+  {
+   "date": "2026-08-14",
+   "title": "President Trump Speaks",
+   "impact": "Medium",
+   "forecast": "",
+   "previous": "",
+   "actual": "",
+   "url": "https://www.forexfactory.com/calendar/645-us-president-trump-speaks",
+   "source_time": "7:00pm",
+   "source_tz": "UTC",
+   "source_url": "https://www.forexfactory.com/calendar/645-us-president-trump-speaks",
+   "title_authority": "vendor",
+   "venue_tz": null,
+   "venue": null,
+   "vendor_title": "President Trump Speaks",
+   "vendor_time": "7:00pm",
+   "vendor_tz": "UTC",
+   "vendor_url": "https://www.forexfactory.com/calendar/645-us-president-trump-speaks",
+   "time_et": "3:00 p.m. ET",
+   "time_utc": "19:00Z",
+   "starts_at": "2026-08-14T15:00-04:00",
+   "scheduled": true,
+   "generic_title": true
   }
  ]
 }
