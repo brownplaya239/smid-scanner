@@ -312,9 +312,9 @@
 "ACIW": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-15",
+"fetched": "2026-08-17",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 5602569122.7,
+"market_cap": 5395048079.04,
 "mcap_bucket": "Mid",
 "name": "ACI Worldwide, Inc.",
 "sector": "Tech / Software"
@@ -482,10 +482,10 @@
 "ADPT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-15",
+"fetched": "2026-08-17",
 "industry": "BIOLOGICAL PRODUCTS, (NO DIAGNOSTIC SUBSTANCES)",
-"market_cap": 857437830.14,
-"mcap_bucket": "Small",
+"market_cap": 3935135048.2799997,
+"mcap_bucket": "Mid",
 "name": "Adaptive Biotechnologies Corporation Common Stock",
 "sector": "Healthcare / Biotech"
 },
@@ -932,9 +932,9 @@
 "AIT": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-17",
+"fetched": "2026-08-17",
 "industry": "WHOLESALE-MACHINERY, EQUIPMENT & SUPPLIES",
-"market_cap": 12275372352.33,
+"market_cap": 13283150929.199999,
 "mcap_bucket": "Large",
 "name": "Applied Industrial Technologies, Inc.",
 "sector": "Other"
@@ -1721,9 +1721,9 @@
 "APAM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-14",
+"fetched": "2026-08-17",
 "industry": "INVESTMENT ADVICE",
-"market_cap": 2604032666.7599998,
+"market_cap": 2994629543.94,
 "mcap_bucket": "Mid",
 "name": "ARTISAN PARTNERS ASSET MANAGEMENT INC.",
 "sector": "Financials"
@@ -5027,6 +5027,16 @@
 "name": "Cracker Barrel Old Country Store, Inc,.",
 "sector": "Consumer / Retail"
 },
+"CBRS": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-17",
+"industry": "SEMICONDUCTORS & RELATED DEVICES",
+"market_cap": 52021773698.18,
+"mcap_bucket": "Large",
+"name": "Cerebras Systems Inc. Class A Common Stock",
+"sector": "Semiconductors"
+},
 "CBSH": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -5390,9 +5400,9 @@
 "CFR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-17",
+"fetched": "2026-08-17",
 "industry": "NATIONAL COMMERCIAL BANKS",
-"market_cap": 10268573288.960001,
+"market_cap": 10570265352.800001,
 "mcap_bucket": "Large",
 "name": "Cullen/Frost Bankers Inc.",
 "sector": "Financials / Banks"
@@ -5835,6 +5845,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "Global X 1-3 Month T-Bill ETF",
+"sector": "Other"
+},
+"CLM": {
+"country": "USA",
+"exchange": "AMEX",
+"fetched": "2026-08-17",
+"industry": "",
+"market_cap": 2189726575.0499997,
+"mcap_bucket": "Mid",
+"name": "Cornerstone Strategic Investment Fund, Inc.",
 "sector": "Other"
 },
 "CLMT": {
@@ -7310,9 +7330,9 @@
 "DAN": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-11",
+"fetched": "2026-08-17",
 "industry": "MOTOR VEHICLE PARTS & ACCESSORIES",
-"market_cap": 3839120243.5299997,
+"market_cap": 3264952207.65,
 "mcap_bucket": "Mid",
 "name": "Dana Incorporated",
 "sector": "Industrials / Transport Eq"
@@ -7330,10 +7350,10 @@
 "DAR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-17",
+"fetched": "2026-08-17",
 "industry": "FATS & OILS",
-"market_cap": 9723176068.34,
-"mcap_bucket": "Mid",
+"market_cap": 10579107488.640001,
+"mcap_bucket": "Large",
 "name": "DARLING INGREDIENTS INC.",
 "sector": "Consumer / Food & Bev"
 },
@@ -8800,9 +8820,9 @@
 "EIX": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-17",
+"fetched": "2026-08-17",
 "industry": "ELECTRIC SERVICES",
-"market_cap": 30033167095.05,
+"market_cap": 27479566240.39,
 "mcap_bucket": "Large",
 "name": "Edison International",
 "sector": "Utilities"
@@ -9470,9 +9490,9 @@
 "ETON": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-17",
+"fetched": "2026-08-17",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 1018721794.02,
+"market_cap": 1682403326.1,
 "mcap_bucket": "Small",
 "name": "Eton Pharmaceutcials, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
@@ -10370,9 +10390,9 @@
 "FIGR": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-17",
+"fetched": "2026-08-17",
 "industry": "LOAN BROKERS",
-"market_cap": 6825383208.63,
+"market_cap": 7028667861.809999,
 "mcap_bucket": "Mid",
 "name": "Figure Technology Solutions, Inc. Class A Common Stock",
 "sector": "Financials / Banks"
@@ -11969,9 +11989,9 @@
 "GPI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-17",
+"fetched": "2026-08-17",
 "industry": "RETAIL-AUTO DEALERS & GASOLINE STATIONS",
-"market_cap": 3945678762.66,
+"market_cap": 3146871288.75,
 "mcap_bucket": "Mid",
 "name": "Group 1 Automotive, Inc.",
 "sector": "Consumer / Retail"
@@ -12869,9 +12889,9 @@
 "HQY": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-15",
+"fetched": "2026-08-17",
 "industry": "SERVICES-BUSINESS SERVICES, NEC",
-"market_cap": 7900403836.5,
+"market_cap": 8755653902.61,
 "mcap_bucket": "Mid",
 "name": "HealthEquity, Inc",
 "sector": "Other"
@@ -12994,6 +13014,16 @@
 "market_cap": 2574288715.8,
 "mcap_bucket": "Mid",
 "name": "Heartflow, Inc. Common Stock",
+"sector": "Other"
+},
+"HTHT": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-17",
+"industry": "",
+"market_cap": 12879097539.720001,
+"mcap_bucket": "Large",
+"name": "H World Group Limited American Depositary Shares",
 "sector": "Other"
 },
 "HTRB": {
@@ -13325,6 +13355,26 @@
 "mcap_bucket": "Mid",
 "name": "ImmunityBio, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
+},
+"IBTG": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-17",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares iBonds Dec 2026 Term Treasury ETF",
+"sector": "Other"
+},
+"IBTH": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-17",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares iBonds Dec 2027 Term Treasury ETF",
+"sector": "Other"
 },
 "IBX": {
 "country": "USA",
@@ -13819,9 +13869,9 @@
 "IMVT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-22",
+"fetched": "2026-08-17",
 "industry": "BIOLOGICAL PRODUCTS, (NO DIAGNOSTIC SUBSTANCES)",
-"market_cap": 7255617126.780001,
+"market_cap": 8638033161.24,
 "mcap_bucket": "Mid",
 "name": "Immunovant, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
@@ -16658,9 +16708,9 @@
 "LRN": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-16",
+"fetched": "2026-08-17",
 "industry": "SERVICES-EDUCATIONAL SERVICES",
-"market_cap": 3546146407.6,
+"market_cap": 3464428679.2,
 "mcap_bucket": "Mid",
 "name": "Stride, Inc.",
 "sector": "Other"
@@ -19277,9 +19327,9 @@
 "NTSK": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-13",
+"fetched": "2026-08-17",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 4976339355.68,
+"market_cap": 6386032890.690001,
 "mcap_bucket": "Mid",
 "name": "Netskope, Inc. Class A Common Stock",
 "sector": "Tech / Software"
@@ -19713,6 +19763,16 @@
 "mcap_bucket": "Large",
 "name": "Realty Income Corporation",
 "sector": "Real Estate"
+},
+"OABI": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-17",
+"industry": "SERVICES-COMMERCIAL PHYSICAL & BIOLOGICAL RESEARCH",
+"market_cap": 491419545.24,
+"mcap_bucket": "Small",
+"name": "OmniAb, Inc. Common Stock",
+"sector": "Healthcare / Biotech"
 },
 "OBDC": {
 "country": "USA",
@@ -21837,9 +21897,9 @@
 "PSA": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-17",
+"fetched": "2026-08-17",
 "industry": "REAL ESTATE INVESTMENT TRUSTS",
-"market_cap": 56975598372.0,
+"market_cap": 60866041645.64,
 "mcap_bucket": "Large",
 "name": "Public Storage",
 "sector": "Real Estate"
@@ -24547,9 +24607,9 @@
 "SHC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-13",
+"fetched": "2026-08-17",
 "industry": "SERVICES-MISC HEALTH & ALLIED SERVICES, NEC",
-"market_cap": 5252776029.4800005,
+"market_cap": 5390729877.55,
 "mcap_bucket": "Mid",
 "name": "Sotera Health Company Common Stock",
 "sector": "Healthcare / Services"
@@ -24903,6 +24963,16 @@
 "mcap_bucket": "Mid",
 "name": "Slide Insurance Holdings, Inc. Common Stock",
 "sector": "Financials"
+},
+"SLE": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-17",
+"industry": "SERVICES-COMPUTER INTEGRATED SYSTEMS DESIGN",
+"market_cap": 3652314.23,
+"mcap_bucket": "Nano",
+"name": "Super League Enterprise, Inc. Common Stock",
+"sector": "Tech / Software"
 },
 "SLF": {
 "country": "USA",
@@ -28406,10 +28476,10 @@
 "URGN": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-17",
+"fetched": "2026-08-17",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 1948868040.0,
-"mcap_bucket": "Small",
+"market_cap": 2357020796.08,
+"mcap_bucket": "Mid",
 "name": "UroGen Pharma Ltd. Ordinary Shares",
 "sector": "Healthcare / Biotech"
 },
@@ -28751,6 +28821,16 @@
 "name": "Vanguard Intermediate-Term Corporate Bond ETF",
 "sector": "Other"
 },
+"VCLT": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-17",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Vanguard Long-Term Corporate Bond ETF",
+"sector": "Other"
+},
 "VCR": {
 "country": "USA",
 "exchange": "NYSE Arca",
@@ -28784,9 +28864,9 @@
 "VCTR": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-14",
+"fetched": "2026-08-17",
 "industry": "INVESTMENT ADVICE",
-"market_cap": 5751611129.88,
+"market_cap": 7272584245.42,
 "mcap_bucket": "Mid",
 "name": "Victory Capital Holdings, Inc. Class A Common Stock",
 "sector": "Financials"
@@ -30523,9 +30603,9 @@
 "WU": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-17",
+"fetched": "2026-08-17",
 "industry": "SERVICES-BUSINESS SERVICES, NEC",
-"market_cap": 2605708767.36,
+"market_cap": 2323498408.4500003,
 "mcap_bucket": "Mid",
 "name": "The Western Union Company",
 "sector": "Other"
@@ -30943,9 +31023,9 @@
 "YUMC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-15",
+"fetched": "2026-08-17",
 "industry": "RETAIL-EATING PLACES",
-"market_cap": 14894953146.699999,
+"market_cap": 16272167776.230001,
 "mcap_bucket": "Large",
 "name": "Yum China Holdings, Inc. Common Stock",
 "sector": "Consumer / Retail"
