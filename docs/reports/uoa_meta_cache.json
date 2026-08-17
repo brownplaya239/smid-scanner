@@ -121,8 +121,8 @@
 "ABVX": {
 "earnings_date": "2026-09-21",
 "earnings_session": "AMC",
-"fetched": "2026-08-05",
-"mkt_cap": 10911644152.11,
+"fetched": "2026-08-17",
+"mkt_cap": 10379711691.119999,
 "sector": "Other"
 },
 "ACAD": {
@@ -261,8 +261,8 @@
 "AEM": {
 "earnings_date": "2026-10-28",
 "earnings_session": "AMC",
-"fetched": "2026-08-06",
-"mkt_cap": 83778066748.79999,
+"fetched": "2026-08-17",
+"mkt_cap": 94416792541.44,
 "sector": "Other"
 },
 "AEO": {
@@ -355,6 +355,13 @@
 "fetched": "2026-08-10",
 "mkt_cap": null,
 "sector": "Financials"
+},
+"AHR": {
+"earnings_date": "2026-11-05",
+"earnings_session": null,
+"fetched": "2026-08-17",
+"mkt_cap": 10466748547.48,
+"sector": "Real Estate"
 },
 "AI": {
 "earnings_date": "2026-09-09",
@@ -1413,6 +1420,13 @@
 "mkt_cap": 2576794965.29,
 "sector": "Healthcare / Biotech"
 },
+"BHF": {
+"earnings_date": "2026-11-05",
+"earnings_session": null,
+"fetched": "2026-08-17",
+"mkt_cap": 3374778516.84,
+"sector": "Financials"
+},
 "BHP": {
 "earnings_date": "2026-08-17",
 "earnings_session": "AMC",
@@ -2170,10 +2184,10 @@
 "sector": "Materials / Chemicals"
 },
 "CECO": {
-"earnings_date": "2026-08-06",
+"earnings_date": "2026-10-27",
 "earnings_session": "BMO",
-"fetched": "2026-07-29",
-"mkt_cap": 3941036531.88,
+"fetched": "2026-08-17",
+"mkt_cap": 4661572769.7,
 "sector": "Industrials / Machinery"
 },
 "CEG": {
@@ -4286,9 +4300,16 @@
 "FRPT": {
 "earnings_date": "2026-11-02",
 "earnings_session": "BMO",
-"fetched": "2026-08-06",
-"mkt_cap": 3512235272.77,
+"fetched": "2026-08-17",
+"mkt_cap": 3496705464.2400002,
 "sector": "Consumer / Food & Bev"
+},
+"FRSH": {
+"earnings_date": "2026-11-03",
+"earnings_session": null,
+"fetched": "2026-08-17",
+"mkt_cap": 3499656554.2200003,
+"sector": "Tech / Software"
 },
 "FRT": {
 "earnings_date": "2026-07-31",
@@ -6379,8 +6400,8 @@
 "M": {
 "earnings_date": "2026-09-02",
 "earnings_session": "BMO",
-"fetched": "2026-07-27",
-"mkt_cap": 6149827364.5199995,
+"fetched": "2026-08-17",
+"mkt_cap": 6157718503.14,
 "sector": "Consumer / Retail"
 },
 "MA": {
@@ -6750,8 +6771,8 @@
 "MO": {
 "earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-08-03",
-"mkt_cap": 114093602463.58,
+"fetched": "2026-08-17",
+"mkt_cap": 109702175938.20001,
 "sector": "Consumer / Food & Bev"
 },
 "MOD": {
@@ -8465,8 +8486,8 @@
 "PTEN": {
 "earnings_date": "2026-10-21",
 "earnings_session": "AMC",
-"fetched": "2026-07-31",
-"mkt_cap": 3739233882.0499997,
+"fetched": "2026-08-17",
+"mkt_cap": 4336346017.38,
 "sector": "Energy"
 },
 "PTGX": {
