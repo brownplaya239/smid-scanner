@@ -427,10 +427,10 @@
 "sector": "Semiconductors"
 },
 "ALB": {
-"earnings_date": "2026-08-05",
-"earnings_session": "AMC",
-"fetched": "2026-07-14",
-"mkt_cap": 14834999749.29,
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-08-17",
+"mkt_cap": 16066388510.550001,
 "sector": "Materials / Chemicals"
 },
 "ALC": {
@@ -814,8 +814,8 @@
 "APTV": {
 "earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-08-05",
-"mkt_cap": 12111042760.21,
+"fetched": "2026-08-17",
+"mkt_cap": 10290307884.36,
 "sector": "Industrials / Transport Eq"
 },
 "AR": {
@@ -1055,6 +1055,13 @@
 "fetched": "2026-08-07",
 "mkt_cap": 30491587504.61,
 "sector": "Materials / Metals"
+},
+"ATKR": {
+"earnings_date": "2026-11-19",
+"earnings_session": "BMO",
+"fetched": "2026-08-17",
+"mkt_cap": 3167865190.0,
+"sector": "Other"
 },
 "ATO": {
 "earnings_date": "2026-08-05",
@@ -5452,6 +5459,13 @@
 "mkt_cap": 17607403575.84,
 "sector": "Real Estate"
 },
+"IOND": {
+"earnings_date": "2026-08-19",
+"earnings_session": "AMC",
+"fetched": "2026-08-17",
+"mkt_cap": 2926630969.05,
+"sector": "Other"
+},
 "IONQ": {
 "earnings_date": "2026-11-04",
 "earnings_session": null,
@@ -5630,8 +5644,8 @@
 "JBLU": {
 "earnings_date": "2026-10-27",
 "earnings_session": "BMO",
-"fetched": "2026-07-29",
-"mkt_cap": 2232113364.0,
+"fetched": "2026-08-17",
+"mkt_cap": 2131813822.65,
 "sector": "Industrials"
 },
 "JBS": {
@@ -6797,10 +6811,10 @@
 "sector": "Financials"
 },
 "MOS": {
-"earnings_date": "2026-08-04",
-"earnings_session": "BMO",
-"fetched": "2026-06-26",
-"mkt_cap": 6906807574.12,
+"earnings_date": "2026-11-03",
+"earnings_session": null,
+"fetched": "2026-08-17",
+"mkt_cap": 6869724910.059999,
 "sector": "Materials / Chemicals"
 },
 "MP": {
@@ -7177,8 +7191,8 @@
 "NEE": {
 "earnings_date": "2026-10-27",
 "earnings_session": "BMO",
-"fetched": "2026-08-06",
-"mkt_cap": 179206387935.19,
+"fetched": "2026-08-17",
+"mkt_cap": 179790461833.71,
 "sector": "Utilities"
 },
 "NEM": {
@@ -7756,10 +7770,10 @@
 "sector": "Communications"
 },
 "ORA": {
-"earnings_date": "2026-08-05",
-"earnings_session": "AMC",
-"fetched": "2026-07-01",
-"mkt_cap": 6692292139.5,
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-08-17",
+"mkt_cap": 7057388949.16,
 "sector": "Utilities"
 },
 "ORBS": {
@@ -8477,10 +8491,10 @@
 "sector": "Healthcare / Services"
 },
 "PSX": {
-"earnings_date": "2026-07-24",
+"earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-06-03",
-"mkt_cap": 73194697251.2,
+"fetched": "2026-08-17",
+"mkt_cap": 93215276186.76001,
 "sector": "Energy"
 },
 "PTC": {
@@ -9732,7 +9746,7 @@
 "SPCH": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-04",
+"fetched": "2026-08-17",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -11251,8 +11265,8 @@
 "VSAT": {
 "earnings_date": "2026-11-05",
 "earnings_session": null,
-"fetched": "2026-08-06",
-"mkt_cap": 11162327354.7,
+"fetched": "2026-08-17",
+"mkt_cap": 11415823974.7,
 "sector": "Communications"
 },
 "VSCO": {
