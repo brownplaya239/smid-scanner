@@ -272,9 +272,9 @@
 "ACHC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-06",
+"fetched": "2026-08-18",
 "industry": "SERVICES-SPECIALTY OUTPATIENT FACILITIES, NEC",
-"market_cap": 2934667831.57,
+"market_cap": 2793008250.0,
 "mcap_bucket": "Mid",
 "name": "Acadia Healthcare Company, Inc.",
 "sector": "Healthcare / Services"
@@ -1058,6 +1058,16 @@
 "mcap_bucket": "Mid",
 "name": "Allegiant Travel Company",
 "sector": "Industrials"
+},
+"ALH": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-08-18",
+"industry": "REFRIGERATION & SERVICE INDUSTRY MACHINERY",
+"market_cap": 4927981689.84,
+"mcap_bucket": "Mid",
+"name": "Alliance Laundry Holdings Inc.",
+"sector": "Industrials / Machinery"
 },
 "ALHC": {
 "country": "USA",
@@ -7630,7 +7640,7 @@
 "DFCF": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-24",
+"fetched": "2026-08-18",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -8126,6 +8136,16 @@
 "mcap_bucket": "Micro",
 "name": "Domo, Inc. Class B Common Stock",
 "sector": "Tech / Software"
+},
+"DOO": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-18",
+"industry": "",
+"market_cap": 4679135693.235,
+"mcap_bucket": "Mid",
+"name": "BRP Inc. Common Subordinate Voting Shares",
+"sector": "Other"
 },
 "DORM": {
 "country": "USA",
@@ -9567,6 +9587,16 @@
 "name": "Evolent Health, Inc Class A Common Stock",
 "sector": "Other"
 },
+"EVLN": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-18",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Eaton Vance Floating-Rate ETF",
+"sector": "Other"
+},
 "EVR": {
 "country": "USA",
 "exchange": "NYSE",
@@ -9587,10 +9617,20 @@
 "name": "Evergy, Inc.",
 "sector": "Utilities"
 },
+"EVSD": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-18",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Eaton Vance Short Duration Income ETF",
+"sector": "Other"
+},
 "EVTR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-23",
+"fetched": "2026-08-18",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -9855,6 +9895,16 @@
 "market_cap": 1767373629.8999999,
 "mcap_bucket": "Small",
 "name": "National Vision Holdings, Inc. Common Stock",
+"sector": "Other"
+},
+"EYPT": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-18",
+"industry": "LABORATORY ANALYTICAL INSTRUMENTS",
+"market_cap": 419853112.06,
+"mcap_bucket": "Small",
+"name": "EyePoint, Inc. Common Stock",
 "sector": "Other"
 },
 "EZPW": {
@@ -11510,9 +11560,9 @@
 "GEO": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-17",
+"fetched": "2026-08-18",
 "industry": "GENERAL BLDG CONTRACTORS - RESIDENTIAL BLDGS",
-"market_cap": 3957773572.08,
+"market_cap": 4099950041.6,
 "mcap_bucket": "Mid",
 "name": "The GEO Group, Inc.",
 "sector": "Industrials"
@@ -15588,9 +15638,9 @@
 "KLAR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-08-18",
 "industry": "",
-"market_cap": 7123658076.24,
+"market_cap": 7376994111.860001,
 "mcap_bucket": "Mid",
 "name": "Klarna Group plc",
 "sector": "Other"
@@ -15898,9 +15948,9 @@
 "KURA": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-26",
+"fetched": "2026-08-18",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 919702421.4,
+"market_cap": 1003475782.3199999,
 "mcap_bucket": "Small",
 "name": "Kura Oncology, Inc.",
 "sector": "Healthcare / Biotech"
@@ -16408,7 +16458,7 @@
 "LITX": {
 "country": "USA",
 "exchange": "BATS",
-"fetched": "2026-06-21",
+"fetched": "2026-08-18",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -18827,9 +18877,9 @@
 "NFG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-17",
+"fetched": "2026-08-18",
 "industry": "NATURAL GAS DISTRIBUTION",
-"market_cap": 7758686953.68,
+"market_cap": 7776590000.179999,
 "mcap_bucket": "Mid",
 "name": "National Fuel Gas Co.",
 "sector": "Utilities"
@@ -19342,6 +19392,16 @@
 "market_cap": 1982171170.6599998,
 "mcap_bucket": "Small",
 "name": "NetSTREIT Corp.",
+"sector": "Real Estate"
+},
+"NTWO": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-18",
+"industry": "BLANK CHECKS",
+"market_cap": 282643915.0,
+"mcap_bucket": "Micro",
+"name": "Newbury Street II Acquisition Corp Class A Ordinary Shares",
 "sector": "Real Estate"
 },
 "NU": {
@@ -20487,7 +20547,7 @@
 "PAAA": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-17",
+"fetched": "2026-08-18",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -25927,7 +25987,7 @@
 "SRLN": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-01",
+"fetched": "2026-08-18",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -26337,9 +26397,9 @@
 "SUNC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-06",
+"fetched": "2026-08-18",
 "industry": "PETROLEUM REFINING",
-"market_cap": 3531503922.8999996,
+"market_cap": 3887487761.0799994,
 "mcap_bucket": "Mid",
 "name": "SunocoCorp LLC",
 "sector": "Energy"
@@ -26577,9 +26637,9 @@
 "TAK": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-17",
+"fetched": "2026-08-18",
 "industry": "",
-"market_cap": 53427303148.94,
+"market_cap": 55503080019.64,
 "mcap_bucket": "Large",
 "name": "Takeda Pharmaceutical Company Limited American Depositary Shares (each representing 1/2 of a share of Common Stock)",
 "sector": "Other"
@@ -30039,6 +30099,16 @@
 "mcap_bucket": "Large",
 "name": "Woodside Energy Group Limited American Depositary Shares, each representing one Ordinary Share",
 "sector": "Other"
+},
+"WEAV": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-08-18",
+"industry": "SERVICES-PREPACKAGED SOFTWARE",
+"market_cap": 442395128.07,
+"mcap_bucket": "Small",
+"name": "Weave Communications, Inc.",
+"sector": "Tech / Software"
 },
 "WEC": {
 "country": "USA",
