@@ -1,117 +1,6 @@
 {
- "updated": "2026-08-18T17:49:25-04:00",
+ "updated": "2026-08-19T16:41:35-04:00",
  "runs": [
-  {
-   "date": "2026-05-30",
-   "generated": "2026-05-30T03:51:08-04:00",
-   "count": 13,
-   "rows": [
-    {
-     "ticker": "MU",
-     "price": 971.0,
-     "chg": 87.29,
-     "adr_pct": 7.21,
-     "dollar_vol": 42513227354,
-     "ern": "Jun 24"
-    },
-    {
-     "ticker": "ARM",
-     "price": 353.29,
-     "chg": 75.16,
-     "adr_pct": 8.02,
-     "dollar_vol": 3104037227,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "DELL",
-     "price": 420.91,
-     "chg": 104.66,
-     "adr_pct": 5.93,
-     "dollar_vol": 2916324527,
-     "ern": "Reported"
-    },
-    {
-     "ticker": "IONQ",
-     "price": 72.07,
-     "chg": 71.15,
-     "adr_pct": 10.09,
-     "dollar_vol": 1991584229,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "SMCI",
-     "price": 46.09,
-     "chg": 75.11,
-     "adr_pct": 7.29,
-     "dollar_vol": 1601383397,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "DDOG",
-     "price": 247.35,
-     "chg": 84.62,
-     "adr_pct": 5.17,
-     "dollar_vol": 1403813954,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "NVTS",
-     "price": 26.6,
-     "chg": 71.83,
-     "adr_pct": 14.46,
-     "dollar_vol": 825461205,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "STRL",
-     "price": 860.84,
-     "chg": 83.25,
-     "adr_pct": 6.46,
-     "dollar_vol": 632296473,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "LUNR",
-     "price": 43.83,
-     "chg": 76.81,
-     "adr_pct": 14.44,
-     "dollar_vol": 584932098,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "HUT",
-     "price": 124.83,
-     "chg": 75.82,
-     "adr_pct": 8.38,
-     "dollar_vol": 566112219,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "RIOT",
-     "price": 27.11,
-     "chg": 69.65,
-     "adr_pct": 5.85,
-     "dollar_vol": 442662164,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "VSH",
-     "price": 52.05,
-     "chg": 87.23,
-     "adr_pct": 6.75,
-     "dollar_vol": 260376883,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "ACMR",
-     "price": 86.56,
-     "chg": 77.92,
-     "adr_pct": 8.61,
-     "dollar_vol": 135089012,
-     "ern": "Aug 05"
-    }
-   ]
-  },
   {
    "date": "2026-06-01",
    "generated": "2026-06-01T16:34:16-04:00",
@@ -4586,6 +4475,45 @@
      "adr_pct": 7.74,
      "dollar_vol": 166342054,
      "ern": "--"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-19",
+   "generated": "2026-08-19T16:41:35-04:00",
+   "count": 4,
+   "rows": [
+    {
+     "ticker": "SMCI",
+     "price": 36.58,
+     "chg": 43.45,
+     "adr_pct": 6.91,
+     "dollar_vol": 1921507465,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "ZETA",
+     "price": 28.79,
+     "chg": 35.87,
+     "adr_pct": 5.97,
+     "dollar_vol": 243704257,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "TWST",
+     "price": 142.39,
+     "chg": 48.54,
+     "adr_pct": 8.14,
+     "dollar_vol": 186309493,
+     "ern": "--"
+    },
+    {
+     "ticker": "TXG",
+     "price": 62.19,
+     "chg": 31.76,
+     "adr_pct": 7.08,
+     "dollar_vol": 161471590,
+     "ern": "Nov 05"
     }
    ]
   }

@@ -62,9 +62,9 @@
 "AAOI": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-19",
 "industry": "SEMICONDUCTORS & RELATED DEVICES",
-"market_cap": 12987291838.949999,
+"market_cap": 11113243434.17,
 "mcap_bucket": "Large",
 "name": "Applied Optoelectronics, Inc.",
 "sector": "Semiconductors"
@@ -1482,9 +1482,9 @@
 "AMR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-28",
+"fetched": "2026-08-19",
 "industry": "BITUMINOUS COAL & LIGNITE SURFACE MINING",
-"market_cap": 2554367961.6,
+"market_cap": 2148337384.8,
 "mcap_bucket": "Mid",
 "name": "Alpha Metallurgical Resources, Inc.",
 "sector": "Other"
@@ -1977,6 +1977,16 @@
 "mcap_bucket": "Large",
 "name": "Ares Capital Corporation",
 "sector": "Other"
+},
+"ARCT": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-19",
+"industry": "PHARMACEUTICAL PREPARATIONS",
+"market_cap": 233353396.49,
+"mcap_bucket": "Micro",
+"name": "Arcturus Therapeutics Holdings Inc. Common Stock",
+"sector": "Healthcare / Biotech"
 },
 "ARDX": {
 "country": "USA",
@@ -2508,6 +2518,16 @@
 "name": "Atlantic Union Bankshares Corporation",
 "sector": "Financials / Banks"
 },
+"AUGO": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-19",
+"industry": "",
+"market_cap": 6391720910.32,
+"mcap_bucket": "Mid",
+"name": "Aura Minerals Inc. Common Shares",
+"sector": "Other"
+},
 "AUPH": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -3038,6 +3058,16 @@
 "name": "Atlanta Braves Holdings, Inc. Series C Common Stock",
 "sector": "Consumer / Services"
 },
+"BAUG": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-08-19",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Innovator U.S. Equity Buffer ETF - August",
+"sector": "Other"
+},
 "BAX": {
 "country": "USA",
 "exchange": "NYSE",
@@ -3221,9 +3251,9 @@
 "BCO": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-16",
+"fetched": "2026-08-19",
 "industry": "ARRANGEMENT OF TRANSPORTATION OF FREIGHT & CARGO",
-"market_cap": 4607333412.639999,
+"market_cap": 4495436654.76,
 "mcap_bucket": "Mid",
 "name": "The Brink's Company",
 "sector": "Industrials"
@@ -3981,7 +4011,7 @@
 "BLV": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-07",
+"fetched": "2026-08-19",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -4980,10 +5010,10 @@
 "CAVA": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-22",
+"fetched": "2026-08-19",
 "industry": "RETAIL-EATING PLACES",
-"market_cap": 10387138478.08,
-"mcap_bucket": "Large",
+"market_cap": 7970854951.5199995,
+"mcap_bucket": "Mid",
 "name": "CAVA Group, Inc.",
 "sector": "Consumer / Retail"
 },
@@ -5360,9 +5390,9 @@
 "CENX": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-19",
 "industry": "PRIMARY PRODUCTION OF ALUMINUM",
-"market_cap": 5117947970.37,
+"market_cap": 4520033849.7,
 "mcap_bucket": "Mid",
 "name": "Century Aluminum Co",
 "sector": "Materials / Metals"
@@ -5455,6 +5485,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "Capital Group Core Bond ETF",
+"sector": "Other"
+},
+"CGCP": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-19",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Capital Group Core Plus Income ETF",
 "sector": "Other"
 },
 "CGCV": {
@@ -5990,9 +6030,9 @@
 "CMC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-12",
+"fetched": "2026-08-19",
 "industry": "STEEL WORKS, BLAST FURNACES & ROLLING MILLS (COKE OVENS)",
-"market_cap": 6929508344.4,
+"market_cap": 7852115298.3,
 "mcap_bucket": "Mid",
 "name": "Commercial Metals Company",
 "sector": "Materials / Metals"
@@ -7247,6 +7287,16 @@
 "name": "Clearway Energy, Inc. Class C Common Stock",
 "sector": "Utilities"
 },
+"CWK": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-08-19",
+"industry": "REAL ESTATE",
+"market_cap": 3323546105.28,
+"mcap_bucket": "Mid",
+"name": "Cushman & Wakefield Ltd.",
+"sector": "Real Estate"
+},
 "CWST": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -7850,9 +7900,9 @@
 "DIOD": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-19",
 "industry": "SEMICONDUCTORS & RELATED DEVICES",
-"market_cap": 5488557923.639999,
+"market_cap": 4563723965.5,
 "mcap_bucket": "Mid",
 "name": "Diodes Inc",
 "sector": "Semiconductors"
@@ -7930,9 +7980,9 @@
 "DKNG": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-19",
 "industry": "SERVICES-MISCELLANEOUS AMUSEMENT & RECREATION",
-"market_cap": 13092839480.630001,
+"market_cap": 11934755313.92,
 "mcap_bucket": "Large",
 "name": "DraftKings Inc. Class A Common Stock",
 "sector": "Consumer / Services"
@@ -8850,9 +8900,9 @@
 "EL": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-22",
+"fetched": "2026-08-19",
 "industry": "PERFUMES, COSMETICS & OTHER TOILET PREPARATIONS",
-"market_cap": 28549236742.649998,
+"market_cap": 30488457487.05,
 "mcap_bucket": "Large",
 "name": "The Estee Lauder Companies Inc. Class A",
 "sector": "Materials / Chemicals"
@@ -11517,6 +11567,16 @@
 "name": "MicroSectors Gold Miners -3x Inverse Leveraged ETN",
 "sector": "Financials / Banks"
 },
+"GDXU": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-19",
+"industry": "COMMERCIAL BANKS, NEC",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "MicroSectors Gold Miners 3x Leveraged ETN",
+"sector": "Financials / Banks"
+},
 "GE": {
 "country": "USA",
 "exchange": "NYSE",
@@ -12919,7 +12979,7 @@
 "HPEpC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-13",
+"fetched": "2026-08-19",
 "industry": "COMPUTER & OFFICE EQUIPMENT",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -13255,6 +13315,16 @@
 "mcap_bucket": "Unknown",
 "name": "State Street SPDR Nuveen ICE High Yield Municipal Bond ETF",
 "sector": "Other"
+},
+"HYMC": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-19",
+"industry": "GOLD AND SILVER ORES",
+"market_cap": 2254064863.3900003,
+"mcap_bucket": "Mid",
+"name": "Hycroft Mining Holding Corporation Class A Common Stock",
+"sector": "Materials / Metals"
 },
 "HZO": {
 "country": "USA",
@@ -13666,6 +13736,26 @@
 "name": "iShares U.S. Infrastructure ETF",
 "sector": "Other"
 },
+"IGE": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-08-19",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares North American Natural Resources ETF",
+"sector": "Other"
+},
+"IGEB": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-08-19",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares Investment Grade Systematic Bond ETF",
+"sector": "Other"
+},
 "IGF": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -13879,9 +13969,9 @@
 "IMNM": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-08",
+"fetched": "2026-08-19",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 2762177109.66,
+"market_cap": 3130199455.24,
 "mcap_bucket": "Mid",
 "name": "Immunome, Inc.",
 "sector": "Healthcare / Biotech"
@@ -15278,7 +15368,7 @@
 "JNUG": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-18",
+"fetched": "2026-08-19",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -15528,9 +15618,9 @@
 "KEYS": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-08-19",
 "industry": "INDUSTRIAL INSTRUMENTS FOR MEASUREMENT, DISPLAY, AND CONTROL",
-"market_cap": 62149518480.560005,
+"market_cap": 58275320488.0,
 "mcap_bucket": "Large",
 "name": "Keysight Technologies, Inc.",
 "sector": "Other"
@@ -15548,9 +15638,9 @@
 "KGC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-12",
+"fetched": "2026-08-19",
 "industry": "",
-"market_cap": 29685561250.18,
+"market_cap": 32170850197.68,
 "mcap_bucket": "Large",
 "name": "Kinross Gold Corporation",
 "sector": "Other"
@@ -16115,12 +16205,22 @@
 "name": "LandBridge Company LLC",
 "sector": "Real Estate"
 },
+"LBRDA": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-19",
+"industry": "CABLE & OTHER PAY TELEVISION SERVICES",
+"market_cap": 5022420550.0,
+"mcap_bucket": "Mid",
+"name": "Liberty Broadband Corporation Class A",
+"sector": "Communications"
+},
 "LBRDK": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-15",
+"fetched": "2026-08-19",
 "industry": "CABLE & OTHER PAY TELEVISION SERVICES",
-"market_cap": 4309236831.900001,
+"market_cap": 5023855527.3,
 "mcap_bucket": "Mid",
 "name": "Liberty Broadband Corporation Class C",
 "sector": "Communications"
@@ -16988,9 +17088,9 @@
 "LZB": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-17",
+"fetched": "2026-08-19",
 "industry": "HOUSEHOLD FURNITURE",
-"market_cap": 1546097763.8,
+"market_cap": 1633657581.81,
 "mcap_bucket": "Small",
 "name": "La-Z-Boy Incorporated",
 "sector": "Other"
@@ -18095,6 +18195,16 @@
 "name": "Marsh",
 "sector": "Financials"
 },
+"MRVI": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-19",
+"industry": "PHARMACEUTICAL PREPARATIONS",
+"market_cap": 855199988.3000001,
+"mcap_bucket": "Small",
+"name": "Maravai LifeSciences Holdings, Inc. Class A Common Stock",
+"sector": "Healthcare / Biotech"
+},
 "MRVL": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -18907,9 +19017,9 @@
 "NG": {
 "country": "USA",
 "exchange": "AMEX",
-"fetched": "2026-06-26",
+"fetched": "2026-08-19",
 "industry": "GOLD AND SILVER ORES",
-"market_cap": 2698500776.1000004,
+"market_cap": 3251364349.7400002,
 "mcap_bucket": "Mid",
 "name": "NovaGold Resources Inc.",
 "sector": "Materials / Metals"
@@ -19142,6 +19252,16 @@
 "market_cap": 75308385966.79001,
 "mcap_bucket": "Large",
 "name": "Nokia Corporation",
+"sector": "Other"
+},
+"NOMD": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-08-19",
+"industry": "",
+"market_cap": 1596415149.98,
+"mcap_bucket": "Small",
+"name": "Nomad Foods Limited",
 "sector": "Other"
 },
 "NOV": {
@@ -21697,7 +21817,7 @@
 "PPH": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-07",
+"fetched": "2026-08-19",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -22282,6 +22402,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "PIMCO Multi Sector Bond Active ETF",
+"sector": "Other"
+},
+"PZA": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-19",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Invesco National AMT-Free Municipal Bond ETF",
 "sector": "Other"
 },
 "PZZA": {
@@ -24037,9 +24167,9 @@
 "SBSW": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-26",
+"fetched": "2026-08-19",
 "industry": "",
-"market_cap": 8095422375.04,
+"market_cap": 7472697576.96,
 "mcap_bucket": "Mid",
 "name": "Sibanye-Stillwater American Depositary Shares, each representing four ordinary shares",
 "sector": "Other"
@@ -24197,7 +24327,7 @@
 "SCHQ": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-30",
+"fetched": "2026-08-19",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -24797,7 +24927,7 @@
 "SIL": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-21",
+"fetched": "2026-08-19",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -25717,7 +25847,7 @@
 "SPLB": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-01",
+"fetched": "2026-08-19",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -25997,9 +26127,9 @@
 "SRPT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-02",
+"fetched": "2026-08-19",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 1897204709.34,
+"market_cap": 1903398918.4199998,
 "mcap_bucket": "Small",
 "name": "Sarepta Therapeutics,, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
@@ -26427,9 +26557,9 @@
 "SVM": {
 "country": "USA",
 "exchange": "AMEX",
-"fetched": "2026-06-21",
+"fetched": "2026-08-19",
 "industry": "",
-"market_cap": 2504012696.2000003,
+"market_cap": 2552720805.8599997,
 "mcap_bucket": "Mid",
 "name": "Silvercorp Metals Inc. Common Shares",
 "sector": "Other"
@@ -26946,10 +27076,10 @@
 "TEM": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-05",
+"fetched": "2026-08-19",
 "industry": "SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.",
-"market_cap": 10822368507.09,
-"mcap_bucket": "Large",
+"market_cap": 8906259556.16,
+"mcap_bucket": "Mid",
 "name": "Tempus AI, Inc. Class A Common Stock",
 "sector": "Tech / Software"
 },
@@ -27051,6 +27181,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "iShares Treasury Floating Rate Bond ETF",
+"sector": "Other"
+},
+"TFLR": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-19",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "T. Rowe Price Floating Rate ETF",
 "sector": "Other"
 },
 "TFPM": {
@@ -28103,6 +28243,16 @@
 "name": "United States Antimony Corporation",
 "sector": "Materials / Metals"
 },
+"UAUG": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-08-19",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Innovator U.S. Equity Ultra Buffer ETF - August",
+"sector": "Other"
+},
 "UBER": {
 "country": "USA",
 "exchange": "NYSE",
@@ -28635,7 +28785,7 @@
 "USIG": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-01",
+"fetched": "2026-08-19",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -28804,9 +28954,9 @@
 "VALE": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-03",
+"fetched": "2026-08-19",
 "industry": "",
-"market_cap": 71706199231.3,
+"market_cap": 58218835199.76,
 "mcap_bucket": "Large",
 "name": "VALE S.A.",
 "sector": "Other"
@@ -29334,7 +29484,7 @@
 "VMBS": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-20",
+"fetched": "2026-08-19",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -29524,9 +29674,9 @@
 "VOYG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-08-19",
 "industry": "GUIDED MISSILES & SPACE VEHICLES & PARTS",
-"market_cap": 2226478862.79,
+"market_cap": 2558660966.4,
 "mcap_bucket": "Mid",
 "name": "Voyager Technologies, Inc.",
 "sector": "Industrials / Transport Eq"
@@ -30763,7 +30913,7 @@
 "XBB": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-03",
+"fetched": "2026-08-19",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -30869,6 +31019,16 @@
 "mcap_bucket": "Mid",
 "name": "Xometry, Inc. Class A Common Stock",
 "sector": "Other"
+},
+"XNCR": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-19",
+"industry": "PHARMACEUTICAL PREPARATIONS",
+"market_cap": 1889319817.77,
+"mcap_bucket": "Small",
+"name": "Xencor, Inc.",
+"sector": "Healthcare / Biotech"
 },
 "XOCT": {
 "country": "USA",
@@ -31133,10 +31293,10 @@
 "ZBIO": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-26",
+"fetched": "2026-08-19",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 1557500410.5900002,
-"mcap_bucket": "Small",
+"market_cap": 2079789230.93,
+"mcap_bucket": "Mid",
 "name": "Zenas BioPharma, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
 },
@@ -31223,9 +31383,9 @@
 "ZM": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-19",
 "industry": "SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.",
-"market_cap": 25323534346.48,
+"market_cap": 30704345546.78,
 "mcap_bucket": "Large",
 "name": "Zoom Communications, Inc. Class A Common Stock",
 "sector": "Tech / Software"
