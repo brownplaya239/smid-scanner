@@ -1,8 +1,8 @@
 {
  "week_of": "2026-08-17",
- "generated": "2026-08-19T16:45:32-04:00",
+ "generated": "2026-08-19T17:55:38-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 75,
+ "total": 76,
  "days": [
   {
    "date": "2026-08-17",
@@ -513,7 +513,7 @@
     {
      "ticker": "BILL",
      "company": "BILL Holdings, Inc.",
-     "score": 25,
+     "score": 26,
      "analysts": 24,
      "release_time": 3,
      "confirmed": true,
@@ -524,7 +524,7 @@
     {
      "ticker": "BULL",
      "company": "Webull Corporation",
-     "score": 20,
+     "score": 22,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
@@ -546,7 +546,7 @@
     {
      "ticker": "COTY",
      "company": "Coty Inc.",
-     "score": 13,
+     "score": 15,
      "analysts": 18,
      "release_time": 3,
      "confirmed": true,
@@ -619,6 +619,17 @@
      "next_eps": "2026-08-19T00:00:00",
      "q": "6/2026",
      "mcap": 25087792.179999996
+    },
+    {
+     "ticker": "PMI",
+     "company": "Picard Medical, Inc.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-19T00:00:00",
+     "q": "6/2026",
+     "mcap": 6654697.5600000005
     }
    ]
   },
@@ -629,7 +640,7 @@
     {
      "ticker": "WMT",
      "company": "Walmart Inc.",
-     "score": 79,
+     "score": 80,
      "analysts": 39,
      "release_time": 1,
      "confirmed": true,
@@ -640,7 +651,7 @@
     {
      "ticker": "BABA",
      "company": "Alibaba Group Holding Limited",
-     "score": 58,
+     "score": 59,
      "analysts": 26,
      "release_time": 1,
      "confirmed": true,
@@ -651,7 +662,7 @@
     {
      "ticker": "DE",
      "company": "Deere & Company",
-     "score": 22,
+     "score": 23,
      "analysts": 24,
      "release_time": 1,
      "confirmed": true,
