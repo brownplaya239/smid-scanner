@@ -1,5 +1,5 @@
 {
- "updated": "2026-08-19T17:55:35-04:00",
+ "updated": "2026-08-20T16:44:56-04:00",
  "tz": "America/New_York",
  "source_tz": "UTC",
  "converted": true,
@@ -459,6 +459,30 @@
    "anchor_et": "10:30",
    "on_schedule": true,
    "generic_title": false
+  },
+  {
+   "date": "2026-08-20",
+   "title": "FOMC Member Musalem Speaks",
+   "impact": "Low",
+   "forecast": "",
+   "previous": "",
+   "actual": "",
+   "url": "https://www.forexfactory.com/calendar/911-us-fomc-member-musalem-speaks",
+   "source_time": "3:10pm",
+   "source_tz": "UTC",
+   "source_url": "https://www.forexfactory.com/calendar/911-us-fomc-member-musalem-speaks",
+   "title_authority": "vendor",
+   "venue_tz": null,
+   "venue": null,
+   "vendor_title": "FOMC Member Musalem Speaks",
+   "vendor_time": "3:10pm",
+   "vendor_tz": "UTC",
+   "vendor_url": "https://www.forexfactory.com/calendar/911-us-fomc-member-musalem-speaks",
+   "time_et": "11:10 a.m. ET",
+   "time_utc": "15:10Z",
+   "starts_at": "2026-08-20T11:10-04:00",
+   "scheduled": true,
+   "generic_title": true
   },
   {
    "date": "2026-08-21",

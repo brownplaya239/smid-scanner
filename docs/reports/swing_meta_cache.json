@@ -1628,6 +1628,16 @@
 "name": "Andersons Inc/The",
 "sector": "Other"
 },
+"ANDG": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-08-20",
+"industry": "SERVICES-BUSINESS SERVICES, NEC",
+"market_cap": 5086740154.06,
+"mcap_bucket": "Mid",
+"name": "Andersen Group Inc.",
+"sector": "Other"
+},
 "ANET": {
 "country": "USA",
 "exchange": "NYSE",
@@ -2268,6 +2278,16 @@
 "name": "Xtrackers Harvest CSI 300 China A-Shares ETF",
 "sector": "Other"
 },
+"ASM": {
+"country": "USA",
+"exchange": "AMEX",
+"fetched": "2026-08-20",
+"industry": "",
+"market_cap": 1322955788.88,
+"mcap_bucket": "Small",
+"name": "Avino Silver & Gold Mines Ltd. (Canada)",
+"sector": "Other"
+},
 "ASML": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -2401,9 +2421,9 @@
 "ATAT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-26",
+"fetched": "2026-08-20",
 "industry": "",
-"market_cap": 4603701752.64,
+"market_cap": 5033598252.0,
 "mcap_bucket": "Mid",
 "name": "Atour Lifestyle Holdings Limited American Depositary Shares",
 "sector": "Other"
@@ -3991,9 +4011,9 @@
 "BLSH": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-21",
+"fetched": "2026-08-20",
 "industry": "",
-"market_cap": 5606439351.62,
+"market_cap": 4082373474.32,
 "mcap_bucket": "Mid",
 "name": "Bullish",
 "sector": "Other"
@@ -5555,6 +5575,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "Capital Group International Core Equity ETF",
+"sector": "Other"
+},
+"CGMS": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-20",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Capital Group U.S. Multi-Sector Income ETF",
 "sector": "Other"
 },
 "CGMU": {
@@ -8590,7 +8620,7 @@
 "EAGG": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-05-28",
+"fetched": "2026-08-20",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -12046,6 +12076,16 @@
 "name": "Grocery Outlet Holding Corp. Common Stock",
 "sector": "Consumer / Retail"
 },
+"GOF": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-08-20",
+"industry": "",
+"market_cap": 2254587827.77,
+"mcap_bucket": "Mid",
+"name": "Guggenheim Strategic Opportunities Fund",
+"sector": "Other"
+},
 "GOLF": {
 "country": "USA",
 "exchange": "NYSE",
@@ -12095,6 +12135,16 @@
 "mcap_bucket": "Large",
 "name": "Genuine Parts Company",
 "sector": "Other"
+},
+"GPCR": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-20",
+"industry": "PHARMACEUTICAL PREPARATIONS",
+"market_cap": 3860002559.4100003,
+"mcap_bucket": "Mid",
+"name": "Structure Therapeutics Inc. American Depositary Shares",
+"sector": "Healthcare / Biotech"
 },
 "GPI": {
 "country": "USA",
@@ -13764,6 +13814,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "iShares Global Infrastructure ETF",
+"sector": "Other"
+},
+"IGIB": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-20",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares Trust iShares 5-10 Year Investment Grade Corporate Bond ETF",
 "sector": "Other"
 },
 "IGLB": {
@@ -16198,10 +16258,10 @@
 "LB": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-25",
+"fetched": "2026-08-20",
 "industry": "OIL ROYALTY TRADERS",
-"market_cap": 1709885445.18,
-"mcap_bucket": "Small",
+"market_cap": 2334848584.8,
+"mcap_bucket": "Mid",
 "name": "LandBridge Company LLC",
 "sector": "Real Estate"
 },
@@ -18397,9 +18457,9 @@
 "MT": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-08-20",
 "industry": "",
-"market_cap": 47972160373.729996,
+"market_cap": 56243970253.82,
 "mcap_bucket": "Large",
 "name": "ArcelorMittal",
 "sector": "Other"
@@ -18857,9 +18917,9 @@
 "NDSN": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-26",
+"fetched": "2026-08-20",
 "industry": "GENERAL INDUSTRIAL MACHINERY & EQUIPMENT, NEC",
-"market_cap": 16973915678.72,
+"market_cap": 17268106444.16,
 "mcap_bucket": "Large",
 "name": "Nordson Corp",
 "sector": "Industrials / Machinery"
@@ -24424,6 +24484,16 @@
 "name": "ProShares UltraShort Bloomberg Crude Oil",
 "sector": "Financials"
 },
+"SCSC": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-20",
+"industry": "WHOLESALE-COMPUTERS & PERIPHERAL EQUIPMENT & SOFTWARE",
+"market_cap": 1045087281.1800001,
+"mcap_bucket": "Small",
+"name": "Scansource Inc",
+"sector": "Other"
+},
 "SCZ": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -24733,6 +24803,16 @@
 "mcap_bucket": "Large",
 "name": "Somnigroup International Inc.",
 "sector": "Other"
+},
+"SGLY": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-20",
+"industry": "ARRANGEMENT OF TRANSPORTATION OF FREIGHT & CARGO",
+"market_cap": 2672773.92,
+"mcap_bucket": "Nano",
+"name": "Singularity Future Technology Ltd. Common Stock",
+"sector": "Industrials"
 },
 "SGML": {
 "country": "USA",
@@ -26554,6 +26634,16 @@
 "name": "Supernus Pharmaceuticals, Inc.",
 "sector": "Healthcare / Biotech"
 },
+"SUZ": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-08-20",
+"industry": "",
+"market_cap": 10271216421.48,
+"mcap_bucket": "Large",
+"name": "Suzano S.A. American Depositary Shares (each representing one Ordinary Share ) representing one Ordinary Share)",
+"sector": "Other"
+},
 "SVIX": {
 "country": "USA",
 "exchange": "BATS",
@@ -27396,9 +27486,9 @@
 "TJX": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-08-20",
 "industry": "RETAIL-FAMILY CLOTHING STORES",
-"market_cap": 180961635299.26,
+"market_cap": 159629792447.0,
 "mcap_bucket": "Large",
 "name": "TJX Companies, Inc. (The)",
 "sector": "Consumer / Retail"
@@ -27406,9 +27496,9 @@
 "TKO": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-28",
+"fetched": "2026-08-20",
 "industry": "SERVICES-AMUSEMENT & RECREATION SERVICES",
-"market_cap": 16184021247.24,
+"market_cap": 14745777355.619999,
 "mcap_bucket": "Large",
 "name": "TKO Group Holdings, Inc.",
 "sector": "Consumer / Services"
@@ -28446,9 +28536,9 @@
 "UI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-08-20",
 "industry": "RADIO & TV BROADCASTING & COMMUNICATIONS EQUIPMENT",
-"market_cap": 36555339340.0,
+"market_cap": 35749185167.799995,
 "mcap_bucket": "Large",
 "name": "Ubiquiti Inc. Common Stock",
 "sector": "Tech / Hardware"
@@ -30563,9 +30653,9 @@
 "WMT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-02",
+"fetched": "2026-08-20",
 "industry": "RETAIL-VARIETY STORES",
-"market_cap": 901332045095.3,
+"market_cap": 909608447416.5,
 "mcap_bucket": "Mega",
 "name": "Walmart Inc. Common Stock",
 "sector": "Consumer / Retail"
@@ -31069,6 +31159,16 @@
 "mcap_bucket": "Small",
 "name": "XOMA Royalty Corporation Common Stock",
 "sector": "Healthcare / Biotech"
+},
+"XOS": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-20",
+"industry": "MOTOR VEHICLE PARTS & ACCESSORIES",
+"market_cap": 41231770.8,
+"mcap_bucket": "Nano",
+"name": "Xos, Inc. Common Stock",
+"sector": "Industrials / Transport Eq"
 },
 "XOVR": {
 "country": "USA",

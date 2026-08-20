@@ -1,5 +1,5 @@
 {
- "updated": "2026-08-19T17:55:49-04:00",
+ "updated": "2026-08-20T16:45:11-04:00",
  "anchor": {
   "ticker": "SPY",
   "country": "United States",
@@ -8,7 +8,7 @@
   "aum_b": 580.0,
   "aum_tier": "xl",
   "top_sector": "Technology 30%",
-  "ytd_pct": 12.57,
+  "ytd_pct": 11.63,
   "vs_anchor": 0.0
  },
  "etfs": [
@@ -20,8 +20,8 @@
    "aum_b": 5.0,
    "aum_tier": "md",
    "top_sector": "Financials 30%",
-   "ytd_pct": 14.1,
-   "vs_anchor": 1.53
+   "ytd_pct": 13.99,
+   "vs_anchor": 2.36
   },
   {
    "ticker": "EWW",
@@ -31,8 +31,8 @@
    "aum_b": 2.2,
    "aum_tier": "md",
    "top_sector": "Cons. Staples 24%",
-   "ytd_pct": 7.87,
-   "vs_anchor": -4.71
+   "ytd_pct": 8.38,
+   "vs_anchor": -3.24
   },
   {
    "ticker": "EWZ",
@@ -42,8 +42,8 @@
    "aum_b": 4.1,
    "aum_tier": "md",
    "top_sector": "Financials 22%",
-   "ytd_pct": 6.4,
-   "vs_anchor": -6.17
+   "ytd_pct": 6.02,
+   "vs_anchor": -5.6
   },
   {
    "ticker": "ECH",
@@ -53,8 +53,8 @@
    "aum_b": 0.5,
    "aum_tier": "sm",
    "top_sector": "Materials 26%",
-   "ytd_pct": 0.82,
-   "vs_anchor": -11.75
+   "ytd_pct": 0.68,
+   "vs_anchor": -10.95
   },
   {
    "ticker": "ILF",
@@ -64,8 +64,8 @@
    "aum_b": 1.7,
    "aum_tier": "md",
    "top_sector": "Financials 27%",
-   "ytd_pct": 9.21,
-   "vs_anchor": -3.36
+   "ytd_pct": 9.37,
+   "vs_anchor": -2.25
   },
   {
    "ticker": "IEUR",
@@ -75,8 +75,8 @@
    "aum_b": 5.5,
    "aum_tier": "lg",
    "top_sector": "Industrials 16%",
-   "ytd_pct": 8.82,
-   "vs_anchor": -3.76
+   "ytd_pct": 8.54,
+   "vs_anchor": -3.09
   },
   {
    "ticker": "EWU",
@@ -86,8 +86,8 @@
    "aum_b": 2.9,
    "aum_tier": "md",
    "top_sector": "Financials 18%",
-   "ytd_pct": 9.24,
-   "vs_anchor": -3.33
+   "ytd_pct": 9.18,
+   "vs_anchor": -2.45
   },
   {
    "ticker": "EWG",
@@ -97,8 +97,8 @@
    "aum_b": 1.4,
    "aum_tier": "md",
    "top_sector": "Industrials 24%",
-   "ytd_pct": 3.48,
-   "vs_anchor": -9.09
+   "ytd_pct": 3.2,
+   "vs_anchor": -8.43
   },
   {
    "ticker": "EWQ",
@@ -108,8 +108,8 @@
    "aum_b": 0.9,
    "aum_tier": "sm",
    "top_sector": "Industrials 18%",
-   "ytd_pct": 4.08,
-   "vs_anchor": -8.49
+   "ytd_pct": 3.49,
+   "vs_anchor": -8.14
   },
   {
    "ticker": "EWI",
@@ -119,8 +119,8 @@
    "aum_b": 0.4,
    "aum_tier": "sm",
    "top_sector": "Financials 32%",
-   "ytd_pct": 13.91,
-   "vs_anchor": 1.33
+   "ytd_pct": 13.85,
+   "vs_anchor": 2.22
   },
   {
    "ticker": "EWP",
@@ -130,8 +130,8 @@
    "aum_b": 0.6,
    "aum_tier": "sm",
    "top_sector": "Financials 32%",
-   "ytd_pct": 14.0,
-   "vs_anchor": 1.43
+   "ytd_pct": 13.84,
+   "vs_anchor": 2.21
   },
   {
    "ticker": "EWN",
@@ -141,8 +141,8 @@
    "aum_b": 0.4,
    "aum_tier": "sm",
    "top_sector": "Technology 21%",
-   "ytd_pct": 18.2,
-   "vs_anchor": 5.62
+   "ytd_pct": 17.63,
+   "vs_anchor": 6.01
   },
   {
    "ticker": "EWL",
@@ -152,8 +152,8 @@
    "aum_b": 1.4,
    "aum_tier": "md",
    "top_sector": "Healthcare 32%",
-   "ytd_pct": 6.83,
-   "vs_anchor": -5.74
+   "ytd_pct": 5.63,
+   "vs_anchor": -5.99
   },
   {
    "ticker": "EWD",
@@ -163,8 +163,8 @@
    "aum_b": 0.3,
    "aum_tier": "sm",
    "top_sector": "Industrials 38%",
-   "ytd_pct": 6.67,
-   "vs_anchor": -5.9
+   "ytd_pct": 6.57,
+   "vs_anchor": -5.05
   },
   {
    "ticker": "EWO",
@@ -174,8 +174,8 @@
    "aum_b": 0.2,
    "aum_tier": "sm",
    "top_sector": "Financials 36%",
-   "ytd_pct": 21.66,
-   "vs_anchor": 9.08
+   "ytd_pct": 21.03,
+   "vs_anchor": 9.4
   },
   {
    "ticker": "EWK",
@@ -185,8 +185,8 @@
    "aum_b": 0.05,
    "aum_tier": "sm",
    "top_sector": "Cons. Staples 30%",
-   "ytd_pct": 11.73,
-   "vs_anchor": -0.84
+   "ytd_pct": 11.65,
+   "vs_anchor": 0.02
   },
   {
    "ticker": "EIRL",
@@ -196,8 +196,8 @@
    "aum_b": 0.1,
    "aum_tier": "sm",
    "top_sector": "Materials 22%",
-   "ytd_pct": 11.42,
-   "vs_anchor": -1.15
+   "ytd_pct": 11.83,
+   "vs_anchor": 0.21
   },
   {
    "ticker": "EPOL",
@@ -207,8 +207,8 @@
    "aum_b": 0.3,
    "aum_tier": "sm",
    "top_sector": "Financials 39%",
-   "ytd_pct": 23.03,
-   "vs_anchor": 10.46
+   "ytd_pct": 21.85,
+   "vs_anchor": 10.22
   },
   {
    "ticker": "EWJ",
@@ -218,8 +218,8 @@
    "aum_b": 14.0,
    "aum_tier": "lg",
    "top_sector": "Industrials 22%",
-   "ytd_pct": 16.54,
-   "vs_anchor": 3.97
+   "ytd_pct": 15.91,
+   "vs_anchor": 4.28
   },
   {
    "ticker": "EWA",
@@ -229,8 +229,8 @@
    "aum_b": 2.0,
    "aum_tier": "md",
    "top_sector": "Financials 27%",
-   "ytd_pct": 13.22,
-   "vs_anchor": 0.65
+   "ytd_pct": 12.39,
+   "vs_anchor": 0.76
   },
   {
    "ticker": "EWH",
@@ -240,8 +240,8 @@
    "aum_b": 0.8,
    "aum_tier": "sm",
    "top_sector": "Financials 38%",
-   "ytd_pct": 4.71,
-   "vs_anchor": -7.86
+   "ytd_pct": 4.94,
+   "vs_anchor": -6.69
   },
   {
    "ticker": "EWS",
@@ -251,8 +251,8 @@
    "aum_b": 0.4,
    "aum_tier": "sm",
    "top_sector": "Financials 49%",
-   "ytd_pct": 21.51,
-   "vs_anchor": 8.94
+   "ytd_pct": 21.15,
+   "vs_anchor": 9.53
   },
   {
    "ticker": "ENZL",
@@ -262,8 +262,8 @@
    "aum_b": 0.05,
    "aum_tier": "sm",
    "top_sector": "Industrials 23%",
-   "ytd_pct": 6.2,
-   "vs_anchor": -6.37
+   "ytd_pct": 5.58,
+   "vs_anchor": -6.04
   },
   {
    "ticker": "EEM",
@@ -273,8 +273,8 @@
    "aum_b": 19.0,
    "aum_tier": "xl",
    "top_sector": "Technology 24%",
-   "ytd_pct": 17.55,
-   "vs_anchor": 4.98
+   "ytd_pct": 18.46,
+   "vs_anchor": 6.83
   },
   {
    "ticker": "INDA",
@@ -284,8 +284,8 @@
    "aum_b": 11.0,
    "aum_tier": "lg",
    "top_sector": "Financials 25%",
-   "ytd_pct": -9.2,
-   "vs_anchor": -21.77
+   "ytd_pct": -9.18,
+   "vs_anchor": -20.81
   },
   {
    "ticker": "MCHI",
@@ -295,8 +295,8 @@
    "aum_b": 7.5,
    "aum_tier": "lg",
    "top_sector": "Cons. Discretionary 31%",
-   "ytd_pct": -11.01,
-   "vs_anchor": -23.58
+   "ytd_pct": -10.81,
+   "vs_anchor": -22.44
   },
   {
    "ticker": "EWT",
@@ -306,8 +306,8 @@
    "aum_b": 11.0,
    "aum_tier": "lg",
    "top_sector": "Technology 67%",
-   "ytd_pct": 61.65,
-   "vs_anchor": 49.08
+   "ytd_pct": 60.68,
+   "vs_anchor": 49.05
   },
   {
    "ticker": "EWY",
@@ -317,8 +317,8 @@
    "aum_b": 4.3,
    "aum_tier": "md",
    "top_sector": "Technology 30%",
-   "ytd_pct": 70.64,
-   "vs_anchor": 58.07
+   "ytd_pct": 74.29,
+   "vs_anchor": 62.66
   },
   {
    "ticker": "EIDO",
@@ -328,8 +328,8 @@
    "aum_b": 0.3,
    "aum_tier": "sm",
    "top_sector": "Financials 47%",
-   "ytd_pct": -33.12,
-   "vs_anchor": -45.69
+   "ytd_pct": -33.55,
+   "vs_anchor": -45.17
   },
   {
    "ticker": "EWM",
@@ -339,8 +339,8 @@
    "aum_b": 0.2,
    "aum_tier": "sm",
    "top_sector": "Financials 30%",
-   "ytd_pct": 3.87,
-   "vs_anchor": -8.71
+   "ytd_pct": 3.68,
+   "vs_anchor": -7.94
   },
   {
    "ticker": "EPHE",
@@ -350,8 +350,8 @@
    "aum_b": 0.1,
    "aum_tier": "sm",
    "top_sector": "Financials 30%",
-   "ytd_pct": -0.79,
-   "vs_anchor": -13.36
+   "ytd_pct": -0.28,
+   "vs_anchor": -11.9
   },
   {
    "ticker": "THD",
@@ -361,8 +361,8 @@
    "aum_b": 0.3,
    "aum_tier": "sm",
    "top_sector": "Financials 21%",
-   "ytd_pct": 23.2,
-   "vs_anchor": 10.63
+   "ytd_pct": 22.78,
+   "vs_anchor": 11.16
   },
   {
    "ticker": "TUR",
@@ -372,8 +372,8 @@
    "aum_b": 0.5,
    "aum_tier": "sm",
    "top_sector": "Financials 31%",
-   "ytd_pct": 16.41,
-   "vs_anchor": 3.84
+   "ytd_pct": 15.44,
+   "vs_anchor": 3.81
   },
   {
    "ticker": "EZA",
@@ -383,8 +383,8 @@
    "aum_b": 0.4,
    "aum_tier": "sm",
    "top_sector": "Financials 26%",
-   "ytd_pct": 1.28,
-   "vs_anchor": -11.29
+   "ytd_pct": 1.54,
+   "vs_anchor": -10.08
   },
   {
    "ticker": "EIS",
@@ -394,8 +394,8 @@
    "aum_b": 0.2,
    "aum_tier": "sm",
    "top_sector": "Industrials 21%",
-   "ytd_pct": 9.84,
-   "vs_anchor": -2.73
+   "ytd_pct": 8.15,
+   "vs_anchor": -3.47
   },
   {
    "ticker": "KSA",
@@ -405,8 +405,8 @@
    "aum_b": 0.7,
    "aum_tier": "sm",
    "top_sector": "Financials 35%",
-   "ytd_pct": 3.67,
-   "vs_anchor": -8.9
+   "ytd_pct": 4.03,
+   "vs_anchor": -7.6
   },
   {
    "ticker": "QAT",
@@ -416,8 +416,8 @@
    "aum_b": 0.1,
    "aum_tier": "sm",
    "top_sector": "Financials 49%",
-   "ytd_pct": -8.55,
-   "vs_anchor": -21.12
+   "ytd_pct": -9.56,
+   "vs_anchor": -21.19
   },
   {
    "ticker": "UAE",
@@ -428,7 +428,7 @@
    "aum_tier": "sm",
    "top_sector": "Financials 50%",
    "ytd_pct": 1.74,
-   "vs_anchor": -10.83
+   "vs_anchor": -9.88
   }
  ],
  "source": "Polygon daily bars \u00b7 sector + AUM hand-maintained from iShares factsheets"

@@ -1,109 +1,6 @@
 {
- "updated": "2026-08-19T17:52:00-04:00",
+ "updated": "2026-08-20T16:41:37-04:00",
  "runs": [
-  {
-   "date": "2026-06-01",
-   "generated": "2026-06-01T16:34:16-04:00",
-   "count": 12,
-   "rows": [
-    {
-     "ticker": "MU",
-     "price": 1035.5,
-     "chg": 100.23,
-     "adr_pct": 7.04,
-     "dollar_vol": 43787452091,
-     "ern": "Jun 24"
-    },
-    {
-     "ticker": "ARM",
-     "price": 408.85,
-     "chg": 94.39,
-     "adr_pct": 8.33,
-     "dollar_vol": 3468844582,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "DELL",
-     "price": 465.96,
-     "chg": 123.0,
-     "adr_pct": 6.28,
-     "dollar_vol": 3338244261,
-     "ern": "Reported"
-    },
-    {
-     "ticker": "SNOW",
-     "price": 280.16,
-     "chg": 105.29,
-     "adr_pct": 5.15,
-     "dollar_vol": 2135770750,
-     "ern": "Aug 26"
-    },
-    {
-     "ticker": "PANW",
-     "price": 300.48,
-     "chg": 67.57,
-     "adr_pct": 5.22,
-     "dollar_vol": 2126047918,
-     "ern": "Jun 02"
-    },
-    {
-     "ticker": "SMCI",
-     "price": 46.88,
-     "chg": 71.09,
-     "adr_pct": 7.29,
-     "dollar_vol": 1678767023,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "DDOG",
-     "price": 277.49,
-     "chg": 109.92,
-     "adr_pct": 5.48,
-     "dollar_vol": 1513625200,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "DOCN",
-     "price": 173.45,
-     "chg": 79.87,
-     "adr_pct": 8.19,
-     "dollar_vol": 648282844,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "STRL",
-     "price": 845.39,
-     "chg": 63.96,
-     "adr_pct": 6.4,
-     "dollar_vol": 641627639,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "HUT",
-     "price": 132.38,
-     "chg": 74.69,
-     "adr_pct": 8.78,
-     "dollar_vol": 583863531,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "RIOT",
-     "price": 28.25,
-     "chg": 63.86,
-     "adr_pct": 6.07,
-     "dollar_vol": 438854702,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "VSH",
-     "price": 55.99,
-     "chg": 93.27,
-     "adr_pct": 7.24,
-     "dollar_vol": 284802967,
-     "ern": "Aug 05"
-    }
-   ]
-  },
   {
    "date": "2026-06-02",
    "generated": "2026-06-02T19:16:29-04:00",
@@ -4513,6 +4410,45 @@
      "chg": 31.76,
      "adr_pct": 7.08,
      "dollar_vol": 161490900,
+     "ern": "Nov 05"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-20",
+   "generated": "2026-08-20T16:41:37-04:00",
+   "count": 4,
+   "rows": [
+    {
+     "ticker": "NOW",
+     "price": 129.75,
+     "chg": 35.92,
+     "adr_pct": 5.22,
+     "dollar_vol": 2614167548,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "ZETA",
+     "price": 27.85,
+     "chg": 38.01,
+     "adr_pct": 5.86,
+     "dollar_vol": 246861963,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "TWST",
+     "price": 136.33,
+     "chg": 44.71,
+     "adr_pct": 8.25,
+     "dollar_vol": 197167245,
+     "ern": "--"
+    },
+    {
+     "ticker": "TXG",
+     "price": 63.87,
+     "chg": 35.75,
+     "adr_pct": 7.11,
+     "dollar_vol": 164636031,
      "ern": "Nov 05"
     }
    ]
