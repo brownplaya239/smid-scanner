@@ -665,10 +665,10 @@
 "sector": "Real Estate"
 },
 "AMTM": {
-"earnings_date": "2026-08-10",
-"earnings_session": "AMC",
-"fetched": "2026-08-07",
-"mkt_cap": 5824501044.96,
+"earnings_date": "2026-12-14",
+"earnings_session": null,
+"fetched": "2026-08-20",
+"mkt_cap": 5141969865.39,
 "sector": "Other"
 },
 "AMZN": {
@@ -842,8 +842,8 @@
 "ARE": {
 "earnings_date": "2026-10-26",
 "earnings_session": "AMC",
-"fetched": "2026-08-04",
-"mkt_cap": 9241510524.4,
+"fetched": "2026-08-20",
+"mkt_cap": 8699416252.35,
 "sector": "Real Estate"
 },
 "ARES": {
@@ -2193,8 +2193,8 @@
 "CE": {
 "earnings_date": "2026-11-05",
 "earnings_session": null,
-"fetched": "2026-08-05",
-"mkt_cap": 4813088836.71,
+"fetched": "2026-08-20",
+"mkt_cap": 5076985316.76,
 "sector": "Materials / Chemicals"
 },
 "CECO": {
@@ -2296,10 +2296,10 @@
 "sector": "Materials / Chemicals"
 },
 "CHDN": {
-"earnings_date": "2026-07-29",
+"earnings_date": "2026-10-28",
 "earnings_session": "AMC",
-"fetched": "2026-06-05",
-"mkt_cap": 6005085593.28,
+"fetched": "2026-08-20",
+"mkt_cap": 6394997295.25,
 "sector": "Consumer / Services"
 },
 "CHEF": {
@@ -3108,10 +3108,10 @@
 "sector": "Consumer / Retail"
 },
 "DGX": {
-"earnings_date": "2026-07-23",
+"earnings_date": "2026-10-20",
 "earnings_session": "BMO",
-"fetched": "2026-07-22",
-"mkt_cap": 22896449374.36,
+"fetched": "2026-08-20",
+"mkt_cap": 26683863513.6,
 "sector": "Healthcare / Services"
 },
 "DGXX": {
@@ -4501,10 +4501,10 @@
 "sector": "Other"
 },
 "GEHC": {
-"earnings_date": "2026-07-29",
+"earnings_date": "2026-10-28",
 "earnings_session": "BMO",
-"fetched": "2026-07-28",
-"mkt_cap": 27802985960.32,
+"fetched": "2026-08-20",
+"mkt_cap": 33704828124.24,
 "sector": "Other"
 },
 "GEN": {
@@ -7630,10 +7630,10 @@
 "sector": "Semiconductors"
 },
 "NYT": {
-"earnings_date": "2026-08-05",
+"earnings_date": "2026-11-04",
 "earnings_session": "BMO",
-"fetched": "2026-08-04",
-"mkt_cap": 12210922012.56,
+"fetched": "2026-08-20",
+"mkt_cap": 10638265332.56,
 "sector": "Other"
 },
 "O": {
@@ -8916,6 +8916,13 @@
 "fetched": "2026-08-07",
 "mkt_cap": 1080575273.06,
 "sector": "Healthcare / Biotech"
+},
+"REZI": {
+"earnings_date": "2026-11-05",
+"earnings_session": null,
+"fetched": "2026-08-20",
+"mkt_cap": 3270792522.12,
+"sector": "Other"
 },
 "RF": {
 "earnings_date": "2026-10-16",
