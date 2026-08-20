@@ -3094,10 +3094,10 @@
 "sector": "Tech / Hardware"
 },
 "DFTX": {
-"earnings_date": "2026-11-12",
+"earnings_date": "2026-11-05",
 "earnings_session": null,
-"fetched": "2026-08-07",
-"mkt_cap": 6124773739.56,
+"fetched": "2026-08-20",
+"mkt_cap": 6156693649.0,
 "sector": "Healthcare / Biotech"
 },
 "DG": {
@@ -4678,8 +4678,8 @@
 "GMAB": {
 "earnings_date": "2026-11-05",
 "earnings_session": null,
-"fetched": "2026-08-07",
-"mkt_cap": 18313707598.7,
+"fetched": "2026-08-20",
+"mkt_cap": 20964771087.3,
 "sector": "Other"
 },
 "GME": {
@@ -5917,8 +5917,8 @@
 "KO": {
 "earnings_date": "2026-10-20",
 "earnings_session": "BMO",
-"fetched": "2026-08-09",
-"mkt_cap": 374536911603.14996,
+"fetched": "2026-08-20",
+"mkt_cap": 388735324105.05,
 "sector": "Consumer / Food & Bev"
 },
 "KOD": {
@@ -8547,10 +8547,10 @@
 "sector": "Tech / Software"
 },
 "PSNL": {
-"earnings_date": "2026-08-05",
-"earnings_session": "AMC",
-"fetched": "2026-07-09",
-"mkt_cap": 1477614692.78,
+"earnings_date": "2026-11-03",
+"earnings_session": null,
+"fetched": "2026-08-20",
+"mkt_cap": 1688505976.3200002,
 "sector": "Healthcare / Services"
 },
 "PSX": {
@@ -8792,10 +8792,10 @@
 "sector": "Healthcare / Biotech"
 },
 "QXO": {
-"earnings_date": "2026-08-13",
-"earnings_session": "AMC",
-"fetched": "2026-08-04",
-"mkt_cap": 14622677311.05,
+"earnings_date": "2026-11-05",
+"earnings_session": null,
+"fetched": "2026-08-20",
+"mkt_cap": 14638993903.99,
 "sector": "Other"
 },
 "RACE": {
@@ -9280,6 +9280,13 @@
 "fetched": "2026-05-29",
 "mkt_cap": 9408956807.6,
 "sector": "Industrials / Transport Eq"
+},
+"SATA": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-08-20",
+"mkt_cap": null,
+"sector": "Financials / Banks"
 },
 "SATL": {
 "earnings_date": "2026-08-13",
