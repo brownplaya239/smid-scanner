@@ -2498,6 +2498,13 @@
 "mkt_cap": 30538770900.0,
 "sector": "Financials"
 },
+"CNH": {
+"earnings_date": "2026-11-09",
+"earnings_session": "BMO",
+"fetched": "2026-08-21",
+"mkt_cap": 16547953475.759998,
+"sector": "Industrials / Machinery"
+},
 "CNI": {
 "earnings_date": "2026-07-24",
 "earnings_session": "BMO",
@@ -2641,7 +2648,7 @@
 "COPX": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-02",
+"fetched": "2026-08-21",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -8031,8 +8038,8 @@
 "PATH": {
 "earnings_date": "2026-09-03",
 "earnings_session": "AMC",
-"fetched": "2026-08-03",
-"mkt_cap": 6611214594.16,
+"fetched": "2026-08-21",
+"mkt_cap": 8175937797.48,
 "sector": "Tech / Software"
 },
 "PAYO": {
@@ -11753,10 +11760,10 @@
 "sector": "Consumer / Services"
 },
 "XE": {
-"earnings_date": "2026-08-13",
+"earnings_date": "2026-11-16",
 "earnings_session": "BMO",
-"fetched": "2026-08-03",
-"mkt_cap": 4688451951.54,
+"fetched": "2026-08-21",
+"mkt_cap": 8066367243.8,
 "sector": "Industrials / Machinery"
 },
 "XEL": {
