@@ -1,8 +1,8 @@
 {
  "week_of": "2026-08-17",
- "generated": "2026-08-20T18:00:56-04:00",
+ "generated": "2026-08-21T17:59:27-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 77,
+ "total": 79,
  "days": [
   {
    "date": "2026-08-17",
@@ -812,6 +812,17 @@
      "next_eps": "2026-08-20T00:00:00",
      "q": "6/2026",
      "mcap": 27856318.099999998
+    },
+    {
+     "ticker": "PNGAY",
+     "company": "Ping An Insurance (Group) Company of China, Ltd.",
+     "score": 1,
+     "analysts": 5,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-20T00:00:00",
+     "q": "6/2026",
+     "mcap": null
     }
    ],
    "amc": [
@@ -866,9 +877,20 @@
    "dow": "Friday",
    "bmo": [
     {
+     "ticker": "UI",
+     "company": "Ubiquiti Inc.",
+     "score": 3,
+     "analysts": 3,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-21T00:00:00",
+     "q": "6/2026",
+     "mcap": 35749185167.799995
+    },
+    {
      "ticker": "BEKE",
      "company": "KE Holdings Inc.",
-     "score": 12,
+     "score": 15,
      "analysts": 14,
      "release_time": 1,
      "confirmed": true,
@@ -879,7 +901,7 @@
     {
      "ticker": "BJ",
      "company": "BJ's Wholesale Club Holdings, Inc.",
-     "score": 13,
+     "score": 17,
      "analysts": 22,
      "release_time": 1,
      "confirmed": true,

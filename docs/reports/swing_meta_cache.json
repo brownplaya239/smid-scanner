@@ -32,7 +32,7 @@
 "AAAU": {
 "country": "USA",
 "exchange": "BATS",
-"fetched": "2026-06-11",
+"fetched": "2026-08-21",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -227,6 +227,16 @@
 "market_cap": 177072725235.63998,
 "mcap_bucket": "Large",
 "name": "Abbott Laboratories",
+"sector": "Healthcare / Biotech"
+},
+"ABUS": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-21",
+"industry": "PHARMACEUTICAL PREPARATIONS",
+"market_cap": 985282218.3000001,
+"mcap_bucket": "Small",
+"name": "Arbutus Biopharma Corporation Common Stock",
 "sector": "Healthcare / Biotech"
 },
 "ABVX": {
@@ -902,9 +912,9 @@
 "AIR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-21",
+"fetched": "2026-08-21",
 "industry": "AIRCRAFT & PARTS",
-"market_cap": 5395613524.92,
+"market_cap": 5602822762.799999,
 "mcap_bucket": "Mid",
 "name": "AAR Corp.",
 "sector": "Industrials / Transport Eq"
@@ -1022,9 +1032,9 @@
 "ALC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-21",
+"fetched": "2026-08-21",
 "industry": "",
-"market_cap": 34158508000.000004,
+"market_cap": 35897284000.0,
 "mcap_bucket": "Large",
 "name": "Alcon Inc. Ordinary Shares",
 "sector": "Other"
@@ -2781,9 +2791,9 @@
 "AVY": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-21",
+"fetched": "2026-08-21",
 "industry": "CONVERTED PAPER & PAPERBOARD PRODS (NO CONTANERS/BOXES)",
-"market_cap": 12113017368.6,
+"market_cap": 13881356088.72,
 "mcap_bucket": "Large",
 "name": "Avery Dennison Corp.",
 "sector": "Other"
@@ -2961,9 +2971,9 @@
 "BABA": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-21",
+"fetched": "2026-08-21",
 "industry": "",
-"market_cap": 288439604398.88,
+"market_cap": 308957008973.5,
 "mcap_bucket": "Mega",
 "name": "Alibaba Group Holding Limited American Depositary Shares, each represents eight Ordinary Shares",
 "sector": "Other"
@@ -3361,9 +3371,9 @@
 "BEKE": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-08-21",
 "industry": "",
-"market_cap": 19056623218.0,
+"market_cap": 19176794176.32,
 "mcap_bucket": "Large",
 "name": "KE Holdings Inc. American Depositary Shares (each representing three Class A Ordinary Shares)",
 "sector": "Other"
@@ -3511,9 +3521,9 @@
 "BGC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-17",
+"fetched": "2026-08-21",
 "industry": "SECURITY & COMMODITY BROKERS, DEALERS, EXCHANGES & SERVICES",
-"market_cap": 5652868316.6,
+"market_cap": 5135038437.6,
 "mcap_bucket": "Mid",
 "name": "BGC Group, Inc. Class A Common Stock",
 "sector": "Financials"
@@ -3551,9 +3561,9 @@
 "BHF": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-21",
+"fetched": "2026-08-21",
 "industry": "LIFE INSURANCE",
-"market_cap": 3728805904.35,
+"market_cap": 3064216076.64,
 "mcap_bucket": "Mid",
 "name": "Brighthouse Financial, Inc.",
 "sector": "Financials"
@@ -4670,9 +4680,9 @@
 "BWA": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-08-21",
 "industry": "MOTOR VEHICLE PARTS & ACCESSORIES",
-"market_cap": 14735457361.44,
+"market_cap": 13488822625.42,
 "mcap_bucket": "Large",
 "name": "BorgWarner Inc.",
 "sector": "Industrials / Transport Eq"
@@ -8060,9 +8070,9 @@
 "DLO": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-01",
+"fetched": "2026-08-21",
 "industry": "",
-"market_cap": 3824027383.3349996,
+"market_cap": 4208048601.9,
 "mcap_bucket": "Mid",
 "name": "DLocal Limited Class A Common Shares",
 "sector": "Other"
@@ -9577,6 +9587,26 @@
 "name": "ProShares UltraShort Ether ETF",
 "sector": "Other"
 },
+"ETHT": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-21",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "ProShares Ultra Ether ETF",
+"sector": "Other"
+},
+"ETHU": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-08-21",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "2x Ether ETF",
+"sector": "Other"
+},
 "ETN": {
 "country": "USA",
 "exchange": "NYSE",
@@ -9920,9 +9950,9 @@
 "EXPD": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-21",
+"fetched": "2026-08-21",
 "industry": "ARRANGEMENT OF TRANSPORTATION OF FREIGHT & CARGO",
-"market_cap": 23198423260.21,
+"market_cap": 24235451565.68,
 "mcap_bucket": "Large",
 "name": "Expeditors International of Washington, Inc.",
 "sector": "Industrials"
@@ -11380,9 +11410,9 @@
 "FUTU": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-20",
+"fetched": "2026-08-21",
 "industry": "",
-"market_cap": 18463614069.6,
+"market_cap": 15340080876.960001,
 "mcap_bucket": "Large",
 "name": "Futu Holdings Limited American Depositary Shares",
 "sector": "Other"
@@ -11889,7 +11919,7 @@
 "GLDM": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-11",
+"fetched": "2026-08-21",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -13449,7 +13479,7 @@
 "IAUM": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-11",
+"fetched": "2026-08-21",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -13989,7 +14019,7 @@
 "ILF": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-18",
+"fetched": "2026-08-21",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -14938,7 +14968,7 @@
 "IXJ": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-11",
+"fetched": "2026-08-21",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -16718,9 +16748,9 @@
 "LMT": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-21",
+"fetched": "2026-08-21",
 "industry": "GUIDED MISSILES & SPACE VEHICLES & PARTS",
-"market_cap": 117481380820.32,
+"market_cap": 135970372129.95,
 "mcap_bucket": "Large",
 "name": "Lockheed Martin Corp.",
 "sector": "Industrials / Transport Eq"
@@ -18098,7 +18128,7 @@
 "MOO": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-25",
+"fetched": "2026-08-21",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -20547,9 +20577,9 @@
 "OSIS": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-20",
+"fetched": "2026-08-21",
 "industry": "SEMICONDUCTORS & RELATED DEVICES",
-"market_cap": 3424650055.3,
+"market_cap": 3641400058.7999997,
 "mcap_bucket": "Mid",
 "name": "OSI Systems Inc",
 "sector": "Semiconductors"
@@ -21917,7 +21947,7 @@
 "PPLT": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-17",
+"fetched": "2026-08-21",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -23597,9 +23627,9 @@
 "ROST": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-21",
 "industry": "RETAIL-FAMILY CLOTHING STORES",
-"market_cap": 74677834492.8,
+"market_cap": 75284110726.44,
 "mcap_bucket": "Large",
 "name": "Ross Stores Inc",
 "sector": "Consumer / Retail"
@@ -23997,9 +24027,9 @@
 "SA": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-04",
+"fetched": "2026-08-21",
 "industry": "",
-"market_cap": 3691466807.7,
+"market_cap": 3619079296.7999997,
 "mcap_bucket": "Mid",
 "name": "Seabridge Gold, Inc.",
 "sector": "Other"
@@ -24587,9 +24617,9 @@
 "SEB": {
 "country": "USA",
 "exchange": "AMEX",
-"fetched": "2026-05-26",
+"fetched": "2026-08-21",
 "industry": "WHOLESALE-FARM PRODUCT RAW MATERIALS",
-"market_cap": 4713744859.24,
+"market_cap": 4204715660.0,
 "mcap_bucket": "Mid",
 "name": "Seaboard Corporation",
 "sector": "Other"
@@ -24827,7 +24857,7 @@
 "SGOL": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-11",
+"fetched": "2026-08-21",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -26197,9 +26227,9 @@
 "SRE": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-21",
+"fetched": "2026-08-21",
 "industry": "GAS & OTHER SERVICES COMBINED",
-"market_cap": 59284724196.689995,
+"market_cap": 55967330785.32,
 "mcap_bucket": "Large",
 "name": "Sempra",
 "sector": "Utilities"
@@ -27546,10 +27576,10 @@
 "TMC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-28",
+"fetched": "2026-08-21",
 "industry": "METAL MINING",
-"market_cap": 2473692697.98,
-"mcap_bucket": "Mid",
+"market_cap": 1751307863.5400002,
+"mcap_bucket": "Small",
 "name": "TMC the metals company Inc. Common Stock",
 "sector": "Materials / Metals"
 },
@@ -28496,7 +28526,7 @@
 "UGL": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-15",
+"fetched": "2026-08-21",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -30853,9 +30883,9 @@
 "WTFC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-21",
+"fetched": "2026-08-21",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 11038499746.96,
+"market_cap": 10349953997.47,
 "mcap_bucket": "Large",
 "name": "Wintrust Financial Corp",
 "sector": "Financials / Banks"
@@ -31180,6 +31210,16 @@
 "name": "EntrepreneurShares Series Trust ERShares Private-Public Crossover ETF",
 "sector": "Other"
 },
+"XP": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-21",
+"industry": "",
+"market_cap": 8193777585.72,
+"mcap_bucket": "Mid",
+"name": "XP Inc. Class A Common Stock",
+"sector": "Other"
+},
 "XPEV": {
 "country": "USA",
 "exchange": "NYSE",
@@ -31219,6 +31259,16 @@
 "mcap_bucket": "Mid",
 "name": "DENTSPLY SIRONA Inc.",
 "sector": "Other"
+},
+"XRP": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-21",
+"industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Bitwise XRP ETF",
+"sector": "Financials"
 },
 "XRT": {
 "country": "USA",
@@ -31513,9 +31563,9 @@
 "ZS": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-20",
+"fetched": "2026-08-21",
 "industry": "SERVICES-COMPUTER PROGRAMMING SERVICES",
-"market_cap": 28088527907.07,
+"market_cap": 29851578315.0,
 "mcap_bucket": "Large",
 "name": "Zscaler, Inc. Common Stock",
 "sector": "Tech / Software"
