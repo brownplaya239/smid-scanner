@@ -758,8 +758,8 @@
 "APH": {
 "earnings_date": "2026-10-28",
 "earnings_session": "BMO",
-"fetched": "2026-08-13",
-"mkt_cap": 209557868351.72,
+"fetched": "2026-08-24",
+"mkt_cap": 193590732583.56998,
 "sector": "Tech / Hardware"
 },
 "APLD": {
@@ -2074,8 +2074,8 @@
 "CAVA": {
 "earnings_date": "2026-11-10",
 "earnings_session": null,
-"fetched": "2026-08-12",
-"mkt_cap": 7082775183.360001,
+"fetched": "2026-08-24",
+"mkt_cap": 8600440358.74,
 "sector": "Consumer / Retail"
 },
 "CB": {
@@ -2172,8 +2172,8 @@
 "CCL": {
 "earnings_date": "2026-09-28",
 "earnings_session": "BMO",
-"fetched": "2026-08-11",
-"mkt_cap": 38007763052.25,
+"fetched": "2026-08-24",
+"mkt_cap": 35241071831.87,
 "sector": "Industrials"
 },
 "CCOI": {
@@ -3054,8 +3054,8 @@
 "DAVE": {
 "earnings_date": "2026-11-04",
 "earnings_session": null,
-"fetched": "2026-08-13",
-"mkt_cap": 4033163758.33,
+"fetched": "2026-08-24",
+"mkt_cap": 4524633443.04,
 "sector": "Financials / Banks"
 },
 "DB": {
@@ -3600,8 +3600,8 @@
 "EMBJ": {
 "earnings_date": "2026-11-10",
 "earnings_session": "BMO",
-"fetched": "2026-08-12",
-"mkt_cap": 12704438396.65,
+"fetched": "2026-08-24",
+"mkt_cap": 13515927948.25,
 "sector": "Other"
 },
 "EMN": {
@@ -5511,8 +5511,8 @@
 "INTU": {
 "earnings_date": "2026-08-25",
 "earnings_session": "AMC",
-"fetched": "2026-08-13",
-"mkt_cap": 91555569270.0,
+"fetched": "2026-08-24",
+"mkt_cap": 100388079000.0,
 "sector": "Tech / Software"
 },
 "INTW": {
@@ -9627,8 +9627,8 @@
 "SKM": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-08-13",
-"mkt_cap": 13455278886.4,
+"fetched": "2026-08-24",
+"mkt_cap": 15466852677.119999,
 "sector": "Other"
 },
 "SKUU": {
@@ -9774,7 +9774,7 @@
 "SNDQ": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-05",
+"fetched": "2026-08-24",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -9802,7 +9802,7 @@
 "SNXX": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-13",
+"fetched": "2026-08-24",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -10327,8 +10327,8 @@
 "TE": {
 "earnings_date": "2026-11-12",
 "earnings_session": "BMO",
-"fetched": "2026-08-13",
-"mkt_cap": 1443182623.4,
+"fetched": "2026-08-24",
+"mkt_cap": 1301809631.72,
 "sector": "Semiconductors"
 },
 "TEAM": {
@@ -12065,6 +12065,13 @@
 "earnings_session": "BMO",
 "fetched": "2026-08-21",
 "mkt_cap": 31685985801.360004,
+"sector": "Healthcare / Biotech"
+},
+"ZURA": {
+"earnings_date": "2026-11-12",
+"earnings_session": "BMO",
+"fetched": "2026-08-24",
+"mkt_cap": 560600451.4499999,
 "sector": "Healthcare / Biotech"
 }
 }
