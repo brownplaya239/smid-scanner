@@ -1,215 +1,6 @@
 {
- "updated": "2026-08-23T16:42:00-04:00",
+ "updated": "2026-08-24T16:41:55-04:00",
  "runs": [
-  {
-   "date": "2026-06-03",
-   "generated": "2026-06-03T19:18:20-04:00",
-   "count": 20,
-   "rows": [
-    {
-     "ticker": "MU",
-     "price": 1079.57,
-     "chg": 16.28,
-     "adr_pct": 6.88,
-     "dollar_vol": 45158430516,
-     "ern": "Jun 24"
-    },
-    {
-     "ticker": "SNDK",
-     "price": 1831.5,
-     "chg": 15.19,
-     "adr_pct": 8.0,
-     "dollar_vol": 19523001334,
-     "ern": "Aug 24"
-    },
-    {
-     "ticker": "MRVL",
-     "price": 301.65,
-     "chg": 51.81,
-     "adr_pct": 8.1,
-     "dollar_vol": 8440345292,
-     "ern": "Aug 27"
-    },
-    {
-     "ticker": "ORCL",
-     "price": 230.33,
-     "chg": 20.62,
-     "adr_pct": 5.05,
-     "dollar_vol": 4586969807,
-     "ern": "Jun 10"
-    },
-    {
-     "ticker": "DELL",
-     "price": 421.08,
-     "chg": 37.91,
-     "adr_pct": 6.67,
-     "dollar_vol": 3918793466,
-     "ern": "Sep 03"
-    },
-    {
-     "ticker": "ARM",
-     "price": 411.83,
-     "chg": 36.05,
-     "adr_pct": 8.75,
-     "dollar_vol": 3880384680,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "NOW",
-     "price": 117.9,
-     "chg": 15.45,
-     "adr_pct": 5.66,
-     "dollar_vol": 3709491897,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "IBM",
-     "price": 305.63,
-     "chg": 19.76,
-     "adr_pct": 4.14,
-     "dollar_vol": 3172515485,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "SNOW",
-     "price": 241.28,
-     "chg": 37.67,
-     "adr_pct": 5.37,
-     "dollar_vol": 2364523444,
-     "ern": "Aug 26"
-    },
-    {
-     "ticker": "CRWD",
-     "price": 747.61,
-     "chg": 15.84,
-     "adr_pct": 5.01,
-     "dollar_vol": 2305028822,
-     "ern": "Jun 03"
-    },
-    {
-     "ticker": "SMCI",
-     "price": 47.42,
-     "chg": 24.17,
-     "adr_pct": 7.69,
-     "dollar_vol": 1825531664,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "NET",
-     "price": 265.33,
-     "chg": 26.82,
-     "adr_pct": 5.67,
-     "dollar_vol": 1171187891,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "STRL",
-     "price": 957.03,
-     "chg": 22.36,
-     "adr_pct": 6.28,
-     "dollar_vol": 599007735,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "DOCN",
-     "price": 173.68,
-     "chg": 15.46,
-     "adr_pct": 7.57,
-     "dollar_vol": 555533837,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "VSH",
-     "price": 63.97,
-     "chg": 30.82,
-     "adr_pct": 7.72,
-     "dollar_vol": 342319087,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "FSLY",
-     "price": 20.83,
-     "chg": 24.21,
-     "adr_pct": 8.64,
-     "dollar_vol": 224363456,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "TMHC",
-     "price": 71.54,
-     "chg": 20.62,
-     "adr_pct": 2.39,
-     "dollar_vol": 204278782,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "AMPX",
-     "price": 21.74,
-     "chg": 26.69,
-     "adr_pct": 10.32,
-     "dollar_vol": 199769465,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "ZETA",
-     "price": 23.27,
-     "chg": 19.58,
-     "adr_pct": 6.55,
-     "dollar_vol": 196529925,
-     "ern": "--"
-    },
-    {
-     "ticker": "TENB",
-     "price": 29.69,
-     "chg": 21.43,
-     "adr_pct": 6.17,
-     "dollar_vol": 101324611,
-     "ern": "Jul 29"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "RMBS",
-     "price": 170.66,
-     "chg": 14.8,
-     "adr_pct": 7.24,
-     "dollar_vol": 313094955,
-     "ern": "Jul 27"
-    },
-    {
-     "ticker": "FTNT",
-     "price": 146.48,
-     "chg": 14.5,
-     "adr_pct": 4.32,
-     "dollar_vol": 891293800,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "BTU",
-     "price": 30.11,
-     "chg": 14.31,
-     "adr_pct": 4.85,
-     "dollar_vol": 102828564,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "AVGO",
-     "price": 479.23,
-     "chg": 13.6,
-     "adr_pct": 3.91,
-     "dollar_vol": 10112287644,
-     "ern": "Jun 03"
-    },
-    {
-     "ticker": "ANET",
-     "price": 174.37,
-     "chg": 13.0,
-     "adr_pct": 4.9,
-     "dollar_vol": 1966258704,
-     "ern": "Aug 04"
-    }
-   ]
-  },
   {
    "date": "2026-06-04",
    "generated": "2026-06-04T18:53:43-04:00",
@@ -8272,6 +8063,71 @@
      "adr_pct": 4.38,
      "dollar_vol": 122236888,
      "ern": "Nov 02"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-24",
+   "generated": "2026-08-24T16:41:55-04:00",
+   "count": 2,
+   "rows": [
+    {
+     "ticker": "COIN",
+     "price": 179.48,
+     "chg": 19.22,
+     "adr_pct": 5.63,
+     "dollar_vol": 1555070490,
+     "ern": "Oct 29"
+    },
+    {
+     "ticker": "MARA",
+     "price": 11.18,
+     "chg": 15.08,
+     "adr_pct": 8.85,
+     "dollar_vol": 509233387,
+     "ern": "Nov 04"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "FCX",
+     "price": 77.8,
+     "chg": 13.78,
+     "adr_pct": 3.64,
+     "dollar_vol": 960397555,
+     "ern": "Oct 22"
+    },
+    {
+     "ticker": "TGTX",
+     "price": 56.01,
+     "chg": 13.66,
+     "adr_pct": 4.89,
+     "dollar_vol": 125875746,
+     "ern": "Nov 02"
+    },
+    {
+     "ticker": "TWST",
+     "price": 140.8,
+     "chg": 13.17,
+     "adr_pct": 8.02,
+     "dollar_vol": 212445574,
+     "ern": "--"
+    },
+    {
+     "ticker": "CMG",
+     "price": 38.02,
+     "chg": 12.62,
+     "adr_pct": 3.93,
+     "dollar_vol": 691283204,
+     "ern": "--"
+    },
+    {
+     "ticker": "TGT",
+     "price": 169.89,
+     "chg": 12.5,
+     "adr_pct": 2.99,
+     "dollar_vol": 711169738,
+     "ern": "Nov 18"
     }
    ]
   }

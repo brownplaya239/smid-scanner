@@ -2,9 +2,9 @@
 "A": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-23",
+"fetched": "2026-08-24",
 "industry": "LABORATORY ANALYTICAL INSTRUMENTS",
-"market_cap": 37693367246.240005,
+"market_cap": 44906679096.0,
 "mcap_bucket": "Large",
 "name": "Agilent Technologies Inc.",
 "sector": "Other"
@@ -2071,7 +2071,7 @@
 "ARKB": {
 "country": "USA",
 "exchange": "BATS",
-"fetched": "2026-06-02",
+"fetched": "2026-08-24",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -2351,9 +2351,9 @@
 "ASST": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-24",
 "industry": "FINANCE SERVICES",
-"market_cap": 1183159835.55,
+"market_cap": 1567596381.06,
 "mcap_bucket": "Small",
 "name": "Strive, Inc. Class A Common Stock",
 "sector": "Financials / Banks"
@@ -2937,6 +2937,16 @@
 "mcap_bucket": "Large",
 "name": "AutoZone, Inc.",
 "sector": "Consumer / Retail"
+},
+"AZTA": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-24",
+"industry": "SPECIAL INDUSTRY MACHINERY, NEC",
+"market_cap": 1638433898.2,
+"mcap_bucket": "Small",
+"name": "Azenta, Inc.",
+"sector": "Industrials / Machinery"
 },
 "AZZ": {
 "country": "USA",
@@ -3731,7 +3741,7 @@
 "BITB": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-03",
+"fetched": "2026-08-24",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -3751,7 +3761,7 @@
 "BITU": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-02",
+"fetched": "2026-08-24",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -3761,11 +3771,11 @@
 "BITX": {
 "country": "USA",
 "exchange": "BATS",
-"fetched": "2026-06-02",
+"fetched": "2026-08-24",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
-"name": "2x Bitcoin Strategy ETF",
+"name": "2x Bitcoin ETF",
 "sector": "Other"
 },
 "BIZD": {
@@ -4097,6 +4107,16 @@
 "mcap_bucket": "Large",
 "name": "BitMine Immersion Technologies, Inc.",
 "sector": "Financials / Banks"
+},
+"BMNU": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-08-24",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "T-REX 2X Long BMNR Daily Target ETF",
+"sector": "Other"
 },
 "BMO": {
 "country": "USA",
@@ -4480,7 +4500,7 @@
 "BTC": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-06",
+"fetched": "2026-08-24",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -4730,9 +4750,9 @@
 "BX": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-24",
+"fetched": "2026-08-24",
 "industry": "INVESTMENT ADVICE",
-"market_cap": 99591855085.5,
+"market_cap": 107624628845.31999,
 "mcap_bucket": "Large",
 "name": "Blackstone Inc.",
 "sector": "Financials"
@@ -9560,7 +9580,7 @@
 "ETH": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-06",
+"fetched": "2026-08-24",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -9570,7 +9590,7 @@
 "ETHA": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-06",
+"fetched": "2026-08-24",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -10020,10 +10040,10 @@
 "EZPW": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-23",
+"fetched": "2026-08-24",
 "industry": "RETAIL-MISCELLANEOUS RETAIL",
-"market_cap": 2003611443.68,
-"mcap_bucket": "Mid",
+"market_cap": 1979705606.9399998,
+"mcap_bucket": "Small",
 "name": "Ezcorp Inc",
 "sector": "Consumer / Retail"
 },
@@ -10420,7 +10440,7 @@
 "FETH": {
 "country": "USA",
 "exchange": "BATS",
-"fetched": "2026-06-05",
+"fetched": "2026-08-24",
 "industry": "FINANCE SERVICES",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -11800,9 +11820,9 @@
 "GHC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-26",
+"fetched": "2026-08-24",
 "industry": "SERVICES-EDUCATIONAL SERVICES",
-"market_cap": 4900040254.280001,
+"market_cap": 4941864531.04,
 "mcap_bucket": "Mid",
 "name": "GRAHAM HOLDINGS COMPANY",
 "sector": "Other"
@@ -15388,9 +15408,9 @@
 "JLL": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-24",
+"fetched": "2026-08-24",
 "industry": "REAL ESTATE AGENTS & MANAGERS (FOR OTHERS)",
-"market_cap": 14817179983.5,
+"market_cap": 17822003911.11,
 "mcap_bucket": "Large",
 "name": "Jones Lang LaSalle, Inc.",
 "sector": "Real Estate"
@@ -15428,7 +15448,7 @@
 "JMUB": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-24",
+"fetched": "2026-08-24",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -19367,9 +19387,9 @@
 "NOVT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-22",
+"fetched": "2026-08-24",
 "industry": "MISCELLANEOUS ELECTRICAL MACHINERY, EQUIPMENT & SUPPLIES",
-"market_cap": 5194200242.55,
+"market_cap": 5492652914.8,
 "mcap_bucket": "Mid",
 "name": "Novanta Inc. Common Stock",
 "sector": "Other"
@@ -19504,6 +19524,16 @@
 "name": "Insperity, Inc",
 "sector": "Other"
 },
+"NSSC": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-24",
+"industry": "COMMUNICATIONS EQUIPMENT, NEC",
+"market_cap": 1360854266.3300002,
+"mcap_bucket": "Small",
+"name": "Napco Security Technologies, Inc",
+"sector": "Tech / Hardware"
+},
 "NTAP": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -19527,9 +19557,9 @@
 "NTES": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-24",
+"fetched": "2026-08-24",
 "industry": "",
-"market_cap": 76945268555.28,
+"market_cap": 82060867621.31999,
 "mcap_bucket": "Large",
 "name": "NetEase, inc.",
 "sector": "Other"
@@ -20547,9 +20577,9 @@
 "ORKA": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-23",
+"fetched": "2026-08-24",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 5580678705.53,
+"market_cap": 7147999104.04,
 "mcap_bucket": "Mid",
 "name": "Oruka Therapeutics, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
@@ -21127,9 +21157,9 @@
 "PDD": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-22",
+"fetched": "2026-08-24",
 "industry": "",
-"market_cap": 139193940018.98,
+"market_cap": 125799779311.56,
 "mcap_bucket": "Large",
 "name": "PDD Holdings Inc. American Depositary Shares",
 "sector": "Other"
@@ -21467,9 +21497,9 @@
 "PHYS": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-11",
+"fetched": "2026-08-24",
 "industry": "",
-"market_cap": 14672287473.12,
+"market_cap": 16599659965.0,
 "mcap_bucket": "Large",
 "name": "Sprott Physical Gold Trust",
 "sector": "Other"
@@ -22407,10 +22437,10 @@
 "PURR": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-24",
 "industry": "FINANCE SERVICES",
-"market_cap": 1824012350.3999999,
-"mcap_bucket": "Small",
+"market_cap": 2121963850.78,
+"mcap_bucket": "Mid",
 "name": "Hyperliquid Strategies Inc Common Stock",
 "sector": "Financials / Banks"
 },
@@ -22667,9 +22697,9 @@
 "QLYS": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-24",
+"fetched": "2026-08-24",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 4709922516.18,
+"market_cap": 6295598281.98,
 "mcap_bucket": "Mid",
 "name": "Qualys, Inc. Common Stock",
 "sector": "Tech / Software"
@@ -23307,9 +23337,9 @@
 "RHP": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-24",
+"fetched": "2026-08-24",
 "industry": "REAL ESTATE INVESTMENT TRUSTS",
-"market_cap": 8134154068.079999,
+"market_cap": 8864481008.0,
 "mcap_bucket": "Mid",
 "name": "Ryman Hospitality Properties, Inc",
 "sector": "Real Estate"
@@ -23487,9 +23517,9 @@
 "RNG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-24",
+"fetched": "2026-08-24",
 "industry": "SERVICES-COMPUTER PROCESSING & DATA PREPARATION",
-"market_cap": 3238619286.48,
+"market_cap": 5595747915.620001,
 "mcap_bucket": "Mid",
 "name": "RINGCENTRAL, INC.",
 "sector": "Tech / Software"
@@ -23567,9 +23597,9 @@
 "ROIV": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-24",
+"fetched": "2026-08-24",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 25246390513.5,
+"market_cap": 26220325444.499996,
 "mcap_bucket": "Large",
 "name": "Roivant Sciences Ltd. Common Shares",
 "sector": "Healthcare / Biotech"
@@ -23807,11 +23837,11 @@
 "RUM": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-04",
+"fetched": "2026-08-24",
 "industry": "SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.",
-"market_cap": 1802586943.3600001,
-"mcap_bucket": "Small",
-"name": "Rumble Inc. Class A Common Stock",
+"market_cap": 4487082255.700001,
+"mcap_bucket": "Mid",
+"name": "RUM Group Inc. Class A Common Stock",
 "sector": "Tech / Software"
 },
 "RUN": {
@@ -25043,6 +25073,16 @@
 "mcap_bucket": "Mid",
 "name": "Selective Insurance Group",
 "sector": "Financials"
+},
+"SII": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-08-24",
+"industry": "",
+"market_cap": 3405462606.52,
+"mcap_bucket": "Mid",
+"name": "Sprott Inc.",
+"sector": "Other"
 },
 "SIL": {
 "country": "USA",
@@ -27846,9 +27886,9 @@
 "TRMB": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-24",
+"fetched": "2026-08-24",
 "industry": "MEASURING & CONTROLLING DEVICES, NEC",
-"market_cap": 11737164981.65,
+"market_cap": 14049085842.0,
 "mcap_bucket": "Large",
 "name": "Trimble Inc. Common Stock",
 "sector": "Other"
@@ -30573,9 +30613,9 @@
 "WK": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-22",
+"fetched": "2026-08-24",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 3084318706.56,
+"market_cap": 4071985797.04,
 "mcap_bucket": "Mid",
 "name": "Workiva Inc.",
 "sector": "Tech / Software"
@@ -31608,6 +31648,16 @@
 "market_cap": 31186379698.02,
 "mcap_bucket": "Large",
 "name": "ZOETIS INC.",
+"sector": "Healthcare / Biotech"
+},
+"ZURA": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-24",
+"industry": "BIOLOGICAL PRODUCTS, (NO DIAGNOSTIC SUBSTANCES)",
+"market_cap": 560600451.4499999,
+"mcap_bucket": "Small",
+"name": "Zura Bio Limited Class A Ordinary Shares",
 "sector": "Healthcare / Biotech"
 },
 "ZVRA": {
