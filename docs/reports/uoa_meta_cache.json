@@ -1101,8 +1101,8 @@
 "AUR": {
 "earnings_date": "2026-10-28",
 "earnings_session": "AMC",
-"fetched": "2026-08-04",
-"mkt_cap": 13316568974.31,
+"fetched": "2026-08-24",
+"mkt_cap": 12505928872.32,
 "sector": "Tech / Software"
 },
 "AVAV": {
@@ -2233,10 +2233,10 @@
 "sector": "Utilities"
 },
 "CELC": {
-"earnings_date": "2026-08-13",
-"earnings_session": "AMC",
-"fetched": "2026-08-13",
-"mkt_cap": 4490399799.04,
+"earnings_date": "2026-11-11",
+"earnings_session": null,
+"fetched": "2026-08-24",
+"mkt_cap": 4576601355.24,
 "sector": "Healthcare / Services"
 },
 "CELH": {
@@ -2977,8 +2977,8 @@
 "CVX": {
 "earnings_date": "2026-10-30",
 "earnings_session": "BMO",
-"fetched": "2026-08-13",
-"mkt_cap": 385651203668.39996,
+"fetched": "2026-08-24",
+"mkt_cap": 402658304053.98004,
 "sector": "Energy"
 },
 "CWEN": {
@@ -3064,6 +3064,13 @@
 "fetched": "2026-08-14",
 "mkt_cap": 72360290000.0,
 "sector": "Other"
+},
+"DBA": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-08-24",
+"mkt_cap": null,
+"sector": "Financials"
 },
 "DBX": {
 "earnings_date": "2026-11-05",
@@ -4781,10 +4788,10 @@
 "sector": "Other"
 },
 "GPCR": {
-"earnings_date": "2026-08-06",
-"earnings_session": "AMC",
-"fetched": "2026-07-06",
-"mkt_cap": 3798932880.2000003,
+"earnings_date": "2026-11-05",
+"earnings_session": null,
+"fetched": "2026-08-24",
+"mkt_cap": 3500600880.13,
 "sector": "Healthcare / Biotech"
 },
 "GPN": {
@@ -5679,7 +5686,7 @@
 "IYR": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-11",
+"fetched": "2026-08-24",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -5956,6 +5963,13 @@
 "mkt_cap": 8365659109.200001,
 "sector": "Consumer / Retail"
 },
+"KNSA": {
+"earnings_date": "2026-10-27",
+"earnings_session": "BMO",
+"fetched": "2026-08-24",
+"mkt_cap": 6166237747.39,
+"sector": "Healthcare / Biotech"
+},
 "KNTK": {
 "earnings_date": "2026-11-04",
 "earnings_session": null,
@@ -6204,8 +6218,8 @@
 "LEN": {
 "earnings_date": "2026-09-17",
 "earnings_session": "AMC",
-"fetched": "2026-08-12",
-"mkt_cap": 21090369682.1,
+"fetched": "2026-08-24",
+"mkt_cap": 20962695256.84,
 "sector": "Industrials"
 },
 "LEU": {
