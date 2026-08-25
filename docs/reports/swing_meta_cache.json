@@ -6780,9 +6780,9 @@
 "CRCL": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-08-25",
 "industry": "FINANCE SERVICES",
-"market_cap": 27688883981.7,
+"market_cap": 22269992281.32,
 "mcap_bucket": "Large",
 "name": "Circle Internet Group, Inc.",
 "sector": "Financials / Banks"
@@ -6940,9 +6940,9 @@
 "CRSP": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-05",
+"fetched": "2026-08-25",
 "industry": "BIOLOGICAL PRODUCTS, (NO DIAGNOSTIC SUBSTANCES)",
-"market_cap": 5916926410.24,
+"market_cap": 5518733169.975,
 "mcap_bucket": "Mid",
 "name": "CRISPR Therapeutics AG",
 "sector": "Healthcare / Biotech"
@@ -7490,9 +7490,9 @@
 "DASH": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-23",
+"fetched": "2026-08-25",
 "industry": "SERVICES-BUSINESS SERVICES, NEC",
-"market_cap": 77440288461.06,
+"market_cap": 99250702505.24,
 "mcap_bucket": "Large",
 "name": "DoorDash, Inc. Class A Common Stock",
 "sector": "Other"
@@ -8060,9 +8060,9 @@
 "DKS": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-08-25",
 "industry": "RETAIL-MISCELLANEOUS SHOPPING GOODS STORES",
-"market_cap": 20850511019.52,
+"market_cap": 16050489960.210001,
 "mcap_bucket": "Large",
 "name": "Dick's Sporting Goods, Inc.",
 "sector": "Consumer / Retail"
@@ -10650,10 +10650,10 @@
 "FIVN": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-23",
+"fetched": "2026-08-25",
 "industry": "SERVICES-COMPUTER PROCESSING & DATA PREPARATION",
-"market_cap": 1757143524.6,
-"mcap_bucket": "Small",
+"market_cap": 2448690110.8700004,
+"mcap_bucket": "Mid",
 "name": "FIVE9, INC.",
 "sector": "Tech / Software"
 },
@@ -11697,6 +11697,16 @@
 "name": "Gen Digital Inc. Common Stock",
 "sector": "Tech / Software"
 },
+"GENB": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-25",
+"industry": "PHARMACEUTICAL PREPARATIONS",
+"market_cap": 2274405165.92,
+"mcap_bucket": "Mid",
+"name": "Generate Biomedicines, Inc. Common Stock",
+"sector": "Healthcare / Biotech"
+},
 "GENI": {
 "country": "USA",
 "exchange": "NYSE",
@@ -12084,6 +12094,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "GMO International Value ETF",
+"sector": "Other"
+},
+"GMUB": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-25",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Goldman Sachs Municipal Income ETF",
 "sector": "Other"
 },
 "GNL": {
@@ -14079,9 +14099,9 @@
 "IMMX": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-26",
+"fetched": "2026-08-25",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 691966323.72,
+"market_cap": 968895233.11,
 "mcap_bucket": "Small",
 "name": "Immix Biopharma, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
@@ -14149,9 +14169,9 @@
 "INBX": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-22",
+"fetched": "2026-08-25",
 "industry": "BIOLOGICAL PRODUCTS, (NO DIAGNOSTIC SUBSTANCES)",
-"market_cap": 1622193036.02,
+"market_cap": 1544471240.3999999,
 "mcap_bucket": "Small",
 "name": "Inhibrx Biosciences, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
@@ -17775,6 +17795,16 @@
 "name": "Magnite, Inc. Common Stock",
 "sector": "Tech / Software"
 },
+"MGNR": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-25",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "American Beacon GLG Natural Resources ETF",
+"sector": "Other"
+},
 "MGTX": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -19737,9 +19767,9 @@
 "NVAX": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-26",
+"fetched": "2026-08-25",
 "industry": "BIOLOGICAL PRODUCTS, (NO DIAGNOSTIC SUBSTANCES)",
-"market_cap": 1407590298.64,
+"market_cap": 1461419132.36,
 "mcap_bucket": "Small",
 "name": "Novavax Inc",
 "sector": "Healthcare / Biotech"
@@ -20247,9 +20277,9 @@
 "OII": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-23",
+"fetched": "2026-08-25",
 "industry": "OIL & GAS FIELD SERVICES, NEC",
-"market_cap": 4488536205.0,
+"market_cap": 5022265886.7,
 "mcap_bucket": "Mid",
 "name": "Oceaneering International Inc.",
 "sector": "Energy"
@@ -23144,6 +23174,16 @@
 "name": "The RealReal, Inc. Common Stock",
 "sector": "Consumer / Retail"
 },
+"REAX": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-25",
+"industry": "",
+"market_cap": 52306593.6,
+"mcap_bucket": "Micro",
+"name": "REAL BROKERAGE INC",
+"sector": "Other"
+},
 "REET": {
 "country": "USA",
 "exchange": "NYSE Arca",
@@ -25437,9 +25477,9 @@
 "SMCI": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-25",
 "industry": "ELECTRONIC COMPUTERS",
-"market_cap": 19833127007.82,
+"market_cap": 22750524359.59,
 "mcap_bucket": "Large",
 "name": "Super Micro Computer, Inc. Common Stock",
 "sector": "Tech / Hardware"
@@ -29054,9 +29094,9 @@
 "UUUU": {
 "country": "USA",
 "exchange": "AMEX",
-"fetched": "2026-05-20",
+"fetched": "2026-08-25",
 "industry": "MINING & QUARRYING OF NONMETALLIC MINERALS (NO FUELS)",
-"market_cap": 4347685800.0,
+"market_cap": 3719479200.0,
 "mcap_bucket": "Mid",
 "name": "Energy Fuels Inc.",
 "sector": "Other"
@@ -29544,9 +29584,9 @@
 "VIPS": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-29",
+"fetched": "2026-08-25",
 "industry": "",
-"market_cap": 6968725535.4,
+"market_cap": 6877474132.8,
 "mcap_bucket": "Mid",
 "name": "Vipshop Holdings Limited",
 "sector": "Other"
@@ -31689,5 +31729,15 @@
 "mcap_bucket": "Mid",
 "name": "Zurn Elkay Water Solutions Corporation",
 "sector": "Industrials / Machinery"
+},
+"ZYME": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-25",
+"industry": "PHARMACEUTICAL PREPARATIONS",
+"market_cap": 2057320863.57,
+"mcap_bucket": "Mid",
+"name": "Zymeworks Inc.",
+"sector": "Healthcare / Biotech"
 }
 }
