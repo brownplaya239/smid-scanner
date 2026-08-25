@@ -1,5 +1,5 @@
 {
- "updated": "2026-08-25T16:41:59-04:00",
+ "updated": "2026-08-25T17:55:03-04:00",
  "runs": [
   {
    "date": "2026-06-05",
@@ -7980,15 +7980,15 @@
   },
   {
    "date": "2026-08-25",
-   "generated": "2026-08-25T16:41:59-04:00",
-   "count": 9,
+   "generated": "2026-08-25T17:55:03-04:00",
+   "count": 10,
    "rows": [
     {
      "ticker": "COIN",
      "price": 187.16,
      "chg": 27.99,
      "adr_pct": 5.75,
-     "dollar_vol": 1611773827,
+     "dollar_vol": 1612282932,
      "ern": "Oct 29"
     },
     {
@@ -7996,7 +7996,7 @@
      "price": 156.45,
      "chg": 15.74,
      "adr_pct": 2.78,
-     "dollar_vol": 1553802962,
+     "dollar_vol": 1555978679,
      "ern": "Oct 29"
     },
     {
@@ -8004,7 +8004,7 @@
      "price": 79.91,
      "chg": 20.49,
      "adr_pct": 3.63,
-     "dollar_vol": 988080601,
+     "dollar_vol": 988116179,
      "ern": "Oct 22"
     },
     {
@@ -8012,7 +8012,7 @@
      "price": 21.59,
      "chg": 16.64,
      "adr_pct": 5.02,
-     "dollar_vol": 732053700,
+     "dollar_vol": 732128433,
      "ern": "Oct 28"
     },
     {
@@ -8020,7 +8020,7 @@
      "price": 20.92,
      "chg": 16.55,
      "adr_pct": 5.05,
-     "dollar_vol": 674610357,
+     "dollar_vol": 674615477,
      "ern": "--"
     },
     {
@@ -8028,7 +8028,7 @@
      "price": 11.83,
      "chg": 32.03,
      "adr_pct": 9.01,
-     "dollar_vol": 502617679,
+     "dollar_vol": 502667129,
      "ern": "Nov 04"
     },
     {
@@ -8036,7 +8036,7 @@
      "price": 31.75,
      "chg": 15.92,
      "adr_pct": 7.82,
-     "dollar_vol": 425376986,
+     "dollar_vol": 425705323,
      "ern": "Nov 09"
     },
     {
@@ -8044,7 +8044,7 @@
      "price": 151.42,
      "chg": 30.42,
      "adr_pct": 8.16,
-     "dollar_vol": 221939736,
+     "dollar_vol": 221957635,
      "ern": "--"
     },
     {
@@ -8052,8 +8052,16 @@
      "price": 64.72,
      "chg": 16.34,
      "adr_pct": 7.18,
-     "dollar_vol": 183441683,
+     "dollar_vol": 183444431,
      "ern": "Nov 05"
+    },
+    {
+     "ticker": "SSRM",
+     "price": 39.21,
+     "chg": 23.73,
+     "adr_pct": 4.58,
+     "dollar_vol": 100082808,
+     "ern": "Nov 03"
     }
    ],
    "near_misses": [
@@ -8062,7 +8070,7 @@
      "price": 15.97,
      "chg": 13.34,
      "adr_pct": 6.4,
-     "dollar_vol": 102743841,
+     "dollar_vol": 102893294,
      "ern": "Nov 02"
     },
     {
@@ -8070,7 +8078,7 @@
      "price": 21.3,
      "chg": 12.64,
      "adr_pct": 10.54,
-     "dollar_vol": 479249466,
+     "dollar_vol": 479694682,
      "ern": "Oct 29"
     },
     {
@@ -8078,7 +8086,7 @@
      "price": 37.43,
      "chg": 12.2,
      "adr_pct": 3.88,
-     "dollar_vol": 689993560,
+     "dollar_vol": 689999880,
      "ern": "--"
     },
     {
@@ -8086,7 +8094,7 @@
      "price": 240.38,
      "chg": 11.29,
      "adr_pct": 6.69,
-     "dollar_vol": 5083299630,
+     "dollar_vol": 5084573036,
      "ern": "Aug 27"
     },
     {
@@ -8094,7 +8102,7 @@
      "price": 55.42,
      "chg": 10.27,
      "adr_pct": 5.03,
-     "dollar_vol": 125059475,
+     "dollar_vol": 125060203,
      "ern": "Nov 02"
     }
    ]
