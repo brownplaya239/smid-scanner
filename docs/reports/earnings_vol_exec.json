@@ -1,5 +1,217 @@
 {
- "generated": "2026-08-26T19:38:50+00:00",
+ "generated": "2026-08-26T19:41:12+00:00",
  "status": "quotes_entitlement_unavailable",
- "why": "historical NBBO quotes endpoint returned no data on a known-good contract \u2014 plan tier lacks the quotes entitlement. Execution study cannot run; trade_qualified stays false. (Outcome: undetermined, NOT a pass.)"
+ "why": "historical NBBO quotes endpoint is not authorized on this plan tier (12/12 probe queries failed at HTTP level). The spread/fill study cannot run; trade_qualified stays false. (Outcome: undetermined, NOT a pass.)",
+ "minute_timing_study": {
+  "summary": {
+   "short_straddle": {
+    "09:31": {
+     "n": 68,
+     "avg_$1lot": 83,
+     "win": 66,
+     "pf": 1.5,
+     "night_ci": {
+      "nights": 22,
+      "ci95": [
+       -0.572,
+       2.277
+      ]
+     }
+    },
+    "09:35": {
+     "n": 74,
+     "avg_$1lot": 84,
+     "win": 61,
+     "pf": 1.5,
+     "night_ci": {
+      "nights": 22,
+      "ci95": [
+       -0.739,
+       2.169
+      ]
+     }
+    },
+    "09:45": {
+     "n": 62,
+     "avg_$1lot": 131,
+     "win": 68,
+     "pf": 1.8,
+     "night_ci": {
+      "nights": 22,
+      "ci95": [
+       -0.507,
+       3.233
+      ]
+     }
+    },
+    "10:00": {
+     "n": 23,
+     "avg_$1lot": 118,
+     "win": 70,
+     "pf": 1.48,
+     "night_ci": {
+      "nights": 14,
+      "ci95": [
+       -2.022,
+       4.883
+      ]
+     }
+    }
+   },
+   "iron_fly_1.5": {
+    "09:31": {
+     "n": 40,
+     "avg_$1lot": -24,
+     "win": 62,
+     "pf": 0.85,
+     "night_ci": {
+      "nights": 17,
+      "ci95": [
+       -1.926,
+       1.113
+      ]
+     }
+    },
+    "09:35": {
+     "n": 49,
+     "avg_$1lot": 53,
+     "win": 59,
+     "pf": 1.31,
+     "night_ci": {
+      "nights": 20,
+      "ci95": [
+       -1.343,
+       2.246
+      ]
+     }
+    },
+    "09:45": {
+     "n": 28,
+     "avg_$1lot": 4,
+     "win": 57,
+     "pf": 1.02,
+     "night_ci": {
+      "nights": 16,
+      "ci95": [
+       -2.649,
+       2.836
+      ]
+     }
+    },
+    "10:00": {
+     "n": 7,
+     "avg_$1lot": -506,
+     "win": 43,
+     "pf": 0.23,
+     "night_ci": {
+      "status": "insufficient_nights",
+      "nights": 6
+     }
+    }
+   },
+   "iron_condor_0.75_1.5": {
+    "09:31": {
+     "n": 41,
+     "avg_$1lot": -15,
+     "win": 61,
+     "pf": 0.85,
+     "night_ci": {
+      "nights": 17,
+      "ci95": [
+       -1.135,
+       0.649
+      ]
+     }
+    },
+    "09:35": {
+     "n": 48,
+     "avg_$1lot": -30,
+     "win": 58,
+     "pf": 0.75,
+     "night_ci": {
+      "nights": 19,
+      "ci95": [
+       -1.381,
+       0.553
+      ]
+     }
+    },
+    "09:45": {
+     "n": 30,
+     "avg_$1lot": -53,
+     "win": 50,
+     "pf": 0.59,
+     "night_ci": {
+      "nights": 15,
+      "ci95": [
+       -1.885,
+       0.803
+      ]
+     }
+    },
+    "10:00": {
+     "n": 5,
+     "avg_$1lot": -330,
+     "win": 40,
+     "pf": 0.21,
+     "night_ci": {
+      "status": "insufficient_nights",
+      "nights": 4
+     }
+    }
+   },
+   "iron_condor_0.9_1.5": {
+    "09:31": {
+     "n": 40,
+     "avg_$1lot": 2,
+     "win": 68,
+     "pf": 1.03,
+     "night_ci": {
+      "nights": 16,
+      "ci95": [
+       -0.609,
+       0.547
+      ]
+     }
+    },
+    "09:35": {
+     "n": 46,
+     "avg_$1lot": -5,
+     "win": 61,
+     "pf": 0.95,
+     "night_ci": {
+      "nights": 17,
+      "ci95": [
+       -0.842,
+       0.657
+      ]
+     }
+    },
+    "09:45": {
+     "n": 30,
+     "avg_$1lot": 28,
+     "win": 67,
+     "pf": 1.35,
+     "night_ci": {
+      "nights": 16,
+      "ci95": [
+       -0.859,
+       1.506
+      ]
+     }
+    },
+    "10:00": {
+     "n": 8,
+     "avg_$1lot": -243,
+     "win": 50,
+     "pf": 0.16,
+     "night_ci": {
+      "status": "insufficient_nights",
+      "nights": 6
+     }
+    }
+   }
+  },
+  "honesty": "minute-close MARKS, fees only, no spread model \u2014 timing evidence, not executability evidence. Qualification is impossible from this table."
+ }
 }
