@@ -1,9 +1,9 @@
 {
- "generated": "2026-08-26T18:22:45+00:00",
+ "generated": "2026-08-26T18:45:31+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-08-26T18:22:45+00:00",
- "market_regime": "unknown",
+ "data_cutoff": "2026-08-26T18:45:31+00:00",
+ "market_regime": "risk_on",
  "score_available": true,
  "gates": {
   "flow": {
@@ -18,30 +18,32 @@
    "types": {
     "post_report_drift": {
      "verdict": "degraded",
-     "why": "measured EV -0.90 on n=82",
+     "why": "measured EV -0.53 on n=244",
      "evidence": {
       "status": "active",
-      "n": 82,
-      "win_rate": 46,
-      "ev": -0.9
+      "n": 244,
+      "win_rate": 51,
+      "ev": -0.53
      }
     },
     "vol_rich": {
-     "verdict": "watch",
-     "why": "accruing",
+     "verdict": "qualified",
+     "why": "measured EV +6.87 on n=102",
      "evidence": {
-      "status": "accruing",
-      "n": 23,
-      "activates_at": 30
+      "status": "active",
+      "n": 102,
+      "win_rate": 91,
+      "ev": 6.87
      }
     },
     "vol_cheap": {
-     "verdict": "watch",
-     "why": "accruing",
+     "verdict": "qualified",
+     "why": "measured EV +2.49 on n=48",
      "evidence": {
-      "status": "accruing",
-      "n": 11,
-      "activates_at": 30
+      "status": "active",
+      "n": 48,
+      "win_rate": 69,
+      "ev": 2.49
      }
     },
     "momentum_into_print": {
@@ -57,31 +59,203 @@
   },
   "momentum": {
    "verdict": "degraded",
-   "why": "measured EV -1.40 PF 0.74 on n=737",
+   "why": "measured EV -1.71 PF 0.69 on n=942",
    "evidence": {
     "status": "active",
-    "n": 737,
-    "win_rate": 44,
-    "ev": -1.4,
-    "median": -1.55,
-    "avg_win": 8.98,
-    "avg_loss": -9.55,
-    "profit_factor": 0.74,
-    "avg_dd": -6.61,
+    "n": 942,
+    "win_rate": 43,
+    "ev": -1.71,
+    "median": -1.63,
+    "avg_win": 8.65,
+    "avg_loss": -9.56,
+    "profit_factor": 0.69,
+    "avg_dd": -6.59,
     "hold_d": 5
    }
   }
  },
- "top_ideas": [],
+ "top_ideas": [
+  {
+   "family": "earnings",
+   "ticker": "INTU",
+   "direction": "neutral",
+   "status": "QUALIFIED",
+   "alpha_score": null,
+   "gate": "measured EV +6.87 on n=102",
+   "catalyst": "earnings",
+   "construct": {
+    "expression": "per_thesis",
+    "implied_move": 13.2,
+    "realized_median": 5.7,
+    "session": "AMC",
+    "event_date": "2026-08-25",
+    "option_mark": null
+   },
+   "as_of": "2026-08-26T18:45:31+00:00",
+   "evidence": {
+    "thesis": "Options price a ±13.2% move vs a ±5.7% median across 7 past reports (2.3× rich) — historically favors defined-risk premium sellers over buyers.",
+    "cited": [
+     "$100B cap",
+     "1 bull / 6 bear flow into print",
+     "typically moves ±5.7% (7 reports)"
+    ],
+    "etype": "vol_rich",
+    "grade": null,
+    "mcap_b": 100.4
+   }
+  },
+  {
+   "family": "earnings",
+   "ticker": "ANF",
+   "direction": "neutral",
+   "status": "QUALIFIED",
+   "alpha_score": null,
+   "gate": "measured EV +6.87 on n=102",
+   "catalyst": "earnings",
+   "construct": {
+    "expression": "per_thesis",
+    "implied_move": 13.7,
+    "realized_median": 9.1,
+    "session": "BMO",
+    "event_date": "2026-08-26",
+    "option_mark": null
+   },
+   "as_of": "2026-08-26T18:45:31+00:00",
+   "evidence": {
+    "thesis": "Options price a ±13.7% move vs a ±9.1% median across 8 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
+    "cited": [
+     "B- swing grade",
+     "0 bull / 1 bear flow into print",
+     "typically moves ±9.1% (8 reports)"
+    ],
+    "etype": "vol_rich",
+    "grade": "B-",
+    "mcap_b": 5.0
+   }
+  },
+  {
+   "family": "earnings",
+   "ticker": "BBWI",
+   "direction": "neutral",
+   "status": "QUALIFIED",
+   "alpha_score": null,
+   "gate": "measured EV +6.87 on n=102",
+   "catalyst": "earnings",
+   "construct": {
+    "expression": "per_thesis",
+    "implied_move": 12.5,
+    "realized_median": 8.3,
+    "session": "BMO",
+    "event_date": "2026-08-26",
+    "option_mark": null
+   },
+   "as_of": "2026-08-26T18:45:31+00:00",
+   "evidence": {
+    "thesis": "Options price a ±12.5% move vs a ±8.3% median across 8 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
+    "cited": [
+     "0 bull / 1 bear flow into print",
+     "typically moves ±8.3% (8 reports)"
+    ],
+    "etype": "vol_rich",
+    "grade": null,
+    "mcap_b": 3.9
+   }
+  },
+  {
+   "family": "earnings",
+   "ticker": "CRM",
+   "direction": "neutral",
+   "status": "QUALIFIED",
+   "alpha_score": null,
+   "gate": "measured EV +6.87 on n=102",
+   "catalyst": "earnings",
+   "construct": {
+    "expression": "per_thesis",
+    "implied_move": 7.4,
+    "realized_median": 3.8,
+    "session": "AMC",
+    "event_date": "2026-08-26",
+    "option_mark": null
+   },
+   "as_of": "2026-08-26T18:45:31+00:00",
+   "evidence": {
+    "thesis": "Options price a ±7.4% move vs a ±3.8% median across 8 past reports (1.9× rich) — historically favors defined-risk premium sellers over buyers.",
+    "cited": [
+     "$169B cap",
+     "0 bull / 0 bear flow into print",
+     "typically moves ±3.8% (8 reports)"
+    ],
+    "etype": "vol_rich",
+    "grade": null,
+    "mcap_b": 168.8
+   }
+  },
+  {
+   "family": "earnings",
+   "ticker": "CRWD",
+   "direction": "neutral",
+   "status": "QUALIFIED",
+   "alpha_score": null,
+   "gate": "measured EV +6.87 on n=102",
+   "catalyst": "earnings",
+   "construct": {
+    "expression": "per_thesis",
+    "implied_move": 8.2,
+    "realized_median": 4.4,
+    "session": "AMC",
+    "event_date": "2026-08-26",
+    "option_mark": null
+   },
+   "as_of": "2026-08-26T18:45:31+00:00",
+   "evidence": {
+    "thesis": "Options price a ±8.2% move vs a ±4.4% median across 8 past reports (1.9× rich) — historically favors defined-risk premium sellers over buyers.",
+    "cited": [
+     "$205B cap",
+     "0 bull / 0 bear flow into print",
+     "typically moves ±4.4% (8 reports)"
+    ],
+    "etype": "vol_rich",
+    "grade": null,
+    "mcap_b": 205.3
+   }
+  }
+ ],
  "watch": [],
- "abstention": true,
- "abstention_note": "No setup currently meets TickerDesk's measured alpha threshold. Candidates below are tracked paper-forward; families qualify automatically when their own graded record turns positive at n>=30.",
+ "abstention": false,
+ "abstention_note": null,
  "rejections": {
-  "STALE_DATA": 21
+  "STRATEGY_DEGRADED": 10,
+  "NOT_DIRECTIONAL": 751
  },
- "what_changed": [],
+ "what_changed": [
+  {
+   "t": "INTU",
+   "change": "new",
+   "to": "QUALIFIED"
+  },
+  {
+   "t": "ANF",
+   "change": "new",
+   "to": "QUALIFIED"
+  },
+  {
+   "t": "BBWI",
+   "change": "new",
+   "to": "QUALIFIED"
+  },
+  {
+   "t": "CRM",
+   "change": "new",
+   "to": "QUALIFIED"
+  },
+  {
+   "t": "CRWD",
+   "change": "new",
+   "to": "QUALIFIED"
+  }
+ ],
  "performance": {
-  "tracked": 0,
+  "tracked": 5,
   "graded": 0,
   "min_n": 30,
   "status": "accruing",
