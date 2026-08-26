@@ -1,0 +1,52 @@
+name: Earnings Vol Backtest
+
+# Historical option-P&L reconstruction for the vol_rich / vol_cheap
+# signal events (Earnings Volatility Alpha Engine, part 2). Runs
+# nightly after the earnings-ideas grading has settled, plus on
+# demand. Incremental: per-event reconstructions cache in
+# data/earnings_vol_pnl.json, so a run only prices new events.
+# trade_qualified in the emitted report is the ONLY thing that can
+# promote a vol type from Qualified Signal to Qualified Trade.
+
+on:
+  schedule:
+    - cron: '45 22 * * 1-5'   # ~6:45 PM ET, after the close + grading
+  workflow_dispatch:
+
+concurrency:
+  group: earnings-vol
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Reconstruct option P&L for graded vol events
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: python earnings_vol_backtest.py
+
+      - name: Publish
+        run: bash scripts/publish_reports.sh

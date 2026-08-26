@@ -1,0 +1,478 @@
+{
+ "generated": "2026-08-26T18:55:09+00:00",
+ "engine_version": "earnings_vol_v1",
+ "types": {
+  "vol_rich": {
+   "n": 102,
+   "span": {
+    "from": "2026-07-21",
+    "to": "2026-08-18"
+   },
+   "ev_vol_pts": 6.87,
+   "med_vol_pts": 6.34,
+   "win": 91,
+   "date_cluster_bootstrap": {
+    "nights": 18,
+    "mean": 6.87,
+    "ci95": [
+     5.87,
+     7.83
+    ]
+   },
+   "move_ratio": {
+    "n": 102,
+    "median": 0.23,
+    "p75": 0.47,
+    "p90": 0.88,
+    "p95": 1.22,
+    "p99": 1.77,
+    "max": 1.79,
+    "inside_050x": 75,
+    "inside_075x": 83,
+    "inside_100x": 91,
+    "blowthrough_10x": 9,
+    "blowthrough_15x": 3,
+    "blowthrough_20x": 0
+   },
+   "tails": {
+    "worst_mv": -5.53,
+    "worst_event": {
+     "ticker": "BIDU",
+     "date": "2026-08-18",
+     "implied": 7.2,
+     "ratio": 1.768
+    },
+    "p5_mv": -2.17,
+    "es95": -3.69,
+    "es99": -5.53,
+    "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
+   },
+   "clustering": {
+    "nights": 18,
+    "events_per_night": {
+     "median": 6,
+     "p90": 8,
+     "max": 10
+    },
+    "crowded_nights_3plus": 15,
+    "joint_blowthrough_nights": 0,
+    "note": "same-night short-vol positions are correlated (one macro tape, sector vol repricing). Position sizing must treat a night, not an event, as the unit."
+   },
+   "decomposition": {
+    "implied_band": {
+     "8-12%": {
+      "n": 33,
+      "ev": 7.08,
+      "med": 7.39,
+      "win": 100
+     },
+     "5-8%": {
+      "n": 22,
+      "ev": 3.36,
+      "med": 5.06,
+      "win": 82
+     },
+     "<5%": {
+      "n": 14,
+      "status": "thin"
+     },
+     ">=12%": {
+      "n": 33,
+      "ev": 10.87,
+      "med": 11.4,
+      "win": 88
+     }
+    },
+    "cap": {
+     "?": {
+      "n": 1,
+      "status": "thin"
+     },
+     ">100B": {
+      "n": 24,
+      "ev": 6.13,
+      "med": 6.18,
+      "win": 92
+     },
+     "10-100B": {
+      "n": 48,
+      "ev": 6.69,
+      "med": 5.85,
+      "win": 96
+     },
+     "1-10B": {
+      "n": 29,
+      "ev": 7.7,
+      "med": 9.55,
+      "win": 83
+     }
+    },
+    "session": {
+     "?": {
+      "n": 1,
+      "status": "thin"
+     },
+     "AMC": {
+      "n": 75,
+      "ev": 8.48,
+      "med": 7.41,
+      "win": 97
+     },
+     "BMO": {
+      "n": 26,
+      "ev": 2.14,
+      "med": 2.27,
+      "win": 73
+     }
+    },
+    "regime": {
+     "mixed": {
+      "n": 43,
+      "ev": 7.1,
+      "med": 6.34,
+      "win": 88
+     },
+     "risk_off": {
+      "n": 28,
+      "ev": 7.08,
+      "med": 6.48,
+      "win": 96
+     },
+     "risk_on": {
+      "n": 31,
+      "ev": 6.37,
+      "med": 5.89,
+      "win": 90
+     }
+    },
+    "sector": {
+     "Industrials": {
+      "n": 4,
+      "status": "thin"
+     },
+     "Financials / Banks": {
+      "n": 6,
+      "status": "thin"
+     },
+     "Energy": {
+      "n": 2,
+      "status": "thin"
+     },
+     "Financials": {
+      "n": 7,
+      "status": "thin"
+     },
+     "Other": {
+      "n": 23,
+      "ev": 6.67,
+      "med": 6.34,
+      "win": 87
+     },
+     "Tech / Software": {
+      "n": 14,
+      "status": "thin"
+     },
+     "Industrials / Machinery": {
+      "n": 1,
+      "status": "thin"
+     },
+     "Consumer / Services": {
+      "n": 3,
+      "status": "thin"
+     },
+     "Industrials / Transport Eq": {
+      "n": 5,
+      "status": "thin"
+     },
+     "Semiconductors": {
+      "n": 8,
+      "status": "thin"
+     },
+     "Utilities": {
+      "n": 3,
+      "status": "thin"
+     },
+     "Materials / Metals": {
+      "n": 2,
+      "status": "thin"
+     },
+     "Consumer / Retail": {
+      "n": 8,
+      "status": "thin"
+     },
+     "Tech / Hardware": {
+      "n": 6,
+      "status": "thin"
+     },
+     "Healthcare / Biotech": {
+      "n": 5,
+      "status": "thin"
+     },
+     "Communications": {
+      "n": 2,
+      "status": "thin"
+     },
+     "Materials / Chemicals": {
+      "n": 2,
+      "status": "thin"
+     },
+     "Healthcare / Services": {
+      "n": 1,
+      "status": "thin"
+     }
+    },
+    "same_night": {
+     ">=3": {
+      "n": 97,
+      "ev": 6.78,
+      "med": 6.32,
+      "win": 91
+     },
+     "1-2": {
+      "n": 5,
+      "status": "thin"
+     }
+    }
+   },
+   "signal_qualified": true,
+   "trade_qualified": false,
+   "trade_qualification_blockers": [
+    "no historical option-chain P&L reconstruction yet (earnings_vol_backtest.py, CI)",
+    "no spread/slippage/fees modeling",
+    "no strategy-level tail analysis (gap through wings)",
+    "no clustered-night portfolio sizing rule"
+   ]
+  },
+  "vol_cheap": {
+   "n": 48,
+   "span": {
+    "from": "2026-07-21",
+    "to": "2026-08-18"
+   },
+   "ev_vol_pts": 2.49,
+   "med_vol_pts": 1.67,
+   "win": 69,
+   "date_cluster_bootstrap": {
+    "nights": 16,
+    "mean": 2.49,
+    "ci95": [
+     0.55,
+     4.57
+    ]
+   },
+   "move_ratio": {
+    "n": 48,
+    "median": 1.84,
+    "p75": 3.1,
+    "p90": 5.25,
+    "p95": 6.28,
+    "p99": 13.43,
+    "max": 13.43,
+    "inside_050x": 19,
+    "inside_075x": 21,
+    "inside_100x": 31,
+    "blowthrough_10x": 69,
+    "blowthrough_15x": 56,
+    "blowthrough_20x": 44
+   },
+   "tails": {
+    "worst_mv": -11.77,
+    "worst_event": {
+     "ticker": "BW",
+     "date": "2026-08-10",
+     "implied": 17.0,
+     "ratio": 0.308
+    },
+    "p5_mv": -7.52,
+    "es95": -9.66,
+    "es99": -11.77,
+    "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
+   },
+   "clustering": {
+    "nights": 16,
+    "events_per_night": {
+     "median": 3,
+     "p90": 6,
+     "max": 9
+    },
+    "crowded_nights_3plus": 8,
+    "joint_blowthrough_nights": 9,
+    "note": "same-night short-vol positions are correlated (one macro tape, sector vol repricing). Position sizing must treat a night, not an event, as the unit."
+   },
+   "decomposition": {
+    "implied_band": {
+     "<5%": {
+      "n": 39,
+      "ev": 3.63,
+      "med": 2.11,
+      "win": 79
+     },
+     "5-8%": {
+      "n": 6,
+      "status": "thin"
+     },
+     ">=12%": {
+      "n": 2,
+      "status": "thin"
+     },
+     "8-12%": {
+      "n": 1,
+      "status": "thin"
+     }
+    },
+    "cap": {
+     "10-100B": {
+      "n": 22,
+      "ev": 2.28,
+      "med": 1.9,
+      "win": 64
+     },
+     ">100B": {
+      "n": 12,
+      "status": "thin"
+     },
+     "1-10B": {
+      "n": 14,
+      "status": "thin"
+     }
+    },
+    "session": {
+     "BMO": {
+      "n": 40,
+      "ev": 2.82,
+      "med": 2.03,
+      "win": 78
+     },
+     "AMC": {
+      "n": 6,
+      "status": "thin"
+     },
+     "TBD": {
+      "n": 2,
+      "status": "thin"
+     }
+    },
+    "regime": {
+     "mixed": {
+      "n": 27,
+      "ev": 2.29,
+      "med": 1.95,
+      "win": 74
+     },
+     "risk_off": {
+      "n": 5,
+      "status": "thin"
+     },
+     "risk_on": {
+      "n": 16,
+      "status": "thin"
+     }
+    },
+    "sector": {
+     "Industrials / Transport Eq": {
+      "n": 2,
+      "status": "thin"
+     },
+     "Other": {
+      "n": 16,
+      "status": "thin"
+     },
+     "Consumer / Food & Bev": {
+      "n": 2,
+      "status": "thin"
+     },
+     "Tech / Software": {
+      "n": 4,
+      "status": "thin"
+     },
+     "Industrials / Machinery": {
+      "n": 6,
+      "status": "thin"
+     },
+     "Consumer / Services": {
+      "n": 1,
+      "status": "thin"
+     },
+     "Industrials": {
+      "n": 1,
+      "status": "thin"
+     },
+     "Healthcare / Biotech": {
+      "n": 3,
+      "status": "thin"
+     },
+     "Financials": {
+      "n": 2,
+      "status": "thin"
+     },
+     "Materials / Chemicals": {
+      "n": 1,
+      "status": "thin"
+     },
+     "Energy": {
+      "n": 2,
+      "status": "thin"
+     },
+     "Utilities": {
+      "n": 3,
+      "status": "thin"
+     },
+     "Financials / Banks": {
+      "n": 1,
+      "status": "thin"
+     },
+     "Consumer / Retail": {
+      "n": 1,
+      "status": "thin"
+     },
+     "Real Estate": {
+      "n": 1,
+      "status": "thin"
+     },
+     "Materials / Metals": {
+      "n": 1,
+      "status": "thin"
+     },
+     "Tech / Hardware": {
+      "n": 1,
+      "status": "thin"
+     }
+    },
+    "same_night": {
+     "1-2": {
+      "n": 11,
+      "status": "thin"
+     },
+     ">=3": {
+      "n": 37,
+      "ev": 2.35,
+      "med": 1.95,
+      "win": 73
+     }
+    }
+   },
+   "signal_qualified": true,
+   "trade_qualified": false,
+   "trade_qualification_blockers": [
+    "no historical option-chain P&L reconstruction yet (earnings_vol_backtest.py, CI)",
+    "no spread/slippage/fees modeling",
+    "no strategy-level tail analysis (gap through wings)",
+    "no clustered-night portfolio sizing rule"
+   ]
+  }
+ },
+ "fair_move_calibration": {
+  "per_type": {
+   "vol_rich": {
+    "median_ratio": 0.23,
+    "n": 102
+   },
+   "vol_cheap": {
+    "median_ratio": 1.84,
+    "n": 48
+   }
+  },
+  "definition": "TickerDesk Fair Move = the ticker's own median |earnings move| across its reported history (earnings_edge realized_med). Volatility Edge = implied - fair. Richness = implied/fair - 1. The per-type median ratios above are the selected-universe calibration context, not a multiplier applied to any displayed number."
+ },
+ "honesty": "Signal-level anatomy only: mv/ratio are underlying-move quantities from the graded idea log; no option was priced, no spread was crossed, no fill was assumed. 'signal_qualified' means the forecast relationship (implied vs realized) holds with a date-cluster bootstrap CI excluding zero. It is NOT a validated trade. trade_qualified stays false until the option P&L reconstruction clears costs and tails."
+}

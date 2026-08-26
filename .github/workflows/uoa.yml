@@ -90,6 +90,7 @@ jobs:
           python trade_desk_validation.py
           python trade_desk_research.py
           python trade_desk_context.py
+          python earnings_vol_engine.py
           python trade_desk.py
 
       - name: Top 25 daily cumulative ranking

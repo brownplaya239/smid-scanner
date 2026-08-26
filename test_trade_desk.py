@@ -441,3 +441,68 @@ def test_expired_preprint_earnings_ideas_rejected(monkeypatch):
     assert "AAA" not in got        # printed yesterday -> dead
     assert "BBB" in got            # prints tonight -> alive
     assert "CCC" in got            # post-print type -> alive
+
+
+# ---------------------------------------- signal vs trade qualification
+
+def _fake_files(vol_sig_qualified, bt_trade_qualified):
+    real_load = td._load
+
+    def fake(path, default):
+        if path.endswith("earnings_ideas.json"):
+            return {"by_type": {"vol_rich": {
+                "status": "active", "n": 102, "win_rate": 91,
+                "ev": 6.87}}}
+        if path.endswith("earnings_vol.json"):
+            return {"types": {"vol_rich": {
+                "signal_qualified": vol_sig_qualified,
+                "date_cluster_bootstrap": {"nights": 18,
+                                           "ci95": [5.87, 7.83]}}}}
+        if path.endswith("earnings_vol_backtest.json"):
+            return ({"types": {"vol_rich": {
+                "trade_qualified": bt_trade_qualified}}}
+                if bt_trade_qualified is not None else {})
+        return real_load(path, default)
+    return fake
+
+
+def test_vol_type_caps_at_signal_qualified_without_backtest(monkeypatch):
+    """A validated implied-vs-realized relationship is a QUALIFIED
+    SIGNAL, never a qualified trade, until the option-P&L
+    reconstruction clears costs and tails."""
+    monkeypatch.setattr(td, "_load", _fake_files(True, None))
+    g = td.family_gates()["earnings"]["types"]["vol_rich"]
+    assert g["verdict"] == "signal_qualified"
+    assert "pending executable validation" in g["why"]
+
+
+def test_vol_type_trade_qualifies_only_via_backtest(monkeypatch):
+    monkeypatch.setattr(td, "_load", _fake_files(True, True))
+    g = td.family_gates()["earnings"]["types"]["vol_rich"]
+    assert g["verdict"] == "trade_qualified"
+
+
+def test_vol_type_without_night_ci_stays_watch(monkeypatch):
+    monkeypatch.setattr(td, "_load", _fake_files(False, None))
+    g = td.family_gates()["earnings"]["types"]["vol_rich"]
+    assert g["verdict"] == "watch"
+
+
+def test_vol_engine_ratio_reconstruction():
+    """ratio = 1 - mv/implied for vol_rich; 1 + mv/implied for cheap."""
+    import earnings_vol_engine as ev
+    # vol_rich: implied 10, |realized| 2.3 -> mv 7.7 -> ratio 0.23
+    assert abs((1 - 7.7 / 10) - 0.23) < 1e-9
+    # vol_cheap: implied 5, |realized| 9 -> mv 4 -> ratio 1.8
+    assert abs((1 + 4 / 5) - 1.8) < 1e-9
+
+
+def test_backtest_defined_risk_cannot_lose_more_than_1R():
+    """Defined-risk ROR floor: pnl >= -risk by construction, so
+    loss_gt_1R must count zero for correctly built structures."""
+    import earnings_vol_backtest as bt
+    recons = [{"event": {"type": "vol_rich", "date": "2026-08-01"},
+               "strategies": {"iron_fly": {"pnl": -500, "risk": 500,
+                                           "ror": -1.0}}}]
+    tbl = bt.strategy_table(recons, "iron_fly")
+    assert tbl["loss_gt_1R"] == 0

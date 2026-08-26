@@ -238,6 +238,66 @@ overprice earnings moves — a defined-risk premium-selling edge).
 Qualified Trades tier at ship; note their EV is in vol-points (edge for
 premium sellers), not stock alpha — the card says so.
 
+## 10c. Earnings Volatility Alpha Engine (2026-08, reviewer-corrected)
+
+**The correction, encoded in the gating ladder:** a validated
+implied-vs-realized relationship is a **QUALIFIED SIGNAL**, not a
+qualified trade — premium selling is exactly where win rate conceals
+negative skew. The ladder is now:
+
+```
+Predictive relationship → OOS validated → SIGNAL QUALIFIED
+  → executable option reconstruction → transaction-cost positive
+  → tail-risk acceptable → TRADE QUALIFIED → paper-forward → CHAMPION
+```
+
+`SIGNAL_QUALIFIED` renders in the top tier with an explicit "trade
+expression pending executable validation" disclaimer; `TRADE_QUALIFIED`
+can only be granted by the backtest report.
+
+**Part 1 — signal anatomy (`earnings_vol_engine.py`, runs every batch,
+local data only).** vol_rich n=102 across **18 event nights** (median 6
+events/night, max 10 — "n=102" is really n≈18 nights; sizing must treat
+a night as the unit): night-cluster bootstrap CI **[+5.87, +7.83]** —
+robust, and regime-insensitive (EV 6.4–7.1 in all three regimes).
+Move-ratio distribution (|realized|/implied): median **0.23×**, p90
+0.88×, p95 1.22×, p99 1.77×, max 1.79×; 83% inside 0.75×, 91% inside
+1.0×, blowthrough >1×: 9%, >2×: 0% — this is what parameterizes condor/
+fly wings (1.5× implied contained ~97% historically). Signal-level tail
+proxy: worst mv −5.53 (ratio 1.77), ES95 −3.69. Decomposition: EV is
+monotone in implied size (≥12% implied → 10.87; 8–12% → 7.08; 5–8% →
+3.36). vol_cheap is the convexity mirror: ratio median **1.84×**, p95
+6.28×, p99 13.4×, CI [+0.55, +4.57] — a long-vol signal. Both types:
+`signal_qualified: true`, `trade_qualified: false`.
+
+**Part 2 — option P&L reconstruction (`earnings_vol_backtest.py`,
+CI nightly via `earnings_vol.yml`).** For every graded event:
+expired-chain reference as-of entry, nearest post-print expiry, legs
+priced from daily aggregates, base-case cost model (5% slippage/side/
+leg + $0.65/contract), entry = last close before the print, exit =
+first close after. Strategies: short straddle (undefined-risk,
+diagnostic only — can never qualify anything), iron fly (wings 1.5×
+implied), iron condor (shorts 0.75×, wings 1.5×), long straddle for
+vol_cheap. Report: n, win, avg/med ROR, PF, worst, p5/ES95/ES99,
+**expected log-growth**, loss>1R frequency, night-cluster CI on ROR.
+`trade_qualified` requires ALL of: n≥60, avg ROR>0, night-CI low>0,
+PF≥1.3, log-growth>0, loss>1R = 0. Smoke test (n=3) already showed the
+forecast/monetization gap: an EQT signal "win" lost 73% of risk as an
+iron fly after costs. Full 189-event reconstruction runs in CI.
+
+**TickerDesk Fair Move** now renders on earnings cards: Market implied
+±X% vs Fair Move ±Y% (ticker's own median |earnings move|, analogue
+count shown), Volatility Edge (pp), Richness (%), and stance (SELL VOL
+/ BUY VOL). Nothing is a multiplier on a model guess — fair move is the
+ticker's measured history.
+
+**Not done yet, deliberately:** cross-strategy R-normalization (waits
+for real trade-level P&L per the review), IV-percentile/skew/term-
+structure decomposition (no historical IV surface in the record —
+`trade_desk_context.py` now logs implied-move context forward), and
+portfolio max-simultaneous-exposure sizing (needs the reconstruction's
+same-night covariance; the clustering block carries the inputs).
+
 ## 11. What would make this product succeed
 
 The moat is the growing point-in-time record + honest gates, not the LLM.

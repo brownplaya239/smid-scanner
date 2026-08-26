@@ -140,20 +140,51 @@ def family_gates():
 
     ei = _load(R("docs", "reports", "earnings_ideas.json"), {})
     by_type = ei.get("by_type") or {}
+    # Gating ladder for vol types (reviewer-corrected): a validated
+    # implied-vs-realized relationship is a QUALIFIED SIGNAL, not a
+    # qualified trade — premium selling is where win rate conceals
+    # negative skew. trade_qualified requires the option-P&L
+    # reconstruction backtest to clear costs and tails.
+    vol = _load(R("docs", "reports", "earnings_vol.json"), {})
+    vol_types = vol.get("types") or {}
+    bt = _load(R("docs", "reports", "earnings_vol_backtest.json"), {})
     ern = {}
     for t, st in by_type.items():
-        # mv units differ by idea type: vol_* grade implied-vs-realized
-        # (vol-points, a premium-SELLING edge); drift/momentum grade
-        # price moves (percentage points). Say which, on the card.
         unit = "vol-pts" if t.startswith("vol_") else "pp"
         if st.get("status") != "active" or st.get("n", 0) < MIN_N:
             ern[t] = {"verdict": "watch", "why": "accruing",
                       "evidence": st}
         elif (st.get("ev") or 0) > 0:
-            ern[t] = {"verdict": "qualified",
-                      "why": (f"measured EV {st['ev']:+.2f} {unit} · "
-                              f"{st.get('win_rate')}% win · n={st['n']}"),
-                      "evidence": st}
+            if t.startswith("vol_"):
+                vt = vol_types.get(t) or {}
+                boot = vt.get("date_cluster_bootstrap") or {}
+                if (bt.get("types", {}).get(t, {})
+                        .get("trade_qualified")):
+                    verdict, note = "trade_qualified", \
+                        "option-P&L reconstruction cleared costs + tails"
+                elif vt.get("signal_qualified"):
+                    verdict = "signal_qualified"
+                    ci = boot.get("ci95") or []
+                    note = (f"night-cluster CI {ci} on "
+                            f"{boot.get('nights')} nights — trade "
+                            "expression pending executable validation")
+                else:
+                    verdict, note = "watch", \
+                        "signal CI not yet excluding zero at night level"
+                ern[t] = {"verdict": verdict,
+                          "why": (f"measured EV {st['ev']:+.2f} {unit} · "
+                                  f"{st.get('win_rate')}% win · "
+                                  f"n={st['n']} · {note}"),
+                          "evidence": st, "vol": vt and {
+                              "bootstrap": boot,
+                              "move_ratio": vt.get("move_ratio"),
+                              "tails": vt.get("tails")} or None}
+            else:
+                ern[t] = {"verdict": "qualified",
+                          "why": (f"measured EV {st['ev']:+.2f} {unit} · "
+                                  f"{st.get('win_rate')}% win · "
+                                  f"n={st['n']}"),
+                          "evidence": st}
         else:
             ern[t] = {"verdict": "degraded",
                       "why": (f"measured EV {st['ev']:+.2f} {unit} "
@@ -268,6 +299,10 @@ def _earnings_candidates(now):
     if not _fresh(d, now, 48):
         REJECT["STALE_DATA"] += len(d.get("ideas") or [])
         return []
+    # n_reports (analogue count for Fair Move) lives in earnings_edge
+    edge = _load(R("docs", "reports", "earnings_edge.json"), {})
+    n_reports = {r.get("t"): r.get("n_reports")
+                 for r in edge.get("names") or []}
     out = []
     today = now.astimezone(timezone(timedelta(hours=-4))).date()
     for i in d.get("ideas") or []:
@@ -288,10 +323,13 @@ def _earnings_candidates(now):
                 continue
         bias = i.get("bias")
         direction = {"bull": "bullish", "bear": "bearish"}.get(bias)
+        idea = dict(i)
+        if idea.get("n_reports") is None:
+            idea["n_reports"] = n_reports.get(i.get("t"))
         out.append({
             "family": "earnings", "ticker": i.get("t"),
             "direction": direction or "neutral",
-            "etype": i.get("type"), "idea": i,
+            "etype": i.get("type"), "idea": idea,
             "catalyst": "earnings",
         })
     return out
@@ -389,7 +427,7 @@ def construct(c):
         }
     if c["family"] == "earnings":
         i = c["idea"]
-        return {
+        out = {
             "expression": "per_thesis",
             "implied_move": i.get("implied"),
             "realized_median": i.get("realized_med"),
@@ -397,6 +435,22 @@ def construct(c):
             "event_date": i.get("date"),
             "option_mark": None,
         }
+        # TickerDesk Fair Move — the ticker's own median |earnings
+        # move| across its reported history. Volatility Edge and
+        # Richness derive from it; the vol stance states WHICH side
+        # the measured edge favors. Displayed only when both legs
+        # exist — never computed from a guess.
+        imp, fair = i.get("implied"), i.get("realized_med")
+        if imp and fair and fair > 0:
+            out["fair_move"] = fair
+            out["vol_edge_pp"] = round(imp - fair, 1)
+            out["richness_pct"] = round(100 * (imp / fair - 1))
+            out["analogues"] = i.get("n_reports")
+        if c.get("etype") == "vol_rich":
+            out["vol_stance"] = "SELL VOL"
+        elif c.get("etype") == "vol_cheap":
+            out["vol_stance"] = "BUY VOL"
+        return out
     return {"expression": "underlying", "option_mark": None}
 
 
@@ -635,6 +689,8 @@ def run(dry=False, do_grade=True):
             g = (gates["earnings"]["types"].get(c.get("etype")) or
                  {"verdict": "watch", "why": "accruing"})
             status = {"qualified": "QUALIFIED",
+                      "trade_qualified": "TRADE_QUALIFIED",
+                      "signal_qualified": "SIGNAL_QUALIFIED",
                       "degraded": "EXPERIMENTAL"}.get(g["verdict"],
                                                       "WATCH")
             gate_why = g["why"]
@@ -673,7 +729,9 @@ def run(dry=False, do_grade=True):
 
     display.sort(key=lambda x: (x["alpha_score"] is None,
                                 -(x["alpha_score"] or 0)))
-    top = [i for i in display if i["status"] == "QUALIFIED"][:MAX_IDEAS]
+    TOP_STATUSES = ("TRADE_QUALIFIED", "QUALIFIED", "SIGNAL_QUALIFIED")
+    top = [i for i in display
+           if i["status"] in TOP_STATUSES][:MAX_IDEAS]
     watch = [i for i in display if i["status"] == "WATCH"][:MAX_WATCH]
     experimental = [i for i in display
                     if i["status"] == "EXPERIMENTAL"][:MAX_WATCH]
