@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-26T19:01:50+00:00",
+ "generated": "2026-08-26T19:13:10+00:00",
  "bt_version": "vol_backtest_v1",
  "fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
  "params": {
@@ -8,56 +8,68 @@
   "slip_pct": 0.05,
   "fee": 0.65
  },
- "reconstructed": 3,
+ "reconstructed": 161,
  "skipped": {
-  "no_entry_px_wing_put": 1
+  "no_entry_px_wing_put": 10,
+  "no_entry_px_cnd_put": 3,
+  "no_entry_px_wing_call": 4,
+  "no_entry_px_cnd_call": 1,
+  "no_entry_px_atm_put": 1,
+  "no_entry_px_atm_call": 1,
+  "no_session_bracket": 8
  },
  "types": {
   "vol_rich": {
    "strategies": {
     "short_straddle": {
-     "n": 2,
-     "win": 50,
-     "avg_pnl_1lot": 108.0,
-     "profit_factor": 2.03,
-     "worst_pnl": -211.0
+     "n": 105,
+     "win": 56,
+     "avg_pnl_1lot": -126.0,
+     "profit_factor": 0.62,
+     "worst_pnl": -5638.0
     },
     "iron_fly": {
-     "n": 2,
-     "win": 50,
-     "avg_pnl_1lot": 120.0,
-     "profit_factor": 2.8,
-     "worst_pnl": -133.0,
-     "avg_ror": -0.225,
-     "med_ror": -0.225,
-     "p5_ror": -0.731,
-     "es95_ror": -0.731,
-     "es99_ror": -0.731,
-     "worst_ror": -0.731,
-     "loss_gt_1R": 0,
-     "exp_log_growth": -0.5323,
+     "n": 105,
+     "win": 47,
+     "avg_pnl_1lot": -154.0,
+     "profit_factor": 0.48,
+     "worst_pnl": -5391.0,
+     "avg_ror": -0.105,
+     "med_ror": -0.057,
+     "p5_ror": -1.018,
+     "es95_ror": -1.286,
+     "es99_ror": -1.745,
+     "worst_ror": -1.745,
+     "loss_gt_1R": 5,
+     "exp_log_growth": -0.5581,
      "night_bootstrap_ror": {
-      "status": "insufficient_nights",
-      "nights": 1
+      "nights": 22,
+      "ci95": [
+       -0.182,
+       -0.027
+      ]
      }
     },
     "iron_condor": {
-     "n": 2,
-     "win": 50,
-     "avg_pnl_1lot": 10.0,
-     "profit_factor": 1.14,
-     "worst_pnl": -141.0,
-     "avg_ror": -0.385,
-     "med_ror": -0.385,
-     "p5_ror": -0.973,
-     "es95_ror": -0.973,
-     "es99_ror": -0.973,
-     "worst_ror": -0.973,
-     "loss_gt_1R": 0,
-     "exp_log_growth": -1.7078,
+     "n": 105,
+     "win": 55,
+     "avg_pnl_1lot": -56.0,
+     "profit_factor": 0.63,
+     "worst_pnl": -3716.0,
+     "avg_ror": -0.07,
+     "med_ror": 0.05,
+     "p5_ror": -1.014,
+     "es95_ror": -1.186,
+     "es99_ror": -1.684,
+     "worst_ror": -1.684,
+     "loss_gt_1R": 5,
+     "exp_log_growth": -0.4928,
      "night_bootstrap_ror": {
-      "status": "insufficient_nights",
-      "nights": 1
+      "nights": 22,
+      "ci95": [
+       -0.141,
+       -0.008
+      ]
      }
     }
    },
@@ -75,22 +87,25 @@
   "vol_cheap": {
    "strategies": {
     "long_straddle": {
-     "n": 1,
-     "win": 0,
-     "avg_pnl_1lot": -111.0,
-     "profit_factor": 0.0,
-     "worst_pnl": -111.0,
-     "avg_ror": -0.209,
-     "med_ror": -0.209,
-     "p5_ror": -0.209,
-     "es95_ror": -0.209,
-     "es99_ror": -0.209,
-     "worst_ror": -0.209,
+     "n": 56,
+     "win": 29,
+     "avg_pnl_1lot": -115.0,
+     "profit_factor": 0.46,
+     "worst_pnl": -1573.0,
+     "avg_ror": -0.155,
+     "med_ror": -0.23,
+     "p5_ror": -0.878,
+     "es95_ror": -0.908,
+     "es99_ror": -0.938,
+     "worst_ror": -0.938,
      "loss_gt_1R": 0,
-     "exp_log_growth": -0.2341,
+     "exp_log_growth": -0.372,
      "night_bootstrap_ror": {
-      "status": "insufficient_nights",
-      "nights": 1
+      "nights": 21,
+      "ci95": [
+       -0.306,
+       0.031
+      ]
      }
     }
    },

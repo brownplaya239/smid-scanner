@@ -95,5 +95,4808 @@
 "session": "BMO"
 },
 "bt_version": "vol_backtest_v1"
+},
+"MMM|2026-07-21|vol_cheap": {
+"entry_date": "2026-07-20",
+"exit_date": "2026-07-21",
+"spot": 159.11,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 125.0,
+"risk": 937.0,
+"ror": 0.1333
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "MMM",
+"date": "2026-07-21",
+"implied": 3.8,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"SCHW|2026-07-21|vol_rich": {
+"entry_date": "2026-07-20",
+"exit_date": "2026-07-21",
+"spot": 102.54,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 67.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -48.0,
+"risk": 218.0,
+"ror": -0.2218
+},
+"iron_condor": {
+"pnl": 11.0,
+"risk": 106.0,
+"ror": 0.107
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "SCHW",
+"date": "2026-07-21",
+"implied": 2.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"GEV|2026-07-22|vol_rich": {
+"entry_date": "2026-07-21",
+"exit_date": "2026-07-22",
+"spot": 1078.81,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -1372.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -1828.0,
+"risk": 9304.0,
+"ror": -0.1965
+},
+"iron_condor": {
+"pnl": 29.0,
+"risk": 6397.0,
+"ror": 0.0046
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "GEV",
+"date": "2026-07-22",
+"implied": 10.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"GOOG|2026-07-22|vol_rich": {
+"entry_date": "2026-07-22",
+"exit_date": "2026-07-23",
+"spot": 341.91,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -596.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -731.0,
+"risk": 2022.0,
+"ror": -0.3616
+},
+"iron_condor": {
+"pnl": -63.0,
+"risk": 1576.0,
+"ror": -0.0398
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "GOOG",
+"date": "2026-07-22",
+"implied": 7.4,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"GOOGL|2026-07-22|vol_rich": {
+"entry_date": "2026-07-22",
+"exit_date": "2026-07-23",
+"spot": 342.09,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -640.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -774.0,
+"risk": 2218.0,
+"ror": -0.3489
+},
+"iron_condor": {
+"pnl": -168.0,
+"risk": 1584.0,
+"ror": -0.106
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "GOOGL",
+"date": "2026-07-22",
+"implied": 7.7,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CME|2026-07-22|vol_rich": {
+"entry_date": "2026-07-21",
+"exit_date": "2026-07-22",
+"spot": 237.38,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -619.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -577.0,
+"risk": 385.0,
+"ror": -1.498
+},
+"iron_condor": {
+"pnl": -187.0,
+"risk": 270.0,
+"ror": -0.6924
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CME",
+"date": "2026-07-22",
+"implied": 2.8,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CSX|2026-07-22|vol_rich": {
+"entry_date": "2026-07-22",
+"exit_date": "2026-07-23",
+"spot": 49.93,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -96.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -128.0,
+"risk": 320.0,
+"ror": -0.3983
+},
+"iron_condor": {
+"pnl": -110.0,
+"risk": 268.0,
+"ror": -0.4092
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CSX",
+"date": "2026-07-22",
+"implied": 6.4,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"IBM|2026-07-22|vol_rich": {
+"entry_date": "2026-07-22",
+"exit_date": "2026-07-23",
+"spot": 205.77,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 845.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 718.0,
+"risk": 2041.0,
+"ror": 0.3516
+},
+"iron_condor": {
+"pnl": 228.0,
+"risk": 1518.0,
+"ror": 0.1504
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "IBM",
+"date": "2026-07-22",
+"implied": 10.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"LVS|2026-07-22|vol_rich": {
+"entry_date": "2026-07-22",
+"exit_date": "2026-07-23",
+"spot": 45.25,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 173.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 157.0,
+"risk": 589.0,
+"ror": 0.2659
+},
+"iron_condor": {
+"pnl": 31.0,
+"risk": 412.0,
+"ror": 0.0755
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "LVS",
+"date": "2026-07-22",
+"implied": 13.4,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"NOW|2026-07-22|vol_rich": {
+"entry_date": "2026-07-22",
+"exit_date": "2026-07-23",
+"spot": 95.46,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 619.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 509.0,
+"risk": 1062.0,
+"ror": 0.4791
+},
+"iron_condor": {
+"pnl": 253.0,
+"risk": 833.0,
+"ror": 0.3037
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "NOW",
+"date": "2026-07-22",
+"implied": 13.7,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"PM|2026-07-22|vol_cheap": {
+"entry_date": "2026-07-21",
+"exit_date": "2026-07-22",
+"spot": 188.04,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -296.0,
+"risk": 1067.0,
+"ror": -0.2774
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "PM",
+"date": "2026-07-22",
+"implied": 2.6,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"TSLA|2026-07-22|vol_rich": {
+"entry_date": "2026-07-22",
+"exit_date": "2026-07-23",
+"spot": 374.01,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -3707.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -3086.0,
+"risk": 3010.0,
+"ror": -1.0253
+},
+"iron_condor": {
+"pnl": -2028.0,
+"risk": 2080.0,
+"ror": -0.975
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "TSLA",
+"date": "2026-07-22",
+"implied": 8.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"TXN|2026-07-22|vol_rich": {
+"entry_date": "2026-07-22",
+"exit_date": "2026-07-23",
+"spot": 294.19,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 1248.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 1029.0,
+"risk": 2582.0,
+"ror": 0.3985
+},
+"iron_condor": {
+"pnl": 583.0,
+"risk": 1860.0,
+"ror": 0.3134
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "TXN",
+"date": "2026-07-22",
+"implied": 11.4,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"NOW|2026-07-22|vol_cheap": {
+"entry_date": "2026-07-22",
+"exit_date": "2026-07-23",
+"spot": 95.46,
+"expiry": "2026-07-24",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -775.0,
+"risk": 1162.0,
+"ror": -0.6674
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "NOW",
+"date": "2026-07-22",
+"implied": 7.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BE|2026-07-28|vol_rich": {
+"entry_date": "2026-07-28",
+"exit_date": "2026-07-29",
+"spot": 166.84,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 1603.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 1360.0,
+"risk": 4317.0,
+"ror": 0.3152
+},
+"iron_condor": {
+"pnl": 474.0,
+"risk": 3124.0,
+"ror": 0.1516
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "BE",
+"date": "2026-07-28",
+"implied": 31.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CNC|2026-07-28|vol_rich": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 64.08,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 262.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 217.0,
+"risk": 595.0,
+"ror": 0.364
+},
+"iron_condor": {
+"pnl": 115.0,
+"risk": 464.0,
+"ror": 0.2474
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CNC",
+"date": "2026-07-28",
+"implied": 11.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"APLD|2026-07-27|vol_rich": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 26.375,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 110.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 64.0,
+"risk": 329.0,
+"ror": 0.1955
+},
+"iron_condor": {
+"pnl": 41.0,
+"risk": 248.0,
+"ror": 0.1662
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "APLD",
+"date": "2026-07-27",
+"implied": 15.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"NVTS|2026-07-27|vol_rich": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 11.41,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -14.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -38.0,
+"risk": 149.0,
+"ror": -0.2561
+},
+"iron_condor": {
+"pnl": -8.0,
+"risk": 108.0,
+"ror": -0.0713
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "NVTS",
+"date": "2026-07-27",
+"implied": 17.7,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"SYM|2026-07-27|vol_cheap": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 41.49,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 46.0,
+"risk": 301.0,
+"ror": 0.1526
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "SYM",
+"date": "2026-07-27",
+"implied": 6.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BA|2026-07-28|vol_rich": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 211.5,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -136.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -165.0,
+"risk": 858.0,
+"ror": -0.1926
+},
+"iron_condor": {
+"pnl": -85.0,
+"risk": 504.0,
+"ror": -0.1679
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "BA",
+"date": "2026-07-28",
+"implied": 5.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CAR|2026-07-28|vol_rich": {
+"skip": "no_entry_px_wing_put",
+"event": {
+"type": "vol_rich",
+"ticker": "CAR",
+"date": "2026-07-28",
+"implied": 10.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CZR|2026-07-28|vol_cheap": {
+"entry_date": "2026-07-28",
+"exit_date": "2026-07-29",
+"spot": 29.95,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -39.0,
+"risk": 74.0,
+"ror": -0.5281
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CZR",
+"date": "2026-07-28",
+"implied": 1.3,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BA|2026-07-28|vol_cheap": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 211.5,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -98.0,
+"risk": 1196.0,
+"ror": -0.0822
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BA",
+"date": "2026-07-28",
+"implied": 3.2,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CARR|2026-07-28|vol_cheap": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 69.33,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -456.0,
+"risk": 486.0,
+"ror": -0.9382
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CARR",
+"date": "2026-07-28",
+"implied": 3.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"EA|2026-07-28|vol_cheap": {
+"entry_date": "2026-07-28",
+"exit_date": "2026-07-29",
+"spot": 208.87,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -5.0,
+"risk": 122.0,
+"ror": -0.0377
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "EA",
+"date": "2026-07-28",
+"implied": 0.6,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"EPD|2026-07-28|vol_rich": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 38.12,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -36.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -44.0,
+"risk": 151.0,
+"ror": -0.2933
+},
+"iron_condor": {
+"pnl": -6.0,
+"risk": 90.0,
+"ror": -0.0717
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "EPD",
+"date": "2026-07-28",
+"implied": 4.0,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"F|2026-07-28|vol_rich": {
+"entry_date": "2026-07-28",
+"exit_date": "2026-07-29",
+"spot": 14.96,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 29.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 18.0,
+"risk": 124.0,
+"ror": 0.1416
+},
+"iron_condor": {
+"pnl": 5.0,
+"risk": 88.0,
+"ror": 0.0611
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "F",
+"date": "2026-07-28",
+"implied": 7.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"GLW|2026-07-28|vol_rich": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 143.36,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -525.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -494.0,
+"risk": 701.0,
+"ror": -0.7055
+},
+"iron_condor": {
+"pnl": -387.0,
+"risk": 563.0,
+"ror": -0.6872
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "GLW",
+"date": "2026-07-28",
+"implied": 7.9,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"GSK|2026-07-28|vol_cheap": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 51.98,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 72.0,
+"risk": 292.0,
+"ror": 0.2475
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "GSK",
+"date": "2026-07-28",
+"implied": 2.3,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"JBLU|2026-07-28|vol_cheap": {
+"entry_date": "2026-07-27",
+"exit_date": "2026-07-28",
+"spot": 5.43,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -1.0,
+"risk": 56.0,
+"ror": -0.0206
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "JBLU",
+"date": "2026-07-28",
+"implied": 5.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ADP|2026-07-29|vol_rich": {
+"entry_date": "2026-07-28",
+"exit_date": "2026-07-29",
+"spot": 264.17,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 22.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -33.0,
+"risk": 862.0,
+"ror": -0.0386
+},
+"iron_condor": {
+"pnl": 51.0,
+"risk": 416.0,
+"ror": 0.1233
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ADP",
+"date": "2026-07-29",
+"implied": 4.2,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AEM|2026-07-29|vol_rich": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 144.43,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 56.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -44.0,
+"risk": 543.0,
+"ror": -0.0808
+},
+"iron_condor": {
+"pnl": -45.0,
+"risk": 348.0,
+"ror": -0.1305
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AEM",
+"date": "2026-07-29",
+"implied": 4.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ALGN|2026-07-29|vol_rich": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 180.08,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 1016.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 474.0,
+"risk": 1200.0,
+"ror": 0.3947
+},
+"iron_condor": {
+"pnl": 442.0,
+"risk": 764.0,
+"ror": 0.5781
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ALGN",
+"date": "2026-07-29",
+"implied": 8.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AR|2026-07-29|vol_rich": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 35.14,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 74.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 45.0,
+"risk": 166.0,
+"ror": 0.2719
+},
+"iron_condor": {
+"pnl": 24.0,
+"risk": 116.0,
+"ror": 0.2086
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AR",
+"date": "2026-07-29",
+"implied": 5.7,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ARM|2026-07-29|vol_rich": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 224.89,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 623.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 293.0,
+"risk": 1827.0,
+"ror": 0.1606
+},
+"iron_condor": {
+"pnl": 230.0,
+"risk": 1331.0,
+"ror": 0.173
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ARM",
+"date": "2026-07-29",
+"implied": 12.0,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AUR|2026-07-29|vol_rich": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 5.98,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 31.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 21.0,
+"risk": 51.0,
+"ror": 0.4122
+},
+"iron_condor": {
+"pnl": 8.0,
+"risk": 37.0,
+"ror": 0.2147
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AUR",
+"date": "2026-07-29",
+"implied": 11.7,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CMG|2026-07-29|vol_rich": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 34.24,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -245.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -250.0,
+"risk": 268.0,
+"ror": -0.9318
+},
+"iron_condor": {
+"pnl": -135.0,
+"risk": 184.0,
+"ror": -0.7352
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CMG",
+"date": "2026-07-29",
+"implied": 8.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CVNA|2026-07-29|vol_rich": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 66.32,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 158.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 145.0,
+"risk": 2028.0,
+"ror": 0.0715
+},
+"iron_condor": {
+"pnl": 58.0,
+"risk": 1335.0,
+"ror": 0.0433
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CVNA",
+"date": "2026-07-29",
+"implied": 28.1,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"EOSE|2026-07-29|vol_cheap": {
+"entry_date": "2026-07-28",
+"exit_date": "2026-07-29",
+"spot": 3.37,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -6.0,
+"risk": 45.0,
+"ror": -0.1289
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "EOSE",
+"date": "2026-07-29",
+"implied": 12.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AAPL|2026-07-30|vol_rich": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 333.43,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -1249.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -956.0,
+"risk": 976.0,
+"ror": -0.9795
+},
+"iron_condor": {
+"pnl": -661.0,
+"risk": 652.0,
+"ror": -1.015
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AAPL",
+"date": "2026-07-30",
+"implied": 3.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AG|2026-07-30|vol_cheap": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 15.22,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -45.0,
+"risk": 112.0,
+"ror": -0.407
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "AG",
+"date": "2026-07-30",
+"implied": 3.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AMZN|2026-07-30|vol_rich": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 235.5,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -2036.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -2063.0,
+"risk": 1807.0,
+"ror": -1.142
+},
+"iron_condor": {
+"pnl": -1394.0,
+"risk": 1293.0,
+"ror": -1.078
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AMZN",
+"date": "2026-07-30",
+"implied": 10.1,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AXTI|2026-07-30|vol_rich": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 46.94,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -646.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -686.0,
+"risk": 1006.0,
+"ror": -0.682
+},
+"iron_condor": {
+"pnl": -353.0,
+"risk": 701.0,
+"ror": -0.5032
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AXTI",
+"date": "2026-07-30",
+"implied": 24.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BAX|2026-07-30|vol_cheap": {
+"skip": "no_entry_px_cnd_put",
+"event": {
+"type": "vol_cheap",
+"ticker": "BAX",
+"date": "2026-07-30",
+"implied": 3.3,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BIIB|2026-07-30|vol_rich": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 209.23,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 179.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -46.0,
+"risk": 996.0,
+"ror": -0.0462
+},
+"iron_condor": {
+"pnl": 88.0,
+"risk": 425.0,
+"ror": 0.2077
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "BIIB",
+"date": "2026-07-30",
+"implied": 2.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BMY|2026-07-30|vol_cheap": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 63.1,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -78.0,
+"risk": 278.0,
+"ror": -0.2815
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BMY",
+"date": "2026-07-30",
+"implied": 1.6,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BUD|2026-07-30|vol_cheap": {
+"entry_date": "2026-07-29",
+"exit_date": "2026-07-30",
+"spot": 84.87,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -341.0,
+"risk": 463.0,
+"ror": -0.7362
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BUD",
+"date": "2026-07-30",
+"implied": 1.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CI|2026-07-30|vol_cheap": {
+"skip": "no_entry_px_cnd_put",
+"event": {
+"type": "vol_cheap",
+"ticker": "CI",
+"date": "2026-07-30",
+"implied": 1.9,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ARES|2026-07-30|vol_rich": {
+"skip": "no_entry_px_wing_put",
+"event": {
+"type": "vol_rich",
+"ticker": "ARES",
+"date": "2026-07-30",
+"implied": 4.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CRH|2026-07-30|vol_cheap": {
+"skip": "no_entry_px_wing_call",
+"event": {
+"type": "vol_cheap",
+"ticker": "CRH",
+"date": "2026-07-30",
+"implied": 1.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ABBV|2026-07-31|vol_cheap": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 257.41,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -450.0,
+"risk": 904.0,
+"ror": -0.4972
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "ABBV",
+"date": "2026-07-31",
+"implied": 0.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CBOE|2026-07-31|vol_cheap": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 296.52,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -824.0,
+"risk": 1445.0,
+"ror": -0.5703
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CBOE",
+"date": "2026-07-31",
+"implied": 0.6,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CCJ|2026-07-31|vol_cheap": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 88.23,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -208.0,
+"risk": 415.0,
+"ror": -0.5018
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CCJ",
+"date": "2026-07-31",
+"implied": 0.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CL|2026-07-31|vol_cheap": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 91.6,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -224.0,
+"risk": 276.0,
+"ror": -0.8122
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CL",
+"date": "2026-07-31",
+"implied": 0.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CVX|2026-07-31|vol_cheap": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 192.31,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -13.0,
+"risk": 478.0,
+"ror": -0.0269
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CVX",
+"date": "2026-07-31",
+"implied": 0.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ETN|2026-07-31|vol_cheap": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 386.89,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -18.0,
+"risk": 2127.0,
+"ror": -0.0084
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "ETN",
+"date": "2026-07-31",
+"implied": 1.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"MRNA|2026-07-31|vol_cheap": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 57.92,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -242.0,
+"risk": 465.0,
+"ror": -0.519
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "MRNA",
+"date": "2026-07-31",
+"implied": 2.0,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"SONY|2026-07-31|vol_cheap": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 22.77,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -89.0,
+"risk": 118.0,
+"ror": -0.7531
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "SONY",
+"date": "2026-07-31",
+"implied": 0.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"XOM|2026-07-31|vol_cheap": {
+"entry_date": "2026-07-30",
+"exit_date": "2026-07-31",
+"spot": 156.97,
+"expiry": "2026-07-31",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -227.0,
+"risk": 384.0,
+"ror": -0.5922
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "XOM",
+"date": "2026-07-31",
+"implied": 0.6,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AES|2026-08-03|vol_cheap": {
+"entry_date": "2026-08-03",
+"exit_date": "2026-08-04",
+"spot": 14.71,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -7.0,
+"risk": 31.0,
+"ror": -0.2378
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "AES",
+"date": "2026-08-03",
+"implied": 2.0,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ARES|2026-07-31|vol_rich": {
+"skip": "no_entry_px_wing_call",
+"event": {
+"type": "vol_rich",
+"ticker": "ARES",
+"date": "2026-07-31",
+"implied": 6.3,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ECHO|2026-08-03|vol_rich": {
+"skip": "no_entry_px_wing_put",
+"event": {
+"type": "vol_rich",
+"ticker": "ECHO",
+"date": "2026-08-03",
+"implied": 10.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"GRAB|2026-08-03|vol_rich": {
+"entry_date": "2026-08-03",
+"exit_date": "2026-08-04",
+"spot": 3.67,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 5.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -4.0,
+"risk": 27.0,
+"ror": -0.1468
+},
+"iron_condor": {
+"pnl": -1.0,
+"risk": 46.0,
+"ror": -0.0196
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "GRAB",
+"date": "2026-08-03",
+"implied": 8.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"MAR|2026-08-03|vol_rich": {
+"entry_date": "2026-07-31",
+"exit_date": "2026-08-03",
+"spot": 372.83,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -489.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -432.0,
+"risk": 1295.0,
+"ror": -0.334
+},
+"iron_condor": {
+"pnl": -876.0,
+"risk": 1049.0,
+"ror": -0.8351
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "MAR",
+"date": "2026-08-03",
+"implied": 5.0,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ON|2026-08-03|vol_rich": {
+"entry_date": "2026-08-03",
+"exit_date": "2026-08-04",
+"spot": 80.4,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 308.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 222.0,
+"risk": 796.0,
+"ror": 0.2789
+},
+"iron_condor": {
+"pnl": 131.0,
+"risk": 571.0,
+"ror": 0.2298
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ON",
+"date": "2026-08-03",
+"implied": 12.6,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"VRTX|2026-08-03|vol_rich": {
+"entry_date": "2026-08-03",
+"exit_date": "2026-08-04",
+"spot": 470.72,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 1003.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 660.0,
+"risk": 2309.0,
+"ror": 0.2858
+},
+"iron_condor": {
+"pnl": 381.0,
+"risk": 1811.0,
+"ror": 0.2105
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "VRTX",
+"date": "2026-08-03",
+"implied": 6.2,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"WMB|2026-08-03|vol_rich": {
+"entry_date": "2026-08-03",
+"exit_date": "2026-08-04",
+"spot": 70.43,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 1.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -10.0,
+"risk": 351.0,
+"ror": -0.028
+},
+"iron_condor": {
+"pnl": 7.0,
+"risk": 234.0,
+"ror": 0.031
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "WMB",
+"date": "2026-08-03",
+"implied": 4.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"GTM|2026-08-03|vol_rich": {
+"skip": "no_entry_px_wing_put",
+"event": {
+"type": "vol_rich",
+"ticker": "GTM",
+"date": "2026-08-03",
+"implied": 19.6,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"PLTR|2026-08-03|vol_rich": {
+"entry_date": "2026-08-03",
+"exit_date": "2026-08-04",
+"spot": 125.65,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -2444.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -1352.0,
+"risk": 1328.0,
+"ror": -1.0181
+},
+"iron_condor": {
+"pnl": -946.0,
+"risk": 933.0,
+"ror": -1.0135
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "PLTR",
+"date": "2026-08-03",
+"implied": 13.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"SNAP|2026-08-03|vol_rich": {
+"entry_date": "2026-08-03",
+"exit_date": "2026-08-04",
+"spot": 5.04,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -3.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -15.0,
+"risk": 81.0,
+"ror": -0.1893
+},
+"iron_condor": {
+"pnl": -7.0,
+"risk": 70.0,
+"ror": -0.1
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "SNAP",
+"date": "2026-08-03",
+"implied": 17.2,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ALAB|2026-08-04|vol_rich": {
+"entry_date": "2026-08-04",
+"exit_date": "2026-08-05",
+"spot": 361.67,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 1030.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 337.0,
+"risk": 3765.0,
+"ror": 0.0895
+},
+"iron_condor": {
+"pnl": 196.0,
+"risk": 2867.0,
+"ror": 0.0685
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ALAB",
+"date": "2026-08-04",
+"implied": 15.2,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AMD|2026-08-04|vol_rich": {
+"entry_date": "2026-08-04",
+"exit_date": "2026-08-05",
+"spot": 518.58,
+"expiry": "2026-08-05",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 552.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 133.0,
+"risk": 5250.0,
+"ror": 0.0254
+},
+"iron_condor": {
+"pnl": 750.0,
+"risk": 3492.0,
+"ror": 0.2149
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AMD",
+"date": "2026-08-04",
+"implied": 11.2,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ANET|2026-08-04|vol_rich": {
+"entry_date": "2026-08-04",
+"exit_date": "2026-08-05",
+"spot": 190.51,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 664.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 468.0,
+"risk": 1807.0,
+"ror": 0.2588
+},
+"iron_condor": {
+"pnl": 328.0,
+"risk": 1282.0,
+"ror": 0.2558
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ANET",
+"date": "2026-08-04",
+"implied": 12.0,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"APO|2026-08-04|vol_rich": {
+"entry_date": "2026-08-03",
+"exit_date": "2026-08-04",
+"spot": 129.42,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -11.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -61.0,
+"risk": 966.0,
+"ror": -0.0634
+},
+"iron_condor": {
+"pnl": 14.0,
+"risk": 705.0,
+"ror": 0.0205
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "APO",
+"date": "2026-08-04",
+"implied": 8.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BKNG|2026-08-04|vol_rich": {
+"entry_date": "2026-08-04",
+"exit_date": "2026-08-05",
+"spot": 194.27,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -68.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -154.0,
+"risk": 1296.0,
+"ror": -0.1189
+},
+"iron_condor": {
+"pnl": -128.0,
+"risk": 866.0,
+"ror": -0.1483
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "BKNG",
+"date": "2026-08-04",
+"implied": 8.2,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CIFR|2026-08-04|vol_rich": {
+"entry_date": "2026-08-03",
+"exit_date": "2026-08-04",
+"spot": 24.16,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -42.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -63.0,
+"risk": 252.0,
+"ror": -0.2499
+},
+"iron_condor": {
+"pnl": -55.0,
+"risk": 165.0,
+"ror": -0.3351
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CIFR",
+"date": "2026-08-04",
+"implied": 14.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CPNG|2026-08-04|vol_rich": {
+"entry_date": "2026-08-04",
+"exit_date": "2026-08-05",
+"spot": 16.78,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 30.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 10.0,
+"risk": 132.0,
+"ror": 0.0738
+},
+"iron_condor": {
+"pnl": 26.0,
+"risk": 67.0,
+"ror": 0.3898
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CPNG",
+"date": "2026-08-04",
+"implied": 9.6,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"DOCN|2026-08-04|vol_cheap": {
+"entry_date": "2026-08-03",
+"exit_date": "2026-08-04",
+"spot": 127.17,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -1334.0,
+"risk": 2369.0,
+"ror": -0.5631
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "DOCN",
+"date": "2026-08-04",
+"implied": 8.9,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ALB|2026-08-05|vol_rich": {
+"entry_date": "2026-08-05",
+"exit_date": "2026-08-06",
+"spot": 118.84,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -171.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -216.0,
+"risk": 584.0,
+"ror": -0.37
+},
+"iron_condor": {
+"pnl": 34.0,
+"risk": 377.0,
+"ror": 0.0905
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ALB",
+"date": "2026-08-05",
+"implied": 6.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"APP|2026-08-05|vol_rich": {
+"entry_date": "2026-08-05",
+"exit_date": "2026-08-06",
+"spot": 417.8,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -4316.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -4342.0,
+"risk": 14677.0,
+"ror": -0.2959
+},
+"iron_condor": {
+"pnl": 178.0,
+"risk": 9456.0,
+"ror": 0.0188
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "APP",
+"date": "2026-08-05",
+"implied": 30.3,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AXON|2026-08-05|vol_cheap": {
+"skip": "no_entry_px_wing_put",
+"event": {
+"type": "vol_cheap",
+"ticker": "AXON",
+"date": "2026-08-05",
+"implied": 7.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CRCL|2026-08-05|vol_cheap": {
+"entry_date": "2026-08-04",
+"exit_date": "2026-08-05",
+"spot": 63.25,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -454.0,
+"risk": 847.0,
+"ror": -0.5358
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CRCL",
+"date": "2026-08-05",
+"implied": 6.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CVS|2026-08-05|vol_cheap": {
+"entry_date": "2026-08-04",
+"exit_date": "2026-08-05",
+"spot": 104.42,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -149.0,
+"risk": 667.0,
+"ror": -0.2229
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CVS",
+"date": "2026-08-05",
+"implied": 2.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"DASH|2026-08-05|vol_rich": {
+"entry_date": "2026-08-05",
+"exit_date": "2026-08-06",
+"spot": 207.27,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 1445.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 1235.0,
+"risk": 1594.0,
+"ror": 0.7749
+},
+"iron_condor": {
+"pnl": 578.0,
+"risk": 1158.0,
+"ror": 0.4988
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "DASH",
+"date": "2026-08-05",
+"implied": 11.0,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CF|2026-08-05|vol_rich": {
+"skip": "no_entry_px_wing_put",
+"event": {
+"type": "vol_rich",
+"ticker": "CF",
+"date": "2026-08-05",
+"implied": 7.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BROS|2026-08-05|vol_rich": {
+"entry_date": "2026-08-05",
+"exit_date": "2026-08-06",
+"spot": 65.67,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -510.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -548.0,
+"risk": 878.0,
+"ror": -0.6247
+},
+"iron_condor": {
+"pnl": -356.0,
+"risk": 667.0,
+"ror": -0.5339
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "BROS",
+"date": "2026-08-05",
+"implied": 15.3,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CDE|2026-08-05|vol_rich": {
+"entry_date": "2026-08-05",
+"exit_date": "2026-08-06",
+"spot": 17.43,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -63.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -71.0,
+"risk": 140.0,
+"ror": -0.5086
+},
+"iron_condor": {
+"pnl": -25.0,
+"risk": 128.0,
+"ror": -0.1984
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CDE",
+"date": "2026-08-05",
+"implied": 9.1,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AAOI|2026-08-06|vol_rich": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 124.22,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 591.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 377.0,
+"risk": 1754.0,
+"ror": 0.2149
+},
+"iron_condor": {
+"pnl": 410.0,
+"risk": 1272.0,
+"ror": 0.3221
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AAOI",
+"date": "2026-08-06",
+"implied": 18.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ABNB|2026-08-06|vol_rich": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 151.64,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -1613.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -1140.0,
+"risk": 1244.0,
+"ror": -0.9166
+},
+"iron_condor": {
+"pnl": -884.0,
+"risk": 774.0,
+"ror": -1.1416
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ABNB",
+"date": "2026-08-06",
+"implied": 9.0,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AIG|2026-08-06|vol_rich": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 79.97,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 99.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 47.0,
+"risk": 497.0,
+"ror": 0.094
+},
+"iron_condor": {
+"pnl": -20.0,
+"risk": 307.0,
+"ror": -0.0664
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AIG",
+"date": "2026-08-06",
+"implied": 6.0,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BTG|2026-08-06|vol_rich": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 4.09,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -73.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -41.0,
+"risk": 23.0,
+"ror": -1.7446
+},
+"iron_condor": {
+"pnl": -4.0,
+"risk": 43.0,
+"ror": -0.0902
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "BTG",
+"date": "2026-08-06",
+"implied": 10.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CELH|2026-08-06|vol_cheap": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 23.77,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 148.0,
+"risk": 93.0,
+"ror": 1.6006
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CELH",
+"date": "2026-08-06",
+"implied": 3.6,
+"session": "TBD"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CLSK|2026-08-06|vol_rich": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 12.75,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 85.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 89.0,
+"risk": 109.0,
+"ror": 0.8153
+},
+"iron_condor": {
+"pnl": 46.0,
+"risk": 69.0,
+"ror": 0.665
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CLSK",
+"date": "2026-08-06",
+"implied": 8.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CNQ|2026-08-06|vol_rich": {
+"skip": "no_entry_px_wing_put",
+"event": {
+"type": "vol_rich",
+"ticker": "CNQ",
+"date": "2026-08-06",
+"implied": 2.6,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"DBX|2026-08-06|vol_rich": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 34.54,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 152.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 133.0,
+"risk": 285.0,
+"ror": 0.4664
+},
+"iron_condor": {
+"pnl": 41.0,
+"risk": 148.0,
+"ror": 0.2771
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "DBX",
+"date": "2026-08-06",
+"implied": 8.3,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"DDOG|2026-08-06|vol_cheap": {
+"entry_date": "2026-08-05",
+"exit_date": "2026-08-06",
+"spot": 283.17,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 1107.0,
+"risk": 3935.0,
+"ror": 0.2813
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "DDOG",
+"date": "2026-08-06",
+"implied": 3.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"DKNG|2026-08-06|vol_rich": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 22.17,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -4.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -40.0,
+"risk": 170.0,
+"ror": -0.2348
+},
+"iron_condor": {
+"pnl": 44.0,
+"risk": 99.0,
+"ror": 0.4459
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "DKNG",
+"date": "2026-08-06",
+"implied": 10.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"TTWO|2026-08-07|vol_rich": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 232.47,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 574.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 375.0,
+"risk": 1494.0,
+"ror": 0.2511
+},
+"iron_condor": {
+"pnl": 357.0,
+"risk": 1091.0,
+"ror": 0.3274
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "TTWO",
+"date": "2026-08-07",
+"implied": 8.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"VST|2026-08-07|vol_rich": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 141.38,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 556.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 456.0,
+"risk": 607.0,
+"ror": 0.7521
+},
+"iron_condor": {
+"pnl": 175.0,
+"risk": 386.0,
+"ror": 0.4534
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "VST",
+"date": "2026-08-07",
+"implied": 4.9,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"WEN|2026-08-07|vol_rich": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 7.39,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 43.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 28.0,
+"risk": 50.0,
+"ror": 0.5687
+},
+"iron_condor": {
+"pnl": 6.0,
+"risk": 39.0,
+"ror": 0.1598
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "WEN",
+"date": "2026-08-07",
+"implied": 9.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ASTS|2026-08-10|vol_rich": {
+"entry_date": "2026-08-10",
+"exit_date": "2026-08-11",
+"spot": 68.76,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 256.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 164.0,
+"risk": 821.0,
+"ror": 0.2
+},
+"iron_condor": {
+"pnl": 113.0,
+"risk": 575.0,
+"ror": 0.197
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ASTS",
+"date": "2026-08-10",
+"implied": 15.3,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BTDR|2026-08-10|vol_rich": {
+"entry_date": "2026-08-07",
+"exit_date": "2026-08-10",
+"spot": 10.88,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -70.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -82.0,
+"risk": 161.0,
+"ror": -0.5076
+},
+"iron_condor": {
+"pnl": -37.0,
+"risk": 111.0,
+"ror": -0.3309
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "BTDR",
+"date": "2026-08-10",
+"implied": 16.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BW|2026-08-10|vol_cheap": {
+"entry_date": "2026-08-07",
+"exit_date": "2026-08-10",
+"spot": 9.37,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -33.0,
+"risk": 166.0,
+"ror": -0.1959
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BW",
+"date": "2026-08-10",
+"implied": 17.0,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"HIMS|2026-08-10|vol_rich": {
+"entry_date": "2026-08-10",
+"exit_date": "2026-08-11",
+"spot": 31.77,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 224.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 154.0,
+"risk": 361.0,
+"ror": 0.427
+},
+"iron_condor": {
+"pnl": 96.0,
+"risk": 235.0,
+"ror": 0.4084
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "HIMS",
+"date": "2026-08-10",
+"implied": 15.2,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ACMR|2026-08-07|vol_cheap": {
+"skip": "no_entry_px_cnd_call",
+"event": {
+"type": "vol_cheap",
+"ticker": "ACMR",
+"date": "2026-08-07",
+"implied": 3.1,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"OKLO|2026-08-07|vol_cheap": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 42.19,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 230.0,
+"risk": 378.0,
+"ror": 0.609
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "OKLO",
+"date": "2026-08-07",
+"implied": 1.1,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"VST|2026-08-07|vol_cheap": {
+"entry_date": "2026-08-06",
+"exit_date": "2026-08-07",
+"spot": 141.38,
+"expiry": "2026-08-07",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -640.0,
+"risk": 729.0,
+"ror": -0.878
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "VST",
+"date": "2026-08-07",
+"implied": 0.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"KEEL|2026-08-10|vol_rich": {
+"entry_date": "2026-08-07",
+"exit_date": "2026-08-10",
+"spot": 3.88,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -12.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -16.0,
+"risk": 49.0,
+"ror": -0.3337
+},
+"iron_condor": {
+"pnl": -14.0,
+"risk": 39.0,
+"ror": -0.3662
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "KEEL",
+"date": "2026-08-10",
+"implied": 16.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"PLUG|2026-08-10|vol_rich": {
+"entry_date": "2026-08-10",
+"exit_date": "2026-08-11",
+"spot": 2.11,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 1.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -8.0,
+"risk": 32.0,
+"ror": -0.2393
+},
+"iron_condor": {
+"pnl": 2.0,
+"risk": 45.0,
+"ror": 0.0502
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "PLUG",
+"date": "2026-08-10",
+"implied": 14.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"QUBT|2026-08-10|vol_rich": {
+"entry_date": "2026-08-10",
+"exit_date": "2026-08-11",
+"spot": 8.93,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 29.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 12.0,
+"risk": 119.0,
+"ror": 0.1014
+},
+"iron_condor": {
+"pnl": 6.0,
+"risk": 84.0,
+"ror": 0.0753
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "QUBT",
+"date": "2026-08-10",
+"implied": 13.2,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"RIOT|2026-08-10|vol_rich": {
+"entry_date": "2026-08-10",
+"exit_date": "2026-08-11",
+"spot": 19.4,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 86.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 43.0,
+"risk": 149.0,
+"ror": 0.2888
+},
+"iron_condor": {
+"pnl": 8.0,
+"risk": 145.0,
+"ror": 0.0548
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "RIOT",
+"date": "2026-08-10",
+"implied": 11.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"RKLB|2026-08-10|vol_rich": {
+"entry_date": "2026-08-10",
+"exit_date": "2026-08-11",
+"spot": 80.04,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 425.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 271.0,
+"risk": 845.0,
+"ror": 0.3211
+},
+"iron_condor": {
+"pnl": 145.0,
+"risk": 580.0,
+"ror": 0.25
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "RKLB",
+"date": "2026-08-10",
+"implied": 14.4,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"B|2026-08-10|vol_cheap": {
+"entry_date": "2026-08-07",
+"exit_date": "2026-08-10",
+"spot": 43.68,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 65.0,
+"risk": 276.0,
+"ror": 0.2361
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "B",
+"date": "2026-08-10",
+"implied": 4.3,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"MPT|2026-08-10|vol_cheap": {
+"entry_date": "2026-08-07",
+"exit_date": "2026-08-10",
+"spot": 4.7,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -8.0,
+"risk": 44.0,
+"ror": -0.1725
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "MPT",
+"date": "2026-08-10",
+"implied": 4.3,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CAH|2026-08-11|vol_cheap": {
+"entry_date": "2026-08-10",
+"exit_date": "2026-08-11",
+"spot": 237.18,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -1074.0,
+"risk": 1731.0,
+"ror": -0.6203
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CAH",
+"date": "2026-08-11",
+"implied": 2.9,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CAVA|2026-08-11|vol_rich": {
+"entry_date": "2026-08-11",
+"exit_date": "2026-08-12",
+"spot": 60.81,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -160.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -203.0,
+"risk": 569.0,
+"ror": -0.3566
+},
+"iron_condor": {
+"pnl": -58.0,
+"risk": 409.0,
+"ror": -0.1415
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CAVA",
+"date": "2026-08-11",
+"implied": 12.7,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"FLY|2026-08-11|vol_rich": {
+"entry_date": "2026-08-11",
+"exit_date": "2026-08-12",
+"spot": 26.36,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 223.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 166.0,
+"risk": 286.0,
+"ror": 0.5806
+},
+"iron_condor": {
+"pnl": 53.0,
+"risk": 201.0,
+"ror": 0.2657
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "FLY",
+"date": "2026-08-11",
+"implied": 14.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"LITE|2026-08-11|vol_rich": {
+"entry_date": "2026-08-11",
+"exit_date": "2026-08-12",
+"spot": 820.59,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -2607.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -1837.0,
+"risk": 6166.0,
+"ror": -0.298
+},
+"iron_condor": {
+"pnl": -1195.0,
+"risk": 4712.0,
+"ror": -0.2536
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "LITE",
+"date": "2026-08-11",
+"implied": 11.0,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"NN|2026-08-11|vol_rich": {
+"skip": "no_entry_px_wing_call",
+"event": {
+"type": "vol_rich",
+"ticker": "NN",
+"date": "2026-08-11",
+"implied": 14.1,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ONON|2026-08-11|vol_cheap": {
+"entry_date": "2026-08-10",
+"exit_date": "2026-08-11",
+"spot": 38.78,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 360.0,
+"risk": 418.0,
+"ror": 0.8621
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "ONON",
+"date": "2026-08-11",
+"implied": 3.9,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"POET|2026-08-11|vol_rich": {
+"entry_date": "2026-08-11",
+"exit_date": "2026-08-12",
+"spot": 8.59,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -6.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -15.0,
+"risk": 92.0,
+"ror": -0.1645
+},
+"iron_condor": {
+"pnl": -6.0,
+"risk": 75.0,
+"ror": -0.0846
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "POET",
+"date": "2026-08-11",
+"implied": 9.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"REPL|2026-08-11|vol_rich": {
+"entry_date": "2026-08-10",
+"exit_date": "2026-08-11",
+"spot": 13.67,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 25.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -11.0,
+"risk": 67.0,
+"ror": -0.1663
+},
+"iron_condor": {
+"pnl": -34.0,
+"risk": 103.0,
+"ror": -0.3277
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "REPL",
+"date": "2026-08-11",
+"implied": 7.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"SE|2026-08-11|vol_cheap": {
+"entry_date": "2026-08-10",
+"exit_date": "2026-08-11",
+"spot": 114.8,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 17.0,
+"risk": 1555.0,
+"ror": 0.0107
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "SE",
+"date": "2026-08-11",
+"implied": 4.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"SLS|2026-08-11|vol_rich": {
+"entry_date": "2026-08-11",
+"exit_date": "2026-08-12",
+"spot": 11.05,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 19.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 7.0,
+"risk": 106.0,
+"ror": 0.0646
+},
+"iron_condor": {
+"pnl": 18.0,
+"risk": 70.0,
+"ror": 0.2545
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "SLS",
+"date": "2026-08-11",
+"implied": 11.7,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"SMCI|2026-08-11|vol_rich": {
+"entry_date": "2026-08-11",
+"exit_date": "2026-08-12",
+"spot": 31.6,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -198.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -223.0,
+"risk": 458.0,
+"ror": -0.4864
+},
+"iron_condor": {
+"pnl": -108.0,
+"risk": 339.0,
+"ror": -0.3202
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "SMCI",
+"date": "2026-08-11",
+"implied": 17.4,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CSCO|2026-08-12|vol_rich": {
+"entry_date": "2026-08-12",
+"exit_date": "2026-08-13",
+"spot": 123.88,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -134.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -324.0,
+"risk": 634.0,
+"ror": -0.5102
+},
+"iron_condor": {
+"pnl": -13.0,
+"risk": 506.0,
+"ror": -0.0247
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "CSCO",
+"date": "2026-08-12",
+"implied": 8.2,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ENVX|2026-08-12|vol_rich": {
+"entry_date": "2026-08-12",
+"exit_date": "2026-08-13",
+"spot": 4.73,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 49.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 40.0,
+"risk": 81.0,
+"ror": 0.4978
+},
+"iron_condor": {
+"pnl": 15.0,
+"risk": 34.0,
+"ror": 0.4519
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ENVX",
+"date": "2026-08-12",
+"implied": 19.4,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"LQDA|2026-08-12|vol_rich": {
+"entry_date": "2026-08-11",
+"exit_date": "2026-08-12",
+"spot": 88.05,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 250.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 97.0,
+"risk": 178.0,
+"ror": 0.5463
+},
+"iron_condor": {
+"pnl": -81.0,
+"risk": 248.0,
+"ror": -0.3286
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "LQDA",
+"date": "2026-08-12",
+"implied": 7.6,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"PAAS|2026-08-12|vol_rich": {
+"entry_date": "2026-08-12",
+"exit_date": "2026-08-13",
+"spot": 52.38,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -248.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -242.0,
+"risk": 374.0,
+"ror": -0.6475
+},
+"iron_condor": {
+"pnl": -153.0,
+"risk": 242.0,
+"ror": -0.6321
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "PAAS",
+"date": "2026-08-12",
+"implied": 6.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BLSH|2026-08-13|vol_cheap": {
+"skip": "no_entry_px_cnd_put",
+"event": {
+"type": "vol_cheap",
+"ticker": "BLSH",
+"date": "2026-08-13",
+"implied": 3.9,
+"session": "TBD"
+},
+"bt_version": "vol_backtest_v1"
+},
+"HIVE|2026-08-13|vol_rich": {
+"entry_date": "2026-08-13",
+"exit_date": "2026-08-14",
+"spot": 2.58,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -12.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -16.0,
+"risk": 44.0,
+"ror": -0.3667
+},
+"iron_condor": {
+"pnl": -16.0,
+"risk": 44.0,
+"ror": -0.3667
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "HIVE",
+"date": "2026-08-13",
+"implied": 6.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"JD|2026-08-13|vol_cheap": {
+"entry_date": "2026-08-12",
+"exit_date": "2026-08-13",
+"spot": 31.61,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 45.0,
+"risk": 166.0,
+"ror": 0.2729
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "JD",
+"date": "2026-08-13",
+"implied": 2.0,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"LAC|2026-08-13|vol_cheap": {
+"entry_date": "2026-08-12",
+"exit_date": "2026-08-13",
+"spot": 3.26,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -20.0,
+"risk": 32.0,
+"ror": -0.622
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "LAC",
+"date": "2026-08-13",
+"implied": 4.1,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ONDS|2026-08-13|vol_cheap": {
+"entry_date": "2026-08-12",
+"exit_date": "2026-08-13",
+"spot": 9.77,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -39.0,
+"risk": 145.0,
+"ror": -0.2694
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "ONDS",
+"date": "2026-08-13",
+"implied": 4.1,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AMAT|2026-08-13|vol_rich": {
+"entry_date": "2026-08-13",
+"exit_date": "2026-08-14",
+"spot": 534.54,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 760.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 631.0,
+"risk": 6158.0,
+"ror": 0.1024
+},
+"iron_condor": {
+"pnl": 642.0,
+"risk": 4352.0,
+"ror": 0.1476
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AMAT",
+"date": "2026-08-13",
+"implied": 12.2,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"NU|2026-08-13|vol_rich": {
+"entry_date": "2026-08-13",
+"exit_date": "2026-08-14",
+"spot": 13.93,
+"expiry": "2026-08-14",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -40.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -47.0,
+"risk": 117.0,
+"ror": -0.3991
+},
+"iron_condor": {
+"pnl": -10.0,
+"risk": 84.0,
+"ror": -0.12
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "NU",
+"date": "2026-08-13",
+"implied": 8.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"FN|2026-08-17|vol_rich": {
+"entry_date": "2026-08-17",
+"exit_date": "2026-08-18",
+"spot": 598.58,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -5638.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -5391.0,
+"risk": 6011.0,
+"ror": -0.8968
+},
+"iron_condor": {
+"pnl": -3716.0,
+"risk": 4227.0,
+"ror": -0.8791
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "FN",
+"date": "2026-08-17",
+"implied": 12.9,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"XP|2026-08-17|vol_rich": {
+"entry_date": "2026-08-17",
+"exit_date": "2026-08-18",
+"spot": 15.7,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 33.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 15.0,
+"risk": 123.0,
+"ror": 0.1203
+},
+"iron_condor": {
+"pnl": 5.0,
+"risk": 79.0,
+"ror": 0.0623
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "XP",
+"date": "2026-08-17",
+"implied": 7.1,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AS|2026-08-18|vol_rich": {
+"entry_date": "2026-08-17",
+"exit_date": "2026-08-18",
+"spot": 32.57,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 182.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 137.0,
+"risk": 215.0,
+"ror": 0.6368
+},
+"iron_condor": {
+"pnl": 63.0,
+"risk": 160.0,
+"ror": 0.3942
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "AS",
+"date": "2026-08-18",
+"implied": 10.6,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BIDU|2026-08-18|vol_rich": {
+"entry_date": "2026-08-17",
+"exit_date": "2026-08-18",
+"spot": 104.12,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -673.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -553.0,
+"risk": 616.0,
+"ror": -0.898
+},
+"iron_condor": {
+"pnl": -407.0,
+"risk": 455.0,
+"ror": -0.8952
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "BIDU",
+"date": "2026-08-18",
+"implied": 7.2,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"EC|2026-08-18|vol_rich": {
+"skip": "no_entry_px_atm_put",
+"event": {
+"type": "vol_rich",
+"ticker": "EC",
+"date": "2026-08-18",
+"implied": 4.4,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"HD|2026-08-18|vol_rich": {
+"entry_date": "2026-08-17",
+"exit_date": "2026-08-18",
+"spot": 337.88,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 563.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 400.0,
+"risk": 1020.0,
+"ror": 0.3922
+},
+"iron_condor": {
+"pnl": 200.0,
+"risk": 909.0,
+"ror": 0.2197
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "HD",
+"date": "2026-08-18",
+"implied": 4.3,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"TOL|2026-08-18|vol_rich": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 142.86,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 308.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 226.0,
+"risk": 827.0,
+"ror": 0.2733
+},
+"iron_condor": {
+"pnl": 49.0,
+"risk": 360.0,
+"ror": 0.1364
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "TOL",
+"date": "2026-08-18",
+"implied": 6.0,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ADI|2026-08-19|vol_rich": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 376.63,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 1221.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 973.0,
+"risk": 1720.0,
+"ror": 0.5658
+},
+"iron_condor": {
+"pnl": 526.0,
+"risk": 1390.0,
+"ror": 0.3788
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ADI",
+"date": "2026-08-19",
+"implied": 6.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"EL|2026-08-19|vol_rich": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 84.27,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -780.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -522.0,
+"risk": 564.0,
+"ror": -0.9259
+},
+"iron_condor": {
+"pnl": -355.0,
+"risk": 380.0,
+"ror": -0.9355
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "EL",
+"date": "2026-08-19",
+"implied": 9.1,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"KC|2026-08-19|vol_rich": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 10.84,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -129.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -124.0,
+"risk": 134.0,
+"ror": -0.9239
+},
+"iron_condor": {
+"pnl": -0.0,
+"risk": 241.0,
+"ror": -0.0006
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "KC",
+"date": "2026-08-19",
+"implied": 16.8,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"LOW|2026-08-19|vol_rich": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 215.64,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 190.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 118.0,
+"risk": 961.0,
+"ror": 0.1232
+},
+"iron_condor": {
+"pnl": 108.0,
+"risk": 554.0,
+"ror": 0.1956
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "LOW",
+"date": "2026-08-19",
+"implied": 5.1,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"TJX|2026-08-19|vol_rich": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 150.85,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -22.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -86.0,
+"risk": 511.0,
+"ror": -0.1678
+},
+"iron_condor": {
+"pnl": -17.0,
+"risk": 327.0,
+"ror": -0.0517
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "TJX",
+"date": "2026-08-19",
+"implied": 4.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"VIK|2026-08-19|vol_rich": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 98.29,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 8.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -97.0,
+"risk": 834.0,
+"ror": -0.1166
+},
+"iron_condor": {
+"pnl": 77.0,
+"risk": 363.0,
+"ror": 0.212
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "VIK",
+"date": "2026-08-19",
+"implied": 8.3,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"FUTU|2026-08-20|vol_rich": {
+"entry_date": "2026-08-19",
+"exit_date": "2026-08-20",
+"spot": 109.42,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 81.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 27.0,
+"risk": 630.0,
+"ror": 0.0424
+},
+"iron_condor": {
+"pnl": 109.0,
+"risk": 423.0,
+"ror": 0.2577
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "FUTU",
+"date": "2026-08-20",
+"implied": 7.0,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ROST|2026-08-20|vol_rich": {
+"entry_date": "2026-08-20",
+"exit_date": "2026-08-21",
+"spot": 228.99,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 717.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 416.0,
+"risk": 1098.0,
+"ror": 0.3788
+},
+"iron_condor": {
+"pnl": 425.0,
+"risk": 701.0,
+"ror": 0.6066
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ROST",
+"date": "2026-08-20",
+"implied": 7.0,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"VNET|2026-08-20|vol_rich": {
+"skip": "no_entry_px_wing_put",
+"event": {
+"type": "vol_rich",
+"ticker": "VNET",
+"date": "2026-08-20",
+"implied": 15.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"YMM|2026-08-20|vol_rich": {
+"entry_date": "2026-08-19",
+"exit_date": "2026-08-20",
+"spot": 8.7,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -3.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -18.0,
+"risk": 165.0,
+"ror": -0.1076
+},
+"iron_condor": {
+"pnl": -6.0,
+"risk": 4.0,
+"ror": -1.6842
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "YMM",
+"date": "2026-08-20",
+"implied": 15.3,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"XPEV|2026-08-24|vol_rich": {
+"entry_date": "2026-08-21",
+"exit_date": "2026-08-24",
+"spot": 12.19,
+"expiry": "2026-08-28",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 5.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -6.0,
+"risk": 110.0,
+"ror": -0.0567
+},
+"iron_condor": {
+"pnl": -3.0,
+"risk": 84.0,
+"ror": -0.0314
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "XPEV",
+"date": "2026-08-24",
+"implied": 10.4,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"JKHY|2026-08-18|vol_rich": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 153.12,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -199.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -335.0,
+"risk": 724.0,
+"ror": -0.4636
+},
+"iron_condor": {
+"pnl": -101.0,
+"risk": 723.0,
+"ror": -0.1399
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "JKHY",
+"date": "2026-08-18",
+"implied": 6.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"KLAR|2026-08-18|vol_cheap": {
+"entry_date": "2026-08-17",
+"exit_date": "2026-08-18",
+"spot": 19.51,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 109.0,
+"risk": 311.0,
+"ror": 0.3519
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "KLAR",
+"date": "2026-08-18",
+"implied": 5.6,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"WOLF|2026-08-19|vol_cheap": {
+"entry_date": "2026-08-19",
+"exit_date": "2026-08-20",
+"spot": 29.09,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -243.0,
+"risk": 541.0,
+"ror": -0.4493
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "WOLF",
+"date": "2026-08-19",
+"implied": 16.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CSIQ|2026-08-20|vol_cheap": {
+"entry_date": "2026-08-19",
+"exit_date": "2026-08-20",
+"spot": 15.78,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 63.0,
+"risk": 84.0,
+"ror": 0.7436
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CSIQ",
+"date": "2026-08-20",
+"implied": 5.9,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"JHX|2026-08-18|vol_rich": {
+"skip": "no_entry_px_atm_call",
+"event": {
+"type": "vol_rich",
+"ticker": "JHX",
+"date": "2026-08-18",
+"implied": 21.8,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ADI|2026-08-19|vol_cheap": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 376.63,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -1573.0,
+"risk": 2555.0,
+"ror": -0.6157
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "ADI",
+"date": "2026-08-19",
+"implied": 3.1,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"EL|2026-08-19|vol_cheap": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 84.27,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 550.0,
+"risk": 834.0,
+"ror": 0.6593
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "EL",
+"date": "2026-08-19",
+"implied": 3.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"TGT|2026-08-19|vol_cheap": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 152.48,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -418.0,
+"risk": 1131.0,
+"ror": -0.3696
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "TGT",
+"date": "2026-08-19",
+"implied": 2.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"VIK|2026-08-19|vol_cheap": {
+"entry_date": "2026-08-18",
+"exit_date": "2026-08-19",
+"spot": 98.29,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -172.0,
+"risk": 878.0,
+"ror": -0.1954
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "VIK",
+"date": "2026-08-19",
+"implied": 2.9,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"VNET|2026-08-20|vol_cheap": {
+"skip": "no_entry_px_wing_put",
+"event": {
+"type": "vol_cheap",
+"ticker": "VNET",
+"date": "2026-08-20",
+"implied": 6.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"INTU|2026-08-25|vol_rich": {
+"entry_date": "2026-08-25",
+"exit_date": "2026-08-26",
+"spot": 357.46,
+"expiry": "2026-08-28",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 1502.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 1140.0,
+"risk": 2656.0,
+"ror": 0.4293
+},
+"iron_condor": {
+"pnl": 672.0,
+"risk": 1893.0,
+"ror": 0.3551
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "INTU",
+"date": "2026-08-25",
+"implied": 10.4,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ANF|2026-08-26|vol_rich": {
+"entry_date": "2026-08-25",
+"exit_date": "2026-08-26",
+"spot": 108.9,
+"expiry": "2026-08-28",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": -2324.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": -427.0,
+"risk": 1126.0,
+"ror": -0.3789
+},
+"iron_condor": {
+"pnl": -402.0,
+"risk": 823.0,
+"ror": -0.488
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "ANF",
+"date": "2026-08-26",
+"implied": 14.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BBWI|2026-08-26|vol_rich": {
+"entry_date": "2026-08-25",
+"exit_date": "2026-08-26",
+"spot": 17.58,
+"expiry": "2026-08-28",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 52.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 16.0,
+"risk": 184.0,
+"ror": 0.0871
+},
+"iron_condor": {
+"pnl": 21.0,
+"risk": 139.0,
+"ror": 0.1496
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "BBWI",
+"date": "2026-08-26",
+"implied": 12.3,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AAP|2026-08-20|vol_cheap": {
+"entry_date": "2026-08-19",
+"exit_date": "2026-08-20",
+"spot": 56.18,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 638.0,
+"risk": 768.0,
+"ror": 0.8308
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "AAP",
+"date": "2026-08-20",
+"implied": 5.1,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BABA|2026-08-20|vol_cheap": {
+"entry_date": "2026-08-19",
+"exit_date": "2026-08-20",
+"spot": 128.9,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -552.0,
+"risk": 891.0,
+"ror": -0.6196
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BABA",
+"date": "2026-08-20",
+"implied": 2.7,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"DE|2026-08-20|vol_cheap": {
+"entry_date": "2026-08-19",
+"exit_date": "2026-08-20",
+"spot": 580.63,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 1590.0,
+"risk": 3057.0,
+"ror": 0.5202
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "DE",
+"date": "2026-08-20",
+"implied": 2.0,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"WMT|2026-08-20|vol_cheap": {
+"entry_date": "2026-08-19",
+"exit_date": "2026-08-20",
+"spot": 114.3,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": 364.0,
+"risk": 605.0,
+"ror": 0.6009
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "WMT",
+"date": "2026-08-20",
+"implied": 1.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BEKE|2026-08-26|vol_rich": {
+"skip": "no_entry_px_wing_call",
+"event": {
+"type": "vol_rich",
+"ticker": "BEKE",
+"date": "2026-08-26",
+"implied": 6.8,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CRM|2026-08-26|vol_rich": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "CRM",
+"date": "2026-08-26",
+"implied": 8.3,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"CRWD|2026-08-26|vol_rich": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "CRWD",
+"date": "2026-08-26",
+"implied": 9.3,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"HPQ|2026-08-26|vol_rich": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "HPQ",
+"date": "2026-08-26",
+"implied": 10.3,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"LI|2026-08-26|vol_rich": {
+"entry_date": "2026-08-25",
+"exit_date": "2026-08-26",
+"spot": 12.27,
+"expiry": "2026-08-28",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"short_straddle": {
+"pnl": 31.0,
+"risk": null,
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly": {
+"pnl": 15.0,
+"risk": 87.0,
+"ror": 0.1766
+},
+"iron_condor": {
+"pnl": 2.0,
+"risk": 41.0,
+"ror": 0.0515
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "LI",
+"date": "2026-08-26",
+"implied": 8.0,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"NVDA|2026-08-26|vol_rich": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "NVDA",
+"date": "2026-08-26",
+"implied": 6.3,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BJ|2026-08-21|vol_cheap": {
+"entry_date": "2026-08-20",
+"exit_date": "2026-08-21",
+"spot": 91.3,
+"expiry": "2026-08-21",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -133.0,
+"risk": 626.0,
+"ror": -0.213
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BJ",
+"date": "2026-08-21",
+"implied": 1.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"KSS|2026-08-26|vol_cheap": {
+"entry_date": "2026-08-25",
+"exit_date": "2026-08-26",
+"spot": 17.68,
+"expiry": "2026-08-28",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -168.0,
+"risk": 282.0,
+"ror": -0.5965
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "KSS",
+"date": "2026-08-26",
+"implied": 13.2,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"SNPS|2026-08-26|vol_rich": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "SNPS",
+"date": "2026-08-26",
+"implied": 8.5,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"ADSK|2026-08-27|vol_rich": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "ADSK",
+"date": "2026-08-27",
+"implied": 8.4,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"AMBA|2026-08-27|vol_cheap": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_cheap",
+"ticker": "AMBA",
+"date": "2026-08-27",
+"implied": 5.7,
+"session": "AMC"
+},
+"bt_version": "vol_backtest_v1"
+},
+"PDD|2026-08-24|vol_cheap": {
+"entry_date": "2026-08-21",
+"exit_date": "2026-08-24",
+"spot": 88.38,
+"expiry": "2026-08-28",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -385.0,
+"risk": 706.0,
+"ror": -0.5456
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "PDD",
+"date": "2026-08-24",
+"implied": 3.9,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"XPEV|2026-08-24|vol_cheap": {
+"entry_date": "2026-08-21",
+"exit_date": "2026-08-24",
+"spot": 12.19,
+"expiry": "2026-08-28",
+"fill_model": "daily-close legs, 5% slippage per side per leg, $0.65/contract/side fees \u2014 base case",
+"strategies": {
+"long_straddle": {
+"pnl": -31.0,
+"risk": 123.0,
+"ror": -0.2543
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "XPEV",
+"date": "2026-08-24",
+"implied": 5.2,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
+},
+"BURL|2026-08-27|vol_rich": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "BURL",
+"date": "2026-08-27",
+"implied": 9.5,
+"session": "BMO"
+},
+"bt_version": "vol_backtest_v1"
 }
 }
