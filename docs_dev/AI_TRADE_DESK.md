@@ -375,6 +375,44 @@ because nearest-strike snapping varies per-event max risk 40×
 mean. Both now publish labeled, and capital-weighted ROR > 0 is a
 permanent qualification bar in every gate.
 
+## 10f. V3 outcome (2026-08-26): entitlement-blocked; minute-mark timing
+
+**The spread/fill study cannot run on the current data plan.** The
+hardened probe (12/12 HTTP-level failures across distinct ATM legs)
+confirmed the Polygon tier lacks historical NBBO quotes. Outcome A/B
+on executability requires the quotes entitlement (Polygon Options
+Advanced) — a data-plan purchase decision, recorded as
+`quotes_entitlement_unavailable / undetermined, NOT a pass`.
+trade_qualified stays false.
+
+**The minute-aggregate fallback (marks, fees only, NO spread model —
+timing evidence, never executability evidence) reshaped the picture:**
+
+| gross mark P&L, per lot | 09:31 | 09:35 | 09:45 | 10:00 |
+|---|---|---|---|---|
+| short_straddle (diag) | +$83 · PF 1.5 | +$84 · PF 1.5 | **+$131 · PF 1.8** | +$118 (n=23) |
+| iron_fly_1.5 | −$24 | +$53 | +$4 | thin |
+| iron_condor_0.75/1.5 | −$15 | −$30 | −$53 | thin |
+| iron_condor_0.9/1.5 | +$2 | −$5 | +$28 | thin |
+
+Three reads, all with the caveat that **every night-cluster CI spans
+zero at 22 nights** — suggestive, not established:
+
+1. The gross crush edge **persists through the entire first 15
+   minutes** (straddle marks peak at 09:45) — execution would not need
+   to race the 09:30 print.
+2. The gross edge lives in the **naked straddle**; the defined-risk
+   wings cost more than their protection returns at these marks. The
+   only structures policy allows users are the ones that don't clear
+   even gross marks convincingly — which materially tempers the case
+   for the data upgrade.
+3. n decay into 10:00 (74 → 23) is mark sparsity (contracts stop
+   printing every minute), documented, not survivorship.
+
+**Standing state:** vol_rich = SIGNAL_QUALIFIED only; abstention holds;
+every table (signal engine, v2 backtest, minute fallback) accrues
+automatically as new earnings nights grade in CI nightly.
+
 ## 11. What would make this product succeed
 
 The moat is the growing point-in-time record + honest gates, not the LLM.
