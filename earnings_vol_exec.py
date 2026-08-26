@@ -129,18 +129,30 @@ def _last_quote(contract, date_str, window):
 
 
 def _quotes_entitled():
-    """Capability probe on a liquid index-proxy contract lookup — any
-    NOT_AUTHORIZED shows up as consistent empty responses from the
-    quotes endpoint while reference works. We probe with one real leg
-    from the cache instead of a synthetic ticker."""
+    """Capability probe. A NOT_AUTHORIZED plan returns HTTP failures
+    (pg._get -> None); an ENTITLED plan returns a JSON envelope even
+    when the window is empty ({"status":"OK","results":[]}). Probe up
+    to 12 ATM short legs across distinct events so one thin contract
+    cannot fake a 403."""
     cache = _load(PNL_CACHE, {}) or {}
+    tried = 0
     for r in cache.values():
         if r.get("bt_version") != BT_SOURCE or r.get("skip"):
             continue
-        for s in (r.get("strategies") or {}).values():
-            for l in s.get("legs") or []:
-                q = _last_quote(l["contract"], r["entry_date"], "1555")
-                return q is not None
+        s = (r.get("strategies") or {}).get("short_straddle")
+        for l in (s or {}).get("legs") or []:
+            lo, hi = WINDOW_BOUNDS["1555"]
+            data = pg._get(f"/v3/quotes/{l['contract']}", {
+                "timestamp.gte": _ns(r["entry_date"], lo),
+                "timestamp.lte": _ns(r["entry_date"], hi),
+                "order": "desc", "sort": "timestamp", "limit": 1,
+            })
+            if isinstance(data, dict):
+                return True          # endpoint authorized
+            tried += 1
+            if tried >= 12:
+                return False         # 12 straight HTTP failures = 403
+            break                    # one leg per event is enough
     return False
 
 
@@ -357,6 +369,107 @@ def _qualifies(st, st50):
             and (st50.get("avg_ror") or 0) > 0)
 
 
+# --------------------------------------------- minute-agg fallback
+
+_MIN_CACHE_PATH = R("data", "earnings_vol_minute.json")
+MINUTE_MARKS = ("09:31", "09:35", "09:45", "10:00")
+
+
+def _minute_closes(contract, date_str):
+    """{HH:MM: close} for the predeclared morning marks + the entry
+    15:55-15:59 mark, from one minute-agg call per contract-day."""
+    data = pg._get(f"/v2/aggs/ticker/{contract}/range/1/minute/"
+                   f"{date_str}/{date_str}", {"limit": 500})
+    res = (data or {}).get("results") or []
+    out = {}
+    for b in res:
+        ts = b.get("t")
+        if ts is None or b.get("c") is None:
+            continue
+        hm = datetime.fromtimestamp(ts / 1000, ET).strftime("%H:%M")
+        out[hm] = b["c"]
+    return out
+
+
+def minute_timing_study(limit=None):
+    """Fallback when NBBO is unavailable: gross MARK P&L (minute closes,
+    fees only, NO spread model) for the frozen structures at the four
+    morning marks. Answers the exit-TIMING question only; says nothing
+    about executability and can never qualify anything."""
+    mc = _load(_MIN_CACHE_PATH, {}) or {}
+    events = _events_v2()
+    touched = 0
+    for key, r in events:
+        contracts = list(_legs_for(r))
+        need = [(c, d) for c in contracts
+                for d in (r["entry_date"], r["exit_date"])
+                if f"{c}|{d}|min1" not in mc]
+        if need:
+            if limit is not None and touched >= limit:
+                continue
+            touched += 1
+            for c, d in need:
+                try:
+                    mc[f"{c}|{d}|min1"] = _minute_closes(c, d)
+                except Exception:
+                    mc[f"{c}|{d}|min1"] = {}
+    with open(_MIN_CACHE_PATH, "w", encoding="utf-8") as f:
+        json.dump(mc, f, indent=0)
+
+    def leg_mark(contract, date, hm_targets):
+        m = mc.get(f"{contract}|{date}|min1") or {}
+        for hm in hm_targets:
+            if hm in m:
+                return m[hm]
+        return None
+
+    ENTRY_MARKS = ("15:58", "15:59", "15:57", "15:56", "15:55")
+    summary = {}
+    for sname in STRUCTS:
+        per_mark = {}
+        for mark in MINUTE_MARKS:
+            # accept the exact minute or the nearest earlier minute
+            hh, mm = mark.split(":")
+            cands = [mark] + [f"{hh}:{int(mm)-k:02d}"
+                              for k in (1, 2, 3) if int(mm) - k >= 0]
+            rows = []
+            for key, r in events:
+                s = (r.get("strategies") or {}).get(sname)
+                if not s:
+                    continue
+                pnl = 0.0
+                ok = True
+                for l in s["legs"]:
+                    ein = leg_mark(l["contract"], r["entry_date"],
+                                   ENTRY_MARKS)
+                    eout = leg_mark(l["contract"], r["exit_date"], cands)
+                    if ein is None or eout is None:
+                        ok = False
+                        break
+                    fee = 2 * FEE / 100.0
+                    pnl += (-l["side"]) * (ein - eout) - fee
+                if ok:
+                    rows.append((r["night_id"], pnl))
+            if rows:
+                pnls = [p for _, p in rows]
+                pos = sum(p for p in pnls if p > 0)
+                neg = abs(sum(p for p in pnls if p < 0))
+                per_mark[mark] = {
+                    "n": len(pnls),
+                    "avg_$1lot": round(mean(pnls) * 100),
+                    "win": round(100 * sum(1 for p in pnls if p > 0)
+                                 / len(pnls)),
+                    "pf": round(pos / neg, 2) if neg else None,
+                    "night_ci": _boot_ci(rows)}
+            else:
+                per_mark[mark] = {"n": 0}
+        summary[sname] = per_mark
+    return {"summary": summary,
+            "honesty": "minute-close MARKS, fees only, no spread model "
+                       "— timing evidence, not executability evidence. "
+                       "Qualification is impossible from this table."}
+
+
 # ---------------------------------------------------------------- main
 
 def run(limit=None, report_only=False):
@@ -374,14 +487,18 @@ def run(limit=None, report_only=False):
             out = {"generated": datetime.now(timezone.utc)
                    .isoformat(timespec="seconds"),
                    "status": "quotes_entitlement_unavailable",
-                   "why": "historical NBBO quotes endpoint returned no "
-                          "data on a known-good contract — plan tier "
-                          "lacks the quotes entitlement. Execution "
-                          "study cannot run; trade_qualified stays "
-                          "false. (Outcome: undetermined, NOT a pass.)"}
+                   "why": "historical NBBO quotes endpoint is not "
+                          "authorized on this plan tier (12/12 probe "
+                          "queries failed at HTTP level). The "
+                          "spread/fill study cannot run; "
+                          "trade_qualified stays false. (Outcome: "
+                          "undetermined, NOT a pass.)",
+                   "minute_timing_study": minute_timing_study(limit)}
             json.dump(out, open(OUT_PATH, "w", encoding="utf-8"),
                       indent=1)
             print(out["why"])
+            print("minute timing:", json.dumps(
+                out["minute_timing_study"].get("summary", {}))[:400])
             return out
         fetch_quotes(limit=limit)
 
