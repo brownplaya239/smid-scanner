@@ -69,6 +69,7 @@ R = lambda *p: os.path.join(_BASE, *p)
 LEDGER_PATH = R("data", "trade_desk_log.jsonl")
 OUT_PATH = R("docs", "reports", "trade_desk.json")
 VALIDATION_PATH = R("docs", "reports", "trade_desk_validation.json")
+RESEARCH_PATH = R("docs", "reports", "trade_desk_research.json")
 
 ENGINE_VERSION = "trade_desk_v1"
 MIN_N = 30              # house gate: no published stat below this
@@ -112,35 +113,51 @@ def _iso(dt):
 def family_gates():
     gates = {}
 
-    v = _load(VALIDATION_PATH, {})
-    q = (v.get("qualification") or {})
-    if q.get("status") == "validated":
+    # Flow gate authority: the champion/challenger registry from the
+    # setup-level research (purged walk-forward, extreme-tail precision,
+    # cluster-bootstrap CI). A challenger promotes to champion ONLY on
+    # its predefined OOS criteria; no champion -> the family abstains.
+    reg = (_load(RESEARCH_PATH, {}) or {}).get("registry") or {}
+    champ = reg.get("champion") or {}
+    if champ.get("name"):
         gates["flow"] = {"verdict": "qualified",
-                         "min_score": q.get("min_score"),
-                         "why": "walk-forward validated",
-                         "evidence": q.get("holdout")}
+                         "champion": champ.get("name"),
+                         "tail_pct": champ.get("tail_pct"),
+                         "why": "champion model holds validated "
+                                "extreme-tail edge (see research)",
+                         "evidence": ((reg.get("challengers") or {})
+                                      .get(champ["name"], {})
+                                      .get("verdict") or {})
+                                     .get("evidence")}
     else:
         gates["flow"] = {"verdict": "watch",
-                         "why": "walk-forward validation: no cutoff met "
-                                "positive avg+median signed excess in "
-                                "every fold (see trade_desk_validation)",
-                         "evidence": {"status": q.get("status",
-                                                      "not_run")}}
+                         "why": "no champion: setup-level walk-forward "
+                                "found no tail that clears the "
+                                "promotion criteria (positive pooled "
+                                "avg+median, bootstrap CI low > 0, "
+                                "positive holdout)",
+                         "evidence": {"status": "no_champion"}}
 
     ei = _load(R("docs", "reports", "earnings_ideas.json"), {})
     by_type = ei.get("by_type") or {}
     ern = {}
     for t, st in by_type.items():
+        # mv units differ by idea type: vol_* grade implied-vs-realized
+        # (vol-points, a premium-SELLING edge); drift/momentum grade
+        # price moves (percentage points). Say which, on the card.
+        unit = "vol-pts" if t.startswith("vol_") else "pp"
         if st.get("status") != "active" or st.get("n", 0) < MIN_N:
             ern[t] = {"verdict": "watch", "why": "accruing",
                       "evidence": st}
         elif (st.get("ev") or 0) > 0:
             ern[t] = {"verdict": "qualified",
-                      "why": f"measured EV {st['ev']:+.2f} on n={st['n']}",
+                      "why": (f"measured EV {st['ev']:+.2f} {unit} · "
+                              f"{st.get('win_rate')}% win · n={st['n']}"),
                       "evidence": st}
         else:
             ern[t] = {"verdict": "degraded",
-                      "why": f"measured EV {st['ev']:+.2f} on n={st['n']}",
+                      "why": (f"measured EV {st['ev']:+.2f} {unit} "
+                              f"on n={st['n']}"),
                       "evidence": st}
     gates["earnings"] = {"verdict": "per_type", "types": ern}
 
@@ -200,13 +217,21 @@ def _flow_candidates(regimes, now):
     for s in sigs:
         if (s.get("flagged_at") or "")[:10] != today:
             continue
-        if s.get("direction") not in ("bullish", "bearish"):
+        # The scored feed omits the ledger's `direction` field — derive
+        # it the same way the scanner does: buyer-initiated call=bullish,
+        # put=bearish; sellers/hedges are non-directional.
+        direction = s.get("direction")
+        if direction not in ("bullish", "bearish"):
+            side = s.get("flow_side") or ""
+            if side.endswith("_buyer"):
+                direction = {"call": "bullish",
+                             "put": "bearish"}.get(s.get("type"))
+        if direction not in ("bullish", "bearish") \
+                or s.get("flow_side") in ("put_seller", "call_seller"):
             REJECT["NOT_DIRECTIONAL"] += 1
             continue
-        if s.get("flow_side") in ("put_seller", "call_seller"):
-            REJECT["NOT_DIRECTIONAL"] += 1
-            continue
-        key = (s.get("ticker"), s["direction"])
+        s = dict(s, direction=direction)
+        key = (s.get("ticker"), direction)
         clusters.setdefault(key, []).append(s)
     out = []
     for (tk, direction), grp in clusters.items():
@@ -244,7 +269,23 @@ def _earnings_candidates(now):
         REJECT["STALE_DATA"] += len(d.get("ideas") or [])
         return []
     out = []
+    today = now.astimezone(timezone(timedelta(hours=-4))).date()
     for i in d.get("ideas") or []:
+        # Pre-print idea types die once the report is out: a vol_rich
+        # premium-sell into a print that already happened is not a
+        # trade. post_report_drift is post-print and stays valid.
+        if i.get("type") in ("vol_rich", "vol_cheap",
+                             "momentum_into_print"):
+            try:
+                ed = datetime.strptime(i.get("date") or "",
+                                       "%Y-%m-%d").date()
+            except ValueError:
+                REJECT["STALE_DATA"] += 1
+                continue
+            if ed < today or (ed == today
+                              and i.get("session") == "BMO"):
+                REJECT["STALE_DATA"] += 1
+                continue
         bias = i.get("bias")
         direction = {"bull": "bullish", "bear": "bearish"}.get(bias)
         out.append({
@@ -503,6 +544,16 @@ def performance(events):
                 "hit": round(100 * sum(1 for y in v if y > 0) / len(v)),
                 "avg": round(mean(v), 2)}
             for f, v in byfam.items() if len(v) >= MIN_N}
+        bystat = {}
+        for r in rows:
+            bystat.setdefault(r.get("status") or "?", []).append(r["y"])
+        # North-star: forward realized alpha per QUALIFIED setup. Other
+        # tiers report too so the tiers can be compared honestly.
+        out["by_status"] = {
+            s: {"n": len(v),
+                "hit": round(100 * sum(1 for y in v if y > 0) / len(v)),
+                "avg": round(mean(v), 2), "med": round(median(v), 2)}
+            for s, v in bystat.items() if len(v) >= MIN_N}
     else:
         out["status"] = "accruing"
     cal = {}
@@ -562,6 +613,7 @@ def run(dry=False, do_grade=True):
                   + _earnings_candidates(now)
                   + _momentum_candidates(now))
 
+    n_universe = len(candidates)
     display = []
     for c in candidates:
         sc = score(c["feats"]) if (c["family"] == "flow" and score_ok) \
@@ -570,7 +622,11 @@ def run(dry=False, do_grade=True):
         if reason:
             REJECT[reason] = REJECT.get(reason, 0) + 1
             continue
-        # family gate -> status ceiling
+        # Family gate -> tier. Three tiers, visually unmistakable in the
+        # UI (spec + reviewer): QUALIFIED (validated edge only), WATCH
+        # (research watchlist — interesting, not cleared), EXPERIMENTAL
+        # (family/model actively under forward validation, incl.
+        # degraded families rehabilitating on the paper ledger).
         if c["family"] == "flow":
             g = gates["flow"]
             status = "QUALIFIED" if g["verdict"] == "qualified" else "WATCH"
@@ -578,17 +634,15 @@ def run(dry=False, do_grade=True):
         elif c["family"] == "earnings":
             g = (gates["earnings"]["types"].get(c.get("etype")) or
                  {"verdict": "watch", "why": "accruing"})
-            if g["verdict"] == "degraded":
-                REJECT["STRATEGY_DEGRADED"] += 1
-                continue
-            status = "QUALIFIED" if g["verdict"] == "qualified" else "WATCH"
+            status = {"qualified": "QUALIFIED",
+                      "degraded": "EXPERIMENTAL"}.get(g["verdict"],
+                                                      "WATCH")
             gate_why = g["why"]
         else:
             g = gates["momentum"]
-            if g["verdict"] == "degraded":
-                REJECT["STRATEGY_DEGRADED"] += 1
-                continue
-            status = "QUALIFIED" if g["verdict"] == "qualified" else "WATCH"
+            status = {"qualified": "QUALIFIED",
+                      "degraded": "EXPERIMENTAL"}.get(g["verdict"],
+                                                      "WATCH")
             gate_why = g["why"]
 
         item = {
@@ -621,11 +675,24 @@ def run(dry=False, do_grade=True):
                                 -(x["alpha_score"] or 0)))
     top = [i for i in display if i["status"] == "QUALIFIED"][:MAX_IDEAS]
     watch = [i for i in display if i["status"] == "WATCH"][:MAX_WATCH]
+    experimental = [i for i in display
+                    if i["status"] == "EXPERIMENTAL"][:MAX_WATCH]
+
+    # Alpha capture x selectivity funnel — the scoreboard. Counts are
+    # this run's; qualified alpha stats come from the graded ledger
+    # (performance section) and stay 'accruing' until n >= MIN_N.
+    funnel = {
+        "universe_events": n_universe,
+        "research_candidates": len(display),
+        "watch_setups": len(watch),
+        "experimental": len(experimental),
+        "qualified": len(top),
+    }
 
     prev = _load(OUT_PATH, None)
-    changes = what_changed(prev, top + watch)
+    changes = what_changed(prev, top + watch + experimental)
 
-    events = freeze_ideas(top + watch, now)
+    events = freeze_ideas(top + watch + experimental, now)
     events, n_graded = grade_ledger(events, now, do_grade=do_grade)
     perf = performance(events)
 
@@ -639,6 +706,8 @@ def run(dry=False, do_grade=True):
         "gates": gates,
         "top_ideas": top,
         "watch": watch,
+        "experimental": experimental,
+        "funnel": funnel,
         "abstention": (len(top) == 0),
         "abstention_note": ("No setup currently meets TickerDesk's "
                             "measured alpha threshold. Candidates below "

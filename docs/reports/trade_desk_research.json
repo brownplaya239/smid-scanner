@@ -1,0 +1,635 @@
+{
+ "generated": "2026-08-26T18:43:54+00:00",
+ "research_version": "setup_research_v1",
+ "setups_total": 4767,
+ "setups_graded": 2999,
+ "collapse": {
+  "raw_directional_signals": null,
+  "note": "one observation per ticker-session; mixed (0.4<bull share<0.6) days excluded"
+ },
+ "span": {
+  "from": "2026-05-18",
+  "to": "2026-07-22"
+ },
+ "params": {
+  "shrink_k": 60,
+  "folds": 3,
+  "embargo_days": 9,
+  "holdout_frac": 0.15,
+  "bootstrap_iters": 2000
+ },
+ "folds": [
+  {
+   "fold": 1,
+   "train": {
+    "n": 225,
+    "purged": 412,
+    "to": "2026-05-20"
+   },
+   "val": {
+    "n": 637,
+    "from": "2026-05-29",
+    "to": "2026-06-10"
+   },
+   "ic": -0.1046,
+   "tails": {
+    "all": {
+     "n": 637,
+     "avg": -1.16,
+     "med": -0.92,
+     "hit": 45
+    },
+    "top20": {
+     "n": 182,
+     "avg": -1.02,
+     "med": -1.32,
+     "hit": 40,
+     "cut": 4.071
+    },
+    "top10": {
+     "n": 111,
+     "avg": -1.04,
+     "med": -1.2,
+     "hit": 37,
+     "cut": 5.75
+    },
+    "top5": {
+     "n": 34,
+     "avg": 2.28,
+     "med": -0.51,
+     "hit": 47,
+     "cut": 7.492
+    },
+    "top2": {
+     "n": 14,
+     "avg": 8.11,
+     "med": 9.46,
+     "hit": 79,
+     "cut": 8.145
+    },
+    "top1": {
+     "n": 8,
+     "avg": 6.48,
+     "med": 8.09,
+     "hit": 75,
+     "cut": 8.49
+    }
+   }
+  },
+  {
+   "fold": 2,
+   "train": {
+    "n": 828,
+    "purged": 446,
+    "to": "2026-06-01"
+   },
+   "val": {
+    "n": 637,
+    "from": "2026-06-10",
+    "to": "2026-06-26"
+   },
+   "ic": -0.0574,
+   "tails": {
+    "all": {
+     "n": 637,
+     "avg": 0.13,
+     "med": -0.25,
+     "hit": 49
+    },
+    "top20": {
+     "n": 65,
+     "avg": 1.95,
+     "med": 2.1,
+     "hit": 58,
+     "cut": 1.567
+    },
+    "top10": {
+     "n": 31,
+     "avg": 1.13,
+     "med": 0.79,
+     "hit": 55,
+     "cut": 1.916
+    },
+    "top5": {
+     "n": 12,
+     "avg": 1.46,
+     "med": 2.62,
+     "hit": 58,
+     "cut": 2.381
+    },
+    "top2": {
+     "n": 5,
+     "avg": -0.21,
+     "med": -6.22,
+     "hit": 40,
+     "cut": 2.75
+    },
+    "top1": {
+     "n": 0,
+     "cut": 3.082
+    }
+   }
+  },
+  {
+   "fold": 3,
+   "train": {
+    "n": 1582,
+    "purged": 329,
+    "to": "2026-06-17"
+   },
+   "val": {
+    "n": 639,
+    "from": "2026-06-26",
+    "to": "2026-07-13"
+   },
+   "ic": -0.1611,
+   "tails": {
+    "all": {
+     "n": 639,
+     "avg": -1.74,
+     "med": -1.11,
+     "hit": 44
+    },
+    "top20": {
+     "n": 70,
+     "avg": -1.33,
+     "med": -1.31,
+     "hit": 44,
+     "cut": 0.745
+    },
+    "top10": {
+     "n": 33,
+     "avg": -0.77,
+     "med": -0.34,
+     "hit": 48,
+     "cut": 1.128
+    },
+    "top5": {
+     "n": 10,
+     "avg": -0.96,
+     "med": -1.8,
+     "hit": 50,
+     "cut": 1.61
+    },
+    "top2": {
+     "n": 4,
+     "avg": -1.58,
+     "med": -1.8,
+     "hit": 50,
+     "cut": 2.056
+    },
+    "top1": {
+     "n": 2,
+     "avg": -2.61,
+     "med": -2.61,
+     "hit": 50,
+     "cut": 2.44
+    }
+   }
+  }
+ ],
+ "pooled_oos": {
+  "ic": -0.1085,
+  "tails": {
+   "top20": {
+    "n": 314,
+    "avg": -0.56,
+    "med": -0.98,
+    "hit": 44,
+    "bootstrap": {
+     "clusters": 235,
+     "mean": -0.56,
+     "ci95": [
+      -1.85,
+      0.72
+     ]
+    }
+   },
+   "top10": {
+    "n": 175,
+    "avg": -0.61,
+    "med": -0.97,
+    "hit": 42,
+    "bootstrap": {
+     "clusters": 132,
+     "mean": -0.61,
+     "ci95": [
+      -2.36,
+      1.07
+     ]
+    }
+   },
+   "top5": {
+    "n": 55,
+    "avg": 1.74,
+    "med": 0.1,
+    "hit": 51,
+    "bootstrap": {
+     "clusters": 46,
+     "mean": 1.74,
+     "ci95": [
+      -1.18,
+      4.55
+     ]
+    }
+   },
+   "top2": {
+    "n": 23,
+    "avg": 4.62,
+    "med": 6.22,
+    "hit": 65,
+    "bootstrap": {
+     "clusters": 21,
+     "mean": 4.62,
+     "ci95": [
+      -0.32,
+      9.19
+     ]
+    }
+   },
+   "top1": {
+    "n": 10,
+    "avg": 4.66,
+    "med": 6.44,
+    "hit": 70,
+    "bootstrap": {
+     "clusters": 9,
+     "mean": 4.66,
+     "ci95": [
+      -0.78,
+      9.37
+     ]
+    }
+   },
+   "all": {
+    "n": 1913,
+    "avg": -0.92,
+    "med": -0.9,
+    "hit": 46
+   }
+  }
+ },
+ "holdout": {
+  "n": 449,
+  "from": "2026-07-13",
+  "to": "2026-07-22",
+  "tails": {
+   "top20": {
+    "n": 114,
+    "avg": -3.28,
+    "med": -2.42,
+    "hit": 39,
+    "bootstrap": {
+     "clusters": 88,
+     "mean": -3.28,
+     "ci95": [
+      -5.09,
+      -1.49
+     ]
+    }
+   },
+   "top10": {
+    "n": 87,
+    "avg": -3.15,
+    "med": -2.65,
+    "hit": 37,
+    "bootstrap": {
+     "clusters": 66,
+     "mean": -3.15,
+     "ci95": [
+      -5.42,
+      -0.9
+     ]
+    }
+   },
+   "top5": {
+    "n": 60,
+    "avg": -3.34,
+    "med": -3.17,
+    "hit": 32,
+    "bootstrap": {
+     "clusters": 48,
+     "mean": -3.34,
+     "ci95": [
+      -5.8,
+      -0.74
+     ]
+    }
+   },
+   "top2": {
+    "n": 32,
+    "avg": -1.39,
+    "med": 0.07,
+    "hit": 50,
+    "bootstrap": {
+     "clusters": 27,
+     "mean": -1.39,
+     "ci95": [
+      -5.5,
+      2.79
+     ]
+    }
+   },
+   "top1": {
+    "n": 11,
+    "avg": 1.79,
+    "med": 0.17,
+    "hit": 55,
+    "bootstrap": {
+     "clusters": 11,
+     "mean": 1.79,
+     "ci95": [
+      -6.9,
+      11.23
+     ]
+    }
+   },
+   "all": {
+    "n": 449,
+    "avg": -1.03,
+    "med": -0.22,
+    "hit": 48,
+    "ic": -0.102
+   }
+  }
+ },
+ "ablation": {
+  "full": {
+   "n": 175,
+   "avg": -0.61
+  },
+  "minus_persist": {
+   "n": 175,
+   "avg": -1.22
+  },
+  "minus_regime": {
+   "n": 175,
+   "avg": -0.61
+  },
+  "minus_conv": {
+   "n": 169,
+   "avg": -0.38
+  },
+  "minus_prem": {
+   "n": 163,
+   "avg": -0.37
+  },
+  "minus_golden": {
+   "n": 173,
+   "avg": -0.55
+  },
+  "minus_ern": {
+   "n": 185,
+   "avg": -0.92
+  },
+  "minus_dte": {
+   "n": 163,
+   "avg": -0.65
+  },
+  "minus_liq": {
+   "n": 142,
+   "avg": -0.46
+  },
+  "minus_open": {
+   "n": 175,
+   "avg": -0.61
+  },
+  "minus_repeat": {
+   "n": 171,
+   "avg": -0.3
+  },
+  "minus_nprints": {
+   "n": 173,
+   "avg": -0.78
+  },
+  "minus_strikes": {
+   "n": 173,
+   "avg": -0.06
+  },
+  "minus_expiries": {
+   "n": 181,
+   "avg": -0.37
+  },
+  "minus_dir": {
+   "n": 174,
+   "avg": -0.77
+  }
+ },
+ "interactions": {
+  "tested": 884,
+  "passed_train_gates": 13,
+  "rules": [
+   {
+    "rule": "dte=31-90 AND liq=AB AND dir=bullish",
+    "train": {
+     "n": 110,
+     "avg": 3.37,
+     "med": 1.48
+    },
+    "oos": {
+     "n": 72,
+     "avg": -1.97,
+     "med": -0.88,
+     "hit": 46
+    }
+   },
+   {
+    "rule": "dte=31-90 AND liq=AB AND nprints=>=5",
+    "train": {
+     "n": 118,
+     "avg": 2.61,
+     "med": 1.24
+    },
+    "oos": {
+     "n": 73,
+     "avg": -1.0,
+     "med": 0.01,
+     "hit": 51
+    }
+   },
+   {
+    "rule": "prem=>=5M AND dte=31-90 AND liq=AB",
+    "train": {
+     "n": 119,
+     "avg": 2.59,
+     "med": 1.21
+    },
+    "oos": {
+     "n": 74,
+     "avg": -1.29,
+     "med": -0.21,
+     "hit": 47
+    }
+   },
+   {
+    "rule": "dte=31-90 AND liq=AB AND repeat=yes",
+    "train": {
+     "n": 140,
+     "avg": 2.14,
+     "med": 1.15
+    },
+    "oos": {
+     "n": 93,
+     "avg": -1.76,
+     "med": -1.23,
+     "hit": 44
+    }
+   },
+   {
+    "rule": "dte=31-90 AND liq=AB AND open=high",
+    "train": {
+     "n": 146,
+     "avg": 2.09,
+     "med": 1.15
+    },
+    "oos": {
+     "n": 95,
+     "avg": -1.71,
+     "med": -1.23,
+     "hit": 44
+    }
+   },
+   {
+    "rule": "dte=31-90 AND liq=AB",
+    "train": {
+     "n": 147,
+     "avg": 1.99,
+     "med": 1.15
+    },
+    "oos": {
+     "n": 95,
+     "avg": -1.71,
+     "med": -1.23,
+     "hit": 44
+    }
+   },
+   {
+    "rule": "conv=high AND dte=31-90 AND liq=AB",
+    "train": {
+     "n": 140,
+     "avg": 1.86,
+     "med": 0.94
+    },
+    "oos": {
+     "n": 89,
+     "avg": -1.52,
+     "med": -1.05,
+     "hit": 45
+    }
+   },
+   {
+    "rule": "prem=>=1M AND dte=8-30",
+    "train": {
+     "n": 123,
+     "avg": 0.8,
+     "med": 0.09
+    },
+    "oos": {
+     "n": 86,
+     "avg": -1.26,
+     "med": -0.14,
+     "hit": 50
+    }
+   },
+   {
+    "rule": "prem=>=1M AND dte=8-30 AND open=high",
+    "train": {
+     "n": 123,
+     "avg": 0.8,
+     "med": 0.09
+    },
+    "oos": {
+     "n": 86,
+     "avg": -1.26,
+     "med": -0.14,
+     "hit": 50
+    }
+   },
+   {
+    "rule": "conv=high AND prem=>=1M AND dte=8-30",
+    "train": {
+     "n": 120,
+     "avg": 0.54,
+     "med": 0.15
+    },
+    "oos": {
+     "n": 86,
+     "avg": -1.26,
+     "med": -0.14,
+     "hit": 50
+    }
+   },
+   {
+    "rule": "prem=>=1M AND open=high",
+    "train": {
+     "n": 393,
+     "avg": 0.52,
+     "med": 0.01
+    },
+    "oos": {
+     "n": 252,
+     "avg": -1.66,
+     "med": -0.56,
+     "hit": 46
+    }
+   },
+   {
+    "rule": "conv=high AND prem=>=1M",
+    "train": {
+     "n": 387,
+     "avg": 0.4,
+     "med": 0.01
+    },
+    "oos": {
+     "n": 251,
+     "avg": -1.65,
+     "med": -0.55,
+     "hit": 46
+    }
+   },
+   {
+    "rule": "conv=high AND prem=>=1M AND open=high",
+    "train": {
+     "n": 387,
+     "avg": 0.4,
+     "med": 0.01
+    },
+    "oos": {
+     "n": 251,
+     "avg": -1.65,
+     "med": -0.55,
+     "hit": 46
+    }
+   }
+  ],
+  "honesty": "884 conjunctions enumerated; with this many tests expect some train survivors to be luck. OOS column is the arbiter, and even it is one window."
+ },
+ "registry": {
+  "champion": {
+   "name": null,
+   "note": "no model currently holds production edge for the flow family -> desk abstains"
+  },
+  "challengers": {
+   "setup_additive_v2": {
+    "model": "setup_research_v1",
+    "pooled_ic": -0.1085,
+    "verdict": {
+     "promoted": false
+    }
+   },
+   "tail_rules_v1": {
+    "candidates": 13,
+    "note": "rule survivors are research candidates only; promotion requires a dedicated forward window"
+   }
+  },
+  "promotion_criteria": {
+   "pooled_tail_avg": "> 0",
+   "pooled_tail_med": "> 0",
+   "cluster_bootstrap_ci_low": "> 0",
+   "min_n": 100,
+   "folds_positive": ">= 2/3",
+   "holdout_avg": "> 0"
+  }
+ },
+ "honesty": "Setup-level, close-anchored, purged+embargoed \u2014 but still one ~9-week live stretch. Ticker-week cluster bootstrap corrects overlap optimism only partly (market-wide regime is one big cluster). Costs are NOT modeled; underlying excess, not option P/L. A promoted challenger here starts as PRODUCTION-CANDIDATE; the paper-forward ledger is the final referee."
+}

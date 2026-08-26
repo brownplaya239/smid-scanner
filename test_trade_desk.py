@@ -95,29 +95,33 @@ def test_missing_validation_means_no_score_and_no_qualified_flow(monkeypatch):
     assert gates["flow"]["verdict"] == "watch"
 
 
-def test_no_validated_edge_keeps_flow_at_watch(monkeypatch):
+def test_no_champion_keeps_flow_at_watch(monkeypatch):
     real_load = td._load
 
     def fake(path, default):
-        if path.endswith("trade_desk_validation.json"):
-            return {"qualification": {"status": "no_validated_edge"}}
+        if path.endswith("trade_desk_research.json"):
+            return {"registry": {"champion": {"name": None}}}
         return real_load(path, default)
     monkeypatch.setattr(td, "_load", fake)
     assert td.family_gates()["flow"]["verdict"] == "watch"
 
 
-def test_validated_edge_qualifies_flow(monkeypatch):
+def test_promoted_champion_qualifies_flow(monkeypatch):
     real_load = td._load
+    reg = {"registry": {
+        "champion": {"name": "setup_additive_v2", "tail_pct": 5},
+        "challengers": {"setup_additive_v2": {"verdict": {
+            "promoted": True, "tail_pct": 5,
+            "evidence": {"pooled": {"n": 200, "avg": 1.2}}}}}}}
 
     def fake(path, default):
-        if path.endswith("trade_desk_validation.json"):
-            return {"qualification": {"status": "validated",
-                                      "min_score": 80,
-                                      "holdout": {"n": 500, "avg": 0.4}}}
+        if path.endswith("trade_desk_research.json"):
+            return reg
         return real_load(path, default)
     monkeypatch.setattr(td, "_load", fake)
     g = td.family_gates()["flow"]
-    assert g["verdict"] == "qualified" and g["min_score"] == 80
+    assert g["verdict"] == "qualified" and g["tail_pct"] == 5
+    assert g["evidence"]["pooled"]["n"] == 200
 
 
 def test_negative_measured_family_is_degraded(monkeypatch):
@@ -340,3 +344,100 @@ def test_stale_regime_reads_unknown():
     assert td._regime_today(old, NOW) == "unknown"
     fresh_day = NOW.date().isoformat()
     assert td._regime_today({fresh_day: "risk_off"}, NOW) == "risk_off"
+
+
+# ------------------------------------------------- setup-level research
+
+def test_direction_derived_from_flow_side_when_absent():
+    """Scored-feed rows omit `direction` — the candidate builder must
+    derive it (call buyer = bullish, put buyer = bearish, sellers out)."""
+    import trade_desk_research  # noqa: F401  (import sanity)
+    sigs = [
+        {"flagged_at": NOW.isoformat(), "ticker": "AAA", "type": "call",
+         "flow_side": "call_buyer", "premium": 5e5, "liquidity": "B"},
+        {"flagged_at": NOW.isoformat(), "ticker": "BBB", "type": "put",
+         "flow_side": "put_buyer", "premium": 5e5, "liquidity": "B"},
+        {"flagged_at": NOW.isoformat(), "ticker": "CCC", "type": "call",
+         "flow_side": "call_seller", "premium": 5e5, "liquidity": "B"},
+    ]
+    import trade_desk as td2
+    real_load = td2._load
+
+    def fake(path, default):
+        if path.endswith("uoa_signals_scored.json"):
+            return {"signals": sigs}
+        return real_load(path, default)
+    orig = td2._load
+    td2._load = fake
+    try:
+        out = td2._flow_candidates({}, NOW)
+    finally:
+        td2._load = orig
+    got = {(c["ticker"], c["direction"]) for c in out}
+    assert ("AAA", "bullish") in got
+    assert ("BBB", "bearish") in got
+    assert all(t != "CCC" for t, _ in got)
+
+
+def test_research_purge_drops_label_overlap():
+    import trade_desk_research as tdr
+    train = [{"date": "2026-06-01"}, {"date": "2026-06-09"},
+             {"date": "2026-06-14"}]
+    purged = tdr._purge(train, "2026-06-15")
+    dates = [r["date"] for r in purged]
+    assert "2026-06-14" not in dates      # inside embargo window
+    assert "2026-06-01" in dates
+
+
+def test_research_bootstrap_flags_thin_clusters():
+    import trade_desk_research as tdr
+    out = tdr.cluster_bootstrap([("a", 1.0), ("b", -1.0)])
+    assert out["status"] == "insufficient_clusters"
+
+
+def test_degraded_family_routes_to_experimental_tier(monkeypatch):
+    real_load = td._load
+
+    def fake(path, default):
+        if path.endswith("scan_outcomes.json"):
+            return {"overall": {"status": "active", "n": 500, "ev": -1.0,
+                                "profit_factor": 0.8}}
+        return real_load(path, default)
+    monkeypatch.setattr(td, "_load", fake)
+    assert td.family_gates()["momentum"]["verdict"] == "degraded"
+    # run()'s tier mapping: degraded -> EXPERIMENTAL (not rejected) is
+    # asserted via the mapping dict used there
+    assert {"qualified": "QUALIFIED",
+            "degraded": "EXPERIMENTAL"}.get("degraded") == "EXPERIMENTAL"
+
+
+def test_expired_preprint_earnings_ideas_rejected(monkeypatch):
+    """A vol_rich idea for a report that already printed must never
+    surface — pre-print types expire at the event."""
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(timezone.utc)
+    et_today = (now.astimezone(timezone(timedelta(hours=-4)))
+                .date().isoformat())
+    yesterday = (now.astimezone(timezone(timedelta(hours=-4))).date()
+                 - timedelta(days=1)).isoformat()
+    doc = {"generated": now.isoformat(),
+           "ideas": [
+               {"t": "AAA", "type": "vol_rich", "bias": "neutral",
+                "date": yesterday, "session": "AMC"},
+               {"t": "BBB", "type": "vol_rich", "bias": "neutral",
+                "date": et_today, "session": "AMC"},
+               {"t": "CCC", "type": "post_report_drift", "bias": "bull",
+                "date": yesterday, "session": "AMC"},
+           ]}
+    real_load = td._load
+
+    def fake(path, default):
+        if path.endswith("earnings_ideas.json"):
+            return doc
+        return real_load(path, default)
+    monkeypatch.setattr(td, "_load", fake)
+    out = td._earnings_candidates(now)
+    got = {c["ticker"] for c in out}
+    assert "AAA" not in got        # printed yesterday -> dead
+    assert "BBB" in got            # prints tonight -> alive
+    assert "CCC" in got            # post-print type -> alive

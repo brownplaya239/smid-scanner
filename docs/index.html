@@ -5646,6 +5646,15 @@
     padding:1px 7px; border-radius:8px; }
   .atd-status.s-QUALIFIED { background:rgba(255,158,27,.18); color:#ff9e1b; }
   .atd-status.s-WATCH { background:rgba(139,147,167,.16); color:#8b93a7; }
+  .atd-status.s-EXPERIMENTAL { background:rgba(126,87,194,.16);
+    color:#9575cd; }
+  .atd-card.atd-x { border-style:dashed; opacity:.85; }
+  .atd-funnel { display:flex; flex-wrap:wrap; gap:0 6px; align-items:center;
+    font-size:11.5px; color:var(--muted,#8b93a7); margin:2px 0 14px;
+    font-variant-numeric:tabular-nums; }
+  .atd-funnel b { color:var(--fg,#e8ecf4); }
+  .atd-funnel .f-arrow { opacity:.5; }
+  .atd-funnel .f-q b { color:var(--accent,#ff9e1b); }
   .atd-rows { font-size:12px; line-height:1.55; }
   .atd-rows .k { color:var(--muted,#8b93a7); }
   .atd-ev-btn { margin-top:8px; font-size:11px; background:none;
@@ -30140,7 +30149,7 @@
     const $ = function (id) { return document.getElementById(id); };
     const esc = window.escapeHtml || function (s) { return String(s); };
     const ATD_WORKER = "https://api.tickerdesk.io";
-    let DATA = null, VAL = null, loaded = false;
+    let DATA = null, VAL = null, RES = null, loaded = false;
 
     function tkn() {
       // Self-contained session token read (same localStorage fallback
@@ -30219,6 +30228,10 @@
       }
       rows.push(['Option mark', c.option_mark == null
         ? "Unavailable" : "$" + num(c.option_mark, 2)]);
+      // Qualified cards carry their family's measured record on the
+      // face — the reader should never wonder WHY something qualified.
+      if (i.status === "QUALIFIED" && i.gate)
+        rows.push(['Track record', esc(i.gate)]);
       const evList = [];
       if (ev.thesis) evList.push(esc(ev.thesis));
       (ev.cited || []).forEach(function (x) { evList.push("✓ " + esc(x)); });
@@ -30226,7 +30239,8 @@
       if (ev.sector) evList.push("Sector: " + esc(ev.sector));
       if (i.gate) evList.push("Gate: " + esc(i.gate));
       return '<div class="atd-card' +
-        (i.status === "QUALIFIED" ? " atd-q" : "") + '">' +
+        (i.status === "QUALIFIED" ? " atd-q"
+          : (i.status === "EXPERIMENTAL" ? " atd-x" : "")) + '">' +
         '<div class="atd-head">' +
           '<span class="atd-tk" data-t="' + esc(i.ticker) + '">' +
             esc(i.ticker) + '</span>' +
@@ -30315,6 +30329,50 @@
         }).join("") + '</ul>';
     }
 
+    function researchHTML(v) {
+      if (!v || !v.pooled_oos) return "";
+      const t = v.pooled_oos.tails || {};
+      const ht = (v.holdout || {}).tails || {};
+      function row(label, r, hr) {
+        function cell(x) {
+          if (!x || !x.n) return "<td>—</td>";
+          const ci = (x.bootstrap || {}).ci95;
+          return "<td>" + num(x.avg, 2) + "pp / " + num(x.med, 2) +
+            "pp · " + x.hit + "% (n=" + x.n + ")" +
+            (ci ? "<br><span class=\"k\">CI " + num(ci[0], 1) +
+              " → " + num(ci[1], 1) + "</span>" : "") + "</td>";
+        }
+        return "<tr><td>" + label + "</td>" + cell(r) + cell(hr) +
+          "</tr>";
+      }
+      let h = '<div class="atd-sec-h">Setup-level research ' +
+        '<span class="n">(' + (v.setups_graded || 0) + ' independent ' +
+        'ticker-session setups · purged+embargoed walk-forward · ' +
+        'ticker-week cluster bootstrap)</span></div>' +
+        '<div class="atd-perf"><table><tr><th>selection</th>' +
+        '<th>pooled OOS avg/med · hit</th><th>holdout</th></tr>' +
+        row("All setups", t.all, ht.all) +
+        row("Top 20%", t.top20, ht.top20) +
+        row("Top 10%", t.top10, ht.top10) +
+        row("Top 5%", t.top5, ht.top5) +
+        row("Top 2%", t.top2, ht.top2) +
+        row("Top 1%", t.top1, ht.top1) +
+        '</table>';
+      const reg = (v.registry || {});
+      const ch = (reg.champion || {});
+      h += 'Champion: <b>' + esc(ch.name || "NONE — desk abstains for " +
+        "the flow family") + '</b>';
+      const ix = v.interactions || {};
+      if (ix.tested)
+        h += '<br>Interaction search: ' + ix.tested + ' conjunctions, ' +
+          ix.passed_train_gates + ' train survivors — ' +
+          '<span class="k">' + esc(ix.honesty || "") + '</span>';
+      if (v.honesty)
+        h += '<br><span class="k">' + esc(v.honesty) + '</span>';
+      h += '</div>';
+      return h;
+    }
+
     function validationHTML(v) {
       if (!v || !v.folds) return "";
       let h = '<div class="atd-sec-h">Alpha Score validation ' +
@@ -30342,16 +30400,40 @@
       return h;
     }
 
+    function funnelHTML(f) {
+      if (!f) return "";
+      const seg = function (label, v, cls) {
+        return '<span class="' + (cls || "") + '">' + label + ' <b>' +
+          (v == null ? "—" : v) + '</b></span>';
+      };
+      return '<div class="atd-funnel">' +
+        seg("Universe events", f.universe_events) +
+        '<span class="f-arrow">→</span>' +
+        seg("Candidates", f.research_candidates) +
+        '<span class="f-arrow">→</span>' +
+        seg("Watch", f.watch_setups) +
+        '<span class="f-arrow">→</span>' +
+        seg("Qualified", f.qualified, "f-q") +
+        (f.experimental ? ' <span class="f-arrow">·</span> ' +
+          seg("Experimental", f.experimental) : '') +
+        '</div>';
+    }
+
     function render() {
       const d = DATA;
       if (!d) return;
       $("atd-hero").innerHTML = heroHTML(d);
-      let h = "";
+      let h = funnelHTML(d.funnel);
+      // Three tiers, visually unmistakable:
+      //   Qualified Trades   - genuinely validated edge only
+      //   Research Watchlist - interesting, not cleared production gates
+      //   Experimental       - models/families under forward validation
       const top = d.top_ideas || [];
       if (top.length) {
-        h += '<div class="atd-sec-h">Top Ideas <span class="n">(' +
-          top.length + ' qualify)</span></div><div class="atd-grid">' +
-          top.map(cardHTML).join("") + '</div>';
+        h += '<div class="atd-sec-h">Qualified Trades <span class="n">(' +
+          top.length + ' clear' + (top.length === 1 ? 's' : '') +
+          ' a measured production gate)</span></div>' +
+          '<div class="atd-grid">' + top.map(cardHTML).join("") + '</div>';
       } else {
         h += '<div class="atd-abstain"><b>No high-conviction setup ' +
           'currently meets TickerDesk\u2019s alpha threshold.</b>' +
@@ -30359,16 +30441,26 @@
       }
       const watch = d.watch || [];
       if (watch.length) {
-        h += '<div class="atd-sec-h">Watchlist — not yet qualified ' +
-          '<span class="n">(tracked paper-forward; never confuse with ' +
-          'actionable ideas)</span></div><div class="atd-grid">' +
-          watch.map(cardHTML).join("") + '</div>';
+        h += '<div class="atd-sec-h">Research Watchlist ' +
+          '<span class="n">(interesting current setups — NOT cleared ' +
+          'for production; tracked paper-forward)</span></div>' +
+          '<div class="atd-grid">' + watch.map(cardHTML).join("") +
+          '</div>';
+      }
+      const exp = d.experimental || [];
+      if (exp.length) {
+        h += '<div class="atd-sec-h">Experimental Signals ' +
+          '<span class="n">(families under forward validation — their ' +
+          'measured record is currently negative or thin; shown for ' +
+          'transparency, never a recommendation)</span></div>' +
+          '<div class="atd-grid">' + exp.map(cardHTML).join("") +
+          '</div>';
       }
       h += gatesHTML(d.gates);
       h += changesHTML(d.what_changed);
       h += perfHTML(d.performance);
       h += '<div id="atd-validation" style="display:none">' +
-        validationHTML(VAL) + '</div>';
+        researchHTML(RES) + validationHTML(VAL) + '</div>';
       const rej = d.rejections || {};
       const rk = Object.keys(rej);
       if (rk.length) {
@@ -30411,9 +30503,13 @@
         fetch("./reports/trade_desk_validation.json" + bust,
               { cache: "no-cache" })
           .then(function (r) { return r.ok ? r.json() : null; }),
+        fetch("./reports/trade_desk_research.json" + bust,
+              { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; }),
       ]).then(function (rs) {
         DATA = rs[0].value || DATA;
         VAL = rs[1].value || VAL;
+        RES = rs[2].value || RES;
         loaded = true;
         if (DATA) render();
         else $("atd-body").innerHTML =

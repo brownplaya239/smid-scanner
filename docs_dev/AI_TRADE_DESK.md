@@ -181,6 +181,63 @@ absent — no execution surface exists.
    ideas are paper-tracked at underlying level; required before any
    option-level performance claim.
 
+## 10b. Setup-level research (2026-08 sprint — `trade_desk_research.py`)
+
+The signal-level validation's flaw was correlation: same-ticker same-day
+prints are one bet counted many times. The research module fixes this and
+runs the program a reviewer specified: **collapse → purge/embargo → tail
+precision → interactions → ablation → cluster bootstrap → registry.**
+
+- **Collapse:** 153,818 raw prints → **4,767 independent ticker-session
+  setups (2,999 graded)** — effective n is ~2% of raw. Outcome =
+  direction-signed +5-session **close-anchored** excess (`exc_c`, both
+  legs at flag-day close — no intraday drift leak). Mixed days
+  (0.4 < bull share < 0.6) excluded. Prior-session OI persistence is
+  included as a feature because a T−1 print's next-day OI check is known
+  by T; same-day OI stays excluded (look-ahead).
+- **Purged, embargoed walk-forward:** expanding folds; train rows whose
+  5-session label window reaches the validation block are dropped
+  (embargo 9 calendar days); 15% chronological holdout untouched.
+- **Extreme-tail precision (the product metric), pooled OOS:**
+
+  | selection | avg / med | hit | n | cluster-bootstrap 95% CI |
+  |---|---|---|---|---|
+  | All | −0.92 / −0.90 | 46% | 1,913 | — |
+  | Top 10% | −0.61 / −0.97 | 42% | 175 | −2.4 → +1.1 |
+  | Top 5% | +1.74 / +0.10 | 51% | 55 | **−1.2 → +4.5** |
+  | Top 1% | +4.66 / +6.44 | 70% | 10 | **−0.8 → +9.4** (9 clusters) |
+
+  Holdout (most recent window): top 5% = **−3.34, CI −5.8 → −0.7** —
+  the tail selection actively lost most recently.
+- **Interactions:** 884 conjunctions enumerated, 13 passed train gates
+  (min-n, positive both halves) — **every one went negative OOS.** The
+  "31–90 DTE liquid bullish flow" pocket that led training flipped hard.
+- **Ablation:** full-model OOS top-decile −0.61; no single feature-group
+  removal turns it positive. Nothing in the current columns creates edge.
+- **Verdict:** challenger NOT promoted. Champion = **NONE** → desk
+  abstains for the flow family. Promotion criteria (predefined, in the
+  JSON): pooled tail avg>0 AND med>0 AND bootstrap CI low>0 AND n≥100
+  AND ≥2/3 folds positive AND holdout avg>0.
+
+**Conclusion: the signal inputs need to change.** The hypothesized
+institutional conditionals (flow × relative strength × earnings revisions
+× IV state × sector) are untestable because the ledger never captured
+those columns — so `trade_desk_context.py` now logs them point-in-time
+every session (`data/setup_context.jsonl`: RS rank/5d/20d, trend, RSI,
+vol ratio, ATR%, EMA position, swing grade, sector, mcap, days-to-
+earnings, implied vs realized move, regime) for every ticker with
+directional flow plus every name reporting ≤7 days. In ~6–8 weeks the
+research re-runs with these columns joined.
+
+**Meanwhile, the first genuine qualification arrived from a different
+family:** the earnings loop's `vol_rich` type crossed its pre-defined
+gate on its own graded record — **n=102, 91% win rate, EV +6.87
+vol-points** (implied minus realized |move|: options systematically
+overprice earnings moves — a defined-risk premium-selling edge).
+`vol_cheap` also active-positive (n=48, EV +2.49). These are the
+Qualified Trades tier at ship; note their EV is in vol-points (edge for
+premium sellers), not stock alpha — the card says so.
+
 ## 11. What would make this product succeed
 
 The moat is the growing point-in-time record + honest gates, not the LLM.
