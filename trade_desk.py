@@ -637,6 +637,44 @@ def performance(events):
     return out
 
 
+def _ledgers(perf):
+    """Three separate scoreboards (reviewer: do not blend targets).
+    Forecast = earnings-vol implied-vs-realized; Directional = +5D
+    direction-signed excess (flow/momentum families in the idea
+    ledger); Executable = actual trade-qualified record (empty is a
+    statement, not an absence)."""
+    ev = _load(R("docs", "reports", "earnings_vol.json"), {})
+    fml = _load(R("docs", "reports", "fair_move_lab.json"), {})
+    vr = (ev.get("types") or {}).get("vol_rich") or {}
+    lab = ((fml.get("standings") or {}).get("overall") or {})         .get("v1_ticker_median") or {}
+    forecast = {
+        "target": "market implied move - realized move",
+        "events": vr.get("n"),
+        "nights": (vr.get("date_cluster_bootstrap") or {}).get("nights"),
+        "implied_gt_realized_pct": vr.get("win"),
+        "avg_vol_edge_pp": vr.get("ev_vol_pts"),
+        "night_ci": (vr.get("date_cluster_bootstrap") or {}).get("ci95"),
+        "fair_move_model": "v1",
+        "fair_move_mae": lab.get("mae"),
+        "fair_move_bias": lab.get("bias"),
+        "edge_sign_pct": lab.get("edge_sign_pct"),
+    }
+    directional = {
+        "target": "+5-session direction-signed excess vs SPY",
+        "tracked": perf.get("tracked"), "graded": perf.get("graded"),
+        "overall": perf.get("overall"),
+        "status": perf.get("status"),
+    }
+    executable = {
+        "trade_qualified_strategies": 0,
+        "frozen_live_trades": 0,
+        "statement": "TickerDesk has not yet qualified an executable "
+                     "strategy.",
+    }
+    return {"forecast": forecast, "directional": directional,
+            "executable": executable}
+
+
 # ------------------------------------------------------- what changed
 
 def what_changed(prev, ideas_all):
@@ -748,10 +786,43 @@ def run(dry=False, do_grade=True):
     experimental = [i for i in display
                     if i["status"] == "EXPERIMENTAL"][:MAX_WATCH]
 
-    # Alpha capture x selectivity funnel — the scoreboard. Counts are
-    # this run's; qualified alpha stats come from the graded ledger
-    # (performance section) and stay 'accruing' until n >= MIN_N.
-    funnel = {
+    # Desk counts — evidence-level tallies (reviewer: never let a
+    # signal-qualified observation masquerade as a qualified trade).
+    n_trade_q = sum(1 for i in top if i["status"] == "TRADE_QUALIFIED")
+    n_signal_q = sum(1 for i in top
+                     if i["status"] == "SIGNAL_QUALIFIED")
+    n_plain_q = sum(1 for i in top if i["status"] == "QUALIFIED")
+    desk_counts = {
+        "trade_qualified": n_trade_q + n_plain_q,
+        "signal_qualified": n_signal_q,
+        "research_watch": len(watch),
+        "experimental": len(experimental),
+    }
+    # Multiple independent pipelines, not one funnel.
+    n_flow_cand = sum(1 for c in candidates if c["family"] == "flow")
+    n_ern_cand = sum(1 for c in candidates
+                     if c["family"] == "earnings")
+    pipelines = [
+        {"name": "Earnings Volatility",
+         "line": f"{n_ern_cand} scanned → {n_signal_q} signal-qualified"
+                 f" → {n_trade_q} trade-qualified"},
+        {"name": "Options Flow",
+         "line": f"{n_flow_cand} candidates → "
+                 f"{sum(1 for i in watch if i['family']=='flow')} watch"
+                 " → 0 qualified (no champion)"},
+    ]
+    so = _load(R("docs", "reports", "scan_outcomes.json"), {})
+    so_n = ((so.get("overall") or {}).get("n"))
+    if so_n:
+        pipelines.append({"name": "Momentum",
+                          "line": f"{so_n} graded observations → "
+                                  "DEGRADED"})
+    drift = ((_load(R("docs", "reports", "earnings_ideas.json"), {})
+              .get("by_type") or {}).get("post_report_drift") or {})
+    if drift.get("n"):
+        pipelines.append({"name": "Post-Report Drift",
+                          "line": f"{drift['n']} graded → DEGRADED"})
+    funnel = {  # retained for compatibility; UI now prefers desk_counts
         "universe_events": n_universe,
         "research_candidates": len(display),
         "watch_setups": len(watch),
@@ -761,6 +832,34 @@ def run(dry=False, do_grade=True):
 
     prev = _load(OUT_PATH, None)
     changes = what_changed(prev, top + watch + experimental)
+    # Deterministic headline summaries (templates over facts — the LLM
+    # is never in this path).
+    headlines = []
+    vol_tops = [i for i in top
+                if (i.get("construct") or {}).get("vol_edge_pp")
+                is not None]
+    if vol_tops:
+        rich = max(vol_tops,
+                   key=lambda i: i["construct"]["vol_edge_pp"])
+        c = rich["construct"]
+        headlines.append({
+            "h": f"{rich['ticker']} is today's richest earnings-vol "
+                 "setup",
+            "d": f"Market-implied move is {c['implied_move']}% versus "
+                 f"TickerDesk Fair Move of {c['fair_move']}%, a "
+                 f"+{c['vol_edge_pp']}pp discrepancy."})
+    if n_signal_q and not (n_trade_q + n_plain_q):
+        headlines.append({
+            "h": "Vol-rich remains signal-qualified, not "
+                 "trade-qualified",
+            "d": "The expression gate still has no champion; "
+                 "defined-risk structures remain rejected."})
+    if any(i["family"] == "flow" for i in watch):
+        headlines.append({
+            "h": "Options flow remains research-only",
+            "d": f"{sum(1 for i in watch if i['family']=='flow')} "
+                 "setups entered Watch; the family has no validated "
+                 "walk-forward champion."})
 
     events = freeze_ideas(top + watch + experimental, now)
     events, n_graded = grade_ledger(events, now, do_grade=do_grade)
@@ -778,22 +877,34 @@ def run(dry=False, do_grade=True):
         "watch": watch,
         "experimental": experimental,
         "funnel": funnel,
-        "abstention": (len(top) == 0),
-        "abstention_note": ("No setup currently meets TickerDesk's "
-                            "measured alpha threshold. Candidates below "
-                            "are tracked paper-forward; families qualify "
-                            "automatically when their own graded record "
-                            "turns positive at n>=%d." % MIN_N)
-                           if not top else None,
+        "desk_counts": desk_counts,
+        "pipelines": pipelines,
+        "headlines": headlines,
+        "ledgers": _ledgers(perf),
+        "abstention": (desk_counts["trade_qualified"] == 0),
+        "abstention_note": (
+            ("No executable trade clears TickerDesk's production gate "
+             "today. " +
+             (f"{desk_counts['signal_qualified']} earnings-volatility "
+              "markets do exhibit a validated forecasting discrepancy, "
+              "but no option structure has demonstrated sufficient "
+              "after-cost expectancy."
+              if desk_counts["signal_qualified"] else
+              "Candidates below are tracked paper-forward; families "
+              "qualify automatically when their own record clears "
+              "their gates."))
+            if desk_counts["trade_qualified"] == 0 else None),
         "rejections": {k: v for k, v in REJECT.items() if v},
         "what_changed": changes,
         "performance": perf,
-        "honesty": ("Every number on this page is measured from the "
-                    "point-in-time ledger; nothing is estimated. "
-                    "Alpha Score = percentile of expected +5d "
-                    "direction-signed excess vs SPY on the graded "
-                    "record — not a win probability. Option marks are "
-                    "not live here; 'Unavailable' means exactly that."),
+        "honesty": ("Every displayed statistic is computed from "
+                    "point-in-time data or a disclosed deterministic "
+                    "model; no values are invented by the LLM. Flow "
+                    "Rank is a relative research rank among today's "
+                    "flow candidates — the options-flow family has NOT "
+                    "demonstrated out-of-sample alpha. TickerDesk Fair "
+                    "Move is a disclosed forecast (v1: ticker median "
+                    "realized move), not a measurement."),
     }
     if not dry:
         with open(OUT_PATH, "w", encoding="utf-8") as f:

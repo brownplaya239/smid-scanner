@@ -596,3 +596,56 @@ def test_exec_qualification_needs_f50_agreement():
     assert ex._qualifies(good, {"avg_ror": -0.01}) is False
     assert ex._qualifies(dict(good, med_ror=-0.01),
                          {"avg_ror": 0.02}) is False
+
+
+# ------------------------------------------------ UI redesign contracts
+
+def test_no_entity_leaks_in_published_payloads():
+    """P0 regression (reviewer sec 30): rendered public copy must never
+    carry escaped-entity or mojibake artifacts. Payload-side guard —
+    the JSONs the page renders verbatim."""
+    import re
+    for f in ("docs/reports/trade_desk.json",
+              "docs/reports/earnings_vol.json",
+              "docs/reports/earnings_vol_exec.json",
+              "docs/reports/fair_move_lab.json"):
+        p = os.path.join(os.path.dirname(
+            os.path.abspath(td.__file__)), f)
+        if not os.path.exists(p):
+            continue
+        s = open(p, encoding="utf-8").read()
+        assert not re.search(r"&#x|&amp;|&lt;|&gt;|Ã¢", s), f
+
+
+def test_desk_counts_never_conflate_signal_and_trade():
+    """A signal-qualified idea must count under signal_qualified, never
+    trade_qualified (reviewer sec 2)."""
+    d = td._load(os.path.join(os.path.dirname(
+        os.path.abspath(td.__file__)),
+        "docs", "reports", "trade_desk.json"), {})
+    c = d.get("desk_counts") or {}
+    n_sig = sum(1 for i in d.get("top_ideas") or []
+                if i["status"] == "SIGNAL_QUALIFIED")
+    n_trade = sum(1 for i in d.get("top_ideas") or []
+                  if i["status"] in ("TRADE_QUALIFIED", "QUALIFIED"))
+    assert c.get("signal_qualified") == n_sig
+    assert c.get("trade_qualified") == n_trade
+
+
+def test_headlines_are_deterministic_templates():
+    d = td._load(os.path.join(os.path.dirname(
+        os.path.abspath(td.__file__)),
+        "docs", "reports", "trade_desk.json"), {})
+    for h in d.get("headlines") or []:
+        assert h.get("h") and h.get("d")
+
+
+def test_ledgers_are_split_by_target():
+    d = td._load(os.path.join(os.path.dirname(
+        os.path.abspath(td.__file__)),
+        "docs", "reports", "trade_desk.json"), {})
+    L = d.get("ledgers") or {}
+    assert set(L) == {"forecast", "directional", "executable"}
+    assert L["executable"]["trade_qualified_strategies"] == 0
+    assert "implied" in L["forecast"]["target"]
+    assert "SPY" in L["directional"]["target"]

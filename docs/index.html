@@ -5648,9 +5648,14 @@
   .atd-status.s-WATCH { background:rgba(139,147,167,.16); color:#8b93a7; }
   .atd-status.s-EXPERIMENTAL { background:rgba(126,87,194,.16);
     color:#9575cd; }
-  .atd-status.s-SIGNAL_QUALIFIED { background:rgba(255,158,27,.14);
-    color:#ff9e1b; border:1px dashed rgba(255,158,27,.5); }
-  .atd-status.s-TRADE_QUALIFIED { background:rgba(52,199,123,.16);
+  /* Evidence-level visual hierarchy (reviewer sec 36): research rank
+     never resembles a validated signal; a signal never resembles a
+     trade. WATCH grey · SIGNAL blue · TRADE accent · CHAMPION green. */
+  .atd-status.s-SIGNAL_QUALIFIED { background:rgba(79,156,245,.14);
+    color:#4f9cf5; border:1px solid rgba(79,156,245,.4); }
+  .atd-status.s-TRADE_QUALIFIED { background:rgba(255,158,27,.2);
+    color:#ff9e1b; }
+  .atd-status.s-CHAMPION { background:rgba(52,199,123,.2);
     color:#34c77b; }
   .atd-pending { font-size:10.5px; color:var(--muted,#8b93a7);
     font-style:italic; }
@@ -5665,6 +5670,64 @@
   .atd-blk-h { font-size:9.5px; font-weight:800; letter-spacing:.8px;
     color:var(--muted,#8b93a7); margin:7px 0 2px;
     border-bottom:1px solid rgba(139,147,167,.18); padding-bottom:2px; }
+  .atd-subnav { display:flex; gap:4px; margin:14px 0 12px;
+    border-bottom:1px solid rgba(139,147,167,.22); }
+  .atd-subnav button { background:none; border:none; cursor:pointer;
+    color:var(--muted,#8b93a7); font-size:12.5px; font-weight:700;
+    padding:6px 12px; border-bottom:2px solid transparent; }
+  .atd-subnav button.active { color:var(--fg,#e8ecf4);
+    border-bottom-color:var(--accent,#ff9e1b); }
+  .atd-tiles { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0; }
+  .atd-tile { border:1px solid rgba(139,147,167,.22); border-radius:9px;
+    padding:8px 14px; min-width:104px; }
+  .atd-tile .t-k { font-size:9.5px; font-weight:800; letter-spacing:.7px;
+    color:var(--muted,#8b93a7); text-transform:uppercase; }
+  .atd-tile .t-v { font-size:20px; font-weight:800;
+    font-variant-numeric:tabular-nums; }
+  .atd-tile.t-accent .t-v { color:var(--accent,#ff9e1b); }
+  .atd-tile.t-blue .t-v { color:#4f9cf5; }
+  .atd-fam { }
+  .atd-fam-block { border:1px solid rgba(79,156,245,.35);
+    border-radius:10px; padding:14px 16px; margin:10px 0 14px; }
+  .atd-fam-block .fb-head { display:flex; align-items:center; gap:10px;
+    flex-wrap:wrap; margin-bottom:6px; }
+  .atd-fam-block .fb-title { font-weight:800; font-size:14.5px; }
+  .atd-fam-block .fb-desc { font-size:12px; line-height:1.55;
+    color:var(--muted,#8b93a7); margin:4px 0 10px; }
+  .atd-edge-states { display:flex; gap:14px; flex-wrap:wrap;
+    font-size:11px; margin:8px 0; }
+  .atd-edge-states b { display:block; font-size:9.5px; font-weight:800;
+    letter-spacing:.6px; color:var(--muted,#8b93a7); }
+  .atd-edge-states .ok { color:#4f9cf5; font-weight:700; }
+  .atd-edge-states .no { color:var(--muted,#8b93a7); }
+  .atd-ladder { font-family:inherit; font-size:10.5px; line-height:1.7;
+    color:var(--muted,#8b93a7); margin:6px 0;
+    font-variant-numeric:tabular-nums; }
+  .atd-ladder .lp { color:#4f9cf5; font-weight:800; }
+  .atd-table { width:100%; border-collapse:collapse; margin:6px 0 4px;
+    font-size:12px; }
+  .atd-table th { text-align:left; color:var(--muted,#8b93a7);
+    font-weight:600; font-size:10.5px; letter-spacing:.4px;
+    text-transform:uppercase; padding:4px 10px 4px 0;
+    border-bottom:1px solid rgba(139,147,167,.22);
+    white-space:nowrap; }
+  .atd-table td { padding:5px 10px 5px 0;
+    border-bottom:1px solid rgba(139,147,167,.1);
+    font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .atd-table tr[data-t] { cursor:pointer; }
+  .atd-table tr[data-t]:hover td { background:rgba(139,147,167,.06); }
+  .atd-table .pos { color:#34c77b; }
+  .atd-table .neg { color:#ef5350; }
+  .atd-table-wrap { overflow-x:auto; }
+  .atd-conflict { font-size:9.5px; font-weight:800; color:#ff9e1b;
+    letter-spacing:.5px; }
+  .atd-collapse summary { cursor:pointer; font-size:12.5px;
+    font-weight:700; margin:14px 0 6px; list-style:none; }
+  .atd-collapse summary::before { content:"▸ "; }
+  .atd-collapse[open] summary::before { content:"▾ "; }
+  .atd-info { cursor:help; color:var(--muted,#8b93a7); font-size:10px;
+    border:1px solid rgba(139,147,167,.4); border-radius:50%;
+    padding:0 4px; margin-left:4px; }
   .atd-stance { font-size:10px; font-weight:800; letter-spacing:.5px;
     padding:1px 7px; border-radius:8px;
     background:rgba(255,158,27,.14); color:#ff9e1b; }
@@ -6116,35 +6179,41 @@
       </div>
     </section>
 
-    <!-- ── AI Trade Desk — flagship alpha-first trade discovery ──
-         Data: reports/trade_desk.json (engine: trade_desk.py, runs in
-         the UOA workflow). ALPHA IS PARAMOUNT: the page renders zero
-         Top Ideas unless a strategy family's own measured record
-         qualifies — abstention is the designed default, not an error
-         state. Everything below is deterministic pipeline output; the
-         only LLM surface is Ask TickerDesk, which reasons over this
-         same JSON and cannot introduce numbers of its own. -->
+    <!-- == AI Trade Desk — evidence-ranked research desk ==
+         Data: reports/trade_desk.json + earnings_vol*.json +
+         fair_move_lab.json (deterministic engines, CI). The page is
+         organized by EVIDENCE LEVEL, not by ticker count: validated
+         market edges (strategy families) -> current instances ->
+         research watch -> experimental. Zero trade-qualified
+         expressions renders as the dominant honest state, not an
+         error. Only the Ask box touches an LLM, and it answers solely
+         from this published state. -->
     <section class="panel" id="panel-trade-desk">
       <h2 class="tab-title">AI Trade Desk</h2>
-      <p class="tab-sub">Highest-alpha actionable setups — or an honest
-        &ldquo;none today.&rdquo; Every strategy family must earn its way onto
-        this page through its own measured, walk-forward-validated track
-        record. Ideas freeze into an append-only ledger at issuance and
-        are graded against real closes; nothing is ever rewritten.
-        <a href="#" id="atd-method-link">Methodology</a></p>
+      <p class="tab-sub">Validated market edges, executable trades, and
+        research setups — ranked by evidence, not hype. Every strategy
+        must earn production status through point-in-time, walk-forward
+        validation. TickerDesk will show no trade rather than promote an
+        unproven expression.</p>
       <div class="atd-hero" id="atd-hero"></div>
-      <div id="atd-body"><div class="uoa-empty">Loading&hellip;</div></div>
       <div class="atd-ask" id="atd-ask">
-        <div class="atd-sec-h" style="margin:0">Ask TickerDesk</div>
         <div class="ask-chips" id="atd-ask-chips"></div>
         <div class="ask-row">
           <input type="text" id="atd-ask-input" maxlength="300"
-                 placeholder="Ask about today's setups, gates, or the track record&hellip;"
-                 aria-label="Ask TickerDesk about today's trade desk" />
+                 placeholder="Ask about today&#39;s desk&hellip;"
+                 aria-label="Ask TickerDesk about today&#39;s desk" />
           <button id="atd-ask-btn" type="button">Ask</button>
         </div>
         <div class="ask-out" id="atd-ask-out"></div>
       </div>
+      <div class="atd-subnav" id="atd-subnav" role="tablist">
+        <button data-atdview="today" class="active" type="button">Today</button>
+        <button data-atdview="track" type="button">Track Record</button>
+        <button data-atdview="research" type="button">Research</button>
+      </div>
+      <div id="atd-view-today"><div class="uoa-empty">Loading&hellip;</div></div>
+      <div id="atd-view-track" style="display:none"></div>
+      <div id="atd-view-research" style="display:none"></div>
       <div class="atd-honesty" id="atd-honesty"></div>
     </section>
 
@@ -30158,37 +30227,35 @@
     });
   })();
 
-  /* ── AI Trade Desk panel ─────────────────────────────────────────
-     Renders reports/trade_desk.json — the deterministic engine output.
-     The page NEVER computes or invents a number: every figure below is
-     read from the JSON (which is itself measured from the point-in-time
-     ledger). Abstention (zero Top Ideas) is the designed default until
-     a strategy family's own record qualifies. */
+  /* == AI Trade Desk panel ==========================================
+     Evidence-ranked research desk. Three views (Today / Track Record /
+     Research) over the deterministic engine JSONs. Rules encoded here:
+     a research rank never visually resembles a validated signal; a
+     signal never resembles a trade; "no trade today" is the designed
+     dominant state; the LLM appears only in the Ask box and answers
+     solely from published state. */
   (function setupTradeDesk() {
     "use strict";
-    const $ = function (id) { return document.getElementById(id); };
-    const esc = window.escapeHtml || function (s) { return String(s); };
-    const ATD_WORKER = "https://api.tickerdesk.io";
-    let DATA = null, VAL = null, RES = null, EVOL = null, loaded = false;
+    var $ = function (id) { return document.getElementById(id); };
+    var esc = window.escapeHtml || function (s) { return String(s); };
+    var ATD_WORKER = "https://api.tickerdesk.io";
+    var DATA = null, VAL = null, RES = null, EVOL = null, EXEC = null,
+        FML = null;
 
     function tkn() {
-      // Self-contained session token read (same localStorage fallback
-      // contract the rest of the app uses — getSessionSafe is closure-
-      // scoped elsewhere and unreachable here).
       try {
-        const key = Object.keys(localStorage)
+        var key = Object.keys(localStorage)
           .find(function (k) { return /^sb-.*-auth-token$/.test(k); });
         if (!key) return null;
-        const raw = JSON.parse(localStorage.getItem(key) || "{}");
+        var raw = JSON.parse(localStorage.getItem(key) || "{}");
         if (raw && raw.access_token && raw.expires_at &&
             raw.expires_at * 1000 > Date.now()) return raw.access_token;
       } catch (_) {}
       return null;
     }
-
     function fmtTs(iso) {
       try {
-        const d = new Date(iso);
+        var d = new Date(iso);
         return d.toLocaleString("en-US", {
           timeZone: "America/New_York", month: "short", day: "numeric",
           hour: "numeric", minute: "2-digit" }) + " ET";
@@ -30201,413 +30268,583 @@
     function money(v) {
       if (v == null) return "—";
       if (v >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
-      if (v >= 1e3) return "$" + Math.round(v / 1e3) + "k";
+      if (v >= 1e3) return "$" + Math.round(v / 1e3) + "K";
       return "$" + Math.round(v);
     }
+    function shortContract(c) {
+      // "O:HPQ260904P00022000" -> "22P"
+      if (!c) return "—";
+      var m = /([CP])(\d{8})$/.exec(c);
+      if (!m) return esc(c.replace(/^O:/, ""));
+      var k = parseInt(m[2], 10) / 1000;
+      return (k % 1 ? k.toFixed(1) : k) + m[1];
+    }
 
+    /* ---------------- hero ---------------- */
     function heroHTML(d) {
-      const reg = d.market_regime || "unknown";
-      const top = (d.top_ideas || []).length;
-      const best = (d.top_ideas || [])
-        .concat(d.watch || [])
-        .filter(function (i) { return i.alpha_score != null; })
-        .sort(function (a, b) { return b.alpha_score - a.alpha_score; })[0];
-      return '' +
-        '<span class="atd-regime r-' + esc(reg) + '">' +
-          esc(reg.replace("_", " ")) + '</span>' +
-        '<span class="atd-stat">Qualified ideas <b>' + top + '</b></span>' +
-        (best ? '<span class="atd-stat">Highest Alpha Score <b>' +
-          esc(best.ticker) + ' ' + num(best.alpha_score, 0) + '</b></span>'
-          : '') +
+      var c = d.desk_counts || {};
+      var reg = d.market_regime || "unknown";
+      var h = '<span class="atd-regime r-' + esc(reg) + '">' +
+        esc(reg.replace("_", " ")) + '</span>' +
         '<span class="atd-stat">Data as of <b>' +
-          esc(fmtTs(d.generated)) + '</b></span>';
-    }
-
-    // Product taxonomy — cards change materially at each stage.
-    const STAGE_NOTE = {
-      SIGNAL_QUALIFIED: "Market mispricing detected.",
-      TRADE_QUALIFIED: "Historical option reconstruction supports a " +
-        "specific executable structure.",
-      PAPER_FORWARD: "Structure is accumulating untouched live results.",
-      CHAMPION: "Live record has satisfied production criteria.",
-    };
-
-    function cardHTML(i) {
-      const isTopCard = (i.status === "QUALIFIED" ||
-        i.status === "TRADE_QUALIFIED" ||
-        i.status === "SIGNAL_QUALIFIED");
-      const c = i.construct || {};
-      const ev = i.evidence || {};
-      const rows = [];
-      if (i.family === "flow") {
-        rows.push(['Flow today', (ev.n_prints || 1) + " print" +
-          ((ev.n_prints || 1) > 1 ? "s" : "") + " · " +
-          money(ev.total_premium)]);
-        if (c.reference_contract)
-          rows.push(['Reference', esc(c.reference_contract.replace(/^O:/, ""))
-            + (c.dte != null ? " · " + c.dte + " DTE" : "")]);
-        if (c.contract_liquidity)
-          rows.push(['Liquidity', esc(c.contract_liquidity)]);
-        if (c.underlying_at_flag != null)
-          rows.push(['Underlying at flag', "$" + num(c.underlying_at_flag, 2)]);
-      } else if (i.family === "earnings") {
-        if (c.event_date) rows.push(['Reports',
-          esc(c.event_date) + (c.session ? " " + esc(c.session) : "")]);
-        if (c.implied_move != null) {
-          rows.push(['§', 'VOLATILITY']);
-          rows.push(['Market implied move', "±" + num(c.implied_move) + "%"]);
-        }
-        if (c.fair_move != null) {
-          rows.push(['TickerDesk Fair Move', "±" + num(c.fair_move) + "%"]);
-          rows.push(['Volatility edge', (c.vol_edge_pp > 0 ? "+" : "") +
-            num(c.vol_edge_pp) + "pp"]);
-          rows.push(['Richness', (c.richness_pct > 0 ? "+" : "") +
-            c.richness_pct + "%"]);
-          if (c.vol_stance) {
-            rows.push(['§', 'SIGNAL']);
-            rows.push(['Stance', '<span class="atd-stance">' +
-              esc(c.vol_stance) + '</span>']);
-          }
-          const h = c.history;
-          if (h) {
-            rows.push(['§', 'HISTORICAL BEHAVIOR' +
-              (h.scope === "cohort" ? " · VOL-RICH COHORT"
-                                    : " · THIS NAME")]);
-            if (c.analogues)
-              rows.push(['Reports', String(c.analogues)]);
-            if (h.median_ratio != null)
-              rows.push(['Median move ratio', num(h.median_ratio, 2) + "×"]);
-            if (h.inside_100x != null)
-              rows.push(['Inside implied', h.inside_100x + "%"]);
-            if (h.inside_075x != null)
-              rows.push(['Inside 0.75× implied', h.inside_075x + "%"]);
-          }
-          if (c.analogues) {
-            const conf = c.analogues >= 20 ? "HIGH"
-              : (c.analogues >= 10 ? "MODERATE" : "LOW");
-            rows.push(['Confidence', '<b>' + conf + '</b> (' +
-              c.analogues + ' reports of own history)']);
-          }
-        } else if (c.realized_median != null) {
-          rows.push(['Realized median', "±" + num(c.realized_median) + "%"]);
-        }
+        esc(fmtTs(d.generated)) + '</b></span>';
+      h += '</div><div class="atd-tiles">' +
+        tile("Trade Qualified", c.trade_qualified, "t-accent") +
+        tile("Signal Qualified", c.signal_qualified, "t-blue") +
+        tile("Research Watch", c.research_watch, "") +
+        tile("Experimental", c.experimental, "") +
+        '</div><div class="atd-hero">';
+      if (d.abstention && d.abstention_note) {
+        h += '<div class="atd-abstain" style="flex:1 1 100%">' +
+          '<b>No executable trade clears the gate today.</b>' +
+          esc(d.abstention_note.replace(
+            /^No executable trade clears TickerDesk.s production gate today\. ?/, "")) +
+          '</div>';
       }
-      if (i.status === "TRADE_QUALIFIED")
-        rows.push(['Option mark', c.option_mark == null
-          ? "Unavailable" : "$" + num(c.option_mark, 2)]);
-      // Qualified cards carry their family's measured record on the
-      // face — the reader should never wonder WHY something qualified.
-      if (isTopCard && i.gate)
-        rows.push(['Track record', esc(i.gate)]);
-      const pendingBlock = (i.status === "SIGNAL_QUALIFIED")
-        ? '<div class="atd-pending-block"><span class="pb-h">Trade ' +
-          'expression</span>Pending executable validation. No option ' +
-          'structure is currently recommended.</div>'
-        : "";
-      const evList = [];
-      if (ev.thesis) evList.push(esc(ev.thesis));
-      (ev.cited || []).forEach(function (x) { evList.push("✓ " + esc(x)); });
-      (ev.tags || []).forEach(function (t) { evList.push("✓ " + esc(t)); });
-      if (ev.sector) evList.push("Sector: " + esc(ev.sector));
-      if (i.gate) evList.push("Gate: " + esc(i.gate));
-      const isTop = (i.status === "QUALIFIED" ||
-        i.status === "TRADE_QUALIFIED" ||
-        i.status === "SIGNAL_QUALIFIED");
-      return '<div class="atd-card' +
-        (isTop ? " atd-q"
-          : (i.status === "EXPERIMENTAL" ? " atd-x" : "")) + '">' +
-        '<div class="atd-head">' +
-          '<span class="atd-tk" data-t="' + esc(i.ticker) + '">' +
-            esc(i.ticker) + '</span>' +
-          '<span class="atd-dir ' + esc(i.direction) + '">' +
-            esc((i.direction || "").toUpperCase()) + '</span>' +
-          '<span class="atd-fam">' + esc(i.family) +
-            (ev.etype ? " · " + esc(ev.etype.replace(/_/g, " ")) : "") +
-          '</span>' +
-          '<span class="atd-score">' + (i.alpha_score != null
-            ? 'Alpha <b>' + num(i.alpha_score, 0) + '</b>'
-            : '<b>—</b>') + '</span>' +
-        '</div>' +
-        '<div class="atd-head"><span class="atd-status s-' +
-          esc(i.status) + '">' +
-          esc(String(i.status).replace(/_/g, " ")) + '</span>' +
-          (STAGE_NOTE[i.status] ? '<span class="atd-stage-note">' +
-            STAGE_NOTE[i.status] + '</span>' : '') + '</div>' +
-        '<div class="atd-rows">' + rows.map(function (r) {
-          if (r[0] === '§')
-            return '<div class="atd-blk-h">' + r[1] + '</div>';
-          return '<div><span class="k">' + r[0] + ':</span> ' + r[1] +
-            '</div>';
-        }).join("") + '</div>' + pendingBlock +
-        (evList.length ? '<button class="atd-ev-btn" type="button">' +
-          'Evidence</button><div class="atd-ev"><ul>' +
-          evList.map(function (x) { return "<li>" + x + "</li>"; })
-            .join("") + '</ul></div>' : '') +
-        '</div>';
+      return h;
+    }
+    function tile(k, v, cls) {
+      return '<div class="atd-tile ' + cls + '"><div class="t-k">' + k +
+        '</div><div class="t-v">' + (v == null ? "—" : v) +
+        '</div></div>';
     }
 
+    /* -------- evidence ladder + edge states -------- */
+    function ladder(stages) {
+      return '<div class="atd-ladder">' + stages.map(function (s) {
+        return (s[1] ? '<span class="lp">● ' : '<span>○ ') +
+          s[0] + '</span>';
+      }).join(' &nbsp; ') + '</div>';
+    }
+    function edgeStates(states) {
+      return '<div class="atd-edge-states">' + states.map(function (s) {
+        return '<span><b>' + s[0] + '</b><span class="' +
+          (s[2] ? "ok" : "no") + '">' + s[1] + '</span></span>';
+      }).join("") + '</div>';
+    }
+
+    /* -------- Validated Market Edges (family block + instances) ---- */
+    function fairMoveTip() {
+      var lab = ((FML || {}).standings || {}).overall || {};
+      var v1 = lab.v1_ticker_median || {};
+      return "TickerDesk Fair Move v1: the ticker's historical median " +
+        "absolute earnings move. Current validation indicates this " +
+        "simple estimate under-forecasts realized movement by ~" +
+        (v1.bias != null ? Math.abs(v1.bias).toFixed(1) : "2") +
+        "pp in the flagged cohort; challenger models are being " +
+        "evaluated and none has cleared the promotion threshold.";
+    }
+    function edgesHTML(d) {
+      var vol = ((EVOL || {}).types || {}).vol_rich || {};
+      var mr = vol.move_ratio || {};
+      var boot = vol.date_cluster_bootstrap || {};
+      var insts = (d.top_ideas || []).filter(function (i) {
+        return (i.construct || {}).vol_edge_pp != null;
+      }).sort(function (a, b) {
+        return b.construct.vol_edge_pp - a.construct.vol_edge_pp;
+      });
+      if (!vol.n && !insts.length) return "";
+      var h = '<div class="atd-sec-h">Validated Market Edges</div>' +
+        '<div class="atd-fam-block">' +
+        '<div class="fb-head"><span class="fb-title">Earnings ' +
+        'Volatility · VOL RICH</span>' +
+        '<span class="atd-status s-SIGNAL_QUALIFIED">SIGNAL ' +
+        'QUALIFIED</span><span class="atd-fam">SIGNAL CHAMPION' +
+        '</span></div>' +
+        '<div class="fb-desc">Market-implied earnings moves have ' +
+        'systematically exceeded subsequent realized moves in this ' +
+        'cohort. The forecasting relationship has cleared the signal ' +
+        'gate; no option expression has cleared the trade gate.</div>';
+      h += edgeStates([
+        ["FORECAST EDGE", vol.signal_qualified ? "VALIDATED"
+          : "NOT VALIDATED", !!vol.signal_qualified],
+        ["TRADE EDGE", "NOT VALIDATED", false],
+        ["EXECUTION", "NOT TRIGGERED", false]]);
+      h += ladder([["Signal", true], ["Expression", false],
+        ["Execution", false], ["Forward", false], ["Champion", false]]);
+      h += '<div class="atd-rows" style="margin-top:6px">' +
+        row("Historical events", vol.n) +
+        row("Independent nights", boot.nights) +
+        row("Implied &gt; realized", vol.win != null ? vol.win + "%" : "—") +
+        row("Median realized/implied",
+            mr.median != null ? num(mr.median, 2) + "×" : "—") +
+        row("Inside 0.75× implied",
+            mr.inside_075x != null ? mr.inside_075x + "%" : "—") +
+        row("Mean vol edge", vol.ev_vol_pts != null
+            ? "+" + num(vol.ev_vol_pts, 2) + "pp" : "—") +
+        row("Night-cluster 95% CI", boot.ci95
+            ? "+" + num(boot.ci95[0], 2) + " → +" + num(boot.ci95[1], 2) + "pp"
+            : "—") +
+        row("Trade-qualified expression", "NONE") +
+        '</div>';
+      if (insts.length) {
+        h += '<div class="atd-table-wrap"><table class="atd-table">' +
+          '<tr><th>Ticker</th><th>Earnings</th><th>Implied</th>' +
+          '<th>Fair Move<span class="atd-info" title="' +
+          esc(fairMoveTip()) + '">i</span></th>' +
+          '<th>Edge</th><th>Market/Fair</th><th>Own Hist.</th>' +
+          '<th>Confidence</th></tr>' +
+          insts.map(function (i) {
+            var c = i.construct || {};
+            var mf = (c.implied_move && c.fair_move)
+              ? c.implied_move / c.fair_move : null;
+            var conf = c.analogues >= 20 ? "High"
+              : (c.analogues >= 10 ? "Moderate" : "Low");
+            return '<tr data-t="' + esc(i.ticker) + '"><td><b>' +
+              esc(i.ticker) + '</b></td><td>' +
+              esc(c.session || "") + '</td><td>±' +
+              num(c.implied_move) + '%</td><td>±' +
+              num(c.fair_move) + '%</td><td class="pos">+' +
+              num(c.vol_edge_pp) + 'pp</td><td>' +
+              (mf ? num(mf, 2) + "×" : "—") + '</td><td>' +
+              (c.analogues || "—") + ' reports</td><td>' +
+              conf + '</td></tr>';
+          }).join("") + '</table></div>' +
+          '<div class="atd-pending-block"><span class="pb-h">Trade ' +
+          'expression</span>NOT VALIDATED — no option structure is ' +
+          'recommended. <span class="k">Forecasting signal PASSED · ' +
+          'defined-risk gross strategy FAILED/UNPROVEN · executable ' +
+          'validation NOT TRIGGERED · forward trade record NOT ' +
+          'STARTED.</span></div>';
+      }
+      h += '</div>';
+      return h;
+    }
+    function row(k, v) {
+      return '<div><span class="k">' + k + ':</span> ' +
+        (v == null ? "—" : v) + '</div>';
+    }
+
+    /* -------------- Research Watch (aggregated flow table) --------- */
+    function watchHTML(d) {
+      var flow = (d.watch || []).filter(function (i) {
+        return i.family === "flow";
+      });
+      var others = (d.watch || []).filter(function (i) {
+        return i.family !== "flow";
+      });
+      if (!flow.length && !others.length) return "";
+      var byTk = {};
+      flow.forEach(function (i) {
+        var ev = i.evidence || {};
+        var t = byTk[i.ticker] = byTk[i.ticker] || {
+          ticker: i.ticker, rank: 0, prints: 0,
+          bull: 0, bear: 0, items: [] };
+        t.rank = Math.max(t.rank, i.alpha_score || 0);
+        t.prints += ev.n_prints || 0;
+        t[i.direction === "bullish" ? "bull" : "bear"] +=
+          ev.total_premium || 0;
+        t.items.push(i);
+      });
+      var rows = Object.keys(byTk).map(function (k) { return byTk[k]; })
+        .sort(function (a, b) { return b.rank - a.rank; });
+      var h = '<div class="atd-sec-h">Research Watch <span class="n">' +
+        'Options Flow · NO CHAMPION — high-ranking current flow ' +
+        'setups tracked forward; the family has not cleared ' +
+        'production validation</span></div>' +
+        '<div class="atd-table-wrap"><table class="atd-table">' +
+        '<tr><th>Flow Rank<span class="atd-info" title="Relative rank ' +
+        'among today&#39;s flow candidates. The options-flow family ' +
+        'has not demonstrated sufficient out-of-sample alpha to ' +
+        'qualify for production.">i</span></th><th>Ticker</th>' +
+        '<th>Bias</th><th>Prints</th><th>Premium</th><th>Ref.</th>' +
+        '<th>DTE</th><th>Liq</th></tr>';
+      rows.forEach(function (t) {
+        var tot = t.bull + t.bear;
+        var conflict = tot > 0 &&
+          Math.min(t.bull, t.bear) / tot >= 0.25;
+        var bias = t.bull >= t.bear ? "Bullish" : "Bearish";
+        var lead = t.items.sort(function (a, b) {
+          return (b.evidence.total_premium || 0) -
+                 (a.evidence.total_premium || 0); })[0];
+        var c = lead.construct || {};
+        h += '<tr data-t="' + esc(t.ticker) + '"><td>' +
+          num(t.rank, 0) + '</td><td><b>' + esc(t.ticker) +
+          '</b></td><td><span class="' +
+          (bias === "Bullish" ? "pos" : "neg") + '">' + bias +
+          '</span>' + (conflict ?
+            ' <span class="atd-conflict" title="Both bullish and ' +
+            'bearish institutional prints today — signal ' +
+            'disagreement HIGH">SPLIT</span>' : '') +
+          '</td><td>' + t.prints + '</td><td>' + money(tot) +
+          '</td><td>' + shortContract(c.reference_contract) +
+          '</td><td>' + (c.dte != null ? c.dte : "—") + '</td><td>' +
+          esc(c.contract_liquidity || "—") + '</td></tr>';
+      });
+      h += '</table></div>';
+      if (others.length) {
+        h += '<div class="atd-rows" style="margin-top:6px">' +
+          others.map(function (i) {
+            return row(esc(i.ticker) + " · " +
+              esc((i.evidence || {}).etype || i.family)
+                .replace(/_/g, " "), "accruing — " + esc(i.gate || ""));
+          }).join("") + '</div>';
+      }
+      return h;
+    }
+
+    /* ----------------- Experimental (collapsed) ----------------- */
+    function expHTML(d) {
+      var exp = d.experimental || [];
+      if (!exp.length) return "";
+      return '<details class="atd-collapse"><summary>Experimental ' +
+        'Research · ' + exp.length + ' <span class="n">— families ' +
+        'currently thin, negative, or rehabilitating on forward data' +
+        '</span></summary><div class="atd-table-wrap">' +
+        '<table class="atd-table"><tr><th>Ticker</th><th>Family</th>' +
+        '<th>Type</th><th>Why experimental</th></tr>' +
+        exp.map(function (i) {
+          return '<tr data-t="' + esc(i.ticker) + '"><td><b>' +
+            esc(i.ticker) + '</b></td><td>' + esc(i.family) +
+            '</td><td>' + esc(((i.evidence || {}).etype || "—")
+              .replace(/_/g, " ")) + '</td><td class="k">' +
+            esc(i.gate || "") + '</td></tr>';
+        }).join("") + '</table></div></details>';
+    }
+
+    /* ------------------- What Changed ------------------- */
+    function changedHTML(d) {
+      var hs = d.headlines || [];
+      var tr = d.what_changed || [];
+      if (!hs.length && !tr.length) return "";
+      var h = '<div class="atd-sec-h">What Changed</div>' +
+        '<div class="atd-rows">' + hs.map(function (x) {
+          return '<div style="margin-bottom:6px"><b>' + esc(x.h) +
+            '</b><br><span class="k">' + esc(x.d) + '</span></div>';
+        }).join("") + '</div>';
+      if (tr.length) {
+        h += '<details class="atd-collapse"><summary>View all ' +
+          tr.length + ' state changes</summary><div class="atd-rows">' +
+          tr.map(function (c) {
+            var t = c.change === "new" ? "new → " + esc(c.to || "")
+              : c.change === "status" ? esc(c.from || "") + " → " +
+                esc(c.to || "")
+              : c.change === "score" ? "rank " + num(c.from, 0) +
+                " → " + num(c.to, 0)
+              : "dropped";
+            return row(esc(c.t), t);
+          }).join("") + '</div></details>';
+      }
+      return h;
+    }
+
+    /* ------------- rejected (humanized) ------------- */
+    var REJ_LABEL = { NOT_DIRECTIONAL: "Not directional",
+      LOW_ALPHA: "Insufficient edge", STALE_DATA: "Stale data",
+      BAD_LIQUIDITY: "Poor liquidity", LOW_PREMIUM: "Low premium",
+      REGIME_CONFLICT: "Regime conflict",
+      STRATEGY_DEGRADED: "Family under rehabilitation",
+      INSUFFICIENT_DATA: "Insufficient data" };
+    function rejectedHTML(d) {
+      var rej = d.rejections || {};
+      var keys = Object.keys(rej);
+      if (!keys.length) return "";
+      var total = keys.reduce(function (a, k) { return a + rej[k]; }, 0);
+      return '<details class="atd-collapse"><summary>' + total +
+        ' candidates rejected this run</summary><div class="atd-rows">' +
+        keys.sort(function (a, b) { return rej[b] - rej[a]; })
+          .map(function (k) {
+            return row(REJ_LABEL[k] || esc(k), rej[k]);
+          }).join("") + '</div></details>';
+    }
+
+    /* =================== TRACK RECORD view =================== */
+    function trackHTML(d) {
+      var L = d.ledgers || {};
+      var f = L.forecast || {}, dir = L.directional || {},
+          ex = L.executable || {};
+      var h = '<div class="atd-sec-h">Executable Trade Track Record' +
+        '</div><div class="atd-rows">' +
+        row("Trade-qualified strategies",
+            ex.trade_qualified_strategies || 0) +
+        row("Frozen live trades", ex.frozen_live_trades || 0) +
+        '<div class="k" style="margin-top:4px">' +
+        esc(ex.statement || "") + '</div></div>';
+      h += '<div class="atd-sec-h">Forecast Track Record ' +
+        '<span class="n">earnings volatility · target: ' +
+        esc(f.target || "") + '</span></div><div class="atd-rows">' +
+        row("Graded events", f.events) +
+        row("Independent nights", f.nights) +
+        row("Implied &gt; realized",
+            f.implied_gt_realized_pct != null
+              ? f.implied_gt_realized_pct + "%" : "—") +
+        row("Avg vol edge", f.avg_vol_edge_pp != null
+            ? "+" + num(f.avg_vol_edge_pp, 2) + "pp" : "—") +
+        row("Night-cluster CI", f.night_ci
+            ? "+" + num(f.night_ci[0], 2) + " → +" +
+              num(f.night_ci[1], 2) + "pp" : "—") +
+        row("Fair Move model", esc(f.fair_move_model || "v1") +
+            " · MAE " + num(f.fair_move_mae, 2) + "pp · bias " +
+            num(f.fair_move_bias, 2) + "pp · edge-sign " +
+            (f.edge_sign_pct != null ? f.edge_sign_pct + "%" : "—")) +
+        '</div>';
+      h += '<div class="atd-sec-h">Directional Research ' +
+        '<span class="n">target: ' + esc(dir.target || "") +
+        '</span></div><div class="atd-rows">' +
+        row("Tracked ideas", dir.tracked) +
+        row("Graded", dir.graded) +
+        (dir.overall
+          ? row("Overall", "n=" + dir.overall.n + " · hit " +
+              dir.overall.hit + "% · avg " + num(dir.overall.avg, 2) +
+              "pp · med " + num(dir.overall.med, 2) + "pp")
+          : row("Status", "accruing — publishes at n≥30")) +
+        '</div>';
+      var cal = (d.performance || {}).score_calibration || {};
+      var keys = Object.keys(cal);
+      if (keys.length) {
+        h += '<div class="atd-sec-h">Flow Rank calibration ' +
+          '<span class="n">accrues with the directional ledger' +
+          '</span></div><div class="atd-perf"><table>' +
+          '<tr><th>Rank band</th><th>n</th><th>hit / avg</th></tr>' +
+          keys.map(function (b) {
+            var r = cal[b];
+            return '<tr><td>' + esc(b) + '</td><td>' + (r.n || 0) +
+              '</td><td>' + (r.status === "accruing" ? "accruing"
+                : r.hit + "% / " + num(r.avg, 2) + "pp") +
+              '</td></tr>';
+          }).join("") + '</table></div>';
+      }
+      return h;
+    }
+
+    /* =================== RESEARCH view =================== */
+    function registryHTML() {
+      var reg = (EXEC || {}).expression_registry || {};
+      if (!reg.signal_champion) return "";
+      var h = '<div class="atd-sec-h">Strategy &amp; Expression ' +
+        'Registry</div><div class="atd-rows">' +
+        row("Signal Champion", "<b>VOL RICH</b> · " +
+            esc((reg.signal_champion || {}).status || "")) +
+        row("Expression Champion", "NONE") +
+        row("Execution Champion", "NONE") + '</div>';
+      var ex = reg.expression_challengers || {};
+      var names = Object.keys(ex);
+      if (names.length) {
+        h += '<div class="atd-table-wrap"><table class="atd-table">' +
+          '<tr><th>Expression</th><th>Status</th><th>Why</th></tr>' +
+          names.map(function (n) {
+            return '<tr><td>' + esc(n.replace(/_/g, " ")) +
+              '</td><td>REJECTED</td><td class="k">' +
+              esc((ex[n] || {}).why || "") + '</td></tr>';
+          }).join("") +
+          '<tr><td>short straddle</td><td>Diagnostic only</td>' +
+          '<td class="k">positive gross · undefined risk — can never ' +
+          'qualify</td></tr></table></div>';
+      }
+      var trig = reg.nbbo_research_trigger || {};
+      var checks = trig.checks || {};
+      h += '<div class="atd-sec-h">Execution Validation</div>' +
+        '<div class="atd-rows">' +
+        row("Execution study", "NOT TRIGGERED — defined-risk gross " +
+            "evidence has not met the predefined statistical " +
+            "threshold required to justify quote-level validation") +
+        Object.keys(checks).map(function (k) {
+          var c = checks[k];
+          return row(esc(k), (c.met ? "✓ " : "✗ ") +
+            (c.value != null ? c.value : "—"));
+        }).join("") +
+        row("Execution Challenger", "NONE") + '</div>';
+      return h;
+    }
+    function wingHTML() {
+      var w = (EVOL || {}).wing_economics;
+      if (!w) return "";
+      return '<div class="atd-sec-h">Wing Economics ' +
+        '<span class="n">(frictionless next-open marks, fees only)' +
+        '</span></div><div class="atd-rows">' +
+        row("Straddle gross edge", "+$" + (w.avg_straddle_$ || 0) +
+            "/event") +
+        row("Iron fly gross edge", "+$" + (w.avg_fly_$ || 0) +
+            "/event") +
+        row("Wing drag", "-$" + Math.abs(w.avg_wing_drag_$ || 0) +
+            "/event") +
+        row("Median wing debit", ((w.wing_ratio || {}).median != null
+            ? Math.round(w.wing_ratio.median * 1000) / 10 + "% of " +
+              "straddle credit" : "—")) +
+        '<div class="k" style="margin-top:4px">Cheap wings have not ' +
+        'historically improved outcomes in the observed sample: ' +
+        'expensive wings coincide with larger implied moves and ' +
+        'therefore larger gross discrepancies. A relative-wing-cost ' +
+        'hypothesis has been declared prospectively and will not be ' +
+        'backfit.</div></div>';
+    }
+    function challengersHTML() {
+      var ch = (EVOL || {}).challengers || {};
+      var names = Object.keys(ch);
+      var promo = (FML || {}).promotion || {};
+      var h = '<div class="atd-sec-h">Declared Forward Challengers ' +
+        '<span class="n">declared before the observations that could ' +
+        'confirm them</span></div><div class="atd-table-wrap">' +
+        '<table class="atd-table"><tr><th>Challenger</th>' +
+        '<th>Status</th><th>Declared</th><th>Definition</th></tr>';
+      names.forEach(function (n) {
+        var c = ch[n] || {};
+        var st = c.status === "forward_only" ? "ACCRUING (forward-only)"
+          : ((c.forward || {}).n ? "ACCRUING · n=" + c.forward.n
+             : "ACCRUING");
+        h += '<tr><td>' + esc(n.replace(/_/g, " ")) + '</td><td>' +
+          st + '</td><td>' + esc(c.declared || "") +
+          '</td><td class="k">' + esc(c.definition || "") +
+          '</td></tr>';
+      });
+      Object.keys(promo).forEach(function (n) {
+        h += '<tr><td>fair move · ' + esc(n.replace(/_/g, " ")) +
+          '</td><td>' + (promo[n].promoted ? "PROMOTED"
+            : "CHALLENGER · below threshold") +
+          '</td><td>2026-08-26</td><td class="k">walk-forward Fair ' +
+          'Move forecast challenger</td></tr>';
+      });
+      h += '</table></div>';
+      return h;
+    }
+    function fairMoveLabHTML() {
+      var st = ((FML || {}).standings || {}).overall;
+      if (!st) return "";
+      return '<div class="atd-sec-h">Fair Move Lab ' +
+        '<span class="n">walk-forward · promotion needs ≥5% MAE ' +
+        'improvement in both halves</span></div>' +
+        '<div class="atd-table-wrap"><table class="atd-table">' +
+        '<tr><th>Model</th><th>MAE</th><th>Bias</th>' +
+        '<th>Edge-sign</th></tr>' +
+        Object.keys(st).map(function (n) {
+          var s = st[n];
+          return '<tr><td>' + esc(n.replace(/_/g, " ")) +
+            (n === ((FML || {}).display_definition || "") ?
+              " <b>· ACTIVE</b>" : "") +
+            '</td><td>' + num(s.mae, 3) + '</td><td>' +
+            num(s.bias, 2) + 'pp</td><td>' + s.edge_sign_pct +
+            '%</td></tr>';
+        }).join("") + '</table></div>';
+    }
     function gatesHTML(g) {
       if (!g) return "";
-      const chips = [];
+      var chips = [];
       function chip(name, verdict, why) {
-        chips.push('<div class="atd-gate g-' + esc(verdict) + '"><b>' +
-          esc(name) + ' · ' + esc(verdict) + '</b>' + esc(why || "") +
-          '</div>');
+        chips.push('<div class="atd-gate g-' + esc(verdict) +
+          '"><b>' + esc(name) + ' · ' + esc(verdict) + '</b>' +
+          esc(why || "") + '</div>');
       }
       if (g.flow) chip("Options flow", g.flow.verdict, g.flow.why);
       if (g.earnings && g.earnings.types) {
         Object.keys(g.earnings.types).forEach(function (t) {
-          const e = g.earnings.types[t];
+          var e = g.earnings.types[t];
           chip("Earnings · " + t.replace(/_/g, " "), e.verdict, e.why);
         });
       }
       if (g.momentum) chip("Momentum scans", g.momentum.verdict,
         g.momentum.why);
-      return '<div class="atd-sec-h">Strategy gates — measured, ' +
-        'auto-promoting</div><div class="atd-gates">' + chips.join("") +
-        '</div>';
+      return '<div class="atd-sec-h">Family Gates — measured, ' +
+        'auto-promoting</div><div class="atd-gates">' +
+        chips.join("") + '</div>';
     }
-
-    function perfHTML(p) {
-      if (!p) return "";
-      let h = '<div class="atd-sec-h">Track record ' +
-        '<span class="n">(append-only ledger · +5-session ' +
-        'direction-signed excess vs SPY)</span></div><div class="atd-perf">';
-      h += 'Tracked ideas: <b>' + (p.tracked || 0) + '</b> · graded: <b>' +
-        (p.graded || 0) + '</b>';
-      if (p.status === "accruing")
-        h += ' — publishes at n≥' + (p.min_n || 30) +
-          ' <span class="k">(accruing)</span>';
-      if (p.overall)
-        h += '<br>Overall: n=' + p.overall.n + ' · hit ' + p.overall.hit +
-          '% · avg ' + num(p.overall.avg, 2) + 'pp · med ' +
-          num(p.overall.med, 2) + 'pp';
-      const cal = p.score_calibration || {};
-      const rows = Object.keys(cal).map(function (b) {
-        const r = cal[b];
-        return '<tr><td>' + esc(b) + '</td><td>' + (r.n || 0) + '</td><td>' +
-          (r.status === "accruing" ? "accruing"
-            : r.hit + "% / " + num(r.avg, 2) + "pp") + '</td></tr>';
-      }).join("");
-      h += '<table><tr><th>Alpha Score</th><th>n</th>' +
-        '<th>hit / avg</th></tr>' + rows + '</table></div>';
-      return h;
-    }
-
-    function changesHTML(ch) {
-      if (!ch || !ch.length) return "";
-      return '<div class="atd-sec-h">What changed</div>' +
-        '<ul class="atd-changes">' + ch.map(function (c) {
-          let t = "";
-          if (c.change === "new") t = "new → " + esc(c.to || "");
-          else if (c.change === "status")
-            t = esc(c.from || "") + " → " + esc(c.to || "");
-          else if (c.change === "score")
-            t = "Alpha " + num(c.from, 0) + " → " + num(c.to, 0);
-          else if (c.change === "dropped") t = "dropped";
-          return "<li><b>" + esc(c.t) + "</b> — " + t + "</li>";
-        }).join("") + '</ul>';
-    }
-
     function volHTML(v) {
       if (!v || !v.types) return "";
-      let h = '<div class="atd-sec-h">Earnings volatility anatomy ' +
-        '<span class="n">(signal level — no option was priced here; ' +
-        'trade validation runs separately)</span></div>' +
-        '<div class="atd-perf">';
+      var h = '<div class="atd-sec-h">Earnings Volatility Anatomy ' +
+        '<span class="n">(signal level — no option priced here)' +
+        '</span></div><div class="atd-perf">';
       Object.keys(v.types).forEach(function (t) {
-        const b = v.types[t];
+        var b = v.types[t];
         if (b.status === "accruing") {
           h += '<b>' + esc(t) + '</b>: accruing (n=' + b.n + ')<br>';
           return;
         }
-        const mr = b.move_ratio || {};
-        const boot = b.date_cluster_bootstrap || {};
+        var mr = b.move_ratio || {};
+        var boot = b.date_cluster_bootstrap || {};
         h += '<b>' + esc(t) + '</b>: n=' + b.n + ' · EV ' +
-          num(b.ev_vol_pts, 2) + ' vol-pts · win ' + b.win + '% · ' +
-          'night-cluster CI ' + JSON.stringify(boot.ci95 || []) +
-          ' on ' + (boot.nights || "?") + ' nights' +
-          (b.signal_qualified ? ' · <b>signal qualified</b>'
-            : ' · not qualified') +
-          '<br><span class="k">move ratio |realized|/implied: med ' +
-          num(mr.median, 2) + ' · p90 ' + num(mr.p90, 2) + ' · p95 ' +
-          num(mr.p95, 2) + ' · p99 ' + num(mr.p99, 2) +
-          ' · inside 0.75x: ' + mr.inside_075x + '% · blowthrough >1x: ' +
-          mr.blowthrough_10x + '%</span><br>';
+          num(b.ev_vol_pts, 2) + ' vol-pts · win ' + b.win +
+          '% · night CI ' + JSON.stringify(boot.ci95 || []) + ' on ' +
+          (boot.nights || "?") + ' nights' +
+          (b.signal_qualified ? ' · <b>signal qualified</b>' : '') +
+          '<br><span class="k">ratio: med ' + num(mr.median, 2) +
+          ' · p95 ' + num(mr.p95, 2) + ' · p99 ' + num(mr.p99, 2) +
+          ' · inside 0.75×: ' + mr.inside_075x +
+          '% · blowthrough &gt;1×: ' + mr.blowthrough_10x +
+          '%</span><br>';
       });
-      h += '<span class="k">Trade expressions pending: ' +
-        'option-P&amp;L reconstruction (costs, tails, clustered ' +
-        'nights) must clear before any structure is recommended.' +
-        '</span></div>';
-      return h;
-    }
-
-    function researchHTML(v) {
-      if (!v || !v.pooled_oos) return "";
-      const t = v.pooled_oos.tails || {};
-      const ht = (v.holdout || {}).tails || {};
-      function row(label, r, hr) {
-        function cell(x) {
-          if (!x || !x.n) return "<td>—</td>";
-          const ci = (x.bootstrap || {}).ci95;
-          return "<td>" + num(x.avg, 2) + "pp / " + num(x.med, 2) +
-            "pp · " + x.hit + "% (n=" + x.n + ")" +
-            (ci ? "<br><span class=\"k\">CI " + num(ci[0], 1) +
-              " → " + num(ci[1], 1) + "</span>" : "") + "</td>";
-        }
-        return "<tr><td>" + label + "</td>" + cell(r) + cell(hr) +
-          "</tr>";
-      }
-      let h = '<div class="atd-sec-h">Setup-level research ' +
-        '<span class="n">(' + (v.setups_graded || 0) + ' independent ' +
-        'ticker-session setups · purged+embargoed walk-forward · ' +
-        'ticker-week cluster bootstrap)</span></div>' +
-        '<div class="atd-perf"><table><tr><th>selection</th>' +
-        '<th>pooled OOS avg/med · hit</th><th>holdout</th></tr>' +
-        row("All setups", t.all, ht.all) +
-        row("Top 20%", t.top20, ht.top20) +
-        row("Top 10%", t.top10, ht.top10) +
-        row("Top 5%", t.top5, ht.top5) +
-        row("Top 2%", t.top2, ht.top2) +
-        row("Top 1%", t.top1, ht.top1) +
-        '</table>';
-      const reg = (v.registry || {});
-      const ch = (reg.champion || {});
-      h += 'Champion: <b>' + esc(ch.name || "NONE — desk abstains for " +
-        "the flow family") + '</b>';
-      const ix = v.interactions || {};
-      if (ix.tested)
-        h += '<br>Interaction search: ' + ix.tested + ' conjunctions, ' +
-          ix.passed_train_gates + ' train survivors — ' +
-          '<span class="k">' + esc(ix.honesty || "") + '</span>';
-      if (v.honesty)
-        h += '<br><span class="k">' + esc(v.honesty) + '</span>';
       h += '</div>';
       return h;
     }
-
-    function validationHTML(v) {
-      if (!v || !v.folds) return "";
-      let h = '<div class="atd-sec-h">Alpha Score validation ' +
-        '<span class="n">(walk-forward · n=' + (v.n_graded || 0) +
-        ' graded signals)</span></div><div class="atd-perf"><table>' +
-        '<tr><th>window</th><th>n</th><th>IC</th><th>score≥80 avg</th></tr>';
-      (v.folds || []).forEach(function (f) {
-        const c = (f.cutoffs || {})["80"] || {};
-        h += '<tr><td>fold ' + f.fold + " (" + esc(f.val.from) + "→" +
-          esc(f.val.to) + ')</td><td>' + f.val.n + '</td><td>' +
-          num(f.ic, 3) + '</td><td>' + (c.n ? num(c.avg, 2) + "pp (n=" +
-          c.n + ")" : "—") + '</td></tr>';
-      });
-      if (v.holdout) {
-        const c = (v.holdout.cutoffs || {})["80"] || {};
-        h += '<tr><td><b>holdout</b> (' + esc(v.holdout.from) + "→" +
-          esc(v.holdout.to) + ')</td><td>' + v.holdout.n + '</td><td>' +
-          num(v.holdout.ic, 3) + '</td><td>' + (c.n ? num(c.avg, 2) +
-          "pp (n=" + c.n + ")" : "—") + '</td></tr>';
+    function researchTablesHTML(v) {
+      if (!v || !v.pooled_oos) return "";
+      var t = v.pooled_oos.tails || {};
+      var ht = (v.holdout || {}).tails || {};
+      function cell(x) {
+        if (!x || !x.n) return "<td>—</td>";
+        var ci = (x.bootstrap || {}).ci95;
+        return "<td>" + num(x.avg, 2) + "pp · " + (x.hit || "—") +
+          "% (n=" + x.n + ")" + (ci ? "<br><span class=\"k\">CI " +
+          num(ci[0], 1) + " → " + num(ci[1], 1) + "</span>" : "") +
+          "</td>";
       }
-      h += '</table>Verdict: <b>' +
-        esc((v.qualification || {}).status || "not run") + '</b>' +
-        (v.honesty ? '<br><span class="k">' + esc(v.honesty) + '</span>'
-          : '') + '</div>';
+      function r2(label, a, b) {
+        return "<tr><td>" + label + "</td>" + cell(a) + cell(b) +
+          "</tr>";
+      }
+      var h = '<div class="atd-sec-h">Directional Flow — Setup-Level ' +
+        'Walk-Forward <span class="n">(' + (v.setups_graded || 0) +
+        ' independent setups · purged+embargoed)</span></div>' +
+        '<div class="atd-perf"><table><tr><th>selection</th>' +
+        '<th>pooled OOS</th><th>holdout</th></tr>' +
+        r2("All", t.all, ht.all) + r2("Top 10%", t.top10, ht.top10) +
+        r2("Top 5%", t.top5, ht.top5) + r2("Top 1%", t.top1, ht.top1) +
+        '</table>Champion: <b>NONE — family abstains</b>';
+      var ix = v.interactions || {};
+      if (ix.tested)
+        h += '<br><span class="k">Interaction search: ' + ix.tested +
+          ' conjunctions, ' + ix.passed_train_gates +
+          ' train survivors, all negative OOS.</span>';
+      h += '</div>';
       return h;
     }
-
-    function funnelHTML(f) {
-      if (!f) return "";
-      const seg = function (label, v, cls) {
-        return '<span class="' + (cls || "") + '">' + label + ' <b>' +
-          (v == null ? "—" : v) + '</b></span>';
-      };
-      return '<div class="atd-funnel">' +
-        seg("Universe events", f.universe_events) +
-        '<span class="f-arrow">→</span>' +
-        seg("Candidates", f.research_candidates) +
-        '<span class="f-arrow">→</span>' +
-        seg("Watch", f.watch_setups) +
-        '<span class="f-arrow">→</span>' +
-        seg("Qualified", f.qualified, "f-q") +
-        (f.experimental ? ' <span class="f-arrow">·</span> ' +
-          seg("Experimental", f.experimental) : '') +
-        '</div>';
+    function researchViewHTML(d) {
+      return registryHTML() + fairMoveLabHTML() + wingHTML() +
+        challengersHTML() + volHTML(EVOL) + gatesHTML(d.gates) +
+        researchTablesHTML(RES) + rejectedRawHTML(d);
+    }
+    function rejectedRawHTML(d) {
+      var rej = d.rejections || {};
+      var keys = Object.keys(rej);
+      if (!keys.length) return "";
+      return '<div class="atd-sec-h">Rejection Codes (raw)</div>' +
+        '<div class="atd-changes k">' + keys.map(function (k) {
+          return esc(k) + ": " + rej[k];
+        }).join(" · ") + '</div>';
     }
 
+    /* ------------------- render + views ------------------- */
     function render() {
-      const d = DATA;
+      var d = DATA;
       if (!d) return;
       $("atd-hero").innerHTML = heroHTML(d);
-      let h = funnelHTML(d.funnel);
-      // Three tiers, visually unmistakable:
-      //   Qualified Trades   - genuinely validated edge only
-      //   Research Watchlist - interesting, not cleared production gates
-      //   Experimental       - models/families under forward validation
-      const top = d.top_ideas || [];
-      if (top.length) {
-        const allSignal = top.every(function (i) {
-          return i.status === "SIGNAL_QUALIFIED"; });
-        h += '<div class="atd-sec-h">' +
-          (allSignal ? 'Qualified Signals' : 'Qualified Trades') +
-          ' <span class="n">(' + top.length + ' clear' +
-          (top.length === 1 ? 's' : '') + ' a measured production gate' +
-          (allSignal ? '; trade expressions pending executable ' +
-            'validation — the forecast edge is validated, no option ' +
-            'structure is' : '') + ')</span></div>' +
-          '<div class="atd-grid">' + top.map(cardHTML).join("") + '</div>';
-      } else {
-        h += '<div class="atd-abstain"><b>No high-conviction setup ' +
-          'currently meets TickerDesk\u2019s alpha threshold.</b>' +
-          esc(d.abstention_note || "") + '</div>';
-      }
-      const watch = d.watch || [];
-      if (watch.length) {
-        h += '<div class="atd-sec-h">Research Watchlist ' +
-          '<span class="n">(interesting current setups — NOT cleared ' +
-          'for production; tracked paper-forward)</span></div>' +
-          '<div class="atd-grid">' + watch.map(cardHTML).join("") +
-          '</div>';
-      }
-      const exp = d.experimental || [];
-      if (exp.length) {
-        h += '<div class="atd-sec-h">Experimental Signals ' +
-          '<span class="n">(families under forward validation — their ' +
-          'measured record is currently negative or thin; shown for ' +
-          'transparency, never a recommendation)</span></div>' +
-          '<div class="atd-grid">' + exp.map(cardHTML).join("") +
-          '</div>';
-      }
-      h += gatesHTML(d.gates);
-      h += changesHTML(d.what_changed);
-      h += perfHTML(d.performance);
-      h += '<div id="atd-validation" style="display:none">' +
-        volHTML(EVOL) + researchHTML(RES) + validationHTML(VAL) +
-        '</div>';
-      const rej = d.rejections || {};
-      const rk = Object.keys(rej);
-      if (rk.length) {
-        h += '<div class="atd-sec-h">Rejected this run</div>' +
-          '<div class="atd-changes">' + rk.map(function (k) {
-            return esc(k) + ": " + rej[k];
-          }).join(" · ") + '</div>';
-      }
-      $("atd-body").innerHTML = h;
+      $("atd-view-today").innerHTML =
+        edgesHTML(d) + watchHTML(d) + changedHTML(d) +
+        '<div class="atd-sec-h">Executable Trade Track Record</div>' +
+        '<div class="atd-rows">' +
+        row("Trade-qualified strategies", 0) +
+        row("Frozen live trades", 0) +
+        '<div class="k">TickerDesk has not yet qualified an ' +
+        'executable strategy.</div></div>' +
+        expHTML(d) + rejectedHTML(d);
+      $("atd-view-track").innerHTML = trackHTML(d);
+      $("atd-view-research").innerHTML = researchViewHTML(d);
       $("atd-honesty").textContent = d.honesty || "";
-      // Desk-page flagship module — honest count, zero included.
-      const mod = $("atd-desk-module");
+      var mod = $("atd-desk-module");
       if (mod) {
-        const n = top.length;
+        var c = d.desk_counts || {};
         mod.innerHTML = '<span class="m-title">AI Trade Desk</span>' +
-          '<span class="m-sub">' + (n
-            ? n + ' high-conviction setup' + (n > 1 ? 's' : '') +
-              ' currently qualify' + (n > 1 ? '' : 's') + '.'
-            : 'No setup currently clears the measured alpha threshold — ' +
-              (watch.length || 0) + ' tracked on the paper-forward ' +
-              'watchlist.') + '</span>' +
-          '<span class="m-open">Open →</span>';
+          '<span class="m-sub">' + (c.trade_qualified
+            ? c.trade_qualified + ' executable setup' +
+              (c.trade_qualified > 1 ? 's' : '') + ' qualify.'
+            : 'No executable trade clears the gate — ' +
+              (c.signal_qualified || 0) + ' validated market edge' +
+              ((c.signal_qualified || 0) === 1 ? '' : 's') +
+              ' · ' + (c.research_watch || 0) + ' research setups.') +
+          '</span><span class="m-open">Open →</span>';
         mod.style.display = "flex";
         if (!mod.dataset.wired) {
           mod.dataset.wired = "1";
           mod.addEventListener("click", function () {
-            const b = document.querySelector(
+            var b = document.querySelector(
               'nav button[data-tab="trade-desk"]');
             if (b) b.click();
           });
@@ -30616,27 +30853,27 @@
     }
 
     function load() {
-      const bust = "?cb=" + Math.floor(Date.now() / 60000);
+      var bust = "?cb=" + Math.floor(Date.now() / 60000);
+      function j(path) {
+        return fetch(path + bust, { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; });
+      }
       Promise.allSettled([
-        fetch("./reports/trade_desk.json" + bust, { cache: "no-cache" })
-          .then(function (r) { return r.ok ? r.json() : null; }),
-        fetch("./reports/trade_desk_validation.json" + bust,
-              { cache: "no-cache" })
-          .then(function (r) { return r.ok ? r.json() : null; }),
-        fetch("./reports/trade_desk_research.json" + bust,
-              { cache: "no-cache" })
-          .then(function (r) { return r.ok ? r.json() : null; }),
-        fetch("./reports/earnings_vol.json" + bust,
-              { cache: "no-cache" })
-          .then(function (r) { return r.ok ? r.json() : null; }),
+        j("./reports/trade_desk.json"),
+        j("./reports/trade_desk_validation.json"),
+        j("./reports/trade_desk_research.json"),
+        j("./reports/earnings_vol.json"),
+        j("./reports/earnings_vol_exec.json"),
+        j("./reports/fair_move_lab.json"),
       ]).then(function (rs) {
         DATA = rs[0].value || DATA;
         VAL = rs[1].value || VAL;
         RES = rs[2].value || RES;
         EVOL = rs[3].value || EVOL;
-        loaded = true;
+        EXEC = rs[4].value || EXEC;
+        FML = rs[5].value || FML;
         if (DATA) render();
-        else $("atd-body").innerHTML =
+        else $("atd-view-today").innerHTML =
           '<div class="uoa-empty">Trade Desk data not published yet — ' +
           'the engine runs with the Options Flow batch.</div>';
       }).catch(function (e) {
@@ -30644,69 +30881,67 @@
       });
     }
 
-    // Evidence drawers + ticker drilldown + methodology toggle
+    /* subnav + row drilldown + collapses */
     document.addEventListener("click", function (e) {
-      const b = e.target.closest && e.target.closest(".atd-ev-btn");
-      if (b && b.closest("#panel-trade-desk")) {
-        const ev = b.nextElementSibling;
-        if (ev) ev.classList.toggle("open");
+      var sb = e.target.closest && e.target.closest("[data-atdview]");
+      if (sb) {
+        var view = sb.dataset.atdview;
+        ["today", "track", "research"].forEach(function (v) {
+          var el = $("atd-view-" + v);
+          if (el) el.style.display = (v === view) ? "" : "none";
+        });
+        var nav = $("atd-subnav");
+        if (nav) Array.prototype.forEach.call(
+          nav.querySelectorAll("button"), function (b) {
+            b.classList.toggle("active", b === sb);
+          });
         return;
       }
-      const t = e.target.closest && e.target.closest(".atd-tk[data-t]");
-      if (t && window.openTickerPanel) {
-        window.openTickerPanel(t.dataset.t);
-        return;
-      }
-      if (e.target && e.target.id === "atd-method-link") {
-        e.preventDefault();
-        const v = $("atd-validation");
-        if (v) v.style.display =
-          v.style.display === "none" ? "block" : "none";
-        if (v && v.style.display === "block")
-          v.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      var tr = e.target.closest &&
+        e.target.closest("#panel-trade-desk tr[data-t]");
+      if (tr && window.openTickerPanel) {
+        window.openTickerPanel(tr.dataset.t);
       }
     });
 
-    // Ask TickerDesk — the worker answers ONLY from the structured
-    // trade-desk payload; signed-out users get a sign-in nudge (the
-    // endpoint spends LLM tokens, so it is auth-gated like reports).
-    const STARTERS = [
-      "What qualifies a strategy family?",
-      "Why are there no Top Ideas right now?",
-      "What changed since this morning?",
-      "What does the track record show so far?",
+    /* Ask TickerDesk */
+    var STARTERS = [
+      "Why are there no trades today?",
+      "Why is the richest name vol rich?",
+      "Why was the iron fly rejected?",
+      "How does Fair Move work?",
+      "What changed today?",
     ];
     (function initAsk() {
-      const chips = $("atd-ask-chips");
+      var chips = $("atd-ask-chips");
       if (chips) chips.innerHTML = STARTERS.map(function (s) {
         return '<button type="button" data-q="' + esc(s) + '">' +
           esc(s) + '</button>';
       }).join("");
       if (chips) chips.addEventListener("click", function (e) {
-        const b = e.target.closest("[data-q]");
+        var b = e.target.closest("[data-q]");
         if (!b) return;
         $("atd-ask-input").value = b.dataset.q;
         ask();
       });
-      const btn = $("atd-ask-btn");
+      var btn = $("atd-ask-btn");
       if (btn) btn.addEventListener("click", ask);
-      const inp = $("atd-ask-input");
+      var inp = $("atd-ask-input");
       if (inp) inp.addEventListener("keydown", function (e) {
         if (e.key === "Enter") ask();
       });
     })();
-
-    let asking = false;
+    var asking = false;
     function ask() {
       if (asking) return;
-      const q = ($("atd-ask-input").value || "").trim();
-      const out = $("atd-ask-out");
+      var q = ($("atd-ask-input").value || "").trim();
+      var out = $("atd-ask-out");
       if (!q) return;
-      const token = tkn();
+      var token = tkn();
       if (!token) {
-        out.textContent =
-          "Sign in to ask — answers run on TickerDesk's structured " +
-          "desk data and are free for members.";
+        out.textContent = "Sign in to ask — answers run on " +
+          "TickerDesk's structured desk state and are free for " +
+          "members.";
         return;
       }
       asking = true;
@@ -30731,17 +30966,16 @@
         });
     }
 
-    // Load on boot (cheap static fetch) + refresh on tab activation +
-    // 5-min poll while the panel is visible.
     load();
-    const nav = document.getElementById("nav");
+    var nav = document.getElementById("nav");
     if (nav) nav.addEventListener("click", function (e) {
       if (e.target && e.target.dataset &&
           e.target.dataset.tab === "trade-desk") load();
     });
     setInterval(function () {
-      const p = document.getElementById("panel-trade-desk");
-      if (!p || !p.classList.contains("active") || document.hidden) return;
+      var p = document.getElementById("panel-trade-desk");
+      if (!p || !p.classList.contains("active") || document.hidden)
+        return;
       load();
     }, 300000);
   })();
