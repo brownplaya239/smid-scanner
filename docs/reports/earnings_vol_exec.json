@@ -1,0 +1,5 @@
+{
+ "generated": "2026-08-26T19:38:50+00:00",
+ "status": "quotes_entitlement_unavailable",
+ "why": "historical NBBO quotes endpoint returned no data on a known-good contract \u2014 plan tier lacks the quotes entitlement. Execution study cannot run; trade_qualified stays false. (Outcome: undetermined, NOT a pass.)"
+}
