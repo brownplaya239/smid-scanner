@@ -426,8 +426,85 @@ def _neighbors_ok(tables, strat):
     return len(ok) >= max(1, len(others) - 1)
 
 
-def run(limit=None):
-    if not pg.available():
+def _recompute_at_slip(recons, strat, ttype, exit_model, slip):
+    """Re-price a cached structure at a different slippage — pure
+    arithmetic on the stored per-leg marks, no API. Powers the cost-
+    attribution table; NEVER used for qualification."""
+    rows = []
+    for r in recons:
+        if r["event"]["type"] != ttype:
+            continue
+        s = (r.get("strategies") or {}).get(strat)
+        if not s:
+            continue
+        cash, ok = 0.0, True
+        for l in s["legs"]:
+            m = l["marks"]
+            ein = m.get("entry_close")
+            if ein is None:
+                ok = False
+                break
+            if exit_model == "next_open":
+                eout = m.get("exit_open")
+            elif exit_model == "next_close":
+                eout = m.get("exit_close")
+            else:
+                es = r.get("expiry_spot")
+                eout = None if es is None else _intrinsic(
+                    l["kind"], l["strike"], es)
+            if eout is None:
+                ok = False
+                break
+            fee = FEE / 100.0
+            if l["side"] < 0:
+                cash += ein * (1 - slip) - fee
+                cash -= eout * (1 + slip) + fee
+            else:
+                cash -= ein * (1 + slip) + fee
+                cash += eout * (1 - slip) - fee
+        if ok:
+            rows.append(cash)
+    if not rows:
+        return None
+    pos = sum(p for p in rows if p > 0)
+    neg = abs(sum(p for p in rows if p < 0))
+    return {"n": len(rows), "avg_pnl_1lot": round(mean(rows) * 100),
+            "win": round(100 * sum(1 for p in rows if p > 0)
+                         / len(rows)),
+            "profit_factor": round(pos / neg, 2) if neg else None}
+
+
+def cost_attribution(recons):
+    """Gross-edge vs friction decomposition on predeclared key
+    structures. The 2026-08 finding this section exists to preserve:
+    frictionless short vol at the NEXT-MORNING OPEN carries a real
+    gross edge (crush monetizes at the open, decays by the close), and
+    the base-case 5%/side slippage consumes all of it — break-even
+    slippage is roughly 2.5-3%/side. Qualification always uses the
+    base case; this is attribution, not a loophole."""
+    keys = (("short_straddle", "vol_rich"),
+            ("iron_fly_1.5", "vol_rich"),
+            ("iron_condor_0.75_1.5", "vol_rich"),
+            ("long_straddle", "vol_cheap"))
+    out = {}
+    for strat, ttype in keys:
+        block = {}
+        for xm in ("next_open", "next_close"):
+            block[xm] = {f"slip_{int(s*1000)/10}pct":
+                         _recompute_at_slip(recons, strat, ttype, xm, s)
+                         for s in (0.0, 0.025, 0.05)}
+        out[strat] = block
+    return out
+
+
+def run(limit=None, report_only=False):
+    cache = _load(CACHE_PATH, {}) or {}
+    events = _events()
+    todo = [] if report_only else \
+        [e for e in events
+         if f"{e['ticker']}|{e['date']}|{e['type']}|{BT_VERSION}"
+         not in cache]
+    if todo and not pg.available():
         out = {"generated": datetime.now(timezone.utc)
                .isoformat(timespec="seconds"),
                "status": "capability_unavailable",
@@ -435,12 +512,6 @@ def run(limit=None):
         json.dump(out, open(OUT_PATH, "w", encoding="utf-8"), indent=1)
         print(out["why"])
         return out
-
-    cache = _load(CACHE_PATH, {}) or {}
-    events = _events()
-    todo = [e for e in events
-            if f"{e['ticker']}|{e['date']}|{e['type']}|{BT_VERSION}"
-            not in cache]
     if limit:
         todo = todo[:limit]
     print(f"events: {len(events)} total, {len(todo)} to reconstruct "
@@ -510,6 +581,7 @@ def run(limit=None):
                          "folds": ">= 2/3 positive AND latest positive",
                          "exit_accord": "next_open avg ROR > 0",
                          "grid_neighbors": "PF >= 1.0"}}
+    result["cost_attribution"] = cost_attribution(recons)
     result["honesty"] = (
         "Daily-bar proxy fills (stamped per record). Undefined-risk "
         "diagnostics never qualify. Immutable per-event rows are "
@@ -537,4 +609,7 @@ def run(limit=None):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int)
-    run(limit=ap.parse_args().limit)
+    ap.add_argument("--report-only", action="store_true",
+                    help="rebuild the report from cached rows, no API")
+    a = ap.parse_args()
+    run(limit=a.limit, report_only=a.report_only)

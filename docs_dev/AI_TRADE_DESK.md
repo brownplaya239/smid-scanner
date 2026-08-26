@@ -298,6 +298,42 @@ structure decomposition (no historical IV surface in the record —
 portfolio max-simultaneous-exposure sizing (needs the reconstruction's
 same-night covariance; the clustering block carries the inputs).
 
+## 10d. v2 reconstruction verdict (2026-08-26, n=179 events)
+
+**Nothing trade-qualified — and the gate is working exactly as
+designed.** At the base case (next_close exit, 5%/side/leg slippage):
+every predeclared structure negative — flies PF 0.50-0.52, condors
+0.52-0.70, cheap straddle/strangle 0.45-0.47, short-straddle
+diagnostic 0.64. Grid is uniformly negative (no parameter-instability
+mirage), folds mostly negative, exits don't rescue it.
+
+**But the cost attribution isolates WHERE the edge lives** (recomputed
+from the immutable per-leg marks; attribution only, never
+qualification):
+
+| short_straddle @ next_open | PF | avg $/lot |
+|---|---|---|
+| slippage 0.0% | **1.49** | **+$69** |
+| slippage 2.5% | 1.07 | +$13 |
+| slippage 5.0% | 0.78 | −$43 |
+
+iron_fly_1.5 @ next_open frictionless: PF 1.41 / +$56. Same
+structures at next_CLOSE frictionless: PF ~1.0 / ~$0 — **the crush
+edge monetizes at the next-morning open and decays away by the
+close.** vol_cheap long premium is negative under every model — the
+cheap signal does not monetize as naive long straddles held a day.
+
+**Conclusion:** the earnings-vol anomaly has a real GROSS monetization
+window (short vol into the open), and the executable question is now
+an execution-quality question: break-even slippage ≈ 2.5-3%/side/leg.
+Whether real fills on liquid near-ATM earnings names beat that cannot
+be answered from daily bars — it requires NBBO quote reconstruction
+(entitlement check in CI) and/or a liquidity-filtered subset. Until
+then: vol_rich stays SIGNAL_QUALIFIED, trade_qualified stays false,
+and no structure is recommended. v1 rows (with the fabricated-zero
+mark flaw) remain in the cache under their own version key —
+superseded, never rewritten.
+
 ## 11. What would make this product succeed
 
 The moat is the growing point-in-time record + honest gates, not the LLM.

@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-26T19:24:34+00:00",
+ "generated": "2026-08-26T19:26:38+00:00",
  "bt_version": "vol_backtest_v2",
  "fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
  "exit_models": [
@@ -852,6 +852,176 @@
     "folds": ">= 2/3 positive AND latest positive",
     "exit_accord": "next_open avg ROR > 0",
     "grid_neighbors": "PF >= 1.0"
+   }
+  }
+ },
+ "cost_attribution": {
+  "short_straddle": {
+   "next_open": {
+    "slip_0.0pct": {
+     "n": 111,
+     "avg_pnl_1lot": 69,
+     "win": 66,
+     "profit_factor": 1.49
+    },
+    "slip_2.5pct": {
+     "n": 111,
+     "avg_pnl_1lot": 13,
+     "win": 59,
+     "profit_factor": 1.07
+    },
+    "slip_5.0pct": {
+     "n": 111,
+     "avg_pnl_1lot": -43,
+     "win": 56,
+     "profit_factor": 0.78
+    }
+   },
+   "next_close": {
+    "slip_0.0pct": {
+     "n": 111,
+     "avg_pnl_1lot": 1,
+     "win": 66,
+     "profit_factor": 1.01
+    },
+    "slip_2.5pct": {
+     "n": 111,
+     "avg_pnl_1lot": -56,
+     "win": 63,
+     "profit_factor": 0.8
+    },
+    "slip_5.0pct": {
+     "n": 111,
+     "avg_pnl_1lot": -114,
+     "win": 58,
+     "profit_factor": 0.64
+    }
+   }
+  },
+  "iron_fly_1.5": {
+   "next_open": {
+    "slip_0.0pct": {
+     "n": 88,
+     "avg_pnl_1lot": 56,
+     "win": 61,
+     "profit_factor": 1.41
+    },
+    "slip_2.5pct": {
+     "n": 88,
+     "avg_pnl_1lot": -17,
+     "win": 57,
+     "profit_factor": 0.9
+    },
+    "slip_5.0pct": {
+     "n": 88,
+     "avg_pnl_1lot": -90,
+     "win": 49,
+     "profit_factor": 0.57
+    }
+   },
+   "next_close": {
+    "slip_0.0pct": {
+     "n": 88,
+     "avg_pnl_1lot": -12,
+     "win": 56,
+     "profit_factor": 0.95
+    },
+    "slip_2.5pct": {
+     "n": 88,
+     "avg_pnl_1lot": -88,
+     "win": 52,
+     "profit_factor": 0.69
+    },
+    "slip_5.0pct": {
+     "n": 88,
+     "avg_pnl_1lot": -163,
+     "win": 50,
+     "profit_factor": 0.5
+    }
+   }
+  },
+  "iron_condor_0.75_1.5": {
+   "next_open": {
+    "slip_0.0pct": {
+     "n": 88,
+     "avg_pnl_1lot": 6,
+     "win": 62,
+     "profit_factor": 1.08
+    },
+    "slip_2.5pct": {
+     "n": 88,
+     "avg_pnl_1lot": -24,
+     "win": 58,
+     "profit_factor": 0.76
+    },
+    "slip_5.0pct": {
+     "n": 88,
+     "avg_pnl_1lot": -55,
+     "win": 51,
+     "profit_factor": 0.54
+    }
+   },
+   "next_close": {
+    "slip_0.0pct": {
+     "n": 88,
+     "avg_pnl_1lot": 16,
+     "win": 67,
+     "profit_factor": 1.13
+    },
+    "slip_2.5pct": {
+     "n": 88,
+     "avg_pnl_1lot": -16,
+     "win": 61,
+     "profit_factor": 0.89
+    },
+    "slip_5.0pct": {
+     "n": 88,
+     "avg_pnl_1lot": -47,
+     "win": 60,
+     "profit_factor": 0.7
+    }
+   }
+  },
+  "long_straddle": {
+   "next_open": {
+    "slip_0.0pct": {
+     "n": 60,
+     "avg_pnl_1lot": 0,
+     "win": 32,
+     "profit_factor": 1.0
+    },
+    "slip_2.5pct": {
+     "n": 60,
+     "avg_pnl_1lot": -40,
+     "win": 27,
+     "profit_factor": 0.74
+    },
+    "slip_5.0pct": {
+     "n": 60,
+     "avg_pnl_1lot": -80,
+     "win": 25,
+     "profit_factor": 0.53
+    }
+   },
+   "next_close": {
+    "slip_0.0pct": {
+     "n": 60,
+     "avg_pnl_1lot": -36,
+     "win": 38,
+     "profit_factor": 0.79
+    },
+    "slip_2.5pct": {
+     "n": 60,
+     "avg_pnl_1lot": -75,
+     "win": 37,
+     "profit_factor": 0.61
+    },
+    "slip_5.0pct": {
+     "n": 60,
+     "avg_pnl_1lot": -115,
+     "win": 28,
+     "profit_factor": 0.45
+    }
    }
   }
  },
