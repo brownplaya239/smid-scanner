@@ -307,7 +307,15 @@ every predeclared structure negative — flies PF 0.50-0.52, condors
 diagnostic 0.64. Grid is uniformly negative (no parameter-instability
 mirage), folds mostly negative, exits don't rescue it.
 
-**But the cost attribution isolates WHERE the edge lives** (recomputed
+**Wording discipline (reviewer):** what is demonstrated is that the
+vol-rich signal *produces positive gross theoretical P&L when marked at
+the next-session open, before realistic execution costs* — and that the
+gross advantage disappears by the close. "Monetizes" is reserved for
+after the NBBO/executable-fill test passes; the entire observed
+expectancy (~$69/lot frictionless) sits inside a razor-thin execution
+budget.
+
+**The cost attribution isolates WHERE the gross edge lives** (recomputed
 from the immutable per-leg marks; attribution only, never
 qualification):
 
@@ -333,6 +341,39 @@ then: vol_rich stays SIGNAL_QUALIFIED, trade_qualified stays false,
 and no structure is recommended. v1 rows (with the fabricated-zero
 mark flaw) remain in the cache under their own version key —
 superseded, never rewritten.
+
+## 10e. V3 — execution-quality study (`earnings_vol_exec.py`)
+
+Structure exploration is FROZEN (V2 finding: timing + friction dominate
+structure selection); V3 is microstructure only. Per event, per frozen
+structure (fly 1.5x, condors 0.75/1.5 and 0.9/1.5, straddle diagnostic):
+
+- **NBBO snapshots**: entry = last quote 15:45-16:00 ET; exits = last
+  quote in 09:30-:31 / :31-:35 / :35-:45 / :45-10:00 (the open-timing
+  sweet-spot question). Immutable versioned quote cache.
+- **Package-level fills**: mid / mid-25% / mid-50% (canonical EXEC) /
+  natural, per side, fees in — a complex-order proxy, not four
+  independently-hit legs.
+- **Break-even mid capture** per event (required entry credit / package
+  mid, given f=0.50 exit) published as a distribution — "median 92%
+  capture required" is actionable; "3% slippage" is not.
+- **Liquidity conditioning** (predeclared): entry package spread%
+  buckets, gross vs executable PF — the causal-candidate table.
+- **Gross Edge Capture** = net executable / frictionless P&L.
+- **VOL_RICH_EXEC_V1 gate** (now the ONLY trade-qualification
+  authority `trade_desk.py` reads): at f=0.25 entry+exit — n≥60,
+  avg AND median ROR>0, capital-weighted ROR>0, PF≥1.3, night-CI
+  low>0, log-growth>0, 2/3 folds + latest positive, maxDD>−5R,
+  loss>1R=0, AND f=0.50 avg ROR>0. Mid-only profitability does not
+  qualify. vol_cheap is excluded: frictionless-negative in V2 — the
+  predictive signal is retained, the naive trade expression is killed.
+
+**Stat-accounting rule from the 0.9/1.5 condor reconciliation:**
+equal-weight avg ROR (+1.8%) vs capital-weighted (−8.7%) diverged
+because nearest-strike snapping varies per-event max risk 40×
+($42→$1,632 p10/p90); tiny-risk trades dominated the equal-weight
+mean. Both now publish labeled, and capital-weighted ROR > 0 is a
+permanent qualification bar in every gate.
 
 ## 11. What would make this product succeed
 

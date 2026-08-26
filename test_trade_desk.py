@@ -458,7 +458,7 @@ def _fake_files(vol_sig_qualified, bt_trade_qualified):
                 "signal_qualified": vol_sig_qualified,
                 "date_cluster_bootstrap": {"nights": 18,
                                            "ci95": [5.87, 7.83]}}}}
-        if path.endswith("earnings_vol_backtest.json"):
+        if path.endswith("earnings_vol_exec.json"):
             return ({"types": {"vol_rich": {
                 "trade_qualified": bt_trade_qualified}}}
                 if bt_trade_qualified is not None else {})
@@ -522,7 +522,8 @@ def test_backtest_max_dd_and_folds():
 
 def test_backtest_qualification_requires_every_bar():
     import earnings_vol_backtest as bt
-    good = {"n": 100, "avg_ror": 0.1, "profit_factor": 1.5,
+    good = {"n": 100, "avg_ror": 0.1, "cap_wt_ror": 0.08,
+            "profit_factor": 1.5,
             "exp_log_growth": 0.05, "loss_gt_1R": 0, "max_dd_r": -2.0,
             "fold_avg_ror": [0.1, 0.05, 0.08],
             "night_bootstrap_ror": {"ci95": [0.02, 0.2]}}
@@ -533,6 +534,9 @@ def test_backtest_qualification_requires_every_bar():
                          open_ok) is False
     assert bt._qualifies(good, {"avg_ror": -0.01}) is False
     assert bt._qualifies(dict(good, loss_gt_1R=1), open_ok) is False
+    # equal-weight ROR positive but capital-weighted negative -> reject
+    # (the 0.9/1.5 condor reconciliation made this a permanent gate)
+    assert bt._qualifies(dict(good, cap_wt_ror=-0.05), open_ok) is False
 
 
 def test_backtest_missing_exit_mark_skips_not_fabricates():
@@ -548,3 +552,47 @@ def test_backtest_missing_exit_mark_skips_not_fabricates():
     # expiry_hold uses intrinsic — exact, allowed
     r = bt._structure_pnl(legs, "expiry_hold", expiry_spot=90.0)
     assert r is not None and r[0] > 0   # short call expired worthless
+
+
+# ---------------------------------------------- exec study (V3) math
+
+def _mkleg(side, kind, strike, contract):
+    return {"side": side, "kind": kind, "strike": strike,
+            "contract": contract}
+
+
+def test_exec_package_pricing_and_fill_ladder():
+    import earnings_vol_exec as ex
+    qc = {f"C1|2026-08-01|1555|{ex.EXEC_VERSION}":
+          {"bid": 2.0, "ask": 2.2},
+          f"P1|2026-08-01|1555|{ex.EXEC_VERSION}":
+          {"bid": 1.8, "ask": 2.0}}
+    legs = [_mkleg(-1, "call", 100, "C1"), _mkleg(-1, "put", 100, "P1")]
+    pkg = ex.package(qc, legs, "2026-08-01", "1555")
+    assert abs(pkg["mid"] - 4.0) < 1e-9        # 2.1 + 1.9
+    assert abs(pkg["natural"] - 3.8) < 1e-9    # both at bid
+    assert abs(ex._fill(pkg, 0.0) - 4.0) < 1e-9
+    assert abs(ex._fill(pkg, 0.5) - 3.9) < 1e-9
+    assert abs(ex._fill(pkg, 1.0) - 3.8) < 1e-9
+
+
+def test_exec_missing_quote_returns_none_not_zero():
+    import earnings_vol_exec as ex
+    qc = {f"C1|2026-08-01|1555|{ex.EXEC_VERSION}":
+          {"bid": 2.0, "ask": 2.2}}
+    legs = [_mkleg(-1, "call", 100, "C1"), _mkleg(-1, "put", 100, "P1")]
+    assert ex.package(qc, legs, "2026-08-01", "1555") is None
+
+
+def test_exec_qualification_needs_f50_agreement():
+    import earnings_vol_exec as ex
+    good = {"n": 80, "avg_ror": 0.08, "med_ror": 0.05,
+            "cap_wt_ror": 0.06, "profit_factor": 1.5,
+            "exp_log_growth": 0.04, "loss_gt_1R": 0, "max_dd_r": -2.0,
+            "fold_avg_ror": [0.1, 0.02, 0.05],
+            "night_bootstrap_ror": {"ci95": [0.01, 0.15]}}
+    assert ex._qualifies(good, {"avg_ror": 0.02}) is True
+    # mid-only profitability (f50 negative) must NOT qualify
+    assert ex._qualifies(good, {"avg_ror": -0.01}) is False
+    assert ex._qualifies(dict(good, med_ror=-0.01),
+                         {"avg_ror": 0.02}) is False

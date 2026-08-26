@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-26T19:26:38+00:00",
+ "generated": "2026-08-26T19:33:55+00:00",
  "bt_version": "vol_backtest_v2",
  "fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
  "exit_models": [
@@ -88,6 +88,7 @@
       "loss_gt_1R": 2,
       "exp_log_growth": -0.3761,
       "max_dd_r": -11.31,
+      "cap_wt_ror": -0.078,
       "fold_avg_ror": [
        -0.149,
        -0.063,
@@ -115,6 +116,7 @@
       "loss_gt_1R": 7,
       "exp_log_growth": -0.6838,
       "max_dd_r": -10.94,
+      "cap_wt_ror": -0.137,
       "fold_avg_ror": [
        -0.227,
        0.016,
@@ -142,6 +144,7 @@
       "loss_gt_1R": 18,
       "exp_log_growth": -1.2964,
       "max_dd_r": -13.03,
+      "cap_wt_ror": -0.12,
       "fold_avg_ror": [
        -0.044,
        0.108,
@@ -171,6 +174,7 @@
       "loss_gt_1R": 0,
       "exp_log_growth": -0.2456,
       "max_dd_r": -7.2,
+      "cap_wt_ror": -0.068,
       "fold_avg_ror": [
        -0.146,
        -0.023,
@@ -198,6 +202,7 @@
       "loss_gt_1R": 4,
       "exp_log_growth": -0.5114,
       "max_dd_r": -7.45,
+      "cap_wt_ror": -0.123,
       "fold_avg_ror": [
        -0.177,
        0.03,
@@ -225,6 +230,7 @@
       "loss_gt_1R": 13,
       "exp_log_growth": -0.9692,
       "max_dd_r": -10.56,
+      "cap_wt_ror": -0.082,
       "fold_avg_ror": [
        0.009,
        0.076,
@@ -254,6 +260,7 @@
       "loss_gt_1R": 5,
       "exp_log_growth": -0.4855,
       "max_dd_r": -12.15,
+      "cap_wt_ror": -0.093,
       "fold_avg_ror": [
        -0.252,
        0.024,
@@ -281,6 +288,7 @@
       "loss_gt_1R": 8,
       "exp_log_growth": -0.7561,
       "max_dd_r": -13.89,
+      "cap_wt_ror": -0.11,
       "fold_avg_ror": [
        -0.263,
        -0.026,
@@ -308,6 +316,7 @@
       "loss_gt_1R": 20,
       "exp_log_growth": -1.3159,
       "max_dd_r": -16.61,
+      "cap_wt_ror": -0.029,
       "fold_avg_ror": [
        0.016,
        0.089,
@@ -337,6 +346,7 @@
       "loss_gt_1R": 5,
       "exp_log_growth": -0.5345,
       "max_dd_r": -12.21,
+      "cap_wt_ror": -0.136,
       "fold_avg_ror": [
        -0.161,
        -0.08,
@@ -364,6 +374,7 @@
       "loss_gt_1R": 10,
       "exp_log_growth": -0.8024,
       "max_dd_r": -10.11,
+      "cap_wt_ror": -0.099,
       "fold_avg_ror": [
        -0.178,
        0.003,
@@ -391,6 +402,7 @@
       "loss_gt_1R": 22,
       "exp_log_growth": -1.4006,
       "max_dd_r": -18.21,
+      "cap_wt_ror": -0.061,
       "fold_avg_ror": [
        -0.05,
        0.044,
@@ -420,6 +432,7 @@
       "loss_gt_1R": 2,
       "exp_log_growth": -0.2442,
       "max_dd_r": -4.3,
+      "cap_wt_ror": -0.059,
       "fold_avg_ror": [
        -0.079,
        0.017,
@@ -447,6 +460,7 @@
       "loss_gt_1R": 4,
       "exp_log_growth": -0.4519,
       "max_dd_r": -4.81,
+      "cap_wt_ror": -0.05,
       "fold_avg_ror": [
        -0.129,
        0.066,
@@ -474,6 +488,7 @@
       "loss_gt_1R": 16,
       "exp_log_growth": -1.0107,
       "max_dd_r": -11.38,
+      "cap_wt_ror": -0.027,
       "fold_avg_ror": [
        0.021,
        0.062,
@@ -503,6 +518,7 @@
       "loss_gt_1R": 3,
       "exp_log_growth": -0.2894,
       "max_dd_r": -4.71,
+      "cap_wt_ror": -0.053,
       "fold_avg_ror": [
        -0.123,
        0.018,
@@ -530,6 +546,7 @@
       "loss_gt_1R": 4,
       "exp_log_growth": -0.4118,
       "max_dd_r": -6.05,
+      "cap_wt_ror": -0.087,
       "fold_avg_ror": [
        -0.185,
        0.072,
@@ -557,6 +574,7 @@
       "loss_gt_1R": 16,
       "exp_log_growth": -1.0574,
       "max_dd_r": -18.9,
+      "cap_wt_ror": -0.044,
       "fold_avg_ror": [
        0.011,
        -0.078,
@@ -586,6 +604,7 @@
       "loss_gt_1R": 2,
       "exp_log_growth": -0.2866,
       "max_dd_r": -7.68,
+      "cap_wt_ror": -0.069,
       "fold_avg_ror": [
        -0.074,
        -0.017,
@@ -613,6 +632,7 @@
       "loss_gt_1R": 2,
       "exp_log_growth": -0.3286,
       "max_dd_r": -7.3,
+      "cap_wt_ror": -0.079,
       "fold_avg_ror": [
        -0.17,
        0.036,
@@ -640,6 +660,7 @@
       "loss_gt_1R": 15,
       "exp_log_growth": -1.0214,
       "max_dd_r": -16.24,
+      "cap_wt_ror": -0.051,
       "fold_avg_ror": [
        0.007,
        -0.1,
@@ -687,6 +708,7 @@
       "loss_gt_1R": 0,
       "exp_log_growth": -0.282,
       "max_dd_r": -10.28,
+      "cap_wt_ror": -0.095,
       "fold_avg_ror": [
        -0.222,
        -0.097,
@@ -714,6 +736,7 @@
       "loss_gt_1R": 0,
       "exp_log_growth": -0.3229,
       "max_dd_r": -9.04,
+      "cap_wt_ror": -0.136,
       "fold_avg_ror": [
        -0.28,
        -0.114,
@@ -741,6 +764,7 @@
       "loss_gt_1R": 3,
       "exp_log_growth": -0.8667,
       "max_dd_r": -14.55,
+      "cap_wt_ror": -0.225,
       "fold_avg_ror": [
        -0.413,
        -0.181,
@@ -770,6 +794,7 @@
       "loss_gt_1R": 0,
       "exp_log_growth": -0.3489,
       "max_dd_r": -11.63,
+      "cap_wt_ror": -0.208,
       "fold_avg_ror": [
        -0.219,
        -0.139,
@@ -797,6 +822,7 @@
       "loss_gt_1R": 0,
       "exp_log_growth": -0.4586,
       "max_dd_r": -11.44,
+      "cap_wt_ror": -0.176,
       "fold_avg_ror": [
        -0.318,
        -0.149,
@@ -824,6 +850,7 @@
       "loss_gt_1R": 14,
       "exp_log_growth": -1.9323,
       "max_dd_r": -16.8,
+      "cap_wt_ror": -0.25,
       "fold_avg_ror": [
        -0.523,
        -0.139,

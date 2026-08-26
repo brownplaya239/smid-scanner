@@ -371,6 +371,15 @@ def strategy_table(recons, strat, exit_model):
         return {"n": 0}
     pnls = [x[2] for x in rows]
     rors = [(d, r) for d, r, _ in rows if r is not None]
+    # capital-weighted ROR — equal-weight mean ROR can be driven by
+    # tiny-risk outliers (nearest-strike snapping varies width 40x);
+    # sum($P&L)/sum($risk) is the number a real allocator experiences.
+    risks = []
+    for r0 in recons:
+        s0 = (r0.get("strategies") or {}).get(strat)
+        v0 = ((s0 or {}).get("exits") or {}).get(exit_model)
+        if v0 and v0.get("risk"):
+            risks.append((v0["pnl"], v0["risk"]))
     out = {"n": len(rows),
            "win": round(100 * sum(1 for p in pnls if p > 0) / len(pnls)),
            "avg_pnl_1lot": round(mean(pnls), 0),
@@ -393,6 +402,9 @@ def strategy_table(recons, strat, exit_model):
             "exp_log_growth": round(mean(
                 math.log1p(max(r, -0.999)) for r in rs), 4),
             "max_dd_r": _max_dd_r(rs),
+            "cap_wt_ror": (round(sum(p for p, _ in risks)
+                                 / sum(k for _, k in risks), 3)
+                           if risks and sum(k for _, k in risks) else None),
             "fold_avg_ror": folds,
             "night_bootstrap_ror": _boot_ci(rors),
         })
@@ -404,6 +416,7 @@ def _qualifies(st, st_open):
     folds = st.get("fold_avg_ror") or []
     return (st.get("n", 0) >= MIN_N_QUALIFY
             and (st.get("avg_ror") or 0) > 0
+            and (st.get("cap_wt_ror") or 0) > 0
             and ci[0] is not None and ci[0] > 0
             and (st.get("profit_factor") or 0) >= PF_QUALIFY
             and (st.get("exp_log_growth") or 0) > 0

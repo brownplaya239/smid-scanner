@@ -48,5 +48,14 @@ jobs:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
         run: python earnings_vol_backtest.py
 
+      - name: Execution-quality study (NBBO package fills)
+        # V3: entitlement-probed; incremental quote cache means each
+        # nightly run only fetches windows for new events. Non-fatal —
+        # an entitlement gap publishes an honest status, not a crash.
+        continue-on-error: true
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: python earnings_vol_exec.py
+
       - name: Publish
         run: bash scripts/publish_reports.sh

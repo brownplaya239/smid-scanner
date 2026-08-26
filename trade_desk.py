@@ -147,7 +147,9 @@ def family_gates():
     # reconstruction backtest to clear costs and tails.
     vol = _load(R("docs", "reports", "earnings_vol.json"), {})
     vol_types = vol.get("types") or {}
-    bt = _load(R("docs", "reports", "earnings_vol_backtest.json"), {})
+    # EXEC/EXEC decides (reviewer): only the NBBO execution study can
+    # grant trade_qualified. The daily-bar backtest remains context.
+    bt = _load(R("docs", "reports", "earnings_vol_exec.json"), {})
     ern = {}
     for t, st in by_type.items():
         unit = "vol-pts" if t.startswith("vol_") else "pp"
@@ -161,7 +163,7 @@ def family_gates():
                 if (bt.get("types", {}).get(t, {})
                         .get("trade_qualified")):
                     verdict, note = "trade_qualified", \
-                        "option-P&L reconstruction cleared costs + tails"
+                        "NBBO execution study cleared VOL_RICH_EXEC_V1"
                 elif vt.get("signal_qualified"):
                     verdict = "signal_qualified"
                     ci = boot.get("ci95") or []
