@@ -548,8 +548,8 @@
 "AMAT": {
 "earnings_date": "2026-11-12",
 "earnings_session": null,
-"fetched": "2026-08-14",
-"mkt_cap": 435208861554.5,
+"fetched": "2026-08-26",
+"mkt_cap": 380958516537.72003,
 "sector": "Semiconductors"
 },
 "AMBA": {
@@ -6498,8 +6498,8 @@
 "LUMN": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-08-10",
-"mkt_cap": 6436219320.96,
+"fetched": "2026-08-26",
+"mkt_cap": 6075213429.559999,
 "sector": "Communications"
 },
 "LUNR": {
@@ -10709,6 +10709,13 @@
 "mkt_cap": 12333930470.289999,
 "sector": "Other"
 },
+"TRMD": {
+"earnings_date": "2026-08-26",
+"earnings_session": "BMO",
+"fetched": "2026-08-26",
+"mkt_cap": 3221493203.46,
+"sector": "Other"
+},
 "TROW": {
 "earnings_date": "2026-10-30",
 "earnings_session": "BMO",
@@ -12156,6 +12163,13 @@
 "earnings_session": "BMO",
 "fetched": "2026-08-24",
 "mkt_cap": 560600451.4499999,
+"sector": "Healthcare / Biotech"
+},
+"ZYME": {
+"earnings_date": "2026-11-05",
+"earnings_session": null,
+"fetched": "2026-08-26",
+"mkt_cap": 1964358850.27,
 "sector": "Healthcare / Biotech"
 }
 }

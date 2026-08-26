@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-26T19:13:22+00:00",
+ "generated": "2026-08-26T19:18:02+00:00",
  "engine_version": "earnings_vol_v1",
  "types": {
   "vol_rich": {
@@ -459,58 +459,6 @@
     "no strategy-level tail analysis (gap through wings)",
     "no clustered-night portfolio sizing rule"
    ]
-  }
- },
- "challengers": {
-  "vol_rich_base": {
-   "definition": "all vol_rich events",
-   "declared": "2026-08-26",
-   "at_declaration": {
-    "n": 102,
-    "ev": 6.87,
-    "bootstrap": {
-     "nights": 18,
-     "mean": 6.87,
-     "ci95": [
-      5.87,
-      7.83
-     ]
-    }
-   },
-   "forward": {
-    "n": 0,
-    "status": "accruing"
-   }
-  },
-  "vol_rich_large_move": {
-   "definition": "implied move >= 12%",
-   "declared": "2026-08-26",
-   "at_declaration": {
-    "n": 33,
-    "ev": 10.87,
-    "bootstrap": {
-     "nights": 15,
-     "mean": 10.87,
-     "ci95": [
-      8.64,
-      13.86
-     ]
-    }
-   },
-   "forward": {
-    "n": 0,
-    "status": "accruing"
-   }
-  },
-  "vol_rich_extreme_ratio": {
-   "definition": "implied / TickerDesk Fair Move >= 2.0",
-   "declared": "2026-08-26",
-   "status": "forward_only",
-   "why": "the idea log never captured fair move at selection; setup_context.jsonl logs implied + realized_med from 2026-08-26, so this challenger evaluates on forward events only",
-   "forward": {
-    "n": 0,
-    "status": "accruing"
-   }
   }
  },
  "fair_move_calibration": {
