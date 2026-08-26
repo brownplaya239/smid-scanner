@@ -899,12 +899,10 @@ def run(dry=False, do_grade=True):
         "performance": perf,
         "honesty": ("Every displayed statistic is computed from "
                     "point-in-time data or a disclosed deterministic "
-                    "model; no values are invented by the LLM. Flow "
-                    "Rank is a relative research rank among today's "
-                    "flow candidates — the options-flow family has NOT "
-                    "demonstrated out-of-sample alpha. TickerDesk Fair "
-                    "Move is a disclosed forecast (v1: ticker median "
-                    "realized move), not a measurement."),
+                    "model; no values are invented by the LLM. "
+                    "Research ranks are relative, not calibrated "
+                    "conviction; Fair Move is a disclosed forecast, "
+                    "not a measurement."),
     }
     if not dry:
         with open(OUT_PATH, "w", encoding="utf-8") as f:

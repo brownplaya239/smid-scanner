@@ -5728,6 +5728,51 @@
   .atd-info { cursor:help; color:var(--muted,#8b93a7); font-size:10px;
     border:1px solid rgba(139,147,167,.4); border-radius:50%;
     padding:0 4px; margin-left:4px; }
+  /* Polish pass (reviewer round 6): hierarchy + breathing room.
+     Density stays inside tables; sections get air between them. */
+  #panel-trade-desk .atd-sec-h { margin-top:26px; font-size:13.5px; }
+  #panel-trade-desk .atd-rows { font-size:12.5px; line-height:1.6; }
+  #panel-trade-desk .atd-honesty { font-size:11.5px; }
+  #panel-trade-desk .fb-desc { font-size:12.5px; }
+  .atd-fam-metrics { display:flex; flex-wrap:wrap; gap:10px 26px;
+    margin:10px 0 4px; }
+  .atd-fam-metrics .fm { min-width:96px; }
+  .atd-fam-metrics .fm-v { font-size:22px; font-weight:800;
+    font-variant-numeric:tabular-nums; line-height:1.1; }
+  .atd-fam-metrics .fm-k { font-size:9px; font-weight:800;
+    letter-spacing:.7px; color:var(--muted,#8b93a7);
+    text-transform:uppercase; margin-top:2px; }
+  .atd-fam-secondary { font-size:11.5px; color:var(--muted,#8b93a7);
+    margin:6px 0 12px; }
+  .atd-table.atd-table-hero td { padding:9px 12px 9px 0;
+    font-size:13px; }
+  .atd-table.atd-table-hero td.primary { font-size:14.5px;
+    font-weight:700; }
+  .atd-table.atd-table-hero td.secondary,
+  .atd-table.atd-table-hero th.secondary { color:var(--muted,#8b93a7);
+    font-weight:400; font-size:12px; }
+  .atd-table th.sortable { cursor:pointer; }
+  .atd-table th.sortable:hover { color:var(--fg,#e8ecf4); }
+  .atd-rank1 { font-size:9px; font-weight:800; color:var(--accent,#ff9e1b);
+    letter-spacing:.5px; margin-right:5px; vertical-align:2px; }
+  .atd-mutedrank { color:var(--muted,#8b93a7); font-weight:400; }
+  .atd-expand td { padding:10px 12px 12px 8px !important;
+    background:rgba(139,147,167,.05); }
+  .atd-bars { font-size:11.5px; line-height:1.8;
+    font-variant-numeric:tabular-nums; }
+  .atd-bars .bar { display:inline-block; height:9px; border-radius:3px;
+    vertical-align:-1px; margin-left:8px; }
+  .atd-bars .b-imp { background:rgba(239,83,80,.75); }
+  .atd-bars .b-fair { background:rgba(79,156,245,.75); }
+  .atd-model-note { font-size:11px; color:var(--muted,#8b93a7);
+    margin:6px 0 2px; }
+  /* Compact ask: one row + one line of example links */
+  .atd-ask { padding:10px 14px; margin-top:12px; }
+  .atd-ask .ask-examples { font-size:11.5px; color:var(--muted,#8b93a7);
+    margin-top:5px; }
+  .atd-ask .ask-examples a { color:var(--muted,#8b93a7);
+    text-decoration:underline dotted; cursor:pointer; margin-right:10px; }
+  .atd-ask .ask-examples a:hover { color:var(--fg,#e8ecf4); }
   .atd-stance { font-size:10px; font-weight:800; letter-spacing:.5px;
     padding:1px 7px; border-radius:8px;
     background:rgba(255,158,27,.14); color:#ff9e1b; }
@@ -6197,13 +6242,13 @@
         unproven expression.</p>
       <div class="atd-hero" id="atd-hero"></div>
       <div class="atd-ask" id="atd-ask">
-        <div class="ask-chips" id="atd-ask-chips"></div>
-        <div class="ask-row">
+        <div class="ask-row" style="margin-top:0">
           <input type="text" id="atd-ask-input" maxlength="300"
                  placeholder="Ask about today&#39;s desk&hellip;"
                  aria-label="Ask TickerDesk about today&#39;s desk" />
           <button id="atd-ask-btn" type="button">Ask</button>
         </div>
+        <div class="ask-examples" id="atd-ask-chips"></div>
         <div class="ask-out" id="atd-ask-out"></div>
       </div>
       <div class="atd-subnav" id="atd-subnav" role="tablist">
@@ -30288,12 +30333,13 @@
         esc(reg.replace("_", " ")) + '</span>' +
         '<span class="atd-stat">Data as of <b>' +
         esc(fmtTs(d.generated)) + '</b></span>';
-      h += '</div><div class="atd-tiles">' +
+      // hero is flex-wrap; full-width children flow beneath the chips
+      h += '<div class="atd-tiles" style="flex:1 1 100%">' +
         tile("Trade Qualified", c.trade_qualified, "t-accent") +
         tile("Signal Qualified", c.signal_qualified, "t-blue") +
         tile("Research Watch", c.research_watch, "") +
         tile("Experimental", c.experimental, "") +
-        '</div><div class="atd-hero">';
+        '</div>';
       if (d.abstention && d.abstention_note) {
         h += '<div class="atd-abstain" style="flex:1 1 100%">' +
           '<b>No executable trade clears the gate today.</b>' +
@@ -30334,14 +30380,13 @@
         "pp in the flagged cohort; challenger models are being " +
         "evaluated and none has cleared the promotion threshold.";
     }
+    var SORT = { key: "edge", dir: -1 };
     function edgesHTML(d) {
       var vol = ((EVOL || {}).types || {}).vol_rich || {};
       var mr = vol.move_ratio || {};
       var boot = vol.date_cluster_bootstrap || {};
       var insts = (d.top_ideas || []).filter(function (i) {
         return (i.construct || {}).vol_edge_pp != null;
-      }).sort(function (a, b) {
-        return b.construct.vol_edge_pp - a.construct.vol_edge_pp;
       });
       if (!vol.n && !insts.length) return "";
       var h = '<div class="atd-sec-h">Validated Market Edges</div>' +
@@ -30349,8 +30394,7 @@
         '<div class="fb-head"><span class="fb-title">Earnings ' +
         'Volatility · VOL RICH</span>' +
         '<span class="atd-status s-SIGNAL_QUALIFIED">SIGNAL ' +
-        'QUALIFIED</span><span class="atd-fam">SIGNAL CHAMPION' +
-        '</span></div>' +
+        'QUALIFIED</span></div>' +
         '<div class="fb-desc">Market-implied earnings moves have ' +
         'systematically exceeded subsequent realized moves in this ' +
         'cohort. The forecasting relationship has cleared the signal ' +
@@ -30360,55 +30404,127 @@
           : "NOT VALIDATED", !!vol.signal_qualified],
         ["TRADE EDGE", "NOT VALIDATED", false],
         ["EXECUTION", "NOT TRIGGERED", false]]);
-      h += ladder([["Signal", true], ["Expression", false],
-        ["Execution", false], ["Forward", false], ["Champion", false]]);
-      h += '<div class="atd-rows" style="margin-top:6px">' +
-        row("Historical events", vol.n) +
-        row("Independent nights", boot.nights) +
-        row("Implied &gt; realized", vol.win != null ? vol.win + "%" : "—") +
-        row("Median realized/implied",
-            mr.median != null ? num(mr.median, 2) + "×" : "—") +
-        row("Inside 0.75× implied",
-            mr.inside_075x != null ? mr.inside_075x + "%" : "—") +
-        row("Mean vol edge", vol.ev_vol_pts != null
-            ? "+" + num(vol.ev_vol_pts, 2) + "pp" : "—") +
-        row("Night-cluster 95% CI", boot.ci95
-            ? "+" + num(boot.ci95[0], 2) + " → +" + num(boot.ci95[1], 2) + "pp"
-            : "—") +
-        row("Trade-qualified expression", "NONE") +
-        '</div>';
-      if (insts.length) {
-        h += '<div class="atd-table-wrap"><table class="atd-table">' +
-          '<tr><th>Ticker</th><th>Earnings</th><th>Implied</th>' +
-          '<th>Fair Move<span class="atd-info" title="' +
-          esc(fairMoveTip()) + '">i</span></th>' +
-          '<th>Edge</th><th>Market/Fair</th><th>Own Hist.</th>' +
-          '<th>Confidence</th></tr>' +
-          insts.map(function (i) {
-            var c = i.construct || {};
-            var mf = (c.implied_move && c.fair_move)
-              ? c.implied_move / c.fair_move : null;
-            var conf = c.analogues >= 20 ? "High"
-              : (c.analogues >= 10 ? "Moderate" : "Low");
-            return '<tr data-t="' + esc(i.ticker) + '"><td><b>' +
-              esc(i.ticker) + '</b></td><td>' +
-              esc(c.session || "") + '</td><td>±' +
-              num(c.implied_move) + '%</td><td>±' +
-              num(c.fair_move) + '%</td><td class="pos">+' +
-              num(c.vol_edge_pp) + 'pp</td><td>' +
-              (mf ? num(mf, 2) + "×" : "—") + '</td><td>' +
-              (c.analogues || "—") + ' reports</td><td>' +
-              conf + '</td></tr>';
-          }).join("") + '</table></div>' +
-          '<div class="atd-pending-block"><span class="pb-h">Trade ' +
-          'expression</span>NOT VALIDATED — no option structure is ' +
-          'recommended. <span class="k">Forecasting signal PASSED · ' +
-          'defined-risk gross strategy FAILED/UNPROVEN · executable ' +
-          'validation NOT TRIGGERED · forward trade record NOT ' +
-          'STARTED.</span></div>';
-      }
+      // Four primary family metrics; the rest is one secondary line.
+      h += '<div class="atd-fam-metrics">' +
+        fm(vol.n, "Events") +
+        fm(boot.nights, "Independent nights") +
+        fm(vol.win != null ? vol.win + "%" : "\u2014",
+           "Implied &gt; realized") +
+        fm(vol.ev_vol_pts != null
+           ? "+" + num(vol.ev_vol_pts, 2) + "pp" : "\u2014",
+           "Avg vol edge") + '</div>';
+      h += '<div class="atd-fam-secondary">Median move ratio ' +
+        num(mr.median, 2) + '\u00d7 \u00b7 ' +
+        (mr.inside_075x != null ? mr.inside_075x : "\u2014") +
+        '% inside 0.75\u00d7 implied \u00b7 95% CI ' +
+        (boot.ci95 ? "+" + num(boot.ci95[0], 2) + " \u2192 +" +
+          num(boot.ci95[1], 2) + "pp" : "\u2014") +
+        ' \u00b7 Trade-qualified expression: NONE' +
+        ladder([["Signal", true], ["Expression", false],
+          ["Execution", false], ["Forward", false],
+          ["Champion", false]]) + '</div>';
+      h += instTableHTML(insts);
+      var lab = (((FML || {}).standings || {}).overall || {})
+        .v1_ticker_median || {};
+      h += '<div class="atd-model-note">Fair Move v1 currently tends ' +
+        'to under-forecast realized movement in this cohort by ~' +
+        (lab.bias != null ? Math.abs(lab.bias).toFixed(1) : "2") +
+        'pp. Rankings use the frozen production model; no challenger ' +
+        'has cleared promotion.</div>';
+      h += '<div class="atd-pending-block"><span class="pb-h">Trade ' +
+        'expression</span>NOT VALIDATED \u2014 no option structure ' +
+        'is recommended. <span class="k">Forecasting signal PASSED ' +
+        '\u00b7 defined-risk gross strategy FAILED/UNPROVEN \u00b7 ' +
+        'executable validation NOT TRIGGERED \u00b7 forward trade ' +
+        'record NOT STARTED.</span></div>';
       h += '</div>';
       return h;
+    }
+    function fm(v, k) {
+      return '<div class="fm"><div class="fm-v">' +
+        (v == null ? "\u2014" : v) + '</div><div class="fm-k">' + k +
+        '</div></div>';
+    }
+    function instTableHTML(insts) {
+      var rows = insts.slice();
+      rows.sort(function (a, b) {
+        var ca = a.construct, cb = b.construct;
+        if (SORT.key === "ticker")
+          return SORT.dir * (a.ticker < b.ticker ? -1 : 1);
+        if (SORT.key === "mf") {
+          var ma = ca.implied_move && ca.fair_move
+            ? ca.implied_move / ca.fair_move : 0;
+          var mb = cb.implied_move && cb.fair_move
+            ? cb.implied_move / cb.fair_move : 0;
+          return SORT.dir * (ma - mb);
+        }
+        return SORT.dir * (ca.vol_edge_pp - cb.vol_edge_pp);
+      });
+      function th(label, key, cls, tip) {
+        return '<th class="sortable ' + (cls || "") +
+          '" data-atdsort="' + key + '"' +
+          (tip ? ' title="' + esc(tip) + '"' : '') + '>' + label +
+          (SORT.key === key
+            ? (SORT.dir < 0 ? " \u25bc" : " \u25b2") : "") +
+          '</th>';
+      }
+      var h = '<div class="atd-table-wrap">' +
+        '<table class="atd-table atd-table-hero" id="atd-inst-table">' +
+        '<tr>' + th("Ticker", "ticker", "") +
+        '<th class="secondary">Earnings</th>' +
+        '<th>Implied</th>' +
+        '<th>Fair Move<span class="atd-info" title="' +
+        esc(fairMoveTip()) + '">i</span></th>' +
+        th("Edge", "edge", "",
+           "Ranked by current volatility discrepancy (implied minus " +
+           "Fair Move) \u2014 not expected trade return.") +
+        th("Market/Fair", "mf", "secondary") +
+        '<th class="secondary">Own Hist.</th>' +
+        '<th class="secondary">Confidence</th></tr>';
+      rows.forEach(function (i, idx) {
+        var c = i.construct || {};
+        var mf = (c.implied_move && c.fair_move)
+          ? c.implied_move / c.fair_move : null;
+        var conf = c.analogues >= 20 ? "High"
+          : (c.analogues >= 10 ? "Moderate" : "Low");
+        h += '<tr data-xp="' + esc(i.ticker) +
+          '"><td class="primary">' +
+          (idx === 0 && SORT.key === "edge" && SORT.dir < 0
+            ? '<span class="atd-rank1" title="Today\u2019s largest ' +
+              'validated forecast discrepancy \u2014 not the best ' +
+              'trade">#1</span>' : '') +
+          esc(i.ticker) + '</td><td class="secondary">' +
+          esc(c.session || "") + '</td><td class="primary">\u00b1' +
+          num(c.implied_move) + '%</td><td class="primary">\u00b1' +
+          num(c.fair_move) + '%</td><td class="primary pos">+' +
+          num(c.vol_edge_pp) + 'pp</td><td class="secondary">' +
+          (mf ? num(mf, 2) + "\u00d7" : "\u2014") + '</td>' +
+          '<td class="secondary">' + (c.analogues || "\u2014") +
+          ' reports</td><td class="secondary">' + conf + '</td></tr>';
+        h += '<tr class="atd-expand" data-xr="' + esc(i.ticker) +
+          '" style="display:none"><td colspan="8">' +
+          barsHTML(i.ticker, c, mf) + '</td></tr>';
+      });
+      h += '</table></div>';
+      return h;
+    }
+    function barsHTML(tk, c, mf) {
+      var maxw = 190;
+      var top = Math.max(c.implied_move || 0, c.fair_move || 0) || 1;
+      function bar(cls, v) {
+        return '<span class="bar ' + cls + '" style="width:' +
+          Math.max(8, Math.round(maxw * v / top)) + 'px"></span>';
+      }
+      return '<div class="atd-bars">' +
+        '<div>Market implied &nbsp;<b>' + num(c.implied_move) +
+        '%</b>' + bar("b-imp", c.implied_move || 0) + '</div>' +
+        '<div>TickerDesk Fair &nbsp;<b>' + num(c.fair_move) + '%</b>' +
+        bar("b-fair", c.fair_move || 0) + '</div>' +
+        '<div class="k" style="margin-top:3px">Volatility edge <b>+' +
+        num(c.vol_edge_pp) + 'pp</b> \u00b7 Market/Fair <b>' +
+        (mf ? num(mf, 2) + "\u00d7" : "\u2014") + '</b> &nbsp; ' +
+        '<a href="#" data-drill="' + esc(tk) +
+        '">Full ticker view \u2192</a></div></div>';
     }
     function row(k, v) {
       return '<div><span class="k">' + k + ':</span> ' +
@@ -30443,10 +30559,10 @@
         'setups tracked forward; the family has not cleared ' +
         'production validation</span></div>' +
         '<div class="atd-table-wrap"><table class="atd-table">' +
-        '<tr><th>Flow Rank<span class="atd-info" title="Relative rank ' +
-        'among today&#39;s flow candidates. The options-flow family ' +
-        'has not demonstrated sufficient out-of-sample alpha to ' +
-        'qualify for production.">i</span></th><th>Ticker</th>' +
+        '<tr><th>Research Rank<span class="atd-info" title="Cross-' +
+        'sectional rank within today&#39;s flow candidates; not a ' +
+        'calibrated probability or expected-alpha score.">i</span>' +
+        '</th><th>Ticker</th>' +
         '<th>Bias</th><th>Prints</th><th>Premium</th><th>Ref.</th>' +
         '<th>DTE</th><th>Liq</th></tr>';
       rows.forEach(function (t) {
@@ -30458,7 +30574,8 @@
           return (b.evidence.total_premium || 0) -
                  (a.evidence.total_premium || 0); })[0];
         var c = lead.construct || {};
-        h += '<tr data-t="' + esc(t.ticker) + '"><td>' +
+        h += '<tr data-t="' + esc(t.ticker) +
+          '"><td class="atd-mutedrank">' +
           num(t.rank, 0) + '</td><td><b>' + esc(t.ticker) +
           '</b></td><td><span class="' +
           (bias === "Bullish" ? "pos" : "neg") + '">' + bias +
@@ -30828,6 +30945,7 @@
       $("atd-view-track").innerHTML = trackHTML(d);
       $("atd-view-research").innerHTML = researchViewHTML(d);
       $("atd-honesty").textContent = d.honesty || "";
+      renderAskExamples();
       var mod = $("atd-desk-module");
       if (mod) {
         var c = d.desk_counts || {};
@@ -30897,6 +31015,31 @@
           });
         return;
       }
+      var sh = e.target.closest &&
+        e.target.closest("#atd-inst-table th[data-atdsort]");
+      if (sh) {
+        var k = sh.dataset.atdsort;
+        if (SORT.key === k) SORT.dir = -SORT.dir;
+        else { SORT.key = k; SORT.dir = k === "ticker" ? 1 : -1; }
+        if (DATA) render();
+        return;
+      }
+      var dl = e.target.closest && e.target.closest("[data-drill]");
+      if (dl) {
+        e.preventDefault();
+        if (window.openTickerPanel)
+          window.openTickerPanel(dl.dataset.drill);
+        return;
+      }
+      var xp = e.target.closest &&
+        e.target.closest("#atd-inst-table tr[data-xp]");
+      if (xp) {
+        var xr = document.querySelector(
+          '#atd-inst-table tr[data-xr="' + xp.dataset.xp + '"]');
+        if (xr) xr.style.display =
+          xr.style.display === "none" ? "" : "none";
+        return;
+      }
       var tr = e.target.closest &&
         e.target.closest("#panel-trade-desk tr[data-t]");
       if (tr && window.openTickerPanel) {
@@ -30905,19 +31048,24 @@
     });
 
     /* Ask TickerDesk */
-    var STARTERS = [
-      "Why are there no trades today?",
-      "Why is the richest name vol rich?",
-      "Why was the iron fly rejected?",
-      "How does Fair Move work?",
-      "What changed today?",
-    ];
-    (function initAsk() {
+    function askExamples() {
+      var rich = ((DATA || {}).headlines || [])[0] || {};
+      var m = /^([A-Z.]{1,6}) /.exec(rich.h || "");
+      var first = m ? "Why is " + m[1] + " vol rich?"
+        : "Why is the richest name vol rich?";
+      return [first, "Why no trades?", "What changed?",
+              "Why was the iron fly rejected?"];
+    }
+    function renderAskExamples() {
       var chips = $("atd-ask-chips");
-      if (chips) chips.innerHTML = STARTERS.map(function (s) {
-        return '<button type="button" data-q="' + esc(s) + '">' +
-          esc(s) + '</button>';
+      if (!chips) return;
+      chips.innerHTML = "Try: " + askExamples().map(function (s) {
+        return '<a data-q="' + esc(s) + '">' + esc(s) + '</a>';
       }).join("");
+    }
+    (function initAsk() {
+      renderAskExamples();
+      var chips = $("atd-ask-chips");
       if (chips) chips.addEventListener("click", function (e) {
         var b = e.target.closest("[data-q]");
         if (!b) return;
