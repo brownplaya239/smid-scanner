@@ -833,6 +833,114 @@ async function requireUser(request, env) {
              error: "Service temporarily unavailable." };
   }
 }
+
+/** Ask TickerDesk — POST /ask-desk {question}. Auth-gated (spends LLM
+ *  tokens). The model receives ONLY the published Trade Desk JSONs and
+ *  a contract to answer from them: facts must trace to the payload,
+ *  no invented prices/probabilities/backtests, uncertainty stated
+ *  plainly. Identical questions are memory-cached 5 min per isolate. */
+async function handleAskDesk(request, env, cors) {
+  const user = await requireUser(request, env);
+  if (!user.ok) {
+    return Response.json(
+      { ok: false, error: user.error, code: user.code },
+      { status: user.status, headers: cors });
+  }
+  if (!env.ANTHROPIC_API_KEY) {
+    return Response.json(
+      { ok: false, error: "Ask is not configured." },
+      { status: 503, headers: cors });
+  }
+  let q = "";
+  try {
+    const body = await request.json();
+    q = String(body && body.question || "").trim();
+  } catch (_) { /* fall through to length check */ }
+  if (!q || q.length > 300) {
+    return Response.json(
+      { ok: false, error: "Send a question up to 300 characters." },
+      { status: 400, headers: cors });
+  }
+  const cacheKey = "askdesk:" + q.toLowerCase();
+  const hit = memGet(cacheKey, 300_000);
+  if (hit) return Response.json(hit, { headers: cors });
+
+  // Published engine output — same files the page renders. cf edge
+  // cache keeps repeated asks from hammering Pages.
+  let desk = null, val = null;
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch("https://tickerdesk.io/reports/trade_desk.json",
+            { cf: { cacheTtl: 120 } }),
+      fetch("https://tickerdesk.io/reports/trade_desk_validation.json",
+            { cf: { cacheTtl: 600 } }),
+    ]);
+    if (r1.ok) desk = await r1.json();
+    if (r2.ok) val = await r2.json();
+  } catch (_) { /* handled below */ }
+  if (!desk) {
+    return Response.json(
+      { ok: false, error: "Trade Desk data is not available right now." },
+      { status: 503, headers: cors });
+  }
+  // Trim the validation payload to its verdict-level content — the
+  // production model's full weight map is noise for Q&A.
+  const valSlim = val ? {
+    n_graded: val.n_graded, span: val.span, folds: (val.folds || []).map(
+      function (f) { return { fold: f.fold, val: f.val, ic: f.ic,
+                              cutoffs: f.cutoffs }; }),
+    holdout: val.holdout, qualification: val.qualification,
+    honesty: val.honesty,
+  } : null;
+
+  const system =
+    "You are TickerDesk's trade-desk assistant. Answer ONLY from the " +
+    "JSON payloads provided. Rules: every number you state must appear " +
+    "in the payload; if the payload lacks the answer, say so plainly. " +
+    "Never invent prices, probabilities, win rates, or backtest " +
+    "results. Never give personalized financial advice or tell the " +
+    "user to buy or sell. Distinguish FACT (from payload) from " +
+    "INFERENCE (your reasoning) when you reason beyond restating data. " +
+    "If zero ideas qualify, explain the measured reason honestly — " +
+    "abstention is by design. Keep answers under 180 words, plain text.";
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key":         env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type":      "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 400,
+        system: system,
+        messages: [{ role: "user", content:
+          "TRADE_DESK JSON:\n" + JSON.stringify(desk) +
+          (valSlim ? "\n\nVALIDATION JSON:\n" + JSON.stringify(valSlim)
+                   : "") +
+          "\n\nQUESTION: " + q }],
+      }),
+    });
+    if (!r.ok) {
+      return Response.json(
+        { ok: false, error: "Ask failed upstream (" + r.status + ")." },
+        { status: 502, headers: cors });
+    }
+    const j = await r.json();
+    const answer = (j.content && j.content[0] && j.content[0].text || "")
+      .trim();
+    const out = { ok: true, answer: answer,
+                  as_of: desk.generated || null };
+    memPut(cacheKey, out);
+    return Response.json(out, { headers: cors });
+  } catch (e) {
+    return Response.json(
+      { ok: false, error: "Ask failed: " + String(e).slice(0, 120) },
+      { status: 502, headers: cors });
+  }
+}
+
 async function handlePortfolioOCR(request, env, cors) {
   if (!env.ANTHROPIC_API_KEY) {
     return Response.json(
@@ -3186,6 +3294,12 @@ export default {
     // Portfolio screenshot OCR — vision extract of tickers/weights.
     if (urlPath === "/portfolio-ocr" && request.method === "POST") {
       return handlePortfolioOCR(request, env, cors);
+    }
+    // Ask TickerDesk — auth-gated Q&A over the structured Trade Desk
+    // payload. The model reasons over published JSON only; it cannot
+    // introduce prices, probabilities, or backtest numbers of its own.
+    if (urlPath === "/ask-desk" && request.method === "POST") {
+      return handleAskDesk(request, env, cors);
     }
     // Signal share card — /s?sig=<id>&tk=..&ty=..&st=..&ex=.. renders an
     // OG unfurl (rich title/description + SVG card) for a flow signal and

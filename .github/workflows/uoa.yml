@@ -78,6 +78,18 @@ jobs:
         continue-on-error: true
         run: python hedge_monitor.py --record
 
+      - name: AI Trade Desk — validation + engine
+        # trade_desk_validation.py re-runs the walk-forward on the frozen
+        # ledger (no API calls) so the flow family's qualification gate
+        # tracks the growing record automatically; trade_desk.py then
+        # generates/gates/freezes/grades ideas. Both are non-fatal: the
+        # UOA publish must never block on the desk, and abstention (the
+        # engine's honest default) is a success state, not an error.
+        continue-on-error: true
+        run: |
+          python trade_desk_validation.py
+          python trade_desk.py
+
       - name: Top 25 daily cumulative ranking
         # Folds this batch into the per-day accumulator and republishes
         # the diversified Top 25 (docs/reports/uoa_top25_daily.json).

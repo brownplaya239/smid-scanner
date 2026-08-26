@@ -53,6 +53,9 @@ others run scanners.
 | `report_archive.py` | Saves PDFs to `docs/reports/`, rebuilds `manifest.json` |
 | `scripts/publish_reports.sh` | Race-safe commit+push of archived PDFs (used by all workflows) |
 | `IWM_holdings.csv` | iShares Russell 2000 ETF constituents (universe source for IWM mode) |
+| `trade_desk.py` | AI Trade Desk engine — candidates → empirical Alpha Score → measured family gates → append-only idea ledger (`data/trade_desk_log.jsonl`) → forward grading. Abstains unless a family's own record qualifies. |
+| `trade_desk_validation.py` | Walk-forward validation of the Alpha Score on the frozen signal record; emits the qualification verdict the engine's flow gate reads. Runs in `uoa.yml`. |
+| `docs_dev/AI_TRADE_DESK.md` | Trade Desk methodology + honest findings (read before touching the desk) |
 | `docs/index.html` | GitHub Pages site — 7 tabs, manifest-driven, inline PDF viewer |
 | `cloudflare-worker/worker.js` | Cloudflare Worker — web form → triggers `ticker-lookup.yml` |
 

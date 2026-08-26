@@ -1,0 +1,523 @@
+{
+ "generated": "2026-08-26T18:14:47.658523Z",
+ "model_version": "alpha_score_v1",
+ "n_graded": 27521,
+ "span": {
+  "from": "2026-05-18",
+  "to": "2026-06-30"
+ },
+ "params": {
+  "shrink_k": 200,
+  "per_clamp": 2.0,
+  "total_clamp": 6.0,
+  "folds": 3,
+  "holdout_frac": 0.15,
+  "qual_min_n": 150
+ },
+ "folds": [
+  {
+   "fold": 1,
+   "train": {
+    "n": 5848,
+    "from": "2026-05-18",
+    "to": "2026-05-26"
+   },
+   "val": {
+    "n": 5848,
+    "from": "2026-05-26",
+    "to": "2026-06-02"
+   },
+   "ic": -0.194,
+   "ic_raw_trade_score": -0.0627,
+   "deciles": {
+    "status": "active",
+    "n": 5848,
+    "deciles": [
+     {
+      "d": 1,
+      "n": 584,
+      "hit": 62,
+      "avg": 1.21,
+      "med": 1.18
+     },
+     {
+      "d": 2,
+      "n": 585,
+      "hit": 53,
+      "avg": 0.66,
+      "med": 0.46
+     },
+     {
+      "d": 3,
+      "n": 585,
+      "hit": 45,
+      "avg": -0.43,
+      "med": -1.24
+     },
+     {
+      "d": 4,
+      "n": 585,
+      "hit": 35,
+      "avg": -1.61,
+      "med": -1.82
+     },
+     {
+      "d": 5,
+      "n": 585,
+      "hit": 28,
+      "avg": -3.39,
+      "med": -2.62
+     },
+     {
+      "d": 6,
+      "n": 584,
+      "hit": 39,
+      "avg": -1.9,
+      "med": -2.9
+     },
+     {
+      "d": 7,
+      "n": 585,
+      "hit": 33,
+      "avg": -5.22,
+      "med": -5.61
+     },
+     {
+      "d": 8,
+      "n": 585,
+      "hit": 32,
+      "avg": -3.92,
+      "med": -5.74
+     },
+     {
+      "d": 9,
+      "n": 585,
+      "hit": 28,
+      "avg": -4.61,
+      "med": -4.81
+     },
+     {
+      "d": 10,
+      "n": 585,
+      "hit": 42,
+      "avg": 0.65,
+      "med": -1.25
+     }
+    ],
+    "top_minus_bottom": -0.56,
+    "monotonic_steps": 3
+   },
+   "cutoffs": {
+    "70": {
+     "n": 2115,
+     "hit": 33,
+     "avg": -3.28,
+     "med": -4.65
+    },
+    "80": {
+     "n": 1487,
+     "hit": 34,
+     "avg": -2.83,
+     "med": -3.87
+    },
+    "90": {
+     "n": 534,
+     "hit": 44,
+     "avg": 1.21,
+     "med": -1.12
+    }
+   }
+  },
+  {
+   "fold": 2,
+   "train": {
+    "n": 11696,
+    "from": "2026-05-18",
+    "to": "2026-06-02"
+   },
+   "val": {
+    "n": 5848,
+    "from": "2026-06-02",
+    "to": "2026-06-11"
+   },
+   "ic": 0.0044,
+   "ic_raw_trade_score": -0.0087,
+   "deciles": {
+    "status": "active",
+    "n": 5848,
+    "deciles": [
+     {
+      "d": 1,
+      "n": 584,
+      "hit": 52,
+      "avg": -1.32,
+      "med": 0.43
+     },
+     {
+      "d": 2,
+      "n": 585,
+      "hit": 48,
+      "avg": -0.82,
+      "med": -0.23
+     },
+     {
+      "d": 3,
+      "n": 585,
+      "hit": 49,
+      "avg": 0.25,
+      "med": -0.25
+     },
+     {
+      "d": 4,
+      "n": 585,
+      "hit": 54,
+      "avg": 0.35,
+      "med": 0.56
+     },
+     {
+      "d": 5,
+      "n": 585,
+      "hit": 48,
+      "avg": 2.13,
+      "med": -0.15
+     },
+     {
+      "d": 6,
+      "n": 584,
+      "hit": 47,
+      "avg": 1.44,
+      "med": -0.44
+     },
+     {
+      "d": 7,
+      "n": 585,
+      "hit": 32,
+      "avg": -1.76,
+      "med": -2.0
+     },
+     {
+      "d": 8,
+      "n": 585,
+      "hit": 49,
+      "avg": -0.47,
+      "med": -0.46
+     },
+     {
+      "d": 9,
+      "n": 585,
+      "hit": 50,
+      "avg": 1.0,
+      "med": 0.09
+     },
+     {
+      "d": 10,
+      "n": 585,
+      "hit": 51,
+      "avg": 0.83,
+      "med": 0.08
+     }
+    ],
+    "top_minus_bottom": 2.15,
+    "monotonic_steps": 6
+   },
+   "cutoffs": {
+    "70": {
+     "n": 1194,
+     "hit": 49,
+     "avg": 0.82,
+     "med": -0.12
+    },
+    "80": {
+     "n": 709,
+     "hit": 52,
+     "avg": 1.54,
+     "med": 0.27
+    },
+    "90": {
+     "n": 120,
+     "hit": 42,
+     "avg": 1.2,
+     "med": -0.85
+    }
+   }
+  },
+  {
+   "fold": 3,
+   "train": {
+    "n": 17544,
+    "from": "2026-05-18",
+    "to": "2026-06-11"
+   },
+   "val": {
+    "n": 5849,
+    "from": "2026-06-11",
+    "to": "2026-06-23"
+   },
+   "ic": -0.1265,
+   "ic_raw_trade_score": 0.0227,
+   "deciles": {
+    "status": "active",
+    "n": 5849,
+    "deciles": [
+     {
+      "d": 1,
+      "n": 584,
+      "hit": 66,
+      "avg": 1.06,
+      "med": 1.91
+     },
+     {
+      "d": 2,
+      "n": 585,
+      "hit": 60,
+      "avg": 1.28,
+      "med": 1.81
+     },
+     {
+      "d": 3,
+      "n": 585,
+      "hit": 48,
+      "avg": 0.33,
+      "med": -0.44
+     },
+     {
+      "d": 4,
+      "n": 585,
+      "hit": 37,
+      "avg": -2.2,
+      "med": -2.46
+     },
+     {
+      "d": 5,
+      "n": 585,
+      "hit": 49,
+      "avg": -0.72,
+      "med": -0.42
+     },
+     {
+      "d": 6,
+      "n": 585,
+      "hit": 41,
+      "avg": -0.96,
+      "med": -1.3
+     },
+     {
+      "d": 7,
+      "n": 585,
+      "hit": 40,
+      "avg": -2.39,
+      "med": -1.92
+     },
+     {
+      "d": 8,
+      "n": 585,
+      "hit": 41,
+      "avg": -1.36,
+      "med": -1.81
+     },
+     {
+      "d": 9,
+      "n": 585,
+      "hit": 37,
+      "avg": -2.98,
+      "med": -2.86
+     },
+     {
+      "d": 10,
+      "n": 585,
+      "hit": 52,
+      "avg": 0.82,
+      "med": 0.18
+     }
+    ],
+    "top_minus_bottom": -0.24,
+    "monotonic_steps": 4
+   },
+   "cutoffs": {
+    "70": {
+     "n": 1376,
+     "hit": 44,
+     "avg": -1.04,
+     "med": -1.57
+    },
+    "80": {
+     "n": 948,
+     "hit": 45,
+     "avg": -1.06,
+     "med": -1.02
+    },
+    "90": {
+     "n": 488,
+     "hit": 52,
+     "avg": 0.4,
+     "med": 0.18
+    }
+   }
+  }
+ ],
+ "holdout": {
+  "n": 4128,
+  "from": "2026-06-23",
+  "to": "2026-06-30",
+  "ic": -0.1854,
+  "deciles": {
+   "status": "active",
+   "n": 4128,
+   "deciles": [
+    {
+     "d": 1,
+     "n": 412,
+     "hit": 51,
+     "avg": 2.33,
+     "med": 0.48
+    },
+    {
+     "d": 2,
+     "n": 413,
+     "hit": 76,
+     "avg": 8.29,
+     "med": 9.22
+    },
+    {
+     "d": 3,
+     "n": 413,
+     "hit": 49,
+     "avg": -0.15,
+     "med": -0.79
+    },
+    {
+     "d": 4,
+     "n": 413,
+     "hit": 45,
+     "avg": -0.94,
+     "med": -1.02
+    },
+    {
+     "d": 5,
+     "n": 413,
+     "hit": 54,
+     "avg": -2.21,
+     "med": 0.16
+    },
+    {
+     "d": 6,
+     "n": 412,
+     "hit": 45,
+     "avg": -2.36,
+     "med": -2.28
+    },
+    {
+     "d": 7,
+     "n": 413,
+     "hit": 46,
+     "avg": -2.58,
+     "med": -1.17
+    },
+    {
+     "d": 8,
+     "n": 413,
+     "hit": 32,
+     "avg": -6.87,
+     "med": -5.61
+    },
+    {
+     "d": 9,
+     "n": 413,
+     "hit": 42,
+     "avg": -0.83,
+     "med": -1.43
+    },
+    {
+     "d": 10,
+     "n": 413,
+     "hit": 49,
+     "avg": -0.87,
+     "med": -0.58
+    }
+   ],
+   "top_minus_bottom": -3.2,
+   "monotonic_steps": 2
+  },
+  "cutoffs": {
+   "70": {
+    "n": 1040,
+    "hit": 45,
+    "avg": -1.44,
+    "med": -1.15
+   },
+   "80": {
+    "n": 682,
+    "hit": 46,
+    "avg": -0.72,
+    "med": -0.92
+   },
+   "90": {
+    "n": 334,
+    "hit": 45,
+    "avg": -1.58,
+    "med": -0.83
+   }
+  }
+ },
+ "qualification": {
+  "status": "no_validated_edge"
+ },
+ "production_model": {
+  "base": -0.149,
+  "n_train": 27521,
+  "adj": {
+   "side:put_buy": -0.381,
+   "regime:unknown": 0.0,
+   "ern:yes": 2.0,
+   "dte:swing": -0.27,
+   "liq:B": 0.09,
+   "cap:unknown": 0.649,
+   "open:likely_open": -0.0,
+   "stype:sweep": -0.195,
+   "prem:>=5M": -0.133,
+   "side:call_buy": 0.169,
+   "dte:urgent": -0.056,
+   "stype:golden_sweep": -0.211,
+   "prem:>=1M": -0.252,
+   "liq:C": 0.214,
+   "ern:no": -0.338,
+   "liq:A": -1.163,
+   "stype:voloi": 0.779,
+   "dte:positioning": 0.798,
+   "prem:>=250k": 0.371,
+   "liq:D": 0.016,
+   "prem:<250k": 2.0,
+   "dte:leaps": 0.26,
+   "cap:large": 0.017,
+   "cap:mega": 0.002,
+   "cap:mid": -0.747,
+   "cap:small": 1.298,
+   "open:mixed": 0.103,
+   "open:likely_close": -0.12
+  },
+  "scale_anchors": [
+   -3.376,
+   -1.982,
+   -1.568,
+   -1.28,
+   -1.16,
+   -0.96,
+   -0.82,
+   -0.731,
+   -0.719,
+   -0.627,
+   -0.605,
+   -0.532,
+   -0.38,
+   -0.106,
+   0.05,
+   0.264,
+   0.457,
+   0.984,
+   1.336,
+   1.959,
+   5.851
+  ]
+ },
+ "honesty": "Single ~11-week live window (one macro stretch), overlapping same-ticker signals inflate effective n, regime labels only exist from 2026-07-06 (earlier rows are regime:unknown). +5d underlying excess vs SPY, direction-signed; option-level P/L is NOT modeled here. Scores map to train-percentile of expected excess \u2014 90 means 'top decile of expected edge', not '90% win probability'."
+}

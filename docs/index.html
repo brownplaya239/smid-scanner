@@ -5593,6 +5593,119 @@
 
     footer { padding:14px 18px; }
   }
+
+  /* ── AI Trade Desk ─────────────────────────────────────────────
+     Flagship surface — institutional, data-first, no AI glow.
+     Nav button gets a restrained accent underline; the panel reuses
+     .card chrome and adds idea cards, family-gate strip, abstention
+     state, evidence drawers and the Ask box. */
+  nav button.nav-trade-desk { color:var(--accent,#ff9e1b);
+    font-weight:700; position:relative; }
+  nav button.nav-trade-desk::after { content:""; position:absolute;
+    left:10px; right:10px; bottom:4px; height:2px; border-radius:2px;
+    background:currentColor; opacity:.55; }
+
+  .atd-hero { display:flex; flex-wrap:wrap; align-items:center;
+    gap:10px 18px; margin:2px 0 14px; }
+  .atd-hero .atd-stat { font-size:12px; color:var(--muted,#8b93a7);
+    display:flex; align-items:center; gap:6px; }
+  .atd-hero .atd-stat b { color:var(--fg,#e8ecf4); font-size:13px; }
+  .atd-regime { padding:2px 9px; border-radius:10px; font-size:11px;
+    font-weight:700; letter-spacing:.4px; text-transform:uppercase; }
+  .atd-regime.r-risk_on  { background:rgba(52,199,123,.16); color:#34c77b; }
+  .atd-regime.r-risk_off { background:rgba(239,83,80,.16);  color:#ef5350; }
+  .atd-regime.r-mixed,
+  .atd-regime.r-unknown  { background:rgba(139,147,167,.16); color:#8b93a7; }
+
+  .atd-abstain { border:1px dashed rgba(139,147,167,.45);
+    border-radius:10px; padding:18px 20px; margin:10px 0 18px;
+    font-size:13.5px; line-height:1.55; color:var(--muted,#8b93a7); }
+  .atd-abstain b { color:var(--fg,#e8ecf4); display:block;
+    font-size:15px; margin-bottom:4px; }
+
+  .atd-grid { display:grid; gap:12px;
+    grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); }
+  .atd-card { border:1px solid rgba(139,147,167,.22); border-radius:10px;
+    padding:12px 14px; background:rgba(139,147,167,.05); }
+  .atd-card.atd-q { border-color:rgba(255,158,27,.55); }
+  .atd-card .atd-head { display:flex; align-items:baseline; gap:8px;
+    flex-wrap:wrap; margin-bottom:6px; }
+  .atd-card .atd-tk { font-weight:800; font-size:16px; cursor:pointer; }
+  .atd-card .atd-tk:hover { text-decoration:underline; }
+  .atd-dir { font-size:10.5px; font-weight:700; padding:1px 7px;
+    border-radius:8px; letter-spacing:.5px; }
+  .atd-dir.bullish { background:rgba(52,199,123,.16); color:#34c77b; }
+  .atd-dir.bearish { background:rgba(239,83,80,.16);  color:#ef5350; }
+  .atd-dir.neutral { background:rgba(139,147,167,.16); color:#8b93a7; }
+  .atd-fam { font-size:10.5px; color:var(--muted,#8b93a7);
+    text-transform:uppercase; letter-spacing:.5px; }
+  .atd-score { margin-left:auto; font-variant-numeric:tabular-nums;
+    font-size:12px; color:var(--muted,#8b93a7); }
+  .atd-score b { font-size:15px; color:var(--fg,#e8ecf4); }
+  .atd-status { font-size:10px; font-weight:800; letter-spacing:.6px;
+    padding:1px 7px; border-radius:8px; }
+  .atd-status.s-QUALIFIED { background:rgba(255,158,27,.18); color:#ff9e1b; }
+  .atd-status.s-WATCH { background:rgba(139,147,167,.16); color:#8b93a7; }
+  .atd-rows { font-size:12px; line-height:1.55; }
+  .atd-rows .k { color:var(--muted,#8b93a7); }
+  .atd-ev-btn { margin-top:8px; font-size:11px; background:none;
+    border:1px solid rgba(139,147,167,.35); color:var(--muted,#8b93a7);
+    border-radius:6px; padding:3px 9px; cursor:pointer; }
+  .atd-ev-btn:hover { color:var(--fg,#e8ecf4); }
+  .atd-ev { display:none; margin-top:8px; font-size:11.5px;
+    line-height:1.5; border-top:1px dashed rgba(139,147,167,.25);
+    padding-top:8px; }
+  .atd-ev.open { display:block; }
+  .atd-ev ul { margin:4px 0 0 16px; padding:0; }
+
+  .atd-gates { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
+  .atd-gate { font-size:11px; padding:5px 10px; border-radius:8px;
+    border:1px solid rgba(139,147,167,.25); line-height:1.4; }
+  .atd-gate b { display:block; font-size:11.5px; }
+  .atd-gate.g-qualified b { color:#34c77b; }
+  .atd-gate.g-watch b     { color:#8b93a7; }
+  .atd-gate.g-degraded b  { color:#ef5350; }
+
+  .atd-sec-h { font-size:13px; font-weight:700; margin:18px 0 8px;
+    letter-spacing:.3px; }
+  .atd-sec-h .n { color:var(--muted,#8b93a7); font-weight:400; }
+  .atd-changes, .atd-perf { font-size:12px; line-height:1.7; }
+  .atd-changes li { list-style:none; }
+  .atd-perf table { border-collapse:collapse; margin-top:4px; }
+  .atd-perf td, .atd-perf th { padding:3px 12px 3px 0; text-align:left;
+    font-variant-numeric:tabular-nums; font-size:12px; }
+  .atd-perf th { color:var(--muted,#8b93a7); font-weight:600; }
+
+  .atd-ask { margin-top:20px; border:1px solid rgba(139,147,167,.25);
+    border-radius:10px; padding:14px 16px; }
+  .atd-ask .ask-row { display:flex; gap:8px; margin-top:8px; }
+  .atd-ask input { flex:1; background:rgba(139,147,167,.08);
+    border:1px solid rgba(139,147,167,.3); border-radius:7px;
+    color:var(--fg,#e8ecf4); padding:8px 11px; font-size:13px; }
+  .atd-ask button { background:var(--accent,#ff9e1b); color:#000;
+    border:none; border-radius:7px; padding:8px 16px; font-weight:700;
+    cursor:pointer; font-size:13px; }
+  .atd-ask button:disabled { opacity:.5; cursor:default; }
+  .atd-ask .ask-out { margin-top:10px; font-size:13px; line-height:1.6;
+    white-space:pre-wrap; }
+  .atd-ask .ask-chips { display:flex; flex-wrap:wrap; gap:6px;
+    margin-top:8px; }
+  .atd-ask .ask-chips button { background:rgba(139,147,167,.12);
+    color:var(--muted,#8b93a7); font-weight:500; font-size:11.5px;
+    padding:4px 10px; }
+  .atd-honesty { margin-top:16px; font-size:11px; line-height:1.5;
+    color:var(--muted,#8b93a7); border-top:1px dashed
+    rgba(139,147,167,.25); padding-top:10px; }
+  .atd-desk-module { display:flex; align-items:center; gap:10px;
+    flex-wrap:wrap; border:1px solid rgba(255,158,27,.4);
+    border-radius:10px; padding:10px 14px; margin:0 0 14px;
+    cursor:pointer; font-size:12.5px; }
+  .atd-desk-module:hover { background:rgba(255,158,27,.06); }
+  .atd-desk-module .m-title { font-weight:800; color:var(--accent,#ff9e1b);
+    letter-spacing:.3px; }
+  .atd-desk-module .m-sub { color:var(--muted,#8b93a7); }
+  .atd-desk-module .m-open { margin-left:auto; font-weight:700;
+    color:var(--accent,#ff9e1b); white-space:nowrap; }
 </style>
 <script>
   /* apply saved color scheme before first paint — avoids a flash */
@@ -5808,6 +5921,7 @@
          hash deep-links (routeFromHash clicks nav[data-tab=X]) work
          unchanged. Group headers + subnav just re-drive those buttons. -->
     <button data-tab="desk" class="active">Desk</button>
+    <button data-tab="trade-desk" class="nav-trade-desk">Trade Desk</button>
     <button data-group="mydesk" data-default="mydesk" type="button">My Desk<span class="nav-caret">▾</span></button>
     <button data-tab="uoa">Options Flow</button>
     <button data-group="scanners" data-default="swing" type="button">Scanners<span class="nav-caret">▾</span></button>
@@ -5837,6 +5951,12 @@
     <!-- Today's Desk -->
     <section class="panel active" id="panel-desk">
       <h2 class="tab-title">Today&apos;s Desk</h2>
+      <!-- AI Trade Desk flagship module — populated by setupTradeDesk
+           from trade_desk.json. Shows the HONEST qualified count (zero
+           included); never a fake number. Hidden until data loads. -->
+      <div class="atd-desk-module" id="atd-desk-module" style="display:none"
+           role="button" tabindex="0"
+           aria-label="Open AI Trade Desk"></div>
       <!-- Launch-week callout (dismissible; per-browser localStorage). Remove
            after the SpaceX IPO news cycle cools. data-t="SPCX" routes the
            click to the ticker drilldown via the global [data-t] handler. -->
@@ -5965,6 +6085,38 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ── AI Trade Desk — flagship alpha-first trade discovery ──
+         Data: reports/trade_desk.json (engine: trade_desk.py, runs in
+         the UOA workflow). ALPHA IS PARAMOUNT: the page renders zero
+         Top Ideas unless a strategy family's own measured record
+         qualifies — abstention is the designed default, not an error
+         state. Everything below is deterministic pipeline output; the
+         only LLM surface is Ask TickerDesk, which reasons over this
+         same JSON and cannot introduce numbers of its own. -->
+    <section class="panel" id="panel-trade-desk">
+      <h2 class="tab-title">AI Trade Desk</h2>
+      <p class="tab-sub">Highest-alpha actionable setups — or an honest
+        &ldquo;none today.&rdquo; Every strategy family must earn its way onto
+        this page through its own measured, walk-forward-validated track
+        record. Ideas freeze into an append-only ledger at issuance and
+        are graded against real closes; nothing is ever rewritten.
+        <a href="#" id="atd-method-link">Methodology</a></p>
+      <div class="atd-hero" id="atd-hero"></div>
+      <div id="atd-body"><div class="uoa-empty">Loading&hellip;</div></div>
+      <div class="atd-ask" id="atd-ask">
+        <div class="atd-sec-h" style="margin:0">Ask TickerDesk</div>
+        <div class="ask-chips" id="atd-ask-chips"></div>
+        <div class="ask-row">
+          <input type="text" id="atd-ask-input" maxlength="300"
+                 placeholder="Ask about today's setups, gates, or the track record&hellip;"
+                 aria-label="Ask TickerDesk about today's trade desk" />
+          <button id="atd-ask-btn" type="button">Ask</button>
+        </div>
+        <div class="ask-out" id="atd-ask-out"></div>
+      </div>
+      <div class="atd-honesty" id="atd-honesty"></div>
     </section>
 
     <!-- Watchlist — portfolio with weights + benchmark + Trade Log -->
@@ -29975,6 +30127,403 @@
         loadUoa();
       }
     });
+  })();
+
+  /* ── AI Trade Desk panel ─────────────────────────────────────────
+     Renders reports/trade_desk.json — the deterministic engine output.
+     The page NEVER computes or invents a number: every figure below is
+     read from the JSON (which is itself measured from the point-in-time
+     ledger). Abstention (zero Top Ideas) is the designed default until
+     a strategy family's own record qualifies. */
+  (function setupTradeDesk() {
+    "use strict";
+    const $ = function (id) { return document.getElementById(id); };
+    const esc = window.escapeHtml || function (s) { return String(s); };
+    const ATD_WORKER = "https://api.tickerdesk.io";
+    let DATA = null, VAL = null, loaded = false;
+
+    function tkn() {
+      // Self-contained session token read (same localStorage fallback
+      // contract the rest of the app uses — getSessionSafe is closure-
+      // scoped elsewhere and unreachable here).
+      try {
+        const key = Object.keys(localStorage)
+          .find(function (k) { return /^sb-.*-auth-token$/.test(k); });
+        if (!key) return null;
+        const raw = JSON.parse(localStorage.getItem(key) || "{}");
+        if (raw && raw.access_token && raw.expires_at &&
+            raw.expires_at * 1000 > Date.now()) return raw.access_token;
+      } catch (_) {}
+      return null;
+    }
+
+    function fmtTs(iso) {
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString("en-US", {
+          timeZone: "America/New_York", month: "short", day: "numeric",
+          hour: "numeric", minute: "2-digit" }) + " ET";
+      } catch (_) { return iso || ""; }
+    }
+    function num(v, dp) {
+      return (v === null || v === undefined || v !== v) ? "—"
+        : (+v).toFixed(dp === undefined ? 1 : dp);
+    }
+    function money(v) {
+      if (v == null) return "—";
+      if (v >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
+      if (v >= 1e3) return "$" + Math.round(v / 1e3) + "k";
+      return "$" + Math.round(v);
+    }
+
+    function heroHTML(d) {
+      const reg = d.market_regime || "unknown";
+      const top = (d.top_ideas || []).length;
+      const best = (d.top_ideas || [])
+        .concat(d.watch || [])
+        .filter(function (i) { return i.alpha_score != null; })
+        .sort(function (a, b) { return b.alpha_score - a.alpha_score; })[0];
+      return '' +
+        '<span class="atd-regime r-' + esc(reg) + '">' +
+          esc(reg.replace("_", " ")) + '</span>' +
+        '<span class="atd-stat">Qualified ideas <b>' + top + '</b></span>' +
+        (best ? '<span class="atd-stat">Highest Alpha Score <b>' +
+          esc(best.ticker) + ' ' + num(best.alpha_score, 0) + '</b></span>'
+          : '') +
+        '<span class="atd-stat">Data as of <b>' +
+          esc(fmtTs(d.generated)) + '</b></span>';
+    }
+
+    function cardHTML(i) {
+      const c = i.construct || {};
+      const ev = i.evidence || {};
+      const rows = [];
+      if (i.family === "flow") {
+        rows.push(['Flow today', (ev.n_prints || 1) + " print" +
+          ((ev.n_prints || 1) > 1 ? "s" : "") + " · " +
+          money(ev.total_premium)]);
+        if (c.reference_contract)
+          rows.push(['Reference', esc(c.reference_contract.replace(/^O:/, ""))
+            + (c.dte != null ? " · " + c.dte + " DTE" : "")]);
+        if (c.contract_liquidity)
+          rows.push(['Liquidity', esc(c.contract_liquidity)]);
+        if (c.underlying_at_flag != null)
+          rows.push(['Underlying at flag', "$" + num(c.underlying_at_flag, 2)]);
+      } else if (i.family === "earnings") {
+        if (c.event_date) rows.push(['Reports',
+          esc(c.event_date) + (c.session ? " " + esc(c.session) : "")]);
+        if (c.implied_move != null)
+          rows.push(['Implied move', "±" + num(c.implied_move) + "%"]);
+        if (c.realized_median != null)
+          rows.push(['Realized median', "±" + num(c.realized_median) + "%"]);
+      }
+      rows.push(['Option mark', c.option_mark == null
+        ? "Unavailable" : "$" + num(c.option_mark, 2)]);
+      const evList = [];
+      if (ev.thesis) evList.push(esc(ev.thesis));
+      (ev.cited || []).forEach(function (x) { evList.push("✓ " + esc(x)); });
+      (ev.tags || []).forEach(function (t) { evList.push("✓ " + esc(t)); });
+      if (ev.sector) evList.push("Sector: " + esc(ev.sector));
+      if (i.gate) evList.push("Gate: " + esc(i.gate));
+      return '<div class="atd-card' +
+        (i.status === "QUALIFIED" ? " atd-q" : "") + '">' +
+        '<div class="atd-head">' +
+          '<span class="atd-tk" data-t="' + esc(i.ticker) + '">' +
+            esc(i.ticker) + '</span>' +
+          '<span class="atd-dir ' + esc(i.direction) + '">' +
+            esc((i.direction || "").toUpperCase()) + '</span>' +
+          '<span class="atd-fam">' + esc(i.family) +
+            (ev.etype ? " · " + esc(ev.etype.replace(/_/g, " ")) : "") +
+          '</span>' +
+          '<span class="atd-score">' + (i.alpha_score != null
+            ? 'Alpha <b>' + num(i.alpha_score, 0) + '</b>'
+            : '<b>—</b>') + '</span>' +
+        '</div>' +
+        '<div class="atd-head"><span class="atd-status s-' +
+          esc(i.status) + '">' + esc(i.status) + '</span></div>' +
+        '<div class="atd-rows">' + rows.map(function (r) {
+          return '<div><span class="k">' + r[0] + ':</span> ' + r[1] +
+            '</div>';
+        }).join("") + '</div>' +
+        (evList.length ? '<button class="atd-ev-btn" type="button">' +
+          'Evidence</button><div class="atd-ev"><ul>' +
+          evList.map(function (x) { return "<li>" + x + "</li>"; })
+            .join("") + '</ul></div>' : '') +
+        '</div>';
+    }
+
+    function gatesHTML(g) {
+      if (!g) return "";
+      const chips = [];
+      function chip(name, verdict, why) {
+        chips.push('<div class="atd-gate g-' + esc(verdict) + '"><b>' +
+          esc(name) + ' · ' + esc(verdict) + '</b>' + esc(why || "") +
+          '</div>');
+      }
+      if (g.flow) chip("Options flow", g.flow.verdict, g.flow.why);
+      if (g.earnings && g.earnings.types) {
+        Object.keys(g.earnings.types).forEach(function (t) {
+          const e = g.earnings.types[t];
+          chip("Earnings · " + t.replace(/_/g, " "), e.verdict, e.why);
+        });
+      }
+      if (g.momentum) chip("Momentum scans", g.momentum.verdict,
+        g.momentum.why);
+      return '<div class="atd-sec-h">Strategy gates — measured, ' +
+        'auto-promoting</div><div class="atd-gates">' + chips.join("") +
+        '</div>';
+    }
+
+    function perfHTML(p) {
+      if (!p) return "";
+      let h = '<div class="atd-sec-h">Track record ' +
+        '<span class="n">(append-only ledger · +5-session ' +
+        'direction-signed excess vs SPY)</span></div><div class="atd-perf">';
+      h += 'Tracked ideas: <b>' + (p.tracked || 0) + '</b> · graded: <b>' +
+        (p.graded || 0) + '</b>';
+      if (p.status === "accruing")
+        h += ' — publishes at n≥' + (p.min_n || 30) +
+          ' <span class="k">(accruing)</span>';
+      if (p.overall)
+        h += '<br>Overall: n=' + p.overall.n + ' · hit ' + p.overall.hit +
+          '% · avg ' + num(p.overall.avg, 2) + 'pp · med ' +
+          num(p.overall.med, 2) + 'pp';
+      const cal = p.score_calibration || {};
+      const rows = Object.keys(cal).map(function (b) {
+        const r = cal[b];
+        return '<tr><td>' + esc(b) + '</td><td>' + (r.n || 0) + '</td><td>' +
+          (r.status === "accruing" ? "accruing"
+            : r.hit + "% / " + num(r.avg, 2) + "pp") + '</td></tr>';
+      }).join("");
+      h += '<table><tr><th>Alpha Score</th><th>n</th>' +
+        '<th>hit / avg</th></tr>' + rows + '</table></div>';
+      return h;
+    }
+
+    function changesHTML(ch) {
+      if (!ch || !ch.length) return "";
+      return '<div class="atd-sec-h">What changed</div>' +
+        '<ul class="atd-changes">' + ch.map(function (c) {
+          let t = "";
+          if (c.change === "new") t = "new → " + esc(c.to || "");
+          else if (c.change === "status")
+            t = esc(c.from || "") + " → " + esc(c.to || "");
+          else if (c.change === "score")
+            t = "Alpha " + num(c.from, 0) + " → " + num(c.to, 0);
+          else if (c.change === "dropped") t = "dropped";
+          return "<li><b>" + esc(c.t) + "</b> — " + t + "</li>";
+        }).join("") + '</ul>';
+    }
+
+    function validationHTML(v) {
+      if (!v || !v.folds) return "";
+      let h = '<div class="atd-sec-h">Alpha Score validation ' +
+        '<span class="n">(walk-forward · n=' + (v.n_graded || 0) +
+        ' graded signals)</span></div><div class="atd-perf"><table>' +
+        '<tr><th>window</th><th>n</th><th>IC</th><th>score≥80 avg</th></tr>';
+      (v.folds || []).forEach(function (f) {
+        const c = (f.cutoffs || {})["80"] || {};
+        h += '<tr><td>fold ' + f.fold + " (" + esc(f.val.from) + "→" +
+          esc(f.val.to) + ')</td><td>' + f.val.n + '</td><td>' +
+          num(f.ic, 3) + '</td><td>' + (c.n ? num(c.avg, 2) + "pp (n=" +
+          c.n + ")" : "—") + '</td></tr>';
+      });
+      if (v.holdout) {
+        const c = (v.holdout.cutoffs || {})["80"] || {};
+        h += '<tr><td><b>holdout</b> (' + esc(v.holdout.from) + "→" +
+          esc(v.holdout.to) + ')</td><td>' + v.holdout.n + '</td><td>' +
+          num(v.holdout.ic, 3) + '</td><td>' + (c.n ? num(c.avg, 2) +
+          "pp (n=" + c.n + ")" : "—") + '</td></tr>';
+      }
+      h += '</table>Verdict: <b>' +
+        esc((v.qualification || {}).status || "not run") + '</b>' +
+        (v.honesty ? '<br><span class="k">' + esc(v.honesty) + '</span>'
+          : '') + '</div>';
+      return h;
+    }
+
+    function render() {
+      const d = DATA;
+      if (!d) return;
+      $("atd-hero").innerHTML = heroHTML(d);
+      let h = "";
+      const top = d.top_ideas || [];
+      if (top.length) {
+        h += '<div class="atd-sec-h">Top Ideas <span class="n">(' +
+          top.length + ' qualify)</span></div><div class="atd-grid">' +
+          top.map(cardHTML).join("") + '</div>';
+      } else {
+        h += '<div class="atd-abstain"><b>No high-conviction setup ' +
+          'currently meets TickerDesk\u2019s alpha threshold.</b>' +
+          esc(d.abstention_note || "") + '</div>';
+      }
+      const watch = d.watch || [];
+      if (watch.length) {
+        h += '<div class="atd-sec-h">Watchlist — not yet qualified ' +
+          '<span class="n">(tracked paper-forward; never confuse with ' +
+          'actionable ideas)</span></div><div class="atd-grid">' +
+          watch.map(cardHTML).join("") + '</div>';
+      }
+      h += gatesHTML(d.gates);
+      h += changesHTML(d.what_changed);
+      h += perfHTML(d.performance);
+      h += '<div id="atd-validation" style="display:none">' +
+        validationHTML(VAL) + '</div>';
+      const rej = d.rejections || {};
+      const rk = Object.keys(rej);
+      if (rk.length) {
+        h += '<div class="atd-sec-h">Rejected this run</div>' +
+          '<div class="atd-changes">' + rk.map(function (k) {
+            return esc(k) + ": " + rej[k];
+          }).join(" · ") + '</div>';
+      }
+      $("atd-body").innerHTML = h;
+      $("atd-honesty").textContent = d.honesty || "";
+      // Desk-page flagship module — honest count, zero included.
+      const mod = $("atd-desk-module");
+      if (mod) {
+        const n = top.length;
+        mod.innerHTML = '<span class="m-title">AI Trade Desk</span>' +
+          '<span class="m-sub">' + (n
+            ? n + ' high-conviction setup' + (n > 1 ? 's' : '') +
+              ' currently qualify' + (n > 1 ? '' : 's') + '.'
+            : 'No setup currently clears the measured alpha threshold — ' +
+              (watch.length || 0) + ' tracked on the paper-forward ' +
+              'watchlist.') + '</span>' +
+          '<span class="m-open">Open →</span>';
+        mod.style.display = "flex";
+        if (!mod.dataset.wired) {
+          mod.dataset.wired = "1";
+          mod.addEventListener("click", function () {
+            const b = document.querySelector(
+              'nav button[data-tab="trade-desk"]');
+            if (b) b.click();
+          });
+        }
+      }
+    }
+
+    function load() {
+      const bust = "?cb=" + Math.floor(Date.now() / 60000);
+      Promise.allSettled([
+        fetch("./reports/trade_desk.json" + bust, { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; }),
+        fetch("./reports/trade_desk_validation.json" + bust,
+              { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.json() : null; }),
+      ]).then(function (rs) {
+        DATA = rs[0].value || DATA;
+        VAL = rs[1].value || VAL;
+        loaded = true;
+        if (DATA) render();
+        else $("atd-body").innerHTML =
+          '<div class="uoa-empty">Trade Desk data not published yet — ' +
+          'the engine runs with the Options Flow batch.</div>';
+      }).catch(function (e) {
+        if (window.tdSoftFail) window.tdSoftFail("tradeDesk:load", e);
+      });
+    }
+
+    // Evidence drawers + ticker drilldown + methodology toggle
+    document.addEventListener("click", function (e) {
+      const b = e.target.closest && e.target.closest(".atd-ev-btn");
+      if (b && b.closest("#panel-trade-desk")) {
+        const ev = b.nextElementSibling;
+        if (ev) ev.classList.toggle("open");
+        return;
+      }
+      const t = e.target.closest && e.target.closest(".atd-tk[data-t]");
+      if (t && window.openTickerPanel) {
+        window.openTickerPanel(t.dataset.t);
+        return;
+      }
+      if (e.target && e.target.id === "atd-method-link") {
+        e.preventDefault();
+        const v = $("atd-validation");
+        if (v) v.style.display =
+          v.style.display === "none" ? "block" : "none";
+        if (v && v.style.display === "block")
+          v.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    });
+
+    // Ask TickerDesk — the worker answers ONLY from the structured
+    // trade-desk payload; signed-out users get a sign-in nudge (the
+    // endpoint spends LLM tokens, so it is auth-gated like reports).
+    const STARTERS = [
+      "What qualifies a strategy family?",
+      "Why are there no Top Ideas right now?",
+      "What changed since this morning?",
+      "What does the track record show so far?",
+    ];
+    (function initAsk() {
+      const chips = $("atd-ask-chips");
+      if (chips) chips.innerHTML = STARTERS.map(function (s) {
+        return '<button type="button" data-q="' + esc(s) + '">' +
+          esc(s) + '</button>';
+      }).join("");
+      if (chips) chips.addEventListener("click", function (e) {
+        const b = e.target.closest("[data-q]");
+        if (!b) return;
+        $("atd-ask-input").value = b.dataset.q;
+        ask();
+      });
+      const btn = $("atd-ask-btn");
+      if (btn) btn.addEventListener("click", ask);
+      const inp = $("atd-ask-input");
+      if (inp) inp.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") ask();
+      });
+    })();
+
+    let asking = false;
+    function ask() {
+      if (asking) return;
+      const q = ($("atd-ask-input").value || "").trim();
+      const out = $("atd-ask-out");
+      if (!q) return;
+      const token = tkn();
+      if (!token) {
+        out.textContent =
+          "Sign in to ask — answers run on TickerDesk's structured " +
+          "desk data and are free for members.";
+        return;
+      }
+      asking = true;
+      $("atd-ask-btn").disabled = true;
+      out.textContent = "Thinking…";
+      fetch(ATD_WORKER + "/ask-desk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+                   "Authorization": "Bearer " + token },
+        body: JSON.stringify({ question: q }),
+      }).then(function (r) { return r.json(); })
+        .then(function (j) {
+          out.textContent = j && j.answer ? j.answer
+            : (j && j.error ? j.error : "No answer returned.");
+        })
+        .catch(function () {
+          out.textContent = "Ask failed — try again in a moment.";
+        })
+        .finally(function () {
+          asking = false;
+          $("atd-ask-btn").disabled = false;
+        });
+    }
+
+    // Load on boot (cheap static fetch) + refresh on tab activation +
+    // 5-min poll while the panel is visible.
+    load();
+    const nav = document.getElementById("nav");
+    if (nav) nav.addEventListener("click", function (e) {
+      if (e.target && e.target.dataset &&
+          e.target.dataset.tab === "trade-desk") load();
+    });
+    setInterval(function () {
+      const p = document.getElementById("panel-trade-desk");
+      if (!p || !p.classList.contains("active") || document.hidden) return;
+      load();
+    }, 300000);
   })();
 </script>
 </body>
