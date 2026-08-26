@@ -1,63 +1,6 @@
 {
- "updated": "2026-08-25T17:55:03-04:00",
+ "updated": "2026-08-26T16:42:02-04:00",
  "runs": [
-  {
-   "date": "2026-06-05",
-   "generated": "2026-06-05T18:42:36-04:00",
-   "count": 3,
-   "rows": [
-    {
-     "ticker": "MRVL",
-     "price": 263.47,
-     "chg": 28.52,
-     "adr_pct": 8.91,
-     "dollar_vol": 10658601772,
-     "ern": "Aug 27"
-    },
-    {
-     "ticker": "TMHC",
-     "price": 71.53,
-     "chg": 22.27,
-     "adr_pct": 2.05,
-     "dollar_vol": 238441862,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "GKOS",
-     "price": 125.0,
-     "chg": 20.95,
-     "adr_pct": 6.48,
-     "dollar_vol": 152534054,
-     "ern": "Jul 29"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "AAOI",
-     "price": 177.0,
-     "chg": 11.74,
-     "adr_pct": 15.35,
-     "dollar_vol": 2388284230,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "MDT",
-     "price": 81.67,
-     "chg": 10.65,
-     "adr_pct": 2.21,
-     "dollar_vol": 939400355,
-     "ern": "Aug 18"
-    },
-    {
-     "ticker": "OSCR",
-     "price": 24.51,
-     "chg": 10.26,
-     "adr_pct": 6.72,
-     "dollar_vol": 191269866,
-     "ern": "--"
-    }
-   ]
-  },
   {
    "date": "2026-06-07",
    "generated": "2026-06-07T16:41:03-04:00",
@@ -8104,6 +8047,55 @@
      "adr_pct": 5.03,
      "dollar_vol": 125060203,
      "ern": "Nov 02"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-26",
+   "generated": "2026-08-26T16:42:02-04:00",
+   "count": 2,
+   "rows": [
+    {
+     "ticker": "MARA",
+     "price": 11.22,
+     "chg": 16.27,
+     "adr_pct": 8.64,
+     "dollar_vol": 504155127,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "ANF",
+     "price": 147.75,
+     "chg": 40.11,
+     "adr_pct": 5.05,
+     "dollar_vol": 236592472,
+     "ern": "Aug 26"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "FCX",
+     "price": 79.0,
+     "chg": 14.34,
+     "adr_pct": 3.46,
+     "dollar_vol": 992236466,
+     "ern": "Oct 22"
+    },
+    {
+     "ticker": "COIN",
+     "price": 181.78,
+     "chg": 13.47,
+     "adr_pct": 5.57,
+     "dollar_vol": 1614383422,
+     "ern": "Oct 29"
+    },
+    {
+     "ticker": "SMTC",
+     "price": 140.8,
+     "chg": 12.32,
+     "adr_pct": 7.77,
+     "dollar_vol": 405603100,
+     "ern": "Nov 23"
     }
    ]
   }
