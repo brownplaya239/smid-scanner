@@ -452,6 +452,16 @@ def construct(c):
             out["vol_stance"] = "SELL VOL"
         elif c.get("etype") == "vol_cheap":
             out["vol_stance"] = "BUY VOL"
+        # Historical behavior — the ticker's own graded vol events when
+        # >= 3 exist (rare: one report per quarter), else the vol-rich
+        # cohort, labeled. Powers the card's volatility-intelligence
+        # block; numbers come straight from earnings_vol.json.
+        ev = _load(R("docs", "reports", "earnings_vol.json"), {})
+        th = (ev.get("ticker_history") or {}).get(c["ticker"])
+        if th:
+            out["history"] = dict(th, scope="ticker")
+        elif ev.get("cohort_history"):
+            out["history"] = dict(ev["cohort_history"], scope="cohort")
         return out
     return {"expression": "underlying", "option_mark": None}
 

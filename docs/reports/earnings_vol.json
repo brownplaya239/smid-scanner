@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-26T20:00:45+00:00",
+ "generated": "2026-08-26T20:15:17+00:00",
  "engine_version": "earnings_vol_v1",
  "types": {
   "vol_rich": {
@@ -502,6 +502,16 @@
     "status": "accruing"
    }
   },
+  "vol_rich_cheap_wings": {
+   "definition": "iron_fly_1.5 wing debit / straddle credit at issuance BELOW the trailing cohort median (self-normalizing \u2014 no tuned constant)",
+   "declared": "2026-08-26",
+   "status": "forward_only",
+   "why": "wing-economics decomposition showed the wings consume most of the gross straddle edge; the coherent conditional is 'sell only when tail insurance is unusually cheap'. Declared from the same nights that suggested it, so only FORWARD events can confirm it.",
+   "forward": {
+    "n": 0,
+    "status": "accruing"
+   }
+  },
   "vol_rich_extreme_ratio": {
    "definition": "implied / TickerDesk Fair Move >= 2.0",
    "declared": "2026-08-26",
@@ -512,6 +522,33 @@
     "status": "accruing"
    }
   }
+ },
+ "ticker_history": {},
+ "cohort_history": {
+  "n": 102,
+  "median_ratio": 0.23,
+  "inside_100x": 91,
+  "inside_075x": 83
+ },
+ "wing_economics": {
+  "n": 88,
+  "avg_straddle_$": 89,
+  "avg_fly_$": 56,
+  "avg_wing_drag_$": -33,
+  "wing_ratio": {
+   "median": 0.129,
+   "p25": 0.095,
+   "p75": 0.156
+  },
+  "fly_when_wings_below_median": {
+   "n": 45,
+   "avg_$": 26
+  },
+  "fly_when_wings_above_median": {
+   "n": 43,
+   "avg_$": 87
+  },
+  "note": "frictionless next_open marks, fees only. DESCRIPTIVE SPLIT POINTS AGAINST THE HYPOTHESIS: fly does better when wings are EXPENSIVE \u2014 wing richness proxies implied size, where the gross edge is larger. The refined conditional would be wings-cheap-RELATIVE-to-implied; not launched (n small, tuning risk). The forward challenger stands as declared and forward data decides."
  },
  "fair_move_calibration": {
   "per_type": {

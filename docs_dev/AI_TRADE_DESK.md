@@ -413,6 +413,55 @@ zero at 22 nights** — suggestive, not established:
 every table (signal engine, v2 backtest, minute fallback) accrues
 automatically as new earnings nights grade in CI nightly.
 
+## 10g. V3 conclusion (verbatim, per review) and the standing program
+
+> TickerDesk has identified a statistically persistent discrepancy
+> between market-implied and subsequently realized earnings moves in
+> its vol-rich cohort. Gross minute-level reconstruction indicates the
+> discrepancy can produce positive theoretical short-volatility P&L
+> shortly after the next session opens. However, currently tested
+> defined-risk structures fail to preserve sufficient gross
+> expectancy, and executable NBBO-level profitability has not been
+> established. Accordingly, vol-rich remains signal-qualified but no
+> trade expression is qualified.
+
+**Three-status registry** (`earnings_vol_exec.json.expression_registry`):
+Signal Champion `vol_rich SIGNAL_QUALIFIED` · Expression Challengers
+`iron_fly_1.5 / condor_0.75_1.5 / condor_0.9_1.5 — REJECTED` (paper-
+forward continues automatically, no retuning) · Execution Challenger
+`NONE`. **Mechanical NBBO trigger** (Polygon-Advanced purchase gate):
+defined-risk gross PF ≥1.3 ✓(1.41) · night-CI low >0 ✗(−1.34) ·
+nights ≥30 ✗(20) → **met: false — do not purchase**. The trigger
+re-evaluates nightly; the decision resolves from data.
+
+**Wing economics** (n=88, frictionless next_open): straddle +$89 →
+fly +$56, wing drag −$33/event, wing debit median 12.9% of straddle
+credit. Descriptive split points AGAINST the cheap-wings hypothesis
+(fly does better when wings are expensive — wing richness proxies
+implied size, where the gross edge is larger); the honest refinement
+(wings cheap RELATIVE to implied) is noted, not launched. The
+`vol_rich_cheap_wings` forward-only challenger stands as declared and
+forward data decides. **Asymmetric defined-risk structures** (skewed
+wings matched to gap-direction skew) are recorded as a deferred
+hypothesis — untestable without more nights (n≈22 is an overfitting
+invitation).
+
+**Fair Move lab** (`fair_move_lab.py`, walk-forward, promotion rule
+predeclared: beat v1 MAE by ≥5% in both halves AND not lose on
+edge-sign): v1 MAE 3.48pp / edge-sign 77%; cap_shrunk 3.455 / 80% —
+better but below the bar → **no promotion, display stays v1**.
+Notable: v1 UNDER-forecasts realized by ~2.0pp on the flagged cohort
+(bias −1.98) — displayed richness runs slightly hot; the lab tracks
+this every run.
+
+**Priority order (standing):** 1) accrue nights — the binding
+constraint everywhere; 2) improve Fair Move + attribution; 3) wing-
+cost/ATM-edge decomposition; 4) rejected expressions paper-forward
+untouched; 5) no Polygon Advanced until the trigger flips; 6) MCP
+untouched. The strongest result of the three sprints: a research
+process that kills attractive-looking strategies instead of
+rationalizing them.
+
 ## 11. What would make this product succeed
 
 The moat is the growing point-in-time record + honest gates, not the LLM.

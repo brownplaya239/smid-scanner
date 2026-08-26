@@ -1,0 +1,128 @@
+{
+ "generated": "2026-08-26T20:16:03+00:00",
+ "lab_version": "fair_move_lab_v1",
+ "events_total": 150,
+ "events_scored": 132,
+ "standings": {
+  "overall": {
+   "v1_ticker_median": {
+    "n": 132,
+    "mae": 3.477,
+    "bias": -1.981,
+    "edge_sign_pct": 77
+   },
+   "cap_shrunk": {
+    "n": 132,
+    "mae": 3.455,
+    "bias": -1.831,
+    "edge_sign_pct": 80
+   },
+   "sector_shrunk": {
+    "n": 132,
+    "mae": 3.509,
+    "bias": -1.866,
+    "edge_sign_pct": 76
+   },
+   "market_anchored": {
+    "n": 132,
+    "mae": 3.963,
+    "bias": -1.305,
+    "edge_sign_pct": 70
+   },
+   "blend": {
+    "n": 132,
+    "mae": 3.52,
+    "bias": -1.568,
+    "edge_sign_pct": 74
+   }
+  },
+  "half1": {
+   "v1_ticker_median": {
+    "n": 66,
+    "mae": 2.81,
+    "bias": -1.38,
+    "edge_sign_pct": 79
+   },
+   "cap_shrunk": {
+    "n": 66,
+    "mae": 2.815,
+    "bias": -1.651,
+    "edge_sign_pct": 79
+   },
+   "sector_shrunk": {
+    "n": 66,
+    "mae": 2.843,
+    "bias": -1.333,
+    "edge_sign_pct": 79
+   },
+   "market_anchored": {
+    "n": 66,
+    "mae": 3.181,
+    "bias": -0.909,
+    "edge_sign_pct": 68
+   },
+   "blend": {
+    "n": 66,
+    "mae": 2.749,
+    "bias": -1.28,
+    "edge_sign_pct": 76
+   }
+  },
+  "half2": {
+   "v1_ticker_median": {
+    "n": 66,
+    "mae": 4.144,
+    "bias": -2.582,
+    "edge_sign_pct": 74
+   },
+   "cap_shrunk": {
+    "n": 66,
+    "mae": 4.095,
+    "bias": -2.01,
+    "edge_sign_pct": 80
+   },
+   "sector_shrunk": {
+    "n": 66,
+    "mae": 4.174,
+    "bias": -2.398,
+    "edge_sign_pct": 73
+   },
+   "market_anchored": {
+    "n": 66,
+    "mae": 4.745,
+    "bias": -1.7,
+    "edge_sign_pct": 73
+   },
+   "blend": {
+    "n": 66,
+    "mae": 4.292,
+    "bias": -1.855,
+    "edge_sign_pct": 73
+   }
+  }
+ },
+ "promotion": {
+  "cap_shrunk": {
+   "beats_mae_both_halves": false,
+   "edge_sign_not_worse": true,
+   "promoted": false
+  },
+  "sector_shrunk": {
+   "beats_mae_both_halves": false,
+   "edge_sign_not_worse": false,
+   "promoted": false
+  },
+  "market_anchored": {
+   "beats_mae_both_halves": false,
+   "edge_sign_not_worse": false,
+   "promoted": false
+  },
+  "blend": {
+   "beats_mae_both_halves": false,
+   "edge_sign_not_worse": false,
+   "promoted": false
+  }
+ },
+ "display_definition": "v1_ticker_median",
+ "honesty": "Walk-forward on the SELECTED vol-event universe (events exist because the earnings loop flagged them) \u2014 this measures forecast quality within the product's own cohort, not across all earnings. Same-night events share a forecast information set but not each other's outcomes. Challenger definitions are frozen; the promotion rule was declared before scoring."
+}

@@ -281,6 +281,21 @@ def run(dry=False):
                              "bootstrap": date_cluster_bootstrap(post)}
                             if post else {"n": 0, "status": "accruing"}),
             }
+        challengers["vol_rich_cheap_wings"] = {
+            "definition": "iron_fly_1.5 wing debit / straddle credit "
+                          "at issuance BELOW the trailing cohort "
+                          "median (self-normalizing — no tuned "
+                          "constant)",
+            "declared": CHALLENGER_DECL,
+            "status": "forward_only",
+            "why": "wing-economics decomposition showed the wings "
+                   "consume most of the gross straddle edge; the "
+                   "coherent conditional is 'sell only when tail "
+                   "insurance is unusually cheap'. Declared from the "
+                   "same nights that suggested it, so only FORWARD "
+                   "events can confirm it.",
+            "forward": {"n": 0, "status": "accruing"},
+        }
         challengers["vol_rich_extreme_ratio"] = {
             "definition": "implied / TickerDesk Fair Move >= 2.0",
             "declared": CHALLENGER_DECL,
@@ -292,6 +307,111 @@ def run(dry=False):
             "forward": {"n": 0, "status": "accruing"},
         }
     result["challengers"] = challengers
+
+    # Per-ticker historical behavior — powers the earnings card's
+    # "Historical behavior" block. A ticker needs >= 3 graded vol
+    # events of its own; otherwise the UI falls back to cohort stats
+    # (labeled as such). Ratio = |realized| / implied.
+    tick_hist = {}
+    all_ev = (ev.get("vol_rich") or []) + (ev.get("vol_cheap") or [])
+    by_tick = {}
+    for e in all_ev:
+        by_tick.setdefault(e["ticker"], []).append(e["ratio"])
+    for tk, rs in by_tick.items():
+        if len(rs) < 3:
+            continue
+        rs_s = sorted(rs)
+        tick_hist[tk] = {
+            "n": len(rs), "median_ratio": round(rs_s[len(rs_s) // 2], 2),
+            "inside_100x": round(100 * sum(1 for r in rs if r <= 1.0)
+                                 / len(rs)),
+            "inside_075x": round(100 * sum(1 for r in rs if r <= 0.75)
+                                 / len(rs))}
+    result["ticker_history"] = tick_hist
+    cohort_rich = (result["types"].get("vol_rich") or {})
+    result["cohort_history"] = ({
+        "n": cohort_rich["n"],
+        "median_ratio": cohort_rich["move_ratio"]["median"],
+        "inside_100x": cohort_rich["move_ratio"]["inside_100x"],
+        "inside_075x": cohort_rich["move_ratio"]["inside_075x"]}
+        if cohort_rich.get("move_ratio") else None)
+
+    # Wing economics — Defined-risk P&L = short-vol edge - wing cost.
+    # From the immutable v2 reconstruction rows (frictionless
+    # next_open marks, fees only): per event, straddle gross vs
+    # iron_fly_1.5 gross; the difference is what the wings consumed.
+    # This is the research surface for "sell vol_rich only when tail
+    # insurance is unusually inexpensive" — an economically coherent
+    # conditional, not a parameter search.
+    pnl_cache = _load(R("data", "earnings_vol_pnl.json"), {}) or {}
+    wings = []
+    for r in pnl_cache.values():
+        if r.get("bt_version") != "vol_backtest_v2" or r.get("skip"):
+            continue
+        if r["event"]["type"] != "vol_rich":
+            continue
+        st = (r.get("strategies") or {}).get("short_straddle")
+        fl = (r.get("strategies") or {}).get("iron_fly_1.5")
+        if not st or not fl:
+            continue
+
+        def _fless(s):     # frictionless next_open, fees only
+            cash = 0.0
+            for l in s["legs"]:
+                ein = l["marks"].get("entry_close")
+                eout = l["marks"].get("exit_open")
+                if ein is None or eout is None:
+                    return None
+                cash += (-l["side"]) * (ein - eout) - 2 * 0.65 / 100.0
+            return cash
+        sp, fp = _fless(st), _fless(fl)
+        if sp is None or fp is None:
+            continue
+        w_debit = sum(l["marks"]["entry_close"] for l in fl["legs"]
+                      if l["side"] > 0
+                      and l["marks"].get("entry_close") is not None)
+        s_credit = sum(l["marks"]["entry_close"] for l in st["legs"]
+                       if l["marks"].get("entry_close") is not None)
+        wings.append({"date": r["event"]["date"],
+                      "implied": r["event"]["implied"],
+                      "straddle": sp, "fly": fp, "drag": fp - sp,
+                      "wing_ratio": (w_debit / s_credit
+                                     if s_credit else None)})
+    if len(wings) >= MIN_N:
+        drags = sorted(w["drag"] for w in wings)
+        ratios = sorted(w["wing_ratio"] for w in wings
+                        if w["wing_ratio"] is not None)
+        cheap = [w for w in wings if w["wing_ratio"] is not None
+                 and w["wing_ratio"] <= ratios[len(ratios) // 2]]
+        rich_w = [w for w in wings if w["wing_ratio"] is not None
+                  and w["wing_ratio"] > ratios[len(ratios) // 2]]
+        result["wing_economics"] = {
+            "n": len(wings),
+            "avg_straddle_$": round(100 * mean(w["straddle"]
+                                               for w in wings)),
+            "avg_fly_$": round(100 * mean(w["fly"] for w in wings)),
+            "avg_wing_drag_$": round(100 * mean(w["drag"]
+                                                for w in wings)),
+            "wing_ratio": {"median": round(ratios[len(ratios) // 2], 3),
+                           "p25": round(ratios[len(ratios) // 4], 3),
+                           "p75": round(ratios[3 * len(ratios) // 4], 3)}
+                          if ratios else None,
+            "fly_when_wings_below_median": {
+                "n": len(cheap),
+                "avg_$": round(100 * mean(w["fly"] for w in cheap))
+                if cheap else None},
+            "fly_when_wings_above_median": {
+                "n": len(rich_w),
+                "avg_$": round(100 * mean(w["fly"] for w in rich_w))
+                if rich_w else None},
+            "note": "frictionless next_open marks, fees only. "
+                    "DESCRIPTIVE SPLIT POINTS AGAINST THE HYPOTHESIS: "
+                    "fly does better when wings are EXPENSIVE — wing "
+                    "richness proxies implied size, where the gross "
+                    "edge is larger. The refined conditional would be "
+                    "wings-cheap-RELATIVE-to-implied; not launched "
+                    "(n small, tuning risk). The forward challenger "
+                    "stands as declared and forward data decides."}
 
     # Fair-move calibration for the UI: per-type median realized/implied
     cal = {}

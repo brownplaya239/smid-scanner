@@ -5662,6 +5662,9 @@
     margin-bottom:2px; }
   .atd-stage-note { font-size:10.5px; color:var(--muted,#8b93a7);
     font-style:italic; }
+  .atd-blk-h { font-size:9.5px; font-weight:800; letter-spacing:.8px;
+    color:var(--muted,#8b93a7); margin:7px 0 2px;
+    border-bottom:1px solid rgba(139,147,167,.18); padding-bottom:2px; }
   .atd-stance { font-size:10px; font-weight:800; letter-spacing:.5px;
     padding:1px 7px; border-radius:8px;
     background:rgba(255,158,27,.14); color:#ff9e1b; }
@@ -30250,20 +30253,41 @@
       } else if (i.family === "earnings") {
         if (c.event_date) rows.push(['Reports',
           esc(c.event_date) + (c.session ? " " + esc(c.session) : "")]);
-        if (c.implied_move != null)
+        if (c.implied_move != null) {
+          rows.push(['§', 'VOLATILITY']);
           rows.push(['Market implied move', "±" + num(c.implied_move) + "%"]);
+        }
         if (c.fair_move != null) {
           rows.push(['TickerDesk Fair Move', "±" + num(c.fair_move) + "%"]);
+          rows.push(['Volatility edge', (c.vol_edge_pp > 0 ? "+" : "") +
+            num(c.vol_edge_pp) + "pp"]);
+          rows.push(['Richness', (c.richness_pct > 0 ? "+" : "") +
+            c.richness_pct + "%"]);
+          if (c.vol_stance) {
+            rows.push(['§', 'SIGNAL']);
+            rows.push(['Stance', '<span class="atd-stance">' +
+              esc(c.vol_stance) + '</span>']);
+          }
+          const h = c.history;
+          if (h) {
+            rows.push(['§', 'HISTORICAL BEHAVIOR' +
+              (h.scope === "cohort" ? " · VOL-RICH COHORT"
+                                    : " · THIS NAME")]);
+            if (c.analogues)
+              rows.push(['Reports', String(c.analogues)]);
+            if (h.median_ratio != null)
+              rows.push(['Median move ratio', num(h.median_ratio, 2) + "×"]);
+            if (h.inside_100x != null)
+              rows.push(['Inside implied', h.inside_100x + "%"]);
+            if (h.inside_075x != null)
+              rows.push(['Inside 0.75× implied', h.inside_075x + "%"]);
+          }
           if (c.analogues) {
             const conf = c.analogues >= 20 ? "HIGH"
-              : (c.analogues >= 10 ? "MEDIUM" : "LOW");
-            rows.push(['History', c.analogues + " earnings reports · " +
-              'confidence <b>' + conf + '</b>']);
+              : (c.analogues >= 10 ? "MODERATE" : "LOW");
+            rows.push(['Confidence', '<b>' + conf + '</b> (' +
+              c.analogues + ' reports of own history)']);
           }
-          rows.push(['Volatility edge', (c.vol_edge_pp > 0 ? "+" : "") +
-            num(c.vol_edge_pp) + "pp · " + c.richness_pct + "% rich" +
-            (c.vol_stance ? ' <span class="atd-stance">' +
-              esc(c.vol_stance) + '</span>' : '')]);
         } else if (c.realized_median != null) {
           rows.push(['Realized median', "±" + num(c.realized_median) + "%"]);
         }
@@ -30310,6 +30334,8 @@
           (STAGE_NOTE[i.status] ? '<span class="atd-stage-note">' +
             STAGE_NOTE[i.status] + '</span>' : '') + '</div>' +
         '<div class="atd-rows">' + rows.map(function (r) {
+          if (r[0] === '§')
+            return '<div class="atd-blk-h">' + r[1] + '</div>';
           return '<div><span class="k">' + r[0] + ':</span> ' + r[1] +
             '</div>';
         }).join("") + '</div>' + pendingBlock +

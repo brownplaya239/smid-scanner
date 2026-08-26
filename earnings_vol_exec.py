@@ -470,6 +470,75 @@ def minute_timing_study(limit=None):
                        "Qualification is impossible from this table."}
 
 
+# ------------------------------------------- expression registry
+
+def expression_registry():
+    """Three-status registry (reviewer): Signal Champion / Expression
+    Challengers / Execution Challenger — plus the mechanical NBBO
+    research trigger. The Polygon-Advanced purchase question stops
+    being a judgment call: execution data becomes the bottleneck only
+    when a defined-risk expression shows enough GROSS edge."""
+    vol = _load(R("docs", "reports", "earnings_vol.json"), {}) or {}
+    bt = _load(R("docs", "reports", "earnings_vol_backtest.json"),
+               {}) or {}
+    own = _load(OUT_PATH, {}) or {}
+
+    sig = ((vol.get("types") or {}).get("vol_rich") or {})
+    registry = {"signal_champion": {
+        "name": "vol_rich",
+        "status": ("SIGNAL_QUALIFIED" if sig.get("signal_qualified")
+                   else "not_qualified"),
+        "evidence": {"n": sig.get("n"),
+                     "ev_vol_pts": sig.get("ev_vol_pts"),
+                     "night_ci": (sig.get("date_cluster_bootstrap")
+                                  or {}).get("ci95")}}}
+
+    exprs = {}
+    strat_tables = ((bt.get("types") or {}).get("vol_rich") or {})         .get("strategies") or {}
+    for s in ("iron_fly_1.5", "iron_condor_0.75_1.5",
+              "iron_condor_0.9_1.5"):
+        base = (strat_tables.get(s) or {}).get("next_close") or {}
+        exprs[s] = {"status": "REJECTED",
+                    "why": "V2 base-case negative "
+                           f"(PF {base.get('profit_factor')}, "
+                           f"cap-wt ROR {base.get('cap_wt_ror')})",
+                    "paper_forward": "continues automatically — new "
+                                     "graded events extend the same "
+                                     "immutable tables; no retuning"}
+    registry["expression_challengers"] = exprs
+    registry["execution_challenger"] = {"name": None, "status": "NONE"}
+
+    # Mechanical trigger — evaluated on GROSS (frictionless)
+    # defined-risk economics: attribution PF + minute-study night CI.
+    att = (bt.get("cost_attribution") or {}).get("iron_fly_1.5") or {}
+    gross_pf = ((att.get("next_open") or {}).get("slip_0.0pct")
+                or {}).get("profit_factor")
+    mts = ((own.get("minute_timing_study") or {}).get("summary")
+           or {}).get("iron_fly_1.5") or {}
+    m935 = mts.get("09:35") or {}
+    ci = (m935.get("night_ci") or {}).get("ci95") or [None]
+    nights = (m935.get("night_ci") or {}).get("nights")
+    checks = {
+        "defined_risk_gross_pf_next_open >= 1.3":
+            {"value": gross_pf, "met": bool(gross_pf
+                                            and gross_pf >= 1.3)},
+        "night_ci_low > 0 (minute marks, 09:35)":
+            {"value": ci[0], "met": bool(ci[0] is not None
+                                         and ci[0] > 0)},
+        "independent_nights >= 30":
+            {"value": nights, "met": bool(nights and nights >= 30)},
+    }
+    registry["nbbo_research_trigger"] = {
+        "policy": "Do NOT purchase/run full NBBO validation until a "
+                  "defined-risk expression clears every check on "
+                  "gross economics — until then execution quality is "
+                  "not the bottleneck.",
+        "checks": checks,
+        "met": all(c["met"] for c in checks.values()),
+    }
+    return registry
+
+
 # ---------------------------------------------------------------- main
 
 def run(limit=None, report_only=False):
@@ -494,6 +563,9 @@ def run(limit=None, report_only=False):
                           "trade_qualified stays false. (Outcome: "
                           "undetermined, NOT a pass.)",
                    "minute_timing_study": minute_timing_study(limit)}
+            json.dump(out, open(OUT_PATH, "w", encoding="utf-8"),
+                      indent=1)
+            out["expression_registry"] = expression_registry()
             json.dump(out, open(OUT_PATH, "w", encoding="utf-8"),
                       indent=1)
             print(out["why"])
@@ -652,6 +724,7 @@ def run(limit=None, report_only=False):
                    "there is no gross edge to execute. The predictive "
                    "signal is retained; the naive trade expression is "
                    "killed."}}
+    result["expression_registry"] = expression_registry()
     result["honesty"] = (
         "Quote-level, package-priced, fees-in. Entry = last NBBO in "
         "15:45-16:00 ET; exits = last NBBO in each predeclared "
