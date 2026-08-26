@@ -249,6 +249,50 @@ def run(dry=False):
         ]
         result["types"][t] = block
 
+    # Predeclared challengers (registered 2026-08-26, from the observed
+    # implied-size monotonicity). Anti-curve-fit device: each carries
+    # its declaration date; CHAMPION-track confirmation may use only
+    # events AFTER that date (the in-sample nights suggested the
+    # hypothesis and cannot also confirm it). Thresholds are frozen
+    # here — do NOT tune them against the same nights.
+    CHALLENGER_DECL = "2026-08-26"
+    challengers = {}
+    vr = ev.get("vol_rich") or []
+    if len(vr) >= MIN_N:
+        for name, flt, defn in (
+            ("vol_rich_base", lambda e: True, "all vol_rich events"),
+            ("vol_rich_large_move", lambda e: e["implied"] >= 12,
+             "implied move >= 12%"),
+        ):
+            pre = [e for e in vr if e["date"] <= CHALLENGER_DECL
+                   and flt(e)]
+            post = [e for e in vr if e["date"] > CHALLENGER_DECL
+                    and flt(e)]
+            challengers[name] = {
+                "definition": defn, "declared": CHALLENGER_DECL,
+                "at_declaration": {
+                    "n": len(pre),
+                    "ev": round(mean(e["mv"] for e in pre), 2)
+                    if pre else None,
+                    "bootstrap": date_cluster_bootstrap(pre)
+                    if pre else None},
+                "forward": ({"n": len(post),
+                             "ev": round(mean(e["mv"] for e in post), 2),
+                             "bootstrap": date_cluster_bootstrap(post)}
+                            if post else {"n": 0, "status": "accruing"}),
+            }
+        challengers["vol_rich_extreme_ratio"] = {
+            "definition": "implied / TickerDesk Fair Move >= 2.0",
+            "declared": CHALLENGER_DECL,
+            "status": "forward_only",
+            "why": "the idea log never captured fair move at selection; "
+                   "setup_context.jsonl logs implied + realized_med from "
+                   "2026-08-26, so this challenger evaluates on forward "
+                   "events only",
+            "forward": {"n": 0, "status": "accruing"},
+        }
+    result["challengers"] = challengers
+
     # Fair-move calibration for the UI: per-type median realized/implied
     cal = {}
     for t, events in ev.items():

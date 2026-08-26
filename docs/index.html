@@ -5654,6 +5654,14 @@
     color:#34c77b; }
   .atd-pending { font-size:10.5px; color:var(--muted,#8b93a7);
     font-style:italic; }
+  .atd-pending-block { margin-top:8px; padding:7px 10px;
+    border:1px dashed rgba(139,147,167,.4); border-radius:7px;
+    font-size:11px; line-height:1.45; color:var(--muted,#8b93a7); }
+  .atd-pending-block .pb-h { display:block; font-size:9.5px;
+    font-weight:800; letter-spacing:.7px; text-transform:uppercase;
+    margin-bottom:2px; }
+  .atd-stage-note { font-size:10.5px; color:var(--muted,#8b93a7);
+    font-style:italic; }
   .atd-stance { font-size:10px; font-weight:800; letter-spacing:.5px;
     padding:1px 7px; border-radius:8px;
     background:rgba(255,158,27,.14); color:#ff9e1b; }
@@ -30212,6 +30220,15 @@
           esc(fmtTs(d.generated)) + '</b></span>';
     }
 
+    // Product taxonomy — cards change materially at each stage.
+    const STAGE_NOTE = {
+      SIGNAL_QUALIFIED: "Market mispricing detected.",
+      TRADE_QUALIFIED: "Historical option reconstruction supports a " +
+        "specific executable structure.",
+      PAPER_FORWARD: "Structure is accumulating untouched live results.",
+      CHAMPION: "Live record has satisfied production criteria.",
+    };
+
     function cardHTML(i) {
       const isTopCard = (i.status === "QUALIFIED" ||
         i.status === "TRADE_QUALIFIED" ||
@@ -30236,9 +30253,13 @@
         if (c.implied_move != null)
           rows.push(['Market implied move', "±" + num(c.implied_move) + "%"]);
         if (c.fair_move != null) {
-          rows.push(['TickerDesk Fair Move', "±" + num(c.fair_move) + "%" +
-            (c.analogues ? ' <span class="k">(' + c.analogues +
-              ' reports)</span>' : '')]);
+          rows.push(['TickerDesk Fair Move', "±" + num(c.fair_move) + "%"]);
+          if (c.analogues) {
+            const conf = c.analogues >= 20 ? "HIGH"
+              : (c.analogues >= 10 ? "MEDIUM" : "LOW");
+            rows.push(['History', c.analogues + " earnings reports · " +
+              'confidence <b>' + conf + '</b>']);
+          }
           rows.push(['Volatility edge', (c.vol_edge_pp > 0 ? "+" : "") +
             num(c.vol_edge_pp) + "pp · " + c.richness_pct + "% rich" +
             (c.vol_stance ? ' <span class="atd-stance">' +
@@ -30247,16 +30268,18 @@
           rows.push(['Realized median', "±" + num(c.realized_median) + "%"]);
         }
       }
-      rows.push(['Option mark', c.option_mark == null
-        ? "Unavailable" : "$" + num(c.option_mark, 2)]);
+      if (i.status === "TRADE_QUALIFIED")
+        rows.push(['Option mark', c.option_mark == null
+          ? "Unavailable" : "$" + num(c.option_mark, 2)]);
       // Qualified cards carry their family's measured record on the
       // face — the reader should never wonder WHY something qualified.
       if (isTopCard && i.gate)
         rows.push(['Track record', esc(i.gate)]);
-      if (i.status === "SIGNAL_QUALIFIED")
-        rows.push(['Trade expression',
-          '<span class="atd-pending">pending executable validation — ' +
-          'no option structure is recommended yet</span>']);
+      const pendingBlock = (i.status === "SIGNAL_QUALIFIED")
+        ? '<div class="atd-pending-block"><span class="pb-h">Trade ' +
+          'expression</span>Pending executable validation. No option ' +
+          'structure is currently recommended.</div>'
+        : "";
       const evList = [];
       if (ev.thesis) evList.push(esc(ev.thesis));
       (ev.cited || []).forEach(function (x) { evList.push("✓ " + esc(x)); });
@@ -30283,11 +30306,13 @@
         '</div>' +
         '<div class="atd-head"><span class="atd-status s-' +
           esc(i.status) + '">' +
-          esc(String(i.status).replace(/_/g, " ")) + '</span></div>' +
+          esc(String(i.status).replace(/_/g, " ")) + '</span>' +
+          (STAGE_NOTE[i.status] ? '<span class="atd-stage-note">' +
+            STAGE_NOTE[i.status] + '</span>' : '') + '</div>' +
         '<div class="atd-rows">' + rows.map(function (r) {
           return '<div><span class="k">' + r[0] + ':</span> ' + r[1] +
             '</div>';
-        }).join("") + '</div>' +
+        }).join("") + '</div>' + pendingBlock +
         (evList.length ? '<button class="atd-ev-btn" type="button">' +
           'Evidence</button><div class="atd-ev"><ul>' +
           evList.map(function (x) { return "<li>" + x + "</li>"; })

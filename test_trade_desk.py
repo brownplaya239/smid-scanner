@@ -501,8 +501,50 @@ def test_backtest_defined_risk_cannot_lose_more_than_1R():
     """Defined-risk ROR floor: pnl >= -risk by construction, so
     loss_gt_1R must count zero for correctly built structures."""
     import earnings_vol_backtest as bt
-    recons = [{"event": {"type": "vol_rich", "date": "2026-08-01"},
-               "strategies": {"iron_fly": {"pnl": -500, "risk": 500,
-                                           "ror": -1.0}}}]
-    tbl = bt.strategy_table(recons, "iron_fly")
+    recons = [{"night_id": "2026-08-01",
+               "event": {"type": "vol_rich", "date": "2026-08-01"},
+               "strategies": {"iron_fly_1.5": {"exits": {"next_close": {
+                   "pnl": -500, "risk": 500, "ror": -1.0}}}}}]
+    tbl = bt.strategy_table(recons, "iron_fly_1.5", "next_close")
     assert tbl["loss_gt_1R"] == 0
+
+
+# ------------------------------------------------- backtest v2 gates
+
+def test_backtest_max_dd_and_folds():
+    import earnings_vol_backtest as bt
+    assert bt._max_dd_r([0.5, -1.0, -1.0, 0.5]) == -2.0
+    rows = [(str(i), r) for i, r in enumerate(
+        [0.1] * 3 + [0.2] * 3 + [-0.1] * 3)]
+    folds = bt._folds_positive(rows)
+    assert len(folds) == 3 and folds[0] > 0 and folds[-1] < 0
+
+
+def test_backtest_qualification_requires_every_bar():
+    import earnings_vol_backtest as bt
+    good = {"n": 100, "avg_ror": 0.1, "profit_factor": 1.5,
+            "exp_log_growth": 0.05, "loss_gt_1R": 0, "max_dd_r": -2.0,
+            "fold_avg_ror": [0.1, 0.05, 0.08],
+            "night_bootstrap_ror": {"ci95": [0.02, 0.2]}}
+    open_ok = {"avg_ror": 0.05}
+    assert bt._qualifies(good, open_ok) is True
+    assert bt._qualifies(dict(good, max_dd_r=-6.0), open_ok) is False
+    assert bt._qualifies(dict(good, fold_avg_ror=[0.1, -0.1, -0.1]),
+                         open_ok) is False
+    assert bt._qualifies(good, {"avg_ror": -0.01}) is False
+    assert bt._qualifies(dict(good, loss_gt_1R=1), open_ok) is False
+
+
+def test_backtest_missing_exit_mark_skips_not_fabricates():
+    """v1 fabricated $0 for missing exit marks (stale option closes),
+    which produced impossible worst_ror < -1 on defined risk. v2 must
+    skip the exit model instead."""
+    import earnings_vol_backtest as bt
+    legs = [{"side": -1, "kind": "call", "strike": 100,
+             "marks": {"entry_close": 2.0, "exit_open": None,
+                       "exit_close": None}}]
+    assert bt._structure_pnl(legs, "next_close") is None
+    assert bt._structure_pnl(legs, "next_open") is None
+    # expiry_hold uses intrinsic — exact, allowed
+    r = bt._structure_pnl(legs, "expiry_hold", expiry_spot=90.0)
+    assert r is not None and r[0] > 0   # short call expired worthless
