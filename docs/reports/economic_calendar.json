@@ -1,5 +1,5 @@
 {
- "updated": "2026-08-26T21:04:26-04:00",
+ "updated": "2026-08-27T16:45:36-04:00",
  "tz": "America/New_York",
  "source_tz": "UTC",
  "converted": true,
@@ -591,6 +591,30 @@
    "anchor_et": "10:30",
    "on_schedule": true,
    "generic_title": false
+  },
+  {
+   "date": "2026-08-28",
+   "title": "FOMC Member Hammack Speaks",
+   "impact": "Low",
+   "forecast": "",
+   "previous": "",
+   "actual": "",
+   "url": "https://www.forexfactory.com/calendar/913-us-fomc-member-hammack-speaks",
+   "source_time": "1:00pm",
+   "source_tz": "UTC",
+   "source_url": "https://www.forexfactory.com/calendar/913-us-fomc-member-hammack-speaks",
+   "title_authority": "vendor",
+   "venue_tz": null,
+   "venue": null,
+   "vendor_title": "FOMC Member Hammack Speaks",
+   "vendor_time": "1:00pm",
+   "vendor_tz": "UTC",
+   "vendor_url": "https://www.forexfactory.com/calendar/913-us-fomc-member-hammack-speaks",
+   "time_et": "9:00 a.m. ET",
+   "time_utc": "13:00Z",
+   "starts_at": "2026-08-28T09:00-04:00",
+   "scheduled": true,
+   "generic_title": true
   },
   {
    "date": "2026-08-28",

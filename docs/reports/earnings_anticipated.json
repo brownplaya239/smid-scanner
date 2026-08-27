@@ -1,8 +1,8 @@
 {
  "week_of": "2026-08-24",
- "generated": "2026-08-26T21:04:30-04:00",
+ "generated": "2026-08-27T16:45:39-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 87,
+ "total": 91,
  "days": [
   {
    "date": "2026-08-24",
@@ -169,6 +169,17 @@
      "next_eps": "2026-08-25T00:00:00",
      "q": "6/2026",
      "mcap": 417907944.62
+    },
+    {
+     "ticker": "MOLN",
+     "company": "Molecular Partners AG",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-25T00:00:00",
+     "q": "9/2026",
+     "mcap": 170458304.65
     },
     {
      "ticker": "SLQT",
@@ -452,6 +463,17 @@
      "next_eps": "2026-08-26T00:00:00",
      "q": "7/2026",
      "mcap": 773729980.73
+    },
+    {
+     "ticker": "RVSN",
+     "company": "Rail Vision Ltd.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-26T00:00:00",
+     "q": "6/2026",
+     "mcap": 10632102.1
     }
    ],
    "amc": [
@@ -577,6 +599,17 @@
      "mcap": 6357548561.919999
     },
     {
+     "ticker": "MESO",
+     "company": "Mesoblast Limited",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-08-26T00:00:00",
+     "q": "6/2026",
+     "mcap": 2184082105.08
+    },
+    {
      "ticker": "PAHC",
      "company": "Phibro Animal Health Corporation",
      "score": 5,
@@ -651,7 +684,7 @@
     {
      "ticker": "DG",
      "company": "Dollar General Corporation",
-     "score": 10,
+     "score": 13,
      "analysts": 29,
      "release_time": 1,
      "confirmed": true,
@@ -662,7 +695,7 @@
     {
      "ticker": "DLTR",
      "company": "Dollar Tree, Inc.",
-     "score": 10,
+     "score": 12,
      "analysts": 26,
      "release_time": 1,
      "confirmed": true,
@@ -673,7 +706,7 @@
     {
      "ticker": "BURL",
      "company": "Burlington Stores, Inc.",
-     "score": 4,
+     "score": 5,
      "analysts": 19,
      "release_time": 1,
      "confirmed": true,
@@ -684,7 +717,7 @@
     {
      "ticker": "BBY",
      "company": "Best Buy Co., Inc.",
-     "score": 18,
+     "score": 20,
      "analysts": 24,
      "release_time": 1,
      "confirmed": true,
@@ -695,7 +728,7 @@
     {
      "ticker": "HRL",
      "company": "Hormel Foods Corporation",
-     "score": 8,
+     "score": 10,
      "analysts": 10,
      "release_time": 1,
      "confirmed": true,
@@ -717,7 +750,7 @@
     {
      "ticker": "BILI",
      "company": "Bilibili Inc.",
-     "score": 11,
+     "score": 13,
      "analysts": 17,
      "release_time": 1,
      "confirmed": true,
@@ -783,7 +816,7 @@
     {
      "ticker": "BBW",
      "company": "Build-A-Bear Workshop, Inc.",
-     "score": 5,
+     "score": 6,
      "analysts": 5,
      "release_time": 1,
      "confirmed": true,
@@ -812,13 +845,35 @@
      "next_eps": "2026-08-27T00:00:00",
      "q": "6/2026",
      "mcap": 382459927.66
+    },
+    {
+     "ticker": "AVNW",
+     "company": "Aviat Networks, Inc.",
+     "score": 1,
+     "analysts": 9,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-27T00:00:00",
+     "q": "6/2026",
+     "mcap": 273669642.45
+    },
+    {
+     "ticker": "VIOT",
+     "company": "Viomi Technology Co., Ltd",
+     "score": 1,
+     "analysts": 0,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-08-27T00:00:00",
+     "q": "6/2026",
+     "mcap": 54867209.949999996
     }
    ],
    "amc": [
     {
      "ticker": "MRVL",
      "company": "Marvell Technology, Inc. ",
-     "score": 110,
+     "score": 150,
      "analysts": 36,
      "release_time": 3,
      "confirmed": true,
@@ -829,7 +884,7 @@
     {
      "ticker": "ADSK",
      "company": "Autodesk, Inc.",
-     "score": 25,
+     "score": 33,
      "analysts": 32,
      "release_time": 3,
      "confirmed": true,
@@ -840,7 +895,7 @@
     {
      "ticker": "WDAY",
      "company": "Workday, Inc.",
-     "score": 16,
+     "score": 24,
      "analysts": 43,
      "release_time": 3,
      "confirmed": true,
@@ -851,7 +906,7 @@
     {
      "ticker": "AFRM",
      "company": "Affirm Holdings, Inc.",
-     "score": 16,
+     "score": 18,
      "analysts": 35,
      "release_time": 3,
      "confirmed": true,
@@ -862,7 +917,7 @@
     {
      "ticker": "ULTA",
      "company": "Ulta Beauty, Inc.",
-     "score": 15,
+     "score": 18,
      "analysts": 25,
      "release_time": 3,
      "confirmed": true,
@@ -873,7 +928,7 @@
     {
      "ticker": "RBRK",
      "company": "Rubrik, Inc.",
-     "score": 10,
+     "score": 14,
      "analysts": 29,
      "release_time": 3,
      "confirmed": true,
@@ -884,7 +939,7 @@
     {
      "ticker": "IREN",
      "company": "IREN Limited",
-     "score": 72,
+     "score": 90,
      "analysts": 15,
      "release_time": 3,
      "confirmed": true,
@@ -895,7 +950,7 @@
     {
      "ticker": "ESTC",
      "company": "Elastic N.V.",
-     "score": 10,
+     "score": 12,
      "analysts": 29,
      "release_time": 3,
      "confirmed": true,
@@ -906,7 +961,7 @@
     {
      "ticker": "S",
      "company": "SentinelOne, Inc. ",
-     "score": 9,
+     "score": 11,
      "analysts": 36,
      "release_time": 3,
      "confirmed": true,
@@ -917,7 +972,7 @@
     {
      "ticker": "GAP",
      "company": "Gap Inc.",
-     "score": 9,
+     "score": 11,
      "analysts": 18,
      "release_time": 3,
      "confirmed": true,
@@ -928,7 +983,7 @@
     {
      "ticker": "BBAR",
      "company": "Banco BBVA Argentina S.A.",
-     "score": 1,
+     "score": 2,
      "analysts": 5,
      "release_time": 3,
      "confirmed": true,
@@ -939,24 +994,13 @@
     {
      "ticker": "PD",
      "company": "PagerDuty, Inc.",
-     "score": 11,
+     "score": 14,
      "analysts": 9,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-08-27T00:00:00",
      "q": "7/2026",
      "mcap": 950150000.8000001
-    },
-    {
-     "ticker": "AVNW",
-     "company": "Aviat Networks, Inc.",
-     "score": 1,
-     "analysts": 9,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-08-27T00:00:00",
-     "q": "6/2026",
-     "mcap": 273669642.45
     },
     {
      "ticker": "LFVN",
@@ -978,7 +1022,7 @@
     {
      "ticker": "MNSO",
      "company": "MINISO Group Holding Limited",
-     "score": 4,
+     "score": 6,
      "analysts": 9,
      "release_time": 1,
      "confirmed": true,
@@ -989,7 +1033,7 @@
     {
      "ticker": "CHA",
      "company": "Chagee Holdings Limited",
-     "score": 1,
+     "score": 3,
      "analysts": 8,
      "release_time": 1,
      "confirmed": true,

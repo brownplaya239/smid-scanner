@@ -1,101 +1,6 @@
 {
- "updated": "2026-08-26T20:58:46-04:00",
+ "updated": "2026-08-27T16:41:57-04:00",
  "runs": [
-  {
-   "date": "2026-06-07",
-   "generated": "2026-06-07T16:41:03-04:00",
-   "count": 11,
-   "rows": [
-    {
-     "ticker": "MRVL",
-     "price": 263.47,
-     "chg": 53.05,
-     "adr_pct": 8.91,
-     "dollar_vol": 10674561310,
-     "ern": "Aug 27"
-    },
-    {
-     "ticker": "DELL",
-     "price": 394.39,
-     "chg": 65.15,
-     "adr_pct": 6.74,
-     "dollar_vol": 4230361196,
-     "ern": "Sep 03"
-    },
-    {
-     "ticker": "ARM",
-     "price": 342.93,
-     "chg": 44.51,
-     "adr_pct": 8.73,
-     "dollar_vol": 3800312153,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "PANW",
-     "price": 272.05,
-     "chg": 48.11,
-     "adr_pct": 5.36,
-     "dollar_vol": 2639544575,
-     "ern": "Aug 18"
-    },
-    {
-     "ticker": "CRWD",
-     "price": 671.02,
-     "chg": 43.36,
-     "adr_pct": 5.24,
-     "dollar_vol": 2569698539,
-     "ern": "Sep 01"
-    },
-    {
-     "ticker": "SNOW",
-     "price": 238.26,
-     "chg": 70.5,
-     "adr_pct": 5.5,
-     "dollar_vol": 2409392924,
-     "ern": "Aug 26"
-    },
-    {
-     "ticker": "DDOG",
-     "price": 234.11,
-     "chg": 62.9,
-     "adr_pct": 5.37,
-     "dollar_vol": 1518781875,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "NVTS",
-     "price": 25.08,
-     "chg": 50.36,
-     "adr_pct": 14.31,
-     "dollar_vol": 1035192345,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "VSH",
-     "price": 57.2,
-     "chg": 70.44,
-     "adr_pct": 8.57,
-     "dollar_vol": 391437617,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "ACMR",
-     "price": 76.29,
-     "chg": 37.76,
-     "adr_pct": 8.91,
-     "dollar_vol": 152130841,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "LQDA",
-     "price": 61.85,
-     "chg": 46.77,
-     "adr_pct": 8.12,
-     "dollar_vol": 118769230,
-     "ern": "Aug 12"
-    }
-   ]
-  },
   {
    "date": "2026-06-08",
    "generated": "2026-06-08T18:56:40-04:00",
@@ -4209,6 +4114,69 @@
      "chg": 38.57,
      "adr_pct": 6.38,
      "dollar_vol": 103980159,
+     "ern": "Nov 02"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-27",
+   "generated": "2026-08-27T16:41:57-04:00",
+   "count": 7,
+   "rows": [
+    {
+     "ticker": "SNDK",
+     "price": 1484.95,
+     "chg": 46.17,
+     "adr_pct": 8.79,
+     "dollar_vol": 20872615404,
+     "ern": "Nov 06"
+    },
+    {
+     "ticker": "MRVL",
+     "price": 241.45,
+     "chg": 47.77,
+     "adr_pct": 6.45,
+     "dollar_vol": 5224297530,
+     "ern": "Aug 27"
+    },
+    {
+     "ticker": "SMCI",
+     "price": 38.46,
+     "chg": 49.65,
+     "adr_pct": 6.42,
+     "dollar_vol": 1967111974,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "AAOI",
+     "price": 113.28,
+     "chg": 48.04,
+     "adr_pct": 11.66,
+     "dollar_vol": 1650468959,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "USAR",
+     "price": 19.25,
+     "chg": 47.28,
+     "adr_pct": 7.58,
+     "dollar_vol": 246296093,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "TWST",
+     "price": 153.1,
+     "chg": 79.13,
+     "adr_pct": 7.93,
+     "dollar_vol": 226841840,
+     "ern": "Nov 16"
+    },
+    {
+     "ticker": "UUUU",
+     "price": 15.74,
+     "chg": 46.55,
+     "adr_pct": 6.16,
+     "dollar_vol": 104181525,
      "ern": "Nov 02"
     }
    ]

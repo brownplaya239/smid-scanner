@@ -1,63 +1,6 @@
 {
- "updated": "2026-08-26T20:58:46-04:00",
+ "updated": "2026-08-27T16:41:57-04:00",
  "runs": [
-  {
-   "date": "2026-06-07",
-   "generated": "2026-06-07T16:41:03-04:00",
-   "count": 3,
-   "rows": [
-    {
-     "ticker": "MRVL",
-     "price": 263.47,
-     "chg": 28.52,
-     "adr_pct": 8.91,
-     "dollar_vol": 10674561310,
-     "ern": "Aug 27"
-    },
-    {
-     "ticker": "TMHC",
-     "price": 71.53,
-     "chg": 22.27,
-     "adr_pct": 2.05,
-     "dollar_vol": 238442685,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "GKOS",
-     "price": 125.0,
-     "chg": 20.95,
-     "adr_pct": 6.48,
-     "dollar_vol": 152534054,
-     "ern": "Jul 29"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "AAOI",
-     "price": 177.0,
-     "chg": 11.74,
-     "adr_pct": 15.35,
-     "dollar_vol": 2389354498,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "MDT",
-     "price": 81.67,
-     "chg": 10.65,
-     "adr_pct": 2.21,
-     "dollar_vol": 939418961,
-     "ern": "Aug 18"
-    },
-    {
-     "ticker": "OSCR",
-     "price": 24.51,
-     "chg": 10.26,
-     "adr_pct": 6.72,
-     "dollar_vol": 191290863,
-     "ern": "--"
-    }
-   ]
-  },
   {
    "date": "2026-06-08",
    "generated": "2026-06-08T18:56:40-04:00",
@@ -8096,6 +8039,87 @@
      "adr_pct": 7.77,
      "dollar_vol": 406197828,
      "ern": "Nov 23"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-27",
+   "generated": "2026-08-27T16:41:57-04:00",
+   "count": 4,
+   "rows": [
+    {
+     "ticker": "CRM",
+     "price": 252.05,
+     "chg": 22.69,
+     "adr_pct": 3.87,
+     "dollar_vol": 2928038820,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "CRWD",
+     "price": 227.96,
+     "chg": 19.76,
+     "adr_pct": 4.81,
+     "dollar_vol": 1814276691,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "SNPS",
+     "price": 464.89,
+     "chg": 16.83,
+     "adr_pct": 3.26,
+     "dollar_vol": 682122623,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "ANF",
+     "price": 145.75,
+     "chg": 38.78,
+     "adr_pct": 5.28,
+     "dollar_vol": 266981089,
+     "ern": "Nov 25"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "FTNT",
+     "price": 172.78,
+     "chg": 14.58,
+     "adr_pct": 3.94,
+     "dollar_vol": 723818039,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "SMTC",
+     "price": 142.43,
+     "chg": 14.05,
+     "adr_pct": 7.88,
+     "dollar_vol": 419159751,
+     "ern": "Nov 23"
+    },
+    {
+     "ticker": "UUUU",
+     "price": 15.74,
+     "chg": 13.24,
+     "adr_pct": 6.16,
+     "dollar_vol": 104181525,
+     "ern": "Nov 02"
+    },
+    {
+     "ticker": "USAR",
+     "price": 19.25,
+     "chg": 12.51,
+     "adr_pct": 7.58,
+     "dollar_vol": 246296093,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "TWST",
+     "price": 153.1,
+     "chg": 12.3,
+     "adr_pct": 7.93,
+     "dollar_vol": 226841840,
+     "ern": "Nov 16"
     }
    ]
   }
