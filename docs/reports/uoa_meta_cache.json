@@ -454,6 +454,13 @@
 "mkt_cap": 12361999845.779999,
 "sector": "Other"
 },
+"ALGT": {
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-08-27",
+"mkt_cap": 2258098563.0,
+"sector": "Industrials"
+},
 "ALHC": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
@@ -1318,8 +1325,8 @@
 "BB": {
 "earnings_date": "2026-09-24",
 "earnings_session": "AMC",
-"fetched": "2026-07-30",
-"mkt_cap": 4577444366.11,
+"fetched": "2026-08-27",
+"mkt_cap": 4565722357.49,
 "sector": "Tech / Software"
 },
 "BBAI": {
@@ -1493,8 +1500,8 @@
 "BILI": {
 "earnings_date": "2026-08-27",
 "earnings_session": "BMO",
-"fetched": "2026-08-11",
-"mkt_cap": 7947424477.349999,
+"fetched": "2026-08-27",
+"mkt_cap": 6758868104.749999,
 "sector": "Other"
 },
 "BILL": {
@@ -2723,10 +2730,10 @@
 "sector": "Consumer / Retail"
 },
 "COUR": {
-"earnings_date": "2026-07-23",
+"earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-06-17",
-"mkt_cap": 1517700749.6,
+"fetched": "2026-08-27",
+"mkt_cap": 1602264000.0,
 "sector": "Tech / Software"
 },
 "CP": {
@@ -8766,8 +8773,8 @@
 "PTON": {
 "earnings_date": "2026-11-05",
 "earnings_session": "BMO",
-"fetched": "2026-08-07",
-"mkt_cap": 2383620547.125,
+"fetched": "2026-08-27",
+"mkt_cap": 2352352853.36,
 "sector": "Other"
 },
 "PUBM": {
@@ -9981,6 +9988,13 @@
 "mkt_cap": 14947345643.49,
 "sector": "Other"
 },
+"SOLZ": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-08-27",
+"mkt_cap": null,
+"sector": "Other"
+},
 "SONO": {
 "earnings_date": "2026-11-11",
 "earnings_session": null,
@@ -10222,8 +10236,8 @@
 "STRL": {
 "earnings_date": "2026-11-02",
 "earnings_session": null,
-"fetched": "2026-08-04",
-"mkt_cap": 18763540292.38,
+"fetched": "2026-08-27",
+"mkt_cap": 15215034738.380001,
 "sector": "Industrials"
 },
 "STT": {
@@ -10766,10 +10780,10 @@
 "sector": "Utilities"
 },
 "TRIP": {
-"earnings_date": "2026-08-06",
+"earnings_date": "2026-11-05",
 "earnings_session": "BMO",
-"fetched": "2026-07-27",
-"mkt_cap": 1594148015.3,
+"fetched": "2026-08-27",
+"mkt_cap": 1156757505.54,
 "sector": "Tech / Software"
 },
 "TRMB": {
