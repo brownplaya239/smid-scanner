@@ -800,8 +800,8 @@
 "APPS": {
 "earnings_date": "2026-11-03",
 "earnings_session": null,
-"fetched": "2026-08-16",
-"mkt_cap": 1505442150.0,
+"fetched": "2026-08-27",
+"mkt_cap": 1311816150.0,
 "sector": "Real Estate"
 },
 "APPX": {
@@ -1342,6 +1342,13 @@
 "fetched": "2026-08-26",
 "mkt_cap": 15717636958.800001,
 "sector": "Healthcare / Biotech"
+},
+"BBW": {
+"earnings_date": "2026-08-27",
+"earnings_session": "BMO",
+"fetched": "2026-08-27",
+"mkt_cap": 490214021.3,
+"sector": "Consumer / Retail"
 },
 "BBWI": {
 "earnings_date": "2026-11-19",
@@ -4790,8 +4797,8 @@
 "GNRC": {
 "earnings_date": "2026-10-28",
 "earnings_session": "BMO",
-"fetched": "2026-08-14",
-"mkt_cap": 13093511505.9,
+"fetched": "2026-08-27",
+"mkt_cap": 12191894309.82,
 "sector": "Other"
 },
 "GNW": {
@@ -6635,6 +6642,13 @@
 "mkt_cap": 5509518522.12,
 "sector": "Other"
 },
+"MAIR": {
+"earnings_date": "2026-11-12",
+"earnings_session": "BMO",
+"fetched": "2026-08-27",
+"mkt_cap": 14304111668.12,
+"sector": "Industrials / Machinery"
+},
 "MAN": {
 "earnings_date": "2026-07-16",
 "earnings_session": "BMO",
@@ -6839,10 +6853,10 @@
 "sector": "Consumer / Services"
 },
 "MGNI": {
-"earnings_date": "2026-08-05",
-"earnings_session": "AMC",
-"fetched": "2026-06-16",
-"mkt_cap": 2398851300.25,
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-08-27",
+"mkt_cap": 3353256790.66,
 "sector": "Tech / Software"
 },
 "MGY": {
@@ -7107,8 +7121,8 @@
 "MS": {
 "earnings_date": "2026-10-14",
 "earnings_session": "BMO",
-"fetched": "2026-08-07",
-"mkt_cap": 336015000000.0,
+"fetched": "2026-08-27",
+"mkt_cap": 336226831791.36005,
 "sector": "Financials"
 },
 "MSCI": {
@@ -8168,6 +8182,13 @@
 "mkt_cap": 8175937797.48,
 "sector": "Tech / Software"
 },
+"PAYC": {
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-08-27",
+"mkt_cap": 10470587809.89,
+"sector": "Tech / Software"
+},
 "PAYO": {
 "earnings_date": "2026-08-05",
 "earnings_session": "BMO",
@@ -8689,8 +8710,8 @@
 "PSKY": {
 "earnings_date": "2026-11-09",
 "earnings_session": null,
-"fetched": "2026-08-12",
-"mkt_cap": 10523851407.02,
+"fetched": "2026-08-27",
+"mkt_cap": 12049697666.460001,
 "sector": "Communications"
 },
 "PSN": {
@@ -9134,6 +9155,13 @@
 "mkt_cap": 7441384681.049999,
 "sector": "Financials / Banks"
 },
+"RITM": {
+"earnings_date": "2026-10-29",
+"earnings_session": "BMO",
+"fetched": "2026-08-27",
+"mkt_cap": 5628742872.4800005,
+"sector": "Real Estate"
+},
 "RIVN": {
 "earnings_date": "2026-11-03",
 "earnings_session": null,
@@ -9186,8 +9214,8 @@
 "RMD": {
 "earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-08-10",
-"mkt_cap": 30743250024.96,
+"fetched": "2026-08-27",
+"mkt_cap": 33998826001.14,
 "sector": "Other"
 },
 "RNG": {
