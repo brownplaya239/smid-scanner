@@ -65748,5 +65748,377 @@
 "sector": "Consumer / Retail"
 },
 "bt_version": "vol_backtest_v2"
+},
+"ANF|2026-08-26|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-08-25",
+"exit_date": "2026-08-26",
+"spot": 108.9,
+"expiry": "2026-08-28",
+"expiry_spot": null,
+"night_id": "2026-08-26",
+"sector": "Consumer / Retail",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 109,
+"contract": "O:ANF260828C00109000",
+"marks": {
+"entry_close": 7.31,
+"exit_open": 26.6,
+"exit_close": 41.9
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 109,
+"contract": "O:ANF260828P00109000",
+"marks": {
+"entry_close": 7.55,
+"exit_open": 1.2,
+"exit_close": 0.02
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": 1078.0,
+"risk": 1562.0,
+"ror": 0.6904
+},
+"next_close": {
+"pnl": 2420.0,
+"risk": 1562.0,
+"ror": 1.5494
+},
+"expiry_hold": {
+"pnl": -1563.0,
+"risk": 1562.0,
+"ror": -1.0008
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 112,
+"contract": "O:ANF260828C00112000",
+"marks": {
+"entry_close": 6.6,
+"exit_open": 24.4,
+"exit_close": 34.5
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 105,
+"contract": "O:ANF260828P00105000",
+"marks": {
+"entry_close": 5.7,
+"exit_open": 0.15,
+"exit_close": 0.05
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": 1038.0,
+"risk": 1293.0,
+"ror": 0.803
+},
+"next_close": {
+"pnl": 1988.0,
+"risk": 1293.0,
+"ror": 1.5379
+},
+"expiry_hold": {
+"pnl": -1294.0,
+"risk": 1293.0,
+"ror": -1.001
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "ANF",
+"date": "2026-08-26",
+"implied": 6.3,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"BBWI|2026-08-26|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-08-25",
+"exit_date": "2026-08-26",
+"spot": 17.58,
+"expiry": "2026-08-28",
+"expiry_spot": null,
+"night_id": "2026-08-26",
+"sector": "Consumer / Retail",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 17.5,
+"contract": "O:BBWI260828C00017500",
+"marks": {
+"entry_close": 1.12,
+"exit_open": 1.2,
+"exit_close": 1.5
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 17.5,
+"contract": "O:BBWI260828P00017500",
+"marks": {
+"entry_close": 1.09,
+"exit_open": 0.25,
+"exit_close": 0.15
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -97.0,
+"risk": 233.0,
+"ror": -0.4153
+},
+"next_close": {
+"pnl": -78.0,
+"risk": 233.0,
+"ror": -0.3338
+},
+"expiry_hold": {
+"pnl": -235.0,
+"risk": 233.0,
+"ror": -1.0056
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 18,
+"contract": "O:BBWI260828C00018000",
+"marks": {
+"entry_close": 0.85,
+"exit_open": 0.6,
+"exit_close": 1.15
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 17,
+"contract": "O:BBWI260828P00017000",
+"marks": {
+"entry_close": 0.85,
+"exit_open": 0.4,
+"exit_close": 0.05
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -86.0,
+"risk": 180.0,
+"ror": -0.4789
+},
+"next_close": {
+"pnl": -67.0,
+"risk": 180.0,
+"ror": -0.3732
+},
+"expiry_hold": {
+"pnl": -181.0,
+"risk": 180.0,
+"ror": -1.0072
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BBWI",
+"date": "2026-08-26",
+"implied": 4.2,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"OKTA|2026-08-26|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "OKTA",
+"date": "2026-08-26",
+"implied": 17.7,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"HRL|2026-08-27|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "HRL",
+"date": "2026-08-27",
+"implied": 5.5,
+"session": "BMO",
+"sector": "Consumer / Food & Bev"
+},
+"bt_version": "vol_backtest_v2"
+},
+"IREN|2026-08-27|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "IREN",
+"date": "2026-08-27",
+"implied": 11.1,
+"session": "AMC",
+"sector": "Financials / Banks"
+},
+"bt_version": "vol_backtest_v2"
+},
+"S|2026-08-27|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "S",
+"date": "2026-08-27",
+"implied": 12.0,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"WDAY|2026-08-27|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "WDAY",
+"date": "2026-08-27",
+"implied": 7.8,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"DELL|2026-09-01|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "DELL",
+"date": "2026-09-01",
+"implied": 13.5,
+"session": "AMC",
+"sector": "Tech / Hardware"
+},
+"bt_version": "vol_backtest_v2"
+},
+"MDT|2026-09-01|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "MDT",
+"date": "2026-09-01",
+"implied": 4.9,
+"session": "BMO",
+"sector": "Other"
+},
+"bt_version": "vol_backtest_v2"
+},
+"NIO|2026-09-01|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "NIO",
+"date": "2026-09-01",
+"implied": 9.5,
+"session": "BMO",
+"sector": "Other"
+},
+"bt_version": "vol_backtest_v2"
+},
+"PANW|2026-09-01|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "PANW",
+"date": "2026-09-01",
+"implied": 11.2,
+"session": "AMC",
+"sector": "Tech / Hardware"
+},
+"bt_version": "vol_backtest_v2"
+},
+"SIG|2026-09-01|vol_cheap|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_cheap",
+"ticker": "SIG",
+"date": "2026-09-01",
+"implied": 5.7,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"AEO|2026-09-02|vol_cheap|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_cheap",
+"ticker": "AEO",
+"date": "2026-09-02",
+"implied": 7.3,
+"session": "AMC",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"AI|2026-09-02|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "AI",
+"date": "2026-09-02",
+"implied": 14.6,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"GTLB|2026-09-02|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "GTLB",
+"date": "2026-09-02",
+"implied": 15.5,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
 }
 }

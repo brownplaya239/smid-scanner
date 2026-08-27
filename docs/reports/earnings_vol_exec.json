@@ -1,421 +1,229 @@
 {
- "generated": "2026-08-26T20:15:18+00:00",
- "exec_version": "vol_exec_v1",
- "source": "vol_backtest_v2",
- "fills": [
-  0.0,
-  0.25,
-  0.5,
-  1.0
- ],
- "qual_fill": 0.25,
- "canonical_fill": 0.5,
- "exit_windows": [
-  "0930",
-  "0935",
-  "0945",
-  "1000"
- ],
- "base_exit_window": "0935",
- "structures": {
-  "short_straddle": {
-   "0930": {
-    "f0": {
-     "n": 0
+ "generated": "2026-08-27T03:34:28+00:00",
+ "status": "quotes_entitlement_unavailable",
+ "why": "historical NBBO quotes endpoint is not authorized on this plan tier (12/12 probe queries failed at HTTP level). The spread/fill study cannot run; trade_qualified stays false. (Outcome: undetermined, NOT a pass.)",
+ "minute_timing_study": {
+  "summary": {
+   "short_straddle": {
+    "09:31": {
+     "n": 68,
+     "avg_$1lot": 83,
+     "win": 66,
+     "pf": 1.5,
+     "night_ci": {
+      "nights": 22,
+      "ci95": [
+       -0.572,
+       2.277
+      ]
+     }
     },
-    "f25": {
-     "n": 0
+    "09:35": {
+     "n": 74,
+     "avg_$1lot": 84,
+     "win": 61,
+     "pf": 1.5,
+     "night_ci": {
+      "nights": 22,
+      "ci95": [
+       -0.739,
+       2.169
+      ]
+     }
     },
-    "f50": {
-     "n": 0
+    "09:45": {
+     "n": 62,
+     "avg_$1lot": 131,
+     "win": 68,
+     "pf": 1.8,
+     "night_ci": {
+      "nights": 22,
+      "ci95": [
+       -0.507,
+       3.233
+      ]
+     }
     },
-    "f100": {
-     "n": 0
+    "10:00": {
+     "n": 23,
+     "avg_$1lot": 118,
+     "win": 70,
+     "pf": 1.48,
+     "night_ci": {
+      "nights": 14,
+      "ci95": [
+       -2.022,
+       4.883
+      ]
+     }
     }
    },
-   "0935": {
-    "f0": {
-     "n": 0
+   "iron_fly_1.5": {
+    "09:31": {
+     "n": 40,
+     "avg_$1lot": -24,
+     "win": 62,
+     "pf": 0.85,
+     "night_ci": {
+      "nights": 17,
+      "ci95": [
+       -1.926,
+       1.113
+      ]
+     }
     },
-    "f25": {
-     "n": 0
+    "09:35": {
+     "n": 49,
+     "avg_$1lot": 53,
+     "win": 59,
+     "pf": 1.31,
+     "night_ci": {
+      "nights": 20,
+      "ci95": [
+       -1.343,
+       2.246
+      ]
+     }
     },
-    "f50": {
-     "n": 0
+    "09:45": {
+     "n": 28,
+     "avg_$1lot": 4,
+     "win": 57,
+     "pf": 1.02,
+     "night_ci": {
+      "nights": 16,
+      "ci95": [
+       -2.649,
+       2.836
+      ]
+     }
     },
-    "f100": {
-     "n": 0
+    "10:00": {
+     "n": 7,
+     "avg_$1lot": -506,
+     "win": 43,
+     "pf": 0.23,
+     "night_ci": {
+      "status": "insufficient_nights",
+      "nights": 6
+     }
     }
    },
-   "0945": {
-    "f0": {
-     "n": 0
+   "iron_condor_0.75_1.5": {
+    "09:31": {
+     "n": 41,
+     "avg_$1lot": -15,
+     "win": 61,
+     "pf": 0.85,
+     "night_ci": {
+      "nights": 17,
+      "ci95": [
+       -1.135,
+       0.649
+      ]
+     }
     },
-    "f25": {
-     "n": 0
+    "09:35": {
+     "n": 48,
+     "avg_$1lot": -30,
+     "win": 58,
+     "pf": 0.75,
+     "night_ci": {
+      "nights": 19,
+      "ci95": [
+       -1.381,
+       0.553
+      ]
+     }
     },
-    "f50": {
-     "n": 0
+    "09:45": {
+     "n": 30,
+     "avg_$1lot": -53,
+     "win": 50,
+     "pf": 0.59,
+     "night_ci": {
+      "nights": 15,
+      "ci95": [
+       -1.885,
+       0.803
+      ]
+     }
     },
-    "f100": {
-     "n": 0
+    "10:00": {
+     "n": 5,
+     "avg_$1lot": -330,
+     "win": 40,
+     "pf": 0.21,
+     "night_ci": {
+      "status": "insufficient_nights",
+      "nights": 4
+     }
     }
    },
-   "1000": {
-    "f0": {
-     "n": 0
+   "iron_condor_0.9_1.5": {
+    "09:31": {
+     "n": 40,
+     "avg_$1lot": 2,
+     "win": 68,
+     "pf": 1.03,
+     "night_ci": {
+      "nights": 16,
+      "ci95": [
+       -0.609,
+       0.547
+      ]
+     }
     },
-    "f25": {
-     "n": 0
+    "09:35": {
+     "n": 46,
+     "avg_$1lot": -5,
+     "win": 61,
+     "pf": 0.95,
+     "night_ci": {
+      "nights": 17,
+      "ci95": [
+       -0.842,
+       0.657
+      ]
+     }
     },
-    "f50": {
-     "n": 0
+    "09:45": {
+     "n": 30,
+     "avg_$1lot": 28,
+     "win": 67,
+     "pf": 1.35,
+     "night_ci": {
+      "nights": 16,
+      "ci95": [
+       -0.859,
+       1.506
+      ]
+     }
     },
-    "f100": {
-     "n": 0
+    "10:00": {
+     "n": 8,
+     "avg_$1lot": -243,
+     "win": 50,
+     "pf": 0.16,
+     "night_ci": {
+      "status": "insufficient_nights",
+      "nights": 6
+     }
     }
    }
   },
-  "iron_fly_1.5": {
-   "0930": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   },
-   "0935": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   },
-   "0945": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   },
-   "1000": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   }
-  },
-  "iron_condor_0.75_1.5": {
-   "0930": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   },
-   "0935": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   },
-   "0945": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   },
-   "1000": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   }
-  },
-  "iron_condor_0.9_1.5": {
-   "0930": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   },
-   "0935": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   },
-   "0945": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   },
-   "1000": {
-    "f0": {
-     "n": 0
-    },
-    "f25": {
-     "n": 0
-    },
-    "f50": {
-     "n": 0
-    },
-    "f100": {
-     "n": 0
-    }
-   }
-  }
- },
- "gross_edge_capture": {
-  "definition": "net executable P&L (f=0.50, base window) / frictionless mid P&L, summed over events",
-  "by_structure": {
-   "short_straddle": null,
-   "iron_fly_1.5": null,
-   "iron_condor_0.75_1.5": null,
-   "iron_condor_0.9_1.5": null
-  }
- },
- "breakeven_mid_capture": {
-  "definition": "entry credit required for P&L=0 (exit f=0.50 at base window, fees in) as a fraction of package mid \u2014 >1.0 means better-than-mid entry needed",
-  "by_structure": {}
- },
- "liquidity_buckets": {
-  "short_straddle": {
-   "<=2%": {
-    "n": 0,
-    "status": "thin"
-   },
-   "2-5%": {
-    "n": 0,
-    "status": "thin"
-   },
-   "5-10%": {
-    "n": 0,
-    "status": "thin"
-   },
-   ">10%": {
-    "n": 0,
-    "status": "thin"
-   }
-  },
-  "iron_fly_1.5": {
-   "<=2%": {
-    "n": 0,
-    "status": "thin"
-   },
-   "2-5%": {
-    "n": 0,
-    "status": "thin"
-   },
-   "5-10%": {
-    "n": 0,
-    "status": "thin"
-   },
-   ">10%": {
-    "n": 0,
-    "status": "thin"
-   }
-  },
-  "iron_condor_0.75_1.5": {
-   "<=2%": {
-    "n": 0,
-    "status": "thin"
-   },
-   "2-5%": {
-    "n": 0,
-    "status": "thin"
-   },
-   "5-10%": {
-    "n": 0,
-    "status": "thin"
-   },
-   ">10%": {
-    "n": 0,
-    "status": "thin"
-   }
-  },
-  "iron_condor_0.9_1.5": {
-   "<=2%": {
-    "n": 0,
-    "status": "thin"
-   },
-   "2-5%": {
-    "n": 0,
-    "status": "thin"
-   },
-   "5-10%": {
-    "n": 0,
-    "status": "thin"
-   },
-   ">10%": {
-    "n": 0,
-    "status": "thin"
-   }
-  }
- },
- "types": {
-  "vol_rich": {
-   "trade_qualified": false,
-   "qualifying_strategy": null,
-   "gate": "VOL_RICH_EXEC_V1",
-   "verdicts": {
-    "iron_fly_1.5": {
-     "qualified": false,
-     "at_f25": {
-      "n": 0,
-      "avg_ror": null,
-      "med_ror": null,
-      "cap_wt_ror": null,
-      "profit_factor": null,
-      "exp_log_growth": null,
-      "max_dd_r": null,
-      "fold_avg_ror": null
-     },
-     "f50_avg_ror": null
-    },
-    "iron_condor_0.75_1.5": {
-     "qualified": false,
-     "at_f25": {
-      "n": 0,
-      "avg_ror": null,
-      "med_ror": null,
-      "cap_wt_ror": null,
-      "profit_factor": null,
-      "exp_log_growth": null,
-      "max_dd_r": null,
-      "fold_avg_ror": null
-     },
-     "f50_avg_ror": null
-    },
-    "iron_condor_0.9_1.5": {
-     "qualified": false,
-     "at_f25": {
-      "n": 0,
-      "avg_ror": null,
-      "med_ror": null,
-      "cap_wt_ror": null,
-      "profit_factor": null,
-      "exp_log_growth": null,
-      "max_dd_r": null,
-      "fold_avg_ror": null
-     },
-     "f50_avg_ror": null
-    }
-   },
-   "criteria": {
-    "fill": "f=0.25 entry+exit, NBBO package",
-    "min_n": 60,
-    "avg_ror": "> 0",
-    "med_ror": "> 0",
-    "cap_wt_ror": "> 0",
-    "night_ci_low": "> 0",
-    "profit_factor": ">= 1.3",
-    "exp_log_growth": "> 0",
-    "folds": ">= 2/3 positive AND latest > 0",
-    "max_dd_r": "> -5.0",
-    "f50_check": "avg ROR > 0 at 50% degradation"
-   }
-  },
-  "vol_cheap": {
-   "trade_qualified": false,
-   "why": "excluded from the execution study: V2 found long premium frictionless-NEGATIVE at every exit \u2014 there is no gross edge to execute. The predictive signal is retained; the naive trade expression is killed."
-  }
+  "honesty": "minute-close MARKS, fees only, no spread model \u2014 timing evidence, not executability evidence. Qualification is impossible from this table."
  },
  "expression_registry": {
   "signal_champion": {
    "name": "vol_rich",
    "status": "SIGNAL_QUALIFIED",
    "evidence": {
-    "n": 102,
-    "ev_vol_pts": 6.87,
+    "n": 108,
+    "ev_vol_pts": 6.53,
     "night_ci": [
-     5.87,
-     7.83
+     5.42,
+     7.58
     ]
    }
   },
@@ -458,6 +266,5 @@
    },
    "met": false
   }
- },
- "honesty": "Quote-level, package-priced, fees-in. Entry = last NBBO in 15:45-16:00 ET; exits = last NBBO in each predeclared morning window. Fill fractions are of the mid->natural distance per package side \u2014 a complex-order proxy, stamped, not exchange truth. Missing quotes are skipped and counted, never zero-filled. Structure set frozen at V2's candidates; no new structures were searched."
+ }
 }
