@@ -1,15 +1,15 @@
 {
- "generated": "2026-08-27T23:59:46+00:00",
+ "generated": "2026-08-28T00:21:06+00:00",
  "research_version": "setup_research_v1",
  "setups_total": 4829,
- "setups_graded": 3061,
+ "setups_graded": 3121,
  "collapse": {
   "raw_directional_signals": null,
   "note": "one observation per ticker-session; mixed (0.4<bull share<0.6) days excluded"
  },
  "span": {
   "from": "2026-05-18",
-  "to": "2026-07-23"
+  "to": "2026-07-24"
  },
  "params": {
   "shrink_k": 60,
@@ -23,34 +23,34 @@
    "fold": 1,
    "train": {
     "n": 225,
-    "purged": 425,
+    "purged": 438,
     "to": "2026-05-20"
    },
    "val": {
-    "n": 650,
+    "n": 663,
     "from": "2026-05-29",
     "to": "2026-06-11"
    },
-   "ic": -0.0884,
+   "ic": -0.0809,
    "tails": {
     "all": {
-     "n": 650,
-     "avg": -1.02,
-     "med": -0.92,
-     "hit": 45
+     "n": 663,
+     "avg": -0.91,
+     "med": -0.82,
+     "hit": 46
     },
     "top20": {
-     "n": 182,
-     "avg": -0.81,
-     "med": -1.19,
+     "n": 187,
+     "avg": -0.72,
+     "med": -1.2,
      "hit": 41,
      "cut": 4.071
     },
     "top10": {
      "n": 109,
-     "avg": -1.0,
-     "med": -1.16,
-     "hit": 38,
+     "avg": -0.88,
+     "med": -1.02,
+     "hit": 39,
      "cut": 5.75
     },
     "top5": {
@@ -80,25 +80,25 @@
    "fold": 2,
    "train": {
     "n": 901,
-    "purged": 399,
+    "purged": 425,
     "to": "2026-06-02"
    },
    "val": {
-    "n": 650,
+    "n": 663,
     "from": "2026-06-11",
-    "to": "2026-06-26"
+    "to": "2026-06-29"
    },
-   "ic": -0.0621,
+   "ic": -0.0642,
    "tails": {
     "all": {
-     "n": 650,
-     "avg": 0.2,
-     "med": -0.17,
+     "n": 663,
+     "avg": -0.0,
+     "med": -0.25,
      "hit": 49
     },
     "top20": {
      "n": 61,
-     "avg": 1.25,
+     "avg": 1.08,
      "med": 1.63,
      "hit": 57,
      "cut": 1.083
@@ -136,400 +136,414 @@
   {
    "fold": 3,
    "train": {
-    "n": 1582,
-    "purged": 368,
-    "to": "2026-06-17"
+    "n": 1656,
+    "purged": 333,
+    "to": "2026-06-18"
    },
    "val": {
-    "n": 652,
-    "from": "2026-06-26",
-    "to": "2026-07-14"
+    "n": 664,
+    "from": "2026-06-29",
+    "to": "2026-07-15"
    },
-   "ic": -0.1502,
+   "ic": -0.1186,
    "tails": {
     "all": {
-     "n": 652,
-     "avg": -1.77,
-     "med": -1.1,
-     "hit": 44
+     "n": 664,
+     "avg": -1.43,
+     "med": -0.97,
+     "hit": 45
     },
     "top20": {
-     "n": 73,
-     "avg": -1.37,
-     "med": -1.59,
-     "hit": 44,
-     "cut": 0.745
+     "n": 96,
+     "avg": -1.68,
+     "med": -1.63,
+     "hit": 42,
+     "cut": 0.872
     },
     "top10": {
-     "n": 38,
-     "avg": -1.0,
-     "med": -0.7,
-     "hit": 47,
-     "cut": 1.128
+     "n": 61,
+     "avg": -0.77,
+     "med": -1.05,
+     "hit": 48,
+     "cut": 1.266
     },
     "top5": {
-     "n": 13,
-     "avg": -1.1,
-     "med": -1.67,
-     "hit": 46,
-     "cut": 1.61
+     "n": 28,
+     "avg": 0.94,
+     "med": 0.3,
+     "hit": 54,
+     "cut": 1.689
     },
     "top2": {
-     "n": 5,
-     "avg": -2.04,
-     "med": -3.88,
-     "hit": 40,
-     "cut": 2.056
+     "n": 7,
+     "avg": 2.98,
+     "med": 0.17,
+     "hit": 57,
+     "cut": 2.34
     },
     "top1": {
-     "n": 2,
-     "avg": -2.61,
-     "med": -2.61,
-     "hit": 50,
-     "cut": 2.44
+     "n": 5,
+     "avg": 7.15,
+     "med": 0.44,
+     "hit": 80,
+     "cut": 2.692
     }
    }
   }
  ],
  "pooled_oos": {
-  "ic": -0.1099,
+  "ic": -0.0963,
   "tails": {
    "top20": {
-    "n": 313,
-    "avg": -0.62,
-    "med": -0.97,
+    "n": 344,
+    "avg": -0.67,
+    "med": -1.04,
     "hit": 44,
     "bootstrap": {
-     "clusters": 237,
-     "mean": -0.62,
+     "clusters": 262,
+     "mean": -0.67,
      "ci95": [
-      -1.94,
-      0.68
+      -1.88,
+      0.52
      ]
     }
    },
    "top10": {
-    "n": 174,
-    "avg": -0.79,
+    "n": 200,
+    "avg": -0.75,
     "med": -0.98,
-    "hit": 43,
+    "hit": 44,
     "bootstrap": {
-     "clusters": 133,
-     "mean": -0.79,
+     "clusters": 157,
+     "mean": -0.75,
      "ci95": [
-      -2.63,
-      0.96
+      -2.42,
+      0.85
      ]
     }
    },
    "top5": {
-    "n": 56,
-    "avg": 1.82,
-    "med": 0.27,
-    "hit": 52,
+    "n": 70,
+    "avg": 2.13,
+    "med": 0.62,
+    "hit": 54,
     "bootstrap": {
-     "clusters": 47,
-     "mean": 1.82,
+     "clusters": 61,
+     "mean": 2.13,
      "ci95": [
-      -0.97,
-      4.57
+      -0.37,
+      4.6
      ]
     }
    },
    "top2": {
-    "n": 23,
-    "avg": 3.71,
-    "med": 2.92,
-    "hit": 61,
+    "n": 25,
+    "avg": 4.66,
+    "med": 2.95,
+    "hit": 64,
     "bootstrap": {
-     "clusters": 21,
-     "mean": 3.71,
+     "clusters": 23,
+     "mean": 4.66,
      "ci95": [
-      -1.0,
-      8.29
+      -0.5,
+      9.79
      ]
     }
    },
    "top1": {
-    "n": 13,
-    "avg": 1.8,
-    "med": 0.44,
-    "hit": 54,
+    "n": 16,
+    "avg": 4.02,
+    "med": 1.7,
+    "hit": 62,
     "bootstrap": {
-     "clusters": 12,
-     "mean": 1.8,
+     "clusters": 15,
+     "mean": 4.02,
      "ci95": [
-      -3.4,
-      6.5
+      -1.58,
+      10.22
      ]
     }
    },
    "all": {
-    "n": 1952,
-    "avg": -0.86,
-    "med": -0.81,
+    "n": 1990,
+    "avg": -0.78,
+    "med": -0.76,
     "hit": 46
    }
   }
  },
  "holdout": {
-  "n": 459,
-  "from": "2026-07-14",
-  "to": "2026-07-23",
+  "n": 468,
+  "from": "2026-07-15",
+  "to": "2026-07-24",
   "tails": {
    "top20": {
-    "n": 125,
-    "avg": -2.59,
-    "med": -1.56,
+    "n": 145,
+    "avg": -2.4,
+    "med": -1.48,
     "hit": 42,
     "bootstrap": {
-     "clusters": 98,
-     "mean": -2.59,
+     "clusters": 115,
+     "mean": -2.4,
      "ci95": [
-      -4.4,
-      -0.76
+      -4.04,
+      -0.73
      ]
     }
    },
    "top10": {
-    "n": 93,
-    "avg": -2.75,
-    "med": -2.65,
-    "hit": 39,
+    "n": 95,
+    "avg": -2.52,
+    "med": -1.22,
+    "hit": 42,
     "bootstrap": {
-     "clusters": 74,
-     "mean": -2.75,
+     "clusters": 82,
+     "mean": -2.52,
      "ci95": [
-      -4.82,
-      -0.55
+      -4.58,
+      -0.5
      ]
     }
    },
    "top5": {
-    "n": 62,
-    "avg": -2.87,
-    "med": -2.79,
-    "hit": 35,
+    "n": 48,
+    "avg": -2.57,
+    "med": -1.49,
+    "hit": 38,
     "bootstrap": {
-     "clusters": 52,
-     "mean": -2.87,
+     "clusters": 45,
+     "mean": -2.57,
      "ci95": [
-      -5.41,
-      -0.24
+      -5.13,
+      -0.28
      ]
     }
    },
    "top2": {
-    "n": 31,
-    "avg": -1.25,
-    "med": 0.26,
-    "hit": 55,
+    "n": 22,
+    "avg": -2.51,
+    "med": -1.49,
+    "hit": 36,
     "bootstrap": {
-     "clusters": 27,
-     "mean": -1.25,
+     "clusters": 21,
+     "mean": -2.51,
      "ci95": [
-      -5.38,
-      3.12
+      -6.4,
+      1.15
      ]
     }
    },
    "top1": {
-    "n": 11,
-    "avg": 1.79,
-    "med": 0.17,
-    "hit": 55,
+    "n": 12,
+    "avg": -1.39,
+    "med": -0.63,
+    "hit": 42,
     "bootstrap": {
-     "clusters": 11,
-     "mean": 1.79,
+     "clusters": 12,
+     "mean": -1.39,
      "ci95": [
-      -6.9,
-      11.23
+      -7.87,
+      3.72
      ]
     }
    },
    "all": {
-    "n": 459,
-    "avg": -1.12,
-    "med": -0.48,
-    "hit": 47,
-    "ic": -0.0862
+    "n": 468,
+    "avg": -1.19,
+    "med": -0.71,
+    "hit": 46,
+    "ic": -0.0668
    }
   }
  },
  "ablation": {
   "full": {
-   "n": 178,
-   "avg": -0.51
+   "n": 201,
+   "avg": -0.43
   },
   "minus_persist": {
-   "n": 169,
-   "avg": -1.13
+   "n": 201,
+   "avg": -1.18
   },
   "minus_regime": {
-   "n": 178,
-   "avg": -0.51
+   "n": 201,
+   "avg": -0.43
   },
   "minus_conv": {
-   "n": 173,
-   "avg": -0.3
+   "n": 197,
+   "avg": -0.28
   },
   "minus_prem": {
-   "n": 162,
-   "avg": -0.6
+   "n": 189,
+   "avg": -0.58
   },
   "minus_golden": {
-   "n": 178,
+   "n": 206,
    "avg": -0.3
   },
   "minus_ern": {
-   "n": 173,
-   "avg": -0.73
-  },
-  "minus_dte": {
-   "n": 165,
-   "avg": -0.45
-  },
-  "minus_liq": {
-   "n": 142,
-   "avg": -0.53
-  },
-  "minus_open": {
-   "n": 178,
-   "avg": -0.51
-  },
-  "minus_repeat": {
-   "n": 167,
-   "avg": -0.55
-  },
-  "minus_nprints": {
-   "n": 173,
-   "avg": -0.95
-  },
-  "minus_strikes": {
-   "n": 177,
-   "avg": -0.03
-  },
-  "minus_expiries": {
-   "n": 179,
+   "n": 181,
    "avg": -0.43
   },
+  "minus_dte": {
+   "n": 185,
+   "avg": -0.33
+  },
+  "minus_liq": {
+   "n": 157,
+   "avg": -0.27
+  },
+  "minus_open": {
+   "n": 201,
+   "avg": -0.43
+  },
+  "minus_repeat": {
+   "n": 192,
+   "avg": -0.46
+  },
+  "minus_nprints": {
+   "n": 184,
+   "avg": -0.57
+  },
+  "minus_strikes": {
+   "n": 193,
+   "avg": 0.16
+  },
+  "minus_expiries": {
+   "n": 209,
+   "avg": -0.33
+  },
   "minus_dir": {
-   "n": 180,
-   "avg": -0.73
+   "n": 211,
+   "avg": -0.72
   }
  },
  "interactions": {
   "tested": 884,
-  "passed_train_gates": 13,
+  "passed_train_gates": 14,
   "rules": [
    {
     "rule": "dte=31-90 AND liq=AB AND dir=bullish",
     "train": {
-     "n": 110,
-     "avg": 3.37,
+     "n": 114,
+     "avg": 3.25,
      "med": 1.48
     },
     "oos": {
-     "n": 71,
-     "avg": -2.01,
-     "med": -1.05,
-     "hit": 45
+     "n": 74,
+     "avg": -1.83,
+     "med": -0.14,
+     "hit": 47
     }
    },
    {
-    "rule": "dte=31-90 AND liq=AB AND nprints=>=5",
+    "rule": "ern=yes AND conv=high AND repeat=yes",
     "train": {
-     "n": 118,
-     "avg": 2.61,
-     "med": 1.24
+     "n": 146,
+     "avg": 2.54,
+     "med": 0.04
     },
     "oos": {
-     "n": 73,
-     "avg": -0.84,
-     "med": 0.01,
-     "hit": 51
+     "n": 258,
+     "avg": -1.0,
+     "med": -0.49,
+     "hit": 47
     }
    },
    {
     "rule": "prem=>=5M AND dte=31-90 AND liq=AB",
     "train": {
-     "n": 119,
-     "avg": 2.59,
+     "n": 123,
+     "avg": 2.51,
      "med": 1.21
     },
     "oos": {
-     "n": 74,
-     "avg": -1.14,
-     "med": -0.21,
-     "hit": 47
+     "n": 78,
+     "avg": -1.12,
+     "med": -0.06,
+     "hit": 49
+    }
+   },
+   {
+    "rule": "dte=31-90 AND liq=AB AND nprints=>=5",
+    "train": {
+     "n": 121,
+     "avg": 2.49,
+     "med": 1.21
+    },
+    "oos": {
+     "n": 76,
+     "avg": -0.85,
+     "med": 0.26,
+     "hit": 53
     }
    },
    {
     "rule": "dte=31-90 AND liq=AB AND repeat=yes",
     "train": {
-     "n": 140,
-     "avg": 2.14,
+     "n": 145,
+     "avg": 2.07,
      "med": 1.15
     },
     "oos": {
-     "n": 93,
-     "avg": -1.63,
-     "med": -1.23,
-     "hit": 44
+     "n": 97,
+     "avg": -1.6,
+     "med": -0.71,
+     "hit": 45
     }
    },
    {
     "rule": "dte=31-90 AND liq=AB AND open=high",
     "train": {
-     "n": 146,
-     "avg": 2.09,
+     "n": 151,
+     "avg": 2.02,
      "med": 1.15
     },
     "oos": {
-     "n": 95,
-     "avg": -1.59,
-     "med": -1.23,
-     "hit": 44
+     "n": 99,
+     "avg": -1.55,
+     "med": -0.71,
+     "hit": 45
     }
    },
    {
     "rule": "dte=31-90 AND liq=AB",
     "train": {
-     "n": 147,
-     "avg": 1.99,
-     "med": 1.15
+     "n": 152,
+     "avg": 1.92,
+     "med": 1.06
     },
     "oos": {
-     "n": 95,
-     "avg": -1.59,
-     "med": -1.23,
-     "hit": 44
+     "n": 99,
+     "avg": -1.55,
+     "med": -0.71,
+     "hit": 45
     }
    },
    {
     "rule": "conv=high AND dte=31-90 AND liq=AB",
     "train": {
-     "n": 140,
-     "avg": 1.86,
-     "med": 0.94
+     "n": 145,
+     "avg": 1.8,
+     "med": 0.9
     },
     "oos": {
-     "n": 90,
-     "avg": -1.35,
-     "med": -0.88,
-     "hit": 46
+     "n": 94,
+     "avg": -1.33,
+     "med": -0.21,
+     "hit": 47
     }
    },
    {
     "rule": "prem=>=1M AND dte=8-30",
     "train": {
-     "n": 123,
-     "avg": 0.8,
-     "med": 0.09
+     "n": 136,
+     "avg": 0.78,
+     "med": 0.44
     },
     "oos": {
-     "n": 92,
-     "avg": -1.38,
+     "n": 94,
+     "avg": -1.08,
      "med": -0.14,
      "hit": 50
     }
@@ -537,13 +551,13 @@
    {
     "rule": "prem=>=1M AND dte=8-30 AND open=high",
     "train": {
-     "n": 123,
-     "avg": 0.8,
-     "med": 0.09
+     "n": 136,
+     "avg": 0.78,
+     "med": 0.44
     },
     "oos": {
-     "n": 92,
-     "avg": -1.38,
+     "n": 94,
+     "avg": -1.08,
      "med": -0.14,
      "hit": 50
     }
@@ -551,13 +565,13 @@
    {
     "rule": "conv=high AND prem=>=1M AND dte=8-30",
     "train": {
-     "n": 120,
-     "avg": 0.54,
-     "med": 0.15
+     "n": 133,
+     "avg": 0.55,
+     "med": 0.68
     },
     "oos": {
-     "n": 92,
-     "avg": -1.38,
+     "n": 94,
+     "avg": -1.08,
      "med": -0.14,
      "hit": 50
     }
@@ -565,43 +579,43 @@
    {
     "rule": "prem=>=1M AND open=high",
     "train": {
-     "n": 393,
+     "n": 409,
      "avg": 0.52,
-     "med": 0.01
+     "med": 0.14
     },
     "oos": {
-     "n": 250,
-     "avg": -1.64,
-     "med": -0.62,
-     "hit": 45
+     "n": 257,
+     "avg": -1.56,
+     "med": -0.56,
+     "hit": 46
     }
    },
    {
     "rule": "conv=high AND prem=>=1M",
     "train": {
-     "n": 387,
+     "n": 403,
      "avg": 0.4,
-     "med": 0.01
+     "med": 0.14
     },
     "oos": {
-     "n": 249,
-     "avg": -1.64,
+     "n": 256,
+     "avg": -1.55,
      "med": -0.56,
-     "hit": 45
+     "hit": 46
     }
    },
    {
     "rule": "conv=high AND prem=>=1M AND open=high",
     "train": {
-     "n": 387,
+     "n": 403,
      "avg": 0.4,
-     "med": 0.01
+     "med": 0.14
     },
     "oos": {
-     "n": 249,
-     "avg": -1.64,
+     "n": 256,
+     "avg": -1.55,
      "med": -0.56,
-     "hit": 45
+     "hit": 46
     }
    }
   ],
@@ -615,13 +629,13 @@
   "challengers": {
    "setup_additive_v2": {
     "model": "setup_research_v1",
-    "pooled_ic": -0.1099,
+    "pooled_ic": -0.0963,
     "verdict": {
      "promoted": false
     }
    },
    "tail_rules_v1": {
-    "candidates": 13,
+    "candidates": 14,
     "note": "rule survivors are research candidates only; promotion requires a dedicated forward window"
    }
   },
