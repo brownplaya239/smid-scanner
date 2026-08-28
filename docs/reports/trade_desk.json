@@ -1,8 +1,8 @@
 {
- "generated": "2026-08-28T00:21:09+00:00",
+ "generated": "2026-08-28T00:35:38+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-08-28T00:21:09+00:00",
+ "data_cutoff": "2026-08-28T00:35:38+00:00",
  "market_regime": "mixed",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "Options price a ±11.7% move vs a ±4.0% median across 7 past reports (2.9× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -220,7 +220,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "Options price only ±5.5% vs a ±15.9% median move (8 reports) — the move is cheap; long-vol structures historically favored.",
     "cited": [
@@ -259,7 +259,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "Options price a ±11.5% move vs a ±6.8% median across 7 past reports (1.7× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -300,7 +300,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "Options price only ±10.5% vs a ±18.4% median move (7 reports) — the move is cheap; long-vol structures historically favored.",
     "cited": [
@@ -341,7 +341,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "Options price a ±16.5% move vs a ±8.2% median across 7 past reports (2.0× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -377,7 +377,7 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "n_prints": 7,
     "total_premium": 14454370,
@@ -422,7 +422,7 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "n_prints": 10,
     "total_premium": 12048328,
@@ -471,7 +471,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "Crowded binary: already ran +5.67% today and typically swings ±14.7% on results — size down or let the print happen and trade the reaction.",
     "cited": [
@@ -511,7 +511,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "Crowded binary: already ran +8.49% today and typically swings ±20.3% on results — size down or let the print happen and trade the reaction.",
     "cited": [
@@ -550,7 +550,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -590,7 +590,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts +3.5% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -630,7 +630,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts +1.5% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -666,7 +666,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -704,7 +704,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -4.1% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -741,7 +741,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -3.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -780,7 +780,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.7% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -819,7 +819,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-08-28T00:21:09+00:00",
+   "as_of": "2026-08-28T00:35:38+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.1% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -912,8 +912,8 @@
  "rejections": {
   "LOW_ALPHA": 12,
   "BAD_LIQUIDITY": 6,
-  "REGIME_CONFLICT": 30,
-  "STALE_DATA": 14,
+  "REGIME_CONFLICT": 29,
+  "STALE_DATA": 15,
   "NOT_DIRECTIONAL": 452
  },
  "what_changed": [
