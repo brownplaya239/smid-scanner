@@ -502,9 +502,9 @@
 "ADSK": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 47699823653.409996,
+"market_cap": 53793475597.270004,
 "mcap_bucket": "Large",
 "name": "Autodesk Inc",
 "sector": "Tech / Software"
@@ -1911,9 +1911,9 @@
 "APPF": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 5976263230.08,
+"market_cap": 7904364274.56,
 "mcap_bucket": "Mid",
 "name": "AppFolio, Inc. Class A",
 "sector": "Tech / Software"
@@ -1981,9 +1981,9 @@
 "AR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "CRUDE PETROLEUM & NATURAL GAS",
-"market_cap": 10487948600.0,
+"market_cap": 11845624670.0,
 "mcap_bucket": "Large",
 "name": "ANTERO RESOURCES CORPORATION",
 "sector": "Energy"
@@ -3821,9 +3821,9 @@
 "BJ": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "RETAIL-VARIETY STORES",
-"market_cap": 12095174448.64,
+"market_cap": 11788950204.36,
 "mcap_bucket": "Large",
 "name": "BJs Wholesale Club Holdings, Inc. Common Stock",
 "sector": "Consumer / Retail"
@@ -4131,9 +4131,9 @@
 "BMNR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "FINANCE SERVICES",
-"market_cap": 10809816980.480001,
+"market_cap": 15026369474.54,
 "mcap_bucket": "Large",
 "name": "BitMine Immersion Technologies, Inc.",
 "sector": "Financials / Banks"
@@ -14728,10 +14728,10 @@
 "IT": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "SERVICES-MANAGEMENT SERVICES",
-"market_cap": 9872056033.05,
-"mcap_bucket": "Mid",
+"market_cap": 12185226408.960001,
+"mcap_bucket": "Large",
 "name": "Gartner, Inc.",
 "sector": "Other"
 },
@@ -18637,9 +18637,9 @@
 "MTDR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "CRUDE PETROLEUM & NATURAL GAS",
-"market_cap": 5857486967.59,
+"market_cap": 6837420434.0,
 "mcap_bucket": "Mid",
 "name": "MATADOR RESOURCES COMPANY",
 "sector": "Energy"
@@ -19667,9 +19667,9 @@
 "NTR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "",
-"market_cap": 32353587135.200005,
+"market_cap": 35127433547.14,
 "mcap_bucket": "Large",
 "name": "Nutrien Ltd. Common Shares",
 "sector": "Other"
@@ -19747,9 +19747,9 @@
 "NUE": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "STEEL WORKS, BLAST FURNACES & ROLLING MILLS (COKE OVENS)",
-"market_cap": 56447871867.0,
+"market_cap": 57354170892.8,
 "mcap_bucket": "Large",
 "name": "Nucor Corporation",
 "sector": "Materials / Metals"
@@ -21147,9 +21147,9 @@
 "PCG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "ELECTRIC & OTHER SERVICES COMBINED",
-"market_cap": 38761657545.600006,
+"market_cap": 40127125027.32,
 "mcap_bucket": "Large",
 "name": "PG&E Corporation",
 "sector": "Utilities"
@@ -29045,7 +29045,7 @@
 "USFR": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -31239,6 +31239,16 @@
 "mcap_bucket": "Mid",
 "name": "Xenon Pharmaceuticals Inc",
 "sector": "Healthcare / Biotech"
+},
+"XHLD": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-28",
+"industry": "SERVICES-BUSINESS SERVICES, NEC",
+"market_cap": 102407137.65,
+"mcap_bucket": "Micro",
+"name": "TEN Holdings, Inc. Common Stock",
+"sector": "Other"
 },
 "XHLF": {
 "country": "USA",
