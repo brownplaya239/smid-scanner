@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-28T03:54:27+00:00",
+ "generated": "2026-08-28T23:15:32+00:00",
  "engine_version": "earnings_vol_v1",
  "types": {
   "vol_rich": {
@@ -244,36 +244,36 @@
    ]
   },
   "vol_cheap": {
-   "n": 59,
+   "n": 60,
    "span": {
     "from": "2026-07-21",
-    "to": "2026-08-20"
+    "to": "2026-08-21"
    },
-   "ev_vol_pts": 2.62,
-   "med_vol_pts": 1.7,
+   "ev_vol_pts": 2.64,
+   "med_vol_pts": 1.74,
    "win": 68,
    "date_cluster_bootstrap": {
-    "nights": 18,
-    "mean": 2.62,
+    "nights": 19,
+    "mean": 2.64,
     "ci95": [
-     0.98,
-     4.35
+     1.06,
+     4.38
     ]
    },
    "move_ratio": {
-    "n": 59,
-    "median": 1.74,
+    "n": 60,
+    "median": 1.84,
     "p75": 3.65,
     "p90": 5.25,
     "p95": 6.1,
     "p99": 7.7,
     "max": 13.43,
     "inside_050x": 22,
-    "inside_075x": 24,
+    "inside_075x": 23,
     "inside_100x": 32,
     "blowthrough_10x": 68,
-    "blowthrough_15x": 56,
-    "blowthrough_20x": 44
+    "blowthrough_15x": 57,
+    "blowthrough_20x": 45
    },
    "tails": {
     "worst_mv": -11.77,
@@ -284,12 +284,12 @@
      "ratio": 0.308
     },
     "p5_mv": -7.52,
-    "es95": -10.37,
+    "es95": -9.43,
     "es99": -11.77,
     "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
    },
    "clustering": {
-    "nights": 18,
+    "nights": 19,
     "events_per_night": {
      "median": 3,
      "p90": 6,
@@ -302,10 +302,10 @@
    "decomposition": {
     "implied_band": {
      "<5%": {
-      "n": 46,
-      "ev": 3.69,
+      "n": 47,
+      "ev": 3.7,
       "med": 2.11,
-      "win": 78
+      "win": 79
      },
      "5-8%": {
       "n": 9,
@@ -322,10 +322,10 @@
     },
     "cap": {
      "10-100B": {
-      "n": 25,
-      "ev": 2.77,
-      "med": 2.11,
-      "win": 68
+      "n": 26,
+      "ev": 2.82,
+      "med": 2.17,
+      "win": 69
      },
      ">100B": {
       "n": 16,
@@ -338,9 +338,9 @@
     },
     "session": {
      "BMO": {
-      "n": 50,
-      "ev": 3.14,
-      "med": 2.03,
+      "n": 51,
+      "ev": 3.16,
+      "med": 2.11,
       "win": 76
      },
      "AMC": {
@@ -364,10 +364,10 @@
       "status": "thin"
      },
      "risk_on": {
-      "n": 21,
-      "ev": 1.98,
-      "med": 1.56,
-      "win": 62
+      "n": 22,
+      "ev": 2.07,
+      "med": 1.67,
+      "win": 64
      }
     },
     "sector": {
@@ -426,7 +426,7 @@
       "status": "thin"
      },
      "Consumer / Retail": {
-      "n": 4,
+      "n": 5,
       "status": "thin"
      },
      "Real Estate": {
@@ -448,7 +448,7 @@
     },
     "same_night": {
      "1-2": {
-      "n": 11,
+      "n": 12,
       "status": "thin"
      },
      ">=3": {
@@ -539,8 +539,8 @@
   "inside_075x": 81
  },
  "wing_economics": {
-  "n": 88,
-  "avg_straddle_$": 89,
+  "n": 89,
+  "avg_straddle_$": 88,
   "avg_fly_$": 56,
   "avg_wing_drag_$": -33,
   "wing_ratio": {
@@ -553,8 +553,8 @@
    "avg_$": 26
   },
   "fly_when_wings_above_median": {
-   "n": 43,
-   "avg_$": 87
+   "n": 44,
+   "avg_$": 86
   },
   "note": "frictionless next_open marks, fees only. DESCRIPTIVE SPLIT POINTS AGAINST THE HYPOTHESIS: fly does better when wings are EXPENSIVE \u2014 wing richness proxies implied size, where the gross edge is larger. The refined conditional would be wings-cheap-RELATIVE-to-implied; not launched (n small, tuning risk). The forward challenger stands as declared and forward data decides."
  },
@@ -565,8 +565,8 @@
     "n": 112
    },
    "vol_cheap": {
-    "median_ratio": 1.74,
-    "n": 59
+    "median_ratio": 1.84,
+    "n": 60
    }
   },
   "definition": "TickerDesk Fair Move = the ticker's own median |earnings move| across its reported history (earnings_edge realized_med). Volatility Edge = implied - fair. Richness = implied/fair - 1. The per-type median ratios above are the selected-universe calibration context, not a multiplier applied to any displayed number."
