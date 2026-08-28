@@ -66120,5 +66120,1180 @@
 "sector": "Tech / Software"
 },
 "bt_version": "vol_backtest_v2"
+},
+"BBY|2026-08-27|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-08-26",
+"exit_date": "2026-08-27",
+"spot": 87.44,
+"expiry": "2026-08-28",
+"expiry_spot": null,
+"night_id": "2026-08-27",
+"sector": "Consumer / Retail",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 87,
+"contract": "O:BBY260828C00087000",
+"marks": {
+"entry_close": 4.2,
+"exit_open": 0.05,
+"exit_close": 0.1
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 87,
+"contract": "O:BBY260828P00087000",
+"marks": {
+"entry_close": 3.7,
+"exit_open": 7.8,
+"exit_close": 3.1
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -86.0,
+"risk": 831.0,
+"ror": -0.1039
+},
+"next_close": {
+"pnl": -528.0,
+"risk": 831.0,
+"ror": -0.6357
+},
+"expiry_hold": {
+"pnl": -832.0,
+"risk": 831.0,
+"ror": -1.0016
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 88,
+"contract": "O:BBY260828C00088000",
+"marks": {
+"entry_close": 3.5,
+"exit_open": 0.75,
+"exit_close": 0.05
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 87,
+"contract": "O:BBY260828P00087000",
+"marks": {
+"entry_close": 3.7,
+"exit_open": 7.8,
+"exit_close": 3.1
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": 54.0,
+"risk": 757.0,
+"ror": 0.0708
+},
+"next_close": {
+"pnl": -459.0,
+"risk": 757.0,
+"ror": -0.6066
+},
+"expiry_hold": {
+"pnl": -759.0,
+"risk": 757.0,
+"ror": -1.0017
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BBY",
+"date": "2026-08-27",
+"implied": 2.0,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"BILI|2026-08-27|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-08-26",
+"exit_date": "2026-08-27",
+"spot": 16.15,
+"expiry": "2026-08-28",
+"expiry_spot": null,
+"night_id": "2026-08-27",
+"sector": "Other",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 16,
+"contract": "O:BILI260828C00016000",
+"marks": {
+"entry_close": 0.67,
+"exit_open": 0.6,
+"exit_close": 0.7
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 16,
+"contract": "O:BILI260828P00016000",
+"marks": {
+"entry_close": 0.47,
+"exit_open": 0.28,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -39.0,
+"risk": 121.0,
+"ror": -0.3198
+},
+"next_close": {
+"pnl": -53.0,
+"risk": 121.0,
+"ror": -0.4376
+},
+"expiry_hold": {
+"pnl": -122.0,
+"risk": 121.0,
+"ror": -1.0107
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 16.5,
+"contract": "O:BILI260828C00016500",
+"marks": {
+"entry_close": 0.42,
+"exit_open": 0.12,
+"exit_close": 0.31
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 16,
+"contract": "O:BILI260828P00016000",
+"marks": {
+"entry_close": 0.47,
+"exit_open": 0.28,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -58.0,
+"risk": 95.0,
+"ror": -0.6127
+},
+"next_close": {
+"pnl": -64.0,
+"risk": 95.0,
+"ror": -0.6728
+},
+"expiry_hold": {
+"pnl": -96.0,
+"risk": 95.0,
+"ror": -1.0137
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BILI",
+"date": "2026-08-27",
+"implied": 2.8,
+"session": "BMO",
+"sector": "Other"
+},
+"bt_version": "vol_backtest_v2"
+},
+"BURL|2026-08-27|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-08-26",
+"exit_date": "2026-08-27",
+"spot": 313.99,
+"expiry": "2026-08-28",
+"expiry_spot": null,
+"night_id": "2026-08-27",
+"sector": "Consumer / Retail",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 315,
+"contract": "O:BURL260828C00315000",
+"marks": {
+"entry_close": 13.8,
+"exit_open": 2.3,
+"exit_close": 0.43
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 315,
+"contract": "O:BURL260828P00315000",
+"marks": {
+"entry_close": 14.71,
+"exit_open": 11.2,
+"exit_close": 21.5
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -1714.0,
+"risk": 2995.0,
+"ror": -0.5722
+},
+"next_close": {
+"pnl": -913.0,
+"risk": 2995.0,
+"ror": -0.3048
+},
+"expiry_hold": {
+"pnl": -2996.0,
+"risk": 2995.0,
+"ror": -1.0004
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 317.5,
+"contract": "O:BURL260828C00317500",
+"marks": {
+"entry_close": 13,
+"exit_open": 4.03,
+"exit_close": 0.9
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 310,
+"contract": "O:BURL260828P00310000",
+"marks": {
+"entry_close": 12.46,
+"exit_open": 8.3,
+"exit_close": 19.93
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -1505.0,
+"risk": 2675.0,
+"ror": -0.5625
+},
+"next_close": {
+"pnl": -697.0,
+"risk": 2675.0,
+"ror": -0.2606
+},
+"expiry_hold": {
+"pnl": -2676.0,
+"risk": 2675.0,
+"ror": -1.0005
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BURL",
+"date": "2026-08-27",
+"implied": 2.2,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"DG|2026-08-27|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-08-26",
+"exit_date": "2026-08-27",
+"spot": 122.78,
+"expiry": "2026-08-28",
+"expiry_spot": null,
+"night_id": "2026-08-27",
+"sector": "Consumer / Retail",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 123,
+"contract": "O:DG260828C00123000",
+"marks": {
+"entry_close": 4.91,
+"exit_open": 4.45,
+"exit_close": 3.94
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 123,
+"contract": "O:DG260828P00123000",
+"marks": {
+"entry_close": 5.15,
+"exit_open": 3.09,
+"exit_close": 0.35
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -343.0,
+"risk": 1058.0,
+"ror": -0.3239
+},
+"next_close": {
+"pnl": -651.0,
+"risk": 1058.0,
+"ror": -0.6159
+},
+"expiry_hold": {
+"pnl": -1059.0,
+"risk": 1058.0,
+"ror": -1.0012
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 124,
+"contract": "O:DG260828C00124000",
+"marks": {
+"entry_close": 4.57,
+"exit_open": 3.36,
+"exit_close": 3.05
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 121,
+"contract": "O:DG260828P00121000",
+"marks": {
+"entry_close": 4,
+"exit_open": 2.69,
+"exit_close": 0.05
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -328.0,
+"risk": 901.0,
+"ror": -0.3636
+},
+"next_close": {
+"pnl": -608.0,
+"risk": 901.0,
+"ror": -0.6746
+},
+"expiry_hold": {
+"pnl": -902.0,
+"risk": 901.0,
+"ror": -1.0014
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "DG",
+"date": "2026-08-27",
+"implied": 2.8,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"DLTR|2026-08-27|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-08-26",
+"exit_date": "2026-08-27",
+"spot": 132.18,
+"expiry": "2026-08-28",
+"expiry_spot": null,
+"night_id": "2026-08-27",
+"sector": "Consumer / Retail",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 132,
+"contract": "O:DLTR260828C00132000",
+"marks": {
+"entry_close": 6.05,
+"exit_open": 1,
+"exit_close": 0.39
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 132,
+"contract": "O:DLTR260828P00132000",
+"marks": {
+"entry_close": 6.05,
+"exit_open": 5.06,
+"exit_close": 5.2
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -697.0,
+"risk": 1272.0,
+"ror": -0.5484
+},
+"next_close": {
+"pnl": -742.0,
+"risk": 1272.0,
+"ror": -0.5835
+},
+"expiry_hold": {
+"pnl": -1273.0,
+"risk": 1272.0,
+"ror": -1.001
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 134,
+"contract": "O:DLTR260828C00134000",
+"marks": {
+"entry_close": 4.88,
+"exit_open": 0.49,
+"exit_close": 0.16
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 131,
+"contract": "O:DLTR260828P00131000",
+"marks": {
+"entry_close": 4.95,
+"exit_open": 7.85,
+"exit_close": 4.35
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -242.0,
+"risk": 1033.0,
+"ror": -0.2346
+},
+"next_close": {
+"pnl": -606.0,
+"risk": 1033.0,
+"ror": -0.5867
+},
+"expiry_hold": {
+"pnl": -1035.0,
+"risk": 1033.0,
+"ror": -1.0013
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "DLTR",
+"date": "2026-08-27",
+"implied": 2.5,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"MRVL|2026-08-27|vol_cheap|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_cheap",
+"ticker": "MRVL",
+"date": "2026-08-27",
+"implied": 10.5,
+"session": "AMC",
+"sector": "Semiconductors"
+},
+"bt_version": "vol_backtest_v2"
+},
+"PURR|2026-08-27|vol_rich|vol_backtest_v2": {
+"entry_date": "2026-08-26",
+"exit_date": "2026-08-27",
+"spot": 11.56,
+"expiry": "2026-08-28",
+"expiry_spot": null,
+"night_id": "2026-08-27",
+"sector": "Financials / Banks",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"short_straddle": {
+"legs": [
+{
+"side": -1,
+"kind": "call",
+"strike": 11.5,
+"contract": "O:PURR260828C00011500",
+"marks": {
+"entry_close": 0.65,
+"exit_open": 0.9,
+"exit_close": 1.55
+}
+},
+{
+"side": -1,
+"kind": "put",
+"strike": 11.5,
+"contract": "O:PURR260828P00011500",
+"marks": {
+"entry_close": 0.65,
+"exit_open": 0.13,
+"exit_close": 0.05
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": 13.0
+},
+"next_close": {
+"pnl": -47.0
+},
+"expiry_hold": {
+"pnl": 121.0
+}
+},
+"note": "UNDEFINED RISK \u2014 diagnostic only"
+},
+"iron_fly_1.25": {
+"legs": [
+{
+"side": -1,
+"kind": "call",
+"strike": 11.5,
+"contract": "O:PURR260828C00011500",
+"marks": {
+"entry_close": 0.65,
+"exit_open": 0.9,
+"exit_close": 1.55
+}
+},
+{
+"side": -1,
+"kind": "put",
+"strike": 11.5,
+"contract": "O:PURR260828P00011500",
+"marks": {
+"entry_close": 0.65,
+"exit_open": 0.13,
+"exit_close": 0.05
+}
+},
+{
+"side": 1,
+"kind": "call",
+"strike": 12.5,
+"contract": "O:PURR260828C00012500",
+"marks": {
+"entry_close": 0.33,
+"exit_open": 0.4,
+"exit_close": 0.6
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 10.5,
+"contract": "O:PURR260828P00010500",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.05,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -8.0,
+"risk": 40.0,
+"ror": -0.2
+},
+"next_close": {
+"pnl": -51.0,
+"risk": 40.0,
+"ror": -1.2688
+},
+"expiry_hold": {
+"pnl": 57.0,
+"risk": 40.0,
+"ror": 1.435
+}
+}
+},
+"iron_fly_1.5": {
+"legs": [
+{
+"side": -1,
+"kind": "call",
+"strike": 11.5,
+"contract": "O:PURR260828C00011500",
+"marks": {
+"entry_close": 0.65,
+"exit_open": 0.9,
+"exit_close": 1.55
+}
+},
+{
+"side": -1,
+"kind": "put",
+"strike": 11.5,
+"contract": "O:PURR260828P00011500",
+"marks": {
+"entry_close": 0.65,
+"exit_open": 0.13,
+"exit_close": 0.05
+}
+},
+{
+"side": 1,
+"kind": "call",
+"strike": 12.5,
+"contract": "O:PURR260828C00012500",
+"marks": {
+"entry_close": 0.33,
+"exit_open": 0.4,
+"exit_close": 0.6
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 10.5,
+"contract": "O:PURR260828P00010500",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.05,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -8.0,
+"risk": 40.0,
+"ror": -0.2
+},
+"next_close": {
+"pnl": -51.0,
+"risk": 40.0,
+"ror": -1.2688
+},
+"expiry_hold": {
+"pnl": 57.0,
+"risk": 40.0,
+"ror": 1.435
+}
+}
+},
+"iron_condor_0.6_1.25": {
+"legs": [
+{
+"side": -1,
+"kind": "call",
+"strike": 12,
+"contract": "O:PURR260828C00012000",
+"marks": {
+"entry_close": 0.45,
+"exit_open": 0.6,
+"exit_close": 1
+}
+},
+{
+"side": -1,
+"kind": "put",
+"strike": 11,
+"contract": "O:PURR260828P00011000",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.1,
+"exit_close": 0.02
+}
+},
+{
+"side": 1,
+"kind": "call",
+"strike": 12.5,
+"contract": "O:PURR260828C00012500",
+"marks": {
+"entry_close": 0.33,
+"exit_open": 0.4,
+"exit_close": 0.6
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 10.5,
+"contract": "O:PURR260828P00010500",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.05,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -30.0,
+"risk": 47.0,
+"ror": -0.6457
+},
+"next_close": {
+"pnl": -47.0,
+"risk": 47.0,
+"ror": -0.9968
+},
+"expiry_hold": {
+"pnl": 0.0,
+"risk": 47.0,
+"ror": 0.0085
+}
+}
+},
+"iron_condor_0.75_1.25": {
+"legs": [
+{
+"side": -1,
+"kind": "call",
+"strike": 12,
+"contract": "O:PURR260828C00012000",
+"marks": {
+"entry_close": 0.45,
+"exit_open": 0.6,
+"exit_close": 1
+}
+},
+{
+"side": -1,
+"kind": "put",
+"strike": 11,
+"contract": "O:PURR260828P00011000",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.1,
+"exit_close": 0.02
+}
+},
+{
+"side": 1,
+"kind": "call",
+"strike": 12.5,
+"contract": "O:PURR260828C00012500",
+"marks": {
+"entry_close": 0.33,
+"exit_open": 0.4,
+"exit_close": 0.6
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 10.5,
+"contract": "O:PURR260828P00010500",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.05,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -30.0,
+"risk": 47.0,
+"ror": -0.6457
+},
+"next_close": {
+"pnl": -47.0,
+"risk": 47.0,
+"ror": -0.9968
+},
+"expiry_hold": {
+"pnl": 0.0,
+"risk": 47.0,
+"ror": 0.0085
+}
+}
+},
+"iron_condor_0.75_1.5": {
+"legs": [
+{
+"side": -1,
+"kind": "call",
+"strike": 12,
+"contract": "O:PURR260828C00012000",
+"marks": {
+"entry_close": 0.45,
+"exit_open": 0.6,
+"exit_close": 1
+}
+},
+{
+"side": -1,
+"kind": "put",
+"strike": 11,
+"contract": "O:PURR260828P00011000",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.1,
+"exit_close": 0.02
+}
+},
+{
+"side": 1,
+"kind": "call",
+"strike": 12.5,
+"contract": "O:PURR260828C00012500",
+"marks": {
+"entry_close": 0.33,
+"exit_open": 0.4,
+"exit_close": 0.6
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 10.5,
+"contract": "O:PURR260828P00010500",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.05,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -30.0,
+"risk": 47.0,
+"ror": -0.6457
+},
+"next_close": {
+"pnl": -47.0,
+"risk": 47.0,
+"ror": -0.9968
+},
+"expiry_hold": {
+"pnl": 0.0,
+"risk": 47.0,
+"ror": 0.0085
+}
+}
+},
+"iron_condor_0.9_1.5": {
+"legs": [
+{
+"side": -1,
+"kind": "call",
+"strike": 12.5,
+"contract": "O:PURR260828C00012500",
+"marks": {
+"entry_close": 0.33,
+"exit_open": 0.4,
+"exit_close": 0.6
+}
+},
+{
+"side": -1,
+"kind": "put",
+"strike": 11,
+"contract": "O:PURR260828P00011000",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.1,
+"exit_close": 0.02
+}
+},
+{
+"side": 1,
+"kind": "call",
+"strike": 12.5,
+"contract": "O:PURR260828C00012500",
+"marks": {
+"entry_close": 0.33,
+"exit_open": 0.4,
+"exit_close": 0.6
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 10.5,
+"contract": "O:PURR260828P00010500",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.05,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -21.0,
+"risk": 58.0,
+"ror": -0.3553
+},
+"next_close": {
+"pnl": -16.0,
+"risk": 58.0,
+"ror": -0.2783
+},
+"expiry_hold": {
+"pnl": -11.0,
+"risk": 58.0,
+"ror": -0.1884
+}
+}
+},
+"iron_condor_1.0_1.5": {
+"legs": [
+{
+"side": -1,
+"kind": "call",
+"strike": 12.5,
+"contract": "O:PURR260828C00012500",
+"marks": {
+"entry_close": 0.33,
+"exit_open": 0.4,
+"exit_close": 0.6
+}
+},
+{
+"side": -1,
+"kind": "put",
+"strike": 11,
+"contract": "O:PURR260828P00011000",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.1,
+"exit_close": 0.02
+}
+},
+{
+"side": 1,
+"kind": "call",
+"strike": 12.5,
+"contract": "O:PURR260828C00012500",
+"marks": {
+"entry_close": 0.33,
+"exit_open": 0.4,
+"exit_close": 0.6
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 10.5,
+"contract": "O:PURR260828P00010500",
+"marks": {
+"entry_close": 0.25,
+"exit_open": 0.05,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -21.0,
+"risk": 58.0,
+"ror": -0.3553
+},
+"next_close": {
+"pnl": -16.0,
+"risk": 58.0,
+"ror": -0.2783
+},
+"expiry_hold": {
+"pnl": -11.0,
+"risk": 58.0,
+"ror": -0.1884
+}
+}
+}
+},
+"event": {
+"type": "vol_rich",
+"ticker": "PURR",
+"date": "2026-08-27",
+"implied": 6.8,
+"session": "BMO",
+"sector": "Financials / Banks"
+},
+"bt_version": "vol_backtest_v2"
+},
+"ULTA|2026-08-27|vol_cheap|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_cheap",
+"ticker": "ULTA",
+"date": "2026-08-27",
+"implied": 8.6,
+"session": "AMC",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"AVAV|2026-09-02|vol_cheap|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_cheap",
+"ticker": "AVAV",
+"date": "2026-09-02",
+"implied": 7.4,
+"session": "AMC",
+"sector": "Industrials / Transport Eq"
+},
+"bt_version": "vol_backtest_v2"
+},
+"CHWY|2026-09-02|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "CHWY",
+"date": "2026-09-02",
+"implied": 5.8,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"MDB|2026-09-01|vol_cheap|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_cheap",
+"ticker": "MDB",
+"date": "2026-09-01",
+"implied": 14.9,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"HPE|2026-09-02|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "HPE",
+"date": "2026-09-02",
+"implied": 12.1,
+"session": "AMC",
+"sector": "Industrials / Machinery"
+},
+"bt_version": "vol_backtest_v2"
+},
+"M|2026-09-02|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "M",
+"date": "2026-09-02",
+"implied": 4.5,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"DOCU|2026-09-03|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "DOCU",
+"date": "2026-09-03",
+"implied": 13.3,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"PATH|2026-09-03|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "PATH",
+"date": "2026-09-03",
+"implied": 14.2,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"PL|2026-09-03|vol_cheap|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_cheap",
+"ticker": "PL",
+"date": "2026-09-03",
+"implied": 17.9,
+"session": "AMC",
+"sector": "Tech / Hardware"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
