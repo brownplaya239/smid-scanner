@@ -682,9 +682,9 @@
 "AFRM": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-28",
 "industry": "PERSONAL CREDIT INSTITUTIONS",
-"market_cap": 24755701924.8,
+"market_cap": 25951289801.85,
 "mcap_bucket": "Large",
 "name": "Affirm Holdings, Inc. Class A Common Stock",
 "sector": "Financials / Banks"
@@ -692,10 +692,10 @@
 "AG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-08-28",
 "industry": "",
-"market_cap": 8887852224.0,
-"mcap_bucket": "Mid",
+"market_cap": 10715784766.42,
+"mcap_bucket": "Large",
 "name": "FIRST MAJESTIC SILVER CORP",
 "sector": "Other"
 },
@@ -6900,7 +6900,7 @@
 "CRMG": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -6910,9 +6910,9 @@
 "CRML": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-20",
+"fetched": "2026-08-28",
 "industry": "",
-"market_cap": 1542116440.41,
+"market_cap": 1180985574.12,
 "mcap_bucket": "Small",
 "name": "Critical Metals Corp. Ordinary Shares",
 "sector": "Other"
@@ -8630,9 +8630,9 @@
 "DXYZ": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-08-28",
 "industry": "",
-"market_cap": 846945459.2,
+"market_cap": 1078484505.6,
 "mcap_bucket": "Small",
 "name": "Destiny Tech100 Inc.",
 "sector": "Other"
@@ -9410,9 +9410,9 @@
 "ERAS": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-15",
+"fetched": "2026-08-28",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 6064198569.0,
+"market_cap": 6816862062.15,
 "mcap_bucket": "Mid",
 "name": "Erasca, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
@@ -11830,9 +11830,9 @@
 "GGG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-21",
+"fetched": "2026-08-28",
 "industry": "PUMPS & PUMPING EQUIPMENT",
-"market_cap": 12220236872.509998,
+"market_cap": 12894763466.880001,
 "mcap_bucket": "Large",
 "name": "Graco Inc",
 "sector": "Industrials / Machinery"
@@ -11895,6 +11895,16 @@
 "market_cap": 14548410456.68,
 "mcap_bucket": "Large",
 "name": "CGI Inc.",
+"sector": "Other"
+},
+"GIGL": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-28",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Goldman Sachs Corporate Bond ETF",
 "sector": "Other"
 },
 "GIII": {
@@ -13179,9 +13189,9 @@
 "HRB": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "SERVICES-PERSONAL SERVICES",
-"market_cap": 5365759562.309999,
+"market_cap": 6472693564.219999,
 "mcap_bucket": "Mid",
 "name": "H&R Block, Inc.",
 "sector": "Consumer / Services"
@@ -13429,7 +13439,7 @@
 "HYD": {
 "country": "USA",
 "exchange": "BATS",
-"fetched": "2026-07-27",
+"fetched": "2026-08-28",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -14119,9 +14129,9 @@
 "IMAX": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-27",
+"fetched": "2026-08-28",
 "industry": "PHOTOGRAPHIC EQUIPMENT & SUPPLIES",
-"market_cap": 2379050905.32,
+"market_cap": 2848499401.16,
 "mcap_bucket": "Mid",
 "name": "Imax Corp",
 "sector": "Other"
@@ -16988,9 +16998,9 @@
 "LPTH": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-08-28",
 "industry": "SEMICONDUCTORS & RELATED DEVICES",
-"market_cap": 951259516.0500001,
+"market_cap": 865865922.53,
 "mcap_bucket": "Small",
 "name": "Lightpath Technologies Inc",
 "sector": "Semiconductors"
@@ -18358,9 +18368,9 @@
 "MRNA": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-22",
+"fetched": "2026-08-28",
 "industry": "BIOLOGICAL PRODUCTS, (NO DIAGNOSTIC SUBSTANCES)",
-"market_cap": 23672268211.94,
+"market_cap": 56998907872.53001,
 "mcap_bucket": "Large",
 "name": "Moderna, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
@@ -19487,9 +19497,9 @@
 "NOW": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-08-28",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 109134472720.0,
+"market_cap": 143117516660.0,
 "mcap_bucket": "Large",
 "name": "SERVICENOW, INC.",
 "sector": "Tech / Software"
@@ -20204,6 +20214,16 @@
 "name": "Oculis Holding AG Ordinary shares",
 "sector": "Other"
 },
+"OCTV": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-28",
+"industry": "SERVICES-PREPACKAGED SOFTWARE",
+"market_cap": 5223799354.4800005,
+"mcap_bucket": "Mid",
+"name": "Octave Intelligence plc Class B Ordinary Shares",
+"sector": "Tech / Software"
+},
 "OCUL": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -20767,7 +20787,7 @@
 "OUNZ": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-11",
+"fetched": "2026-08-28",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -21207,9 +21227,9 @@
 "PD": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-29",
+"fetched": "2026-08-28",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 570271565.76,
+"market_cap": 974057995.95,
 "mcap_bucket": "Small",
 "name": "PagerDuty, Inc.",
 "sector": "Tech / Software"
@@ -22803,6 +22823,16 @@
 "mcap_bucket": "Small",
 "name": "Quantum eMotion Corp.",
 "sector": "Other"
+},
+"QNRX": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-28",
+"industry": "PHARMACEUTICAL PREPARATIONS",
+"market_cap": 10353394.790000001,
+"mcap_bucket": "Nano",
+"name": "Quoin Pharmaceuticals, Ltd. American Depositary Shares",
+"sector": "Healthcare / Biotech"
 },
 "QNST": {
 "country": "USA",
@@ -26337,9 +26367,9 @@
 "SQM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-20",
+"fetched": "2026-08-28",
 "industry": "",
-"market_cap": 23610821209.28,
+"market_cap": 22973848897.440002,
 "mcap_bucket": "Large",
 "name": "Sociedad Quimica y Minera de Chile SA",
 "sector": "Other"
@@ -28616,9 +28646,9 @@
 "UEC": {
 "country": "USA",
 "exchange": "AMEX",
-"fetched": "2026-06-21",
+"fetched": "2026-08-28",
 "industry": "MISCELLANEOUS METAL ORES",
-"market_cap": 5943417115.66,
+"market_cap": 6740161624.92,
 "mcap_bucket": "Mid",
 "name": "Uranium Energy Corp.",
 "sector": "Materials / Metals"
@@ -28976,8 +29006,9 @@
 "URNM": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-05-19",
+"fetched": "2026-08-28",
 "industry": "",
+"market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "Sprott Uranium Miners ETF",
 "sector": "Other"
@@ -31389,6 +31420,16 @@
 "mcap_bucket": "Large",
 "name": "XPO, Inc.",
 "sector": "Industrials"
+},
+"XPON": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-28",
+"industry": "MISCELLANEOUS ELECTRICAL MACHINERY, EQUIPMENT & SUPPLIES",
+"market_cap": 7596932.27,
+"mcap_bucket": "Nano",
+"name": "Expion360 Inc. Common Stock",
+"sector": "Other"
 },
 "XPRO": {
 "country": "USA",

@@ -1,45 +1,6 @@
 {
- "updated": "2026-08-28T01:33:00-04:00",
+ "updated": "2026-08-28T23:16:04-04:00",
  "runs": [
-  {
-   "date": "2026-06-08",
-   "generated": "2026-06-08T18:56:40-04:00",
-   "count": 4,
-   "rows": [
-    {
-     "ticker": "MRVL",
-     "price": 288.85,
-     "chg": 31.64,
-     "adr_pct": 9.09,
-     "dollar_vol": 11717111158,
-     "ern": "Aug 27"
-    },
-    {
-     "ticker": "OSCR",
-     "price": 27.39,
-     "chg": 19.24,
-     "adr_pct": 6.97,
-     "dollar_vol": 201909216,
-     "ern": "--"
-    },
-    {
-     "ticker": "GKOS",
-     "price": 121.96,
-     "chg": 18.27,
-     "adr_pct": 6.46,
-     "dollar_vol": 155367187,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "ALHC",
-     "price": 15.35,
-     "chg": 15.41,
-     "adr_pct": 5.45,
-     "dollar_vol": 115698052,
-     "ern": "Jul 30"
-    }
-   ]
-  },
   {
    "date": "2026-06-09",
    "generated": "2026-06-09T18:58:36-04:00",
@@ -8120,6 +8081,55 @@
      "adr_pct": 7.93,
      "dollar_vol": 226850630,
      "ern": "Nov 16"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-28",
+   "generated": "2026-08-28T23:16:04-04:00",
+   "count": 2,
+   "rows": [
+    {
+     "ticker": "CRM",
+     "price": 256.0,
+     "chg": 22.39,
+     "adr_pct": 3.95,
+     "dollar_vol": 3280992668,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "ANF",
+     "price": 148.42,
+     "chg": 36.15,
+     "adr_pct": 5.35,
+     "dollar_vol": 280990501,
+     "ern": "Nov 25"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "CRWD",
+     "price": 218.4,
+     "chg": 13.78,
+     "adr_pct": 5.04,
+     "dollar_vol": 1900968059,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "NOW",
+     "price": 144.71,
+     "chg": 12.63,
+     "adr_pct": 4.59,
+     "dollar_vol": 2301358196,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "SNPS",
+     "price": 442.61,
+     "chg": 11.24,
+     "adr_pct": 3.32,
+     "dollar_vol": 682891549,
+     "ern": "Reported"
     }
    ]
   }

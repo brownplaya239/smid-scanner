@@ -1,101 +1,6 @@
 {
- "updated": "2026-08-28T01:33:00-04:00",
+ "updated": "2026-08-28T23:16:04-04:00",
  "runs": [
-  {
-   "date": "2026-06-08",
-   "generated": "2026-06-08T18:56:40-04:00",
-   "count": 11,
-   "rows": [
-    {
-     "ticker": "MU",
-     "price": 949.28,
-     "chg": 46.8,
-     "adr_pct": 6.82,
-     "dollar_vol": 47965630238,
-     "ern": "Jun 24"
-    },
-    {
-     "ticker": "MRVL",
-     "price": 288.85,
-     "chg": 80.52,
-     "adr_pct": 9.09,
-     "dollar_vol": 11717111158,
-     "ern": "Aug 27"
-    },
-    {
-     "ticker": "DELL",
-     "price": 400.77,
-     "chg": 74.04,
-     "adr_pct": 6.36,
-     "dollar_vol": 4243942987,
-     "ern": "Sep 03"
-    },
-    {
-     "ticker": "ARM",
-     "price": 346.39,
-     "chg": 62.39,
-     "adr_pct": 8.84,
-     "dollar_vol": 3833739006,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "PANW",
-     "price": 266.33,
-     "chg": 35.52,
-     "adr_pct": 5.14,
-     "dollar_vol": 2611816854,
-     "ern": "Aug 18"
-    },
-    {
-     "ticker": "SNOW",
-     "price": 240.45,
-     "chg": 56.42,
-     "adr_pct": 5.4,
-     "dollar_vol": 2412975423,
-     "ern": "Aug 26"
-    },
-    {
-     "ticker": "NVTS",
-     "price": 24.48,
-     "chg": 55.03,
-     "adr_pct": 14.0,
-     "dollar_vol": 1038768000,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "VSH",
-     "price": 57.22,
-     "chg": 75.58,
-     "adr_pct": 8.8,
-     "dollar_vol": 408067926,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "GH",
-     "price": 124.89,
-     "chg": 35.37,
-     "adr_pct": 5.75,
-     "dollar_vol": 297558498,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "ACMR",
-     "price": 80.57,
-     "chg": 36.1,
-     "adr_pct": 8.85,
-     "dollar_vol": 154265871,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "LQDA",
-     "price": 63.9,
-     "chg": 51.14,
-     "adr_pct": 8.2,
-     "dollar_vol": 125672765,
-     "ern": "Aug 12"
-    }
-   ]
-  },
   {
    "date": "2026-06-09",
    "generated": "2026-06-09T18:58:36-04:00",
@@ -4178,6 +4083,45 @@
      "adr_pct": 6.16,
      "dollar_vol": 104315266,
      "ern": "Nov 02"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-28",
+   "generated": "2026-08-28T23:16:04-04:00",
+   "count": 4,
+   "rows": [
+    {
+     "ticker": "SMCI",
+     "price": 37.08,
+     "chg": 33.72,
+     "adr_pct": 6.32,
+     "dollar_vol": 1972622227,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "ANF",
+     "price": 148.42,
+     "chg": 48.04,
+     "adr_pct": 5.35,
+     "dollar_vol": 280990501,
+     "ern": "Nov 25"
+    },
+    {
+     "ticker": "ZETA",
+     "price": 30.54,
+     "chg": 42.91,
+     "adr_pct": 5.69,
+     "dollar_vol": 261275933,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "TWST",
+     "price": 141.38,
+     "chg": 54.8,
+     "adr_pct": 8.06,
+     "dollar_vol": 229769601,
+     "ern": "Nov 16"
     }
    ]
   }
