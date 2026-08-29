@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-28T06:21:53+00:00",
+ "generated": "2026-08-29T03:53:16+00:00",
  "bt_version": "vol_backtest_v2",
  "fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
  "exit_models": [
