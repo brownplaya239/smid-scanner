@@ -1,33 +1,33 @@
 {
- "generated": "2026-08-31T20:47:55+00:00",
+ "generated": "2026-08-31T21:05:48+00:00",
  "engine_version": "earnings_vol_v1",
  "types": {
   "vol_rich": {
-   "n": 112,
+   "n": 113,
    "span": {
     "from": "2026-07-21",
-    "to": "2026-08-20"
+    "to": "2026-08-24"
    },
-   "ev_vol_pts": 6.62,
-   "med_vol_pts": 6.22,
+   "ev_vol_pts": 6.58,
+   "med_vol_pts": 6.2,
    "win": 91,
    "date_cluster_bootstrap": {
-    "nights": 20,
-    "mean": 6.62,
+    "nights": 21,
+    "mean": 6.58,
     "ci95": [
-     5.54,
-     7.63
+     5.48,
+     7.61
     ]
    },
    "move_ratio": {
-    "n": 112,
+    "n": 113,
     "median": 0.25,
-    "p75": 0.51,
+    "p75": 0.57,
     "p90": 0.93,
     "p95": 1.22,
     "p99": 1.79,
     "max": 1.79,
-    "inside_050x": 74,
+    "inside_050x": 73,
     "inside_075x": 81,
     "inside_100x": 91,
     "blowthrough_10x": 9,
@@ -48,7 +48,7 @@
     "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
    },
    "clustering": {
-    "nights": 20,
+    "nights": 21,
     "events_per_night": {
      "median": 6,
      "p90": 8,
@@ -61,9 +61,9 @@
    "decomposition": {
     "implied_band": {
      "8-12%": {
-      "n": 35,
-      "ev": 6.48,
-      "med": 7.38,
+      "n": 36,
+      "ev": 6.36,
+      "med": 7.19,
       "win": 97
      },
      "5-8%": {
@@ -95,9 +95,9 @@
       "win": 93
      },
      "10-100B": {
-      "n": 52,
-      "ev": 6.22,
-      "med": 5.62,
+      "n": 53,
+      "ev": 6.14,
+      "med": 5.58,
       "win": 94
      },
      "1-10B": {
@@ -119,18 +119,18 @@
       "win": 97
      },
      "BMO": {
-      "n": 35,
-      "ev": 2.64,
-      "med": 2.66,
-      "win": 77
+      "n": 36,
+      "ev": 2.62,
+      "med": 2.56,
+      "win": 78
      }
     },
     "regime": {
      "mixed": {
-      "n": 43,
-      "ev": 7.1,
-      "med": 6.34,
-      "win": 88
+      "n": 44,
+      "ev": 6.98,
+      "med": 6.27,
+      "win": 89
      },
      "risk_off": {
       "n": 32,
@@ -163,10 +163,10 @@
       "status": "thin"
      },
      "Other": {
-      "n": 28,
-      "ev": 6.73,
-      "med": 6.21,
-      "win": 89
+      "n": 29,
+      "ev": 6.56,
+      "med": 6.07,
+      "win": 90
      },
      "Tech / Software": {
       "n": 14,
@@ -229,7 +229,7 @@
       "win": 91
      },
      "1-2": {
-      "n": 5,
+      "n": 6,
       "status": "thin"
      }
     }
@@ -244,36 +244,36 @@
    ]
   },
   "vol_cheap": {
-   "n": 60,
+   "n": 62,
    "span": {
     "from": "2026-07-21",
-    "to": "2026-08-21"
+    "to": "2026-08-24"
    },
-   "ev_vol_pts": 2.64,
+   "ev_vol_pts": 2.57,
    "med_vol_pts": 1.74,
    "win": 68,
    "date_cluster_bootstrap": {
-    "nights": 19,
-    "mean": 2.64,
+    "nights": 20,
+    "mean": 2.57,
     "ci95": [
-     1.06,
-     4.38
+     0.99,
+     4.2
     ]
    },
    "move_ratio": {
-    "n": 60,
-    "median": 1.84,
+    "n": 62,
+    "median": 1.71,
     "p75": 3.65,
     "p90": 5.25,
     "p95": 6.1,
     "p99": 7.7,
     "max": 13.43,
-    "inside_050x": 22,
-    "inside_075x": 23,
+    "inside_050x": 23,
+    "inside_075x": 24,
     "inside_100x": 32,
     "blowthrough_10x": 68,
-    "blowthrough_15x": 57,
-    "blowthrough_20x": 45
+    "blowthrough_15x": 56,
+    "blowthrough_20x": 44
    },
    "tails": {
     "worst_mv": -11.77,
@@ -289,7 +289,7 @@
     "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
    },
    "clustering": {
-    "nights": 19,
+    "nights": 20,
     "events_per_night": {
      "median": 3,
      "p90": 6,
@@ -302,13 +302,13 @@
    "decomposition": {
     "implied_band": {
      "<5%": {
-      "n": 47,
-      "ev": 3.7,
+      "n": 48,
+      "ev": 3.57,
       "med": 2.11,
-      "win": 79
+      "win": 77
      },
      "5-8%": {
-      "n": 9,
+      "n": 10,
       "status": "thin"
      },
      ">=12%": {
@@ -322,13 +322,13 @@
     },
     "cap": {
      "10-100B": {
-      "n": 26,
-      "ev": 2.82,
-      "med": 2.17,
-      "win": 69
+      "n": 27,
+      "ev": 2.84,
+      "med": 2.22,
+      "win": 70
      },
      ">100B": {
-      "n": 16,
+      "n": 17,
       "status": "thin"
      },
      "1-10B": {
@@ -338,10 +338,10 @@
     },
     "session": {
      "BMO": {
-      "n": 51,
-      "ev": 3.16,
+      "n": 53,
+      "ev": 3.05,
       "med": 2.11,
-      "win": 76
+      "win": 75
      },
      "AMC": {
       "n": 7,
@@ -354,10 +354,10 @@
     },
     "regime": {
      "mixed": {
-      "n": 27,
-      "ev": 2.29,
+      "n": 29,
+      "ev": 2.16,
       "med": 1.95,
-      "win": 74
+      "win": 72
      },
      "risk_off": {
       "n": 11,
@@ -376,10 +376,10 @@
       "status": "thin"
      },
      "Other": {
-      "n": 20,
-      "ev": 3.28,
+      "n": 22,
+      "ev": 3.02,
       "med": 1.9,
-      "win": 70
+      "win": 68
      },
      "Consumer / Food & Bev": {
       "n": 2,
@@ -448,7 +448,7 @@
     },
     "same_night": {
      "1-2": {
-      "n": 12,
+      "n": 14,
       "status": "thin"
      },
      ">=3": {
@@ -474,14 +474,14 @@
    "definition": "all vol_rich events",
    "declared": "2026-08-26",
    "at_declaration": {
-    "n": 112,
-    "ev": 6.62,
+    "n": 113,
+    "ev": 6.58,
     "bootstrap": {
-     "nights": 20,
-     "mean": 6.62,
+     "nights": 21,
+     "mean": 6.58,
      "ci95": [
-      5.54,
-      7.63
+      5.48,
+      7.61
      ]
     }
    },
@@ -533,7 +533,7 @@
  },
  "ticker_history": {},
  "cohort_history": {
-  "n": 112,
+  "n": 113,
   "median_ratio": 0.25,
   "inside_100x": 91,
   "inside_075x": 81
@@ -562,11 +562,11 @@
   "per_type": {
    "vol_rich": {
     "median_ratio": 0.25,
-    "n": 112
+    "n": 113
    },
    "vol_cheap": {
-    "median_ratio": 1.84,
-    "n": 60
+    "median_ratio": 1.71,
+    "n": 62
    }
   },
   "definition": "TickerDesk Fair Move = the ticker's own median |earnings move| across its reported history (earnings_edge realized_med). Volatility Edge = implied - fair. Richness = implied/fair - 1. The per-type median ratios above are the selected-universe calibration context, not a multiplier applied to any displayed number."
