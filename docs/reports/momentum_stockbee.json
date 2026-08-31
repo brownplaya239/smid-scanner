@@ -1,79 +1,6 @@
 {
- "updated": "2026-08-30T16:41:48-04:00",
+ "updated": "2026-08-31T16:41:48-04:00",
  "runs": [
-  {
-   "date": "2026-06-09",
-   "generated": "2026-06-09T18:58:36-04:00",
-   "count": 5,
-   "rows": [
-    {
-     "ticker": "NUVL",
-     "price": 123.25,
-     "chg": 34.92,
-     "adr_pct": 4.42,
-     "dollar_vol": 399053596,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "OSCR",
-     "price": 27.22,
-     "chg": 28.76,
-     "adr_pct": 7.07,
-     "dollar_vol": 205108667,
-     "ern": "--"
-    },
-    {
-     "ticker": "ALHC",
-     "price": 19.2,
-     "chg": 40.76,
-     "adr_pct": 6.43,
-     "dollar_vol": 124836377,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "LQDA",
-     "price": 64.01,
-     "chg": 16.15,
-     "adr_pct": 6.73,
-     "dollar_vol": 112542320,
-     "ern": "Aug 12"
-    },
-    {
-     "ticker": "TNGX",
-     "price": 31.56,
-     "chg": 46.79,
-     "adr_pct": 9.61,
-     "dollar_vol": 103100168,
-     "ern": "Aug 05"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "GKOS",
-     "price": 126.34,
-     "chg": 14.05,
-     "adr_pct": 6.46,
-     "dollar_vol": 156692626,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "MDT",
-     "price": 81.98,
-     "chg": 11.16,
-     "adr_pct": 2.09,
-     "dollar_vol": 943106928,
-     "ern": "Aug 18"
-    },
-    {
-     "ticker": "AXSM",
-     "price": 245.64,
-     "chg": 10.57,
-     "adr_pct": 3.54,
-     "dollar_vol": 153861135,
-     "ern": "Aug 03"
-    }
-   ]
-  },
   {
    "date": "2026-06-10",
    "generated": "2026-06-10T19:08:40-04:00",
@@ -8130,6 +8057,87 @@
      "adr_pct": 3.32,
      "dollar_vol": 682891592,
      "ern": "Reported"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-31",
+   "generated": "2026-08-31T16:41:48-04:00",
+   "count": 4,
+   "rows": [
+    {
+     "ticker": "CRM",
+     "price": 257.54,
+     "chg": 23.19,
+     "adr_pct": 3.9,
+     "dollar_vol": 3426938086,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "NOW",
+     "price": 147.99,
+     "chg": 15.57,
+     "adr_pct": 4.6,
+     "dollar_vol": 2352082320,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "CRWD",
+     "price": 231.0,
+     "chg": 21.15,
+     "adr_pct": 5.05,
+     "dollar_vol": 1998960346,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "ANF",
+     "price": 143.08,
+     "chg": 27.34,
+     "adr_pct": 5.24,
+     "dollar_vol": 290001785,
+     "ern": "Nov 25"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "FTNT",
+     "price": 170.93,
+     "chg": 12.46,
+     "adr_pct": 4.01,
+     "dollar_vol": 734338288,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "TENB",
+     "price": 38.15,
+     "chg": 12.4,
+     "adr_pct": 5.56,
+     "dollar_vol": 142891084,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "SNPS",
+     "price": 439.59,
+     "chg": 11.43,
+     "adr_pct": 3.32,
+     "dollar_vol": 680658178,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "SLB",
+     "price": 60.1,
+     "chg": 11.3,
+     "adr_pct": 3.1,
+     "dollar_vol": 603236726,
+     "ern": "Oct 23"
+    },
+    {
+     "ticker": "TTMI",
+     "price": 118.92,
+     "chg": 11.02,
+     "adr_pct": 7.05,
+     "dollar_vol": 383053188,
+     "ern": "Nov 04"
     }
    ]
   }

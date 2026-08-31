@@ -1,93 +1,6 @@
 {
- "updated": "2026-08-30T16:41:48-04:00",
+ "updated": "2026-08-31T16:41:48-04:00",
  "runs": [
-  {
-   "date": "2026-06-09",
-   "generated": "2026-06-09T18:58:36-04:00",
-   "count": 10,
-   "rows": [
-    {
-     "ticker": "MRVL",
-     "price": 266.88,
-     "chg": 56.87,
-     "adr_pct": 9.93,
-     "dollar_vol": 12785488961,
-     "ern": "Aug 27"
-    },
-    {
-     "ticker": "DELL",
-     "price": 381.78,
-     "chg": 46.58,
-     "adr_pct": 6.8,
-     "dollar_vol": 4301463110,
-     "ern": "Sep 03"
-    },
-    {
-     "ticker": "ARM",
-     "price": 324.86,
-     "chg": 52.32,
-     "adr_pct": 9.69,
-     "dollar_vol": 3939695466,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "SNOW",
-     "price": 239.66,
-     "chg": 57.21,
-     "adr_pct": 5.53,
-     "dollar_vol": 2445223317,
-     "ern": "Aug 26"
-    },
-    {
-     "ticker": "SMTC",
-     "price": 157.52,
-     "chg": 29.32,
-     "adr_pct": 8.67,
-     "dollar_vol": 610977486,
-     "ern": "Aug 24"
-    },
-    {
-     "ticker": "VSH",
-     "price": 58.58,
-     "chg": 70.99,
-     "adr_pct": 9.82,
-     "dollar_vol": 455454565,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "GH",
-     "price": 130.12,
-     "chg": 35.97,
-     "adr_pct": 5.89,
-     "dollar_vol": 302445809,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "ACMR",
-     "price": 81.33,
-     "chg": 35.89,
-     "adr_pct": 9.41,
-     "dollar_vol": 154499894,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "LQDA",
-     "price": 64.01,
-     "chg": 51.32,
-     "adr_pct": 6.73,
-     "dollar_vol": 112542320,
-     "ern": "Aug 12"
-    },
-    {
-     "ticker": "TNGX",
-     "price": 31.56,
-     "chg": 37.1,
-     "adr_pct": 9.61,
-     "dollar_vol": 103100168,
-     "ern": "Aug 05"
-    }
-   ]
-  },
   {
    "date": "2026-06-10",
    "generated": "2026-06-10T19:08:40-04:00",
@@ -4121,6 +4034,37 @@
      "chg": 54.8,
      "adr_pct": 8.06,
      "dollar_vol": 229769601,
+     "ern": "Nov 16"
+    }
+   ]
+  },
+  {
+   "date": "2026-08-31",
+   "generated": "2026-08-31T16:41:48-04:00",
+   "count": 3,
+   "rows": [
+    {
+     "ticker": "ANF",
+     "price": 143.08,
+     "chg": 43.74,
+     "adr_pct": 5.24,
+     "dollar_vol": 290001785,
+     "ern": "Nov 25"
+    },
+    {
+     "ticker": "ZETA",
+     "price": 30.97,
+     "chg": 43.38,
+     "adr_pct": 5.69,
+     "dollar_vol": 272820781,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "TWST",
+     "price": 139.0,
+     "chg": 51.83,
+     "adr_pct": 6.92,
+     "dollar_vol": 228074441,
      "ern": "Nov 16"
     }
    ]

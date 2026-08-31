@@ -1721,9 +1721,9 @@
 "AON": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-21",
+"fetched": "2026-08-31",
 "industry": "INSURANCE AGENTS, BROKERS & SERVICE",
-"market_cap": 77481445558.22,
+"market_cap": 75389379243.59999,
 "mcap_bucket": "Large",
 "name": "Aon plc Class A",
 "sector": "Financials"
@@ -3551,9 +3551,9 @@
 "BG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-29",
+"fetched": "2026-08-31",
 "industry": "FATS & OILS",
-"market_cap": 22771906157.55,
+"market_cap": 22185916324.04,
 "mcap_bucket": "Large",
 "name": "Bunge Global SA",
 "sector": "Consumer / Food & Bev"
@@ -5400,9 +5400,9 @@
 "CDW": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-31",
+"fetched": "2026-08-31",
 "industry": "RETAIL-CATALOG & MAIL-ORDER HOUSES",
-"market_cap": 18595792327.56,
+"market_cap": 18463823645.94,
 "mcap_bucket": "Large",
 "name": "CDW Corporation",
 "sector": "Consumer / Retail"
@@ -5810,9 +5810,9 @@
 "CHRD": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-30",
+"fetched": "2026-08-31",
 "industry": "CRUDE PETROLEUM & NATURAL GAS",
-"market_cap": 7683149504.01,
+"market_cap": 7985889312.0,
 "mcap_bucket": "Mid",
 "name": "Chord Energy Corporation Common Stock",
 "sector": "Energy"
@@ -7280,9 +7280,9 @@
 "CVI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-30",
+"fetched": "2026-08-31",
 "industry": "PETROLEUM REFINING",
-"market_cap": 3480369337.3799996,
+"market_cap": 4198157814.24,
 "mcap_bucket": "Mid",
 "name": "CVR ENERGY, INC.",
 "sector": "Energy"
@@ -7890,9 +7890,9 @@
 "DG": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-23",
+"fetched": "2026-08-31",
 "industry": "RETAIL-VARIETY STORES",
-"market_cap": 26523338435.28,
+"market_cap": 27111597323.1,
 "mcap_bucket": "Large",
 "name": "Dollar General Corp.",
 "sector": "Consumer / Retail"
@@ -8500,9 +8500,9 @@
 "DTM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-31",
+"fetched": "2026-08-31",
 "industry": "NATURAL GAS TRANSMISSION",
-"market_cap": 13952470918.86,
+"market_cap": 13214041290.880001,
 "mcap_bucket": "Large",
 "name": "DT Midstream, Inc.",
 "sector": "Utilities"
@@ -11230,9 +11230,9 @@
 "FSLY": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-31",
+"fetched": "2026-08-31",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 3372575000.0,
+"market_cap": 3670272000.0,
 "mcap_bucket": "Mid",
 "name": "Fastly, Inc. Class A Common Stock",
 "sector": "Tech / Software"
@@ -11350,9 +11350,9 @@
 "FTNT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-22",
+"fetched": "2026-08-31",
 "industry": "COMPUTER PERIPHERAL EQUIPMENT, NEC",
-"market_cap": 115831710617.09999,
+"market_cap": 121796466398.0,
 "mcap_bucket": "Large",
 "name": "Fortinet, Inc.",
 "sector": "Tech / Hardware"
@@ -12679,9 +12679,9 @@
 "HAL": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-05",
+"fetched": "2026-08-31",
 "industry": "OIL & GAS FIELD SERVICES, NEC",
-"market_cap": 34435094636.7,
+"market_cap": 30142656678.06,
 "mcap_bucket": "Large",
 "name": "Halliburton Company",
 "sector": "Energy"
@@ -12859,9 +12859,9 @@
 "HESM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-31",
+"fetched": "2026-08-31",
 "industry": "CRUDE PETROLEUM & NATURAL GAS",
-"market_cap": 5168689977.870001,
+"market_cap": 5077560852.360001,
 "mcap_bucket": "Mid",
 "name": "Hess Midstream LP Class A Share representing a limited partner Interest",
 "sector": "Energy"
@@ -12964,6 +12964,16 @@
 "market_cap": 10654247315.66,
 "mcap_bucket": "Large",
 "name": "Hecla Mining Company",
+"sector": "Other"
+},
+"HLF": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-08-31",
+"industry": "WHOLESALE-DRUGS, PROPRIETARIES & DRUGGISTS' SUNDRIES",
+"market_cap": 1302706013.3999999,
+"mcap_bucket": "Small",
+"name": "Herbalife Ltd.",
 "sector": "Other"
 },
 "HLI": {
@@ -13209,9 +13219,9 @@
 "HRL": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-31",
+"fetched": "2026-08-31",
 "industry": "MEAT PACKING PLANTS",
-"market_cap": 13961490509.83,
+"market_cap": 11871066756.0,
 "mcap_bucket": "Large",
 "name": "Hormel Foods Corporation",
 "sector": "Consumer / Food & Bev"
@@ -14269,9 +14279,9 @@
 "INFQ": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-08-31",
 "industry": "SERVICES-COMPUTER PROCESSING & DATA PREPARATION",
-"market_cap": 2952203935.23,
+"market_cap": 2884570265.6000004,
 "mcap_bucket": "Mid",
 "name": "Infleqtion, Inc.",
 "sector": "Tech / Software"
@@ -15208,7 +15218,7 @@
 "JAAA": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-31",
+"fetched": "2026-08-31",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -17128,9 +17138,9 @@
 "LULU": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-09",
+"fetched": "2026-08-31",
 "industry": "APPAREL & OTHER FINISHD PRODS OF FABRICS & SIMILAR MATL",
-"market_cap": 13348263060.9,
+"market_cap": 13718448833.58,
 "mcap_bucket": "Large",
 "name": "lululemon athletica inc.",
 "sector": "Other"
@@ -18088,9 +18098,9 @@
 "MMED": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-26",
+"fetched": "2026-08-31",
 "industry": "SURGICAL & MEDICAL INSTRUMENTS & APPARATUS",
-"market_cap": 3993260229.36,
+"market_cap": 5655133613.1,
 "mcap_bucket": "Mid",
 "name": "MiniMed Group, Inc. Common Stock",
 "sector": "Other"
@@ -19467,9 +19477,9 @@
 "NOV": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-29",
+"fetched": "2026-08-31",
 "industry": "OIL & GAS FIELD MACHINERY & EQUIPMENT",
-"market_cap": 7113169673.6,
+"market_cap": 7482475843.749999,
 "mcap_bucket": "Mid",
 "name": "NOV Inc.",
 "sector": "Industrials / Machinery"
@@ -21277,9 +21287,9 @@
 "PDI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-27",
+"fetched": "2026-08-31",
 "industry": "",
-"market_cap": 7403493200.559999,
+"market_cap": 7075782466.62,
 "mcap_bucket": "Mid",
 "name": "PIMCO Dynamic Income Fund",
 "sector": "Other"
@@ -21417,9 +21427,9 @@
 "PFGC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-31",
+"fetched": "2026-08-31",
 "industry": "WHOLESALE-GROCERIES, GENERAL LINE",
-"market_cap": 18026060402.25,
+"market_cap": 15840757490.15,
 "mcap_bucket": "Large",
 "name": "Performance Food Group Company",
 "sector": "Other"
@@ -21507,7 +21517,7 @@
 "PGX": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-26",
+"fetched": "2026-08-31",
 "industry": "INVESTMENT ADVICE",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -22517,7 +22527,7 @@
 "PULS": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-31",
+"fetched": "2026-08-31",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -23277,9 +23287,9 @@
 "REGN": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-30",
+"fetched": "2026-08-31",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 72907159633.44,
+"market_cap": 81765821919.72,
 "mcap_bucket": "Large",
 "name": "Regeneron Pharmaceuticals Inc",
 "sector": "Healthcare / Biotech"
@@ -24217,9 +24227,9 @@
 "SAIC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-26",
+"fetched": "2026-08-31",
 "industry": "SERVICES-COMPUTER INTEGRATED SYSTEMS DESIGN",
-"market_cap": 4507977209.97,
+"market_cap": 5325188121.24,
 "mcap_bucket": "Mid",
 "name": "Science Applications International Corporation Common Stock",
 "sector": "Tech / Software"
@@ -24647,7 +24657,7 @@
 "SCMB": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-23",
+"fetched": "2026-08-31",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -25407,9 +25417,9 @@
 "SLB": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-29",
+"fetched": "2026-08-31",
 "industry": "OIL & GAS FIELD SERVICES, NEC",
-"market_cap": 74170320000.0,
+"market_cap": 85077720000.0,
 "mcap_bucket": "Large",
 "name": "SLB Limited",
 "sector": "Energy"
@@ -25527,9 +25537,9 @@
 "SM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-29",
+"fetched": "2026-08-31",
 "industry": "CRUDE PETROLEUM & NATURAL GAS",
-"market_cap": 7108548984.65,
+"market_cap": 8710215970.16,
 "mcap_bucket": "Mid",
 "name": "SM Energy Company",
 "sector": "Energy"
@@ -25927,9 +25937,9 @@
 "SONY": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-31",
+"fetched": "2026-08-31",
 "industry": "",
-"market_cap": 133715961333.9,
+"market_cap": 145467075993.75,
 "mcap_bucket": "Large",
 "name": "Sony Group Corporation American Depositary Shares (Each Representing One Share of Dollar Validated Common Stock)",
 "sector": "Other"
@@ -27023,6 +27033,16 @@
 "mcap_bucket": "Mid",
 "name": "Spyre Therapeutics, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
+},
+"SYSB": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-08-31",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares Systematic Bond ETF",
+"sector": "Other"
 },
 "SYY": {
 "country": "USA",
@@ -28556,9 +28576,9 @@
 "UBER": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-30",
+"fetched": "2026-08-31",
 "industry": "SERVICES-BUSINESS SERVICES, NEC",
-"market_cap": 144934649725.6,
+"market_cap": 160994588737.22,
 "mcap_bucket": "Large",
 "name": "Uber Technologies, Inc.",
 "sector": "Other"
@@ -30214,7 +30234,7 @@
 "VTEC": {
 "country": "USA",
 "exchange": "BATS",
-"fetched": "2026-07-23",
+"fetched": "2026-08-31",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -30550,6 +30570,16 @@
 "mcap_bucket": "Large",
 "name": "Woodside Energy Group Limited American Depositary Shares, each representing one Ordinary Share",
 "sector": "Other"
+},
+"WEAT": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-08-31",
+"industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Teucrium Wheat Fund",
+"sector": "Financials"
 },
 "WEAV": {
 "country": "USA",
@@ -31540,6 +31570,16 @@
 "mcap_bucket": "Large",
 "name": "Block, Inc.",
 "sector": "Tech / Software"
+},
+"YDDL": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-08-31",
+"industry": "",
+"market_cap": 92454999.44999999,
+"mcap_bucket": "Micro",
+"name": "One and One Green Technologies. Inc Class A Ordinary Shares",
+"sector": "Other"
 },
 "YELP": {
 "country": "USA",
