@@ -1,8 +1,8 @@
 {
  "week_of": "2026-08-31",
- "generated": "2026-08-31T16:45:57-04:00",
+ "generated": "2026-08-31T20:49:42-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 67,
+ "total": 68,
  "days": [
   {
    "date": "2026-08-31",
@@ -11,7 +11,7 @@
     {
      "ticker": "SAIC",
      "company": "Science Applications International Corporation",
-     "score": 26,
+     "score": 27,
      "analysts": 12,
      "release_time": 1,
      "confirmed": true,
@@ -52,7 +52,7 @@
     {
      "ticker": "MDT",
      "company": "Medtronic plc",
-     "score": 17,
+     "score": 20,
      "analysts": 29,
      "release_time": 1,
      "confirmed": true,
@@ -63,7 +63,7 @@
     {
      "ticker": "NIO",
      "company": "NIO Inc.",
-     "score": 34,
+     "score": 35,
      "analysts": 16,
      "release_time": 1,
      "confirmed": true,
@@ -96,7 +96,7 @@
     {
      "ticker": "RZLV",
      "company": "Rezolve AI plc",
-     "score": 10,
+     "score": 11,
      "analysts": 5,
      "release_time": 1,
      "confirmed": true,
@@ -131,7 +131,7 @@
     {
      "ticker": "PANW",
      "company": "Palo Alto Networks, Inc.",
-     "score": 48,
+     "score": 50,
      "analysts": 54,
      "release_time": 3,
      "confirmed": true,
@@ -142,7 +142,7 @@
     {
      "ticker": "DELL",
      "company": "Dell Technologies",
-     "score": 73,
+     "score": 78,
      "analysts": 25,
      "release_time": 3,
      "confirmed": true,
@@ -153,7 +153,7 @@
     {
      "ticker": "CRDO",
      "company": "Credo Technology Group Holding Ltd",
-     "score": 55,
+     "score": 57,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
@@ -164,7 +164,7 @@
     {
      "ticker": "MDB",
      "company": "MongoDB, Inc.",
-     "score": 31,
+     "score": 32,
      "analysts": 40,
      "release_time": 3,
      "confirmed": true,
@@ -175,7 +175,7 @@
     {
      "ticker": "GTLB",
      "company": "GitLab Inc.",
-     "score": 14,
+     "score": 16,
      "analysts": 28,
      "release_time": 3,
      "confirmed": true,
@@ -236,7 +236,7 @@
     {
      "ticker": "FCEL",
      "company": "FuelCell Energy, Inc.",
-     "score": 14,
+     "score": 15,
      "analysts": 8,
      "release_time": 1,
      "confirmed": true,
@@ -247,7 +247,7 @@
     {
      "ticker": "GIII",
      "company": "G-III Apparel Group, Ltd.",
-     "score": 6,
+     "score": 7,
      "analysts": 4,
      "release_time": 1,
      "confirmed": true,
@@ -271,7 +271,7 @@
     {
      "ticker": "AVGO",
      "company": "Broadcom Inc.",
-     "score": 142,
+     "score": 147,
      "analysts": 42,
      "release_time": 3,
      "confirmed": true,
@@ -282,7 +282,7 @@
     {
      "ticker": "SNOW",
      "company": "Snowflake",
-     "score": 33,
+     "score": 35,
      "analysts": 45,
      "release_time": 3,
      "confirmed": true,
@@ -315,7 +315,7 @@
     {
      "ticker": "FIVE",
      "company": "Five Below, Inc.",
-     "score": 13,
+     "score": 14,
      "analysts": 24,
      "release_time": 3,
      "confirmed": true,
@@ -370,7 +370,7 @@
     {
      "ticker": "GOLD",
      "company": "Gold.com, Inc.",
-     "score": 3,
+     "score": 4,
      "analysts": 6,
      "release_time": 3,
      "confirmed": true,
@@ -453,7 +453,7 @@
     {
      "ticker": "CIEN",
      "company": "Ciena Corporation",
-     "score": 38,
+     "score": 40,
      "analysts": 19,
      "release_time": 1,
      "confirmed": true,
@@ -642,7 +642,7 @@
     {
      "ticker": "PL",
      "company": "Planet Labs PBC ",
-     "score": 8,
+     "score": 9,
      "analysts": 13,
      "release_time": 3,
      "confirmed": true,
@@ -748,6 +748,17 @@
      "next_eps": "2026-09-03T00:00:00",
      "q": "6/2026",
      "mcap": 203130599.4
+    },
+    {
+     "ticker": "DOMO",
+     "company": "Domo, Inc.",
+     "score": 1,
+     "analysts": 7,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-03T00:00:00",
+     "q": "7/2026",
+     "mcap": 181559581.46
     },
     {
      "ticker": "AOUT",
