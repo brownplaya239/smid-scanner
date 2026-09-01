@@ -1,33 +1,33 @@
 {
- "generated": "2026-08-31T23:31:04+00:00",
+ "generated": "2026-09-01T13:59:23+00:00",
  "engine_version": "earnings_vol_v1",
  "types": {
   "vol_rich": {
-   "n": 113,
+   "n": 114,
    "span": {
     "from": "2026-07-21",
-    "to": "2026-08-24"
+    "to": "2026-08-25"
    },
-   "ev_vol_pts": 6.58,
-   "med_vol_pts": 6.2,
+   "ev_vol_pts": 6.59,
+   "med_vol_pts": 6.22,
    "win": 91,
    "date_cluster_bootstrap": {
-    "nights": 21,
-    "mean": 6.58,
+    "nights": 22,
+    "mean": 6.59,
     "ci95": [
-     5.48,
+     5.46,
      7.61
     ]
    },
    "move_ratio": {
-    "n": 113,
+    "n": 114,
     "median": 0.25,
     "p75": 0.57,
     "p90": 0.93,
     "p95": 1.22,
     "p99": 1.79,
     "max": 1.79,
-    "inside_050x": 73,
+    "inside_050x": 74,
     "inside_075x": 81,
     "inside_100x": 91,
     "blowthrough_10x": 9,
@@ -48,9 +48,9 @@
     "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
    },
    "clustering": {
-    "nights": 21,
+    "nights": 22,
     "events_per_night": {
-     "median": 6,
+     "median": 5,
      "p90": 8,
      "max": 10
     },
@@ -61,9 +61,9 @@
    "decomposition": {
     "implied_band": {
      "8-12%": {
-      "n": 36,
-      "ev": 6.36,
-      "med": 7.19,
+      "n": 37,
+      "ev": 6.37,
+      "med": 7.03,
       "win": 97
      },
      "5-8%": {
@@ -95,9 +95,9 @@
       "win": 93
      },
      "10-100B": {
-      "n": 53,
-      "ev": 6.14,
-      "med": 5.58,
+      "n": 54,
+      "ev": 6.15,
+      "med": 5.62,
       "win": 94
      },
      "1-10B": {
@@ -113,9 +113,9 @@
       "status": "thin"
      },
      "AMC": {
-      "n": 76,
-      "ev": 8.43,
-      "med": 7.4,
+      "n": 77,
+      "ev": 8.41,
+      "med": 7.39,
       "win": 97
      },
      "BMO": {
@@ -139,9 +139,9 @@
       "win": 97
      },
      "risk_on": {
-      "n": 37,
-      "ev": 5.47,
-      "med": 5.44,
+      "n": 38,
+      "ev": 5.52,
+      "med": 5.51,
       "win": 89
      }
     },
@@ -169,7 +169,7 @@
       "win": 90
      },
      "Tech / Software": {
-      "n": 14,
+      "n": 15,
       "status": "thin"
      },
      "Industrials / Machinery": {
@@ -229,7 +229,7 @@
       "win": 91
      },
      "1-2": {
-      "n": 6,
+      "n": 7,
       "status": "thin"
      }
     }
@@ -474,13 +474,13 @@
    "definition": "all vol_rich events",
    "declared": "2026-08-26",
    "at_declaration": {
-    "n": 113,
-    "ev": 6.58,
+    "n": 114,
+    "ev": 6.59,
     "bootstrap": {
-     "nights": 21,
-     "mean": 6.58,
+     "nights": 22,
+     "mean": 6.59,
      "ci95": [
-      5.48,
+      5.46,
       7.61
      ]
     }
@@ -533,7 +533,7 @@
  },
  "ticker_history": {},
  "cohort_history": {
-  "n": 113,
+  "n": 114,
   "median_ratio": 0.25,
   "inside_100x": 91,
   "inside_075x": 81
@@ -562,7 +562,7 @@
   "per_type": {
    "vol_rich": {
     "median_ratio": 0.25,
-    "n": 113
+    "n": 114
    },
    "vol_cheap": {
     "median_ratio": 1.71,
