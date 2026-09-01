@@ -1,79 +1,6 @@
 {
- "updated": "2026-08-31T20:44:11-04:00",
+ "updated": "2026-09-01T16:41:53-04:00",
  "runs": [
-  {
-   "date": "2026-06-10",
-   "generated": "2026-06-10T19:08:40-04:00",
-   "count": 5,
-   "rows": [
-    {
-     "ticker": "NUVL",
-     "price": 123.35,
-     "chg": 36.78,
-     "adr_pct": 4.3,
-     "dollar_vol": 434291163,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "OSCR",
-     "price": 27.85,
-     "chg": 35.85,
-     "adr_pct": 6.92,
-     "dollar_vol": 201375583,
-     "ern": "--"
-    },
-    {
-     "ticker": "ALHC",
-     "price": 20.56,
-     "chg": 44.28,
-     "adr_pct": 6.54,
-     "dollar_vol": 128962695,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "TNGX",
-     "price": 28.68,
-     "chg": 33.58,
-     "adr_pct": 9.95,
-     "dollar_vol": 115593190,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "LQDA",
-     "price": 65.25,
-     "chg": 17.17,
-     "adr_pct": 6.36,
-     "dollar_vol": 109022392,
-     "ern": "Aug 12"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "DKNG",
-     "price": 28.79,
-     "chg": 14.66,
-     "adr_pct": 5.24,
-     "dollar_vol": 330338279,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "ANF",
-     "price": 85.33,
-     "chg": 11.66,
-     "adr_pct": 4.85,
-     "dollar_vol": 125658972,
-     "ern": "Aug 26"
-    },
-    {
-     "ticker": "CRDO",
-     "price": 237.68,
-     "chg": 10.75,
-     "adr_pct": 11.27,
-     "dollar_vol": 1949246391,
-     "ern": "Reported"
-    }
-   ]
-  },
   {
    "date": "2026-06-11",
    "generated": "2026-06-11T19:10:15-04:00",
@@ -8138,6 +8065,63 @@
      "adr_pct": 7.05,
      "dollar_vol": 383094938,
      "ern": "Nov 04"
+    }
+   ]
+  },
+  {
+   "date": "2026-09-01",
+   "generated": "2026-09-01T16:41:53-04:00",
+   "count": 3,
+   "rows": [
+    {
+     "ticker": "CRM",
+     "price": 258.11,
+     "chg": 25.48,
+     "adr_pct": 3.83,
+     "dollar_vol": 3552400616,
+     "ern": "Reported"
+    },
+    {
+     "ticker": "CRWD",
+     "price": 215.07,
+     "chg": 16.02,
+     "adr_pct": 5.27,
+     "dollar_vol": 2054448243,
+     "ern": "Dec 01"
+    },
+    {
+     "ticker": "ANF",
+     "price": 140.68,
+     "chg": 29.18,
+     "adr_pct": 5.23,
+     "dollar_vol": 295854695,
+     "ern": "Nov 25"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "ZETA",
+     "price": 31.56,
+     "chg": 13.2,
+     "adr_pct": 5.67,
+     "dollar_vol": 270975120,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "PBF",
+     "price": 74.99,
+     "chg": 12.75,
+     "adr_pct": 6.13,
+     "dollar_vol": 196718056,
+     "ern": "Oct 29"
+    },
+    {
+     "ticker": "NOW",
+     "price": 142.9,
+     "chg": 12.52,
+     "adr_pct": 4.49,
+     "dollar_vol": 2357910596,
+     "ern": "Oct 28"
     }
    ]
   }

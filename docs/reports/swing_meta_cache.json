@@ -722,9 +722,9 @@
 "AGI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-12",
+"fetched": "2026-09-01",
 "industry": "",
-"market_cap": 14484607025.390001,
+"market_cap": 15325109463.65,
 "mcap_bucket": "Large",
 "name": "Alamos Gold Inc. Class A Common Shares",
 "sector": "Other"
@@ -782,7 +782,7 @@
 "AGQ": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-05-20",
+"fetched": "2026-09-01",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -3681,7 +3681,7 @@
 "BILS": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-01",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -3711,7 +3711,7 @@
 "BINC": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-15",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -3806,6 +3806,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "2x Bitcoin ETF",
+"sector": "Other"
+},
+"BIV": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Vanguard Intermediate-Term Bond ETF",
 "sector": "Other"
 },
 "BIZD": {
@@ -4485,6 +4495,16 @@
 "market_cap": 37812013546.75,
 "mcap_bucket": "Large",
 "name": "BANCO SANTANDER (BRASIL) SA",
+"sector": "Other"
+},
+"BSCQ": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Invesco BulletShares 2026 Corporate Bond ETF",
 "sector": "Other"
 },
 "BSOL": {
@@ -6180,7 +6200,7 @@
 "CMF": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-05-26",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -6250,9 +6270,9 @@
 "CNI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-24",
+"fetched": "2026-09-01",
 "industry": "",
-"market_cap": 79209828000.0,
+"market_cap": 75461275000.0,
 "mcap_bucket": "Large",
 "name": "Canadian National Railway",
 "sector": "Other"
@@ -6310,9 +6330,9 @@
 "CNQ": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-30",
+"fetched": "2026-09-01",
 "industry": "",
-"market_cap": 96881229500.0,
+"market_cap": 103219305000.0,
 "mcap_bucket": "Large",
 "name": "Canadian Natural Resources Limited",
 "sector": "Other"
@@ -6350,9 +6370,9 @@
 "CNXC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-18",
+"fetched": "2026-09-01",
 "industry": "SERVICES-BUSINESS SERVICES, NEC",
-"market_cap": 1550742676.92,
+"market_cap": 1836652335.0,
 "mcap_bucket": "Small",
 "name": "Concentrix Corporation Common Stock",
 "sector": "Other"
@@ -6876,6 +6896,16 @@
 "mcap_bucket": "Small",
 "name": "Carter's Inc.",
 "sector": "Other"
+},
+"CRK": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-09-01",
+"industry": "CRUDE PETROLEUM & NATURAL GAS",
+"market_cap": 4236944507.64,
+"mcap_bucket": "Mid",
+"name": "Comstock Resources, Inc.",
+"sector": "Energy"
 },
 "CRL": {
 "country": "USA",
@@ -7436,6 +7466,16 @@
 "mcap_bucket": "Large",
 "name": "Cemex S.A.B. de C.V.",
 "sector": "Other"
+},
+"CXM": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-09-01",
+"industry": "SERVICES-PREPACKAGED SOFTWARE",
+"market_cap": 1923018136.0200002,
+"mcap_bucket": "Small",
+"name": "Sprinklr, Inc.",
+"sector": "Tech / Software"
 },
 "CXT": {
 "country": "USA",
@@ -9840,7 +9880,7 @@
 "EWC": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-08",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -10300,9 +10340,9 @@
 "FCX": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-30",
+"fetched": "2026-09-01",
 "industry": "METAL MINING",
-"market_cap": 86239216301.35,
+"market_cap": 108763967192.01999,
 "mcap_bucket": "Large",
 "name": "Freeport-McMoran Inc.",
 "sector": "Materials / Metals"
@@ -11377,10 +11417,20 @@
 "name": "Fortis Inc. Common Shares",
 "sector": "Other"
 },
+"FTSL": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "First Trust Senior Loan Fund ETF",
+"sector": "Other"
+},
 "FTSM": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-08",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -12739,9 +12789,9 @@
 "HBM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-09-01",
 "industry": "",
-"market_cap": 10958640923.21,
+"market_cap": 12729188821.6,
 "mcap_bucket": "Large",
 "name": "Hudbay Minerals Inc.",
 "sector": "Other"
@@ -13429,9 +13479,9 @@
 "HWM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-31",
+"fetched": "2026-09-01",
 "industry": "ROLLING DRAWING & EXTRUDING OF NONFERROUS METALS",
-"market_cap": 110941802886.23999,
+"market_cap": 97686402685.05,
 "mcap_bucket": "Large",
 "name": "Howmet Aerospace Inc.",
 "sector": "Materials / Metals"
@@ -13466,6 +13516,16 @@
 "name": "VanEck Emerging Markets High Yield Bond ETF",
 "sector": "Other"
 },
+"HYLB": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Xtrackers USD High Yield Corporate Bond ETF",
+"sector": "Other"
+},
 "HYLN": {
 "country": "USA",
 "exchange": "AMEX",
@@ -13489,7 +13549,7 @@
 "HYMB": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-23",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -14848,7 +14908,7 @@
 "IUSB": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-24",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -15318,7 +15378,7 @@
 "JBND": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-05-21",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -15354,6 +15414,16 @@
 "mcap_bucket": "Large",
 "name": "Johnson Controls International plc",
 "sector": "Industrials / Machinery"
+},
+"JCPB": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "JPMorgan Core Plus Bond ETF",
+"sector": "Other"
 },
 "JD": {
 "country": "USA",
@@ -15598,7 +15668,7 @@
 "JPIE": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-01",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -16488,9 +16558,9 @@
 "LECO": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-21",
+"fetched": "2026-09-01",
 "industry": "METALWORKG MACHINERY & EQUIPMENT",
-"market_cap": 13446948278.4,
+"market_cap": 15328654041.11,
 "mcap_bucket": "Large",
 "name": "Lincoln Electric Holdings Inc",
 "sector": "Industrials / Machinery"
@@ -16868,7 +16938,7 @@
 "LMUB": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-24",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -18385,6 +18455,16 @@
 "name": "Moderna, Inc. Common Stock",
 "sector": "Healthcare / Biotech"
 },
+"MRNX": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Defiance Daily Target 2X Long MRNA ETF",
+"sector": "Other"
+},
 "MRP": {
 "country": "USA",
 "exchange": "NYSE",
@@ -19087,7 +19167,7 @@
 "NEAR": {
 "country": "USA",
 "exchange": "BATS",
-"fetched": "2026-06-23",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -19597,9 +19677,9 @@
 "NSC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-23",
+"fetched": "2026-09-01",
 "industry": "RAILROADS, LINE-HAUL OPERATING",
-"market_cap": 74327138690.94,
+"market_cap": 76993504180.67,
 "mcap_bucket": "Large",
 "name": "Norfolk Southern Corp.",
 "sector": "Industrials"
@@ -19977,9 +20057,9 @@
 "NVS": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-10",
+"fetched": "2026-09-01",
 "industry": "",
-"market_cap": 295029179628.3,
+"market_cap": 289022698570.4,
 "mcap_bucket": "Mega",
 "name": "Novartis AG",
 "sector": "Other"
@@ -21797,10 +21877,10 @@
 "PLSE": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-26",
+"fetched": "2026-09-01",
 "industry": "SURGICAL & MEDICAL INSTRUMENTS & APPARATUS",
-"market_cap": 1903613128.56,
-"mcap_bucket": "Small",
+"market_cap": 3589666810.31,
+"mcap_bucket": "Mid",
 "name": "Pulse Biosciences, Inc Common Stock (DE)",
 "sector": "Other"
 },
@@ -23397,10 +23477,10 @@
 "RGEN": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-26",
+"fetched": "2026-09-01",
 "industry": "BIOLOGICAL PRODUCTS, (NO DIAGNOSTIC SUBSTANCES)",
-"market_cap": 7443565370.400001,
-"mcap_bucket": "Mid",
+"market_cap": 10213718688.58,
+"mcap_bucket": "Large",
 "name": "Repligen Corp",
 "sector": "Healthcare / Biotech"
 },
@@ -24167,9 +24247,9 @@
 "RZLV": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-12",
+"fetched": "2026-09-01",
 "industry": "",
-"market_cap": 1009033795.1099999,
+"market_cap": 1152611726.43,
 "mcap_bucket": "Small",
 "name": "Rezolve AI PLC Ordinary Shares",
 "sector": "Other"
@@ -24524,6 +24604,16 @@
 "name": "Schwab U.S. REIT ETF",
 "sector": "Other"
 },
+"SCHI": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Schwab 5-10 Year Corporate Bond ETF",
+"sector": "Other"
+},
 "SCHJ": {
 "country": "USA",
 "exchange": "NYSE Arca",
@@ -24597,7 +24687,7 @@
 "SCHR": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-01",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -25174,6 +25264,16 @@
 "name": "The Sherwin-Williams Company",
 "sector": "Consumer / Retail"
 },
+"SHYG": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares 0-5 Year High Yield Corporate Bond ETF",
+"sector": "Other"
+},
 "SIDU": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -25227,7 +25327,7 @@
 "SILJ": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-21",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -25554,6 +25654,16 @@
 "name": "SmartStop Self Storage REIT, Inc.",
 "sector": "Real Estate"
 },
+"SMBS": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Schwab Mortgage-Backed Securities ETF",
+"sector": "Other"
+},
 "SMCI": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -25787,9 +25897,9 @@
 "SNPS": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-28",
+"fetched": "2026-09-01",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 86996716520.5,
+"market_cap": 84241553215.14,
 "mcap_bucket": "Large",
 "name": "Synopsys Inc",
 "sector": "Tech / Software"
@@ -26127,7 +26237,7 @@
 "SPIB": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-21",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -26247,7 +26357,7 @@
 "SPTI": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-24",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -27566,9 +27676,9 @@
 "TGTX": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-22",
+"fetched": "2026-09-01",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 8258859141.0,
+"market_cap": 8311649577.9,
 "mcap_bucket": "Mid",
 "name": "TG Therapeutics, Inc.",
 "sector": "Healthcare / Biotech"
@@ -28916,9 +29026,9 @@
 "UNP": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-27",
+"fetched": "2026-09-01",
 "industry": "RAILROADS, LINE-HAUL OPERATING",
-"market_cap": 182571282045.36,
+"market_cap": 178620679983.66,
 "mcap_bucket": "Large",
 "name": "Union Pacific Corp.",
 "sector": "Industrials"
@@ -28976,7 +29086,7 @@
 "URA": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-21",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -29101,6 +29211,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "WisdomTree Floating Rate Treasury Fund",
+"sector": "Other"
+},
+"USHY": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares Broad USD High Yield Corporate Bond ETF",
 "sector": "Other"
 },
 "USIG": {
@@ -29345,7 +29465,7 @@
 "VCIT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-08",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -29382,10 +29502,20 @@
 "name": "Vanguard Core Bond ETF",
 "sector": "Other"
 },
+"VCRM": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Vanguard Core Tax-Exempt Bond ETF",
+"sector": "Other"
+},
 "VCSH": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-17",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -29545,7 +29675,7 @@
 "VGIT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-21",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -30224,7 +30354,7 @@
 "VTEB": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-31",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -30249,6 +30379,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "Vanguard Intermediate-Term Tax-Exempt Bond ETF",
+"sector": "Other"
+},
+"VTES": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Vanguard Short-Term Tax-Exempt Bond ETF",
 "sector": "Other"
 },
 "VTIP": {
@@ -30314,7 +30454,7 @@
 "VUSB": {
 "country": "USA",
 "exchange": "BATS",
-"fetched": "2026-07-06",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -30434,9 +30574,9 @@
 "WAT": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-09-01",
 "industry": "LABORATORY ANALYTICAL INSTRUMENTS",
-"market_cap": 36446589376.0,
+"market_cap": 40736614263.93,
 "mcap_bucket": "Large",
 "name": "Waters Corp",
 "sector": "Other"
@@ -31514,7 +31654,7 @@
 "XTEN": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-26",
+"fetched": "2026-09-01",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -31564,9 +31704,9 @@
 "XYZ": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-29",
+"fetched": "2026-09-01",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 49459541100.0,
+"market_cap": 49277205900.0,
 "mcap_bucket": "Large",
 "name": "Block, Inc.",
 "sector": "Tech / Software"
@@ -31810,6 +31950,16 @@
 "mcap_bucket": "Large",
 "name": "Zscaler, Inc. Common Stock",
 "sector": "Tech / Software"
+},
+"ZSEP": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-09-01",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Innovator Equity Defined Protection ETF - 1 Yr September",
+"sector": "Other"
 },
 "ZSL": {
 "country": "USA",

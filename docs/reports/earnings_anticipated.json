@@ -1,8 +1,8 @@
 {
  "week_of": "2026-08-31",
- "generated": "2026-08-31T20:49:42-04:00",
+ "generated": "2026-09-01T16:46:46-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 68,
+ "total": 69,
  "days": [
   {
    "date": "2026-08-31",
@@ -52,7 +52,7 @@
     {
      "ticker": "MDT",
      "company": "Medtronic plc",
-     "score": 20,
+     "score": 21,
      "analysts": 29,
      "release_time": 1,
      "confirmed": true,
@@ -63,7 +63,7 @@
     {
      "ticker": "NIO",
      "company": "NIO Inc.",
-     "score": 35,
+     "score": 43,
      "analysts": 16,
      "release_time": 1,
      "confirmed": true,
@@ -131,7 +131,7 @@
     {
      "ticker": "PANW",
      "company": "Palo Alto Networks, Inc.",
-     "score": 50,
+     "score": 70,
      "analysts": 54,
      "release_time": 3,
      "confirmed": true,
@@ -142,7 +142,7 @@
     {
      "ticker": "DELL",
      "company": "Dell Technologies",
-     "score": 78,
+     "score": 107,
      "analysts": 25,
      "release_time": 3,
      "confirmed": true,
@@ -153,7 +153,7 @@
     {
      "ticker": "CRDO",
      "company": "Credo Technology Group Holding Ltd",
-     "score": 57,
+     "score": 71,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
@@ -164,7 +164,7 @@
     {
      "ticker": "MDB",
      "company": "MongoDB, Inc.",
-     "score": 32,
+     "score": 40,
      "analysts": 40,
      "release_time": 3,
      "confirmed": true,
@@ -175,7 +175,7 @@
     {
      "ticker": "GTLB",
      "company": "GitLab Inc.",
-     "score": 16,
+     "score": 20,
      "analysts": 28,
      "release_time": 3,
      "confirmed": true,
@@ -186,7 +186,7 @@
     {
      "ticker": "SPWH",
      "company": "Sportsman's Warehouse Holdings, Inc.",
-     "score": 6,
+     "score": 8,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
@@ -214,7 +214,7 @@
     {
      "ticker": "OLLI",
      "company": "Ollie's Bargain Outlet Holdings, Inc.",
-     "score": 5,
+     "score": 6,
      "analysts": 15,
      "release_time": 1,
      "confirmed": true,
@@ -225,7 +225,7 @@
     {
      "ticker": "CXM",
      "company": "Sprinklr, Inc.",
-     "score": 8,
+     "score": 10,
      "analysts": 10,
      "release_time": 1,
      "confirmed": true,
@@ -236,7 +236,7 @@
     {
      "ticker": "FCEL",
      "company": "FuelCell Energy, Inc.",
-     "score": 15,
+     "score": 16,
      "analysts": 8,
      "release_time": 1,
      "confirmed": true,
@@ -247,7 +247,7 @@
     {
      "ticker": "GIII",
      "company": "G-III Apparel Group, Ltd.",
-     "score": 7,
+     "score": 9,
      "analysts": 4,
      "release_time": 1,
      "confirmed": true,
@@ -271,7 +271,7 @@
     {
      "ticker": "AVGO",
      "company": "Broadcom Inc.",
-     "score": 147,
+     "score": 170,
      "analysts": 42,
      "release_time": 3,
      "confirmed": true,
@@ -282,7 +282,7 @@
     {
      "ticker": "SNOW",
      "company": "Snowflake",
-     "score": 35,
+     "score": 44,
      "analysts": 45,
      "release_time": 3,
      "confirmed": true,
@@ -293,7 +293,7 @@
     {
      "ticker": "HPE",
      "company": "Hewlett Packard Enterprise",
-     "score": 29,
+     "score": 34,
      "analysts": 20,
      "release_time": 3,
      "confirmed": true,
@@ -304,7 +304,7 @@
     {
      "ticker": "NTAP",
      "company": "NetApp, Inc.",
-     "score": 20,
+     "score": 22,
      "analysts": 21,
      "release_time": 3,
      "confirmed": true,
@@ -315,7 +315,7 @@
     {
      "ticker": "FIVE",
      "company": "Five Below, Inc.",
-     "score": 14,
+     "score": 16,
      "analysts": 24,
      "release_time": 3,
      "confirmed": true,
@@ -453,7 +453,7 @@
     {
      "ticker": "CIEN",
      "company": "Ciena Corporation",
-     "score": 40,
+     "score": 42,
      "analysts": 19,
      "release_time": 1,
      "confirmed": true,
@@ -464,7 +464,7 @@
     {
      "ticker": "TTC",
      "company": "The Toro Company",
-     "score": 2,
+     "score": 3,
      "analysts": 6,
      "release_time": 1,
      "confirmed": true,
@@ -475,7 +475,7 @@
     {
      "ticker": "VSXY",
      "company": "Victoria's Secret & Co.",
-     "score": 8,
+     "score": 9,
      "analysts": 12,
      "release_time": 1,
      "confirmed": true,
@@ -528,6 +528,17 @@
      "mcap": 2726512418.9
     },
     {
+     "ticker": "PSNY",
+     "company": "Polestar",
+     "score": 1,
+     "analysts": 4,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-03T00:00:00",
+     "q": "6/2026",
+     "mcap": 1824340566.83
+    },
+    {
      "ticker": "VBNK",
      "company": "VersaBank",
      "score": 1,
@@ -576,7 +587,7 @@
     {
      "ticker": "ZS",
      "company": "Zscaler, Inc.",
-     "score": 14,
+     "score": 16,
      "analysts": 45,
      "release_time": 3,
      "confirmed": true,
@@ -587,7 +598,7 @@
     {
      "ticker": "IOT",
      "company": "Samsara Inc. ",
-     "score": 9,
+     "score": 11,
      "analysts": 22,
      "release_time": 3,
      "confirmed": true,
@@ -609,7 +620,7 @@
     {
      "ticker": "LULU",
      "company": "lululemon athletica inc.",
-     "score": 15,
+     "score": 16,
      "analysts": 32,
      "release_time": 3,
      "confirmed": true,
@@ -631,7 +642,7 @@
     {
      "ticker": "PATH",
      "company": "UiPath, Inc.",
-     "score": 22,
+     "score": 25,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
@@ -642,7 +653,7 @@
     {
      "ticker": "PL",
      "company": "Planet Labs PBC ",
-     "score": 9,
+     "score": 11,
      "analysts": 13,
      "release_time": 3,
      "confirmed": true,
@@ -653,8 +664,8 @@
     {
      "ticker": "AMBA",
      "company": "Ambarella, Inc.",
-     "score": 16,
-     "analysts": 14,
+     "score": 17,
+     "analysts": 13,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-09-03T00:00:00",
