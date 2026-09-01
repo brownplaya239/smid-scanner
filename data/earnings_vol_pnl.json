@@ -67295,5 +67295,29 @@
 "sector": "Tech / Hardware"
 },
 "bt_version": "vol_backtest_v2"
+},
+"GTLB|2026-09-01|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "GTLB",
+"date": "2026-09-01",
+"implied": 15.1,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"ASO|2026-09-08|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "ASO",
+"date": "2026-09-08",
+"implied": 9.7,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
