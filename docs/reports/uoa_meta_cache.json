@@ -891,8 +891,8 @@
 "ARM": {
 "earnings_date": "2026-11-04",
 "earnings_session": null,
-"fetched": "2026-08-21",
-"mkt_cap": 266294763194.46,
+"fetched": "2026-09-01",
+"mkt_cap": 258359533826.79,
 "sector": "Other"
 },
 "ARMG": {
@@ -1136,8 +1136,8 @@
 "AVGO": {
 "earnings_date": "2026-09-02",
 "earnings_session": "AMC",
-"fetched": "2026-08-21",
-"mkt_cap": 1724527670171.04,
+"fetched": "2026-09-01",
+"mkt_cap": 1761922250527.3198,
 "sector": "Semiconductors"
 },
 "AVGX": {
@@ -1262,8 +1262,8 @@
 "BABA": {
 "earnings_date": "2026-11-24",
 "earnings_session": "BMO",
-"fetched": "2026-08-21",
-"mkt_cap": 308957008973.5,
+"fetched": "2026-09-01",
+"mkt_cap": 283410804582.3,
 "sector": "Other"
 },
 "BAC": {
@@ -1962,8 +1962,8 @@
 "BX": {
 "earnings_date": "2026-10-22",
 "earnings_session": "BMO",
-"fetched": "2026-08-17",
-"mkt_cap": 108037472658.02,
+"fetched": "2026-09-01",
+"mkt_cap": 107519541329.36,
 "sector": "Financials"
 },
 "BXMT": {
@@ -2263,8 +2263,8 @@
 "CEG": {
 "earnings_date": "2026-11-09",
 "earnings_session": "BMO",
-"fetched": "2026-08-18",
-"mkt_cap": 98568312837.8,
+"fetched": "2026-09-01",
+"mkt_cap": 97353038527.82999,
 "sector": "Utilities"
 },
 "CELC": {
@@ -2711,7 +2711,7 @@
 "COPX": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-21",
+"fetched": "2026-09-01",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -4783,8 +4783,8 @@
 "GLXY": {
 "earnings_date": "2026-10-20",
 "earnings_session": "BMO",
-"fetched": "2026-08-21",
-"mkt_cap": 4255003384.7999997,
+"fetched": "2026-09-01",
+"mkt_cap": 4779592843.2,
 "sector": "Financials"
 },
 "GM": {
@@ -5203,8 +5203,8 @@
 "HOOD": {
 "earnings_date": "2026-11-04",
 "earnings_session": null,
-"fetched": "2026-08-21",
-"mkt_cap": 86105109285.20999,
+"fetched": "2026-09-01",
+"mkt_cap": 94232813033.13,
 "sector": "Financials"
 },
 "HPE": {
@@ -5931,7 +5931,7 @@
 "KBWB": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-21",
+"fetched": "2026-09-01",
 "mkt_cap": null,
 "sector": "Financials"
 },
@@ -5966,8 +5966,8 @@
 "KEY": {
 "earnings_date": "2026-10-20",
 "earnings_session": "BMO",
-"fetched": "2026-07-28",
-"mkt_cap": 24131507850.0,
+"fetched": "2026-09-01",
+"mkt_cap": 23060648051.94,
 "sector": "Financials / Banks"
 },
 "KEYS": {
@@ -6561,8 +6561,8 @@
 "LULU": {
 "earnings_date": "2026-09-03",
 "earnings_session": "AMC",
-"fetched": "2026-08-21",
-"mkt_cap": 13564015505.1,
+"fetched": "2026-09-01",
+"mkt_cap": 13655994178.68,
 "sector": "Other"
 },
 "LUMN": {
@@ -6855,8 +6855,8 @@
 "META": {
 "earnings_date": "2026-10-28",
 "earnings_session": "AMC",
-"fetched": "2026-08-21",
-"mkt_cap": 1391014824036.75,
+"fetched": "2026-09-01",
+"mkt_cap": 1458039712816.5,
 "sector": "Tech / Software"
 },
 "METC": {
@@ -7177,8 +7177,8 @@
 "MSFT": {
 "earnings_date": "2026-10-28",
 "earnings_session": "AMC",
-"fetched": "2026-08-21",
-"mkt_cap": 3596265936746.21,
+"fetched": "2026-09-01",
+"mkt_cap": 3766904972129.39,
 "sector": "Tech / Software"
 },
 "MSGS": {
@@ -7289,7 +7289,7 @@
 "MULL": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-18",
+"fetched": "2026-09-01",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -7926,8 +7926,8 @@
 "OKLO": {
 "earnings_date": "2026-11-10",
 "earnings_session": "BMO",
-"fetched": "2026-08-20",
-"mkt_cap": 7987597891.0,
+"fetched": "2026-09-01",
+"mkt_cap": 7546736060.5,
 "sector": "Utilities"
 },
 "OKTA": {
@@ -7947,8 +7947,8 @@
 "OLLI": {
 "earnings_date": "2026-09-02",
 "earnings_session": "BMO",
-"fetched": "2026-08-21",
-"mkt_cap": 4799386851.88,
+"fetched": "2026-09-01",
+"mkt_cap": 4559387282.64,
 "sector": "Consumer / Retail"
 },
 "OLN": {
@@ -9225,6 +9225,13 @@
 "mkt_cap": 24570194891.1,
 "sector": "Industrials / Transport Eq"
 },
+"RJF": {
+"earnings_date": "2026-10-28",
+"earnings_session": "AMC",
+"fetched": "2026-09-01",
+"mkt_cap": 34273086048.87,
+"sector": "Financials"
+},
 "RKLB": {
 "earnings_date": "2026-11-09",
 "earnings_session": null,
@@ -9989,10 +9996,10 @@
 "sector": "Tech / Software"
 },
 "SNPS": {
-"earnings_date": "2026-08-26",
-"earnings_session": "AMC",
-"fetched": "2026-08-24",
-"mkt_cap": 76183879037.75,
+"earnings_date": "2026-12-09",
+"earnings_session": null,
+"fetched": "2026-09-01",
+"mkt_cap": 84241553215.14,
 "sector": "Tech / Software"
 },
 "SNXX": {
@@ -10390,8 +10397,8 @@
 "SYF": {
 "earnings_date": "2026-10-14",
 "earnings_session": "BMO",
-"fetched": "2026-08-06",
-"mkt_cap": 25785639070.0,
+"fetched": "2026-09-01",
+"mkt_cap": 25079584347.2,
 "sector": "Financials / Banks"
 },
 "SYK": {
@@ -11053,10 +11060,10 @@
 "sector": "Industrials / Transport Eq"
 },
 "TYL": {
-"earnings_date": "2026-07-29",
+"earnings_date": "2026-10-28",
 "earnings_session": "AMC",
-"fetched": "2026-07-02",
-"mkt_cap": 12031966715.3,
+"fetched": "2026-09-01",
+"mkt_cap": 15243255428.28,
 "sector": "Tech / Software"
 },
 "U": {
@@ -11454,7 +11461,7 @@
 "VGT": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-19",
+"fetched": "2026-09-01",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -11622,8 +11629,8 @@
 "VRT": {
 "earnings_date": "2026-10-21",
 "earnings_session": "BMO",
-"fetched": "2026-08-21",
-"mkt_cap": 100481913153.0,
+"fetched": "2026-09-01",
+"mkt_cap": 99604140118.56001,
 "sector": "Tech / Hardware"
 },
 "VRTX": {
@@ -12049,8 +12056,8 @@
 "XE": {
 "earnings_date": "2026-11-16",
 "earnings_session": "BMO",
-"fetched": "2026-08-21",
-"mkt_cap": 8066367243.8,
+"fetched": "2026-09-01",
+"mkt_cap": 5303613642.3,
 "sector": "Industrials / Machinery"
 },
 "XEL": {
@@ -12222,10 +12229,10 @@
 "sector": "Consumer / Retail"
 },
 "Z": {
-"earnings_date": "2026-08-05",
+"earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-06-30",
-"mkt_cap": 7127176381.5,
+"fetched": "2026-09-01",
+"mkt_cap": 7861628391.84,
 "sector": "Other"
 },
 "ZBH": {
