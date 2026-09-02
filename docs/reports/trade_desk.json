@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-02T21:02:03+00:00",
+ "generated": "2026-09-02T21:17:47+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-02T21:02:03+00:00",
+ "data_cutoff": "2026-09-02T21:17:47+00:00",
  "market_regime": "risk_on",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "Options price a ±14.1% move vs a ±7.3% median across 7 past reports (1.9× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -219,7 +219,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "Options price a ±11.8% move vs a ±3.3% median across 7 past reports (3.6× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -260,7 +260,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "Options price a ±18.6% move vs a ±13.4% median across 7 past reports (1.4× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -301,7 +301,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "Options price a ±10.3% move vs a ±7.4% median across 8 past reports (1.4× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -341,7 +341,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "Options price a ±14.0% move vs a ±6.0% median across 8 past reports (2.3× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -376,10 +376,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
-    "n_prints": 1,
-    "total_premium": 383232,
+    "n_prints": 2,
+    "total_premium": 766464,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -391,9 +391,10 @@
      "stype": "voloi",
      "prem": ">=250k"
     },
-    "anchor_score": 66,
+    "anchor_score": 74,
     "tags": [
      "Block",
+     "Repeat",
      "Into ERN"
     ],
     "sector": "Other"
@@ -419,10 +420,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
-    "n_prints": 6,
-    "total_premium": 3575569,
+    "n_prints": 8,
+    "total_premium": 4862942,
     "feats": {
      "side": "put_buy",
      "regime": "risk_on",
@@ -434,7 +435,7 @@
      "stype": "sweep",
      "prem": ">=250k"
     },
-    "anchor_score": 70,
+    "anchor_score": 77,
     "tags": [
      "Sweep",
      "Repeat",
@@ -463,10 +464,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
-    "n_prints": 6,
-    "total_premium": 1567727,
+    "n_prints": 8,
+    "total_premium": 2076001,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -507,10 +508,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
-    "n_prints": 4,
-    "total_premium": 2391142,
+    "n_prints": 5,
+    "total_premium": 2996628,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -552,10 +553,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
-    "n_prints": 4,
-    "total_premium": 4137103,
+    "n_prints": 5,
+    "total_premium": 5297610,
     "feats": {
      "side": "put_buy",
      "regime": "risk_on",
@@ -598,10 +599,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
-    "n_prints": 11,
-    "total_premium": 43295480,
+    "n_prints": 12,
+    "total_premium": 47239970,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -643,10 +644,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
-    "n_prints": 15,
-    "total_premium": 5220798,
+    "n_prints": 16,
+    "total_premium": 5576355,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -687,10 +688,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
-    "n_prints": 16,
-    "total_premium": 67770088,
+    "n_prints": 18,
+    "total_premium": 77278895,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -736,7 +737,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -2.5% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -775,7 +776,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.1% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -812,7 +813,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.7% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -853,7 +854,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -5.1% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -892,7 +893,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -3.1% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -930,7 +931,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -964,7 +965,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.8% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -999,7 +1000,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-02T21:02:03+00:00",
+   "as_of": "2026-09-02T21:17:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -3.7% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -1088,59 +1089,12 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 5 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 29,
+  "LOW_ALPHA": 28,
   "BAD_LIQUIDITY": 7,
-  "STALE_DATA": 13,
-  "NOT_DIRECTIONAL": 1561
+  "STALE_DATA": 14,
+  "NOT_DIRECTIONAL": 1720
  },
  "what_changed": [
-  {
-   "t": "SNOW",
-   "change": "new",
-   "to": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "VZLA",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "CIEN",
-   "change": "score",
-   "from": 88.8,
-   "to": 93.8
-  },
-  {
-   "t": "VSXY",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "ORCL",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "NTAP",
-   "change": "score",
-   "from": 80.7,
-   "to": 89.6
-  },
-  {
-   "t": "LULU",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "KO",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "SPCX",
-   "change": "new",
-   "to": "WATCH"
-  },
   {
    "t": "AGX",
    "change": "new",
@@ -1153,6 +1107,31 @@
   },
   {
    "t": "CPRT",
+   "change": "new",
+   "to": "EXPERIMENTAL"
+  },
+  {
+   "t": "IOT",
+   "change": "new",
+   "to": "EXPERIMENTAL"
+  },
+  {
+   "t": "LULU",
+   "change": "new",
+   "to": "EXPERIMENTAL"
+  },
+  {
+   "t": "BRZE",
+   "change": "new",
+   "to": "EXPERIMENTAL"
+  },
+  {
+   "t": "CNM",
+   "change": "new",
+   "to": "EXPERIMENTAL"
+  },
+  {
+   "t": "TTAN",
    "change": "new",
    "to": "EXPERIMENTAL"
   }
