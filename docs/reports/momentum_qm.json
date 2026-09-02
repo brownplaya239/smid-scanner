@@ -1,77 +1,6 @@
 {
- "updated": "2026-09-01T19:28:57-04:00",
+ "updated": "2026-09-02T16:41:21-04:00",
  "runs": [
-  {
-   "date": "2026-06-11",
-   "generated": "2026-06-11T19:10:15-04:00",
-   "count": 8,
-   "rows": [
-    {
-     "ticker": "MRVL",
-     "price": 280.71,
-     "chg": 70.64,
-     "adr_pct": 10.05,
-     "dollar_vol": 13814305402,
-     "ern": "Aug 27"
-    },
-    {
-     "ticker": "DELL",
-     "price": 391.45,
-     "chg": 63.83,
-     "adr_pct": 7.04,
-     "dollar_vol": 4479959127,
-     "ern": "Sep 03"
-    },
-    {
-     "ticker": "ARM",
-     "price": 342.23,
-     "chg": 64.6,
-     "adr_pct": 9.97,
-     "dollar_vol": 4041497556,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "SNOW",
-     "price": 240.39,
-     "chg": 58.17,
-     "adr_pct": 5.67,
-     "dollar_vol": 2523604725,
-     "ern": "Aug 26"
-    },
-    {
-     "ticker": "KLAC",
-     "price": 2411.64,
-     "chg": 33.14,
-     "adr_pct": 5.51,
-     "dollar_vol": 2213911443,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "CRDO",
-     "price": 264.76,
-     "chg": 33.33,
-     "adr_pct": 11.36,
-     "dollar_vol": 2058664550,
-     "ern": "Reported"
-    },
-    {
-     "ticker": "VSH",
-     "price": 58.6,
-     "chg": 74.25,
-     "adr_pct": 9.92,
-     "dollar_vol": 464092670,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "ACMR",
-     "price": 91.7,
-     "chg": 45.58,
-     "adr_pct": 9.55,
-     "dollar_vol": 147469611,
-     "ern": "Aug 05"
-    }
-   ]
-  },
   {
    "date": "2026-06-12",
    "generated": "2026-06-12T18:57:28-04:00",
@@ -4034,6 +3963,29 @@
      "adr_pct": 6.8,
      "dollar_vol": 230305971,
      "ern": "Nov 16"
+    }
+   ]
+  },
+  {
+   "date": "2026-09-02",
+   "generated": "2026-09-02T16:41:21-04:00",
+   "count": 2,
+   "rows": [
+    {
+     "ticker": "TWST",
+     "price": 131.0,
+     "chg": 31.73,
+     "adr_pct": 6.84,
+     "dollar_vol": 223798861,
+     "ern": "Nov 16"
+    },
+    {
+     "ticker": "TXG",
+     "price": 61.65,
+     "chg": 28.81,
+     "adr_pct": 7.05,
+     "dollar_vol": 189093494,
+     "ern": "Nov 05"
     }
    ]
   }

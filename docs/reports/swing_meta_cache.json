@@ -702,9 +702,9 @@
 "AGCO": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-29",
+"fetched": "2026-09-02",
 "industry": "FARM MACHINERY & EQUIPMENT",
-"market_cap": 8957658875.17,
+"market_cap": 8566281091.28,
 "mcap_bucket": "Mid",
 "name": "AGCO Corporation",
 "sector": "Industrials / Machinery"
@@ -1172,10 +1172,10 @@
 "ALMS": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-26",
+"fetched": "2026-09-02",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 3191124259.4,
-"mcap_bucket": "Mid",
+"market_cap": 1225751713.3300002,
+"mcap_bucket": "Small",
 "name": "Alumis Inc. Common Stock",
 "sector": "Healthcare / Biotech"
 },
@@ -1272,9 +1272,9 @@
 "AM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-28",
+"fetched": "2026-09-02",
 "industry": "NATURAL GAS TRANSMISSION",
-"market_cap": 10435310600.0,
+"market_cap": 10670671520.0,
 "mcap_bucket": "Large",
 "name": "Antero Midstream Corporation Common Stock",
 "sector": "Utilities"
@@ -2521,10 +2521,10 @@
 "ATRC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-29",
+"fetched": "2026-09-02",
 "industry": "SURGICAL & MEDICAL INSTRUMENTS & APPARATUS",
-"market_cap": 1528344474.6,
-"mcap_bucket": "Small",
+"market_cap": 2488379102.48,
+"mcap_bucket": "Mid",
 "name": "AtriCure, Inc.",
 "sector": "Other"
 },
@@ -3581,10 +3581,10 @@
 "BHC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-30",
+"fetched": "2026-09-02",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 1747866013.9199998,
-"mcap_bucket": "Small",
+"market_cap": 2419718929.67,
+"mcap_bucket": "Mid",
 "name": "Bausch Health Companies Inc",
 "sector": "Healthcare / Biotech"
 },
@@ -3856,6 +3856,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "Innovator U.S. Equity Buffer ETF - July",
+"sector": "Other"
+},
+"BKAG": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-02",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "BNY Mellon Core Bond ETF",
 "sector": "Other"
 },
 "BKD": {
@@ -4241,9 +4251,9 @@
 "BNS": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-08-02",
+"fetched": "2026-09-02",
 "industry": "STATE COMMERCIAL BANKS",
-"market_cap": 106999835090.68,
+"market_cap": 111145107700.0,
 "mcap_bucket": "Large",
 "name": "Bank of Nova Scotia",
 "sector": "Financials / Banks"
@@ -5400,9 +5410,9 @@
 "CDP": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-23",
+"fetched": "2026-09-02",
 "industry": "REAL ESTATE INVESTMENT TRUSTS",
-"market_cap": 3800393118.1600003,
+"market_cap": 4028339468.1600003,
 "mcap_bucket": "Mid",
 "name": "COPT Defense Properties",
 "sector": "Real Estate"
@@ -5680,7 +5690,7 @@
 "CGMU": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-29",
+"fetched": "2026-09-02",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -6130,9 +6140,9 @@
 "CM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-08-02",
+"fetched": "2026-09-02",
 "industry": "",
-"market_cap": 108212519902.7,
+"market_cap": 102070101827.54001,
 "mcap_bucket": "Large",
 "name": "Canadian Imperial Bank of Commerce",
 "sector": "Other"
@@ -7100,7 +7110,7 @@
 "CSHP": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-21",
+"fetched": "2026-09-02",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -7150,9 +7160,9 @@
 "CSX": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-30",
+"fetched": "2026-09-02",
 "industry": "RAILROADS, LINE-HAUL OPERATING",
-"market_cap": 93994577288.58,
+"market_cap": 90215528457.90001,
 "mcap_bucket": "Large",
 "name": "CSX Corporation",
 "sector": "Industrials"
@@ -7230,9 +7240,9 @@
 "CTVA": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-31",
+"fetched": "2026-09-02",
 "industry": "",
-"market_cap": 59752378800.0,
+"market_cap": 58533105080.0,
 "mcap_bucket": "Large",
 "name": "Corteva, Inc. Common Stock",
 "sector": "Other"
@@ -8050,9 +8060,9 @@
 "DIS": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-30",
+"fetched": "2026-09-02",
 "industry": "SERVICES-MISCELLANEOUS AMUSEMENT & RECREATION",
-"market_cap": 171011645035.52002,
+"market_cap": 183408682730.44,
 "mcap_bucket": "Large",
 "name": "The Walt Disney Company",
 "sector": "Consumer / Services"
@@ -8770,9 +8780,9 @@
 "EBC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-16",
+"fetched": "2026-09-02",
 "industry": "SAVINGS INSTITUTION, FEDERALLY CHARTERED",
-"market_cap": 4875746195.88,
+"market_cap": 4912998368.0,
 "mcap_bucket": "Mid",
 "name": "Eastern Bankshares, Inc. Common Stock",
 "sector": "Financials / Banks"
@@ -11370,9 +11380,9 @@
 "FTI": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-29",
+"fetched": "2026-09-02",
 "industry": "OIL & GAS FIELD MACHINERY & EQUIPMENT",
-"market_cap": 28862030323.83,
+"market_cap": 30710393224.280003,
 "mcap_bucket": "Large",
 "name": "TechnipFMC plc Ordinary Share",
 "sector": "Industrials / Machinery"
@@ -11960,9 +11970,9 @@
 "GIII": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-05",
+"fetched": "2026-09-02",
 "industry": "APPAREL & OTHER FINISHD PRODS OF FABRICS & SIMILAR MATL",
-"market_cap": 1351744755.48,
+"market_cap": 1357270733.41,
 "mcap_bucket": "Small",
 "name": "G-Iii Apparel Group Ltd",
 "sector": "Other"
@@ -13169,9 +13179,9 @@
 "HOOD": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-29",
+"fetched": "2026-09-02",
 "industry": "SECURITY BROKERS, DEALERS & FLOTATION COMPANIES",
-"market_cap": 83276408407.32,
+"market_cap": 93064006078.23001,
 "mcap_bucket": "Large",
 "name": "Robinhood Markets, Inc. Class A Common Stock",
 "sector": "Financials"
@@ -17868,9 +17878,9 @@
 "MGA": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-31",
+"fetched": "2026-09-02",
 "industry": "",
-"market_cap": 19014884817.5,
+"market_cap": 17022287800.980001,
 "mcap_bucket": "Large",
 "name": "Magna International",
 "sector": "Other"
@@ -18717,9 +18727,9 @@
 "MTCH": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-27",
+"fetched": "2026-09-02",
 "industry": "SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.",
-"market_cap": 8843134000.66,
+"market_cap": 9620481781.349998,
 "mcap_bucket": "Mid",
 "name": "Match Group, Inc",
 "sector": "Tech / Software"
@@ -19133,6 +19143,16 @@
 "mcap_bucket": "Nano",
 "name": "Netcapital Inc. Common Stock",
 "sector": "Financials / Banks"
+},
+"NCT": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-09-02",
+"industry": "",
+"market_cap": 50343444.36,
+"mcap_bucket": "Micro",
+"name": "Intercont (Cayman) Limited Class A Ordinary shares",
+"sector": "Other"
 },
 "NDAQ": {
 "country": "USA",
@@ -19947,9 +19967,9 @@
 "NVDA": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-27",
+"fetched": "2026-09-02",
 "industry": "SEMICONDUCTORS & RELATED DEVICES",
-"market_cap": 5009871640000.0,
+"market_cap": 5250523680000.0,
 "mcap_bucket": "Mega",
 "name": "Nvidia Corp",
 "sector": "Semiconductors"
@@ -20487,9 +20507,9 @@
 "OLLI": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-28",
+"fetched": "2026-09-02",
 "industry": "RETAIL-VARIETY STORES",
-"market_cap": 4347196227.72,
+"market_cap": 4373191143.28,
 "mcap_bucket": "Mid",
 "name": "Ollie's Bargain Outlet Holdings, Inc. Common Stock",
 "sector": "Consumer / Retail"
@@ -20587,9 +20607,9 @@
 "ONC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-08-02",
+"fetched": "2026-09-02",
 "industry": "PHARMACEUTICAL PREPARATIONS",
-"market_cap": 32786422084.17,
+"market_cap": 40571828653.454994,
 "mcap_bucket": "Large",
 "name": "BeOne Medicines Ltd. American Depositary Shares",
 "sector": "Healthcare / Biotech"
@@ -21697,9 +21717,9 @@
 "PI": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-30",
+"fetched": "2026-09-02",
 "industry": "ELECTRONIC COMPONENTS, NEC",
-"market_cap": 4242964470.5000005,
+"market_cap": 5138946722.47,
 "mcap_bucket": "Mid",
 "name": "Impinj, Inc. Common Stock",
 "sector": "Tech / Hardware"
@@ -21987,9 +22007,9 @@
 "PNC": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-16",
+"fetched": "2026-09-02",
 "industry": "NATIONAL COMMERCIAL BANKS",
-"market_cap": 102057651222.8,
+"market_cap": 94745131475.83,
 "mcap_bucket": "Large",
 "name": "PNC Financial Services Group",
 "sector": "Financials / Banks"
@@ -23617,9 +23637,9 @@
 "RJF": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-08-02",
+"fetched": "2026-09-02",
 "industry": "SECURITY BROKERS, DEALERS & FLOTATION COMPANIES",
-"market_cap": 33805757999.999996,
+"market_cap": 33374756858.5,
 "mcap_bucket": "Large",
 "name": "Raymond James Financial, Inc.",
 "sector": "Financials"
@@ -25967,9 +25987,9 @@
 "SOFI": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-30",
+"fetched": "2026-09-02",
 "industry": "FINANCE SERVICES",
-"market_cap": 19561803300.0,
+"market_cap": 22021274024.2,
 "mcap_bucket": "Large",
 "name": "SoFi Technologies, Inc. Common Stock",
 "sector": "Financials / Banks"
@@ -29925,9 +29945,9 @@
 "VLY": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-23",
+"fetched": "2026-09-02",
 "industry": "NATIONAL COMMERCIAL BANKS",
-"market_cap": 8045989060.559999,
+"market_cap": 7393857923.88,
 "mcap_bucket": "Mid",
 "name": "Valley National Bancorp",
 "sector": "Financials / Banks"
@@ -30814,9 +30834,9 @@
 "WFRD": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-27",
+"fetched": "2026-09-02",
 "industry": "OIL & GAS FIELD MACHINERY & EQUIPMENT",
-"market_cap": 6357065085.240001,
+"market_cap": 6759324070.08,
 "mcap_bucket": "Mid",
 "name": "Weatherford International plc Ordinary Shares",
 "sector": "Industrials / Machinery"
@@ -30864,9 +30884,9 @@
 "WHD": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-30",
+"fetched": "2026-09-02",
 "industry": "OIL & GAS FIELD MACHINERY & EQUIPMENT",
-"market_cap": 3631972257.6,
+"market_cap": 4929437645.92,
 "mcap_bucket": "Mid",
 "name": "Cactus, Inc.",
 "sector": "Industrials / Machinery"

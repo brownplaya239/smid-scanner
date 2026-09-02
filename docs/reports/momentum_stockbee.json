@@ -1,119 +1,6 @@
 {
- "updated": "2026-09-01T19:28:57-04:00",
+ "updated": "2026-09-02T16:41:21-04:00",
  "runs": [
-  {
-   "date": "2026-06-11",
-   "generated": "2026-06-11T19:10:15-04:00",
-   "count": 8,
-   "rows": [
-    {
-     "ticker": "CRDO",
-     "price": 264.76,
-     "chg": 21.73,
-     "adr_pct": 11.36,
-     "dollar_vol": 2058664550,
-     "ern": "Reported"
-    },
-    {
-     "ticker": "NUVL",
-     "price": 123.45,
-     "chg": 31.3,
-     "adr_pct": 4.08,
-     "dollar_vol": 472810301,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "DKNG",
-     "price": 30.02,
-     "chg": 18.33,
-     "adr_pct": 5.08,
-     "dollar_vol": 346786148,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "OSCR",
-     "price": 28.91,
-     "chg": 22.5,
-     "adr_pct": 7.0,
-     "dollar_vol": 198466293,
-     "ern": "--"
-    },
-    {
-     "ticker": "EAT",
-     "price": 158.73,
-     "chg": 16.29,
-     "adr_pct": 5.05,
-     "dollar_vol": 141131510,
-     "ern": "--"
-    },
-    {
-     "ticker": "ANF",
-     "price": 90.62,
-     "chg": 16.69,
-     "adr_pct": 5.03,
-     "dollar_vol": 128341955,
-     "ern": "Aug 26"
-    },
-    {
-     "ticker": "TNGX",
-     "price": 29.82,
-     "chg": 34.63,
-     "adr_pct": 9.64,
-     "dollar_vol": 120916789,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "ALHC",
-     "price": 20.24,
-     "chg": 34.31,
-     "adr_pct": 6.6,
-     "dollar_vol": 107163356,
-     "ern": "Jul 30"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "LQDA",
-     "price": 71.62,
-     "chg": 14.53,
-     "adr_pct": 6.45,
-     "dollar_vol": 114381877,
-     "ern": "Aug 12"
-    },
-    {
-     "ticker": "KLAC",
-     "price": 2411.64,
-     "chg": 13.16,
-     "adr_pct": 5.51,
-     "dollar_vol": 2213911443,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "UCTT",
-     "price": 104.83,
-     "chg": 11.89,
-     "adr_pct": 8.3,
-     "dollar_vol": 102592639,
-     "ern": "Jul 27"
-    },
-    {
-     "ticker": "CMG",
-     "price": 31.25,
-     "chg": 10.89,
-     "adr_pct": 3.52,
-     "dollar_vol": 629875793,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "AMAT",
-     "price": 552.64,
-     "chg": 10.15,
-     "adr_pct": 5.4,
-     "dollar_vol": 4179619756,
-     "ern": "Aug 13"
-    }
-   ]
-  },
   {
    "date": "2026-06-12",
    "generated": "2026-06-12T18:57:28-04:00",
@@ -8122,6 +8009,39 @@
      "adr_pct": 4.49,
      "dollar_vol": 2360200531,
      "ern": "Oct 28"
+    }
+   ]
+  },
+  {
+   "date": "2026-09-02",
+   "generated": "2026-09-02T16:41:21-04:00",
+   "count": 1,
+   "rows": [
+    {
+     "ticker": "CRM",
+     "price": 256.93,
+     "chg": 24.95,
+     "adr_pct": 3.93,
+     "dollar_vol": 3644264108,
+     "ern": "Dec 02"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "RIG",
+     "price": 6.22,
+     "chg": 11.07,
+     "adr_pct": 4.02,
+     "dollar_vol": 238542035,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "DE",
+     "price": 698.37,
+     "chg": 10.06,
+     "adr_pct": 3.04,
+     "dollar_vol": 826396572,
+     "ern": "Nov 25"
     }
    ]
   }
