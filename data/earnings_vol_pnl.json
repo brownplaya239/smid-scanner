@@ -67319,5 +67319,29 @@
 "sector": "Consumer / Retail"
 },
 "bt_version": "vol_backtest_v2"
+},
+"FCEL|2026-09-02|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "FCEL",
+"date": "2026-09-02",
+"implied": 12.3,
+"session": "BMO",
+"sector": "Other"
+},
+"bt_version": "vol_backtest_v2"
+},
+"GME|2026-09-08|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "GME",
+"date": "2026-09-08",
+"implied": 8.2,
+"session": "AMC",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
