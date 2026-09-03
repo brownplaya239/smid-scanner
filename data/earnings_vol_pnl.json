@@ -67343,5 +67343,161 @@
 "sector": "Consumer / Retail"
 },
 "bt_version": "vol_backtest_v2"
+},
+"FCEL|2026-09-02|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-09-01",
+"exit_date": "2026-09-02",
+"spot": 17.08,
+"expiry": "2026-09-04",
+"expiry_spot": null,
+"night_id": "2026-09-02",
+"sector": "Other",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 17,
+"contract": "O:FCEL260904C00017000",
+"marks": {
+"entry_close": 1.1,
+"exit_open": 0.15,
+"exit_close": 0.05
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 17,
+"contract": "O:FCEL260904P00017000",
+"marks": {
+"entry_close": 1,
+"exit_open": 1.52,
+"exit_close": 2.75
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -64.0,
+"risk": 222.0,
+"ror": -0.2906
+},
+"next_close": {
+"pnl": 43.0,
+"risk": 222.0,
+"ror": 0.1934
+},
+"expiry_hold": {
+"pnl": -223.0,
+"risk": 222.0,
+"ror": -1.0059
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 17.5,
+"contract": "O:FCEL260904C00017500",
+"marks": {
+"entry_close": 0.9,
+"exit_open": 0.2,
+"exit_close": 0.05
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 16.5,
+"contract": "O:FCEL260904P00016500",
+"marks": {
+"entry_close": 0.7,
+"exit_open": 1.45,
+"exit_close": 2.27
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -14.0,
+"risk": 169.0,
+"ror": -0.0818
+},
+"next_close": {
+"pnl": 50.0,
+"risk": 169.0,
+"ror": 0.2942
+},
+"expiry_hold": {
+"pnl": -171.0,
+"risk": 169.0,
+"ror": -1.0077
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "FCEL",
+"date": "2026-09-02",
+"implied": 7.0,
+"session": "BMO",
+"sector": "Other"
+},
+"bt_version": "vol_backtest_v2"
+},
+"SNOW|2026-09-02|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "SNOW",
+"date": "2026-09-02",
+"implied": 18.6,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"ASO|2026-09-09|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "ASO",
+"date": "2026-09-09",
+"implied": 9.1,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"CHWY|2026-09-09|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "CHWY",
+"date": "2026-09-09",
+"implied": 11.7,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"AVAV|2026-09-09|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "AVAV",
+"date": "2026-09-09",
+"implied": 14.7,
+"session": "AMC",
+"sector": "Industrials / Transport Eq"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
