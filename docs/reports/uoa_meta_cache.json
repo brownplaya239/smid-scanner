@@ -1477,10 +1477,10 @@
 "sector": "Financials"
 },
 "BHP": {
-"earnings_date": "2026-08-17",
-"earnings_session": "AMC",
-"fetched": "2026-08-10",
-"mkt_cap": 229672599767.72,
+"earnings_date": "2027-02-15",
+"earnings_session": null,
+"fetched": "2026-09-03",
+"mkt_cap": 237450186860.43002,
 "sector": "Other"
 },
 "BHVN": {
@@ -5980,8 +5980,8 @@
 "KDP": {
 "earnings_date": "2026-10-26",
 "earnings_session": "BMO",
-"fetched": "2026-08-20",
-"mkt_cap": 42267256740.28,
+"fetched": "2026-09-03",
+"mkt_cap": 44349320578.420006,
 "sector": "Consumer / Food & Bev"
 },
 "KEEL": {
@@ -10029,6 +10029,13 @@
 "fetched": "2026-07-01",
 "mkt_cap": null,
 "sector": "Other"
+},
+"SNEX": {
+"earnings_date": "2026-11-23",
+"earnings_session": null,
+"fetched": "2026-09-03",
+"mkt_cap": 8064434902.1,
+"sector": "Financials"
 },
 "SNOW": {
 "earnings_date": "2026-12-02",
