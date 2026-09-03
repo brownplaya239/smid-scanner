@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-03T20:10:08+00:00",
+ "generated": "2026-09-03T21:00:33+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-03T20:10:08+00:00",
+ "data_cutoff": "2026-09-03T21:00:33+00:00",
  "market_regime": "risk_on",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "Options price a ±10.2% move vs a ±7.4% median across 8 past reports (1.4× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -219,7 +219,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "Options price a ±14.0% move vs a ±6.0% median across 8 past reports (2.3× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -261,7 +261,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "Options price only ±20.3% vs a ±27.1% median move (8 reports) — the move is cheap; long-vol structures historically favored.",
     "cited": [
@@ -300,7 +300,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "Options price a ±8.4% move vs a ±6.0% median across 7 past reports (1.4× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -339,7 +339,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "Options price a ±9.1% move vs a ±4.8% median across 8 past reports (1.9× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -365,17 +365,17 @@
     "reference_contract": "O:LULU260911C00140000",
     "contract_liquidity": "C",
     "dte": 8,
-    "flag_premium": 197340,
+    "flag_premium": 218519,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
-    "n_prints": 3,
-    "total_premium": 537057,
+    "n_prints": 4,
+    "total_premium": 755576,
     "feats": {
      "side": "call_buy",
      "regime": "unknown",
@@ -387,7 +387,7 @@
      "stype": "voloi",
      "prem": "<250k"
     },
-    "anchor_score": 71,
+    "anchor_score": 68,
     "tags": [
      "Repeat",
      "Into ERN"
@@ -408,17 +408,17 @@
     "reference_contract": "O:GME260911P00019500",
     "contract_liquidity": "C",
     "dte": 8,
-    "flag_premium": 207670,
+    "flag_premium": 209526,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
-    "n_prints": 9,
-    "total_premium": 1632395,
+    "n_prints": 10,
+    "total_premium": 1841921,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -460,10 +460,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
-    "n_prints": 3,
-    "total_premium": 2229866,
+    "n_prints": 4,
+    "total_premium": 2973546,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -475,7 +475,7 @@
      "stype": "voloi",
      "prem": ">=250k"
     },
-    "anchor_score": 75,
+    "anchor_score": 76,
     "tags": [
      "Block",
      "Repeat"
@@ -496,17 +496,17 @@
     "reference_contract": "O:ZS260911C00175000",
     "contract_liquidity": "C",
     "dte": 8,
-    "flag_premium": 1604728,
+    "flag_premium": 1659637,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
-    "n_prints": 13,
-    "total_premium": 18880558,
+    "n_prints": 16,
+    "total_premium": 22624074,
     "feats": {
      "side": "call_buy",
      "regime": "unknown",
@@ -540,17 +540,17 @@
     "reference_contract": "O:MRNA260911C00152500",
     "contract_liquidity": "C",
     "dte": 8,
-    "flag_premium": 621295,
+    "flag_premium": 624242,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
-    "n_prints": 4,
-    "total_premium": 2479715,
+    "n_prints": 5,
+    "total_premium": 3103957,
     "feats": {
      "side": "call_buy",
      "regime": "unknown",
@@ -583,17 +583,17 @@
     "reference_contract": "O:MSTR260911P00132000",
     "contract_liquidity": "C",
     "dte": 8,
-    "flag_premium": 624453,
+    "flag_premium": 629264,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
-    "n_prints": 5,
-    "total_premium": 3079162,
+    "n_prints": 6,
+    "total_premium": 3708426,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -638,7 +638,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -2.5% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -677,7 +677,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.1% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -714,7 +714,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.7% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -755,7 +755,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -5.1% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -794,7 +794,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -3.1% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -832,7 +832,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -866,7 +866,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -901,7 +901,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-03T20:10:08+00:00",
+   "as_of": "2026-09-03T21:00:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.8% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -915,7 +915,7 @@
   }
  ],
  "funnel": {
-  "universe_events": 83,
+  "universe_events": 84,
   "research_candidates": 22,
   "watch_setups": 6,
   "experimental": 8,
@@ -934,7 +934,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "67 candidates → 6 watch → 0 qualified (no champion)"
+   "line": "68 candidates → 6 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -991,11 +991,11 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 5 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 47,
+  "LOW_ALPHA": 43,
   "BAD_LIQUIDITY": 6,
-  "LOW_PREMIUM": 1,
-  "STALE_DATA": 11,
-  "NOT_DIRECTIONAL": 512
+  "LOW_PREMIUM": 2,
+  "STALE_DATA": 15,
+  "NOT_DIRECTIONAL": 578
  },
  "what_changed": [
   {
