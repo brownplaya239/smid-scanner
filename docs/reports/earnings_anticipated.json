@@ -1,8 +1,8 @@
 {
  "week_of": "2026-08-31",
- "generated": "2026-09-02T19:34:07-04:00",
+ "generated": "2026-09-04T19:20:45-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 69,
+ "total": 71,
  "days": [
   {
    "date": "2026-08-31",
@@ -495,6 +495,17 @@
      "mcap": 6975044023.77
     },
     {
+     "ticker": "ZGN",
+     "company": "Ermenegildo Zegna N.V.",
+     "score": 1,
+     "analysts": 11,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-03T00:00:00",
+     "q": "6/2026",
+     "mcap": 5361964835.7
+    },
+    {
      "ticker": "DOO",
      "company": "BRP Inc.",
      "score": 3,
@@ -684,6 +695,17 @@
      "mcap": 2348895137.13
     },
     {
+     "ticker": "NEWP",
+     "company": "New Pacific Metals Corp.",
+     "score": 1,
+     "analysts": 5,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-03T00:00:00",
+     "q": "9/2026",
+     "mcap": 1239968028.5
+    },
+    {
      "ticker": "NX",
      "company": "Quanex Building Products Corporation",
      "score": 2,
@@ -791,12 +813,12 @@
     {
      "ticker": "KNOP",
      "company": "KNOT Offshore Partners LP",
-     "score": 4,
+     "score": 2,
      "analysts": 3,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-09-04T00:00:00",
-     "q": "6/2026",
+     "q": "9/2026",
      "mcap": 376627972.5
     }
    ],
