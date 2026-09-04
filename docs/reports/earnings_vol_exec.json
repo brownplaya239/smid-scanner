@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-03T00:40:51+00:00",
+ "generated": "2026-09-04T00:25:28+00:00",
  "status": "quotes_entitlement_unavailable",
  "why": "historical NBBO quotes endpoint is not authorized on this plan tier (12/12 probe queries failed at HTTP level). The spread/fill study cannot run; trade_qualified stays false. (Outcome: undetermined, NOT a pass.)",
  "minute_timing_study": {
