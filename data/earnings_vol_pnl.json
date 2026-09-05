@@ -67499,5 +67499,17 @@
 "sector": "Industrials / Transport Eq"
 },
 "bt_version": "vol_backtest_v2"
+},
+"M|2026-09-10|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "M",
+"date": "2026-09-10",
+"implied": 8.4,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
