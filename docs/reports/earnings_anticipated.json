@@ -1,825 +1,625 @@
 {
- "week_of": "2026-08-31",
- "generated": "2026-09-04T19:20:45-04:00",
+ "week_of": "2026-09-07",
+ "generated": "2026-09-06T16:48:40-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 71,
+ "total": 53,
  "days": [
   {
-   "date": "2026-08-31",
+   "date": "2026-09-07",
    "dow": "Monday",
-   "bmo": [
-    {
-     "ticker": "SAIC",
-     "company": "Science Applications International Corporation",
-     "score": 27,
-     "analysts": 12,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-08-31T00:00:00",
-     "q": "7/2026",
-     "mcap": 5325188121.24
-    },
-    {
-     "ticker": "BLRX",
-     "company": "BioLineRx Ltd.",
-     "score": 12,
-     "analysts": 1,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-08-31T00:00:00",
-     "q": "6/2026",
-     "mcap": 11357567.0
-    }
-   ],
-   "amc": [
-    {
-     "ticker": "CANG",
-     "company": "Cango Inc.",
-     "score": 7,
-     "analysts": 2,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-08-31T00:00:00",
-     "q": "6/2026",
-     "mcap": 91478986.41
-    }
-   ]
+   "bmo": [],
+   "amc": []
   },
   {
-   "date": "2026-09-01",
+   "date": "2026-09-08",
    "dow": "Tuesday",
    "bmo": [
     {
-     "ticker": "MDT",
-     "company": "Medtronic plc",
-     "score": 21,
-     "analysts": 29,
+     "ticker": "ABM",
+     "company": "ABM Industries, Inc.",
+     "score": 10,
+     "analysts": 9,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
+     "next_eps": "2026-09-08T00:00:00",
      "q": "7/2026",
-     "mcap": 116772653949.03
+     "mcap": 2756232427.1499996
     },
     {
-     "ticker": "NIO",
-     "company": "NIO Inc.",
-     "score": 43,
-     "analysts": 16,
+     "ticker": "UNFI",
+     "company": "United Natural Foods, Inc.",
+     "score": 7,
+     "analysts": 11,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
-     "q": "6/2026",
-     "mcap": 10949764886.14
-    },
-    {
-     "ticker": "SSL",
-     "company": "Sasol Ltd",
-     "score": 13,
-     "analysts": 4,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
-     "q": "6/2026",
-     "mcap": 7577065401.24
-    },
-    {
-     "ticker": "MMED",
-     "company": "MiniMed ",
-     "score": 8,
-     "analysts": 14,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
+     "next_eps": "2026-09-08T00:00:00",
      "q": "7/2026",
-     "mcap": 5655133613.1
+     "mcap": 2658605820.2
     },
     {
-     "ticker": "RZLV",
-     "company": "Rezolve AI plc",
-     "score": 11,
-     "analysts": 5,
+     "ticker": "CAN",
+     "company": "Canaan Inc.",
+     "score": 7,
+     "analysts": 7,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
+     "next_eps": "2026-09-08T00:00:00",
      "q": "6/2026",
-     "mcap": 1184517933.39
-    },
-    {
-     "ticker": "YEXT",
-     "company": "Yext, Inc.",
-     "score": 5,
-     "analysts": 3,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
-     "q": "7/2026",
-     "mcap": 692714481.5600001
-    },
-    {
-     "ticker": "HMR",
-     "company": "Heidmar Maritime Holdings Corp.",
-     "score": 3,
-     "analysts": 3,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
-     "q": "6/2026",
-     "mcap": 83178715.77
+     "mcap": 268143899.76
     }
    ],
    "amc": [
     {
-     "ticker": "PANW",
-     "company": "Palo Alto Networks, Inc.",
-     "score": 70,
-     "analysts": 54,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
-     "q": "7/2026",
-     "mcap": 302845850000.0
-    },
-    {
-     "ticker": "DELL",
-     "company": "Dell Technologies",
-     "score": 108,
-     "analysts": 25,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
-     "q": "7/2026",
-     "mcap": 294796021350.72003
-    },
-    {
-     "ticker": "CRDO",
-     "company": "Credo Technology Group Holding Ltd",
-     "score": 73,
+     "ticker": "CASY",
+     "company": "Casey's General Stores, Inc.",
+     "score": 28,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
+     "next_eps": "2026-09-08T00:00:00",
      "q": "7/2026",
-     "mcap": 43741793511.5
+     "mcap": 27979045426.260002
     },
     {
-     "ticker": "MDB",
-     "company": "MongoDB, Inc.",
-     "score": 40,
-     "analysts": 40,
+     "ticker": "TTAN",
+     "company": "ServiceTitan, Inc.",
+     "score": 9,
+     "analysts": 19,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
+     "next_eps": "2026-09-08T00:00:00",
      "q": "7/2026",
-     "mcap": 35922507236.74
+     "mcap": 8387355145.68
     },
     {
-     "ticker": "GTLB",
-     "company": "GitLab Inc.",
-     "score": 21,
-     "analysts": 28,
+     "ticker": "BRZE",
+     "company": "Braze",
+     "score": 10,
+     "analysts": 22,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
+     "next_eps": "2026-09-08T00:00:00",
      "q": "7/2026",
-     "mcap": 7578543000.0
+     "mcap": 3599708141.2400002
     },
     {
-     "ticker": "SPWH",
-     "company": "Sportsman's Warehouse Holdings, Inc.",
-     "score": 8,
+     "ticker": "INNV",
+     "company": "InnovAge Holding Corp. ",
+     "score": 2,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-01T00:00:00",
+     "next_eps": "2026-09-08T00:00:00",
+     "q": "6/2026",
+     "mcap": 1459166224.75
+    },
+    {
+     "ticker": "AVO",
+     "company": "Mission Produce, Inc.",
+     "score": 6,
+     "analysts": 5,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-08T00:00:00",
      "q": "7/2026",
-     "mcap": 45262962.199999996
+     "mcap": 1119895152.76
     }
    ]
   },
   {
-   "date": "2026-09-02",
+   "date": "2026-09-09",
    "dow": "Wednesday",
    "bmo": [
     {
-     "ticker": "BF.B",
-     "company": "Brown-Forman Corporation",
-     "score": 2,
-     "analysts": 17,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 12490285293.3
-    },
-    {
-     "ticker": "OLLI",
-     "company": "Ollie's Bargain Outlet Holdings, Inc.",
-     "score": 9,
-     "analysts": 15,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 4378027406.64
-    },
-    {
-     "ticker": "CXM",
-     "company": "Sprinklr, Inc.",
-     "score": 10,
-     "analysts": 10,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 1911306697.92
-    },
-    {
-     "ticker": "FCEL",
-     "company": "FuelCell Energy, Inc.",
-     "score": 16,
-     "analysts": 8,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 1419986520.96
-    },
-    {
-     "ticker": "GIII",
-     "company": "G-III Apparel Group, Ltd.",
-     "score": 9,
-     "analysts": 4,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 1411696572.58
-    },
-    {
-     "ticker": "DAKT",
-     "company": "Daktronics Inc.",
-     "score": 6,
-     "analysts": 4,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 932302441.8000001
-    }
-   ],
-   "amc": [
-    {
-     "ticker": "AVGO",
-     "company": "Broadcom Inc.",
-     "score": 234,
-     "analysts": 42,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 1754548001220.4202
-    },
-    {
-     "ticker": "SNOW",
-     "company": "Snowflake",
-     "score": 65,
-     "analysts": 45,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 113684800000.0
-    },
-    {
-     "ticker": "HPE",
-     "company": "Hewlett Packard Enterprise",
-     "score": 42,
-     "analysts": 21,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 69269086183.51001
-    },
-    {
-     "ticker": "NTAP",
-     "company": "NetApp, Inc.",
-     "score": 28,
-     "analysts": 21,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 36699732240.3
-    },
-    {
-     "ticker": "FIVE",
-     "company": "Five Below, Inc.",
-     "score": 22,
-     "analysts": 24,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 13375392453.39
-    },
-    {
-     "ticker": "NTSK",
-     "company": "Netskope",
-     "score": 2,
-     "analysts": 17,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 6095207863.41
-    },
-    {
-     "ticker": "AGX",
-     "company": "Argan Inc.",
-     "score": 11,
-     "analysts": 8,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 5856400241.78
-    },
-    {
-     "ticker": "PVH",
-     "company": "PVH Corp.",
-     "score": 8,
-     "analysts": 13,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 3494532292.6800003
-    },
-    {
-     "ticker": "AI",
-     "company": "C3.ai, Inc. ",
-     "score": 6,
-     "analysts": 15,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 1636880886.81
-    },
-    {
-     "ticker": "GOLD",
-     "company": "Gold.com, Inc.",
-     "score": 6,
-     "analysts": 6,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "6/2026",
-     "mcap": 1321149235.6999998
-    },
-    {
-     "ticker": "WOOF",
-     "company": "Petco Health and Wellness Company, Inc.",
-     "score": 2,
-     "analysts": 12,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 771026183.1
-    },
-    {
-     "ticker": "PHR",
-     "company": "Phreesia, Inc.",
-     "score": 4,
-     "analysts": 20,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 751014451.35
-    },
-    {
-     "ticker": "MEI",
-     "company": "Methode Electronics, Inc.",
-     "score": 4,
-     "analysts": 5,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 646362893.82
-    },
-    {
-     "ticker": "MTRX",
-     "company": "Matrix Service Company",
+     "ticker": "SUNB",
+     "company": "Sunbelt Rentals Holdings, Inc.",
      "score": 1,
-     "analysts": 2,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "6/2026",
-     "mcap": 304689595.5
-    },
-    {
-     "ticker": "CHPT",
-     "company": "ChargePoint Holdings, Inc.",
-     "score": 7,
-     "analysts": 10,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 144249804.67000002
-    },
-    {
-     "ticker": "TLYS",
-     "company": "Tilly's, Inc.",
-     "score": 3,
-     "analysts": 3,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-02T00:00:00",
-     "q": "7/2026",
-     "mcap": 120734143.2
-    }
-   ]
-  },
-  {
-   "date": "2026-09-03",
-   "dow": "Thursday",
-   "bmo": [
-    {
-     "ticker": "CIEN",
-     "company": "Ciena Corporation",
-     "score": 47,
-     "analysts": 19,
+     "analysts": 14,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "7/2026",
-     "mcap": 53569287801.68
+     "mcap": 28118302866.04
     },
     {
-     "ticker": "TTC",
-     "company": "The Toro Company",
-     "score": 4,
+     "ticker": "SAIL",
+     "company": "SailPoint, Inc.",
+     "score": 7,
+     "analysts": 25,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 10674384003.54
+    },
+    {
+     "ticker": "CHWY",
+     "company": "Chewy, Inc.",
+     "score": 16,
+     "analysts": 28,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 9686976737.62
+    },
+    {
+     "ticker": "CNM",
+     "company": "Core & Main, Inc.",
+     "score": 2,
+     "analysts": 15,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 8296386269.92
+    },
+    {
+     "ticker": "JMKE",
+     "company": "Jersey Mike's Subs Inc.",
+     "score": 2,
+     "analysts": 22,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "6/2026",
+     "mcap": 4838294198.06
+    },
+    {
+     "ticker": "KFY",
+     "company": "Korn Ferry",
+     "score": 1,
      "analysts": 6,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "7/2026",
-     "mcap": 9430580752.02
+     "mcap": 4383245951.549999
     },
     {
-     "ticker": "VSXY",
-     "company": "Victoria's Secret & Co.",
-     "score": 13,
-     "analysts": 12,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 6983347602.0
-    },
-    {
-     "ticker": "CPB",
-     "company": "The Campbell's Company",
+     "ticker": "SIG",
+     "company": "Signet Jewelers Limited",
      "score": 4,
-     "analysts": 20,
+     "analysts": 13,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "7/2026",
-     "mcap": 6975044023.77
+     "mcap": 3313886489.9
     },
     {
-     "ticker": "ZGN",
-     "company": "Ermenegildo Zegna N.V.",
+     "ticker": "ASO",
+     "company": "Academy Sports + Outdoors, Inc.",
+     "score": 3,
+     "analysts": 17,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 2787105592.74
+    },
+    {
+     "ticker": "ODD",
+     "company": "ODDITY Tech Ltd. ",
      "score": 1,
      "analysts": 11,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "6/2026",
-     "mcap": 5361964835.7
+     "mcap": 634212617.5
     },
     {
-     "ticker": "DOO",
-     "company": "BRP Inc.",
-     "score": 3,
-     "analysts": 18,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 4540877667.03
-    },
-    {
-     "ticker": "BRC",
-     "company": "Brady Corporation ",
-     "score": 2,
-     "analysts": 2,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 4393267667.5
-    },
-    {
-     "ticker": "WLY",
-     "company": "John Wiley & Sons, Inc.",
-     "score": 15,
-     "analysts": 2,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 2726512418.9
-    },
-    {
-     "ticker": "PSNY",
-     "company": "Polestar",
-     "score": 2,
-     "analysts": 4,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "6/2026",
-     "mcap": 1824340566.83
-    },
-    {
-     "ticker": "VBNK",
-     "company": "VersaBank",
+     "ticker": "CGNT",
+     "company": "Cognyte Software Ltd.",
      "score": 1,
-     "analysts": 4,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 643133578.88
-    },
-    {
-     "ticker": "LE",
-     "company": "Lands' End, Inc.",
-     "score": 3,
-     "analysts": 3,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 370427447.35
-    },
-    {
-     "ticker": "GCO",
-     "company": "Genesco Inc.",
-     "score": 2,
      "analysts": 5,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "7/2026",
-     "mcap": 369973270.63000005
+     "mcap": 625936227.07
     },
     {
-     "ticker": "DLTH",
-     "company": "Duluth Holdings Inc.",
-     "score": 2,
+     "ticker": "CAL",
+     "company": "Caleres, Inc.",
+     "score": 7,
+     "analysts": 3,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 417520517.92
+    },
+    {
+     "ticker": "JILL",
+     "company": "J.Jill, Inc.",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 298729271.7
+    },
+    {
+     "ticker": "OCC",
+     "company": "Optical Cable Corp.",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 122255224.2
+    },
+    {
+     "ticker": "NNOX",
+     "company": "Nano-X Imaging Ltd.",
+     "score": 4,
      "analysts": 4,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 139847621.28
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "6/2026",
+     "mcap": 65212851.8124
     }
    ],
    "amc": [
     {
-     "ticker": "ZS",
-     "company": "Zscaler, Inc.",
-     "score": 23,
-     "analysts": 45,
+     "ticker": "COO",
+     "company": "CooperCompanies, Inc.",
+     "score": 3,
+     "analysts": 18,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "7/2026",
-     "mcap": 29791745790.75
+     "mcap": 13572181541.7
     },
     {
-     "ticker": "IOT",
-     "company": "Samsara Inc. ",
+     "ticker": "AVAV",
+     "company": "AeroVironment, Inc.",
      "score": 14,
      "analysts": 22,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "7/2026",
-     "mcap": 23984346975.12
+     "mcap": 7351491259.75
     },
     {
-     "ticker": "GWRE",
-     "company": "Guidewire Software, Inc.",
-     "score": 5,
-     "analysts": 17,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 17138322529.4
-    },
-    {
-     "ticker": "LULU",
-     "company": "lululemon athletica inc.",
-     "score": 21,
-     "analysts": 32,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 13718448833.58
-    },
-    {
-     "ticker": "DOCU",
-     "company": "Docusign, Inc.",
-     "score": 25,
-     "analysts": 20,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 12220454912.0
-    },
-    {
-     "ticker": "PATH",
-     "company": "UiPath, Inc.",
-     "score": 28,
-     "analysts": 19,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 9403882827.9
-    },
-    {
-     "ticker": "PL",
-     "company": "Planet Labs PBC ",
-     "score": 13,
-     "analysts": 13,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 7120922469.4800005
-    },
-    {
-     "ticker": "AMBA",
-     "company": "Ambarella, Inc.",
-     "score": 18,
-     "analysts": 13,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 3098409906.5499997
-    },
-    {
-     "ticker": "ASAN",
-     "company": "Asana, Inc",
-     "score": 12,
+     "ticker": "NAVN",
+     "company": "Navan, Inc.",
+     "score": 6,
      "analysts": 15,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "7/2026",
-     "mcap": 2348895137.13
+     "mcap": 7065322458.360001
     },
     {
-     "ticker": "NEWP",
-     "company": "New Pacific Metals Corp.",
-     "score": 1,
-     "analysts": 5,
+     "ticker": "AEO",
+     "company": "American Eagle Outfitters, Inc.",
+     "score": 10,
+     "analysts": 15,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "9/2026",
-     "mcap": 1239968028.5
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 2914100260.87
     },
     {
-     "ticker": "NX",
-     "company": "Quanex Building Products Corporation",
+     "ticker": "WLTH",
+     "company": "Wealthfront Corporation",
+     "score": 3,
+     "analysts": 8,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 1430880449.28
+    },
+    {
+     "ticker": "LSAK",
+     "company": "Lesaka Technologies, Inc.",
      "score": 2,
      "analysts": 2,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 891921080.3000001
-    },
-    {
-     "ticker": "MAMA",
-     "company": "Mama\u2019s Creations, Inc. ",
-     "score": 1,
-     "analysts": 9,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 761625626.5799999
-    },
-    {
-     "ticker": "SWBI",
-     "company": "Smith & Wesson Brands, Inc.",
-     "score": 5,
-     "analysts": 3,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 573051110.4
-    },
-    {
-     "ticker": "OXM",
-     "company": "Oxford Industries, Inc.",
-     "score": 2,
-     "analysts": 7,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 572004004.9200001
-    },
-    {
-     "ticker": "BBCP",
-     "company": "Concrete Pumping Holdings, Inc.",
-     "score": 4,
-     "analysts": 4,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 464123398.20000005
-    },
-    {
-     "ticker": "CURV",
-     "company": "Torrid Holdings Inc. ",
-     "score": 2,
-     "analysts": 8,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
-     "q": "7/2026",
-     "mcap": 226906468.67999998
-    },
-    {
-     "ticker": "EGAN",
-     "company": "eGain Corporation",
-     "score": 1,
-     "analysts": 4,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "6/2026",
-     "mcap": 203130599.4
+     "mcap": 387801508.87999994
     },
     {
-     "ticker": "DOMO",
-     "company": "Domo, Inc.",
+     "ticker": "LMNR",
+     "company": "Limoneira Company",
      "score": 1,
-     "analysts": 7,
+     "analysts": 4,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "7/2026",
-     "mcap": 181559581.46
+     "mcap": 271798784.93
     },
     {
-     "ticker": "AOUT",
-     "company": "American Outdoor Brands, Inc.",
-     "score": 3,
-     "analysts": 3,
+     "ticker": "GLOO",
+     "company": "Gloo Holdings Inc.",
+     "score": 1,
+     "analysts": 6,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-03T00:00:00",
+     "next_eps": "2026-09-09T00:00:00",
      "q": "7/2026",
-     "mcap": 130983860.22000001
+     "mcap": 271036234.45500004
+    },
+    {
+     "ticker": "LAKE",
+     "company": "Lakeland Industries, Inc.",
+     "score": 2,
+     "analysts": 5,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 117936509.8
+    },
+    {
+     "ticker": "RSSS",
+     "company": "Research Solutions, Inc.",
+     "score": 1,
+     "analysts": 4,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "6/2026",
+     "mcap": 74587996.36
+    },
+    {
+     "ticker": "SKIL",
+     "company": "Skillsoft Corp. ",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 61068872.489999995
+    },
+    {
+     "ticker": "CULP",
+     "company": "Culp, Inc.",
+     "score": 1,
+     "analysts": 1,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-09T00:00:00",
+     "q": "7/2026",
+     "mcap": 43629332.46
     }
    ]
   },
   {
-   "date": "2026-09-04",
-   "dow": "Friday",
+   "date": "2026-09-10",
+   "dow": "Thursday",
    "bmo": [
     {
-     "ticker": "KNOP",
-     "company": "KNOT Offshore Partners LP",
-     "score": 2,
+     "ticker": "M",
+     "company": "Macy's, Inc.",
+     "score": 12,
+     "analysts": 13,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "7/2026",
+     "mcap": 6063024839.7
+    },
+    {
+     "ticker": "MCFT",
+     "company": "MasterCraft Boat Holdings, Inc.",
+     "score": 3,
+     "analysts": 7,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "6/2026",
+     "mcap": 584967820.5
+    },
+    {
+     "ticker": "SHOE",
+     "company": "Shoe Station Group, Inc.",
+     "score": 4,
+     "analysts": 4,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "7/2026",
+     "mcap": 382018903.56
+    },
+    {
+     "ticker": "DBI",
+     "company": "Designer Brands Inc.",
+     "score": 3,
      "analysts": 3,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-04T00:00:00",
-     "q": "9/2026",
-     "mcap": 376627972.5
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "7/2026",
+     "mcap": 267087435.54
+    },
+    {
+     "ticker": "LOVE",
+     "company": "The Lovesac Company",
+     "score": 1,
+     "analysts": 7,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "7/2026",
+     "mcap": 244315196.42000002
+    },
+    {
+     "ticker": "FLWS",
+     "company": "1-800-FLOWERS.COM, Inc.",
+     "score": 18,
+     "analysts": 2,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "6/2026",
+     "mcap": 239087341.59
+    },
+    {
+     "ticker": "VNCE",
+     "company": "Vince Holding Corp.",
+     "score": 3,
+     "analysts": 3,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "7/2026",
+     "mcap": 82222681.60000001
+    }
+   ],
+   "amc": [
+    {
+     "ticker": "ORCL",
+     "company": "Oracle Corporation",
+     "score": 97,
+     "analysts": 44,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "8/2026",
+     "mcap": 457361185380.0
+    },
+    {
+     "ticker": "ADBE",
+     "company": "Adobe Inc.",
+     "score": 44,
+     "analysts": 38,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "8/2026",
+     "mcap": 105937725000.0
+    },
+    {
+     "ticker": "CPRT",
+     "company": "Copart, Inc.",
+     "score": 3,
+     "analysts": 13,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "7/2026",
+     "mcap": 31218363173.039997
+    },
+    {
+     "ticker": "DSGX",
+     "company": "Descartes Systems Group, Inc.",
+     "score": 3,
+     "analysts": 15,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "7/2026",
+     "mcap": 6764433883.38
+    },
+    {
+     "ticker": "RH",
+     "company": "RH",
+     "score": 7,
+     "analysts": 20,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "7/2026",
+     "mcap": 2800891445.79
+    },
+    {
+     "ticker": "REF",
+     "company": "Reformation Inc.",
+     "score": 1,
+     "analysts": 9,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "6/2026",
+     "mcap": 808753287.52
+    },
+    {
+     "ticker": "LPTH",
+     "company": "LightPath Technologies Inc.",
+     "score": 1,
+     "analysts": 6,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "6/2026",
+     "mcap": 607173565.6899999
+    },
+    {
+     "ticker": "ZUMZ",
+     "company": "Zumiez Inc.",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "7/2026",
+     "mcap": 304206036.45000005
+    },
+    {
+     "ticker": "AENT",
+     "company": "Alliance Entertainment Holding Corporation ",
+     "score": 1,
+     "analysts": 4,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-10T00:00:00",
+     "q": "6/2026",
+     "mcap": 261525501.9
+    }
+   ]
+  },
+  {
+   "date": "2026-09-11",
+   "dow": "Friday",
+   "bmo": [
+    {
+     "ticker": "KR",
+     "company": "The Kroger Co.",
+     "score": 9,
+     "analysts": 21,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-11T00:00:00",
+     "q": "7/2026",
+     "mcap": 35895004252.380005
+    },
+    {
+     "ticker": "HOFT",
+     "company": "Hooker Furnishings Corporation",
+     "score": 1,
+     "analysts": 1,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-11T00:00:00",
+     "q": "7/2026",
+     "mcap": 140930448.0
+    },
+    {
+     "ticker": "MNY",
+     "company": "MoneyHero Limited",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-11T00:00:00",
+     "q": "6/2026",
+     "mcap": 37911152.1
     }
    ],
    "amc": []
