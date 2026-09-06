@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-06T13:54:58+00:00",
+ "generated": "2026-09-06T15:13:04+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-06T13:54:58+00:00",
+ "data_cutoff": "2026-09-06T15:13:04+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T13:54:58+00:00",
+   "as_of": "2026-09-06T15:13:04+00:00",
    "evidence": {
     "thesis": "Options price a ±9.0% move vs a ±4.8% median across 8 past reports (1.9× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -218,7 +218,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T13:54:58+00:00",
+   "as_of": "2026-09-06T15:13:04+00:00",
    "evidence": {
     "thesis": "Options price a ±10.8% move vs a ±2.1% median across 7 past reports (5.1× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -259,7 +259,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T13:54:58+00:00",
+   "as_of": "2026-09-06T15:13:04+00:00",
    "evidence": {
     "thesis": "Options price a ±8.4% move vs a ±0.8% median across 7 past reports (10.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -296,7 +296,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T13:54:58+00:00",
+   "as_of": "2026-09-06T15:13:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -337,7 +337,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T13:54:58+00:00",
+   "as_of": "2026-09-06T15:13:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -4.5% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -372,7 +372,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T13:54:58+00:00",
+   "as_of": "2026-09-06T15:13:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -3.7% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -406,7 +406,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T13:54:58+00:00",
+   "as_of": "2026-09-06T15:13:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -445,7 +445,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T13:54:58+00:00",
+   "as_of": "2026-09-06T15:13:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -479,7 +479,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T13:54:58+00:00",
+   "as_of": "2026-09-06T15:13:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.3% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -517,7 +517,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T13:54:58+00:00",
+   "as_of": "2026-09-06T15:13:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.8% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -609,14 +609,9 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 3 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "NOT_DIRECTIONAL": 239
+  "NOT_DIRECTIONAL": 478
  },
  "what_changed": [
-  {
-   "t": "M",
-   "change": "new",
-   "to": "SIGNAL_QUALIFIED"
-  },
   {
    "t": "BRZE",
    "change": "new",
@@ -651,26 +646,6 @@
    "t": "ORCL",
    "change": "new",
    "to": "EXPERIMENTAL"
-  },
-  {
-   "t": "GME",
-   "change": "dropped",
-   "from": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "AVAV",
-   "change": "dropped",
-   "from": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "POET",
-   "change": "dropped",
-   "from": "WATCH"
-  },
-  {
-   "t": "KR",
-   "change": "dropped",
-   "from": "WATCH"
   }
  ],
  "performance": {
