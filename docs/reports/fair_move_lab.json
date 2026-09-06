@@ -1,102 +1,102 @@
 {
- "generated": "2026-09-04T21:56:55+00:00",
+ "generated": "2026-09-06T13:54:58+00:00",
  "lab_version": "fair_move_lab_v1",
- "events_total": 189,
- "events_scored": 171,
+ "events_total": 204,
+ "events_scored": 186,
  "standings": {
   "overall": {
    "v1_ticker_median": {
-    "n": 171,
-    "mae": 3.886,
-    "bias": -2.428,
+    "n": 186,
+    "mae": 3.821,
+    "bias": -2.403,
     "edge_sign_pct": 76
    },
    "cap_shrunk": {
-    "n": 171,
-    "mae": 3.831,
-    "bias": -2.226,
+    "n": 186,
+    "mae": 3.761,
+    "bias": -2.184,
     "edge_sign_pct": 80
    },
    "sector_shrunk": {
-    "n": 171,
-    "mae": 3.926,
-    "bias": -2.315,
+    "n": 186,
+    "mae": 3.846,
+    "bias": -2.267,
     "edge_sign_pct": 76
    },
    "market_anchored": {
-    "n": 171,
-    "mae": 4.337,
-    "bias": -1.882,
-    "edge_sign_pct": 70
+    "n": 186,
+    "mae": 4.287,
+    "bias": -1.937,
+    "edge_sign_pct": 69
    },
    "blend": {
-    "n": 171,
-    "mae": 3.926,
-    "bias": -2.054,
-    "edge_sign_pct": 74
+    "n": 186,
+    "mae": 3.87,
+    "bias": -2.061,
+    "edge_sign_pct": 73
    }
   },
   "half1": {
    "v1_ticker_median": {
-    "n": 85,
-    "mae": 2.957,
-    "bias": -1.397,
-    "edge_sign_pct": 81
+    "n": 93,
+    "mae": 3.247,
+    "bias": -1.737,
+    "edge_sign_pct": 80
    },
    "cap_shrunk": {
-    "n": 85,
-    "mae": 2.97,
-    "bias": -1.538,
+    "n": 93,
+    "mae": 3.192,
+    "bias": -1.769,
     "edge_sign_pct": 82
    },
    "sector_shrunk": {
-    "n": 85,
-    "mae": 3.014,
-    "bias": -1.306,
-    "edge_sign_pct": 80
+    "n": 93,
+    "mae": 3.296,
+    "bias": -1.651,
+    "edge_sign_pct": 78
    },
    "market_anchored": {
-    "n": 85,
-    "mae": 3.427,
-    "bias": -0.873,
-    "edge_sign_pct": 72
+    "n": 93,
+    "mae": 3.633,
+    "bias": -1.132,
+    "edge_sign_pct": 71
    },
    "blend": {
-    "n": 85,
-    "mae": 2.995,
-    "bias": -1.205,
-    "edge_sign_pct": 78
+    "n": 93,
+    "mae": 3.202,
+    "bias": -1.451,
+    "edge_sign_pct": 76
    }
   },
   "half2": {
    "v1_ticker_median": {
-    "n": 86,
-    "mae": 4.805,
-    "bias": -3.447,
-    "edge_sign_pct": 71
+    "n": 93,
+    "mae": 4.394,
+    "bias": -3.069,
+    "edge_sign_pct": 73
    },
    "cap_shrunk": {
-    "n": 86,
-    "mae": 4.682,
-    "bias": -2.906,
-    "edge_sign_pct": 77
+    "n": 93,
+    "mae": 4.33,
+    "bias": -2.6,
+    "edge_sign_pct": 78
    },
    "sector_shrunk": {
-    "n": 86,
-    "mae": 4.827,
-    "bias": -3.313,
-    "edge_sign_pct": 72
+    "n": 93,
+    "mae": 4.397,
+    "bias": -2.884,
+    "edge_sign_pct": 74
    },
    "market_anchored": {
-    "n": 86,
-    "mae": 5.236,
-    "bias": -2.879,
+    "n": 93,
+    "mae": 4.942,
+    "bias": -2.741,
     "edge_sign_pct": 67
    },
    "blend": {
-    "n": 86,
-    "mae": 4.846,
-    "bias": -2.893,
+    "n": 93,
+    "mae": 4.537,
+    "bias": -2.67,
     "edge_sign_pct": 70
    }
   }

@@ -1,37 +1,37 @@
 {
- "generated": "2026-09-04T21:56:54+00:00",
+ "generated": "2026-09-06T13:54:57+00:00",
  "engine_version": "earnings_vol_v1",
  "types": {
   "vol_rich": {
-   "n": 124,
+   "n": 131,
    "span": {
     "from": "2026-07-21",
-    "to": "2026-08-26"
+    "to": "2026-08-27"
    },
-   "ev_vol_pts": 6.43,
-   "med_vol_pts": 6.28,
-   "win": 91,
+   "ev_vol_pts": 6.18,
+   "med_vol_pts": 6.2,
+   "win": 90,
    "date_cluster_bootstrap": {
-    "nights": 23,
-    "mean": 6.43,
+    "nights": 24,
+    "mean": 6.18,
     "ci95": [
-     5.37,
-     7.4
+     5.06,
+     7.2
     ]
    },
    "move_ratio": {
-    "n": 124,
+    "n": 131,
     "median": 0.25,
-    "p75": 0.51,
-    "p90": 0.93,
-    "p95": 1.38,
-    "p99": 1.79,
+    "p75": 0.62,
+    "p90": 0.94,
+    "p95": 1.53,
+    "p99": 1.86,
     "max": 2.43,
-    "inside_050x": 74,
-    "inside_075x": 81,
-    "inside_100x": 91,
-    "blowthrough_10x": 9,
-    "blowthrough_15x": 4,
+    "inside_050x": 72,
+    "inside_075x": 79,
+    "inside_100x": 90,
+    "blowthrough_10x": 10,
+    "blowthrough_15x": 5,
     "blowthrough_20x": 1
    },
    "tails": {
@@ -42,45 +42,45 @@
      "implied": 14.7,
      "ratio": 2.427
     },
-    "p5_mv": -2.2,
-    "es95": -7.4,
+    "p5_mv": -3.58,
+    "es95": -7.81,
     "es99": -20.97,
     "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
    },
    "clustering": {
-    "nights": 23,
+    "nights": 24,
     "events_per_night": {
      "median": 6,
      "p90": 9,
      "max": 10
     },
-    "crowded_nights_3plus": 18,
-    "joint_blowthrough_nights": 0,
+    "crowded_nights_3plus": 19,
+    "joint_blowthrough_nights": 1,
     "note": "same-night short-vol positions are correlated (one macro tape, sector vol repricing). Position sizing must treat a night, not an event, as the unit."
    },
    "decomposition": {
     "implied_band": {
      "8-12%": {
-      "n": 42,
-      "ev": 6.51,
-      "med": 7.14,
+      "n": 45,
+      "ev": 6.36,
+      "med": 7.03,
       "win": 98
      },
      "5-8%": {
-      "n": 28,
-      "ev": 3.64,
-      "med": 4.79,
-      "win": 86
+      "n": 31,
+      "ev": 3.2,
+      "med": 4.71,
+      "win": 81
      },
      "<5%": {
       "n": 15,
       "status": "thin"
      },
      ">=12%": {
-      "n": 39,
-      "ev": 9.94,
-      "med": 11.4,
-      "win": 87
+      "n": 40,
+      "ev": 9.73,
+      "med": 11.26,
+      "win": 88
      }
     },
     "cap": {
@@ -95,16 +95,16 @@
       "win": 93
      },
      "10-100B": {
-      "n": 59,
-      "ev": 6.36,
-      "med": 5.89,
-      "win": 95
+      "n": 64,
+      "ev": 6.08,
+      "med": 5.85,
+      "win": 94
      },
      "1-10B": {
-      "n": 34,
-      "ev": 6.98,
-      "med": 9.42,
-      "win": 82
+      "n": 36,
+      "ev": 6.51,
+      "med": 8.42,
+      "win": 81
      }
     },
     "session": {
@@ -113,24 +113,24 @@
       "status": "thin"
      },
      "AMC": {
-      "n": 83,
-      "ev": 8.41,
-      "med": 7.39,
+      "n": 87,
+      "ev": 8.23,
+      "med": 7.25,
       "win": 98
      },
      "BMO": {
-      "n": 40,
-      "ev": 2.28,
-      "med": 2.67,
-      "win": 78
+      "n": 43,
+      "ev": 1.95,
+      "med": 2.46,
+      "win": 74
      }
     },
     "regime": {
      "mixed": {
-      "n": 54,
-      "ev": 6.55,
-      "med": 6.38,
-      "win": 89
+      "n": 61,
+      "ev": 5.99,
+      "med": 6.2,
+      "win": 87
      },
      "risk_off": {
       "n": 32,
@@ -151,7 +151,7 @@
       "status": "thin"
      },
      "Financials / Banks": {
-      "n": 6,
+      "n": 8,
       "status": "thin"
      },
      "Energy": {
@@ -169,8 +169,10 @@
       "win": 90
      },
      "Tech / Software": {
-      "n": 19,
-      "status": "thin"
+      "n": 22,
+      "ev": 8.31,
+      "med": 7.24,
+      "win": 100
      },
      "Industrials / Machinery": {
       "n": 2,
@@ -197,7 +199,7 @@
       "status": "thin"
      },
      "Consumer / Retail": {
-      "n": 13,
+      "n": 14,
       "status": "thin"
      },
      "Tech / Hardware": {
@@ -219,14 +221,18 @@
      "Healthcare / Services": {
       "n": 1,
       "status": "thin"
+     },
+     "Consumer / Food & Bev": {
+      "n": 1,
+      "status": "thin"
      }
     },
     "same_night": {
      ">=3": {
-      "n": 117,
-      "ev": 6.37,
-      "med": 6.2,
-      "win": 91
+      "n": 124,
+      "ev": 6.11,
+      "med": 6.12,
+      "win": 90
      },
      "1-2": {
       "n": 7,
@@ -244,36 +250,36 @@
    ]
   },
   "vol_cheap": {
-   "n": 65,
+   "n": 73,
    "span": {
     "from": "2026-07-21",
-    "to": "2026-08-26"
+    "to": "2026-08-27"
    },
-   "ev_vol_pts": 2.78,
-   "med_vol_pts": 1.78,
-   "win": 68,
+   "ev_vol_pts": 2.33,
+   "med_vol_pts": 1.65,
+   "win": 66,
    "date_cluster_bootstrap": {
-    "nights": 21,
-    "mean": 2.78,
+    "nights": 22,
+    "mean": 2.33,
     "ci95": [
-     1.25,
-     4.45
+     0.8,
+     4.04
     ]
    },
    "move_ratio": {
-    "n": 65,
-    "median": 1.74,
-    "p75": 3.65,
-    "p90": 5.6,
-    "p95": 6.1,
+    "n": 73,
+    "median": 1.64,
+    "p75": 3.47,
+    "p90": 5.25,
+    "p95": 5.88,
     "p99": 7.7,
     "max": 13.43,
-    "inside_050x": 23,
-    "inside_075x": 25,
-    "inside_100x": 32,
-    "blowthrough_10x": 68,
-    "blowthrough_15x": 57,
-    "blowthrough_20x": 43
+    "inside_050x": 25,
+    "inside_075x": 26,
+    "inside_100x": 34,
+    "blowthrough_10x": 66,
+    "blowthrough_15x": 55,
+    "blowthrough_20x": 41
    },
    "tails": {
     "worst_mv": -11.77,
@@ -283,32 +289,32 @@
      "implied": 17.0,
      "ratio": 0.308
     },
-    "p5_mv": -7.55,
-    "es95": -10.82,
+    "p5_mv": -8.03,
+    "es95": -10.84,
     "es99": -11.77,
     "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
    },
    "clustering": {
-    "nights": 21,
+    "nights": 22,
     "events_per_night": {
      "median": 3,
      "p90": 6,
      "max": 9
     },
-    "crowded_nights_3plus": 11,
-    "joint_blowthrough_nights": 12,
+    "crowded_nights_3plus": 12,
+    "joint_blowthrough_nights": 13,
     "note": "same-night short-vol positions are correlated (one macro tape, sector vol repricing). Position sizing must treat a night, not an event, as the unit."
    },
    "decomposition": {
     "implied_band": {
      "<5%": {
-      "n": 49,
-      "ev": 3.56,
+      "n": 54,
+      "ev": 3.42,
       "med": 2.11,
       "win": 78
      },
      "5-8%": {
-      "n": 11,
+      "n": 12,
       "status": "thin"
      },
      ">=12%": {
@@ -316,37 +322,37 @@
       "status": "thin"
      },
      "8-12%": {
-      "n": 1,
+      "n": 3,
       "status": "thin"
      }
     },
     "cap": {
      "10-100B": {
-      "n": 27,
-      "ev": 2.84,
-      "med": 2.22,
-      "win": 70
+      "n": 32,
+      "ev": 2.43,
+      "med": 2.17,
+      "win": 69
      },
      ">100B": {
-      "n": 17,
+      "n": 18,
       "status": "thin"
      },
      "1-10B": {
-      "n": 21,
-      "ev": 3.8,
-      "med": 3.0,
-      "win": 62
+      "n": 23,
+      "ev": 3.36,
+      "med": 1.11,
+      "win": 61
      }
     },
     "session": {
      "BMO": {
-      "n": 56,
-      "ev": 3.27,
+      "n": 61,
+      "ev": 3.16,
       "med": 2.11,
       "win": 75
      },
      "AMC": {
-      "n": 7,
+      "n": 10,
       "status": "thin"
      },
      "TBD": {
@@ -356,10 +362,10 @@
     },
     "regime": {
      "mixed": {
-      "n": 32,
-      "ev": 2.61,
-      "med": 2.03,
-      "win": 72
+      "n": 40,
+      "ev": 1.83,
+      "med": 1.67,
+      "win": 68
      },
      "risk_off": {
       "n": 11,
@@ -378,10 +384,10 @@
       "status": "thin"
      },
      "Other": {
-      "n": 22,
-      "ev": 3.02,
-      "med": 1.9,
-      "win": 68
+      "n": 23,
+      "ev": 2.93,
+      "med": 1.7,
+      "win": 70
      },
      "Consumer / Food & Bev": {
       "n": 2,
@@ -428,7 +434,7 @@
       "status": "thin"
      },
      "Consumer / Retail": {
-      "n": 8,
+      "n": 13,
       "status": "thin"
      },
      "Real Estate": {
@@ -444,7 +450,7 @@
       "status": "thin"
      },
      "Semiconductors": {
-      "n": 2,
+      "n": 4,
       "status": "thin"
      }
     },
@@ -454,10 +460,10 @@
       "status": "thin"
      },
      ">=3": {
-      "n": 51,
-      "ev": 2.8,
-      "med": 1.95,
-      "win": 71
+      "n": 59,
+      "ev": 2.24,
+      "med": 1.7,
+      "win": 68
      }
     }
    },
@@ -488,8 +494,12 @@
     }
    },
    "forward": {
-    "n": 0,
-    "status": "accruing"
+    "n": 7,
+    "ev": 1.63,
+    "bootstrap": {
+     "status": "insufficient_nights",
+     "nights": 1
+    }
    }
   },
   "vol_rich_large_move": {
@@ -508,8 +518,12 @@
     }
    },
    "forward": {
-    "n": 0,
-    "status": "accruing"
+    "n": 1,
+    "ev": 1.27,
+    "bootstrap": {
+     "status": "insufficient_nights",
+     "nights": 1
+    }
    }
   },
   "vol_rich_cheap_wings": {
@@ -535,10 +549,10 @@
  },
  "ticker_history": {},
  "cohort_history": {
-  "n": 124,
+  "n": 131,
   "median_ratio": 0.25,
-  "inside_100x": 91,
-  "inside_075x": 81
+  "inside_100x": 90,
+  "inside_075x": 79
  },
  "wing_economics": {
   "n": 89,
@@ -564,11 +578,11 @@
   "per_type": {
    "vol_rich": {
     "median_ratio": 0.25,
-    "n": 124
+    "n": 131
    },
    "vol_cheap": {
-    "median_ratio": 1.74,
-    "n": 65
+    "median_ratio": 1.64,
+    "n": 73
    }
   },
   "definition": "TickerDesk Fair Move = the ticker's own median |earnings move| across its reported history (earnings_edge realized_med). Volatility Edge = implied - fair. Richness = implied/fair - 1. The per-type median ratios above are the selected-universe calibration context, not a multiplier applied to any displayed number."
