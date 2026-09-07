@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-06T19:55:05+00:00",
+ "generated": "2026-09-07T13:53:01+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-06T19:55:05+00:00",
+ "data_cutoff": "2026-09-07T13:53:01+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T19:55:05+00:00",
+   "as_of": "2026-09-07T13:53:01+00:00",
    "evidence": {
     "thesis": "Options price a ±9.0% move vs a ±4.8% median across 8 past reports (1.9× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -218,12 +218,12 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T19:55:05+00:00",
+   "as_of": "2026-09-07T13:53:01+00:00",
    "evidence": {
     "thesis": "Options price a ±10.8% move vs a ±2.1% median across 7 past reports (5.1× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
      "F+ swing grade",
-     "RS rank 57",
+     "RS rank 63",
      "typically moves ±2.1% (7 reports)"
     ],
     "etype": "vol_rich",
@@ -259,7 +259,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T19:55:05+00:00",
+   "as_of": "2026-09-07T13:53:01+00:00",
    "evidence": {
     "thesis": "Options price a ±8.4% move vs a ±0.8% median across 7 past reports (10.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -296,13 +296,13 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T19:55:05+00:00",
+   "as_of": "2026-09-07T13:53:01+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
      "A- swing grade",
-     "RS rank 75",
-     "0 bull / 1 bear flow into print",
+     "RS rank 78",
+     "0 bull / 0 bear flow into print",
      "typically moves ±15.6% (8 reports)"
     ],
     "etype": "post_report_drift",
@@ -337,11 +337,11 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T19:55:05+00:00",
+   "as_of": "2026-09-07T13:53:01+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -4.5% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
-     "1 bull / 0 bear flow into print",
+     "0 bull / 0 bear flow into print",
      "typically moves ±6.0% (7 reports)"
     ],
     "etype": "post_report_drift",
@@ -372,7 +372,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T19:55:05+00:00",
+   "as_of": "2026-09-07T13:53:01+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -3.7% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -406,7 +406,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T19:55:05+00:00",
+   "as_of": "2026-09-07T13:53:01+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -428,14 +428,14 @@
    "catalyst": "earnings",
    "construct": {
     "expression": "per_thesis",
-    "implied_move": 13.6,
+    "implied_move": 13.0,
     "realized_median": 11.9,
     "session": "AMC",
     "event_date": "2026-09-10",
     "option_mark": null,
     "fair_move": 11.9,
-    "vol_edge_pp": 1.7,
-    "richness_pct": 14,
+    "vol_edge_pp": 1.1,
+    "richness_pct": 9,
     "analogues": 8,
     "history": {
      "n": 131,
@@ -445,7 +445,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T19:55:05+00:00",
+   "as_of": "2026-09-07T13:53:01+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -479,7 +479,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T19:55:05+00:00",
+   "as_of": "2026-09-07T13:53:01+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.3% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -500,14 +500,14 @@
    "catalyst": "earnings",
    "construct": {
     "expression": "per_thesis",
-    "implied_move": 11.8,
+    "implied_move": 11.7,
     "realized_median": 10.0,
     "session": "AMC",
     "event_date": "2026-09-10",
     "option_mark": null,
     "fair_move": 10.0,
-    "vol_edge_pp": 1.8,
-    "richness_pct": 18,
+    "vol_edge_pp": 1.7,
+    "richness_pct": 17,
     "analogues": 8,
     "history": {
      "n": 131,
@@ -517,12 +517,12 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-06T19:55:05+00:00",
+   "as_of": "2026-09-07T13:53:01+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.8% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
      "$435B cap",
-     "0 bull / 1 bear flow into print",
+     "0 bull / 0 bear flow into print",
      "typically moves ±10.0% (8 reports)"
     ],
     "etype": "post_report_drift",
@@ -590,7 +590,7 @@
   },
   "directional": {
    "target": "+5-session direction-signed excess vs SPY",
-   "tracked": 297,
+   "tracked": 307,
    "graded": 78,
    "overall": {
     "n": 78,
@@ -608,9 +608,7 @@
  },
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 3 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
- "rejections": {
-  "NOT_DIRECTIONAL": 1434
- },
+ "rejections": {},
  "what_changed": [
   {
    "t": "BRZE",
@@ -649,7 +647,7 @@
   }
  ],
  "performance": {
-  "tracked": 297,
+  "tracked": 307,
   "graded": 78,
   "min_n": 30,
   "overall": {
