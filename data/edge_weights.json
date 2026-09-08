@@ -1,7 +1,7 @@
 {
- "version": "2026-09-08T19:00:32+00:00",
- "prev_version": "2026-09-08T18:45:17+00:00",
- "prior": 0.4841,
+ "version": "2026-09-08T19:26:58+00:00",
+ "prev_version": "2026-09-08T19:00:32+00:00",
+ "prior": 0.485,
  "graded": 77992,
  "params": {
   "min_n": 200,
@@ -19,13 +19,13 @@
    "n": 24816,
    "win": 0.469,
    "shrunk": 0.469,
-   "lift": -0.015,
-   "adj": -1.2
+   "lift": -0.016,
+   "adj": -1.3
   },
   "cap:mega": {
    "n": 43493,
-   "win": 0.493,
-   "shrunk": 0.493,
+   "win": 0.494,
+   "shrunk": 0.494,
    "lift": 0.009,
    "adj": 0.7
   },
@@ -33,153 +33,153 @@
    "n": 6743,
    "win": 0.486,
    "shrunk": 0.486,
-   "lift": 0.002,
+   "lift": 0.001,
    "adj": 0.1
   },
   "cap:small": {
    "n": 1188,
    "win": 0.498,
    "shrunk": 0.496,
-   "lift": 0.012,
-   "adj": 1.0
+   "lift": 0.011,
+   "adj": 0.9
   },
   "cap:unknown": {
    "n": 1752,
    "win": 0.467,
    "shrunk": 0.469,
-   "lift": -0.015,
-   "adj": -1.2
+   "lift": -0.016,
+   "adj": -1.3
   },
   "dte:leaps": {
    "n": 1494,
    "win": 0.467,
    "shrunk": 0.469,
-   "lift": -0.015,
-   "adj": -1.2
+   "lift": -0.016,
+   "adj": -1.3
   },
   "dte:positioning": {
    "n": 8692,
    "win": 0.482,
    "shrunk": 0.482,
-   "lift": -0.002,
+   "lift": -0.003,
    "adj": -0.2
   },
   "dte:swing": {
    "n": 19554,
    "win": 0.491,
    "shrunk": 0.491,
-   "lift": 0.007,
+   "lift": 0.006,
    "adj": 0.5
   },
   "dte:urgent": {
    "n": 48252,
-   "win": 0.482,
-   "shrunk": 0.482,
-   "lift": -0.002,
-   "adj": -0.2
+   "win": 0.484,
+   "shrunk": 0.484,
+   "lift": -0.001,
+   "adj": -0.1
   },
   "liq:A": {
    "n": 7164,
-   "win": 0.436,
-   "shrunk": 0.437,
-   "lift": -0.047,
-   "adj": -3.7
+   "win": 0.439,
+   "shrunk": 0.441,
+   "lift": -0.044,
+   "adj": -3.5
   },
   "liq:B": {
    "n": 22541,
-   "win": 0.483,
-   "shrunk": 0.483,
-   "lift": -0.001,
-   "adj": -0.1
+   "win": 0.485,
+   "shrunk": 0.485,
+   "lift": 0.0,
+   "adj": 0.0
   },
   "liq:C": {
    "n": 41427,
    "win": 0.49,
    "shrunk": 0.49,
-   "lift": 0.006,
-   "adj": 0.5
+   "lift": 0.005,
+   "adj": 0.4
   },
   "liq:D": {
    "n": 6860,
    "win": 0.5,
    "shrunk": 0.5,
-   "lift": 0.016,
-   "adj": 1.3
+   "lift": 0.015,
+   "adj": 1.2
   },
   "side:call_buy": {
    "n": 51595,
-   "win": 0.476,
-   "shrunk": 0.476,
-   "lift": -0.008,
-   "adj": -0.7
+   "win": 0.478,
+   "shrunk": 0.478,
+   "lift": -0.007,
+   "adj": -0.6
   },
   "side:put_buy": {
    "n": 26397,
-   "win": 0.5,
-   "shrunk": 0.5,
-   "lift": 0.016,
-   "adj": 1.3
+   "win": 0.499,
+   "shrunk": 0.499,
+   "lift": 0.014,
+   "adj": 1.1
   },
   "tag:Block": {
    "n": 50088,
-   "win": 0.483,
-   "shrunk": 0.483,
+   "win": 0.484,
+   "shrunk": 0.484,
    "lift": -0.001,
    "adj": -0.1
   },
   "tag:Golden Sweep": {
    "n": 13397,
-   "win": 0.488,
-   "shrunk": 0.488,
-   "lift": 0.003,
-   "adj": 0.3
+   "win": 0.49,
+   "shrunk": 0.49,
+   "lift": 0.005,
+   "adj": 0.4
   },
   "tag:In Universe": {
    "n": 53803,
-   "win": 0.492,
-   "shrunk": 0.492,
+   "win": 0.493,
+   "shrunk": 0.493,
    "lift": 0.008,
-   "adj": 0.6
+   "adj": 0.7
   },
   "tag:Into ERN": {
    "n": 19601,
    "win": 0.507,
    "shrunk": 0.506,
    "lift": 0.022,
-   "adj": 1.8
+   "adj": 1.7
   },
   "tag:Repeat": {
    "n": 67151,
-   "win": 0.484,
-   "shrunk": 0.484,
+   "win": 0.485,
+   "shrunk": 0.485,
    "lift": 0.0,
    "adj": 0.0
   },
   "tag:Size>OI": {
    "n": 26722,
    "win": 0.482,
-   "shrunk": 0.482,
+   "shrunk": 0.483,
    "lift": -0.002,
-   "adj": -0.1
+   "adj": -0.2
   },
   "tag:Sweep": {
    "n": 45194,
-   "win": 0.483,
-   "shrunk": 0.483,
+   "win": 0.484,
+   "shrunk": 0.484,
    "lift": -0.001,
    "adj": -0.1
   },
   "type:golden_sweep": {
    "n": 13397,
-   "win": 0.488,
-   "shrunk": 0.488,
-   "lift": 0.003,
-   "adj": 0.3
+   "win": 0.49,
+   "shrunk": 0.49,
+   "lift": 0.005,
+   "adj": 0.4
   },
   "type:sweep": {
    "n": 45194,
-   "win": 0.483,
-   "shrunk": 0.483,
+   "win": 0.484,
+   "shrunk": 0.484,
    "lift": -0.001,
    "adj": -0.1
   },
@@ -187,129 +187,31 @@
    "n": 19401,
    "win": 0.485,
    "shrunk": 0.485,
-   "lift": 0.001,
+   "lift": 0.0,
    "adj": 0.0
   }
  },
  "decay": {
-  "type:voloi": {
-   "recent_n": 4162,
-   "recent_hit": 0.486,
-   "prior_n": 12266,
-   "prior_hit": 0.481,
-   "delta": 0.005
-  },
-  "dte:swing": {
-   "recent_n": 3541,
-   "recent_hit": 0.509,
-   "prior_n": 11873,
-   "prior_hit": 0.501,
-   "delta": 0.008
-  },
-  "liq:A": {
-   "recent_n": 1387,
-   "recent_hit": 0.452,
-   "prior_n": 3898,
-   "prior_hit": 0.444,
-   "delta": 0.008
-  },
-  "cap:unknown": {
-   "recent_n": 270,
-   "recent_hit": 0.437,
-   "prior_n": 1022,
-   "prior_hit": 0.473,
-   "delta": -0.036
-  },
-  "liq:B": {
-   "recent_n": 4846,
-   "recent_hit": 0.498,
-   "prior_n": 12798,
-   "prior_hit": 0.503,
-   "delta": -0.005
-  },
-  "tag:Golden Sweep": {
-   "recent_n": 2801,
-   "recent_hit": 0.506,
-   "prior_n": 7436,
-   "prior_hit": 0.497,
-   "delta": 0.008
-  },
-  "side:call_buy": {
-   "recent_n": 10195,
-   "recent_hit": 0.512,
-   "prior_n": 30031,
-   "prior_hit": 0.478,
-   "delta": 0.033
-  },
   "type:golden_sweep": {
    "recent_n": 2801,
-   "recent_hit": 0.506,
+   "recent_hit": 0.515,
    "prior_n": 7436,
    "prior_hit": 0.497,
-   "delta": 0.008
+   "delta": 0.018
   },
-  "tag:Size>OI": {
-   "recent_n": 5018,
-   "recent_hit": 0.482,
-   "prior_n": 16060,
-   "prior_hit": 0.49,
-   "delta": -0.008
+  "type:voloi": {
+   "recent_n": 4162,
+   "recent_hit": 0.487,
+   "prior_n": 12266,
+   "prior_hit": 0.481,
+   "delta": 0.006
   },
   "cap:mega": {
    "recent_n": 9730,
-   "recent_hit": 0.477,
+   "recent_hit": 0.484,
    "prior_n": 26140,
    "prior_hit": 0.514,
-   "delta": -0.036
-  },
-  "side:put_buy": {
-   "recent_n": 6040,
-   "recent_hit": 0.453,
-   "prior_n": 15766,
-   "prior_hit": 0.525,
-   "delta": -0.072
-  },
-  "dte:positioning": {
-   "recent_n": 1731,
-   "recent_hit": 0.486,
-   "prior_n": 4980,
-   "prior_hit": 0.465,
-   "delta": 0.022
-  },
-  "dte:leaps": {
-   "recent_n": 380,
-   "recent_hit": 0.568,
-   "prior_n": 786,
-   "prior_hit": 0.388,
-   "delta": 0.18
-  },
-  "cap:small": {
-   "recent_n": 269,
-   "recent_hit": 0.606,
-   "prior_n": 527,
-   "prior_hit": 0.461,
-   "delta": 0.145
-  },
-  "type:sweep": {
-   "recent_n": 9272,
-   "recent_hit": 0.487,
-   "prior_n": 26095,
-   "prior_hit": 0.5,
-   "delta": -0.013
-  },
-  "tag:Block": {
-   "recent_n": 9674,
-   "recent_hit": 0.511,
-   "prior_n": 29658,
-   "prior_hit": 0.485,
-   "delta": 0.027
-  },
-  "tag:Sweep": {
-   "recent_n": 9272,
-   "recent_hit": 0.487,
-   "prior_n": 26095,
-   "prior_hit": 0.5,
-   "delta": -0.013
+   "delta": -0.029
   },
   "tag:Into ERN": {
    "recent_n": 2905,
@@ -318,19 +220,12 @@
    "prior_hit": 0.514,
    "delta": -0.042
   },
-  "cap:large": {
-   "recent_n": 4592,
-   "recent_hit": 0.519,
-   "prior_n": 14335,
-   "prior_hit": 0.46,
-   "delta": 0.059
-  },
-  "tag:In Universe": {
-   "recent_n": 11541,
-   "recent_hit": 0.494,
-   "prior_n": 31625,
-   "prior_hit": 0.507,
-   "delta": -0.013
+  "tag:Sweep": {
+   "recent_n": 9272,
+   "recent_hit": 0.491,
+   "prior_n": 26095,
+   "prior_hit": 0.5,
+   "delta": -0.009
   },
   "liq:C": {
    "recent_n": 8446,
@@ -339,6 +234,48 @@
    "prior_hit": 0.497,
    "delta": -0.012
   },
+  "cap:unknown": {
+   "recent_n": 270,
+   "recent_hit": 0.437,
+   "prior_n": 1022,
+   "prior_hit": 0.473,
+   "delta": -0.036
+  },
+  "side:put_buy": {
+   "recent_n": 6040,
+   "recent_hit": 0.45,
+   "prior_n": 15766,
+   "prior_hit": 0.525,
+   "delta": -0.075
+  },
+  "liq:A": {
+   "recent_n": 1387,
+   "recent_hit": 0.47,
+   "prior_n": 3898,
+   "prior_hit": 0.444,
+   "delta": 0.026
+  },
+  "tag:Size>OI": {
+   "recent_n": 5018,
+   "recent_hit": 0.482,
+   "prior_n": 16060,
+   "prior_hit": 0.49,
+   "delta": -0.008
+  },
+  "cap:small": {
+   "recent_n": 269,
+   "recent_hit": 0.606,
+   "prior_n": 527,
+   "prior_hit": 0.461,
+   "delta": 0.145
+  },
+  "dte:swing": {
+   "recent_n": 3541,
+   "recent_hit": 0.509,
+   "prior_n": 11873,
+   "prior_hit": 0.501,
+   "delta": 0.008
+  },
   "cap:mid": {
    "recent_n": 1374,
    "recent_hit": 0.472,
@@ -346,26 +283,89 @@
    "prior_hit": 0.503,
    "delta": -0.031
   },
+  "dte:positioning": {
+   "recent_n": 1731,
+   "recent_hit": 0.488,
+   "prior_n": 4980,
+   "prior_hit": 0.465,
+   "delta": 0.023
+  },
+  "cap:large": {
+   "recent_n": 4592,
+   "recent_hit": 0.519,
+   "prior_n": 14335,
+   "prior_hit": 0.46,
+   "delta": 0.059
+  },
+  "tag:Golden Sweep": {
+   "recent_n": 2801,
+   "recent_hit": 0.515,
+   "prior_n": 7436,
+   "prior_hit": 0.497,
+   "delta": 0.018
+  },
+  "type:sweep": {
+   "recent_n": 9272,
+   "recent_hit": 0.491,
+   "prior_n": 26095,
+   "prior_hit": 0.5,
+   "delta": -0.009
+  },
+  "tag:Block": {
+   "recent_n": 9674,
+   "recent_hit": 0.513,
+   "prior_n": 29658,
+   "prior_hit": 0.485,
+   "delta": 0.029
+  },
+  "tag:In Universe": {
+   "recent_n": 11541,
+   "recent_hit": 0.499,
+   "prior_n": 31625,
+   "prior_hit": 0.507,
+   "delta": -0.008
+  },
+  "tag:Repeat": {
+   "recent_n": 14223,
+   "recent_hit": 0.493,
+   "prior_n": 39419,
+   "prior_hit": 0.496,
+   "delta": -0.003
+  },
   "liq:D": {
    "recent_n": 1556,
-   "recent_hit": 0.526,
+   "recent_hit": 0.525,
    "prior_n": 4153,
    "prior_hit": 0.503,
    "delta": 0.022
   },
-  "tag:Repeat": {
-   "recent_n": 14223,
-   "recent_hit": 0.489,
-   "prior_n": 39419,
-   "prior_hit": 0.496,
-   "delta": -0.007
+  "side:call_buy": {
+   "recent_n": 10195,
+   "recent_hit": 0.52,
+   "prior_n": 30031,
+   "prior_hit": 0.478,
+   "delta": 0.042
+  },
+  "liq:B": {
+   "recent_n": 4846,
+   "recent_hit": 0.507,
+   "prior_n": 12798,
+   "prior_hit": 0.503,
+   "delta": 0.004
+  },
+  "dte:leaps": {
+   "recent_n": 380,
+   "recent_hit": 0.568,
+   "prior_n": 786,
+   "prior_hit": 0.388,
+   "delta": 0.18
   },
   "dte:urgent": {
    "recent_n": 10583,
-   "recent_hit": 0.482,
+   "recent_hit": 0.488,
    "prior_n": 28158,
    "prior_hit": 0.5,
-   "delta": -0.018
+   "delta": -0.012
   }
  },
  "regimes": {
@@ -585,40 +585,40 @@
     }
    },
    "mixed": {
-    "prior": 0.4996,
+    "prior": 0.5035,
     "n": 17586,
     "features": {
      "type:voloi": {
       "n": 4702,
-      "adj": -0.7
+      "adj": -0.9
      },
      "side:put_buy": {
       "n": 6437,
-      "adj": -1.3
+      "adj": -1.8
      },
      "dte:positioning": {
       "n": 1718,
-      "adj": -1.1
+      "adj": -1.3
      },
      "cap:mega": {
       "n": 10745,
-      "adj": -0.6
+      "adj": -0.4
      },
      "liq:B": {
       "n": 5005,
-      "adj": 0.1
+      "adj": 0.5
      },
      "tag:Repeat": {
       "n": 15467,
-      "adj": -0.1
+      "adj": -0.0
      },
      "tag:Into ERN": {
       "n": 5036,
-      "adj": -0.9
+      "adj": -1.2
      },
      "tag:In Universe": {
       "n": 12684,
-      "adj": 0.4
+      "adj": 0.5
      },
      "type:sweep": {
       "n": 9714,
@@ -626,11 +626,11 @@
      },
      "side:call_buy": {
       "n": 11149,
-      "adj": 0.8
+      "adj": 1.1
      },
      "dte:urgent": {
       "n": 11214,
-      "adj": 0.1
+      "adj": 0.3
      },
      "tag:Sweep": {
       "n": 9714,
@@ -638,47 +638,47 @@
      },
      "liq:C": {
       "n": 9304,
-      "adj": 0.9
+      "adj": 0.6
      },
      "tag:Block": {
       "n": 10862,
-      "adj": 0.8
+      "adj": 0.7
      },
      "cap:large": {
       "n": 4924,
-      "adj": 1.5
+      "adj": 1.2
      },
      "dte:swing": {
       "n": 4208,
-      "adj": 1.0
+      "adj": 0.7
      },
      "type:golden_sweep": {
       "n": 3170,
-      "adj": 0.8
+      "adj": 1.1
      },
      "tag:Golden Sweep": {
       "n": 3170,
-      "adj": 0.8
+      "adj": 1.1
      },
      "tag:Size>OI": {
       "n": 5738,
-      "adj": -0.6
+      "adj": -0.9
      },
      "liq:D": {
       "n": 1768,
-      "adj": -1.3
+      "adj": -1.6
      },
      "cap:small": {
       "n": 251,
-      "adj": 3.7
+      "adj": 3.5
      },
      "liq:A": {
       "n": 1509,
-      "adj": -4.0
+      "adj": -3.2
      },
      "cap:mid": {
       "n": 1421,
-      "adj": 0.5
+      "adj": 0.3
      },
      "dte:leaps": {
       "n": 446,
