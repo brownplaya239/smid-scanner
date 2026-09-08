@@ -436,8 +436,8 @@
 "ALB": {
 "earnings_date": "2026-11-04",
 "earnings_session": null,
-"fetched": "2026-08-28",
-"mkt_cap": 16021546588.890001,
+"fetched": "2026-09-08",
+"mkt_cap": 14901678597.960001,
 "sector": "Materials / Chemicals"
 },
 "ALC": {
@@ -3138,8 +3138,8 @@
 "DASH": {
 "earnings_date": "2026-11-04",
 "earnings_session": null,
-"fetched": "2026-08-25",
-"mkt_cap": 99250702505.24,
+"fetched": "2026-09-08",
+"mkt_cap": 91742172201.01,
 "sector": "Other"
 },
 "DAVE": {
@@ -7723,8 +7723,8 @@
 "NRGV": {
 "earnings_date": "2026-11-09",
 "earnings_session": null,
-"fetched": "2026-08-12",
-"mkt_cap": 648836586.6,
+"fetched": "2026-09-08",
+"mkt_cap": 698263948.8,
 "sector": "Other"
 },
 "NSC": {
@@ -7735,10 +7735,10 @@
 "sector": "Industrials"
 },
 "NTAP": {
-"earnings_date": "2026-09-02",
-"earnings_session": "AMC",
-"fetched": "2026-09-02",
-"mkt_cap": 35942267977.4,
+"earnings_date": "2026-12-01",
+"earnings_session": null,
+"fetched": "2026-09-08",
+"mkt_cap": 36453403137.95,
 "sector": "Tech / Hardware"
 },
 "NTCT": {
@@ -8847,6 +8847,13 @@
 "mkt_cap": 42973200000.0,
 "sector": "Financials"
 },
+"PS": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-09-08",
+"mkt_cap": 15632000000.0,
+"sector": "Financials"
+},
 "PSA": {
 "earnings_date": "2026-07-29",
 "earnings_session": "AMC",
@@ -9547,6 +9554,13 @@
 "mkt_cap": 45014934508.36,
 "sector": "Healthcare / Biotech"
 },
+"RVTY": {
+"earnings_date": "2026-10-26",
+"earnings_session": "BMO",
+"fetched": "2026-09-08",
+"mkt_cap": 14530781138.22,
+"sector": "Other"
+},
 "RXO": {
 "earnings_date": "2026-08-06",
 "earnings_session": "BMO",
@@ -9884,10 +9898,10 @@
 "sector": "Communications"
 },
 "SIG": {
-"earnings_date": "2026-09-01",
+"earnings_date": "2026-09-09",
 "earnings_session": "BMO",
-"fetched": "2026-06-04",
-"mkt_cap": 3356796979.0499997,
+"fetched": "2026-09-08",
+"mkt_cap": 3313886489.9,
 "sector": "Consumer / Retail"
 },
 "SIL": {
@@ -11426,7 +11440,7 @@
 "URNM": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-21",
+"fetched": "2026-09-08",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -11823,10 +11837,10 @@
 "sector": "Utilities"
 },
 "VSTS": {
-"earnings_date": "2026-08-11",
-"earnings_session": "BMO",
-"fetched": "2026-08-10",
-"mkt_cap": 1877213215.22,
+"earnings_date": "2026-11-19",
+"earnings_session": null,
+"fetched": "2026-09-08",
+"mkt_cap": 1752442992.3,
 "sector": "Other"
 },
 "VSXY": {
