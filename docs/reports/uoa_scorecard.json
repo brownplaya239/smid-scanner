@@ -1,0 +1,876 @@
+{
+ "generated": "2026-09-08T20:02:51+00:00",
+ "version": "uoa_scorecard_v1",
+ "matrix": {
+  "days": 141,
+  "tickers": 1689,
+  "from": "2026-02-17",
+  "to": "2026-09-08"
+ },
+ "matched": {
+  "assigned": 45506,
+  "unmatchable": 38819,
+  "graded_5d": 41887,
+  "match_v2_forward": 421
+ },
+ "headline": {
+  "legacy_vs_spy_avg_excess_5d": 0.49,
+  "matched_avg_excess_5d": -0.091,
+  "matched_into_earnings_5d": 0.85,
+  "note": "matched excess is the flow alpha; the spread to the legacy SPY number is beta + universe drift + event premium"
+ },
+ "pockets": {
+  "overall": {
+   "n": 41887,
+   "avg": -0.091,
+   "med": -0.374,
+   "hit": 48,
+   "bootstrap": {
+    "clusters": 303,
+    "ci95": [
+     -0.599,
+     0.474
+    ],
+    "se_cluster": 0.2707,
+    "n_eff": 1620
+   },
+   "net": {
+    "n": 41887,
+    "avg": -0.456,
+    "med": -0.665,
+    "hit": 46
+   },
+   "by_spread": {
+    "<10bp": {
+     "gross": {
+      "n": 26713,
+      "avg": 0.044,
+      "med": -0.459,
+      "hit": 48
+     },
+     "net": {
+      "n": 26713,
+      "avg": 0.022,
+      "med": -0.499,
+      "hit": 48
+     }
+    },
+    "10-25bp": {
+     "gross": {
+      "n": 4459,
+      "avg": -0.338,
+      "med": -0.178,
+      "hit": 49
+     },
+     "net": {
+      "n": 4459,
+      "avg": -0.681,
+      "med": -0.461,
+      "hit": 46
+     }
+    },
+    ">25bp": {
+     "gross": {
+      "n": 10715,
+      "avg": -0.324,
+      "med": -0.396,
+      "hit": 48
+     },
+     "net": {
+      "n": 10715,
+      "avg": -1.554,
+      "med": -1.414,
+      "hit": 42
+     }
+    }
+   },
+   "name": "overall"
+  },
+  "into_earnings": {
+   "n": 13089,
+   "avg": 0.85,
+   "med": 0.168,
+   "hit": 50,
+   "bootstrap": {
+    "clusters": 152,
+    "ci95": [
+     -0.112,
+     1.815
+    ],
+    "se_cluster": 0.5074,
+    "n_eff": 691
+   },
+   "net": {
+    "n": 13089,
+    "avg": 0.629,
+    "med": -0.165,
+    "hit": 49
+   },
+   "by_spread": {
+    "<10bp": {
+     "gross": {
+      "n": 9929,
+      "avg": 0.953,
+      "med": -0.15,
+      "hit": 50
+     },
+     "net": {
+      "n": 9929,
+      "avg": 0.933,
+      "med": -0.165,
+      "hit": 50
+     }
+    },
+    "10-25bp": {
+     "gross": {
+      "n": 946,
+      "avg": -0.164,
+      "med": 0.078,
+      "hit": 50
+     },
+     "net": {
+      "n": 946,
+      "avg": -0.496,
+      "med": -0.243,
+      "hit": 49
+     }
+    },
+    ">25bp": {
+     "gross": {
+      "n": 2214,
+      "avg": 0.824,
+      "med": 0.543,
+      "hit": 54
+     },
+     "net": {
+      "n": 2214,
+      "avg": -0.254,
+      "med": -0.324,
+      "hit": 48
+     }
+    }
+   },
+   "name": "into_earnings"
+  },
+  "golden_sweeps": {
+   "n": 4565,
+   "avg": 0.23,
+   "med": 0.091,
+   "hit": 51,
+   "bootstrap": {
+    "clusters": 119,
+    "ci95": [
+     -1.413,
+     2.156
+    ],
+    "se_cluster": 0.9096,
+    "n_eff": 203
+   },
+   "net": {
+    "n": 4565,
+    "avg": -0.052,
+    "med": -0.191,
+    "hit": 48
+   },
+   "by_spread": {
+    "<10bp": {
+     "gross": {
+      "n": 3283,
+      "avg": 0.685,
+      "med": 0.189,
+      "hit": 52
+     },
+     "net": {
+      "n": 3283,
+      "avg": 0.671,
+      "med": 0.187,
+      "hit": 52
+     }
+    },
+    "10-25bp": {
+     "gross": {
+      "n": 512,
+      "avg": -1.634,
+      "med": -2.443,
+      "hit": 45
+     },
+     "net": {
+      "n": 512,
+      "avg": -1.964,
+      "med": -2.724,
+      "hit": 43
+     }
+    },
+    ">25bp": {
+     "gross": {
+      "n": 770,
+      "avg": -0.468,
+      "med": -0.175,
+      "hit": 49
+     },
+     "net": {
+      "n": 770,
+      "avg": -1.863,
+      "med": -1.188,
+      "hit": 37
+     }
+    }
+   },
+   "name": "golden_sweeps"
+  },
+  "score_80_plus": {
+   "n": 9892,
+   "avg": 0.329,
+   "med": -0.439,
+   "hit": 48,
+   "bootstrap": {
+    "clusters": 219,
+    "ci95": [
+     -0.638,
+     1.39
+    ],
+    "se_cluster": 0.5188,
+    "n_eff": 491
+   },
+   "net": {
+    "n": 9892,
+    "avg": 0.059,
+    "med": -0.702,
+    "hit": 47
+   },
+   "by_spread": {
+    "<10bp": {
+     "gross": {
+      "n": 7021,
+      "avg": 0.388,
+      "med": -0.673,
+      "hit": 48
+     },
+     "net": {
+      "n": 7021,
+      "avg": 0.37,
+      "med": -0.694,
+      "hit": 48
+     }
+    },
+    "10-25bp": {
+     "gross": {
+      "n": 998,
+      "avg": -0.602,
+      "med": -0.364,
+      "hit": 46
+     },
+     "net": {
+      "n": 998,
+      "avg": -0.94,
+      "med": -0.849,
+      "hit": 45
+     }
+    },
+    ">25bp": {
+     "gross": {
+      "n": 1873,
+      "avg": 0.603,
+      "med": 0.303,
+      "hit": 52
+     },
+     "net": {
+      "n": 1873,
+      "avg": -0.577,
+      "med": -0.717,
+      "hit": 46
+     }
+    }
+   },
+   "name": "score_80_plus"
+  },
+  "put_buys": {
+   "n": 13403,
+   "avg": -0.657,
+   "med": 0.189,
+   "hit": 52,
+   "bootstrap": {
+    "clusters": 237,
+    "ci95": [
+     -1.786,
+     0.434
+    ],
+    "se_cluster": 0.5695,
+    "n_eff": 356
+   },
+   "net": {
+    "n": 13403,
+    "avg": -0.986,
+    "med": -0.084,
+    "hit": 49
+   },
+   "by_spread": {
+    "<10bp": {
+     "gross": {
+      "n": 8716,
+      "avg": -0.933,
+      "med": 0.043,
+      "hit": 50
+     },
+     "net": {
+      "n": 8716,
+      "avg": -0.954,
+      "med": 0.032,
+      "hit": 50
+     }
+    },
+    "10-25bp": {
+     "gross": {
+      "n": 1519,
+      "avg": -1.506,
+      "med": 0.14,
+      "hit": 53
+     },
+     "net": {
+      "n": 1519,
+      "avg": -1.847,
+      "med": -0.175,
+      "hit": 48
+     }
+    },
+    ">25bp": {
+     "gross": {
+      "n": 3168,
+      "avg": 0.51,
+      "med": 0.72,
+      "hit": 56
+     },
+     "net": {
+      "n": 3168,
+      "avg": -0.663,
+      "med": -0.084,
+      "hit": 48
+     }
+    }
+   },
+   "name": "put_buys"
+  },
+  "call_buys": {
+   "n": 28484,
+   "avg": 0.175,
+   "med": -0.764,
+   "hit": 46,
+   "bootstrap": {
+    "clusters": 291,
+    "ci95": [
+     -0.727,
+     1.09
+    ],
+    "se_cluster": 0.4558,
+    "n_eff": 578
+   },
+   "net": {
+    "n": 28484,
+    "avg": -0.206,
+    "med": -0.977,
+    "hit": 44
+   },
+   "by_spread": {
+    "<10bp": {
+     "gross": {
+      "n": 17997,
+      "avg": 0.516,
+      "med": -0.634,
+      "hit": 47
+     },
+     "net": {
+      "n": 17997,
+      "avg": 0.495,
+      "med": -0.644,
+      "hit": 46
+     }
+    },
+    "10-25bp": {
+     "gross": {
+      "n": 2940,
+      "avg": 0.265,
+      "med": -0.334,
+      "hit": 47
+     },
+     "net": {
+      "n": 2940,
+      "avg": -0.079,
+      "med": -0.604,
+      "hit": 45
+     }
+    },
+    ">25bp": {
+     "gross": {
+      "n": 7547,
+      "avg": -0.674,
+      "med": -1.164,
+      "hit": 45
+     },
+     "net": {
+      "n": 7547,
+      "avg": -1.928,
+      "med": -2.265,
+      "hit": 39
+     }
+    }
+   },
+   "name": "call_buys"
+  }
+ },
+ "ic": {
+  "adjusted_score": {
+   "n": 24612,
+   "note": "ledger trade_score bakes in edge_adj at flag time (point-in-time); raw = trade_score - edge_adj",
+   "matched_ic_by_horizon": {
+    "+1d": 0.0182,
+    "+3d": 0.0237,
+    "+5d": 0.0047,
+    "+10d": 0.0227,
+    "+20d": 0.0185
+   },
+   "raw_matched_ic_by_horizon": {
+    "+1d": 0.0154,
+    "+3d": 0.0267,
+    "+5d": 0.012,
+    "+10d": 0.0353,
+    "+20d": 0.0416
+   },
+   "by_regime": {
+    "vix_low|spy_up": {
+     "n": 15665,
+     "ic": -0.001
+    },
+    "vix_mid|spy_up": {
+     "n": 4912,
+     "ic": -0.0072
+    },
+    "vix_low|spy_down": {
+     "n": 661,
+     "ic": 0.0203
+    },
+    "vix_mid|spy_down": {
+     "n": 1975,
+     "ic": 0.106
+    },
+    "vix_high|spy_down": {
+     "n": 1399,
+     "ic": -0.0113
+    }
+   },
+   "decile_matched": {
+    "deciles": [
+     {
+      "d": 1,
+      "avg": -0.291,
+      "hit": 48
+     },
+     {
+      "d": 2,
+      "avg": 0.146,
+      "hit": 49
+     },
+     {
+      "d": 3,
+      "avg": -0.904,
+      "hit": 46
+     },
+     {
+      "d": 4,
+      "avg": -0.183,
+      "hit": 48
+     },
+     {
+      "d": 5,
+      "avg": -0.498,
+      "hit": 47
+     },
+     {
+      "d": 6,
+      "avg": 1.196,
+      "hit": 54
+     },
+     {
+      "d": 7,
+      "avg": 0.93,
+      "hit": 55
+     },
+     {
+      "d": 8,
+      "avg": 0.228,
+      "hit": 49
+     },
+     {
+      "d": 9,
+      "avg": 0.031,
+      "hit": 50
+     },
+     {
+      "d": 10,
+      "avg": 0.109,
+      "hit": 46
+     }
+    ],
+    "top_minus_bottom": 0.4,
+    "monotonic_steps": 4
+   }
+  }
+ },
+ "calibration": {
+  "reliability_rolling90": [
+   {
+    "bin": 1,
+    "score_lo": 55,
+    "score_hi": 62,
+    "hit": 48,
+    "ci": [
+     0.45,
+     0.507
+    ]
+   },
+   {
+    "bin": 2,
+    "score_lo": 62,
+    "score_hi": 69,
+    "hit": 49,
+    "ci": [
+     0.456,
+     0.517
+    ]
+   },
+   {
+    "bin": 3,
+    "score_lo": 69,
+    "score_hi": 71,
+    "hit": 46,
+    "ci": [
+     0.419,
+     0.498
+    ]
+   },
+   {
+    "bin": 4,
+    "score_lo": 71,
+    "score_hi": 73,
+    "hit": 48,
+    "ci": [
+     0.434,
+     0.526
+    ]
+   },
+   {
+    "bin": 5,
+    "score_lo": 73,
+    "score_hi": 75,
+    "hit": 47,
+    "ci": [
+     0.405,
+     0.526
+    ]
+   },
+   {
+    "bin": 6,
+    "score_lo": 75,
+    "score_hi": 77,
+    "hit": 54,
+    "ci": [
+     0.491,
+     0.584
+    ]
+   },
+   {
+    "bin": 7,
+    "score_lo": 77,
+    "score_hi": 79,
+    "hit": 55,
+    "ci": [
+     0.493,
+     0.608
+    ]
+   },
+   {
+    "bin": 8,
+    "score_lo": 79,
+    "score_hi": 82,
+    "hit": 49,
+    "ci": [
+     0.417,
+     0.555
+    ]
+   },
+   {
+    "bin": 9,
+    "score_lo": 82,
+    "score_hi": 86,
+    "hit": 50,
+    "ci": [
+     0.436,
+     0.564
+    ]
+   },
+   {
+    "bin": 10,
+    "score_lo": 86,
+    "score_hi": 100,
+    "hit": 46,
+    "ci": [
+     0.399,
+     0.527
+    ]
+   }
+  ],
+  "regime_base_rates": {
+   "vix_low|spy_up": {
+    "n": 15665,
+    "hit": 50,
+    "avg": 0.23
+   },
+   "vix_mid|spy_up": {
+    "n": 4912,
+    "hit": 46,
+    "avg": -0.709
+   },
+   "vix_low|spy_down": {
+    "n": 661,
+    "hit": 47,
+    "avg": 0.487
+   },
+   "vix_mid|spy_down": {
+    "n": 1975,
+    "hit": 52,
+    "avg": 0.458
+   },
+   "vix_high|spy_down": {
+    "n": 1399,
+    "hit": 46,
+    "avg": 0.38
+   }
+  },
+  "sizing_shrinkage": {
+   "w_recent": 0.984,
+   "rule": "sizing weight = w*recent + (1-w)*trained, w = n_recent/(n_recent+400)"
+  }
+ },
+ "crowding": {
+  "ev_vs_premium_over_adv": {
+   "all": {
+    "<0.1%": {
+     "n": 20428,
+     "avg": 0.015,
+     "med": -0.469,
+     "hit": 47
+    },
+    "0.1-0.5%": {
+     "n": 14242,
+     "avg": -0.231,
+     "med": -0.238,
+     "hit": 49
+    },
+    "0.5-2%": {
+     "n": 5722,
+     "avg": -0.003,
+     "med": -0.312,
+     "hit": 49
+    },
+    ">2%": {
+     "n": 1495,
+     "avg": -0.555,
+     "med": -0.914,
+     "hit": 43
+    }
+   },
+   "golden_sweeps": {
+    "<0.1%": {
+     "n": 2560,
+     "avg": 0.684,
+     "med": 0.202,
+     "hit": 53
+    },
+    "0.1-0.5%": {
+     "n": 1723,
+     "avg": -0.226,
+     "med": -0.766,
+     "hit": 48
+    },
+    "0.5-2%": {
+     "n": 234,
+     "avg": -0.161,
+     "med": -2.0,
+     "hit": 44
+    },
+    ">2%": {
+     "n": 48,
+     "avg": -5.675,
+     "med": -0.439,
+     "hit": 40
+    }
+   },
+   "score_80_plus": {
+    "<0.1%": {
+     "n": 3476,
+     "avg": 0.424,
+     "med": -0.936,
+     "hit": 46
+    },
+    "0.1-0.5%": {
+     "n": 3740,
+     "avg": 0.506,
+     "med": 0.091,
+     "hit": 50
+    },
+    "0.5-2%": {
+     "n": 1905,
+     "avg": 0.064,
+     "med": 0.091,
+     "hit": 50
+    },
+    ">2%": {
+     "n": 771,
+     "avg": -0.307,
+     "med": -0.86,
+     "hit": 46
+    }
+   }
+  },
+  "ev_by_hour_et": {
+   "11h": {
+    "n": 1740,
+    "avg": 0.189,
+    "med": -0.309,
+    "hit": 48
+   },
+   "12h": {
+    "n": 3631,
+    "avg": 0.19,
+    "med": -0.035,
+    "hit": 50
+   },
+   "13h": {
+    "n": 5677,
+    "avg": 0.002,
+    "med": -0.362,
+    "hit": 48
+   },
+   "14h": {
+    "n": 5728,
+    "avg": -0.15,
+    "med": -0.374,
+    "hit": 48
+   },
+   "15h": {
+    "n": 8127,
+    "avg": -0.161,
+    "med": -0.375,
+    "hit": 48
+   },
+   "16h": {
+    "n": 8335,
+    "avg": -0.256,
+    "med": -0.474,
+    "hit": 47
+   },
+   "17h": {
+    "n": 3865,
+    "avg": -0.068,
+    "med": -0.374,
+    "hit": 48
+   },
+   "18h": {
+    "n": 2391,
+    "avg": 0.03,
+    "med": -0.609,
+    "hit": 48
+   },
+   "19h": {
+    "n": 2063,
+    "avg": -0.194,
+    "med": -0.634,
+    "hit": 47
+   }
+  },
+  "hypothesis": "if EV falls as premium/ADV conspicuousness rises, the best-looking prints are crowded and the quiet qualifying signals carry the edge"
+ },
+ "capacity": {
+  "overall": {
+   "edge_nonpositive": true
+  },
+  "into_earnings": {
+   "per_name_q50_$": 275788574,
+   "per_name_q25_$": 97570698,
+   "note": "clip size where sqrt-impact consumes 50% of gross matched edge"
+  },
+  "put_buys": {
+   "edge_nonpositive": true
+  }
+ },
+ "book_sim": {
+  "overall": {
+   "n_days": 77,
+   "total_matched_excess_pp": -9.56,
+   "max_drawdown_pp": -10.03,
+   "longest_underwater_days": 69,
+   "worst_month": {
+    "month": "2026-07",
+    "pp": -4.47
+   },
+   "note": "equal-weight, net of modeled costs, hold-5d overlap; per-day P&L approximated as x5/5 per open position"
+  },
+  "into_earnings": {
+   "n_days": 77,
+   "total_matched_excess_pp": -1.46,
+   "max_drawdown_pp": -6.31,
+   "longest_underwater_days": 58,
+   "worst_month": {
+    "month": "2026-07",
+    "pp": -2.04
+   },
+   "note": "equal-weight, net of modeled costs, hold-5d overlap; per-day P&L approximated as x5/5 per open position"
+  }
+ },
+ "entry_lag": {
+  "window_days": 45,
+  "sampled_ticker_days": 8485,
+  "new_fetched": 600,
+  "ladder": {
+   "at_signal": {
+    "n": 8485,
+    "avg": 0.769,
+    "med": -0.038,
+    "hit": 50
+   },
+   "+15m": {
+    "n": 8287,
+    "avg": 0.621,
+    "med": -0.255,
+    "hit": 49
+   },
+   "+60m": {
+    "n": 7982,
+    "avg": 0.687,
+    "med": -0.192,
+    "hit": 49
+   },
+   "next_open": {
+    "n": 8485,
+    "avg": 0.224,
+    "med": -0.497,
+    "hit": 48
+   }
+  },
+  "note": "exit (+5d close) and control leg fixed; the ladder isolates entry price alone. next_open = next session's official daily open."
+ },
+ "cost_model": {
+  "half_spread": "Corwin-Schultz 20d median estimate (cap 5%)",
+  "impact": "k*sigma_d*sqrt(Q/ADV), k=0.2, Q=$10,000",
+  "roundtrip": "2x(half_spread + impact)"
+ },
+ "promotion_gates": {
+  "spec": [
+   "positive matched-excess NET-of-cost EV over >= 8 unseen weeks",
+   "cluster-corrected |t| > 2 on effective n",
+   "monotone decile spread OOS if the change touches ranking",
+   "no degradation in the worst regime tercile"
+  ],
+  "meta_kpi": "publish promoted/demoted counts as they accrue (none yet under these gates)"
+ },
+ "honesty": "Matched controls inherit beta, momentum drift and (match v2, forward) days-to-earnings; sector/mcap are from the current meta snapshot (sector ~static, mcap drifts); historical matches are 4-feature. Returns are close-anchored both legs \u2014 legacy flag-price numbers include flag->close drift and are not comparable. Costs are modeled (CS spread + sqrt impact), not NBBO truth. Cluster unit = ISO week x sector; effective n is a variance-ratio estimate."
+}

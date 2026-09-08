@@ -56,6 +56,7 @@ others run scanners.
 | `trade_desk.py` | AI Trade Desk engine — candidates → empirical Alpha Score → measured family gates → append-only idea ledger (`data/trade_desk_log.jsonl`) → forward grading. Abstains unless a family's own record qualifies. |
 | `trade_desk_validation.py` | Walk-forward validation of the Alpha Score on the frozen signal record; emits the qualification verdict the engine's flow gate reads. Runs in `uoa.yml`. |
 | `docs_dev/AI_TRADE_DESK.md` | Trade Desk methodology + honest findings (read before touching the desk) |
+| `uoa_scorecard.py` | Matched-control flow scorecard (2026-09 redesign): controls matched on sector/cap/momentum/vol replace the SPY benchmark; cluster-bootstrap effective n; net-of-cost EV; entry-lag ladder; capacity/book-sim/crowding. Nightly via `uoa_scorecard.yml`. Assignments freeze in `data/uoa_matched.json.gz` — never reassign. |
 | `docs/index.html` | GitHub Pages site — 7 tabs, manifest-driven, inline PDF viewer |
 | `cloudflare-worker/worker.js` | Cloudflare Worker — web form → triggers `ticker-lookup.yml` |
 

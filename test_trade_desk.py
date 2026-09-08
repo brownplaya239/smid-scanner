@@ -649,3 +649,53 @@ def test_ledgers_are_split_by_target():
     assert L["executable"]["trade_qualified_strategies"] == 0
     assert "implied" in L["forecast"]["target"]
     assert "SPY" in L["directional"]["target"]
+
+
+# ------------------------------------------------ matched scorecard
+
+def test_scorecard_cost_model_arithmetic():
+    import uoa_scorecard as us
+    # 10bp half-spread, 2% daily vol, $50M ADV, $10k clip:
+    # impact = 0.2*0.02*sqrt(1e4/5e7) = 5.66e-5; rt = 2*(0.001+5.66e-5)
+    c = us.cost_model(0.0010, 0.02, 5e7)
+    assert c is not None and abs(c - 0.2113) < 0.01
+    assert us.cost_model(float("nan"), 0.02, 5e7) is None
+    # spread cap applies
+    big = us.cost_model(0.30, 0.02, 5e7)
+    assert big is not None and big <= 2 * (us.SPREAD_CAP * 100) + 1
+
+
+def test_scorecard_spearman_and_bootstrap():
+    import uoa_scorecard as us
+    assert us._spearman([1, 2, 3, 4], [2, 4, 6, 8]) == 1.0
+    assert us._spearman([1, 2, 3, 4], [8, 6, 4, 2]) == -1.0
+    rows = [("c" + str(i % 10), float(i % 7) - 3) for i in range(400)]
+    b = us.cluster_boot(rows, iters=200)
+    assert b.get("clusters") == 10 and "ci95" in b
+    assert b.get("n_eff") is not None
+
+
+def test_scorecard_ern_bucket():
+    import uoa_scorecard as us
+    assert us._ern_bucket("2026-09-10", "2026-09-08") == "0-5"
+    assert us._ern_bucket("2026-09-25", "2026-09-08") == "6-20"
+    assert us._ern_bucket(None, "2026-09-08") == "unk"
+
+
+def test_matched_store_assignments_freeze(tmp_path, monkeypatch):
+    """A signal's controls are assigned once; a second pass must not
+    reassign or mutate them."""
+    import uoa_scorecard as us
+    matched = {"sig1": {"mv": 1, "d": "2026-06-02", "nc": 5,
+                        "ci": [1, 2, 3, 4, 5], "x": {"5": 1.23}}}
+    sigs = [{"id": "sig1", "ticker": "AAA", "direction": "bullish",
+             "flagged_at": "2026-06-02T14:00:00+00:00"}]
+    import numpy as np
+    days = ["2026-06-01", "2026-06-02"]
+    n = us.assign_controls(sigs, days, ["AAA"], {"AAA": 0},
+                           np.ones((2, 1)), np.ones((2, 1)),
+                           np.ones((2, 1)), np.ones((2, 1)),
+                           {}, matched)
+    assert n == 0
+    assert matched["sig1"]["ci"] == [1, 2, 3, 4, 5]
+    assert matched["sig1"]["x"]["5"] == 1.23

@@ -30285,7 +30285,7 @@
     var esc = window.escapeHtml || function (s) { return String(s); };
     var ATD_WORKER = "https://api.tickerdesk.io";
     var DATA = null, VAL = null, RES = null, EVOL = null, EXEC = null,
-        FML = null;
+        FML = null, USC = null;
 
     function tkn() {
       try {
@@ -30913,8 +30913,96 @@
       h += '</div>';
       return h;
     }
+    function scorecardHTML() {
+      var s = USC;
+      if (!s || !s.pockets) return "";
+      var ov = s.pockets.overall || {};
+      var ie = s.pockets.into_earnings || {};
+      var hb = s.headline || {};
+      var bo = ov.bootstrap || {};
+      function pk(o) {
+        if (!o || !o.n) return "\u2014";
+        var b = o.bootstrap || {};
+        return num(o.avg, 2) + "pp (n=" + o.n +
+          (b.ci95 ? ", CI " + num(b.ci95[0], 2) + "\u2192" +
+            num(b.ci95[1], 2) : "") + ")" +
+          (o.net && o.net.n ? " \u00b7 net " + num(o.net.avg, 2) +
+            "pp" : "");
+      }
+      var h = '<div class="atd-sec-h">Flow Scorecard \u2014 ' +
+        'matched-control <span class="n">(controls: same sector, ' +
+        'cap band, nearest momentum+vol, flow-contaminated names ' +
+        'excluded; week\u00d7sector cluster bootstrap)</span></div>' +
+        '<div class="atd-rows">' +
+        row("Legacy vs SPY (+5d)",
+            hb.legacy_vs_spy_avg_excess_5d != null
+              ? num(hb.legacy_vs_spy_avg_excess_5d, 2) + "pp"
+              : "\u2014") +
+        row("Matched excess (+5d)", pk(ov)) +
+        row("Effective n", (bo.n_eff != null
+            ? bo.n_eff + " (nominal " + ov.n + ", " +
+              bo.clusters + " week\u00d7sector clusters)"
+            : "\u2014")) +
+        row("Into earnings (matched)", pk(ie)) +
+        row("Golden sweeps (matched)",
+            pk(s.pockets.golden_sweeps)) +
+        row("Put buys (matched)", pk(s.pockets.put_buys)) + '</div>';
+      var lag = (s.entry_lag || {}).ladder || {};
+      var order = ["at_signal", "+15m", "+60m", "next_open"];
+      if (lag.at_signal && lag.at_signal.n) {
+        h += '<div class="atd-sec-h">Entry-Lag Ladder ' +
+          '<span class="n">(matched EV to +5d close by entry point ' +
+          '\u2014 sample of ' +
+          ((s.entry_lag || {}).sampled_ticker_days || 0) +
+          ' ticker-days)</span></div>' +
+          '<div class="atd-table-wrap"><table class="atd-table">' +
+          '<tr><th>Entry</th><th>n</th><th>avg</th><th>med</th>' +
+          '<th>hit</th></tr>' +
+          order.map(function (k) {
+            var v = lag[k] || {};
+            return '<tr><td>' + k + '</td><td>' + (v.n || 0) +
+              '</td><td>' + num(v.avg, 2) + 'pp</td><td>' +
+              num(v.med, 2) + 'pp</td><td>' +
+              (v.hit != null ? v.hit + '%' : '\u2014') +
+              '</td></tr>';
+          }).join("") + '</table></div>';
+      }
+      var cr = ((s.crowding || {}).ev_vs_premium_over_adv || {})
+        .all || {};
+      var ck = Object.keys(cr);
+      if (ck.length) {
+        h += '<div class="atd-sec-h">Crowding \u2014 matched EV vs ' +
+          'premium/ADV</div><div class="atd-table-wrap">' +
+          '<table class="atd-table"><tr><th>Premium/ADV</th>' +
+          '<th>n</th><th>avg</th><th>hit</th></tr>' +
+          ck.map(function (b) {
+            var v = cr[b];
+            return '<tr><td>' + esc(b) + '</td><td>' + (v.n || 0) +
+              '</td><td>' + num(v.avg, 2) + 'pp</td><td>' +
+              (v.hit != null ? v.hit + '%' : '\u2014') +
+              '</td></tr>';
+          }).join("") + '</table></div>';
+      }
+      var bs = (s.book_sim || {}).overall || {};
+      if (bs.n_days) {
+        h += '<div class="atd-rows">' +
+          row("Book sim (net, hold-5d overlap)",
+              "total " + num(bs.total_matched_excess_pp, 1) +
+              "pp \u00b7 maxDD " + num(bs.max_drawdown_pp, 1) +
+              "pp \u00b7 " + bs.longest_underwater_days +
+              "d underwater \u00b7 worst month " +
+              ((bs.worst_month || {}).month || "\u2014") + " " +
+              num((bs.worst_month || {}).pp, 1) + "pp") + '</div>';
+      }
+      if (s.honesty)
+        h += '<div class="atd-rows"><span class="k">' +
+          esc(s.honesty) + '</span></div>';
+      return h;
+    }
+
     function researchViewHTML(d) {
-      return registryHTML() + fairMoveLabHTML() + wingHTML() +
+      return registryHTML() + scorecardHTML() + fairMoveLabHTML() +
+        wingHTML() +
         challengersHTML() + volHTML(EVOL) + gatesHTML(d.gates) +
         researchTablesHTML(RES) + rejectedRawHTML(d);
     }
@@ -30983,6 +31071,7 @@
         j("./reports/earnings_vol.json"),
         j("./reports/earnings_vol_exec.json"),
         j("./reports/fair_move_lab.json"),
+        j("./reports/uoa_scorecard.json"),
       ]).then(function (rs) {
         DATA = rs[0].value || DATA;
         VAL = rs[1].value || VAL;
@@ -30990,6 +31079,7 @@
         EVOL = rs[3].value || EVOL;
         EXEC = rs[4].value || EXEC;
         FML = rs[5].value || FML;
+        USC = rs[6].value || USC;
         if (DATA) render();
         else $("atd-view-today").innerHTML =
           '<div class="uoa-empty">Trade Desk data not published yet — ' +

@@ -48,6 +48,14 @@ MAX_PAIRS    = 600      # hard cap on hypotheses per run
 STALE_DAYS   = 6        # weekly cadence enforcement
 
 
+def _load_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
 def _due(force: bool) -> bool:
     if force:
         return True
@@ -97,9 +105,11 @@ def _stats(vals):
     n = len(vals)
     if not n:
         return {"n": 0, "hit": None, "avg": None}
+    mu = sum(vals) / n
+    sd = (sum((v - mu) ** 2 for v in vals) / n) ** 0.5 if n > 1 else 0.0
     return {"n": n,
             "hit": round(100.0 * sum(1 for v in vals if v > 0) / n, 1),
-            "avg": round(sum(vals) / n, 3)}
+            "avg": round(mu, 3), "sd": round(sd, 3)}
 
 
 def run_lab():
@@ -141,7 +151,7 @@ def run_lab():
     def slice_stats(rows, a, b):
         return _stats([v for _, v, at in rows if a in at and b in at])
 
-    tested, survivors = 0, []
+    tested, survivors, oos_family = 0, [], []
     for a, b in itertools.combinations(pool, 2):
         # same-dimension pairs (dte:x & dte:y) are impossible — skip free
         if a.split(":")[0] == b.split(":")[0]:
@@ -165,6 +175,9 @@ def run_lab():
         so = slice_stats(oos, a, b)
         if so["n"] < MIN_OOS or so["avg"] is None:
             continue
+        oos_family.append({"name": f"{a} AND {b}",
+                           "lift": so["avg"] - base_oos["avg"],
+                           "n": so["n"], "sd": so.get("sd") or 0.0})
         if (so["avg"] - base_oos["avg"]) <= 0:
             continue                                   # died out of sample
         survivors.append({
@@ -178,6 +191,42 @@ def run_lab():
         })
     survivors.sort(key=lambda x: -x["oos_lift_pp"])
 
+    # Multiple-testing honesty (2026-09 scorecard redesign): one-sided
+    # normal p per OOS-evaluated hypothesis, deflated by the matched
+    # scorecard's cluster effective-n ratio (signals cluster by week x
+    # sector, so iid z-scores overstate evidence), then
+    # Benjamini-Hochberg at q=0.10 across the WHOLE evaluated family.
+    import math as _math
+    deflate = 1.0
+    try:
+        sc = _load_json(os.path.join(_BASE, "docs", "reports", "uoa_scorecard.json"))
+        bo = ((sc.get("pockets") or {}).get("overall")
+              or {}).get("bootstrap") or {}
+        if bo.get("n_eff") and sc.get("matched", {}).get("graded_5d"):
+            deflate = min(1.0, bo["n_eff"]
+                          / sc["matched"]["graded_5d"])
+    except Exception:
+        pass
+
+    def _p(hyp):
+        if hyp["sd"] <= 0 or hyp["n"] < 2:
+            return 1.0
+        z = hyp["lift"] / (hyp["sd"] / _math.sqrt(hyp["n"]))
+        z *= _math.sqrt(deflate)
+        return 0.5 * _math.erfc(z / _math.sqrt(2.0))
+
+    fam = sorted(({"name": h["name"], "p": _p(h),
+                   "lift": round(h["lift"], 3)} for h in oos_family),
+                 key=lambda x: x["p"])
+    m = len(fam)
+    bh_pass = []
+    for i, h in enumerate(fam, start=1):
+        if h["p"] <= 0.10 * i / m:
+            bh_pass = fam[:i]
+    bh_names = {h["name"] for h in bh_pass}
+    for sv in survivors:
+        sv["bh_pass"] = sv["hypothesis"] in bh_names
+
     return {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "status": "active",
@@ -186,6 +235,18 @@ def run_lab():
         "n_tested": tested,
         "survivors": survivors[:12],
         "graveyard": tested - len(survivors),
+        "multiple_testing": {
+            "oos_family_size": m,
+            "cluster_deflation": round(deflate, 3),
+            "bh_q": 0.10,
+            "bh_survivors": len([s for s in survivors
+                                 if s.get("bh_pass")]),
+            "note": "one-sided normal p on OOS lift, z deflated by "
+                    "sqrt(effective-n ratio) from the matched "
+                    "scorecard, BH at q=0.10 across every "
+                    "OOS-evaluated hypothesis. Survivors failing BH "
+                    "are marked bh_pass:false and should be treated "
+                    "as likely luck."},
         "params": {"min_joint": MIN_JOINT, "oos_frac": OOS_FRAC,
                    "stable_frac": STABLE_FRAC, "lift_hit_pp": LIFT_HIT_PP,
                    "lift_exc_pp": LIFT_EXC},

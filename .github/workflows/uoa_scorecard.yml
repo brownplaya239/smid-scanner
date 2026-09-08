@@ -1,0 +1,56 @@
+name: UOA Matched Scorecard
+
+# Nightly matched-control scorecard rebuild (2026-09 redesign):
+# whole-market bar matrix (one grouped call per trading day), frozen
+# control assignments, cluster-bootstrap inference, net-of-cost EV,
+# entry-lag minute sample (incremental budget), calibration, capacity,
+# book sim, crowding. Runs AFTER the close so the day's signals grade
+# with settled bars.
+
+on:
+  schedule:
+    - cron: '30 23 * * 1-5'   # ~7:30 PM ET
+  workflow_dispatch:
+
+concurrency:
+  group: uoa-scorecard
+  cancel-in-progress: false
+
+jobs:
+  scorecard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build matched scorecard
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: python uoa_scorecard.py
+
+      - name: Re-run hypothesis lab with BH correction
+        # reads the fresh scorecard's effective-n deflation
+        continue-on-error: true
+        run: python hypothesis_lab.py --force
+
+      - name: Publish
+        run: bash scripts/publish_reports.sh

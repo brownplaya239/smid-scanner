@@ -462,6 +462,55 @@ untouched. The strongest result of the three sprints: a research
 process that kills attractive-looking strategies instead of
 rationalizing them.
 
+## 10h. Matched-control flow scorecard (2026-09-08, `uoa_scorecard.py`)
+
+The SPY-benchmark scorecard conflated beta, momentum-universe drift and
+earnings-vol premium with flow information. The redesigned card
+benchmarks every signal against 10 controls matched at signal date on
+sector, cap band, 63d momentum and 20d vol (flow-contaminated names
+excluded; assignments frozen), with week x sector cluster-bootstrap
+inference. First full run (41,887 matched-graded of ~84k directional
+signals; 38,819 unmatchable — reasons to be instrumented):
+
+- **Overall flow alpha is dead.** Legacy +0.49pp vs SPY -> matched
+  **-0.09pp**, CI [-0.60, +0.47], **effective n 1,620** (nominal
+  41,887; 303 clusters — a 26x deflation). Net of modeled costs
+  (CS half-spread + sqrt impact, $10k clip): **-0.46pp**. Simulated
+  net book: -9.6pp over 77 days, maxDD -10pp, 69 days underwater.
+- **The July "put-buys carry edge" finding was a benchmark artifact:**
+  matched put-buys are **-0.66pp** (CI spans zero). Score>=80:
+  +0.33pp, CI spans zero. Decile top-minus-bottom 0.40, monotone 4/9.
+  Adjusted-score matched IC +5d: **0.005**.
+- **Into-earnings +0.85pp survived matching** (n=13,089) — but CI
+  [-0.11, +1.82] spans zero at n_eff 691, and v1 historical controls
+  are NOT days-to-earnings matched, so event premium is not yet
+  removed. Match v2 (forward, 421 assigned so far) adds the earnings
+  bucket; that accrual decides this pocket.
+- **Crowding confirmed — the one genuinely new edge candidate.**
+  Golden-sweep matched EV falls monotonically with conspicuousness
+  (premium/ADV): quiet (<0.1%) **+0.68pp, 53% hit, median +0.20,
+  n=2,560** -> loud (>2%) **-5.68pp**. The best-looking prints are
+  crowded; the quiet qualifying prints carry what edge exists. This
+  inverts the intuitive filter and is now the flow family's premier
+  forward hypothesis (declare before optimizing — same discipline as
+  the vol challengers).
+- **Entry-lag ladder** (8,485 signal-rows over 600 sampled ticker-days,
+  earnings-weighted): at-signal +0.77 -> +15m +0.62 -> +60m +0.69 ->
+  next-open +0.22. Not a 15-minute latency race — the edge survives
+  the session and dies overnight. Same-session automation pressure:
+  low.
+- **Multiple-testing honesty applied to the Hypothesis Lab:** with the
+  scorecard's effective-n deflation (0.039) and Benjamini-Hochberg at
+  q=0.10 across the OOS-evaluated family, **0 of the 5 published
+  survivors pass** — all now carry `bh_pass:false`.
+
+Promotion gates published on the card: positive matched NET EV over
+>=8 unseen weeks, cluster-corrected |t|>2 on effective n, monotone OOS
+deciles, no worst-regime degradation. Nightly rebuild:
+`uoa_scorecard.yml`. Card honesty block lists every modeling
+limitation (meta-snapshot sector/mcap, 4-feature historical matches,
+close-anchoring, modeled costs).
+
 ## 11. What would make this product succeed
 
 The moat is the growing point-in-time record + honest gates, not the LLM.
