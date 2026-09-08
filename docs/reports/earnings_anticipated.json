@@ -1,8 +1,8 @@
 {
  "week_of": "2026-09-07",
- "generated": "2026-09-07T19:43:36-04:00",
+ "generated": "2026-09-08T16:49:14-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 53,
+ "total": 55,
  "days": [
   {
    "date": "2026-09-07",
@@ -17,7 +17,7 @@
     {
      "ticker": "ABM",
      "company": "ABM Industries, Inc.",
-     "score": 15,
+     "score": 17,
      "analysts": 9,
      "release_time": 1,
      "confirmed": true,
@@ -28,7 +28,7 @@
     {
      "ticker": "UNFI",
      "company": "United Natural Foods, Inc.",
-     "score": 8,
+     "score": 13,
      "analysts": 11,
      "release_time": 1,
      "confirmed": true,
@@ -39,20 +39,31 @@
     {
      "ticker": "CAN",
      "company": "Canaan Inc.",
-     "score": 9,
+     "score": 11,
      "analysts": 7,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-09-08T00:00:00",
      "q": "6/2026",
      "mcap": 268143899.76
+    },
+    {
+     "ticker": "CANF",
+     "company": "Can-Fite BioPharma Ltd.",
+     "score": 53,
+     "analysts": 3,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-08T00:00:00",
+     "q": "6/2026",
+     "mcap": 4777879.81
     }
    ],
    "amc": [
     {
      "ticker": "CASY",
      "company": "Casey's General Stores, Inc.",
-     "score": 41,
+     "score": 54,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
@@ -63,7 +74,7 @@
     {
      "ticker": "TTAN",
      "company": "ServiceTitan, Inc.",
-     "score": 14,
+     "score": 19,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
@@ -74,7 +85,7 @@
     {
      "ticker": "BRZE",
      "company": "Braze",
-     "score": 18,
+     "score": 22,
      "analysts": 22,
      "release_time": 3,
      "confirmed": true,
@@ -85,7 +96,7 @@
     {
      "ticker": "INNV",
      "company": "InnovAge Holding Corp. ",
-     "score": 5,
+     "score": 8,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
@@ -96,13 +107,24 @@
     {
      "ticker": "AVO",
      "company": "Mission Produce, Inc.",
-     "score": 9,
+     "score": 12,
      "analysts": 5,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-09-08T00:00:00",
      "q": "7/2026",
      "mcap": 1119895152.76
+    },
+    {
+     "ticker": "BNED",
+     "company": "Barnes & Noble Education, Inc.",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-08T00:00:00",
+     "q": "7/2026",
+     "mcap": 440938545.6
     }
    ]
   },
@@ -113,7 +135,7 @@
     {
      "ticker": "SUNB",
      "company": "Sunbelt Rentals Holdings, Inc.",
-     "score": 1,
+     "score": 3,
      "analysts": 14,
      "release_time": 1,
      "confirmed": true,
@@ -124,7 +146,7 @@
     {
      "ticker": "SAIL",
      "company": "SailPoint, Inc.",
-     "score": 7,
+     "score": 11,
      "analysts": 25,
      "release_time": 1,
      "confirmed": true,
@@ -135,7 +157,7 @@
     {
      "ticker": "CHWY",
      "company": "Chewy, Inc.",
-     "score": 19,
+     "score": 27,
      "analysts": 28,
      "release_time": 1,
      "confirmed": true,
@@ -157,7 +179,7 @@
     {
      "ticker": "JMKE",
      "company": "Jersey Mike's Subs Inc.",
-     "score": 2,
+     "score": 3,
      "analysts": 22,
      "release_time": 1,
      "confirmed": true,
@@ -168,7 +190,7 @@
     {
      "ticker": "KFY",
      "company": "Korn Ferry",
-     "score": 1,
+     "score": 2,
      "analysts": 6,
      "release_time": 1,
      "confirmed": true,
@@ -179,7 +201,7 @@
     {
      "ticker": "SIG",
      "company": "Signet Jewelers Limited",
-     "score": 5,
+     "score": 7,
      "analysts": 13,
      "release_time": 1,
      "confirmed": true,
@@ -190,7 +212,7 @@
     {
      "ticker": "ASO",
      "company": "Academy Sports + Outdoors, Inc.",
-     "score": 3,
+     "score": 4,
      "analysts": 17,
      "release_time": 1,
      "confirmed": true,
@@ -212,7 +234,7 @@
     {
      "ticker": "CGNT",
      "company": "Cognyte Software Ltd.",
-     "score": 1,
+     "score": 2,
      "analysts": 5,
      "release_time": 1,
      "confirmed": true,
@@ -223,7 +245,7 @@
     {
      "ticker": "CAL",
      "company": "Caleres, Inc.",
-     "score": 7,
+     "score": 10,
      "analysts": 3,
      "release_time": 1,
      "confirmed": true,
@@ -256,7 +278,7 @@
     {
      "ticker": "NNOX",
      "company": "Nano-X Imaging Ltd.",
-     "score": 4,
+     "score": 5,
      "analysts": 4,
      "release_time": 1,
      "confirmed": true,
@@ -269,7 +291,7 @@
     {
      "ticker": "COO",
      "company": "CooperCompanies, Inc.",
-     "score": 4,
+     "score": 5,
      "analysts": 18,
      "release_time": 3,
      "confirmed": true,
@@ -280,7 +302,7 @@
     {
      "ticker": "AVAV",
      "company": "AeroVironment, Inc.",
-     "score": 17,
+     "score": 25,
      "analysts": 22,
      "release_time": 3,
      "confirmed": true,
@@ -291,7 +313,7 @@
     {
      "ticker": "NAVN",
      "company": "Navan, Inc.",
-     "score": 7,
+     "score": 8,
      "analysts": 15,
      "release_time": 3,
      "confirmed": true,
@@ -302,7 +324,7 @@
     {
      "ticker": "AEO",
      "company": "American Eagle Outfitters, Inc.",
-     "score": 14,
+     "score": 17,
      "analysts": 15,
      "release_time": 3,
      "confirmed": true,
@@ -324,7 +346,7 @@
     {
      "ticker": "LSAK",
      "company": "Lesaka Technologies, Inc.",
-     "score": 3,
+     "score": 4,
      "analysts": 2,
      "release_time": 3,
      "confirmed": true,
@@ -357,7 +379,7 @@
     {
      "ticker": "LAKE",
      "company": "Lakeland Industries, Inc.",
-     "score": 4,
+     "score": 5,
      "analysts": 5,
      "release_time": 3,
      "confirmed": true,
@@ -379,7 +401,7 @@
     {
      "ticker": "SKIL",
      "company": "Skillsoft Corp. ",
-     "score": 2,
+     "score": 3,
      "analysts": 2,
      "release_time": 3,
      "confirmed": true,
@@ -407,7 +429,7 @@
     {
      "ticker": "M",
      "company": "Macy's, Inc.",
-     "score": 18,
+     "score": 20,
      "analysts": 13,
      "release_time": 1,
      "confirmed": true,
@@ -418,7 +440,7 @@
     {
      "ticker": "MCFT",
      "company": "MasterCraft Boat Holdings, Inc.",
-     "score": 4,
+     "score": 5,
      "analysts": 7,
      "release_time": 1,
      "confirmed": true,
@@ -462,7 +484,7 @@
     {
      "ticker": "FLWS",
      "company": "1-800-FLOWERS.COM, Inc.",
-     "score": 18,
+     "score": 19,
      "analysts": 2,
      "release_time": 1,
      "confirmed": true,
@@ -486,7 +508,7 @@
     {
      "ticker": "ORCL",
      "company": "Oracle Corporation",
-     "score": 114,
+     "score": 137,
      "analysts": 44,
      "release_time": 3,
      "confirmed": true,
@@ -497,7 +519,7 @@
     {
      "ticker": "ADBE",
      "company": "Adobe Inc.",
-     "score": 49,
+     "score": 52,
      "analysts": 38,
      "release_time": 3,
      "confirmed": true,
@@ -530,7 +552,7 @@
     {
      "ticker": "RH",
      "company": "RH",
-     "score": 8,
+     "score": 11,
      "analysts": 20,
      "release_time": 3,
      "confirmed": true,
@@ -591,7 +613,7 @@
     {
      "ticker": "KR",
      "company": "The Kroger Co.",
-     "score": 10,
+     "score": 12,
      "analysts": 21,
      "release_time": 1,
      "confirmed": true,
