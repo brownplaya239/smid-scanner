@@ -1,15 +1,15 @@
 {
- "generated": "2026-09-07T22:20:23+00:00",
+ "generated": "2026-09-08T13:53:41+00:00",
  "research_version": "setup_research_v1",
  "setups_total": 5170,
- "setups_graded": 3644,
+ "setups_graded": 3778,
  "collapse": {
   "raw_directional_signals": null,
   "note": "one observation per ticker-session; mixed (0.4<bull share<0.6) days excluded"
  },
  "span": {
   "from": "2026-05-18",
-  "to": "2026-08-03"
+  "to": "2026-08-04"
  },
  "params": {
   "shrink_k": 60,
@@ -23,55 +23,55 @@
    "fold": 1,
    "train": {
     "n": 341,
-    "purged": 433,
+    "purged": 462,
     "to": "2026-05-22"
    },
    "val": {
-    "n": 774,
+    "n": 803,
     "from": "2026-06-01",
-    "to": "2026-06-17"
+    "to": "2026-06-18"
    },
-   "ic": -0.0488,
+   "ic": -0.0728,
    "tails": {
     "all": {
-     "n": 774,
-     "avg": -0.24,
-     "med": -0.49,
-     "hit": 48
+     "n": 803,
+     "avg": -0.32,
+     "med": -0.54,
+     "hit": 47
     },
     "top20": {
-     "n": 190,
-     "avg": -0.2,
-     "med": -1.38,
-     "hit": 39,
+     "n": 210,
+     "avg": -0.76,
+     "med": -2.04,
+     "hit": 38,
      "cut": 4.808
     },
     "top10": {
-     "n": 91,
-     "avg": -0.43,
-     "med": -1.37,
-     "hit": 35,
+     "n": 101,
+     "avg": -1.27,
+     "med": -2.4,
+     "hit": 34,
      "cut": 6.172
     },
     "top5": {
-     "n": 43,
-     "avg": 0.07,
-     "med": -1.37,
-     "hit": 35,
+     "n": 48,
+     "avg": -0.67,
+     "med": -2.57,
+     "hit": 33,
      "cut": 7.188
     },
     "top2": {
-     "n": 13,
-     "avg": -0.24,
-     "med": -0.44,
-     "hit": 38,
+     "n": 12,
+     "avg": 0.71,
+     "med": -0.29,
+     "hit": 42,
      "cut": 7.733
     },
     "top1": {
-     "n": 4,
-     "avg": -2.37,
-     "med": -4.33,
-     "hit": 25,
+     "n": 5,
+     "avg": -1.45,
+     "med": -0.15,
+     "hit": 40,
      "cut": 8.688
     }
    }
@@ -79,584 +79,556 @@
   {
    "fold": 2,
    "train": {
-    "n": 1169,
-    "purged": 379,
-    "to": "2026-06-08"
+    "n": 1224,
+    "purged": 382,
+    "to": "2026-06-09"
    },
    "val": {
-    "n": 774,
-    "from": "2026-06-17",
-    "to": "2026-07-07"
+    "n": 803,
+    "from": "2026-06-18",
+    "to": "2026-07-08"
    },
-   "ic": -0.1323,
+   "ic": -0.1428,
    "tails": {
     "all": {
-     "n": 774,
-     "avg": -0.69,
-     "med": -0.78,
-     "hit": 47
+     "n": 803,
+     "avg": -0.58,
+     "med": -0.52,
+     "hit": 48
     },
     "top20": {
-     "n": 102,
-     "avg": -1.25,
-     "med": -0.89,
-     "hit": 45,
-     "cut": 0.775
+     "n": 115,
+     "avg": -1.59,
+     "med": -2.2,
+     "hit": 43,
+     "cut": 0.681
     },
     "top10": {
-     "n": 51,
-     "avg": 0.67,
-     "med": 1.07,
-     "hit": 51,
-     "cut": 1.315
+     "n": 58,
+     "avg": -1.59,
+     "med": -1.62,
+     "hit": 43,
+     "cut": 1.23
     },
     "top5": {
      "n": 23,
-     "avg": 2.13,
-     "med": 2.23,
-     "hit": 61,
-     "cut": 1.698
+     "avg": 1.93,
+     "med": 1.07,
+     "hit": 52,
+     "cut": 1.61
     },
     "top2": {
-     "n": 5,
-     "avg": 4.25,
-     "med": 6.38,
-     "hit": 60,
-     "cut": 2.45
+     "n": 6,
+     "avg": 2.09,
+     "med": 2.77,
+     "hit": 50,
+     "cut": 2.332
     },
     "top1": {
-     "n": 4,
-     "avg": 3.72,
-     "med": 4.36,
-     "hit": 50,
-     "cut": 2.604
+     "n": 3,
+     "avg": -0.04,
+     "med": -0.85,
+     "hit": 33,
+     "cut": 2.636
     }
    }
   },
   {
    "fold": 3,
    "train": {
-    "n": 1959,
-    "purged": 363,
-    "to": "2026-06-26"
+    "n": 2030,
+    "purged": 379,
+    "to": "2026-06-29"
    },
    "val": {
-    "n": 776,
-    "from": "2026-07-07",
-    "to": "2026-07-24"
+    "n": 803,
+    "from": "2026-07-08",
+    "to": "2026-07-28"
    },
-   "ic": -0.0562,
+   "ic": 0.0132,
    "tails": {
     "all": {
-     "n": 776,
-     "avg": -1.23,
-     "med": -0.71,
-     "hit": 46
+     "n": 803,
+     "avg": -0.84,
+     "med": -0.25,
+     "hit": 48
     },
     "top20": {
-     "n": 253,
-     "avg": -1.62,
-     "med": -1.28,
-     "hit": 43,
-     "cut": 0.568
+     "n": 327,
+     "avg": -0.64,
+     "med": -0.17,
+     "hit": 48,
+     "cut": 0.375
     },
     "top10": {
-     "n": 177,
-     "avg": -1.58,
-     "med": -1.27,
-     "hit": 44,
-     "cut": 0.846
+     "n": 237,
+     "avg": -0.88,
+     "med": -0.69,
+     "hit": 46,
+     "cut": 0.835
     },
     "top5": {
-     "n": 93,
-     "avg": -2.37,
-     "med": -2.56,
-     "hit": 37,
-     "cut": 1.391
+     "n": 124,
+     "avg": -0.72,
+     "med": -1.19,
+     "hit": 44,
+     "cut": 1.456
     },
     "top2": {
-     "n": 46,
-     "avg": -1.95,
-     "med": -3.47,
-     "hit": 41,
+     "n": 62,
+     "avg": -0.75,
+     "med": -2.46,
+     "hit": 40,
      "cut": 1.795
     },
     "top1": {
-     "n": 23,
-     "avg": -3.04,
-     "med": -3.88,
-     "hit": 35,
-     "cut": 2.002
+     "n": 21,
+     "avg": -2.5,
+     "med": -5.38,
+     "hit": 29,
+     "cut": 2.055
     }
    }
   }
  ],
  "pooled_oos": {
-  "ic": -0.0532,
+  "ic": -0.049,
   "tails": {
    "top20": {
-    "n": 545,
-    "avg": -1.05,
-    "med": -1.28,
-    "hit": 42,
+    "n": 652,
+    "avg": -0.85,
+    "med": -0.99,
+    "hit": 44,
     "bootstrap": {
-     "clusters": 390,
-     "mean": -1.05,
+     "clusters": 471,
+     "mean": -0.85,
      "ci95": [
-      -2.05,
-      -0.08
+      -1.7,
+      0.08
      ]
     }
    },
    "top10": {
-    "n": 319,
-    "avg": -0.89,
-    "med": -1.15,
+    "n": 395,
+    "avg": -1.1,
+    "med": -1.2,
     "hit": 42,
     "bootstrap": {
-     "clusters": 230,
-     "mean": -0.89,
+     "clusters": 296,
+     "mean": -1.1,
      "ci95": [
-      -2.14,
-      0.31
+      -2.27,
+      0.06
      ]
     }
    },
    "top5": {
-    "n": 160,
-    "avg": -1.15,
-    "med": -1.53,
-    "hit": 39,
+    "n": 191,
+    "avg": -0.25,
+    "med": -1.2,
+    "hit": 43,
     "bootstrap": {
-     "clusters": 123,
-     "mean": -1.15,
+     "clusters": 146,
+     "mean": -0.25,
      "ci95": [
-      -2.8,
-      0.54
+      -1.82,
+      1.38
      ]
     }
    },
    "top2": {
-    "n": 64,
-    "avg": -1.12,
-    "med": -2.46,
-    "hit": 42,
+    "n": 80,
+    "avg": -0.32,
+    "med": -1.64,
+    "hit": 41,
     "bootstrap": {
-     "clusters": 52,
-     "mean": -1.12,
+     "clusters": 66,
+     "mean": -0.32,
      "ci95": [
-      -3.92,
-      1.66
+      -2.55,
+      2.11
      ]
     }
    },
    "top1": {
-    "n": 31,
-    "avg": -2.08,
+    "n": 29,
+    "avg": -2.07,
     "med": -3.42,
-    "hit": 35,
+    "hit": 31,
     "bootstrap": {
      "clusters": 27,
-     "mean": -2.08,
+     "mean": -2.07,
      "ci95": [
-      -6.01,
-      2.28
+      -5.99,
+      2.23
      ]
     }
    },
    "all": {
-    "n": 2324,
-    "avg": -0.72,
-    "med": -0.56,
-    "hit": 47
+    "n": 2409,
+    "avg": -0.58,
+    "med": -0.48,
+    "hit": 48
    }
   }
  },
  "holdout": {
-  "n": 546,
-  "from": "2026-07-24",
-  "to": "2026-08-03",
+  "n": 566,
+  "from": "2026-07-28",
+  "to": "2026-08-04",
   "tails": {
    "top20": {
-    "n": 316,
-    "avg": 1.42,
-    "med": 0.76,
+    "n": 339,
+    "avg": 1.18,
+    "med": 0.81,
     "hit": 53,
     "bootstrap": {
-     "clusters": 251,
-     "mean": 1.42,
+     "clusters": 270,
+     "mean": 1.18,
      "ci95": [
-      -0.08,
-      3.08
+      -0.34,
+      2.82
      ]
     }
    },
    "top10": {
-    "n": 252,
-    "avg": 1.09,
-    "med": 0.27,
-    "hit": 50,
+    "n": 265,
+    "avg": 1.72,
+    "med": 0.98,
+    "hit": 54,
     "bootstrap": {
-     "clusters": 205,
-     "mean": 1.09,
+     "clusters": 217,
+     "mean": 1.72,
      "ci95": [
-      -0.63,
-      2.81
+      0.07,
+      3.47
      ]
     }
    },
    "top5": {
-    "n": 116,
-    "avg": 4.18,
-    "med": 1.62,
-    "hit": 56,
+    "n": 118,
+    "avg": 2.28,
+    "med": 1.15,
+    "hit": 54,
     "bootstrap": {
      "clusters": 104,
-     "mean": 4.18,
+     "mean": 2.28,
      "ci95": [
-      1.72,
-      6.54
+      -0.42,
+      5.03
      ]
     }
    },
    "top2": {
-    "n": 57,
-    "avg": 5.24,
-    "med": 0.97,
-    "hit": 58,
+    "n": 56,
+    "avg": 3.56,
+    "med": 3.14,
+    "hit": 55,
     "bootstrap": {
-     "clusters": 47,
-     "mean": 5.24,
+     "clusters": 49,
+     "mean": 3.56,
      "ci95": [
-      1.15,
-      9.42
+      -0.51,
+      7.87
      ]
     }
    },
    "top1": {
-    "n": 25,
-    "avg": 2.68,
-    "med": -0.18,
-    "hit": 44,
+    "n": 21,
+    "avg": -2.35,
+    "med": -1.32,
+    "hit": 38,
     "bootstrap": {
-     "clusters": 23,
-     "mean": 2.68,
+     "clusters": 21,
+     "mean": -2.35,
      "ci95": [
-      -1.75,
-      7.69
+      -7.0,
+      2.13
      ]
     }
    },
    "all": {
-    "n": 546,
-    "avg": 1.03,
-    "med": 0.78,
-    "hit": 53,
-    "ic": 0.0916
+    "n": 566,
+    "avg": 0.74,
+    "med": 0.38,
+    "hit": 52,
+    "ic": 0.0706
    }
   }
  },
  "ablation": {
   "full": {
-   "n": 319,
-   "avg": -0.89
+   "n": 396,
+   "avg": -1.08
   },
   "minus_persist": {
-   "n": 337,
-   "avg": -1.33
+   "n": 397,
+   "avg": -1.29
   },
   "minus_regime": {
-   "n": 319,
-   "avg": -0.89
+   "n": 396,
+   "avg": -1.08
   },
   "minus_conv": {
-   "n": 323,
-   "avg": -0.83
+   "n": 393,
+   "avg": -0.87
   },
   "minus_prem": {
-   "n": 308,
-   "avg": -0.77
+   "n": 359,
+   "avg": -0.51
   },
   "minus_golden": {
-   "n": 330,
-   "avg": -0.69
-  },
-  "minus_ern": {
-   "n": 226,
-   "avg": -0.52
-  },
-  "minus_dte": {
-   "n": 347,
-   "avg": -0.86
-  },
-  "minus_liq": {
-   "n": 313,
-   "avg": -1.47
-  },
-  "minus_open": {
-   "n": 319,
+   "n": 407,
    "avg": -0.89
   },
+  "minus_ern": {
+   "n": 252,
+   "avg": -1.4
+  },
+  "minus_dte": {
+   "n": 411,
+   "avg": -0.5
+  },
+  "minus_liq": {
+   "n": 398,
+   "avg": -0.87
+  },
+  "minus_open": {
+   "n": 396,
+   "avg": -1.08
+  },
   "minus_repeat": {
-   "n": 328,
-   "avg": -0.84
+   "n": 415,
+   "avg": -1.05
   },
   "minus_nprints": {
-   "n": 307,
-   "avg": -1.02
+   "n": 393,
+   "avg": -0.95
   },
   "minus_strikes": {
-   "n": 335,
-   "avg": -1.11
+   "n": 419,
+   "avg": -0.79
   },
   "minus_expiries": {
-   "n": 316,
-   "avg": -0.96
+   "n": 399,
+   "avg": -0.8
   },
   "minus_dir": {
-   "n": 343,
-   "avg": -0.09
+   "n": 394,
+   "avg": -0.26
   }
  },
  "interactions": {
   "tested": 884,
-  "passed_train_gates": 17,
+  "passed_train_gates": 15,
   "rules": [
+   {
+    "rule": "ern=yes AND conv=high AND repeat=yes",
+    "train": {
+     "n": 162,
+     "avg": 2.44,
+     "med": 0.12
+    },
+    "oos": {
+     "n": 596,
+     "avg": 0.65,
+     "med": 0.33,
+     "hit": 53
+    }
+   },
    {
     "rule": "dte=31-90 AND liq=AB AND dir=bullish",
     "train": {
-     "n": 128,
-     "avg": 2.45,
-     "med": 1.02
+     "n": 133,
+     "avg": 2.3,
+     "med": 1.07
     },
     "oos": {
-     "n": 71,
-     "avg": -0.63,
-     "med": 0.02,
+     "n": 74,
+     "avg": -0.36,
+     "med": 0.18,
+     "hit": 53
+    }
+   },
+   {
+    "rule": "ern=yes AND repeat=yes",
+    "train": {
+     "n": 182,
+     "avg": 2.07,
+     "med": 0.04
+    },
+    "oos": {
+     "n": 660,
+     "avg": 0.47,
+     "med": 0.3,
+     "hit": 52
+    }
+   },
+   {
+    "rule": "ern=yes AND open=high AND repeat=yes",
+    "train": {
+     "n": 182,
+     "avg": 2.07,
+     "med": 0.04
+    },
+    "oos": {
+     "n": 660,
+     "avg": 0.47,
+     "med": 0.3,
      "hit": 52
     }
    },
    {
     "rule": "prem=>=5M AND dte=31-90 AND liq=AB",
     "train": {
-     "n": 137,
-     "avg": 2.08,
-     "med": 1.15
+     "n": 140,
+     "avg": 2.06,
+     "med": 1.18
     },
     "oos": {
-     "n": 81,
-     "avg": -0.58,
-     "med": 0.02,
-     "hit": 52
+     "n": 86,
+     "avg": -0.45,
+     "med": 0.01,
+     "hit": 51
     }
    },
    {
     "rule": "dte=31-90 AND liq=AB AND nprints=>=5",
     "train": {
-     "n": 134,
-     "avg": 2.05,
+     "n": 137,
+     "avg": 2.02,
      "med": 1.15
     },
     "oos": {
-     "n": 79,
-     "avg": -0.11,
-     "med": 0.44,
-     "hit": 56
+     "n": 85,
+     "avg": -0.12,
+     "med": 0.36,
+     "hit": 54
     }
    },
    {
     "rule": "dte=31-90 AND liq=AB AND repeat=yes",
     "train": {
-     "n": 163,
-     "avg": 1.74,
+     "n": 168,
+     "avg": 1.64,
      "med": 1.15
     },
     "oos": {
-     "n": 99,
-     "avg": -0.99,
-     "med": -0.05,
+     "n": 104,
+     "avg": -0.86,
+     "med": -0.06,
      "hit": 49
     }
    },
    {
     "rule": "dte=31-90 AND liq=AB AND open=high",
     "train": {
-     "n": 171,
-     "avg": 1.62,
-     "med": 0.97
+     "n": 176,
+     "avg": 1.53,
+     "med": 1.02
     },
     "oos": {
-     "n": 101,
-     "avg": -0.96,
-     "med": -0.05,
-     "hit": 50
+     "n": 108,
+     "avg": -0.89,
+     "med": -0.07,
+     "hit": 48
     }
    },
    {
     "rule": "dte=31-90 AND liq=AB",
     "train": {
-     "n": 172,
-     "avg": 1.53,
-     "med": 0.94
+     "n": 177,
+     "avg": 1.45,
+     "med": 0.97
     },
     "oos": {
-     "n": 101,
-     "avg": -0.96,
-     "med": -0.05,
-     "hit": 50
+     "n": 108,
+     "avg": -0.89,
+     "med": -0.07,
+     "hit": 48
     }
    },
    {
     "rule": "conv=high AND dte=8-30 AND dir=bearish",
     "train": {
-     "n": 124,
-     "avg": 1.45,
-     "med": 1.08
+     "n": 129,
+     "avg": 1.42,
+     "med": 0.95
     },
     "oos": {
-     "n": 132,
-     "avg": 0.29,
-     "med": 0.22,
-     "hit": 52
+     "n": 141,
+     "avg": 0.76,
+     "med": 0.48,
+     "hit": 55
     }
    },
    {
     "rule": "conv=high AND dte=31-90 AND liq=AB",
     "train": {
-     "n": 164,
-     "avg": 1.4,
-     "med": 0.81
+     "n": 169,
+     "avg": 1.32,
+     "med": 0.83
     },
     "oos": {
-     "n": 92,
-     "avg": -0.81,
-     "med": -0.02,
-     "hit": 50
+     "n": 99,
+     "avg": -0.74,
+     "med": -0.06,
+     "hit": 48
     }
    },
    {
-    "rule": "prem=>=1M AND dte=8-30",
+    "rule": "prem=>=1M AND repeat=yes AND dir=bearish",
     "train": {
-     "n": 166,
-     "avg": 0.93,
-     "med": 0.15
+     "n": 136,
+     "avg": 0.55,
+     "med": 0.79
     },
     "oos": {
-     "n": 125,
-     "avg": -0.15,
-     "med": 0.34,
-     "hit": 53
-    }
-   },
-   {
-    "rule": "prem=>=1M AND dte=8-30 AND open=high",
-    "train": {
-     "n": 166,
-     "avg": 0.93,
-     "med": 0.15
-    },
-    "oos": {
-     "n": 125,
-     "avg": -0.15,
-     "med": 0.34,
-     "hit": 53
-    }
-   },
-   {
-    "rule": "conv=high AND prem=>=1M AND dte=8-30",
-    "train": {
-     "n": 163,
-     "avg": 0.74,
-     "med": 0.2
-    },
-    "oos": {
-     "n": 123,
-     "avg": -0.25,
-     "med": 0.34,
-     "hit": 53
-    }
-   },
-   {
-    "rule": "dte=31-90 AND repeat=yes AND dir=bullish",
-    "train": {
-     "n": 267,
-     "avg": 0.39,
-     "med": 0.03
-    },
-    "oos": {
-     "n": 151,
-     "avg": 0.06,
-     "med": 0.36,
-     "hit": 52
-    }
-   },
-   {
-    "rule": "dte=31-90 AND open=high AND dir=bullish",
-    "train": {
-     "n": 281,
-     "avg": 0.37,
-     "med": 0.03
-    },
-    "oos": {
-     "n": 155,
-     "avg": 0.06,
-     "med": 0.35,
-     "hit": 52
-    }
-   },
-   {
-    "rule": "persist=confirmed AND dir=bearish",
-    "train": {
-     "n": 148,
-     "avg": 0.32,
-     "med": 0.16
-    },
-    "oos": {
-     "n": 161,
-     "avg": 0.0,
-     "med": 0.33,
-     "hit": 53
-    }
-   },
-   {
-    "rule": "persist=confirmed AND open=high AND dir=bearish",
-    "train": {
-     "n": 148,
-     "avg": 0.32,
-     "med": 0.16
-    },
-    "oos": {
-     "n": 161,
-     "avg": 0.0,
-     "med": 0.33,
-     "hit": 53
-    }
-   },
-   {
-    "rule": "persist=confirmed AND repeat=yes AND dir=bearish",
-    "train": {
-     "n": 141,
-     "avg": 0.26,
-     "med": 0.15
-    },
-    "oos": {
-     "n": 159,
-     "avg": -0.02,
-     "med": 0.33,
-     "hit": 53
+     "n": 122,
+     "avg": 0.33,
+     "med": 0.53,
+     "hit": 55
     }
    },
    {
     "rule": "persist=flow AND repeat=yes AND dir=bearish",
     "train": {
-     "n": 149,
-     "avg": 0.22,
-     "med": 1.27
+     "n": 153,
+     "avg": 0.51,
+     "med": 1.42
     },
     "oos": {
-     "n": 134,
-     "avg": -1.39,
-     "med": 0.18,
+     "n": 138,
+     "avg": -1.14,
+     "med": 0.41,
+     "hit": 53
+    }
+   },
+   {
+    "rule": "persist=confirmed AND dir=bearish",
+    "train": {
+     "n": 151,
+     "avg": 0.33,
+     "med": 0.15
+    },
+    "oos": {
+     "n": 160,
+     "avg": -0.28,
+     "med": 0.08,
+     "hit": 51
+    }
+   },
+   {
+    "rule": "persist=confirmed AND open=high AND dir=bearish",
+    "train": {
+     "n": 151,
+     "avg": 0.33,
+     "med": 0.15
+    },
+    "oos": {
+     "n": 160,
+     "avg": -0.28,
+     "med": 0.08,
      "hit": 51
     }
    }
@@ -671,13 +643,13 @@
   "challengers": {
    "setup_additive_v2": {
     "model": "setup_research_v1",
-    "pooled_ic": -0.0532,
+    "pooled_ic": -0.049,
     "verdict": {
      "promoted": false
     }
    },
    "tail_rules_v1": {
-    "candidates": 17,
+    "candidates": 15,
     "note": "rule survivors are research candidates only; promotion requires a dedicated forward window"
    }
   },
