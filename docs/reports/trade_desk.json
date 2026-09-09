@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-09T20:56:43+00:00",
+ "generated": "2026-09-09T21:11:36+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-09T20:56:43+00:00",
+ "data_cutoff": "2026-09-09T21:11:36+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T20:56:43+00:00",
+   "as_of": "2026-09-09T21:11:36+00:00",
    "evidence": {
     "thesis": "Options price a ±20.8% move vs a ±13.9% median across 7 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -219,7 +219,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T20:56:43+00:00",
+   "as_of": "2026-09-09T21:11:36+00:00",
    "evidence": {
     "thesis": "Options price a ±8.1% move vs a ±0.8% median across 7 past reports (10.1× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -259,7 +259,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T20:56:43+00:00",
+   "as_of": "2026-09-09T21:11:36+00:00",
    "evidence": {
     "thesis": "Options price a ±7.3% move vs a ±4.1% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -299,7 +299,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T20:56:43+00:00",
+   "as_of": "2026-09-09T21:11:36+00:00",
    "evidence": {
     "thesis": "Options price a ±7.8% move vs a ±5.3% median across 8 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -311,7 +311,54 @@
    }
   }
  ],
- "watch": [],
+ "watch": [
+  {
+   "family": "flow",
+   "ticker": "AVAV",
+   "direction": "bearish",
+   "status": "WATCH",
+   "alpha_score": 88.9,
+   "gate": "no champion: setup-level walk-forward found no tail that clears the promotion criteria (positive pooled avg+median, bootstrap CI low > 0, positive holdout)",
+   "catalyst": "earnings",
+   "construct": {
+    "expression": "underlying",
+    "reference_contract": "O:AVAV260911P00120000",
+    "contract_liquidity": "C",
+    "dte": 2,
+    "flag_premium": 247356,
+    "flag_volume": null,
+    "flag_oi": null,
+    "underlying_at_flag": null,
+    "option_mark": null,
+    "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
+   },
+   "as_of": "2026-09-09T21:11:36+00:00",
+   "evidence": {
+    "n_prints": 2,
+    "total_premium": 494712,
+    "feats": {
+     "side": "put_buy",
+     "regime": "risk_off",
+     "ern": "yes",
+     "dte": "urgent",
+     "liq": "C",
+     "cap": "mid",
+     "open": "likely_open",
+     "stype": "sweep",
+     "prem": "<250k"
+    },
+    "anchor_score": 66,
+    "tags": [
+     "Sweep",
+     "Size>OI",
+     "Repeat",
+     "Into ERN",
+     "In Universe"
+    ],
+    "sector": "Industrials / Transport Eq"
+   }
+  }
+ ],
  "experimental": [
   {
    "family": "earnings",
@@ -336,7 +383,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T20:56:43+00:00",
+   "as_of": "2026-09-09T21:11:36+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -375,7 +422,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T20:56:43+00:00",
+   "as_of": "2026-09-09T21:11:36+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -409,7 +456,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T20:56:43+00:00",
+   "as_of": "2026-09-09T21:11:36+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -447,7 +494,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T20:56:43+00:00",
+   "as_of": "2026-09-09T21:11:36+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -463,15 +510,15 @@
  ],
  "funnel": {
   "universe_events": 66,
-  "research_candidates": 8,
-  "watch_setups": 0,
+  "research_candidates": 9,
+  "watch_setups": 1,
   "experimental": 4,
   "qualified": 4
  },
  "desk_counts": {
   "trade_qualified": 0,
   "signal_qualified": 4,
-  "research_watch": 0,
+  "research_watch": 1,
   "experimental": 4
  },
  "pipelines": [
@@ -481,7 +528,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "58 candidates → 0 watch → 0 qualified (no champion)"
+   "line": "58 candidates → 1 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -500,6 +547,10 @@
   {
    "h": "Vol-rich remains signal-qualified, not trade-qualified",
    "d": "The expression gate still has no champion; defined-risk structures remain rejected."
+  },
+  {
+   "h": "Options flow remains research-only",
+   "d": "1 setups entered Watch; the family has no validated walk-forward champion."
   }
  ],
  "ledgers": {
@@ -520,7 +571,7 @@
   },
   "directional": {
    "target": "+5-session direction-signed excess vs SPY",
-   "tracked": 342,
+   "tracked": 343,
    "graded": 127,
    "overall": {
     "n": 127,
@@ -541,21 +592,16 @@
  "rejections": {
   "LOW_ALPHA": 17,
   "BAD_LIQUIDITY": 2,
-  "LOW_PREMIUM": 2,
+  "LOW_PREMIUM": 1,
   "REGIME_CONFLICT": 27,
   "STALE_DATA": 12,
-  "NOT_DIRECTIONAL": 1574
+  "NOT_DIRECTIONAL": 1739
  },
  "what_changed": [
   {
-   "t": "AEO",
+   "t": "AVAV",
    "change": "new",
-   "to": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "CBRL",
-   "change": "new",
-   "to": "SIGNAL_QUALIFIED"
+   "to": "WATCH"
   },
   {
    "t": "CNM",
@@ -579,7 +625,7 @@
   }
  ],
  "performance": {
-  "tracked": 342,
+  "tracked": 343,
   "graded": 127,
   "min_n": 30,
   "overall": {
