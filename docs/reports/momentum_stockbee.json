@@ -1,143 +1,6 @@
 {
- "updated": "2026-09-08T19:33:58-04:00",
+ "updated": "2026-09-09T16:41:56-04:00",
  "runs": [
-  {
-   "date": "2026-06-16",
-   "generated": "2026-06-16T19:04:29-04:00",
-   "count": 11,
-   "rows": [
-    {
-     "ticker": "SNDK",
-     "price": 1991.55,
-     "chg": 20.95,
-     "adr_pct": 8.37,
-     "dollar_vol": 18510380293,
-     "ern": "Aug 24"
-    },
-    {
-     "ticker": "ARM",
-     "price": 396.34,
-     "chg": 22.0,
-     "adr_pct": 10.66,
-     "dollar_vol": 4589999252,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "WDC",
-     "price": 681.08,
-     "chg": 31.55,
-     "adr_pct": 6.36,
-     "dollar_vol": 3890491088,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "STX",
-     "price": 1031.34,
-     "chg": 21.91,
-     "adr_pct": 6.16,
-     "dollar_vol": 3028666992,
-     "ern": "Jul 28"
-    },
-    {
-     "ticker": "CDE",
-     "price": 18.79,
-     "chg": 16.78,
-     "adr_pct": 5.63,
-     "dollar_vol": 451474252,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "MXL",
-     "price": 84.39,
-     "chg": 16.22,
-     "adr_pct": 12.29,
-     "dollar_vol": 404423413,
-     "ern": "Jul 22"
-    },
-    {
-     "ticker": "HL",
-     "price": 16.72,
-     "chg": 15.23,
-     "adr_pct": 5.15,
-     "dollar_vol": 300346419,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "FORM",
-     "price": 140.24,
-     "chg": 16.27,
-     "adr_pct": 7.63,
-     "dollar_vol": 195886170,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "TWST",
-     "price": 84.95,
-     "chg": 21.25,
-     "adr_pct": 7.91,
-     "dollar_vol": 128896071,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "UCTT",
-     "price": 109.31,
-     "chg": 18.97,
-     "adr_pct": 7.87,
-     "dollar_vol": 111271963,
-     "ern": "Jul 27"
-    },
-    {
-     "ticker": "COMP",
-     "price": 9.42,
-     "chg": 15.3,
-     "adr_pct": 6.74,
-     "dollar_vol": 102423375,
-     "ern": "Jul 29"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "TTMI",
-     "price": 199.58,
-     "chg": 14.79,
-     "adr_pct": 8.08,
-     "dollar_vol": 479243003,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "AMAT",
-     "price": 568.23,
-     "chg": 13.83,
-     "adr_pct": 5.3,
-     "dollar_vol": 4281710386,
-     "ern": "Aug 13"
-    },
-    {
-     "ticker": "CIFR",
-     "price": 26.21,
-     "chg": 13.78,
-     "adr_pct": 9.69,
-     "dollar_vol": 570193422,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "VICR",
-     "price": 320.46,
-     "chg": 13.05,
-     "adr_pct": 8.59,
-     "dollar_vol": 225354019,
-     "ern": "Jul 21"
-    },
-    {
-     "ticker": "LRCX",
-     "price": 369.34,
-     "chg": 12.89,
-     "adr_pct": 5.61,
-     "dollar_vol": 3438737567,
-     "ern": "Jul 29"
-    }
-   ]
-  },
   {
    "date": "2026-06-17",
    "generated": "2026-06-17T18:58:16-04:00",
@@ -7714,6 +7577,175 @@
      "adr_pct": 6.84,
      "dollar_vol": 145578817,
      "ern": "Oct 22"
+    }
+   ]
+  },
+  {
+   "date": "2026-09-09",
+   "generated": "2026-09-09T16:41:56-04:00",
+   "count": 15,
+   "rows": [
+    {
+     "ticker": "INTC",
+     "price": 106.24,
+     "chg": 19.41,
+     "adr_pct": 4.44,
+     "dollar_vol": 9222454086,
+     "ern": "Oct 22"
+    },
+    {
+     "ticker": "DELL",
+     "price": 535.25,
+     "chg": 25.94,
+     "adr_pct": 6.06,
+     "dollar_vol": 4110908879,
+     "ern": "Nov 27"
+    },
+    {
+     "ticker": "BE",
+     "price": 269.28,
+     "chg": 26.05,
+     "adr_pct": 7.36,
+     "dollar_vol": 2995039453,
+     "ern": "Oct 27"
+    },
+    {
+     "ticker": "CIFR",
+     "price": 16.9,
+     "chg": 15.67,
+     "adr_pct": 9.09,
+     "dollar_vol": 567314007,
+     "ern": "Nov 02"
+    },
+    {
+     "ticker": "MARA",
+     "price": 11.92,
+     "chg": 16.52,
+     "adr_pct": 8.06,
+     "dollar_vol": 537846006,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "WULF",
+     "price": 17.13,
+     "chg": 16.93,
+     "adr_pct": 7.22,
+     "dollar_vol": 484559744,
+     "ern": "Nov 09"
+    },
+    {
+     "ticker": "SMTC",
+     "price": 163.94,
+     "chg": 23.94,
+     "adr_pct": 7.59,
+     "dollar_vol": 480158824,
+     "ern": "Nov 23"
+    },
+    {
+     "ticker": "HUT",
+     "price": 95.92,
+     "chg": 23.66,
+     "adr_pct": 8.68,
+     "dollar_vol": 422049407,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "RIOT",
+     "price": 22.07,
+     "chg": 24.06,
+     "adr_pct": 7.83,
+     "dollar_vol": 366588077,
+     "ern": "Oct 29"
+    },
+    {
+     "ticker": "AEHR",
+     "price": 95.56,
+     "chg": 24.77,
+     "adr_pct": 9.65,
+     "dollar_vol": 284608569,
+     "ern": "Nov 02"
+    },
+    {
+     "ticker": "DOCN",
+     "price": 132.67,
+     "chg": 21.8,
+     "adr_pct": 6.81,
+     "dollar_vol": 276186735,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "CLSK",
+     "price": 13.28,
+     "chg": 20.07,
+     "adr_pct": 7.34,
+     "dollar_vol": 229031035,
+     "ern": "Nov 24"
+    },
+    {
+     "ticker": "MXL",
+     "price": 71.51,
+     "chg": 24.17,
+     "adr_pct": 6.99,
+     "dollar_vol": 153604894,
+     "ern": "Oct 22"
+    },
+    {
+     "ticker": "SEI",
+     "price": 67.67,
+     "chg": 36.32,
+     "adr_pct": 6.2,
+     "dollar_vol": 148293449,
+     "ern": "Nov 02"
+    },
+    {
+     "ticker": "FORM",
+     "price": 114.18,
+     "chg": 19.67,
+     "adr_pct": 5.84,
+     "dollar_vol": 121266526,
+     "ern": "Oct 28"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "SNDK",
+     "price": 1764.17,
+     "chg": 14.79,
+     "adr_pct": 6.95,
+     "dollar_vol": 21154128395,
+     "ern": "Nov 06"
+    },
+    {
+     "ticker": "ORCL",
+     "price": 161.63,
+     "chg": 14.37,
+     "adr_pct": 4.0,
+     "dollar_vol": 3511690159,
+     "ern": "Sep 10"
+    },
+    {
+     "ticker": "AMD",
+     "price": 521.1,
+     "chg": 13.38,
+     "adr_pct": 3.56,
+     "dollar_vol": 8752380903,
+     "ern": "Nov 03"
+    },
+    {
+     "ticker": "META",
+     "price": 653.69,
+     "chg": 12.99,
+     "adr_pct": 3.11,
+     "dollar_vol": 10111943036,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "CORZ",
+     "price": 18.09,
+     "chg": 12.57,
+     "adr_pct": 5.89,
+     "dollar_vol": 205993000,
+     "ern": "Oct 23"
     }
    ]
   }
