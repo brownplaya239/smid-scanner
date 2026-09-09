@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-09T21:11:36+00:00",
+ "generated": "2026-09-09T21:43:47+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-09T21:11:36+00:00",
+ "data_cutoff": "2026-09-09T21:43:47+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T21:11:36+00:00",
+   "as_of": "2026-09-09T21:43:47+00:00",
    "evidence": {
     "thesis": "Options price a ±20.8% move vs a ±13.9% median across 7 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -219,7 +219,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T21:11:36+00:00",
+   "as_of": "2026-09-09T21:43:47+00:00",
    "evidence": {
     "thesis": "Options price a ±8.1% move vs a ±0.8% median across 7 past reports (10.1× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -259,7 +259,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T21:11:36+00:00",
+   "as_of": "2026-09-09T21:43:47+00:00",
    "evidence": {
     "thesis": "Options price a ±7.3% move vs a ±4.1% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -299,7 +299,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T21:11:36+00:00",
+   "as_of": "2026-09-09T21:43:47+00:00",
    "evidence": {
     "thesis": "Options price a ±7.8% move vs a ±5.3% median across 8 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -332,10 +332,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-09T21:11:36+00:00",
+   "as_of": "2026-09-09T21:43:47+00:00",
    "evidence": {
-    "n_prints": 2,
-    "total_premium": 494712,
+    "n_prints": 3,
+    "total_premium": 742068,
     "feats": {
      "side": "put_buy",
      "regime": "risk_off",
@@ -347,7 +347,7 @@
      "stype": "sweep",
      "prem": "<250k"
     },
-    "anchor_score": 66,
+    "anchor_score": 73,
     "tags": [
      "Sweep",
      "Size>OI",
@@ -383,7 +383,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T21:11:36+00:00",
+   "as_of": "2026-09-09T21:43:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -422,7 +422,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T21:11:36+00:00",
+   "as_of": "2026-09-09T21:43:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -456,7 +456,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T21:11:36+00:00",
+   "as_of": "2026-09-09T21:43:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -494,7 +494,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T21:11:36+00:00",
+   "as_of": "2026-09-09T21:43:47+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -590,19 +590,14 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 4 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 17,
+  "LOW_ALPHA": 16,
   "BAD_LIQUIDITY": 2,
   "LOW_PREMIUM": 1,
   "REGIME_CONFLICT": 27,
-  "STALE_DATA": 12,
-  "NOT_DIRECTIONAL": 1739
+  "STALE_DATA": 13,
+  "NOT_DIRECTIONAL": 1904
  },
  "what_changed": [
-  {
-   "t": "AVAV",
-   "change": "new",
-   "to": "WATCH"
-  },
   {
    "t": "CNM",
    "change": "new",
