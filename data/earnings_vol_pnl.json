@@ -67511,5 +67511,17 @@
 "sector": "Consumer / Retail"
 },
 "bt_version": "vol_backtest_v2"
+},
+"TCOM|2026-09-15|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "TCOM",
+"date": "2026-09-15",
+"implied": 7.0,
+"session": "AMC",
+"sector": "Other"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
