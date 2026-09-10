@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-09T22:05:00+00:00",
+ "generated": "2026-09-10T13:53:39+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-09T22:05:00+00:00",
+ "data_cutoff": "2026-09-10T13:53:39+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -153,126 +153,6 @@
  "top_ideas": [
   {
    "family": "earnings",
-   "ticker": "AEO",
-   "direction": "neutral",
-   "status": "SIGNAL_QUALIFIED",
-   "alpha_score": null,
-   "gate": "measured EV +6.21 vol-pts · 90% win · n=143 · night-cluster CI [5.19, 7.17] on 26 nights — trade expression pending executable validation",
-   "catalyst": "earnings",
-   "construct": {
-    "expression": "per_thesis",
-    "implied_move": 20.8,
-    "realized_median": 13.9,
-    "session": "AMC",
-    "event_date": "2026-09-09",
-    "option_mark": null,
-    "fair_move": 13.9,
-    "vol_edge_pp": 6.9,
-    "richness_pct": 50,
-    "analogues": 7,
-    "vol_stance": "SELL VOL",
-    "history": {
-     "n": 143,
-     "median_ratio": 0.25,
-     "inside_100x": 90,
-     "inside_075x": 80,
-     "scope": "cohort"
-    }
-   },
-   "as_of": "2026-09-09T22:05:00+00:00",
-   "evidence": {
-    "thesis": "Options price a ±20.8% move vs a ±13.9% median across 7 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
-    "cited": [
-     "0 bull / 2 bear flow into print",
-     "typically moves ±13.9% (7 reports)"
-    ],
-    "etype": "vol_rich",
-    "grade": null,
-    "mcap_b": 2.8
-   }
-  },
-  {
-   "family": "earnings",
-   "ticker": "M",
-   "direction": "neutral",
-   "status": "SIGNAL_QUALIFIED",
-   "alpha_score": null,
-   "gate": "measured EV +6.21 vol-pts · 90% win · n=143 · night-cluster CI [5.19, 7.17] on 26 nights — trade expression pending executable validation",
-   "catalyst": "earnings",
-   "construct": {
-    "expression": "per_thesis",
-    "implied_move": 8.1,
-    "realized_median": 0.8,
-    "session": "BMO",
-    "event_date": "2026-09-10",
-    "option_mark": null,
-    "fair_move": 0.8,
-    "vol_edge_pp": 7.3,
-    "richness_pct": 912,
-    "analogues": 7,
-    "vol_stance": "SELL VOL",
-    "history": {
-     "n": 143,
-     "median_ratio": 0.25,
-     "inside_100x": 90,
-     "inside_075x": 80,
-     "scope": "cohort"
-    }
-   },
-   "as_of": "2026-09-09T22:05:00+00:00",
-   "evidence": {
-    "thesis": "Options price a ±8.1% move vs a ±0.8% median across 7 past reports (10.1× rich) — historically favors defined-risk premium sellers over buyers.",
-    "cited": [
-     "0 bull / 0 bear flow into print",
-     "typically moves ±0.8% (7 reports)"
-    ],
-    "etype": "vol_rich",
-    "grade": null,
-    "mcap_b": 5.8
-   }
-  },
-  {
-   "family": "earnings",
-   "ticker": "TCOM",
-   "direction": "neutral",
-   "status": "SIGNAL_QUALIFIED",
-   "alpha_score": null,
-   "gate": "measured EV +6.21 vol-pts · 90% win · n=143 · night-cluster CI [5.19, 7.17] on 26 nights — trade expression pending executable validation",
-   "catalyst": "earnings",
-   "construct": {
-    "expression": "per_thesis",
-    "implied_move": 7.3,
-    "realized_median": 4.1,
-    "session": "AMC",
-    "event_date": "2026-09-15",
-    "option_mark": null,
-    "fair_move": 4.1,
-    "vol_edge_pp": 3.2,
-    "richness_pct": 78,
-    "analogues": 8,
-    "vol_stance": "SELL VOL",
-    "history": {
-     "n": 143,
-     "median_ratio": 0.25,
-     "inside_100x": 90,
-     "inside_075x": 80,
-     "scope": "cohort"
-    }
-   },
-   "as_of": "2026-09-09T22:05:00+00:00",
-   "evidence": {
-    "thesis": "Options price a ±7.3% move vs a ±4.1% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
-    "cited": [
-     "$28B cap",
-     "typically moves ±4.1% (8 reports)"
-    ],
-    "etype": "vol_rich",
-    "grade": null,
-    "mcap_b": 27.6
-   }
-  },
-  {
-   "family": "earnings",
    "ticker": "CBRL",
    "direction": "neutral",
    "status": "SIGNAL_QUALIFIED",
@@ -299,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T22:05:00+00:00",
+   "as_of": "2026-09-10T13:53:39+00:00",
    "evidence": {
     "thesis": "Options price a ±7.8% move vs a ±5.3% median across 8 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -311,54 +191,7 @@
    }
   }
  ],
- "watch": [
-  {
-   "family": "flow",
-   "ticker": "AVAV",
-   "direction": "bearish",
-   "status": "WATCH",
-   "alpha_score": 88.9,
-   "gate": "no champion: setup-level walk-forward found no tail that clears the promotion criteria (positive pooled avg+median, bootstrap CI low > 0, positive holdout)",
-   "catalyst": "earnings",
-   "construct": {
-    "expression": "underlying",
-    "reference_contract": "O:AVAV260911P00120000",
-    "contract_liquidity": "C",
-    "dte": 2,
-    "flag_premium": 247356,
-    "flag_volume": null,
-    "flag_oi": null,
-    "underlying_at_flag": null,
-    "option_mark": null,
-    "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
-   },
-   "as_of": "2026-09-09T22:05:00+00:00",
-   "evidence": {
-    "n_prints": 5,
-    "total_premium": 1236780,
-    "feats": {
-     "side": "put_buy",
-     "regime": "risk_off",
-     "ern": "yes",
-     "dte": "urgent",
-     "liq": "C",
-     "cap": "mid",
-     "open": "likely_open",
-     "stype": "sweep",
-     "prem": "<250k"
-    },
-    "anchor_score": 74,
-    "tags": [
-     "Sweep",
-     "Size>OI",
-     "Repeat",
-     "Into ERN",
-     "In Universe"
-    ],
-    "sector": "Industrials / Transport Eq"
-   }
-  }
- ],
+ "watch": [],
  "experimental": [
   {
    "family": "earnings",
@@ -383,7 +216,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T22:05:00+00:00",
+   "as_of": "2026-09-10T13:53:39+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -422,7 +255,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T22:05:00+00:00",
+   "as_of": "2026-09-10T13:53:39+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -456,7 +289,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T22:05:00+00:00",
+   "as_of": "2026-09-10T13:53:39+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -494,12 +327,12 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-09T22:05:00+00:00",
+   "as_of": "2026-09-10T13:53:39+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
      "$435B cap",
-     "1 bull / 0 bear flow into print",
+     "2 bull / 0 bear flow into print",
      "typically moves ±8.9% (8 reports)"
     ],
     "etype": "post_report_drift",
@@ -509,26 +342,26 @@
   }
  ],
  "funnel": {
-  "universe_events": 66,
-  "research_candidates": 9,
-  "watch_setups": 1,
+  "universe_events": 6,
+  "research_candidates": 5,
+  "watch_setups": 0,
   "experimental": 4,
-  "qualified": 4
+  "qualified": 1
  },
  "desk_counts": {
   "trade_qualified": 0,
-  "signal_qualified": 4,
-  "research_watch": 1,
+  "signal_qualified": 1,
+  "research_watch": 0,
   "experimental": 4
  },
  "pipelines": [
   {
    "name": "Earnings Volatility",
-   "line": "8 scanned → 4 signal-qualified → 0 trade-qualified"
+   "line": "5 scanned → 1 signal-qualified → 0 trade-qualified"
   },
   {
    "name": "Options Flow",
-   "line": "58 candidates → 1 watch → 0 qualified (no champion)"
+   "line": "1 candidates → 0 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -541,16 +374,12 @@
  ],
  "headlines": [
   {
-   "h": "M is today's richest earnings-vol setup",
-   "d": "Market-implied move is 8.1% versus TickerDesk Fair Move of 0.8%, a +7.3pp discrepancy."
+   "h": "CBRL is today's richest earnings-vol setup",
+   "d": "Market-implied move is 7.8% versus TickerDesk Fair Move of 5.3%, a +2.5pp discrepancy."
   },
   {
    "h": "Vol-rich remains signal-qualified, not trade-qualified",
    "d": "The expression gate still has no champion; defined-risk structures remain rejected."
-  },
-  {
-   "h": "Options flow remains research-only",
-   "d": "1 setups entered Watch; the family has no validated walk-forward champion."
   }
  ],
  "ledgers": {
@@ -571,13 +400,13 @@
   },
   "directional": {
    "target": "+5-session direction-signed excess vs SPY",
-   "tracked": 343,
-   "graded": 127,
+   "tracked": 348,
+   "graded": 155,
    "overall": {
-    "n": 127,
-    "hit": 48,
-    "avg": -0.73,
-    "med": -0.34
+    "n": 155,
+    "hit": 49,
+    "avg": -0.77,
+    "med": -0.17
    },
    "status": null
   },
@@ -588,14 +417,10 @@
   }
  },
  "abstention": true,
- "abstention_note": "No executable trade clears TickerDesk's production gate today. 4 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
+ "abstention_note": "No executable trade clears TickerDesk's production gate today. 1 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 16,
-  "BAD_LIQUIDITY": 2,
-  "LOW_PREMIUM": 1,
-  "REGIME_CONFLICT": 27,
-  "STALE_DATA": 13,
-  "NOT_DIRECTIONAL": 2234
+  "BAD_LIQUIDITY": 1,
+  "STALE_DATA": 4
  },
  "what_changed": [
   {
@@ -617,52 +442,72 @@
    "t": "ORCL",
    "change": "new",
    "to": "EXPERIMENTAL"
+  },
+  {
+   "t": "AEO",
+   "change": "dropped",
+   "from": "SIGNAL_QUALIFIED"
+  },
+  {
+   "t": "M",
+   "change": "dropped",
+   "from": "SIGNAL_QUALIFIED"
+  },
+  {
+   "t": "TCOM",
+   "change": "dropped",
+   "from": "SIGNAL_QUALIFIED"
+  },
+  {
+   "t": "AVAV",
+   "change": "dropped",
+   "from": "WATCH"
   }
  ],
  "performance": {
-  "tracked": 343,
-  "graded": 127,
+  "tracked": 348,
+  "graded": 155,
   "min_n": 30,
   "overall": {
-   "n": 127,
-   "hit": 48,
-   "avg": -0.73,
-   "med": -0.34
+   "n": 155,
+   "hit": 49,
+   "avg": -0.77,
+   "med": -0.17
   },
   "by_family": {
    "flow": {
-    "n": 65,
-    "hit": 51,
-    "avg": 0.49
+    "n": 81,
+    "hit": 52,
+    "avg": -0.01
    },
    "earnings": {
-    "n": 62,
-    "hit": 45,
-    "avg": -2.02
+    "n": 74,
+    "hit": 46,
+    "avg": -1.6
    }
   },
   "by_status": {
    "WATCH": {
-    "n": 66,
-    "hit": 50,
-    "avg": 0.16,
-    "med": -0.06
+    "n": 83,
+    "hit": 51,
+    "avg": -0.48,
+    "med": 0.06
    },
    "EXPERIMENTAL": {
-    "n": 61,
-    "hit": 46,
-    "avg": -1.7,
-    "med": -0.56
+    "n": 72,
+    "hit": 47,
+    "avg": -1.1,
+    "med": -0.29
    }
   },
   "score_calibration": {
    "80-100": {
-    "n": 57,
-    "hit": 47,
-    "avg": 0.4
+    "n": 66,
+    "hit": 48,
+    "avg": -0.07
    },
    "60-79": {
-    "n": 8,
+    "n": 15,
     "status": "accruing"
    },
    "40-59": {
