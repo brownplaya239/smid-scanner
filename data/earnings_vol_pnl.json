@@ -67523,5 +67523,245 @@
 "sector": "Other"
 },
 "bt_version": "vol_backtest_v2"
+},
+"AEO|2026-09-09|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "AEO",
+"date": "2026-09-09",
+"implied": 20.8,
+"session": "AMC",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"ASO|2026-09-09|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-09-08",
+"exit_date": "2026-09-09",
+"spot": 44.71,
+"expiry": "2026-09-11",
+"expiry_spot": null,
+"night_id": "2026-09-09",
+"sector": "Consumer / Retail",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 45,
+"contract": "O:ASO260911C00045000",
+"marks": {
+"entry_close": 1.69,
+"exit_open": 3,
+"exit_close": 5.42
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 45,
+"contract": "O:ASO260911P00045000",
+"marks": {
+"entry_close": 1.8,
+"exit_open": 0.8,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -8.0,
+"risk": 368.0,
+"ror": -0.0219
+},
+"next_close": {
+"pnl": 149.0,
+"risk": 368.0,
+"ror": 0.4044
+},
+"expiry_hold": {
+"pnl": -369.0,
+"risk": 368.0,
+"ror": -1.0035
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 46,
+"contract": "O:ASO260911C00046000",
+"marks": {
+"entry_close": 1.09,
+"exit_open": 2.38,
+"exit_close": 4.9
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 44,
+"contract": "O:ASO260911P00044000",
+"marks": {
+"entry_close": 1.32,
+"exit_open": 0.05,
+"exit_close": 0.02
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -25.0,
+"risk": 254.0,
+"ror": -0.0975
+},
+"next_close": {
+"pnl": 212.0,
+"risk": 254.0,
+"ror": 0.8325
+},
+"expiry_hold": {
+"pnl": -256.0,
+"risk": 254.0,
+"ror": -1.0051
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "ASO",
+"date": "2026-09-09",
+"implied": 3.7,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"SIG|2026-09-09|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-09-08",
+"exit_date": "2026-09-09",
+"spot": 82.67,
+"expiry": "2026-09-11",
+"expiry_spot": null,
+"night_id": "2026-09-09",
+"sector": "Consumer / Retail",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 83,
+"contract": "O:SIG260911C00083000",
+"marks": {
+"entry_close": 3.7,
+"exit_open": 15.75,
+"exit_close": 17.24
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 83,
+"contract": "O:SIG260911P00083000",
+"marks": {
+"entry_close": 4.38,
+"exit_open": 0.01,
+"exit_close": 0.1
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": 646.0,
+"risk": 850.0,
+"ror": 0.7605
+},
+"next_close": {
+"pnl": 796.0,
+"risk": 850.0,
+"ror": 0.9372
+},
+"expiry_hold": {
+"pnl": -851.0,
+"risk": 850.0,
+"ror": -1.0015
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 84,
+"contract": "O:SIG260911C00084000",
+"marks": {
+"entry_close": 2.93,
+"exit_open": 13.6,
+"exit_close": 16.78
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 81,
+"contract": "O:SIG260911P00081000",
+"marks": {
+"entry_close": 3.34,
+"exit_open": 0.1,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": 641.0,
+"risk": 660.0,
+"ror": 0.971
+},
+"next_close": {
+"pnl": 936.0,
+"risk": 660.0,
+"ror": 1.4189
+},
+"expiry_hold": {
+"pnl": -661.0,
+"risk": 660.0,
+"ror": -1.002
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "SIG",
+"date": "2026-09-09",
+"implied": 4.0,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"CBRL|2026-09-16|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "CBRL",
+"date": "2026-09-16",
+"implied": 7.8,
+"session": "AMC",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
