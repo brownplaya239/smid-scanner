@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-10T21:11:55+00:00",
+ "generated": "2026-09-10T21:38:31+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-10T21:11:55+00:00",
+ "data_cutoff": "2026-09-10T21:38:31+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T21:11:55+00:00",
+   "as_of": "2026-09-10T21:38:31+00:00",
    "evidence": {
     "thesis": "Options price a ±13.1% move vs a ±9.2% median across 7 past reports (1.4× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -220,7 +220,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T21:11:55+00:00",
+   "as_of": "2026-09-10T21:38:31+00:00",
    "evidence": {
     "thesis": "Options price a ±12.7% move vs a ±6.9% median across 7 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -259,7 +259,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T21:11:55+00:00",
+   "as_of": "2026-09-10T21:38:31+00:00",
    "evidence": {
     "thesis": "Options price a ±7.3% move vs a ±4.1% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -299,7 +299,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T21:11:55+00:00",
+   "as_of": "2026-09-10T21:38:31+00:00",
    "evidence": {
     "thesis": "Options price a ±7.0% move vs a ±4.5% median across 8 past reports (1.6× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -333,10 +333,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-10T21:11:55+00:00",
+   "as_of": "2026-09-10T21:38:31+00:00",
    "evidence": {
-    "n_prints": 2,
-    "total_premium": 1189496,
+    "n_prints": 3,
+    "total_premium": 1784244,
     "feats": {
      "side": "put_buy",
      "regime": "risk_off",
@@ -348,7 +348,7 @@
      "stype": "voloi",
      "prem": ">=250k"
     },
-    "anchor_score": 63,
+    "anchor_score": 70,
     "tags": [
      "Block",
      "Repeat"
@@ -376,10 +376,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-10T21:11:55+00:00",
+   "as_of": "2026-09-10T21:38:31+00:00",
    "evidence": {
-    "n_prints": 9,
-    "total_premium": 5565751,
+    "n_prints": 11,
+    "total_premium": 6791728,
     "feats": {
      "side": "put_buy",
      "regime": "risk_off",
@@ -426,7 +426,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T21:11:55+00:00",
+   "as_of": "2026-09-10T21:38:31+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -2.5% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -464,7 +464,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T21:11:55+00:00",
+   "as_of": "2026-09-10T21:38:31+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -558,33 +558,13 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 4 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 14,
+  "LOW_ALPHA": 13,
   "BAD_LIQUIDITY": 2,
   "REGIME_CONFLICT": 18,
-  "STALE_DATA": 11,
-  "NOT_DIRECTIONAL": 553
+  "STALE_DATA": 12,
+  "NOT_DIRECTIONAL": 611
  },
  "what_changed": [
-  {
-   "t": "ORCL",
-   "change": "new",
-   "to": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "RH",
-   "change": "new",
-   "to": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "TCOM",
-   "change": "new",
-   "to": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "LEN",
-   "change": "new",
-   "to": "SIGNAL_QUALIFIED"
-  },
   {
    "t": "FIZZ",
    "change": "new",
@@ -594,11 +574,6 @@
    "t": "CBRL",
    "change": "new",
    "to": "EXPERIMENTAL"
-  },
-  {
-   "t": "CBRL",
-   "change": "dropped",
-   "from": "SIGNAL_QUALIFIED"
   }
  ],
  "performance": {
