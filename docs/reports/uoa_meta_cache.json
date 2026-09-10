@@ -4017,6 +4017,13 @@
 "mkt_cap": 51997044000.0,
 "sector": "Other"
 },
+"EWA": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-09-10",
+"mkt_cap": null,
+"sector": "Other"
+},
 "EWC": {
 "earnings_date": null,
 "earnings_session": null,
@@ -8409,8 +8416,8 @@
 "PBR": {
 "earnings_date": "2026-11-10",
 "earnings_session": null,
-"fetched": "2026-08-29",
-"mkt_cap": 117609686453.25,
+"fetched": "2026-09-10",
+"mkt_cap": 134880588354.33,
 "sector": "Other"
 },
 "PCAR": {
@@ -8941,8 +8948,8 @@
 "PTEN": {
 "earnings_date": "2026-10-21",
 "earnings_session": "AMC",
-"fetched": "2026-08-17",
-"mkt_cap": 4336346017.38,
+"fetched": "2026-09-10",
+"mkt_cap": 4931306420.82,
 "sector": "Energy"
 },
 "PTGX": {
@@ -10420,6 +10427,13 @@
 "earnings_session": "AMC",
 "fetched": "2026-07-08",
 "mkt_cap": 1321884542.25,
+"sector": "Other"
+},
+"STE": {
+"earnings_date": "2026-11-04",
+"earnings_session": null,
+"fetched": "2026-09-10",
+"mkt_cap": 20971298659.9,
 "sector": "Other"
 },
 "STEP": {
