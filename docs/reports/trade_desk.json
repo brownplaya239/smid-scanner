@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-10T19:36:54+00:00",
+ "generated": "2026-09-10T19:55:10+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-10T19:36:54+00:00",
+ "data_cutoff": "2026-09-10T19:55:10+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T19:36:54+00:00",
+   "as_of": "2026-09-10T19:55:10+00:00",
    "evidence": {
     "thesis": "Options price a ±7.8% move vs a ±5.3% median across 8 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -197,7 +197,7 @@
    "ticker": "ORCL",
    "direction": "bearish",
    "status": "WATCH",
-   "alpha_score": 72.8,
+   "alpha_score": 87.5,
    "gate": "no champion: setup-level walk-forward found no tail that clears the promotion criteria (positive pooled avg+median, bootstrap CI low > 0, positive holdout)",
    "catalyst": "earnings",
    "construct": {
@@ -205,17 +205,17 @@
     "reference_contract": "O:ORCL260918P00157500",
     "contract_liquidity": "C",
     "dte": 8,
-    "flag_premium": 736171,
+    "flag_premium": 756603,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-10T19:36:54+00:00",
+   "as_of": "2026-09-10T19:55:10+00:00",
    "evidence": {
-    "n_prints": 1,
-    "total_premium": 736171,
+    "n_prints": 3,
+    "total_premium": 1921520,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -223,13 +223,14 @@
      "dte": "urgent",
      "liq": "C",
      "cap": "mega",
-     "open": "mixed",
+     "open": "likely_open",
      "stype": "sweep",
      "prem": ">=250k"
     },
-    "anchor_score": 55,
+    "anchor_score": 72,
     "tags": [
      "Sweep",
+     "Repeat",
      "Into ERN",
      "In Universe"
     ],
@@ -261,7 +262,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T19:36:54+00:00",
+   "as_of": "2026-09-10T19:55:10+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -300,7 +301,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T19:36:54+00:00",
+   "as_of": "2026-09-10T19:55:10+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -334,7 +335,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T19:36:54+00:00",
+   "as_of": "2026-09-10T19:55:10+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -372,7 +373,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-10T19:36:54+00:00",
+   "as_of": "2026-09-10T19:55:10+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -387,7 +388,7 @@
   }
  ],
  "funnel": {
-  "universe_events": 43,
+  "universe_events": 45,
   "research_candidates": 6,
   "watch_setups": 1,
   "experimental": 4,
@@ -406,7 +407,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "38 candidates → 1 watch → 0 qualified (no champion)"
+   "line": "40 candidates → 1 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -470,15 +471,16 @@
  "rejections": {
   "LOW_ALPHA": 13,
   "BAD_LIQUIDITY": 3,
-  "REGIME_CONFLICT": 16,
-  "STALE_DATA": 9,
-  "NOT_DIRECTIONAL": 332
+  "REGIME_CONFLICT": 15,
+  "STALE_DATA": 12,
+  "NOT_DIRECTIONAL": 384
  },
  "what_changed": [
   {
    "t": "ORCL",
-   "change": "new",
-   "to": "WATCH"
+   "change": "score",
+   "from": 72.8,
+   "to": 87.5
   },
   {
    "t": "CNM",
