@@ -67763,5 +67763,53 @@
 "sector": "Consumer / Retail"
 },
 "bt_version": "vol_backtest_v2"
+},
+"ORCL|2026-09-10|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "ORCL",
+"date": "2026-09-10",
+"implied": 13.1,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"RH|2026-09-10|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "RH",
+"date": "2026-09-10",
+"implied": 12.7,
+"session": "AMC",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"LEN|2026-09-17|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "LEN",
+"date": "2026-09-17",
+"implied": 7.0,
+"session": "AMC",
+"sector": "Industrials"
+},
+"bt_version": "vol_backtest_v2"
+},
+"ADBE|2026-09-10|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "ADBE",
+"date": "2026-09-10",
+"implied": 8.3,
+"session": "AMC",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
