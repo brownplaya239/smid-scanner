@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-11T21:16:24+00:00",
+ "generated": "2026-09-11T21:44:29+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-11T21:16:24+00:00",
+ "data_cutoff": "2026-09-11T21:44:29+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-11T21:16:24+00:00",
+   "as_of": "2026-09-11T21:44:29+00:00",
    "evidence": {
     "thesis": "Options price a ±7.3% move vs a ±4.1% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -219,7 +219,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-11T21:16:24+00:00",
+   "as_of": "2026-09-11T21:44:29+00:00",
    "evidence": {
     "thesis": "Options price a ±7.0% move vs a ±4.5% median across 8 past reports (1.6× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -257,7 +257,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-11T21:16:24+00:00",
+   "as_of": "2026-09-11T21:44:29+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 7 reports this name drifts -2.5% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -295,7 +295,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-11T21:16:24+00:00",
+   "as_of": "2026-09-11T21:44:29+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -385,11 +385,11 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 2 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 12,
+  "LOW_ALPHA": 10,
   "BAD_LIQUIDITY": 5,
-  "REGIME_CONFLICT": 28,
-  "STALE_DATA": 18,
-  "NOT_DIRECTIONAL": 843
+  "REGIME_CONFLICT": 24,
+  "STALE_DATA": 24,
+  "NOT_DIRECTIONAL": 941
  },
  "what_changed": [
   {
