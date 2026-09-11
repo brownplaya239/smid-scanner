@@ -172,9 +172,9 @@
 "ABEV": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-08-11",
+"fetched": "2026-09-11",
 "industry": "",
-"market_cap": 45431217567.54,
+"market_cap": 46866119032.96,
 "mcap_bucket": "Large",
 "name": "AMBEV S.A.",
 "sector": "Other"
@@ -587,6 +587,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "Anfield Enhanced Market ETF",
+"sector": "Other"
+},
+"AENT": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-09-11",
+"industry": "WHOLESALE-DURABLE GOODS, NEC",
+"market_cap": 280897761.3,
+"mcap_bucket": "Micro",
+"name": "Alliance Entertainment Holding Corporation Class A Common Stock",
 "sector": "Other"
 },
 "AEO": {
@@ -1122,9 +1132,9 @@
 "ALKT": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-08-06",
+"fetched": "2026-09-11",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 2011578643.8,
+"market_cap": 2038314138.8,
 "mcap_bucket": "Mid",
 "name": "Alkami Technology, Inc. Common Stock",
 "sector": "Tech / Software"
@@ -1162,9 +1172,9 @@
 "ALM": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-09",
+"fetched": "2026-09-11",
 "industry": "",
-"market_cap": 4667553416.05,
+"market_cap": 4780126027.5,
 "mcap_bucket": "Mid",
 "name": "Almonty Industries Inc. Common Shares",
 "sector": "Other"
@@ -2458,6 +2468,16 @@
 "name": "Atour Lifestyle Holdings Limited American Depositary Shares",
 "sector": "Other"
 },
+"ATEC": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-09-11",
+"industry": "SURGICAL & MEDICAL INSTRUMENTS & APPARATUS",
+"market_cap": 1365347511.84,
+"mcap_bucket": "Small",
+"name": "Alphatec Holdings, Inc.",
+"sector": "Other"
+},
 "ATEN": {
 "country": "USA",
 "exchange": "NYSE",
@@ -3288,6 +3308,16 @@
 "name": "Brunswick Corporation",
 "sector": "Industrials / Machinery"
 },
+"BCAT": {
+"country": "USA",
+"exchange": "NYSE",
+"fetched": "2026-09-11",
+"industry": "",
+"market_cap": 1683997911.59,
+"mcap_bucket": "Small",
+"name": "BlackRock Capital Allocation Term Trust",
+"sector": "Other"
+},
 "BCAX": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -3541,9 +3571,9 @@
 "BFH": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-08-11",
+"fetched": "2026-09-11",
 "industry": "PERSONAL CREDIT INSTITUTIONS",
-"market_cap": 4380529916.65,
+"market_cap": 4105482978.48,
 "mcap_bucket": "Mid",
 "name": "Bread Financial Holdings, Inc.",
 "sector": "Financials / Banks"
@@ -4261,7 +4291,7 @@
 "BNO": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-07-27",
+"fetched": "2026-09-11",
 "industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -6360,9 +6390,9 @@
 "CNO": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-31",
+"fetched": "2026-09-11",
 "industry": "ACCIDENT & HEALTH INSURANCE",
-"market_cap": 4993211425.47,
+"market_cap": 5091451046.13,
 "mcap_bucket": "Mid",
 "name": "CNO Financial Group, Inc.",
 "sector": "Financials"
@@ -7810,9 +7840,9 @@
 "DELL": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-22",
+"fetched": "2026-09-11",
 "industry": "ELECTRONIC COMPUTERS",
-"market_cap": 261138462276.19998,
+"market_cap": 322115455405.0,
 "mcap_bucket": "Mega",
 "name": "Dell Technologies Inc.",
 "sector": "Tech / Hardware"
@@ -8220,9 +8250,9 @@
 "DLB": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-08-10",
+"fetched": "2026-09-11",
 "industry": "PATENT OWNERS & LESSORS",
-"market_cap": 5785921467.150001,
+"market_cap": 5865539942.9,
 "mcap_bucket": "Mid",
 "name": "Dolby Laboratories, Inc.Class A",
 "sector": "Real Estate"
@@ -8230,7 +8260,7 @@
 "DLLL": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-08-04",
+"fetched": "2026-09-11",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -9767,6 +9797,16 @@
 "name": "iShares Ethereum Trust ETF",
 "sector": "Financials"
 },
+"ETHB": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-09-11",
+"industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares Staked Ethereum Trust ETF Shares of Fractional Undivided Beneficial Interest",
+"sector": "Financials"
+},
 "ETHD": {
 "country": "USA",
 "exchange": "NYSE Arca",
@@ -10110,9 +10150,9 @@
 "EXK": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-08-11",
+"fetched": "2026-09-11",
 "industry": "",
-"market_cap": 3032519464.96,
+"market_cap": 3115439919.08,
 "mcap_bucket": "Mid",
 "name": "Endeavour Silver Corp.",
 "sector": "Other"
@@ -10855,6 +10895,16 @@
 "market_cap": null,
 "mcap_bucket": "Unknown",
 "name": "FT Vest U.S. Equity Buffer ETF - June",
+"sector": "Other"
+},
+"FLDR": {
+"country": "USA",
+"exchange": "BATS",
+"fetched": "2026-09-11",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Fidelity Low Duration Bond Factor ETF",
 "sector": "Other"
 },
 "FLEX": {
@@ -12636,6 +12686,16 @@
 "name": "Globalstar, Inc. Common Stock",
 "sector": "Communications"
 },
+"GSG": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-11",
+"industry": "COMMODITY CONTRACTS BROKERS & DEALERS",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares S&P  GSCI Commodity-Indexed Trust",
+"sector": "Financials"
+},
 "GSHD": {
 "country": "USA",
 "exchange": "NASDAQ",
@@ -12689,7 +12749,7 @@
 "GSY": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-08-04",
+"fetched": "2026-09-11",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -12999,9 +13059,9 @@
 "HDB": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-24",
+"fetched": "2026-09-11",
 "industry": "",
-"market_cap": 118772723081.79,
+"market_cap": 112214347518.0,
 "mcap_bucket": "Large",
 "name": "HDFC Bank Limited",
 "sector": "Other"
@@ -14519,9 +14579,9 @@
 "INGM": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-15",
+"fetched": "2026-09-11",
 "industry": "WHOLESALE-COMPUTERS & PERIPHERAL EQUIPMENT & SOFTWARE",
-"market_cap": 6855727177.25,
+"market_cap": 6082554408.4800005,
 "mcap_bucket": "Mid",
 "name": "Ingram Micro Holding Corporation",
 "sector": "Other"
@@ -15278,7 +15338,7 @@
 "IXC": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-08-04",
+"fetched": "2026-09-11",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -15838,7 +15898,7 @@
 "JPLD": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-06-25",
+"fetched": "2026-09-11",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -16288,9 +16348,9 @@
 "KNX": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-07-23",
+"fetched": "2026-09-11",
 "industry": "TRUCKING (NO LOCAL)",
-"market_cap": 12356043760.000002,
+"market_cap": 11235046680.0,
 "mcap_bucket": "Large",
 "name": "Knight-Swift Transportation Holdings Inc. Class A Common Stock",
 "sector": "Industrials"
@@ -16408,9 +16468,9 @@
 "KSPI": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-08-11",
+"fetched": "2026-09-11",
 "industry": "",
-"market_cap": 17862563004.0,
+"market_cap": 18461148891.9,
 "mcap_bucket": "Large",
 "name": "Joint Stock Company Kaspi.kz American Depository Shares",
 "sector": "Other"
@@ -17218,9 +17278,9 @@
 "LPLA": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-08-11",
+"fetched": "2026-09-11",
 "industry": "SECURITY & COMMODITY BROKERS, DEALERS, EXCHANGES & SERVICES",
-"market_cap": 29300793531.9,
+"market_cap": 27344047625.399998,
 "mcap_bucket": "Large",
 "name": "LPL Financial Holdings Inc.",
 "sector": "Financials"
@@ -17528,9 +17588,9 @@
 "M": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-09-11",
 "industry": "RETAIL-DEPARTMENT STORES",
-"market_cap": 6349736209.56,
+"market_cap": 5366900000.0,
 "mcap_bucket": "Mid",
 "name": "Macy's Inc.",
 "sector": "Consumer / Retail"
@@ -17968,9 +18028,9 @@
 "MELI": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-08-11",
+"fetched": "2026-09-11",
 "industry": "SERVICES-BUSINESS SERVICES, NEC",
-"market_cap": 92488203760.68,
+"market_cap": 96640271844.48,
 "mcap_bucket": "Large",
 "name": "Mercado Libre, Inc",
 "sector": "Other"
@@ -20404,6 +20464,16 @@
 "name": "NextNRG, Inc. Common Stock",
 "sector": "Consumer / Retail"
 },
+"NYF": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-11",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "iShares New York Muni Bond ETF",
+"sector": "Other"
+},
 "NYT": {
 "country": "USA",
 "exchange": "NYSE",
@@ -20887,9 +20957,9 @@
 "ORA": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-08-11",
+"fetched": "2026-09-11",
 "industry": "ELECTRIC SERVICES",
-"market_cap": 6869208309.7,
+"market_cap": 5943679347.650001,
 "mcap_bucket": "Mid",
 "name": "Ormat Technologies, Inc.",
 "sector": "Utilities"
@@ -20897,9 +20967,9 @@
 "ORCL": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-09-11",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 530026517340.0,
+"market_cap": 440539234740.0,
 "mcap_bucket": "Mega",
 "name": "Oracle Corp",
 "sector": "Tech / Software"
@@ -20907,7 +20977,7 @@
 "ORCU": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-29",
+"fetched": "2026-09-11",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -20917,7 +20987,7 @@
 "ORCX": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-05-28",
+"fetched": "2026-09-11",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -21507,7 +21577,7 @@
 "PDBA": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-29",
+"fetched": "2026-09-11",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -21517,7 +21587,7 @@
 "PDBC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-27",
+"fetched": "2026-09-11",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -23333,6 +23403,16 @@
 "mcap_bucket": "Small",
 "name": "Ultragenyx Pharmaceutical Inc.",
 "sector": "Healthcare / Biotech"
+},
+"RAVI": {
+"country": "USA",
+"exchange": "NYSE Arca",
+"fetched": "2026-09-11",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Northern Trust Ultra-Short Fixed Income ETF",
+"sector": "Other"
 },
 "RBA": {
 "country": "USA",
@@ -25614,6 +25694,16 @@
 "name": "SK Telecom Co., Ltd.  American Depositary Shares (Each representing 5/9th of a Ordinary Share of SK Telecom Co., LTD.)",
 "sector": "Other"
 },
+"SKOR": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-09-11",
+"industry": "",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "FlexShares Trust Northern Trust Credit-Scored US Corporate Bond ETF",
+"sector": "Other"
+},
 "SKT": {
 "country": "USA",
 "exchange": "NYSE",
@@ -25917,9 +26007,9 @@
 "SMR": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-06-21",
+"fetched": "2026-09-11",
 "industry": "FABRICATED PLATE WORK (BOILER SHOPS)",
-"market_cap": 4063281915.9,
+"market_cap": 4190077019.6200004,
 "mcap_bucket": "Mid",
 "name": "NuScale Power Corporation",
 "sector": "Industrials / Machinery"
@@ -26517,9 +26607,9 @@
 "SPSC": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-07-29",
+"fetched": "2026-09-11",
 "industry": "SERVICES-PREPACKAGED SOFTWARE",
-"market_cap": 2514636523.4900002,
+"market_cap": 2780293438.02,
 "mcap_bucket": "Mid",
 "name": "SPS Commerce, Inc.",
 "sector": "Tech / Software"
@@ -27233,6 +27323,16 @@
 "mcap_bucket": "Large",
 "name": "Skyworks Solutions Inc",
 "sector": "Semiconductors"
+},
+"SWRD": {
+"country": "USA",
+"exchange": "NASDAQ",
+"fetched": "2026-09-11",
+"industry": "SHORT-TERM BUSINESS CREDIT INSTITUTIONS",
+"market_cap": null,
+"mcap_bucket": "Unknown",
+"name": "Stewards, Inc. Common Stock",
+"sector": "Financials / Banks"
 },
 "SWX": {
 "country": "USA",
@@ -30394,7 +30494,7 @@
 "VRIG": {
 "country": "USA",
 "exchange": "NASDAQ",
-"fetched": "2026-06-29",
+"fetched": "2026-09-11",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
@@ -31974,9 +32074,9 @@
 "YPF": {
 "country": "USA",
 "exchange": "NYSE",
-"fetched": "2026-08-11",
+"fetched": "2026-09-11",
 "industry": "",
-"market_cap": 19974942554.04,
+"market_cap": 21979727639.36,
 "mcap_bucket": "Large",
 "name": "YPF Sociedad Anonima American Depositary Shares (Each representing ten (10) Class D shares of Capital Stock)",
 "sector": "Other"
@@ -32154,7 +32254,7 @@
 "ZROZ": {
 "country": "USA",
 "exchange": "NYSE Arca",
-"fetched": "2026-08-11",
+"fetched": "2026-09-11",
 "industry": "",
 "market_cap": null,
 "mcap_bucket": "Unknown",
