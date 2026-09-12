@@ -67811,5 +67811,113 @@
 "sector": "Tech / Software"
 },
 "bt_version": "vol_backtest_v2"
+},
+"KR|2026-09-11|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-09-10",
+"exit_date": "2026-09-11",
+"spot": 56.95,
+"expiry": "2026-09-11",
+"expiry_spot": 58.49,
+"night_id": "2026-09-11",
+"sector": "Consumer / Retail",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 57,
+"contract": "O:KR260911C00057000",
+"marks": {
+"entry_close": 1.45,
+"exit_open": 0.33,
+"exit_close": 1.52
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 57,
+"contract": "O:KR260911P00057000",
+"marks": {
+"entry_close": 1.5,
+"exit_open": 1.45,
+"exit_close": 0.01
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -143.0,
+"risk": 311.0,
+"ror": -0.4605
+},
+"next_close": {
+"pnl": -167.0,
+"risk": 311.0,
+"ror": -0.5369
+},
+"expiry_hold": {
+"pnl": -171.0,
+"risk": 311.0,
+"ror": -0.5491
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 57,
+"contract": "O:KR260911C00057000",
+"marks": {
+"entry_close": 1.45,
+"exit_open": 0.33,
+"exit_close": 1.52
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 57,
+"contract": "O:KR260911P00057000",
+"marks": {
+"entry_close": 1.5,
+"exit_open": 1.45,
+"exit_close": 0.01
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -143.0,
+"risk": 311.0,
+"ror": -0.4605
+},
+"next_close": {
+"pnl": -167.0,
+"risk": 311.0,
+"ror": -0.5369
+},
+"expiry_hold": {
+"pnl": -171.0,
+"risk": 311.0,
+"ror": -0.5491
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "KR",
+"date": "2026-09-11",
+"implied": 0.9,
+"session": "BMO",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
