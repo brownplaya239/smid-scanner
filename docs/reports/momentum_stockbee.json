@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-11T19:29:58-04:00",
+ "updated": "2026-09-13T16:42:31-04:00",
  "runs": [
   {
    "date": "2026-06-19",
@@ -7422,7 +7422,7 @@
   },
   {
    "date": "2026-09-11",
-   "generated": "2026-09-11T19:29:58-04:00",
+   "generated": "2026-09-13T16:42:31-04:00",
    "count": 8,
    "rows": [
     {
@@ -7430,7 +7430,7 @@
      "price": 275.75,
      "chg": 17.07,
      "adr_pct": 7.02,
-     "dollar_vol": 3011540846,
+     "dollar_vol": 3011134603,
      "ern": "Oct 27"
     },
     {
@@ -7438,7 +7438,7 @@
      "price": 167.24,
      "chg": 23.52,
      "adr_pct": 7.6,
-     "dollar_vol": 488290538,
+     "dollar_vol": 488291639,
      "ern": "Nov 23"
     },
     {
@@ -7446,31 +7446,31 @@
      "price": 94.69,
      "chg": 24.15,
      "adr_pct": 9.37,
-     "dollar_vol": 275505036,
+     "dollar_vol": 275536133,
      "ern": "Nov 02"
-    },
-    {
-     "ticker": "MXL",
-     "price": 74.57,
-     "chg": 25.43,
-     "adr_pct": 7.14,
-     "dollar_vol": 157189165,
-     "ern": "Oct 22"
     },
     {
      "ticker": "VIAV",
      "price": 38.75,
      "chg": 15.22,
      "adr_pct": 5.4,
-     "dollar_vol": 157126198,
+     "dollar_vol": 157126649,
      "ern": "Oct 28"
+    },
+    {
+     "ticker": "MXL",
+     "price": 74.57,
+     "chg": 25.43,
+     "adr_pct": 7.14,
+     "dollar_vol": 156751649,
+     "ern": "Oct 22"
     },
     {
      "ticker": "SEI",
      "price": 67.42,
      "chg": 26.8,
      "adr_pct": 6.46,
-     "dollar_vol": 156594797,
+     "dollar_vol": 156596840,
      "ern": "Nov 02"
     },
     {
@@ -7478,7 +7478,7 @@
      "price": 114.95,
      "chg": 18.8,
      "adr_pct": 5.76,
-     "dollar_vol": 118738337,
+     "dollar_vol": 118739913,
      "ern": "Oct 28"
     },
     {
@@ -7486,7 +7486,7 @@
      "price": 55.36,
      "chg": 26.74,
      "adr_pct": 3.85,
-     "dollar_vol": 108365098,
+     "dollar_vol": 108366699,
      "ern": "Dec 08"
     }
    ],
@@ -7496,7 +7496,7 @@
      "price": 516.13,
      "chg": 13.15,
      "adr_pct": 3.6,
-     "dollar_vol": 8743390047,
+     "dollar_vol": 8743673631,
      "ern": "Nov 03"
     },
     {
@@ -7504,7 +7504,7 @@
      "price": 236.1,
      "chg": 13.06,
      "adr_pct": 5.41,
-     "dollar_vol": 5526680813,
+     "dollar_vol": 5525554610,
      "ern": "Dec 01"
     },
     {
@@ -7512,7 +7512,7 @@
      "price": 122.95,
      "chg": 12.39,
      "adr_pct": 7.07,
-     "dollar_vol": 281153902,
+     "dollar_vol": 281159984,
      "ern": "Nov 04"
     },
     {
@@ -7520,7 +7520,7 @@
      "price": 102.94,
      "chg": 12.29,
      "adr_pct": 4.31,
-     "dollar_vol": 8732416937,
+     "dollar_vol": 8732778030,
      "ern": "Oct 22"
     },
     {
@@ -7528,7 +7528,7 @@
      "price": 98.6,
      "chg": 11.93,
      "adr_pct": 8.51,
-     "dollar_vol": 420368378,
+     "dollar_vol": 420375886,
      "ern": "Nov 04"
     }
    ]
