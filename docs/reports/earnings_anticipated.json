@@ -1,8 +1,8 @@
 {
  "week_of": "2026-09-14",
- "generated": "2026-09-13T16:47:10-04:00",
+ "generated": "2026-09-14T16:47:52-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 15,
+ "total": 16,
  "days": [
   {
    "date": "2026-09-14",
@@ -11,7 +11,7 @@
     {
      "ticker": "RFIL",
      "company": "RF Industries Inc.",
-     "score": 9,
+     "score": 12,
      "analysts": 3,
      "release_time": 1,
      "confirmed": true,
@@ -35,7 +35,7 @@
     {
      "ticker": "KMTS",
      "company": "Kestra Medical Technologies, Ltd.",
-     "score": 3,
+     "score": 6,
      "analysts": 10,
      "release_time": 3,
      "confirmed": true,
@@ -46,7 +46,7 @@
     {
      "ticker": "PLAY",
      "company": "Dave & Buster's Entertainment, Inc.",
-     "score": 12,
+     "score": 20,
      "analysts": 12,
      "release_time": 3,
      "confirmed": true,
@@ -57,7 +57,7 @@
     {
      "ticker": "HITI",
      "company": "High Tide Inc.",
-     "score": 16,
+     "score": 20,
      "analysts": 7,
      "release_time": 3,
      "confirmed": true,
@@ -68,13 +68,24 @@
     {
      "ticker": "HYFT",
      "company": "MindWalk Holdings Corp.",
-     "score": 5,
+     "score": 6,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
      "next_eps": "2026-09-14T00:00:00",
      "q": "7/2026",
      "mcap": 61318421.279999994
+    },
+    {
+     "ticker": "OPTT",
+     "company": "Ocean Power Technologies Inc",
+     "score": 1,
+     "analysts": 3,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-14T00:00:00",
+     "q": "7/2026",
+     "mcap": 958992.7755
     }
    ]
   },
@@ -85,7 +96,7 @@
     {
      "ticker": "FPS",
      "company": "Forgent Power Solutions, Inc.",
-     "score": 15,
+     "score": 26,
      "analysts": 12,
      "release_time": 1,
      "confirmed": true,
@@ -107,7 +118,7 @@
     {
      "ticker": "BIOX",
      "company": "Bioceres Crop Solutions Corp.",
-     "score": 2,
+     "score": 4,
      "analysts": 0,
      "release_time": 1,
      "confirmed": true,
@@ -120,7 +131,7 @@
     {
      "ticker": "TCOM",
      "company": "Trip.com Group Limited",
-     "score": 11,
+     "score": 15,
      "analysts": 18,
      "release_time": 3,
      "confirmed": true,
@@ -131,7 +142,7 @@
     {
      "ticker": "EPM",
      "company": "Evolution Petroleum Corporation",
-     "score": 1,
+     "score": 2,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
@@ -148,7 +159,7 @@
     {
      "ticker": "LUXE",
      "company": "LuxExperience B.V.",
-     "score": 2,
+     "score": 4,
      "analysts": 6,
      "release_time": 1,
      "confirmed": true,
@@ -159,7 +170,7 @@
     {
      "ticker": "ISPR",
      "company": "Ispire Technology Inc. ",
-     "score": 1,
+     "score": 3,
      "analysts": 3,
      "release_time": 1,
      "confirmed": true,
@@ -172,7 +183,7 @@
     {
      "ticker": "LEN",
      "company": "Lennar Corporation",
-     "score": 10,
+     "score": 13,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,
