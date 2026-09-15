@@ -1,6 +1,6 @@
 {
  "week_of": "2026-09-14",
- "generated": "2026-09-14T20:04:24-04:00",
+ "generated": "2026-09-15T16:46:44-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
  "total": 16,
  "days": [
@@ -8,6 +8,17 @@
    "date": "2026-09-14",
    "dow": "Monday",
    "bmo": [
+    {
+     "ticker": "IMMR",
+     "company": "Immersion Corporation",
+     "score": 1,
+     "analysts": 2,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-14T00:00:00",
+     "q": "10/2026",
+     "mcap": 239313606.21
+    },
     {
      "ticker": "RFIL",
      "company": "RF Industries Inc.",
@@ -96,7 +107,7 @@
     {
      "ticker": "FPS",
      "company": "Forgent Power Solutions, Inc.",
-     "score": 27,
+     "score": 30,
      "analysts": 12,
      "release_time": 1,
      "confirmed": true,
@@ -107,31 +118,20 @@
     {
      "ticker": "VRA",
      "company": "Vera Bradley, Inc.",
-     "score": 4,
+     "score": 6,
      "analysts": 2,
      "release_time": 1,
      "confirmed": true,
      "next_eps": "2026-09-15T00:00:00",
      "q": "7/2026",
      "mcap": 89296111.28
-    },
-    {
-     "ticker": "BIOX",
-     "company": "Bioceres Crop Solutions Corp.",
-     "score": 4,
-     "analysts": 0,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-15T00:00:00",
-     "q": "6/2026",
-     "mcap": 26745239.9181
     }
    ],
    "amc": [
     {
      "ticker": "TCOM",
      "company": "Trip.com Group Limited",
-     "score": 16,
+     "score": 26,
      "analysts": 18,
      "release_time": 3,
      "confirmed": true,
@@ -142,7 +142,7 @@
     {
      "ticker": "EPM",
      "company": "Evolution Petroleum Corporation",
-     "score": 2,
+     "score": 7,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
@@ -159,7 +159,7 @@
     {
      "ticker": "LUXE",
      "company": "LuxExperience B.V.",
-     "score": 4,
+     "score": 6,
      "analysts": 6,
      "release_time": 1,
      "confirmed": true,
@@ -170,7 +170,7 @@
     {
      "ticker": "ISPR",
      "company": "Ispire Technology Inc. ",
-     "score": 3,
+     "score": 6,
      "analysts": 3,
      "release_time": 1,
      "confirmed": true,
@@ -183,7 +183,7 @@
     {
      "ticker": "LEN",
      "company": "Lennar Corporation",
-     "score": 13,
+     "score": 16,
      "analysts": 19,
      "release_time": 3,
      "confirmed": true,

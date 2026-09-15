@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-14T20:04:17-04:00",
+ "updated": "2026-09-15T16:46:40-04:00",
  "tz": "America/New_York",
  "source_tz": "UTC",
  "converted": true,
@@ -59,6 +59,30 @@
    "anchor_et": "08:30",
    "on_schedule": true,
    "generic_title": false
+  },
+  {
+   "date": "2026-09-15",
+   "title": "Treasury Sec Bessent Speaks",
+   "impact": "Medium",
+   "forecast": "",
+   "previous": "",
+   "actual": "",
+   "url": "https://www.forexfactory.com/calendar/917-us-treasury-sec-bessent-speaks",
+   "source_time": "2:00pm",
+   "source_tz": "UTC",
+   "source_url": "https://www.forexfactory.com/calendar/917-us-treasury-sec-bessent-speaks",
+   "title_authority": "vendor",
+   "venue_tz": null,
+   "venue": null,
+   "vendor_title": "Treasury Sec Bessent Speaks",
+   "vendor_time": "2:00pm",
+   "vendor_tz": "UTC",
+   "vendor_url": "https://www.forexfactory.com/calendar/917-us-treasury-sec-bessent-speaks",
+   "time_et": "10:00 a.m. ET",
+   "time_utc": "14:00Z",
+   "starts_at": "2026-09-15T10:00-04:00",
+   "scheduled": true,
+   "generic_title": true
   },
   {
    "date": "2026-09-15",
