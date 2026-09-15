@@ -1,33 +1,33 @@
 {
- "generated": "2026-09-14T19:38:01+00:00",
+ "generated": "2026-09-15T13:54:55+00:00",
  "engine_version": "earnings_vol_v1",
  "types": {
   "vol_rich": {
-   "n": 145,
+   "n": 147,
    "span": {
     "from": "2026-07-21",
-    "to": "2026-09-03"
+    "to": "2026-09-08"
    },
-   "ev_vol_pts": 6.3,
-   "med_vol_pts": 6.2,
+   "ev_vol_pts": 6.32,
+   "med_vol_pts": 6.24,
    "win": 90,
    "date_cluster_bootstrap": {
-    "nights": 27,
-    "mean": 6.3,
+    "nights": 28,
+    "mean": 6.32,
     "ci95": [
-     5.29,
+     5.33,
      7.29
     ]
    },
    "move_ratio": {
-    "n": 145,
+    "n": 147,
     "median": 0.25,
     "p75": 0.6,
-    "p90": 0.94,
+    "p90": 0.93,
     "p95": 1.39,
     "p99": 1.86,
     "max": 2.43,
-    "inside_050x": 72,
+    "inside_050x": 73,
     "inside_075x": 81,
     "inside_100x": 90,
     "blowthrough_10x": 10,
@@ -48,7 +48,7 @@
     "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
    },
    "clustering": {
-    "nights": 27,
+    "nights": 28,
     "events_per_night": {
      "median": 6,
      "p90": 8,
@@ -61,8 +61,8 @@
    "decomposition": {
     "implied_band": {
      "8-12%": {
-      "n": 47,
-      "ev": 6.33,
+      "n": 49,
+      "ev": 6.4,
       "med": 6.99,
       "win": 98
      },
@@ -101,10 +101,10 @@
       "win": 94
      },
      "1-10B": {
-      "n": 43,
-      "ev": 6.52,
+      "n": 45,
+      "ev": 6.59,
       "med": 7.55,
-      "win": 81
+      "win": 82
      }
     },
     "session": {
@@ -113,16 +113,16 @@
       "status": "thin"
      },
      "AMC": {
-      "n": 96,
-      "ev": 8.43,
-      "med": 7.4,
+      "n": 97,
+      "ev": 8.41,
+      "med": 7.39,
       "win": 98
      },
      "BMO": {
-      "n": 48,
-      "ev": 1.99,
-      "med": 2.56,
-      "win": 75
+      "n": 49,
+      "ev": 2.14,
+      "med": 2.66,
+      "win": 76
      }
     },
     "regime": {
@@ -133,9 +133,9 @@
       "win": 87
      },
      "risk_off": {
-      "n": 37,
-      "ev": 7.24,
-      "med": 6.35,
+      "n": 39,
+      "ev": 7.28,
+      "med": 6.62,
       "win": 97
      },
      "risk_on": {
@@ -203,7 +203,7 @@
       "status": "thin"
      },
      "Consumer / Retail": {
-      "n": 16,
+      "n": 18,
       "status": "thin"
      },
      "Tech / Hardware": {
@@ -239,7 +239,7 @@
       "win": 90
      },
      "1-2": {
-      "n": 9,
+      "n": 11,
       "status": "thin"
      }
     }
@@ -502,11 +502,11 @@
     }
    },
    "forward": {
-    "n": 21,
-    "ev": 5.52,
+    "n": 23,
+    "ev": 5.73,
     "bootstrap": {
      "status": "insufficient_nights",
-     "nights": 4
+     "nights": 5
     }
    }
   },
@@ -557,7 +557,7 @@
  },
  "ticker_history": {},
  "cohort_history": {
-  "n": 145,
+  "n": 147,
   "median_ratio": 0.25,
   "inside_100x": 90,
   "inside_075x": 81
@@ -586,7 +586,7 @@
   "per_type": {
    "vol_rich": {
     "median_ratio": 0.25,
-    "n": 145
+    "n": 147
    },
    "vol_cheap": {
     "median_ratio": 1.57,
