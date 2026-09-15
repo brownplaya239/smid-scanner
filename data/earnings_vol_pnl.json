@@ -67919,5 +67919,17 @@
 "sector": "Consumer / Retail"
 },
 "bt_version": "vol_backtest_v2"
+},
+"ABVX|2026-09-21|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "ABVX",
+"date": "2026-09-21",
+"implied": 12.0,
+"session": "AMC",
+"sector": "Other"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
