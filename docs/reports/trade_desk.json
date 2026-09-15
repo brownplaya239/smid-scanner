@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-15T16:25:27+00:00",
+ "generated": "2026-09-15T17:12:52+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-15T16:25:27+00:00",
+ "data_cutoff": "2026-09-15T17:12:52+00:00",
  "market_regime": "mixed",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-15T16:25:27+00:00",
+   "as_of": "2026-09-15T17:12:52+00:00",
    "evidence": {
     "thesis": "Options price a ±7.3% move vs a ±4.1% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -219,7 +219,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-15T16:25:27+00:00",
+   "as_of": "2026-09-15T17:12:52+00:00",
    "evidence": {
     "thesis": "Options price a ±6.4% move vs a ±4.5% median across 8 past reports (1.4× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -259,7 +259,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-15T16:25:27+00:00",
+   "as_of": "2026-09-15T17:12:52+00:00",
    "evidence": {
     "thesis": "Options price a ±13.8% move vs a ±4.5% median across 5 past reports (3.1× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -300,7 +300,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-15T16:25:27+00:00",
+   "as_of": "2026-09-15T17:12:52+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -313,7 +313,7 @@
   }
  ],
  "funnel": {
-  "universe_events": 24,
+  "universe_events": 27,
   "research_candidates": 4,
   "watch_setups": 0,
   "experimental": 1,
@@ -332,7 +332,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "20 candidates → 0 watch → 0 qualified (no champion)"
+   "line": "23 candidates → 0 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -390,9 +390,10 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 3 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 8,
-  "REGIME_CONFLICT": 12,
-  "NOT_DIRECTIONAL": 35
+  "LOW_ALPHA": 9,
+  "REGIME_CONFLICT": 13,
+  "STALE_DATA": 1,
+  "NOT_DIRECTIONAL": 53
  },
  "what_changed": [
   {
