@@ -1,109 +1,6 @@
 {
- "updated": "2026-09-15T19:36:32-04:00",
+ "updated": "2026-09-16T16:42:34-04:00",
  "runs": [
-  {
-   "date": "2026-06-22",
-   "generated": "2026-06-22T19:02:14-04:00",
-   "count": 12,
-   "rows": [
-    {
-     "ticker": "MU",
-     "price": 1211.38,
-     "chg": 65.49,
-     "adr_pct": 7.08,
-     "dollar_vol": 54071984390,
-     "ern": "Jun 24"
-    },
-    {
-     "ticker": "MRVL",
-     "price": 307.86,
-     "chg": 64.81,
-     "adr_pct": 10.46,
-     "dollar_vol": 20041964061,
-     "ern": "Aug 27"
-    },
-    {
-     "ticker": "SNDK",
-     "price": 2273.73,
-     "chg": 63.28,
-     "adr_pct": 8.0,
-     "dollar_vol": 19259334698,
-     "ern": "Aug 24"
-    },
-    {
-     "ticker": "SPCX",
-     "price": 154.6,
-     "chg": 605.61,
-     "adr_pct": 5.55,
-     "dollar_vol": 15670073685,
-     "ern": "--"
-    },
-    {
-     "ticker": "DELL",
-     "price": 418.71,
-     "chg": 72.36,
-     "adr_pct": 7.41,
-     "dollar_vol": 5161929406,
-     "ern": "Sep 03"
-    },
-    {
-     "ticker": "WDC",
-     "price": 732.62,
-     "chg": 59.4,
-     "adr_pct": 6.68,
-     "dollar_vol": 5099797663,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "ARM",
-     "price": 407.72,
-     "chg": 58.81,
-     "adr_pct": 10.25,
-     "dollar_vol": 5095147988,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "CRDO",
-     "price": 302.52,
-     "chg": 65.33,
-     "adr_pct": 11.15,
-     "dollar_vol": 2365434505,
-     "ern": "--"
-    },
-    {
-     "ticker": "VSH",
-     "price": 64.27,
-     "chg": 60.03,
-     "adr_pct": 10.73,
-     "dollar_vol": 545791572,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "APGE",
-     "price": 132.55,
-     "chg": 62.86,
-     "adr_pct": 5.85,
-     "dollar_vol": 505518324,
-     "ern": "Aug 10"
-    },
-    {
-     "ticker": "TWST",
-     "price": 85.17,
-     "chg": 58.72,
-     "adr_pct": 7.28,
-     "dollar_vol": 149942198,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "UCTT",
-     "price": 123.14,
-     "chg": 53.5,
-     "adr_pct": 7.88,
-     "dollar_vol": 122580891,
-     "ern": "Jul 27"
-    }
-   ]
-  },
   {
    "date": "2026-06-23",
    "generated": "2026-06-23T18:47:07-04:00",
@@ -3649,6 +3546,69 @@
      "chg": 19.35,
      "adr_pct": 6.08,
      "dollar_vol": 138475347,
+     "ern": "Nov 06"
+    }
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "generated": "2026-09-16T16:42:34-04:00",
+   "count": 7,
+   "rows": [
+    {
+     "ticker": "DELL",
+     "price": 563.29,
+     "chg": 17.4,
+     "adr_pct": 6.13,
+     "dollar_vol": 4844821982,
+     "ern": "Nov 27"
+    },
+    {
+     "ticker": "BE",
+     "price": 270.02,
+     "chg": 16.31,
+     "adr_pct": 6.57,
+     "dollar_vol": 3093916198,
+     "ern": "Oct 27"
+    },
+    {
+     "ticker": "MARA",
+     "price": 11.04,
+     "chg": 13.64,
+     "adr_pct": 8.17,
+     "dollar_vol": 572862941,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "ANF",
+     "price": 139.89,
+     "chg": 33.03,
+     "adr_pct": 5.05,
+     "dollar_vol": 355519782,
+     "ern": "Nov 25"
+    },
+    {
+     "ticker": "TWST",
+     "price": 143.07,
+     "chg": 15.0,
+     "adr_pct": 7.18,
+     "dollar_vol": 234625325,
+     "ern": "Nov 16"
+    },
+    {
+     "ticker": "TXG",
+     "price": 72.68,
+     "chg": 25.33,
+     "adr_pct": 6.3,
+     "dollar_vol": 185857612,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "DK",
+     "price": 79.16,
+     "chg": 17.78,
+     "adr_pct": 6.11,
+     "dollar_vol": 139956821,
      "ern": "Nov 06"
     }
    ]

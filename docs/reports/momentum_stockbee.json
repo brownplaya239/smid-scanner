@@ -1,135 +1,6 @@
 {
- "updated": "2026-09-15T19:36:32-04:00",
+ "updated": "2026-09-16T16:42:34-04:00",
  "runs": [
-  {
-   "date": "2026-06-22",
-   "generated": "2026-06-22T19:02:14-04:00",
-   "count": 10,
-   "rows": [
-    {
-     "ticker": "MU",
-     "price": 1211.38,
-     "chg": 23.41,
-     "adr_pct": 7.08,
-     "dollar_vol": 54071984390,
-     "ern": "Jun 24"
-    },
-    {
-     "ticker": "WDC",
-     "price": 732.62,
-     "chg": 30.15,
-     "adr_pct": 6.68,
-     "dollar_vol": 5099797663,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "STX",
-     "price": 1094.04,
-     "chg": 17.51,
-     "adr_pct": 6.19,
-     "dollar_vol": 3740887230,
-     "ern": "Jul 28"
-    },
-    {
-     "ticker": "BE",
-     "price": 345.85,
-     "chg": 32.91,
-     "adr_pct": 8.27,
-     "dollar_vol": 3055175297,
-     "ern": "--"
-    },
-    {
-     "ticker": "SMCI",
-     "price": 35.46,
-     "chg": 16.41,
-     "adr_pct": 9.59,
-     "dollar_vol": 2710890081,
-     "ern": "Aug 04"
-    },
-    {
-     "ticker": "CRDO",
-     "price": 302.52,
-     "chg": 20.62,
-     "adr_pct": 11.15,
-     "dollar_vol": 2365434505,
-     "ern": "--"
-    },
-    {
-     "ticker": "HIMS",
-     "price": 33.54,
-     "chg": 25.06,
-     "adr_pct": 8.12,
-     "dollar_vol": 561829920,
-     "ern": "Aug 10"
-    },
-    {
-     "ticker": "APGE",
-     "price": 132.55,
-     "chg": 50.06,
-     "adr_pct": 5.85,
-     "dollar_vol": 505518324,
-     "ern": "Aug 10"
-    },
-    {
-     "ticker": "AGX",
-     "price": 790.0,
-     "chg": 23.11,
-     "adr_pct": 7.03,
-     "dollar_vol": 254604614,
-     "ern": "Sep 03"
-    },
-    {
-     "ticker": "VICR",
-     "price": 365.53,
-     "chg": 20.33,
-     "adr_pct": 8.32,
-     "dollar_vol": 238369515,
-     "ern": "Jul 21"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "CIFR",
-     "price": 28.14,
-     "chg": 14.86,
-     "adr_pct": 9.88,
-     "dollar_vol": 617284822,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "SNDK",
-     "price": 2273.73,
-     "chg": 14.83,
-     "adr_pct": 8.0,
-     "dollar_vol": 19259334698,
-     "ern": "Aug 24"
-    },
-    {
-     "ticker": "DASH",
-     "price": 172.08,
-     "chg": 14.28,
-     "adr_pct": 5.11,
-     "dollar_vol": 801772979,
-     "ern": "--"
-    },
-    {
-     "ticker": "TXG",
-     "price": 32.94,
-     "chg": 14.22,
-     "adr_pct": 8.31,
-     "dollar_vol": 102258914,
-     "ern": "Aug 06"
-    },
-    {
-     "ticker": "MXL",
-     "price": 96.44,
-     "chg": 14.18,
-     "adr_pct": 11.75,
-     "dollar_vol": 393852979,
-     "ern": "Jul 22"
-    }
-   ]
-  },
   {
    "date": "2026-06-23",
    "generated": "2026-06-23T18:47:07-04:00",
@@ -7306,6 +7177,47 @@
      "adr_pct": 5.1,
      "dollar_vol": 2307516697,
      "ern": "Nov 19"
+    }
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "generated": "2026-09-16T16:42:34-04:00",
+   "count": 1,
+   "rows": [
+    {
+     "ticker": "CRWD",
+     "price": 241.36,
+     "chg": 16.15,
+     "adr_pct": 5.94,
+     "dollar_vol": 2614265426,
+     "ern": "Dec 01"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "TWST",
+     "price": 143.07,
+     "chg": 13.98,
+     "adr_pct": 7.18,
+     "dollar_vol": 234625325,
+     "ern": "Nov 16"
+    },
+    {
+     "ticker": "PANW",
+     "price": 375.65,
+     "chg": 12.1,
+     "adr_pct": 5.16,
+     "dollar_vol": 2312462922,
+     "ern": "Nov 19"
+    },
+    {
+     "ticker": "AVAV",
+     "price": 156.45,
+     "chg": 11.12,
+     "adr_pct": 5.67,
+     "dollar_vol": 332709508,
+     "ern": "Dec 02"
     }
    ]
   }
