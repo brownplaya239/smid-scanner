@@ -67931,5 +67931,17 @@
 "sector": "Other"
 },
 "bt_version": "vol_backtest_v2"
+},
+"LEN|2026-09-16|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "LEN",
+"date": "2026-09-16",
+"implied": 6.6,
+"session": "AMC",
+"sector": "Industrials"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
