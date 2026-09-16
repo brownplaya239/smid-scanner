@@ -1,9 +1,9 @@
 {
- "generated": "2026-09-15T17:12:52+00:00",
+ "generated": "2026-09-16T13:55:18+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-15T17:12:52+00:00",
- "market_regime": "mixed",
+ "data_cutoff": "2026-09-16T13:55:18+00:00",
+ "market_regime": "risk_off",
  "score_available": true,
  "gates": {
   "flow": {
@@ -135,62 +135,22 @@
   },
   "momentum": {
    "verdict": "degraded",
-   "why": "measured EV -1.78 PF 0.67 on n=1038",
+   "why": "measured EV -1.86 PF 0.65 on n=1055",
    "evidence": {
     "status": "active",
-    "n": 1038,
+    "n": 1055,
     "win_rate": 42,
-    "ev": -1.78,
-    "median": -1.88,
-    "avg_win": 8.42,
-    "avg_loss": -9.26,
-    "profit_factor": 0.67,
-    "avg_dd": -6.49,
+    "ev": -1.86,
+    "median": -1.97,
+    "avg_win": 8.4,
+    "avg_loss": -9.27,
+    "profit_factor": 0.65,
+    "avg_dd": -6.53,
     "hold_d": 5
    }
   }
  },
  "top_ideas": [
-  {
-   "family": "earnings",
-   "ticker": "TCOM",
-   "direction": "neutral",
-   "status": "SIGNAL_QUALIFIED",
-   "alpha_score": null,
-   "gate": "measured EV +6.32 vol-pts · 90% win · n=147 · night-cluster CI [5.33, 7.29] on 28 nights — trade expression pending executable validation",
-   "catalyst": "earnings",
-   "construct": {
-    "expression": "per_thesis",
-    "implied_move": 7.3,
-    "realized_median": 4.1,
-    "session": "AMC",
-    "event_date": "2026-09-15",
-    "option_mark": null,
-    "fair_move": 4.1,
-    "vol_edge_pp": 3.2,
-    "richness_pct": 78,
-    "analogues": 8,
-    "vol_stance": "SELL VOL",
-    "history": {
-     "n": 147,
-     "median_ratio": 0.25,
-     "inside_100x": 90,
-     "inside_075x": 81,
-     "scope": "cohort"
-    }
-   },
-   "as_of": "2026-09-15T17:12:52+00:00",
-   "evidence": {
-    "thesis": "Options price a ±7.3% move vs a ±4.1% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
-    "cited": [
-     "$28B cap",
-     "typically moves ±4.1% (8 reports)"
-    ],
-    "etype": "vol_rich",
-    "grade": null,
-    "mcap_b": 27.6
-   }
-  },
   {
    "family": "earnings",
    "ticker": "LEN",
@@ -201,14 +161,14 @@
    "catalyst": "earnings",
    "construct": {
     "expression": "per_thesis",
-    "implied_move": 6.4,
+    "implied_move": 6.6,
     "realized_median": 4.5,
     "session": "AMC",
-    "event_date": "2026-09-17",
+    "event_date": "2026-09-16",
     "option_mark": null,
     "fair_move": 4.5,
-    "vol_edge_pp": 1.9,
-    "richness_pct": 42,
+    "vol_edge_pp": 2.1,
+    "richness_pct": 47,
     "analogues": 8,
     "vol_stance": "SELL VOL",
     "history": {
@@ -219,16 +179,17 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-15T17:12:52+00:00",
+   "as_of": "2026-09-16T13:55:18+00:00",
    "evidence": {
-    "thesis": "Options price a ±6.4% move vs a ±4.5% median across 8 past reports (1.4× rich) — historically favors defined-risk premium sellers over buyers.",
+    "thesis": "Options price a ±6.6% move vs a ±4.5% median across 8 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
-     "$20B cap",
+     "$19B cap",
+     "0 bull / 0 bear flow into print",
      "typically moves ±4.5% (8 reports)"
     ],
     "etype": "vol_rich",
     "grade": null,
-    "mcap_b": 20.3
+    "mcap_b": 19.3
    }
   },
   {
@@ -259,7 +220,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-15T17:12:52+00:00",
+   "as_of": "2026-09-16T13:55:18+00:00",
    "evidence": {
     "thesis": "Options price a ±13.8% move vs a ±4.5% median across 5 past reports (3.1× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -283,14 +244,14 @@
    "catalyst": "earnings",
    "construct": {
     "expression": "per_thesis",
-    "implied_move": 5.4,
+    "implied_move": 4.8,
     "realized_median": 5.3,
     "session": "AMC",
     "event_date": "2026-09-16",
     "option_mark": null,
     "fair_move": 5.3,
-    "vol_edge_pp": 0.1,
-    "richness_pct": 2,
+    "vol_edge_pp": -0.5,
+    "richness_pct": -9,
     "analogues": 8,
     "history": {
      "n": 147,
@@ -300,7 +261,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-15T17:12:52+00:00",
+   "as_of": "2026-09-16T13:55:18+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -313,30 +274,30 @@
   }
  ],
  "funnel": {
-  "universe_events": 27,
-  "research_candidates": 4,
+  "universe_events": 5,
+  "research_candidates": 3,
   "watch_setups": 0,
   "experimental": 1,
-  "qualified": 3
+  "qualified": 2
  },
  "desk_counts": {
   "trade_qualified": 0,
-  "signal_qualified": 3,
+  "signal_qualified": 2,
   "research_watch": 0,
   "experimental": 1
  },
  "pipelines": [
   {
    "name": "Earnings Volatility",
-   "line": "4 scanned → 3 signal-qualified → 0 trade-qualified"
+   "line": "3 scanned → 2 signal-qualified → 0 trade-qualified"
   },
   {
    "name": "Options Flow",
-   "line": "23 candidates → 0 watch → 0 qualified (no champion)"
+   "line": "2 candidates → 0 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
-   "line": "1038 graded observations → DEGRADED"
+   "line": "1055 graded observations → DEGRADED"
   },
   {
    "name": "Post-Report Drift",
@@ -371,13 +332,13 @@
   },
   "directional": {
    "target": "+5-session direction-signed excess vs SPY",
-   "tracked": 369,
-   "graded": 226,
+   "tracked": 372,
+   "graded": 234,
    "overall": {
-    "n": 226,
+    "n": 234,
     "hit": 50,
-    "avg": 0.07,
-    "med": -0.12
+    "avg": 0.24,
+    "med": -0.01
    },
    "status": null
   },
@@ -388,29 +349,32 @@
   }
  },
  "abstention": true,
- "abstention_note": "No executable trade clears TickerDesk's production gate today. 3 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
+ "abstention_note": "No executable trade clears TickerDesk's production gate today. 2 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 9,
-  "REGIME_CONFLICT": 13,
-  "STALE_DATA": 1,
-  "NOT_DIRECTIONAL": 53
+  "REGIME_CONFLICT": 2,
+  "NOT_DIRECTIONAL": 4
  },
  "what_changed": [
   {
    "t": "CBRL",
    "change": "new",
    "to": "EXPERIMENTAL"
+  },
+  {
+   "t": "TCOM",
+   "change": "dropped",
+   "from": "SIGNAL_QUALIFIED"
   }
  ],
  "performance": {
-  "tracked": 369,
-  "graded": 226,
+  "tracked": 372,
+  "graded": 234,
   "min_n": 30,
   "overall": {
-   "n": 226,
+   "n": 234,
    "hit": 50,
-   "avg": 0.07,
-   "med": -0.12
+   "avg": 0.24,
+   "med": -0.01
   },
   "by_family": {
    "flow": {
@@ -419,9 +383,9 @@
     "avg": -0.81
    },
    "earnings": {
-    "n": 110,
+    "n": 118,
     "hit": 53,
-    "avg": 1.01
+    "avg": 1.27
    }
   },
   "by_status": {
@@ -432,10 +396,10 @@
     "med": -1.01
    },
    "EXPERIMENTAL": {
-    "n": 108,
+    "n": 116,
     "hit": 54,
-    "avg": 1.39,
-    "med": 0.44
+    "avg": 1.63,
+    "med": 0.58
    }
   },
   "score_calibration": {
