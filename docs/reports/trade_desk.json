@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-17T18:57:55+00:00",
+ "generated": "2026-09-17T19:17:03+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-17T18:57:55+00:00",
+ "data_cutoff": "2026-09-17T19:17:03+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-17T18:57:55+00:00",
+   "as_of": "2026-09-17T19:17:03+00:00",
    "evidence": {
     "thesis": "Options price a ±5.6% move vs a ±2.5% median across 8 past reports (2.2× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -221,7 +221,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-17T18:57:55+00:00",
+   "as_of": "2026-09-17T19:17:03+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -255,7 +255,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-17T18:57:55+00:00",
+   "as_of": "2026-09-17T19:17:03+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -269,7 +269,7 @@
   }
  ],
  "funnel": {
-  "universe_events": 51,
+  "universe_events": 54,
   "research_candidates": 3,
   "watch_setups": 0,
   "experimental": 2,
@@ -288,7 +288,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "48 candidates → 0 watch → 0 qualified (no champion)"
+   "line": "51 candidates → 0 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -346,12 +346,12 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 1 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 11,
-  "BAD_LIQUIDITY": 6,
+  "LOW_ALPHA": 12,
+  "BAD_LIQUIDITY": 5,
   "LOW_PREMIUM": 1,
-  "REGIME_CONFLICT": 20,
-  "STALE_DATA": 12,
-  "NOT_DIRECTIONAL": 228
+  "REGIME_CONFLICT": 22,
+  "STALE_DATA": 13,
+  "NOT_DIRECTIONAL": 274
  },
  "what_changed": [
   {
