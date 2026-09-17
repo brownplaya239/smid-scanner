@@ -102,5 +102,11 @@ jobs:
         continue-on-error: true
         run: python uoa_daily_top.py
 
+      - name: Rotate signal ledger if near GitHub 100MB limit
+        # 2026-09-16 outage: the hot ledger crossed 100MB and every
+        # publish was rejected (GH001) while jobs stayed green. Rotation
+        # moves >45d lines into monthly gzip archives; no-op below 80MB.
+        run: python ledger_rotate.py
+
       - name: Publish UOA data to site
         run: bash scripts/publish_reports.sh

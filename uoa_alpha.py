@@ -75,18 +75,34 @@ def _parse_occ(contract):
 
 
 def load_ledger():
-    """Read the append-only signal ledger (one JSON object per line)."""
+    """Read the append-only signal ledger: monthly gzip archives (in
+    order) then the hot file. Rotation (ledger_rotate.py) moves lines
+    older than its keep-window into data/uoa_signals_archive_YYYYMM
+    .jsonl.gz so the hot file stays under GitHub's 100 MB hard limit
+    (the 2026-09-16 publish outage); nothing is ever deleted."""
     out = []
-    if not os.path.exists(LEDGER_PATH):
-        return out
-    with open(LEDGER_PATH, encoding="utf-8") as f:
-        for line in f:
+
+    def _read(fh):
+        for line in fh:
             line = line.strip()
             if line:
                 try:
                     out.append(json.loads(line))
                 except Exception:
                     pass
+
+    import glob
+    import gzip
+    for path in sorted(glob.glob(os.path.join(
+            _BASE, "data", "uoa_signals_archive_*.jsonl.gz"))):
+        try:
+            with gzip.open(path, "rt", encoding="utf-8") as f:
+                _read(f)
+        except Exception:
+            pass
+    if os.path.exists(LEDGER_PATH):
+        with open(LEDGER_PATH, encoding="utf-8") as f:
+            _read(f)
     return out
 
 

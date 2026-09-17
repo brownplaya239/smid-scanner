@@ -699,3 +699,44 @@ def test_matched_store_assignments_freeze(tmp_path, monkeypatch):
     assert n == 0
     assert matched["sig1"]["ci"] == [1, 2, 3, 4, 5]
     assert matched["sig1"]["x"]["5"] == 1.23
+
+
+# --------------------------------------------------- ledger rotation
+
+def test_ledger_rotation_preserves_every_line(tmp_path, monkeypatch):
+    """2026-09-16 outage regression: rotation must move lines into
+    archives without losing or altering a single one, and the
+    archive-aware reader must return the identical dataset."""
+    import gzip
+    import ledger_rotate as lr
+    hot = tmp_path / "uoa_signals.jsonl"
+    lines = []
+    for i in range(30):
+        day = "2026-0%d-1%d" % (5 + i % 3, i % 9)
+        lines.append(json.dumps({"id": "s%d" % i,
+                                 "flagged_at": day + "T14:00:00+00:00"}))
+    hot.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    monkeypatch.setattr(lr, "HOT", str(hot))
+    monkeypatch.setattr(lr, "ARCHIVE_FMT",
+                        str(tmp_path / "arch_{ym}.jsonl.gz"))
+    out = lr.rotate(force=True)
+    assert out["rotated"] > 0
+    got = []
+    for p in sorted(tmp_path.glob("arch_*.jsonl.gz")):
+        with gzip.open(p, "rt", encoding="utf-8") as f:
+            got += [json.loads(l) for l in f if l.strip()]
+    got += [json.loads(l)
+            for l in hot.read_text(encoding="utf-8").splitlines()
+            if l.strip()]
+    assert len(got) == 30
+    assert {g["id"] for g in got} == {"s%d" % i for i in range(30)}
+
+
+def test_ledger_rotation_noop_below_trigger(tmp_path, monkeypatch):
+    import ledger_rotate as lr
+    hot = tmp_path / "hot.jsonl"
+    hot.write_text('{"id":"a","flagged_at":"2026-01-01T00:00:00Z"}\n',
+                   encoding="utf-8")
+    monkeypatch.setattr(lr, "HOT", str(hot))
+    out = lr.rotate(force=False)
+    assert out["rotated"] == 0          # tiny file: no-op

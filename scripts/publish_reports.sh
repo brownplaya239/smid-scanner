@@ -36,6 +36,12 @@ python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || t
 # landing set without ever staging a hand-edited page.
 PUBLISH_PATHS="docs/reports/ data/ docs/sitemap.xml docs/*-*.html"
 
+# Preflight (2026-09-16 outage): GitHub hard-rejects files >100MB and
+# this script deliberately never fails the job — so at least be LOUD.
+find data docs/reports -type f -size +95M 2>/dev/null | while read -r f; do
+  echo "::error::$f is over 95MB — GitHub rejects >100MB pushes (GH001). Run ledger_rotate.py / shrink it. Publishes will silently drop until fixed."
+done
+
 git add ${PUBLISH_PATHS} || true
 if git diff --staged --quiet; then
   echo "No new reports to publish"
