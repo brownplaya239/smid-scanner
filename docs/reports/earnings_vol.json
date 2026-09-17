@@ -1,34 +1,34 @@
 {
- "generated": "2026-09-17T20:36:14+00:00",
+ "generated": "2026-09-17T21:19:10+00:00",
  "engine_version": "earnings_vol_v1",
  "types": {
   "vol_rich": {
-   "n": 151,
+   "n": 155,
    "span": {
     "from": "2026-07-21",
-    "to": "2026-09-09"
+    "to": "2026-09-10"
    },
-   "ev_vol_pts": 6.31,
+   "ev_vol_pts": 6.32,
    "med_vol_pts": 6.24,
    "win": 90,
    "date_cluster_bootstrap": {
-    "nights": 29,
-    "mean": 6.31,
+    "nights": 30,
+    "mean": 6.32,
     "ci95": [
-     5.34,
-     7.23
+     5.37,
+     7.24
     ]
    },
    "move_ratio": {
-    "n": 151,
-    "median": 0.25,
+    "n": 155,
+    "median": 0.29,
     "p75": 0.6,
     "p90": 0.94,
     "p95": 1.39,
     "p99": 1.79,
     "max": 2.43,
     "inside_050x": 72,
-    "inside_075x": 80,
+    "inside_075x": 81,
     "inside_100x": 90,
     "blowthrough_10x": 10,
     "blowthrough_15x": 5,
@@ -48,22 +48,22 @@
     "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
    },
    "clustering": {
-    "nights": 29,
+    "nights": 30,
     "events_per_night": {
      "median": 5,
      "p90": 8,
      "max": 10
     },
-    "crowded_nights_3plus": 22,
+    "crowded_nights_3plus": 23,
     "joint_blowthrough_nights": 1,
     "note": "same-night short-vol positions are correlated (one macro tape, sector vol repricing). Position sizing must treat a night, not an event, as the unit."
    },
    "decomposition": {
     "implied_band": {
      "8-12%": {
-      "n": 51,
-      "ev": 6.06,
-      "med": 6.94,
+      "n": 53,
+      "ev": 6.01,
+      "med": 6.91,
       "win": 96
      },
      "5-8%": {
@@ -77,10 +77,10 @@
       "status": "thin"
      },
      ">=12%": {
-      "n": 51,
-      "ev": 9.82,
-      "med": 11.4,
-      "win": 88
+      "n": 53,
+      "ev": 9.76,
+      "med": 11.12,
+      "win": 89
      }
     },
     "cap": {
@@ -89,8 +89,8 @@
       "status": "thin"
      },
      ">100B": {
-      "n": 34,
-      "ev": 6.07,
+      "n": 36,
+      "ev": 6.12,
       "med": 6.06,
       "win": 94
      },
@@ -101,8 +101,8 @@
       "win": 94
      },
      "1-10B": {
-      "n": 49,
-      "ev": 6.54,
+      "n": 51,
+      "ev": 6.53,
       "med": 7.55,
       "win": 82
      }
@@ -113,15 +113,15 @@
       "status": "thin"
      },
      "AMC": {
-      "n": 99,
-      "ev": 8.52,
-      "med": 7.41,
+      "n": 102,
+      "ev": 8.49,
+      "med": 7.5,
       "win": 98
      },
      "BMO": {
-      "n": 51,
-      "ev": 1.97,
-      "med": 2.46,
+      "n": 52,
+      "ev": 2.0,
+      "med": 2.56,
       "win": 75
      }
     },
@@ -133,10 +133,10 @@
       "win": 87
      },
      "risk_off": {
-      "n": 43,
-      "ev": 7.15,
+      "n": 47,
+      "ev": 7.1,
       "med": 6.62,
-      "win": 95
+      "win": 96
      },
      "risk_on": {
       "n": 45,
@@ -173,9 +173,9 @@
       "win": 88
      },
      "Tech / Software": {
-      "n": 28,
-      "ev": 9.03,
-      "med": 8.1,
+      "n": 30,
+      "ev": 8.88,
+      "med": 7.86,
       "win": 100
      },
      "Industrials / Machinery": {
@@ -203,10 +203,10 @@
       "status": "thin"
      },
      "Consumer / Retail": {
-      "n": 21,
-      "ev": 5.34,
+      "n": 23,
+      "ev": 5.42,
       "med": 4.79,
-      "win": 90
+      "win": 91
      },
      "Tech / Hardware": {
       "n": 8,
@@ -235,10 +235,10 @@
     },
     "same_night": {
      ">=3": {
-      "n": 140,
-      "ev": 6.14,
+      "n": 144,
+      "ev": 6.15,
       "med": 6.04,
-      "win": 89
+      "win": 90
      },
      "1-2": {
       "n": 11,
@@ -504,11 +504,11 @@
     }
    },
    "forward": {
-    "n": 27,
-    "ev": 5.76,
+    "n": 31,
+    "ev": 5.86,
     "bootstrap": {
      "status": "insufficient_nights",
-     "nights": 6
+     "nights": 7
     }
    }
   },
@@ -528,11 +528,11 @@
     }
    },
    "forward": {
-    "n": 12,
-    "ev": 9.41,
+    "n": 14,
+    "ev": 9.25,
     "bootstrap": {
      "status": "insufficient_nights",
-     "nights": 5
+     "nights": 6
     }
    }
   },
@@ -566,10 +566,10 @@
   }
  },
  "cohort_history": {
-  "n": 151,
-  "median_ratio": 0.25,
+  "n": 155,
+  "median_ratio": 0.29,
   "inside_100x": 90,
-  "inside_075x": 80
+  "inside_075x": 81
  },
  "wing_economics": {
   "n": 89,
@@ -594,8 +594,8 @@
  "fair_move_calibration": {
   "per_type": {
    "vol_rich": {
-    "median_ratio": 0.25,
-    "n": 151
+    "median_ratio": 0.29,
+    "n": 155
    },
    "vol_cheap": {
     "median_ratio": 1.62,
