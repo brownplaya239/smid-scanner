@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-17T18:34:21+00:00",
+ "generated": "2026-09-17T18:44:25+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-17T18:34:21+00:00",
+ "data_cutoff": "2026-09-17T18:44:25+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-17T18:34:21+00:00",
+   "as_of": "2026-09-17T18:44:25+00:00",
    "evidence": {
     "thesis": "Options price a ±5.6% move vs a ±2.5% median across 8 past reports (2.2× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -221,7 +221,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-17T18:34:21+00:00",
+   "as_of": "2026-09-17T18:44:25+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -255,7 +255,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-17T18:34:21+00:00",
+   "as_of": "2026-09-17T18:44:25+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -349,9 +349,9 @@
   "LOW_ALPHA": 11,
   "BAD_LIQUIDITY": 6,
   "LOW_PREMIUM": 1,
-  "REGIME_CONFLICT": 23,
-  "STALE_DATA": 9,
-  "NOT_DIRECTIONAL": 147
+  "REGIME_CONFLICT": 20,
+  "STALE_DATA": 12,
+  "NOT_DIRECTIONAL": 187
  },
  "what_changed": [
   {
