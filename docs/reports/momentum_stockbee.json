@@ -1,63 +1,6 @@
 {
- "updated": "2026-09-16T19:44:51-04:00",
+ "updated": "2026-09-17T16:42:31-04:00",
  "runs": [
-  {
-   "date": "2026-06-23",
-   "generated": "2026-06-23T18:47:07-04:00",
-   "count": 4,
-   "rows": [
-    {
-     "ticker": "BE",
-     "price": 321.98,
-     "chg": 17.3,
-     "adr_pct": 8.41,
-     "dollar_vol": 3096165200,
-     "ern": "--"
-    },
-    {
-     "ticker": "APGE",
-     "price": 132.88,
-     "chg": 54.17,
-     "adr_pct": 5.68,
-     "dollar_vol": 579360516,
-     "ern": "Aug 10"
-    },
-    {
-     "ticker": "PRAX",
-     "price": 305.37,
-     "chg": 15.43,
-     "adr_pct": 7.38,
-     "dollar_vol": 158571544,
-     "ern": "--"
-    },
-    {
-     "ticker": "SYRE",
-     "price": 97.05,
-     "chg": 16.12,
-     "adr_pct": 6.0,
-     "dollar_vol": 108696855,
-     "ern": "Aug 04"
-    }
-   ],
-   "near_misses": [
-    {
-     "ticker": "CYTK",
-     "price": 80.01,
-     "chg": 12.09,
-     "adr_pct": 4.08,
-     "dollar_vol": 150943512,
-     "ern": "--"
-    },
-    {
-     "ticker": "KLIC",
-     "price": 127.1,
-     "chg": 10.11,
-     "adr_pct": 6.73,
-     "dollar_vol": 116936200,
-     "ern": "Aug 06"
-    }
-   ]
-  },
   {
    "date": "2026-06-24",
    "generated": "2026-06-24T18:47:55-04:00",
@@ -7218,6 +7161,103 @@
      "adr_pct": 5.67,
      "dollar_vol": 332776719,
      "ern": "Dec 02"
+    }
+   ]
+  },
+  {
+   "date": "2026-09-17",
+   "generated": "2026-09-17T16:42:31-04:00",
+   "count": 6,
+   "rows": [
+    {
+     "ticker": "DELL",
+     "price": 588.4,
+     "chg": 16.14,
+     "adr_pct": 5.87,
+     "dollar_vol": 4963563105,
+     "ern": "Nov 27"
+    },
+    {
+     "ticker": "CRWD",
+     "price": 245.7,
+     "chg": 17.64,
+     "adr_pct": 5.88,
+     "dollar_vol": 2657014375,
+     "ern": "Dec 01"
+    },
+    {
+     "ticker": "GH",
+     "price": 183.1,
+     "chg": 15.14,
+     "adr_pct": 5.04,
+     "dollar_vol": 295491687,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "TWST",
+     "price": 155.56,
+     "chg": 22.63,
+     "adr_pct": 7.05,
+     "dollar_vol": 235592977,
+     "ern": "Nov 16"
+    },
+    {
+     "ticker": "TXG",
+     "price": 76.97,
+     "chg": 15.95,
+     "adr_pct": 6.24,
+     "dollar_vol": 185811717,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "VICR",
+     "price": 216.39,
+     "chg": 21.53,
+     "adr_pct": 6.09,
+     "dollar_vol": 138500219,
+     "ern": "Oct 20"
+    }
+   ],
+   "near_misses": [
+    {
+     "ticker": "TENB",
+     "price": 36.06,
+     "chg": 12.58,
+     "adr_pct": 6.73,
+     "dollar_vol": 205795703,
+     "ern": "Oct 28"
+    },
+    {
+     "ticker": "SMTC",
+     "price": 178.19,
+     "chg": 11.98,
+     "adr_pct": 7.2,
+     "dollar_vol": 518791146,
+     "ern": "Nov 23"
+    },
+    {
+     "ticker": "AVAV",
+     "price": 163.38,
+     "chg": 11.09,
+     "adr_pct": 5.72,
+     "dollar_vol": 338585776,
+     "ern": "Dec 02"
+    },
+    {
+     "ticker": "PANW",
+     "price": 375.06,
+     "chg": 10.8,
+     "adr_pct": 5.12,
+     "dollar_vol": 2335690174,
+     "ern": "Nov 19"
+    },
+    {
+     "ticker": "QLYS",
+     "price": 178.08,
+     "chg": 10.22,
+     "adr_pct": 5.35,
+     "dollar_vol": 122676935,
+     "ern": "Nov 03"
     }
    ]
   }
