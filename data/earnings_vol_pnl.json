@@ -67967,5 +67967,29 @@
 "sector": "Other"
 },
 "bt_version": "vol_backtest_v2"
+},
+"COST|2026-09-24|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "COST",
+"date": "2026-09-24",
+"implied": 3.6,
+"session": "AMC",
+"sector": "Consumer / Retail"
+},
+"bt_version": "vol_backtest_v2"
+},
+"UEC|2026-09-24|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "UEC",
+"date": "2026-09-24",
+"implied": 9.5,
+"session": "BMO",
+"sector": "Materials / Metals"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
