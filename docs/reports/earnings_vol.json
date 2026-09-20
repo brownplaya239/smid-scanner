@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-18T22:02:49+00:00",
+ "generated": "2026-09-20T13:56:23+00:00",
  "engine_version": "earnings_vol_v1",
  "types": {
   "vol_rich": {
@@ -256,24 +256,24 @@
    ]
   },
   "vol_cheap": {
-   "n": 81,
+   "n": 82,
    "span": {
     "from": "2026-07-21",
-    "to": "2026-09-09"
+    "to": "2026-09-11"
    },
    "ev_vol_pts": 2.11,
-   "med_vol_pts": 1.56,
+   "med_vol_pts": 1.6,
    "win": 63,
    "date_cluster_bootstrap": {
-    "nights": 26,
+    "nights": 27,
     "mean": 2.11,
     "ci95": [
-     0.47,
-     3.83
+     0.48,
+     3.84
     ]
    },
    "move_ratio": {
-    "n": 81,
+    "n": 82,
     "median": 1.62,
     "p75": 3.47,
     "p90": 5.25,
@@ -281,10 +281,10 @@
     "p99": 7.7,
     "max": 13.43,
     "inside_050x": 28,
-    "inside_075x": 30,
+    "inside_075x": 29,
     "inside_100x": 37,
     "blowthrough_10x": 63,
-    "blowthrough_15x": 53,
+    "blowthrough_15x": 54,
     "blowthrough_20x": 41
    },
    "tails": {
@@ -301,7 +301,7 @@
     "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
    },
    "clustering": {
-    "nights": 26,
+    "nights": 27,
     "events_per_night": {
      "median": 2,
      "p90": 6,
@@ -314,9 +314,9 @@
    "decomposition": {
     "implied_band": {
      "<5%": {
-      "n": 56,
-      "ev": 3.84,
-      "med": 2.17,
+      "n": 57,
+      "ev": 3.81,
+      "med": 2.11,
       "win": 79
      },
      "5-8%": {
@@ -334,10 +334,10 @@
     },
     "cap": {
      "10-100B": {
-      "n": 33,
-      "ev": 2.03,
-      "med": 2.11,
-      "win": 67
+      "n": 34,
+      "ev": 2.02,
+      "med": 1.96,
+      "win": 68
      },
      ">100B": {
       "n": 18,
@@ -352,10 +352,10 @@
     },
     "session": {
      "BMO": {
-      "n": 65,
-      "ev": 3.5,
+      "n": 66,
+      "ev": 3.48,
       "med": 2.11,
-      "win": 75
+      "win": 76
      },
      "AMC": {
       "n": 14,
@@ -368,9 +368,9 @@
     },
     "regime": {
      "mixed": {
-      "n": 40,
+      "n": 41,
       "ev": 1.83,
-      "med": 1.67,
+      "med": 1.7,
       "win": 68
      },
      "risk_off": {
@@ -444,7 +444,7 @@
       "status": "thin"
      },
      "Consumer / Retail": {
-      "n": 17,
+      "n": 18,
       "status": "thin"
      },
      "Real Estate": {
@@ -466,8 +466,10 @@
     },
     "same_night": {
      "1-2": {
-      "n": 19,
-      "status": "thin"
+      "n": 20,
+      "ev": 2.26,
+      "med": 0.67,
+      "win": 55
      },
      ">=3": {
       "n": 62,
@@ -599,7 +601,7 @@
    },
    "vol_cheap": {
     "median_ratio": 1.62,
-    "n": 81
+    "n": 82
    }
   },
   "definition": "TickerDesk Fair Move = the ticker's own median |earnings move| across its reported history (earnings_edge realized_med). Volatility Edge = implied - fair. Richness = implied/fair - 1. The per-type median ratios above are the selected-universe calibration context, not a multiplier applied to any displayed number."
