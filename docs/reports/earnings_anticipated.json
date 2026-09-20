@@ -1,218 +1,262 @@
 {
- "week_of": "2026-09-14",
- "generated": "2026-09-18T19:34:27-04:00",
+ "week_of": "2026-09-21",
+ "generated": "2026-09-20T16:46:33-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 16,
+ "total": 20,
  "days": [
   {
-   "date": "2026-09-14",
+   "date": "2026-09-21",
    "dow": "Monday",
-   "bmo": [
-    {
-     "ticker": "IMMR",
-     "company": "Immersion Corporation",
-     "score": 1,
-     "analysts": 2,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-14T00:00:00",
-     "q": "10/2026",
-     "mcap": 239313606.21
-    },
-    {
-     "ticker": "RFIL",
-     "company": "RF Industries Inc.",
-     "score": 12,
-     "analysts": 3,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-14T00:00:00",
-     "q": "7/2026",
-     "mcap": 111948893.52
-    },
-    {
-     "ticker": "HAIN",
-     "company": "The Hain Celestial Group, Inc.",
-     "score": 8,
-     "analysts": 5,
-     "release_time": 1,
-     "confirmed": true,
-     "next_eps": "2026-09-14T00:00:00",
-     "q": "6/2026",
-     "mcap": 55903007.37019999
-    }
-   ],
+   "bmo": [],
    "amc": [
     {
-     "ticker": "KMTS",
-     "company": "Kestra Medical Technologies, Ltd.",
-     "score": 6,
-     "analysts": 10,
+     "ticker": "ABVX",
+     "company": "ABIVAX Soci\u00e9t\u00e9 Anonyme",
+     "score": 11,
+     "analysts": 16,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-14T00:00:00",
-     "q": "7/2026",
-     "mcap": 1339081314.8500001
-    },
-    {
-     "ticker": "PLAY",
-     "company": "Dave & Buster's Entertainment, Inc.",
-     "score": 21,
-     "analysts": 12,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-14T00:00:00",
-     "q": "7/2026",
-     "mcap": 283179969.16
-    },
-    {
-     "ticker": "HITI",
-     "company": "High Tide Inc.",
-     "score": 20,
-     "analysts": 7,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-14T00:00:00",
-     "q": "7/2026",
-     "mcap": 222311545.27999997
-    },
-    {
-     "ticker": "HYFT",
-     "company": "MindWalk Holdings Corp.",
-     "score": 6,
-     "analysts": 4,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-14T00:00:00",
-     "q": "7/2026",
-     "mcap": 61318421.279999994
-    },
-    {
-     "ticker": "OPTT",
-     "company": "Ocean Power Technologies Inc",
-     "score": 1,
-     "analysts": 3,
-     "release_time": 3,
-     "confirmed": true,
-     "next_eps": "2026-09-14T00:00:00",
-     "q": "7/2026",
-     "mcap": 958992.7755
+     "next_eps": "2026-09-21T00:00:00",
+     "q": "6/2026",
+     "mcap": 9165138836.880001
     }
    ]
   },
   {
-   "date": "2026-09-15",
+   "date": "2026-09-22",
    "dow": "Tuesday",
    "bmo": [
     {
-     "ticker": "FPS",
-     "company": "Forgent Power Solutions, Inc.",
-     "score": 30,
-     "analysts": 12,
+     "ticker": "AZO",
+     "company": "AutoZone, Inc.",
+     "score": 9,
+     "analysts": 27,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-15T00:00:00",
-     "q": "6/2026",
-     "mcap": 8272282597.58
+     "next_eps": "2026-09-22T00:00:00",
+     "q": "8/2026",
+     "mcap": 46613949385.049995
     },
     {
-     "ticker": "VRA",
-     "company": "Vera Bradley, Inc.",
-     "score": 6,
+     "ticker": "THO",
+     "company": "THOR Industries, Inc.",
+     "score": 14,
+     "analysts": 17,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-22T00:00:00",
+     "q": "7/2026",
+     "mcap": 3527928168.2099996
+    },
+    {
+     "ticker": "MLKN",
+     "company": "MillerKnoll, Inc. ",
+     "score": 10,
      "analysts": 2,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-15T00:00:00",
-     "q": "7/2026",
-     "mcap": 89296111.28
+     "next_eps": "2026-09-22T00:00:00",
+     "q": "8/2026",
+     "mcap": 1420025081.58
     }
    ],
    "amc": [
     {
-     "ticker": "TCOM",
-     "company": "Trip.com Group Limited",
-     "score": 26,
-     "analysts": 18,
+     "ticker": "KBH",
+     "company": "KB Home",
+     "score": 8,
+     "analysts": 16,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-15T00:00:00",
-     "q": "6/2026",
-     "mcap": 24571097762.440002
+     "next_eps": "2026-09-22T00:00:00",
+     "q": "8/2026",
+     "mcap": 2888914383.3599997
     },
     {
-     "ticker": "EPM",
-     "company": "Evolution Petroleum Corporation",
-     "score": 8,
+     "ticker": "WOR",
+     "company": "Worthington Enterprises, Inc.",
+     "score": 5,
+     "analysts": 5,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-22T00:00:00",
+     "q": "8/2026",
+     "mcap": 2807418865.92
+    },
+    {
+     "ticker": "AYTU",
+     "company": "Aytu BioPharma, Inc.",
+     "score": 2,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-15T00:00:00",
+     "next_eps": "2026-09-22T00:00:00",
      "q": "6/2026",
-     "mcap": 133733415.96000001
+     "mcap": 22754400.96
     }
    ]
   },
   {
-   "date": "2026-09-16",
+   "date": "2026-09-23",
    "dow": "Wednesday",
    "bmo": [
     {
-     "ticker": "LUXE",
-     "company": "LuxExperience B.V.",
-     "score": 6,
-     "analysts": 6,
+     "ticker": "CTAS",
+     "company": "Cintas Corporation",
+     "score": 4,
+     "analysts": 20,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-16T00:00:00",
-     "q": "6/2026",
-     "mcap": 1014363283.12
+     "next_eps": "2026-09-23T00:00:00",
+     "q": "8/2026",
+     "mcap": 79089512036.04
     },
     {
-     "ticker": "ISPR",
-     "company": "Ispire Technology Inc. ",
-     "score": 1,
-     "analysts": 3,
+     "ticker": "PAYX",
+     "company": "Paychex, Inc.",
+     "score": 5,
+     "analysts": 20,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-16T00:00:00",
-     "q": "9/2026",
-     "mcap": 85525100.04
+     "next_eps": "2026-09-23T00:00:00",
+     "q": "8/2026",
+     "mcap": 41343572134.22
+    },
+    {
+     "ticker": "GIS",
+     "company": "General Mills, Inc.",
+     "score": 7,
+     "analysts": 19,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-23T00:00:00",
+     "q": "8/2026",
+     "mcap": 19417742423.04
+    },
+    {
+     "ticker": "CBRL",
+     "company": "Cracker Barrel Old Country Store, Inc.",
+     "score": 8,
+     "analysts": 10,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-23T00:00:00",
+     "q": "7/2026",
+     "mcap": 1007156787.6
     }
    ],
    "amc": [
     {
-     "ticker": "LEN",
-     "company": "Lennar Corporation",
-     "score": 24,
-     "analysts": 19,
+     "ticker": "FUL",
+     "company": "H.B. Fuller Company",
+     "score": 3,
+     "analysts": 8,
      "release_time": 3,
      "confirmed": true,
-     "next_eps": "2026-09-16T00:00:00",
+     "next_eps": "2026-09-23T00:00:00",
      "q": "8/2026",
-     "mcap": 19175253303.199997
+     "mcap": 2657635977.5099998
+    },
+    {
+     "ticker": "SFIX",
+     "company": "Stitch Fix, Inc.",
+     "score": 5,
+     "analysts": 7,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-23T00:00:00",
+     "q": "7/2026",
+     "mcap": 378929431.03999996
+    },
+    {
+     "ticker": "NEOV",
+     "company": "NeoVolta Inc.",
+     "score": 3,
+     "analysts": 5,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-23T00:00:00",
+     "q": "6/2026",
+     "mcap": 200723672.27
     }
    ]
   },
   {
-   "date": "2026-09-17",
+   "date": "2026-09-24",
    "dow": "Thursday",
    "bmo": [
     {
-     "ticker": "IPHA",
-     "company": "Innate Pharma S.A.",
-     "score": 4,
-     "analysts": 4,
+     "ticker": "DRI",
+     "company": "Darden Restaurants, Inc.",
+     "score": 8,
+     "analysts": 29,
      "release_time": 1,
      "confirmed": true,
-     "next_eps": "2026-09-17T00:00:00",
-     "q": "6/2026",
-     "mcap": 208879648.89000002
+     "next_eps": "2026-09-24T00:00:00",
+     "q": "8/2026",
+     "mcap": 23762018695.68
+    },
+    {
+     "ticker": "SNX",
+     "company": "TD SYNNEX",
+     "score": 5,
+     "analysts": 12,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-24T00:00:00",
+     "q": "8/2026",
+     "mcap": 21281821432.320004
+    },
+    {
+     "ticker": "BB",
+     "company": "BlackBerry Limited",
+     "score": 8,
+     "analysts": 7,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-24T00:00:00",
+     "q": "8/2026",
+     "mcap": 4682942443.690001
     }
    ],
-   "amc": []
+   "amc": [
+    {
+     "ticker": "COST",
+     "company": "Costco Wholesale Corporation",
+     "score": 25,
+     "analysts": 36,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-24T00:00:00",
+     "q": "8/2026",
+     "mcap": 397051008009.24
+    },
+    {
+     "ticker": "SCHL",
+     "company": "Scholastic Corporation",
+     "score": 3,
+     "analysts": 2,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-24T00:00:00",
+     "q": "8/2026",
+     "mcap": 648961115.0
+    },
+    {
+     "ticker": "LGCY",
+     "company": "Legacy Education Inc. ",
+     "score": 2,
+     "analysts": 4,
+     "release_time": 3,
+     "confirmed": true,
+     "next_eps": "2026-09-24T00:00:00",
+     "q": "6/2026",
+     "mcap": 133605521.28
+    }
+   ]
   },
   {
-   "date": "2026-09-18",
+   "date": "2026-09-25",
    "dow": "Friday",
    "bmo": [],
    "amc": []
