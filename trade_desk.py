@@ -61,7 +61,7 @@ from datetime import datetime, timezone, timedelta
 from statistics import mean, median
 
 from trade_desk_validation import (features_at_flag, _regime_map,
-                                   MODEL_VERSION)
+                                   json_sanitize, MODEL_VERSION)
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
@@ -904,6 +904,7 @@ def run(dry=False, do_grade=True):
                     "conviction; Fair Move is a disclosed forecast, "
                     "not a measurement."),
     }
+    out = json_sanitize(out)
     if not dry:
         with open(OUT_PATH, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=1, ensure_ascii=False)

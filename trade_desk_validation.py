@@ -64,6 +64,21 @@ QUAL_CUTS = (70, 80, 90)
 DECILE_MIN_N = 800
 
 
+def json_sanitize(o):
+    """NaN/Infinity -> None, recursively. Python's json module happily
+    EMITS bare NaN, which browsers reject wholesale — one poisoned
+    float upstream blanked the whole Trade Desk (2026-09-21). Every
+    engine passes its payload through this before json.dump."""
+    if isinstance(o, dict):
+        return {k: json_sanitize(v) for k, v in o.items()}
+    if isinstance(o, list):
+        return [json_sanitize(v) for v in o]
+    if isinstance(o, float) and (o != o or o in (float("inf"),
+                                                 float("-inf"))):
+        return None
+    return o
+
+
 def _load(path, default):
     try:
         with open(path, encoding="utf-8") as f:

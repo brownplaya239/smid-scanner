@@ -230,10 +230,16 @@ def _grade(idea):
             pre_i = i
     if pre_i is None or pre_i + GRADE_AFTER_SESSIONS >= len(rows):
         return None, None                 # not enough post-event sessions
-    pre = rows[pre_i][1]
-    day1 = rows[pre_i + 1][1]
-    d3 = rows[pre_i + 3][1] if pre_i + 3 < len(rows) else None
-    d5 = rows[pre_i + 5][1] if pre_i + 5 < len(rows) else None
+    import math as _math
+
+    def _fin(x):
+        return x if isinstance(x, (int, float))             and _math.isfinite(x) and x > 0 else None
+    pre = _fin(rows[pre_i][1])
+    day1 = _fin(rows[pre_i + 1][1])
+    d3 = _fin(rows[pre_i + 3][1]) if pre_i + 3 < len(rows) else None
+    d5 = _fin(rows[pre_i + 5][1]) if pre_i + 5 < len(rows) else None
+    if pre is None or day1 is None:
+        return None, None   # NaN closes (halt/missing bar): not gradeable
     move1 = (day1 / pre - 1) * 100
     typ = idea["type"]
     sign = 1 if idea.get("bias") == "bull" else -1
@@ -289,7 +295,8 @@ def _learned(entries):
             continue
         wr = 100.0 * sum(1 for w, _ in obs if w) / n
         delta = (wr - 50.0) * (n / (n + SHRINK_K))
-        mvs = [m for _, m in obs if m is not None]
+        mvs = [m for _, m in obs if m is not None
+               and m == m and abs(m) != float("inf")]
         out[k] = {"n": n, "wr": round(wr, 1),
                   "delta": round(max(-CLAMP_PP, min(CLAMP_PP, delta)), 2),
                   "ev": round(sum(mvs) / len(mvs), 2) if mvs else None}
@@ -362,7 +369,8 @@ def main():
     for k, obs in by_type.items():
         n = len(obs)
         if n >= MIN_N:
-            mvs = [m for _, m in obs if m is not None]
+            mvs = [m for _, m in obs if m is not None
+               and m == m and abs(m) != float("inf")]
             stats[k] = {"status": "active", "n": n,
                         "win_rate": round(100 * sum(1 for w, _ in obs
                                                     if w) / n),

@@ -740,3 +740,27 @@ def test_ledger_rotation_noop_below_trigger(tmp_path, monkeypatch):
     monkeypatch.setattr(lr, "HOT", str(hot))
     out = lr.rotate(force=False)
     assert out["rotated"] == 0          # tiny file: no-op
+
+
+def test_published_json_is_browser_strict_parseable():
+    """2026-09-21 regression: Python's json emits bare NaN, browsers
+    reject it, and one poisoned float blanked the whole Trade Desk.
+    Every published report must parse under browser-strict rules."""
+    import glob
+    base = os.path.dirname(os.path.abspath(td.__file__))
+    def boom(c):
+        raise ValueError("non-finite JSON constant: " + c)
+    checked = 0
+    for p in glob.glob(os.path.join(base, "docs", "reports", "*.json")):
+        with open(p, encoding="utf-8") as f:
+            json.load(f, parse_constant=boom)
+        checked += 1
+    assert checked > 10
+
+
+def test_json_sanitize_scrubs_nonfinite():
+    from trade_desk_validation import json_sanitize
+    out = json_sanitize({"a": float("nan"), "b": [1.0, float("inf")],
+                         "c": {"d": float("-inf"), "e": 2}})
+    assert out == {"a": None, "b": [1.0, None],
+                   "c": {"d": None, "e": 2}}
