@@ -1514,8 +1514,8 @@
 "BIDU": {
 "earnings_date": "2026-11-18",
 "earnings_session": "BMO",
-"fetched": "2026-09-10",
-"mkt_cap": 31433563781.82,
+"fetched": "2026-09-21",
+"mkt_cap": 30666001849.750004,
 "sector": "Other"
 },
 "BIIB": {
@@ -2709,10 +2709,10 @@
 "sector": "Other"
 },
 "COHU": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-10-29",
 "earnings_session": "AMC",
-"fetched": "2026-07-27",
-"mkt_cap": 2391790092.9,
+"fetched": "2026-09-21",
+"mkt_cap": 2733794505.75,
 "sector": "Other"
 },
 "COHX": {
@@ -4442,6 +4442,13 @@
 "earnings_session": "AMC",
 "fetched": "2026-07-02",
 "mkt_cap": 12144492568.6,
+"sector": "Other"
+},
+"FMX": {
+"earnings_date": "2026-10-28",
+"earnings_session": "BMO",
+"fetched": "2026-09-21",
+"mkt_cap": 40445703880.96,
 "sector": "Other"
 },
 "FN": {
