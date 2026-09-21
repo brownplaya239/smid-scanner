@@ -4124,6 +4124,15 @@ export default {
       }
     };
     const isEod = event.cron === "40 20 * * 1-5";
+    // Monitor backstop (2026-09-21): GitHub's scheduler dropped EVERY
+    // cron for a full session — batches were carried by these CF crons,
+    // but the freshness monitor is GitHub-cron-only, so nothing could
+    // page the operator. Midday + pre-close fires now also dispatch the
+    // monitor via the same PAT path, making the PAGING loop independent
+    // of GitHub's scheduler too. The monitor exits green in seconds
+    // when data is fresh, so the extra dispatches are ~free.
+    const alsoMonitor = (event.cron === "20 16 * * 1-5" ||
+                         event.cron === "50 19 * * 1-5");
     if (isEod) {
       ctx.waitUntil(Promise.all([
         dispatch("scanner.yml"),
@@ -4131,10 +4140,9 @@ export default {
         healPublish(),
       ]));
     } else {
-      ctx.waitUntil(Promise.all([
-        dispatch("uoa.yml"),
-        healPublish(),
-      ]));
+      const jobs = [dispatch("uoa.yml"), healPublish()];
+      if (alsoMonitor) jobs.push(dispatch("uoa_monitor.yml"));
+      ctx.waitUntil(Promise.all(jobs));
     }
   },
 };
