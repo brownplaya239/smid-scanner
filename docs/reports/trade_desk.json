@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-21T21:03:55+00:00",
+ "generated": "2026-09-21T21:17:43+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-21T21:03:55+00:00",
+ "data_cutoff": "2026-09-21T21:17:43+00:00",
  "market_regime": "risk_on",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
     "thesis": "Options price a ±8.1% move vs a ±4.5% median across 5 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -219,7 +219,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
     "thesis": "Options price a ±4.7% move vs a ±2.5% median across 8 past reports (1.9× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -259,7 +259,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
     "thesis": "Options price a ±3.2% move vs a ±2.3% median across 8 past reports (1.4× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -300,7 +300,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
     "thesis": "Options price a ±7.0% move vs a ±4.3% median across 8 past reports (1.6× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -333,10 +333,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
-    "n_prints": 10,
-    "total_premium": 1795615,
+    "n_prints": 8,
+    "total_premium": 1459727,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -361,50 +361,6 @@
   },
   {
    "family": "flow",
-   "ticker": "CRML",
-   "direction": "bullish",
-   "status": "WATCH",
-   "alpha_score": 95.7,
-   "gate": "no champion: setup-level walk-forward found no tail that clears the promotion criteria (positive pooled avg+median, bootstrap CI low > 0, positive holdout)",
-   "catalyst": "flow",
-   "construct": {
-    "expression": "reference_contract",
-    "reference_contract": "O:CRML260925C00009000",
-    "contract_liquidity": "B",
-    "dte": 4,
-    "flag_premium": 440293,
-    "flag_volume": null,
-    "flag_oi": null,
-    "underlying_at_flag": null,
-    "option_mark": null,
-    "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
-   },
-   "as_of": "2026-09-21T21:03:55+00:00",
-   "evidence": {
-    "n_prints": 11,
-    "total_premium": 4188056,
-    "feats": {
-     "side": "call_buy",
-     "regime": "risk_on",
-     "ern": "no",
-     "dte": "urgent",
-     "liq": "B",
-     "cap": "small",
-     "open": "likely_open",
-     "stype": "sweep",
-     "prem": ">=250k"
-    },
-    "anchor_score": 64,
-    "tags": [
-     "Sweep",
-     "Size>OI",
-     "Repeat"
-    ],
-    "sector": "Other"
-   }
-  },
-  {
-   "family": "flow",
    "ticker": "NUAI",
    "direction": "bearish",
    "status": "WATCH",
@@ -423,10 +379,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
-    "n_prints": 3,
-    "total_premium": 2904075,
+    "n_prints": 4,
+    "total_premium": 3872100,
     "feats": {
      "side": "put_buy",
      "regime": "risk_on",
@@ -438,7 +394,7 @@
      "stype": "sweep",
      "prem": ">=250k"
     },
-    "anchor_score": 71,
+    "anchor_score": 72,
     "tags": [
      "Sweep",
      "Size>OI",
@@ -467,10 +423,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
-    "n_prints": 13,
-    "total_premium": 6585613,
+    "n_prints": 11,
+    "total_premium": 5598826,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -494,6 +450,92 @@
   },
   {
    "family": "flow",
+   "ticker": "CRDU",
+   "direction": "bullish",
+   "status": "WATCH",
+   "alpha_score": 95.2,
+   "gate": "no champion: setup-level walk-forward found no tail that clears the promotion criteria (positive pooled avg+median, bootstrap CI low > 0, positive holdout)",
+   "catalyst": "flow",
+   "construct": {
+    "expression": "underlying",
+    "reference_contract": "O:CRDU261016C00010000",
+    "contract_liquidity": "C",
+    "dte": 25,
+    "flag_premium": 241052,
+    "flag_volume": null,
+    "flag_oi": null,
+    "underlying_at_flag": null,
+    "option_mark": null,
+    "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
+   },
+   "as_of": "2026-09-21T21:17:43+00:00",
+   "evidence": {
+    "n_prints": 2,
+    "total_premium": 482104,
+    "feats": {
+     "side": "call_buy",
+     "regime": "risk_on",
+     "ern": "no",
+     "dte": "swing",
+     "liq": "C",
+     "cap": "unknown",
+     "open": "likely_open",
+     "stype": "sweep",
+     "prem": "<250k"
+    },
+    "anchor_score": 68,
+    "tags": [
+     "Sweep",
+     "Size>OI",
+     "Repeat"
+    ],
+    "sector": "Other"
+   }
+  },
+  {
+   "family": "flow",
+   "ticker": "KORU",
+   "direction": "bearish",
+   "status": "WATCH",
+   "alpha_score": 95.2,
+   "gate": "no champion: setup-level walk-forward found no tail that clears the promotion criteria (positive pooled avg+median, bootstrap CI low > 0, positive holdout)",
+   "catalyst": "flow",
+   "construct": {
+    "expression": "underlying",
+    "reference_contract": "O:KORU261009P00017000",
+    "contract_liquidity": "C",
+    "dte": 18,
+    "flag_premium": 196769,
+    "flag_volume": null,
+    "flag_oi": null,
+    "underlying_at_flag": null,
+    "option_mark": null,
+    "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
+   },
+   "as_of": "2026-09-21T21:17:43+00:00",
+   "evidence": {
+    "n_prints": 2,
+    "total_premium": 393538,
+    "feats": {
+     "side": "put_buy",
+     "regime": "risk_on",
+     "ern": "no",
+     "dte": "swing",
+     "liq": "C",
+     "cap": "unknown",
+     "open": "likely_open",
+     "stype": "voloi",
+     "prem": "<250k"
+    },
+    "anchor_score": 67,
+    "tags": [
+     "Repeat"
+    ],
+    "sector": "Other"
+   }
+  },
+  {
+   "family": "flow",
    "ticker": "NKE",
    "direction": "bullish",
    "status": "WATCH",
@@ -512,10 +554,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
-    "n_prints": 1,
-    "total_premium": 549862,
+    "n_prints": 2,
+    "total_premium": 1099724,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -527,9 +569,10 @@
      "stype": "voloi",
      "prem": ">=250k"
     },
-    "anchor_score": 59,
+    "anchor_score": 66,
     "tags": [
      "Block",
+     "Repeat",
      "Into ERN"
     ],
     "sector": "Other"
@@ -555,10 +598,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
-    "n_prints": 7,
-    "total_premium": 1441913,
+    "n_prints": 8,
+    "total_premium": 1690723,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -600,10 +643,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
-    "n_prints": 25,
-    "total_premium": 44223412,
+    "n_prints": 26,
+    "total_premium": 47789227,
     "feats": {
      "side": "call_buy",
      "regime": "risk_on",
@@ -625,50 +668,6 @@
      "In Universe"
     ],
     "sector": "Semiconductors"
-   }
-  },
-  {
-   "family": "flow",
-   "ticker": "ETHA",
-   "direction": "bullish",
-   "status": "WATCH",
-   "alpha_score": 85.6,
-   "gate": "no champion: setup-level walk-forward found no tail that clears the promotion criteria (positive pooled avg+median, bootstrap CI low > 0, positive holdout)",
-   "catalyst": "flow",
-   "construct": {
-    "expression": "underlying",
-    "reference_contract": "O:ETHA261009C00021000",
-    "contract_liquidity": "C",
-    "dte": 18,
-    "flag_premium": 370176,
-    "flag_volume": null,
-    "flag_oi": null,
-    "underlying_at_flag": null,
-    "option_mark": null,
-    "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
-   },
-   "as_of": "2026-09-21T21:03:55+00:00",
-   "evidence": {
-    "n_prints": 12,
-    "total_premium": 4349265,
-    "feats": {
-     "side": "call_buy",
-     "regime": "risk_on",
-     "ern": "no",
-     "dte": "swing",
-     "liq": "C",
-     "cap": "unknown",
-     "open": "likely_open",
-     "stype": "sweep",
-     "prem": ">=250k"
-    },
-    "anchor_score": 79,
-    "tags": [
-     "Sweep",
-     "Size>OI",
-     "Repeat"
-    ],
-    "sector": "Financials"
    }
   }
  ],
@@ -696,7 +695,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -735,7 +734,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -774,7 +773,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-21T21:03:55+00:00",
+   "as_of": "2026-09-21T21:17:43+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -787,8 +786,8 @@
   }
  ],
  "funnel": {
-  "universe_events": 98,
-  "research_candidates": 32,
+  "universe_events": 94,
+  "research_candidates": 33,
   "watch_setups": 8,
   "experimental": 3,
   "qualified": 4
@@ -806,7 +805,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "91 candidates → 8 watch → 0 qualified (no champion)"
+   "line": "87 candidates → 8 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -849,7 +848,7 @@
   },
   "directional": {
    "target": "+5-session direction-signed excess vs SPY",
-   "tracked": 432,
+   "tracked": 434,
    "graded": 270,
    "overall": {
     "n": 270,
@@ -869,65 +868,19 @@
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 4 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
   "LOW_ALPHA": 42,
-  "BAD_LIQUIDITY": 10,
-  "LOW_PREMIUM": 3,
-  "STALE_DATA": 11,
-  "NOT_DIRECTIONAL": 2125
+  "BAD_LIQUIDITY": 9,
+  "LOW_PREMIUM": 2,
+  "STALE_DATA": 8,
+  "NOT_DIRECTIONAL": 2147
  },
  "what_changed": [
   {
-   "t": "ABVX",
-   "change": "new",
-   "to": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "COST",
-   "change": "new",
-   "to": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "UEC",
-   "change": "new",
-   "to": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "COST",
+   "t": "CRDU",
    "change": "new",
    "to": "WATCH"
   },
   {
-   "t": "CRML",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "NUAI",
-   "change": "score",
-   "from": 89.9,
-   "to": 95.4
-  },
-  {
-   "t": "INOD",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "NKE",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "KO",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "MU",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "ETHA",
+   "t": "KORU",
    "change": "new",
    "to": "WATCH"
   },
@@ -935,10 +888,30 @@
    "t": "PAYX",
    "change": "new",
    "to": "EXPERIMENTAL"
+  },
+  {
+   "t": "JBL",
+   "change": "new",
+   "to": "EXPERIMENTAL"
+  },
+  {
+   "t": "BB",
+   "change": "new",
+   "to": "EXPERIMENTAL"
+  },
+  {
+   "t": "CRML",
+   "change": "dropped",
+   "from": "WATCH"
+  },
+  {
+   "t": "ETHA",
+   "change": "dropped",
+   "from": "WATCH"
   }
  ],
  "performance": {
-  "tracked": 432,
+  "tracked": 434,
   "graded": 270,
   "min_n": 30,
   "overall": {
