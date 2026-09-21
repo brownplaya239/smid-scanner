@@ -4395,6 +4395,13 @@
 "mkt_cap": 7248765831.400001,
 "sector": "Industrials"
 },
+"FLRN": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-09-21",
+"mkt_cap": null,
+"sector": "Other"
+},
 "FLS": {
 "earnings_date": "2026-07-29",
 "earnings_session": "AMC",
@@ -7233,8 +7240,8 @@
 "MOS": {
 "earnings_date": "2026-11-03",
 "earnings_session": null,
-"fetched": "2026-09-04",
-"mkt_cap": 8103160016.54,
+"fetched": "2026-09-21",
+"mkt_cap": 7782085414.08,
 "sector": "Materials / Chemicals"
 },
 "MP": {
@@ -10411,7 +10418,7 @@
 "SPMO": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-09-10",
+"fetched": "2026-09-21",
 "mkt_cap": null,
 "sector": "Financials"
 },
