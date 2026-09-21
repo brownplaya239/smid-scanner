@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-21T20:10:26+00:00",
+ "generated": "2026-09-21T20:27:30+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-21T20:10:26+00:00",
+ "data_cutoff": "2026-09-21T20:27:30+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-21T20:10:26+00:00",
+   "as_of": "2026-09-21T20:27:30+00:00",
    "evidence": {
     "thesis": "Options price a ±5.6% move vs a ±2.5% median across 8 past reports (2.2× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -192,7 +192,51 @@
    }
   }
  ],
- "watch": [],
+ "watch": [
+  {
+   "family": "flow",
+   "ticker": "NUAI",
+   "direction": "bearish",
+   "status": "WATCH",
+   "alpha_score": 89.9,
+   "gate": "no champion: setup-level walk-forward found no tail that clears the promotion criteria (positive pooled avg+median, bootstrap CI low > 0, positive holdout)",
+   "catalyst": "flow",
+   "construct": {
+    "expression": "underlying",
+    "reference_contract": "O:NUAI280121P00005000",
+    "contract_liquidity": "C",
+    "dte": 487,
+    "flag_premium": 968025,
+    "flag_volume": null,
+    "flag_oi": null,
+    "underlying_at_flag": null,
+    "option_mark": null,
+    "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
+   },
+   "as_of": "2026-09-21T20:27:30+00:00",
+   "evidence": {
+    "n_prints": 1,
+    "total_premium": 968025,
+    "feats": {
+     "side": "put_buy",
+     "regime": "unknown",
+     "ern": "no",
+     "dte": "leaps",
+     "liq": "C",
+     "cap": "small",
+     "open": "likely_open",
+     "stype": "sweep",
+     "prem": ">=250k"
+    },
+    "anchor_score": 55,
+    "tags": [
+     "Sweep",
+     "Size>OI"
+    ],
+    "sector": "Energy"
+   }
+  }
+ ],
  "experimental": [
   {
    "family": "earnings",
@@ -221,7 +265,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-21T20:10:26+00:00",
+   "as_of": "2026-09-21T20:27:30+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.2% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -255,7 +299,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-21T20:10:26+00:00",
+   "as_of": "2026-09-21T20:27:30+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -269,16 +313,16 @@
   }
  ],
  "funnel": {
-  "universe_events": 82,
-  "research_candidates": 3,
-  "watch_setups": 0,
+  "universe_events": 84,
+  "research_candidates": 4,
+  "watch_setups": 1,
   "experimental": 2,
   "qualified": 1
  },
  "desk_counts": {
   "trade_qualified": 0,
   "signal_qualified": 1,
-  "research_watch": 0,
+  "research_watch": 1,
   "experimental": 2
  },
  "pipelines": [
@@ -288,7 +332,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "79 candidates → 0 watch → 0 qualified (no champion)"
+   "line": "81 candidates → 1 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -307,6 +351,10 @@
   {
    "h": "Vol-rich remains signal-qualified, not trade-qualified",
    "d": "The expression gate still has no champion; defined-risk structures remain rejected."
+  },
+  {
+   "h": "Options flow remains research-only",
+   "d": "1 setups entered Watch; the family has no validated walk-forward champion."
   }
  ],
  "ledgers": {
@@ -327,7 +375,7 @@
   },
   "directional": {
    "target": "+5-session direction-signed excess vs SPY",
-   "tracked": 423,
+   "tracked": 424,
    "graded": 270,
    "overall": {
     "n": 270,
@@ -346,14 +394,19 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 1 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 16,
-  "BAD_LIQUIDITY": 10,
+  "LOW_ALPHA": 15,
+  "BAD_LIQUIDITY": 9,
   "LOW_PREMIUM": 1,
-  "REGIME_CONFLICT": 37,
-  "STALE_DATA": 17,
-  "NOT_DIRECTIONAL": 1539
+  "REGIME_CONFLICT": 38,
+  "STALE_DATA": 19,
+  "NOT_DIRECTIONAL": 1763
  },
  "what_changed": [
+  {
+   "t": "NUAI",
+   "change": "new",
+   "to": "WATCH"
+  },
   {
    "t": "CBRL",
    "change": "new",
@@ -366,7 +419,7 @@
   }
  ],
  "performance": {
-  "tracked": 423,
+  "tracked": 424,
   "graded": 270,
   "min_n": 30,
   "overall": {
