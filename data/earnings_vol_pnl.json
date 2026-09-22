@@ -67991,5 +67991,17 @@
 "sector": "Materials / Metals"
 },
 "bt_version": "vol_backtest_v2"
+},
+"CCL|2026-09-29|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "CCL",
+"date": "2026-09-29",
+"implied": 8.1,
+"session": "BMO",
+"sector": "Industrials"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
