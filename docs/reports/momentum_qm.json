@@ -1,101 +1,6 @@
 {
- "updated": "2026-09-21T20:14:29-04:00",
+ "updated": "2026-09-22T16:41:08-04:00",
  "runs": [
-  {
-   "date": "2026-06-26",
-   "generated": "2026-06-28T16:41:57-04:00",
-   "count": 11,
-   "rows": [
-    {
-     "ticker": "SPCX",
-     "price": 153.23,
-     "chg": 601.12,
-     "adr_pct": 7.02,
-     "dollar_vol": 18930961936,
-     "ern": "--"
-    },
-    {
-     "ticker": "AMAT",
-     "price": 626.84,
-     "chg": 39.84,
-     "adr_pct": 5.88,
-     "dollar_vol": 6600298029,
-     "ern": "Aug 13"
-    },
-    {
-     "ticker": "SNOW",
-     "price": 248.96,
-     "chg": 42.05,
-     "adr_pct": 6.49,
-     "dollar_vol": 2288062697,
-     "ern": "Aug 26"
-    },
-    {
-     "ticker": "DAVE",
-     "price": 348.71,
-     "chg": 36.08,
-     "adr_pct": 8.7,
-     "dollar_vol": 220603262,
-     "ern": "--"
-    },
-    {
-     "ticker": "TNGX",
-     "price": 31.47,
-     "chg": 60.15,
-     "adr_pct": 8.79,
-     "dollar_vol": 188241197,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "TWST",
-     "price": 99.84,
-     "chg": 55.59,
-     "adr_pct": 7.33,
-     "dollar_vol": 182053057,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "DFTX",
-     "price": 44.95,
-     "chg": 91.11,
-     "adr_pct": 7.77,
-     "dollar_vol": 160329896,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "TGTX",
-     "price": 55.83,
-     "chg": 42.42,
-     "adr_pct": 5.29,
-     "dollar_vol": 149586660,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "ALHC",
-     "price": 23.19,
-     "chg": 45.57,
-     "adr_pct": 6.76,
-     "dollar_vol": 127256944,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "ORKA",
-     "price": 90.6,
-     "chg": 56.23,
-     "adr_pct": 6.74,
-     "dollar_vol": 119204175,
-     "ern": "Aug 10"
-    },
-    {
-     "ticker": "TXG",
-     "price": 36.75,
-     "chg": 44.06,
-     "adr_pct": 7.94,
-     "dollar_vol": 118078887,
-     "ern": "Aug 06"
-    }
-   ]
-  },
   {
    "date": "2026-06-29",
    "generated": "2026-06-29T18:36:59-04:00",
@@ -3562,6 +3467,101 @@
      "adr_pct": 5.72,
      "dollar_vol": 167874713,
      "ern": "Nov 02"
+    }
+   ]
+  },
+  {
+   "date": "2026-09-22",
+   "generated": "2026-09-22T16:41:08-04:00",
+   "count": 11,
+   "rows": [
+    {
+     "ticker": "BE",
+     "price": 276.53,
+     "chg": 37.27,
+     "adr_pct": 6.26,
+     "dollar_vol": 4163731181,
+     "ern": "Oct 27"
+    },
+    {
+     "ticker": "CRWD",
+     "price": 250.06,
+     "chg": 30.27,
+     "adr_pct": 6.07,
+     "dollar_vol": 2934763557,
+     "ern": "Dec 01"
+    },
+    {
+     "ticker": "ARM",
+     "price": 333.2,
+     "chg": 36.94,
+     "adr_pct": 5.05,
+     "dollar_vol": 1273042610,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "SMTC",
+     "price": 174.33,
+     "chg": 40.49,
+     "adr_pct": 7.01,
+     "dollar_vol": 606500087,
+     "ern": "Nov 23"
+    },
+    {
+     "ticker": "HUT",
+     "price": 106.61,
+     "chg": 31.85,
+     "adr_pct": 7.93,
+     "dollar_vol": 433633586,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "ANF",
+     "price": 136.21,
+     "chg": 24.95,
+     "adr_pct": 5.03,
+     "dollar_vol": 365006082,
+     "ern": "Nov 25"
+    },
+    {
+     "ticker": "DOCN",
+     "price": 146.0,
+     "chg": 26.25,
+     "adr_pct": 7.22,
+     "dollar_vol": 350135513,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "RIOT",
+     "price": 24.93,
+     "chg": 25.72,
+     "adr_pct": 6.77,
+     "dollar_vol": 334335751,
+     "ern": "Oct 29"
+    },
+    {
+     "ticker": "CLSK",
+     "price": 15.14,
+     "chg": 26.38,
+     "adr_pct": 6.98,
+     "dollar_vol": 228683602,
+     "ern": "Nov 24"
+    },
+    {
+     "ticker": "MXL",
+     "price": 87.43,
+     "chg": 31.26,
+     "adr_pct": 6.51,
+     "dollar_vol": 181583709,
+     "ern": "Oct 22"
+    },
+    {
+     "ticker": "VICR",
+     "price": 268.34,
+     "chg": 33.81,
+     "adr_pct": 6.53,
+     "dollar_vol": 168744323,
+     "ern": "Oct 20"
     }
    ]
   }
