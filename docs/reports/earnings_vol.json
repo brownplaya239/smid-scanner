@@ -1,28 +1,28 @@
 {
- "generated": "2026-09-21T22:55:51+00:00",
+ "generated": "2026-09-22T13:53:28+00:00",
  "engine_version": "earnings_vol_v1",
  "types": {
   "vol_rich": {
-   "n": 155,
+   "n": 156,
    "span": {
     "from": "2026-07-21",
-    "to": "2026-09-10"
+    "to": "2026-09-15"
    },
    "ev_vol_pts": 6.32,
-   "med_vol_pts": 6.24,
+   "med_vol_pts": 6.28,
    "win": 90,
    "date_cluster_bootstrap": {
-    "nights": 30,
+    "nights": 31,
     "mean": 6.32,
     "ci95": [
-     5.37,
-     7.24
+     5.36,
+     7.23
     ]
    },
    "move_ratio": {
-    "n": 155,
+    "n": 156,
     "median": 0.29,
-    "p75": 0.6,
+    "p75": 0.57,
     "p90": 0.94,
     "p95": 1.39,
     "p99": 1.79,
@@ -48,7 +48,7 @@
     "note": "mv is in vol-points (implied minus |realized| for vol_rich) \u2014 a SIGNAL-level tail proxy. Real strategy tails (gap through wings, assignment) need the option P&L reconstruction and are NOT captured here."
    },
    "clustering": {
-    "nights": 30,
+    "nights": 31,
     "events_per_night": {
      "median": 5,
      "p90": 8,
@@ -67,10 +67,10 @@
       "win": 96
      },
      "5-8%": {
-      "n": 32,
-      "ev": 3.22,
-      "med": 4.64,
-      "win": 81
+      "n": 33,
+      "ev": 3.33,
+      "med": 4.71,
+      "win": 82
      },
      "<5%": {
       "n": 17,
@@ -95,9 +95,9 @@
       "win": 94
      },
      "10-100B": {
-      "n": 67,
-      "ev": 6.23,
-      "med": 5.89,
+      "n": 68,
+      "ev": 6.24,
+      "med": 5.96,
       "win": 94
      },
      "1-10B": {
@@ -113,9 +113,9 @@
       "status": "thin"
      },
      "AMC": {
-      "n": 102,
-      "ev": 8.49,
-      "med": 7.5,
+      "n": 103,
+      "ev": 8.48,
+      "med": 7.41,
       "win": 98
      },
      "BMO": {
@@ -133,9 +133,9 @@
       "win": 87
      },
      "risk_off": {
-      "n": 47,
-      "ev": 7.1,
-      "med": 6.62,
+      "n": 48,
+      "ev": 7.09,
+      "med": 6.59,
       "win": 96
      },
      "risk_on": {
@@ -167,10 +167,10 @@
       "status": "thin"
      },
      "Other": {
-      "n": 34,
-      "ev": 6.14,
-      "med": 5.84,
-      "win": 88
+      "n": 35,
+      "ev": 6.15,
+      "med": 6.02,
+      "win": 89
      },
      "Tech / Software": {
       "n": 30,
@@ -241,7 +241,7 @@
       "win": 90
      },
      "1-2": {
-      "n": 11,
+      "n": 12,
       "status": "thin"
      }
     }
@@ -506,11 +506,15 @@
     }
    },
    "forward": {
-    "n": 31,
-    "ev": 5.86,
+    "n": 32,
+    "ev": 5.89,
     "bootstrap": {
-     "status": "insufficient_nights",
-     "nights": 7
+     "nights": 8,
+     "mean": 5.89,
+     "ci95": [
+      3.95,
+      7.98
+     ]
     }
    }
   },
@@ -568,7 +572,7 @@
   }
  },
  "cohort_history": {
-  "n": 155,
+  "n": 156,
   "median_ratio": 0.29,
   "inside_100x": 90,
   "inside_075x": 81
@@ -597,7 +601,7 @@
   "per_type": {
    "vol_rich": {
     "median_ratio": 0.29,
-    "n": 155
+    "n": 156
    },
    "vol_cheap": {
     "median_ratio": 1.62,
