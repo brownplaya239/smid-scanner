@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-22T15:12:21+00:00",
+ "generated": "2026-09-22T16:24:18+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-22T15:12:21+00:00",
+ "data_cutoff": "2026-09-22T16:24:18+00:00",
  "market_regime": "risk_on",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T15:12:21+00:00",
+   "as_of": "2026-09-22T16:24:18+00:00",
    "evidence": {
     "thesis": "Options price a ±4.7% move vs a ±2.5% median across 8 past reports (1.9× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -219,7 +219,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T15:12:21+00:00",
+   "as_of": "2026-09-22T16:24:18+00:00",
    "evidence": {
     "thesis": "Options price a ±3.2% move vs a ±2.3% median across 8 past reports (1.4× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -260,7 +260,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T15:12:21+00:00",
+   "as_of": "2026-09-22T16:24:18+00:00",
    "evidence": {
     "thesis": "Options price a ±7.0% move vs a ±4.3% median across 8 past reports (1.6× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -299,7 +299,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T15:12:21+00:00",
+   "as_of": "2026-09-22T16:24:18+00:00",
    "evidence": {
     "thesis": "Options price a ±8.1% move vs a ±4.6% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -316,6 +316,50 @@
  "watch": [
   {
    "family": "flow",
+   "ticker": "MUU",
+   "direction": "bullish",
+   "status": "WATCH",
+   "alpha_score": 91.0,
+   "gate": "no champion: setup-level walk-forward found no tail that clears the promotion criteria (positive pooled avg+median, bootstrap CI low > 0, positive holdout)",
+   "catalyst": "flow",
+   "construct": {
+    "expression": "reference_contract",
+    "reference_contract": "O:MUU260925C00042000",
+    "contract_liquidity": "B",
+    "dte": 3,
+    "flag_premium": 193388,
+    "flag_volume": null,
+    "flag_oi": null,
+    "underlying_at_flag": null,
+    "option_mark": null,
+    "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
+   },
+   "as_of": "2026-09-22T16:24:18+00:00",
+   "evidence": {
+    "n_prints": 2,
+    "total_premium": 383497,
+    "feats": {
+     "side": "call_buy",
+     "regime": "unknown",
+     "ern": "no",
+     "dte": "urgent",
+     "liq": "B",
+     "cap": "unknown",
+     "open": "likely_open",
+     "stype": "sweep",
+     "prem": "<250k"
+    },
+    "anchor_score": 64,
+    "tags": [
+     "Sweep",
+     "Size>OI",
+     "Repeat"
+    ],
+    "sector": "Other"
+   }
+  },
+  {
+   "family": "flow",
    "ticker": "MU",
    "direction": "bullish",
    "status": "WATCH",
@@ -327,17 +371,17 @@
     "reference_contract": "O:MU261002C01060000",
     "contract_liquidity": "B",
     "dte": 10,
-    "flag_premium": 20553280,
+    "flag_premium": 21115836,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-22T15:12:21+00:00",
+   "as_of": "2026-09-22T16:24:18+00:00",
    "evidence": {
-    "n_prints": 6,
-    "total_premium": 29560232,
+    "n_prints": 14,
+    "total_premium": 72262814,
     "feats": {
      "side": "call_buy",
      "regime": "unknown",
@@ -349,11 +393,12 @@
      "stype": "golden_sweep",
      "prem": ">=5M"
     },
-    "anchor_score": 67,
+    "anchor_score": 74,
     "tags": [
      "Golden Sweep",
      "Block",
      "Size>OI",
+     "Repeat",
      "Into ERN",
      "In Universe"
     ],
@@ -373,17 +418,17 @@
     "reference_contract": "O:CPRI261016C00015000",
     "contract_liquidity": "B",
     "dte": 24,
-    "flag_premium": 1722410,
+    "flag_premium": 1917810,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-22T15:12:21+00:00",
+   "as_of": "2026-09-22T16:24:18+00:00",
    "evidence": {
-    "n_prints": 1,
-    "total_premium": 1722410,
+    "n_prints": 2,
+    "total_premium": 3640220,
     "feats": {
      "side": "call_buy",
      "regime": "unknown",
@@ -395,10 +440,11 @@
      "stype": "golden_sweep",
      "prem": ">=1M"
     },
-    "anchor_score": 60,
+    "anchor_score": 68,
     "tags": [
      "Golden Sweep",
      "Size>OI",
+     "Repeat",
      "In Universe"
     ],
     "sector": "Other"
@@ -417,17 +463,17 @@
     "reference_contract": "O:MU261002P01070000",
     "contract_liquidity": "C",
     "dte": 10,
-    "flag_premium": 11938808,
+    "flag_premium": 12486141,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-22T15:12:21+00:00",
+   "as_of": "2026-09-22T16:24:18+00:00",
    "evidence": {
-    "n_prints": 1,
-    "total_premium": 11938808,
+    "n_prints": 2,
+    "total_premium": 24424949,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -439,11 +485,12 @@
      "stype": "golden_sweep",
      "prem": ">=5M"
     },
-    "anchor_score": 67,
+    "anchor_score": 74,
     "tags": [
      "Golden Sweep",
      "Block",
      "Size>OI",
+     "Repeat",
      "Into ERN",
      "In Universe"
     ],
@@ -475,7 +522,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T15:12:21+00:00",
+   "as_of": "2026-09-22T16:24:18+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -514,7 +561,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T15:12:21+00:00",
+   "as_of": "2026-09-22T16:24:18+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -553,7 +600,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T15:12:21+00:00",
+   "as_of": "2026-09-22T16:24:18+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -566,16 +613,16 @@
   }
  ],
  "funnel": {
-  "universe_events": 39,
-  "research_candidates": 10,
-  "watch_setups": 3,
+  "universe_events": 59,
+  "research_candidates": 11,
+  "watch_setups": 4,
   "experimental": 3,
   "qualified": 4
  },
  "desk_counts": {
   "trade_qualified": 0,
   "signal_qualified": 4,
-  "research_watch": 3,
+  "research_watch": 4,
   "experimental": 3
  },
  "pipelines": [
@@ -585,7 +632,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "32 candidates → 3 watch → 0 qualified (no champion)"
+   "line": "52 candidates → 4 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -607,7 +654,7 @@
   },
   {
    "h": "Options flow remains research-only",
-   "d": "3 setups entered Watch; the family has no validated walk-forward champion."
+   "d": "4 setups entered Watch; the family has no validated walk-forward champion."
   }
  ],
  "ledgers": {
@@ -628,7 +675,7 @@
   },
   "directional": {
    "target": "+5-session direction-signed excess vs SPY",
-   "tracked": 445,
+   "tracked": 446,
    "graded": 271,
    "overall": {
     "n": 271,
@@ -647,24 +694,15 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 4 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 26,
-  "BAD_LIQUIDITY": 2,
+  "LOW_ALPHA": 42,
+  "BAD_LIQUIDITY": 3,
   "LOW_PREMIUM": 1,
-  "NOT_DIRECTIONAL": 30
+  "STALE_DATA": 2,
+  "NOT_DIRECTIONAL": 65
  },
  "what_changed": [
   {
-   "t": "MU",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "CPRI",
-   "change": "new",
-   "to": "WATCH"
-  },
-  {
-   "t": "MU",
+   "t": "MUU",
    "change": "new",
    "to": "WATCH"
   },
@@ -685,7 +723,7 @@
   }
  ],
  "performance": {
-  "tracked": 445,
+  "tracked": 446,
   "graded": 271,
   "min_n": 30,
   "overall": {
