@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-22T17:47:44+00:00",
+ "generated": "2026-09-22T18:06:43+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-22T17:47:44+00:00",
+ "data_cutoff": "2026-09-22T18:06:43+00:00",
  "market_regime": "risk_on",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
     "thesis": "Options price a ±4.7% move vs a ±2.5% median across 8 past reports (1.9× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -219,7 +219,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
     "thesis": "Options price a ±3.2% move vs a ±2.3% median across 8 past reports (1.4× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -260,7 +260,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
     "thesis": "Options price a ±7.0% move vs a ±4.3% median across 8 past reports (1.6× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -299,7 +299,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
     "thesis": "Options price a ±8.1% move vs a ±4.6% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -327,17 +327,17 @@
     "reference_contract": "O:INOD261016C00070000",
     "contract_liquidity": "C",
     "dte": 24,
-    "flag_premium": 556550,
+    "flag_premium": 560877,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
-    "n_prints": 1,
-    "total_premium": 556550,
+    "n_prints": 2,
+    "total_premium": 1117427,
     "feats": {
      "side": "call_buy",
      "regime": "unknown",
@@ -349,9 +349,10 @@
      "stype": "voloi",
      "prem": ">=250k"
     },
-    "anchor_score": 57,
+    "anchor_score": 64,
     "tags": [
-     "Block"
+     "Block",
+     "Repeat"
     ],
     "sector": "Tech / Software"
    }
@@ -369,17 +370,17 @@
     "reference_contract": "O:MUU260925C00042000",
     "contract_liquidity": "B",
     "dte": 3,
-    "flag_premium": 194492,
+    "flag_premium": 195079,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
-    "n_prints": 4,
-    "total_premium": 772451,
+    "n_prints": 5,
+    "total_premium": 967530,
     "feats": {
      "side": "call_buy",
      "regime": "unknown",
@@ -413,17 +414,17 @@
     "reference_contract": "O:MU261002C01060000",
     "contract_liquidity": "B",
     "dte": 10,
-    "flag_premium": 21454271,
+    "flag_premium": 21796786,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
-    "n_prints": 37,
-    "total_premium": 215046804,
+    "n_prints": 49,
+    "total_premium": 291584643,
     "feats": {
      "side": "call_buy",
      "regime": "unknown",
@@ -460,17 +461,17 @@
     "reference_contract": "O:CPRI261016C00015000",
     "contract_liquidity": "B",
     "dte": 24,
-    "flag_premium": 1950941,
+    "flag_premium": 1953430,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
-    "n_prints": 4,
-    "total_premium": 7531658,
+    "n_prints": 5,
+    "total_premium": 9485088,
     "feats": {
      "side": "call_buy",
      "regime": "unknown",
@@ -512,10 +513,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
-    "n_prints": 6,
-    "total_premium": 54192750,
+    "n_prints": 8,
+    "total_premium": 69311268,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -564,7 +565,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -603,7 +604,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -642,7 +643,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-22T17:47:44+00:00",
+   "as_of": "2026-09-22T18:06:43+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -738,16 +739,10 @@
  "rejections": {
   "LOW_ALPHA": 56,
   "BAD_LIQUIDITY": 3,
-  "LOW_PREMIUM": 1,
-  "STALE_DATA": 8,
-  "NOT_DIRECTIONAL": 167
+  "STALE_DATA": 9,
+  "NOT_DIRECTIONAL": 228
  },
  "what_changed": [
-  {
-   "t": "INOD",
-   "change": "new",
-   "to": "WATCH"
-  },
   {
    "t": "PAYX",
    "change": "new",
