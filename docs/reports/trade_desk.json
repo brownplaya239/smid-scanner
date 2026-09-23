@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-23T13:53:24+00:00",
+ "generated": "2026-09-23T15:12:18+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-23T13:53:24+00:00",
+ "data_cutoff": "2026-09-23T15:12:18+00:00",
  "market_regime": "mixed",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T13:53:24+00:00",
+   "as_of": "2026-09-23T15:12:18+00:00",
    "evidence": {
     "thesis": "Options price a ±8.1% move vs a ±4.6% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -217,7 +217,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T13:53:24+00:00",
+   "as_of": "2026-09-23T15:12:18+00:00",
    "evidence": {
     "thesis": "Crowded binary: already ran +10.82% today and typically swings ±12.3% on results — size down or let the print happen and trade the reaction.",
     "cited": [
@@ -254,7 +254,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T13:53:24+00:00",
+   "as_of": "2026-09-23T15:12:18+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -294,7 +294,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T13:53:24+00:00",
+   "as_of": "2026-09-23T15:12:18+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -333,7 +333,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T13:53:24+00:00",
+   "as_of": "2026-09-23T15:12:18+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -372,7 +372,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T13:53:24+00:00",
+   "as_of": "2026-09-23T15:12:18+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.3% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -410,7 +410,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T13:53:24+00:00",
+   "as_of": "2026-09-23T15:12:18+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.7% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -424,7 +424,7 @@
   }
  ],
  "funnel": {
-  "universe_events": 8,
+  "universe_events": 21,
   "research_candidates": 7,
   "watch_setups": 1,
   "experimental": 5,
@@ -443,7 +443,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "1 candidates → 0 watch → 0 qualified (no champion)"
+   "line": "14 candidates → 0 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -501,9 +501,10 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 1 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 1,
+  "LOW_ALPHA": 4,
+  "REGIME_CONFLICT": 10,
   "STALE_DATA": 1,
-  "NOT_DIRECTIONAL": 4
+  "NOT_DIRECTIONAL": 23
  },
  "what_changed": [
   {
@@ -530,31 +531,6 @@
    "t": "COST",
    "change": "new",
    "to": "EXPERIMENTAL"
-  },
-  {
-   "t": "CTAS",
-   "change": "dropped",
-   "from": "SIGNAL_QUALIFIED"
-  },
-  {
-   "t": "CTAS",
-   "change": "dropped",
-   "from": "WATCH"
-  },
-  {
-   "t": "MU",
-   "change": "dropped",
-   "from": "WATCH"
-  },
-  {
-   "t": "GSAT",
-   "change": "dropped",
-   "from": "WATCH"
-  },
-  {
-   "t": "MSOS",
-   "change": "dropped",
-   "from": "WATCH"
   }
  ],
  "performance": {
