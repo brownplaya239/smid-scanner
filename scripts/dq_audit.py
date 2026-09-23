@@ -117,7 +117,7 @@ ARTIFACTS = {
                                            "gates"], None),
     "earnings_vol":          ("intraday", ["generated", "types"], None),
     "fair_move_lab":         ("intraday", ["generated"], None),
-    "hedge_monitor":         ("intraday", [], None),
+    "hedge_monitor":         ("daily", ["generated"], None),   # report JSON is nightly; batches only append the data/ record
     "edge_weights":          ("intraday", ["features"], "features"),
     "earnings_anticipated":  ("daily", [], None),
     "earnings_edge":         ("daily", ["generated", "names"], "names"),
