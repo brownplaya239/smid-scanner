@@ -19358,9 +19358,22 @@
               const days = Math.floor((Date.now() - ms) / 864e5);
               // A weekly chart older than ~8 days means the refresh has
               // been failing — flag it honestly.
-              if (days >= 8) stale = ' <span style="color:var(--muted)">' +
-                '&middot; chart may be stale (last updated ' + days +
-                'd ago)</span>';
+              if (days >= 8) {
+                // 2026-09: X's public syndication feed returns 429 to
+                // every network (last_attempt_ok=false, note "HTTP 429")
+                // — the source is blocked, not our scraper broken. Say
+                // so; the link still opens their latest post.
+                const blocked = d && d.last_attempt_ok === false &&
+                  /429/.test(String(d.last_attempt_note || ""));
+                stale = ' <span style="color:var(--muted)">' +
+                  (blocked
+                    ? '&middot; X has blocked automated reads of this ' +
+                      'feed since ' + escHTML(String(d.updated || "")
+                        .slice(0, 10)) + ' &mdash; open the link for ' +
+                      'the current chart'
+                    : '&middot; chart may be stale (last updated ' +
+                      days + 'd ago)') + '</span>';
+              }
             }
           }
           tweet.innerHTML = '<div class="ew-tweet-meta" style="padding:6px 0">' +
