@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-23T20:16:27+00:00",
+ "generated": "2026-09-23T20:44:04+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-23T20:16:27+00:00",
+ "data_cutoff": "2026-09-23T20:44:04+00:00",
  "market_regime": "mixed",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T20:16:27+00:00",
+   "as_of": "2026-09-23T20:44:04+00:00",
    "evidence": {
     "thesis": "Options price a ±8.1% move vs a ±4.6% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -207,17 +207,17 @@
     "reference_contract": "O:MU260925P01070000",
     "contract_liquidity": "B",
     "dte": 2,
-    "flag_premium": 13234317,
+    "flag_premium": 13431790,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-23T20:16:27+00:00",
+   "as_of": "2026-09-23T20:44:04+00:00",
    "evidence": {
-    "n_prints": 29,
-    "total_premium": 97048717,
+    "n_prints": 34,
+    "total_premium": 120409104,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -229,7 +229,7 @@
      "stype": "golden_sweep",
      "prem": ">=5M"
     },
-    "anchor_score": 94,
+    "anchor_score": 96,
     "tags": [
      "Golden Sweep",
      "Block",
@@ -261,10 +261,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-23T20:16:27+00:00",
+   "as_of": "2026-09-23T20:44:04+00:00",
    "evidence": {
-    "n_prints": 13,
-    "total_premium": 39692380,
+    "n_prints": 14,
+    "total_premium": 42746750,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -308,7 +308,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T20:16:27+00:00",
+   "as_of": "2026-09-23T20:44:04+00:00",
    "evidence": {
     "thesis": "Crowded binary: already ran +10.82% today and typically swings ±12.3% on results — size down or let the print happen and trade the reaction.",
     "cited": [
@@ -345,7 +345,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T20:16:27+00:00",
+   "as_of": "2026-09-23T20:44:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -385,7 +385,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T20:16:27+00:00",
+   "as_of": "2026-09-23T20:44:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -424,7 +424,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T20:16:27+00:00",
+   "as_of": "2026-09-23T20:44:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -463,7 +463,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T20:16:27+00:00",
+   "as_of": "2026-09-23T20:44:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.3% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -501,7 +501,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T20:16:27+00:00",
+   "as_of": "2026-09-23T20:44:04+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.7% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -515,7 +515,7 @@
   }
  ],
  "funnel": {
-  "universe_events": 67,
+  "universe_events": 68,
   "research_candidates": 9,
   "watch_setups": 3,
   "experimental": 5,
@@ -534,7 +534,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "60 candidates → 2 watch → 0 qualified (no champion)"
+   "line": "61 candidates → 2 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -598,8 +598,8 @@
  "rejections": {
   "LOW_ALPHA": 15,
   "REGIME_CONFLICT": 34,
-  "STALE_DATA": 10,
-  "NOT_DIRECTIONAL": 1025
+  "STALE_DATA": 11,
+  "NOT_DIRECTIONAL": 1152
  },
  "what_changed": [
   {
