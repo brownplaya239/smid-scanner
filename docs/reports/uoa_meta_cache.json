@@ -1920,8 +1920,8 @@
 "BTG": {
 "earnings_date": "2026-11-04",
 "earnings_session": null,
-"fetched": "2026-08-07",
-"mkt_cap": 5449588110.79,
+"fetched": "2026-09-23",
+"mkt_cap": 7371574851.96,
 "sector": "Other"
 },
 "BTI": {
@@ -3572,8 +3572,8 @@
 "DUOL": {
 "earnings_date": "2026-11-04",
 "earnings_session": null,
-"fetched": "2026-09-01",
-"mkt_cap": 6941210868.840001,
+"fetched": "2026-09-23",
+"mkt_cap": 6910799793.990001,
 "sector": "Tech / Software"
 },
 "DV": {
@@ -4272,8 +4272,8 @@
 "FDX": {
 "earnings_date": "2026-10-12",
 "earnings_session": "AMC",
-"fetched": "2026-09-08",
-"mkt_cap": 76330948696.2,
+"fetched": "2026-09-23",
+"mkt_cap": 70040248533.9,
 "sector": "Industrials"
 },
 "FDXF": {
@@ -5550,6 +5550,13 @@
 "mkt_cap": 1151993970.4,
 "sector": "Industrials / Transport Eq"
 },
+"HYMB": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-09-23",
+"mkt_cap": null,
+"sector": "Other"
+},
 "HYMC": {
 "earnings_date": "2026-10-27",
 "earnings_session": "AMC",
@@ -6088,6 +6095,13 @@
 "fetched": "2026-08-18",
 "mkt_cap": 10648380398.6,
 "sector": "Tech / Software"
+},
+"JLL": {
+"earnings_date": "2026-11-04",
+"earnings_session": "BMO",
+"fetched": "2026-09-23",
+"mkt_cap": 15429143278.08,
+"sector": "Real Estate"
 },
 "JMKE": {
 "earnings_date": "2026-11-11",
@@ -7625,8 +7639,8 @@
 "NAVN": {
 "earnings_date": "2026-12-14",
 "earnings_session": null,
-"fetched": "2026-09-10",
-"mkt_cap": 6584636373.18,
+"fetched": "2026-09-23",
+"mkt_cap": 5459505985.745,
 "sector": "Tech / Software"
 },
 "NB": {
@@ -9704,8 +9718,8 @@
 "RTX": {
 "earnings_date": "2026-10-20",
 "earnings_session": "BMO",
-"fetched": "2026-09-09",
-"mkt_cap": 267947796608.64,
+"fetched": "2026-09-23",
+"mkt_cap": 257408327922.56,
 "sector": "Industrials / Transport Eq"
 },
 "RUM": {
@@ -9905,10 +9919,10 @@
 "sector": "Other"
 },
 "SBSW": {
-"earnings_date": "2026-09-01",
+"earnings_date": "2027-02-25",
 "earnings_session": "BMO",
-"fetched": "2026-08-27",
-"mkt_cap": 8555389555.44,
+"fetched": "2026-09-23",
+"mkt_cap": 8074193120.56,
 "sector": "Other"
 },
 "SBUX": {
@@ -10353,10 +10367,10 @@
 "sector": "Other"
 },
 "SNY": {
-"earnings_date": "2026-07-30",
+"earnings_date": "2026-10-30",
 "earnings_session": "BMO",
-"fetched": "2026-07-29",
-"mkt_cap": 109012241444.04,
+"fetched": "2026-09-23",
+"mkt_cap": 101859799598.7,
 "sector": "Other"
 },
 "SO": {
@@ -10673,6 +10687,13 @@
 "fetched": "2026-08-25",
 "mkt_cap": 2548540073.22,
 "sector": "Consumer / Services"
+},
+"STWD": {
+"earnings_date": "2026-11-09",
+"earnings_session": "BMO",
+"fetched": "2026-09-23",
+"mkt_cap": 5589551145.0,
+"sector": "Real Estate"
 },
 "STX": {
 "earnings_date": "2026-10-27",
