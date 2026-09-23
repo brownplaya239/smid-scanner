@@ -1,8 +1,8 @@
 {
  "week_of": "2026-09-21",
- "generated": "2026-09-22T19:48:56-04:00",
+ "generated": "2026-09-23T16:46:26-04:00",
  "source": "earningswhispers.com (Most Anticipated calendar)",
- "total": 21,
+ "total": 22,
  "days": [
   {
    "date": "2026-09-21",
@@ -114,7 +114,7 @@
     {
      "ticker": "CTAS",
      "company": "Cintas Corporation",
-     "score": 9,
+     "score": 10,
      "analysts": 20,
      "release_time": 1,
      "confirmed": true,
@@ -125,7 +125,7 @@
     {
      "ticker": "PAYX",
      "company": "Paychex, Inc.",
-     "score": 9,
+     "score": 10,
      "analysts": 20,
      "release_time": 1,
      "confirmed": true,
@@ -147,7 +147,7 @@
     {
      "ticker": "CBRL",
      "company": "Cracker Barrel Old Country Store, Inc.",
-     "score": 16,
+     "score": 20,
      "analysts": 10,
      "release_time": 1,
      "confirmed": true,
@@ -160,7 +160,7 @@
     {
      "ticker": "FUL",
      "company": "H.B. Fuller Company",
-     "score": 8,
+     "score": 9,
      "analysts": 8,
      "release_time": 3,
      "confirmed": true,
@@ -171,7 +171,7 @@
     {
      "ticker": "SFIX",
      "company": "Stitch Fix, Inc.",
-     "score": 9,
+     "score": 11,
      "analysts": 7,
      "release_time": 3,
      "confirmed": true,
@@ -182,7 +182,7 @@
     {
      "ticker": "NEOV",
      "company": "NeoVolta Inc.",
-     "score": 6,
+     "score": 9,
      "analysts": 5,
      "release_time": 3,
      "confirmed": true,
@@ -199,7 +199,7 @@
     {
      "ticker": "DRI",
      "company": "Darden Restaurants, Inc.",
-     "score": 13,
+     "score": 16,
      "analysts": 29,
      "release_time": 1,
      "confirmed": true,
@@ -210,7 +210,7 @@
     {
      "ticker": "SNX",
      "company": "TD SYNNEX",
-     "score": 10,
+     "score": 13,
      "analysts": 12,
      "release_time": 1,
      "confirmed": true,
@@ -221,7 +221,7 @@
     {
      "ticker": "BB",
      "company": "BlackBerry Limited",
-     "score": 12,
+     "score": 17,
      "analysts": 7,
      "release_time": 1,
      "confirmed": true,
@@ -234,7 +234,7 @@
     {
      "ticker": "COST",
      "company": "Costco Wholesale Corporation",
-     "score": 45,
+     "score": 57,
      "analysts": 36,
      "release_time": 3,
      "confirmed": true,
@@ -245,7 +245,7 @@
     {
      "ticker": "SCHL",
      "company": "Scholastic Corporation",
-     "score": 6,
+     "score": 7,
      "analysts": 2,
      "release_time": 3,
      "confirmed": true,
@@ -256,7 +256,7 @@
     {
      "ticker": "LGCY",
      "company": "Legacy Education Inc. ",
-     "score": 7,
+     "score": 8,
      "analysts": 4,
      "release_time": 3,
      "confirmed": true,
@@ -269,7 +269,19 @@
   {
    "date": "2026-09-25",
    "dow": "Friday",
-   "bmo": [],
+   "bmo": [
+    {
+     "ticker": "TBN",
+     "company": "Tamboran Resources Corporation",
+     "score": 2,
+     "analysts": 6,
+     "release_time": 1,
+     "confirmed": true,
+     "next_eps": "2026-09-25T00:00:00",
+     "q": "6/2026",
+     "mcap": 1234614113.04
+    }
+   ],
    "amc": []
   }
  ]

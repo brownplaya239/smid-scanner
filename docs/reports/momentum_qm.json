@@ -1,109 +1,6 @@
 {
- "updated": "2026-09-22T19:44:08-04:00",
+ "updated": "2026-09-23T16:41:23-04:00",
  "runs": [
-  {
-   "date": "2026-06-29",
-   "generated": "2026-06-29T18:36:59-04:00",
-   "count": 12,
-   "rows": [
-    {
-     "ticker": "SPCX",
-     "price": 164.19,
-     "chg": 649.88,
-     "adr_pct": 7.45,
-     "dollar_vol": 19596536763,
-     "ern": "--"
-    },
-    {
-     "ticker": "AMAT",
-     "price": 694.64,
-     "chg": 54.47,
-     "adr_pct": 6.32,
-     "dollar_vol": 6898948630,
-     "ern": "Aug 13"
-    },
-    {
-     "ticker": "KLAC",
-     "price": 278.39,
-     "chg": 44.42,
-     "adr_pct": 6.71,
-     "dollar_vol": 3415188417,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "TNGX",
-     "price": 32.56,
-     "chg": 62.8,
-     "adr_pct": 8.44,
-     "dollar_vol": 194034648,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "TWST",
-     "price": 98.36,
-     "chg": 42.49,
-     "adr_pct": 7.25,
-     "dollar_vol": 183077561,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "DFTX",
-     "price": 46.55,
-     "chg": 98.25,
-     "adr_pct": 7.89,
-     "dollar_vol": 168416936,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "TGTX",
-     "price": 55.72,
-     "chg": 43.53,
-     "adr_pct": 5.28,
-     "dollar_vol": 153233885,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "UCTT",
-     "price": 130.7,
-     "chg": 49.73,
-     "adr_pct": 8.38,
-     "dollar_vol": 149535399,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "COMP",
-     "price": 12.0,
-     "chg": 43.54,
-     "adr_pct": 6.75,
-     "dollar_vol": 149187387,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "ALHC",
-     "price": 23.26,
-     "chg": 46.61,
-     "adr_pct": 6.76,
-     "dollar_vol": 131057234,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "ORKA",
-     "price": 92.49,
-     "chg": 59.52,
-     "adr_pct": 6.86,
-     "dollar_vol": 123631458,
-     "ern": "Aug 10"
-    },
-    {
-     "ticker": "ICHR",
-     "price": 105.46,
-     "chg": 50.33,
-     "adr_pct": 8.75,
-     "dollar_vol": 109621908,
-     "ern": "Aug 04"
-    }
-   ]
-  },
   {
    "date": "2026-06-30",
    "generated": "2026-06-30T18:50:40-04:00",
@@ -3562,6 +3459,101 @@
      "adr_pct": 6.53,
      "dollar_vol": 169041188,
      "ern": "Oct 20"
+    }
+   ]
+  },
+  {
+   "date": "2026-09-23",
+   "generated": "2026-09-23T16:41:23-04:00",
+   "count": 11,
+   "rows": [
+    {
+     "ticker": "DELL",
+     "price": 549.83,
+     "chg": 26.93,
+     "adr_pct": 6.02,
+     "dollar_vol": 5677497869,
+     "ern": "Nov 27"
+    },
+    {
+     "ticker": "BE",
+     "price": 275.19,
+     "chg": 34.88,
+     "adr_pct": 6.23,
+     "dollar_vol": 4115527670,
+     "ern": "Oct 27"
+    },
+    {
+     "ticker": "CRWD",
+     "price": 262.49,
+     "chg": 37.66,
+     "adr_pct": 6.03,
+     "dollar_vol": 3030910666,
+     "ern": "Dec 01"
+    },
+    {
+     "ticker": "ARM",
+     "price": 332.56,
+     "chg": 39.27,
+     "adr_pct": 5.08,
+     "dollar_vol": 1347203564,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "SMTC",
+     "price": 169.33,
+     "chg": 40.05,
+     "adr_pct": 7.1,
+     "dollar_vol": 582375412,
+     "ern": "Nov 23"
+    },
+    {
+     "ticker": "HUT",
+     "price": 102.46,
+     "chg": 28.78,
+     "adr_pct": 7.77,
+     "dollar_vol": 436820732,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "DOCN",
+     "price": 141.21,
+     "chg": 26.6,
+     "adr_pct": 7.31,
+     "dollar_vol": 357592430,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "VICR",
+     "price": 283.16,
+     "chg": 49.04,
+     "adr_pct": 6.71,
+     "dollar_vol": 185560096,
+     "ern": "Oct 20"
+    },
+    {
+     "ticker": "MXL",
+     "price": 84.32,
+     "chg": 34.31,
+     "adr_pct": 6.64,
+     "dollar_vol": 185450623,
+     "ern": "Oct 22"
+    },
+    {
+     "ticker": "FSLY",
+     "price": 29.65,
+     "chg": 29.25,
+     "adr_pct": 9.86,
+     "dollar_vol": 178814841,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "SEI",
+     "price": 67.43,
+     "chg": 25.97,
+     "adr_pct": 5.62,
+     "dollar_vol": 169825310,
+     "ern": "Nov 02"
     }
    ]
   }
