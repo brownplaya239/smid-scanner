@@ -33,13 +33,24 @@ compatibility_date = "2026-05-20"
 # published data goes >3h stale). scheduled() dispatches uoa.yml for every
 # cron except the EOD one (which fires scanner+momentum).
 [triggers]
+# 2026-09-21/22: GitHub dropped EVERY uoa.yml cron two sessions in a row
+# (other, lower-frequency workflows still fired). The worker is now the
+# PRIMARY intraday scheduler on a ~30-min RTH grid; GitHub's schedule
+# stays as redundant insurance. emit_latest dedups double-fires.
 crons = [
-  "50 13 * * 1-5",   # ~9:50 AM ET — opening UOA (the one stranded 6/3)
-  "8 15 * * 1-5",    # ~11:08 AM ET — late-morning UOA (new)
-  "20 16 * * 1-5",   # ~12:20 PM ET — midday UOA
-  "8 17 * * 1-5",    # ~1:08 PM ET — early-afternoon UOA (new)
-  "40 18 * * 1-5",   # ~2:40 PM ET — afternoon UOA
-  "50 19 * * 1-5",   # ~3:50 PM ET — pre-close UOA
+  "50 13 * * 1-5",   # ~9:50 AM ET — opening UOA
+  "20 14 * * 1-5",   # ~10:20 AM ET
+  "50 14 * * 1-5",   # ~10:50 AM ET
+  "20 15 * * 1-5",   # ~11:20 AM ET
+  "50 15 * * 1-5",   # ~11:50 AM ET
+  "20 16 * * 1-5",   # ~12:20 PM ET — also dispatches the monitor
+  "50 16 * * 1-5",   # ~12:50 PM ET
+  "20 17 * * 1-5",   # ~1:20 PM ET
+  "50 17 * * 1-5",   # ~1:50 PM ET
+  "20 18 * * 1-5",   # ~2:20 PM ET
+  "50 18 * * 1-5",   # ~2:50 PM ET
+  "20 19 * * 1-5",   # ~3:20 PM ET
+  "50 19 * * 1-5",   # ~3:50 PM ET — pre-close; also dispatches the monitor
   "40 20 * * 1-5",   # ~4:40 PM ET — EOD: scanner + momentum
 ]
 
