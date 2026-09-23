@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-23T17:55:37+00:00",
+ "generated": "2026-09-23T18:01:35+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-23T17:55:37+00:00",
+ "data_cutoff": "2026-09-23T18:01:35+00:00",
  "market_regime": "mixed",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T17:55:37+00:00",
+   "as_of": "2026-09-23T18:01:35+00:00",
    "evidence": {
     "thesis": "Options price a ±8.1% move vs a ±4.6% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -207,17 +207,17 @@
     "reference_contract": "O:MU260925P01065000",
     "contract_liquidity": "C",
     "dte": 2,
-    "flag_premium": 1831746,
+    "flag_premium": 1839059,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-23T17:55:37+00:00",
+   "as_of": "2026-09-23T18:01:35+00:00",
    "evidence": {
-    "n_prints": 3,
-    "total_premium": 4936766,
+    "n_prints": 5,
+    "total_premium": 8602589,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -259,10 +259,10 @@
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-23T17:55:37+00:00",
+   "as_of": "2026-09-23T18:01:35+00:00",
    "evidence": {
-    "n_prints": 4,
-    "total_premium": 12205540,
+    "n_prints": 5,
+    "total_premium": 15257420,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -306,7 +306,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T17:55:37+00:00",
+   "as_of": "2026-09-23T18:01:35+00:00",
    "evidence": {
     "thesis": "Crowded binary: already ran +10.82% today and typically swings ±12.3% on results — size down or let the print happen and trade the reaction.",
     "cited": [
@@ -343,7 +343,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T17:55:37+00:00",
+   "as_of": "2026-09-23T18:01:35+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.9% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -383,7 +383,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T17:55:37+00:00",
+   "as_of": "2026-09-23T18:01:35+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -422,7 +422,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T17:55:37+00:00",
+   "as_of": "2026-09-23T18:01:35+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -461,7 +461,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T17:55:37+00:00",
+   "as_of": "2026-09-23T18:01:35+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.3% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -499,7 +499,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-23T17:55:37+00:00",
+   "as_of": "2026-09-23T18:01:35+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -1.7% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -598,7 +598,7 @@
   "BAD_LIQUIDITY": 1,
   "REGIME_CONFLICT": 23,
   "STALE_DATA": 6,
-  "NOT_DIRECTIONAL": 216
+  "NOT_DIRECTIONAL": 281
  },
  "what_changed": [
   {
