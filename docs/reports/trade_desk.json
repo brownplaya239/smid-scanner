@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-24T14:54:00+00:00",
+ "generated": "2026-09-24T15:25:00+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-24T14:54:00+00:00",
+ "data_cutoff": "2026-09-24T15:25:00+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-24T14:54:00+00:00",
+   "as_of": "2026-09-24T15:25:00+00:00",
    "evidence": {
     "thesis": "Options price a ±3.4% move vs a ±2.3% median across 8 past reports (1.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -220,7 +220,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-24T14:54:00+00:00",
+   "as_of": "2026-09-24T15:25:00+00:00",
    "evidence": {
     "thesis": "Options price a ±8.1% move vs a ±4.6% median across 8 past reports (1.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -260,7 +260,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-24T14:54:00+00:00",
+   "as_of": "2026-09-24T15:25:00+00:00",
    "evidence": {
     "thesis": "Options price a ±6.4% move vs a ±2.3% median across 8 past reports (2.8× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -297,7 +297,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-24T14:54:00+00:00",
+   "as_of": "2026-09-24T15:25:00+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.5% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -337,7 +337,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-24T14:54:00+00:00",
+   "as_of": "2026-09-24T15:25:00+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -376,7 +376,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-24T14:54:00+00:00",
+   "as_of": "2026-09-24T15:25:00+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +3.0% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -415,7 +415,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-24T14:54:00+00:00",
+   "as_of": "2026-09-24T15:25:00+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +2.3% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -449,7 +449,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-24T14:54:00+00:00",
+   "as_of": "2026-09-24T15:25:00+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -487,7 +487,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-24T14:54:00+00:00",
+   "as_of": "2026-09-24T15:25:00+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -3.4% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -503,7 +503,7 @@
   }
  ],
  "funnel": {
-  "universe_events": 21,
+  "universe_events": 26,
   "research_candidates": 9,
   "watch_setups": 0,
   "experimental": 6,
@@ -522,7 +522,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "12 candidates → 0 watch → 0 qualified (no champion)"
+   "line": "17 candidates → 0 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -580,10 +580,11 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 3 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 1,
-  "REGIME_CONFLICT": 11,
+  "LOW_ALPHA": 3,
+  "BAD_LIQUIDITY": 1,
+  "REGIME_CONFLICT": 13,
   "STALE_DATA": 1,
-  "NOT_DIRECTIONAL": 8
+  "NOT_DIRECTIONAL": 19
  },
  "what_changed": [
   {
