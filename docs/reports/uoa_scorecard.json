@@ -1,41 +1,41 @@
 {
- "generated": "2026-09-23T01:37:51+00:00",
+ "generated": "2026-09-24T01:33:04+00:00",
  "version": "uoa_scorecard_v1",
  "matrix": {
-  "days": 151,
-  "tickers": 1725,
+  "days": 152,
+  "tickers": 1730,
   "from": "2026-02-17",
-  "to": "2026-09-22"
+  "to": "2026-09-23"
  },
  "matched": {
-  "assigned": 50966,
-  "unmatchable": 45512,
-  "graded_5d": 47576,
-  "match_v2_forward": 5626
+  "assigned": 51613,
+  "unmatchable": 46378,
+  "graded_5d": 47577,
+  "match_v2_forward": 6249
  },
  "headline": {
   "legacy_vs_spy_avg_excess_5d": 0.4,
-  "matched_avg_excess_5d": -0.137,
+  "matched_avg_excess_5d": -0.136,
   "matched_into_earnings_5d": 0.76,
   "note": "matched excess is the flow alpha; the spread to the legacy SPY number is beta + universe drift + event premium"
  },
  "pockets": {
   "overall": {
-   "n": 47576,
-   "avg": -0.137,
+   "n": 47577,
+   "avg": -0.136,
    "med": -0.374,
    "hit": 48,
    "bootstrap": {
     "clusters": 336,
     "ci95": [
-     -0.586,
+     -0.585,
      0.357
     ],
     "se_cluster": 0.2407,
     "n_eff": 1971
    },
    "net": {
-    "n": 47576,
+    "n": 47577,
     "avg": -0.493,
     "med": -0.675,
     "hit": 46
@@ -71,15 +71,15 @@
     },
     ">25bp": {
      "gross": {
-      "n": 12000,
-      "avg": -0.328,
-      "med": -0.423,
+      "n": 12001,
+      "avg": -0.327,
+      "med": -0.408,
       "hit": 48
      },
      "net": {
-      "n": 12000,
-      "avg": -1.524,
-      "med": -1.406,
+      "n": 12001,
+      "avg": -1.523,
+      "med": -1.397,
       "hit": 42
      }
     }
@@ -351,7 +351,7 @@
    "name": "put_buys"
   },
   "call_buys": {
-   "n": 32466,
+   "n": 32467,
    "avg": 0.158,
    "med": -0.669,
    "hit": 46,
@@ -359,13 +359,13 @@
     "clusters": 320,
     "ci95": [
      -0.642,
-     0.958
+     0.959
     ],
     "se_cluster": 0.4091,
     "n_eff": 685
    },
    "net": {
-    "n": 32466,
+    "n": 32467,
     "avg": -0.215,
     "med": -0.925,
     "hit": 45
@@ -401,14 +401,14 @@
     },
     ">25bp": {
      "gross": {
-      "n": 8516,
-      "avg": -0.52,
+      "n": 8517,
+      "avg": -0.518,
       "med": -0.957,
       "hit": 45
      },
      "net": {
-      "n": 8516,
-      "avg": -1.739,
+      "n": 8517,
+      "avg": -1.737,
       "med": -2.081,
       "hit": 40
      }
@@ -419,21 +419,21 @@
  },
  "ic": {
   "adjusted_score": {
-   "n": 30301,
+   "n": 30302,
    "note": "ledger trade_score bakes in edge_adj at flag time (point-in-time); raw = trade_score - edge_adj",
    "matched_ic_by_horizon": {
     "+1d": 0.0224,
     "+3d": 0.0178,
     "+5d": -0.0094,
-    "+10d": 0.0115,
-    "+20d": 0.0112
+    "+10d": 0.011,
+    "+20d": 0.006
    },
    "raw_matched_ic_by_horizon": {
     "+1d": 0.0136,
-    "+3d": 0.0192,
-    "+5d": -0.0006,
-    "+10d": 0.0226,
-    "+20d": 0.0383
+    "+3d": 0.0191,
+    "+5d": -0.0007,
+    "+10d": 0.0229,
+    "+20d": 0.034
    },
    "by_regime": {
     "vix_low|spy_up": {
@@ -449,8 +449,8 @@
      "ic": -0.0442
     },
     "vix_mid|spy_down": {
-     "n": 2534,
-     "ic": 0.0774
+     "n": 2535,
+     "ic": 0.0768
     },
     "vix_high|spy_down": {
      "n": 1399,
@@ -466,51 +466,51 @@
      },
      {
       "d": 2,
-      "avg": 0.113,
+      "avg": 0.114,
       "hit": 49
      },
      {
       "d": 3,
-      "avg": -0.724,
+      "avg": -0.722,
       "hit": 45
      },
      {
       "d": 4,
-      "avg": 0.033,
+      "avg": 0.035,
       "hit": 49
      },
      {
       "d": 5,
-      "avg": -0.14,
+      "avg": -0.141,
       "hit": 50
      },
      {
       "d": 6,
-      "avg": 0.521,
+      "avg": 0.524,
       "hit": 50
      },
      {
       "d": 7,
-      "avg": 0.492,
+      "avg": 0.491,
       "hit": 55
      },
      {
       "d": 8,
-      "avg": 0.299,
+      "avg": 0.304,
       "hit": 50
      },
      {
       "d": 9,
-      "avg": -0.115,
+      "avg": -0.119,
       "hit": 49
      },
      {
       "d": 10,
-      "avg": -0.444,
+      "avg": -0.446,
       "hit": 45
      }
     ],
-    "top_minus_bottom": -0.146,
+    "top_minus_bottom": -0.148,
     "monotonic_steps": 3
    }
   }
@@ -554,7 +554,7 @@
     "hit": 49,
     "ci": [
      0.446,
-     0.531
+     0.53
     ]
    },
    {
@@ -563,8 +563,8 @@
     "score_hi": 74,
     "hit": 50,
     "ci": [
-     0.446,
-     0.543
+     0.443,
+     0.542
     ]
    },
    {
@@ -574,7 +574,7 @@
     "hit": 50,
     "ci": [
      0.449,
-     0.546
+     0.547
     ]
    },
    {
@@ -584,7 +584,7 @@
     "hit": 55,
     "ci": [
      0.502,
-     0.608
+     0.61
     ]
    },
    {
@@ -593,8 +593,8 @@
     "score_hi": 82,
     "hit": 50,
     "ci": [
-     0.449,
-     0.558
+     0.45,
+     0.555
     ]
    },
    {
@@ -603,8 +603,8 @@
     "score_hi": 85,
     "hit": 49,
     "ci": [
-     0.438,
-     0.545
+     0.439,
+     0.541
     ]
    },
    {
@@ -613,8 +613,8 @@
     "score_hi": 100,
     "hit": 45,
     "ci": [
-     0.391,
-     0.505
+     0.386,
+     0.503
     ]
    }
   ],
@@ -640,9 +640,9 @@
     "avg": -1.736
    },
    "vix_mid|spy_down": {
-    "n": 2534,
+    "n": 2535,
     "hit": 52,
-    "avg": 0.486
+    "avg": 0.491
    },
    "vix_high|spy_down": {
     "n": 1399,
@@ -659,8 +659,8 @@
   "ev_vs_premium_over_adv": {
    "all": {
     "<0.1%": {
-     "n": 23338,
-     "avg": -0.004,
+     "n": 23339,
+     "avg": -0.003,
      "med": -0.374,
      "hit": 48
     },
@@ -809,10 +809,10 @@
  },
  "book_sim": {
   "overall": {
-   "n_days": 87,
-   "total_matched_excess_pp": -10.11,
+   "n_days": 88,
+   "total_matched_excess_pp": -7.27,
    "max_drawdown_pp": -10.78,
-   "longest_underwater_days": 79,
+   "longest_underwater_days": 80,
    "worst_month": {
     "month": "2026-07",
     "pp": -4.47
@@ -833,30 +833,30 @@
  },
  "entry_lag": {
   "window_days": 45,
-  "sampled_ticker_days": 14328,
-  "new_fetched": 13,
+  "sampled_ticker_days": 14329,
+  "new_fetched": 1,
   "ladder": {
    "at_signal": {
-    "n": 14328,
-    "avg": 0.184,
-    "med": -0.039,
+    "n": 14329,
+    "avg": 0.185,
+    "med": -0.038,
     "hit": 50
    },
    "+15m": {
-    "n": 13543,
-    "avg": 0.148,
-    "med": -0.062,
+    "n": 13544,
+    "avg": 0.149,
+    "med": -0.061,
     "hit": 50
    },
    "+60m": {
-    "n": 12773,
-    "avg": 0.138,
+    "n": 12774,
+    "avg": 0.139,
     "med": -0.062,
     "hit": 49
    },
    "next_open": {
-    "n": 14328,
-    "avg": 0.271,
+    "n": 14329,
+    "avg": 0.272,
     "med": 0.303,
     "hit": 51
    }
