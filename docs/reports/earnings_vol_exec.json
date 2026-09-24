@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-23T00:56:48+00:00",
+ "generated": "2026-09-24T00:53:44+00:00",
  "status": "quotes_entitlement_unavailable",
  "why": "historical NBBO quotes endpoint is not authorized on this plan tier (12/12 probe queries failed at HTTP level). The spread/fill study cannot run; trade_qualified stays false. (Outcome: undetermined, NOT a pass.)",
  "minute_timing_study": {
@@ -219,11 +219,11 @@
    "name": "vol_rich",
    "status": "SIGNAL_QUALIFIED",
    "evidence": {
-    "n": 156,
-    "ev_vol_pts": 6.32,
+    "n": 158,
+    "ev_vol_pts": 6.29,
     "night_ci": [
-     5.36,
-     7.23
+     5.34,
+     7.19
     ]
    }
   },

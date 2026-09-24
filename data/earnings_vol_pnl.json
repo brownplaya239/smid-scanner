@@ -68003,5 +68003,137 @@
 "sector": "Industrials"
 },
 "bt_version": "vol_backtest_v2"
+},
+"CTAS|2026-09-23|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-09-22",
+"exit_date": "2026-09-23",
+"spot": 198.8,
+"expiry": "2026-09-25",
+"expiry_spot": null,
+"night_id": "2026-09-23",
+"sector": "Other",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 200,
+"contract": "O:CTAS260925C00200000",
+"marks": {
+"entry_close": 4,
+"exit_open": 1.35,
+"exit_close": 0.24
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 200,
+"contract": "O:CTAS260925P00200000",
+"marks": {
+"entry_close": 4.86,
+"exit_open": 3.95,
+"exit_close": 5
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -429.0,
+"risk": 932.0,
+"ror": -0.4609
+},
+"next_close": {
+"pnl": -435.0,
+"risk": 932.0,
+"ror": -0.467
+},
+"expiry_hold": {
+"pnl": -933.0,
+"risk": 932.0,
+"ror": -1.0014
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 200,
+"contract": "O:CTAS260925C00200000",
+"marks": {
+"entry_close": 4,
+"exit_open": 1.35,
+"exit_close": 0.24
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 197.5,
+"contract": "O:CTAS260925P00197500",
+"marks": {
+"entry_close": 4.05,
+"exit_open": 4.55,
+"exit_close": 5.33
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -287.0,
+"risk": 847.0,
+"ror": -0.3394
+},
+"next_close": {
+"pnl": -319.0,
+"risk": 847.0,
+"ror": -0.3765
+},
+"expiry_hold": {
+"pnl": -848.0,
+"risk": 847.0,
+"ror": -1.0015
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "CTAS",
+"date": "2026-09-23",
+"implied": 2.0,
+"session": "BMO",
+"sector": "Other"
+},
+"bt_version": "vol_backtest_v2"
+},
+"CAG|2026-09-30|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "CAG",
+"date": "2026-09-30",
+"implied": 6.4,
+"session": "BMO",
+"sector": "Consumer / Food & Bev"
+},
+"bt_version": "vol_backtest_v2"
+},
+"MU|2026-09-30|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "MU",
+"date": "2026-09-30",
+"implied": 12.4,
+"session": "AMC",
+"sector": "Semiconductors"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
