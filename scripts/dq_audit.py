@@ -146,7 +146,6 @@ ARTIFACTS = {
     "country_etfs":          ("daily", [], None),
     "dealer_positioning":    ("daily", [], None),
     "iv_em_context":         ("daily", [], None),
-    "whisper_tweet":         ("weekly", ["updated"], None),    # 2026-09-23: found 39d stale — source 429s
 }
 
 
