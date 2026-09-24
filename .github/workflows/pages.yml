@@ -52,7 +52,10 @@ on:
       - "Momentum Scans"
       - "Daily Brief"
       - "Ticker Research Brief (v2)"
+      - "Ticker Research Brief (v4)"
       - "Alt-Data Intelligence Lookup"
+      - "Earnings Vol Backtest"
+      - "UOA Matched Scorecard"
     types: [completed]
   # Catch-all sweeper — republish the latest docs/ periodically so a
   # committer not in the list above (or a missed workflow_run) still lands
