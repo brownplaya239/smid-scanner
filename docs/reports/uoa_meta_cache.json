@@ -4934,6 +4934,13 @@
 "mkt_cap": null,
 "sector": "Financials"
 },
+"GLND": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-09-24",
+"mkt_cap": 127254864.54,
+"sector": "Energy"
+},
 "GLNG": {
 "earnings_date": "2026-11-05",
 "earnings_session": "BMO",
@@ -5991,6 +5998,13 @@
 "mkt_cap": 13854263096.4,
 "sector": "Financials"
 },
+"IWB": {
+"earnings_date": null,
+"earnings_session": null,
+"fetched": "2026-09-24",
+"mkt_cap": null,
+"sector": "Other"
+},
 "IWD": {
 "earnings_date": null,
 "earnings_session": null,
@@ -6876,8 +6890,8 @@
 "LYB": {
 "earnings_date": "2026-10-30",
 "earnings_session": "BMO",
-"fetched": "2026-09-13",
-"mkt_cap": 20574287162.88,
+"fetched": "2026-09-24",
+"mkt_cap": 19372585981.44,
 "sector": "Materials / Chemicals"
 },
 "LYFT": {
@@ -7688,7 +7702,7 @@
 "NBIG": {
 "earnings_date": null,
 "earnings_session": null,
-"fetched": "2026-08-04",
+"fetched": "2026-09-24",
 "mkt_cap": null,
 "sector": "Other"
 },
@@ -8862,10 +8876,10 @@
 "sector": "Consumer / Retail"
 },
 "PLD": {
-"earnings_date": "2026-10-14",
+"earnings_date": "2026-10-15",
 "earnings_session": "BMO",
-"fetched": "2026-08-28",
-"mkt_cap": 134804788818.2,
+"fetched": "2026-09-24",
+"mkt_cap": 127306658513.12001,
 "sector": "Real Estate"
 },
 "PLNT": {
@@ -10425,8 +10439,8 @@
 "SOFI": {
 "earnings_date": "2026-10-27",
 "earnings_session": "BMO",
-"fetched": "2026-09-13",
-"mkt_cap": 22369998011.68,
+"fetched": "2026-09-24",
+"mkt_cap": 21375488862.2,
 "sector": "Financials / Banks"
 },
 "SOLS": {
@@ -10677,8 +10691,8 @@
 "STM": {
 "earnings_date": "2026-10-29",
 "earnings_session": "BMO",
-"fetched": "2026-09-08",
-"mkt_cap": 46594324361.92,
+"fetched": "2026-09-24",
+"mkt_cap": 46790548545.68,
 "sector": "Other"
 },
 "STNE": {
