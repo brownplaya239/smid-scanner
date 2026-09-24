@@ -1,117 +1,6 @@
 {
- "updated": "2026-09-23T19:53:17-04:00",
+ "updated": "2026-09-24T16:41:24-04:00",
  "runs": [
-  {
-   "date": "2026-06-30",
-   "generated": "2026-06-30T18:50:40-04:00",
-   "count": 13,
-   "rows": [
-    {
-     "ticker": "MRVL",
-     "price": 297.89,
-     "chg": 45.31,
-     "adr_pct": 10.36,
-     "dollar_vol": 20865391046,
-     "ern": "Aug 27"
-    },
-    {
-     "ticker": "SPCX",
-     "price": 170.86,
-     "chg": 682.15,
-     "adr_pct": 7.74,
-     "dollar_vol": 20291044785,
-     "ern": "--"
-    },
-    {
-     "ticker": "AMAT",
-     "price": 723.0,
-     "chg": 60.65,
-     "adr_pct": 6.35,
-     "dollar_vol": 7340093640,
-     "ern": "Aug 13"
-    },
-    {
-     "ticker": "KLAC",
-     "price": 301.71,
-     "chg": 57.0,
-     "adr_pct": 7.05,
-     "dollar_vol": 3644172098,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "TWST",
-     "price": 102.88,
-     "chg": 53.85,
-     "adr_pct": 7.24,
-     "dollar_vol": 188916052,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "ACMR",
-     "price": 126.89,
-     "chg": 46.59,
-     "adr_pct": 9.94,
-     "dollar_vol": 185234921,
-     "ern": "Aug 05"
-    },
-    {
-     "ticker": "DFTX",
-     "price": 47.04,
-     "chg": 94.46,
-     "adr_pct": 8.01,
-     "dollar_vol": 176495613,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "UCTT",
-     "price": 142.59,
-     "chg": 66.64,
-     "adr_pct": 8.58,
-     "dollar_vol": 161144820,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "TGTX",
-     "price": 54.94,
-     "chg": 44.81,
-     "adr_pct": 5.28,
-     "dollar_vol": 157241878,
-     "ern": "Aug 03"
-    },
-    {
-     "ticker": "COMP",
-     "price": 12.33,
-     "chg": 49.82,
-     "adr_pct": 6.82,
-     "dollar_vol": 154783770,
-     "ern": "Jul 29"
-    },
-    {
-     "ticker": "ORKA",
-     "price": 95.17,
-     "chg": 62.6,
-     "adr_pct": 6.88,
-     "dollar_vol": 128888337,
-     "ern": "Aug 10"
-    },
-    {
-     "ticker": "ALHC",
-     "price": 23.81,
-     "chg": 55.42,
-     "adr_pct": 6.08,
-     "dollar_vol": 126952988,
-     "ern": "Jul 30"
-    },
-    {
-     "ticker": "ICHR",
-     "price": 112.28,
-     "chg": 56.99,
-     "adr_pct": 8.9,
-     "dollar_vol": 112956342,
-     "ern": "Aug 04"
-    }
-   ]
-  },
   {
    "date": "2026-07-01",
    "generated": "2026-07-01T18:47:07-04:00",
@@ -3553,6 +3442,93 @@
      "chg": 25.97,
      "adr_pct": 5.62,
      "dollar_vol": 169829905,
+     "ern": "Nov 02"
+    }
+   ]
+  },
+  {
+   "date": "2026-09-24",
+   "generated": "2026-09-24T16:41:24-04:00",
+   "count": 10,
+   "rows": [
+    {
+     "ticker": "BE",
+     "price": 266.65,
+     "chg": 22.63,
+     "adr_pct": 6.23,
+     "dollar_vol": 4226410221,
+     "ern": "Oct 27"
+    },
+    {
+     "ticker": "CRWD",
+     "price": 259.67,
+     "chg": 40.07,
+     "adr_pct": 5.86,
+     "dollar_vol": 3011517308,
+     "ern": "Dec 01"
+    },
+    {
+     "ticker": "ARM",
+     "price": 306.34,
+     "chg": 26.82,
+     "adr_pct": 5.15,
+     "dollar_vol": 1441327196,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "NET",
+     "price": 358.82,
+     "chg": 29.27,
+     "adr_pct": 5.52,
+     "dollar_vol": 1032930270,
+     "ern": "Oct 29"
+    },
+    {
+     "ticker": "SMTC",
+     "price": 174.5,
+     "chg": 36.84,
+     "adr_pct": 6.74,
+     "dollar_vol": 535460564,
+     "ern": "Nov 23"
+    },
+    {
+     "ticker": "DOCN",
+     "price": 141.57,
+     "chg": 25.76,
+     "adr_pct": 7.39,
+     "dollar_vol": 363546470,
+     "ern": "Nov 04"
+    },
+    {
+     "ticker": "TXG",
+     "price": 84.11,
+     "chg": 29.96,
+     "adr_pct": 6.74,
+     "dollar_vol": 196486378,
+     "ern": "Nov 05"
+    },
+    {
+     "ticker": "MXL",
+     "price": 85.31,
+     "chg": 28.56,
+     "adr_pct": 6.79,
+     "dollar_vol": 196386392,
+     "ern": "Oct 22"
+    },
+    {
+     "ticker": "VICR",
+     "price": 276.06,
+     "chg": 41.85,
+     "adr_pct": 6.88,
+     "dollar_vol": 193348754,
+     "ern": "Oct 20"
+    },
+    {
+     "ticker": "SEI",
+     "price": 70.1,
+     "chg": 32.54,
+     "adr_pct": 5.76,
+     "dollar_vol": 173623927,
      "ern": "Nov 02"
     }
    ]
