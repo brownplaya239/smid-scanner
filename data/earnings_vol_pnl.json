@@ -68135,5 +68135,190 @@
 "sector": "Semiconductors"
 },
 "bt_version": "vol_backtest_v2"
+},
+"BB|2026-09-24|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-09-23",
+"exit_date": "2026-09-24",
+"spot": 8.38,
+"expiry": "2026-09-25",
+"expiry_spot": null,
+"night_id": "2026-09-24",
+"sector": "Tech / Software",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_straddle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 8.5,
+"contract": "O:BB260925C00008500",
+"marks": {
+"entry_close": 0.53,
+"exit_open": 0.27,
+"exit_close": 0.32
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 8.5,
+"contract": "O:BB260925P00008500",
+"marks": {
+"entry_close": 0.62,
+"exit_open": 0.35,
+"exit_close": 0.1
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -64.0,
+"risk": 122.0,
+"ror": -0.5281
+},
+"next_close": {
+"pnl": -83.0,
+"risk": 122.0,
+"ror": -0.6837
+},
+"expiry_hold": {
+"pnl": -123.0,
+"risk": 122.0,
+"ror": -1.0107
+}
+}
+},
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 8.5,
+"contract": "O:BB260925C00008500",
+"marks": {
+"entry_close": 0.53,
+"exit_open": 0.27,
+"exit_close": 0.32
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 8,
+"contract": "O:BB260925P00008000",
+"marks": {
+"entry_close": 0.34,
+"exit_open": 0.09,
+"exit_close": 0.03
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -60.0,
+"risk": 93.0,
+"ror": -0.6449
+},
+"next_close": {
+"pnl": -61.0,
+"risk": 93.0,
+"ror": -0.6552
+},
+"expiry_hold": {
+"pnl": -94.0,
+"risk": 93.0,
+"ror": -1.014
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "BB",
+"date": "2026-09-24",
+"implied": 4.8,
+"session": "BMO",
+"sector": "Tech / Software"
+},
+"bt_version": "vol_backtest_v2"
+},
+"JBL|2026-09-24|vol_cheap|vol_backtest_v2": {
+"entry_date": "2026-09-23",
+"exit_date": "2026-09-24",
+"spot": 308.75,
+"expiry": "2026-09-25",
+"expiry_spot": null,
+"night_id": "2026-09-24",
+"sector": "Tech / Hardware",
+"fill_model": "vol_backtest_v2: daily-bar leg marks (open for next_open exit, close otherwise), 5% slippage per side per leg, $0.65/contract/side fees; expiry_hold = intrinsic from underlying close. DAILY-BAR PROXY \u2014 not NBBO truth.",
+"chain_source": "polygon_reference",
+"strategies": {
+"long_strangle": {
+"legs": [
+{
+"side": 1,
+"kind": "call",
+"strike": 312.5,
+"contract": "O:JBL260925C00312500",
+"marks": {
+"entry_close": 3.4,
+"exit_open": 1,
+"exit_close": 2.4
+}
+},
+{
+"side": 1,
+"kind": "put",
+"strike": 305,
+"contract": "O:JBL260925P00305000",
+"marks": {
+"entry_close": 4.01,
+"exit_open": 1.7,
+"exit_close": 1.7
+}
+}
+],
+"exits": {
+"next_open": {
+"pnl": -524.0,
+"risk": 779.0,
+"ror": -0.6725
+},
+"next_close": {
+"pnl": -391.0,
+"risk": 779.0,
+"ror": -0.5019
+},
+"expiry_hold": {
+"pnl": -781.0,
+"risk": 779.0,
+"ror": -1.0017
+}
+}
+}
+},
+"event": {
+"type": "vol_cheap",
+"ticker": "JBL",
+"date": "2026-09-24",
+"implied": 1.9,
+"session": "BMO",
+"sector": "Tech / Hardware"
+},
+"bt_version": "vol_backtest_v2"
+},
+"ACN|2026-10-01|vol_rich|vol_backtest_v2": {
+"skip": "no_session_bracket",
+"event": {
+"type": "vol_rich",
+"ticker": "ACN",
+"date": "2026-10-01",
+"implied": 9.7,
+"session": "BMO",
+"sector": "Other"
+},
+"bt_version": "vol_backtest_v2"
 }
 }
