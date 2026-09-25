@@ -576,8 +576,8 @@
 "AM": {
 "earnings_date": "2026-10-28",
 "earnings_session": "AMC",
-"fetched": "2026-08-26",
-"mkt_cap": 10400107340.0,
+"fetched": "2026-09-25",
+"mkt_cap": 10077329020.0,
 "sector": "Utilities"
 },
 "AMAT": {
@@ -2564,8 +2564,8 @@
 "CLF": {
 "earnings_date": "2026-10-19",
 "earnings_session": "BMO",
-"fetched": "2026-09-13",
-"mkt_cap": 6880712966.820001,
+"fetched": "2026-09-25",
+"mkt_cap": 7131750587.5,
 "sector": "Materials / Metals"
 },
 "CLMT": {
@@ -5968,6 +5968,13 @@
 "earnings_session": null,
 "fetched": "2026-08-21",
 "mkt_cap": null,
+"sector": "Other"
+},
+"ITRI": {
+"earnings_date": "2026-10-29",
+"earnings_session": "BMO",
+"fetched": "2026-09-25",
+"mkt_cap": 4007363634.56,
 "sector": "Other"
 },
 "ITT": {
@@ -10156,6 +10163,13 @@
 "mkt_cap": 1194088145.25,
 "sector": "Semiconductors"
 },
+"SHMD": {
+"earnings_date": "2027-02-22",
+"earnings_session": null,
+"fetched": "2026-09-25",
+"mkt_cap": 241229393.48000002,
+"sector": "Other"
+},
 "SHOE": {
 "earnings_date": "2026-09-10",
 "earnings_session": "BMO",
@@ -11657,8 +11671,8 @@
 "UMAC": {
 "earnings_date": "2026-11-05",
 "earnings_session": "BMO",
-"fetched": "2026-08-24",
-"mkt_cap": 1370306932.15,
+"fetched": "2026-09-25",
+"mkt_cap": 1195459164.65,
 "sector": "Tech / Hardware"
 },
 "UMC": {
