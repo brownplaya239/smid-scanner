@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-25T18:07:22+00:00",
+ "generated": "2026-09-25T18:32:33+00:00",
  "engine_version": "trade_desk_v1",
  "model_version": "alpha_score_v1",
- "data_cutoff": "2026-09-25T18:07:22+00:00",
+ "data_cutoff": "2026-09-25T18:32:33+00:00",
  "market_regime": "risk_off",
  "score_available": true,
  "gates": {
@@ -179,7 +179,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-25T18:07:22+00:00",
+   "as_of": "2026-09-25T18:32:33+00:00",
    "evidence": {
     "thesis": "Options price a ±7.5% move vs a ±4.6% median across 8 past reports (1.6× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -219,7 +219,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-25T18:07:22+00:00",
+   "as_of": "2026-09-25T18:32:33+00:00",
    "evidence": {
     "thesis": "Options price a ±5.7% move vs a ±2.3% median across 8 past reports (2.5× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -258,7 +258,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-25T18:07:22+00:00",
+   "as_of": "2026-09-25T18:32:33+00:00",
    "evidence": {
     "thesis": "Options price a ±9.7% move vs a ±6.2% median across 8 past reports (1.6× rich) — historically favors defined-risk premium sellers over buyers.",
     "cited": [
@@ -286,17 +286,17 @@
     "reference_contract": "O:MU261002P01100000",
     "contract_liquidity": "B",
     "dte": 7,
-    "flag_premium": 13506152,
+    "flag_premium": 13528163,
     "flag_volume": null,
     "flag_oi": null,
     "underlying_at_flag": null,
     "option_mark": null,
     "max_risk_note": "defined-risk if expressed via long option (100% of premium); underlying expression risk is stop-managed"
    },
-   "as_of": "2026-09-25T18:07:22+00:00",
+   "as_of": "2026-09-25T18:32:33+00:00",
    "evidence": {
-    "n_prints": 4,
-    "total_premium": 17570296,
+    "n_prints": 7,
+    "total_premium": 34968784,
     "feats": {
      "side": "put_buy",
      "regime": "unknown",
@@ -308,11 +308,12 @@
      "stype": "golden_sweep",
      "prem": ">=5M"
     },
-    "anchor_score": 75,
+    "anchor_score": 85,
     "tags": [
      "Golden Sweep",
      "Block",
      "Size>OI",
+     "Repeat",
      "Into ERN",
      "In Universe"
     ],
@@ -344,7 +345,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-25T18:07:22+00:00",
+   "as_of": "2026-09-25T18:32:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts +1.6% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -378,7 +379,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-25T18:07:22+00:00",
+   "as_of": "2026-09-25T18:32:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -2.5% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -416,7 +417,7 @@
      "scope": "cohort"
     }
    },
-   "as_of": "2026-09-25T18:07:22+00:00",
+   "as_of": "2026-09-25T18:32:33+00:00",
    "evidence": {
     "thesis": "The after-print trade: across 8 reports this name drifts -3.4% on average in the 5 sessions AFTER earnings — reacting post-report sidesteps the binary night.",
     "cited": [
@@ -431,7 +432,7 @@
   }
  ],
  "funnel": {
-  "universe_events": 45,
+  "universe_events": 50,
   "research_candidates": 7,
   "watch_setups": 1,
   "experimental": 3,
@@ -450,7 +451,7 @@
   },
   {
    "name": "Options Flow",
-   "line": "39 candidates → 1 watch → 0 qualified (no champion)"
+   "line": "44 candidates → 1 watch → 0 qualified (no champion)"
   },
   {
    "name": "Momentum",
@@ -512,17 +513,13 @@
  "abstention": true,
  "abstention_note": "No executable trade clears TickerDesk's production gate today. 3 earnings-volatility markets do exhibit a validated forecasting discrepancy, but no option structure has demonstrated sufficient after-cost expectancy.",
  "rejections": {
-  "LOW_ALPHA": 12,
-  "BAD_LIQUIDITY": 3,
-  "REGIME_CONFLICT": 23,
-  "NOT_DIRECTIONAL": 97
+  "LOW_ALPHA": 13,
+  "BAD_LIQUIDITY": 4,
+  "LOW_PREMIUM": 1,
+  "REGIME_CONFLICT": 25,
+  "NOT_DIRECTIONAL": 204
  },
  "what_changed": [
-  {
-   "t": "MU",
-   "change": "new",
-   "to": "WATCH"
-  },
   {
    "t": "CALM",
    "change": "new",
