@@ -457,7 +457,18 @@ def main():
     else:
         if not a.kind:
             ap.error("kind is required unless --bundle is given")
-        b = render(a)
+        try:
+            b = render(a)
+        except SystemExit as e:
+            # Cards raise SystemExit("...") when there's nothing to post
+            # (no receipts due, no callout days yet). That's a skip, not
+            # a failure — scheduled runs shouldn't page anyone for it.
+            if not isinstance(e.code, str):
+                raise
+            print("nothing to post:", e.code)
+            _gh_out(blocked="1", review="0")
+            _summary(f"### {a.kind}: nothing to post\n\n{e.code}")
+            return
     print("card:", b["card"])
     print("caption (%d chars as X counts):\n%s\n" % (x_len(b["text"]),
                                                     b["text"]))

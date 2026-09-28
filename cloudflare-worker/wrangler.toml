@@ -82,7 +82,7 @@ REPO = "brownplaya239/smid-scanner"
 # to the ~20-name gainers/losers fallback.
 PMB_FULL_SCAN = "1"
 # Scheduled X posts (see SOCIAL_SCHEDULE in worker.js). "0" = off.
-SOCIAL_SCHEDULE = "0"
+SOCIAL_SCHEDULE = "1"
 
 # Observability — exact match to what the Cloudflare dashboard
 # currently generates. Cloudflare reformats this section every time
