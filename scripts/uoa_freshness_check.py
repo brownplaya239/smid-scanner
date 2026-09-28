@@ -29,6 +29,7 @@ import json
 import os
 import sys
 import urllib.parse
+import urllib.error
 import urllib.request
 
 REPORT_URL = os.environ.get(
@@ -70,10 +71,24 @@ def send_alert(subject, body):
         }).encode()
         req = urllib.request.Request(
             "https://api.resend.com/emails", data=data,
+            # Resend sits behind Cloudflare, whose WAF rule 1010 blocks
+            # urllib's default User-Agent with a 403 (same fix as
+            # daily_brief.py). Every alert since launch was silently lost
+            # to this until 2026-09-27.
             headers={"Authorization": "Bearer " + RESEND_API_KEY,
-                     "Content-Type": "application/json"})
+                     "Content-Type": "application/json",
+                     "Accept": "application/json",
+                     "User-Agent": ("Mozilla/5.0 (compatible; "
+                                    "TickerDesk-Monitor/1.0; "
+                                    "+https://tickerdesk.io)")})
         urllib.request.urlopen(req, timeout=15).read()
         print("[monitor] email alert sent to " + ALERT_EMAIL)
+    except urllib.error.HTTPError as e:
+        try:
+            detail = e.read().decode("utf-8")[:300]
+        except Exception:
+            detail = ""
+        print("[monitor] email send failed: HTTP %s %s" % (e.code, detail))
     except Exception as e:
         print("[monitor] email send failed: " + str(e))
 
@@ -179,6 +194,12 @@ def main():
           % (age_min, MAX_AGE_MIN))
     return 1
 
+
+if __name__ == "__main__" and "--test-email" in sys.argv:
+    send_alert("[TickerDesk] monitor test alert",
+               "Test send from uoa_freshness_check.py --test-email. If you "
+               "received this, freshness alerts now reach your inbox.")
+    sys.exit(0)
 
 if __name__ == "__main__":
     sys.exit(main())

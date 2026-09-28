@@ -12,7 +12,12 @@ on:
     - cron: '0 17 * * 1-5'    # ~1:00 PM ET
     - cron: '5 19 * * 1-5'    # ~3:05 PM ET
     - cron: '20 20 * * 1-5'   # ~4:20 PM ET — after the pre-close scan
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      test_email:
+        description: "Send a test alert email instead of checking"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,7 +37,9 @@ jobs:
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
           MAX_AGE_MIN: "180"
-        run: python scripts/uoa_freshness_check.py
+        run: >-
+          python scripts/uoa_freshness_check.py
+          ${{ inputs.test_email && '--test-email' || '' }}
 
 
       - name: Data-quality audit of the served site
