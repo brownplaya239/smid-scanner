@@ -72,6 +72,11 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
         run: |
+          # A dashboard "Text" variable with the same name blocks
+          # `secret put` (code 10053). Deploying from the repo drops
+          # dashboard-only Text vars (wrangler.toml is the source of
+          # truth), then the names are free for real secrets.
+          npx wrangler deploy
           for n in SLACK_BOT_TOKEN SLACK_SIGNING_SECRET; do
             if [ -z "${!n}" ]; then
               echo "::error::GitHub secret $n is not set — run: gh secret set $n -R brownplaya239/smid-scanner"
