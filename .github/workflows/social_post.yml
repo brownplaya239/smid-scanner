@@ -1,0 +1,67 @@
+name: Social Post (X)
+
+# Posts a TickerDesk card to X from the site's own published data.
+# Manual for now (test + first-week review); scheduled posting gets
+# added once the cards are approved. Safety lives in scripts/x_post.py:
+# identity check (keys must belong to @tickerdeskio), one post per
+# kind+date, and the SOCIAL_PAUSE repo variable as a kill switch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "Card type"
+        type: choice
+        options: [callouts]
+        default: callouts
+      date:
+        description: "Day to post (YYYY-MM-DD); blank = latest"
+        required: false
+        default: ""
+      dry_run:
+        description: "Render + identity check only, don't post"
+        type: boolean
+        default: true
+
+concurrency:
+  group: social-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: pip install matplotlib tweepy
+
+      - name: Render and post
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          SOCIAL_PAUSE: ${{ vars.SOCIAL_PAUSE }}
+        run: >-
+          python scripts/x_post.py ${{ inputs.kind }}
+          ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
+          ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Keep the card as a downloadable preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: card
+          path: docs/cards/*.png
+
+      - name: Record the post
+        if: ${{ !inputs.dry_run }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: bash scripts/publish_reports.sh
