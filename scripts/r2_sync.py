@@ -15,6 +15,7 @@ secret the worker deploy already uses). Keys mirror repo paths:
     python scripts/r2_sync.py pull [--prefix data/]  # download all objects
                                                     # into their repo paths
     python scripts/r2_sync.py list [--prefix ...]
+    python scripts/r2_sync.py verify                 # local == R2, byte-wise
 
 Exit code is non-zero if any transfer failed; failures are listed.
 """
@@ -190,6 +191,25 @@ def main():
         keys = list_keys(prefix)
         fails = _run(get, keys)
         print(f"[r2] pulled {len(keys) - len(fails)}/{len(keys)} objects")
+    elif cmd == "verify":
+        # Parity check for the migration: every local data file must be
+        # byte-identical in R2 (compares MD5 of local bytes vs object).
+        import hashlib
+        paths = [p for p in data_paths() if repo_to_key(p)]
+        def chk(path):
+            key = repo_to_key(path)
+            url = API + "/" + urllib.parse.quote(key, safe="")
+            try:
+                with _req("GET", url) as r:
+                    remote = hashlib.md5(r.read()).hexdigest()
+            except urllib.error.HTTPError as e:
+                return path, f"missing in R2 (HTTP {e.code})"
+            with open(path, "rb") as f:
+                local = hashlib.md5(f.read()).hexdigest()
+            return path, None if local == remote else "content differs"
+        fails = _run(chk, paths)
+        print(f"[r2] verified {len(paths) - len(fails)}/{len(paths)} "
+              "identical")
     elif cmd == "list":
         for k in list_keys(prefix):
             print(k)

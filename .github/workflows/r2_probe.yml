@@ -11,6 +11,10 @@ on:
         description: "Also create the tickerdesk-data bucket"
         type: boolean
         default: false
+      verify:
+        description: "Check every data file in git is byte-identical in R2"
+        type: boolean
+        default: false
       seed:
         description: "Upload every current data file (docs/reports/*.json + data/) to R2"
         type: boolean
@@ -45,3 +49,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: python scripts/r2_sync.py push --all
+      - name: Verify git == R2
+        if: ${{ inputs.verify }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python scripts/r2_sync.py verify
