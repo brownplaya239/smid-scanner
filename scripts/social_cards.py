@@ -244,36 +244,41 @@ def flow_card():
     rows = sorted((r for r in doc.get("rows") or []
                    if r.get("rank") and r["rank"] <= 25),
                   key=lambda r: -(r.get("premium") or 0))
+    # Unusual = volume at least 2x open interest (new positioning, not
+    # existing contracts changing hands). Deep in-the-money contracts
+    # (>10% ITM) are dropped: big ITM premium is usually hedging or
+    # stock replacement, not a view — size alone isn't conviction.
+    rows = [r for r in rows if (r.get("vol_oi") or 0) >= 2
+            and (r.get("pct_otm") is None or r["pct_otm"] >= -10)]
     calls = [r for r in rows if r["type"] == "call"][:3]
     puts = [r for r in rows if r["type"] == "put"][:3]
-    def itm(r):
-        p = r.get("pct_otm")
-        return " (ITM)" if p is not None and p < 0 else ""
-    body = [[_contract(r) + itm(r),
-             "CALLS" if r["type"] == "call" else "PUTS",
+    body = [[_contract(r), "Calls" if r["type"] == "call" else "Puts",
              _fmt_money(r.get("premium")),
              str(r.get("unique_prints") or "—"),
              f"{r['vol_oi']:.0f}x" if r.get("vol_oi") else "—"]
             for r in calls + puts]
     day = doc.get("et_date")
-    cols = [("Contract", 80, "left"), ("Side", 560, "left"),
+    cols = [("Contract", 80, "left"), ("Type", 560, "left"),
             ("Premium", 830, "right"), ("Prints", 960, "right"),
-            ("Vol/OI", 1120, "right")]
+            ("Volume vs OI", 1120, "right")]
 
     def col(i, j, v):
         if j == 1:
-            return GREEN if v == "CALLS" else RED
+            return GREEN if v == "Calls" else RED
         return None
     path = table_card(f"flow_{day}.png", _day_label(day),
-                      "Biggest options bets today",
-                      "Largest call and put premium in TickerDesk's Top 25",
+                      "Most unusual options activity today",
+                      "Largest premium where volume is 2x+ open interest — "
+                      "new positions, not old ones",
                       cols, body,
-                      "Options flow delayed 15 min. Premium = total traded "
-                      "today across all prints.", col)
-    alt = "Biggest options bets today: " + "; ".join(
-        f"{b[0]} {b[1].lower()}, {b[2]} premium" for b in body)
+                      "Delayed 15 min. Premium = total traded today. Buy vs "
+                      "sell side not classified; deep-ITM trades excluded.",
+                      col)
+    alt = "Most unusual options activity today: " + "; ".join(
+        f"{b[0]} {b[1].lower()}, {b[2]} premium, volume {b[4]} open "
+        "interest" for b in body)
     return path, alt, {"day": day, "calls": calls, "puts": puts,
-                       "body": body}
+                       "body": body, "generated": doc.get("generated")}
 
 
 # --------------------------------------------- weekly earnings calendar
@@ -324,7 +329,10 @@ def earnings_week_card(limit=12):
 def earnings_preview_card(date=None):
     edge = _load("earnings_edge.json").get("names") or []
     ok = [r for r in edge if r.get("implied") and r.get("realized_med")]
-    day = date or datetime.now().strftime("%Y-%m-%d")
+    # Default: reports from tomorrow on (the preview posts the evening
+    # before, so today's reports are already out or moments away).
+    from datetime import timedelta
+    day = date or (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
     upcoming = sorted({r["date"] for r in ok if r["date"] >= day})
     if not upcoming:
         raise SystemExit("no earnings with implied + typical moves")
@@ -335,8 +343,9 @@ def earnings_preview_card(date=None):
         if len(names) >= 4:
             break
     day = used[0]
-    names = sorted(names, key=lambda r: (r["date"],
-                                         -(r.get("mcap") or 0)))[:6]
+    # Lead with the story: biggest priced-vs-usual gaps first.
+    names = sorted(names, key=lambda r: -(r["implied"]
+                                          / r["realized_med"]))[:6]
 
     def when(r):
         dt = datetime.strptime(r["date"], "%Y-%m-%d")
@@ -361,10 +370,13 @@ def earnings_preview_card(date=None):
     end = datetime.strptime(used[-1], "%Y-%m-%d")
     kick = f"{dt:%a} {dt:%b} {dt.day}" + (
         f" – {end:%a} {end:%b} {end.day}" if used[-1] != day else "")
+    nrep = sorted({r.get("n_reports") for r in names if r.get("n_reports")})
+    nrep_txt = (f"{nrep[0]}" if len(nrep) == 1 else
+                f"{nrep[0]}–{nrep[-1]}") if nrep else "past"
     path = table_card(f"earnings_preview_{day}.png", kick,
                       "Earnings: priced vs usual move",
-                      "Options-implied move vs the stock's median move on "
-                      "past reports", cols, body,
+                      "Options-implied move vs the stock's median move over "
+                      f"its last {nrep_txt} reports", cols, body,
                       "Ratio above 1 = options price a bigger move than the "
                       "stock usually makes. Not a prediction.", col)
     alt = "Earnings priced vs usual move: " + "; ".join(
@@ -377,70 +389,298 @@ def earnings_preview_card(date=None):
 def momentum_card(which):
     fname = {"stockbee": "momentum_stockbee.json",
              "qm": "momentum_qm.json"}[which]
-    runs = _load(fname).get("runs") or []
-    run = max(runs, key=lambda r: r.get("date", ""))
+    runs = sorted(_load(fname).get("runs") or [],
+                  key=lambda r: r.get("date", ""))
+    run = runs[-1]
+    # NEW = not on the list in any of the previous 5 sessions' runs, so a
+    # follower can see what's fresh vs what's been running for a week.
+    seen = {r["ticker"] for prev in runs[-6:-1]
+            for r in prev.get("rows") or []}
     rows = sorted(run.get("rows") or [],
                   key=lambda r: -(r.get("chg") or 0))[:10]
     title = {"stockbee": "Biggest 5-day gainers",
              "qm": "Strongest 1-month gainers"}[which]
-    sub = {"stockbee": "Stockbee 20%-in-a-week screen · change over the "
-                       "last 5 trading days",
+    sub = {"stockbee": "Up 20%+ in 5 trading days (Stockbee-style "
+                       "burst screen)",
            "qm": "Top 2% by 1-month gain · ADR 5%+ · $100M+ daily "
-                 "volume"}[which]
-    body = [[r["ticker"], f"${r['price']:,.2f}", f"+{r['chg']:.0f}%",
+                 "volume (Qullamaggie-style trend screen)"}[which]
+    body = [[r["ticker"] + ("  NEW" if r["ticker"] not in seen else ""),
+             f"${r['price']:,.2f}", f"+{r['chg']:.0f}%",
              f"{r.get('adr_pct', 0):.1f}%", _fmt_money(r.get("dollar_vol")),
              r.get("ern") or "—"] for r in rows]
+    new = [r["ticker"] for r in run.get("rows") or []
+           if r["ticker"] not in seen]
     cols = [("Ticker", 80, "left"), ("Price", 400, "right"),
             ("Gain", 560, "right"), ("ADR", 700, "right"),
             ("$ Volume", 900, "right"), ("Earnings", 1120, "right")]
+
+    def col(i, j, v):
+        if j == 2:
+            return GREEN
+        if j == 0 and v.endswith("NEW"):
+            return GOLD
+        return None
     path = table_card(f"momentum_{which}_{run['date']}.png",
                       _day_label(run["date"]), title, sub, cols, body,
                       f"{run.get('count', len(rows))} names on the full "
-                      "list. Screens of past strength, not picks.",
-                      lambda i, j, v: GREEN if j == 2 else None)
+                      f"list, {len(new)} new this week (NEW = not listed in "
+                      "the prior 5 sessions). Past strength, not picks.",
+                      col)
     alt = f"{title}: " + ", ".join(f"{b[0]} {b[2]}" for b in body)
     return path, alt, {"which": which, "date": run["date"], "body": body,
-                       "count": run.get("count", len(rows))}
+                       "count": run.get("count", len(rows)), "new": new,
+                       "generated": run.get("generated")}
 
 
 # ------------------------------------------------- SPY/QQQ levels
 
+def _chain0(sym):
+    """Worker chain0 — the same expected move the site's Index Levels
+    panel shows (nearest live expiry ATM straddle)."""
+    import urllib.request
+    req = urllib.request.Request("https://api.tickerdesk.io/?chain0=" + sym,
+                                 headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        d = json.load(r)
+    return None if d.get("error") else d
+
+
+def _social_log(kind):
+    path = os.path.join(_BASE, "data", "social_log.jsonl")
+    out = []
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                if r.get("kind") == kind and r.get("tweet_id"):
+                    out.append(r)
+    return out
+
+
 def levels_card():
     import yfinance as yf
-    em = _load("iv_em_context.json")["by_sym"]
     dp = _load("dealer_positioning.json")["symbols"]
     syms = ["SPY", "QQQ"]
     px = yf.download(syms, period="10d", interval="1d", progress=False,
                      auto_adjust=False)
-    body = []
+    last_day = px.index[-1].strftime("%Y-%m-%d")
+    base = datetime.strptime(last_day, "%Y-%m-%d")
+    body, ems, check = [], {}, []
+    # Last posted roadmap -> how the session it covered actually went.
+    prev = next((r for r in reversed(_social_log("levels"))
+                 if r.get("date") == last_day and r.get("em")), None)
     for s in syms:
-        h = float(px["High"][s].dropna().iloc[-1])
-        lo = float(px["Low"][s].dropna().iloc[-1])
         c = float(px["Close"][s].dropna().iloc[-1])
-        e = (em.get(s) or {}).get("em_pct")
-        emd = c * e / 100 if e else None
+        pc = float(px["Close"][s].dropna().iloc[-2])
+        ch = _chain0(s) or {}
+        em = ch.get("expected_move") or {}
+        emd = em.get("usd")
+        ems[s] = em.get("pct")
         d = dp.get(s) or {}
-        body.append([s, f"${c:,.2f}", f"±${emd:.2f}" if emd else "—",
-                     f"{lo:,.2f} – {h:,.2f}",
+        rng = f"{c - emd:,.0f} – {c + emd:,.0f}" if emd else "—"
+        body.append([s, f"${c:,.2f}",
+                     f"±${emd:.2f} ({em['pct']:.2f}%)" if emd else "—",
+                     rng,
                      f"{d.get('put_wall', '—')} / {d.get('call_wall', '—')}",
+                     f"{d['gamma_flip']:.0f}" if d.get("gamma_flip") else "—",
                      (d.get("regime") or "—").capitalize()])
-    cols = [("", 80, "left"), ("Last", 300, "right"),
-            ("Exp. move", 480, "right"),
-            ("Prior day L – H", 760, "right"),
-            ("Put / call wall", 980, "right"), ("Gamma", 1120, "right")]
-    day = datetime.now().strftime("%Y-%m-%d")
-    path = table_card(f"levels_{day}.png", _day_label(day),
-                      "SPY & QQQ levels to watch",
-                      "Options-implied move, prior-day range and dealer "
-                      "gamma walls", cols, body,
-                      "Expected move from same-day options. Walls = strikes "
-                      "with the largest dealer gamma.",
+        if prev and (prev["em"].get(s)):
+            mv = 100 * (c / pc - 1)
+            inside = abs(mv) <= prev["em"][s]
+            check.append(f"{s} priced ±{prev['em'][s]:.2f}%, closed "
+                         f"{mv:+.2f}% ({'inside' if inside else 'outside'})")
+    cols = [("", 80, "left"), ("Close", 260, "right"),
+            ("Expected move", 500, "right"), ("Implied range", 680, "right"),
+            ("Put / call wall", 850, "right"), ("Flip", 935, "right"),
+            ("Dealer gamma", 1120, "right")]
+    today = datetime.now().strftime("%Y-%m-%d")
+    foot = (f"{base:%a}'s check: " + "; ".join(check)) if check else (
+        "Expected move = nearest-expiry ATM straddle. Dealer gamma "
+        "estimated from open interest.")
+    path = table_card(f"levels_{today}.png", _day_label(today),
+                      "SPY & QQQ trading roadmap",
+                      f"Based on {base:%A}'s close · options-implied move "
+                      "and estimated dealer gamma", cols, body, foot,
                       lambda i, j, v: (GREEN if v == "Positive" else RED)
-                      if j == 5 else None)
-    alt = "SPY and QQQ levels: " + "; ".join(
-        f"{b[0]} last {b[1]}, expected move {b[2]}, prior day {b[3]}, "
-        f"walls {b[4]}, gamma {b[5]}" for b in body)
-    return path, alt, {"day": day, "body": body}
+                      if j == 6 else None)
+    alt = "SPY and QQQ trading roadmap: " + "; ".join(
+        f"{b[0]} closed {b[1]}, expected move {b[2]}, implied range {b[3]}, "
+        f"walls {b[4]}, gamma flip {b[5]}, estimated dealer gamma {b[6]}"
+        for b in body)
+    return path, alt, {"day": today, "base": last_day, "body": body,
+                       "em": ems, "check": check}
+
+
+# ------------------------------------------------ earnings receipts
+
+def _site_previews(since_days=10):
+    """Names the site previewed, each from the last earnings_edge.json
+    committed BEFORE its report date (what a reader saw beforehand)."""
+    import subprocess
+    r = subprocess.run(["git", "log", f"--since={since_days}.days",
+                        "--format=%H %cI", "--",
+                        "docs/reports/earnings_edge.json"],
+                       cwd=_BASE, capture_output=True, text=True)
+    out, seen = [], set()
+    for line in r.stdout.splitlines():          # newest first
+        sha, iso = line.split(" ", 1)
+        day = iso[:10]
+        b = subprocess.run(["git", "show",
+                            f"{sha}:docs/reports/earnings_edge.json"],
+                           cwd=_BASE, capture_output=True)
+        try:
+            names = json.loads(b.stdout.decode("utf-8")).get("names") or []
+        except ValueError:
+            continue
+        for n in names:
+            key = (n["t"], n["date"])
+            if key in seen or not (n.get("implied") and n.get("realized_med")):
+                continue
+            if day < n["date"]:                 # committed before report
+                seen.add(key)
+                out.append(n)
+    return out
+
+
+def _posted_previews():
+    out, seen = [], set()
+    for r in _social_log("earnings_preview"):
+        for n in r.get("names") or []:
+            key = (n["t"], n["date"])
+            if key not in seen:
+                seen.add(key)
+                out.append(n)
+    return out
+
+
+def receipt_card(source="posted"):
+    """How previewed earnings actually moved vs what options priced.
+    source='posted' = only names we previewed on X (the default: a
+    receipt follows up our own post); 'site' = anything the site's
+    earnings table showed before the report."""
+    import yfinance as yf
+    done = {tuple(k) for r in _social_log("earnings_receipt")
+            for k in r.get("keys") or []}
+    pv = _posted_previews() if source == "posted" else _site_previews()
+    pv = [n for n in pv if (n["t"], n["date"]) not in done]
+    # A name the calendar now shows reporting LATER was rescheduled —
+    # its move on the old date wasn't an earnings reaction. Skip it.
+    later = {r["t"]: r["date"] for r in
+             _load("earnings_edge.json").get("names") or []}
+    moved = [n["t"] for n in pv if later.get(n["t"], "") > n["date"]]
+    if moved:
+        print("receipt: skipping rescheduled", ", ".join(sorted(moved)))
+    pv = [n for n in pv if n["t"] not in moved]
+    if not pv:
+        raise SystemExit("no previewed earnings awaiting a receipt")
+    tick = sorted({n["t"] for n in pv})
+    px = yf.download(tick, period="1mo", interval="1d", progress=False,
+                     auto_adjust=False)
+    close = px["Close"]
+    rows = []
+    for n in pv:
+        try:
+            ser = (close[n["t"]] if len(tick) > 1 else close.iloc[:, 0])
+            ser = ser.dropna()
+        except Exception:
+            continue
+        dates = [d.strftime("%Y-%m-%d") for d in ser.index]
+        if n["date"] not in dates:
+            continue
+        i = dates.index(n["date"])
+        # BMO: prior close -> report-day close. AMC: report-day close ->
+        # next close (that next session must exist).
+        if (n.get("session") or "").upper() == "AMC":
+            if i + 1 >= len(dates):
+                continue
+            a, z = float(ser.iloc[i]), float(ser.iloc[i + 1])
+        else:
+            if i == 0:
+                continue
+            a, z = float(ser.iloc[i - 1]), float(ser.iloc[i])
+        rows.append((n, 100 * (z / a - 1)))
+    if not rows:
+        raise SystemExit("previewed names haven't reported/closed yet")
+    rows.sort(key=lambda x: -abs(x[1]) / x[0]["implied"])
+    rows = rows[:6]
+    body = []
+    for n, mv in rows:
+        dt = datetime.strptime(n["date"], "%Y-%m-%d")
+        verdict = ("Bigger than priced" if abs(mv) > n["implied"]
+                   else "Inside priced move")
+        body.append([n["t"], f"{dt:%a} {n.get('session') or ''}".strip(),
+                     f"±{n['implied']:.1f}%", f"±{n['realized_med']:.1f}%",
+                     f"{mv:+.1f}%", verdict])
+    beat = sum(1 for n, mv in rows if abs(mv) > n["implied"])
+    cols = [("Ticker", 80, "left"), ("Reported", 250, "left"),
+            ("Priced", 480, "right"), ("Usual", 620, "right"),
+            ("Actual", 780, "right"), ("", 840, "left")]
+
+    def col(i, j, v):
+        if j == 4:
+            return GREEN if v.startswith("+") else RED
+        if j == 5:
+            return GOLD if v.startswith("Bigger") else DIM
+        return None
+    today = datetime.now().strftime("%Y-%m-%d")
+    path = table_card(f"earnings_receipt_{today}.png", _day_label(today),
+                      "Earnings receipts: priced vs actual",
+                      "What options priced before the report vs the stock's "
+                      "close-to-close reaction", cols, body,
+                      f"{beat} of {len(rows)} moved more than options priced. "
+                      "BMO: prior close to report-day close; AMC: report-day "
+                      "close to next close.", col)
+    alt = "Earnings receipts: " + "; ".join(
+        f"{b[0]} priced {b[2]}, moved {b[4]}" for b in body)
+    return path, alt, {"date": today, "body": body, "beat": beat,
+                       "keys": [[n["t"], n["date"]] for n, _ in rows]}
+
+
+# ------------------------------------------------ weekly recap
+
+def weekly_recap_card(date=None):
+    """Friday: the week's callouts in aggregate — winners AND medians."""
+    doc = _load("callouts.json")
+    days = doc.get("days") or []
+    if not days:
+        raise SystemExit("callouts.json has no days")
+    end = datetime.strptime(date or days[0]["date"], "%Y-%m-%d")
+    mon = end.toordinal() - end.weekday()
+    wk = sorted((d for d in days if mon <= datetime.strptime(
+        d["date"], "%Y-%m-%d").toordinal() <= end.toordinal()),
+        key=lambda d: d["date"])
+    if not wk:
+        raise SystemExit("no callout days this week")
+    body = [[_day_label(d["date"]), str(d["n"]), str(d["hit_50"]),
+             str(d["hit_100"]), _pct(d["median_peak_pct"]),
+             _pct(d["median_last_pct"]),
+             f"{d['top'][0]['label']} {_pct(d['top'][0]['peak_pct'])}"
+             if d.get("top") else "—"] for d in wk]
+    n = sum(d["n"] for d in wk)
+    h100 = sum(d["hit_100"] for d in wk)
+    h50 = sum(d["hit_50"] for d in wk)
+    cols = [("Day", 80, "left"), ("Callouts", 330, "right"),
+            ("+50%", 420, "right"), ("+100%", 510, "right"),
+            ("Med. peak", 640, "right"), ("Med. now", 760, "right"),
+            ("Best", 800, "left")]
+    wk_start = datetime.fromordinal(mon).strftime("%Y-%m-%d")
+    path = table_card(f"weekly_recap_{wk_start}.png",
+                      "Week of " + _day_label(wk_start),
+                      "Callouts this week: the full scorecard",
+                      "Every Top 25 callout, tracked at the option level "
+                      "from first flag", cols, body,
+                      f"{n} callouts · {h50} hit +50% · {h100} hit +100% at "
+                      "peak. Peak = best exit available, not typical; "
+                      "now = latest close.",
+                      lambda i, j, v: (GREEN if v.startswith("+") else RED)
+                      if j in (4, 5) and v != "—" else None)
+    alt = (f"Callouts week of {wk_start}: {n} tracked, {h50} hit +50%, "
+           f"{h100} hit +100% at peak")
+    return path, alt, {"date": end.strftime("%Y-%m-%d"), "week": wk_start,
+                       "n": n, "hit_50": h50, "hit_100": h100, "days": wk}
 
 
 KINDS = {
@@ -451,6 +691,9 @@ KINDS = {
     "stockbee": lambda a: momentum_card("stockbee"),
     "qm": lambda a: momentum_card("qm"),
     "levels": lambda a: levels_card(),
+    "earnings_receipt": lambda a: receipt_card(
+        getattr(a, "source", None) or "posted"),
+    "weekly_recap": lambda a: weekly_recap_card(a.date),
 }
 
 
@@ -458,6 +701,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("kind", choices=list(KINDS))
     ap.add_argument("--date")
+    ap.add_argument("--source", choices=["posted", "site"])
     a = ap.parse_args()
     p, alt, _ = KINDS[a.kind](a)
     print(p)

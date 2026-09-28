@@ -1,10 +1,20 @@
 name: Social Post (X)
 
 # Posts a TickerDesk card to X from the site's own published data.
-# Manual for now (test + first-week review); scheduled posting gets
-# added once the cards are approved. Safety lives in scripts/x_post.py:
-# identity check (keys must belong to @tickerdeskio), one post per
-# kind+date, and the SOCIAL_PAUSE repo variable as a kill switch.
+#
+# Two jobs so a human approves EXACTLY what gets posted:
+#   render  builds card + caption, runs the publishing gate
+#           (scripts/x_post.py), uploads the bundle, writes the caption
+#           and any BLOCK/REVIEW notes to the run summary
+#   post    posts that bundle. Runs in the "social-review" environment
+#           (required reviewer: GitHub emails an Approve button) unless
+#           the repo variable SOCIAL_AUTO is "1" AND the gate raised no
+#           REVIEW flags — then it runs in "social" with no wait.
+#
+# Scheduled posts come from the Cloudflare worker (SOCIAL_SCHEDULE table
+# in worker.js), which dispatches this workflow with scheduled=true so
+# stale data BLOCKS instead of just warning. Kill switch: repo variable
+# SOCIAL_PAUSE=1.
 
 on:
   workflow_dispatch:
@@ -12,24 +22,70 @@ on:
       kind:
         description: "Card type"
         type: choice
-        options: [callouts]
+        options: [levels, earnings_week, flow, earnings_receipt,
+                  earnings_preview, stockbee, qm, callouts, weekly_recap]
         default: callouts
       date:
         description: "Day to post (YYYY-MM-DD); blank = latest"
         required: false
         default: ""
       dry_run:
-        description: "Render + identity check only, don't post"
+        description: "Render + gate only, don't post"
         type: boolean
         default: true
+      scheduled:
+        description: "Strict freshness (set by the worker schedule)"
+        type: boolean
+        default: false
 
 concurrency:
-  group: social-post
+  group: social-post-${{ inputs.kind }}
   cancel-in-progress: false
 
 jobs:
-  post:
+  render:
     runs-on: ubuntu-latest
+    outputs:
+      blocked: ${{ steps.r.outputs.blocked }}
+      review: ${{ steps.r.outputs.review }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # receipts read earnings_edge history
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: pip install matplotlib tweepy yfinance
+
+      - name: Render and gate
+        id: r
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          SOCIAL_PAUSE: ${{ vars.SOCIAL_PAUSE }}
+        run: >-
+          python scripts/x_post.py ${{ inputs.kind }} --dry-run
+          --bundle-out post.json
+          ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
+          ${{ inputs.scheduled && '--scheduled' || '' }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: post
+          path: |
+            post.json
+            docs/cards/*.png
+
+  post:
+    needs: render
+    if: ${{ !inputs.dry_run && needs.render.outputs.blocked == '0' }}
+    runs-on: ubuntu-latest
+    environment: ${{ (vars.SOCIAL_AUTO == '1' && needs.render.outputs.review == '0') && 'social' || 'social-review' }}
     permissions:
       contents: write
     steps:
@@ -42,26 +98,28 @@ jobs:
       - name: Install
         run: pip install matplotlib tweepy
 
-      - name: Render and post
+      - uses: actions/download-artifact@v4
+        with:
+          name: post
+
+      - name: Post the approved bundle
         env:
           X_API_KEY: ${{ secrets.X_API_KEY }}
           X_API_SECRET: ${{ secrets.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
           SOCIAL_PAUSE: ${{ vars.SOCIAL_PAUSE }}
-        run: >-
-          python scripts/x_post.py ${{ inputs.kind }}
-          ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
-          ${{ inputs.dry_run && '--dry-run' || '' }}
-
-      - name: Keep the card as a downloadable preview
-        uses: actions/upload-artifact@v4
-        with:
-          name: card
-          path: docs/cards/*.png
+        run: |
+          # the bundle's card path is from the render runner; point it here
+          python - <<'EOF'
+          import json, os
+          b = json.load(open("post.json"))
+          b["card"] = os.path.join("docs", "cards", os.path.basename(b["card"]))
+          json.dump(b, open("post.json", "w"))
+          EOF
+          python scripts/x_post.py --bundle post.json
 
       - name: Record the post
-        if: ${{ !inputs.dry_run }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bash scripts/publish_reports.sh

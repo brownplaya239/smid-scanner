@@ -158,6 +158,7 @@ def _ivem_snapshot(ch):
         out = {}
         if spot and em:
             out["em_pct"] = round(em / spot * 100, 3)
+            out["em_expiry"] = (ch.get("expected_move") or {}).get("expiry")
         if spot and rows and exps:
             near = [r for r in rows if r.get("e") == exps[0]
                     and r.get("iv") is not None]
@@ -198,6 +199,12 @@ def _ivem_update(snaps, date):
            .isoformat(timespec="seconds"), "min_n": IVEM_MIN_N,
            "by_sym": {}}
     for sym, days in ivlog.items():
+        # Only snapshots that priced the NEXT session count. Before the
+        # worker fix (2026-09-28) the EOD snapshot often used the
+        # same-day expiry after it had died (~0.08% EM, IV 40-145) —
+        # those rows carry no em_expiry and are left out, not repaired.
+        days = [d for d in days if d.get("em_expiry")
+                and d["em_expiry"] > d["date"]]
         ems = [d["em_pct"] for d in days if d.get("em_pct") is not None]
         ivs = [d["atm_iv"] for d in days if d.get("atm_iv") is not None]
         n = len(ems)

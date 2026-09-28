@@ -95,6 +95,70 @@ function etMarketPhase() {
   } catch (_) { return "regular"; }              // safe default = RTH behavior
 }
 
+// Social post kind -> site tab its link opens (see /go/<kind>).
+const SOCIAL_LINKS = {
+  callouts: "uoa", weekly_recap: "uoa", flow: "uoa",
+  earnings_week: "whisper", earnings_preview: "whisper",
+  earnings_receipt: "whisper",
+  stockbee: "stockbee-weekly", qm: "qm-monthly", levels: "charts",
+};
+
+// Posting schedule, ET wall clock (DST-proof: matched against Intl ET
+// time, not UTC). The */15 social crons fire every quarter hour; a slot
+// dispatches social_post.yml for each kind due then. The workflow's
+// publishing gate blocks stale/holiday/duplicate posts, so an early or
+// double fire can't publish bad data. Days: 1=Mon .. 5=Fri.
+const SOCIAL_SCHEDULE = [
+  { at: "08:15", days: [1, 2, 3, 4, 5], kind: "levels" },
+  { at: "08:30", days: [1],             kind: "earnings_week" },
+  { at: "12:30", days: [1, 2, 3, 4, 5], kind: "flow" },
+  { at: "16:45", days: [2, 3, 4, 5],    kind: "earnings_receipt" },
+  { at: "17:15", days: [1, 2, 3, 4],    kind: "earnings_preview" },
+  { at: "18:15", days: [1, 5],          kind: "stockbee" },
+  { at: "18:30", days: [1, 5],          kind: "qm" },
+  { at: "20:15", days: [1, 2, 3, 4, 5], kind: "callouts" },
+  { at: "20:45", days: [5],             kind: "weekly_recap" },
+];
+
+function etClock() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", hour12: false, weekday: "short",
+    hour: "2-digit", minute: "2-digit",
+  }).formatToParts(new Date());
+  const get = function (t) {
+    return (parts.find(function (x) { return x.type === t; }) || {}).value;
+  };
+  let hh = parseInt(get("hour"), 10);
+  if (hh === 24) hh = 0;
+  const mm = parseInt(get("minute"), 10);
+  // round down to the quarter hour: a cron that fires a few seconds
+  // late still lands in its slot
+  const q = mm - (mm % 15);
+  return {
+    dow: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(get("weekday")),
+    hhmm: String(hh).padStart(2, "0") + ":" + String(q).padStart(2, "0"),
+  };
+}
+
+// ET calendar date of the first expiry still trading: today's ET date
+// during/before the session, tomorrow's after the 16:00 ET close.
+function etFirstLiveExpiryDate() {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York", hour12: false, year: "numeric",
+      month: "2-digit", day: "2-digit", hour: "2-digit",
+    }).formatToParts(new Date());
+    const get = function (t) {
+      return (parts.find(function (x) { return x.type === t; }) || {}).value;
+    };
+    let hh = parseInt(get("hour"), 10);
+    if (hh === 24) hh = 0;
+    const d = new Date(Date.UTC(+get("year"), +get("month") - 1, +get("day")));
+    if (hh >= 16) d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  } catch (_) { return new Date().toISOString().slice(0, 10); }
+}
+
 // ── Index Levels (0DTE tool) data ─────────────────────────────────────
 // HONESTY: Polygon Options Starter is 15-min DELAYED and open interest is
 // prior-session OCC-settled. Everything below is a *delayed snapshot* —
@@ -111,8 +175,11 @@ async function fetchChain0(sym, env) {
   const snap = await fetchPolygonSnapshot(sym, env);
   const spot = snap && snap.price;
   if (!spot) return { error: "no spot for " + sym };
-  // 2) chain: nearest expiries, ±$27 window (≈ ±25 one-dollar strikes)
-  const today = new Date().toISOString().slice(0, 10);
+  // 2) chain: nearest expiries, ±$27 window (≈ ±25 one-dollar strikes).
+  //    After the 4 PM ET close today's expiry is dead (its straddle is
+  //    ~0, IV garbage), so start from the next day: the nightly
+  //    expected-move snapshot must price the NEXT session.
+  const today = etFirstLiveExpiryDate();
   const lte = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
   const url = "https://api.polygon.io/v3/snapshot/options/" + sym +
     "?limit=250&expiration_date.gte=" + today +
@@ -3317,6 +3384,18 @@ export default {
           /^\/reports\/[A-Za-z0-9_.\-]+\.json$/.test(rp)) {
         return serveReport(rp.slice(1), env, ctx, cors);
       }
+      // GET /go/<kind> — short link used in social posts. 302s to the tab
+      // that post is about, tagged utm_source=x / utm_campaign=<kind> so
+      // visits are attributable per content type once analytics is on.
+      // The log line doubles as a click count in Workers observability.
+      const gm = request.method === "GET" && rp.match(/^\/go\/([a-z_]+)$/);
+      if (gm && SOCIAL_LINKS[gm[1]]) {
+        const src = new URL(request.url).searchParams.get("s") || "x";
+        console.log("[go] " + gm[1] + " src=" + src);
+        return Response.redirect("https://tickerdesk.io/?utm_source=" +
+          encodeURIComponent(src) + "&utm_medium=social&utm_campaign=" +
+          gm[1] + "#" + SOCIAL_LINKS[gm[1]], 302);
+      }
     }
 
     // ── Abuse guards (defined above export) ──
@@ -4111,7 +4190,7 @@ export default {
       return;
     }
     const repo = (env.REPO || "brownplaya239/smid-scanner");
-    const dispatch = async function (workflow) {
+    const dispatch = async function (workflow, inputs) {
       try {
         const r = await fetch(
           "https://api.github.com/repos/" + repo +
@@ -4124,10 +4203,12 @@ export default {
               "User-Agent":           "tickerdesk-cron-backstop",
               "Content-Type":         "application/json",
             },
-            body: JSON.stringify({ ref: "master" }),
+            body: JSON.stringify(inputs ? { ref: "master", inputs: inputs }
+                                        : { ref: "master" }),
           }
         );
-        console.log("[cron] dispatch " + workflow + " -> HTTP " + r.status);
+        console.log("[cron] dispatch " + workflow +
+          (inputs ? " " + JSON.stringify(inputs) : "") + " -> HTTP " + r.status);
       } catch (e) {
         console.log("[cron] dispatch " + workflow + " failed: " + e.message);
       }
@@ -4185,6 +4266,20 @@ export default {
       { timeZone: "America/New_York", weekday: "short" }).format(new Date());
     if (etDow === "Sat" || etDow === "Sun") {
       console.log("[cron] weekend (" + etDow + " ET) — skipped");
+      return;
+    }
+    // Social posting crons (*/15) never touch the scan pipeline.
+    if (event.cron.indexOf("*/15") === 0) {
+      if (env.SOCIAL_SCHEDULE !== "1") return;       // off switch
+      const c = etClock();
+      const due = SOCIAL_SCHEDULE.filter(function (x) {
+        return x.at === c.hhmm && x.days.indexOf(c.dow) >= 0;
+      });
+      if (!due.length) return;
+      ctx.waitUntil(Promise.all(due.map(function (x) {
+        return dispatch("social_post.yml",
+          { kind: x.kind, dry_run: "false", scheduled: "true" });
+      })));
       return;
     }
     const isEod = event.cron === "40 20 * * MON-FRI";

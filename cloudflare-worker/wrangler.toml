@@ -52,6 +52,11 @@ crons = [
   "20 19 * * MON-FRI",   # ~3:20 PM ET
   "50 19 * * MON-FRI",   # ~3:50 PM ET — pre-close; also dispatches the monitor
   "40 20 * * MON-FRI",   # ~4:40 PM ET — EOD: scanner + momentum
+  # Social posts (SOCIAL_SCHEDULE in worker.js, matched on the ET clock).
+  # 12:00-23:45 UTC Mon-Fri + 00:00-01:45 UTC Tue-Sat covers 8 AM-8:45 PM
+  # ET in both EDT and EST. Off unless SOCIAL_SCHEDULE = "1" below.
+  "*/15 12-23 * * MON-FRI",
+  "*/15 0-1 * * TUE-SAT",
 ]
 
 # Non-secret runtime config. Anything sensitive (API keys, signing
@@ -76,6 +81,8 @@ REPO = "brownplaya239/smid-scanner"
 # Workers Paid. Kill-switch: change to "0" (or remove) to instantly revert
 # to the ~20-name gainers/losers fallback.
 PMB_FULL_SCAN = "1"
+# Scheduled X posts (see SOCIAL_SCHEDULE in worker.js). "0" = off.
+SOCIAL_SCHEDULE = "0"
 
 # Observability — exact match to what the Cloudflare dashboard
 # currently generates. Cloudflare reformats this section every time
