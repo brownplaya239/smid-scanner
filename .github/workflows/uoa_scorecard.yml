@@ -47,6 +47,14 @@ jobs:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
         run: python uoa_scorecard.py
 
+      - name: Track callout results (option-level)
+        # Daily Top 25 callouts: entry at first flag, peak, latest.
+        # Publishes callouts.json for the Callout Results tab.
+        continue-on-error: true
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: python callout_tracker.py
+
       - name: Re-run hypothesis lab with BH correction
         # reads the fresh scorecard's effective-n deflation
         continue-on-error: true

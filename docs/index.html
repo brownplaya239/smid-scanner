@@ -4978,6 +4978,30 @@
   }
   .uoa-subnav button:hover { color:var(--textdim); }
   .uoa-subnav button.active { color:var(--gold); border-bottom-color:var(--gold); }
+  .co-roll { display:flex; flex-wrap:wrap; gap:10px; margin:4px 0 16px; }
+  .co-tile { border:1px solid var(--border,rgba(139,147,167,.25));
+    border-radius:9px; padding:8px 14px; min-width:110px; }
+  .co-tile .v { font-size:20px; font-weight:800;
+    font-variant-numeric:tabular-nums; }
+  .co-tile .k { font-size:9.5px; font-weight:800; letter-spacing:.7px;
+    text-transform:uppercase; color:var(--textdim,#8b93a7); }
+  .co-day { margin:0 0 18px; }
+  .co-day-h { display:flex; flex-wrap:wrap; align-items:baseline;
+    gap:4px 12px; margin-bottom:6px; }
+  .co-day-h b { font-size:13.5px; }
+  .co-day-h .ctx { font-size:12px; color:var(--textdim,#8b93a7); }
+  .co-tbl { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .co-tbl th { text-align:left; font-size:10.5px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.4px;
+    color:var(--textdim,#8b93a7); padding:4px 10px 4px 0;
+    border-bottom:1px solid var(--border,rgba(139,147,167,.25)); }
+  .co-tbl td { padding:6px 10px 6px 0; font-variant-numeric:tabular-nums;
+    border-bottom:1px solid rgba(139,147,167,.1); white-space:nowrap; }
+  .co-tbl .up { color:#34c77b; font-weight:700; }
+  .co-tbl .dn { color:#ef5350; }
+  .co-wrap { overflow-x:auto; }
+  .co-note { font-size:11.5px; color:var(--textdim,#8b93a7);
+    margin:8px 0 0; line-height:1.5; }
   .uoa-subnote { font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.5; }
   /* NEW pill next to the "Live Feed" subtab label. Marks the new
      subtab so users notice it without being intrusive. */
@@ -6831,8 +6855,8 @@
       <h2 class="tab-title">Unusual Options Activity</h2>
       <p class="tab-sub">Smart-money options flow &mdash; sweeps, blocks &amp; golden sweeps
         across the liquid optionable market, ranked by Trade Score.
-        Snapshot batch from Polygon Options Starter; refreshes 6&times; per
-        RTH day (~75 min cadence). Not real-time tick data.
+        Snapshot batch from Polygon Options Starter; refreshes about every
+        30 minutes through the session. Not real-time tick data.
         <span id="uoa-updated"></span></p>
 
       <div class="uoa-subnav" id="uoa-subnav">
@@ -6841,6 +6865,7 @@
           <span class="lf-pill-new" title="New polling feed across top liquid names — upstream delayed 15m (Polygon Options Starter)">NEW</span>
         </button>
         <button data-sub="tracked">Tracked Signals</button>
+        <button data-sub="callouts">Callout Results</button>
         <button data-sub="perf">Performance</button>
       </div>
 
@@ -7134,6 +7159,10 @@
 
         <div class="lf-foot" id="lf-foot"></div>
       </div><!-- /sub-liveflow -->
+
+      <div class="uoa-sub" id="sub-callouts" style="display:none" aria-hidden="true" inert>
+        <div id="co-body"><div class="t25-state">Loading callout results&hellip;</div></div>
+      </div>
 
       <div class="uoa-sub" id="sub-perf" style="display:none" aria-hidden="true" inert>
         <p class="uoa-subnote">Realized edge attribution &mdash; which signal
@@ -28392,7 +28421,8 @@
       // hides visually, aria-hidden hides from screen readers, inert
       // removes from tab order AND blocks pointer/automation tools from
       // interacting (no more "ghost" Ticker input in the DOM).
-      ["live","liveflow","tracked","perf"].forEach(function (s) {
+      if (sub === "callouts" && window.tdLoadCallouts) window.tdLoadCallouts();
+      ["live","liveflow","tracked","callouts","perf"].forEach(function (s) {
         const el = document.getElementById("sub-" + s);
         if (!el) return;
         const active = (s === sub);
@@ -31213,6 +31243,85 @@
         return;
       load();
     }, 300000);
+  })();
+
+  /* == Callout Results ============================================
+     reports/callouts.json (callout_tracker.py, nightly): each day's Top
+     25 callouts tracked at the option level from first flag. Every day
+     shows its winners WITH the day's context line — that line is what
+     makes a big peak credible when the card is shared. */
+  (function setupCallouts() {
+    "use strict";
+    var loaded = false;
+    var esc = window.escapeHtml || function (s) { return String(s); };
+    function pct(v) {
+      if (v == null) return "\u2014";
+      return (v > 0 ? "+" : "") + Math.round(v) + "%";
+    }
+    function money(v) {
+      if (v == null) return "\u2014";
+      return "$" + (v >= 10 ? v.toFixed(2) : v.toFixed(2));
+    }
+    function fmtDay(d) {
+      try {
+        return new Date(d + "T12:00:00").toLocaleDateString("en-US",
+          { weekday: "short", month: "short", day: "numeric" });
+      } catch (_) { return d; }
+    }
+    function tile(v, k) {
+      return '<div class="co-tile"><div class="v">' + v +
+        '</div><div class="k">' + k + '</div></div>';
+    }
+    function render(d) {
+      var body = document.getElementById("co-body");
+      if (!body) return;
+      if (!d || !d.days || !d.days.length) {
+        body.innerHTML = '<div class="t25-state">No callout results yet.</div>';
+        return;
+      }
+      var r = d.rolling || {};
+      var h = '<div class="co-roll">' +
+        tile(r.n || 0, "Callouts tracked (" + (r.days || 0) + "d)") +
+        tile(r.hit_100 || 0, "Hit +100% at peak") +
+        tile(r.hit_50 || 0, "Hit +50% at peak") +
+        tile(pct(r.median_peak_pct), "Median peak") +
+        tile(pct(r.median_last_pct), "Median latest") +
+        '</div>';
+      d.days.slice(0, 10).forEach(function (day) {
+        h += '<div class="co-day"><div class="co-day-h"><b>' +
+          esc(fmtDay(day.date)) + '</b><span class="ctx">Best ' +
+          Math.min(day.top.length, 5) + ' of ' + day.n +
+          ' callouts \u00b7 ' + day.hit_100 + ' hit +100% \u00b7 ' +
+          day.hit_50 + ' hit +50% at peak \u00b7 median peak ' +
+          pct(day.median_peak_pct) + '</span></div>' +
+          '<div class="co-wrap"><table class="co-tbl"><tr>' +
+          '<th>Contract</th><th>Rank</th><th>Entry</th><th>Peak</th>' +
+          '<th>Peak gain</th><th>Latest</th></tr>' +
+          day.top.map(function (t) {
+            return '<tr data-t="' + esc(t.ticker) + '"><td><b>' +
+              esc(t.label) + '</b></td><td>#' + t.rank + '</td><td>' +
+              money(t.entry) + '</td><td>' + money(t.peak) +
+              '</td><td class="up">' + pct(t.peak_pct) + '</td><td class="' +
+              ((t.last_pct || 0) >= 0 ? "up" : "dn") + '">' +
+              pct(t.last_pct) + '</td></tr>';
+          }).join("") + '</table></div></div>';
+      });
+      h += '<div class="co-note">' + esc(d.method || "") + '. Entry is ' +
+        'the contract\u2019s first traded price after TickerDesk flagged ' +
+        'it.</div>';
+      body.innerHTML = h;
+    }
+    window.tdLoadCallouts = function () {
+      if (loaded) return;
+      loaded = true;
+      fetch("./reports/callouts.json?t=" + Date.now(), { cache: "no-cache" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(render)
+        .catch(function (e) {
+          loaded = false;
+          if (window.tdSoftFail) window.tdSoftFail("callouts:load", e);
+        });
+    };
   })();
 </script>
 </body>
