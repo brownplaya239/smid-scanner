@@ -26,7 +26,7 @@ import sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from social_cards import callouts_card, _day_label, _pct  # noqa: E402
+from social_cards import KINDS, _day_label, _pct  # noqa: E402
 
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG = os.path.join(_BASE, "data", "social_log.jsonl")
@@ -77,6 +77,83 @@ def x_len(text):
     return len(text) + text.count("tickerdesk.io") * (23 - len("tickerdesk.io"))
 
 
+def _fit(head, items, tail):
+    """head + as many item lines as fit in 280 (X-weighted) + tail."""
+    keep = list(items)
+    while keep:
+        text = "\n".join(head + keep + tail)
+        if x_len(text) <= 280:
+            return text
+        keep.pop()
+    return "\n".join(head + tail)
+
+
+def flow_caption(f):
+    head = [f"Biggest options bets today ({_day_label(f['day'])})", ""]
+    items = []
+    for label, rows in (("Calls", f["calls"]), ("Puts", f["puts"])):
+        if rows:
+            items.append(label + ":")
+            for b in f["body"]:
+                if (b[1] == "CALLS") == (label == "Calls"):
+                    items.append(f"${b[0]} — {b[2]}")
+    return _fit(head, items, ["", "Full flow: tickerdesk.io"])
+
+
+def earnings_week_caption(f):
+    by_day = {}
+    for b in f["body"]:
+        by_day.setdefault(b[1].split()[0], []).append("$" + b[0])
+    head = [f"Earnings this week (week of {_day_label(f['week_of'])})", ""]
+    items = [f"{d}: {' '.join(t)}" for d, t in by_day.items()]
+    return _fit(head, items,
+                ["", "Options-implied vs typical move for each on the "
+                     "card. Full calendar: tickerdesk.io"])
+
+
+def earnings_preview_caption(f):
+    head = ["Earnings: what options are pricing vs the usual move", ""]
+    items = [f"${b[0]} ±{b[2].lstrip('±')} priced vs ±{b[3].lstrip('±')} "
+             "usual" for b in f["body"]]
+    return _fit(head, items,
+                ["", "We'll post how they actually moved. tickerdesk.io"])
+
+
+def momentum_caption(f):
+    title = {"stockbee": "Biggest 5-day gainers",
+             "qm": "Strongest 1-month gainers"}[f["which"]]
+    head = [f"{title} ({_day_label(f['date'])})", ""]
+    items = [f"${b[0]} {b[2]}" for b in f["body"][:8]]
+    return _fit(head, items,
+                ["", f"All {f['count']} names: tickerdesk.io"])
+
+
+def levels_caption(f):
+    head = [f"SPY & QQQ levels for {_day_label(f['day'])}", ""]
+    items = [f"${b[0]} {b[1].lstrip('$')} · exp. move {b[2]} · "
+             f"walls {b[4]}" for b in f["body"]]
+    gam = {b[5] for b in f["body"]}
+    tail = ["", f"Dealer gamma: {'/'.join(sorted(gam)).lower()}",
+            "tickerdesk.io"]
+    return _fit(head, items, tail)
+
+
+CAPTIONS = {
+    "callouts": lambda f: callouts_caption(f),
+    "flow": flow_caption,
+    "earnings_week": earnings_week_caption,
+    "earnings_preview": earnings_preview_caption,
+    "stockbee": momentum_caption,
+    "qm": momentum_caption,
+    "levels": levels_caption,
+}
+
+
+def _post_date(kind, f):
+    return (f.get("day", {}).get("date") if kind == "callouts"
+            else f.get("date") or f.get("day") or f.get("week_of"))
+
+
 def _clients():
     import tweepy
     keys = [os.environ.get(k, "") for k in
@@ -91,16 +168,16 @@ def _clients():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("kind", choices=["callouts"])
+    ap.add_argument("kind", choices=list(CAPTIONS))
     ap.add_argument("--date")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 
-    path, alt, facts = callouts_card(a.date)
-    date = facts["day"]["date"]
-    text = callouts_caption(facts)
+    path, alt, facts = KINDS[a.kind](a)
+    date = _post_date(a.kind, facts)
+    text = CAPTIONS[a.kind](facts)
     print("card:", path)
-    print("caption (%d chars):\n%s\n" % (len(text), text))
+    print("caption (%d chars as X counts):\n%s\n" % (x_len(text), text))
 
     if os.environ.get("SOCIAL_PAUSE") == "1":
         print("SOCIAL_PAUSE=1 — posting disabled.")
