@@ -2937,12 +2937,14 @@ async function fetchEconCalendar() {
   const etDate = new Date()
     .toLocaleDateString("en-CA", { timeZone: "America/New_York" });
   try {
+    // A successful Nasdaq response with zero events is the truth on
+    // weekends/holidays — return it. Falling through to ForexFactory
+    // only swapped a correct empty day for FF's 429s on Cloudflare IPs
+    // (502 all weekend, found 2026-09-27). FF is for Nasdaq ERRORS only.
     const events = await _econFromNasdaq(etDate);   // has Actual
-    if (events.length) {
-      return { updated: new Date().toISOString(), tz: "America/New_York",
-        source: "nasdaq-live", events };
-    }
-  } catch (e) { /* fall through to FF */ }
+    return { updated: new Date().toISOString(), tz: "America/New_York",
+      source: "nasdaq-live", events };
+  } catch (e) { /* Nasdaq unreachable: fall through to FF */ }
   const events = await _econFromFF();               // schedule only, no actuals
   return { updated: new Date().toISOString(), tz: "America/New_York",
     source: "forexfactory-live", events };
