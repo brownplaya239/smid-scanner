@@ -387,8 +387,10 @@ def audit_worker():
         st, raw = fetch(f"{API}/?econ-calendar=1")
         d = strict_json(raw)
         ev = d.get("events") or d.get("rows") or d.get("items") or []
-        rec("PASS" if len(ev) else "WARN", "WORKER", "econ-calendar",
-            f"{len(ev)} events")
+        weekend = NOW.astimezone(ET).weekday() >= 5
+        rec("PASS" if len(ev) or weekend else "WARN", "WORKER",
+            "econ-calendar", f"{len(ev)} events"
+            + (" (weekend — none expected)" if weekend and not ev else ""))
     except Exception as e:
         rec("WARN", "WORKER", "econ-calendar", str(e)[:80])
 
