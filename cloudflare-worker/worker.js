@@ -4103,7 +4103,7 @@ export default {
   // dedups by timestamp so a double-run is harmless.
   //
   // Cron→workflow map (UTC, see wrangler.toml [triggers]):
-  //   "40 20 * * 1-5"  → EOD: scanner.yml + momentum.yml (post-close)
+  //   "40 20 * * MON-FRI"  → EOD: scanner.yml + momentum.yml (post-close)
   //   everything else  → intraday: uoa.yml
   async scheduled(event, env, ctx) {
     if (!env.PAT) {
@@ -4177,7 +4177,17 @@ export default {
         console.log("[cron] healPublish failed: " + e.message);
       }
     };
-    const isEod = event.cron === "40 20 * * 1-5";
+    // Weekday guard: Cloudflare numbers day-of-week 1=SUNDAY, so the old
+    // "1-5" crons fired Sun-Thu (13 Sunday batches on 2026-09-27, no
+    // Friday backstops). Crons now say MON-FRI; this check makes a
+    // mis-typed schedule harmless too.
+    const etDow = new Intl.DateTimeFormat("en-US",
+      { timeZone: "America/New_York", weekday: "short" }).format(new Date());
+    if (etDow === "Sat" || etDow === "Sun") {
+      console.log("[cron] weekend (" + etDow + " ET) — skipped");
+      return;
+    }
+    const isEod = event.cron === "40 20 * * MON-FRI";
     // Monitor backstop (2026-09-21): GitHub's scheduler dropped EVERY
     // cron for a full session — batches were carried by these CF crons,
     // but the freshness monitor is GitHub-cron-only, so nothing could
@@ -4185,8 +4195,8 @@ export default {
     // monitor via the same PAT path, making the PAGING loop independent
     // of GitHub's scheduler too. The monitor exits green in seconds
     // when data is fresh, so the extra dispatches are ~free.
-    const alsoMonitor = (event.cron === "20 16 * * 1-5" ||
-                         event.cron === "50 19 * * 1-5");
+    const alsoMonitor = (event.cron === "20 16 * * MON-FRI" ||
+                         event.cron === "50 19 * * MON-FRI");
     if (isEod) {
       ctx.waitUntil(Promise.all([
         dispatch("scanner.yml"),
