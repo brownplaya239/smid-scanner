@@ -1,0 +1,38 @@
+name: R2 Probe
+
+# One-off capability check for the git -> Cloudflare R2 data migration:
+# can the existing CLOUDFLARE_API_TOKEN list/create R2 buckets? Prints
+# only wrangler's own output (never the token). Safe to delete after.
+
+on:
+  workflow_dispatch:
+    inputs:
+      create:
+        description: "Also create the tickerdesk-data bucket"
+        type: boolean
+        default: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install wrangler
+        working-directory: cloudflare-worker
+        run: npm ci
+      - name: List R2 buckets
+        working-directory: cloudflare-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler r2 bucket list
+      - name: Create bucket
+        if: ${{ inputs.create }}
+        working-directory: cloudflare-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler r2 bucket create tickerdesk-data
