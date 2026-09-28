@@ -356,6 +356,7 @@ def main():
         with open(MANIFEST, "w", encoding="utf-8") as f:
             json.dump({}, f)
         print("[r2] empty manifest (job reads no data)")
+        return
     elif cmd == "pull":
         keys = list_keys(prefix)
         fails = _run(get, keys)

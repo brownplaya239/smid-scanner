@@ -82,5 +82,15 @@ class DeletesAndGitOnly(unittest.TestCase):
         self.assertIsNone(r2_sync.key_to_repo("data/research_state/a.jsonl"))
 
 
+class Commands(unittest.TestCase):
+    def test_init_writes_empty_manifest_and_exits_cleanly(self):
+        with tempfile.TemporaryDirectory() as d:
+            m = os.path.join(d, ".m.json")
+            with mock.patch.object(r2_sync, "MANIFEST", m),                     mock.patch.object(sys, "argv", ["r2_sync.py", "init"]):
+                r2_sync.main()             # must not raise
+            with open(m) as f:
+                self.assertEqual(json.load(f), {})
+
+
 if __name__ == "__main__":
     unittest.main()
