@@ -200,6 +200,49 @@ class SlackReview(unittest.TestCase):
         with mock.patch.dict(os.environ, {"SLACK_BOT_TOKEN": ""}):
             self.assertFalse(x_post.slack_review(self._b(), None))
 
+    def test_newer_draft_supersedes_older_same_kind_only(self):
+        import r2_sync
+        recs = {
+            "social_reviews/1.json": {"run_id": "1", "kind": "flow",
+                                      "status": "pending", "channel": "C1",
+                                      "ts": "1.1", "date": "d", "text": "t",
+                                      "status_line": "w", "run_url": "u"},
+            "social_reviews/2.json": {"run_id": "2", "kind": "levels",
+                                      "status": "pending"},
+            "social_reviews/3.json": {"run_id": "3", "kind": "flow",
+                                      "status": "rejected"},
+            "social_reviews/9.json": {"run_id": "9", "kind": "flow",
+                                      "status": "pending"},
+        }
+        cancelled, updated = [], []
+
+        class R:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b""
+
+        def urlopen(req, timeout=0):
+            cancelled.append(req.full_url)
+            return R()
+        env = {"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
+               "CLOUDFLARE_API_TOKEN": "c"}
+        with mock.patch.dict(os.environ, env), \
+                mock.patch.object(r2_sync, "list_keys", lambda p: list(recs)), \
+                mock.patch.object(r2_sync, "get_json", lambda k: dict(recs[k])), \
+                mock.patch.object(r2_sync, "put_json",
+                                  lambda k, o: updated.append((k, o["status"]))), \
+                mock.patch("urllib.request.urlopen", urlopen), \
+                mock.patch.object(x_post, "_slack_api", lambda m, b: {"ok": True}):
+            x_post.supersede_older("flow", "9")
+        self.assertEqual(cancelled,
+                         ["https://api.github.com/repos/o/r/actions/runs/1/cancel"])
+        self.assertEqual(updated, [("social_reviews/1.json", "superseded")])
+
     def test_edited_draft_shows_editor_and_length(self):
         rec = {"run_id": "7", "kind": "flow", "date": "d", "text": "$AAA new",
                "status_line": "waiting", "run_url": "u", "edited_by": "U1"}

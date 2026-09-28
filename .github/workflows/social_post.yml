@@ -38,13 +38,19 @@ on:
         type: boolean
         default: false
 
-concurrency:
-  group: social-post-${{ inputs.kind }}
-  cancel-in-progress: false
-
 jobs:
   render:
     runs-on: ubuntu-latest
+    # Only rendering takes turns per kind. The post job's approval wait
+    # must NOT hold a lock: an unanswered draft would block every later
+    # post of that kind (GitHub keeps approvals open for 30 days). A newer
+    # draft supersedes the older one instead (x_post.supersede_older).
+    concurrency:
+      group: social-render-${{ inputs.kind }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: write        # cancel superseded draft runs
     outputs:
       blocked: ${{ steps.r.outputs.blocked }}
       review: ${{ steps.r.outputs.review }}
@@ -77,6 +83,7 @@ jobs:
           SLACK_REVIEW_CHANNEL: ${{ vars.SLACK_REVIEW_CHANNEL }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           SOCIAL_DRY_RUN: ${{ inputs.dry_run }}
+          GITHUB_TOKEN: ${{ github.token }}
           SOCIAL_AUTO: ${{ vars.SOCIAL_AUTO }}
         run: >-
           python scripts/x_post.py ${{ inputs.kind }} --dry-run

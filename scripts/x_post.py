@@ -545,7 +545,57 @@ def slack_review(b, card_url):
     except Exception as e:
         print("review record not saved:", str(e)[:120])
     print("slack review posted")
+    if rec["status"] == "pending":
+        supersede_older(b["kind"], run)
     return True
+
+
+def supersede_older(kind, run):
+    """A newer draft of the same kind replaces older undecided ones:
+    cancel their waiting runs and mark their Slack drafts. Without this an
+    unanswered draft would sit open (GitHub keeps approvals 30 days) and
+    could be approved long after its data went stale."""
+    tok = os.environ.get("GITHUB_TOKEN")
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not (tok and repo and os.environ.get("CLOUDFLARE_API_TOKEN")):
+        return
+    import urllib.request
+    import r2_sync
+    try:
+        keys = r2_sync.list_keys("social_reviews/")
+    except Exception as e:
+        print("supersede: can't list drafts:", str(e)[:120])
+        return
+    for key in keys:
+        try:
+            rec = r2_sync.get_json(key)
+        except Exception:
+            continue
+        if not rec or rec.get("kind") != kind or rec.get("status") != "pending" \
+                or str(rec.get("run_id")) == str(run):
+            continue
+        req = urllib.request.Request(
+            f"https://api.github.com/repos/{repo}/actions/runs/"
+            f"{rec['run_id']}/cancel", method="POST",
+            headers={"Authorization": "Bearer " + tok,
+                     "Accept": "application/vnd.github+json",
+                     "X-GitHub-Api-Version": "2022-11-28"})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                r.read()
+        except Exception as e:           # 409 = already finished: fine
+            print(f"supersede: cancel {rec['run_id']}:", str(e)[:80])
+        rec["status"] = "superseded"
+        try:
+            r2_sync.put_json(key, rec)
+        except Exception:
+            pass
+        foot = "Superseded by a newer draft · not posted"
+        rec["status_line"] = foot
+        _slack_api("chat.update", {"channel": rec["channel"],
+                                   "ts": rec["ts"], "text": foot,
+                                   "blocks": review_blocks(rec, False, foot)})
+        print("superseded draft", rec["run_id"])
 
 
 def _review_record():
