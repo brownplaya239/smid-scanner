@@ -208,9 +208,14 @@ async function fetchChain0(sym, env) {
       e: d.expiration_date,
       t: d.contract_type,                       // "call" | "put"
       k: d.strike_price,
+      // Pre-market Polygon has reset `day` (no close yet) and Starter has
+      // no last_trade, so fall back to the prior session's close — the
+      // 8:15 AM roadmap post prices today's expiry off it.
       last: (c.last_trade && c.last_trade.price) != null
               ? c.last_trade.price
-              : (c.day && c.day.close) != null ? c.day.close : null,
+              : (c.day && c.day.close) != null ? c.day.close
+              : (c.day && c.day.previous_close) != null
+                ? c.day.previous_close : null,
       vol: (c.day && c.day.volume) || 0,
       oi:  c.open_interest || 0,
       iv:  c.implied_volatility != null
