@@ -1,6 +1,7 @@
 """Social post pipeline: X length counting, caption fitting, and the
 publishing gate. Placeholder tickers only (AAA/BBB)."""
 
+import json
 import os
 import sys
 import unittest
@@ -85,6 +86,126 @@ class Gate(unittest.TestCase):
              "body": [["AAA Oct 2 $9P", "Puts", "$210.0M", "2", "3x"]]}
         _, review = x_post.gate("flow", f, "t", False)
         self.assertTrue(any("hedge" in r for r in review))
+
+
+class SlackPreview(unittest.TestCase):
+    def _send(self, b, env, card=None):
+        sent = {}
+
+        class R:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b"ok"
+
+        def fake(req, timeout=0):
+            sent["body"] = json.loads(req.data)
+            return R()
+        env = {"SLACK_WEBHOOK_URL": "https://hooks.example/x",
+               "GITHUB_RUN_ID": "7", **env}
+        with mock.patch.dict(os.environ, env, clear=False), \
+                mock.patch("urllib.request.urlopen", fake):
+            x_post.slack_preview(b, card)
+        return sent.get("body")
+
+    def _b(self, **kw):
+        b = {"kind": "flow", "date": "2026-09-28", "text": "$AAA <x> & y",
+             "alt": "alt", "blocks": [], "review": []}
+        b.update(kw)
+        return b
+
+    def test_waiting_preview_has_caption_image_and_link(self):
+        body = self._send(self._b(), {"SOCIAL_DRY_RUN": "false"},
+                          "https://api.tickerdesk.io/cards/7_a.png")
+        types = [bl["type"] for bl in body["blocks"]]
+        self.assertIn("image", types)
+        self.assertIn("waiting for your approval", body["text"])
+        dump = json.dumps(body)
+        self.assertIn("&lt;x&gt; &amp; y", dump)          # escaped
+        self.assertIn("actions/runs/7", dump)
+
+    def test_review_flags_listed(self):
+        body = self._send(self._b(review=["AAA $210M premium"]),
+                          {"SOCIAL_DRY_RUN": "false"})
+        self.assertIn("Check before approving", json.dumps(body))
+
+    def test_blocked_says_not_posting_without_image(self):
+        body = self._send(self._b(blocks=["stale data"]),
+                          {"SOCIAL_DRY_RUN": "false"})
+        self.assertIn("Not posting", body["text"])
+        self.assertNotIn("image", [bl["type"] for bl in body["blocks"]])
+
+    def test_dry_run_labelled(self):
+        body = self._send(self._b(), {"SOCIAL_DRY_RUN": "true"})
+        self.assertIn("DRY RUN", body["text"])
+
+    def test_no_webhook_no_call(self):
+        with mock.patch.dict(os.environ, {"SLACK_WEBHOOK_URL": ""}), \
+                mock.patch("urllib.request.urlopen") as u:
+            x_post.slack_preview(self._b(), None)
+        u.assert_not_called()
+
+
+class SlackReview(unittest.TestCase):
+    def _b(self, **kw):
+        b = {"kind": "flow", "date": "2026-09-28", "text": "$AAA draft",
+             "alt": "alt", "blocks": [], "review": []}
+        b.update(kw)
+        return b
+
+    def _run(self, b, env):
+        posted, saved = [], []
+
+        def api(method, body):
+            posted.append((method, body))
+            return {"ok": True, "channel": "C1", "ts": "1.2"}
+        env = {"SLACK_BOT_TOKEN": "x", "SLACK_REVIEW_CHANNEL": "C1",
+               "GITHUB_RUN_ID": "7", **env}
+        import r2_sync
+        with mock.patch.dict(os.environ, env), \
+                mock.patch.object(x_post, "_slack_api", api), \
+                mock.patch.object(r2_sync, "put_json",
+                                  lambda k, o: saved.append((k, o))):
+            ok = x_post.slack_review(b, "https://api.tickerdesk.io/cards/7.png")
+        return ok, posted, saved
+
+    def test_pending_draft_has_three_buttons_and_record(self):
+        ok, posted, saved = self._run(self._b(), {"SOCIAL_DRY_RUN": "false"})
+        self.assertTrue(ok)
+        acts = [bl for bl in posted[0][1]["blocks"] if bl["type"] == "actions"]
+        self.assertEqual([e["action_id"] for e in acts[0]["elements"]],
+                         ["td_approve", "td_edit", "td_reject"])
+        key, rec = saved[0]
+        self.assertEqual(key, "social_reviews/7.json")
+        self.assertEqual((rec["status"], rec["ts"]), ("pending", "1.2"))
+
+    def test_dry_run_and_auto_have_no_buttons(self):
+        for env in ({"SOCIAL_DRY_RUN": "true"},
+                    {"SOCIAL_DRY_RUN": "false", "SOCIAL_AUTO": "1"}):
+            _, posted, _ = self._run(self._b(), env)
+            self.assertFalse(any(bl["type"] == "actions"
+                                 for bl in posted[0][1]["blocks"]), env)
+
+    def test_blocked_posts_note_without_record(self):
+        _, posted, saved = self._run(self._b(blocks=["stale"]),
+                                     {"SOCIAL_DRY_RUN": "false"})
+        self.assertIn("Not posting", posted[0][1]["text"])
+        self.assertEqual(saved, [])
+
+    def test_without_bot_falls_back(self):
+        with mock.patch.dict(os.environ, {"SLACK_BOT_TOKEN": ""}):
+            self.assertFalse(x_post.slack_review(self._b(), None))
+
+    def test_edited_draft_shows_editor_and_length(self):
+        rec = {"run_id": "7", "kind": "flow", "date": "d", "text": "$AAA new",
+               "status_line": "waiting", "run_url": "u", "edited_by": "U1"}
+        txt = json.dumps(x_post.review_blocks(rec, True))
+        self.assertIn("Edited by <@U1>", txt)
+        self.assertIn("/280", txt)
 
 
 if __name__ == "__main__":

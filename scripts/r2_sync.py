@@ -96,6 +96,8 @@ def _ctype(key):
         return "application/x-ndjson"
     if key.endswith(".gz"):
         return "application/gzip"
+    if key.endswith(".png"):
+        return "image/png"
     return "application/octet-stream"
 
 
@@ -210,6 +212,30 @@ def put(path):
     key = repo_to_key(path)
     if not key:
         return path, "skipped (not a data path)"
+    return put_key(path, key)
+
+
+def get_json(key):
+    """Small JSON object by key (None if missing) — e.g. review records."""
+    url = API + "/" + urllib.parse.quote(key, safe="")
+    try:
+        with _req("GET", url) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+
+def put_json(key, obj):
+    url = API + "/" + urllib.parse.quote(key, safe="")
+    with _req("PUT", url, data=json.dumps(obj).encode("utf-8"),
+              headers={"Content-Type": "application/json"}) as r:
+        r.read()
+
+
+def put_key(path, key):
+    """Upload a local file to an explicit key (e.g. cards/<run>_x.png)."""
     with open(path, "rb") as f:
         body = f.read()
     url = API + "/" + urllib.parse.quote(key, safe="")

@@ -68,6 +68,16 @@ jobs:
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
           SOCIAL_PAUSE: ${{ vars.SOCIAL_PAUSE }}
+          # Review preview in #social-review-tickerdesk: caption, flags and
+          # the card (uploaded to R2, shown via api.tickerdesk.io/cards/).
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          # Interactive drafts (Approve Post / Edit Caption / Reject) when
+          # the bot is set up; otherwise the webhook preview above.
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_REVIEW_CHANNEL: ${{ vars.SLACK_REVIEW_CHANNEL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SOCIAL_DRY_RUN: ${{ inputs.dry_run }}
+          SOCIAL_AUTO: ${{ vars.SOCIAL_AUTO }}
         run: >-
           python scripts/x_post.py ${{ inputs.kind }} --dry-run
           --bundle-out post.json
@@ -104,6 +114,9 @@ jobs:
 
       - name: Post the approved bundle
         env:
+          # Slack edits (review record in R2) + closing out the draft.
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           X_API_KEY: ${{ secrets.X_API_KEY }}
           X_API_SECRET: ${{ secrets.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}

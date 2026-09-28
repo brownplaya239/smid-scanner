@@ -411,6 +411,218 @@ def _summary(md):
             f.write(md + "\n")
 
 
+def _card_url(path):
+    """Upload the card to R2 (cards/<run>_<name>.png) so Slack and the
+    run summary can show it inline via api.tickerdesk.io/cards/. The run
+    id in the name keeps every uploaded card immutable (no stale cache
+    when a card is re-rendered). Best effort: None if it can't upload."""
+    run = os.environ.get("GITHUB_RUN_ID")
+    if not (run and os.environ.get("CLOUDFLARE_API_TOKEN")):
+        return None
+    try:
+        import r2_sync
+        name = f"{run}_{os.path.basename(path)}"
+        _, err = r2_sync.put_key(path, "cards/" + name)
+        if err:
+            print("card upload failed:", err)
+            return None
+        return "https://api.tickerdesk.io/cards/" + name
+    except Exception as e:
+        print("card upload failed:", str(e)[:120])
+        return None
+
+
+def _slack_esc(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _run_url():
+    return (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+            f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/"
+            f"{os.environ.get('GITHUB_RUN_ID', '')}")
+
+
+def review_blocks(rec, buttons, footer=None):
+    """Slack blocks for a review draft. Same layout as reviewBlocks() in
+    worker.js (which re-renders it after clicks) — keep the two in step."""
+    blocks = [{"type": "section", "text": {"type": "mrkdwn", "text":
+               f"*{rec['kind']}* · {rec['date']}: {rec['status_line']}"}}]
+    if rec.get("review"):
+        blocks.append({"type": "section", "text": {
+            "type": "mrkdwn", "text": "*Check before approving:*\n"
+            + "\n".join(f"• {_slack_esc(m)}" for m in rec["review"])}})
+    edited = (f"\n_Edited by <@{rec['edited_by']}> · {x_len(rec['text'])}"
+              "/280_" if rec.get("edited_by") else "")
+    blocks.append({"type": "section", "text": {
+        "type": "mrkdwn", "text": "```" + _slack_esc(rec["text"]) + "```"
+        + edited}})
+    if rec.get("card_url"):
+        blocks.append({"type": "image", "image_url": rec["card_url"],
+                       "alt_text": (rec.get("alt") or rec["kind"])[:1900]})
+    if buttons:
+        blocks.append({"type": "actions", "elements": [
+            {"type": "button", "action_id": "td_approve", "style": "primary",
+             "text": {"type": "plain_text", "text": "Approve Post"},
+             "value": rec["run_id"]},
+            {"type": "button", "action_id": "td_edit",
+             "text": {"type": "plain_text", "text": "Edit Caption"},
+             "value": rec["run_id"]},
+            {"type": "button", "action_id": "td_reject", "style": "danger",
+             "text": {"type": "plain_text", "text": "Reject"},
+             "value": rec["run_id"]}]})
+    ctx = ([footer] if footer else []) + [f"<{rec['run_url']}|Open the run>"]
+    blocks.append({"type": "context", "elements": [
+        {"type": "mrkdwn", "text": "  ·  ".join(ctx)}]})
+    return blocks
+
+
+def _slack_api(method, body):
+    """Slack Web API with the TickerDesk Preview bot token. Best effort."""
+    tok = os.environ.get("SLACK_BOT_TOKEN")
+    if not tok:
+        return None
+    import urllib.request
+    req = urllib.request.Request(
+        "https://slack.com/api/" + method,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Authorization": "Bearer " + tok,
+                 "Content-Type": "application/json; charset=utf-8"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            j = json.loads(r.read())
+        if not j.get("ok"):
+            print(f"slack {method} failed:", j.get("error"))
+        return j
+    except Exception as e:
+        print(f"slack {method} failed:", str(e)[:120])
+        return None
+
+
+REVIEW_KEY = "social_reviews/{run}.json"
+
+
+def slack_review(b, card_url):
+    """Interactive draft in #social-review-tickerdesk: Approve Post / Edit
+    Caption / Reject (handled by the worker's /slack/interact). Saves the
+    review record to R2 so the worker can update it and the post job can
+    pick up an edited caption. Returns False if the bot isn't set up (the
+    caller then falls back to the one-way webhook preview)."""
+    channel = os.environ.get("SLACK_REVIEW_CHANNEL")
+    run = os.environ.get("GITHUB_RUN_ID")
+    if not (os.environ.get("SLACK_BOT_TOKEN") and channel and run):
+        return False
+    if b["blocks"]:
+        _slack_api("chat.postMessage", {
+            "channel": channel,
+            "text": f"Not posting {b['kind']} {b['date']}",
+            "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text":
+                f"Not posting *{b['kind']}* · {b['date']} (publishing "
+                "gate):\n" + "\n".join(f"• {_slack_esc(m)}"
+                                         for m in b["blocks"])}},
+                {"type": "context", "elements": [{"type": "mrkdwn",
+                 "text": f"<{_run_url()}|Open the run>"}]}]})
+        return True
+    dry = os.environ.get("SOCIAL_DRY_RUN") == "true"
+    auto = os.environ.get("SOCIAL_AUTO") == "1" and not b["review"]
+    rec = {"run_id": run, "kind": b["kind"], "date": b["date"],
+           "text": b["text"], "alt": b["alt"], "review": b["review"],
+           "card_url": card_url, "run_url": _run_url(), "channel": channel,
+           "status": "pending" if not (dry or auto) else
+           ("dry_run" if dry else "auto"),
+           "status_line": ("DRY RUN (preview only, won't post)" if dry else
+                           "auto-posting (no review flags)" if auto else
+                           "waiting for your approval")}
+    j = _slack_api("chat.postMessage", {
+        "channel": channel, "text": f"{b['kind']} {b['date']}: "
+        f"{rec['status_line']}",
+        "blocks": review_blocks(rec, buttons=rec["status"] == "pending")})
+    if not (j and j.get("ok")):
+        return False
+    rec["channel"], rec["ts"] = j["channel"], j["ts"]
+    try:
+        import r2_sync
+        r2_sync.put_json(REVIEW_KEY.format(run=run), rec)
+    except Exception as e:
+        print("review record not saved:", str(e)[:120])
+    print("slack review posted")
+    return True
+
+
+def _review_record():
+    run = os.environ.get("GITHUB_RUN_ID")
+    if not (run and os.environ.get("CLOUDFLARE_API_TOKEN")):
+        return None
+    try:
+        import r2_sync
+        return r2_sync.get_json(REVIEW_KEY.format(run=run))
+    except Exception as e:
+        print("review record unavailable:", str(e)[:120])
+        return None
+
+
+def _review_done(rec, footer, thread_text):
+    """After the post job: close out the Slack draft + reply in thread."""
+    if not rec or not rec.get("ts"):
+        return
+    rec["status_line"] = footer
+    _slack_api("chat.update", {"channel": rec["channel"], "ts": rec["ts"],
+                               "text": footer,
+                               "blocks": review_blocks(rec, False, footer)})
+    _slack_api("chat.postMessage", {"channel": rec["channel"],
+                                    "thread_ts": rec["ts"],
+                                    "text": thread_text})
+
+
+def slack_preview(b, card_url):
+    """Post the review preview to #social-review-tickerdesk (incoming
+    webhook in SLACK_WEBHOOK_URL). The GitHub app posts the Approve /
+    Reject buttons for the same run in that channel. Best effort."""
+    hook = os.environ.get("SLACK_WEBHOOK_URL")
+    if not hook:
+        return
+    run_url = (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+               f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/"
+               f"{os.environ.get('GITHUB_RUN_ID', '')}")
+    kind = f"*{b['kind']}* · {b['date']}"
+    if b["blocks"]:
+        text = (f"Not posting {kind} (publishing gate):\n"
+                + "\n".join(f"• {_slack_esc(m)}" for m in b["blocks"]))
+        blocks = [{"type": "section", "text": {"type": "mrkdwn",
+                                                "text": text}}]
+    else:
+        if os.environ.get("SOCIAL_DRY_RUN") == "true":
+            status = "DRY RUN (preview only, won't post)"
+        elif os.environ.get("SOCIAL_AUTO") == "1" and not b["review"]:
+            status = "auto-posting (no review flags)"
+        else:
+            status = "waiting for your approval"
+        text = f"{kind}: {status}"
+        blocks = [{"type": "section", "text": {"type": "mrkdwn",
+                                                "text": text}}]
+        if b["review"]:
+            blocks.append({"type": "section", "text": {
+                "type": "mrkdwn", "text": "*Check before approving:*\n"
+                + "\n".join(f"• {_slack_esc(m)}" for m in b["review"])}})
+        blocks.append({"type": "section", "text": {
+            "type": "mrkdwn",
+            "text": "```" + _slack_esc(b["text"]) + "```"}})
+        if card_url:
+            blocks.append({"type": "image", "image_url": card_url,
+                           "alt_text": b["alt"][:1900]})
+    blocks.append({"type": "context", "elements": [{
+        "type": "mrkdwn", "text": f"<{run_url}|Open the run>"}]})
+    body = json.dumps({"text": text, "blocks": blocks}).encode("utf-8")
+    try:
+        import urllib.request
+        req = urllib.request.Request(hook, data=body, headers={
+            "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            r.read()
+        print("slack preview sent")
+    except Exception as e:
+        print("slack preview failed:", str(e)[:120])
+
+
 def render(a):
     path, alt, facts = KINDS[a.kind](a)
     date = _post_date(a.kind, facts)
@@ -439,12 +651,29 @@ def main():
     except Exception:
         pass
 
+    review = None
     if a.bundle:
         with open(a.bundle, encoding="utf-8") as f:
             b = json.load(f)
         age = _age_h(b["rendered"])
+        review = _review_record()
         if age is not None and age > 12:
+            _review_done(review, "Expired: not posted (approved more than "
+                         "12h after render)", "Too old to post; skipped.")
             sys.exit(f"bundle rendered {age:.1f}h ago — too old to post")
+        if review and review.get("text") and review["text"] != b["text"]:
+            # Caption edited in Slack: post the edited text, but it must
+            # still pass the checks that depend on the text itself.
+            n = x_len(review["text"])
+            dup = hashlib.sha1(review["text"].encode("utf-8")).hexdigest()
+            if n > 280 or any(r.get("text_sha1") == dup for r in _log_rows()):
+                why = (f"edited caption is {n}/280" if n > 280 else
+                       "edited caption was already posted")
+                _review_done(review, f"Not posted: {why}", f"Not posted: {why}.")
+                sys.exit("edited caption rejected: " + why)
+            print("using caption edited in Slack")
+            b["text"] = review["text"]
+            b["extra"]["edited_in_slack"] = True
     else:
         if not a.kind:
             ap.error("kind is required unless --bundle is given")
@@ -472,9 +701,13 @@ def main():
             json.dump(b, f, indent=1)
         _gh_out(blocked="1" if b["blocks"] else "0",
                 review="1" if b["review"] else "0")
+        card_url = None if b["blocks"] else _card_url(b["card"])
         _summary(f"### {b['kind']} · {b['date']}\n\n```\n{b['text']}\n```\n"
                  + "".join(f"\n- **BLOCK** {m}" for m in b["blocks"])
-                 + "".join(f"\n- **REVIEW** {m}" for m in b["review"]))
+                 + "".join(f"\n- **REVIEW** {m}" for m in b["review"])
+                 + (f"\n\n![card]({card_url})" if card_url else ""))
+        if not slack_review(b, card_url):
+            slack_preview(b, card_url)
 
     if os.environ.get("SOCIAL_PAUSE") == "1":
         print("SOCIAL_PAUSE=1 — posting disabled.")
@@ -519,6 +752,10 @@ def main():
             body = e.response.text[:600]
         except Exception:
             pass
+        if a.bundle:
+            _review_done(review, "X refused the post",
+                         f"X refused the post: HTTP {e.response.status_code} "
+                         f"{body[:300]}")
         sys.exit(f"X refused the post: HTTP {e.response.status_code} {body}")
     tid = resp.data["id"]
     url = f"https://x.com/{me.username}/status/{tid}"
@@ -533,6 +770,9 @@ def main():
             "text_sha1": hashlib.sha1(b["text"].encode("utf-8")).hexdigest(),
             **b["extra"]}, f)
     print("POSTED:", url)
+    if a.bundle:
+        _review_done(review, f"Posted to X · <{url}|view post>",
+                     f"Posted: {url}")
 
 
 if __name__ == "__main__":

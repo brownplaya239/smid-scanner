@@ -83,6 +83,10 @@ REPO = "brownplaya239/smid-scanner"
 PMB_FULL_SCAN = "1"
 # Scheduled X posts (see SOCIAL_SCHEDULE in worker.js). "0" = off.
 SOCIAL_SCHEDULE = "1"
+# Slack member IDs allowed to Approve / Edit / Reject social posts in
+# #social-review-tickerdesk (comma-separated). Empty = nobody can decide
+# from Slack (GitHub approval still works).
+SLACK_APPROVERS = "U0BU956FT8Q"
 
 # Observability — exact match to what the Cloudflare dashboard
 # currently generates. Cloudflare reformats this section every time

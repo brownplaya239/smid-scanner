@@ -95,6 +95,325 @@ function etMarketPhase() {
   } catch (_) { return "regular"; }              // safe default = RTH behavior
 }
 
+// ── Social post review in Slack (#social-review-tickerdesk) ───────────
+// The social_post.yml render job posts each draft (card, caption, gate
+// flags) with three buttons and saves a review record to R2
+// (social_reviews/<run_id>.json). Clicks land here:
+//   Approve Post  -> approves the run's pending "social-review" deployment
+//                    via the GitHub API; the post job then posts to X and
+//                    replies in the thread with the link
+//   Edit Caption  -> modal with the draft; the submitted caption is
+//                    length-checked (X weighting, links = 23) and saved to
+//                    the record, which the post job uses instead
+//   Reject        -> modal for an optional reason; rejects the deployment
+// Every request is verified against SLACK_SIGNING_SECRET, and only Slack
+// users listed in SLACK_APPROVERS can decide. Secrets: SLACK_BOT_TOKEN,
+// SLACK_SIGNING_SECRET (worker secrets); GitHub calls reuse env.PAT.
+const SOCIAL_REVIEW_ENV = "social-review";
+
+function xLen(text) {
+  // X counts every link as 23 characters (same rule as x_post.x_len).
+  const t = String(text).replace(
+    /(https?:\/\/\S+|\b[\w.-]+\.(?:io|com)(?:\/\S*)?)/g, "x".repeat(23));
+  return Array.from(t).length;
+}
+
+function slackEsc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function slackVerify(request, env, raw) {
+  const ts = request.headers.get("X-Slack-Request-Timestamp");
+  const sig = request.headers.get("X-Slack-Signature") || "";
+  if (!ts || !env.SLACK_SIGNING_SECRET) return false;
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;  // replay
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", enc.encode(env.SLACK_SIGNING_SECRET),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const mac = await crypto.subtle.sign("HMAC", key,
+    enc.encode("v0:" + ts + ":" + raw));
+  const hex = "v0=" + Array.from(new Uint8Array(mac))
+    .map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+  if (hex.length !== sig.length) return false;
+  let diff = 0;                                   // constant-time compare
+  for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ sig.charCodeAt(i);
+  return diff === 0;
+}
+
+async function slackApi(env, method, body) {
+  try {
+    const r = await fetch("https://slack.com/api/" + method, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + env.SLACK_BOT_TOKEN,
+                 "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    if (!j.ok) console.log("[slack] " + method + " failed: " + j.error);
+    return j;
+  } catch (e) {
+    console.log("[slack] " + method + " error: " + e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+async function ghRepoApi(env, method, path, body) {
+  const r = await fetch("https://api.github.com/repos/" +
+    (env.REPO || "brownplaya239/smid-scanner") + path, {
+    method: method,
+    headers: { "Authorization": "Bearer " + env.PAT,
+               "Accept": "application/vnd.github+json",
+               "X-GitHub-Api-Version": "2022-11-28",
+               "User-Agent": "tickerdesk-slack-review",
+               "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let j = null;
+  try { j = await r.json(); } catch (_) { /* 204 etc */ }
+  return { status: r.status, ok: r.ok, body: j };
+}
+
+async function reviewGet(env, run) {
+  const o = await env.DATA.get("social_reviews/" + run + ".json");
+  return o ? await o.json() : null;
+}
+
+async function reviewPut(env, rec) {
+  await env.DATA.put("social_reviews/" + rec.run_id + ".json",
+    JSON.stringify(rec), { httpMetadata: { contentType: "application/json" } });
+}
+
+// Same layout as x_post.review_blocks() — keep the two in step.
+function reviewBlocks(rec, withButtons, footer) {
+  const blocks = [{ type: "section", text: { type: "mrkdwn",
+    text: "*" + rec.kind + "* · " + rec.date + ": " + rec.status_line } }];
+  if (rec.review && rec.review.length) {
+    blocks.push({ type: "section", text: { type: "mrkdwn",
+      text: "*Check before approving:*\n" + rec.review.map(function (m) {
+        return "• " + slackEsc(m); }).join("\n") } });
+  }
+  blocks.push({ type: "section", text: { type: "mrkdwn",
+    text: "```" + slackEsc(rec.text) + "```" +
+      (rec.edited_by ? "\n_Edited by <@" + rec.edited_by + "> · " +
+        xLen(rec.text) + "/280_" : "") } });
+  if (rec.card_url) {
+    blocks.push({ type: "image", image_url: rec.card_url,
+                  alt_text: String(rec.alt || rec.kind).slice(0, 1900) });
+  }
+  if (withButtons) {
+    blocks.push({ type: "actions", elements: [
+      { type: "button", action_id: "td_approve", style: "primary",
+        text: { type: "plain_text", text: "Approve Post" }, value: rec.run_id },
+      { type: "button", action_id: "td_edit",
+        text: { type: "plain_text", text: "Edit Caption" }, value: rec.run_id },
+      { type: "button", action_id: "td_reject", style: "danger",
+        text: { type: "plain_text", text: "Reject" }, value: rec.run_id },
+    ] });
+  }
+  const ctxLines = [];
+  if (footer) ctxLines.push(footer);
+  ctxLines.push("<" + rec.run_url + "|Open the run>");
+  blocks.push({ type: "context", elements: [{ type: "mrkdwn",
+    text: ctxLines.join("  ·  ") }] });
+  return blocks;
+}
+
+async function reviewUpdate(env, rec, withButtons, footer) {
+  return slackApi(env, "chat.update", {
+    channel: rec.channel, ts: rec.ts,
+    text: rec.kind + " " + rec.date + ": " + (footer || rec.status_line),
+    blocks: reviewBlocks(rec, withButtons, footer) });
+}
+
+async function reviewThread(env, rec, text) {
+  return slackApi(env, "chat.postMessage",
+    { channel: rec.channel, thread_ts: rec.ts, text: text });
+}
+
+// Approve/reject the run's pending social-review deployment. The post job
+// only starts waiting once the render job finishes (a few seconds after
+// the draft lands in Slack), so a quick click is retried for ~20s.
+async function decideDeployment(env, run, state, comment) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const p = await ghRepoApi(env, "GET",
+      "/actions/runs/" + run + "/pending_deployments");
+    if (!p.ok) return "GitHub HTTP " + p.status + " reading the pending post" +
+      (p.status === 403 || p.status === 404
+        ? " (the worker's GitHub token needs Actions + Deployments access)" : "");
+    const ids = (p.body || []).filter(function (d) {
+      return d.environment && d.environment.name === SOCIAL_REVIEW_ENV;
+    }).map(function (d) { return d.environment.id; });
+    if (ids.length) {
+      const r = await ghRepoApi(env, "POST",
+        "/actions/runs/" + run + "/pending_deployments",
+        { environment_ids: ids, state: state, comment: comment });
+      if (r.ok) return null;
+      return "GitHub refused (HTTP " + r.status +
+        (r.body && r.body.message ? ": " + r.body.message : "") + ")";
+    }
+    await new Promise(function (res) { setTimeout(res, 4000); });
+  }
+  return "nothing is waiting for approval on this run — it was already " +
+    "decided, expired, or blocked";
+}
+
+async function approveFlow(env, run, user) {
+  const rec = await reviewGet(env, run);
+  if (!rec) return;
+  if (rec.status !== "pending") {
+    await reviewThread(env, rec, "Already " + rec.status + ".");
+    return;
+  }
+  const err = await decideDeployment(env, run, "approved",
+    "Approved in Slack" + (rec.edited_by ? " (caption edited)" : ""));
+  if (err) {
+    await reviewThread(env, rec, "Couldn't approve: " + err);
+    return;
+  }
+  rec.status = "approved";
+  rec.approved_by = user;
+  await reviewPut(env, rec);
+  await reviewUpdate(env, rec, false,
+    "Approved by <@" + user + "> · posting to X…");
+}
+
+async function rejectFlow(env, run, user, reason) {
+  const rec = await reviewGet(env, run);
+  if (!rec || rec.status !== "pending") return;
+  const err = await decideDeployment(env, run, "rejected",
+    "Rejected in Slack" + (reason ? ": " + reason : ""));
+  if (err) {
+    await reviewThread(env, rec, "Couldn't reject: " + err);
+    return;
+  }
+  rec.status = "rejected";
+  rec.rejected_by = user;
+  rec.reject_reason = reason || "";
+  await reviewPut(env, rec);
+  await reviewUpdate(env, rec, false, "Rejected by <@" + user + ">" +
+    (reason ? ": " + slackEsc(reason) : ""));
+}
+
+async function editFlow(env, run, user, text) {
+  const rec = await reviewGet(env, run);
+  if (!rec || rec.status !== "pending") return;
+  if (!rec.original_text) rec.original_text = rec.text;
+  rec.text = text;
+  rec.edited_by = user;
+  rec.edits = (rec.edits || 0) + 1;
+  await reviewPut(env, rec);
+  await reviewUpdate(env, rec, true, null);
+}
+
+function editView(rec) {
+  return {
+    type: "modal", callback_id: "td_edit_submit",
+    private_metadata: rec.run_id,
+    title: { type: "plain_text", text: "Edit caption" },
+    submit: { type: "plain_text", text: "Save caption" },
+    close: { type: "plain_text", text: "Cancel" },
+    blocks: [
+      { type: "input", block_id: "caption",
+        label: { type: "plain_text", text: rec.kind + " · " + rec.date },
+        hint: { type: "plain_text", text: "280 max as X counts it (every " +
+          "link = 23). Numbers must match the card; saved text is what " +
+          "gets posted when you approve." },
+        element: { type: "plain_text_input", action_id: "text",
+                   multiline: true, initial_value: rec.text } },
+    ],
+  };
+}
+
+function rejectView(rec) {
+  return {
+    type: "modal", callback_id: "td_reject_submit",
+    private_metadata: rec.run_id,
+    title: { type: "plain_text", text: "Reject post" },
+    submit: { type: "plain_text", text: "Reject" },
+    close: { type: "plain_text", text: "Cancel" },
+    blocks: [
+      { type: "input", block_id: "reason", optional: true,
+        label: { type: "plain_text", text: "Why? (optional, kept in the log)" },
+        element: { type: "plain_text_input", action_id: "text",
+                   multiline: true } },
+    ],
+  };
+}
+
+async function handleSlackInteract(request, env, ctx) {
+  const raw = await request.text();
+  if (!(await slackVerify(request, env, raw))) {
+    return new Response("bad signature", { status: 401 });
+  }
+  let payload = {};
+  try {
+    payload = JSON.parse(new URLSearchParams(raw).get("payload") || "{}");
+  } catch (_) {
+    return new Response("", { status: 400 });
+  }
+  const user = (payload.user || {}).id;
+  const allowed = String(env.SLACK_APPROVERS || "").split(",")
+    .map(function (s) { return s.trim(); }).filter(Boolean);
+  if (allowed.indexOf(user) < 0) {
+    if (payload.response_url) {
+      ctx.waitUntil(fetch(payload.response_url, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response_type: "ephemeral",
+          replace_original: false,
+          text: "Only the TickerDesk reviewer can decide posts." }) }));
+    }
+    return new Response("", { status: 200 });
+  }
+
+  if (payload.type === "block_actions") {
+    const a = (payload.actions || [])[0] || {};
+    const run = a.value;
+    if (a.action_id === "td_approve") {
+      ctx.waitUntil(approveFlow(env, run, user));
+      return new Response("", { status: 200 });
+    }
+    if (a.action_id === "td_edit" || a.action_id === "td_reject") {
+      // views.open must happen within Slack's 3s trigger window.
+      const rec = await reviewGet(env, run);
+      if (rec && rec.status === "pending") {
+        await slackApi(env, "views.open", { trigger_id: payload.trigger_id,
+          view: a.action_id === "td_edit" ? editView(rec) : rejectView(rec) });
+      }
+      return new Response("", { status: 200 });
+    }
+    return new Response("", { status: 200 });
+  }
+
+  if (payload.type === "view_submission") {
+    const v = payload.view || {};
+    const run = v.private_metadata;
+    const vals = (v.state || {}).values || {};
+    if (v.callback_id === "td_edit_submit") {
+      const text = ((vals.caption || {}).text || {}).value || "";
+      const n = xLen(text);
+      if (!text.trim()) {
+        return Response.json({ response_action: "errors",
+          errors: { caption: "Caption can't be empty." } });
+      }
+      if (n > 280) {
+        return Response.json({ response_action: "errors",
+          errors: { caption: n + "/280 as X counts it (links = 23). Trim " +
+            (n - 280) + "." } });
+      }
+      ctx.waitUntil(editFlow(env, run, user, text));
+      return new Response("", { status: 200 });     // closes the modal
+    }
+    if (v.callback_id === "td_reject_submit") {
+      const reason = ((vals.reason || {}).text || {}).value || "";
+      ctx.waitUntil(rejectFlow(env, run, user, reason.trim()));
+      return new Response("", { status: 200 });
+    }
+  }
+  return new Response("", { status: 200 });
+}
+
 // Social post kind -> site tab its link opens (see /go/<kind>).
 const SOCIAL_LINKS = {
   callouts: "uoa", weekly_recap: "uoa", flow: "uoa",
@@ -3409,6 +3728,23 @@ export default {
       // that post is about, tagged utm_source=x / utm_campaign=<kind> so
       // visits are attributable per content type once analytics is on.
       // The log line doubles as a click count in Workers observability.
+      // GET /cards/<name>.png — rendered social cards (R2 "cards/"), so the
+      // Slack review preview and the run summary can show the image
+      // inline. Names carry the run id, so a card is immutable once up.
+      const cm = request.method === "GET" &&
+        rp.match(/^\/cards\/([A-Za-z0-9_.\-]+\.png)$/);
+      if (cm && env.DATA) {
+        const obj = await env.DATA.get("cards/" + cm[1]);
+        if (!obj) return new Response("not found", { status: 404 });
+        return new Response(obj.body, { headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "public, max-age=86400, immutable" } });
+      }
+      // POST /slack/interact — Approve / Edit / Reject clicks from the
+      // social review channel (signature-verified in handleSlackInteract).
+      if (request.method === "POST" && rp === "/slack/interact") {
+        return handleSlackInteract(request, env, ctx);
+      }
       const gm = request.method === "GET" && rp.match(/^\/go\/([a-z_]+)$/);
       if (gm && SOCIAL_LINKS[gm[1]]) {
         const src = new URL(request.url).searchParams.get("s") || "x";
