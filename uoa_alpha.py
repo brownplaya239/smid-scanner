@@ -74,6 +74,23 @@ def _parse_occ(contract):
         return None, None
 
 
+def is_weekend_et(iso_ts):
+    """True if a UTC ISO timestamp falls on a Sat/Sun in US Eastern time.
+    ET, not UTC: a Friday-evening ET flag is Saturday in UTC."""
+    try:
+        dt = datetime.fromisoformat(str(iso_ts).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        try:
+            from zoneinfo import ZoneInfo
+            et = dt.astimezone(ZoneInfo("America/New_York"))
+        except Exception:
+            et = dt - timedelta(hours=4)
+        return et.weekday() >= 5
+    except (ValueError, TypeError):
+        return False
+
+
 def load_ledger():
     """Read the append-only signal ledger: monthly gzip archives (in
     order) then the hot file. Rotation (ledger_rotate.py) moves lines
@@ -82,14 +99,20 @@ def load_ledger():
     (the 2026-09-16 publish outage); nothing is ever deleted."""
     out = []
 
+    # Weekend-dated rows are re-logged copies of Friday's snapshot (see
+    # uoa_scanner weekend guard). They stay in the append-only files but
+    # are excluded here, so every consumer reads the clean record.
     def _read(fh):
         for line in fh:
             line = line.strip()
             if line:
                 try:
-                    out.append(json.loads(line))
+                    row = json.loads(line)
                 except Exception:
-                    pass
+                    continue
+                if is_weekend_et(row.get("flagged_at")):
+                    continue
+                out.append(row)
 
     import glob
     import gzip

@@ -1092,6 +1092,14 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
 def append_ledger(rows, min_score=55):
     """Append high-conviction signals to the ledger so the provable-alpha
     tracker can score their forward returns. One JSON object per line."""
+    # Weekend guard (2026-09-28): options don't trade Sat/Sun, so a
+    # weekend run only re-sees Friday's snapshot. Appending it minted
+    # 17,964 duplicate "Sunday" signals (Jun-Sep) that double-counted
+    # Fridays and graded against mismatched anchors.
+    from uoa_alpha import is_weekend_et
+    if is_weekend_et(datetime.now(timezone.utc).isoformat()):
+        print("  Ledger: weekend (ET) — no signals appended")
+        return 0
     os.makedirs(os.path.dirname(LEDGER_PATH), exist_ok=True)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     n = 0
