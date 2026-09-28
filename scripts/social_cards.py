@@ -445,19 +445,37 @@ def _chain0(sym):
     return None if d.get("error") else d
 
 
-def _social_log(kind):
-    path = os.path.join(_BASE, "data", "social_log.jsonl")
-    out = []
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
+SOCIAL_LOG = os.path.join(_BASE, "data", "social_log.jsonl")   # legacy
+SOCIAL_POSTS = os.path.join(_BASE, "data", "social_posts")      # 1 file/post
+
+
+def social_log_rows():
+    """Every post record, oldest first. One file per post (since the R2
+    move) so two posts approved at once can't overwrite each other's log
+    line; the old append-only jsonl is still read."""
+    rows = []
+    if os.path.exists(SOCIAL_LOG):
+        with open(SOCIAL_LOG, encoding="utf-8") as f:
             for line in f:
                 try:
-                    r = json.loads(line)
+                    rows.append(json.loads(line))
                 except ValueError:
                     continue
-                if r.get("kind") == kind and r.get("tweet_id"):
-                    out.append(r)
-    return out
+    if os.path.isdir(SOCIAL_POSTS):
+        for fn in sorted(os.listdir(SOCIAL_POSTS)):
+            if fn.endswith(".json"):
+                try:
+                    with open(os.path.join(SOCIAL_POSTS, fn),
+                              encoding="utf-8") as f:
+                        rows.append(json.load(f))
+                except ValueError:
+                    continue
+    return sorted(rows, key=lambda r: r.get("ts") or "")
+
+
+def _social_log(kind):
+    return [r for r in social_log_rows()
+            if r.get("kind") == kind and r.get("tweet_id")]
 
 
 def levels_card():

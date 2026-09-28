@@ -1021,6 +1021,22 @@ async function serveReport(key, env, ctx, cors) {
     // absorbs page-load bursts without serving meaningfully stale data.
     "Cache-Control": "public, max-age=60",
   };
+  // reports/index.json = names of the public report files (what
+  // `r2_sync.py pull-public` fetches for local dev). Names only; the
+  // files themselves are already public at /reports/<name>.
+  if (key === "reports/index.json" && env.DATA) {
+    const names = [];
+    let cursor;
+    do {
+      const page = await env.DATA.list({ prefix: "reports/", cursor: cursor });
+      page.objects.forEach(function (o) {
+        const n = o.key.slice("reports/".length);
+        if (/^[A-Za-z0-9_.\-]+\.json$/.test(n)) names.push(n);
+      });
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+    return new Response(JSON.stringify(names.sort()), { headers });
+  }
   if (env.DATA) {
     try {
       const obj = await env.DATA.get(key);

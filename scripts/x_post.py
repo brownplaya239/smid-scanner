@@ -28,7 +28,8 @@ Publishing gate (every run):
 Safety:
   - identity check: the credentials must belong to X_EXPECTED_HANDLE
     (default tickerdeskio) or nothing is posted
-  - one post per (kind, date): data/social_log.jsonl records every post
+  - one post per (kind, date): data/social_posts/ holds one record per
+    post (older posts: data/social_log.jsonl)
   - SOCIAL_PAUSE=1 (repo variable) stops all posting
 """
 
@@ -45,9 +46,8 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _BASE)
-from social_cards import KINDS, _day_label, _pct  # noqa: E402
-
-LOG = os.path.join(_BASE, "data", "social_log.jsonl")
+from social_cards import (KINDS, SOCIAL_POSTS, _day_label, _pct,  # noqa
+                          social_log_rows)
 EXPECTED = os.environ.get("X_EXPECTED_HANDLE", "tickerdeskio").lower()
 ET = timezone(timedelta(hours=-4))
 
@@ -71,16 +71,7 @@ def _now_et():
 
 
 def _log_rows():
-    if not os.path.exists(LOG):
-        return []
-    out = []
-    with open(LOG, encoding="utf-8") as f:
-        for line in f:
-            try:
-                out.append(json.loads(line))
-            except ValueError:
-                continue
-    return out
+    return social_log_rows()
 
 
 def _posted(kind, date):
@@ -531,14 +522,16 @@ def main():
         sys.exit(f"X refused the post: HTTP {e.response.status_code} {body}")
     tid = resp.data["id"]
     url = f"https://x.com/{me.username}/status/{tid}"
-    os.makedirs(os.path.dirname(LOG), exist_ok=True)
-    with open(LOG, "a", encoding="utf-8") as f:
-        f.write(json.dumps({
-            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "kind": b["kind"], "date": b["date"], "tweet_id": tid,
+    ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    os.makedirs(SOCIAL_POSTS, exist_ok=True)
+    rec = os.path.join(SOCIAL_POSTS,
+                       f"{ts[:19].replace(':', '')}_{b['kind']}_{tid}.json")
+    with open(rec, "w", encoding="utf-8") as f:
+        json.dump({
+            "ts": ts, "kind": b["kind"], "date": b["date"], "tweet_id": tid,
             "url": url, "handle": me.username,
             "text_sha1": hashlib.sha1(b["text"].encode("utf-8")).hexdigest(),
-            **b["extra"]}) + "\n")
+            **b["extra"]}, f)
     print("POSTED:", url)
 
 
