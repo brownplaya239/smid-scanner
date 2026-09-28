@@ -129,8 +129,19 @@ def main():
         api.create_media_metadata(media.media_id, alt[:1000])
     except Exception as e:  # alt text is best-effort
         print("alt text not set:", str(e)[:100])
-    resp = client.create_tweet(text=text, media_ids=[media.media_id],
-                               user_auth=True)
+    import tweepy
+    try:
+        resp = client.create_tweet(text=text, media_ids=[media.media_id],
+                                   user_auth=True)
+    except tweepy.errors.HTTPException as e:
+        # X explains billing/permission refusals in the body (e.g. 402:
+        # no credits / plan not attached to this app's project).
+        body = ""
+        try:
+            body = e.response.text[:600]
+        except Exception:
+            pass
+        sys.exit(f"X refused the post: HTTP {e.response.status_code} {body}")
     tid = resp.data["id"]
     url = f"https://x.com/{me.username}/status/{tid}"
     os.makedirs(os.path.dirname(LOG), exist_ok=True)
