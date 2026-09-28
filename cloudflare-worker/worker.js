@@ -123,23 +123,40 @@ function slackEsc(s) {
     .replace(/>/g, "&gt;");
 }
 
+// Why the last Slack request passed/failed — never the secret itself.
+// Readable at GET /slack/interact (booleans + reason only).
+let SLACK_LAST = null;
+
 async function slackVerify(request, env, raw) {
   const ts = request.headers.get("X-Slack-Request-Timestamp");
   const sig = request.headers.get("X-Slack-Signature") || "";
-  if (!ts || !env.SLACK_SIGNING_SECRET) return false;
-  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;  // replay
+  // Trim: a secret pasted into the dashboard can pick up a newline.
+  const secret = String(env.SLACK_SIGNING_SECRET || "").trim();
+  const note = function (reason) {
+    SLACK_LAST = { at: new Date().toISOString(), reason: reason,
+      has_timestamp: !!ts, has_signature: !!sig,
+      skew_s: ts ? Math.round(Date.now() / 1000 - Number(ts)) : null };
+    return reason === "ok";
+  };
+  if (!secret) return note("SLACK_SIGNING_SECRET not set on the worker");
+  if (!ts || !sig) return note("request has no Slack signature headers");
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) {
+    return note("timestamp too old (replay window)");
+  }
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
-    "raw", enc.encode(env.SLACK_SIGNING_SECRET),
+    "raw", enc.encode(secret),
     { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const mac = await crypto.subtle.sign("HMAC", key,
     enc.encode("v0:" + ts + ":" + raw));
   const hex = "v0=" + Array.from(new Uint8Array(mac))
     .map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
-  if (hex.length !== sig.length) return false;
+  if (hex.length !== sig.length) {
+    return note("signature mismatch (wrong signing secret?)");
+  }
   let diff = 0;                                   // constant-time compare
   for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ sig.charCodeAt(i);
-  return diff === 0;
+  return note(diff === 0 ? "ok" : "signature mismatch (wrong signing secret?)");
 }
 
 async function slackApi(env, method, body) {
@@ -356,7 +373,14 @@ async function handleSlackInteract(request, env, ctx) {
   const user = (payload.user || {}).id;
   const allowed = String(env.SLACK_APPROVERS || "").split(",")
     .map(function (s) { return s.trim(); }).filter(Boolean);
+  if (SLACK_LAST) {
+    SLACK_LAST.type = payload.type || null;
+    SLACK_LAST.action = ((payload.actions || [])[0] || {}).action_id ||
+      ((payload.view || {}).callback_id) || null;
+  }
   if (allowed.indexOf(user) < 0) {
+    if (SLACK_LAST) SLACK_LAST.reason = "clicked by " + user +
+      ", who is not in SLACK_APPROVERS";
     if (payload.response_url) {
       ctx.waitUntil(fetch(payload.response_url, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -378,8 +402,13 @@ async function handleSlackInteract(request, env, ctx) {
       // views.open must happen within Slack's 3s trigger window.
       const rec = await reviewGet(env, run);
       if (rec && rec.status === "pending") {
-        await slackApi(env, "views.open", { trigger_id: payload.trigger_id,
+        const o = await slackApi(env, "views.open", {
+          trigger_id: payload.trigger_id,
           view: a.action_id === "td_edit" ? editView(rec) : rejectView(rec) });
+        if (SLACK_LAST && !o.ok) SLACK_LAST.slack_error = o.error;
+      } else if (SLACK_LAST) {
+        SLACK_LAST.note = rec ? "draft already " + rec.status
+                              : "no review record for run " + run;
       }
       return new Response("", { status: 200 });
     }
@@ -3744,6 +3773,17 @@ export default {
       // social review channel (signature-verified in handleSlackInteract).
       if (request.method === "POST" && rp === "/slack/interact") {
         return handleSlackInteract(request, env, ctx);
+      }
+      if (request.method === "GET" && rp === "/slack/interact") {
+        // Setup check: which pieces exist (booleans only) + why the last
+        // Slack click passed or failed on this worker instance.
+        return Response.json({
+          signing_secret_set: !!String(env.SLACK_SIGNING_SECRET || "").trim(),
+          bot_token_set: !!env.SLACK_BOT_TOKEN,
+          approvers_set: !!String(env.SLACK_APPROVERS || "").trim(),
+          github_token_set: !!env.PAT,
+          last_request: SLACK_LAST,
+        });
       }
       const gm = request.method === "GET" && rp.match(/^\/go\/([a-z_]+)$/);
       if (gm && SOCIAL_LINKS[gm[1]]) {
