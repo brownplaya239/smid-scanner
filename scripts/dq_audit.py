@@ -149,14 +149,32 @@ ARTIFACTS = {
 }
 
 
+def _completed_sessions(eod_hour):
+    """ET weekdays whose EOD (eod_hour ET) has already passed, newest
+    first. Weekends/holidays produce no runs, so staleness is measured
+    in trading sessions, not wall-clock hours (a Friday file is current
+    all weekend)."""
+    n = NOW.astimezone(ET)
+    d = n
+    out = []
+    while len(out) < 3:
+        if d.weekday() < 5 and                 d.replace(hour=eod_hour, minute=0, second=0,
+                          microsecond=0) <= n:
+            out.append(d.replace(hour=9, minute=0, second=0,
+                                 microsecond=0))
+        d -= timedelta(days=1)
+    return out
+
+
 def freshness_limit(cadence):
     if cadence == "intraday":
         return last_rth_batch() - timedelta(minutes=30)
     if cadence == "daily":
-        return NOW - timedelta(hours=30 if NOW.weekday() < 6 else 54)
+        # produced some time during the last completed session's day
+        return _completed_sessions(20)[0]
     if cadence == "nightly":
-        return NOW - timedelta(hours=36 if NOW.weekday() not in (0, 6)
-                               else 84)
+        # nightly jobs land ~7:30-9 PM ET; allow one missed night
+        return _completed_sessions(22)[1]
     return NOW - timedelta(days=8)
 
 
