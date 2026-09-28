@@ -13,8 +13,8 @@
 # manifest.json is the only file that can conflict (report PDFs have unique
 # timestamped names) — on conflict it is simply regenerated from the PDFs.
 #
-# Always exits 0: a lost archive race must not fail the parent job — the next
-# run re-publishes the report.
+# Exits 0 on a lost git race (the next run re-publishes). Exits 1 only if the R2
+# data upload fails — that loses the batch, so it must fail loudly.
 
 set -u
 
@@ -34,7 +34,10 @@ python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || t
 # keyword slugs all contain a hyphen, which the static pages (index /
 # privacy / terms / transparency) do not — so docs/*-*.html captures the
 # landing set without ever staging a hand-edited page.
-PUBLISH_PATHS="docs/reports/ data/ docs/sitemap.xml docs/*-*.html"
+# Since the R2 cutover (2026-09-28) data/ and docs/reports/*.json live in
+# Cloudflare R2, not git (.gitignore). git keeps the report PDFs, their
+# manifest.json, top_daily/, and the landing pages.
+PUBLISH_PATHS="docs/reports/ docs/sitemap.xml docs/*-*.html"
 
 # Preflight (2026-09-16 outage): GitHub hard-rejects files >100MB and
 # this script deliberately never fails the job — so at least be LOUD.
@@ -42,14 +45,17 @@ find data docs/reports -type f -size +95M 2>/dev/null | while read -r f; do
   echo "::error::$f is over 95MB — GitHub rejects >100MB pushes (GH001). Run ledger_rotate.py / shrink it. Publishes will silently drop until fixed."
 done
 
-git add ${PUBLISH_PATHS} || true
-
-# Dual-write to Cloudflare R2 (git -> R2 migration, 2026-09-27): upload
-# every data file this job changed. Independent of the git push below,
-# so a rejected/raced push can no longer strand a batch's data. Non-fatal.
-if [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
-  python scripts/r2_sync.py push --git-staged     || echo "::warning::R2 upload had failures (git publish continues)"
+# DATA -> R2 (the source of truth since the cutover). Uploads only files
+# this job changed since its `r2_sync.py pull` (and deletes ones it
+# pruned), so it can't clobber another workflow's newer copy. Unlike the
+# git push below this is FATAL: a failed upload loses the batch's data,
+# and that must page, not scroll past as a warning.
+if ! python scripts/r2_sync.py push --changed; then
+  echo "::error::R2 upload failed — this run's data did not publish"
+  exit 1
 fi
+
+git add ${PUBLISH_PATHS} || true
 
 if git diff --staged --quiet; then
   echo "No new reports to publish"
@@ -84,7 +90,7 @@ for attempt in 1 2 3 4 5; do
     # Manifest is derived from the PDF set — rebuild after taking theirs
     # so it reflects this run's newly-added reports too.
     python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || true
-    git add docs/reports/ data/
+    git add docs/reports/
     if ! GIT_EDITOR=true git rebase --continue; then
       git rebase --abort || true
       echo "Rebase failed on attempt ${attempt}; retrying..."

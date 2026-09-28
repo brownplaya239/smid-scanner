@@ -50,6 +50,13 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Pull data from R2
+        # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
+        # manifest so publish only uploads what this job changed.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 scripts/r2_sync.py pull --prefix reports/
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

@@ -53,6 +53,13 @@ jobs:
           # branch. A shallow fetch is fine — we're not branching.
           fetch-depth: 1
 
+      - name: Pull data from R2
+        # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
+        # manifest so publish only uploads what this job changed.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 scripts/r2_sync.py pull
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -92,19 +99,10 @@ jobs:
           fi
           python daily_brief.py $ARGS
 
-      - name: Commit carryover flow for the Desk tile
-        # The Today's Desk "Overnight Flow" tile reads this file off Pages,
-        # so publish it back to the branch. Only commits when it changed.
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/reports/carryover_flow.json 2>/dev/null || true
-          if git diff --cached --quiet; then
-            echo "No carryover change to commit."
-          else
-            git commit -m "Carryover flow (OI-confirmed) — pre-open $(date -u +%Y-%m-%dT%H:%MZ)"
-            for i in 1 2 3; do
-              git pull --rebase --autostash origin ${{ github.ref_name }} && \
-              git push origin HEAD:${{ github.ref_name }} && break || sleep 5
-            done
-          fi
+      - name: Publish carryover flow for the Desk tile
+        # The Today's Desk "Overnight Flow" tile reads this file off Pages.
+        # It lives in R2 now; pages.yml ("Daily Brief" is in its
+        # workflow_run list) pulls it into the next site build.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 scripts/r2_sync.py push --changed

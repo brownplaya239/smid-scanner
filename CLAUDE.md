@@ -73,6 +73,18 @@ GitHub Pages, served from `docs/` on `master`, at the custom domain
   GitHub workflow; the resulting PDF is polled for and embedded inline
 - Every workflow run archives its PDF to `docs/reports/` and commits it back
   via `scripts/publish_reports.sh`
+- **Data is in Cloudflare R2, not git** (cutover 2026-09-28; bucket
+  `tickerdesk-data`). `data/**` and `docs/reports/*.json` are gitignored.
+  Each data workflow runs `python3 scripts/r2_sync.py pull` right after
+  checkout (records `.r2_manifest.json`); `publish_reports.sh` runs
+  `push --changed`, which uploads only files that job changed and deletes
+  ones it pruned, and FAILS the job if the upload fails. `pages.yml` pulls
+  `reports/` into the site build. The worker serves `/reports/*.json` from
+  R2. uoa / momentum / uoa_scorecard share the `tickerdesk-data`
+  concurrency group because they write the same files (uoa_alpha_cache,
+  oi_lifecycle, the ledger). Git-only exceptions (hand-edited or fixtures)
+  are listed in `.gitignore` and `r2_sync.GIT_ONLY`. Local dev:
+  `python scripts/r2_sync.py pull-public` (public reports, no token).
 
 ---
 

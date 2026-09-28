@@ -17,6 +17,15 @@ on:
 
   workflow_dispatch:           # manual trigger from GitHub UI anytime
 
+# Shares data files with the other uoa/momentum/scorecard runs
+# (uoa_alpha_cache, oi_lifecycle, the ledger). In R2 overlapping writers
+# would lose updates, so these three workflows take turns. Runs are ~5
+# min; a queued run superseded by a newer one is dropped, which is fine
+# for scans (the newer run covers it).
+concurrency:
+  group: tickerdesk-data
+  cancel-in-progress: false
+
 jobs:
   momentum:
     runs-on: ubuntu-latest
@@ -33,6 +42,13 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Pull data from R2
+        # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
+        # manifest so publish only uploads what this job changed.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 scripts/r2_sync.py pull
 
       - name: Set up Python
         uses: actions/setup-python@v5

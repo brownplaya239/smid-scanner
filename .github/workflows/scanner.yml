@@ -48,6 +48,10 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Start R2 manifest
+        # This job reads no data; anything it writes is new (R2 cutover).
+        run: python3 scripts/r2_sync.py init
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

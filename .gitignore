@@ -28,3 +28,19 @@ out_v3/
 
 # rendered social cards (CI artifacts, never published)
 docs/cards/
+
+# ── Data lives in Cloudflare R2 since the 2026-09-28 cutover ─────────
+# Workflows `r2_sync.py pull` at start and publish_reports.sh uploads what
+# they changed. Local dev: `python scripts/r2_sync.py pull-public` fetches
+# the public reports (no token). Kept in git: hand-edited config, test
+# fixtures, and manifest.json (derived from the report PDFs, which stay).
+/data/*
+!/data/fixtures_expected.json
+!/data/hedge_monitor_exclusions.jsonl
+!/data/mutation_proofs/
+!/data/research_state/
+!/data/listing_facts/
+/docs/reports/*.json
+!/docs/reports/manifest.json
+!/docs/reports/event_overrides.json
+.r2_manifest.json
