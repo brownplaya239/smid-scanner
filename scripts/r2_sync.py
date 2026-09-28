@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""r2_sync.py — move TickerDesk's published data between the runner and
+Cloudflare R2 (bucket `tickerdesk-data`), replacing git as the data store.
+
+Uses Cloudflare's R2 object REST API with CLOUDFLARE_API_TOKEN (the CI
+secret the worker deploy already uses). Keys mirror repo paths:
+  docs/reports/foo.json  ->  reports/foo.json   (served publicly by the
+                                                  worker at /reports/)
+  data/bar.jsonl         ->  data/bar.jsonl     (internal, never served)
+
+    python scripts/r2_sync.py push FILE [FILE ...]   # upload these paths
+    python scripts/r2_sync.py push --git-staged      # upload data files
+                                                    # staged in git index
+    python scripts/r2_sync.py push --all             # seed everything
+    python scripts/r2_sync.py pull [--prefix data/]  # download all objects
+                                                    # into their repo paths
+    python scripts/r2_sync.py list [--prefix ...]
+
+Exit code is non-zero if any transfer failed; failures are listed.
+"""
+
+from __future__ import annotations
+
+import glob
+import json
+import os
+import subprocess
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+
+ACCOUNT = os.environ.get("CF_ACCOUNT_ID",
+                         "06ea98cb3e05c64a52517aeb802d96a4")
+BUCKET = os.environ.get("R2_BUCKET", "tickerdesk-data")
+API = (f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}"
+       f"/r2/buckets/{BUCKET}/objects")
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _token():
+    t = os.environ.get("CLOUDFLARE_API_TOKEN", "")
+    if not t:
+        sys.exit("CLOUDFLARE_API_TOKEN not set")
+    return t
+
+
+def repo_to_key(path):
+    rel = os.path.relpath(os.path.abspath(path), _BASE).replace("\\", "/")
+    if rel.startswith("docs/reports/"):
+        return "reports/" + rel[len("docs/reports/"):]
+    if rel.startswith("data/"):
+        return rel
+    return None
+
+
+def key_to_repo(key):
+    if key.startswith("reports/"):
+        return os.path.join(_BASE, "docs", "reports", key[len("reports/"):])
+    if key.startswith("data/"):
+        return os.path.join(_BASE, *key.split("/"))
+    return None
+
+
+def _ctype(key):
+    if key.endswith(".json"):
+        return "application/json; charset=utf-8"
+    if key.endswith(".jsonl"):
+        return "application/x-ndjson"
+    if key.endswith(".gz"):
+        return "application/gzip"
+    return "application/octet-stream"
+
+
+def _req(method, url, data=None, headers=None, timeout=120):
+    h = {"Authorization": "Bearer " + _token()}
+    h.update(headers or {})
+    req = urllib.request.Request(url, data=data, method=method, headers=h)
+    return urllib.request.urlopen(req, timeout=timeout)
+
+
+def put(path):
+    key = repo_to_key(path)
+    if not key:
+        return path, "skipped (not a data path)"
+    with open(path, "rb") as f:
+        body = f.read()
+    url = API + "/" + urllib.parse.quote(key, safe="")
+    for attempt in range(3):
+        try:
+            with _req("PUT", url, data=body,
+                      headers={"Content-Type": _ctype(key)}) as r:
+                r.read()
+            return path, None
+        except urllib.error.HTTPError as e:
+            err = f"HTTP {e.code}"
+            if e.code < 500 and e.code != 429:
+                break
+        except Exception as e:  # network blips
+            err = str(e)[:120]
+    return path, err
+
+
+def get(key):
+    dest = key_to_repo(key)
+    if not dest:
+        return key, "skipped"
+    url = API + "/" + urllib.parse.quote(key, safe="")
+    for attempt in range(3):
+        try:
+            with _req("GET", url) as r:
+                body = r.read()
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            tmp = dest + ".r2tmp"
+            with open(tmp, "wb") as f:
+                f.write(body)
+            os.replace(tmp, dest)
+            return key, None
+        except urllib.error.HTTPError as e:
+            err = f"HTTP {e.code}"
+            if e.code < 500 and e.code != 429:
+                break
+        except Exception as e:
+            err = str(e)[:120]
+    return key, err
+
+
+def list_keys(prefix=""):
+    keys, cursor = [], None
+    while True:
+        q = {"per_page": "1000"}
+        if prefix:
+            q["prefix"] = prefix
+        if cursor:
+            q["cursor"] = cursor
+        with _req("GET", API + "?" + urllib.parse.urlencode(q)) as r:
+            d = json.loads(r.read())
+        for o in d.get("result") or []:
+            keys.append(o["key"])
+        cursor = (d.get("result_info") or {}).get("cursor")
+        if not cursor or not (d.get("result_info") or {}).get("is_truncated"):
+            break
+    return keys
+
+
+def data_paths():
+    out = sorted(glob.glob(os.path.join(_BASE, "docs", "reports", "*.json")))
+    for root, _, files in os.walk(os.path.join(_BASE, "data")):
+        for fn in files:
+            out.append(os.path.join(root, fn))
+    return out
+
+
+def git_staged():
+    r = subprocess.run(["git", "diff", "--cached", "--name-only",
+                        "--diff-filter=AM"], cwd=_BASE,
+                       capture_output=True, text=True)
+    return [os.path.join(_BASE, p) for p in r.stdout.split()
+            if repo_to_key(os.path.join(_BASE, p))]
+
+
+def _run(fn, items):
+    fails = []
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        for item, err in ex.map(fn, items):
+            if err and not err.startswith("skipped"):
+                fails.append((item, err))
+    return fails
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit(__doc__)
+    cmd, args = sys.argv[1], sys.argv[2:]
+    prefix = ""
+    if "--prefix" in args:
+        prefix = args[args.index("--prefix") + 1]
+    if cmd == "push":
+        if "--all" in args:
+            paths = data_paths()
+        elif "--git-staged" in args:
+            paths = git_staged()
+        else:
+            paths = [a for a in args if not a.startswith("--")]
+        paths = [p for p in paths if os.path.isfile(p) and repo_to_key(p)]
+        fails = _run(put, paths)
+        print(f"[r2] pushed {len(paths) - len(fails)}/{len(paths)} objects")
+    elif cmd == "pull":
+        keys = list_keys(prefix)
+        fails = _run(get, keys)
+        print(f"[r2] pulled {len(keys) - len(fails)}/{len(keys)} objects")
+    elif cmd == "list":
+        for k in list_keys(prefix):
+            print(k)
+        return
+    else:
+        sys.exit(__doc__)
+    for item, err in fails:
+        print(f"[r2] FAILED {item}: {err}")
+    sys.exit(1 if fails else 0)
+
+
+if __name__ == "__main__":
+    main()

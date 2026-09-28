@@ -50,4 +50,6 @@ jobs:
         run: python alt_data.py --ticker "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}"
 
       - name: Publish report to site archive
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bash scripts/publish_reports.sh

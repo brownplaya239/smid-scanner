@@ -60,6 +60,12 @@ crons = [
 # SUPABASE_ANON_KEY is intentionally a var — it's public-facing and
 # already lives in the static site's JS. The worker uses it as the
 # `apikey` header when validating user JWTs via /auth/v1/user.
+# Published site data (git -> R2 migration, 2026-09-27). The worker
+# serves /reports/*.json from here with a Pages fallback.
+[[r2_buckets]]
+binding     = "DATA"
+bucket_name = "tickerdesk-data"
+
 [vars]
 SUPABASE_URL = "https://uaeojibmhxbwkhpvmjwy.supabase.co"
 SUPABASE_ANON_KEY = "sb_publishable_Lsy2m1QG18tkGYwizS-_0A_LhfIFXdo"

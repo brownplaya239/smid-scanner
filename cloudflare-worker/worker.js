@@ -941,6 +941,43 @@ async function handleAskDesk(request, env, cors) {
   }
 }
 
+async function serveReport(key, env, ctx, cors) {
+  const headers = {
+    ...cors,
+    "Content-Type": "application/json; charset=utf-8",
+    // Short TTL: batches publish every ~30 min; a minute of edge cache
+    // absorbs page-load bursts without serving meaningfully stale data.
+    "Cache-Control": "public, max-age=60",
+  };
+  if (env.DATA) {
+    try {
+      const obj = await env.DATA.get(key);
+      if (obj) {
+        headers["X-Data-Source"] = "r2";
+        if (obj.uploaded) headers["Last-Modified"] = obj.uploaded.toUTCString();
+        return new Response(obj.body, { headers });
+      }
+    } catch (e) {
+      console.log("[r2] get " + key + " failed: " + e.message);
+    }
+  }
+  try {
+    const r = await fetch("https://tickerdesk.io/" + key, {
+      cf: { cacheTtl: 60 },
+      headers: { "User-Agent": "tickerdesk-worker-r2-fallback" },
+    });
+    if (!r.ok) {
+      return new Response(JSON.stringify({ error: "not found" }),
+        { status: r.status === 404 ? 404 : 502, headers });
+    }
+    headers["X-Data-Source"] = "pages";
+    return new Response(r.body, { headers });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: "upstream unavailable" }),
+      { status: 502, headers });
+  }
+}
+
 async function handlePortfolioOCR(request, env, cors) {
   if (!env.ANTHROPIC_API_KEY) {
     return Response.json(
@@ -3263,6 +3300,21 @@ export default {
     // by browsers; we keep cors as-is for simplicity.
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: cors });
+    }
+
+    // ── Published data from R2 (2026-09-27 git -> R2 migration) ──────
+    // GET /reports/<file>.json -> R2 object "reports/<file>.json" when the
+    // DATA binding holds it, else the same file from the Pages site. The
+    // fallback keeps the site working while files move over and makes the
+    // switch reversible. Only the reports/ prefix is public — internal
+    // ledgers under data/ are never served. Placed before the per-IP
+    // rate limiter: these are the page's own data loads (edge-cached).
+    {
+      const rp = new URL(request.url).pathname;
+      if (request.method === "GET" &&
+          /^\/reports\/[A-Za-z0-9_.\-]+\.json$/.test(rp)) {
+        return serveReport(rp.slice(1), env, ctx, cors);
+      }
     }
 
     // ── Abuse guards (defined above export) ──

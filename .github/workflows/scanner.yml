@@ -93,4 +93,6 @@ jobs:
           fi
 
       - name: Publish reports to site archive
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bash scripts/publish_reports.sh

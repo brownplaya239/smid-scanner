@@ -11,6 +11,10 @@ on:
         description: "Also create the tickerdesk-data bucket"
         type: boolean
         default: false
+      seed:
+        description: "Upload every current data file (docs/reports/*.json + data/) to R2"
+        type: boolean
+        default: false
 
 jobs:
   probe:
@@ -36,3 +40,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npx wrangler r2 bucket create tickerdesk-data
+      - name: Seed R2 with current data
+        if: ${{ inputs.seed }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python scripts/r2_sync.py push --all

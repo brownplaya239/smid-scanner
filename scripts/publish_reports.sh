@@ -43,6 +43,14 @@ find data docs/reports -type f -size +95M 2>/dev/null | while read -r f; do
 done
 
 git add ${PUBLISH_PATHS} || true
+
+# Dual-write to Cloudflare R2 (git -> R2 migration, 2026-09-27): upload
+# every data file this job changed. Independent of the git push below,
+# so a rejected/raced push can no longer strand a batch's data. Non-fatal.
+if [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
+  python scripts/r2_sync.py push --git-staged     || echo "::warning::R2 upload had failures (git publish continues)"
+fi
+
 if git diff --staged --quiet; then
   echo "No new reports to publish"
   exit 0
