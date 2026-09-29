@@ -361,7 +361,16 @@ function rejectView(rec) {
 
 async function handleSlackInteract(request, env, ctx) {
   const raw = await request.text();
-  if (!(await slackVerify(request, env, raw))) {
+  const verified = await slackVerify(request, env, raw);
+  // Persist the outcome (no secrets, no payload) so GET /slack/interact
+  // can show it from any worker instance — in-memory state is per-isolate.
+  const saveLast = function () {
+    if (!env.DATA || !SLACK_LAST) return Promise.resolve();
+    return env.DATA.put("diag/slack_last.json", JSON.stringify(SLACK_LAST),
+      { httpMetadata: { contentType: "application/json" } }).catch(function () {});
+  };
+  if (!verified) {
+    ctx.waitUntil(saveLast());
     return new Response("bad signature", { status: 401 });
   }
   let payload = {};
@@ -378,9 +387,11 @@ async function handleSlackInteract(request, env, ctx) {
     SLACK_LAST.action = ((payload.actions || [])[0] || {}).action_id ||
       ((payload.view || {}).callback_id) || null;
   }
+  ctx.waitUntil(saveLast());
   if (allowed.indexOf(user) < 0) {
     if (SLACK_LAST) SLACK_LAST.reason = "clicked by " + user +
       ", who is not in SLACK_APPROVERS";
+    ctx.waitUntil(saveLast());
     if (payload.response_url) {
       ctx.waitUntil(fetch(payload.response_url, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -3794,12 +3805,25 @@ export default {
       if (request.method === "GET" && rp === "/slack/interact") {
         // Setup check: which pieces exist (booleans only) + why the last
         // Slack click passed or failed on this worker instance.
+        let last = SLACK_LAST;
+        try {
+          const o = env.DATA && await env.DATA.get("diag/slack_last.json");
+          if (o) last = await o.json();
+        } catch (_) { /* keep in-memory */ }
+        // auth.test proves the bot token works (returns names only).
+        let bot = null;
+        if (env.SLACK_BOT_TOKEN) {
+          const a = await slackApi(env, "auth.test", {});
+          bot = a.ok ? { ok: true, team: a.team, bot_user: a.user }
+                     : { ok: false, error: a.error };
+        }
         return Response.json({
           signing_secret_set: !!String(env.SLACK_SIGNING_SECRET || "").trim(),
           bot_token_set: !!env.SLACK_BOT_TOKEN,
+          bot_token_check: bot,
           approvers_set: !!String(env.SLACK_APPROVERS || "").trim(),
           github_token_set: !!env.PAT,
-          last_request: SLACK_LAST,
+          last_request: last,
         });
       }
       const gm = request.method === "GET" && rp.match(/^\/go\/([a-z_]+)$/);
