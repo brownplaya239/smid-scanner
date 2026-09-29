@@ -442,6 +442,14 @@ async function handleSlackInteract(request, env, ctx) {
           errors: { caption: n + "/280 as X counts it (links = 23). Trim " +
             (n - 280) + "." } });
       }
+      // X rejects posts with more than one cashtag (HTTP 403). $14.6M /
+      // $1070C start with a digit and aren't cashtags.
+      const tags = text.match(/\$[A-Za-z][A-Za-z.]{0,5}(?![A-Za-z0-9])/g) || [];
+      if (tags.length > 1) {
+        return Response.json({ response_action: "errors",
+          errors: { caption: "X allows one $cashtag per post (found " +
+            tags.join(" ") + "). Keep the $ on one ticker only." } });
+      }
       ctx.waitUntil(editFlow(env, run, user, text));
       return new Response("", { status: 200 });     // closes the modal
     }

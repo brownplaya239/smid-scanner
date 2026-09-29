@@ -28,6 +28,26 @@ class XLength(unittest.TestCase):
         self.assertTrue(out.endswith(x_post.link("flow")))
 
 
+class Cashtags(unittest.TestCase):
+    """X rejects posts with more than one cashtag (HTTP 403)."""
+
+    def test_keeps_first_cashtag_only(self):
+        t = ("$AAA Oct 2 $1070C: $14.6M\n$BBB Dec 18 $720P: $54.2M\n\n"
+             "$CCC $DD.B")
+        out = x_post.limit_cashtags(t)
+        self.assertEqual(x_post.cashtags(out), ["AAA"])
+        self.assertIn("BBB Dec 18 $720P: $54.2M", out)   # $ amounts kept
+        self.assertIn("CCC DD.B", out)
+
+    def test_every_caption_kind_has_at_most_one(self):
+        f = {"day": "2026-09-28", "body": [
+            ["AAA Oct 2 $10C", "Calls", "$9.0M", "3", "5x"],
+            ["BBB Oct 2 $9P", "Puts", "$7.0M", "3", "3x"]]}
+        self.assertLessEqual(
+            len(x_post.cashtags(x_post.limit_cashtags(x_post.flow_caption(f)))),
+            1)
+
+
 class Captions(unittest.TestCase):
     def test_flow_interleaves_calls_and_puts(self):
         f = {"day": "2026-09-28", "body": [

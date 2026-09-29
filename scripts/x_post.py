@@ -92,6 +92,26 @@ def x_len(text):
     return len(_URL.sub("x" * 23, text))
 
 
+# X rejects posts with more than one cashtag (HTTP 403, "Posts are
+# limited to a maximum of one cashtag"). A cashtag is $ + letters —
+# $14.6M / $1070C start with a digit and are left alone.
+_CASHTAG = re.compile(r"\$([A-Za-z][A-Za-z.]{0,5})(?![A-Za-z0-9])")
+
+
+def cashtags(text):
+    return _CASHTAG.findall(text)
+
+
+def limit_cashtags(text, keep=1):
+    """Keep the $ on the first `keep` cashtags, plain ticker after."""
+    n = [0]
+
+    def sub(m):
+        n[0] += 1
+        return m.group(0) if n[0] <= keep else m.group(1)
+    return _CASHTAG.sub(sub, text)
+
+
 def _fit(head, items, tail):
     """head + as many item lines as fit in 280 (X-weighted) + tail."""
     keep = list(items)
@@ -103,7 +123,7 @@ def _fit(head, items, tail):
     return "\n".join(head + tail)
 
 
-def _tags(tickers, text, n=3):
+def _tags(tickers, text, n=1):
     tags = []
     for t in tickers:
         tag = "$" + t
@@ -676,7 +696,7 @@ def slack_preview(b, card_url):
 def render(a):
     path, alt, facts = KINDS[a.kind](a)
     date = _post_date(a.kind, facts)
-    text = CAPTIONS[a.kind](facts)
+    text = limit_cashtags(CAPTIONS[a.kind](facts))
     blocks, review = gate(a.kind, facts, text, a.scheduled)
     return {"kind": a.kind, "date": date, "card": path, "alt": alt,
             "text": text, "blocks": blocks, "review": review,
@@ -722,6 +742,7 @@ def main():
                 _review_done(review, f"Not posted: {why}", f"Not posted: {why}.")
                 sys.exit("edited caption rejected: " + why)
             print("using caption edited in Slack")
+            review["text"] = limit_cashtags(review["text"])
             b["text"] = review["text"]
             b["extra"]["edited_in_slack"] = True
     else:
