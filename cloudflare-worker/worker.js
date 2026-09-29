@@ -473,7 +473,11 @@ const SOCIAL_SCHEDULE = [
 // ~8:50 PM), so the 8:15 PM callouts post found no results for the day.
 // Their GitHub crons stay as a backstop; a second run is harmless (the
 // scorecard freezes assignments, the callout tracker is idempotent).
+// The pre-open Daily Brief too: GitHub's 8:47 AM cron has been landing
+// 5-7 hours late (Mon 3:49 PM, Fri 1:32 PM). Sends are idempotent per
+// subscriber per day, so the late GitHub run can't double-send.
 const JOB_SCHEDULE = [
+  { at: "08:45", days: [1, 2, 3, 4, 5], workflow: "daily_brief.yml" },
   { at: "18:45", days: [1, 2, 3, 4, 5], workflow: "earnings_vol.yml" },
   { at: "19:30", days: [1, 2, 3, 4, 5], workflow: "uoa_scorecard.yml" },
 ];
