@@ -468,6 +468,16 @@ const SOCIAL_SCHEDULE = [
   { at: "20:45", days: [5],             kind: "weekly_recap" },
 ];
 
+// Evening jobs the worker starts on time. GitHub's own schedule runs
+// them ~2h late (scorecard 7:30 PM -> ~9:40 PM, earnings vol 6:45 PM ->
+// ~8:50 PM), so the 8:15 PM callouts post found no results for the day.
+// Their GitHub crons stay as a backstop; a second run is harmless (the
+// scorecard freezes assignments, the callout tracker is idempotent).
+const JOB_SCHEDULE = [
+  { at: "18:45", days: [1, 2, 3, 4, 5], workflow: "earnings_vol.yml" },
+  { at: "19:30", days: [1, 2, 3, 4, 5], workflow: "uoa_scorecard.yml" },
+];
+
 function etClock() {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York", hour12: false, weekday: "short",
@@ -4667,16 +4677,20 @@ export default {
     }
     // Social posting crons (*/15) never touch the scan pipeline.
     if (event.cron.indexOf("*/15") === 0) {
-      if (env.SOCIAL_SCHEDULE !== "1") return;       // off switch
       const c = etClock();
-      const due = SOCIAL_SCHEDULE.filter(function (x) {
+      const isDue = function (x) {
         return x.at === c.hhmm && x.days.indexOf(c.dow) >= 0;
+      };
+      const jobs = JOB_SCHEDULE.filter(isDue).map(function (x) {
+        return dispatch(x.workflow);
       });
-      if (!due.length) return;
-      ctx.waitUntil(Promise.all(due.map(function (x) {
-        return dispatch("social_post.yml",
-          { kind: x.kind, dry_run: "false", scheduled: "true" });
-      })));
+      if (env.SOCIAL_SCHEDULE === "1") {              // social off switch
+        SOCIAL_SCHEDULE.filter(isDue).forEach(function (x) {
+          jobs.push(dispatch("social_post.yml",
+            { kind: x.kind, dry_run: "false", scheduled: "true" }));
+        });
+      }
+      if (jobs.length) ctx.waitUntil(Promise.all(jobs));
       return;
     }
     const isEod = event.cron === "40 20 * * MON-FRI";
