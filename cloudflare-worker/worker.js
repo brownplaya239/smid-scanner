@@ -531,7 +531,10 @@ async function fetchChain0(sym, env) {
   if (cached) return cached;
   // 1) spot from the stocks snapshot (15-min delayed)
   const snap = await fetchPolygonSnapshot(sym, env);
-  const spot = snap && snap.price;
+  // Pre-market and the first ~15 min (delayed feed), Polygon's day bar is
+  // all zeros and Starter has no lastTrade, so price reads 0. The prior
+  // close is the right anchor then (the 8:15 AM roadmap post needs it).
+  const spot = snap && (snap.price || snap.prevClose);
   if (!spot) return { error: "no spot for " + sym };
   // 2) chain: nearest expiries, ±$27 window (≈ ±25 one-dollar strikes).
   //    After the 4 PM ET close today's expiry is dead (its straddle is
