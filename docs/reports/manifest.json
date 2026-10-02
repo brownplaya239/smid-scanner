@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-02T20:00:26+00:00",
+  "generated": "2026-10-02T20:00:56+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -45,6 +45,10 @@
     ],
     "iwm-scanner": [
       {
+        "file": "iwm_scanner_2026-10-02_1600.pdf",
+        "label": "Oct 02, 2026  -  4:00 PM ET"
+      },
+      {
         "file": "iwm_scanner_2026-10-01_2056.pdf",
         "label": "Oct 01, 2026  -  8:56 PM ET"
       },
@@ -79,10 +83,6 @@
       {
         "file": "iwm_scanner_2026-09-29_2036.pdf",
         "label": "Sep 29, 2026  -  8:36 PM ET"
-      },
-      {
-        "file": "iwm_scanner_2026-09-29_1859.pdf",
-        "label": "Sep 29, 2026  -  6:59 PM ET"
       }
     ],
     "smid-setup": [
