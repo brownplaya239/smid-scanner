@@ -118,6 +118,46 @@ def _finnhub_sessions(monday):
     return out
 
 
+FALLBACK_PER_SESSION = 25     # largest names kept per day + session
+
+
+def _finnhub_calendar(monday):
+    """Finnhub's earnings calendar for the week as _shape()-style rows:
+    {YYYY-MM-DD: {'bmo': [...], 'amc': [...]}}. The fallback when
+    Earnings Whispers returns nobody — its quickcaldata endpoint began
+    404ing in the week of 2026-09-28 and the last-good guard left the
+    site stuck on that week. Finnhub has no anticipation score or analyst
+    count (None); the caller ranks by market cap, as the calendar already
+    sorts. Keyless runs return {}."""
+    key = os.environ.get("FINNHUB_API_KEY", "")
+    if not key:
+        return {}
+    friday = monday + timedelta(days=4)
+    url = ("https://finnhub.io/api/v1/calendar/earnings?from=%s&to=%s"
+           "&token=%s" % (monday, friday, key))
+    try:
+        with urllib.request.urlopen(url, timeout=30) as r:
+            data = json.loads(r.read().decode("utf-8"))
+    except Exception as e:
+        print(f"  Finnhub calendar unavailable: {e}")
+        return {}
+    out = {}
+    for e in data.get("earningsCalendar") or []:
+        sym = (e.get("symbol") or "").upper()
+        hour = (e.get("hour") or "").lower()
+        # Plain US tickers only (Finnhub also lists foreign lines with
+        # dots/suffixes the rest of the site can't price), and only
+        # confirmed sessions — 'dmh'/blank can't be placed BMO or AMC.
+        if not sym.isalpha() or len(sym) > 5 or hour not in ("bmo", "amc"):
+            continue
+        out.setdefault(e.get("date"), {"bmo": [], "amc": []})[hour].append({
+            "ticker": sym, "company": None, "score": None, "analysts": None,
+            "release_time": 1 if hour == "bmo" else 3, "confirmed": True,
+            "next_eps": e.get("date"), "q": e.get("quarter"),
+            "source": "finnhub"})
+    return out
+
+
 MCAP_CACHE = os.path.join(_BASE, "data", "earnings_mcap_cache.json")
 MCAP_TTL_DAYS = 7
 
@@ -222,6 +262,23 @@ def run():
         })
         print(f"  {d.strftime('%a %Y-%m-%d')}  BMO={len(bmo_s):3d}  AMC={len(amc_s):3d}")
 
+    source = "earningswhispers.com (Most Anticipated calendar)"
+    fallback = False
+    if not any(day["bmo"] or day["amc"] for day in days):
+        fc = _finnhub_calendar(monday)
+        if fc:
+            fallback = True
+            source = ("finnhub.com earnings calendar (largest %d per "
+                      "session; Earnings Whispers unavailable)"
+                      % FALLBACK_PER_SESSION)
+            for day in days:
+                got = fc.get(day["date"]) or {}
+                day["bmo"] = got.get("bmo") or []
+                day["amc"] = got.get("amc") or []
+            print("  Earnings Whispers returned nobody — using Finnhub "
+                  "(%d confirmed reporters)" % sum(
+                      len(day["bmo"]) + len(day["amc"]) for day in days))
+
     # Past days keep their report-day rows. EW's calendar API deletes a
     # company the moment it has reported, so a mid-week re-scrape
     # retroactively guts finished days — Wednesday's run returned Monday
@@ -265,12 +322,17 @@ def run():
                 r["mcap"] = caps.get(r.get("ticker")) or r.get("mcap")
             day[k].sort(key=lambda x: (x.get("mcap") is None,
                                        -(x.get("mcap") or 0)))
+            if fallback:
+                # Finnhub lists every reporter (hundreds a week); the
+                # calendar is "the names people watch", so keep the
+                # largest per session, like EW's curated list.
+                day[k] = day[k][:FALLBACK_PER_SESSION]
 
     total = sum(len(x["bmo"]) + len(x["amc"]) for x in days)
     payload = {
         "week_of":   monday.strftime("%Y-%m-%d"),
         "generated": datetime.now(ET).isoformat(timespec="seconds"),
-        "source":    "earningswhispers.com (Most Anticipated calendar)",
+        "source":    source,
         "total":     total,
         "days":      days,
     }
