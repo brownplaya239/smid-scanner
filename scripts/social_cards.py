@@ -203,7 +203,8 @@ def _returns(tickers):
     if not tickers:
         return out
     px = yf.download(tickers, period="13mo", interval="1d",
-                     progress=False, auto_adjust=True)["Close"]
+                     progress=False, auto_adjust=True,
+                     threads=False)["Close"]
     if not hasattr(px, "columns"):
         px = px.to_frame(tickers[0])
     year0 = datetime.now().strftime("%Y") + "-01-01"
@@ -482,8 +483,14 @@ def levels_card():
     import yfinance as yf
     dp = _load("dealer_positioning.json")["symbols"]
     syms = ["SPY", "QQQ"]
+    # threads=False: parallel downloads trip yfinance's sqlite cache
+    # ("database is locked"), returning an empty column for one symbol —
+    # that crashed the 2026-10-05 8:15 AM roadmap render.
     px = yf.download(syms, period="10d", interval="1d", progress=False,
-                     auto_adjust=False)
+                     auto_adjust=False, threads=False)
+    for s in syms:
+        if s not in px["Close"] or len(px["Close"][s].dropna()) < 2:
+            raise SystemExit(f"no recent daily prices for {s} (yfinance)")
     last_day = px.index[-1].strftime("%Y-%m-%d")
     base = datetime.strptime(last_day, "%Y-%m-%d")
     body, ems, check = [], {}, []
@@ -596,7 +603,7 @@ def receipt_card(source="posted"):
         raise SystemExit("no previewed earnings awaiting a receipt")
     tick = sorted({n["t"] for n in pv})
     px = yf.download(tick, period="1mo", interval="1d", progress=False,
-                     auto_adjust=False)
+                     auto_adjust=False, threads=False)
     close = px["Close"]
     rows = []
     for n in pv:
