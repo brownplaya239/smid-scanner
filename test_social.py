@@ -48,6 +48,17 @@ class Cashtags(unittest.TestCase):
             1)
 
 
+class ApprovalWindow(unittest.TestCase):
+    def test_evening_draft_can_be_approved_next_morning(self):
+        # 8:15 PM ET render (00:15Z next day in EDT) -> deadline 10:15 AM
+        self.assertEqual(x_post.approve_by("2026-10-08T00:15:00+00:00"),
+                         "10:15 AM Thu ET")
+        self.assertGreaterEqual(x_post.BUNDLE_MAX_H, 14)
+
+    def test_bad_timestamp_still_gives_text(self):
+        self.assertIn("after render", x_post.approve_by("garbage"))
+
+
 class Captions(unittest.TestCase):
     def test_flow_interleaves_calls_and_puts(self):
         f = {"day": "2026-09-28", "body": [

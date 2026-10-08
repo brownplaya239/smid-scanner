@@ -207,7 +207,12 @@ jobs:
       - name: Refresh economic calendar
         run: python economic_calendar.py
 
-      - name: Refresh Earnings Whisper anticipated calendar
+      - name: Refresh earnings calendar (Earnings Whispers, Finnhub fallback)
+        # Finnhub: report-session cross-check, and the whole week when EW's
+        # endpoint is down (404 since 2026-09-28). Without the key here the
+        # fallback silently never fired and the calendar stayed stale.
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
         run: python earnings_anticipated.py
 
       - name: Earnings edge (implied vs realized move + verdicts)

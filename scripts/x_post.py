@@ -49,6 +49,24 @@ sys.path.insert(0, _BASE)
 from social_cards import (KINDS, SOCIAL_POSTS, _day_label, _pct,  # noqa
                           social_log_rows)
 EXPECTED = os.environ.get("X_EXPECTED_HANDLE", "tickerdeskio").lower()
+
+# A draft approved this long after it was rendered is not posted: the
+# numbers are a session old. 14h lets an evening draft (8:15 PM) be
+# approved the next morning (by ~10:15 AM); four Oct 6-7 approvals made
+# the morning after were lost to the old 12h window.
+BUNDLE_MAX_H = 14
+
+
+def approve_by(rendered_iso):
+    """Deadline for approving a draft, as ET text for the Slack message."""
+    try:
+        from zoneinfo import ZoneInfo
+        dt = datetime.fromisoformat(rendered_iso.replace("Z", "+00:00"))
+        dt = (dt + timedelta(hours=BUNDLE_MAX_H)).astimezone(
+            ZoneInfo("America/New_York"))
+        return f"{dt:%I:%M %p %a}".lstrip("0") + " ET"
+    except Exception:
+        return f"{BUNDLE_MAX_H}h after render"
 ET = timezone(timedelta(hours=-4))
 
 # Where each post sends people. api.tickerdesk.io/go/<kind> 302s to the
@@ -551,7 +569,8 @@ def slack_review(b, card_url):
            ("dry_run" if dry else "auto"),
            "status_line": ("DRY RUN (preview only, won't post)" if dry else
                            "auto-posting (no review flags)" if auto else
-                           "waiting for your approval")}
+                           "waiting for your approval · approve by "
+                           + approve_by(b.get("rendered")))}
     j = _slack_api("chat.postMessage", {
         "channel": channel, "text": f"{b['kind']} {b['date']}: "
         f"{rec['status_line']}",
@@ -727,10 +746,17 @@ def main():
             b = json.load(f)
         age = _age_h(b["rendered"])
         review = _review_record()
-        if age is not None and age > 12:
-            _review_done(review, "Expired: not posted (approved more than "
-                         "12h after render)", "Too old to post; skipped.")
-            sys.exit(f"bundle rendered {age:.1f}h ago — too old to post")
+        if age is not None and age > BUNDLE_MAX_H:
+            # A skip, not a failure: the Slack draft is marked expired and
+            # the run summary says why. (It used to exit 1 and page.)
+            why = (f"approved {age:.1f}h after render; drafts expire after "
+                   f"{BUNDLE_MAX_H}h")
+            _review_done(review, "Expired: not posted (" + why + ")",
+                         "Too old to post: " + why + ". A fresh draft "
+                         "comes with the next scheduled slot.")
+            print("not posting:", why)
+            _summary(f"### {b['kind']} · {b['date']}: expired\n\n{why}")
+            return
         if review and review.get("text") and review["text"] != b["text"]:
             # Caption edited in Slack: post the edited text, but it must
             # still pass the checks that depend on the text itself.
