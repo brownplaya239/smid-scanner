@@ -4318,6 +4318,43 @@ export default {
           headers: { ...cors, "Cache-Control": "public, max-age=120" },
         });
       }
+      // Earnings calendar proxy — ?earnings-calendar=YYYY-MM-DD returns
+      // Nasdaq's public earnings calendar for that day verbatim (the JSON
+      // behind nasdaq.com/market-activity/earnings). earnings_anticipated.py
+      // in CI tries api.nasdaq.com directly and comes here when Akamai
+      // refuses the GitHub runner's address; Cloudflare egress is accepted
+      // (the econ calendar above has fetched Nasdaq from here since
+      // 2026-07). 10-min in-memory cache per date.
+      const earnDate = url.searchParams.get("earnings-calendar");
+      if (earnDate) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(earnDate)) {
+          return Response.json({ error: "earnings-calendar wants YYYY-MM-DD" },
+            { status: 400, headers: cors });
+        }
+        const ekey = "earncal:" + earnDate;
+        let edata = memGet(ekey, 600_000);
+        if (!edata) {
+          try {
+            const r = await fetch(
+              "https://api.nasdaq.com/api/calendar/earnings?date=" + earnDate,
+              { headers: {
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                  "Accept": "application/json",
+                  "Accept-Language": "en-US,en;q=0.9",
+                } });
+            if (!r.ok) throw new Error("nasdaq " + r.status);
+            edata = await r.json();
+            memPut(ekey, edata);
+          } catch (e) {
+            return Response.json(
+              { error: "earnings calendar feed: " + String(e) },
+              { status: 502, headers: cors });
+          }
+        }
+        return Response.json(edata, {
+          headers: { ...cors, "Cache-Control": "public, max-age=600" },
+        });
+      }
       // News headlines — ?news=general for firehose or ?news=AAPL for a
       // specific ticker. Optional ?limit=N (1..1000, default 50/200).
       const newsParam = url.searchParams.get("news");

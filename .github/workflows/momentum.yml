@@ -207,12 +207,13 @@ jobs:
       - name: Refresh economic calendar
         run: python economic_calendar.py
 
-      - name: Refresh earnings calendar (Earnings Whispers, Finnhub fallback)
-        # Finnhub: report-session cross-check, and the whole week when EW's
-        # endpoint is down (404 since 2026-09-28). Without the key here the
-        # fallback silently never fired and the calendar stayed stale.
-        env:
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+      - name: Refresh earnings calendar (Earnings Whispers, Nasdaq fallback)
+        # Nasdaq's public calendar (api.nasdaq.com, keyless) arbitrates the
+        # report session and supplies the whole week while EW's endpoint is
+        # down (404 since 2026-09-28). It replaced Finnhub, whose calendar
+        # is 401 on the free tier even with a valid key — the site sat on
+        # the week of 09-28 for two weeks. Direct fetch first; the worker's
+        # ?earnings-calendar= proxy when Nasdaq refuses the runner's IP.
         run: python earnings_anticipated.py
 
       - name: Earnings edge (implied vs realized move + verdicts)

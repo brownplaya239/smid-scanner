@@ -18,6 +18,14 @@ Endpoint: GET /api/quickcaldata/{YYYYMMDD}/{rt}
               confirmDate, ...}]
   Requires Referer + X-Requested-With headers (else returns 401).
 
+Fallback + session arbiter: Nasdaq's public earnings calendar
+  GET https://api.nasdaq.com/api/calendar/earnings?date=YYYY-MM-DD
+  (browser headers; the Cloudflare worker proxies it when Nasdaq refuses
+  the CI runner's address). EW's endpoint has 404'd since the week of
+  2026-09-28, and Finnhub's calendar — the previous fallback — is 401 on
+  the free tier even with a valid key, so Nasdaq fills the whole week
+  when EW returns nobody and otherwise just confirms EW's BMO/AMC bucket.
+
 Output: docs/reports/earnings_anticipated.json
 """
 
@@ -91,70 +99,114 @@ def _week_monday(d):
     return d - timedelta(days=d.weekday())
 
 
-def _finnhub_sessions(monday):
-    """Finnhub's earnings calendar for the week -> {SYMBOL: 'bmo'|'amc'},
-    used to arbitrate the report session. EW's quickcaldata buckets are
-    wrong often enough to matter (2026-07-27: it listed Noble Corp as
-    before-open; NE reported after the close and fell 4% AH while sitting
-    in the site's morning column). Finnhub sources the hour from company
-    confirmations. Keyless runs return {} and EW stands unchallenged."""
-    key = os.environ.get("FINNHUB_API_KEY", "")
-    if not key:
-        return {}
-    friday = monday + timedelta(days=4)
-    url = ("https://finnhub.io/api/v1/calendar/earnings?from=%s&to=%s"
-           "&token=%s" % (monday, friday, key))
-    try:
-        with urllib.request.urlopen(url, timeout=30) as r:
-            data = json.loads(r.read().decode("utf-8"))
-    except Exception as e:
-        print(f"  Finnhub session cross-check unavailable: {e}")
-        return {}
-    out = {}
-    for e in data.get("earningsCalendar") or []:
-        sym, hour = e.get("symbol"), (e.get("hour") or "").lower()
-        if sym and hour in ("bmo", "amc"):
-            out[(sym.upper(), e.get("date"))] = hour
-    return out
-
-
+# ── Nasdaq public earnings calendar ──────────────────────────────────
+# The JSON behind nasdaq.com/market-activity/earnings. Akamai in front
+# of it wants browser-shaped headers and refuses some datacenter ranges
+# outright, so after a direct miss the fetch goes through our Cloudflare
+# worker (Cloudflare egress is accepted — the econ calendar has pulled
+# Nasdaq from there since 2026-07).
+NASDAQ_URL = "https://api.nasdaq.com/api/calendar/earnings?date="
+WORKER = "https://api.tickerdesk.io"
+NASDAQ_HDRS = {
+    "User-Agent": HDRS["User-Agent"],
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Origin": "https://www.nasdaq.com",
+    "Referer": "https://www.nasdaq.com/market-activity/earnings",
+}
+# Nasdaq's `time` field -> our session. "time-not-supplied" has no
+# confirmed hour and cannot be placed in a BMO or AMC column.
+NASDAQ_SESSION = {"time-pre-market": "bmo", "time-after-hours": "amc"}
 FALLBACK_PER_SESSION = 25     # largest names kept per day + session
 
 
-def _finnhub_calendar(monday):
-    """Finnhub's earnings calendar for the week as _shape()-style rows:
-    {YYYY-MM-DD: {'bmo': [...], 'amc': [...]}}. The fallback when
-    Earnings Whispers returns nobody — its quickcaldata endpoint began
-    404ing in the week of 2026-09-28 and the last-good guard left the
-    site stuck on that week. Finnhub has no anticipation score or analyst
-    count (None); the caller ranks by market cap, as the calendar already
-    sorts. Keyless runs return {}."""
-    key = os.environ.get("FINNHUB_API_KEY", "")
-    if not key:
-        return {}
-    friday = monday + timedelta(days=4)
-    url = ("https://finnhub.io/api/v1/calendar/earnings?from=%s&to=%s"
-           "&token=%s" % (monday, friday, key))
-    try:
-        with urllib.request.urlopen(url, timeout=30) as r:
-            data = json.loads(r.read().decode("utf-8"))
-    except Exception as e:
-        print(f"  Finnhub calendar unavailable: {e}")
-        return {}
-    out = {}
-    for e in data.get("earningsCalendar") or []:
-        sym = (e.get("symbol") or "").upper()
-        hour = (e.get("hour") or "").lower()
-        # Plain US tickers only (Finnhub also lists foreign lines with
-        # dots/suffixes the rest of the site can't price), and only
-        # confirmed sessions — 'dmh'/blank can't be placed BMO or AMC.
-        if not sym.isalpha() or len(sym) > 5 or hour not in ("bmo", "amc"):
+def _get_json(url, headers, timeout=30):
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def _nasdaq_day(date_iso):
+    """Nasdaq's raw rows for one date -> (rows, 'nasdaq'|'worker').
+    Direct first, then the worker proxy; raises only when both fail."""
+    errors = []
+    for label, url, hdrs in (
+            ("nasdaq", NASDAQ_URL + date_iso, NASDAQ_HDRS),
+            ("worker", WORKER + "/?earnings-calendar=" + date_iso,
+             {"User-Agent": "tickerdesk-ci/earnings_anticipated"})):
+        try:
+            data = _get_json(url, hdrs) or {}
+        except Exception as e:
+            errors.append(f"{label}: {e}")
             continue
-        out.setdefault(e.get("date"), {"bmo": [], "amc": []})[hour].append({
-            "ticker": sym, "company": None, "score": None, "analysts": None,
-            "release_time": 1 if hour == "bmo" else 3, "confirmed": True,
-            "next_eps": e.get("date"), "q": e.get("quarter"),
-            "source": "finnhub"})
+        status = data.get("status") or {}
+        code = status.get("rCode")
+        if code not in (None, 200):
+            errors.append(f"{label}: rCode {code} "
+                          f"{status.get('bCodeMessage') or ''}".strip())
+            continue
+        return ((data.get("data") or {}).get("rows") or []), label
+    raise RuntimeError("; ".join(errors))
+
+
+def _parse_mcap(s):
+    """Nasdaq's '$880,976,070,000' -> 880976070000.0; 'N/A'/blank -> None."""
+    s = str(s or "").strip().replace("$", "").replace(",", "")
+    try:
+        v = float(s)
+    except ValueError:
+        return None
+    return v if v > 0 else None
+
+
+def _shape_nasdaq(r, hour, date_iso):
+    """A Nasdaq row in the _shape() layout the dashboard renders. No
+    anticipation score exists on this feed (None); the market cap rides
+    along so the sort needs no Polygon lookup for these names."""
+    ests = str(r.get("noOfEsts") or "").replace(",", "").strip()
+    return {
+        "ticker":       (r.get("symbol") or "").strip().upper(),
+        "company":      (r.get("name") or "").strip() or None,
+        "score":        None,
+        "analysts":     int(ests) if ests.isdigit() else None,
+        "release_time": 1 if hour == "bmo" else 3,
+        "confirmed":    True,                    # session stated by the feed
+        "next_eps":     date_iso,
+        "q":            (r.get("fiscalQuarterEnding") or "").strip() or None,
+        "eps_forecast": (r.get("epsForecast") or "").strip() or None,
+        "mcap":         _parse_mcap(r.get("marketCap")),
+        "source":       "nasdaq",
+    }
+
+
+def _nasdaq_week(monday):
+    """Nasdaq's confirmed reporters Mon-Fri as _shape()-style rows:
+    {YYYY-MM-DD: {'bmo': [...], 'amc': [...]}}. Plain US tickers only
+    (Nasdaq also lists ADR lines and units with dots/slashes the rest of
+    the site can't price) and only rows with a stated session. A day
+    whose fetch failed both ways is absent, so a caller can tell "nobody
+    reports" from "couldn't ask"."""
+    out = {}
+    for i in range(5):
+        iso = (monday + timedelta(days=i)).strftime("%Y-%m-%d")
+        try:
+            rows, via = _nasdaq_day(iso)
+        except Exception as e:
+            print(f"  {iso} Nasdaq calendar unavailable: {e}")
+            continue
+        day = {"bmo": [], "amc": []}
+        skipped = 0
+        for r in rows:
+            sym = (r.get("symbol") or "").strip().upper()
+            hour = NASDAQ_SESSION.get((r.get("time") or "").strip().lower())
+            if not sym.isalpha() or len(sym) > 5 or not hour:
+                skipped += 1
+                continue
+            day[hour].append(_shape_nasdaq(r, hour, iso))
+        out[iso] = day
+        print(f"  {iso} Nasdaq via {via}: BMO={len(day['bmo']):3d}  "
+              f"AMC={len(day['amc']):3d}  (skipped {skipped} unconfirmed/"
+              "non-US rows)")
     return out
 
 
@@ -211,9 +263,16 @@ def run():
     today = datetime.now(ET).date()
     monday = _week_monday(today)
     print(f"Scraping Earnings Whisper week of {monday}...")
-    fh = _finnhub_sessions(monday)
-    if fh:
-        print(f"  Finnhub session cross-check: {len(fh)} confirmed hours")
+    nq = _nasdaq_week(monday)
+    # Confirmed report hours by (SYMBOL, date). They arbitrate EW's
+    # session buckets, which are wrong often enough to matter (2026-07-27:
+    # EW listed Noble Corp as before-open; NE reported after the close
+    # and fell 4% AH while sitting in the site's morning column).
+    sessions = {(r["ticker"], ds): hour
+                for ds, day in nq.items()
+                for hour in ("bmo", "amc") for r in day[hour]}
+    if sessions:
+        print(f"  Nasdaq session cross-check: {len(sessions)} confirmed hours")
     days = []
     for i in range(5):                           # Mon-Fri only
         d = monday + timedelta(days=i)
@@ -230,23 +289,23 @@ def run():
             amc = []
         bmo_s = [_shape(r) for r in bmo]
         amc_s = [_shape(r) for r in amc]
-        # Re-bucket where Finnhub's confirmed hour disagrees with EW.
-        if fh:
+        # Re-bucket where Nasdaq's confirmed hour disagrees with EW.
+        if sessions:
             dstr_iso = d.strftime("%Y-%m-%d")
             moved = []
             keep_b, keep_a = [], []
             for r in bmo_s:
-                hour = fh.get(((r.get("ticker") or "").upper(), dstr_iso))
+                hour = sessions.get(((r.get("ticker") or "").upper(), dstr_iso))
                 if hour == "amc":
-                    r["session_corrected"] = "EW listed BMO; Finnhub AMC"
+                    r["session_corrected"] = "EW listed BMO; Nasdaq AMC"
                     keep_a.append(r)
                     moved.append(r["ticker"] + "->AMC")
                 else:
                     keep_b.append(r)
             for r in amc_s:
-                hour = fh.get(((r.get("ticker") or "").upper(), dstr_iso))
+                hour = sessions.get(((r.get("ticker") or "").upper(), dstr_iso))
                 if hour == "bmo":
-                    r["session_corrected"] = "EW listed AMC; Finnhub BMO"
+                    r["session_corrected"] = "EW listed AMC; Nasdaq BMO"
                     keep_b.append(r)
                     moved.append(r["ticker"] + "->BMO")
                 else:
@@ -265,17 +324,16 @@ def run():
     source = "earningswhispers.com (Most Anticipated calendar)"
     fallback = False
     if not any(day["bmo"] or day["amc"] for day in days):
-        fc = _finnhub_calendar(monday)
-        if fc:
+        if any(day["bmo"] or day["amc"] for day in nq.values()):
             fallback = True
-            source = ("finnhub.com earnings calendar (largest %d per "
-                      "session; Earnings Whispers unavailable)"
-                      % FALLBACK_PER_SESSION)
+            source = ("nasdaq.com earnings calendar (confirmed pre-market/"
+                      "after-hours reporters, largest %d per session; "
+                      "Earnings Whispers unavailable)" % FALLBACK_PER_SESSION)
             for day in days:
-                got = fc.get(day["date"]) or {}
-                day["bmo"] = got.get("bmo") or []
-                day["amc"] = got.get("amc") or []
-            print("  Earnings Whispers returned nobody — using Finnhub "
+                got = nq.get(day["date"]) or {}
+                day["bmo"] = list(got.get("bmo") or [])
+                day["amc"] = list(got.get("amc") or [])
+            print("  Earnings Whispers returned nobody — using Nasdaq "
                   "(%d confirmed reporters)" % sum(
                       len(day["bmo"]) + len(day["amc"]) for day in days))
 
@@ -309,21 +367,22 @@ def run():
 
     # Sort every session largest company first. Anticipation score stays
     # on the row (tooltip + marquee); the ordering a reader scans a
-    # calendar in is by size.
-    all_tk = sorted({r["ticker"] for day in days
-                     for k in ("bmo", "amc") for r in day[k]
-                     if r.get("ticker")})
-    caps = _market_caps(all_tk)
+    # calendar in is by size. Nasdaq rows carry their own cap; Polygon
+    # (behind the weekly cache) fills in EW rows, which have none.
+    need = sorted({r["ticker"] for day in days
+                   for k in ("bmo", "amc") for r in day[k]
+                   if r.get("ticker") and r.get("mcap") is None})
+    caps = _market_caps(need) if need else {}
     for day in days:
         for k in ("bmo", "amc"):
             for r in day[k]:
-                # `or` keeps a preserved row's report-day mcap when the
-                # re-fetch comes back empty for a name Polygon dropped.
+                # `or` keeps a row's feed/report-day mcap when the
+                # lookup comes back empty for a name Polygon dropped.
                 r["mcap"] = caps.get(r.get("ticker")) or r.get("mcap")
             day[k].sort(key=lambda x: (x.get("mcap") is None,
                                        -(x.get("mcap") or 0)))
             if fallback:
-                # Finnhub lists every reporter (hundreds a week); the
+                # Nasdaq lists every reporter (hundreds a week); the
                 # calendar is "the names people watch", so keep the
                 # largest per session, like EW's curated list.
                 day[k] = day[k][:FALLBACK_PER_SESSION]

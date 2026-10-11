@@ -6708,9 +6708,13 @@
         scans Twitter's public syndication endpoint daily for the latest
         "Most Anticipated" tweet, extracts the image URL, and renders it
         below. No manual pasting, no Twitter JS. Companion grid is our
-        own daily scrape of <a href="https://www.earningswhispers.com/calendar"
-        target="_blank" rel="noopener">earningswhispers.com</a>'s API with
-        clickable tickers into the drilldown panel.
+        own daily pull of the week's confirmed reporters &mdash;
+        <a href="https://www.earningswhispers.com/calendar"
+        target="_blank" rel="noopener">earningswhispers.com</a>'s calendar
+        API, or <a href="https://www.nasdaq.com/market-activity/earnings"
+        target="_blank" rel="noopener">Nasdaq's public calendar</a> while
+        that feed is down &mdash; with clickable tickers into the
+        drilldown panel.
         <span id="whisper-meta"></span></p>
       <!-- Marquee prints + the Monday-to-Friday grid lead the tab —
            front and center. The old today/tomorrow count cards are gone
@@ -19374,7 +19378,13 @@
       fetch("./reports/earnings_anticipated.json?t=" + Date.now())
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
-          const url = "https://www.earningswhispers.com/calendar";
+          // The file names its feed. Since 2026-10 that is Nasdaq's
+          // public calendar whenever EW's API is down — credit and link
+          // the source that actually produced the grid.
+          const nasdaq = /nasdaq/i.test((d && d.source) || "");
+          const url = nasdaq
+            ? "https://www.nasdaq.com/market-activity/earnings"
+            : "https://www.earningswhispers.com/calendar";
           let wk = "";
           if (d && d.week_of) wk = ' <span class="ew-week">(week of ' +
             escHTML(fmtWeekOf(d.week_of)) + ')</span>';
@@ -19390,9 +19400,13 @@
             }
           }
           tweet.innerHTML = '<div class="ew-tweet-meta" style="padding:6px 0">' +
-            'Weekly &ldquo;Most Anticipated&rdquo; earnings' + wk + ': ' +
+            (nasdaq ? 'Weekly earnings calendar (confirmed reporters)'
+                    : 'Weekly &ldquo;Most Anticipated&rdquo; earnings') +
+            wk + ': ' +
             '<a href="' + window.safeUrl(url) + '" target="_blank" rel="noopener">' +
-            'Earnings Whispers calendar &rarr;</a>' + stale + '</div>';
+            (nasdaq ? 'Nasdaq earnings calendar &rarr;'
+                    : 'Earnings Whispers calendar &rarr;') + '</a>' +
+            stale + '</div>';
         })
         .catch(function () { tweet.innerHTML = ''; });
     }
