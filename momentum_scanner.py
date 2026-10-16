@@ -14,6 +14,7 @@ daily candle is complete. Publishes clean table PDFs to the site archive.
 """
 
 import os
+import re
 import sys
 import csv
 import json
@@ -322,8 +323,22 @@ def _dvol(v):
     return f"{v/1e3:.0f}K"
 
 
+def _safe(text):
+    """fpdf2's built-in Helvetica is latin-1 only: an em-dash in the
+    Stockbee subtitle ("Approaching — main list empty", the quiet-week
+    fallback) crashed both momentum runs on 2026-10-13. Same rule as
+    scanner._safe — every string that reaches the PDF goes through here."""
+    s = str(text)
+    s = (s.replace("—", "-").replace("–", "-")
+          .replace("‘", "'").replace("’", "'")
+          .replace("“", '"').replace("”", '"').replace("…", "..."))
+    return re.sub(r"[^\x00-\xFF]", "", s)
+
+
 def generate_table_pdf(title, subtitle, blurb_lines, rows, change_label):
     now = datetime.now(ET)
+    title, subtitle = _safe(title), _safe(subtitle)
+    blurb_lines = [_safe(x) for x in blurb_lines]
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=14)
     pdf.add_page()
@@ -415,7 +430,7 @@ def generate_table_pdf(title, subtitle, blurb_lines, rows, change_label):
             for txt, w, align, rgb, style in vals:
                 pdf.set_text_color(*rgb)
                 pdf.set_font("Helvetica", style, 8)
-                pdf.cell(w, 6, txt, border=1, fill=True, align=align)
+                pdf.cell(w, 6, _safe(txt), border=1, fill=True, align=align)
             pdf.ln()
 
     # Footer
@@ -587,7 +602,7 @@ def run():
     sb_pdf = generate_table_pdf(
         "STOCKBEE -- 15%+ IN A WEEK",
         "Up 15%+ over the last 5 trading days  |  $100M+ dollar volume" +
-        ("  |  (Approaching — main list empty)" if not sb else ""),
+        ("  |  (Approaching - main list empty)" if not sb else ""),
         sb_blurb, sb_for_pdf, "1-Wk %",
     )
     publish(sb_pdf, f"stockbee_weekly_{stamp}.pdf")
