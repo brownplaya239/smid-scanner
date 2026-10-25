@@ -357,7 +357,7 @@ PAGES = [
             ("Does it tell me to buy earnings?", "No. It surfaces where options pricing diverges from history and frames defined-risk ideas. It's educational, not advice, and flags crowded binaries to avoid."),
             ("Which names are covered?", "Large, liquid names reporting within about a week; the trade-idea layer is floored at $1B market cap."),
         ],
-        "cta_href": "/#whisper",
+        "cta_href": "/earnings",
         "cta_label": "Open the Earnings desk",
     },
     {
@@ -484,6 +484,7 @@ def _write_sitemap(slugs):
     """Regenerate sitemap.xml: app root, transparency, landing pages, legal."""
     static = [
         ("/", "daily", "1.0"),
+        ("/earnings", "daily", "0.9"),      # path-routed app tab (site_paths.py)
         ("/transparency", "weekly", "0.8"),
         ("/glossary", "monthly", "0.6"),
         ("/sample-report", "monthly", "0.6"),

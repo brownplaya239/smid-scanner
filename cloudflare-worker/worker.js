@@ -465,8 +465,8 @@ async function handleSlackInteract(request, env, ctx) {
 // Social post kind -> site tab its link opens (see /go/<kind>).
 const SOCIAL_LINKS = {
   callouts: "uoa", weekly_recap: "uoa", flow: "uoa",
-  earnings_week: "whisper", earnings_preview: "whisper",
-  earnings_receipt: "whisper",
+  earnings_week: "/earnings", earnings_preview: "/earnings",
+  earnings_receipt: "/earnings",            // path-routed tab, not a fragment
   stockbee: "stockbee-weekly", qm: "qm-monthly", levels: "charts",
 };
 
@@ -3838,9 +3838,12 @@ export default {
       if (gm && SOCIAL_LINKS[gm[1]]) {
         const src = new URL(request.url).searchParams.get("s") || "x";
         console.log("[go] " + gm[1] + " src=" + src);
-        return Response.redirect("https://tickerdesk.io/?utm_source=" +
-          encodeURIComponent(src) + "&utm_medium=social&utm_campaign=" +
-          gm[1] + "#" + SOCIAL_LINKS[gm[1]], 302);
+        const dest = SOCIAL_LINKS[gm[1]];
+        const utm = "utm_source=" + encodeURIComponent(src) +
+          "&utm_medium=social&utm_campaign=" + gm[1];
+        return Response.redirect(dest.charAt(0) === "/"
+          ? "https://tickerdesk.io" + dest + "?" + utm
+          : "https://tickerdesk.io/?" + utm + "#" + dest, 302);
       }
     }
 

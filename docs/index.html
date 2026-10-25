@@ -15677,8 +15677,25 @@
       // Preserve a sub-route of the SAME tab (e.g. uoa/sig/<id>) — only
       // rewrite the hash when switching to a different top-level tab.
       const curTab = cur.split("/")[0];
-      if (curTab !== want) {
-        if (want) window.location.hash = want;
+      const onPath = PATH_FOR_TAB[tab];
+      if (onPath) {
+        // Path-routed tab: a clean URL (/earnings), no fragment. The
+        // build publishes <path>.html as a copy of this app for direct
+        // loads; from here it's just the address bar.
+        if (window.location.pathname !== onPath) {
+          // Arriving from another tab: a real history entry, so Back
+          // returns to that tab.
+          history.pushState(null, "", onPath + window.location.search);
+        } else if (window.location.hash) {
+          // Already here via an old #whisper link: tidy the URL in place.
+          history.replaceState(null, "", onPath + window.location.search);
+        }
+      } else if (curTab !== want || window.location.pathname !== "/") {
+        if (PATH_FOR_TAB[curTab] || window.location.pathname !== "/") {
+          // Leaving a path-routed URL: back to the root app + fragment.
+          history.pushState(null, "", "/" + window.location.search +
+            (want ? "#" + want : ""));
+        } else if (want) window.location.hash = want;
         else history.pushState(null, "",
           window.location.pathname + window.location.search);
       }
@@ -15690,8 +15707,18 @@
   // exists so every per-tab refresh hook (they listen for nav clicks)
   // still fires; falls back to setActivePanel for delisted tabs.
   // Unknown fragments (OAuth #access_token=..., anchors) are ignored.
+  // Tabs that live at a clean path instead of a fragment. The Pages build
+  // (scripts/site_paths.py) publishes <path>.html as a copy of this app
+  // with its own title/canonical, so /earnings loads directly and is
+  // indexable; #whisper keeps working and lands on the same URL.
+  const PATH_ROUTES = { "/earnings": "whisper" };
+  const PATH_FOR_TAB = {};
+  Object.keys(PATH_ROUTES).forEach(function (p) { PATH_FOR_TAB[PATH_ROUTES[p]] = p; });
+
   function routeFromHash() {
-    const raw = (window.location.hash || "").replace(/^#/, "") || "desk";
+    const path = window.location.pathname.replace(/\/+$/, "");
+    const raw = (window.location.hash || "").replace(/^#/, "") ||
+                PATH_ROUTES[path] || "desk";
     const parts = raw.split("/");
     const t = parts[0] || "desk";
     // Per-signal permalink: #uoa/sig/<id> — route to Options Flow, then
@@ -15712,6 +15739,9 @@
     else if (document.getElementById("panel-" + t)) setActivePanel(t);
   }
   window.addEventListener("hashchange", routeFromHash);
+  // Path routes (/earnings <-> /#tab) change the path, not the fragment,
+  // so Back/Forward between them only fires popstate.
+  window.addEventListener("popstate", routeFromHash);
   // Initial state: hide every panel except the active one, then stamp
   // body.dataset.route so the admin Client State section reflects the
   // initially-active panel (not "? → ?" before the user clicks anything).

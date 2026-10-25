@@ -111,6 +111,9 @@ jobs:
           if [ "$ok" != "1" ]; then
             echo "::warning::minify skipped/failed — deploying UNMINIFIED index.html"
           fi
+          # Clean-path copies of the app (/earnings etc.), each with its
+          # own title/canonical. Fails the build if the head tags moved.
+          python3 scripts/site_paths.py _site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
