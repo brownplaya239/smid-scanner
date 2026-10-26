@@ -56,6 +56,7 @@ on:
       - "Alt-Data Intelligence Lookup"
       - "Earnings Vol Backtest"
       - "UOA Matched Scorecard"
+      - "Earnings Calendar"
     types: [completed]
   # Catch-all sweeper — republish the latest docs/ periodically so a
   # committer not in the list above (or a missed workflow_run) still lands

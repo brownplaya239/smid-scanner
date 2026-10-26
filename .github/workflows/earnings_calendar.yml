@@ -1,0 +1,60 @@
+name: Earnings Calendar
+
+# Refreshes ONLY the earnings calendar (docs/reports/earnings_anticipated
+# .json). Weekdays it runs inside Momentum Scans; this workflow covers the
+# weekend, when the site should already show the coming week — on Sat/Sun
+# earnings_anticipated.py targets next Monday's week — but nothing ran,
+# so Friday's (finished) week stayed up until Monday evening.
+#
+# Calendar-only on purpose: re-running Momentum Scans on a weekend would
+# stamp Friday's scan data with a Saturday/Sunday date.
+
+on:
+  schedule:
+    - cron: '13 14 * * 6'    # Sat ~10 AM ET: switch to next week
+    - cron: '13 14 * * 0'    # Sun ~10 AM ET: pick up late confirmations
+    - cron: '13 23 * * 0'    # Sun ~7 PM ET: final pass before Monday
+  workflow_dispatch:
+
+# earnings_anticipated.py also writes data/earnings_mcap_cache.json, which
+# Momentum Scans writes too — same queue as the other R2 writers.
+concurrency:
+  group: tickerdesk-data
+  cancel-in-progress: false
+
+jobs:
+  calendar:
+    runs-on: ubuntu-latest
+    env:
+      POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}   # market caps (sort)
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull data from R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 scripts/r2_sync.py pull
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Refresh earnings calendar (Earnings Whispers, Nasdaq fallback)
+        run: python earnings_anticipated.py
+
+      - name: Publish
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: bash scripts/publish_reports.sh
