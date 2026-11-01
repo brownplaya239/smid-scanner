@@ -322,6 +322,20 @@ def build():
     }
 
 
+def _finite(o):
+    """Recursively replace NaN/Infinity with None (same rule as
+    trade_desk_validation.json_sanitize, kept local to avoid importing
+    the Trade Desk engine here)."""
+    if isinstance(o, dict):
+        return {k: _finite(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_finite(v) for v in o]
+    if isinstance(o, float) and (o != o or o in (float("inf"),
+                                                 float("-inf"))):
+        return None
+    return o
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
@@ -331,8 +345,13 @@ def main():
         print(json.dumps(payload, indent=1)[:4000])
         return
     os.makedirs(REPORTS, exist_ok=True)
+    # NaN/Infinity -> null. Python emits bare NaN, which browsers reject
+    # wholesale: on 2026-10-30 one NaN blanked the Earnings page's
+    # implied-move section for the whole session. allow_nan=False makes
+    # any future miss a loud failure instead of a silently broken page.
     with open(OUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, separators=(",", ":"))
+        json.dump(_finite(payload), f, separators=(",", ":"),
+                  allow_nan=False)
     print(f"  Wrote {os.path.relpath(OUT_PATH, _BASE)}")
 
 

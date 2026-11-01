@@ -11,6 +11,7 @@ import sys
 import io
 import csv
 import json
+import math
 import re
 from datetime import datetime, date
 
@@ -1020,9 +1021,35 @@ def _memo_page(pdf, r, hist_cache):
         "accrues graded history. Not investment advice."))
 
 
+# Numeric fields the PDF formats with :.1f / :.2f / >= 0. Claude sometimes
+# returns "N/A" (or "12.3%") instead of a number — 2026-10-28's EOD scan
+# crashed on RDNT's changePercent "N/A". Coerced to float; anything
+# unparseable is 0, the same display the PDF already used for missing.
+_PDF_NUM_FIELDS = ("price", "changePercent", "marketCapB", "floatM",
+                   "rsVsSpy", "rs_vs_spy", "prox52w", "prox_52w")
+
+
+def _num(v):
+    try:
+        x = float(v) if isinstance(v, (int, float)) else float(
+            str(v).replace("%", "").replace(",", "").replace("$", "").strip())
+    except (TypeError, ValueError):
+        return 0.0
+    return x if math.isfinite(x) else 0.0           # NaN / inf -> 0
+
+
+def _pdf_ready(r):
+    out = dict(r)
+    for k in _PDF_NUM_FIELDS:
+        if k in out:
+            out[k] = _num(out[k])
+    return out
+
+
 def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCANNER",
                  insider_transactions=None, institutional_data=None, filings_13=None,
                  smart_money=None, volume_intelligence=None):
+    results = [_pdf_ready(r) for r in results]
     now     = datetime.now(ET)
     ts      = now.strftime("%B %d, %Y  |  %I:%M %p ET")
     buckets = {"A": [], "B": [], "C": []}
