@@ -6,13 +6,13 @@ docs/reports/manifest.json, which the site (docs/index.html) reads to
 populate the report tabs. Old reports are pruned to keep the repo lean.
 """
 
+import glob
+import json
 import os
 import re
-import json
-import glob
-import urllib.request
 import urllib.error
-from datetime import datetime, timezone
+import urllib.request
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 REPORTS_DIR = os.path.join(_BASE, "docs", "reports")
@@ -115,7 +115,7 @@ def rebuild_manifest(keep_per_type=None):
         groups[typ].append(entry)
 
     manifest = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "reports": {},
     }
     for typ, entries in groups.items():
@@ -182,7 +182,7 @@ def _link_report_generation(url_base, key, user_id, ticker, kind, storage_path):
         "storage_path": storage_path,
         "kind": kind,
         "status": "done",
-        "completed_at": datetime.now(timezone.utc).isoformat(),
+        "completed_at": datetime.now(UTC).isoformat(),
     }
     q = (
         f"{url_base}/rest/v1/report_generations?user_id=eq.{user_id}"

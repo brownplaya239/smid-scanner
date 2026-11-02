@@ -250,7 +250,7 @@ def check_view(view, snap=None, estimates=None):
         # here un-ingested is a real failure); beyond it the gate
         # deliberately proceeds with the gap labelled, and this backstop
         # must not re-block what the gate chose to allow.
-        age = EV._release_age_days(ex, dt.datetime.now(dt.timezone.utc))
+        age = EV._release_age_days(ex, dt.datetime.now(dt.UTC))
         fresh = age is not None and age <= EV.HOLD_WINDOW_DAYS
         ok = ex.get("disposition") != "AVAILABLE_NOT_INGESTED" or not fresh
         out.append(
@@ -384,20 +384,18 @@ _QUARTER_FLOW = (
 # regex, which catches the replacement char and UTF-8 mojibake alike.
 _ENTITIES = tuple(
     sorted(
-        set(
-            (
-                "&amp;",
-                "&mdash;",
-                "&ndash;",
-                "&bull;",
-                "&middot;",
-                "&divide;",
-                "&minus;",
-                "&lt;",
-                "&gt;",
-                "&nbsp;",
-            )
-        )
+        {
+            "&amp;",
+            "&mdash;",
+            "&ndash;",
+            "&bull;",
+            "&middot;",
+            "&divide;",
+            "&minus;",
+            "&lt;",
+            "&gt;",
+            "&nbsp;",
+        }
         | set(V3.ENTITIES)
     )
 )
@@ -539,7 +537,7 @@ def check_rendered(core_text, apx_text, view, snap):
     prepared = _as_date(snap.get("report_time"))
 
     # No engineering detail in the client document.
-    hits = sorted(set(m.group(0) for m in _INTERNAL_RX.finditer(full)))
+    hits = sorted({m.group(0) for m in _INTERNAL_RX.finditer(full)})
     out.append(
         chk(
             "INTERNAL_CONFIG_NOT_EXPOSED",
@@ -623,7 +621,7 @@ def report(view, snap, core_pdf, appendix_pdf=None, estimates=None, run_mutation
         # produced by the same run as the PDFs beside it. `artifacts`,
         # filled in by the runner after both PDFs are written, is the
         # authoritative binding — a timestamp only narrates.
-        "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": _dt.datetime.now(_dt.UTC).isoformat(timespec="seconds"),
         "ticker": view.get("ticker"),
         "event_state": (view.get("event") or {}).get("state"),
         "checks": checks,

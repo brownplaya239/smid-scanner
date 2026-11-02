@@ -61,12 +61,12 @@ import argparse
 import json
 import os
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from itertools import combinations
 from statistics import mean, median
 
-from uoa_alpha import load_ledger, _parse_occ
-from trade_desk_validation import spearman, _regime_map, _load
+from trade_desk_validation import _load, _regime_map, spearman
+from uoa_alpha import _parse_occ, load_ledger
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 CACHE_PATH = os.path.join(_BASE, "data", "uoa_alpha_cache.json")
@@ -418,7 +418,7 @@ def run(dry=False):
     setups_all = build_setups()
     graded = [s for s in setups_all if s["y5"] is not None]
     result = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "research_version": RESEARCH_VERSION,
         "setups_total": len(setups_all),
         "setups_graded": len(graded),

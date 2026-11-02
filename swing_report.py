@@ -18,11 +18,11 @@ Methodology (every weight / threshold here is tunable):
   Extension      : (close - SMA50) / ATR(14)  —  >=7 over-extended, 5-7 extended
 """
 
+import json
 import os
 import sys
-import json
-from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
 
 import pytz
 from dotenv import load_dotenv
@@ -141,9 +141,7 @@ def _meta_is_fresh(entry, today):
     # Schema-upgrade safety: re-fetch legacy entries that pre-date the raw
     # market_cap field so popups can show the actual figure ($X.XB / $X.XT)
     # instead of a coarse bucket label.
-    if "market_cap" not in entry:
-        return False
-    return True
+    return "market_cap" in entry
 
 
 def _fetch_one_meta(ticker):

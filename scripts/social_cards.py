@@ -22,8 +22,8 @@ from datetime import datetime
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.axes import Axes  # noqa: E402
+import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 
 # Card text is plain text: "$7.52 → $17.50" must not be parsed as
 # mathtext (matplotlib treats paired $...$ as math and drops the $).
@@ -714,6 +714,7 @@ def _site_previews(since_days=10):
             "--",
             "docs/reports/earnings_edge.json",
         ],
+        check=False,
         cwd=_BASE,
         capture_output=True,
         text=True,
@@ -724,6 +725,7 @@ def _site_previews(since_days=10):
         day = iso[:10]
         b = subprocess.run(
             ["git", "show", f"{sha}:docs/reports/earnings_edge.json"],
+            check=False,
             cwd=_BASE,
             capture_output=True,
         )

@@ -16,7 +16,6 @@ Two properties that are easy to assert and easy to violate silently:
 """
 
 import re
-import sys
 
 import brief_compose as BC
 import brief_model as BM

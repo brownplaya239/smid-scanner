@@ -35,7 +35,7 @@ import gzip
 import json
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 HOT = os.path.join(_BASE, "data", "uoa_signals.jsonl")
@@ -54,7 +54,7 @@ def rotate(force=False, dry=False):
         print(f"hot ledger {size_mb:.1f} MB < {TRIGGER_MB} MB — no-op")
         return {"rotated": 0, "hot_mb": round(size_mb, 1)}
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=KEEP_DAYS)).date().isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(days=KEEP_DAYS)).date().isoformat()
     keep, move = [], defaultdict(list)
     bad = 0
     with open(HOT, encoding="utf-8") as f:

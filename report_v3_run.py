@@ -16,13 +16,11 @@ from a substitute.
 """
 
 import argparse
-import json
 import os
 import sys
 
 import report_chart_v3 as C
 import report_v3 as R3
-import report_v3_model as M
 
 
 def run(ticker, out_dir="out_v3", want_spy=True):

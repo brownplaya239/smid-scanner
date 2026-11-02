@@ -29,7 +29,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 
 import yfinance as yf
@@ -213,7 +213,7 @@ def build():
     graded = mature(log)
     per_scan, overall, total = stats(log)
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "hold_days": HOLD_D,
         "min_n": MIN_N,
         "logged_days": len(log["days"]),

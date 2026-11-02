@@ -33,7 +33,11 @@ EXPECTED = "tickerdeskio"
 
 def set_secret(name, value):
     r = subprocess.run(
-        ["gh", "secret", "set", name, "-R", REPO], input=value, text=True, capture_output=True
+        ["gh", "secret", "set", name, "-R", REPO],
+        check=False,
+        input=value,
+        text=True,
+        capture_output=True,
     )
     if r.returncode != 0:
         sys.exit(f"gh secret set {name} failed: {r.stderr.strip()}")

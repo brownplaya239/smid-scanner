@@ -23,7 +23,6 @@ Wednesday's positioning as if it settled overnight.
 
 import json
 import os
-import sys
 from datetime import datetime
 
 import brief_time as BT

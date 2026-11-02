@@ -11,15 +11,16 @@ enterprise-gated). /extract turns any URL into clean markdown via residential
 proxies — used here for the SERP/web-context signal and as a resilient fetcher.
 """
 
+import json
 import os
 import re
-import json
 import time
-import requests
 import xml.etree.ElementTree as ET
-from urllib.parse import quote
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
+from urllib.parse import quote
+
+import requests
 
 try:
     from dotenv import load_dotenv
@@ -90,7 +91,7 @@ def fetch_news(ticker, company="", max_items=12, max_age_days=45):
     q = f"{ticker} {company} stock".strip()
     url = f"https://news.google.com/rss/search?q={quote(q)}&hl=en-US&gl=US&ceid=US:en"
     items = []
-    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
     try:
         r = requests.get(url, headers={"User-Agent": _UA}, timeout=25)
         if r.ok:
@@ -109,7 +110,7 @@ def fetch_news(ticker, company="", max_items=12, max_age_days=45):
                     try:
                         pub_dt = parsedate_to_datetime(pub)
                         if pub_dt.tzinfo is None:
-                            pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+                            pub_dt = pub_dt.replace(tzinfo=UTC)
                         if pub_dt < cutoff:
                             continue
                     except Exception:
@@ -120,7 +121,7 @@ def fetch_news(ticker, company="", max_items=12, max_age_days=45):
     except Exception as e:
         print(f"  news fetch failed: {e}")
     # newest-first; undated items sort last
-    items.sort(key=lambda n: n["_ts"] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    items.sort(key=lambda n: n["_ts"] or datetime.min.replace(tzinfo=UTC), reverse=True)
     for n in items:
         n.pop("_ts", None)
     return items[:max_items]
@@ -146,7 +147,10 @@ def _account_quality(user):
     age_days = None
     if join:
         try:
-            age_days = (datetime.utcnow().date() - datetime.strptime(join, "%Y-%m-%d").date()).days
+            age_days = (
+                datetime.now(UTC).replace(tzinfo=None).date()
+                - datetime.strptime(join, "%Y-%m-%d").date()
+            ).days
         except Exception:
             pass
     # established / real account — keep at full weight

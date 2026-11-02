@@ -17,7 +17,7 @@ spec names. Both objects are universal: they read capability categories,
 claims, expectations and assessments — never a ticker identity.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 SCHEMA = "v5-framework/1"
 
@@ -247,7 +247,8 @@ def build_coverage(
     # §2 (v5.8): a stale instant can DESCRIBE history but never support
     # a current-position grade — an insurer whose generic cash/debt
     # concepts died years ago is NOT_ASSESSED, not graded on relics
-    from datetime import date as _date, timedelta as _td
+    from datetime import date as _date
+    from datetime import timedelta as _td
 
     _bs_stale_limit = (_date.today() - _td(days=_CK.BS_LATEST_MAX_AGE_DAYS)).isoformat()
     _newest_instant = max((p for p in (_cp, _dp) if p), default=None)
@@ -436,7 +437,7 @@ def build_coverage(
                 unanswered.append("%s: %s" % (DIM_LABELS[k], need))
     return {
         "schema": SCHEMA,
-        "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "as_of": datetime.now(UTC).isoformat(timespec="seconds"),
         "dimensions": d,
         "summary": {
             "counts": counts,

@@ -10,8 +10,6 @@ gate that blocked everything would fail too.
     python test_send_gate.py
 """
 
-import sys
-
 import brief_compose as BC
 
 GOOD_DOC = (
@@ -52,24 +50,24 @@ MARKET = {
 
 
 def base(**over):
-    kw = dict(
-        market=MARKET,
-        wl=WL,
-        news=[],
-        events=[],
-        watch_flow={"A": [{"side": "call_buy", "oi_state": BC.CONF_YES, "oi_delta": 10}]},
-        market_flow=[],
-        html_doc=GOOD_DOC,
-        text_doc=GOOD_TEXT,
-        as_of="2026-07-22 06:39 ET",
-        eligible_total=4,
-        subject="Balanced tape · 2 watchlist changes",
-        preheader="SPY 0.00% QQQ +1.20% · A grade B to A.",
-        unsub=UNSUB,
-        sections=SECTIONS,
-        urls=URLS,
-        calendar_problems=(),
-    )
+    kw = {
+        "market": MARKET,
+        "wl": WL,
+        "news": [],
+        "events": [],
+        "watch_flow": {"A": [{"side": "call_buy", "oi_state": BC.CONF_YES, "oi_delta": 10}]},
+        "market_flow": [],
+        "html_doc": GOOD_DOC,
+        "text_doc": GOOD_TEXT,
+        "as_of": "2026-07-22 06:39 ET",
+        "eligible_total": 4,
+        "subject": "Balanced tape · 2 watchlist changes",
+        "preheader": "SPY 0.00% QQQ +1.20% · A grade B to A.",
+        "unsub": UNSUB,
+        "sections": SECTIONS,
+        "urls": URLS,
+        "calendar_problems": (),
+    }
     kw.update(over)
     return kw
 
@@ -77,66 +75,68 @@ def base(**over):
 CASES = [
     (
         "malformed document nesting",
-        dict(
-            html_doc=GOOD_DOC.replace(
+        {
+            "html_doc": GOOD_DOC.replace(
                 "<body>", '<body><!doctype html><html lang="en"><head></head><body>', 1
             )
             + "</body></html>"
-        ),
+        },
     ),
     (
         "incorrect timezone conversion",
-        dict(
-            calendar_problems=[
-                "calendar declared America/New_York but 6 of 6 "
-                "recognised releases sit +240 min from their "
-                "published time"
+        {
+            "calendar_problems": [
+                (
+                    "calendar declared America/New_York but 6 of 6 "
+                    "recognised releases sit +240 min from their "
+                    "published time"
+                )
             ]
-        ),
+        },
     ),
     (
         "mismatched unsubscribe URL",
-        dict(
-            html_doc=GOOD_DOC.replace(
+        {
+            "html_doc": GOOD_DOC.replace(
                 "https://api.tickerdesk.io/unsubscribe?u=u1&amp;t=sig",
                 "https://tickerdesk.io/#watchlist",
             )
-        ),
+        },
     ),
-    ("unsubscribe pointing at the watch list", dict(unsub="https://tickerdesk.io/#watchlist")),
+    ("unsubscribe pointing at the watch list", {"unsub": "https://tickerdesk.io/#watchlist"}),
     (
         "unsupported subject claim",
-        dict(subject="Balanced tape · Semis leads · 2 watchlist changes"),
+        {"subject": "Balanced tape · Semis leads · 2 watchlist changes"},
     ),
-    ("over-long subject", dict(subject="Balanced tape · " + "x" * 60)),
-    ("watch-list count mismatch", dict(eligible_total=9)),
+    ("over-long subject", {"subject": "Balanced tape · " + "x" * 60}),
+    ("watch-list count mismatch", {"eligible_total": 9}),
     (
         "changed name hidden with no overflow line",
-        dict(wl={**WL, "overflow": [{"ticker": "Z", "reasons": ["moved"]}], "overflow_line": ""}),
+        {"wl": {**WL, "overflow": [{"ticker": "Z", "reasons": ["moved"]}], "overflow_line": ""}},
     ),
     (
         "displayed row with no reason",
-        dict(
-            wl={
+        {
+            "wl": {
                 **WL,
                 "shown": [{"ticker": "Z", "reasons": []}],
                 "overflow": [],
                 "quiet": [],
                 "n_changed": 1,
             },
-            eligible_total=1,
-        ),
+            "eligible_total": 1,
+        },
     ),
     (
         "premature UNCONFIRMED",
-        dict(watch_flow={"A": [{"side": "call_buy", "oi_state": BC.CONF_NO}]}),
+        {"watch_flow": {"A": [{"side": "call_buy", "oi_state": BC.CONF_NO}]}},
     ),
-    ("negative zero", dict(html_doc=GOOD_DOC.replace("SPY 0.00%", "SPY -0.00%"))),
-    ("missing plain-text URL", dict(text_doc="Open your desk on the site.\n")),
-    ("empty plain-text part", dict(text_doc=" ")),
-    ("incomplete preheader", dict(preheader="SPY 0.00% QQQ +1.20% · A grade B to A ·")),
-    ("over-long preheader", dict(preheader="x" * 200)),
-    ('missing lang="en"', dict(html_doc=GOOD_DOC.replace('<html lang="en">', "<html>"))),
+    ("negative zero", {"html_doc": GOOD_DOC.replace("SPY 0.00%", "SPY -0.00%")}),
+    ("missing plain-text URL", {"text_doc": "Open your desk on the site.\n"}),
+    ("empty plain-text part", {"text_doc": " "}),
+    ("incomplete preheader", {"preheader": "SPY 0.00% QQQ +1.20% · A grade B to A ·"}),
+    ("over-long preheader", {"preheader": "x" * 200}),
+    ('missing lang="en"', {"html_doc": GOOD_DOC.replace('<html lang="en">', "<html>")}),
 ]
 
 

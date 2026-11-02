@@ -24,8 +24,8 @@ import json
 import os
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 REPO = "brownplaya239/smid-scanner"
 CRONJOB_API = "https://api.cron-job.org"

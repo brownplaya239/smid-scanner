@@ -31,12 +31,12 @@ import argparse
 import json
 import sys
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 BASE = "https://tickerdesk.io"
 API = "https://api.tickerdesk.io"
 ET = timezone(timedelta(hours=-4))  # EDT (all current dates)
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 RESULTS = []
 
@@ -76,7 +76,7 @@ def ts_of(d):
                     else datetime.fromisoformat(s + "T20:00:00+00:00")
                 )
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.replace(tzinfo=UTC)
                 return dt
             except ValueError:
                 continue
@@ -204,7 +204,7 @@ def audit_artifacts():
             except Exception:
                 continue
         docs[name] = d
-        if b"&#x" in raw or "Ã¢".encode("utf-8") in raw:
+        if b"&#x" in raw or "Ã¢".encode() in raw:
             rec("FAIL", "PARSE", name, "entity/mojibake artifacts")
         missing = [k for k in keys if k not in d]
         if missing:

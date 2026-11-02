@@ -34,7 +34,7 @@ No ticker symbols, no company names, no hard-coded financial values —
 thresholds are named universal policy constants.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 SCHEMA = "v5-classification/1"
 
@@ -112,7 +112,7 @@ def classify_security(ticker, snap, profile):
     try:
         cik, resolution = RL.cik_for_filed(ticker)
         idx = RL.concept_index(cik)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         idx_err = str(e)[:120]
 
     taxes = (idx or {}).get("taxonomies") or {}
@@ -138,7 +138,7 @@ def classify_security(ticker, snap, profile):
     else:
         regime = "unknown"
 
-    fpi = any(f in _FPI_FORMS or f.startswith("20-F") or f.startswith("40-F") for f in forms) or (
+    fpi = any(f in _FPI_FORMS or f.startswith(("20-F", "40-F")) for f in forms) or (
         regime == "ifrs"
     )
 
@@ -237,7 +237,7 @@ def classify_security(ticker, snap, profile):
         "concept_index_error": idx_err,
         "concept_index_url": (idx or {}).get("url"),
         "concept_counts": (idx or {}).get("concept_counts") or {},
-        "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "as_of": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
 

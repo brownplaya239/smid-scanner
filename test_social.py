@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
-import x_post  # noqa: E402
+import x_post
 
 
 class XLength(unittest.TestCase):

@@ -24,21 +24,20 @@ report can say "this is a real buzz spike" vs "normal noise".
 Env: ANTHROPIC_API_KEY, NIMBLE_API_KEY.
 """
 
-import os
-import sys
-import re
 import json
 import math
-from datetime import datetime, timezone
+import os
+import re
+import sys
+from datetime import UTC, datetime
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-import pytz
-import requests
 import anthropic
-from fpdf import FPDF
+import pytz
 from dotenv import load_dotenv
+from fpdf import FPDF
 
 load_dotenv(override=True)
 
@@ -108,17 +107,17 @@ def sentiment_persistence(hist, ticker):
     whole read gates at >=2 prior runs. A one-day sentiment spike and a
     persistent regime read very differently - this is what tells them
     apart."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     runs = hist.get(ticker.upper(), [])
     pts = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for r in runs:
         s = r.get("sentiment")
         try:
             ts = datetime.fromisoformat(str(r.get("ts")).replace("Z", "+00:00"))
             if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+                ts = ts.replace(tzinfo=UTC)
         except Exception:
             continue
         if isinstance(s, (int, float)):
@@ -803,7 +802,7 @@ def run_altdata_lookup(ticker):
     try:
         hist.setdefault(ticker, []).append(
             {
-                "ts": datetime.now(timezone.utc).isoformat(timespec="minutes"),
+                "ts": datetime.now(UTC).isoformat(timespec="minutes"),
                 "news": len(alt["news"]),
                 "social": alt["social"].get("total", 0),
                 "attention": alt["attention"],

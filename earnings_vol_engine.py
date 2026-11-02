@@ -41,10 +41,10 @@ import argparse
 import json
 import os
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 
-from trade_desk_validation import _regime_map, _load
+from trade_desk_validation import _load, _regime_map
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
@@ -236,7 +236,7 @@ def decomposition(events):
 def run(dry=False):
     ev = _load_events()
     result = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "engine_version": ENGINE_VERSION,
         "types": {},
     }

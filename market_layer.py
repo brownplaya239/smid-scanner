@@ -347,8 +347,10 @@ def calendar_problems(now_et=None):
         return []
     if not cal.get("converted"):
         return [
-            "economic_calendar.json predates timezone conversion "
-            "(no `converted` flag); regenerate before sending"
+            (
+                "economic_calendar.json predates timezone conversion "
+                "(no `converted` flag); regenerate before sending"
+            )
         ]
     v = []
     bad = [e for e in evs if e.get("on_schedule") is False]

@@ -27,7 +27,7 @@ import os
 import statistics
 import sys
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 try:
     from zoneinfo import ZoneInfo
@@ -65,7 +65,7 @@ def _http_json(url):
 
 def fetch_daily(sym):
     """[{d, o, h, l, c}] ascending, ~2 years."""
-    end = datetime.now(timezone.utc).date()
+    end = datetime.now(UTC).date()
     start = end - timedelta(days=740)
     if POLY_KEY:
         u = (
@@ -106,7 +106,7 @@ def fetch_5m(sym):
     d = ET session date, m = ET minute-of-day."""
     out = []
     if POLY_KEY:
-        end = datetime.now(timezone.utc).date()
+        end = datetime.now(UTC).date()
         start = end - timedelta(days=int(TARGET_SESSIONS * 1.5) + 10)
         u = (
             "https://api.polygon.io/v2/aggs/ticker/%s/range/5/minute/%s/%s"
@@ -395,7 +395,7 @@ def aggregate(per_day):
 
 def main():
     site = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "source": "polygon" if POLY_KEY else "yfinance-fallback",
         "sessions": None,
         "by_sym": {},

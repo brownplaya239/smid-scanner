@@ -12,7 +12,6 @@ reached" is worse than one that says a name is quiet.
 """
 
 import re
-import sys
 
 import brief_compose as BC
 
@@ -109,8 +108,9 @@ def _short_dated(rows, days=30):
     """True when the nearest expiry sits inside the window — positioning
     that expires next week is a different claim from positioning that
     expires next year, and the synthesis needs to know which."""
-    import brief_time as BT
     from datetime import datetime
+
+    import brief_time as BT
 
     now = datetime.now(BT.ET)
     for r in rows or []:
@@ -201,8 +201,9 @@ def build_weekly(market):
 
 def build_changes(tickers, swing, uoa_by_ticker, facts, earnings, edge_stats=None):
     """One change record per watchlist name."""
-    import brief_time as BT
     from datetime import datetime, timedelta
+
+    import brief_time as BT
 
     now = datetime.now(BT.ET)
     session_as_of = BT.fmt_stamp(now)
@@ -231,7 +232,7 @@ def build_changes(tickers, swing, uoa_by_ticker, facts, earnings, edge_stats=Non
         if days is None and rows:
             days = rows[0].get("earnings_days")
         if days is None and cat:
-            m = re.search(r"earnings in (\d+)\s*d", cat, re.I)
+            m = re.search(r"earnings in (\d+)\s*d", cat, re.IGNORECASE)
             if m:
                 days = int(m.group(1))
         edge = None
@@ -418,4 +419,4 @@ def self_test():
 
 
 if __name__ == "__main__":
-    raise SystemExit(self_test() if "--self-test" in sys.argv else self_test())
+    raise SystemExit(self_test())

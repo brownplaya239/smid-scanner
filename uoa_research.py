@@ -44,7 +44,7 @@ import json
 import os
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from itertools import combinations
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -252,7 +252,7 @@ def _odds_model(train):
 
 
 def loser_model(rows):
-    weeks = sorted(set(_week(r["date"]) for r in rows))
+    weeks = sorted({_week(r["date"]) for r in rows})
     if len(weeks) < 3:
         return {
             "status": "accruing",
@@ -314,7 +314,7 @@ def _eb_deltas(train):
 
 
 def score2_eval(rows):
-    weeks = sorted(set(_week(r["date"]) for r in rows))
+    weeks = sorted({_week(r["date"]) for r in rows})
     byw = defaultdict(list)
     for r in rows:
         byw[_week(r["date"])].append(r)
@@ -394,7 +394,7 @@ def sizing(rows):
 
 
 def stability(rows):
-    weeks = sorted(set(_week(r["date"]) for r in rows))
+    weeks = sorted({_week(r["date"]) for r in rows})
     byw = defaultdict(list)
     for r in rows:
         byw[_week(r["date"])].append(r)
@@ -444,7 +444,7 @@ def interactions(rows):
     dev, hold = rows[:cut], rows[cut:]
     ev_dev = _mean([r["exc"] for r in dev])
     # candidate features present
-    feats = sorted(set(f for r in dev for f in r["f"]))
+    feats = sorted({f for r in dev for f in r["f"]})
     survivors, tested = [], 0
     for depth in (2, 3):
         for combo in combinations(feats, depth):
@@ -566,7 +566,7 @@ def hedge_utility(sel, rows, spy5):
             ],
         }
     # 2. conditional on SPY forward
-    _sel_ids = set(id(r) for r in sel)
+    _sel_ids = {id(r) for r in sel}
     rest = [r for r in rows if id(r) not in _sel_ids]
 
     def cond(pred):
@@ -584,7 +584,7 @@ def hedge_utility(sel, rows, spy5):
         "spy5_positive": cond(lambda s: s > 0),
         "spy5_negative": cond(lambda s: s < 0),
         "spy5_dd_le_-2": cond(lambda s: s <= -2),
-        "adverse_episodes_in_sample": len(set(_week(d) for d, s in spy5.items() if s < 0)),
+        "adverse_episodes_in_sample": len({_week(d) for d, s in spy5.items() if s < 0}),
     }
 
     # 3. portfolio variants (daily equal-weight, overlapping 5d units)
@@ -602,7 +602,7 @@ def hedge_utility(sel, rows, spy5):
             "cvar5_daily": round(cvar, 2),
         }
 
-    pocket_ids = set(id(r) for r in sel)
+    pocket_ids = {id(r) for r in sel}
     out["portfolio_variants"] = {
         "pocket_1.0x": variant(lambda r: 1.0),
         "pocket_excluded": variant(lambda r: 0.0 if id(r) in pocket_ids else 1.0),
@@ -768,7 +768,7 @@ def psi_detail(rows, capmap=None):
     gate keys on raw until adjusted methodology is standing policy."""
     import math
 
-    weeks = sorted(set(_week(r["date"]) for r in rows))
+    weeks = sorted({_week(r["date"]) for r in rows})
     recent = [r for r in rows if _week(r["date"]) in weeks[-2:]]
     prior = [r for r in rows if _week(r["date"]) not in weeks[-2:]]
     if len(recent) < 500 or len(prior) < 500:
@@ -947,7 +947,7 @@ def main():
     )
     psi = psi_detail(rows, capmap)
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "joined_matured_n": len(rows),
         "span": [rows[0]["date"], rows[-1]["date"]],
         "attribution": attribution(rows),
@@ -1008,7 +1008,7 @@ def main():
             a.get("dir_ev"),
             a.get("flow_alpha"),
             lm.get("ev_after_exclusion", "accruing"),
-            len((payload["interactions"].get("survivors") or [])),
+            len(payload["interactions"].get("survivors") or []),
         )
     )
     print("  Wrote uoa_research.json")

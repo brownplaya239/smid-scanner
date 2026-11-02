@@ -24,7 +24,6 @@ tagging metadata that no validator would accept.
 import io
 import json
 
-
 ACCESS_UNTAGGED = "untagged"
 ACCESS_TAGGED = "tagged"
 
@@ -121,6 +120,7 @@ def validate(pdf_bytes):
     # 2. pypdf — must open with no exception AND no warnings
     try:
         import warnings
+
         import pypdf
 
         with warnings.catch_warnings(record=True) as w:
@@ -190,7 +190,11 @@ def _cli_check(pdf_bytes, exe, args=None):
         tmp.write(pdf_bytes)
         tmp.close()
         p = subprocess.run(
-            [path] + (args or []) + [tmp.name], capture_output=True, text=True, timeout=120
+            [path] + (args or []) + [tmp.name],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
         return {
             "status": "pass" if p.returncode == 0 else "fail",

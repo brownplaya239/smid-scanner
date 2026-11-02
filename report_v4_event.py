@@ -92,7 +92,7 @@ ET_OFFSET_HOURS = -4  # EDT; ET calendar-day comparison
 
 def _parse(ts):
     if isinstance(ts, dt.datetime):
-        return ts if ts.tzinfo else ts.replace(tzinfo=dt.timezone.utc)
+        return ts if ts.tzinfo else ts.replace(tzinfo=dt.UTC)
     if not ts:
         return None
     try:
@@ -106,7 +106,7 @@ def _et_date(when):
     means what a US reader means by it."""
     if not when:
         return None
-    return (when.astimezone(dt.timezone.utc) + dt.timedelta(hours=ET_OFFSET_HOURS)).date()
+    return (when.astimezone(dt.UTC) + dt.timedelta(hours=ET_OFFSET_HOURS)).date()
 
 
 def _call_phase(release, now):
@@ -177,7 +177,7 @@ def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
     post-release phase from the clock and never claims POST-CALL VERIFIED.
     """
     catalyst = catalyst or {}
-    now = _parse(report_time) or dt.datetime.now(dt.timezone.utc)
+    now = _parse(report_time) or dt.datetime.now(dt.UTC)
     ev = _parse(catalyst.get("event_dt"))
     ver = catalyst.get("verification") or {}
     reasons = []

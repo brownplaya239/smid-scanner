@@ -25,7 +25,6 @@ reports pass/fail.
 """
 
 import argparse
-import io
 import json
 import os
 import sys
@@ -237,7 +236,7 @@ def run_for_user(ticker, user_id="", out_dir=None):
         )
         raise SystemExit("v4 package failed validation; nothing uploaded: " + why)
 
-    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d_%H%M")
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y-%m-%d_%H%M")
     # Only the CORE report claims the My Reports row. The appendix and
     # the validation JSON are sidecars under the same filename stem —
     # linking the appendix too inserted a second identical ticker entry

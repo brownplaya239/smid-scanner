@@ -53,7 +53,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytz
@@ -264,7 +264,7 @@ def load_reports_by_ticker(hours: int = 24) -> dict[str, list[dict]]:
         return {}
     cutoff = datetime.now(ET) - timedelta(hours=hours)
     by_ticker: dict[str, list[dict]] = {}
-    for _rtype, files in (data.get("reports") or {}).items():
+    for files in (data.get("reports") or {}).values():
         for f in files:
             fname = f.get("file", "")
             parts = fname.split("_")
@@ -455,7 +455,7 @@ def load_overnight_news(tickers, hours: int = 15, limit: int = 5) -> list[dict]:
     if not tickers or not (SUPABASE_URL and SUPABASE_SERVICE_KEY):
         return []
     try:
-        since = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        since = (datetime.now(UTC) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
         syms = ",".join(sorted(set(tickers))[:40])
         rows = (
             _supabase_get(
@@ -1465,7 +1465,7 @@ def _render_playbook(playbook, ideas=None) -> str:
             f'<div style="font-size:11px;font-weight:700;color:{col};'
             f'text-transform:uppercase;letter-spacing:.5px;">{icon} {esc(b["kind"])}</div>'
             f'<div style="font-size:13.5px;color:{CSS_TEXT};margin-top:3px;line-height:1.45;">'
-            f"{tk}{esc(b['text']) if not b.get('ticker') else esc(b['text'])}</div>"
+            f"{tk}{esc(b['text'])}</div>"
             f"</div>"
         )
     inner = "".join(rows)
@@ -2393,7 +2393,7 @@ def write_preview(subject: str, html_body: str) -> None:
     document there already.
     """
     os.makedirs(os.path.dirname(PREVIEW_PATH), exist_ok=True)
-    if re.match(r"\s*<!doctype", html_body, re.I):
+    if re.match(r"\s*<!doctype", html_body, re.IGNORECASE):
         doc = html_body
     else:
         doc = (

@@ -14,9 +14,7 @@ still contains exactly the model's records on both sides.
     python test_parity.py
 """
 
-import json
 import re
-import sys
 
 import brief_compose as BC
 import brief_model as BM

@@ -28,7 +28,6 @@ WARN records something a reader should know without blocking delivery.
 """
 
 import hashlib
-import io
 import json
 import os
 import re
@@ -54,7 +53,7 @@ INTENT_RX = re.compile(
     r"|(?:institutional|quiet|stealth)\s+(?:accumulation|distribution)"
     r"|being\s+accumulated|under\s+accumulation"
     r"|whales?\s+(?:are\s+)?(?:buy|sell)\w*)",
-    re.I,
+    re.IGNORECASE,
 )
 
 GLYPH_RX = re.compile(
@@ -155,7 +154,7 @@ INTERPRETIVE_RX = re.compile(
     r"|(?:base|bull|bear)[- ]case\s+probability"
     r"|price\s+target\s+of\s+\$"
     r"|(?:screaming|table[- ]pounding)\s+(?:buy|sell))",
-    re.I,
+    re.IGNORECASE,
 )
 
 # A completed session older than this is not "the tape" any more.
@@ -167,7 +166,7 @@ VENDOR_WORDS = ("vendor", "profile", "provider", "estimate", "settled", "as of",
 DATE_RX = re.compile(r"(20\d{2}-\d{2}-\d{2}|as of \d)")
 # A vendor that publishes no date can still be shown, provided the basis
 # says so. Silence is what the check refuses, not the absence of a date.
-UNDATED_RX = re.compile(r"no as-of date|undated", re.I)
+UNDATED_RX = re.compile(r"no as-of date|undated", re.IGNORECASE)
 
 # The one calculation that is supposed to read the still-forming session.
 PARTIAL_OK = ("CALC-intraday_last",)
@@ -181,7 +180,7 @@ def _sha(b):
 
 def validator_code_hash():
     try:
-        with io.open(__file__, "rb") as fh:
+        with open(__file__, "rb") as fh:
             return _sha(fh.read())
     except Exception:  # pragma: no cover
         return None
@@ -507,8 +506,10 @@ def check_model(view, snap=None, evidence=None):
     )
     co = soc.get("coordination") or {}
     asserts = bool(
-        re.search(r"\b(repeated|echo|coordinat|identical)", str(co.get("label") or ""), re.I)
-        and not re.search(r"\b(no|none|not|zero)\b", str(co.get("label") or "")[:24], re.I)
+        re.search(
+            r"\b(repeated|echo|coordinat|identical)", str(co.get("label") or ""), re.IGNORECASE
+        )
+        and not re.search(r"\b(no|none|not|zero)\b", str(co.get("label") or "")[:24], re.IGNORECASE)
     )
     out.append(
         chk(
@@ -562,10 +563,7 @@ def check_model(view, snap=None, evidence=None):
         ops = mc.get("operands") or []
         named = {str(o.get("evidence_id")) for o in ops}
         has_px = any(
-            "last_close" in n
-            or "intraday_last" in n
-            or n.startswith("BAR-")
-            or n.startswith("INTRADAY-")
+            "last_close" in n or "intraday_last" in n or n.startswith(("BAR-", "INTRADAY-"))
             for n in named
         )
         has_sh = any(n.startswith("SHR-") or "shares" in n for n in named)
@@ -619,8 +617,7 @@ def _is_furniture(blk, page_h, band=0.085):
 def _spans(d):
     for blk in d.get("blocks", []):
         for ln in blk.get("lines", []):
-            for sp in ln.get("spans", []):
-                yield sp
+            yield from ln.get("spans", [])
 
 
 def check_pdf(pdf_bytes, snap=None, core=True, evidence=None, view=None):
@@ -844,7 +841,7 @@ def check_agreement(pdf_bytes, evidence, view, snap=None):
     checked, disagree = [], []
     for cid, c in sorted(calcs.items()):
         shown = c.get("result_displayed")
-        slug = cid[5:] if cid.startswith("CALC-") else cid
+        slug = cid.removeprefix("CALC-")
         # A figure the report deliberately withholds is not a figure the
         # page is claiming. rel_volume is suppressed mid-session because a
         # partial day cannot be compared with full-session averages.
@@ -966,10 +963,10 @@ def check_agreement(pdf_bytes, evidence, view, snap=None):
 # lowest close"; if the formula reads min(low) the sentence is false even
 # though the number is arithmetically correct.
 BASIS_WORDS = [
-    (re.compile(r"min\(close", re.I), "lowest close", "lowest intraday low"),
-    (re.compile(r"max\(close", re.I), "highest close", "highest intraday high"),
-    (re.compile(r"min\(low", re.I), "lowest intraday low", "lowest close"),
-    (re.compile(r"max\(high", re.I), "highest intraday high", "highest close"),
+    (re.compile(r"min\(close", re.IGNORECASE), "lowest close", "lowest intraday low"),
+    (re.compile(r"max\(close", re.IGNORECASE), "highest close", "highest intraday high"),
+    (re.compile(r"min\(low", re.IGNORECASE), "lowest intraday low", "lowest close"),
+    (re.compile(r"max\(high", re.IGNORECASE), "highest intraday high", "highest close"),
 ]
 
 
@@ -1349,12 +1346,14 @@ def check_numerics(evidence, view, snap=None, pdf_text=""):
 # A count with no artifact behind it. "5 records displayed" was true of
 # the pipeline, the core page and the appendix at different call sites,
 # and meant a different number in each.
-UNSCOPED_COUNT_RX = re.compile(r"\b\d+\s+(?:records?|items?|rows?|posts?)\s+displayed\b", re.I)
+UNSCOPED_COUNT_RX = re.compile(
+    r"\b\d+\s+(?:records?|items?|rows?|posts?)\s+displayed\b", re.IGNORECASE
+)
 
 # Close-derived extrema that do not say so. A "60-session low" computed
 # from closes reads as an intraday low to anyone who trades.
 UNLABELLED_EXTREMA_RX = re.compile(
-    r"\b(?:60-session|52-week|252-session)\s+(?!closing\b)(?:high|low)\b", re.I
+    r"\b(?:60-session|52-week|252-session)\s+(?!closing\b)(?:high|low)\b", re.IGNORECASE
 )
 
 
@@ -1443,7 +1442,7 @@ def check_setup(evidence, view, snap=None, pdf_text=""):
                 "every derived setup metric cites a calculation that "
                 "reproduced from the delivered evidence",
                 "; ".join(bad[:4]) if bad else "%d derived metric(s) traced" % n_der,
-                refs=sorted(set(m["calc"] for m in metrics if m.get("calc"))),
+                refs=sorted({m["calc"] for m in metrics if m.get("calc")}),
             )
         )
 
@@ -1537,11 +1536,11 @@ def check_setup(evidence, view, snap=None, pdf_text=""):
         )
 
     # The open session must not be inside an average.
-    intra = set(
+    intra = {
         k
         for k, r in recs.items()
         if r.get("evidence_type") == "intraday_observation" or str(k).startswith("INTRADAY-")
-    )
+    }
     leaked = []
     for cid, c in sorted(calcs.items()):
         if cid in PARTIAL_OK:
@@ -1573,7 +1572,7 @@ def check_editorial(evidence, view, snap=None, pdf_text="", appendix_text=""):
     out, ev = [], evidence or {}
     both = "\n".join(t for t in (pdf_text, appendix_text) if t)
 
-    hits = sorted(set(m.group(0) for m in UNSCOPED_COUNT_RX.finditer(both)))
+    hits = sorted({m.group(0) for m in UNSCOPED_COUNT_RX.finditer(both)})
     out.append(
         chk(
             "DISPLAY_COUNT_UNSCOPED",
@@ -1599,7 +1598,7 @@ def check_editorial(evidence, view, snap=None, pdf_text="", appendix_text=""):
             r"neutral[, ]+representative|"
             r"neutral representative",
             both,
-            re.I,
+            re.IGNORECASE,
         )
     )
     out.append(
@@ -1619,8 +1618,8 @@ def check_editorial(evidence, view, snap=None, pdf_text="", appendix_text=""):
     bad = []
     for cid, c in sorted((ev.get("calculations") or {}).items()):
         f = str(c.get("formula") or "")
-        if re.search(r"(?:min|max)\(close", f, re.I):
-            bad.extend(sorted(set(m.group(0) for m in UNLABELLED_EXTREMA_RX.finditer(both))))
+        if re.search(r"(?:min|max)\(close", f, re.IGNORECASE):
+            bad.extend(sorted({m.group(0) for m in UNLABELLED_EXTREMA_RX.finditer(both)}))
             break
     bad = sorted(set(bad))
     out.append(
@@ -1640,7 +1639,7 @@ def check_editorial(evidence, view, snap=None, pdf_text="", appendix_text=""):
     # tape cannot show, and a confidence score or scenario probability is
     # a guess wearing a measurement's clothes. INSTITUTIONAL_INTENT bans
     # the who; this bans the why and the fake precision.
-    hits = sorted(set(m.group(0).strip() for m in INTERPRETIVE_RX.finditer(both)))
+    hits = sorted({m.group(0).strip() for m in INTERPRETIVE_RX.finditer(both)})
     out.append(
         chk(
             "INTERPRETIVE_PHRASE",

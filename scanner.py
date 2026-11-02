@@ -6,14 +6,14 @@ Usage:
 Env vars required: ANTHROPIC_API_KEY
 """
 
-import os
-import sys
-import io
 import csv
+import io
 import json
 import math
+import os
 import re
-from datetime import datetime, date
+import sys
+from datetime import date, datetime
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -21,29 +21,29 @@ if hasattr(sys.stdout, "reconfigure"):
 import matplotlib
 
 matplotlib.use("Agg")  # headless — required for GitHub Actions / no display
+import anthropic
 import matplotlib.pyplot as plt
 import mplfinance as mpf
 import pandas as pd
 import pytz
 import requests
 import yfinance as yf
-import anthropic
-from fpdf import FPDF
 from dotenv import load_dotenv
+from fpdf import FPDF
 
-from macro_context import fetch_macro_context
 from insider_activity import enrich_candidates_with_insiders, fetch_insider_transactions_detail
 from institutional_data import (
-    fetch_institutional_data,
-    fetch_13d_13g_filings,
-    compute_smart_money_score,
     classify_fund,
+    compute_smart_money_score,
+    fetch_13d_13g_filings,
+    fetch_institutional_data,
 )
+from macro_context import fetch_macro_context
 from volume_intelligence import (
     compute_ad_rating,
-    find_significant_volume_bars,
     compute_monthly_flow,
     detect_silent_build,
+    find_significant_volume_bars,
 )
 
 load_dotenv(override=True)
@@ -68,7 +68,8 @@ def _archive_report(pdf_bytes, filename):
     Storage when --user-id is supplied; daily scanner reports (and any run
     without a user_id) archive publicly as before. Falls back to the public
     archive if the private upload fails (e.g. bucket not set up yet)."""
-    from report_archive import archive as _pub_archive, upload_user_report
+    from report_archive import archive as _pub_archive
+    from report_archive import upload_user_report
 
     if USER_ID and filename.startswith("ticker_"):
         import re as _re
@@ -83,7 +84,7 @@ def _archive_report(pdf_bytes, filename):
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 if not ANTHROPIC_API_KEY:
-    raise EnvironmentError("Missing: ANTHROPIC_API_KEY")
+    raise OSError("Missing: ANTHROPIC_API_KEY")
 
 IWM_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IWM_holdings.csv")
 
@@ -2574,8 +2575,6 @@ def publish_report(pdf_bytes, label="SMID"):
     prefix = "iwm" if "IWM" in label else "smid"
     filename = f"{prefix}_scanner_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
-        from report_archive import archive
-
         _archive_report(pdf_bytes, filename)
         print(f"  PDF archived to site: {filename}")
     except Exception as e:
@@ -2728,8 +2727,6 @@ def _abort_invalid_ticker(ticker, hist):
     filename = f"ticker_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     err_pdf = generate_error_pdf(ticker, reason)
     try:
-        from report_archive import archive
-
         _archive_report(err_pdf, filename)
     except Exception as e:
         print(f"  Archive failed: {e}")
@@ -2949,7 +2946,7 @@ def run_single_ticker_lookup(ticker):
     enrich_candidates_with_insiders(candidates, days_back=90)
     if candidates[0].get("insider_count", 0) > 0:
         print(f"  90d signal: {candidates[0].get('insider_summary', '')}")
-    print(f"  Fetching 12-month transaction log from SEC EDGAR...")
+    print("  Fetching 12-month transaction log from SEC EDGAR...")
     insider_log = fetch_insider_transactions_detail(ticker, days_back=365, max_filings=60)
     print(f"  Found {len(insider_log)} insider transactions in last 12 months")
 
@@ -2971,7 +2968,7 @@ def run_single_ticker_lookup(ticker):
         candidates[0]["insider_most_recent_buy"] = ""
 
     # Institutional ownership intelligence (replaces broken yfinance institutionPercentHeld)
-    print(f"  Fetching institutional holders + 13D/13G filings...")
+    print("  Fetching institutional holders + 13D/13G filings...")
     inst_data = fetch_institutional_data(ticker)
     filings_13 = fetch_13d_13g_filings(ticker, days_back=365)
     smart_money = compute_smart_money_score(
@@ -3122,8 +3119,6 @@ def run_single_ticker_lookup(ticker):
     now = datetime.now(ET)
     filename = f"ticker_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
-        from report_archive import archive
-
         _archive_report(pdf_bytes, filename)
         print(f"  Archived: {filename}")
     except Exception as e:

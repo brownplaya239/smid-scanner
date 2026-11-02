@@ -24,14 +24,12 @@ and the brief must not send.
 """
 
 import re
-import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 try:  # 3.9+
     from zoneinfo import ZoneInfo
 
     ET = ZoneInfo("America/New_York")
-    UTC = timezone.utc
 except ImportError:  # pragma: no cover - old runners
     import pytz
 
@@ -47,7 +45,7 @@ class TimeSafetyError(ValueError):
 
 # ── parsing ─────────────────────────────────────────────────────────────
 
-_CLOCK = re.compile(r"^\s*(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?\s*$", re.I)
+_CLOCK = re.compile(r"^\s*(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?\s*$", re.IGNORECASE)
 _H24 = re.compile(r"^\s*(\d{1,2}):(\d{2})(?::\d{2})?\s*$")
 
 
@@ -192,7 +190,7 @@ ANCHORS = (
     (r"fomc press conference", (14, 30)),
 )
 
-_ANCHORS = tuple((re.compile(p, re.I), t) for p, t in ANCHORS)
+_ANCHORS = tuple((re.compile(p, re.IGNORECASE), t) for p, t in ANCHORS)
 
 
 def anchor_for(title):
@@ -289,7 +287,7 @@ _GENERIC_TITLE = re.compile(
     r"(speaks|speech|remarks|comments|testifies|testimony|press conference"
     r"|appearance|event|meeting|summit|holiday|bank holiday|tentative"
     r"|all day)\s*$",
-    re.I,
+    re.IGNORECASE,
 )
 
 

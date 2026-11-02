@@ -43,10 +43,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from statistics import mean, median
 
-from uoa_alpha import load_ledger, _dte_bucket, _side_of_signal
+from uoa_alpha import _dte_bucket, _side_of_signal, load_ledger
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 CACHE_PATH = os.path.join(_BASE, "data", "uoa_alpha_cache.json")
@@ -272,7 +272,7 @@ def run(dry=False):
     rows = build_dataset()
     if len(rows) < 2000:
         result = {
-            "generated": datetime.utcnow().isoformat() + "Z",
+            "generated": datetime.now(UTC).replace(tzinfo=None).isoformat() + "Z",
             "status": "insufficient_history",
             "n": len(rows),
         }
@@ -344,7 +344,7 @@ def run(dry=False):
     prod_scale_rows = sorted(predict(prod, r["feats"]) for r in rows)
 
     result = {
-        "generated": datetime.utcnow().isoformat() + "Z",
+        "generated": datetime.now(UTC).replace(tzinfo=None).isoformat() + "Z",
         "model_version": MODEL_VERSION,
         "n_graded": n,
         "span": {"from": rows[0]["date"], "to": rows[-1]["date"]},

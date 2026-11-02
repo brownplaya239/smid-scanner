@@ -227,17 +227,18 @@ class NasdaqFetch(unittest.TestCase):
         def urlopen(req, timeout=0):
             return self._Resp(body)
 
-        with mock.patch("urllib.request.urlopen", urlopen):
-            with self.assertRaises(RuntimeError):
-                ea._nasdaq_day("2026-10-13")
+        with mock.patch("urllib.request.urlopen", urlopen), self.assertRaises(RuntimeError):
+            ea._nasdaq_day("2026-10-13")
 
     def test_raises_when_both_fail(self):
         def urlopen(req, timeout=0):
             raise urllib.error.URLError("blocked")
 
-        with mock.patch("urllib.request.urlopen", urlopen):
-            with self.assertRaises(RuntimeError) as cm:
-                ea._nasdaq_day("2026-10-13")
+        with (
+            mock.patch("urllib.request.urlopen", urlopen),
+            self.assertRaises(RuntimeError) as cm,
+        ):
+            ea._nasdaq_day("2026-10-13")
         self.assertIn("nasdaq:", str(cm.exception))
         self.assertIn("worker:", str(cm.exception))
 

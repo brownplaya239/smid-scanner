@@ -45,7 +45,7 @@ import json
 import os
 import sys
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytz
 
@@ -276,7 +276,7 @@ def publish(state, today):
         cnt = Counter(c["first_verdict"] for c in resolved)
         n = len(resolved)
         by_side = {}
-        for s in set(c.get("side") for c in resolved if c.get("side")):
+        for s in {c.get("side") for c in resolved if c.get("side")}:
             sub = [c for c in resolved if c.get("side") == s]
             if len(sub) >= CFG["min_stats_n"]:
                 by_side[s] = round(
@@ -291,7 +291,7 @@ def publish(state, today):
             "open_rate_by_side": by_side,
         }
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "et_date": today,
         "tracked_total": len(state["contracts"]),
         "encoding": [

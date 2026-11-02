@@ -31,10 +31,10 @@ from __future__ import annotations
 import argparse
 import html
 import io
+import itertools
 import os
 import re
 import sys
-from datetime import datetime, timezone
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
@@ -46,6 +46,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
+    Image,
     KeepTogether,
     PageBreak,
     PageTemplate,
@@ -53,7 +54,6 @@ from reportlab.platypus import (
     Spacer,
     Table,
     TableStyle,
-    Image,
 )
 
 import pdf_postprocess as PP
@@ -1316,7 +1316,7 @@ def verify_render(pdf_bytes, snap=None):
                     rows.setdefault(round(b[1], 0), []).append((b[0], b[2], sp["text"].strip()))
         for y, spans in rows.items():
             spans.sort()
-            for (x0, x1, t0), (nx0, nx1, t1) in zip(spans, spans[1:]):
+            for (x0, x1, t0), (nx0, nx1, t1) in itertools.pairwise(spans):
                 if nx0 < x1 - 0.8:  # sub-point overlaps are kerning
                     rep["ok"] = False
                     rep["notes"].append(
@@ -1395,17 +1395,23 @@ def _fixture_snapshot():
         "horizon": "until the post-print reaction is graded (1-2 sessions)",
         "position_plan": {},
         "supporting_facts": [
-            "Procedure growth 17% y/y on an 11,710-system installed base "
-            "(company release, 2026-06-30).",
-            "Recurring revenue is 84% of the mix, so results depend less "
-            "on system placements in any single quarter (10-Q).",
+            (
+                "Procedure growth 17% y/y on an 11,710-system installed base "
+                "(company release, 2026-06-30)."
+            ),
+            (
+                "Recurring revenue is 84% of the mix, so results depend less "
+                "on system placements in any single quarter (10-Q)."
+            ),
             "Balance sheet carries $8.42B cash against no debt (10-Q).",
         ],
         "risks": [
             "Price sits below the 20- and 50-day averages into the print; trend is not supportive.",
             "Forward multiple of 33.8x leaves little room for a guidance reset.",
-            "Expected move of +/-6.2% means a single session can invalidate "
-            "any pre-print level work.",
+            (
+                "Expected move of +/-6.2% means a single session can invalidate "
+                "any pre-print level work."
+            ),
         ],
         "scenarios": {
             "bull": "Procedure growth holds >=16% and guidance is raised; "

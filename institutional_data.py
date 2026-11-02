@@ -11,15 +11,13 @@ seeing Vanguard/BlackRock (which is just index inclusion, not conviction).
 """
 
 import re
-import time
-import requests
-import pandas as pd
-import yfinance as yf
 from datetime import datetime, timedelta
-from xml.etree import ElementTree as ET
 
-from insider_activity import _load_cik_lookup, SEC_HEADERS, _throttle
+import pandas as pd
+import requests
+import yfinance as yf
 
+from insider_activity import SEC_HEADERS, _load_cik_lookup, _throttle
 
 # Known smart-money active managers (high-conviction signal when present)
 # These are funds known for research-driven small/mid-cap positions, NOT passive index buys.
@@ -137,7 +135,7 @@ def fetch_institutional_data(ticker):
                         zip(mh.index.astype(str), mh["Value"].astype(float))
                     )
                 else:
-                    rows = mh.values.tolist()
+                    rows = mh.to_numpy().tolist()
                     for row in rows:
                         if len(row) >= 2:
                             out["major_holders"][str(row[1]).strip()] = str(row[0]).strip()
@@ -359,8 +357,6 @@ def compute_smart_money_score(insider_data, institutional_data, filings_13_data)
 
 
 if __name__ == "__main__":
-    import json
-
     for t in ["IONQ", "AAPL"]:
         print(f"\n=== {t} ===")
         d = fetch_institutional_data(t)

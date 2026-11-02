@@ -129,7 +129,7 @@ def main():
             subject, body, ("watchlist", "flow", "calendar", "news", "discovery")
         ),
     )
-    m_pre = re.search(r"mso-hide:all[^>]*>(.*?)</div>", html_s, re.S)
+    m_pre = re.search(r"mso-hide:all[^>]*>(.*?)</div>", html_s, re.DOTALL)
     pre = re.sub(r"<[^>]+>", "", m_pre.group(1)) if m_pre else ""
     chk("preheader <= 140 chars", len(pre) <= 140, len(pre))
     chk("preheader ends on a whole token", BC.check_preheader(pre) == [], BC.check_preheader(pre))
@@ -215,7 +215,7 @@ def main():
         r"Options flow(.*?)(Macro calendar|Top news|"
         r"Market discovery|Weekly lens|Open your desk)",
         body,
-        re.S,
+        re.DOTALL,
     )
     flow_words = len(fm.group(1).split()) if fm else 0
     pct = (100.0 * flow_words / words) if words else 0

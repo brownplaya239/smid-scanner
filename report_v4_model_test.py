@@ -11,13 +11,12 @@ directional rating never survives a DATA HOLD event.
 """
 
 import glob
-import io
 import os
 import pickle
 import sys
 
-import report_v4_model as V4
 import report_v4_event as EV
+import report_v4_model as V4
 
 _pass = _fail = 0
 
@@ -33,7 +32,7 @@ def chk(name, cond):
 
 
 def _load(t):
-    obj = pickle.load(io.open(".snapcache/%s.pkl" % t, "rb"))
+    obj = pickle.load(open(".snapcache/%s.pkl" % t, "rb"))
     return obj[0] if isinstance(obj, tuple) else obj
 
 

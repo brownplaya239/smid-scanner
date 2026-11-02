@@ -44,10 +44,9 @@ publish under v2.
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 # ── provenance-carrying value ───────────────────────────────────────────
 # Every figure in a snapshot is a Fact. An unsourced or undated number
@@ -234,7 +233,7 @@ def resolve_catalyst_state(event_dt, now=None, grade_after_min=90):
     """
     if event_dt is None:
         return None
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     if now < event_dt:
         return PRE_EVENT
     if now < event_dt + timedelta(minutes=grade_after_min):
@@ -529,7 +528,7 @@ def _parse_ts(v):
     for fmt in (None, "%Y-%m-%d"):
         try:
             dt = datetime.fromisoformat(s) if fmt is None else datetime.strptime(s, fmt)
-            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
         except Exception:
             continue
     return None
@@ -1040,8 +1039,8 @@ def check_alt_data_integrity(snap):
         lab = str(co.get("label") or "")
         # flag an ASSERTION of manipulation, not an explicit denial such
         # as "possible echo — not verified as manipulation"
-        if re.search(r"manipulat", lab, re.I) and not re.search(
-            r"not verified|no evidence|possible echo|cannot confirm", lab, re.I
+        if re.search(r"manipulat", lab, re.IGNORECASE) and not re.search(
+            r"not verified|no evidence|possible echo|cannot confirm", lab, re.IGNORECASE
         ):
             v.append(
                 "coordination label asserts manipulation — use "
@@ -1310,7 +1309,7 @@ def check_contradictions(snap, prose_sections=None):
     up_trig = dec.get("upgrade_trigger") or ""
     down_conf = dec.get("downside_confirmation") or ""
     if action in ("AVOID", "REDUCE", "WAIT"):
-        if re.search(r"thesis (breaks|fails|invalidated) below", str(up_trig), re.I):
+        if re.search(r"thesis (breaks|fails|invalidated) below", str(up_trig), re.IGNORECASE):
             v.append(
                 "upgrade_trigger describes a BREAK DOWN while action "
                 "is %s — a break lower confirms the bearish thesis, "
@@ -1318,8 +1317,8 @@ def check_contradictions(snap, prose_sections=None):
             )
         if (
             up_trig
-            and re.search(r"\bbelow\b", up_trig, re.I)
-            and not re.search(r"reclaim|back above|recover", up_trig, re.I)
+            and re.search(r"\bbelow\b", up_trig, re.IGNORECASE)
+            and not re.search(r"reclaim|back above|recover", up_trig, re.IGNORECASE)
         ):
             v.append(
                 "upgrade_trigger for %s should describe a RECLAIM "
@@ -1327,8 +1326,8 @@ def check_contradictions(snap, prose_sections=None):
             )
         if (
             down_conf
-            and re.search(r"\babove\b", down_conf, re.I)
-            and not re.search(r"fails at|rejected at|below", down_conf, re.I)
+            and re.search(r"\babove\b", down_conf, re.IGNORECASE)
+            and not re.search(r"fails at|rejected at|below", down_conf, re.IGNORECASE)
         ):
             v.append("downside_confirmation should describe a breakdown, not a move above")
 
@@ -1348,7 +1347,7 @@ def check_contradictions(snap, prose_sections=None):
                     )
     # cross-section catalyst timing agreement
     times = cat.get("stated_times") or {}
-    uniq = set(str(x) for x in times.values() if x)
+    uniq = {str(x) for x in times.values() if x}
     if len(uniq) > 1:
         v.append("catalyst timing disagrees across sections: %s" % times)
 
@@ -1376,7 +1375,7 @@ def check_contradictions(snap, prose_sections=None):
                 v.append("[%s] applies SMID framing to a $%.1fB company" % (sec, cap / 1e9))
     if profitable is True:
         for sec, text in prose_sections.items():
-            if re.search(r"unprofitable growth", str(text or ""), re.I):
+            if re.search(r"unprofitable growth", str(text or ""), re.IGNORECASE):
                 v.append(
                     "[%s] compares a profitable company to 'unprofitable growth companies'" % sec
                 )
@@ -1458,7 +1457,9 @@ def check_contradictions(snap, prose_sections=None):
     if ins and ins.get("n_view_bearing") == 0:
         for sec, text in prose_sections.items():
             if re.search(
-                r"red flag|heavy selling|dumping|insiders? (are )?selling", str(text or ""), re.I
+                r"red flag|heavy selling|dumping|insiders? (are )?selling",
+                str(text or ""),
+                re.IGNORECASE,
             ):
                 v.append(
                     "[%s] characterises insider activity as selling "
@@ -1471,13 +1472,13 @@ def check_contradictions(snap, prose_sections=None):
     own = snap.get("ownership") or {}
     if own.get("n_filings"):
         for sec, text in prose_sections.items():
-            if re.search(r"no 13[dg]|no schedule 13", str(text or ""), re.I):
+            if re.search(r"no 13[dg]|no schedule 13", str(text or ""), re.IGNORECASE):
                 v.append(
                     "[%s] claims no 13D/13G filings while %d are in "
                     "the snapshot" % (sec, own["n_filings"])
                 )
     for sec, text in prose_sections.items():
-        if re.search(r"13G.{0,30}(lower|less) conviction", str(text or ""), re.I):
+        if re.search(r"13G.{0,30}(lower|less) conviction", str(text or ""), re.IGNORECASE):
             v.append(
                 "[%s] treats 13G as 'lower conviction' — it denotes "
                 "passive/non-control filing status" % sec
@@ -1534,8 +1535,8 @@ def gate(snap, prose_sections=None, raise_on_fail=True):
 def isrg_july16_fixture():
     """Reconstructs the state that produced the July 16 ISRG brief.
     Every one of the ten findings must be caught by the gate."""
-    ev = datetime(2026, 7, 16, 20, 5, tzinfo=timezone.utc)  # 16:05 ET release
-    now = datetime(2026, 7, 16, 17, 49, tzinfo=timezone.utc)  # 13:49 ET report
+    ev = datetime(2026, 7, 16, 20, 5, tzinfo=UTC)  # 16:05 ET release
+    now = datetime(2026, 7, 16, 17, 49, tzinfo=UTC)  # 13:49 ET report
     snap = new_snapshot("ISRG", now.isoformat(), now.isoformat())
     snap["company"] = {
         "name": fact("Intuitive Surgical", "yfinance", "2026-07-16"),
@@ -1759,7 +1760,7 @@ def self_test():
             fails.append(name)
 
     # --- catalyst state machine ---
-    ev = datetime(2026, 7, 16, 20, 5, tzinfo=timezone.utc)
+    ev = datetime(2026, 7, 16, 20, 5, tzinfo=UTC)
     chk(
         "state: 2h before release -> PRE_EVENT",
         resolve_catalyst_state(ev, ev - timedelta(hours=2)) == PRE_EVENT,
@@ -1861,7 +1862,7 @@ def self_test():
     print("\n  ISRG 2026-07-16 fixture -> %d contradictions:" % len(vs))
     for x in vs:
         print("      * " + x)
-    print("")
+    print()
     chk("F1 catalyst: pre-event prose caught", "post-catalyst" in blob or "reported today" in blob)
     chk(
         "F1b catalyst: cross-section timing disagreement caught",
@@ -2086,7 +2087,7 @@ def self_test():
     print("  v2 prototype fixture -> %d contradictions:" % len(pv))
     for x in pv:
         print("      * " + x)
-    print("")
+    print()
     chk("P-A future-published Q2 data blocked", "after report_time" in pblob)
     chk("P-B $445/$178B arithmetic inconsistency blocked", "disagrees with price" in pblob)
     chk("P-C conflicting/unexplained resistance blocked", "resistance" in pblob)

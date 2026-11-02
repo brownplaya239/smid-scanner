@@ -37,7 +37,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytz
 
@@ -196,8 +196,8 @@ def _sb_get(path, params=None):
         raise RuntimeError("SUPABASE_URL / SUPABASE_SERVICE_KEY not set")
     q = ""
     if params:
-        q = "?" + "&".join("{}={}".format(k, v) for k, v in params.items())
-    url = "{}/rest/v1/{}{}".format(SUPABASE_URL, path, q)
+        q = "?" + "&".join(f"{k}={v}" for k, v in params.items())
+    url = f"{SUPABASE_URL}/rest/v1/{path}{q}"
     req = urllib.request.Request(
         url,
         headers={
@@ -211,7 +211,7 @@ def _sb_get(path, params=None):
 
 
 def _sb_post(path, body, prefer=""):
-    url = "{}/rest/v1/{}".format(SUPABASE_URL, path)
+    url = f"{SUPABASE_URL}/rest/v1/{path}"
     data = json.dumps(body).encode("utf-8")
     headers = {
         "apikey": SUPABASE_SERVICE_KEY,
@@ -232,12 +232,12 @@ def _sb_post(path, body, prefer=""):
             body_txt = e.read().decode("utf-8")
         except Exception:
             pass
-        raise RuntimeError("Supabase POST {} HTTP {}: {}".format(path, e.code, body_txt)) from e
+        raise RuntimeError(f"Supabase POST {path} HTTP {e.code}: {body_txt}") from e
 
 
 def _sb_patch(path, body, where_params):
-    q = "?" + "&".join("{}={}".format(k, v) for k, v in where_params.items())
-    url = "{}/rest/v1/{}{}".format(SUPABASE_URL, path, q)
+    q = "?" + "&".join(f"{k}={v}" for k, v in where_params.items())
+    url = f"{SUPABASE_URL}/rest/v1/{path}{q}"
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(
         url,
@@ -254,13 +254,13 @@ def _sb_patch(path, body, where_params):
         with urllib.request.urlopen(req, timeout=30):
             return True
     except urllib.error.HTTPError as e:
-        print("  PATCH {} failed: {}".format(path, e.code))
+        print(f"  PATCH {path} failed: {e.code}")
         return False
 
 
 def _sb_delete(path, where_params):
-    q = "?" + "&".join("{}={}".format(k, v) for k, v in where_params.items())
-    url = "{}/rest/v1/{}{}".format(SUPABASE_URL, path, q)
+    q = "?" + "&".join(f"{k}={v}" for k, v in where_params.items())
+    url = f"{SUPABASE_URL}/rest/v1/{path}{q}"
     req = urllib.request.Request(
         url,
         headers={
@@ -392,7 +392,7 @@ def send_webpush(sub_row, payload):
     if not VAPID_PRIVATE_KEY or not VAPID_PUBLIC_KEY:
         return False, "VAPID keys not set", False
     try:
-        from pywebpush import webpush, WebPushException
+        from pywebpush import webpush
     except ImportError:
         return False, "pywebpush not installed", False
 
@@ -429,14 +429,14 @@ def compose_uoa_push(matched, brief_date_label):
     n = len(matched)
     top = matched[0]
     prem = top.get("premium") or 0
-    prem_str = "${:.1f}M".format(prem / 1e6) if prem >= 1e6 else "${:.0f}K".format(prem / 1e3)
+    prem_str = f"${prem / 1e6:.1f}M" if prem >= 1e6 else f"${prem / 1e3:.0f}K"
     typ = (top.get("type") or "").upper()
     body_parts = ["{} {} {}".format(top["ticker"], typ, prem_str)]
     if n > 1:
         more = [m["ticker"] for m in matched[1:4]]
         body_parts.append("+ " + " · ".join(more))
         if n > 4:
-            body_parts.append("+ {} more".format(n - 4))
+            body_parts.append(f"+ {n - 4} more")
     return {
         "title": "Unusual flow on {} watchlist name{}".format(n, "s" if n > 1 else ""),
         "body": " ".join(body_parts),
@@ -461,7 +461,7 @@ def compose_grade_push(matched, brief_date_label):
         more = [m["ticker"] for m in matched[1:4]]
         body_parts.append("+ " + " · ".join(more))
         if n > 4:
-            body_parts.append("+ {} more".format(n - 4))
+            body_parts.append(f"+ {n - 4} more")
     return {
         "title": "Watchlist grade upgrade{}".format("s" if n > 1 else ""),
         "body": " ".join(body_parts),
@@ -509,7 +509,7 @@ def already_pushed_recently(user_id, alert_type, tickers, hours=6):
     """True if this same (user, alert_type, ticker set) was pushed <hours ago."""
     if globals().get("FORCE_NO_DEDUP"):
         return False
-    cutoff = (datetime.utcnow() - timedelta(hours=hours)).isoformat() + "Z"
+    cutoff = (datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=hours)).isoformat() + "Z"
     rows = _sb_get(
         "push_log",
         {
@@ -551,7 +551,7 @@ def log_push(user_id, sub_id, alert_type, status, title, body, tickers, error=No
             prefer="return=minimal",
         )
     except Exception as e:
-        print("  push_log insert failed: {}".format(e))
+        print(f"  push_log insert failed: {e}")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -683,7 +683,10 @@ def process_user(
                 )
                 _sb_patch(
                     "push_subscriptions",
-                    {"last_used_at": datetime.utcnow().isoformat() + "Z", "fail_count": 0},
+                    {
+                        "last_used_at": datetime.now(UTC).replace(tzinfo=None).isoformat() + "Z",
+                        "fail_count": 0,
+                    },
                     {"id": "eq." + sub_id},
                 )
                 sent += 1
@@ -722,7 +725,7 @@ def process_user(
                     "push_subscriptions",
                     {
                         "fail_count": current_failed,
-                        "last_failed_at": datetime.utcnow().isoformat() + "Z",
+                        "last_failed_at": datetime.now(UTC).replace(tzinfo=None).isoformat() + "Z",
                     },
                     {"id": "eq." + sub_id},
                 )
@@ -752,7 +755,7 @@ def main():
 
     today = datetime.now(ET).date()
     brief_date_label = today.isoformat()
-    print("Push alerts run · trigger={} · {}".format(TRIGGER_SOURCE, brief_date_label))
+    print(f"Push alerts run · trigger={TRIGGER_SOURCE} · {brief_date_label}")
 
     # Weekend short-circuit — no scans on weekends, no need to push
     if today.weekday() >= 5:
@@ -764,16 +767,14 @@ def main():
     uoa_flagged, uoa_ts = load_uoa_flagged()
     earnings_imminent = load_earnings_today_tomorrow()
     print(
-        "    swing upgrades: {} · uoa flagged: {} · earnings <=1d: {}".format(
-            len(swing_upgrades), len(uoa_flagged), len(earnings_imminent)
-        )
+        f"    swing upgrades: {len(swing_upgrades)} · uoa flagged: {len(uoa_flagged)} · earnings <=1d: {len(earnings_imminent)}"
     )
-    print("    swing run date: {} · uoa generated: {}".format(swing_date, uoa_ts))
+    print(f"    swing run date: {swing_date} · uoa generated: {uoa_ts}")
 
     print("  Fetching subscribers...")
     users = fetch_subscriptions_with_watchlist()
     n_subs = sum(len(u["subs"]) for u in users)
-    print("    {} user(s) with {} active device(s)".format(len(users), n_subs))
+    print(f"    {len(users)} user(s) with {n_subs} active device(s)")
     if not users:
         return
 
@@ -784,7 +785,7 @@ def main():
     per_ticker = fetch_per_ticker_overrides(user_ids)
     if per_ticker:
         muted = sum(1 for v in per_ticker.values() if v is False)
-        print("    per-ticker overrides loaded: {} rows ({} muted)".format(len(per_ticker), muted))
+        print(f"    per-ticker overrides loaded: {len(per_ticker)} rows ({muted} muted)")
 
     total_sent = total_failed = total_skipped = 0
     for u in users:
@@ -804,9 +805,7 @@ def main():
         total_skipped += sk
 
     print(
-        "\nDone. total_sent={}  failed={}  expired_endpoints={}".format(
-            total_sent, total_failed, total_skipped
-        )
+        f"\nDone. total_sent={total_sent}  failed={total_failed}  expired_endpoints={total_skipped}"
     )
 
 
@@ -816,5 +815,5 @@ if __name__ == "__main__":
     except Exception as e:
         import traceback
 
-        print("Fatal: {}: {}".format(type(e).__name__, e))
+        print(f"Fatal: {type(e).__name__}: {e}")
         traceback.print_exc()

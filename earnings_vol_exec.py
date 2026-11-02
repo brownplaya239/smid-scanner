@@ -64,7 +64,7 @@ import json
 import math
 import os
 import random
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from statistics import mean, median
 
 import polygon_data as pg
@@ -582,7 +582,7 @@ def run(limit=None, report_only=False):
     if not report_only:
         if not pg.available():
             out = {
-                "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "generated": datetime.now(UTC).isoformat(timespec="seconds"),
                 "status": "capability_unavailable",
                 "why": "POLYGON_API_KEY not set (CI-only secret)",
             }
@@ -591,7 +591,7 @@ def run(limit=None, report_only=False):
             return out
         if not _quotes_entitled():
             out = {
-                "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "generated": datetime.now(UTC).isoformat(timespec="seconds"),
                 "status": "quotes_entitlement_unavailable",
                 "why": "historical NBBO quotes endpoint is not "
                 "authorized on this plan tier (12/12 probe "
@@ -612,7 +612,7 @@ def run(limit=None, report_only=False):
     qc = _load(Q_CACHE, {}) or {}
     events = _events_v2()
     result = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "exec_version": EXEC_VERSION,
         "source": BT_SOURCE,
         "fills": list(FILLS),

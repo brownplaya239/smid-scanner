@@ -10,12 +10,8 @@ tested on real output, not only on a mock.
 """
 
 import argparse
-import hashlib
-import io
 import json
-import os
 import re
-import sys
 
 import evidence_ledger as EL
 import pdf_postprocess as PP
@@ -23,7 +19,7 @@ import report_v2 as R
 import research_snapshot as rs
 
 
-class Results(object):
+class Results:
     def __init__(self):
         self.rows = []
 
@@ -257,8 +253,10 @@ def _offline():
     led.add("catalyst_records", "CAT-8K-2202", {"form": "8-K"})
     # social records with real hashes + private audit rows
     texts = [
-        "$ISRG started a position today, will dca and hold for the next "
-        "ten years because the installed base keeps compounding",
+        (
+            "$ISRG started a position today, will dca and hold for the next "
+            "ten years because the installed base keeps compounding"
+        ),
         "$ISRG bottom in?",
     ]
     for i, t in enumerate(texts):

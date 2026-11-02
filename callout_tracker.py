@@ -33,7 +33,7 @@ import argparse
 import json
 import os
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from statistics import median
 
 import polygon_data as pg
@@ -80,6 +80,7 @@ def day_lists_from_git():
     """{et_date: rows} — final Top list of each past day."""
     r = subprocess.run(
         ["git", "log", "--format=%H %cI", "--", "docs/reports/uoa_top25_daily.json"],
+        check=False,
         cwd=_BASE,
         capture_output=True,
         text=True,
@@ -94,6 +95,7 @@ def day_lists_from_git():
     for d, sha in last_of_day.items():
         b = subprocess.run(
             ["git", "show", f"{sha}:docs/reports/uoa_top25_daily.json"],
+            check=False,
             cwd=_BASE,
             capture_output=True,
         )
@@ -247,9 +249,7 @@ def publish(log):
                         "peak_pct": e["peak_pct"],
                         "last_pct": e.get("last_pct"),
                         "flagged": e["first_seen"],
-                        "peak_at": datetime.fromtimestamp(
-                            e["peak_ts"] / 1000, timezone.utc
-                        ).isoformat()
+                        "peak_at": datetime.fromtimestamp(e["peak_ts"] / 1000, UTC).isoformat()
                         if e.get("peak_ts")
                         else None,
                         "matured": bool(e.get("matured")),
@@ -260,7 +260,7 @@ def publish(log):
         )
     roll = [e for d in days[:ROLL_DAYS] for e in by_day[d["date"]]]
     out = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "universe": f"site's daily Top {TOP_N} callouts, tracked at the "
         "option level from first flag",
         "method": "entry = first minute bar at/after the flag; peak = "

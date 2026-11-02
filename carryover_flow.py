@@ -28,7 +28,7 @@ import argparse
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 import polygon_data as pg
@@ -62,7 +62,7 @@ def _et_date(iso_utc: str) -> str:
     try:
         dt = datetime.fromisoformat(iso_utc.replace("Z", "+00:00"))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt.astimezone(ET).date().isoformat()
     except Exception:
         return ""
@@ -321,11 +321,13 @@ def _interpret(contracts: list[dict]) -> str:
         )
     top = confirmed[0]
     parts = [
-        f"{top['ticker']} is the strongest follow-through candidate "
-        f"(conviction {top['conviction']}/100): "
-        f"{'whale held overnight' if top.get('held') else 'partial hold'}, "
-        f"{round((top.get('oi_confirmed') or 0) * 100)}% of the print showed up as "
-        f"new open interest, {_fmt_prem(top.get('premium'))} premium."
+        (
+            f"{top['ticker']} is the strongest follow-through candidate "
+            f"(conviction {top['conviction']}/100): "
+            f"{'whale held overnight' if top.get('held') else 'partial hold'}, "
+            f"{round((top.get('oi_confirmed') or 0) * 100)}% of the print showed up as "
+            f"new open interest, {_fmt_prem(top.get('premium'))} premium."
+        )
     ]
     fades = [
         c
@@ -379,7 +381,7 @@ def build(target_date: str | None = None) -> dict:
     held_n = sum(1 for c in contracts if c.get("held") is True)
     conf = [c for c in contracts if c.get("conviction") is not None]
     return {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "session_date": session_date,
         "held_count": held_n,
         "total": len(contracts),

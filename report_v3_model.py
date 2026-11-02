@@ -114,7 +114,7 @@ def utc_iso(ts):
         return str(ts)
     if d.tzinfo is None:
         return s
-    return d.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return d.astimezone(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def spot(snap):
@@ -144,9 +144,9 @@ def _hours_between(a, b):
     except Exception:
         return None
     if da.tzinfo is None:
-        da = da.replace(tzinfo=dt.timezone.utc)
+        da = da.replace(tzinfo=dt.UTC)
     if db.tzinfo is None:
-        db = db.replace(tzinfo=dt.timezone.utc)
+        db = db.replace(tzinfo=dt.UTC)
     return (db - da).total_seconds() / 3600.0
 
 
@@ -157,9 +157,9 @@ def _days_between(a, b):
         except Exception:
             return None
         if da.tzinfo is None:
-            da = da.replace(tzinfo=dt.timezone.utc)
+            da = da.replace(tzinfo=dt.UTC)
         if db.tzinfo is None:
-            db = db.replace(tzinfo=dt.timezone.utc)
+            db = db.replace(tzinfo=dt.UTC)
         return (db - da).days
     return None
 
@@ -280,9 +280,9 @@ def technical_state(levels, price):
 # ── risk boundary vs invalidation ───────────────────────────────────────
 
 HORIZON_MIN_ATR = [
-    (re.compile(r"\b(day|week|1-3\s*month|short)", re.I), 1.0),
-    (re.compile(r"\b(3-12|6-12|medium|quarter)", re.I), 2.0),
-    (re.compile(r"\b(12|18|24|year|long|multi)", re.I), 3.0),
+    (re.compile(r"\b(day|week|1-3\s*month|short)", re.IGNORECASE), 1.0),
+    (re.compile(r"\b(3-12|6-12|medium|quarter)", re.IGNORECASE), 2.0),
+    (re.compile(r"\b(12|18|24|year|long|multi)", re.IGNORECASE), 3.0),
 ]
 
 
@@ -753,9 +753,7 @@ def prior_state(ticker, published_only=True, now=None):
             "the most recent run recorded no artifact hash, so "
             "there is no published document to compare against"
         )
-    age = _hours_between(
-        st.get("published_at"), now or dt.datetime.now(dt.timezone.utc).isoformat()
-    )
+    age = _hours_between(st.get("published_at"), now or dt.datetime.now(dt.UTC).isoformat())
     if age is not None and age * 60.0 < MIN_BASELINE_AGE_MINUTES:
         return None, (
             "the previous package was published %d minute(s) ago; "
@@ -775,7 +773,7 @@ def publish_state(snap, artifacts=None, validation=None, now=None):
         "ticker": snap.get("ticker"),
         "report_time": snap.get("report_time"),
         "published": True,
-        "published_at": now or dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "published_at": now or dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "validation_ok": bool((validation or {}).get("ok")),
         "validator_version": (validation or {}).get("validator_version"),
         "artifacts": artifacts or {},
@@ -1315,7 +1313,7 @@ def g_str(x, unit=None, scale=1.0, prefix="", suffix=""):
 SOCIAL_FACT_RX = re.compile(
     r"social post|message board|stocktwits|"
     r"posts from \d+ authors",
-    re.I,
+    re.IGNORECASE,
 )
 
 
@@ -1384,7 +1382,7 @@ _UGC_BLOCK = re.compile(
     r"\b(fuck\w*|shit\w*|cunt\w*|bitch\w*|slut\w*|whore\w*|rape\w*|"
     r"nigg\w*|fag\w*|retard\w*|cock|dick|pussy|tits|porn|sex+y?|"
     r"kill\s+your|kys)\b",
-    re.I,
+    re.IGNORECASE,
 )
 
 
@@ -1412,7 +1410,7 @@ def news_scope(snap, shown_core=None):
     pop = (snap.get("count_populations") or {}).get("news") or {}
     admitted = pop.get("records_admitted")
     if admitted is None:
-        admitted = len(((snap.get("sentiment") or {}).get("news") or []))
+        admitted = len((snap.get("sentiment") or {}).get("news") or [])
     fetched = pop.get("records_fetched")
     if fetched is None:
         fetched = admitted

@@ -13,24 +13,22 @@ No Claude analysis — these are pure quantitative screens. Run EOD when the
 daily candle is complete. Publishes clean table PDFs to the site archive.
 """
 
+import csv
+import json
 import os
 import re
 import sys
-import csv
-import json
 import time
-from datetime import datetime, date, timedelta
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date, datetime, timedelta
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-import pandas as pd
 import pytz
-import requests
 import yfinance as yf
-from fpdf import FPDF
 from dotenv import load_dotenv
+from fpdf import FPDF
 
 load_dotenv()
 
@@ -737,18 +735,26 @@ def run():
     for r in qm:
         r["_chg"] = r["chg_1mo"]
     qm_blurb = [
-        "Qullamaggie's Biggest One-Month Gainers. Of the full liquid universe, the top 2% "
-        "by 1-month price change are taken, then filtered to the names that are both highly "
-        "volatile and highly liquid.",
-        "Membership criteria:  (1) ranks in the top 2% of the market by 1-month % change;  "
-        "(2) ADR% >= 5 (20-day Average Daily Range -- a volatility floor);  "
-        "(3) 20-day average dollar volume >= $100M (a liquidity floor).",
-        "ADR% = average of (daily High / daily Low) over the last 20 sessions, minus 1. "
-        "It measures how much room a stock moves intraday -- Qullamaggie targets high-ADR "
-        "names because they travel far enough to be worth trading. Sorted by dollar volume.",
-        "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
-        "'Reported' = reported within the last 10 days). A move running INTO earnings "
-        "carries binary event risk; a move just AFTER a report is reacting to known news.",
+        (
+            "Qullamaggie's Biggest One-Month Gainers. Of the full liquid universe, the top 2% "
+            "by 1-month price change are taken, then filtered to the names that are both highly "
+            "volatile and highly liquid."
+        ),
+        (
+            "Membership criteria:  (1) ranks in the top 2% of the market by 1-month % change;  "
+            "(2) ADR% >= 5 (20-day Average Daily Range -- a volatility floor);  "
+            "(3) 20-day average dollar volume >= $100M (a liquidity floor)."
+        ),
+        (
+            "ADR% = average of (daily High / daily Low) over the last 20 sessions, minus 1. "
+            "It measures how much room a stock moves intraday -- Qullamaggie targets high-ADR "
+            "names because they travel far enough to be worth trading. Sorted by dollar volume."
+        ),
+        (
+            "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
+            "'Reported' = reported within the last 10 days). A move running INTO earnings "
+            "carries binary event risk; a move just AFTER a report is reacting to known news."
+        ),
     ]
     qm_pdf = generate_table_pdf(
         "QM -- BIGGEST ONE-MONTH GAINERS",
@@ -765,18 +771,26 @@ def run():
     for r in sb + sb_near:
         r["_chg"] = r["chg_1wk"]
     sb_blurb = [
-        "Stockbee's '20% Plus in a Week' momentum screen, relaxed to 15% to keep "
-        "the list populated on quieter weeks -- names that have surged 15%+ over the "
-        "last five trading sessions. These are the market's most explosive short-term "
-        "movers, often reacting to earnings, news, or sector rotation.",
-        "Membership criteria:  (1) up 15%+ over the last 5 trading days;  "
-        "(2) 20-day average dollar volume >= $100M (a liquidity floor so only tradeable "
-        "names appear).",
-        "A large list signals a strong, broad momentum environment; a short list signals a "
-        "narrow or risk-off tape. Sorted by dollar volume -- the most liquid movers first.",
-        "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
-        "'Reported' = reported within the last 10 days). A momentum run INTO earnings "
-        "carries binary event risk; a run just AFTER a report is reacting to news.",
+        (
+            "Stockbee's '20% Plus in a Week' momentum screen, relaxed to 15% to keep "
+            "the list populated on quieter weeks -- names that have surged 15%+ over the "
+            "last five trading sessions. These are the market's most explosive short-term "
+            "movers, often reacting to earnings, news, or sector rotation."
+        ),
+        (
+            "Membership criteria:  (1) up 15%+ over the last 5 trading days;  "
+            "(2) 20-day average dollar volume >= $100M (a liquidity floor so only tradeable "
+            "names appear)."
+        ),
+        (
+            "A large list signals a strong, broad momentum environment; a short list signals a "
+            "narrow or risk-off tape. Sorted by dollar volume -- the most liquid movers first."
+        ),
+        (
+            "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
+            "'Reported' = reported within the last 10 days). A momentum run INTO earnings "
+            "carries binary event risk; a run just AFTER a report is reacting to news."
+        ),
     ]
     # On empty-main days, render the near-miss list in the PDF instead so it's
     # never blank. The dashboard handles the equivalent fallback via JSON.

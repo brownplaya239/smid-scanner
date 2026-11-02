@@ -24,8 +24,8 @@ import io
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter, NullLocator  # noqa: E402
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter, NullLocator
 
 INK = "#111418"
 MUTED = "#5b6570"
@@ -348,7 +348,7 @@ def trading_chart(
             color=down,
             weight="bold",
             ha="center",
-            arrowprops=dict(arrowstyle="-", color=down, linewidth=0.6, shrinkB=2),
+            arrowprops={"arrowstyle": "-", "color": down, "linewidth": 0.6, "shrinkB": 2},
         )
         x = x + [xp]
 
@@ -374,7 +374,7 @@ def trading_chart(
     for i in range(1, len(_ys)):  # push overlapping labels up
         if _ys[i] - _ys[i - 1] < _min_gap:
             _ys[i] = _ys[i - 1] + _min_gap
-    _bbox = dict(boxstyle="round,pad=0.18", facecolor="white", edgecolor="none", alpha=0.88)
+    _bbox = {"boxstyle": "round,pad=0.18", "facecolor": "white", "edgecolor": "none", "alpha": 0.88}
     for (_v, txt, col), y in zip(_lab, _ys):
         ax.annotate(
             txt,

@@ -19,10 +19,11 @@ the flow works, including when it doesn't. The record builds live from
 go-live; +5d stats become meaningful within ~2 weeks.
 """
 
-import os
+import itertools
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from math import sqrt
 from statistics import mean, median, pstdev
 
@@ -83,7 +84,7 @@ def is_weekend_et(iso_ts):
     try:
         dt = datetime.fromisoformat(str(iso_ts).replace("Z", "+00:00"))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         try:
             from zoneinfo import ZoneInfo
 
@@ -178,7 +179,7 @@ def _bars(ticker, days=160):
     for b in pg.daily_bars(ticker, days=days):
         ts = b.get("t")
         if ts:
-            d = datetime.fromtimestamp(ts / 1000, timezone.utc).strftime("%Y-%m-%d")
+            d = datetime.fromtimestamp(ts / 1000, UTC).strftime("%Y-%m-%d")
             out[d] = {"c": b.get("c"), "h": b.get("h"), "l": b.get("l")}
     return out
 
@@ -263,7 +264,7 @@ def oi_status(signal, oi_map):
         fd = datetime.strptime(signal["flagged_at"][:10], "%Y-%m-%d").date()
     except Exception:
         return {"status": "pending", "oi_change": None, "retained_pct": None}
-    if (datetime.now(timezone.utc).date() - fd).days < 1:
+    if (datetime.now(UTC).date() - fd).days < 1:
         return {"status": "pending", "oi_change": None, "retained_pct": None}
     cur = oi_map.get(signal["contract"])
     if cur is None:
@@ -445,7 +446,7 @@ def compute_edge():
     if not ledger:
         return _empty_edge(), []
 
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     cache = _load_alpha_cache()
 
     # cached-final signals reuse their frozen score; the rest recompute
@@ -653,7 +654,7 @@ def compute_edge():
     flagged_ts = [s.get("flagged_at") for s in scored if s.get("flagged_at")]
     oldest_signal_ts = min(flagged_ts) if flagged_ts else None
     edge = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "total_signals": len(scored),
         "matured_5d": matured_5d,
         "oldest_signal_ts": oldest_signal_ts,
@@ -687,7 +688,7 @@ def compute_edge():
 
 def _empty_edge():
     return {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "total_signals": 0,
         "matured_5d": 0,
         "horizons": HORIZONS,
@@ -793,7 +794,7 @@ def _ic_suite(scored):
         if sc is not None and x is not None:
             pairs.append((sc, x, s.get("flagged_at") or ""))
     base = [(p[0], p[1]) for p in pairs]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     def window(days):
         cut = (now - timedelta(days=days)).isoformat()
@@ -842,7 +843,7 @@ def _calibration(scored):
     win rate on signals older than 45 days (training window), 'observed'
     = the last 45 days. Drift = observed - predicted. A well-calibrated
     band drifts near zero; big drift = the band's meaning has changed."""
-    cut = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
+    cut = (datetime.now(UTC) - timedelta(days=45)).isoformat()
     out = {}
     for label, lo, hi in SCORE_BUCKETS:
         items = [s for s in scored if lo <= s.get("trade_score", 0) < hi]
@@ -884,7 +885,7 @@ def _lifecycle(scored):
             log = json.load(f)
     except Exception:
         log = {}
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     for s in scored:
         oi = s.get("oi") or {}
         if oi.get("status") in (None, "pending"):
@@ -991,7 +992,7 @@ def _emit_scored(scored):
     total = len(rows)
     rows = rows[:SITE_MAX]
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "count": len(rows),
         "total": total,
         "signals": rows,
@@ -1340,7 +1341,7 @@ def _score_deciles(scored):
             }
         )
     top, bot = deciles[-1], deciles[0]
-    mono_up = sum(1 for a, b in zip(deciles, deciles[1:]) if b["avg_exc"] >= a["avg_exc"])
+    mono_up = sum(1 for a, b in itertools.pairwise(deciles) if b["avg_exc"] >= a["avg_exc"])
     return {
         "status": "active",
         "n": n,
@@ -1397,7 +1398,7 @@ def _emit_edge_weights(scored):
         if prev.get(key) is not None and abs(adj - prev[key]) >= 0.5:
             print(f"  edge_weights Δ {key}: {prev[key]:+.1f} -> {adj:+.1f}")
 
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     decay = _ew_decay(graded, now_utc)
     dying = {k: v for k, v in decay.items() if v["delta"] <= -0.08}
     if dying:
@@ -1419,7 +1420,7 @@ def _emit_edge_weights(scored):
         print(f"  regime weights ACTIVE: {list(regimes['sets'].keys())}")
 
     payload = {
-        "version": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "version": datetime.now(UTC).isoformat(timespec="seconds"),
         "prev_version": prev_version,
         "prior": round(prior, 4),
         "graded": len(graded),

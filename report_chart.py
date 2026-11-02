@@ -13,8 +13,8 @@ import io
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.ticker import FuncFormatter  # noqa: E402
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 
 INK = "#1f2d3d"
 MUTED = "#8a94a6"
@@ -57,7 +57,7 @@ def price_chart(mk, months=12, width=9.6, height=3.5, dpi=170, event_date=None, 
 
     # level labels sit ON the plot, so they get a backing box — without
     # one the text ran straight through the price line and was unreadable
-    box = dict(facecolor="white", alpha=0.78, edgecolor="none", boxstyle="square,pad=0.18")
+    box = {"facecolor": "white", "alpha": 0.78, "edgecolor": "none", "boxstyle": "square,pad=0.18"}
     sup, res = mk.get("support"), mk.get("resistance")
     if sup:
         ax.axhline(sup, color=SUP, linewidth=0.9, linestyle=(0, (4, 3)), alpha=0.85, zorder=3)

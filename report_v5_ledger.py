@@ -149,7 +149,7 @@ def build(snap, view5, report_id=None, issuer_cik=None, el_ledger=None):
                     rid,
                     {
                         "kind": "derived_figure",
-                        "metric": rid[5:] if rid.startswith("CALC-") else rid,
+                        "metric": rid.removeprefix("CALC-"),
                         "calculation": rec.get("formula"),
                         "input_evidence_ids": [str(x) for x in inputs],
                         "value": rec.get("output"),

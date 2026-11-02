@@ -169,9 +169,11 @@ ADAPTERS = {
             _absent("SBC and dilution", _PROXY_WHY),
         ],
         "notes": [
-            "Free-cash-flow conversion and constant-currency "
-            "guided growth are the decision metrics for this "
-            "model."
+            (
+                "Free-cash-flow conversion and constant-currency "
+                "guided growth are the decision metrics for this "
+                "model."
+            )
         ],
     },
     "financial_platform": {
@@ -188,12 +190,16 @@ ADAPTERS = {
             _absent("Regulatory capital", _KPI_WHY),
         ],
         "notes": [
-            "Operating cash flow carries customer and "
-            "balance-sheet flows in this model; it is NOT an "
-            "industrial cash-conversion measure and is not "
-            "graded as one.",
-            "Interest-rate sensitivity and event-driven volume "
-            "exposure are structural to the revenue mix.",
+            (
+                "Operating cash flow carries customer and "
+                "balance-sheet flows in this model; it is NOT an "
+                "industrial cash-conversion measure and is not "
+                "graded as one."
+            ),
+            (
+                "Interest-rate sensitivity and event-driven volume "
+                "exposure are structural to the revenue mix."
+            ),
         ],
     },
     "restaurant": {
@@ -209,9 +215,11 @@ ADAPTERS = {
             _absent("New-unit investment and payback", _KPI_WHY),
         ],
         "notes": [
-            "Unit-level economics (AUV, restaurant-level margin, "
-            "payback) decide this model; consolidated margins "
-            "blend corporate overhead into them.",
+            (
+                "Unit-level economics (AUV, restaurant-level margin, "
+                "payback) decide this model; consolidated margins "
+                "blend corporate overhead into them."
+            ),
             "One-time gains and impairments must be attributed before any margin is graded.",
         ],
     },
@@ -227,10 +235,12 @@ ADAPTERS = {
             _absent("Combined ratio (insurers)", _KPI_WHY),
         ],
         "notes": [
-            "Revenue growth and cash-flow conversion are not the "
-            "decision metrics for a balance-sheet business; book "
-            "value, capital and credit costs are — none are "
-            "ingested yet."
+            (
+                "Revenue growth and cash-flow conversion are not the "
+                "decision metrics for a balance-sheet business; book "
+                "value, capital and credit costs are — none are "
+                "ingested yet."
+            )
         ],
     },
     "reit": {
@@ -250,9 +260,11 @@ ADAPTERS = {
             _absent("Cap rates and debt maturity ladder", _KPI_WHY),
         ],
         "notes": [
-            "GAAP net income understates a REIT through "
-            "depreciation; FFO/AFFO are the decision metrics and "
-            "are not ingested yet."
+            (
+                "GAAP net income understates a REIT through "
+                "depreciation; FFO/AFFO are the decision metrics and "
+                "are not ingested yet."
+            )
         ],
     },
     "energy_materials": {
@@ -265,9 +277,11 @@ ADAPTERS = {
             _absent("Unit cash costs", _KPI_WHY),
         ],
         "notes": [
-            "Commodity price exposure makes trailing multiples "
-            "cycle-dependent; the historical range is descriptive "
-            "only."
+            (
+                "Commodity price exposure makes trailing multiples "
+                "cycle-dependent; the historical range is descriptive "
+                "only."
+            )
         ],
     },
     "industrial": {
@@ -310,10 +324,12 @@ ADAPTERS = {
             _absent("Partnership economics and milestone payments", _KPI_WHY),
         ],
         "notes": [
-            "Solvency, burn and clinical milestones decide a "
-            "development-stage biotech; any reported revenue is "
-            "collaboration or grant income unless a commercial "
-            "launch is filed."
+            (
+                "Solvency, burn and clinical milestones decide a "
+                "development-stage biotech; any reported revenue is "
+                "collaboration or grant income unless a commercial "
+                "launch is filed."
+            )
         ],
     },
     "pre_revenue": {
@@ -339,8 +355,10 @@ ADAPTERS = {
             _absent("Milestones to first revenue", _KPI_WHY),
         ],
         "notes": [
-            "No revenue-based metric applies; solvency, burn and "
-            "milestone progress are the whole dashboard."
+            (
+                "No revenue-based metric applies; solvency, burn and "
+                "milestone progress are the whole dashboard."
+            )
         ],
     },
     "new_listing": {
@@ -518,9 +536,10 @@ def build_dashboard(adapter, snap, grid=None):
     older than the recency floor renders its staleness instead of its
     value — the dashboard can never show a 2014 quarter as if it were
     the latest."""
+    from datetime import date, timedelta
+
     import report_v5_checks as _CK
     import research_snapshot as rs
-    from datetime import date, timedelta
 
     fu = snap.get("fundamentals") or {}
     _floor = (date.today() - timedelta(days=_CK.BS_LATEST_MAX_AGE_DAYS)).isoformat()

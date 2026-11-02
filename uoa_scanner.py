@@ -19,12 +19,12 @@ everything here; at/above-ask classification sharpens automatically once
 the quotes entitlement is live (classify_trades upgrades itself).
 """
 
+import json
 import os
 import sys
-import json
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -313,7 +313,7 @@ def build_universe(min_dollar_vol=UNIVERSE_MIN_DOLLAR_VOL, ref_date=None):
 
 def _last_trading_day():
     """Most recent weekday (UTC) — grouped-daily has no weekend bars."""
-    d = datetime.now(timezone.utc).date()
+    d = datetime.now(UTC).date()
     while d.weekday() >= 5:
         d = d.fromordinal(d.toordinal() - 1)
     return d.strftime("%Y-%m-%d")
@@ -325,7 +325,7 @@ def _last_trading_day():
 def _dte(expiration):
     try:
         exp = datetime.strptime(expiration, "%Y-%m-%d").date()
-        return (exp - datetime.now(timezone.utc).date()).days
+        return (exp - datetime.now(UTC).date()).days
     except Exception:
         return None
 
@@ -710,8 +710,7 @@ def analyze_flow(row):
         if prem > biggest:
             biggest = prem
             biggest_ts_ns = ts
-        if ts > last_ts_ns:
-            last_ts_ns = ts
+        last_ts_ns = max(last_ts_ns, ts)
     sweep_prem = sum(s["premium"] for s in sweeps)
     max_sweep_size = max((s["size"] for s in sweeps), default=0)
 
@@ -722,7 +721,7 @@ def analyze_flow(row):
             # sip_timestamp is nanoseconds since epoch UTC. Truncate to
             # microseconds (Python datetime cap) and round to whole sec
             # for compact serialization.
-            return datetime.fromtimestamp(ns / 1e9, tz=timezone.utc).isoformat(timespec="seconds")
+            return datetime.fromtimestamp(ns / 1e9, tz=UTC).isoformat(timespec="seconds")
         except ValueError, OSError:
             return None
 
@@ -749,9 +748,7 @@ def is_golden_sweep(row, flow):
     if row["dte"] is None or row["dte"] > GOLDEN_MAX_DTE:
         return False
     side = flow["side"]
-    if side["method"] == "precise" and side["ask_pct"] < 60:
-        return False
-    return True
+    return not (side["method"] == "precise" and side["ask_pct"] < 60)
 
 
 # ─── Learned edge adjustment (self-learning feedback loop) ───────────────────
@@ -781,9 +778,7 @@ def _current_regime():
             return None
         # max-by-date, not positional — robust to any file ordering
         last = max(days, key=lambda d: d.get("date") or "")
-        age = (
-            datetime.now(timezone.utc).date() - datetime.strptime(last["date"], "%Y-%m-%d").date()
-        ).days
+        age = (datetime.now(UTC).date() - datetime.strptime(last["date"], "%Y-%m-%d").date()).days
         return last.get("label") if age <= 5 else None
     except Exception:
         return None
@@ -966,11 +961,11 @@ def trade_score(row, flow):
     row["score_components"] = {
         "premium": round(premium_pts),
         "vol_oi": round(voi_pts),
-        "opening": round(open_pts),
+        "opening": open_pts,
         "repeat": round(repeat_pts),
         "liquidity": round(liq_pts),
-        "catalyst": round(cat_pts),
-        "directional": round(dir_pts),
+        "catalyst": cat_pts,
+        "directional": dir_pts,
         "penalty": -penalty if penalty else 0,
         "penalty_reasons": penalty_reasons,
     }
@@ -984,7 +979,7 @@ def _load_repeat_map(lookback_days=REPEAT_LOOKBACK_DAYS):
     counts = Counter()
     if not os.path.exists(LEDGER_PATH):
         return counts
-    cutoff = datetime.now(timezone.utc).date().toordinal() - lookback_days
+    cutoff = datetime.now(UTC).date().toordinal() - lookback_days
     try:
         with open(LEDGER_PATH, encoding="utf-8") as f:
             for line in f:
@@ -1013,8 +1008,9 @@ def _earnings_date(ticker):
     whose index includes the timestamp. We use the latter when available so
     BMO/AMC can be derived from the ET hour (<9:30 = BMO, >=16:00 = AMC)."""
     try:
-        import yfinance as yf
         from datetime import date as _date
+
+        import yfinance as yf
 
         tk = yf.Ticker(ticker)
 
@@ -1026,7 +1022,7 @@ def _earnings_date(ticker):
         if df is not None and not df.empty:
             # The DataFrame is indexed by tz-aware Timestamps, newest first.
             # Walk from oldest to newest to find the next future event.
-            today_utc = datetime.now(timezone.utc).date()
+            today_utc = datetime.now(UTC).date()
             future = []
             for ts in df.index:
                 try:
@@ -1180,7 +1176,7 @@ def _fetch_underlying_meta(ticker):
         "earnings_session": session,  # "BMO" / "AMC" / None
         "mkt_cap": None,
         "sector": "Other",
-        "fetched": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "fetched": datetime.now(UTC).strftime("%Y-%m-%d"),
     }
     try:
         d = pg.ticker_details(ticker) or {}
@@ -1222,7 +1218,7 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
     # newly-seen names trigger a slow, flaky yfinance earnings call.
     repeat_map = _load_repeat_map()
     uniq = sorted({r["underlying"] for r in flagged})
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     cache = _load_meta_cache()
     stale = [t for t in uniq if not _meta_is_fresh(cache.get(t, {}), today)]
     print(
@@ -1342,11 +1338,11 @@ def append_ledger(rows, min_score=55):
     # Fridays and graded against mismatched anchors.
     from uoa_alpha import is_weekend_et
 
-    if is_weekend_et(datetime.now(timezone.utc).isoformat()):
+    if is_weekend_et(datetime.now(UTC).isoformat()):
         print("  Ledger: weekend (ET) — no signals appended")
         return 0
     os.makedirs(os.path.dirname(LEDGER_PATH), exist_ok=True)
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now = datetime.now(UTC).isoformat(timespec="seconds")
     n = 0
     with open(LEDGER_PATH, "a", encoding="utf-8") as f:
         for r in rows:
@@ -1460,7 +1456,7 @@ def emit_latest(rows):
                 existing = json.load(f)
             existing_count = len(existing.get("rows", []))
             if existing_count > 0:
-                attempt_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                attempt_iso = datetime.now(UTC).isoformat(timespec="seconds")
                 print(
                     f"  Scan produced 0 rows — PRESERVING existing "
                     f"{existing_count}-row payload (likely after-hours "
@@ -1603,7 +1599,7 @@ def emit_latest(rows):
                 "tags": r["tags"],
             }
         )
-    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now_iso = datetime.now(UTC).isoformat(timespec="seconds")
     payload = {
         "generated": now_iso,
         # last_attempt == generated on a successful (non-empty) run; the

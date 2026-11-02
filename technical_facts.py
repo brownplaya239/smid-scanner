@@ -30,7 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import yfinance as yf
 
@@ -282,7 +282,7 @@ def build():
 
     print(f"  computed {len(facts)} names ({skipped} skipped — thin history)")
     return {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "universe_note": (
             "rs_rank is percentile WITHIN tonight's surfaced universe, not an all-market rank"
         ),

@@ -83,7 +83,9 @@ def business_quality(snap, grid=None, adapter=None):
     # §2 (v5.8): same-period relics still cannot grade a CURRENT
     # position — instants older than the recency floor are not netted
     if bs_period_ok and (cp or dp):
-        from datetime import date as _d, timedelta as _t
+        from datetime import date as _d
+        from datetime import timedelta as _t
+
         import report_v5_checks as _CK8
 
         _newest = max(p for p in (cp, dp) if p)

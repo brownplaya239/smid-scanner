@@ -14,7 +14,8 @@ and the guidance the exhibit parser admitted. Rules from review:
   machinery the multiples engine uses.
 """
 
-from datetime import datetime, timezone
+import itertools
+from datetime import UTC, datetime
 
 import report_v5_multiples as M
 
@@ -162,7 +163,7 @@ def _ttm_cell(events, today=None, concept=None):
             "— not one trailing year" % (M._dt(last4[-1]) - M._dt(last4[0])).days
         )
         return rec
-    gaps = [(M._dt(b) - M._dt(a)).days for a, b in zip(last4, last4[1:])]
+    gaps = [(M._dt(b) - M._dt(a)).days for a, b in itertools.pairwise(last4)]
     if not all(M.QTR_GAP_DAYS[0] <= g <= M.QTR_GAP_DAYS[1] for g in gaps):
         rec["reasons"].append("quarter ends are not contiguous (gaps %s days)" % gaps)
         return rec
@@ -237,9 +238,7 @@ def build(ticker, revenue_tags=None):
         r = rev[y]["val"]
         col = {
             "revenue": r,
-            "revenue_growth": (
-                100.0 * (r / prev_rev[y] - 1) if y in prev_rev and prev_rev[y] else None
-            ),
+            "revenue_growth": (100.0 * (r / prev_rev[y] - 1) if prev_rev.get(y) else None),
             "gross_margin": (100.0 * gp[y]["val"] / r if y in gp and r else None),
             "net_income": ni[y]["val"] if y in ni else None,
             "net_margin": (100.0 * ni[y]["val"] / r if y in ni and r else None),
@@ -274,7 +273,7 @@ def build(ticker, revenue_tags=None):
     # cells; a valid cell with a different endpoint is suppressed too
     valid_throughs = [c["through"] for c in cells.values() if c["ok"]]
     column_through = max(valid_throughs) if valid_throughs else None
-    for name, c in cells.items():
+    for c in cells.values():
         if c["ok"] and c["through"] != column_through:
             c["ok"] = False
             c["reasons"].append(
@@ -352,7 +351,7 @@ def build(ticker, revenue_tags=None):
 
     return {
         "ticker": ticker.upper(),
-        "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "as_of": datetime.now(UTC).isoformat(timespec="seconds"),
         "rows": ROWS,
         "years": years,
         "columns": columns,
@@ -472,7 +471,7 @@ def fresh_instant(ticker, kind):
             }
     if best is None:
         return None
-    from datetime import datetime as _dtm, timezone as _tz
+    from datetime import datetime as _dtm
 
     return {
         "v": best["value"],
@@ -483,7 +482,7 @@ def fresh_instant(ticker, kind):
         "basis": best["basis"],
         "calc_version": "v5.8-instants/1",
         "quality": "verified",
-        "retrieved_at": _dtm.now(_tz.utc).isoformat(timespec="seconds"),
+        "retrieved_at": _dtm.now(UTC).isoformat(timespec="seconds"),
     }
 
 
@@ -492,8 +491,9 @@ def refresh_balance_instants(snap, ticker, max_age_days=400):
     issuer's freshest filed position. Only ever REPLACES with strictly
     newer facts; records what changed. The snapshot's own facts stay
     untouched when already current."""
-    import report_v5_checks as CK
     from datetime import date, timedelta
+
+    import report_v5_checks as CK
 
     fu = snap.setdefault("fundamentals", {})
     floor = (date.today() - timedelta(days=max_age_days)).isoformat()

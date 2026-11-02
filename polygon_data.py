@@ -14,8 +14,9 @@ Key is read lazily via _key() so import order vs load_dotenv() never bites.
 
 import os
 import time
+from datetime import UTC, datetime, timedelta
+
 import requests
-from datetime import datetime, timedelta, timezone
 
 try:
     from dotenv import load_dotenv
@@ -110,7 +111,7 @@ def daily_bars(ticker, days=120):
     """Daily OHLCV bars for one ticker over roughly the last `days` calendar
     days. Returns a list of bar dicts (oldest first), each {o,h,l,c,v,vw,t},
     or [] on failure."""
-    end = datetime.now(timezone.utc).date()
+    end = datetime.now(UTC).date()
     start = end - timedelta(days=int(days * 1.6) + 10)  # pad for weekends/holidays
     data = _get(
         f"/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}",
@@ -192,7 +193,7 @@ def option_trades(contract, day=None, limit=50000, max_pages=12):
     sip_timestamp (ns epoch), sequence_number. This is the raw feed for
     sweep / block / per-trade-premium detection. Requires Options
     Developer tier (Starter returns NOT_AUTHORIZED). Returns [] on failure."""
-    day = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    day = day or datetime.now(UTC).strftime("%Y-%m-%d")
     params = {
         "timestamp.gte": day,
         "timestamp.lte": day,
@@ -211,7 +212,7 @@ def option_quotes(contract, day=None, limit=50000, max_pages=4):
     Developer quotes endpoint is active for the key."""
     if _quotes_blocked:  # short-circuit after first 403
         return []
-    day = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    day = day or datetime.now(UTC).strftime("%Y-%m-%d")
     params = {
         "timestamp.gte": day,
         "timestamp.lte": day,

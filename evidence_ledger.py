@@ -52,7 +52,7 @@ def content_hash(normalized_text):
     return hashlib.sha256(str(normalized_text).encode(HASH_ENCODING)).hexdigest()
 
 
-class Ledger(object):
+class Ledger:
     """Append-only evidence store keyed by stable ids."""
 
     SECTIONS = (

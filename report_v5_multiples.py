@@ -28,9 +28,10 @@ percentile values, with the inputs traceable to XBRL accessions.
 """
 
 import argparse
+import itertools
 import json
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -167,7 +168,7 @@ def ttm_integrity(events, d):
     if len(ends) < 4:
         rec["reasons"].append("only %d filed quarter(s) knowable" % len(ends))
         return rec
-    gaps = [(_dt(b) - _dt(a)).days for a, b in zip(ends, ends[1:])]
+    gaps = [(_dt(b) - _dt(a)).days for a, b in itertools.pairwise(ends)]
     rec["contiguous"] = all(QTR_GAP_DAYS[0] <= g <= QTR_GAP_DAYS[1] for g in gaps)
     if not rec["contiguous"]:
         rec["reasons"].append("quarter ends are not contiguous (gaps %s days)" % gaps)
@@ -199,7 +200,7 @@ def ttm_at(events, d):
         return None
     if (_dt(ends[-1]) - _dt(ends[0])).days > MAX_TTM_SPAN:
         return None  # a gap, not a trailing year
-    gaps = [(_dt(b) - _dt(a)).days for a, b in zip(ends, ends[1:])]
+    gaps = [(_dt(b) - _dt(a)).days for a, b in itertools.pairwise(ends)]
     if not all(QTR_GAP_DAYS[0] <= g <= QTR_GAP_DAYS[1] for g in gaps):
         return None  # non-contiguous quarters
     if (d - _dt(ends[-1])).days > TTM_MAX_END_AGE:
@@ -381,7 +382,7 @@ def build(ticker, years=WINDOW_YEARS):
 
     return {
         "ticker": ticker.upper(),
-        "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "as_of": datetime.now(UTC).isoformat(timespec="seconds"),
         "bar_source": mk.get("bar_source"),
         "pe": multiple_band(bars, eps_events, years, "pe"),
         "ps": multiple_band(bars, rps_events, years, "ps"),

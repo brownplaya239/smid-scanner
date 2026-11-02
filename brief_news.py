@@ -21,6 +21,7 @@ import os
 import sys
 import urllib.parse
 import urllib.request
+from datetime import UTC
 
 import brief_time as BT
 
@@ -144,7 +145,7 @@ def _fetch_finnhub_direct(limit=40, timeout=20):
         print("  macro direct fetch failed (non-fatal): %s: %s" % (type(e).__name__, e))
         return []
     out = []
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     for a in (raw or [])[:limit]:
         if not a or not a.get("headline"):
@@ -156,7 +157,7 @@ def _fetch_finnhub_direct(limit=40, timeout=20):
                 "title": a.get("headline") or "",
                 "url": a.get("url") or "",
                 "publisher": a.get("source") or "Finnhub",
-                "published": datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else "",
+                "published": datetime.fromtimestamp(ts, tz=UTC).isoformat() if ts else "",
                 "tickers": [s for s in str(a.get("related") or "").split(",") if s][:6],
                 "insights": [],
                 "keywords": ["macro"],
@@ -323,7 +324,7 @@ def is_market_moving(record):
         import re
 
         _MACRO_RX = re.compile(
-            r"\b(?:%s)\b" % "|".join(re.escape(t.strip()) for t in MACRO_TERMS), re.I
+            r"\b(?:%s)\b" % "|".join(re.escape(t.strip()) for t in MACRO_TERMS), re.IGNORECASE
         )
     if _MACRO_RX.search(record.get("headline") or ""):
         return True

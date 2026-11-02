@@ -19,7 +19,7 @@ from reportlab.platypus import PageBreak, Spacer
 import report_v4 as R4
 import report_v5_archetype as A
 import research_snapshot as rs
-from report_v3 import BODY_W, _Doc, _clean, _finalize, _fit_page, _table, para
+from report_v3 import BODY_W, _clean, _Doc, _finalize, _fit_page, _table, para
 from report_v4 import DERIVED, INFERRED, OBSERVED
 
 
@@ -750,7 +750,7 @@ def _grid_cell(v, kind):
     if v is None:
         return "&mdash;"
     if kind == "money":
-        return "{:,.0f}".format(v / 1e6)
+        return f"{v / 1e6:,.0f}"
     if kind == "derived-pct":
         return "%.1f%%" % v
     if kind == "pershare":
@@ -1084,9 +1084,11 @@ def _nl_timeline(snap, view5):
                 [
                     "Quiet period / lock-up expiry",
                     "not stated",
-                    "prospectus terms not parsed &mdash; customary "
-                    "conventions are not substituted for the "
-                    "actual terms",
+                    (
+                        "prospectus terms not parsed &mdash; customary "
+                        "conventions are not substituted for the "
+                        "actual terms"
+                    ),
                 ]
             )
     nxt = cat.get("next_event_date") or cat.get("event_dt")
@@ -1109,12 +1111,16 @@ def _nl_timeline(snap, view5):
     st.append(para("Newness risks", "h2"))
     for r in (
         "Float expansion at lock-up expiry can add supply regardless of results.",
-        "No filed operating history: every fundamental claim "
-        "traces to the prospectus, not to periodic reports this "
-        "pipeline verifies.",
-        "Index inclusion, coverage initiations and the first "
-        "earnings report are one-off events without a base rate "
-        "for this security.",
+        (
+            "No filed operating history: every fundamental claim "
+            "traces to the prospectus, not to periodic reports this "
+            "pipeline verifies."
+        ),
+        (
+            "Index inclusion, coverage initiations and the first "
+            "earnings report are one-off events without a base rate "
+            "for this security."
+        ),
     ):
         st.append(para("&bull; %s" % r, "body"))
     st, _ = _fit_page(st, [], "v5-nl2")

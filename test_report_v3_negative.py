@@ -124,7 +124,7 @@ def fx_draft_baseline():
     tmp = tempfile.mkdtemp()
     old, M.STATE_DIR = M.STATE_DIR, tmp
     try:
-        now = dt.datetime.now(dt.timezone.utc)
+        now = dt.datetime.now(dt.UTC)
         recent = (now - dt.timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
         with open(os.path.join(tmp, "TEST.json"), "w") as fh:
             json.dump(
@@ -236,8 +236,9 @@ def fx_stale_ownership():
 
 def fx_news_count():
     """The document states a count the rendered rows contradict."""
-    import report_v3 as R3
     from reportlab.pdfgen import canvas
+
+    import report_v3 as R3
 
     buf = _io.BytesIO()
     cv = canvas.Canvas(buf, pagesize=R3.LETTER)

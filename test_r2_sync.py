@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
-import r2_sync  # noqa: E402
+import r2_sync
 
 
 class Mapping(unittest.TestCase):

@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import polygon_data as pg
 
@@ -46,7 +46,7 @@ def _last_sessions():
     """(today, prev) most recent weekday pair — grouped-daily has no
     weekend bars. Holidays fall through: grouped_daily returns {} and the
     audit skips gracefully."""
-    d = datetime.now(timezone.utc).date()
+    d = datetime.now(UTC).date()
     while d.weekday() >= 5:
         d -= timedelta(days=1)
     p = d - timedelta(days=1)
@@ -105,7 +105,7 @@ def classify(tk, graded, flow, momentum):
 def build(dry=False):
     today, prev = _last_sessions()
     empty = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "session_date": today,
         "checked": 0,
         "covered_count": 0,
@@ -160,7 +160,7 @@ def build(dry=False):
             covered.append(m)
 
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "session_date": today,
         "checked": len(movers),
         "covered_count": len(covered),

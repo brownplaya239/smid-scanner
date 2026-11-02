@@ -15,7 +15,6 @@ is pilot identifiers in EXECUTABLE code.
 """
 
 import ast
-import io
 import os
 import re
 import sys
@@ -45,7 +44,7 @@ COMPANY_NAMES = ("ServiceNow", "Sweetgreen", "Robinhood", "SpaceX", "Marvell")
 
 def executable_strings(path):
     """String literals reachable by execution — docstrings excluded."""
-    src = io.open(path, encoding="utf-8").read()
+    src = open(path, encoding="utf-8").read()
     tree = ast.parse(src)
     doc_lines = set()
     for node in ast.walk(tree):

@@ -32,7 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 REPORTS = os.path.join(_BASE, "docs", "reports")
@@ -151,7 +151,7 @@ def accrue_history(date, mig):
     days.sort(key=lambda d: d["date"])
     hist["days"] = days[-HIST_CAP_D:]
     # log today's biggest transitions for +5d maturation
-    trans = [t for t in hist.get("transitions") or [] if not (t.get("date") == date)]
+    trans = [t for t in hist.get("transitions") or [] if t.get("date") != date]
     todays = (mig["top_up"] + mig["top_down"])[:TRANS_LOG_CAP]
     for m in todays:
         trans.append(
@@ -392,7 +392,7 @@ def build():
     matured = mature_transitions(hist)
     pers, window = persistence(runs)
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "session_date": date,
         "migrations": mig,
         "rarity": rarity(hist, mig),

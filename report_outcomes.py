@@ -18,7 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -116,7 +116,7 @@ def main():
     graded = mature(entries)
     st, total = stats(entries)
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "logged": len(entries),
         "total_graded": total,
         "hold_sessions": HOLD_S,

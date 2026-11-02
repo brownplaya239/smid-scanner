@@ -33,7 +33,7 @@ argument. Generation is pattern-based over admitted facts; no company
 conclusions live in templates and no ticker identity is consulted.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import research_snapshot as rs
 
@@ -176,7 +176,7 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
     support (a bank graded on generic revenue growth, a REIT or broker
     on industrial cash conversion) are suppressed with the reason
     recorded, never generated and never silently dropped."""
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     fu = snap.get("fundamentals") or {}
     lv = snap.get("levels") or {}
     ex = snap.get("exhibit") or {}

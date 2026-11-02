@@ -16,10 +16,10 @@ the core or the validation JSON.
 """
 
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import research_snapshot as rs
-from report_v3 import BODY_W, _Doc, _clean, _finalize, _table, para
+from report_v3 import BODY_W, _clean, _Doc, _finalize, _table, para
 from report_v4 import DERIVED, OBSERVED
 
 APPENDIX_KIND = "Equity Research v5 - Appendix"
@@ -87,7 +87,7 @@ def _story(snap, view5, prov, core_hash, ledger, report_id):
     dims = fw.get("dimensions") or {}
     fsum = fw.get("summary") or {}
     when = snap.get("market_data_time") or snap.get("report_time") or ""
-    gen_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    gen_at = datetime.now(UTC).isoformat(timespec="seconds")
     sc = view5.get("scenarios") or {}
     m = view5.get("multiples") or {}
     band = next((m[k] for k in ("pe", "ps") if (m.get(k) or {}).get("available")), None)

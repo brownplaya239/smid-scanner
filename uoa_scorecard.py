@@ -65,13 +65,13 @@ import math
 import os
 import random
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import numpy as np
 
 import polygon_data as pg
 from trade_desk_validation import _load
-from uoa_alpha import load_ledger, _dte_bucket
+from uoa_alpha import _dte_bucket, load_ledger
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
@@ -453,7 +453,7 @@ def cost_model(hs_pct, vol_d, adv_d, q=CLIP_Q, k=IMPACT_K):
 def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
     if not pg.available():
         out = {
-            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "generated": datetime.now(UTC).isoformat(timespec="seconds"),
             "status": "capability_unavailable",
             "why": "POLYGON_API_KEY not set",
         }
@@ -830,7 +830,7 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
     )
 
     result = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "version": SC_VERSION,
         "matrix": {
             "days": len(days),

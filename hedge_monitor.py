@@ -33,7 +33,7 @@ import json
 import os
 import sys
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 LATEST = os.path.join(_BASE, "docs", "reports", "uoa_latest.json")
@@ -388,7 +388,7 @@ def record():
     )
     q = _yf_quotes()
     rec = {
-        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "ts": datetime.now(UTC).isoformat(timespec="seconds"),
         "hm_ver": FROZEN["hm_ver"],
         "frozen_hash": FROZEN_HASH,
         "meas_ver": MEASUREMENT["meas_ver"],
@@ -469,8 +469,9 @@ def _next_session_close_utc(session_date):
     """16:00 ET close of the NEXT NYSE trading session after
     session_date (str YYYY-MM-DD), as an aware UTC datetime. Uses the
     frozen holiday list — never calendar-day arithmetic."""
-    import pytz
     from datetime import timedelta
+
+    import pytz
 
     hols = set(MEASUREMENT["nyse_holidays"])
     d = datetime.strptime(session_date, "%Y-%m-%d")
@@ -480,7 +481,7 @@ def _next_session_close_utc(session_date):
         if d.weekday() < 5 and ds not in hols:
             break
     et = pytz.timezone("America/New_York")
-    return et.localize(d.replace(hour=16, minute=0)).astimezone(timezone.utc)
+    return et.localize(d.replace(hour=16, minute=0)).astimezone(UTC)
 
 
 def evaluate():
@@ -524,7 +525,7 @@ def evaluate():
                     xs = e.get("excluded_at") or ""
                     xdt = datetime.fromisoformat(xs if "T" in xs else xs + "T00:00:00+00:00")
                     if xdt.tzinfo is None:
-                        xdt = xdt.replace(tzinfo=timezone.utc)
+                        xdt = xdt.replace(tzinfo=UTC)
                     timely = xdt < _next_session_close_utc(rts[:10])
                 except Exception:
                     timely = False
@@ -581,7 +582,7 @@ def evaluate():
         if ok and d and d not in sens_dates:
             sens_dates[d] = r
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "hm_ver": FROZEN["hm_ver"],
         "frozen_hash": FROZEN_HASH,
         "meas_ver": MEASUREMENT["meas_ver"],
@@ -598,7 +599,7 @@ def evaluate():
             "sensitivity_scan_dates_without": None
             if not late_objective
             else len(
-                set(
+                {
                     d
                     for d in (
                         _et_time_ok(r.get("batch_generated") or "")[1]
@@ -606,7 +607,7 @@ def evaluate():
                         if r.get("ts") not in late_objective
                     )
                     if d
-                )
+                }
             ),
         },
         "records_measurement_mismatch": n_meas_mismatch,

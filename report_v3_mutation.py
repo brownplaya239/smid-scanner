@@ -33,7 +33,6 @@ Every fixture below is a defect v3.1 shipped or would have shipped:
 """
 
 import copy
-import json
 import sys
 
 import report_v3_evidence as EV
@@ -257,7 +256,7 @@ def m_bar_range_present(pkg, txt, view, snap):
 
 
 def m_benchmark_operands(pkg, txt, view, snap):
-    for k, v in pkg["records"].items():
+    for v in pkg["records"].values():
         if v.get("evidence_type") == "benchmark_bar":
             v["value"] = None
     return pkg, txt, view, snap

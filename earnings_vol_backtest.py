@@ -47,7 +47,7 @@ import json
 import math
 import os
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 
 import polygon_data as pg
@@ -120,7 +120,7 @@ def _bars(ticker):
         for b in pg.daily_bars(ticker, days=140) or []:
             ts = b.get("t")
             if ts:
-                d = datetime.fromtimestamp(ts / 1000, timezone.utc).strftime("%Y-%m-%d")
+                d = datetime.fromtimestamp(ts / 1000, UTC).strftime("%Y-%m-%d")
                 out[d] = {"o": b.get("o"), "c": b.get("c")}
     except Exception:
         pass
@@ -580,7 +580,7 @@ def run(limit=None, report_only=False):
     )
     if todo and not pg.available():
         out = {
-            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "generated": datetime.now(UTC).isoformat(timespec="seconds"),
             "status": "capability_unavailable",
             "why": "POLYGON_API_KEY not set (CI-only secret)",
         }
@@ -617,7 +617,7 @@ def run(limit=None, report_only=False):
         "vol_cheap": ["long_straddle", "long_strangle"],
     }
     result = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "bt_version": BT_VERSION,
         "fill_model": FILL_MODEL,
         "exit_models": list(EXITS),

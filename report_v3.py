@@ -34,13 +34,12 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
     Image,
-    KeepTogether,
     PageBreak,
     PageTemplate,
     Paragraph,
@@ -539,7 +538,7 @@ def _page1(snap, view, chart_png=None):
         para() escapes its own markup, so the text cannot be matched."""
 
         def fn(story):
-            drop = set(id(x) for x in read_ps[n:])
+            drop = {id(x) for x in read_ps[n:]}
             return [f for f in story if id(f) not in drop]
 
         return fn
@@ -706,7 +705,7 @@ def _fund_rows(fu, co=None):
         rows.append(
             [
                 "Shares outstanding",
-                Paragraph(_clean("{:,}".format(int(sh))) + tag(M.grade(f)), ST["cellb"]),
+                Paragraph(_clean(f"{int(sh):,}") + tag(M.grade(f)), ST["cellb"]),
                 (f.get("period_end") or "—") if isinstance(f, dict) else "—",
                 (f.get("src") or "—") if isinstance(f, dict) else "—",
             ]
@@ -724,12 +723,12 @@ def _fund_rows(fu, co=None):
         elif kind == "usd":
             shown = "$%.2f" % v
         elif kind == "count":
-            shown = "{:,}".format(int(v))
+            shown = f"{int(v):,}"
         else:
             # "%,.0f" is not a valid format string — it raised whenever
             # this raw branch met a value over 999. It never fired until a
             # large-USD fundamental with no explicit kind reached it.
-            shown = "{:,.0f}".format(v) if abs(v) > 999 else "%.2f" % v
+            shown = f"{v:,.0f}" if abs(v) > 999 else "%.2f" % v
         rows.append(
             [
                 label,
@@ -1065,7 +1064,7 @@ def _page2(snap, view):
         Reported results table below names a source per row."""
         if not biz_ps:
             return story
-        drop = set(id(x) for x in biz_ps)
+        drop = {id(x) for x in biz_ps}
         out = [f for f in story if id(f) not in drop]
         plain = (view.get("business") or {}).get("plain")
         if plain:

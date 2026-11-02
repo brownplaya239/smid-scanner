@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 REPORTS = os.path.join(_BASE, "docs", "reports")
@@ -242,11 +242,11 @@ def build():
     today = (
         swing["runs"][-1].get("date")
         if swing and swing.get("runs")
-        else datetime.now(timezone.utc).date().isoformat()
+        else datetime.now(UTC).date().isoformat()
     )
     chg = {}
     if swing and swing.get("runs"):
-        for g, cards in (swing["runs"][-1].get("grades") or {}).items():
+        for cards in (swing["runs"][-1].get("grades") or {}).values():
             for c in cards or []:
                 if c.get("t") and isinstance(c.get("chg"), (int, float)):
                     chg[c["t"]] = c["chg"]
@@ -274,7 +274,7 @@ def build():
     calibration, record = calibration_and_record(hist)
 
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "session_date": today,
         "graded": graded,
         "calibration": calibration,

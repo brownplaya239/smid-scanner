@@ -13,7 +13,7 @@ import sys
 
 import report_v4_event as E
 
-UTC = dt.timezone.utc
+UTC = dt.UTC
 _pass = _fail = 0
 
 

@@ -21,14 +21,12 @@ logic, per the repo's shared-logic rule.
 
 import json
 import os
-import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import trade_desk as td
 import trade_desk_validation as tdv
 
-
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 def _sig(**kw):
@@ -522,9 +520,9 @@ def test_degraded_family_routes_to_experimental_tier(monkeypatch):
 def test_expired_preprint_earnings_ideas_rejected(monkeypatch):
     """A vol_rich idea for a report that already printed must never
     surface — pre-print types expire at the event."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     et_today = now.astimezone(timezone(timedelta(hours=-4))).date().isoformat()
     yesterday = (
         now.astimezone(timezone(timedelta(hours=-4))).date() - timedelta(days=1)
@@ -619,7 +617,7 @@ def test_vol_type_without_night_ci_stays_watch(monkeypatch):
 
 def test_vol_engine_ratio_reconstruction():
     """ratio = 1 - mv/implied for vol_rich; 1 + mv/implied for cheap."""
-    import earnings_vol_engine as ev
+    import earnings_vol_engine  # noqa: F401  (the engine module must import)
 
     # vol_rich: implied 10, |realized| 2.3 -> mv 7.7 -> ratio 0.23
     assert abs((1 - 7.7 / 10) - 0.23) < 1e-9
@@ -899,6 +897,7 @@ def test_ledger_rotation_preserves_every_line(tmp_path, monkeypatch):
     archives without losing or altering a single one, and the
     archive-aware reader must return the identical dataset."""
     import gzip
+
     import ledger_rotate as lr
 
     hot = tmp_path / "uoa_signals.jsonl"

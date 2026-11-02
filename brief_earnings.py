@@ -22,8 +22,6 @@ import sys
 import urllib.parse
 import urllib.request
 
-import brief_time as BT
-
 WORKER = "https://api.tickerdesk.io"
 _BASE = os.path.dirname(os.path.abspath(__file__))
 REPORTS = os.path.join(_BASE, "docs", "reports")

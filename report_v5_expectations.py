@@ -27,7 +27,7 @@ insight" / "open hypothesis" — this module is where that distinction
 is decided, once, for the whole report.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 SCHEMA = "v5-expectations/1"
 
@@ -208,7 +208,7 @@ def build(snap, grid, multiples, scenarios, estimates, assumptions=None):
 
     return {
         "schema": SCHEMA,
-        "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "as_of": datetime.now(UTC).isoformat(timespec="seconds"),
         "kpis": kpis,
         "matrix": matrix,
         "gaps": gaps,

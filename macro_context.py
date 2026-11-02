@@ -4,9 +4,8 @@ Pulls SPY, IWM, VIX, sector ETFs and computes risk regime signals.
 Free data via yfinance.
 """
 
-import yfinance as yf
 import pytz
-from datetime import datetime
+import yfinance as yf
 
 ET = pytz.timezone("America/New_York")
 

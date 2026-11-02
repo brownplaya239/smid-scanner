@@ -7,13 +7,13 @@ Usage:
 Env: ANTHROPIC_API_KEY
 """
 
-import os
-import sys
-import io
 import csv
+import io
 import json
+import os
 import re
-from datetime import datetime, date
+import sys
+from datetime import date, datetime
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -21,18 +21,18 @@ if hasattr(sys.stdout, "reconfigure"):
 import matplotlib
 
 matplotlib.use("Agg")
+import anthropic
 import matplotlib.pyplot as plt
 import mplfinance as mpf
 import pandas as pd
 import pytz
 import requests
 import yfinance as yf
-import anthropic
+from dotenv import load_dotenv
 from fpdf import FPDF
 
-from macro_context import fetch_macro_context
 from insider_activity import enrich_candidates_with_insiders
-from dotenv import load_dotenv
+from macro_context import fetch_macro_context
 
 load_dotenv(override=True)
 
@@ -43,7 +43,7 @@ IWM_MODE = "--iwm" in sys.argv
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 if not ANTHROPIC_API_KEY:
-    raise EnvironmentError("Missing: ANTHROPIC_API_KEY")
+    raise OSError("Missing: ANTHROPIC_API_KEY")
 
 IWM_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IWM_holdings.csv")
 

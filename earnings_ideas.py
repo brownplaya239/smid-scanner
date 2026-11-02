@@ -51,7 +51,7 @@ before it's real.
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
@@ -386,7 +386,7 @@ def main():
     ideas = generate(edge.get("names") or [], swing, facts)
 
     log = _load(LOG_PATH, {"ideas": []})
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     seen = {(i.get("t"), i.get("date"), i.get("type")) for i in log["ideas"]}
     added = 0
     for i in ideas:
@@ -408,9 +408,7 @@ def main():
         added += 1
 
     # grade matured, ungraded ideas (event >= ~GRADE_AFTER_SESSIONS old)
-    cutoff = (
-        datetime.now(timezone.utc).date() - timedelta(days=GRADE_AFTER_SESSIONS + 4)
-    ).isoformat()
+    cutoff = (datetime.now(UTC).date() - timedelta(days=GRADE_AFTER_SESSIONS + 4)).isoformat()
     graded = 0
     for i in log["ideas"]:
         if i.get("result") == "pending" and i.get("date") and i["date"] <= cutoff:
@@ -445,7 +443,7 @@ def main():
     _apply_conf(ideas, learned)
 
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "count": len(ideas),
         "ideas": ideas,
         "by_type": stats,

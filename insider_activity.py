@@ -10,12 +10,11 @@ Output per ticker:
   - cluster_score:  composite signal strength
 """
 
-import os
-import re
 import time
-import requests
 from datetime import datetime, timedelta
 from xml.etree import ElementTree as ET
+
+import requests
 
 # SEC EDGAR requires a User-Agent with contact info
 SEC_HEADERS = {
@@ -380,7 +379,6 @@ def enrich_candidates_with_insiders(candidates, days_back=60):
 
 if __name__ == "__main__":
     # Smoke test
-    import json
 
     for t in ["AAPL", "BKSY", "BE", "TSLA"]:
         r = fetch_insider_activity(t, days_back=90)

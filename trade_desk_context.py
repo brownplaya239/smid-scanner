@@ -32,9 +32,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from trade_desk_validation import _regime_map, _load
+from trade_desk_validation import _load, _regime_map
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
@@ -64,7 +64,7 @@ def _days_to_earnings(meta_row, today):
 
 
 def build_rows(now=None):
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     today = now.date()
     today_s = today.isoformat()
 
@@ -138,8 +138,9 @@ def run(dry=False):
     if not dry and new:
         os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
         with open(OUT_PATH, "a", encoding="utf-8") as f:
-            for r in new:
-                f.write(json.dumps(r, separators=(",", ":"), ensure_ascii=False) + "\n")
+            f.writelines(
+                json.dumps(r, separators=(",", ":"), ensure_ascii=False) + "\n" for r in new
+            )
     filled = sum(1 for r in new if r.get("rs_rank") is not None)
     print(
         f"context: {len(rows)} tickers today, {len(new)} appended "

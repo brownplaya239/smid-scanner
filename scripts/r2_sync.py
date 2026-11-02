@@ -315,6 +315,7 @@ def data_paths():
 def git_staged():
     r = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=AM"],
+        check=False,
         cwd=_BASE,
         capture_output=True,
         text=True,

@@ -41,7 +41,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -50,7 +50,7 @@ from social_cards import (
     KINDS,
     SOCIAL_POSTS,
     _day_label,
-    _pct,  # noqa
+    _pct,
     social_log_rows,
 )
 
@@ -174,9 +174,11 @@ def callouts_caption(f):
     ]
     tail = [
         "",
-        f"{day['hit_100']} of {day['n']} hit +100% at peak. Median "
-        f"peak {_pct(day['median_peak_pct'])}, median now "
-        f"{_pct(day['median_last_pct'])}.",
+        (
+            f"{day['hit_100']} of {day['n']} hit +100% at peak. Median "
+            f"peak {_pct(day['median_peak_pct'])}, median now "
+            f"{_pct(day['median_last_pct'])}."
+        ),
         f"Every callout, winners and losers: {link('callouts')}",
     ]
     text = _fit(head, items, tail)
@@ -209,8 +211,10 @@ def earnings_week_caption(f):
         items,
         [
             "",
-            "Card: what options price vs each stock's usual move, "
-            f"plus 1M/YTD/1Y. {link('earnings_week')}",
+            (
+                "Card: what options price vs each stock's usual move, "
+                f"plus 1M/YTD/1Y. {link('earnings_week')}"
+            ),
         ],
     )
 
@@ -377,7 +381,7 @@ SESSION_KINDS = {
 def _age_h(iso):
     try:
         dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+        return (datetime.now(UTC) - dt).total_seconds() / 3600
     except Exception:
         return None
 
@@ -514,8 +518,7 @@ def _gh_out(**kv):
     p = os.environ.get("GITHUB_OUTPUT")
     if p:
         with open(p, "a", encoding="utf-8") as f:
-            for k, v in kv.items():
-                f.write(f"{k}={v}\n")
+            f.writelines(f"{k}={v}\n" for k, v in kv.items())
 
 
 def _summary(md):
@@ -750,6 +753,7 @@ def supersede_older(kind, run):
     if not (tok and repo and os.environ.get("CLOUDFLARE_API_TOKEN")):
         return
     import urllib.request
+
     import r2_sync
 
     try:
@@ -909,7 +913,7 @@ def render(a):
         "blocks": blocks,
         "review": review,
         "extra": _log_extra(a.kind, facts),
-        "rendered": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "rendered": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
 
@@ -1048,7 +1052,7 @@ def main():
         sys.exit(f"X refused the post: HTTP {e.response.status_code} {body}")
     tid = resp.data["id"]
     url = f"https://x.com/{me.username}/status/{tid}"
-    ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    ts = datetime.now(UTC).isoformat(timespec="seconds")
     os.makedirs(SOCIAL_POSTS, exist_ok=True)
     rec = os.path.join(SOCIAL_POSTS, f"{ts[:19].replace(':', '')}_{b['kind']}_{tid}.json")
     with open(rec, "w", encoding="utf-8") as f:

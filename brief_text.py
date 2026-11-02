@@ -13,10 +13,7 @@ contracts or headlines the email contains — which they previously did.
     python brief_text.py --self-test
 """
 
-import sys
 import textwrap
-
-import brief_model as BM
 
 WIDTH = 74
 
@@ -343,7 +340,7 @@ def t_followthrough(sec, site, out):
 def _int(n, signed=False):
     if n is None:
         return "-"
-    return ("%+d" % int(n)) if signed else "{:,}".format(int(n))
+    return ("%+d" % int(n)) if signed else f"{int(n):,}"
 
 
 def _prem(p):

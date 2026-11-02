@@ -14,13 +14,12 @@ has just been shown to work.
 import copy
 import glob
 import io
-import os
 import pickle
 
 import report_v4 as R4
+import report_v4_event as EV
 import report_v4_model as V4
 import report_v4_validate as VV
-import report_v4_event as EV
 
 FAIL, WARN_S = VV.FAIL, VV.WARN_S
 
@@ -64,7 +63,7 @@ def _base():
     paths = sorted(glob.glob("fixtures_v4/*.pkl")) + sorted(glob.glob(".snapcache/*.pkl"))
     snap = None
     for p in paths:
-        obj = pickle.load(io.open(p, "rb"))
+        obj = pickle.load(open(p, "rb"))
         s = obj[0] if isinstance(obj, tuple) else obj
         cat = s.get("catalyst") or {}
         # a name the gate lets rate (not DATA HOLD), so ratings are present
@@ -90,8 +89,8 @@ def _base():
 
 
 def _tiny_pdf(text):
-    from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
 
     b = io.BytesIO()
     c = canvas.Canvas(b, pagesize=letter)
@@ -196,7 +195,7 @@ def summary():
         s["exhibit"] = {
             "disposition": "AVAILABLE_NOT_INGESTED",
             "reason": "tables not parsed",
-            "accepted": _d.datetime.now(_d.timezone.utc).isoformat(),
+            "accepted": _d.datetime.now(_d.UTC).isoformat(),
         }
 
     model("PRIMARY_RELEASE_INGESTED", m_uningested)

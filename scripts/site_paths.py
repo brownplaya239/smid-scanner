@@ -22,9 +22,11 @@ import sys
 PATHS = {
     "earnings": (
         "Earnings Calendar — This Week's Reports, Implied Moves & Options Flow | TickerDesk",
-        "This week's earnings calendar with options-implied vs typical "
-        "moves, pre-print flow, and graded earnings trade ideas. Updated "
-        "nightly; every idea self-graded against real closes.",
+        (
+            "This week's earnings calendar with options-implied vs typical "
+            "moves, pre-print flow, and graded earnings trade ideas. Updated "
+            "nightly; every idea self-graded against real closes."
+        ),
     ),
 }
 

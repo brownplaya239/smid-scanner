@@ -19,7 +19,7 @@ initial underwriting" rather than a silent wrong diff.
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 STATE_DIR = os.path.join(_BASE, "data", "research_state")
@@ -38,7 +38,7 @@ def build_state(ticker, view5, result, prior_id=None, report_id=None, ledger_has
     cl = view5.get("claims") or {}
     asx = view5.get("assessment") or {}
     arts = result.get("artifacts") or {}
-    as_of = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    as_of = datetime.now(UTC).isoformat(timespec="seconds")
     rows = {r["leg"]: r["price"] for r in sc.get("rows") or []}
     rec = {
         "schema": SCHEMA,

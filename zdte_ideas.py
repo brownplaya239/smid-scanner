@@ -36,8 +36,7 @@ import argparse
 import json
 import os
 import urllib.request
-from datetime import datetime, timezone
-from statistics import mean
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 REPORTS = os.path.join(_BASE, "docs", "reports")
@@ -211,7 +210,7 @@ def _ivem_update(snaps, date):
         days.sort(key=lambda d: d["date"])
         ivlog[sym] = days[-IVEM_CAP_D:]
     ctx = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "min_n": IVEM_MIN_N,
         "by_sym": {},
     }
@@ -492,7 +491,7 @@ def build():
 
     total_graded = sum(len(v) for v in by_type.values())
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "session_date": date,
         "min_n": MIN_N,
         "logged_days": len(log.get("days") or []),

@@ -56,11 +56,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone, timedelta
-
+from datetime import UTC, datetime, timedelta, timezone
 from statistics import mean, median
 
-from trade_desk_validation import features_at_flag, _regime_map, json_sanitize, MODEL_VERSION
+from trade_desk_validation import MODEL_VERSION, _regime_map, features_at_flag, json_sanitize
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
@@ -100,7 +99,7 @@ def _load(path, default):
 
 
 def _now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso(dt):
@@ -320,7 +319,7 @@ def _fresh(doc, now, max_h):
             (doc.get("generated") or doc.get("updated") or "").replace("Z", "+00:00")
         )
         if gen.tzinfo is None:
-            gen = gen.replace(tzinfo=timezone.utc)
+            gen = gen.replace(tzinfo=UTC)
         return (now - gen).total_seconds() <= max_h * 3600
     except ValueError, TypeError:
         return False
@@ -525,8 +524,9 @@ def _append_ledger(events):
         return
     os.makedirs(os.path.dirname(LEDGER_PATH), exist_ok=True)
     with open(LEDGER_PATH, "a", encoding="utf-8") as f:
-        for e in events:
-            f.write(json.dumps(e, separators=(",", ":"), ensure_ascii=False) + "\n")
+        f.writelines(
+            json.dumps(e, separators=(",", ":"), ensure_ascii=False) + "\n" for e in events
+        )
 
 
 def freeze_ideas(display, now):

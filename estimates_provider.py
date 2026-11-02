@@ -296,5 +296,5 @@ def fetch_estimates(ticker, report_time=None, http=None):
         "surprises": _get("/stock/earnings", {"symbol": sym}, http),
     }
     rec = parse_all(payloads)
-    rec["as_of"] = report_time or dt.datetime.now(dt.timezone.utc).isoformat()
+    rec["as_of"] = report_time or dt.datetime.now(dt.UTC).isoformat()
     return rec

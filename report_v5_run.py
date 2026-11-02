@@ -18,7 +18,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import report_v4_model as V4
 import report_v5 as R5
@@ -104,8 +104,8 @@ def build_view(ticker, override=None):
 
     expectations = E5.build(snap, grid, multiples, scenarios, estimates, asm)
     claims = C5.build(snap, v4, scenarios, estimates, adapter=adapter)
-    import report_v5_assessment as AS
     import report_v5 as _R5
+    import report_v5_assessment as AS
 
     bq = AS.business_quality(snap, grid, adapter=adapter)
     _conf = _R5.confidence({"v4": v4, "multiples": multiples})
@@ -577,9 +577,9 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None, report_id=Non
             for c in pubs
             if not c.get("reunderwrite_when") or not c.get("next_checkpoint")
         ]
-        from datetime import datetime as _dt2, timezone as _tz2
+        from datetime import datetime as _dt2
 
-        _today = _dt2.now(_tz2.utc).date().isoformat()
+        _today = _dt2.now(UTC).date().isoformat()
         bad_t = CK0.checkpoint_type_issues(pubs)
         checks.append(
             VV.chk(
@@ -1507,6 +1507,7 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None, report_id=Non
     ]
     checks += v4_checks
     import io as _io
+
     from pypdf import PdfReader
 
     n_pages = len(PdfReader(_io.BytesIO(core_pdf)).pages)
@@ -1534,7 +1535,12 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None, report_id=Non
 
         def _git(*args):
             return subprocess.run(
-                ["git"] + list(args), capture_output=True, text=True, timeout=10, cwd=_cwd
+                ["git"] + list(args),
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                cwd=_cwd,
             ).stdout.strip()
 
         commit_sha = _git("rev-parse", "HEAD") or None
@@ -1575,7 +1581,7 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None, report_id=Non
         "source_commit_sha": commit_sha,
         "git_tree_sha": tree_sha,
         "dirty_worktree": dirty,
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "ticker": (view5["v4"] or {}).get("ticker"),
         "archetype": arch["archetype"],
         "router": {
@@ -1594,7 +1600,7 @@ def run(ticker, out_dir="out_v5", override=None):
     os.makedirs(out_dir, exist_ok=True)
     ticker = ticker.upper().strip()
     snap, prov, view5 = build_view(ticker, override)
-    report_id = "%s-%s" % (ticker, datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    report_id = "%s-%s" % (ticker, datetime.now(UTC).isoformat(timespec="seconds"))
     view5["report_id"] = report_id
 
     chart_png = chart_meta = None
@@ -1768,8 +1774,8 @@ def run(ticker, out_dir="out_v5", override=None):
     result["framework"] = view5.get("framework")
 
     # ── research memory (v5.5 phase F) ───────────────────────────────
-    import report_v5_memory as MEM
     import report_v4_validate as VV
+    import report_v5_memory as MEM
 
     prior, prior_reason = MEM.load_prior(ticker)
     state = MEM.build_state(

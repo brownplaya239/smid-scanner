@@ -44,11 +44,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 
 from earnings_vol_engine import _load_events
-from trade_desk_validation import _load
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 OUT_PATH = os.path.join(_BASE, "docs", "reports", "fair_move_lab.json")
@@ -67,7 +66,7 @@ def _cap_band(e):
 def build_rows():
     ev = _load_events()
     rows = []
-    for t, events in ev.items():
+    for events in ev.values():
         for e in events:
             rows.append(
                 {
@@ -150,7 +149,7 @@ def run(dry=False):
     pairs = forecasts_for(rows)
     names = ["v1_ticker_median", "cap_shrunk", "sector_shrunk", "market_anchored", "blend"]
     result = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "lab_version": LAB_VERSION,
         "events_total": len(rows),
         "events_scored": len(pairs),

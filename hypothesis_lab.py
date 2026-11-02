@@ -31,7 +31,7 @@ import argparse
 import itertools
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 OUT_PATH = os.path.join(_BASE, "docs", "reports", "hypothesis_lab.json")
@@ -59,12 +59,12 @@ def _load_json(path):
 def _due(force: bool) -> bool:
     if force:
         return True
-    if datetime.now(timezone.utc).weekday() == 4:  # Friday
+    if datetime.now(UTC).weekday() == 4:  # Friday
         return True
     try:
         with open(OUT_PATH, encoding="utf-8") as f:
             gen = json.load(f).get("generated") or ""
-        age = (datetime.now(timezone.utc) - datetime.fromisoformat(gen)).days
+        age = (datetime.now(UTC) - datetime.fromisoformat(gen)).days
         return age > STALE_DAYS
     except Exception:
         return True  # no file yet
@@ -138,7 +138,7 @@ def run_lab():
     graded.sort(key=lambda x: x[0])  # time order
     if len(graded) < MIN_JOINT * 2:
         return {
-            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "generated": datetime.now(UTC).isoformat(timespec="seconds"),
             "status": "accruing",
             "graded": len(graded),
         }
@@ -245,7 +245,7 @@ def run_lab():
         sv["bh_pass"] = sv["hypothesis"] in bh_names
 
     return {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "status": "active",
         "graded": len(graded),
         "baseline": {"train": base, "oos": base_oos},

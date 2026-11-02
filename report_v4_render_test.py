@@ -12,7 +12,6 @@ itself is checked by eye through render_v4_preview.
 """
 
 import glob
-import io
 import os
 import pickle
 import sys
@@ -20,8 +19,8 @@ import sys
 import fitz  # PyMuPDF
 
 import report_v4 as R4
-import report_v4_model as V4
 import report_v4_event as EV
+import report_v4_model as V4
 
 _pass = _fail = 0
 
@@ -37,7 +36,7 @@ def chk(name, cond):
 
 
 def _load(t):
-    obj = pickle.load(io.open(".snapcache/%s.pkl" % t, "rb"))
+    obj = pickle.load(open(".snapcache/%s.pkl" % t, "rb"))
     return (obj[0], obj[3] if len(obj) > 3 else {}) if isinstance(obj, tuple) else (obj, {})
 
 

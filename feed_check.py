@@ -164,8 +164,8 @@ def check_news(ticker):
 
 def check_social(ticker):
     try:
-        import urllib.request
         import json as _j
+        import urllib.request
 
         u = "https://api.stocktwits.com/api/2/streams/symbol/%s.json" % ticker.upper()
         req = urllib.request.Request(u, headers={"User-Agent": "research/1.0"})

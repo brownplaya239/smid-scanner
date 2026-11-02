@@ -19,7 +19,6 @@ know, because the invented answer looks like a fact.
     python exchange_calendar.py --self-test
 """
 
-import sys
 from datetime import date, datetime, time, timedelta
 
 import brief_time as BT
@@ -183,8 +182,7 @@ def root_of(occ_or_ticker):
     differenced across the adjustment.
     """
     s = str(occ_or_ticker or "").upper()
-    if s.startswith("O:"):
-        s = s[2:]
+    s = s.removeprefix("O:")
     if len(s) > 15 and _OCC_TAIL.search(s[-15:]):
         return s[:-15]
     i = 0

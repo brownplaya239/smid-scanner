@@ -10,9 +10,9 @@ those values without changing the schedule.
 Output: docs/reports/economic_calendar.json
 """
 
+import json
 import os
 import sys
-import json
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -228,7 +228,7 @@ def run():
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
-    print(f"  Wrote economic_calendar.json")
+    print("  Wrote economic_calendar.json")
 
 
 if __name__ == "__main__":

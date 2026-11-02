@@ -27,8 +27,8 @@ absent — which is exactly the free-tier local state.
 """
 
 import report_v3_model as M3
-import research_snapshot as rs
 import report_v4_event as EV
+import research_snapshot as rs
 
 OBSERVED, DERIVED, INFERRED = M3.OBSERVED, M3.DERIVED, M3.INFERRED
 
@@ -376,7 +376,7 @@ def _money_s(v):
         return "$%.2fB" % (v / 1e9)
     if a >= 1e6:
         return "$%.0fM" % (v / 1e6)
-    return "$%s" % ("{:,.0f}".format(v))
+    return "$%s" % (f"{v:,.0f}")
 
 
 # ── valuation ───────────────────────────────────────────────────────────

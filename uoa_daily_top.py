@@ -59,7 +59,7 @@ import bisect
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytz
 
@@ -186,9 +186,7 @@ def _has_new_activity(c, r):
     for f in ACTIVITY_FIELDS:
         if (r.get(f) or 0) > (c.get(f) or 0):
             return True
-    if (r.get("last_print_ts") or "") > (c.get("last_print_ts") or ""):
-        return True
-    return False
+    return (r.get("last_print_ts") or "") > (c.get("last_print_ts") or "")
 
 
 def migrate_acc(acc):
@@ -276,9 +274,7 @@ def eligible(c):
         or (c.get("oi_delta") or 0) > 0
         or (c.get("active_batches") or 0) >= 2
     )
-    if po is not None and po > CFG["max_pct_otm_unconfirmed"] and not confirmed:
-        return False
-    return True
+    return not (po is not None and po > CFG["max_pct_otm_unconfirmed"] and not confirmed)
 
 
 # ── 3. explainable dailyUnusualScore 0-100 with parts breakdown ─────────
@@ -728,7 +724,7 @@ def archive():
         except OSError:
             pass
     idx = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "retained_days": ARCHIVE_KEEP,
         "days": [days[d] for d in keep],
         "note": (

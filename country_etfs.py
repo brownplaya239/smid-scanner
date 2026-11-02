@@ -26,8 +26,8 @@ Schema:
 import json
 import os
 import sys
-from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
 import pytz
 

@@ -33,7 +33,7 @@ def _load(path, default=None):
 
 def _fmt_int(n):
     try:
-        return "{:,}".format(int(n))
+        return f"{int(n):,}"
     except Exception:
         return None
 

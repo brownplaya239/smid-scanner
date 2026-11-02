@@ -47,7 +47,55 @@ line-length = 100
 [tool.ruff.lint]
 extend-select = ["E", "W", "N", "PD", "NPY", "PTH"]
 ignore = [
-    "E501",   # line length: the formatter owns this
+    "E501",     # line length: the formatter owns this
     # PD901 (generic `df` name) was requested too, but Ruff 0.17 removed the rule;
     # listing it only prints a warning on every run.
+
+    # Too many existing hits to fix in the toolchain change. Each is a follow-up;
+    # remove a line here once its code is cleaned up. (hit counts as of 2026-11-02)
+    "UP031",    # printf-style "%" string formatting (1888)
+    "BLE001",   # `except Exception:` (440), deliberate "never crash the publish step" style
+    "S110",     # try/except/pass (87), same pattern
+    "S112",     # try/except/continue (33), same pattern
+    "SIM115",   # open() outside a with-block (25)
+    "F841",     # unused local variable (35); a few may be unfinished logic, review one by one
+    "RUF059",   # unused variable from tuple unpacking (19)
+    "E741",     # ambiguous one-letter names such as `l` (50)
+    "E731",     # lambda assigned to a name (17)
+    "FURB162",  # .replace("Z", "+00:00") before fromisoformat (18)
+    "RUF015",   # list(x)[0]; the suggested next(iter(x)) raises a different exception (15)
+    "SIM102",   # nested if that could be one condition (12)
+    "RUF046",   # int(round(x)); dropping int() changes the type for numpy values (6)
+    "PLR0124",  # `x != x` is how this code tests for NaN (5)
+    "RUF012",   # mutable class attribute without ClassVar (2)
+    "SIM113",   # manual counter instead of enumerate() (1)
+    "SIM401",   # if/else instead of dict.get (1)
+    "PLC0206",  # dict loop without .items() (2)
+    "PERF402",  # manual list copy (2)
+    # pep8-naming: renames would break imports and keyword callers across modules
+    "N812",     # `import report_v4 as R4` style aliases (216)
+    "N806",     # UPPER_CASE locals (93)
+    "N803",     # non-lowercase argument names (17)
+    "N802",     # non-lowercase function names (3)
+    "N818",     # exception class names without "Error" (2)
+    "N814",     # CamelCase imported as a constant (1)
+    # pathlib (PTH): moving os.path calls to pathlib is a gradual migration (~860 hits).
+    # PTH stays selected so the codes below are the only ones waived.
+    "PTH100", "PTH103", "PTH105", "PTH106", "PTH107", "PTH108", "PTH109", "PTH110", "PTH111",
+    "PTH112", "PTH113", "PTH118", "PTH119", "PTH120", "PTH123", "PTH202", "PTH207", "PTH208",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Imports deliberately placed after load_dotenv() / sys.path setup.
+"alt_data.py" = ["E402"]
+"momentum_scanner.py" = ["E402"]
+"scanner.py" = ["E402", "B023"]
+"setup_builder.py" = ["E402", "B023"]
+"swing_report.py" = ["E402"]
+"scripts/x_post.py" = ["E402"]
+# B023: helper functions defined inside a loop and only called in that same pass
+# (checked by hand on 2026-11-02, no late-binding bug).
+"daily_brief.py" = ["B023"]
+"earnings_vol_exec.py" = ["B023"]
+"zdte_ideas.py" = ["B023"]
+"scripts/social_cards.py" = ["B023"]

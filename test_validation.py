@@ -20,9 +20,7 @@ import sys
 import brief_compose as BC
 import brief_model as BM
 import brief_news as BN
-import brief_render as BR
 import brief_schema as BS
-import brief_text as BX
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 PREV = os.path.join(_BASE, "docs", "email-previews")

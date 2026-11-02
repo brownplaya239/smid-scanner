@@ -23,7 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 
 import yfinance as yf
@@ -60,7 +60,7 @@ def todays_cohort():
     if not sw or not sw.get("runs"):
         return None, []
     run = sw["runs"][-1]
-    date = run.get("date") or datetime.now(timezone.utc).date().isoformat()
+    date = run.get("date") or datetime.now(UTC).date().isoformat()
     rows = []
     grades = run.get("grades") or {}
     for g in BULL_GRADES:
@@ -190,7 +190,7 @@ def build(dry=False):
     graded = mature(log)
     st, total_graded = stats(log)
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "hold_days": HOLD_D,
         "min_n": MIN_N,
         "logged_days": len(log["days"]),

@@ -19,7 +19,7 @@ import json
 import os
 import sys
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 MAX_ITEMS = 40
 MAX_AGE_H = 26
@@ -58,9 +58,11 @@ RSS_FEEDS = (
     ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_marketpulse"),
     (
         "Google News · Markets",
-        "https://news.google.com/rss/search?q=markets%20OR%20oil%20OR%20"
-        "fed%20OR%20treasury%20OR%20opec%20when:1d&hl=en-US&gl=US"
-        "&ceid=US:en",
+        (
+            "https://news.google.com/rss/search?q=markets%20OR%20oil%20OR%20"
+            "fed%20OR%20treasury%20OR%20opec%20when:1d&hl=en-US&gl=US"
+            "&ceid=US:en"
+        ),
     ),
 )
 
@@ -124,9 +126,9 @@ def to_row(a):
     if not a or not a.get("headline"):
         return None
     ts = a.get("datetime")
-    published = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else None
+    published = datetime.fromtimestamp(ts, tz=UTC).isoformat() if ts else None
     if published:
-        age = datetime.now(timezone.utc) - datetime.fromtimestamp(ts, tz=timezone.utc)
+        age = datetime.now(UTC) - datetime.fromtimestamp(ts, tz=UTC)
         if age > timedelta(hours=MAX_AGE_H):
             return None
     syms = [s for s in str(a.get("related") or "").split(",") if s][:6]

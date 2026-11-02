@@ -33,7 +33,7 @@ ASSUMPTIONS (the only place judgment enters, and it is labelled)
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 ASSUMPTIONS_DIR = os.path.join(_BASE, "assumptions")
@@ -62,7 +62,7 @@ def load_assumptions(ticker, today=None):
     missing = [k for k in REQUIRED_ENVELOPE if not doc.get(k)]
     if missing:
         return None, ("assumptions missing %s — ignored" % ", ".join(missing))
-    today = today or datetime.now(timezone.utc).date().isoformat()
+    today = today or datetime.now(UTC).date().isoformat()
     exp = doc.get("expires")
     if exp and str(exp) < today:
         return None, (

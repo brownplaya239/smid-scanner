@@ -40,7 +40,7 @@ import os
 import sys
 import time
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 OUT_PATH = os.path.join(_BASE, "docs", "reports", "dealer_positioning.json")
@@ -113,7 +113,7 @@ def _spot(sym, key):
 def fetch_chain(sym, spot, key):
     """Every contract within STRIKE_PCT of spot, expiring <= MAX_DTE.
     Follows next_url pagination. Returns list of contract dicts."""
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     lte = (today + timedelta(days=MAX_DTE)).isoformat()
     lo = math.floor(spot * (1 - STRIKE_PCT))
     hi = math.ceil(spot * (1 + STRIKE_PCT))
@@ -151,7 +151,7 @@ def aggregate(contracts, spot):
     """Per-strike GEX + VEX across the full chain (BS greeks from each
     contract's IV × OI × contract multiplier). Dealer convention:
     calls +, puts -."""
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     by_strike = {}
     total_oi = 0
     for c in contracts:
@@ -253,7 +253,7 @@ def build(key):
                 % (sym, len(chain), s["n_strikes"], s["total_gex_mm"], s["regime"], s["gamma_flip"])
             )
     return {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "symbols": syms,
         "delayed": True,
         "note": (
@@ -286,7 +286,7 @@ def _self_test():
     # ones, giving a call wall above spot and a put wall below it. (Equal
     # call/put OI at a strike cancels, since calls and puts share gamma —
     # dealer walls only exist where the OI is lopsided.)
-    exp = (datetime.now(timezone.utc).date() + timedelta(days=30)).isoformat()
+    exp = (datetime.now(UTC).date() + timedelta(days=30)).isoformat()
     contracts = []
     for k in range(80, 121, 5):
         call_oi = 2000 if k >= spot else 200

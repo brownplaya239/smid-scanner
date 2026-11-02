@@ -23,10 +23,8 @@ worth reporting, under a name that says what it is.
 """
 
 import hashlib
-import json
 import os
 import re
-import sys
 from datetime import datetime, timedelta
 
 import brief_time as BT
@@ -324,7 +322,7 @@ def detect_structures(contracts):
         g["structure_confidence"] = "high"
         g["linked_legs"] = []
 
-    for tk, group in by_ticker.items():
+    for group in by_ticker.values():
         for a in group:
             for b in group:
                 if a is b or not a.get("first_print_et") or not b.get("first_print_et"):
@@ -683,7 +681,7 @@ def calibrate(history, split=0.6, grid=None):
 
 
 def _fmt_int(n):
-    return "{:,}".format(int(n)) if n is not None else "n/a"
+    return f"{int(n):,}" if n is not None else "n/a"
 
 
 def _fmt_dt(iso, with_time=True):

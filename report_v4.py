@@ -34,25 +34,19 @@ import report_v3_model as M3
 import report_v4_model as M4
 import research_snapshot as rs
 from report_v3 import (
+    BODY_W,
+    GREEN,
+    INK,
+    LINE,
+    MUTED,
+    RED,
+    ST,
+    _clean,
+    _fit_page,
+    _image,
+    _table,
     para,
     safe,
-    _clean,
-    tag,
-    _table,
-    _fit_page,
-    _avail_height,
-    _story_height,
-    _image,
-    BODY_W,
-    ST,
-    INK,
-    MUTED,
-    ACCENT,
-    GREEN,
-    RED,
-    AMBER,
-    LINE,
-    BG_SOFT,
 )
 
 OBSERVED, DERIVED, INFERRED = M4.OBSERVED, M4.DERIVED, M4.INFERRED
@@ -92,7 +86,7 @@ def _money(v):
         return "$%.2fB" % (v / 1e9)
     if a >= 1e6:
         return "$%.0fM" % (v / 1e6)
-    return "$%s" % ("{:,.0f}".format(v))
+    return "$%s" % (f"{v:,.0f}")
 
 
 # ── masthead ────────────────────────────────────────────────────────────

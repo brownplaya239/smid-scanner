@@ -16,7 +16,6 @@ The `free` variant uses only the real snapshot, which is what CI renders.
 """
 
 import argparse
-import io
 import os
 import pickle
 import sys
@@ -72,7 +71,7 @@ PEERS = {
 def load(ticker, cache):
     """Returns (snap, prov). The pickle is (snap, alt, recs, prov); prov
     carries the raw market series the chart needs under _mk."""
-    obj = pickle.load(io.open(os.path.join(cache, "%s.pkl" % ticker), "rb"))
+    obj = pickle.load(open(os.path.join(cache, "%s.pkl" % ticker), "rb"))
     if isinstance(obj, tuple):
         return obj[0], (obj[3] if len(obj) > 3 else {})
     return obj, {}

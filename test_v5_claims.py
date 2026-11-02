@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """test_v5_claims.py — the argument builder's honesty guards."""
 
+import datetime as _dt2
 import sys
 
 import report_v5_claims as C
@@ -82,7 +83,6 @@ check(
 )
 
 # valuation gap wording is bounded
-import datetime as _dt2
 
 SC = {
     "available": True,
@@ -132,7 +132,6 @@ check(
 )
 
 # stale evidence fails the gate with the reason recorded
-import report_v5_claims as _C
 
 stale_snap = snap(growth=25.0, rev=1e9)
 stale_snap["fundamentals"]["revenue_q"]["period_end"] = "2025-01-01"

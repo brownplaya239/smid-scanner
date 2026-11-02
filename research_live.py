@@ -24,12 +24,13 @@ Usage:
 
 import hashlib
 import html
+import itertools
 import json
 import os
 import re
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import requests
 
@@ -66,7 +67,7 @@ def _sec_json(url):
 
 
 def _iso(dt):
-    return dt.astimezone(timezone.utc).isoformat(timespec="seconds")
+    return dt.astimezone(UTC).isoformat(timespec="seconds")
 
 
 def _h(s, n=16):
@@ -96,7 +97,7 @@ def _norm_accept(ts):
     try:
         s = str(ts).strip()
         if s.endswith("Z"):
-            dt = datetime.fromisoformat(s[:-1]).replace(tzinfo=timezone.utc)
+            dt = datetime.fromisoformat(s[:-1]).replace(tzinfo=UTC)
         else:
             dt = datetime.fromisoformat(s)
             if dt.tzinfo is None:  # bare stamp: EDGAR local = ET
@@ -431,7 +432,7 @@ def _contiguous(rows, n=4, tol_days=25):
     span = (datetime.fromisoformat(sel[-1]["end"]) - datetime.fromisoformat(sel[0]["start"])).days
     if not (365 - tol_days <= span <= 365 + tol_days):
         return None
-    for a, b in zip(sel, sel[1:]):
+    for a, b in itertools.pairwise(sel):
         gap = (datetime.fromisoformat(b["start"]) - datetime.fromisoformat(a["end"])).days
         if abs(gap) > 8:
             return None
@@ -541,8 +542,7 @@ def _licensed_daily_bars(ticker, min_bars=210):
             keep = [
                 r
                 for r in rows
-                if datetime.fromtimestamp((r.get("t") or 0) / 1000.0, tz=timezone.utc).date()
-                >= listing
+                if datetime.fromtimestamp((r.get("t") or 0) / 1000.0, tz=UTC).date() >= listing
             ]
             dropped = len(rows) - len(keep)
             if keep:
@@ -566,7 +566,7 @@ def _licensed_daily_bars(ticker, min_bars=210):
             out["lows"].append(float(l))
             out["vols"].append(float(v or 0))
             out["opens"].append(float(o))
-            out["dates"].append(datetime.fromtimestamp(t / 1000.0, tz=timezone.utc).date())
+            out["dates"].append(datetime.fromtimestamp(t / 1000.0, tz=UTC).date())
         # Short history is only acceptable when a listing date explains it.
         if len(out["closes"]) < min_bars and not listing:
             return None
@@ -629,7 +629,7 @@ def fetch_market(ticker, as_of=None):
     # One clock for the whole report. build_snapshot stamps report_time
     # before calling this, so reading the wall clock again here put the
     # quote a second *after* the gate instant it is meant to sit inside.
-    ref = as_of or datetime.now(timezone.utc)
+    ref = as_of or datetime.now(UTC)
     now_local = ref.astimezone(session_close.tzinfo)
     partial = session_close > now_local
     if partial:
@@ -905,7 +905,7 @@ def _short_interest(info):
     settle = None
     if epoch:
         try:
-            settle = datetime.fromtimestamp(int(epoch), timezone.utc).date().isoformat()
+            settle = datetime.fromtimestamp(int(epoch), UTC).date().isoformat()
         except Exception:
             settle = None
     if pct is None and dtc is None:
@@ -943,12 +943,12 @@ def _safe_info(tk):
 _BULL = re.compile(
     r"\b(long|calls?|buy|bullish|moon|breakout|up|rip|"
     r"squeeze|beat|strong)\b",
-    re.I,
+    re.IGNORECASE,
 )
 _BEAR = re.compile(
     r"\b(short|puts?|sell|bearish|dump|crash|down|fade|"
     r"miss|weak|drop)\b",
-    re.I,
+    re.IGNORECASE,
 )
 # Holding intent is a directional view. Treating "adding here for the long
 # term" as neutral throws away the most common way retail expresses one.
@@ -958,20 +958,20 @@ _LONGTERM = re.compile(
     r"(?:\s+(?:more|here|to))?|accumulat\w*|buying (?:more|the dip)|"
     r"loading up|starter position|building a position|retirement|401k|"
     r"ira|core (?:holding|position))\b",
-    re.I,
+    re.IGNORECASE,
 )
 _EXIT = re.compile(
     r"\b(sold|selling|trimm\w+|exit(?:ed|ing)?|"
     r"cut(?:ting)? (?:my )?(?:losses|position)|"
     r"out of (?:this|it)|dumped)\b",
-    re.I,
+    re.IGNORECASE,
 )
 # a price with a direction word around it: "$420 target", "to 300", "pt 500"
 _TARGET = re.compile(
     r"(?:\b(?:pt|target|tgt|going|goes|heads?|to|toward|towards|hits?|"
     r"reach\w*|see\w*|back to|by\s+\w+)\s*[:=]?\s*)\$?(\d{2,5}(?:\.\d+)?)"
     r"|\$(\d{2,5}(?:\.\d+)?)\s*(?:pt|target|tgt|eoy|by\b)",
-    re.I,
+    re.IGNORECASE,
 )
 _CASHTAG = re.compile(r"\$([A-Za-z][A-Za-z.\-]{0,5})\b")
 
@@ -1005,7 +1005,9 @@ def classify_post(body, ticker, spot=None):
     tags = [t.upper() for t in _CASHTAG.findall(txt)]
     want = ticker.upper()
     # bare mentions count too: "$ISRG" and "ISRG" and the company name
-    mentions_ticker = want in tags or re.search(r"\b%s\b" % re.escape(want), txt, re.I) is not None
+    mentions_ticker = (
+        want in tags or re.search(r"\b%s\b" % re.escape(want), txt, re.IGNORECASE) is not None
+    )
     stripped = re.sub(r"[$#@][A-Za-z0-9_.\-]+", "", txt)
     stripped = re.sub(r"https?://\S+", "", stripped)
     content = re.sub(r"[^\w]", "", stripped)
@@ -1157,10 +1159,10 @@ def _article_relevance(url, ticker, company_words):
         body = re.sub(r"\s+", " ", body)
         out["fetched"] = True
         out["chars"] = len(body)
-        tk = list(re.finditer(r"\b%s\b" % re.escape(ticker), body, re.I))
+        tk = list(re.finditer(r"\b%s\b" % re.escape(ticker), body, re.IGNORECASE))
         cw = 0
         for w in company_words:
-            cw += len(re.findall(re.escape(w), body, re.I))
+            cw += len(re.findall(re.escape(w), body, re.IGNORECASE))
         out["mentions"] = len(tk)
         out["company_mentions"] = cw
         if tk and len(body):
@@ -1319,7 +1321,7 @@ def build_snapshot(ticker, report_time=None, cik=None):
     Default None keeps the historical ticker->CIK mapping — the v4
     production path is byte-identical when the argument is omitted."""
     ticker = ticker.upper()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     report_time = report_time or _iso(now)
     retrieved_at = _iso(now)
     prov = {"warnings": [], "coverage": {}, "deferred": []}
@@ -2856,7 +2858,7 @@ def discover_catalyst(acc, report_time, period_end, bars, ledger, lookback_days=
     # disclosure of results cannot precede the period it reports.
     if period_end:
         try:
-            pe = datetime.fromisoformat(period_end).replace(tzinfo=timezone.utc)
+            pe = datetime.fromisoformat(period_end).replace(tzinfo=UTC)
             since = max(since, pe)
         except Exception:
             pass
@@ -3580,7 +3582,7 @@ def _insider_read(sells, buys, planned, mech, with_denom, concentration):
 
 def _next_review(report_time, mk, days=7):
     """A concrete calendar date, not 'periodically'."""
-    t = rs._parse_ts(report_time) or datetime.now(timezone.utc)
+    t = rs._parse_ts(report_time) or datetime.now(UTC)
     d = (t + timedelta(days=days)).date()
     while d.weekday() >= 5:
         d += timedelta(days=1)
@@ -3690,8 +3692,8 @@ def render_v3(ticker, out_dir, report_time=None):
 
 def render(ticker, out_dir, report_time=None):
     """Build, gate and render the live brief plus its evidence export."""
-    import report_v2 as R
     import report_chart as RC
+    import report_v2 as R
 
     snap, alt, recs, prov = build_snapshot(ticker, report_time)
     mk, led = prov["_mk"], prov["_ledger"]
@@ -3912,7 +3914,7 @@ def run_for_user(ticker, user_id="", out_dir=None):
             or "see validation report"
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     stamp = now.strftime("%Y-%m-%d_%H%M")
     # The core brief is the report. The appendix is its audit trail and
     # ships beside it under a matching name so a reader who wants the

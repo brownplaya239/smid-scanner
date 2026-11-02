@@ -29,8 +29,8 @@ import datetime
 import json
 import os
 import sys
-import urllib.parse
 import urllib.error
+import urllib.parse
 import urllib.request
 
 REPORT_URL = os.environ.get("REPORT_URL", "https://tickerdesk.io/reports/uoa_latest.json")
@@ -54,7 +54,7 @@ def et_now():
     except Exception:
         # Fallback: assume EDT (UTC-4). Only affects the RTH-window guard;
         # the age math below is timezone-agnostic (uses UTC throughout).
-        return datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=4)
+        return datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=4)
 
 
 def send_alert(subject, body):
@@ -131,14 +131,14 @@ def main():
     try:
         t = datetime.datetime.fromisoformat(str(gen).replace("Z", "+00:00"))
         if t.tzinfo is None:
-            t = t.replace(tzinfo=datetime.timezone.utc)
+            t = t.replace(tzinfo=datetime.UTC)
     except Exception:
         send_alert(
             "TickerDesk: UOA timestamp unparseable", "Could not parse `generated`: " + str(gen)[:80]
         )
         return 1
 
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    now_utc = datetime.datetime.now(datetime.UTC)
     age_min = (now_utc - t).total_seconds() / 60.0
 
     if age_min <= MAX_AGE_MIN:
@@ -155,7 +155,7 @@ def main():
         try:
             at = datetime.datetime.fromisoformat(str(attempt).replace("Z", "+00:00"))
             if at.tzinfo is None:
-                at = at.replace(tzinfo=datetime.timezone.utc)
+                at = at.replace(tzinfo=datetime.UTC)
             attempt_age = (now_utc - at).total_seconds() / 60.0
         except Exception:
             attempt_age = None

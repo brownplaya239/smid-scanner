@@ -35,7 +35,7 @@ def orphan_bullets(page_texts):
         lines = [ln.strip() for ln in (t or "").splitlines() if ln.strip()]
         # ignore running header/footer lines (short, no bullet)
         body = [ln for ln in lines if len(ln) > 3]
-        bullets = [ln for ln in body if ln.startswith(("•", "-", "*")) or ln.startswith("•")]
+        bullets = [ln for ln in body if ln.startswith(("•", "-", "*", "•"))]
         if bullets and len(bullets) == 1 and len(body) <= 3 and sum(len(ln) for ln in body) < 220:
             bad.append("page %d: single stranded bullet" % (i + 1))
     return bad
@@ -238,7 +238,7 @@ BANNED_HISTORICAL = (
     "expected value",
 )
 
-_SCENARIO_RX = re.compile(r"\bscenario\w*\b", re.I)
+_SCENARIO_RX = re.compile(r"\bscenario\w*\b", re.IGNORECASE)
 
 
 def scenario_language_issues(core_text, mode):
@@ -976,7 +976,7 @@ def grid_ttm_pdf_issues(grid, core_text, fmt_money=None):
     out = []
 
     def _fmt(v):  # mirrors the renderer's $M cell
-        return (fmt_money or (lambda x: "{:,.0f}".format(x / 1e6)))(v)
+        return (fmt_money or (lambda x: f"{x / 1e6:,.0f}"))(v)
 
     for m in ("revenue", "net_income", "ocf"):
         v = ttm.get(m)

@@ -278,7 +278,7 @@ if __name__ == "__main__":
             print(
                 f"  {b['date']}  {b['rel_vol']:.1f}x  {b['change_pct']:+.1f}%  -> {b['classification']}"
             )
-        print(f"Monthly flow:")
+        print("Monthly flow:")
         for m in flow:
             print(
                 f"  {m['label']:14s} {m['ratio']:5.1f}% up-vol  ({m['trend']:22s})  price {m['price_chg']:+.1f}%"

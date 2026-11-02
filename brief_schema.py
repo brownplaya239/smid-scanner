@@ -16,7 +16,6 @@ was. `ok` is the conjunction; a False anywhere blocks the send.
 import hashlib
 import json
 import re
-import sys
 
 SCHEMA = "tickerdesk_daily_brief/v1"
 

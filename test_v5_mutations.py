@@ -20,8 +20,11 @@ import sys
 import tempfile
 from datetime import date, timedelta
 
+import report_v5_adapters as ADP2
 import report_v5_checks as CK
+import report_v5_framework as FW
 import report_v5_ledger as LG
+import report_v5_multiples as MU
 import test_v5_no_ticker_branches as TB
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -113,7 +116,6 @@ prove(
 )
 
 # ── framework / routing / adapter ────────────────────────────────────
-import report_v5_framework as FW
 
 _good_dims = {k: {"status": "NOT_ASSESSED"} for k in FW.TIGER_DIMENSIONS}
 _mut = dict(_good_dims)
@@ -321,7 +323,6 @@ prove(
 )
 
 # ── v5.7 §1: point-in-time integrity ─────────────────────────────────
-import report_v5_multiples as MU
 
 _now = date(2026, 7, 28)
 _stale_events = [
@@ -425,7 +426,6 @@ prove(
 )
 
 # ── v5.7 §2: sector compatibility ────────────────────────────────────
-import report_v5_adapters as ADP2
 
 _reit = {"key": "reit", "policy": ADP2.policy_for("reit")}
 _bank = {"key": "bank_insurer", "policy": ADP2.policy_for("bank_insurer")}
@@ -503,9 +503,11 @@ prove(
     CK.sundheim_header_issues(
         [
             "Sundheim decision record\nQuestion\nQ1",
-            "Q2\nthe full answer that must render without clipping "
-            "anywhere\na second substantial answer that also flows "
-            "onto the next page",
+            (
+                "Q2\nthe full answer that must render without clipping "
+                "anywhere\na second substantial answer that also flows "
+                "onto the next page"
+            ),
         ],
         _sd_fix,
     ),
@@ -966,9 +968,11 @@ prove(
     CK.stranded_validation_summary_issues(
         [
             "1. Framework coverage ...",
-            "14. Validation summary and "
-            "artifact hashes Binding record for this package sha256 "
-            "abc123",
+            (
+                "14. Validation summary and "
+                "artifact hashes Binding record for this package sha256 "
+                "abc123"
+            ),
         ],
         [0.9, 0.30],
     ),

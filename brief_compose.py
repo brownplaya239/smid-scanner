@@ -12,12 +12,12 @@ a single table.
 """
 
 import re
-import sys
 from datetime import timedelta as _timedelta
 
 
 def _now_et():
     from datetime import datetime
+
     import brief_time as BT
 
     return datetime.now(BT.ET)
@@ -1001,19 +1001,19 @@ def verify_relevance(item, ticker, aliases=None):
     hay = " ".join([item.get("headline") or "", item.get("summary") or ""])
     names = list(item.get("company_words") or [])
     names += list((aliases or {}).get(ticker) or [])
-    if re.search(r"\b%s\b" % re.escape(ticker), hay, re.I):
+    if re.search(r"\b%s\b" % re.escape(ticker), hay, re.IGNORECASE):
         return VERIFIED
     for w in names:
-        if len(w) > 3 and re.search(r"\b%s" % re.escape(w), hay, re.I):
+        if len(w) > 3 and re.search(r"\b%s" % re.escape(w), hay, re.IGNORECASE):
             return VERIFIED
     # does the headline name some OTHER covered company instead?
     for other, alist in (aliases or {}).items():
         if other == ticker:
             continue
-        if re.search(r"\b%s\b" % re.escape(other), hay, re.I):
+        if re.search(r"\b%s\b" % re.escape(other), hay, re.IGNORECASE):
             return MISATTRIBUTED
         for w in alist or []:
-            if len(w) > 3 and re.search(r"\b%s" % re.escape(w), hay, re.I):
+            if len(w) > 3 and re.search(r"\b%s" % re.escape(w), hay, re.IGNORECASE):
                 return MISATTRIBUTED
     return UNCONFIRMED
 
@@ -1266,8 +1266,9 @@ def self_test():
     )
 
     # the OI state machine: absence of a reading is not a failed reading
-    import brief_time as _BT
     from datetime import datetime as _dt
+
+    import brief_time as _BT
 
     now = _dt(2026, 7, 22, 9, 0, tzinfo=_BT.ET)
     pend = oi_state({"printed_at": "2026-07-21T19:44:00Z"}, now)
@@ -1729,7 +1730,7 @@ def self_test():
 # on the assembled payload immediately before send and BLOCK delivery.
 
 _PLACEHOLDER_URL = re.compile(
-    r"https?://(x|y|z|example\.(com|org)|test|localhost|placeholder)[/\s\"']", re.I
+    r"https?://(x|y|z|example\.(com|org)|test|localhost|placeholder)[/\s\"']", re.IGNORECASE
 )
 _TOKEN = re.compile(r"\{\{|\}\}|%\(|\{\d*\}|__[A-Z_]+__|TODO|FIXME|lorem")
 
@@ -1918,7 +1919,7 @@ def check_unsubscribe(html_doc, unsub):
     if unsub not in doc:
         v.append("the unsubscribe URL in the headers does not appear as a visible link in the body")
     # any OTHER href sitting under the word Unsubscribe is a mismatch
-    for href in re.findall(r'href="([^"]+)"[^>]*>\s*Unsubscribe', doc, re.I):
+    for href in re.findall(r'href="([^"]+)"[^>]*>\s*Unsubscribe', doc, re.IGNORECASE):
         if href != unsub:
             v.append("visible Unsubscribe links to %r, not the signed endpoint" % href)
     return v
@@ -1962,10 +1963,10 @@ def check_document(html_doc):
         ("<head>", r"<head[\s>]"),
         ("<body>", r"<body[\s>]"),
     ):
-        n = len(re.findall(pat, d, re.I))
+        n = len(re.findall(pat, d, re.IGNORECASE))
         if n != 1:
             v.append("document contains %d %s (expected exactly 1)" % (n, tag))
-    if d and not re.search(r'<html[^>]*\blang="en"', d, re.I):
+    if d and not re.search(r'<html[^>]*\blang="en"', d, re.IGNORECASE):
         v.append('<html> is missing lang="en"')
     return v
 
@@ -2115,4 +2116,4 @@ def validate_send(
 
 
 if __name__ == "__main__":
-    raise SystemExit(self_test() if "--self-test" in sys.argv else self_test())
+    raise SystemExit(self_test())

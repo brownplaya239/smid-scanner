@@ -36,7 +36,6 @@ import hashlib
 import json
 
 import report_v3_model as M
-import research_snapshot as rs
 
 SCHEMA = "stock_research_brief_evidence/v3.2"
 
@@ -217,7 +216,7 @@ def _rec(
 
 
 def _round_half_up(x, places):
-    from decimal import Decimal, ROUND_HALF_UP
+    from decimal import ROUND_HALF_UP, Decimal
 
     q = Decimal(10) ** -places
     return float(Decimal(repr(float(x))).quantize(q, rounding=ROUND_HALF_UP))
@@ -276,7 +275,7 @@ def _calc(cid, rec, records, calcs):
     An operand that cannot be resolved is kept and marked, because a
     calculation whose inputs cannot be produced is exactly what the
     operand-completeness check exists to catch."""
-    slug = cid[5:] if cid.startswith("CALC-") else cid
+    slug = cid.removeprefix("CALC-")
     fmt, places, rule = DISPLAY.get(slug, ("%s", None, "no rounding applied"))
     raw = rec.get("output")
     operands, complete = [], True
@@ -288,7 +287,7 @@ def _calc(cid, rec, records, calcs):
             lo, hi = str(ref).split("..", 1)
             pre = "SPY-" if lo.startswith("SPY-") else "BAR-"
             member = [k for k in records if k.startswith(pre) and lo <= k <= hi]
-            want = DECLARED_WINDOW.get(cid[5:] if cid.startswith("CALC-") else cid)
+            want = DECLARED_WINDOW.get(cid.removeprefix("CALC-"))
             # Cardinality, not mere presence. "Some bars matched" is how a
             # 200-session window validated against 199 delivered bars.
             enough = bool(member) and (want is None or len(member) == want)
@@ -486,7 +485,7 @@ def _recompute_operands(slug, ops):
 
 def _reproduce(cid, rec, records, calcs, benchmark, operands=None):
     """Attach the independent recomputation to a calculation record."""
-    slug = cid[5:] if cid.startswith("CALC-") else cid
+    slug = cid.removeprefix("CALC-")
     members, bench, ranges = [], [], 0
     for ref in rec.get("inputs") or []:
         r = str(ref)
@@ -500,9 +499,7 @@ def _reproduce(cid, rec, records, calcs, benchmark, operands=None):
                 bench = [pool[k] for k in got]
             else:
                 members = [pool[k] for k in got]
-        elif r.startswith("BAR-") and r in records:
-            members.append(records[r])
-        elif r.startswith("INTRADAY-") and r in records:
+        elif r.startswith("BAR-") and r in records or r.startswith("INTRADAY-") and r in records:
             members.append(records[r])
     got, why = _recompute(slug, members, bench)
     if got is None and why is None:
@@ -524,7 +521,7 @@ def _reproduce(cid, rec, records, calcs, benchmark, operands=None):
                 "is not re-derived here"
             )
     else:
-        tol = 0.011 if isinstance(published, float) else 0.011
+        tol = 0.011
         ok = isinstance(published, (int, float)) and abs(float(published) - got) <= tol
         out["reproducible"] = bool(ok)
         if not ok:
@@ -885,7 +882,7 @@ def build(snap, view, prov=None, led=None, artifacts=None, suppressed=None):
     for c in ld.get("technical_calculations") or []:
         rec = _calc(c["id"], c, records, calcs)
         rec.update(_reproduce(c["id"], c, records, calcs, benchmark, operands=rec.get("operands")))
-        slug = c["id"][5:] if c["id"].startswith("CALC-") else c["id"]
+        slug = c["id"].removeprefix("CALC-")
         # A calculation the snapshot withheld is recorded with its reason
         # rather than dropped: the reader can still see it was computed
         # and why it is not on the page.
@@ -941,11 +938,11 @@ def build(snap, view, prov=None, led=None, artifacts=None, suppressed=None):
 
     # record_hash is stamped last, over the finished record, so it can be
     # recomputed from evidence.json with nothing else in hand.
-    for _rid, _r in records.items():
+    for _r in records.values():
         _r.pop("record_hash", None)
         _r["record_hash"] = record_hash(_r)
 
-    coverage = dict((prov.get("coverage") or {}))
+    coverage = dict(prov.get("coverage") or {})
     # The exhibit was parsed, so the coverage line that says non-GAAP is
     # unavailable is now contradicted by the report itself.
     if (snap.get("exhibit") or {}).get("disposition") == "ADMITTED":

@@ -15,8 +15,6 @@ renderings can be compared without parsing sentences.
     python brief_model.py --self-test
 """
 
-import sys
-
 import brief_compose as BC
 import brief_schema as BS
 import brief_time as BT

@@ -25,7 +25,7 @@ import json
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import polygon_data as pg
 
@@ -102,9 +102,7 @@ def detail_date(ticker):
 def build_dates(universe, cache):
     """cache: {ticker: "YYYY-MM-DD" | ""}. "" = dated, no list_date on
     file (Polygon has none) — cached so we never re-ask."""
-    since = (
-        datetime.now(timezone.utc).date() - timedelta(days=int(IPO_YEARS * 365.25) + 30)
-    ).isoformat()
+    since = (datetime.now(UTC).date() - timedelta(days=int(IPO_YEARS * 365.25) + 30)).isoformat()
     fresh = ipos_endpoint_dates(since)
     if fresh:
         print(f"  IPOs endpoint: {len(fresh)} listings since {since}")
@@ -144,9 +142,9 @@ def avg_volumes(tickers):
     cost is AVG_SESSIONS calls regardless of how many tickers we want."""
     want = set(tickers)
     sums, counts = {}, {}
-    day = datetime.now(timezone.utc).date()
+    day = datetime.now(UTC).date()
     got = 0
-    while got < AVG_SESSIONS and (datetime.now(timezone.utc).date() - day).days < 70:
+    while got < AVG_SESSIONS and (datetime.now(UTC).date() - day).days < 70:
         day -= timedelta(days=1)
         if day.weekday() >= 5:
             continue
@@ -175,9 +173,7 @@ def main():
     cache = build_dates(universe, cache)
     _save(CACHE_PATH, cache)
 
-    cutoff = (
-        datetime.now(timezone.utc).date() - timedelta(days=int(IPO_YEARS * 365.25))
-    ).isoformat()
+    cutoff = (datetime.now(UTC).date() - timedelta(days=int(IPO_YEARS * 365.25))).isoformat()
     recent = {t: d for t, d in cache.items() if d and d >= cutoff and t in universe}
     print(f"  {len(recent)} listed on/after {cutoff}")
     avg = avg_volumes(recent.keys())
@@ -194,7 +190,7 @@ def main():
                 "mcap": round(caps[t]) if t in caps else None,
             }
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "ipo_window_years": IPO_YEARS,
         "sessions_avg": AVG_SESSIONS,
         "cutoff": cutoff,

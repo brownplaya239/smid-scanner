@@ -18,7 +18,7 @@ A manual override changes presentation but NEVER bypasses evidence
 gates — forbidden sections stay forbidden if the capability is absent.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import report_v5_archetype as A
 
@@ -70,7 +70,7 @@ def company_profile(snap, multiples=None, sector=None, industry=None):
         "industry": industry or ov.get("industry") or biz.get("industry"),
         "pre_revenue_status": rev is None and nq == 0,
         "business_model_tags": [],  # adapter phase populates
-        "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "as_of": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
 
@@ -248,9 +248,7 @@ def route(
         reasons.append(
             "FULL requires %s — insufficient: %s"
             % (
-                ", ".join(
-                    ("operating history", "filed statements", "price history", "valuation support")
-                ),
+                "operating history, filed statements, price history, valuation support",
                 ", ".join(missing),
             )
         )
@@ -322,7 +320,7 @@ def route(
             "from": decision,
             "to": override,
             "author": override_author or "unattributed",
-            "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
             "reason": override_reason or "not stated",
         }
         rec["selected_archetype"] = rec["archetype"] = override

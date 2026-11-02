@@ -29,7 +29,7 @@ import argparse
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from statistics import mean, median
 
 import yfinance as yf
@@ -59,7 +59,7 @@ def upcoming_names():
     """(ticker, earnings_date, session) reporting within HORIZON_D days,
     from the same meta cache the desk Earnings tile renders."""
     meta = _load("uoa_meta_cache.json") or {}
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     out = []
     for t, m in meta.items():
         d = (m or {}).get("earnings_date")
@@ -200,7 +200,7 @@ def realized_stats(ticker):
     ed = tk.get_earnings_dates(limit=MAX_REPORTS + 6)
     if ed is None or ed.empty:
         return None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     past = [ts for ts in ed.index if ts.tz_convert("UTC") < now]
     past = sorted(past, reverse=True)[:MAX_REPORTS]
     if len(past) < MIN_REPORTS:
@@ -329,7 +329,7 @@ def build():
         counts[r["verdict"]] = counts.get(r["verdict"], 0) + 1
     print("  verdicts: " + ", ".join(f"{k} {v}" for k, v in counts.items()))
     return {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "horizon_days": HORIZON_D,
         "count": len(results),
         "names": results,
