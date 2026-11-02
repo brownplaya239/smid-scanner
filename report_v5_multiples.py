@@ -35,15 +35,16 @@ from datetime import date, datetime, timedelta, timezone
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-WINDOW_YEARS = 3          # regime-relevant beats stale (design call (a))
-MIN_COVERAGE = 0.60       # fraction of window sessions with a computable
-                          # multiple below which the band is withheld
-QTR_DAYS = (80, 100)      # duration bounds for one fiscal quarter
-ANN_DAYS = (350, 380)     # ... and one fiscal year
-MAX_TTM_SPAN = 380        # four "consecutive" quarters must fit in this
+WINDOW_YEARS = 3  # regime-relevant beats stale (design call (a))
+MIN_COVERAGE = 0.60  # fraction of window sessions with a computable
+# multiple below which the band is withheld
+QTR_DAYS = (80, 100)  # duration bounds for one fiscal quarter
+ANN_DAYS = (350, 380)  # ... and one fiscal year
+MAX_TTM_SPAN = 380  # four "consecutive" quarters must fit in this
 
 
 # ── point-in-time fact stream (pure; testable without a network) ──────
+
 
 def _dt(s):
     return datetime.strptime(str(s)[:10], "%Y-%m-%d").date()
@@ -69,10 +70,13 @@ def quarterly_events(rows):
         filed = _dt(r.get("filed"))
         # as-first-reported: keep the EARLIEST filing that stated it
         if end not in seen or filed < seen[end]["_filed"]:
-            seen[end] = {"end": end, "val": float(r["val"]),
-                         "available_from": (filed + timedelta(days=1)
-                                            ).isoformat(),
-                         "accn": r.get("accn"), "_filed": filed}
+            seen[end] = {
+                "end": end,
+                "val": float(r["val"]),
+                "available_from": (filed + timedelta(days=1)).isoformat(),
+                "accn": r.get("accn"),
+                "_filed": filed,
+            }
     out = sorted(seen.values(), key=lambda x: x["end"])
     for o in out:
         o.pop("_filed", None)
@@ -96,11 +100,14 @@ def annual_events(rows):
         end = str(r["end"])
         filed = _dt(r.get("filed"))
         if end not in seen or filed < seen[end]["_filed"]:
-            seen[end] = {"start": str(r["start"]), "end": end,
-                         "val": float(r["val"]),
-                         "available_from": (filed + timedelta(days=1)
-                                            ).isoformat(),
-                         "accn": r.get("accn"), "_filed": filed}
+            seen[end] = {
+                "start": str(r["start"]),
+                "end": end,
+                "val": float(r["val"]),
+                "available_from": (filed + timedelta(days=1)).isoformat(),
+                "accn": r.get("accn"),
+                "_filed": filed,
+            }
     out = sorted(seen.values(), key=lambda x: x["end"])
     for o in out:
         o.pop("_filed", None)
@@ -117,10 +124,15 @@ def derive_q4(quarters, annuals):
         inside = [q for q in quarters if fy_start <= q["end"] < fy_end]
         if len(inside) != 3:
             continue
-        out.append({"end": fy_end,
-                    "val": round(a["val"] - sum(q["val"] for q in inside), 4),
-                    "available_from": a["available_from"],
-                    "accn": a["accn"], "derived": "fy_minus_3q"})
+        out.append(
+            {
+                "end": fy_end,
+                "val": round(a["val"] - sum(q["val"] for q in inside), 4),
+                "available_from": a["available_from"],
+                "accn": a["accn"],
+                "derived": "fy_minus_3q",
+            }
+        )
     return out
 
 
@@ -144,27 +156,30 @@ def ttm_integrity(events, d):
     for e in known:
         by_end.setdefault(e["end"], e)
     ends = sorted(by_end)[-4:]
-    rec = {"quarters": ends, "as_of": d.isoformat(),
-           "contiguous": None, "current": None, "ok": False,
-           "reasons": []}
+    rec = {
+        "quarters": ends,
+        "as_of": d.isoformat(),
+        "contiguous": None,
+        "current": None,
+        "ok": False,
+        "reasons": [],
+    }
     if len(ends) < 4:
-        rec["reasons"].append("only %d filed quarter(s) knowable"
-                              % len(ends))
+        rec["reasons"].append("only %d filed quarter(s) knowable" % len(ends))
         return rec
     gaps = [(_dt(b) - _dt(a)).days for a, b in zip(ends, ends[1:])]
-    rec["contiguous"] = all(QTR_GAP_DAYS[0] <= g <= QTR_GAP_DAYS[1]
-                            for g in gaps)
+    rec["contiguous"] = all(QTR_GAP_DAYS[0] <= g <= QTR_GAP_DAYS[1] for g in gaps)
     if not rec["contiguous"]:
-        rec["reasons"].append("quarter ends are not contiguous "
-                              "(gaps %s days)" % gaps)
+        rec["reasons"].append("quarter ends are not contiguous (gaps %s days)" % gaps)
     age = (d - _dt(ends[-1])).days
     rec["current"] = age <= TTM_MAX_END_AGE
     rec["newest_end_age_days"] = age
     if not rec["current"]:
-        rec["reasons"].append("newest quarter end %s is %d days before "
-                              "the valuation date (max %d) — the "
-                              "concept's filed series has gone stale"
-                              % (ends[-1], age, TTM_MAX_END_AGE))
+        rec["reasons"].append(
+            "newest quarter end %s is %d days before "
+            "the valuation date (max %d) — the "
+            "concept's filed series has gone stale" % (ends[-1], age, TTM_MAX_END_AGE)
+        )
     rec["ok"] = rec["contiguous"] and rec["current"]
     return rec
 
@@ -183,24 +198,24 @@ def ttm_at(events, d):
     if len(ends) < 4:
         return None
     if (_dt(ends[-1]) - _dt(ends[0])).days > MAX_TTM_SPAN:
-        return None                       # a gap, not a trailing year
+        return None  # a gap, not a trailing year
     gaps = [(_dt(b) - _dt(a)).days for a, b in zip(ends, ends[1:])]
     if not all(QTR_GAP_DAYS[0] <= g <= QTR_GAP_DAYS[1] for g in gaps):
-        return None                       # non-contiguous quarters
+        return None  # non-contiguous quarters
     if (d - _dt(ends[-1])).days > TTM_MAX_END_AGE:
-        return None                       # stale relative to this date
+        return None  # stale relative to this date
     return sum(by_end[e]["val"] for e in ends)
 
 
 # ── the band (pure) ───────────────────────────────────────────────────
+
 
 def _pct(sorted_vals, p):
     if not sorted_vals:
         return None
     k = (len(sorted_vals) - 1) * p
     lo, hi = int(k), min(int(k) + 1, len(sorted_vals) - 1)
-    return round(sorted_vals[lo] + (sorted_vals[hi] - sorted_vals[lo])
-                 * (k - lo), 2)
+    return round(sorted_vals[lo] + (sorted_vals[hi] - sorted_vals[lo]) * (k - lo), 2)
 
 
 def multiple_band(bars, events, years=WINDOW_YEARS, kind="pe"):
@@ -226,10 +241,12 @@ def multiple_band(bars, events, years=WINDOW_YEARS, kind="pe"):
         series.append(round(close / ttm, 3))
     n = len(series)
     coverage = n / len(window) if window else 0.0
-    actual_years = (round(((_dt(window[-1][0]) - _dt(window[0][0])).days)
-                          / 365.25, 1) if window else 0.0)
+    actual_years = (
+        round(((_dt(window[-1][0]) - _dt(window[0][0])).days) / 365.25, 1) if window else 0.0
+    )
     base = {
-        "kind": kind, "window_years": years,
+        "kind": kind,
+        "window_years": years,
         "actual_years": actual_years,
         "window_start": window[0][0] if window else None,
         "window_end": window[-1][0] if window else None,
@@ -238,27 +255,39 @@ def multiple_band(bars, events, years=WINDOW_YEARS, kind="pe"):
         "coverage": round(coverage, 3),
         "excluded_negative_ttm": neg_days,
         "excluded_no_ttm": no_ttm,
-        "basis": ("daily close / trailing 4-quarter %s, each day using "
-                  "only filings available before that session (as first "
-                  "reported)" % ("EPS" if kind == "pe" else "revenue/share")),
+        "basis": (
+            "daily close / trailing 4-quarter %s, each day using "
+            "only filings available before that session (as first "
+            "reported)" % ("EPS" if kind == "pe" else "revenue/share")
+        ),
     }
     if coverage < MIN_COVERAGE:
-        base.update({"available": False,
-                     "reason": "only %.0f%% of window sessions had a "
-                               "computable positive trailing metric "
-                               "(minimum %.0f%%)"
-                               % (coverage * 100, MIN_COVERAGE * 100)})
+        base.update(
+            {
+                "available": False,
+                "reason": "only %.0f%% of window sessions had a "
+                "computable positive trailing metric "
+                "(minimum %.0f%%)" % (coverage * 100, MIN_COVERAGE * 100),
+            }
+        )
         return base
     s = sorted(series)
-    base.update({"available": True,
-                 "p25": _pct(s, 0.25), "p50": _pct(s, 0.50),
-                 "p75": _pct(s, 0.75),
-                 "min": round(s[0], 2), "max": round(s[-1], 2),
-                 "current": series[-1] if series else None})
+    base.update(
+        {
+            "available": True,
+            "p25": _pct(s, 0.25),
+            "p50": _pct(s, 0.50),
+            "p75": _pct(s, 0.75),
+            "min": round(s[0], 2),
+            "max": round(s[-1], 2),
+            "current": series[-1] if series else None,
+        }
+    )
     return base
 
 
 # ── fetch wrapper (network) ───────────────────────────────────────────
+
 
 def split_adjuster(split_rows):
     """-> adj(filed_date_iso) = cumulative split factor for facts filed
@@ -272,9 +301,11 @@ def split_adjuster(split_rows):
     exactly how ServiceNow's 5:1 (2025-12-18) turned the derived Q4 into
     FY(new basis) minus 3xQ(old basis) = a large negative, poisoning 64
     sessions of TTM."""
-    evs = [(str(r.get("execution_date")),
-            (r.get("split_to") or 1) / (r.get("split_from") or 1))
-           for r in split_rows or [] if r.get("execution_date")]
+    evs = [
+        (str(r.get("execution_date")), (r.get("split_to") or 1) / (r.get("split_from") or 1))
+        for r in split_rows or []
+        if r.get("execution_date")
+    ]
 
     def adj(filed_iso):
         f = 1.0
@@ -282,6 +313,7 @@ def split_adjuster(split_rows):
             if str(filed_iso) < ex:
                 f *= ratio
         return f
+
     return adj
 
 
@@ -303,6 +335,7 @@ def build(ticker, years=WINDOW_YEARS):
     uses; multiples derive from close prices, so the split-adjusted
     basis matches the split-adjusted per-share XBRL facts."""
     import research_live as RL
+
     cik = RL.cik_for_filed(ticker)[0]
     mk = RL.fetch_market(ticker)
     dates = [d.isoformat() for d in mk["dates"]]
@@ -313,6 +346,7 @@ def build(ticker, years=WINDOW_YEARS):
 
     try:
         import polygon_data as PG
+
         adj = split_adjuster(PG.splits(ticker))
     except Exception:
         adj = split_adjuster([])
@@ -331,19 +365,17 @@ def build(ticker, years=WINDOW_YEARS):
     # concept with the freshest filed series wins outright — events from
     # different concepts are never mixed into one TTM.
     rev_events, rev_concept = [], None
-    for tag in ("RevenueFromContractWithCustomerExcludingAssessedTax",
-                "Revenues",
-                "RevenueFromContractWithCustomerIncludingAssessedTax"):
+    for tag in (
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "Revenues",
+        "RevenueFromContractWithCustomerIncludingAssessedTax",
+    ):
         rows = RL.concept(cik, tag)
         qq = quarterly_events(rows)
-        if qq and (not rev_events
-                   or max(e["end"] for e in qq)
-                   > max(e["end"] for e in rev_events)):
-            rev_events = sorted(qq + derive_q4(qq, annual_events(rows)),
-                                key=lambda x: x["end"])
+        if qq and (not rev_events or max(e["end"] for e in qq) > max(e["end"] for e in rev_events)):
+            rev_events = sorted(qq + derive_q4(qq, annual_events(rows)), key=lambda x: x["end"])
             rev_concept = tag
-    sh_rows = RL.concept(cik, "WeightedAverageNumberOfDilutedSharesOutstanding",
-                         unit="shares")
+    sh_rows = RL.concept(cik, "WeightedAverageNumberOfDilutedSharesOutstanding", unit="shares")
     sh_events = _rebase(quarterly_events(sh_rows), adj, per_share=False)
     rps_events = _per_share(rev_events, sh_events)
 
@@ -362,18 +394,19 @@ def build(ticker, years=WINDOW_YEARS):
         # §1 auditable TTM integrity as of the last completed session:
         # the quarters used, contiguity, and currency, per stream.
         "ttm_integrity": {
-            "pe": dict(ttm_integrity(eps_events, _dt(dates[-1]))
-                       if dates else {},
-                       concept="us-gaap:EarningsPerShareDiluted"),
-            "ps": dict(ttm_integrity(rev_events, _dt(dates[-1]))
-                       if dates else {},
-                       concept=("us-gaap:%s" % rev_concept)
-                       if rev_concept else None),
+            "pe": dict(
+                ttm_integrity(eps_events, _dt(dates[-1])) if dates else {},
+                concept="us-gaap:EarningsPerShareDiluted",
+            ),
+            "ps": dict(
+                ttm_integrity(rev_events, _dt(dates[-1])) if dates else {},
+                concept=("us-gaap:%s" % rev_concept) if rev_concept else None,
+            ),
         },
         "point_in_time_rule": "facts usable from the day after filing; "
-                              "as-first-reported values; TTM requires "
-                              "four contiguous, current quarters of one "
-                              "concept",
+        "as-first-reported values; TTM requires "
+        "four contiguous, current quarters of one "
+        "concept",
     }
 
 
@@ -387,10 +420,14 @@ def _per_share(metric_events, share_events):
         sh = sh_by_end.get(e["end"])
         if not sh or not sh["val"]:
             continue
-        out.append({"end": e["end"], "val": e["val"] / sh["val"],
-                    "available_from": max(e["available_from"],
-                                          sh["available_from"]),
-                    "accn": e["accn"]})
+        out.append(
+            {
+                "end": e["end"],
+                "val": e["val"] / sh["val"],
+                "available_from": max(e["available_from"], sh["available_from"]),
+                "accn": e["accn"],
+            }
+        )
     return out
 
 
@@ -400,8 +437,7 @@ def main():
     ap.add_argument("--years", type=int, default=WINDOW_YEARS)
     a = ap.parse_args()
     rec = build(a.ticker, a.years)
-    print(json.dumps({k: v for k, v in rec.items() if k != "eps_events"},
-                     indent=1))
+    print(json.dumps({k: v for k, v in rec.items() if k != "eps_events"}, indent=1))
     return 0
 
 

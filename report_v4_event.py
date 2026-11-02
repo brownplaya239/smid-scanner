@@ -50,8 +50,14 @@ DATA_HOLD = "DATA HOLD"
 PRE_EVENT = PRE_RELEASE
 RESULTS_RELEASED = RELEASED_PRE_CALL
 
-STATES = (PRE_RELEASE, RELEASED_PRE_CALL, CALL_IN_PROGRESS,
-          POST_CALL_UNVERIFIED, POST_CALL_VERIFIED, DATA_HOLD)
+STATES = (
+    PRE_RELEASE,
+    RELEASED_PRE_CALL,
+    CALL_IN_PROGRESS,
+    POST_CALL_UNVERIFIED,
+    POST_CALL_VERIFIED,
+    DATA_HOLD,
+)
 
 # The state IDs above are machine keys — stable, greppable, and checked by
 # the validator. They are not English. Every rendered surface uses these
@@ -61,8 +67,7 @@ PLAIN = {
     PRE_RELEASE: "Before the next earnings release",
     RELEASED_PRE_CALL: "Results out; call not yet held",
     CALL_IN_PROGRESS: "Earnings call in progress",
-    POST_CALL_UNVERIFIED: "Post-earnings; call complete; transcript not "
-                          "verified",
+    POST_CALL_UNVERIFIED: "Post-earnings; call complete; transcript not verified",
     POST_CALL_VERIFIED: "Post-earnings; call complete; transcript verified",
     DATA_HOLD: "On hold — a filed release is available but not yet read in",
 }
@@ -75,15 +80,14 @@ def plain(state):
 
 # A rating is only meaningful where its inputs are settled. CALL IN
 # PROGRESS and DATA HOLD withhold it.
-RATING_ALLOWED = {PRE_RELEASE, RELEASED_PRE_CALL, POST_CALL_UNVERIFIED,
-                  POST_CALL_VERIFIED}
+RATING_ALLOWED = {PRE_RELEASE, RELEASED_PRE_CALL, POST_CALL_UNVERIFIED, POST_CALL_VERIFIED}
 
 # Post-market earnings calls typically begin ~30 min after the release and
 # run ~90 min. Used only to distinguish the post-release phases from the
 # clock — never to claim POST-CALL VERIFIED, which needs a feed.
 CALL_DELAY_MIN = 30
 CALL_DURATION_MIN = 90
-ET_OFFSET_HOURS = -4                     # EDT; ET calendar-day comparison
+ET_OFFSET_HOURS = -4  # EDT; ET calendar-day comparison
 
 
 def _parse(ts):
@@ -102,8 +106,7 @@ def _et_date(when):
     means what a US reader means by it."""
     if not when:
         return None
-    return (when.astimezone(dt.timezone.utc)
-            + dt.timedelta(hours=ET_OFFSET_HOURS)).date()
+    return (when.astimezone(dt.timezone.utc) + dt.timedelta(hours=ET_OFFSET_HOURS)).date()
 
 
 def _call_phase(release, now):
@@ -183,16 +186,18 @@ def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
 
     if not released:
         state = PRE_RELEASE
-        reasons.append("No results release dated on or before the report "
-                       "time for this period.")
+        reasons.append("No results release dated on or before the report time for this period.")
     elif ver.get("is_results_disclosure") is not True:
         state = DATA_HOLD
-        reasons.append("Results appear released but the primary document "
-                       "did not verify as a results disclosure: %s"
-                       % (ver.get("reason") or "not verified"))
-    elif ((exhibit or {}).get("disposition") == "AVAILABLE_NOT_INGESTED"
-          and _release_age_days(exhibit, now) is not None
-          and _release_age_days(exhibit, now) <= HOLD_WINDOW_DAYS):
+        reasons.append(
+            "Results appear released but the primary document "
+            "did not verify as a results disclosure: %s" % (ver.get("reason") or "not verified")
+        )
+    elif (
+        (exhibit or {}).get("disposition") == "AVAILABLE_NOT_INGESTED"
+        and _release_age_days(exhibit, now) is not None
+        and _release_age_days(exhibit, now) <= HOLD_WINDOW_DAYS
+    ):
         # The release IS filed and verified, but the exhibit carrying the
         # guidance and operating metrics could not be parsed, and the
         # print is fresh: the missing numbers are exactly what the market
@@ -205,46 +210,60 @@ def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
         # filed numbers; an unreadable exhibit is then a labelled gap in
         # the guidance section, not grounds to withhold the whole report.
         state = DATA_HOLD
-        reasons.append("The earnings release is filed and verified, but the "
-                       "exhibit carrying its guidance and operating metrics "
-                       "could not be parsed (%s), and the release is %d "
-                       "day(s) old. Until it is read in, any post-earnings "
-                       "view would be missing the numbers the market is "
-                       "repricing on — held rather than shipped incomplete."
-                       % ((exhibit or {}).get("reason")
-                          or "exhibit not ingested",
-                          _release_age_days(exhibit, now)))
+        reasons.append(
+            "The earnings release is filed and verified, but the "
+            "exhibit carrying its guidance and operating metrics "
+            "could not be parsed (%s), and the release is %d "
+            "day(s) old. Until it is read in, any post-earnings "
+            "view would be missing the numbers the market is "
+            "repricing on — held rather than shipped incomplete."
+            % (
+                (exhibit or {}).get("reason") or "exhibit not ingested",
+                _release_age_days(exhibit, now),
+            )
+        )
     elif call_status == "live":
         state = CALL_IN_PROGRESS
-        reasons.append("A call-status feed reports the earnings call is "
-                       "live; guidance may be revised on the call.")
+        reasons.append(
+            "A call-status feed reports the earnings call is "
+            "live; guidance may be revised on the call."
+        )
     elif call_status == "concluded":
         state = POST_CALL_VERIFIED
-        reasons.append("Release verified as results and a feed confirms the "
-                       "call has concluded.")
+        reasons.append("Release verified as results and a feed confirms the call has concluded.")
     else:
         phase = _call_phase(ev, now)
         hrs = (now - ev).total_seconds() / 3600.0 if ev else 0.0
         if phase == "pre_call":
             state = RELEASED_PRE_CALL
-            reasons.append("Results are out; the earnings call has not yet "
-                           "started (%.1fh since release)." % hrs)
+            reasons.append(
+                "Results are out; the earnings call has not yet "
+                "started (%.1fh since release)." % hrs
+            )
         elif phase == "in_progress":
             state = CALL_IN_PROGRESS
-            reasons.append("The earnings call is within its likely window "
-                           "(%.1fh since release) and no feed confirms it "
-                           "has ended; guidance may still change." % hrs)
+            reasons.append(
+                "The earnings call is within its likely window "
+                "(%.1fh since release) and no feed confirms it "
+                "has ended; guidance may still change." % hrs
+            )
         else:
             state = POST_CALL_UNVERIFIED
-            reasons.append("Results are out and the call has concluded by "
-                           "the clock (%.0fh since release%s), but no "
-                           "transcript feed verifies what was said."
-                           % (hrs, ", a later ET day"
-                              if _et_date(now) and _et_date(ev)
-                              and _et_date(now) > _et_date(ev) else ""))
+            reasons.append(
+                "Results are out and the call has concluded by "
+                "the clock (%.0fh since release%s), but no "
+                "transcript feed verifies what was said."
+                % (
+                    hrs,
+                    ", a later ET day"
+                    if _et_date(now) and _et_date(ev) and _et_date(now) > _et_date(ev)
+                    else "",
+                )
+            )
         if not _guidance_ok(exhibit):
-            reasons.append("Guidance did not parse from the earnings "
-                           "exhibit; the forward view is incomplete.")
+            reasons.append(
+                "Guidance did not parse from the earnings exhibit; the forward view is incomplete."
+            )
 
     rating_allowed = state in RATING_ALLOWED
 
@@ -259,18 +278,19 @@ def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
             days_to = (nd - now.date()).days
             if 0 <= days_to <= PRE_EVENT_WINDOW_DAYS:
                 state = PRE_RELEASE
-                reasons.append("next expected report %s is %d day(s) "
-                               "away (within the %d-day pre-event "
-                               "window) — classified pre-earnings"
-                               % (nd.isoformat(), days_to,
-                                  PRE_EVENT_WINDOW_DAYS))
+                reasons.append(
+                    "next expected report %s is %d day(s) "
+                    "away (within the %d-day pre-event "
+                    "window) — classified pre-earnings"
+                    % (nd.isoformat(), days_to, PRE_EVENT_WINDOW_DAYS)
+                )
         except ValueError:
             pass
 
     # Once results are out, the vendor next-earnings date belongs to the
     # FOLLOWING period and must never be shown as this period's pending
     # catalyst. Only PRE-RELEASE has a genuinely pending print.
-    next_earnings_is_pending = (state == PRE_RELEASE)
+    next_earnings_is_pending = state == PRE_RELEASE
 
     return {
         "state": state,
@@ -278,8 +298,7 @@ def event_state(catalyst, exhibit=None, report_time=None, call_status=None):
         "rating_allowed": rating_allowed,
         "next_earnings_is_pending": next_earnings_is_pending,
         "call_concluded": state in (POST_CALL_UNVERIFIED, POST_CALL_VERIFIED),
-        "flash": flash(catalyst, exhibit, now) if state == DATA_HOLD
-                 else None,
+        "flash": flash(catalyst, exhibit, now) if state == DATA_HOLD else None,
         "reasons": reasons,
         "event_dt": catalyst.get("event_dt"),
         "event_kind": catalyst.get("event_kind"),
@@ -295,21 +314,25 @@ def flash(catalyst, exhibit=None, now=None):
     ev = (catalyst or {}).get("event_dt")
     ex = exhibit or {}
     if ex.get("disposition") == "AVAILABLE_NOT_INGESTED":
-        why = (ex.get("reason") or "the exhibit could not be parsed")
-        body = ("The results for the period dated %s are filed, but the "
-                "exhibit carrying the company's guidance and operating "
-                "metrics could not be read by this pipeline: %s. Those "
-                "figures are what the market is repricing on, so no rating "
-                "is issued until they are read from the filed release. This "
-                "is a limitation of our software, not a view on the "
-                "company." % (ev or "recently", why))
+        why = ex.get("reason") or "the exhibit could not be parsed"
+        body = (
+            "The results for the period dated %s are filed, but the "
+            "exhibit carrying the company's guidance and operating "
+            "metrics could not be read by this pipeline: %s. Those "
+            "figures are what the market is repricing on, so no rating "
+            "is issued until they are read from the filed release. This "
+            "is a limitation of our software, not a view on the "
+            "company." % (ev or "recently", why)
+        )
     else:
         why = ver.get("reason") or "the primary release could not be parsed"
-        body = ("A results release dated %s appears to be out, but this "
-                "report could not verify it: %s. No rating is issued until "
-                "the primary release and its guidance are read from a filed "
-                "source. This is a data-availability hold, not a view on the "
-                "company." % (ev or "recently", why))
+        body = (
+            "A results release dated %s appears to be out, but this "
+            "report could not verify it: %s. No rating is issued until "
+            "the primary release and its guidance are read from a filed "
+            "source. This is a data-availability hold, not a view on the "
+            "company." % (ev or "recently", why)
+        )
     return {
         "headline": "Earnings update pending verification",
         "body": body,
@@ -320,13 +343,33 @@ def flash(catalyst, exhibit=None, now=None):
 
 def forbidden_for_state(state):
     """Phrases the narrative must not use in a given state."""
-    pre = ["reported today", "results showed", "beat expectations",
-           "missed expectations", "post-earnings", "after the print"]
-    post = ["ahead of earnings", "into the print", "before the report",
-            "upcoming earnings", "next earnings", "earnings are next",
-            "call has not concluded", "call had not concluded"]
-    directional = ["we rate", "our rating", "price target of", "buy-rated",
-                   "sell-rated", "overweight", "underweight"]
+    pre = [
+        "reported today",
+        "results showed",
+        "beat expectations",
+        "missed expectations",
+        "post-earnings",
+        "after the print",
+    ]
+    post = [
+        "ahead of earnings",
+        "into the print",
+        "before the report",
+        "upcoming earnings",
+        "next earnings",
+        "earnings are next",
+        "call has not concluded",
+        "call had not concluded",
+    ]
+    directional = [
+        "we rate",
+        "our rating",
+        "price target of",
+        "buy-rated",
+        "sell-rated",
+        "overweight",
+        "underweight",
+    ]
     return {
         PRE_RELEASE: pre,
         RELEASED_PRE_CALL: [p for p in post if "call" not in p],

@@ -53,8 +53,7 @@ DEV_STAGE_MAX_REV_TO_LOSS = 0.25
 
 # Sector families in which the development-stage condition is a known,
 # common corporate form (clinical-stage drug/biologics developers).
-_DEV_STAGE_INDUSTRY_TOKENS = ("biotech", "drug manufacturers",
-                              "pharmaceutic")
+_DEV_STAGE_INDUSTRY_TOKENS = ("biotech", "drug manufacturers", "pharmaceutic")
 
 _FPI_FORMS = ("20-F", "40-F", "6-K")
 
@@ -62,31 +61,35 @@ _FPI_FORMS = ("20-F", "40-F", "6-K")
 # the issuer HAS filed revenue; the list is a recognizer, not a fetch
 # shortlist, so breadth is safe.
 _REV_EXACT = {
-    "Revenues", "SalesRevenueNet", "SalesRevenueGoodsNet",
-    "SalesRevenueServicesNet", "RevenuesNetOfInterestExpense",
+    "Revenues",
+    "SalesRevenueNet",
+    "SalesRevenueGoodsNet",
+    "SalesRevenueServicesNet",
+    "RevenuesNetOfInterestExpense",
     "InterestAndDividendIncomeOperating",
     "RegulatedAndUnregulatedOperatingRevenue",
     "OperatingLeasesIncomeStatementLeaseRevenue",
-    "HealthCareOrganizationRevenue", "OilAndGasRevenue",
-    "RealEstateRevenueNet", "PremiumsEarnedNet",
+    "HealthCareOrganizationRevenue",
+    "OilAndGasRevenue",
+    "RealEstateRevenueNet",
+    "PremiumsEarnedNet",
 }
 _REV_PREFIXES = ("RevenueFromContract", "SalesRevenue")
 
 
 def _revenue_like(concept):
-    return concept in _REV_EXACT \
-        or any(concept.startswith(p) for p in _REV_PREFIXES)
+    return concept in _REV_EXACT or any(concept.startswith(p) for p in _REV_PREFIXES)
 
 
 def _fv(fact):
     import research_snapshot as rs
+
     return rs.fv(fact) if isinstance(fact, dict) else None
 
 
 def _refs(fact):
     if isinstance(fact, dict):
-        return [r for r in fact.get("evidence_refs") or []
-                if isinstance(r, str)]
+        return [r for r in fact.get("evidence_refs") or [] if isinstance(r, str)]
     return []
 
 
@@ -95,6 +98,7 @@ def classify_security(ticker, snap, profile):
     failure degrades to vendor-profile evidence or UNKNOWN, with the
     degradation stated."""
     import research_live as RL
+
     fu = snap.get("fundamentals") or {}
     co = snap.get("company") or {}
     ov = co.get("overview") or {}
@@ -108,7 +112,7 @@ def classify_security(ticker, snap, profile):
     try:
         cik, resolution = RL.cik_for_filed(ticker)
         idx = RL.concept_index(cik)
-    except Exception as e:                       # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         idx_err = str(e)[:120]
 
     taxes = (idx or {}).get("taxonomies") or {}
@@ -122,8 +126,11 @@ def classify_security(ticker, snap, profile):
     # one still receiving facts, decided by per-taxonomy recency.
     latest = (idx or {}).get("latest_end") or {}
     if gaap and ifrs:
-        regime = "ifrs" if (latest.get("ifrs-full") or "") \
-            >= (latest.get("us-gaap") or "") else "us-gaap"
+        regime = (
+            "ifrs"
+            if (latest.get("ifrs-full") or "") >= (latest.get("us-gaap") or "")
+            else "us-gaap"
+        )
     elif gaap:
         regime = "us-gaap"
     elif ifrs:
@@ -131,15 +138,13 @@ def classify_security(ticker, snap, profile):
     else:
         regime = "unknown"
 
-    fpi = any(f in _FPI_FORMS or f.startswith("20-F")
-              or f.startswith("40-F") for f in forms) or (
-        regime == "ifrs")
+    fpi = any(f in _FPI_FORMS or f.startswith("20-F") or f.startswith("40-F") for f in forms) or (
+        regime == "ifrs"
+    )
 
     rev_concepts = sorted(c for c in gaap if _revenue_like(c))
     if "Revenue" in ifrs or "RevenueFromContractsWithCustomers" in ifrs:
-        rev_concepts += [c for c in ("Revenue",
-                                     "RevenueFromContractsWithCustomers")
-                         if c in ifrs]
+        rev_concepts += [c for c in ("Revenue", "RevenueFromContractsWithCustomers") if c in ifrs]
 
     refs = []
     idx_ref = None
@@ -159,50 +164,55 @@ def classify_security(ticker, snap, profile):
         # rule (a): the issuer files facts, and in its ENTIRE concept
         # index no revenue-like concept has ever appeared
         stage, confidence = PRE_REVENUE, "high"
-        basis = ("the issuer's full SEC concept index (%d us-gaap / %d "
-                 "ifrs-full concepts) contains no revenue concept in "
-                 "any taxonomy — admitted evidence that no revenue has "
-                 "been reported"
-                 % (len(gaap), len(ifrs)))
-    elif rev_concepts and any(t in ind_l
-                              for t in _DEV_STAGE_INDUSTRY_TOKENS) \
-            and rev_v is not None and ni_v is not None and ni_v < 0 \
-            and rev_v < DEV_STAGE_MAX_REV_TO_LOSS * abs(ni_v):
+        basis = (
+            "the issuer's full SEC concept index (%d us-gaap / %d "
+            "ifrs-full concepts) contains no revenue concept in "
+            "any taxonomy — admitted evidence that no revenue has "
+            "been reported" % (len(gaap), len(ifrs))
+        )
+    elif (
+        rev_concepts
+        and any(t in ind_l for t in _DEV_STAGE_INDUSTRY_TOKENS)
+        and rev_v is not None
+        and ni_v is not None
+        and ni_v < 0
+        and rev_v < DEV_STAGE_MAX_REV_TO_LOSS * abs(ni_v)
+    ):
         # rule (b): development-stage condition from the issuer's own
         # filed quarter — token revenue against development-scale losses
         stage, confidence = PRE_REVENUE, "high"
-        basis = ("development-stage condition: filed quarterly revenue "
-                 "$%.1fM is below %.0f%% of the filed quarterly net "
-                 "loss $%.1fM in a development-stage sector family "
-                 "(%s) — the revenue line is collaboration/grant "
-                 "income, not a commercial business"
-                 % (rev_v / 1e6, DEV_STAGE_MAX_REV_TO_LOSS * 100,
-                    abs(ni_v) / 1e6, industry))
+        basis = (
+            "development-stage condition: filed quarterly revenue "
+            "$%.1fM is below %.0f%% of the filed quarterly net "
+            "loss $%.1fM in a development-stage sector family "
+            "(%s) — the revenue line is collaboration/grant "
+            "income, not a commercial business"
+            % (rev_v / 1e6, DEV_STAGE_MAX_REV_TO_LOSS * 100, abs(ni_v) / 1e6, industry)
+        )
         refs += _refs(fu.get("revenue_q")) + _refs(fu.get("net_income_q"))
     elif rev_concepts:
         stage, confidence = OPERATING, "high"
-        basis = ("revenue concepts filed with the SEC: %s"
-                 % ", ".join(rev_concepts[:4]))
+        basis = "revenue concepts filed with the SEC: %s" % ", ".join(rev_concepts[:4])
         refs += _refs(fu.get("revenue_q"))
     elif rev_v is not None:
         stage, confidence = OPERATING, "medium"
-        basis = ("no SEC concept index available (%s) but a filed "
-                 "revenue fact was admitted from the snapshot"
-                 % (idx_err or "fetch degraded"))
+        basis = (
+            "no SEC concept index available (%s) but a filed "
+            "revenue fact was admitted from the snapshot" % (idx_err or "fetch degraded")
+        )
         refs += _refs(fu.get("revenue_q"))
     elif idx is None:
         stage, confidence = UNKNOWN, "low"
-        basis = ("no concept index (%s) and no admitted revenue fact — "
-                 "the business stage cannot be established and is NOT "
-                 "ASSESSED; missing data never implies pre-revenue"
-                 % (idx_err or "unavailable"))
+        basis = (
+            "no concept index (%s) and no admitted revenue fact — "
+            "the business stage cannot be established and is NOT "
+            "ASSESSED; missing data never implies pre-revenue" % (idx_err or "unavailable")
+        )
     else:
         stage, confidence = UNKNOWN, "low"
-        basis = ("concept index present but empty of financial "
-                 "taxonomies — stage NOT ASSESSED")
+        basis = "concept index present but empty of financial taxonomies — stage NOT ASSESSED"
 
-    if (profile or {}).get("listing_date") \
-            and not (profile or {}).get("full_price_history"):
+    if (profile or {}).get("listing_date") and not (profile or {}).get("full_price_history"):
         listing = "new_listing"
     elif fpi:
         listing = "foreign_private_issuer"
@@ -242,8 +252,7 @@ def ledger_records(classification):
             "url": classification.get("concept_index_url"),
             "source_type": "SEC EDGAR companyfacts",
             "concept_counts": classification.get("concept_counts"),
-            "revenue_concepts_filed":
-                classification.get("revenue_concepts_filed"),
+            "revenue_concepts_filed": classification.get("revenue_concepts_filed"),
             "forms_observed": classification.get("forms_observed"),
         }
     return out

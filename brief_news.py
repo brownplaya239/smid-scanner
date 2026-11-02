@@ -31,20 +31,44 @@ PRIMARY, SECONDARY = "PRIMARY", "SECONDARY"
 # else is commentary about those words, which can be right, but is a
 # second-hand account and is labelled as one.
 _PRIMARY_HOSTS = (
-    "globenewswire.com", "prnewswire.com", "businesswire.com",
-    "accesswire.com", "newsfilecorp.com", "sec.gov", "federalreserve.gov",
-    "bls.gov", "eia.gov", "treasury.gov", "sec.report", "ir.",
+    "globenewswire.com",
+    "prnewswire.com",
+    "businesswire.com",
+    "accesswire.com",
+    "newsfilecorp.com",
+    "sec.gov",
+    "federalreserve.gov",
+    "bls.gov",
+    "eia.gov",
+    "treasury.gov",
+    "sec.report",
+    "ir.",
 )
 # Outlets whose output is overwhelmingly listicles and screeners. They are
 # not evidence that anything happened today.
 _LOW_VALUE = (
-    "fool.com", "zacks.com", "investorplace.com", "24/7 wall st",
-    "simply wall st", "insider monkey", "benzinga.com/general/",
+    "fool.com",
+    "zacks.com",
+    "investorplace.com",
+    "24/7 wall st",
+    "simply wall st",
+    "insider monkey",
+    "benzinga.com/general/",
 )
 _LOW_VALUE_TITLE = (
-    "best stocks", "stocks to buy", "top stocks", "poised to outperform",
-    "should you buy", "is it time to buy", "3 reasons", "5 stocks",
-    "7 stocks", "10 stocks", "billionaire", "motley", "prediction:",
+    "best stocks",
+    "stocks to buy",
+    "top stocks",
+    "poised to outperform",
+    "should you buy",
+    "is it time to buy",
+    "3 reasons",
+    "5 stocks",
+    "7 stocks",
+    "10 stocks",
+    "billionaire",
+    "motley",
+    "prediction:",
 )
 
 
@@ -72,8 +96,7 @@ def is_low_value(article):
     listicle, not who ran it — so the title decides, and the outlet only
     affects ranking.
     """
-    return any(x in (article.get("title") or "").lower()
-               for x in _LOW_VALUE_TITLE)
+    return any(x in (article.get("title") or "").lower() for x in _LOW_VALUE_TITLE)
 
 
 def is_filler_source(article):
@@ -90,14 +113,12 @@ def fetch(query, limit=25, timeout=20):
     url = "%s/?news=%s&limit=%d" % (WORKER, urllib.parse.quote(query), limit)
     try:
         req = urllib.request.Request(
-            url, headers={"User-Agent": "TickerDesk-Brief/1.0",
-                          "Origin": "https://tickerdesk.io"})
+            url, headers={"User-Agent": "TickerDesk-Brief/1.0", "Origin": "https://tickerdesk.io"}
+        )
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            return (json.loads(r.read().decode("utf-8")) or {}
-                    ).get("articles") or []
+            return (json.loads(r.read().decode("utf-8")) or {}).get("articles") or []
     except Exception as e:
-        print("  news fetch failed (non-fatal): %s: %s"
-              % (type(e).__name__, e))
+        print("  news fetch failed (non-fatal): %s: %s" % (type(e).__name__, e))
         return []
 
 
@@ -111,32 +132,37 @@ def _fetch_finnhub_direct(limit=40, timeout=20):
     try:
         req = urllib.request.Request(
             "https://finnhub.io/api/v1/news?category=general",
-            headers={"X-Finnhub-Token": key,
-                     "Accept": "application/json",
-                     "User-Agent": "TickerDesk-Brief/1.0"})
+            headers={
+                "X-Finnhub-Token": key,
+                "Accept": "application/json",
+                "User-Agent": "TickerDesk-Brief/1.0",
+            },
+        )
         with urllib.request.urlopen(req, timeout=timeout) as r:
             raw = json.loads(r.read().decode("utf-8"))
     except Exception as e:
-        print("  macro direct fetch failed (non-fatal): %s: %s"
-              % (type(e).__name__, e))
+        print("  macro direct fetch failed (non-fatal): %s: %s" % (type(e).__name__, e))
         return []
     out = []
     from datetime import datetime, timezone
+
     for a in (raw or [])[:limit]:
         if not a or not a.get("headline"):
             continue
         ts = a.get("datetime")
-        out.append({
-            "id": "fh-%s" % (a.get("id") or ts or a.get("url")),
-            "title": a.get("headline") or "",
-            "url": a.get("url") or "",
-            "publisher": a.get("source") or "Finnhub",
-            "published": datetime.fromtimestamp(
-                ts, tz=timezone.utc).isoformat() if ts else "",
-            "tickers": [s for s in str(a.get("related") or ""
-                                       ).split(",") if s][:6],
-            "insights": [], "keywords": ["macro"], "macro": True,
-        })
+        out.append(
+            {
+                "id": "fh-%s" % (a.get("id") or ts or a.get("url")),
+                "title": a.get("headline") or "",
+                "url": a.get("url") or "",
+                "publisher": a.get("source") or "Finnhub",
+                "published": datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else "",
+                "tickers": [s for s in str(a.get("related") or "").split(",") if s][:6],
+                "insights": [],
+                "keywords": ["macro"],
+                "macro": True,
+            }
+        )
     return out
 
 
@@ -154,7 +180,7 @@ def clip(s, limit=WHY_MAX):
     s = " ".join((s or "").split())
     if len(s) <= limit:
         return s
-    cut = s[:limit - 2]
+    cut = s[: limit - 2]
     sp = cut.rfind(" ")
     if sp > limit * 0.5:
         cut = cut[:sp]
@@ -167,15 +193,13 @@ def _why(article, tickers=()):
     with no insight and no description we say what the record is, not what
     it means."""
     ins = article.get("insights") or []
-    mine = [i for i in ins
-            if not tickers or (i.get("ticker") or "").upper() in tickers]
+    mine = [i for i in ins if not tickers or (i.get("ticker") or "").upper() in tickers]
     pick = (mine or ins or [None])[0]
     if pick and pick.get("sentiment_reasoning"):
         s = pick["sentiment_reasoning"].strip()
         s = s.split(". ")[0].rstrip(".")
         senti = (pick.get("sentiment") or "").lower()
-        tag = ("%s on %s" % (senti, pick.get("ticker"))
-               if senti and pick.get("ticker") else "")
+        tag = "%s on %s" % (senti, pick.get("ticker")) if senti and pick.get("ticker") else ""
         out = clip("%s%s" % (s, (" — %s" % tag) if tag else ""))
     else:
         d = (article.get("description") or "").strip()
@@ -189,6 +213,7 @@ def _why(article, tickers=()):
 
 def to_record(article, tickers=()):
     import brief_schema as BS
+
     dt = BT.parse_iso(article.get("published") or "")
     return {
         # content-addressed: a headline PREFIX collided whenever two
@@ -197,8 +222,7 @@ def to_record(article, tickers=()):
         "key": BS.record_key(article.get("url"), article.get("title")),
         "headline": (article.get("title") or "").strip(),
         "url": article.get("url") or "",
-        "source": article.get("publisher") or _host(article.get("url"))
-                  or "unknown",
+        "source": article.get("publisher") or _host(article.get("url")) or "unknown",
         "published_et": BT.fmt_stamp(dt) if dt else "",
         "published_sort": dt.isoformat() if dt else "",
         "tier": source_tier(article),
@@ -227,21 +251,63 @@ def _dedupe(records):
 # an item earns the market section by naming a macro driver or a broad
 # instrument -- otherwise it is somebody's press release.
 MACRO_TERMS = (
-    "federal reserve", "fed ", "fomc", "interest rate", "rate cut",
-    "rate hike", "rate decision", "inflation", "cpi", "ppi",
-    "jobs report", "payroll", "unemployment", "gdp", "recession",
-    "tariff", "treasury yield", "treasury yields", "bond yields",
-    "s&p 500", "nasdaq composite", "nasdaq 100", "dow jones",
-    "russell 2000", "stock market", "wall street", "crude oil",
-    "oil prices", "brent", "wti", "natural gas", "gold prices", "opec",
-    "dollar index", "earnings season", "jobless claims",
-    "consumer confidence", "market rebound", "market selloff",
-    "market rally", "risk-off", "risk-on", "volatility", "vix",
-    "iran", "sanctions", "ceasefire", "middle east", "geopolitical",
-    "ecb", "bank of japan", "trade deal", "trade war", "trade talks",
+    "federal reserve",
+    "fed ",
+    "fomc",
+    "interest rate",
+    "rate cut",
+    "rate hike",
+    "rate decision",
+    "inflation",
+    "cpi",
+    "ppi",
+    "jobs report",
+    "payroll",
+    "unemployment",
+    "gdp",
+    "recession",
+    "tariff",
+    "treasury yield",
+    "treasury yields",
+    "bond yields",
+    "s&p 500",
+    "nasdaq composite",
+    "nasdaq 100",
+    "dow jones",
+    "russell 2000",
+    "stock market",
+    "wall street",
+    "crude oil",
+    "oil prices",
+    "brent",
+    "wti",
+    "natural gas",
+    "gold prices",
+    "opec",
+    "dollar index",
+    "earnings season",
+    "jobless claims",
+    "consumer confidence",
+    "market rebound",
+    "market selloff",
+    "market rally",
+    "risk-off",
+    "risk-on",
+    "volatility",
+    "vix",
+    "iran",
+    "sanctions",
+    "ceasefire",
+    "middle east",
+    "geopolitical",
+    "ecb",
+    "bank of japan",
+    "trade deal",
+    "trade war",
+    "trade talks",
 )
 INDEX_TICKERS = ("SPY", "QQQ", "IWM", "DIA", "VOO", "IVV")
-MAX_AGE_HOURS = 26          # one session plus the overnight tape
+MAX_AGE_HOURS = 26  # one session plus the overnight tape
 
 
 _MACRO_RX = None
@@ -255,17 +321,25 @@ def is_market_moving(record):
     global _MACRO_RX
     if _MACRO_RX is None:
         import re
+
         _MACRO_RX = re.compile(
-            r"\b(?:%s)\b" % "|".join(re.escape(t.strip())
-                                     for t in MACRO_TERMS), re.I)
+            r"\b(?:%s)\b" % "|".join(re.escape(t.strip()) for t in MACRO_TERMS), re.I
+        )
     if _MACRO_RX.search(record.get("headline") or ""):
         return True
     return bool(set(record.get("tickers") or []) & set(INDEX_TICKERS))
 
 
-def select(market_articles, watch_articles, watch_tickers,
-           max_market=3, max_watch=3, as_of=None,
-           max_age_hours=MAX_AGE_HOURS, priority=()):
+def select(
+    market_articles,
+    watch_articles,
+    watch_tickers,
+    max_market=3,
+    max_watch=3,
+    as_of=None,
+    max_age_hours=MAX_AGE_HOURS,
+    priority=(),
+):
     """Two populations, ranked, capped, and never pooled.
 
     A watch-list name appearing in the market feed must not be presented
@@ -277,6 +351,7 @@ def select(market_articles, watch_articles, watch_tickers,
     oldest = None
     if cutoff is not None and max_age_hours:
         from datetime import timedelta
+
         oldest = BT.to_et(cutoff) - timedelta(hours=max_age_hours)
 
     def prep(arts, want_watch):
@@ -285,8 +360,7 @@ def select(market_articles, watch_articles, watch_tickers,
             r = to_record(a, watch)
             if not r["headline"] or is_low_value(a):
                 continue
-            d = BT.parse_iso(r["published_sort"]) if r["published_sort"] \
-                else None
+            d = BT.parse_iso(r["published_sort"]) if r["published_sort"] else None
             # nothing published after the brief's as-of time may appear:
             # the reader would be told about a story the brief could not
             # have read
@@ -308,9 +382,9 @@ def select(market_articles, watch_articles, watch_tickers,
             r["filler"] = is_filler_source(a)
             out.append(r)
         # primary sources first, then most recent
-        out.sort(key=lambda r: (r.get("filler", False),
-                                r["tier"] != PRIMARY,
-                                -_ts(r["published_sort"])))
+        out.sort(
+            key=lambda r: (r.get("filler", False), r["tier"] != PRIMARY, -_ts(r["published_sort"]))
+        )
         return _dedupe(out)
 
     w_all = prep(watch_articles, True)
@@ -318,20 +392,25 @@ def select(market_articles, watch_articles, watch_tickers,
     # about the name that merely appears on the list
     prio = {t.upper(): i for i, t in enumerate(priority or [])}
     if prio:
-        w_all.sort(key=lambda r: (
-            min((prio.get(t, 999) for t in r.get("watch_tickers") or []),
-                default=999),
-            r["tier"] != PRIMARY, -_ts(r["published_sort"])))
+        w_all.sort(
+            key=lambda r: (
+                min((prio.get(t, 999) for t in r.get("watch_tickers") or []), default=999),
+                r["tier"] != PRIMARY,
+                -_ts(r["published_sort"]),
+            )
+        )
     w = w_all[:max_watch]
     # the reader's own names win the story: showing it again under Market
     # would present one event as two
     claimed = {r["key"] for r in w} | {
-        "".join(ch for ch in r["headline"].lower() if ch.isalnum())[:80]
-        for r in w}
-    m_all = [r for r in prep(market_articles, False)
-             if r["key"] not in claimed
-             and "".join(ch for ch in r["headline"].lower()
-                         if ch.isalnum())[:80] not in claimed]
+        "".join(ch for ch in r["headline"].lower() if ch.isalnum())[:80] for r in w
+    }
+    m_all = [
+        r
+        for r in prep(market_articles, False)
+        if r["key"] not in claimed
+        and "".join(ch for ch in r["headline"].lower() if ch.isalnum())[:80] not in claimed
+    ]
     m = m_all[:max_market]
     # diversity is enforced on the UNION, exactly as the validator
     # measures it, after both sections are chosen
@@ -344,13 +423,16 @@ def select(market_articles, watch_articles, watch_tickers,
         for r in shown:
             pubs[r["source"]] = pubs.get(r["source"], 0) + 1
         if len(pubs) == 1:
-            notes.append("All headlines below come from %s; no second "
-                         "outlet covered these stories in the window."
-                         % list(pubs)[0])
+            notes.append(
+                "All headlines below come from %s; no second "
+                "outlet covered these stories in the window." % list(pubs)[0]
+            )
         if not any(r["tier"] == PRIMARY for r in shown):
-            notes.append("No primary-source (issuer or regulator) coverage "
-                         "was available in the window; every item below is "
-                         "second-hand reporting.")
+            notes.append(
+                "No primary-source (issuer or regulator) coverage "
+                "was available in the window; every item below is "
+                "second-hand reporting."
+            )
     return {
         "market": m,
         "watchlist": w,
@@ -376,7 +458,7 @@ def _enforce_diversity(market, watchlist, share=0.5):
     a name the reader owns is worth more than a general one.
     """
     m, w = list(market), list(watchlist)
-    for _ in range(64):                      # bounded; each pass drops one
+    for _ in range(64):  # bounded; each pass drops one
         shown = m + w
         if not shown:
             break
@@ -384,14 +466,14 @@ def _enforce_diversity(market, watchlist, share=0.5):
         for r in shown:
             pubs[r["source"]] = pubs.get(r["source"], 0) + 1
         if len(pubs) <= 1:
-            break                            # nothing to diversify toward
+            break  # nothing to diversify toward
         top, n = max(pubs.items(), key=lambda kv: kv[1])
         if n * 2 <= len(shown):
-            break                            # rule already satisfied
+            break  # rule already satisfied
         for lst in (m, w):
             idx = [i for i, r in enumerate(lst) if r["source"] == top]
             if idx:
-                lst.pop(idx[-1])             # lowest-ranked offender
+                lst.pop(idx[-1])  # lowest-ranked offender
                 break
         else:
             break
@@ -406,13 +488,11 @@ def _ts(iso):
         return 0.0
 
 
-def load(watch_tickers, as_of=None, max_market=3, max_watch=3, live=True,
-         priority=()):
+def load(watch_tickers, as_of=None, max_market=3, max_watch=3, live=True, priority=()):
     """The adapter the brief calls. `live=False` returns the empty state
     without touching the network, for tests and offline runs."""
     if not live:
-        return select([], [], watch_tickers, max_market, max_watch, as_of,
-                      priority=priority)
+        return select([], [], watch_tickers, max_market, max_watch, as_of, priority=priority)
     general = fetch("general", limit=60)
     # the Finnhub macro wire (commodities / Fed / geopolitics) — the
     # Polygon feed carries none of it, so without this the market
@@ -428,8 +508,7 @@ def load(watch_tickers, as_of=None, max_market=3, max_watch=3, live=True,
     per = []
     for tk in sorted({t.upper() for t in (watch_tickers or [])})[:12]:
         per.extend(fetch(tk, limit=6))
-    return select(general, per, watch_tickers, max_market, max_watch, as_of,
-                  priority=priority)
+    return select(general, per, watch_tickers, max_market, max_watch, as_of, priority=priority)
 
 
 def self_test():
@@ -437,158 +516,277 @@ def self_test():
 
     def chk(n, c, d=""):
         ran[0] += 1
-        print(("  PASS  " if c else "  FAIL  ") + n
-              + ("" if c else "  <- %s" % (d,)))
+        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
         if not c:
             fails.append(n)
 
-    chk("wire service is PRIMARY",
-        source_tier({"url": "https://www.globenewswire.com/x",
-                     "publisher": "GlobeNewswire Inc."}) == PRIMARY)
-    chk("regulator is PRIMARY",
-        source_tier({"url": "https://www.sec.gov/x"}) == PRIMARY)
-    chk("commentary is SECONDARY",
-        source_tier({"url": "https://www.reuters.com/x",
-                     "publisher": "Reuters"}) == SECONDARY)
-    chk("screener filler is rejected on its headline",
-        is_low_value({"url": "https://www.fool.com/investing/x",
-                      "title": "5 Stocks Poised to Outperform"}))
-    chk("a real recap from a filler outlet is kept, only demoted",
-        not is_low_value({"url": "https://www.fool.com/x",
-                          "title": "Stock Market Today: Micron surges 12%"})
-        and is_filler_source({"url": "https://www.fool.com/x"}))
-    chk("a bell-ringing ceremony is not market-moving",
-        not is_market_moving({"headline":
-                              "Coalition rings the Nasdaq opening bell",
-                              "tickers": []}))
-    chk("a real headline is kept",
-        not is_low_value({"url": "https://reuters.com/x",
-                          "title": "GE Vernova raises full-year guidance"}))
+    chk(
+        "wire service is PRIMARY",
+        source_tier({"url": "https://www.globenewswire.com/x", "publisher": "GlobeNewswire Inc."})
+        == PRIMARY,
+    )
+    chk("regulator is PRIMARY", source_tier({"url": "https://www.sec.gov/x"}) == PRIMARY)
+    chk(
+        "commentary is SECONDARY",
+        source_tier({"url": "https://www.reuters.com/x", "publisher": "Reuters"}) == SECONDARY,
+    )
+    chk(
+        "screener filler is rejected on its headline",
+        is_low_value(
+            {"url": "https://www.fool.com/investing/x", "title": "5 Stocks Poised to Outperform"}
+        ),
+    )
+    chk(
+        "a real recap from a filler outlet is kept, only demoted",
+        not is_low_value(
+            {"url": "https://www.fool.com/x", "title": "Stock Market Today: Micron surges 12%"}
+        )
+        and is_filler_source({"url": "https://www.fool.com/x"}),
+    )
+    chk(
+        "a bell-ringing ceremony is not market-moving",
+        not is_market_moving(
+            {"headline": "Coalition rings the Nasdaq opening bell", "tickers": []}
+        ),
+    )
+    chk(
+        "a real headline is kept",
+        not is_low_value(
+            {"url": "https://reuters.com/x", "title": "GE Vernova raises full-year guidance"}
+        ),
+    )
     # macro wire + expanded lexicon: the headlines the Polygon feed
     # never carried must classify as market-moving once they arrive
-    chk("a Brent headline is market-moving",
-        is_market_moving({"headline": "Brent oil falls more than 5%, "
-                                      "trades below $84 a barrel",
-                          "tickers": []}))
-    chk("a geopolitics headline is market-moving",
-        is_market_moving({"headline": "US-Iran close to resurrecting "
-                                      "failed MoU deal", "tickers": []}))
-    chk("a macro-wire record passes the gate regardless of wording",
-        is_market_moving({"headline": "Stocks jump at the open",
-                          "tickers": [], "macro": True}))
-    chk("the macro flag survives to_record",
-        to_record({"title": "Gold prices hit record", "url":
-                   "https://reuters.com/g", "publisher": "Reuters",
-                   "published": "2026-07-22T12:00:00Z",
-                   "macro": True})["macro"] is True)
+    chk(
+        "a Brent headline is market-moving",
+        is_market_moving(
+            {"headline": "Brent oil falls more than 5%, trades below $84 a barrel", "tickers": []}
+        ),
+    )
+    chk(
+        "a geopolitics headline is market-moving",
+        is_market_moving(
+            {"headline": "US-Iran close to resurrecting failed MoU deal", "tickers": []}
+        ),
+    )
+    chk(
+        "a macro-wire record passes the gate regardless of wording",
+        is_market_moving({"headline": "Stocks jump at the open", "tickers": [], "macro": True}),
+    )
+    chk(
+        "the macro flag survives to_record",
+        to_record(
+            {
+                "title": "Gold prices hit record",
+                "url": "https://reuters.com/g",
+                "publisher": "Reuters",
+                "published": "2026-07-22T12:00:00Z",
+                "macro": True,
+            }
+        )["macro"]
+        is True,
+    )
 
-    mkt = [{"title": "Treasury yields ease after auction",
-            "url": "https://treasury.gov/z", "publisher": "US Treasury",
+    mkt = [
+        {
+            "title": "Treasury yields ease after auction",
+            "url": "https://treasury.gov/z",
+            "publisher": "US Treasury",
             "published": "2026-07-22T12:30:00Z",
-            "insights": [{"ticker": "SPY", "sentiment": "neutral",
-                          "sentiment_reasoning": "Policy unchanged. Second."}]},
-           {"title": "Fed holds rates steady", "url": "https://sec.gov/a",
+            "insights": [
+                {
+                    "ticker": "SPY",
+                    "sentiment": "neutral",
+                    "sentiment_reasoning": "Policy unchanged. Second.",
+                }
+            ],
+        },
+        {
+            "title": "Fed holds rates steady",
+            "url": "https://sec.gov/a",
             "publisher": "Federal Reserve",
-            "published": "2026-07-22T12:00:00Z"},
-           {"title": "5 Stocks Poised to Outperform",
-            "url": "https://www.fool.com/x", "publisher": "The Motley Fool",
-            "published": "2026-07-22T11:00:00Z"},
-           {"title": "Oil slips on inventory build",
-            "url": "https://reuters.com/b", "publisher": "Reuters",
-            "published": "2026-07-22T10:00:00Z"}]
-    wl = [{"title": "GE Vernova wins turbine order",
-           "url": "https://globenewswire.com/c", "publisher": "GlobeNewswire",
-           "published": "2026-07-22T09:00:00Z", "tickers": ["GEV"]},
-          {"title": "Fed holds rates steady", "url": "https://sec.gov/a",
-           "publisher": "Federal Reserve",
-           "published": "2026-07-22T12:00:00Z", "tickers": ["GEV"]}]
+            "published": "2026-07-22T12:00:00Z",
+        },
+        {
+            "title": "5 Stocks Poised to Outperform",
+            "url": "https://www.fool.com/x",
+            "publisher": "The Motley Fool",
+            "published": "2026-07-22T11:00:00Z",
+        },
+        {
+            "title": "Oil slips on inventory build",
+            "url": "https://reuters.com/b",
+            "publisher": "Reuters",
+            "published": "2026-07-22T10:00:00Z",
+        },
+    ]
+    wl = [
+        {
+            "title": "GE Vernova wins turbine order",
+            "url": "https://globenewswire.com/c",
+            "publisher": "GlobeNewswire",
+            "published": "2026-07-22T09:00:00Z",
+            "tickers": ["GEV"],
+        },
+        {
+            "title": "Fed holds rates steady",
+            "url": "https://sec.gov/a",
+            "publisher": "Federal Reserve",
+            "published": "2026-07-22T12:00:00Z",
+            "tickers": ["GEV"],
+        },
+    ]
 
     sel = select(mkt, wl, ["GEV"], as_of="2026-07-22T13:00:00Z")
-    chk("screener filler never reaches the brief",
-        all("Poised" not in r["headline"] for r in sel["market"]), sel)
-    chk("market and watch-list populations stay separate",
-        all("GEV" not in r.get("watch_tickers", []) for r in sel["market"]))
-    chk("watch-list headline is attributed to its name",
-        sel["watchlist"] and sel["watchlist"][0]["watch_tickers"] == ["GEV"])
-    chk("primary sources rank first",
-        sel["market"][0]["tier"] == PRIMARY, sel["market"][0])
-    chk("publication time is rendered in Eastern",
+    chk(
+        "screener filler never reaches the brief",
+        all("Poised" not in r["headline"] for r in sel["market"]),
+        sel,
+    )
+    chk(
+        "market and watch-list populations stay separate",
+        all("GEV" not in r.get("watch_tickers", []) for r in sel["market"]),
+    )
+    chk(
+        "watch-list headline is attributed to its name",
+        sel["watchlist"] and sel["watchlist"][0]["watch_tickers"] == ["GEV"],
+    )
+    chk("primary sources rank first", sel["market"][0]["tier"] == PRIMARY, sel["market"][0])
+    chk(
+        "publication time is rendered in Eastern",
         sel["market"][0]["published_et"].endswith("ET"),
-        sel["market"][0]["published_et"])
-    chk("12:30 UTC publishes as 08:30 ET",
+        sel["market"][0]["published_et"],
+    )
+    chk(
+        "12:30 UTC publishes as 08:30 ET",
         "08:30" in sel["market"][0]["published_et"],
-        sel["market"][0]["published_et"])
-    chk("why-it-matters comes from the article, not invention",
+        sel["market"][0]["published_et"],
+    )
+    chk(
+        "why-it-matters comes from the article, not invention",
         sel["market"][0]["why"].startswith("Policy unchanged"),
-        sel["market"][0]["why"])
-    chk("a corporate press release never enters the market section",
-        all("Kalmar" not in r["headline"] for r in select(
-            [{"title": "Kalmar extends service agreement",
-              "url": "https://globenewswire.com/k",
-              "publisher": "GlobeNewswire",
-              "published": "2026-07-22T12:00:00Z"}], [], [],
-            as_of="2026-07-22T13:00:00Z")["market"]))
+        sel["market"][0]["why"],
+    )
+    chk(
+        "a corporate press release never enters the market section",
+        all(
+            "Kalmar" not in r["headline"]
+            for r in select(
+                [
+                    {
+                        "title": "Kalmar extends service agreement",
+                        "url": "https://globenewswire.com/k",
+                        "publisher": "GlobeNewswire",
+                        "published": "2026-07-22T12:00:00Z",
+                    }
+                ],
+                [],
+                [],
+                as_of="2026-07-22T13:00:00Z",
+            )["market"]
+        ),
+    )
     # the same story carried by both feeds belongs to exactly one section:
     # a headline tagged with a user's ticker is watch-list news, and
     # showing it again under Market would double-count it
     in_mkt = ["Fed holds" in r["headline"] for r in sel["market"]]
     in_wl = ["Fed holds" in r["headline"] for r in sel["watchlist"]]
-    chk("a story tagged to a watch-list name appears only there",
-        any(in_wl) and not any(in_mkt), (sel["market"], sel["watchlist"]))
-    chk("identical headlines are deduplicated within a section",
-        len({r["headline"] for r in sel["watchlist"]})
-        == len(sel["watchlist"]))
+    chk(
+        "a story tagged to a watch-list name appears only there",
+        any(in_wl) and not any(in_mkt),
+        (sel["market"], sel["watchlist"]),
+    )
+    chk(
+        "identical headlines are deduplicated within a section",
+        len({r["headline"] for r in sel["watchlist"]}) == len(sel["watchlist"]),
+    )
     chk("market cap respected", len(sel["market"]) <= 3)
     # the production failure: one outlet supplied 4 of 5 displayed stories
     # because over-quota items were deferred and then backfilled
-    flood = [{"title": "Fed signals patience on rates %d" % i,
-              "url": "https://www.fool.com/a%d" % i,
-              "publisher": "The Motley Fool",
-              "published": "2026-07-22T11:0%d:00Z" % i} for i in range(6)]
-    flood.append({"title": "Treasury yields ease after auction",
-                  "url": "https://reuters.com/t", "publisher": "Reuters",
-                  "published": "2026-07-22T11:30:00Z"})
+    flood = [
+        {
+            "title": "Fed signals patience on rates %d" % i,
+            "url": "https://www.fool.com/a%d" % i,
+            "publisher": "The Motley Fool",
+            "published": "2026-07-22T11:0%d:00Z" % i,
+        }
+        for i in range(6)
+    ]
+    flood.append(
+        {
+            "title": "Treasury yields ease after auction",
+            "url": "https://reuters.com/t",
+            "publisher": "Reuters",
+            "published": "2026-07-22T11:30:00Z",
+        }
+    )
     fl = select(flood, [], [], as_of="2026-07-22T12:00:00Z")
     shown = fl["market"] + fl["watchlist"]
     pubs = {}
     for r in shown:
         pubs[r["source"]] = pubs.get(r["source"], 0) + 1
     top = max(pubs.values())
-    chk("no outlet exceeds half of the displayed stories",
-        len(pubs) == 1 or top * 2 <= len(shown), pubs)
-    chk("the cap ships fewer stories rather than violating itself",
-        len(shown) < 3 or len(pubs) > 1, (len(shown), pubs))
+    chk(
+        "no outlet exceeds half of the displayed stories",
+        len(pubs) == 1 or top * 2 <= len(shown),
+        pubs,
+    )
+    chk(
+        "the cap ships fewer stories rather than violating itself",
+        len(shown) < 3 or len(pubs) > 1,
+        (len(shown), pubs),
+    )
     solo = select(flood[:3], [], [], as_of="2026-07-22T12:00:00Z")
-    chk("a single available outlet still fills the section",
-        len(solo["market"]) == 3, len(solo["market"]))
-    chk("...and that lack of diversity is disclosed",
+    chk(
+        "a single available outlet still fills the section",
+        len(solo["market"]) == 3,
+        len(solo["market"]),
+    )
+    chk(
+        "...and that lack of diversity is disclosed",
         "no second outlet" in (solo.get("coverage_note") or ""),
-        solo.get("coverage_note"))
-    chk("a corporate notice is not called market-moving",
-        not is_market_moving({"headline": "Kalmar extends service agreement",
-                              "tickers": ["KALM"]}))
-    chk("a macro headline is market-moving",
-        is_market_moving({"headline": "Fed holds rates steady",
-                          "tickers": []}))
-    chk("an index-tagged headline is market-moving",
-        is_market_moving({"headline": "Stocks drift", "tickers": ["SPY"]}))
-    stale = select([{"title": "Fed holds rates steady",
-                     "url": "https://sec.gov/a", "publisher": "Fed",
-                     "published": "2026-07-16T12:00:00Z"}], [], [],
-                   as_of="2026-07-22T13:00:00Z")
-    chk("a week-old story is not news since the previous brief",
-        stale["empty"], stale["market"])
+        solo.get("coverage_note"),
+    )
+    chk(
+        "a corporate notice is not called market-moving",
+        not is_market_moving({"headline": "Kalmar extends service agreement", "tickers": ["KALM"]}),
+    )
+    chk(
+        "a macro headline is market-moving",
+        is_market_moving({"headline": "Fed holds rates steady", "tickers": []}),
+    )
+    chk(
+        "an index-tagged headline is market-moving",
+        is_market_moving({"headline": "Stocks drift", "tickers": ["SPY"]}),
+    )
+    stale = select(
+        [
+            {
+                "title": "Fed holds rates steady",
+                "url": "https://sec.gov/a",
+                "publisher": "Fed",
+                "published": "2026-07-16T12:00:00Z",
+            }
+        ],
+        [],
+        [],
+        as_of="2026-07-22T13:00:00Z",
+    )
+    chk("a week-old story is not news since the previous brief", stale["empty"], stale["market"])
 
     late = select(mkt, wl, ["GEV"], as_of="2026-07-22T09:30:00Z")
-    chk("nothing published after the as-of time is shown",
+    chk(
+        "nothing published after the as-of time is shown",
         all("Fed holds" not in r["headline"] for r in late["market"]),
-        late["market"])
+        late["market"],
+    )
 
     none = select([], [], ["GEV"])
-    chk("an empty result is stated, not omitted",
-        none["empty"] and none["empty_line"].startswith("No high-relevance"))
-    chk("offline load returns the empty state without network",
-        load(["GEV"], live=False)["empty"])
+    chk(
+        "an empty result is stated, not omitted",
+        none["empty"] and none["empty_line"].startswith("No high-relevance"),
+    )
+    chk("offline load returns the empty state without network", load(["GEV"], live=False)["empty"])
 
     print("\n%d/%d checks passed" % (ran[0] - len(fails), ran[0]))
     return 1 if fails else 0

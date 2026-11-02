@@ -32,14 +32,11 @@ def orphan_bullets(page_texts):
     """A page whose entire content is a single stranded bullet."""
     bad = []
     for i, t in enumerate(page_texts):
-        lines = [ln.strip() for ln in (t or "").splitlines()
-                 if ln.strip()]
+        lines = [ln.strip() for ln in (t or "").splitlines() if ln.strip()]
         # ignore running header/footer lines (short, no bullet)
         body = [ln for ln in lines if len(ln) > 3]
-        bullets = [ln for ln in body if ln.startswith(("•", "-", "*"))
-                   or ln.startswith("•")]
-        if bullets and len(bullets) == 1 and len(body) <= 3 \
-                and sum(len(ln) for ln in body) < 220:
+        bullets = [ln for ln in body if ln.startswith(("•", "-", "*")) or ln.startswith("•")]
+        if bullets and len(bullets) == 1 and len(body) <= 3 and sum(len(ln) for ln in body) < 220:
             bad.append("page %d: single stranded bullet" % (i + 1))
     return bad
 
@@ -50,9 +47,12 @@ _RAW_ID_RX = re.compile(r"\b[a-z][a-z0-9]+(?:_[a-z0-9]+)+\b")
 _RAW_ID_ALLOW = {"v5_inputs"}
 
 
-_LABEL_PREFIXES = (("next_q_", "Next-quarter "),
-                   ("next_fy_", "Next fiscal-year "),
-                   ("fy_", "Full-year "), ("q_", "Quarterly "))
+_LABEL_PREFIXES = (
+    ("next_q_", "Next-quarter "),
+    ("next_fy_", "Next fiscal-year "),
+    ("fy_", "Full-year "),
+    ("q_", "Quarterly "),
+)
 
 
 def human_metric_label(key):
@@ -61,7 +61,7 @@ def human_metric_label(key):
     s = str(key or "")
     for pre, rep in _LABEL_PREFIXES:
         if s.startswith(pre):
-            s = rep + s[len(pre):]
+            s = rep + s[len(pre) :]
             break
     s = s.replace("_", " ").strip()
     return s[:1].upper() + s[1:] if s else s
@@ -69,11 +69,11 @@ def human_metric_label(key):
 
 def raw_identifiers(text):
     """Raw snake_case schema identifiers in reader-facing core text."""
-    return sorted({t for t in _RAW_ID_RX.findall(text or "")
-                   if t not in _RAW_ID_ALLOW})
+    return sorted({t for t in _RAW_ID_RX.findall(text or "") if t not in _RAW_ID_ALLOW})
 
 
 # ── appendix binding (§1) ────────────────────────────────────────────
+
 
 def _norm(s):
     return re.sub(r"[–—-]", "-", s or "")
@@ -112,17 +112,18 @@ def appendix_method_issues(apx_text, band_available, metric_kind=None):
     never deny a band the core renders; affirm the same metric kind."""
     t = (apx_text or "").lower()
     bad = []
-    denial = re.search(r"band[^.]{0,80}(not produced|deliberately not|"
-                       r"were not produced)", t)
+    denial = re.search(
+        r"band[^.]{0,80}(not produced|deliberately not|"
+        r"were not produced)",
+        t,
+    )
     if band_available:
         if denial:
             bad.append("appendix denies a band the core renders")
-        if "historical multiple band" not in t \
-                and "multiple band" not in t:
+        if "historical multiple band" not in t and "multiple band" not in t:
             bad.append("appendix never describes the band methodology")
         if metric_kind and metric_kind.lower() not in t:
-            bad.append("metric kind %r absent from appendix"
-                       % metric_kind)
+            bad.append("metric kind %r absent from appendix" % metric_kind)
     else:
         if "core renders a historical multiple band" in t:
             bad.append("appendix affirms a band the core withheld")
@@ -130,6 +131,7 @@ def appendix_method_issues(apx_text, band_available, metric_kind=None):
 
 
 # ── claims / evidence (§8) ───────────────────────────────────────────
+
 
 def variant_wording_issues(core_text, variant_available):
     """'Our variant' is banned outright; 'Variant perception:' as an
@@ -140,12 +142,19 @@ def variant_wording_issues(core_text, variant_available):
         bad.append("'Our variant' rendered")
     if not variant_available:
         for m in re.finditer(r"Variant perception[:\s]", t):
-            ctx = t[m.start():m.start() + 160].lower()
-            if not any(k in ctx for k in ("not established", "no sourced",
-                                          "unavailable", "withheld",
-                                          "not claimed", "no variant")):
-                bad.append("affirmative variant wording without a "
-                           "sourced expectations gap")
+            ctx = t[m.start() : m.start() + 160].lower()
+            if not any(
+                k in ctx
+                for k in (
+                    "not established",
+                    "no sourced",
+                    "unavailable",
+                    "withheld",
+                    "not claimed",
+                    "no variant",
+                )
+            ):
+                bad.append("affirmative variant wording without a sourced expectations gap")
                 break
     return bad
 
@@ -166,10 +175,10 @@ def event_state_issues(event, today=None):
     """§10: a report generated inside the pre-event window must not
     carry a post-call state."""
     from datetime import date, datetime, timedelta
+
     ev = event or {}
     state = ev.get("state") or ""
-    nxt = ev.get("next_event_date") or (ev.get("catalyst") or {}).get(
-        "next_event_date")
+    nxt = ev.get("next_event_date") or (ev.get("catalyst") or {}).get("next_event_date")
     if not nxt or not state.startswith("POST-CALL"):
         return []
     try:
@@ -178,8 +187,7 @@ def event_state_issues(event, today=None):
         return []
     today = today or date.today()
     if timedelta(0) <= (d - today) <= timedelta(days=3):
-        return ["state %s with next event %s inside the pre-event "
-                "window" % (state, nxt)]
+        return ["state %s with next event %s inside the pre-event window" % (state, nxt)]
     return []
 
 
@@ -200,8 +208,7 @@ def stage_order_issues(stages):
     if ups != sorted(ups):
         bad.append("upward stage thresholds not ascending: %s" % ups)
     if downs != sorted(downs, reverse=True):
-        bad.append("downward stage thresholds not descending: %s"
-                   % downs)
+        bad.append("downward stage thresholds not descending: %s" % downs)
     return bad
 
 
@@ -209,15 +216,27 @@ OVERFLOW_MAX_CHARS = 5500
 
 
 def overflow_pages(page_texts, limit=OVERFLOW_MAX_CHARS):
-    return ["page %d: %d chars" % (i + 1, len(t or ""))
-            for i, t in enumerate(page_texts) if len(t or "") > limit]
+    return [
+        "page %d: %d chars" % (i + 1, len(t or ""))
+        for i, t in enumerate(page_texts)
+        if len(t or "") > limit
+    ]
 
 
-BANNED_HISTORICAL = ("bear case", "base case", "bull case",
-                     "bear-case", "base-case", "bull-case",
-                     "expected return", "target price",
-                     "margin of safety", "upside/downside",
-                     "probability-weighted", "expected value")
+BANNED_HISTORICAL = (
+    "bear case",
+    "base case",
+    "bull case",
+    "bear-case",
+    "base-case",
+    "bull-case",
+    "expected return",
+    "target price",
+    "margin of safety",
+    "upside/downside",
+    "probability-weighted",
+    "expected value",
+)
 
 _SCENARIO_RX = re.compile(r"\bscenario\w*\b", re.I)
 
@@ -245,18 +264,21 @@ def json_scenario_issues(result, mode):
         return []
     import copy
     import json as _json
-    doc = copy.deepcopy({k: v for k, v in (result or {}).items()
-                         if k != "mutation_tests"})
-    doc["checks"] = [c for c in doc.get("checks") or []
-                     if "SCENARIO" not in (c.get("check_id") or "")]
-    doc["blocking_failures"] = [b for b in doc.get("blocking_failures")
-                                or [] if "SCENARIO" not in str(b)]
+
+    doc = copy.deepcopy({k: v for k, v in (result or {}).items() if k != "mutation_tests"})
+    doc["checks"] = [
+        c for c in doc.get("checks") or [] if "SCENARIO" not in (c.get("check_id") or "")
+    ]
+    doc["blocking_failures"] = [
+        b for b in doc.get("blocking_failures") or [] if "SCENARIO" not in str(b)
+    ]
     blob = _json.dumps(doc, default=str)
     m = _SCENARIO_RX.search(blob)
-    return (["validation JSON carries %r" % m.group(0)] if m else [])
+    return ["validation JSON carries %r" % m.group(0)] if m else []
 
 
 # ── §1 point-in-time integrity ───────────────────────────────────────
+
 
 def ttm_integrity_issues(multiples):
     """A band that is AVAILABLE must rest on four contiguous, current
@@ -268,9 +290,7 @@ def ttm_integrity_issues(multiples):
             continue
         rec = integ.get(kind) or {}
         if not rec.get("ok"):
-            bad.append("%s: %s" % (kind,
-                                   "; ".join(rec.get("reasons")
-                                             or ["no integrity record"])))
+            bad.append("%s: %s" % (kind, "; ".join(rec.get("reasons") or ["no integrity record"])))
         if not rec.get("concept"):
             bad.append("%s: no accounting concept recorded" % kind)
     return bad
@@ -280,13 +300,17 @@ def balance_sheet_period_issues(fu, bq):
     """§1: instants from different reporting dates must never be netted
     — when they differ, the quality record must have declined the
     pairing."""
+
     def _p(f):
-        return str(f.get("period_end"))[:10] \
-            if isinstance(f, dict) and f.get("period_end") else None
+        return (
+            str(f.get("period_end"))[:10] if isinstance(f, dict) and f.get("period_end") else None
+        )
+
     cp, dp = _p((fu or {}).get("cash")), _p((fu or {}).get("debt"))
     if not cp or not dp or cp == dp:
         return []
     from datetime import date
+
     try:
         gap = abs((date.fromisoformat(cp) - date.fromisoformat(dp)).days)
     except ValueError:
@@ -294,8 +318,7 @@ def balance_sheet_period_issues(fu, bq):
     if gap <= 100:
         return []
     if "net_cash" in ((bq or {}).get("metrics_used") or []):
-        return ["cash (%s) netted against debt (%s) — %d days apart"
-                % (cp, dp, gap)]
+        return ["cash (%s) netted against debt (%s) — %d days apart" % (cp, dp, gap)]
     return []
 
 
@@ -305,24 +328,24 @@ def latest_label_issues(core_text, fu, max_age_days=200, today=None):
     if "latest filed quarter" not in t.lower():
         return []
     f = (fu or {}).get("revenue_q")
-    pe = str(f.get("period_end"))[:10] \
-        if isinstance(f, dict) and f.get("period_end") else None
+    pe = str(f.get("period_end"))[:10] if isinstance(f, dict) and f.get("period_end") else None
     if not pe:
         return []
     from datetime import date
+
     today = today or date.today()
     try:
         age = (today - date.fromisoformat(pe)).days
     except ValueError:
         return []
     if age > max_age_days:
-        return ["'latest filed quarter' rendered but the quarter ended "
-                "%s (%d days ago)" % (pe, age)]
+        return [
+            "'latest filed quarter' rendered but the quarter ended %s (%d days ago)" % (pe, age)
+        ]
     return []
 
 
-_XBRL_TAG_PERIOD_RX = re.compile(
-    r"^XBRL-.*:(\w+)-(\d{4}-\d{2}-\d{2})$")
+_XBRL_TAG_PERIOD_RX = re.compile(r"^XBRL-.*:(\w+)-(\d{4}-\d{2}-\d{2})$")
 
 
 def claim_period_issues(claims, max_gap_days=100):
@@ -332,13 +355,13 @@ def claim_period_issues(claims, max_gap_days=100):
     claim's whole point, not a mixing error. Only facts of DIFFERENT
     concepts must be contemporaneous."""
     from datetime import date
+
     bad = []
     for c in claims or []:
         if c.get("claim_type") not in ("fundamental",):
             continue
         newest_by_tag = {}
-        for r in (c.get("evidence_refs") or []) \
-                + (c.get("counterevidence_refs") or []):
+        for r in (c.get("evidence_refs") or []) + (c.get("counterevidence_refs") or []):
             m = _XBRL_TAG_PERIOD_RX.match(str(r))
             if not m:
                 continue
@@ -350,43 +373,44 @@ def claim_period_issues(claims, max_gap_days=100):
             if tag not in newest_by_tag or d > newest_by_tag[tag]:
                 newest_by_tag[tag] = d
         periods = list(newest_by_tag.values())
-        if len(periods) >= 2 \
-                and (max(periods) - min(periods)).days > max_gap_days:
-            bad.append("%s: evidence periods span %s to %s across "
-                       "different concepts"
-                       % (c.get("claim_id"), min(periods), max(periods)))
+        if len(periods) >= 2 and (max(periods) - min(periods)).days > max_gap_days:
+            bad.append(
+                "%s: evidence periods span %s to %s across "
+                "different concepts" % (c.get("claim_id"), min(periods), max(periods))
+            )
     return bad
 
 
 def stale_support_issues(claims):
     """§1: no published claim may rest on stale critical evidence."""
-    return [c.get("claim_id") for c in claims or []
-            if (c.get("freshness") or {}).get("stale")]
+    return [c.get("claim_id") for c in claims or [] if (c.get("freshness") or {}).get("stale")]
 
 
 # ── §2 sector compatibility ──────────────────────────────────────────
 
+
 def claim_sector_issues(cl, adapter):
-    pol = ((adapter or {}).get("policy") or {})
+    pol = (adapter or {}).get("policy") or {}
     forbidden = set(pol.get("claims_forbidden") or ())
-    return [c["claim_id"] for c in (cl or {}).get("claims") or []
-            if c.get("claim_id") in forbidden]
+    return [c["claim_id"] for c in (cl or {}).get("claims") or [] if c.get("claim_id") in forbidden]
 
 
 def valuation_sector_issues(sc, adapter):
-    pol = ((adapter or {}).get("policy") or {})
+    pol = (adapter or {}).get("policy") or {}
     allowed = tuple(pol.get("valuation_allowed", ("pe", "ps")))
     if not (sc or {}).get("available"):
         return []
     mk = (sc or {}).get("metric_kind")
     if mk and mk not in allowed:
-        return ["method %r used but the %s adapter permits %s"
-                % (mk, (adapter or {}).get("key"), list(allowed))]
+        return [
+            "method %r used but the %s adapter permits %s"
+            % (mk, (adapter or {}).get("key"), list(allowed))
+        ]
     return []
 
 
 def quality_metric_issues(bq, adapter):
-    pol = ((adapter or {}).get("policy") or {})
+    pol = (adapter or {}).get("policy") or {}
     banned = set(pol.get("quality_metrics_forbidden") or ())
     used = set((bq or {}).get("metrics_used") or [])
     return sorted(used & banned)
@@ -398,12 +422,13 @@ def freshness_basis_issues(bq, fu):
     used = (bq or {}).get("metrics_used") or []
     if not used:
         return []
-    keymap = {"revenue_growth": ("revenue_growth", "revenue_q"),
-              "net_margin": ("net_margin",),
-              "gross_margin": ("gross_margin",),
-              "cash_conversion": ("free_cash_flow",
-                                  "operating_cash_flow", "revenue_q"),
-              "net_cash": ("cash", "debt")}
+    keymap = {
+        "revenue_growth": ("revenue_growth", "revenue_q"),
+        "net_margin": ("net_margin",),
+        "gross_margin": ("gross_margin",),
+        "cash_conversion": ("free_cash_flow", "operating_cash_flow", "revenue_q"),
+        "net_cash": ("cash", "debt"),
+    }
     periods = []
     for m in used:
         for k in keymap.get(m, ()):
@@ -415,8 +440,7 @@ def freshness_basis_issues(bq, fu):
     oldest = min(periods)
     got = (bq or {}).get("freshness_basis")
     if got != oldest:
-        return ["freshness_basis %r but the oldest material period "
-                "is %s" % (got, oldest)]
+        return ["freshness_basis %r but the oldest material period is %s" % (got, oldest)]
     return []
 
 
@@ -426,12 +450,12 @@ def issuer_issues(ledger, expected_cik):
     if not lc:
         return ["ledger carries no issuer identifier"]
     if expected_cik and str(lc) != str(expected_cik):
-        return ["ledger issuer %s does not match the report's issuer %s"
-                % (lc, expected_cik)]
+        return ["ledger issuer %s does not match the report's issuer %s" % (lc, expected_cik)]
     return []
 
 
 # ── §5 rendered-layout checks (bbox/occupancy based) ─────────────────
+
 
 def page_occupancy_issues(occupancy, final_min=0.45, body_min=0.30):
     """occupancy: list of per-page content-height ratios (0..1),
@@ -442,11 +466,9 @@ def page_occupancy_issues(occupancy, final_min=0.45, body_min=0.30):
     for i, r in enumerate(occupancy or []):
         last = i == len(occupancy) - 1
         if last and len(occupancy) > 1 and r < final_min:
-            bad.append("final page occupancy %.0f%% (min %.0f%%)"
-                       % (r * 100, final_min * 100))
+            bad.append("final page occupancy %.0f%% (min %.0f%%)" % (r * 100, final_min * 100))
         elif not last and r < body_min:
-            bad.append("page %d occupancy %.0f%% (min %.0f%%)"
-                       % (i + 1, r * 100, body_min * 100))
+            bad.append("page %d occupancy %.0f%% (min %.0f%%)" % (i + 1, r * 100, body_min * 100))
     return bad
 
 
@@ -457,10 +479,13 @@ def measure_occupancy(pdf_path):
     margins. Accepts a path or raw PDF bytes (§5: the repagination
     chain measures candidates before a file is written)."""
     import fitz
+
     out = []
-    doc = fitz.open(stream=pdf_path, filetype="pdf") \
-        if isinstance(pdf_path, (bytes, bytearray)) else \
-        fitz.open(pdf_path)
+    doc = (
+        fitz.open(stream=pdf_path, filetype="pdf")
+        if isinstance(pdf_path, (bytes, bytearray))
+        else fitz.open(pdf_path)
+    )
     for page in doc:
         h = page.rect.height
         spans = []
@@ -491,8 +516,7 @@ def measure_occupancy(pdf_path):
     return out
 
 
-def stranded_validation_summary_issues(page_texts, occupancy,
-                                       final_min=0.45):
+def stranded_validation_summary_issues(page_texts, occupancy, final_min=0.45):
     """NO_STRANDED_VALIDATION_SUMMARY (§5, v5.8): the final page must
     not be an isolated validation/hash block — the binding table alone
     on a sparse tail page."""
@@ -500,14 +524,14 @@ def stranded_validation_summary_issues(page_texts, occupancy,
         return []
     last = re.sub(r"\s+", " ", page_texts[-1] or "")
     occ_last = (occupancy or [1.0])[-1]
-    has_binding = ("Binding record for this package" in last
-                   or "sha256" in last.lower())
+    has_binding = "Binding record for this package" in last or "sha256" in last.lower()
     headings = re.findall(r"\b(\d{1,2})\.\s+[A-Z]", last)
     only_binding = has_binding and len(set(headings)) <= 1
     if only_binding and occ_last < final_min:
-        return ["final page is an isolated validation/hash block at "
-                "%.0f%% occupancy (min %.0f%%)"
-                % (occ_last * 100, final_min * 100)]
+        return [
+            "final page is an isolated validation/hash block at "
+            "%.0f%% occupancy (min %.0f%%)" % (occ_last * 100, final_min * 100)
+        ]
     return []
 
 
@@ -530,13 +554,13 @@ def diligence_matrix_issues(core_text, fw):
     bullet carrying the leading words of its stored conclusion; the
     not-assessed count is stated (never silently dropped)."""
     import report_v5_framework as FW
+
     t = re.sub(r"\s+", " ", core_text or "")
     dims = (fw or {}).get("dimensions") or {}
     if not dims:
         return []
     if "Diligence matrix (Tiger 26 dimensions)" not in t:
-        return ["core is missing the named 'Diligence matrix (Tiger 26 "
-                "dimensions)' section"]
+        return ["core is missing the named 'Diligence matrix (Tiger 26 dimensions)' section"]
     bad = []
     for k in FW.TIGER_DIMENSIONS:
         d = dims.get(k) or {}
@@ -544,19 +568,17 @@ def diligence_matrix_issues(core_text, fw):
             continue
         label = FW.DIM_LABELS.get(k, k)
         if label not in t:
-            bad.append("assessed dimension %r has no bullet in the "
-                       "core diligence section" % label)
+            bad.append("assessed dimension %r has no bullet in the core diligence section" % label)
             continue
-        probe = re.sub(r"\s+", " ",
-                       str(d.get("conclusion") or ""))[:24].strip()
+        probe = re.sub(r"\s+", " ", str(d.get("conclusion") or ""))[:24].strip()
         if probe and probe not in t:
-            bad.append("dimension %r bullet does not carry its "
-                       "conclusion (probe %r)" % (label, probe))
+            bad.append(
+                "dimension %r bullet does not carry its conclusion (probe %r)" % (label, probe)
+            )
     counts = ((fw or {}).get("summary") or {}).get("counts") or {}
     na = counts.get(FW.NOT_ASSESSED, 0)
     if na and ("Not assessed (%d" % na) not in t:
-        bad.append("core diligence section does not state the %d "
-                   "not-assessed dimensions" % na)
+        bad.append("core diligence section does not state the %d not-assessed dimensions" % na)
     return bad
 
 
@@ -567,10 +589,12 @@ def sundheim_header_issues(page_texts, sd=None):
     answers ('not established') recur in ordinary prose and must not
     trip the detector."""
     qs = (sd or {}).get("questions") or []
-    answers = [re.sub(r"\s+", " ", str(q.get("answer") or ""))[:40]
-               for q in qs if len(str(q.get("answer") or "")) >= 25]
-    questions = [re.sub(r"\s+", " ", str(q.get("question") or ""))
-                 for q in qs if q.get("question")]
+    answers = [
+        re.sub(r"\s+", " ", str(q.get("answer") or ""))[:40]
+        for q in qs
+        if len(str(q.get("answer") or "")) >= 25
+    ]
+    questions = [re.sub(r"\s+", " ", str(q.get("question") or "")) for q in qs if q.get("question")]
     bad = []
     for i, t in enumerate(page_texts or []):
         norm = re.sub(r"\s+", " ", t or "")
@@ -580,10 +604,8 @@ def sundheim_header_issues(page_texts, sd=None):
         # section. A continuation page shows the QUESTION column too.
         n_qs = sum(1 for q in set(questions) if q and q in norm)
         starts_here = "Sundheim decision record" in norm
-        if n_rows >= 2 and n_qs >= 1 and not starts_here \
-                and "Question" not in norm:
-            bad.append("page %d carries Sundheim rows without a "
-                       "repeated header" % (i + 1))
+        if n_rows >= 2 and n_qs >= 1 and not starts_here and "Question" not in norm:
+            bad.append("page %d carries Sundheim rows without a repeated header" % (i + 1))
     return bad
 
 
@@ -594,42 +616,53 @@ def stranded_tail_issues(page_texts):
     split table, and extraction order may surface a wrapped cell
     before it."""
     bad = []
-    _TABLE_HEADERS = (("Dimension", "Conclusion"),
-                      ("Question", "Answer"),
-                      ("Metric", "Provenance"), ("Source", "Note"),
-                      ("KPI", "Consensus"))
+    _TABLE_HEADERS = (
+        ("Dimension", "Conclusion"),
+        ("Question", "Answer"),
+        ("Metric", "Provenance"),
+        ("Source", "Note"),
+        ("KPI", "Consensus"),
+    )
     for i, t in enumerate(page_texts or []):
-        lines = [ln.strip() for ln in (t or "").splitlines()
-                 if ln.strip()]
-        body = [ln for ln in lines
-                if not ln.startswith(("Prepared", "Educational"))
-                and "Equity Research" not in ln
-                and not ln.startswith("Page ")]
+        lines = [ln.strip() for ln in (t or "").splitlines() if ln.strip()]
+        body = [
+            ln
+            for ln in lines
+            if not ln.startswith(("Prepared", "Educational"))
+            and "Equity Research" not in ln
+            and not ln.startswith("Page ")
+        ]
         if not (i and body and body[0][:1].islower()):
             continue
         norm = re.sub(r"\s+", " ", t or "")
         if any(all(h in norm for h in pair) for pair in _TABLE_HEADERS):
-            continue          # table continuation with repeated header
-        bad.append("page %d opens mid-sentence: %r"
-                   % (i + 1, body[0][:40]))
+            continue  # table continuation with repeated header
+        bad.append("page %d opens mid-sentence: %r" % (i + 1, body[0][:40]))
     return bad
 
 
 # ── §6 release provenance ────────────────────────────────────────────
 
+
 def provenance_issues(result, head_sha=None, tree_sha=None, dirty=None):
     """§6: artifacts must identify the exact clean source state."""
     bad = []
-    for k in ("generator_version", "source_commit_sha", "git_tree_sha",
-              "generated_at", "report_id"):
+    for k in (
+        "generator_version",
+        "source_commit_sha",
+        "git_tree_sha",
+        "generated_at",
+        "report_id",
+    ):
         if not (result or {}).get(k):
             bad.append("missing %s" % k)
     if (result or {}).get("dirty_worktree") is not False:
         bad.append("dirty_worktree is not false")
     if head_sha and (result or {}).get("source_commit_sha") != head_sha:
-        bad.append("source_commit_sha %r is not the generating commit "
-                   "%r" % ((result or {}).get("source_commit_sha"),
-                           head_sha))
+        bad.append(
+            "source_commit_sha %r is not the generating commit "
+            "%r" % ((result or {}).get("source_commit_sha"), head_sha)
+        )
     if tree_sha and (result or {}).get("git_tree_sha") != tree_sha:
         bad.append("git_tree_sha mismatch")
     return bad
@@ -639,18 +672,20 @@ def adapter_governance_issues(cl, sc, adapter):
     # a post-routing reclassification (pre-revenue -> new-listing) is
     # legitimate: analysis ran under the pre-routing policy, which the
     # adapter records
-    keys = {(adapter or {}).get("key"),
-            (adapter or {}).get("reclassified_from")}
+    keys = {(adapter or {}).get("key"), (adapter or {}).get("reclassified_from")}
     keys.discard(None)
     bad = []
     if (cl or {}).get("adapter_key") not in keys:
-        bad.append("argument builder ran without the adapter policy "
-                   "(%r vs %r)" % ((cl or {}).get("adapter_key"),
-                                   sorted(keys)))
-    vp = ((sc or {}).get("valuation_policy") or {})
+        bad.append(
+            "argument builder ran without the adapter policy "
+            "(%r vs %r)" % ((cl or {}).get("adapter_key"), sorted(keys))
+        )
+    vp = (sc or {}).get("valuation_policy") or {}
     if vp.get("adapter") not in keys:
-        bad.append("valuation selection ran without the adapter policy "
-                   "(%r vs %r)" % (vp.get("adapter"), sorted(keys)))
+        bad.append(
+            "valuation selection ran without the adapter policy "
+            "(%r vs %r)" % (vp.get("adapter"), sorted(keys))
+        )
     return bad
 
 
@@ -672,23 +707,24 @@ def ia_underwriting_issues(ia_level, mode):
         return []
     if mode == "underwritten":
         return []
-    return ["graded level %s without underwritten scenarios (mode %s)"
-            % (ia_level, mode)]
+    return ["graded level %s without underwritten scenarios (mode %s)" % (ia_level, mode)]
 
 
 def confidence_axes_issues(conf):
     """§11: confidence must decompose into the five named axes."""
     axes = (conf or {}).get("axes") or {}
-    want = {"source_integrity", "quantitative_coverage",
-            "qualitative_coverage", "expectations_coverage",
-            "thesis_completeness"}
+    want = {
+        "source_integrity",
+        "quantitative_coverage",
+        "qualitative_coverage",
+        "expectations_coverage",
+        "thesis_completeness",
+    }
     missing = sorted(want - set(axes))
-    return (["missing axes: %s" % ", ".join(missing)] if missing
-            else [])
+    return ["missing axes: %s" % ", ".join(missing)] if missing else []
 
 
-VALID_CHECKPOINT_TYPES = ("exact_date", "estimated_date",
-                          "unscheduled_event")
+VALID_CHECKPOINT_TYPES = ("exact_date", "estimated_date", "unscheduled_event")
 
 
 def checkpoint_type_issues(claims):
@@ -696,18 +732,24 @@ def checkpoint_type_issues(claims):
     bad = []
     for c in claims or []:
         cp = c.get("next_checkpoint")
-        if not isinstance(cp, dict) \
-                or cp.get("type") not in VALID_CHECKPOINT_TYPES \
-                or (cp.get("type") != "unscheduled_event"
-                    and not cp.get("date")):
+        if (
+            not isinstance(cp, dict)
+            or cp.get("type") not in VALID_CHECKPOINT_TYPES
+            or (cp.get("type") != "unscheduled_event" and not cp.get("date"))
+        ):
             bad.append(c.get("claim_id") or "?")
     return bad
 
 
 SUNDHEIM_REQUIRED_FIELDS = (
-    "underwriting_status", "thesis_type", "business_quality",
-    "investment_attractiveness", "principal_uncertainty",
-    "next_evidence_needed", "reunderwrite_when", "questions",
+    "underwriting_status",
+    "thesis_type",
+    "business_quality",
+    "investment_attractiveness",
+    "principal_uncertainty",
+    "next_evidence_needed",
+    "reunderwrite_when",
+    "questions",
 )
 SUNDHEIM_QUESTION_COUNT = 12
 
@@ -722,11 +764,9 @@ def sundheim_issues(sd):
     bad = [k for k in SUNDHEIM_REQUIRED_FIELDS if k not in sd]
     qs = sd.get("questions") or []
     if len(qs) != SUNDHEIM_QUESTION_COUNT:
-        bad.append("%d of %d questions present"
-                   % (len(qs), SUNDHEIM_QUESTION_COUNT))
+        bad.append("%d of %d questions present" % (len(qs), SUNDHEIM_QUESTION_COUNT))
     for q in qs:
-        if not isinstance(q, dict) or not q.get("question") \
-                or not q.get("answer"):
+        if not isinstance(q, dict) or not q.get("question") or not q.get("answer"):
             bad.append("unanswered question object")
             break
     return bad
@@ -735,18 +775,20 @@ def sundheim_issues(sd):
 def framework_issues(framework):
     """§4: all 26 dimensions present with valid statuses."""
     import report_v5_framework as FW
+
     dims = (framework or {}).get("dimensions") or {}
-    return [k for k in FW.TIGER_DIMENSIONS
-            if not isinstance(dims.get(k), dict)
-            or dims[k].get("status") not in FW.STATUSES]
+    return [
+        k
+        for k in FW.TIGER_DIMENSIONS
+        if not isinstance(dims.get(k), dict) or dims[k].get("status") not in FW.STATUSES
+    ]
 
 
 def full_coverage_issues(archetype, framework):
     """§6: FULL only with coverage on the decision dimensions."""
     if archetype != "FULL":
         return []
-    return list(((framework or {}).get("summary") or {})
-                .get("missing_for_full") or [])
+    return list(((framework or {}).get("summary") or {}).get("missing_for_full") or [])
 
 
 def adapter_issues(adapter, core_text, archetype):
@@ -775,23 +817,18 @@ def invalidation_separation_issues(core_text):
 
 # ── v5.8 §1: classification integrity ────────────────────────────────
 
-_PRE_REVENUE_ADMITTED_BASES = ("no revenue concept in any taxonomy",
-                               "development-stage condition")
-_DATA_GAP_MARKERS = ("not parsed", "no filed quarters", "fetch",
-                     "unavailable", "missing")
+_PRE_REVENUE_ADMITTED_BASES = ("no revenue concept in any taxonomy", "development-stage condition")
+_DATA_GAP_MARKERS = ("not parsed", "no filed quarters", "fetch", "unavailable", "missing")
 
 
 def classification_present_issues(classification):
     c = classification or {}
     out = []
-    for f in ("business_stage", "accounting_regime", "listing_type",
-              "classification_confidence"):
+    for f in ("business_stage", "accounting_regime", "listing_type", "classification_confidence"):
         if not c.get(f):
             out.append("classification field %r absent" % f)
-    if c.get("business_stage") not in ("OPERATING", "PRE_REVENUE",
-                                       "UNKNOWN"):
-        out.append("business_stage %r not a defined stage"
-                   % c.get("business_stage"))
+    if c.get("business_stage") not in ("OPERATING", "PRE_REVENUE", "UNKNOWN"):
+        out.append("business_stage %r not a defined stage" % c.get("business_stage"))
     return out
 
 
@@ -805,11 +842,12 @@ def missing_data_pre_revenue_issues(classification):
     basis = (c.get("business_stage_basis") or "").lower()
     out = []
     if not any(m in basis for m in _PRE_REVENUE_ADMITTED_BASES):
-        out.append("PRE_REVENUE basis is not an admitted-evidence "
-                   "rule: %r" % basis[:100])
+        out.append("PRE_REVENUE basis is not an admitted-evidence rule: %r" % basis[:100])
     if any(m in basis for m in _DATA_GAP_MARKERS):
-        out.append("PRE_REVENUE basis cites a data gap (%r) — missing "
-                   "data never implies pre-revenue" % basis[:100])
+        out.append(
+            "PRE_REVENUE basis cites a data gap (%r) — missing "
+            "data never implies pre-revenue" % basis[:100]
+        )
     return out
 
 
@@ -822,16 +860,16 @@ def pre_revenue_evidence_issues(classification, ledger):
     if not refs:
         return ["PRE_REVENUE carries no classification evidence refs"]
     known = (ledger or {}).get("ids") or {}
-    return ["classification ref %r unresolved in ledger" % r
-            for r in refs if r not in known]
+    return ["classification ref %r unresolved in ledger" % r for r in refs if r not in known]
 
 
 def classification_refs_issues(classification, ledger):
     known = (ledger or {}).get("ids") or {}
-    return ["classification ref %r unresolved in ledger" % r
-            for r in (classification or {}).get(
-                "classification_evidence_refs") or []
-            if r not in known]
+    return [
+        "classification ref %r unresolved in ledger" % r
+        for r in (classification or {}).get("classification_evidence_refs") or []
+        if r not in known
+    ]
 
 
 def expected_routing_issues(expected, classification, adapter):
@@ -841,11 +879,11 @@ def expected_routing_issues(expected, classification, adapter):
     if not expected:
         return []
     out = []
-    pairs = (("expected_adapter", (adapter or {}).get("key")),
-             ("expected_business_stage",
-              (classification or {}).get("business_stage")),
-             ("expected_accounting_regime",
-              (classification or {}).get("accounting_regime")))
+    pairs = (
+        ("expected_adapter", (adapter or {}).get("key")),
+        ("expected_business_stage", (classification or {}).get("business_stage")),
+        ("expected_accounting_regime", (classification or {}).get("accounting_regime")),
+    )
     for field, actual in pairs:
         want = expected.get(field)
         if want and actual != want:
@@ -868,21 +906,19 @@ def grid_ttm_cell_issues(grid):
         v = ttm.get(m)
         c = cells.get(m) or {}
         if v is not None and not c.get("ok"):
-            out.append("TTM %s is populated (%.4g) but its cell failed "
-                       "validation: %s"
-                       % (m, v, "; ".join(c.get("reasons") or
-                                          ["no cell record"])))
+            out.append(
+                "TTM %s is populated (%.4g) but its cell failed "
+                "validation: %s" % (m, v, "; ".join(c.get("reasons") or ["no cell record"]))
+            )
     # derived rows must come only from validated bases
     if ttm.get("net_margin") is not None and not (
-            (cells.get("revenue") or {}).get("ok")
-            and (cells.get("net_income") or {}).get("ok")):
-        out.append("TTM net margin derived without validated revenue "
-                   "and net-income cells")
+        (cells.get("revenue") or {}).get("ok") and (cells.get("net_income") or {}).get("ok")
+    ):
+        out.append("TTM net margin derived without validated revenue and net-income cells")
     if ttm.get("fcf") is not None and not (
-            (cells.get("ocf") or {}).get("ok")
-            and (cells.get("capex") or {}).get("ok")):
-        out.append("TTM FCF derived without validated OCF and capex "
-                   "cells")
+        (cells.get("ocf") or {}).get("ok") and (cells.get("capex") or {}).get("ok")
+    ):
+        out.append("TTM FCF derived without validated OCF and capex cells")
     return out
 
 
@@ -895,17 +931,13 @@ def grid_ttm_endpoint_issues(grid):
     out = []
     populated = [m for m in _GRID_TTM_METRICS if ttm.get(m) is not None]
     if populated and not thru:
-        out.append("TTM cells populated (%s) with no column "
-                   "through-date" % ", ".join(populated))
+        out.append("TTM cells populated (%s) with no column through-date" % ", ".join(populated))
     for m in populated:
         c = cells.get(m) or {}
         if c.get("through") and thru and c["through"] != thru:
-            out.append("TTM %s ends %s but the column is dated %s"
-                       % (m, c["through"], thru))
-    if thru and not populated and ttm.get("eps") is None \
-            and ttm.get("fcf") is None:
-        out.append("column through-date %s shown with no populated "
-                   "cell" % thru)
+            out.append("TTM %s ends %s but the column is dated %s" % (m, c["through"], thru))
+    if thru and not populated and ttm.get("eps") is None and ttm.get("fcf") is None:
+        out.append("column through-date %s shown with no populated cell" % thru)
     return out
 
 
@@ -921,15 +953,16 @@ def grid_ttm_footnote_issues(grid, core_text):
         m = s.get("metric")
         label = s.get("label") or m
         if m in _GRID_TTM_METRICS and ttm.get(m) is not None:
-            out.append("metric %s is listed suppressed but its TTM "
-                       "value is populated" % m)
-        if m and ("TTM suppressed" in gaps) \
-                and m not in gaps and (label or "") not in gaps:
+            out.append("metric %s is listed suppressed but its TTM value is populated" % m)
+        if m and ("TTM suppressed" in gaps) and m not in gaps and (label or "") not in gaps:
             out.append("suppression note does not name metric %s" % m)
-    if (ttm.get("suppressed") and (grid or {}).get("years")
-            and core_text and "TTM suppressed" not in core_text):
-        out.append("cells are suppressed but the rendered core carries "
-                   "no TTM-suppression note")
+    if (
+        ttm.get("suppressed")
+        and (grid or {}).get("years")
+        and core_text
+        and "TTM suppressed" not in core_text
+    ):
+        out.append("cells are suppressed but the rendered core carries no TTM-suppression note")
     return out
 
 
@@ -942,7 +975,7 @@ def grid_ttm_pdf_issues(grid, core_text, fmt_money=None):
     t = re.sub(r"\s+", " ", core_text or "")
     out = []
 
-    def _fmt(v):                      # mirrors the renderer's $M cell
+    def _fmt(v):  # mirrors the renderer's $M cell
         return (fmt_money or (lambda x: "{:,.0f}".format(x / 1e6)))(v)
 
     for m in ("revenue", "net_income", "ocf"):
@@ -950,8 +983,7 @@ def grid_ttm_pdf_issues(grid, core_text, fmt_money=None):
         if v is None:
             continue
         if _fmt(v) not in t:
-            out.append("TTM %s (%s) not found in the rendered core"
-                       % (m, _fmt(v)))
+            out.append("TTM %s (%s) not found in the rendered core" % (m, _fmt(v)))
     return out
 
 
@@ -968,16 +1000,19 @@ def bank_revenue_concept_issues(grid, adapter):
     ttm = (grid or {}).get("ttm") or {}
     used = ttm.get("revenue_concept")
     if ttm.get("revenue") is not None and used not in allowed:
-        return ["bank grid revenue uses concept %r — not in the "
-                "sector-appropriate set %s" % (used, list(allowed))]
+        return [
+            "bank grid revenue uses concept %r — not in the "
+            "sector-appropriate set %s" % (used, list(allowed))
+        ]
     return []
 
 
 # ── v5.8 §2: same-period balance-sheet rule ──────────────────────────
 
 BS_PAIR_MAX_GAP_DAYS = 100
-BS_NOT_ASSESSED_MSG = ("Not assessed: comparable cash and debt facts "
-                       "for the same reporting date were not admitted.")
+BS_NOT_ASSESSED_MSG = (
+    "Not assessed: comparable cash and debt facts for the same reporting date were not admitted."
+)
 # newest admitted instant a "latest"/current-position wording may cite
 BS_LATEST_MAX_AGE_DAYS = 400
 
@@ -995,6 +1030,7 @@ def balance_sheet_pairing(fu):
     may be presented together only when their reporting dates match
     within BS_PAIR_MAX_GAP_DAYS."""
     from datetime import date
+
     cash_f, debt_f = (fu or {}).get("cash"), (fu or {}).get("debt")
 
     def _v(f):
@@ -1003,16 +1039,24 @@ def balance_sheet_pairing(fu):
     cp, dp = _fact_period(cash_f), _fact_period(debt_f)
     gap = None
     if cp and dp:
-        gap = abs((date.fromisoformat(cp) - date.fromisoformat(dp)
-                   ).days)
+        gap = abs((date.fromisoformat(cp) - date.fromisoformat(dp)).days)
     ok = not (
-        _v(cash_f) is not None and _v(debt_f) is not None
-        and cp and dp and gap is not None
-        and gap > BS_PAIR_MAX_GAP_DAYS)
-    return {"cash_value": _v(cash_f), "debt_value": _v(debt_f),
-            "cash_period": cp, "debt_period": dp,
-            "gap_days": gap, "ok": ok,
-            "message": None if ok else BS_NOT_ASSESSED_MSG}
+        _v(cash_f) is not None
+        and _v(debt_f) is not None
+        and cp
+        and dp
+        and gap is not None
+        and gap > BS_PAIR_MAX_GAP_DAYS
+    )
+    return {
+        "cash_value": _v(cash_f),
+        "debt_value": _v(debt_f),
+        "cash_period": cp,
+        "debt_period": dp,
+        "gap_days": gap,
+        "ok": ok,
+        "message": None if ok else BS_NOT_ASSESSED_MSG,
+    }
 
 
 def _money(v):
@@ -1042,25 +1086,21 @@ def serialized_bs_issues(snap, view5, dashboard_rows=None):
 
     def _scan(label, s):
         if isinstance(s, str) and c_s in s and d_s in s:
-            out.append("%s joins cash %s and debt %s from different "
-                       "reporting dates (%s vs %s)"
-                       % (label, c_s, d_s, pair["cash_period"],
-                          pair["debt_period"]))
+            out.append(
+                "%s joins cash %s and debt %s from different "
+                "reporting dates (%s vs %s)"
+                % (label, c_s, d_s, pair["cash_period"], pair["debt_period"])
+            )
 
     fw = (view5 or {}).get("framework") or {}
     for k, dim in (fw.get("dimensions") or {}).items():
-        _scan("framework dimension %r" % k,
-              (dim or {}).get("conclusion"))
-    for q in ((view5 or {}).get("sundheim") or {}).get(
-            "questions") or []:
-        _scan("Sundheim answer %r" % (q.get("id")
-                                      or str(q.get("question"))[:30]),
-              q.get("answer"))
+        _scan("framework dimension %r" % k, (dim or {}).get("conclusion"))
+    for q in ((view5 or {}).get("sundheim") or {}).get("questions") or []:
+        _scan("Sundheim answer %r" % (q.get("id") or str(q.get("question"))[:30]), q.get("answer"))
     cl = (view5 or {}).get("claims") or {}
     for c in _published_claims(cl)[0]:
         _scan("claim %r" % c.get("claim_id"), c.get("claim"))
-    bq = ((view5 or {}).get("assessment") or {}).get(
-        "business_quality") or {}
+    bq = ((view5 or {}).get("assessment") or {}).get("business_quality") or {}
     for r in bq.get("reasons") or []:
         _scan("business-quality reason", r)
     for row in dashboard_rows or []:
@@ -1077,18 +1117,22 @@ def bs_value_period_issues(dashboard_rows, framework):
         if not (isinstance(row, (list, tuple)) and len(row) >= 2):
             continue
         label, val = str(row[0]), str(row[1])
-        if "/" in label and "cash" in label.lower() \
-                and "$" in val and "as of" not in val \
-                and "Not assessed" not in val:
-            out.append("dashboard row %r shows balance-sheet values "
-                       "without their reporting dates" % label)
-    dim = ((framework or {}).get("dimensions") or {}).get(
-        "balance_sheet") or {}
+        if (
+            "/" in label
+            and "cash" in label.lower()
+            and "$" in val
+            and "as of" not in val
+            and "Not assessed" not in val
+        ):
+            out.append(
+                "dashboard row %r shows balance-sheet values without their reporting dates" % label
+            )
+    dim = ((framework or {}).get("dimensions") or {}).get("balance_sheet") or {}
     concl = dim.get("conclusion") or ""
-    if dim.get("status") == "PARTIAL" and "$" in concl \
-            and "as of" not in concl:
-        out.append("balance-sheet conclusion cites values without "
-                   "their reporting dates: %r" % concl[:80])
+    if dim.get("status") == "PARTIAL" and "$" in concl and "as of" not in concl:
+        out.append(
+            "balance-sheet conclusion cites values without their reporting dates: %r" % concl[:80]
+        )
     return out
 
 
@@ -1099,6 +1143,7 @@ def framework_bs_freshness_issues(framework, today=None):
     periods, and any 'latest' wording requires every supporting fact to
     be current."""
     from datetime import date, timedelta
+
     today = today or date.today()
     out = []
     for k, dim in ((framework or {}).get("dimensions") or {}).items():
@@ -1111,19 +1156,19 @@ def framework_bs_freshness_issues(framework, today=None):
                 dates.append(m.group(1))
         if len(set(dates)) > 1:
             ds = sorted(set(dates))
-            gap = (date.fromisoformat(ds[-1])
-                   - date.fromisoformat(ds[0])).days
-            joined = "$" in (dim.get("conclusion") or "") \
-                and " vs " in (dim.get("conclusion") or "")
+            gap = (date.fromisoformat(ds[-1]) - date.fromisoformat(ds[0])).days
+            joined = "$" in (dim.get("conclusion") or "") and " vs " in (
+                dim.get("conclusion") or ""
+            )
             if gap > BS_PAIR_MAX_GAP_DAYS and joined:
-                out.append("dimension %r joins facts dated %s and %s "
-                           "(%d days apart)" % (k, ds[0], ds[-1], gap))
+                out.append(
+                    "dimension %r joins facts dated %s and %s "
+                    "(%d days apart)" % (k, ds[0], ds[-1], gap)
+                )
         if "latest" in (dim.get("conclusion") or "").lower() and dates:
             oldest = min(dates)
-            if date.fromisoformat(oldest) < today - timedelta(
-                    days=BS_LATEST_MAX_AGE_DAYS):
-                out.append("dimension %r says 'latest' but cites a "
-                           "fact dated %s" % (k, oldest))
+            if date.fromisoformat(oldest) < today - timedelta(days=BS_LATEST_MAX_AGE_DAYS):
+                out.append("dimension %r says 'latest' but cites a fact dated %s" % (k, oldest))
     return out
 
 
@@ -1132,6 +1177,7 @@ def stale_rendered_support_issues(framework, today=None):
     dimension quoting dollar figures must rest on at least one current
     fact."""
     from datetime import date, timedelta
+
     today = today or date.today()
     out = []
     for k, dim in ((framework or {}).get("dimensions") or {}).items():
@@ -1144,11 +1190,11 @@ def stale_rendered_support_issues(framework, today=None):
             m = _REF_DATE_RX.search(str(r))
             if m:
                 dates.append(m.group(1))
-        if dates and max(dates) < (today - timedelta(
-                days=BS_LATEST_MAX_AGE_DAYS)).isoformat():
-            out.append("dimension %r quotes figures whose newest "
-                       "supporting fact is dated %s"
-                       % (k, max(dates)))
+        if dates and max(dates) < (today - timedelta(days=BS_LATEST_MAX_AGE_DAYS)).isoformat():
+            out.append(
+                "dimension %r quotes figures whose newest "
+                "supporting fact is dated %s" % (k, max(dates))
+            )
     return out
 
 
@@ -1164,10 +1210,10 @@ def dashboard_bs_issues(snap, dashboard_rows):
         label, val = str(row[0]), str(row[1])
         if "cash" in label.lower() and "/" in label:
             if not pair["ok"] and "Not assessed" not in val:
-                out.append("dashboard renders %r despite cash %s / "
-                           "debt %s reporting dates"
-                           % (val[:60], pair["cash_period"],
-                              pair["debt_period"]))
+                out.append(
+                    "dashboard renders %r despite cash %s / "
+                    "debt %s reporting dates" % (val[:60], pair["cash_period"], pair["debt_period"])
+                )
     return out
 
 
@@ -1188,7 +1234,6 @@ def ledger_kind_issues(ledger):
     return out[:20]
 
 
-
 def _published_claims(claims_obj):
     """The published claims of a v5-claims/2 object, plus explicit
     schema issues. The v5.8 review found five validators iterating a
@@ -1201,14 +1246,23 @@ def _published_claims(claims_obj):
         return pub, []
     issues = []
     for k, v in cl.items():
-        if k != "rejected" and isinstance(v, list) and v                 and isinstance(v[0], dict) and "claim" in v[0]:
-            issues.append("claims object carries %d claim(s) under "
-                          "unrecognized key %r — zero claims would "
-                          "have been inspected" % (len(v), k))
+        if (
+            k != "rejected"
+            and isinstance(v, list)
+            and v
+            and isinstance(v[0], dict)
+            and "claim" in v[0]
+        ):
+            issues.append(
+                "claims object carries %d claim(s) under "
+                "unrecognized key %r — zero claims would "
+                "have been inspected" % (len(v), k)
+            )
     if not issues and cl:
-        issues.append("claims object has no 'claims' list "
-                      "(schema %r) — zero claims inspected"
-                      % cl.get("schema"))
+        issues.append(
+            "claims object has no 'claims' list "
+            "(schema %r) — zero claims inspected" % cl.get("schema")
+        )
     return [], issues
 
 
@@ -1221,28 +1275,25 @@ def calc_record_issues(claims, ledger):
     pub, out2 = _published_claims(claims)
     out.extend(out2)
     for c in pub:
-        for r in (c.get("evidence_refs") or []) + (
-                c.get("counterevidence_refs") or []):
-            if not (isinstance(r, str) and r.startswith("CALC-")) \
-                    or r in seen:
+        for r in (c.get("evidence_refs") or []) + (c.get("counterevidence_refs") or []):
+            if not (isinstance(r, str) and r.startswith("CALC-")) or r in seen:
                 continue
             seen.add(r)
             rec = known.get(r)
             if not isinstance(rec, dict):
                 out.append("CALC ref %r unregistered" % r)
                 continue
-            missing = [f for f in ("kind", "metric", "calculation")
-                       if not rec.get(f)]
+            missing = [f for f in ("kind", "metric", "calculation") if not rec.get(f)]
             # a versioned policy constant is self-contained — its
             # calculation IS its provenance; everything else needs
             # ordered inputs
-            if not rec.get("input_evidence_ids") \
-                    and "constant" not in str(
-                        rec.get("calculation") or "").lower():
+            if (
+                not rec.get("input_evidence_ids")
+                and "constant" not in str(rec.get("calculation") or "").lower()
+            ):
                 missing.append("input_evidence_ids")
             if missing:
-                out.append("CALC record %r missing %s"
-                           % (r, ", ".join(missing)))
+                out.append("CALC record %r missing %s" % (r, ", ".join(missing)))
     return out
 
 
@@ -1256,23 +1307,30 @@ def xbrl_claim_ref_issues(claims, ledger):
     pub, out2 = _published_claims(claims)
     out.extend(out2)
     for c in pub:
-        for r in (c.get("evidence_refs") or []) + (
-                c.get("counterevidence_refs") or []):
-            if not (isinstance(r, str) and r.startswith("XBRL-")) \
-                    or r in seen:
+        for r in (c.get("evidence_refs") or []) + (c.get("counterevidence_refs") or []):
+            if not (isinstance(r, str) and r.startswith("XBRL-")) or r in seen:
                 continue
             seen.add(r)
             rec = known.get(r)
             if not isinstance(rec, dict):
                 out.append("XBRL ref %r unregistered" % r)
                 continue
-            missing = [f for f in ("accession", "taxonomy", "concept",
-                                   "value", "units", "period_end",
-                                   "url", "issuer_cik")
-                       if rec.get(f) is None]
+            missing = [
+                f
+                for f in (
+                    "accession",
+                    "taxonomy",
+                    "concept",
+                    "value",
+                    "units",
+                    "period_end",
+                    "url",
+                    "issuer_cik",
+                )
+                if rec.get(f) is None
+            ]
             if missing:
-                out.append("XBRL record %r missing %s"
-                           % (r, ", ".join(missing)))
+                out.append("XBRL record %r missing %s" % (r, ", ".join(missing)))
     return out
 
 
@@ -1293,13 +1351,10 @@ def all_refs_resolve_issues(view5, classification, ledger):
     out.extend(sch_iss)
     for c in pub_cl:
         _chk("claim %s" % c.get("claim_id"), c.get("evidence_refs"))
-        _chk("claim %s counter" % c.get("claim_id"),
-             c.get("counterevidence_refs"))
-    for k, dim in (((view5 or {}).get("framework") or {}).get(
-            "dimensions") or {}).items():
+        _chk("claim %s counter" % c.get("claim_id"), c.get("counterevidence_refs"))
+    for k, dim in (((view5 or {}).get("framework") or {}).get("dimensions") or {}).items():
         _chk("framework %s" % k, (dim or {}).get("evidence_refs"))
-    _chk("classification",
-         (classification or {}).get("classification_evidence_refs"))
+    _chk("classification", (classification or {}).get("classification_evidence_refs"))
     return out[:25]
 
 
@@ -1314,49 +1369,45 @@ def claim_reproduction_issues(claims, ledger):
     out.extend(out2)
     for c in pub:
         text = c.get("claim") or ""
-        refs = [r for r in (c.get("evidence_refs") or [])
-                if isinstance(r, str)]
-        recs = [known.get(r) for r in refs if isinstance(known.get(r),
-                                                        dict)]
+        refs = [r for r in (c.get("evidence_refs") or []) if isinstance(r, str)]
+        recs = [known.get(r) for r in refs if isinstance(known.get(r), dict)]
         if len(recs) != len(refs):
-            out.append("claim %r cites unregistered evidence"
-                       % c.get("claim_id"))
+            out.append("claim %r cites unregistered evidence" % c.get("claim_id"))
             continue
-        vals = [rec.get("value") for rec in recs
-                if isinstance(rec.get("value"), (int, float))]
+        vals = [rec.get("value") for rec in recs if isinstance(rec.get("value"), (int, float))]
 
         def _half_unit(numstr):
             """Rounding tolerance implied by the quoted precision:
             '19%' was rounded to a whole unit, '19.3%' to a tenth."""
             dec = len(numstr.split(".")[1]) if "." in numstr else 0
-            return 0.5 * (10 ** -dec) + 0.02
+            return 0.5 * (10**-dec) + 0.02
 
         # percentages quoted in the claim reproduce from a cited value
         for m in _PCT_RX.finditer(text):
             q, tol = float(m.group(1)), _half_unit(m.group(1))
-            if not any(abs(v - q) <= tol or (
-                    v and abs(100.0 * v - q) <= tol) for v in vals):
-                out.append("claim %r quotes %s%% — no cited record "
-                           "stores that value"
-                           % (c.get("claim_id"), m.group(1)))
+            if not any(abs(v - q) <= tol or (v and abs(100.0 * v - q) <= tol) for v in vals):
+                out.append(
+                    "claim %r quotes %s%% — no cited record "
+                    "stores that value" % (c.get("claim_id"), m.group(1))
+                )
                 break
         for m in _DOLLAR_RX.finditer(text):
             scale = 1e9 if m.group(2) == "B" else 1e6
             q = float(m.group(1)) * scale
             tol = _half_unit(m.group(1)) * scale
             if not any(v and abs(v - q) <= tol for v in vals):
-                out.append("claim %r quotes $%s%s — no cited record "
-                           "stores that value"
-                           % (c.get("claim_id"), m.group(1),
-                              m.group(2)))
+                out.append(
+                    "claim %r quotes $%s%s — no cited record "
+                    "stores that value" % (c.get("claim_id"), m.group(1), m.group(2))
+                )
                 break
     return out
 
 
 # ── v5.8 review fix: dashboard value currency + sourcing ─────────────
 
-def dashboard_currency_issues(dashboard_rows, core_text=None,
-                              today=None):
+
+def dashboard_currency_issues(dashboard_rows, core_text=None, today=None):
     """DASHBOARD_VALUES_ARE_CURRENT_AND_SOURCED: every displayed money
     or percentage value on the sector dashboard carries its own
     reporting date, that date is within the recency floor, and (when
@@ -1364,6 +1415,7 @@ def dashboard_currency_issues(dashboard_rows, core_text=None,
     appears on the page — the visible dashboard and the validated model
     can no longer diverge."""
     from datetime import date, timedelta
+
     today = today or date.today()
     floor = (today - timedelta(days=BS_LATEST_MAX_AGE_DAYS)).isoformat()
     out = []
@@ -1372,21 +1424,22 @@ def dashboard_currency_issues(dashboard_rows, core_text=None,
             continue
         label, val = str(row[0]), str(row[1])
         if "$" not in val and "%" not in val:
-            continue                       # absence/staleness rows
+            continue  # absence/staleness rows
         m = re.search(r"\(as of (\d{4}-\d{2}-\d{2})\)", val)
         if not m:
-            out.append("dashboard row %r shows %r without its "
-                       "reporting date" % (label, val[:40]))
+            out.append("dashboard row %r shows %r without its reporting date" % (label, val[:40]))
             continue
         if m.group(1) < floor:
-            out.append("dashboard row %r dated %s — older than the "
-                       "recency floor yet displayed as a value"
-                       % (label, m.group(1)))
+            out.append(
+                "dashboard row %r dated %s — older than the "
+                "recency floor yet displayed as a value" % (label, m.group(1))
+            )
         if core_text is not None:
             probe = val.split(" (as of")[0]
             if probe and probe not in re.sub(r"\s+", " ", core_text):
-                out.append("dashboard row %r value %r not found in the "
-                           "rendered core" % (label, probe[:30]))
+                out.append(
+                    "dashboard row %r value %r not found in the rendered core" % (label, probe[:30])
+                )
     return out
 
 
@@ -1404,26 +1457,25 @@ def calc_input_traversal_issues(claims, ledger):
     pub, sch = _published_claims(claims)
     out.extend(sch)
     for c in pub:
-        for r in (c.get("evidence_refs") or []) + (
-                c.get("counterevidence_refs") or []):
-            if not (isinstance(r, str) and r.startswith("CALC-")) \
-                    or r in seen:
+        for r in (c.get("evidence_refs") or []) + (c.get("counterevidence_refs") or []):
+            if not (isinstance(r, str) and r.startswith("CALC-")) or r in seen:
                 continue
             seen.add(r)
             rec = known.get(r)
             if not isinstance(rec, dict):
-                continue                # completeness check covers this
+                continue  # completeness check covers this
             for x in rec.get("input_evidence_ids") or []:
                 x = str(x)
                 if ".." in x:
                     a, b = (p.strip() for p in x.split("..", 1))
                     for endp in (a, b):
                         er = known.get(endp)
-                        if not (isinstance(er, dict)
-                                and er.get("value") is not None):
-                            out.append("CALC %r range input %r: "
-                                       "endpoint %r not registered "
-                                       "with a value" % (r, x, endp))
+                        if not (isinstance(er, dict) and er.get("value") is not None):
+                            out.append(
+                                "CALC %r range input %r: "
+                                "endpoint %r not registered "
+                                "with a value" % (r, x, endp)
+                            )
                 elif x not in known:
                     out.append("CALC %r input %r unresolved" % (r, x))
     return out[:15]

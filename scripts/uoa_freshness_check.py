@@ -24,6 +24,7 @@ Env:
 Exit code: 0 when fresh / skipped, 1 when STALE (so the Actions run also
 shows red and GitHub emails the owner — a second, independent page).
 """
+
 import datetime
 import json
 import os
@@ -32,8 +33,7 @@ import urllib.parse
 import urllib.error
 import urllib.request
 
-REPORT_URL = os.environ.get(
-    "REPORT_URL", "https://tickerdesk.io/reports/uoa_latest.json")
+REPORT_URL = os.environ.get("REPORT_URL", "https://tickerdesk.io/reports/uoa_latest.json")
 MAX_AGE_MIN = int(os.environ.get("MAX_AGE_MIN", "180"))
 # If the DATA (`generated`) is stale but the scanner ATTEMPTED a run within this
 # window, it's an upstream-empty preserve (Polygon came back blank) — the
@@ -49,38 +49,43 @@ def et_now():
     """Current time in America/New_York (GitHub runners ship tzdata)."""
     try:
         from zoneinfo import ZoneInfo
+
         return datetime.datetime.now(ZoneInfo("America/New_York"))
     except Exception:
         # Fallback: assume EDT (UTC-4). Only affects the RTH-window guard;
         # the age math below is timezone-agnostic (uses UTC throughout).
-        return datetime.datetime.now(datetime.timezone.utc) - \
-            datetime.timedelta(hours=4)
+        return datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=4)
 
 
 def send_alert(subject, body):
     if not RESEND_API_KEY or not FROM_EMAIL:
-        print("[monitor] RESEND not configured — would have alerted:\n"
-              + subject + "\n" + body)
+        print("[monitor] RESEND not configured — would have alerted:\n" + subject + "\n" + body)
         return
     try:
-        data = json.dumps({
-            "from": FROM_EMAIL,
-            "to": [ALERT_EMAIL],
-            "subject": subject,
-            "text": body,
-        }).encode()
+        data = json.dumps(
+            {
+                "from": FROM_EMAIL,
+                "to": [ALERT_EMAIL],
+                "subject": subject,
+                "text": body,
+            }
+        ).encode()
         req = urllib.request.Request(
-            "https://api.resend.com/emails", data=data,
+            "https://api.resend.com/emails",
+            data=data,
             # Resend sits behind Cloudflare, whose WAF rule 1010 blocks
             # urllib's default User-Agent with a 403 (same fix as
             # daily_brief.py). Every alert since launch was silently lost
             # to this until 2026-09-27.
-            headers={"Authorization": "Bearer " + RESEND_API_KEY,
-                     "Content-Type": "application/json",
-                     "Accept": "application/json",
-                     "User-Agent": ("Mozilla/5.0 (compatible; "
-                                    "TickerDesk-Monitor/1.0; "
-                                    "+https://tickerdesk.io)")})
+            headers={
+                "Authorization": "Bearer " + RESEND_API_KEY,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": (
+                    "Mozilla/5.0 (compatible; TickerDesk-Monitor/1.0; +https://tickerdesk.io)"
+                ),
+            },
+        )
         urllib.request.urlopen(req, timeout=15).read()
         print("[monitor] email alert sent to " + ALERT_EMAIL)
     except urllib.error.HTTPError as e:
@@ -102,32 +107,35 @@ def main():
         return 0
     mins = now.hour * 60 + now.minute
     if not (9 * 60 + 45 <= mins <= 16 * 60 + 30):
-        print("[monitor] outside RTH window (%02d:%02d ET) — skip."
-              % (now.hour, now.minute))
+        print("[monitor] outside RTH window (%02d:%02d ET) — skip." % (now.hour, now.minute))
         return 0
 
     try:
-        url = REPORT_URL + ("&" if "?" in REPORT_URL else "?") + \
-            "cb=" + now.strftime("%H%M%S")
+        url = REPORT_URL + ("&" if "?" in REPORT_URL else "?") + "cb=" + now.strftime("%H%M%S")
         raw = urllib.request.urlopen(url, timeout=20).read()
         d = json.loads(raw)
     except Exception as e:
-        send_alert("TickerDesk: UOA monitor could not fetch data",
-                   "Failed to fetch/parse uoa_latest.json: " + str(e)[:200])
+        send_alert(
+            "TickerDesk: UOA monitor could not fetch data",
+            "Failed to fetch/parse uoa_latest.json: " + str(e)[:200],
+        )
         return 1
 
     gen = d.get("generated")
     if not gen:
-        send_alert("TickerDesk: UOA data has no timestamp",
-                   "uoa_latest.json is missing the `generated` field.")
+        send_alert(
+            "TickerDesk: UOA data has no timestamp",
+            "uoa_latest.json is missing the `generated` field.",
+        )
         return 1
     try:
         t = datetime.datetime.fromisoformat(str(gen).replace("Z", "+00:00"))
         if t.tzinfo is None:
             t = t.replace(tzinfo=datetime.timezone.utc)
     except Exception:
-        send_alert("TickerDesk: UOA timestamp unparseable",
-                   "Could not parse `generated`: " + str(gen)[:80])
+        send_alert(
+            "TickerDesk: UOA timestamp unparseable", "Could not parse `generated`: " + str(gen)[:80]
+        )
         return 1
 
     now_utc = datetime.datetime.now(datetime.timezone.utc)
@@ -165,19 +173,25 @@ def main():
             "No action needed unless this persists past ~2-3 hours (then suspect "
             "a Polygon outage or a quota/rate issue — e.g. a day of heavy manual "
             "workflow dispatches). Front-end freshness pills already show users "
-            "the data is delayed."
-            % (age_min, str(gen), attempt_age))
-        send_alert("[INFO] TickerDesk: UOA upstream empty — data preserved (%.1fh)"
-                   % (age_min / 60.0), body)
-        print("[monitor] upstream-empty: data %.0fm old, scanner ran %.0fm ago "
-              "— preserved, not a pipeline failure." % (age_min, attempt_age))
+            "the data is delayed." % (age_min, str(gen), attempt_age)
+        )
+        send_alert(
+            "[INFO] TickerDesk: UOA upstream empty — data preserved (%.1fh)" % (age_min / 60.0),
+            body,
+        )
+        print(
+            "[monitor] upstream-empty: data %.0fm old, scanner ran %.0fm ago "
+            "— preserved, not a pipeline failure." % (age_min, attempt_age)
+        )
         return 0
 
     # No last_attempt (old payload) or the scanner itself hasn't run in a long
     # time -> genuine pipeline failure.
-    attempt_note = (" and the scanner has not run for %.0f min" % attempt_age
-                    if attempt_age is not None
-                    else " (no last_attempt stamp — old data or scanner never ran)")
+    attempt_note = (
+        " and the scanner has not run for %.0f min" % attempt_age
+        if attempt_age is not None
+        else " (no last_attempt stamp — old data or scanner never ran)"
+    )
     body = (
         "Options-flow dataset (uoa_latest.json) last updated %.0f min ago "
         "(%s) — over the %d-min RTH threshold%s.\n\n"
@@ -187,18 +201,21 @@ def main():
         "Logs/Cron Triggers. A 'dispatch uoa.yml -> HTTP 401' means the "
         "PAT secret expired (regenerate + update the worker secret).\n\n"
         "Quick fix: gh workflow run uoa.yml --ref master"
-        % (age_min, str(gen), MAX_AGE_MIN, attempt_note))
-    send_alert("[ALERT] TickerDesk: UOA flow is STALE — pipeline down (%.1fh)"
-               % (age_min / 60.0), body)
-    print("[monitor] STALE/pipeline-down: %.0f min > %d — alerted."
-          % (age_min, MAX_AGE_MIN))
+        % (age_min, str(gen), MAX_AGE_MIN, attempt_note)
+    )
+    send_alert(
+        "[ALERT] TickerDesk: UOA flow is STALE — pipeline down (%.1fh)" % (age_min / 60.0), body
+    )
+    print("[monitor] STALE/pipeline-down: %.0f min > %d — alerted." % (age_min, MAX_AGE_MIN))
     return 1
 
 
 if __name__ == "__main__" and "--test-email" in sys.argv:
-    send_alert("[TickerDesk] monitor test alert",
-               "Test send from uoa_freshness_check.py --test-email. If you "
-               "received this, freshness alerts now reach your inbox.")
+    send_alert(
+        "[TickerDesk] monitor test alert",
+        "Test send from uoa_freshness_check.py --test-email. If you "
+        "received this, freshness alerts now reach your inbox.",
+    )
     sys.exit(0)
 
 if __name__ == "__main__":

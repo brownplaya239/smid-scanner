@@ -37,6 +37,7 @@ def run(ticker, out_dir="out_v3", want_spy=True):
     cpath = os.path.join(cache, "%s.pkl" % ticker) if cache else None
     if cpath and os.path.exists(cpath):
         import pickle
+
         with open(cpath, "rb") as fh:
             snap, alt, recs, prov = pickle.load(fh)
         print("  [cache] snapshot reused from %s" % cpath)
@@ -44,6 +45,7 @@ def run(ticker, out_dir="out_v3", want_spy=True):
         snap, alt, recs, prov = RL.build_snapshot(ticker)
         if cpath:
             import pickle
+
             os.makedirs(cache, exist_ok=True)
             try:
                 with open(cpath, "wb") as fh:
@@ -60,8 +62,10 @@ def run(ticker, out_dir="out_v3", want_spy=True):
         try:
             spy = (RL.fetch_market("SPY") or {}).get("closes")
         except Exception as e:
-            print("  SPY series unavailable (%s) — the relative-strength "
-                  "panel will be omitted and labelled" % e)
+            print(
+                "  SPY series unavailable (%s) — the relative-strength "
+                "panel will be omitted and labelled" % e
+            )
 
     return build_from_snapshot(snap, recs, prov, out_dir, mk=mk, spy=spy)
 
@@ -75,10 +79,10 @@ def build_from_snapshot(snap, recs, prov, out_dir, mk=None, spy=None):
     shipping v3 to the site is that what a user downloads is what we
     tested here."""
     import research_snapshot as _rs
+
     mk = mk if mk is not None else ((prov or {}).get("_mk") or {})
     _lv = snap.get("levels") or {}
-    _px = _rs.fv(_lv.get("price_used")) or _rs.fv(
-        (snap.get("price") or {}).get("last"))
+    _px = _rs.fv(_lv.get("price_used")) or _rs.fv((snap.get("price") or {}).get("last"))
     _ann = {}
     for _k, _lab in (("ma50", "50-day average"), ("ma20", "20-day average")):
         _v = _rs.fv(_lv.get(_k))
@@ -89,16 +93,22 @@ def build_from_snapshot(snap, recs, prov, out_dir, mk=None, spy=None):
         _ann["boundary"] = {"value": _rs.fv(_lv["support"])}
     # page 3 gets the chart a reader trades from; the 12-month structural
     # view moves to the appendix
-    trading, tmeta = (C.trading_chart(mk, levels=_ann)
-                      if mk.get("closes") else (None, None))
+    trading, tmeta = C.trading_chart(mk, levels=_ann) if mk.get("closes") else (None, None)
     structural = C.full_chart(mk, spy) if mk.get("closes") else None
     if not trading:
         print("  no bar series in the snapshot - charts omitted")
 
-    res = R3.build_all(snap, out_dir=out_dir, chart_png=None,
-                       chart_full=trading, chart_structural=structural,
-                       recs=recs, prov=prov, chart_meta=tmeta,
-                       led=(prov or {}).get("_ledger"))
+    res = R3.build_all(
+        snap,
+        out_dir=out_dir,
+        chart_png=None,
+        chart_full=trading,
+        chart_structural=structural,
+        recs=recs,
+        prov=prov,
+        chart_meta=tmeta,
+        led=(prov or {}).get("_ledger"),
+    )
     return res
 
 
@@ -109,8 +119,7 @@ def _report(ticker, res):
     print("  %-11s %s" % ("result", "PASS" if res["ok"] else "PROBLEMS"))
     for c in res["checks"]:
         if c["status"] in ("FAIL", "WARN"):
-            print("     %-6s %-30s %s"
-                  % (c["status"], c["check_id"], c["observed"]))
+            print("     %-6s %-30s %s" % (c["status"], c["check_id"], c["observed"]))
     return res
 
 
@@ -120,8 +129,7 @@ def main():
     ap.add_argument("--out", default="out_v3")
     ap.add_argument("--no-spy", action="store_true")
     a = ap.parse_args()
-    res = _report(a.ticker.upper(), run(a.ticker.upper(), a.out,
-                                        not a.no_spy))
+    res = _report(a.ticker.upper(), run(a.ticker.upper(), a.out, not a.no_spy))
     return 0 if res["ok"] else 1
 
 

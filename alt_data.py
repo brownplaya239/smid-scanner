@@ -45,20 +45,28 @@ load_dotenv(override=True)
 from nimble_data import gather_alt_data
 
 ET = pytz.timezone("America/New_York")
-ANTHROPIC_API_KEY       = os.environ.get("ANTHROPIC_API_KEY", "")
-HISTORY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "docs", "reports", "altdata_history.json")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+HISTORY_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "docs", "reports", "altdata_history.json"
+)
 
 
 def _safe(text):
     s = str(text)
-    s = (s.replace("—", "-").replace("–", "-")
-          .replace("‘", "'").replace("’", "'")
-          .replace("“", '"').replace("”", '"').replace("…", "..."))
+    s = (
+        s.replace("—", "-")
+        .replace("–", "-")
+        .replace("‘", "'")
+        .replace("’", "'")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("…", "...")
+    )
     return re.sub(r"[^\x00-\xFF]", "", s).strip()
 
 
 # ─── Per-ticker run history (baseline) ────────────────────────────────────────
+
 
 def load_history():
     try:
@@ -85,9 +93,9 @@ def compute_baseline(hist, ticker):
     recent = runs[-10:]
     n = len(recent)
     return {
-        "runs":      n,
-        "news":      sum(r.get("news", 0) for r in recent) / n,
-        "social":    sum(r.get("social", 0) for r in recent) / n,
+        "runs": n,
+        "news": sum(r.get("news", 0) for r in recent) / n,
+        "social": sum(r.get("social", 0) for r in recent) / n,
         "attention": sum(r.get("attention", 0) for r in recent) / n,
         "last_watchers": recent[-1].get("watchers", 0),
     }
@@ -101,6 +109,7 @@ def sentiment_persistence(hist, ticker):
     persistent regime read very differently - this is what tells them
     apart."""
     from datetime import datetime, timezone
+
     runs = hist.get(ticker.upper(), [])
     pts = []
     now = datetime.now(timezone.utc)
@@ -115,16 +124,24 @@ def sentiment_persistence(hist, ticker):
         if isinstance(s, (int, float)):
             pts.append(((now - ts).days, float(s)))
     if len(pts) < 2:
-        return {"status": "accruing", "prior_runs": len(pts),
-                "note": "persistence read activates at 2+ prior lookups"}
+        return {
+            "status": "accruing",
+            "prior_runs": len(pts),
+            "note": "persistence read activates at 2+ prior lookups",
+        }
     win = {}
     for label, d in (("d3", 3), ("d7", 7), ("d30", 30)):
         vals = [s for age, s in pts if age <= d]
         if vals:
             win[label] = {"avg": round(sum(vals) / len(vals)), "n": len(vals)}
-    out = {"status": "active", "prior_runs": len(pts), "windows": win,
-           "note": ("averages of PRIOR on-demand lookups in each window - "
-                    "not continuous daily sampling")}
+    out = {
+        "status": "active",
+        "prior_runs": len(pts),
+        "windows": win,
+        "note": (
+            "averages of PRIOR on-demand lookups in each window - not continuous daily sampling"
+        ),
+    }
     a3 = (win.get("d3") or {}).get("avg")
     a7 = (win.get("d7") or {}).get("avg")
     a30 = (win.get("d30") or {}).get("avg")
@@ -132,17 +149,18 @@ def sentiment_persistence(hist, ticker):
     ref_old = a30 if a30 is not None else a7
     if ref_new is not None and ref_old is not None and ref_new != ref_old:
         d_total = ref_new - ref_old
-        out["trend"] = ("improving" if d_total > 10 else
-                        "deteriorating" if d_total < -10 else "stable")
+        out["trend"] = (
+            "improving" if d_total > 10 else "deteriorating" if d_total < -10 else "stable"
+        )
         if a3 is not None and a7 is not None and a30 is not None:
             recent_slope, older_slope = a3 - a7, a7 - a30
-            if (recent_slope * older_slope > 0
-                    and abs(recent_slope) > abs(older_slope) + 5):
-                out["acceleration"] = ("accelerating " + out["trend"])
+            if recent_slope * older_slope > 0 and abs(recent_slope) > abs(older_slope) + 5:
+                out["acceleration"] = "accelerating " + out["trend"]
     return out
 
 
 # ─── Quantified scores ────────────────────────────────────────────────────────
+
 
 def compute_scores(alt, baseline):
     """Buzz Score, raw sentiment, and the deterministic divergence read."""
@@ -152,9 +170,9 @@ def compute_scores(alt, baseline):
     # Buzz Score 0-100 — vs the ticker's own baseline if we have one
     if baseline and baseline["attention"] > 0:
         ratio = attention / baseline["attention"]
-        buzz  = 50 + 25 * math.log2(max(ratio, 0.0625))
+        buzz = 50 + 25 * math.log2(max(ratio, 0.0625))
     else:
-        buzz = attention * 1.4          # first run — score on absolute volume
+        buzz = attention * 1.4  # first run — score on absolute volume
     buzz = max(0, min(100, round(buzz)))
 
     # Raw sentiment from StockTwits' own tags (Claude refines with full scoring)
@@ -164,16 +182,18 @@ def compute_scores(alt, baseline):
     # Deltas vs baseline
     deltas = {}
     if baseline and baseline["runs"] >= 1:
+
         def _d(cur, base):
             if base <= 0:
                 return None
             return round((cur / base - 1) * 100)
+
         deltas = {
-            "news":      _d(len(alt["news"]), baseline["news"]),
-            "social":    _d(s.get("total", 0), baseline["social"]),
+            "news": _d(len(alt["news"]), baseline["news"]),
+            "social": _d(s.get("total", 0), baseline["social"]),
             "attention": _d(attention, baseline["attention"]),
-            "watchers":  (s.get("watchers", 0) - baseline["last_watchers"]),
-            "runs":      baseline["runs"],
+            "watchers": (s.get("watchers", 0) - baseline["last_watchers"]),
+            "runs": baseline["runs"],
         }
 
     # Deterministic divergence (Claude also assesses; this is the cross-check)
@@ -191,21 +211,56 @@ def compute_scores(alt, baseline):
             else:
                 divergence = "DIVERGE-BULLISH"
 
-    return {"buzz": buzz, "sentiment_raw": sent_raw,
-            "deltas": deltas, "divergence_raw": divergence}
+    return {"buzz": buzz, "sentiment_raw": sent_raw, "deltas": deltas, "divergence_raw": divergence}
 
 
 # ─── News categorization (keyword) ────────────────────────────────────────────
 
 _NEWS_CATS = [
-    ("Earnings",     ["earnings", "eps", "revenue", "quarter", "beat", "guidance", "results"]),
-    ("Analyst",      ["analyst", "upgrade", "downgrade", "price target", "rating",
-                      "initiated", "overweight", "underweight", "buy rating", "outperform"]),
-    ("M&A",          ["acquisition", "merger", "acquire", "takeover", "buyout", "to buy"]),
-    ("Regulatory",   ["lawsuit", "sec ", "fda", "investigation", "settlement", "probe",
-                      "court", "subpoena", "regulator"]),
-    ("Product/Deal", ["launch", "partnership", "contract", "unveil", "deal", "product",
-                      "collaborat", "agreement"]),
+    ("Earnings", ["earnings", "eps", "revenue", "quarter", "beat", "guidance", "results"]),
+    (
+        "Analyst",
+        [
+            "analyst",
+            "upgrade",
+            "downgrade",
+            "price target",
+            "rating",
+            "initiated",
+            "overweight",
+            "underweight",
+            "buy rating",
+            "outperform",
+        ],
+    ),
+    ("M&A", ["acquisition", "merger", "acquire", "takeover", "buyout", "to buy"]),
+    (
+        "Regulatory",
+        [
+            "lawsuit",
+            "sec ",
+            "fda",
+            "investigation",
+            "settlement",
+            "probe",
+            "court",
+            "subpoena",
+            "regulator",
+        ],
+    ),
+    (
+        "Product/Deal",
+        [
+            "launch",
+            "partnership",
+            "contract",
+            "unveil",
+            "deal",
+            "product",
+            "collaborat",
+            "agreement",
+        ],
+    ),
     ("Macro/Sector", ["fed", "tariff", "sector", "inflation", "rate cut", "economy"]),
 ]
 
@@ -279,8 +334,9 @@ def synthesize(alt, scores, persist=None):
     s, price = alt["social"], alt.get("price", {})
     payload = {
         "ticker": alt["ticker"],
-        "news_headlines": [f"[{n.get('category','General')}] {n['title']} ({n['source']})"
-                           for n in alt["news"]],
+        "news_headlines": [
+            f"[{n.get('category', 'General')}] {n['title']} ({n['source']})" for n in alt["news"]
+        ],
         "stocktwits": {
             "watchers": s.get("watchers", 0),
             "messages_sampled": s.get("total", 0),
@@ -293,19 +349,21 @@ def synthesize(alt, scores, persist=None):
             "low_credibility_kept": s.get("low_cred", 0),
             "messages": [m["body"] for m in s.get("messages", [])[:30]],
         },
-        "reddit_posts": [f"r/{r['subreddit']}: {r['title']} ({r['score']}u/{r['comments']}c)"
-                         for r in alt["reddit"]],
+        "reddit_posts": [
+            f"r/{r['subreddit']}: {r['title']} ({r['score']}u/{r['comments']}c)"
+            for r in alt["reddit"]
+        ],
         "web_context": alt["web"][:3500],
         "price_tape": {
-            "price":          price.get("price", 0),
-            "change_1week":   price.get("chg_1w", 0),
-            "change_1month":  price.get("chg_1m", 0),
-            "volume_vs_avg":  price.get("vol_ratio", 0),
+            "price": price.get("price", 0),
+            "change_1week": price.get("chg_1w", 0),
+            "change_1month": price.get("chg_1m", 0),
+            "volume_vs_avg": price.get("vol_ratio", 0),
             "analyst_rating": price.get("analyst_rating", ""),
             "analyst_target": price.get("target_price", 0),
-            "num_analysts":   price.get("num_analysts", 0),
+            "num_analysts": price.get("num_analysts", 0),
         },
-        "buzz_score":      scores["buzz"],
+        "buzz_score": scores["buzz"],
         "baseline_deltas": scores["deltas"] or "first run - no baseline yet",
         "computed_divergence": scores["divergence_raw"],
         "sentiment_history": persist or {"status": "accruing"},
@@ -325,7 +383,7 @@ def synthesize(alt, scores, persist=None):
         cut = raw.rfind("}")
         if cut > 0:
             try:
-                return json.loads(raw[:cut + 1])
+                return json.loads(raw[: cut + 1])
             except Exception:
                 pass
         m = re.search(r"\{[\s\S]*\}", raw)
@@ -334,11 +392,12 @@ def synthesize(alt, scores, persist=None):
 
 # ─── PDF ──────────────────────────────────────────────────────────────────────
 
+
 def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
-    now   = datetime.now(ET)
-    s     = alt["social"]
+    now = datetime.now(ET)
+    s = alt["social"]
     price = alt.get("price", {})
-    cov   = alt["coverage"]
+    cov = alt["coverage"]
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=14)
     pdf.add_page()
@@ -360,11 +419,16 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
     sidx = synth.get("sentimentIndex")
     if sidx is None:
         sidx = scores["sentiment_raw"]
-    if   sidx >=  40: brgb, blab = (39, 174, 96),  "BULLISH"
-    elif sidx >=  15: brgb, blab = (90, 180, 110), "LEAN BULL"
-    elif sidx >  -15: brgb, blab = (150, 150, 160),"MIXED"
-    elif sidx >  -40: brgb, blab = (220, 130, 70), "LEAN BEAR"
-    else:             brgb, blab = (192, 57, 43),  "BEARISH"
+    if sidx >= 40:
+        brgb, blab = (39, 174, 96), "BULLISH"
+    elif sidx >= 15:
+        brgb, blab = (90, 180, 110), "LEAN BULL"
+    elif sidx > -15:
+        brgb, blab = (150, 150, 160), "MIXED"
+    elif sidx > -40:
+        brgb, blab = (220, 130, 70), "LEAN BEAR"
+    else:
+        brgb, blab = (192, 57, 43), "BEARISH"
     pdf.set_fill_color(*brgb)
     pdf.rect(138, 5, 64, 20, "F")
     pdf.set_text_color(255, 255, 255)
@@ -380,23 +444,26 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
     # ── Score strip — 4 measured metrics with deltas ──
     y = 35
     d = scores["deltas"]
+
     def _delta(key, suffix="%"):
         if not d or d.get(key) is None:
             return "baseline building"
         v = d[key]
-        return (f"+{v}{suffix} vs avg" if v >= 0 else f"{v}{suffix} vs avg")
+        return f"+{v}{suffix} vs avg" if v >= 0 else f"{v}{suffix} vs avg"
+
     div_raw = scores["divergence_raw"]
     cards = [
-        ("BUZZ SCORE",      str(scores["buzz"]),         _delta("attention"),
-         (39, 90, 150)),
-        ("SENTIMENT INDEX", f"{sidx:+d}",                f"{s.get('total',0)} msgs scored",
-         brgb),
-        ("TAPE vs CHATTER", synth.get("divergenceVerdict", div_raw) or div_raw,
-         (f"1wk {price.get('chg_1w',0):+.1f}%" if cov["price"] else "no price data"),
-         (150, 70, 30) if "DIVERGE" in str(synth.get("divergenceVerdict", div_raw))
-         else (39, 110, 80)),
-        ("ATTENTION",       str(alt["attention"]),       _delta("news"),
-         (90, 70, 130)),
+        ("BUZZ SCORE", str(scores["buzz"]), _delta("attention"), (39, 90, 150)),
+        ("SENTIMENT INDEX", f"{sidx:+d}", f"{s.get('total', 0)} msgs scored", brgb),
+        (
+            "TAPE vs CHATTER",
+            synth.get("divergenceVerdict", div_raw) or div_raw,
+            (f"1wk {price.get('chg_1w', 0):+.1f}%" if cov["price"] else "no price data"),
+            (150, 70, 30)
+            if "DIVERGE" in str(synth.get("divergenceVerdict", div_raw))
+            else (39, 110, 80),
+        ),
+        ("ATTENTION", str(alt["attention"]), _delta("news"), (90, 70, 130)),
     ]
     for i, (lbl, val, sub, rgb) in enumerate(cards):
         x = 10 + i * 47.5
@@ -432,13 +499,15 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
 
     # ── AI synthesis sections ──
     y = 64
+
     def _section(label, text, hdr_rgb=(12, 20, 48)):
         nonlocal y
         txt = _safe(text or "").strip()
         if not txt:
             return
         if y > 250:
-            pdf.add_page(); y = 16
+            pdf.add_page()
+            y = 16
         pdf.set_fill_color(*hdr_rgb)
         pdf.rect(10, y, 190, 5.3, "F")
         pdf.set_text_color(255, 255, 255)
@@ -457,13 +526,16 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
         if persist and persist.get("status") == "active":
             w = persist.get("windows", {})
             trend_txt = "  |  ".join(
-                f"{k.replace('d', '')}d avg {v['avg']:+d} ({v['n']} lookups)"
-                for k, v in w.items())
+                f"{k.replace('d', '')}d avg {v['avg']:+d} ({v['n']} lookups)" for k, v in w.items()
+            )
             extra = persist.get("acceleration") or persist.get("trend") or ""
-            _section("Sentiment Persistence (prior lookups)",
-                     f"{trend_txt}" + (f"  ->  {extra.upper()}" if extra else "")
-                     + ".  Windowed averages of prior on-demand lookups, "
-                     "not continuous daily sampling.")
+            _section(
+                "Sentiment Persistence (prior lookups)",
+                f"{trend_txt}"
+                + (f"  ->  {extra.upper()}" if extra else "")
+                + ".  Windowed averages of prior on-demand lookups, "
+                "not continuous daily sampling.",
+            )
         _section("Dominant Narrative / Catalyst", synth.get("narrative", ""))
         dv = synth.get("divergenceVerdict", "")
         dcol = (120, 35, 30) if "DIVERGE" in str(dv) else (22, 90, 55)
@@ -476,19 +548,29 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
         _section("Analyst Consensus", synth.get("analystRead", ""))
         _section("Retail Attention Trend", synth.get("attentionRead", ""))
         mf = synth.get("manipulationFlag", "")
-        mcol = (150, 30, 30) if mf == "HIGH-RISK" else \
-               (160, 110, 20) if mf == "CAUTION" else (60, 90, 70)
+        mcol = (
+            (150, 30, 30)
+            if mf == "HIGH-RISK"
+            else (160, 110, 20)
+            if mf == "CAUTION"
+            else (60, 90, 70)
+        )
         _section(f"Manipulation Scan  ({mf})", synth.get("manipulationNote", ""), mcol)
         _section("Bottom Line — Action Read", synth.get("actionRead", ""), (10, 40, 90))
     else:
-        _section("AI Synthesis", "AI synthesis was unavailable for this run - "
-                 "the raw data below is still current. Re-run shortly for the "
-                 "synthesized read.", (130, 90, 10))
+        _section(
+            "AI Synthesis",
+            "AI synthesis was unavailable for this run - "
+            "the raw data below is still current. Re-run shortly for the "
+            "synthesized read.",
+            (130, 90, 10),
+        )
 
     # ── Price tape panel ──
     if cov["price"]:
         if y > 250:
-            pdf.add_page(); y = 16
+            pdf.add_page()
+            y = 16
         pdf.set_fill_color(12, 20, 48)
         pdf.rect(10, y, 190, 5.3, "F")
         pdf.set_text_color(255, 255, 255)
@@ -497,16 +579,22 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
         pdf.cell(0, 3.5, "PRICE TAPE & ANALYST CONSENSUS")
         y += 7
         rating = price.get("analyst_rating", "") or "n/a"
-        tgt    = price.get("target_price", 0)
+        tgt = price.get("target_price", 0)
         tgt_up = ((tgt / price["price"] - 1) * 100) if (tgt and price.get("price")) else None
         cells = [
-            ("Price",        f"${price.get('price',0):.2f}"),
-            ("1-Week",       f"{price.get('chg_1w',0):+.1f}%"),
-            ("1-Month",      f"{price.get('chg_1m',0):+.1f}%"),
-            ("Vol vs Avg",   f"{price.get('vol_ratio',0):.2f}x"),
-            ("Analyst Rec",  rating.replace('_', ' ').title()),
-            ("Mean Target",  (f"${tgt:.2f} ({tgt_up:+.0f}%)" if tgt_up is not None
-                              else (f"${tgt:.2f}" if tgt else "n/a"))),
+            ("Price", f"${price.get('price', 0):.2f}"),
+            ("1-Week", f"{price.get('chg_1w', 0):+.1f}%"),
+            ("1-Month", f"{price.get('chg_1m', 0):+.1f}%"),
+            ("Vol vs Avg", f"{price.get('vol_ratio', 0):.2f}x"),
+            ("Analyst Rec", rating.replace("_", " ").title()),
+            (
+                "Mean Target",
+                (
+                    f"${tgt:.2f} ({tgt_up:+.0f}%)"
+                    if tgt_up is not None
+                    else (f"${tgt:.2f}" if tgt else "n/a")
+                ),
+            ),
         ]
         pdf.set_font("Helvetica", "", 7)
         for i, (lbl, val) in enumerate(cells):
@@ -525,7 +613,8 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
     # ── News table ──
     if alt["news"]:
         if y > 245:
-            pdf.add_page(); y = 16
+            pdf.add_page()
+            y = 16
         pdf.set_fill_color(12, 20, 48)
         pdf.rect(10, y, 190, 5.3, "F")
         pdf.set_text_color(255, 255, 255)
@@ -534,14 +623,18 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
         pdf.cell(0, 3.5, f"NEWS FLOW  ({len(alt['news'])} stories, deduped & categorized)")
         y += 7
         cat_rgb = {
-            "Earnings": (52, 100, 180), "Analyst": (140, 70, 160),
-            "M&A": (192, 57, 43), "Regulatory": (190, 110, 20),
-            "Product/Deal": (39, 130, 90), "Macro/Sector": (90, 100, 120),
+            "Earnings": (52, 100, 180),
+            "Analyst": (140, 70, 160),
+            "M&A": (192, 57, 43),
+            "Regulatory": (190, 110, 20),
+            "Product/Deal": (39, 130, 90),
+            "Macro/Sector": (90, 100, 120),
             "General": (120, 124, 140),
         }
         for i, n in enumerate(alt["news"][:14]):
             if y > 286:
-                pdf.add_page(); y = 16
+                pdf.add_page()
+                y = 16
             cat = n.get("category", "General")
             pdf.set_xy(10, y)
             pdf.set_fill_color(*cat_rgb.get(cat, (120, 124, 140)))
@@ -561,7 +654,8 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
     msgs = s.get("messages", [])
     if msgs:
         if y > 250:
-            pdf.add_page(); y = 16
+            pdf.add_page()
+            y = 16
         else:
             y += 4
         pdf.set_fill_color(12, 20, 48)
@@ -569,18 +663,26 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Helvetica", "B", 7.3)
         pdf.set_xy(12, y + 1)
-        mb, mr, mn = (synth.get("messagesBull"), synth.get("messagesBear"),
-                      synth.get("messagesNeutral"))
-        tag = (f"  -  Claude scored: {mb} bull / {mr} bear / {mn} neutral"
-               if mb is not None else "")
+        mb, mr, mn = (
+            synth.get("messagesBull"),
+            synth.get("messagesBear"),
+            synth.get("messagesNeutral"),
+        )
+        tag = f"  -  Claude scored: {mb} bull / {mr} bear / {mn} neutral" if mb is not None else ""
         pdf.cell(0, 3.5, _safe(f"STOCKTWITS SOCIAL STREAM ({len(msgs)} recent){tag}"))
         y += 7
         for m in msgs[:16]:
             if y > 288:
-                pdf.add_page(); y = 16
+                pdf.add_page()
+                y = 16
             sent = m.get("sentiment", "")
-            chip = (39, 174, 96) if sent == "Bullish" else \
-                   (192, 57, 43) if sent == "Bearish" else (140, 140, 150)
+            chip = (
+                (39, 174, 96)
+                if sent == "Bullish"
+                else (192, 57, 43)
+                if sent == "Bearish"
+                else (140, 140, 150)
+            )
             pdf.set_xy(10, y)
             pdf.set_fill_color(*chip)
             pdf.set_text_color(255, 255, 255)
@@ -595,7 +697,8 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
     # ── Reddit ──
     if alt["reddit"]:
         if y > 255:
-            pdf.add_page(); y = 16
+            pdf.add_page()
+            y = 16
         else:
             y += 4
         pdf.set_fill_color(12, 20, 48)
@@ -607,7 +710,8 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
         y += 7
         for r in alt["reddit"][:8]:
             if y > 288:
-                pdf.add_page(); y = 16
+                pdf.add_page()
+                y = 16
             pdf.set_xy(10, y)
             pdf.set_fill_color(255, 200, 0)
             pdf.set_text_color(15, 22, 50)
@@ -627,18 +731,24 @@ def generate_altdata_pdf(ticker, alt, scores, synth, persist=None):
     pdf.set_xy(10, 291)
     pdf.set_font("Helvetica", "I", 5.0)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 4, "Alt-data: Google News, StockTwits, Reddit, Nimble web extraction, "
-             "yfinance tape. Not financial advice. Real-time chatter is noisy - "
-             "corroborate before acting.", align="C")
+    pdf.cell(
+        0,
+        4,
+        "Alt-data: Google News, StockTwits, Reddit, Nimble web extraction, "
+        "yfinance tape. Not financial advice. Real-time chatter is noisy - "
+        "corroborate before acting.",
+        align="C",
+    )
 
     return bytes(pdf.output())
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+
 def run_altdata_lookup(ticker):
-    ticker  = ticker.upper().strip()
-    print(f"\n{'='*54}\nALT-DATA INTELLIGENCE: {ticker}\n{'='*54}")
+    ticker = ticker.upper().strip()
+    print(f"\n{'=' * 54}\nALT-DATA INTELLIGENCE: {ticker}\n{'=' * 54}")
 
     if not ANTHROPIC_API_KEY:
         print("  WARNING: ANTHROPIC_API_KEY not set — report will skip AI synthesis")
@@ -652,21 +762,25 @@ def run_altdata_lookup(ticker):
         return
 
     print("[2/5] Computing baseline + scores...")
-    hist     = load_history()
+    hist = load_history()
     baseline = compute_baseline(hist, ticker)
     alt["news"] = categorize_news(alt["news"])
-    scores   = compute_scores(alt, baseline)
-    print(f"  Buzz {scores['buzz']}  |  Sentiment(raw) {scores['sentiment_raw']:+d}  |  "
-          f"Divergence {scores['divergence_raw']}  |  baseline runs: "
-          f"{baseline['runs'] if baseline else 0}")
+    scores = compute_scores(alt, baseline)
+    print(
+        f"  Buzz {scores['buzz']}  |  Sentiment(raw) {scores['sentiment_raw']:+d}  |  "
+        f"Divergence {scores['divergence_raw']}  |  baseline runs: "
+        f"{baseline['runs'] if baseline else 0}"
+    )
 
     persist = sentiment_persistence(hist, ticker)
     if persist.get("status") == "active":
         w = persist.get("windows", {})
-        print("  Sentiment persistence: " + " | ".join(
-            f"{k} {v['avg']:+d} (n={v['n']})" for k, v in w.items())
+        print(
+            "  Sentiment persistence: "
+            + " | ".join(f"{k} {v['avg']:+d} (n={v['n']})" for k, v in w.items())
             + f"  trend={persist.get('trend', '-')}"
-            + (f" ({persist['acceleration']})" if persist.get("acceleration") else ""))
+            + (f" ({persist['acceleration']})" if persist.get("acceleration") else "")
+        )
     else:
         print(f"  Sentiment persistence: accruing ({persist.get('prior_runs', 0)}/2 prior lookups)")
 
@@ -687,25 +801,28 @@ def run_altdata_lookup(ticker):
 
     # Append this run to history
     try:
-        hist.setdefault(ticker, []).append({
-            "ts":        datetime.now(timezone.utc).isoformat(timespec="minutes"),
-            "news":      len(alt["news"]),
-            "social":    alt["social"].get("total", 0),
-            "attention": alt["attention"],
-            "watchers":  alt["social"].get("watchers", 0),
-            "buzz":      scores["buzz"],
-            "sentiment": synth.get("sentimentIndex", scores["sentiment_raw"]),
-        })
-        hist[ticker] = hist[ticker][-40:]   # 40 runs -> real 30d windows
+        hist.setdefault(ticker, []).append(
+            {
+                "ts": datetime.now(timezone.utc).isoformat(timespec="minutes"),
+                "news": len(alt["news"]),
+                "social": alt["social"].get("total", 0),
+                "attention": alt["attention"],
+                "watchers": alt["social"].get("watchers", 0),
+                "buzz": scores["buzz"],
+                "sentiment": synth.get("sentimentIndex", scores["sentiment_raw"]),
+            }
+        )
+        hist[ticker] = hist[ticker][-40:]  # 40 runs -> real 30d windows
         save_history(hist)
     except Exception as e:
         print(f"  history update failed: {e}")
 
     print("[5/5] Archiving...")
-    now      = datetime.now(ET)
+    now = datetime.now(ET)
     filename = f"altdata_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
         from report_archive import archive, upload_user_report
+
         # --user-id (set by the alt-data workflow) => user's PRIVATE Storage;
         # otherwise / on failure, fall back to the public archive.
         user_id = ""
@@ -714,8 +831,7 @@ def run_altdata_lookup(ticker):
                 user_id = sys.argv[sys.argv.index("--user-id") + 1].strip()
             except IndexError:
                 user_id = ""
-        if user_id and upload_user_report(pdf_bytes, filename, user_id,
-                                           ticker.upper(), "altdata"):
+        if user_id and upload_user_report(pdf_bytes, filename, user_id, ticker.upper(), "altdata"):
             print(f"  Uploaded private: {filename}")
         else:
             archive(pdf_bytes, filename)

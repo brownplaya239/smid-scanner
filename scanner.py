@@ -19,6 +19,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 import matplotlib
+
 matplotlib.use("Agg")  # headless — required for GitHub Actions / no display
 import matplotlib.pyplot as plt
 import mplfinance as mpf
@@ -33,17 +34,23 @@ from dotenv import load_dotenv
 from macro_context import fetch_macro_context
 from insider_activity import enrich_candidates_with_insiders, fetch_insider_transactions_detail
 from institutional_data import (
-    fetch_institutional_data, fetch_13d_13g_filings, compute_smart_money_score, classify_fund
+    fetch_institutional_data,
+    fetch_13d_13g_filings,
+    compute_smart_money_score,
+    classify_fund,
 )
 from volume_intelligence import (
-    compute_ad_rating, find_significant_volume_bars, compute_monthly_flow, detect_silent_build
+    compute_ad_rating,
+    find_significant_volume_bars,
+    compute_monthly_flow,
+    detect_silent_build,
 )
 
 load_dotenv(override=True)
 
 import polygon_data
 
-IWM_MODE    = "--iwm" in sys.argv
+IWM_MODE = "--iwm" in sys.argv
 TICKER_MODE = "--ticker" in sys.argv
 
 # --user-id <uuid> (set by the ticker-lookup workflow) routes the ad-hoc
@@ -62,15 +69,18 @@ def _archive_report(pdf_bytes, filename):
     without a user_id) archive publicly as before. Falls back to the public
     archive if the private upload fails (e.g. bucket not set up yet)."""
     from report_archive import archive as _pub_archive, upload_user_report
+
     if USER_ID and filename.startswith("ticker_"):
         import re as _re
+
         m = _re.match(r"ticker_([A-Za-z.\-]+)_", filename)
         tk = m.group(1).upper() if m else ""
         if upload_user_report(pdf_bytes, filename, USER_ID, tk, "adhoc"):
             return
     _pub_archive(pdf_bytes, filename)
 
-ANTHROPIC_API_KEY      = os.environ.get("ANTHROPIC_API_KEY", "")
+
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 if not ANTHROPIC_API_KEY:
     raise EnvironmentError("Missing: ANTHROPIC_API_KEY")
@@ -91,39 +101,48 @@ def _trading_day_fraction():
     volume filter rejects almost everything.
     """
     now = datetime.now(ET)
-    if now.weekday() >= 5:          # weekend — last bar is Friday, complete
+    if now.weekday() >= 5:  # weekend — last bar is Friday, complete
         return 1.0
-    open_t  = now.replace(hour=9,  minute=30, second=0, microsecond=0)
-    close_t = now.replace(hour=16, minute=0,  second=0, microsecond=0)
+    open_t = now.replace(hour=9, minute=30, second=0, microsecond=0)
+    close_t = now.replace(hour=16, minute=0, second=0, microsecond=0)
     if now <= open_t or now >= close_t:
         return 1.0
     elapsed = (now - open_t).total_seconds()
-    total   = (close_t - open_t).total_seconds()
+    total = (close_t - open_t).total_seconds()
     return max(0.15, elapsed / total)
 
 
 # ─── Universe ─────────────────────────────────────────────────────────────────
+
 
 def get_dynamic_universe(size=250):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
     try:
         from yfinance import Screener
+
         screener = Screener()
-        screener.set_body({
-            "offset": 0, "size": size,
-            "sortField": "intradaymarketcap", "sortType": "DESC",
-            "quoteType": "EQUITY",
-            "query": {
-                "operator": "AND",
-                "operands": [
-                    {"operator": "BTWN", "operands": ["intradaymarketcap", 200_000_000, 10_000_000_000]},
-                    {"operator": "EQ", "operands": ["region", "us"]},
-                    {"operator": "GT", "operands": ["averageDailyVolume3Month", 300_000]},
-                    {"operator": "GT", "operands": ["intradayprice", 3.0]},
-                ]
+        screener.set_body(
+            {
+                "offset": 0,
+                "size": size,
+                "sortField": "intradaymarketcap",
+                "sortType": "DESC",
+                "quoteType": "EQUITY",
+                "query": {
+                    "operator": "AND",
+                    "operands": [
+                        {
+                            "operator": "BTWN",
+                            "operands": ["intradaymarketcap", 200_000_000, 10_000_000_000],
+                        },
+                        {"operator": "EQ", "operands": ["region", "us"]},
+                        {"operator": "GT", "operands": ["averageDailyVolume3Month", 300_000]},
+                        {"operator": "GT", "operands": ["intradayprice", 3.0]},
+                    ],
+                },
             }
-        })
+        )
         quotes = screener.response.get("quotes", [])
         tickers = [q["symbol"] for q in quotes if q.get("symbol") and "." not in q["symbol"]]
         if tickers:
@@ -134,11 +153,17 @@ def get_dynamic_universe(size=250):
 
     try:
         tickers = set()
-        for scr_id in ["small_cap_gainers", "undervalued_small_caps", "most_actives", "day_gainers"]:
+        for scr_id in [
+            "small_cap_gainers",
+            "undervalued_small_caps",
+            "most_actives",
+            "day_gainers",
+        ]:
             resp = requests.get(
                 "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved",
                 params={"scrIds": scr_id, "count": 100, "region": "US", "lang": "en-US"},
-                headers=headers, timeout=10
+                headers=headers,
+                timeout=10,
             )
             if resp.ok:
                 quotes = resp.json().get("finance", {}).get("result", [{}])[0].get("quotes", [])
@@ -155,15 +180,41 @@ def get_dynamic_universe(size=250):
 
     print("  ⚠️  All screeners failed, using fallback list")
     return [
-        "TGTX", "KRYS", "PTGX", "RCUS", "VERA", "EVTL", "HUMA", "AEYE",
-        "KNTK", "FLNC", "ARRY", "SHLS", "STEM", "WPRT",
-        "BKSY", "SPIR", "LUNR", "RDW", "MNTS",
-        "AEHR", "PDYN", "TPIC", "ITRN", "OSIS", "BFAM",
-        "ACMR", "PRCT", "FTLF", "ETON", "ANIP",
+        "TGTX",
+        "KRYS",
+        "PTGX",
+        "RCUS",
+        "VERA",
+        "EVTL",
+        "HUMA",
+        "AEYE",
+        "KNTK",
+        "FLNC",
+        "ARRY",
+        "SHLS",
+        "STEM",
+        "WPRT",
+        "BKSY",
+        "SPIR",
+        "LUNR",
+        "RDW",
+        "MNTS",
+        "AEHR",
+        "PDYN",
+        "TPIC",
+        "ITRN",
+        "OSIS",
+        "BFAM",
+        "ACMR",
+        "PRCT",
+        "FTLF",
+        "ETON",
+        "ANIP",
     ]
 
 
 # ─── IWM universe ─────────────────────────────────────────────────────────────
+
 
 def load_iwm_universe(top_n=500):
     """Load top N IWM equity constituents from CSV (sorted by weight desc)."""
@@ -175,7 +226,7 @@ def load_iwm_universe(top_n=500):
         reader = csv.DictReader(io.StringIO("".join(lines[header_idx:])))
         for row in reader:
             ticker = row.get("Ticker", "").strip().strip('"')
-            if not re.match(r'^[A-Z]{1,5}$', ticker):
+            if not re.match(r"^[A-Z]{1,5}$", ticker):
                 continue
             if "Equity" not in (row.get("Asset Class") or ""):
                 continue
@@ -197,13 +248,16 @@ def _history_df(ticker, days=200, min_bars=20):
         bars = polygon_data.daily_bars(ticker, days=days)
         if bars and len(bars) >= min_bars:
             idx = pd.to_datetime([b["t"] for b in bars], unit="ms")
-            return pd.DataFrame({
-                "Open":   [b.get("o") for b in bars],
-                "High":   [b.get("h") for b in bars],
-                "Low":    [b.get("l") for b in bars],
-                "Close":  [b.get("c") for b in bars],
-                "Volume": [b.get("v") for b in bars],
-            }, index=idx)
+            return pd.DataFrame(
+                {
+                    "Open": [b.get("o") for b in bars],
+                    "High": [b.get("h") for b in bars],
+                    "Low": [b.get("l") for b in bars],
+                    "Close": [b.get("c") for b in bars],
+                    "Volume": [b.get("v") for b in bars],
+                },
+                index=idx,
+            )
     try:
         df = yf.Ticker(ticker).history(period=f"{days}d", interval="1d")
         return df if df is not None and not df.empty else None
@@ -216,6 +270,7 @@ def _bulk_history(tickers, days=200):
     yfinance chunked fallback for any names Polygon misses. {ticker: DataFrame}."""
     import time as _time
     from concurrent.futures import ThreadPoolExecutor
+
     out = {}
     if polygon_data.available():
         with ThreadPoolExecutor(max_workers=12) as ex:
@@ -226,16 +281,26 @@ def _bulk_history(tickers, days=200):
     if missing:
         # yfinance fallback — 50-ticker chunks look like normal traffic
         for ci in range(0, len(missing), 50):
-            chunk = missing[ci:ci + 50]
+            chunk = missing[ci : ci + 50]
             for attempt in range(3):
                 try:
-                    bd = yf.download(chunk, period=f"{days}d", interval="1d",
-                                     group_by="ticker", auto_adjust=True,
-                                     threads=True, progress=False)
+                    bd = yf.download(
+                        chunk,
+                        period=f"{days}d",
+                        interval="1d",
+                        group_by="ticker",
+                        auto_adjust=True,
+                        threads=True,
+                        progress=False,
+                    )
                     if bd is not None and not bd.empty:
                         for t in chunk:
                             try:
-                                h = bd[t].dropna(how="all") if len(chunk) > 1 else bd.dropna(how="all")
+                                h = (
+                                    bd[t].dropna(how="all")
+                                    if len(chunk) > 1
+                                    else bd.dropna(how="all")
+                                )
                                 if not h.empty:
                                     out[t] = h
                             except Exception:
@@ -252,12 +317,15 @@ def fetch_iwm_data(tickers):
     """Bulk-download OHLCV for all IWM tickers, pre-filter technically,
     then fetch .info only for survivors. Much faster than individual calls."""
     spy_hist = _history_df("SPY")
-    spy_12w  = (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-63] - 1) * 100 \
-               if spy_hist is not None and len(spy_hist) >= 63 else 0.0
+    spy_12w = (
+        (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-63] - 1) * 100
+        if spy_hist is not None and len(spy_hist) >= 63
+        else 0.0
+    )
 
     _day_frac = _trading_day_fraction()
     if _day_frac < 1.0:
-        print(f"  Intraday run — projecting volume (session {_day_frac*100:.0f}% elapsed)")
+        print(f"  Intraday run — projecting volume (session {_day_frac * 100:.0f}% elapsed)")
 
     # Polygon primary (official keyed API — reliable from datacenter IPs),
     # yfinance chunked fallback. Replaces the old chunk-and-pray bulk download
@@ -271,30 +339,35 @@ def fetch_iwm_data(tickers):
         try:
             if hist.empty or len(hist) < 20:
                 continue
-            price      = float(hist["Close"].iloc[-1])
-            prev       = float(hist["Close"].iloc[-2])
+            price = float(hist["Close"].iloc[-1])
+            prev = float(hist["Close"].iloc[-2])
             change_pct = (price - prev) / prev * 100
-            avg_vol    = float(hist["Volume"].iloc[-21:-1].mean())
+            avg_vol = float(hist["Volume"].iloc[-21:-1].mean())
             # Project today's partial volume bar to a full-day estimate
-            today_vol  = float(hist["Volume"].iloc[-1]) / _day_frac
-            vol_ratio  = today_vol / avg_vol if avg_vol > 0 else 1.0
-            ma20       = float(hist["Close"].iloc[-20:].mean())
-            ma50       = float(hist["Close"].iloc[-50:].mean()) if len(hist) >= 50 else None
+            today_vol = float(hist["Volume"].iloc[-1]) / _day_frac
+            vol_ratio = today_vol / avg_vol if avg_vol > 0 else 1.0
+            ma20 = float(hist["Close"].iloc[-20:].mean())
+            ma50 = float(hist["Close"].iloc[-50:].mean()) if len(hist) >= 50 else None
 
-            if price < ma20:      continue
-            if vol_ratio < 1.5:   continue
-            if change_pct < 0:    continue
+            if price < ma20:
+                continue
+            if vol_ratio < 1.5:
+                continue
+            if change_pct < 0:
+                continue
 
             hist_cache[ticker] = hist
-            tech_pass.append({
-                "ticker":      ticker,
-                "price":       round(price, 2),
-                "change_pct":  round(change_pct, 2),
-                "vol_ratio":   round(vol_ratio, 2),
-                "above_20ma":  True,
-                "above_50ma":  bool(ma50 and price > ma50),
-                "_hist":       hist,
-            })
+            tech_pass.append(
+                {
+                    "ticker": ticker,
+                    "price": round(price, 2),
+                    "change_pct": round(change_pct, 2),
+                    "vol_ratio": round(vol_ratio, 2),
+                    "above_20ma": True,
+                    "above_50ma": bool(ma50 and price > ma50),
+                    "_hist": hist,
+                }
+            )
         except Exception:
             pass
 
@@ -303,43 +376,52 @@ def fetch_iwm_data(tickers):
     results = []
     for c in tech_pass:
         ticker = c["ticker"]
-        hist   = c.pop("_hist")
+        hist = c.pop("_hist")
         try:
-            info     = yf.Ticker(ticker).info
-            mkt_cap  = info.get("marketCap", 0) or 0
+            info = yf.Ticker(ticker).info
+            mkt_cap = info.get("marketCap", 0) or 0
             float_sh = info.get("floatShares", 0) or 0
             high_52w = info.get("fiftyTwoWeekHigh", 0) or 0
-            low_52w  = info.get("fiftyTwoWeekLow", 0) or 0
+            low_52w = info.get("fiftyTwoWeekLow", 0) or 0
 
-            if mkt_cap  <= 0 or mkt_cap  > 8_000_000_000: continue
-            if float_sh <= 0 or float_sh > 200_000_000:    continue
+            if mkt_cap <= 0 or mkt_cap > 8_000_000_000:
+                continue
+            if float_sh <= 0 or float_sh > 200_000_000:
+                continue
 
-            stock_12w = (c["price"] / float(hist["Close"].iloc[-63]) - 1) * 100 \
-                        if len(hist) >= 63 else 0.0
+            stock_12w = (
+                (c["price"] / float(hist["Close"].iloc[-63]) - 1) * 100 if len(hist) >= 63 else 0.0
+            )
             rs_vs_spy = round(stock_12w - spy_12w, 1)
-            prox_52w  = round((c["price"] / high_52w) * 100, 1) if high_52w > 0 else None
+            prox_52w = round((c["price"] / high_52w) * 100, 1) if high_52w > 0 else None
 
             if len(hist) >= 20:
-                last10     = hist["Close"].iloc[-10:]
-                atr20      = (hist["High"].iloc[-20:] - hist["Low"].iloc[-20:]).mean()
-                base_tight = round((float(last10.max()) - float(last10.min())) / float(atr20), 2) \
-                             if float(atr20) > 0 else None
+                last10 = hist["Close"].iloc[-10:]
+                atr20 = (hist["High"].iloc[-20:] - hist["Low"].iloc[-20:]).mean()
+                base_tight = (
+                    round((float(last10.max()) - float(last10.min())) / float(atr20), 2)
+                    if float(atr20) > 0
+                    else None
+                )
             else:
                 base_tight = None
 
-            results.append({**c,
-                "company":    info.get("shortName", ticker),
-                "mkt_cap_b":  round(mkt_cap / 1e9, 2),
-                "float_m":    round(float_sh / 1e6, 1),
-                "rs_3m":      round(stock_12w, 1),
-                "rs_vs_spy":  rs_vs_spy,
-                "prox_52w":   prox_52w,
-                "base_tight": base_tight,
-                "sector":     info.get("sector", ""),
-                "industry":   info.get("industry", ""),
-                "52w_high":   round(high_52w, 2),
-                "52w_low":    round(low_52w, 2),
-            })
+            results.append(
+                {
+                    **c,
+                    "company": info.get("shortName", ticker),
+                    "mkt_cap_b": round(mkt_cap / 1e9, 2),
+                    "float_m": round(float_sh / 1e6, 1),
+                    "rs_3m": round(stock_12w, 1),
+                    "rs_vs_spy": rs_vs_spy,
+                    "prox_52w": prox_52w,
+                    "base_tight": base_tight,
+                    "sector": info.get("sector", ""),
+                    "industry": info.get("industry", ""),
+                    "52w_high": round(high_52w, 2),
+                    "52w_low": round(low_52w, 2),
+                }
+            )
         except Exception:
             pass
 
@@ -348,6 +430,7 @@ def fetch_iwm_data(tickers):
 
 
 # ─── Data fetching ────────────────────────────────────────────────────────────
+
 
 def get_scan_type():
     now = datetime.now(ET)
@@ -384,21 +467,21 @@ def fetch_yfinance_data(tickers):
             if hist is None or hist.empty or len(hist) < 20:
                 continue
 
-            price       = hist["Close"].iloc[-1]
-            prev_close  = hist["Close"].iloc[-2]
-            change_pct  = ((price - prev_close) / prev_close) * 100
-            avg_vol     = hist["Volume"].iloc[-21:-1].mean()
+            price = hist["Close"].iloc[-1]
+            prev_close = hist["Close"].iloc[-2]
+            change_pct = ((price - prev_close) / prev_close) * 100
+            avg_vol = hist["Volume"].iloc[-21:-1].mean()
             # Project today's partial volume bar to a full-day estimate
-            today_vol   = hist["Volume"].iloc[-1] / _trading_day_fraction()
-            vol_ratio   = today_vol / avg_vol if avg_vol > 0 else 1.0
-            ma20        = hist["Close"].iloc[-20:].mean()
-            ma50        = hist["Close"].iloc[-50:].mean() if len(hist) >= 50 else None
-            above_20ma  = bool(price > ma20)
-            above_50ma  = bool(price > ma50) if ma50 is not None else None
-            mkt_cap     = info.get("marketCap", 0) or 0
-            float_sh    = info.get("floatShares", 0) or 0
-            high_52w    = info.get("fiftyTwoWeekHigh", 0) or 0
-            low_52w     = info.get("fiftyTwoWeekLow", 0) or 0
+            today_vol = hist["Volume"].iloc[-1] / _trading_day_fraction()
+            vol_ratio = today_vol / avg_vol if avg_vol > 0 else 1.0
+            ma20 = hist["Close"].iloc[-20:].mean()
+            ma50 = hist["Close"].iloc[-50:].mean() if len(hist) >= 50 else None
+            above_20ma = bool(price > ma20)
+            above_50ma = bool(price > ma50) if ma50 is not None else None
+            mkt_cap = info.get("marketCap", 0) or 0
+            float_sh = info.get("floatShares", 0) or 0
+            high_52w = info.get("fiftyTwoWeekHigh", 0) or 0
+            low_52w = info.get("fiftyTwoWeekLow", 0) or 0
 
             # RS vs SPY (12-week relative return)
             if len(hist) >= 63:
@@ -413,32 +496,34 @@ def fetch_yfinance_data(tickers):
 
             # Base tightness: 10-day close range / 20-day ATR (lower = tighter VCP)
             if len(hist) >= 20:
-                last10     = hist["Close"].iloc[-10:]
-                atr20      = (hist["High"].iloc[-20:] - hist["Low"].iloc[-20:]).mean()
+                last10 = hist["Close"].iloc[-10:]
+                atr20 = (hist["High"].iloc[-20:] - hist["Low"].iloc[-20:]).mean()
                 base_tight = round((last10.max() - last10.min()) / atr20, 2) if atr20 > 0 else None
             else:
                 base_tight = None
 
             hist_cache[ticker] = hist
-            results.append({
-                "ticker":       ticker,
-                "company":      info.get("shortName", ticker),
-                "price":        round(price, 2),
-                "change_pct":   round(change_pct, 2),
-                "mkt_cap_b":    round(mkt_cap / 1e9, 2),
-                "float_m":      round(float_sh / 1e6, 1),
-                "vol_ratio":    round(vol_ratio, 2),
-                "above_20ma":   above_20ma,
-                "above_50ma":   above_50ma,
-                "rs_3m":        round(stock_12w, 1),
-                "rs_vs_spy":    rs_vs_spy,
-                "prox_52w":     prox_52w,
-                "base_tight":   base_tight,
-                "sector":       info.get("sector", ""),
-                "industry":     info.get("industry", ""),
-                "52w_high":     round(high_52w, 2),
-                "52w_low":      round(low_52w, 2),
-            })
+            results.append(
+                {
+                    "ticker": ticker,
+                    "company": info.get("shortName", ticker),
+                    "price": round(price, 2),
+                    "change_pct": round(change_pct, 2),
+                    "mkt_cap_b": round(mkt_cap / 1e9, 2),
+                    "float_m": round(float_sh / 1e6, 1),
+                    "vol_ratio": round(vol_ratio, 2),
+                    "above_20ma": above_20ma,
+                    "above_50ma": above_50ma,
+                    "rs_3m": round(stock_12w, 1),
+                    "rs_vs_spy": rs_vs_spy,
+                    "prox_52w": prox_52w,
+                    "base_tight": base_tight,
+                    "sector": info.get("sector", ""),
+                    "industry": info.get("industry", ""),
+                    "52w_high": round(high_52w, 2),
+                    "52w_low": round(low_52w, 2),
+                }
+            )
         except Exception as e:
             print(f"  ⚠️  Skipped {ticker}: {e}")
     print(f"  ✅ {len(results)} tickers fetched")
@@ -491,10 +576,17 @@ def enrich_with_earnings(candidates, ticker_objs):
 def get_sector_leaders(spy_hist):
     """Return top 3 sectors outperforming SPY over 4 weeks."""
     SECTOR_ETFS = {
-        "Technology": "XLK", "Healthcare": "XLV", "Financials": "XLF",
-        "Energy": "XLE", "Industrials": "XLI", "Materials": "XLB",
-        "Communications": "XLC", "Consumer Disc": "XLY",
-        "Consumer Staples": "XLP", "Utilities": "XLU", "Real Estate": "XLRE",
+        "Technology": "XLK",
+        "Healthcare": "XLV",
+        "Financials": "XLF",
+        "Energy": "XLE",
+        "Industrials": "XLI",
+        "Materials": "XLB",
+        "Communications": "XLC",
+        "Consumer Disc": "XLY",
+        "Consumer Staples": "XLP",
+        "Utilities": "XLU",
+        "Real Estate": "XLRE",
     }
     try:
         spy_ret = (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-20] - 1) * 100
@@ -666,7 +758,9 @@ Each object must include ALL fields:
   reasoning (1-2 sentences: the strongest disconfirming evidence + why this is or isn't a high-conviction follow-through, ending with an explicit "Conviction: High/Medium/Low" tag)."""
 
 
-def run_claude_analysis(candidates, scan_type, sector_leaders=None, macro=None, force_full_descriptives=False):
+def run_claude_analysis(
+    candidates, scan_type, sector_leaders=None, macro=None, force_full_descriptives=False
+):
     if not candidates:
         return []
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -681,10 +775,10 @@ def run_claude_analysis(candidates, scan_type, sector_leaders=None, macro=None, 
     if macro:
         macro_block = f"""
 MARKET REGIME (factor into conviction):
-- Regime: {macro.get('regime', 'Unknown')} — {macro.get('regime_description', '')}
-- SPY 20d: {macro.get('spy_20d_pct', 0):+.1f}%  |  IWM 20d: {macro.get('iwm_20d_pct', 0):+.1f}%  |  IWM/SPY trend: {macro.get('iwm_spy_trend', 0):+.1f}%
-- VIX: {macro.get('vix', 0)} ({macro.get('vix_change_20d', 0):+.1f} vs 20d avg)
-- Leading sectors: {', '.join(macro.get('leading_sectors', []))}
+- Regime: {macro.get("regime", "Unknown")} — {macro.get("regime_description", "")}
+- SPY 20d: {macro.get("spy_20d_pct", 0):+.1f}%  |  IWM 20d: {macro.get("iwm_20d_pct", 0):+.1f}%  |  IWM/SPY trend: {macro.get("iwm_spy_trend", 0):+.1f}%
+- VIX: {macro.get("vix", 0)} ({macro.get("vix_change_20d", 0):+.1f} vs 20d avg)
+- Leading sectors: {", ".join(macro.get("leading_sectors", []))}
 
 Risk-Off → most breakouts fail; note macro headwind in reasoning. Risk-On with small-cap leadership → A-grades have full historical edge.
 """
@@ -765,7 +859,7 @@ Candidates (include insider activity from SEC Form 4 last 60d):
     except Exception as e:
         print(f"  JSON parse failed: {e}")
         print(f"  Last 200 chars: {raw[-200:]!r}")
-        match = re.search(r'\[[\s\S]*\]', raw)
+        match = re.search(r"\[[\s\S]*\]", raw)
         if match:
             try:
                 parsed = json.loads(match.group(0))
@@ -785,43 +879,45 @@ def _fallback_no_llm(candidates, reason="api_error"):
     every candidate and look like "no candidates found")."""
     out = []
     for c in candidates:
-        out.append({
-            "ticker":           c.get("ticker") or c.get("symbol"),
-            "grade":            "C - Watch",
-            "reasoning":        f"LLM scoring unavailable ({reason}); "
-                                f"showing pre-filter pass. Volume "
-                                f"{c.get('vol_ratio', 0):.2f}x, change "
-                                f"{c.get('change_pct', 0):.2f}%.",
-            "keyRisk":          "Cannot grade without Claude — manual "
-                                "review required.",
-            "earningsContext":  "",
-            "institutionalAngle": "",
-            "catalyst":         "",
-            "_llm_unavailable": True,
-            "_llm_failure":     reason,
-        })
+        out.append(
+            {
+                "ticker": c.get("ticker") or c.get("symbol"),
+                "grade": "C - Watch",
+                "reasoning": f"LLM scoring unavailable ({reason}); "
+                f"showing pre-filter pass. Volume "
+                f"{c.get('vol_ratio', 0):.2f}x, change "
+                f"{c.get('change_pct', 0):.2f}%.",
+                "keyRisk": "Cannot grade without Claude — manual review required.",
+                "earningsContext": "",
+                "institutionalAngle": "",
+                "catalyst": "",
+                "_llm_unavailable": True,
+                "_llm_failure": reason,
+            }
+        )
     return out
 
 
 # ─── Chart generation ─────────────────────────────────────────────────────────
 
+
 def generate_chart(ticker, hist):
     """Qullamaggie-style: candlestick + 9/21/50/200 SMA + RSI + relative volume coloring."""
     try:
         data = hist.copy()
-        data["SMA9"]   = data["Close"].rolling(9).mean()
-        data["SMA21"]  = data["Close"].rolling(21).mean()
-        data["SMA50"]  = data["Close"].rolling(50).mean()
+        data["SMA9"] = data["Close"].rolling(9).mean()
+        data["SMA21"] = data["Close"].rolling(21).mean()
+        data["SMA50"] = data["Close"].rolling(50).mean()
         data["SMA200"] = data["Close"].rolling(200).mean()
 
-        delta        = data["Close"].diff()
-        gain         = delta.clip(lower=0).rolling(14).mean()
-        loss         = (-delta.clip(upper=0)).rolling(14).mean()
-        rsi_raw      = 100 - (100 / (1 + gain / loss.where(loss != 0, float("nan"))))
-        data["RSI"]  = rsi_raw.ffill().bfill().clip(0, 100)
+        delta = data["Close"].diff()
+        gain = delta.clip(lower=0).rolling(14).mean()
+        loss = (-delta.clip(upper=0)).rolling(14).mean()
+        rsi_raw = 100 - (100 / (1 + gain / loss.where(loss != 0, float("nan"))))
+        data["RSI"] = rsi_raw.ffill().bfill().clip(0, 100)
 
-        avg_vol          = data["Volume"].rolling(20).mean()
-        data["RelVol"]   = data["Volume"] / avg_vol.where(avg_vol > 0, float("nan"))
+        avg_vol = data["Volume"].rolling(20).mean()
+        data["RelVol"] = data["Volume"] / avg_vol.where(avg_vol > 0, float("nan"))
 
         plot_data = data.tail(90).copy()
         for col in ["SMA9", "SMA21", "SMA50", "SMA200"]:
@@ -829,43 +925,71 @@ def generate_chart(ticker, hist):
 
         vcolors = []
         for rv in plot_data["RelVol"]:
-            if rv >= 3:   vcolors.append("#FF4500")
-            elif rv >= 2: vcolors.append("#FFA500")
-            elif rv >= 1.5: vcolors.append("#90EE90")
-            else:           vcolors.append("#4a4a4a")
+            if rv >= 3:
+                vcolors.append("#FF4500")
+            elif rv >= 2:
+                vcolors.append("#FFA500")
+            elif rv >= 1.5:
+                vcolors.append("#90EE90")
+            else:
+                vcolors.append("#4a4a4a")
 
         def _ap(series, **kwargs):
             if series.notna().sum() < 2:
                 return None
             return mpf.make_addplot(series, **kwargs)
 
-        apds = [ap for ap in [
-            _ap(plot_data["SMA9"],   color="#00BFFF", width=0.9),
-            _ap(plot_data["SMA21"],  color="#FFA500", width=0.9),
-            _ap(plot_data["SMA50"],  color="#32CD32", width=1.3),
-            _ap(plot_data["SMA200"], color="#FF4500", width=1.6),
-            _ap(plot_data["RSI"],                                    panel=2, color="#9370DB", width=1.0, ylabel="RSI"),
-            _ap(pd.Series(70.0, index=plot_data.index, dtype=float), panel=2, color="#FF6666", width=0.5, linestyle="--"),
-            _ap(pd.Series(30.0, index=plot_data.index, dtype=float), panel=2, color="#66FF66", width=0.5, linestyle="--"),
-        ] if ap is not None]
+        apds = [
+            ap
+            for ap in [
+                _ap(plot_data["SMA9"], color="#00BFFF", width=0.9),
+                _ap(plot_data["SMA21"], color="#FFA500", width=0.9),
+                _ap(plot_data["SMA50"], color="#32CD32", width=1.3),
+                _ap(plot_data["SMA200"], color="#FF4500", width=1.6),
+                _ap(plot_data["RSI"], panel=2, color="#9370DB", width=1.0, ylabel="RSI"),
+                _ap(
+                    pd.Series(70.0, index=plot_data.index, dtype=float),
+                    panel=2,
+                    color="#FF6666",
+                    width=0.5,
+                    linestyle="--",
+                ),
+                _ap(
+                    pd.Series(30.0, index=plot_data.index, dtype=float),
+                    panel=2,
+                    color="#66FF66",
+                    width=0.5,
+                    linestyle="--",
+                ),
+            ]
+            if ap is not None
+        ]
 
         style = mpf.make_mpf_style(
             base_mpf_style="nightclouds",
-            gridstyle="--", gridcolor="#2a2a2a",
-            facecolor="#141414", edgecolor="#2a2a2a",
-            figcolor="#141414", y_on_right=True,
+            gridstyle="--",
+            gridcolor="#2a2a2a",
+            facecolor="#141414",
+            edgecolor="#2a2a2a",
+            figcolor="#141414",
+            y_on_right=True,
         )
 
         fig, axes = mpf.plot(
-            plot_data, type="candle", style=style, addplot=apds,
-            volume=True, figsize=(14, 9),
+            plot_data,
+            type="candle",
+            style=style,
+            addplot=apds,
+            volume=True,
+            figsize=(14, 9),
             title=f"\n{ticker} — 90D Daily  |  SMA: 9(blue) 21(orange) 50(green) 200(red)",
-            panel_ratios=(4, 1.2, 1.8), returnfig=True,
+            panel_ratios=(4, 1.2, 1.8),
+            returnfig=True,
         )
 
         if len(axes) > 1:
             bars = axes[1].patches
-            for bar, color in zip(bars, vcolors[-len(bars):]):
+            for bar, color in zip(bars, vcolors[-len(bars) :]):
                 bar.set_facecolor(color)
                 bar.set_alpha(0.85)
 
@@ -881,15 +1005,20 @@ def generate_chart(ticker, hist):
 
 # ─── PDF generation ───────────────────────────────────────────────────────────
 
+
 def _safe(text):
     s = str(text)
-    s = s.replace('—', '-').replace('–', '-').replace('—', '-').replace('–', '-')
-    s = s.replace('‘', "'").replace('’', "'").replace('“', '"').replace('”', '"')
-    return re.sub(r'[^\x00-\xFF]', '', s).strip()
+    s = s.replace("—", "-").replace("–", "-").replace("—", "-").replace("–", "-")
+    s = s.replace("‘", "'").replace("’", "'").replace("“", '"').replace("”", '"')
+    return re.sub(r"[^\x00-\xFF]", "", s).strip()
 
 
-_MEMO_RATING_RGB = {"BUY": (34, 153, 84), "WATCH": (200, 130, 20),
-                    "AVOID": (110, 110, 120), "SHORT": (192, 57, 43)}
+_MEMO_RATING_RGB = {
+    "BUY": (34, 153, 84),
+    "WATCH": (200, 130, 20),
+    "AVOID": (110, 110, 120),
+    "SHORT": (192, 57, 43),
+}
 
 
 def _memo_page(pdf, r, hist_cache):
@@ -909,9 +1038,15 @@ def _memo_page(pdf, r, hist_cache):
     pdf.cell(120, 8, _safe(f"{tk} — Investment Memo"))
     pdf.set_font("Helvetica", "", 8)
     pdf.set_xy(10, 16)
-    pdf.cell(120, 5, _safe(f"Horizon: {r.get('memo_horizon', '-')}  |  "
-                           f"Model confidence: {r.get('memo_confidence', '-')}"
-                           f"/100 (self-assessed, not calibrated)"))
+    pdf.cell(
+        120,
+        5,
+        _safe(
+            f"Horizon: {r.get('memo_horizon', '-')}  |  "
+            f"Model confidence: {r.get('memo_confidence', '-')}"
+            f"/100 (self-assessed, not calibrated)"
+        ),
+    )
     rating = str(r.get("memo_rating", "WATCH")).upper()
     pdf.set_fill_color(*_MEMO_RATING_RGB.get(rating, (110, 110, 120)))
     pdf.rect(150, 5, 52, 20, "F")
@@ -927,8 +1062,7 @@ def _memo_page(pdf, r, hist_cache):
     pdf.cell(100, 6, "Scenario returns (model estimates)")
     pdf.set_font("Helvetica", "", 9)
     ew, parts = 0.0, []
-    for lab, key in (("Bull", "memo_bull"), ("Base", "memo_base"),
-                     ("Bear", "memo_bear")):
+    for lab, key in (("Bull", "memo_bull"), ("Base", "memo_base"), ("Bear", "memo_bear")):
         sc = r.get(key) or {}
         try:
             ret, p = float(sc.get("ret_pct")), float(sc.get("prob"))
@@ -937,9 +1071,11 @@ def _memo_page(pdf, r, hist_cache):
         except Exception:
             pass
     pdf.set_xy(10, y + 6)
-    pdf.cell(190, 5, _safe("  |  ".join(parts) +
-                           (f"   =>  probability-weighted {ew:+.1f}%"
-                            if parts else "-")))
+    pdf.cell(
+        190,
+        5,
+        _safe("  |  ".join(parts) + (f"   =>  probability-weighted {ew:+.1f}%" if parts else "-")),
+    )
 
     def bullets(title, items, yy, mark):
         pdf.set_font("Helvetica", "B", 10)
@@ -961,8 +1097,9 @@ def _memo_page(pdf, r, hist_cache):
     pdf.set_font("Helvetica", "", 8.5)
     for i, s in enumerate((r.get("memo_scenarios") or [])[:3]):
         pdf.set_xy(12, y + 6 + i * 5)
-        pdf.cell(186, 5, _safe(f"{s.get('p', '-')}%  {s.get('s', '')}"
-                               f"  ->  {s.get('action', '')}")[:118])
+        pdf.cell(
+            186, 5, _safe(f"{s.get('p', '-')}%  {s.get('s', '')}  ->  {s.get('action', '')}")[:118]
+        )
     y += 6 + min(3, len(r.get("memo_scenarios") or [])) * 5 + 3
 
     y = bullets("Thesis improves if", r.get("memo_bull_if"), y, ">")
@@ -984,10 +1121,14 @@ def _memo_page(pdf, r, hist_cache):
         closes = hist["Close"].dropna()
         highs, lows = hist["High"].dropna(), hist["Low"].dropna()
         c0 = float(closes.iloc[-1])
-        trs = [max(float(highs.iloc[i]) - float(lows.iloc[i]),
-                   abs(float(highs.iloc[i]) - float(closes.iloc[i - 1])),
-                   abs(float(lows.iloc[i]) - float(closes.iloc[i - 1])))
-               for i in range(max(1, len(closes) - 14), len(closes))]
+        trs = [
+            max(
+                float(highs.iloc[i]) - float(lows.iloc[i]),
+                abs(float(highs.iloc[i]) - float(closes.iloc[i - 1])),
+                abs(float(lows.iloc[i]) - float(closes.iloc[i - 1])),
+            )
+            for i in range(max(1, len(closes) - 14), len(closes))
+        ]
         a = sum(trs) / len(trs)
         sgn = -1 if rating == "SHORT" else 1
         pdf.set_font("Helvetica", "B", 10)
@@ -998,16 +1139,26 @@ def _memo_page(pdf, r, hist_cache):
         # right margin whenever the prices were 3+ digits).
         pdf.set_font("Helvetica", "", 8.5)
         pdf.set_xy(12, y + 6)
-        pdf.multi_cell(184, 4.5, _safe(
-            f"Entry zone {c0 - 0.25 * a:.2f}-{c0 + 0.25 * a:.2f}  |  "
-            f"Stop {c0 - sgn * 1.5 * a:.2f}  |  "
-            f"Target {c0 + sgn * 2.5 * a:.2f}  |  R:R 1.7"))
+        pdf.multi_cell(
+            184,
+            4.5,
+            _safe(
+                f"Entry zone {c0 - 0.25 * a:.2f}-{c0 + 0.25 * a:.2f}  |  "
+                f"Stop {c0 - sgn * 1.5 * a:.2f}  |  "
+                f"Target {c0 + sgn * 2.5 * a:.2f}  |  R:R 1.7"
+            ),
+        )
         pdf.set_font("Helvetica", "I", 7.5)
         pdf.set_text_color(*MUTED)
         pdf.set_x(12)
-        pdf.multi_cell(184, 4, _safe(
-            f"ATR14 {a:.2f}; entry +/-0.25xATR, stop 1.5x, target 2.5x "
-            f"- adjust to your structure"))
+        pdf.multi_cell(
+            184,
+            4,
+            _safe(
+                f"ATR14 {a:.2f}; entry +/-0.25xATR, stop 1.5x, target 2.5x "
+                f"- adjust to your structure"
+            ),
+        )
         y = max(y + 16, pdf.get_y() + 2)
     except Exception:
         pass
@@ -1015,27 +1166,43 @@ def _memo_page(pdf, r, hist_cache):
     pdf.set_text_color(*MUTED)
     pdf.set_font("Helvetica", "I", 7)
     pdf.set_xy(10, max(y, 270))
-    pdf.cell(190, 4, _safe(
-        "Ratings, probabilities and confidence are MODEL ESTIMATES (not "
-        "calibrated). They become trackable once the report outcome loop "
-        "accrues graded history. Not investment advice."))
+    pdf.cell(
+        190,
+        4,
+        _safe(
+            "Ratings, probabilities and confidence are MODEL ESTIMATES (not "
+            "calibrated). They become trackable once the report outcome loop "
+            "accrues graded history. Not investment advice."
+        ),
+    )
 
 
 # Numeric fields the PDF formats with :.1f / :.2f / >= 0. Claude sometimes
 # returns "N/A" (or "12.3%") instead of a number — 2026-10-28's EOD scan
 # crashed on RDNT's changePercent "N/A". Coerced to float; anything
 # unparseable is 0, the same display the PDF already used for missing.
-_PDF_NUM_FIELDS = ("price", "changePercent", "marketCapB", "floatM",
-                   "rsVsSpy", "rs_vs_spy", "prox52w", "prox_52w")
+_PDF_NUM_FIELDS = (
+    "price",
+    "changePercent",
+    "marketCapB",
+    "floatM",
+    "rsVsSpy",
+    "rs_vs_spy",
+    "prox52w",
+    "prox_52w",
+)
 
 
 def _num(v):
     try:
-        x = float(v) if isinstance(v, (int, float)) else float(
-            str(v).replace("%", "").replace(",", "").replace("$", "").strip())
-    except (TypeError, ValueError):
+        x = (
+            float(v)
+            if isinstance(v, (int, float))
+            else float(str(v).replace("%", "").replace(",", "").replace("$", "").strip())
+        )
+    except TypeError, ValueError:
         return 0.0
-    return x if math.isfinite(x) else 0.0           # NaN / inf -> 0
+    return x if math.isfinite(x) else 0.0  # NaN / inf -> 0
 
 
 def _pdf_ready(r):
@@ -1046,24 +1213,32 @@ def _pdf_ready(r):
     return out
 
 
-def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCANNER",
-                 insider_transactions=None, institutional_data=None, filings_13=None,
-                 smart_money=None, volume_intelligence=None):
+def generate_pdf(
+    results,
+    scan_type,
+    hist_cache,
+    report_label="SMID BREAKOUT SCANNER",
+    insider_transactions=None,
+    institutional_data=None,
+    filings_13=None,
+    smart_money=None,
+    volume_intelligence=None,
+):
     results = [_pdf_ready(r) for r in results]
-    now     = datetime.now(ET)
-    ts      = now.strftime("%B %d, %Y  |  %I:%M %p ET")
+    now = datetime.now(ET)
+    ts = now.strftime("%B %d, %Y  |  %I:%M %p ET")
     buckets = {"A": [], "B": [], "C": []}
     for r in results:
         g = str(r.get("score", ""))[:1]
         if g in buckets:
             buckets[g].append(r["ticker"])
 
-    NAVY   = (12, 20, 48)
-    NAVY2  = (22, 34, 70)
-    GOLD   = (255, 200, 0)
-    WHITE  = (255, 255, 255)
-    INK    = (15, 20, 50)
-    MUTED  = (100, 110, 135)
+    NAVY = (12, 20, 48)
+    NAVY2 = (22, 34, 70)
+    GOLD = (255, 200, 0)
+    WHITE = (255, 255, 255)
+    INK = (15, 20, 50)
+    MUTED = (100, 110, 135)
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=12)
@@ -1078,7 +1253,7 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
     # ════════════════════════════════════════════════════════════════════════════
     # COVER PAGE
     # ════════════════════════════════════════════════════════════════════════════
-    if len(results) != 1:        # single-ticker one-pager skips the multi-name scan cover
+    if len(results) != 1:  # single-ticker one-pager skips the multi-name scan cover
         pdf.add_page()
 
         # Header
@@ -1094,10 +1269,13 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.set_xy(0, 28)
         pdf.cell(210, 6, _safe(ts), align="C")
         pdf.set_xy(0, 36)
-        pdf.cell(210, 5,
+        pdf.cell(
+            210,
+            5,
             f"{len(results)} setups identified  |  {len(buckets['A'])} A-Grade  |  "
             f"{len(buckets['B'])} B-Grade  |  {len(buckets['C'])} C-Grade",
-            align="C")
+            align="C",
+        )
         pdf.set_fill_color(*GOLD)
         pdf.rect(0, 43, 210, 1.5, "F")
 
@@ -1110,9 +1288,9 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
 
         col_w = 62
         grade_meta = [
-            ("A - Breakout Setup", buckets["A"], (34, 153, 84),  (220, 245, 230)),
-            ("B - Strong Setup",   buckets["B"], (41, 128, 185), (220, 235, 250)),
-            ("C - Watch List",     buckets["C"], (194, 120, 3),  (250, 240, 215)),
+            ("A - Breakout Setup", buckets["A"], (34, 153, 84), (220, 245, 230)),
+            ("B - Strong Setup", buckets["B"], (41, 128, 185), (220, 235, 250)),
+            ("C - Watch List", buckets["C"], (194, 120, 3), (250, 240, 215)),
         ]
         pdf.set_font("Helvetica", "B", 8)
         for label, tickers, hdr_rgb, _ in grade_meta:
@@ -1140,9 +1318,17 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
 
         CAT_W = 37
         cols = [
-            ("Gr", 7), ("Ticker", 13), ("Company", 28), ("Theme", 26),
-            ("Price", 13), ("Chg %", 12), ("Cap", 14), ("Float", 13),
-            ("RS/SPY", 14), ("52W Hi", 13), ("Catalyst", CAT_W),
+            ("Gr", 7),
+            ("Ticker", 13),
+            ("Company", 28),
+            ("Theme", 26),
+            ("Price", 13),
+            ("Chg %", 12),
+            ("Cap", 14),
+            ("Float", 13),
+            ("RS/SPY", 14),
+            ("52W Hi", 13),
+            ("Catalyst", CAT_W),
         ]
         pdf.set_fill_color(*NAVY)
         pdf.set_text_color(*WHITE)
@@ -1154,30 +1340,37 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.set_text_color(*INK)
         for i, r in enumerate(results):
             grade = str(r.get("score", ""))[:1]
-            chg   = r.get("changePercent", 0) or 0
-            rs    = r.get("rsVsSpy", r.get("rs_vs_spy", 0)) or 0
-            prox  = r.get("prox52w", r.get("prox_52w", 0)) or 0
+            chg = r.get("changePercent", 0) or 0
+            rs = r.get("rsVsSpy", r.get("rs_vs_spy", 0)) or 0
+            prox = r.get("prox52w", r.get("prox_52w", 0)) or 0
             chg_s = f"+{chg:.1f}%" if chg >= 0 else f"{chg:.1f}%"
-            rs_s  = f"+{rs:.1f}" if rs >= 0 else f"{rs:.1f}"
+            rs_s = f"+{rs:.1f}" if rs >= 0 else f"{rs:.1f}"
             theme = _safe(r.get("theme", r.get("sector", "")))
-            cat   = _safe(r.get("catalyst", ""))[:22]
+            cat = _safe(r.get("catalyst", ""))[:22]
 
-            bg = (220,245,230) if grade=="A" else (220,235,250) if grade=="B" else (250,240,215) if grade=="C" \
-                 else ((248,248,252) if i%2==0 else (255,255,255))
+            bg = (
+                (220, 245, 230)
+                if grade == "A"
+                else (220, 235, 250)
+                if grade == "B"
+                else (250, 240, 215)
+                if grade == "C"
+                else ((248, 248, 252) if i % 2 == 0 else (255, 255, 255))
+            )
             pdf.set_fill_color(*bg)
-            pdf.set_font("Helvetica", "B" if grade=="A" else "", 7)
+            pdf.set_font("Helvetica", "B" if grade == "A" else "", 7)
             row = [
-                (grade,                                  7),
-                (r.get("ticker", ""),                   13),
-                (_safe(r.get("company", ""))[:16],       28),
-                (theme[:17],                             26),
-                (f"${r.get('price', 0):.2f}",           13),
-                (chg_s,                                  12),
-                (f"${r.get('marketCapB', 0):.1f}B",     14),
-                (f"{r.get('floatM', 0):.0f}M",          13),
-                (rs_s,                                   14),
-                (f"{prox:.0f}%",                         13),
-                (cat,                                    CAT_W),
+                (grade, 7),
+                (r.get("ticker", ""), 13),
+                (_safe(r.get("company", ""))[:16], 28),
+                (theme[:17], 26),
+                (f"${r.get('price', 0):.2f}", 13),
+                (chg_s, 12),
+                (f"${r.get('marketCapB', 0):.1f}B", 14),
+                (f"{r.get('floatM', 0):.0f}M", 13),
+                (rs_s, 14),
+                (f"{prox:.0f}%", 13),
+                (cat, CAT_W),
             ]
             for val, w in row:
                 pdf.cell(w, 5, val, border=1, fill=True, align="C")
@@ -1188,9 +1381,12 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.set_xy(10, 287)
         pdf.set_font("Helvetica", "I", 5.5)
         pdf.set_text_color(150, 150, 150)
-        pdf.cell(0, 4,
+        pdf.cell(
+            0,
+            4,
             "Not financial advice. For informational purposes only. Do your own due diligence.",
-            align="C")
+            align="C",
+        )
 
     # ════════════════════════════════════════════════════════════════════════════
     # PER-TICKER ONE-PAGER  (A-grade; same layout as setup_builder)
@@ -1202,18 +1398,18 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
     else:
         a_grades = [r for r in results if str(r.get("score", ""))[:1] in ("A", "B")]
     for s in a_grades:
-        ticker  = s["ticker"]
+        ticker = s["ticker"]
         company = _safe(s.get("company", ticker))
-        price   = s.get("price", 0) or 0
-        chg     = s.get("changePercent", 0) or 0
-        cap_b   = s.get("marketCapB", 0) or 0
-        fl_m    = s.get("floatM", 0) or 0
-        rs      = s.get("rsVsSpy", s.get("rs_vs_spy", 0)) or 0
-        prox    = s.get("prox52w", s.get("prox_52w", 0)) or 0
-        bt      = s.get("baseTight", s.get("base_tight", "-"))
+        price = s.get("price", 0) or 0
+        chg = s.get("changePercent", 0) or 0
+        cap_b = s.get("marketCapB", 0) or 0
+        fl_m = s.get("floatM", 0) or 0
+        rs = s.get("rsVsSpy", s.get("rs_vs_spy", 0)) or 0
+        prox = s.get("prox52w", s.get("prox_52w", 0)) or 0
+        bt = s.get("baseTight", s.get("base_tight", "-"))
         vol_avg = s.get("volumeVsAvg", "-")
-        chg_s   = f"+{chg:.2f}%" if chg >= 0 else f"{chg:.2f}%"
-        rs_s    = f"+{rs:.1f}%" if rs >= 0 else f"{rs:.1f}%"
+        chg_s = f"+{chg:.2f}%" if chg >= 0 else f"{chg:.2f}%"
+        rs_s = f"+{rs:.1f}%" if rs >= 0 else f"{rs:.1f}%"
 
         pdf.add_page()
         pdf.set_auto_page_break(auto=False)
@@ -1244,7 +1440,7 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         # Grade badge (right)
         grade_letter = str(s.get("score", ""))[:1]
         if grade_letter == "A":
-            badge_rgb, badge_label = (34, 153, 84),  "A  BREAKOUT"
+            badge_rgb, badge_label = (34, 153, 84), "A  BREAKOUT"
         elif grade_letter == "B":
             badge_rgb, badge_label = (41, 128, 185), "B  STRONG SETUP"
         elif grade_letter == "C":
@@ -1271,12 +1467,12 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.set_text_color(180, 210, 255)
         pdf.set_font("Helvetica", "", 7)
         pdf.set_xy(10, 34.8)
-        above20  = "Above 20MA: YES" if s.get("above20ma", True) else "Above 20MA: no"
-        earn     = _safe(s.get("earningsFlag", s.get("earnings_flag", "")))
+        above20 = "Above 20MA: YES" if s.get("above20ma", True) else "Above 20MA: no"
+        earn = _safe(s.get("earningsFlag", s.get("earnings_flag", "")))
         earn_str = f"  |  {earn}" if earn else ""
         industry = _safe(s.get("industry", s.get("sector", "")))
-        theme    = _safe(s.get("theme", ""))
-        subhdr   = f"{industry}  |  Theme: {theme}  |  52W Hi: {prox:.0f}%  |  Base Tight: {bt}  |  Vol: {vol_avg}  |  RS/SPY: {rs_s}  |  {above20}{earn_str}"
+        theme = _safe(s.get("theme", ""))
+        subhdr = f"{industry}  |  Theme: {theme}  |  52W Hi: {prox:.0f}%  |  Base Tight: {bt}  |  Vol: {vol_avg}  |  RS/SPY: {rs_s}  |  {above20}{earn_str}"
         pdf.cell(0, 4, subhdr)
 
         # ── Left column — quick stats (x=10, y=41, w=92) ────────────────────
@@ -1289,7 +1485,7 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
 
         # Fundamentals: prefer P/S over P/E for unprofitable companies (negative fwd P/E is meaningless)
         fwd_pe = s.get("forward_pe", 0) or 0
-        ps     = s.get("ps_ratio", 0) or 0
+        ps = s.get("ps_ratio", 0) or 0
         if fwd_pe and fwd_pe > 0:
             valuation_label, valuation_val = "Fwd P/E", f"{fwd_pe:.1f}x"
         elif ps and ps > 0:
@@ -1299,8 +1495,8 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
 
         # Days to cover — yfinance shortRatio IS days-to-cover
         short_ratio = s.get("short_ratio", 0) or 0
-        short_pct   = s.get("short_pct", "")
-        d2c_str     = f"{short_ratio:.1f}d" if short_ratio else "-"
+        short_pct = s.get("short_pct", "")
+        d2c_str = f"{short_ratio:.1f}d" if short_ratio else "-"
 
         # Inst. own — display dash for missing data instead of "0%"
         inst_own_raw = s.get("inst_own", "")
@@ -1310,20 +1506,20 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
             inst_own_str = str(inst_own_raw)
 
         stats = [
-            ("Price",         f"${price:.2f}"),
-            ("Day Change",    chg_s),
-            ("Mkt Cap",       f"${cap_b:.2f}B"),
-            ("Float",         f"{fl_m:.0f}M sh"),
-            ("RS vs SPY",     rs_s),
-            ("52W Hi Prox",   f"{prox:.0f}%"),
-            ("Base Tight",    str(bt)),
-            ("Vol vs Avg",    str(vol_avg)),
-            ("RS Line Hi",    "YES" if s.get("rsLineNewHigh", s.get("rs_line_new_high")) else "no"),
-            ("Above 50MA",    "YES" if s.get("above50ma", s.get("above_50ma")) else "-"),
+            ("Price", f"${price:.2f}"),
+            ("Day Change", chg_s),
+            ("Mkt Cap", f"${cap_b:.2f}B"),
+            ("Float", f"{fl_m:.0f}M sh"),
+            ("RS vs SPY", rs_s),
+            ("52W Hi Prox", f"{prox:.0f}%"),
+            ("Base Tight", str(bt)),
+            ("Vol vs Avg", str(vol_avg)),
+            ("RS Line Hi", "YES" if s.get("rsLineNewHigh", s.get("rs_line_new_high")) else "no"),
+            ("Above 50MA", "YES" if s.get("above50ma", s.get("above_50ma")) else "-"),
             (valuation_label, valuation_val),
-            ("Short %",       short_pct or "—"),
+            ("Short %", short_pct or "—"),
             ("Days to Cover", d2c_str),
-            ("Inst. Own",     inst_own_str),
+            ("Inst. Own", inst_own_str),
         ]
         LW, VW = 26, 20
         row_y = MY + 5
@@ -1394,15 +1590,15 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
             pdf.multi_cell(CW, 3.8, txt, border=0)
             cat_y = pdf.get_y() + 1.5
 
-        _section("Catalyst / Today's Driver", s.get("catalyst", ""),              (20, 80, 55))
-        _section("Business & Position",      s.get("businessDescription", ""),  (15, 55, 95))
-        _section("Factor & Theme",           s.get("factorExposure", ""),       (20, 60, 80))
-        _section("Breakout Signal",          s.get("signal", ""),               (15, 80, 55))
-        _section("Institutional",            s.get("institutionalAngle", ""),   (60, 55, 10))
-        _section("Earnings",                 s.get("earningsFlag", s.get("earnings_flag", "")), (55, 25, 90))
-        _section("Earnings Context",         s.get("earningsContext", ""),      (50, 20, 80))
-        _section("Key Risk",                 s.get("keyRisk", ""),              (110, 25, 25))
-        _section("Analysis",                 s.get("reasoning", ""),            (30, 50, 90))
+        _section("Catalyst / Today's Driver", s.get("catalyst", ""), (20, 80, 55))
+        _section("Business & Position", s.get("businessDescription", ""), (15, 55, 95))
+        _section("Factor & Theme", s.get("factorExposure", ""), (20, 60, 80))
+        _section("Breakout Signal", s.get("signal", ""), (15, 80, 55))
+        _section("Institutional", s.get("institutionalAngle", ""), (60, 55, 10))
+        _section("Earnings", s.get("earningsFlag", s.get("earnings_flag", "")), (55, 25, 90))
+        _section("Earnings Context", s.get("earningsContext", ""), (50, 20, 80))
+        _section("Key Risk", s.get("keyRisk", ""), (110, 25, 25))
+        _section("Analysis", s.get("reasoning", ""), (30, 50, 90))
 
         # Entry / Stop box — break to a fresh page if it would overflow
         if cat_y + 15 > 288:
@@ -1450,10 +1646,13 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.set_xy(10, 291)
         pdf.set_font("Helvetica", "I", 5.0)
         pdf.set_text_color(150, 150, 150)
-        pdf.cell(0, 4,
+        pdf.cell(
+            0,
+            4,
             f"SMID Breakout Scanner  |  {now.strftime('%b %d %Y')}  |  "
             "Not financial advice. For informational purposes only. Do your own due diligence.",
-            align="C")
+            align="C",
+        )
 
     # ── Insider Transactions Table (ad-hoc mode only) ───────────────────────
     if insider_transactions:
@@ -1467,7 +1666,11 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.cell(0, 7, "INSIDER TRANSACTIONS - LAST 12 MONTHS")
         pdf.set_font("Helvetica", "", 8)
         pdf.set_xy(10, 13)
-        pdf.cell(0, 5, "Source: SEC EDGAR Form 4  |  P=open buy, S=sale, M=opt exercise, A=grant, F=tax withhold")
+        pdf.cell(
+            0,
+            5,
+            "Source: SEC EDGAR Form 4  |  P=open buy, S=sale, M=opt exercise, A=grant, F=tax withhold",
+        )
         pdf.set_fill_color(255, 200, 0)
         pdf.rect(0, 22, 210, 1.2, "F")
 
@@ -1483,21 +1686,23 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.cell(0, 5, "12-Month Summary")
         pdf.set_font("Helvetica", "", 8)
         pdf.set_xy(10, 34)
-        summary_line = (f"Open-market buys: {len(buys)} ({_fmt_money(buy_val)})  |  "
-                        f"Sales: {len(sales)} ({_fmt_money(sale_val)})  |  "
-                        f"Net: {_fmt_money(buy_val - sale_val)}  |  "
-                        f"Total transactions: {len(insider_transactions)}")
+        summary_line = (
+            f"Open-market buys: {len(buys)} ({_fmt_money(buy_val)})  |  "
+            f"Sales: {len(sales)} ({_fmt_money(sale_val)})  |  "
+            f"Net: {_fmt_money(buy_val - sale_val)}  |  "
+            f"Total transactions: {len(insider_transactions)}"
+        )
         pdf.cell(0, 5, _safe(summary_line))
 
         # Column header
         cols = [
-            ("Date",     22),
-            ("Insider",  55),
-            ("Title",    35),
-            ("Action",   18),
-            ("Shares",   22),
-            ("Price",    18),
-            ("Value",    22),
+            ("Date", 22),
+            ("Insider", 55),
+            ("Title", 35),
+            ("Action", 18),
+            ("Shares", 22),
+            ("Price", 18),
+            ("Value", 22),
         ]
         y = 44
         pdf.set_xy(10, y)
@@ -1515,47 +1720,47 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         max_rows = 40
         for idx, t in enumerate(insider_transactions[:max_rows]):
             code = t["code"]
-            if code == "P":           # Open-market buy
-                row_bg     = (200, 240, 215)   # bright green tint
-                action_bg  = (39, 174, 96)     # solid green chip
-                action_fg  = (255, 255, 255)
+            if code == "P":  # Open-market buy
+                row_bg = (200, 240, 215)  # bright green tint
+                action_bg = (39, 174, 96)  # solid green chip
+                action_fg = (255, 255, 255)
                 text_color = (15, 80, 35)
-                bold       = True
-            elif code == "S":         # Sale
-                row_bg     = (255, 215, 215)   # bright red tint
-                action_bg  = (192, 57, 43)     # solid red chip
-                action_fg  = (255, 255, 255)
+                bold = True
+            elif code == "S":  # Sale
+                row_bg = (255, 215, 215)  # bright red tint
+                action_bg = (192, 57, 43)  # solid red chip
+                action_fg = (255, 255, 255)
                 text_color = (110, 25, 25)
-                bold       = True
-            elif code == "M":         # Option exercise
-                row_bg     = (245, 235, 215)
-                action_bg  = (200, 130, 20)
-                action_fg  = (255, 255, 255)
+                bold = True
+            elif code == "M":  # Option exercise
+                row_bg = (245, 235, 215)
+                action_bg = (200, 130, 20)
+                action_fg = (255, 255, 255)
                 text_color = (90, 60, 15)
-                bold       = False
-            elif code == "A":         # Grant
-                row_bg     = (230, 235, 250)
-                action_bg  = (52, 100, 180)
-                action_fg  = (255, 255, 255)
+                bold = False
+            elif code == "A":  # Grant
+                row_bg = (230, 235, 250)
+                action_bg = (52, 100, 180)
+                action_fg = (255, 255, 255)
                 text_color = (35, 50, 100)
-                bold       = False
-            else:                     # F (tax withhold), G (gift), D (disposition), etc.
-                row_bg     = (245, 247, 252) if idx % 2 == 0 else (255, 255, 255)
-                action_bg  = (130, 130, 140)
-                action_fg  = (255, 255, 255)
+                bold = False
+            else:  # F (tax withhold), G (gift), D (disposition), etc.
+                row_bg = (245, 247, 252) if idx % 2 == 0 else (255, 255, 255)
+                action_bg = (130, 130, 140)
+                action_fg = (255, 255, 255)
                 text_color = (60, 60, 60)
-                bold       = False
+                bold = False
 
             # First six columns — Date, Insider, Title, ...skip Action..., Shares, Price, Value
-            cols_left  = [
-                (t["date"][:10],         22, "C"),
+            cols_left = [
+                (t["date"][:10], 22, "C"),
                 (_safe(t["owner"][:30]), 55, "L"),
                 (_safe(t["title"][:22]), 35, "L"),
             ]
             cols_right = [
                 (f"{int(t['shares']):,}", 22, "R"),
-                (f"${t['price']:.2f}",    18, "R"),
-                (_fmt_money(t["value"]),  22, "R"),
+                (f"${t['price']:.2f}", 18, "R"),
+                (_fmt_money(t["value"]), 22, "R"),
             ]
 
             pdf.set_fill_color(*row_bg)
@@ -1582,17 +1787,28 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
             pdf.set_font("Helvetica", "I", 6)
             pdf.set_text_color(120, 120, 120)
             pdf.ln(2)
-            pdf.cell(0, 4, f"... showing {max_rows} of {len(insider_transactions)} total transactions", align="C")
+            pdf.cell(
+                0,
+                4,
+                f"... showing {max_rows} of {len(insider_transactions)} total transactions",
+                align="C",
+            )
 
         # Footer
         pdf.set_xy(10, 291)
         pdf.set_font("Helvetica", "I", 5.0)
         pdf.set_text_color(150, 150, 150)
-        pdf.cell(0, 4, "Source: SEC EDGAR  |  Not financial advice  |  All filings subject to standard SEC reporting delays.",
-                 align="C")
+        pdf.cell(
+            0,
+            4,
+            "Source: SEC EDGAR  |  Not financial advice  |  All filings subject to standard SEC reporting delays.",
+            align="C",
+        )
 
     # ── Institutional Ownership Page (ad-hoc mode only) ─────────────────────
-    if institutional_data and (institutional_data.get("top_holders") or institutional_data.get("major_holders")):
+    if institutional_data and (
+        institutional_data.get("top_holders") or institutional_data.get("major_holders")
+    ):
         pdf.add_page()
 
         # Header
@@ -1611,19 +1827,19 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         # Major holders breakdown — 4 stat boxes
         mh = institutional_data.get("major_holders", {})
         insider_pct = mh.get("insidersPercentHeld", 0) or 0
-        inst_pct    = mh.get("institutionsPercentHeld", 0) or 0
-        float_pct   = mh.get("institutionsFloatPercentHeld", 0) or 0
-        inst_count  = int(mh.get("institutionsCount", 0) or 0)
+        inst_pct = mh.get("institutionsPercentHeld", 0) or 0
+        float_pct = mh.get("institutionsFloatPercentHeld", 0) or 0
+        inst_count = int(mh.get("institutionsCount", 0) or 0)
 
         # 4 stat boxes — width 46, gap 1.5, total = 4*46 + 3*1.5 = 188.5mm fits in 190mm usable
         box_w, box_h = 46, 18
         box_gap = 1.5
         box_y = 28
         boxes = [
-            ("Insider %",       f"{insider_pct*100:.2f}%" if insider_pct else "—",       (45, 65, 110)),
-            ("Institutional %", f"{inst_pct*100:.1f}%"    if inst_pct    else "—",       (39, 110, 80)),
-            ("Inst. Float %",   f"{float_pct*100:.1f}%"   if float_pct   else "—",       (52, 100, 180)),
-            ("# Institutions",  f"{inst_count:,}"          if inst_count  else "—",       (110, 75, 130)),
+            ("Insider %", f"{insider_pct * 100:.2f}%" if insider_pct else "—", (45, 65, 110)),
+            ("Institutional %", f"{inst_pct * 100:.1f}%" if inst_pct else "—", (39, 110, 80)),
+            ("Inst. Float %", f"{float_pct * 100:.1f}%" if float_pct else "—", (52, 100, 180)),
+            ("# Institutions", f"{inst_count:,}" if inst_count else "—", (110, 75, 130)),
         ]
         for i, (lbl, val, color) in enumerate(boxes):
             x = 10 + i * (box_w + box_gap)
@@ -1647,7 +1863,9 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
             pdf.set_text_color(255, 255, 255)
             pdf.set_font("Helvetica", "B", 10)
             pdf.set_xy(10, sm_y + 1.5)
-            pdf.cell(190, 5, _safe(f"SMART MONEY SIGNAL: {smart_money.get('label', '')}"), align="C")
+            pdf.cell(
+                190, 5, _safe(f"SMART MONEY SIGNAL: {smart_money.get('label', '')}"), align="C"
+            )
             reasons = smart_money.get("reasons", [])
             if reasons:
                 pdf.set_font("Helvetica", "", 7)
@@ -1663,12 +1881,12 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         y += 7
 
         cols = [
-            ("Fund",          82),
-            ("% Out",         18),
-            ("Shares",        28),
-            ("Value",         24),
-            ("Reported",      20),
-            ("Type",          18),
+            ("Fund", 82),
+            ("% Out", 18),
+            ("Shares", 28),
+            ("Value", 24),
+            ("Reported", 20),
+            ("Type", 18),
         ]
         pdf.set_xy(10, y)
         pdf.set_fill_color(12, 20, 48)
@@ -1682,33 +1900,44 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         holders = institutional_data.get("top_holders", [])
         for idx, h in enumerate(holders[:10]):
             cat, color = classify_fund(h["fund"])
-            row_bg = (220, 245, 230) if cat == "Smart $" else (245, 247, 252) if idx % 2 == 0 else (255, 255, 255)
+            row_bg = (
+                (220, 245, 230)
+                if cat == "Smart $"
+                else (245, 247, 252)
+                if idx % 2 == 0
+                else (255, 255, 255)
+            )
 
             pdf.set_fill_color(*row_bg)
             pdf.set_text_color(20, 20, 40)
             pdf.set_font("Helvetica", "B" if cat == "Smart $" else "", 7)
 
-            shares_str = f"{h['shares']/1e6:.1f}M" if h['shares'] >= 1e6 else f"{h['shares']:,}"
-            value_str  = _fmt_money(h['value'])
-            pct_str    = f"{h['pct_out']*100:.2f}%" if h['pct_out'] < 1 else f"{h['pct_out']:.2f}%"
+            shares_str = f"{h['shares'] / 1e6:.1f}M" if h["shares"] >= 1e6 else f"{h['shares']:,}"
+            value_str = _fmt_money(h["value"])
+            pct_str = f"{h['pct_out'] * 100:.2f}%" if h["pct_out"] < 1 else f"{h['pct_out']:.2f}%"
 
-            pdf.cell(82, 5, _safe(h["fund"][:50]),       border=1, fill=True, align="L")
-            pdf.cell(18, 5, pct_str,                     border=1, fill=True, align="R")
-            pdf.cell(28, 5, shares_str,                  border=1, fill=True, align="R")
-            pdf.cell(24, 5, value_str,                   border=1, fill=True, align="R")
-            pdf.cell(20, 5, h["date_reported"][:10],     border=1, fill=True, align="C")
+            pdf.cell(82, 5, _safe(h["fund"][:50]), border=1, fill=True, align="L")
+            pdf.cell(18, 5, pct_str, border=1, fill=True, align="R")
+            pdf.cell(28, 5, shares_str, border=1, fill=True, align="R")
+            pdf.cell(24, 5, value_str, border=1, fill=True, align="R")
+            pdf.cell(20, 5, h["date_reported"][:10], border=1, fill=True, align="C")
             # Type chip
             pdf.set_fill_color(*color)
             pdf.set_text_color(255, 255, 255)
             pdf.set_font("Helvetica", "B", 7)
-            pdf.cell(18, 5, cat,                         border=1, fill=True, align="C")
+            pdf.cell(18, 5, cat, border=1, fill=True, align="C")
             pdf.ln()
             y += 5
 
         if not holders:
             pdf.set_font("Helvetica", "I", 8)
             pdf.set_text_color(120, 120, 120)
-            pdf.cell(190, 5, "No institutional holder data available from yfinance for this ticker.", align="C")
+            pdf.cell(
+                190,
+                5,
+                "No institutional holder data available from yfinance for this ticker.",
+                align="C",
+            )
             pdf.ln(5)
             y += 5
 
@@ -1720,7 +1949,11 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.cell(0, 5, "Recent 13D / 13G Filings (last 12 months)")
         pdf.set_font("Helvetica", "", 7)
         pdf.set_xy(10, y + 5)
-        pdf.cell(0, 4, "13D = activist stake, board pressure, takeover  |  13G = passive 5%+ holder, lower-conviction")
+        pdf.cell(
+            0,
+            4,
+            "13D = activist stake, board pressure, takeover  |  13G = passive 5%+ holder, lower-conviction",
+        )
         y += 12
 
         if filings_13:
@@ -1736,7 +1969,7 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
 
             for idx, fi in enumerate(filings_13[:15]):
                 if fi.get("is_active"):
-                    row_bg = (255, 215, 215)        # 13D = activist (red tint = high signal)
+                    row_bg = (255, 215, 215)  # 13D = activist (red tint = high signal)
                     type_label, type_color = "ACTIVIST", (192, 57, 43)
                 else:
                     row_bg = (245, 247, 252) if idx % 2 == 0 else (255, 255, 255)
@@ -1745,20 +1978,25 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
                 pdf.set_fill_color(*row_bg)
                 pdf.set_text_color(20, 20, 40)
                 pdf.set_font("Helvetica", "B" if fi.get("is_active") else "", 7)
-                pdf.cell(22, 5, fi["date"],                  border=1, fill=True, align="C")
-                pdf.cell(20, 5, fi["form"],                  border=1, fill=True, align="C")
-                pdf.cell(100, 5, _safe(fi["filer"][:60]),    border=1, fill=True, align="L")
-                pdf.cell(22, 5, fi["stake"],                 border=1, fill=True, align="R")
+                pdf.cell(22, 5, fi["date"], border=1, fill=True, align="C")
+                pdf.cell(20, 5, fi["form"], border=1, fill=True, align="C")
+                pdf.cell(100, 5, _safe(fi["filer"][:60]), border=1, fill=True, align="L")
+                pdf.cell(22, 5, fi["stake"], border=1, fill=True, align="R")
                 pdf.set_fill_color(*type_color)
                 pdf.set_text_color(255, 255, 255)
                 pdf.set_font("Helvetica", "B", 7)
-                pdf.cell(26, 5, type_label,                  border=1, fill=True, align="C")
+                pdf.cell(26, 5, type_label, border=1, fill=True, align="C")
                 pdf.ln()
         else:
             pdf.set_font("Helvetica", "I", 8)
             pdf.set_text_color(120, 120, 120)
             pdf.set_xy(10, y)
-            pdf.cell(190, 5, "No 13D or 13G filings against this company in the last 12 months.", align="C")
+            pdf.cell(
+                190,
+                5,
+                "No 13D or 13G filings against this company in the last 12 months.",
+                align="C",
+            )
 
         # ── Interpretation Panel: "What does this ownership profile tell us?" ──
         pp_y = 220  # anchored near bottom of page to fill whitespace
@@ -1776,40 +2014,98 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         interpret_lines = []
 
         # Smart money interpretation
-        sm_count = (institutional_data.get("smart_money_count", 0) if institutional_data else 0)
-        passive_count = sum(1 for h in (institutional_data.get("top_holders", []) if institutional_data else []) if classify_fund(h["fund"])[0] == "Passive")
-        active_count  = sum(1 for h in (institutional_data.get("top_holders", []) if institutional_data else []) if classify_fund(h["fund"])[0] == "Active")
+        sm_count = institutional_data.get("smart_money_count", 0) if institutional_data else 0
+        passive_count = sum(
+            1
+            for h in (institutional_data.get("top_holders", []) if institutional_data else [])
+            if classify_fund(h["fund"])[0] == "Passive"
+        )
+        active_count = sum(
+            1
+            for h in (institutional_data.get("top_holders", []) if institutional_data else [])
+            if classify_fund(h["fund"])[0] == "Active"
+        )
 
         if sm_count >= 3:
-            interpret_lines.append(("Smart Money:", f"{sm_count} known active stock-pickers in top holders — high-conviction signal."))
+            interpret_lines.append(
+                (
+                    "Smart Money:",
+                    f"{sm_count} known active stock-pickers in top holders — high-conviction signal.",
+                )
+            )
         elif sm_count >= 1:
-            interpret_lines.append(("Smart Money:", f"{sm_count} known active fund(s) detected — partial conviction signal. Monitor for more entries."))
+            interpret_lines.append(
+                (
+                    "Smart Money:",
+                    f"{sm_count} known active fund(s) detected — partial conviction signal. Monitor for more entries.",
+                )
+            )
         elif passive_count >= 5 and active_count <= 2:
-            interpret_lines.append(("Smart Money:", "Top holders are dominated by passive/index funds. No high-conviction stock-pickers detected — ownership is mostly index-driven, not research-driven."))
+            interpret_lines.append(
+                (
+                    "Smart Money:",
+                    "Top holders are dominated by passive/index funds. No high-conviction stock-pickers detected — ownership is mostly index-driven, not research-driven.",
+                )
+            )
         else:
-            interpret_lines.append(("Smart Money:", f"Top holders skew {passive_count} passive / {active_count} active. No high-conviction smart-money names identified."))
+            interpret_lines.append(
+                (
+                    "Smart Money:",
+                    f"Top holders skew {passive_count} passive / {active_count} active. No high-conviction smart-money names identified.",
+                )
+            )
 
         # Concentration interpretation
         if institutional_data:
             holders = institutional_data.get("top_holders", [])
             top10_pct = sum(h.get("pct_out", 0) for h in holders[:10])
             if top10_pct >= 0.40:
-                interpret_lines.append(("Concentration:", f"Top 10 hold {top10_pct*100:.0f}% — heavy concentration. Outsized impact from any single fund's exit."))
+                interpret_lines.append(
+                    (
+                        "Concentration:",
+                        f"Top 10 hold {top10_pct * 100:.0f}% — heavy concentration. Outsized impact from any single fund's exit.",
+                    )
+                )
             elif top10_pct >= 0.25:
-                interpret_lines.append(("Concentration:", f"Top 10 hold {top10_pct*100:.0f}% — moderate concentration, normal for SMID."))
+                interpret_lines.append(
+                    (
+                        "Concentration:",
+                        f"Top 10 hold {top10_pct * 100:.0f}% — moderate concentration, normal for SMID.",
+                    )
+                )
             elif top10_pct > 0:
-                interpret_lines.append(("Concentration:", f"Top 10 hold {top10_pct*100:.0f}% — diffuse ownership, lower single-fund risk."))
+                interpret_lines.append(
+                    (
+                        "Concentration:",
+                        f"Top 10 hold {top10_pct * 100:.0f}% — diffuse ownership, lower single-fund risk.",
+                    )
+                )
 
         # 13D/G interpretation
         if filings_13:
             active_filings = sum(1 for f in filings_13 if f.get("is_active"))
             passive_filings = sum(1 for f in filings_13 if not f.get("is_active"))
             if active_filings >= 1:
-                interpret_lines.append(("13D Activist:", f"{active_filings} 13D filing(s) in last 12 months — active stake building, possible board pressure or M&A interest."))
+                interpret_lines.append(
+                    (
+                        "13D Activist:",
+                        f"{active_filings} 13D filing(s) in last 12 months — active stake building, possible board pressure or M&A interest.",
+                    )
+                )
             elif passive_filings >= 1:
-                interpret_lines.append(("13G 5%+:", f"{passive_filings} 5%+ passive filings — large funds quietly building positions without activist intent."))
+                interpret_lines.append(
+                    (
+                        "13G 5%+:",
+                        f"{passive_filings} 5%+ passive filings — large funds quietly building positions without activist intent.",
+                    )
+                )
         else:
-            interpret_lines.append(("13D/13G:", "No 5%+ stake filings in last 12 months. Either nobody's gone over the threshold or the company is too large for 5% to be common (>$10B caps rarely see 13D/G activity)."))
+            interpret_lines.append(
+                (
+                    "13D/13G:",
+                    "No 5%+ stake filings in last 12 months. Either nobody's gone over the threshold or the company is too large for 5% to be common (>$10B caps rarely see 13D/G activity).",
+                )
+            )
 
         # Insider context — the verdict must weigh buys AGAINST sales.
         # (Old logic said "net bullish" on 3+ buys regardless of sales —
@@ -1819,15 +2115,40 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
             sales = [t for t in insider_transactions if t["code"] == "S"]
             nb, ns = len(buys), len(sales)
             if nb >= 3 and nb >= ns:
-                interpret_lines.append(("Insider Tape:", f"{nb} open-market buys vs {ns} sales in last 12 months — net bullish insider behavior."))
+                interpret_lines.append(
+                    (
+                        "Insider Tape:",
+                        f"{nb} open-market buys vs {ns} sales in last 12 months — net bullish insider behavior.",
+                    )
+                )
             elif nb >= 3 and ns >= 2 * nb:
-                interpret_lines.append(("Insider Tape:", f"{nb} open-market buys vs {ns} sales — selling heavily outweighs the buying; net bearish tilt despite some genuine purchases."))
+                interpret_lines.append(
+                    (
+                        "Insider Tape:",
+                        f"{nb} open-market buys vs {ns} sales — selling heavily outweighs the buying; net bearish tilt despite some genuine purchases.",
+                    )
+                )
             elif nb >= 3:
-                interpret_lines.append(("Insider Tape:", f"{nb} open-market buys vs {ns} sales — real buying against routine selling; mixed, watch for cluster patterns."))
+                interpret_lines.append(
+                    (
+                        "Insider Tape:",
+                        f"{nb} open-market buys vs {ns} sales — real buying against routine selling; mixed, watch for cluster patterns.",
+                    )
+                )
             elif nb >= 1:
-                interpret_lines.append(("Insider Tape:", f"{nb} buy / {ns} sales over 12 months — mixed picture, watch for cluster patterns."))
+                interpret_lines.append(
+                    (
+                        "Insider Tape:",
+                        f"{nb} buy / {ns} sales over 12 months — mixed picture, watch for cluster patterns.",
+                    )
+                )
             else:
-                interpret_lines.append(("Insider Tape:", f"{ns} insider sales in 12 months, no open-market purchases — neutral to bearish (but typical for unprofitable growth companies)."))
+                interpret_lines.append(
+                    (
+                        "Insider Tape:",
+                        f"{ns} insider sales in 12 months, no open-market purchases — neutral to bearish (but typical for unprofitable growth companies).",
+                    )
+                )
 
         # Render
         pdf.set_text_color(20, 20, 40)
@@ -1846,18 +2167,21 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.set_xy(10, 291)
         pdf.set_font("Helvetica", "I", 5.0)
         pdf.set_text_color(150, 150, 150)
-        pdf.cell(0, 4,
+        pdf.cell(
+            0,
+            4,
             "Smart-money classifications are heuristic. 13F filings are reported with a 45-day lag. "
             "Cross-reference with WhaleWisdom or Fintel for production decisions.",
-            align="C")
+            align="C",
+        )
 
     # ── Price/Volume Intelligence Page (ad-hoc mode only) ─────────────────────
     if volume_intelligence:
         vi = volume_intelligence
-        ad      = vi.get("ad_rating", {})
-        bars    = vi.get("sig_bars", [])
+        ad = vi.get("ad_rating", {})
+        bars = vi.get("sig_bars", [])
         monthly = vi.get("monthly_flow", [])
-        silent  = vi.get("silent_build", {})
+        silent = vi.get("silent_build", {})
 
         pdf.add_page()
 
@@ -1879,11 +2203,11 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         # Left: massive letter grade
         ad_grade = ad.get("grade", "—")
         ad_color_map = {
-            "A": (39, 174, 96),    # bright green
-            "B": (90, 180, 110),   # lime green
+            "A": (39, 174, 96),  # bright green
+            "B": (90, 180, 110),  # lime green
             "C": (200, 200, 200),  # neutral grey
-            "D": (220, 130, 70),   # orange
-            "E": (192, 57, 43),    # red
+            "D": (220, 130, 70),  # orange
+            "E": (192, 57, 43),  # red
         }
         ad_color = ad_color_map.get(ad_grade, (130, 130, 140))
 
@@ -1900,9 +2224,14 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.set_xy(10, ad_y + 42)
         pdf.cell(90, 4, _safe(f"Score: {ad.get('score', 0)}/100"), align="C")
         pdf.set_xy(10, ad_y + 46)
-        pdf.cell(90, 4,
-                 _safe(f"{ad.get('up_days', 0)} up days | {ad.get('down_days', 0)} down days | {ad.get('neutral_days', 0)} flat (last 65)"),
-                 align="C")
+        pdf.cell(
+            90,
+            4,
+            _safe(
+                f"{ad.get('up_days', 0)} up days | {ad.get('down_days', 0)} down days | {ad.get('neutral_days', 0)} flat (last 65)"
+            ),
+            align="C",
+        )
 
         # Right: Silent Build status panel
         sb_x = 105
@@ -1929,11 +2258,21 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.cell(0, 5, "Monthly Accumulation/Distribution Flow")
         pdf.set_font("Helvetica", "", 8)
         pdf.set_xy(10, my + 5)
-        pdf.cell(0, 4,
-                 "Trend over last 3 months: are institutions accumulating, distributing, or rotating?")
+        pdf.cell(
+            0,
+            4,
+            "Trend over last 3 months: are institutions accumulating, distributing, or rotating?",
+        )
         my += 12
 
-        flow_cols = [("Period", 35), ("Up-Vol %", 22), ("A/D Trend", 60), ("Price Chg", 22), ("Vol vs Avg", 28), ("Signal", 23)]
+        flow_cols = [
+            ("Period", 35),
+            ("Up-Vol %", 22),
+            ("A/D Trend", 60),
+            ("Price Chg", 22),
+            ("Vol vs Avg", 28),
+            ("Signal", 23),
+        ]
         pdf.set_xy(10, my)
         pdf.set_fill_color(12, 20, 48)
         pdf.set_text_color(255, 255, 255)
@@ -1965,19 +2304,19 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
             pdf.set_fill_color(*row_bg)
             pdf.set_text_color(20, 20, 40)
             pdf.set_font("Helvetica", "B", 8)
-            pdf.cell(35, 6, m.get("label", ""),                                 border=1, fill=True, align="L")
+            pdf.cell(35, 6, m.get("label", ""), border=1, fill=True, align="L")
             pdf.set_font("Helvetica", "", 8)
-            pdf.cell(22, 6, f"{ratio:.1f}%",                                    border=1, fill=True, align="R")
-            pdf.cell(60, 6, _safe(trend),                                       border=1, fill=True, align="L")
+            pdf.cell(22, 6, f"{ratio:.1f}%", border=1, fill=True, align="R")
+            pdf.cell(60, 6, _safe(trend), border=1, fill=True, align="L")
             chg = m.get("price_chg", 0)
             chg_str = f"+{chg:.1f}%" if chg >= 0 else f"{chg:.1f}%"
-            pdf.cell(22, 6, chg_str,                                            border=1, fill=True, align="R")
-            pdf.cell(28, 6, f"{m.get('avg_vol_ratio', 1):.2f}x",                border=1, fill=True, align="R")
+            pdf.cell(22, 6, chg_str, border=1, fill=True, align="R")
+            pdf.cell(28, 6, f"{m.get('avg_vol_ratio', 1):.2f}x", border=1, fill=True, align="R")
             # Signal chip
             pdf.set_fill_color(*sig_rgb)
             pdf.set_text_color(255, 255, 255)
             pdf.set_font("Helvetica", "B", 7.5)
-            pdf.cell(23, 6, signal,                                             border=1, fill=True, align="C")
+            pdf.cell(23, 6, signal, border=1, fill=True, align="C")
             pdf.ln()
             my += 6
 
@@ -1989,11 +2328,22 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.cell(0, 5, "Significant Volume Days (Last 90 Days, >2x Average Volume)")
         pdf.set_font("Helvetica", "", 8)
         pdf.set_xy(10, my + 5)
-        pdf.cell(0, 4,
-                 "Each row = a day institutions left a clear footprint. Absorption = stealth accumulation (silent buy).")
+        pdf.cell(
+            0,
+            4,
+            "Each row = a day institutions left a clear footprint. Absorption = stealth accumulation (silent buy).",
+        )
         my += 12
 
-        bar_cols = [("Date", 22), ("Close", 18), ("Day Chg %", 22), ("Volume", 32), ("Rel Vol", 18), ("Classification", 60), ("Signal", 18)]
+        bar_cols = [
+            ("Date", 22),
+            ("Close", 18),
+            ("Day Chg %", 22),
+            ("Volume", 32),
+            ("Rel Vol", 18),
+            ("Classification", 60),
+            ("Signal", 18),
+        ]
         pdf.set_xy(10, my)
         pdf.set_fill_color(12, 20, 48)
         pdf.set_text_color(255, 255, 255)
@@ -2023,23 +2373,25 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
             pdf.set_font("Helvetica", "", 7.5)
             chg = b.get("change_pct", 0)
             chg_str = f"+{chg:.1f}%" if chg >= 0 else f"{chg:.1f}%"
-            pdf.cell(22, 5, b["date"],                                          border=1, fill=True, align="C")
-            pdf.cell(18, 5, f"${b['close']:.2f}",                               border=1, fill=True, align="R")
-            pdf.cell(22, 5, chg_str,                                            border=1, fill=True, align="R")
-            pdf.cell(32, 5, f"{b['volume']:,}",                                 border=1, fill=True, align="R")
-            pdf.cell(18, 5, f"{b['rel_vol']:.1f}x",                             border=1, fill=True, align="R")
-            pdf.cell(60, 5, cls,                                                border=1, fill=True, align="C")
+            pdf.cell(22, 5, b["date"], border=1, fill=True, align="C")
+            pdf.cell(18, 5, f"${b['close']:.2f}", border=1, fill=True, align="R")
+            pdf.cell(22, 5, chg_str, border=1, fill=True, align="R")
+            pdf.cell(32, 5, f"{b['volume']:,}", border=1, fill=True, align="R")
+            pdf.cell(18, 5, f"{b['rel_vol']:.1f}x", border=1, fill=True, align="R")
+            pdf.cell(60, 5, cls, border=1, fill=True, align="C")
             pdf.set_fill_color(*chip_rgb)
             pdf.set_text_color(255, 255, 255)
             pdf.set_font("Helvetica", "B", 7.5)
-            pdf.cell(18, 5, b.get("signal", ""),                                border=1, fill=True, align="C")
+            pdf.cell(18, 5, b.get("signal", ""), border=1, fill=True, align="C")
             pdf.ln()
 
         if not bars:
             pdf.set_font("Helvetica", "I", 9)
             pdf.set_text_color(120, 120, 120)
             pdf.set_xy(10, my)
-            pdf.cell(190, 5, "No days with >2x average volume in last 90 days. Quiet tape.", align="C")
+            pdf.cell(
+                190, 5, "No days with >2x average volume in last 90 days. Quiet tape.", align="C"
+            )
 
         # ── Synthesis Panel: aggregate signal interpretation + recommended action ──
         sp_y = 220
@@ -2057,56 +2409,103 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         ad_grade = ad.get("grade", "—")
 
         if ad_grade in ("A", "B"):
-            synth_lines.append(("A/D Verdict:",
-                f"{ad_grade}-rated tape ({ad.get('label', '')}). Volume action favors buyers — institutions are net accumulating over the last 13 weeks."))
+            synth_lines.append(
+                (
+                    "A/D Verdict:",
+                    f"{ad_grade}-rated tape ({ad.get('label', '')}). Volume action favors buyers — institutions are net accumulating over the last 13 weeks.",
+                )
+            )
         elif ad_grade == "C":
-            synth_lines.append(("A/D Verdict:",
-                "C-rated tape (neutral). Buying and selling pressure roughly balanced — wait for a regime change before sizing up."))
+            synth_lines.append(
+                (
+                    "A/D Verdict:",
+                    "C-rated tape (neutral). Buying and selling pressure roughly balanced — wait for a regime change before sizing up.",
+                )
+            )
         elif ad_grade in ("D", "E"):
-            synth_lines.append(("A/D Verdict:",
-                f"{ad_grade}-rated tape ({ad.get('label', '')}). Volume action favors sellers — institutions distributing. Avoid long entries until tape flips."))
+            synth_lines.append(
+                (
+                    "A/D Verdict:",
+                    f"{ad_grade}-rated tape ({ad.get('label', '')}). Volume action favors sellers — institutions distributing. Avoid long entries until tape flips.",
+                )
+            )
 
         if monthly and len(monthly) >= 2:
             recent_trend = monthly[-1].get("trend", "")
-            prior_trend  = monthly[0].get("trend", "")
+            prior_trend = monthly[0].get("trend", "")
             if "Accumulation" in recent_trend and "Distribution" in prior_trend:
-                synth_lines.append(("Trajectory:",
-                    f"Regime change: {prior_trend} -> {recent_trend}. Money has rotated FROM exit TO entry — highest-conviction window for breakout entries."))
+                synth_lines.append(
+                    (
+                        "Trajectory:",
+                        f"Regime change: {prior_trend} -> {recent_trend}. Money has rotated FROM exit TO entry — highest-conviction window for breakout entries.",
+                    )
+                )
             elif "Accumulation" in recent_trend:
-                synth_lines.append(("Trajectory:",
-                    f"Recent month is {recent_trend.lower()} — building on prior momentum. Trend is on your side."))
+                synth_lines.append(
+                    (
+                        "Trajectory:",
+                        f"Recent month is {recent_trend.lower()} — building on prior momentum. Trend is on your side.",
+                    )
+                )
             elif "Distribution" in recent_trend:
-                synth_lines.append(("Trajectory:",
-                    f"Recent month is {recent_trend.lower()} — sellers in control. Wait for monthly flow to flip green."))
+                synth_lines.append(
+                    (
+                        "Trajectory:",
+                        f"Recent month is {recent_trend.lower()} — sellers in control. Wait for monthly flow to flip green.",
+                    )
+                )
 
         accum_count = sum(1 for b in bars if b.get("classification") == "ACCUMULATION")
-        dist_count  = sum(1 for b in bars if b.get("classification") == "DISTRIBUTION")
+        dist_count = sum(1 for b in bars if b.get("classification") == "DISTRIBUTION")
         absorb_count = sum(1 for b in bars if b.get("classification") == "ABSORPTION")
         if accum_count + dist_count + absorb_count > 0:
             parts = []
-            if accum_count: parts.append(f"{accum_count} accumulation")
-            if absorb_count: parts.append(f"{absorb_count} absorption")
-            if dist_count: parts.append(f"{dist_count} distribution")
-            verdict = ("net bullish — accumulation outpacing distribution" if accum_count + absorb_count > dist_count else
-                       "net bearish — distribution outpacing accumulation" if dist_count > accum_count + absorb_count else
-                       "balanced")
-            synth_lines.append(("Vol Footprint:",
-                f"Last 90d: {', '.join(parts)} day(s) at >2x average volume. {verdict.capitalize()}."))
+            if accum_count:
+                parts.append(f"{accum_count} accumulation")
+            if absorb_count:
+                parts.append(f"{absorb_count} absorption")
+            if dist_count:
+                parts.append(f"{dist_count} distribution")
+            verdict = (
+                "net bullish — accumulation outpacing distribution"
+                if accum_count + absorb_count > dist_count
+                else "net bearish — distribution outpacing accumulation"
+                if dist_count > accum_count + absorb_count
+                else "balanced"
+            )
+            synth_lines.append(
+                (
+                    "Vol Footprint:",
+                    f"Last 90d: {', '.join(parts)} day(s) at >2x average volume. {verdict.capitalize()}.",
+                )
+            )
 
         if silent.get("detected"):
-            synth_lines.append(("Silent Build:",
-                f"DETECTED — {silent.get('vol_dryup_pct', 0):.0f}% vol dry-up while price held in a {silent.get('price_band_pct', 0):.1f}% band. Classic institutional absorption."))
+            synth_lines.append(
+                (
+                    "Silent Build:",
+                    f"DETECTED — {silent.get('vol_dryup_pct', 0):.0f}% vol dry-up while price held in a {silent.get('price_band_pct', 0):.1f}% band. Classic institutional absorption.",
+                )
+            )
 
         # Action score
         score = 0
-        if ad_grade == "A": score += 2
-        elif ad_grade == "B": score += 1
-        elif ad_grade in ("D", "E"): score -= 2
-        if monthly and "Accumulation" in monthly[-1].get("trend", ""): score += 1
-        if monthly and "Distribution" in monthly[-1].get("trend", ""): score -= 1
-        if accum_count + absorb_count > dist_count + 1: score += 1
-        if dist_count > accum_count + absorb_count + 1: score -= 1
-        if silent.get("detected"): score += 2
+        if ad_grade == "A":
+            score += 2
+        elif ad_grade == "B":
+            score += 1
+        elif ad_grade in ("D", "E"):
+            score -= 2
+        if monthly and "Accumulation" in monthly[-1].get("trend", ""):
+            score += 1
+        if monthly and "Distribution" in monthly[-1].get("trend", ""):
+            score -= 1
+        if accum_count + absorb_count > dist_count + 1:
+            score += 1
+        if dist_count > accum_count + absorb_count + 1:
+            score -= 1
+        if silent.get("detected"):
+            score += 2
 
         if score >= 3:
             action, action_color = "ACCUMULATE / SIZE UP ON BREAKOUT", (39, 174, 96)
@@ -2142,10 +2541,13 @@ def generate_pdf(results, scan_type, hist_cache, report_label="SMID BREAKOUT SCA
         pdf.set_xy(10, 291)
         pdf.set_font("Helvetica", "I", 5.0)
         pdf.set_text_color(150, 150, 150)
-        pdf.cell(0, 4,
+        pdf.cell(
+            0,
+            4,
             "A/D Rating: O'Neill IBD methodology, time-weighted. Volume profile = price/volume action only (no 13F lag). "
             "Action chip is heuristic - combine with fundamental thesis.",
-            align="C")
+            align="C",
+        )
 
     return bytes(pdf.output())
 
@@ -2154,21 +2556,26 @@ def _fmt_money(v):
     """Format dollar amount with K/M/B suffix, signed."""
     sign = "-" if v < 0 else ""
     v = abs(v)
-    if v >= 1_000_000_000: return f"{sign}${v/1e9:.2f}B"
-    if v >= 1_000_000:     return f"{sign}${v/1e6:.2f}M"
-    if v >= 1_000:         return f"{sign}${v/1e3:.0f}K"
+    if v >= 1_000_000_000:
+        return f"{sign}${v / 1e9:.2f}B"
+    if v >= 1_000_000:
+        return f"{sign}${v / 1e6:.2f}M"
+    if v >= 1_000:
+        return f"{sign}${v / 1e3:.0f}K"
     return f"{sign}${v:.0f}"
 
 
 # ─── Report output ────────────────────────────────────────────────────────────
 
+
 def publish_report(pdf_bytes, label="SMID"):
     """Archive the scan PDF to the GitHub Pages report site."""
-    now      = datetime.now(ET)
-    prefix   = "iwm" if "IWM" in label else "smid"
+    now = datetime.now(ET)
+    prefix = "iwm" if "IWM" in label else "smid"
     filename = f"{prefix}_scanner_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
         from report_archive import archive
+
         _archive_report(pdf_bytes, filename)
         print(f"  PDF archived to site: {filename}")
     except Exception as e:
@@ -2177,13 +2584,14 @@ def publish_report(pdf_bytes, label="SMID"):
 
 # ─── Main scan ────────────────────────────────────────────────────────────────
 
+
 def run_scan():
-    scan_type    = get_scan_type()
-    label        = "IWM Russell 2000" if IWM_MODE else "SMID"
+    scan_type = get_scan_type()
+    label = "IWM Russell 2000" if IWM_MODE else "SMID"
     report_label = "IWM RUSSELL 2000 SCANNER" if IWM_MODE else "SMID BREAKOUT SCANNER"
 
-    print(f"\n{'='*50}\n{label.upper()} BREAKOUT SCANNER -- {scan_type}")
-    print(f"{datetime.now(ET).strftime('%Y-%m-%d %H:%M:%S ET')}\n{'='*50}")
+    print(f"\n{'=' * 50}\n{label.upper()} BREAKOUT SCANNER -- {scan_type}")
+    print(f"{datetime.now(ET).strftime('%Y-%m-%d %H:%M:%S ET')}\n{'=' * 50}")
 
     if IWM_MODE:
         print("\n[1/7] Loading IWM universe from CSV...")
@@ -2210,18 +2618,26 @@ def run_scan():
     sector_leaders = get_sector_leaders(spy_hist)
     if sector_leaders:
         print(f"  Leading sectors: {', '.join(s for s, _ in sector_leaders)}")
-    earnings_soon = [c for c in candidates if c.get("earnings_days") is not None and 0 <= c["earnings_days"] <= 7]
+    earnings_soon = [
+        c for c in candidates if c.get("earnings_days") is not None and 0 <= c["earnings_days"] <= 7
+    ]
     if earnings_soon:
-        print(f"  Earnings within 7d: {', '.join(c['ticker'] + ' (' + c['earnings_flag'] + ')' for c in earnings_soon)}")
+        print(
+            f"  Earnings within 7d: {', '.join(c['ticker'] + ' (' + c['earnings_flag'] + ')' for c in earnings_soon)}"
+        )
 
     macro = fetch_macro_context()
-    print(f"  Macro regime: {macro['regime']}  |  VIX {macro['vix']}  |  IWM/SPY trend {macro['iwm_spy_trend']:+.1f}%")
+    print(
+        f"  Macro regime: {macro['regime']}  |  VIX {macro['vix']}  |  IWM/SPY trend {macro['iwm_spy_trend']:+.1f}%"
+    )
 
     enrich_candidates_with_insiders(candidates, days_back=60)
     insider_hits = [c for c in candidates if c.get("insider_count", 0) > 0]
     if insider_hits:
-        print(f"  Insider buys on {len(insider_hits)}/{len(candidates)}: " +
-              ", ".join(f"{c['ticker']}({c['insider_summary']})" for c in insider_hits[:5]))
+        print(
+            f"  Insider buys on {len(insider_hits)}/{len(candidates)}: "
+            + ", ".join(f"{c['ticker']}({c['insider_summary']})" for c in insider_hits[:5])
+        )
 
     print("\n[5/7] Claude analysis (Qullamaggie + earnings + RS line + insider + macro)...")
     results = run_claude_analysis(candidates, scan_type, sector_leaders=sector_leaders, macro=macro)
@@ -2237,8 +2653,10 @@ def run_scan():
         print("\n[7/7] Archiving report to site...")
         publish_report(pdf_bytes, label=label)
     else:
-        print("\n[7/7] No breakout setups passed the filter — nothing to archive. "
-              "On red / low-volume days the scanner correctly returns nothing.")
+        print(
+            "\n[7/7] No breakout setups passed the filter — nothing to archive. "
+            "On red / low-volume days the scanner correctly returns nothing."
+        )
 
     print("\nDone.")
 
@@ -2275,10 +2693,16 @@ def generate_error_pdf(ticker, reason):
     pdf.set_text_color(110, 116, 135)
     pdf.set_font("Helvetica", "", 9)
     pdf.set_xy(25, 134)
-    pdf.multi_cell(160, 5, _safe(
-        "Check the symbol and try again. The ad-hoc lookup supports US-listed "
-        "equities with at least 60 trading days of price history. Ticker symbols "
-        "are 1-8 characters - e.g. NVDA, BRK-B, ALAB."), align="C")
+    pdf.multi_cell(
+        160,
+        5,
+        _safe(
+            "Check the symbol and try again. The ad-hoc lookup supports US-listed "
+            "equities with at least 60 trading days of price history. Ticker symbols "
+            "are 1-8 characters - e.g. NVDA, BRK-B, ALAB."
+        ),
+        align="C",
+    )
 
     pdf.set_xy(10, 287)
     pdf.set_font("Helvetica", "I", 5.5)
@@ -2290,18 +2714,22 @@ def generate_error_pdf(ticker, reason):
 def _abort_invalid_ticker(ticker, hist):
     """Kill the lookup immediately for an N/A ticker — clean error report to the site."""
     if hist is None or getattr(hist, "empty", True):
-        reason = ("No price data found. The symbol may be invalid, delisted, "
-                  "or not a US-listed equity.")
+        reason = (
+            "No price data found. The symbol may be invalid, delisted, or not a US-listed equity."
+        )
     else:
-        reason = (f"Only {len(hist)} trading days of price history available - "
-                  "too new or illiquid for a full analysis (60+ days required).")
+        reason = (
+            f"Only {len(hist)} trading days of price history available - "
+            "too new or illiquid for a full analysis (60+ days required)."
+        )
     print(f"  N/A ticker '{ticker}': {reason}")
 
-    now      = datetime.now(ET)
+    now = datetime.now(ET)
     filename = f"ticker_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
-    err_pdf  = generate_error_pdf(ticker, reason)
+    err_pdf = generate_error_pdf(ticker, reason)
     try:
         from report_archive import archive
+
         _archive_report(err_pdf, filename)
     except Exception as e:
         print(f"  Archive failed: {e}")
@@ -2324,8 +2752,14 @@ def _insider_quality(transactions):
     bal = (nb - ns) / max(1, nb + ns)
     score += round(60 * bal)
     why.append(f"{nb} open-market buys vs {ns} sales (balance {bal:+.2f})")
-    senior = sum(1 for t in buys if any(k in str(t.get("title", "")).upper()
-                 for k in ("CEO", "CFO", "PRES", "CHAIR", "FOUNDER", "10%")))
+    senior = sum(
+        1
+        for t in buys
+        if any(
+            k in str(t.get("title", "")).upper()
+            for k in ("CEO", "CFO", "PRES", "CHAIR", "FOUNDER", "10%")
+        )
+    )
     if senior:
         score += min(25, senior * 10)
         why.append(f"{senior} senior-officer/10%-holder buys - highest-signal cohort")
@@ -2335,8 +2769,13 @@ def _insider_quality(transactions):
         score -= 15
         why.append("no open-market buying against heavy selling")
     score = max(-100, min(100, score))
-    label = ("bullish accumulation" if score >= 30 else
-             "bearish distribution" if score <= -30 else "neutral/routine")
+    label = (
+        "bullish accumulation"
+        if score >= 30
+        else "bearish distribution"
+        if score <= -30
+        else "neutral/routine"
+    )
     return {"score": score, "label": label, "why": why[:3]}
 
 
@@ -2345,8 +2784,7 @@ def _gather_site_signals(ticker):
     facts, best flow read, overnight conviction. Injected into the memo
     prompt so the report synthesizes WITH the platform instead of existing
     beside it. Missing files degrade to absent keys."""
-    base = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "docs", "reports")
+    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "reports")
 
     def _load(name):
         try:
@@ -2365,26 +2803,41 @@ def _gather_site_signals(ticker):
                     break
     f = ((_load("technical_facts.json") or {}).get("facts") or {}).get(ticker)
     if f:
-        sig["technicals"] = {k: f.get(k) for k in
-                             ("trend", "rsi14", "atr_pct", "vol_ratio",
-                              "rs_rank", "ema20", "ema50", "ema200")}
+        sig["technicals"] = {
+            k: f.get(k)
+            for k in (
+                "trend",
+                "rsi14",
+                "atr_pct",
+                "vol_ratio",
+                "rs_rank",
+                "ema20",
+                "ema50",
+                "ema200",
+            )
+        }
         sig["rs_vs_spy"] = f.get("rs")
-    rows = [r for r in ((_load("uoa_latest.json") or {}).get("rows") or [])
-            if r.get("ticker") == ticker]
+    rows = [
+        r for r in ((_load("uoa_latest.json") or {}).get("rows") or []) if r.get("ticker") == ticker
+    ]
     if rows:
         top = max(rows, key=lambda r: r.get("trade_score") or 0)
         sig["options_flow"] = {
-            "direction": top.get("direction"), "tier": top.get("tier"),
+            "direction": top.get("direction"),
+            "tier": top.get("tier"),
             "trade_score": top.get("trade_score"),
-            "premium": top.get("premium"), "why": top.get("why"),
-            "prints_today": len(rows)}
-    for c in ((_load("carryover_flow.json") or {}).get("contracts") or []):
+            "premium": top.get("premium"),
+            "why": top.get("why"),
+            "prints_today": len(rows),
+        }
+    for c in (_load("carryover_flow.json") or {}).get("contracts") or []:
         if c.get("ticker") == ticker:
             sig["overnight_conviction"] = {
                 "conviction": c.get("conviction"),
                 "priority": c.get("priority"),
                 "oi_confirmed": c.get("oi_confirmed"),
-                "dir": c.get("dir_label")}
+                "dir": c.get("dir_label"),
+            }
             break
     return sig
 
@@ -2397,14 +2850,14 @@ def run_single_ticker_lookup(ticker):
     """
     ticker = ticker.upper().strip()
 
-    print(f"\n{'='*50}\nTICKER LOOKUP: {ticker}\n{'='*50}")
+    print(f"\n{'=' * 50}\nTICKER LOOKUP: {ticker}\n{'=' * 50}")
 
     print("[1/5] Validating ticker + fetching data...")
     # Validate BEFORE the pipeline. An invalid / delisted / data-less symbol is
     # killed here with a clear error report — no macro, insider, institutional,
     # volume, or Claude work is attempted on a ticker that has no data.
     try:
-        t    = yf.Ticker(ticker)
+        t = yf.Ticker(ticker)
         hist = _history_df(ticker)
     except Exception as e:
         print(f"  Data fetch error: {e}")
@@ -2418,26 +2871,30 @@ def run_single_ticker_lookup(ticker):
         info = t.info
         spy_hist = _history_df("SPY")
 
-        price    = float(hist["Close"].iloc[-1])
-        prev     = float(hist["Close"].iloc[-2])
+        price = float(hist["Close"].iloc[-1])
+        prev = float(hist["Close"].iloc[-2])
         change_pct = round((price / prev - 1) * 100, 2) if prev else 0
-        ma20     = hist["Close"].iloc[-20:].mean()
-        ma50     = hist["Close"].iloc[-50:].mean()
-        ma200    = hist["Close"].iloc[-200:].mean() if len(hist) >= 200 else None
+        ma20 = hist["Close"].iloc[-20:].mean()
+        ma50 = hist["Close"].iloc[-50:].mean()
+        ma200 = hist["Close"].iloc[-200:].mean() if len(hist) >= 200 else None
         high_52w = info.get("fiftyTwoWeekHigh", 0) or float(hist["High"].max())
         prox_52w = round((price / high_52w) * 100, 1) if high_52w else 0
 
-        v5  = hist["Volume"].iloc[-5:].mean()
+        v5 = hist["Volume"].iloc[-5:].mean()
         v20 = hist["Volume"].iloc[-21:-1].mean()
         vol_ratio = round(float(hist["Volume"].iloc[-1]) / v20, 2) if v20 > 0 else 0
 
-        atr20   = (hist["High"].iloc[-20:] - hist["Low"].iloc[-20:]).mean()
+        atr20 = (hist["High"].iloc[-20:] - hist["Low"].iloc[-20:]).mean()
         range20 = hist["Close"].iloc[-20:].max() - hist["Close"].iloc[-20:].min()
         base_tight = round(range20 / atr20, 2) if atr20 > 0 else 0
         pivot = round(float(hist["High"].iloc[-20:].max()), 2)
 
         stock_12w = (price / hist["Close"].iloc[-63] - 1) * 100 if len(hist) >= 63 else 0
-        spy_12w   = (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-63] - 1) * 100 if len(spy_hist) >= 63 else 0
+        spy_12w = (
+            (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-63] - 1) * 100
+            if len(spy_hist) >= 63
+            else 0
+        )
         rs_vs_spy = round(stock_12w - spy_12w, 1)
 
         rs_line_new_high = False
@@ -2451,33 +2908,33 @@ def run_single_ticker_lookup(ticker):
             pass
 
         cand = {
-            "ticker":           ticker,
-            "company":          info.get("shortName", ticker),
-            "price":            round(price, 2),
-            "change_pct":       change_pct,
-            "vol_ratio":        vol_ratio,
-            "mkt_cap_b":        round((info.get("marketCap", 0) or 0) / 1e9, 2),
-            "float_m":          round((info.get("floatShares", 0) or 0) / 1e6, 1),
-            "high_52w":         round(high_52w, 2),
-            "prox_52w":         prox_52w,
-            "pivot":            pivot,
-            "base_tight":       base_tight,
-            "rs_vs_spy":        rs_vs_spy,
+            "ticker": ticker,
+            "company": info.get("shortName", ticker),
+            "price": round(price, 2),
+            "change_pct": change_pct,
+            "vol_ratio": vol_ratio,
+            "mkt_cap_b": round((info.get("marketCap", 0) or 0) / 1e9, 2),
+            "float_m": round((info.get("floatShares", 0) or 0) / 1e6, 1),
+            "high_52w": round(high_52w, 2),
+            "prox_52w": prox_52w,
+            "pivot": pivot,
+            "base_tight": base_tight,
+            "rs_vs_spy": rs_vs_spy,
             "rs_line_new_high": rs_line_new_high,
-            "above20ma":        bool(price > ma20),
-            "above50ma":        bool(price > ma50),
-            "above200ma":       bool(ma200 and price > ma200),
-            "sector":           info.get("sector", ""),
-            "industry":         info.get("industry", ""),
-            "trailing_pe":      round(info.get("trailingPE", 0) or 0, 1),
-            "forward_pe":       round(info.get("forwardPE", 0) or 0, 1),
-            "ps_ratio":         round(info.get("priceToSalesTrailing12Months", 0) or 0, 1),
-            "rev_growth":       f"{round((info.get('revenueGrowth', 0) or 0) * 100, 1)}%",
-            "short_pct":        f"{round((info.get('shortPercentOfFloat', 0) or 0) * 100, 1)}%",
-            "short_ratio":      round(info.get("shortRatio", 0) or 0, 1),  # days to cover
-            "inst_own":         f"{round((info.get('institutionPercentHeld', 0) or 0) * 100, 1)}%",
-            "target_price":     round(info.get("targetMeanPrice", 0) or 0, 2),
-            "avg_vol_m":        round((info.get("averageVolume", 0) or 0) / 1e6, 2),
+            "above20ma": bool(price > ma20),
+            "above50ma": bool(price > ma50),
+            "above200ma": bool(ma200 and price > ma200),
+            "sector": info.get("sector", ""),
+            "industry": info.get("industry", ""),
+            "trailing_pe": round(info.get("trailingPE", 0) or 0, 1),
+            "forward_pe": round(info.get("forwardPE", 0) or 0, 1),
+            "ps_ratio": round(info.get("priceToSalesTrailing12Months", 0) or 0, 1),
+            "rev_growth": f"{round((info.get('revenueGrowth', 0) or 0) * 100, 1)}%",
+            "short_pct": f"{round((info.get('shortPercentOfFloat', 0) or 0) * 100, 1)}%",
+            "short_ratio": round(info.get("shortRatio", 0) or 0, 1),  # days to cover
+            "inst_own": f"{round((info.get('institutionPercentHeld', 0) or 0) * 100, 1)}%",
+            "target_price": round(info.get("targetMeanPrice", 0) or 0, 2),
+            "avg_vol_m": round((info.get("averageVolume", 0) or 0) / 1e6, 2),
         }
 
         # Earnings enrichment
@@ -2508,7 +2965,7 @@ def run_single_ticker_lookup(ticker):
         candidates[0]["insider_most_recent_buy"] = (
             f"{most_recent_buy['date']}: {most_recent_buy['owner']} ({most_recent_buy['title']}) "
             f"bought {int(most_recent_buy['shares']):,} sh @ ${most_recent_buy['price']:.2f} = "
-            f"${most_recent_buy['value']/1000:.0f}K"
+            f"${most_recent_buy['value'] / 1000:.0f}K"
         )
     else:
         candidates[0]["insider_most_recent_buy"] = ""
@@ -2518,8 +2975,11 @@ def run_single_ticker_lookup(ticker):
     inst_data = fetch_institutional_data(ticker)
     filings_13 = fetch_13d_13g_filings(ticker, days_back=365)
     smart_money = compute_smart_money_score(
-        {"count": candidates[0].get("insider_count", 0), "cluster_score": candidates[0].get("insider_cluster", 0),
-         "summary": candidates[0].get("insider_summary", "")},
+        {
+            "count": candidates[0].get("insider_count", 0),
+            "cluster_score": candidates[0].get("insider_cluster", 0),
+            "summary": candidates[0].get("insider_summary", ""),
+        },
         inst_data,
         filings_13,
     )
@@ -2528,9 +2988,13 @@ def run_single_ticker_lookup(ticker):
     real_inst_pct = inst_data.get("major_holders", {}).get("institutionsPercentHeld")
     if real_inst_pct and real_inst_pct > 0:
         candidates[0]["inst_own"] = f"{real_inst_pct * 100:.1f}%"
-        candidates[0]["institutionsCount"] = int(inst_data["major_holders"].get("institutionsCount", 0) or 0)
+        candidates[0]["institutionsCount"] = int(
+            inst_data["major_holders"].get("institutionsCount", 0) or 0
+        )
 
-    print(f"  Institutional: {real_inst_pct*100 if real_inst_pct else 0:.0f}% held by {candidates[0].get('institutionsCount', 0)} institutions")
+    print(
+        f"  Institutional: {real_inst_pct * 100 if real_inst_pct else 0:.0f}% held by {candidates[0].get('institutionsCount', 0)} institutions"
+    )
     print(f"  Smart money signal: {smart_money['label']}  (score={smart_money['score']})")
     if filings_13:
         print(f"  13D/13G filings (last 12mo): {len(filings_13)}")
@@ -2579,49 +3043,61 @@ def run_single_ticker_lookup(ticker):
 
     print("  Computing price/volume intelligence (A/D rating, monthly flow, vol profile)...")
     ad_rating = compute_ad_rating(hist)
-    sig_bars  = find_significant_volume_bars(hist, lookback=90, threshold=2.0)
+    sig_bars = find_significant_volume_bars(hist, lookback=90, threshold=2.0)
     monthly_flow = compute_monthly_flow(hist)
     silent_build = detect_silent_build(hist)
     print(f"  A/D Rating: {ad_rating['grade']} ({ad_rating['label']}, score {ad_rating['score']})")
     if sig_bars:
-        print(f"  Significant volume bars: {len(sig_bars)}  "
-              f"(latest: {sig_bars[0]['date']} {sig_bars[0]['rel_vol']}x {sig_bars[0]['classification']})")
+        print(
+            f"  Significant volume bars: {len(sig_bars)}  "
+            f"(latest: {sig_bars[0]['date']} {sig_bars[0]['rel_vol']}x {sig_bars[0]['classification']})"
+        )
 
     # Pass A/D rating context to Claude for the analysis text
     candidates[0]["ad_rating_grade"] = ad_rating["grade"]
     candidates[0]["ad_rating_label"] = ad_rating["label"]
-    candidates[0]["monthly_flow_trend"] = " -> ".join(m["trend"] for m in monthly_flow) if monthly_flow else ""
+    candidates[0]["monthly_flow_trend"] = (
+        " -> ".join(m["trend"] for m in monthly_flow) if monthly_flow else ""
+    )
     candidates[0]["silent_build_detected"] = silent_build.get("detected", False)
     candidates[0]["sig_volume_bars_count"] = len(sig_bars)
-    candidates[0]["accumulation_bars_count"] = sum(1 for b in sig_bars if b["classification"] == "ACCUMULATION")
-    candidates[0]["distribution_bars_count"] = sum(1 for b in sig_bars if b["classification"] == "DISTRIBUTION")
-    candidates[0]["absorption_bars_count"] = sum(1 for b in sig_bars if b["classification"] == "ABSORPTION")
+    candidates[0]["accumulation_bars_count"] = sum(
+        1 for b in sig_bars if b["classification"] == "ACCUMULATION"
+    )
+    candidates[0]["distribution_bars_count"] = sum(
+        1 for b in sig_bars if b["classification"] == "DISTRIBUTION"
+    )
+    candidates[0]["absorption_bars_count"] = sum(
+        1 for b in sig_bars if b["classification"] == "ABSORPTION"
+    )
 
     # Phase-2 learning loop: log the memo's rating + entry so the nightly
     # report_outcomes.py grader can mature it at +21 sessions. Every memo
     # becomes training data; stats stay gated until n>=30 per rating.
     try:
         if results and results[0].get("memo_rating"):
-            lp = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "data", "report_outcomes_log.json")
+            lp = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "data", "report_outcomes_log.json"
+            )
             try:
                 with open(lp, encoding="utf-8") as f:
                     rlog = json.load(f)
             except Exception:
                 rlog = {"reports": []}
             rlog["reports"] = (rlog.get("reports") or [])[-2000:]
-            rlog["reports"].append({
-                "date": datetime.now(ET).date().isoformat(),
-                "t": ticker,
-                "rating": results[0].get("memo_rating"),
-                "confidence": results[0].get("memo_confidence"),
-                "horizon": results[0].get("memo_horizon"),
-            })
+            rlog["reports"].append(
+                {
+                    "date": datetime.now(ET).date().isoformat(),
+                    "t": ticker,
+                    "rating": results[0].get("memo_rating"),
+                    "confidence": results[0].get("memo_confidence"),
+                    "horizon": results[0].get("memo_horizon"),
+                }
+            )
             os.makedirs(os.path.dirname(lp), exist_ok=True)
             with open(lp, "w", encoding="utf-8") as f:
                 json.dump(rlog, f, separators=(",", ":"))
-            print(f"  Memo logged for outcome grading: "
-                  f"{results[0]['memo_rating']} {ticker}")
+            print(f"  Memo logged for outcome grading: {results[0]['memo_rating']} {ticker}")
     except Exception as e:
         print(f"  memo outcome log skipped (non-fatal): {e}")
 
@@ -2635,18 +3111,19 @@ def run_single_ticker_lookup(ticker):
         filings_13=filings_13,
         smart_money=smart_money,
         volume_intelligence={
-            "ad_rating":     ad_rating,
-            "sig_bars":      sig_bars,
-            "monthly_flow":  monthly_flow,
-            "silent_build":  silent_build,
+            "ad_rating": ad_rating,
+            "sig_bars": sig_bars,
+            "monthly_flow": monthly_flow,
+            "silent_build": silent_build,
         },
     )
 
     print("[5/5] Archiving one-pager to site...")
-    now      = datetime.now(ET)
+    now = datetime.now(ET)
     filename = f"ticker_{ticker}_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
         from report_archive import archive
+
         _archive_report(pdf_bytes, filename)
         print(f"  Archived: {filename}")
     except Exception as e:

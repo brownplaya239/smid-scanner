@@ -34,13 +34,23 @@ NOW = datetime.now(timezone.utc)
 def _sig(**kw):
     base = {
         "id": "O:AAA260101C00100000_" + NOW.isoformat(),
-        "ticker": "AAA", "contract": "O:AAA260101C00100000",
-        "signal_type": "sweep", "trade_score": 80, "premium": 900_000,
-        "dte": 30, "tags": ["Sweep"], "type": "call",
-        "direction": "bullish", "flow_side": "call_buyer",
-        "liquidity": "B", "cap_bucket": "large", "opening": "likely_open",
-        "flagged_at": NOW.isoformat(), "underlying_px_at_flag": 100.0,
-        "volume": 5000, "open_interest": 1000,
+        "ticker": "AAA",
+        "contract": "O:AAA260101C00100000",
+        "signal_type": "sweep",
+        "trade_score": 80,
+        "premium": 900_000,
+        "dte": 30,
+        "tags": ["Sweep"],
+        "type": "call",
+        "direction": "bullish",
+        "flow_side": "call_buyer",
+        "liquidity": "B",
+        "cap_bucket": "large",
+        "opening": "likely_open",
+        "flagged_at": NOW.isoformat(),
+        "underlying_px_at_flag": 100.0,
+        "volume": 5000,
+        "open_interest": 1000,
     }
     base.update(kw)
     return base
@@ -48,12 +58,12 @@ def _sig(**kw):
 
 # ------------------------------------------------- point-in-time (sec 47)
 
+
 def test_features_at_flag_has_no_lookahead_fields():
     """The at-flag feature vector must be computable from flag-time
     fields only. OI confirmation (next-day) and forward returns must
     never leak in — this is the permanent look-ahead regression test."""
-    s = _sig(oi_status="confirmed", ret_5d=25.0, excess_5d=24.0,
-             mfe=30.0, mae=-2.0)
+    s = _sig(oi_status="confirmed", ret_5d=25.0, excess_5d=24.0, mfe=30.0, mae=-2.0)
     feats = tdv.features_at_flag(s, {})
     banned = {"oi", "oi_status", "ret", "excess", "mfe", "mae"}
     for k in feats:
@@ -74,21 +84,18 @@ def test_regime_lookup_uses_flag_date_not_today():
 def test_validation_dataset_excludes_sellers_and_nondirectional():
     cache_row = {"returns": {"5": {"ret": 1.0, "excess": 1.0}}}
     rows = []
-    for s in (_sig(flow_side="call_seller"),
-              _sig(direction="hedge"),
-              _sig(direction="income")):
+    for s in (_sig(flow_side="call_seller"), _sig(direction="hedge"), _sig(direction="income")):
         # mimic build_dataset's admission logic
-        ok = (s.get("direction") in ("bullish", "bearish")
-              and tdv._side_of_signal(s) != "seller")
+        ok = s.get("direction") in ("bullish", "bearish") and tdv._side_of_signal(s) != "seller"
         rows.append(ok)
     assert rows == [False, False, False]
 
 
 # --------------------------------------------------- qualification gates
 
+
 def test_missing_validation_means_no_score_and_no_qualified_flow(monkeypatch):
-    monkeypatch.setattr(td, "_load",
-                        lambda path, default: default)
+    monkeypatch.setattr(td, "_load", lambda path, default: default)
     score, ok = td._score_fn()
     assert ok is False and score({"side": "call_buy"}) is None
     gates = td.family_gates()
@@ -102,22 +109,33 @@ def test_no_champion_keeps_flow_at_watch(monkeypatch):
         if path.endswith("trade_desk_research.json"):
             return {"registry": {"champion": {"name": None}}}
         return real_load(path, default)
+
     monkeypatch.setattr(td, "_load", fake)
     assert td.family_gates()["flow"]["verdict"] == "watch"
 
 
 def test_promoted_champion_qualifies_flow(monkeypatch):
     real_load = td._load
-    reg = {"registry": {
-        "champion": {"name": "setup_additive_v2", "tail_pct": 5},
-        "challengers": {"setup_additive_v2": {"verdict": {
-            "promoted": True, "tail_pct": 5,
-            "evidence": {"pooled": {"n": 200, "avg": 1.2}}}}}}}
+    reg = {
+        "registry": {
+            "champion": {"name": "setup_additive_v2", "tail_pct": 5},
+            "challengers": {
+                "setup_additive_v2": {
+                    "verdict": {
+                        "promoted": True,
+                        "tail_pct": 5,
+                        "evidence": {"pooled": {"n": 200, "avg": 1.2}},
+                    }
+                }
+            },
+        }
+    }
 
     def fake(path, default):
         if path.endswith("trade_desk_research.json"):
             return reg
         return real_load(path, default)
+
     monkeypatch.setattr(td, "_load", fake)
     g = td.family_gates()["flow"]
     assert g["verdict"] == "qualified" and g["tail_pct"] == 5
@@ -129,9 +147,9 @@ def test_negative_measured_family_is_degraded(monkeypatch):
 
     def fake(path, default):
         if path.endswith("scan_outcomes.json"):
-            return {"overall": {"status": "active", "n": 500, "ev": -1.0,
-                                "profit_factor": 0.8}}
+            return {"overall": {"status": "active", "n": 500, "ev": -1.0, "profit_factor": 0.8}}
         return real_load(path, default)
+
     monkeypatch.setattr(td, "_load", fake)
     assert td.family_gates()["momentum"]["verdict"] == "degraded"
 
@@ -141,22 +159,28 @@ def test_positive_measured_family_qualifies(monkeypatch):
 
     def fake(path, default):
         if path.endswith("scan_outcomes.json"):
-            return {"overall": {"status": "active", "n": 500, "ev": 0.8,
-                                "profit_factor": 1.4}}
+            return {"overall": {"status": "active", "n": 500, "ev": 0.8, "profit_factor": 1.4}}
         return real_load(path, default)
+
     monkeypatch.setattr(td, "_load", fake)
     assert td.family_gates()["momentum"]["verdict"] == "qualified"
 
 
 # ---------------------------------------------------------- hard filters
 
+
 def _flow_cand(**kw):
     anchor = _sig(**kw.pop("anchor", {}))
-    c = {"family": "flow", "ticker": anchor["ticker"],
-         "direction": anchor["direction"], "anchor": anchor,
-         "n_prints": 1, "total_premium": anchor["premium"],
-         "feats": tdv.features_at_flag(anchor, {}),
-         "catalyst": "flow"}
+    c = {
+        "family": "flow",
+        "ticker": anchor["ticker"],
+        "direction": anchor["direction"],
+        "anchor": anchor,
+        "n_prints": 1,
+        "total_premium": anchor["premium"],
+        "feats": tdv.features_at_flag(anchor, {}),
+        "catalyst": "flow",
+    }
     c.update(kw)
     return c
 
@@ -169,44 +193,54 @@ def test_regime_conflict_blocks_bullish_flow_in_risk_off():
 
 
 def test_bearish_flow_allowed_in_risk_off():
-    c = _flow_cand(anchor={"direction": "bearish", "type": "put",
-                           "flow_side": "put_buyer",
-                           "contract": "O:AAA260101P00100000"},
-                   direction="bearish")
+    c = _flow_cand(
+        anchor={
+            "direction": "bearish",
+            "type": "put",
+            "flow_side": "put_buyer",
+            "contract": "O:AAA260101P00100000",
+        },
+        direction="bearish",
+    )
     assert td.hard_filter(c, "risk_off", 90, NOW) is None
 
 
 def test_illiquid_and_small_and_stale_rejected():
-    assert td.hard_filter(_flow_cand(anchor={"liquidity": "D"}),
-                          "risk_on", 90, NOW) == "BAD_LIQUIDITY"
+    assert (
+        td.hard_filter(_flow_cand(anchor={"liquidity": "D"}), "risk_on", 90, NOW) == "BAD_LIQUIDITY"
+    )
     small = _flow_cand(anchor={"premium": 100_000})
     small["total_premium"] = 100_000
     assert td.hard_filter(small, "risk_on", 90, NOW) == "LOW_PREMIUM"
     old = (NOW - timedelta(minutes=td.STALE_MIN + 5)).isoformat()
-    assert td.hard_filter(_flow_cand(anchor={"flagged_at": old}),
-                          "risk_on", 90, NOW) == "STALE_DATA"
+    assert (
+        td.hard_filter(_flow_cand(anchor={"flagged_at": old}), "risk_on", 90, NOW) == "STALE_DATA"
+    )
 
 
 def test_low_or_missing_score_rejected():
-    assert td.hard_filter(_flow_cand(), "risk_on", None,
-                          NOW) == "INSUFFICIENT_DATA"
-    assert td.hard_filter(_flow_cand(), "risk_on",
-                          td.SCORE_FLOOR - 1, NOW) == "LOW_ALPHA"
+    assert td.hard_filter(_flow_cand(), "risk_on", None, NOW) == "INSUFFICIENT_DATA"
+    assert td.hard_filter(_flow_cand(), "risk_on", td.SCORE_FLOOR - 1, NOW) == "LOW_ALPHA"
 
 
 # --------------------------------------------------------------- scoring
 
+
 def test_score_monotone_and_bounded(monkeypatch):
-    model = {"production_model": {
-        "base": 0.0,
-        "adj": {"side:put_buy": 1.0, "side:call_buy": -1.0},
-        "scale_anchors": [round(-2 + 4 * i / 20, 3) for i in range(21)]}}
+    model = {
+        "production_model": {
+            "base": 0.0,
+            "adj": {"side:put_buy": 1.0, "side:call_buy": -1.0},
+            "scale_anchors": [round(-2 + 4 * i / 20, 3) for i in range(21)],
+        }
+    }
     real_load = td._load
 
     def fake(path, default):
         if path.endswith("trade_desk_validation.json"):
             return model
         return real_load(path, default)
+
     monkeypatch.setattr(td, "_load", fake)
     score, ok = td._score_fn()
     assert ok
@@ -224,16 +258,22 @@ def test_construct_never_invents_marks():
 
 # ---------------------------------------------------------------- ledger
 
+
 def test_ledger_append_only_and_idempotent(tmp_path, monkeypatch):
     lp = str(tmp_path / "ledger.jsonl")
     monkeypatch.setattr(td, "LEDGER_PATH", lp)
-    idea = {"family": "flow", "ticker": "AAA", "direction": "bullish",
-            "status": "WATCH", "alpha_score": 75.0}
+    idea = {
+        "family": "flow",
+        "ticker": "AAA",
+        "direction": "bullish",
+        "status": "WATCH",
+        "alpha_score": 75.0,
+    }
     ev1 = td.freeze_ideas([idea], NOW)
     ev2 = td.freeze_ideas([dict(idea, alpha_score=99.0)], NOW)
     lines = [json.loads(l) for l in open(lp, encoding="utf-8")]
-    assert len(lines) == 1                      # no duplicate for same day
-    assert lines[0]["idea"]["alpha_score"] == 75.0   # never mutated
+    assert len(lines) == 1  # no duplicate for same day
+    assert lines[0]["idea"]["alpha_score"] == 75.0  # never mutated
     assert lines[0]["as_of"] and lines[0]["data_cutoff"]
     assert lines[0]["model_version"] == tdv.MODEL_VERSION
 
@@ -241,8 +281,13 @@ def test_ledger_append_only_and_idempotent(tmp_path, monkeypatch):
 def test_grading_waits_for_maturation(tmp_path, monkeypatch):
     lp = str(tmp_path / "ledger.jsonl")
     monkeypatch.setattr(td, "LEDGER_PATH", lp)
-    idea = {"family": "flow", "ticker": "AAA", "direction": "bullish",
-            "status": "WATCH", "alpha_score": 75.0}
+    idea = {
+        "family": "flow",
+        "ticker": "AAA",
+        "direction": "bullish",
+        "status": "WATCH",
+        "alpha_score": 75.0,
+    }
     events = td.freeze_ideas([idea], NOW)
     # do_grade=True but nothing is old enough -> no network, no grades
     events, n = td.grade_ledger(events, NOW, do_grade=True)
@@ -251,11 +296,14 @@ def test_grading_waits_for_maturation(tmp_path, monkeypatch):
 
 
 def test_performance_gates_below_min_n():
-    events = [{"ev": "issued", "id": "flow:AAA:bullish:2026-01-02",
-               "idea": {"family": "flow", "alpha_score": 85,
-                        "status": "WATCH"}},
-              {"ev": "graded", "id": "flow:AAA:bullish:2026-01-02",
-               "y": 1.5}]
+    events = [
+        {
+            "ev": "issued",
+            "id": "flow:AAA:bullish:2026-01-02",
+            "idea": {"family": "flow", "alpha_score": 85, "status": "WATCH"},
+        },
+        {"ev": "graded", "id": "flow:AAA:bullish:2026-01-02", "y": 1.5},
+    ]
     perf = td.performance(events)
     assert perf["status"] == "accruing"
     assert "overall" not in perf
@@ -266,11 +314,14 @@ def test_performance_publishes_at_min_n():
     events = []
     for i in range(td.MIN_N):
         iid = f"flow:T{i}:bullish:2026-01-02"
-        events.append({"ev": "issued", "id": iid,
-                       "idea": {"family": "flow", "alpha_score": 85,
-                                "status": "WATCH"}})
-        events.append({"ev": "graded", "id": iid,
-                       "y": 1.0 if i % 2 else -0.5})
+        events.append(
+            {
+                "ev": "issued",
+                "id": iid,
+                "idea": {"family": "flow", "alpha_score": 85, "status": "WATCH"},
+            }
+        )
+        events.append({"ev": "graded", "id": iid, "y": 1.0 if i % 2 else -0.5})
     perf = td.performance(events)
     assert perf["overall"]["n"] == td.MIN_N
     assert perf["score_calibration"]["80-100"]["n"] == td.MIN_N
@@ -278,14 +329,14 @@ def test_performance_publishes_at_min_n():
 
 # ------------------------------------------------------ validation math
 
+
 def test_spearman_perfect_and_inverse():
     assert tdv.spearman([1, 2, 3, 4], [10, 20, 30, 40]) == 1.0
     assert tdv.spearman([1, 2, 3, 4], [40, 30, 20, 10]) == -1.0
 
 
 def test_fit_shrinks_small_cohorts_toward_baseline():
-    train = ([{"feats": {"f": "rare"}, "y": 10.0}] * 5
-             + [{"feats": {"f": "common"}, "y": 0.0}] * 995)
+    train = [{"feats": {"f": "rare"}, "y": 10.0}] * 5 + [{"feats": {"f": "common"}, "y": 0.0}] * 995
     m = tdv.fit(train)
     # rare cohort's raw dev ~ +9.95 but n=5 vs K=200 -> tiny, clamped adj
     assert abs(m["adj"]["f:rare"]) < 0.5
@@ -293,28 +344,59 @@ def test_fit_shrinks_small_cohorts_toward_baseline():
 
 def test_qualification_requires_positive_every_fold():
     """Reproduce the gate logic: one negative fold kills the cutoff."""
-    folds = [{"cutoffs": {"80": {"n": 500, "avg": 0.5, "med": 0.2}}},
-             {"cutoffs": {"80": {"n": 500, "avg": -0.1, "med": 0.1}}}]
-    ok = all(f["cutoffs"]["80"].get("n", 0) >= tdv.QUAL_MIN_N
-             and f["cutoffs"]["80"].get("avg", -1) > 0
-             and f["cutoffs"]["80"].get("med", -1) > 0
-             for f in folds)
+    folds = [
+        {"cutoffs": {"80": {"n": 500, "avg": 0.5, "med": 0.2}}},
+        {"cutoffs": {"80": {"n": 500, "avg": -0.1, "med": 0.1}}},
+    ]
+    ok = all(
+        f["cutoffs"]["80"].get("n", 0) >= tdv.QUAL_MIN_N
+        and f["cutoffs"]["80"].get("avg", -1) > 0
+        and f["cutoffs"]["80"].get("med", -1) > 0
+        for f in folds
+    )
     assert ok is False
 
 
 # ------------------------------------------------------------ what changed
 
+
 def test_what_changed_detects_status_and_new_and_dropped():
-    prev = {"top_ideas": [{"family": "flow", "ticker": "AAA",
-                           "direction": "bullish", "status": "QUALIFIED",
-                           "alpha_score": 85}],
-            "watch": [{"family": "flow", "ticker": "BBB",
-                       "direction": "bearish", "status": "WATCH",
-                       "alpha_score": 70}]}
-    cur = [{"family": "flow", "ticker": "AAA", "direction": "bullish",
-            "status": "WATCH", "alpha_score": 85},
-           {"family": "flow", "ticker": "CCC", "direction": "bullish",
-            "status": "WATCH", "alpha_score": 75}]
+    prev = {
+        "top_ideas": [
+            {
+                "family": "flow",
+                "ticker": "AAA",
+                "direction": "bullish",
+                "status": "QUALIFIED",
+                "alpha_score": 85,
+            }
+        ],
+        "watch": [
+            {
+                "family": "flow",
+                "ticker": "BBB",
+                "direction": "bearish",
+                "status": "WATCH",
+                "alpha_score": 70,
+            }
+        ],
+    }
+    cur = [
+        {
+            "family": "flow",
+            "ticker": "AAA",
+            "direction": "bullish",
+            "status": "WATCH",
+            "alpha_score": 85,
+        },
+        {
+            "family": "flow",
+            "ticker": "CCC",
+            "direction": "bullish",
+            "status": "WATCH",
+            "alpha_score": 75,
+        },
+    ]
     ch = td.what_changed(prev, cur)
     kinds = {(c["t"], c["change"]) for c in ch}
     assert ("AAA", "status") in kinds
@@ -324,15 +406,19 @@ def test_what_changed_detects_status_and_new_and_dropped():
 
 # ------------------------------------------------------- freshness guards
 
+
 def test_stale_source_files_yield_no_candidates(monkeypatch):
-    stale = {"generated": "2026-01-01T00:00:00+00:00",
-             "ideas": [{"t": "AAA", "type": "vol_rich", "bias": "neutral"}]}
+    stale = {
+        "generated": "2026-01-01T00:00:00+00:00",
+        "ideas": [{"t": "AAA", "type": "vol_rich", "bias": "neutral"}],
+    }
     real_load = td._load
 
     def fake(path, default):
         if path.endswith("earnings_ideas.json"):
             return stale
         return real_load(path, default)
+
     monkeypatch.setattr(td, "_load", fake)
     before = td.REJECT.get("STALE_DATA", 0)
     assert td._earnings_candidates(NOW) == []
@@ -348,25 +434,47 @@ def test_stale_regime_reads_unknown():
 
 # ------------------------------------------------- setup-level research
 
+
 def test_direction_derived_from_flow_side_when_absent():
     """Scored-feed rows omit `direction` — the candidate builder must
     derive it (call buyer = bullish, put buyer = bearish, sellers out)."""
     import trade_desk_research  # noqa: F401  (import sanity)
+
     sigs = [
-        {"flagged_at": NOW.isoformat(), "ticker": "AAA", "type": "call",
-         "flow_side": "call_buyer", "premium": 5e5, "liquidity": "B"},
-        {"flagged_at": NOW.isoformat(), "ticker": "BBB", "type": "put",
-         "flow_side": "put_buyer", "premium": 5e5, "liquidity": "B"},
-        {"flagged_at": NOW.isoformat(), "ticker": "CCC", "type": "call",
-         "flow_side": "call_seller", "premium": 5e5, "liquidity": "B"},
+        {
+            "flagged_at": NOW.isoformat(),
+            "ticker": "AAA",
+            "type": "call",
+            "flow_side": "call_buyer",
+            "premium": 5e5,
+            "liquidity": "B",
+        },
+        {
+            "flagged_at": NOW.isoformat(),
+            "ticker": "BBB",
+            "type": "put",
+            "flow_side": "put_buyer",
+            "premium": 5e5,
+            "liquidity": "B",
+        },
+        {
+            "flagged_at": NOW.isoformat(),
+            "ticker": "CCC",
+            "type": "call",
+            "flow_side": "call_seller",
+            "premium": 5e5,
+            "liquidity": "B",
+        },
     ]
     import trade_desk as td2
+
     real_load = td2._load
 
     def fake(path, default):
         if path.endswith("uoa_signals_scored.json"):
             return {"signals": sigs}
         return real_load(path, default)
+
     orig = td2._load
     td2._load = fake
     try:
@@ -381,16 +489,17 @@ def test_direction_derived_from_flow_side_when_absent():
 
 def test_research_purge_drops_label_overlap():
     import trade_desk_research as tdr
-    train = [{"date": "2026-06-01"}, {"date": "2026-06-09"},
-             {"date": "2026-06-14"}]
+
+    train = [{"date": "2026-06-01"}, {"date": "2026-06-09"}, {"date": "2026-06-14"}]
     purged = tdr._purge(train, "2026-06-15")
     dates = [r["date"] for r in purged]
-    assert "2026-06-14" not in dates      # inside embargo window
+    assert "2026-06-14" not in dates  # inside embargo window
     assert "2026-06-01" in dates
 
 
 def test_research_bootstrap_flags_thin_clusters():
     import trade_desk_research as tdr
+
     out = tdr.cluster_bootstrap([("a", 1.0), ("b", -1.0)])
     assert out["status"] == "insufficient_clusters"
 
@@ -400,69 +509,89 @@ def test_degraded_family_routes_to_experimental_tier(monkeypatch):
 
     def fake(path, default):
         if path.endswith("scan_outcomes.json"):
-            return {"overall": {"status": "active", "n": 500, "ev": -1.0,
-                                "profit_factor": 0.8}}
+            return {"overall": {"status": "active", "n": 500, "ev": -1.0, "profit_factor": 0.8}}
         return real_load(path, default)
+
     monkeypatch.setattr(td, "_load", fake)
     assert td.family_gates()["momentum"]["verdict"] == "degraded"
     # run()'s tier mapping: degraded -> EXPERIMENTAL (not rejected) is
     # asserted via the mapping dict used there
-    assert {"qualified": "QUALIFIED",
-            "degraded": "EXPERIMENTAL"}.get("degraded") == "EXPERIMENTAL"
+    assert {"qualified": "QUALIFIED", "degraded": "EXPERIMENTAL"}.get("degraded") == "EXPERIMENTAL"
 
 
 def test_expired_preprint_earnings_ideas_rejected(monkeypatch):
     """A vol_rich idea for a report that already printed must never
     surface — pre-print types expire at the event."""
     from datetime import datetime, timedelta, timezone
+
     now = datetime.now(timezone.utc)
-    et_today = (now.astimezone(timezone(timedelta(hours=-4)))
-                .date().isoformat())
-    yesterday = (now.astimezone(timezone(timedelta(hours=-4))).date()
-                 - timedelta(days=1)).isoformat()
-    doc = {"generated": now.isoformat(),
-           "ideas": [
-               {"t": "AAA", "type": "vol_rich", "bias": "neutral",
-                "date": yesterday, "session": "AMC"},
-               {"t": "BBB", "type": "vol_rich", "bias": "neutral",
-                "date": et_today, "session": "AMC"},
-               {"t": "CCC", "type": "post_report_drift", "bias": "bull",
-                "date": yesterday, "session": "AMC"},
-           ]}
+    et_today = now.astimezone(timezone(timedelta(hours=-4))).date().isoformat()
+    yesterday = (
+        now.astimezone(timezone(timedelta(hours=-4))).date() - timedelta(days=1)
+    ).isoformat()
+    doc = {
+        "generated": now.isoformat(),
+        "ideas": [
+            {
+                "t": "AAA",
+                "type": "vol_rich",
+                "bias": "neutral",
+                "date": yesterday,
+                "session": "AMC",
+            },
+            {"t": "BBB", "type": "vol_rich", "bias": "neutral", "date": et_today, "session": "AMC"},
+            {
+                "t": "CCC",
+                "type": "post_report_drift",
+                "bias": "bull",
+                "date": yesterday,
+                "session": "AMC",
+            },
+        ],
+    }
     real_load = td._load
 
     def fake(path, default):
         if path.endswith("earnings_ideas.json"):
             return doc
         return real_load(path, default)
+
     monkeypatch.setattr(td, "_load", fake)
     out = td._earnings_candidates(now)
     got = {c["ticker"] for c in out}
-    assert "AAA" not in got        # printed yesterday -> dead
-    assert "BBB" in got            # prints tonight -> alive
-    assert "CCC" in got            # post-print type -> alive
+    assert "AAA" not in got  # printed yesterday -> dead
+    assert "BBB" in got  # prints tonight -> alive
+    assert "CCC" in got  # post-print type -> alive
 
 
 # ---------------------------------------- signal vs trade qualification
+
 
 def _fake_files(vol_sig_qualified, bt_trade_qualified):
     real_load = td._load
 
     def fake(path, default):
         if path.endswith("earnings_ideas.json"):
-            return {"by_type": {"vol_rich": {
-                "status": "active", "n": 102, "win_rate": 91,
-                "ev": 6.87}}}
+            return {
+                "by_type": {"vol_rich": {"status": "active", "n": 102, "win_rate": 91, "ev": 6.87}}
+            }
         if path.endswith("earnings_vol.json"):
-            return {"types": {"vol_rich": {
-                "signal_qualified": vol_sig_qualified,
-                "date_cluster_bootstrap": {"nights": 18,
-                                           "ci95": [5.87, 7.83]}}}}
+            return {
+                "types": {
+                    "vol_rich": {
+                        "signal_qualified": vol_sig_qualified,
+                        "date_cluster_bootstrap": {"nights": 18, "ci95": [5.87, 7.83]},
+                    }
+                }
+            }
         if path.endswith("earnings_vol_exec.json"):
-            return ({"types": {"vol_rich": {
-                "trade_qualified": bt_trade_qualified}}}
-                if bt_trade_qualified is not None else {})
+            return (
+                {"types": {"vol_rich": {"trade_qualified": bt_trade_qualified}}}
+                if bt_trade_qualified is not None
+                else {}
+            )
         return real_load(path, default)
+
     return fake
 
 
@@ -491,6 +620,7 @@ def test_vol_type_without_night_ci_stays_watch(monkeypatch):
 def test_vol_engine_ratio_reconstruction():
     """ratio = 1 - mv/implied for vol_rich; 1 + mv/implied for cheap."""
     import earnings_vol_engine as ev
+
     # vol_rich: implied 10, |realized| 2.3 -> mv 7.7 -> ratio 0.23
     assert abs((1 - 7.7 / 10) - 0.23) < 1e-9
     # vol_cheap: implied 5, |realized| 9 -> mv 4 -> ratio 1.8
@@ -501,37 +631,50 @@ def test_backtest_defined_risk_cannot_lose_more_than_1R():
     """Defined-risk ROR floor: pnl >= -risk by construction, so
     loss_gt_1R must count zero for correctly built structures."""
     import earnings_vol_backtest as bt
-    recons = [{"night_id": "2026-08-01",
-               "event": {"type": "vol_rich", "date": "2026-08-01"},
-               "strategies": {"iron_fly_1.5": {"exits": {"next_close": {
-                   "pnl": -500, "risk": 500, "ror": -1.0}}}}}]
+
+    recons = [
+        {
+            "night_id": "2026-08-01",
+            "event": {"type": "vol_rich", "date": "2026-08-01"},
+            "strategies": {
+                "iron_fly_1.5": {"exits": {"next_close": {"pnl": -500, "risk": 500, "ror": -1.0}}}
+            },
+        }
+    ]
     tbl = bt.strategy_table(recons, "iron_fly_1.5", "next_close")
     assert tbl["loss_gt_1R"] == 0
 
 
 # ------------------------------------------------- backtest v2 gates
 
+
 def test_backtest_max_dd_and_folds():
     import earnings_vol_backtest as bt
+
     assert bt._max_dd_r([0.5, -1.0, -1.0, 0.5]) == -2.0
-    rows = [(str(i), r) for i, r in enumerate(
-        [0.1] * 3 + [0.2] * 3 + [-0.1] * 3)]
+    rows = [(str(i), r) for i, r in enumerate([0.1] * 3 + [0.2] * 3 + [-0.1] * 3)]
     folds = bt._folds_positive(rows)
     assert len(folds) == 3 and folds[0] > 0 and folds[-1] < 0
 
 
 def test_backtest_qualification_requires_every_bar():
     import earnings_vol_backtest as bt
-    good = {"n": 100, "avg_ror": 0.1, "cap_wt_ror": 0.08,
-            "profit_factor": 1.5,
-            "exp_log_growth": 0.05, "loss_gt_1R": 0, "max_dd_r": -2.0,
-            "fold_avg_ror": [0.1, 0.05, 0.08],
-            "night_bootstrap_ror": {"ci95": [0.02, 0.2]}}
+
+    good = {
+        "n": 100,
+        "avg_ror": 0.1,
+        "cap_wt_ror": 0.08,
+        "profit_factor": 1.5,
+        "exp_log_growth": 0.05,
+        "loss_gt_1R": 0,
+        "max_dd_r": -2.0,
+        "fold_avg_ror": [0.1, 0.05, 0.08],
+        "night_bootstrap_ror": {"ci95": [0.02, 0.2]},
+    }
     open_ok = {"avg_ror": 0.05}
     assert bt._qualifies(good, open_ok) is True
     assert bt._qualifies(dict(good, max_dd_r=-6.0), open_ok) is False
-    assert bt._qualifies(dict(good, fold_avg_ror=[0.1, -0.1, -0.1]),
-                         open_ok) is False
+    assert bt._qualifies(dict(good, fold_avg_ror=[0.1, -0.1, -0.1]), open_ok) is False
     assert bt._qualifies(good, {"avg_ror": -0.01}) is False
     assert bt._qualifies(dict(good, loss_gt_1R=1), open_ok) is False
     # equal-weight ROR positive but capital-weighted negative -> reject
@@ -544,33 +687,40 @@ def test_backtest_missing_exit_mark_skips_not_fabricates():
     which produced impossible worst_ror < -1 on defined risk. v2 must
     skip the exit model instead."""
     import earnings_vol_backtest as bt
-    legs = [{"side": -1, "kind": "call", "strike": 100,
-             "marks": {"entry_close": 2.0, "exit_open": None,
-                       "exit_close": None}}]
+
+    legs = [
+        {
+            "side": -1,
+            "kind": "call",
+            "strike": 100,
+            "marks": {"entry_close": 2.0, "exit_open": None, "exit_close": None},
+        }
+    ]
     assert bt._structure_pnl(legs, "next_close") is None
     assert bt._structure_pnl(legs, "next_open") is None
     # expiry_hold uses intrinsic — exact, allowed
     r = bt._structure_pnl(legs, "expiry_hold", expiry_spot=90.0)
-    assert r is not None and r[0] > 0   # short call expired worthless
+    assert r is not None and r[0] > 0  # short call expired worthless
 
 
 # ---------------------------------------------- exec study (V3) math
 
+
 def _mkleg(side, kind, strike, contract):
-    return {"side": side, "kind": kind, "strike": strike,
-            "contract": contract}
+    return {"side": side, "kind": kind, "strike": strike, "contract": contract}
 
 
 def test_exec_package_pricing_and_fill_ladder():
     import earnings_vol_exec as ex
-    qc = {f"C1|2026-08-01|1555|{ex.EXEC_VERSION}":
-          {"bid": 2.0, "ask": 2.2},
-          f"P1|2026-08-01|1555|{ex.EXEC_VERSION}":
-          {"bid": 1.8, "ask": 2.0}}
+
+    qc = {
+        f"C1|2026-08-01|1555|{ex.EXEC_VERSION}": {"bid": 2.0, "ask": 2.2},
+        f"P1|2026-08-01|1555|{ex.EXEC_VERSION}": {"bid": 1.8, "ask": 2.0},
+    }
     legs = [_mkleg(-1, "call", 100, "C1"), _mkleg(-1, "put", 100, "P1")]
     pkg = ex.package(qc, legs, "2026-08-01", "1555")
-    assert abs(pkg["mid"] - 4.0) < 1e-9        # 2.1 + 1.9
-    assert abs(pkg["natural"] - 3.8) < 1e-9    # both at bid
+    assert abs(pkg["mid"] - 4.0) < 1e-9  # 2.1 + 1.9
+    assert abs(pkg["natural"] - 3.8) < 1e-9  # both at bid
     assert abs(ex._fill(pkg, 0.0) - 4.0) < 1e-9
     assert abs(ex._fill(pkg, 0.5) - 3.9) < 1e-9
     assert abs(ex._fill(pkg, 1.0) - 3.8) < 1e-9
@@ -578,39 +728,49 @@ def test_exec_package_pricing_and_fill_ladder():
 
 def test_exec_missing_quote_returns_none_not_zero():
     import earnings_vol_exec as ex
-    qc = {f"C1|2026-08-01|1555|{ex.EXEC_VERSION}":
-          {"bid": 2.0, "ask": 2.2}}
+
+    qc = {f"C1|2026-08-01|1555|{ex.EXEC_VERSION}": {"bid": 2.0, "ask": 2.2}}
     legs = [_mkleg(-1, "call", 100, "C1"), _mkleg(-1, "put", 100, "P1")]
     assert ex.package(qc, legs, "2026-08-01", "1555") is None
 
 
 def test_exec_qualification_needs_f50_agreement():
     import earnings_vol_exec as ex
-    good = {"n": 80, "avg_ror": 0.08, "med_ror": 0.05,
-            "cap_wt_ror": 0.06, "profit_factor": 1.5,
-            "exp_log_growth": 0.04, "loss_gt_1R": 0, "max_dd_r": -2.0,
-            "fold_avg_ror": [0.1, 0.02, 0.05],
-            "night_bootstrap_ror": {"ci95": [0.01, 0.15]}}
+
+    good = {
+        "n": 80,
+        "avg_ror": 0.08,
+        "med_ror": 0.05,
+        "cap_wt_ror": 0.06,
+        "profit_factor": 1.5,
+        "exp_log_growth": 0.04,
+        "loss_gt_1R": 0,
+        "max_dd_r": -2.0,
+        "fold_avg_ror": [0.1, 0.02, 0.05],
+        "night_bootstrap_ror": {"ci95": [0.01, 0.15]},
+    }
     assert ex._qualifies(good, {"avg_ror": 0.02}) is True
     # mid-only profitability (f50 negative) must NOT qualify
     assert ex._qualifies(good, {"avg_ror": -0.01}) is False
-    assert ex._qualifies(dict(good, med_ror=-0.01),
-                         {"avg_ror": 0.02}) is False
+    assert ex._qualifies(dict(good, med_ror=-0.01), {"avg_ror": 0.02}) is False
 
 
 # ------------------------------------------------ UI redesign contracts
+
 
 def test_no_entity_leaks_in_published_payloads():
     """P0 regression (reviewer sec 30): rendered public copy must never
     carry escaped-entity or mojibake artifacts. Payload-side guard —
     the JSONs the page renders verbatim."""
     import re
-    for f in ("docs/reports/trade_desk.json",
-              "docs/reports/earnings_vol.json",
-              "docs/reports/earnings_vol_exec.json",
-              "docs/reports/fair_move_lab.json"):
-        p = os.path.join(os.path.dirname(
-            os.path.abspath(td.__file__)), f)
+
+    for f in (
+        "docs/reports/trade_desk.json",
+        "docs/reports/earnings_vol.json",
+        "docs/reports/earnings_vol_exec.json",
+        "docs/reports/fair_move_lab.json",
+    ):
+        p = os.path.join(os.path.dirname(os.path.abspath(td.__file__)), f)
         if not os.path.exists(p):
             continue
         s = open(p, encoding="utf-8").read()
@@ -620,30 +780,39 @@ def test_no_entity_leaks_in_published_payloads():
 def test_desk_counts_never_conflate_signal_and_trade():
     """A signal-qualified idea must count under signal_qualified, never
     trade_qualified (reviewer sec 2)."""
-    d = td._load(os.path.join(os.path.dirname(
-        os.path.abspath(td.__file__)),
-        "docs", "reports", "trade_desk.json"), {})
+    d = td._load(
+        os.path.join(
+            os.path.dirname(os.path.abspath(td.__file__)), "docs", "reports", "trade_desk.json"
+        ),
+        {},
+    )
     c = d.get("desk_counts") or {}
-    n_sig = sum(1 for i in d.get("top_ideas") or []
-                if i["status"] == "SIGNAL_QUALIFIED")
-    n_trade = sum(1 for i in d.get("top_ideas") or []
-                  if i["status"] in ("TRADE_QUALIFIED", "QUALIFIED"))
+    n_sig = sum(1 for i in d.get("top_ideas") or [] if i["status"] == "SIGNAL_QUALIFIED")
+    n_trade = sum(
+        1 for i in d.get("top_ideas") or [] if i["status"] in ("TRADE_QUALIFIED", "QUALIFIED")
+    )
     assert c.get("signal_qualified") == n_sig
     assert c.get("trade_qualified") == n_trade
 
 
 def test_headlines_are_deterministic_templates():
-    d = td._load(os.path.join(os.path.dirname(
-        os.path.abspath(td.__file__)),
-        "docs", "reports", "trade_desk.json"), {})
+    d = td._load(
+        os.path.join(
+            os.path.dirname(os.path.abspath(td.__file__)), "docs", "reports", "trade_desk.json"
+        ),
+        {},
+    )
     for h in d.get("headlines") or []:
         assert h.get("h") and h.get("d")
 
 
 def test_ledgers_are_split_by_target():
-    d = td._load(os.path.join(os.path.dirname(
-        os.path.abspath(td.__file__)),
-        "docs", "reports", "trade_desk.json"), {})
+    d = td._load(
+        os.path.join(
+            os.path.dirname(os.path.abspath(td.__file__)), "docs", "reports", "trade_desk.json"
+        ),
+        {},
+    )
     L = d.get("ledgers") or {}
     assert set(L) == {"forecast", "directional", "executable"}
     assert L["executable"]["trade_qualified_strategies"] == 0
@@ -653,8 +822,10 @@ def test_ledgers_are_split_by_target():
 
 # ------------------------------------------------ matched scorecard
 
+
 def test_scorecard_cost_model_arithmetic():
     import uoa_scorecard as us
+
     # 10bp half-spread, 2% daily vol, $50M ADV, $10k clip:
     # impact = 0.2*0.02*sqrt(1e4/5e7) = 5.66e-5; rt = 2*(0.001+5.66e-5)
     c = us.cost_model(0.0010, 0.02, 5e7)
@@ -667,6 +838,7 @@ def test_scorecard_cost_model_arithmetic():
 
 def test_scorecard_spearman_and_bootstrap():
     import uoa_scorecard as us
+
     assert us._spearman([1, 2, 3, 4], [2, 4, 6, 8]) == 1.0
     assert us._spearman([1, 2, 3, 4], [8, 6, 4, 2]) == -1.0
     rows = [("c" + str(i % 10), float(i % 7) - 3) for i in range(400)]
@@ -677,6 +849,7 @@ def test_scorecard_spearman_and_bootstrap():
 
 def test_scorecard_ern_bucket():
     import uoa_scorecard as us
+
     assert us._ern_bucket("2026-09-10", "2026-09-08") == "0-5"
     assert us._ern_bucket("2026-09-25", "2026-09-08") == "6-20"
     assert us._ern_bucket(None, "2026-09-08") == "unk"
@@ -686,16 +859,33 @@ def test_matched_store_assignments_freeze(tmp_path, monkeypatch):
     """A signal's controls are assigned once; a second pass must not
     reassign or mutate them."""
     import uoa_scorecard as us
-    matched = {"sig1": {"mv": 1, "d": "2026-06-02", "nc": 5,
-                        "ci": [1, 2, 3, 4, 5], "x": {"5": 1.23}}}
-    sigs = [{"id": "sig1", "ticker": "AAA", "direction": "bullish",
-             "flagged_at": "2026-06-02T14:00:00+00:00"}]
+
+    matched = {
+        "sig1": {"mv": 1, "d": "2026-06-02", "nc": 5, "ci": [1, 2, 3, 4, 5], "x": {"5": 1.23}}
+    }
+    sigs = [
+        {
+            "id": "sig1",
+            "ticker": "AAA",
+            "direction": "bullish",
+            "flagged_at": "2026-06-02T14:00:00+00:00",
+        }
+    ]
     import numpy as np
+
     days = ["2026-06-01", "2026-06-02"]
-    n = us.assign_controls(sigs, days, ["AAA"], {"AAA": 0},
-                           np.ones((2, 1)), np.ones((2, 1)),
-                           np.ones((2, 1)), np.ones((2, 1)),
-                           {}, matched)
+    n = us.assign_controls(
+        sigs,
+        days,
+        ["AAA"],
+        {"AAA": 0},
+        np.ones((2, 1)),
+        np.ones((2, 1)),
+        np.ones((2, 1)),
+        np.ones((2, 1)),
+        {},
+        matched,
+    )
     assert n == 0
     assert matched["sig1"]["ci"] == [1, 2, 3, 4, 5]
     assert matched["sig1"]["x"]["5"] == 1.23
@@ -703,43 +893,41 @@ def test_matched_store_assignments_freeze(tmp_path, monkeypatch):
 
 # --------------------------------------------------- ledger rotation
 
+
 def test_ledger_rotation_preserves_every_line(tmp_path, monkeypatch):
     """2026-09-16 outage regression: rotation must move lines into
     archives without losing or altering a single one, and the
     archive-aware reader must return the identical dataset."""
     import gzip
     import ledger_rotate as lr
+
     hot = tmp_path / "uoa_signals.jsonl"
     lines = []
     for i in range(30):
         day = "2026-0%d-1%d" % (5 + i % 3, i % 9)
-        lines.append(json.dumps({"id": "s%d" % i,
-                                 "flagged_at": day + "T14:00:00+00:00"}))
+        lines.append(json.dumps({"id": "s%d" % i, "flagged_at": day + "T14:00:00+00:00"}))
     hot.write_text("\n".join(lines) + "\n", encoding="utf-8")
     monkeypatch.setattr(lr, "HOT", str(hot))
-    monkeypatch.setattr(lr, "ARCHIVE_FMT",
-                        str(tmp_path / "arch_{ym}.jsonl.gz"))
+    monkeypatch.setattr(lr, "ARCHIVE_FMT", str(tmp_path / "arch_{ym}.jsonl.gz"))
     out = lr.rotate(force=True)
     assert out["rotated"] > 0
     got = []
     for p in sorted(tmp_path.glob("arch_*.jsonl.gz")):
         with gzip.open(p, "rt", encoding="utf-8") as f:
             got += [json.loads(l) for l in f if l.strip()]
-    got += [json.loads(l)
-            for l in hot.read_text(encoding="utf-8").splitlines()
-            if l.strip()]
+    got += [json.loads(l) for l in hot.read_text(encoding="utf-8").splitlines() if l.strip()]
     assert len(got) == 30
     assert {g["id"] for g in got} == {"s%d" % i for i in range(30)}
 
 
 def test_ledger_rotation_noop_below_trigger(tmp_path, monkeypatch):
     import ledger_rotate as lr
+
     hot = tmp_path / "hot.jsonl"
-    hot.write_text('{"id":"a","flagged_at":"2026-01-01T00:00:00Z"}\n',
-                   encoding="utf-8")
+    hot.write_text('{"id":"a","flagged_at":"2026-01-01T00:00:00Z"}\n', encoding="utf-8")
     monkeypatch.setattr(lr, "HOT", str(hot))
     out = lr.rotate(force=False)
-    assert out["rotated"] == 0          # tiny file: no-op
+    assert out["rotated"] == 0  # tiny file: no-op
 
 
 def test_published_json_is_browser_strict_parseable():
@@ -747,9 +935,12 @@ def test_published_json_is_browser_strict_parseable():
     reject it, and one poisoned float blanked the whole Trade Desk.
     Every published report must parse under browser-strict rules."""
     import glob
+
     base = os.path.dirname(os.path.abspath(td.__file__))
+
     def boom(c):
         raise ValueError("non-finite JSON constant: " + c)
+
     checked = 0
     for p in glob.glob(os.path.join(base, "docs", "reports", "*.json")):
         with open(p, encoding="utf-8") as f:
@@ -760,7 +951,8 @@ def test_published_json_is_browser_strict_parseable():
 
 def test_json_sanitize_scrubs_nonfinite():
     from trade_desk_validation import json_sanitize
-    out = json_sanitize({"a": float("nan"), "b": [1.0, float("inf")],
-                         "c": {"d": float("-inf"), "e": 2}})
-    assert out == {"a": None, "b": [1.0, None],
-                   "c": {"d": None, "e": 2}}
+
+    out = json_sanitize(
+        {"a": float("nan"), "b": [1.0, float("inf")], "c": {"d": float("-inf"), "e": 2}}
+    )
+    assert out == {"a": None, "b": [1.0, None], "c": {"d": None, "e": 2}}

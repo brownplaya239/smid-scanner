@@ -65,8 +65,7 @@ FEE = 0.65
 EXITS = ("next_open", "next_close", "expiry_hold")
 BASE_EXIT = "next_close"
 # Predeclared structure grid — fixed BEFORE seeing v2 results.
-CONDOR_GRID = ((0.60, 1.25), (0.75, 1.25), (0.75, 1.50),
-               (0.90, 1.50), (1.00, 1.50))
+CONDOR_GRID = ((0.60, 1.25), (0.75, 1.25), (0.75, 1.50), (0.90, 1.50), (1.00, 1.50))
 FLY_WINGS = (1.25, 1.50)
 STRANGLE_X = 0.5
 MIN_N_QUALIFY = 60
@@ -74,11 +73,13 @@ PF_QUALIFY = 1.3
 MAX_DD_R = -5.0
 BOOT_ITERS = 3000
 
-FILL_MODEL = (f"{BT_VERSION}: daily-bar leg marks (open for next_open "
-              f"exit, close otherwise), {int(SLIP_PCT*100)}% slippage "
-              f"per side per leg, ${FEE}/contract/side fees; "
-              "expiry_hold = intrinsic from underlying close. "
-              "DAILY-BAR PROXY — not NBBO truth.")
+FILL_MODEL = (
+    f"{BT_VERSION}: daily-bar leg marks (open for next_open "
+    f"exit, close otherwise), {int(SLIP_PCT * 100)}% slippage "
+    f"per side per leg, ${FEE}/contract/side fees; "
+    "expiry_hold = intrinsic from underlying close. "
+    "DAILY-BAR PROXY — not NBBO truth."
+)
 
 
 def _events():
@@ -94,11 +95,16 @@ def _events():
         if k in seen:
             continue
         seen.add(k)
-        out.append({"type": i["type"], "ticker": i["t"],
-                    "date": i["date"], "implied": i["implied"],
-                    "session": (i.get("feat") or {}).get("session")
-                    or "AMC",
-                    "sector": (meta.get(i["t"]) or {}).get("sector")})
+        out.append(
+            {
+                "type": i["type"],
+                "ticker": i["t"],
+                "date": i["date"],
+                "implied": i["implied"],
+                "session": (i.get("feat") or {}).get("session") or "AMC",
+                "sector": (meta.get(i["t"]) or {}).get("sector"),
+            }
+        )
     return out
 
 
@@ -114,8 +120,7 @@ def _bars(ticker):
         for b in pg.daily_bars(ticker, days=140) or []:
             ts = b.get("t")
             if ts:
-                d = datetime.fromtimestamp(
-                    ts / 1000, timezone.utc).strftime("%Y-%m-%d")
+                d = datetime.fromtimestamp(ts / 1000, timezone.utc).strftime("%Y-%m-%d")
                 out[d] = {"o": b.get("o"), "c": b.get("c")}
     except Exception:
         pass
@@ -139,11 +144,17 @@ def _chain_asof(ticker, entry_date, exit_date):
     rows = []
     for expired in ("true", "false"):
         try:
-            rows += pg._paginate("/v3/reference/options/contracts", {
-                "underlying_ticker": ticker, "as_of": entry_date,
-                "expired": expired, "limit": 1000,
-                "expiration_date.gte": exit_date,
-            }, max_pages=4)
+            rows += pg._paginate(
+                "/v3/reference/options/contracts",
+                {
+                    "underlying_ticker": ticker,
+                    "as_of": entry_date,
+                    "expired": expired,
+                    "limit": 1000,
+                    "expiration_date.gte": exit_date,
+                },
+                max_pages=4,
+            )
         except Exception:
             pass
     return rows
@@ -153,23 +164,25 @@ def _nearest(vals, target):
     return min(vals, key=lambda v: abs(v - target)) if vals else None
 
 
-def sell(p):  return p * (1 - SLIP_PCT) - FEE / 100.0
-def buy(p):   return p * (1 + SLIP_PCT) + FEE / 100.0
+def sell(p):
+    return p * (1 - SLIP_PCT) - FEE / 100.0
+
+
+def buy(p):
+    return p * (1 + SLIP_PCT) + FEE / 100.0
 
 
 def _leg_marks(tk, entry_d, exit_d):
     b = _bars(tk)
     e = b.get(entry_d) or {}
     x = b.get(exit_d) or {}
-    return {"entry_close": e.get("c"), "exit_open": x.get("o"),
-            "exit_close": x.get("c")}
+    return {"entry_close": e.get("c"), "exit_open": x.get("o"), "exit_close": x.get("c")}
 
 
 def _intrinsic(kind, strike, spot):
     if spot is None:
         return None
-    return max(0.0, (spot - strike) if kind == "call"
-               else (strike - spot))
+    return max(0.0, (spot - strike) if kind == "call" else (strike - spot))
 
 
 def _structure_pnl(legs, exit_model, expiry_spot=None):
@@ -193,10 +206,10 @@ def _structure_pnl(legs, exit_model, expiry_spot=None):
             eout = 0.0 if exit_model == "expiry_hold" else None
         if eout is None:
             return None
-        if l["side"] < 0:       # short: receive at entry, pay to close
+        if l["side"] < 0:  # short: receive at entry, pay to close
             entry_cash += sell(ein)
             exit_cash -= buy(eout)
-        else:                   # long: pay at entry, receive at close
+        else:  # long: pay at entry, receive at close
             entry_cash -= buy(ein)
             exit_cash += sell(eout)
     return entry_cash + exit_cash, entry_cash
@@ -213,16 +226,21 @@ def reconstruct(e):
     if not spot:
         return {"skip": "no_entry_spot"}
     chain = _chain_asof(e["ticker"], entry_d, exit_d)
-    expiries = sorted({c.get("expiration_date") for c in chain
-                       if c.get("expiration_date")})
+    expiries = sorted({c.get("expiration_date") for c in chain if c.get("expiration_date")})
     if not expiries:
         return {"skip": "no_chain"}
     exp = expiries[0]
     cs = [c for c in chain if c.get("expiration_date") == exp]
-    calls = {c["strike_price"]: c["ticker"] for c in cs
-             if c.get("contract_type") == "call" and c.get("strike_price")}
-    puts = {c["strike_price"]: c["ticker"] for c in cs
-            if c.get("contract_type") == "put" and c.get("strike_price")}
+    calls = {
+        c["strike_price"]: c["ticker"]
+        for c in cs
+        if c.get("contract_type") == "call" and c.get("strike_price")
+    }
+    puts = {
+        c["strike_price"]: c["ticker"]
+        for c in cs
+        if c.get("contract_type") == "put" and c.get("strike_price")
+    }
     if not calls or not puts:
         return {"skip": "one_sided_chain"}
     em = e["implied"] / 100.0 * spot
@@ -230,14 +248,17 @@ def reconstruct(e):
 
     def leg(side, kind, x_mult):
         table = calls if kind == "call" else puts
-        target = spot + x_mult * em if kind == "call" \
-            else spot - x_mult * em
+        target = spot + x_mult * em if kind == "call" else spot - x_mult * em
         k = _nearest(list(table), target)
         if k is None:
             return None
-        return {"side": side, "kind": kind, "strike": k,
-                "contract": table[k],
-                "marks": _leg_marks(table[k], entry_d, exit_d)}
+        return {
+            "side": side,
+            "kind": kind,
+            "strike": k,
+            "contract": table[k],
+            "marks": _leg_marks(table[k], entry_d, exit_d),
+        }
 
     def build(name, legs, risk_fn):
         if any(l is None for l in legs):
@@ -256,62 +277,83 @@ def reconstruct(e):
             variants[xm] = v
         if not variants:
             return None
-        return {"legs": [{"side": l["side"], "kind": l["kind"],
-                          "strike": l["strike"],
-                          "contract": l["contract"],
-                          "marks": l["marks"]} for l in legs],
-                "exits": variants}
+        return {
+            "legs": [
+                {
+                    "side": l["side"],
+                    "kind": l["kind"],
+                    "strike": l["strike"],
+                    "contract": l["contract"],
+                    "marks": l["marks"],
+                }
+                for l in legs
+            ],
+            "exits": variants,
+        }
 
     strategies = {}
     if e["type"] == "vol_rich":
         # diagnostic: undefined risk, never qualifies
-        s = build("short_straddle",
-                  [leg(-1, "call", 0), leg(-1, "put", 0)],
-                  lambda legs, cr: None)
+        s = build("short_straddle", [leg(-1, "call", 0), leg(-1, "put", 0)], lambda legs, cr: None)
         if s:
             s["note"] = "UNDEFINED RISK — diagnostic only"
             strategies["short_straddle"] = s
         for wx in FLY_WINGS:
-            legs = [leg(-1, "call", 0), leg(-1, "put", 0),
-                    leg(+1, "call", wx), leg(+1, "put", wx)]
+            legs = [leg(-1, "call", 0), leg(-1, "put", 0), leg(+1, "call", wx), leg(+1, "put", wx)]
+
             def fly_risk(ls, cr):
-                w = max(abs(ls[2]["strike"] - ls[0]["strike"]),
-                        abs(ls[1]["strike"] - ls[3]["strike"]))
+                w = max(
+                    abs(ls[2]["strike"] - ls[0]["strike"]), abs(ls[1]["strike"] - ls[3]["strike"])
+                )
                 return w - cr if w > cr else None
+
             s = build("iron_fly", legs, fly_risk)
             if s:
                 strategies[f"iron_fly_{wx}"] = s
         for sx, wx in CONDOR_GRID:
-            legs = [leg(-1, "call", sx), leg(-1, "put", sx),
-                    leg(+1, "call", wx), leg(+1, "put", wx)]
+            legs = [
+                leg(-1, "call", sx),
+                leg(-1, "put", sx),
+                leg(+1, "call", wx),
+                leg(+1, "put", wx),
+            ]
+
             def cnd_risk(ls, cr):
-                w = max(abs(ls[2]["strike"] - ls[0]["strike"]),
-                        abs(ls[1]["strike"] - ls[3]["strike"]))
+                w = max(
+                    abs(ls[2]["strike"] - ls[0]["strike"]), abs(ls[1]["strike"] - ls[3]["strike"])
+                )
                 return w - cr if w > cr else None
+
             s = build("iron_condor", legs, cnd_risk)
             if s:
                 strategies[f"iron_condor_{sx}_{wx}"] = s
     else:
         legs = [leg(+1, "call", 0), leg(+1, "put", 0)]
-        s = build("long_straddle", legs,
-                  lambda ls, cr: -cr if cr < 0 else None)
+        s = build("long_straddle", legs, lambda ls, cr: -cr if cr < 0 else None)
         if s:
             strategies["long_straddle"] = s
         legs = [leg(+1, "call", STRANGLE_X), leg(+1, "put", STRANGLE_X)]
-        s = build("long_strangle", legs,
-                  lambda ls, cr: -cr if cr < 0 else None)
+        s = build("long_strangle", legs, lambda ls, cr: -cr if cr < 0 else None)
         if s:
             strategies["long_strangle"] = s
     if not strategies:
         return {"skip": "no_structures_priceable"}
-    return {"entry_date": entry_d, "exit_date": exit_d, "spot": spot,
-            "expiry": exp, "expiry_spot": expiry_spot,
-            "night_id": e["date"], "sector": e.get("sector"),
-            "fill_model": FILL_MODEL, "chain_source": "polygon_reference",
-            "strategies": strategies}
+    return {
+        "entry_date": entry_d,
+        "exit_date": exit_d,
+        "spot": spot,
+        "expiry": exp,
+        "expiry_spot": expiry_spot,
+        "night_id": e["date"],
+        "sector": e.get("sector"),
+        "fill_model": FILL_MODEL,
+        "chain_source": "polygon_reference",
+        "strategies": strategies,
+    }
 
 
 # ------------------------------------------------------------- report
+
 
 def _boot_ci(rows, iters=BOOT_ITERS, seed=13):
     nights = {}
@@ -328,9 +370,10 @@ def _boot_ci(rows, iters=BOOT_ITERS, seed=13):
             ys.extend(nights[rng.choice(keys)])
         means.append(mean(ys))
     means.sort()
-    return {"nights": len(keys),
-            "ci95": [round(means[int(iters * .025)], 3),
-                     round(means[int(iters * .975)], 3)]}
+    return {
+        "nights": len(keys),
+        "ci95": [round(means[int(iters * 0.025)], 3), round(means[int(iters * 0.975)], 3)],
+    }
 
 
 def _max_dd_r(rors):
@@ -350,10 +393,10 @@ def _folds_positive(rows):
     if len(rows) < 9:
         return []
     third = len(rows) // 3
-    return [round(mean(r for _, r in rows[i * third:
-                                          (i + 1) * third if i < 2
-                                          else len(rows)]), 3)
-            for i in range(3)]
+    return [
+        round(mean(r for _, r in rows[i * third : (i + 1) * third if i < 2 else len(rows)]), 3)
+        for i in range(3)
+    ]
 
 
 def strategy_table(recons, strat, exit_model):
@@ -380,51 +423,63 @@ def strategy_table(recons, strat, exit_model):
         v0 = ((s0 or {}).get("exits") or {}).get(exit_model)
         if v0 and v0.get("risk"):
             risks.append((v0["pnl"], v0["risk"]))
-    out = {"n": len(rows),
-           "win": round(100 * sum(1 for p in pnls if p > 0) / len(pnls)),
-           "avg_pnl_1lot": round(mean(pnls), 0),
-           "profit_factor": (round(sum(p for p in pnls if p > 0) /
-                                   abs(sum(p for p in pnls if p < 0)), 2)
-                             if any(p < 0 for p in pnls) else None),
-           "worst_pnl": round(min(pnls), 0)}
+    out = {
+        "n": len(rows),
+        "win": round(100 * sum(1 for p in pnls if p > 0) / len(pnls)),
+        "avg_pnl_1lot": round(mean(pnls), 0),
+        "profit_factor": (
+            round(sum(p for p in pnls if p > 0) / abs(sum(p for p in pnls if p < 0)), 2)
+            if any(p < 0 for p in pnls)
+            else None
+        ),
+        "worst_pnl": round(min(pnls), 0),
+    }
     if rors:
         rs = [r for _, r in rors]
         srt = sorted(rs)
-        k5 = max(1, int(len(srt) * .05))
-        k1 = max(1, int(len(srt) * .01))
+        k5 = max(1, int(len(srt) * 0.05))
+        k1 = max(1, int(len(srt) * 0.01))
         folds = _folds_positive(rors)
-        out.update({
-            "avg_ror": round(mean(rs), 3), "med_ror": round(median(rs), 3),
-            "es95_ror": round(mean(srt[:k5]), 3),
-            "es99_ror": round(mean(srt[:k1]), 3),
-            "worst_ror": round(srt[0], 3),
-            "loss_gt_1R": sum(1 for r in rs if r < -1.0001),
-            "exp_log_growth": round(mean(
-                math.log1p(max(r, -0.999)) for r in rs), 4),
-            "max_dd_r": _max_dd_r(rs),
-            "cap_wt_ror": (round(sum(p for p, _ in risks)
-                                 / sum(k for _, k in risks), 3)
-                           if risks and sum(k for _, k in risks) else None),
-            "fold_avg_ror": folds,
-            "night_bootstrap_ror": _boot_ci(rors),
-        })
+        out.update(
+            {
+                "avg_ror": round(mean(rs), 3),
+                "med_ror": round(median(rs), 3),
+                "es95_ror": round(mean(srt[:k5]), 3),
+                "es99_ror": round(mean(srt[:k1]), 3),
+                "worst_ror": round(srt[0], 3),
+                "loss_gt_1R": sum(1 for r in rs if r < -1.0001),
+                "exp_log_growth": round(mean(math.log1p(max(r, -0.999)) for r in rs), 4),
+                "max_dd_r": _max_dd_r(rs),
+                "cap_wt_ror": (
+                    round(sum(p for p, _ in risks) / sum(k for _, k in risks), 3)
+                    if risks and sum(k for _, k in risks)
+                    else None
+                ),
+                "fold_avg_ror": folds,
+                "night_bootstrap_ror": _boot_ci(rors),
+            }
+        )
     return out
 
 
 def _qualifies(st, st_open):
-    ci = ((st.get("night_bootstrap_ror") or {}).get("ci95") or [None])
+    ci = (st.get("night_bootstrap_ror") or {}).get("ci95") or [None]
     folds = st.get("fold_avg_ror") or []
-    return (st.get("n", 0) >= MIN_N_QUALIFY
-            and (st.get("avg_ror") or 0) > 0
-            and (st.get("cap_wt_ror") or 0) > 0
-            and ci[0] is not None and ci[0] > 0
-            and (st.get("profit_factor") or 0) >= PF_QUALIFY
-            and (st.get("exp_log_growth") or 0) > 0
-            and st.get("loss_gt_1R", 1) == 0
-            and (st.get("max_dd_r") or -99) > MAX_DD_R
-            and len(folds) == 3
-            and sum(1 for f in folds if f > 0) >= 2 and folds[-1] > 0
-            and (st_open.get("avg_ror") or 0) > 0)   # exit-model accord
+    return (
+        st.get("n", 0) >= MIN_N_QUALIFY
+        and (st.get("avg_ror") or 0) > 0
+        and (st.get("cap_wt_ror") or 0) > 0
+        and ci[0] is not None
+        and ci[0] > 0
+        and (st.get("profit_factor") or 0) >= PF_QUALIFY
+        and (st.get("exp_log_growth") or 0) > 0
+        and st.get("loss_gt_1R", 1) == 0
+        and (st.get("max_dd_r") or -99) > MAX_DD_R
+        and len(folds) == 3
+        and sum(1 for f in folds if f > 0) >= 2
+        and folds[-1] > 0
+        and (st_open.get("avg_ror") or 0) > 0
+    )  # exit-model accord
 
 
 def _neighbors_ok(tables, strat):
@@ -434,8 +489,7 @@ def _neighbors_ok(tables, strat):
         return True
     fam = [s for s in tables if s.startswith("iron_condor_")]
     others = [tables[s] for s in fam if s != strat]
-    ok = [o for o in others if (o.get("profit_factor") or 0) >= 1.0
-          or o.get("n", 0) < 10]
+    ok = [o for o in others if (o.get("profit_factor") or 0) >= 1.0 or o.get("n", 0) < 10]
     return len(ok) >= max(1, len(others) - 1)
 
 
@@ -463,8 +517,7 @@ def _recompute_at_slip(recons, strat, ttype, exit_model, slip):
                 eout = m.get("exit_close")
             else:
                 es = r.get("expiry_spot")
-                eout = None if es is None else _intrinsic(
-                    l["kind"], l["strike"], es)
+                eout = None if es is None else _intrinsic(l["kind"], l["strike"], es)
             if eout is None:
                 ok = False
                 break
@@ -481,10 +534,12 @@ def _recompute_at_slip(recons, strat, ttype, exit_model, slip):
         return None
     pos = sum(p for p in rows if p > 0)
     neg = abs(sum(p for p in rows if p < 0))
-    return {"n": len(rows), "avg_pnl_1lot": round(mean(rows) * 100),
-            "win": round(100 * sum(1 for p in rows if p > 0)
-                         / len(rows)),
-            "profit_factor": round(pos / neg, 2) if neg else None}
+    return {
+        "n": len(rows),
+        "avg_pnl_1lot": round(mean(rows) * 100),
+        "win": round(100 * sum(1 for p in rows if p > 0) / len(rows)),
+        "profit_factor": round(pos / neg, 2) if neg else None,
+    }
 
 
 def cost_attribution(recons):
@@ -495,17 +550,20 @@ def cost_attribution(recons):
     the base-case 5%/side slippage consumes all of it — break-even
     slippage is roughly 2.5-3%/side. Qualification always uses the
     base case; this is attribution, not a loophole."""
-    keys = (("short_straddle", "vol_rich"),
-            ("iron_fly_1.5", "vol_rich"),
-            ("iron_condor_0.75_1.5", "vol_rich"),
-            ("long_straddle", "vol_cheap"))
+    keys = (
+        ("short_straddle", "vol_rich"),
+        ("iron_fly_1.5", "vol_rich"),
+        ("iron_condor_0.75_1.5", "vol_rich"),
+        ("long_straddle", "vol_cheap"),
+    )
     out = {}
     for strat, ttype in keys:
         block = {}
         for xm in ("next_open", "next_close"):
-            block[xm] = {f"slip_{int(s*1000)/10}pct":
-                         _recompute_at_slip(recons, strat, ttype, xm, s)
-                         for s in (0.0, 0.025, 0.05)}
+            block[xm] = {
+                f"slip_{int(s * 1000) / 10}pct": _recompute_at_slip(recons, strat, ttype, xm, s)
+                for s in (0.0, 0.025, 0.05)
+            }
         out[strat] = block
     return out
 
@@ -513,22 +571,25 @@ def cost_attribution(recons):
 def run(limit=None, report_only=False):
     cache = _load(CACHE_PATH, {}) or {}
     events = _events()
-    todo = [] if report_only else \
-        [e for e in events
-         if f"{e['ticker']}|{e['date']}|{e['type']}|{BT_VERSION}"
-         not in cache]
+    todo = (
+        []
+        if report_only
+        else [
+            e for e in events if f"{e['ticker']}|{e['date']}|{e['type']}|{BT_VERSION}" not in cache
+        ]
+    )
     if todo and not pg.available():
-        out = {"generated": datetime.now(timezone.utc)
-               .isoformat(timespec="seconds"),
-               "status": "capability_unavailable",
-               "why": "POLYGON_API_KEY not set (CI-only secret)"}
+        out = {
+            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "status": "capability_unavailable",
+            "why": "POLYGON_API_KEY not set (CI-only secret)",
+        }
         json.dump(out, open(OUT_PATH, "w", encoding="utf-8"), indent=1)
         print(out["why"])
         return out
     if limit:
         todo = todo[:limit]
-    print(f"events: {len(events)} total, {len(todo)} to reconstruct "
-          f"({BT_VERSION})")
+    print(f"events: {len(events)} total, {len(todo)} to reconstruct ({BT_VERSION})")
     for e in todo:
         key = f"{e['ticker']}|{e['date']}|{e['type']}|{BT_VERSION}"
         try:
@@ -537,35 +598,44 @@ def run(limit=None, report_only=False):
             r = {"skip": "error:" + str(ex)[:80]}
         r["event"] = e
         r["bt_version"] = BT_VERSION
-        cache[key] = r          # immutable: new keys only, never edits
+        cache[key] = r  # immutable: new keys only, never edits
     with open(CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(cache, f, indent=0)
 
-    recons = [r for r in cache.values()
-              if r.get("bt_version") == BT_VERSION and not r.get("skip")]
+    recons = [r for r in cache.values() if r.get("bt_version") == BT_VERSION and not r.get("skip")]
     skips = {}
     for r in cache.values():
         if r.get("bt_version") == BT_VERSION and r.get("skip"):
             skips[r["skip"]] = skips.get(r["skip"], 0) + 1
 
-    strat_names = {"vol_rich": (["short_straddle"]
-                                + [f"iron_fly_{w}" for w in FLY_WINGS]
-                                + [f"iron_condor_{s}_{w}"
-                                   for s, w in CONDOR_GRID]),
-                   "vol_cheap": ["long_straddle", "long_strangle"]}
-    result = {"generated": datetime.now(timezone.utc)
-              .isoformat(timespec="seconds"),
-              "bt_version": BT_VERSION, "fill_model": FILL_MODEL,
-              "exit_models": list(EXITS), "base_exit": BASE_EXIT,
-              "params": {"condor_grid": [list(x) for x in CONDOR_GRID],
-                         "fly_wings": list(FLY_WINGS),
-                         "strangle_x": STRANGLE_X,
-                         "slip_pct": SLIP_PCT, "fee": FEE,
-                         "max_dd_r": MAX_DD_R,
-                         "min_n": MIN_N_QUALIFY,
-                         "pf": PF_QUALIFY},
-              "reconstructed": len(recons), "skipped": skips,
-              "types": {}}
+    strat_names = {
+        "vol_rich": (
+            ["short_straddle"]
+            + [f"iron_fly_{w}" for w in FLY_WINGS]
+            + [f"iron_condor_{s}_{w}" for s, w in CONDOR_GRID]
+        ),
+        "vol_cheap": ["long_straddle", "long_strangle"],
+    }
+    result = {
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "bt_version": BT_VERSION,
+        "fill_model": FILL_MODEL,
+        "exit_models": list(EXITS),
+        "base_exit": BASE_EXIT,
+        "params": {
+            "condor_grid": [list(x) for x in CONDOR_GRID],
+            "fly_wings": list(FLY_WINGS),
+            "strangle_x": STRANGLE_X,
+            "slip_pct": SLIP_PCT,
+            "fee": FEE,
+            "max_dd_r": MAX_DD_R,
+            "min_n": MIN_N_QUALIFY,
+            "pf": PF_QUALIFY,
+        },
+        "reconstructed": len(recons),
+        "skipped": skips,
+        "types": {},
+    }
     for t, strats in strat_names.items():
         rs = [r for r in recons if r["event"]["type"] == t]
         tables = {}
@@ -585,15 +655,19 @@ def run(limit=None, report_only=False):
             "strategies": tables,
             "trade_qualified": qual,
             "qualifying_strategy": qual_strat,
-            "criteria": {"min_n": MIN_N_QUALIFY, "avg_ror": "> 0",
-                         "night_ci_low": "> 0",
-                         "profit_factor": f">= {PF_QUALIFY}",
-                         "exp_log_growth": "> 0",
-                         "loss_gt_1R": "== 0 (defined risk)",
-                         "max_dd_r": f"> {MAX_DD_R}",
-                         "folds": ">= 2/3 positive AND latest positive",
-                         "exit_accord": "next_open avg ROR > 0",
-                         "grid_neighbors": "PF >= 1.0"}}
+            "criteria": {
+                "min_n": MIN_N_QUALIFY,
+                "avg_ror": "> 0",
+                "night_ci_low": "> 0",
+                "profit_factor": f">= {PF_QUALIFY}",
+                "exp_log_growth": "> 0",
+                "loss_gt_1R": "== 0 (defined risk)",
+                "max_dd_r": f"> {MAX_DD_R}",
+                "folds": ">= 2/3 positive AND latest positive",
+                "exit_accord": "next_open avg ROR > 0",
+                "grid_neighbors": "PF >= 1.0",
+            },
+        }
     result["cost_attribution"] = cost_attribution(recons)
     result["honesty"] = (
         "Daily-bar proxy fills (stamped per record). Undefined-risk "
@@ -601,28 +675,31 @@ def run(limit=None, report_only=False):
         "versioned — changing strategy rules writes new rows under a "
         "new bt_version and never rewrites history. Exit models are "
         "daily-granularity proxies for the stated conventions; "
-        "intraday marks are a future refinement.")
+        "intraday marks are a future refinement."
+    )
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=1)
     for t, b in result["types"].items():
-        print(t, "trade_qualified:", b["trade_qualified"],
-              "| via", b.get("qualifying_strategy"))
+        print(t, "trade_qualified:", b["trade_qualified"], "| via", b.get("qualifying_strategy"))
         for s, tb in b["strategies"].items():
             bt = tb.get(BASE_EXIT) or {}
             if bt.get("n"):
-                print(f"  {s:22s} n={bt['n']:3d} win={bt.get('win')}% "
-                      f"avgROR={bt.get('avg_ror')} PF="
-                      f"{bt.get('profit_factor')} logG="
-                      f"{bt.get('exp_log_growth')} maxDD="
-                      f"{bt.get('max_dd_r')}R folds="
-                      f"{bt.get('fold_avg_ror')}")
+                print(
+                    f"  {s:22s} n={bt['n']:3d} win={bt.get('win')}% "
+                    f"avgROR={bt.get('avg_ror')} PF="
+                    f"{bt.get('profit_factor')} logG="
+                    f"{bt.get('exp_log_growth')} maxDD="
+                    f"{bt.get('max_dd_r')}R folds="
+                    f"{bt.get('fold_avg_ror')}"
+                )
     return result
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int)
-    ap.add_argument("--report-only", action="store_true",
-                    help="rebuild the report from cached rows, no API")
+    ap.add_argument(
+        "--report-only", action="store_true", help="rebuild the report from cached rows, no API"
+    )
     a = ap.parse_args()
     run(limit=a.limit, report_only=a.report_only)

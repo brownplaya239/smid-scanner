@@ -51,7 +51,7 @@ def _safe_load(path: str) -> Any:
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except FileNotFoundError, json.JSONDecodeError:
         return None
 
 
@@ -100,13 +100,20 @@ def build_snapshots() -> list[dict]:
                 t = n.get("t")
                 if not t:
                     continue
-                rows.setdefault(t, {
-                    "snapshot_date": today, "ticker": t,
-                    "trend_grade": None, "flow_bias": None,
-                    "flow_score": None, "theme": None,
-                    "earnings_date": None, "news_sentiment": None,
-                    "appeared_in_modules": {},
-                })
+                rows.setdefault(
+                    t,
+                    {
+                        "snapshot_date": today,
+                        "ticker": t,
+                        "trend_grade": None,
+                        "flow_bias": None,
+                        "flow_score": None,
+                        "theme": None,
+                        "earnings_date": None,
+                        "news_sentiment": None,
+                        "appeared_in_modules": {},
+                    },
+                )
                 rows[t]["trend_grade"] = grade
                 themes = n.get("th") or []
                 if themes:
@@ -123,13 +130,20 @@ def build_snapshots() -> list[dict]:
             if t not in by_tk or prem > (by_tk[t].get("premium") or 0):
                 by_tk[t] = r
         for t, r in by_tk.items():
-            rows.setdefault(t, {
-                "snapshot_date": today, "ticker": t,
-                "trend_grade": None, "flow_bias": None,
-                "flow_score": None, "theme": None,
-                "earnings_date": None, "news_sentiment": None,
-                "appeared_in_modules": {},
-            })
+            rows.setdefault(
+                t,
+                {
+                    "snapshot_date": today,
+                    "ticker": t,
+                    "trend_grade": None,
+                    "flow_bias": None,
+                    "flow_score": None,
+                    "theme": None,
+                    "earnings_date": None,
+                    "news_sentiment": None,
+                    "appeared_in_modules": {},
+                },
+            )
             rows[t]["flow_bias"] = r.get("direction")
             rows[t]["flow_score"] = r.get("premium")
             rows[t]["appeared_in_modules"]["top_flow"] = True
@@ -139,17 +153,24 @@ def build_snapshots() -> list[dict]:
         for day in earnings["days"]:
             d = day.get("date")
             for slot in ("bmo", "amc"):
-                for c in (day.get(slot) or []):
+                for c in day.get(slot) or []:
                     t = c.get("ticker")
                     if not t:
                         continue
-                    rows.setdefault(t, {
-                        "snapshot_date": today, "ticker": t,
-                        "trend_grade": None, "flow_bias": None,
-                        "flow_score": None, "theme": None,
-                        "earnings_date": None, "news_sentiment": None,
-                        "appeared_in_modules": {},
-                    })
+                    rows.setdefault(
+                        t,
+                        {
+                            "snapshot_date": today,
+                            "ticker": t,
+                            "trend_grade": None,
+                            "flow_bias": None,
+                            "flow_score": None,
+                            "theme": None,
+                            "earnings_date": None,
+                            "news_sentiment": None,
+                            "appeared_in_modules": {},
+                        },
+                    )
                     # First (earliest) earnings date wins
                     if rows[t]["earnings_date"] is None:
                         rows[t]["earnings_date"] = d
@@ -157,33 +178,47 @@ def build_snapshots() -> list[dict]:
     # ── QM Monthly appearance flag ──
     if qm and qm.get("runs") and qm["runs"]:
         last = qm["runs"][-1]
-        for r in (last.get("rows") or []):
+        for r in last.get("rows") or []:
             t = r.get("ticker")
             if not t:
                 continue
-            rows.setdefault(t, {
-                "snapshot_date": today, "ticker": t,
-                "trend_grade": None, "flow_bias": None,
-                "flow_score": None, "theme": None,
-                "earnings_date": None, "news_sentiment": None,
-                "appeared_in_modules": {},
-            })
+            rows.setdefault(
+                t,
+                {
+                    "snapshot_date": today,
+                    "ticker": t,
+                    "trend_grade": None,
+                    "flow_bias": None,
+                    "flow_score": None,
+                    "theme": None,
+                    "earnings_date": None,
+                    "news_sentiment": None,
+                    "appeared_in_modules": {},
+                },
+            )
             rows[t]["appeared_in_modules"]["qm"] = True
 
     # ── Stockbee appearance flag ──
     if sb and sb.get("runs") and sb["runs"]:
         last = sb["runs"][-1]
-        for r in (last.get("rows") or []):
+        for r in last.get("rows") or []:
             t = r.get("ticker")
             if not t:
                 continue
-            rows.setdefault(t, {
-                "snapshot_date": today, "ticker": t,
-                "trend_grade": None, "flow_bias": None,
-                "flow_score": None, "theme": None,
-                "earnings_date": None, "news_sentiment": None,
-                "appeared_in_modules": {},
-            })
+            rows.setdefault(
+                t,
+                {
+                    "snapshot_date": today,
+                    "ticker": t,
+                    "trend_grade": None,
+                    "flow_bias": None,
+                    "flow_score": None,
+                    "theme": None,
+                    "earnings_date": None,
+                    "news_sentiment": None,
+                    "appeared_in_modules": {},
+                },
+            )
             rows[t]["appeared_in_modules"]["stockbee"] = True
 
     return list(rows.values())
@@ -199,16 +234,16 @@ def upsert_snapshots(rows: list[dict]) -> None:
     # Chunk by 500 rows to keep PostgREST happy with payload size
     chunk = 500
     for i in range(0, len(rows), chunk):
-        batch = rows[i:i + chunk]
+        batch = rows[i : i + chunk]
         try:
             _sb_post(
                 "signal_snapshots",
                 batch,
                 prefer="resolution=merge-duplicates,return=minimal",
             )
-            print(f"    chunk {i//chunk + 1}: {len(batch)} rows OK")
+            print(f"    chunk {i // chunk + 1}: {len(batch)} rows OK")
         except Exception as e:
-            print(f"    chunk {i//chunk + 1}: FAILED {e}")
+            print(f"    chunk {i // chunk + 1}: FAILED {e}")
 
 
 def main():
@@ -218,8 +253,7 @@ def main():
         return
     print(f"daily_snapshot.py · {today.isoformat()}")
     rows = build_snapshots()
-    print(f"  Built {len(rows)} ticker snapshots from "
-          "swing+uoa+earnings+qm+stockbee")
+    print(f"  Built {len(rows)} ticker snapshots from swing+uoa+earnings+qm+stockbee")
     upsert_snapshots(rows)
     print("Done.")
 
@@ -229,5 +263,6 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         import traceback
+
         print(f"Fatal: {type(e).__name__}: {e}")
         traceback.print_exc()

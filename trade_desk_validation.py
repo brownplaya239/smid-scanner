@@ -54,12 +54,12 @@ REGIME_PATH = os.path.join(_BASE, "docs", "reports", "regime_history.json")
 OUT_PATH = os.path.join(_BASE, "docs", "reports", "trade_desk_validation.json")
 
 MODEL_VERSION = "alpha_score_v1"
-SHRINK_K = 200          # same as edge_weights
-PER_CLAMP = 2.0         # max |pp| any one feature may contribute
-TOTAL_CLAMP = 6.0       # max |pp| total adjustment
-N_FOLDS = 3             # expanding-window folds over the pre-holdout span
-HOLDOUT_FRAC = 0.15     # most recent slice, scored once, never tuned on
-QUAL_MIN_N = 150        # a cutoff needs this many validation signals/fold
+SHRINK_K = 200  # same as edge_weights
+PER_CLAMP = 2.0  # max |pp| any one feature may contribute
+TOTAL_CLAMP = 6.0  # max |pp| total adjustment
+N_FOLDS = 3  # expanding-window folds over the pre-holdout span
+HOLDOUT_FRAC = 0.15  # most recent slice, scored once, never tuned on
+QUAL_MIN_N = 150  # a cutoff needs this many validation signals/fold
 QUAL_CUTS = (70, 80, 90)
 DECILE_MIN_N = 800
 
@@ -73,8 +73,7 @@ def json_sanitize(o):
         return {k: json_sanitize(v) for k, v in o.items()}
     if isinstance(o, list):
         return [json_sanitize(v) for v in o]
-    if isinstance(o, float) and (o != o or o in (float("inf"),
-                                                 float("-inf"))):
+    if isinstance(o, float) and (o != o or o in (float("inf"), float("-inf"))):
         return None
     return o
 
@@ -89,18 +88,20 @@ def _load(path, default):
 
 def _regime_map():
     d = _load(REGIME_PATH, None) or {}
-    return {r.get("date"): r.get("label")
-            for r in d.get("days", []) if r.get("date")}
+    return {r.get("date"): r.get("label") for r in d.get("days", []) if r.get("date")}
 
 
 def _prem_band(p):
     try:
         p = float(p or 0)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return "unknown"
-    if p >= 5e6:   return ">=5M"
-    if p >= 1e6:   return ">=1M"
-    if p >= 250e3: return ">=250k"
+    if p >= 5e6:
+        return ">=5M"
+    if p >= 1e6:
+        return ">=1M"
+    if p >= 250e3:
+        return ">=250k"
     return "<250k"
 
 
@@ -109,15 +110,15 @@ def features_at_flag(s, regime_by_date):
     trade_desk.py scoring — keep the two in lockstep."""
     day = (s.get("flagged_at") or "")[:10]
     return {
-        "side":   _side_of_signal(s),
+        "side": _side_of_signal(s),
         "regime": regime_by_date.get(day, "unknown"),
-        "ern":    "yes" if "Into ERN" in (s.get("tags") or []) else "no",
-        "dte":    _dte_bucket(s.get("dte")),
-        "liq":    s.get("liquidity") or "unknown",
-        "cap":    s.get("cap_bucket") or "unknown",
-        "open":   s.get("opening") or "unknown",
-        "stype":  s.get("signal_type") or "unknown",
-        "prem":   _prem_band(s.get("premium")),
+        "ern": "yes" if "Into ERN" in (s.get("tags") or []) else "no",
+        "dte": _dte_bucket(s.get("dte")),
+        "liq": s.get("liquidity") or "unknown",
+        "cap": s.get("cap_bucket") or "unknown",
+        "open": s.get("opening") or "unknown",
+        "stype": s.get("signal_type") or "unknown",
+        "prem": _prem_band(s.get("premium")),
     }
 
 
@@ -137,23 +138,25 @@ def build_dataset():
         c = cache.get(s.get("id"))
         if not c:
             continue
-        r5 = (c.get("returns") or {}).get("5") or \
-             (c.get("returns") or {}).get(5)
+        r5 = (c.get("returns") or {}).get("5") or (c.get("returns") or {}).get(5)
         exc = (r5 or {}).get("excess")
         if exc is None:
             continue
         signed = exc if s["direction"] == "bullish" else -exc
-        rows.append({
-            "date": (s.get("flagged_at") or "")[:10],
-            "feats": features_at_flag(s, regimes),
-            "raw_score": s.get("trade_score") or 0,
-            "y": signed,
-        })
+        rows.append(
+            {
+                "date": (s.get("flagged_at") or "")[:10],
+                "feats": features_at_flag(s, regimes),
+                "raw_score": s.get("trade_score") or 0,
+                "y": signed,
+            }
+        )
     rows.sort(key=lambda r: r["date"])
     return rows
 
 
 # ---------------------------------------------------------------- model
+
 
 def fit(train):
     """Per-feature-value shrunk mean-deviation model on signed +5d excess."""
@@ -186,14 +189,18 @@ def score_scale(model, train):
     rank), so 'Alpha Score 90' literally means 'expected edge above 90% of
     the training population'."""
     preds = sorted(predict(model, r["feats"]) for r in train)
+
     def to_score(p):
         import bisect
+
         i = bisect.bisect_right(preds, p)
         return round(100.0 * i / len(preds), 1)
+
     return to_score
 
 
 # ------------------------------------------------------------- metrics
+
 
 def spearman(xs, ys):
     def ranks(v):
@@ -209,6 +216,7 @@ def spearman(xs, ys):
                 rk[order[k]] = avg
             i = j + 1
         return rk
+
     rx, ry = ranks(xs), ranks(ys)
     mx, my = mean(rx), mean(ry)
     num = sum((a - mx) * (b - my) for a, b in zip(rx, ry))
@@ -225,35 +233,49 @@ def decile_table(scored):
     out = []
     n = len(rows)
     for d in range(10):
-        seg = rows[d * n // 10:(d + 1) * n // 10]
+        seg = rows[d * n // 10 : (d + 1) * n // 10]
         ys = [y for _, y in seg]
-        out.append({"d": d + 1, "n": len(seg),
-                    "hit": round(100 * sum(1 for y in ys if y > 0) / len(ys)),
-                    "avg": round(mean(ys), 2), "med": round(median(ys), 2)})
-    return {"status": "active", "n": n, "deciles": out,
-            "top_minus_bottom": round(out[-1]["avg"] - out[0]["avg"], 2),
-            "monotonic_steps": sum(
-                1 for i in range(9)
-                if out[i + 1]["avg"] >= out[i]["avg"]) }
+        out.append(
+            {
+                "d": d + 1,
+                "n": len(seg),
+                "hit": round(100 * sum(1 for y in ys if y > 0) / len(ys)),
+                "avg": round(mean(ys), 2),
+                "med": round(median(ys), 2),
+            }
+        )
+    return {
+        "status": "active",
+        "n": n,
+        "deciles": out,
+        "top_minus_bottom": round(out[-1]["avg"] - out[0]["avg"], 2),
+        "monotonic_steps": sum(1 for i in range(9) if out[i + 1]["avg"] >= out[i]["avg"]),
+    }
 
 
 def cutoff_stats(scored, cut):
     ys = [y for s, y in scored if s >= cut]
     if not ys:
         return {"n": 0}
-    return {"n": len(ys),
-            "hit": round(100 * sum(1 for y in ys if y > 0) / len(ys)),
-            "avg": round(mean(ys), 2),
-            "med": round(median(ys), 2)}
+    return {
+        "n": len(ys),
+        "hit": round(100 * sum(1 for y in ys if y > 0) / len(ys)),
+        "avg": round(mean(ys), 2),
+        "med": round(median(ys), 2),
+    }
 
 
 # ---------------------------------------------------------------- main
 
+
 def run(dry=False):
     rows = build_dataset()
     if len(rows) < 2000:
-        result = {"generated": datetime.utcnow().isoformat() + "Z",
-                  "status": "insufficient_history", "n": len(rows)}
+        result = {
+            "generated": datetime.utcnow().isoformat() + "Z",
+            "status": "insufficient_history",
+            "n": len(rows),
+        }
         if not dry:
             with open(OUT_PATH, "w", encoding="utf-8") as f:
                 json.dump(result, f, indent=1)
@@ -262,42 +284,40 @@ def run(dry=False):
 
     n = len(rows)
     n_hold = int(n * HOLDOUT_FRAC)
-    dev, hold = rows[:n - n_hold], rows[n - n_hold:]
+    dev, hold = rows[: n - n_hold], rows[n - n_hold :]
 
     folds = []
     fold_edge = len(dev) // (N_FOLDS + 1)
     last_model, last_scale = None, None
     for k in range(1, N_FOLDS + 1):
-        train = dev[:fold_edge * k]
-        val = dev[fold_edge * k:fold_edge * (k + 1)] if k < N_FOLDS \
-            else dev[fold_edge * k:]
+        train = dev[: fold_edge * k]
+        val = dev[fold_edge * k : fold_edge * (k + 1)] if k < N_FOLDS else dev[fold_edge * k :]
         if not train or not val:
             continue
         model = fit(train)
         scale = score_scale(model, train)
         scored = [(scale(predict(model, r["feats"])), r["y"]) for r in val]
         raw = [(r["raw_score"], r["y"]) for r in val]
-        folds.append({
-            "fold": k,
-            "train": {"n": len(train), "from": train[0]["date"],
-                      "to": train[-1]["date"]},
-            "val": {"n": len(val), "from": val[0]["date"],
-                    "to": val[-1]["date"]},
-            "ic": spearman([s for s, _ in scored], [y for _, y in scored]),
-            "ic_raw_trade_score": spearman([s for s, _ in raw],
-                                           [y for _, y in raw]),
-            "deciles": decile_table(scored),
-            "cutoffs": {str(c): cutoff_stats(scored, c) for c in QUAL_CUTS},
-        })
+        folds.append(
+            {
+                "fold": k,
+                "train": {"n": len(train), "from": train[0]["date"], "to": train[-1]["date"]},
+                "val": {"n": len(val), "from": val[0]["date"], "to": val[-1]["date"]},
+                "ic": spearman([s for s, _ in scored], [y for _, y in scored]),
+                "ic_raw_trade_score": spearman([s for s, _ in raw], [y for _, y in raw]),
+                "deciles": decile_table(scored),
+                "cutoffs": {str(c): cutoff_stats(scored, c) for c in QUAL_CUTS},
+            }
+        )
         last_model, last_scale = model, scale
 
     # Holdout — scored once by the final fold's model, never tuned on.
-    hold_scored = [(last_scale(predict(last_model, r["feats"])), r["y"])
-                   for r in hold]
+    hold_scored = [(last_scale(predict(last_model, r["feats"])), r["y"]) for r in hold]
     holdout = {
-        "n": len(hold), "from": hold[0]["date"], "to": hold[-1]["date"],
-        "ic": spearman([s for s, _ in hold_scored],
-                       [y for _, y in hold_scored]),
+        "n": len(hold),
+        "from": hold[0]["date"],
+        "to": hold[-1]["date"],
+        "ic": spearman([s for s, _ in hold_scored], [y for _, y in hold_scored]),
         "deciles": decile_table(hold_scored),
         "cutoffs": {str(c): cutoff_stats(hold_scored, c) for c in QUAL_CUTS},
     }
@@ -309,14 +329,12 @@ def run(dry=False):
         ok = True
         for f in folds:
             cs = f["cutoffs"][str(c)]
-            if cs.get("n", 0) < QUAL_MIN_N or cs.get("avg", -1) <= 0 \
-                    or cs.get("med", -1) <= 0:
+            if cs.get("n", 0) < QUAL_MIN_N or cs.get("avg", -1) <= 0 or cs.get("med", -1) <= 0:
                 ok = False
                 break
         hs = holdout["cutoffs"][str(c)]
         if ok and hs.get("n", 0) >= QUAL_MIN_N and hs.get("avg", -1) > 0:
-            qual = {"status": "validated", "min_score": c,
-                    "holdout": hs}
+            qual = {"status": "validated", "min_score": c, "holdout": hs}
             break
 
     # Final production model refits on ALL graded rows (dev + holdout) —
@@ -330,22 +348,31 @@ def run(dry=False):
         "model_version": MODEL_VERSION,
         "n_graded": n,
         "span": {"from": rows[0]["date"], "to": rows[-1]["date"]},
-        "params": {"shrink_k": SHRINK_K, "per_clamp": PER_CLAMP,
-                   "total_clamp": TOTAL_CLAMP, "folds": N_FOLDS,
-                   "holdout_frac": HOLDOUT_FRAC,
-                   "qual_min_n": QUAL_MIN_N},
+        "params": {
+            "shrink_k": SHRINK_K,
+            "per_clamp": PER_CLAMP,
+            "total_clamp": TOTAL_CLAMP,
+            "folds": N_FOLDS,
+            "holdout_frac": HOLDOUT_FRAC,
+            "qual_min_n": QUAL_MIN_N,
+        },
         "folds": folds,
         "holdout": holdout,
         "qualification": qual,
-        "production_model": {"base": round(prod["base"], 3),
-                             "n_train": prod["n_train"],
-                             "adj": {k: round(v, 3)
-                                     for k, v in prod["adj"].items()},
-                             "scale_anchors": [
-                                 round(prod_scale_rows[
-                                     min(len(prod_scale_rows) - 1,
-                                         int(len(prod_scale_rows) * q / 100))
-                                 ], 3) for q in range(0, 101, 5)]},
+        "production_model": {
+            "base": round(prod["base"], 3),
+            "n_train": prod["n_train"],
+            "adj": {k: round(v, 3) for k, v in prod["adj"].items()},
+            "scale_anchors": [
+                round(
+                    prod_scale_rows[
+                        min(len(prod_scale_rows) - 1, int(len(prod_scale_rows) * q / 100))
+                    ],
+                    3,
+                )
+                for q in range(0, 101, 5)
+            ],
+        },
         "honesty": (
             "Single ~11-week live window (one macro stretch), overlapping "
             "same-ticker signals inflate effective n, regime labels only "
@@ -353,7 +380,8 @@ def run(dry=False):
             "+5d underlying excess vs SPY, direction-signed; option-level "
             "P/L is NOT modeled here. Scores map to train-percentile of "
             "expected excess — 90 means 'top decile of expected edge', "
-            "not '90% win probability'."),
+            "not '90% win probability'."
+        ),
     }
     if not dry:
         with open(OUT_PATH, "w", encoding="utf-8") as f:
@@ -361,8 +389,11 @@ def run(dry=False):
     # Console summary
     print("graded:", n, "span:", result["span"])
     for f in folds:
-        print(f"fold {f['fold']}: IC {f['ic']} (raw {f['ic_raw_trade_score']})",
-              "cut80:", f["cutoffs"]["80"])
+        print(
+            f"fold {f['fold']}: IC {f['ic']} (raw {f['ic_raw_trade_score']})",
+            "cut80:",
+            f["cutoffs"]["80"],
+        )
     print("holdout: IC", holdout["ic"], "cut80:", holdout["cutoffs"]["80"])
     print("qualification:", qual)
     return result

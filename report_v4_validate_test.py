@@ -36,12 +36,10 @@ def chk(name, cond):
 
 def _load(t):
     obj = pickle.load(io.open(".snapcache/%s.pkl" % t, "rb"))
-    return (obj[0], obj[3] if len(obj) > 3 else {}) if isinstance(obj, tuple) \
-        else (obj, {})
+    return (obj[0], obj[3] if len(obj) > 3 else {}) if isinstance(obj, tuple) else (obj, {})
 
 
-CACHED = sorted(os.path.basename(p)[:-4]
-                for p in glob.glob(".snapcache/*.pkl"))
+CACHED = sorted(os.path.basename(p)[:-4] for p in glob.glob(".snapcache/*.pkl"))
 if not CACHED:
     print("no cached snapshots — run report_v3_run on a ticker first")
     sys.exit(0)
@@ -49,7 +47,7 @@ if not CACHED:
 print("a correctly built package clears every check")
 for t in CACHED:
     snap, prov = _load(t)
-    view = V4.build(snap)                        # free tier, no chart
+    view = V4.build(snap)  # free tier, no chart
     core = R4.build_core(snap, view)
     apx = R4.build_appendix(snap, view, prov=prov)
     res = VV.report(view, snap, core, apx, run_mutation=False)
@@ -60,8 +58,7 @@ for t in CACHED:
 
 print("\nthe gate is provably able to fail (mutation suite)")
 m = MUT.summary()
-chk("every check was proven to fail when it should",
-    m.get("all_checks_proven") is True)
+chk("every check was proven to fail when it should", m.get("all_checks_proven") is True)
 if not m.get("all_checks_proven"):
     print("       unproven: %s" % m.get("unproven"))
 chk("a healthy number of checks were exercised", m.get("n_proven", 0) >= 12)
@@ -69,11 +66,15 @@ chk("a healthy number of checks were exercised", m.get("n_proven", 0) >= 12)
 print("\nfull report() with mutation gives ok=True on a good package")
 snap, prov = _load(CACHED[0])
 view = V4.build(snap)
-res = VV.report(view, snap, R4.build_core(snap, view),
-                R4.build_appendix(snap, view, prov=prov), run_mutation=True)
+res = VV.report(
+    view,
+    snap,
+    R4.build_core(snap, view),
+    R4.build_appendix(snap, view, prov=prov),
+    run_mutation=True,
+)
 # ok can only be True if there are no fatal failures AND mutation proved out
-chk("ok=True when clean and mutation proven",
-    res["ok"] is True or view.get("flash") is not None)
+chk("ok=True when clean and mutation proven", res["ok"] is True or view.get("flash") is not None)
 
 print("\n%d/%d checks passed" % (_pass, _pass + _fail))
 sys.exit(1 if _fail else 0)

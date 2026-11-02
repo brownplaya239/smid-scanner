@@ -39,11 +39,9 @@ import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-ACCOUNT = os.environ.get("CF_ACCOUNT_ID",
-                         "06ea98cb3e05c64a52517aeb802d96a4")
+ACCOUNT = os.environ.get("CF_ACCOUNT_ID", "06ea98cb3e05c64a52517aeb802d96a4")
 BUCKET = os.environ.get("R2_BUCKET", "tickerdesk-data")
-API = (f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}"
-       f"/r2/buckets/{BUCKET}/objects")
+API = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/r2/buckets/{BUCKET}/objects"
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -57,11 +55,13 @@ def _token():
 # Files that stay in git and are never synced: manifest.json is derived
 # from the report PDFs (which stay in git); the rest are hand-edited
 # config or test fixtures. An R2 pull must never overwrite them.
-GIT_ONLY = {"docs/reports/manifest.json", "docs/reports/event_overrides.json",
-            "data/hedge_monitor_exclusions.jsonl",
-            "data/fixtures_expected.json"}
-GIT_ONLY_DIRS = ("data/mutation_proofs/", "data/research_state/",
-                 "data/listing_facts/")
+GIT_ONLY = {
+    "docs/reports/manifest.json",
+    "docs/reports/event_overrides.json",
+    "data/hedge_monitor_exclusions.jsonl",
+    "data/fixtures_expected.json",
+}
+GIT_ONLY_DIRS = ("data/mutation_proofs/", "data/research_state/", "data/listing_facts/")
 
 
 def _git_only(rel):
@@ -73,7 +73,7 @@ def repo_to_key(path):
     if _git_only(rel):
         return None
     if rel.startswith("docs/reports/"):
-        return "reports/" + rel[len("docs/reports/"):]
+        return "reports/" + rel[len("docs/reports/") :]
     if rel.startswith("data/"):
         return rel
     return None
@@ -83,7 +83,7 @@ def key_to_repo(key):
     if _git_only("docs/" + key) or _git_only(key):
         return None
     if key.startswith("reports/"):
-        return os.path.join(_BASE, "docs", "reports", key[len("reports/"):])
+        return os.path.join(_BASE, "docs", "reports", key[len("reports/") :])
     if key.startswith("data/"):
         return os.path.join(_BASE, *key.split("/"))
     return None
@@ -113,6 +113,7 @@ MANIFEST = os.path.join(_BASE, ".r2_manifest.json")
 
 def _md5(path):
     import hashlib
+
     h = hashlib.md5()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
@@ -142,8 +143,10 @@ def _manifest():
         # Refuse rather than guess: without a manifest every local file
         # looks new, and a job that never pulled would overwrite R2 with
         # whatever partial copies it happens to have.
-        sys.exit("no .r2_manifest.json — run `pull` (or `init` for a job "
-                 "that reads no data) at the start of the job")
+        sys.exit(
+            "no .r2_manifest.json — run `pull` (or `init` for a job "
+            "that reads no data) at the start of the job"
+        )
 
 
 def changed_paths():
@@ -158,8 +161,7 @@ def changed_paths():
 
 def deleted_keys():
     """Keys this runner pulled whose local file is now gone (pruned)."""
-    return [k for k in _manifest()
-            if key_to_repo(k) and not os.path.exists(key_to_repo(k))]
+    return [k for k in _manifest() if key_to_repo(k) and not os.path.exists(key_to_repo(k))]
 
 
 def delete(key):
@@ -187,15 +189,17 @@ def list_keys_local():
 def pull_public():
     """reports/*.json through the worker's public /reports/ route."""
     base = "https://api.tickerdesk.io/reports/"
-    with urllib.request.urlopen(urllib.request.Request(
-            base.rstrip("/") + "/index.json",
-            headers={"User-Agent": "Mozilla/5.0"}), timeout=60) as r:
+    with urllib.request.urlopen(
+        urllib.request.Request(
+            base.rstrip("/") + "/index.json", headers={"User-Agent": "Mozilla/5.0"}
+        ),
+        timeout=60,
+    ) as r:
         names = json.loads(r.read())
 
     def one(name):
         try:
-            req = urllib.request.Request(base + name,
-                                         headers={"User-Agent": "Mozilla/5.0"})
+            req = urllib.request.Request(base + name, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=60) as r:
                 body = r.read()
             dest = os.path.join(_BASE, "docs", "reports", name)
@@ -205,6 +209,7 @@ def pull_public():
             return name, None
         except Exception as e:
             return name, str(e)[:120]
+
     return names, _run(one, names)
 
 
@@ -229,8 +234,12 @@ def get_json(key):
 
 def put_json(key, obj):
     url = API + "/" + urllib.parse.quote(key, safe="")
-    with _req("PUT", url, data=json.dumps(obj).encode("utf-8"),
-              headers={"Content-Type": "application/json"}) as r:
+    with _req(
+        "PUT",
+        url,
+        data=json.dumps(obj).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    ) as r:
         r.read()
 
 
@@ -241,8 +250,7 @@ def put_key(path, key):
     url = API + "/" + urllib.parse.quote(key, safe="")
     for attempt in range(3):
         try:
-            with _req("PUT", url, data=body,
-                      headers={"Content-Type": _ctype(key)}) as r:
+            with _req("PUT", url, data=body, headers={"Content-Type": _ctype(key)}) as r:
                 r.read()
             return path, None
         except urllib.error.HTTPError as e:
@@ -305,11 +313,13 @@ def data_paths():
 
 
 def git_staged():
-    r = subprocess.run(["git", "diff", "--cached", "--name-only",
-                        "--diff-filter=AM"], cwd=_BASE,
-                       capture_output=True, text=True)
-    return [os.path.join(_BASE, p) for p in r.stdout.split()
-            if repo_to_key(os.path.join(_BASE, p))]
+    r = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=AM"],
+        cwd=_BASE,
+        capture_output=True,
+        text=True,
+    )
+    return [os.path.join(_BASE, p) for p in r.stdout.split() if repo_to_key(os.path.join(_BASE, p))]
 
 
 def _run(fn, items):
@@ -345,8 +355,7 @@ def main():
             dfails = _run(delete, gone)
             fails += dfails
             if gone:
-                print(f"[r2] deleted {len(gone) - len(dfails)}/{len(gone)} "
-                      "pruned objects")
+                print(f"[r2] deleted {len(gone) - len(dfails)}/{len(gone)} pruned objects")
             if not fails:
                 # This run's writes are now R2's state: a second push in
                 # the same job only sends what changed after this one.
@@ -364,13 +373,14 @@ def main():
         print(f"[r2] pulled {len(keys) - len(fails)}/{len(keys)} objects")
     elif cmd == "pull-public":
         names, fails = pull_public()
-        print(f"[r2] pulled {len(names) - len(fails)}/{len(names)} "
-              "public reports")
+        print(f"[r2] pulled {len(names) - len(fails)}/{len(names)} public reports")
     elif cmd == "verify":
         # Parity check for the migration: every local data file must be
         # byte-identical in R2 (compares MD5 of local bytes vs object).
         import hashlib
+
         paths = [p for p in data_paths() if repo_to_key(p)]
+
         def chk(path):
             key = repo_to_key(path)
             url = API + "/" + urllib.parse.quote(key, safe="")
@@ -382,9 +392,9 @@ def main():
             with open(path, "rb") as f:
                 local = hashlib.md5(f.read()).hexdigest()
             return path, None if local == remote else "content differs"
+
         fails = _run(chk, paths)
-        print(f"[r2] verified {len(paths) - len(fails)}/{len(paths)} "
-              "identical")
+        print(f"[r2] verified {len(paths) - len(fails)}/{len(paths)} identical")
     elif cmd == "list":
         for k in list_keys(prefix):
             print(k)

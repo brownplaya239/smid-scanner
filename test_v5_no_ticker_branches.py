@@ -21,19 +21,26 @@ import re
 import sys
 
 SHARED_MODULES = (
-    "report_v5_multiples.py", "report_v5_scenarios.py",
-    "report_v5_archetype.py", "report_v5_capability.py",
-    "report_v5_claims.py", "report_v5_grid.py", "report_v5.py",
-    "report_v5_run.py", "report_v5_expectations.py",
-    "report_v5_assessment.py", "report_v5_memory.py",
-    "report_v5_framework.py", "report_v5_adapters.py",
-    "report_v5_ledger.py", "report_v5_appendix.py",
+    "report_v5_multiples.py",
+    "report_v5_scenarios.py",
+    "report_v5_archetype.py",
+    "report_v5_capability.py",
+    "report_v5_claims.py",
+    "report_v5_grid.py",
+    "report_v5.py",
+    "report_v5_run.py",
+    "report_v5_expectations.py",
+    "report_v5_assessment.py",
+    "report_v5_memory.py",
+    "report_v5_framework.py",
+    "report_v5_adapters.py",
+    "report_v5_ledger.py",
+    "report_v5_appendix.py",
     "report_v5_checks.py",
 )
 
 PILOTS = ("NOW", "SG", "HOOD", "SPCX", "MRVL")
-COMPANY_NAMES = ("ServiceNow", "Sweetgreen", "Robinhood", "SpaceX",
-                 "Marvell")
+COMPANY_NAMES = ("ServiceNow", "Sweetgreen", "Robinhood", "SpaceX", "Marvell")
 
 
 def executable_strings(path):
@@ -42,14 +49,15 @@ def executable_strings(path):
     tree = ast.parse(src)
     doc_lines = set()
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Module, ast.FunctionDef,
-                             ast.AsyncFunctionDef, ast.ClassDef)):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             body = getattr(node, "body", [])
-            if body and isinstance(body[0], ast.Expr) \
-                    and isinstance(body[0].value, ast.Constant) \
-                    and isinstance(body[0].value.value, str):
-                for ln in range(body[0].lineno,
-                                body[0].end_lineno + 1):
+            if (
+                body
+                and isinstance(body[0], ast.Expr)
+                and isinstance(body[0].value, ast.Constant)
+                and isinstance(body[0].value.value, str)
+            ):
+                for ln in range(body[0].lineno, body[0].end_lineno + 1):
                     doc_lines.add(ln)
     out = []
     for node in ast.walk(tree):
@@ -75,9 +83,11 @@ def scan_module(path, mod):
     for node in ast.walk(tree):
         if isinstance(node, ast.Compare):
             for comp in node.comparators:
-                if isinstance(comp, ast.Constant) \
-                        and isinstance(comp.value, str) \
-                        and comp.value in PILOTS:
+                if (
+                    isinstance(comp, ast.Constant)
+                    and isinstance(comp.value, str)
+                    and comp.value in PILOTS
+                ):
                     branch_hits.append("%s:%d" % (mod, node.lineno))
     return hits, branch_hits
 
@@ -114,10 +124,12 @@ def main():
         if not os.path.exists(path):
             continue
         hits, branch_hits = scan_module(path, mod)
-        check("%s: no pilot identifiers in executable strings" % mod,
-              not hits, "; ".join(hits[:4]))
-        check("%s: no comparisons against pilot symbols" % mod,
-              not branch_hits, "; ".join(branch_hits))
+        check("%s: no pilot identifiers in executable strings" % mod, not hits, "; ".join(hits[:4]))
+        check(
+            "%s: no comparisons against pilot symbols" % mod,
+            not branch_hits,
+            "; ".join(branch_hits),
+        )
     print("\n%d/%d checks passed" % (PASS, PASS + len(FAIL)))
     if FAIL:
         print("FAILED: " + ", ".join(FAIL))

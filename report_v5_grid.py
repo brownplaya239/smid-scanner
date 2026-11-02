@@ -33,9 +33,11 @@ ROWS = (
 )
 
 TAGS = {
-    "revenue": ("RevenueFromContractWithCustomerExcludingAssessedTax",
-                "Revenues",
-                "RevenueFromContractWithCustomerIncludingAssessedTax"),
+    "revenue": (
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "Revenues",
+        "RevenueFromContractWithCustomerIncludingAssessedTax",
+    ),
     "gross_profit": ("GrossProfit",),
     "net_income": ("NetIncomeLoss",),
     "eps": ("EarningsPerShareDiluted",),
@@ -50,16 +52,14 @@ def _annuals(RL, cik, tags, unit="USD", adj=None, per_share=False):
     for t in tags:
         rows = RL.concept(cik, t, unit=unit)
         ev = M.annual_events(rows)
-        if ev and (not best or max(e["end"] for e in ev)
-                   > max(e["end"] for e in best)):
+        if ev and (not best or max(e["end"] for e in ev) > max(e["end"] for e in best)):
             best = ev
     if adj:
         best = M._rebase(best, adj, per_share=per_share)
     return {e["end"]: e for e in best}
 
 
-def _quarters(RL, cik, tags, unit="USD", adj=None, per_share=False,
-              with_tag=False):
+def _quarters(RL, cik, tags, unit="USD", adj=None, per_share=False, with_tag=False):
     """Quarterly events with Q4 derived AFTER split rebasing — deriving
     first mixes bases across a split (the exact ServiceNow 5:1 failure
     the multiples engine fixed). One tag's stream wins outright — the
@@ -72,8 +72,7 @@ def _quarters(RL, cik, tags, unit="USD", adj=None, per_share=False,
         if adj:
             ev = M._rebase(ev, adj, per_share=per_share)
             ann = M._rebase(ann, adj, per_share=per_share)
-        if ev and (not best or max(e["end"] for e in ev)
-                   > max(e["end"] for e in best)):
+        if ev and (not best or max(e["end"] for e in ev) > max(e["end"] for e in best)):
             best = sorted(ev + M.derive_q4(ev, ann), key=lambda x: x["end"])
             best_tag = t
     return (best, best_tag) if with_tag else best
@@ -85,12 +84,18 @@ def _ytd_quarters(RL, cik, tags, unit="USD"):
     (Q1 = its own YTD). As-first-reported, available the day after the
     later filing."""
     from datetime import timedelta
+
     best = []
     for t in tags:
         rows = RL.concept(cik, t, unit=unit)
         seen = {}
         for r in rows:
-            if r.get("form") not in ("10-Q", "10-K")                     or r.get("val") is None                     or not r.get("start") or not r.get("end"):
+            if (
+                r.get("form") not in ("10-Q", "10-K")
+                or r.get("val") is None
+                or not r.get("start")
+                or not r.get("end")
+            ):
                 continue
             key = (str(r["start"]), str(r["end"]))
             filed = M._dt(r.get("filed"))
@@ -109,13 +114,16 @@ def _ytd_quarters(RL, cik, tags, unit="USD"):
                 if dur > 380:
                     continue
                 avail = max(filed, prev_filed) if prev_filed else filed
-                ev.append({"end": en, "val": val - prev_val,
-                           "available_from": (avail + timedelta(days=1)
-                                              ).isoformat(),
-                           "accn": "YTD-DIFF"})
+                ev.append(
+                    {
+                        "end": en,
+                        "val": val - prev_val,
+                        "available_from": (avail + timedelta(days=1)).isoformat(),
+                        "accn": "YTD-DIFF",
+                    }
+                )
                 prev_val, prev_filed = val, filed
-        if ev and (not best or max(e["end"] for e in ev)
-                   > max(e["end"] for e in best)):
+        if ev and (not best or max(e["end"] for e in ev) > max(e["end"] for e in best)):
             best = sorted(ev, key=lambda x: x["end"])
     return best
 
@@ -126,8 +134,14 @@ def _ttm_cell(events, today=None, concept=None):
     Returns {"value","through","ok","reasons","quarters","concept"};
     a failing cell keeps its reasons so the footnote can state exactly
     why that metric's TTM is suppressed."""
-    rec = {"value": None, "through": None, "ok": False,
-           "reasons": [], "quarters": [], "concept": concept}
+    rec = {
+        "value": None,
+        "through": None,
+        "ok": False,
+        "reasons": [],
+        "quarters": [],
+        "concept": concept,
+    }
     if not events:
         rec["reasons"].append("no quarterly events for this concept")
         return rec
@@ -137,34 +151,32 @@ def _ttm_cell(events, today=None, concept=None):
     ends = sorted(by_end)
     rec["through"] = ends[-1]
     if len(ends) < 4:
-        rec["reasons"].append("only %d distinct filed quarter end(s)"
-                              % len(ends))
+        rec["reasons"].append("only %d distinct filed quarter end(s)" % len(ends))
         return rec
     last4 = ends[-4:]
     rec["quarters"] = last4
     rec["through"] = last4[-1]
     if (M._dt(last4[-1]) - M._dt(last4[0])).days > M.MAX_TTM_SPAN:
-        rec["reasons"].append("the last four quarter ends span %d days "
-                              "— not one trailing year"
-                              % (M._dt(last4[-1])
-                                 - M._dt(last4[0])).days)
+        rec["reasons"].append(
+            "the last four quarter ends span %d days "
+            "— not one trailing year" % (M._dt(last4[-1]) - M._dt(last4[0])).days
+        )
         return rec
-    gaps = [(M._dt(b) - M._dt(a)).days
-            for a, b in zip(last4, last4[1:])]
-    if not all(M.QTR_GAP_DAYS[0] <= g <= M.QTR_GAP_DAYS[1]
-               for g in gaps):
-        rec["reasons"].append("quarter ends are not contiguous "
-                              "(gaps %s days)" % gaps)
+    gaps = [(M._dt(b) - M._dt(a)).days for a, b in zip(last4, last4[1:])]
+    if not all(M.QTR_GAP_DAYS[0] <= g <= M.QTR_GAP_DAYS[1] for g in gaps):
+        rec["reasons"].append("quarter ends are not contiguous (gaps %s days)" % gaps)
         return rec
     if today is None:
         from datetime import date
+
         today = date.today()
     age = (today - M._dt(last4[-1])).days
     if age > M.TTM_MAX_END_AGE:
-        rec["reasons"].append("newest quarter end %s is %d days old "
-                              "(limit %d) — not a current trailing "
-                              "year" % (last4[-1], age,
-                                        M.TTM_MAX_END_AGE))
+        rec["reasons"].append(
+            "newest quarter end %s is %d days old "
+            "(limit %d) — not a current trailing "
+            "year" % (last4[-1], age, M.TTM_MAX_END_AGE)
+        )
         return rec
     rec["ok"] = True
     rec["value"] = sum(by_end[e]["val"] for e in last4)
@@ -185,10 +197,13 @@ def build(ticker, revenue_tags=None):
     generic defaults — concept selection stays freshest-coverage-wins,
     never mixed."""
     import research_live as RL
+
     rev_tags = tuple(revenue_tags or ()) + tuple(
-        t for t in TAGS["revenue"] if t not in (revenue_tags or ()))
+        t for t in TAGS["revenue"] if t not in (revenue_tags or ())
+    )
     try:
         import polygon_data as PG
+
         adj = M.split_adjuster(PG.splits(ticker))
     except Exception:
         adj = M.split_adjuster([])
@@ -197,8 +212,7 @@ def build(ticker, revenue_tags=None):
     rev = _annuals(RL, cik, rev_tags)
     gp = _annuals(RL, cik, TAGS["gross_profit"])
     ni = _annuals(RL, cik, TAGS["net_income"])
-    eps = _annuals(RL, cik, TAGS["eps"], unit="USD/shares", adj=adj,
-                   per_share=True)
+    eps = _annuals(RL, cik, TAGS["eps"], unit="USD/shares", adj=adj, per_share=True)
     ocf = _annuals(RL, cik, TAGS["ocf"])
     capex = _annuals(RL, cik, TAGS["capex"])
 
@@ -206,9 +220,11 @@ def build(ticker, revenue_tags=None):
     gaps = []
     if 0 < len(rev) < MAX_YEARS:
         first = min(rev)
-        gaps.append("filed annual history begins with the fiscal year "
-                    "ended %s — earlier periods were not comparably "
-                    "filed and are not shown" % first)
+        gaps.append(
+            "filed annual history begins with the fiscal year "
+            "ended %s — earlier periods were not comparably "
+            "filed and are not shown" % first
+        )
 
     prev_rev = {}
     all_years = sorted(rev)
@@ -219,20 +235,19 @@ def build(ticker, revenue_tags=None):
     columns = {}
     for y in years:
         r = rev[y]["val"]
-        col = {"revenue": r,
-               "revenue_growth": (100.0 * (r / prev_rev[y] - 1)
-                                  if y in prev_rev and prev_rev[y]
-                                  else None),
-               "gross_margin": (100.0 * gp[y]["val"] / r
-                                if y in gp and r else None),
-               "net_income": ni[y]["val"] if y in ni else None,
-               "net_margin": (100.0 * ni[y]["val"] / r
-                              if y in ni and r else None),
-               "eps": eps[y]["val"] if y in eps else None,
-               "ocf": ocf[y]["val"] if y in ocf else None,
-               "fcf": (ocf[y]["val"] - capex[y]["val"]
-                       if y in ocf and y in capex else None),
-               "accn": rev[y].get("accn")}
+        col = {
+            "revenue": r,
+            "revenue_growth": (
+                100.0 * (r / prev_rev[y] - 1) if y in prev_rev and prev_rev[y] else None
+            ),
+            "gross_margin": (100.0 * gp[y]["val"] / r if y in gp and r else None),
+            "net_income": ni[y]["val"] if y in ni else None,
+            "net_margin": (100.0 * ni[y]["val"] / r if y in ni and r else None),
+            "eps": eps[y]["val"] if y in eps else None,
+            "ocf": ocf[y]["val"] if y in ocf else None,
+            "fcf": (ocf[y]["val"] - capex[y]["val"] if y in ocf and y in capex else None),
+            "accn": rev[y].get("accn"),
+        }
         columns[y] = col
 
     # §3 (v5.8): every displayed TTM cell validated INDEPENDENTLY —
@@ -244,14 +259,13 @@ def build(ticker, revenue_tags=None):
     q_ni = _quarters(RL, cik, TAGS["net_income"])
     q_ocf = _ytd_quarters(RL, cik, TAGS["ocf"])
     q_capex = _ytd_quarters(RL, cik, TAGS["capex"])
-    q_eps = _quarters(RL, cik, TAGS["eps"], unit="USD/shares", adj=adj,
-                      per_share=True)
+    q_eps = _quarters(RL, cik, TAGS["eps"], unit="USD/shares", adj=adj, per_share=True)
     from datetime import date as _date
+
     _today = _date.today()
     cells = {
         "revenue": _ttm_cell(q_rev, _today, concept=rev_tag),
-        "net_income": _ttm_cell(q_ni, _today,
-                                concept=TAGS["net_income"][0]),
+        "net_income": _ttm_cell(q_ni, _today, concept=TAGS["net_income"][0]),
         "eps": _ttm_cell(q_eps, _today, concept=TAGS["eps"][0]),
         "ocf": _ttm_cell(q_ocf, _today, concept=TAGS["ocf"][0]),
         "capex": _ttm_cell(q_capex, _today, concept=TAGS["capex"][0]),
@@ -263,10 +277,11 @@ def build(ticker, revenue_tags=None):
     for name, c in cells.items():
         if c["ok"] and c["through"] != column_through:
             c["ok"] = False
-            c["reasons"].append("trailing year ends %s — not the TTM "
-                                "column date %s; mixed endpoints are "
-                                "never shown in one unlabeled column"
-                                % (c["through"], column_through))
+            c["reasons"].append(
+                "trailing year ends %s — not the TTM "
+                "column date %s; mixed endpoints are "
+                "never shown in one unlabeled column" % (c["through"], column_through)
+            )
             c["value"] = None
 
     def _cv(name):
@@ -274,62 +289,80 @@ def build(ticker, revenue_tags=None):
 
     t_rev, t_ni = _cv("revenue"), _cv("net_income")
     t_ocf, t_capex = _cv("ocf"), _cv("capex")
-    _HUMAN = {"revenue": "revenue", "net_income": "net income",
-              "eps": "diluted EPS", "ocf": "operating cash flow",
-              "capex": "capital expenditure"}
-    suppressed = [{"metric": n, "label": _HUMAN.get(n, n),
-                   "reasons": list(c["reasons"])}
-                  for n, c in cells.items()
-                  if not c["ok"] and (q_rev if n == "revenue" else
-                                      {"net_income": q_ni, "eps": q_eps,
-                                       "ocf": q_ocf, "capex": q_capex
-                                       }.get(n))]
+    _HUMAN = {
+        "revenue": "revenue",
+        "net_income": "net income",
+        "eps": "diluted EPS",
+        "ocf": "operating cash flow",
+        "capex": "capital expenditure",
+    }
+    suppressed = [
+        {"metric": n, "label": _HUMAN.get(n, n), "reasons": list(c["reasons"])}
+        for n, c in cells.items()
+        if not c["ok"]
+        and (
+            q_rev
+            if n == "revenue"
+            else {"net_income": q_ni, "eps": q_eps, "ocf": q_ocf, "capex": q_capex}.get(n)
+        )
+    ]
     if suppressed:
-        gaps.append("TTM suppressed for %s: %s"
-                    % (", ".join(s["label"] for s in suppressed),
-                       "; ".join("%s — %s"
-                                 % (s["label"],
-                                    "; ".join(s["reasons"][:1]))
-                                 for s in suppressed)))
-    integrity = M.ttm_integrity(q_rev, _today) if q_rev else \
-        {"ok": False, "reasons": ["no quarterly revenue events"]}
-    ttm = {"revenue": t_rev,
-           "revenue_growth": None,
-           "gross_margin": None,
-           "net_income": t_ni,
-           # derived rows only from cells sharing the column endpoint
-           "net_margin": (100.0 * t_ni / t_rev
-                          if t_ni is not None and t_rev else None),
-           "eps": _cv("eps"),
-           "ocf": t_ocf,
-           "fcf": (t_ocf - t_capex
-                   if t_ocf is not None and t_capex is not None else None),
-           # the displayed through-date IS the common endpoint of the
-           # populated cells — never a stale stream's max end
-           "through": column_through,
-           "cells": cells,
-           "suppressed": suppressed,
-           "revenue_concept": rev_tag,
-           # §2 review fix: the SECTOR DASHBOARD consumes this — the
-           # latest validated quarter of the adapter-aware revenue
-           # stream, period-qualified, so the visible dashboard can
-           # never show a stale generic-tag quarter while the grid
-           # validates a different, current stream
-           "latest_quarter": (
-               {"value": q_rev[-1]["val"], "end": q_rev[-1]["end"],
-                "concept": rev_tag}
-               if q_rev and (_today - M._dt(q_rev[-1]["end"])).days
-               <= M.TTM_MAX_END_AGE else None),
-           "integrity": integrity}
+        gaps.append(
+            "TTM suppressed for %s: %s"
+            % (
+                ", ".join(s["label"] for s in suppressed),
+                "; ".join(
+                    "%s — %s" % (s["label"], "; ".join(s["reasons"][:1])) for s in suppressed
+                ),
+            )
+        )
+    integrity = (
+        M.ttm_integrity(q_rev, _today)
+        if q_rev
+        else {"ok": False, "reasons": ["no quarterly revenue events"]}
+    )
+    ttm = {
+        "revenue": t_rev,
+        "revenue_growth": None,
+        "gross_margin": None,
+        "net_income": t_ni,
+        # derived rows only from cells sharing the column endpoint
+        "net_margin": (100.0 * t_ni / t_rev if t_ni is not None and t_rev else None),
+        "eps": _cv("eps"),
+        "ocf": t_ocf,
+        "fcf": (t_ocf - t_capex if t_ocf is not None and t_capex is not None else None),
+        # the displayed through-date IS the common endpoint of the
+        # populated cells — never a stale stream's max end
+        "through": column_through,
+        "cells": cells,
+        "suppressed": suppressed,
+        "revenue_concept": rev_tag,
+        # §2 review fix: the SECTOR DASHBOARD consumes this — the
+        # latest validated quarter of the adapter-aware revenue
+        # stream, period-qualified, so the visible dashboard can
+        # never show a stale generic-tag quarter while the grid
+        # validates a different, current stream
+        "latest_quarter": (
+            {"value": q_rev[-1]["val"], "end": q_rev[-1]["end"], "concept": rev_tag}
+            if q_rev and (_today - M._dt(q_rev[-1]["end"])).days <= M.TTM_MAX_END_AGE
+            else None
+        ),
+        "integrity": integrity,
+    }
 
-    return {"ticker": ticker.upper(),
-            "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "rows": ROWS, "years": years, "columns": columns, "ttm": ttm,
-            "gaps": gaps,
-            "basis": "annual 10-K facts as first reported (per-share "
-                     "rows rebased to the current share basis); TTM from "
-                     "the last four filed quarters; derived rows carry "
-                     "their formula"}
+    return {
+        "ticker": ticker.upper(),
+        "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "rows": ROWS,
+        "years": years,
+        "columns": columns,
+        "ttm": ttm,
+        "gaps": gaps,
+        "basis": "annual 10-K facts as first reported (per-share "
+        "rows rebased to the current share basis); TTM from "
+        "the last four filed quarters; derived rows carry "
+        "their formula",
+    }
 
 
 # ── v5.8 review fix: current balance-sheet instants ──────────────────
@@ -348,15 +381,13 @@ def build(ticker, revenue_tags=None):
 #                    finding: an issuer whose long-term tag stood
 #                    alone (ServiceNow: LongTermDebt $5.4B) was
 #                    missing its live $2.1B short-term borrowings.
-INSTANT_DEBT_LT_COMPONENTS = ("LongTermDebtNoncurrent",
-                              "LongTermDebtCurrent")
-INSTANT_DEBT_LT_SINGLE = ("LongTermDebt", "NotesPayable",
-                          "DebtLongtermAndShorttermCombinedAmount")
-INSTANT_DEBT_ST = ("DebtCurrent", "ShortTermBorrowings",
-                   "CommercialPaper")
-INSTANT_CASH_TAGS = ("CashAndCashEquivalentsAtCarryingValue",
-                     "CashCashEquivalentsRestrictedCashAndRestricted"
-                     "CashEquivalents")
+INSTANT_DEBT_LT_COMPONENTS = ("LongTermDebtNoncurrent", "LongTermDebtCurrent")
+INSTANT_DEBT_LT_SINGLE = ("LongTermDebt", "NotesPayable", "DebtLongtermAndShorttermCombinedAmount")
+INSTANT_DEBT_ST = ("DebtCurrent", "ShortTermBorrowings", "CommercialPaper")
+INSTANT_CASH_TAGS = (
+    "CashAndCashEquivalentsAtCarryingValue",
+    "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+)
 
 
 def _instants(RL, cik, tag):
@@ -380,6 +411,7 @@ def fresh_instant(ticker, kind):
     (noncurrent + current) at one common date; single-tag concepts are
     the fallback. Universal: concept candidates only, never tickers."""
     import research_live as RL
+
     cik = RL.cik_for_filed(ticker)[0]
     best = None
     if kind == "cash":
@@ -388,10 +420,13 @@ def fresh_instant(ticker, kind):
             if not s:
                 continue
             end = max(s)
-            cand = {"end": end, "value": s[end][0], "concepts": [tag],
-                    "refs": ["XBRL-%s-us-gaap:%s-%s"
-                             % (s[end][1] or "na", tag, end)],
-                    "basis": "us-gaap:%s" % tag}
+            cand = {
+                "end": end,
+                "value": s[end][0],
+                "concepts": [tag],
+                "refs": ["XBRL-%s-us-gaap:%s-%s" % (s[end][1] or "na", tag, end)],
+                "basis": "us-gaap:%s" % tag,
+            }
             if best is None or cand["end"] > best["end"]:
                 best = cand
     else:
@@ -431,26 +466,25 @@ def fresh_instant(ticker, kind):
                 "end": end,
                 "value": sum(p[1][0] for p in parts),
                 "concepts": [p[0] for p in parts],
-                "refs": ["XBRL-%s-us-gaap:%s-%s"
-                         % (p[1][1] or "na", p[0], end)
-                         for p in parts],
-                "basis": " + ".join("us-gaap:%s" % p[0]
-                                    for p in parts)
-                + (" (same reporting date)" if len(parts) > 1
-                   else ""),
+                "refs": ["XBRL-%s-us-gaap:%s-%s" % (p[1][1] or "na", p[0], end) for p in parts],
+                "basis": " + ".join("us-gaap:%s" % p[0] for p in parts)
+                + (" (same reporting date)" if len(parts) > 1 else ""),
             }
     if best is None:
         return None
     from datetime import datetime as _dtm, timezone as _tz
-    return {"v": best["value"], "unit": "USD",
-            "period_end": best["end"],
-            "source": "SEC XBRL companyconcept (as first reported)",
-            "evidence_refs": best["refs"],
-            "basis": best["basis"],
-            "calc_version": "v5.8-instants/1",
-            "quality": "verified",
-            "retrieved_at": _dtm.now(_tz.utc).isoformat(
-                timespec="seconds")}
+
+    return {
+        "v": best["value"],
+        "unit": "USD",
+        "period_end": best["end"],
+        "source": "SEC XBRL companyconcept (as first reported)",
+        "evidence_refs": best["refs"],
+        "basis": best["basis"],
+        "calc_version": "v5.8-instants/1",
+        "quality": "verified",
+        "retrieved_at": _dtm.now(_tz.utc).isoformat(timespec="seconds"),
+    }
 
 
 def refresh_balance_instants(snap, ticker, max_age_days=400):
@@ -460,6 +494,7 @@ def refresh_balance_instants(snap, ticker, max_age_days=400):
     untouched when already current."""
     import report_v5_checks as CK
     from datetime import date, timedelta
+
     fu = snap.setdefault("fundamentals", {})
     floor = (date.today() - timedelta(days=max_age_days)).isoformat()
     changed = {}
@@ -472,10 +507,7 @@ def refresh_balance_instants(snap, ticker, max_age_days=400):
             fresh = fresh_instant(ticker, key)
         except Exception:
             fresh = None
-        if fresh and (cur_end is None
-                      or fresh["period_end"] > cur_end):
+        if fresh and (cur_end is None or fresh["period_end"] > cur_end):
             fu[key] = fresh
-            changed[key] = {"was": cur_end,
-                            "now": fresh["period_end"],
-                            "basis": fresh["basis"]}
+            changed[key] = {"was": cur_end, "now": fresh["period_end"], "basis": fresh["basis"]}
     return changed

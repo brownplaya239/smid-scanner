@@ -32,7 +32,7 @@ Open `scanner.py` and set these three values at the top:
 ```python
 ANTHROPIC_API_KEY = "sk-ant-YOUR_KEY_HERE"
 TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
-TELEGRAM_CHAT_ID   = "YOUR_CHAT_ID_HERE"
+TELEGRAM_CHAT_ID = "YOUR_CHAT_ID_HERE"
 ```
 
 ---

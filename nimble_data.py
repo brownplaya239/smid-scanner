@@ -23,6 +23,7 @@ from email.utils import parsedate_to_datetime
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(override=True)
 except Exception:
     pass
@@ -34,10 +35,12 @@ def _nimble_key():
     """Read the key fresh each call — avoids import-order vs load_dotenv() bugs."""
     return os.environ.get("NIMBLE_API_KEY", "")
 
+
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
 
 # ─── Nimble /extract ──────────────────────────────────────────────────────────
+
 
 def nimble_extract(url, country="US", retries=2, fmt="markdown"):
     """Fetch a URL via Nimble's residential-proxy extractor.
@@ -52,8 +55,7 @@ def nimble_extract(url, country="US", retries=2, fmt="markdown"):
         try:
             r = requests.post(
                 NIMBLE_EXTRACT,
-                headers={"Authorization": f"Bearer {key}",
-                         "Content-Type": "application/json"},
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
                 json={"url": url, "formats": [fmt], "country": country},
                 timeout=90,
             )
@@ -78,6 +80,7 @@ def _unescape_markdown_json(md):
 
 # ─── News flow — Google News RSS ──────────────────────────────────────────────
 
+
 def fetch_news(ticker, company="", max_items=12, max_age_days=45):
     """Recent news headlines for a ticker via Google News RSS.
 
@@ -85,8 +88,7 @@ def fetch_news(ticker, company="", max_items=12, max_age_days=45):
     story presented as current news misleads the read. Items are date-sorted
     newest-first so the freshest catalysts surface."""
     q = f"{ticker} {company} stock".strip()
-    url = (f"https://news.google.com/rss/search?q={quote(q)}"
-           f"&hl=en-US&gl=US&ceid=US:en")
+    url = f"https://news.google.com/rss/search?q={quote(q)}&hl=en-US&gl=US&ceid=US:en"
     items = []
     cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
     try:
@@ -95,8 +97,8 @@ def fetch_news(ticker, company="", max_items=12, max_age_days=45):
             root = ET.fromstring(r.content)
             for it in root.iter("item"):
                 title = (it.findtext("title") or "").strip()
-                link  = (it.findtext("link") or "").strip()
-                pub   = (it.findtext("pubDate") or "").strip()
+                link = (it.findtext("link") or "").strip()
+                pub = (it.findtext("pubDate") or "").strip()
                 src_el = it.find("{*}source")
                 src = src_el.text.strip() if src_el is not None and src_el.text else ""
                 if not title:
@@ -112,19 +114,20 @@ def fetch_news(ticker, company="", max_items=12, max_age_days=45):
                             continue
                     except Exception:
                         pub_dt = None
-                items.append({"title": title, "link": link, "date": pub,
-                              "source": src, "_ts": pub_dt})
+                items.append(
+                    {"title": title, "link": link, "date": pub, "source": src, "_ts": pub_dt}
+                )
     except Exception as e:
         print(f"  news fetch failed: {e}")
     # newest-first; undated items sort last
-    items.sort(key=lambda n: n["_ts"] or datetime.min.replace(tzinfo=timezone.utc),
-               reverse=True)
+    items.sort(key=lambda n: n["_ts"] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     for n in items:
         n.pop("_ts", None)
     return items[:max_items]
 
 
 # ─── Social sentiment — StockTwits + Reddit ───────────────────────────────────
+
 
 def _account_quality(user):
     """Heuristic credibility for a StockTwits account — pump-and-dump rings run
@@ -137,14 +140,13 @@ def _account_quality(user):
       official   : verified company/brand account
     """
     followers = user.get("followers", 0) or 0
-    ideas     = user.get("ideas", 0) or 0
-    official  = bool(user.get("official"))
-    join      = (user.get("join_date", "") or "")[:10]
-    age_days  = None
+    ideas = user.get("ideas", 0) or 0
+    official = bool(user.get("official"))
+    join = (user.get("join_date", "") or "")[:10]
+    age_days = None
     if join:
         try:
-            age_days = (datetime.utcnow().date()
-                        - datetime.strptime(join, "%Y-%m-%d").date()).days
+            age_days = (datetime.utcnow().date() - datetime.strptime(join, "%Y-%m-%d").date()).days
         except Exception:
             pass
     # established / real account — keep at full weight
@@ -171,9 +173,18 @@ def fetch_stocktwits(ticker, max_msgs=30):
     zero-follower, zero-history) are dropped from the sample and the bull/bear
     tally so they don't poison the sentiment read. The share of dropped junk is
     returned as `bot_ratio` — a high ratio is itself a manipulation signal."""
-    out = {"messages": [], "bull": 0, "bear": 0, "tagged": 0, "total": 0,
-           "watchers": 0, "available": False,
-           "junk_filtered": 0, "bot_ratio": 0.0, "low_cred": 0}
+    out = {
+        "messages": [],
+        "bull": 0,
+        "bear": 0,
+        "tagged": 0,
+        "total": 0,
+        "watchers": 0,
+        "available": False,
+        "junk_filtered": 0,
+        "bot_ratio": 0.0,
+        "low_cred": 0,
+    }
     api_url = f"https://api.stocktwits.com/api/2/streams/symbol/{ticker}.json"
 
     # Primary: Nimble /extract with fmt='html' returns the raw JSON body verbatim.
@@ -196,7 +207,7 @@ def fetch_stocktwits(ticker, max_msgs=30):
         return out
 
     out["available"] = True
-    out["watchers"]  = data.get("symbol", {}).get("watchlist_count", 0)
+    out["watchers"] = data.get("symbol", {}).get("watchlist_count", 0)
     seen_total = 0
     for m in data.get("messages", []):
         if len(out["messages"]) >= max_msgs:
@@ -206,21 +217,27 @@ def fetch_stocktwits(ticker, max_msgs=30):
         quality = _account_quality(user)
         if quality == "junk":
             out["junk_filtered"] += 1
-            continue                      # drop bot/pump account entirely
+            continue  # drop bot/pump account entirely
         if quality == "low":
             out["low_cred"] += 1
-        ent  = (m.get("entities") or {}).get("sentiment") or {}
+        ent = (m.get("entities") or {}).get("sentiment") or {}
         sent = ent.get("basic", "") or ""
-        if sent == "Bullish":   out["bull"] += 1; out["tagged"] += 1
-        elif sent == "Bearish": out["bear"] += 1; out["tagged"] += 1
-        out["messages"].append({
-            "body":      (m.get("body", "") or "")[:240],
-            "sentiment": sent,
-            "created":   m.get("created_at", ""),
-            "user":      user.get("username", ""),
-            "followers": user.get("followers", 0) or 0,
-            "quality":   quality,
-        })
+        if sent == "Bullish":
+            out["bull"] += 1
+            out["tagged"] += 1
+        elif sent == "Bearish":
+            out["bear"] += 1
+            out["tagged"] += 1
+        out["messages"].append(
+            {
+                "body": (m.get("body", "") or "")[:240],
+                "sentiment": sent,
+                "created": m.get("created_at", ""),
+                "user": user.get("username", ""),
+                "followers": user.get("followers", 0) or 0,
+                "quality": quality,
+            }
+        )
     out["total"] = len(out["messages"])
     scanned = seen_total or 1
     out["bot_ratio"] = round(out["junk_filtered"] / scanned, 2)
@@ -231,14 +248,12 @@ def fetch_reddit(ticker, max_items=10):
     """Recent Reddit mentions. Routes through Nimble /extract (Reddit blocks
     datacenter IPs — direct fetch fails from CI); direct request is fallback."""
     items = []
-    url = (f"https://www.reddit.com/search.json?q=%24{ticker}"
-           f"&sort=new&limit={max_items * 3}&t=month")
+    url = f"https://www.reddit.com/search.json?q=%24{ticker}&sort=new&limit={max_items * 3}&t=month"
 
     raw = nimble_extract(url, fmt="html").strip()
     if not raw or not raw.startswith("{"):
         try:
-            r = requests.get(url, headers={"User-Agent": "smid-scanner/1.0 alt-data"},
-                             timeout=25)
+            r = requests.get(url, headers={"User-Agent": "smid-scanner/1.0 alt-data"}, timeout=25)
             if r.ok:
                 raw = r.text
         except Exception as e:
@@ -254,19 +269,25 @@ def fetch_reddit(ticker, max_items=10):
     for c in data.get("data", {}).get("children", []):
         d = c.get("data", {})
         title = (d.get("title", "") or "").strip()
-        low   = title.lower()
+        low = title.lower()
         # skip obvious self-promo / spam
-        if not title or low.startswith(("start for free", "free ", "join ")) \
-           or "promo" in low or ".io" in low[:25]:
+        if (
+            not title
+            or low.startswith(("start for free", "free ", "join "))
+            or "promo" in low
+            or ".io" in low[:25]
+        ):
             continue
-        items.append({
-            "title":     title[:200],
-            "subreddit": d.get("subreddit", ""),
-            "score":     d.get("score", 0),
-            "comments":  d.get("num_comments", 0),
-            "created":   d.get("created_utc", 0),
-            "url":       "https://reddit.com" + d.get("permalink", ""),
-        })
+        items.append(
+            {
+                "title": title[:200],
+                "subreddit": d.get("subreddit", ""),
+                "score": d.get("score", 0),
+                "comments": d.get("num_comments", 0),
+                "created": d.get("created_utc", 0),
+                "url": "https://reddit.com" + d.get("permalink", ""),
+            }
+        )
         if len(items) >= max_items:
             break
     return items
@@ -274,38 +295,48 @@ def fetch_reddit(ticker, max_items=10):
 
 # ─── Price context — for sentiment-vs-tape divergence ─────────────────────────
 
+
 def fetch_price_context(ticker):
     """Price action + analyst consensus — used to flag whether the chatter
     CONFIRMS or DIVERGES from the actual tape. Price/volume come from Polygon
     (reliable from CI), with a yfinance fallback; analyst consensus stays on
     yfinance (Polygon has no analyst-rating feed on this tier)."""
-    out = {"price": 0.0, "chg_1w": 0.0, "chg_1m": 0.0, "vol_ratio": 0.0,
-           "analyst_rating": "", "target_price": 0.0, "num_analysts": 0,
-           "price_available": False}
+    out = {
+        "price": 0.0,
+        "chg_1w": 0.0,
+        "chg_1m": 0.0,
+        "vol_ratio": 0.0,
+        "analyst_rating": "",
+        "target_price": 0.0,
+        "num_analysts": 0,
+        "price_available": False,
+    }
 
     closes, vols = None, None
-    try:                                       # Polygon primary
+    try:  # Polygon primary
         import polygon_data as pg
+
         if pg.available():
             bars = pg.daily_bars(ticker, days=60)
             if bars and len(bars) >= 6:
                 closes = [b.get("c", 0) for b in bars]
-                vols   = [b.get("v", 0) for b in bars]
+                vols = [b.get("v", 0) for b in bars]
     except Exception:
         pass
-    if closes is None:                         # yfinance fallback
+    if closes is None:  # yfinance fallback
         try:
             import yfinance as yf
+
             h = yf.Ticker(ticker).history(period="3mo", interval="1d")
             if h is not None and not h.empty and len(h) >= 6:
                 closes = [float(x) for x in h["Close"]]
-                vols   = [float(x) for x in h["Volume"]]
+                vols = [float(x) for x in h["Volume"]]
         except Exception as e:
             print(f"  price context failed: {e}")
 
     if closes and len(closes) >= 6:
         price = float(closes[-1])
-        out["price"]  = round(price, 2)
+        out["price"] = round(price, 2)
         if closes[-6]:
             out["chg_1w"] = round((price / closes[-6] - 1) * 100, 1)
         if len(closes) >= 22 and closes[-22]:
@@ -316,12 +347,13 @@ def fetch_price_context(ticker):
                 out["vol_ratio"] = round(vols[-1] / avgv, 2)
         out["price_available"] = True
 
-    try:                                       # analyst consensus — yfinance
+    try:  # analyst consensus — yfinance
         import yfinance as yf
+
         info = yf.Ticker(ticker).info
         out["analyst_rating"] = info.get("recommendationKey", "") or ""
-        out["target_price"]   = round(info.get("targetMeanPrice", 0) or 0, 2)
-        out["num_analysts"]   = info.get("numberOfAnalystOpinions", 0) or 0
+        out["target_price"] = round(info.get("targetMeanPrice", 0) or 0, 2)
+        out["num_analysts"] = info.get("numberOfAnalystOpinions", 0) or 0
     except Exception:
         pass
     return out
@@ -341,6 +373,7 @@ def _dedup_news(items):
 
 # ─── Web / SERP context — Nimble /extract ─────────────────────────────────────
 
+
 def fetch_web_context(ticker, company="", max_chars=6000):
     """Web/SERP surface via Nimble /extract on Bing News for the ticker.
     Markdown is noisy (nav chrome) but Claude pulls the real headlines from it.
@@ -352,6 +385,7 @@ def fetch_web_context(ticker, company="", max_chars=6000):
 
 
 # ─── Aggregate ────────────────────────────────────────────────────────────────
+
 
 def gather_alt_data(ticker, company=""):
     """Run every signal for a ticker. Each source is independent — a failure
@@ -366,47 +400,51 @@ def gather_alt_data(ticker, company=""):
             print(f"  {fn} failed: {e}")
             return default
 
-    news   = _dedup_news(_safe_call(lambda: fetch_news(ticker, company), []))
-    social = _safe_call(lambda: fetch_stocktwits(ticker),
-                        {"messages": [], "bull": 0, "bear": 0, "total": 0,
-                         "watchers": 0, "available": False})
+    news = _dedup_news(_safe_call(lambda: fetch_news(ticker, company), []))
+    social = _safe_call(
+        lambda: fetch_stocktwits(ticker),
+        {"messages": [], "bull": 0, "bear": 0, "total": 0, "watchers": 0, "available": False},
+    )
     reddit = _safe_call(lambda: fetch_reddit(ticker), [])
-    web    = _safe_call(lambda: fetch_web_context(ticker, company), "")
-    price  = _safe_call(lambda: fetch_price_context(ticker),
-                        {"price_available": False})
+    web = _safe_call(lambda: fetch_web_context(ticker, company), "")
+    price = _safe_call(lambda: fetch_price_context(ticker), {"price_available": False})
 
     attention = len(news) + social.get("total", 0) + len(reddit)
-    coverage  = {
-        "news":   bool(news),
+    coverage = {
+        "news": bool(news),
         "social": social.get("available", False) and social.get("total", 0) > 0,
         "reddit": bool(reddit),
-        "web":    bool(web),
-        "price":  price.get("price_available", False),
+        "web": bool(web),
+        "price": price.get("price_available", False),
     }
-    print(f"    news={len(news)}  stocktwits={social.get('total',0)} "
-          f"(bull {social.get('bull',0)}/bear {social.get('bear',0)}; "
-          f"junk-filtered {social.get('junk_filtered',0)}, "
-          f"bot-ratio {social.get('bot_ratio',0)})  "
-          f"reddit={len(reddit)}  web_ctx={'yes' if web else 'no'}  "
-          f"price={'yes' if coverage['price'] else 'no'}")
+    print(
+        f"    news={len(news)}  stocktwits={social.get('total', 0)} "
+        f"(bull {social.get('bull', 0)}/bear {social.get('bear', 0)}; "
+        f"junk-filtered {social.get('junk_filtered', 0)}, "
+        f"bot-ratio {social.get('bot_ratio', 0)})  "
+        f"reddit={len(reddit)}  web_ctx={'yes' if web else 'no'}  "
+        f"price={'yes' if coverage['price'] else 'no'}"
+    )
 
     return {
-        "ticker":    ticker,
-        "news":      news,
-        "social":    social,
-        "reddit":    reddit,
-        "web":       web,
-        "price":     price,
+        "ticker": ticker,
+        "news": news,
+        "social": social,
+        "reddit": reddit,
+        "web": web,
+        "price": price,
         "attention": attention,
-        "coverage":  coverage,
+        "coverage": coverage,
     }
 
 
 if __name__ == "__main__":
     import sys
+
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     from dotenv import load_dotenv
+
     load_dotenv()
     tk = sys.argv[1] if len(sys.argv) > 1 else "NVDA"
     d = gather_alt_data(tk, "Nvidia")
@@ -416,11 +454,15 @@ if __name__ == "__main__":
     for n in d["news"][:5]:
         print(f"  - {_a(n['title'])[:80]}  [{_a(n['source'])}]")
     s = d["social"]
-    print(f"StockTwits: {s['total']} msgs, {s['bull']} bull / {s['bear']} bear, "
-          f"{s.get('watchers',0):,} watchers")
+    print(
+        f"StockTwits: {s['total']} msgs, {s['bull']} bull / {s['bear']} bear, "
+        f"{s.get('watchers', 0):,} watchers"
+    )
     for m in s["messages"][:3]:
         print(f"  [{m['sentiment'] or '-'}] {_a(m['body'])[:80]}")
     print(f"Reddit ({len(d['reddit'])}):")
     for rd in d["reddit"][:3]:
-        print(f"  - r/{_a(rd['subreddit'])} ({rd['score']}u/{rd['comments']}c) {_a(rd['title'])[:60]}")
+        print(
+            f"  - r/{_a(rd['subreddit'])} ({rd['score']}u/{rd['comments']}c) {_a(rd['title'])[:60]}"
+        )
     print(f"Web context: {len(d['web'])} chars extracted via Nimble")

@@ -26,12 +26,23 @@ SCHEMA = "v5-capability/1"
 
 # The seventeen evidence categories the spec names.
 CATEGORIES = (
-    "operating_history", "financial_statements", "cashflow_history",
-    "balance_sheet_history", "segment_reporting", "company_guidance",
-    "consensus_estimates", "historical_valuation", "peer_valuation",
-    "management_assessment", "ownership", "insider_activity",
-    "market_price_history", "technical_analysis", "catalysts",
-    "valuation_range_construction", "expectations_analysis",
+    "operating_history",
+    "financial_statements",
+    "cashflow_history",
+    "balance_sheet_history",
+    "segment_reporting",
+    "company_guidance",
+    "consensus_estimates",
+    "historical_valuation",
+    "peer_valuation",
+    "management_assessment",
+    "ownership",
+    "insider_activity",
+    "market_price_history",
+    "technical_analysis",
+    "catalysts",
+    "valuation_range_construction",
+    "expectations_analysis",
 )
 
 
@@ -45,6 +56,7 @@ def company_profile(snap, multiples=None, sector=None, industry=None):
     nq = max(m.get("n_eps_quarters") or 0, m.get("n_rev_quarters") or 0)
     fu = snap.get("fundamentals") or {}
     import research_snapshot as rs
+
     rev = rs.fv(fu.get("revenue_q"))
     return {
         "schema": SCHEMA,
@@ -55,19 +67,18 @@ def company_profile(snap, multiples=None, sector=None, industry=None):
         "sessions": th.get("sessions") or 0,
         "full_price_history": bool(th.get("full_history")),
         "sector": sector or co.get("sector") or biz.get("sector"),
-        "industry": industry or ov.get("industry")
-        or biz.get("industry"),
+        "industry": industry or ov.get("industry") or biz.get("industry"),
         "pre_revenue_status": rev is None and nq == 0,
-        "business_model_tags": [],          # adapter phase populates
+        "business_model_tags": [],  # adapter phase populates
         "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 
 
-def evidence_capability(snap, multiples=None, estimates=None,
-                        has_options=None):
+def evidence_capability(snap, multiples=None, estimates=None, has_options=None):
     """Per-category sufficiency, each with the reason — never a bare
     boolean, so the routing record can say WHY a category is absent."""
     import research_snapshot as rs
+
     th = snap.get("trading_history") or {}
     fu = snap.get("fundamentals") or {}
     m = multiples or {}
@@ -78,8 +89,7 @@ def evidence_capability(snap, multiples=None, estimates=None,
     own = snap.get("ownership") or {}
 
     def has_fact(*keys):
-        return any(isinstance(fu.get(k), dict)
-                   and rs.fv(fu.get(k)) is not None for k in keys)
+        return any(isinstance(fu.get(k), dict) and rs.fv(fu.get(k)) is not None for k in keys)
 
     nq = max(m.get("n_eps_quarters") or 0, m.get("n_rev_quarters") or 0)
     band_ok = any((m.get(k) or {}).get("available") for k in ("pe", "ps"))
@@ -90,63 +100,93 @@ def evidence_capability(snap, multiples=None, estimates=None,
     def put(name, ok, why):
         caps[name] = {"sufficient": bool(ok), "reason": why}
 
-    put("operating_history", nq >= A.MIN_FILED_QUARTERS,
-        "%d filed quarters (need %d)" % (nq, A.MIN_FILED_QUARTERS))
-    put("financial_statements", has_fact("revenue_q", "net_income_q"),
-        "latest-quarter filed facts %s" %
-        ("admitted" if has_fact("revenue_q", "net_income_q") else "absent"))
-    put("cashflow_history", has_fact("operating_cash_flow",
-                                     "free_cash_flow"),
-        "filed cash-flow facts %s" %
-        ("admitted" if has_fact("operating_cash_flow", "free_cash_flow")
-         else "absent"))
-    put("balance_sheet_history", has_fact("cash", "debt"),
-        "balance-sheet instants %s" %
-        ("admitted" if has_fact("cash", "debt") else "absent"))
-    put("segment_reporting", False,
-        "segment ingestion not implemented — never inferred")
-    put("company_guidance", ex.get("disposition") == "ADMITTED"
-        and bool(ex.get("guidance_highlights")),
-        "exhibit %s" % (ex.get("disposition") or "absent"))
-    put("consensus_estimates", bool(est.get("recommendation")),
-        "consensus %s" % ("dated %s" % (est.get("recommendation") or {}
-                                        ).get("as_of")
-                          if est.get("recommendation") else "absent"))
-    put("historical_valuation", band_ok,
-        "multiple band %s" % ("survived coverage" if band_ok else
-                              "withheld"))
-    put("peer_valuation", bool(((est or {}).get("peers") or {}).get("rows"))
-        if isinstance(est.get("peers"), dict) else False,
-        "vendor peer set %s" % ("admitted" if isinstance(
-            est.get("peers"), dict) else "absent"))
-    put("management_assessment", False,
-        "no admitted management-record source — never inferred")
-    put("ownership", bool(own), "ownership block %s"
-        % ("present" if own else "absent"))
-    put("insider_activity", bool(ins), "Form 4 rows %s"
-        % ("parsed" if ins else "absent"))
-    put("market_price_history", sessions >= A.MIN_FULL_SESSIONS,
-        "%d sessions (need %d)" % (sessions, A.MIN_FULL_SESSIONS))
-    put("technical_analysis", sessions >= 30,
-        "%d sessions (chart floor 30)" % sessions)
-    put("catalysts", bool(cat.get("event_dt")
-                          or cat.get("next_event_date")),
-        "catalyst discovery %s" % ("dated" if cat.get("event_dt")
-                                   or cat.get("next_event_date")
-                                   else "empty"))
-    put("valuation_range_construction", band_ok,
-        "requires a surviving multiple band")
-    put("expectations_analysis",
+    put(
+        "operating_history",
+        nq >= A.MIN_FILED_QUARTERS,
+        "%d filed quarters (need %d)" % (nq, A.MIN_FILED_QUARTERS),
+    )
+    put(
+        "financial_statements",
+        has_fact("revenue_q", "net_income_q"),
+        "latest-quarter filed facts %s"
+        % ("admitted" if has_fact("revenue_q", "net_income_q") else "absent"),
+    )
+    put(
+        "cashflow_history",
+        has_fact("operating_cash_flow", "free_cash_flow"),
+        "filed cash-flow facts %s"
+        % ("admitted" if has_fact("operating_cash_flow", "free_cash_flow") else "absent"),
+    )
+    put(
+        "balance_sheet_history",
+        has_fact("cash", "debt"),
+        "balance-sheet instants %s" % ("admitted" if has_fact("cash", "debt") else "absent"),
+    )
+    put("segment_reporting", False, "segment ingestion not implemented — never inferred")
+    put(
+        "company_guidance",
+        ex.get("disposition") == "ADMITTED" and bool(ex.get("guidance_highlights")),
+        "exhibit %s" % (ex.get("disposition") or "absent"),
+    )
+    put(
+        "consensus_estimates",
+        bool(est.get("recommendation")),
+        "consensus %s"
+        % (
+            "dated %s" % (est.get("recommendation") or {}).get("as_of")
+            if est.get("recommendation")
+            else "absent"
+        ),
+    )
+    put(
+        "historical_valuation",
+        band_ok,
+        "multiple band %s" % ("survived coverage" if band_ok else "withheld"),
+    )
+    put(
+        "peer_valuation",
+        bool(((est or {}).get("peers") or {}).get("rows"))
+        if isinstance(est.get("peers"), dict)
+        else False,
+        "vendor peer set %s" % ("admitted" if isinstance(est.get("peers"), dict) else "absent"),
+    )
+    put("management_assessment", False, "no admitted management-record source — never inferred")
+    put("ownership", bool(own), "ownership block %s" % ("present" if own else "absent"))
+    put("insider_activity", bool(ins), "Form 4 rows %s" % ("parsed" if ins else "absent"))
+    put(
+        "market_price_history",
+        sessions >= A.MIN_FULL_SESSIONS,
+        "%d sessions (need %d)" % (sessions, A.MIN_FULL_SESSIONS),
+    )
+    put("technical_analysis", sessions >= 30, "%d sessions (chart floor 30)" % sessions)
+    put(
+        "catalysts",
+        bool(cat.get("event_dt") or cat.get("next_event_date")),
+        "catalyst discovery %s"
+        % ("dated" if cat.get("event_dt") or cat.get("next_event_date") else "empty"),
+    )
+    put("valuation_range_construction", band_ok, "requires a surviving multiple band")
+    put(
+        "expectations_analysis",
         bool(est.get("recommendation"))
-        or (ex.get("disposition") == "ADMITTED"
-            and bool(ex.get("guidance_highlights"))),
-        "needs sourced consensus or admitted guidance")
+        or (ex.get("disposition") == "ADMITTED" and bool(ex.get("guidance_highlights"))),
+        "needs sourced consensus or admitted guidance",
+    )
     return {"schema": SCHEMA, "categories": caps}
 
 
-def route(profile, capability, event, multiples=None, has_options=None,
-          override=None, override_author=None, override_reason=None,
-          framework=None, adapter=None):
+def route(
+    profile,
+    capability,
+    event,
+    multiples=None,
+    has_options=None,
+    override=None,
+    override_author=None,
+    override_reason=None,
+    framework=None,
+    adapter=None,
+):
     """Deterministic archetype from capabilities AND framework coverage
     (§6). FULL is earned by diligence coverage — financial statements,
     price history and a multiple band alone route FULL_THIN, with the
@@ -156,68 +196,92 @@ def route(profile, capability, event, multiples=None, has_options=None,
     def ok(name):
         return caps.get(name, {}).get("sufficient")
 
-    missing_dims = list(((framework or {}).get("summary") or {})
-                        .get("missing_for_full") or [])
+    missing_dims = list(((framework or {}).get("summary") or {}).get("missing_for_full") or [])
     reasons = []
     if (event or {}).get("flash"):
         decision = A.DATA_HOLD
         reasons.append("event gate holding a fresh unread release")
-    elif profile.get("listing_date") and not profile["full_price_history"] \
-            and not ok("operating_history") \
-            and not ok("financial_statements"):
+    elif (
+        profile.get("listing_date")
+        and not profile["full_price_history"]
+        and not ok("operating_history")
+        and not ok("financial_statements")
+    ):
         decision = A.NEW_LISTING
-        reasons.append("listed %s: no filed periodic report and %d "
-                       "sessions — insufficient public history for "
-                       "normalized underwriting"
-                       % (profile["listing_date"], profile["sessions"]))
-    elif ok("operating_history") and ok("financial_statements") \
-            and ok("market_price_history") and ok("historical_valuation"):
+        reasons.append(
+            "listed %s: no filed periodic report and %d "
+            "sessions — insufficient public history for "
+            "normalized underwriting" % (profile["listing_date"], profile["sessions"])
+        )
+    elif (
+        ok("operating_history")
+        and ok("financial_statements")
+        and ok("market_price_history")
+        and ok("historical_valuation")
+    ):
         if framework is None or not missing_dims:
             decision = A.FULL
-            reasons.append("operating history, filed statements, price "
-                           "history, valuation support and framework "
-                           "coverage all sufficient")
+            reasons.append(
+                "operating history, filed statements, price "
+                "history, valuation support and framework "
+                "coverage all sufficient"
+            )
         else:
             decision = A.FULL_THIN
-            reasons.append("financial record sufficient, but FULL "
-                           "requires underwritten framework coverage — "
-                           "NOT_ASSESSED: %s" % ", ".join(missing_dims))
+            reasons.append(
+                "financial record sufficient, but FULL "
+                "requires underwritten framework coverage — "
+                "NOT_ASSESSED: %s" % ", ".join(missing_dims)
+            )
     else:
         decision = A.THIN
-        missing = [n for n in ("operating_history", "financial_statements",
-                               "market_price_history",
-                               "historical_valuation") if not ok(n)]
-        reasons.append("FULL requires %s — insufficient: %s"
-                       % (", ".join(("operating history",
-                                     "filed statements", "price history",
-                                     "valuation support")),
-                           ", ".join(missing)))
+        missing = [
+            n
+            for n in (
+                "operating_history",
+                "financial_statements",
+                "market_price_history",
+                "historical_valuation",
+            )
+            if not ok(n)
+        ]
+        reasons.append(
+            "FULL requires %s — insufficient: %s"
+            % (
+                ", ".join(
+                    ("operating history", "filed statements", "price history", "valuation support")
+                ),
+                ", ".join(missing),
+            )
+        )
 
     # Contract from phase-3 machinery, refined by capabilities.
-    contract = {k: list(v) if isinstance(v, tuple) else v
-                for k, v in A.CONTRACTS[decision].items()}
+    contract = {k: list(v) if isinstance(v, tuple) else v for k, v in A.CONTRACTS[decision].items()}
     if decision in (A.FULL, A.FULL_THIN, A.THIN):
         # §2 (v5.7): the promotion respects the sector adapter — a band
         # that computed for a method the model's economics cannot
         # support must not make the valuation table REQUIRED
-        _pol = ((adapter or {}).get("policy") or {})
+        _pol = (adapter or {}).get("policy") or {}
         _allowed = tuple(_pol.get("valuation_allowed", ("pe", "ps")))
-        _band_allowed = any(((multiples or {}).get(k) or {}).get(
-            "available") for k in _allowed)
+        _band_allowed = any(((multiples or {}).get(k) or {}).get("available") for k in _allowed)
         if ok("valuation_range_construction") and _band_allowed:
             A._promote(contract, "valuation_table")
             A._promote(contract, "valuation_detail")
-            reasons.append("a permitted multiple band survived coverage "
-                           "— the valuation table is required "
-                           "(historical percentiles; forward legs only "
-                           "when underwritten)")
+            reasons.append(
+                "a permitted multiple band survived coverage "
+                "— the valuation table is required "
+                "(historical percentiles; forward legs only "
+                "when underwritten)"
+            )
         else:
-            reasons.append("valuation table stays optional: %s"
-                           % (_pol.get("valuation_reason")
-                              if not _band_allowed and _allowed != (
-                                  "pe", "ps")
-                              else caps["valuation_range_construction"
-                                        ]["reason"]))
+            reasons.append(
+                "valuation table stays optional: %s"
+                % (
+                    _pol.get("valuation_reason")
+                    if not _band_allowed and _allowed != ("pe", "ps")
+                    else caps["valuation_range_construction"]["reason"]
+                )
+            )
         if decision in (A.FULL, A.FULL_THIN):
             if ok("technical_analysis"):
                 A._promote(contract, "technicals")
@@ -231,15 +295,12 @@ def route(profile, capability, event, multiples=None, has_options=None,
     rec = {
         "schema": SCHEMA,
         "selected_archetype": decision,
-        "archetype": decision,               # phase-3 compatibility
+        "archetype": decision,  # phase-3 compatibility
         "routing_reason": reasons[0],
         "reasons": reasons,
         "contract": contract,
-        "categories_present": sorted(n for n in CATEGORIES
-                                     if caps.get(n, {}).get("sufficient")),
-        "categories_absent": sorted(n for n in CATEGORIES
-                                    if not caps.get(n, {}).get(
-                                        "sufficient")),
+        "categories_present": sorted(n for n in CATEGORIES if caps.get(n, {}).get("sufficient")),
+        "categories_absent": sorted(n for n in CATEGORIES if not caps.get(n, {}).get("sufficient")),
         "missing_framework_dimensions": missing_dims,
         "capability": capability,
         "override": None,
@@ -250,8 +311,7 @@ def route(profile, capability, event, multiples=None, has_options=None,
         # contract keeps every forbidden section whose capability is
         # absent, so an override can never conjure a scenario table out
         # of a name with no band.
-        oc = {k: list(v) if isinstance(v, tuple) else v
-              for k, v in A.CONTRACTS[override].items()}
+        oc = {k: list(v) if isinstance(v, tuple) else v for k, v in A.CONTRACTS[override].items()}
         if not ok("valuation_range_construction"):
             for sec in ("valuation_table", "valuation_detail"):
                 if sec in oc["required"]:
@@ -259,16 +319,16 @@ def route(profile, capability, event, multiples=None, has_options=None,
                 if sec not in oc["forbidden"] and sec not in oc["optional"]:
                     oc["optional"].append(sec)
         rec["override"] = {
-            "from": decision, "to": override,
+            "from": decision,
+            "to": override,
             "author": override_author or "unattributed",
-            "timestamp": datetime.now(timezone.utc
-                                      ).isoformat(timespec="seconds"),
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "reason": override_reason or "not stated",
         }
         rec["selected_archetype"] = rec["archetype"] = override
         rec["contract"] = oc
-        rec["reasons"].append("OVERRIDDEN %s -> %s by %s: %s"
-                              % (decision, override,
-                                 rec["override"]["author"],
-                                 rec["override"]["reason"]))
+        rec["reasons"].append(
+            "OVERRIDDEN %s -> %s by %s: %s"
+            % (decision, override, rec["override"]["author"], rec["override"]["reason"])
+        )
     return rec

@@ -38,43 +38,67 @@ def _wrap(s, indent=""):
     """
     if not s:
         return ""
-    return "\n".join(textwrap.wrap(
-        str(s), WIDTH, initial_indent=indent, subsequent_indent=indent + "  ",
-        break_long_words=False, break_on_hyphens=False))
+    return "\n".join(
+        textwrap.wrap(
+            str(s),
+            WIDTH,
+            initial_indent=indent,
+            subsequent_indent=indent + "  ",
+            break_long_words=False,
+            break_on_hyphens=False,
+        )
+    )
 
 
 def _pct(v, places=2):
     if v is None:
         return "n/a"
-    if abs(round(v, places)) < 10 ** -places / 2:
+    if abs(round(v, places)) < 10**-places / 2:
         return "%.*f%%" % (places, 0.0)
     return "%+.*f%%" % (places, v)
 
 
 # ── sections ────────────────────────────────────────────────────────────
 
+
 def t_market(sec, site, out):
     reg = sec.get("regime") or {}
-    out += [_head(sec["title"]), sec.get("sub") or "", "",
-            reg.get("label") or "MARKET", _wrap(reg.get("why") or ""), ""]
-    out.append("%-6s %10s %9s %9s %9s %9s"
-               % ("", "Last", "1D", "1W", "YTD", "vs 20d"))
+    out += [
+        _head(sec["title"]),
+        sec.get("sub") or "",
+        "",
+        reg.get("label") or "MARKET",
+        _wrap(reg.get("why") or ""),
+        "",
+    ]
+    out.append("%-6s %10s %9s %9s %9s %9s" % ("", "Last", "1D", "1W", "YTD", "vs 20d"))
     for r in sec["records"]:
-        out.append("%-6s %10.2f %9s %9s %9s %9s"
-                   % (r["ticker"], r["last"] or 0, _pct(r["d1"]),
-                      _pct(r["w1"]), _pct(r["ytd"]), _pct(r["vs20"], 1)))
+        out.append(
+            "%-6s %10.2f %9s %9s %9s %9s"
+            % (
+                r["ticker"],
+                r["last"] or 0,
+                _pct(r["d1"]),
+                _pct(r["w1"]),
+                _pct(r["ytd"]),
+                _pct(r["vs20"], 1),
+            )
+        )
         out.append("       %s" % r["url"])
     if sec.get("ma_summary"):
         out += ["", sec["ma_summary"]]
     ev = sec.get("event") or {}
     if ev.get("title"):
-        out += ["", "NEXT: %s · %s · %s" % (ev.get("title"),
-                                            ev.get("time_et") or "",
-                                            ev.get("status") or "")]
+        out += [
+            "",
+            "NEXT: %s · %s · %s"
+            % (ev.get("title"), ev.get("time_et") or "", ev.get("status") or ""),
+        ]
     out += ["", _wrap(sec.get("alert_line") or "")]
     if sec.get("mixed_sessions"):
-        out.append(_wrap("Quotes span more than one session; each value is "
-                         "labelled with its own as-of."))
+        out.append(
+            _wrap("Quotes span more than one session; each value is labelled with its own as-of.")
+        )
 
 
 def t_watch(sec, site, out):
@@ -90,8 +114,10 @@ def t_watch(sec, site, out):
         out.append(_wrap("; ".join(x["reasons"]), "  "))
         if x.get("technical"):
             out.append(_wrap(x["technical"], "  "))
-        for k, lbl in (("next_confirmation", "Next confirmation"),
-                       ("invalidation", "Invalidation")):
+        for k, lbl in (
+            ("next_confirmation", "Next confirmation"),
+            ("invalidation", "Invalidation"),
+        ):
             if x.get(k):
                 out.append(_wrap("%s: %s" % (lbl, x[k]), "  "))
         meta = []
@@ -116,11 +142,23 @@ def t_watch(sec, site, out):
 
 def _contract_text(c, indent="  ", show_ticker=True):
     head = "%s%s%s %s %s · %s · %s" % (
-        indent, (c["ticker"] + " ") if show_ticker else "",
-        c["right"], c["strike"], c["expiry"], c["action"], c["direction"])
-    bits = [b for b in (c.get("premium"),
-                        ("spot %s" % c["spot"]) if c.get("spot") is not None
-                        else "", "sweep" if c.get("sweep") else "") if b]
+        indent,
+        (c["ticker"] + " ") if show_ticker else "",
+        c["right"],
+        c["strike"],
+        c["expiry"],
+        c["action"],
+        c["direction"],
+    )
+    bits = [
+        b
+        for b in (
+            c.get("premium"),
+            ("spot %s" % c["spot"]) if c.get("spot") is not None else "",
+            "sweep" if c.get("sweep") else "",
+        )
+        if b
+    ]
     if bits:
         head += " · " + " · ".join(str(b) for b in bits)
     sub = []
@@ -193,12 +231,10 @@ def t_news(sec, site, out):
     for it in sec["records"]:
         if it["scope"] != scope:
             scope = it["scope"]
-            out.append("  %s" % ("Market" if scope == "market"
-                                 else "Your names"))
+            out.append("  %s" % ("Market" if scope == "market" else "Your names"))
         out.append(_wrap(it["headline"], "    "))
         tick = (" · " + ", ".join(it["tickers"])) if it.get("tickers") else ""
-        out.append("      %s · %s · %s%s" % (it["source"], it["published_et"],
-                                             it["tier"], tick))
+        out.append("      %s · %s · %s%s" % (it["source"], it["published_et"], it["tier"], tick))
         out.append(_wrap(it["why"], "      "))
         if it.get("url"):
             out.append("      %s" % it["url"])
@@ -215,8 +251,7 @@ def t_discovery(sec, site, out):
     out += [_head(sec["title"]), sec.get("sub") or "", ""]
     for x in sec["records"]:
         out.append("  #%d %s" % (x["rank"], x["ticker"]))
-        meta = [x[k] for k in ("contract", "side_label", "premium",
-                               "oi_state") if x.get(k)]
+        meta = [x[k] for k in ("contract", "side_label", "premium", "oi_state") if x.get(k)]
         if meta:
             out.append(_wrap(" · ".join(meta), "     "))
         out.append(_wrap(x["why"], "     "))
@@ -232,35 +267,73 @@ def t_followthrough(sec, site, out):
         return
     for r in sec["records"]:
         ratio = r.get("follow_through_ratio")
-        out.append("  #%s %s %s %s %s"
-                   % (r.get("rank"), r["ticker"],
-                      (r.get("right") or "").upper(), r.get("strike"),
-                      r.get("expiry")))
-        out.append(_wrap("Direction: %s, inferred from %s"
-                         % (r.get("direction") or "unresolved",
-                            (r.get("action") or "the tape").replace("_", " ")),
-                         "     "))
-        out.append(_wrap("Structure: %s (%s confidence)"
-                         % (r.get("structure") or "",
-                            r.get("structure_confidence") or ""), "     "))
+        out.append(
+            "  #%s %s %s %s %s"
+            % (
+                r.get("rank"),
+                r["ticker"],
+                (r.get("right") or "").upper(),
+                r.get("strike"),
+                r.get("expiry"),
+            )
+        )
+        out.append(
+            _wrap(
+                "Direction: %s, inferred from %s"
+                % (
+                    r.get("direction") or "unresolved",
+                    (r.get("action") or "the tape").replace("_", " "),
+                ),
+                "     ",
+            )
+        )
+        out.append(
+            _wrap(
+                "Structure: %s (%s confidence)"
+                % (r.get("structure") or "", r.get("structure_confidence") or ""),
+                "     ",
+            )
+        )
         out.append(_wrap("Flow: %s" % (r.get("flow_at") or "-"), "     "))
-        out.append(_wrap("Observed: %s contracts · %s"
-                         % (_int(r.get("observed_contracts")),
-                            _prem(r.get("premium"))), "     "))
-        out.append(_wrap("%s EOD OI: %s -> %s · dOI %s"
-                         % (r.get("oi_data_date") or "-",
-                            _int(r.get("oi_before")), _int(r.get("oi_after")),
-                            _int(r.get("delta_oi"), signed=True)), "     "))
+        out.append(
+            _wrap(
+                "Observed: %s contracts · %s"
+                % (_int(r.get("observed_contracts")), _prem(r.get("premium"))),
+                "     ",
+            )
+        )
+        out.append(
+            _wrap(
+                "%s EOD OI: %s -> %s · dOI %s"
+                % (
+                    r.get("oi_data_date") or "-",
+                    _int(r.get("oi_before")),
+                    _int(r.get("oi_after")),
+                    _int(r.get("delta_oi"), signed=True),
+                ),
+                "     ",
+            )
+        )
         if ratio is not None:
-            out.append(_wrap("Follow-through: %s of %s observed contracts "
-                             "· %d%%"
-                             % (_int(r.get("delta_oi") if
-                                     (r.get("delta_oi") or 0) > 0 else 0),
-                                _int(r.get("observed_contracts")),
-                                round(ratio * 100)), "     "))
-        out.append(_wrap("OI status: %s · verified %s"
-                         % (r.get("oi_state") or "",
-                            r.get("oi_verified_at") or "-"), "     "))
+            out.append(
+                _wrap(
+                    "Follow-through: %s of %s observed contracts "
+                    "· %d%%"
+                    % (
+                        _int(r.get("delta_oi") if (r.get("delta_oi") or 0) > 0 else 0),
+                        _int(r.get("observed_contracts")),
+                        round(ratio * 100),
+                    ),
+                    "     ",
+                )
+            )
+        out.append(
+            _wrap(
+                "OI status: %s · verified %s"
+                % (r.get("oi_state") or "", r.get("oi_verified_at") or "-"),
+                "     ",
+            )
+        )
         out.append("     %s" % r["url"])
         out.append("")
     if sec.get("desk_line"):
@@ -282,16 +355,20 @@ def _prem(p):
 
 def t_earnings(sec, site, out):
     out += [_head(sec["title"]), sec.get("sub") or "", ""]
-    out.append("  %-7s %-5s %9s %8s %9s  %s"
-               % ("", "When", "Implied", "IV", "Typical", "Read"))
+    out.append("  %-7s %-5s %9s %8s %9s  %s" % ("", "When", "Implied", "IV", "Typical", "Read"))
     for r in sec["records"]:
         star = "*" if r.get("on_watchlist") else " "
-        imp = ("±%.1f%%" % r["implied_move_pct"])             if r.get("implied_move_pct") is not None else "n/a"
+        imp = (
+            ("±%.1f%%" % r["implied_move_pct"]) if r.get("implied_move_pct") is not None else "n/a"
+        )
         iv = ("%.0f%%" % r["iv_pct"]) if r.get("iv_pct") is not None else "n/a"
-        real = ("±%.1f%%" % r["realized_med_pct"])             if r.get("realized_med_pct") is not None else "n/a"
-        out.append("%s %-7s %-5s %9s %8s %9s  %s"
-                   % (star, r["ticker"], r["session"], imp, iv, real,
-                      r.get("verdict") or "-"))
+        real = (
+            ("±%.1f%%" % r["realized_med_pct"]) if r.get("realized_med_pct") is not None else "n/a"
+        )
+        out.append(
+            "%s %-7s %-5s %9s %8s %9s  %s"
+            % (star, r["ticker"], r["session"], imp, iv, real, r.get("verdict") or "-")
+        )
         if r.get("why"):
             out.append(_wrap(r["why"], "      "))
         out.append("      %s" % r["url"])
@@ -300,10 +377,17 @@ def t_earnings(sec, site, out):
 
 
 RENDERERS = {
-    "index": t_market, "watch": t_watch, "flow_group": t_flow_group,
-    "flow_flat": t_flow_flat, "link": t_link, "event": t_event,
-    "news": t_news, "prose": t_prose, "discovery": t_discovery,
-    "earnings": t_earnings, "followthrough": t_followthrough,
+    "index": t_market,
+    "watch": t_watch,
+    "flow_group": t_flow_group,
+    "flow_flat": t_flow_flat,
+    "link": t_link,
+    "event": t_event,
+    "news": t_news,
+    "prose": t_prose,
+    "discovery": t_discovery,
+    "earnings": t_earnings,
+    "followthrough": t_followthrough,
 }
 
 
@@ -321,31 +405,33 @@ def render_text(model, *, subject=None):
         if not fn or not (sec.get("records") or sec.get("empty_line")):
             continue
         fn(sec, site, out)
-    out += ["", _rule(),
-            "Open your desk: %s/#desk" % site,
-            "Email settings:  %s/#settings" % site]
+    out += ["", _rule(), "Open your desk: %s/#desk" % site, "Email settings:  %s/#settings" % site]
     if unsub:
         out.append("Unsubscribe:     %s" % unsub)
-    out += ["", _wrap("TickerDesk · educational research, not investment "
-                      "advice. Delayed market data. Reply to this email to "
-                      "reach a human.")]
+    out += [
+        "",
+        _wrap(
+            "TickerDesk · educational research, not investment "
+            "advice. Delayed market data. Reply to this email to "
+            "reach a human."
+        ),
+    ]
     return "\n".join(l for l in out if l is not None) + "\n"
 
 
 def urls_in(site, unsub_url):
-    return [u for u in ("%s/#desk" % site, "%s/#settings" % site,
-                        unsub_url) if u]
+    return [u for u in ("%s/#desk" % site, "%s/#settings" % site, unsub_url) if u]
 
 
 def self_test():
     import brief_compose as BC
     import brief_render as BR
+
     fails, ran = [], [0]
 
     def chk(n, c, d=""):
         ran[0] += 1
-        print(("  PASS  " if c else "  FAIL  ") + n
-              + ("" if c else "  <- %s" % (d,)))
+        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
         if not c:
             fails.append(n)
 
@@ -358,33 +444,39 @@ def self_test():
     chk("settings URL written out", "%s/#settings" % site in txt)
     chk("unsubscribe URL written out", unsub in txt)
     chk("index ticker links written out", "%s/#ticker=SPY" % site in txt)
-    chk("watch-list ticker links written out",
-        "%s/#ticker=GEV" % site in txt)
+    chk("watch-list ticker links written out", "%s/#ticker=GEV" % site in txt)
     chk("flow link written out", "%s/#flow" % site in txt)
     chk("news source URL written out", "https://reuters.com/x" in txt)
-    chk("passes the plain-text gate",
+    chk(
+        "passes the plain-text gate",
         BC.check_plain_text(txt, urls_in(site, unsub)) == [],
-        BC.check_plain_text(txt, urls_in(site, unsub)))
+        BC.check_plain_text(txt, urls_in(site, unsub)),
+    )
     chk("negative zero normalised", "-0.0%" not in txt)
     chk("no markup leaks", "<" not in txt and "&nbsp;" not in txt)
     chk("no CSS leaks", "font-family" not in txt and "px;" not in txt)
     chk("contract states side and direction", "PUT BUY · bearish" in txt)
-    chk("two-sided print labelled unresolved",
-        "TWO-SIDED · unresolved" in txt)
+    chk("two-sided print labelled unresolved", "TWO-SIDED · unresolved" in txt)
     chk("OI state present", "OI PENDING" in txt)
     chk("flow quality label, not Signal", "Signal " not in txt)
     chk("price basis present", "Jul 21 close" in txt)
     chk("20-day summary present", "their 20-day averages" in txt)
     chk("event provenance present", "from 2:30pm UTC" in txt)
     chk("driving-flow section present", "DRIVING TODAY" in txt.upper())
-    chk("sections keep the model's order",
-        (txt.upper().index("MARKET IN 30 SECONDS")
-         < txt.upper().index("YOUR WATCH LIST")
-         < txt.upper().index("DRIVING TODAY")
-         < txt.upper().index("TOP NEWS")))
-    chk("lines stay inside the wrap width",
+    chk(
+        "sections keep the model's order",
+        (
+            txt.upper().index("MARKET IN 30 SECONDS")
+            < txt.upper().index("YOUR WATCH LIST")
+            < txt.upper().index("DRIVING TODAY")
+            < txt.upper().index("TOP NEWS")
+        ),
+    )
+    chk(
+        "lines stay inside the wrap width",
         max(len(l) for l in txt.split("\n")) <= WIDTH + 12,
-        max(len(l) for l in txt.split("\n")))
+        max(len(l) for l in txt.split("\n")),
+    )
 
     print("\n%d/%d checks passed" % (ran[0] - len(fails), ran[0]))
     return 1 if fails else 0

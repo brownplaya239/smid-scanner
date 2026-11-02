@@ -59,7 +59,7 @@ def _days_to_earnings(meta_row, today):
     try:
         d = datetime.strptime(ed, "%Y-%m-%d").date()
         return (d - today).days
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 
@@ -69,18 +69,21 @@ def build_rows(now=None):
     today_s = today.isoformat()
 
     scored = _load(R("docs", "reports", "uoa_signals_scored.json"), {})
-    flow_tickers = {s.get("ticker") for s in scored.get("signals") or []
-                    if (s.get("flagged_at") or "")[:10] == today_s
-                    and s.get("direction") in ("bullish", "bearish")}
+    flow_tickers = {
+        s.get("ticker")
+        for s in scored.get("signals") or []
+        if (s.get("flagged_at") or "")[:10] == today_s
+        and s.get("direction") in ("bullish", "bearish")
+    }
     edge = _load(R("docs", "reports", "earnings_edge.json"), {})
-    ern_rows = {r.get("t"): r for r in edge.get("names") or []
-                if r.get("t") and (r.get("days") or 99) <= 7}
+    ern_rows = {
+        r.get("t"): r for r in edge.get("names") or [] if r.get("t") and (r.get("days") or 99) <= 7
+    }
     tickers = sorted((flow_tickers | set(ern_rows)) - {None})
     if not tickers:
         return []
 
-    facts = (_load(R("docs", "reports", "technical_facts.json"), {})
-             .get("facts") or {})
+    facts = _load(R("docs", "reports", "technical_facts.json"), {}).get("facts") or {}
     meta = _load(R("docs", "reports", "uoa_meta_cache.json"), {})
     grades = _swing_grades()
     regimes = _regime_map()
@@ -92,22 +95,30 @@ def build_rows(now=None):
         rs = f.get("rs") or {}
         m = meta.get(tk) or {}
         e = ern_rows.get(tk) or {}
-        rows.append({
-            "date": today_s, "ticker": tk,
-            "logged_at": now.isoformat(timespec="seconds"),
-            "rs_rank": f.get("rs_rank"),
-            "rs5": rs.get("d5"), "rs20": rs.get("d20"),
-            "trend": f.get("trend"), "rsi": f.get("rsi14"),
-            "vol_ratio": f.get("vol_ratio"), "atr_pct": f.get("atr_pct"),
-            "ema20": f.get("ema20"), "ema50": f.get("ema50"),
-            "swing_grade": grades.get(tk),
-            "sector": m.get("sector"), "mcap": m.get("mkt_cap"),
-            "days_to_earnings": _days_to_earnings(m, today),
-            "earnings_session": m.get("earnings_session"),
-            "implied_move": e.get("implied"),
-            "realized_med": e.get("realized_med"),
-            "market_regime": regime,
-        })
+        rows.append(
+            {
+                "date": today_s,
+                "ticker": tk,
+                "logged_at": now.isoformat(timespec="seconds"),
+                "rs_rank": f.get("rs_rank"),
+                "rs5": rs.get("d5"),
+                "rs20": rs.get("d20"),
+                "trend": f.get("trend"),
+                "rsi": f.get("rsi14"),
+                "vol_ratio": f.get("vol_ratio"),
+                "atr_pct": f.get("atr_pct"),
+                "ema20": f.get("ema20"),
+                "ema50": f.get("ema50"),
+                "swing_grade": grades.get(tk),
+                "sector": m.get("sector"),
+                "mcap": m.get("mkt_cap"),
+                "days_to_earnings": _days_to_earnings(m, today),
+                "earnings_session": m.get("earnings_session"),
+                "implied_move": e.get("implied"),
+                "realized_med": e.get("realized_med"),
+                "market_regime": regime,
+            }
+        )
     return rows
 
 
@@ -128,11 +139,12 @@ def run(dry=False):
         os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
         with open(OUT_PATH, "a", encoding="utf-8") as f:
             for r in new:
-                f.write(json.dumps(r, separators=(",", ":"),
-                                   ensure_ascii=False) + "\n")
+                f.write(json.dumps(r, separators=(",", ":"), ensure_ascii=False) + "\n")
     filled = sum(1 for r in new if r.get("rs_rank") is not None)
-    print(f"context: {len(rows)} tickers today, {len(new)} appended "
-          f"({filled} with technicals), {len(seen)} already logged")
+    print(
+        f"context: {len(rows)} tickers today, {len(new)} appended "
+        f"({filled} with technicals), {len(seen)} already logged"
+    )
     return new
 
 

@@ -66,10 +66,14 @@ def fact_row(d, key, label, fmt="%s"):
         txt = fmt % v
     except Exception:
         txt = str(v)
-    return {"label": label, "value": txt, "grade": grade(f),
-            "as_of": (f.get("as_of") if isinstance(f, dict) else None),
-            "src": (f.get("src") if isinstance(f, dict) else None),
-            "refs": (f.get("evidence_refs") or []) if isinstance(f, dict) else []}
+    return {
+        "label": label,
+        "value": txt,
+        "grade": grade(f),
+        "as_of": (f.get("as_of") if isinstance(f, dict) else None),
+        "src": (f.get("src") if isinstance(f, dict) else None),
+        "refs": (f.get("evidence_refs") or []) if isinstance(f, dict) else [],
+    }
 
 
 # ── time ────────────────────────────────────────────────────────────────
@@ -78,7 +82,7 @@ ET = "America/New_York"
 
 try:
     from zoneinfo import ZoneInfo
-except Exception:                                    # pragma: no cover
+except Exception:  # pragma: no cover
     ZoneInfo = None
 
 
@@ -94,7 +98,7 @@ def to_et(ts):
         return str(ts), None
     if d.tzinfo is None:
         return str(ts), "timestamp carries no zone; shown as published"
-    if ZoneInfo is None:                             # pragma: no cover
+    if ZoneInfo is None:  # pragma: no cover
         return d.isoformat(), "zoneinfo unavailable"
     e = d.astimezone(ZoneInfo(ET))
     return e.strftime("%Y-%m-%d %H:%M ET"), None
@@ -124,7 +128,7 @@ def spot(snap):
         if v is not None:
             try:
                 return float(v)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 continue
     return None
 
@@ -147,8 +151,7 @@ def _hours_between(a, b):
 
 
 def _days_between(a, b):
-    for parse in (lambda x: dt.datetime.fromisoformat(
-            str(x).replace("Z", "+00:00")),):
+    for parse in (lambda x: dt.datetime.fromisoformat(str(x).replace("Z", "+00:00")),):
         try:
             da, db = parse(a), parse(b)
         except Exception:
@@ -187,10 +190,11 @@ def ladder(levels, price):
             continue
         try:
             v = float(v)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
-        out.append({"key": key, "label": label, "value": v,
-                    "grade": grade((levels or {}).get(key))})
+        out.append(
+            {"key": key, "label": label, "value": v, "grade": grade((levels or {}).get(key))}
+        )
     out.sort(key=lambda r: r["value"])
     # Two levels can legitimately land on the same price — a stock that
     # just made a 52-week closing high has a 60-session closing high
@@ -222,11 +226,11 @@ def recovery_stages(levels, price):
 
 def downside_stages(levels, price):
     """Levels below spot, nearest first (descending)."""
-    return list(reversed([r for r in ladder(levels, price)
-                          if r.get("side") == "below"]))
+    return list(reversed([r for r in ladder(levels, price) if r.get("side") == "below"]))
 
 
 # ── technical state ─────────────────────────────────────────────────────
+
 
 def technical_state(levels, price):
     """A precise sentence, not 'below key averages'. The reader needs to
@@ -242,7 +246,7 @@ def technical_state(levels, price):
             continue
         try:
             have.append((name, float(v), float(v) < price))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
     if not have:
         return None, []
@@ -251,23 +255,25 @@ def technical_state(levels, price):
     long_term = [h for h in have if h[0] == "200-day"]
     parts = []
     if long_term:
-        parts.append("Long-term uptrend intact" if long_term[0][2]
-                     else "Long-term trend broken")
+        parts.append("Long-term uptrend intact" if long_term[0][2] else "Long-term trend broken")
     short = [h for h in have if h[0] in ("20-day", "50-day")]
     if short:
         s_below = [h[0] for h in short if not h[2]]
         s_above = [h[0] for h in short if h[2]]
         if s_below and not s_above:
-            parts.append("short-term correction below the %s average%s"
-                         % (" and ".join(s_below),
-                            "s" if len(s_below) > 1 else ""))
+            parts.append(
+                "short-term correction below the %s average%s"
+                % (" and ".join(s_below), "s" if len(s_below) > 1 else "")
+            )
         elif s_above and not s_below:
-            parts.append("holding above the %s average%s"
-                         % (" and ".join(s_above),
-                            "s" if len(s_above) > 1 else ""))
+            parts.append(
+                "holding above the %s average%s"
+                % (" and ".join(s_above), "s" if len(s_above) > 1 else "")
+            )
         else:
-            parts.append("above the %s but below the %s"
-                         % (" and ".join(s_above), " and ".join(s_below)))
+            parts.append(
+                "above the %s but below the %s" % (" and ".join(s_above), " and ".join(s_below))
+            )
     return "; ".join(parts) + ".", [("above", above), ("below", below)]
 
 
@@ -298,16 +304,23 @@ def exit_level(snap):
     dec = snap.get("decision") or {}
     levels = snap.get("levels") or {}
     plan = dec.get("position_plan") or {}
-    active = bool(plan.get("entry") or plan.get("entry_zone")
-                  or plan.get("shares") or plan.get("size"))
+    active = bool(
+        plan.get("entry") or plan.get("entry_zone") or plan.get("shares") or plan.get("size")
+    )
     price = spot(snap)
     support = rs.fv(levels.get("support"))
     atr = rs.fv(levels.get("atr14"))
     label = "Invalidation" if active else "Risk boundary"
-    out = {"label": label, "active_entry": active, "grade": DERIVED,
-           "basis": None, "value": None, "atr_multiple": None,
-           "horizon": dec.get("horizon"),
-           "floor": horizon_floor(dec.get("horizon"))}
+    out = {
+        "label": label,
+        "active_entry": active,
+        "grade": DERIVED,
+        "basis": None,
+        "value": None,
+        "atr_multiple": None,
+        "horizon": dec.get("horizon"),
+        "floor": horizon_floor(dec.get("horizon")),
+    }
     floor = out["floor"]
     # Two candidates: the level the stock has actually traded to, and the
     # distance the stated holding period requires. Take the WIDER of the
@@ -317,28 +330,29 @@ def exit_level(snap):
     # noise would trigger. Which rule bound the level is stated, so the
     # reader can see whether it came from the tape or from the horizon.
     documented = float(support) if support is not None else None
-    horizon_based = (float(price) - floor * float(atr)
-                     if (atr and price) else None)
+    horizon_based = float(price) - floor * float(atr) if (atr and price) else None
     if documented is not None and horizon_based is not None:
         if documented <= horizon_based:
             out["value"], out["bound_by"] = documented, "documented low"
-            out["basis"] = ("60-session closing low, the lowest close the "
-                            "stock has printed in this window")
+            out["basis"] = (
+                "60-session closing low, the lowest close the stock has printed in this window"
+            )
         else:
             out["value"], out["bound_by"] = horizon_based, "horizon"
-            out["basis"] = ("spot less %.1f x ATR(14) — the 60-session "
-                            "closing low at %.2f sits inside one %.1f x ATR "
-                            "band, too close to survive normal daily range "
-                            "over this holding period"
-                            % (floor, documented, floor))
+            out["basis"] = (
+                "spot less %.1f x ATR(14) — the 60-session "
+                "closing low at %.2f sits inside one %.1f x ATR "
+                "band, too close to survive normal daily range "
+                "over this holding period" % (floor, documented, floor)
+            )
     elif documented is not None:
         out["value"], out["bound_by"] = documented, "documented low"
-        out["basis"] = ("60-session closing low, the lowest close the stock "
-                        "has printed in this window")
+        out["basis"] = (
+            "60-session closing low, the lowest close the stock has printed in this window"
+        )
     elif horizon_based is not None:
         out["value"], out["bound_by"] = horizon_based, "horizon"
-        out["basis"] = ("spot less %.1f x ATR(14); no documented low in the "
-                        "window" % floor)
+        out["basis"] = "spot less %.1f x ATR(14); no documented low in the window" % floor
     if out["value"] is not None and atr and price:
         try:
             out["atr_multiple"] = (float(price) - out["value"]) / float(atr)
@@ -361,6 +375,7 @@ EVENT_KIND_LABEL = {
 
 def event_label(kind):
     return EVENT_KIND_LABEL.get(kind, str(kind or "filing").replace("_", " "))
+
 
 CONFIRMATION = {
     "regulator": "regulator-confirmed (EDGAR acceptance timestamp)",
@@ -386,33 +401,42 @@ def catalysts(snap, now=None):
     last, scheduled = None, None
     if ev_dt:
         et, warn = to_et(ev_dt)
-        rec = {"when": et, "when_utc": utc_iso(ev_dt), "tz_warning": warn,
-               "what": cat.get("description") or cat.get("event_kind"),
-               "kind": cat.get("event_kind"),
-               "confirmation": CONFIRMATION["regulator"],
-               "grade": OBSERVED, "age_days": age, "hours": hours,
-               "refs": [cat.get("event_ref")] if cat.get("event_ref") else []}
+        rec = {
+            "when": et,
+            "when_utc": utc_iso(ev_dt),
+            "tz_warning": warn,
+            "what": cat.get("description") or cat.get("event_kind"),
+            "kind": cat.get("event_kind"),
+            "confirmation": CONFIRMATION["regulator"],
+            "grade": OBSERVED,
+            "age_days": age,
+            "hours": hours,
+            "refs": [cat.get("event_ref")] if cat.get("event_ref") else [],
+        }
         if future:
-            scheduled = dict(rec, confirmation=CONFIRMATION["company"],
-                             note="filed after this report's timestamp; it "
-                                  "is ahead of the analysis, not behind it")
+            scheduled = dict(
+                rec,
+                confirmation=CONFIRMATION["company"],
+                note="filed after this report's timestamp; it "
+                "is ahead of the analysis, not behind it",
+            )
         else:
             last = rec
-    news = ((snap.get("sentiment") or {}).get("news") or [])
+    news = (snap.get("sentiment") or {}).get("news") or []
     driver = {"grade": INFERRED, "text": None, "stale_catalyst": False}
     if future:
-        driver["text"] = ("The next confirmed company event is still ahead "
-                          "of this report, so nothing disclosed by the "
-                          "company explains the current tape.")
+        driver["text"] = (
+            "The next confirmed company event is still ahead "
+            "of this report, so nothing disclosed by the "
+            "company explains the current tape."
+        )
         driver["grade"] = OBSERVED
     elif age is not None and age <= CURRENT_DRIVER_DAYS and last:
         whole = int(round(age))
-        driver["text"] = ("The %s disclosed %s remains the most recent "
-                          "confirmed company event."
-                          % (event_label(cat.get("event_kind")),
-                             "today" if whole == 0 else
-                             "%d day%s ago" % (whole,
-                                               "" if whole == 1 else "s")))
+        driver["text"] = "The %s disclosed %s remains the most recent confirmed company event." % (
+            event_label(cat.get("event_kind")),
+            "today" if whole == 0 else "%d day%s ago" % (whole, "" if whole == 1 else "s"),
+        )
         driver["grade"] = DERIVED
         driver["references_catalyst"] = True
     else:
@@ -420,26 +444,33 @@ def catalysts(snap, now=None):
         # explanation. With no company disclosure inside the window the
         # honest answer is that we do not know, and coverage is listed
         # separately without being promoted to a cause.
-        driver["text"] = ("No verified company-specific driver. No issuer "
-                          "disclosure inside the last %d days explains the "
-                          "current tape; press coverage is listed below but "
-                          "is not evidence of cause."
-                          % CURRENT_DRIVER_DAYS)
+        driver["text"] = (
+            "No verified company-specific driver. No issuer "
+            "disclosure inside the last %d days explains the "
+            "current tape; press coverage is listed below but "
+            "is not evidence of cause." % CURRENT_DRIVER_DAYS
+        )
         driver["grade"] = OBSERVED
         driver["references_catalyst"] = False
-        driver["stale_catalyst"] = bool(age is not None
-                                        and age > CURRENT_DRIVER_DAYS)
+        driver["stale_catalyst"] = bool(age is not None and age > CURRENT_DRIVER_DAYS)
     nxt = []
     for u in cat.get("upcoming") or []:
         when = u.get("when")
         et, warn = to_et(when)
-        vendor = "estimate" in str(u.get("what", "")).lower() or \
-                 "not company-confirmed" in str(u.get("what", "")).lower()
-        nxt.append({"what": u.get("what"), "when": et or str(when),
-                    "when_utc": utc_iso(when), "tz_warning": warn,
-                    "confirmation": CONFIRMATION["vendor" if vendor
-                                                 else "company"],
-                    "grade": OBSERVED})
+        vendor = (
+            "estimate" in str(u.get("what", "")).lower()
+            or "not company-confirmed" in str(u.get("what", "")).lower()
+        )
+        nxt.append(
+            {
+                "what": u.get("what"),
+                "when": et or str(when),
+                "when_utc": utc_iso(when),
+                "tz_warning": warn,
+                "confirmation": CONFIRMATION["vendor" if vendor else "company"],
+                "grade": OBSERVED,
+            }
+        )
     if scheduled:
         nxt.insert(0, scheduled)
     # the same event often arrives twice — once as the filing we read and
@@ -452,8 +483,7 @@ def catalysts(snap, now=None):
             continue
         seen.add(k)
         uniq.append(n)
-    return {"last_reported": last, "current_driver": driver, "next": uniq,
-            "scheduled": scheduled}
+    return {"last_reported": last, "current_driver": driver, "next": uniq, "scheduled": scheduled}
 
 
 # ── ownership and insiders ──────────────────────────────────────────────
@@ -482,11 +512,18 @@ def ownership_view(snap):
         if not f.get("filer"):
             unnamed += 1
         et, _ = to_et(f.get("accepted"))
-        rows.append({"form": f.get("form"), "filer": f.get("filer"),
-                     "accepted_raw": f.get("accepted"),
-                     "accepted": et or f.get("accepted"),
-                     "accession": accn, "url": f.get("url"),
-                     "stake": None, "ref": ref})
+        rows.append(
+            {
+                "form": f.get("form"),
+                "filer": f.get("filer"),
+                "accepted_raw": f.get("accepted"),
+                "accepted": et or f.get("accepted"),
+                "accession": accn,
+                "url": f.get("url"),
+                "stake": None,
+                "ref": ref,
+            }
+        )
     # A filing count is only interpretable if each row can be *looked up*
     # as well as named. A filer with no accession number cannot be
     # verified by the reader, and no stake size is parsed from any 13D/G
@@ -496,30 +533,40 @@ def ownership_view(snap):
     if not rows:
         note = "No Schedule 13D or 13G filing in the window."
     elif complete:
-        note = ("Stake sizes are not parsed from filing bodies, so these "
-                "filings are reported as events, not as position changes.")
+        note = (
+            "Stake sizes are not parsed from filing bodies, so these "
+            "filings are reported as events, not as position changes."
+        )
     else:
         gaps = []
         if unnamed:
-            gaps.append("%d of %d could not be attributed to a named filer"
-                        % (unnamed, len(rows)))
+            gaps.append("%d of %d could not be attributed to a named filer" % (unnamed, len(rows)))
         if no_accn:
-            gaps.append("%d carry no accession number to look up"
-                        % no_accn)
-        note = ("Ownership interpretation unavailable: %s. No stake size is "
-                "parsed from any filing body, so the count below is a count "
-                "of filings and nothing more." % "; ".join(gaps))
-    ages = [_days_between(r.get("accepted_raw") or r.get("accepted"),
-                          snap.get("report_time")) for r in rows]
+            gaps.append("%d carry no accession number to look up" % no_accn)
+        note = (
+            "Ownership interpretation unavailable: %s. No stake size is "
+            "parsed from any filing body, so the count below is a count "
+            "of filings and nothing more." % "; ".join(gaps)
+        )
+    ages = [
+        _days_between(r.get("accepted_raw") or r.get("accepted"), snap.get("report_time"))
+        for r in rows
+    ]
     ages = [a for a in ages if a is not None]
-    return {"rows": rows, "n": len(rows), "filers_parsed": complete,
-            "unnamed": unnamed, "without_accession": no_accn,
-            "shown_count": min(len(rows), OWNERSHIP_SHOWN),
-            "oldest_age_days": max(ages) if ages else None,
-            "newest_age_days": min(ages) if ages else None,
-            "window_days": (own.get("window_days") or 1825),
-            "institutional_pct": own.get("institutional_pct"),
-            "interpretation": note, "grade": OBSERVED}
+    return {
+        "rows": rows,
+        "n": len(rows),
+        "filers_parsed": complete,
+        "unnamed": unnamed,
+        "without_accession": no_accn,
+        "shown_count": min(len(rows), OWNERSHIP_SHOWN),
+        "oldest_age_days": max(ages) if ages else None,
+        "newest_age_days": min(ages) if ages else None,
+        "window_days": (own.get("window_days") or 1825),
+        "institutional_pct": own.get("institutional_pct"),
+        "interpretation": note,
+        "grade": OBSERVED,
+    }
 
 
 INSIDER_LABEL = [
@@ -546,29 +593,45 @@ def insider_view(snap):
     # never saw that open-market *purchases* were also counted, found
     # none, and were reported. A zero is a measurement.
     any_parsed = bool(by)
-    rows = [{"label": lab, "key": k, "n": by.get(k, 0), "carries_view":
-             k in ("open_market_buy", "open_market_sale")}
-            for k, lab in INSIDER_LABEL] if any_parsed else []
-    return {"rows": rows, "window_days": ins.get("window_days"),
-            "categories": len(INSIDER_LABEL),
-            "reading": ("A Form 4 records what an insider did, not why. "
-                        "Sales under a plan adopted earlier, shares "
-                        "surrendered to cover tax on a vest, and a "
-                        "discretionary open-market sale all file the same "
-                        "way, and this report does not read any of them as "
-                        "a view on the stock."),
-            "window_start": econ.get("window_start"),
-            "window_end": econ.get("window_end"),
-            "plan_status": econ.get("plan_status"),
-            "net_open_market_value": econ.get("net_open_market_value"),
-            "distinct_selling_insiders": econ.get("distinct_selling_insiders"),
-            "n_view_bearing": ins.get("n_view_bearing"),
-            "n_mechanics": ins.get("n_mechanics"),
-            "count_statement": ins.get("count_statement"),
-            "grade": OBSERVED}
+    rows = (
+        [
+            {
+                "label": lab,
+                "key": k,
+                "n": by.get(k, 0),
+                "carries_view": k in ("open_market_buy", "open_market_sale"),
+            }
+            for k, lab in INSIDER_LABEL
+        ]
+        if any_parsed
+        else []
+    )
+    return {
+        "rows": rows,
+        "window_days": ins.get("window_days"),
+        "categories": len(INSIDER_LABEL),
+        "reading": (
+            "A Form 4 records what an insider did, not why. "
+            "Sales under a plan adopted earlier, shares "
+            "surrendered to cover tax on a vest, and a "
+            "discretionary open-market sale all file the same "
+            "way, and this report does not read any of them as "
+            "a view on the stock."
+        ),
+        "window_start": econ.get("window_start"),
+        "window_end": econ.get("window_end"),
+        "plan_status": econ.get("plan_status"),
+        "net_open_market_value": econ.get("net_open_market_value"),
+        "distinct_selling_insiders": econ.get("distinct_selling_insiders"),
+        "n_view_bearing": ins.get("n_view_bearing"),
+        "n_mechanics": ins.get("n_mechanics"),
+        "count_statement": ins.get("count_statement"),
+        "grade": OBSERVED,
+    }
 
 
 # ── options ─────────────────────────────────────────────────────────────
+
 
 def options_view(snap):
     """The live pipeline has no options feed. Rather than leave a blank
@@ -576,19 +639,27 @@ def options_view(snap):
     lv = snap.get("levels") or {}
     em = rs.fv(lv.get("expected_move"))
     if em is None:
-        return {"available": False,
-                "note": ("Options coverage unavailable: no chain, open "
-                         "interest or implied-volatility feed is wired into "
-                         "this report. This is a gap in our data, not an "
-                         "absence of options activity."),
-                "grade": OBSERVED}
-    return {"available": True, "expected_move": em,
-            "print_time": (lv.get("expected_move") or {}).get("as_of"),
-            "oi_status": (lv.get("expected_move") or {}).get("note"),
-            "grade": grade(lv.get("expected_move"))}
+        return {
+            "available": False,
+            "note": (
+                "Options coverage unavailable: no chain, open "
+                "interest or implied-volatility feed is wired into "
+                "this report. This is a gap in our data, not an "
+                "absence of options activity."
+            ),
+            "grade": OBSERVED,
+        }
+    return {
+        "available": True,
+        "expected_move": em,
+        "print_time": (lv.get("expected_move") or {}).get("as_of"),
+        "oi_status": (lv.get("expected_move") or {}).get("note"),
+        "grade": grade(lv.get("expected_move")),
+    }
 
 
 # ── social themes ───────────────────────────────────────────────────────
+
 
 def social_view(snap):
     """Themes and counts in the brief; the raw posts belong in the
@@ -609,9 +680,13 @@ def social_view(snap):
     elif raw:
         # a prose assessment with no counts behind it: keep the words,
         # but do not manufacture the numbers it implies
-        coord = {"label": raw, "phrase_groups": alt.get("echoed_phrases"),
-                 "pct_of_relevant_posts": alt.get("echoed_share_pct"),
-                 "posts_affected": None, "threshold": None}
+        coord = {
+            "label": raw,
+            "phrase_groups": alt.get("echoed_phrases"),
+            "pct_of_relevant_posts": alt.get("echoed_share_pct"),
+            "posts_affected": None,
+            "threshold": None,
+        }
     else:
         coord = {}
     n_rel = alt.get("n_relevant")
@@ -643,6 +718,7 @@ def social_view(snap):
 
 # ── what changed ────────────────────────────────────────────────────────
 
+
 def _state_path(ticker):
     return os.path.join(STATE_DIR, "%s.json" % str(ticker).upper())
 
@@ -666,20 +742,26 @@ def prior_state(ticker, published_only=True, now=None):
     if not published_only:
         return st, None
     if not st.get("published"):
-        return None, ("the most recent run was not published (it did not "
-                      "pass validation), so it cannot be a baseline")
+        return None, (
+            "the most recent run was not published (it did not "
+            "pass validation), so it cannot be a baseline"
+        )
     if not st.get("validation_ok"):
         return None, "the most recent run recorded a failed validation"
     if not (st.get("artifacts") or {}).get("core_pdf", {}).get("sha256"):
-        return None, ("the most recent run recorded no artifact hash, so "
-                      "there is no published document to compare against")
-    age = _hours_between(st.get("published_at"),
-                         now or dt.datetime.now(dt.timezone.utc).isoformat())
+        return None, (
+            "the most recent run recorded no artifact hash, so "
+            "there is no published document to compare against"
+        )
+    age = _hours_between(
+        st.get("published_at"), now or dt.datetime.now(dt.timezone.utc).isoformat()
+    )
     if age is not None and age * 60.0 < MIN_BASELINE_AGE_MINUTES:
-        return None, ("the previous package was published %d minute(s) ago; "
-                      "that is a draft from this working session, not a "
-                      "prior edition"
-                      % int(round(age * 60.0)))
+        return None, (
+            "the previous package was published %d minute(s) ago; "
+            "that is a draft from this working session, not a "
+            "prior edition" % int(round(age * 60.0))
+        )
     return st, None
 
 
@@ -689,25 +771,25 @@ def publish_state(snap, artifacts=None, validation=None, now=None):
     was actually delivered."""
     lv = snap.get("levels") or {}
     dec = snap.get("decision") or {}
-    st = {"ticker": snap.get("ticker"),
-          "report_time": snap.get("report_time"),
-          "published": True,
-          "published_at": now or dt.datetime.now(
-              dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-          "validation_ok": bool((validation or {}).get("ok")),
-          "validator_version": (validation or {}).get("validator_version"),
-          "artifacts": artifacts or {},
-          "price": spot(snap),
-          "action": dec.get("current_action"),
-          "ma20": rs.fv(lv.get("ma20")), "ma50": rs.fv(lv.get("ma50")),
-          "ma200": rs.fv(lv.get("ma200")),
-          "catalyst": (snap.get("catalyst") or {}).get("event_dt"),
-          "evidence_quality": (snap.get("evidence") or {}).get(
-              "evidence_quality")}
+    st = {
+        "ticker": snap.get("ticker"),
+        "report_time": snap.get("report_time"),
+        "published": True,
+        "published_at": now or dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "validation_ok": bool((validation or {}).get("ok")),
+        "validator_version": (validation or {}).get("validator_version"),
+        "artifacts": artifacts or {},
+        "price": spot(snap),
+        "action": dec.get("current_action"),
+        "ma20": rs.fv(lv.get("ma20")),
+        "ma50": rs.fv(lv.get("ma50")),
+        "ma200": rs.fv(lv.get("ma200")),
+        "catalyst": (snap.get("catalyst") or {}).get("event_dt"),
+        "evidence_quality": (snap.get("evidence") or {}).get("evidence_quality"),
+    }
     try:
         os.makedirs(STATE_DIR, exist_ok=True)
-        with open(_state_path(snap.get("ticker")), "w",
-                  encoding="utf-8") as fh:
+        with open(_state_path(snap.get("ticker")), "w", encoding="utf-8") as fh:
             json.dump(st, fh, indent=1)
     except Exception:
         pass
@@ -726,16 +808,20 @@ def what_changed(snap, prior=None, published_only=True):
     delta, not a re-read."""
     refusal = None
     if prior is None:
-        prior, refusal = prior_state(snap.get("ticker"),
-                                     published_only=published_only)
+        prior, refusal = prior_state(snap.get("ticker"), published_only=published_only)
     if not prior:
-        return {"first_report": True, "items": [], "baseline": None,
-                "refusal": refusal,
-                "note": ("No published prior report to compare against for "
-                         "%s: %s. Nothing below is a change measurement."
-                         % (snap.get("ticker", "this name"),
-                            refusal or "no baseline on file")),
-                "grade": OBSERVED}
+        return {
+            "first_report": True,
+            "items": [],
+            "baseline": None,
+            "refusal": refusal,
+            "note": (
+                "No published prior report to compare against for "
+                "%s: %s. Nothing below is a change measurement."
+                % (snap.get("ticker", "this name"), refusal or "no baseline on file")
+            ),
+            "grade": OBSERVED,
+        }
     lv = snap.get("levels") or {}
     dec = snap.get("decision") or {}
     price = spot(snap)
@@ -743,43 +829,66 @@ def what_changed(snap, prior=None, published_only=True):
     p0 = prior.get("price")
     if price is not None and p0:
         pct = (price - p0) / p0 * 100.0
-        items.append({"text": "Price %+.1f%% since the last report "
-                              "(%.2f to %.2f)." % (pct, p0, price),
-                      "grade": DERIVED})
-    for key, name in (("ma20", "20-day"), ("ma50", "50-day"),
-                      ("ma200", "200-day")):
+        items.append(
+            {
+                "text": "Price %+.1f%% since the last report (%.2f to %.2f)." % (pct, p0, price),
+                "grade": DERIVED,
+            }
+        )
+    for key, name in (("ma20", "20-day"), ("ma50", "50-day"), ("ma200", "200-day")):
         now_side = _side(price, rs.fv(lv.get(key)))
         was_side = _side(p0, prior.get(key))
         if now_side and was_side and now_side != was_side:
-            items.append({"text": "Price crossed from %s to %s the %s "
-                                  "average." % (was_side, now_side, name),
-                          "grade": DERIVED})
+            items.append(
+                {
+                    "text": "Price crossed from %s to %s the %s "
+                    "average." % (was_side, now_side, name),
+                    "grade": DERIVED,
+                }
+            )
     if dec.get("current_action") != prior.get("action"):
-        items.append({"text": "Action changed from %s to %s."
-                              % (prior.get("action"), dec.get("current_action")),
-                      "grade": DERIVED})
+        items.append(
+            {
+                "text": "Action changed from %s to %s."
+                % (prior.get("action"), dec.get("current_action")),
+                "grade": DERIVED,
+            }
+        )
     now_cat = (snap.get("catalyst") or {}).get("event_dt")
     if now_cat and now_cat != prior.get("catalyst"):
-        items.append({"text": "A new company disclosure has been filed since "
-                              "the last report.", "grade": OBSERVED})
+        items.append(
+            {
+                "text": "A new company disclosure has been filed since the last report.",
+                "grade": OBSERVED,
+            }
+        )
     eq = (snap.get("evidence") or {}).get("evidence_quality")
     if eq and eq != prior.get("evidence_quality"):
-        items.append({"text": "Evidence quality moved from %s to %s."
-                              % (prior.get("evidence_quality"), eq),
-                      "grade": DERIVED})
+        items.append(
+            {
+                "text": "Evidence quality moved from %s to %s."
+                % (prior.get("evidence_quality"), eq),
+                "grade": DERIVED,
+            }
+        )
     et, _ = to_et(prior.get("published_at") or prior.get("report_time"))
-    return {"first_report": False, "items": items, "since": et,
-            "baseline": {"published_at": prior.get("published_at"),
-                         "core_pdf_sha256": (prior.get("artifacts") or {})
-                         .get("core_pdf", {}).get("sha256"),
-                         "validator_version": prior.get("validator_version")},
-            "refusal": None,
-            "note": None if items else
-            "Nothing material changed since the previous report.",
-            "grade": DERIVED}
+    return {
+        "first_report": False,
+        "items": items,
+        "since": et,
+        "baseline": {
+            "published_at": prior.get("published_at"),
+            "core_pdf_sha256": (prior.get("artifacts") or {}).get("core_pdf", {}).get("sha256"),
+            "validator_version": prior.get("validator_version"),
+        },
+        "refusal": None,
+        "note": None if items else "Nothing material changed since the previous report.",
+        "grade": DERIVED,
+    }
 
 
 # ── the model ───────────────────────────────────────────────────────────
+
 
 def build(snap, mk=None, prior=None):
     """Assemble everything the four pages draw from, once, so the pages
@@ -806,12 +915,10 @@ def build(snap, mk=None, prior=None):
         "downside": downside_stages(lv, price),
         "levels": level_groups(snap, price),
         "indicator_basis": {
-            "partial_session": bool((snap.get("levels") or {})
-                                    .get("partial_session")),
-            "last_completed": (snap.get("levels") or {})
-            .get("last_completed_session"),
+            "partial_session": bool((snap.get("levels") or {}).get("partial_session")),
+            "last_completed": (snap.get("levels") or {}).get("last_completed_session"),
             "note": "moving averages, ATR and relative strength are "
-                    "computed from completed sessions only",
+            "computed from completed sessions only",
         },
         "prospective": prospective_conditions(snap, price),
         "business": business_description(snap),
@@ -828,7 +935,9 @@ def build(snap, mk=None, prior=None):
         "grades": GRADE_NOTE,
     }
 
+
 # ── levels, grouped by what they would actually mean ────────────────────
+
 
 def level_groups(snap, price=None):
     """Three different kinds of level, which v3 ran together in one
@@ -855,15 +964,17 @@ def level_groups(snap, price=None):
             up.append(r)
         else:
             down.append(r)
-    return {"upside_confirmation": up,
-            "downside_deterioration": list(reversed(down)),
-            "structural": struct,
-            "structural_note":
-                "Range edges, not trade levels. These describe where price "
-                "has traded; none of them is an entry, a target or a stop."}
+    return {
+        "upside_confirmation": up,
+        "downside_deterioration": list(reversed(down)),
+        "structural": struct,
+        "structural_note": "Range edges, not trade levels. These describe where price "
+        "has traded; none of them is an entry, a target or a stop.",
+    }
 
 
 # ── prospective conditions ──────────────────────────────────────────────
+
 
 def prospective_conditions(snap, price=None):
     """Forward, checkable conditions — the things that would change the
@@ -881,61 +992,85 @@ def prospective_conditions(snap, price=None):
 
     rev = g.get("revenue")
     if rev and rev.get("low") is not None:
-        out.append({
-            "text": "Next quarter's revenue prints below the guided low of "
-                    "$%sB (guide $%sB %s)."
-                    % (g_str(rev["low"], scale=1000.0),
-                       g_str(rev["midpoint"], scale=1000.0),
-                       rev.get("basis") or ""),
-            "kind": "financial", "grade": OBSERVED,
-            "testable_at": ex.get("guidance_period") or "next results",
-            "source": "8-K EX-99.1 outlook table"})
-    ngm_g, ngm_r = g.get("non_gaap_gross_margin"), rep.get(
-        "non_gaap_gross_margin")
+        out.append(
+            {
+                "text": "Next quarter's revenue prints below the guided low of "
+                "$%sB (guide $%sB %s)."
+                % (
+                    g_str(rev["low"], scale=1000.0),
+                    g_str(rev["midpoint"], scale=1000.0),
+                    rev.get("basis") or "",
+                ),
+                "kind": "financial",
+                "grade": OBSERVED,
+                "testable_at": ex.get("guidance_period") or "next results",
+                "source": "8-K EX-99.1 outlook table",
+            }
+        )
+    ngm_g, ngm_r = g.get("non_gaap_gross_margin"), rep.get("non_gaap_gross_margin")
     if ngm_g and ngm_g.get("low") is not None:
         tail = ""
         if ngm_r and ngm_r.get("value") is not None:
-            tail = (" against %.1f%% just reported" % ngm_r["value"])
-        out.append({
-            "text": "Non-GAAP gross margin guides or prints below %s%%%s."
-                    % (g_str(ngm_g["low"]), tail),
-            "kind": "financial", "grade": OBSERVED,
-            "testable_at": ex.get("guidance_period") or "next results",
-            "source": "8-K EX-99.1 outlook table"})
+            tail = " against %.1f%% just reported" % ngm_r["value"]
+        out.append(
+            {
+                "text": "Non-GAAP gross margin guides or prints below %s%%%s."
+                % (g_str(ngm_g["low"]), tail),
+                "kind": "financial",
+                "grade": OBSERVED,
+                "testable_at": ex.get("guidance_period") or "next results",
+                "source": "8-K EX-99.1 outlook table",
+            }
+        )
     eps_g = g.get("non_gaap_eps")
     if eps_g and eps_g.get("low") is not None:
-        out.append({
-            "text": "Non-GAAP diluted EPS comes in below the guided low of "
-                    "$%s (guide $%s %s)."
-                    % (g_str(eps_g["low"]), g_str(eps_g["midpoint"]),
-                       eps_g.get("basis") or ""),
-            "kind": "financial", "grade": OBSERVED,
-            "testable_at": ex.get("guidance_period") or "next results",
-            "source": "8-K EX-99.1 outlook table"})
+        out.append(
+            {
+                "text": "Non-GAAP diluted EPS comes in below the guided low of "
+                "$%s (guide $%s %s)."
+                % (g_str(eps_g["low"]), g_str(eps_g["midpoint"]), eps_g.get("basis") or ""),
+                "kind": "financial",
+                "grade": OBSERVED,
+                "testable_at": ex.get("guidance_period") or "next results",
+                "source": "8-K EX-99.1 outlook table",
+            }
+        )
 
     ma200 = rs.fv(lv.get("ma200"))
     if ma200 and price:
         if price > ma200:
-            out.append({"text": "A daily close below the 200-day average at "
-                                "%.2f (%.1f%% away) ends the long-term "
-                                "uptrend." % (ma200,
-                                              (ma200 - price) / price * 100.0),
-                        "kind": "technical", "grade": DERIVED,
-                        "testable_at": "any session close"})
+            out.append(
+                {
+                    "text": "A daily close below the 200-day average at "
+                    "%.2f (%.1f%% away) ends the long-term "
+                    "uptrend." % (ma200, (ma200 - price) / price * 100.0),
+                    "kind": "technical",
+                    "grade": DERIVED,
+                    "testable_at": "any session close",
+                }
+            )
         else:
-            out.append({"text": "Failure to reclaim the 200-day average at "
-                                "%.2f keeps the long-term trend broken."
-                                % ma200,
-                        "kind": "technical", "grade": DERIVED,
-                        "testable_at": "any session close"})
+            out.append(
+                {
+                    "text": "Failure to reclaim the 200-day average at "
+                    "%.2f keeps the long-term trend broken." % ma200,
+                    "kind": "technical",
+                    "grade": DERIVED,
+                    "testable_at": "any session close",
+                }
+            )
     sup = rs.fv(lv.get("support"))
     if sup and price:
-        out.append({"text": "A close below the 60-session closing low at "
-                            "%.2f puts "
-                            "price outside the range it has held."
-                            % sup,
-                    "kind": "structural", "grade": DERIVED,
-                    "testable_at": "any session close"})
+        out.append(
+            {
+                "text": "A close below the 60-session closing low at "
+                "%.2f puts "
+                "price outside the range it has held." % sup,
+                "kind": "structural",
+                "grade": DERIVED,
+                "testable_at": "any session close",
+            }
+        )
     return out[:4]
 
 
@@ -945,9 +1080,28 @@ BUSINESS_MIN_SENTENCES = 3
 BUSINESS_MAX_SENTENCES = 5
 
 
-_DANGLING = {"the", "a", "an", "and", "or", "in", "of", "to", "for",
-             "with", "its", "at", "on", "by", "from", "as", "that", "which",
-             "including", "such"}
+_DANGLING = {
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "in",
+    "of",
+    "to",
+    "for",
+    "with",
+    "its",
+    "at",
+    "on",
+    "by",
+    "from",
+    "as",
+    "that",
+    "which",
+    "including",
+    "such",
+}
 
 
 def _clip_sentences(text, limit=170, n=1):
@@ -999,17 +1153,18 @@ def business_description(snap):
     fu = snap.get("fundamentals") or {}
     ex = snap.get("exhibit") or {}
     rep, gui = ex.get("reported") or {}, ex.get("guidance") or {}
-    admitted_ex = (ex.get("disposition") == "ADMITTED")
+    admitted_ex = ex.get("disposition") == "ADMITTED"
     vendor = ov.get("text") or rs.fv(co.get("business_2s"))
     src = ov.get("source") or "issuer profile (vendor)"
-    exref = (["CAT-%s" % ex["accession"]] if ex.get("accession") else [])
+    exref = ["CAT-%s" % ex["accession"]] if ex.get("accession") else []
 
     sent = []
 
     def add(text, grade, refs, source):
         if text:
-            sent.append({"text": text, "grade": grade,
-                         "refs": [r for r in refs if r], "source": source})
+            sent.append(
+                {"text": text, "grade": grade, "refs": [r for r in refs if r], "source": source}
+            )
 
     # 1 — what the company says it does, in its own words
     quote = _clip_sentences(vendor)
@@ -1018,12 +1173,17 @@ def business_description(snap):
         if ov.get("industry"):
             tail.append(ov["industry"])
         if ov.get("employees"):
-            tail.append("%s employees" % f"{ov['employees']:,}"
-                        if isinstance(ov.get("employees"), int)
-                        else str(ov["employees"]))
-        add("\u201c%s\u201d%s" % (quote,
-                                  (" (%s)" % "; ".join(tail)) if tail else ""),
-            OBSERVED, list(ov.get("evidence_refs") or []), src)
+            tail.append(
+                "%s employees" % f"{ov['employees']:,}"
+                if isinstance(ov.get("employees"), int)
+                else str(ov["employees"])
+            )
+        add(
+            "\u201c%s\u201d%s" % (quote, (" (%s)" % "; ".join(tail)) if tail else ""),
+            OBSERVED,
+            list(ov.get("evidence_refs") or []),
+            src,
+        )
 
     # 2 — scale and direction, from the filings
     # Scale, direction and the margin on it, in one sentence. Net margin
@@ -1036,58 +1196,70 @@ def business_description(snap):
     ngm = (rep.get("non_gaap_gross_margin") or {}).get("value")
     ocf = rs.fv(fu.get("operating_cash_flow"))
     if rev:
-        txt = "Revenue was $%.2fB in the most recent reported quarter" % (
-            rev / 1e9)
+        txt = "Revenue was $%.2fB in the most recent reported quarter" % (rev / 1e9)
         if grw is not None:
             txt += ", %+.1f%% against the same quarter a year earlier" % grw
         if gm is not None:
             txt += ", at a %.1f%% GAAP gross margin%s" % (
-                gm, (" (%.1f%% as the company presents it)" % ngm)
-                if (ngm is not None and admitted_ex) else "")
-        add(txt + ".", OBSERVED if grw is None else DERIVED,
-            ["fundamentals.revenue_q", "CALC-revenue_yoy",
-             "fundamentals.gross_margin"] + (exref if ngm else []),
-            "SEC XBRL 10-Q"
-            + ("; 8-K Exhibit 99.1 for the non-GAAP figure" if ngm else ""))
+                gm,
+                (" (%.1f%% as the company presents it)" % ngm)
+                if (ngm is not None and admitted_ex)
+                else "",
+            )
+        add(
+            txt + ".",
+            OBSERVED if grw is None else DERIVED,
+            ["fundamentals.revenue_q", "CALC-revenue_yoy", "fundamentals.gross_margin"]
+            + (exref if ngm else []),
+            "SEC XBRL 10-Q" + ("; 8-K Exhibit 99.1 for the non-GAAP figure" if ngm else ""),
+        )
 
     # 4 — what the company has told the market to expect
     g = gui.get("revenue") or {}
     if admitted_ex and g.get("raw"):
-        txt = "Guidance as filed in the earnings exhibit: revenue %s" % (
-            g["raw"])
+        txt = "Guidance as filed in the earnings exhibit: revenue %s" % (g["raw"])
         gg = gui.get("non_gaap_gross_margin") or {}
         if gg.get("raw"):
             txt += ", non-GAAP gross margin %s" % gg["raw"]
         add(txt + ".", OBSERVED, exref, "8-K Exhibit 99.1")
 
     # 5 — and the part we cannot source, named rather than skipped
-    add("No segment revenue mix, market-share estimate or installed-base "
-        "figure is ingested here, so none is claimed.", OBSERVED, [],
-        "coverage statement")
+    add(
+        "No segment revenue mix, market-share estimate or installed-base "
+        "figure is ingested here, so none is claimed.",
+        OBSERVED,
+        [],
+        "coverage statement",
+    )
 
     sent = sent[:BUSINESS_MAX_SENTENCES]
     facts, refs = [], []
     rev_ = rs.fv(fu.get("revenue_q"))
     if rev_:
-        facts.append("It reported $%.2fB of revenue in the most recent "
-                     "quarter" % (rev_ / 1e9))
+        facts.append("It reported $%.2fB of revenue in the most recent quarter" % (rev_ / 1e9))
         refs.append("fundamentals.revenue_q")
     if gm and ngm:
-        facts.append("at a %.1f%% GAAP gross margin (%.1f%% non-GAAP, as the "
-                     "company presents it)" % (gm, ngm))
+        facts.append(
+            "at a %.1f%% GAAP gross margin (%.1f%% non-GAAP, as the "
+            "company presents it)" % (gm, ngm)
+        )
         refs.append("exhibit.non_gaap_gross_margin")
     if ocf:
-        facts.append("and generated $%.0fM of operating cash flow"
-                     % (ocf / 1e6))
+        facts.append("and generated $%.0fM of operating cash flow" % (ocf / 1e6))
         refs.append("fundamentals.operating_cash_flow")
     plain = (", ".join(facts) + ".") if facts else None
-    return {"vendor_text": vendor, "vendor_source": src,
-            "plain": plain, "refs": refs, "sentences": sent,
-            "sufficient": len(sent) >= BUSINESS_MIN_SENTENCES,
-            "grade": OBSERVED if sent else INFERRED,
-            "note": "The first sentence is the vendor's own description, "
-                    "quoted. The figures after it are filed numbers, each "
-                    "traceable in the evidence package."}
+    return {
+        "vendor_text": vendor,
+        "vendor_source": src,
+        "plain": plain,
+        "refs": refs,
+        "sentences": sent,
+        "sufficient": len(sent) >= BUSINESS_MIN_SENTENCES,
+        "grade": OBSERVED if sent else INFERRED,
+        "note": "The first sentence is the vendor's own description, "
+        "quoted. The figures after it are filed numbers, each "
+        "traceable in the evidence package.",
+    }
 
 
 # ── news ────────────────────────────────────────────────────────────────
@@ -1113,14 +1285,18 @@ def news_implication(item):
     if first is not None:
         try:
             bits.append("first at %d%% of the body" % round(float(first)))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
     body = ", ".join(bits) if bits else "relevance verified"
-    kind = ("wire report" if str(tier or "").lower() in ("1", "tier1", "wire")
-            else "third-party commentary")
-    return {"text": "%s; %s. No issuer disclosure sits behind it."
-                    % (kind.capitalize(), body),
-            "grade": DERIVED}
+    kind = (
+        "wire report"
+        if str(tier or "").lower() in ("1", "tier1", "wire")
+        else "third-party commentary"
+    )
+    return {
+        "text": "%s; %s. No issuer disclosure sits behind it." % (kind.capitalize(), body),
+        "grade": DERIVED,
+    }
 
 
 def g_str(x, unit=None, scale=1.0, prefix="", suffix=""):
@@ -1136,8 +1312,11 @@ def g_str(x, unit=None, scale=1.0, prefix="", suffix=""):
     return "%s%s%s" % (prefix, txt, suffix or "")
 
 
-SOCIAL_FACT_RX = re.compile(r"social post|message board|stocktwits|"
-                            r"posts from \d+ authors", re.I)
+SOCIAL_FACT_RX = re.compile(
+    r"social post|message board|stocktwits|"
+    r"posts from \d+ authors",
+    re.I,
+)
 
 
 def thesis_facts(snap, limit=3):
@@ -1161,22 +1340,32 @@ def thesis_facts(snap, limit=3):
     extra = []
     ocf = rs.fv(fu.get("operating_cash_flow"))
     if ocf:
-        extra.append({"text": "Operating cash flow of $%.0fM in the quarter "
-                              "(GAAP, as filed)." % (ocf / 1e6),
-                      "grade": OBSERVED})
+        extra.append(
+            {
+                "text": "Operating cash flow of $%.0fM in the quarter "
+                "(GAAP, as filed)." % (ocf / 1e6),
+                "grade": OBSERVED,
+            }
+        )
     g_rev = (ex.get("guidance") or {}).get("revenue")
     if g_rev and g_rev.get("midpoint") is not None:
-        extra.append({"text": "Company guides next-quarter revenue to $%sB "
-                              "%s (8-K Exhibit 99.1)."
-                              % (g_str(g_rev["midpoint"], scale=1000.0),
-                                 g_rev.get("basis") or ""),
-                      "grade": OBSERVED})
+        extra.append(
+            {
+                "text": "Company guides next-quarter revenue to $%sB "
+                "%s (8-K Exhibit 99.1)."
+                % (g_str(g_rev["midpoint"], scale=1000.0), g_rev.get("basis") or ""),
+                "grade": OBSERVED,
+            }
+        )
     g_gm = (ex.get("guidance") or {}).get("non_gaap_gross_margin")
     if g_gm and g_gm.get("low") is not None:
-        extra.append({"text": "Non-GAAP gross margin guided to %s%%-%s%% "
-                              "(8-K Exhibit 99.1)."
-                              % (g_str(g_gm["low"]), g_str(g_gm["high"])),
-                      "grade": OBSERVED})
+        extra.append(
+            {
+                "text": "Non-GAAP gross margin guided to %s%%-%s%% "
+                "(8-K Exhibit 99.1)." % (g_str(g_gm["low"]), g_str(g_gm["high"])),
+                "grade": OBSERVED,
+            }
+        )
 
     out = kept[:]
     for e in extra:
@@ -1194,7 +1383,9 @@ def thesis_facts(snap, limit=3):
 _UGC_BLOCK = re.compile(
     r"\b(fuck\w*|shit\w*|cunt\w*|bitch\w*|slut\w*|whore\w*|rape\w*|"
     r"nigg\w*|fag\w*|retard\w*|cock|dick|pussy|tits|porn|sex+y?|"
-    r"kill\s+your|kys)\b", re.I)
+    r"kill\s+your|kys)\b",
+    re.I,
+)
 
 
 def presentable_samples(records, limit=10, min_chars=25):
@@ -1203,9 +1394,9 @@ def presentable_samples(records, limit=10, min_chars=25):
     for r in records or []:
         txt = str(r.get("excerpt") or "").strip()
         if len(txt) < min_chars:
-            continue                      # content-free
+            continue  # content-free
         if _UGC_BLOCK.search(txt):
-            continue                      # explicit or abusive
+            continue  # explicit or abusive
         out.append(r)
         if len(out) >= limit:
             break
@@ -1218,7 +1409,7 @@ def news_scope(snap, shown_core=None):
     "5 records displayed" meant the pipeline population, the core page
     and the appendix at three different call sites. Every number here
     says which document it refers to."""
-    pop = ((snap.get("count_populations") or {}).get("news") or {})
+    pop = (snap.get("count_populations") or {}).get("news") or {}
     admitted = pop.get("records_admitted")
     if admitted is None:
         admitted = len(((snap.get("sentiment") or {}).get("news") or []))
@@ -1226,10 +1417,12 @@ def news_scope(snap, shown_core=None):
     if fetched is None:
         fetched = admitted
     core = CORE_NEWS_SHOWN if shown_core is None else shown_core
-    return {"available_evidence": fetched,
-            "admitted": admitted,
-            "shown_core": min(core, admitted) if admitted is not None else core,
-            "shown_appendix": 0}
+    return {
+        "available_evidence": fetched,
+        "admitted": admitted,
+        "shown_core": min(core, admitted) if admitted is not None else core,
+        "shown_appendix": 0,
+    }
 
 
 # ── setup metrics ───────────────────────────────────────────────────────
@@ -1246,6 +1439,7 @@ def news_scope(snap, shown_core=None):
 # treated as unavailable, because a holdings or short-interest figure the
 # reader cannot age is not a fact they can use.
 
+
 def _sentence(text):
     """Upper-case the first letter and leave the rest alone."""
     return text[:1].upper() + text[1:] if text else text
@@ -1256,8 +1450,14 @@ def _m(label, value, grade, basis=None, reason=None, calc=None):
     formatted from. A DERIVED number with no calculation behind it cannot
     be checked by a reader or by the validator, so the panel carries the
     link and METRIC_FORMULA_TRACEABLE fails when it is missing."""
-    return {"label": label, "value": value, "grade": grade,
-            "basis": basis, "unavailable_reason": reason, "calc": calc}
+    return {
+        "label": label,
+        "value": value,
+        "grade": grade,
+        "basis": basis,
+        "unavailable_reason": reason,
+        "calc": calc,
+    }
 
 
 def _unavail(label, reason):
@@ -1273,131 +1473,199 @@ def setup_metrics(snap):
     out = []
 
     ch = rs.fv(pr.get("change_pct"))
-    out.append(_m("Price", "%.2f" % px if px else "Unavailable",
-                  OBSERVED if px else None,
-                  basis=(lv.get("price_basis") or "last completed close")))
-    out.append(_m("Session change", "%+.2f%%" % ch if ch is not None
-                  else "Unavailable", DERIVED if ch is not None else None,
-                  calc="CALC-session_change"))
+    out.append(
+        _m(
+            "Price",
+            "%.2f" % px if px else "Unavailable",
+            OBSERVED if px else None,
+            basis=(lv.get("price_basis") or "last completed close"),
+        )
+    )
+    out.append(
+        _m(
+            "Session change",
+            "%+.2f%%" % ch if ch is not None else "Unavailable",
+            DERIVED if ch is not None else None,
+            calc="CALC-session_change",
+        )
+    )
 
     cap = rs.fv(co.get("market_cap"))
-    out.append(_m("Market cap", "$%.1fB" % (cap / 1e9) if cap
-                  else "Unavailable", DERIVED if cap else None,
-                  basis="observed price x latest filed shares",
-                  calc="CALC-market_cap"))
+    out.append(
+        _m(
+            "Market cap",
+            "$%.1fB" % (cap / 1e9) if cap else "Unavailable",
+            DERIVED if cap else None,
+            basis="observed price x latest filed shares",
+            calc="CALC-market_cap",
+        )
+    )
     fl = rs.fv(co.get("float_shares"))
-    out.append(_m("Float", "%.0fM" % (fl / 1e6) if fl else "Unavailable",
-                  OBSERVED if fl else None,
-                  basis="vendor profile, no as-of date published"
-                  if fl else None) if fl else
-               _unavail("Float", "no float figure from an admitted source"))
+    out.append(
+        _m(
+            "Float",
+            "%.0fM" % (fl / 1e6) if fl else "Unavailable",
+            OBSERVED if fl else None,
+            basis="vendor profile, no as-of date published" if fl else None,
+        )
+        if fl
+        else _unavail("Float", "no float figure from an admitted source")
+    )
 
     rsv = rs.fv(lv.get("rs_vs_spy"))
-    out.append(_m("RS vs SPY (12w)", "%+.1f%%" % rsv if rsv is not None
-                  else "Unavailable", DERIVED if rsv is not None else None,
-                  basis="identical completed sessions, both legs",
-                  calc="CALC-rs_vs_spy"))
+    out.append(
+        _m(
+            "RS vs SPY (12w)",
+            "%+.1f%%" % rsv if rsv is not None else "Unavailable",
+            DERIVED if rsv is not None else None,
+            basis="identical completed sessions, both legs",
+            calc="CALC-rs_vs_spy",
+        )
+    )
 
     below = rs.fv(lv.get("pct_below_hi52"))
-    out.append(_m("Below 52w closing high",
-                  "%.1f%%" % below if below is not None else "Unavailable",
-                  DERIVED if below is not None else None,
-                  calc="CALC-pct_below_hi52"))
+    out.append(
+        _m(
+            "Below 52w closing high",
+            "%.1f%%" % below if below is not None else "Unavailable",
+            DERIVED if below is not None else None,
+            calc="CALC-pct_below_hi52",
+        )
+    )
 
     bt = rs.fv(lv.get("base_tightness_pct"))
-    out.append(_m("Base tightness",
-                  "%.1f%% / %ds" % (bt, lv.get("base_tightness_window") or 20)
-                  if bt is not None else "Unavailable",
-                  DERIVED if bt is not None else None,
-                  basis=lv.get("base_tightness_formula"),
-                  calc="CALC-base_tightness_pct"))
+    out.append(
+        _m(
+            "Base tightness",
+            "%.1f%% / %ds" % (bt, lv.get("base_tightness_window") or 20)
+            if bt is not None
+            else "Unavailable",
+            DERIVED if bt is not None else None,
+            basis=lv.get("base_tightness_formula"),
+            calc="CALC-base_tightness_pct",
+        )
+    )
 
     rv = rs.fv(lv.get("rel_volume"))
-    out.append(_m("Volume vs 20-session", "%.2fx" % rv, DERIVED,
-                  calc="CALC-rel_volume")
-               if rv is not None else
-               _unavail("Volume vs 20-session",
-                        "the session is open; a partial day cannot be "
-                        "compared with completed-session averages"))
+    out.append(
+        _m("Volume vs 20-session", "%.2fx" % rv, DERIVED, calc="CALC-rel_volume")
+        if rv is not None
+        else _unavail(
+            "Volume vs 20-session",
+            "the session is open; a partial day cannot be compared with completed-session averages",
+        )
+    )
 
     rsi = rs.fv(lv.get("rsi14"))
-    out.append(_m("RSI(14)", "%.1f" % rsi if rsi is not None else
-                 "Unavailable", DERIVED if rsi is not None else None,
-                 basis="Wilder, completed sessions", calc="CALC-rsi14"))
+    out.append(
+        _m(
+            "RSI(14)",
+            "%.1f" % rsi if rsi is not None else "Unavailable",
+            DERIVED if rsi is not None else None,
+            basis="Wilder, completed sessions",
+            calc="CALC-rsi14",
+        )
+    )
 
-    for key, name in (("ma20", "20-day"), ("ma50", "50-day"),
-                      ("ma200", "200-day")):
+    for key, name in (("ma20", "20-day"), ("ma50", "50-day"), ("ma200", "200-day")):
         v = rs.fv(lv.get(key))
         if v is None or px is None:
-            out.append(_unavail("vs %s average" % name,
-                                "the average could not be computed from "
-                                "admitted bars"))
+            out.append(
+                _unavail(
+                    "vs %s average" % name, "the average could not be computed from admitted bars"
+                )
+            )
         else:
-            out.append(_m("vs %s average" % name,
-                          "%s (%.2f)" % ("above" if px > v else "below", v),
-                          DERIVED, calc="CALC-%s" % key))
+            out.append(
+                _m(
+                    "vs %s average" % name,
+                    "%s (%.2f)" % ("above" if px > v else "below", v),
+                    DERIVED,
+                    calc="CALC-%s" % key,
+                )
+            )
 
     atr, atrp = rs.fv(lv.get("atr14")), rs.fv(lv.get("atr14_pct"))
-    out.append(_m("ATR(14)",
-                  "%.2f / %.1f%%" % (atr, atrp)
-                  if (atr is not None and atrp is not None)
-                  else ("%.2f" % atr if atr is not None else "Unavailable"),
-                  DERIVED if atr is not None else None,
-                  calc="CALC-atr14_pct" if atrp is not None
-                  else "CALC-atr14"))
+    out.append(
+        _m(
+            "ATR(14)",
+            "%.2f / %.1f%%" % (atr, atrp)
+            if (atr is not None and atrp is not None)
+            else ("%.2f" % atr if atr is not None else "Unavailable"),
+            DERIVED if atr is not None else None,
+            calc="CALC-atr14_pct" if atrp is not None else "CALC-atr14",
+        )
+    )
 
     pe = rs.fv(val.get("pe_trailing"))
-    out.append(_m("P/E trailing", "%.1fx" % pe if pe is not None
-                  else "Unavailable", DERIVED if pe is not None else None,
-                  basis="observed price / GAAP TTM diluted EPS",
-                  calc="CALC-pe_trailing"))
+    out.append(
+        _m(
+            "P/E trailing",
+            "%.1fx" % pe if pe is not None else "Unavailable",
+            DERIVED if pe is not None else None,
+            basis="observed price / GAAP TTM diluted EPS",
+            calc="CALC-pe_trailing",
+        )
+    )
     # A forward multiple needs the estimate set behind it and the date it
     # was struck. The vendor publishes neither, so this stays unavailable
     # rather than printing a number nobody can source.
     fpe = val.get("pe_forward")
-    out.append(_m("P/E forward", "%.1fx" % rs.fv(fpe), DERIVED)
-               if fpe and (fpe.get("as_of") or fpe.get("src")) else
-               _unavail("P/E forward",
-                        "no estimate source or as-of date is available for "
-                        "the forward EPS"))
+    out.append(
+        _m("P/E forward", "%.1fx" % rs.fv(fpe), DERIVED)
+        if fpe and (fpe.get("as_of") or fpe.get("src"))
+        else _unavail(
+            "P/E forward", "no estimate source or as-of date is available for the forward EPS"
+        )
+    )
 
     si = snap.get("short_interest") or {}
     if si.get("admissible") and si.get("pct_of_float") is not None:
-        out.append(_m("Short interest",
-                      "%.2f%% of float · %.2f days to cover"
-                      % (si["pct_of_float"], si.get("days_to_cover") or 0),
-                      OBSERVED,
-                      basis="settled %s, %s" % (si.get("settlement_date"),
-                                                si.get("source"))))
+        out.append(
+            _m(
+                "Short interest",
+                "%.2f%% of float · %.2f days to cover"
+                % (si["pct_of_float"], si.get("days_to_cover") or 0),
+                OBSERVED,
+                basis="settled %s, %s" % (si.get("settlement_date"), si.get("source")),
+            )
+        )
     else:
-        out.append(_unavail("Short interest",
-                            "no settlement date accompanies the figure"))
+        out.append(_unavail("Short interest", "no settlement date accompanies the figure"))
 
     ov = snap.get("ownership_vendor") or {}
-    out.append(_unavail("Institutional ownership",
-                        ov.get("reason") or "no dated holdings source")
-               if not ov.get("admissible") else
-               _m("Institutional ownership", "%.1f%%"
-                  % (100.0 * ov["institutional_pct"]), OBSERVED,
-                  basis="as of %s" % ov.get("reporting_date")))
+    out.append(
+        _unavail("Institutional ownership", ov.get("reason") or "no dated holdings source")
+        if not ov.get("admissible")
+        else _m(
+            "Institutional ownership",
+            "%.1f%%" % (100.0 * ov["institutional_pct"]),
+            OBSERVED,
+            basis="as of %s" % ov.get("reporting_date"),
+        )
+    )
 
     rl = lv.get("rs_line") or {}
     if rl:
-        out.append(_m("RS line",
-                      "at window high" if rl.get("at_window_high")
-                      else "%.1f%% below window high"
-                           % (rl.get("pct_below_window_high") or 0.0),
-                      DERIVED,
-                      basis="issuer close / benchmark close over %d sessions"
-                            % (rl.get("window_sessions") or 0),
-                      calc="CALC-rs_vs_spy"))
+        out.append(
+            _m(
+                "RS line",
+                "at window high"
+                if rl.get("at_window_high")
+                else "%.1f%% below window high" % (rl.get("pct_below_window_high") or 0.0),
+                DERIVED,
+                basis="issuer close / benchmark close over %d sessions"
+                % (rl.get("window_sessions") or 0),
+                calc="CALC-rs_vs_spy",
+            )
+        )
     else:
-        out.append(_unavail("RS line",
-                            "the benchmark window is not available"))
+        out.append(_unavail("RS line", "the benchmark window is not available"))
     return out
 
 
 # ── setup read ──────────────────────────────────────────────────────────
+
 
 def setup_read(snap, view=None):
     """Five bounded statements. Descriptive, dated, and silent about who
@@ -1415,29 +1683,36 @@ def setup_read(snap, view=None):
     if state:
         txt = state
         if bt is not None:
-            txt += (" Range over the last %d completed sessions spans "
-                    "%.1f%% of its floor."
-                    % (lv.get("base_tightness_window") or 20, bt))
+            txt += " Range over the last %d completed sessions spans %.1f%% of its floor." % (
+                lv.get("base_tightness_window") or 20,
+                bt,
+            )
         out.append({"label": "Trend and setup", "text": txt, "grade": DERIVED})
 
     up = (view.get("levels") or {}).get("upside_confirmation") or []
     if up:
         first = up[0]
-        out.append({"label": "What confirms improvement",
-                    "text": "A completed-session close above the %s at %.2f "
-                            "(%+.1f%%), on participation above the 20-session "
-                            "average." % (first["label"], first["value"],
-                                          first.get("distance_pct") or 0.0),
-                    "grade": DERIVED})
+        out.append(
+            {
+                "label": "What confirms improvement",
+                "text": "A completed-session close above the %s at %.2f "
+                "(%+.1f%%), on participation above the 20-session "
+                "average." % (first["label"], first["value"], first.get("distance_pct") or 0.0),
+                "grade": DERIVED,
+            }
+        )
 
     ex = view.get("exit") or {}
     if ex.get("value") is not None:
-        out.append({"label": "What weakens it",
-                    "text": "A completed-session close below %.2f (%s). That "
-                            "is a structural level, not an order level."
-                            % (ex["value"], ex.get("bound_by")
-                               or "documented low"),
-                    "grade": DERIVED})
+        out.append(
+            {
+                "label": "What weakens it",
+                "text": "A completed-session close below %.2f (%s). That "
+                "is a structural level, not an order level."
+                % (ex["value"], ex.get("bound_by") or "documented low"),
+                "grade": DERIVED,
+            }
+        )
 
     rv = rs.fv(lv.get("rel_volume"))
     rsv = rs.fv(lv.get("rs_vs_spy"))
@@ -1448,27 +1723,30 @@ def setup_read(snap, view=None):
     else:
         bits.append("turnover is %.2fx the 20-session average" % rv)
     if rsv is not None:
-        bits.append("the 12-week return is %+.1f%% against SPY over identical "
-                    "sessions" % rsv)
+        bits.append("the 12-week return is %+.1f%% against SPY over identical sessions" % rsv)
     if rl.get("pct_below_window_high") is not None:
-        bits.append("the relative-strength line sits %.1f%% below its window "
-                    "high" % rl["pct_below_window_high"])
+        bits.append(
+            "the relative-strength line sits %.1f%% below its window "
+            "high" % rl["pct_below_window_high"]
+        )
     if bits:
-        out.append({"label": "Participation and relative strength",
-                    # str.capitalize() lower-cases everything after the
-                    # first character, which turned "against SPY" into
-                    # "against spy" on every report.
-                    "text": _sentence("; ".join(bits))
-                            + ". Volume is a measure of how much traded, not "
-                              "of who traded it.",
-                    "grade": DERIVED})
+        out.append(
+            {
+                "label": "Participation and relative strength",
+                # str.capitalize() lower-cases everything after the
+                # first character, which turned "against SPY" into
+                # "against spy" on every report.
+                "text": _sentence("; ".join(bits))
+                + ". Volume is a measure of how much traded, not "
+                "of who traded it.",
+                "grade": DERIVED,
+            }
+        )
 
     cat = (view.get("catalysts") or {}).get("current_driver") or {}
     nxt = (view.get("catalysts") or {}).get("next") or []
     ctxt = cat.get("text") or "No verified company-specific driver."
     if nxt:
-        ctxt += " Next dated event: %s (%s)." % (nxt[0].get("when"),
-                                                 nxt[0].get("confirmation"))
-    out.append({"label": "Catalyst status", "text": ctxt,
-                "grade": cat.get("grade") or OBSERVED})
+        ctxt += " Next dated event: %s (%s)." % (nxt[0].get("when"), nxt[0].get("confirmation"))
+    out.append({"label": "Catalyst status", "text": ctxt, "grade": cat.get("grade") or OBSERVED})
     return out[:5]

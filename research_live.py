@@ -40,9 +40,11 @@ SEC_HEADERS = {
     "User-Agent": "TickerDesk Research sumeetsancheti97@gmail.com",
     "Accept-Encoding": "gzip, deflate",
 }
-BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-              "AppleWebKit/537.36 (KHTML, like Gecko) "
-              "Chrome/126.0.0.0 Safari/537.36")
+BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/126.0.0.0 Safari/537.36"
+)
 
 _last_sec_call = [0.0]
 
@@ -73,6 +75,7 @@ def _h(s, n=16):
 
 # ── SEC: CIK, filing acceptance times, XBRL facts ───────────────────────
 
+
 def cik_for(ticker):
     data = _sec_json("https://www.sec.gov/files/company_tickers.json")
     for row in data.values():
@@ -96,7 +99,7 @@ def _norm_accept(ts):
             dt = datetime.fromisoformat(s[:-1]).replace(tzinfo=timezone.utc)
         else:
             dt = datetime.fromisoformat(s)
-            if dt.tzinfo is None:            # bare stamp: EDGAR local = ET
+            if dt.tzinfo is None:  # bare stamp: EDGAR local = ET
                 dt = dt.replace(tzinfo=timezone(timedelta(hours=-4)))
         return _iso(dt)
     except Exception:
@@ -104,7 +107,7 @@ def _norm_accept(ts):
 
 
 # 8-K items that constitute a primary public disclosure of results.
-RESULTS_ITEMS = ("2.02",)          # Results of Operations and Financial Condition
+RESULTS_ITEMS = ("2.02",)  # Results of Operations and Financial Condition
 GUIDANCE_ITEMS = ("7.01", "8.01")  # Reg FD / other events
 
 
@@ -126,20 +129,23 @@ def acceptance_map(cik):
         for i, a in enumerate(accn):
             ts = _norm_accept(acc_dt[i] if i < len(acc_dt) else None)
             bare = a.replace("-", "")
-            url = ("https://www.sec.gov/Archives/edgar/data/%s/%s/%s"
-                   % (int(cik), bare, docs[i] if i < len(docs) else ""))
-            out[a] = {"accepted": ts,
-                      "form": forms[i] if i < len(forms) else None,
-                      "items": (rec.get("items") or [""] * len(accn))[i]
-                               if rec.get("items") else "",
-                      "primary_doc": docs[i] if i < len(docs) else None,
-                      "url": url}
+            url = "https://www.sec.gov/Archives/edgar/data/%s/%s/%s" % (
+                int(cik),
+                bare,
+                docs[i] if i < len(docs) else "",
+            )
+            out[a] = {
+                "accepted": ts,
+                "form": forms[i] if i < len(forms) else None,
+                "items": (rec.get("items") or [""] * len(accn))[i] if rec.get("items") else "",
+                "primary_doc": docs[i] if i < len(docs) else None,
+                "url": url,
+            }
 
     _absorb((subs.get("filings") or {}).get("recent") or {})
     for extra in (subs.get("filings") or {}).get("files") or []:
         try:
-            _absorb(_sec_json("https://data.sec.gov/submissions/"
-                              + extra["name"]))
+            _absorb(_sec_json("https://data.sec.gov/submissions/" + extra["name"]))
         except Exception:
             continue
     return out, subs
@@ -169,7 +175,7 @@ def concept_index(cik):
     Additive helper: nothing in the v4 production path calls this."""
     if cik in _CONCEPT_INDEX_CACHE:
         return _CONCEPT_INDEX_CACHE[cik]
-    url = ("https://data.sec.gov/api/xbrl/companyfacts/CIK%s.json" % cik)
+    url = "https://data.sec.gov/api/xbrl/companyfacts/CIK%s.json" % cik
     j = _sec_json(url)
     facts = j.get("facts") or {}
     taxonomies = {}
@@ -191,18 +197,20 @@ def concept_index(cik):
                 # receiving facts
                 for r in rows[-2:]:
                     e = r.get("end")
-                    if isinstance(e, str) and (newest is None
-                                               or e > newest):
+                    if isinstance(e, str) and (newest is None or e > newest):
                         newest = e
                 break
         if newest:
             latest_end[tax] = newest
-    out = {"cik": cik, "url": url,
-           "entity_name": j.get("entityName"),
-           "taxonomies": taxonomies,
-           "concept_counts": {t: len(v) for t, v in taxonomies.items()},
-           "latest_end": latest_end,
-           "forms": sorted(forms)}
+    out = {
+        "cik": cik,
+        "url": url,
+        "entity_name": j.get("entityName"),
+        "taxonomies": taxonomies,
+        "concept_counts": {t: len(v) for t, v in taxonomies.items()},
+        "latest_end": latest_end,
+        "forms": sorted(forms),
+    }
     _CONCEPT_INDEX_CACHE[cik] = out
     return out
 
@@ -224,20 +232,25 @@ def cik_for_filed(ticker):
     resolve through it — a universal succession rule, never a ticker
     branch. Returns (cik, resolution_record)."""
     mapped = cik_for(ticker)
-    rec = {"mapped_cik": mapped, "resolved_cik": mapped,
-           "resolution": "company_tickers.json registrant of record"}
+    rec = {
+        "mapped_cik": mapped,
+        "resolved_cik": mapped,
+        "resolution": "company_tickers.json registrant of record",
+    }
     try:
         if _has_financial_facts(concept_index(mapped)):
             return mapped, rec
     except Exception:
-        return mapped, rec          # cannot judge: keep the mapping
+        return mapped, rec  # cannot judge: keep the mapping
     try:
         _throttle()
         r = requests.get(
             "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany"
             "&ticker=%s&type=10-K&dateb=&owner=include&count=10"
             "&output=atom" % ticker.upper(),
-            headers=SEC_HEADERS, timeout=30)
+            headers=SEC_HEADERS,
+            timeout=30,
+        )
         m = re.search(r"CIK=(\d{10})", r.text)
         if m and m.group(1) != mapped:
             alt = m.group(1)
@@ -248,8 +261,8 @@ def cik_for_filed(ticker):
                     "EDGAR company search: the ticker-mapped registrant "
                     "CIK %s has no filed financial taxonomy (successor/"
                     "holding entity); CIK %s (%s) holds the filed "
-                    "financial history"
-                    % (mapped, alt, idx2.get("entity_name")))
+                    "financial history" % (mapped, alt, idx2.get("entity_name"))
+                )
                 return alt, rec
     except Exception:
         pass
@@ -258,8 +271,9 @@ def cik_for_filed(ticker):
 
 def concept(cik, tag, unit="USD", taxonomy="us-gaap"):
     try:
-        j = _sec_json("https://data.sec.gov/api/xbrl/companyconcept/"
-                      "CIK%s/%s/%s.json" % (cik, taxonomy, tag))
+        j = _sec_json(
+            "https://data.sec.gov/api/xbrl/companyconcept/CIK%s/%s/%s.json" % (cik, taxonomy, tag)
+        )
     except Exception:
         return []
     return (j.get("units") or {}).get(unit) or []
@@ -332,24 +346,48 @@ def _quarter_at(raw, target_end, acc, report_time):
     if not at_end:
         return None
     f = at_end[-1]
-    dur = (datetime.fromisoformat(f["end"])
-           - datetime.fromisoformat(f["start"])).days
-    base = {"accn": f["accn"], "_form": f.get("_form"), "_url": f.get("_url"),
-            "_accepted": f.get("_accepted"), "end": f["end"], "_cur": f}
-    if dur <= 100:                                   # already one quarter (Q1)
-        return dict(base, val=f["val"], start=f["start"], duration_days=dur,
-                    _quarter_direct=True, _prev=None)
+    dur = (datetime.fromisoformat(f["end"]) - datetime.fromisoformat(f["start"])).days
+    base = {
+        "accn": f["accn"],
+        "_form": f.get("_form"),
+        "_url": f.get("_url"),
+        "_accepted": f.get("_accepted"),
+        "end": f["end"],
+        "_cur": f,
+    }
+    if dur <= 100:  # already one quarter (Q1)
+        return dict(
+            base,
+            val=f["val"],
+            start=f["start"],
+            duration_days=dur,
+            _quarter_direct=True,
+            _prev=None,
+        )
     prior = [r for r in cum if r["start"] == f["start"] and r["end"] < f["end"]]
-    if not prior:                                    # Q1-length YTD == quarter
-        return dict(base, val=f["val"], start=f["start"], duration_days=dur,
-                    _quarter_direct=True, _prev=None)
+    if not prior:  # Q1-length YTD == quarter
+        return dict(
+            base,
+            val=f["val"],
+            start=f["start"],
+            duration_days=dur,
+            _quarter_direct=True,
+            _prev=None,
+        )
     p = max(prior, key=lambda r: r["end"])
-    qdur = (datetime.fromisoformat(f["end"])
-            - datetime.fromisoformat(p["end"])).days
-    return dict(base, val=f["val"] - p["val"], start=p["end"],
-                duration_days=qdur, _derived_quarter=True, _prev=p,
-                _ytd_end=f["end"], _ytd_prev_end=p["end"],
-                _ytd_val=f["val"], _ytd_prev_val=p["val"])
+    qdur = (datetime.fromisoformat(f["end"]) - datetime.fromisoformat(p["end"])).days
+    return dict(
+        base,
+        val=f["val"] - p["val"],
+        start=p["end"],
+        duration_days=qdur,
+        _derived_quarter=True,
+        _prev=p,
+        _ytd_end=f["end"],
+        _ytd_prev_end=p["end"],
+        _ytd_val=f["val"],
+        _ytd_prev_val=p["val"],
+    )
 
 
 def _fill_q4(quarters, annuals):
@@ -370,11 +408,13 @@ def _fill_q4(quarters, annuals):
             continue
         y0 = datetime.fromisoformat(a["start"])
         y1 = datetime.fromisoformat(fy_end)
-        inner = [r for r in quarters
-                 if y0 <= datetime.fromisoformat(r["start"]) and
-                 datetime.fromisoformat(r["end"]) <= y1]
+        inner = [
+            r
+            for r in quarters
+            if y0 <= datetime.fromisoformat(r["start"]) and datetime.fromisoformat(r["end"]) <= y1
+        ]
         if len(inner) != 3:
-            continue                      # cannot close the year — leave the hole
+            continue  # cannot close the year — leave the hole
         q4 = dict(a)
         q4["start"] = max(r["end"] for r in inner)
         q4["val"] = a["val"] - sum(r["val"] for r in inner)
@@ -388,13 +428,11 @@ def _contiguous(rows, n=4, tol_days=25):
     if len(rows) < n:
         return None
     sel = rows[-n:]
-    span = (datetime.fromisoformat(sel[-1]["end"])
-            - datetime.fromisoformat(sel[0]["start"])).days
+    span = (datetime.fromisoformat(sel[-1]["end"]) - datetime.fromisoformat(sel[0]["start"])).days
     if not (365 - tol_days <= span <= 365 + tol_days):
         return None
     for a, b in zip(sel, sel[1:]):
-        gap = (datetime.fromisoformat(b["start"])
-               - datetime.fromisoformat(a["end"])).days
+        gap = (datetime.fromisoformat(b["start"]) - datetime.fromisoformat(a["end"])).days
         if abs(gap) > 8:
             return None
     return sel
@@ -424,21 +462,20 @@ def _admit(rows, acc, report_time, dedupe_by_end=True):
         meta = acc.get(r.get("accn")) or {}
         ts = meta.get("accepted")
         p = rs._parse_ts(ts)
-        r = dict(r, _accepted=ts, _url=meta.get("url"),
-                 _form=meta.get("form") or r.get("form"))
+        r = dict(r, _accepted=ts, _url=meta.get("url"), _form=meta.get("form") or r.get("form"))
         (admitted if (p and p <= cutoff) else deferred).append(r)
     if dedupe_by_end:
         best = {}
         for r in admitted:
             k = r.get("end")
-            if k not in best or (r.get("_accepted") or "") > \
-                    (best[k].get("_accepted") or ""):
+            if k not in best or (r.get("_accepted") or "") > (best[k].get("_accepted") or ""):
                 best[k] = r
         admitted = sorted(best.values(), key=lambda x: x["end"])
     return admitted, deferred
 
 
 # ── market data: one canonical series ───────────────────────────────────
+
 
 def _bar_src_label(mk):
     """How a price fact names its own feed. A reader auditing a level has
@@ -473,6 +510,7 @@ def _licensed_daily_bars(ticker, min_bars=210):
     """
     try:
         import polygon_data as PG
+
         if not PG.available():
             return None
         # daily_bars pads its own window (days * 1.6), so 460 lands on
@@ -500,10 +538,12 @@ def _licensed_daily_bars(ticker, min_bars=210):
         except Exception:
             listing = None
         if listing:
-            keep = [r for r in rows
-                    if datetime.fromtimestamp(
-                        (r.get("t") or 0) / 1000.0,
-                        tz=timezone.utc).date() >= listing]
+            keep = [
+                r
+                for r in rows
+                if datetime.fromtimestamp((r.get("t") or 0) / 1000.0, tz=timezone.utc).date()
+                >= listing
+            ]
             dropped = len(rows) - len(keep)
             if keep:
                 rows = keep
@@ -515,8 +555,7 @@ def _licensed_daily_bars(ticker, min_bars=210):
         # a reason to fall back to a feed with the same splice problem.
         if len(rows) < min_bars and not listing:
             return None
-        out = {"closes": [], "highs": [], "lows": [], "vols": [],
-               "opens": [], "dates": []}
+        out = {"closes": [], "highs": [], "lows": [], "vols": [], "opens": [], "dates": []}
         for r in rows:
             c, h, l = r.get("c"), r.get("h"), r.get("l")
             o, v, t = r.get("o"), r.get("v"), r.get("t")
@@ -527,8 +566,7 @@ def _licensed_daily_bars(ticker, min_bars=210):
             out["lows"].append(float(l))
             out["vols"].append(float(v or 0))
             out["opens"].append(float(o))
-            out["dates"].append(
-                datetime.fromtimestamp(t / 1000.0, tz=timezone.utc).date())
+            out["dates"].append(datetime.fromtimestamp(t / 1000.0, tz=timezone.utc).date())
         # Short history is only acceptable when a listing date explains it.
         if len(out["closes"]) < min_bars and not listing:
             return None
@@ -543,6 +581,7 @@ def _licensed_daily_bars(ticker, min_bars=210):
 
 def fetch_market(ticker, as_of=None):
     import yfinance as yf
+
     tk = yf.Ticker(ticker)
     lic = _licensed_daily_bars(ticker)
     # A name that listed recently has a legitimately short series. Refusing
@@ -554,9 +593,10 @@ def fetch_market(ticker, as_of=None):
     # itself and withholds; below it nothing technical is computable.
     _min_ok = 20
     if lic is not None and len(lic["closes"]) < _min_ok:
-        raise RuntimeError("only %d sessions since listing for %s — too few "
-                           "for any technical read"
-                           % (len(lic["closes"]), ticker))
+        raise RuntimeError(
+            "only %d sessions since listing for %s — too few "
+            "for any technical read" % (len(lic["closes"]), ticker)
+        )
     bars = tk.history(period="2y", interval="1d", auto_adjust=False)
     if lic is None and (bars is None or len(bars) < 210):
         raise RuntimeError("insufficient daily history for %s" % ticker)
@@ -585,8 +625,7 @@ def fetch_market(ticker, as_of=None):
         last_bar = bars.index[-1].to_pydatetime()
     if last_bar.tzinfo is None:
         last_bar = last_bar.replace(tzinfo=timezone(timedelta(hours=-4)))
-    session_close = last_bar.replace(hour=16, minute=0, second=0,
-                                     microsecond=0)
+    session_close = last_bar.replace(hour=16, minute=0, second=0, microsecond=0)
     # One clock for the whole report. build_snapshot stamps report_time
     # before calling this, so reading the wall clock again here put the
     # quote a second *after* the gate instant it is meant to sit inside.
@@ -618,9 +657,13 @@ def fetch_market(ticker, as_of=None):
 
     trs = []
     for i in range(1, len(c_closes)):
-        trs.append(max(c_highs[i] - c_lows[i],
-                       abs(c_highs[i] - c_closes[i - 1]),
-                       abs(c_lows[i] - c_closes[i - 1])))
+        trs.append(
+            max(
+                c_highs[i] - c_lows[i],
+                abs(c_highs[i] - c_closes[i - 1]),
+                abs(c_lows[i] - c_closes[i - 1]),
+            )
+        )
     atr14 = round(sum(trs[-14:]) / 14.0, 2) if len(trs) >= 14 else None
 
     # Wilder RSI(14) on completed closes. Seeded with the simple mean of
@@ -660,7 +703,7 @@ def fetch_market(ticker, as_of=None):
         lo = min(w)
         return round(100.0 * (max(w) - lo) / lo, 1) if lo else None
 
-    px = round(closes[-1], 2)                 # live or last completed
+    px = round(closes[-1], 2)  # live or last completed
     prev = round(c_closes[-1], 2) if partial else round(c_closes[-2], 2)
     # The swing window shrinks to the history that exists. A name six
     # weeks past its listing has no 60-session range; quoting one would
@@ -678,13 +721,15 @@ def fetch_market(ticker, as_of=None):
     # The series id names the feed that actually served the bars, so a
     # fallback run can never be mistaken for a licensed one downstream.
     series_id = "%s:%s:1d:split-adjusted:asof=%s" % (
-        bar_source, ticker.upper(), last_bar.date().isoformat())
-    opens = (list(lic["opens"]) if lic is not None
-             else [float(x) for x in bars["Open"].tolist()])
+        bar_source,
+        ticker.upper(),
+        last_bar.date().isoformat(),
+    )
+    opens = list(lic["opens"]) if lic is not None else [float(x) for x in bars["Open"].tolist()]
     dates = list(_all_dates)
     rs, spy_window = _rs_vs_spy(
-        c_closes, c_dates, weeks=12,
-        through=(c_dates[-1].isoformat() if c_dates else None))
+        c_closes, c_dates, weeks=12, through=(c_dates[-1].isoformat() if c_dates else None)
+    )
     return {
         "series_id": series_id,
         # Which feed served these bars, and whether it is a contracted
@@ -697,42 +742,63 @@ def fetch_market(ticker, as_of=None):
         # short history is disclosed rather than silently back-filled.
         "listing_date": (lic or {}).get("listing_date"),
         "pre_listing_bars_dropped": (lic or {}).get("pre_listing_bars_dropped", 0),
-        "dates": dates, "opens": opens, "closes": closes,
-        "highs": highs, "lows": lows, "volumes": vols,
+        "dates": dates,
+        "opens": opens,
+        "closes": closes,
+        "highs": highs,
+        "lows": lows,
+        "volumes": vols,
         # the completed-session series every indicator above was built on
-        "completed_dates": c_dates, "completed_closes": c_closes,
-        "completed_highs": c_highs, "completed_lows": c_lows,
+        "completed_dates": c_dates,
+        "completed_closes": c_closes,
+        "completed_highs": c_highs,
+        "completed_lows": c_lows,
         "completed_volumes": c_vols,
         "completed_sessions": len(c_closes),
-        "last_completed_session": (c_dates[-1].isoformat() if c_dates
-                                   else None),
-        "intraday": ({"session": dates[-1].isoformat(), "last": px,
-                      "open": opens[-1], "high": highs[-1], "low": lows[-1],
-                      "volume": vols[-1], "complete": False}
-                     if partial else None),
+        "last_completed_session": (c_dates[-1].isoformat() if c_dates else None),
+        "intraday": (
+            {
+                "session": dates[-1].isoformat(),
+                "last": px,
+                "open": opens[-1],
+                "high": highs[-1],
+                "low": lows[-1],
+                "volume": vols[-1],
+                "complete": False,
+            }
+            if partial
+            else None
+        ),
         "bar_time": _iso(session_close),
         "session_date": last_bar.date().isoformat(),
         "partial_session": partial,
-        "last": px, "prev_close": prev,
-        "price_basis": ("intraday last trade, session open" if partial
-                        else "last completed session close"),
+        "last": px,
+        "prev_close": prev,
+        "price_basis": (
+            "intraday last trade, session open" if partial else "last completed session close"
+        ),
         "change_pct": round(100.0 * (px - prev) / prev, 2),
-        "ma9": ma(9), "ma21": ma(21),
-        "ma20": ma(20), "ma50": ma(50), "ma200": ma(200),
+        "ma9": ma(9),
+        "ma21": ma(21),
+        "ma20": ma(20),
+        "ma50": ma(50),
+        "ma200": ma(200),
         "atr14": atr14,
-        "atr14_pct": (round(100.0 * atr14 / px, 2)
-                      if (atr14 and px) else None),
+        "atr14_pct": (round(100.0 * atr14 / px, 2) if (atr14 and px) else None),
         "rsi14": _rsi(c_closes),
         "base_tightness_pct": _base_tightness(c_closes),
         "base_tightness_window": BASE_WIN,
-        "base_tightness_formula": ("(max(close) - min(close)) / min(close) "
-                                   "x 100 over the last %d completed "
-                                   "sessions" % BASE_WIN),
-        "pct_below_hi52": (round(100.0 * (hi52 - px) / hi52, 1)
-                           if (hi52 and px) else None),
-        "support": swing_lo, "resistance": swing_hi,
+        "base_tightness_formula": (
+            "(max(close) - min(close)) / min(close) "
+            "x 100 over the last %d completed "
+            "sessions" % BASE_WIN
+        ),
+        "pct_below_hi52": (round(100.0 * (hi52 - px) / hi52, 1) if (hi52 and px) else None),
+        "support": swing_lo,
+        "resistance": swing_hi,
         "swing_window": win,
-        "hi52": hi52, "lo52": lo52,
+        "hi52": hi52,
+        "lo52": lo52,
         "n_bars": len(bars),
         "float_shares": _safe_info(tk).get("floatShares"),
         # Short interest is a dated, settled figure. Institutional
@@ -741,13 +807,16 @@ def fetch_market(ticker, as_of=None):
         # "Unavailable" rather than printing an undated percentage as if
         # it were a holdings fact.
         "short_interest": _short_interest(_safe_info(tk)),
-        "institutional_pct_undated": _safe_info(tk).get(
-            "heldPercentInstitutions"),
+        "institutional_pct_undated": _safe_info(tk).get("heldPercentInstitutions"),
         "info": _safe_info(tk),
         "next_earnings": _next_earnings(tk),
-        "rel_volume": (round(c_vols[-1] / (sum(c_vols[-21:-1]) / 20.0), 2)
-                       if len(c_vols) > 21 and sum(c_vols[-21:-1]) else None),
-        "rs_vs_spy": rs, "spy_window": spy_window,
+        "rel_volume": (
+            round(c_vols[-1] / (sum(c_vols[-21:-1]) / 20.0), 2)
+            if len(c_vols) > 21 and sum(c_vols[-21:-1])
+            else None
+        ),
+        "rs_vs_spy": rs,
+        "spy_window": spy_window,
     }
 
 
@@ -763,29 +832,26 @@ def _rs_vs_spy(closes, dates, weeks=12, through=None):
     exported so a reader can confirm they match.
     """
     import yfinance as yf
+
     n = weeks * 5
     if len(closes) <= n:
         return None, None
     try:
-        h = yf.Ticker("SPY").history(period="1y", interval="1d",
-                                     auto_adjust=False)
+        h = yf.Ticker("SPY").history(period="1y", interval="1d", auto_adjust=False)
         spy_close = [float(x) for x in h["Close"].tolist()]
         spy_dates = [d.to_pydatetime().date().isoformat() for d in h.index]
     except Exception:
         return None, None
 
-    iso = [d.isoformat() if hasattr(d, "isoformat") else str(d)
-           for d in dates]
+    iso = [d.isoformat() if hasattr(d, "isoformat") else str(d) for d in dates]
     cutoff = through or (iso[-1] if iso else None)
     # A session later than the issuer's last completed bar is either
     # still open or simply not part of this comparison.
-    spy_map = {d: c for d, c in zip(spy_dates, spy_close)
-               if cutoff is None or d <= cutoff}
-    common = [d for d in iso if d in spy_map and (cutoff is None
-                                                  or d <= cutoff)]
+    spy_map = {d: c for d, c in zip(spy_dates, spy_close) if cutoff is None or d <= cutoff}
+    common = [d for d in iso if d in spy_map and (cutoff is None or d <= cutoff)]
     if len(common) <= n:
         return None, None
-    win = common[-(n + 1):]
+    win = common[-(n + 1) :]
     issuer = {d: c for d, c in zip(iso, closes)}
     a0, a1 = issuer[win[0]], issuer[win[-1]]
     b0, b1 = spy_map[win[0]], spy_map[win[-1]]
@@ -798,24 +864,33 @@ def _rs_vs_spy(closes, dates, weeks=12, through=None):
     rs_high = None
     if ratio:
         peak = max(ratio)
-        rs_high = {"at_window_high": abs(ratio[-1] - peak) < 1e-12,
-                   "pct_below_window_high": round(
-                       100.0 * (peak - ratio[-1]) / peak, 1) if peak else None,
-                   "window_sessions": len(ratio)}
+        rs_high = {
+            "at_window_high": abs(ratio[-1] - peak) < 1e-12,
+            "pct_below_window_high": round(100.0 * (peak - ratio[-1]) / peak, 1) if peak else None,
+            "window_sessions": len(ratio),
+        }
     return round(mine - bench, 1), {
         "rs_line": rs_high,
         "series_id": "yahoo:SPY:1d:unadjusted",
-        "dates": win, "closes": [spy_map[d] for d in win],
+        "dates": win,
+        "closes": [spy_map[d] for d in win],
         "issuer_dates": win,
-        "start": win[0], "end": win[-1], "sessions": len(win),
+        "start": win[0],
+        "end": win[-1],
+        "sessions": len(win),
         "aligned": True,
-        "alignment_rule": ("both legs use the identical trading sessions, "
-                           "intersected by date and truncated at the "
-                           "issuer's last completed session"),
-        "start_close": b0, "end_close": b1,
+        "alignment_rule": (
+            "both legs use the identical trading sessions, "
+            "intersected by date and truncated at the "
+            "issuer's last completed session"
+        ),
+        "start_close": b0,
+        "end_close": b1,
         "benchmark_return_pct": round(bench, 4),
         "issuer_return_pct": round(mine, 4),
-        "issuer_start_close": a0, "issuer_end_close": a1}
+        "issuer_start_close": a0,
+        "issuer_end_close": a1,
+    }
 
 
 def _short_interest(info):
@@ -830,20 +905,19 @@ def _short_interest(info):
     settle = None
     if epoch:
         try:
-            settle = datetime.fromtimestamp(
-                int(epoch), timezone.utc).date().isoformat()
+            settle = datetime.fromtimestamp(int(epoch), timezone.utc).date().isoformat()
         except Exception:
             settle = None
     if pct is None and dtc is None:
         return None
-    return {"pct_of_float": (round(100.0 * float(pct), 2)
-                             if pct is not None else None),
-            "days_to_cover": (round(float(dtc), 2)
-                              if dtc is not None else None),
-            "shares_short": info.get("sharesShort"),
-            "settlement_date": settle,
-            "source": "Yahoo Finance short-interest summary",
-            "admissible": bool(settle)}
+    return {
+        "pct_of_float": (round(100.0 * float(pct), 2) if pct is not None else None),
+        "days_to_cover": (round(float(dtc), 2) if dtc is not None else None),
+        "shares_short": info.get("sharesShort"),
+        "settlement_date": settle,
+        "source": "Yahoo Finance short-interest summary",
+        "admissible": bool(settle),
+    }
 
 
 def _next_earnings(tk):
@@ -866,10 +940,16 @@ def _safe_info(tk):
 
 # ── social: StockTwits with per-record provenance ───────────────────────
 
-_BULL = re.compile(r"\b(long|calls?|buy|bullish|moon|breakout|up|rip|"
-                   r"squeeze|beat|strong)\b", re.I)
-_BEAR = re.compile(r"\b(short|puts?|sell|bearish|dump|crash|down|fade|"
-                   r"miss|weak|drop)\b", re.I)
+_BULL = re.compile(
+    r"\b(long|calls?|buy|bullish|moon|breakout|up|rip|"
+    r"squeeze|beat|strong)\b",
+    re.I,
+)
+_BEAR = re.compile(
+    r"\b(short|puts?|sell|bearish|dump|crash|down|fade|"
+    r"miss|weak|drop)\b",
+    re.I,
+)
 # Holding intent is a directional view. Treating "adding here for the long
 # term" as neutral throws away the most common way retail expresses one.
 _LONGTERM = re.compile(
@@ -877,15 +957,22 @@ _LONGTERM = re.compile(
     r"(?:for|through)|dca|dollar[\s-]?cost|averaging (?:down|in)|adding"
     r"(?:\s+(?:more|here|to))?|accumulat\w*|buying (?:more|the dip)|"
     r"loading up|starter position|building a position|retirement|401k|"
-    r"ira|core (?:holding|position))\b", re.I)
-_EXIT = re.compile(r"\b(sold|selling|trimm\w+|exit(?:ed|ing)?|"
-                   r"cut(?:ting)? (?:my )?(?:losses|position)|"
-                   r"out of (?:this|it)|dumped)\b", re.I)
+    r"ira|core (?:holding|position))\b",
+    re.I,
+)
+_EXIT = re.compile(
+    r"\b(sold|selling|trimm\w+|exit(?:ed|ing)?|"
+    r"cut(?:ting)? (?:my )?(?:losses|position)|"
+    r"out of (?:this|it)|dumped)\b",
+    re.I,
+)
 # a price with a direction word around it: "$420 target", "to 300", "pt 500"
 _TARGET = re.compile(
     r"(?:\b(?:pt|target|tgt|going|goes|heads?|to|toward|towards|hits?|"
     r"reach\w*|see\w*|back to|by\s+\w+)\s*[:=]?\s*)\$?(\d{2,5}(?:\.\d+)?)"
-    r"|\$(\d{2,5}(?:\.\d+)?)\s*(?:pt|target|tgt|eoy|by\b)", re.I)
+    r"|\$(\d{2,5}(?:\.\d+)?)\s*(?:pt|target|tgt|eoy|by\b)",
+    re.I,
+)
 _CASHTAG = re.compile(r"\$([A-Za-z][A-Za-z.\-]{0,5})\b")
 
 
@@ -896,8 +983,8 @@ def _normalize(text):
     """The single normalization every content hash is taken over.
     Versioned, so a future change cannot silently invalidate old hashes."""
     import unicodedata
-    t = unicodedata.normalize("NFKC", html.unescape(html.unescape(
-        str(text or ""))))
+
+    t = unicodedata.normalize("NFKC", html.unescape(html.unescape(str(text or ""))))
     return " ".join(t.split())
 
 
@@ -913,34 +1000,36 @@ def classify_post(body, ticker, spot=None):
       4. a short post is not content-free; only an empty one is
     """
     raw = body or ""
-    txt = html.unescape(html.unescape(raw))          # feeds double-encode
+    txt = html.unescape(html.unescape(raw))  # feeds double-encode
     txt = txt.replace(" ", " ")
     tags = [t.upper() for t in _CASHTAG.findall(txt)]
     want = ticker.upper()
     # bare mentions count too: "$ISRG" and "ISRG" and the company name
-    mentions_ticker = (want in tags
-                       or re.search(r"\b%s\b" % re.escape(want), txt, re.I)
-                       is not None)
+    mentions_ticker = want in tags or re.search(r"\b%s\b" % re.escape(want), txt, re.I) is not None
     stripped = re.sub(r"[$#@][A-Za-z0-9_.\-]+", "", txt)
     stripped = re.sub(r"https?://\S+", "", stripped)
     content = re.sub(r"[^\w]", "", stripped)
 
     others = {t for t in tags if t != want}
     if not mentions_ticker:
-        return "rejected", "ticker not mentioned in decoded text", \
-               "no_mention", None
+        return "rejected", "ticker not mentioned in decoded text", "no_mention", None
     if not content:
         # length alone is never the reason — "buying" is a real opinion
-        return "rejected", "no content beyond tickers, links or symbols", \
-               "tag_only", None
+        return "rejected", "no content beyond tickers, links or symbols", "tag_only", None
     if len(others) >= 3:
         # An analyst-roundup post carries price targets for OTHER names.
         # Counting it as ISRG opinion attributed "$400 target" for $V to
         # this ticker, which is how a roundup became a bullish vote.
-        return "rejected", ("multi-ticker roundup (%d other tickers) — "
-                            "opinion and price targets in it are not "
-                            "attributable to %s" % (len(others), want)), \
-               "list_post", None
+        return (
+            "rejected",
+            (
+                "multi-ticker roundup (%d other tickers) — "
+                "opinion and price targets in it are not "
+                "attributable to %s" % (len(others), want)
+            ),
+            "list_post",
+            None,
+        )
 
     bull = len(_BULL.findall(txt))
     bear = len(_BEAR.findall(txt))
@@ -955,10 +1044,10 @@ def classify_post(body, ticker, spot=None):
             val = m.group(1) or m.group(2)
             try:
                 v = float(val)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 continue
             if v <= 0 or v > spot * 5 or v < spot * 0.2:
-                continue                      # not a plausible target
+                continue  # not a plausible target
             if v > spot * 1.02:
                 bull += 2
             elif v < spot * 0.98:
@@ -981,8 +1070,7 @@ def fetch_social(ticker, report_time, retrieved_at, limit=60, spot=None):
     rejected, so the appendix can reconcile considered = counted +
     rejected. Author handles are hashed, never published.
     """
-    url = ("https://api.stocktwits.com/api/2/streams/symbol/%s.json"
-           % ticker.upper())
+    url = "https://api.stocktwits.com/api/2/streams/symbol/%s.json" % ticker.upper()
     try:
         r = requests.get(url, headers={"User-Agent": BROWSER_UA}, timeout=30)
         data = r.json() if r.ok else {}
@@ -998,19 +1086,16 @@ def fetch_social(ticker, report_time, retrieved_at, limit=60, spot=None):
         created = m.get("created_at") or ""
         pub = rs._parse_ts(created)
         rid = "stocktwits:%s" % m.get("id")
-        murl = "https://stocktwits.com/%s/message/%s" % (
-            user.get("username") or "u", m.get("id"))
+        murl = "https://stocktwits.com/%s/message/%s" % (user.get("username") or "u", m.get("id"))
         ah = _h("stocktwits:" + str(user.get("id") or user.get("username")))
         if not pub or pub > cutoff:
             disposition, reason = "rejected", "published after report_time"
             relevance, sent = "out_of_window", None
         else:
-            disposition, reason, relevance, sent = classify_post(
-                body, ticker, spot=spot)
+            disposition, reason, relevance, sent = classify_post(body, ticker, spot=spot)
         if disposition == "counted":
             # the platform's own tag outranks our text read when present
-            tag = ((m.get("entities") or {}).get("sentiment") or {}
-                   ).get("basic")
+            tag = ((m.get("entities") or {}).get("sentiment") or {}).get("basic")
             if tag == "Bullish":
                 sent = "bullish"
             elif tag == "Bearish":
@@ -1019,14 +1104,24 @@ def fetch_social(ticker, report_time, retrieved_at, limit=60, spot=None):
         # A second, slightly different normalization here is what made 13
         # of 30 public hashes disagree with the private snapshot.
         clean = _normalize(body)
-        recs.append(rs.social_record(
-            source="stocktwits", record_id=rid,
-            published_at=_iso(pub) if pub else None,
-            retrieved_at=retrieved_at, text=clean, author_hash=ah, url=murl,
-            text_hash=EL.content_hash(clean),
-            relevance=relevance, sentiment=sent,
-            dup_group=_h(re.sub(r"[^a-z0-9 ]", "", body.lower())[:120]),
-            disposition=disposition, reason=reason, quality=rs.Q_OK))
+        recs.append(
+            rs.social_record(
+                source="stocktwits",
+                record_id=rid,
+                published_at=_iso(pub) if pub else None,
+                retrieved_at=retrieved_at,
+                text=clean,
+                author_hash=ah,
+                url=murl,
+                text_hash=EL.content_hash(clean),
+                relevance=relevance,
+                sentiment=sent,
+                dup_group=_h(re.sub(r"[^a-z0-9 ]", "", body.lower())[:120]),
+                disposition=disposition,
+                reason=reason,
+                quality=rs.Q_OK,
+            )
+        )
     return recs, {"stocktwits": "ok (%d messages)" % len(msgs)}
 
 
@@ -1045,8 +1140,13 @@ def _article_relevance(url, ticker, company_words):
     """Fetch the article and measure how much of it is actually about the
     ticker. A feed will happily attach ISRG to a story about Nvidia; the
     headline is not evidence that the body discusses the company."""
-    out = {"fetched": False, "mentions": 0, "company_mentions": 0,
-           "first_mention_pct": None, "reason": None}
+    out = {
+        "fetched": False,
+        "mentions": 0,
+        "company_mentions": 0,
+        "first_mention_pct": None,
+        "reason": None,
+    }
     try:
         r = requests.get(url, headers={"User-Agent": BROWSER_UA}, timeout=25)
         if r.status_code != 200:
@@ -1084,60 +1184,78 @@ def _news_items(ticker, limit=8):
     """
     try:
         import polygon_data as PG
+
         if PG.available():
-            data = PG._get("/v2/reference/news",
-                           {"ticker": ticker.upper(),
-                            "limit": max(int(limit) * 3, 20),
-                            "order": "desc", "sort": "published_utc"})
+            data = PG._get(
+                "/v2/reference/news",
+                {
+                    "ticker": ticker.upper(),
+                    "limit": max(int(limit) * 3, 20),
+                    "order": "desc",
+                    "sort": "published_utc",
+                },
+            )
             res = (data or {}).get("results") or []
             out = []
             for r in res:
-                out.append({
-                    "headline": (r.get("title") or "").strip(),
-                    "url": r.get("article_url"),
-                    "publisher": ((r.get("publisher") or {}).get("name")
-                                  or "unknown"),
-                    "published_at_raw": r.get("published_utc"),
-                })
+                out.append(
+                    {
+                        "headline": (r.get("title") or "").strip(),
+                        "url": r.get("article_url"),
+                        "publisher": ((r.get("publisher") or {}).get("name") or "unknown"),
+                        "published_at_raw": r.get("published_utc"),
+                    }
+                )
             if out:
                 return out, "polygon"
     except Exception:
         pass
     try:
         import yfinance as yf
+
         raw = yf.Ticker(ticker).news or []
     except Exception:
         raw = []
     out = []
     for it in raw:
         c = it.get("content") or it
-        out.append({
-            "headline": (c.get("title") or "").strip(),
-            "url": (((c.get("canonicalUrl") or {}) or {}).get("url")
-                    or ((c.get("clickThroughUrl") or {}) or {}).get("url")),
-            "publisher": (((c.get("provider") or {}) or {})
-                          .get("displayName") or "unknown"),
-            "published_at_raw": c.get("pubDate") or c.get("displayTime"),
-        })
+        out.append(
+            {
+                "headline": (c.get("title") or "").strip(),
+                "url": (
+                    ((c.get("canonicalUrl") or {}) or {}).get("url")
+                    or ((c.get("clickThroughUrl") or {}) or {}).get("url")
+                ),
+                "publisher": (((c.get("provider") or {}) or {}).get("displayName") or "unknown"),
+                "published_at_raw": c.get("pubDate") or c.get("displayTime"),
+            }
+        )
     return out, "yahoo"
 
 
 def fetch_news(ticker, report_time, company_name="", limit=8, verify=True):
     kept, rejected = [], []
     cutoff = rs._parse_ts(report_time)
-    words = [w for w in re.split(r"[,\s]+", company_name or "")
-             if len(w) > 4 and w.lower() not in ("inc.", "inc", "corp",
-                                                 "corporation", "company")]
+    words = [
+        w
+        for w in re.split(r"[,\s]+", company_name or "")
+        if len(w) > 4 and w.lower() not in ("inc.", "inc", "corp", "corporation", "company")
+    ]
     items, news_source = _news_items(ticker, limit)
     for it in items:
         pub = rs._parse_ts(it.get("published_at_raw"))
         head = it.get("headline") or ""
         u = it.get("url")
         pubr = it.get("publisher") or "unknown"
-        base = {"headline": head, "publisher": pubr, "url": u,
-                "published_at": _iso(pub) if pub else None,
-                "source_type": "media", "feed": news_source,
-                "tier": rs.classify_news_tier("media")}
+        base = {
+            "headline": head,
+            "publisher": pubr,
+            "url": u,
+            "published_at": _iso(pub) if pub else None,
+            "source_type": "media",
+            "feed": news_source,
+            "tier": rs.classify_news_tier("media"),
+        }
         if not pub or pub > cutoff:
             rejected.append(dict(base, reason="published after report_time"))
             continue
@@ -1151,31 +1269,40 @@ def fetch_news(ticker, report_time, company_name="", limit=8, verify=True):
         if verify and rel.get("fetched"):
             total = rel["mentions"] + rel["company_mentions"]
             early = rel.get("first_mention_pct")
-            substantive = (total >= NEWS_MIN_MENTIONS
-                           or (total >= NEWS_EARLY_MENTIONS
-                               and early is not None
-                               and early <= NEWS_EARLY_PCT))
+            substantive = total >= NEWS_MIN_MENTIONS or (
+                total >= NEWS_EARLY_MENTIONS and early is not None and early <= NEWS_EARLY_PCT
+            )
             if not substantive:
-                rejected.append(dict(
-                    base, reason="article mentions %s %d time(s)%s — not "
-                                 "substantive discussion (needs %d "
-                                 "mentions, or %d appearing in the first "
-                                 "%.0f%% of the body)"
-                                 % (ticker, total,
-                                    "" if early is None
-                                    else ", first at %.0f%% of the body" % early,
-                                    NEWS_MIN_MENTIONS, NEWS_EARLY_MENTIONS,
-                                    NEWS_EARLY_PCT)))
+                rejected.append(
+                    dict(
+                        base,
+                        reason="article mentions %s %d time(s)%s — not "
+                        "substantive discussion (needs %d "
+                        "mentions, or %d appearing in the first "
+                        "%.0f%% of the body)"
+                        % (
+                            ticker,
+                            total,
+                            "" if early is None else ", first at %.0f%% of the body" % early,
+                            NEWS_MIN_MENTIONS,
+                            NEWS_EARLY_MENTIONS,
+                            NEWS_EARLY_PCT,
+                        ),
+                    )
+                )
                 continue
-            base["relevance"] = ("article_verified (%d mentions, first at "
-                                 "%s%% of body)"
-                                 % (total, early if early is not None
-                                    else "n/a"))
+            base["relevance"] = "article_verified (%d mentions, first at %s%% of body)" % (
+                total,
+                early if early is not None else "n/a",
+            )
         elif verify:
-            rejected.append(dict(
-                base, reason="article body could not be fetched (%s) — "
-                             "relevance unverifiable"
-                             % (rel.get("reason") or "unknown")))
+            rejected.append(
+                dict(
+                    base,
+                    reason="article body could not be fetched (%s) — "
+                    "relevance unverifiable" % (rel.get("reason") or "unknown"),
+                )
+            )
             continue
         else:
             base["relevance"] = "headline_only"
@@ -1184,6 +1311,7 @@ def fetch_news(ticker, report_time, company_name="", limit=8, verify=True):
 
 
 # ── snapshot assembly ───────────────────────────────────────────────────
+
 
 def build_snapshot(ticker, report_time=None, cik=None):
     """`cik` (v5.8, optional): issuer override for callers that resolved
@@ -1198,29 +1326,38 @@ def build_snapshot(ticker, report_time=None, cik=None):
 
     print("[1/7] market data (canonical series)...")
     mk = fetch_market(ticker, as_of=now)
-    prov["coverage"]["market"] = (
-        "%s daily bars (split-adjusted), %d issuer sessions%s%s"
-        % (mk.get("bar_source", "unknown"), mk["n_bars"],
-           "" if mk.get("bar_source_licensed") else
-           " — UNOFFICIAL feed, no data licence or SLA",
-           "" if not mk.get("pre_listing_bars_dropped") else
-           "; %d bars before the %s listing date dropped (a recycled "
-           "symbol's prior history)" % (mk["pre_listing_bars_dropped"],
-                                        mk.get("listing_date"))))
+    prov["coverage"]["market"] = "%s daily bars (split-adjusted), %d issuer sessions%s%s" % (
+        mk.get("bar_source", "unknown"),
+        mk["n_bars"],
+        "" if mk.get("bar_source_licensed") else " — UNOFFICIAL feed, no data licence or SLA",
+        ""
+        if not mk.get("pre_listing_bars_dropped")
+        else "; %d bars before the %s listing date dropped (a recycled "
+        "symbol's prior history)" % (mk["pre_listing_bars_dropped"], mk.get("listing_date")),
+    )
 
     led = EL.Ledger(ticker, report_time)
     for i, d in enumerate(mk["dates"]):
-        led.bar(d.isoformat(), mk["opens"][i], mk["highs"][i], mk["lows"][i],
-                mk["closes"][i], mk["volumes"][i])
+        led.bar(
+            d.isoformat(),
+            mk["opens"][i],
+            mk["highs"][i],
+            mk["lows"][i],
+            mk["closes"][i],
+            mk["volumes"][i],
+        )
     dstr = [d.isoformat() for d in mk["dates"]]
     # Completed sessions are the basis for every daily indicator. The
     # window strings below must name completed bars only: quoting a
     # 200-session range that ends on a half-formed bar declares a window
     # the data does not contain.
     cstr = [d.isoformat() for d in (mk.get("completed_dates") or mk["dates"])]
-    led.population("market", issuer_sessions=len(mk["dates"]),
-                   completed_sessions=len(cstr),
-                   benchmark_references=0)
+    led.population(
+        "market",
+        issuer_sessions=len(mk["dates"]),
+        completed_sessions=len(cstr),
+        benchmark_references=0,
+    )
 
     def _win(n):
         """A closed range over completed sessions, or None when the
@@ -1238,56 +1375,86 @@ def build_snapshot(ticker, report_time=None, cik=None):
 
     # every published level gets a calculation record naming its formula
     # and the exact completed bars it consumed
-    _calc("ma20", "mean(close, last 20 completed sessions)", 20,
-          mk["ma20"], "USD")
-    _calc("ma50", "mean(close, last 50 completed sessions)", 50,
-          mk["ma50"], "USD")
-    _calc("ma200", "mean(close, last 200 completed sessions)", 200,
-          mk["ma200"], "USD")
-    _calc("atr14", "mean(true range, last 14 completed sessions); TR = "
-          "max(h-l, |h-prev_close|, |l-prev_close|)", 15, mk["atr14"], "USD")
+    _calc("ma20", "mean(close, last 20 completed sessions)", 20, mk["ma20"], "USD")
+    _calc("ma50", "mean(close, last 50 completed sessions)", 50, mk["ma50"], "USD")
+    _calc("ma200", "mean(close, last 200 completed sessions)", 200, mk["ma200"], "USD")
+    _calc(
+        "atr14",
+        "mean(true range, last 14 completed sessions); TR = "
+        "max(h-l, |h-prev_close|, |l-prev_close|)",
+        15,
+        mk["atr14"],
+        "USD",
+    )
     # Close basis, matching the wording the report uses for these levels.
-    _calc("support60", "min(close, last %d completed sessions)"
-          % mk["swing_window"], mk["swing_window"],
-          mk["support"], "USD")
-    _calc("resistance60", "max(close, last %d completed sessions)"
-          % mk["swing_window"], mk["swing_window"],
-          mk["resistance"], "USD")
-    _calc("hi52", "max(close, last 252 completed sessions)", 252,
-          mk["hi52"], "USD")
-    _calc("lo52", "min(close, last 252 completed sessions)", 252,
-          mk["lo52"], "USD")
+    _calc(
+        "support60",
+        "min(close, last %d completed sessions)" % mk["swing_window"],
+        mk["swing_window"],
+        mk["support"],
+        "USD",
+    )
+    _calc(
+        "resistance60",
+        "max(close, last %d completed sessions)" % mk["swing_window"],
+        mk["swing_window"],
+        mk["resistance"],
+        "USD",
+    )
+    _calc("hi52", "max(close, last 252 completed sessions)", 252, mk["hi52"], "USD")
+    _calc("lo52", "min(close, last 252 completed sessions)", 252, mk["lo52"], "USD")
     # An open session's last trade is not a close, and naming it one
     # invites every downstream figure to treat it as settled.
     if mk.get("partial_session"):
-        led.calc("intraday_last", "last trade of the open session %s"
-                 % mk.get("session_date"), ["INTRADAY-%s" % dstr[-1]],
-                 mk["last"], "USD")
+        led.calc(
+            "intraday_last",
+            "last trade of the open session %s" % mk.get("session_date"),
+            ["INTRADAY-%s" % dstr[-1]],
+            mk["last"],
+            "USD",
+        )
     else:
-        led.calc("last_close", "close of the most recent completed session",
-                 ["BAR-%s" % cstr[-1]], mk["last"], "USD")
+        led.calc(
+            "last_close",
+            "close of the most recent completed session",
+            ["BAR-%s" % cstr[-1]],
+            mk["last"],
+            "USD",
+        )
     # Downstream figures cite the price record by name. Renaming the
     # open-session record without updating them left market cap and P/E
     # pointing at an id that no longer exists.
-    px_ref = ("CALC-intraday_last" if mk.get("partial_session")
-              else "CALC-last_close")
+    px_ref = "CALC-intraday_last" if mk.get("partial_session") else "CALC-last_close"
     # The session change is a division over two named bars, so it gets a
     # calculation record like every other derived figure. Publishing it
     # with a DER tag and nothing behind it is the exact gap
     # METRIC_FORMULA_TRACEABLE was written to catch.
     if mk.get("change_pct") is not None:
-        led.calc("session_change",
-                 "(last - previous close) / previous close x 100",
-                 [px_ref, "BAR-%s" % dstr[-2]], mk["change_pct"], "%")
-    _calc("rsi14", "Wilder RSI(14) over the last 250 completed-session "
-          "closes; seeded with the mean of the first 14 changes then "
-          "smoothed", 250, mk.get("rsi14"), None)
-    _calc("base_tightness_pct", mk.get("base_tightness_formula") or "", 20,
-          mk.get("base_tightness_pct"), "%")
-    _calc("ma9", "mean(close, last 9 completed sessions)", 9,
-          mk.get("ma9"), "USD")
-    _calc("ma21", "mean(close, last 21 completed sessions)", 21,
-          mk.get("ma21"), "USD")
+        led.calc(
+            "session_change",
+            "(last - previous close) / previous close x 100",
+            [px_ref, "BAR-%s" % dstr[-2]],
+            mk["change_pct"],
+            "%",
+        )
+    _calc(
+        "rsi14",
+        "Wilder RSI(14) over the last 250 completed-session "
+        "closes; seeded with the mean of the first 14 changes then "
+        "smoothed",
+        250,
+        mk.get("rsi14"),
+        None,
+    )
+    _calc(
+        "base_tightness_pct",
+        mk.get("base_tightness_formula") or "",
+        20,
+        mk.get("base_tightness_pct"),
+        "%",
+    )
+    _calc("ma9", "mean(close, last 9 completed sessions)", 9, mk.get("ma9"), "USD")
+    _calc("ma21", "mean(close, last 21 completed sessions)", 21, mk.get("ma21"), "USD")
     # These two are ratios OF other calculations rather than windows over
     # bars, so _calc's window helper does not fit them and they were
     # published citing CALC- ids that were never emitted. The v2 gate
@@ -1296,16 +1463,23 @@ def build_snapshot(ticker, report_time=None, cik=None):
     # over snapshot facts. Both are real divisions, so they get real
     # records naming the two operands they divide.
     if mk.get("atr14_pct") is not None:
-        led.calc("atr14_pct", "ATR(14) / price x 100",
-                 ["CALC-atr14", px_ref], mk["atr14_pct"], "%")
+        led.calc("atr14_pct", "ATR(14) / price x 100", ["CALC-atr14", px_ref], mk["atr14_pct"], "%")
     if mk.get("pct_below_hi52") is not None:
-        led.calc("pct_below_hi52",
-                 "(52-week closing high - price) / 52-week closing high "
-                 "x 100", ["CALC-hi52", px_ref], mk["pct_below_hi52"], "%")
+        led.calc(
+            "pct_below_hi52",
+            "(52-week closing high - price) / 52-week closing high x 100",
+            ["CALC-hi52", px_ref],
+            mk["pct_below_hi52"],
+            "%",
+        )
     if mk.get("rel_volume") is not None:
-        _calc("rel_volume",
-              "volume(latest completed) / mean(volume, prior 20 completed)",
-              21, mk["rel_volume"], "x")
+        _calc(
+            "rel_volume",
+            "volume(latest completed) / mean(volume, prior 20 completed)",
+            21,
+            mk["rel_volume"],
+            "x",
+        )
     if mk.get("rs_vs_spy") is not None and mk.get("spy_window"):
         w = mk["spy_window"]
         # The benchmark window is EMBEDDED, not merely named. A reader
@@ -1313,24 +1487,33 @@ def build_snapshot(ticker, report_time=None, cik=None):
         # the placeholder record this replaces sat in `market_bars`,
         # where it was counted as an issuer session.
         for i, d in enumerate(w["dates"]):
-            led.add("benchmark_bars", "SPY-%s" % d,
-                    {"session": d, "close": w["closes"][i],
-                     "series_id": w["series_id"],
-                     "record_kind": "benchmark_bar"})
-        led.calc("rs_vs_spy",
-                 "12w return of %s minus 12w return of SPY, both from "
-                 "completed-session closes over %s..%s"
-                 % (ticker, w["start"], w["end"]),
-                 ["BAR-%s..BAR-%s" % (w["start"], w["end"]),
-                  "SPY-%s..SPY-%s" % (w["start"], w["end"])],
-                 mk["rs_vs_spy"], "%",
-                 note="both legs reproducible from the bars in this "
-                      "package: issuer %s%%, benchmark %s%%"
-                      % (w["issuer_return_pct"], w["benchmark_return_pct"]))
+            led.add(
+                "benchmark_bars",
+                "SPY-%s" % d,
+                {
+                    "session": d,
+                    "close": w["closes"][i],
+                    "series_id": w["series_id"],
+                    "record_kind": "benchmark_bar",
+                },
+            )
+        led.calc(
+            "rs_vs_spy",
+            "12w return of %s minus 12w return of SPY, both from "
+            "completed-session closes over %s..%s" % (ticker, w["start"], w["end"]),
+            ["BAR-%s..BAR-%s" % (w["start"], w["end"]), "SPY-%s..SPY-%s" % (w["start"], w["end"])],
+            mk["rs_vs_spy"],
+            "%",
+            note="both legs reproducible from the bars in this "
+            "package: issuer %s%%, benchmark %s%%"
+            % (w["issuer_return_pct"], w["benchmark_return_pct"]),
+        )
         led.population("market", benchmark_references=len(w["dates"]))
-        prov["coverage"]["benchmark"] = (
-            "SPY %d completed sessions %s..%s, embedded"
-            % (w["sessions"], w["start"], w["end"]))
+        prov["coverage"]["benchmark"] = "SPY %d completed sessions %s..%s, embedded" % (
+            w["sessions"],
+            w["start"],
+            w["end"],
+        )
 
     print("[2/7] SEC EDGAR (CIK, acceptance times, XBRL)...")
     cik = cik or cik_for(ticker)
@@ -1342,63 +1525,115 @@ def build_snapshot(ticker, report_time=None, cik=None):
     sid = mk["series_id"]
 
     def mfact(v, metric, refs=None, **kw):
-        return rs.fact(v, metric=metric, source=_bar_src_label(mk),
-                       source_type="market_data", series_id=sid,
-                       market_asof=mk["bar_time"], retrieved_at=retrieved_at,
-                       quality=rs.Q_UNVERIFIED,
-                       evidence_refs=list(refs or []), **kw)
+        return rs.fact(
+            v,
+            metric=metric,
+            source=_bar_src_label(mk),
+            source_type="market_data",
+            series_id=sid,
+            market_asof=mk["bar_time"],
+            retrieved_at=retrieved_at,
+            quality=rs.Q_UNVERIFIED,
+            evidence_refs=list(refs or []),
+            **kw,
+        )
 
     snap["price"] = {
-        "last": mfact(mk["last"], "last close", unit="USD",
-                      refs=[px_ref]),
-        "prev_close": mfact(mk["prev_close"], "previous close", unit="USD",
-                            refs=["BAR-%s" % dstr[-2]]),
-        "change_pct": mfact(mk["change_pct"], "session change", unit="%",
-                            refs=["BAR-%s" % dstr[-2],
-                                  "BAR-%s" % dstr[-1]]),
+        "last": mfact(mk["last"], "last close", unit="USD", refs=[px_ref]),
+        "prev_close": mfact(
+            mk["prev_close"], "previous close", unit="USD", refs=["BAR-%s" % dstr[-2]]
+        ),
+        "change_pct": mfact(
+            mk["change_pct"],
+            "session change",
+            unit="%",
+            refs=["BAR-%s" % dstr[-2], "BAR-%s" % dstr[-1]],
+        ),
     }
     snap["levels"] = {
-        "price_used": mfact(mk["last"], "price used for levels", unit="USD",
-                            refs=[px_ref]),
-        "ma20": mfact(mk["ma20"], "20-day moving average", unit="USD",
-                      note="simple, closing basis", refs=["CALC-ma20"]),
-        "ma50": mfact(mk["ma50"], "50-day moving average", unit="USD",
-                      note="simple, closing basis", refs=["CALC-ma50"]),
-        "ma200": mfact(mk["ma200"], "200-day moving average", unit="USD",
-                       note="simple, closing basis", refs=["CALC-ma200"]),
-        "atr14": mfact(mk["atr14"], "14-day ATR", unit="USD",
-                       note="Wilder true range, simple mean",
-                       refs=["CALC-atr14"]),
-        "support": mfact(mk["support"], "support", unit="USD",
-                         note="lowest low of the last %d sessions" % mk["swing_window"],
-                         refs=["CALC-support60"]),
-        "resistance": mfact(mk["resistance"], "first resistance", unit="USD",
-                            note="highest high of the last %d sessions" % mk["swing_window"],
-                            refs=["CALC-resistance60"]),
-        "resistance_major": mfact(mk["hi52"], "major resistance", unit="USD",
-                                  note="52-week closing high (252 completed sessions)",
-                                  refs=["CALC-hi52"]),
+        "price_used": mfact(mk["last"], "price used for levels", unit="USD", refs=[px_ref]),
+        "ma20": mfact(
+            mk["ma20"],
+            "20-day moving average",
+            unit="USD",
+            note="simple, closing basis",
+            refs=["CALC-ma20"],
+        ),
+        "ma50": mfact(
+            mk["ma50"],
+            "50-day moving average",
+            unit="USD",
+            note="simple, closing basis",
+            refs=["CALC-ma50"],
+        ),
+        "ma200": mfact(
+            mk["ma200"],
+            "200-day moving average",
+            unit="USD",
+            note="simple, closing basis",
+            refs=["CALC-ma200"],
+        ),
+        "atr14": mfact(
+            mk["atr14"],
+            "14-day ATR",
+            unit="USD",
+            note="Wilder true range, simple mean",
+            refs=["CALC-atr14"],
+        ),
+        "support": mfact(
+            mk["support"],
+            "support",
+            unit="USD",
+            note="lowest low of the last %d sessions" % mk["swing_window"],
+            refs=["CALC-support60"],
+        ),
+        "resistance": mfact(
+            mk["resistance"],
+            "first resistance",
+            unit="USD",
+            note="highest high of the last %d sessions" % mk["swing_window"],
+            refs=["CALC-resistance60"],
+        ),
+        "resistance_major": mfact(
+            mk["hi52"],
+            "major resistance",
+            unit="USD",
+            note="52-week closing high (252 completed sessions)",
+            refs=["CALC-hi52"],
+        ),
         # The 52-week closing low is computed alongside the high and used in
         # the bear scenario, but until now it was never surfaced as its own
         # level. v4's P/E band pairs it with resistance_major to describe the
         # trailing multiple's 52-week range; it is not rendered by v3 (its
         # ladder keys are a closed list), so this is additive only.
-        "support_major": mfact(mk["lo52"], "52-week closing low", unit="USD",
-                               note="52-week closing low (252 completed sessions)",
-                               refs=["CALC-lo52"]) if mk.get("lo52")
-        is not None else None,
+        "support_major": mfact(
+            mk["lo52"],
+            "52-week closing low",
+            unit="USD",
+            note="52-week closing low (252 completed sessions)",
+            refs=["CALC-lo52"],
+        )
+        if mk.get("lo52") is not None
+        else None,
     }
     if snap["levels"].get("support_major") is None:
         snap["levels"].pop("support_major", None)
     if mk.get("rs_vs_spy") is not None:
         # blends two series, so it does not claim the single canonical id
         snap["levels"]["rs_vs_spy"] = rs.fact(
-            mk["rs_vs_spy"], metric="relative strength vs SPY", unit="%",
-            source=_bar_src_label(mk), source_type="derived",
-            series_id=sid + " vs yahoo:SPY:1d", market_asof=mk["bar_time"],
-            retrieved_at=retrieved_at, calc_version="rs/v1",
-            quality=rs.Q_DERIVED, evidence_refs=["CALC-rs_vs_spy"],
-            note="12-week price return minus SPY's, same vendor and bars")
+            mk["rs_vs_spy"],
+            metric="relative strength vs SPY",
+            unit="%",
+            source=_bar_src_label(mk),
+            source_type="derived",
+            series_id=sid + " vs yahoo:SPY:1d",
+            market_asof=mk["bar_time"],
+            retrieved_at=retrieved_at,
+            calc_version="rs/v1",
+            quality=rs.Q_DERIVED,
+            evidence_refs=["CALC-rs_vs_spy"],
+            note="12-week price return minus SPY's, same vendor and bars",
+        )
     # Relative volume compares one session's total against full-session
     # averages. Mid-session that ratio is meaningless — four minutes into
     # the day MRVL printed "0.04x", which reads as a volume collapse and
@@ -1406,17 +1641,16 @@ def build_snapshot(ticker, report_time=None, cik=None):
     # the session is complete, and say why when it is withheld.
     # setup-panel inputs, each as a Fact so it carries its own grade
     for _k, _metric, _unit in (
-            ("rsi14", "RSI(14), Wilder, completed sessions", None),
-            ("atr14_pct", "ATR(14) as a percent of price", "%"),
-            ("base_tightness_pct", "base tightness", "%"),
-            ("pct_below_hi52", "below the 52-week closing high", "%"),
-            ("ma9", "9-day average", "USD"),
-            ("ma21", "21-day average", "USD")):
+        ("rsi14", "RSI(14), Wilder, completed sessions", None),
+        ("atr14_pct", "ATR(14) as a percent of price", "%"),
+        ("base_tightness_pct", "base tightness", "%"),
+        ("pct_below_hi52", "below the 52-week closing high", "%"),
+        ("ma9", "9-day average", "USD"),
+        ("ma21", "21-day average", "USD"),
+    ):
         if mk.get(_k) is not None:
-            snap["levels"][_k] = mfact(mk[_k], _metric, unit=_unit,
-                                       refs=["CALC-%s" % _k])
-    snap["levels"]["base_tightness_formula"] = mk.get(
-        "base_tightness_formula")
+            snap["levels"][_k] = mfact(mk[_k], _metric, unit=_unit, refs=["CALC-%s" % _k])
+    snap["levels"]["base_tightness_formula"] = mk.get("base_tightness_formula")
     snap["levels"]["base_tightness_window"] = mk.get("base_tightness_window")
     snap["levels"]["rs_line"] = (mk.get("spy_window") or {}).get("rs_line")
     snap["short_interest"] = mk.get("short_interest")
@@ -1424,9 +1658,11 @@ def build_snapshot(ticker, report_time=None, cik=None):
         "institutional_pct": mk.get("institutional_pct_undated"),
         "reporting_date": None,
         "admissible": False,
-        "reason": ("the vendor publishes this percentage without a "
-                   "holdings-report date, so it cannot be aged or tied to "
-                   "a filing"),
+        "reason": (
+            "the vendor publishes this percentage without a "
+            "holdings-report date, so it cannot be aged or tied to "
+            "a filing"
+        ),
     }
     # Trading history. A symbol six weeks past its listing has no 200-day
     # average and no 52-week range, and every reader needs to know that
@@ -1435,35 +1671,35 @@ def build_snapshot(ticker, report_time=None, cik=None):
     snap["trading_history"] = {
         "listing_date": mk.get("listing_date"),
         "sessions": mk.get("n_bars"),
-        "first_session": (mk["dates"][0].isoformat() if mk.get("dates")
-                          else None),
+        "first_session": (mk["dates"][0].isoformat() if mk.get("dates") else None),
         "swing_window": mk.get("swing_window"),
         "pre_listing_bars_dropped": mk.get("pre_listing_bars_dropped") or 0,
         # 252 sessions is the year the 52-week range needs; 200 is the
         # longest average the report draws.
-        "full_history": bool(mk.get("ma200") is not None
-                             and mk.get("hi52") is not None),
+        "full_history": bool(mk.get("ma200") is not None and mk.get("hi52") is not None),
     }
     snap["levels"]["swing_window"] = mk.get("swing_window")
     snap["levels"]["partial_session"] = mk.get("partial_session")
-    snap["levels"]["last_completed_session"] = mk.get(
-        "last_completed_session")
+    snap["levels"]["last_completed_session"] = mk.get("last_completed_session")
     snap["levels"]["price_basis"] = mk.get("price_basis")
     if mk.get("rel_volume") is not None and not mk.get("partial_session"):
         snap["levels"]["rel_volume"] = mfact(
-            mk["rel_volume"], "volume vs 20-day average", unit="x",
+            mk["rel_volume"],
+            "volume vs 20-day average",
+            unit="x",
             refs=["CALC-rel_volume"],
-            note="latest session volume / mean of the prior 20 sessions")
+            note="latest session volume / mean of the prior 20 sessions",
+        )
     elif mk.get("partial_session"):
         prov["coverage"]["rel_volume"] = (
             "withheld: the session is still open, so today's partial "
-            "volume cannot be compared with completed-session averages")
+            "volume cannot be compared with completed-session averages"
+        )
 
     # shares outstanding: cover page of the most recent filing that was
     # ACCEPTED before report_time. Market cap is then derived, so the
     # arithmetic cannot disagree with the headline price.
-    sh_rows = concept(cik, "EntityCommonStockSharesOutstanding",
-                      unit="shares", taxonomy="dei")
+    sh_rows = concept(cik, "EntityCommonStockSharesOutstanding", unit="shares", taxonomy="dei")
     sh_ok, sh_def = _admit(sh_rows, acc, report_time, dedupe_by_end=False)
     sh_ok.sort(key=lambda r: r.get("_accepted") or "")
     shares = ev_shares = None
@@ -1471,17 +1707,30 @@ def build_snapshot(ticker, report_time=None, cik=None):
         r = sh_ok[-1]
         shares = float(r["val"])
         ev_shares = "SHR-%s" % r["accn"]
-        led.add("shares_outstanding", ev_shares,
-                {"value": shares, "unit": "shares", "form": r.get("_form"),
-                 "accn": r["accn"], "period_end": r.get("end"),
-                 "accepted": r.get("_accepted"), "url": r.get("_url"),
-                 "tag": "dei:EntityCommonStockSharesOutstanding"})
+        led.add(
+            "shares_outstanding",
+            ev_shares,
+            {
+                "value": shares,
+                "unit": "shares",
+                "form": r.get("_form"),
+                "accn": r["accn"],
+                "period_end": r.get("end"),
+                "accepted": r.get("_accepted"),
+                "url": r.get("_url"),
+                "tag": "dei:EntityCommonStockSharesOutstanding",
+            },
+        )
     info = mk["info"]
     company = {
-        "name": rs.fact(info.get("longName") or ticker, metric="company name",
-                        source="Yahoo Finance profile", source_type="vendor",
-                        retrieved_at=retrieved_at,
-                        evidence_refs=["REC-profile"]),
+        "name": rs.fact(
+            info.get("longName") or ticker,
+            metric="company name",
+            source="Yahoo Finance profile",
+            source_type="vendor",
+            retrieved_at=retrieved_at,
+            evidence_refs=["REC-profile"],
+        ),
         "sector": info.get("sector"),
         "universe": None,
         "profitable": None,
@@ -1490,46 +1739,75 @@ def build_snapshot(ticker, report_time=None, cik=None):
     # company dict exists — it is a vendor figure, so Q_UNVERIFIED.
     if mk.get("float_shares"):
         company["float_shares"] = rs.fact(
-            float(mk["float_shares"]), metric="float", unit="shares",
-            source="Yahoo Finance profile", source_type="vendor",
-            retrieved_at=retrieved_at, evidence_refs=["REC-profile"],
-            quality=rs.Q_UNVERIFIED)
-    led.rec_input("profile", "company profile (vendor)",
-                  {"name": info.get("longName"), "sector": info.get("sector"),
-                   "industry": info.get("industry"),
-                   "employees": info.get("fullTimeEmployees")},
-                  refs=[], rationale="Yahoo Finance profile; descriptive "
-                                     "only, never a basis for a number")
+            float(mk["float_shares"]),
+            metric="float",
+            unit="shares",
+            source="Yahoo Finance profile",
+            source_type="vendor",
+            retrieved_at=retrieved_at,
+            evidence_refs=["REC-profile"],
+            quality=rs.Q_UNVERIFIED,
+        )
+    led.rec_input(
+        "profile",
+        "company profile (vendor)",
+        {
+            "name": info.get("longName"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "employees": info.get("fullTimeEmployees"),
+        },
+        refs=[],
+        rationale="Yahoo Finance profile; descriptive only, never a basis for a number",
+    )
     if shares:
         company["shares_outstanding"] = rs.fact(
-            shares, metric="shares outstanding", unit="shares",
+            shares,
+            metric="shares outstanding",
+            unit="shares",
             source="SEC cover page (%s)" % (sh_ok[-1].get("_form") or "filing"),
-            source_type="filing", source_url=sh_ok[-1].get("_url"),
+            source_type="filing",
+            source_url=sh_ok[-1].get("_url"),
             published_at=sh_ok[-1].get("_accepted"),
-            period_end=sh_ok[-1].get("end"), retrieved_at=retrieved_at,
-            evidence_id=ev_shares, evidence_refs=[ev_shares],
-            quality=rs.Q_OK)
+            period_end=sh_ok[-1].get("end"),
+            retrieved_at=retrieved_at,
+            evidence_id=ev_shares,
+            evidence_refs=[ev_shares],
+            quality=rs.Q_OK,
+        )
         cap = mk["last"] * shares
         # Naming this "last close" mid-session is wrong: the price is the
         # last observed trade, not a close that has not happened.
-        px_basis = ("last observed price (session still open)"
-                    if mk.get("partial_session") else "last close")
-        led.calc("market_cap",
-                 "%s x cover-page shares outstanding" % px_basis,
-                 [px_ref, ev_shares], round(cap, 2), "USD")
+        px_basis = (
+            "last observed price (session still open)"
+            if mk.get("partial_session")
+            else "last close"
+        )
+        led.calc(
+            "market_cap",
+            "%s x cover-page shares outstanding" % px_basis,
+            [px_ref, ev_shares],
+            round(cap, 2),
+            "USD",
+        )
         company["market_cap"] = rs.fact(
-            cap, metric="market cap", unit="USD",
+            cap,
+            metric="market cap",
+            unit="USD",
             source="derived: last close x shares outstanding",
-            source_type="derived", basis="price x cover-page share count",
-            market_asof=mk["bar_time"], calc_version="cap/v1",
-            quality=rs.Q_DERIVED, evidence_refs=["CALC-market_cap"],
-            note="not a vendor figure; recomputed from the two facts above")
-        company["universe"] = ("MEGA" if cap >= 200e9 else
-                               "LARGE" if cap >= 10e9 else
-                               "MID" if cap >= 2e9 else "SMALL")
+            source_type="derived",
+            basis="price x cover-page share count",
+            market_asof=mk["bar_time"],
+            calc_version="cap/v1",
+            quality=rs.Q_DERIVED,
+            evidence_refs=["CALC-market_cap"],
+            note="not a vendor figure; recomputed from the two facts above",
+        )
+        company["universe"] = (
+            "MEGA" if cap >= 200e9 else "LARGE" if cap >= 10e9 else "MID" if cap >= 2e9 else "SMALL"
+        )
     else:
-        prov["warnings"].append(
-            "no share count accepted before report_time — market cap omitted")
+        prov["warnings"].append("no share count accepted before report_time — market cap omitted")
 
     print("[3/7] fundamentals (point-in-time admitted only)...")
     fund, evids, deferred = {}, [], []
@@ -1537,17 +1815,31 @@ def build_snapshot(ticker, report_time=None, cik=None):
     def _xf(row, tag):
         """Register one XBRL fact and return its addressable ref."""
         rid = EL.xbrl_id(row["accn"], tag, row["end"])
-        led.add("xbrl_facts", rid, {
-            "tag": tag, "value": row["val"], "start": row.get("start"),
-            "end": row["end"], "form": row.get("_form"),
-            "accn": row["accn"], "accepted": row.get("_accepted"),
-            "url": row.get("_url"),
-            "reconstructed_q4": bool(row.get("_derived_q4")),
-            "reconstruction": ("fiscal year minus the three filed quarters"
-                               if row.get("_derived_q4") else None)})
+        led.add(
+            "xbrl_facts",
+            rid,
+            {
+                "tag": tag,
+                "value": row["val"],
+                "start": row.get("start"),
+                "end": row["end"],
+                "form": row.get("_form"),
+                "accn": row["accn"],
+                "accepted": row.get("_accepted"),
+                "url": row.get("_url"),
+                "reconstructed_q4": bool(row.get("_derived_q4")),
+                "reconstruction": (
+                    "fiscal year minus the three filed quarters" if row.get("_derived_q4") else None
+                ),
+            },
+        )
         return rid
-    rev_tags = ["RevenueFromContractWithCustomerExcludingAssessedTax",
-                "Revenues", "RevenueFromContractWithCustomerIncludingAssessedTax"]
+
+    rev_tags = [
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "Revenues",
+        "RevenueFromContractWithCustomerIncludingAssessedTax",
+    ]
     # Pick the tag whose quarters run LATEST, not the first tag with any
     # rows. Issuers migrate concepts (Robinhood tagged contract revenue
     # only through 2021, then switched to plain Revenues) — stopping at
@@ -1569,42 +1861,66 @@ def build_snapshot(ticker, report_time=None, cik=None):
     if cur is not None and yago is None:
         prov["warnings"].append(
             "no quarter within 20 days of one year before %s — revenue "
-            "growth omitted rather than computed across a mismatched span"
-            % cur["end"])
+            "growth omitted rather than computed across a mismatched span" % cur["end"]
+        )
     if cur is not None and yago is not None and yago["val"]:
         g = 100.0 * (cur["val"] - yago["val"]) / yago["val"]
         eid = "SEC-%s" % cur["accn"]
         evids.append(eid)
         rtag = "us-gaap:" + t
         r_cur, r_yago = _xf(cur, rtag), _xf(yago, rtag)
-        led.calc("revenue_yoy", "(revenue[%s] / revenue[%s] - 1) x 100"
-                 % (cur["end"], yago["end"]), [r_cur, r_yago],
-                 round(g, 1), "%")
+        led.calc(
+            "revenue_yoy",
+            "(revenue[%s] / revenue[%s] - 1) x 100" % (cur["end"], yago["end"]),
+            [r_cur, r_yago],
+            round(g, 1),
+            "%",
+        )
         fund["revenue_q"] = rs.fact(
-            cur["val"], metric="quarterly revenue", unit="USD",
+            cur["val"],
+            metric="quarterly revenue",
+            unit="USD",
             source="SEC XBRL %s" % (cur.get("_form") or ""),
-            source_type="filing", source_url=cur.get("_url"),
-            period_end=cur["end"], published_at=cur.get("_accepted"),
-            retrieved_at=retrieved_at, basis="gaap", gaap=True,
-            evidence_id=eid, evidence_refs=[r_cur], quality=rs.Q_OK)
+            source_type="filing",
+            source_url=cur.get("_url"),
+            period_end=cur["end"],
+            published_at=cur.get("_accepted"),
+            retrieved_at=retrieved_at,
+            basis="gaap",
+            gaap=True,
+            evidence_id=eid,
+            evidence_refs=[r_cur],
+            quality=rs.Q_OK,
+        )
         fund["revenue_q"]["period_start"] = cur.get("start")
         fund["revenue_q"]["duration_days"] = (
-            (datetime.fromisoformat(cur["end"])
-             - datetime.fromisoformat(cur["start"])).days
-            if cur.get("start") else None)
+            (datetime.fromisoformat(cur["end"]) - datetime.fromisoformat(cur["start"])).days
+            if cur.get("start")
+            else None
+        )
         fund["revenue_growth"] = rs.fact(
-            round(g, 1), metric="revenue growth y/y", unit="%",
+            round(g, 1),
+            metric="revenue growth y/y",
+            unit="%",
             source="derived from two SEC XBRL quarters",
-            source_type="derived", basis="gaap, quarter ended %s vs %s"
-            % (cur["end"], yago["end"]),
-            period_end=cur["end"], published_at=cur.get("_accepted"),
-            calc_version="yoy/v2-date-matched", evidence_id=eid,
+            source_type="derived",
+            basis="gaap, quarter ended %s vs %s" % (cur["end"], yago["end"]),
+            period_end=cur["end"],
+            published_at=cur.get("_accepted"),
+            calc_version="yoy/v2-date-matched",
+            evidence_id=eid,
             evidence_refs=["CALC-revenue_yoy", r_cur, r_yago],
             quality=rs.Q_DERIVED,
-            note=("year-ago quarter matched by period end date"
-                  + (" (year-ago figure reconstructed as FY minus Q1-Q3, "
-                     "because 10-K filings tag the full year, not Q4)"
-                     if yago.get("_derived_q4") else "")))
+            note=(
+                "year-ago quarter matched by period end date"
+                + (
+                    " (year-ago figure reconstructed as FY minus Q1-Q3, "
+                    "because 10-K filings tag the full year, not Q4)"
+                    if yago.get("_derived_q4")
+                    else ""
+                )
+            ),
+        )
 
     ni_raw = concept(cik, "NetIncomeLoss")
     ni_rows = _quarterly(ni_raw)
@@ -1620,37 +1936,60 @@ def build_snapshot(ticker, report_time=None, cik=None):
             evids.append(eid)
         r_ni = _xf(cur, "us-gaap:NetIncomeLoss")
         fund["net_income_q"] = rs.fact(
-            cur["val"], metric="quarterly net income", unit="USD",
+            cur["val"],
+            metric="quarterly net income",
+            unit="USD",
             source="SEC XBRL %s" % (cur.get("_form") or ""),
-            source_type="filing", source_url=cur.get("_url"),
-            period_end=cur["end"], published_at=cur.get("_accepted"),
-            retrieved_at=retrieved_at, basis="gaap", gaap=True,
-            evidence_id=eid, evidence_refs=[r_ni], quality=rs.Q_OK)
+            source_type="filing",
+            source_url=cur.get("_url"),
+            period_end=cur["end"],
+            published_at=cur.get("_accepted"),
+            retrieved_at=retrieved_at,
+            basis="gaap",
+            gaap=True,
+            evidence_id=eid,
+            evidence_refs=[r_ni],
+            quality=rs.Q_OK,
+        )
         fund["net_income_q"]["period_start"] = cur.get("start")
         fund["net_income_q"]["duration_days"] = (
-            (datetime.fromisoformat(cur["end"])
-             - datetime.fromisoformat(cur["start"])).days
-            if cur.get("start") else None)
+            (datetime.fromisoformat(cur["end"]) - datetime.fromisoformat(cur["start"])).days
+            if cur.get("start")
+            else None
+        )
         company["profitable"] = rs.fact(
-            cur["val"] > 0, metric="profitable",
+            cur["val"] > 0,
+            metric="profitable",
             source="SEC XBRL net income, latest admitted quarter",
-            source_type="derived", period_end=cur["end"],
-            published_at=cur.get("_accepted"), evidence_refs=[r_ni],
-            quality=rs.Q_DERIVED)
+            source_type="derived",
+            period_end=cur["end"],
+            published_at=cur.get("_accepted"),
+            evidence_refs=[r_ni],
+            quality=rs.Q_DERIVED,
+        )
         if rev_ok and rev_ok[-1]["end"] == cur["end"] and rev_ok[-1]["val"]:
             r_rev = _xf(rev_ok[-1], "us-gaap:" + t)
-            led.calc("net_margin", "net income[%s] / revenue[%s] x 100"
-                     % (cur["end"], cur["end"]), [r_ni, r_rev],
-                     round(100.0 * cur["val"] / rev_ok[-1]["val"], 1), "%")
+            led.calc(
+                "net_margin",
+                "net income[%s] / revenue[%s] x 100" % (cur["end"], cur["end"]),
+                [r_ni, r_rev],
+                round(100.0 * cur["val"] / rev_ok[-1]["val"], 1),
+                "%",
+            )
             fund["net_margin"] = rs.fact(
                 round(100.0 * cur["val"] / rev_ok[-1]["val"], 1),
-                metric="net margin", unit="%", source="derived from XBRL",
-                source_type="derived", basis="gaap, quarter ended %s"
-                % cur["end"], period_end=cur["end"],
-                published_at=cur.get("_accepted"), calc_version="margin/v1",
-                evidence_id=eid, evidence_refs=["CALC-net_margin", r_ni,
-                                                r_rev],
-                quality=rs.Q_DERIVED)
+                metric="net margin",
+                unit="%",
+                source="derived from XBRL",
+                source_type="derived",
+                basis="gaap, quarter ended %s" % cur["end"],
+                period_end=cur["end"],
+                published_at=cur.get("_accepted"),
+                calc_version="margin/v1",
+                evidence_id=eid,
+                evidence_refs=["CALC-net_margin", r_ni, r_rev],
+                quality=rs.Q_DERIVED,
+            )
 
     eps_raw = concept(cik, "EarningsPerShareDiluted", unit="USD/shares")
     eps_rows = _quarterly(eps_raw)
@@ -1664,8 +2003,8 @@ def build_snapshot(ticker, report_time=None, cik=None):
         prov["warnings"].append(
             "trailing EPS not published — the last four admitted quarters "
             "do not tile a continuous 12 months (%s), so no TTM figure and "
-            "no trailing P/E can be built"
-            % " ".join(r["end"] for r in eps_ok[-4:]))
+            "no trailing P/E can be built" % " ".join(r["end"] for r in eps_ok[-4:])
+        )
     if ttm_win:
         ttm = sum(r["val"] for r in ttm_win)
         cur = ttm_win[-1]
@@ -1673,40 +2012,65 @@ def build_snapshot(ticker, report_time=None, cik=None):
         if eid not in evids:
             evids.append(eid)
         r_eps = [_xf(r, "us-gaap:EarningsPerShareDiluted") for r in ttm_win]
-        led.calc("eps_ttm", "sum of four contiguous quarterly diluted EPS",
-                 r_eps, round(ttm, 2), "USD/share")
+        led.calc(
+            "eps_ttm",
+            "sum of four contiguous quarterly diluted EPS",
+            r_eps,
+            round(ttm, 2),
+            "USD/share",
+        )
         fund["eps_ttm"] = rs.fact(
-            round(ttm, 2), metric="diluted EPS (TTM)", unit="USD/share",
+            round(ttm, 2),
+            metric="diluted EPS (TTM)",
+            unit="USD/share",
             # The four period ends wrapped the table row onto a second
             # line for a cell nobody looks up here; the appendix and the
             # evidence package both carry the accessions.
-            source="SEC XBRL, four quarters to %s%s" % (
+            source="SEC XBRL, four quarters to %s%s"
+            % (
                 cur["end"],
-                " (*reconstructed)" if any(r.get("_derived_q4")
-                                           for r in ttm_win) else ""),
+                " (*reconstructed)" if any(r.get("_derived_q4") for r in ttm_win) else "",
+            ),
             source_type="derived",
-            basis="gaap, four contiguous quarters (%s to %s)"
-                  % (ttm_win[0]["start"], cur["end"]),
-            note=("* fourth quarter reconstructed as fiscal year minus the "
-                  "three filed quarters, from %s"
-                  % ", ".join(sorted({r["accn"] for r in ttm_win
-                                      if r.get("_derived_q4")}))
-                  if any(r.get("_derived_q4") for r in ttm_win) else None),
-            period_end=cur["end"], published_at=cur.get("_accepted"),
-            calc_version="ttm/v2-contiguous", evidence_id=eid,
-            evidence_refs=["CALC-eps_ttm"] + r_eps, quality=rs.Q_DERIVED)
+            basis="gaap, four contiguous quarters (%s to %s)" % (ttm_win[0]["start"], cur["end"]),
+            note=(
+                "* fourth quarter reconstructed as fiscal year minus the "
+                "three filed quarters, from %s"
+                % ", ".join(sorted({r["accn"] for r in ttm_win if r.get("_derived_q4")}))
+                if any(r.get("_derived_q4") for r in ttm_win)
+                else None
+            ),
+            period_end=cur["end"],
+            published_at=cur.get("_accepted"),
+            calc_version="ttm/v2-contiguous",
+            evidence_id=eid,
+            evidence_refs=["CALC-eps_ttm"] + r_eps,
+            quality=rs.Q_DERIVED,
+        )
         if ttm > 0:
-            led.calc("pe_trailing", "last close / GAAP TTM diluted EPS",
-                     [px_ref, "CALC-eps_ttm"],
-                     round(mk["last"] / ttm, 1), "x")
+            led.calc(
+                "pe_trailing",
+                "last close / GAAP TTM diluted EPS",
+                [px_ref, "CALC-eps_ttm"],
+                round(mk["last"] / ttm, 1),
+                "x",
+            )
             valuation["pe_trailing"] = rs.fact(
-                round(mk["last"] / ttm, 1), metric="P/E", unit="x",
-                basis="trailing", source="derived: last close / GAAP TTM EPS",
-                source_type="derived", market_asof=mk["bar_time"],
-                published_at=cur.get("_accepted"), calc_version="pe/v1",
-                evidence_id=eid, evidence_refs=["CALC-pe_trailing"],
+                round(mk["last"] / ttm, 1),
+                metric="P/E",
+                unit="x",
+                basis="trailing",
+                source="derived: last close / GAAP TTM EPS",
+                source_type="derived",
+                market_asof=mk["bar_time"],
+                published_at=cur.get("_accepted"),
+                calc_version="pe/v1",
+                evidence_id=eid,
+                evidence_refs=["CALC-pe_trailing"],
                 quality=rs.Q_DERIVED,
-                note="GAAP diluted, not vendor-adjusted")
+                note="GAAP diluted, not vendor-adjusted",
+            )
+
     # ── gross profit, cash flow and balance sheet ───────────────────────
     # The v3 brief reports margin structure, cash generation and the
     # balance sheet. Every figure below comes from the same XBRL endpoint
@@ -1715,9 +2079,9 @@ def build_snapshot(ticker, report_time=None, cik=None):
     # gross-margin tag is a gap in disclosure, never a weak margin.
     def _duration_fact(tag, key, metric, unit="USD", pct_of_rev=None):
         raw = concept(cik, tag)
-        rows, _d = _admit(_fill_q4(_quarterly(raw),
-                                   _admit(_annual(raw), acc, report_time)[0]),
-                          acc, report_time)
+        rows, _d = _admit(
+            _fill_q4(_quarterly(raw), _admit(_annual(raw), acc, report_time)[0]), acc, report_time
+        )
         if not rows:
             return None
         r = rows[-1]
@@ -1726,26 +2090,45 @@ def build_snapshot(ticker, report_time=None, cik=None):
         if eid not in evids:
             evids.append(eid)
         fund[key] = rs.fact(
-            r["val"], metric=metric, unit=unit,
+            r["val"],
+            metric=metric,
+            unit=unit,
             source="SEC XBRL %s" % (r.get("_form") or ""),
-            source_type="filing", source_url=r.get("_url"),
-            period_end=r["end"], published_at=r.get("_accepted"),
-            retrieved_at=retrieved_at, basis="gaap", gaap=True,
-            evidence_id=eid, evidence_refs=[ref], quality=rs.Q_OK)
-        if pct_of_rev and rev_ok and rev_ok[-1]["end"] == r["end"] \
-                and rev_ok[-1]["val"]:
+            source_type="filing",
+            source_url=r.get("_url"),
+            period_end=r["end"],
+            published_at=r.get("_accepted"),
+            retrieved_at=retrieved_at,
+            basis="gaap",
+            gaap=True,
+            evidence_id=eid,
+            evidence_refs=[ref],
+            quality=rs.Q_OK,
+        )
+        if pct_of_rev and rev_ok and rev_ok[-1]["end"] == r["end"] and rev_ok[-1]["val"]:
             r_rev = _xf(rev_ok[-1], "us-gaap:" + t)
             val = round(100.0 * r["val"] / rev_ok[-1]["val"], 1)
-            led.calc(pct_of_rev, "%s[%s] / revenue[%s] x 100"
-                     % (metric, r["end"], r["end"]), [ref, r_rev], val, "%")
+            led.calc(
+                pct_of_rev,
+                "%s[%s] / revenue[%s] x 100" % (metric, r["end"], r["end"]),
+                [ref, r_rev],
+                val,
+                "%",
+            )
             fund[pct_of_rev] = rs.fact(
-                val, metric=pct_of_rev.replace("_", " "), unit="%",
-                source="derived from XBRL", source_type="derived",
+                val,
+                metric=pct_of_rev.replace("_", " "),
+                unit="%",
+                source="derived from XBRL",
+                source_type="derived",
                 basis="gaap, quarter ended %s" % r["end"],
-                period_end=r["end"], published_at=r.get("_accepted"),
-                calc_version="margin/v1", evidence_id=eid,
+                period_end=r["end"],
+                published_at=r.get("_accepted"),
+                calc_version="margin/v1",
+                evidence_id=eid,
                 evidence_refs=["CALC-" + pct_of_rev, ref, r_rev],
-                quality=rs.Q_DERIVED)
+                quality=rs.Q_DERIVED,
+            )
         return r
 
     def _instant_fact(tags, key, metric):
@@ -1756,19 +2139,28 @@ def build_snapshot(ticker, report_time=None, cik=None):
             r = rows[-1]
             ref = _xf(r, "us-gaap:" + tag)
             fund[key] = rs.fact(
-                r["val"], metric=metric, unit="USD",
+                r["val"],
+                metric=metric,
+                unit="USD",
                 source="SEC XBRL %s" % (r.get("_form") or ""),
-                source_type="filing", source_url=r.get("_url"),
-                period_end=r["end"], published_at=r.get("_accepted"),
-                retrieved_at=retrieved_at, basis="gaap, as of %s" % r["end"],
-                gaap=True, evidence_id="SEC-%s" % r["accn"],
-                evidence_refs=[ref], quality=rs.Q_OK)
+                source_type="filing",
+                source_url=r.get("_url"),
+                period_end=r["end"],
+                published_at=r.get("_accepted"),
+                retrieved_at=retrieved_at,
+                basis="gaap, as of %s" % r["end"],
+                gaap=True,
+                evidence_id="SEC-%s" % r["accn"],
+                evidence_refs=[ref],
+                quality=rs.Q_OK,
+            )
             return r
         return None
 
     try:
-        _duration_fact("GrossProfit", "gross_profit", "quarterly gross profit",
-                       pct_of_rev="gross_margin")
+        _duration_fact(
+            "GrossProfit", "gross_profit", "quarterly gross profit", pct_of_rev="gross_margin"
+        )
         # Cash-flow lines (OCF, capex) are filed YEAR-TO-DATE, not per
         # quarter, so the quarterly filter alone borrows the PRIOR quarter
         # — the v4 defect where Q1 cash flow was shown beside Q2 revenue.
@@ -1783,23 +2175,28 @@ def build_snapshot(ticker, report_time=None, cik=None):
             if not r:
                 prov.setdefault("coverage", {})[key] = (
                     "not separately disclosed for the quarter ended %s; the "
-                    "cash-flow statement is filed year-to-date only" % qend)
+                    "cash-flow statement is filed year-to-date only" % qend
+                )
                 return None
             ref_cur = _xf(r["_cur"], "us-gaap:" + tag)
             note = None
             if r.get("_derived_quarter"):
                 ref_prev = _xf(r["_prev"], "us-gaap:" + tag)
-                led.calc("q_" + key,
-                         "%s: year-to-date ending %s minus year-to-date "
-                         "ending %s" % (metric, r["_ytd_end"],
-                                        r["_ytd_prev_end"]),
-                         [ref_cur, ref_prev], round(r["val"], 0), "USD")
+                led.calc(
+                    "q_" + key,
+                    "%s: year-to-date ending %s minus year-to-date "
+                    "ending %s" % (metric, r["_ytd_end"], r["_ytd_prev_end"]),
+                    [ref_cur, ref_prev],
+                    round(r["val"], 0),
+                    "USD",
+                )
                 r["_valueref"] = "CALC-q_" + key
                 refs = ["CALC-q_" + key, ref_cur, ref_prev]
-                note = ("three-month figure derived from year-to-date "
-                        "filings (%s YTD minus %s YTD); cash-flow statements "
-                        "are filed cumulatively"
-                        % (r["_ytd_end"], r["_ytd_prev_end"]))
+                note = (
+                    "three-month figure derived from year-to-date "
+                    "filings (%s YTD minus %s YTD); cash-flow statements "
+                    "are filed cumulatively" % (r["_ytd_end"], r["_ytd_prev_end"])
+                )
             else:
                 r["_valueref"] = ref_cur
                 refs = [ref_cur]
@@ -1807,15 +2204,22 @@ def build_snapshot(ticker, report_time=None, cik=None):
             if eid not in evids:
                 evids.append(eid)
             f = rs.fact(
-                r["val"], metric=metric, unit="USD",
+                r["val"],
+                metric=metric,
+                unit="USD",
                 source="SEC XBRL %s" % (r.get("_form") or ""),
-                source_type="derived" if r.get("_derived_quarter") else
-                "filing", source_url=r.get("_url"), period_end=r["end"],
-                published_at=r.get("_accepted"), retrieved_at=retrieved_at,
-                basis="gaap, quarter ended %s" % r["end"], gaap=True,
-                evidence_id=eid, evidence_refs=refs, note=note,
-                quality=rs.Q_DERIVED if r.get("_derived_quarter")
-                else rs.Q_OK)
+                source_type="derived" if r.get("_derived_quarter") else "filing",
+                source_url=r.get("_url"),
+                period_end=r["end"],
+                published_at=r.get("_accepted"),
+                retrieved_at=retrieved_at,
+                basis="gaap, quarter ended %s" % r["end"],
+                gaap=True,
+                evidence_id=eid,
+                evidence_refs=refs,
+                note=note,
+                quality=rs.Q_DERIVED if r.get("_derived_quarter") else rs.Q_OK,
+            )
             f["period_start"] = r["start"]
             f["duration_days"] = r["duration_days"]
             fund[key] = f
@@ -1823,55 +2227,65 @@ def build_snapshot(ticker, report_time=None, cik=None):
 
         ocf_row = _cf_quarter(
             "NetCashProvidedByUsedInOperatingActivities",
-            "operating_cash_flow", "quarterly operating cash flow")
+            "operating_cash_flow",
+            "quarterly operating cash flow",
+        )
         capex_row = None
-        for _cx in ("PaymentsToAcquirePropertyPlantAndEquipment",
-                    "PaymentsToAcquireProductiveAssets"):
-            capex_row = _cf_quarter(_cx, "capex",
-                                    "quarterly capital expenditure")
+        for _cx in (
+            "PaymentsToAcquirePropertyPlantAndEquipment",
+            "PaymentsToAcquireProductiveAssets",
+        ):
+            capex_row = _cf_quarter(_cx, "capex", "quarterly capital expenditure")
             if capex_row:
                 _capex_tag = _cx
                 break
         # FCF is OCF minus capex over the SAME, revenue-aligned quarter.
-        if ocf_row and capex_row and ocf_row["end"] == capex_row["end"] \
-                and (ocf_row.get("val") is not None) \
-                and (capex_row.get("val") is not None):
+        if (
+            ocf_row
+            and capex_row
+            and ocf_row["end"] == capex_row["end"]
+            and (ocf_row.get("val") is not None)
+            and (capex_row.get("val") is not None)
+        ):
             fcf = ocf_row["val"] - capex_row["val"]
-            led.calc("fcf",
-                     "operating cash flow[q ended %s] - capital "
-                     "expenditure[q ended %s]"
-                     % (ocf_row["end"], capex_row["end"]),
-                     [ocf_row["_valueref"], capex_row["_valueref"]],
-                     round(fcf, 0), "USD")
+            led.calc(
+                "fcf",
+                "operating cash flow[q ended %s] - capital "
+                "expenditure[q ended %s]" % (ocf_row["end"], capex_row["end"]),
+                [ocf_row["_valueref"], capex_row["_valueref"]],
+                round(fcf, 0),
+                "USD",
+            )
             eid = "SEC-%s" % ocf_row["accn"]
             ff = rs.fact(
-                fcf, metric="free cash flow", unit="USD",
+                fcf,
+                metric="free cash flow",
+                unit="USD",
                 source="derived: operating cash flow - capex (SEC XBRL)",
                 source_type="derived",
                 basis="gaap, quarter ended %s" % ocf_row["end"],
                 period_end=ocf_row["end"],
                 published_at=ocf_row.get("_accepted"),
-                retrieved_at=retrieved_at, calc_version="fcf/v2-period-aligned",
+                retrieved_at=retrieved_at,
+                calc_version="fcf/v2-period-aligned",
                 evidence_id=eid,
-                evidence_refs=["CALC-fcf", ocf_row["_valueref"],
-                               capex_row["_valueref"]],
+                evidence_refs=["CALC-fcf", ocf_row["_valueref"], capex_row["_valueref"]],
                 quality=rs.Q_DERIVED,
-                note="OCF and capex are the same quarter (ended %s)"
-                     % ocf_row["end"])
+                note="OCF and capex are the same quarter (ended %s)" % ocf_row["end"],
+            )
             ff["period_start"] = ocf_row["start"]
             ff["duration_days"] = ocf_row["duration_days"]
             fund["free_cash_flow"] = ff
-        _instant_fact(["CashAndCashEquivalentsAtCarryingValue"],
-                      "cash", "cash and equivalents")
-        _instant_fact(["LongTermDebtNoncurrent", "LongTermDebt"],
-                      "debt", "long-term debt")
-    except Exception as e:                       # a missing tag is normal
+        _instant_fact(["CashAndCashEquivalentsAtCarryingValue"], "cash", "cash and equivalents")
+        _instant_fact(["LongTermDebtNoncurrent", "LongTermDebt"], "debt", "long-term debt")
+    except Exception as e:  # a missing tag is normal
         prov["warnings"].append("extended fundamentals partial: %s" % e)
     # Non-GAAP margin is deliberately absent: companies publish it in
     # press-release exhibits, not in the XBRL taxonomy, so there is no
     # tagged figure to admit and we will not reconstruct one.
     prov.setdefault("coverage", {})["non_gaap_margin"] = (
-        "not available — non-GAAP measures are not XBRL-tagged")
+        "not available — non-GAAP measures are not XBRL-tagged"
+    )
 
     # ── earnings exhibit: guidance and non-GAAP ─────────────────────────
     # These are public and addressable; only our parser stood between the
@@ -1881,37 +2295,59 @@ def build_snapshot(ticker, report_time=None, cik=None):
     print("[3b/7] earnings exhibit (guidance + non-GAAP)...")
     try:
         import sec_exhibit as SX
+
         ex = SX.ingest(cik, acc, sec_text, report_time=report_time)
     except Exception as e:
-        ex = {"disposition": "AVAILABLE_NOT_INGESTED", "reported": {},
-              "guidance": {}, "reason": "exhibit ingestion failed: %s" % e,
-              "url": None, "accession": None}
+        ex = {
+            "disposition": "AVAILABLE_NOT_INGESTED",
+            "reported": {},
+            "guidance": {},
+            "reason": "exhibit ingestion failed: %s" % e,
+            "url": None,
+            "accession": None,
+        }
     snap["exhibit"] = ex
     if ex.get("accession"):
-        led.add("catalyst_records", "CAT-%s" % ex["accession"],
-                {"form": "8-K", "item": "2.02", "kind": "earnings exhibit",
-                 "accn": ex["accession"], "accepted": ex.get("accepted"),
-                 "url": ex.get("url"),
-                 "exhibit_disposition": ex.get("disposition"),
-                 "exhibit_reason": ex.get("reason")})
+        led.add(
+            "catalyst_records",
+            "CAT-%s" % ex["accession"],
+            {
+                "form": "8-K",
+                "item": "2.02",
+                "kind": "earnings exhibit",
+                "accn": ex["accession"],
+                "accepted": ex.get("accepted"),
+                "url": ex.get("url"),
+                "exhibit_disposition": ex.get("disposition"),
+                "exhibit_reason": ex.get("reason"),
+            },
+        )
     # The appendix renders prov["coverage"] directly. Overriding this only
     # in the evidence package left the two artifacts contradicting each
     # other about whether non-GAAP was available.
     if ex.get("disposition") == "ADMITTED" and ex.get("reported"):
         prov["coverage"]["non_gaap_margin"] = (
-            "ADMITTED - parsed from 8-K Item 2.02 Exhibit 99.1 (%s)"
-            % ex.get("accession"))
+            "ADMITTED - parsed from 8-K Item 2.02 Exhibit 99.1 (%s)" % ex.get("accession")
+        )
     prov["coverage"]["earnings_exhibit"] = (
-        ("EX-99.1 parsed from 8-K %s: %d reported figures, %d guidance lines"
-         % (ex.get("accession"), len(ex.get("reported") or {}),
-            len(ex.get("guidance") or {})))
-        if ex.get("disposition") == "ADMITTED" else
-        ("AVAILABLE_NOT_INGESTED - %s" % (ex.get("reason") or "unparsed")))
+        (
+            "EX-99.1 parsed from 8-K %s: %d reported figures, %d guidance lines"
+            % (ex.get("accession"), len(ex.get("reported") or {}), len(ex.get("guidance") or {}))
+        )
+        if ex.get("disposition") == "ADMITTED"
+        else ("AVAILABLE_NOT_INGESTED - %s" % (ex.get("reason") or "unparsed"))
+    )
 
     prov["deferred"] = [
-        {"metric": m, "period_end": r.get("end"), "form": r.get("_form"),
-         "accepted": r.get("_accepted"), "value": r.get("val")}
-        for m, r in deferred]
+        {
+            "metric": m,
+            "period_end": r.get("end"),
+            "form": r.get("_form"),
+            "accepted": r.get("_accepted"),
+            "value": r.get("val"),
+        }
+        for m, r in deferred
+    ]
 
     snap["company"] = company
     snap["fundamentals"] = fund
@@ -1920,21 +2356,30 @@ def build_snapshot(ticker, report_time=None, cik=None):
     print("[4/7] insiders (Form 4) + ownership...")
     try:
         from insider_activity import fetch_insider_transactions_detail
-        txns = fetch_insider_transactions_detail(ticker, days_back=180,
-                                                 max_filings=30)
+
+        txns = fetch_insider_transactions_detail(ticker, days_back=180, max_filings=30)
     except Exception as e:
         txns, _ = [], prov["warnings"].append("Form 4 fetch failed: %s" % e)
     snap["insiders"] = rs.summarize_insiders(txns)
     for n, row in enumerate(snap["insiders"]["rows"]):
         rid = "F4TXN-%03d" % n
-        led.add("form4_records", rid, {
-            "date": row.get("date"), "owner": row.get("owner"),
-            "title": row.get("title"), "code": row.get("code"),
-            "code_label": row.get("code_label"), "shares": row.get("shares"),
-            "price": row.get("price"), "value": row.get("value"),
-            "class": row.get("class"),
-            "carries_view": row.get("carries_view"),
-            "is_planned": row.get("is_planned")})
+        led.add(
+            "form4_records",
+            rid,
+            {
+                "date": row.get("date"),
+                "owner": row.get("owner"),
+                "title": row.get("title"),
+                "code": row.get("code"),
+                "code_label": row.get("code_label"),
+                "shares": row.get("shares"),
+                "price": row.get("price"),
+                "value": row.get("value"),
+                "class": row.get("class"),
+                "carries_view": row.get("carries_view"),
+                "is_planned": row.get("is_planned"),
+            },
+        )
         row["evidence_ref"] = rid
     snap["insiders"]["window_days"] = 180
     # Form 4 accessions accepted before report_time. An insider claim must
@@ -1942,29 +2387,39 @@ def build_snapshot(ticker, report_time=None, cik=None):
     # a citation that does not support the sentence attached to it.
     cutoff = rs._parse_ts(report_time)
     f4 = sorted(
-        [dict(m, accn=a) for a, m in acc.items()
-         if m.get("form") == "4" and rs._parse_ts(m.get("accepted") or "")
-         and rs._parse_ts(m["accepted"]) <= cutoff],
-        key=lambda m: m["accepted"])
+        [
+            dict(m, accn=a)
+            for a, m in acc.items()
+            if m.get("form") == "4"
+            and rs._parse_ts(m.get("accepted") or "")
+            and rs._parse_ts(m["accepted"]) <= cutoff
+        ],
+        key=lambda m: m["accepted"],
+    )
     cutoff = rs._parse_ts(report_time)
     win_dt0 = cutoff - timedelta(days=180)
     # Scan manifest: EVERY in-window Form 4 filing, including the ones
     # that yielded no transaction row. Listing only the productive ones
     # made the scan look smaller than it was and hid parse failures.
-    scanned = [m for m in f4
-               if rs._parse_ts(m.get("accepted") or "") >= win_dt0]
+    scanned = [m for m in f4 if rs._parse_ts(m.get("accepted") or "") >= win_dt0]
     txn_dates = {str(t.get("date")) for t in txns}
     ev_form4 = []
     for m in scanned:
         rid = "F4-%s" % m["accn"]
-        led.add("form4_records", rid,
-                {"accn": m["accn"], "form": "4", "accepted": m["accepted"],
-                 "url": m.get("url"), "record_kind": "source_filing",
-                 "in_window": True,
-                 "yielded_transaction_rows":
-                     m["accepted"][:10] in txn_dates or None,
-                 "note": "in-window Form 4 filing; parsed transaction rows "
-                         "are the F4TXN-* records"})
+        led.add(
+            "form4_records",
+            rid,
+            {
+                "accn": m["accn"],
+                "form": "4",
+                "accepted": m["accepted"],
+                "url": m.get("url"),
+                "record_kind": "source_filing",
+                "in_window": True,
+                "yielded_transaction_rows": m["accepted"][:10] in txn_dates or None,
+                "note": "in-window Form 4 filing; parsed transaction rows are the F4TXN-* records",
+            },
+        )
         ev_form4.append(rid)
     snap["insiders"]["evidence_ids"] = ev_form4
     win_start = win_dt0.date().isoformat()
@@ -1978,20 +2433,22 @@ def build_snapshot(ticker, report_time=None, cik=None):
         source_filings_scanned=len(f4_in_window),
         records_parsed=len(txns),
         records_in_window=len(txns),
-        open_market_sales=(snap["insiders"].get("by_class") or {}).get(
-            "open_market_sale", 0),
-        window_days=180, window_start=win_start,
+        open_market_sales=(snap["insiders"].get("by_class") or {}).get("open_market_sale", 0),
+        window_days=180,
+        window_start=win_start,
         window_end=cutoff.date().isoformat(),
-        total_filings_in_edgar_index=len(acc))
+        total_filings_in_edgar_index=len(acc),
+    )
     snap["insiders"]["economics"] = _insider_economics(
-        snap["insiders"]["rows"], win_start, cutoff.date().isoformat())
+        snap["insiders"]["rows"], win_start, cutoff.date().isoformat()
+    )
     snap["insiders"]["count_statement"] = led.count_statements().get("form4")
     snap["insiders"]["evidence_refs"] = ev_form4 + [
-        r["evidence_ref"] for r in snap["insiders"]["rows"]
-        if r.get("evidence_ref")]
+        r["evidence_ref"] for r in snap["insiders"]["rows"] if r.get("evidence_ref")
+    ]
     snap["insiders"]["source_url"] = (
-        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=%s"
-        "&type=4" % cik)
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=%s&type=4" % cik
+    )
     prov["coverage"]["form4"] = led.count_statements().get("form4")
 
     recent = (subs.get("filings") or {}).get("recent") or {}
@@ -2000,33 +2457,48 @@ def build_snapshot(ticker, report_time=None, cik=None):
         if f.startswith("SC 13"):
             a = (recent.get("accessionNumber") or [])[i]
             meta = acc.get(a) or {}
-            if rs._parse_ts(meta.get("accepted") or "") and \
-                    rs._parse_ts(meta["accepted"]) <= rs._parse_ts(report_time):
+            if rs._parse_ts(meta.get("accepted") or "") and rs._parse_ts(
+                meta["accepted"]
+            ) <= rs._parse_ts(report_time):
                 rid = "OWN-%s" % a
-                led.add("ownership_filings", rid,
-                        {"accn": a, "form": f,
-                         "accepted": meta.get("accepted"),
-                         "url": meta.get("url"), "filer": None,
-                         "filer_note": "filer identity not parsed from the "
-                                       "filing body"})
-                own_filings.append({"form": f, "filer": None,
-                                    "accepted": meta.get("accepted"),
-                                    "url": meta.get("url"),
-                                    "evidence_ref": rid})
+                led.add(
+                    "ownership_filings",
+                    rid,
+                    {
+                        "accn": a,
+                        "form": f,
+                        "accepted": meta.get("accepted"),
+                        "url": meta.get("url"),
+                        "filer": None,
+                        "filer_note": "filer identity not parsed from the filing body",
+                    },
+                )
+                own_filings.append(
+                    {
+                        "form": f,
+                        "filer": None,
+                        "accepted": meta.get("accepted"),
+                        "url": meta.get("url"),
+                        "evidence_ref": rid,
+                    }
+                )
     # The ownership analysis window must be DEFINED, not implied. Page 2
     # said "21 in window" and page 3 said "12 in window" because the two
     # were generated from different lists. One population, dated, with a
     # computed inclusion flag per record, now feeds both.
     OWN_SHOW = 12
-    OWN_WINDOW_DAYS = 1825            # 5 years: 13D/G positions persist
+    OWN_WINDOW_DAYS = 1825  # 5 years: 13D/G positions persist
     own_start = cutoff - timedelta(days=OWN_WINDOW_DAYS)
     for f in own_filings:
         p = rs._parse_ts(f.get("accepted") or "")
         f["in_window"] = bool(p and p >= own_start)
-        led._store["ownership_filings"][f["evidence_ref"]].update({
-            "in_window": f["in_window"],
-            "window_start": own_start.date().isoformat(),
-            "window_end": cutoff.date().isoformat()})
+        led._store["ownership_filings"][f["evidence_ref"]].update(
+            {
+                "in_window": f["in_window"],
+                "window_start": own_start.date().isoformat(),
+                "window_end": cutoff.date().isoformat(),
+            }
+        )
     in_win = [f for f in own_filings if f["in_window"]]
     shown = in_win[:OWN_SHOW]
     # summarize over the WHOLE in-window population, not the displayed
@@ -2036,27 +2508,31 @@ def build_snapshot(ticker, report_time=None, cik=None):
     snap["ownership"]["displayed"] = len(shown)
     snap["ownership"]["window_start"] = own_start.date().isoformat()
     snap["ownership"]["window_end"] = cutoff.date().isoformat()
-    led.population("ownership", records_parsed=len(own_filings),
-                   records_in_window=len(in_win),
-                   records_displayed=len(shown),
-                   window_days=OWN_WINDOW_DAYS,
-                   window_start=own_start.date().isoformat(),
-                   window_end=cutoff.date().isoformat())
-    snap["ownership"]["count_statement"] = led.count_statements().get(
-        "ownership")
+    led.population(
+        "ownership",
+        records_parsed=len(own_filings),
+        records_in_window=len(in_win),
+        records_displayed=len(shown),
+        window_days=OWN_WINDOW_DAYS,
+        window_start=own_start.date().isoformat(),
+        window_end=cutoff.date().isoformat(),
+    )
+    snap["ownership"]["count_statement"] = led.count_statements().get("ownership")
     snap["ownership"]["note"] = (
         "Schedule 13D/13G filings accepted by EDGAR in the window, counted "
         "from the submissions index. Filer identity is NOT parsed from the "
         "filing bodies, so no holder is named here rather than guessed. "
-        "13G denotes passive/non-control status, not lower conviction.")
+        "13G denotes passive/non-control status, not lower conviction."
+    )
 
     print("[5/7] social + news (article-level relevance)...")
-    recs, cov = fetch_social(ticker, report_time, retrieved_at,
-                             spot=mk["last"])
+    recs, cov = fetch_social(ticker, report_time, retrieved_at, spot=mk["last"])
     prov["coverage"].update(cov)
-    prov["coverage"]["reddit"] = ("unavailable — Reddit returns HTTP 403 to "
-                                  "this client; excluded rather than "
-                                  "silently under-counted")
+    prov["coverage"]["reddit"] = (
+        "unavailable — Reddit returns HTTP 403 to "
+        "this client; excluded rather than "
+        "silently under-counted"
+    )
     for r in recs:
         eid = EL.social_id(r["record_id"])
         # PUBLIC: normalized excerpt + provenance + hash, author hashed
@@ -2070,13 +2546,19 @@ def build_snapshot(ticker, report_time=None, cik=None):
         # would reintroduce the divergence this fixes
         norm = r.get("_text") or ""
         led.audit_record(
-            eid, normalized_text=norm, hash_input=norm,
+            eid,
+            normalized_text=norm,
+            hash_input=norm,
             content_hash=EL.content_hash(norm),
             norm_version=NORM_VERSION,
-            source_meta={"source": r.get("source"), "url": r.get("url"),
-                         "published_at": r.get("published_at"),
-                         "author_hash": r.get("author_hash")},
-            retrieval_meta={"retrieved_at": r.get("retrieved_at")})
+            source_meta={
+                "source": r.get("source"),
+                "url": r.get("url"),
+                "published_at": r.get("published_at"),
+                "author_hash": r.get("author_hash"),
+            },
+            retrieval_meta={"retrieved_at": r.get("retrieved_at")},
+        )
     # One calculation object whose inputs are ALL considered records and
     # whose outputs reconcile every published social number. The summary
     # sentence previously cited a handful of sample ids, one of them a
@@ -2085,39 +2567,47 @@ def build_snapshot(ticker, report_time=None, cik=None):
     _rej = [r for r in recs if r["disposition"] == "rejected"]
     _cls = {}
     for r in _adm:
-        _cls[r.get("sentiment") or "unclassified"] = \
+        _cls[r.get("sentiment") or "unclassified"] = (
             _cls.get(r.get("sentiment") or "unclassified", 0) + 1
-    led.calc("social-summary",
-             "partition all considered records by disposition, then the "
-             "admitted subset by sentiment class",
-             [EL.social_id(r["record_id"]) for r in recs],
-             {"considered": len(recs), "admitted": len(_adm),
-              "rejected": len(_rej),
-              "unique_authors": len({r["author_hash"] for r in _adm}),
-              "by_class": _cls,
-              "directional": _cls.get("bullish", 0) + _cls.get("bearish", 0)},
-             note="inputs are every considered record, not a sample")
-    led.population("social", records_fetched=len(recs),
-                   records_parsed=len(recs),
-                   records_admitted=sum(1 for r in recs
-                                        if r["disposition"] == "counted"),
-                   records_rejected=sum(1 for r in recs
-                                        if r["disposition"] == "rejected"),
-                   records_displayed=min(10, len(recs)))
-    news, news_rejected = fetch_news(
-        ticker, report_time, company_name=(info.get("longName") or ""))
+        )
+    led.calc(
+        "social-summary",
+        "partition all considered records by disposition, then the "
+        "admitted subset by sentiment class",
+        [EL.social_id(r["record_id"]) for r in recs],
+        {
+            "considered": len(recs),
+            "admitted": len(_adm),
+            "rejected": len(_rej),
+            "unique_authors": len({r["author_hash"] for r in _adm}),
+            "by_class": _cls,
+            "directional": _cls.get("bullish", 0) + _cls.get("bearish", 0),
+        },
+        note="inputs are every considered record, not a sample",
+    )
+    led.population(
+        "social",
+        records_fetched=len(recs),
+        records_parsed=len(recs),
+        records_admitted=sum(1 for r in recs if r["disposition"] == "counted"),
+        records_rejected=sum(1 for r in recs if r["disposition"] == "rejected"),
+        records_displayed=min(10, len(recs)),
+    )
+    news, news_rejected = fetch_news(ticker, report_time, company_name=(info.get("longName") or ""))
     for n in news:
         n["evidence_ref"] = EL.news_id(n["url"])
         led.add("news_records", n["evidence_ref"], dict(n, admitted=True))
     for n in news_rejected:
         if n.get("url"):
-            led.add("news_records", EL.news_id(n["url"]),
-                    dict(n, admitted=False))
-    led.population("news", records_fetched=len(news) + len(news_rejected),
-                   records_parsed=len(news) + len(news_rejected),
-                   records_admitted=len(news),
-                   records_rejected=len(news_rejected),
-                   records_displayed=min(8, len(news)))
+            led.add("news_records", EL.news_id(n["url"]), dict(n, admitted=False))
+    led.population(
+        "news",
+        records_fetched=len(news) + len(news_rejected),
+        records_parsed=len(news) + len(news_rejected),
+        records_admitted=len(news),
+        records_rejected=len(news_rejected),
+        records_displayed=min(8, len(news)),
+    )
     prov["coverage"]["news"] = led.count_statements().get("news")
     prov["news_rejected"] = news_rejected
 
@@ -2125,16 +2615,22 @@ def build_snapshot(ticker, report_time=None, cik=None):
     # sessions captured BEFORE each report. We have none for this feed, so
     # the honest value is NO_BASELINE — not a reconstructed series dressed
     # up as one.
-    alt = rs.build_alt_block(recs, baseline={"kind": rs.BASELINE_NONE},
-                             news=news, options_feed_verified=False)
+    alt = rs.build_alt_block(
+        recs, baseline={"kind": rs.BASELINE_NONE}, news=news, options_feed_verified=False
+    )
     snap["sentiment"] = dict(alt)
 
     print("[6/7] catalyst discovery (earliest primary release)...")
     # step [3b/7] already resolved the earnings exhibit; handing it over
     # lets verification read the release instead of the cover page.
-    cat = discover_catalyst(acc, report_time,
-                            (rev_cur or {}).get("end") if rev_cur else None,
-                            mk, led, exhibit=snap.get("exhibit"))
+    cat = discover_catalyst(
+        acc,
+        report_time,
+        (rev_cur or {}).get("end") if rev_cur else None,
+        mk,
+        led,
+        exhibit=snap.get("exhibit"),
+    )
     ev_dt = cat["event_dt"]
     grading = cat["grading"]
     snap["catalyst"] = {
@@ -2144,36 +2640,49 @@ def build_snapshot(ticker, report_time=None, cik=None):
         "verification": cat["verification"],
         "discovery": cat["discovery"],
         "grading": grading,
-        "state": (grading.get("state")
-                  if grading.get("state") in rs.CATALYST_STATES
-                  else rs.resolve_catalyst_state(
-                      rs._parse_ts(ev_dt) if ev_dt else None,
-                      now=rs._parse_ts(report_time))),
+        "state": (
+            grading.get("state")
+            if grading.get("state") in rs.CATALYST_STATES
+            else rs.resolve_catalyst_state(
+                rs._parse_ts(ev_dt) if ev_dt else None, now=rs._parse_ts(report_time)
+            )
+        ),
         "stated_times": {"header": ev_dt} if ev_dt else {},
-        "upcoming": ([{"what": "next earnings (data-vendor estimate, not "
-                               "company-confirmed)",
-                       "when": mk["next_earnings"]}]
-                     if mk.get("next_earnings") else []),
+        "upcoming": (
+            [
+                {
+                    "what": "next earnings (data-vendor estimate, not company-confirmed)",
+                    "when": mk["next_earnings"],
+                }
+            ]
+            if mk.get("next_earnings")
+            else []
+        ),
         # vendor-estimated NEXT print, surfaced for the event gate's
         # pre-event window and the claims engine's typed checkpoint
-        "next_event_date": (str(mk["next_earnings"])[:10]
-                            if mk.get("next_earnings") else None),
-        "next_event_source": "data-vendor estimate, not "
-                             "company-confirmed",
+        "next_event_date": (str(mk["next_earnings"])[:10] if mk.get("next_earnings") else None),
+        "next_event_source": "data-vendor estimate, not company-confirmed",
         "refusal": cat.get("refusal"),
         # An unverified candidate must not be described as "the earliest
         # verified public disclosure" — that is the one sentence in this
         # block a reader would act on, and it would be false.
         "description": (
-            (cat["refusal"] if cat.get("refusal") else
-             "%s — the earliest verified public disclosure of these "
-             "results, found by scanning %d filings; the later periodic "
-             "filing is not the catalyst"
-             % ("company earnings release (8-K item 2.02)"
-                if cat["event_kind"] == "primary_release"
-                else "periodic filing (no 8-K results release found)",
-                cat["discovery"]["candidates_scanned"]))
-            if ev_dt else "no dated catalyst in window"),
+            (
+                cat["refusal"]
+                if cat.get("refusal")
+                else "%s — the earliest verified public disclosure of these "
+                "results, found by scanning %d filings; the later periodic "
+                "filing is not the catalyst"
+                % (
+                    "company earnings release (8-K item 2.02)"
+                    if cat["event_kind"] == "primary_release"
+                    else "periodic filing (no 8-K results release found)",
+                    cat["discovery"]["candidates_scanned"],
+                )
+            )
+            if ev_dt
+            else "no dated catalyst in window"
+        ),
     }
 
     print("[7/7] decision, evidence and appendix...")
@@ -2181,7 +2690,7 @@ def build_snapshot(ticker, report_time=None, cik=None):
         evids.append(n["evidence_ref"])
     for r in recs:
         evids.append(EL.social_id(r["record_id"]))
-    evids += (snap["insiders"].get("evidence_ids") or [])
+    evids += snap["insiders"].get("evidence_ids") or []
     if ev_shares and ev_shares not in evids:
         evids.append(ev_shares)
 
@@ -2189,14 +2698,19 @@ def build_snapshot(ticker, report_time=None, cik=None):
     # alt and snap["sentiment"] are separate dicts, so both carry it or
     # the renderer (which reads alt) shows nothing.
     _sample = [
-        {"source": r.get("source"), "author_hash": r.get("author_hash"),
-         "published_at": r.get("published_at"),
-         "sentiment": r.get("sentiment"), "disposition": r.get("disposition"),
-         # word-boundary truncation, NOT a raw slice — this is what left
-         # "cloud, a" and "and g" hanging on page 5
-         "excerpt": EL.excerpt(r.get("_text") or ""),
-         "evidence_ref": EL.social_id(r["record_id"])}
-        for r in recs[:10]]
+        {
+            "source": r.get("source"),
+            "author_hash": r.get("author_hash"),
+            "published_at": r.get("published_at"),
+            "sentiment": r.get("sentiment"),
+            "disposition": r.get("disposition"),
+            # word-boundary truncation, NOT a raw slice — this is what left
+            # "cloud, a" and "and g" hanging on page 5
+            "excerpt": EL.excerpt(r.get("_text") or ""),
+            "evidence_ref": EL.social_id(r["record_id"]),
+        }
+        for r in recs[:10]
+    ]
     snap["sentiment"]["sample_records"] = _sample
     alt["sample_records"] = _sample
 
@@ -2206,76 +2720,101 @@ def build_snapshot(ticker, report_time=None, cik=None):
         "evidence_ids": evids,
         "rows_shown": min(10, len(recs)),
         "rows_total": len(recs),
-        "sample_label": "sample showing %d of %d social records"
-                        % (min(10, len(recs)), len(recs)),
+        "sample_label": "sample showing %d of %d social records" % (min(10, len(recs)), len(recs)),
         "machine_readable_export": "%s_evidence.json" % ticker,
         "claims_complete": False,
     }
     # Completeness reported PER DOMAIN. A single "n/a" hid the fact that
     # price data was complete while social coverage was one source of two.
     dom = [
-        ("Price & levels", "complete",
-         (led.count_statements().get("market") or "")
-         + ", one canonical series"),
-        ("Financials (SEC XBRL)", "complete" if fund else "absent",
-         "%d tagged facts across %d filings"
-         % (led.count("xbrl_facts"),
-            len({r.get("accn") for r in led._store["xbrl_facts"].values()}))
-         if fund else "no filing figure admitted"),
+        (
+            "Price & levels",
+            "complete",
+            (led.count_statements().get("market") or "") + ", one canonical series",
+        ),
+        (
+            "Financials (SEC XBRL)",
+            "complete" if fund else "absent",
+            "%d tagged facts across %d filings"
+            % (
+                led.count("xbrl_facts"),
+                len({r.get("accn") for r in led._store["xbrl_facts"].values()}),
+            )
+            if fund
+            else "no filing figure admitted",
+        ),
         # every detail string comes from the ledger's count statements,
         # so no second wording of the same population can appear
-        ("Insider (Form 4)", "complete" if txns else "absent",
-         led.count_statements().get("form4") or "no transactions parsed"),
-        ("Ownership (13D/G)", "partial",
-         (led.count_statements().get("ownership") or "")
-         + "; filer names not parsed"),
-        ("Catalyst", "complete" if ev_dt else "absent",
-         "%d candidates scanned, earliest primary release selected"
-         % cat["discovery"]["candidates_scanned"]),
+        (
+            "Insider (Form 4)",
+            "complete" if txns else "absent",
+            led.count_statements().get("form4") or "no transactions parsed",
+        ),
+        (
+            "Ownership (13D/G)",
+            "partial",
+            (led.count_statements().get("ownership") or "") + "; filer names not parsed",
+        ),
+        (
+            "Catalyst",
+            "complete" if ev_dt else "absent",
+            "%d candidates scanned, earliest primary release selected"
+            % cat["discovery"]["candidates_scanned"],
+        ),
         ("News", "partial", led.count_statements().get("news") or ""),
-        ("Social", "partial",
-         "StockTwits only; Reddit unavailable due to access failure"),
-        ("Social baseline", "absent",
-         "no point-in-time archive, so attention cannot be scored"),
-        ("Options / expected move", "absent",
-         "options chain not wired into this report"),
+        ("Social", "partial", "StockTwits only; Reddit unavailable due to access failure"),
+        ("Social baseline", "absent", "no point-in-time archive, so attention cannot be scored"),
+        ("Options / expected move", "absent", "options chain not wired into this report"),
     ]
     led.coverage = {
-        "sources_used": [_bar_src_label(mk), "SEC EDGAR submissions",
-                         "SEC XBRL companyconcept", "SEC Form 4",
-                         "StockTwits", "Yahoo Finance news"],
+        "sources_used": [
+            _bar_src_label(mk),
+            "SEC EDGAR submissions",
+            "SEC XBRL companyconcept",
+            "SEC Form 4",
+            "StockTwits",
+            "Yahoo Finance news",
+        ],
         "sources_unavailable": [
-            {"source": "Reddit", "reason": "HTTP 403 to this client",
-             "effect": "social sample is StockTwits-only and under-counts "
-                       "total retail discussion"},
-            {"source": "Options chain",
-             "reason": "not wired into this report",
-             "effect": "no expected move or implied volatility"},
-            {"source": "13F institutional ownership",
-             "reason": "not aggregated",
-             "effect": "institutional percentage not shown"}],
-        "per_domain": [{"domain": d, "status": s, "detail": t}
-                       for d, s, t in dom],
+            {
+                "source": "Reddit",
+                "reason": "HTTP 403 to this client",
+                "effect": "social sample is StockTwits-only and under-counts "
+                "total retail discussion",
+            },
+            {
+                "source": "Options chain",
+                "reason": "not wired into this report",
+                "effect": "no expected move or implied volatility",
+            },
+            {
+                "source": "13F institutional ownership",
+                "reason": "not aggregated",
+                "effect": "institutional percentage not shown",
+            },
+        ],
+        "per_domain": [{"domain": d, "status": s, "detail": t} for d, s, t in dom],
     }
     snap["evidence"] = {
         "evidence_quality": "moderate",
         "conviction": "low",
         "data_completeness_by_domain": led.coverage["per_domain"],
-        "source_limitations": "StockTwits only; Reddit unavailable due to "
-                              "access failure.",
+        "source_limitations": "StockTwits only; Reddit unavailable due to access failure.",
         "accessibility_note": (
             "Accessibility: this PDF is structurally valid but UNTAGGED — "
             "it carries no logical structure tree, so screen-reader "
             "navigation is limited to reading order. Document language and "
             "title are set. Machine-readable checks are in "
-            "%s_validation_report.json, alongside the evidence export."
-            % ticker),
+            "%s_validation_report.json, alongside the evidence export." % ticker
+        ),
         "coverage": prov["coverage"],
-        "provenance_note": ("Fundamentals admitted only when the filing's "
-                            "EDGAR acceptance timestamp precedes the report "
-                            "time. Levels derive from one price series. "
-                            "Every figure carries evidence_refs into the "
-                            "companion export."),
+        "provenance_note": (
+            "Fundamentals admitted only when the filing's "
+            "EDGAR acceptance timestamp precedes the report "
+            "time. Levels derive from one price series. "
+            "Every figure carries evidence_refs into the "
+            "companion export."
+        ),
     }
     snap["flags"] = _flags(snap, prov)
     snap["evidence_index"] = sorted(led.ids())
@@ -2286,18 +2825,17 @@ def build_snapshot(ticker, report_time=None, cik=None):
     if not hv["ok"]:
         raise rs.Contradiction(
             "content-hash verification failed for %d record(s): %s"
-            % (len(hv["mismatched"]), hv["mismatched"][:3]))
+            % (len(hv["mismatched"]), hv["mismatched"][:3])
+        )
     recon = led.reconcile()
     if recon:
-        raise rs.Contradiction(
-            "count reconciliation failed:\n  - " + "\n  - ".join(recon))
+        raise rs.Contradiction("count reconciliation failed:\n  - " + "\n  - ".join(recon))
     prov["_mk"] = mk
     prov["_ledger"] = led
     return snap, alt, recs, prov
 
 
-def discover_catalyst(acc, report_time, period_end, bars, ledger,
-                      lookback_days=120, exhibit=None):
+def discover_catalyst(acc, report_time, period_end, bars, ledger, lookback_days=120, exhibit=None):
     """Find the EARLIEST verified public disclosure of the results, not
     the most convenient one.
 
@@ -2318,8 +2856,7 @@ def discover_catalyst(acc, report_time, period_end, bars, ledger,
     # disclosure of results cannot precede the period it reports.
     if period_end:
         try:
-            pe = datetime.fromisoformat(period_end).replace(
-                tzinfo=timezone.utc)
+            pe = datetime.fromisoformat(period_end).replace(tzinfo=timezone.utc)
             since = max(since, pe)
         except Exception:
             pass
@@ -2333,17 +2870,21 @@ def discover_catalyst(acc, report_time, period_end, bars, ledger,
         is_periodic = form in ("10-Q", "10-K")
         if not (is_results or is_periodic):
             continue
-        candidates.append({
-            "accn": a, "form": form, "items": items,
-            "accepted": m["accepted"], "url": m.get("url"),
-            "kind": "primary_release" if is_results else "periodic_filing",
-            "_dt": p,
-        })
+        candidates.append(
+            {
+                "accn": a,
+                "form": form,
+                "items": items,
+                "accepted": m["accepted"],
+                "url": m.get("url"),
+                "kind": "primary_release" if is_results else "periodic_filing",
+                "_dt": p,
+            }
+        )
     candidates.sort(key=lambda c: c["_dt"])
 
     primaries = [c for c in candidates if c["kind"] == "primary_release"]
-    chosen = primaries[0] if primaries else (candidates[-1] if candidates
-                                             else None)
+    chosen = primaries[0] if primaries else (candidates[-1] if candidates else None)
     # verify rather than assume: the chosen release must actually be
     # fetchable and mention results
     verification = None
@@ -2351,13 +2892,19 @@ def discover_catalyst(acc, report_time, period_end, bars, ledger,
         verification = _verify_release(chosen, exhibit=exhibit)
         chosen = dict(chosen, verification=verification)
     for c in candidates:
-        ledger.add("catalyst_records", "CAT-%s" % c["accn"],
-                   {k: v for k, v in c.items() if k != "_dt"})
+        ledger.add(
+            "catalyst_records", "CAT-%s" % c["accn"], {k: v for k, v in c.items() if k != "_dt"}
+        )
 
-    grading = _grade_event(chosen, bars) if chosen else {
-        "state": "UNGRADED",
-        "missing_condition": "no catalyst disclosure found in the "
-                             "%d-day lookback" % lookback_days}
+    grading = (
+        _grade_event(chosen, bars)
+        if chosen
+        else {
+            "state": "UNGRADED",
+            "missing_condition": "no catalyst disclosure found in the "
+            "%d-day lookback" % lookback_days,
+        }
+    )
     # A candidate we could not verify is not a verified release, and the
     # honest move is to stop calling it one rather than to publish it and
     # let the gate kill the whole brief. Demoting the kind means the
@@ -2367,14 +2914,18 @@ def discover_catalyst(acc, report_time, period_end, bars, ledger,
     # primary release that is not one.
     kind = chosen["kind"] if chosen else None
     refusal = None
-    if kind == "primary_release" and verification \
-            and verification.get("is_results_disclosure") is not True:
+    if (
+        kind == "primary_release"
+        and verification
+        and verification.get("is_results_disclosure") is not True
+    ):
         kind = "unverified_release"
-        refusal = ("An 8-K carrying item 2.02 was filed at %s, but this "
-                   "report could not confirm it discloses results: %s. It "
-                   "is listed as a filing, not read as the catalyst."
-                   % (chosen["accepted"],
-                      verification.get("reason") or "no reason recorded"))
+        refusal = (
+            "An 8-K carrying item 2.02 was filed at %s, but this "
+            "report could not confirm it discloses results: %s. It "
+            "is listed as a filing, not read as the catalyst."
+            % (chosen["accepted"], verification.get("reason") or "no reason recorded")
+        )
 
     return {
         "event_dt": chosen["accepted"] if chosen else None,
@@ -2386,13 +2937,11 @@ def discover_catalyst(acc, report_time, period_end, bars, ledger,
             "lookback_days": lookback_days,
             "candidates_scanned": len(candidates),
             "candidate_refs": ["CAT-%s" % c["accn"] for c in candidates],
-            "earliest_primary_release": (primaries[0]["accepted"]
-                                         if primaries else None),
-            "earliest_primary_ref": ("CAT-%s" % primaries[0]["accn"]
-                                     if primaries else None),
+            "earliest_primary_release": (primaries[0]["accepted"] if primaries else None),
+            "earliest_primary_ref": ("CAT-%s" % primaries[0]["accn"] if primaries else None),
             "rule": "earliest 8-K carrying item 2.02 wins over any later "
-                    "periodic filing; periodic filing used only when no "
-                    "primary release exists",
+            "periodic filing; periodic filing used only when no "
+            "primary release exists",
         },
         "grading": grading,
         "period_end": period_end,
@@ -2418,12 +2967,10 @@ def _verify_release(cand, exhibit=None):
     step [3b/7] has already resolved the exhibit for the results 8-K, so
     when its accession matches the chosen candidate the URL is in hand and
     no extra fetch is needed to point at the right document."""
-    out = {"fetched": False, "is_results_disclosure": None, "reason": None,
-           "document": "primary"}
+    out = {"fetched": False, "is_results_disclosure": None, "reason": None, "document": "primary"}
     url = cand.get("url")
     ex = exhibit or {}
-    if ex.get("url") and ex.get("accession") \
-            and ex["accession"] == cand.get("accn"):
+    if ex.get("url") and ex.get("accession") and ex["accession"] == cand.get("accn"):
         url, out["document"] = ex["url"], "exhibit"
     out["document_url"] = url
     if not url:
@@ -2439,16 +2986,27 @@ def _verify_release(cand, exhibit=None):
         txt = html.unescape(txt)
         out["fetched"] = True
         out["chars"] = len(txt)
-        hits = [w for w in ("results of operations", "financial results",
-                            "revenue", "earnings", "second quarter",
-                            "first quarter", "third quarter", "fourth quarter")
-                if w in txt.lower()]
+        hits = [
+            w
+            for w in (
+                "results of operations",
+                "financial results",
+                "revenue",
+                "earnings",
+                "second quarter",
+                "first quarter",
+                "third quarter",
+                "fourth quarter",
+            )
+            if w in txt.lower()
+        ]
         out["matched_phrases"] = hits
         out["is_results_disclosure"] = len(hits) >= 2
         if not out["is_results_disclosure"]:
-            out["reason"] = ("the %s document does not read as a results "
-                             "disclosure (matched %d of %d phrases)"
-                             % (out["document"], len(hits), 8))
+            out["reason"] = (
+                "the %s document does not read as a results "
+                "disclosure (matched %d of %d phrases)" % (out["document"], len(hits), 8)
+            )
     except Exception as e:
         out["reason"] = "fetch failed: %s" % e
     return out
@@ -2459,8 +3017,7 @@ def _grade_event(chosen, bars):
     release, or name the precise condition that is missing."""
     p = rs._parse_ts(chosen.get("accepted") or "")
     if not p:
-        return {"state": "UNGRADED",
-                "missing_condition": "catalyst has no parseable timestamp"}
+        return {"state": "UNGRADED", "missing_condition": "catalyst has no parseable timestamp"}
     dates = bars["dates"]
     closes = bars["closes"]
     # last session that closed at or before the release, and the first
@@ -2472,27 +3029,27 @@ def _grade_event(chosen, bars):
         if d < ev_date or (d == ev_date and after_close):
             base_i = i
     if base_i is None:
-        return {"state": "UNGRADED",
-                "missing_condition": "no session closed before the release "
-                                     "in the loaded price history"}
+        return {
+            "state": "UNGRADED",
+            "missing_condition": "no session closed before the release in the loaded price history",
+        }
     if base_i + 1 >= len(dates):
-        return {"state": "POST_EVENT_UNGRADED",
-                "missing_condition": "no full session has closed after the "
-                                     "release (reaction window: first "
-                                     "regular-session close after %s)"
-                                     % chosen.get("accepted")}
+        return {
+            "state": "POST_EVENT_UNGRADED",
+            "missing_condition": "no full session has closed after the "
+            "release (reaction window: first "
+            "regular-session close after %s)" % chosen.get("accepted"),
+        }
     r_i = base_i + 1
     move = 100.0 * (closes[r_i] / closes[base_i] - 1)
     return {
         "state": "POST_EVENT_GRADED",
         "reaction_window": "close %s -> close %s"
-                           % (dates[base_i].isoformat(),
-                              dates[r_i].isoformat()),
+        % (dates[base_i].isoformat(), dates[r_i].isoformat()),
         "pre_close": round(closes[base_i], 2),
         "post_close": round(closes[r_i], 2),
         "reaction_pct": round(move, 2),
-        "evidence_refs": ["BAR-%s" % dates[base_i].isoformat(),
-                          "BAR-%s" % dates[r_i].isoformat()],
+        "evidence_refs": ["BAR-%s" % dates[base_i].isoformat(), "BAR-%s" % dates[r_i].isoformat()],
         "missing_condition": None,
     }
 
@@ -2507,28 +3064,50 @@ def _overview(info, fund, led):
     short = " ".join(parts[:2]).strip()
     drivers = []
     if fund.get("revenue_q"):
-        drivers.append(("Quarterly revenue", "$%.2fB" % (rs.fv(fund["revenue_q"]) / 1e9),
-                        fund["revenue_q"].get("evidence_refs") or []))
+        drivers.append(
+            (
+                "Quarterly revenue",
+                "$%.2fB" % (rs.fv(fund["revenue_q"]) / 1e9),
+                fund["revenue_q"].get("evidence_refs") or [],
+            )
+        )
     if fund.get("revenue_growth"):
-        drivers.append(("Revenue growth y/y", "%+.1f%%" % rs.fv(fund["revenue_growth"]),
-                        fund["revenue_growth"].get("evidence_refs") or []))
+        drivers.append(
+            (
+                "Revenue growth y/y",
+                "%+.1f%%" % rs.fv(fund["revenue_growth"]),
+                fund["revenue_growth"].get("evidence_refs") or [],
+            )
+        )
     if fund.get("net_margin"):
-        drivers.append(("Net margin", "%.1f%%" % rs.fv(fund["net_margin"]),
-                        fund["net_margin"].get("evidence_refs") or []))
+        drivers.append(
+            (
+                "Net margin",
+                "%.1f%%" % rs.fv(fund["net_margin"]),
+                fund["net_margin"].get("evidence_refs") or [],
+            )
+        )
     if fund.get("eps_ttm"):
-        drivers.append(("Diluted EPS (TTM)", "$%.2f" % rs.fv(fund["eps_ttm"]),
-                        fund["eps_ttm"].get("evidence_refs") or []))
-    led.rec_input("business_overview", "business overview",
-                  {"chars": len(short), "source": "vendor profile"},
-                  refs=["REC-profile"],
-                  rationale="descriptive context; carries no number")
+        drivers.append(
+            (
+                "Diluted EPS (TTM)",
+                "$%.2f" % rs.fv(fund["eps_ttm"]),
+                fund["eps_ttm"].get("evidence_refs") or [],
+            )
+        )
+    led.rec_input(
+        "business_overview",
+        "business overview",
+        {"chars": len(short), "source": "vendor profile"},
+        refs=["REC-profile"],
+        rationale="descriptive context; carries no number",
+    )
     return {
         "text": short,
         "source": "Yahoo Finance company profile (vendor description)",
         "employees": info.get("fullTimeEmployees"),
         "industry": info.get("industry"),
-        "drivers": [{"name": n, "value": v, "evidence_refs": r}
-                    for n, v, r in drivers],
+        "drivers": [{"name": n, "value": v, "evidence_refs": r} for n, v, r in drivers],
         "evidence_refs": ["REC-business_overview"],
     }
 
@@ -2545,45 +3124,65 @@ def _quality_reads(snap, mk, led):
     brefs, bbits = [], []
     if marg is not None:
         bbits.append("net margin %.1f%%" % marg)
-        brefs += (fund["net_margin"].get("evidence_refs") or [])
+        brefs += fund["net_margin"].get("evidence_refs") or []
     if grow is not None:
         bbits.append("revenue %+.1f%% y/y" % grow)
-        brefs += (fund["revenue_growth"].get("evidence_refs") or [])
+        brefs += fund["revenue_growth"].get("evidence_refs") or []
     if marg is not None and grow is not None:
-        biz = ("strong" if marg >= 15 and grow >= 10 else
-               "solid" if marg >= 10 and grow >= 0 else
-               "mixed" if prof else "weak")
+        biz = (
+            "strong"
+            if marg >= 15 and grow >= 10
+            else "solid"
+            if marg >= 10 and grow >= 0
+            else "mixed"
+            if prof
+            else "weak"
+        )
     else:
         biz = "not assessable from admitted data"
-    led.rec_input("business_quality", "business quality", biz,
-                  refs=sorted(set(brefs)),
-                  rationale="GAAP margin and filed revenue growth only; no "
-                            "vendor adjustments, no narrative")
+    led.rec_input(
+        "business_quality",
+        "business quality",
+        biz,
+        refs=sorted(set(brefs)),
+        rationale="GAAP margin and filed revenue growth only; no vendor adjustments, no narrative",
+    )
 
     # A name that has not traded 200 sessions has no 200-day average. The
     # swing grade is defined over three averages; with fewer than three it
     # is not a weaker read, it is an unavailable one, and saying so beats
     # grading against averages that do not exist.
-    _mas = [("CALC-ma20", ma20), ("CALC-ma50", mk["ma50"]),
-            ("CALC-ma200", ma200)]
+    _mas = [("CALC-ma20", ma20), ("CALC-ma50", mk["ma50"]), ("CALC-ma200", ma200)]
     _have = [(r, m) for r, m in _mas if m is not None]
     above = sum(1 for _r, m in _have if px > m)
-    srefs = [("CALC-intraday_last" if mk.get("partial_session")
-              else "CALC-last_close")] + [r for r, _m in _have]
+    srefs = [("CALC-intraday_last" if mk.get("partial_session") else "CALC-last_close")] + [
+        r for r, _m in _have
+    ]
     if len(_have) < 3:
-        setup = "not assessable — %d of 3 moving averages available" % len(
-            _have)
-        basis = ("%d completed sessions of trading history, short of the "
-                 "200 the swing grade requires" % len(mk.get("closes") or []))
+        setup = "not assessable — %d of 3 moving averages available" % len(_have)
+        basis = (
+            "%d completed sessions of trading history, short of the "
+            "200 the swing grade requires" % len(mk.get("closes") or [])
+        )
     else:
         dist = 100.0 * (px / ma200 - 1)
-        setup = ("constructive" if above == 3 else
-                 "repairing" if above == 2 else
-                 "damaged" if above <= 1 else "mixed")
-        basis = ("price above %d of 3 moving averages; %.1f%% %s the 200-day"
-                 % (above, abs(dist), "above" if dist >= 0 else "below"))
-    led.rec_input("setup_quality", "setup quality (swing timeframe)", setup,
-                  refs=srefs, rationale=basis)
+        setup = (
+            "constructive"
+            if above == 3
+            else "repairing"
+            if above == 2
+            else "damaged"
+            if above <= 1
+            else "mixed"
+        )
+        basis = "price above %d of 3 moving averages; %.1f%% %s the 200-day" % (
+            above,
+            abs(dist),
+            "above" if dist >= 0 else "below",
+        )
+    led.rec_input(
+        "setup_quality", "setup quality (swing timeframe)", setup, refs=srefs, rationale=basis
+    )
     return {
         "business_quality": biz,
         "business_quality_basis": ", ".join(bbits) or "no admitted figures",
@@ -2621,40 +3220,54 @@ def _decision(snap, mk, evids, led=None):
     claims = []
     fu = snap.get("fundamentals") or {}
     if fu.get("revenue_growth"):
-        claims.append({
-            "text": "Revenue grew %.1f%% y/y in the quarter ended %s (GAAP, "
-                    "as filed)" % (rs.fv(fu["revenue_growth"]),
-                                   fu["revenue_growth"]["period_end"]),
-            "evidence_id": fu["revenue_growth"].get("evidence_id")})
+        claims.append(
+            {
+                "text": "Revenue grew %.1f%% y/y in the quarter ended %s (GAAP, "
+                "as filed)" % (rs.fv(fu["revenue_growth"]), fu["revenue_growth"]["period_end"]),
+                "evidence_id": fu["revenue_growth"].get("evidence_id"),
+            }
+        )
     if fu.get("net_margin"):
-        claims.append({
-            "text": "Net margin of %.1f%% on the same quarter"
-                    % rs.fv(fu["net_margin"]),
-            "evidence_id": fu["net_margin"].get("evidence_id")})
+        claims.append(
+            {
+                "text": "Net margin of %.1f%% on the same quarter" % rs.fv(fu["net_margin"]),
+                "evidence_id": fu["net_margin"].get("evidence_id"),
+            }
+        )
     if ins.get("n_total"):
         # cite a FORM 4, not whatever SEC accession happened to be first
         ec = ins.get("economics") or {}
-        claims.append({
-            "text": ("%d transactions parsed inside the %s analysis window; "
-                     "%d open-market sale(s) worth $%.1fM across %d insider(s)"
-                     % (ins["n_total"],
-                        "%s to %s" % (ec.get("window_start"),
-                                      ec.get("window_end")),
+        claims.append(
+            {
+                "text": (
+                    "%d transactions parsed inside the %s analysis window; "
+                    "%d open-market sale(s) worth $%.1fM across %d insider(s)"
+                    % (
+                        ins["n_total"],
+                        "%s to %s" % (ec.get("window_start"), ec.get("window_end")),
                         ec.get("open_market_sales") or 0,
                         (ec.get("value_sold_open_market") or 0) / 1e6,
-                        ec.get("distinct_selling_insiders") or 0)
-                     if ec else
-                     "%d Form 4 transactions parsed inside the analysis "
-                     "window, %d open-market"
-                     % (ins["n_total"], ins.get("n_view_bearing") or 0)),
-            "evidence_id": (ins.get("evidence_ids") or [None])[-1]})
+                        ec.get("distinct_selling_insiders") or 0,
+                    )
+                    if ec
+                    else "%d Form 4 transactions parsed inside the analysis "
+                    "window, %d open-market" % (ins["n_total"], ins.get("n_view_bearing") or 0)
+                ),
+                "evidence_id": (ins.get("evidence_ids") or [None])[-1],
+            }
+        )
     if sent.get("n_relevant"):
-        claims.append({
-            "text": "%d relevant social posts from %d authors — %s"
-                    % (sent["n_relevant"], sent.get("unique_authors") or 0,
-                       (sent.get("decision_read") or {}).get("implication")),
-            "evidence_id": next((e for e in evids if e.startswith("SOC-")),
-                                None)})
+        claims.append(
+            {
+                "text": "%d relevant social posts from %d authors — %s"
+                % (
+                    sent["n_relevant"],
+                    sent.get("unique_authors") or 0,
+                    (sent.get("decision_read") or {}).get("implication"),
+                ),
+                "evidence_id": next((e for e in evids if e.startswith("SOC-")), None),
+            }
+        )
     # every claim must resolve to a ledger record, not merely to a string
     for c in claims:
         c.setdefault("evidence_refs", [])
@@ -2669,8 +3282,7 @@ def _decision(snap, mk, evids, led=None):
             # cite the summary calculation, whose inputs are all 30
             # considered records — not six arbitrary ones
             c["evidence_refs"] = ["CALC-social-summary"]
-    claims = [c for c in claims
-              if c.get("evidence_id") and c.get("evidence_refs")]
+    claims = [c for c in claims if c.get("evidence_id") and c.get("evidence_refs")]
     # Name the longest average that exists and price sits below; with only
     # a 20-day (a new listing) the upgrade trigger is that average.
     if ma200 is not None and px < ma200:
@@ -2679,30 +3291,36 @@ def _decision(snap, mk, evids, led=None):
         up = "reclaim of the 50-day at $%.2f on above-average volume" % ma50
     else:
         up = "reclaim of the 20-day at $%.2f after any pullback" % ma20
-    down = ("loss of the %d-session closing low at $%.2f"
-        % (mk["swing_window"], mk["support"]))
+    down = "loss of the %d-session closing low at $%.2f" % (mk["swing_window"], mk["support"])
     atr = mk["atr14"]
     risks = []
     if above == 0 and ma20 is not None and ma50 is not None:
         # "every rally has been supply" asserts a behavioural pattern the
         # ledger contains no test for. State what the levels ARE.
         lo, hi = sorted((ma20, ma50))
-        risks.append("Price is below all three moving averages; the 20-day "
-                     "and 50-day define an overhead-resistance zone at "
-                     "$%.2f-$%.2f" % (lo, hi))
+        risks.append(
+            "Price is below all three moving averages; the 20-day "
+            "and 50-day define an overhead-resistance zone at "
+            "$%.2f-$%.2f" % (lo, hi)
+        )
     if (ins.get("by_class") or {}).get("open_market_sale"):
-        risks.append("%d open-market insider sales in the window"
-                     % ins["by_class"]["open_market_sale"])
+        risks.append(
+            "%d open-market insider sales in the window" % ins["by_class"]["open_market_sale"]
+        )
     if (sent.get("baseline") or {}).get("kind") == rs.BASELINE_NONE:
-        risks.append("No archived social baseline, so today's chatter "
-                     "volume cannot be called unusual either way")
+        risks.append(
+            "No archived social baseline, so today's chatter "
+            "volume cannot be called unusual either way"
+        )
     q = _quality_reads(snap, mk, led) if led else {}
     # "AVOID" alone reads as a verdict on the company. The action is a
     # statement about NEW SWING ENTRIES at this price, and the business
     # read is reported separately so the two cannot be conflated.
-    scope = {"AVOID": "AVOID NEW SWING LONGS",
-             "WAIT": "WAIT FOR CONFIRMATION",
-             "HOLD": "HOLD EXISTING ONLY"}.get(action, action)
+    scope = {
+        "AVOID": "AVOID NEW SWING LONGS",
+        "WAIT": "WAIT FOR CONFIRMATION",
+        "HOLD": "HOLD EXISTING ONLY",
+    }.get(action, action)
     # Monitor next is never blank: if nothing else, the next scheduled
     # look at the same conditions.
     # Recovery is staged, not binary: an early-improvement trigger and a
@@ -2712,50 +3330,72 @@ def _decision(snap, mk, evids, led=None):
     # six-week-old listing does not have is not a trigger, it is fiction.
     stages = []
     if ma20 is not None:
-        stages.append({"stage": "Early improvement", "condition":
-                       "daily close above the 20-day at $%.2f" % ma20,
-                       "level": ma20, "met": px > ma20,
-                       "evidence_refs": ["CALC-ma20"]})
+        stages.append(
+            {
+                "stage": "Early improvement",
+                "condition": "daily close above the 20-day at $%.2f" % ma20,
+                "level": ma20,
+                "met": px > ma20,
+                "evidence_refs": ["CALC-ma20"],
+            }
+        )
     if ma50 is not None:
-        stages.append({"stage": "Intermediate confirmation", "condition":
-                       "reclaim the 50-day at $%.2f" % ma50,
-                       "level": ma50, "met": px > ma50,
-                       "evidence_refs": ["CALC-ma50"]})
+        stages.append(
+            {
+                "stage": "Intermediate confirmation",
+                "condition": "reclaim the 50-day at $%.2f" % ma50,
+                "level": ma50,
+                "met": px > ma50,
+                "evidence_refs": ["CALC-ma50"],
+            }
+        )
     if ma200 is not None:
-        stages.append({"stage": "Full technical upgrade", "condition":
-                       "reclaim the 200-day at $%.2f" % ma200,
-                       "level": ma200, "met": px > ma200,
-                       "evidence_refs": ["CALC-ma200"]})
+        stages.append(
+            {
+                "stage": "Full technical upgrade",
+                "condition": "reclaim the 200-day at $%.2f" % ma200,
+                "level": ma200,
+                "met": px > ma200,
+                "evidence_refs": ["CALC-ma200"],
+            }
+        )
     # Stages must ladder in PRICE order — "early improvement" above a
     # later stage's threshold is not a sequence. Sort ascending and
     # rename by ordinal so the labels always match the actual levels.
     stages.sort(key=lambda x: x["level"])
-    _names = ["Early improvement", "Intermediate confirmation",
-              "Full technical upgrade"]
+    _names = ["Early improvement", "Intermediate confirmation", "Full technical upgrade"]
     for _i, _st in enumerate(stages):
         _st["stage"] = _names[_i] if _i < len(_names) else _st["stage"]
     stages += [
-        {"stage": "Invalidation", "condition":
-         "daily close below the %d-session closing low at $%.2f"
-         % (mk["swing_window"], mk["support"]),
-         "level": mk["support"], "met": px < mk["support"],
-         "evidence_refs": ["CALC-support60"]},
+        {
+            "stage": "Invalidation",
+            "condition": "daily close below the %d-session closing low at $%.2f"
+            % (mk["swing_window"], mk["support"]),
+            "level": mk["support"],
+            "met": px < mk["support"],
+            "evidence_refs": ["CALC-support60"],
+        },
     ]
     nxt = next((s for s in stages[:-1] if not s["met"]), None)
-    monitor = ("%s — %s (next stage of %d); invalidation on a close below "
-               "$%.2f" % (nxt["stage"], nxt["condition"], len(stages) - 1,
-                          mk["support"])) if nxt else (
-        "Every available moving average reclaimed; monitor for a close "
-        "back below the 20-day at $%.2f" % ma20)
-    upcoming = ((snap.get("catalyst") or {}).get("upcoming") or [])
+    monitor = (
+        (
+            "%s — %s (next stage of %d); invalidation on a close below "
+            "$%.2f" % (nxt["stage"], nxt["condition"], len(stages) - 1, mk["support"])
+        )
+        if nxt
+        else (
+            "Every available moving average reclaimed; monitor for a close "
+            "back below the 20-day at $%.2f" % ma20
+        )
+    )
+    upcoming = (snap.get("catalyst") or {}).get("upcoming") or []
     if upcoming and upcoming[0].get("when"):
-        monitor += ("; next earnings estimated %s" % upcoming[0]["when"])
+        monitor += "; next earnings estimated %s" % upcoming[0]["when"]
     review = _next_review(snap.get("report_time"), mk)
     return {
         "current_action": action,
         "action_display": scope,
-        "action_scope": "new swing entries only; says nothing about "
-                        "existing long-term holdings",
+        "action_scope": "new swing entries only; says nothing about existing long-term holdings",
         "business_quality": q.get("business_quality"),
         "business_quality_basis": q.get("business_quality_basis"),
         "business_quality_refs": q.get("business_quality_refs") or [],
@@ -2763,8 +3403,7 @@ def _decision(snap, mk, evids, led=None):
         "setup_quality_basis": q.get("setup_quality_basis"),
         "setup_quality_refs": q.get("setup_quality_refs") or [],
         "monitor_next": monitor,
-        "monitor_next_refs": ["CALC-ma20", "CALC-ma50", "CALC-ma200",
-                              "CALC-support60"],
+        "monitor_next_refs": ["CALC-ma20", "CALC-ma50", "CALC-ma200", "CALC-support60"],
         "recovery_stages": stages,
         "review_date": review,
         "position_plan": {},
@@ -2774,33 +3413,40 @@ def _decision(snap, mk, evids, led=None):
         "risks": risks[:3],
         "scenarios": {
             "base": "Chop between $%.2f support and the 20-day at $%.2f; "
-                    "one ATR is $%.2f (%.1f%%)"
-                    % (mk["support"], ma20, atr, 100.0 * atr / px),
+            "one ATR is $%.2f (%.1f%%)" % (mk["support"], ma20, atr, 100.0 * atr / px),
             "bull": "Reclaim and hold the 20-day at $%.2f, opening the "
-                    "60-session closing high at $%.2f"
-                    % (ma20, mk["resistance"]),
+            "60-session closing high at $%.2f" % (ma20, mk["resistance"]),
             # the 60-session and 52-week closing lows coincide when a name
             # is at its lows; saying "loss of X puts X in play" is nonsense.
             # With under a year of trading there is no 52-week low to name.
-            "bear": ("Loss of $%.2f, the lowest close of the %d sessions "
-                     "since listing, with no prior reference level beneath "
-                     "it" % (mk["support"], mk["swing_window"])
-                     if mk.get("lo52") is None else
-                     "Loss of $%.2f is a fresh 52-week closing low, with "
-                     "no prior "
-                     "reference level beneath it" % mk["support"]
-                     if abs(mk["support"] - mk["lo52"]) < 0.01 else
-                     "Loss of $%.2f puts the 52-week closing low at $%.2f in play"
-                     % (mk["support"], mk["lo52"])),
+            "bear": (
+                "Loss of $%.2f, the lowest close of the %d sessions "
+                "since listing, with no prior reference level beneath "
+                "it" % (mk["support"], mk["swing_window"])
+                if mk.get("lo52") is None
+                else "Loss of $%.2f is a fresh 52-week closing low, with "
+                "no prior "
+                "reference level beneath it" % mk["support"]
+                if abs(mk["support"] - mk["lo52"]) < 0.01
+                else "Loss of $%.2f puts the 52-week closing low at $%.2f in play"
+                % (mk["support"], mk["lo52"])
+            ),
         },
         "claims": claims,
         "horizon": "swing (2-8 weeks), the window the 20/50-day levels speak to",
-        "basis": ("price %.2f vs %s: above %d of %d"
-                  % (px,
-                     ", ".join("%s-day %.2f" % (d, m) for d, m in
-                               ((20, ma20), (50, ma50), (200, ma200))
-                               if m is not None),
-                     above, n_mas)),
+        "basis": (
+            "price %.2f vs %s: above %d of %d"
+            % (
+                px,
+                ", ".join(
+                    "%s-day %.2f" % (d, m)
+                    for d, m in ((20, ma20), (50, ma50), (200, ma200))
+                    if m is not None
+                ),
+                above,
+                n_mas,
+            )
+        ),
     }
 
 
@@ -2816,8 +3462,7 @@ def _insider_economics(rows, win_start, win_end):
     sells = [r for r in rows if r.get("class") == rs.OPEN_MARKET_SALE]
     buys = [r for r in rows if r.get("class") == rs.OPEN_MARKET_BUY]
     planned = [r for r in rows if r.get("class") == rs.PLANNED_SALE]
-    mech = [r for r in rows if not r.get("carries_view")
-            and r.get("class") != rs.PLANNED_SALE]
+    mech = [r for r in rows if not r.get("carries_view") and r.get("class") != rs.PLANNED_SALE]
 
     def _sh(rs_):
         return sum(float(r.get("shares") or 0) for r in rs_)
@@ -2827,33 +3472,35 @@ def _insider_economics(rows, win_start, win_end):
 
     # ownership denominators: only present when the filing reported
     # shares owned after the transaction
-    with_denom = [r for r in sells
-                  if r.get("pct_of_holdings") is not None]
+    with_denom = [r for r in sells if r.get("pct_of_holdings") is not None]
     by_owner = {}
     for r in sells:
         o = r.get("owner") or "unknown"
-        d = by_owner.setdefault(o, {"shares": 0.0, "value": 0.0, "n": 0,
-                                    "title": r.get("title")})
+        d = by_owner.setdefault(o, {"shares": 0.0, "value": 0.0, "n": 0, "title": r.get("title")})
         d["shares"] += float(r.get("shares") or 0)
         d["value"] += float(r.get("value") or 0)
         d["n"] += 1
     top = sorted(by_owner.items(), key=lambda kv: -kv[1]["value"])[:3]
     sold_v, bought_v = _val(sells), _val(buys)
-    concentration = (round(100.0 * top[0][1]["value"] / sold_v, 1)
-                     if top and sold_v else None)
+    concentration = round(100.0 * top[0][1]["value"] / sold_v, 1) if top and sold_v else None
 
     unavailable = []
     if not with_denom:
-        unavailable.append("shares owned after the transaction were not "
-                           "reported, so sales cannot be expressed as a "
-                           "percentage of holdings")
+        unavailable.append(
+            "shares owned after the transaction were not "
+            "reported, so sales cannot be expressed as a "
+            "percentage of holdings"
+        )
     plan_documented = sum(1 for r in rows if r.get("is_planned"))
     if not plan_documented:
-        unavailable.append("no 10b5-1 plan is documented in the parsed "
-                           "footnotes; plan status is unknown, not absent")
+        unavailable.append(
+            "no 10b5-1 plan is documented in the parsed "
+            "footnotes; plan status is unknown, not absent"
+        )
 
     return {
-        "window_start": win_start, "window_end": win_end,
+        "window_start": win_start,
+        "window_end": win_end,
         "open_market_sales": len(sells),
         "open_market_buys": len(buys),
         "planned_sales_documented": len(planned),
@@ -2866,18 +3513,28 @@ def _insider_economics(rows, win_start, win_end):
         "sales_with_ownership_denominator": len(with_denom),
         "median_pct_of_holdings": (
             sorted(r["pct_of_holdings"] for r in with_denom)[len(with_denom) // 2]
-            if with_denom else None),
+            if with_denom
+            else None
+        ),
         "distinct_selling_insiders": len(by_owner),
         "largest_seller_share_of_value_pct": concentration,
-        "top_sellers": [{"owner": o, "title": d["title"],
-                         "transactions": d["n"], "shares": int(d["shares"]),
-                         "value": round(d["value"], 2)} for o, d in top],
-        "plan_status": ("documented 10b5-1 on %d transaction(s)"
-                        % plan_documented if plan_documented
-                        else "unknown — not documented in parsed footnotes"),
+        "top_sellers": [
+            {
+                "owner": o,
+                "title": d["title"],
+                "transactions": d["n"],
+                "shares": int(d["shares"]),
+                "value": round(d["value"], 2),
+            }
+            for o, d in top
+        ],
+        "plan_status": (
+            "documented 10b5-1 on %d transaction(s)" % plan_documented
+            if plan_documented
+            else "unknown — not documented in parsed footnotes"
+        ),
         "unavailable": unavailable,
-        "read": _insider_read(sells, buys, planned, mech, with_denom,
-                              concentration),
+        "read": _insider_read(sells, buys, planned, mech, with_denom, concentration),
     }
 
 
@@ -2888,9 +3545,11 @@ def _insider_read(sells, buys, planned, mech, with_denom, concentration):
     schedules, for taxes, and to diversify.
     """
     if not sells and not buys:
-        return ("No open-market insider transactions in the window; the "
-                "remaining activity is compensation mechanics (vesting, "
-                "withholding, exercises), which carry no directional view.")
+        return (
+            "No open-market insider transactions in the window; the "
+            "remaining activity is compensation mechanics (vesting, "
+            "withholding, exercises), which carry no directional view."
+        )
     parts = []
     if buys:
         parts.append("%d open-market purchase(s)" % len(buys))
@@ -2902,16 +3561,20 @@ def _insider_read(sells, buys, planned, mech, with_denom, concentration):
         parts.append("%d compensation mechanic(s)" % len(mech))
     s = "; ".join(parts) + "."
     if sells and not with_denom:
-        s += (" Whether this is a routine trim or a material reduction "
-              "cannot be determined: the filings do not report shares held "
-              "after the transaction.")
+        s += (
+            " Whether this is a routine trim or a material reduction "
+            "cannot be determined: the filings do not report shares held "
+            "after the transaction."
+        )
     elif with_denom:
-        s += (" Sales average %.1f%% of the seller's reported holdings."
-              % (sum(r["pct_of_holdings"] for r in with_denom)
-                 / len(with_denom)))
+        s += " Sales average %.1f%% of the seller's reported holdings." % (
+            sum(r["pct_of_holdings"] for r in with_denom) / len(with_denom)
+        )
     if concentration is not None and concentration >= 60:
-        s += (" Selling is concentrated: one insider accounts for %.0f%% "
-              "of the open-market sale value." % concentration)
+        s += (
+            " Selling is concentrated: one insider accounts for %.0f%% "
+            "of the open-market sale value." % concentration
+        )
     return s
 
 
@@ -2927,15 +3590,18 @@ def _next_review(report_time, mk, days=7):
 def _flags(snap, prov):
     out = list(prov.get("warnings") or [])
     if prov.get("deferred"):
-        out.append("%d filing figure(s) excluded by the point-in-time gate "
-                   "(accepted after report_time)" % len(prov["deferred"]))
+        out.append(
+            "%d filing figure(s) excluded by the point-in-time gate "
+            "(accepted after report_time)" % len(prov["deferred"])
+        )
     s = snap.get("sentiment") or {}
     if s.get("classification") == "INSUFFICIENT SAMPLE":
-        out.append("alt-data below the %d-author floor — descriptive only"
-                   % rs.ALT_MIN_AUTHORS)
+        out.append("alt-data below the %d-author floor — descriptive only" % rs.ALT_MIN_AUTHORS)
     if (s.get("baseline") or {}).get("kind") == rs.BASELINE_NONE:
-        out.append("no point-in-time social baseline archived — attention "
-                   "cannot be called elevated or normal")
+        out.append(
+            "no point-in-time social baseline archived — attention "
+            "cannot be called elevated or normal"
+        )
     if not (snap.get("valuation") or {}):
         out.append("no valuation multiple could be built from admitted data")
     return out
@@ -2944,33 +3610,55 @@ def _flags(snap, prov):
 def prose(snap, mk):
     """Narrative generated FROM the snapshot, never alongside it."""
     px, ma20, ma50, ma200 = mk["last"], mk["ma20"], mk["ma50"], mk["ma200"]
-    rel = ("above every moving average" if px > max(ma20, ma50, ma200) else
-           "below every moving average" if px < min(ma20, ma50, ma200) else
-           "mixed against its moving averages")
+    rel = (
+        "above every moving average"
+        if px > max(ma20, ma50, ma200)
+        else "below every moving average"
+        if px < min(ma20, ma50, ma200)
+        else "mixed against its moving averages"
+    )
     ins = snap["insiders"]
     fu = snap.get("fundamentals") or {}
-    tech = ("%s trades at $%.2f, %s (20d $%.2f / 50d $%.2f / 200d $%.2f). "
-            "The 60-session range is $%.2f to $%.2f and 14-day ATR is $%.2f, "
-            "so roughly %.1f%% of price moves in a typical session."
-            % (snap["ticker"], px, rel, ma20, ma50, ma200, mk["support"],
-               mk["resistance"], mk["atr14"], 100.0 * mk["atr14"] / px))
+    tech = (
+        "%s trades at $%.2f, %s (20d $%.2f / 50d $%.2f / 200d $%.2f). "
+        "The 60-session range is $%.2f to $%.2f and 14-day ATR is $%.2f, "
+        "so roughly %.1f%% of price moves in a typical session."
+        % (
+            snap["ticker"],
+            px,
+            rel,
+            ma20,
+            ma50,
+            ma200,
+            mk["support"],
+            mk["resistance"],
+            mk["atr14"],
+            100.0 * mk["atr14"] / px,
+        )
+    )
     fund = "No filing figure was admitted under the point-in-time gate."
     if fu.get("revenue_growth"):
-        fund = ("Latest filed quarter (ended %s): revenue $%.2fB, %+.1f%% y/y"
-                % (fu["revenue_growth"]["period_end"],
-                   rs.fv(fu["revenue_q"]) / 1e9,
-                   rs.fv(fu["revenue_growth"])))
+        fund = "Latest filed quarter (ended %s): revenue $%.2fB, %+.1f%% y/y" % (
+            fu["revenue_growth"]["period_end"],
+            rs.fv(fu["revenue_q"]) / 1e9,
+            rs.fv(fu["revenue_growth"]),
+        )
         if fu.get("net_margin"):
             fund += ", net margin %.1f%%" % rs.fv(fu["net_margin"])
         fund += ". Figures are as filed with the SEC, not vendor-adjusted."
     return {
         "technical": tech,
         "fundamental": fund,
-        "insiders": ("%d Form 4 transactions in the last 180 days. %s"
-                     % (ins.get("n_total") or 0, ins.get("read") or "")),
-        "sentiment": ("Social observations are %s"
-                      % (snap["sentiment"].get("decision_read") or {}
-                         ).get("implication", "observational only")),
+        "insiders": (
+            "%d Form 4 transactions in the last 180 days. %s"
+            % (ins.get("n_total") or 0, ins.get("read") or "")
+        ),
+        "sentiment": (
+            "Social observations are %s"
+            % (snap["sentiment"].get("decision_read") or {}).get(
+                "implication", "observational only"
+            )
+        ),
     }
 
 
@@ -2983,6 +3671,7 @@ def render_v3(ticker, out_dir, report_time=None):
     stays available for comparison — but nothing calls it in CI.
     """
     import report_v3_run as R3R
+
     snap, alt, recs, prov = build_snapshot(ticker, report_time)
     if alt and not snap.get("sentiment"):
         snap["sentiment"] = alt
@@ -2992,8 +3681,10 @@ def render_v3(ticker, out_dir, report_time=None):
     try:
         spy = (fetch_market("SPY") or {}).get("closes")
     except Exception as e:
-        print("  SPY series unavailable (%s) - the relative-strength panel "
-              "is omitted and labelled" % e)
+        print(
+            "  SPY series unavailable (%s) - the relative-strength panel "
+            "is omitted and labelled" % e
+        )
     return R3R.build_from_snapshot(snap, recs, prov, out_dir, mk=mk, spy=spy)
 
 
@@ -3001,6 +3692,7 @@ def render(ticker, out_dir, report_time=None):
     """Build, gate and render the live brief plus its evidence export."""
     import report_v2 as R
     import report_chart as RC
+
     snap, alt, recs, prov = build_snapshot(ticker, report_time)
     mk, led = prov["_mk"], prov["_ledger"]
     ps = prose(snap, mk)
@@ -3010,32 +3702,33 @@ def render(ticker, out_dir, report_time=None):
     if ev_dt:
         p = rs._parse_ts(ev_dt)
         ev_date = p.date() if p else None
-    chart = RC.price_chart(mk, months=12, event_date=ev_date,
-                           event_label="earnings release")
+    chart = RC.price_chart(mk, months=12, event_date=ev_date, event_label="earnings release")
 
     pdf_path = os.path.join(out_dir, "%s_research_brief_v2_LIVE.pdf" % ticker)
-    pdf, rep = R.build_brief(snap, prose_sections=ps, alt=alt,
-                             chart_png=chart, out_path=pdf_path)
+    pdf, rep = R.build_brief(snap, prose_sections=ps, alt=alt, chart_png=chart, out_path=pdf_path)
 
     ev_path = os.path.join(out_dir, "%s_evidence.json" % ticker)
-    led.dump(ev_path, extra={
-        "snapshot_claims": _claim_index(snap),
-        "prose_sections": ps,
-        "point_in_time": {
-            "report_time": snap["report_time"],
-            "market_data_time": snap["market_data_time"],
-            "excluded_by_gate": prov["deferred"],
+    led.dump(
+        ev_path,
+        extra={
+            "snapshot_claims": _claim_index(snap),
+            "prose_sections": ps,
+            "point_in_time": {
+                "report_time": snap["report_time"],
+                "market_data_time": snap["market_data_time"],
+                "excluded_by_gate": prov["deferred"],
+            },
+            "news_rejected": prov.get("news_rejected") or [],
+            "flags": snap.get("flags") or [],
+            "verification_note": (
+                "Content hashes require the retained internal evidence "
+                "snapshot for independent verification; it is not part of "
+                "this public bundle."
+            ),
         },
-        "news_rejected": prov.get("news_rejected") or [],
-        "flags": snap.get("flags") or [],
-        "verification_note": (
-            "Content hashes require the retained internal evidence "
-            "snapshot for independent verification; it is not part of "
-            "this public bundle."),
-    })
+    )
     # PRIVATE audit snapshot — the exact normalized text each hash covers
-    audit_path = os.path.join(out_dir, "%s_evidence_audit_PRIVATE.json"
-                              % ticker)
+    audit_path = os.path.join(out_dir, "%s_evidence_audit_PRIVATE.json" % ticker)
     with open(audit_path, "w", encoding="utf-8") as fh:
         json.dump(led.audit_snapshot(), fh, indent=2, default=str)
 
@@ -3050,9 +3743,12 @@ def render(ticker, out_dir, report_time=None):
             "public/private hash cross-verification failed: %d recompute "
             "mismatch(es), %d public/private mismatch(es), %d missing in "
             "public — export blocked"
-            % (len(xv["recompute_mismatched"]),
-               len(xv["public_private_mismatched"]),
-               len(xv["missing_in_public"])))
+            % (
+                len(xv["recompute_mismatched"]),
+                len(xv["public_private_mismatched"]),
+                len(xv["missing_in_public"]),
+            )
+        )
 
     val_path = os.path.join(out_dir, "%s_validation_report.json" % ticker)
     val = build_validation_report(snap, rep, led, prov)
@@ -3086,48 +3782,60 @@ def build_validation_report(snap, rep, led, prov):
         "pdf_parsers": (rep.get("pdf_validation") or {}).get("checks"),
         "pdf_parsers_ok": (rep.get("pdf_validation") or {}).get("ok"),
         "page_render": {
-            "pages": rep.get("pages"), "audit_ok": rep.get("ok"),
+            "pages": rep.get("pages"),
+            "audit_ok": rep.get("ok"),
             "notes": rep.get("notes") or [],
-            "min_font_pt": rep.get("min_font_pt")},
+            "min_font_pt": rep.get("min_font_pt"),
+        },
         "evidence_references": {
             "records_total": len(ids),
             "claims_indexed": len(claims),
             "references_used": sum(len(c["evidence_refs"]) for c in claims),
             "missing_references": len(missing),
-            "missing_examples": missing[:5]},
+            "missing_examples": missing[:5],
+        },
         "count_reconciliation": {
-            "ok": not recon, "failures": recon,
+            "ok": not recon,
+            "failures": recon,
             "populations": led.counts,
-            "statements": led.count_statements()},
+            "statements": led.count_statements(),
+        },
         "hash_verification": hv,
         "catalyst_selection": {
-            "rule": ("the earliest verified public disclosure wins; a later "
-                     "periodic filing cannot replace it"),
+            "rule": (
+                "the earliest verified public disclosure wins; a later "
+                "periodic filing cannot replace it"
+            ),
             "event_dt": cat.get("event_dt"),
             "event_kind": cat.get("event_kind"),
-            "earliest_primary_release":
-                (cat.get("discovery") or {}).get("earliest_primary_release"),
-            "chose_earliest_primary":
-                cat.get("event_dt") ==
-                (cat.get("discovery") or {}).get("earliest_primary_release"),
-            "verified": (cat.get("verification") or {}).get(
-                "is_results_disclosure"),
+            "earliest_primary_release": (cat.get("discovery") or {}).get(
+                "earliest_primary_release"
+            ),
+            "chose_earliest_primary": cat.get("event_dt")
+            == (cat.get("discovery") or {}).get("earliest_primary_release"),
+            "verified": (cat.get("verification") or {}).get("is_results_disclosure"),
             "grading_state": (cat.get("grading") or {}).get("state"),
-            "missing_condition": (cat.get("grading") or {}).get(
-                "missing_condition")},
+            "missing_condition": (cat.get("grading") or {}).get("missing_condition"),
+        },
         "accessibility": {
             "status": md.get("accessibility"),
             "reason": md.get("accessibility_reason"),
             "lang": md.get("lang"),
-            "metadata_written": md.get("metadata_written")},
+            "metadata_written": md.get("metadata_written"),
+        },
         "unavailable_data": (
-            [d for d in (snap.get("evidence") or {}).get(
-                "data_completeness_by_domain") or []
-             if d.get("status") != "complete"]
-            + [{"domain": "insider ownership denominators", "status": "absent",
-                "detail": u}
-               for u in ((snap.get("insiders") or {}).get("economics")
-                         or {}).get("unavailable", [])]),
+            [
+                d
+                for d in (snap.get("evidence") or {}).get("data_completeness_by_domain") or []
+                if d.get("status") != "complete"
+            ]
+            + [
+                {"domain": "insider ownership denominators", "status": "absent", "detail": u}
+                for u in ((snap.get("insiders") or {}).get("economics") or {}).get(
+                    "unavailable", []
+                )
+            ]
+        ),
         "flags": snap.get("flags") or [],
     }
 
@@ -3139,19 +3847,35 @@ def _claim_index(snap):
     for path, f in rs._iter_facts(snap):
         if f.get("v") is None:
             continue
-        out.append({"path": path, "metric": f.get("metric"),
-                    "value": f.get("v"), "unit": f.get("unit"),
-                    "evidence_refs": f.get("evidence_refs") or []})
+        out.append(
+            {
+                "path": path,
+                "metric": f.get("metric"),
+                "value": f.get("v"),
+                "unit": f.get("unit"),
+                "evidence_refs": f.get("evidence_refs") or [],
+            }
+        )
     dec = snap.get("decision") or {}
     for c in dec.get("claims") or []:
-        out.append({"path": "decision.claims", "metric": "claim",
-                    "value": c.get("text"),
-                    "evidence_refs": c.get("evidence_refs") or []})
+        out.append(
+            {
+                "path": "decision.claims",
+                "metric": "claim",
+                "value": c.get("text"),
+                "evidence_refs": c.get("evidence_refs") or [],
+            }
+        )
     for k in ("business_quality", "setup_quality", "monitor_next"):
         if dec.get(k):
-            out.append({"path": "decision." + k, "metric": k,
-                        "value": dec[k],
-                        "evidence_refs": dec.get(k + "_refs") or []})
+            out.append(
+                {
+                    "path": "decision." + k,
+                    "metric": k,
+                    "value": dec[k],
+                    "evidence_refs": dec.get(k + "_refs") or [],
+                }
+            )
     return out
 
 
@@ -3170,8 +3894,7 @@ def run_for_user(ticker, user_id="", out_dir=None):
     out_dir = out_dir or os.getcwd()
     ticker = ticker.upper().strip()
     print("=" * 62)
-    print("RESEARCH BRIEF v3: %s (user %s)"
-          % (ticker, user_id or "<public archive>"))
+    print("RESEARCH BRIEF v3: %s (user %s)" % (ticker, user_id or "<public archive>"))
     print("=" * 62)
     res = render_v3(ticker, out_dir)
 
@@ -3181,31 +3904,33 @@ def run_for_user(ticker, user_id="", out_dir=None):
     # thing this whole pipeline exists to prevent.
     for c in res["checks"]:
         if c["status"] in ("FAIL", "WARN"):
-            print("  %-6s %-30s %s"
-                  % (c["status"], c["check_id"], c["observed"]))
+            print("  %-6s %-30s %s" % (c["status"], c["check_id"], c["observed"]))
     if not res.get("ok"):
         bad = [c["check_id"] for c in res["checks"] if c["status"] == "FAIL"]
-        raise SystemExit("brief failed validation; nothing uploaded: %s"
-                         % ", ".join(bad) or "see validation report")
+        raise SystemExit(
+            "brief failed validation; nothing uploaded: %s" % ", ".join(bad)
+            or "see validation report"
+        )
 
     now = datetime.now(timezone.utc)
     stamp = now.strftime("%Y-%m-%d_%H%M")
     # The core brief is the report. The appendix is its audit trail and
     # ships beside it under a matching name so a reader who wants the
     # evidence can reach it from the filename alone.
-    parts = [("core", res["core"], "research_%s_%s.pdf" % (ticker, stamp)),
-             ("appendix", res["appendix"],
-              "research_%s_%s_appendix.pdf" % (ticker, stamp))]
+    parts = [
+        ("core", res["core"], "research_%s_%s.pdf" % (ticker, stamp)),
+        ("appendix", res["appendix"], "research_%s_%s_appendix.pdf" % (ticker, stamp)),
+    ]
     filename = parts[0][2]
     try:
         from report_archive import archive, upload_user_report
+
         for kind, path, name in parts:
             with open(path, "rb") as fh:
                 blob = fh.read()
             uploaded = False
             if user_id:
-                uploaded = upload_user_report(blob, name, user_id,
-                                              ticker, "research")
+                uploaded = upload_user_report(blob, name, user_id, ticker, "research")
             if not uploaded:
                 archive(blob, name)
                 print("  Archived publicly: %s" % name)
@@ -3220,21 +3945,28 @@ def run_for_user(ticker, user_id="", out_dir=None):
     except Exception:
         v = {}
     cnt, mut = v.get("counts") or {}, v.get("mutation_tests") or {}
-    print("\n%s + appendix | %d checks (%d pass, %d warn) | mutation %s/%s %s"
-          % (filename, cnt.get("total", 0), cnt.get("pass", 0),
-             cnt.get("warn", 0), mut.get("passed", 0), mut.get("total", 0),
-             "all checks proven" if mut.get("all_checks_proven")
-             else "NOT PROVEN"))
+    print(
+        "\n%s + appendix | %d checks (%d pass, %d warn) | mutation %s/%s %s"
+        % (
+            filename,
+            cnt.get("total", 0),
+            cnt.get("pass", 0),
+            cnt.get("warn", 0),
+            mut.get("passed", 0),
+            mut.get("total", 0),
+            "all checks proven" if mut.get("all_checks_proven") else "NOT PROVEN",
+        )
+    )
     return 0
 
 
 def main():
     if "--user-id" in sys.argv or "--for-user" in sys.argv:
+
         def _opt(name, default=""):
-            return (sys.argv[sys.argv.index(name) + 1]
-                    if name in sys.argv else default)
-        return run_for_user(_opt("--ticker", "ISRG"), _opt("--user-id"),
-                            _opt("--out") or None)
+            return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else default
+
+        return run_for_user(_opt("--ticker", "ISRG"), _opt("--user-id"), _opt("--out") or None)
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     ticker = (args[0] if args else "ISRG").upper()
     out_dir = os.getcwd()
@@ -3249,8 +3981,10 @@ def main():
     print("report_time      : %s" % snap["report_time"])
     print("market_data_time : %s" % snap["market_data_time"])
     for d in prov["deferred"]:
-        print("  EXCLUDED  %-14s period_end %s  accepted %s  (after "
-              "report_time)" % (d["metric"], d["period_end"], d["accepted"]))
+        print(
+            "  EXCLUDED  %-14s period_end %s  accepted %s  (after "
+            "report_time)" % (d["metric"], d["period_end"], d["accepted"])
+        )
     if not prov["deferred"]:
         print("  (nothing excluded — all filing data predates report_time)")
 
@@ -3269,8 +4003,7 @@ def main():
     if "--json" in sys.argv:
         p = os.path.join(out_dir, "%s_live_snapshot.json" % ticker)
         with open(p, "w", encoding="utf-8") as f:
-            json.dump({"snapshot": snap, "provenance": prov},
-                      f, indent=2, default=str)
+            json.dump({"snapshot": snap, "provenance": prov}, f, indent=2, default=str)
         print("\nwrote %s" % p)
     return 0 if not viol else 1
 

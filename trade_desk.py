@@ -60,8 +60,7 @@ from datetime import datetime, timezone, timedelta
 
 from statistics import mean, median
 
-from trade_desk_validation import (features_at_flag, _regime_map,
-                                   json_sanitize, MODEL_VERSION)
+from trade_desk_validation import features_at_flag, _regime_map, json_sanitize, MODEL_VERSION
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
@@ -72,18 +71,23 @@ VALIDATION_PATH = R("docs", "reports", "trade_desk_validation.json")
 RESEARCH_PATH = R("docs", "reports", "trade_desk_research.json")
 
 ENGINE_VERSION = "trade_desk_v1"
-MIN_N = 30              # house gate: no published stat below this
+MIN_N = 30  # house gate: no published stat below this
 GRADE_HOLD_SESSIONS = 5
-MAX_IDEAS = 5           # hard ceiling on Top Ideas (spec: 0-5, never fill)
+MAX_IDEAS = 5  # hard ceiling on Top Ideas (spec: 0-5, never fill)
 MAX_WATCH = 8
-MIN_PREMIUM = 250_000   # flow candidates below this never rank
-STALE_MIN = 90          # flow signal older than this (minutes) is stale
-SCORE_FLOOR = 70        # candidates below never reach WATCH display
+MIN_PREMIUM = 250_000  # flow candidates below this never rank
+STALE_MIN = 90  # flow signal older than this (minutes) is stale
+SCORE_FLOOR = 70  # candidates below never reach WATCH display
 
 REJECT = {  # observability vocabulary (spec sec 54)
-    "LOW_ALPHA": 0, "BAD_LIQUIDITY": 0, "LOW_PREMIUM": 0,
-    "REGIME_CONFLICT": 0, "STRATEGY_DEGRADED": 0, "STALE_DATA": 0,
-    "INSUFFICIENT_DATA": 0, "NOT_DIRECTIONAL": 0,
+    "LOW_ALPHA": 0,
+    "BAD_LIQUIDITY": 0,
+    "LOW_PREMIUM": 0,
+    "REGIME_CONFLICT": 0,
+    "STRATEGY_DEGRADED": 0,
+    "STALE_DATA": 0,
+    "INSUFFICIENT_DATA": 0,
+    "NOT_DIRECTIONAL": 0,
 }
 
 
@@ -110,6 +114,7 @@ def _iso(dt):
 #   degraded   -> family generates candidates for the ledger but they
 #                 are rejected from display (STRATEGY_DEGRADED)
 
+
 def family_gates():
     gates = {}
 
@@ -120,23 +125,25 @@ def family_gates():
     reg = (_load(RESEARCH_PATH, {}) or {}).get("registry") or {}
     champ = reg.get("champion") or {}
     if champ.get("name"):
-        gates["flow"] = {"verdict": "qualified",
-                         "champion": champ.get("name"),
-                         "tail_pct": champ.get("tail_pct"),
-                         "why": "champion model holds validated "
-                                "extreme-tail edge (see research)",
-                         "evidence": ((reg.get("challengers") or {})
-                                      .get(champ["name"], {})
-                                      .get("verdict") or {})
-                                     .get("evidence")}
+        gates["flow"] = {
+            "verdict": "qualified",
+            "champion": champ.get("name"),
+            "tail_pct": champ.get("tail_pct"),
+            "why": "champion model holds validated extreme-tail edge (see research)",
+            "evidence": (
+                (reg.get("challengers") or {}).get(champ["name"], {}).get("verdict") or {}
+            ).get("evidence"),
+        }
     else:
-        gates["flow"] = {"verdict": "watch",
-                         "why": "no champion: setup-level walk-forward "
-                                "found no tail that clears the "
-                                "promotion criteria (positive pooled "
-                                "avg+median, bootstrap CI low > 0, "
-                                "positive holdout)",
-                         "evidence": {"status": "no_champion"}}
+        gates["flow"] = {
+            "verdict": "watch",
+            "why": "no champion: setup-level walk-forward "
+            "found no tail that clears the "
+            "promotion criteria (positive pooled "
+            "avg+median, bootstrap CI low > 0, "
+            "positive holdout)",
+            "evidence": {"status": "no_champion"},
+        }
 
     ei = _load(R("docs", "reports", "earnings_ideas.json"), {})
     by_type = ei.get("by_type") or {}
@@ -154,60 +161,76 @@ def family_gates():
     for t, st in by_type.items():
         unit = "vol-pts" if t.startswith("vol_") else "pp"
         if st.get("status") != "active" or st.get("n", 0) < MIN_N:
-            ern[t] = {"verdict": "watch", "why": "accruing",
-                      "evidence": st}
+            ern[t] = {"verdict": "watch", "why": "accruing", "evidence": st}
         elif (st.get("ev") or 0) > 0:
             if t.startswith("vol_"):
                 vt = vol_types.get(t) or {}
                 boot = vt.get("date_cluster_bootstrap") or {}
-                if (bt.get("types", {}).get(t, {})
-                        .get("trade_qualified")):
-                    verdict, note = "trade_qualified", \
-                        "NBBO execution study cleared VOL_RICH_EXEC_V1"
+                if bt.get("types", {}).get(t, {}).get("trade_qualified"):
+                    verdict, note = (
+                        "trade_qualified",
+                        "NBBO execution study cleared VOL_RICH_EXEC_V1",
+                    )
                 elif vt.get("signal_qualified"):
                     verdict = "signal_qualified"
                     ci = boot.get("ci95") or []
-                    note = (f"night-cluster CI {ci} on "
-                            f"{boot.get('nights')} nights — trade "
-                            "expression pending executable validation")
+                    note = (
+                        f"night-cluster CI {ci} on "
+                        f"{boot.get('nights')} nights — trade "
+                        "expression pending executable validation"
+                    )
                 else:
-                    verdict, note = "watch", \
-                        "signal CI not yet excluding zero at night level"
-                ern[t] = {"verdict": verdict,
-                          "why": (f"measured EV {st['ev']:+.2f} {unit} · "
-                                  f"{st.get('win_rate')}% win · "
-                                  f"n={st['n']} · {note}"),
-                          "evidence": st, "vol": vt and {
-                              "bootstrap": boot,
-                              "move_ratio": vt.get("move_ratio"),
-                              "tails": vt.get("tails")} or None}
+                    verdict, note = "watch", "signal CI not yet excluding zero at night level"
+                ern[t] = {
+                    "verdict": verdict,
+                    "why": (
+                        f"measured EV {st['ev']:+.2f} {unit} · "
+                        f"{st.get('win_rate')}% win · "
+                        f"n={st['n']} · {note}"
+                    ),
+                    "evidence": st,
+                    "vol": vt
+                    and {
+                        "bootstrap": boot,
+                        "move_ratio": vt.get("move_ratio"),
+                        "tails": vt.get("tails"),
+                    }
+                    or None,
+                }
             else:
-                ern[t] = {"verdict": "qualified",
-                          "why": (f"measured EV {st['ev']:+.2f} {unit} · "
-                                  f"{st.get('win_rate')}% win · "
-                                  f"n={st['n']}"),
-                          "evidence": st}
+                ern[t] = {
+                    "verdict": "qualified",
+                    "why": (
+                        f"measured EV {st['ev']:+.2f} {unit} · "
+                        f"{st.get('win_rate')}% win · "
+                        f"n={st['n']}"
+                    ),
+                    "evidence": st,
+                }
         else:
-            ern[t] = {"verdict": "degraded",
-                      "why": (f"measured EV {st['ev']:+.2f} {unit} "
-                              f"on n={st['n']}"),
-                      "evidence": st}
+            ern[t] = {
+                "verdict": "degraded",
+                "why": (f"measured EV {st['ev']:+.2f} {unit} on n={st['n']}"),
+                "evidence": st,
+            }
     gates["earnings"] = {"verdict": "per_type", "types": ern}
 
     so = _load(R("docs", "reports", "scan_outcomes.json"), {})
-    overall = (so.get("overall") or {})
+    overall = so.get("overall") or {}
     if overall.get("status") == "active" and overall.get("n", 0) >= MIN_N:
         verdict = "qualified" if (overall.get("ev") or 0) > 0 else "degraded"
-        why = (f"measured EV {overall.get('ev'):+.2f} "
-               f"PF {overall.get('profit_factor')} on n={overall.get('n')}")
+        why = (
+            f"measured EV {overall.get('ev'):+.2f} "
+            f"PF {overall.get('profit_factor')} on n={overall.get('n')}"
+        )
     else:
         verdict, why = "watch", "accruing"
-    gates["momentum"] = {"verdict": verdict, "why": why,
-                         "evidence": overall}
+    gates["momentum"] = {"verdict": verdict, "why": why, "evidence": overall}
     return gates
 
 
 # --------------------------------------------------------------- score
+
 
 def _score_fn():
     """Alpha Score from the validation module's production model —
@@ -221,8 +244,7 @@ def _score_fn():
     base, adj, anchors = pm["base"], pm["adj"], pm["scale_anchors"]
 
     def score(feats):
-        total = sum(adj.get(f + ":" + str(val), 0.0)
-                    for f, val in feats.items())
+        total = sum(adj.get(f + ":" + str(val), 0.0) for f, val in feats.items())
         pred = base + max(-6.0, min(6.0, total))
         # anchors = expected-excess values at percentiles 0,5,...,100
         lo = 0
@@ -234,10 +256,12 @@ def _score_fn():
         a0, a1 = anchors[lo], anchors[lo + 1]
         frac = (pred - a0) / (a1 - a0) if a1 > a0 else 0.0
         return round((lo + frac) * 5.0, 1)
+
     return score, True
 
 
 # ---------------------------------------------------------- candidates
+
 
 def _flow_candidates(regimes, now):
     """Today's buyer-initiated directional flow, one candidate per
@@ -257,10 +281,11 @@ def _flow_candidates(regimes, now):
         if direction not in ("bullish", "bearish"):
             side = s.get("flow_side") or ""
             if side.endswith("_buyer"):
-                direction = {"call": "bullish",
-                             "put": "bearish"}.get(s.get("type"))
-        if direction not in ("bullish", "bearish") \
-                or s.get("flow_side") in ("put_seller", "call_seller"):
+                direction = {"call": "bullish", "put": "bearish"}.get(s.get("type"))
+        if direction not in ("bullish", "bearish") or s.get("flow_side") in (
+            "put_seller",
+            "call_seller",
+        ):
             REJECT["NOT_DIRECTIONAL"] += 1
             continue
         s = dict(s, direction=direction)
@@ -271,13 +296,18 @@ def _flow_candidates(regimes, now):
         grp.sort(key=lambda x: x.get("premium") or 0, reverse=True)
         anchor = grp[0]
         feats = features_at_flag(anchor, regimes)
-        out.append({
-            "family": "flow", "ticker": tk, "direction": direction,
-            "anchor": anchor, "n_prints": len(grp),
-            "total_premium": sum(x.get("premium") or 0 for x in grp),
-            "feats": feats,
-            "catalyst": ("earnings" if feats["ern"] == "yes" else "flow"),
-        })
+        out.append(
+            {
+                "family": "flow",
+                "ticker": tk,
+                "direction": direction,
+                "anchor": anchor,
+                "n_prints": len(grp),
+                "total_premium": sum(x.get("premium") or 0 for x in grp),
+                "feats": feats,
+                "catalyst": ("earnings" if feats["ern"] == "yes" else "flow"),
+            }
+        )
     return out
 
 
@@ -287,12 +317,12 @@ def _fresh(doc, now, max_h):
     paused pipeline."""
     try:
         gen = datetime.fromisoformat(
-            (doc.get("generated") or doc.get("updated") or "")
-            .replace("Z", "+00:00"))
+            (doc.get("generated") or doc.get("updated") or "").replace("Z", "+00:00")
+        )
         if gen.tzinfo is None:
             gen = gen.replace(tzinfo=timezone.utc)
         return (now - gen).total_seconds() <= max_h * 3600
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return False
 
 
@@ -303,24 +333,20 @@ def _earnings_candidates(now):
         return []
     # n_reports (analogue count for Fair Move) lives in earnings_edge
     edge = _load(R("docs", "reports", "earnings_edge.json"), {})
-    n_reports = {r.get("t"): r.get("n_reports")
-                 for r in edge.get("names") or []}
+    n_reports = {r.get("t"): r.get("n_reports") for r in edge.get("names") or []}
     out = []
     today = now.astimezone(timezone(timedelta(hours=-4))).date()
     for i in d.get("ideas") or []:
         # Pre-print idea types die once the report is out: a vol_rich
         # premium-sell into a print that already happened is not a
         # trade. post_report_drift is post-print and stays valid.
-        if i.get("type") in ("vol_rich", "vol_cheap",
-                             "momentum_into_print"):
+        if i.get("type") in ("vol_rich", "vol_cheap", "momentum_into_print"):
             try:
-                ed = datetime.strptime(i.get("date") or "",
-                                       "%Y-%m-%d").date()
+                ed = datetime.strptime(i.get("date") or "", "%Y-%m-%d").date()
             except ValueError:
                 REJECT["STALE_DATA"] += 1
                 continue
-            if ed < today or (ed == today
-                              and i.get("session") == "BMO"):
+            if ed < today or (ed == today and i.get("session") == "BMO"):
                 REJECT["STALE_DATA"] += 1
                 continue
         bias = i.get("bias")
@@ -328,12 +354,16 @@ def _earnings_candidates(now):
         idea = dict(i)
         if idea.get("n_reports") is None:
             idea["n_reports"] = n_reports.get(i.get("t"))
-        out.append({
-            "family": "earnings", "ticker": i.get("t"),
-            "direction": direction or "neutral",
-            "etype": i.get("type"), "idea": idea,
-            "catalyst": "earnings",
-        })
+        out.append(
+            {
+                "family": "earnings",
+                "ticker": i.get("t"),
+                "direction": direction or "neutral",
+                "etype": i.get("type"),
+                "idea": idea,
+                "catalyst": "earnings",
+            }
+        )
     return out
 
 
@@ -345,17 +375,23 @@ def _momentum_candidates(now):
     latest = runs[0] if isinstance(runs, list) else {}
     out = []
     for r in (latest.get("names") or latest.get("rows") or [])[:20]:
-        grade = (r.get("grade") or r.get("g") or "")
+        grade = r.get("grade") or r.get("g") or ""
         if not str(grade).startswith("A"):
             continue
-        out.append({"family": "momentum",
-                    "ticker": r.get("t") or r.get("ticker"),
-                    "direction": "bullish", "row": r,
-                    "catalyst": "momentum"})
+        out.append(
+            {
+                "family": "momentum",
+                "ticker": r.get("t") or r.get("ticker"),
+                "direction": "bullish",
+                "row": r,
+                "catalyst": "momentum",
+            }
+        )
     return out
 
 
 # ------------------------------------------------------------- filters
+
 
 def _regime_today(regimes, now=None):
     """Latest regime label — but only if it is recent. A label from a
@@ -365,8 +401,7 @@ def _regime_today(regimes, now=None):
     latest = max(regimes)
     if now is not None:
         try:
-            age = (now.date()
-                   - datetime.strptime(latest, "%Y-%m-%d").date()).days
+            age = (now.date() - datetime.strptime(latest, "%Y-%m-%d").date()).days
             if age > 5:
                 return "unknown"
         except ValueError:
@@ -386,7 +421,7 @@ def hard_filter(c, regime, score, now):
             flagged = datetime.fromisoformat(a["flagged_at"])
             if (now - flagged).total_seconds() > STALE_MIN * 60:
                 return "STALE_DATA"
-        except (KeyError, ValueError, TypeError):
+        except KeyError, ValueError, TypeError:
             return "STALE_DATA"
         # Measured regime conflict: bullish flow-following in risk_off /
         # mixed regimes graded EV -3.08 / -4.52 (uoa_edge by_regime,
@@ -405,6 +440,7 @@ def hard_filter(c, regime, score, now):
 
 # ------------------------------------------------------- construction
 
+
 def construct(c):
     """Deterministic expression framing. No invented marks — the
     pipeline knows the anchor contract's premium/vol/OI at flag time but
@@ -413,8 +449,9 @@ def construct(c):
     if c["family"] == "flow":
         a = c["anchor"]
         return {
-            "expression": "underlying" if a.get("liquidity") in (None, "C")
-                          else "reference_contract",
+            "expression": "underlying"
+            if a.get("liquidity") in (None, "C")
+            else "reference_contract",
             "reference_contract": a.get("contract"),
             "contract_liquidity": a.get("liquidity"),
             "dte": a.get("dte"),
@@ -422,10 +459,10 @@ def construct(c):
             "flag_volume": a.get("volume"),
             "flag_oi": a.get("open_interest"),
             "underlying_at_flag": a.get("underlying_px_at_flag"),
-            "option_mark": None,          # not knowable here — honest null
+            "option_mark": None,  # not knowable here — honest null
             "max_risk_note": "defined-risk if expressed via long option "
-                             "(100% of premium); underlying expression "
-                             "risk is stop-managed",
+            "(100% of premium); underlying expression "
+            "risk is stop-managed",
         }
     if c["family"] == "earnings":
         i = c["idea"]
@@ -468,6 +505,7 @@ def construct(c):
 
 # -------------------------------------------------------------- ledger
 
+
 def _read_ledger():
     events = []
     if os.path.exists(LEDGER_PATH):
@@ -488,8 +526,7 @@ def _append_ledger(events):
     os.makedirs(os.path.dirname(LEDGER_PATH), exist_ok=True)
     with open(LEDGER_PATH, "a", encoding="utf-8") as f:
         for e in events:
-            f.write(json.dumps(e, separators=(",", ":"),
-                               ensure_ascii=False) + "\n")
+            f.write(json.dumps(e, separators=(",", ":"), ensure_ascii=False) + "\n")
 
 
 def freeze_ideas(display, now):
@@ -504,11 +541,17 @@ def freeze_ideas(display, now):
         iid = f"{it['family']}:{it['ticker']}:{it['direction']}:{day}"
         if iid in seen:
             continue
-        new.append({"ev": "issued", "id": iid, "as_of": _iso(now),
-                    "data_cutoff": _iso(now),
-                    "engine_version": ENGINE_VERSION,
-                    "model_version": MODEL_VERSION,
-                    "idea": it})
+        new.append(
+            {
+                "ev": "issued",
+                "id": iid,
+                "as_of": _iso(now),
+                "data_cutoff": _iso(now),
+                "engine_version": ENGINE_VERSION,
+                "model_version": MODEL_VERSION,
+                "idea": it,
+            }
+        )
     _append_ledger(new)
     return events + new
 
@@ -536,11 +579,11 @@ def grade_ledger(events, now, do_grade=True):
         return events, 0
 
     import yfinance as yf
+
     tickers = sorted({e["idea"]["ticker"] for _, e, _, _ in todo} | {"SPY"})
     start = (min(d for _, _, d, _ in todo) - timedelta(days=4)).isoformat()
     try:
-        px = yf.download(tickers, start=start, progress=False,
-                         auto_adjust=True)["Close"]
+        px = yf.download(tickers, start=start, progress=False, auto_adjust=True)["Close"]
     except Exception:
         return events, 0
     new = []
@@ -559,8 +602,7 @@ def grade_ledger(events, now, do_grade=True):
             end_idx = base_idx + GRADE_HOLD_SESSIONS
             if end_idx >= len(col):
                 continue  # not matured yet
-            ret = 100 * (float(col.iloc[end_idx]) /
-                         float(col.iloc[base_idx]) - 1)
+            ret = 100 * (float(col.iloc[end_idx]) / float(col.iloc[base_idx]) - 1)
             sb = spy.index.searchsorted(str(d0))
             se = sb + GRADE_HOLD_SESSIONS
             if se >= len(spy):
@@ -568,11 +610,17 @@ def grade_ledger(events, now, do_grade=True):
             sret = 100 * (float(spy.iloc[se]) / float(spy.iloc[sb]) - 1)
             exc = ret - sret
             y = exc if direction == "bullish" else -exc
-            new.append({"ev": "graded", "id": iid,
-                        "graded_at": _iso(now),
-                        "hold_sessions": GRADE_HOLD_SESSIONS,
-                        "ret": round(ret, 2), "excess": round(exc, 2),
-                        "y": round(y, 2)})
+            new.append(
+                {
+                    "ev": "graded",
+                    "id": iid,
+                    "graded_at": _iso(now),
+                    "hold_sessions": GRADE_HOLD_SESSIONS,
+                    "ret": round(ret, 2),
+                    "excess": round(exc, 2),
+                    "y": round(y, 2),
+                }
+            )
         except Exception:
             continue
     _append_ledger(new)
@@ -591,48 +639,69 @@ def performance(events):
         src = issued.get(e["id"])
         if not src:
             continue
-        rows.append({"family": src["idea"].get("family"),
-                     "score": src["idea"].get("alpha_score"),
-                     "status": src["idea"].get("status"),
-                     "y": e.get("y")})
+        rows.append(
+            {
+                "family": src["idea"].get("family"),
+                "score": src["idea"].get("alpha_score"),
+                "status": src["idea"].get("status"),
+                "y": e.get("y"),
+            }
+        )
     out = {"tracked": len(issued), "graded": len(rows), "min_n": MIN_N}
     if len(rows) >= MIN_N:
         ys = [r["y"] for r in rows if r["y"] is not None]
         out["overall"] = {
             "n": len(ys),
             "hit": round(100 * sum(1 for y in ys if y > 0) / len(ys)),
-            "avg": round(mean(ys), 2), "med": round(median(ys), 2)}
+            "avg": round(mean(ys), 2),
+            "med": round(median(ys), 2),
+        }
         byfam = {}
         for r in rows:
             byfam.setdefault(r["family"], []).append(r["y"])
         out["by_family"] = {
-            f: {"n": len(v),
+            f: {
+                "n": len(v),
                 "hit": round(100 * sum(1 for y in v if y > 0) / len(v)),
-                "avg": round(mean(v), 2)}
-            for f, v in byfam.items() if len(v) >= MIN_N}
+                "avg": round(mean(v), 2),
+            }
+            for f, v in byfam.items()
+            if len(v) >= MIN_N
+        }
         bystat = {}
         for r in rows:
             bystat.setdefault(r.get("status") or "?", []).append(r["y"])
         # North-star: forward realized alpha per QUALIFIED setup. Other
         # tiers report too so the tiers can be compared honestly.
         out["by_status"] = {
-            s: {"n": len(v),
+            s: {
+                "n": len(v),
                 "hit": round(100 * sum(1 for y in v if y > 0) / len(v)),
-                "avg": round(mean(v), 2), "med": round(median(v), 2)}
-            for s, v in bystat.items() if len(v) >= MIN_N}
+                "avg": round(mean(v), 2),
+                "med": round(median(v), 2),
+            }
+            for s, v in bystat.items()
+            if len(v) >= MIN_N
+        }
     else:
         out["status"] = "accruing"
     cal = {}
-    for lo, hi, label in ((80, 101, "80-100"), (60, 80, "60-79"),
-                          (40, 60, "40-59"), (0, 40, "<40")):
-        ys = [r["y"] for r in rows
-              if r["score"] is not None and lo <= r["score"] < hi]
-        cal[label] = ({"n": len(ys),
-                       "hit": round(100 * sum(1 for y in ys if y > 0)
-                                    / len(ys)),
-                       "avg": round(mean(ys), 2)}
-                      if len(ys) >= MIN_N else
-                      {"n": len(ys), "status": "accruing"})
+    for lo, hi, label in (
+        (80, 101, "80-100"),
+        (60, 80, "60-79"),
+        (40, 60, "40-59"),
+        (0, 40, "<40"),
+    ):
+        ys = [r["y"] for r in rows if r["score"] is not None and lo <= r["score"] < hi]
+        cal[label] = (
+            {
+                "n": len(ys),
+                "hit": round(100 * sum(1 for y in ys if y > 0) / len(ys)),
+                "avg": round(mean(ys), 2),
+            }
+            if len(ys) >= MIN_N
+            else {"n": len(ys), "status": "accruing"}
+        )
     out["score_calibration"] = cal
     return out
 
@@ -646,7 +715,7 @@ def _ledgers(perf):
     ev = _load(R("docs", "reports", "earnings_vol.json"), {})
     fml = _load(R("docs", "reports", "fair_move_lab.json"), {})
     vr = (ev.get("types") or {}).get("vol_rich") or {}
-    lab = ((fml.get("standings") or {}).get("overall") or {})         .get("v1_ticker_median") or {}
+    lab = ((fml.get("standings") or {}).get("overall") or {}).get("v1_ticker_median") or {}
     forecast = {
         "target": "market implied move - realized move",
         "events": vr.get("n"),
@@ -661,50 +730,59 @@ def _ledgers(perf):
     }
     directional = {
         "target": "+5-session direction-signed excess vs SPY",
-        "tracked": perf.get("tracked"), "graded": perf.get("graded"),
+        "tracked": perf.get("tracked"),
+        "graded": perf.get("graded"),
         "overall": perf.get("overall"),
         "status": perf.get("status"),
     }
     executable = {
         "trade_qualified_strategies": 0,
         "frozen_live_trades": 0,
-        "statement": "TickerDesk has not yet qualified an executable "
-                     "strategy.",
+        "statement": "TickerDesk has not yet qualified an executable strategy.",
     }
-    return {"forecast": forecast, "directional": directional,
-            "executable": executable}
+    return {"forecast": forecast, "directional": directional, "executable": executable}
 
 
 # ------------------------------------------------------- what changed
 
+
 def what_changed(prev, ideas_all):
     if not prev:
         return []
-    old = {(i.get("family"), i.get("ticker"), i.get("direction")): i
-           for i in (prev.get("top_ideas") or []) + (prev.get("watch") or [])}
+    old = {
+        (i.get("family"), i.get("ticker"), i.get("direction")): i
+        for i in (prev.get("top_ideas") or []) + (prev.get("watch") or [])
+    }
     changes = []
     for i in ideas_all:
         k = (i["family"], i["ticker"], i["direction"])
         o = old.pop(k, None)
         if o is None:
-            changes.append({"t": i["ticker"], "change": "new",
-                            "to": i["status"]})
+            changes.append({"t": i["ticker"], "change": "new", "to": i["status"]})
         elif o.get("status") != i["status"]:
-            changes.append({"t": i["ticker"], "change": "status",
-                            "from": o.get("status"), "to": i["status"]})
-        elif (o.get("alpha_score") is not None
-              and i.get("alpha_score") is not None
-              and abs(o["alpha_score"] - i["alpha_score"]) >= 5):
-            changes.append({"t": i["ticker"], "change": "score",
-                            "from": o["alpha_score"],
-                            "to": i["alpha_score"]})
+            changes.append(
+                {"t": i["ticker"], "change": "status", "from": o.get("status"), "to": i["status"]}
+            )
+        elif (
+            o.get("alpha_score") is not None
+            and i.get("alpha_score") is not None
+            and abs(o["alpha_score"] - i["alpha_score"]) >= 5
+        ):
+            changes.append(
+                {
+                    "t": i["ticker"],
+                    "change": "score",
+                    "from": o["alpha_score"],
+                    "to": i["alpha_score"],
+                }
+            )
     for (fam, tk, d), o in old.items():
-        changes.append({"t": tk, "change": "dropped",
-                        "from": o.get("status")})
+        changes.append({"t": tk, "change": "dropped", "from": o.get("status")})
     return changes[:12]
 
 
 # ---------------------------------------------------------------- run
+
 
 def run(dry=False, do_grade=True):
     now = _now()
@@ -713,15 +791,14 @@ def run(dry=False, do_grade=True):
     gates = family_gates()
     score, score_ok = _score_fn()
 
-    candidates = (_flow_candidates(regimes, now)
-                  + _earnings_candidates(now)
-                  + _momentum_candidates(now))
+    candidates = (
+        _flow_candidates(regimes, now) + _earnings_candidates(now) + _momentum_candidates(now)
+    )
 
     n_universe = len(candidates)
     display = []
     for c in candidates:
-        sc = score(c["feats"]) if (c["family"] == "flow" and score_ok) \
-            else None
+        sc = score(c["feats"]) if (c["family"] == "flow" and score_ok) else None
         reason = hard_filter(c, regime, sc, now)
         if reason:
             REJECT[reason] = REJECT.get(reason, 0) + 1
@@ -736,25 +813,31 @@ def run(dry=False, do_grade=True):
             status = "QUALIFIED" if g["verdict"] == "qualified" else "WATCH"
             gate_why = g["why"]
         elif c["family"] == "earnings":
-            g = (gates["earnings"]["types"].get(c.get("etype")) or
-                 {"verdict": "watch", "why": "accruing"})
-            status = {"qualified": "QUALIFIED",
-                      "trade_qualified": "TRADE_QUALIFIED",
-                      "signal_qualified": "SIGNAL_QUALIFIED",
-                      "degraded": "EXPERIMENTAL"}.get(g["verdict"],
-                                                      "WATCH")
+            g = gates["earnings"]["types"].get(c.get("etype")) or {
+                "verdict": "watch",
+                "why": "accruing",
+            }
+            status = {
+                "qualified": "QUALIFIED",
+                "trade_qualified": "TRADE_QUALIFIED",
+                "signal_qualified": "SIGNAL_QUALIFIED",
+                "degraded": "EXPERIMENTAL",
+            }.get(g["verdict"], "WATCH")
             gate_why = g["why"]
         else:
             g = gates["momentum"]
-            status = {"qualified": "QUALIFIED",
-                      "degraded": "EXPERIMENTAL"}.get(g["verdict"],
-                                                      "WATCH")
+            status = {"qualified": "QUALIFIED", "degraded": "EXPERIMENTAL"}.get(
+                g["verdict"], "WATCH"
+            )
             gate_why = g["why"]
 
         item = {
-            "family": c["family"], "ticker": c["ticker"],
-            "direction": c["direction"], "status": status,
-            "alpha_score": sc, "gate": gate_why,
+            "family": c["family"],
+            "ticker": c["ticker"],
+            "direction": c["direction"],
+            "status": status,
+            "alpha_score": sc,
+            "gate": gate_why,
             "catalyst": c.get("catalyst"),
             "construct": construct(c),
             "as_of": _iso(now),
@@ -770,27 +853,25 @@ def run(dry=False, do_grade=True):
             }
         elif c["family"] == "earnings":
             i = c["idea"]
-            item["evidence"] = {"thesis": i.get("thesis"),
-                                "cited": i.get("evidence"),
-                                "etype": c.get("etype"),
-                                "grade": i.get("grade"),
-                                "mcap_b": i.get("mcap_b")}
+            item["evidence"] = {
+                "thesis": i.get("thesis"),
+                "cited": i.get("evidence"),
+                "etype": c.get("etype"),
+                "grade": i.get("grade"),
+                "mcap_b": i.get("mcap_b"),
+            }
         display.append(item)
 
-    display.sort(key=lambda x: (x["alpha_score"] is None,
-                                -(x["alpha_score"] or 0)))
+    display.sort(key=lambda x: (x["alpha_score"] is None, -(x["alpha_score"] or 0)))
     TOP_STATUSES = ("TRADE_QUALIFIED", "QUALIFIED", "SIGNAL_QUALIFIED")
-    top = [i for i in display
-           if i["status"] in TOP_STATUSES][:MAX_IDEAS]
+    top = [i for i in display if i["status"] in TOP_STATUSES][:MAX_IDEAS]
     watch = [i for i in display if i["status"] == "WATCH"][:MAX_WATCH]
-    experimental = [i for i in display
-                    if i["status"] == "EXPERIMENTAL"][:MAX_WATCH]
+    experimental = [i for i in display if i["status"] == "EXPERIMENTAL"][:MAX_WATCH]
 
     # Desk counts — evidence-level tallies (reviewer: never let a
     # signal-qualified observation masquerade as a qualified trade).
     n_trade_q = sum(1 for i in top if i["status"] == "TRADE_QUALIFIED")
-    n_signal_q = sum(1 for i in top
-                     if i["status"] == "SIGNAL_QUALIFIED")
+    n_signal_q = sum(1 for i in top if i["status"] == "SIGNAL_QUALIFIED")
     n_plain_q = sum(1 for i in top if i["status"] == "QUALIFIED")
     desk_counts = {
         "trade_qualified": n_trade_q + n_plain_q,
@@ -800,28 +881,29 @@ def run(dry=False, do_grade=True):
     }
     # Multiple independent pipelines, not one funnel.
     n_flow_cand = sum(1 for c in candidates if c["family"] == "flow")
-    n_ern_cand = sum(1 for c in candidates
-                     if c["family"] == "earnings")
+    n_ern_cand = sum(1 for c in candidates if c["family"] == "earnings")
     pipelines = [
-        {"name": "Earnings Volatility",
-         "line": f"{n_ern_cand} scanned → {n_signal_q} signal-qualified"
-                 f" → {n_trade_q} trade-qualified"},
-        {"name": "Options Flow",
-         "line": f"{n_flow_cand} candidates → "
-                 f"{sum(1 for i in watch if i['family']=='flow')} watch"
-                 " → 0 qualified (no champion)"},
+        {
+            "name": "Earnings Volatility",
+            "line": f"{n_ern_cand} scanned → {n_signal_q} signal-qualified"
+            f" → {n_trade_q} trade-qualified",
+        },
+        {
+            "name": "Options Flow",
+            "line": f"{n_flow_cand} candidates → "
+            f"{sum(1 for i in watch if i['family'] == 'flow')} watch"
+            " → 0 qualified (no champion)",
+        },
     ]
     so = _load(R("docs", "reports", "scan_outcomes.json"), {})
-    so_n = ((so.get("overall") or {}).get("n"))
+    so_n = (so.get("overall") or {}).get("n")
     if so_n:
-        pipelines.append({"name": "Momentum",
-                          "line": f"{so_n} graded observations → "
-                                  "DEGRADED"})
-    drift = ((_load(R("docs", "reports", "earnings_ideas.json"), {})
-              .get("by_type") or {}).get("post_report_drift") or {})
+        pipelines.append({"name": "Momentum", "line": f"{so_n} graded observations → DEGRADED"})
+    drift = (_load(R("docs", "reports", "earnings_ideas.json"), {}).get("by_type") or {}).get(
+        "post_report_drift"
+    ) or {}
     if drift.get("n"):
-        pipelines.append({"name": "Post-Report Drift",
-                          "line": f"{drift['n']} graded → DEGRADED"})
+        pipelines.append({"name": "Post-Report Drift", "line": f"{drift['n']} graded → DEGRADED"})
     funnel = {  # retained for compatibility; UI now prefers desk_counts
         "universe_events": n_universe,
         "research_candidates": len(display),
@@ -835,31 +917,35 @@ def run(dry=False, do_grade=True):
     # Deterministic headline summaries (templates over facts — the LLM
     # is never in this path).
     headlines = []
-    vol_tops = [i for i in top
-                if (i.get("construct") or {}).get("vol_edge_pp")
-                is not None]
+    vol_tops = [i for i in top if (i.get("construct") or {}).get("vol_edge_pp") is not None]
     if vol_tops:
-        rich = max(vol_tops,
-                   key=lambda i: i["construct"]["vol_edge_pp"])
+        rich = max(vol_tops, key=lambda i: i["construct"]["vol_edge_pp"])
         c = rich["construct"]
-        headlines.append({
-            "h": f"{rich['ticker']} is today's richest earnings-vol "
-                 "setup",
-            "d": f"Market-implied move is {c['implied_move']}% versus "
-                 f"TickerDesk Fair Move of {c['fair_move']}%, a "
-                 f"+{c['vol_edge_pp']}pp discrepancy."})
+        headlines.append(
+            {
+                "h": f"{rich['ticker']} is today's richest earnings-vol setup",
+                "d": f"Market-implied move is {c['implied_move']}% versus "
+                f"TickerDesk Fair Move of {c['fair_move']}%, a "
+                f"+{c['vol_edge_pp']}pp discrepancy.",
+            }
+        )
     if n_signal_q and not (n_trade_q + n_plain_q):
-        headlines.append({
-            "h": "Vol-rich remains signal-qualified, not "
-                 "trade-qualified",
-            "d": "The expression gate still has no champion; "
-                 "defined-risk structures remain rejected."})
+        headlines.append(
+            {
+                "h": "Vol-rich remains signal-qualified, not trade-qualified",
+                "d": "The expression gate still has no champion; "
+                "defined-risk structures remain rejected.",
+            }
+        )
     if any(i["family"] == "flow" for i in watch):
-        headlines.append({
-            "h": "Options flow remains research-only",
-            "d": f"{sum(1 for i in watch if i['family']=='flow')} "
-                 "setups entered Watch; the family has no validated "
-                 "walk-forward champion."})
+        headlines.append(
+            {
+                "h": "Options flow remains research-only",
+                "d": f"{sum(1 for i in watch if i['family'] == 'flow')} "
+                "setups entered Watch; the family has no validated "
+                "walk-forward champion.",
+            }
+        )
 
     events = freeze_ideas(top + watch + experimental, now)
     events, n_graded = grade_ledger(events, now, do_grade=do_grade)
@@ -883,35 +969,53 @@ def run(dry=False, do_grade=True):
         "ledgers": _ledgers(perf),
         "abstention": (desk_counts["trade_qualified"] == 0),
         "abstention_note": (
-            ("No executable trade clears TickerDesk's production gate "
-             "today. " +
-             (f"{desk_counts['signal_qualified']} earnings-volatility "
-              "markets do exhibit a validated forecasting discrepancy, "
-              "but no option structure has demonstrated sufficient "
-              "after-cost expectancy."
-              if desk_counts["signal_qualified"] else
-              "Candidates below are tracked paper-forward; families "
-              "qualify automatically when their own record clears "
-              "their gates."))
-            if desk_counts["trade_qualified"] == 0 else None),
+            (
+                "No executable trade clears TickerDesk's production gate "
+                "today. "
+                + (
+                    f"{desk_counts['signal_qualified']} earnings-volatility "
+                    "markets do exhibit a validated forecasting discrepancy, "
+                    "but no option structure has demonstrated sufficient "
+                    "after-cost expectancy."
+                    if desk_counts["signal_qualified"]
+                    else "Candidates below are tracked paper-forward; families "
+                    "qualify automatically when their own record clears "
+                    "their gates."
+                )
+            )
+            if desk_counts["trade_qualified"] == 0
+            else None
+        ),
         "rejections": {k: v for k, v in REJECT.items() if v},
         "what_changed": changes,
         "performance": perf,
-        "honesty": ("Every displayed statistic is computed from "
-                    "point-in-time data or a disclosed deterministic "
-                    "model; no values are invented by the LLM. "
-                    "Research ranks are relative, not calibrated "
-                    "conviction; Fair Move is a disclosed forecast, "
-                    "not a measurement."),
+        "honesty": (
+            "Every displayed statistic is computed from "
+            "point-in-time data or a disclosed deterministic "
+            "model; no values are invented by the LLM. "
+            "Research ranks are relative, not calibrated "
+            "conviction; Fair Move is a disclosed forecast, "
+            "not a measurement."
+        ),
     }
     out = json_sanitize(out)
     if not dry:
         with open(OUT_PATH, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=1, ensure_ascii=False)
-    print("regime:", regime, "| top:", len(top), "| watch:", len(watch),
-          "| rejections:", out["rejections"],
-          "| ledger graded now:", n_graded,
-          "| tracked:", perf.get("tracked"))
+    print(
+        "regime:",
+        regime,
+        "| top:",
+        len(top),
+        "| watch:",
+        len(watch),
+        "| rejections:",
+        out["rejections"],
+        "| ledger graded now:",
+        n_graded,
+        "| tracked:",
+        perf.get("tracked"),
+    )
     return out
 
 

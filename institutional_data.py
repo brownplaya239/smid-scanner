@@ -25,25 +25,72 @@ from insider_activity import _load_cik_lookup, SEC_HEADERS, _throttle
 # These are funds known for research-driven small/mid-cap positions, NOT passive index buys.
 SMART_MONEY_FUNDS = {
     # Tiger Cubs / hedge funds
-    "tiger global", "coatue", "lone pine", "viking", "maverick", "dragoneer",
-    "whale rock", "tcv", "altimeter", "d1 capital", "light street", "matrix capital",
+    "tiger global",
+    "coatue",
+    "lone pine",
+    "viking",
+    "maverick",
+    "dragoneer",
+    "whale rock",
+    "tcv",
+    "altimeter",
+    "d1 capital",
+    "light street",
+    "matrix capital",
     # Specialized small-cap / growth
-    "wasatch", "kornitzer", "fidelity small cap", "fidelity contrafund", "fidelity growth",
-    "t. rowe price small", "t rowe price small", "primecap", "ark invest", "ark investment",
-    "baillie gifford", "edgewood", "polen capital", "sands capital",
+    "wasatch",
+    "kornitzer",
+    "fidelity small cap",
+    "fidelity contrafund",
+    "fidelity growth",
+    "t. rowe price small",
+    "t rowe price small",
+    "primecap",
+    "ark invest",
+    "ark investment",
+    "baillie gifford",
+    "edgewood",
+    "polen capital",
+    "sands capital",
     # Activists
-    "elliott", "starboard", "icahn", "third point", "trian", "engaged capital",
-    "jana partners", "engine no. 1", "engine no 1", "value act",
+    "elliott",
+    "starboard",
+    "icahn",
+    "third point",
+    "trian",
+    "engaged capital",
+    "jana partners",
+    "engine no. 1",
+    "engine no 1",
+    "value act",
     # Other known stock-pickers
-    "jennison", "gilder gagnon", "akre", "ruane", "longleaf", "wedgewood",
-    "pzena", "first manhattan", "joho capital", "tybourne",
+    "jennison",
+    "gilder gagnon",
+    "akre",
+    "ruane",
+    "longleaf",
+    "wedgewood",
+    "pzena",
+    "first manhattan",
+    "joho capital",
+    "tybourne",
 }
 
 # Known passive / index funds (signal = NEUTRAL — they hold by mandate, not conviction)
 PASSIVE_FUNDS = {
-    "vanguard", "blackrock", "ishares", "state street", "ssga", "spdr",
-    "schwab", "invesco", "fidelity index", "fidelity total",
-    "northern trust", "geode capital", "bnp paribas",
+    "vanguard",
+    "blackrock",
+    "ishares",
+    "state street",
+    "ssga",
+    "spdr",
+    "schwab",
+    "invesco",
+    "fidelity index",
+    "fidelity total",
+    "northern trust",
+    "geode capital",
+    "bnp paribas",
 }
 
 
@@ -52,11 +99,11 @@ def classify_fund(fund_name):
     name = (fund_name or "").lower()
     for sm in SMART_MONEY_FUNDS:
         if sm in name:
-            return "Smart $", (39, 174, 96)        # green
+            return "Smart $", (39, 174, 96)  # green
     for pf in PASSIVE_FUNDS:
         if pf in name:
-            return "Passive", (130, 130, 140)      # grey
-    return "Active", (52, 100, 180)                # blue (active but not famous)
+            return "Passive", (130, 130, 140)  # grey
+    return "Active", (52, 100, 180)  # blue (active but not famous)
 
 
 def fetch_institutional_data(ticker):
@@ -69,11 +116,11 @@ def fetch_institutional_data(ticker):
       - smart_money_funds: names of known smart-money funds detected
     """
     out = {
-        "major_holders":      {},
-        "top_holders":        [],
-        "mf_holders":         [],
-        "smart_money_count":  0,
-        "smart_money_funds":  [],
+        "major_holders": {},
+        "top_holders": [],
+        "mf_holders": [],
+        "smart_money_count": 0,
+        "smart_money_funds": [],
     }
 
     try:
@@ -86,7 +133,9 @@ def fetch_institutional_data(ticker):
                 # yfinance returns DataFrame with values in column 0, label in column 1
                 # Or sometimes index-labeled — handle both shapes
                 if "Value" in mh.columns:
-                    out["major_holders"] = dict(zip(mh.index.astype(str), mh["Value"].astype(float)))
+                    out["major_holders"] = dict(
+                        zip(mh.index.astype(str), mh["Value"].astype(float))
+                    )
                 else:
                     rows = mh.values.tolist()
                     for row in rows:
@@ -105,12 +154,12 @@ def fetch_institutional_data(ticker):
                         continue
                     cat, _ = classify_fund(holder_name)
                     rec = {
-                        "fund":          holder_name,
-                        "shares":        int(row.get("Shares", 0) or 0),
-                        "pct_out":       float(row.get("pctHeld", row.get("% Out", 0)) or 0),
-                        "value":         float(row.get("Value", 0) or 0),
+                        "fund": holder_name,
+                        "shares": int(row.get("Shares", 0) or 0),
+                        "pct_out": float(row.get("pctHeld", row.get("% Out", 0)) or 0),
+                        "value": float(row.get("Value", 0) or 0),
                         "date_reported": str(row.get("Date Reported", "")).split(" ")[0],
-                        "category":      cat,
+                        "category": cat,
                     }
                     out["top_holders"].append(rec)
                     if cat == "Smart $":
@@ -128,14 +177,16 @@ def fetch_institutional_data(ticker):
                     if not holder_name:
                         continue
                     cat, _ = classify_fund(holder_name)
-                    out["mf_holders"].append({
-                        "fund":          holder_name,
-                        "shares":        int(row.get("Shares", 0) or 0),
-                        "pct_out":       float(row.get("pctHeld", row.get("% Out", 0)) or 0),
-                        "value":         float(row.get("Value", 0) or 0),
-                        "date_reported": str(row.get("Date Reported", "")).split(" ")[0],
-                        "category":      cat,
-                    })
+                    out["mf_holders"].append(
+                        {
+                            "fund": holder_name,
+                            "shares": int(row.get("Shares", 0) or 0),
+                            "pct_out": float(row.get("pctHeld", row.get("% Out", 0)) or 0),
+                            "value": float(row.get("Value", 0) or 0),
+                            "date_reported": str(row.get("Date Reported", "")).split(" ")[0],
+                            "category": cat,
+                        }
+                    )
                     if cat == "Smart $" and holder_name not in out["smart_money_funds"]:
                         out["smart_money_count"] += 1
                         out["smart_money_funds"].append(holder_name)
@@ -169,8 +220,7 @@ def fetch_13d_13g_filings(ticker, days_back=365, max_filings=20):
     try:
         _throttle()
         resp = requests.get(
-            f"https://data.sec.gov/submissions/CIK{cik}.json",
-            headers=SEC_HEADERS, timeout=15
+            f"https://data.sec.gov/submissions/CIK{cik}.json", headers=SEC_HEADERS, timeout=15
         )
         if resp.status_code != 200:
             return out
@@ -178,9 +228,9 @@ def fetch_13d_13g_filings(ticker, days_back=365, max_filings=20):
     except Exception:
         return out
 
-    forms     = filings.get("form", [])
-    accs      = filings.get("accessionNumber", [])
-    dates     = filings.get("filingDate", [])
+    forms = filings.get("form", [])
+    accs = filings.get("accessionNumber", [])
+    dates = filings.get("filingDate", [])
     primaries = filings.get("primaryDocument", [])
 
     cutoff = datetime.now().date() - timedelta(days=days_back)
@@ -211,7 +261,7 @@ def fetch_13d_13g_filings(ticker, days_back=365, max_filings=20):
         filer = ""
         stake = ""
         acc_clean = accs[i].replace("-", "")
-        primary   = primaries[i]
+        primary = primaries[i]
         url = f"https://www.sec.gov/Archives/edgar/data/{cik_int}/{acc_clean}/{primary}"
 
         try:
@@ -223,28 +273,32 @@ def fetch_13d_13g_filings(ticker, days_back=365, max_filings=20):
                 # followed by the filer name on the next non-empty line, sometimes a few lines down
                 m = re.search(
                     r"Name(?:s)?\s+of\s+Reporting\s+Person.*?(?:\n|<br/?>|</td>)\s*([^\n<]{3,80})",
-                    text, re.IGNORECASE | re.DOTALL,
+                    text,
+                    re.IGNORECASE | re.DOTALL,
                 )
                 if m:
                     filer = re.sub(r"\s+", " ", m.group(1)).strip(" \t,.:")
                 # Stake percentage: "PERCENT OF CLASS REPRESENTED" or "Percent of Class"
                 m2 = re.search(
                     r"Percent(?:age)?\s+of\s+Class.*?([0-9]+\.?[0-9]*)\s*%",
-                    text, re.IGNORECASE | re.DOTALL,
+                    text,
+                    re.IGNORECASE | re.DOTALL,
                 )
                 if m2:
                     stake = f"{m2.group(1)}%"
         except Exception:
             pass
 
-        out.append({
-            "date":      fdate.strftime("%Y-%m-%d"),
-            "form":      form,
-            "filer":     filer or "(see SEC filing)",
-            "stake":     stake or "—",
-            "filing_url": url,
-            "is_active": "13G" not in form,  # 13D = active stake; 13G = passive
-        })
+        out.append(
+            {
+                "date": fdate.strftime("%Y-%m-%d"),
+                "form": form,
+                "filer": filer or "(see SEC filing)",
+                "stake": stake or "—",
+                "filing_url": url,
+                "is_active": "13G" not in form,  # 13D = active stake; 13G = passive
+            }
+        )
 
     return out
 
@@ -297,23 +351,24 @@ def compute_smart_money_score(insider_data, institutional_data, filings_13_data)
         label, color = "GREY — Insufficient Smart Money Evidence", (130, 130, 140)
 
     return {
-        "score":   score,
-        "label":   label,
-        "color":   color,
+        "score": score,
+        "label": label,
+        "color": color,
         "reasons": reasons,
     }
 
 
 if __name__ == "__main__":
     import json
+
     for t in ["IONQ", "AAPL"]:
         print(f"\n=== {t} ===")
         d = fetch_institutional_data(t)
         f = fetch_13d_13g_filings(t)
         print(f"Major holders: {d['major_holders']}")
         print(f"Top holders ({len(d['top_holders'])}):")
-        for h in d['top_holders'][:5]:
-            print(f"  {h['fund'][:40]:40s} {h['pct_out']*100:5.2f}%  {h['category']}")
+        for h in d["top_holders"][:5]:
+            print(f"  {h['fund'][:40]:40s} {h['pct_out'] * 100:5.2f}%  {h['category']}")
         print(f"Smart money: {d['smart_money_count']} funds: {d['smart_money_funds']}")
         print(f"13D/13G filings ({len(f)}):")
         for fi in f[:5]:

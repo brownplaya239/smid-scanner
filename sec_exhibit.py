@@ -40,11 +40,13 @@ RESULTS_ITEM = "2.02"
 TAG_RX = re.compile(r"<[^>]+>")
 ROW_RX = re.compile(r"<tr\b.*?</tr>", re.I | re.S)
 CELL_RX = re.compile(r"<t[dh]\b.*?</t[dh]>", re.I | re.S)
-HDR_RX = re.compile(r"<TYPE>([^\s<]+)\s*<SEQUENCE>\d+\s*<FILENAME>([^\s<]+)",
-                    re.I)
-DATE_RX = re.compile(r"(January|February|March|April|May|June|July|August|"
-                     r"September|October|November|December)\s*(\d{1,2}),?\s*"
-                     r"(\d{4})", re.I)
+HDR_RX = re.compile(r"<TYPE>([^\s<]+)\s*<SEQUENCE>\d+\s*<FILENAME>([^\s<]+)", re.I)
+DATE_RX = re.compile(
+    r"(January|February|March|April|May|June|July|August|"
+    r"September|October|November|December)\s*(\d{1,2}),?\s*"
+    r"(\d{4})",
+    re.I,
+)
 
 
 def _text(fragment):
@@ -87,6 +89,7 @@ def _label(s):
 
 # ── locating the exhibit ────────────────────────────────────────────────
 
+
 def find_results_8k(acc):
     """The most recent 8-K carrying Item 2.02, from an acceptance map."""
     best = None
@@ -95,8 +98,7 @@ def find_results_8k(acc):
             continue
         if RESULTS_ITEM not in str(meta.get("items") or ""):
             continue
-        if best is None or (meta.get("accepted") or "") > (best[1].get(
-                "accepted") or ""):
+        if best is None or (meta.get("accepted") or "") > (best[1].get("accepted") or ""):
             best = (accn, meta)
     return best
 
@@ -109,8 +111,7 @@ def exhibit_url(cik, accession, fetch_text):
     index-headers file is the one place EDGAR exposes document TYPEs;
     index.json carries only icon names."""
     bare = str(accession).replace("-", "")
-    base = ("https://www.sec.gov/Archives/edgar/data/%s/%s"
-            % (int(cik), bare))
+    base = "https://www.sec.gov/Archives/edgar/data/%s/%s" % (int(cik), bare)
     try:
         hdr = fetch_text("%s/%s-index-headers.html" % (base, accession))
     except Exception as e:
@@ -124,9 +125,11 @@ def exhibit_url(cik, accession, fetch_text):
 # ── segmentation ────────────────────────────────────────────────────────
 
 OUTLOOK_RX = re.compile(r"Outlook\s+for\s+the\b|Financial\s+Outlook\b", re.I)
-RECON_RX = re.compile(r"GAAP\s+to\s+Non-GAAP\s+Reconciliation|"
-                      r"Reconciliations?\s+(?:from|of)\s+GAAP\s+to\s+Non-GAAP",
-                      re.I)
+RECON_RX = re.compile(
+    r"GAAP\s+to\s+Non-GAAP\s+Reconciliation|"
+    r"Reconciliations?\s+(?:from|of)\s+GAAP\s+to\s+Non-GAAP",
+    re.I,
+)
 
 
 def segment(doc):
@@ -141,7 +144,7 @@ def segment(doc):
     rec_start = recons[0]
     tail = [o for o in outlooks if o > rec_start]
     if tail:
-        return doc[rec_start:tail[0]], doc[tail[0]:], None
+        return doc[rec_start : tail[0]], doc[tail[0] :], None
     return doc[rec_start:], None, "no outlook section found"
 
 
@@ -153,8 +156,7 @@ def column_period(section):
         for c in r:
             m = DATE_RX.search(c)
             if m:
-                return "%s %s, %s" % (m.group(1).title(), m.group(2),
-                                      m.group(3))
+                return "%s %s, %s" % (m.group(1).title(), m.group(2), m.group(3))
     return None
 
 
@@ -181,8 +183,10 @@ GUIDANCE_WANT = {
     "total gaap operating expenses": ("gaap_opex", "USD_M"),
 }
 
-RANGE_RX = re.compile(r"([-+]?[\d.,]+)\s*(?:%|)\s*(?:-|to|–)\s*"
-                      r"([-+]?[\d.,]+)\s*%?")
+RANGE_RX = re.compile(
+    r"([-+]?[\d.,]+)\s*(?:%|)\s*(?:-|to|–)\s*"
+    r"([-+]?[\d.,]+)\s*%?"
+)
 PM_RX = re.compile(r"([-+]?\$?[\d.,]+)\s*(?:\+/-|\+-|±)\s*(\$?[\d.,]+)(%?)")
 
 
@@ -196,11 +200,15 @@ def parse_reported(section):
             continue
         name, unit = want
         if name in out:
-            continue                     # first occurrence is the header block
+            continue  # first occurrence is the header block
         v = _num(r[1])
         if v is not None:
-            out[name] = {"value": v, "unit": unit, "label": r[0],
-                         "columns": [_num(c) for c in r[1:4]]}
+            out[name] = {
+                "value": v,
+                "unit": unit,
+                "label": r[0],
+                "columns": [_num(c) for c in r[1:4]],
+            }
     return out
 
 
@@ -223,20 +231,25 @@ def parse_guidance(section):
                 pct = pm.group(3) == "%" or "%" in raw
                 lo = mid * (1 - tol / 100.0) if pct else mid - tol
                 hi = mid * (1 + tol / 100.0) if pct else mid + tol
-                rec.update({"midpoint": mid, "low": lo, "high": hi,
-                            "basis": "midpoint +/- %s%s"
-                                     % (tol, "%" if pct else "")})
+                rec.update(
+                    {
+                        "midpoint": mid,
+                        "low": lo,
+                        "high": hi,
+                        "basis": "midpoint +/- %s%s" % (tol, "%" if pct else ""),
+                    }
+                )
         elif rng:
             lo, hi = _num(rng.group(1)), _num(rng.group(2))
             if lo is not None and hi is not None:
-                rec.update({"low": lo, "high": hi, "midpoint": (lo + hi) / 2.0,
-                            "basis": "stated range"})
+                rec.update(
+                    {"low": lo, "high": hi, "midpoint": (lo + hi) / 2.0, "basis": "stated range"}
+                )
         else:
             v = _num(raw)
             if v is None:
                 continue
-            rec.update({"midpoint": v, "low": v, "high": v,
-                        "basis": "single figure"})
+            rec.update({"midpoint": v, "low": v, "high": v, "basis": "single figure"})
         if "midpoint" in rec and name not in out:
             out[name] = rec
     return out
@@ -245,7 +258,7 @@ def parse_guidance(section):
 def _money(num, unit):
     try:
         v = float(str(num).replace(",", ""))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return v * 1e9 if unit and str(unit)[:1].lower() == "b" else v * 1e6
 
@@ -259,22 +272,29 @@ def _money(num, unit):
 KPI_RX = {
     "subscription_revenue": (
         r"[Ss]ubscription revenues?\s+of\s+\$([\d,]+)\s*(million|billion)"
-        r".{0,80}?representing\s+([\d.]+)%\s+year", "money_growth"),
+        r".{0,80}?representing\s+([\d.]+)%\s+year",
+        "money_growth",
+    ),
     "crpo": (
         r"[Cc]urrent remaining performance obligations[^$]{0,140}?"
         r"\$([\d.,]+)\s*(billion|million).{0,80}?([\d.]+)%\s+year",
-        "money_growth"),
+        "money_growth",
+    ),
     "rpo": (
         r"(?<!Current )[Rr]emaining performance obligations\s+of\s+"
         r"\$([\d.,]+)\s*(billion|million).{0,80}?([\d.]+)%\s+year",
-        "money_growth"),
+        "money_growth",
+    ),
     "ai_acv": (
         r"AI crossed\s+\$([\d.]+)\s*(billion|million)\s+in annual "
-        r"contract value", "money_floor"),
+        r"contract value",
+        "money_floor",
+    ),
     "acv_over_1m_net_new_deals": (
-        r"(\d+)[^\d$]{0,24}?over\s+\$1\s*million\s+in\s+net\s+new", "count"),
-    "acv_over_5m_customers": (
-        r"(\d+)[^\d$]{0,24}?more\s+than\s+\$5\s*million\s+in\s+ACV", "count"),
+        r"(\d+)[^\d$]{0,24}?over\s+\$1\s*million\s+in\s+net\s+new",
+        "count",
+    ),
+    "acv_over_5m_customers": (r"(\d+)[^\d$]{0,24}?more\s+than\s+\$5\s*million\s+in\s+ACV", "count"),
 }
 
 
@@ -293,18 +313,23 @@ def parse_kpis(doc):
         if kind == "money_growth":
             val = _money(m.group(1), m.group(2))
             if val is not None:
-                out[name] = {"value": val, "unit": "USD",
-                             "growth_yoy_pct": float(m.group(3)),
-                             "raw": " ".join(m.group(0).split())[:160]}
+                out[name] = {
+                    "value": val,
+                    "unit": "USD",
+                    "growth_yoy_pct": float(m.group(3)),
+                    "raw": " ".join(m.group(0).split())[:160],
+                }
         elif kind == "money_floor":
             val = _money(m.group(1), m.group(2))
             if val is not None:
-                out[name] = {"value": val, "unit": "USD",
-                             "basis": "crossed (floor)",
-                             "raw": " ".join(m.group(0).split())[:160]}
+                out[name] = {
+                    "value": val,
+                    "unit": "USD",
+                    "basis": "crossed (floor)",
+                    "raw": " ".join(m.group(0).split())[:160],
+                }
         elif kind == "count":
-            out[name] = {"value": int(m.group(1)),
-                         "raw": " ".join(m.group(0).split())[:160]}
+            out[name] = {"value": int(m.group(1)), "raw": " ".join(m.group(0).split())[:160]}
     return out
 
 
@@ -315,19 +340,29 @@ def parse_guidance_prose(doc):
     survives a Financial Outlook table the table parser cannot map."""
     t = _text(doc)
     out = {}
-    for m in re.finditer(r"Subscription revenues\s+\$([\d,]+)\s*[-–—]"
-                         r"\s*\$([\d,]+)", t):
+    for m in re.finditer(
+        r"Subscription revenues\s+\$([\d,]+)\s*[-–—]"
+        r"\s*\$([\d,]+)",
+        t,
+    ):
         lo = _money(m.group(1), "million")
         hi = _money(m.group(2), "million")
         if lo is None or hi is None:
             continue
-        key = ("fy_subscription_revenue" if lo >= 10e9
-               else "next_q_subscription_revenue")
-        out.setdefault(key, {"low": lo, "high": hi, "unit": "USD",
-                             "basis": ("full-year subscription-revenue "
-                                       "guidance" if lo >= 10e9 else
-                                       "next-quarter subscription-revenue "
-                                       "guidance")})
+        key = "fy_subscription_revenue" if lo >= 10e9 else "next_q_subscription_revenue"
+        out.setdefault(
+            key,
+            {
+                "low": lo,
+                "high": hi,
+                "unit": "USD",
+                "basis": (
+                    "full-year subscription-revenue guidance"
+                    if lo >= 10e9
+                    else "next-quarter subscription-revenue guidance"
+                ),
+            },
+        )
     m = re.search(r"\$[\d.,]+\s*million[^.]{0,80}?headwind[^.]{0,60}", t, re.I)
     if m:
         out["fx_commentary"] = " ".join(m.group(0).split())[:200]
@@ -341,13 +376,16 @@ def parse_guidance_prose(doc):
 # imagined format. Parenthesised numbers are negatives, GAAP-style.
 _OUT_HEAD_RX = re.compile(
     r"(?:Fiscal\s+Year\s+\d{4}|Full[\s-]?Year|Financial|Q\d\s+\d{4})?"
-    r"\s*Outlook", re.I)
+    r"\s*Outlook",
+    re.I,
+)
 _OUT_NUM = r"\(?-?[\d.,]+\)?"
 _OUT_ITEM_RX = re.compile(
     r"([A-Z][A-Za-z][A-Za-z\s\-&/]{2,48}?)\s+(?:of|between|in the range of)"
     r"\s+(\$?" + _OUT_NUM + r"%?)(?:\s*(million|billion))?"
     r"\s*(?:to|and|[-–—])\s*"
-    r"(\$?" + _OUT_NUM + r"%?)(?:\s*(million|billion))?")
+    r"(\$?" + _OUT_NUM + r"%?)(?:\s*(million|billion))?"
+)
 
 
 def _out_val(tok, unit_word, other_unit):
@@ -389,7 +427,7 @@ def parse_outlook_prose(doc):
     # boilerplate, so walk the headings from the end and keep the first
     # one whose following text actually yields ranges.
     for h in reversed(heads):
-        out = _outlook_items(t[h:h + 4000])
+        out = _outlook_items(t[h : h + 4000])
         if out:
             return out
     return {}
@@ -400,16 +438,20 @@ def _outlook_items(seg):
     for m in _OUT_ITEM_RX.finditer(seg):
         label = " ".join(m.group(1).split())
         # skip boilerplate verbs that satisfy the label shape
-        if re.search(r"(?i)(call|website|statements?|press|webcast)",
-                     label):
+        if re.search(r"(?i)(call|website|statements?|press|webcast)", label):
             continue
         lo, lu = _out_val(m.group(2), m.group(3), m.group(5))
         hi, hu = _out_val(m.group(4), m.group(5), m.group(3))
         if lo is None or hi is None or lu != hu:
             continue
         key = re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
-        out[key] = {"label": label, "low": lo, "high": hi, "unit": lu,
-                    "basis": "issuer outlook range, filed release prose"}
+        out[key] = {
+            "label": label,
+            "low": lo,
+            "high": hi,
+            "unit": lu,
+            "basis": "issuer outlook range, filed release prose",
+        }
     return out
 
 
@@ -417,23 +459,28 @@ def arithmetic_ok(guide):
     """The issuer publishes a reconciliation that must close. If it does
     not, our column mapping is wrong and every number here is suspect."""
     g, n = guide.get("gaap_eps"), guide.get("non_gaap_eps")
-    if g and n and g.get("midpoint") is not None \
-            and n.get("midpoint") is not None:
+    if g and n and g.get("midpoint") is not None and n.get("midpoint") is not None:
         if n["midpoint"] <= g["midpoint"]:
-            return False, ("guided non-GAAP EPS (%.2f) is not above guided "
-                           "GAAP EPS (%.2f); the columns are mis-mapped"
-                           % (n["midpoint"], g["midpoint"]))
+            return False, (
+                "guided non-GAAP EPS (%.2f) is not above guided "
+                "GAAP EPS (%.2f); the columns are mis-mapped" % (n["midpoint"], g["midpoint"])
+            )
     gm, ngm = guide.get("gaap_gross_margin"), guide.get("non_gaap_gross_margin")
     if gm and ngm and gm.get("midpoint") and ngm.get("midpoint"):
         if ngm["midpoint"] <= gm["midpoint"]:
-            return False, ("guided non-GAAP gross margin is not above the "
-                           "GAAP figure; the columns are mis-mapped")
+            return False, (
+                "guided non-GAAP gross margin is not above the "
+                "GAAP figure; the columns are mis-mapped"
+            )
     return True, None
 
 
 ORDINAL = {"first": 1, "second": 2, "third": 3, "fourth": 4}
-PERIOD_RX = re.compile(r"(first|second|third|fourth)\s+quarter\s+of\s+"
-                       r"fiscal(?:\s+year)?\s+(\d{4})", re.I)
+PERIOD_RX = re.compile(
+    r"(first|second|third|fourth)\s+quarter\s+of\s+"
+    r"fiscal(?:\s+year)?\s+(\d{4})",
+    re.I,
+)
 
 
 def _period_label(section):
@@ -455,10 +502,19 @@ def ingest(cik, acc, fetch_text, report_time=None):
     Never raises: a parse failure becomes AVAILABLE_NOT_INGESTED with the
     reason attached, which is a true statement about our software rather
     than a false one about the company."""
-    base = {"schema": "sec_exhibit/v2", "disposition": DISPOSITION_BLOCKED,
-            "reported": {}, "guidance": {}, "guidance_highlights": {},
-            "kpis": {}, "reason": None, "url": None, "accession": None,
-            "accepted": None, "period_label": None}
+    base = {
+        "schema": "sec_exhibit/v2",
+        "disposition": DISPOSITION_BLOCKED,
+        "reported": {},
+        "guidance": {},
+        "guidance_highlights": {},
+        "kpis": {},
+        "reason": None,
+        "url": None,
+        "accession": None,
+        "accepted": None,
+        "period_label": None,
+    }
     hit = find_results_8k(acc)
     if not hit:
         base["reason"] = "no 8-K carrying Item 2.02 in the acceptance window"
@@ -466,8 +522,9 @@ def ingest(cik, acc, fetch_text, report_time=None):
     accn, meta = hit
     base.update({"accession": accn, "accepted": meta.get("accepted")})
     if report_time and (meta.get("accepted") or "") > str(report_time):
-        base["reason"] = ("the most recent results 8-K was accepted after "
-                          "this report's point-in-time gate")
+        base["reason"] = (
+            "the most recent results 8-K was accepted after this report's point-in-time gate"
+        )
         return base
     url, err = exhibit_url(cik, accn, fetch_text)
     base["url"] = url
@@ -499,7 +556,7 @@ def ingest(cik, acc, fetch_text, report_time=None):
         base["guidance"] = parse_guidance(gui_sec) if gui_sec else {}
         ok, aerr = arithmetic_ok(base["guidance"])
         if not ok:
-            base["guidance"] = {}          # mis-mapped columns: drop, don't ship
+            base["guidance"] = {}  # mis-mapped columns: drop, don't ship
             base["guidance_error"] = aerr
         base["guidance_period"] = _period_label(gui_sec) if gui_sec else None
     else:
@@ -508,11 +565,12 @@ def ingest(cik, acc, fetch_text, report_time=None):
     # Admit the release if it yielded any admissible content. The KPIs and
     # the prose outlook are filed facts that stand on their own, so a name
     # whose reconciliation table defeats the parser still gets a full report.
-    if (base["kpis"] or base["guidance_highlights"] or base["reported"]
-            or base["guidance"]):
+    if base["kpis"] or base["guidance_highlights"] or base["reported"] or base["guidance"]:
         base["disposition"] = DISPOSITION_OK
     else:
-        base["reason"] = why or ("the exhibit was fetched but neither the "
-                                 "prose KPIs nor the reconciliation table "
-                                 "could be read")
+        base["reason"] = why or (
+            "the exhibit was fetched but neither the "
+            "prose KPIs nor the reconciliation table "
+            "could be read"
+        )
     return base

@@ -21,11 +21,11 @@ import sys
 # docs/index.html and the sitemap in landing_pages.py.
 PATHS = {
     "earnings": (
-        "Earnings Calendar — This Week's Reports, Implied Moves & Options "
-        "Flow | TickerDesk",
+        "Earnings Calendar — This Week's Reports, Implied Moves & Options Flow | TickerDesk",
         "This week's earnings calendar with options-implied vs typical "
         "moves, pre-print flow, and graded earnings trade ideas. Updated "
-        "nightly; every idea self-graded against real closes."),
+        "nightly; every idea self-graded against real closes.",
+    ),
 }
 
 SITE = "https://tickerdesk.io"
@@ -34,25 +34,26 @@ SITE = "https://tickerdesk.io"
 def rewrite(html, name, title, desc):
     url = f"{SITE}/{name}"
     n = 0
-    html, k = re.subn(r"<title>[^<]*</title>", f"<title>{title}</title>",
-                      html, count=1)
+    html, k = re.subn(r"<title>[^<]*</title>", f"<title>{title}</title>", html, count=1)
     n += k
-    html, k = re.subn(r'(<link rel="canonical" href=")[^"]*(")',
-                      rf"\g<1>{url}\g<2>", html, count=1)
+    html, k = re.subn(r'(<link rel="canonical" href=")[^"]*(")', rf"\g<1>{url}\g<2>", html, count=1)
     n += k
-    html, k = re.subn(r'(<meta property="og:url" content=")[^"]*(")',
-                      rf"\g<1>{url}\g<2>", html, count=1)
+    html, k = re.subn(
+        r'(<meta property="og:url" content=")[^"]*(")', rf"\g<1>{url}\g<2>", html, count=1
+    )
     n += k
     for attr in ('name="description"', 'property="og:description"'):
-        html, k = re.subn(rf'(<meta {attr} content=")[^"]*(")',
-                          rf"\g<1>{desc}\g<2>", html, count=1)
+        html, k = re.subn(rf'(<meta {attr} content=")[^"]*(")', rf"\g<1>{desc}\g<2>", html, count=1)
         n += k
-    html, k = re.subn(r'(<meta property="og:title" content=")[^"]*(")',
-                      rf"\g<1>{title}\g<2>", html, count=1)
+    html, k = re.subn(
+        r'(<meta property="og:title" content=")[^"]*(")', rf"\g<1>{title}\g<2>", html, count=1
+    )
     n += k
     if n < 6:
-        raise SystemExit(f"{name}: only {n}/6 head tags found — the "
-                         "index.html <head> changed; update site_paths.py")
+        raise SystemExit(
+            f"{name}: only {n}/6 head tags found — the "
+            "index.html <head> changed; update site_paths.py"
+        )
     return html
 
 

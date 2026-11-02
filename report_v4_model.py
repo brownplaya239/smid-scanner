@@ -43,31 +43,33 @@ def _fv(x):
 
 # ── ratings ─────────────────────────────────────────────────────────────
 
+
 def fundamental_rating(estimates, event):
     """Street consensus, dated — an observed vendor fact. Withheld when
     the feed is unconfigured or the event gate refuses a rating."""
     if not event.get("rating_allowed"):
-        return _withheld("event state %s does not permit a rating"
-                         % event["state"])
+        return _withheld("event state %s does not permit a rating" % event["state"])
     est = estimates or {}
     if not est.get("configured"):
         # Never surface the provider's raw reason (it can name the missing
         # API-key env var) in a client-facing withheld line.
-        return _withheld("no admitted estimate source (estimates feed not "
-                         "configured for this run)")
+        return _withheld("no admitted estimate source (estimates feed not configured for this run)")
     rec = est.get("recommendation")
     if not rec:
-        return _withheld("estimate feed returned no recommendation "
-                         "consensus")
-    n = (rec["strong_buy"] + rec["buy"] + rec["hold"] + rec["sell"]
-         + rec["strong_sell"])
-    return {"available": True, "band": rec["band"], "score": rec["score"],
-            "n_analysts": n, "as_of": rec["as_of"], "grade": OBSERVED,
-            "detail": "%d strong-buy / %d buy / %d hold / %d sell / "
-                      "%d strong-sell" % (rec["strong_buy"], rec["buy"],
-                                          rec["hold"], rec["sell"],
-                                          rec["strong_sell"]),
-            "source": "%s consensus" % est.get("provider", "vendor")}
+        return _withheld("estimate feed returned no recommendation consensus")
+    n = rec["strong_buy"] + rec["buy"] + rec["hold"] + rec["sell"] + rec["strong_sell"]
+    return {
+        "available": True,
+        "band": rec["band"],
+        "score": rec["score"],
+        "n_analysts": n,
+        "as_of": rec["as_of"],
+        "grade": OBSERVED,
+        "detail": "%d strong-buy / %d buy / %d hold / %d sell / "
+        "%d strong-sell"
+        % (rec["strong_buy"], rec["buy"], rec["hold"], rec["sell"], rec["strong_sell"]),
+        "source": "%s consensus" % est.get("provider", "vendor"),
+    }
 
 
 def tactical_rating(snap):
@@ -82,18 +84,30 @@ def tactical_rating(snap):
     # A name too young for a 50- or 200-day average is scored against the
     # averages it HAS. The count of those is published so the renderer
     # never claims "0 of the 20/50/200" about a stock with one average.
-    n_mas = sum(1 for k in ("ma20", "ma50", "ma200")
-                if _fv(lv.get(k)) is not None)
-    above = sum(1 for k in ("ma20", "ma50", "ma200")
-                if _fv(lv.get(k)) is not None and px is not None
-                and px > _fv(lv.get(k)))
-    band = ("Constructive" if above == n_mas and n_mas else
-            "Improving" if above >= 2 else
-            "Cautious" if above == 1 else "Weak")
-    return {"available": True, "band": band, "above_mas": above,
-            "mas_available": n_mas,
-            "grade": DERIVED, "detail": state,
-            "source": "technical, completed sessions"}
+    n_mas = sum(1 for k in ("ma20", "ma50", "ma200") if _fv(lv.get(k)) is not None)
+    above = sum(
+        1
+        for k in ("ma20", "ma50", "ma200")
+        if _fv(lv.get(k)) is not None and px is not None and px > _fv(lv.get(k))
+    )
+    band = (
+        "Constructive"
+        if above == n_mas and n_mas
+        else "Improving"
+        if above >= 2
+        else "Cautious"
+        if above == 1
+        else "Weak"
+    )
+    return {
+        "available": True,
+        "band": band,
+        "above_mas": above,
+        "mas_available": n_mas,
+        "grade": DERIVED,
+        "detail": state,
+        "source": "technical, completed sessions",
+    }
 
 
 def price_target(estimates, event, price):
@@ -102,23 +116,31 @@ def price_target(estimates, event, price):
     recommendation band."""
     est = estimates or {}
     if not event.get("rating_allowed"):
-        return _withheld("event state %s does not permit a target"
-                         % event["state"])
+        return _withheld("event state %s does not permit a target" % event["state"])
     pt = est.get("price_target")
     if not pt:
         cov = (est.get("coverage") or {}).get("price_target")
-        return _withheld("price target %s"
-                         % ("is not included in our data plan"
-                            if cov == "premium-gated" else
-                            "not available from the estimate feed"))
+        return _withheld(
+            "price target %s"
+            % (
+                "is not included in our data plan"
+                if cov == "premium-gated"
+                else "not available from the estimate feed"
+            )
+        )
     mean = pt.get("mean")
-    exp = (round(100.0 * (mean - price) / price, 1)
-           if (mean and price) else None)
-    return {"available": True, "mean": mean, "high": pt.get("high"),
-            "low": pt.get("low"), "n_analysts": pt.get("n_analysts"),
-            "as_of": pt.get("as_of"), "expected_return_pct": exp,
-            "grade": OBSERVED, "source": "%s consensus target"
-            % est.get("provider", "vendor")}
+    exp = round(100.0 * (mean - price) / price, 1) if (mean and price) else None
+    return {
+        "available": True,
+        "mean": mean,
+        "high": pt.get("high"),
+        "low": pt.get("low"),
+        "n_analysts": pt.get("n_analysts"),
+        "as_of": pt.get("as_of"),
+        "expected_return_pct": exp,
+        "grade": OBSERVED,
+        "source": "%s consensus target" % est.get("provider", "vendor"),
+    }
 
 
 # ── financials ──────────────────────────────────────────────────────────
@@ -149,27 +171,41 @@ def saas_kpis(snap):
         # business, and the section should vanish rather than imply the
         # metrics exist somewhere unread.
         if ex.get("disposition") == "ADMITTED":
-            return {"available": False, "not_applicable": True,
-                    "reason": "the filed release states no subscription-"
-                              "style operating metrics"}
+            return {
+                "available": False,
+                "not_applicable": True,
+                "reason": "the filed release states no subscription-style operating metrics",
+            }
         return _withheld(
             "the earnings-release exhibit was not ingested, so any "
-            "operating metrics it states could not be read")
+            "operating metrics it states could not be read"
+        )
     rows = []
     for key, label, kind in _KPI_LABELS:
         rec = kpis.get(key)
         if not rec:
             continue
-        rows.append({"key": key, "label": label, "kind": kind,
-                     "value": rec.get("value"),
-                     "growth_yoy_pct": rec.get("growth_yoy_pct"),
-                     "basis": rec.get("basis"), "raw": rec.get("raw")})
+        rows.append(
+            {
+                "key": key,
+                "label": label,
+                "kind": kind,
+                "value": rec.get("value"),
+                "growth_yoy_pct": rec.get("growth_yoy_pct"),
+                "basis": rec.get("basis"),
+                "raw": rec.get("raw"),
+            }
+        )
     if not rows:
-        return _withheld("the exhibit was ingested but carried no recognised "
-                         "operating KPIs")
-    return {"available": True, "rows": rows, "grade": OBSERVED,
-            "source": "issuer earnings release (8-K exhibit)",
-            "accession": ex.get("accession"), "as_of": ex.get("accepted")}
+        return _withheld("the exhibit was ingested but carried no recognised operating KPIs")
+    return {
+        "available": True,
+        "rows": rows,
+        "grade": OBSERVED,
+        "source": "issuer earnings release (8-K exhibit)",
+        "accession": ex.get("accession"),
+        "as_of": ex.get("accepted"),
+    }
 
 
 def financials(snap, estimates):
@@ -183,12 +219,16 @@ def financials(snap, estimates):
         return _fv(fu.get(key))
 
     reported = {
-        "revenue_q": f("revenue_q"), "revenue_growth": f("revenue_growth"),
-        "gross_margin": f("gross_margin"), "net_margin": f("net_margin"),
+        "revenue_q": f("revenue_q"),
+        "revenue_growth": f("revenue_growth"),
+        "gross_margin": f("gross_margin"),
+        "net_margin": f("net_margin"),
         "net_income_q": f("net_income_q"),
         "operating_cash_flow": f("operating_cash_flow"),
-        "free_cash_flow": f("free_cash_flow"), "eps_ttm": f("eps_ttm"),
-        "cash": f("cash"), "debt": f("debt"),
+        "free_cash_flow": f("free_cash_flow"),
+        "eps_ttm": f("eps_ttm"),
+        "cash": f("cash"),
+        "debt": f("debt"),
     }
     surprises = est.get("surprises") or []
     # An issuer that has never filed a 10-K or 10-Q has no reported
@@ -204,14 +244,19 @@ def financials(snap, estimates):
             if (est.get("eps_estimate_next") or est.get("rev_estimate_next"))
             else _withheld(
                 "forward consensus %s"
-                % ("is not included in our data plan"
-                   if (est.get("coverage") or {}).get("eps_estimate")
-                   == "premium-gated" else "not available"))),
+                % (
+                    "is not included in our data plan"
+                    if (est.get("coverage") or {}).get("eps_estimate") == "premium-gated"
+                    else "not available"
+                )
+            )
+        ),
         "saas_kpis": saas_kpis(snap),
     }
 
 
 # ── business analysis (page 2) ──────────────────────────────────────────
+
 
 def business_analysis(snap):
     """Analysis, not description: what the admitted numbers say about the
@@ -242,36 +287,46 @@ def business_analysis(snap):
         bits = []
         if c5m.get("value"):
             floor = c5m["value"] * 5e6
-            bits.append("%d customers above $5M in ACV — at least %s of "
-                        "annualised contract value from the largest "
-                        "accounts alone" % (c5m["value"], _money_s(floor)))
+            bits.append(
+                "%d customers above $5M in ACV — at least %s of "
+                "annualised contract value from the largest "
+                "accounts alone" % (c5m["value"], _money_s(floor))
+            )
         if d1m.get("value"):
-            bits.append("%d transactions above $1M net-new ACV closed in "
-                        "the quarter" % d1m["value"])
-        out["sections"].append({
-            "title": "Enterprise motion",
-            "text": "The customer base is concentrated in large enterprise "
-                    "and expanding within it: %s. Growth is driven by "
-                    "landing and expanding large accounts, not volume of "
-                    "small ones." % "; ".join(bits),
-            "grade": DERIVED})
+            bits.append(
+                "%d transactions above $1M net-new ACV closed in the quarter" % d1m["value"]
+            )
+        out["sections"].append(
+            {
+                "title": "Enterprise motion",
+                "text": "The customer base is concentrated in large enterprise "
+                "and expanding within it: %s. Growth is driven by "
+                "landing and expanding large accounts, not volume of "
+                "small ones." % "; ".join(bits),
+                "grade": DERIVED,
+            }
+        )
 
     # Revenue visibility: booked backlog against the current run-rate.
     if run_rate and crpo.get("value"):
         cov = 100.0 * crpo["value"] / run_rate
         yrs = (rpo["value"] / run_rate) if rpo.get("value") else None
-        text = ("Contracted backlog gives unusual visibility: cRPO of %s "
-                "covers roughly %.0f%% of the next twelve months at the "
-                "current subscription run-rate (%s annualised)"
-                % (_money_s(crpo["value"]), cov, _money_s(run_rate)))
+        text = (
+            "Contracted backlog gives unusual visibility: cRPO of %s "
+            "covers roughly %.0f%% of the next twelve months at the "
+            "current subscription run-rate (%s annualised)"
+            % (_money_s(crpo["value"]), cov, _money_s(run_rate))
+        )
         if yrs:
-            text += (", and total RPO of %s is about %.1f years of that "
-                     "run-rate already under contract"
-                     % (_money_s(rpo["value"]), yrs))
-        text += (". The revenue model is subscription-first, so the near "
-                 "term is largely booked before the quarter begins.")
-        out["sections"].append({"title": "Revenue visibility",
-                                "text": text, "grade": DERIVED})
+            text += (
+                ", and total RPO of %s is about %.1f years of that "
+                "run-rate already under contract" % (_money_s(rpo["value"]), yrs)
+            )
+        text += (
+            ". The revenue model is subscription-first, so the near "
+            "term is largely booked before the quarter begins."
+        )
+        out["sections"].append({"title": "Revenue visibility", "text": text, "grade": DERIVED})
 
     # Growth against cash generation, on the figures we actually hold.
     fcf = _fv(fu.get("free_cash_flow"))
@@ -279,31 +334,35 @@ def business_analysis(snap):
     g = sub.get("growth_yoy_pct")
     if fcf is not None and rev_q and g is not None:
         fm = 100.0 * fcf / rev_q
-        text = ("Subscription growth of %.1f%% against a quarterly free-"
-                "cash-flow margin of %.1f%% (FCF / total revenue, OCF minus "
-                "capex basis) puts the growth-plus-cash balance near %.0f "
-                "on this quarter's GAAP-derived figures. Issuer-defined FCF "
-                "excludes items this calculation does not, so the company's "
-                "own framing will read higher." % (g, fm, g + fm))
-        out["sections"].append({"title": "Growth and cash balance",
-                                "text": text, "grade": DERIVED})
+        text = (
+            "Subscription growth of %.1f%% against a quarterly free-"
+            "cash-flow margin of %.1f%% (FCF / total revenue, OCF minus "
+            "capex basis) puts the growth-plus-cash balance near %.0f "
+            "on this quarter's GAAP-derived figures. Issuer-defined FCF "
+            "excludes items this calculation does not, so the company's "
+            "own framing will read higher." % (g, fm, g + fm)
+        )
+        out["sections"].append({"title": "Growth and cash balance", "text": text, "grade": DERIVED})
 
     # The AI franchise, sized against the issuer's own full-year guide.
     if ai.get("value"):
         fy = hl.get("fy_subscription_revenue") or {}
-        mid = ((fy.get("low", 0) + fy.get("high", 0)) / 2.0
-               if fy.get("low") else None)
-        text = ("The issuer states AI has crossed %s in annual contract "
-                "value" % _money_s(ai["value"]))
+        mid = (fy.get("low", 0) + fy.get("high", 0)) / 2.0 if fy.get("low") else None
+        text = "The issuer states AI has crossed %s in annual contract value" % _money_s(
+            ai["value"]
+        )
         if mid:
-            text += (" — at least %.0f%% of the full-year subscription-"
-                     "revenue guidance midpoint (%s), and the fastest-"
-                     "compounding line the release discloses"
-                     % (100.0 * ai["value"] / mid, _money_s(mid)))
-        text += (". Whether that line re-accelerates bookings is the swing "
-                 "factor in the forward-growth debate.")
-        out["sections"].append({"title": "AI franchise",
-                                "text": text, "grade": DERIVED})
+            text += (
+                " — at least %.0f%% of the full-year subscription-"
+                "revenue guidance midpoint (%s), and the fastest-"
+                "compounding line the release discloses"
+                % (100.0 * ai["value"] / mid, _money_s(mid))
+            )
+        text += (
+            ". Whether that line re-accelerates bookings is the swing "
+            "factor in the forward-growth debate."
+        )
+        out["sections"].append({"title": "AI franchise", "text": text, "grade": DERIVED})
 
     out["sufficient"] = bool(out["sections"])
     return out
@@ -321,6 +380,7 @@ def _money_s(v):
 
 
 # ── valuation ───────────────────────────────────────────────────────────
+
 
 def valuation(snap, estimates, peers, price):
     """Value on inputs that are real, never on a tautology.
@@ -346,50 +406,72 @@ def valuation(snap, estimates, peers, price):
     rev_q = _fv(fu.get("revenue_q"))
     fcf_q = _fv(fu.get("free_cash_flow"))
 
-    trailing_pe = ({"available": True, "value": round(pe_t, 1),
-                    "basis": "price / trailing-twelve-month EPS",
-                    "grade": DERIVED} if pe_t else
-                   _withheld("no positive TTM EPS"))
+    trailing_pe = (
+        {
+            "available": True,
+            "value": round(pe_t, 1),
+            "basis": "price / trailing-twelve-month EPS",
+            "grade": DERIVED,
+        }
+        if pe_t
+        else _withheld("no positive TTM EPS")
+    )
 
     ev = None
     if mcap is not None and cash is not None and debt is not None:
         ev = mcap + debt - cash
-        enterprise = {"available": True, "value": round(ev, 0),
-                      "market_cap": mcap, "debt": debt, "cash": cash,
-                      "basis": "market cap + total debt - cash & equivalents",
-                      "grade": DERIVED}
+        enterprise = {
+            "available": True,
+            "value": round(ev, 0),
+            "market_cap": mcap,
+            "debt": debt,
+            "cash": cash,
+            "basis": "market cap + total debt - cash & equivalents",
+            "grade": DERIVED,
+        }
     else:
-        enterprise = _withheld("enterprise value needs market cap, debt and "
-                               "cash; one is missing")
+        enterprise = _withheld("enterprise value needs market cap, debt and cash; one is missing")
 
     # Run-rate multiples: the latest quarter annualised. Labelled run-rate,
     # never presented as a trailing-twelve-month figure, since only the
     # single quarter is filed for these lines on this tier.
     if ev is not None and rev_q:
-        ev_rev = {"available": True, "value": round(ev / (rev_q * 4.0), 1),
-                  "basis": "EV / annualised latest-quarter revenue "
-                           "(run-rate, not LTM)", "grade": DERIVED}
+        ev_rev = {
+            "available": True,
+            "value": round(ev / (rev_q * 4.0), 1),
+            "basis": "EV / annualised latest-quarter revenue (run-rate, not LTM)",
+            "grade": DERIVED,
+        }
     else:
         ev_rev = _withheld("no enterprise value or quarterly revenue")
 
     if mcap and fcf_q is not None:
-        fcf_yield = {"available": True,
-                     "value": round(100.0 * (fcf_q * 4.0) / mcap, 1),
-                     "basis": "annualised latest-quarter free cash flow / "
-                              "market cap (run-rate)", "grade": DERIVED}
+        fcf_yield = {
+            "available": True,
+            "value": round(100.0 * (fcf_q * 4.0) / mcap, 1),
+            "basis": "annualised latest-quarter free cash flow / market cap (run-rate)",
+            "grade": DERIVED,
+        }
     else:
         fcf_yield = _withheld("no market cap or quarterly free cash flow")
 
-    peer_block = (peers if (peers and peers.get("rows")) else _withheld(
-        "no admitted peer set" if peers is None else
-        (peers.get("reason") or "peer multiples unavailable")))
+    peer_block = (
+        peers
+        if (peers and peers.get("rows"))
+        else _withheld(
+            "no admitted peer set"
+            if peers is None
+            else (peers.get("reason") or "peer multiples unavailable")
+        )
+    )
 
-    available = any(b.get("available") for b in
-                    (trailing_pe, enterprise, ev_rev, fcf_yield, peer_block))
+    available = any(
+        b.get("available") for b in (trailing_pe, enterprise, ev_rev, fcf_yield, peer_block)
+    )
 
     return {
         "available": available,
-        "pe_trailing": pe_t,                     # kept for masthead/back-compat
+        "pe_trailing": pe_t,  # kept for masthead/back-compat
         "trailing_pe": trailing_pe,
         "enterprise_value": enterprise,
         "ev_to_revenue": ev_rev,
@@ -398,16 +480,19 @@ def valuation(snap, estimates, peers, price):
         "historical_multiples": _withheld(
             "a point-in-time historical EPS series is not available on this "
             "tier, so a real historical multiple band cannot be built; the "
-            "52-week PRICE range divided by current EPS would be circular"),
+            "52-week PRICE range divided by current EPS would be circular"
+        ),
         "forward_scenarios": _withheld(
             "no admitted forward guidance or consensus estimates on this "
             "tier; bull/base/bear prices are withheld until the issuer "
-            "release is ingested rather than derived from the price range"),
+            "release is ingested rather than derived from the price range"
+        ),
         "grade": DERIVED,
     }
 
 
 # ── risks ───────────────────────────────────────────────────────────────
+
 
 def risks(snap, event):
     """Three ranked risks, each anchored to a filed fact or the event
@@ -424,51 +509,88 @@ def risks(snap, event):
     # Forward bookings decelerating below reported revenue — the specific,
     # data-grounded risk a SaaS release surfaces, not a generic one.
     sub, crpo = kpis.get("subscription_revenue"), kpis.get("crpo")
-    if sub and crpo and sub.get("growth_yoy_pct") is not None \
-            and crpo.get("growth_yoy_pct") is not None \
-            and crpo["growth_yoy_pct"] < sub["growth_yoy_pct"] - 1.5:
-        out.append({"text": "Forward bookings are growing below reported "
-                            "revenue: cRPO +%.0f%% versus subscription revenue "
-                            "+%.0f%%, so current growth may not sustain into "
-                            "the next year absent re-acceleration."
-                            % (crpo["growth_yoy_pct"], sub["growth_yoy_pct"]),
-                    "grade": OBSERVED})
+    if (
+        sub
+        and crpo
+        and sub.get("growth_yoy_pct") is not None
+        and crpo.get("growth_yoy_pct") is not None
+        and crpo["growth_yoy_pct"] < sub["growth_yoy_pct"] - 1.5
+    ):
+        out.append(
+            {
+                "text": "Forward bookings are growing below reported "
+                "revenue: cRPO +%.0f%% versus subscription revenue "
+                "+%.0f%%, so current growth may not sustain into "
+                "the next year absent re-acceleration."
+                % (crpo["growth_yoy_pct"], sub["growth_yoy_pct"]),
+                "grade": OBSERVED,
+            }
+        )
     # FX headwind, when the issuer flags one in guidance.
     if hl.get("fx_commentary"):
-        out.append({"text": "Currency headwind flagged in guidance (%s); a "
-                            "stronger dollar pressures reported and cRPO "
-                            "growth." % str(hl["fx_commentary"]).rstrip(". "),
-                    "grade": OBSERVED})
+        out.append(
+            {
+                "text": "Currency headwind flagged in guidance (%s); a "
+                "stronger dollar pressures reported and cRPO "
+                "growth." % str(hl["fx_commentary"]).rstrip(". "),
+                "grade": OBSERVED,
+            }
+        )
 
     nm = _fv(fu.get("net_margin"))
     if nm is not None and nm < 5:
-        out.append({"text": "Thin GAAP profitability: net margin %.1f%% "
-                            "leaves little cushion for a demand or cost "
-                            "shock." % nm, "grade": OBSERVED})
+        out.append(
+            {
+                "text": "Thin GAAP profitability: net margin %.1f%% "
+                "leaves little cushion for a demand or cost "
+                "shock." % nm,
+                "grade": OBSERVED,
+            }
+        )
     ma200 = _fv(lv.get("ma200"))
     if px is not None and ma200 and px < ma200:
-        out.append({"text": "Price is below its 200-day average (%.2f), a "
-                            "structural downtrend until reclaimed."
-                            % ma200, "grade": DERIVED})
+        out.append(
+            {
+                "text": "Price is below its 200-day average (%.2f), a "
+                "structural downtrend until reclaimed." % ma200,
+                "grade": DERIVED,
+            }
+        )
     ins = (snap.get("insiders") or {}).get("by_class") or {}
     if ins.get("open_market_sale"):
-        out.append({"text": "%d open-market insider sale(s) filed in the "
-                            "window; discretionary intent is not disclosed."
-                            % ins["open_market_sale"], "grade": OBSERVED})
+        out.append(
+            {
+                "text": "%d open-market insider sale(s) filed in the "
+                "window; discretionary intent is not disclosed." % ins["open_market_sale"],
+                "grade": OBSERVED,
+            }
+        )
     if event["state"] in (EV.RELEASED_PRE_CALL, EV.CALL_IN_PROGRESS):
-        out.append({"text": "The earnings call has not concluded; management "
-                            "guidance on the call may still revise the read.",
-                    "grade": OBSERVED})
+        out.append(
+            {
+                "text": "The earnings call has not concluded; management "
+                "guidance on the call may still revise the read.",
+                "grade": OBSERVED,
+            }
+        )
     elif event["state"] == EV.POST_CALL_UNVERIFIED:
-        out.append({"text": "The call has concluded, but its transcript is "
-                            "not yet verified; any guidance nuance beyond the "
-                            "filed release is unconfirmed.", "grade": OBSERVED})
+        out.append(
+            {
+                "text": "The call has concluded, but its transcript is "
+                "not yet verified; any guidance nuance beyond the "
+                "filed release is unconfirmed.",
+                "grade": OBSERVED,
+            }
+        )
     d = _fv(fu.get("debt"))
-    if d and _fv(fu.get("cash")) is not None and d > (_fv(fu.get("cash"))
-                                                      or 0):
-        out.append({"text": "Long-term debt exceeds cash on hand; refinancing "
-                            "terms matter if rates stay elevated.",
-                    "grade": OBSERVED})
+    if d and _fv(fu.get("cash")) is not None and d > (_fv(fu.get("cash")) or 0):
+        out.append(
+            {
+                "text": "Long-term debt exceeds cash on hand; refinancing "
+                "terms matter if rates stay elevated.",
+                "grade": OBSERVED,
+            }
+        )
     return out[:3]
 
 
@@ -502,52 +624,73 @@ def variant_perception(ratings, snap):
     kpis = (snap.get("exhibit") or {}).get("kpis") or {}
     sub, crpo = kpis.get("subscription_revenue"), kpis.get("crpo")
     ai = kpis.get("ai_acv")
-    if sub and crpo and sub.get("growth_yoy_pct") is not None \
-            and crpo.get("growth_yoy_pct") is not None:
+    if (
+        sub
+        and crpo
+        and sub.get("growth_yoy_pct") is not None
+        and crpo.get("growth_yoy_pct") is not None
+    ):
         sg, cg = sub["growth_yoy_pct"], crpo["growth_yoy_pct"]
-        ai_note = (" The AI ACV inflection (now past $%.0fB) is the swing "
-                   "factor for whether that gap closes."
-                   % (ai["value"] / 1e9) if ai and ai.get("value") else "")
+        ai_note = (
+            " The AI ACV inflection (now past $%.0fB) is the swing "
+            "factor for whether that gap closes." % (ai["value"] / 1e9)
+            if ai and ai.get("value")
+            else ""
+        )
         if cg < sg - 1.5:
-            text = ("Forward bookings are decelerating below reported "
-                    "revenue: cRPO +%.0f%% versus subscription revenue "
-                    "+%.0f%%. The debate the multiple has to resolve is "
-                    "whether that gap is a temporary comparison or the start "
-                    "of a durable slowdown.%s" % (cg, sg, ai_note))
+            text = (
+                "Forward bookings are decelerating below reported "
+                "revenue: cRPO +%.0f%% versus subscription revenue "
+                "+%.0f%%. The debate the multiple has to resolve is "
+                "whether that gap is a temporary comparison or the start "
+                "of a durable slowdown.%s" % (cg, sg, ai_note)
+            )
         elif cg > sg + 1.5:
-            text = ("Forward bookings are outrunning reported revenue: cRPO "
-                    "+%.0f%% versus subscription +%.0f%%, a leading signal "
-                    "that current growth understates demand — the variant is "
-                    "that the P/E is looking at the trailing, not the "
-                    "forward, curve.%s" % (cg, sg, ai_note))
+            text = (
+                "Forward bookings are outrunning reported revenue: cRPO "
+                "+%.0f%% versus subscription +%.0f%%, a leading signal "
+                "that current growth understates demand — the variant is "
+                "that the P/E is looking at the trailing, not the "
+                "forward, curve.%s" % (cg, sg, ai_note)
+            )
         else:
-            text = ("Forward bookings track reported revenue closely (cRPO "
-                    "+%.0f%% versus subscription +%.0f%%); the debate is "
-                    "durability of that rate against the multiple the stock "
-                    "still carries.%s" % (cg, sg, ai_note))
+            text = (
+                "Forward bookings track reported revenue closely (cRPO "
+                "+%.0f%% versus subscription +%.0f%%); the debate is "
+                "durability of that rate against the multiple the stock "
+                "still carries.%s" % (cg, sg, ai_note)
+            )
         return {"available": True, "text": text, "grade": DERIVED}
 
     if street and tape:
         if street in _BULL and tape in _WEAK_TAPE:
-            text = ("The Street rates the name %s, but price sits below "
-                    "its own structure. The open question is whether the "
-                    "tape will confirm the positive consensus — it has not "
-                    "yet, so tactical confirmation would require a reclaim "
-                    "of the broken levels." % street)
+            text = (
+                "The Street rates the name %s, but price sits below "
+                "its own structure. The open question is whether the "
+                "tape will confirm the positive consensus — it has not "
+                "yet, so tactical confirmation would require a reclaim "
+                "of the broken levels." % street
+            )
         elif street in _BEAR and tape in _STRONG_TAPE:
-            text = ("The Street rates the name %s while the tape is %s. "
-                    "The open question is whether price is repairing ahead "
-                    "of the consensus view — the technical turn may lead "
-                    "here." % (street, tape.lower()))
+            text = (
+                "The Street rates the name %s while the tape is %s. "
+                "The open question is whether price is repairing ahead "
+                "of the consensus view — the technical turn may lead "
+                "here." % (street, tape.lower())
+            )
         elif street in _BULL and tape in _STRONG_TAPE:
-            text = ("Consensus (%s) and our tape read (%s) agree. There is "
-                    "no differentiated view here: the position is crowded, "
-                    "and the risk is owning what everyone already owns into "
-                    "any disappointment." % (street, tape.lower()))
+            text = (
+                "Consensus (%s) and our tape read (%s) agree. There is "
+                "no differentiated view here: the position is crowded, "
+                "and the risk is owning what everyone already owns into "
+                "any disappointment." % (street, tape.lower())
+            )
         else:
-            text = ("Consensus is %s and the tape is %s; the two are not far "
-                    "apart. The variant, such as it is, sits in execution and "
-                    "timing rather than direction." % (street, tape.lower()))
+            text = (
+                "Consensus is %s and the tape is %s; the two are not far "
+                "apart. The variant, such as it is, sits in execution and "
+                "timing rather than direction." % (street, tape.lower())
+            )
         return {"available": True, "text": text, "grade": DERIVED}
 
     # No consensus feed: contrast the reported fundamentals with the tape.
@@ -555,12 +698,13 @@ def variant_perception(ratings, snap):
     fcf = _fv(fu.get("free_cash_flow"))
     nm = _fv(fu.get("net_margin"))
     if tape and (fcf is not None or nm is not None):
-        cash = ("positive free cash flow" if (fcf or 0) > 0
-                else "negative free cash flow")
-        text = ("No admitted consensus to lean on, so the variant is ours to "
-                "carry: the business shows %s while the tape is %s. The "
-                "report weights the filed cash economics over the momentum, "
-                "and says so." % (cash, tape.lower()))
+        cash = "positive free cash flow" if (fcf or 0) > 0 else "negative free cash flow"
+        text = (
+            "No admitted consensus to lean on, so the variant is ours to "
+            "carry: the business shows %s while the tape is %s. The "
+            "report weights the filed cash economics over the momentum, "
+            "and says so." % (cash, tape.lower())
+        )
         return {"available": True, "text": text, "grade": DERIVED}
     return _withheld("no consensus and no tape read to form a variant from")
 
@@ -579,6 +723,7 @@ def fix_catalysts(cat, report_time):
     when none remain, estimate the following print roughly one quarter after
     the last release, clearly labelled as an estimate."""
     import datetime as _dt
+
     cat = dict(cat or {})
     rt = _report_date(report_time)
     nxt = cat.get("next") or []
@@ -599,18 +744,22 @@ def fix_catalysts(cat, report_time):
         lr = cat.get("last_reported") or {}
         base = None
         try:
-            base = _dt.date.fromisoformat(str(lr.get("when_utc")
-                                              or lr.get("when"))[:10])
+            base = _dt.date.fromisoformat(str(lr.get("when_utc") or lr.get("when"))[:10])
         except Exception:
             base = None
         if base:
             est = base + _dt.timedelta(days=91)
-            cat["next"] = [{
-                "what": "next earnings (estimated ~one quarter after the "
-                        "last release; not company-confirmed)",
-                "when": est.isoformat(), "when_utc": est.isoformat(),
-                "confirmation": "estimated from the last release date",
-                "grade": DERIVED, "estimated": True}]
+            cat["next"] = [
+                {
+                    "what": "next earnings (estimated ~one quarter after the "
+                    "last release; not company-confirmed)",
+                    "when": est.isoformat(),
+                    "when_utc": est.isoformat(),
+                    "confirmation": "estimated from the last release date",
+                    "grade": DERIVED,
+                    "estimated": True,
+                }
+            ]
             cat["next_estimated"] = True
     return cat
 
@@ -622,8 +771,7 @@ def earnings_marker_dates(snap):
     the same event's filing. Deduped by day."""
     out = []
     cat = snap.get("catalyst") or {}
-    if cat.get("event_kind") in ("primary_release", "earnings") and \
-            cat.get("event_dt"):
+    if cat.get("event_kind") in ("primary_release", "earnings") and cat.get("event_dt"):
         out.append(str(cat["event_dt"])[:10])
     ex = snap.get("exhibit") or {}
     if ex.get("accepted"):
@@ -645,11 +793,16 @@ def monitoring(snap):
     catalyst section, so that redundant clause is stripped here rather than
     left to contradict the event state."""
     import re as _re
+
     dec = snap.get("decision") or {}
     mn = dec.get("monitor_next")
     if isinstance(mn, str):
-        mn = _re.sub(r";?\s*next earnings estimated \d{4}-\d{2}-\d{2}",
-                     "", mn).strip().rstrip(";").strip()
+        mn = (
+            _re.sub(r";?\s*next earnings estimated \d{4}-\d{2}-\d{2}", "", mn)
+            .strip()
+            .rstrip(";")
+            .strip()
+        )
     return {
         "upgrade_trigger": dec.get("upgrade_trigger"),
         "downside_confirmation": dec.get("downside_confirmation"),
@@ -660,6 +813,7 @@ def monitoring(snap):
 
 
 # ── the whole view ──────────────────────────────────────────────────────
+
 
 def data_confidence(snap, estimates, view_bits=None):
     """One page-1 line: High / Medium / Low, with the two or three facts
@@ -673,9 +827,12 @@ def data_confidence(snap, estimates, view_bits=None):
     # this False for EVERY issuer, so each report claimed "no filed
     # 10-K/10-Q financials" regardless of what was ingested.
     import research_snapshot as _rs
-    has_filed = any(isinstance(v, dict) and _rs.fv(v) is not None
-                    for k, v in fu.items() if k in
-                    ("revenue_q", "net_income_q", "operating_cash_flow"))
+
+    has_filed = any(
+        isinstance(v, dict) and _rs.fv(v) is not None
+        for k, v in fu.items()
+        if k in ("revenue_q", "net_income_q", "operating_cash_flow")
+    )
     if has_filed:
         reasons_pos.append("filed SEC financials ingested")
     else:
@@ -687,17 +844,18 @@ def data_confidence(snap, estimates, view_bits=None):
         reasons_neg.append("no analyst estimate feed")
     th = snap.get("trading_history") or {}
     if th.get("full_history") is False:
-        reasons_neg.append("only %s trading sessions since the %s listing"
-                           % (th.get("sessions"), th.get("listing_date")))
+        reasons_neg.append(
+            "only %s trading sessions since the %s listing"
+            % (th.get("sessions"), th.get("listing_date"))
+        )
     else:
         reasons_pos.append("full-year trading history")
-    ex = (snap.get("exhibit") or {})
+    ex = snap.get("exhibit") or {}
     if ex.get("disposition") == "ADMITTED":
         reasons_pos.append("issuer earnings release read in")
     n_bad = len(reasons_neg)
     level = "High" if n_bad == 0 else "Medium" if n_bad == 1 else "Low"
-    return {"level": level,
-            "reasons": (reasons_neg + reasons_pos)[:3]}
+    return {"level": level, "reasons": (reasons_neg + reasons_pos)[:3]}
 
 
 def build(snap, estimates=None, peers=None, report_time=None):
@@ -716,10 +874,9 @@ def build(snap, estimates=None, peers=None, report_time=None):
     # of {text, grade} so every consumer reads one shape.
     _tf = M3.thesis_facts(snap, limit=3)
     thesis = []
-    for f in (_tf.get("facts") or []):
+    for f in _tf.get("facts") or []:
         if isinstance(f, dict):
-            thesis.append({"text": f.get("text") or "",
-                           "grade": f.get("grade") or OBSERVED})
+            thesis.append({"text": f.get("text") or "", "grade": f.get("grade") or OBSERVED})
         else:
             thesis.append({"text": str(f), "grade": OBSERVED})
 
@@ -749,8 +906,7 @@ def build(snap, estimates=None, peers=None, report_time=None):
         "insiders": M3.insider_view(snap),
         "ownership": M3.ownership_view(snap),
         "options": M3.options_view(snap),
-        "horizon": "12-month fundamental view; swing (2-8 week) tactical "
-                   "overlay",
+        "horizon": "12-month fundamental view; swing (2-8 week) tactical overlay",
         "data_confidence": data_confidence(snap, estimates),
         "estimates_configured": bool((estimates or {}).get("configured")),
     }

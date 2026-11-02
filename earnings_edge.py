@@ -38,13 +38,13 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 REPORTS = os.path.join(_BASE, "docs", "reports")
 OUT_PATH = os.path.join(REPORTS, "earnings_edge.json")
 
-HORIZON_D   = 14      # names reporting within this many days
-MAX_NAMES   = 40      # runtime cap (2 yf calls per name)
-MAX_REPORTS = 8       # realized history depth
-RICH_RATIO  = 1.35    # implied/realized >= this -> options rich
-CHEAP_RATIO = 0.85    # <= this -> options cheap
-MIN_REPORTS = 4       # minimum history before we trust realized stats
-WORKERS     = 8
+HORIZON_D = 14  # names reporting within this many days
+MAX_NAMES = 40  # runtime cap (2 yf calls per name)
+MAX_REPORTS = 8  # realized history depth
+RICH_RATIO = 1.35  # implied/realized >= this -> options rich
+CHEAP_RATIO = 0.85  # <= this -> options cheap
+MIN_REPORTS = 4  # minimum history before we trust realized stats
+WORKERS = 8
 
 
 def _load(name):
@@ -71,9 +71,15 @@ def upcoming_names():
             continue
         days = (dt - today).days
         if 0 <= days <= HORIZON_D:
-            out.append({"t": t, "date": d, "days": days,
-                        "session": (m or {}).get("earnings_session") or "TBD",
-                        "mcap": (m or {}).get("mkt_cap")})
+            out.append(
+                {
+                    "t": t,
+                    "date": d,
+                    "days": days,
+                    "session": (m or {}).get("earnings_session") or "TBD",
+                    "mcap": (m or {}).get("mkt_cap"),
+                }
+            )
     out.sort(key=lambda x: (x["days"], x["t"]))
     return out[:MAX_NAMES]
 
@@ -93,8 +99,7 @@ def flow_context():
             continue
         em, dte = r.get("expected_move_pct"), r.get("dte")
         if em is not None and dte is not None:
-            cands.setdefault(t, []).append(
-                (dte, em, r.get("trade_score") or 0))
+            cands.setdefault(t, []).append((dte, em, r.get("trade_score") or 0))
         if "Into ERN" in (r.get("tags") or []):
             e = into.setdefault(t, {"n": 0, "bull": 0, "bear": 0})
             e["n"] += 1
@@ -119,6 +124,7 @@ def implied_direct(ticker, report_date, session, window=5):
     gap can say WHY."""
     try:
         import polygon_data as PG
+
         if not PG.available():
             return None, None
         rows = PG.option_chain(ticker, max_pages=4)
@@ -145,8 +151,7 @@ def implied_direct(ticker, report_date, session, window=5):
         lq = (c.get("last_quote") or {}).get("midpoint")
         if lq:
             return lq
-        return ((c.get("day") or {}).get("close")
-                or (c.get("last_trade") or {}).get("price"))
+        return (c.get("day") or {}).get("close") or (c.get("last_trade") or {}).get("price")
 
     by_exp = {}
     nearest = None
@@ -159,8 +164,7 @@ def implied_direct(ticker, report_date, session, window=5):
             nearest = exp
         if not (eff.isoformat() <= exp <= lim.isoformat()):
             continue
-        by_exp.setdefault(exp, {}).setdefault(k, {})[
-            det.get("contract_type")] = c
+        by_exp.setdefault(exp, {}).setdefault(k, {})[det.get("contract_type")] = c
     for exp in sorted(by_exp):
         strikes = sorted(by_exp[exp], key=lambda k: abs(k - spot))
         for k in strikes[:3]:
@@ -179,11 +183,12 @@ def implied_for(cands, days_to_report, window=3):
     prices). No true bracketing contract -> None, honestly."""
     if not cands:
         return None
-    ok = [(dte, em, sc) for dte, em, sc in cands
-          if days_to_report <= dte <= days_to_report + window]
+    ok = [
+        (dte, em, sc) for dte, em, sc in cands if days_to_report <= dte <= days_to_report + window
+    ]
     if not ok:
         return None
-    ok.sort(key=lambda x: (x[0], -x[2]))     # closest expiry, best score
+    ok.sort(key=lambda x: (x[0], -x[2]))  # closest expiry, best score
     return ok[0][1]
 
 
@@ -220,7 +225,7 @@ def realized_stats(ticker):
         later = [i for i, d in enumerate(dates) if d >= rd]
         if not later:
             continue
-        ri = later[0]                       # report-day (or next session) bar
+        ri = later[0]  # report-day (or next session) bar
         if bmo:
             i0, i1 = ri - 1, ri
         else:
@@ -231,7 +236,7 @@ def realized_stats(ticker):
         if c0 <= 0:
             continue
         moves.append(100.0 * (c1 - c0) / c0)
-        if i1 + 5 < len(idx):               # drift: reaction close -> +5 sessions
+        if i1 + 5 < len(idx):  # drift: reaction close -> +5 sessions
             c5 = float(closes.iloc[i1 + 5])
             drifts.append(100.0 * (c5 - c1) / c1)
     if len(moves) < MIN_REPORTS:
@@ -240,8 +245,8 @@ def realized_stats(ticker):
     return {
         "realized_med": round(median(absm), 1),
         "realized_avg": round(mean(absm), 1),
-        "n_reports":    len(moves),
-        "drift_5d":     round(mean(drifts), 1) if drifts else None,
+        "n_reports": len(moves),
+        "drift_5d": round(mean(drifts), 1) if drifts else None,
     }
 
 
@@ -251,19 +256,24 @@ def verdict_for(implied, stats, flow):
         return "Watch", "not enough report history to price the move"
     med = stats["realized_med"]
     if implied is None:
-        return "Watch", (f"typically moves ±{med}% — no liquid option "
-                         f"read to compare against")
+        return "Watch", (f"typically moves ±{med}% — no liquid option read to compare against")
     ratio = round(implied / med, 2) if med else None
     fl = flow or {}
-    fdir = ("bullish" if fl.get("bull", 0) > fl.get("bear", 0) else
-            "bearish" if fl.get("bear", 0) > fl.get("bull", 0) else None)
+    fdir = (
+        "bullish"
+        if fl.get("bull", 0) > fl.get("bear", 0)
+        else "bearish"
+        if fl.get("bear", 0) > fl.get("bull", 0)
+        else None
+    )
     if ratio is not None and ratio >= RICH_RATIO:
-        return "Avoid", (f"options rich: implied ±{implied}% vs ±{med}% "
-                         f"typical ({ratio}×) — long premium overpays; "
-                         f"spreads only")
+        return "Avoid", (
+            f"options rich: implied ±{implied}% vs ±{med}% "
+            f"typical ({ratio}×) — long premium overpays; "
+            f"spreads only"
+        )
     if ratio is not None and ratio <= CHEAP_RATIO:
-        why = (f"options cheap: implied ±{implied}% vs ±{med}% typical "
-               f"({ratio}×)")
+        why = f"options cheap: implied ±{implied}% vs ±{med}% typical ({ratio}×)"
         if fdir:
             return "Trade", why + f" + {fdir} flow into the report"
         return "Trade", why + " — long premium has the edge"
@@ -294,10 +304,16 @@ def build():
         if implied is None and exp:
             why = why.replace(
                 "no liquid option read to compare against",
-                "nearest expiry %s does not bracket the print (no "
-                "weeklies)" % exp)
-        row = {**n, "implied": implied, "implied_expiry": exp,
-               "flow_into": flow, "verdict": v, "why": why}
+                "nearest expiry %s does not bracket the print (no weeklies)" % exp,
+            )
+        row = {
+            **n,
+            "implied": implied,
+            "implied_expiry": exp,
+            "flow_into": flow,
+            "verdict": v,
+            "why": why,
+        }
         if stats:
             row.update(stats)
             if implied is not None and stats["realized_med"]:
@@ -317,8 +333,12 @@ def build():
         "horizon_days": HORIZON_D,
         "count": len(results),
         "names": results,
-        "params": {"rich_ratio": RICH_RATIO, "cheap_ratio": CHEAP_RATIO,
-                   "max_reports": MAX_REPORTS, "min_reports": MIN_REPORTS},
+        "params": {
+            "rich_ratio": RICH_RATIO,
+            "cheap_ratio": CHEAP_RATIO,
+            "max_reports": MAX_REPORTS,
+            "min_reports": MIN_REPORTS,
+        },
     }
 
 
@@ -330,8 +350,7 @@ def _finite(o):
         return {k: _finite(v) for k, v in o.items()}
     if isinstance(o, (list, tuple)):
         return [_finite(v) for v in o]
-    if isinstance(o, float) and (o != o or o in (float("inf"),
-                                                 float("-inf"))):
+    if isinstance(o, float) and (o != o or o in (float("inf"), float("-inf"))):
         return None
     return o
 
@@ -350,13 +369,13 @@ def main():
     # implied-move section for the whole session. allow_nan=False makes
     # any future miss a loud failure instead of a silently broken page.
     with open(OUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(_finite(payload), f, separators=(",", ":"),
-                  allow_nan=False)
+        json.dump(_finite(payload), f, separators=(",", ":"), allow_nan=False)
     print(f"  Wrote {os.path.relpath(OUT_PATH, _BASE)}")
 
 
 if __name__ == "__main__":
     import sys
+
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     main()

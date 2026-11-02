@@ -33,8 +33,8 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 CACHE_PATH = os.path.join(_BASE, "data", "ipo_dates_cache.json")
 SITE_PATH = os.path.join(_BASE, "docs", "reports", "ipo_universe.json")
 
-IPO_YEARS = 5           # "recent IPO" window
-AVG_SESSIONS = 30       # sessions in the average-volume window
+IPO_YEARS = 5  # "recent IPO" window
+AVG_SESSIONS = 30  # sessions in the average-volume window
 WORKERS = 8
 # Only date names that could plausibly be in scope. Common stock only —
 # ETFs, warrants, units and preferreds aren't IPOs in the sense meant here.
@@ -57,9 +57,11 @@ def _save(path, obj):
 
 def active_common_stocks():
     """[{ticker, name}] for every active US common stock (paginated)."""
-    rows = pg._paginate("/v3/reference/tickers",
-                        {"market": "stocks", "active": "true",
-                         "type": "CS", "limit": 1000}, max_pages=30)
+    rows = pg._paginate(
+        "/v3/reference/tickers",
+        {"market": "stocks", "active": "true", "type": "CS", "limit": 1000},
+        max_pages=30,
+    )
     out = {}
     for r in rows:
         t = (r.get("ticker") or "").upper()
@@ -74,10 +76,11 @@ def ipos_endpoint_dates(since):
     every failure mode falls through to the per-ticker path."""
     out = {}
     try:
-        rows = pg._paginate("/vX/reference/ipos",
-                            {"listing_date.gte": since, "limit": 1000,
-                             "order": "asc", "sort": "listing_date"},
-                            max_pages=30)
+        rows = pg._paginate(
+            "/vX/reference/ipos",
+            {"listing_date.gte": since, "limit": 1000, "order": "asc", "sort": "listing_date"},
+            max_pages=30,
+        )
         for r in rows or []:
             t = (r.get("ticker") or "").upper()
             d = r.get("listing_date")
@@ -99,16 +102,16 @@ def detail_date(ticker):
 def build_dates(universe, cache):
     """cache: {ticker: "YYYY-MM-DD" | ""}. "" = dated, no list_date on
     file (Polygon has none) — cached so we never re-ask."""
-    since = (datetime.now(timezone.utc).date() -
-             timedelta(days=int(IPO_YEARS * 365.25) + 30)).isoformat()
+    since = (
+        datetime.now(timezone.utc).date() - timedelta(days=int(IPO_YEARS * 365.25) + 30)
+    ).isoformat()
     fresh = ipos_endpoint_dates(since)
     if fresh:
         print(f"  IPOs endpoint: {len(fresh)} listings since {since}")
         cache.update(fresh)
     todo = [t for t in universe if t not in cache]
     if todo:
-        print(f"  dating {len(todo)} tickers via ticker details "
-              f"({len(cache)} already cached)")
+        print(f"  dating {len(todo)} tickers via ticker details ({len(cache)} already cached)")
         with ThreadPoolExecutor(max_workers=WORKERS) as ex:
             for t, d in ex.map(detail_date, todo):
                 cache[t] = d or ""
@@ -120,6 +123,7 @@ def market_caps(tickers):
     set (~1.5k names), threaded, refreshed each nightly run since caps move
     with price. Failures return no entry; the frontend renders a dash."""
     out = {}
+
     def one(t):
         try:
             d = pg.ticker_details(t) or {}
@@ -127,6 +131,7 @@ def market_caps(tickers):
             return t, float(v) if v else None
         except Exception:
             return t, None
+
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
         for t, v in ex.map(one, tickers):
             if v:
@@ -146,7 +151,7 @@ def avg_volumes(tickers):
         if day.weekday() >= 5:
             continue
         bars = pg.grouped_daily(day.isoformat())
-        if not bars:                       # holiday / not yet published
+        if not bars:  # holiday / not yet published
             continue
         got += 1
         for t, row in bars.items():
@@ -154,8 +159,7 @@ def avg_volumes(tickers):
                 sums[t] = sums.get(t, 0) + row["v"]
                 counts[t] = counts.get(t, 0) + 1
     print(f"  averaged volume over {got} sessions")
-    return {t: round(sums[t] / counts[t]) for t in sums
-            if counts.get(t, 0) >= max(5, got // 2)}
+    return {t: round(sums[t] / counts[t]) for t in sums if counts.get(t, 0) >= max(5, got // 2)}
 
 
 def main():
@@ -171,10 +175,10 @@ def main():
     cache = build_dates(universe, cache)
     _save(CACHE_PATH, cache)
 
-    cutoff = (datetime.now(timezone.utc).date() -
-              timedelta(days=int(IPO_YEARS * 365.25))).isoformat()
-    recent = {t: d for t, d in cache.items()
-              if d and d >= cutoff and t in universe}
+    cutoff = (
+        datetime.now(timezone.utc).date() - timedelta(days=int(IPO_YEARS * 365.25))
+    ).isoformat()
+    recent = {t: d for t, d in cache.items() if d and d >= cutoff and t in universe}
     print(f"  {len(recent)} listed on/after {cutoff}")
     avg = avg_volumes(recent.keys())
     caps = market_caps([t for t in recent if t in avg])
@@ -183,9 +187,12 @@ def main():
     tickers = {}
     for t, d in recent.items():
         if t in avg:
-            tickers[t] = {"ipo": d, "avgvol": avg[t],
-                          "name": (universe.get(t) or "")[:60] or None,
-                          "mcap": round(caps[t]) if t in caps else None}
+            tickers[t] = {
+                "ipo": d,
+                "avgvol": avg[t],
+                "name": (universe.get(t) or "")[:60] or None,
+                "mcap": round(caps[t]) if t in caps else None,
+            }
     payload = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "ipo_window_years": IPO_YEARS,
@@ -193,10 +200,12 @@ def main():
         "cutoff": cutoff,
         "count": len(tickers),
         "tickers": tickers,
-        "note": ("Common stocks that listed within the IPO window, with "
-                 "their average daily volume over the last "
-                 f"{AVG_SESSIONS} sessions. Listing dates are permanent — "
-                 "cached once, only new listings are dated on later runs."),
+        "note": (
+            "Common stocks that listed within the IPO window, with "
+            "their average daily volume over the last "
+            f"{AVG_SESSIONS} sessions. Listing dates are permanent — "
+            "cached once, only new listings are dated on later runs."
+        ),
     }
     _save(SITE_PATH, payload)
     print(f"  published {len(tickers)} recent-IPO names with avg volume")
