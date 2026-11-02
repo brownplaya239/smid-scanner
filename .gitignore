@@ -31,7 +31,7 @@ docs/cards/
 
 # ── Data lives in Cloudflare R2 since the 2026-09-28 cutover ─────────
 # Workflows `r2_sync.py pull` at start and publish_reports.sh uploads what
-# they changed. Local dev: `python scripts/r2_sync.py pull-public` fetches
+# they changed. Local dev: `uv run scripts/r2_sync.py pull-public` fetches
 # the public reports (no token). Kept in git: hand-edited config, test
 # fixtures, and manifest.json (derived from the report PDFs, which stay).
 /data/*

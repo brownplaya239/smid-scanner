@@ -1,146 +1,54 @@
-# Breakout Scanner — Setup Guide
+# SMID Scanner (TickerDesk)
 
-## What this does
-- Runs at **market open (9:31 AM ET)** and **market close (3:55 PM ET)** every weekday
-- Pulls live price, volume, float, and market cap data from Yahoo Finance
-- Pre-filters against hard criteria (mkt cap <$10B, float <150M, above 20MA, vol >1.5x, green on day)
-- Sends top candidates to Claude for full 7-criteria analysis
-- Delivers a formatted report to your Telegram
+The code behind [tickerdesk.io](https://tickerdesk.io): small- and mid-cap
+breakout scanners, setup builders, momentum screens, options-flow scans,
+on-demand research reports and the daily brief. Scheduled GitHub Actions
+workflows run the scripts, publish the report PDFs to the site (GitHub Pages,
+served from `docs/`) and keep the data in Cloudflare R2.
 
----
+`CLAUDE.md` is the detailed guide: report types, schedules, files, credentials
+and known gotchas. `CONTRIBUTING.md` explains the commit and pull request format.
 
-## Step 1 — Install dependencies
+## Quick start
 
-```bash
-pip install yfinance anthropic requests python-telegram-bot pytz
-```
-
----
-
-## Step 2 — Create your Telegram bot
-
-1. Open Telegram → search **@BotFather** → send `/newbot`
-2. Follow the prompts, copy the **bot token** (looks like `123456:ABC-DEF...`)
-3. Open Telegram → search **@userinfobot** → send any message → copy your **Chat ID**
-
----
-
-## Step 3 — Fill in scanner.py
-
-Open `scanner.py` and set these three values at the top:
-
-```python
-ANTHROPIC_API_KEY = "sk-ant-YOUR_KEY_HERE"
-TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
-TELEGRAM_CHAT_ID = "YOUR_CHAT_ID_HERE"
-```
-
----
-
-## Step 4 — Test it manually
+You need [uv](https://docs.astral.sh/uv/). It installs Python 3.14 and every
+package at the exact versions in `uv.lock`.
 
 ```bash
-python scanner.py
+uv sync                          # create .venv/ with Python 3.14 and all packages
+cp .env.example .env             # then fill in your own API keys
+uv run scanner.py                # SMID breakout scan
+uv run scanner.py --ticker NVDA  # one-page lookup for a single ticker
+uv run momentum_scanner.py       # QM Monthly + Stockbee Weekly
+uv run pytest                    # run the tests
 ```
 
-You should see scan output in the terminal and a message arrive in Telegram within ~30 seconds.
+`uv run <file>.py` runs any script with the project's Python and packages; no
+need to activate a virtual environment. Most scripts need API keys in `.env`
+(see `CLAUDE.md`, "Credentials").
 
----
+To get the public report data the site shows (no token needed):
 
-## Step 5 — Schedule it
-
-### macOS / Linux (cron)
-
-Open your crontab:
 ```bash
-crontab -e
+uv run scripts/r2_sync.py pull-public
 ```
 
-Add these two lines (adjust the path to match where scanner.py lives):
-```
-# Market Open — 9:31 AM ET Mon-Fri
-31 9 * * 1-5 cd /path/to/breakout_scanner && /usr/bin/python3 scanner.py >> scanner.log 2>&1
+## Checks
 
-# Market Close — 3:55 PM ET Mon-Fri
-55 15 * * 1-5 cd /path/to/breakout_scanner && /usr/bin/python3 scanner.py >> scanner.log 2>&1
-```
+These run automatically on every pull request (`.github/workflows/ci.yml`):
 
-> ⚠️ If your machine is not in ET, adjust the hours accordingly.
-> Check your timezone offset from ET and add/subtract hours.
-
-Find your Python path with: `which python3`
-
-### Windows (Task Scheduler)
-
-1. Open **Task Scheduler** → Create Basic Task
-2. Set trigger: **Daily**, repeat at **9:31 AM** (and separately **3:55 PM**)
-3. Set action: **Start a program**
-   - Program: `C:\Python311\python.exe` (your Python path)
-   - Arguments: `C:\path\to\scanner.py`
-4. Check "Run only when user is logged on" or set up a service account
-5. Repeat setup for the 3:55 PM run
-
-### Cloud (always-on, recommended)
-
-Run on a small cloud VM so it fires even when your laptop is closed:
-
-**Option A — AWS EC2 / Google Cloud / DigitalOcean ($4-6/mo)**
 ```bash
-# On the server, same crontab setup as above
+uv run ruff check .              # lint
+uv run ruff format .             # format (CI runs it with --check)
+uv run pyrefly check             # type check
+uv run pytest -n auto -m "not network and not data"   # tests, as CI runs them
 ```
 
-**Option B — GitHub Actions (free)**
-Create `.github/workflows/scanner.yml`:
-```yaml
-name: Breakout Scanner
-on:
-  schedule:
-    - cron: '31 13 * * 1-5'   # 9:31 AM ET = 13:31 UTC
-    - cron: '55 19 * * 1-5'   # 3:55 PM ET = 19:55 UTC
-jobs:
-  scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - run: pip install yfinance anthropic requests pytz
-      - run: python scanner.py
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-```
+Tests marked `network` need internet access and tests marked `data` need data
+that is not in git (an R2 pull or cached report snapshots); CI leaves both out.
 
-Then store your keys in GitHub → Settings → Secrets → Actions.
-Change `scanner.py` to read from `os.environ` instead of hardcoded values.
+## Git hooks
 
----
-
-## Customizing the universe
-
-Edit the `UNIVERSE` list in `scanner.py` to add/remove tickers.
-The scanner pre-filters down to the top 20 by volume ratio before sending to Claude,
-so a larger universe is fine — it just takes a bit longer to fetch.
-
----
-
-## Costs
-
-| Service | Cost |
-|---|---|
-| Yahoo Finance (yfinance) | Free |
-| Anthropic API (Claude) | ~$0.01–0.03 per scan |
-| Telegram Bot API | Free |
-| **Total per day (2 scans)** | **~$0.02–0.06/day** |
-
----
-
-## Log file
-
-The cron job writes to `scanner.log` in the same directory.
-Check it if something goes wrong:
-```bash
-tail -50 scanner.log
-```
+With [Bun](https://bun.sh) installed, `bun install` sets up the git hooks
+(lefthook): commit messages are checked, staged Python files are fixed and
+formatted with Ruff before each commit, and the tests run before each push.
