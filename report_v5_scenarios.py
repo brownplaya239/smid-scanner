@@ -277,7 +277,9 @@ def build(ticker, multiples, spot, assumptions=None, note=None, valuation_policy
         probs = weighted["probabilities"]
         ev = weighted["price"]
         weighted["expected_value_contribution"] = {
-            l: round(rd[l]["price"] * probs[l], 2) for l in ("bear", "base", "bull")
+            # pyrefly: ignore[unbound-name]  weighted is only set in underwritten mode, where rd is built
+            l: round(rd[l]["price"] * probs[l], 2)
+            for l in ("bear", "base", "bull")
         }
         weighted["expected_return_pct"] = round(100.0 * (ev / spot - 1), 1)
         hz = fields.get("horizon_years")

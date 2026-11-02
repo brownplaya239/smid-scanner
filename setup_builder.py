@@ -81,6 +81,7 @@ def get_universe(size=300):
     }
 
     try:
+        # pyrefly: ignore[missing-module-attribute]  yfinance 1.x dropped Screener; ImportError falls back below (follow-up)
         from yfinance import Screener
 
         # Pass 1: sorted by 52W high proximity — these are the RS leaders we want

@@ -120,6 +120,7 @@ def get_dynamic_universe(size=250):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
     try:
+        # pyrefly: ignore[missing-module-attribute]  yfinance 1.x dropped Screener; ImportError falls back below (follow-up)
         from yfinance import Screener
 
         screener = Screener()
@@ -450,6 +451,7 @@ def fetch_yfinance_data(tickers):
     """Returns (results_list, hist_cache_dict). Adds RS vs SPY, 52W proximity, base tightness."""
     # Fetch SPY once for relative strength calculation
     spy_12w_return = 0.0
+    spy_hist = None
     try:
         spy_hist = _history_df("SPY")
         if spy_hist is not None and len(spy_hist) >= 63:
@@ -2865,6 +2867,7 @@ def run_single_ticker_lookup(ticker):
         return
 
     try:
+        # pyrefly: ignore[unbound-name]  t is set whenever hist is usable; the abort path returns above
         info = t.info
         spy_hist = _history_df("SPY")
 

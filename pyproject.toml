@@ -99,3 +99,24 @@ ignore = [
 "earnings_vol_exec.py" = ["B023"]
 "zdte_ideas.py" = ["B023"]
 "scripts/social_cards.py" = ["B023"]
+
+[tool.pyrefly]
+project-includes = ["*.py", "scripts/**"]
+project-excludes = ["docs/", "cloudflare-worker/", "news-ingestor/", "fixtures_v4/"]
+# scripts/*.py import each other (r2_sync, social_cards) and so do some tests.
+search-path = [".", "scripts"]
+
+[tool.pyrefly.errors]
+# The code has almost no type hints, so these kinds mostly fire on the inferred
+# types of mixed dict literals and Optional values rather than on real mistakes.
+# They are warnings (counted, shown with --min-severity=warn, never fail CI)
+# until hints are added. Every other kind is an error and fails CI.
+# Counts when this was set up (2026-11-02):
+unsupported-operation = "warn"  # 379
+bad-argument-type = "warn"      # 218
+bad-assignment = "warn"         # 131
+missing-attribute = "warn"      # 123
+bad-index = "warn"              # 114
+no-matching-overload = "warn"   # 79
+not-iterable = "warn"           # 43
+bad-specialization = "warn"     # 18

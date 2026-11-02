@@ -248,6 +248,7 @@ def _market_caps(tickers):
             out[t] = (ent or {}).get("mcap")
             continue
         try:
+            # pyrefly: ignore[unbound-name]  only reached when the polygon_data import succeeded (ok)
             det = PG.ticker_details(t) or {}
             mc = det.get("market_cap")
         except Exception:

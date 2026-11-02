@@ -1065,6 +1065,7 @@ def main():
                 "url": url,
                 "handle": me.username,
                 "text_sha1": hashlib.sha1(b["text"].encode("utf-8")).hexdigest(),
+                # pyrefly: ignore[invalid-argument]  bundle['extra'] is always a dict (built in render)
                 **b["extra"],
             },
             f,

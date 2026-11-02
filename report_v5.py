@@ -1296,6 +1296,7 @@ def build_core(snap, view5, out_path=None, chart_png=None, chart_meta=None):
     if seg_builders is not None:
         data = _fit_core_segments(snap, seg_builders)
     else:
+        # pyrefly: ignore[unbound-name]  story is built whenever seg_builders is None
         doc.build(story)
         data = _finalize(buf.getvalue(), doc)
     if out_path:

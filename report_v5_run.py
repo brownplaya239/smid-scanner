@@ -1405,6 +1405,7 @@ def validate(view5, core_pdf, rendered, apx_pdf=None, ledger=None, report_id=Non
             not tb_bad,
             VV.ERROR,
             "no pilot symbol or company name in shared production logic",
+            # pyrefly: ignore[unbound-name]  TB is read only when the scan ran (tb_bad empty)
             "; ".join(tb_bad[:3]) or "%d shared modules clean" % len(TB.SHARED_MODULES),
         )
     )

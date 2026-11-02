@@ -312,6 +312,7 @@ def run(dry=False):
         last_model, last_scale = model, scale
 
     # Holdout — scored once by the final fold's model, never tuned on.
+    # pyrefly: ignore[not-callable]  set by the fold loop; >= 2000 rows guarantees at least one fold
     hold_scored = [(last_scale(predict(last_model, r["feats"])), r["y"]) for r in hold]
     holdout = {
         "n": len(hold),
