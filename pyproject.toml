@@ -1,0 +1,41 @@
+[project]
+name = "smid-scanner"
+version = "0.1.0"
+description = "TickerDesk (tickerdesk.io): SMID-cap scanners, research reports and the data jobs behind the site."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "yfinance>=1.7,<2",
+    "lxml>=6.1,<7",
+    "anthropic>=2.4,<3",
+    "requests>=2.34,<3",
+    "pytz>=2026.1",           # calendar-versioned (tz database year): no upper bound
+    "python-dotenv>=1.2,<2",
+    "mplfinance>=0.12.10b0,<1",  # every mplfinance release is a beta
+    "matplotlib>=3.11,<4",
+    "fpdf2>=2.9,<3",
+    "pandas>=3.1,<4",
+    "supabase>=2.33,<3",
+    "pywebpush>=2.5,<3",
+    # research brief v2 — PDF render, metadata and validation
+    "reportlab>=5.1,<6",      # Platypus renderer (report_v2.py)
+    "pikepdf>=10.17,<11",     # catalog/XMP metadata + libqpdf structural check
+    "pypdf>=6.21,<7",         # strict-parser gate
+    "PyMuPDF>=2.1,<3",        # page render audit + clipping/collision probe
+    # imported directly; previously only arrived as a dependency of pandas
+    "numpy>=2.5,<3",
+    # X/Twitter posting (scripts/x_post.py); social_post.yml used to pip install it ad hoc
+    "tweepy>=4.17,<5",
+    # mplfinance imports six without declaring it; python-dateutil 4 stopped
+    # pulling it in (scanner.yml failing with "No module named 'six'" since 2026-11-02)
+    "six>=1.17,<2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2,<10",
+    "pytest-xdist>=3.8,<4",
+    "ruff>=0.17,<0.18",       # Ruff minor releases can change formatting; move deliberately
+    "pyrefly>=1.4,<2",
+    "pandas-stubs>=3.1,<4",
+]
