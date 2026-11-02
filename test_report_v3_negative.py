@@ -26,6 +26,8 @@ import os
 import sys
 import tempfile
 
+import pytest
+
 import report_v3_evidence as EV
 import report_v3_model as M
 import report_v3_validate as V
@@ -286,6 +288,22 @@ FIXTURES = [
     fx_news_count,
     fx_modified_after_validation,
 ]
+
+
+@pytest.mark.parametrize("fixture", FIXTURES, ids=lambda f: f.__name__)
+def test_negative_fixture_is_caught(fixture):
+    """Each defect fixture must be caught by the check that owns it."""
+    name, ok, detail = fixture()
+    assert ok, "%s: %s" % (name, detail)
+
+
+def test_control_clean_package_raises_no_model_failure():
+    s = clean_snap()
+    v = M.build(s)
+    bad = [c for c in V.check_model(v, s, evidence_for()) if c["status"] == V.FAIL]
+    assert not bad, "CONTROL: a clean package raises no model failure: %s" % [
+        c["check_id"] for c in bad
+    ]
 
 
 def main():

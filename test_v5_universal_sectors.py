@@ -16,24 +16,11 @@ run. The suite asserts:
 
 import sys
 
+import pytest
+
 import report_v5_adapters as ADP
 import report_v5_capability as CAP
 import report_v5_framework as FW
-
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-
-PASS, FAIL = 0, []
-
-
-def check(name, ok, detail=""):
-    global PASS
-    if ok:
-        PASS += 1
-        print("  PASS  %s" % name)
-    else:
-        FAIL.append(name)
-        print("  FAIL  %s  %s" % (name, detail))
 
 
 def F(v, refs=None):
@@ -144,139 +131,145 @@ FOREIGN = {
     "energy_materials": "FFO",
 }
 
-for tk, sector, industry, want_key, want_slot in SECTORS:
-    snap, profile, multiples = make(sector, industry)
-    ad = ADP.classify(profile, snap)
-    check(
-        "%s -> %s adapter" % (tk, want_key),
-        ad["key"] == want_key,
-        "%s (%s)" % (ad["key"], ad["reason"]),
-    )
-    rows = ADP.build_dashboard(ad, snap)
-    labels = " | ".join(r[0] for r in rows)
-    check("%s dashboard carries its own sector slot" % tk, want_slot in labels, labels[:120])
-    foreign = FOREIGN[want_key]
-    check(
-        "%s dashboard borrows nothing (%r absent)" % (tk, foreign),
-        foreign not in labels,
-        labels[:120],
-    )
-    absent = [r for r in rows if r[1] == "no admitted source"]
-    check(
-        "%s missing sector data degrades to absent slots" % tk,
-        all(
-            "not" in r[2]
-            or "parsing" in r[2]
-            or "requires" in r[2]
-            or "derivable" in r[2]
-            or "filed" in r[2]
-            for r in absent
+
+def test_unseen_tickers_generalize(check):
+    for tk, sector, industry, want_key, want_slot in SECTORS:
+        snap, profile, multiples = make(sector, industry)
+        ad = ADP.classify(profile, snap)
+        check(
+            "%s -> %s adapter" % (tk, want_key),
+            ad["key"] == want_key,
+            "%s (%s)" % (ad["key"], ad["reason"]),
         )
-        and absent,
-        "%d absent slots" % len(absent),
+        rows = ADP.build_dashboard(ad, snap)
+        labels = " | ".join(r[0] for r in rows)
+        check("%s dashboard carries its own sector slot" % tk, want_slot in labels, labels[:120])
+        foreign = FOREIGN[want_key]
+        check(
+            "%s dashboard borrows nothing (%r absent)" % (tk, foreign),
+            foreign not in labels,
+            labels[:120],
+        )
+        absent = [r for r in rows if r[1] == "no admitted source"]
+        check(
+            "%s missing sector data degrades to absent slots" % tk,
+            all(
+                "not" in r[2]
+                or "parsing" in r[2]
+                or "requires" in r[2]
+                or "derivable" in r[2]
+                or "filed" in r[2]
+                for r in absent
+            )
+            and absent,
+            "%d absent slots" % len(absent),
+        )
+
+    # ── pre-revenue company ──────────────────────────────────────────────
+    snap, profile, multiples = make(
+        "Healthcare", "Biotechnology", sessions=400, quarters=0, pre_revenue=True
+    )
+    # §1 (v5.8): the SECTOR selects the adapter (biotech); the established
+    # PRE_REVENUE stage is an overlay — and crucially, missing data alone
+    # (no stage argument) must NEVER route a sector-classified issuer to
+    # the pre-revenue dashboard
+    ad = ADP.classify(profile, snap, stage="PRE_REVENUE")
+    check(
+        "pre-revenue biotech -> biotech adapter (stage overlay)",
+        ad["key"] == "biotech" and not ad["policy"]["valuation_allowed"],
+        "%s / valuation_allowed=%s" % (ad["key"], ad["policy"]["valuation_allowed"]),
+    )
+    ad_missing = ADP.classify(profile, snap)  # no established stage
+    check(
+        "missing data alone never selects the pre-revenue dashboard",
+        ad_missing["key"] == "biotech",
+        ad_missing["key"],
+    )
+    ad_gen = ADP.classify({"sector": "", "industry": ""}, {"business": {}}, stage="PRE_REVENUE")
+    check(
+        "sector-less established pre-revenue -> pre_revenue dashboard",
+        ad_gen["key"] == "pre_revenue",
+        ad_gen["key"],
+    )
+    ad = ADP.classify(profile, snap, stage="PRE_REVENUE")
+    rows = ADP.build_dashboard(ad, snap)
+    check(
+        "pre-revenue dashboard carries no revenue-value metric",
+        all(
+            not r[0].lower().startswith("quarterly revenue")
+            and "revenue growth" not in r[0].lower()
+            for r in rows
+        ),
+        " | ".join(r[0] for r in rows),
     )
 
-# ── pre-revenue company ──────────────────────────────────────────────
-snap, profile, multiples = make(
-    "Healthcare", "Biotechnology", sessions=400, quarters=0, pre_revenue=True
-)
-# §1 (v5.8): the SECTOR selects the adapter (biotech); the established
-# PRE_REVENUE stage is an overlay — and crucially, missing data alone
-# (no stage argument) must NEVER route a sector-classified issuer to
-# the pre-revenue dashboard
-ad = ADP.classify(profile, snap, stage="PRE_REVENUE")
-check(
-    "pre-revenue biotech -> biotech adapter (stage overlay)",
-    ad["key"] == "biotech" and not ad["policy"]["valuation_allowed"],
-    "%s / valuation_allowed=%s" % (ad["key"], ad["policy"]["valuation_allowed"]),
-)
-ad_missing = ADP.classify(profile, snap)  # no established stage
-check(
-    "missing data alone never selects the pre-revenue dashboard",
-    ad_missing["key"] == "biotech",
-    ad_missing["key"],
-)
-ad_gen = ADP.classify({"sector": "", "industry": ""}, {"business": {}}, stage="PRE_REVENUE")
-check(
-    "sector-less established pre-revenue -> pre_revenue dashboard",
-    ad_gen["key"] == "pre_revenue",
-    ad_gen["key"],
-)
-ad = ADP.classify(profile, snap, stage="PRE_REVENUE")
-rows = ADP.build_dashboard(ad, snap)
-check(
-    "pre-revenue dashboard carries no revenue-value metric",
-    all(
-        not r[0].lower().startswith("quarterly revenue") and "revenue growth" not in r[0].lower()
-        for r in rows
-    ),
-    " | ".join(r[0] for r in rows),
-)
+    # ── new listing ──────────────────────────────────────────────────────
+    snap, profile, multiples = make(
+        "Industrials",
+        "Aerospace & Defense",
+        sessions=25,
+        quarters=0,
+        listing="2026-06-12",
+        full_history=False,
+    )
+    snap["fundamentals"] = {}
+    multiples["pe"]["available"] = False
+    cap = CAP.evidence_capability(snap, multiples, {}, None)
+    fw = FW.build_coverage(
+        profile, cap, snap, None, multiples, ADP.classify(profile, snap, "NEW_LISTING")
+    )
+    arch = CAP.route(profile, cap, {}, multiples, framework=fw)
+    check(
+        "new listing routes NEW_LISTING", arch["archetype"] == "NEW_LISTING", arch["routing_reason"]
+    )
 
-# ── new listing ──────────────────────────────────────────────────────
-snap, profile, multiples = make(
-    "Industrials",
-    "Aerospace & Defense",
-    sessions=25,
-    quarters=0,
-    listing="2026-06-12",
-    full_history=False,
-)
-snap["fundamentals"] = {}
-multiples["pe"]["available"] = False
-cap = CAP.evidence_capability(snap, multiples, {}, None)
-fw = FW.build_coverage(
-    profile, cap, snap, None, multiples, ADP.classify(profile, snap, "NEW_LISTING")
-)
-arch = CAP.route(profile, cap, {}, multiples, framework=fw)
-check("new listing routes NEW_LISTING", arch["archetype"] == "NEW_LISTING", arch["routing_reason"])
+    # ── FULL_THIN enforcement (§6) ───────────────────────────────────────
+    snap, profile, multiples = make("Technology", "Software - Application")
+    cap = CAP.evidence_capability(snap, multiples, {}, None)
+    ad = ADP.classify(profile, snap)
+    fw = FW.build_coverage(profile, cap, snap, None, multiples, ad)
+    arch = CAP.route(profile, cap, {}, multiples, framework=fw)
+    check(
+        "financially complete + NOT_ASSESSED qualitative -> FULL_THIN (never FULL)",
+        arch["archetype"] == "FULL_THIN",
+        "%s / missing: %s" % (arch["archetype"], arch.get("missing_framework_dimensions")),
+    )
+    check(
+        "missing framework dimensions recorded on the routing record",
+        bool(arch.get("missing_framework_dimensions")),
+        str(arch.get("missing_framework_dimensions")),
+    )
+    check(
+        "framework coverage carries all 26 dimensions",
+        len(fw["dimensions"]) == 26 and set(fw["dimensions"]) == set(FW.TIGER_DIMENSIONS),
+        "%d dims" % len(fw["dimensions"]),
+    )
 
-# ── FULL_THIN enforcement (§6) ───────────────────────────────────────
-snap, profile, multiples = make("Technology", "Software - Application")
-cap = CAP.evidence_capability(snap, multiples, {}, None)
-ad = ADP.classify(profile, snap)
-fw = FW.build_coverage(profile, cap, snap, None, multiples, ad)
-arch = CAP.route(profile, cap, {}, multiples, framework=fw)
-check(
-    "financially complete + NOT_ASSESSED qualitative -> FULL_THIN (never FULL)",
-    arch["archetype"] == "FULL_THIN",
-    "%s / missing: %s" % (arch["archetype"], arch.get("missing_framework_dimensions")),
-)
-check(
-    "missing framework dimensions recorded on the routing record",
-    bool(arch.get("missing_framework_dimensions")),
-    str(arch.get("missing_framework_dimensions")),
-)
-check(
-    "framework coverage carries all 26 dimensions",
-    len(fw["dimensions"]) == 26 and set(fw["dimensions"]) == set(FW.TIGER_DIMENSIONS),
-    "%d dims" % len(fw["dimensions"]),
-)
-
-# routing must consult data, not identity: same inputs, different
-# ticker string, identical decision
-snap2, profile2, multiples2 = make("Technology", "Software - Application")
-arch2 = CAP.route(
-    profile2,
-    CAP.evidence_capability(snap2, multiples2, {}, None),
-    {},
-    multiples2,
-    framework=FW.build_coverage(
+    # routing must consult data, not identity: same inputs, different
+    # ticker string, identical decision
+    snap2, profile2, multiples2 = make("Technology", "Software - Application")
+    arch2 = CAP.route(
         profile2,
         CAP.evidence_capability(snap2, multiples2, {}, None),
-        snap2,
-        None,
+        {},
         multiples2,
-        ADP.classify(profile2, snap2),
-    ),
-)
-check(
-    "identical evidence -> identical routing regardless of symbol",
-    arch2["archetype"] == arch["archetype"],
-    arch2["archetype"],
-)
+        framework=FW.build_coverage(
+            profile2,
+            CAP.evidence_capability(snap2, multiples2, {}, None),
+            snap2,
+            None,
+            multiples2,
+            ADP.classify(profile2, snap2),
+        ),
+    )
+    check(
+        "identical evidence -> identical routing regardless of symbol",
+        arch2["archetype"] == arch["archetype"],
+        arch2["archetype"],
+    )
 
-print("\n%d/%d checks passed" % (PASS, PASS + len(FAIL)))
-if FAIL:
-    print("FAILED: " + ", ".join(FAIL))
-sys.exit(1 if FAIL else 0)
+
+if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    raise SystemExit(pytest.main([__file__, "-q"]))

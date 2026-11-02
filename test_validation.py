@@ -37,11 +37,8 @@ def check(area, name, ok, detail=""):
     return ok
 
 
-def main():
-    for p in (EML, HTML, TXT, MODEL):
-        if not os.path.exists(p):
-            sys.exit("missing %s — run: python daily_brief.py --dry-run" % p)
-
+def run_checks(check):
+    """Every published check; `check(area, name, ok, detail)` records each one."""
     model = json.load(open(MODEL, encoding="utf-8"))
     html_file = open(HTML, encoding="utf-8").read()
     txt_file = open(TXT, encoding="utf-8").read()
@@ -521,6 +518,19 @@ def main():
         "OI confirmed" not in body,
         "legacy 'OI confirmed' language",
     )
+
+
+def test_published_validation_report(check):
+    # Under pytest each (area, check) pair is reported as its own subtest.
+    run_checks(lambda area, name, ok, detail="": check("%s: %s" % (area, name), ok, detail))
+
+
+def main():
+    for p in (EML, HTML, TXT, MODEL):
+        if not os.path.exists(p):
+            sys.exit("missing %s — run: python daily_brief.py --dry-run" % p)
+
+    run_checks(check)
 
     # ── report
     if "--json" in sys.argv:

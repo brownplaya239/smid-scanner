@@ -136,16 +136,7 @@ FIXTURES = [
 ]
 
 
-def main():
-    write = "--write" in sys.argv
-    fails, ran = [], [0]
-
-    def chk(n, c, d=""):
-        ran[0] += 1
-        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
-        if not c:
-            fails.append(n)
-
+def run_checks(chk, write=False):
     print("-- one fixture per state --")
     dumps = {}
     seen_states = set()
@@ -338,6 +329,21 @@ def main():
             json.dump(cal, f, indent=1)
         print("\n  wrote %d fixtures + calibration.json to %s" % (len(dumps), d))
 
+
+def test_oi_states_and_reconciliation(check):
+    run_checks(check)
+
+
+def main():
+    fails, ran = [], [0]
+
+    def chk(n, c, d=""):
+        ran[0] += 1
+        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
+        if not c:
+            fails.append(n)
+
+    run_checks(chk, write="--write" in sys.argv)
     print("\n%d/%d checks passed" % (ran[0] - len(fails), ran[0]))
     if fails:
         print("FAILED: " + "; ".join(fails[:6]))

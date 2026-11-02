@@ -39,15 +39,7 @@ LONG_URL = (
 )
 
 
-def main():
-    fails, ran = [], [0]
-
-    def chk(n, c, d=""):
-        ran[0] += 1
-        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
-        if not c:
-            fails.append(n)
-
+def run_checks(chk):
     # ── every code maps to fields, and only fires from them
     print("\n-- reason codes --")
     chk(
@@ -146,6 +138,21 @@ def main():
     chk("HTML keeps the long event title too", LONG_TITLE in hb)
     chk("HTML keeps the long headline too", LONG_HEADLINE in hb)
 
+
+def test_reason_codes_and_wrapping(check):
+    run_checks(check)
+
+
+def main():
+    fails, ran = [], [0]
+
+    def chk(n, c, d=""):
+        ran[0] += 1
+        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
+        if not c:
+            fails.append(n)
+
+    run_checks(chk)
     print("\n%d/%d checks passed" % (ran[0] - len(fails), ran[0]))
     if fails:
         print("FAILED: " + "; ".join(fails[:6]))

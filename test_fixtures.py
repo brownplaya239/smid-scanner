@@ -297,16 +297,7 @@ CASES = [
 ]
 
 
-def main():
-    write = "--write" in sys.argv
-    fails, ran = [], [0]
-
-    def chk(n, c, d=""):
-        ran[0] += 1
-        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
-        if not c:
-            fails.append(n)
-
+def run_checks(chk, write=False):
     for name, market, wk, nk in CASES:
         print("\n== %s ==" % name)
         model = build(name, market, wk, nk)
@@ -396,6 +387,21 @@ def main():
             open(os.path.join(d, "%s.txt" % name), "w", encoding="utf-8").write(txt)
             print("  wrote fixtures/%s.{html,txt}" % name)
 
+
+def test_brief_under_three_regimes(check):
+    run_checks(check)
+
+
+def main():
+    fails, ran = [], [0]
+
+    def chk(n, c, d=""):
+        ran[0] += 1
+        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
+        if not c:
+            fails.append(n)
+
+    run_checks(chk, write="--write" in sys.argv)
     print("\n%d/%d checks passed" % (ran[0] - len(fails), ran[0]))
     if fails:
         print("FAILED: " + "; ".join(fails[:8]))

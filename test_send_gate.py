@@ -140,6 +140,20 @@ CASES = [
 ]
 
 
+def run_checks(chk):
+    # control first: if this does not pass, every block below is meaningless
+    clean = BC.validate_send(**base())
+    chk("CONTROL: a clean payload passes", clean == [], clean)
+
+    for name, mut in CASES:
+        got = BC.validate_send(**base(**mut))
+        chk("blocks: %s" % name, bool(got), "gate returned no problems")
+
+
+def test_send_gate_blocks(check):
+    run_checks(check)
+
+
 def main():
     fails, ran = [], [0]
 
@@ -149,14 +163,7 @@ def main():
         if not c:
             fails.append(n)
 
-    # control first: if this does not pass, every block below is meaningless
-    clean = BC.validate_send(**base())
-    chk("CONTROL: a clean payload passes", clean == [], clean)
-
-    for name, mut in CASES:
-        got = BC.validate_send(**base(**mut))
-        chk("blocks: %s" % name, bool(got), "gate returned no problems")
-
+    run_checks(chk)
     print("\n%d/%d checks passed" % (ran[0] - len(fails), ran[0]))
     if fails:
         print("FAILED: " + "; ".join(fails))

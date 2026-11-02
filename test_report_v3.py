@@ -202,20 +202,20 @@ def base_snap():
 # ── the trigger ladder ──────────────────────────────────────────────────
 
 
-def test_ladder():
+def test_ladder(check):
     print("\ntrigger ladder — the order must come from the data")
     # A downtrend puts the 20-day BELOW the 50-day. v2's flat
     # upgrade/downside rows assumed the opposite and told the reader to
     # wait for a level they had already cleared.
     down = {"ma20": fact(95.0), "ma50": fact(105.0), "ma200": fact(115.0)}
     got = [r["label"] for r in M.ladder(down, 100.0)]
-    chk(
+    check(
         "downtrend: 20-day is ordered below the 50-day",
         got == ["20-day average", "50-day average", "200-day average"],
         got,
     )
     rec = [r["label"] for r in M.recovery_stages(down, 100.0)]
-    chk(
+    check(
         "downtrend: the 20-day is not offered as an upside trigger",
         rec == ["50-day average", "200-day average"],
         rec,
@@ -223,15 +223,15 @@ def test_ladder():
 
     up = {"ma20": fact(115.0), "ma50": fact(105.0), "ma200": fact(95.0)}
     got = [r["label"] for r in M.ladder(up, 100.0)]
-    chk(
+    check(
         "uptrend: the same code orders 200 < 50 < 20",
         got == ["200-day average", "50-day average", "20-day average"],
         got,
     )
     rec = [(r["label"], r["value"]) for r in M.recovery_stages(up, 100.0)]
-    chk("uptrend: upside stages ascend", [v for _, v in rec] == sorted(v for _, v in rec), rec)
+    check("uptrend: upside stages ascend", [v for _, v in rec] == sorted(v for _, v in rec), rec)
 
-    chk(
+    check(
         "levels below spot are ordered nearest-first",
         [r["value"] for r in M.downside_stages(up, 100.0)] == [95.0],
         "",
@@ -241,24 +241,26 @@ def test_ladder():
 # ── risk boundary vs invalidation ───────────────────────────────────────
 
 
-def test_exit():
+def test_exit(check):
     print("\nrisk boundary vs invalidation")
     s = base_snap()
     ex = M.exit_level(s)
-    chk("with no position the exit is a risk boundary", ex["label"] == "Risk boundary", ex["label"])
-    chk(
+    check(
+        "with no position the exit is a risk boundary", ex["label"] == "Risk boundary", ex["label"]
+    )
+    check(
         "the boundary cites a documented low, not a round number",
         "60-session closing low" in (ex["basis"] or ""),
         ex["basis"],
     )
     s2 = base_snap()
     s2["decision"]["position_plan"] = {"entry": 99.0}
-    chk(
+    check(
         "with a position on the book it becomes an invalidation",
         M.exit_level(s2)["label"] == "Invalidation",
         "",
     )
-    chk(
+    check(
         "a long horizon demands a wider stop than a short one",
         M.horizon_floor("12-18 months") > M.horizon_floor("1-3 months"),
         "",
@@ -268,29 +270,29 @@ def test_exit():
 # ── catalyst separation ─────────────────────────────────────────────────
 
 
-def test_catalysts():
+def test_catalysts(check):
     print("\ncatalysts: reported, driving, next")
     s = base_snap()
     # an 8-K accepted after the report has not happened yet
     s["catalyst"]["event_dt"] = "2026-07-16T23:00:00+00:00"
     c = M.catalysts(s)
-    chk(
+    check(
         "an event later than the report is not the last reported one",
         c["last_reported"] is None,
         c["last_reported"],
     )
-    chk("...it is listed as scheduled instead", bool(c["scheduled"]) and bool(c["next"]), "")
+    check("...it is listed as scheduled instead", bool(c["scheduled"]) and bool(c["next"]), "")
     s = base_snap()
     s["catalyst"]["event_dt"] = "2026-05-01T12:00:00+00:00"  # 76 days old
     c = M.catalysts(s)
-    chk(
+    check(
         "a 76-day-old filing is not sold as the current driver",
         c["current_driver"]["grade"] != M.DERIVED,
         c["current_driver"],
     )
     s = base_snap()
     c = M.catalysts(s)
-    chk(
+    check(
         "a 6-day-old filing may be the current driver",
         c["current_driver"]["grade"] == M.DERIVED,
         c["current_driver"],
@@ -300,13 +302,13 @@ def test_catalysts():
 # ── snapshot-shape robustness ───────────────────────────────────────────
 
 
-def test_shapes():
+def test_shapes(check):
     print("\nsnapshot shapes the renderer used to get wrong")
     s = base_snap()
-    chk("spot is found in price.last when levels carries no price", M.spot(s) == 100.0, M.spot(s))
+    check("spot is found in price.last when levels carries no price", M.spot(s) == 100.0, M.spot(s))
     s2 = base_snap()
     s2["levels"]["price_used"] = fact(101.5)
-    chk("levels.price_used wins when present", M.spot(s2) == 101.5, "")
+    check("levels.price_used wins when present", M.spot(s2) == 101.5, "")
 
     # the older alt shape reports n_dropped_irrelevant and a coordination
     # sentence; the live one reports n_rejected and a dict
@@ -318,12 +320,12 @@ def test_shapes():
         "coordination": "5 phrases repeated",
     }
     sv = M.social_view(s3)
-    chk(
+    check(
         "legacy alt shape reconciles 144 = 58 + 86",
         sv["n_considered"] == sv["n_counted"] + sv["n_rejected"],
         (sv["n_considered"], sv["n_counted"], sv["n_rejected"]),
     )
-    chk(
+    check(
         "a coordination sentence does not become a phrase-group count",
         sv["coordination"]["posts_affected"] is None,
         "",
@@ -333,11 +335,11 @@ def test_shapes():
 # ── what changed ────────────────────────────────────────────────────────
 
 
-def test_changed():
+def test_changed(check):
     print("\nwhat changed since the previous report")
     s = base_snap()
     ch = M.what_changed(s, prior=None)
-    chk(
+    check(
         "with no prior report we say so rather than inventing a delta",
         ch["first_report"] and not ch["items"],
         "",
@@ -354,8 +356,8 @@ def test_changed():
     }
     ch = M.what_changed(s, prior=prior)
     txt = " ".join(i["text"] for i in ch["items"])
-    chk("a price move is reported with both endpoints", "90.00 to 100.00" in txt, txt)
-    chk("an action change is reported", "WAIT to HOLD" in txt, txt)
+    check("a price move is reported with both endpoints", "90.00 to 100.00" in txt, txt)
+    check("an action change is reported", "WAIT to HOLD" in txt, txt)
 
 
 # ── the semantic gate ───────────────────────────────────────────────────
@@ -437,19 +439,19 @@ MUTATIONS = [
 ]
 
 
-def test_model_gate():
+def test_model_gate(check):
     print("\nsemantic gate — each case injects exactly one defect")
     snap = base_snap()
     view = M.build(snap)
     clean = [c for c in V.check_model(view, snap) if c["status"] == V.FAIL]
-    chk("CONTROL: a clean model passes", not clean, [c["check_id"] for c in clean])
+    check("CONTROL: a clean model passes", not clean, [c["check_id"] for c in clean])
 
     for name, mutate, want in MUTATIONS:
         s = copy.deepcopy(snap)
         v = M.build(s)
         mutate(v, s)
         got = codes(V.check_model(v, s))
-        chk("blocks: %s" % name, want in got, "got %s" % (sorted(got) or "[]"))
+        check("blocks: %s" % name, want in got, "got %s" % (sorted(got) or "[]"))
 
 
 # ── the rendered artefact ───────────────────────────────────────────────
@@ -468,7 +470,7 @@ def _pdf(draw, pages=1):
     return buf.getvalue()
 
 
-def test_pdf_gate():
+def test_pdf_gate(check):
     print("\npage gate — measured off the rendered file")
 
     def good(cv, p):
@@ -477,21 +479,23 @@ def test_pdf_gate():
             cv.drawString(50, 720 - i * 11, "Ordinary body copy on line %d." % i)
 
     clean = codes(V.check_pdf(_pdf(good), core=True), True)
-    chk("CONTROL: a well-filled page passes", not clean, sorted(clean))
+    check("CONTROL: a well-filled page passes", not clean, sorted(clean))
 
     def tiny(cv, p):
         good(cv, p)
         cv.setFont(R3.FONT, 7.5)
         cv.drawString(50, 60, "a footnote nobody can read")
 
-    chk("blocks: type below the 9pt floor", "TYPE_SIZE" in codes(V.check_pdf(_pdf(tiny)), True), "")
+    check(
+        "blocks: type below the 9pt floor", "TYPE_SIZE" in codes(V.check_pdf(_pdf(tiny)), True), ""
+    )
 
     def intent(cv, p):
         good(cv, p)
         cv.setFont(R3.FONT, 10)
         cv.drawString(50, 40, "Institutions are accumulating the shares.")
 
-    chk(
+    check(
         "blocks: a claim to know why an institution traded",
         "INSTITUTIONAL_INTENT" in codes(V.check_pdf(_pdf(intent)), True),
         "",
@@ -501,7 +505,7 @@ def test_pdf_gate():
         good(cv, p)
         cv.drawString(50, 40, "Smart money is positioning here.")
 
-    chk(
+    check(
         "blocks: 'smart money'", "INSTITUTIONAL_INTENT" in codes(V.check_pdf(_pdf(smart)), True), ""
     )
 
@@ -509,7 +513,7 @@ def test_pdf_gate():
         good(cv, p)
         cv.drawString(50, 40, "Revenue &amp; margin")
 
-    chk(
+    check(
         "blocks: an HTML entity reaching the page",
         "HTML_ENTITIES" in codes(V.check_pdf(_pdf(entity)), True),
         "",
@@ -519,7 +523,7 @@ def test_pdf_gate():
         if p == 0:
             good(cv, p)
 
-    chk(
+    check(
         "blocks: a page with no text",
         "BLANK_PAGE" in codes(V.check_pdf(_pdf(blank, pages=2)), True),
         "",
@@ -534,7 +538,9 @@ def test_pdf_gate():
             good(cv, p)
 
     got = codes(V.check_pdf(_pdf(short, pages=2)), True)
-    chk("blocks: a half-empty page with content after it", "NEARLY_BLANK_PAGE" in got, sorted(got))
+    check(
+        "blocks: a half-empty page with content after it", "NEARLY_BLANK_PAGE" in got, sorted(got)
+    )
 
     def short_last(cv, p):
         cv.setFont(R3.FONT, 10)
@@ -544,18 +550,18 @@ def test_pdf_gate():
             for i in range(6):
                 cv.drawString(50, 720 - i * 11, "a short closing page")
 
-    chk(
+    check(
         "allows: a final page that simply ends",
         "NEARLY_BLANK_PAGE" not in codes(V.check_pdf(_pdf(short_last, pages=2)), True),
         "",
     )
 
-    chk(
+    check(
         "blocks: a core brief longer than four pages",
         "PAGE_COUNT" in codes(V.check_pdf(_pdf(good, pages=5), core=True), True),
         "",
     )
-    chk(
+    check(
         "allows: an appendix longer than four pages",
         "PAGE_COUNT" not in codes(V.check_pdf(_pdf(good, pages=5), core=False), True),
         "",
@@ -570,12 +576,12 @@ def test_pdf_gate():
         good(cv, p)
         cv.drawString(50, 40, excerpt)
 
-    chk(
+    check(
         "blocks: a raw post excerpt in the core brief",
         "RAW_SOCIAL_CONTAINMENT" in codes(V.check_pdf(_pdf(social), snap, core=True), True),
         "",
     )
-    chk(
+    check(
         "allows: the same excerpt in the appendix",
         "RAW_SOCIAL_CONTAINMENT" not in codes(V.check_pdf(_pdf(social), snap, core=False), True),
         "",
@@ -598,13 +604,13 @@ def _bars(n=280, last=100.0):
     }
 
 
-def test_build():
+def test_build(check):
     print("\nend to end")
     import report_chart_v3 as C
 
     snap, mk = base_snap(), _bars()
     mini, full = C.mini_chart(mk), C.full_chart(mk, [100.0] * 280)
-    chk("both charts render", bool(mini) and bool(full), "")
+    check("both charts render", bool(mini) and bool(full), "")
     core = R3.build_core(snap, chart_png=mini, chart_full=full, allow_demo=False)
     import fitz
 
@@ -612,18 +618,18 @@ def test_build():
     n = d.page_count
     txt = "\n".join(d[i].get_text() for i in range(n))
     d.close()
-    chk("the core brief is exactly four pages", n == 4, n)
-    chk("no page is empty", all(txt for _ in range(1)), "")
-    chk(
+    check("the core brief is exactly four pages", n == 4, n)
+    check("no page is empty", all(txt for _ in range(1)), "")
+    check(
         "the reader is shown Eastern time, not a bare Z string",
         " ET" in txt and "T20:00:00Z" not in txt,
         "",
     )
-    chk("every grade legend entry appears", all(g in txt for g in ("[OBS]", "[DER]")), "")
+    check("every grade legend entry appears", all(g in txt for g in ("[OBS]", "[DER]")), "")
     probs = codes(V.check_pdf(core, snap, core=True))
-    chk("the rendered brief passes its own page gate", not probs, sorted(probs))
+    check("the rendered brief passes its own page gate", not probs, sorted(probs))
     ev = M.build(snap)
-    chk(
+    check(
         "the evidence bundle keeps UTC while the page shows ET",
         ev["report_time_utc"].endswith("Z"),
         ev["report_time_utc"],
@@ -641,7 +647,7 @@ def main():
         test_pdf_gate,
         test_build,
     ):
-        t()
+        t(chk)
     print("\n%d/%d checks passed" % (RAN[0] - len(FAILS), RAN[0]))
     if FAILS:
         print("FAILED: " + "; ".join(FAILS))

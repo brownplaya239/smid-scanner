@@ -14,25 +14,16 @@ itself is checked by eye through render_v4_preview.
 import glob
 import os
 import pickle
-import sys
 
 import fitz  # PyMuPDF
+import pytest
 
 import report_v4 as R4
 import report_v4_event as EV
 import report_v4_model as V4
 
-_pass = _fail = 0
-
-
-def chk(name, cond):
-    global _pass, _fail
-    if cond:
-        _pass += 1
-        print("  PASS  %s" % name)
-    else:
-        _fail += 1
-        print("  FAIL  %s" % name)
+# Reads .snapcache/*.pkl, written by a live report_v3_run (network + API keys).
+pytestmark = pytest.mark.data
 
 
 def _load(t):
@@ -45,35 +36,36 @@ def _pages(data):
     return d.page_count
 
 
-CACHED = sorted(os.path.basename(p)[:-4] for p in glob.glob(".snapcache/*.pkl"))
-if not CACHED:
-    print("no cached snapshots — run report_v3_run on a ticker first")
-    sys.exit(0)
+def test_renderer_on_cached_snapshots(check):
+    CACHED = sorted(os.path.basename(p)[:-4] for p in glob.glob(".snapcache/*.pkl"))
+    if not CACHED:
+        pytest.skip("no cached snapshots — run report_v3_run on a ticker first")
 
-for t in CACHED:
-    snap, prov = _load(t)
-    view = V4.build(snap)  # free tier, no chart
-    core = R4.build_core(snap, view)
-    apx = R4.build_appendix(snap, view, prov=prov)
-    chk("%s core is a PDF" % t, core[:4] == b"%PDF")
-    chk("%s appendix is a PDF" % t, apx[:4] == b"%PDF")
-    if not view.get("flash"):
-        chk("%s core is 6 pages" % t, _pages(core) == 6)
-    else:
-        chk("%s DATA HOLD -> 1-page flash" % t, _pages(core) == 1)
-    chk("%s appendix has content (>=2 pages)" % t, _pages(apx) >= 2)
+    for t in CACHED:
+        snap, prov = _load(t)
+        view = V4.build(snap)  # free tier, no chart
+        core = R4.build_core(snap, view)
+        apx = R4.build_appendix(snap, view, prov=prov)
+        check("%s core is a PDF" % t, core[:4] == b"%PDF")
+        check("%s appendix is a PDF" % t, apx[:4] == b"%PDF")
+        if not view.get("flash"):
+            check("%s core is 6 pages" % t, _pages(core) == 6)
+        else:
+            check("%s DATA HOLD -> 1-page flash" % t, _pages(core) == 1)
+        check("%s appendix has content (>=2 pages)" % t, _pages(apx) >= 2)
 
-# A forced DATA HOLD must collapse the core to the flash, never 6 pages.
-snap, _ = _load(CACHED[0])
-snap["catalyst"] = dict(
-    snap.get("catalyst") or {},
-    event_kind="primary_release",
-    event_dt="2099-01-01T21:00:00+00:00",
-    verification={"is_results_disclosure": False, "reason": "unparseable"},
-)
-view = V4.build(snap, report_time="2099-01-02T00:00:00+00:00")
-chk("forced DATA HOLD event", view["event"]["state"] == EV.DATA_HOLD)
-chk("DATA HOLD core is the 1-page flash", _pages(R4.build_core(snap, view)) == 1)
+    # A forced DATA HOLD must collapse the core to the flash, never 6 pages.
+    snap, _ = _load(CACHED[0])
+    snap["catalyst"] = dict(
+        snap.get("catalyst") or {},
+        event_kind="primary_release",
+        event_dt="2099-01-01T21:00:00+00:00",
+        verification={"is_results_disclosure": False, "reason": "unparseable"},
+    )
+    view = V4.build(snap, report_time="2099-01-02T00:00:00+00:00")
+    check("forced DATA HOLD event", view["event"]["state"] == EV.DATA_HOLD)
+    check("DATA HOLD core is the 1-page flash", _pages(R4.build_core(snap, view)) == 1)
 
-print("\n%d/%d checks passed" % (_pass, _pass + _fail))
-sys.exit(1 if _fail else 0)
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

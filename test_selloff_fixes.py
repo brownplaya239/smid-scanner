@@ -6,10 +6,25 @@
 
 import json
 import math
+import os
 import unittest
+from unittest import mock
 
 import earnings_edge as ee
-import scanner as sc
+
+sc = None
+
+
+def setUpModule():
+    # scanner.py refuses to import without ANTHROPIC_API_KEY. These tests only
+    # call pure helpers (no API call is made), so a placeholder is set for the
+    # import alone and the environment is restored straight after.
+    global sc
+    key = os.environ.get("ANTHROPIC_API_KEY") or "placeholder-not-used-by-these-tests"
+    with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": key}):
+        import scanner
+
+    sc = scanner
 
 
 class ScannerNumbers(unittest.TestCase):

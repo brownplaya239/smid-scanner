@@ -328,6 +328,24 @@ def _offline():
     return snap, led, pdf, rep, led.audit_snapshot()
 
 
+class _ReportingResults(Results):
+    """Results that also reports every T-check to pytest as its own subtest."""
+
+    def __init__(self, check):
+        super().__init__()
+        self._report = check
+
+    def check(self, num, name, cond, detail=""):
+        ok = super().check(num, name, cond, detail)
+        self._report("T%02d %s" % (num, name), ok, str(detail)[:150])
+        return ok
+
+
+def test_audit_checks_offline(check):
+    """The fifteen audit checks against the offline fixtures (no network)."""
+    run(*_offline(), _ReportingResults(check))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--live", metavar="TICKER")

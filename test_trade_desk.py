@@ -23,6 +23,8 @@ import json
 import os
 from datetime import UTC, datetime, timedelta, timezone
 
+import pytest
+
 import trade_desk as td
 import trade_desk_validation as tdv
 
@@ -775,6 +777,7 @@ def test_no_entity_leaks_in_published_payloads():
         assert not re.search(r"&#x|&amp;|&lt;|&gt;|Ã¢", s), f
 
 
+@pytest.mark.data  # reads docs/reports/*.json (from R2: scripts/r2_sync.py pull-public)
 def test_desk_counts_never_conflate_signal_and_trade():
     """A signal-qualified idea must count under signal_qualified, never
     trade_qualified (reviewer sec 2)."""
@@ -804,6 +807,7 @@ def test_headlines_are_deterministic_templates():
         assert h.get("h") and h.get("d")
 
 
+@pytest.mark.data  # reads docs/reports/*.json (from R2: scripts/r2_sync.py pull-public)
 def test_ledgers_are_split_by_target():
     d = td._load(
         os.path.join(
@@ -929,6 +933,7 @@ def test_ledger_rotation_noop_below_trigger(tmp_path, monkeypatch):
     assert out["rotated"] == 0  # tiny file: no-op
 
 
+@pytest.mark.data  # reads docs/reports/*.json (from R2: scripts/r2_sync.py pull-public)
 def test_published_json_is_browser_strict_parseable():
     """2026-09-21 regression: Python's json emits bare NaN, browsers
     reject it, and one poisoned float blanked the whole Trade Desk.

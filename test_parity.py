@@ -30,15 +30,7 @@ def find_all(text, needle):
     return len(re.findall(re.escape(needle), text))
 
 
-def main():
-    fails, ran = [], [0]
-
-    def chk(n, c, d=""):
-        ran[0] += 1
-        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
-        if not c:
-            fails.append(n)
-
+def run_checks(chk):
     model = BR._demo_model()
     doc = BR.render(model, preheader="parity")
     txt = BX.render_text(model, subject="parity")
@@ -172,6 +164,21 @@ def main():
     chk("no ticker appears in HTML but not text", not extra_html, extra_html)
     chk("no ticker appears in text but not HTML", not extra_txt, extra_txt)
 
+
+def test_html_and_text_bodies_match(check):
+    run_checks(check)
+
+
+def main():
+    fails, ran = [], [0]
+
+    def chk(n, c, d=""):
+        ran[0] += 1
+        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
+        if not c:
+            fails.append(n)
+
+    run_checks(chk)
     print("\n%d/%d checks passed" % (ran[0] - len(fails), ran[0]))
     if fails:
         print("FAILED: " + "; ".join(fails[:8]))

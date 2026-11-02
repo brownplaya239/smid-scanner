@@ -120,3 +120,13 @@ bad-index = "warn"              # 114
 no-matching-overload = "warn"   # 79
 not-iterable = "warn"           # 43
 bad-specialization = "warn"     # 18
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = ["."]
+python_files = ["test_*.py", "*_test.py"]
+addopts = ["-ra", "--strict-markers"]
+markers = [
+    "network: talks to live services (market data, SEC, APIs); deselected in CI",
+    "data: needs data that is not in git (an R2 pull, or .snapcache/ snapshots from a live report run); deselected in CI",
+]

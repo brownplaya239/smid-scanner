@@ -30,17 +30,8 @@ def load():
         return email.message_from_binary_file(f, policy=email.policy.default)
 
 
-def main():
-    if not os.path.exists(EML):
-        sys.exit("no .eml — run: python daily_brief.py --dry-run")
+def run_checks(chk):
     m = load()
-    fails, ran = [], [0]
-
-    def chk(n, c, d=""):
-        ran[0] += 1
-        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
-        if not c:
-            fails.append(n)
 
     html = m.get_body(("html",))
     text = m.get_body(("plain",))
@@ -296,6 +287,23 @@ def main():
     kb = os.path.getsize(EML) / 1024.0
     chk("under the Gmail 102KB clip limit", kb < 102, "%.0f KB" % kb)
 
+
+def test_delivered_eml(check):
+    run_checks(check)
+
+
+def main():
+    if not os.path.exists(EML):
+        sys.exit("no .eml — run: python daily_brief.py --dry-run")
+    fails, ran = [], [0]
+
+    def chk(n, c, d=""):
+        ran[0] += 1
+        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
+        if not c:
+            fails.append(n)
+
+    run_checks(chk)
     print("\n%d/%d checks passed" % (ran[0] - len(fails), ran[0]))
     if fails:
         print("FAILED: " + "; ".join(fails))

@@ -105,18 +105,7 @@ def scan(base=None):
     return bad
 
 
-def main():
-    PASS, FAIL = 0, []
-
-    def check(name, ok, detail=""):
-        nonlocal PASS
-        if ok:
-            PASS += 1
-            print("  PASS  %s" % name)
-        else:
-            FAIL.append(name)
-            print("  FAIL  %s  %s" % (name, detail))
-
+def run_checks(check):
     base = os.path.dirname(os.path.abspath(__file__))
     for mod in SHARED_MODULES:
         path = os.path.join(base, mod)
@@ -129,6 +118,25 @@ def main():
             not branch_hits,
             "; ".join(branch_hits),
         )
+
+
+def test_no_ticker_specific_branches(check):
+    run_checks(check)
+
+
+def main():
+    PASS, FAIL = 0, []
+
+    def check(name, ok, detail=""):
+        nonlocal PASS
+        if ok:
+            PASS += 1
+            print("  PASS  %s" % name)
+        else:
+            FAIL.append(name)
+            print("  FAIL  %s  %s" % (name, detail))
+
+    run_checks(check)
     print("\n%d/%d checks passed" % (PASS, PASS + len(FAIL)))
     if FAIL:
         print("FAILED: " + ", ".join(FAIL))

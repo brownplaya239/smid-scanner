@@ -11,22 +11,10 @@ when the tier gates an endpoint.
 """
 
 import os
-import sys
+
+import pytest
 
 import estimates_provider as P
-
-_pass = _fail = 0
-
-
-def chk(name, cond):
-    global _pass, _fail
-    if cond:
-        _pass += 1
-        print("  PASS  %s" % name)
-    else:
-        _fail += 1
-        print("  FAIL  %s" % name)
-
 
 # ── documented Finnhub response shapes ──────────────────────────────────
 PT = {
@@ -106,117 +94,124 @@ SUR = [
 ]
 
 
-print("full premium payload")
-rec = P.parse_all(
-    {
-        "price_target": (PT, None),
-        "recommendation": (REC, None),
-        "eps": (EPS, None),
-        "rev": (REV, None),
-        "surprises": (SUR, None),
-    }
-)
-chk("configured", rec["configured"] is True)
-chk("target mean parsed", rec["price_target"]["mean"] == 1050.5)
-chk("target carries as-of date", rec["price_target"]["as_of"] == "2026-07-18")
-chk("recommendation band = Buy", rec["recommendation"]["band"] == "Buy")
-chk("recommendation score is weighted mean", rec["recommendation"]["score"] < 2.0)
-chk("EPS estimate parsed", rec["eps_estimate_next"]["avg"] == 4.12)
-chk("revenue estimate parsed", rec["rev_estimate_next"]["avg"] == 3450.0)
-chk("surprises parsed (2)", len(rec["surprises"]) == 2)
-chk("all coverage ok", all(v == "ok" for v in rec["coverage"].values()))
-
-print("\nfree tier: premium endpoints 403, free ones return")
-rec = P.parse_all(
-    {
-        "price_target": (None, "HTTP 403"),
-        "recommendation": (REC, None),
-        "eps": (None, "HTTP 403"),
-        "rev": (None, "HTTP 403"),
-        "surprises": (SUR, None),
-    }
-)
-chk("recommendation still present", rec["recommendation"] is not None)
-chk("surprises still present", len(rec["surprises"]) == 2)
-chk("price target withheld, not invented", rec["price_target"] is None)
-chk("price target marked premium-gated", rec["coverage"]["price_target"] == "premium-gated")
-chk("eps estimate marked premium-gated", rec["coverage"]["eps_estimate"] == "premium-gated")
-chk("free recommendation not marked gated", rec["coverage"]["recommendation"] == "ok")
-
-print("\nempty / malformed bodies")
-rec = P.parse_all(
-    {
-        "price_target": ({"targetMean": 0}, None),  # zero == no data
-        "recommendation": ([], None),
-        "eps": ({"data": []}, None),
-        "rev": (None, None),
-        "surprises": ([], None),
-    }
-)
-chk("zero target mean -> None", rec["price_target"] is None)
-chk("empty recommendation -> None", rec["recommendation"] is None)
-chk("empty eps data -> None", rec["eps_estimate_next"] is None)
-chk("empty surprises -> []", rec["surprises"] == [])
-
-print("\nsurprise rows missing actual/estimate are dropped")
-rec = P.parse_all(
-    {
-        "surprises": (
-            [
-                {"period": "2026-06-30", "actual": None, "estimate": 3.75},
-                {"period": "2026-03-31", "actual": 3.5, "estimate": 3.55, "surprisePercent": -1.4},
-            ],
-            None,
-        )
-    }
-)
-chk("only the complete surprise row survives", len(rec["surprises"]) == 1)
-
-print("\nfails closed with no key")
-saved = os.environ.pop(P.ENV_KEY, None)
-try:
-    r = P.fetch_estimates("NOW")
-    chk("no key -> configured False", r["configured"] is False)
-    chk(
-        "no key -> rating inputs all None",
-        r["price_target"] is None and r["recommendation"] is None,
+def test_finnhub_payload_parsing(check):
+    print("full premium payload")
+    rec = P.parse_all(
+        {
+            "price_target": (PT, None),
+            "recommendation": (REC, None),
+            "eps": (EPS, None),
+            "rev": (REV, None),
+            "surprises": (SUR, None),
+        }
     )
-    chk("no key -> reason recorded", "not set" in (r.get("reason") or ""))
-finally:
-    if saved is not None:
-        os.environ[P.ENV_KEY] = saved
+    check("configured", rec["configured"] is True)
+    check("target mean parsed", rec["price_target"]["mean"] == 1050.5)
+    check("target carries as-of date", rec["price_target"]["as_of"] == "2026-07-18")
+    check("recommendation band = Buy", rec["recommendation"]["band"] == "Buy")
+    check("recommendation score is weighted mean", rec["recommendation"]["score"] < 2.0)
+    check("EPS estimate parsed", rec["eps_estimate_next"]["avg"] == 4.12)
+    check("revenue estimate parsed", rec["rev_estimate_next"]["avg"] == 3450.0)
+    check("surprises parsed (2)", len(rec["surprises"]) == 2)
+    check("all coverage ok", all(v == "ok" for v in rec["coverage"].values()))
 
-print("\nband thresholds")
-chk("all-hold -> Hold", P._rec_consensus(0, 0, 10, 0, 0)[1] == "Hold")
-chk("all-strong-sell -> Sell", P._rec_consensus(0, 0, 0, 0, 5)[1] == "Sell")
-chk("skew to sell -> Underperform", P._rec_consensus(0, 0, 2, 8, 0)[1] == "Underperform")
+    print("\nfree tier: premium endpoints 403, free ones return")
+    rec = P.parse_all(
+        {
+            "price_target": (None, "HTTP 403"),
+            "recommendation": (REC, None),
+            "eps": (None, "HTTP 403"),
+            "rev": (None, "HTTP 403"),
+            "surprises": (SUR, None),
+        }
+    )
+    check("recommendation still present", rec["recommendation"] is not None)
+    check("surprises still present", len(rec["surprises"]) == 2)
+    check("price target withheld, not invented", rec["price_target"] is None)
+    check("price target marked premium-gated", rec["coverage"]["price_target"] == "premium-gated")
+    check("eps estimate marked premium-gated", rec["coverage"]["eps_estimate"] == "premium-gated")
+    check("free recommendation not marked gated", rec["coverage"]["recommendation"] == "ok")
 
-print("\npeer parsing")
-PEERS = ["NOW", "CRM", "WDAY", "TEAM"]
-METRICS = {
-    "CRM": ({"metric": {"peTTM": 42.3}, "symbol": "CRM"}, None),
-    "WDAY": ({"metric": {"peBasicExclExtraTTM": 38.0}, "symbol": "WDAY"}, None),
-    "TEAM": (None, "HTTP 403"),
-}
-pr = P.parse_peers(PEERS, METRICS, "NOW")
-chk("subject dropped from peer rows", all(r["ticker"] != "NOW" for r in pr["rows"]))
-chk("three peer rows", len(pr["rows"]) == 3)
-chk("CRM peTTM parsed", any(r["ticker"] == "CRM" and r["pe"] == 42.3 for r in pr["rows"]))
-chk(
-    "WDAY fallback pe key parsed",
-    any(r["ticker"] == "WDAY" and r["pe"] == 38.0 for r in pr["rows"]),
-)
-chk(
-    "peer with no metric kept with blank pe",
-    any(r["ticker"] == "TEAM" and r["pe"] is None for r in pr["rows"]),
-)
+    print("\nempty / malformed bodies")
+    rec = P.parse_all(
+        {
+            "price_target": ({"targetMean": 0}, None),  # zero == no data
+            "recommendation": ([], None),
+            "eps": ({"data": []}, None),
+            "rev": (None, None),
+            "surprises": ([], None),
+        }
+    )
+    check("zero target mean -> None", rec["price_target"] is None)
+    check("empty recommendation -> None", rec["recommendation"] is None)
+    check("empty eps data -> None", rec["eps_estimate_next"] is None)
+    check("empty surprises -> []", rec["surprises"] == [])
 
-saved = os.environ.pop(P.ENV_KEY, None)
-try:
-    chk("fetch_peers fails closed with no key", P.fetch_peers("NOW") is None)
-finally:
-    if saved is not None:
-        os.environ[P.ENV_KEY] = saved
+    print("\nsurprise rows missing actual/estimate are dropped")
+    rec = P.parse_all(
+        {
+            "surprises": (
+                [
+                    {"period": "2026-06-30", "actual": None, "estimate": 3.75},
+                    {
+                        "period": "2026-03-31",
+                        "actual": 3.5,
+                        "estimate": 3.55,
+                        "surprisePercent": -1.4,
+                    },
+                ],
+                None,
+            )
+        }
+    )
+    check("only the complete surprise row survives", len(rec["surprises"]) == 1)
 
-print("\n%d/%d checks passed" % (_pass, _pass + _fail))
-sys.exit(1 if _fail else 0)
+    print("\nfails closed with no key")
+    saved = os.environ.pop(P.ENV_KEY, None)
+    try:
+        r = P.fetch_estimates("NOW")
+        check("no key -> configured False", r["configured"] is False)
+        check(
+            "no key -> rating inputs all None",
+            r["price_target"] is None and r["recommendation"] is None,
+        )
+        check("no key -> reason recorded", "not set" in (r.get("reason") or ""))
+    finally:
+        if saved is not None:
+            os.environ[P.ENV_KEY] = saved
+
+    print("\nband thresholds")
+    check("all-hold -> Hold", P._rec_consensus(0, 0, 10, 0, 0)[1] == "Hold")
+    check("all-strong-sell -> Sell", P._rec_consensus(0, 0, 0, 0, 5)[1] == "Sell")
+    check("skew to sell -> Underperform", P._rec_consensus(0, 0, 2, 8, 0)[1] == "Underperform")
+
+    print("\npeer parsing")
+    PEERS = ["NOW", "CRM", "WDAY", "TEAM"]
+    METRICS = {
+        "CRM": ({"metric": {"peTTM": 42.3}, "symbol": "CRM"}, None),
+        "WDAY": ({"metric": {"peBasicExclExtraTTM": 38.0}, "symbol": "WDAY"}, None),
+        "TEAM": (None, "HTTP 403"),
+    }
+    pr = P.parse_peers(PEERS, METRICS, "NOW")
+    check("subject dropped from peer rows", all(r["ticker"] != "NOW" for r in pr["rows"]))
+    check("three peer rows", len(pr["rows"]) == 3)
+    check("CRM peTTM parsed", any(r["ticker"] == "CRM" and r["pe"] == 42.3 for r in pr["rows"]))
+    check(
+        "WDAY fallback pe key parsed",
+        any(r["ticker"] == "WDAY" and r["pe"] == 38.0 for r in pr["rows"]),
+    )
+    check(
+        "peer with no metric kept with blank pe",
+        any(r["ticker"] == "TEAM" and r["pe"] is None for r in pr["rows"]),
+    )
+
+    saved = os.environ.pop(P.ENV_KEY, None)
+    try:
+        check("fetch_peers fails closed with no key", P.fetch_peers("NOW") is None)
+    finally:
+        if saved is not None:
+            os.environ[P.ENV_KEY] = saved
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))
