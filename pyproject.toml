@@ -50,6 +50,9 @@ ignore = [
     "E501",     # line length: the formatter owns this
     # PD901 (generic `df` name) was requested too, but Ruff 0.17 removed the rule;
     # listing it only prints a warning on every run.
+    "EXE001",   # shebang but not executable: the repo is edited on Windows, where git does
+    "EXE002",   #   not record the executable bit, and scripts always run as `uv run x.py`.
+    #             (Ruff only applies these two on Linux/macOS, so they failed only in CI.)
 
     # Too many existing hits to fix in the toolchain change. Each is a follow-up;
     # remove a line here once its code is cleaned up. (hit counts as of 2026-11-02)
