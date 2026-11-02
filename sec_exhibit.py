@@ -446,8 +446,8 @@ def _outlook_items(seg):
     for m in _OUT_ITEM_RX.finditer(seg):
         label = " ".join(m.group(1).split())
         # skip boilerplate verbs that satisfy the label shape
-        # BUG (follow-up): the two  bytes in this pattern are literal backspace characters,
-        # not  word boundaries, so this filter never matches. Left as-is in the toolchain PR
+        # BUG (follow-up): the two \x08 bytes in this pattern are literal backspace characters,
+        # not \b word boundaries, so this filter never matches. Left as-is in the toolchain PR
         # because fixing it can change report content.
         if re.search(r"(?i)(call|website|statements?|press|webcast)", label):  # noqa: PLE2510
             continue
