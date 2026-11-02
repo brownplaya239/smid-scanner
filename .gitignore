@@ -44,3 +44,11 @@ docs/cards/
 !/docs/reports/manifest.json
 !/docs/reports/event_overrides.json
 .r2_manifest.json
+
+# ── Toolchain (uv, Ruff, Pyrefly, pytest, Bun/lefthook) ──────────────
+.venv/
+.ruff_cache/
+.pytest_cache/
+.pyrefly/
+node_modules/
+.claude/worktrees/

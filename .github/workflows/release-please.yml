@@ -1,0 +1,29 @@
+name: Release Please
+
+# Keeps an open "release" pull request that collects the changelog from the
+# Conventional Commit titles merged into master (feat, fix, perf, revert are
+# shown; chore, docs, ci, build, test, refactor, style are hidden). Merging
+# that PR writes CHANGELOG.md, bumps version.txt and tags a GitHub release.
+# Needs: Settings > Actions > General > "Allow GitHub Actions to create and
+# approve pull requests". Bot "archive reports" pushes use GITHUB_TOKEN and
+# therefore never start this workflow.
+# Do not add pyproject.toml to release-please: uv.lock records the project
+# version, and every `uv sync --locked` would fail after a release.
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
