@@ -26,6 +26,11 @@ concurrency:
   group: tickerdesk-data
   cancel-in-progress: false
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   momentum:
     runs-on: ubuntu-latest
@@ -43,40 +48,33 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
+
       - name: Pull data from R2
         # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
         # manifest so publish only uploads what this job changed.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 scripts/r2_sync.py pull
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv run scripts/r2_sync.py pull
 
       - name: Run momentum scans
-        run: python momentum_scanner.py
+        run: uv run python momentum_scanner.py
 
       - name: Run swing report card
-        run: python swing_report.py
+        run: uv run python swing_report.py
 
       - name: Missed-opportunity self-audit (learning loop 5)
         # Compares the session's biggest movers against everything we
         # surfaced and attributes each miss to the gate that hid it.
         # Non-fatal: the publish step must never block on this audit.
         continue-on-error: true
-        run: python missed_opportunities.py
+        run: uv run python missed_opportunities.py
 
       - name: Technical fact table (EMAs/RSI/ATR/RS for surfaced names)
         # One nightly computation feeding grade decomposition, the Daily
@@ -87,7 +85,7 @@ jobs:
         # yesterday's picks keep it warm for tomorrow's universe).
         # Non-fatal: yfinance flakes must never block the publish step.
         continue-on-error: true
-        run: python technical_facts.py
+        run: uv run python technical_facts.py
 
       - name: Evening review (self-grade + tomorrow's watchlist)
         # Grades yesterday's picks against today's closes, logs tonight's
@@ -95,14 +93,14 @@ jobs:
         # learner status + the missed audit. File-only inputs (no
         # network) — runs after the steps that produce them.
         continue-on-error: true
-        run: python evening_review.py
+        run: uv run python evening_review.py
 
       - name: Setup outcome tracker (gated historical performance)
         # Logs tonight's top-graded cohort and matures 5-session-old
         # cohorts against actual closes. Per-grade stats stay gated
         # ("accruing") until n>=30 — nothing publishes before it's real.
         continue-on-error: true
-        run: python setup_outcomes.py
+        run: uv run python setup_outcomes.py
 
       - name: Scan outcome tracker (QM + Stockbee, gated)
         # Extends the outcome DB to the two momentum breakout scans.
@@ -110,7 +108,7 @@ jobs:
         # +5d win rate / EV publish immediately (gated n>=30). Runs after
         # the momentum scans that produce momentum_qm/stockbee.json.
         continue-on-error: true
-        run: python scan_outcomes.py
+        run: uv run python scan_outcomes.py
 
       - name: Grade engine room (migrations, persistence, health, learned)
         # The nightly closed-loop commentary: migration matrix + rarity,
@@ -119,14 +117,14 @@ jobs:
         # outcome trackers, and what the learner adjusted. Runs after
         # setup_outcomes + evening_review (it reads their outputs).
         continue-on-error: true
-        run: python grade_engine.py
+        run: uv run python grade_engine.py
 
       - name: Report outcome grader (memo self-grading, gated)
         # Matures logged memo ratings at +21 sessions vs actual closes;
         # per-rating win rates + stated-vs-realized confidence publish
         # only at n>=30. The loop that makes memo confidence measurable.
         continue-on-error: true
-        run: python report_outcomes.py
+        run: uv run python report_outcomes.py
 
       - name: 0DTE idea grader (self-reinforcing, gated)
         # Reconstructs the morning level map + regime for SPY/QQQ/IWM,
@@ -135,7 +133,7 @@ jobs:
         # invalidation), and accrues per-setup-type hit rates gated at
         # n>=30. Same-day resolution → matures fast. Non-fatal.
         continue-on-error: true
-        run: python zdte_ideas.py
+        run: uv run python zdte_ideas.py
 
       - name: Recent-IPO universe + average volume
         # Listing dates (permanent — cached once in data/, later runs only
@@ -144,7 +142,7 @@ jobs:
         # scan, which joins this against the worker's live snapshot.
         # Non-fatal: a reference-API hiccup must never block the publish.
         continue-on-error: true
-        run: python ipo_universe.py
+        run: uv run python ipo_universe.py
 
       - name: Index level statistics (touch/hold/break engine)
         # ~250 sessions of 5m bars per SPY/QQQ/IWM (Polygon; one aggs
@@ -154,7 +152,7 @@ jobs:
         # incremental — per-session results cached in data/, only new
         # dates compute. Non-fatal.
         continue-on-error: true
-        run: python level_stats.py
+        run: uv run python level_stats.py
 
       - name: Dealer positioning (full-chain gamma + vanna)
         # Full options chain for SPY/QQQ/IWM aggregated into GEX + VEX
@@ -162,7 +160,7 @@ jobs:
         # x settled OI. Uses POLYGON_API_KEY (job-level env). Delayed,
         # labeled; non-fatal.
         continue-on-error: true
-        run: python dealer_positioning.py
+        run: uv run python dealer_positioning.py
 
       - name: Alpha research engine (attribution, loser model, score2,
               sizing, stability, interactions)
@@ -170,7 +168,7 @@ jobs:
         # walk-forward; nothing auto-applies — outputs are review
         # inputs for the gated learner. Non-fatal.
         continue-on-error: true
-        run: python uoa_research.py
+        run: uv run python uoa_research.py
 
       - name: Archive the session's final Top list
         # Freezes today's cumulative list to docs/reports/top_daily/
@@ -178,7 +176,7 @@ jobs:
         # flow_lifecycle so the lifecycle window and the archive index
         # agree on which sessions exist. Non-fatal.
         continue-on-error: true
-        run: python uoa_daily_top.py --archive
+        run: uv run python uoa_daily_top.py --archive
 
       - name: Flow lifecycle (did the flagged flow stick?)
         # Registers each day's Top-list contracts with their flag-day OI
@@ -186,7 +184,7 @@ jobs:
         # OPEN / PARTIAL / CLOSED / HELD / TRIMMED / UNWOUND. Needs
         # POLYGON_API_KEY (job-level env) for the chain reads. Non-fatal.
         continue-on-error: true
-        run: python flow_lifecycle.py
+        run: uv run python flow_lifecycle.py
 
       - name: Hedge-cohort prospective evaluation (nightly, gated)
         # Non-overlapping predictive tests + adverse-episode detection
@@ -194,7 +192,7 @@ jobs:
         # independent adverse episodes AND payoff/carry >= 1.0
         # executable. Non-fatal.
         continue-on-error: true
-        run: python hedge_monitor.py --evaluate
+        run: uv run python hedge_monitor.py --evaluate
 
       - name: Hypothesis lab (weekly, self-gated)
         # Pairwise feature hypotheses over the matured ledger; three
@@ -202,10 +200,10 @@ jobs:
         # Survivors are review candidates ONLY — nothing auto-applies.
         # Internally no-ops except Fridays / stale output.
         continue-on-error: true
-        run: python hypothesis_lab.py
+        run: uv run python hypothesis_lab.py
 
       - name: Refresh economic calendar
-        run: python economic_calendar.py
+        run: uv run python economic_calendar.py
 
       - name: Refresh earnings calendar (Earnings Whispers, Nasdaq fallback)
         # Nasdaq's public calendar (api.nasdaq.com, keyless) arbitrates the
@@ -214,14 +212,14 @@ jobs:
         # is 401 on the free tier even with a valid key — the site sat on
         # the week of 09-28 for two weeks. Direct fetch first; the worker's
         # ?earnings-calendar= proxy when Nasdaq refuses the runner's IP.
-        run: python earnings_anticipated.py
+        run: uv run python earnings_anticipated.py
 
       - name: Earnings edge (implied vs realized move + verdicts)
         # yfinance (keyless) history vs the flow scanner's front-expiry
         # option read. Non-fatal — Yahoo rate limits must never block
         # the publish step.
         continue-on-error: true
-        run: python earnings_edge.py
+        run: uv run python earnings_edge.py
 
       - name: Earnings trade ideas (rule-based + self-grading, gated)
         # Joins earnings_edge with swing grades / RS / flow into idea
@@ -229,7 +227,7 @@ jobs:
         # against real closes 3+ sessions after the report; per-type
         # hit rates gate at n>=30. Runs AFTER earnings_edge (its input).
         continue-on-error: true
-        run: python earnings_ideas.py
+        run: uv run python earnings_ideas.py
 
       - name: Regenerate SEO landing pages
         # Static keyword pages built from the freshly-published report
@@ -237,10 +235,10 @@ jobs:
         # sitemap.xml too. Must run AFTER uoa_edge / level_stats so the
         # numbers are current. Pure output — non-fatal.
         continue-on-error: true
-        run: python landing_pages.py
+        run: uv run python landing_pages.py
 
       - name: Refresh country/region ETF YTD
-        run: python country_etfs.py
+        run: uv run python country_etfs.py
 
       - name: Publish reports to site archive
         env:

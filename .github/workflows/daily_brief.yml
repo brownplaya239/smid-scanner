@@ -27,6 +27,11 @@ on:
         required: false
         default: 'false'
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   daily-brief:
     runs-on: ubuntu-latest
@@ -53,33 +58,26 @@ jobs:
           # branch. A shallow fetch is fine — we're not branching.
           fetch-depth: 1
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
+
       - name: Pull data from R2
         # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
         # manifest so publish only uploads what this job changed.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 scripts/r2_sync.py pull
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv run scripts/r2_sync.py pull
 
       - name: Build OI-confirmed carryover flow
         # Re-checks yesterday's notable prints against this morning's
         # OCC-settled open interest. Non-fatal: the brief still sends if
         # this fails (e.g. Polygon hiccup) — it just omits the section.
-        run: python carryover_flow.py || echo "carryover generation failed (non-fatal)"
+        run: uv run python carryover_flow.py || echo "carryover generation failed (non-fatal)"
 
       - name: Send daily brief
         run: |
@@ -97,7 +95,7 @@ jobs:
           if [ "${{ github.event.inputs.skip_idempotency }}" = "true" ]              && [ -n "${{ github.event.inputs.restrict_email }}" ]; then
             ARGS="$ARGS --skip-idempotency"
           fi
-          python daily_brief.py $ARGS
+          uv run python daily_brief.py $ARGS
 
       - name: Publish carryover flow for the Desk tile
         # The Today's Desk "Overnight Flow" tile reads this file off Pages.
@@ -105,4 +103,4 @@ jobs:
         # workflow_run list) pulls it into the next site build.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 scripts/r2_sync.py push --changed
+        run: uv run scripts/r2_sync.py push --changed

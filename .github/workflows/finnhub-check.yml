@@ -4,7 +4,8 @@ name: Finnhub estimates check
 # account's tier returns. Dispatch it, read the log. It prints only public
 # market data (a consensus recommendation, a mean price target) and the
 # per-field coverage map — never the key. estimates_provider.py uses only
-# the Python standard library, so there is nothing to pip install.
+# the Python standard library; the job still installs the locked environment
+# so it runs on the same Python as every other job.
 #
 # The point is to learn the tier BEFORE the v4 report is wired to the
 # feed: a free key gates the price target (page 1 shows the rating but
@@ -18,19 +19,27 @@ on:
         required: true
         default: "NOW"
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
         with:
-          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
       - name: Probe Finnhub
         env:
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
         run: |
-          python - <<'EOF'
+          uv run python - <<'EOF'
           import json, os, sys
           import estimates_provider as P
 

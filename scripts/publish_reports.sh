@@ -18,6 +18,11 @@
 
 set -u
 
+# Python runs through uv in the environment the workflow already installed
+# (`uv sync --locked --no-dev`). --no-sync: the rebase below can pull in a newer
+# uv.lock from master; never re-install packages in the middle of a publish.
+# (report_archive.py and r2_sync.py only use the standard library.)
+
 git config user.name  "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -27,7 +32,7 @@ git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 # manifest.json; git history retains everything. Internal ETL state
 # (uoa_signals.jsonl / uoa_oi_history.json / uoa_alpha_cache.json) lives in
 # data/ — committed for cross-run persistence, but OUT of the Pages folder.
-python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || true
+uv run --no-sync python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || true
 
 # Machine-generated paths this job publishes. Landing pages + sitemap are
 # regenerated each run by landing_pages.py and live in docs/ root; the
@@ -50,7 +55,7 @@ done
 # pruned), so it can't clobber another workflow's newer copy. Unlike the
 # git push below this is FATAL: a failed upload loses the batch's data,
 # and that must page, not scroll past as a warning.
-if ! python scripts/r2_sync.py push --changed; then
+if ! uv run --no-sync scripts/r2_sync.py push --changed; then
   echo "::error::R2 upload failed — this run's data did not publish"
   exit 1
 fi
@@ -62,7 +67,8 @@ if git diff --staged --quiet; then
   exit 0
 fi
 
-git commit -m "Archive reports $(date -u +%Y-%m-%dT%H:%MZ)"
+# Conventional Commit "chore" type so changelog tools (release-please) skip it.
+git commit -m "chore(reports): archive reports $(date -u +%Y-%m-%dT%H:%MZ)"
 
 for attempt in 1 2 3 4 5; do
   git fetch origin master
@@ -89,7 +95,7 @@ for attempt in 1 2 3 4 5; do
     fi
     # Manifest is derived from the PDF set — rebuild after taking theirs
     # so it reflects this run's newly-added reports too.
-    python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || true
+    uv run --no-sync python -c "from report_archive import rebuild_manifest; rebuild_manifest()" || true
     git add docs/reports/
     if ! GIT_EDITOR=true git rebase --continue; then
       git rebase --abort || true

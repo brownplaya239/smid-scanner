@@ -38,6 +38,11 @@ on:
 
   workflow_dispatch:           # manual trigger from GitHub UI anytime
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -48,24 +53,17 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Start R2 manifest
-        # This job reads no data; anything it writes is new (R2 cutover).
-        run: python3 scripts/r2_sync.py init
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
         with:
-          python-version: '3.12'
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --locked --no-dev
+
+      - name: Start R2 manifest
+        # This job reads no data; anything it writes is new (R2 cutover).
+        run: uv run scripts/r2_sync.py init
 
       - name: Determine scan type and run
         env:
@@ -82,12 +80,12 @@ jobs:
           if [ "$TIME_UTC" -ge "2010" ] && [ "$TIME_UTC" -le "2020" ] || \
              [ "$TIME_UTC" -ge "2110" ] && [ "$TIME_UTC" -le "2120" ]; then
             echo "Running setup builders (EOD base scan) — SMID then IWM"
-            python setup_builder.py;       R1=$?
-            python setup_builder.py --iwm; R2=$?
+            uv run python setup_builder.py;       R1=$?
+            uv run python setup_builder.py --iwm; R2=$?
           else
             echo "Running breakout scanners — SMID then IWM"
-            python scanner.py;       R1=$?
-            python scanner.py --iwm; R2=$?
+            uv run python scanner.py;       R1=$?
+            uv run python scanner.py --iwm; R2=$?
           fi
 
           echo "SMID exit: $R1  |  IWM exit: $R2"

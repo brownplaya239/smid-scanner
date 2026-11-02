@@ -14,6 +14,11 @@ on:
         required: true
         type: string
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   v4:
     runs-on: ubuntu-latest
@@ -22,20 +27,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
         with:
-          python-version: '3.12'
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --locked --no-dev
 
       - name: Generate Equity Research v4 package
         env:
@@ -45,7 +43,7 @@ jobs:
           # estimates with no code change. Without it the provider fails
           # closed and the rating reads NR.
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-        run: python report_v4_run.py "${{ inputs.ticker }}" --out out_v4_ci
+        run: uv run python report_v4_run.py "${{ inputs.ticker }}" --out out_v4_ci
 
       - name: Upload report artifacts
         if: always()

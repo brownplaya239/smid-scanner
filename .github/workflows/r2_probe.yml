@@ -28,6 +28,11 @@ on:
         type: boolean
         default: false
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -35,6 +40,12 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -56,12 +67,12 @@ jobs:
         if: ${{ inputs.seed }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python scripts/r2_sync.py push --all
+        run: uv run scripts/r2_sync.py push --all
       - name: Verify git == R2
         if: ${{ inputs.verify }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python scripts/r2_sync.py verify
+        run: uv run scripts/r2_sync.py verify
       - name: Sync Slack secrets to the worker
         # GitHub secret -> worker secret over stdin: the values are masked
         # in logs and never touch a file. Fails loudly if one is missing.
