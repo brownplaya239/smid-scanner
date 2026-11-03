@@ -1,0 +1,5 @@
+# Bulk formatting commits. GitHub's blame view skips these; locally run
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style(repo): format all Python files with ruff
+864736a015935fffbeb2afa942c375525af2a089

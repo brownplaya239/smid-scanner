@@ -16,7 +16,6 @@ The `free` variant uses only the real snapshot, which is what CI renders.
 """
 
 import argparse
-import io
 import os
 import pickle
 import sys
@@ -33,34 +32,46 @@ SMA_V4 = ((20, "#e08a1e"), (50, "#1a7f4b"), (200, "#b3261e"))
 
 # Synthetic provider records, shaped like estimates_provider output.
 EST_WITHKEY = {
-    "configured": True, "provider": "finnhub",
-    "recommendation": {"strong_buy": 15, "buy": 33, "hold": 5, "sell": 1,
-                       "strong_sell": 0, "score": 1.8, "band": "Buy",
-                       "as_of": "2026-07-01"},
+    "configured": True,
+    "provider": "finnhub",
+    "recommendation": {
+        "strong_buy": 15,
+        "buy": 33,
+        "hold": 5,
+        "sell": 1,
+        "strong_sell": 0,
+        "score": 1.8,
+        "band": "Buy",
+        "as_of": "2026-07-01",
+    },
     "price_target": None,
-    "coverage": {"price_target": "premium-gated",
-                 "eps_estimate": "premium-gated"},
-    "surprises": [{"period": "2026-06-30", "actual": 3.9, "estimate": 3.75,
-                   "surprise_pct": 4.0},
-                  {"period": "2026-03-31", "actual": 3.5, "estimate": 3.55,
-                   "surprise_pct": -1.4}],
+    "coverage": {"price_target": "premium-gated", "eps_estimate": "premium-gated"},
+    "surprises": [
+        {"period": "2026-06-30", "actual": 3.9, "estimate": 3.75, "surprise_pct": 4.0},
+        {"period": "2026-03-31", "actual": 3.5, "estimate": 3.55, "surprise_pct": -1.4},
+    ],
 }
-EST_FULL = dict(EST_WITHKEY,
-                price_target={"mean": 1100, "high": 1250, "low": 900,
-                              "n_analysts": 30, "as_of": "2026-07-18"},
-                eps_estimate_next={"avg": 4.1, "high": 4.35, "low": 3.9,
-                                   "period": "2026-09-30"},
-                rev_estimate_next={"avg": 3450.0, "period": "2026-09-30"},
-                coverage={"price_target": "ok", "eps_estimate": "ok"})
-PEERS = {"rows": [{"ticker": "CRM", "pe": 42.3}, {"ticker": "WDAY", "pe": 38.0},
-                  {"ticker": "TEAM", "pe": None}],
-         "source": "finnhub /stock/peers + /stock/metric"}
+EST_FULL = dict(
+    EST_WITHKEY,
+    price_target={"mean": 1100, "high": 1250, "low": 900, "n_analysts": 30, "as_of": "2026-07-18"},
+    eps_estimate_next={"avg": 4.1, "high": 4.35, "low": 3.9, "period": "2026-09-30"},
+    rev_estimate_next={"avg": 3450.0, "period": "2026-09-30"},
+    coverage={"price_target": "ok", "eps_estimate": "ok"},
+)
+PEERS = {
+    "rows": [
+        {"ticker": "CRM", "pe": 42.3},
+        {"ticker": "WDAY", "pe": 38.0},
+        {"ticker": "TEAM", "pe": None},
+    ],
+    "source": "finnhub /stock/peers + /stock/metric",
+}
 
 
 def load(ticker, cache):
     """Returns (snap, prov). The pickle is (snap, alt, recs, prov); prov
     carries the raw market series the chart needs under _mk."""
-    obj = pickle.load(io.open(os.path.join(cache, "%s.pkl" % ticker), "rb"))
+    obj = pickle.load(open(os.path.join(cache, "%s.pkl" % ticker), "rb"))
     if isinstance(obj, tuple):
         return obj[0], (obj[3] if len(obj) > 3 else {})
     return obj, {}
@@ -88,24 +99,26 @@ def build_chart(ticker, snap, prov, view, want_spy=True):
     if want_spy:
         try:
             import research_live as RL
+
             spy = (RL.fetch_market("SPY") or {}).get("closes")
         except Exception as e:
             print("  SPY unavailable (%s) — RS panel will be omitted" % e)
     return C.trading_chart(
-        mk, levels=ann, sma_set=SMA_V4,
+        mk,
+        levels=ann,
+        sma_set=SMA_V4,
         earnings_dates=(view.get("chart") or {}).get("earnings_dates"),
-        spy_closes=spy)
+        spy_closes=spy,
+    )
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("ticker")
     ap.add_argument("--cache", default=".snapcache_v4")
-    ap.add_argument("--variant", default="full",
-                    choices=("free", "withkey", "full"))
+    ap.add_argument("--variant", default="full", choices=("free", "withkey", "full"))
     ap.add_argument("--out", default="out_v4")
-    ap.add_argument("--no-spy", action="store_true",
-                    help="skip the SPY fetch (RS panel omitted)")
+    ap.add_argument("--no-spy", action="store_true", help="skip the SPY fetch (RS panel omitted)")
     a = ap.parse_args()
 
     snap, prov = load(a.ticker, a.cache)
@@ -113,8 +126,7 @@ def main():
     peers = PEERS if a.variant == "full" else None
     view = V4.build(snap, estimates=est, peers=peers)
 
-    chart_png, chart_meta = build_chart(a.ticker, snap, prov, view,
-                                        want_spy=not a.no_spy)
+    chart_png, chart_meta = build_chart(a.ticker, snap, prov, view, want_spy=not a.no_spy)
 
     os.makedirs(os.path.join(a.out, "png"), exist_ok=True)
     pdf = os.path.join(a.out, "%s_%s.pdf" % (a.ticker, a.variant))
@@ -128,8 +140,7 @@ def main():
         print("%s pages=%d  ->  %s" % (label, doc.page_count, path))
         for i, page in enumerate(doc, 1):
             pm = page.get_pixmap(dpi=120)
-            name = "%s_%s%s_%d.png" % (a.ticker, a.variant,
-                                       "_" + tag if tag else "", i)
+            name = "%s_%s%s_%d.png" % (a.ticker, a.variant, "_" + tag if tag else "", i)
             pm.save(os.path.join(a.out, "png", name))
     return 0
 

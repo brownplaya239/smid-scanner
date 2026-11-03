@@ -33,7 +33,7 @@ ASSUMPTIONS (the only place judgment enters, and it is labelled)
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 ASSUMPTIONS_DIR = os.path.join(_BASE, "assumptions")
@@ -41,8 +41,7 @@ SCHEMA = "v5-assumptions/1"
 
 OBS, DER, ASM = "OBS", "DER", "ASM"
 
-REQUIRED_ENVELOPE = ("schema", "as_of", "source", "currency", "units",
-                     "fiscal_basis")
+REQUIRED_ENVELOPE = ("schema", "as_of", "source", "currency", "units", "fiscal_basis")
 
 
 def load_assumptions(ticker, today=None):
@@ -59,26 +58,23 @@ def load_assumptions(ticker, today=None):
     except Exception as e:
         return None, "assumptions file unreadable (%s) — ignored" % e
     if doc.get("schema") != SCHEMA:
-        return None, ("assumptions schema %r is not %s — ignored"
-                      % (doc.get("schema"), SCHEMA))
+        return None, ("assumptions schema %r is not %s — ignored" % (doc.get("schema"), SCHEMA))
     missing = [k for k in REQUIRED_ENVELOPE if not doc.get(k)]
     if missing:
-        return None, ("assumptions missing %s — ignored"
-                      % ", ".join(missing))
-    today = today or datetime.now(timezone.utc).date().isoformat()
+        return None, ("assumptions missing %s — ignored" % ", ".join(missing))
+    today = today or datetime.now(UTC).date().isoformat()
     exp = doc.get("expires")
     if exp and str(exp) < today:
-        return None, ("user assumptions dated %s expired %s — the "
-                      "valuation legs revert to historical percentiles"
-                      % (doc["as_of"], exp))
+        return None, (
+            "user assumptions dated %s expired %s — the "
+            "valuation legs revert to historical percentiles" % (doc["as_of"], exp)
+        )
     fields = doc.get("fields") or {}
     for k, v in fields.items():
         if k == "probabilities":
             continue
-        if not isinstance(v, dict) or v.get("value") is None \
-                or not v.get("basis"):
-            return None, ("assumption %r lacks value+basis — file "
-                          "ignored" % k)
+        if not isinstance(v, dict) or v.get("value") is None or not v.get("basis"):
+            return None, ("assumption %r lacks value+basis — file ignored" % k)
     meta = {k: doc[k] for k in REQUIRED_ENVELOPE}
     meta["expires"] = exp
     return {"meta": meta, "fields": fields}, None
@@ -105,8 +101,7 @@ def row_by(record, *names):
     return None
 
 
-def build(ticker, multiples, spot, assumptions=None, note=None,
-          valuation_policy=None):
+def build(ticker, multiples, spot, assumptions=None, note=None, valuation_policy=None):
     """The scenario table.
 
     multiples : record from report_v5_multiples.build()
@@ -117,8 +112,7 @@ def build(ticker, multiples, spot, assumptions=None, note=None,
     withheld. The metric is ALWAYS the trailing figure the band was
     computed against, so multiple x metric is internally consistent —
     unless a forward_metric assumption replaces it, labelled ASM."""
-    out = {"ticker": ticker.upper(), "spot": spot,
-           "assumptions_note": note}
+    out = {"ticker": ticker.upper(), "spot": spot, "assumptions_note": note}
     # §2: the sector adapter governs which multiple kinds are
     # economically supportable — a method the model's economics cannot
     # support is never selected just because a band computed.
@@ -130,10 +124,13 @@ def build(ticker, multiples, spot, assumptions=None, note=None,
         "reason": pol.get("valuation_reason"),
     }
     if not allowed:
-        out.update({"available": False,
-                    "reason": pol.get("valuation_reason")
-                    or "no valuation method is supportable for this "
-                       "business model"})
+        out.update(
+            {
+                "available": False,
+                "reason": pol.get("valuation_reason")
+                or "no valuation method is supportable for this business model",
+            }
+        )
         return out
     band = None
     for kind in allowed:
@@ -142,36 +139,40 @@ def build(ticker, multiples, spot, assumptions=None, note=None,
             band, out["metric_kind"] = b, kind
             break
     if band is None:
-        reasons = ["%s: %s" % (k.upper(),
-                               (multiples.get(k) or {}).get("reason")
-                               or "band unavailable") for k in allowed]
-        out.update({"available": False,
-                    "reason": "no permitted multiple band survived its "
-                              "coverage floor (%s)" % "; ".join(reasons)})
+        reasons = [
+            "%s: %s" % (k.upper(), (multiples.get(k) or {}).get("reason") or "band unavailable")
+            for k in allowed
+        ]
+        out.update(
+            {
+                "available": False,
+                "reason": "no permitted multiple band survived its "
+                "coverage floor (%s)" % "; ".join(reasons),
+            }
+        )
         return out
 
     # trailing metric implied by the band's own current multiple — the
     # exact series the percentiles came from, no re-derivation drift
     cur_mult = band.get("current")
     if not cur_mult or not spot:
-        out.update({"available": False,
-                    "reason": "no current multiple/spot to anchor the "
-                              "metric"})
+        out.update({"available": False, "reason": "no current multiple/spot to anchor the metric"})
         return out
     metric = round(spot / cur_mult, 4)
-    metric_cell = _cell(metric, DER,
-                        "spot / current trailing multiple — the trailing "
-                        "%s the band itself was computed on"
-                        % ("EPS" if out["metric_kind"] == "pe"
-                           else "revenue/share"))
+    metric_cell = _cell(
+        metric,
+        DER,
+        "spot / current trailing multiple — the trailing "
+        "%s the band itself was computed on"
+        % ("EPS" if out["metric_kind"] == "pe" else "revenue/share"),
+    )
 
     fields = (assumptions or {}).get("fields") or {}
     fmeta = (assumptions or {}).get("meta") or {}
     stamp = ("user-supplied %s" % fmeta.get("as_of")) if fields else None
     fwd = fields.get("forward_metric")
     if fwd:
-        metric_cell = _cell(float(fwd["value"]), ASM,
-                            "%s (%s)" % (fwd["basis"], stamp))
+        metric_cell = _cell(float(fwd["value"]), ASM, "%s (%s)" % (fwd["basis"], stamp))
         metric = float(fwd["value"])
 
     # MODE: without user operating assumptions AND probabilities this is
@@ -181,37 +182,50 @@ def build(ticker, multiples, spot, assumptions=None, note=None,
     # leg exists on a historical-range object (§2). Only a forward
     # metric plus probabilities upgrades the mode to "underwritten" and
     # earns Bear/Base/Bull scenario legs.
-    underwritten = bool(fields.get("forward_metric")
-                        and fields.get("probabilities"))
+    underwritten = bool(fields.get("forward_metric") and fields.get("probabilities"))
     out["mode"] = "underwritten" if underwritten else "historical_range"
     # (leg name, display label, percentile source, assumption-field key)
-    LEG_SPECS = ([("bear", "Bear", "p25", "bear_multiple"),
-                  ("base", "Base", "p50", "base_multiple"),
-                  ("bull", "Bull", "p75", "bull_multiple")]
-                 if underwritten else
-                 [("p25", "P25", "p25", "bear_multiple"),
-                  ("median", "Median", "p50", "base_multiple"),
-                  ("p75", "P75", "p75", "bull_multiple")])
+    LEG_SPECS = (
+        [
+            ("bear", "Bear", "p25", "bear_multiple"),
+            ("base", "Base", "p50", "base_multiple"),
+            ("bull", "Bull", "p75", "bull_multiple"),
+        ]
+        if underwritten
+        else [
+            ("p25", "P25", "p25", "bear_multiple"),
+            ("median", "Median", "p50", "base_multiple"),
+            ("p75", "P75", "p75", "bull_multiple"),
+        ]
+    )
     rows, arithmetic = [], []
     for leg, label, pkey, fkey in LEG_SPECS:
         ov = fields.get(fkey)
         if ov:
-            mult_cell = _cell(float(ov["value"]), ASM,
-                              "%s (%s)" % (ov["basis"], stamp))
+            mult_cell = _cell(float(ov["value"]), ASM, "%s (%s)" % (ov["basis"], stamp))
         else:
-            mult_cell = _cell(band.get(pkey), DER,
-                              "own %d-yr %s of daily trailing %s"
-                              % (band["window_years"],
-                                 {"p25": "P25", "p50": "P50",
-                                  "p75": "P75"}[pkey],
-                                 out["metric_kind"].upper()))
+            mult_cell = _cell(
+                band.get(pkey),
+                DER,
+                "own %d-yr %s of daily trailing %s"
+                % (
+                    band["window_years"],
+                    {"p25": "P25", "p50": "P50", "p75": "P75"}[pkey],
+                    out["metric_kind"].upper(),
+                ),
+            )
         price = round(mult_cell["value"] * metric, 2)
-        rows.append({"leg": leg, "label": label,
-                     "multiple": mult_cell,
-                     "metric": metric_cell, "price": price,
-                     "vs_spot_pct": round(100.0 * (price / spot - 1), 1)})
-        arithmetic.append("%s: %.2f x %.4f = %.2f"
-                          % (label, mult_cell["value"], metric, price))
+        rows.append(
+            {
+                "leg": leg,
+                "label": label,
+                "multiple": mult_cell,
+                "metric": metric_cell,
+                "price": price,
+                "vs_spot_pct": round(100.0 * (price / spot - 1), 1),
+            }
+        )
+        arithmetic.append("%s: %.2f x %.4f = %.2f" % (label, mult_cell["value"], metric, price))
 
     # probabilities exist only via the assumptions file, only when they
     # cover all three legs and sum to ~1, and ONLY in underwritten mode:
@@ -220,25 +234,28 @@ def build(ticker, multiples, spot, assumptions=None, note=None,
     weighted = None
     probs = fields.get("probabilities")
     if isinstance(probs, dict) and not underwritten:
-        out["assumptions_note"] = ((out.get("assumptions_note") or "")
+        out["assumptions_note"] = (
+            (out.get("assumptions_note") or "")
             + " probabilities ignored: no forward_metric (operating "
-              "forecast) — a historical range carries no "
-              "probabilities").strip()
+            "forecast) — a historical range carries no "
+            "probabilities"
+        ).strip()
     elif isinstance(probs, dict):
         vals = [probs.get(l) for l in ("bear", "base", "bull")]
-        if all(isinstance(v, (int, float)) for v in vals) \
-                and abs(sum(vals) - 1.0) < 0.01:
+        if all(isinstance(v, (int, float)) for v in vals) and abs(sum(vals) - 1.0) < 0.01:
             wp = sum(r["price"] * p for r, p in zip(rows, vals))
-            weighted = {"price": round(wp, 2),
-                        "probabilities": {l: probs[l] for l in
-                                          ("bear", "base", "bull")},
-                        "grade": ASM,
-                        "basis": "user-supplied probabilities (%s)"
-                                 % fmeta.get("as_of")}
+            weighted = {
+                "price": round(wp, 2),
+                "probabilities": {l: probs[l] for l in ("bear", "base", "bull")},
+                "grade": ASM,
+                "basis": "user-supplied probabilities (%s)" % fmeta.get("as_of"),
+            }
         else:
-            out["assumptions_note"] = ((out.get("assumptions_note") or "")
+            out["assumptions_note"] = (
+                (out.get("assumptions_note") or "")
                 + " probabilities ignored: must cover bear/base/bull and "
-                  "sum to 1").strip()
+                "sum to 1"
+            ).strip()
 
     # ── asymmetry + expected value (phase E; underwritten mode only —
     # a historical range carries no asymmetry/EV vocabulary) ─────────
@@ -248,36 +265,54 @@ def build(ticker, multiples, spot, assumptions=None, note=None,
         bear_p, bull_p = rd["bear"]["price"], rd["bull"]["price"]
         downside = round(100.0 * (bear_p / spot - 1), 1)
         upside = round(100.0 * (bull_p / spot - 1), 1)
-        asym = {"downside_to_bear_pct": downside,
-                "upside_to_bull_pct": upside,
-                "up_down_ratio": (round(abs(upside) / abs(downside), 2)
-                                  if downside < 0 and upside > 0
-                                  else None),
-                "basis": "bull/bear scenario prices vs spot"}
+        asym = {
+            "downside_to_bear_pct": downside,
+            "upside_to_bull_pct": upside,
+            "up_down_ratio": (
+                round(abs(upside) / abs(downside), 2) if downside < 0 and upside > 0 else None
+            ),
+            "basis": "bull/bear scenario prices vs spot",
+        }
     if weighted:
         probs = weighted["probabilities"]
         ev = weighted["price"]
         weighted["expected_value_contribution"] = {
+            # pyrefly: ignore[unbound-name]  weighted is only set in underwritten mode, where rd is built
             l: round(rd[l]["price"] * probs[l], 2)
-            for l in ("bear", "base", "bull")}
-        weighted["expected_return_pct"] = round(
-            100.0 * (ev / spot - 1), 1)
+            for l in ("bear", "base", "bull")
+        }
+        weighted["expected_return_pct"] = round(100.0 * (ev / spot - 1), 1)
         hz = fields.get("horizon_years")
-        if hz and isinstance(hz.get("value"), (int, float))                 and hz["value"] > 0:
+        if hz and isinstance(hz.get("value"), (int, float)) and hz["value"] > 0:
             yrs = float(hz["value"])
-            weighted["annualized_return_pct"] = round(
-                100.0 * ((ev / spot) ** (1.0 / yrs) - 1), 1)
+            weighted["annualized_return_pct"] = round(100.0 * ((ev / spot) ** (1.0 / yrs) - 1), 1)
             weighted["horizon_years"] = yrs
         else:
             weighted["annualized_return_pct"] = None
-        weighted["caveat"] = ("probability weighting reflects the "
-                              "stated judgments; it does not remove "
-                              "model uncertainty")
+        weighted["caveat"] = (
+            "probability weighting reflects the "
+            "stated judgments; it does not remove "
+            "model uncertainty"
+        )
 
-    out.update({"available": True, "rows": rows, "weighted": weighted,
-                "asymmetry": asym,
-                "band_ref": {k: band.get(k) for k in
-                             ("kind", "window_years", "actual_years",
-                              "window_start", "window_end", "coverage")},
-                "arithmetic": arithmetic})
+    out.update(
+        {
+            "available": True,
+            "rows": rows,
+            "weighted": weighted,
+            "asymmetry": asym,
+            "band_ref": {
+                k: band.get(k)
+                for k in (
+                    "kind",
+                    "window_years",
+                    "actual_years",
+                    "window_start",
+                    "window_end",
+                    "coverage",
+                )
+            },
+            "arithmetic": arithmetic,
+        }
+    )
     return out

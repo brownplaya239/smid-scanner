@@ -19,12 +19,13 @@ One-time setup before running:
 
 Re-running is safe: jobs are matched by title and skipped if they exist.
 """
+
 import json
 import os
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 REPO = "brownplaya239/smid-scanner"
 CRONJOB_API = "https://api.cron-job.org"
@@ -39,15 +40,15 @@ JOBS = [
     # from the open until 11:07. cron-job.org is the leg that demonstrably
     # fires on time (scanner at 10:07:02 two days running) — give it the
     # open. emit_latest dedups if the GitHub cron also fires.
-    ("UOA 9:36 AM ET",      "uoa.yml",       9, 36),
-    ("UOA 10:21 AM ET",     "uoa.yml",      10, 21),
-    ("UOA 11:07 AM ET",     "uoa.yml",      11,  7),
-    ("UOA 1:37 PM ET",      "uoa.yml",      13, 37),
-    ("UOA 3:47 PM ET",      "uoa.yml",      15, 47),
-    ("Scanner 10:07 AM ET", "scanner.yml",  10,  7),
-    ("Scanner 11:37 AM ET", "scanner.yml",  11, 37),
-    ("Scanner 3:07 PM ET",  "scanner.yml",  15,  7),
-    ("Scanner 4:17 PM ET",  "scanner.yml",  16, 17),
+    ("UOA 9:36 AM ET", "uoa.yml", 9, 36),
+    ("UOA 10:21 AM ET", "uoa.yml", 10, 21),
+    ("UOA 11:07 AM ET", "uoa.yml", 11, 7),
+    ("UOA 1:37 PM ET", "uoa.yml", 13, 37),
+    ("UOA 3:47 PM ET", "uoa.yml", 15, 47),
+    ("Scanner 10:07 AM ET", "scanner.yml", 10, 7),
+    ("Scanner 11:37 AM ET", "scanner.yml", 11, 37),
+    ("Scanner 3:07 PM ET", "scanner.yml", 15, 7),
+    ("Scanner 4:17 PM ET", "scanner.yml", 16, 17),
     ("Momentum 4:33 PM ET", "momentum.yml", 16, 33),
 ]
 
@@ -86,11 +87,11 @@ def build_job(title, workflow, hour, minute):
     return {
         "job": {
             "url": "https://api.github.com/repos/%s/actions/workflows/%s/dispatches"
-                   % (REPO, workflow),
+            % (REPO, workflow),
             "enabled": True,
             "title": title,
             "saveResponses": True,
-            "requestMethod": 1,                 # 1 = POST
+            "requestMethod": 1,  # 1 = POST
             "extendedData": {
                 "headers": github_dispatch_headers(),
                 "body": json.dumps({"ref": "master"}),
@@ -99,9 +100,9 @@ def build_job(title, workflow, hour, minute):
                 "timezone": "America/New_York",
                 "hours": [hour],
                 "minutes": [minute],
-                "mdays": [-1],                  # -1 = every
+                "mdays": [-1],  # -1 = every
                 "months": [-1],
-                "wdays": [1, 2, 3, 4, 5],       # Mon-Fri
+                "wdays": [1, 2, 3, 4, 5],  # Mon-Fri
             },
         }
     }
@@ -109,8 +110,10 @@ def build_job(title, workflow, hour, minute):
 
 def main():
     if not CRONJOB_API_KEY or not GH_PAT:
-        sys.exit("Set CRONJOB_API_KEY and GH_DISPATCH_PAT env vars first "
-                 "(see the docstring at the top of this file).")
+        sys.exit(
+            "Set CRONJOB_API_KEY and GH_DISPATCH_PAT env vars first "
+            "(see the docstring at the top of this file)."
+        )
 
     existing = {j.get("title") for j in cronjob_api("GET", "/jobs").get("jobs", [])}
     print("%d existing cron-job.org job(s).\n" % len(existing))
@@ -126,8 +129,7 @@ def main():
             print("  create %s  -> jobId %s" % (title, res.get("jobId")))
             created += 1
         except urllib.error.HTTPError as e:
-            print("  FAIL   %s  -> HTTP %d: %s"
-                  % (title, e.code, e.read().decode()[:200]))
+            print("  FAIL   %s  -> HTTP %d: %s" % (title, e.code, e.read().decode()[:200]))
             failed += 1
 
     print("\n%d created, %d skipped, %d failed." % (created, skipped, failed))

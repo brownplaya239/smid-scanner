@@ -39,6 +39,7 @@ import pytz
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(override=False)
 except Exception:
     pass
@@ -48,15 +49,16 @@ if hasattr(sys.stdout, "reconfigure"):
 
 ET = pytz.timezone("America/New_York")
 _BASE = os.path.dirname(os.path.abspath(__file__))
-OUT_PATH = os.path.join(_BASE, "docs", "reports",
-                        "earnings_anticipated.json")
+OUT_PATH = os.path.join(_BASE, "docs", "reports", "earnings_anticipated.json")
 
 # EW's API requires browser-like headers; without Referer+XHR header it
 # returns 401 even for public data.
 HDRS = {
-    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                   "AppleWebKit/537.36 (KHTML, like Gecko) "
-                   "Chrome/120.0 Safari/537.36"),
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0 Safari/537.36"
+    ),
     "Accept": "application/json, text/javascript, */*; q=0.01",
     "Referer": "https://www.earningswhispers.com/calendar",
     "X-Requested-With": "XMLHttpRequest",
@@ -76,14 +78,14 @@ def _fetch(path):
 def _shape(r):
     """Trim EW's per-ticker entry to just what the dashboard renders."""
     return {
-        "ticker":       r.get("ticker"),
-        "company":      r.get("company"),
-        "score":        r.get("total"),
-        "analysts":     r.get("analysts"),
-        "release_time": r.get("releaseTime"),     # 1=BMO, 3=AMC
-        "confirmed":    bool(r.get("confirmDate")),
-        "next_eps":     r.get("nextEPSDate"),
-        "q":            r.get("qDate"),
+        "ticker": r.get("ticker"),
+        "company": r.get("company"),
+        "score": r.get("total"),
+        "analysts": r.get("analysts"),
+        "release_time": r.get("releaseTime"),  # 1=BMO, 3=AMC
+        "confirmed": bool(r.get("confirmDate")),
+        "next_eps": r.get("nextEPSDate"),
+        "q": r.get("qDate"),
     }
 
 
@@ -94,7 +96,7 @@ def _week_monday(d):
     five days of zeros and (before the empty-write guard below) clobbered
     the file the dashboard renders. The 2026-07-26 Saturday run did
     exactly that."""
-    if d.weekday() >= 5:                          # Sat/Sun -> next Monday
+    if d.weekday() >= 5:  # Sat/Sun -> next Monday
         return d + timedelta(days=7 - d.weekday())
     return d - timedelta(days=d.weekday())
 
@@ -117,7 +119,7 @@ NASDAQ_HDRS = {
 # Nasdaq's `time` field -> our session. "time-not-supplied" has no
 # confirmed hour and cannot be placed in a BMO or AMC column.
 NASDAQ_SESSION = {"time-pre-market": "bmo", "time-after-hours": "amc"}
-FALLBACK_PER_SESSION = 25     # largest names kept per day + session
+FALLBACK_PER_SESSION = 25  # largest names kept per day + session
 
 
 def _get_json(url, headers, timeout=30):
@@ -131,9 +133,13 @@ def _nasdaq_day(date_iso):
     Direct first, then the worker proxy; raises only when both fail."""
     errors = []
     for label, url, hdrs in (
-            ("nasdaq", NASDAQ_URL + date_iso, NASDAQ_HDRS),
-            ("worker", WORKER + "/?earnings-calendar=" + date_iso,
-             {"User-Agent": "tickerdesk-ci/earnings_anticipated"})):
+        ("nasdaq", NASDAQ_URL + date_iso, NASDAQ_HDRS),
+        (
+            "worker",
+            WORKER + "/?earnings-calendar=" + date_iso,
+            {"User-Agent": "tickerdesk-ci/earnings_anticipated"},
+        ),
+    ):
         try:
             data = _get_json(url, hdrs) or {}
         except Exception as e:
@@ -142,8 +148,7 @@ def _nasdaq_day(date_iso):
         status = data.get("status") or {}
         code = status.get("rCode")
         if code not in (None, 200):
-            errors.append(f"{label}: rCode {code} "
-                          f"{status.get('bCodeMessage') or ''}".strip())
+            errors.append(f"{label}: rCode {code} {status.get('bCodeMessage') or ''}".strip())
             continue
         return ((data.get("data") or {}).get("rows") or []), label
     raise RuntimeError("; ".join(errors))
@@ -165,17 +170,17 @@ def _shape_nasdaq(r, hour, date_iso):
     along so the sort needs no Polygon lookup for these names."""
     ests = str(r.get("noOfEsts") or "").replace(",", "").strip()
     return {
-        "ticker":       (r.get("symbol") or "").strip().upper(),
-        "company":      (r.get("name") or "").strip() or None,
-        "score":        None,
-        "analysts":     int(ests) if ests.isdigit() else None,
+        "ticker": (r.get("symbol") or "").strip().upper(),
+        "company": (r.get("name") or "").strip() or None,
+        "score": None,
+        "analysts": int(ests) if ests.isdigit() else None,
         "release_time": 1 if hour == "bmo" else 3,
-        "confirmed":    True,                    # session stated by the feed
-        "next_eps":     date_iso,
-        "q":            (r.get("fiscalQuarterEnding") or "").strip() or None,
+        "confirmed": True,  # session stated by the feed
+        "next_eps": date_iso,
+        "q": (r.get("fiscalQuarterEnding") or "").strip() or None,
         "eps_forecast": (r.get("epsForecast") or "").strip() or None,
-        "mcap":         _parse_mcap(r.get("marketCap")),
-        "source":       "nasdaq",
+        "mcap": _parse_mcap(r.get("marketCap")),
+        "source": "nasdaq",
     }
 
 
@@ -204,9 +209,11 @@ def _nasdaq_week(monday):
                 continue
             day[hour].append(_shape_nasdaq(r, hour, iso))
         out[iso] = day
-        print(f"  {iso} Nasdaq via {via}: BMO={len(day['bmo']):3d}  "
-              f"AMC={len(day['amc']):3d}  (skipped {skipped} unconfirmed/"
-              "non-US rows)")
+        print(
+            f"  {iso} Nasdaq via {via}: BMO={len(day['bmo']):3d}  "
+            f"AMC={len(day['amc']):3d}  (skipped {skipped} unconfirmed/"
+            "non-US rows)"
+        )
     return out
 
 
@@ -228,6 +235,7 @@ def _market_caps(tickers):
     out, fetched = {}, 0
     try:
         import polygon_data as PG
+
         ok = PG.available()
     except Exception:
         ok = False
@@ -240,6 +248,7 @@ def _market_caps(tickers):
             out[t] = (ent or {}).get("mcap")
             continue
         try:
+            # pyrefly: ignore[unbound-name]  only reached when the polygon_data import succeeded (ok)
             det = PG.ticker_details(t) or {}
             mc = det.get("market_cap")
         except Exception:
@@ -254,8 +263,7 @@ def _market_caps(tickers):
     except Exception:
         pass
     if fetched:
-        print(f"  Market caps: {fetched} fetched, "
-              f"{len(tickers) - fetched} cached")
+        print(f"  Market caps: {fetched} fetched, {len(tickers) - fetched} cached")
     return out
 
 
@@ -268,13 +276,16 @@ def run():
     # session buckets, which are wrong often enough to matter (2026-07-27:
     # EW listed Noble Corp as before-open; NE reported after the close
     # and fell 4% AH while sitting in the site's morning column).
-    sessions = {(r["ticker"], ds): hour
-                for ds, day in nq.items()
-                for hour in ("bmo", "amc") for r in day[hour]}
+    sessions = {
+        (r["ticker"], ds): hour
+        for ds, day in nq.items()
+        for hour in ("bmo", "amc")
+        for r in day[hour]
+    }
     if sessions:
         print(f"  Nasdaq session cross-check: {len(sessions)} confirmed hours")
     days = []
-    for i in range(5):                           # Mon-Fri only
+    for i in range(5):  # Mon-Fri only
         d = monday + timedelta(days=i)
         ds = d.strftime("%Y%m%d")
         try:
@@ -313,12 +324,14 @@ def run():
             bmo_s, amc_s = keep_b, keep_a
             if moved:
                 print(f"  {d} session corrections: {', '.join(moved)}")
-        days.append({
-            "date": d.strftime("%Y-%m-%d"),
-            "dow":  d.strftime("%A"),
-            "bmo":  bmo_s,
-            "amc":  amc_s,
-        })
+        days.append(
+            {
+                "date": d.strftime("%Y-%m-%d"),
+                "dow": d.strftime("%A"),
+                "bmo": bmo_s,
+                "amc": amc_s,
+            }
+        )
         print(f"  {d.strftime('%a %Y-%m-%d')}  BMO={len(bmo_s):3d}  AMC={len(amc_s):3d}")
 
     source = "earningswhispers.com (Most Anticipated calendar)"
@@ -326,16 +339,19 @@ def run():
     if not any(day["bmo"] or day["amc"] for day in days):
         if any(day["bmo"] or day["amc"] for day in nq.values()):
             fallback = True
-            source = ("nasdaq.com earnings calendar (confirmed pre-market/"
-                      "after-hours reporters, largest %d per session; "
-                      "Earnings Whispers unavailable)" % FALLBACK_PER_SESSION)
+            source = (
+                "nasdaq.com earnings calendar (confirmed pre-market/"
+                "after-hours reporters, largest %d per session; "
+                "Earnings Whispers unavailable)" % FALLBACK_PER_SESSION
+            )
             for day in days:
                 got = nq.get(day["date"]) or {}
                 day["bmo"] = list(got.get("bmo") or [])
                 day["amc"] = list(got.get("amc") or [])
-            print("  Earnings Whispers returned nobody — using Nasdaq "
-                  "(%d confirmed reporters)" % sum(
-                      len(day["bmo"]) + len(day["amc"]) for day in days))
+            print(
+                "  Earnings Whispers returned nobody — using Nasdaq "
+                "(%d confirmed reporters)" % sum(len(day["bmo"]) + len(day["amc"]) for day in days)
+            )
 
     # Past days keep their report-day rows. EW's calendar API deletes a
     # company the moment it has reported, so a mid-week re-scrape
@@ -357,21 +373,24 @@ def run():
             pd = prior_days.get(day["date"])
             if day["date"] >= today_iso or not pd:
                 continue
-            kept = {r.get("ticker")
-                    for k in ("bmo", "amc") for r in (pd.get(k) or [])}
+            kept = {r.get("ticker") for k in ("bmo", "amc") for r in (pd.get(k) or [])}
             for k in ("bmo", "amc"):
-                day[k] = list(pd.get(k) or []) + \
-                    [r for r in day[k] if r.get("ticker") not in kept]
-            print(f"  {day['date']} is past — kept {len(kept)} "
-                  "report-day rows over the re-scrape")
+                day[k] = list(pd.get(k) or []) + [r for r in day[k] if r.get("ticker") not in kept]
+            print(f"  {day['date']} is past — kept {len(kept)} report-day rows over the re-scrape")
 
     # Sort every session largest company first. Anticipation score stays
     # on the row (tooltip + marquee); the ordering a reader scans a
     # calendar in is by size. Nasdaq rows carry their own cap; Polygon
     # (behind the weekly cache) fills in EW rows, which have none.
-    need = sorted({r["ticker"] for day in days
-                   for k in ("bmo", "amc") for r in day[k]
-                   if r.get("ticker") and r.get("mcap") is None})
+    need = sorted(
+        {
+            r["ticker"]
+            for day in days
+            for k in ("bmo", "amc")
+            for r in day[k]
+            if r.get("ticker") and r.get("mcap") is None
+        }
+    )
     caps = _market_caps(need) if need else {}
     for day in days:
         for k in ("bmo", "amc"):
@@ -379,8 +398,7 @@ def run():
                 # `or` keeps a row's feed/report-day mcap when the
                 # lookup comes back empty for a name Polygon dropped.
                 r["mcap"] = caps.get(r.get("ticker")) or r.get("mcap")
-            day[k].sort(key=lambda x: (x.get("mcap") is None,
-                                       -(x.get("mcap") or 0)))
+            day[k].sort(key=lambda x: (x.get("mcap") is None, -(x.get("mcap") or 0)))
             if fallback:
                 # Nasdaq lists every reporter (hundreds a week); the
                 # calendar is "the names people watch", so keep the
@@ -389,11 +407,11 @@ def run():
 
     total = sum(len(x["bmo"]) + len(x["amc"]) for x in days)
     payload = {
-        "week_of":   monday.strftime("%Y-%m-%d"),
+        "week_of": monday.strftime("%Y-%m-%d"),
         "generated": datetime.now(ET).isoformat(timespec="seconds"),
-        "source":    source,
-        "total":     total,
-        "days":      days,
+        "source": source,
+        "total": total,
+        "days": days,
     }
     # Last-good guard: a scrape that found NOBODY reporting all week is a
     # broken scrape or a purged source, not a market fact — never replace
@@ -406,16 +424,17 @@ def run():
         except Exception:
             prev = None
         if prev and prev.get("total"):
-            print("  Scrape returned 0 reporters — keeping the previous "
-                  "file (week of %s, %s reporters) instead of writing an "
-                  "empty one" % (prev.get("week_of"), prev.get("total")))
+            print(
+                "  Scrape returned 0 reporters — keeping the previous "
+                "file (week of %s, %s reporters) instead of writing an "
+                "empty one" % (prev.get("week_of"), prev.get("total"))
+            )
             return
 
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
-    print(f"  Wrote earnings_anticipated.json ({total} reporters across "
-          f"5 trading days)")
+    print(f"  Wrote earnings_anticipated.json ({total} reporters across 5 trading days)")
 
 
 if __name__ == "__main__":

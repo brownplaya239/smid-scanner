@@ -23,7 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 
 import yfinance as yf
@@ -35,11 +35,11 @@ OUT_PATH = os.path.join(REPORTS, "setup_outcomes.json")
 
 BULL_GRADES = ("A+", "A", "A-")
 BEAR_GRADES = ("F", "F+", "F-", "G", "G+")
-PER_GRADE   = 5          # names logged per grade per night
-HOLD_D      = 5          # maturation horizon, sessions
-MIN_N       = 30         # gate: no stats below this
-LOG_CAP_D   = 250        # log retention, days
-MAX_MATURE  = 40         # tickers matured per run (yfinance budget)
+PER_GRADE = 5  # names logged per grade per night
+HOLD_D = 5  # maturation horizon, sessions
+MIN_N = 30  # gate: no stats below this
+LOG_CAP_D = 250  # log retention, days
+MAX_MATURE = 40  # tickers matured per run (yfinance budget)
 
 
 def _load(path):
@@ -52,13 +52,15 @@ def _load(path):
 
 # ── 1. log tonight's cohort ─────────────────────────────────────────────
 
+
 def todays_cohort():
-    sw = (_load(os.path.join(REPORTS, "swing_latest_summary.json"))
-          or _load(os.path.join(REPORTS, "swing_report.json")))
+    sw = _load(os.path.join(REPORTS, "swing_latest_summary.json")) or _load(
+        os.path.join(REPORTS, "swing_report.json")
+    )
     if not sw or not sw.get("runs"):
         return None, []
     run = sw["runs"][-1]
-    date = run.get("date") or datetime.now(timezone.utc).date().isoformat()
+    date = run.get("date") or datetime.now(UTC).date().isoformat()
     rows = []
     grades = run.get("grades") or {}
     for g in BULL_GRADES:
@@ -83,6 +85,7 @@ def append_log(date, rows):
 
 # ── 2. mature cohorts at +HOLD_D sessions ───────────────────────────────
 
+
 def mature(log):
     """Fill outcomes for day-entries that are >= HOLD_D sessions old and not
     yet graded. Entry = close on flag date; exit = close HOLD_D sessions on;
@@ -95,9 +98,15 @@ def mature(log):
     if not pending:
         return 0
     tickers = list(pending.keys())[:MAX_MATURE]
-    data = yf.download(tickers, period="4mo", interval="1d",
-                       auto_adjust=True, group_by="ticker",
-                       progress=False, threads=True)
+    data = yf.download(
+        tickers,
+        period="4mo",
+        interval="1d",
+        auto_adjust=True,
+        group_by="ticker",
+        progress=False,
+        threads=True,
+    )
     graded = 0
     for tk in tickers:
         try:
@@ -112,19 +121,19 @@ def mature(log):
                 continue
             i0 = dates.index(flag_date)
             if i0 + HOLD_D >= len(vals):
-                continue                      # not matured yet
+                continue  # not matured yet
             e, x = vals[i0], vals[i0 + HOLD_D]
             if e <= 0:
                 continue
             ret = 100.0 * (x / e - 1.0)
-            window = vals[i0 + 1: i0 + HOLD_D + 1]
+            window = vals[i0 + 1 : i0 + HOLD_D + 1]
             if r["dir"] == "bull":
                 dd = 100.0 * (min(window) / e - 1.0)
                 peak_i = max(range(len(window)), key=lambda i: window[i])
                 trough_i = min(range(len(window)), key=lambda i: window[i])
                 win = ret > 0
             else:
-                dd = 100.0 * (max(window) / e - 1.0)   # adverse = rally
+                dd = 100.0 * (max(window) / e - 1.0)  # adverse = rally
                 peak_i = min(range(len(window)), key=lambda i: window[i])
                 trough_i = max(range(len(window)), key=lambda i: window[i])
                 win = ret < 0
@@ -142,6 +151,7 @@ def mature(log):
 
 # ── 3. gated per-grade stats ────────────────────────────────────────────
 
+
 def stats(log):
     by_grade = {}
     for day in log["days"]:
@@ -152,8 +162,7 @@ def stats(log):
     for g, rows in by_grade.items():
         total += len(rows)
         if len(rows) < MIN_N:
-            out[g] = {"status": "accruing", "n": len(rows),
-                      "activates_at": MIN_N}
+            out[g] = {"status": "accruing", "n": len(rows), "activates_at": MIN_N}
             continue
         rets = [r["ret"] for r in rows]
         # bear cohorts win when the name FALLS — report the direction-aware
@@ -161,13 +170,12 @@ def stats(log):
         capt = [(-x if rows[0]["dir"] == "bear" else x) for x in rets]
         dds = [r["dd"] for r in rows]
         out[g] = {
-            "status": "active", "n": len(rows),
-            "win_rate": round(100.0 * sum(1 for r in rows if r["win"])
-                              / len(rows)),
+            "status": "active",
+            "n": len(rows),
+            "win_rate": round(100.0 * sum(1 for r in rows if r["win"]) / len(rows)),
             "avg": round(mean(capt), 1),
             "median": round(median(capt), 1),
-            "avg_dd": round(mean(abs(d) for d in dds)
-                            if dds else 0, 1) * -1,
+            "avg_dd": round(mean(abs(d) for d in dds) if dds else 0, 1) * -1,
             "hold_d": HOLD_D,
         }
     return out, total
@@ -182,18 +190,22 @@ def build(dry=False):
     graded = mature(log)
     st, total_graded = stats(log)
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "hold_days": HOLD_D,
         "min_n": MIN_N,
         "logged_days": len(log["days"]),
         "total_graded": total_graded,
         "grades": st,
-        "note": ("Per-grade next-" + str(HOLD_D) + "-session outcomes of the "
-                 "top-" + str(PER_GRADE) + " names per grade. Stats gated at "
-                 "n>=" + str(MIN_N) + " — 'accruing' until real."),
+        "note": (
+            "Per-grade next-" + str(HOLD_D) + "-session outcomes of the "
+            "top-" + str(PER_GRADE) + " names per grade. Stats gated at "
+            "n>=" + str(MIN_N) + " — 'accruing' until real."
+        ),
     }
-    print(f"  setup outcomes: logged {len(rows)} names for {date}, "
-          f"matured {graded}, total graded {total_graded}")
+    print(
+        f"  setup outcomes: logged {len(rows)} names for {date}, "
+        f"matured {graded}, total graded {total_graded}"
+    )
     return log, payload
 
 
@@ -218,6 +230,7 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     main()

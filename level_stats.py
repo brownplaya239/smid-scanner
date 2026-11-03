@@ -27,12 +27,13 @@ import os
 import statistics
 import sys
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 try:
     from zoneinfo import ZoneInfo
+
     ET = ZoneInfo("America/New_York")
-except Exception:                                    # pragma: no cover
+except Exception:  # pragma: no cover
     ET = timezone(timedelta(hours=-5))
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -46,11 +47,11 @@ POLY_KEY = os.environ.get("POLYGON_API_KEY", "").strip()
 TARGET_SESSIONS = int(os.environ.get("LEVEL_STATS_SESSIONS", "250"))
 CACHE_CAP_DATES = 400
 
-RTH_OPEN, RTH_CLOSE = 570, 960          # ET minutes
-OR_END = 585                            # opening range = first 15m
-VWAP_STATS_FROM = 600                   # VWAP touch stats count from 10:00
-BREAK_BARS = 3                          # close beyond level within 15m = break
-REJ_BARS = 6                            # rejection window after a hold
+RTH_OPEN, RTH_CLOSE = 570, 960  # ET minutes
+OR_END = 585  # opening range = first 15m
+VWAP_STATS_FROM = 600  # VWAP touch stats count from 10:00
+BREAK_BARS = 3  # close beyond level within 15m = break
+REJ_BARS = 6  # rejection window after a hold
 
 
 def _http_json(url):
@@ -61,27 +62,42 @@ def _http_json(url):
 
 # ── bar fetching ─────────────────────────────────────────────────────────
 
+
 def fetch_daily(sym):
     """[{d, o, h, l, c}] ascending, ~2 years."""
-    end = datetime.now(timezone.utc).date()
+    end = datetime.now(UTC).date()
     start = end - timedelta(days=740)
     if POLY_KEY:
-        u = ("https://api.polygon.io/v2/aggs/ticker/%s/range/1/day/%s/%s"
-             "?adjusted=true&sort=asc&limit=50000&apiKey=%s"
-             % (sym, start.isoformat(), end.isoformat(), POLY_KEY))
+        u = (
+            "https://api.polygon.io/v2/aggs/ticker/%s/range/1/day/%s/%s"
+            "?adjusted=true&sort=asc&limit=50000&apiKey=%s"
+            % (sym, start.isoformat(), end.isoformat(), POLY_KEY)
+        )
         rows = _http_json(u).get("results") or []
-        return [{"d": datetime.fromtimestamp(r["t"] / 1000, tz=ET)
-                 .date().isoformat(),
-                 "o": r["o"], "h": r["h"], "l": r["l"], "c": r["c"]}
-                for r in rows]
+        return [
+            {
+                "d": datetime.fromtimestamp(r["t"] / 1000, tz=ET).date().isoformat(),
+                "o": r["o"],
+                "h": r["h"],
+                "l": r["l"],
+                "c": r["c"],
+            }
+            for r in rows
+        ]
     import yfinance as yf
-    df = yf.Ticker(sym).history(period="2y", interval="1d",
-                                auto_adjust=False)
+
+    df = yf.Ticker(sym).history(period="2y", interval="1d", auto_adjust=False)
     out = []
     for idx, row in df.iterrows():
-        out.append({"d": idx.date().isoformat(), "o": float(row["Open"]),
-                    "h": float(row["High"]), "l": float(row["Low"]),
-                    "c": float(row["Close"])})
+        out.append(
+            {
+                "d": idx.date().isoformat(),
+                "o": float(row["Open"]),
+                "h": float(row["High"]),
+                "l": float(row["Low"]),
+                "c": float(row["Close"]),
+            }
+        )
     return out
 
 
@@ -90,11 +106,13 @@ def fetch_5m(sym):
     d = ET session date, m = ET minute-of-day."""
     out = []
     if POLY_KEY:
-        end = datetime.now(timezone.utc).date()
+        end = datetime.now(UTC).date()
         start = end - timedelta(days=int(TARGET_SESSIONS * 1.5) + 10)
-        u = ("https://api.polygon.io/v2/aggs/ticker/%s/range/5/minute/%s/%s"
-             "?adjusted=true&sort=asc&limit=50000&apiKey=%s"
-             % (sym, start.isoformat(), end.isoformat(), POLY_KEY))
+        u = (
+            "https://api.polygon.io/v2/aggs/ticker/%s/range/5/minute/%s/%s"
+            "?adjusted=true&sort=asc&limit=50000&apiKey=%s"
+            % (sym, start.isoformat(), end.isoformat(), POLY_KEY)
+        )
         data = _http_json(u)
         rows = data.get("results") or []
         # one request caps at 50k rows (~1y incl extended); page if needed
@@ -103,25 +121,39 @@ def fetch_5m(sym):
             rows += data.get("results") or []
         for r in rows:
             dt = datetime.fromtimestamp(r["t"] / 1000, tz=ET)
-            out.append({"d": dt.date().isoformat(),
-                        "m": dt.hour * 60 + dt.minute,
-                        "o": r["o"], "h": r["h"], "l": r["l"],
-                        "c": r["c"], "v": r.get("v") or 0})
+            out.append(
+                {
+                    "d": dt.date().isoformat(),
+                    "m": dt.hour * 60 + dt.minute,
+                    "o": r["o"],
+                    "h": r["h"],
+                    "l": r["l"],
+                    "c": r["c"],
+                    "v": r.get("v") or 0,
+                }
+            )
         return out
     import yfinance as yf
-    df = yf.Ticker(sym).history(period="60d", interval="5m",
-                                prepost=True, auto_adjust=False)
+
+    df = yf.Ticker(sym).history(period="60d", interval="5m", prepost=True, auto_adjust=False)
     for idx, row in df.iterrows():
         dt = idx.tz_convert(ET) if idx.tzinfo else idx.tz_localize(ET)
-        out.append({"d": dt.date().isoformat(),
-                    "m": dt.hour * 60 + dt.minute,
-                    "o": float(row["Open"]), "h": float(row["High"]),
-                    "l": float(row["Low"]), "c": float(row["Close"]),
-                    "v": float(row["Volume"] or 0)})
+        out.append(
+            {
+                "d": dt.date().isoformat(),
+                "m": dt.hour * 60 + dt.minute,
+                "o": float(row["Open"]),
+                "h": float(row["High"]),
+                "l": float(row["Low"]),
+                "c": float(row["Close"]),
+                "v": float(row["Volume"] or 0),
+            }
+        )
     return out
 
 
 # ── daily-timeframe reference values ─────────────────────────────────────
+
 
 def daily_context(daily):
     """ATR14 series by date + latest SMA/period H-L snapshot."""
@@ -139,16 +171,14 @@ def daily_context(daily):
     if not daily:
         return ctx
     closes = [b["c"] for b in daily]
-    ctx["sma50"] = (round(sum(closes[-50:]) / 50, 2)
-                    if len(closes) >= 50 else None)
-    ctx["sma200"] = (round(sum(closes[-200:]) / 200, 2)
-                     if len(closes) >= 200 else None)
+    ctx["sma50"] = round(sum(closes[-50:]) / 50, 2) if len(closes) >= 50 else None
+    ctx["sma200"] = round(sum(closes[-200:]) / 200, 2) if len(closes) >= 200 else None
     last_atr = atr_by_date.get(daily[-1]["d"])
     ctx["atr14"] = round(last_atr, 2) if last_atr else None
     atrs_1y = [v for d, v in sorted(atr_by_date.items())][-252:]
     if last_atr and len(atrs_1y) >= 60:
-        ctx["atr_pctile"] = round(
-            100 * sum(1 for v in atrs_1y if v <= last_atr) / len(atrs_1y))
+        ctx["atr_pctile"] = round(100 * sum(1 for v in atrs_1y if v <= last_atr) / len(atrs_1y))
+
     # prior COMPLETED week / month / quarter high & low
     def period_hl(keyf):
         groups = {}
@@ -158,18 +188,17 @@ def daily_context(daily):
         if len(keys) < 2:
             return None
         g = groups[keys[-2]]
-        return {"h": round(max(x["h"] for x in g), 2),
-                "l": round(min(x["l"] for x in g), 2)}
-    iso_week = lambda d: "%d-W%02d" % datetime.fromisoformat(d) \
-        .isocalendar()[:2]
+        return {"h": round(max(x["h"] for x in g), 2), "l": round(min(x["l"] for x in g), 2)}
+
+    iso_week = lambda d: "%d-W%02d" % datetime.fromisoformat(d).isocalendar()[:2]
     ctx["week"] = period_hl(iso_week)
     ctx["month"] = period_hl(lambda d: d[:7])
-    ctx["quarter"] = period_hl(
-        lambda d: d[:4] + "-Q" + str((int(d[5:7]) - 1) // 3 + 1))
+    ctx["quarter"] = period_hl(lambda d: d[:4] + "-Q" + str((int(d[5:7]) - 1) // 3 + 1))
     return ctx
 
 
 # ── per-session level measurement ────────────────────────────────────────
+
 
 def measure_session(prev_daily, bars_today, atr):
     """One session's level interactions from its 5m bars.
@@ -226,8 +255,7 @@ def measure_session(prev_daily, bars_today, atr):
 
 
 def _measure_level(seq, px, tol, away, static=True):
-    res = {"touched": 0, "held": None, "ext": None, "rej": None,
-           "t2brk": None}
+    res = {"touched": 0, "held": None, "ext": None, "rej": None, "t2brk": None}
     i0 = None
     for i, b in enumerate(seq):
         if b["l"] <= px <= b["h"]:
@@ -237,11 +265,10 @@ def _measure_level(seq, px, tol, away, static=True):
         return res
     res["touched"] = 1
     prev_c = seq[i0 - 1]["c"] if i0 > 0 else seq[i0]["o"]
-    up_break = prev_c <= px          # approached from below → break is up
+    up_break = prev_c <= px  # approached from below → break is up
     res["held"] = 1
-    for b in seq[i0:i0 + BREAK_BARS + 1]:
-        if (up_break and b["c"] > px + tol) or \
-           (not up_break and b["c"] < px - tol):
+    for b in seq[i0 : i0 + BREAK_BARS + 1]:
+        if (up_break and b["c"] > px + tol) or (not up_break and b["c"] < px - tol):
             res["held"] = 0
             break
     if res["held"] == 0:
@@ -253,7 +280,7 @@ def _measure_level(seq, px, tol, away, static=True):
             mn = min(b["l"] for b in rest)
             res["ext"] = round((px - mn) / px * 100, 3)
     else:
-        win = seq[i0:i0 + REJ_BARS + 1]
+        win = seq[i0 : i0 + REJ_BARS + 1]
         if up_break:
             mn = min(b["l"] for b in win)
             res["rej"] = round((px - mn) / px * 100, 3)
@@ -274,9 +301,8 @@ def _measure_level(seq, px, tol, away, static=True):
                     pc2 = seq[j - 1]["c"]
                     up2 = pc2 <= px
                     brk = 0
-                    for bb in seq[j:j + BREAK_BARS + 1]:
-                        if (up2 and bb["c"] > px + tol) or \
-                           (not up2 and bb["c"] < px - tol):
+                    for bb in seq[j : j + BREAK_BARS + 1]:
+                        if (up2 and bb["c"] > px + tol) or (not up2 and bb["c"] < px - tol):
                             brk = 1
                             break
                     res["t2brk"] = brk
@@ -286,8 +312,7 @@ def _measure_level(seq, px, tol, away, static=True):
 
 def _measure_vwap(seq, tol, away):
     """VWAP variant: the level moves with each bar."""
-    res = {"touched": 0, "held": None, "ext": None, "rej": None,
-           "t2brk": None}
+    res = {"touched": 0, "held": None, "ext": None, "rej": None, "t2brk": None}
     i0 = None
     for i, (b, w) in enumerate(seq):
         if b["l"] <= w <= b["h"]:
@@ -300,13 +325,12 @@ def _measure_vwap(seq, tol, away):
     prev_c = seq[i0 - 1][0]["c"] if i0 > 0 else b0["o"]
     up_break = prev_c <= w0
     res["held"] = 1
-    for b, w in seq[i0:i0 + BREAK_BARS + 1]:
-        if (up_break and b["c"] > w + tol) or \
-           (not up_break and b["c"] < w - tol):
+    for b, w in seq[i0 : i0 + BREAK_BARS + 1]:
+        if (up_break and b["c"] > w + tol) or (not up_break and b["c"] < w - tol):
             res["held"] = 0
             break
     if res["held"] == 1:
-        win = seq[i0:i0 + REJ_BARS + 1]
+        win = seq[i0 : i0 + REJ_BARS + 1]
         if up_break:
             mn = min(b["l"] for b, _ in win)
             res["rej"] = round((w0 - mn) / w0 * 100, 3)
@@ -345,38 +369,37 @@ def aggregate(per_day):
         rejs = [r["rej"] for r in held if r.get("rej") is not None]
         t2 = [r["t2brk"] for r in rows if r.get("t2brk") is not None]
         touch_rate = round(100 * len(touched) / n)
-        held_rate = (round(100 * len(held) / len(touched))
-                     if touched else None)
+        held_rate = round(100 * len(held) / len(touched)) if touched else None
         stat = {
             "n": n,
             "touch": touch_rate,
             "held": held_rate,
             "brk_ext": round(statistics.mean(exts), 2) if exts else None,
             "rej": round(statistics.mean(rejs), 2) if rejs else None,
-            "t2_brk": (round(100 * sum(t2) / len(t2)) if len(t2) >= 10
-                       else None),
+            "t2_brk": (round(100 * sum(t2) / len(t2)) if len(t2) >= 10 else None),
         }
         # quality score: reliability of the FIRST-touch read (how far the
         # hold/break split sits from a coin flip), weighted by touch
         # frequency and sample. Documented, deterministic, re-derived
         # nightly — not a hand-tuned constant per level.
         if held_rate is not None:
-            edge = abs(held_rate - 50)          # 0 (coin flip) .. 50
-            score = min(100, round(40 + edge * 1.6
-                                   + min(20, touch_rate / 5)
-                                   + min(10, n / 25)))
+            edge = abs(held_rate - 50)  # 0 (coin flip) .. 50
+            score = min(100, round(40 + edge * 1.6 + min(20, touch_rate / 5) + min(10, n / 25)))
             stat["score"] = score
-            stat["grade"] = ("A+" if score >= 85 else "A" if score >= 75
-                             else "B" if score >= 60 else "C")
+            stat["grade"] = (
+                "A+" if score >= 85 else "A" if score >= 75 else "B" if score >= 60 else "C"
+            )
         out[key] = stat
     return out
 
 
 def main():
-    site = {"generated": datetime.now(timezone.utc)
-            .isoformat(timespec="seconds"),
-            "source": "polygon" if POLY_KEY else "yfinance-fallback",
-            "sessions": None, "by_sym": {}}
+    site = {
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+        "source": "polygon" if POLY_KEY else "yfinance-fallback",
+        "sessions": None,
+        "by_sym": {},
+    }
     try:
         cache = json.load(open(CACHE_PATH, encoding="utf-8"))
     except Exception:
@@ -414,12 +437,14 @@ def main():
         for extra in sorted(sym_cache)[:-CACHE_CAP_DATES]:
             del sym_cache[extra]
         n_days = len(sym_cache)
-        sessions_min = n_days if sessions_min is None \
-            else min(sessions_min, n_days)
+        sessions_min = n_days if sessions_min is None else min(sessions_min, n_days)
         site["by_sym"][sym] = {
-            "atr14": ctx.get("atr14"), "atr_pctile": ctx.get("atr_pctile"),
-            "sma50": ctx.get("sma50"), "sma200": ctx.get("sma200"),
-            "week": ctx.get("week"), "month": ctx.get("month"),
+            "atr14": ctx.get("atr14"),
+            "atr_pctile": ctx.get("atr_pctile"),
+            "sma50": ctx.get("sma50"),
+            "sma200": ctx.get("sma200"),
+            "week": ctx.get("week"),
+            "month": ctx.get("month"),
             "quarter": ctx.get("quarter"),
             "levels": aggregate(sym_cache),
         }
@@ -432,8 +457,7 @@ def main():
     os.makedirs(os.path.dirname(SITE_PATH), exist_ok=True)
     with open(SITE_PATH, "w", encoding="utf-8") as f:
         json.dump(site, f, separators=(",", ":"))
-    print("published %s (sessions=%s, source=%s)"
-          % (SITE_PATH, site["sessions"], site["source"]))
+    print("published %s (sessions=%s, source=%s)" % (SITE_PATH, site["sessions"], site["source"]))
 
 
 if __name__ == "__main__":

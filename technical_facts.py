@@ -30,7 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import yfinance as yf
 
@@ -38,9 +38,9 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 REPORTS = os.path.join(_BASE, "docs", "reports")
 OUT_PATH = os.path.join(REPORTS, "technical_facts.json")
 
-MAX_NAMES   = 60
+MAX_NAMES = 60
 HIST_PERIOD = "1y"
-TOP_PER_GRADE = 8          # bull ladder depth pulled per grade
+TOP_PER_GRADE = 8  # bull ladder depth pulled per grade
 BEAR_GRADES = ("F", "F+", "F-", "G", "G+")
 BULL_GRADES = ("A+", "A", "A-")
 
@@ -79,9 +79,29 @@ def build_universe() -> list[str]:
                 add(c.get("t"))
         # grade movers vs prior run (top 5 each way by ladder distance)
         if len(sw["runs"]) >= 2:
-            ladder = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-",
-                      "D+", "D", "D-", "E+", "E", "E-", "F+", "F", "F-",
-                      "G+", "G"]
+            ladder = [
+                "A+",
+                "A",
+                "A-",
+                "B+",
+                "B",
+                "B-",
+                "C+",
+                "C",
+                "C-",
+                "D+",
+                "D",
+                "D-",
+                "E+",
+                "E",
+                "E-",
+                "F+",
+                "F",
+                "F-",
+                "G+",
+                "G",
+            ]
+
             def gmap(r):
                 m = {}
                 for gi, g in enumerate(ladder):
@@ -89,9 +109,9 @@ def build_universe() -> list[str]:
                         if c.get("t"):
                             m[c["t"]] = gi
                 return m
+
             now, was = gmap(sw["runs"][-1]), gmap(sw["runs"][-2])
-            moves = [(t, was[t] - now[t]) for t in now
-                     if t in was and now[t] != was[t]]
+            moves = [(t, was[t] - now[t]) for t in now if t in was and now[t] != was[t]]
             moves.sort(key=lambda x: -abs(x[1]))
             ups = [t for t, d in moves if d > 0][:5]
             dns = [t for t, d in moves if d < 0][:5]
@@ -102,6 +122,7 @@ def build_universe() -> list[str]:
 
 
 # ── indicator math (plain lists — no pandas dependency beyond yfinance) ──
+
 
 def _ema(vals, span):
     if len(vals) < span:
@@ -136,9 +157,9 @@ def _atr_pct(highs, lows, closes, period=14):
         return None
     trs = []
     for i in range(1, len(closes)):
-        trs.append(max(highs[i] - lows[i],
-                       abs(highs[i] - closes[i - 1]),
-                       abs(lows[i] - closes[i - 1])))
+        trs.append(
+            max(highs[i] - lows[i], abs(highs[i] - closes[i - 1]), abs(lows[i] - closes[i - 1]))
+        )
     atr = sum(trs[:period]) / period
     for tr in trs[period:]:
         atr = (atr * (period - 1) + tr) / period
@@ -179,9 +200,9 @@ def facts_for(df, spy_rets) -> dict | None:
             rs[label] = round(tr - sr, 1)
     out["rs"] = rs
     above = sum(1 for s in (20, 50, 200) if out.get(f"ema{s}") == "above")
-    out["trend"] = ("strong-up" if above == 3 else
-                    "up" if above == 2 else
-                    "down" if above == 0 else "mixed")
+    out["trend"] = (
+        "strong-up" if above == 3 else "up" if above == 2 else "down" if above == 0 else "mixed"
+    )
     return out
 
 
@@ -192,9 +213,15 @@ def build():
         return None
     tickers = universe + ["SPY"]
     print(f"  technical facts: {len(universe)} names + SPY, {HIST_PERIOD} daily")
-    data = yf.download(tickers, period=HIST_PERIOD, interval="1d",
-                       auto_adjust=True, group_by="ticker",
-                       progress=False, threads=True)
+    data = yf.download(
+        tickers,
+        period=HIST_PERIOD,
+        interval="1d",
+        auto_adjust=True,
+        group_by="ticker",
+        progress=False,
+        threads=True,
+    )
 
     def frame(tk):
         try:
@@ -208,8 +235,9 @@ def build():
         print("  SPY history missing — aborting (RS needs the anchor)")
         return None
     spy_closes = [float(v) for v in spy["Close"].dropna().tolist()]
-    spy_rets = {lab: _ret(spy_closes, n)
-                for lab, n in (("d1", 1), ("d5", 5), ("d20", 20), ("d60", 60))}
+    spy_rets = {
+        lab: _ret(spy_closes, n) for lab, n in (("d1", 1), ("d5", 5), ("d20", 20), ("d60", 60))
+    }
 
     facts, skipped = {}, 0
     for tk in universe:
@@ -221,8 +249,10 @@ def build():
             skipped += 1
 
     # universe-relative RS rank on 60d relative return
-    ranked = sorted([t for t in facts if facts[t]["rs"].get("d60") is not None],
-                    key=lambda t: facts[t]["rs"]["d60"])
+    ranked = sorted(
+        [t for t in facts if facts[t]["rs"].get("d60") is not None],
+        key=lambda t: facts[t]["rs"]["d60"],
+    )
     for i, t in enumerate(ranked):
         facts[t]["rs_rank"] = round(100.0 * (i + 1) / len(ranked)) if len(ranked) > 1 else 50
 
@@ -233,30 +263,29 @@ def build():
     # names, which is disclosed wherever it's shown.
     try:
         import pandas as pd
+
         closes = {}
         for tk in list(facts.keys()):
             df = frame(tk)
             if df is not None:
                 closes[tk] = df["Close"]
-        cm = (pd.DataFrame(closes).pct_change().tail(60)
-              .corr(min_periods=40))
+        cm = pd.DataFrame(closes).pct_change().tail(60).corr(min_periods=40)
         for tk in facts:
             if tk not in cm.columns:
                 continue
             peers = cm[tk].drop(labels=[tk], errors="ignore").dropna()
             top = peers[peers >= 0.60].sort_values(ascending=False)[:5]
             if len(top):
-                facts[tk]["corr"] = [
-                    {"t": p, "r": round(float(r), 2)}
-                    for p, r in top.items()]
+                facts[tk]["corr"] = [{"t": p, "r": round(float(r), 2)} for p, r in top.items()]
     except Exception as e:
         print(f"  correlation map skipped (non-fatal): {e}")
 
     print(f"  computed {len(facts)} names ({skipped} skipped — thin history)")
     return {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "universe_note": ("rs_rank is percentile WITHIN tonight's surfaced "
-                          "universe, not an all-market rank"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+        "universe_note": (
+            "rs_rank is percentile WITHIN tonight's surfaced universe, not an all-market rank"
+        ),
         "count": len(facts),
         "facts": facts,
     }
@@ -280,6 +309,7 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     main()

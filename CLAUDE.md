@@ -75,8 +75,8 @@ GitHub Pages, served from `docs/` on `master`, at the custom domain
   via `scripts/publish_reports.sh`
 - **Data is in Cloudflare R2, not git** (cutover 2026-09-28; bucket
   `tickerdesk-data`). `data/**` and `docs/reports/*.json` are gitignored.
-  Each data workflow runs `python3 scripts/r2_sync.py pull` right after
-  checkout (records `.r2_manifest.json`); `publish_reports.sh` runs
+  Each data workflow runs `uv run scripts/r2_sync.py pull` right after
+  installing Python (records `.r2_manifest.json`); `publish_reports.sh` runs
   `push --changed`, which uploads only files that job changed and deletes
   ones it pruned, and FAILS the job if the upload fails. `pages.yml` pulls
   `reports/` into the site build. The worker serves `/reports/*.json` from
@@ -84,7 +84,7 @@ GitHub Pages, served from `docs/` on `master`, at the custom domain
   concurrency group because they write the same files (uoa_alpha_cache,
   oi_lifecycle, the ledger). Git-only exceptions (hand-edited or fixtures)
   are listed in `.gitignore` and `r2_sync.GIT_ONLY`. Local dev:
-  `python scripts/r2_sync.py pull-public` (public reports, no token).
+  `uv run scripts/r2_sync.py pull-public` (public reports, no token).
 
 ---
 
@@ -109,14 +109,70 @@ Cloudflare Worker secret (dashboard → Worker → Settings → Variables):
 ## Run locally
 
 ```bash
-pip install -r requirements.txt
-cp .env.example .env          # fill in real values
-python scanner.py             # SMID breakout scan
-python scanner.py --iwm       # IWM breakout scan
-python scanner.py --ticker NVDA   # ad-hoc one-pager
-python setup_builder.py       # SMID EOD VCP watchlist
-python momentum_scanner.py    # QM Monthly + Stockbee Weekly
+uv sync                          # Python 3.14 + the locked packages + dev tools, in .venv/
+cp .env.example .env             # fill in real values
+uv run scanner.py                # SMID breakout scan
+uv run scanner.py --iwm          # IWM breakout scan
+uv run scanner.py --ticker NVDA  # ad-hoc one-pager
+uv run setup_builder.py          # SMID EOD VCP watchlist
+uv run momentum_scanner.py       # QM Monthly + Stockbee Weekly
+uv run scripts/r2_sync.py pull-public   # public report JSONs, no token
+uv run pytest -n auto -m "not network and not data"   # the CI test set
 ```
+
+`uv run` always uses the project's `.venv` (no activation needed). Add a
+package with `uv add <pkg>` (`uv add --dev <pkg>` for a tool); never edit
+`uv.lock` by hand. `bun install` installs the git hooks (see Toolchain).
+
+---
+
+## Toolchain
+
+| Tool | What it does here | Command |
+|---|---|---|
+| **uv** | Python 3.14 (`.python-version`) and packages: ranges in `pyproject.toml`, exact versions in `uv.lock` | `uv sync`, `uv run <script>.py`, `uv add <pkg>`, `uv lock --upgrade-package <pkg>` |
+| **Ruff** | Lint + format, settings in `[tool.ruff]` | `uv run ruff check --fix .`, `uv run ruff format .` |
+| **Pyrefly** | Type check, settings in `[tool.pyrefly]` | `uv run pyrefly check` (`--min-severity=warn` shows the warnings) |
+| **pytest** + xdist | Tests: every `test_*.py` / `*_test.py` at the root | `uv run pytest -n auto -m "not network and not data"` |
+| **lefthook** + commitlint | Git hooks (`lefthook.yml`, `commitlint.config.js`), installed by `bun install` | commit-msg: message format; pre-commit: Ruff on staged `.py`; pre-push: tests |
+| **CI** | `.github/workflows/ci.yml` on PRs and pushes to master (not docs/-only) | Ruff lint, Ruff format check, Pyrefly, pytest; all blocking |
+| **PR title check** | `.github/workflows/pr-title.yml` | PR title must be a Conventional Commit |
+| **release-please** | `.github/workflows/release-please.yml`: release PR + `CHANGELOG.md` + `version.txt` | Merge the release PR to publish a release |
+| **Renovate** | `renovate.json`: weekly grouped non-major update PR, weekly `uv.lock` refresh | Python itself is never upgraded automatically |
+
+Rules worth knowing:
+
+- **Workflows** use `astral-sh/setup-uv` (pinned to a full version; there is
+  no moving `v10` tag) + `uv sync --locked --no-dev` + `uv run ...`. Each
+  sets `UV_NO_DEV=1` so `uv run` never installs the dev tools. `--locked`
+  fails the job if `uv.lock` is out of date: after changing dependencies in
+  `pyproject.toml`, run `uv lock` and commit `uv.lock` too.
+- **Do not bump `version` in `pyproject.toml`** (or let release-please do it):
+  `uv.lock` records it, so every `uv sync --locked` would fail.
+- **Ruff**: the long `ignore` list in `pyproject.toml` is legacy debt, not
+  policy. Remove a code from it once its existing hits are fixed.
+- **Pyrefly**: error kinds fail CI and must stay at zero. The noisy inference
+  kinds listed in `[tool.pyrefly.errors]` are warnings until type hints exist.
+  Silence a reviewed false positive with `# pyrefly: ignore[<kind>]  <reason>`
+  on the line above.
+- **pytest markers**: `network` (live services) and `data` (needs an R2 pull
+  or `.snapcache/` snapshots) are left out in CI. Script-style test files use
+  the `check(name, ok, detail)` fixture from `conftest.py`, which reports
+  each named check separately; they also still run directly
+  (`uv run test_fixtures.py --write`, `uv run test_validation.py --json`).
+  `uv run test_v5_mutations.py` regenerates
+  `data/mutation_proofs/MUTATIONS.json`; pytest only checks the proofs.
+- **Commits**: Conventional Commits, `type(scope): summary`, first line at
+  most 100 characters. Types: feat, fix, perf, docs, refactor, test, build,
+  ci, chore, revert (style is accepted for commits but not for PR titles).
+  Scopes: `scanner`, `brief`, `reports`, `desk`, `site`, `worker`, `data`,
+  `repo`, `deps`, `ci`, `main`. PRs are squash-merged, so the PR title is
+  the commit on master. The publish bot commits
+  `chore(reports): archive reports <time>`, which the changelog hides.
+  Plain-English guide: `CONTRIBUTING.md`.
+- **Root `package.json`** only holds the hook tools. Do not add
+  `"type": "module"`: it would break `scripts/verify_inline_js.js` (CommonJS),
+  which the Pages build runs.
 
 ---
 

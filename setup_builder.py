@@ -7,42 +7,43 @@ Usage:
 Env: ANTHROPIC_API_KEY
 """
 
-import os
-import sys
-import io
 import csv
+import io
 import json
+import os
 import re
-from datetime import datetime, date
+import sys
+from datetime import date, datetime
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 import matplotlib
+
 matplotlib.use("Agg")
+import anthropic
 import matplotlib.pyplot as plt
 import mplfinance as mpf
 import pandas as pd
 import pytz
 import requests
 import yfinance as yf
-import anthropic
+from dotenv import load_dotenv
 from fpdf import FPDF
 
-from macro_context import fetch_macro_context
 from insider_activity import enrich_candidates_with_insiders
-from dotenv import load_dotenv
+from macro_context import fetch_macro_context
 
 load_dotenv(override=True)
 
 import polygon_data
 
-IWM_MODE              = "--iwm" in sys.argv
+IWM_MODE = "--iwm" in sys.argv
 
-ANTHROPIC_API_KEY     = os.environ.get("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 if not ANTHROPIC_API_KEY:
-    raise EnvironmentError("Missing: ANTHROPIC_API_KEY")
+    raise OSError("Missing: ANTHROPIC_API_KEY")
 
 IWM_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IWM_holdings.csv")
 
@@ -50,6 +51,7 @@ ET = pytz.timezone("America/New_York")
 
 
 # ─── Universe (broader — catching bases before they trigger) ──────────────────
+
 
 def get_universe(size=300):
     """
@@ -72,25 +74,42 @@ def get_universe(size=300):
         "operator": "AND",
         "operands": [
             {"operator": "BTWN", "operands": ["intradaymarketcap", 150_000_000, 8_000_000_000]},
-            {"operator": "EQ",   "operands": ["region", "us"]},
-            {"operator": "GT",   "operands": ["averageDailyVolume3Month", 150_000]},
-            {"operator": "GT",   "operands": ["intradayprice", 3.0]},
-        ]
+            {"operator": "EQ", "operands": ["region", "us"]},
+            {"operator": "GT", "operands": ["averageDailyVolume3Month", 150_000]},
+            {"operator": "GT", "operands": ["intradayprice", 3.0]},
+        ],
     }
 
     try:
+        # pyrefly: ignore[missing-module-attribute]  yfinance 1.x dropped Screener; ImportError falls back below (follow-up)
         from yfinance import Screener
 
         # Pass 1: sorted by 52W high proximity — these are the RS leaders we want
         s1 = Screener()
-        s1.set_body({"offset": 0, "size": size, "sortField": "fiftyTwoWeekHighChange",
-                     "sortType": "ASC", "quoteType": "EQUITY", "query": base_query})
+        s1.set_body(
+            {
+                "offset": 0,
+                "size": size,
+                "sortField": "fiftyTwoWeekHighChange",
+                "sortType": "ASC",
+                "quoteType": "EQUITY",
+                "query": base_query,
+            }
+        )
         _add([q["symbol"] for q in s1.response.get("quotes", []) if q.get("symbol")])
 
         # Pass 2: sorted by market cap for breadth
         s2 = Screener()
-        s2.set_body({"offset": 0, "size": size, "sortField": "intradaymarketcap",
-                     "sortType": "DESC", "quoteType": "EQUITY", "query": base_query})
+        s2.set_body(
+            {
+                "offset": 0,
+                "size": size,
+                "sortField": "intradaymarketcap",
+                "sortType": "DESC",
+                "quoteType": "EQUITY",
+                "query": base_query,
+            }
+        )
         _add([q["symbol"] for q in s2.response.get("quotes", []) if q.get("symbol")])
 
     except Exception:
@@ -98,18 +117,30 @@ def get_universe(size=300):
 
     # Pass 3: Yahoo predefined screeners (always run — adds gainers / momentum names)
     try:
-        for scr_id in ["small_cap_gainers", "undervalued_small_caps", "most_actives",
-                       "day_gainers", "growth_technology_stocks"]:
+        for scr_id in [
+            "small_cap_gainers",
+            "undervalued_small_caps",
+            "most_actives",
+            "day_gainers",
+            "growth_technology_stocks",
+        ]:
             resp = requests.get(
                 "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved",
                 params={"scrIds": scr_id, "count": 100, "region": "US", "lang": "en-US"},
-                headers=headers, timeout=10,
+                headers=headers,
+                timeout=10,
             )
             if resp.ok:
                 quotes = resp.json().get("finance", {}).get("result", [{}])[0].get("quotes", [])
-                _add([q["symbol"] for q in quotes
-                      if q.get("symbol") and "." not in q.get("symbol", "")
-                      and 150_000_000 <= (q.get("marketCap") or 0) <= 8_000_000_000])
+                _add(
+                    [
+                        q["symbol"]
+                        for q in quotes
+                        if q.get("symbol")
+                        and "." not in q.get("symbol", "")
+                        and 150_000_000 <= (q.get("marketCap") or 0) <= 8_000_000_000
+                    ]
+                )
     except Exception:
         pass
 
@@ -118,6 +149,7 @@ def get_universe(size=300):
 
 
 # ─── IWM universe ─────────────────────────────────────────────────────────────
+
 
 def load_iwm_universe(top_n=500):
     """Load top N IWM equity constituents from CSV (sorted by weight desc)."""
@@ -129,7 +161,7 @@ def load_iwm_universe(top_n=500):
         reader = csv.DictReader(io.StringIO("".join(lines[header_idx:])))
         for row in reader:
             ticker = row.get("Ticker", "").strip().strip('"')
-            if not re.match(r'^[A-Z]{1,5}$', ticker):
+            if not re.match(r"^[A-Z]{1,5}$", ticker):
                 continue
             if "Equity" not in (row.get("Asset Class") or ""):
                 continue
@@ -144,6 +176,7 @@ def load_iwm_universe(top_n=500):
 
 # ─── Data + VCP scoring ───────────────────────────────────────────────────────
 
+
 def _history_df(ticker, days=200, min_bars=50):
     """Daily OHLCV as a yfinance-shaped DataFrame (Open/High/Low/Close/Volume,
     indexed by date). Polygon is the primary feed — reliable from CI where
@@ -153,13 +186,16 @@ def _history_df(ticker, days=200, min_bars=50):
         bars = polygon_data.daily_bars(ticker, days=days)
         if bars and len(bars) >= min_bars:
             idx = pd.to_datetime([b["t"] for b in bars], unit="ms")
-            return pd.DataFrame({
-                "Open":   [b.get("o") for b in bars],
-                "High":   [b.get("h") for b in bars],
-                "Low":    [b.get("l") for b in bars],
-                "Close":  [b.get("c") for b in bars],
-                "Volume": [b.get("v") for b in bars],
-            }, index=idx)
+            return pd.DataFrame(
+                {
+                    "Open": [b.get("o") for b in bars],
+                    "High": [b.get("h") for b in bars],
+                    "Low": [b.get("l") for b in bars],
+                    "Close": [b.get("c") for b in bars],
+                    "Volume": [b.get("v") for b in bars],
+                },
+                index=idx,
+            )
     try:
         df = yf.Ticker(ticker).history(period=f"{days}d", interval="1d")
         return df if df is not None and not df.empty else None
@@ -173,7 +209,7 @@ def fetch_setup_data(tickers):
     spy_hist = None
     try:
         spy_hist = _history_df("SPY")
-        spy_ret  = (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-63] - 1) * 100
+        spy_ret = (spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-63] - 1) * 100
     except Exception:
         pass
 
@@ -181,18 +217,18 @@ def fetch_setup_data(tickers):
     print(f"Fetching data for {len(tickers)} tickers...")
     for ticker in tickers:
         try:
-            t    = yf.Ticker(ticker)
+            t = yf.Ticker(ticker)
             info = t.info
             hist = _history_df(ticker)
             if hist is None or hist.empty or len(hist) < 50:
                 continue
 
-            price    = hist["Close"].iloc[-1]
-            ma20     = hist["Close"].iloc[-20:].mean()
-            ma50     = hist["Close"].iloc[-50:].mean()
-            ma200    = hist["Close"].iloc[-200:].mean() if len(hist) >= 200 else None
+            price = hist["Close"].iloc[-1]
+            ma20 = hist["Close"].iloc[-20:].mean()
+            ma50 = hist["Close"].iloc[-50:].mean()
+            ma200 = hist["Close"].iloc[-200:].mean() if len(hist) >= 200 else None
             high_52w = info.get("fiftyTwoWeekHigh", 0) or 0
-            mkt_cap  = info.get("marketCap", 0) or 0
+            mkt_cap = info.get("marketCap", 0) or 0
             float_sh = info.get("floatShares", 0) or 0
 
             # Stage 2 gate: above 50MA and ideally above 200MA
@@ -212,21 +248,21 @@ def fetch_setup_data(tickers):
             # VCP: volume contraction — recent week below 4-week baseline
             # Strict: v5 < v10 < v20 (perfect stair-step)
             # Soft:   v5 < v20 (recent quieter than month ago — valid in choppy tape)
-            v5  = hist["Volume"].iloc[-5:].mean()
+            v5 = hist["Volume"].iloc[-5:].mean()
             v10 = hist["Volume"].iloc[-10:-5].mean()
             v20 = hist["Volume"].iloc[-20:-10].mean()
             vol_dryup_strict = bool(v5 < v10 < v20)
-            vol_dryup_soft   = bool(v5 < v20)
-            vol_dryup        = vol_dryup_soft  # use soft; strict flagged in score
+            vol_dryup_soft = bool(v5 < v20)
+            vol_dryup = vol_dryup_soft  # use soft; strict flagged in score
 
             # Base tightness: 20-day close range / ATR
-            atr20      = (hist["High"].iloc[-20:] - hist["Low"].iloc[-20:]).mean()
-            range20    = hist["Close"].iloc[-20:].max() - hist["Close"].iloc[-20:].min()
+            atr20 = (hist["High"].iloc[-20:] - hist["Low"].iloc[-20:]).mean()
+            range20 = hist["Close"].iloc[-20:].max() - hist["Close"].iloc[-20:].min()
             base_tight = round(range20 / atr20, 2) if atr20 > 0 else None
 
             # Days in base: how long price has been within 10% of current level
             base_high = hist["Close"].iloc[-20:].max()
-            days_in   = int((hist["Close"].iloc[-20:] >= base_high * 0.90).sum())
+            days_in = int((hist["Close"].iloc[-20:] >= base_high * 0.90).sum())
 
             # Pivot = high of the base (breakout target)
             pivot = round(hist["High"].iloc[-20:].max(), 2)
@@ -249,7 +285,7 @@ def fetch_setup_data(tickers):
                     pass
 
             # Volume ratio (today vs 20d avg) — want LOW here for base
-            avg_vol   = hist["Volume"].iloc[-21:-1].mean()
+            avg_vol = hist["Volume"].iloc[-21:-1].mean()
             vol_ratio = round(hist["Volume"].iloc[-1] / avg_vol, 2) if avg_vol > 0 else 1.0
 
             # Earnings check — capture the verified date so Claude doesn't hallucinate
@@ -283,9 +319,11 @@ def fetch_setup_data(tickers):
                 pass
 
             def _pct(v):
-                return f"{round((v or 0)*100, 1)}%" if v else "-"
+                return f"{round((v or 0) * 100, 1)}%" if v else "-"
+
             def _r1(v):
                 return round(v, 1) if v else 0
+
             def _r2(v):
                 return round(v, 2) if v else 0
 
@@ -298,61 +336,63 @@ def fetch_setup_data(tickers):
             above_50ma = bool(price > ma50)
 
             hist_cache[ticker] = hist
-            results.append({
-                "ticker":           ticker,
-                "company":          info.get("shortName", ticker),
-                "price":            round(price, 2),
-                "mkt_cap_b":        round(mkt_cap / 1e9, 2),
-                "float_m":          round(float_sh / 1e6, 1),
-                "high_52w":         round(high_52w, 2),
-                "low_52w":          round(info.get("fiftyTwoWeekLow", 0) or 0, 2),
-                "prox_52w":         round(prox_52w, 1),
-                "pivot":            pivot,
-                "pct_to_pivot":     pct_to_pivot,
-                "base_tight":       base_tight,
-                "days_in_base":     days_in,
-                "vol_dryup":        True,
-                "vol_dryup_strict": vol_dryup_strict,
-                "vol_w1_k":         round(v5 / 1000, 1),
-                "vol_w2_k":         round(v10 / 1000, 1),
-                "vol_w3_k":         round(v20 / 1000, 1),
-                "vol_contraction":  round((1 - v5 / v20) * 100, 1) if v20 > 0 else 0,
-                "vol_ratio_today":  vol_ratio,
-                "rs_vs_spy":        rs_vs_spy,
-                "rs_line_new_high": rs_line_new_high,
-                "above_50ma":       above_50ma,
-                "above_200ma":      bool(ma200 and price > ma200),
-                "sector":           info.get("sector", ""),
-                "industry_yf":      info.get("industry", ""),
-                "earnings_flag":    earnings_flag,
-                "earnings_days":    earnings_days,
-                "earnings_date_verified": earnings_date_iso,  # ground truth from yfinance
-                # Fundamentals
-                "trailing_pe":      _r1(info.get("trailingPE")),
-                "forward_pe":       _r1(info.get("forwardPE")),
-                "peg":              _r2(info.get("pegRatio")),
-                "ev_ebitda":        _r1(info.get("enterpriseToEbitda")),
-                "ps_ratio":         _r1(info.get("priceToSalesTrailing12Months")),
-                "pb_ratio":         _r1(info.get("priceToBook")),
-                "gross_margin":     _pct(info.get("grossMargins")),
-                "op_margin":        _pct(info.get("operatingMargins")),
-                "net_margin":       _pct(info.get("profitMargins")),
-                "roe":              _pct(info.get("returnOnEquity")),
-                "roa":              _pct(info.get("returnOnAssets")),
-                "debt_eq":          _r2(info.get("debtToEquity")),
-                "short_pct":        _pct(info.get("shortPercentOfFloat")),
-                "short_ratio":      _r1(info.get("shortRatio")),
-                "inst_own":         _pct(info.get("institutionPercentHeld")),
-                "insider_own":      _pct(info.get("insiderPercentHeld")),
-                "beta":             _r2(info.get("beta")),
-                "eps_ttm":          _r2(info.get("trailingEps")),
-                "eps_fwd":          _r2(info.get("forwardEps")),
-                "rev_growth":       _pct(info.get("revenueGrowth")),
-                "earn_growth":      _pct(info.get("earningsGrowth")),
-                "target_price":     _r2(info.get("targetMeanPrice")),
-                "avg_vol_m":        round((info.get("averageVolume", 0) or 0) / 1e6, 2),
-                "shs_out_m":        round((info.get("sharesOutstanding", 0) or 0) / 1e6, 1),
-            })
+            results.append(
+                {
+                    "ticker": ticker,
+                    "company": info.get("shortName", ticker),
+                    "price": round(price, 2),
+                    "mkt_cap_b": round(mkt_cap / 1e9, 2),
+                    "float_m": round(float_sh / 1e6, 1),
+                    "high_52w": round(high_52w, 2),
+                    "low_52w": round(info.get("fiftyTwoWeekLow", 0) or 0, 2),
+                    "prox_52w": round(prox_52w, 1),
+                    "pivot": pivot,
+                    "pct_to_pivot": pct_to_pivot,
+                    "base_tight": base_tight,
+                    "days_in_base": days_in,
+                    "vol_dryup": True,
+                    "vol_dryup_strict": vol_dryup_strict,
+                    "vol_w1_k": round(v5 / 1000, 1),
+                    "vol_w2_k": round(v10 / 1000, 1),
+                    "vol_w3_k": round(v20 / 1000, 1),
+                    "vol_contraction": round((1 - v5 / v20) * 100, 1) if v20 > 0 else 0,
+                    "vol_ratio_today": vol_ratio,
+                    "rs_vs_spy": rs_vs_spy,
+                    "rs_line_new_high": rs_line_new_high,
+                    "above_50ma": above_50ma,
+                    "above_200ma": bool(ma200 and price > ma200),
+                    "sector": info.get("sector", ""),
+                    "industry_yf": info.get("industry", ""),
+                    "earnings_flag": earnings_flag,
+                    "earnings_days": earnings_days,
+                    "earnings_date_verified": earnings_date_iso,  # ground truth from yfinance
+                    # Fundamentals
+                    "trailing_pe": _r1(info.get("trailingPE")),
+                    "forward_pe": _r1(info.get("forwardPE")),
+                    "peg": _r2(info.get("pegRatio")),
+                    "ev_ebitda": _r1(info.get("enterpriseToEbitda")),
+                    "ps_ratio": _r1(info.get("priceToSalesTrailing12Months")),
+                    "pb_ratio": _r1(info.get("priceToBook")),
+                    "gross_margin": _pct(info.get("grossMargins")),
+                    "op_margin": _pct(info.get("operatingMargins")),
+                    "net_margin": _pct(info.get("profitMargins")),
+                    "roe": _pct(info.get("returnOnEquity")),
+                    "roa": _pct(info.get("returnOnAssets")),
+                    "debt_eq": _r2(info.get("debtToEquity")),
+                    "short_pct": _pct(info.get("shortPercentOfFloat")),
+                    "short_ratio": _r1(info.get("shortRatio")),
+                    "inst_own": _pct(info.get("institutionPercentHeld")),
+                    "insider_own": _pct(info.get("insiderPercentHeld")),
+                    "beta": _r2(info.get("beta")),
+                    "eps_ttm": _r2(info.get("trailingEps")),
+                    "eps_fwd": _r2(info.get("forwardEps")),
+                    "rev_growth": _pct(info.get("revenueGrowth")),
+                    "earn_growth": _pct(info.get("earningsGrowth")),
+                    "target_price": _r2(info.get("targetMeanPrice")),
+                    "avg_vol_m": round((info.get("averageVolume", 0) or 0) / 1e6, 2),
+                    "shs_out_m": round((info.get("sharesOutstanding", 0) or 0) / 1e6, 1),
+                }
+            )
         except Exception as e:
             print(f"  ⚠️  Skipped {ticker}: {e}")
 
@@ -375,28 +415,40 @@ def score_setups(data):
 
         # Base tightness
         bt = d["base_tight"] or 99
-        if bt < 1.5:   score += 25
-        elif bt < 2.0: score += 15
-        elif bt < 2.5: score += 5
+        if bt < 1.5:
+            score += 25
+        elif bt < 2.0:
+            score += 15
+        elif bt < 2.5:
+            score += 5
 
         # Proximity to 52W high
-        if d["prox_52w"] >= 97:   score += 20
-        elif d["prox_52w"] >= 92: score += 15
-        elif d["prox_52w"] >= 85: score += 8
+        if d["prox_52w"] >= 97:
+            score += 20
+        elif d["prox_52w"] >= 92:
+            score += 15
+        elif d["prox_52w"] >= 85:
+            score += 8
 
         # RS vs SPY
-        if d["rs_vs_spy"] >= 20:  score += 15
-        elif d["rs_vs_spy"] >= 10: score += 10
-        elif d["rs_vs_spy"] >= 0:  score += 5
+        if d["rs_vs_spy"] >= 20:
+            score += 15
+        elif d["rs_vs_spy"] >= 10:
+            score += 10
+        elif d["rs_vs_spy"] >= 0:
+            score += 5
 
         # RS line at new high
         if d["rs_line_new_high"]:
             score += 15
 
         # Proximity to pivot (closer = more imminent)
-        if d["pct_to_pivot"] <= 1:    score += 10
-        elif d["pct_to_pivot"] <= 3:  score += 7
-        elif d["pct_to_pivot"] <= 5:  score += 3
+        if d["pct_to_pivot"] <= 1:
+            score += 10
+        elif d["pct_to_pivot"] <= 3:
+            score += 7
+        elif d["pct_to_pivot"] <= 5:
+            score += 3
 
         # Earnings catalyst imminent
         ed = d.get("earnings_days")
@@ -516,19 +568,19 @@ def run_claude_setup_analysis(setups, macro=None):
     if not setups:
         return []
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    today  = datetime.now(ET).strftime("%B %d, %Y")
+    today = datetime.now(ET).strftime("%B %d, %Y")
 
     macro_block = ""
     if macro:
         macro_block = f"""
 MARKET REGIME CONTEXT (factor this into your conviction):
-- Regime: {macro.get('regime', 'Unknown')} — {macro.get('regime_description', '')}
-- SPY 20d return: {macro.get('spy_20d_pct', 0):+.1f}%
-- IWM 20d return: {macro.get('iwm_20d_pct', 0):+.1f}%
-- IWM/SPY relative trend (small-cap leadership): {macro.get('iwm_spy_trend', 0):+.1f}%
-- VIX: {macro.get('vix', 0)} ({macro.get('vix_change_20d', 0):+.1f} vs 20d avg)
-- Leading sectors: {', '.join(macro.get('leading_sectors', []))}
-- Lagging sectors: {', '.join(macro.get('lagging_sectors', []))}
+- Regime: {macro.get("regime", "Unknown")} — {macro.get("regime_description", "")}
+- SPY 20d return: {macro.get("spy_20d_pct", 0):+.1f}%
+- IWM 20d return: {macro.get("iwm_20d_pct", 0):+.1f}%
+- IWM/SPY relative trend (small-cap leadership): {macro.get("iwm_spy_trend", 0):+.1f}%
+- VIX: {macro.get("vix", 0)} ({macro.get("vix_change_20d", 0):+.1f} vs 20d avg)
+- Leading sectors: {", ".join(macro.get("leading_sectors", []))}
+- Lagging sectors: {", ".join(macro.get("lagging_sectors", []))}
 
 Reduce conviction in Risk-Off regimes. In risk-on regimes with small-cap leadership, A-grade setups have full historical edge. In risk-off, even strong technical setups fail >50% of the time — downgrade aggressive grades or note the macro headwind in reasoning.
 """
@@ -573,22 +625,23 @@ Candidates (all have confirmed vol dry-up + Stage 2 base; some have insider acti
 
 # ─── Chart generation ─────────────────────────────────────────────────────────
 
+
 def generate_setup_chart(ticker, hist, pivot):
     """Full Qullamaggie chart: 9/21/50/200 SMA + RSI panel + rel-vol coloring + gold pivot line."""
     try:
         data = hist.copy()
-        data["SMA9"]   = data["Close"].rolling(9).mean()
-        data["SMA21"]  = data["Close"].rolling(21).mean()
-        data["SMA50"]  = data["Close"].rolling(50).mean()
+        data["SMA9"] = data["Close"].rolling(9).mean()
+        data["SMA21"] = data["Close"].rolling(21).mean()
+        data["SMA50"] = data["Close"].rolling(50).mean()
         data["SMA200"] = data["Close"].rolling(200).mean()
 
-        delta       = data["Close"].diff()
-        gain        = delta.clip(lower=0).rolling(14).mean()
-        loss        = (-delta.clip(upper=0)).rolling(14).mean()
-        rsi_raw     = 100 - (100 / (1 + gain / loss.where(loss != 0, float("nan"))))
+        delta = data["Close"].diff()
+        gain = delta.clip(lower=0).rolling(14).mean()
+        loss = (-delta.clip(upper=0)).rolling(14).mean()
+        rsi_raw = 100 - (100 / (1 + gain / loss.where(loss != 0, float("nan"))))
         data["RSI"] = rsi_raw.ffill().bfill().clip(0, 100)
 
-        avg_vol        = data["Volume"].rolling(20).mean()
+        avg_vol = data["Volume"].rolling(20).mean()
         data["RelVol"] = data["Volume"] / avg_vol.where(avg_vol > 0, float("nan"))
 
         plot_data = data.tail(90).copy()
@@ -597,45 +650,62 @@ def generate_setup_chart(ticker, hist, pivot):
 
         vcolors = []
         for rv in plot_data["RelVol"]:
-            if rv >= 3:     vcolors.append("#FF4500")
-            elif rv >= 2:   vcolors.append("#FFA500")
-            elif rv >= 1.5: vcolors.append("#90EE90")
-            else:           vcolors.append("#4a4a4a")
+            if rv >= 3:
+                vcolors.append("#FF4500")
+            elif rv >= 2:
+                vcolors.append("#FFA500")
+            elif rv >= 1.5:
+                vcolors.append("#90EE90")
+            else:
+                vcolors.append("#4a4a4a")
 
-        idx        = plot_data.index
+        idx = plot_data.index
         pivot_line = pd.Series(float(pivot), index=idx, dtype=float)
-        rsi_70     = pd.Series(70.0,          index=idx, dtype=float)
-        rsi_30     = pd.Series(30.0,          index=idx, dtype=float)
+        rsi_70 = pd.Series(70.0, index=idx, dtype=float)
+        rsi_30 = pd.Series(30.0, index=idx, dtype=float)
 
         def _ap(s, **kw):
             return mpf.make_addplot(s, **kw) if s.notna().sum() >= 2 else None
 
-        apds = [ap for ap in [
-            _ap(plot_data["SMA9"],   color="#00BFFF", width=0.9),
-            _ap(plot_data["SMA21"],  color="#FFA500", width=0.9),
-            _ap(plot_data["SMA50"],  color="#32CD32", width=1.3),
-            _ap(plot_data["SMA200"], color="#FF4500", width=1.6),
-            _ap(pivot_line,          color="#FFD700", width=1.4, linestyle="--"),
-            _ap(plot_data["RSI"],    panel=2, color="#9370DB", width=1.0, ylabel="RSI"),
-            _ap(rsi_70,              panel=2, color="#FF6666", width=0.5, linestyle="--"),
-            _ap(rsi_30,              panel=2, color="#66FF66", width=0.5, linestyle="--"),
-        ] if ap is not None]
+        apds = [
+            ap
+            for ap in [
+                _ap(plot_data["SMA9"], color="#00BFFF", width=0.9),
+                _ap(plot_data["SMA21"], color="#FFA500", width=0.9),
+                _ap(plot_data["SMA50"], color="#32CD32", width=1.3),
+                _ap(plot_data["SMA200"], color="#FF4500", width=1.6),
+                _ap(pivot_line, color="#FFD700", width=1.4, linestyle="--"),
+                _ap(plot_data["RSI"], panel=2, color="#9370DB", width=1.0, ylabel="RSI"),
+                _ap(rsi_70, panel=2, color="#FF6666", width=0.5, linestyle="--"),
+                _ap(rsi_30, panel=2, color="#66FF66", width=0.5, linestyle="--"),
+            ]
+            if ap is not None
+        ]
 
         style = mpf.make_mpf_style(
-            base_mpf_style="nightclouds", gridstyle="--",
-            gridcolor="#2a2a2a", facecolor="#141414",
-            edgecolor="#2a2a2a", figcolor="#141414", y_on_right=True,
+            base_mpf_style="nightclouds",
+            gridstyle="--",
+            gridcolor="#2a2a2a",
+            facecolor="#141414",
+            edgecolor="#2a2a2a",
+            figcolor="#141414",
+            y_on_right=True,
         )
 
         fig, axes = mpf.plot(
-            plot_data, type="candle", style=style, addplot=apds,
-            volume=True, figsize=(14, 9),
+            plot_data,
+            type="candle",
+            style=style,
+            addplot=apds,
+            volume=True,
+            figsize=(14, 9),
             title=f"\n{ticker} — 90D Base Setup  |  Pivot: ${pivot:.2f} (gold)  |  SMA: 9(blue) 21(orange) 50(green) 200(red)",
-            panel_ratios=(4, 1.2, 1.8), returnfig=True,
+            panel_ratios=(4, 1.2, 1.8),
+            returnfig=True,
         )
 
         if len(axes) > 1:
-            for bar, color in zip(axes[1].patches, vcolors[-len(axes[1].patches):]):
+            for bar, color in zip(axes[1].patches, vcolors[-len(axes[1].patches) :]):
                 bar.set_facecolor(color)
                 bar.set_alpha(0.85)
 
@@ -651,10 +721,18 @@ def generate_setup_chart(ticker, hist, pivot):
 
 # ─── PDF generation ───────────────────────────────────────────────────────────
 
+
 def _safe(text):
     s = str(text)
-    s = s.replace('—', '-').replace('–', '-').replace('‘', "'").replace('’', "'").replace('“', '"').replace('”', '"')
-    return re.sub(r'[^\x00-\xFF]', '', s).strip()
+    s = (
+        s.replace("—", "-")
+        .replace("–", "-")
+        .replace("‘", "'")
+        .replace("’", "'")
+        .replace("“", '"')
+        .replace("”", '"')
+    )
+    return re.sub(r"[^\x00-\xFF]", "", s).strip()
 
 
 def _num(x, default=0.0):
@@ -673,12 +751,12 @@ def _num(x, default=0.0):
         if not s or s.lower() in ("n/a", "na", "none", "null", "-", "—"):
             return default
         return float(s)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return default
 
 
 def generate_setup_pdf(results, hist_cache=None, macro=None):
-    now    = datetime.now(ET)
+    now = datetime.now(ET)
     grades = {"A": [], "B": [], "C": []}
     for r in results:
         g = str(r.get("grade", ""))[:1]
@@ -713,9 +791,12 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
     if macro:
         regime = _safe(macro.get("regime", "Unknown"))
         regime_rgb = (39, 174, 96)
-        if "Risk-Off" in regime:    regime_rgb = (192, 57, 43)
-        elif "Mixed" in regime:     regime_rgb = (200, 130, 20)
-        elif "Risk-On" in regime:   regime_rgb = (39, 174, 96)
+        if "Risk-Off" in regime:
+            regime_rgb = (192, 57, 43)
+        elif "Mixed" in regime:
+            regime_rgb = (200, 130, 20)
+        elif "Risk-On" in regime:
+            regime_rgb = (39, 174, 96)
 
         pdf.set_fill_color(*regime_rgb)
         pdf.rect(0, macro_y, 210, 14, "F")
@@ -725,11 +806,13 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         pdf.cell(0, 5, f"MACRO REGIME: {regime}")
         pdf.set_font("Helvetica", "", 7)
         pdf.set_xy(10, macro_y + 6.5)
-        line2 = (f"VIX {macro.get('vix', 0):.1f}  "
-                 f"({macro.get('vix_change_20d', 0):+.1f} vs 20d)  |  "
-                 f"SPY 20d {macro.get('spy_20d_pct', 0):+.1f}%  |  "
-                 f"IWM 20d {macro.get('iwm_20d_pct', 0):+.1f}%  |  "
-                 f"IWM/SPY trend {macro.get('iwm_spy_trend', 0):+.1f}%")
+        line2 = (
+            f"VIX {macro.get('vix', 0):.1f}  "
+            f"({macro.get('vix_change_20d', 0):+.1f} vs 20d)  |  "
+            f"SPY 20d {macro.get('spy_20d_pct', 0):+.1f}%  |  "
+            f"IWM 20d {macro.get('iwm_20d_pct', 0):+.1f}%  |  "
+            f"IWM/SPY trend {macro.get('iwm_spy_trend', 0):+.1f}%"
+        )
         pdf.cell(0, 4, _safe(line2))
         leaders = ", ".join(macro.get("leading_sectors", [])[:3])
         if leaders:
@@ -747,9 +830,9 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
     pdf.ln(6)
     col_w = 62
     grade_meta = [
-        ("A - Prime Setup",  grades["A"], (39, 174, 96),  (220, 245, 230)),
-        ("B - Building",     grades["B"], (52, 152, 219), (220, 235, 250)),
-        ("C - Early Stage",  grades["C"], (200, 130, 20), (250, 240, 215)),
+        ("A - Prime Setup", grades["A"], (39, 174, 96), (220, 245, 230)),
+        ("B - Building", grades["B"], (52, 152, 219), (220, 235, 250)),
+        ("C - Early Stage", grades["C"], (200, 130, 20), (250, 240, 215)),
     ]
     pdf.set_font("Helvetica", "B", 8)
     for label, tickers, hdr_rgb, _ in grade_meta:
@@ -776,8 +859,17 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
     pdf.ln(6)
 
     cols = [
-        ("Gr", 7), ("Ticker", 14), ("Company", 28), ("Theme", 32), ("Mkt Cap", 17),
-        ("Price", 14), ("Pivot", 14), ("To Pivot", 14), ("RS/SPY", 15), ("Vol Dry", 13), ("RS Hi", 12),
+        ("Gr", 7),
+        ("Ticker", 14),
+        ("Company", 28),
+        ("Theme", 32),
+        ("Mkt Cap", 17),
+        ("Price", 14),
+        ("Pivot", 14),
+        ("To Pivot", 14),
+        ("RS/SPY", 15),
+        ("Vol Dry", 13),
+        ("RS Hi", 12),
     ]
     pdf.set_fill_color(12, 20, 48)
     pdf.set_text_color(255, 255, 255)
@@ -789,7 +881,13 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
     pdf.set_text_color(20, 20, 40)
     for i, r in enumerate(results):
         grade = str(r.get("grade", ""))[:1]
-        bg    = (220,245,230) if grade=="A" else (220,235,250) if grade=="B" else (250,240,215)
+        bg = (
+            (220, 245, 230)
+            if grade == "A"
+            else (220, 235, 250)
+            if grade == "B"
+            else (250, 240, 215)
+        )
         pdf.set_fill_color(*bg)
         pdf.set_font("Helvetica", "B" if grade == "A" else "", 7)
         # Coerce every numeric field defensively. Claude sometimes
@@ -797,23 +895,23 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         # instead of raw numbers; the f"{val:.Nf}" format calls below
         # need a real number or they TypeError. _num() strips formatting
         # and falls back to 0 on unparseable values.
-        rs    = _num(r.get("rsVsSpy", r.get("rs_vs_spy", 0)))
-        cap   = _num(r.get("mkt_cap_b", 0))
+        rs = _num(r.get("rsVsSpy", r.get("rs_vs_spy", 0)))
+        cap = _num(r.get("mkt_cap_b", 0))
         price = _num(r.get("price", 0))
         pivot_v = _num(r.get("pivot", r.get("watchTarget", 0)))
         pct_to_pivot = _num(r.get("pctToPivot", r.get("pct_to_pivot", 0)))
-        rs_s  = f"+{rs:.1f}" if rs >= 0 else f"{rs:.1f}"
+        rs_s = f"+{rs:.1f}" if rs >= 0 else f"{rs:.1f}"
         theme = _safe(r.get("theme", r.get("sector", "")))
         row = [
-            (grade,                                                   7),
-            (r.get("ticker", ""),                                    14),
-            (_safe(r.get("company", ""))[:17],                       28),
-            (theme[:20],                                             32),
-            (f"${cap:.2f}B",                                         17),
-            (f"${price:.2f}",                                        14),
-            (f"${pivot_v:.2f}",                                      14),
-            (f"{pct_to_pivot:.1f}%",                                 14),
-            (rs_s,                                                   15),
+            (grade, 7),
+            (r.get("ticker", ""), 14),
+            (_safe(r.get("company", ""))[:17], 28),
+            (theme[:20], 32),
+            (f"${cap:.2f}B", 17),
+            (f"${price:.2f}", 14),
+            (f"${pivot_v:.2f}", 14),
+            (f"{pct_to_pivot:.1f}%", 14),
+            (rs_s, 15),
             ("YES" if r.get("volDryup", r.get("vol_dryup")) else "no", 13),
             ("YES" if r.get("rsLineNewHigh", r.get("rs_line_new_high")) else "no", 12),
         ]
@@ -826,7 +924,12 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
     pdf.set_xy(10, 287)
     pdf.set_font("Helvetica", "I", 5.5)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 4, "Not financial advice. Watchlist only - setups have NOT triggered. For informational purposes only. Do your own due diligence.", align="C")
+    pdf.cell(
+        0,
+        4,
+        "Not financial advice. Watchlist only - setups have NOT triggered. For informational purposes only. Do your own due diligence.",
+        align="C",
+    )
 
     # ════════════════════════════════════════════════════════════════════════════
     # PER-TICKER ONE-PAGER
@@ -839,26 +942,30 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
     # ════════════════════════════════════════════════════════════════════════════
     for s in results:
         ticker = s["ticker"]
-        grade  = str(s.get("grade", ""))[:1]
+        grade = str(s.get("grade", ""))[:1]
         # Coerce every numeric field through _num() — same defensive
         # pattern as the summary table. Claude can return strings
         # ("+5.2%", "N/A", etc.) for any of these and the format
         # specifiers below need real numbers.
-        pivot  = _num(s.get("pivot", s.get("watchTarget", 0)))
-        cap_b  = _num(s.get("mkt_cap_b", 0))
-        fl_m   = _num(s.get("float_m", 0))
-        price  = _num(s.get("price", 0))
-        prox   = _num(s.get("pctToPivot", s.get("pct_to_pivot", 0)))
+        pivot = _num(s.get("pivot", s.get("watchTarget", 0)))
+        cap_b = _num(s.get("mkt_cap_b", 0))
+        fl_m = _num(s.get("float_m", 0))
+        price = _num(s.get("price", 0))
+        prox = _num(s.get("pctToPivot", s.get("pct_to_pivot", 0)))
         rs_raw = _num(s.get("rsVsSpy", s.get("rs_vs_spy", 0)))
-        rs_s   = f"+{rs_raw:.1f}%" if rs_raw >= 0 else f"{rs_raw:.1f}%"
+        rs_s = f"+{rs_raw:.1f}%" if rs_raw >= 0 else f"{rs_raw:.1f}%"
 
         grade_label = {"A": "A  PRIME", "B": "B  BUILDING", "C": "C  EARLY STAGE"}.get(grade, grade)
-        grade_rgb   = {"A": (34, 153, 84), "B": (41, 128, 185), "C": (194, 120, 3)}.get(grade, (80,80,80))
-        grade_bg    = {"A": (220,245,230), "B": (220,235,250), "C": (250,240,215)}.get(grade, (240,240,240))
+        grade_rgb = {"A": (34, 153, 84), "B": (41, 128, 185), "C": (194, 120, 3)}.get(
+            grade, (80, 80, 80)
+        )
+        grade_bg = {"A": (220, 245, 230), "B": (220, 235, 250), "C": (250, 240, 215)}.get(
+            grade, (240, 240, 240)
+        )
 
-        company  = _safe(s.get("company", ticker))
+        company = _safe(s.get("company", ticker))
         industry = _safe(s.get("industry", s.get("industry_yf", s.get("sector", ""))))
-        theme    = _safe(s.get("theme", ""))
+        theme = _safe(s.get("theme", ""))
 
         pdf.add_page()
         pdf.set_auto_page_break(auto=False)
@@ -910,9 +1017,13 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         pdf.set_font("Helvetica", "", 7)
         pdf.set_xy(10, 34.5)
         voldry = "Vol Dry-Up: YES" if s.get("volDryup", s.get("vol_dryup")) else "Vol Dry-Up: no"
-        rsline = "RS Line Hi: YES" if s.get("rsLineNewHigh", s.get("rs_line_new_high")) else "RS Line Hi: no"
-        above  = "Above 200MA: YES" if s.get("above_200ma") else "Above 200MA: no"
-        tight  = s.get("base_tight", s.get("baseTight", "-"))
+        rsline = (
+            "RS Line Hi: YES"
+            if s.get("rsLineNewHigh", s.get("rs_line_new_high"))
+            else "RS Line Hi: no"
+        )
+        above = "Above 200MA: YES" if s.get("above_200ma") else "Above 200MA: no"
+        tight = s.get("base_tight", s.get("baseTight", "-"))
         subhdr = f"{industry}  |  Theme: {theme}  |  {voldry}  |  {rsline}  |  {above}  |  Base Tight: {tight}"
         pdf.cell(0, 4, _safe(subhdr))
 
@@ -921,7 +1032,15 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
 
         def _v(val, fmt=None, default="—"):
             # Treat 0/null/0.0%/0%/N/A as missing data, not real zeros (yfinance gaps)
-            if val is None or val == 0 or val == "0" or val == "0.0" or val == "0%" or val == "0.0%" or val == "":
+            if (
+                val is None
+                or val == 0
+                or val == "0"
+                or val == "0.0"
+                or val == "0%"
+                or val == "0.0%"
+                or val == ""
+            ):
                 return default
             return fmt.format(val) if fmt else str(val)
 
@@ -952,16 +1071,18 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         pdf.cell(MW, 5, "  VCP BASE ANALYSIS", fill=True)
         row_y = MY + 5
 
-        bt    = _num(s.get("base_tight", s.get("baseTight", 0)))
-        coil  = "Textbook" if bt and bt < 1.5 else "Good" if bt and bt < 2.0 else "Fair" if bt else "-"
+        bt = _num(s.get("base_tight", s.get("baseTight", 0)))
+        coil = (
+            "Textbook" if bt and bt < 1.5 else "Good" if bt and bt < 2.0 else "Fair" if bt else "-"
+        )
         prox_52w_v = _num(s.get("prox_52w", 0))
 
         row_y = _subhdr("BASE STRUCTURE", row_y)
-        row_y = _row("Pivot Price",    f"${pivot:.2f}",                             row_y, 0)
-        row_y = _row("% to Pivot",     f"{prox:.1f}%",                             row_y, 1)
-        row_y = _row("Days in Base",   str(s.get("days_in_base", "-")),            row_y, 2)
-        row_y = _row("Tightness",      f"{bt:.2f}  {coil}" if bt else "-",         row_y, 3)
-        row_y = _row("52W Hi Prox",    f"{prox_52w_v:.1f}%",                       row_y, 4)
+        row_y = _row("Pivot Price", f"${pivot:.2f}", row_y, 0)
+        row_y = _row("% to Pivot", f"{prox:.1f}%", row_y, 1)
+        row_y = _row("Days in Base", str(s.get("days_in_base", "-")), row_y, 2)
+        row_y = _row("Tightness", f"{bt:.2f}  {coil}" if bt else "-", row_y, 3)
+        row_y = _row("52W Hi Prox", f"{prox_52w_v:.1f}%", row_y, 4)
 
         # Coerce via the module-level _num() — upstream scan dicts
         # occasionally deliver these as strings (observed 2026-06-11:
@@ -973,29 +1094,31 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         v3 = _num(s.get("vol_w3_k", 0))
         contraction = _num(s.get("vol_contraction", 0))
         row_y = _subhdr("VOLUME CONTRACTION  (Wk1 < Wk2 < Wk3 = VCP)", row_y)
-        row_y = _row("Wk1 (recent)",  f"{v1:.0f}k  <",  row_y, 0)
-        row_y = _row("Wk2",           f"{v2:.0f}k  <",  row_y, 1)
-        row_y = _row("Wk3 (oldest)",  f"{v3:.0f}k",     row_y, 2)
-        row_y = _row("Coil Strength", f"{contraction:.1f}% from peak" if contraction else "-", row_y, 3)
+        row_y = _row("Wk1 (recent)", f"{v1:.0f}k  <", row_y, 0)
+        row_y = _row("Wk2", f"{v2:.0f}k  <", row_y, 1)
+        row_y = _row("Wk3 (oldest)", f"{v3:.0f}k", row_y, 2)
+        row_y = _row(
+            "Coil Strength", f"{contraction:.1f}% from peak" if contraction else "-", row_y, 3
+        )
 
-        rs_raw   = _num(s.get("rsVsSpy", s.get("rs_vs_spy", 0)))
-        rs_disp  = f"+{rs_raw:.1f}%" if rs_raw >= 0 else f"{rs_raw:.1f}%"
-        rs_hi    = s.get("rs_line_new_high", s.get("rsLineNewHigh", False))
+        rs_raw = _num(s.get("rsVsSpy", s.get("rs_vs_spy", 0)))
+        rs_disp = f"+{rs_raw:.1f}%" if rs_raw >= 0 else f"{rs_raw:.1f}%"
+        rs_hi = s.get("rs_line_new_high", s.get("rsLineNewHigh", False))
         row_y = _subhdr("RELATIVE STRENGTH", row_y)
-        row_y = _row("RS vs SPY (12W)", rs_disp,                                              row_y, 0)
-        row_y = _row("RS Line New Hi",  "YES - Early Leader" if rs_hi else "no",             row_y, 1)
-        row_y = _row("Above 50MA",      "YES" if s.get("above_50ma") else "no",               row_y, 2)
-        row_y = _row("Above 200MA",     "YES" if s.get("above_200ma") else "no",              row_y, 3)
+        row_y = _row("RS vs SPY (12W)", rs_disp, row_y, 0)
+        row_y = _row("RS Line New Hi", "YES - Early Leader" if rs_hi else "no", row_y, 1)
+        row_y = _row("Above 50MA", "YES" if s.get("above_50ma") else "no", row_y, 2)
+        row_y = _row("Above 200MA", "YES" if s.get("above_200ma") else "no", row_y, 3)
 
         row_y = _subhdr("FUNDAMENTALS SNAPSHOT", row_y)
-        row_y = _row("Mkt Cap",       f"${cap_b:.2f}B",                    row_y, 0)
-        row_y = _row("Float",         f"{fl_m:.0f}M sh",                   row_y, 1)
-        row_y = _row("P/E (TTM)",     _v(s.get("trailing_pe")),             row_y, 2)
-        row_y = _row("Fwd P/E",       _v(s.get("forward_pe")),              row_y, 3)
-        row_y = _row("Rev Growth",    _v(s.get("rev_growth")),               row_y, 4)
-        row_y = _row("Short %",       _v(s.get("short_pct")),                row_y, 5)
-        row_y = _row("Inst. Own",     _v(s.get("inst_own")),                 row_y, 6)
-        row_y = _row("Target Pr.",    _v(s.get("target_price"), "${:.2f}"),   row_y, 7)
+        row_y = _row("Mkt Cap", f"${cap_b:.2f}B", row_y, 0)
+        row_y = _row("Float", f"{fl_m:.0f}M sh", row_y, 1)
+        row_y = _row("P/E (TTM)", _v(s.get("trailing_pe")), row_y, 2)
+        row_y = _row("Fwd P/E", _v(s.get("forward_pe")), row_y, 3)
+        row_y = _row("Rev Growth", _v(s.get("rev_growth")), row_y, 4)
+        row_y = _row("Short %", _v(s.get("short_pct")), row_y, 5)
+        row_y = _row("Inst. Own", _v(s.get("inst_own")), row_y, 6)
+        row_y = _row("Target Pr.", _v(s.get("target_price"), "${:.2f}"), row_y, 7)
 
         # ── Entry / Target / Stop box (left column, below VCP metrics) ────────
         # Write text first without background to measure height, then draw box under
@@ -1005,8 +1128,8 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
 
         # Measure trigger text height by writing invisibly off-page
         trigger_txt = _safe(str(s.get("triggerCondition", "-")))
-        target_txt  = "Target: " + _safe(str(s.get("watchTarget", "-")))
-        stop_txt    = "Stop: "   + _safe(str(s.get("stopLevel", "-")))
+        target_txt = "Target: " + _safe(str(s.get("watchTarget", "-")))
+        stop_txt = "Stop: " + _safe(str(s.get("stopLevel", "-")))
 
         # Write the box content
         pdf.set_text_color(15, 20, 50)
@@ -1026,7 +1149,7 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         pdf.multi_cell(MW - 2 * pad, 3.5, stop_txt, border=0)
 
         box_bot = pdf.get_y() + 2
-        box_h   = box_bot - box_top
+        box_h = box_bot - box_top
 
         # Draw box behind text using a filled rect with same color (overwrites, then redraw border)
         # fpdf draws in order so we draw text first then overlay border-only rect
@@ -1070,7 +1193,7 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
             cat_y = pdf.get_y() + 1.5
 
         edate = s.get("earningsDate", "")
-        ectx  = s.get("earningsContext", "")
+        ectx = s.get("earningsContext", "")
         earn_str = ""
         if edate and ectx:
             earn_str = f"{edate}  -  {ectx}"
@@ -1079,14 +1202,16 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         elif ectx:
             earn_str = ectx
         else:
-            earn_str = s.get("earnings_flag", s.get("earningsFlag", "No imminent earnings identified"))
+            earn_str = s.get(
+                "earnings_flag", s.get("earningsFlag", "No imminent earnings identified")
+            )
 
-        _section("Earnings",            earn_str,                                (55, 25, 90))
-        _section("Business & Position", s.get("businessDescription", ""),       (15, 55, 95))
-        _section("Factor & Theme",      s.get("factorExposure", ""),            (20, 75, 45))
-        _section("News Flow",           s.get("newsFlow", ""),                  (15, 80, 55))
-        _section("Institutional",       s.get("institutionalAngle", ""),        (60, 55, 10))
-        _section("Key Risk",            s.get("keyRisk", ""),                   (110, 25, 25))
+        _section("Earnings", earn_str, (55, 25, 90))
+        _section("Business & Position", s.get("businessDescription", ""), (15, 55, 95))
+        _section("Factor & Theme", s.get("factorExposure", ""), (20, 75, 45))
+        _section("News Flow", s.get("newsFlow", ""), (15, 80, 55))
+        _section("Institutional", s.get("institutionalAngle", ""), (60, 55, 10))
+        _section("Key Risk", s.get("keyRisk", ""), (110, 25, 25))
 
         # Analysis blurb
         reasoning = _safe(s.get("reasoning", ""))
@@ -1133,23 +1258,28 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
         pdf.set_xy(10, 291)
         pdf.set_font("Helvetica", "I", 5.0)
         pdf.set_text_color(160, 160, 160)
-        pdf.cell(0, 4,
+        pdf.cell(
+            0,
+            4,
             f"SMID Setup Builder  |  {now.strftime('%b %d %Y')}  |  "
             "Not financial advice. Setups have NOT triggered. Do your own due diligence.",
-            align="C")
+            align="C",
+        )
 
     return bytes(pdf.output())
 
 
 # ─── Report output ────────────────────────────────────────────────────────────
 
+
 def publish_setup_pdf(pdf_bytes, label="SMID"):
     """Archive the Setup Builder PDF to the GitHub Pages report site."""
-    now      = datetime.now(ET)
-    prefix   = "iwm" if "IWM" in label else "smid"
+    now = datetime.now(ET)
+    prefix = "iwm" if "IWM" in label else "smid"
     filename = f"{prefix}_setup_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
         from report_archive import archive
+
         archive(pdf_bytes, filename)
         print(f"  PDF archived to site: {filename}")
     except Exception as e:
@@ -1158,11 +1288,12 @@ def publish_setup_pdf(pdf_bytes, label="SMID"):
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def run_setup_builder():
-    label   = "IWM Russell 2000" if IWM_MODE else "SMID"
 
-    print(f"\n{'='*50}\n{label.upper()} SETUP BUILDER -- EOD VCP WATCHLIST")
-    print(f"{datetime.now(ET).strftime('%Y-%m-%d %H:%M:%S ET')}\n{'='*50}")
+def run_setup_builder():
+    label = "IWM Russell 2000" if IWM_MODE else "SMID"
+
+    print(f"\n{'=' * 50}\n{label.upper()} SETUP BUILDER -- EOD VCP WATCHLIST")
+    print(f"{datetime.now(ET).strftime('%Y-%m-%d %H:%M:%S ET')}\n{'=' * 50}")
 
     print("\n[1/5] Building universe...")
     universe = load_iwm_universe(top_n=500) if IWM_MODE else get_universe()
@@ -1176,12 +1307,16 @@ def run_setup_builder():
 
     print("\n[4/6] Fetching macro regime + insider activity (SEC EDGAR)...")
     macro = fetch_macro_context()
-    print(f"  Regime: {macro['regime']}  |  VIX {macro['vix']}  |  IWM/SPY trend {macro['iwm_spy_trend']:+.1f}%")
+    print(
+        f"  Regime: {macro['regime']}  |  VIX {macro['vix']}  |  IWM/SPY trend {macro['iwm_spy_trend']:+.1f}%"
+    )
     enrich_candidates_with_insiders(top_setups, days_back=60)
     insider_hits = [s for s in top_setups if s.get("insider_count", 0) > 0]
     if insider_hits:
-        print(f"  Insider buys detected on {len(insider_hits)} of {len(top_setups)}: " +
-              ", ".join(f"{s['ticker']}({s['insider_summary']})" for s in insider_hits[:5]))
+        print(
+            f"  Insider buys detected on {len(insider_hits)} of {len(top_setups)}: "
+            + ", ".join(f"{s['ticker']}({s['insider_summary']})" for s in insider_hits[:5])
+        )
     else:
         print(f"  No open-market insider buys in last 60d across {len(top_setups)} candidates")
 

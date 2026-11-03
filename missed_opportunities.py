@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import polygon_data as pg
 
@@ -28,10 +28,10 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 OUT_PATH = os.path.join(_BASE, "docs", "reports", "missed_opportunities.json")
 REPORTS = os.path.join(_BASE, "docs", "reports")
 
-MIN_MOVE_PCT   = 5.0            # a "big mover" = |close-to-close| >= this
-MIN_PRICE      = 3.0            # skip pennies
-MIN_DOLLAR_VOL = 25_000_000     # same tradability floor as the UOA universe
-TOP_N          = 25             # movers to audit per session
+MIN_MOVE_PCT = 5.0  # a "big mover" = |close-to-close| >= this
+MIN_PRICE = 3.0  # skip pennies
+MIN_DOLLAR_VOL = 25_000_000  # same tradability floor as the UOA universe
+TOP_N = 25  # movers to audit per session
 
 
 def _load(name):
@@ -46,7 +46,7 @@ def _last_sessions():
     """(today, prev) most recent weekday pair — grouped-daily has no
     weekend bars. Holidays fall through: grouped_daily returns {} and the
     audit skips gracefully."""
-    d = datetime.now(timezone.utc).date()
+    d = datetime.now(UTC).date()
     while d.weekday() >= 5:
         d -= timedelta(days=1)
     p = d - timedelta(days=1)
@@ -57,7 +57,7 @@ def _last_sessions():
 
 def _surfaced_sets():
     """Everything the site showed today, keyed by HOW it was shown."""
-    graded = {}                              # ticker -> swing grade
+    graded = {}  # ticker -> swing grade
     sw = _load("swing_latest_summary.json") or _load("swing_report.json")
     if sw and sw.get("runs"):
         r = sw["runs"][-1]
@@ -97,16 +97,23 @@ def classify(tk, graded, flow, momentum):
         covered.append("momentum list")
     if covered:
         return covered, None
-    if g:                                    # scanned, graded mid-tier, never shown
+    if g:  # scanned, graded mid-tier, never shown
         return [], f"graded {g} — below surfacing tier"
     return [], "outside scan universe — liquidity/coverage floor"
 
 
 def build(dry=False):
     today, prev = _last_sessions()
-    empty = {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-             "session_date": today, "checked": 0, "covered_count": 0,
-             "missed_count": 0, "by_reason": {}, "missed": [], "covered": []}
+    empty = {
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+        "session_date": today,
+        "checked": 0,
+        "covered_count": 0,
+        "missed_count": 0,
+        "by_reason": {},
+        "missed": [],
+        "covered": [],
+    }
     if not pg.available():
         print("  POLYGON_API_KEY not set — writing empty missed payload.")
         return empty
@@ -120,7 +127,7 @@ def build(dry=False):
     movers = []
     for tk, b in bars_t.items():
         if "." in tk or len(tk) > 5:
-            continue                          # pref/warrant/unit classes
+            continue  # pref/warrant/unit classes
         pb = bars_p.get(tk)
         c, v = (b.get("c") or 0), (b.get("v") or 0)
         pc = (pb or {}).get("c") or 0
@@ -128,9 +135,14 @@ def build(dry=False):
             continue
         pct = 100.0 * (c - pc) / pc
         if abs(pct) >= MIN_MOVE_PCT:
-            movers.append({"ticker": tk, "pct": round(pct, 1),
-                           "price": round(c, 2),
-                           "dollar_vol": round(c * v)})
+            movers.append(
+                {
+                    "ticker": tk,
+                    "pct": round(pct, 1),
+                    "price": round(c, 2),
+                    "dollar_vol": round(c * v),
+                }
+            )
     movers.sort(key=lambda m: -abs(m["pct"]))
     movers = movers[:TOP_N]
 
@@ -148,20 +160,26 @@ def build(dry=False):
             covered.append(m)
 
     payload = {
-        "generated":     datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "session_date":  today,
-        "checked":       len(movers),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+        "session_date": today,
+        "checked": len(movers),
         "covered_count": len(covered),
-        "missed_count":  len(missed),
-        "by_reason":     by_reason,
-        "missed":        missed,
-        "covered":       covered[:10],
-        "params": {"min_move_pct": MIN_MOVE_PCT, "min_price": MIN_PRICE,
-                   "min_dollar_vol": MIN_DOLLAR_VOL, "top_n": TOP_N},
+        "missed_count": len(missed),
+        "by_reason": by_reason,
+        "missed": missed,
+        "covered": covered[:10],
+        "params": {
+            "min_move_pct": MIN_MOVE_PCT,
+            "min_price": MIN_PRICE,
+            "min_dollar_vol": MIN_DOLLAR_VOL,
+            "top_n": TOP_N,
+        },
     }
-    print(f"  Missed-opportunity audit: {len(movers)} big movers -> "
-          f"{len(covered)} covered / {len(missed)} missed "
-          f"({', '.join(f'{k}: {v}' for k, v in by_reason.items()) or 'none'})")
+    print(
+        f"  Missed-opportunity audit: {len(movers)} big movers -> "
+        f"{len(covered)} covered / {len(missed)} missed "
+        f"({', '.join(f'{k}: {v}' for k, v in by_reason.items()) or 'none'})"
+    )
     return payload
 
 
@@ -181,6 +199,7 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     main()

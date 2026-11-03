@@ -53,7 +53,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytz
@@ -74,8 +74,7 @@ FROM_EMAIL = os.environ.get("FROM_EMAIL") or "TickerDesk <brief@tickerdesk.io>"
 SITE_URL = os.environ.get("SITE_URL") or "https://tickerdesk.io"
 # Worker that hosts the one-click /unsubscribe endpoint (flips
 # profiles.daily_brief_enabled=false after verifying the signed token).
-WORKER_URL = (os.environ.get("WORKER_URL")
-              or "https://api.tickerdesk.io")
+WORKER_URL = os.environ.get("WORKER_URL") or "https://api.tickerdesk.io"
 
 
 def _unsub_sig(user_id: str) -> str:
@@ -102,8 +101,29 @@ def unsub_url(user_id: str) -> str:
     q = urllib.parse.urlencode({"u": user_id, "t": _unsub_sig(user_id)})
     return f"{WORKER_URL}/unsubscribe?{q}"
 
-GRADE_ORDER = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-",
-               "D+", "D", "D-", "E+", "E", "E-", "F+", "F", "F-", "G+", "G"]
+
+GRADE_ORDER = [
+    "A+",
+    "A",
+    "A-",
+    "B+",
+    "B",
+    "B-",
+    "C+",
+    "C",
+    "C-",
+    "D+",
+    "D",
+    "D-",
+    "E+",
+    "E",
+    "E-",
+    "F+",
+    "F",
+    "F-",
+    "G+",
+    "G",
+]
 GRADE_RANK = {g: i for i, g in enumerate(GRADE_ORDER)}
 
 
@@ -121,11 +141,12 @@ def _is_a_tier(g: str | None) -> bool:
 # Data loaders — local JSON files written by the daily scan pipeline
 # ─────────────────────────────────────────────────────────────────────
 
+
 def _safe_load(path: str) -> Any:
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except FileNotFoundError, json.JSONDecodeError:
         return None
 
 
@@ -193,8 +214,7 @@ def load_uoa() -> tuple[dict[str, list[dict]], list[dict]]:
         if t:
             by_ticker.setdefault(t, []).append(row)
     for t in by_ticker:
-        by_ticker[t] = sorted(by_ticker[t],
-                              key=lambda r: -(r.get("premium") or 0))[:3]
+        by_ticker[t] = sorted(by_ticker[t], key=lambda r: -(r.get("premium") or 0))[:3]
     # Market-wide top flow — one row per ticker (its best), by trade_score
     best_per_tk: dict[str, dict] = {}
     for row in rows:
@@ -204,8 +224,7 @@ def load_uoa() -> tuple[dict[str, list[dict]], list[dict]]:
         cur = best_per_tk.get(t)
         if not cur or (row.get("trade_score") or 0) > (cur.get("trade_score") or 0):
             best_per_tk[t] = row
-    market_top = sorted(best_per_tk.values(),
-                        key=lambda r: -(r.get("trade_score") or 0))
+    market_top = sorted(best_per_tk.values(), key=lambda r: -(r.get("trade_score") or 0))
     return by_ticker, market_top
 
 
@@ -245,7 +264,7 @@ def load_reports_by_ticker(hours: int = 24) -> dict[str, list[dict]]:
         return {}
     cutoff = datetime.now(ET) - timedelta(hours=hours)
     by_ticker: dict[str, list[dict]] = {}
-    for _rtype, files in (data.get("reports") or {}).items():
+    for files in (data.get("reports") or {}).values():
         for f in files:
             fname = f.get("file", "")
             parts = fname.split("_")
@@ -257,17 +276,20 @@ def load_reports_by_ticker(hours: int = 24) -> dict[str, list[dict]]:
             if not tk.isupper() or not tk.isalpha():
                 continue
             try:
-                stamp = ET.localize(datetime.strptime(
-                    f"{parts[2]}_{parts[3].split('.')[0]}", "%Y-%m-%d_%H%M"))
-            except (ValueError, IndexError):
+                stamp = ET.localize(
+                    datetime.strptime(f"{parts[2]}_{parts[3].split('.')[0]}", "%Y-%m-%d_%H%M")
+                )
+            except ValueError, IndexError:
                 continue
             if stamp < cutoff:
                 continue
-            by_ticker.setdefault(tk, []).append({
-                "file": fname,
-                "label": f.get("label", ""),
-                "type": "Alt-Data" if head == "altdata" else "Ticker Report",
-            })
+            by_ticker.setdefault(tk, []).append(
+                {
+                    "file": fname,
+                    "label": f.get("label", ""),
+                    "type": "Alt-Data" if head == "altdata" else "Ticker Report",
+                }
+            )
     return by_ticker
 
 
@@ -301,9 +323,10 @@ def load_new_reports_all(hours: int = 24) -> list[dict]:
             if len(parts) < 4:
                 continue
             try:
-                stamp = ET.localize(datetime.strptime(
-                    f"{parts[-2]}_{parts[-1].split('.')[0]}", "%Y-%m-%d_%H%M"))
-            except (ValueError, IndexError):
+                stamp = ET.localize(
+                    datetime.strptime(f"{parts[-2]}_{parts[-1].split('.')[0]}", "%Y-%m-%d_%H%M")
+                )
+            except ValueError, IndexError:
                 continue
             if stamp < cutoff:
                 continue
@@ -322,8 +345,7 @@ def load_market_context() -> dict:
     cetf = _safe_load(os.path.join(REPORTS_DIR, "country_etfs.json"))
     if cetf:
         anchor = cetf.get("anchor") or {}
-        etfs = [e for e in (cetf.get("etfs") or [])
-                if isinstance(e.get("vs_anchor"), (int, float))]
+        etfs = [e for e in (cetf.get("etfs") or []) if isinstance(e.get("vs_anchor"), (int, float))]
         ranked = sorted(etfs, key=lambda e: -e["vs_anchor"])
         em = [e["vs_anchor"] for e in etfs if e.get("developed") is False]
         dev = [e["vs_anchor"] for e in etfs if e.get("developed") is True]
@@ -346,32 +368,48 @@ def load_market_context() -> dict:
     cal = _safe_load(os.path.join(REPORTS_DIR, "economic_calendar.json"))
     if cal:
         now_et = datetime.now(ET)
+
         # the calendar writer emits ISO dates once it converts from the
         # feed's zone; accept the legacy MM-DD-YYYY too so a stale file
         # still matches instead of quietly yielding zero events
         def _days(d):
             return {d.strftime("%Y-%m-%d"), d.strftime("%m-%d-%Y")}
+
         today_ff = _days(now_et)
         tomorrow_ff = _days(now_et + timedelta(days=1))
         evs = cal.get("events") or []
         todays = [e for e in evs if e.get("date") in today_ff]
-        hi = [e for e in todays
-              if (e.get("impact") or "").lower() in ("high", "medium")]
+        hi = [e for e in todays if (e.get("impact") or "").lower() in ("high", "medium")]
         # Rank by expected market impact (stars), not calendar order —
         # traders care about volatility, not chronology.
-        ctx["events"] = sorted((hi or todays)[:6],
-                               key=lambda e: -_event_stars(e))
+        ctx["events"] = sorted((hi or todays)[:6], key=lambda e: -_event_stars(e))
         ctx["tomorrow_events"] = sorted(
-            [e for e in evs if e.get("date") in tomorrow_ff
-             and (e.get("impact") or "").lower() == "high"],
-            key=lambda e: -_event_stars(e))[:3]
+            [
+                e
+                for e in evs
+                if e.get("date") in tomorrow_ff and (e.get("impact") or "").lower() == "high"
+            ],
+            key=lambda e: -_event_stars(e),
+        )[:3]
     return ctx
 
 
 # Marquee release names that move the whole tape — these get the extra
 # stars over a generic "high impact" stamp.
-_MARQUEE = ("cpi", "fomc", "rate decision", "nonfarm", "non-farm", "payroll",
-            "pce", "gdp", "powell", "jobless claims", "ppi", "ism")
+_MARQUEE = (
+    "cpi",
+    "fomc",
+    "rate decision",
+    "nonfarm",
+    "non-farm",
+    "payroll",
+    "pce",
+    "gdp",
+    "powell",
+    "jobless claims",
+    "ppi",
+    "ism",
+)
 
 
 def _event_stars(ev) -> int:
@@ -390,8 +428,7 @@ def load_intel() -> dict:
     DB (historical cohorts), and gated setup-level stats. Every consumer
     degrades gracefully when a file is absent."""
     ev = _safe_load(os.path.join(REPORTS_DIR, "evening_review.json")) or {}
-    facts = (_safe_load(os.path.join(REPORTS_DIR, "technical_facts.json"))
-             or {}).get("facts") or {}
+    facts = (_safe_load(os.path.join(REPORTS_DIR, "technical_facts.json")) or {}).get("facts") or {}
     edge = _safe_load(os.path.join(REPORTS_DIR, "uoa_edge.json")) or {}
     setup = _safe_load(os.path.join(REPORTS_DIR, "setup_outcomes.json")) or {}
     return {"evening": ev, "facts": facts, "edge": edge, "setup": setup}
@@ -403,8 +440,8 @@ def load_premarket() -> dict:
     try:
         req = urllib.request.Request(
             f"{WORKER_URL}/?premarket=1",
-            headers={"User-Agent": "TickerDesk-Brief/1.0",
-                     "Accept": "application/json"})
+            headers={"User-Agent": "TickerDesk-Brief/1.0", "Accept": "application/json"},
+        )
         with urllib.request.urlopen(req, timeout=25) as r:
             return json.loads(r.read().decode("utf-8")) or {}
     except Exception as e:
@@ -418,16 +455,21 @@ def load_overnight_news(tickers, hours: int = 15, limit: int = 5) -> list[dict]:
     if not tickers or not (SUPABASE_URL and SUPABASE_SERVICE_KEY):
         return []
     try:
-        since = (datetime.now(timezone.utc) - timedelta(hours=hours)
-                 ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        since = (datetime.now(UTC) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
         syms = ",".join(sorted(set(tickers))[:40])
-        rows = _supabase_get("news_live", {
-            "select": "headline,url,symbols,published_at,source",
-            "symbols": f"ov.%7B{syms}%7D",
-            "published_at": f"gte.{since}",
-            "order": "published_at.desc",
-            "limit": str(limit * 4),
-        }) or []
+        rows = (
+            _supabase_get(
+                "news_live",
+                {
+                    "select": "headline,url,symbols,published_at,source",
+                    "symbols": f"ov.%7B{syms}%7D",
+                    "published_at": f"gte.{since}",
+                    "order": "published_at.desc",
+                    "limit": str(limit * 4),
+                },
+            )
+            or []
+        )
         seen, out = set(), []
         for r in rows:
             h = (r.get("headline") or "").strip()
@@ -448,15 +490,19 @@ def load_overnight_news(tickers, hours: int = 15, limit: int = 5) -> list[dict]:
 # Supabase REST helpers (service role — CI only)
 # ─────────────────────────────────────────────────────────────────────
 
+
 def _supabase_get(path: str, params: dict | None = None) -> Any:
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         raise RuntimeError("SUPABASE_URL / SUPABASE_SERVICE_KEY not set")
     q = ("?" + "&".join(f"{k}={v}" for k, v in params.items())) if params else ""
-    req = urllib.request.Request(f"{SUPABASE_URL}/rest/v1/{path}{q}", headers={
-        "apikey": SUPABASE_SERVICE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-        "Accept": "application/json",
-    })
+    req = urllib.request.Request(
+        f"{SUPABASE_URL}/rest/v1/{path}{q}",
+        headers={
+            "apikey": SUPABASE_SERVICE_KEY,
+            "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+            "Accept": "application/json",
+        },
+    )
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.loads(r.read().decode("utf-8"))
 
@@ -471,8 +517,9 @@ def _supabase_post(path: str, body: dict | list, prefer: str = "") -> Any:
     }
     if prefer:
         headers["Prefer"] = prefer
-    req = urllib.request.Request(f"{SUPABASE_URL}/rest/v1/{path}",
-                                 data=data, headers=headers, method="POST")
+    req = urllib.request.Request(
+        f"{SUPABASE_URL}/rest/v1/{path}", data=data, headers=headers, method="POST"
+    )
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             txt = r.read().decode("utf-8")
@@ -487,18 +534,24 @@ def _supabase_post(path: str, body: dict | list, prefer: str = "") -> Any:
 
 
 def fetch_opted_in_users(restrict_email: str | None = None) -> list[dict]:
-    profiles = _supabase_get("profiles", {
-        "select": "id,display_name,last_seen,subscription_tier,daily_brief_enabled",
-        "daily_brief_enabled": "eq.true",
-    })
+    profiles = _supabase_get(
+        "profiles",
+        {
+            "select": "id,display_name,last_seen,subscription_tier,daily_brief_enabled",
+            "daily_brief_enabled": "eq.true",
+        },
+    )
     if not profiles:
         return []
     ids = [p["id"] for p in profiles]
     in_clause = "(" + ",".join(ids) + ")"
-    wl = _supabase_get("watchlists", {
-        "select": "user_id,ticker",
-        "user_id": f"in.{in_clause}",
-    })
+    wl = _supabase_get(
+        "watchlists",
+        {
+            "select": "user_id,ticker",
+            "user_id": f"in.{in_clause}",
+        },
+    )
     by_user: dict[str, list[str]] = {}
     for row in wl or []:
         by_user.setdefault(row["user_id"], []).append(row["ticker"])
@@ -507,10 +560,13 @@ def fetch_opted_in_users(restrict_email: str | None = None) -> list[dict]:
     page = 1
     while True:
         url = f"{SUPABASE_URL}/auth/v1/admin/users?page={page}&per_page=1000"
-        req = urllib.request.Request(url, headers={
-            "apikey": SUPABASE_SERVICE_KEY,
-            "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-        })
+        req = urllib.request.Request(
+            url,
+            headers={
+                "apikey": SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+            },
+        )
         with urllib.request.urlopen(req, timeout=30) as r:
             payload = json.loads(r.read().decode("utf-8"))
         users = payload.get("users") or []
@@ -534,42 +590,58 @@ def fetch_opted_in_users(restrict_email: str | None = None) -> list[dict]:
         tickers = by_user.get(uid, [])
         if not tickers:
             continue
-        out.append({
-            "user_id": uid,
-            "email": em,
-            "display_name": p.get("display_name") or "",
-            "last_seen": p.get("last_seen"),
-            "plan": p.get("subscription_tier") or "free",
-            "tickers": tickers,
-        })
+        out.append(
+            {
+                "user_id": uid,
+                "email": em,
+                "display_name": p.get("display_name") or "",
+                "last_seen": p.get("last_seen"),
+                "plan": p.get("subscription_tier") or "free",
+                "tickers": tickers,
+            }
+        )
     return out
 
 
 def already_sent_today(user_id: str, brief_date: str) -> bool:
-    rows = _supabase_get("email_log", {
-        "select": "id",
-        "user_id": f"eq.{user_id}",
-        "kind": "eq.daily_brief",
-        "brief_date": f"eq.{brief_date}",
-        "status": "eq.sent",
-        "limit": "1",
-    })
+    rows = _supabase_get(
+        "email_log",
+        {
+            "select": "id",
+            "user_id": f"eq.{user_id}",
+            "kind": "eq.daily_brief",
+            "brief_date": f"eq.{brief_date}",
+            "status": "eq.sent",
+            "limit": "1",
+        },
+    )
     return bool(rows)
 
 
-def log_email(user_id: str, email: str, brief_date: str, status: str,
-              subject: str, payload: dict, error: str | None = None) -> None:
+def log_email(
+    user_id: str,
+    email: str,
+    brief_date: str,
+    status: str,
+    subject: str,
+    payload: dict,
+    error: str | None = None,
+) -> None:
     try:
-        _supabase_post("email_log", {
-            "user_id": user_id,
-            "email": email,
-            "kind": "daily_brief",
-            "status": status,
-            "subject": subject,
-            "payload": payload,
-            "error": error,
-            "brief_date": brief_date,
-        }, prefer="return=minimal")
+        _supabase_post(
+            "email_log",
+            {
+                "user_id": user_id,
+                "email": email,
+                "kind": "daily_brief",
+                "status": status,
+                "subject": subject,
+                "payload": payload,
+                "error": error,
+                "brief_date": brief_date,
+            },
+            prefer="return=minimal",
+        )
     except Exception as e:
         print(f"  email_log insert failed: {e}")
 
@@ -593,19 +665,19 @@ CSS_GOLD = "#ffd54a"
 def _fmt_premium(p) -> str:
     try:
         p = float(p)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return "—"
     if p >= 1e6:
-        return f"${p/1e6:.1f}M"
+        return f"${p / 1e6:.1f}M"
     if p >= 1e3:
-        return f"${p/1e3:.0f}K"
+        return f"${p / 1e3:.0f}K"
     return f"${p:.0f}"
 
 
 def _fmt_num(v, fmt="{:.1f}") -> str:
     try:
         return fmt.format(float(v))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return "—"
 
 
@@ -622,13 +694,21 @@ def _fmt_ts_et(iso) -> str:
 def _grade_color(g: str | None) -> str:
     if not g:
         return CSS_MUTED
-    return {"A": CSS_GREEN, "B": CSS_GREEN, "C": CSS_ACCENT, "D": CSS_AMBER,
-            "E": "#ff8c1a", "F": CSS_RED, "G": CSS_RED}.get(g[0], CSS_MUTED)
+    return {
+        "A": CSS_GREEN,
+        "B": CSS_GREEN,
+        "C": CSS_ACCENT,
+        "D": CSS_AMBER,
+        "E": "#ff8c1a",
+        "F": CSS_RED,
+        "G": CSS_RED,
+    }.get(g[0], CSS_MUTED)
 
 
 def _tier_color(t: str | None) -> str:
-    return {"A": CSS_GREEN, "B": CSS_ACCENT, "C": CSS_MUTED,
-            "golden": CSS_GOLD}.get((t or "").lower()[:1] if t else "", CSS_MUTED)
+    return {"A": CSS_GREEN, "B": CSS_ACCENT, "C": CSS_MUTED, "golden": CSS_GOLD}.get(
+        (t or "").lower()[:1] if t else "", CSS_MUTED
+    )
 
 
 def _dir_meta(d: str | None) -> tuple[str, str]:
@@ -648,6 +728,7 @@ def _link(tk: str) -> str:
 # Analysis — confluence, what-changed, playbook
 # ─────────────────────────────────────────────────────────────────────
 
+
 def compute_confluence(tickers, swing, uoa, earnings, reports_by_tk) -> list[dict]:
     """Rank watchlist names where multiple TickerDesk signals align, with a
     plain-English reason. Positive score = bull stack, negative = caution."""
@@ -660,7 +741,7 @@ def compute_confluence(tickers, swing, uoa, earnings, reports_by_tk) -> list[dic
         rep = reports_by_tk.get(tk)
         score = 0.0
         bull, bear, ctx = [], [], []
-        parts = []          # (label, signed pts) — the transparency breakdown
+        parts = []  # (label, signed pts) — the transparency breakdown
 
         def _pt(label, pts):
             nonlocal score
@@ -669,8 +750,7 @@ def compute_confluence(tickers, swing, uoa, earnings, reports_by_tk) -> list[dic
 
         if grade:
             if _is_a_tier(grade):
-                _pt(f"grade {grade}",
-                    3 if grade == "A+" else 2 if grade == "A" else 1.5)
+                _pt(f"grade {grade}", 3 if grade == "A+" else 2 if grade == "A" else 1.5)
                 bull.append(f"{grade} swing grade")
             elif grade[0] in ("D", "E", "F", "G"):
                 _pt(f"grade {grade}", -1.5)
@@ -691,22 +771,30 @@ def compute_confluence(tickers, swing, uoa, earnings, reports_by_tk) -> list[dic
             golden = bool(top.get("is_golden") or top.get("golden"))
             voi = top.get("vol_oi")
             voi_txt = f"{voi:.0f}× OI" if isinstance(voi, (int, float)) else ""
-            flow_desc = (f"{'golden ' if golden else ''}bullish flow "
-                         f"({_fmt_premium(top.get('premium'))}"
-                         f"{', ' + voi_txt if voi_txt else ''}, score {int(ts)})")
+            flow_desc = (
+                f"{'golden ' if golden else ''}bullish flow "
+                f"({_fmt_premium(top.get('premium'))}"
+                f"{', ' + voi_txt if voi_txt else ''}, score {int(ts)})"
+            )
             if direction == "bullish":
-                _pt("golden flow" if golden else "bullish flow",
-                    3 if golden else 2 if ts >= 70 else 1)
+                _pt(
+                    "golden flow" if golden else "bullish flow",
+                    3 if golden else 2 if ts >= 70 else 1,
+                )
                 bull.append(flow_desc)
             elif direction == "bearish":
-                _pt("golden bear flow" if golden else "bearish flow",
-                    -(3 if golden else 2 if ts >= 70 else 1))
+                _pt(
+                    "golden bear flow" if golden else "bearish flow",
+                    -(3 if golden else 2 if ts >= 70 else 1),
+                )
                 bear.append(flow_desc.replace("bullish", "bearish"))
 
         if er:
             da = er.get("days_away")
-            ctx.append(f"earnings {er.get('dow', '')} {er.get('bmo_amc', '')}"
-                       + (f" ({da}d)" if isinstance(da, int) else ""))
+            ctx.append(
+                f"earnings {er.get('dow', '')} {er.get('bmo_amc', '')}"
+                + (f" ({da}d)" if isinstance(da, int) else "")
+            )
         if rep:
             ctx.append("fresh research today")
 
@@ -729,19 +817,32 @@ def compute_confluence(tickers, swing, uoa, earnings, reports_by_tk) -> list[dic
             if ctx:
                 reason += "; " + ", ".join(ctx)
 
-        out.append({
-            "ticker": tk, "score": round(score, 1), "net": net,
-            "grade": grade, "reason": reason, "parts": parts,
-            "top": top, "earnings": er,
-        })
+        out.append(
+            {
+                "ticker": tk,
+                "score": round(score, 1),
+                "net": net,
+                "grade": grade,
+                "reason": reason,
+                "parts": parts,
+                "top": top,
+                "earnings": er,
+            }
+        )
     out.sort(key=lambda r: -abs(r["score"]))
     return out
 
 
 def compute_what_changed(tickers, swing, uoa, earnings, reports_by_tk) -> dict:
     wl = set(tickers)
-    ch = {"upgrades": [], "downgrades": [], "new_a": [], "new_flow": [],
-          "new_earnings": [], "new_reports": []}
+    ch = {
+        "upgrades": [],
+        "downgrades": [],
+        "new_a": [],
+        "new_flow": [],
+        "new_earnings": [],
+        "new_reports": [],
+    }
     for tk in sorted(wl):
         sw = swing.get(tk) or {}
         if sw.get("change") == "upgrade":
@@ -774,8 +875,7 @@ def _earnings_soon(c, within: int = 2) -> bool:
     return isinstance(da, int) and 0 <= da <= within
 
 
-def compute_ideas(conf, swing=None, tickers=None, earnings=None,
-                  n: int = 5) -> list[dict]:
+def compute_ideas(conf, swing=None, tickers=None, earnings=None, n: int = 5) -> list[dict]:
     """A few concrete, actionable NON-earnings ideas for the very top of
     the brief. Earnings-soon names are excluded (event risk / post-move —
     they belong under Watch/Risk, not the idea list). Order:
@@ -785,26 +885,40 @@ def compute_ideas(conf, swing=None, tickers=None, earnings=None,
     so the line reliably shows a few names, not just one."""
     earn_soon = set()
     if earnings:
-        earn_soon = {tk for tk, e in earnings.items()
-                     if isinstance(e.get("days_away"), int)
-                     and 0 <= e["days_away"] <= 2}
-    prim = [c for c in conf
-            if c["net"] == "bull" and c["score"] >= 2 and not _earnings_soon(c)]
+        earn_soon = {
+            tk
+            for tk, e in earnings.items()
+            if isinstance(e.get("days_away"), int) and 0 <= e["days_away"] <= 2
+        }
+    prim = [c for c in conf if c["net"] == "bull" and c["score"] >= 2 and not _earnings_soon(c)]
     seen = {c["ticker"] for c in prim}
     if len(prim) < 3:
         for c in conf:
-            if (c["net"] == "bull" and c["score"] > 0
-                    and not _earnings_soon(c) and c["ticker"] not in seen):
-                prim.append(c); seen.add(c["ticker"])
+            if (
+                c["net"] == "bull"
+                and c["score"] > 0
+                and not _earnings_soon(c)
+                and c["ticker"] not in seen
+            ):
+                prim.append(c)
+                seen.add(c["ticker"])
     if len(prim) < 3 and swing and tickers:
         atier = []
         for tk in set(tickers):
             sw = swing.get(tk) or {}
             g = sw.get("grade")
-            if (g and _is_a_tier(g) and tk not in seen and tk not in earn_soon):
-                atier.append({"ticker": tk, "grade": g, "score": 0.0,
-                              "net": "bull", "reason": f"{g} swing grade",
-                              "top": None, "earnings": None})
+            if g and _is_a_tier(g) and tk not in seen and tk not in earn_soon:
+                atier.append(
+                    {
+                        "ticker": tk,
+                        "grade": g,
+                        "score": 0.0,
+                        "net": "bull",
+                        "reason": f"{g} swing grade",
+                        "top": None,
+                        "earnings": None,
+                    }
+                )
         atier.sort(key=lambda c: GRADE_RANK.get(c["grade"], 99))
         prim += atier
     return prim[:n]
@@ -819,52 +933,67 @@ def compute_playbook(conf, market_top, market, earnings, tickers) -> list[dict]:
     #    tape's top golden/high-score flow. Earnings-soon names are excluded
     #    here (event risk, not a clean setup) — they surface under Watch.
     best = None
-    bulls = [c for c in conf
-             if c["net"] == "bull" and c["score"] >= 2 and not _earnings_soon(c)]
+    bulls = [c for c in conf if c["net"] == "bull" and c["score"] >= 2 and not _earnings_soon(c)]
     if bulls:
         c = bulls[0]
         used.add(c["ticker"])
-        best = {"kind": "Best opportunity", "ticker": c["ticker"],
-                "text": c["reason"]}
+        best = {"kind": "Best opportunity", "ticker": c["ticker"], "text": c["reason"]}
     elif market_top:
         m = market_top[0]
-        best = {"kind": "Best opportunity", "ticker": m.get("ticker"),
-                "text": f"Tape's top edge: {m.get('why') or ''}"
-                        f" — tier {m.get('tier')}, score {int(m.get('trade_score') or 0)}"}
+        best = {
+            "kind": "Best opportunity",
+            "ticker": m.get("ticker"),
+            "text": f"Tape's top edge: {m.get('why') or ''}"
+            f" — tier {m.get('tier')}, score {int(m.get('trade_score') or 0)}",
+        }
     else:
-        best = {"kind": "Best opportunity", "ticker": None,
-                "text": "No standout setup on your watchlist today — check the "
-                        "desk for market-wide movers."}
+        best = {
+            "kind": "Best opportunity",
+            "ticker": None,
+            "text": "No standout setup on your watchlist today — check the "
+            "desk for market-wide movers.",
+        }
 
     # 2) Watch today — nearest catalyst: earnings today/tomorrow on the
     #    watchlist, else biggest fresh flow, else today's marquee macro event.
     watch = None
     soonest = sorted(
-        [(tk, e) for tk, e in earnings.items() if tk in wl
-         and isinstance(e.get("days_away"), int)],
-        key=lambda x: x[1]["days_away"])
+        [(tk, e) for tk, e in earnings.items() if tk in wl and isinstance(e.get("days_away"), int)],
+        key=lambda x: x[1]["days_away"],
+    )
     if soonest and soonest[0][1]["days_away"] <= 1:
         tk, e = soonest[0]
         when = "today" if e["days_away"] == 0 else "tomorrow"
-        watch = {"kind": "Watch today", "ticker": tk,
-                 "text": f"Reports {when} {e.get('bmo_amc', '')} — expect an IV "
-                         f"crush / gap; size accordingly."}
+        watch = {
+            "kind": "Watch today",
+            "ticker": tk,
+            "text": f"Reports {when} {e.get('bmo_amc', '')} — expect an IV "
+            f"crush / gap; size accordingly.",
+        }
     if not watch:
         fresh = [c for c in conf if c["ticker"] not in used and c["top"]]
         if fresh:
             c = fresh[0]
             t = c["top"]
-            watch = {"kind": "Watch today", "ticker": c["ticker"],
-                     "text": f"Fresh flow: {t.get('why') or ''}. "
-                             f"Biggest print {_fmt_ts_et(t.get('biggest_print_ts'))}."}
+            watch = {
+                "kind": "Watch today",
+                "ticker": c["ticker"],
+                "text": f"Fresh flow: {t.get('why') or ''}. "
+                f"Biggest print {_fmt_ts_et(t.get('biggest_print_ts'))}.",
+            }
     if not watch and market and market.get("events"):
         ev = market["events"][0]
-        watch = {"kind": "Watch today", "ticker": None,
-                 "text": f"Macro: {ev.get('title')} at "
-                         f"{ev.get('time')} — {ev.get('impact')} impact."}
+        watch = {
+            "kind": "Watch today",
+            "ticker": None,
+            "text": f"Macro: {ev.get('title')} at {ev.get('time')} — {ev.get('impact')} impact.",
+        }
     if not watch:
-        watch = {"kind": "Watch today", "ticker": None,
-                 "text": "Quiet catalyst calendar for your names — let setups come to you."}
+        watch = {
+            "kind": "Watch today",
+            "ticker": None,
+            "text": "Quiet catalyst calendar for your names — let setups come to you.",
+        }
     if watch.get("ticker"):
         used.add(watch["ticker"])
 
@@ -874,8 +1003,7 @@ def compute_playbook(conf, market_top, market, earnings, tickers) -> list[dict]:
     bears = [c for c in conf if c["net"] == "bear"]
     if bears:
         c = bears[0]
-        risk = {"kind": "Risk / avoid chase", "ticker": c["ticker"],
-                "text": c["reason"]}
+        risk = {"kind": "Risk / avoid chase", "ticker": c["ticker"], "text": c["reason"]}
     if not risk:
         overext = None
         for c in conf:
@@ -885,18 +1013,27 @@ def compute_playbook(conf, market_top, market, earnings, tickers) -> list[dict]:
                 overext = (c["ticker"], bed)
                 break
         if overext:
-            risk = {"kind": "Risk / avoid chase", "ticker": overext[0],
-                    "text": f"Flow strike sits {overext[1]:.0f}% out — the easy "
-                            f"money's priced in; don't chase the premium here."}
+            risk = {
+                "kind": "Risk / avoid chase",
+                "ticker": overext[0],
+                "text": f"Flow strike sits {overext[1]:.0f}% out — the easy "
+                f"money's priced in; don't chase the premium here.",
+            }
     if not risk and soonest:
         tk, e = soonest[0]
-        risk = {"kind": "Risk / avoid chase", "ticker": tk,
-                "text": f"Earnings in {e['days_away']}d — binary event risk; "
-                        f"trim or hedge into the print."}
+        risk = {
+            "kind": "Risk / avoid chase",
+            "ticker": tk,
+            "text": f"Earnings in {e['days_away']}d — binary event risk; "
+            f"trim or hedge into the print.",
+        }
     if not risk:
-        risk = {"kind": "Risk / avoid chase", "ticker": None,
-                "text": "No obvious blow-up risk flagged — still, respect stops "
-                        "and don't chase extended names."}
+        risk = {
+            "kind": "Risk / avoid chase",
+            "ticker": None,
+            "text": "No obvious blow-up risk flagged — still, respect stops "
+            "and don't chase extended names.",
+        }
     return [best, watch, risk]
 
 
@@ -904,8 +1041,10 @@ def compute_playbook(conf, market_top, market, earnings, tickers) -> list[dict]:
 # Brief assembly
 # ─────────────────────────────────────────────────────────────────────
 
-def build_brief(tickers, swing, uoa, market_top, earnings, reports_by_tk,
-                new_reports_all, market) -> dict:
+
+def build_brief(
+    tickers, swing, uoa, market_top, earnings, reports_by_tk, new_reports_all, market
+) -> dict:
     conf = compute_confluence(tickers, swing, uoa, earnings, reports_by_tk)
     changed = compute_what_changed(tickers, swing, uoa, earnings, reports_by_tk)
     playbook = compute_playbook(conf, market_top, market, earnings, tickers)
@@ -920,14 +1059,14 @@ def build_brief(tickers, swing, uoa, market_top, earnings, reports_by_tk,
 
     earn = sorted(
         [{"ticker": tk, **e} for tk, e in earnings.items() if tk in set(tickers)],
-        key=lambda r: r.get("days_away", 99))
+        key=lambda r: r.get("days_away", 99),
+    )
 
     snapshot = []
     for tk in sorted(set(tickers)):
         sw = swing.get(tk)
         if sw:
-            snapshot.append({"ticker": tk, "grade": sw["grade"],
-                             "chg": sw.get("chg")})
+            snapshot.append({"ticker": tk, "grade": sw["grade"], "chg": sw.get("chg")})
 
     return {
         "playbook": playbook,
@@ -947,6 +1086,7 @@ def build_brief(tickers, swing, uoa, market_top, earnings, reports_by_tk,
 # Subject + preheader — most important personalized hook
 # ─────────────────────────────────────────────────────────────────────
 
+
 def build_subject(brief) -> tuple[str, str]:
     ch = brief["changed"]
     n_up = len(ch["upgrades"])
@@ -955,15 +1095,15 @@ def build_subject(brief) -> tuple[str, str]:
     top_flow_tk = brief["flow"][0]["ticker"] if brief["flow"] else None
 
     if top_flow_tk and n_up:
-        hook = (f"{top_flow_tk} flow + {n_up} watchlist "
-                f"upgrade{'s' if n_up != 1 else ''}")
+        hook = f"{top_flow_tk} flow + {n_up} watchlist upgrade{'s' if n_up != 1 else ''}"
     elif n_atier and n_flow:
-        hook = (f"{n_atier} A-tier name{'s' if n_atier != 1 else ''}, "
-                f"{n_flow} fresh flow hit{'s' if n_flow != 1 else ''}")
+        hook = (
+            f"{n_atier} A-tier name{'s' if n_atier != 1 else ''}, "
+            f"{n_flow} fresh flow hit{'s' if n_flow != 1 else ''}"
+        )
     elif top_flow_tk:
         extra = n_flow - 1
-        hook = (f"{top_flow_tk} unusual flow"
-                + (f" +{extra} more" if extra > 0 else ""))
+        hook = f"{top_flow_tk} unusual flow" + (f" +{extra} more" if extra > 0 else "")
     elif n_up:
         hook = f"{n_up} watchlist upgrade{'s' if n_up != 1 else ''}"
     elif n_atier:
@@ -983,34 +1123,41 @@ def build_subject(brief) -> tuple[str, str]:
 # HTML rendering — inline CSS, single column, ≤600px, Gmail-safe
 # ─────────────────────────────────────────────────────────────────────
 
+
 def _card(title: str, inner: str, sub: str = "") -> str:
-    sub_html = (f'<span style="color:{CSS_MUTED};font-weight:400;'
-                f'text-transform:none;letter-spacing:0;font-size:11px;"> · {esc(sub)}</span>'
-                if sub else "")
-    return f'''
+    sub_html = (
+        f'<span style="color:{CSS_MUTED};font-weight:400;'
+        f'text-transform:none;letter-spacing:0;font-size:11px;"> · {esc(sub)}</span>'
+        if sub
+        else ""
+    )
+    return f"""
     <div style="margin-top:22px;">
       <div style="font-size:12px;font-weight:700;color:{CSS_MUTED};text-transform:uppercase;letter-spacing:1px;margin-bottom:9px;">{esc(title)}{sub_html}</div>
       <div style="background:{CSS_PANEL};border:1px solid {CSS_BORDER};border-radius:10px;overflow:hidden;">{inner}</div>
-    </div>'''
+    </div>"""
 
 
 def _row_wrap(inner: str) -> str:
-    return (f'<div style="padding:12px 14px;border-bottom:1px solid {CSS_BORDER};">'
-            f'{inner}</div>')
+    return f'<div style="padding:12px 14px;border-bottom:1px solid {CSS_BORDER};">{inner}</div>'
 
 
 def _ticker_link(tk, size=15) -> str:
     if not tk:
         return ""
-    return (f'<a href="{_link(tk)}" style="font-weight:700;color:{CSS_TEXT};'
-            f'text-decoration:none;font-size:{size}px;">{esc(tk)}</a>')
+    return (
+        f'<a href="{_link(tk)}" style="font-weight:700;color:{CSS_TEXT};'
+        f'text-decoration:none;font-size:{size}px;">{esc(tk)}</a>'
+    )
 
 
 def _badge(text, color, bg=None) -> str:
     bg = bg or "rgba(255,255,255,0.06)"
-    return (f'<span style="display:inline-block;font-size:10px;font-weight:700;'
-            f'color:{color};background:{bg};border-radius:4px;padding:1px 6px;'
-            f'margin:2px 4px 2px 0;letter-spacing:.3px;">{esc(text)}</span>')
+    return (
+        f'<span style="display:inline-block;font-size:10px;font-weight:700;'
+        f"color:{color};background:{bg};border-radius:4px;padding:1px 6px;"
+        f'margin:2px 4px 2px 0;letter-spacing:.3px;">{esc(text)}</span>'
+    )
 
 
 def _fmt_px(v) -> str:
@@ -1025,8 +1172,15 @@ def _calibrated(intel, conviction) -> str:
     cal = ((intel.get("evening") or {}).get("calibration")) or {}
     if cal.get("status") != "active" or not isinstance(conviction, (int, float)):
         return ""
-    band = ("90+" if conviction >= 90 else "80-89" if conviction >= 80
-            else "70-79" if conviction >= 70 else "<70")
+    band = (
+        "90+"
+        if conviction >= 90
+        else "80-89"
+        if conviction >= 80
+        else "70-79"
+        if conviction >= 70
+        else "<70"
+    )
     b = (cal.get("bands") or {}).get(band)
     return f" · cal {b['win_rate']}%" if b else ""
 
@@ -1037,15 +1191,19 @@ def _setup_hist_line(intel, grade) -> str:
     st = ((intel.get("setup") or {}).get("grades") or {}).get(grade)
     hold = (intel.get("setup") or {}).get("hold_days", 5)
     if st and st.get("status") == "active":
-        return (f'{esc(grade)} setups historically (+{hold} sessions, '
-                f'n={st["n"]}): <b style="color:{CSS_TEXT};">{st["win_rate"]}% '
-                f'win</b> · avg {st["avg"]:+.1f}% · median {st["median"]:+.1f}% '
-                f'· avg drawdown {st["avg_dd"]:.1f}%')
+        return (
+            f"{esc(grade)} setups historically (+{hold} sessions, "
+            f'n={st["n"]}): <b style="color:{CSS_TEXT};">{st["win_rate"]}% '
+            f"win</b> · avg {st['avg']:+.1f}% · median {st['median']:+.1f}% "
+            f"· avg drawdown {st['avg_dd']:.1f}%"
+        )
     n = (st or {}).get("n", 0)
     tot = (intel.get("setup") or {}).get("total_graded", 0)
-    return (f"Setup-level track record accruing — {n or tot} graded of 30 "
-            f"needed before {esc(grade or 'these')} stats publish. "
-            f"No number is shown before it's real.")
+    return (
+        f"Setup-level track record accruing — {n or tot} graded of 30 "
+        f"needed before {esc(grade or 'these')} stats publish. "
+        f"No number is shown before it's real."
+    )
 
 
 def _ema_check(f, span) -> str:
@@ -1081,72 +1239,85 @@ def _render_hero(intel, swing, earnings) -> str:
         stop = close - sgn * 1.5 * a
         target = close + sgn * 2.5 * a
         rr = 2.5 / 1.5
-        cell = (lambda lab, val, col=CSS_TEXT:
-                f'<div style="display:inline-block;width:24%;min-width:110px;'
-                f'vertical-align:top;padding:6px 0;">'
-                f'<div style="font-size:10px;color:{CSS_MUTED};text-transform:'
-                f'uppercase;letter-spacing:.5px;">{lab}</div>'
-                f'<div style="font-size:14px;font-weight:700;color:{col};'
-                f'font-variant-numeric:tabular-nums;">{val}</div></div>')
+        cell = lambda lab, val, col=CSS_TEXT: (
+            f'<div style="display:inline-block;width:24%;min-width:110px;'
+            f'vertical-align:top;padding:6px 0;">'
+            f'<div style="font-size:10px;color:{CSS_MUTED};text-transform:'
+            f'uppercase;letter-spacing:.5px;">{lab}</div>'
+            f'<div style="font-size:14px;font-weight:700;color:{col};'
+            f'font-variant-numeric:tabular-nums;">{val}</div></div>'
+        )
         levels_html = (
             '<div style="padding:8px 14px;border-bottom:1px solid '
-            + CSS_BORDER + ';">'
+            + CSS_BORDER
+            + ';">'
             + cell("Entry zone", f"{_fmt_px(e_lo)}–{_fmt_px(e_hi)}")
             + cell("Stop", _fmt_px(stop), CSS_RED)
             + cell("Target", _fmt_px(target), CSS_GREEN)
             + cell("R:R", f"{rr:.1f}", CSS_GOLD)
             + f'<div style="font-size:10px;color:{CSS_MUTED};margin-top:3px;">'
-              f'ATR-unit plan (ATR {atr_pct:.1f}%): entry ±0.25×ATR of last '
-              f'close · stop 1.5×ATR · target 2.5×ATR. Adjust to your own '
-              f'structure levels.</div></div>')
+            f"ATR-unit plan (ATR {atr_pct:.1f}%): entry ±0.25×ATR of last "
+            f"close · stop 1.5×ATR · target 2.5×ATR. Adjust to your own "
+            f"structure levels.</div></div>"
+        )
 
     # ── technical decomposition — the "why", never just a letter ──
     tech_html = ""
     if f:
-        bits = [b for b in (_ema_check(f, 20), _ema_check(f, 50),
-                            _ema_check(f, 200)) if b]
+        bits = [b for b in (_ema_check(f, 20), _ema_check(f, 50), _ema_check(f, 200)) if b]
         rsi, vr, rk = f.get("rsi14"), f.get("vol_ratio"), f.get("rs_rank")
         if isinstance(rsi, (int, float)):
-            bits.append(f'RSI {int(rsi)}')
+            bits.append(f"RSI {int(rsi)}")
         if isinstance(vr, (int, float)):
-            bits.append(f'vol {vr:.1f}×')
+            bits.append(f"vol {vr:.1f}×")
         if isinstance(rk, (int, float)):
-            bits.append(f'RS rank {int(rk)}')
+            bits.append(f"RS rank {int(rk)}")
         trend = f.get("trend")
         rs = f.get("rs") or {}
         rs_cells = " ".join(
             f'<span style="color:{CSS_GREEN if (rs.get(k) or 0) >= 0 else CSS_RED};'
             f'font-variant-numeric:tabular-nums;">{lab} {rs[k]:+.1f}</span>'
-            for k, lab in (("d1", "1D"), ("d5", "5D"), ("d20", "20D"),
-                           ("d60", "60D")) if isinstance(rs.get(k), (int, float)))
+            for k, lab in (("d1", "1D"), ("d5", "5D"), ("d20", "20D"), ("d60", "60D"))
+            if isinstance(rs.get(k), (int, float))
+        )
         tech_html = (
             f'<div style="padding:8px 14px;border-bottom:1px solid {CSS_BORDER};'
             f'font-size:12px;color:{CSS_TEXT};line-height:1.7;">'
             f'<span style="color:{CSS_MUTED};">Trend</span> '
-            f'<b>{esc(trend or "—")}</b> · ' + " · ".join(bits)
-            + (f'<br><span style="color:{CSS_MUTED};">vs SPY (pp)</span> '
-               + rs_cells if rs_cells else "") + '</div>')
+            f"<b>{esc(trend or '—')}</b> · "
+            + " · ".join(bits)
+            + (
+                f'<br><span style="color:{CSS_MUTED};">vs SPY (pp)</span> ' + rs_cells
+                if rs_cells
+                else ""
+            )
+            + "</div>"
+        )
 
     # ── evidence checklist + event risk ──
     ev_items = [f"✓ {e}" for e in (pick.get("evidence") or [])]
     er = (earnings or {}).get(t)
     if er and isinstance(er.get("days_away"), int):
-        ev_items.append(f"⚠ earnings in {er['days_away']}d "
-                        f"({er.get('bmo_amc', '')})")
+        ev_items.append(f"⚠ earnings in {er['days_away']}d ({er.get('bmo_amc', '')})")
     else:
         ev_items.append("✓ no earnings ≤7d")
-    ev_html = ('<div style="padding:8px 14px;border-bottom:1px solid '
-               + CSS_BORDER + ';font-size:12px;line-height:1.8;color:'
-               + CSS_TEXT + ';">' + "<br>".join(esc(i) for i in ev_items)
-               + '</div>')
+    ev_html = (
+        '<div style="padding:8px 14px;border-bottom:1px solid '
+        + CSS_BORDER
+        + ";font-size:12px;line-height:1.8;color:"
+        + CSS_TEXT
+        + ';">'
+        + "<br>".join(esc(i) for i in ev_items)
+        + "</div>"
+    )
 
-    conf_txt = (f'{conviction}' if isinstance(conviction, (int, float)) else "—")
+    conf_txt = f"{conviction}" if isinstance(conviction, (int, float)) else "—"
     hist = _setup_hist_line(intel, grade)
     gcol = _grade_color(grade)
     dir_lab = "LONG" if is_bull else "SHORT"
     dir_col = CSS_GREEN if is_bull else CSS_RED
 
-    return f'''
+    return f"""
     <div style="margin-top:4px;">
       <div style="font-size:13px;font-weight:800;color:{CSS_GOLD};text-transform:uppercase;letter-spacing:1.2px;margin-bottom:9px;">🎯 Today's Playbook — Best Setup</div>
       <div style="background:{CSS_PANEL};border:1px solid {CSS_GOLD};border-radius:10px;overflow:hidden;">
@@ -1159,7 +1330,7 @@ def _render_hero(intel, swing, earnings) -> str:
         {levels_html}{tech_html}{ev_html}
         <div style="padding:8px 14px;font-size:10.5px;color:{CSS_MUTED};line-height:1.5;">{hist}</div>
       </div>
-    </div>'''
+    </div>"""
 
 
 def _render_top3(intel, swing, market) -> str:
@@ -1169,14 +1340,14 @@ def _render_top3(intel, swing, market) -> str:
 
     # conviction board rows arrive pre-sorted by conviction
     cf = intel.get("carryover") or {}
-    contracts = [c for c in (cf.get("contracts") or [])
-                 if c.get("conviction") is not None][:3]
+    contracts = [c for c in (cf.get("contracts") or []) if c.get("conviction") is not None][:3]
     if contracts:
         rows = "".join(
             f'<div style="padding:3px 0;font-size:12.5px;">'
-            f'{_ticker_link(c.get("ticker"), 13)} '
+            f"{_ticker_link(c.get('ticker'), 13)} "
             f'<span style="color:{CSS_MUTED};font-size:11px;">{c.get("conviction")} conv · {_fmt_premium(c.get("premium"))}</span></div>'
-            for c in contracts)
+            for c in contracts
+        )
         cols.append(("Highest-conviction flow", rows))
 
     facts = intel.get("facts") or {}
@@ -1185,11 +1356,16 @@ def _render_top3(intel, swing, market) -> str:
     if aplus:
         rows = "".join(
             f'<div style="padding:3px 0;font-size:12.5px;">'
-            f'{_ticker_link(tk, 13)} '
+            f"{_ticker_link(tk, 13)} "
             f'<span style="color:{CSS_MUTED};font-size:11px;">A+'
-            + (f' · RS {int(facts[tk]["rs_rank"])}' if facts.get(tk, {}).get("rs_rank") is not None else "")
-            + '</span></div>'
-            for tk, _ in aplus[:3])
+            + (
+                f" · RS {int(facts[tk]['rs_rank'])}"
+                if facts.get(tk, {}).get("rs_rank") is not None
+                else ""
+            )
+            + "</span></div>"
+            for tk, _ in aplus[:3]
+        )
         cols.append(("Top technical grades", rows))
 
     evs = [(e, "today") for e in (market.get("events") or [])[:3]]
@@ -1199,9 +1375,10 @@ def _render_top3(intel, swing, market) -> str:
         rows = "".join(
             f'<div style="padding:3px 0;font-size:11.5px;color:{CSS_TEXT};">'
             f'<span style="color:{CSS_GOLD};">{"★" * _event_stars(e)}</span> '
-            f'{esc((e.get("title") or "")[:30])} '
+            f"{esc((e.get('title') or '')[:30])} "
             f'<span style="color:{CSS_MUTED};font-size:10px;">{lab}</span></div>'
-            for e, lab in evs[:3])
+            for e, lab in evs[:3]
+        )
         cols.append(("Ranked risk events", rows))
 
     if not cols:
@@ -1211,10 +1388,13 @@ def _render_top3(intel, swing, market) -> str:
         f'min-width:170px;padding:10px 8px 10px 14px;">'
         f'<div style="font-size:10px;font-weight:700;color:{CSS_MUTED};'
         f'text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">{esc(title)}</div>'
-        f'{rows}</div>'
-        for title, rows in cols)
-    return (f'<div style="margin-top:14px;background:{CSS_PANEL};'
-            f'border:1px solid {CSS_BORDER};border-radius:10px;">{col_html}</div>')
+        f"{rows}</div>"
+        for title, rows in cols
+    )
+    return (
+        f'<div style="margin-top:14px;background:{CSS_PANEL};'
+        f'border:1px solid {CSS_BORDER};border-radius:10px;">{col_html}</div>'
+    )
 
 
 def _similar_line(top, edge) -> str:
@@ -1235,55 +1415,65 @@ def _similar_line(top, edge) -> str:
         return ""
     tag, h5 = best
     col = CSS_GREEN if (h5.get("avg_excess") or 0) > 0 else CSS_RED
-    return (f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:3px;">'
-            f'Similar prints ({esc(tag)}, n={h5["n"]:,}): '
-            f'<b style="color:{CSS_TEXT};">{h5["hit_rate"]}% hit</b> · '
-            f'<span style="color:{col};">{h5["avg_excess"]:+.1f}% avg excess'
-            f'</span> vs SPY over 5 sessions</div>')
+    return (
+        f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:3px;">'
+        f"Similar prints ({esc(tag)}, n={h5['n']:,}): "
+        f'<b style="color:{CSS_TEXT};">{h5["hit_rate"]}% hit</b> · '
+        f'<span style="color:{col};">{h5["avg_excess"]:+.1f}% avg excess'
+        f"</span> vs SPY over 5 sessions</div>"
+    )
 
 
 def _render_playbook(playbook, ideas=None) -> str:
-    icons = {"Best opportunity": ("🎯", CSS_GREEN),
-             "Watch today": ("👁", CSS_ACCENT),
-             "Risk / avoid chase": ("⚠️", CSS_RED)}
+    icons = {
+        "Best opportunity": ("🎯", CSS_GREEN),
+        "Watch today": ("👁", CSS_ACCENT),
+        "Risk / avoid chase": ("⚠️", CSS_RED),
+    }
     rows = []
     # Ideas chip line — a few concrete, NON-earnings names up top so the
     # brief opens with tradeable setups, not the earnings calendar.
     if ideas:
         chips = "".join(
             f'<a href="{_link(c["ticker"])}" style="display:inline-block;'
-            f'text-decoration:none;background:rgba(31,179,99,0.12);'
-            f'border:1px solid rgba(31,179,99,0.4);border-radius:6px;'
-            f'padding:3px 9px;margin:3px 6px 3px 0;font-size:12.5px;'
+            f"text-decoration:none;background:rgba(31,179,99,0.12);"
+            f"border:1px solid rgba(31,179,99,0.4);border-radius:6px;"
+            f"padding:3px 9px;margin:3px 6px 3px 0;font-size:12.5px;"
             f'font-weight:700;color:{CSS_TEXT};white-space:nowrap;">'
-            f'{esc(c["ticker"])}'
-            + (f' <span style="color:{_grade_color(c.get("grade"))};">{esc(c["grade"])}</span>'
-               if c.get("grade") else "")
-            + '</a>'
-            for c in ideas)
+            f"{esc(c['ticker'])}"
+            + (
+                f' <span style="color:{_grade_color(c.get("grade"))};">{esc(c["grade"])}</span>'
+                if c.get("grade")
+                else ""
+            )
+            + "</a>"
+            for c in ideas
+        )
         rows.append(
             f'<div style="padding:11px 14px;border-bottom:1px solid {CSS_BORDER};">'
             f'<div style="font-size:11px;font-weight:700;color:{CSS_GREEN};'
             f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">'
-            f'💡 Today\'s ideas <span style="color:{CSS_MUTED};font-weight:400;'
+            f"💡 Today's ideas <span style=\"color:{CSS_MUTED};font-weight:400;"
             f'text-transform:none;letter-spacing:0;">· non-earnings, bull-stacked</span></div>'
-            f'<div>{chips}</div></div>')
+            f"<div>{chips}</div></div>"
+        )
     for b in playbook:
         icon, col = icons.get(b["kind"], ("•", CSS_TEXT))
-        tk = (f'{_ticker_link(b["ticker"])} — ' if b.get("ticker") else "")
+        tk = f"{_ticker_link(b['ticker'])} — " if b.get("ticker") else ""
         rows.append(
             f'<div style="padding:11px 14px;border-bottom:1px solid {CSS_BORDER};">'
             f'<div style="font-size:11px;font-weight:700;color:{col};'
             f'text-transform:uppercase;letter-spacing:.5px;">{icon} {esc(b["kind"])}</div>'
             f'<div style="font-size:13.5px;color:{CSS_TEXT};margin-top:3px;line-height:1.45;">'
-            f'{tk}{esc(b["text"]) if not b.get("ticker") else esc(b["text"])}</div>'
-            f'</div>')
+            f"{tk}{esc(b['text'])}</div>"
+            f"</div>"
+        )
     inner = "".join(rows)
-    return f'''
+    return f"""
     <div style="margin-top:4px;">
       <div style="font-size:13px;font-weight:800;color:{CSS_GOLD};text-transform:uppercase;letter-spacing:1.2px;margin-bottom:9px;">📋 Today's Playbook</div>
       <div style="background:{CSS_PANEL};border:1px solid {CSS_GOLD};border-radius:10px;overflow:hidden;">{inner}</div>
-    </div>'''
+    </div>"""
 
 
 def _render_confluence(conf) -> str:
@@ -1291,25 +1481,33 @@ def _render_confluence(conf) -> str:
     for c in conf:
         col = CSS_GREEN if c["net"] == "bull" else CSS_RED if c["net"] == "bear" else CSS_MUTED
         gcol = _grade_color(c.get("grade"))
-        gtxt = (f'<span style="color:{gcol};font-weight:700;font-size:12px;'
-                f'margin-left:8px;">{esc(c["grade"])}</span>' if c.get("grade") else "")
+        gtxt = (
+            f'<span style="color:{gcol};font-weight:700;font-size:12px;'
+            f'margin-left:8px;">{esc(c["grade"])}</span>'
+            if c.get("grade")
+            else ""
+        )
         sign = "+" if c["score"] >= 0 else ""
         # Transparent score: every component shown, so the total is
         # auditable at a glance — never a bare number.
         parts = c.get("parts") or []
-        parts_txt = " · ".join(
-            f'{lab} {"+" if pts >= 0 else ""}{pts:g}' for lab, pts in parts)
-        breakdown = (f'<div style="font-size:10.5px;color:{CSS_MUTED};'
-                     f'margin-top:3px;">= {esc(parts_txt)}</div>'
-                     if parts else "")
-        rows.append(_row_wrap(
-            f'<div style="display:flex;align-items:baseline;justify-content:space-between;">'
-            f'<div>{_ticker_link(c["ticker"])}{gtxt}</div>'
-            f'<div style="font-size:12px;font-weight:700;color:{col};">{sign}{c["score"]}</div></div>'
-            f'<div style="font-size:12.5px;color:{CSS_MUTED};margin-top:4px;line-height:1.4;">{esc(c["reason"])}</div>'
-            + breakdown))
-    return _card("Confluence", "".join(rows),
-                 "where grade + flow + catalyst align")
+        parts_txt = " · ".join(f"{lab} {'+' if pts >= 0 else ''}{pts:g}" for lab, pts in parts)
+        breakdown = (
+            f'<div style="font-size:10.5px;color:{CSS_MUTED};'
+            f'margin-top:3px;">= {esc(parts_txt)}</div>'
+            if parts
+            else ""
+        )
+        rows.append(
+            _row_wrap(
+                f'<div style="display:flex;align-items:baseline;justify-content:space-between;">'
+                f"<div>{_ticker_link(c['ticker'])}{gtxt}</div>"
+                f'<div style="font-size:12px;font-weight:700;color:{col};">{sign}{c["score"]}</div></div>'
+                f'<div style="font-size:12.5px;color:{CSS_MUTED};margin-top:4px;line-height:1.4;">{esc(c["reason"])}</div>'
+                + breakdown
+            )
+        )
+    return _card("Confluence", "".join(rows), "where grade + flow + catalyst align")
 
 
 def _grade_move_why(facts, tk) -> str:
@@ -1346,31 +1544,55 @@ def _render_changed(ch, facts=None) -> str:
         stay compact."""
         out = []
         for i, x in enumerate(items):
-            base = f'{esc(x[0])} {esc(x[1])}→{esc(x[2])}'
+            base = f"{esc(x[0])} {esc(x[1])}→{esc(x[2])}"
             why = _grade_move_why(facts, x[0]) if i < 3 else ""
             out.append(base + f'<span style="color:{CSS_MUTED};">{esc(why)}</span>')
         return "<br>".join(out[:3]) + (
-            ('<br><span style="color:' + CSS_MUTED + ';">'
-             + ", ".join(f'{esc(x[0])} {esc(x[1])}→{esc(x[2])}'
-                         for x in items[3:8]) + '</span>')
-            if len(items) > 3 else "")
+            (
+                '<br><span style="color:'
+                + CSS_MUTED
+                + ';">'
+                + ", ".join(f"{esc(x[0])} {esc(x[1])}→{esc(x[2])}" for x in items[3:8])
+                + "</span>"
+            )
+            if len(items) > 3
+            else ""
+        )
 
     if ch["upgrades"]:
         lines.append((CSS_GREEN, "▲ Upgrades", _moves(ch["upgrades"])))
     if ch["new_a"]:
-        lines.append((CSS_GOLD, "★ New A-tier",
-                      _tk_list(ch["new_a"], lambda x: f'{esc(x[0])} ({esc(x[1])})')))
+        lines.append(
+            (
+                CSS_GOLD,
+                "★ New A-tier",
+                _tk_list(ch["new_a"], lambda x: f"{esc(x[0])} ({esc(x[1])})"),
+            )
+        )
     if ch["new_flow"]:
-        lines.append((CSS_AMBER, "⚡ New flow",
-                      _tk_list(ch["new_flow"][:5],
-                               lambda x: f'{esc(x[0])} {_fmt_premium(x[1].get("premium"))}')))
+        lines.append(
+            (
+                CSS_AMBER,
+                "⚡ New flow",
+                _tk_list(
+                    ch["new_flow"][:5], lambda x: f"{esc(x[0])} {_fmt_premium(x[1].get('premium'))}"
+                ),
+            )
+        )
     if ch["new_earnings"]:
-        lines.append((CSS_ACCENT, "📅 Earnings ≤7d",
-                      _tk_list(ch["new_earnings"][:5],
-                               lambda x: f'{esc(x[0])} ({x[1].get("days_away")}d)')))
+        lines.append(
+            (
+                CSS_ACCENT,
+                "📅 Earnings ≤7d",
+                _tk_list(
+                    ch["new_earnings"][:5], lambda x: f"{esc(x[0])} ({x[1].get('days_away')}d)"
+                ),
+            )
+        )
     if ch["new_reports"]:
-        lines.append((CSS_ACCENT, "📄 New reports",
-                      _tk_list(ch["new_reports"][:5], lambda x: esc(x[0]))))
+        lines.append(
+            (CSS_ACCENT, "📄 New reports", _tk_list(ch["new_reports"][:5], lambda x: esc(x[0])))
+        )
     if ch["downgrades"]:
         lines.append((CSS_RED, "▼ Downgrades", _moves(ch["downgrades"])))
     if not lines:
@@ -1379,8 +1601,9 @@ def _render_changed(ch, facts=None) -> str:
         f'<div style="padding:10px 14px;border-bottom:1px solid {CSS_BORDER};">'
         f'<span style="font-size:11px;font-weight:700;color:{col};">{esc(label)}</span>'
         f'<div style="font-size:12.5px;color:{CSS_TEXT};margin-top:3px;line-height:1.4;">{body}</div>'
-        f'</div>'
-        for col, label, body in lines)
+        f"</div>"
+        for col, label, body in lines
+    )
     return _card("What changed since yesterday", inner)
 
 
@@ -1394,13 +1617,14 @@ def _render_flow(flow, edge=None) -> str:
         ts = top.get("trade_score")
         golden = bool(top.get("is_golden") or top.get("golden"))
         # Header line: ticker · direction · tier/score
-        score_txt = (f'<span style="color:{_tier_color(tier)};font-weight:700;'
-                     f'font-size:12px;margin-left:8px;">'
-                     f'{esc(tier)} · {int(ts) if isinstance(ts,(int,float)) else "—"}</span>')
+        score_txt = (
+            f'<span style="color:{_tier_color(tier)};font-weight:700;'
+            f'font-size:12px;margin-left:8px;">'
+            f"{esc(tier)} · {int(ts) if isinstance(ts, (int, float)) else '—'}</span>"
+        )
         # Contract line
         strike = top.get("strike")
-        contract = (f'{typ} ${esc(strike)} {esc(top.get("expiry") or "")}'
-                    f' ({esc(top.get("dte"))}d)')
+        contract = f"{typ} ${esc(strike)} {esc(top.get('expiry') or '')} ({esc(top.get('dte'))}d)"
         # Badges
         badges = ""
         if golden:
@@ -1424,7 +1648,7 @@ def _render_flow(flow, edge=None) -> str:
         be = top.get("break_even")
         bed = top.get("be_distance_pct")
         if isinstance(be, (int, float)):
-            bd = (f" ({bed:+.1f}% away)" if isinstance(bed, (int, float)) else "")
+            bd = f" ({bed:+.1f}% away)" if isinstance(bed, (int, float)) else ""
             meta_bits.append(f"B/E ${be:.2f}{bd}")
         em = top.get("expected_move_pct")
         if isinstance(em, (int, float)):
@@ -1433,7 +1657,8 @@ def _render_flow(flow, edge=None) -> str:
                 room = em - abs(bed)
                 meta_bits.append(
                     f"room {'+' if room >= 0 else ''}{room:.1f}%"
-                    + ("" if room >= 0 else " (B/E beyond priced move)"))
+                    + ("" if room >= 0 else " (B/E beyond priced move)")
+                )
         ed = top.get("earnings_days")
         if isinstance(ed, (int, float)) and 0 <= ed <= 21:
             meta_bits.append(f"⚠ earns in {int(ed)}d")
@@ -1441,20 +1666,34 @@ def _render_flow(flow, edge=None) -> str:
         if bp:
             meta_bits.append(f"biggest print {bp}")
         why = top.get("why") or ""
-        more = (f'<span style="color:{CSS_MUTED};"> · +{len(r["contracts"])-1} more contract{"s" if len(r["contracts"])>2 else ""}</span>'
-                if len(r["contracts"]) > 1 else "")
-        rows.append(_row_wrap(
-            f'<div style="display:flex;align-items:baseline;justify-content:space-between;">'
-            f'<div>{_ticker_link(r["ticker"])}'
-            f'<span style="color:{dir_col};font-weight:700;font-size:12px;margin-left:8px;">{esc(dir_txt)}</span>'
-            f'{score_txt}</div>'
-            f'<div style="font-size:14px;color:{CSS_AMBER};font-weight:700;">{_fmt_premium(top.get("premium"))}</div></div>'
-            f'<div style="font-size:12.5px;color:{CSS_TEXT};margin-top:4px;">{contract}'
-            f'<span style="color:{CSS_MUTED};"> · {_fmt_num(top.get("vol_oi"),"{:.0f}")}× OI</span>{more}</div>'
-            f'<div style="margin-top:5px;">{badges}</div>'
-            + (f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:4px;line-height:1.4;">{esc(why)}</div>' if why else "")
-            + (f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:3px;">{esc(" · ".join(meta_bits))}</div>' if meta_bits else "")
-            + _similar_line(top, edge)))
+        more = (
+            f'<span style="color:{CSS_MUTED};"> · +{len(r["contracts"]) - 1} more contract{"s" if len(r["contracts"]) > 2 else ""}</span>'
+            if len(r["contracts"]) > 1
+            else ""
+        )
+        rows.append(
+            _row_wrap(
+                f'<div style="display:flex;align-items:baseline;justify-content:space-between;">'
+                f"<div>{_ticker_link(r['ticker'])}"
+                f'<span style="color:{dir_col};font-weight:700;font-size:12px;margin-left:8px;">{esc(dir_txt)}</span>'
+                f"{score_txt}</div>"
+                f'<div style="font-size:14px;color:{CSS_AMBER};font-weight:700;">{_fmt_premium(top.get("premium"))}</div></div>'
+                f'<div style="font-size:12.5px;color:{CSS_TEXT};margin-top:4px;">{contract}'
+                f'<span style="color:{CSS_MUTED};"> · {_fmt_num(top.get("vol_oi"), "{:.0f}")}× OI</span>{more}</div>'
+                f'<div style="margin-top:5px;">{badges}</div>'
+                + (
+                    f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:4px;line-height:1.4;">{esc(why)}</div>'
+                    if why
+                    else ""
+                )
+                + (
+                    f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:3px;">{esc(" · ".join(meta_bits))}</div>'
+                    if meta_bits
+                    else ""
+                )
+                + _similar_line(top, edge)
+            )
+        )
     return _card("Unusual options flow", "".join(rows), "intraday batch · 15m delayed")
 
 
@@ -1484,10 +1723,10 @@ def _fmt_strike(v) -> str:
 
 
 _OVF_PBADGE = {
-    "A+":     ("rgba(31,179,99,0.22)", "#8ee9ac"),
-    "A":      ("rgba(31,179,99,0.14)", "#7ddfa1"),
-    "B":      ("rgba(202,166,58,0.16)", "#d8b74a"),
-    "Avoid":  ("rgba(214,68,68,0.16)", "#f08585"),
+    "A+": ("rgba(31,179,99,0.22)", "#8ee9ac"),
+    "A": ("rgba(31,179,99,0.14)", "#7ddfa1"),
+    "B": ("rgba(202,166,58,0.16)", "#d8b74a"),
+    "Avoid": ("rgba(214,68,68,0.16)", "#f08585"),
     "Pending": ("rgba(255,255,255,0.06)", CSS_MUTED),
 }
 
@@ -1504,13 +1743,15 @@ def _render_carryover(cf, edge=None) -> str:
 
     def _pbadge(p):
         bg, fg = _OVF_PBADGE.get(p, ("rgba(255,255,255,0.06)", CSS_MUTED))
-        return (f'<span style="display:inline-block;font-size:10px;font-weight:800;'
-                f'padding:1px 6px;border-radius:4px;background:{bg};color:{fg};'
-                f'white-space:nowrap;">{esc(p or "—")}</span>')
+        return (
+            f'<span style="display:inline-block;font-size:10px;font-weight:800;'
+            f"padding:1px 6px;border-radius:4px;background:{bg};color:{fg};"
+            f'white-space:nowrap;">{esc(p or "—")}</span>'
+        )
 
     rows = []
     for c in contracts:
-        t = (c.get("type") or "")
+        t = c.get("type") or ""
         typ = "C" if t.startswith("c") else ("P" if t.startswith("p") else "")
         exp = _fmt_expiry_short(c.get("expiry") or "")
         prem = _fmt_premium(c.get("premium"))
@@ -1520,32 +1761,34 @@ def _render_carryover(cf, edge=None) -> str:
             oc_txt = f'<span style="color:{CSS_MUTED};">OI pending</span>'
         else:
             col = CSS_GREEN if oc >= 0.70 else ("#d8b74a" if oc >= 0.40 else CSS_RED)
-            oc_txt = f'<span style="color:{col};font-weight:700;">{round(oc*100)}% OI conf</span>'
+            oc_txt = f'<span style="color:{col};font-weight:700;">{round(oc * 100)}% OI conf</span>'
         conv_txt = "" if conv is None else f' · <b style="color:{CSS_TEXT};">{conv}</b> conv'
         # where the bet sits: strike distance from spot at flag time
         sd_txt = ""
         strike, spot = c.get("strike"), c.get("spot_at_flag")
         if isinstance(strike, (int, float)) and isinstance(spot, (int, float)) and spot > 0:
             sd = 100.0 * (strike / spot - 1.0)
-            sd_txt = f' · strike {sd:+.0f}% (at flag)'
+            sd_txt = f" · strike {sd:+.0f}% (at flag)"
         rows.append(
             f'<div style="padding:7px 14px;border-bottom:1px solid {CSS_BORDER};">'
             f'<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">'
-            f'<div>{_ticker_link(c.get("ticker"))}'
+            f"<div>{_ticker_link(c.get('ticker'))}"
             f'<span style="color:{CSS_TEXT};font-size:12px;margin-left:7px;">'
-            f'{_fmt_strike(c.get("strike"))}{typ} '
+            f"{_fmt_strike(c.get('strike'))}{typ} "
             f'<span style="color:{CSS_MUTED};">{esc(exp)}</span></span>'
             f'<span style="color:{CSS_MUTED};font-size:11px;margin-left:7px;">{esc(c.get("dir_label") or "")}</span></div>'
-            f'<div>{_pbadge(c.get("priority"))}</div></div>'
+            f"<div>{_pbadge(c.get('priority'))}</div></div>"
             f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:2px;">'
-            f'{esc(prem)} · {oc_txt}{conv_txt}{sd_txt}</div></div>')
+            f"{esc(prem)} · {oc_txt}{conv_txt}{sd_txt}</div></div>"
+        )
 
     parts = []
     if interp:
         parts.append(
             f'<div style="font-size:12px;line-height:1.5;color:{CSS_TEXT};'
-            f'padding:10px 14px;background:rgba(255,200,0,0.05);'
-            f'border-bottom:1px solid {CSS_BORDER};">💡 {esc(interp)}</div>')
+            f"padding:10px 14px;background:rgba(255,200,0,0.05);"
+            f'border-bottom:1px solid {CSS_BORDER};">💡 {esc(interp)}</div>'
+        )
     parts.append("".join(rows))
     # Why OI confirmation matters — the historical base rates behind the
     # board, from the outcome DB (real counts, not folklore).
@@ -1553,27 +1796,33 @@ def _render_carryover(cf, edge=None) -> str:
     oi = (edge or {}).get("oi_confirmation") or {}
     if oi.get("checked"):
         hist_bits.append(
-            f'{oi.get("confirm_rate")}% of {oi["checked"]:,} checked signals '
-            f'historically confirm in next-day OI — held positions are the '
-            f'minority worth following')
+            f"{oi.get('confirm_rate')}% of {oi['checked']:,} checked signals "
+            f"historically confirm in next-day OI — held positions are the "
+            f"minority worth following"
+        )
     exc = (edge or {}).get("excursion") or {}
     if exc.get("n"):
         hist_bits.append(
-            f'across {exc["n"]:,} matured signals the avg best/worst 5-day '
-            f'excursion is +{exc["avg_mfe"]:.1f}% / {exc["avg_mae"]:.1f}% — '
-            f'size for the drawdown, not the hope')
+            f"across {exc['n']:,} matured signals the avg best/worst 5-day "
+            f"excursion is +{exc['avg_mfe']:.1f}% / {exc['avg_mae']:.1f}% — "
+            f"size for the drawdown, not the hope"
+        )
     if hist_bits:
         parts.append(
             f'<div style="font-size:10.5px;color:{CSS_MUTED};padding:9px 14px 0;'
             f'line-height:1.5;border-top:1px solid {CSS_BORDER};">'
-            f'📊 {esc(hist_bits[0])}' +
-            (f'<br>{esc(hist_bits[1])}' if len(hist_bits) > 1 else "") + '</div>')
+            f"📊 {esc(hist_bits[0])}"
+            + (f"<br>{esc(hist_bits[1])}" if len(hist_bits) > 1 else "")
+            + "</div>"
+        )
     parts.append(
         f'<div style="font-size:10.5px;color:{CSS_MUTED};padding:9px 14px;line-height:1.5;">'
-        f'Conviction 0–100 (held 35% · OI-confirmed 35% · premium 15% · OI-vs-prior 10% · '
-        f'strike 5%). OI confirmed = Δ open interest ÷ contracts traded. Not advice.</div>')
-    nconf = cf.get("confirmed_count",
-                   len([c for c in contracts if c.get("conviction") is not None]))
+        f"Conviction 0–100 (held 35% · OI-confirmed 35% · premium 15% · OI-vs-prior 10% · "
+        f"strike 5%). OI confirmed = Δ open interest ÷ contracts traded. Not advice.</div>"
+    )
+    nconf = cf.get(
+        "confirmed_count", len([c for c in contracts if c.get("conviction") is not None])
+    )
     sub = f"{nconf}/{cf.get('total', len(contracts))} OI-confirmed · session {sess}"
     return _card("Overnight flow — conviction board", "".join(parts), sub)
 
@@ -1585,44 +1834,57 @@ def _render_premarket(premarket, overnight, brief) -> str:
     blocks = []
 
     # 1) Reporting before the open today (watchlist).
-    bmo = [r for r in (brief.get("earnings") or [])
-           if r.get("days_away") == 0
-           and "bmo" in (r.get("bmo_amc") or "").lower()]
+    bmo = [
+        r
+        for r in (brief.get("earnings") or [])
+        if r.get("days_away") == 0 and "bmo" in (r.get("bmo_amc") or "").lower()
+    ]
     if bmo:
         chips = "".join(
             f'<a href="{_link(r["ticker"])}" style="display:inline-block;'
-            f'text-decoration:none;background:rgba(255,200,0,0.12);'
-            f'border:1px solid rgba(255,200,0,0.4);border-radius:6px;'
-            f'padding:3px 9px;margin:3px 6px 3px 0;font-size:12.5px;'
+            f"text-decoration:none;background:rgba(255,200,0,0.12);"
+            f"border:1px solid rgba(255,200,0,0.4);border-radius:6px;"
+            f"padding:3px 9px;margin:3px 6px 3px 0;font-size:12.5px;"
             f'font-weight:700;color:{CSS_TEXT};">{esc(r["ticker"])}</a>'
-            for r in bmo[:8])
+            for r in bmo[:8]
+        )
         blocks.append(
             f'<div style="padding:10px 14px;border-bottom:1px solid {CSS_BORDER};">'
             f'<div style="font-size:11px;font-weight:700;color:{CSS_AMBER};'
             f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">'
-            f'⏰ Reports before the open</div><div>{chips}</div></div>')
+            f"⏰ Reports before the open</div><div>{chips}</div></div>"
+        )
 
     # 2) Pre-market movers (market-wide) with a catalyst per name.
     def _mover_rows(items, col, arrow):
         out = []
         for m in (items or [])[:3]:
             pct = m.get("pct")
-            pct_txt = f'{arrow}{abs(pct):.1f}%' if isinstance(pct, (int, float)) else ""
-            cat = (m.get("catalyst") or {}).get("label") if isinstance(m.get("catalyst"), dict) else m.get("catalyst")
+            pct_txt = f"{arrow}{abs(pct):.1f}%" if isinstance(pct, (int, float)) else ""
+            cat = (
+                (m.get("catalyst") or {}).get("label")
+                if isinstance(m.get("catalyst"), dict)
+                else m.get("catalyst")
+            )
             # A move without a known reason IS information — say so plainly
             # instead of leaving a blank the reader fills with guesses.
-            cat_txt = (f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:2px;'
-                       f'line-height:1.35;">{esc(str(cat)[:88])}</div>' if cat
-                       else f'<div style="font-size:11px;color:{CSS_MUTED};'
-                            f'margin-top:2px;font-style:italic;">No verified '
-                            f'catalyst — treat the move as flow-driven.</div>')
+            cat_txt = (
+                f'<div style="font-size:11px;color:{CSS_MUTED};margin-top:2px;'
+                f'line-height:1.35;">{esc(str(cat)[:88])}</div>'
+                if cat
+                else f'<div style="font-size:11px;color:{CSS_MUTED};'
+                f'margin-top:2px;font-style:italic;">No verified '
+                f"catalyst — treat the move as flow-driven.</div>"
+            )
             out.append(
                 f'<div style="padding:6px 0;border-bottom:1px solid {CSS_BORDER};">'
                 f'<div style="display:flex;justify-content:space-between;gap:8px;">'
-                f'{_ticker_link(m.get("ticker"), 13)}'
+                f"{_ticker_link(m.get('ticker'), 13)}"
                 f'<span style="font-weight:700;color:{col};font-variant-numeric:tabular-nums;">'
-                f'{pct_txt}</span></div>{cat_txt}</div>')
+                f"{pct_txt}</span></div>{cat_txt}</div>"
+            )
         return "".join(out)
+
     g = _mover_rows((premarket or {}).get("gainers"), CSS_GREEN, "+")
     l = _mover_rows((premarket or {}).get("losers"), CSS_RED, "−")
     if g or l:
@@ -1632,7 +1894,10 @@ def _render_premarket(premarket, overnight, brief) -> str:
             f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">'
             f'📈 Pre-market movers <span style="color:{CSS_MUTED};font-weight:400;'
             f'text-transform:none;letter-spacing:0;">· extended-hours, list ~15m delayed</span></div>'
-            + (g or "") + (l or "") + '</div>')
+            + (g or "")
+            + (l or "")
+            + "</div>"
+        )
 
     # 3) Overnight headlines on your names.
     if overnight:
@@ -1640,16 +1905,19 @@ def _render_premarket(premarket, overnight, brief) -> str:
             f'<div style="padding:6px 0;border-bottom:1px solid {CSS_BORDER};">'
             f'<a href="{esc(n.get("url") or "#")}" style="color:{CSS_TEXT};'
             f'text-decoration:none;font-size:12.5px;line-height:1.4;">'
-            f'{esc((n.get("headline") or "")[:120])}</a>'
+            f"{esc((n.get('headline') or '')[:120])}</a>"
             f'<div style="font-size:10.5px;color:{CSS_MUTED};margin-top:2px;">'
-            f'{esc(", ".join((n.get("symbols") or [])[:4]))}'
-            + (f' · {esc(n.get("source"))}' if n.get("source") else "") + '</div></div>'
-            for n in overnight[:5])
+            f"{esc(', '.join((n.get('symbols') or [])[:4]))}"
+            + (f" · {esc(n.get('source'))}" if n.get("source") else "")
+            + "</div></div>"
+            for n in overnight[:5]
+        )
         blocks.append(
             f'<div style="padding:10px 14px;">'
             f'<div style="font-size:11px;font-weight:700;color:{CSS_MUTED};'
             f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">'
-            f'📰 Overnight headlines on your names</div>' + news + '</div>')
+            f"📰 Overnight headlines on your names</div>" + news + "</div>"
+        )
 
     if not blocks:
         return ""
@@ -1660,12 +1928,15 @@ def _render_earnings(earn) -> str:
     rows = []
     for r in earn:
         col = CSS_RED if r.get("days_away", 9) <= 1 else CSS_AMBER
-        rows.append(_row_wrap(
-            f'<div style="display:flex;align-items:baseline;justify-content:space-between;">'
-            f'<div>{_ticker_link(r["ticker"])}'
-            f'<span style="color:{CSS_MUTED};font-size:12px;margin-left:8px;">{esc((r.get("company") or "")[:42])}</span></div>'
-            f'<div style="font-size:12px;color:{col};font-weight:700;">{esc(r.get("dow",""))} {esc(r.get("bmo_amc",""))}</div></div>'
-            f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:3px;">{esc(r.get("when_date",""))} · in {r.get("days_away","?")}d</div>'))
+        rows.append(
+            _row_wrap(
+                f'<div style="display:flex;align-items:baseline;justify-content:space-between;">'
+                f"<div>{_ticker_link(r['ticker'])}"
+                f'<span style="color:{CSS_MUTED};font-size:12px;margin-left:8px;">{esc((r.get("company") or "")[:42])}</span></div>'
+                f'<div style="font-size:12px;color:{col};font-weight:700;">{esc(r.get("dow", ""))} {esc(r.get("bmo_amc", ""))}</div></div>'
+                f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:3px;">{esc(r.get("when_date", ""))} · in {r.get("days_away", "?")}d</div>'
+            )
+        )
     return _card("Earnings in the next 7 days", "".join(rows))
 
 
@@ -1674,49 +1945,69 @@ def _render_market(market, market_top) -> str:
     g = market.get("global")
     if g:
         leaders = ", ".join(
-            f'{esc(e.get("ticker"))} {e.get("vs_anchor"):+.1f}%'
-            for e in g.get("leaders", []) if isinstance(e.get("vs_anchor"), (int, float)))
+            f"{esc(e.get('ticker'))} {e.get('vs_anchor'):+.1f}%"
+            for e in g.get("leaders", [])
+            if isinstance(e.get("vs_anchor"), (int, float))
+        )
         laggards = ", ".join(
-            f'{esc(e.get("ticker"))} {e.get("vs_anchor"):+.1f}%'
-            for e in g.get("laggards", []) if isinstance(e.get("vs_anchor"), (int, float)))
+            f"{esc(e.get('ticker'))} {e.get('vs_anchor'):+.1f}%"
+            for e in g.get("laggards", [])
+            if isinstance(e.get("vs_anchor"), (int, float))
+        )
         ay = g.get("anchor_ytd")
         inner += (
             f'<div style="padding:11px 14px;border-bottom:1px solid {CSS_BORDER};">'
             f'<div style="font-size:12.5px;color:{CSS_TEXT};">Global backdrop: '
             f'<b style="color:{CSS_ACCENT};">{esc(g.get("tone"))}</b>'
-            + (f' · {esc(g.get("anchor_ticker"))} {ay:+.1f}% YTD' if isinstance(ay, (int, float)) else "")
-            + '</div>'
+            + (
+                f" · {esc(g.get('anchor_ticker'))} {ay:+.1f}% YTD"
+                if isinstance(ay, (int, float))
+                else ""
+            )
+            + "</div>"
             f'<div style="font-size:11.5px;color:{CSS_MUTED};margin-top:3px;">'
-            f'Leaders {leaders or "—"} · Laggards {laggards or "—"} '
-            f'<span style="color:{CSS_MUTED};">(YTD vs SPY)</span></div></div>')
+            f"Leaders {leaders or '—'} · Laggards {laggards or '—'} "
+            f'<span style="color:{CSS_MUTED};">(YTD vs SPY)</span></div></div>'
+        )
+
     # Events arrive pre-ranked by expected impact (stars), not clock order —
     # the reader's question is "what can hurt me", not "what's at 10am".
     def _ev_row(ev, day_label=""):
         stars = _event_stars(ev)
         act = ev.get("actual")
-        act_html = (f'<span style="color:{CSS_TEXT};font-weight:700;"> · actual {esc(act)}</span>'
-                    if act else "")
-        day_html = (f'<span style="font-size:10px;color:{CSS_MUTED};'
-                    f'font-weight:700;margin-right:6px;">{day_label}</span>'
-                    if day_label else "")
+        act_html = (
+            f'<span style="color:{CSS_TEXT};font-weight:700;"> · actual {esc(act)}</span>'
+            if act
+            else ""
+        )
+        day_html = (
+            f'<span style="font-size:10px;color:{CSS_MUTED};'
+            f'font-weight:700;margin-right:6px;">{day_label}</span>'
+            if day_label
+            else ""
+        )
         return (
             f'<div style="padding:9px 14px;border-bottom:1px solid {CSS_BORDER};">'
             f'<span style="color:{CSS_GOLD};font-size:11px;letter-spacing:1px;">{"★" * stars}{"☆" * (5 - stars)}</span> '
             f'{day_html}<span style="font-size:12.5px;color:{CSS_TEXT};">{esc(ev.get("time_et") or "")} {esc(ev.get("title"))}</span>'
-            f'<span style="font-size:11px;color:{CSS_MUTED};"> · fcst {esc(ev.get("forecast") or "—")} · prior {esc(ev.get("previous") or "—")}</span>{act_html}</div>')
+            f'<span style="font-size:11px;color:{CSS_MUTED};"> · fcst {esc(ev.get("forecast") or "—")} · prior {esc(ev.get("previous") or "—")}</span>{act_html}</div>'
+        )
 
     for ev in market.get("events", []):
         inner += _ev_row(ev)
-    for ev in (market.get("tomorrow_events") or []):
+    for ev in market.get("tomorrow_events") or []:
         inner += _ev_row(ev, "TMRW")
     # Bonus: tape's top edge (market-wide) so the email always has alpha
     if market_top:
         tape = " · ".join(
-            f'{esc(m.get("ticker"))} ({esc(m.get("tier"))}·{int(m.get("trade_score") or 0)})'
-            for m in market_top[:4])
-        inner += (f'<div style="padding:10px 14px;">'
-                  f'<span style="font-size:11px;font-weight:700;color:{CSS_MUTED};">TOP TAPE EDGE</span>'
-                  f'<div style="font-size:12.5px;color:{CSS_TEXT};margin-top:3px;">{tape}</div></div>')
+            f"{esc(m.get('ticker'))} ({esc(m.get('tier'))}·{int(m.get('trade_score') or 0)})"
+            for m in market_top[:4]
+        )
+        inner += (
+            f'<div style="padding:10px 14px;">'
+            f'<span style="font-size:11px;font-weight:700;color:{CSS_MUTED};">TOP TAPE EDGE</span>'
+            f'<div style="font-size:12.5px;color:{CSS_TEXT};margin-top:3px;">{tape}</div></div>'
+        )
     if not inner:
         return ""
     return _card("Market context", inner)
@@ -1734,7 +2025,8 @@ def _render_reports(reports) -> str:
         f'<div style="padding:9px 14px;border-bottom:1px solid {CSS_BORDER};">'
         f'<a href="{SITE_URL}/reports/view.html?f={esc(r["file"])}" style="color:{CSS_ACCENT};text-decoration:none;font-size:12.5px;">📄 {esc(r["label"])}</a>'
         f'<span style="font-size:11px;color:{CSS_MUTED};"> · {r["when"].strftime("%I:%M %p").lstrip("0")} ET</span></div>'
-        for r in reports)
+        for r in reports
+    )
     return _card("New research (24h)", inner)
 
 
@@ -1751,14 +2043,15 @@ def _render_snapshot(snapshot) -> str:
             chg_html = f'<span style="color:{cc};font-size:10px;"> {chg:+.1f}%</span>'
         cells.append(
             f'<a href="{_link(r["ticker"])}" style="display:inline-block;padding:6px 9px;'
-            f'margin:3px;background:{CSS_BG};border:1px solid {CSS_BORDER};border-radius:6px;'
+            f"margin:3px;background:{CSS_BG};border:1px solid {CSS_BORDER};border-radius:6px;"
             f'text-decoration:none;color:{CSS_TEXT};font-size:12px;">'
-            f'<b>{esc(r["ticker"])}</b> <span style="color:{color};font-weight:700;">{esc(r["grade"])}</span>{chg_html}</a>')
-    return f'''
+            f'<b>{esc(r["ticker"])}</b> <span style="color:{color};font-weight:700;">{esc(r["grade"])}</span>{chg_html}</a>'
+        )
+    return f"""
     <div style="margin-top:22px;">
       <div style="font-size:12px;font-weight:700;color:{CSS_MUTED};text-transform:uppercase;letter-spacing:1px;margin-bottom:9px;">Watchlist snapshot</div>
       <div style="background:{CSS_PANEL};border:1px solid {CSS_BORDER};border-radius:10px;padding:8px;">{"".join(cells)}</div>
-    </div>'''
+    </div>"""
 
 
 BRIEF_V3 = os.environ.get("BRIEF_V3", "1") not in ("0", "false", "no")
@@ -1781,8 +2074,7 @@ def production_guard(user_id: str, unsub: str) -> list:
     v = []
     uid = (user_id or "").strip().lower()
     if not uid:
-        v.append("no recipient id; cannot sign a subscriber-specific "
-                 "unsubscribe token")
+        v.append("no recipient id; cannot sign a subscriber-specific unsubscribe token")
     if uid in ("demo", "preview", "test", "example", "fixture", "sample"):
         v.append("recipient id %r is a placeholder, not a subscriber" % uid)
     if not unsub or not unsub.startswith("http"):
@@ -1790,16 +2082,16 @@ def production_guard(user_id: str, unsub: str) -> list:
     else:
         q = urllib.parse.urlparse(unsub).query
         p = urllib.parse.parse_qs(q)
-        if (p.get("u") or [""])[0].strip().lower() in ("demo", "preview",
-                                                       "test", ""):
+        if (p.get("u") or [""])[0].strip().lower() in ("demo", "preview", "test", ""):
             v.append("unsubscribe token is signed for a placeholder user")
         if not (p.get("t") or [""])[0]:
             v.append("unsubscribe URL carries no signature")
     return v
 
 
-def render_html_v3(user, brief, brief_date, carryover=None,
-                   premarket=None, overnight=None, intel=None):
+def render_html_v3(
+    user, brief, brief_date, carryover=None, premarket=None, overnight=None, intel=None
+):
     """Market Intelligence + Watchlist layout.
 
     Market first, then the user's names. Falls back to the v2 renderer on
@@ -1829,19 +2121,17 @@ def render_html_v3(user, brief, brief_date, carryover=None,
 
     changes = BA.build_changes(tickers, swing, uoa_by, facts, earnings)
     wl = BC.rank_watchlist(changes, facts=facts)
-    mkt_flow, watch_flow = BA.split_flow(brief.get("_market_top") or [],
-                                         uoa_by, tickers)
+    mkt_flow, watch_flow = BA.split_flow(brief.get("_market_top") or [], uoa_by, tickers)
     # a dedicated adapter against the public endpoint. The old path read
     # Supabase with a CI-only key, so outside CI the section vanished and
     # the reader could not tell "nothing happened" from "we did not look".
     # headlines about the names that moved most outrank headlines about
     # names that merely appear on the list
     priority = [x["ticker"] for x in (wl.get("shown") or [])]
-    news = BN.load(tickers, as_of=market.get("as_of_utc"),
-                   live=NEWS_LIVE, priority=priority)
-    discovery = BA.build_discovery(brief.get("_market_top") or [], tickers,
-                                   exclude=[c.get("ticker")
-                                            for c in mkt_flow])
+    news = BN.load(tickers, as_of=market.get("as_of_utc"), live=NEWS_LIVE, priority=priority)
+    discovery = BA.build_discovery(
+        brief.get("_market_top") or [], tickers, exclude=[c.get("ticker") for c in mkt_flow]
+    )
     weekly = BA.build_weekly(market)
 
     # the user id key is `user_id` everywhere else in this file; reading
@@ -1854,6 +2144,7 @@ def render_html_v3(user, brief, brief_date, carryover=None,
     # three — the same email describing itself two ways.
     import brief_earnings as BE
     import brief_schema as BS
+
     # `brief_date` is a DISPLAY string ("Wednesday, July 22, 2026"), so
     # slicing it yields "Wednesday,". The market layer's as-of is already
     # an ISO date in Eastern, which is the calendar day we want.
@@ -1864,27 +2155,37 @@ def render_html_v3(user, brief, brief_date, carryover=None,
     # desk payload is produced by the T+1 worker; the email reads it and
     # shows the disclosure when the vendor has not delivered.
     import oi_pipeline as OP
+
     ft_payload = OP.load_desk()
     prior = None
     try:
         import exchange_calendar as EC2
+
         prior = EC2.previous_session(day) if day else None
     except Exception:
         prior = None
-    if ft_payload.get("session_date") and prior and \
-            ft_payload["session_date"] != prior.isoformat():
+    if ft_payload.get("session_date") and prior and ft_payload["session_date"] != prior.isoformat():
         # a stale payload from an older session must not be presented as
         # yesterday's result
         ft_payload = {}
     followthrough = OP.email_section(ft_payload, prior)
 
-    model = BM.build(market, wl, news=news, market_flow=mkt_flow,
-                     watch_flow=watch_flow, discovery=discovery,
-                     weekly=weekly, earnings=earnings_pane,
-                     followthrough=followthrough,
-                     site=SITE_URL, unsub=unsub,
-                     as_of=market.get("as_of_et"), summary_lines=lines,
-                     preview=PREVIEW_MODE)
+    model = BM.build(
+        market,
+        wl,
+        news=news,
+        market_flow=mkt_flow,
+        watch_flow=watch_flow,
+        discovery=discovery,
+        weekly=weekly,
+        earnings=earnings_pane,
+        followthrough=followthrough,
+        site=SITE_URL,
+        unsub=unsub,
+        as_of=market.get("as_of_et"),
+        summary_lines=lines,
+        preview=PREVIEW_MODE,
+    )
     sections = BM.section_ids(model)
     # subject and preheader now live ON the model, so the headers, the two
     # bodies and the envelope cannot describe different emails
@@ -1892,31 +2193,42 @@ def render_html_v3(user, brief, brief_date, carryover=None,
     preheader = model["meta"]["preheader"]
     html_doc = BR.render(model)
     text_doc = BX.render_text(model)
-    model["artifact_hashes"] = BS.artifact_hashes(html=html_doc,
-                                                  text=text_doc, model=model)
+    model["artifact_hashes"] = BS.artifact_hashes(html=html_doc, text=text_doc, model=model)
 
     # send-time invariants. A brief that renders is not the same as a
     # brief that is true, so contradictions BLOCK rather than ship.
     problems = BC.validate_send(
-        market=market, wl=wl, news=(news.get("market") or [])
-        + (news.get("watchlist") or []),
-        events=market.get("events"), watch_flow=watch_flow,
-        market_flow=mkt_flow, html_doc=html_doc, text_doc=text_doc,
-        as_of=market.get("as_of_et"), eligible_total=len(tickers),
-        subject=subject, preheader=preheader, unsub=unsub,
-        sections=sections, urls=BX.urls_in(SITE_URL, unsub),
-        calendar_problems=ML.calendar_problems(), model=model)
+        market=market,
+        wl=wl,
+        news=(news.get("market") or []) + (news.get("watchlist") or []),
+        events=market.get("events"),
+        watch_flow=watch_flow,
+        market_flow=mkt_flow,
+        html_doc=html_doc,
+        text_doc=text_doc,
+        as_of=market.get("as_of_et"),
+        eligible_total=len(tickers),
+        subject=subject,
+        preheader=preheader,
+        unsub=unsub,
+        sections=sections,
+        urls=BX.urls_in(SITE_URL, unsub),
+        calendar_problems=ML.calendar_problems(),
+        model=model,
+    )
     # the schema's own verdict is a blocking input, not a report
     problems += BS.failures(model["validation"]["checks"])
     if problems:
-        raise ValueError("send-time validation failed (%d): "
-                         % len(problems) + "; ".join(problems[:6]))
+        raise ValueError(
+            "send-time validation failed (%d): " % len(problems) + "; ".join(problems[:6])
+        )
     render_html_v3.last_model = model
     return subject, html_doc, text_doc
 
 
-def render_html(user, brief, brief_date, carryover=None,
-                premarket=None, overnight=None, intel=None) -> tuple[str, str]:
+def render_html(
+    user, brief, brief_date, carryover=None, premarket=None, overnight=None, intel=None
+) -> tuple[str, str]:
     name = esc((user.get("display_name") or "").strip() or "trader")
     subject, preheader = build_subject(brief)
     intel = dict(intel or {})
@@ -1929,7 +2241,9 @@ def render_html(user, brief, brief_date, carryover=None,
     parts.append(
         f'<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;'
         f'font-size:1px;line-height:1px;color:{CSS_BG};opacity:0;">{esc(preheader)}'
-        + ("&nbsp;&zwnj;" * 40) + '</div>')
+        + ("&nbsp;&zwnj;" * 40)
+        + "</div>"
+    )
     parts.append(
         f'<div style="background:{CSS_BG};padding:22px 14px;'
         f"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;"
@@ -1939,7 +2253,8 @@ def render_html(user, brief, brief_date, carryover=None,
         f'<div style="font-size:11px;letter-spacing:1.5px;color:{CSS_MUTED};text-transform:uppercase;">TickerDesk · Morning Brief</div>'
         f'<div style="font-size:20px;font-weight:700;margin-top:4px;">{esc(brief_date)}</div>'
         f'<div style="font-size:13px;color:{CSS_MUTED};margin-top:5px;">Good morning, {name}. {esc(preheader)}</div>'
-        f'</div>')
+        f"</div>"
+    )
 
     # ── Above the fold: the 30-second answer ──
     # 1. Best setup with a trade plan (hero) → 2. the five-second capital
@@ -1977,18 +2292,19 @@ def render_html(user, brief, brief_date, carryover=None,
     parts.append(
         f'<div style="margin-top:26px;padding-top:14px;border-top:1px solid {CSS_BORDER};font-size:11px;color:{CSS_MUTED};line-height:1.6;">'
         f'<div style="font-weight:700;color:{CSS_MUTED};margin-bottom:4px;">Data freshness</div>'
-        f'Flow: intraday batch (Polygon Options Starter, 15-min delayed) · '
-        f'Grades: prior close / EOD batch · '
-        f'Quotes: delayed 15m where shown · '
-        f'Calendar: live feed, actuals fill in through the day · '
-        f'News: cached intraday.<br>'
-        f'Methods: trade-plan levels are ATR-derived (formula shown in the '
-        f'playbook), not hand-picked. Historical cohort stats come from the '
-        f'signal outcome DB; any stat below its minimum sample is labeled '
+        f"Flow: intraday batch (Polygon Options Starter, 15-min delayed) · "
+        f"Grades: prior close / EOD batch · "
+        f"Quotes: delayed 15m where shown · "
+        f"Calendar: live feed, actuals fill in through the day · "
+        f"News: cached intraday.<br>"
+        f"Methods: trade-plan levels are ATR-derived (formula shown in the "
+        f"playbook), not hand-picked. Historical cohort stats come from the "
+        f"signal outcome DB; any stat below its minimum sample is labeled "
         f'"accruing" and never estimated. Technicals computed nightly from '
-        f'daily bars; RS rank is relative to tonight\'s surfaced universe.<br>'
-        f'Not investment advice. Verify against your broker before trading.'
-        f'</div>')
+        f"daily bars; RS rank is relative to tonight's surfaced universe.<br>"
+        f"Not investment advice. Verify against your broker before trading."
+        f"</div>"
+    )
     uurl = unsub_url(user.get("user_id") or "")
     parts.append(
         f'<div style="margin-top:14px;font-size:11px;color:{CSS_MUTED};">'
@@ -1996,7 +2312,8 @@ def render_html(user, brief, brief_date, carryover=None,
         f'<a href="{uurl}" style="color:{CSS_ACCENT};text-decoration:none;">Unsubscribe</a> · '
         f'<a href="{SITE_URL}/#watchlist" style="color:{CSS_ACCENT};text-decoration:none;">Manage preferences</a> · '
         f'<a href="{SITE_URL}" style="color:{CSS_ACCENT};text-decoration:none;">Open TickerDesk</a>'
-        f'</div></div></div>')
+        f"</div></div></div>"
+    )
     return subject, "".join(parts)
 
 
@@ -2004,13 +2321,17 @@ def render_html(user, brief, brief_date, carryover=None,
 # Resend send
 # ─────────────────────────────────────────────────────────────────────
 
-def send_email(to_email: str, subject: str, html_body: str,
-               text_body: str = "", unsub: str = "") -> tuple[bool, str]:
+
+def send_email(
+    to_email: str, subject: str, html_body: str, text_body: str = "", unsub: str = ""
+) -> tuple[bool, str]:
     if not RESEND_API_KEY:
         return False, "RESEND_API_KEY not set"
     payload: dict[str, Any] = {
-        "from": FROM_EMAIL, "to": [to_email],
-        "subject": subject, "html": html_body,
+        "from": FROM_EMAIL,
+        "to": [to_email],
+        "subject": subject,
+        "html": html_body,
     }
     # supplying both parts makes Resend build multipart/alternative. Without
     # the text part the message is html-only, which costs deliverability and
@@ -2030,14 +2351,18 @@ def send_email(to_email: str, subject: str, html_body: str,
     # Resend sits behind Cloudflare; the default urllib UA trips WAF rule
     # 1010, so send a real-looking UA.
     req = urllib.request.Request(
-        "https://api.resend.com/emails", data=body,
+        "https://api.resend.com/emails",
+        data=body,
         headers={
             "Authorization": f"Bearer {RESEND_API_KEY}",
             "Content-Type": "application/json",
-            "User-Agent": ("Mozilla/5.0 (compatible; TickerDesk-Brief/1.0; "
-                           "+https://tickerdesk.io)"),
+            "User-Agent": (
+                "Mozilla/5.0 (compatible; TickerDesk-Brief/1.0; +https://tickerdesk.io)"
+            ),
             "Accept": "application/json",
-        }, method="POST")
+        },
+        method="POST",
+    )
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return True, r.read().decode("utf-8")
@@ -2055,6 +2380,7 @@ def send_email(to_email: str, subject: str, html_body: str,
 # Dry-run preview
 # ─────────────────────────────────────────────────────────────────────
 
+
 def write_preview(subject: str, html_body: str) -> None:
     """Write EXACTLY the bytes that would be sent.
 
@@ -2067,26 +2393,30 @@ def write_preview(subject: str, html_body: str) -> None:
     document there already.
     """
     os.makedirs(os.path.dirname(PREVIEW_PATH), exist_ok=True)
-    if re.match(r"\s*<!doctype", html_body, re.I):
+    if re.match(r"\s*<!doctype", html_body, re.IGNORECASE):
         doc = html_body
     else:
-        doc = (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
-               f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-               f'<title>{esc(subject)}</title></head>'
-               f'<body style="margin:0;background:{CSS_BG};">{html_body}</body></html>')
+        doc = (
+            f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            f'<meta name="viewport" content="width=device-width,initial-scale=1">'
+            f"<title>{esc(subject)}</title></head>"
+            f'<body style="margin:0;background:{CSS_BG};">{html_body}</body></html>'
+        )
     with open(PREVIEW_PATH, "w", encoding="utf-8") as f:
         f.write(doc)
     kb = len(doc.encode("utf-8")) / 1024
-    print(f"  Preview written: {PREVIEW_PATH} ({kb:.0f} KB"
-          + (" ⚠ over 102KB Gmail clip limit" if kb > 102 else "") + ")")
+    print(
+        f"  Preview written: {PREVIEW_PATH} ({kb:.0f} KB"
+        + (" ⚠ over 102KB Gmail clip limit" if kb > 102 else "")
+        + ")"
+    )
 
 
 def write_text_preview(text_body: str) -> None:
     p = os.path.join(os.path.dirname(PREVIEW_PATH), "daily_brief_preview.txt")
     with open(p, "w", encoding="utf-8") as f:
         f.write(text_body)
-    print(f"  Text preview written: {p} "
-          f"({len(text_body.encode('utf-8')) / 1024:.0f} KB)")
+    print(f"  Text preview written: {p} ({len(text_body.encode('utf-8')) / 1024:.0f} KB)")
 
 
 def write_model(model: dict) -> str:
@@ -2099,14 +2429,21 @@ def write_model(model: dict) -> str:
     p = os.path.join(os.path.dirname(PREVIEW_PATH), "daily_brief_model.json")
     with open(p, "w", encoding="utf-8") as f:
         json.dump(model, f, indent=1, default=str)
-    print(f"  View model written: {p} "
-          f"({os.path.getsize(p) / 1024:.0f} KB, "
-          f"{len(model.get('sections') or [])} sections)")
+    print(
+        f"  View model written: {p} "
+        f"({os.path.getsize(p) / 1024:.0f} KB, "
+        f"{len(model.get('sections') or [])} sections)"
+    )
     return p
 
 
-def write_eml(subject: str, html_body: str, text_body: str = "",
-              to_email: str = "preview@tickerdesk.io", unsub: str = "") -> str:
+def write_eml(
+    subject: str,
+    html_body: str,
+    text_body: str = "",
+    to_email: str = "preview@tickerdesk.io",
+    unsub: str = "",
+) -> str:
     """Assemble the exact MIME message that would be delivered.
 
     Built from the same two bodies handed to send_email, so what gets
@@ -2126,8 +2463,7 @@ def write_eml(subject: str, html_body: str, text_body: str = "",
     if unsub and unsub.startswith("http"):
         m["List-Unsubscribe"] = f"<{unsub}>"
         m["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-    m.set_content(text_body or "This message requires an HTML client.",
-                  charset="utf-8")
+    m.set_content(text_body or "This message requires an HTML client.", charset="utf-8")
     m.add_alternative(html_body, subtype="html", charset="utf-8")
 
     p = os.path.join(os.path.dirname(PREVIEW_PATH), "daily_brief_preview.eml")
@@ -2142,36 +2478,45 @@ def demo_user(swing, uoa, market_top, earnings) -> dict:
     flow + A-tier) so every section renders without Supabase."""
     a_tier = [tk for tk, sw in swing.items() if _is_a_tier(sw.get("grade"))]
     tickers: list[str] = []
-    tickers += list(earnings.keys())[:3]                 # exercise earnings
-    tickers += list(uoa.keys())[:4]                      # exercise flow
+    tickers += list(earnings.keys())[:3]  # exercise earnings
+    tickers += list(uoa.keys())[:4]  # exercise flow
     tickers += [m.get("ticker") for m in market_top[:3]]  # tape edge
-    tickers += a_tier                                    # fill with A-tier
+    tickers += a_tier  # fill with A-tier
     seen, uniq = set(), []
     for t in tickers:
         if t and t not in seen:
             seen.add(t)
             uniq.append(t)
-    return {"user_id": "demo", "email": "preview@tickerdesk.io",
-            "display_name": "", "plan": "premium", "tickers": uniq[:16]}
+    return {
+        "user_id": "demo",
+        "email": "preview@tickerdesk.io",
+        "display_name": "",
+        "plan": "premium",
+        "tickers": uniq[:16],
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────
 
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dry-run", action="store_true",
-                    help="Build + write preview HTML, don't send")
+    ap.add_argument("--dry-run", action="store_true", help="Build + write preview HTML, don't send")
     ap.add_argument("--me", default=None, help="Restrict to one email")
-    ap.add_argument("--preview", action="store_true",
-                    help="Force a synthetic demo brief (no Supabase needed)")
+    ap.add_argument(
+        "--preview", action="store_true", help="Force a synthetic demo brief (no Supabase needed)"
+    )
     ap.add_argument("--skip-idempotency", action="store_true")
     args = ap.parse_args()
 
     today = datetime.now(ET).date()
-    brief_date = today.strftime("%A, %B %-d, %Y") if os.name != "nt" else \
-        today.strftime("%A, %B ") + str(today.day) + today.strftime(", %Y")
+    brief_date = (
+        today.strftime("%A, %B %-d, %Y")
+        if os.name != "nt"
+        else today.strftime("%A, %B ") + str(today.day) + today.strftime(", %Y")
+    )
     iso_date = today.isoformat()
     print(f"TickerDesk Daily Brief — {iso_date}")
 
@@ -2188,21 +2533,29 @@ def main():
     market = load_market_context()
     carryover = load_carryover()
     if carryover.get("contracts"):
-        print(f"    carryover: {carryover.get('held_count')}/{carryover.get('total')} "
-              f"held (session {carryover.get('session_date')})")
+        print(
+            f"    carryover: {carryover.get('held_count')}/{carryover.get('total')} "
+            f"held (session {carryover.get('session_date')})"
+        )
     premarket = load_premarket()
     if premarket.get("gainers") or premarket.get("losers"):
-        print(f"    premarket: {len(premarket.get('gainers', []))}↑ "
-              f"{len(premarket.get('losers', []))}↓")
+        print(
+            f"    premarket: {len(premarket.get('gainers', []))}↑ "
+            f"{len(premarket.get('losers', []))}↓"
+        )
     intel = load_intel()
-    intel["swing_map"] = swing          # full-universe grade map for the hero
+    intel["swing_map"] = swing  # full-universe grade map for the hero
     intel["earnings_map"] = earnings
     n_picks = len((intel.get("evening") or {}).get("tomorrow") or [])
-    print(f"    intel: {n_picks} evening picks · {len(intel.get('facts') or {})} "
-          f"fact rows · edge DB {'yes' if intel.get('edge') else 'no'} · "
-          f"setup stats {(intel.get('setup') or {}).get('total_graded', 0)} graded")
-    print(f"    swing:{len(swing)} uoa:{len(uoa)} earn/7d:{len(earnings)} "
-          f"reports:{len(new_reports_all)} events:{len(market.get('events', []))}")
+    print(
+        f"    intel: {n_picks} evening picks · {len(intel.get('facts') or {})} "
+        f"fact rows · edge DB {'yes' if intel.get('edge') else 'no'} · "
+        f"setup stats {(intel.get('setup') or {}).get('total_graded', 0)} graded"
+    )
+    print(
+        f"    swing:{len(swing)} uoa:{len(uoa)} earn/7d:{len(earnings)} "
+        f"reports:{len(new_reports_all)} events:{len(market.get('events', []))}"
+    )
 
     # Preview / dry-run without users → synthetic demo
     users: list[dict] = []
@@ -2225,8 +2578,9 @@ def main():
     sent = skipped = failed = 0
     preview_written = False
     for u in users:
-        brief = build_brief(u["tickers"], swing, uoa, market_top, earnings,
-                            reports_by_tk, new_reports_all, market)
+        brief = build_brief(
+            u["tickers"], swing, uoa, market_top, earnings, reports_by_tk, new_reports_all, market
+        )
         overnight = load_overnight_news(u["tickers"])
         # raw inputs the v3 adapters need, carried on the brief so the
         # v2 path is untouched
@@ -2239,15 +2593,16 @@ def main():
         if BRIEF_V3:
             try:
                 subject, html_body, text_body = render_html_v3(
-                    u, brief, brief_date, carryover, premarket, overnight,
-                    intel)
+                    u, brief, brief_date, carryover, premarket, overnight, intel
+                )
             except Exception as e:
                 # a layout change must never cost a subscriber their brief
                 print(f"  v3 render failed, falling back to v2: {e}")
                 subject = html_body = text_body = None
         if not html_body:
-            subject, html_body = render_html(u, brief, brief_date, carryover,
-                                             premarket, overnight, intel)
+            subject, html_body = render_html(
+                u, brief, brief_date, carryover, premarket, overnight, intel
+            )
         prefix = f"  → {u['email']:32s} ({len(u['tickers'])} tickers): "
 
         # Always write the first rendered email to the preview file.
@@ -2255,9 +2610,13 @@ def main():
             write_preview(subject, html_body)
             if text_body:
                 write_text_preview(text_body)
-            write_eml(subject, html_body, text_body,
-                      to_email=u["email"],
-                      unsub=unsub_url(u.get("user_id") or ""))
+            write_eml(
+                subject,
+                html_body,
+                text_body,
+                to_email=u["email"],
+                unsub=unsub_url(u.get("user_id") or ""),
+            )
             model = getattr(render_html_v3, "last_model", None)
             if model:
                 write_model(model)
@@ -2275,27 +2634,44 @@ def main():
 
         # last gate before the wire: a preview artefact must never be the
         # thing that goes out
-        guard = production_guard(u.get("user_id") or "",
-                                 unsub_url(u.get("user_id") or ""))
+        guard = production_guard(u.get("user_id") or "", unsub_url(u.get("user_id") or ""))
         if guard:
             print(prefix + "BLOCKED: " + "; ".join(guard))
             failed += 1
             continue
 
-        ok, resp = send_email(u["email"], subject, html_body,
-                              text_body=text_body,
-                              unsub=unsub_url(u.get("user_id") or ""))
+        ok, resp = send_email(
+            u["email"],
+            subject,
+            html_body,
+            text_body=text_body,
+            unsub=unsub_url(u.get("user_id") or ""),
+        )
         if ok:
             print(prefix + f"sent ({subject})")
-            log_email(u["user_id"], u["email"], iso_date, "sent", subject,
-                      {"tickers": u["tickers"],
-                       "counts": {"flow": len(brief["flow"]),
-                                  "confluence": len(brief["confluence"])}})
+            log_email(
+                u["user_id"],
+                u["email"],
+                iso_date,
+                "sent",
+                subject,
+                {
+                    "tickers": u["tickers"],
+                    "counts": {"flow": len(brief["flow"]), "confluence": len(brief["confluence"])},
+                },
+            )
             sent += 1
         else:
             print(prefix + f"FAILED {resp[:200]}")
-            log_email(u["user_id"], u["email"], iso_date, "failed", subject,
-                      {"tickers": u["tickers"]}, error=resp[:500])
+            log_email(
+                u["user_id"],
+                u["email"],
+                iso_date,
+                "failed",
+                subject,
+                {"tickers": u["tickers"]},
+                error=resp[:500],
+            )
             failed += 1
 
     print(f"\nDone. sent={sent} skipped={skipped} failed={failed}")
@@ -2307,4 +2683,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  Fatal: {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()

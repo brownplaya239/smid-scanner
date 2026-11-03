@@ -1,0 +1,13 @@
+{
+  "name": "smid-scanner-tooling",
+  "private": true,
+  "description": "Git hooks and commit-message checks for smid-scanner. The Python project itself is in pyproject.toml.",
+  "scripts": {
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "lefthook": "^2.2.2"
+  }
+}

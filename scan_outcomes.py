@@ -29,7 +29,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 
 import yfinance as yf
@@ -40,14 +40,14 @@ LOG_PATH = os.path.join(_BASE, "data", "scan_outcomes_log.json")
 OUT_PATH = os.path.join(REPORTS, "scan_outcomes.json")
 
 SCANS = {
-    "qm":       ("momentum_qm.json",       "QM Monthly"),
+    "qm": ("momentum_qm.json", "QM Monthly"),
     "stockbee": ("momentum_stockbee.json", "Stockbee Weekly"),
 }
-TOP_N      = 10          # names logged per scan per run
-HOLD_D     = 5           # maturation horizon, sessions
-MIN_N      = 30          # gate: no stats below this
-LOG_CAP_D  = 250         # log retention, days
-CHUNK      = 100         # yfinance download batch size
+TOP_N = 10  # names logged per scan per run
+HOLD_D = 5  # maturation horizon, sessions
+MIN_N = 30  # gate: no stats below this
+LOG_CAP_D = 250  # log retention, days
+CHUNK = 100  # yfinance download batch size
 
 
 def _load(path):
@@ -60,12 +60,13 @@ def _load(path):
 
 # ── 1. build the pick log from ALL runs in both scan files ──────────────
 
+
 def collect_picks():
     """Every (scan, ticker, entry_date) across the full run history of both
     scan files. Deduped; the scan JSONs are the source of truth so re-runs
     are idempotent."""
     seen = set()
-    days = {}                       # date -> list of pick rows
+    days = {}  # date -> list of pick rows
     for scan, (fname, _label) in SCANS.items():
         d = _load(os.path.join(REPORTS, fname))
         for run in (d or {}).get("runs") or []:
@@ -80,8 +81,7 @@ def collect_picks():
                 if key in seen:
                     continue
                 seen.add(key)
-                days.setdefault(date, []).append(
-                    {"t": tk, "scan": scan})
+                days.setdefault(date, []).append({"t": tk, "scan": scan})
     return days
 
 
@@ -91,8 +91,7 @@ def merge_log(day_map):
     log = _load(LOG_PATH) or {"days": []}
     by_date = {d["date"]: d for d in log.get("days") or []}
     for date, rows in day_map.items():
-        existing = {(r["scan"], r["t"]): r
-                    for r in (by_date.get(date, {}).get("rows") or [])}
+        existing = {(r["scan"], r["t"]): r for r in (by_date.get(date, {}).get("rows") or [])}
         merged = []
         for r in rows:
             prior = existing.get((r["scan"], r["t"]))
@@ -104,8 +103,9 @@ def merge_log(day_map):
 
 # ── 2. mature picks at +HOLD_D sessions ─────────────────────────────────
 
+
 def mature(log):
-    pending = {}                    # ticker -> list of (date, row)
+    pending = {}  # ticker -> list of (date, row)
     for day in log["days"]:
         for r in day["rows"]:
             if "ret" not in r:
@@ -115,11 +115,17 @@ def mature(log):
     tickers = list(pending.keys())
     graded = 0
     for i in range(0, len(tickers), CHUNK):
-        batch = tickers[i:i + CHUNK]
+        batch = tickers[i : i + CHUNK]
         try:
-            data = yf.download(batch, period="10mo", interval="1d",
-                               auto_adjust=True, group_by="ticker",
-                               progress=False, threads=True)
+            data = yf.download(
+                batch,
+                period="10mo",
+                interval="1d",
+                auto_adjust=True,
+                group_by="ticker",
+                progress=False,
+                threads=True,
+            )
         except Exception:
             continue
         for tk in batch:
@@ -135,12 +141,12 @@ def mature(log):
                     continue
                 i0 = dates.index(flag_date)
                 if i0 + HOLD_D >= len(vals):
-                    continue                  # not matured yet
+                    continue  # not matured yet
                 e, x = vals[i0], vals[i0 + HOLD_D]
                 if e <= 0:
                     continue
                 ret = 100.0 * (x / e - 1.0)
-                window = vals[i0 + 1: i0 + HOLD_D + 1]
+                window = vals[i0 + 1 : i0 + HOLD_D + 1]
                 dd = 100.0 * (min(window) / e - 1.0)
                 r["ret"] = round(ret, 2)
                 r["dd"] = round(dd, 2)
@@ -150,6 +156,7 @@ def mature(log):
 
 
 # ── 3. gated per-scan stats ─────────────────────────────────────────────
+
 
 def _rich(rows):
     rets = [r["ret"] for r in rows]
@@ -161,7 +168,8 @@ def _rich(rows):
     gp = sum(r["ret"] for r in wins)
     gl = -sum(r["ret"] for r in losses)
     return {
-        "status": "active", "n": len(rows),
+        "status": "active",
+        "n": len(rows),
         "win_rate": round(100.0 * len(wins) / len(rows)),
         "ev": round(mean(rets), 2),
         "median": round(median(rets), 2),
@@ -183,12 +191,16 @@ def stats(log):
                 allrows.append(r)
     out = {}
     for scan, rows in by_scan.items():
-        out[scan] = (_rich(rows) if len(rows) >= MIN_N
-                     else {"status": "accruing", "n": len(rows),
-                           "activates_at": MIN_N})
-    overall = (_rich(allrows) if len(allrows) >= MIN_N
-               else {"status": "accruing", "n": len(allrows),
-                     "activates_at": MIN_N})
+        out[scan] = (
+            _rich(rows)
+            if len(rows) >= MIN_N
+            else {"status": "accruing", "n": len(rows), "activates_at": MIN_N}
+        )
+    overall = (
+        _rich(allrows)
+        if len(allrows) >= MIN_N
+        else {"status": "accruing", "n": len(allrows), "activates_at": MIN_N}
+    )
     return out, overall, len(allrows)
 
 
@@ -201,7 +213,7 @@ def build():
     graded = mature(log)
     per_scan, overall, total = stats(log)
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "hold_days": HOLD_D,
         "min_n": MIN_N,
         "logged_days": len(log["days"]),
@@ -209,15 +221,20 @@ def build():
         "labels": {k: v[1] for k, v in SCANS.items()},
         "by_scan": per_scan,
         "overall": overall,
-        "note": ("Per-scan next-" + str(HOLD_D) + "-session outcomes of the "
-                 "QM Monthly and Stockbee momentum scans (long/bullish). "
-                 "Seeded from the full run history; stats gated at n>=" +
-                 str(MIN_N) + " — 'accruing' until real. Educational, not "
-                 "advice."),
+        "note": (
+            "Per-scan next-" + str(HOLD_D) + "-session outcomes of the "
+            "QM Monthly and Stockbee momentum scans (long/bullish). "
+            "Seeded from the full run history; stats gated at n>="
+            + str(MIN_N)
+            + " — 'accruing' until real. Educational, not "
+            "advice."
+        ),
     }
-    print("  scan outcomes: %d picks logged across %d days, matured %d, "
-          "total graded %d" % (sum(len(d["rows"]) for d in log["days"]),
-                               len(log["days"]), graded, total))
+    print(
+        "  scan outcomes: %d picks logged across %d days, matured %d, "
+        "total graded %d"
+        % (sum(len(d["rows"]) for d in log["days"]), len(log["days"]), graded, total)
+    )
     return log, payload
 
 

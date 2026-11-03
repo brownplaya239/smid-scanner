@@ -14,9 +14,7 @@ still contains exactly the model's records on both sides.
     python test_parity.py
 """
 
-import json
 import re
-import sys
 
 import brief_compose as BC
 import brief_model as BM
@@ -32,16 +30,7 @@ def find_all(text, needle):
     return len(re.findall(re.escape(needle), text))
 
 
-def main():
-    fails, ran = [], [0]
-
-    def chk(n, c, d=""):
-        ran[0] += 1
-        print(("  PASS  " if c else "  FAIL  ") + n
-              + ("" if c else "  <- %s" % (d,)))
-        if not c:
-            fails.append(n)
-
+def run_checks(chk):
     model = BR._demo_model()
     doc = BR.render(model, preheader="parity")
     txt = BX.render_text(model, subject="parity")
@@ -60,8 +49,7 @@ def main():
         title = sec.get("title") or ""
         if title:
             chk("section %r present in HTML" % sid, title in hb, title)
-            chk("section %r present in text" % sid,
-                title.upper() in txt.upper(), title)
+            chk("section %r present in text" % sid, title.upper() in txt.upper(), title)
 
     # ── record-level population equality, per section
     for sid in ("flow_market",):
@@ -73,40 +61,49 @@ def main():
         for key in want:
             tk, right, strike, _exp = key.split("|")
             probe = "%s %s" % (right, strike)
-            chk("%s: %s present in HTML" % (sid, key),
-                tk in hb and probe in hb, probe)
-            chk("%s: %s present in text" % (sid, key),
-                tk in txt and probe in txt, probe)
-        chk("%s: HTML shows exactly %d contracts" % (sid, len(want)),
-            len(want) == len(sec["records"]))
+            chk("%s: %s present in HTML" % (sid, key), tk in hb and probe in hb, probe)
+            chk("%s: %s present in text" % (sid, key), tk in txt and probe in txt, probe)
+        chk(
+            "%s: HTML shows exactly %d contracts" % (sid, len(want)),
+            len(want) == len(sec["records"]),
+        )
 
     # the historical failure, stated directly
     mk = BM.section(model, "flow_market")
     if mk:
         n = len(mk["records"])
-        html_hits = sum(1 for r in mk["records"]
-                        if ("%s %s" % (r["right"], r["strike"])) in hb)
-        text_hits = sum(1 for r in mk["records"]
-                        if ("%s %s" % (r["right"], r["strike"])) in txt)
-        chk("market-wide contract COUNT matches across bodies",
-            html_hits == text_hits == n, (html_hits, text_hits, n))
+        html_hits = sum(1 for r in mk["records"] if ("%s %s" % (r["right"], r["strike"])) in hb)
+        text_hits = sum(1 for r in mk["records"] if ("%s %s" % (r["right"], r["strike"])) in txt)
+        chk(
+            "market-wide contract COUNT matches across bodies",
+            html_hits == text_hits == n,
+            (html_hits, text_hits, n),
+        )
 
     # ── watch-list populations and ordering
     wl = BM.section(model, "watchlist")
     order_html = [t for t in [r["ticker"] for r in wl["records"]]]
     seen_html = [t for t in order_html if t in hb]
     seen_txt = [t for t in order_html if t in txt]
-    chk("watch-list population identical", seen_html == seen_txt == order_html,
-        (seen_html, seen_txt))
+    chk(
+        "watch-list population identical",
+        seen_html == seen_txt == order_html,
+        (seen_html, seen_txt),
+    )
     if len(order_html) >= 2:
         a, b = order_html[0], order_html[1]
-        chk("watch-list ORDER identical",
-            (hb.index(a) < hb.index(b)) == (txt.index(a) < txt.index(b)))
+        chk(
+            "watch-list ORDER identical",
+            (hb.index(a) < hb.index(b)) == (txt.index(a) < txt.index(b)),
+        )
 
     # ── classifications
     for r in wl["records"]:
-        chk("%s status in both bodies" % r["ticker"],
-            r["status"] in hb and r["status"] in txt, r["status"])
+        chk(
+            "%s status in both bodies" % r["ticker"],
+            r["status"] in hb and r["status"] in txt,
+            r["status"],
+        )
 
     # ── flow classifications and scores
     for sid in ("flow_driving", "flow_other"):
@@ -114,17 +111,22 @@ def main():
         if not sec:
             continue
         for r in sec["records"]:
-            chk("%s %s verdict in both" % (sid, r["ticker"]),
-                r["verdict"] in hb and r["verdict"] in txt, r["verdict"])
-            chk("%s %s score in both" % (sid, r["ticker"]),
-                r["score"] in hb and r["score"] in txt, r["score"])
+            chk(
+                "%s %s verdict in both" % (sid, r["ticker"]),
+                r["verdict"] in hb and r["verdict"] in txt,
+                r["verdict"],
+            )
+            chk(
+                "%s %s score in both" % (sid, r["ticker"]),
+                r["score"] in hb and r["score"] in txt,
+                r["score"],
+            )
 
     # ── premiums and timestamps
     prem = set()
     for sec in model["sections"]:
         for r in sec.get("records") or []:
-            for c in ([r] if r.get("premium") else []) + (
-                    r.get("contracts") or []):
+            for c in ([r] if r.get("premium") else []) + (r.get("contracts") or []):
                 if c.get("premium"):
                     prem.add(c["premium"])
     for p in sorted(prem):
@@ -133,20 +135,23 @@ def main():
     # ── news records
     nw = BM.section(model, "news")
     for r in nw["records"]:
-        chk("headline in both bodies", r["headline"] in hb
-            and r["headline"] in txt, r["headline"][:40])
+        chk(
+            "headline in both bodies",
+            r["headline"] in hb and r["headline"] in txt,
+            r["headline"][:40],
+        )
         chk("source tier in both bodies", r["tier"] in hb and r["tier"] in txt)
 
     # ── event provenance
     ev = BM.section(model, "calendar")
     if ev:
         for r in ev["records"]:
-            chk("event time in both", r["time_et"] in hb
-                and r["time_et"] in txt, r["time_et"])
+            chk("event time in both", r["time_et"] in hb and r["time_et"] in txt, r["time_et"])
 
     # ── neither body invents a ticker the other lacks
     def tickers(s):
         return set(re.findall(r"\b[A-Z]{2,5}\b", s))
+
     model_tickers = set()
     for sec in model["sections"]:
         for r in sec.get("records") or []:
@@ -159,6 +164,21 @@ def main():
     chk("no ticker appears in HTML but not text", not extra_html, extra_html)
     chk("no ticker appears in text but not HTML", not extra_txt, extra_txt)
 
+
+def test_html_and_text_bodies_match(check):
+    run_checks(check)
+
+
+def main():
+    fails, ran = [], [0]
+
+    def chk(n, c, d=""):
+        ran[0] += 1
+        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
+        if not c:
+            fails.append(n)
+
+    run_checks(chk)
     print("\n%d/%d checks passed" % (ran[0] - len(fails), ran[0]))
     if fails:
         print("FAILED: " + "; ".join(fails[:8]))

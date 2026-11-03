@@ -33,7 +33,7 @@ def _load(path, default=None):
 
 def _fmt_int(n):
     try:
-        return "{:,}".format(int(n))
+        return f"{int(n):,}"
     except Exception:
         return None
 
@@ -114,8 +114,7 @@ CSS = """
 
 
 def esc(s):
-    return (str(s).replace("&", "&amp;").replace("<", "&lt;")
-            .replace(">", "&gt;"))
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def render(page, all_pages):
@@ -123,31 +122,39 @@ def render(page, all_pages):
     canon = SITE + "/" + slug
     # Cross-links to the other landing pages (internal linking for SEO).
     related = "".join(
-        '<li><a href="/' + p["slug"] + '">' + esc(p["link_label"]) +
-        "</a></li>"
-        for p in all_pages if p["slug"] != slug)
-    related += '<li><a href="/transparency">Does options flow work? Our ' \
-               'self-graded numbers</a></li>'
+        '<li><a href="/' + p["slug"] + '">' + esc(p["link_label"]) + "</a></li>"
+        for p in all_pages
+        if p["slug"] != slug
+    )
+    related += (
+        '<li><a href="/transparency">Does options flow work? Our self-graded numbers</a></li>'
+    )
     faq_html = ""
     faq_ld = []
     for q, a in page.get("faq", []):
-        faq_html += ('<details><summary>' + esc(q) + '</summary><p>' +
-                     a + '</p></details>')
-        faq_ld.append({"@type": "Question", "name": q,
-                       "acceptedAnswer": {"@type": "Answer",
-                                          "text": re.sub("<[^>]+>", "", a)}})
-    ld = {"@context": "https://schema.org", "@type": "WebPage",
-          "name": page["title"], "url": canon,
-          "description": page["meta"],
-          "isPartOf": {"@type": "WebApplication", "name": "TickerDesk",
-                       "url": SITE + "/"}}
+        faq_html += "<details><summary>" + esc(q) + "</summary><p>" + a + "</p></details>"
+        faq_ld.append(
+            {
+                "@type": "Question",
+                "name": q,
+                "acceptedAnswer": {"@type": "Answer", "text": re.sub("<[^>]+>", "", a)},
+            }
+        )
+    ld = {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": page["title"],
+        "url": canon,
+        "description": page["meta"],
+        "isPartOf": {"@type": "WebApplication", "name": "TickerDesk", "url": SITE + "/"},
+    }
     blocks = [ld]
     if faq_ld:
-        blocks.append({"@context": "https://schema.org", "@type": "FAQPage",
-                       "mainEntity": faq_ld})
+        blocks.append({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": faq_ld})
     ld_html = "\n".join(
-        '<script type="application/ld+json">' +
-        json.dumps(b, separators=(",", ":")) + "</script>" for b in blocks)
+        '<script type="application/ld+json">' + json.dumps(b, separators=(",", ":")) + "</script>"
+        for b in blocks
+    )
 
     callout = ""
     if page.get("callout"):
@@ -199,50 +206,74 @@ def render(page, all_pages):
 </body>
 </html>
 """.format(
-        meta=esc(page["meta"]), canon=canon, title=esc(page["title"]),
-        site=SITE, ld=ld_html, css=CSS, h1=esc(page["h1"]),
-        sub=esc(page["sub"]), intro=page["intro"], callout=callout,
-        body=page["body"], faq=faq_html, cta_href=page["cta_href"],
-        cta_label=esc(page["cta_label"]), related=related,
-        disc=("Every signal referenced is logged and graded against real "
-              "closes; see the <a href='/transparency'>transparency page</a> "
-              "for the full self-graded track record."))
+        meta=esc(page["meta"]),
+        canon=canon,
+        title=esc(page["title"]),
+        site=SITE,
+        ld=ld_html,
+        css=CSS,
+        h1=esc(page["h1"]),
+        sub=esc(page["sub"]),
+        intro=page["intro"],
+        callout=callout,
+        body=page["body"],
+        faq=faq_html,
+        cta_href=page["cta_href"],
+        cta_label=esc(page["cta_label"]),
+        related=related,
+        disc=(
+            "Every signal referenced is logged and graded against real "
+            "closes; see the <a href='/transparency'>transparency page</a> "
+            "for the full self-graded track record."
+        ),
+    )
 
 
 # ── page specs ────────────────────────────────────────────────────────────
 def _flow_callout():
     if not (ST.get("total") and ST.get("ev") is not None):
         return None
-    return ('<div class="stat-row">'
-            '<div><b>' + ST["total"] + '</b>signals tracked</div>'
-            '<div><b>' + ("+" if ST["ev"] >= 0 else "") + str(ST["ev"]) +
-            '%</b>avg +5d excess vs SPY</div>'
-            '<div><b>' + str(ST.get("win", "")) + '%</b>win rate · PF ' +
-            str(ST.get("pf", "")) + '</div></div>'
-            '<p style="margin:10px 0 0;font-size:13px;color:#9a9a9a">These '
-            'are the honest aggregate numbers — a near-coin-flip baseline. '
-            'The edge lives in specific cohorts, and we publish where it '
-            "doesn't work too.</p>")
+    return (
+        '<div class="stat-row">'
+        "<div><b>" + ST["total"] + "</b>signals tracked</div>"
+        "<div><b>"
+        + ("+" if ST["ev"] >= 0 else "")
+        + str(ST["ev"])
+        + "%</b>avg +5d excess vs SPY</div>"
+        "<div><b>"
+        + str(ST.get("win", ""))
+        + "%</b>win rate · PF "
+        + str(ST.get("pf", ""))
+        + "</div></div>"
+        '<p style="margin:10px 0 0;font-size:13px;color:#9a9a9a">These '
+        "are the honest aggregate numbers — a near-coin-flip baseline. "
+        "The edge lives in specific cohorts, and we publish where it "
+        "doesn't work too.</p>"
+    )
 
 
 def _oi_callout():
     if not ST.get("oi_rate"):
         return None
-    return ('<div class="stat-row">'
-            '<div><b>' + str(ST["oi_rate"]) + '%</b>of flagged positions '
-            'confirmed by next-day OI</div>'
-            '<div><b>' + str(ST.get("oi_checked", "")) +
-            '</b>signals OI-checked</div></div>')
+    return (
+        '<div class="stat-row">'
+        "<div><b>" + str(ST["oi_rate"]) + "%</b>of flagged positions "
+        "confirmed by next-day OI</div>"
+        "<div><b>" + str(ST.get("oi_checked", "")) + "</b>signals OI-checked</div></div>"
+    )
 
 
 def _levels_callout():
     if not ST.get("lvl_sessions"):
         return None
-    return ('<div class="stat-row"><div><b>' + str(ST["lvl_sessions"]) +
-            '</b>sessions of level statistics per symbol</div></div>'
-            '<p style="margin:10px 0 0;font-size:13px;color:#9a9a9a">Each '
-            'key level ships with its measured touch / hold / break rate — '
-            'not just a line on a chart.</p>')
+    return (
+        '<div class="stat-row"><div><b>'
+        + str(ST["lvl_sessions"])
+        + "</b>sessions of level statistics per symbol</div></div>"
+        '<p style="margin:10px 0 0;font-size:13px;color:#9a9a9a">Each '
+        "key level ships with its measured touch / hold / break rate — "
+        "not just a line on a chart.</p>"
+    )
 
 
 PAGES = [
@@ -262,10 +293,17 @@ PAGES = [
             "<li><b>Opening-buyer premium</b> — bull vs bear dollar-premium tilt per name and market-wide.</li>"
             "</ul>"
             "<h2>Why the grading matters</h2>"
-            "<p>A scan is only worth what it predicts. Every cohort — by signal type, DTE bucket, liquidity tier and flag — carries its own expected value, win rate, and confidence interval, recomputed nightly. Where a cohort shows no edge, the app says so instead of dressing it up.</p>"),
+            "<p>A scan is only worth what it predicts. Every cohort — by signal type, DTE bucket, liquidity tier and flag — carries its own expected value, win rate, and confidence interval, recomputed nightly. Where a cohort shows no edge, the app says so instead of dressing it up.</p>"
+        ),
         "faq": [
-            ("Is the options flow real-time?", "Data is 15-minute delayed (Polygon Options Starter), clearly labeled everywhere. The scan runs six times per market day."),
-            ("Does options flow actually work?", "On the full ledger, following flow blindly is close to a coin flip — we publish that. The edge is in specific cohorts and decays within days. The <a href='/transparency'>transparency page</a> has the numbers."),
+            (
+                "Is the options flow real-time?",
+                "Data is 15-minute delayed (Polygon Options Starter), clearly labeled everywhere. The scan runs six times per market day.",
+            ),
+            (
+                "Does options flow actually work?",
+                "On the full ledger, following flow blindly is close to a coin flip — we publish that. The edge is in specific cohorts and decays within days. The <a href='/transparency'>transparency page</a> has the numbers.",
+            ),
         ],
         "cta_href": "/#uoa",
         "cta_label": "Open the flow scanner",
@@ -284,10 +322,17 @@ PAGES = [
             "<li><b>Weak</b> — little or no OI follow-through.</li>"
             "<li><b>Closed</b> — OI fell; the flow was likely a same-day trade, not positioning.</li>"
             "</ul>"
-            "<p>This is the differentiator most flow products don't offer. A sweep that shows up on a dozen scanners looks identical everywhere — until you check whether the money actually stayed in the trade.</p>"),
+            "<p>This is the differentiator most flow products don't offer. A sweep that shows up on a dozen scanners looks identical everywhere — until you check whether the money actually stayed in the trade.</p>"
+        ),
         "faq": [
-            ("How is confirmation measured?", "By comparing each flagged contract's open interest the session after the flag to its level at flag time. OCC-settled OI updates once per day, so this is a next-morning read."),
-            ("Why does it matter?", "Positioning that persists is a stronger signal than a print that's gone by the close. Confirmation separates the two."),
+            (
+                "How is confirmation measured?",
+                "By comparing each flagged contract's open interest the session after the flag to its level at flag time. OCC-settled OI updates once per day, so this is a next-morning read.",
+            ),
+            (
+                "Why does it matter?",
+                "Positioning that persists is a stronger signal than a print that's gone by the close. Confirmation separates the two.",
+            ),
         ],
         "cta_href": "/#uoa",
         "cta_label": "See confirmed flow",
@@ -307,10 +352,17 @@ PAGES = [
             "<li>Size relative to the contract's normal liquidity.</li>"
             "</ul>"
             "<h2>Then the honest part</h2>"
-            "<p>Golden sweeps are a real cohort in our edge attribution, tracked against SPY across horizons. You see the win rate and expected value, not just the alert.</p>"),
+            "<p>Golden sweeps are a real cohort in our edge attribution, tracked against SPY across horizons. You see the win rate and expected value, not just the alert.</p>"
+        ),
         "faq": [
-            ("Are golden sweeps bullish?", "Direction depends on whether calls or puts are being swept and where price is. The scanner shows the premium tilt; the graded cohort shows how it has paid."),
-            ("How fast do I see them?", "Within the 15-minute-delayed scan cadence, six times per market day."),
+            (
+                "Are golden sweeps bullish?",
+                "Direction depends on whether calls or puts are being swept and where price is. The scanner shows the premium tilt; the graded cohort shows how it has paid.",
+            ),
+            (
+                "How fast do I see them?",
+                "Within the 15-minute-delayed scan cadence, six times per market day.",
+            ),
         ],
         "cta_href": "/#uoa",
         "cta_label": "Open the sweeps scanner",
@@ -330,10 +382,17 @@ PAGES = [
             "<li>Dealer gamma flip, largest-gamma strike, call/put walls, expected-move band.</li>"
             "</ul>"
             "<h2>Plus rule-based trade ideas</h2>"
-            "<p>A deterministic engine reads the day's structure and gamma regime into if/then playbook paths (fade-to-VWAP in positive gamma, break-and-go in negative), each graded on a same-session frame. All data is 15-minute delayed and labeled as such.</p>"),
+            "<p>A deterministic engine reads the day's structure and gamma regime into if/then playbook paths (fade-to-VWAP in positive gamma, break-and-go in negative), each graded on a same-session frame. All data is 15-minute delayed and labeled as such.</p>"
+        ),
         "faq": [
-            ("Is this for 0DTE trading?", "It's an index-structure map built for 0DTE and weekly options decisions. It is not a live feed — data is 15-minute delayed — and it is educational, not advice."),
-            ("Where do the hold/break rates come from?", "From an engine that replays ~250 sessions of 5-minute bars per symbol and measures how each level actually behaved on first touch."),
+            (
+                "Is this for 0DTE trading?",
+                "It's an index-structure map built for 0DTE and weekly options decisions. It is not a live feed — data is 15-minute delayed — and it is educational, not advice.",
+            ),
+            (
+                "Where do the hold/break rates come from?",
+                "From an engine that replays ~250 sessions of 5-minute bars per symbol and measures how each level actually behaved on first touch.",
+            ),
         ],
         "cta_href": "/#charts",
         "cta_label": "Open Index Levels",
@@ -352,10 +411,17 @@ PAGES = [
             "<li><b>Vol rich / vol cheap</b> — implied move well above or below the realized history.</li>"
             "<li><b>Binary caution</b> — big typical mover already extended into the event.</li>"
             "</ul>"
-            "<p>Ideas are capped to $1B+ market caps and every type carries its own graded track record. Nothing publishes a hit rate before it has 30 real graded outcomes.</p>"),
+            "<p>Ideas are capped to $1B+ market caps and every type carries its own graded track record. Nothing publishes a hit rate before it has 30 real graded outcomes.</p>"
+        ),
         "faq": [
-            ("Does it tell me to buy earnings?", "No. It surfaces where options pricing diverges from history and frames defined-risk ideas. It's educational, not advice, and flags crowded binaries to avoid."),
-            ("Which names are covered?", "Large, liquid names reporting within about a week; the trade-idea layer is floored at $1B market cap."),
+            (
+                "Does it tell me to buy earnings?",
+                "No. It surfaces where options pricing diverges from history and frames defined-risk ideas. It's educational, not advice, and flags crowded binaries to avoid.",
+            ),
+            (
+                "Which names are covered?",
+                "Large, liquid names reporting within about a week; the trade-idea layer is floored at $1B market cap.",
+            ),
         ],
         "cta_href": "/earnings",
         "cta_label": "Open the Earnings desk",
@@ -373,10 +439,17 @@ PAGES = [
             "<li>Cross-confirmation: which names show up in more than one scan.</li>"
             "<li>An Engine Room self-audit with the running next-day hit rate.</li>"
             "</ul>"
-            "<p>Grades come from a post-close batch; intraday percentage moves refresh live (15-minute delayed).</p>"),
+            "<p>Grades come from a post-close batch; intraday percentage moves refresh live (15-minute delayed).</p>"
+        ),
         "faq": [
-            ("How are setups graded?", "By a systematic momentum model, then tracked against real next-day and multi-day price action. The published record includes losing stretches."),
-            ("Is this financial advice?", "No — it's a research tool. Verify with your broker before any trade."),
+            (
+                "How are setups graded?",
+                "By a systematic momentum model, then tracked against real next-day and multi-day price action. The published record includes losing stretches.",
+            ),
+            (
+                "Is this financial advice?",
+                "No — it's a research tool. Verify with your broker before any trade.",
+            ),
         ],
         "cta_href": "/#swing",
         "cta_label": "Open the Momentum Lab",
@@ -394,9 +467,13 @@ PAGES = [
             "<li>Volume drying up into the apex of the base.</li>"
             "<li>A definable pivot / buy point with a tight stop.</li>"
             "</ul>"
-            "<p>Each setup gets a quality score so the cleanest bases rise to the top. Refreshed post-close daily.</p>"),
+            "<p>Each setup gets a quality score so the cleanest bases rise to the top. Refreshed post-close daily.</p>"
+        ),
         "faq": [
-            ("What is a VCP?", "A volatility contraction pattern — a consolidation that tightens through successive smaller pullbacks on falling volume, popularized by Mark Minervini, often preceding a breakout."),
+            (
+                "What is a VCP?",
+                "A volatility contraction pattern — a consolidation that tightens through successive smaller pullbacks on falling volume, popularized by Mark Minervini, often preceding a breakout.",
+            ),
             ("How often does it update?", "Once per day after the close (16:15 ET)."),
         ],
         "cta_href": "/#setup",
@@ -417,10 +494,17 @@ PAGES = [
             "<li>Recent filings (EDGAR) and the upcoming catalyst calendar.</li>"
             "<li>A one-line takeaway, not a hedge-everything essay.</li>"
             "</ul>"
-            "<p>Free accounts get 3 lifetime reports; Pro 10/month; Premium 100/month. Reports are on-demand only — you ask, it runs.</p>"),
+            "<p>Free accounts get 3 lifetime reports; Pro 10/month; Premium 100/month. Reports are on-demand only — you ask, it runs.</p>"
+        ),
         "faq": [
-            ("How long does a report take?", "Usually two to three minutes end to end, delivered as a downloadable PDF."),
-            ("What model generates them?", "Claude, over current market data, recent filings, news and alt-data at request time."),
+            (
+                "How long does a report take?",
+                "Usually two to three minutes end to end, delivered as a downloadable PDF.",
+            ),
+            (
+                "What model generates them?",
+                "Claude, over current market data, recent filings, news and alt-data at request time.",
+            ),
         ],
         "cta_href": "/#adhoc",
         "cta_label": "Generate a report",
@@ -439,10 +523,14 @@ PAGES = [
             "<li>Before-the-open earnings and notable after-close reports.</li>"
             "<li>The top flow, setups and watchlist changes from the desk.</li>"
             "</ul>"
-            "<p>Opt in from any account; one-click unsubscribe in every email.</p>"),
+            "<p>Opt in from any account; one-click unsubscribe in every email.</p>"
+        ),
         "faq": [
             ("When does it arrive?", "By 8:45 ET on market weekdays, ahead of the open."),
-            ("Is it free?", "Opt in from any tier. You control it from your settings and can unsubscribe in one click."),
+            (
+                "Is it free?",
+                "Opt in from any tier. You control it from your settings and can unsubscribe in one click.",
+            ),
         ],
         "cta_href": "/#desk",
         "cta_label": "See today's desk",
@@ -475,8 +563,7 @@ def main():
             f.write(html)
         written.append(page["slug"])
     _write_sitemap(written)
-    print("  landing pages: %d written (%s)" %
-          (len(written), ", ".join(written)))
+    print("  landing pages: %d written (%s)" % (len(written), ", ".join(written)))
     return 0
 
 
@@ -484,7 +571,7 @@ def _write_sitemap(slugs):
     """Regenerate sitemap.xml: app root, transparency, landing pages, legal."""
     static = [
         ("/", "daily", "1.0"),
-        ("/earnings", "daily", "0.9"),      # path-routed app tab (site_paths.py)
+        ("/earnings", "daily", "0.9"),  # path-routed app tab (site_paths.py)
         ("/transparency", "weekly", "0.8"),
         ("/glossary", "monthly", "0.6"),
         ("/sample-report", "monthly", "0.6"),
@@ -492,14 +579,17 @@ def _write_sitemap(slugs):
     lp = [("/" + s, "weekly", "0.7") for s in slugs]
     legal = [("/privacy", "monthly", "0.3"), ("/terms", "monthly", "0.3")]
     rows = static + lp + legal
-    body = ['<?xml version="1.0" encoding="UTF-8"?>',
-            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    body = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
     for loc, freq, pri in rows:
-        body.append("  <url><loc>%s%s</loc><changefreq>%s</changefreq>"
-                    "<priority>%s</priority></url>" % (SITE, loc, freq, pri))
+        body.append(
+            "  <url><loc>%s%s</loc><changefreq>%s</changefreq>"
+            "<priority>%s</priority></url>" % (SITE, loc, freq, pri)
+        )
     body.append("</urlset>")
-    with open(os.path.join(OUT_DIR, "sitemap.xml"), "w",
-              encoding="utf-8") as f:
+    with open(os.path.join(OUT_DIR, "sitemap.xml"), "w", encoding="utf-8") as f:
         f.write("\n".join(body) + "\n")
 
 

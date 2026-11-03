@@ -41,10 +41,10 @@ import argparse
 import json
 import os
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 
-from trade_desk_validation import _regime_map, _load
+from trade_desk_validation import _load, _regime_map
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
@@ -82,13 +82,18 @@ def _load_events():
         if ratio < 0:
             continue  # malformed grade
         m = meta.get(i.get("t")) or {}
-        out[t].append({
-            "ticker": i.get("t"), "date": i.get("date"),
-            "implied": imp, "mv": mv, "ratio": round(ratio, 3),
-            "feat": i.get("feat") or {},
-            "sector": m.get("sector") or "unknown",
-            "regime": regimes.get(i.get("date"), "unknown"),
-        })
+        out[t].append(
+            {
+                "ticker": i.get("t"),
+                "date": i.get("date"),
+                "implied": imp,
+                "mv": mv,
+                "ratio": round(ratio, 3),
+                "feat": i.get("feat") or {},
+                "sector": m.get("sector") or "unknown",
+                "regime": regimes.get(i.get("date"), "unknown"),
+            }
+        )
     return out
 
 
@@ -109,10 +114,11 @@ def date_cluster_bootstrap(events, iters=BOOT_ITERS, seed=11):
             ys.extend(nights[rng.choice(keys)])
         means.append(mean(ys))
     means.sort()
-    return {"nights": len(keys),
-            "mean": round(mean(e["mv"] for e in events), 2),
-            "ci95": [round(means[int(iters * 0.025)], 2),
-                     round(means[int(iters * 0.975)], 2)]}
+    return {
+        "nights": len(keys),
+        "mean": round(mean(e["mv"] for e in events), 2),
+        "ci95": [round(means[int(iters * 0.025)], 2), round(means[int(iters * 0.975)], 2)],
+    }
 
 
 def ratio_distribution(events):
@@ -120,8 +126,12 @@ def ratio_distribution(events):
     n = len(rs)
     return {
         "n": n,
-        "median": _pct(rs, 50), "p75": _pct(rs, 75), "p90": _pct(rs, 90),
-        "p95": _pct(rs, 95), "p99": _pct(rs, 99), "max": _pct(rs, 100),
+        "median": _pct(rs, 50),
+        "p75": _pct(rs, 75),
+        "p90": _pct(rs, 90),
+        "p95": _pct(rs, 95),
+        "p99": _pct(rs, 99),
+        "max": _pct(rs, 100),
         "inside_050x": round(100 * sum(1 for r in rs if r <= 0.50) / n),
         "inside_075x": round(100 * sum(1 for r in rs if r <= 0.75) / n),
         "inside_100x": round(100 * sum(1 for r in rs if r <= 1.00) / n),
@@ -132,23 +142,26 @@ def ratio_distribution(events):
 
 
 def tail_metrics(events):
-    mvs = sorted(e["mv"] for e in events)   # ascending: worst first
+    mvs = sorted(e["mv"] for e in events)  # ascending: worst first
     n = len(mvs)
     k5 = max(1, int(n * 0.05))
     k1 = max(1, int(n * 0.01))
     worst = min(events, key=lambda e: e["mv"])
     return {
         "worst_mv": round(mvs[0], 2),
-        "worst_event": {"ticker": worst["ticker"], "date": worst["date"],
-                        "implied": worst["implied"],
-                        "ratio": worst["ratio"]},
+        "worst_event": {
+            "ticker": worst["ticker"],
+            "date": worst["date"],
+            "implied": worst["implied"],
+            "ratio": worst["ratio"],
+        },
         "p5_mv": _pct(mvs, 5),
         "es95": round(mean(mvs[:k5]), 2),
         "es99": round(mean(mvs[:k1]), 2),
         "note": "mv is in vol-points (implied minus |realized| for "
-                "vol_rich) — a SIGNAL-level tail proxy. Real strategy "
-                "tails (gap through wings, assignment) need the option "
-                "P&L reconstruction and are NOT captured here.",
+        "vol_rich) — a SIGNAL-level tail proxy. Real strategy "
+        "tails (gap through wings, assignment) need the option "
+        "P&L reconstruction and are NOT captured here.",
     }
 
 
@@ -157,34 +170,41 @@ def clustering(events):
     for e in events:
         nights.setdefault(e["date"], []).append(e)
     per_night = sorted(len(v) for v in nights.values())
-    joint_tail = sum(1 for v in nights.values()
-                     if sum(1 for e in v if e["ratio"] > 1.0) >= 2)
+    joint_tail = sum(1 for v in nights.values() if sum(1 for e in v if e["ratio"] > 1.0) >= 2)
     crowded = sum(1 for v in nights.values() if len(v) >= 3)
     return {
         "nights": len(nights),
-        "events_per_night": {"median": _pct(per_night, 50),
-                             "p90": _pct(per_night, 90),
-                             "max": per_night[-1] if per_night else 0},
+        "events_per_night": {
+            "median": _pct(per_night, 50),
+            "p90": _pct(per_night, 90),
+            "max": per_night[-1] if per_night else 0,
+        },
         "crowded_nights_3plus": crowded,
         "joint_blowthrough_nights": joint_tail,
         "note": "same-night short-vol positions are correlated (one "
-                "macro tape, sector vol repricing). Position sizing "
-                "must treat a night, not an event, as the unit.",
+        "macro tape, sector vol repricing). Position sizing "
+        "must treat a night, not an event, as the unit.",
     }
 
 
 def decomposition(events):
     def band_imp(e):
         i = e["implied"]
-        if i >= 12: return ">=12%"
-        if i >= 8:  return "8-12%"
-        if i >= 5:  return "5-8%"
+        if i >= 12:
+            return ">=12%"
+        if i >= 8:
+            return "8-12%"
+        if i >= 5:
+            return "5-8%"
         return "<5%"
+
     nights = {}
     for e in events:
         nights.setdefault(e["date"], []).append(e)
+
     def crowd(e):
         return ">=3" if len(nights[e["date"]]) >= 3 else "1-2"
+
     dims = {
         "implied_band": band_imp,
         "cap": lambda e: (e["feat"] or {}).get("cap", "?"),
@@ -203,20 +223,23 @@ def decomposition(events):
             if len(v) < COHORT_MIN:
                 rows[k] = {"n": len(v), "status": "thin"}
             else:
-                rows[k] = {"n": len(v), "ev": round(mean(v), 2),
-                           "med": round(median(v), 2),
-                           "win": round(100 * sum(1 for y in v if y > 0)
-                                        / len(v))}
+                rows[k] = {
+                    "n": len(v),
+                    "ev": round(mean(v), 2),
+                    "med": round(median(v), 2),
+                    "win": round(100 * sum(1 for y in v if y > 0) / len(v)),
+                }
         out[dim] = rows
     return out
 
 
 def run(dry=False):
     ev = _load_events()
-    result = {"generated": datetime.now(timezone.utc)
-              .isoformat(timespec="seconds"),
-              "engine_version": ENGINE_VERSION,
-              "types": {}}
+    result = {
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+        "engine_version": ENGINE_VERSION,
+        "types": {},
+    }
     for t, events in ev.items():
         if len(events) < MIN_N:
             result["types"][t] = {"n": len(events), "status": "accruing"}
@@ -225,8 +248,7 @@ def run(dry=False):
         boot = date_cluster_bootstrap(events)
         block = {
             "n": len(events),
-            "span": {"from": min(e["date"] for e in events),
-                     "to": max(e["date"] for e in events)},
+            "span": {"from": min(e["date"] for e in events), "to": max(e["date"] for e in events)},
             "ev_vol_pts": round(mean(mvs), 2),
             "med_vol_pts": round(median(mvs), 2),
             "win": round(100 * sum(1 for y in mvs if y > 0) / len(mvs)),
@@ -236,13 +258,11 @@ def run(dry=False):
             "clustering": clustering(events),
             "decomposition": decomposition(events),
         }
-        ci = (boot.get("ci95") or [None])
-        block["signal_qualified"] = bool(
-            ci[0] is not None and ci[0] > 0 and len(events) >= MIN_N)
+        ci = boot.get("ci95") or [None]
+        block["signal_qualified"] = bool(ci[0] is not None and ci[0] > 0 and len(events) >= MIN_N)
         block["trade_qualified"] = False
         block["trade_qualification_blockers"] = [
-            "no historical option-chain P&L reconstruction yet "
-            "(earnings_vol_backtest.py, CI)",
+            "no historical option-chain P&L reconstruction yet (earnings_vol_backtest.py, CI)",
             "no spread/slippage/fees modeling",
             "no strategy-level tail analysis (gap through wings)",
             "no clustered-night portfolio sizing rule",
@@ -261,39 +281,41 @@ def run(dry=False):
     if len(vr) >= MIN_N:
         for name, flt, defn in (
             ("vol_rich_base", lambda e: True, "all vol_rich events"),
-            ("vol_rich_large_move", lambda e: e["implied"] >= 12,
-             "implied move >= 12%"),
+            ("vol_rich_large_move", lambda e: e["implied"] >= 12, "implied move >= 12%"),
         ):
-            pre = [e for e in vr if e["date"] <= CHALLENGER_DECL
-                   and flt(e)]
-            post = [e for e in vr if e["date"] > CHALLENGER_DECL
-                    and flt(e)]
+            pre = [e for e in vr if e["date"] <= CHALLENGER_DECL and flt(e)]
+            post = [e for e in vr if e["date"] > CHALLENGER_DECL and flt(e)]
             challengers[name] = {
-                "definition": defn, "declared": CHALLENGER_DECL,
+                "definition": defn,
+                "declared": CHALLENGER_DECL,
                 "at_declaration": {
                     "n": len(pre),
-                    "ev": round(mean(e["mv"] for e in pre), 2)
-                    if pre else None,
-                    "bootstrap": date_cluster_bootstrap(pre)
-                    if pre else None},
-                "forward": ({"n": len(post),
-                             "ev": round(mean(e["mv"] for e in post), 2),
-                             "bootstrap": date_cluster_bootstrap(post)}
-                            if post else {"n": 0, "status": "accruing"}),
+                    "ev": round(mean(e["mv"] for e in pre), 2) if pre else None,
+                    "bootstrap": date_cluster_bootstrap(pre) if pre else None,
+                },
+                "forward": (
+                    {
+                        "n": len(post),
+                        "ev": round(mean(e["mv"] for e in post), 2),
+                        "bootstrap": date_cluster_bootstrap(post),
+                    }
+                    if post
+                    else {"n": 0, "status": "accruing"}
+                ),
             }
         challengers["vol_rich_cheap_wings"] = {
             "definition": "iron_fly_1.5 wing debit / straddle credit "
-                          "at issuance BELOW the trailing cohort "
-                          "median (self-normalizing — no tuned "
-                          "constant)",
+            "at issuance BELOW the trailing cohort "
+            "median (self-normalizing — no tuned "
+            "constant)",
             "declared": CHALLENGER_DECL,
             "status": "forward_only",
             "why": "wing-economics decomposition showed the wings "
-                   "consume most of the gross straddle edge; the "
-                   "coherent conditional is 'sell only when tail "
-                   "insurance is unusually cheap'. Declared from the "
-                   "same nights that suggested it, so only FORWARD "
-                   "events can confirm it.",
+            "consume most of the gross straddle edge; the "
+            "coherent conditional is 'sell only when tail "
+            "insurance is unusually cheap'. Declared from the "
+            "same nights that suggested it, so only FORWARD "
+            "events can confirm it.",
             "forward": {"n": 0, "status": "accruing"},
         }
         challengers["vol_rich_extreme_ratio"] = {
@@ -301,9 +323,9 @@ def run(dry=False):
             "declared": CHALLENGER_DECL,
             "status": "forward_only",
             "why": "the idea log never captured fair move at selection; "
-                   "setup_context.jsonl logs implied + realized_med from "
-                   "2026-08-26, so this challenger evaluates on forward "
-                   "events only",
+            "setup_context.jsonl logs implied + realized_med from "
+            "2026-08-26, so this challenger evaluates on forward "
+            "events only",
             "forward": {"n": 0, "status": "accruing"},
         }
     result["challengers"] = challengers
@@ -322,19 +344,23 @@ def run(dry=False):
             continue
         rs_s = sorted(rs)
         tick_hist[tk] = {
-            "n": len(rs), "median_ratio": round(rs_s[len(rs_s) // 2], 2),
-            "inside_100x": round(100 * sum(1 for r in rs if r <= 1.0)
-                                 / len(rs)),
-            "inside_075x": round(100 * sum(1 for r in rs if r <= 0.75)
-                                 / len(rs))}
+            "n": len(rs),
+            "median_ratio": round(rs_s[len(rs_s) // 2], 2),
+            "inside_100x": round(100 * sum(1 for r in rs if r <= 1.0) / len(rs)),
+            "inside_075x": round(100 * sum(1 for r in rs if r <= 0.75) / len(rs)),
+        }
     result["ticker_history"] = tick_hist
-    cohort_rich = (result["types"].get("vol_rich") or {})
-    result["cohort_history"] = ({
-        "n": cohort_rich["n"],
-        "median_ratio": cohort_rich["move_ratio"]["median"],
-        "inside_100x": cohort_rich["move_ratio"]["inside_100x"],
-        "inside_075x": cohort_rich["move_ratio"]["inside_075x"]}
-        if cohort_rich.get("move_ratio") else None)
+    cohort_rich = result["types"].get("vol_rich") or {}
+    result["cohort_history"] = (
+        {
+            "n": cohort_rich["n"],
+            "median_ratio": cohort_rich["move_ratio"]["median"],
+            "inside_100x": cohort_rich["move_ratio"]["inside_100x"],
+            "inside_075x": cohort_rich["move_ratio"]["inside_075x"],
+        }
+        if cohort_rich.get("move_ratio")
+        else None
+    )
 
     # Wing economics — Defined-risk P&L = short-vol edge - wing cost.
     # From the immutable v2 reconstruction rows (frictionless
@@ -355,7 +381,7 @@ def run(dry=False):
         if not st or not fl:
             continue
 
-        def _fless(s):     # frictionless next_open, fees only
+        def _fless(s):  # frictionless next_open, fees only
             cash = 0.0
             for l in s["legs"]:
                 ein = l["marks"].get("entry_close")
@@ -364,70 +390,87 @@ def run(dry=False):
                     return None
                 cash += (-l["side"]) * (ein - eout) - 2 * 0.65 / 100.0
             return cash
+
         sp, fp = _fless(st), _fless(fl)
         if sp is None or fp is None:
             continue
-        w_debit = sum(l["marks"]["entry_close"] for l in fl["legs"]
-                      if l["side"] > 0
-                      and l["marks"].get("entry_close") is not None)
-        s_credit = sum(l["marks"]["entry_close"] for l in st["legs"]
-                       if l["marks"].get("entry_close") is not None)
-        wings.append({"date": r["event"]["date"],
-                      "implied": r["event"]["implied"],
-                      "straddle": sp, "fly": fp, "drag": fp - sp,
-                      "wing_ratio": (w_debit / s_credit
-                                     if s_credit else None)})
+        w_debit = sum(
+            l["marks"]["entry_close"]
+            for l in fl["legs"]
+            if l["side"] > 0 and l["marks"].get("entry_close") is not None
+        )
+        s_credit = sum(
+            l["marks"]["entry_close"]
+            for l in st["legs"]
+            if l["marks"].get("entry_close") is not None
+        )
+        wings.append(
+            {
+                "date": r["event"]["date"],
+                "implied": r["event"]["implied"],
+                "straddle": sp,
+                "fly": fp,
+                "drag": fp - sp,
+                "wing_ratio": (w_debit / s_credit if s_credit else None),
+            }
+        )
     if len(wings) >= MIN_N:
         drags = sorted(w["drag"] for w in wings)
-        ratios = sorted(w["wing_ratio"] for w in wings
-                        if w["wing_ratio"] is not None)
-        cheap = [w for w in wings if w["wing_ratio"] is not None
-                 and w["wing_ratio"] <= ratios[len(ratios) // 2]]
-        rich_w = [w for w in wings if w["wing_ratio"] is not None
-                  and w["wing_ratio"] > ratios[len(ratios) // 2]]
+        ratios = sorted(w["wing_ratio"] for w in wings if w["wing_ratio"] is not None)
+        cheap = [
+            w
+            for w in wings
+            if w["wing_ratio"] is not None and w["wing_ratio"] <= ratios[len(ratios) // 2]
+        ]
+        rich_w = [
+            w
+            for w in wings
+            if w["wing_ratio"] is not None and w["wing_ratio"] > ratios[len(ratios) // 2]
+        ]
         result["wing_economics"] = {
             "n": len(wings),
-            "avg_straddle_$": round(100 * mean(w["straddle"]
-                                               for w in wings)),
+            "avg_straddle_$": round(100 * mean(w["straddle"] for w in wings)),
             "avg_fly_$": round(100 * mean(w["fly"] for w in wings)),
-            "avg_wing_drag_$": round(100 * mean(w["drag"]
-                                                for w in wings)),
-            "wing_ratio": {"median": round(ratios[len(ratios) // 2], 3),
-                           "p25": round(ratios[len(ratios) // 4], 3),
-                           "p75": round(ratios[3 * len(ratios) // 4], 3)}
-                          if ratios else None,
+            "avg_wing_drag_$": round(100 * mean(w["drag"] for w in wings)),
+            "wing_ratio": {
+                "median": round(ratios[len(ratios) // 2], 3),
+                "p25": round(ratios[len(ratios) // 4], 3),
+                "p75": round(ratios[3 * len(ratios) // 4], 3),
+            }
+            if ratios
+            else None,
             "fly_when_wings_below_median": {
                 "n": len(cheap),
-                "avg_$": round(100 * mean(w["fly"] for w in cheap))
-                if cheap else None},
+                "avg_$": round(100 * mean(w["fly"] for w in cheap)) if cheap else None,
+            },
             "fly_when_wings_above_median": {
                 "n": len(rich_w),
-                "avg_$": round(100 * mean(w["fly"] for w in rich_w))
-                if rich_w else None},
+                "avg_$": round(100 * mean(w["fly"] for w in rich_w)) if rich_w else None,
+            },
             "note": "frictionless next_open marks, fees only. "
-                    "DESCRIPTIVE SPLIT POINTS AGAINST THE HYPOTHESIS: "
-                    "fly does better when wings are EXPENSIVE — wing "
-                    "richness proxies implied size, where the gross "
-                    "edge is larger. The refined conditional would be "
-                    "wings-cheap-RELATIVE-to-implied; not launched "
-                    "(n small, tuning risk). The forward challenger "
-                    "stands as declared and forward data decides."}
+            "DESCRIPTIVE SPLIT POINTS AGAINST THE HYPOTHESIS: "
+            "fly does better when wings are EXPENSIVE — wing "
+            "richness proxies implied size, where the gross "
+            "edge is larger. The refined conditional would be "
+            "wings-cheap-RELATIVE-to-implied; not launched "
+            "(n small, tuning risk). The forward challenger "
+            "stands as declared and forward data decides.",
+        }
 
     # Fair-move calibration for the UI: per-type median realized/implied
     cal = {}
     for t, events in ev.items():
         if len(events) >= MIN_N:
-            cal[t] = {"median_ratio": ratio_distribution(events)["median"],
-                      "n": len(events)}
+            cal[t] = {"median_ratio": ratio_distribution(events)["median"], "n": len(events)}
     result["fair_move_calibration"] = {
         "per_type": cal,
         "definition": "TickerDesk Fair Move = the ticker's own median "
-                      "|earnings move| across its reported history "
-                      "(earnings_edge realized_med). Volatility Edge = "
-                      "implied - fair. Richness = implied/fair - 1. "
-                      "The per-type median ratios above are the "
-                      "selected-universe calibration context, not a "
-                      "multiplier applied to any displayed number.",
+        "|earnings move| across its reported history "
+        "(earnings_edge realized_med). Volatility Edge = "
+        "implied - fair. Richness = implied/fair - 1. "
+        "The per-type median ratios above are the "
+        "selected-universe calibration context, not a "
+        "multiplier applied to any displayed number.",
     }
     result["honesty"] = (
         "Signal-level anatomy only: mv/ratio are underlying-move "
@@ -436,7 +479,8 @@ def run(dry=False):
         "means the forecast relationship (implied vs realized) holds "
         "with a date-cluster bootstrap CI excluding zero. It is NOT a "
         "validated trade. trade_qualified stays false until the option "
-        "P&L reconstruction clears costs and tails.")
+        "P&L reconstruction clears costs and tails."
+    )
     if not dry:
         with open(OUT_PATH, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=1)
@@ -444,12 +488,14 @@ def run(dry=False):
         if b.get("status") == "accruing":
             print(t, "accruing n=", b["n"])
         else:
-            print(f"{t}: n={b['n']} EV={b['ev_vol_pts']} win={b['win']}% "
-                  f"boot={b['date_cluster_bootstrap']} "
-                  f"ratio_med={b['move_ratio']['median']} "
-                  f"p95={b['move_ratio']['p95']} "
-                  f"blow>1x={b['move_ratio']['blowthrough_10x']}% "
-                  f"sigQ={b['signal_qualified']}")
+            print(
+                f"{t}: n={b['n']} EV={b['ev_vol_pts']} win={b['win']}% "
+                f"boot={b['date_cluster_bootstrap']} "
+                f"ratio_med={b['move_ratio']['median']} "
+                f"p95={b['move_ratio']['p95']} "
+                f"blow>1x={b['move_ratio']['blowthrough_10x']}% "
+                f"sigQ={b['signal_qualified']}"
+            )
     return result
 
 

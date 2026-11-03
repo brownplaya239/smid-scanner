@@ -18,11 +18,11 @@ Methodology (every weight / threshold here is tunable):
   Extension      : (close - SMA50) / ATR(14)  —  >=7 over-extended, 5-7 extended
 """
 
+import json
 import os
 import sys
-import json
-from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
 
 import pytz
 from dotenv import load_dotenv
@@ -46,9 +46,9 @@ OUT_PATH = os.path.join(_BASE, "docs", "reports", "swing_report.json")
 # so we also emit a 2-run summary (<1 MB) and an ultra-light top-line.
 # The full file stays for the Swing tab's run-date history (lazy-loaded).
 LATEST_SUMMARY_PATH = os.path.join(_BASE, "docs", "reports", "swing_latest_summary.json")
-DESK_SUMMARY_PATH   = os.path.join(_BASE, "docs", "reports", "desk_summary.json")
+DESK_SUMMARY_PATH = os.path.join(_BASE, "docs", "reports", "desk_summary.json")
 META_CACHE_PATH = os.path.join(_BASE, "docs", "reports", "swing_meta_cache.json")
-META_REFRESH_DAYS = 30           # company name/sector/exchange change slowly
+META_REFRESH_DAYS = 30  # company name/sector/exchange change slowly
 
 MIN_DOLLAR_VOL = 50_000_000
 # Minimum share price for universe inclusion. Penny stocks ($0.10 - $2)
@@ -59,28 +59,58 @@ MIN_DOLLAR_VOL = 50_000_000
 # (most real $1-3 names are restructuring or near-delisting anyway).
 MIN_PRICE = 2.00
 EXCHANGE_NAME = {
-    "XNAS": "NASDAQ", "XNYS": "NYSE",   "XASE": "AMEX",
-    "ARCX": "NYSE Arca", "BATS": "BATS", "IEXG": "IEX",
+    "XNAS": "NASDAQ",
+    "XNYS": "NYSE",
+    "XASE": "AMEX",
+    "ARCX": "NYSE Arca",
+    "BATS": "BATS",
+    "IEXG": "IEX",
 }
-GRADES = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+",
-          "D", "D-", "E+", "E", "E-", "F+", "F", "F-", "G+", "G"]
+GRADES = [
+    "A+",
+    "A",
+    "A-",
+    "B+",
+    "B",
+    "B-",
+    "C+",
+    "C",
+    "C-",
+    "D+",
+    "D",
+    "D-",
+    "E+",
+    "E",
+    "E-",
+    "F+",
+    "F",
+    "F-",
+    "G+",
+    "G",
+]
 # lower composite edge of each grade (A+ .. G). A+ is open-ended at the top,
 # G is the weak-tail catch-all. Bullish = A+ .. D+  ->  composite >= 52.
-GRADE_MIN = [88, 84, 80, 76, 72, 68, 64, 60, 56, 52,
-             48, 44, 40, 36, 32, 28, 24, 20, 16, -1]
-EXT_OVEREXTENDED = 7.0     # ATR-to-SMA50 — red font
-EXT_EXTENDED     = 5.0     # ATR-to-SMA50 — purple font
+GRADE_MIN = [88, 84, 80, 76, 72, 68, 64, 60, 56, 52, 48, 44, 40, 36, 32, 28, 24, 20, 16, -1]
+EXT_OVEREXTENDED = 7.0  # ATR-to-SMA50 — red font
+EXT_EXTENDED = 5.0  # ATR-to-SMA50 — purple font
 
 
 # ─── Security meta (name/sector/industry/country/mcap/exchange) ─────────────
 
+
 def _swing_cap_bucket(mc):
-    if not mc:           return "Unknown"
-    if mc >= 200e9:      return "Mega"
-    if mc >=  10e9:      return "Large"
-    if mc >=   2e9:      return "Mid"
-    if mc >=   3e8:      return "Small"
-    if mc >=   5e7:      return "Micro"
+    if not mc:
+        return "Unknown"
+    if mc >= 200e9:
+        return "Mega"
+    if mc >= 10e9:
+        return "Large"
+    if mc >= 2e9:
+        return "Mid"
+    if mc >= 3e8:
+        return "Small"
+    if mc >= 5e7:
+        return "Micro"
     return "Nano"
 
 
@@ -104,16 +134,14 @@ def _save_meta_cache(cache):
 def _meta_is_fresh(entry, today):
     try:
         fetched = datetime.strptime(entry["fetched"], "%Y-%m-%d").date()
-    except (KeyError, ValueError, TypeError):
+    except KeyError, ValueError, TypeError:
         return False
     if (today - fetched).days > META_REFRESH_DAYS:
         return False
     # Schema-upgrade safety: re-fetch legacy entries that pre-date the raw
     # market_cap field so popups can show the actual figure ($X.XB / $X.XT)
     # instead of a coarse bucket label.
-    if "market_cap" not in entry:
-        return False
-    return True
+    return "market_cap" in entry
 
 
 def _fetch_one_meta(ticker):
@@ -126,18 +154,19 @@ def _fetch_one_meta(ticker):
     loc = (d.get("locale") or "").lower()
     pex = d.get("primary_exchange") or ""
     return {
-        "name":        d.get("name") or ticker,
-        "sector":      _sic_sector(d.get("sic_code")),
-        "industry":    d.get("sic_description") or "",
-        "country":     "USA" if loc == "us" else loc.upper(),
-        "exchange":    EXCHANGE_NAME.get(pex, pex),
+        "name": d.get("name") or ticker,
+        "sector": _sic_sector(d.get("sic_code")),
+        "industry": d.get("sic_description") or "",
+        "country": "USA" if loc == "us" else loc.upper(),
+        "exchange": EXCHANGE_NAME.get(pex, pex),
         "mcap_bucket": _swing_cap_bucket(d.get("market_cap")),
-        "market_cap":  d.get("market_cap"),     # raw figure for popups
-        "fetched":     datetime.now(ET).strftime("%Y-%m-%d"),
+        "market_cap": d.get("market_cap"),  # raw figure for popups
+        "fetched": datetime.now(ET).strftime("%Y-%m-%d"),
     }
 
 
 # ─── Universe ────────────────────────────────────────────────────────────────
+
 
 def _last_trading_day():
     """Most recent weekday whose daily bar should exist on Polygon. Pre-market
@@ -152,7 +181,7 @@ def _last_trading_day():
     market_close = now.replace(hour=16, minute=30, second=0, microsecond=0)
     if now < market_close:
         d -= timedelta(days=1)
-    while d.weekday() >= 5:                 # walk back over weekends
+    while d.weekday() >= 5:  # walk back over weekends
         d -= timedelta(days=1)
     return d.strftime("%Y-%m-%d")
 
@@ -186,8 +215,7 @@ def _build_universe(min_dollar_vol=MIN_DOLLAR_VOL, ref_date=None):
                     out.append(tk)
             if out:
                 if candidate != (ref_date or _last_trading_day()):
-                    print(f"  Universe used fallback date {candidate} "
-                          f"(today's bar wasn't ready).")
+                    print(f"  Universe used fallback date {candidate} (today's bar wasn't ready).")
                 return sorted(out)
         # Walk back one trading day and retry
         d = datetime.strptime(candidate, "%Y-%m-%d").date() - timedelta(days=1)
@@ -208,11 +236,11 @@ def _atr_now_vs_avg(c, h, l, atr_len=14, base_len=50):
     # true-range series (one shorter than the close series)
     trs = []
     for i in range(1, n):
-        trs.append(max(h[i] - l[i], abs(h[i] - c[i-1]), abs(l[i] - c[i-1])))
+        trs.append(max(h[i] - l[i], abs(h[i] - c[i - 1]), abs(l[i] - c[i - 1])))
     # ATR(atr_len) series — simple mean of last atr_len TRs ending at each bar
     atr_series = []
     for k in range(atr_len, len(trs) + 1):
-        atr_series.append(sum(trs[k - atr_len:k]) / atr_len)
+        atr_series.append(sum(trs[k - atr_len : k]) / atr_len)
     if len(atr_series) < base_len:
         return None, None
     current_atr = atr_series[-1]
@@ -222,9 +250,11 @@ def _atr_now_vs_avg(c, h, l, atr_len=14, base_len=50):
 
 # ─── Data ─────────────────────────────────────────────────────────────────────
 
+
 def _fetch_bars(tickers, workers=24):
     """{ticker: {c,h,l,v}} — ~400 calendar days of daily bars, enough for
     SMA200, a 12-month return and a 14-day ATR."""
+
     def _one(t):
         bars = polygon_data.daily_bars(t, days=400)
         if not bars or len(bars) < 60:
@@ -235,6 +265,7 @@ def _fetch_bars(tickers, workers=24):
             "l": [b.get("l", 0) or 0 for b in bars],
             "v": [b.get("v", 0) or 0 for b in bars],
         }
+
     out = {}
     with ThreadPoolExecutor(max_workers=workers) as ex:
         for t, s in ex.map(_one, tickers):
@@ -252,14 +283,14 @@ def _atr(c, h, l, n=14):
         return None
     trs = []
     for i in range(len(c) - n, len(c)):
-        trs.append(max(h[i] - l[i], abs(h[i] - c[i-1]), abs(l[i] - c[i-1])))
+        trs.append(max(h[i] - l[i], abs(h[i] - c[i - 1]), abs(l[i] - c[i - 1])))
     return sum(trs) / n if trs else None
 
 
 def _ret(c, days):
-    if len(c) <= days or not c[-days-1]:
+    if len(c) <= days or not c[-days - 1]:
         return None
-    return (c[-1] / c[-days-1] - 1) * 100
+    return (c[-1] / c[-days - 1] - 1) * 100
 
 
 def metrics(ticker, s):
@@ -330,24 +361,29 @@ def metrics(ticker, s):
         if prior_avg > 0:
             rvol = v[-1] / prior_avg
     return {
-        "ticker":     ticker,
-        "price":      price,
+        "ticker": ticker,
+        "price": price,
         "dollar_vol": dollar_vol,
-        "adr_pct":    adr_pct,
-        "rvol":       rvol,
-        "sma10":  _sma(c, 10),  "sma20":  _sma(c, 20),
-        "sma50":  _sma(c, 50),  "sma200": _sma(c, 200),
+        "adr_pct": adr_pct,
+        "rvol": rvol,
+        "sma10": _sma(c, 10),
+        "sma20": _sma(c, 20),
+        "sma50": _sma(c, 50),
+        "sma200": _sma(c, 200),
         "sma50_prev": _sma(c[:-20], 50) if n >= 70 else None,
-        "atr":   _atr(c, h, l, 14),
-        "hi52":  max(c[-252:]) if n >= 252 else max(c),
-        "r21":   _ret(c, 21),  "r63":  _ret(c, 63),
-        "r126":  _ret(c, 126), "r252": _ret(c, 252),
+        "atr": _atr(c, h, l, 14),
+        "hi52": max(c[-252:]) if n >= 252 else max(c),
+        "r21": _ret(c, 21),
+        "r63": _ret(c, 63),
+        "r126": _ret(c, 126),
+        "r252": _ret(c, 252),
         "chg_day": chg_day,
-        "spark":   [round(x, 2) for x in c[-30:]],   # last 30 daily closes
+        "spark": [round(x, 2) for x in c[-30:]],  # last 30 daily closes
     }
 
 
 # ─── Grading ──────────────────────────────────────────────────────────────────
+
 
 def _blended_return(m):
     parts = [(0.4, m["r63"]), (0.3, m["r126"]), (0.2, m["r21"]), (0.1, m["r252"])]
@@ -359,16 +395,16 @@ def _trend_strength(m):
     """0-100 price-structure score: MA stacking + SMA50 slope + 52w proximity."""
     price = m["price"]
     stack = [
-        m["sma10"]  and price > m["sma10"],
-        m["sma10"]  and m["sma20"]  and m["sma10"]  > m["sma20"],
-        m["sma20"]  and m["sma50"]  and m["sma20"]  > m["sma50"],
-        m["sma50"]  and m["sma200"] and m["sma50"]  > m["sma200"],
+        m["sma10"] and price > m["sma10"],
+        m["sma10"] and m["sma20"] and m["sma10"] > m["sma20"],
+        m["sma20"] and m["sma50"] and m["sma20"] > m["sma50"],
+        m["sma50"] and m["sma200"] and m["sma50"] > m["sma200"],
     ]
-    score = 12.5 * sum(1 for x in stack if x)                       # <= 50
+    score = 12.5 * sum(1 for x in stack if x)  # <= 50
     if m["sma50"] and m["sma50_prev"] and m["sma50"] > m["sma50_prev"]:
-        score += 25                                                 # rising SMA50
+        score += 25  # rising SMA50
     if m["hi52"]:
-        prox = price / m["hi52"]                                    # 1.0 = at highs
+        prox = price / m["hi52"]  # 1.0 = at highs
         score += max(0.0, min(1.0, (prox - 0.70) / 0.30)) * 25
     return round(score, 1)
 
@@ -390,10 +426,11 @@ def _extension(m):
 
 # ─── Run ──────────────────────────────────────────────────────────────────────
 
+
 def run():
-    print(f"\n{'='*54}")
+    print(f"\n{'=' * 54}")
     print(f"SWING REPORT CARD  --  {datetime.now(ET):%Y-%m-%d %H:%M ET}")
-    print(f"{'='*54}")
+    print(f"{'=' * 54}")
 
     ref = _last_trading_day()
     print(f"  Universe stage 1 — grouped-daily $-vol >= $50M on {ref}...")
@@ -421,11 +458,16 @@ def run():
     # 30-day cache so subsequent runs are near-instant.
     today_d = datetime.now(ET).date()
     meta_cache = _load_meta_cache()
-    stale = [m["ticker"] for m in universe
-             if not _meta_is_fresh(meta_cache.get(m["ticker"], {}), today_d)]
+    stale = [
+        m["ticker"]
+        for m in universe
+        if not _meta_is_fresh(meta_cache.get(m["ticker"], {}), today_d)
+    ]
     if stale:
-        print(f"  Fetching ticker details for {len(stale)} names "
-              f"(cache hits: {len(universe) - len(stale)})...")
+        print(
+            f"  Fetching ticker details for {len(stale)} names "
+            f"(cache hits: {len(universe) - len(stale)})..."
+        )
         with ThreadPoolExecutor(max_workers=24) as ex:
             for t, info in ex.map(lambda t: (t, _fetch_one_meta(t)), stale):
                 meta_cache[t] = info
@@ -434,43 +476,46 @@ def run():
     # Relative Strength = percentile rank of the blended return
     for m in universe:
         m["_blend"] = _blended_return(m)
-    ranked = sorted(universe, key=lambda m: (m["_blend"] is None,
-                                             m["_blend"] if m["_blend"] is not None
-                                             else 0.0))
+    ranked = sorted(
+        universe,
+        key=lambda m: (m["_blend"] is None, m["_blend"] if m["_blend"] is not None else 0.0),
+    )
     nU = len(ranked)
     for i, m in enumerate(ranked):
         m["rs"] = round(100 * i / (nU - 1), 1) if nU > 1 else 50.0
 
     # Trend Strength -> composite -> grade -> extension
     for m in universe:
-        m["trend"]     = _trend_strength(m)
+        m["trend"] = _trend_strength(m)
         m["composite"] = round(0.6 * m["rs"] + 0.4 * m["trend"], 1)
-        m["grade"]     = _grade(m["composite"])
-        m["ext"]       = _extension(m)
+        m["grade"] = _grade(m["composite"])
+        m["ext"] = _extension(m)
 
     # grade -> ordered cells (strongest composite first within each grade)
     universe.sort(key=lambda m: m["composite"], reverse=True)
     grades = {g: [] for g in GRADES}
     for m in universe:
         meta = meta_cache.get(m["ticker"], {})
-        grades[m["grade"]].append({
-            "t":     m["ticker"],
-            "ext":   m["ext"],
-            "n":     meta.get("name", m["ticker"]),
-            "sec":   meta.get("sector", ""),
-            "ind":   meta.get("industry", ""),
-            "ctry":  meta.get("country", ""),
-            "xch":   meta.get("exchange", ""),
-            "mcb":   meta.get("mcap_bucket", ""),
-            "mcap":  meta.get("market_cap"),    # raw value (for popup formatting)
-            "p":     round(m["price"], 2),
-            "chg":   round(m["chg_day"], 2) if m["chg_day"] is not None else None,
-            "rvol":  round(m["rvol"], 2) if m.get("rvol") is not None else None,
-            "spark": m["spark"],
-            "th":    themes.themes_for(m["ticker"]),
-        })
+        grades[m["grade"]].append(
+            {
+                "t": m["ticker"],
+                "ext": m["ext"],
+                "n": meta.get("name", m["ticker"]),
+                "sec": meta.get("sector", ""),
+                "ind": meta.get("industry", ""),
+                "ctry": meta.get("country", ""),
+                "xch": meta.get("exchange", ""),
+                "mcb": meta.get("mcap_bucket", ""),
+                "mcap": meta.get("market_cap"),  # raw value (for popup formatting)
+                "p": round(m["price"], 2),
+                "chg": round(m["chg_day"], 2) if m["chg_day"] is not None else None,
+                "rvol": round(m["rvol"], 2) if m.get("rvol") is not None else None,
+                "spark": m["spark"],
+                "th": themes.themes_for(m["ticker"]),
+            }
+        )
 
-    bull = sum(len(grades[g]) for g in GRADES[:10])     # A+ .. D+
+    bull = sum(len(grades[g]) for g in GRADES[:10])  # A+ .. D+
     total = len(universe)
     bull_pct = round(100 * bull / total, 1) if total else 0.0
 
@@ -480,9 +525,14 @@ def run():
         for th in themes.themes_for(m["ticker"]):
             acc.setdefault(th, []).append(m["composite"])
     theme_rollup = sorted(
-        ({"theme": th, "n": len(v), "avg": round(sum(v) / len(v), 1)}
-         for th, v in acc.items() if len(v) >= 3),
-        key=lambda x: x["avg"], reverse=True)
+        (
+            {"theme": th, "n": len(v), "avg": round(sum(v) / len(v), 1)}
+            for th, v in acc.items()
+            if len(v) >= 3
+        ),
+        key=lambda x: x["avg"],
+        reverse=True,
+    )
 
     run_obj = {
         # Date the run by the SESSION it grades (ref = _last_trading_day(),
@@ -493,18 +543,20 @@ def run():
         # so a weekend re-run now correctly REFRESHES the Friday entry
         # instead of adding a phantom Saturday one. `generated` stays
         # wall-clock (it's when the scan actually ran).
-        "date":        ref,
-        "generated":   datetime.now(ET).isoformat(timespec="seconds"),
-        "total":       total,
+        "date": ref,
+        "generated": datetime.now(ET).isoformat(timespec="seconds"),
+        "total": total,
         "bullish_pct": bull_pct,
         "bearish_pct": round(100 - bull_pct, 1),
-        "counts":      {g: len(grades[g]) for g in GRADES},
-        "grades":      grades,
-        "themes":      theme_rollup,
+        "counts": {g: len(grades[g]) for g in GRADES},
+        "grades": grades,
+        "themes": theme_rollup,
     }
     _emit(run_obj)
-    print(f"  {total} graded  |  bullish {bull_pct}%  |  "
-          f"A+ {len(grades['A+'])}  ...  G {len(grades['G'])}")
+    print(
+        f"  {total} graded  |  bullish {bull_pct}%  |  "
+        f"A+ {len(grades['A+'])}  ...  G {len(grades['G'])}"
+    )
     print("\nDone.")
 
 
@@ -525,8 +577,7 @@ def _emit(run_obj):
     runs = runs[-20:]
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
-        json.dump({"updated": run_obj["generated"], "runs": runs}, f,
-                  separators=(",", ":"))
+        json.dump({"updated": run_obj["generated"], "runs": runs}, f, separators=(",", ":"))
     print(f"  Wrote swing_report.json ({len(runs)} run(s) in history)")
     try:
         _append_regime_history(run_obj)
@@ -565,15 +616,14 @@ def _append_regime_history(run_obj, cap=250):
     up = sum(1 for v in chg if v > 0)
     breadth = round(100 * up / len(chg))
     avg_chg = round(sum(chg) / len(chg), 3)
-    label = ("risk_on" if breadth >= 58 else
-             "risk_off" if breadth <= 42 else "mixed")
+    label = "risk_on" if breadth >= 58 else "risk_off" if breadth <= 42 else "mixed"
     entry = {
-        "date":     run_obj.get("date"),
-        "label":    label,
-        "breadth":  breadth,
-        "avg_chg":  avg_chg,
-        "a_tier":   a_tier,
-        "fg_tier":  fg_tier,
+        "date": run_obj.get("date"),
+        "label": label,
+        "breadth": breadth,
+        "avg_chg": avg_chg,
+        "a_tier": a_tier,
+        "fg_tier": fg_tier,
         "universe": len(chg),
     }
     hist = []
@@ -586,10 +636,11 @@ def _append_regime_history(run_obj, cap=250):
     hist.append(entry)
     hist = hist[-cap:]
     with open(REGIME_PATH, "w", encoding="utf-8") as f:
-        json.dump({"updated": run_obj.get("generated"), "days": hist}, f,
-                  separators=(",", ":"))
-    print(f"  Regime history: {entry['date']} -> {label} "
-          f"(breadth {breadth}%, {len(hist)} days logged)")
+        json.dump({"updated": run_obj.get("generated"), "days": hist}, f, separators=(",", ":"))
+    print(
+        f"  Regime history: {entry['date']} -> {label} "
+        f"(breadth {breadth}%, {len(hist)} days logged)"
+    )
 
 
 def _emit_summaries(runs):
@@ -609,34 +660,37 @@ def _emit_summaries(runs):
     latest = runs[-1]
     last2 = runs[-2:]
     with open(LATEST_SUMMARY_PATH, "w", encoding="utf-8") as f:
-        json.dump({"updated": latest["generated"], "runs": last2}, f,
-                  separators=(",", ":"))
+        json.dump({"updated": latest["generated"], "runs": last2}, f, separators=(",", ":"))
 
     def _slim(card, grade):
         # Keep only the fields a desk header needs; drop the heavy spark
         # array + metadata. Card keys: t, p, chg, ext (see grades build).
-        return {"t": card.get("t"), "grade": grade, "n": card.get("n"),
-                "p": card.get("p"), "chg": card.get("chg"),
-                "ext": card.get("ext")}
+        return {
+            "t": card.get("t"),
+            "grade": grade,
+            "n": card.get("n"),
+            "p": card.get("p"),
+            "chg": card.get("chg"),
+            "ext": card.get("ext"),
+        }
 
     a_tier = []
     for g in ("A+", "A", "A-"):
-        for c in (latest.get("grades", {}).get(g, []) or []):
+        for c in latest.get("grades", {}).get(g, []) or []:
             a_tier.append(_slim(c, g))
     desk = {
-        "updated":     latest["generated"],
-        "date":        latest.get("date"),
-        "total":       latest.get("total"),
+        "updated": latest["generated"],
+        "date": latest.get("date"),
+        "total": latest.get("total"),
         "bullish_pct": latest.get("bullish_pct"),
         "bearish_pct": latest.get("bearish_pct"),
-        "counts":      latest.get("counts", {}),
-        "themes":      (latest.get("themes") or [])[:12],
-        "top_a":       a_tier[:40],
+        "counts": latest.get("counts", {}),
+        "themes": (latest.get("themes") or [])[:12],
+        "top_a": a_tier[:40],
     }
     with open(DESK_SUMMARY_PATH, "w", encoding="utf-8") as f:
         json.dump(desk, f, separators=(",", ":"))
-    print(f"  Wrote swing_latest_summary.json ({len(last2)} run(s)) "
-          f"+ desk_summary.json")
+    print(f"  Wrote swing_latest_summary.json ({len(last2)} run(s)) + desk_summary.json")
 
 
 if __name__ == "__main__":

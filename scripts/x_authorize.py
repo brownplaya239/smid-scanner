@@ -32,8 +32,13 @@ EXPECTED = "tickerdeskio"
 
 
 def set_secret(name, value):
-    r = subprocess.run(["gh", "secret", "set", name, "-R", REPO],
-                       input=value, text=True, capture_output=True)
+    r = subprocess.run(
+        ["gh", "secret", "set", name, "-R", REPO],
+        check=False,
+        input=value,
+        text=True,
+        capture_output=True,
+    )
     if r.returncode != 0:
         sys.exit(f"gh secret set {name} failed: {r.stderr.strip()}")
     print(f"  saved {name}")
@@ -54,15 +59,20 @@ def main():
     pin = input("PIN: ").strip()
     token, token_secret = handler.get_access_token(pin)
 
-    client = tweepy.Client(consumer_key=key, consumer_secret=secret,
-                           access_token=token,
-                           access_token_secret=token_secret)
+    client = tweepy.Client(
+        consumer_key=key,
+        consumer_secret=secret,
+        access_token=token,
+        access_token_secret=token_secret,
+    )
     me = client.get_me(user_auth=True).data
     print(f"\nAuthorized account: @{me.username}")
     if me.username.lower() != EXPECTED:
-        sys.exit(f"That's not @{EXPECTED} — nothing saved. Log out of "
-                 f"@{me.username} on x.com (or use a private window) and "
-                 "run this again.")
+        sys.exit(
+            f"That's not @{EXPECTED} — nothing saved. Log out of "
+            f"@{me.username} on x.com (or use a private window) and "
+            "run this again."
+        )
     print("Saving GitHub secrets...")
     set_secret("X_API_KEY", key)
     set_secret("X_API_SECRET", secret)

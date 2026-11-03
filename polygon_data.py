@@ -14,11 +14,13 @@ Key is read lazily via _key() so import order vs load_dotenv() never bites.
 
 import os
 import time
+from datetime import UTC, datetime, timedelta
+
 import requests
-from datetime import datetime, timedelta, timezone
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(override=True)
 except Exception:
     pass
@@ -26,7 +28,7 @@ except Exception:
 _BASE = "https://api.polygon.io"
 
 
-_quotes_blocked = False   # set True after the first /v3/quotes 403
+_quotes_blocked = False  # set True after the first /v3/quotes 403
 
 
 def _key():
@@ -54,15 +56,17 @@ def _get(path, params=None, retries=2, timeout=30):
             r = requests.get(url, params=params, timeout=timeout)
             if r.ok:
                 return r.json()
-            if r.status_code == 429:                 # rate limited
+            if r.status_code == 429:  # rate limited
                 time.sleep(2 * (attempt + 1))
                 continue
-            if r.status_code in (401, 403):          # not entitled — don't retry
+            if r.status_code in (401, 403):  # not entitled — don't retry
                 if "/v3/quotes/" in url:
                     global _quotes_blocked
                     if not _quotes_blocked:
-                        print("  polygon: quotes endpoint not entitled yet — "
-                              "skipping at/above-ask classification this run")
+                        print(
+                            "  polygon: quotes endpoint not entitled yet — "
+                            "skipping at/above-ask classification this run"
+                        )
                     _quotes_blocked = True
                 else:
                     print(f"  polygon {r.status_code}: not entitled — {path}")
@@ -84,20 +88,20 @@ def _paginate(path, params=None, max_pages=25):
         nxt = data.get("next_url")
         if not nxt:
             break
-        data = _get(nxt)            # next_url carries its own params; _get adds apiKey
+        data = _get(nxt)  # next_url carries its own params; _get adds apiKey
         pages += 1
     return out
 
 
 # ─── Stocks ───────────────────────────────────────────────────────────────────
 
+
 def grouped_daily(date_str):
     """Whole-US-market OHLCV for one trading day — a SINGLE API call.
 
     Returns {ticker: {o,h,l,c,v,vw,n,t}} or {} on failure.
     date_str: 'YYYY-MM-DD'. Non-trading days return {}."""
-    data = _get(f"/v2/aggs/grouped/locale/us/market/stocks/{date_str}",
-                {"adjusted": "true"})
+    data = _get(f"/v2/aggs/grouped/locale/us/market/stocks/{date_str}", {"adjusted": "true"})
     if not data or not data.get("results"):
         return {}
     return {row["T"]: row for row in data["results"] if row.get("T")}
@@ -107,10 +111,12 @@ def daily_bars(ticker, days=120):
     """Daily OHLCV bars for one ticker over roughly the last `days` calendar
     days. Returns a list of bar dicts (oldest first), each {o,h,l,c,v,vw,t},
     or [] on failure."""
-    end = datetime.now(timezone.utc).date()
-    start = end - timedelta(days=int(days * 1.6) + 10)   # pad for weekends/holidays
-    data = _get(f"/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}",
-                {"adjusted": "true", "sort": "asc", "limit": 50000})
+    end = datetime.now(UTC).date()
+    start = end - timedelta(days=int(days * 1.6) + 10)  # pad for weekends/holidays
+    data = _get(
+        f"/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}",
+        {"adjusted": "true", "sort": "asc", "limit": 50000},
+    )
     if not data or not data.get("results"):
         return []
     return data["results"]
@@ -141,8 +147,10 @@ def ticker_details(ticker):
 
 # ─── Options ──────────────────────────────────────────────────────────────────
 
-def option_chain(underlying, contract_type=None, spot=None,
-                  strike_window=None, limit=250, max_pages=25):
+
+def option_chain(
+    underlying, contract_type=None, spot=None, strike_window=None, limit=250, max_pages=25
+):
     """Full option-chain snapshot for an underlying — every contract with
     open_interest, day volume, implied_volatility, greeks, last_quote,
     last_trade, and details (strike_price, expiration_date, contract_type).
@@ -155,12 +163,10 @@ def option_chain(underlying, contract_type=None, spot=None,
     params = {"limit": limit}
     if contract_type:
         params["contract_type"] = contract_type
-    rows = _paginate(f"/v3/snapshot/options/{underlying}", params,
-                     max_pages=max_pages)
+    rows = _paginate(f"/v3/snapshot/options/{underlying}", params, max_pages=max_pages)
     if spot and strike_window:
         lo, hi = spot * (1 - strike_window), spot * (1 + strike_window)
-        rows = [c for c in rows
-                if lo <= (c.get("details", {}).get("strike_price") or 0) <= hi]
+        rows = [c for c in rows if lo <= (c.get("details", {}).get("strike_price") or 0) <= hi]
     return rows
 
 
@@ -187,7 +193,7 @@ def option_trades(contract, day=None, limit=50000, max_pages=12):
     sip_timestamp (ns epoch), sequence_number. This is the raw feed for
     sweep / block / per-trade-premium detection. Requires Options
     Developer tier (Starter returns NOT_AUTHORIZED). Returns [] on failure."""
-    day = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    day = day or datetime.now(UTC).strftime("%Y-%m-%d")
     params = {
         "timestamp.gte": day,
         "timestamp.lte": day,
@@ -204,9 +210,9 @@ def option_quotes(contract, day=None, limit=50000, max_pages=4):
     Used to classify each trade as at/above-ask (bullish conviction) vs
     at/below-bid. Requires the quotes entitlement — returns [] until the
     Developer quotes endpoint is active for the key."""
-    if _quotes_blocked:                      # short-circuit after first 403
+    if _quotes_blocked:  # short-circuit after first 403
         return []
-    day = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    day = day or datetime.now(UTC).strftime("%Y-%m-%d")
     params = {
         "timestamp.gte": day,
         "timestamp.lte": day,
@@ -219,6 +225,7 @@ def option_quotes(contract, day=None, limit=50000, max_pages=4):
 
 if __name__ == "__main__":
     import sys
+
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     print(f"Polygon key configured: {available()}")
@@ -228,8 +235,10 @@ if __name__ == "__main__":
     print(f"daily_bars AAPL: {len(bars)} bars")
     snap = snapshot("AAPL")
     if snap:
-        print(f"snapshot AAPL: last=${snap.get('day', {}).get('c')}  "
-              f"prevClose=${snap.get('prevDay', {}).get('c')}")
+        print(
+            f"snapshot AAPL: last=${snap.get('day', {}).get('c')}  "
+            f"prevClose=${snap.get('prevDay', {}).get('c')}"
+        )
     det = ticker_details("AAPL")
     if det:
         print(f"details AAPL: {det.get('name')}  mktcap={det.get('market_cap')}")

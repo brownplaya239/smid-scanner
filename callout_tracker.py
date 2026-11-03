@@ -33,7 +33,7 @@ import argparse
 import json
 import os
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from statistics import median
 
 import polygon_data as pg
@@ -78,20 +78,27 @@ def _et_date(iso):
 
 def day_lists_from_git():
     """{et_date: rows} — final Top list of each past day."""
-    r = subprocess.run(["git", "log", "--format=%H %cI", "--",
-                        "docs/reports/uoa_top25_daily.json"],
-                       cwd=_BASE, capture_output=True, text=True)
+    r = subprocess.run(
+        ["git", "log", "--format=%H %cI", "--", "docs/reports/uoa_top25_daily.json"],
+        check=False,
+        cwd=_BASE,
+        capture_output=True,
+        text=True,
+    )
     last_of_day = {}
-    for line in r.stdout.splitlines():          # newest first
+    for line in r.stdout.splitlines():  # newest first
         sha, iso = line.split(" ", 1)
         d = _et_date(iso)
         if d and d not in last_of_day:
             last_of_day[d] = sha
     out = {}
     for d, sha in last_of_day.items():
-        b = subprocess.run(["git", "show",
-                            f"{sha}:docs/reports/uoa_top25_daily.json"],
-                           cwd=_BASE, capture_output=True)
+        b = subprocess.run(
+            ["git", "show", f"{sha}:docs/reports/uoa_top25_daily.json"],
+            check=False,
+            cwd=_BASE,
+            capture_output=True,
+        )
         try:
             doc = json.loads(b.stdout.decode("utf-8"))
         except Exception:
@@ -102,15 +109,17 @@ def day_lists_from_git():
 
 
 def _bars(ticker, span, frm, to):
-    data = pg._get(f"/v2/aggs/ticker/{ticker}/range/1/{span}/{frm}/{to}",
-                   {"limit": 50000, "adjusted": "true"})
+    data = pg._get(
+        f"/v2/aggs/ticker/{ticker}/range/1/{span}/{frm}/{to}", {"limit": 50000, "adjusted": "true"}
+    )
     return (data or {}).get("results") or []
 
 
 def track(entry, today):
     """Fill/refresh one callout record from real bars."""
-    first_ms = int(datetime.fromisoformat(
-        entry["first_seen"].replace("Z", "+00:00")).timestamp() * 1000)
+    first_ms = int(
+        datetime.fromisoformat(entry["first_seen"].replace("Z", "+00:00")).timestamp() * 1000
+    )
     day = entry["date"]
     if entry.get("entry") is None:
         mins = _bars(entry["occ"], "minute", day, day)
@@ -132,11 +141,9 @@ def track(entry, today):
     except Exception:
         exp = today
     end = min(exp, today)
-    frm = (datetime.strptime(day, "%Y-%m-%d").date()
-           + timedelta(days=1))
+    frm = datetime.strptime(day, "%Y-%m-%d").date() + timedelta(days=1)
     if frm <= end:
-        daily = _bars(entry["occ"], "day", frm.isoformat(),
-                      end.isoformat())[:MAX_SESSIONS]
+        daily = _bars(entry["occ"], "day", frm.isoformat(), end.isoformat())[:MAX_SESSIONS]
         for b in daily:
             h = b.get("h") or 0
             if h > (entry.get("peak") or 0):
@@ -163,24 +170,30 @@ def build(backfill=False):
         days[cur["et_date"]] = cur.get("rows") or []
 
     for day, rows in days.items():
-        top = sorted((r for r in rows if r.get("rank")),
-                     key=lambda r: r["rank"])[:TOP_N]
+        top = sorted((r for r in rows if r.get("rank")), key=lambda r: r["rank"])[:TOP_N]
         for r in top:
             o = occ(r)
             if not o or not r.get("first_seen"):
                 continue
             key = f"{day}|{o}"
             if key not in log:
-                log[key] = {"date": day, "occ": o, "ticker": r["ticker"],
-                            "type": r["type"], "strike": r["strike"],
-                            "expiry": r["expiry"], "rank": r["rank"],
-                            "first_seen": r["first_seen"],
-                            "score": r.get("score"),
-                            "premium": r.get("premium"),
-                            "entry": None}
+                log[key] = {
+                    "date": day,
+                    "occ": o,
+                    "ticker": r["ticker"],
+                    "type": r["type"],
+                    "strike": r["strike"],
+                    "expiry": r["expiry"],
+                    "rank": r["rank"],
+                    "first_seen": r["first_seen"],
+                    "score": r.get("score"),
+                    "premium": r.get("premium"),
+                    "entry": None,
+                }
 
-    pending = [e for e in log.values() if not e.get("matured")
-               and e.get("status") != "no_entry_bar"]
+    pending = [
+        e for e in log.values() if not e.get("matured") and e.get("status") != "no_entry_bar"
+    ]
     print(f"callouts: {len(log)} logged, refreshing {len(pending)}")
     for e in pending:
         try:
@@ -198,8 +211,7 @@ def _label(e):
     k = e["strike"]
     k = int(k) if float(k).is_integer() else k
     exp = datetime.strptime(e["expiry"], "%Y-%m-%d")
-    return (f"{e['ticker']} {exp:%b} {exp.day} "
-            f"${k}{'C' if e['type'] == 'call' else 'P'}")
+    return f"{e['ticker']} {exp:%b} {exp.day} ${k}{'C' if e['type'] == 'call' else 'P'}"
 
 
 def _day_stats(ents):
@@ -223,43 +235,56 @@ def publish(log):
     for day in sorted(by_day, reverse=True):
         ents = by_day[day]
         best = sorted(ents, key=lambda e: -e["peak_pct"])[:5]
-        days.append({
-            "date": day,
-            **_day_stats(ents),
-            "top": [{"label": _label(e), "ticker": e["ticker"],
-                     "rank": e["rank"], "entry": e["entry"],
-                     "peak": e["peak"], "peak_pct": e["peak_pct"],
-                     "last_pct": e.get("last_pct"),
-                     "flagged": e["first_seen"],
-                     "peak_at": datetime.fromtimestamp(
-                         e["peak_ts"] / 1000, timezone.utc).isoformat()
-                     if e.get("peak_ts") else None,
-                     "matured": bool(e.get("matured"))}
-                    for e in best],
-        })
+        days.append(
+            {
+                "date": day,
+                **_day_stats(ents),
+                "top": [
+                    {
+                        "label": _label(e),
+                        "ticker": e["ticker"],
+                        "rank": e["rank"],
+                        "entry": e["entry"],
+                        "peak": e["peak"],
+                        "peak_pct": e["peak_pct"],
+                        "last_pct": e.get("last_pct"),
+                        "flagged": e["first_seen"],
+                        "peak_at": datetime.fromtimestamp(e["peak_ts"] / 1000, UTC).isoformat()
+                        if e.get("peak_ts")
+                        else None,
+                        "matured": bool(e.get("matured")),
+                    }
+                    for e in best
+                ],
+            }
+        )
     roll = [e for d in days[:ROLL_DAYS] for e in by_day[d["date"]]]
     out = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "universe": f"site's daily Top {TOP_N} callouts, tracked at the "
-                    "option level from first flag",
+        "option level from first flag",
         "method": "entry = first minute bar at/after the flag; peak = "
-                  "highest price reached afterwards (through expiry or "
-                  f"{MAX_SESSIONS} sessions); peak is the best exit "
-                  "available, not a typical one",
+        "highest price reached afterwards (through expiry or "
+        f"{MAX_SESSIONS} sessions); peak is the best exit "
+        "available, not a typical one",
         "rolling": {"days": min(ROLL_DAYS, len(days)), **_day_stats(roll)},
         "days": days[:60],
     }
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=1)
     r = out["rolling"]
-    print(f"published {len(days)} days · rolling {r['days']}d: "
-          f"n={r['n']} hit+50={r['hit_50']} hit+100={r['hit_100']} "
-          f"median peak {r['median_peak_pct']}% "
-          f"median last {r['median_last_pct']}%")
+    print(
+        f"published {len(days)} days · rolling {r['days']}d: "
+        f"n={r['n']} hit+50={r['hit_50']} hit+100={r['hit_100']} "
+        f"median peak {r['median_peak_pct']}% "
+        f"median last {r['median_last_pct']}%"
+    )
     if days:
         d0 = days[0]
-        print(f"latest {d0['date']}: " + " | ".join(
-            f"{t['label']} +{t['peak_pct']}%" for t in d0["top"][:3]))
+        print(
+            f"latest {d0['date']}: "
+            + " | ".join(f"{t['label']} +{t['peak_pct']}%" for t in d0["top"][:3])
+        )
 
 
 if __name__ == "__main__":

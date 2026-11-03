@@ -76,18 +76,31 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
+
       - name: Pull data from R2
         # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
         # manifest so publish only uploads what this job changed.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 scripts/r2_sync.py pull --prefix reports/
+        run: uv run scripts/r2_sync.py pull --prefix reports/
 
       - uses: actions/setup-node@v4
         with:
@@ -114,7 +127,7 @@ jobs:
           fi
           # Clean-path copies of the app (/earnings etc.), each with its
           # own title/canonical. Fails the build if the head tags moved.
-          python3 scripts/site_paths.py _site
+          uv run python scripts/site_paths.py _site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

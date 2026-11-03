@@ -38,6 +38,11 @@ on:
         type: boolean
         default: false
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   render:
     runs-on: ubuntu-latest
@@ -59,19 +64,20 @@ jobs:
         with:
           fetch-depth: 0          # receipts read earnings_edge history
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
+
       - name: Pull data from R2
         # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
         # manifest so publish only uploads what this job changed.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 scripts/r2_sync.py pull
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install
-        run: pip install matplotlib tweepy yfinance
+        run: uv run scripts/r2_sync.py pull
 
       - name: Render and gate
         id: r
@@ -93,7 +99,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SOCIAL_AUTO: ${{ vars.SOCIAL_AUTO }}
         run: >-
-          python scripts/x_post.py ${{ inputs.kind }} --dry-run
+          uv run python scripts/x_post.py ${{ inputs.kind }} --dry-run
           --bundle-out post.json
           ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
           ${{ inputs.scheduled && '--scheduled' || '' }}
@@ -115,19 +121,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
+
       - name: Pull data from R2
         # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
         # manifest so publish only uploads what this job changed.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 scripts/r2_sync.py pull
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install
-        run: pip install matplotlib tweepy
+        run: uv run scripts/r2_sync.py pull
 
       - uses: actions/download-artifact@v4
         with:
@@ -145,13 +152,13 @@ jobs:
           SOCIAL_PAUSE: ${{ vars.SOCIAL_PAUSE }}
         run: |
           # the bundle's card path is from the render runner; point it here
-          python - <<'EOF'
+          uv run python - <<'EOF'
           import json, os
           b = json.load(open("post.json"))
           b["card"] = os.path.join("docs", "cards", os.path.basename(b["card"]))
           json.dump(b, open("post.json", "w"))
           EOF
-          python scripts/x_post.py --bundle post.json
+          uv run python scripts/x_post.py --bundle post.json
 
       - name: Record the post
         env:

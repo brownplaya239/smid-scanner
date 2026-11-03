@@ -24,25 +24,28 @@ tagging metadata that no validator would accept.
 import io
 import json
 
-
 ACCESS_UNTAGGED = "untagged"
 ACCESS_TAGGED = "tagged"
 
 
-def finalize(pdf_bytes, title=None, author=None, subject=None,
-             lang="en-US", keywords=None):
+def finalize(pdf_bytes, title=None, author=None, subject=None, lang="en-US", keywords=None):
     """Attach document metadata and return (bytes, status).
 
     Everything is written through pikepdf's typed object model: strings
     become PDF strings, names become PDF names. Nothing is injected as
     raw syntax.
     """
-    status = {"metadata_written": False, "accessibility": ACCESS_UNTAGGED,
-              "accessibility_reason": (
-                  "reportlab does not emit marked content, so no structure "
-                  "tree can reference it; shipping /MarkInfo over unmarked "
-                  "content would claim conformance the file lacks"),
-              "lang": None, "error": None}
+    status = {
+        "metadata_written": False,
+        "accessibility": ACCESS_UNTAGGED,
+        "accessibility_reason": (
+            "reportlab does not emit marked content, so no structure "
+            "tree can reference it; shipping /MarkInfo over unmarked "
+            "content would claim conformance the file lacks"
+        ),
+        "lang": None,
+        "error": None,
+    }
     try:
         import pikepdf
     except ImportError as e:
@@ -55,8 +58,7 @@ def finalize(pdf_bytes, title=None, author=None, subject=None,
             if lang:
                 pdf.Root.Lang = pikepdf.String(lang)
                 status["lang"] = lang
-            pdf.Root.ViewerPreferences = pikepdf.Dictionary(
-                DisplayDocTitle=True)
+            pdf.Root.ViewerPreferences = pikepdf.Dictionary(DisplayDocTitle=True)
             with pdf.open_metadata(set_pikepdf_as_editor=False) as meta:
                 if title:
                     meta["dc:title"] = title
@@ -88,6 +90,7 @@ def finalize(pdf_bytes, title=None, author=None, subject=None,
 
 # ── validation ──────────────────────────────────────────────────────────
 
+
 def validate(pdf_bytes):
     """Run every checker present. Reports which ran and which did not —
     an absent validator is recorded as 'unavailable', never as a pass."""
@@ -96,6 +99,7 @@ def validate(pdf_bytes):
     # 1. qpdf structural check (via pikepdf's libqpdf binding)
     try:
         import pikepdf
+
         with pikepdf.open(io.BytesIO(pdf_bytes)) as pdf:
             # libqpdf's syntax check — the same engine `qpdf --check` uses
             problems = list(pdf.check_pdf_syntax())
@@ -108,17 +112,17 @@ def validate(pdf_bytes):
             if problems:
                 rep["ok"] = False
     except ImportError:
-        rep["checks"]["qpdf_check"] = {"status": "unavailable",
-                                       "detail": "pikepdf not installed"}
+        rep["checks"]["qpdf_check"] = {"status": "unavailable", "detail": "pikepdf not installed"}
     except Exception as e:
-        rep["checks"]["qpdf_check"] = {"status": "fail",
-                                       "detail": "%s: %s" % (type(e).__name__, e)}
+        rep["checks"]["qpdf_check"] = {"status": "fail", "detail": "%s: %s" % (type(e).__name__, e)}
         rep["ok"] = False
 
     # 2. pypdf — must open with no exception AND no warnings
     try:
         import warnings
+
         import pypdf
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             r = pypdf.PdfReader(io.BytesIO(pdf_bytes))
@@ -129,20 +133,22 @@ def validate(pdf_bytes):
         msgs = [str(x.message)[:200] for x in w]
         rep["checks"]["pypdf"] = {
             "status": "pass" if not msgs else "fail",
-            "version": pypdf.__version__, "pages": n, "warnings": msgs[:8]}
+            "version": pypdf.__version__,
+            "pages": n,
+            "warnings": msgs[:8],
+        }
         if msgs:
             rep["ok"] = False
     except ImportError:
-        rep["checks"]["pypdf"] = {"status": "unavailable",
-                                  "detail": "pypdf not installed"}
+        rep["checks"]["pypdf"] = {"status": "unavailable", "detail": "pypdf not installed"}
     except Exception as e:
-        rep["checks"]["pypdf"] = {"status": "fail",
-                                  "detail": "%s: %s" % (type(e).__name__, e)}
+        rep["checks"]["pypdf"] = {"status": "fail", "detail": "%s: %s" % (type(e).__name__, e)}
         rep["ok"] = False
 
     # 3. page rendering (PyMuPDF stands in for poppler's renderer)
     try:
         import fitz
+
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         rendered = 0
         for i in range(doc.page_count):
@@ -151,24 +157,22 @@ def validate(pdf_bytes):
                 rendered += 1
         doc.close()
         rep["checks"]["render"] = {
-            "status": "pass" if rendered == (rep["pages"] or rendered)
-                      else "fail",
-            "pages_rendered": rendered, "engine": "pymupdf"}
+            "status": "pass" if rendered == (rep["pages"] or rendered) else "fail",
+            "pages_rendered": rendered,
+            "engine": "pymupdf",
+        }
         if rep["pages"] and rendered != rep["pages"]:
             rep["ok"] = False
     except ImportError:
-        rep["checks"]["render"] = {"status": "unavailable",
-                                   "detail": "pymupdf not installed"}
+        rep["checks"]["render"] = {"status": "unavailable", "detail": "pymupdf not installed"}
     except Exception as e:
-        rep["checks"]["render"] = {"status": "fail",
-                                   "detail": "%s: %s" % (type(e).__name__, e)}
+        rep["checks"]["render"] = {"status": "fail", "detail": "%s: %s" % (type(e).__name__, e)}
         rep["ok"] = False
 
     # 4. poppler CLI, if it happens to be on PATH
     rep["checks"]["pdfinfo"] = _cli_check(pdf_bytes, "pdfinfo")
     # 5. PDF/UA validator, if installed
-    rep["checks"]["verapdf"] = _cli_check(pdf_bytes, "verapdf",
-                                          args=["--format", "text"])
+    rep["checks"]["verapdf"] = _cli_check(pdf_bytes, "verapdf", args=["--format", "text"])
     return rep
 
 
@@ -177,20 +181,27 @@ def _cli_check(pdf_bytes, exe, args=None):
     import shutil
     import subprocess
     import tempfile
+
     path = shutil.which(exe)
     if not path:
-        return {"status": "unavailable",
-                "detail": "%s not on PATH" % exe}
+        return {"status": "unavailable", "detail": "%s not on PATH" % exe}
     tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
     try:
         tmp.write(pdf_bytes)
         tmp.close()
-        p = subprocess.run([path] + (args or []) + [tmp.name],
-                           capture_output=True, text=True, timeout=120)
-        return {"status": "pass" if p.returncode == 0 else "fail",
-                "returncode": p.returncode,
-                "stdout": (p.stdout or "")[:600],
-                "stderr": (p.stderr or "")[:400]}
+        p = subprocess.run(
+            [path] + (args or []) + [tmp.name],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        return {
+            "status": "pass" if p.returncode == 0 else "fail",
+            "returncode": p.returncode,
+            "stdout": (p.stdout or "")[:600],
+            "stderr": (p.stderr or "")[:400],
+        }
     except Exception as e:
         return {"status": "fail", "detail": "%s: %s" % (type(e).__name__, e)}
     finally:
@@ -202,6 +213,7 @@ def _cli_check(pdf_bytes, exe, args=None):
 
 def main():
     import sys
+
     for p in sys.argv[1:]:
         with open(p, "rb") as fh:
             rep = validate(fh.read())

@@ -41,13 +41,19 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _BASE)
-from social_cards import (KINDS, SOCIAL_POSTS, _day_label, _pct,  # noqa
-                          social_log_rows)
+from social_cards import (
+    KINDS,
+    SOCIAL_POSTS,
+    _day_label,
+    _pct,
+    social_log_rows,
+)
+
 EXPECTED = os.environ.get("X_EXPECTED_HANDLE", "tickerdeskio").lower()
 
 # A draft approved this long after it was rendered is not posted: the
@@ -61,12 +67,14 @@ def approve_by(rendered_iso):
     """Deadline for approving a draft, as ET text for the Slack message."""
     try:
         from zoneinfo import ZoneInfo
+
         dt = datetime.fromisoformat(rendered_iso.replace("Z", "+00:00"))
-        dt = (dt + timedelta(hours=BUNDLE_MAX_H)).astimezone(
-            ZoneInfo("America/New_York"))
+        dt = (dt + timedelta(hours=BUNDLE_MAX_H)).astimezone(ZoneInfo("America/New_York"))
         return f"{dt:%I:%M %p %a}".lstrip("0") + " ET"
     except Exception:
         return f"{BUNDLE_MAX_H}h after render"
+
+
 ET = timezone(timedelta(hours=-4))
 
 # Where each post sends people. api.tickerdesk.io/go/<kind> 302s to the
@@ -83,6 +91,7 @@ def _now_et():
     # ET offset via zoneinfo when available (handles EST in winter).
     try:
         from zoneinfo import ZoneInfo
+
         return datetime.now(ZoneInfo("America/New_York"))
     except Exception:
         return datetime.now(ET)
@@ -94,8 +103,7 @@ def _log_rows():
 
 def _posted(kind, date):
     for r in _log_rows():
-        if r.get("kind") == kind and r.get("date") == date \
-                and r.get("tweet_id"):
+        if r.get("kind") == kind and r.get("date") == date and r.get("tweet_id"):
             return r
     return None
 
@@ -127,6 +135,7 @@ def limit_cashtags(text, keep=1):
     def sub(m):
         n[0] += 1
         return m.group(0) if n[0] <= keep else m.group(1)
+
     return _CASHTAG.sub(sub, text)
 
 
@@ -155,31 +164,39 @@ def _tags(tickers, text, n=1):
 
 # ----------------------------------------------------------- captions
 
+
 def callouts_caption(f):
     day, top = f["day"], f["top"]
-    head = [f"Options callouts: how they did ({_day_label(day['date'])})",
-            ""]
-    items = [f"{t['label']}: ${t['entry']:.2f} → ${t['peak']:.2f} "
-             f"({_pct(t['peak_pct'])})" for t in top[:3]]
-    tail = ["",
+    head = [f"Options callouts: how they did ({_day_label(day['date'])})", ""]
+    items = [
+        f"{t['label']}: ${t['entry']:.2f} → ${t['peak']:.2f} ({_pct(t['peak_pct'])})"
+        for t in top[:3]
+    ]
+    tail = [
+        "",
+        (
             f"{day['hit_100']} of {day['n']} hit +100% at peak. Median "
             f"peak {_pct(day['median_peak_pct'])}, median now "
-            f"{_pct(day['median_last_pct'])}.",
-            f"Every callout, winners and losers: {link('callouts')}"]
+            f"{_pct(day['median_last_pct'])}."
+        ),
+        f"Every callout, winners and losers: {link('callouts')}",
+    ]
     text = _fit(head, items, tail)
     return _tags([t["ticker"] for t in top], text)
 
 
 def flow_caption(f):
-    head = [f"Unusual options activity, midday {_day_label(f['day'])}", "",
-            "Biggest premium with volume 2x+ open interest:"]
+    head = [
+        f"Unusual options activity, midday {_day_label(f['day'])}",
+        "",
+        "Biggest premium with volume 2x+ open interest:",
+    ]
     calls = [b for b in f["body"] if b[1] == "Calls"]
     puts = [b for b in f["body"] if b[1] == "Puts"]
     order = [b for pair in zip(calls, puts) for b in pair]
     order += [b for b in calls + puts if b not in order]
     items = [f"${b[0]}: {b[2]} ({b[4]} OI)" for b in order]
-    tail = ["", "Buy/sell side not classified: size + newness, not "
-                "direction.", link("flow")]
+    tail = ["", "Buy/sell side not classified: size + newness, not direction.", link("flow")]
     return _fit(head, items, tail)
 
 
@@ -189,9 +206,17 @@ def earnings_week_caption(f):
         by_day.setdefault(b[1].split()[0], []).append("$" + b[0])
     head = [f"Earnings this week (week of {_day_label(f['week_of'])})", ""]
     items = [f"{d}: {' '.join(t)}" for d, t in by_day.items()]
-    return _fit(head, items,
-                ["", "Card: what options price vs each stock's usual move, "
-                     f"plus 1M/YTD/1Y. {link('earnings_week')}"])
+    return _fit(
+        head,
+        items,
+        [
+            "",
+            (
+                "Card: what options price vs each stock's usual move, "
+                f"plus 1M/YTD/1Y. {link('earnings_week')}"
+            ),
+        ],
+    )
 
 
 def _preview_lead(names):
@@ -201,60 +226,80 @@ def _preview_lead(names):
     if rich >= max(2, len(ratios) // 2):
         return "Options are pricing bigger-than-usual earnings moves."
     if cheap >= max(2, len(ratios) // 2):
-        return "Options are pricing smaller moves than these stocks " \
-               "usually make on earnings."
-    return "What options are pricing into these reports vs how each " \
-           "stock usually moves."
+        return "Options are pricing smaller moves than these stocks usually make on earnings."
+    return "What options are pricing into these reports vs how each stock usually moves."
 
 
 def earnings_preview_caption(f):
     head = [_preview_lead(f["names"]), ""]
+
     def when(n):
         dt = datetime.strptime(n["date"], "%Y-%m-%d")
         return f"{dt:%a} {n.get('session') or ''}".strip()
-    items = [f"${n['t']} ({when(n)}): ±{n['implied']:.1f}% priced vs "
-             f"±{n['realized_med']:.1f}% usual" for n in f["names"]]
-    return _fit(head, items,
-                ["", "We'll post the actual moves after they report. "
-                     + link("earnings_preview")])
+
+    items = [
+        f"${n['t']} ({when(n)}): ±{n['implied']:.1f}% priced vs ±{n['realized_med']:.1f}% usual"
+        for n in f["names"]
+    ]
+    return _fit(
+        head,
+        items,
+        ["", "We'll post the actual moves after they report. " + link("earnings_preview")],
+    )
 
 
 def earnings_receipt_caption(f):
     n = len(f["body"])
-    head = [f"Earnings receipts: {f['beat']} of {n} moved more than "
-            "options priced.", ""]
+    head = [f"Earnings receipts: {f['beat']} of {n} moved more than options priced.", ""]
     items = [f"${b[0]}: priced {b[2]}, moved {b[4]}" for b in f["body"]]
-    return _fit(head, items,
-                ["", "Every preview gets a receipt, hits and misses. "
-                     + link("earnings_receipt")])
+    return _fit(
+        head,
+        items,
+        ["", "Every preview gets a receipt, hits and misses. " + link("earnings_receipt")],
+    )
 
 
 def momentum_caption(f):
-    title = {"stockbee": "Biggest 5-day gainers",
-             "qm": "Strongest 1-month gainers"}[f["which"]]
+    title = {"stockbee": "Biggest 5-day gainers", "qm": "Strongest 1-month gainers"}[f["which"]]
     new = f.get("new") or []
-    head = [f"{title} ({_day_label(f['date'])})",
-            f"{f['count']} names on the list, {len(new)} new this week.", ""]
-    items = [f"${b[0].replace('  NEW', '')} {b[2]}"
-             + (" (new)" if b[0].endswith("NEW") else "")
-             for b in f["body"][:8]]
-    return _fit(head, items,
-                ["", f"Past strength, not picks. Full list: "
-                     f"{link(f['which'])}"])
+    head = [
+        f"{title} ({_day_label(f['date'])})",
+        f"{f['count']} names on the list, {len(new)} new this week.",
+        "",
+    ]
+    items = [
+        f"${b[0].replace('  NEW', '')} {b[2]}" + (" (new)" if b[0].endswith("NEW") else "")
+        for b in f["body"][:8]
+    ]
+    return _fit(head, items, ["", f"Past strength, not picks. Full list: {link(f['which'])}"])
 
 
 def levels_caption(f):
     base = datetime.strptime(f["base"], "%Y-%m-%d")
-    head = [f"SPY & QQQ trading roadmap for {_day_label(f['day'])}",
-            f"Based on {base:%A}'s close:", ""]
+    head = [
+        f"SPY & QQQ trading roadmap for {_day_label(f['day'])}",
+        f"Based on {base:%A}'s close:",
+        "",
+    ]
     items = []
     for b in f["body"]:
-        items.append(f"${b[0]} {b[1].lstrip('$')} · expected move "
-                     f"{b[2].split(' ')[0]} ({b[3]}) · walls {b[4]}")
+        items.append(
+            f"${b[0]} {b[1].lstrip('$')} · expected move "
+            f"{b[2].split(' ')[0]} ({b[3]}) · walls {b[4]}"
+        )
     gam = sorted({b[6].lower() for b in f["body"]})
-    tail = ["", "Estimated dealer gamma: " + "/".join(gam)
-            + (" (tends to dampen moves)" if gam == ["positive"] else
-               " (tends to amplify moves)" if gam == ["negative"] else "")]
+    tail = [
+        "",
+        "Estimated dealer gamma: "
+        + "/".join(gam)
+        + (
+            " (tends to dampen moves)"
+            if gam == ["positive"]
+            else " (tends to amplify moves)"
+            if gam == ["negative"]
+            else ""
+        ),
+    ]
     if f.get("check"):
         tail.append(f"{base:%a} check: " + "; ".join(f["check"]))
     tail.append(link("levels"))
@@ -262,15 +307,22 @@ def levels_caption(f):
 
 
 def weekly_recap_caption(f):
-    best = sorted((t for d in f["days"] for t in d.get("top") or []),
-                  key=lambda t: -t["peak_pct"])[:3]
-    head = [f"This week's options callouts, all {f['n']} of them:", "",
-            f"{f['hit_50']} hit +50% at peak",
-            f"{f['hit_100']} hit +100% at peak", ""]
+    best = sorted((t for d in f["days"] for t in d.get("top") or []), key=lambda t: -t["peak_pct"])[
+        :3
+    ]
+    head = [
+        f"This week's options callouts, all {f['n']} of them:",
+        "",
+        f"{f['hit_50']} hit +50% at peak",
+        f"{f['hit_100']} hit +100% at peak",
+        "",
+    ]
     items = [f"{t['label']} {_pct(t['peak_pct'])}" for t in best]
-    return _fit(head, ["Best:"] + items if items else [],
-                ["", "Peak = best exit available, not typical. Full "
-                     f"record: {link('weekly_recap')}"])
+    return _fit(
+        head,
+        ["Best:"] + items if items else [],
+        ["", f"Peak = best exit available, not typical. Full record: {link('weekly_recap')}"],
+    )
 
 
 CAPTIONS = {
@@ -296,10 +348,15 @@ def _post_date(kind, f):
 # follow-up posts (receipts, levels check) read these back.
 def _log_extra(kind, f):
     if kind == "earnings_preview":
-        return {"names": [{k: n.get(k) for k in
-                           ("t", "date", "session", "implied",
-                            "realized_med", "n_reports")}
-                          for n in f["names"]]}
+        return {
+            "names": [
+                {
+                    k: n.get(k)
+                    for k in ("t", "date", "session", "implied", "realized_med", "n_reports")
+                }
+                for n in f["names"]
+            ]
+        }
     if kind == "earnings_receipt":
         return {"keys": f["keys"]}
     if kind == "levels":
@@ -309,14 +366,22 @@ def _log_extra(kind, f):
 
 # ------------------------------------------------------------- gate
 
-SESSION_KINDS = {"callouts", "flow", "levels", "stockbee", "qm",
-                 "earnings_receipt", "earnings_preview", "weekly_recap"}
+SESSION_KINDS = {
+    "callouts",
+    "flow",
+    "levels",
+    "stockbee",
+    "qm",
+    "earnings_receipt",
+    "earnings_preview",
+    "weekly_recap",
+}
 
 
 def _age_h(iso):
     try:
         dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+        return (datetime.now(UTC) - dt).total_seconds() / 3600
     except Exception:
         return None
 
@@ -326,8 +391,7 @@ def _money(s):
     m = re.match(r"\$([\d.]+)([KMB]?)", s or "")
     if not m:
         return 0
-    return float(m.group(1)) * {"": 1, "K": 1e3, "M": 1e6,
-                                "B": 1e9}[m.group(2)]
+    return float(m.group(1)) * {"": 1, "K": 1e3, "M": 1e6, "B": 1e9}[m.group(2)]
 
 
 def gate(kind, f, text, scheduled):
@@ -335,6 +399,7 @@ def gate(kind, f, text, scheduled):
     today = _now_et().date()
     try:
         import exchange_calendar as xc
+
         session_today = xc.is_session(today)
     except Exception:
         session_today = today.weekday() < 5
@@ -360,6 +425,7 @@ def gate(kind, f, text, scheduled):
     elif kind == "levels":
         try:
             import exchange_calendar as xc
+
             want = xc.previous_session(today).isoformat()
         except Exception:
             want = None
@@ -378,34 +444,40 @@ def gate(kind, f, text, scheduled):
     if kind == "flow":
         for b in f["body"]:
             if _money(b[2]) >= 50e6:
-                review.append(f"{b[0]} {b[2]} premium — check it isn't a "
-                              "spread, roll or hedge before calling it "
-                              "unusual")
+                review.append(
+                    f"{b[0]} {b[2]} premium — check it isn't a "
+                    "spread, roll or hedge before calling it "
+                    "unusual"
+                )
     if kind in ("callouts", "weekly_recap"):
-        tops = (f["top"][:3] if kind == "callouts" else
-                sorted((t for d in f["days"] for t in d.get("top") or []),
-                       key=lambda t: -t["peak_pct"])[:3])
+        tops = (
+            f["top"][:3]
+            if kind == "callouts"
+            else sorted(
+                (t for d in f["days"] for t in d.get("top") or []), key=lambda t: -t["peak_pct"]
+            )[:3]
+        )
         for tp in tops:
             if tp["peak_pct"] >= 1000:
                 review.append(f"{tp['label']} peak {tp['peak_pct']:.0f}%")
             if tp["entry"] < 0.10:
-                review.append(f"{tp['label']} entry ${tp['entry']:.2f} "
-                              "(penny option: % gains overstate)")
+                review.append(
+                    f"{tp['label']} entry ${tp['entry']:.2f} (penny option: % gains overstate)"
+                )
     if kind == "earnings_preview":
         for n in f["names"]:
             if n["implied"] >= 20 or n["implied"] / n["realized_med"] >= 3:
-                review.append(f"{n['t']} implied ±{n['implied']:.1f}% vs "
-                              f"±{n['realized_med']:.1f}% usual")
+                review.append(
+                    f"{n['t']} implied ±{n['implied']:.1f}% vs ±{n['realized_med']:.1f}% usual"
+                )
     if kind == "earnings_receipt":
         for b in f["body"]:
             if abs(float(b[4].rstrip("%"))) >= 25:
-                review.append(f"{b[0]} moved {b[4]} — confirm no split/"
-                              "bad print")
+                review.append(f"{b[0]} moved {b[4]} — confirm no split/bad print")
     if kind in ("stockbee", "qm"):
         for b in f["body"]:
             if float(b[2].strip("+%")) >= 300:
-                review.append(f"{b[0]} {b[2]} — confirm no split/reverse "
-                              "split")
+                review.append(f"{b[0]} {b[2]} — confirm no split/reverse split")
     if kind == "levels":
         for b, pct in zip(f["body"], f["em"].values()):
             if pct and pct > 2:
@@ -422,14 +494,22 @@ def gate(kind, f, text, scheduled):
 
 # ----------------------------------------------------------- posting
 
+
 def _clients():
     import tweepy
-    keys = [os.environ.get(k, "") for k in
-            ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET")]
+
+    keys = [
+        os.environ.get(k, "")
+        for k in ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET")
+    ]
     if not all(keys):
         return None, None
-    client = tweepy.Client(consumer_key=keys[0], consumer_secret=keys[1],
-                           access_token=keys[2], access_token_secret=keys[3])
+    client = tweepy.Client(
+        consumer_key=keys[0],
+        consumer_secret=keys[1],
+        access_token=keys[2],
+        access_token_secret=keys[3],
+    )
     auth = tweepy.OAuth1UserHandler(keys[0], keys[1], keys[2], keys[3])
     return client, tweepy.API(auth)
 
@@ -438,8 +518,7 @@ def _gh_out(**kv):
     p = os.environ.get("GITHUB_OUTPUT")
     if p:
         with open(p, "a", encoding="utf-8") as f:
-            for k, v in kv.items():
-                f.write(f"{k}={v}\n")
+            f.writelines(f"{k}={v}\n" for k, v in kv.items())
 
 
 def _summary(md):
@@ -459,6 +538,7 @@ def _card_url(path):
         return None
     try:
         import r2_sync
+
         name = f"{run}_{os.path.basename(path)}"
         _, err = r2_sync.put_key(path, "cards/" + name)
         if err:
@@ -475,42 +555,85 @@ def _slack_esc(s):
 
 
 def _run_url():
-    return (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
-            f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/"
-            f"{os.environ.get('GITHUB_RUN_ID', '')}")
+    return (
+        f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+        f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/"
+        f"{os.environ.get('GITHUB_RUN_ID', '')}"
+    )
 
 
 def review_blocks(rec, buttons, footer=None):
     """Slack blocks for a review draft. Same layout as reviewBlocks() in
     worker.js (which re-renders it after clicks) — keep the two in step."""
-    blocks = [{"type": "section", "text": {"type": "mrkdwn", "text":
-               f"*{rec['kind']}* · {rec['date']}: {rec['status_line']}"}}]
+    blocks = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*{rec['kind']}* · {rec['date']}: {rec['status_line']}",
+            },
+        }
+    ]
     if rec.get("review"):
-        blocks.append({"type": "section", "text": {
-            "type": "mrkdwn", "text": "*Check before approving:*\n"
-            + "\n".join(f"• {_slack_esc(m)}" for m in rec["review"])}})
-    edited = (f"\n_Edited by <@{rec['edited_by']}> · {x_len(rec['text'])}"
-              "/280_" if rec.get("edited_by") else "")
-    blocks.append({"type": "section", "text": {
-        "type": "mrkdwn", "text": "```" + _slack_esc(rec["text"]) + "```"
-        + edited}})
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*Check before approving:*\n"
+                    + "\n".join(f"• {_slack_esc(m)}" for m in rec["review"]),
+                },
+            }
+        )
+    edited = (
+        f"\n_Edited by <@{rec['edited_by']}> · {x_len(rec['text'])}/280_"
+        if rec.get("edited_by")
+        else ""
+    )
+    blocks.append(
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": "```" + _slack_esc(rec["text"]) + "```" + edited},
+        }
+    )
     if rec.get("card_url"):
-        blocks.append({"type": "image", "image_url": rec["card_url"],
-                       "alt_text": (rec.get("alt") or rec["kind"])[:1900]})
+        blocks.append(
+            {
+                "type": "image",
+                "image_url": rec["card_url"],
+                "alt_text": (rec.get("alt") or rec["kind"])[:1900],
+            }
+        )
     if buttons:
-        blocks.append({"type": "actions", "elements": [
-            {"type": "button", "action_id": "td_approve", "style": "primary",
-             "text": {"type": "plain_text", "text": "Approve Post"},
-             "value": rec["run_id"]},
-            {"type": "button", "action_id": "td_edit",
-             "text": {"type": "plain_text", "text": "Edit Caption"},
-             "value": rec["run_id"]},
-            {"type": "button", "action_id": "td_reject", "style": "danger",
-             "text": {"type": "plain_text", "text": "Reject"},
-             "value": rec["run_id"]}]})
+        blocks.append(
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "action_id": "td_approve",
+                        "style": "primary",
+                        "text": {"type": "plain_text", "text": "Approve Post"},
+                        "value": rec["run_id"],
+                    },
+                    {
+                        "type": "button",
+                        "action_id": "td_edit",
+                        "text": {"type": "plain_text", "text": "Edit Caption"},
+                        "value": rec["run_id"],
+                    },
+                    {
+                        "type": "button",
+                        "action_id": "td_reject",
+                        "style": "danger",
+                        "text": {"type": "plain_text", "text": "Reject"},
+                        "value": rec["run_id"],
+                    },
+                ],
+            }
+        )
     ctx = ([footer] if footer else []) + [f"<{rec['run_url']}|Open the run>"]
-    blocks.append({"type": "context", "elements": [
-        {"type": "mrkdwn", "text": "  ·  ".join(ctx)}]})
+    blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": "  ·  ".join(ctx)}]})
     return blocks
 
 
@@ -520,11 +643,15 @@ def _slack_api(method, body):
     if not tok:
         return None
     import urllib.request
+
     req = urllib.request.Request(
         "https://slack.com/api/" + method,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Authorization": "Bearer " + tok,
-                 "Content-Type": "application/json; charset=utf-8"})
+        headers={
+            "Authorization": "Bearer " + tok,
+            "Content-Type": "application/json; charset=utf-8",
+        },
+    )
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
             j = json.loads(r.read())
@@ -550,36 +677,63 @@ def slack_review(b, card_url):
     if not (os.environ.get("SLACK_BOT_TOKEN") and channel and run):
         return False
     if b["blocks"]:
-        _slack_api("chat.postMessage", {
-            "channel": channel,
-            "text": f"Not posting {b['kind']} {b['date']}",
-            "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text":
-                f"Not posting *{b['kind']}* · {b['date']} (publishing "
-                "gate):\n" + "\n".join(f"• {_slack_esc(m)}"
-                                         for m in b["blocks"])}},
-                {"type": "context", "elements": [{"type": "mrkdwn",
-                 "text": f"<{_run_url()}|Open the run>"}]}]})
+        _slack_api(
+            "chat.postMessage",
+            {
+                "channel": channel,
+                "text": f"Not posting {b['kind']} {b['date']}",
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"Not posting *{b['kind']}* · {b['date']} (publishing "
+                            "gate):\n" + "\n".join(f"• {_slack_esc(m)}" for m in b["blocks"]),
+                        },
+                    },
+                    {
+                        "type": "context",
+                        "elements": [{"type": "mrkdwn", "text": f"<{_run_url()}|Open the run>"}],
+                    },
+                ],
+            },
+        )
         return True
     dry = os.environ.get("SOCIAL_DRY_RUN") == "true"
     auto = os.environ.get("SOCIAL_AUTO") == "1" and not b["review"]
-    rec = {"run_id": run, "kind": b["kind"], "date": b["date"],
-           "text": b["text"], "alt": b["alt"], "review": b["review"],
-           "card_url": card_url, "run_url": _run_url(), "channel": channel,
-           "status": "pending" if not (dry or auto) else
-           ("dry_run" if dry else "auto"),
-           "status_line": ("DRY RUN (preview only, won't post)" if dry else
-                           "auto-posting (no review flags)" if auto else
-                           "waiting for your approval · approve by "
-                           + approve_by(b.get("rendered")))}
-    j = _slack_api("chat.postMessage", {
-        "channel": channel, "text": f"{b['kind']} {b['date']}: "
-        f"{rec['status_line']}",
-        "blocks": review_blocks(rec, buttons=rec["status"] == "pending")})
+    rec = {
+        "run_id": run,
+        "kind": b["kind"],
+        "date": b["date"],
+        "text": b["text"],
+        "alt": b["alt"],
+        "review": b["review"],
+        "card_url": card_url,
+        "run_url": _run_url(),
+        "channel": channel,
+        "status": "pending" if not (dry or auto) else ("dry_run" if dry else "auto"),
+        "status_line": (
+            "DRY RUN (preview only, won't post)"
+            if dry
+            else "auto-posting (no review flags)"
+            if auto
+            else "waiting for your approval · approve by " + approve_by(b.get("rendered"))
+        ),
+    }
+    j = _slack_api(
+        "chat.postMessage",
+        {
+            "channel": channel,
+            "text": f"{b['kind']} {b['date']}: {rec['status_line']}",
+            "blocks": review_blocks(rec, buttons=rec["status"] == "pending"),
+        },
+    )
     if not (j and j.get("ok")):
         return False
     rec["channel"], rec["ts"] = j["channel"], j["ts"]
     try:
         import r2_sync
+
         r2_sync.put_json(REVIEW_KEY.format(run=run), rec)
     except Exception as e:
         print("review record not saved:", str(e)[:120])
@@ -599,7 +753,9 @@ def supersede_older(kind, run):
     if not (tok and repo and os.environ.get("CLOUDFLARE_API_TOKEN")):
         return
     import urllib.request
+
     import r2_sync
+
     try:
         keys = r2_sync.list_keys("social_reviews/")
     except Exception as e:
@@ -610,19 +766,26 @@ def supersede_older(kind, run):
             rec = r2_sync.get_json(key)
         except Exception:
             continue
-        if not rec or rec.get("kind") != kind or rec.get("status") != "pending" \
-                or str(rec.get("run_id")) == str(run):
+        if (
+            not rec
+            or rec.get("kind") != kind
+            or rec.get("status") != "pending"
+            or str(rec.get("run_id")) == str(run)
+        ):
             continue
         req = urllib.request.Request(
-            f"https://api.github.com/repos/{repo}/actions/runs/"
-            f"{rec['run_id']}/cancel", method="POST",
-            headers={"Authorization": "Bearer " + tok,
-                     "Accept": "application/vnd.github+json",
-                     "X-GitHub-Api-Version": "2022-11-28"})
+            f"https://api.github.com/repos/{repo}/actions/runs/{rec['run_id']}/cancel",
+            method="POST",
+            headers={
+                "Authorization": "Bearer " + tok,
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
         try:
             with urllib.request.urlopen(req, timeout=20) as r:
                 r.read()
-        except Exception as e:           # 409 = already finished: fine
+        except Exception as e:  # 409 = already finished: fine
             print(f"supersede: cancel {rec['run_id']}:", str(e)[:80])
         rec["status"] = "superseded"
         try:
@@ -631,9 +794,15 @@ def supersede_older(kind, run):
             pass
         foot = "Superseded by a newer draft · not posted"
         rec["status_line"] = foot
-        _slack_api("chat.update", {"channel": rec["channel"],
-                                   "ts": rec["ts"], "text": foot,
-                                   "blocks": review_blocks(rec, False, foot)})
+        _slack_api(
+            "chat.update",
+            {
+                "channel": rec["channel"],
+                "ts": rec["ts"],
+                "text": foot,
+                "blocks": review_blocks(rec, False, foot),
+            },
+        )
         print("superseded draft", rec["run_id"])
 
 
@@ -643,6 +812,7 @@ def _review_record():
         return None
     try:
         import r2_sync
+
         return r2_sync.get_json(REVIEW_KEY.format(run=run))
     except Exception as e:
         print("review record unavailable:", str(e)[:120])
@@ -654,12 +824,18 @@ def _review_done(rec, footer, thread_text):
     if not rec or not rec.get("ts"):
         return
     rec["status_line"] = footer
-    _slack_api("chat.update", {"channel": rec["channel"], "ts": rec["ts"],
-                               "text": footer,
-                               "blocks": review_blocks(rec, False, footer)})
-    _slack_api("chat.postMessage", {"channel": rec["channel"],
-                                    "thread_ts": rec["ts"],
-                                    "text": thread_text})
+    _slack_api(
+        "chat.update",
+        {
+            "channel": rec["channel"],
+            "ts": rec["ts"],
+            "text": footer,
+            "blocks": review_blocks(rec, False, footer),
+        },
+    )
+    _slack_api(
+        "chat.postMessage", {"channel": rec["channel"], "thread_ts": rec["ts"], "text": thread_text}
+    )
 
 
 def slack_preview(b, card_url):
@@ -669,15 +845,17 @@ def slack_preview(b, card_url):
     hook = os.environ.get("SLACK_WEBHOOK_URL")
     if not hook:
         return
-    run_url = (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
-               f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/"
-               f"{os.environ.get('GITHUB_RUN_ID', '')}")
+    run_url = (
+        f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+        f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/"
+        f"{os.environ.get('GITHUB_RUN_ID', '')}"
+    )
     kind = f"*{b['kind']}* · {b['date']}"
     if b["blocks"]:
-        text = (f"Not posting {kind} (publishing gate):\n"
-                + "\n".join(f"• {_slack_esc(m)}" for m in b["blocks"]))
-        blocks = [{"type": "section", "text": {"type": "mrkdwn",
-                                                "text": text}}]
+        text = f"Not posting {kind} (publishing gate):\n" + "\n".join(
+            f"• {_slack_esc(m)}" for m in b["blocks"]
+        )
+        blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": text}}]
     else:
         if os.environ.get("SOCIAL_DRY_RUN") == "true":
             status = "DRY RUN (preview only, won't post)"
@@ -686,25 +864,34 @@ def slack_preview(b, card_url):
         else:
             status = "waiting for your approval"
         text = f"{kind}: {status}"
-        blocks = [{"type": "section", "text": {"type": "mrkdwn",
-                                                "text": text}}]
+        blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": text}}]
         if b["review"]:
-            blocks.append({"type": "section", "text": {
-                "type": "mrkdwn", "text": "*Check before approving:*\n"
-                + "\n".join(f"• {_slack_esc(m)}" for m in b["review"])}})
-        blocks.append({"type": "section", "text": {
-            "type": "mrkdwn",
-            "text": "```" + _slack_esc(b["text"]) + "```"}})
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "*Check before approving:*\n"
+                        + "\n".join(f"• {_slack_esc(m)}" for m in b["review"]),
+                    },
+                }
+            )
+        blocks.append(
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "```" + _slack_esc(b["text"]) + "```"},
+            }
+        )
         if card_url:
-            blocks.append({"type": "image", "image_url": card_url,
-                           "alt_text": b["alt"][:1900]})
-    blocks.append({"type": "context", "elements": [{
-        "type": "mrkdwn", "text": f"<{run_url}|Open the run>"}]})
+            blocks.append({"type": "image", "image_url": card_url, "alt_text": b["alt"][:1900]})
+    blocks.append(
+        {"type": "context", "elements": [{"type": "mrkdwn", "text": f"<{run_url}|Open the run>"}]}
+    )
     body = json.dumps({"text": text, "blocks": blocks}).encode("utf-8")
     try:
         import urllib.request
-        req = urllib.request.Request(hook, data=body, headers={
-            "Content-Type": "application/json"})
+
+        req = urllib.request.Request(hook, data=body, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=20) as r:
             r.read()
         print("slack preview sent")
@@ -717,11 +904,17 @@ def render(a):
     date = _post_date(a.kind, facts)
     text = limit_cashtags(CAPTIONS[a.kind](facts))
     blocks, review = gate(a.kind, facts, text, a.scheduled)
-    return {"kind": a.kind, "date": date, "card": path, "alt": alt,
-            "text": text, "blocks": blocks, "review": review,
-            "extra": _log_extra(a.kind, facts),
-            "rendered": datetime.now(timezone.utc)
-            .isoformat(timespec="seconds")}
+    return {
+        "kind": a.kind,
+        "date": date,
+        "card": path,
+        "alt": alt,
+        "text": text,
+        "blocks": blocks,
+        "review": review,
+        "extra": _log_extra(a.kind, facts),
+        "rendered": datetime.now(UTC).isoformat(timespec="seconds"),
+    }
 
 
 def main():
@@ -730,8 +923,9 @@ def main():
     ap.add_argument("--date")
     ap.add_argument("--source", choices=["posted", "site"])
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--scheduled", action="store_true",
-                    help="strict freshness: stale data blocks the post")
+    ap.add_argument(
+        "--scheduled", action="store_true", help="strict freshness: stale data blocks the post"
+    )
     ap.add_argument("--bundle-out", help="write the rendered post here")
     ap.add_argument("--bundle", help="post this pre-rendered bundle")
     a = ap.parse_args()
@@ -749,11 +943,12 @@ def main():
         if age is not None and age > BUNDLE_MAX_H:
             # A skip, not a failure: the Slack draft is marked expired and
             # the run summary says why. (It used to exit 1 and page.)
-            why = (f"approved {age:.1f}h after render; drafts expire after "
-                   f"{BUNDLE_MAX_H}h")
-            _review_done(review, "Expired: not posted (" + why + ")",
-                         "Too old to post: " + why + ". A fresh draft "
-                         "comes with the next scheduled slot.")
+            why = f"approved {age:.1f}h after render; drafts expire after {BUNDLE_MAX_H}h"
+            _review_done(
+                review,
+                "Expired: not posted (" + why + ")",
+                "Too old to post: " + why + ". A fresh draft comes with the next scheduled slot.",
+            )
             print("not posting:", why)
             _summary(f"### {b['kind']} · {b['date']}: expired\n\n{why}")
             return
@@ -763,8 +958,9 @@ def main():
             n = x_len(review["text"])
             dup = hashlib.sha1(review["text"].encode("utf-8")).hexdigest()
             if n > 280 or any(r.get("text_sha1") == dup for r in _log_rows()):
-                why = (f"edited caption is {n}/280" if n > 280 else
-                       "edited caption was already posted")
+                why = (
+                    f"edited caption is {n}/280" if n > 280 else "edited caption was already posted"
+                )
                 _review_done(review, f"Not posted: {why}", f"Not posted: {why}.")
                 sys.exit("edited caption rejected: " + why)
             print("using caption edited in Slack")
@@ -787,8 +983,7 @@ def main():
             _summary(f"### {a.kind}: nothing to post\n\n{e.code}")
             return
     print("card:", b["card"])
-    print("caption (%d chars as X counts):\n%s\n" % (x_len(b["text"]),
-                                                    b["text"]))
+    print("caption (%d chars as X counts):\n%s\n" % (x_len(b["text"]), b["text"]))
     for m in b["blocks"]:
         print("BLOCK:", m)
     for m in b["review"]:
@@ -796,13 +991,14 @@ def main():
     if a.bundle_out:
         with open(a.bundle_out, "w", encoding="utf-8") as f:
             json.dump(b, f, indent=1)
-        _gh_out(blocked="1" if b["blocks"] else "0",
-                review="1" if b["review"] else "0")
+        _gh_out(blocked="1" if b["blocks"] else "0", review="1" if b["review"] else "0")
         card_url = None if b["blocks"] else _card_url(b["card"])
-        _summary(f"### {b['kind']} · {b['date']}\n\n```\n{b['text']}\n```\n"
-                 + "".join(f"\n- **BLOCK** {m}" for m in b["blocks"])
-                 + "".join(f"\n- **REVIEW** {m}" for m in b["review"])
-                 + (f"\n\n![card]({card_url})" if card_url else ""))
+        _summary(
+            f"### {b['kind']} · {b['date']}\n\n```\n{b['text']}\n```\n"
+            + "".join(f"\n- **BLOCK** {m}" for m in b["blocks"])
+            + "".join(f"\n- **REVIEW** {m}" for m in b["review"])
+            + (f"\n\n![card]({card_url})" if card_url else "")
+        )
         if not slack_review(b, card_url):
             slack_preview(b, card_url)
 
@@ -825,8 +1021,7 @@ def main():
     handle = (me.username or "").lower()
     print(f"credentials belong to @{me.username}")
     if handle != EXPECTED:
-        sys.exit(f"REFUSING to post: keys are for @{me.username}, "
-                 f"expected @{EXPECTED}")
+        sys.exit(f"REFUSING to post: keys are for @{me.username}, expected @{EXPECTED}")
     if a.dry_run:
         print("dry run — identity OK, nothing posted.")
         return
@@ -837,10 +1032,9 @@ def main():
     except Exception as e:  # alt text is best-effort
         print("alt text not set:", str(e)[:100])
     import tweepy
+
     try:
-        resp = client.create_tweet(text=b["text"],
-                                   media_ids=[media.media_id],
-                                   user_auth=True)
+        resp = client.create_tweet(text=b["text"], media_ids=[media.media_id], user_auth=True)
     except tweepy.errors.HTTPException as e:
         # X explains billing/permission refusals in the body (e.g. 402:
         # no credits / plan not attached to this app's project).
@@ -850,26 +1044,35 @@ def main():
         except Exception:
             pass
         if a.bundle:
-            _review_done(review, "X refused the post",
-                         f"X refused the post: HTTP {e.response.status_code} "
-                         f"{body[:300]}")
+            _review_done(
+                review,
+                "X refused the post",
+                f"X refused the post: HTTP {e.response.status_code} {body[:300]}",
+            )
         sys.exit(f"X refused the post: HTTP {e.response.status_code} {body}")
     tid = resp.data["id"]
     url = f"https://x.com/{me.username}/status/{tid}"
-    ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    ts = datetime.now(UTC).isoformat(timespec="seconds")
     os.makedirs(SOCIAL_POSTS, exist_ok=True)
-    rec = os.path.join(SOCIAL_POSTS,
-                       f"{ts[:19].replace(':', '')}_{b['kind']}_{tid}.json")
+    rec = os.path.join(SOCIAL_POSTS, f"{ts[:19].replace(':', '')}_{b['kind']}_{tid}.json")
     with open(rec, "w", encoding="utf-8") as f:
-        json.dump({
-            "ts": ts, "kind": b["kind"], "date": b["date"], "tweet_id": tid,
-            "url": url, "handle": me.username,
-            "text_sha1": hashlib.sha1(b["text"].encode("utf-8")).hexdigest(),
-            **b["extra"]}, f)
+        json.dump(
+            {
+                "ts": ts,
+                "kind": b["kind"],
+                "date": b["date"],
+                "tweet_id": tid,
+                "url": url,
+                "handle": me.username,
+                "text_sha1": hashlib.sha1(b["text"].encode("utf-8")).hexdigest(),
+                # pyrefly: ignore[invalid-argument]  bundle['extra'] is always a dict (built in render)
+                **b["extra"],
+            },
+            f,
+        )
     print("POSTED:", url)
     if a.bundle:
-        _review_done(review, f"Posted to X · <{url}|view post>",
-                     f"Posted: {url}")
+        _review_done(review, f"Posted to X · <{url}|view post>", f"Posted: {url}")
 
 
 if __name__ == "__main__":

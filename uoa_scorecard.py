@@ -65,13 +65,13 @@ import math
 import os
 import random
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import numpy as np
 
 import polygon_data as pg
 from trade_desk_validation import _load
-from uoa_alpha import load_ledger, _dte_bucket
+from uoa_alpha import _dte_bucket, load_ledger
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
@@ -80,24 +80,25 @@ LAG_CACHE = R("data", "uoa_entry_lag_cache.json")
 OUT_PATH = R("docs", "reports", "uoa_scorecard.json")
 
 SC_VERSION = "uoa_scorecard_v1"
-MATRIX_START = "2026-02-17"     # 63d momentum lookback before ledger start
+MATRIX_START = "2026-02-17"  # 63d momentum lookback before ledger start
 HORIZONS = (1, 3, 5, 10, 20)
 BASE_H = 5
 N_CTRL = 10
 MIN_CTRL = 5
-CAP_BAND = 3.0                  # control mcap within [1/3, 3] x signal
+CAP_BAND = 3.0  # control mcap within [1/3, 3] x signal
 CAP_BAND_WIDE = 5.0
 BOOT_ITERS = 2000
 IMPACT_K = 0.2
-CLIP_Q = 10_000.0               # $ baseline clip for net-EV modeling
-SPREAD_CAP = 0.05               # cap CS half-spread estimate at 5%
+CLIP_Q = 10_000.0  # $ baseline clip for net-EV modeling
+SPREAD_CAP = 0.05  # cap CS half-spread estimate at 5%
 LAG_WINDOW_D = 45
-LAG_BUDGET = 250                # new ticker-days fetched per run
+LAG_BUDGET = 250  # new ticker-days fetched per run
 SHRINK_K_SIZING = 400
 ET = timezone(timedelta(hours=-4))
 
 
 # ------------------------------------------------------------ matrix
+
 
 def _trading_days(start, end):
     """Actual trading days = dates where grouped_daily returns data.
@@ -148,13 +149,13 @@ def features_asof(di, C, V, H, L):
     lo63 = max(0, di - 63)
     lo20 = max(0, di - 20)
     mom = C[di] / C[lo63] - 1.0
-    rets = C[lo20 + 1:di + 1] / C[lo20:di] - 1.0
+    rets = C[lo20 + 1 : di + 1] / C[lo20:di] - 1.0
     with np.errstate(invalid="ignore"):
         vol = np.nanstd(rets, axis=0)
-        adv = np.nanmean((C * V)[lo20:di + 1], axis=0)
+        adv = np.nanmean((C * V)[lo20 : di + 1], axis=0)
     # Corwin-Schultz half-spread estimate from daily H/L pairs.
     hs = np.full(C.shape[1], np.nan)
-    Hh, Ll = H[lo20:di + 1], L[lo20:di + 1]
+    Hh, Ll = H[lo20 : di + 1], L[lo20 : di + 1]
     with np.errstate(invalid="ignore", divide="ignore"):
         lhl = np.log(Hh / Ll) ** 2
         beta = lhl[:-1] + lhl[1:]
@@ -162,8 +163,7 @@ def features_asof(di, C, V, H, L):
         l2 = np.fmin(Ll[:-1], Ll[1:])
         gamma = np.log(h2 / l2) ** 2
         sq2 = math.sqrt(2.0)
-        alpha = (np.sqrt(2 * beta) - np.sqrt(beta)) / (3 - 2 * sq2) \
-            - np.sqrt(gamma / (3 - 2 * sq2))
+        alpha = (np.sqrt(2 * beta) - np.sqrt(beta)) / (3 - 2 * sq2) - np.sqrt(gamma / (3 - 2 * sq2))
         s = 2 * (np.exp(alpha) - 1) / (1 + np.exp(alpha))
         s = np.clip(s, 0, SPREAD_CAP * 2)
         hs = np.nanmedian(s, axis=0) / 2.0
@@ -171,6 +171,7 @@ def features_asof(di, C, V, H, L):
 
 
 # ------------------------------------------------------------ ledger
+
 
 def graded_signals(days_set):
     """Deduped directional buyer signals with a matrix-covered flag
@@ -198,11 +199,13 @@ def _sig_day_index(day, days):
     """Matrix index for a signal's flag date (previous trading day if
     the stamp is a non-trading date)."""
     import bisect
+
     i = bisect.bisect_right(days, day) - 1
     return i if i >= 0 else None
 
 
 # ----------------------------------------------------------- matching
+
 
 def load_matched():
     try:
@@ -220,9 +223,10 @@ def save_matched(m):
 
 def _ern_bucket(edate, day):
     try:
-        dd = (datetime.strptime(edate, "%Y-%m-%d").date()
-              - datetime.strptime(day, "%Y-%m-%d").date()).days
-    except (TypeError, ValueError):
+        dd = (
+            datetime.strptime(edate, "%Y-%m-%d").date() - datetime.strptime(day, "%Y-%m-%d").date()
+        ).days
+    except TypeError, ValueError:
         return "unk"
     if 0 <= dd <= 5:
         return "0-5"
@@ -236,11 +240,9 @@ def assign_controls(sigs, days, tickers, ti, C, V, H, L, meta, matched):
     Assignments FREEZE — never recomputed. Returns count assigned."""
     mcap = {t: (meta.get(t) or {}).get("mkt_cap") for t in tickers}
     sector = {t: (meta.get(t) or {}).get("sector") for t in tickers}
-    edate = {t: (meta.get(t) or {}).get("earnings_date")
-             for t in tickers}
+    edate = {t: (meta.get(t) or {}).get("earnings_date") for t in tickers}
     today = datetime.now(ET).date().isoformat()
-    fresh_cut = (datetime.now(ET).date()
-                 - timedelta(days=3)).isoformat()
+    fresh_cut = (datetime.now(ET).date() - timedelta(days=3)).isoformat()
 
     by_day = defaultdict(list)
     for s in sigs:
@@ -259,8 +261,7 @@ def assign_controls(sigs, days, tickers, ti, C, V, H, L, meta, matched):
         if t == "SPY":
             continue
         sec_groups.setdefault(sector.get(t), []).append(j)
-    sec_groups = {k: np.array(v) for k, v in sec_groups.items()
-                  if k is not None}
+    sec_groups = {k: np.array(v) for k, v in sec_groups.items() if k is not None}
 
     n_new = 0
     for di, group in sorted(by_day.items()):
@@ -270,10 +271,12 @@ def assign_controls(sigs, days, tickers, ti, C, V, H, L, meta, matched):
             j = ti.get(x["ticker"])
             if j is not None:
                 flag_mask[j] = True
+
         # z-score cross-section
         def z(a):
             mu, sd = np.nanmean(a), np.nanstd(a)
             return (a - mu) / sd if sd and sd > 0 else a * 0
+
         zmom, zvol = z(mom), z(vol)
         valid = ~(np.isnan(mom) | np.isnan(vol) | np.isnan(C[di]))
         for s in group:
@@ -290,32 +293,35 @@ def assign_controls(sigs, days, tickers, ti, C, V, H, L, meta, matched):
                 continue
             cand = []
             for band in (CAP_BAND, CAP_BAND_WIDE):
-                m = (valid[base_idx]
-                     & np.isfinite(mcap_arr[base_idx])
-                     & (mcap_arr[base_idx] >= mcap[tk] / band)
-                     & (mcap_arr[base_idx] <= mcap[tk] * band)
-                     & ~flag_mask[base_idx])
+                m = (
+                    valid[base_idx]
+                    & np.isfinite(mcap_arr[base_idx])
+                    & (mcap_arr[base_idx] >= mcap[tk] / band)
+                    & (mcap_arr[base_idx] <= mcap[tk] * band)
+                    & ~flag_mask[base_idx]
+                )
                 cand = [int(j) for j in base_idx[m] if j != si]
                 if len(cand) >= MIN_CTRL:
                     break
             mv = 1
             if days[di] >= fresh_cut and len(cand) >= MIN_CTRL:
                 b = _ern_bucket(edate.get(tk), days[di])
-                cand2 = [j for j in cand
-                         if _ern_bucket(edate.get(tickers[j]),
-                                        days[di]) == b]
+                cand2 = [j for j in cand if _ern_bucket(edate.get(tickers[j]), days[di]) == b]
                 if len(cand2) >= MIN_CTRL:
                     cand, mv = cand2, 2
             if len(cand) < MIN_CTRL:
                 matched[s["id"]] = rec
                 continue
-            dist = (zmom[cand] - zmom[si]) ** 2 \
-                + (zvol[cand] - zvol[si]) ** 2
+            dist = (zmom[cand] - zmom[si]) ** 2 + (zvol[cand] - zvol[si]) ** 2
             order = np.argsort(dist)[:N_CTRL]
             ctrl = [cand[k] for k in order]
-            matched[s["id"]] = {"mv": mv, "d": days[di],
-                                "nc": len(ctrl),
-                                "ci": [int(j) for j in ctrl], "x": {}}
+            matched[s["id"]] = {
+                "mv": mv,
+                "d": days[di],
+                "nc": len(ctrl),
+                "ci": [int(j) for j in ctrl],
+                "x": {},
+            }
             n_new += 1
     return n_new
 
@@ -353,8 +359,7 @@ def grade_matched(sigs, days, tickers, ti, C, matched):
             if len(crs) < MIN_CTRL:
                 rec["x"][key] = None
                 continue
-            rec["x"][key] = round(
-                100 * sign * (sig_ret - float(np.mean(crs))), 3)
+            rec["x"][key] = round(100 * sign * (sig_ret - float(np.mean(crs))), 3)
             if h == BASE_H:
                 n_graded += 1
     return n_graded
@@ -362,14 +367,18 @@ def grade_matched(sigs, days, tickers, ti, C, matched):
 
 # ------------------------------------------------------------- stats
 
+
 def _stats(vals):
     v = [x for x in vals if x is not None]
     if not v:
         return {"n": 0}
     a = np.array(v)
-    return {"n": len(v), "avg": round(float(a.mean()), 3),
-            "med": round(float(np.median(a)), 3),
-            "hit": round(100 * float((a > 0).mean()))}
+    return {
+        "n": len(v),
+        "avg": round(float(a.mean()), 3),
+        "med": round(float(np.median(a)), 3),
+        "hit": round(100 * float((a > 0).mean())),
+    }
 
 
 def cluster_boot(rows, iters=BOOT_ITERS, seed=7):
@@ -393,11 +402,12 @@ def cluster_boot(rows, iters=BOOT_ITERS, seed=7):
     se_boot = float(np.std(means))
     sd = float(vals.std())
     n_eff = int((sd / se_boot) ** 2) if se_boot > 0 else None
-    return {"clusters": len(keys),
-            "ci95": [round(means[int(iters * .025)], 3),
-                     round(means[int(iters * .975)], 3)],
-            "se_cluster": round(se_boot, 4),
-            "n_eff": n_eff}
+    return {
+        "clusters": len(keys),
+        "ci95": [round(means[int(iters * 0.025)], 3), round(means[int(iters * 0.975)], 3)],
+        "se_cluster": round(se_boot, 4),
+        "n_eff": n_eff,
+    }
 
 
 def _week(day):
@@ -407,29 +417,30 @@ def _week(day):
 
 def _spearman(xs, ys):
     xa, ya = np.array(xs, dtype=float), np.array(ys, dtype=float)
+
     def rank(a):
         order = a.argsort()
         r = np.empty_like(order, dtype=float)
         r[order] = np.arange(len(a))
         # average ties
-        _, inv, cnt = np.unique(a, return_inverse=True,
-                                return_counts=True)
+        _, inv, cnt = np.unique(a, return_inverse=True, return_counts=True)
         sums = np.zeros(len(cnt))
         np.add.at(sums, inv, r)
         return sums[inv] / cnt[inv]
+
     rx, ry = rank(xa), rank(ya)
     rx -= rx.mean()
     ry -= ry.mean()
-    den = math.sqrt((rx ** 2).sum() * (ry ** 2).sum())
+    den = math.sqrt((rx**2).sum() * (ry**2).sum())
     return round(float((rx * ry).sum() / den), 4) if den else 0.0
 
 
 # ------------------------------------------------------------- costs
 
+
 def cost_model(hs_pct, vol_d, adv_d, q=CLIP_Q, k=IMPACT_K):
     """Round-trip cost in return %: 2 x (half-spread + sqrt impact)."""
-    if not (np.isfinite(hs_pct) and np.isfinite(vol_d)
-            and np.isfinite(adv_d)) or adv_d <= 0:
+    if not (np.isfinite(hs_pct) and np.isfinite(vol_d) and np.isfinite(adv_d)) or adv_d <= 0:
         return None
     hs = min(float(hs_pct), SPREAD_CAP)
     impact = k * float(vol_d) * math.sqrt(q / float(adv_d))
@@ -438,19 +449,20 @@ def cost_model(hs_pct, vol_d, adv_d, q=CLIP_Q, k=IMPACT_K):
 
 # ---------------------------------------------------------------- run
 
+
 def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
     if not pg.available():
-        out = {"generated": datetime.now(timezone.utc)
-               .isoformat(timespec="seconds"),
-               "status": "capability_unavailable",
-               "why": "POLYGON_API_KEY not set"}
+        out = {
+            "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+            "status": "capability_unavailable",
+            "why": "POLYGON_API_KEY not set",
+        }
         json.dump(out, open(OUT_PATH, "w", encoding="utf-8"), indent=1)
         print(out["why"])
         return out
 
     meta = _load(R("docs", "reports", "uoa_meta_cache.json"), {}) or {}
-    pool = {t for t, v in meta.items()
-            if v.get("mkt_cap") and v.get("sector")}
+    pool = {t for t, v in meta.items() if v.get("mkt_cap") and v.get("sector")}
     ledger = load_ledger()
     ledger_tickers = {s.get("ticker") for s in ledger if s.get("ticker")}
     print(f"pool {len(pool)} | ledger tickers {len(ledger_tickers)}")
@@ -461,8 +473,7 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
 
     sigs = graded_signals(days_set)
     matched = load_matched()
-    n_new = assign_controls(sigs, days, tickers, ti, C, V, H, L,
-                            meta, matched)
+    n_new = assign_controls(sigs, days, tickers, ti, C, V, H, L, meta, matched)
     n_graded = grade_matched(sigs, days, tickers, ti, C, matched)
     save_matched(matched)
     print(f"controls: +{n_new} assigned, +{n_graded} graded at +{BASE_H}d")
@@ -480,23 +491,26 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
         day = rec["d"]
         di = _sig_day_index(day, days)
         si = ti.get(s["ticker"])
-        rows.append({
-            "id": sid, "day": day, "di": di, "si": si,
-            "tk": s["ticker"],
-            "sector": sector.get(s["ticker"]) or "unk",
-            "dir": s["direction"],
-            "score": s.get("trade_score") or 0,
-            "raw": (s.get("trade_score") or 0)
-                   - (s.get("edge_adj") or 0),
-            "has_adj": "edge_adj" in s,
-            "ern": "Into ERN" in (s.get("tags") or []),
-            "golden": s.get("signal_type") == "golden_sweep",
-            "prem": s.get("premium") or 0,
-            "dte": _dte_bucket(s.get("dte")),
-            "mv": rec.get("mv"),
-            "x": {int(h): v for h, v in (rec.get("x") or {}).items()
-                  if v is not None},
-        })
+        rows.append(
+            {
+                "id": sid,
+                "day": day,
+                "di": di,
+                "si": si,
+                "tk": s["ticker"],
+                "sector": sector.get(s["ticker"]) or "unk",
+                "dir": s["direction"],
+                "score": s.get("trade_score") or 0,
+                "raw": (s.get("trade_score") or 0) - (s.get("edge_adj") or 0),
+                "has_adj": "edge_adj" in s,
+                "ern": "Into ERN" in (s.get("tags") or []),
+                "golden": s.get("signal_type") == "golden_sweep",
+                "prem": s.get("premium") or 0,
+                "dte": _dte_bucket(s.get("dte")),
+                "mv": rec.get("mv"),
+                "x": {int(h): v for h, v in (rec.get("x") or {}).items() if v is not None},
+            }
+        )
     print(f"panel rows (matched, graded +{BASE_H}d): {len(rows)}")
 
     # legacy raw excess for the same ids (decomposition headline)
@@ -511,29 +525,33 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
             day_feat[r["di"]] = features_asof(r["di"], C, V, H, L)
         mom, vol, adv, hs = day_feat[r["di"]]
         j = r["si"]
-        r["hs"] = float(hs[j]) if j is not None and np.isfinite(hs[j]) \
+        r["hs"] = float(hs[j]) if j is not None and np.isfinite(hs[j]) else None
+        r["vold"] = float(vol[j]) if j is not None and np.isfinite(vol[j]) else None
+        r["adv"] = float(adv[j]) if j is not None and np.isfinite(adv[j]) else None
+        r["cost"] = cost_model(r["hs"], r["vold"], r["adv"]) if r["hs"] is not None else None
+        r["net"] = (
+            round(r["x"][BASE_H] - r["cost"], 3)
+            if (r["cost"] is not None and BASE_H in r["x"])
             else None
-        r["vold"] = float(vol[j]) if j is not None \
-            and np.isfinite(vol[j]) else None
-        r["adv"] = float(adv[j]) if j is not None \
-            and np.isfinite(adv[j]) else None
-        r["cost"] = cost_model(r["hs"], r["vold"], r["adv"]) \
-            if r["hs"] is not None else None
-        r["net"] = round(r["x"][BASE_H] - r["cost"], 3) \
-            if (r["cost"] is not None and BASE_H in r["x"]) else None
+        )
         r["premadv"] = (r["prem"] / r["adv"]) if r["adv"] else None
-        r["spread_bkt"] = (None if r["hs"] is None else
-                           ("<10bp" if r["hs"] < 0.0010 else
-                            "10-25bp" if r["hs"] < 0.0025 else
-                            ">25bp"))
+        r["spread_bkt"] = (
+            None
+            if r["hs"] is None
+            else ("<10bp" if r["hs"] < 0.0010 else "10-25bp" if r["hs"] < 0.0025 else ">25bp")
+        )
 
     def pocket(rs, name):
         vals = [r["x"].get(BASE_H) for r in rs]
         st = _stats(vals)
         if st["n"] >= 50:
             st["bootstrap"] = cluster_boot(
-                [(_week(r["day"]) + "|" + r["sector"],
-                  r["x"][BASE_H]) for r in rs if BASE_H in r["x"]])
+                [
+                    (_week(r["day"]) + "|" + r["sector"], r["x"][BASE_H])
+                    for r in rs
+                    if BASE_H in r["x"]
+                ]
+            )
         nets = [r["net"] for r in rs if r["net"] is not None]
         st["net"] = _stats(nets)
         by_spread = {}
@@ -541,24 +559,19 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
             sub = [r for r in rs if r["spread_bkt"] == b]
             by_spread[b] = {
                 "gross": _stats([r["x"].get(BASE_H) for r in sub]),
-                "net": _stats([r["net"] for r in sub
-                               if r["net"] is not None])}
+                "net": _stats([r["net"] for r in sub if r["net"] is not None]),
+            }
         st["by_spread"] = by_spread
         st["name"] = name
         return st
 
     pockets = {
         "overall": pocket(rows, "overall"),
-        "into_earnings": pocket([r for r in rows if r["ern"]],
-                                "into_earnings"),
-        "golden_sweeps": pocket([r for r in rows if r["golden"]],
-                                "golden_sweeps"),
-        "score_80_plus": pocket([r for r in rows if r["score"] >= 80],
-                                "score_80_plus"),
-        "put_buys": pocket([r for r in rows if r["dir"] == "bearish"],
-                           "put_buys"),
-        "call_buys": pocket([r for r in rows if r["dir"] == "bullish"],
-                            "call_buys"),
+        "into_earnings": pocket([r for r in rows if r["ern"]], "into_earnings"),
+        "golden_sweeps": pocket([r for r in rows if r["golden"]], "golden_sweeps"),
+        "score_80_plus": pocket([r for r in rows if r["score"] >= 80], "score_80_plus"),
+        "put_buys": pocket([r for r in rows if r["dir"] == "bearish"], "put_buys"),
+        "call_buys": pocket([r for r in rows if r["dir"] == "bullish"], "call_buys"),
     }
 
     # ---- IC panel (matched excess) ----
@@ -567,16 +580,16 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
         for h in HORIZONS:
             sub = [(r[key], r["x"][h]) for r in rs if h in r["x"]]
             if len(sub) >= 500:
-                out[f"+{h}d"] = _spearman([a for a, _ in sub],
-                                          [b for _, b in sub])
+                out[f"+{h}d"] = _spearman([a for a, _ in sub], [b for _, b in sub])
         return out
+
     adj_rows = [r for r in rows if r["has_adj"]]
     # regimes: VIX terciles + SPY 20d trend
     vix = {}
     try:
         import yfinance as yf
-        vs = yf.download("^VIX", start=MATRIX_START,
-                         progress=False, auto_adjust=False)["Close"]
+
+        vs = yf.download("^VIX", start=MATRIX_START, progress=False, auto_adjust=False)["Close"]
         try:
             vs = vs.squeeze()
         except Exception:
@@ -586,25 +599,26 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
         t1, t2 = np.percentile(vals, [33.3, 66.7])
         for idx, v in zip(vs.index, vals):
             d = str(idx)[:10]
-            vix[d] = ("low" if v < t1 else
-                      "mid" if v < t2 else "high")
+            vix[d] = "low" if v < t1 else "mid" if v < t2 else "high"
     except Exception as e:
         print("VIX fetch failed:", str(e)[:80])
     spy_i = ti.get("SPY")
     spy_trend = {}
     if spy_i is not None:
         for di in range(20, len(days)):
-            spy_trend[days[di]] = ("up" if C[di, spy_i]
-                                   >= C[di - 20, spy_i] else "down")
+            spy_trend[days[di]] = "up" if C[di, spy_i] >= C[di - 20, spy_i] else "down"
+
     def regime_of(day):
         return f"vix_{vix.get(day, 'unk')}|spy_{spy_trend.get(day, 'unk')}"
+
     ic_regime = {}
     for r in adj_rows:
         ic_regime.setdefault(regime_of(r["day"]), []).append(r)
-    ic_by_regime = {k: {"n": len(v),
-                        "ic": _spearman([r["score"] for r in v],
-                                        [r["x"][BASE_H] for r in v])}
-                    for k, v in ic_regime.items() if len(v) >= 500}
+    ic_by_regime = {
+        k: {"n": len(v), "ic": _spearman([r["score"] for r in v], [r["x"][BASE_H] for r in v])}
+        for k, v in ic_regime.items()
+        if len(v) >= 500
+    }
 
     # decile table on matched excess (adjusted score)
     dec = {}
@@ -613,88 +627,102 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
         n10 = len(srt) // 10
         dtab = []
         for dgt in range(10):
-            seg = srt[dgt * n10:(dgt + 1) * n10 if dgt < 9 else len(srt)]
-            dtab.append({"d": dgt + 1,
-                         "avg": round(float(np.mean(
-                             [r["x"][BASE_H] for r in seg])), 3),
-                         "hit": round(100 * float(np.mean(
-                             [r["x"][BASE_H] > 0 for r in seg])))})
-        dec = {"deciles": dtab,
-               "top_minus_bottom": round(
-                   dtab[-1]["avg"] - dtab[0]["avg"], 3),
-               "monotonic_steps": sum(
-                   1 for i in range(9)
-                   if dtab[i + 1]["avg"] >= dtab[i]["avg"])}
+            seg = srt[dgt * n10 : (dgt + 1) * n10 if dgt < 9 else len(srt)]
+            dtab.append(
+                {
+                    "d": dgt + 1,
+                    "avg": round(float(np.mean([r["x"][BASE_H] for r in seg])), 3),
+                    "hit": round(100 * float(np.mean([r["x"][BASE_H] > 0 for r in seg]))),
+                }
+            )
+        dec = {
+            "deciles": dtab,
+            "top_minus_bottom": round(dtab[-1]["avg"] - dtab[0]["avg"], 3),
+            "monotonic_steps": sum(1 for i in range(9) if dtab[i + 1]["avg"] >= dtab[i]["avg"]),
+        }
 
     ic_panel = {
         "adjusted_score": {
             "n": len(adj_rows),
             "note": "ledger trade_score bakes in edge_adj at flag "
-                    "time (point-in-time); raw = trade_score - "
-                    "edge_adj",
+            "time (point-in-time); raw = trade_score - "
+            "edge_adj",
             "matched_ic_by_horizon": ic_block(adj_rows, "score"),
             "raw_matched_ic_by_horizon": ic_block(adj_rows, "raw"),
             "by_regime": ic_by_regime,
             "decile_matched": dec,
-        }}
+        }
+    }
 
     # ---- calibration ----
-    cutoff90 = (datetime.now(ET).date()
-                - timedelta(days=90)).isoformat()
+    cutoff90 = (datetime.now(ET).date() - timedelta(days=90)).isoformat()
     recent = [r for r in adj_rows if r["day"] >= cutoff90]
     rel = []
     if len(recent) >= 1000:
         srt = sorted(recent, key=lambda r: r["score"])
         nb = len(srt) // 10
         for b in range(10):
-            seg = srt[b * nb:(b + 1) * nb if b < 9 else len(srt)]
-            boot = cluster_boot([(_week(r["day"]) + "|" + r["sector"],
-                                  1.0 if r["x"][BASE_H] > 0 else 0.0)
-                                 for r in seg], iters=500, seed=b)
-            rel.append({"bin": b + 1,
-                        "score_lo": seg[0]["score"],
-                        "score_hi": seg[-1]["score"],
-                        "hit": round(100 * float(np.mean(
-                            [r["x"][BASE_H] > 0 for r in seg]))),
-                        "ci": boot.get("ci95")})
+            seg = srt[b * nb : (b + 1) * nb if b < 9 else len(srt)]
+            boot = cluster_boot(
+                [
+                    (_week(r["day"]) + "|" + r["sector"], 1.0 if r["x"][BASE_H] > 0 else 0.0)
+                    for r in seg
+                ],
+                iters=500,
+                seed=b,
+            )
+            rel.append(
+                {
+                    "bin": b + 1,
+                    "score_lo": seg[0]["score"],
+                    "score_hi": seg[-1]["score"],
+                    "hit": round(100 * float(np.mean([r["x"][BASE_H] > 0 for r in seg]))),
+                    "ci": boot.get("ci95"),
+                }
+            )
     base_by_regime = {}
     for k, v in ic_regime.items():
         if len(v) >= 300:
             base_by_regime[k] = {
                 "n": len(v),
-                "hit": round(100 * float(np.mean(
-                    [r["x"][BASE_H] > 0 for r in v]))),
-                "avg": round(float(np.mean(
-                    [r["x"][BASE_H] for r in v])), 3)}
+                "hit": round(100 * float(np.mean([r["x"][BASE_H] > 0 for r in v]))),
+                "avg": round(float(np.mean([r["x"][BASE_H] for r in v])), 3),
+            }
     n_recent = len(recent)
     calibration = {
         "reliability_rolling90": rel,
         "regime_base_rates": base_by_regime,
         "sizing_shrinkage": {
-            "w_recent": round(n_recent / (n_recent + SHRINK_K_SIZING),
-                              3),
+            "w_recent": round(n_recent / (n_recent + SHRINK_K_SIZING), 3),
             "rule": "sizing weight = w*recent + (1-w)*trained, "
-                    f"w = n_recent/(n_recent+{SHRINK_K_SIZING})"}}
+            f"w = n_recent/(n_recent+{SHRINK_K_SIZING})",
+        },
+    }
 
     # ---- crowding ----
     def crowd(rs):
-        buckets = {"<0.1%": [], "0.1-0.5%": [], "0.5-2%": [],
-                   ">2%": []}
+        buckets = {"<0.1%": [], "0.1-0.5%": [], "0.5-2%": [], ">2%": []}
         for r in rs:
             pa = r["premadv"]
             if pa is None or BASE_H not in r["x"]:
                 continue
-            b = ("<0.1%" if pa < 0.001 else
-                 "0.1-0.5%" if pa < 0.005 else
-                 "0.5-2%" if pa < 0.02 else ">2%")
+            b = (
+                "<0.1%"
+                if pa < 0.001
+                else "0.1-0.5%"
+                if pa < 0.005
+                else "0.5-2%"
+                if pa < 0.02
+                else ">2%"
+            )
             buckets[b].append(r["x"][BASE_H])
         return {b: _stats(v) for b, v in buckets.items()}
+
     tod = defaultdict(list)
     for r in rows:
         s = sig_by_id.get(r["id"])
         try:
-            hr = datetime.fromisoformat(
-                s["flagged_at"]).astimezone(ET).hour
+            hr = datetime.fromisoformat(s["flagged_at"]).astimezone(ET).hour
             tod[f"{hr:02d}h"].append(r["x"][BASE_H])
         except Exception:
             pass
@@ -702,13 +730,13 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
         "ev_vs_premium_over_adv": {
             "all": crowd(rows),
             "golden_sweeps": crowd([r for r in rows if r["golden"]]),
-            "score_80_plus": crowd([r for r in rows
-                                    if r["score"] >= 80])},
-        "ev_by_hour_et": {k: _stats(v) for k, v in sorted(tod.items())
-                          if len(v) >= 300},
+            "score_80_plus": crowd([r for r in rows if r["score"] >= 80]),
+        },
+        "ev_by_hour_et": {k: _stats(v) for k, v in sorted(tod.items()) if len(v) >= 300},
         "hypothesis": "if EV falls as premium/ADV conspicuousness "
-                      "rises, the best-looking prints are crowded and "
-                      "the quiet qualifying signals carry the edge"}
+        "rises, the best-looking prints are crowded and "
+        "the quiet qualifying signals carry the edge",
+    }
 
     # ---- capacity ----
     def capacity(rs, name):
@@ -724,15 +752,27 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
         if not qs:
             return {"n": 0}
         qa = np.array(qs)
-        return {"per_name_q50_$": int(np.median(qa)),
-                "per_name_q25_$": int(np.percentile(qa, 25)),
-                "note": "clip size where sqrt-impact consumes 50% of "
-                        "gross matched edge"}
-    cap_panel = {n: capacity([r for r in rows if (
-        n == "overall" or
-        (n == "into_earnings" and r["ern"]) or
-        (n == "put_buys" and r["dir"] == "bearish"))], n)
-        for n in ("overall", "into_earnings", "put_buys")}
+        return {
+            "per_name_q50_$": int(np.median(qa)),
+            "per_name_q25_$": int(np.percentile(qa, 25)),
+            "note": "clip size where sqrt-impact consumes 50% of gross matched edge",
+        }
+
+    cap_panel = {
+        n: capacity(
+            [
+                r
+                for r in rows
+                if (
+                    n == "overall"
+                    or (n == "into_earnings" and r["ern"])
+                    or (n == "put_buys" and r["dir"] == "bearish")
+                )
+            ],
+            n,
+        )
+        for n in ("overall", "into_earnings", "put_buys")
+    }
 
     # ---- book simulation ----
     def book(rs, name):
@@ -767,50 +807,52 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
                 uw += 1
                 uw_max = max(uw_max, uw)
                 dd = min(dd, eq - peak)
-        worst_m = min(months.items(), key=lambda kv: kv[1]) \
-            if months else (None, 0)
-        return {"n_days": len(daily),
-                "total_matched_excess_pp": round(eq, 2),
-                "max_drawdown_pp": round(dd, 2),
-                "longest_underwater_days": uw_max,
-                "worst_month": {"month": worst_m[0],
-                                "pp": round(worst_m[1], 2)},
-                "note": "equal-weight, net of modeled costs, "
-                        "hold-5d overlap; per-day P&L approximated "
-                        "as x5/5 per open position"}
-    book_panel = {"overall": book(rows, "overall"),
-                  "into_earnings": book(
-                      [r for r in rows if r["ern"]], "into_earnings")}
+        worst_m = min(months.items(), key=lambda kv: kv[1]) if months else (None, 0)
+        return {
+            "n_days": len(daily),
+            "total_matched_excess_pp": round(eq, 2),
+            "max_drawdown_pp": round(dd, 2),
+            "longest_underwater_days": uw_max,
+            "worst_month": {"month": worst_m[0], "pp": round(worst_m[1], 2)},
+            "note": "equal-weight, net of modeled costs, "
+            "hold-5d overlap; per-day P&L approximated "
+            "as x5/5 per open position",
+        }
+
+    book_panel = {
+        "overall": book(rows, "overall"),
+        "into_earnings": book([r for r in rows if r["ern"]], "into_earnings"),
+    }
 
     # ---- entry-lag ladder ----
-    lag_panel = {"status": "skipped"} if no_lag else entry_lag(
-        rows, sig_by_id, days, ti, C, O, lag_budget)
+    lag_panel = (
+        {"status": "skipped"} if no_lag else entry_lag(rows, sig_by_id, days, ti, C, O, lag_budget)
+    )
 
     result = {
-        "generated": datetime.now(timezone.utc)
-        .isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "version": SC_VERSION,
-        "matrix": {"days": len(days), "tickers": len(tickers),
-                   "from": days[0] if days else None,
-                   "to": days[-1] if days else None},
+        "matrix": {
+            "days": len(days),
+            "tickers": len(tickers),
+            "from": days[0] if days else None,
+            "to": days[-1] if days else None,
+        },
         "matched": {
             "assigned": len([1 for v in matched.values() if "ci" in v]),
-            "unmatchable": len([1 for v in matched.values()
-                                if "ci" not in v]),
+            "unmatchable": len([1 for v in matched.values() if "ci" not in v]),
             "graded_5d": len(rows),
-            "match_v2_forward": len([1 for v in matched.values()
-                                     if v.get("mv") == 2]),
+            "match_v2_forward": len([1 for v in matched.values() if v.get("mv") == 2]),
         },
         "headline": {
-            "legacy_vs_spy_avg_excess_5d":
-                ((edge_legacy.get("overall") or {}).get("5")
-                 or {}).get("avg_excess"),
+            "legacy_vs_spy_avg_excess_5d": ((edge_legacy.get("overall") or {}).get("5") or {}).get(
+                "avg_excess"
+            ),
             "matched_avg_excess_5d": pockets["overall"].get("avg"),
-            "matched_into_earnings_5d":
-                pockets["into_earnings"].get("avg"),
+            "matched_into_earnings_5d": pockets["into_earnings"].get("avg"),
             "note": "matched excess is the flow alpha; the spread to "
-                    "the legacy SPY number is beta + universe drift + "
-                    "event premium",
+            "the legacy SPY number is beta + universe drift + "
+            "event premium",
         },
         "pockets": pockets,
         "ic": ic_panel,
@@ -820,22 +862,20 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
         "book_sim": book_panel,
         "entry_lag": lag_panel,
         "cost_model": {
-            "half_spread": "Corwin-Schultz 20d median estimate "
-                           f"(cap {SPREAD_CAP:.0%})",
-            "impact": f"k*sigma_d*sqrt(Q/ADV), k={IMPACT_K}, "
-                      f"Q=${int(CLIP_Q):,}",
-            "roundtrip": "2x(half_spread + impact)"},
+            "half_spread": f"Corwin-Schultz 20d median estimate (cap {SPREAD_CAP:.0%})",
+            "impact": f"k*sigma_d*sqrt(Q/ADV), k={IMPACT_K}, Q=${int(CLIP_Q):,}",
+            "roundtrip": "2x(half_spread + impact)",
+        },
         "promotion_gates": {
             "spec": [
-                "positive matched-excess NET-of-cost EV over >= 8 "
-                "unseen weeks",
+                "positive matched-excess NET-of-cost EV over >= 8 unseen weeks",
                 "cluster-corrected |t| > 2 on effective n",
-                "monotone decile spread OOS if the change touches "
-                "ranking",
+                "monotone decile spread OOS if the change touches ranking",
                 "no degradation in the worst regime tercile",
             ],
             "meta_kpi": "publish promoted/demoted counts as they "
-                        "accrue (none yet under these gates)"},
+            "accrue (none yet under these gates)",
+        },
         "honesty": (
             "Matched controls inherit beta, momentum drift and (match "
             "v2, forward) days-to-earnings; sector/mcap are from the "
@@ -845,22 +885,28 @@ def run(no_lag=False, lag_budget=LAG_BUDGET, dry=False):
             "include flag->close drift and are not comparable. Costs "
             "are modeled (CS spread + sqrt impact), not NBBO truth. "
             "Cluster unit = ISO week x sector; effective n is a "
-            "variance-ratio estimate."),
+            "variance-ratio estimate."
+        ),
     }
     if not dry:
         with open(OUT_PATH, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=1)
     print("headline:", json.dumps(result["headline"]))
-    print("overall:", json.dumps({k: pockets['overall'].get(k)
-                                  for k in ('n', 'avg', 'med', 'hit',
-                                            'bootstrap', 'net')}))
-    print("into_earnings:", json.dumps(
-        {k: pockets['into_earnings'].get(k)
-         for k in ('n', 'avg', 'bootstrap')}))
+    print(
+        "overall:",
+        json.dumps(
+            {k: pockets["overall"].get(k) for k in ("n", "avg", "med", "hit", "bootstrap", "net")}
+        ),
+    )
+    print(
+        "into_earnings:",
+        json.dumps({k: pockets["into_earnings"].get(k) for k in ("n", "avg", "bootstrap")}),
+    )
     return result
 
 
 # -------------------------------------------------------- entry lag
+
 
 def entry_lag(rows, sig_by_id, days, ti, C, O, budget):
     """EV(+5d close exit) if entered at signal / +15m / +60m / next
@@ -868,12 +914,10 @@ def entry_lag(rows, sig_by_id, days, ti, C, O, budget):
     into-earnings. Exit + control leg fixed (close-anchored), so the
     ladder isolates ENTRY price alone."""
     cache = _load(LAG_CACHE, {}) or {}
-    cutoff = (datetime.now(ET).date()
-              - timedelta(days=LAG_WINDOW_D)).isoformat()
-    cands = [r for r in rows if r["day"] >= cutoff
-             and BASE_H in r["x"]]
+    cutoff = (datetime.now(ET).date() - timedelta(days=LAG_WINDOW_D)).isoformat()
+    cands = [r for r in rows if r["day"] >= cutoff and BASE_H in r["x"]]
     random.Random(11).shuffle(cands)
-    cands.sort(key=lambda r: not r["ern"])   # earnings first
+    cands.sort(key=lambda r: not r["ern"])  # earnings first
     fetched = 0
     for r in cands:
         key = f"{r['tk']}|{r['day']}"
@@ -884,11 +928,10 @@ def entry_lag(rows, sig_by_id, days, ti, C, O, budget):
         fetched += 1
         try:
             data = pg._get(
-                f"/v2/aggs/ticker/{r['tk']}/range/1/minute/"
-                f"{r['day']}/{r['day']}", {"limit": 800})
+                f"/v2/aggs/ticker/{r['tk']}/range/1/minute/{r['day']}/{r['day']}", {"limit": 800}
+            )
             res = (data or {}).get("results") or []
-            cache[key] = {str(b["t"]): b["c"] for b in res
-                          if b.get("t") and b.get("c")}
+            cache[key] = {str(b["t"]): b["c"] for b in res if b.get("t") and b.get("c")}
         except Exception:
             cache[key] = {}
     with open(LAG_CACHE, "w", encoding="utf-8") as f:
@@ -912,8 +955,7 @@ def entry_lag(rows, sig_by_id, days, ti, C, O, budget):
         if not mins or not s:
             continue
         try:
-            ts_ms = int(datetime.fromisoformat(
-                s["flagged_at"]).timestamp() * 1000)
+            ts_ms = int(datetime.fromisoformat(s["flagged_at"]).timestamp() * 1000)
         except Exception:
             continue
         di, si = r["di"], r["si"]
@@ -929,25 +971,27 @@ def entry_lag(rows, sig_by_id, days, ti, C, O, budget):
             "at_signal": s.get("underlying_px_at_flag"),
             "+15m": px_at(mins, ts_ms, 15),
             "+60m": px_at(mins, ts_ms, 60),
-            "next_open": (float(O[di + 1, si])
-                          if di + 1 < len(days)
-                          and np.isfinite(O[di + 1, si]) else None),
+            "next_open": (
+                float(O[di + 1, si]) if di + 1 < len(days) and np.isfinite(O[di + 1, si]) else None
+            ),
         }
         any_used = False
         for name, e in entries.items():
             if e and e > 0:
-                ev = 100 * sign * (float(exit_px) / float(e) - 1.0) \
-                    - ctrl_leg
+                ev = 100 * sign * (float(exit_px) / float(e) - 1.0) - ctrl_leg
                 ladders[name].append(ev)
                 any_used = True
         if any_used:
             used += 1
-    out = {"window_days": LAG_WINDOW_D, "sampled_ticker_days": used,
-           "new_fetched": fetched,
-           "ladder": {k: _stats(v) for k, v in ladders.items()},
-           "note": "exit (+5d close) and control leg fixed; the "
-                   "ladder isolates entry price alone. next_open = "
-                   "next session's official daily open."}
+    out = {
+        "window_days": LAG_WINDOW_D,
+        "sampled_ticker_days": used,
+        "new_fetched": fetched,
+        "ladder": {k: _stats(v) for k, v in ladders.items()},
+        "note": "exit (+5d close) and control leg fixed; the "
+        "ladder isolates entry price alone. next_open = "
+        "next session's official daily open.",
+    }
     return out
 
 
@@ -956,6 +1000,8 @@ if __name__ == "__main__":
     ap.add_argument("--no-lag", action="store_true")
     ap.add_argument("--lag-budget", type=int, default=LAG_BUDGET)
     ap.add_argument("--dry-run", action="store_true")
-    run(no_lag=ap.parse_args().no_lag,
+    run(
+        no_lag=ap.parse_args().no_lag,
         lag_budget=ap.parse_args().lag_budget,
-        dry=ap.parse_args().dry_run)
+        dry=ap.parse_args().dry_run,
+    )

@@ -33,7 +33,6 @@ Every fixture below is a defect v3.1 shipped or would have shipped:
 """
 
 import copy
-import json
 import sys
 
 import report_v3_evidence as EV
@@ -41,10 +40,14 @@ import report_v3_validate as V
 
 
 def _bar(day, c):
-    return {"evidence_id": "BAR-%s" % day, "evidence_type": "market_bar",
-            "value": {"o": c, "h": c + 1, "l": c - 1, "c": c, "v": 1000},
-            "raw_hash": "0" * 64, "disposition": EV.ADMITTED,
-            "period": {"session": day, "complete": True}}
+    return {
+        "evidence_id": "BAR-%s" % day,
+        "evidence_type": "market_bar",
+        "value": {"o": c, "h": c + 1, "l": c - 1, "c": c, "v": 1000},
+        "raw_hash": "0" * 64,
+        "disposition": EV.ADMITTED,
+        "period": {"session": day, "complete": True},
+    }
 
 
 def clean_package():
@@ -54,75 +57,119 @@ def clean_package():
     for i, d in enumerate(days):
         recs["BAR-%s" % d] = _bar(d, 100.0 + i)
     for i, d in enumerate(days):
-        recs["SPY-%s" % d] = {"evidence_id": "SPY-%s" % d,
-                              "evidence_type": "benchmark_bar",
-                              "value": 400.0 + i, "raw_hash": "0" * 64,
-                              "disposition": EV.ADMITTED}
+        recs["SPY-%s" % d] = {
+            "evidence_id": "SPY-%s" % d,
+            "evidence_type": "benchmark_bar",
+            "value": 400.0 + i,
+            "raw_hash": "0" * 64,
+            "disposition": EV.ADMITTED,
+        }
     for i, cls in enumerate(("bullish", "bearish", "neutral")):
-        recs["SOC-x%d" % i] = {"evidence_id": "SOC-x%d" % i,
-                               "evidence_type": "social_post",
-                               "classification": cls, "value": "h%d" % i,
-                               "disposition": EV.ADMITTED}
+        recs["SOC-x%d" % i] = {
+            "evidence_id": "SOC-x%d" % i,
+            "evidence_type": "social_post",
+            "classification": cls,
+            "value": "h%d" % i,
+            "disposition": EV.ADMITTED,
+        }
     recs["EXH-GUI-revenue"] = {
-        "evidence_id": "EXH-GUI-revenue", "evidence_type": "exhibit_guidance",
+        "evidence_id": "EXH-GUI-revenue",
+        "evidence_type": "exhibit_guidance",
         "value": {"low": 2565.0, "midpoint": 2700.0, "high": 2835.0},
-        "unit": "USD_M", "display": "$2.565B - $2.835B",
-        "raw_hash": "0" * 64, "disposition": EV.ADMITTED}
+        "unit": "USD_M",
+        "display": "$2.565B - $2.835B",
+        "raw_hash": "0" * 64,
+        "disposition": EV.ADMITTED,
+    }
     recs["EXH-REP-non_gaap_gross_margin"] = {
         "evidence_id": "EXH-REP-non_gaap_gross_margin",
-        "evidence_type": "exhibit_reported", "value": 58.9, "unit": "%",
-        "display": "58.9%", "raw_hash": "0" * 64,
-        "disposition": EV.ADMITTED}
+        "evidence_type": "exhibit_reported",
+        "value": 58.9,
+        "unit": "%",
+        "display": "58.9%",
+        "raw_hash": "0" * 64,
+        "disposition": EV.ADMITTED,
+    }
 
     closes = [100.0 + i for i in range(20)]
     calcs = {
         "CALC-ma20": {
             "calculation_id": "CALC-ma20",
             "formula": "mean(close, last 20 completed sessions)",
-            "operands": [{"evidence_id": "BAR-%s..BAR-%s"
-                          % (days[0], days[-1]), "resolved": True,
-                          "members": 20, "expected_members": 20}],
+            "operands": [
+                {
+                    "evidence_id": "BAR-%s..BAR-%s" % (days[0], days[-1]),
+                    "resolved": True,
+                    "members": 20,
+                    "expected_members": 20,
+                }
+            ],
             "operands_complete": True,
             "result_unrounded": round(sum(closes) / 20.0, 2),
-            "window_declared": 20, "window_delivered": 20,
-            "recomputed": round(sum(closes) / 20.0, 2), "reproducible": True,
-            "displayed": True, "result_displayed": "109.50"},
+            "window_declared": 20,
+            "window_delivered": 20,
+            "recomputed": round(sum(closes) / 20.0, 2),
+            "reproducible": True,
+            "displayed": True,
+            "result_displayed": "109.50",
+        },
         "CALC-support60": {
             "calculation_id": "CALC-support60",
             "formula": "min(close, last 60 completed sessions)",
-            "operands": [], "operands_complete": True,
-            "result_unrounded": 100.0, "recomputed": 100.0,
-            "reproducible": True, "displayed": True},
+            "operands": [],
+            "operands_complete": True,
+            "result_unrounded": 100.0,
+            "recomputed": 100.0,
+            "reproducible": True,
+            "displayed": True,
+        },
         "CALC-rs_vs_spy": {
             "calculation_id": "CALC-rs_vs_spy",
             "formula": "12w return minus SPY",
-            "operands": [{"evidence_id": "BAR-%s..BAR-%s"
-                          % (days[0], days[-1]), "resolved": True},
-                         {"evidence_id": "SPY-%s..SPY-%s"
-                          % (days[0], days[-1]), "resolved": True}],
-            "operands_complete": True, "result_unrounded": 4.0,
-            "benchmark_sessions_delivered": 20, "recomputed": 4.0,
-            "reproducible": True, "displayed": True},
+            "operands": [
+                {"evidence_id": "BAR-%s..BAR-%s" % (days[0], days[-1]), "resolved": True},
+                {"evidence_id": "SPY-%s..SPY-%s" % (days[0], days[-1]), "resolved": True},
+            ],
+            "operands_complete": True,
+            "result_unrounded": 4.0,
+            "benchmark_sessions_delivered": 20,
+            "recomputed": 4.0,
+            "reproducible": True,
+            "displayed": True,
+        },
         "CALC-intraday_last": {
             "calculation_id": "CALC-intraday_last",
             "formula": "last trade of the open session",
-            "operands": [], "operands_complete": True,
-            "result_unrounded": 119.0, "recomputed": 119.0,
-            "reproducible": True, "displayed": True},
+            "operands": [],
+            "operands_complete": True,
+            "result_unrounded": 119.0,
+            "recomputed": 119.0,
+            "reproducible": True,
+            "displayed": True,
+        },
     }
     for _r in recs.values():
         _r.pop("record_hash", None)
         _r["record_hash"] = EV.record_hash(_r)
     return {
-        "schema": EV.SCHEMA, "records": recs, "calculations": calcs,
-        "calculation_coverage": {"numeric_reproduced": 4, "numeric_failed": 0,
-                                 "nonnumeric_exempt": 0, "total": 4,
-                                 "failed_detail": [], "exempt_detail": []},
-        "populations": {"news": {"admitted": 6, "shown_core": 3,
-                                 "shown_appendix": 6}},
+        "schema": EV.SCHEMA,
+        "records": recs,
+        "calculations": calcs,
+        "calculation_coverage": {
+            "numeric_reproduced": 4,
+            "numeric_failed": 0,
+            "nonnumeric_exempt": 0,
+            "total": 4,
+            "failed_detail": [],
+            "exempt_detail": [],
+        },
+        "populations": {"news": {"admitted": 6, "shown_core": 3, "shown_appendix": 6}},
         "source_coverage": {"non_gaap_margin": "ADMITTED - parsed from 8-K"},
-        "hash_verification": {"coverage_pct": 100.0, "records_total":
-                              len(recs), "hash_version": EV.HASH_VERSION},
+        "hash_verification": {
+            "coverage_pct": 100.0,
+            "records_total": len(recs),
+            "hash_version": EV.HASH_VERSION,
+        },
     }
 
 
@@ -130,17 +177,35 @@ def clean_view():
     """The smallest view check_setup will accept as complete: one derived
     metric that cites a calculation in the package, one unavailable metric
     that says why, and a chart that reports what it drew."""
-    return {"setup_metrics": [
-        {"label": "vs 20-day average", "value": "above (109.50)",
-         "grade": V.M.DERIVED, "basis": None, "calc": "CALC-ma20",
-         "unavailable_reason": None},
-        {"label": "Float", "value": "872M", "grade": V.M.OBSERVED,
-         "basis": "vendor profile, no as-of date published",
-         "calc": None, "unavailable_reason": None},
-        {"label": "Short interest", "value": "Unavailable", "grade": None,
-         "basis": None, "calc": None,
-         "unavailable_reason": "no settlement date accompanies the figure"}],
-        "chart": {"sessions": 20, "log_scale": False, "partial": False}}
+    return {
+        "setup_metrics": [
+            {
+                "label": "vs 20-day average",
+                "value": "above (109.50)",
+                "grade": V.M.DERIVED,
+                "basis": None,
+                "calc": "CALC-ma20",
+                "unavailable_reason": None,
+            },
+            {
+                "label": "Float",
+                "value": "872M",
+                "grade": V.M.OBSERVED,
+                "basis": "vendor profile, no as-of date published",
+                "calc": None,
+                "unavailable_reason": None,
+            },
+            {
+                "label": "Short interest",
+                "value": "Unavailable",
+                "grade": None,
+                "basis": None,
+                "calc": None,
+                "unavailable_reason": "no settlement date accompanies the figure",
+            },
+        ],
+        "chart": {"sessions": 20, "log_scale": False, "partial": False},
+    }
 
 
 def clean_snap():
@@ -151,25 +216,34 @@ def clean_snap():
     CALC- id, and an evidence_index that either does or does not carry
     it."""
     return {
-        "report_time": "2026-01-21T16:00:00-05:00", "ticker": "TEST",
+        "report_time": "2026-01-21T16:00:00-05:00",
+        "ticker": "TEST",
         "evidence_index": ["CALC-ma20", "BAR-2026-01-20"],
-        "levels": {"ma20": {"v": 109.5, "quality": "derived",
-                            "metric": "20-day moving average",
-                            "source_type": "derived",
-                            "evidence_refs": ["CALC-ma20"]}},
+        "levels": {
+            "ma20": {
+                "v": 109.5,
+                "quality": "derived",
+                "metric": "20-day moving average",
+                "source_type": "derived",
+                "evidence_refs": ["CALC-ma20"],
+            }
+        },
     }
 
 
-CLEAN_PDF = ("20 completed sessions: candles "
-             "109.50 the lowest close 58.9% $2.565B $2.835B "
-             "3 of 6 items are shown here "
-             "10 evidence records - 6 admitted - 3 shown in core - "
-             "0 shown in appendix "
-             "screened representative excerpts "
-             "60-session closing low 52-week closing high")
+CLEAN_PDF = (
+    "20 completed sessions: candles "
+    "109.50 the lowest close 58.9% $2.565B $2.835B "
+    "3 of 6 items are shown here "
+    "10 evidence records - 6 admitted - 3 shown in core - "
+    "0 shown in appendix "
+    "screened representative excerpts "
+    "60-session closing low 52-week closing high"
+)
 
 
 # ── one corruption each ─────────────────────────────────────────────────
+
 
 def m_bar_cardinality(pkg, txt, view, snap):
     pkg["calculations"]["CALC-ma20"]["window_delivered"] = 19
@@ -182,7 +256,7 @@ def m_bar_range_present(pkg, txt, view, snap):
 
 
 def m_benchmark_operands(pkg, txt, view, snap):
-    for k, v in pkg["records"].items():
+    for v in pkg["records"].values():
         if v.get("evidence_type") == "benchmark_bar":
             v["value"] = None
     return pkg, txt, view, snap
@@ -192,21 +266,24 @@ def m_partial_session(pkg, txt, view, snap):
     pkg["records"]["INTRADAY-2026-01-21"] = {
         "evidence_id": "INTRADAY-2026-01-21",
         "evidence_type": "intraday_observation",
-        "value": {"c": 120.0}, "raw_hash": "0" * 64,
-        "disposition": EV.ADMITTED}
+        "value": {"c": 120.0},
+        "raw_hash": "0" * 64,
+        "disposition": EV.ADMITTED,
+    }
     pkg["calculations"]["CALC-last_close"] = {
         "calculation_id": "CALC-last_close",
         "formula": "close of the most recent session",
-        "operands": [{"evidence_id": "INTRADAY-2026-01-21",
-                      "resolved": True}],
-        "operands_complete": True, "result_unrounded": 120.0,
-        "reproducible": True, "displayed": True}
+        "operands": [{"evidence_id": "INTRADAY-2026-01-21", "resolved": True}],
+        "operands_complete": True,
+        "result_unrounded": 120.0,
+        "reproducible": True,
+        "displayed": True,
+    }
     return pkg, txt, view, snap
 
 
 def m_level_wording(pkg, txt, view, snap):
-    pkg["calculations"]["CALC-support60"]["formula"] = \
-        "min(low, last 60 completed sessions)"
+    pkg["calculations"]["CALC-support60"]["formula"] = "min(low, last 60 completed sessions)"
     return pkg, txt, view, snap
 
 
@@ -215,19 +292,18 @@ def m_guidance_precision(pkg, txt, view, snap):
 
 
 def m_guidance_pdf_match(pkg, txt, view, snap):
-    return (pkg, txt.replace("$2.565B", "").replace("$2.835B", ""),
-            view, snap)
+    return (pkg, txt.replace("$2.565B", "").replace("$2.835B", ""), view, snap)
 
 
 def m_coverage_consistency(pkg, txt, view, snap):
-    pkg["source_coverage"]["non_gaap_margin"] = \
+    pkg["source_coverage"]["non_gaap_margin"] = (
         "not available - non-GAAP measures are not XBRL-tagged"
+    )
     return pkg, txt, view, snap
 
 
 def m_display_count_scope(pkg, txt, view, snap):
-    pkg["populations"]["news"] = {"records_displayed": 6,
-                                  "legacy_records_displayed": 6}
+    pkg["populations"]["news"] = {"records_displayed": 6, "legacy_records_displayed": 6}
     return pkg, txt, view, snap
 
 
@@ -243,7 +319,8 @@ def m_date_alignment(pkg, txt, view, snap):
     c = pkg["calculations"]["CALC-rs_vs_spy"]
     c["operands"] = [
         {"evidence_id": "BAR-2026-01-01..BAR-2026-01-20", "resolved": True},
-        {"evidence_id": "SPY-2026-01-02..SPY-2026-01-21", "resolved": True}]
+        {"evidence_id": "SPY-2026-01-02..SPY-2026-01-21", "resolved": True},
+    ]
     return pkg, txt, view, snap
 
 
@@ -252,11 +329,13 @@ def m_calc_reproducible(pkg, txt, view, snap):
     c["reproducible"] = False
     c["recompute_note"] = "published 109.50 but the delivered bars give 131.87"
     pkg["calculation_coverage"] = {
-        "numeric_reproduced": 3, "numeric_failed": 1, "nonnumeric_exempt": 0,
+        "numeric_reproduced": 3,
+        "numeric_failed": 1,
+        "nonnumeric_exempt": 0,
         "total": 4,
-        "failed_detail": [{"calculation_id": "CALC-ma20",
-                           "note": c["recompute_note"]}],
-        "exempt_detail": []}
+        "failed_detail": [{"calculation_id": "CALC-ma20", "note": c["recompute_note"]}],
+        "exempt_detail": [],
+    }
     return pkg, txt, view, snap
 
 
@@ -270,13 +349,16 @@ def m_display_count_unscoped(pkg, txt, view, snap):
 
 
 def m_social_sample_description(pkg, txt, view, snap):
-    return pkg, txt.replace("screened representative excerpts",
-                            "neutral representative excerpts only"),         view, snap
+    return (
+        pkg,
+        txt.replace("screened representative excerpts", "neutral representative excerpts only"),
+        view,
+        snap,
+    )
 
 
 def m_close_extrema_labelled(pkg, txt, view, snap):
-    return (pkg, txt.replace("60-session closing low",
-                             "60-session low"), view, snap)
+    return (pkg, txt.replace("60-session closing low", "60-session low"), view, snap)
 
 
 def m_metric_formula_traceable(pkg, txt, view, snap):
@@ -295,18 +377,25 @@ def m_market_data_freshness(pkg, txt, view, snap):
 
 
 def m_chart_window_cardinality(pkg, txt, view, snap):
-    return (pkg, txt.replace("20 completed sessions: candles",
-                             "120 completed sessions: candles"), view, snap)
+    return (
+        pkg,
+        txt.replace("20 completed sessions: candles", "120 completed sessions: candles"),
+        view,
+        snap,
+    )
 
 
 def m_partial_bar_excluded(pkg, txt, view, snap):
     pkg["records"]["INTRADAY-2026-01-21"] = {
         "evidence_id": "INTRADAY-2026-01-21",
         "evidence_type": "intraday_observation",
-        "value": {"c": 120.0}, "raw_hash": "0" * 64,
-        "disposition": EV.ADMITTED}
+        "value": {"c": 120.0},
+        "raw_hash": "0" * 64,
+        "disposition": EV.ADMITTED,
+    }
     pkg["calculations"]["CALC-ma20"]["operands"].append(
-        {"evidence_id": "INTRADAY-2026-01-21", "resolved": True})
+        {"evidence_id": "INTRADAY-2026-01-21", "resolved": True}
+    )
     return pkg, txt, view, snap
 
 
@@ -315,77 +404,100 @@ def m_snapshot_refs_resolve(pkg, txt, view, snap):
     that was never emitted. v3 exported a clean package and passed every
     one of its own checks while the v2 gate refused every ticker."""
     snap["levels"]["atr14_pct"] = {
-        "v": 9.12, "quality": "derived", "metric": "ATR(14) percent",
-        "source_type": "derived", "evidence_refs": ["CALC-atr14_pct"]}
+        "v": 9.12,
+        "quality": "derived",
+        "metric": "ATR(14) percent",
+        "source_type": "derived",
+        "evidence_refs": ["CALC-atr14_pct"],
+    }
     return pkg, txt, view, snap
 
 
 def m_interpretive_phrase(pkg, txt, view, snap):
-    return (pkg, txt + " the move looks like a dead-cat bounce",
-            view, snap)
+    return (pkg, txt + " the move looks like a dead-cat bounce", view, snap)
 
 
 MUTATIONS = [
-    ("BAR_CARDINALITY",
-     "CALC-ma20 declaring a 20-session window with 19 bars delivered",
-     m_bar_cardinality),
-    ("BAR_RANGE_PRESENT", "a declared range whose start bar is absent",
-     m_bar_range_present),
-    ("BENCHMARK_OPERANDS", "benchmark observations that are null",
-     m_benchmark_operands),
-    ("PARTIAL_SESSION_NOT_A_CLOSE", "an open session published as a close",
-     m_partial_session),
-    ("LEVEL_WORDING_BASIS", "min(low) described on the page as the lowest "
-                            "close", m_level_wording),
+    (
+        "BAR_CARDINALITY",
+        "CALC-ma20 declaring a 20-session window with 19 bars delivered",
+        m_bar_cardinality,
+    ),
+    ("BAR_RANGE_PRESENT", "a declared range whose start bar is absent", m_bar_range_present),
+    ("BENCHMARK_OPERANDS", "benchmark observations that are null", m_benchmark_operands),
+    ("PARTIAL_SESSION_NOT_A_CLOSE", "an open session published as a close", m_partial_session),
+    ("LEVEL_WORDING_BASIS", "min(low) described on the page as the lowest close", m_level_wording),
     ("GUIDANCE_PRECISION", "$2.565B rendered as $2.56B", m_guidance_precision),
-    ("GUIDANCE_PDF_MATCH", "a guidance line missing from the page",
-     m_guidance_pdf_match),
-    ("COVERAGE_CONSISTENCY", "coverage claiming non-GAAP is unavailable "
-                             "while exhibit figures are admitted",
-     m_coverage_consistency),
-    ("DISPLAY_COUNT_SCOPE", "a bare displayed count with no artifact scope",
-     m_display_count_scope),
-    ("CALC_REPRODUCIBLE",
-     "a numeric calculation the delivered bars do not reproduce",
-     m_calc_reproducible),
-    ("HASH_COVERAGE", "records shipped without a canonical hash",
-     m_hash_coverage),
-    ("RECORD_HASH_RECOMPUTE",
-     "one record value edited without updating its record_hash",
-     m_record_hash),
-    ("BENCHMARK_DATE_ALIGNMENT",
-     "benchmark leg spanning different sessions from the issuer leg",
-     m_date_alignment),
-    ("DISPLAY_COUNT_UNSCOPED",
-     "a rendered count reading '5 records displayed' with no artifact named",
-     m_display_count_unscoped),
-    ("SOCIAL_SAMPLE_DESCRIPTION",
-     "a multi-classification sample described as neutral",
-     m_social_sample_description),
-    ("CLOSE_EXTREMA_LABELLED",
-     "a close-derived 60-session low printed without 'closing'",
-     m_close_extrema_labelled),
+    ("GUIDANCE_PDF_MATCH", "a guidance line missing from the page", m_guidance_pdf_match),
+    (
+        "COVERAGE_CONSISTENCY",
+        "coverage claiming non-GAAP is unavailable while exhibit figures are admitted",
+        m_coverage_consistency,
+    ),
+    ("DISPLAY_COUNT_SCOPE", "a bare displayed count with no artifact scope", m_display_count_scope),
+    (
+        "CALC_REPRODUCIBLE",
+        "a numeric calculation the delivered bars do not reproduce",
+        m_calc_reproducible,
+    ),
+    ("HASH_COVERAGE", "records shipped without a canonical hash", m_hash_coverage),
+    (
+        "RECORD_HASH_RECOMPUTE",
+        "one record value edited without updating its record_hash",
+        m_record_hash,
+    ),
+    (
+        "BENCHMARK_DATE_ALIGNMENT",
+        "benchmark leg spanning different sessions from the issuer leg",
+        m_date_alignment,
+    ),
+    (
+        "DISPLAY_COUNT_UNSCOPED",
+        "a rendered count reading '5 records displayed' with no artifact named",
+        m_display_count_unscoped,
+    ),
+    (
+        "SOCIAL_SAMPLE_DESCRIPTION",
+        "a multi-classification sample described as neutral",
+        m_social_sample_description,
+    ),
+    (
+        "CLOSE_EXTREMA_LABELLED",
+        "a close-derived 60-session low printed without 'closing'",
+        m_close_extrema_labelled,
+    ),
     # v3.4 setup layer
-    ("METRIC_FORMULA_TRACEABLE",
-     "a derived metric citing a calculation the package does not carry",
-     m_metric_formula_traceable),
-    ("METRIC_SOURCE_DATED",
-     "a vendor metric with neither an as-of date nor a statement that none "
-     "is published", m_metric_source_dated),
-    ("MARKET_DATA_FRESHNESS",
-     "a report time 40 days after the newest completed session",
-     m_market_data_freshness),
-    ("CHART_WINDOW_CARDINALITY",
-     "a caption claiming 120 sessions for a 20-session chart",
-     m_chart_window_cardinality),
-    ("PARTIAL_BAR_EXCLUDED",
-     "the still-open session used as an operand of a moving average",
-     m_partial_bar_excluded),
-    ("INTERPRETIVE_PHRASE",
-     "'dead-cat bounce' rendered on the page", m_interpretive_phrase),
-    ("SNAPSHOT_REFS_RESOLVE",
-     "a published fact citing a CALC- id the export never emitted",
-     m_snapshot_refs_resolve),
+    (
+        "METRIC_FORMULA_TRACEABLE",
+        "a derived metric citing a calculation the package does not carry",
+        m_metric_formula_traceable,
+    ),
+    (
+        "METRIC_SOURCE_DATED",
+        "a vendor metric with neither an as-of date nor a statement that none is published",
+        m_metric_source_dated,
+    ),
+    (
+        "MARKET_DATA_FRESHNESS",
+        "a report time 40 days after the newest completed session",
+        m_market_data_freshness,
+    ),
+    (
+        "CHART_WINDOW_CARDINALITY",
+        "a caption claiming 120 sessions for a 20-session chart",
+        m_chart_window_cardinality,
+    ),
+    (
+        "PARTIAL_BAR_EXCLUDED",
+        "the still-open session used as an operand of a moving average",
+        m_partial_bar_excluded,
+    ),
+    ("INTERPRETIVE_PHRASE", "'dead-cat bounce' rendered on the page", m_interpretive_phrase),
+    (
+        "SNAPSHOT_REFS_RESOLVE",
+        "a published fact citing a CALC- id the export never emitted",
+        m_snapshot_refs_resolve,
+    ),
 ]
 
 
@@ -393,67 +505,79 @@ def _all(pkg, view, snap, txt):
     """Every check a fixture can trip. check_setup joined the list in
     v3.4; a fixture whose check is not run here reports NOT_RUN and fails
     the suite, which is the behaviour we want when one is forgotten."""
-    return (V.check_numerics(pkg, view, snap, txt)
-            + V.check_setup(pkg, view, snap, txt)
-            + V.check_shared_snapshot(snap)
-            + V.check_editorial(pkg, view, snap, txt))
+    return (
+        V.check_numerics(pkg, view, snap, txt)
+        + V.check_setup(pkg, view, snap, txt)
+        + V.check_shared_snapshot(snap)
+        + V.check_editorial(pkg, view, snap, txt)
+    )
 
 
 def run():
     """Return one result per mutation, plus the clean control."""
     results = []
     base, bview, bsnap = clean_package(), clean_view(), clean_snap()
-    ctrl = [c for c in _all(base, bview, bsnap, CLEAN_PDF)
-            if c["status"] == V.FAIL]
-    results.append({
-        "check_id": "CONTROL", "mutation": "none - the clean package",
-        "expected_status": V.PASS,
-        "observed_status": V.FAIL if ctrl else V.PASS,
-        "passed": not ctrl,
-        "detail": ("unexpected failures: %s" % [c["check_id"] for c in ctrl])
-        if ctrl else "every numeric check passes on clean input"})
+    ctrl = [c for c in _all(base, bview, bsnap, CLEAN_PDF) if c["status"] == V.FAIL]
+    results.append(
+        {
+            "check_id": "CONTROL",
+            "mutation": "none - the clean package",
+            "expected_status": V.PASS,
+            "observed_status": V.FAIL if ctrl else V.PASS,
+            "passed": not ctrl,
+            "detail": ("unexpected failures: %s" % [c["check_id"] for c in ctrl])
+            if ctrl
+            else "every numeric check passes on clean input",
+        }
+    )
 
     for check_id, description, mutate in MUTATIONS:
-        pkg, txt, view, snap = mutate(copy.deepcopy(base), CLEAN_PDF,
-                                      copy.deepcopy(bview),
-                                      copy.deepcopy(bsnap))
+        pkg, txt, view, snap = mutate(
+            copy.deepcopy(base), CLEAN_PDF, copy.deepcopy(bview), copy.deepcopy(bsnap)
+        )
         got = None
         for c in _all(pkg, view, snap, txt):
             if c["check_id"] == check_id:
                 got = c
                 break
         ok = bool(got and got["status"] == V.FAIL)
-        results.append({
-            "check_id": check_id, "mutation": description,
-            "expected_status": V.FAIL,
-            "observed_status": (got or {}).get("status", "NOT_RUN"),
-            "passed": ok,
-            "detail": (got or {}).get("observed")})
+        results.append(
+            {
+                "check_id": check_id,
+                "mutation": description,
+                "expected_status": V.FAIL,
+                "observed_status": (got or {}).get("status", "NOT_RUN"),
+                "passed": ok,
+                "detail": (got or {}).get("observed"),
+            }
+        )
     return results
 
 
 def summary(results=None):
     r = results if results is not None else run()
-    return {"schema": "validator_mutation_tests/v1",
-            "validator_version": V.VALIDATOR_VERSION,
-            "validator_code_sha256": V.validator_code_hash(),
-            "total": len(r),
-            "passed": len([x for x in r if x["passed"]]),
-            "failed": [x["check_id"] for x in r if not x["passed"]],
-            "all_checks_proven": all(x["passed"] for x in r),
-            "note": ("each fixture corrupts exactly one thing and asserts "
-                     "the owning check reports FAIL; the control asserts "
-                     "clean input still passes, so a validator that failed "
-                     "everything would not score here"),
-            "results": r}
+    return {
+        "schema": "validator_mutation_tests/v1",
+        "validator_version": V.VALIDATOR_VERSION,
+        "validator_code_sha256": V.validator_code_hash(),
+        "total": len(r),
+        "passed": len([x for x in r if x["passed"]]),
+        "failed": [x["check_id"] for x in r if not x["passed"]],
+        "all_checks_proven": all(x["passed"] for x in r),
+        "note": (
+            "each fixture corrupts exactly one thing and asserts "
+            "the owning check reports FAIL; the control asserts "
+            "clean input still passes, so a validator that failed "
+            "everything would not score here"
+        ),
+        "results": r,
+    }
 
 
 def main():
     s = summary()
     for r in s["results"]:
-        print("  %-6s %-30s %s"
-              % ("PASS" if r["passed"] else "FAIL", r["check_id"],
-                 r["mutation"]))
+        print("  %-6s %-30s %s" % ("PASS" if r["passed"] else "FAIL", r["check_id"], r["mutation"]))
     print("\n%d/%d mutation fixtures caught" % (s["passed"], s["total"]))
     if s["failed"]:
         print("NOT PROVEN: " + ", ".join(s["failed"]))

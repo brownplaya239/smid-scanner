@@ -35,12 +35,11 @@ import gzip
 import json
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 HOT = os.path.join(_BASE, "data", "uoa_signals.jsonl")
-ARCHIVE_FMT = os.path.join(_BASE, "data",
-                           "uoa_signals_archive_{ym}.jsonl.gz")
+ARCHIVE_FMT = os.path.join(_BASE, "data", "uoa_signals_archive_{ym}.jsonl.gz")
 
 TRIGGER_MB = 80
 KEEP_DAYS = 45
@@ -55,8 +54,7 @@ def rotate(force=False, dry=False):
         print(f"hot ledger {size_mb:.1f} MB < {TRIGGER_MB} MB — no-op")
         return {"rotated": 0, "hot_mb": round(size_mb, 1)}
 
-    cutoff = (datetime.now(timezone.utc)
-              - timedelta(days=KEEP_DAYS)).date().isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(days=KEEP_DAYS)).date().isoformat()
     keep, move = [], defaultdict(list)
     bad = 0
     with open(HOT, encoding="utf-8") as f:
@@ -68,7 +66,7 @@ def rotate(force=False, dry=False):
                 day = (json.loads(raw).get("flagged_at") or "")[:10]
             except Exception:
                 bad += 1
-                keep.append(raw)      # never discard even a bad line
+                keep.append(raw)  # never discard even a bad line
                 continue
             if day and day < cutoff:
                 move[day[:7].replace("-", "")].append(raw)
@@ -76,9 +74,11 @@ def rotate(force=False, dry=False):
                 keep.append(raw)
 
     n_move = sum(len(v) for v in move.values())
-    print(f"hot {size_mb:.1f} MB · keep {len(keep)} lines · "
-          f"archive {n_move} lines across {len(move)} months"
-          + (f" · {bad} unparseable kept" if bad else ""))
+    print(
+        f"hot {size_mb:.1f} MB · keep {len(keep)} lines · "
+        f"archive {n_move} lines across {len(move)} months"
+        + (f" · {bad} unparseable kept" if bad else "")
+    )
     if dry or not n_move:
         return {"rotated": 0 if dry else n_move}
 
@@ -90,16 +90,21 @@ def rotate(force=False, dry=False):
         # happen in normal operation.
         with gzip.open(path, "ab") as gz:
             gz.write(("\n".join(move[ym]) + "\n").encode("utf-8"))
-        print(f"  -> {os.path.basename(path)} +{len(move[ym])} lines "
-              f"({os.path.getsize(path)/1e6:.1f} MB)")
+        print(
+            f"  -> {os.path.basename(path)} +{len(move[ym])} lines "
+            f"({os.path.getsize(path) / 1e6:.1f} MB)"
+        )
 
     tmp = HOT + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(keep) + ("\n" if keep else ""))
     os.replace(tmp, HOT)
-    print(f"hot ledger now {os.path.getsize(HOT)/1e6:.1f} MB")
-    return {"rotated": n_move, "months": sorted(move),
-            "hot_mb": round(os.path.getsize(HOT) / 1e6, 1)}
+    print(f"hot ledger now {os.path.getsize(HOT) / 1e6:.1f} MB")
+    return {
+        "rotated": n_move,
+        "months": sorted(move),
+        "hot_mb": round(os.path.getsize(HOT) / 1e6, 1),
+    }
 
 
 if __name__ == "__main__":

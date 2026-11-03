@@ -12,14 +12,16 @@ a single table.
 """
 
 import re
-import sys
 from datetime import timedelta as _timedelta
 
 
 def _now_et():
     from datetime import datetime
+
     import brief_time as BT
+
     return datetime.now(BT.ET)
+
 
 # ── watchlist ranking ───────────────────────────────────────────────────
 # "ACT NOW" overstated certainty and sat badly beside an educational-
@@ -44,11 +46,27 @@ MONITOR = "MONITOR"
 NOTABLE = "NOTABLE"
 NO_CHANGE = "NO MATERIAL CHANGE"
 ACT_NOW, WATCH, NO_ACTION, QUIET = (REVIEW, MONITOR, MONITOR, NO_CHANGE)
-RANK_ORDER = {TRIGGER_REACHED: 0, REVIEW: 1, MIXED_SETUP: 2, WEAKENING: 3,
-              STRENGTHENING: 4, BEARISH_FLOW_ALERT: 5, BULLISH_FLOW_ALERT: 6,
-              MONITOR: 7, NOTABLE: 8, NO_CHANGE: 9}
-MATERIAL_STATES = (TRIGGER_REACHED, REVIEW, MIXED_SETUP, WEAKENING,
-                   STRENGTHENING, BEARISH_FLOW_ALERT, BULLISH_FLOW_ALERT)
+RANK_ORDER = {
+    TRIGGER_REACHED: 0,
+    REVIEW: 1,
+    MIXED_SETUP: 2,
+    WEAKENING: 3,
+    STRENGTHENING: 4,
+    BEARISH_FLOW_ALERT: 5,
+    BULLISH_FLOW_ALERT: 6,
+    MONITOR: 7,
+    NOTABLE: 8,
+    NO_CHANGE: 9,
+}
+MATERIAL_STATES = (
+    TRIGGER_REACHED,
+    REVIEW,
+    MIXED_SETUP,
+    WEAKENING,
+    STRENGTHENING,
+    BEARISH_FLOW_ALERT,
+    BULLISH_FLOW_ALERT,
+)
 # REVIEW NOW requires the full decision context; without it we say MONITOR
 REVIEW_FIELDS = ("trigger", "invalidation", "evidence")
 MAX_CHANGED_SHOWN = 5
@@ -83,9 +101,15 @@ RULE_FIELDS = {
 }
 # Only these codes make a name MATERIAL. FLOW_PRESENT is real evidence and
 # is reported, but a stray print is not a material change.
-MATERIAL_CODES = ("GRADE_TRANSITION", "TRIGGER_CROSS", "PRICE_MOVE",
-                  "FLOW_HQ", "EARNINGS_CONFIRMED", "TECH_TRANSITION",
-                  "NEWS_MATERIAL")
+MATERIAL_CODES = (
+    "GRADE_TRANSITION",
+    "TRIGGER_CROSS",
+    "PRICE_MOVE",
+    "FLOW_HQ",
+    "EARNINGS_CONFIRMED",
+    "TECH_TRANSITION",
+    "NEWS_MATERIAL",
+)
 # below these, flow is noise on a watch list
 FLOW_HQ_PREMIUM = 1_000_000
 FLOW_HQ_TIERS = ("A+", "A", "A-")
@@ -112,8 +136,9 @@ def materiality(ch):
     # FLOW_HQ requires the configured threshold to have actually passed AND
     # the displayed quality tier to agree with it. Flow that exists but is
     # not high quality is still evidence; it just gets its own code.
-    if ch.get("flow_hq") and (ch.get("signal_strength") is None
-                              or flow_quality_is_hq(ch.get("signal_strength"))):
+    if ch.get("flow_hq") and (
+        ch.get("signal_strength") is None or flow_quality_is_hq(ch.get("signal_strength"))
+    ):
         codes.append("FLOW_HQ")
     elif ch.get("has_flow"):
         codes.append("FLOW_PRESENT")
@@ -159,8 +184,7 @@ def synthesize(ch):
         flow = -1
 
     days = ch.get("earnings_in_days")
-    event = ("earnings in %dd" % days) if days is not None and days <= 5 \
-        else None
+    event = ("earnings in %dd" % days) if days is not None and days <= 5 else None
     # short-dated positioning into a scheduled event is the case worth
     # calling out; flow that expires after the print is a different animal
     short_dated = bool(ch.get("flow_short_dated"))
@@ -186,15 +210,11 @@ def synthesis_line(ch, syn=None):
         return ""
     gf, gt = ch.get("grade_from"), ch.get("grade_to")
     if syn["structural"] > 0:
-        first = ("grade improved %s → %s" % (gf, gt)) if gf and gt \
-            else "structural read improved"
-        second = "%s%s flow" % ("short-dated " if syn["short_dated"] else "",
-                                "bearish")
+        first = ("grade improved %s → %s" % (gf, gt)) if gf and gt else "structural read improved"
+        second = "%s%s flow" % ("short-dated " if syn["short_dated"] else "", "bearish")
     else:
-        first = ("grade fell %s → %s" % (gf, gt)) if gf and gt \
-            else "structural read weakened"
-        second = "%s%s flow" % ("short-dated " if syn["short_dated"] else "",
-                                "bullish")
+        first = ("grade fell %s → %s" % (gf, gt)) if gf and gt else "structural read weakened"
+        second = "%s%s flow" % ("short-dated " if syn["short_dated"] else "", "bullish")
     tail = (" ahead of %s" % syn["event"]) if syn["event"] else ""
     return "%s; %s%s" % (first, second, tail)
 
@@ -232,18 +252,23 @@ BASIS_CLOSE = "prior close"
 BASIS_DETECT = "spot at flow detection"
 
 
-def price_record(value, basis, as_of="", reason="", source="",
-                 stale_after=""):
+def price_record(value, basis, as_of="", reason="", source="", stale_after=""):
     """A price always renders as something, and always says when it was
     true. An empty cell reads as a rendering bug; 'Price unavailable'
     reads as the truth; and a bare number with no clock is the worst of
     the three, because it looks authoritative.
     """
     if value is None:
-        return {"value": None, "text": "Price unavailable · %s"
-                % (reason or "no source"), "basis": None,
-                "session_basis": None, "as_of": "", "source": source,
-                "stale_after": "", "unavailable_reason": reason or "no source"}
+        return {
+            "value": None,
+            "text": "Price unavailable · %s" % (reason or "no source"),
+            "basis": None,
+            "session_basis": None,
+            "as_of": "",
+            "source": source,
+            "stale_after": "",
+            "unavailable_reason": reason or "no source",
+        }
     # State the basis always; state the clock only when we have one. The
     # first cut printed "· pre-market " with a dangling space where the
     # timestamp should have been, which reads as a truncated field.
@@ -256,17 +281,25 @@ def price_record(value, basis, as_of="", reason="", source="",
     elif basis == BASIS_CLOSE:
         label = ("%s close" % short) if short else "prior close"
     elif basis == BASIS_DETECT:
-        label = ("spot at detection %s" % as_of) if as_of \
-            else "spot at flow detection"
+        label = ("spot at detection %s" % as_of) if as_of else "spot at flow detection"
     else:
         label = short
     # the schema's session_basis enum; `basis` stays for the display label
-    session_basis = {BASIS_PREMARKET: "pre_market", BASIS_CLOSE: "prior_close",
-                     BASIS_DETECT: "flow_spot", "live": "live"}.get(basis)
-    return {"value": round(float(value), 2), "basis": basis,
-            "session_basis": session_basis, "as_of": as_of,
-            "source": source or "unknown", "stale_after": stale_after,
-            "text": ("$%.2f" % value) + (" · %s" % label if label else "")}
+    session_basis = {
+        BASIS_PREMARKET: "pre_market",
+        BASIS_CLOSE: "prior_close",
+        BASIS_DETECT: "flow_spot",
+        "live": "live",
+    }.get(basis)
+    return {
+        "value": round(float(value), 2),
+        "basis": basis,
+        "session_basis": session_basis,
+        "as_of": as_of,
+        "source": source or "unknown",
+        "stale_after": stale_after,
+        "text": ("$%.2f" % value) + (" · %s" % label if label else ""),
+    }
 
 
 def _ma_levels(fact):
@@ -312,8 +345,11 @@ def confirmation_invalidation(fact):
         inval_at = p
     else:
         atr = (fact or {}).get("atr_pct")
-        inval = ("a close below $%.2f (one ATR under today)"
-                 % (close * (1 - atr / 100.0))) if atr else None
+        inval = (
+            ("a close below $%.2f (one ATR under today)" % (close * (1 - atr / 100.0)))
+            if atr
+            else None
+        )
         inval_at = None
 
     if above:
@@ -327,8 +363,7 @@ def confirmation_invalidation(fact):
         conf = None
     else:
         p = lv.get("ema20")
-        conf = ("holding the 20-day at $%.2f on a closing basis" % p) \
-            if p else None
+        conf = ("holding the 20-day at $%.2f on a closing basis" % p) if p else None
     return conf, inval
 
 
@@ -349,10 +384,14 @@ def rank_ticker(ch):
         if gf and gt:
             reasons.append("grade %s → %s" % (gf, gt))
         else:
-            reasons.append("conviction %s %d level%s"
-                           % ("up" if ch["grade_delta"] > 0 else "down",
-                              abs(ch["grade_delta"]),
-                              "" if abs(ch["grade_delta"]) == 1 else "s"))
+            reasons.append(
+                "conviction %s %d level%s"
+                % (
+                    "up" if ch["grade_delta"] > 0 else "down",
+                    abs(ch["grade_delta"]),
+                    "" if abs(ch["grade_delta"]) == 1 else "s",
+                )
+            )
     if ch.get("has_flow"):
         reasons.append("new options flow")
     if ch.get("catalyst"):
@@ -366,9 +405,12 @@ def rank_ticker(ch):
 
     codes = materiality(ch)
     material = any(c in MATERIAL_CODES for c in codes)
-    soft = bool(ch.get("has_flow") or ch.get("catalyst")
-                or (ch.get("grade_delta") or 0)
-                or (pc is not None and abs(pc) >= 1.5))
+    soft = bool(
+        ch.get("has_flow")
+        or ch.get("catalyst")
+        or (ch.get("grade_delta") or 0)
+        or (pc is not None and abs(pc) >= 1.5)
+    )
 
     syn = synthesize(ch)
     gd = ch.get("grade_delta") or 0
@@ -376,14 +418,21 @@ def rank_ticker(ch):
     # "Independent" means evidence that is not the pending flow reading:
     # a grade cut, a real price move, a technical break, or flow whose
     # open-interest test has actually completed against it.
-    indep_down = bool(gd < 0 or pcv <= -4 or ch.get("tech_deterioration")
-                      or (syn["flow"] < 0 and ch.get("flow_confirmed")))
-    indep_up = bool(gd > 0 or pcv >= 4 or ch.get("tech_improvement")
-                    or (syn["flow"] > 0 and ch.get("flow_confirmed")))
+    indep_down = bool(
+        gd < 0
+        or pcv <= -4
+        or ch.get("tech_deterioration")
+        or (syn["flow"] < 0 and ch.get("flow_confirmed"))
+    )
+    indep_up = bool(
+        gd > 0
+        or pcv >= 4
+        or ch.get("tech_improvement")
+        or (syn["flow"] > 0 and ch.get("flow_confirmed"))
+    )
     support = []
     if gd:
-        support.append("grade %s → %s" % (ch.get("grade_from"),
-                                          ch.get("grade_to")))
+        support.append("grade %s → %s" % (ch.get("grade_from"), ch.get("grade_to")))
     if pc is not None and abs(pc) >= 4:
         support.append("%+.1f%% session move" % pc)
     if ch.get("flow_confirmed"):
@@ -407,8 +456,7 @@ def rank_ticker(ch):
         bucket = STRENGTHENING
     elif syn["flow"] and not ch.get("flow_confirmed"):
         # flow is the ONLY directional evidence and its test has not run
-        bucket = (BEARISH_FLOW_ALERT if syn["flow"] < 0
-                  else BULLISH_FLOW_ALERT)
+        bucket = BEARISH_FLOW_ALERT if syn["flow"] < 0 else BULLISH_FLOW_ALERT
     elif material:
         bucket = MONITOR
     elif soft:
@@ -425,10 +473,13 @@ def rank_ticker(ch):
         # the synthesis replaces the reasons it summarises, rather than
         # repeating "grade B → A-" twice on the same row
         low = line.lower()
-        reasons = [line] + [r for r in reasons
-                            if not r.lower().startswith("grade ")
-                            and r != "new options flow"
-                            and r.lower() not in low]
+        reasons = [line] + [
+            r
+            for r in reasons
+            if not r.lower().startswith("grade ")
+            and r != "new options flow"
+            and r.lower() not in low
+        ]
     # every status states the independent evidence that earned it, so a
     # reader can check the label against the facts rather than trust it
     if bucket in (WEAKENING, STRENGTHENING) and support:
@@ -439,10 +490,16 @@ def rank_ticker(ch):
         basis = "evidence points both ways"
     else:
         basis = ""
-    return {"bucket": bucket, "reasons": _dedupe(reasons), "synthesis": syn,
-            "synthesis_line": line, "reason_codes": codes,
-            "status_basis": basis, "material": material,
-            "changed": bucket != NO_CHANGE}
+    return {
+        "bucket": bucket,
+        "reasons": _dedupe(reasons),
+        "synthesis": syn,
+        "synthesis_line": line,
+        "reason_codes": codes,
+        "status_basis": basis,
+        "material": material,
+        "changed": bucket != NO_CHANGE,
+    }
 
 
 def _dedupe(reasons):
@@ -488,8 +545,7 @@ def rank_watchlist(changes, facts=None, detail_top=3):
             row["bucket"] = NO_CHANGE
             row["changed"] = False
         ranked.append(row)
-    ranked.sort(key=lambda x: (RANK_ORDER[x["bucket"]],
-                               -abs(x.get("price_change_pct") or 0)))
+    ranked.sort(key=lambda x: (RANK_ORDER[x["bucket"]], -abs(x.get("price_change_pct") or 0)))
     # MATERIAL and NOTABLE are different claims. Pooling them is how "13 of
     # 16 changed materially" happened when most of those names had only a
     # pending flow print against them.
@@ -511,13 +567,16 @@ def rank_watchlist(changes, facts=None, detail_top=3):
 
     over = ""
     if hidden:
-        over = ("Showing the top %d of %d material changes · %d more on "
-                "your desk." % (len(shown), len(changed), len(hidden)))
+        over = "Showing the top %d of %d material changes · %d more on your desk." % (
+            len(shown),
+            len(changed),
+            len(hidden),
+        )
     notable_line = ""
     if notable:
-        notable_line = ("Notable but not material: %s"
-                        % ", ".join(x["ticker"] for x in notable[:12])
-                        + ("…" if len(notable) > 12 else ""))
+        notable_line = "Notable but not material: %s" % ", ".join(
+            x["ticker"] for x in notable[:12]
+        ) + ("…" if len(notable) > 12 else "")
     return {
         "shown": shown,
         "overflow": hidden,
@@ -531,15 +590,29 @@ def rank_watchlist(changes, facts=None, detail_top=3):
         "n_hidden": len(hidden),
         "overflow_line": over,
         "notable_line": notable_line,
-        "alert_line": ("%d of your %d watch list names changed materially%s"
-                       % (len(changed), len(ranked),
-                          (": " + "; ".join(
-                              "%s %s" % (x["ticker"],
-                                         (x.get("reasons") or ["changed"])[0])
-                              for x in shown[:3]) + ".") if shown else ".")),
-        "quiet_line": ("No material change: %s"
-                       % (", ".join(x["ticker"] for x in quiet[:12])
-                          + ("…" if len(quiet) > 12 else ""))) if quiet else "",
+        "alert_line": (
+            "%d of your %d watch list names changed materially%s"
+            % (
+                len(changed),
+                len(ranked),
+                (
+                    ": "
+                    + "; ".join(
+                        "%s %s" % (x["ticker"], (x.get("reasons") or ["changed"])[0])
+                        for x in shown[:3]
+                    )
+                    + "."
+                )
+                if shown
+                else ".",
+            )
+        ),
+        "quiet_line": (
+            "No material change: %s"
+            % (", ".join(x["ticker"] for x in quiet[:12]) + ("…" if len(quiet) > 12 else ""))
+        )
+        if quiet
+        else "",
     }
 
 
@@ -553,15 +626,18 @@ BULLISH, BEARISH, MIXED_DIR, NO_DIR = "BULLISH", "BEARISH", "MIXED", "NONE"
 # UNCONFIRMED ("unconfirmed") at module level and silently clobbered
 # this one, rendering "unconfirmed BEARISH" in mixed case.
 CONF_YES, CONF_PARTIAL, CONF_NO, CONF_CONFLICT = (
-    "CONFIRMED", "PARTIALLY CONFIRMED", "UNCONFIRMED",
-    "CONFLICTING CONFIRMATION")
+    "CONFIRMED",
+    "PARTIALLY CONFIRMED",
+    "UNCONFIRMED",
+    "CONFLICTING CONFIRMATION",
+)
 # Absence of a confirmation is not a failed confirmation. Open interest for
 # a session is published by OCC the FOLLOWING morning, so a contract printed
 # today cannot be "UNCONFIRMED" today -- the test has not run yet. Saying
 # UNCONFIRMED there reads as "we looked and it did not confirm", which is a
 # claim about evidence that does not exist.
 CONF_PENDING = "OI PENDING"
-MIXED = MIXED_DIR          # kept: MIXED still means opposing directions
+MIXED = MIXED_DIR  # kept: MIXED still means opposing directions
 
 _BULL_SIDES = ("call_buy", "call_buyer", "put_sell", "put_seller", "bullish")
 _BEAR_SIDES = ("put_buy", "put_buyer", "call_sell", "call_seller", "bearish")
@@ -572,20 +648,21 @@ _BEAR_SIDES = ("put_buy", "put_buyer", "call_sell", "call_seller", "bearish")
 _AMBIG_SIDES = ("mixed", "both", "two-sided", "two_sided")
 
 # (singular, plural) — read aloud in a sentence, not printed in a cell
-_SIDE_PHRASE = {"call_buy": ("call purchase", "call purchases"),
-                "call_buyer": ("call purchase", "call purchases"),
-                "put_buy": ("put purchase", "put purchases"),
-                "put_buyer": ("put purchase", "put purchases"),
-                "call_sell": ("call sale", "call sales"),
-                "call_seller": ("call sale", "call sales"),
-                "put_sell": ("put sale", "put sales"),
-                "put_seller": ("put sale", "put sales"),
-                "bullish": ("bullish print", "bullish prints"),
-                "bearish": ("bearish print", "bearish prints")}
+_SIDE_PHRASE = {
+    "call_buy": ("call purchase", "call purchases"),
+    "call_buyer": ("call purchase", "call purchases"),
+    "put_buy": ("put purchase", "put purchases"),
+    "put_buyer": ("put purchase", "put purchases"),
+    "call_sell": ("call sale", "call sales"),
+    "call_seller": ("call sale", "call sales"),
+    "put_sell": ("put sale", "put sales"),
+    "put_seller": ("put sale", "put sales"),
+    "bullish": ("bullish print", "bullish prints"),
+    "bearish": ("bearish print", "bearish prints"),
+}
 
 
-_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven",
-          "eight", "nine", "ten")
+_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
 
 
 def _count(n, noun):
@@ -596,8 +673,7 @@ def _count(n, noun):
 
 
 def _side(c):
-    return (c.get("side") or c.get("flow_side") or c.get("direction")
-            or "").strip().lower()
+    return (c.get("side") or c.get("flow_side") or c.get("direction") or "").strip().lower()
 
 
 def contract_direction(c):
@@ -626,17 +702,16 @@ def oi_state(contract, now_et=None):
     having to trust the label.
     """
     import brief_time as BT
+
     now = now_et or _now_et()
-    flow_dt = BT.parse_iso(contract.get("printed_at")
-                           or contract.get("last_print_ts") or "")
+    flow_dt = BT.parse_iso(contract.get("printed_at") or contract.get("last_print_ts") or "")
     oi_dt = BT.parse_iso(contract.get("oi_as_of") or "")
     # OCC publishes prior-session open interest in the morning; the test is
     # eligible from the next session's open
     eligible = None
     if flow_dt is not None and flow_dt.tzinfo is not None:
         et = BT.to_et(flow_dt)
-        eligible = (et + _timedelta(days=1)).replace(
-            hour=9, minute=30, second=0, microsecond=0)
+        eligible = (et + _timedelta(days=1)).replace(hour=9, minute=30, second=0, microsecond=0)
         while eligible.weekday() >= 5:
             eligible = eligible + _timedelta(days=1)
 
@@ -649,23 +724,28 @@ def oi_state(contract, now_et=None):
     }
     if delta is None:
         if eligible is not None and now < eligible:
-            info.update(state=CONF_PENDING,
-                        reason="next-session open interest is not published "
-                               "until %s" % BT.fmt_stamp(eligible))
+            info.update(
+                state=CONF_PENDING,
+                reason="next-session open interest is not published "
+                "until %s" % BT.fmt_stamp(eligible),
+            )
         else:
-            info.update(state=CONF_PENDING,
-                        reason="no open-interest reading has been recorded "
-                               "for this contract yet")
+            info.update(
+                state=CONF_PENDING,
+                reason="no open-interest reading has been recorded for this contract yet",
+            )
         return info
     if oi_dt is not None and eligible is not None and oi_dt < eligible:
-        info.update(state=CONF_PENDING,
-                    reason="the open-interest reading predates the "
-                           "confirmation window")
+        info.update(
+            state=CONF_PENDING, reason="the open-interest reading predates the confirmation window"
+        )
         return info
-    info.update(state=CONF_YES if delta > 0 else CONF_NO,
-                reason=("open interest rose %+d after the print" % delta)
-                if delta > 0 else
-                ("open interest did not rise (%+d) after the print" % delta))
+    info.update(
+        state=CONF_YES if delta > 0 else CONF_NO,
+        reason=("open interest rose %+d after the print" % delta)
+        if delta > 0
+        else ("open interest did not rise (%+d) after the print" % delta),
+    )
     return info
 
 
@@ -680,10 +760,14 @@ def _side_breakdown(contracts, want):
         p = _SIDE_PHRASE.get(_side(c))
         if p:
             counts[p] = counts.get(p, 0) + 1
-    parts = ["%s %s" % (("one" if n == 1 else
-                         _WORDS[n] if n < len(_WORDS) else str(n)),
-                        p[0] if n == 1 else p[1])
-             for p, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+    parts = [
+        "%s %s"
+        % (
+            ("one" if n == 1 else _WORDS[n] if n < len(_WORDS) else str(n)),
+            p[0] if n == 1 else p[1],
+        )
+        for p, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
     if not parts:
         return ""
     if len(parts) == 1:
@@ -699,8 +783,13 @@ def classify_flow(contracts):
     """
     contracts = list(contracts or [])
     if not contracts:
-        return {"direction": NO_DIR, "confirmation": CONF_NO,
-                "label": "NO FLOW", "n": 0, "explain": "no contracts"}
+        return {
+            "direction": NO_DIR,
+            "confirmation": CONF_NO,
+            "label": "NO FLOW",
+            "n": 0,
+            "explain": "no contracts",
+        }
     dirs = [contract_direction(c) for c in contracts]
     bull = sum(1 for d in dirs if d == BULLISH)
     bear = sum(1 for d in dirs if d == BEARISH)
@@ -729,8 +818,7 @@ def classify_flow(contracts):
         st = c.get("oi_state")
         if not st:
             s = c.get("status")
-            st = ({"confirmed": CONF_YES, "failed": CONF_NO}.get(s)
-                  or CONF_PENDING)
+            st = {"confirmed": CONF_YES, "failed": CONF_NO}.get(s) or CONF_PENDING
         states.append(st)
     conf = states.count(CONF_YES)
     fail = states.count(CONF_NO)
@@ -762,8 +850,9 @@ def classify_flow(contracts):
     if amb or nodata:
         bits = []
         if amb:
-            bits.append("%s the tape could not resolve to a buyer or seller"
-                        % (_count(amb, "print")))
+            bits.append(
+                "%s the tape could not resolve to a buyer or seller" % (_count(amb, "print"))
+            )
         if nodata:
             bits.append("%s arrived without a side" % _count(nodata, "print"))
         amb_tail = ", " + " and ".join(bits)
@@ -771,40 +860,45 @@ def classify_flow(contracts):
     # A natural sentence, not a field dump. "1 put buy of 1 print(s)"
     # is a data structure read aloud; nobody scanning an inbox parses it.
     if direction == MIXED_DIR:
-        explain = ("%s %s bullish, %s bearish%s"
-                   % (_count(bull, "print").capitalize(),
-                      "points" if bull == 1 else "point",
-                      _WORDS[bear] if bear < len(_WORDS) else bear, amb_tail))
+        explain = "%s %s bullish, %s bearish%s" % (
+            _count(bull, "print").capitalize(),
+            "points" if bull == 1 else "point",
+            _WORDS[bear] if bear < len(_WORDS) else bear,
+            amb_tail,
+        )
     elif direction == NO_DIR:
-        seen = (_side_breakdown(contracts, BULLISH)
-                or _side_breakdown(contracts, BEARISH))
-        explain = ("Only %s of %s %s a direction%s%s"
-                   % (_WORDS[voted] if voted < len(_WORDS) else str(voted),
-                      (_WORDS[n] if n < len(_WORDS) else str(n)) + " prints"
-                      if n != 1 else "the one print",
-                      "carries" if voted == 1 else "carry",
-                      (" (%s)" % seen) if seen else "", amb_tail))
+        seen = _side_breakdown(contracts, BULLISH) or _side_breakdown(contracts, BEARISH)
+        explain = "Only %s of %s %s a direction%s%s" % (
+            _WORDS[voted] if voted < len(_WORDS) else str(voted),
+            (_WORDS[n] if n < len(_WORDS) else str(n)) + " prints" if n != 1 else "the one print",
+            "carries" if voted == 1 else "carry",
+            (" (%s)" % seen) if seen else "",
+            amb_tail,
+        )
     else:
-        lead = _side_breakdown(contracts, direction) or \
-            "%s" % _count(voted, "directional print")
+        lead = _side_breakdown(contracts, direction) or "%s" % _count(voted, "directional print")
         explain = lead[0].upper() + lead[1:] + amb_tail
         if confirmation == CONF_PENDING:
-            explain += ("; open interest for the session has not posted yet"
-                        if pend == n else
-                        "; the confirmation window is still open")
+            explain += (
+                "; open interest for the session has not posted yet"
+                if pend == n
+                else "; the confirmation window is still open"
+            )
         elif conf == n:
             explain += ", each confirmed by a rise in open interest"
         elif conf and fail:
-            explain += ("; open interest rose behind %s and fell behind %s"
-                        % (_WORDS[conf] if conf < len(_WORDS) else conf,
-                           _WORDS[fail] if fail < len(_WORDS) else fail))
+            explain += "; open interest rose behind %s and fell behind %s" % (
+                _WORDS[conf] if conf < len(_WORDS) else conf,
+                _WORDS[fail] if fail < len(_WORDS) else fail,
+            )
         elif conf:
-            explain += ("; open interest rose behind %s of them"
-                        % (_WORDS[conf] if conf < len(_WORDS) else conf))
+            explain += "; open interest rose behind %s of them" % (
+                _WORDS[conf] if conf < len(_WORDS) else conf
+            )
         elif fail:
-            explain += ("; open interest did not rise behind %s"
-                        % ("either" if fail == 2 else
-                           "it" if fail == 1 else "any of them"))
+            explain += "; open interest did not rise behind %s" % (
+                "either" if fail == 2 else "it" if fail == 1 else "any of them"
+            )
         if pend and pend < n:
             explain += ", %d still pending" % pend
     if not explain.endswith("."):
@@ -813,19 +907,33 @@ def classify_flow(contracts):
     score = "%d of %d confirmed" % (conf, n)
     if pend:
         score += " · %d pending" % pend
-    return {"direction": direction, "confirmation": confirmation,
-            "label": label, "n": n, "confirmed": conf,
-            "failed": fail, "unknown": unk, "pending": pend,
-            "score": score, "explain": explain}
+    return {
+        "direction": direction,
+        "confirmation": confirmation,
+        "label": label,
+        "n": n,
+        "confirmed": conf,
+        "failed": fail,
+        "unknown": unk,
+        "pending": pend,
+        "score": score,
+        "explain": explain,
+    }
 
 
 def reconcile_ticker_flow(contracts):
     """Back-compat shim over classify_flow()."""
     r = classify_flow(contracts)
-    return {"verdict": r["label"], "confirmed": r.get("confirmed", 0),
-            "failed": r.get("failed", 0), "total": r["n"],
-            "score": r.get("score", ""), "explain": r["explain"],
-            "direction": r["direction"], "confirmation": r["confirmation"]}
+    return {
+        "verdict": r["label"],
+        "confirmed": r.get("confirmed", 0),
+        "failed": r.get("failed", 0),
+        "total": r["n"],
+        "score": r.get("score", ""),
+        "explain": r["explain"],
+        "direction": r["direction"],
+        "confirmation": r["confirmation"],
+    }
 
 
 # ── measured edge ───────────────────────────────────────────────────────
@@ -846,22 +954,20 @@ def translate_edge(stats):
         return {"label": ACCRUING, "why": "no graded history yet"}
     n = stats.get("n") or 0
     if n < MIN_N:
-        return {"label": ACCRUING,
-                "why": "%d of %d graded outcomes needed" % (n, MIN_N)}
+        return {"label": ACCRUING, "why": "%d of %d graded outcomes needed" % (n, MIN_N)}
     excess = stats.get("excess_pct")
     hit = stats.get("hit_rate_pct")
     if excess is None:
         return {"label": ACCRUING, "why": "no excess-return measurement"}
     if abs(excess) < 0.5 or (hit is not None and 48 <= hit <= 52):
-        return {"label": NO_EDGE,
-                "why": "%.2f%% excess over %d trades%s — inside noise"
-                       % (excess, n,
-                          (", %.0f%% hit rate" % hit) if hit is not None else "")}
+        return {
+            "label": NO_EDGE,
+            "why": "%.2f%% excess over %d trades%s — inside noise"
+            % (excess, n, (", %.0f%% hit rate" % hit) if hit is not None else ""),
+        }
     if excess > 0:
-        return {"label": POSITIVE_EDGE,
-                "why": "%+.2f%% excess over %d trades" % (excess, n)}
-    return {"label": NEGATIVE_EDGE,
-            "why": "%+.2f%% excess over %d trades" % (excess, n)}
+        return {"label": POSITIVE_EDGE, "why": "%+.2f%% excess over %d trades" % (excess, n)}
+    return {"label": NEGATIVE_EDGE, "why": "%+.2f%% excess over %d trades" % (excess, n)}
 
 
 # ── news relevance and dedup ────────────────────────────────────────────
@@ -875,8 +981,7 @@ def _norm_headline(h):
     return " ".join(sorted(set(s.split())))[:120]
 
 
-VERIFIED, MISATTRIBUTED, UNCONFIRMED = ("verified", "misattributed",
-                                        "unconfirmed")
+VERIFIED, MISATTRIBUTED, UNCONFIRMED = ("verified", "misattributed", "unconfirmed")
 
 
 def verify_relevance(item, ticker, aliases=None):
@@ -896,25 +1001,26 @@ def verify_relevance(item, ticker, aliases=None):
     hay = " ".join([item.get("headline") or "", item.get("summary") or ""])
     names = list(item.get("company_words") or [])
     names += list((aliases or {}).get(ticker) or [])
-    if re.search(r"\b%s\b" % re.escape(ticker), hay, re.I):
+    if re.search(r"\b%s\b" % re.escape(ticker), hay, re.IGNORECASE):
         return VERIFIED
     for w in names:
-        if len(w) > 3 and re.search(r"\b%s" % re.escape(w), hay, re.I):
+        if len(w) > 3 and re.search(r"\b%s" % re.escape(w), hay, re.IGNORECASE):
             return VERIFIED
     # does the headline name some OTHER covered company instead?
     for other, alist in (aliases or {}).items():
         if other == ticker:
             continue
-        if re.search(r"\b%s\b" % re.escape(other), hay, re.I):
+        if re.search(r"\b%s\b" % re.escape(other), hay, re.IGNORECASE):
             return MISATTRIBUTED
         for w in alist or []:
-            if len(w) > 3 and re.search(r"\b%s" % re.escape(w), hay, re.I):
+            if len(w) > 3 and re.search(r"\b%s" % re.escape(w), hay, re.IGNORECASE):
                 return MISATTRIBUTED
     return UNCONFIRMED
 
 
-def select_news(items, watch_tickers, aliases=None,
-                max_market=MAX_MARKET_NEWS, max_watch=MAX_WATCHLIST_NEWS):
+def select_news(
+    items, watch_tickers, aliases=None, max_market=MAX_MARKET_NEWS, max_watch=MAX_WATCHLIST_NEWS
+):
     """Split into market-wide and watchlist news, dedupe syndication, and
     drop any item whose ticker attribution cannot be verified."""
     seen, market, watch, rejected = set(), [], [], []
@@ -926,26 +1032,25 @@ def select_news(items, watch_tickers, aliases=None,
         seen.add(key)
         tks = [t for t in (it.get("tickers") or []) if t in watch_tickers]
         verdicts = {t: verify_relevance(it, t, aliases) for t in tks}
-        keep = [t for t, v in verdicts.items()
-                if v in (VERIFIED, UNCONFIRMED)]
+        keep = [t for t, v in verdicts.items() if v in (VERIFIED, UNCONFIRMED)]
         wrong = [t for t, v in verdicts.items() if v == MISATTRIBUTED]
         if wrong:
             it = {**it, "dropped_tickers": wrong}
         if keep:
-            watch.append({**it, "tickers": keep,
-                          "attribution": {t: verdicts[t] for t in keep}})
+            watch.append({**it, "tickers": keep, "attribution": {t: verdicts[t] for t in keep}})
         elif not tks:
             market.append(it)
         else:
-            rejected.append({**it, "reason":
-                             "another company is the subject; %s not "
-                             "mentioned" % ", ".join(wrong)})
-    rank = lambda x: (0 if x.get("source_type") in _TIER_PRIMARY else 1,
-                      -(x.get("impact") or 0))
+            rejected.append(
+                {
+                    **it,
+                    "reason": "another company is the subject; %s not mentioned" % ", ".join(wrong),
+                }
+            )
+    rank = lambda x: (0 if x.get("source_type") in _TIER_PRIMARY else 1, -(x.get("impact") or 0))
     market.sort(key=rank)
     watch.sort(key=rank)
-    return {"market": market[:max_market], "watchlist": watch[:max_watch],
-            "rejected": rejected}
+    return {"market": market[:max_market], "watchlist": watch[:max_watch], "rejected": rejected}
 
 
 # ── subject + preheader ─────────────────────────────────────────────────
@@ -978,13 +1083,16 @@ def build_subject(market, wl, flow_headline=None, sections=()):
     """
     sections = set(sections or ())
     reg = (market.get("regime") or {}).get("label") or "Market"
-    tone = {"RISK-ON": "Risk-on tape", "RISK-OFF": "Risk-off tape",
-            "BALANCED": "Balanced tape",
-            "TRANSITION": "Tape in transition"}.get(reg, reg)
+    tone = {
+        "RISK-ON": "Risk-on tape",
+        "RISK-OFF": "Risk-off tape",
+        "BALANCED": "Balanced tape",
+        "TRANSITION": "Tape in transition",
+    }.get(reg, reg)
     parts = [tone]
 
     if "sectors" in sections:
-        secs = (market.get("sectors") or {})
+        secs = market.get("sectors") or {}
         if secs.get("leaders"):
             parts.append("%s leads" % secs["leaders"][0]["name"])
         elif secs.get("laggards"):
@@ -1010,7 +1118,7 @@ def build_preheader(market, wl, lines, sections=()):
     a = lines.get("indices") or ""
     b = " ".join(x for x in (lines.get("vix"), lines.get("ten_year")) if x)
     head = " ".join(x for x in (a, b) if x)
-    ev = (market.get("top_event") or {})
+    ev = market.get("top_event") or {}
     ev_s = ""
     if ev.get("title") and "calendar" in sections:
         ev_s = "%s %s" % (ev.get("title"), ev.get("time_et") or "")
@@ -1018,8 +1126,8 @@ def build_preheader(market, wl, lines, sections=()):
     shown = (wl.get("shown") or []) if "watchlist" in sections else []
     if shown:
         tail = ", ".join(
-            "%s %s" % (x["ticker"], (x.get("reasons") or ["changed"])[0])
-            for x in shown[:2])
+            "%s %s" % (x["ticker"], (x.get("reasons") or ["changed"])[0]) for x in shown[:2]
+        )
     s = _fit([head.strip(), ev_s.strip(), tail.strip()], PREHEADER_MAX)
     return _end_whole(s, PREHEADER_MAX)
 
@@ -1045,8 +1153,7 @@ def self_test():
 
     def chk(name, cond, detail=""):
         ran[0] += 1
-        print(("  PASS  " if cond else "  FAIL  ") + name +
-              ("" if cond else "  <- %s" % detail))
+        print(("  PASS  " if cond else "  FAIL  ") + name + ("" if cond else "  <- %s" % detail))
         if not cond:
             fails.append(name)
 
@@ -1054,328 +1161,552 @@ def self_test():
     r = rank_ticker({"ticker": "MU", "trigger_hit": True, "has_flow": True})
     chk("trigger + flow -> TRIGGER REACHED", r["bucket"] == TRIGGER_REACHED, r)
     r = rank_ticker({"ticker": "X", "grade_delta": 1})
-    chk("a delta with no readable transition is NOTABLE, not material",
-        r["bucket"] == NOTABLE and not r["material"], r)
-    r = rank_ticker({"ticker": "X", "grade_delta": 1, "grade_from": "B",
-                     "grade_to": "B+"})
-    chk("a stated grade transition IS material",
-        r["material"] and "GRADE_TRANSITION" in r["reason_codes"], r)
+    chk(
+        "a delta with no readable transition is NOTABLE, not material",
+        r["bucket"] == NOTABLE and not r["material"],
+        r,
+    )
+    r = rank_ticker({"ticker": "X", "grade_delta": 1, "grade_from": "B", "grade_to": "B+"})
+    chk(
+        "a stated grade transition IS material",
+        r["material"] and "GRADE_TRANSITION" in r["reason_codes"],
+        r,
+    )
     r = rank_ticker({"ticker": "Y"})
     chk("nothing changed -> QUIET", r["bucket"] == QUIET, r)
-    out = rank_watchlist([{"ticker": "A", "trigger_hit": True, "has_flow": True},
-                          {"ticker": "B", "grade_delta": 1},
-                          {"ticker": "C"}, {"ticker": "D"}])
-    chk("alert line counts only MATERIAL names",
-        out["alert_line"].startswith(
-            "1 of your 4 watch list names changed materially:"),
-        out["alert_line"])
-    chk("sub-material movement is reported separately",
+    out = rank_watchlist(
+        [
+            {"ticker": "A", "trigger_hit": True, "has_flow": True},
+            {"ticker": "B", "grade_delta": 1},
+            {"ticker": "C"},
+            {"ticker": "D"},
+        ]
+    )
+    chk(
+        "alert line counts only MATERIAL names",
+        out["alert_line"].startswith("1 of your 4 watch list names changed materially:"),
+        out["alert_line"],
+    )
+    chk(
+        "sub-material movement is reported separately",
         out["n_notable"] == 1 and "B" in (out["notable_line"] or ""),
-        (out["n_notable"], out["notable_line"]))
-    chk("material + notable + quiet = eligible",
+        (out["n_notable"], out["notable_line"]),
+    )
+    chk(
+        "material + notable + quiet = eligible",
         out["n_changed"] + out["n_notable"] + out["n_quiet"] == 4,
-        (out["n_changed"], out["n_notable"], out["n_quiet"]))
-    chk("alert line says WHY each name changed",
-        "entry trigger reached" in out["alert_line"], out["alert_line"])
-    chk("quiet names summarised, not listed in full",
-        out["quiet_line"].startswith("No material change:")
-        and "C" in out["quiet_line"], out["quiet_line"])
-    many = [{"ticker": "T%d" % i, "trigger_hit": True, "has_flow": True}
-            for i in range(9)]
-    chk("displayed changed names capped at 5",
-        len(rank_watchlist(many)["shown"]) == 5)
+        (out["n_changed"], out["n_notable"], out["n_quiet"]),
+    )
+    chk(
+        "alert line says WHY each name changed",
+        "entry trigger reached" in out["alert_line"],
+        out["alert_line"],
+    )
+    chk(
+        "quiet names summarised, not listed in full",
+        out["quiet_line"].startswith("No material change:") and "C" in out["quiet_line"],
+        out["quiet_line"],
+    )
+    many = [{"ticker": "T%d" % i, "trigger_hit": True, "has_flow": True} for i in range(9)]
+    chk("displayed changed names capped at 5", len(rank_watchlist(many)["shown"]) == 5)
 
     # flow reconciliation — direction and confirmation are separate axes
-    f = classify_flow([{"side": "call_buy", "status": "confirmed"},
-                       {"side": "call_buy", "status": "failed"}])
-    chk("same-direction split confirmation stays BULLISH",
-        f["direction"] == BULLISH, f)
-    chk("disagreeing OI evidence -> CONFLICTING CONFIRMATION",
-        f["confirmation"] == CONF_CONFLICT, f)
-    chk("score denominator counts every displayed contract",
-        f["score"] == "1 of 2 confirmed", f["score"])
-    f2 = classify_flow([{"side": "call_buy", "status": "confirmed"},
-                        {"side": "put_buy", "status": "confirmed"}])
+    f = classify_flow(
+        [{"side": "call_buy", "status": "confirmed"}, {"side": "call_buy", "status": "failed"}]
+    )
+    chk("same-direction split confirmation stays BULLISH", f["direction"] == BULLISH, f)
+    chk(
+        "disagreeing OI evidence -> CONFLICTING CONFIRMATION", f["confirmation"] == CONF_CONFLICT, f
+    )
+    chk(
+        "score denominator counts every displayed contract",
+        f["score"] == "1 of 2 confirmed",
+        f["score"],
+    )
+    f2 = classify_flow(
+        [{"side": "call_buy", "status": "confirmed"}, {"side": "put_buy", "status": "confirmed"}]
+    )
     chk("opposing directions -> MIXED", f2["direction"] == MIXED_DIR, f2)
-    chk("MIXED explains both sides",
+    chk(
+        "MIXED explains both sides",
         "points bullish" in f2["explain"] and "bearish" in f2["explain"],
-        f2)
+        f2,
+    )
     f3 = classify_flow([{"side": "call_buy", "status": "confirmed"}])
-    chk("single confirmed bullish -> CONFIRMED BULLISH",
-        f3["label"] == "CONFIRMED BULLISH", f3)
+    chk("single confirmed bullish -> CONFIRMED BULLISH", f3["label"] == "CONFIRMED BULLISH", f3)
 
     # the TSLA bug: the scanner's own "mixed" verdict is ambiguity, not
     # absence. Folding it into "no side" let one put-seller carry three
     # prints to UNCONFIRMED BULLISH.
-    f4 = classify_flow([{"side": "mixed"}, {"side": "put_seller"},
-                        {"side": "mixed"}])
-    chk("two-sided majority is not a direction",
-        f4["direction"] == NO_DIR, f4)
-    chk("two-sided prints are counted, not hidden",
+    f4 = classify_flow([{"side": "mixed"}, {"side": "put_seller"}, {"side": "mixed"}])
+    chk("two-sided majority is not a direction", f4["direction"] == NO_DIR, f4)
+    chk(
+        "two-sided prints are counted, not hidden",
         "two prints the tape could not resolve" in f4["explain"],
-        f4["explain"])
-    chk("unclear flow never claims a side",
-        "BULLISH" not in f4["label"] and "call-buy" not in f4["explain"], f4)
-    f5 = classify_flow([{"side": "mixed"}, {"side": "put_seller"},
-                        {"side": "call_buyer"}])
-    chk("directional majority still reads through the noise",
-        f5["direction"] == BULLISH, f5)
-    chk("explain names the sides actually present, not a generic noun",
-        "one call purchase" in f5["explain"].lower()
-        and "one put sale" in f5["explain"].lower(), f5["explain"])
+        f4["explain"],
+    )
+    chk(
+        "unclear flow never claims a side",
+        "BULLISH" not in f4["label"] and "call-buy" not in f4["explain"],
+        f4,
+    )
+    f5 = classify_flow([{"side": "mixed"}, {"side": "put_seller"}, {"side": "call_buyer"}])
+    chk("directional majority still reads through the noise", f5["direction"] == BULLISH, f5)
+    chk(
+        "explain names the sides actually present, not a generic noun",
+        "one call purchase" in f5["explain"].lower() and "one put sale" in f5["explain"].lower(),
+        f5["explain"],
+    )
     f6 = classify_flow([{"side": "put_buyer"}, {"side": "call_seller"}])
-    chk("put-buy + call-sell both read bearish",
-        f6["direction"] == BEARISH, f6)
-    chk("bearish explain does not mislabel a call sell as a put buy",
-        "call sale" in f6["explain"], f6["explain"])
+    chk("put-buy + call-sell both read bearish", f6["direction"] == BEARISH, f6)
+    chk(
+        "bearish explain does not mislabel a call sell as a put buy",
+        "call sale" in f6["explain"],
+        f6["explain"],
+    )
 
     # the OI state machine: absence of a reading is not a failed reading
-    import brief_time as _BT
     from datetime import datetime as _dt
+
+    import brief_time as _BT
+
     now = _dt(2026, 7, 22, 9, 0, tzinfo=_BT.ET)
     pend = oi_state({"printed_at": "2026-07-21T19:44:00Z"}, now)
-    chk("today's print with no OI reading is OI PENDING",
-        pend["state"] == CONF_PENDING, pend)
-    chk("pending state names when the test becomes eligible",
-        "ET" in (pend["reason"] or ""), pend)
-    done = oi_state({"printed_at": "2026-07-20T19:44:00Z",
-                     "oi_as_of": "2026-07-21T14:00:00Z", "oi_delta": 900}, now)
+    chk("today's print with no OI reading is OI PENDING", pend["state"] == CONF_PENDING, pend)
+    chk("pending state names when the test becomes eligible", "ET" in (pend["reason"] or ""), pend)
+    done = oi_state(
+        {"printed_at": "2026-07-20T19:44:00Z", "oi_as_of": "2026-07-21T14:00:00Z", "oi_delta": 900},
+        now,
+    )
     chk("a real OI rise confirms", done["state"] == CONF_YES, done)
-    miss = oi_state({"printed_at": "2026-07-20T19:44:00Z",
-                     "oi_as_of": "2026-07-21T14:00:00Z", "oi_delta": -5}, now)
+    miss = oi_state(
+        {"printed_at": "2026-07-20T19:44:00Z", "oi_as_of": "2026-07-21T14:00:00Z", "oi_delta": -5},
+        now,
+    )
     chk("a real OI fall is UNCONFIRMED", miss["state"] == CONF_NO, miss)
-    early = oi_state({"printed_at": "2026-07-20T19:44:00Z",
-                      "oi_as_of": "2026-07-20T20:00:00Z", "oi_delta": 5}, now)
-    chk("an OI reading inside the print session cannot confirm",
-        early["state"] == CONF_PENDING, early)
+    early = oi_state(
+        {"printed_at": "2026-07-20T19:44:00Z", "oi_as_of": "2026-07-20T20:00:00Z", "oi_delta": 5},
+        now,
+    )
+    chk(
+        "an OI reading inside the print session cannot confirm",
+        early["state"] == CONF_PENDING,
+        early,
+    )
     fp = classify_flow([{"side": "call_buy"}])
-    chk("untested contracts read OI PENDING, never UNCONFIRMED",
-        fp["confirmation"] == CONF_PENDING, fp)
-    chk("premature UNCONFIRMED is a blocking finding",
-        check_oi_states({"X": [{"oi_state": CONF_NO}]}), "no problem raised")
+    chk(
+        "untested contracts read OI PENDING, never UNCONFIRMED",
+        fp["confirmation"] == CONF_PENDING,
+        fp,
+    )
+    chk(
+        "premature UNCONFIRMED is a blocking finding",
+        check_oi_states({"X": [{"oi_state": CONF_NO}]}),
+        "no problem raised",
+    )
 
     # conflicting evidence is synthesised, not flattened
-    gev = {"ticker": "GEV", "grade_delta": 1, "grade_from": "B",
-           "grade_to": "A-", "has_flow": True, "flow_direction": BEARISH,
-           "flow_short_dated": True, "earnings_in_days": 1,
-           "price_change_pct": 0.4}
+    gev = {
+        "ticker": "GEV",
+        "grade_delta": 1,
+        "grade_from": "B",
+        "grade_to": "A-",
+        "has_flow": True,
+        "flow_direction": BEARISH,
+        "flow_short_dated": True,
+        "earnings_in_days": 1,
+        "price_change_pct": 0.4,
+    }
     g = rank_ticker(gev)
-    chk("upgrade + bearish flow into earnings -> MIXED SETUP",
-        g["bucket"] == MIXED_SETUP, g["bucket"])
-    chk("synthesis names both halves and the event",
-        all(k in g["synthesis_line"]
-            for k in ("grade improved", "bearish", "earnings")),
-        g["synthesis_line"])
-    chk("agreeing evidence is not called mixed",
-        rank_ticker(dict(gev, flow_direction=BULLISH))["bucket"]
-        == STRENGTHENING)
-    chk("the synthesis is not repeated as a separate reason",
-        sum(1 for r in g["reasons"] if "grade" in r) == 1, g["reasons"])
-    chk("the catalyst is not echoed beside the horizon it states",
-        sum(1 for r in rank_ticker(
-            {"ticker": "X", "has_flow": True, "earnings_in_days": 1,
-             "catalyst": "Earnings in 1d"})["reasons"]
-            if "earnings" in r.lower()) == 1,
-        rank_ticker({"ticker": "X", "has_flow": True, "earnings_in_days": 1,
-                     "catalyst": "Earnings in 1d"})["reasons"])
+    chk(
+        "upgrade + bearish flow into earnings -> MIXED SETUP",
+        g["bucket"] == MIXED_SETUP,
+        g["bucket"],
+    )
+    chk(
+        "synthesis names both halves and the event",
+        all(k in g["synthesis_line"] for k in ("grade improved", "bearish", "earnings")),
+        g["synthesis_line"],
+    )
+    chk(
+        "agreeing evidence is not called mixed",
+        rank_ticker(dict(gev, flow_direction=BULLISH))["bucket"] == STRENGTHENING,
+    )
+    chk(
+        "the synthesis is not repeated as a separate reason",
+        sum(1 for r in g["reasons"] if "grade" in r) == 1,
+        g["reasons"],
+    )
+    chk(
+        "the catalyst is not echoed beside the horizon it states",
+        sum(
+            1
+            for r in rank_ticker(
+                {
+                    "ticker": "X",
+                    "has_flow": True,
+                    "earnings_in_days": 1,
+                    "catalyst": "Earnings in 1d",
+                }
+            )["reasons"]
+            if "earnings" in r.lower()
+        )
+        == 1,
+        rank_ticker(
+            {"ticker": "X", "has_flow": True, "earnings_in_days": 1, "catalyst": "Earnings in 1d"}
+        )["reasons"],
+    )
     # bearish flow as the ONLY evidence must not read as strengthening
-    bear = rank_ticker({"ticker": "T", "has_flow": True, "flow_hq": True,
-                        "flow_direction": BEARISH,
-                        "price_change_pct": -0.2})
-    chk("bearish OI-pending flow alone is an ALERT, not WEAKENING",
-        bear["bucket"] == BEARISH_FLOW_ALERT, bear["bucket"])
-    chk("the alert states that flow is the only evidence",
-        "flow only" in bear["status_basis"], bear["status_basis"])
-    conf = rank_ticker({"ticker": "T", "has_flow": True, "flow_hq": True,
-                        "flow_direction": BEARISH, "flow_confirmed": True,
-                        "price_change_pct": -0.2})
-    chk("once open interest confirms it, WEAKENING is earned",
-        conf["bucket"] == WEAKENING, conf["bucket"])
-    chk("WEAKENING names its independent evidence",
+    bear = rank_ticker(
+        {
+            "ticker": "T",
+            "has_flow": True,
+            "flow_hq": True,
+            "flow_direction": BEARISH,
+            "price_change_pct": -0.2,
+        }
+    )
+    chk(
+        "bearish OI-pending flow alone is an ALERT, not WEAKENING",
+        bear["bucket"] == BEARISH_FLOW_ALERT,
+        bear["bucket"],
+    )
+    chk(
+        "the alert states that flow is the only evidence",
+        "flow only" in bear["status_basis"],
+        bear["status_basis"],
+    )
+    conf = rank_ticker(
+        {
+            "ticker": "T",
+            "has_flow": True,
+            "flow_hq": True,
+            "flow_direction": BEARISH,
+            "flow_confirmed": True,
+            "price_change_pct": -0.2,
+        }
+    )
+    chk(
+        "once open interest confirms it, WEAKENING is earned",
+        conf["bucket"] == WEAKENING,
+        conf["bucket"],
+    )
+    chk(
+        "WEAKENING names its independent evidence",
         "open-interest confirmed" in conf["status_basis"],
-        conf["status_basis"])
-    cut = rank_ticker({"ticker": "T", "has_flow": True, "flow_hq": True,
-                       "flow_direction": BEARISH, "grade_delta": -1,
-                       "grade_from": "A", "grade_to": "A-"})
-    chk("an independent grade cut also earns WEAKENING",
-        cut["bucket"] == WEAKENING, cut["bucket"])
+        conf["status_basis"],
+    )
+    cut = rank_ticker(
+        {
+            "ticker": "T",
+            "has_flow": True,
+            "flow_hq": True,
+            "flow_direction": BEARISH,
+            "grade_delta": -1,
+            "grade_from": "A",
+            "grade_to": "A-",
+        }
+    )
+    chk("an independent grade cut also earns WEAKENING", cut["bucket"] == WEAKENING, cut["bucket"])
     # and nothing directional at all must not read as either
-    none_dir = rank_ticker({"ticker": "TSLA", "has_flow": True,
-                            "flow_hq": True, "flow_direction": NO_DIR,
-                            "price_change_pct": -0.2})
-    chk("unresolved evidence claims no direction",
-        none_dir["bucket"] == MONITOR, none_dir["bucket"])
-    chk("a status above MONITOR always carries a rule code",
-        all(rank_ticker(c)["reason_codes"]
-            for c in ({"ticker": "A", "grade_delta": -1, "grade_from": "A",
-                       "grade_to": "B"},
-                      {"ticker": "B", "price_change_pct": 9.0})),
-        "a material status was issued with no rule")
+    none_dir = rank_ticker(
+        {
+            "ticker": "TSLA",
+            "has_flow": True,
+            "flow_hq": True,
+            "flow_direction": NO_DIR,
+            "price_change_pct": -0.2,
+        }
+    )
+    chk(
+        "unresolved evidence claims no direction", none_dir["bucket"] == MONITOR, none_dir["bucket"]
+    )
+    chk(
+        "a status above MONITOR always carries a rule code",
+        all(
+            rank_ticker(c)["reason_codes"]
+            for c in (
+                {"ticker": "A", "grade_delta": -1, "grade_from": "A", "grade_to": "B"},
+                {"ticker": "B", "price_change_pct": 9.0},
+            )
+        ),
+        "a material status was issued with no rule",
+    )
     # levels must not name one price as both the target and the stop
     c2, i2 = confirmation_invalidation(
-        {"close": 47.2, "ema20": "above", "ema20_dist": 16.3,
-         "ema50": "above", "ema50_dist": 20.0, "atr_pct": 5.0})
-    chk("no confirmation that repeats the invalidation level",
+        {
+            "close": 47.2,
+            "ema20": "above",
+            "ema20_dist": 16.3,
+            "ema50": "above",
+            "ema50_dist": 20.0,
+            "atr_pct": 5.0,
+        }
+    )
+    chk(
+        "no confirmation that repeats the invalidation level",
         c2 is None or (i2 and c2.split("$")[-1] != i2.split("$")[-1]),
-        (c2, i2))
+        (c2, i2),
+    )
 
     # levels are derived from published numbers, or not stated at all
     conf, inval = confirmation_invalidation(
-        {"close": 100.0, "ema20": "above", "ema20_dist": 5.0,
-         "ema50": "below", "ema50_dist": 10.0, "atr_pct": 3.0})
-    chk("invalidation quotes the nearest average below",
-        bool(inval) and "95.24" in inval, inval)
-    chk("confirmation quotes the average still to reclaim",
-        bool(conf) and "111.11" in conf, conf)
-    chk("no levels invented when the facts are absent",
-        confirmation_invalidation({}) == (None, None))
+        {
+            "close": 100.0,
+            "ema20": "above",
+            "ema20_dist": 5.0,
+            "ema50": "below",
+            "ema50_dist": 10.0,
+            "atr_pct": 3.0,
+        }
+    )
+    chk("invalidation quotes the nearest average below", bool(inval) and "95.24" in inval, inval)
+    chk("confirmation quotes the average still to reclaim", bool(conf) and "111.11" in conf, conf)
+    chk(
+        "no levels invented when the facts are absent",
+        confirmation_invalidation({}) == (None, None),
+    )
 
     # reconciliation
-    many = [{"ticker": "T%d" % i, "grade_delta": 2, "has_flow": True,
-             "grade_from": "B", "grade_to": "A"} for i in range(13)]
+    many = [
+        {
+            "ticker": "T%d" % i,
+            "grade_delta": 2,
+            "has_flow": True,
+            "grade_from": "B",
+            "grade_to": "A",
+        }
+        for i in range(13)
+    ]
     many += [{"ticker": "Q%d" % i} for i in range(3)]
     w = rank_watchlist(many)
-    chk("changed + unchanged = eligible",
-        w["n_changed"] + w["n_quiet"] == w["n_total"] == 16, w["n_total"])
-    chk("hidden changed names are accounted for in one line",
+    chk(
+        "changed + unchanged = eligible",
+        w["n_changed"] + w["n_quiet"] == w["n_total"] == 16,
+        w["n_total"],
+    )
+    chk(
+        "hidden changed names are accounted for in one line",
         w["overflow_line"] == "Showing the top 5 of 13 material changes "
-        "\u00b7 8 more on your desk.", w["overflow_line"])
-    chk("count checks pass on a reconciled watch list",
-        check_watchlist_counts(w, 16) == [])
-    chk("a hidden name with no overflow line is blocked",
-        check_watchlist_counts({**w, "overflow_line": ""}, 16))
-    chk("a displayed row with no reason is blocked",
+        "\u00b7 8 more on your desk.",
+        w["overflow_line"],
+    )
+    chk("count checks pass on a reconciled watch list", check_watchlist_counts(w, 16) == [])
+    chk(
+        "a hidden name with no overflow line is blocked",
+        check_watchlist_counts({**w, "overflow_line": ""}, 16),
+    )
+    chk(
+        "a displayed row with no reason is blocked",
         check_watchlist_counts(
-            {"shown": [{"ticker": "Z", "reasons": []}], "overflow": [],
-             "quiet": [], "n_changed": 1}, 1))
+            {
+                "shown": [{"ticker": "Z", "reasons": []}],
+                "overflow": [],
+                "quiet": [],
+                "n_changed": 1,
+            },
+            1,
+        ),
+    )
 
     # document, subject, unsubscribe, negative zero, plain text
-    chk("a doubly-wrapped document is blocked",
-        check_document('<!doctype html><html lang="en"><head></head><body>'
-                       '<!doctype html><html lang="en"><head></head>'
-                       '<body>x</body></html></body></html>'))
-    ok_doc = ('<!doctype html><html lang="en"><head></head><body>x'
-              '</body></html>')
+    chk(
+        "a doubly-wrapped document is blocked",
+        check_document(
+            '<!doctype html><html lang="en"><head></head><body>'
+            '<!doctype html><html lang="en"><head></head>'
+            "<body>x</body></html></body></html>"
+        ),
+    )
+    ok_doc = '<!doctype html><html lang="en"><head></head><body>x</body></html>'
     chk("a single well-formed document passes", check_document(ok_doc) == [])
-    chk("missing lang is blocked",
-        check_document(ok_doc.replace(' lang="en"', "")))
+    chk("missing lang is blocked", check_document(ok_doc.replace(' lang="en"', "")))
     chk("negative zero is blocked", check_no_negative_zero("QQQ -0.0%"))
     # a ceremony has no "actual" to publish; demanding one blocked a whole
     # brief in production on an arrival ceremony that had simply finished
-    chk("a completed data release with no actual is blocked",
-        check_temporal([], [{"title": "Unemployment Claims",
-                             "status": "COMPLETED", "forecast": "211K",
-                             "anchor_et": "08:30"}], None))
-    chk("a completed ceremony needs no actual",
-        check_temporal([], [{"title": "State Arrival Ceremony",
-                             "status": "COMPLETED"}], None) == [])
-    chk("a released number with its actual passes",
-        check_temporal([], [{"title": "CPI", "status": "COMPLETED",
-                             "forecast": "3.1%", "actual": "3.0%"}],
-                       None) == [])
+    chk(
+        "a completed data release with no actual is blocked",
+        check_temporal(
+            [],
+            [
+                {
+                    "title": "Unemployment Claims",
+                    "status": "COMPLETED",
+                    "forecast": "211K",
+                    "anchor_et": "08:30",
+                }
+            ],
+            None,
+        ),
+    )
+    chk(
+        "a completed ceremony needs no actual",
+        check_temporal([], [{"title": "State Arrival Ceremony", "status": "COMPLETED"}], None)
+        == [],
+    )
+    chk(
+        "a released number with its actual passes",
+        check_temporal(
+            [],
+            [{"title": "CPI", "status": "COMPLETED", "forecast": "3.1%", "actual": "3.0%"}],
+            None,
+        )
+        == [],
+    )
     chk("plain zero passes", check_no_negative_zero("QQQ 0.0%") == [])
-    chk("unsupported sector claim in the subject is blocked",
-        check_subject_supported("Risk-off tape - Semis leads", "no sectors",
-                                ("watchlist",)))
-    chk("supported subject passes",
-        check_subject_supported("Risk-off tape - 2 watchlist changes",
-                                "2 of your 9 watch list names changed",
-                                ("watchlist",)) == [])
-    chk("over-long subject is blocked",
-        check_subject_supported("x" * 80, "", ()))
-    chk("watch-list-page unsubscribe is blocked",
-        check_unsubscribe('<a href="https://t.io/#watchlist">Unsubscribe</a>',
-                          "https://t.io/#watchlist"))
+    chk(
+        "unsupported sector claim in the subject is blocked",
+        check_subject_supported("Risk-off tape - Semis leads", "no sectors", ("watchlist",)),
+    )
+    chk(
+        "supported subject passes",
+        check_subject_supported(
+            "Risk-off tape - 2 watchlist changes",
+            "2 of your 9 watch list names changed",
+            ("watchlist",),
+        )
+        == [],
+    )
+    chk("over-long subject is blocked", check_subject_supported("x" * 80, "", ()))
+    chk(
+        "watch-list-page unsubscribe is blocked",
+        check_unsubscribe(
+            '<a href="https://t.io/#watchlist">Unsubscribe</a>', "https://t.io/#watchlist"
+        ),
+    )
     chk("missing unsubscribe is blocked", check_unsubscribe("<p>x</p>", ""))
-    chk("mismatched visible unsubscribe is blocked",
-        check_unsubscribe('<a href="https://x.io/#watchlist">Unsubscribe</a>'
-                          "https://api.t.io/unsubscribe?u=1",
-                          "https://api.t.io/unsubscribe?u=1"))
-    chk("matching signed unsubscribe passes",
-        check_unsubscribe('<a href="https://api.t.io/unsubscribe?u=1">'
-                          "Unsubscribe</a>",
-                          "https://api.t.io/unsubscribe?u=1") == [])
-    chk("plain text missing a URL is blocked",
-        check_plain_text("see the desk", ["https://tickerdesk.io/#desk"]))
-    chk("plain text carrying the URL passes",
-        check_plain_text("desk: https://tickerdesk.io/#desk",
-                         ["https://tickerdesk.io/#desk"]) == [])
-    chk("a preheader cut mid-token is blocked",
-        check_preheader("SPY +0.8% QQQ +1.9% - GEV grade B, TXG +9.2 -"))
-    chk("mismatched yield units are blocked",
-        check_preheader("SPY +0.8% 10Y 4.63% +0.65%",
-                        "10-year yield 4.63% (+3 bp)"))
-    chk("matching yield units pass",
-        check_preheader("SPY +0.8% 10Y 4.63% (+3 bp)",
-                        "10-year yield 4.63% (+3 bp)") == [])
-    chk("a whole-word preheader passes",
-        check_preheader("SPY +0.8% QQQ +1.9% - GEV grade improved.") == [])
+    chk(
+        "mismatched visible unsubscribe is blocked",
+        check_unsubscribe(
+            '<a href="https://x.io/#watchlist">Unsubscribe</a>https://api.t.io/unsubscribe?u=1',
+            "https://api.t.io/unsubscribe?u=1",
+        ),
+    )
+    chk(
+        "matching signed unsubscribe passes",
+        check_unsubscribe(
+            '<a href="https://api.t.io/unsubscribe?u=1">Unsubscribe</a>',
+            "https://api.t.io/unsubscribe?u=1",
+        )
+        == [],
+    )
+    chk(
+        "plain text missing a URL is blocked",
+        check_plain_text("see the desk", ["https://tickerdesk.io/#desk"]),
+    )
+    chk(
+        "plain text carrying the URL passes",
+        check_plain_text("desk: https://tickerdesk.io/#desk", ["https://tickerdesk.io/#desk"])
+        == [],
+    )
+    chk(
+        "a preheader cut mid-token is blocked",
+        check_preheader("SPY +0.8% QQQ +1.9% - GEV grade B, TXG +9.2 -"),
+    )
+    chk(
+        "mismatched yield units are blocked",
+        check_preheader("SPY +0.8% 10Y 4.63% +0.65%", "10-year yield 4.63% (+3 bp)"),
+    )
+    chk(
+        "matching yield units pass",
+        check_preheader("SPY +0.8% 10Y 4.63% (+3 bp)", "10-year yield 4.63% (+3 bp)") == [],
+    )
+    chk(
+        "a whole-word preheader passes",
+        check_preheader("SPY +0.8% QQQ +1.9% - GEV grade improved.") == [],
+    )
 
     # edge
-    chk("n below floor -> ACCRUING",
-        translate_edge({"n": 12, "excess_pct": 3.0})["label"] == ACCRUING)
-    chk("49% hit + tiny excess -> NO MEASURED EDGE",
-        translate_edge({"n": 400, "excess_pct": 0.1,
-                        "hit_rate_pct": 49.4})["label"] == NO_EDGE)
-    chk("real positive excess -> POSITIVE",
-        translate_edge({"n": 400, "excess_pct": 2.4,
-                        "hit_rate_pct": 58})["label"] == POSITIVE_EDGE)
-    chk("negative excess -> NEGATIVE",
-        translate_edge({"n": 400, "excess_pct": -2.6,
-                        "hit_rate_pct": 41})["label"] == NEGATIVE_EDGE)
+    chk(
+        "n below floor -> ACCRUING",
+        translate_edge({"n": 12, "excess_pct": 3.0})["label"] == ACCRUING,
+    )
+    chk(
+        "49% hit + tiny excess -> NO MEASURED EDGE",
+        translate_edge({"n": 400, "excess_pct": 0.1, "hit_rate_pct": 49.4})["label"] == NO_EDGE,
+    )
+    chk(
+        "real positive excess -> POSITIVE",
+        translate_edge({"n": 400, "excess_pct": 2.4, "hit_rate_pct": 58})["label"] == POSITIVE_EDGE,
+    )
+    chk(
+        "negative excess -> NEGATIVE",
+        translate_edge({"n": 400, "excess_pct": -2.6, "hit_rate_pct": 41})["label"]
+        == NEGATIVE_EDGE,
+    )
 
     # news
     items = [
-        {"headline": "Nvidia returns to NZS Growth Fund", "tickers": ["MU"],
-         "source_type": "media"},
-        {"headline": "Micron guides Q4 above consensus", "tickers": ["MU"],
-         "source_type": "company_ir"},
-        {"headline": "Micron guides Q4 above consensus!", "tickers": ["MU"],
-         "source_type": "media"},
-        {"headline": "Fed holds rates steady", "tickers": [],
-         "source_type": "regulator"},
+        {
+            "headline": "Nvidia returns to NZS Growth Fund",
+            "tickers": ["MU"],
+            "source_type": "media",
+        },
+        {
+            "headline": "Micron guides Q4 above consensus",
+            "tickers": ["MU"],
+            "source_type": "company_ir",
+        },
+        {
+            "headline": "Micron guides Q4 above consensus!",
+            "tickers": ["MU"],
+            "source_type": "media",
+        },
+        {"headline": "Fed holds rates steady", "tickers": [], "source_type": "regulator"},
     ]
-    sel = select_news(items, {"MU"},
-                      aliases={"MU": ["Micron"], "NVDA": ["Nvidia"]})
-    chk("syndicated duplicate removed",
-        any("duplicate" in (r.get("reason") or "") for r in sel["rejected"]))
-    chk("misattributed story rejected (Nvidia filed under MU)",
-        any("another company is the subject" in (r.get("reason") or "")
-            for r in sel["rejected"]), sel["rejected"])
-    chk("verified watchlist story kept",
-        any("Micron" in i["headline"] for i in sel["watchlist"]))
-    chk("market-wide story separated from watchlist",
-        any("Fed" in i["headline"] for i in sel["market"]))
+    sel = select_news(items, {"MU"}, aliases={"MU": ["Micron"], "NVDA": ["Nvidia"]})
+    chk(
+        "syndicated duplicate removed",
+        any("duplicate" in (r.get("reason") or "") for r in sel["rejected"]),
+    )
+    chk(
+        "misattributed story rejected (Nvidia filed under MU)",
+        any("another company is the subject" in (r.get("reason") or "") for r in sel["rejected"]),
+        sel["rejected"],
+    )
+    chk("verified watchlist story kept", any("Micron" in i["headline"] for i in sel["watchlist"]))
+    chk(
+        "market-wide story separated from watchlist",
+        any("Fed" in i["headline"] for i in sel["market"]),
+    )
     chk("market news capped at 3", len(sel["market"]) <= 3)
 
     # subject + preheader
-    mk = {"regime": {"label": "RISK-OFF"},
-          "sectors": {"leaders": [{"name": "Energy"}],
-                      "laggards": [{"name": "Semis"}]},
-          "top_event": {"title": "UoM Sentiment", "time": "2:00pm"}}
-    wl = rank_watchlist([{"ticker": "MU", "trigger_hit": True,
-                          "has_flow": True},
-                         {"ticker": "ASML", "grade_delta": -2}])
+    mk = {
+        "regime": {"label": "RISK-OFF"},
+        "sectors": {"leaders": [{"name": "Energy"}], "laggards": [{"name": "Semis"}]},
+        "top_event": {"title": "UoM Sentiment", "time": "2:00pm"},
+    }
+    wl = rank_watchlist(
+        [
+            {"ticker": "MU", "trigger_hit": True, "has_flow": True},
+            {"ticker": "ASML", "grade_delta": -2},
+        ]
+    )
     SECTIONS = ("watchlist", "flow", "calendar")
     subj = build_subject(mk, wl, flow_headline="MU flow", sections=SECTIONS)
     chk("subject leads with regime", subj.startswith("Risk-off tape"), subj)
-    chk("subject names the watchlist change count",
-        "1 watchlist change" in subj, subj)
+    chk("subject names the watchlist change count", "1 watchlist change" in subj, subj)
     chk("subject within 65 chars", len(subj) <= SUBJECT_MAX, len(subj))
     # the "Semis lags" clause must not appear: this fixture displays no
     # sector block, and an unsupported subject claim is the bug
-    chk("sector claim withheld when no sector section renders",
-        "lags" not in subj and "leads" not in subj, subj)
-    chk("sector claim allowed once the section is displayed",
-        "Energy leads" in build_subject(mk, wl,
-                                        sections=SECTIONS + ("sectors",)),
-        build_subject(mk, wl, sections=SECTIONS + ("sectors",)))
-    chk("subject survives its own gate",
-        check_subject_supported(subj, "1 of your 4 watch list names changed",
-                                SECTIONS) == [], subj)
+    chk(
+        "sector claim withheld when no sector section renders",
+        "lags" not in subj and "leads" not in subj,
+        subj,
+    )
+    chk(
+        "sector claim allowed once the section is displayed",
+        "Energy leads" in build_subject(mk, wl, sections=SECTIONS + ("sectors",)),
+        build_subject(mk, wl, sections=SECTIONS + ("sectors",)),
+    )
+    chk(
+        "subject survives its own gate",
+        check_subject_supported(subj, "1 of your 4 watch list names changed", SECTIONS) == [],
+        subj,
+    )
 
-    lines = {"indices": "SPY +1.2% QQQ +1.6%", "vix": "VIX -1.0%",
-             "ten_year": "10Y 4.63% (+3 bp)"}
+    lines = {"indices": "SPY +1.2% QQQ +1.6%", "vix": "VIX -1.0%", "ten_year": "10Y 4.63% (+3 bp)"}
     pre = build_preheader(mk, wl, lines, sections=SECTIONS)
     chk("preheader within 140 chars", len(pre) <= PREHEADER_MAX, len(pre))
     chk("preheader leads with market numbers", pre.startswith("SPY"), pre)
@@ -1383,8 +1714,10 @@ def self_test():
     chk("preheader carries the body's yield units", "bp" in pre, pre)
     chk("preheader does not repeat the subject verbatim", pre != subj)
     chk("preheader passes its own gate", check_preheader(pre) == [], pre)
-    chk("calendar clause withheld when no calendar renders",
-        "UoM" not in build_preheader(mk, wl, lines, sections=("watchlist",)))
+    chk(
+        "calendar clause withheld when no calendar renders",
+        "UoM" not in build_preheader(mk, wl, lines, sections=("watchlist",)),
+    )
 
     # count what actually ran — a hardcoded total silently under-reports
     # every check added after it was written
@@ -1397,8 +1730,8 @@ def self_test():
 # on the assembled payload immediately before send and BLOCK delivery.
 
 _PLACEHOLDER_URL = re.compile(
-    r"https?://(x|y|z|example\.(com|org)|test|localhost|placeholder)[/\s\"']",
-    re.I)
+    r"https?://(x|y|z|example\.(com|org)|test|localhost|placeholder)[/\s\"']", re.IGNORECASE
+)
 _TOKEN = re.compile(r"\{\{|\}\}|%\(|\{\d*\}|__[A-Z_]+__|TODO|FIXME|lorem")
 
 
@@ -1418,17 +1751,18 @@ def check_index_count(market):
         dist = d.get("dist_ma20_pct")
         flag = d.get("above_ma20")
         if dist is not None and flag is not None and (dist >= 0) != bool(flag):
-            v.append("%s: vs-20d %+.2f%% contradicts above_ma20=%s"
-                     % (t, dist, flag))
+            v.append("%s: vs-20d %+.2f%% contradicts above_ma20=%s" % (t, dist, flag))
         if flag:
             above += 1
-    why = ((market.get("regime") or {}).get("why") or "")
+    why = (market.get("regime") or {}).get("why") or ""
     m = re.search(r"(\d+)\s+of\s+(\d+)\s+major indices", why)
     if m:
         said, total = int(m.group(1)), int(m.group(2))
         if said != above or total != len(idx):
-            v.append("summary says %d of %d indices above the 20-day but the "
-                     "table shows %d of %d" % (said, total, above, len(idx)))
+            v.append(
+                "summary says %d of %d indices above the 20-day but the "
+                "table shows %d of %d" % (said, total, above, len(idx))
+            )
     return v
 
 
@@ -1439,8 +1773,7 @@ def check_breadth_defined(market):
     if b.get("breadth_pct") is None:
         return []
     if not b.get("universe"):
-        return ["breadth percentage published with no universe size — "
-                "'breadth 33%' of what?"]
+        return ["breadth percentage published with no universe size — 'breadth 33%' of what?"]
     return []
 
 
@@ -1467,23 +1800,23 @@ def check_temporal(news, events, as_of):
     """Nothing published after the send time may be described in the past
     tense, and no future event may be marked complete."""
     v = []
-    for it in (news or []):
+    for it in news or []:
         p = it.get("published_at") or it.get("published_ts")
         if p and as_of and str(p) > str(as_of):
-            v.append("news %r is timestamped after the brief's as-of time"
-                     % str(it.get("headline"))[:48])
-    for e in (events or []):
+            v.append(
+                "news %r is timestamped after the brief's as-of time" % str(it.get("headline"))[:48]
+            )
+    for e in events or []:
         st = (e.get("status") or "").upper()
         # Only a DATA RELEASE publishes an "actual". A ceremony, a speech
         # or a bank holiday completes by the clock passing and has no
         # number to print, so demanding one blocked the whole brief on an
         # 8:00 a.m. arrival ceremony that had simply finished.
-        is_release = bool(e.get("forecast") or e.get("previous")
-                          or e.get("anchor_et"))
-        if st in ("COMPLETED", "RELEASED") and is_release \
-                and not e.get("actual"):
-            v.append("release %r marked %s with no published actual"
-                     % (str(e.get("title"))[:40], st))
+        is_release = bool(e.get("forecast") or e.get("previous") or e.get("anchor_et"))
+        if st in ("COMPLETED", "RELEASED") and is_release and not e.get("actual"):
+            v.append(
+                "release %r marked %s with no published actual" % (str(e.get("title"))[:40], st)
+            )
     return v
 
 
@@ -1495,15 +1828,20 @@ def check_watchlist_counts(wl, eligible_total):
     quiet = wl.get("quiet") or []
     n = len(shown) + len(over) + len(wl.get("notable") or []) + len(quiet)
     if eligible_total is not None and n != eligible_total:
-        v.append("watch list counts do not reconcile: %d ranked vs %d eligible"
-                 % (n, eligible_total))
+        v.append(
+            "watch list counts do not reconcile: %d ranked vs %d eligible" % (n, eligible_total)
+        )
     changed = len(shown) + len(over)
     if (wl.get("n_changed") or 0) != changed:
-        v.append("changed count %d disagrees with %d ranked as changed"
-                 % (wl.get("n_changed") or 0, changed))
+        v.append(
+            "changed count %d disagrees with %d ranked as changed"
+            % (wl.get("n_changed") or 0, changed)
+        )
     if over and not (wl.get("overflow_line") or "").strip():
-        v.append("%d changed name(s) hidden by the display cap with no "
-                 "overflow line to account for them" % len(over))
+        v.append(
+            "%d changed name(s) hidden by the display cap with no "
+            "overflow line to account for them" % len(over)
+        )
     for x in shown:
         if not (x.get("reasons") or []):
             v.append("%s is displayed with no reason" % x.get("ticker"))
@@ -1513,8 +1851,7 @@ def check_watchlist_counts(wl, eligible_total):
 def check_no_negative_zero(text):
     """'-0.0%' is a rounding artefact, never a real reading."""
     hits = re.findall(r"-0\.0+\s*%", text or "")
-    return (["negative zero rendered %d time(s), e.g. %r"
-             % (len(hits), hits[0])] if hits else [])
+    return ["negative zero rendered %d time(s), e.g. %r" % (len(hits), hits[0])] if hits else []
 
 
 def check_subject_supported(subject, text, sections=()):
@@ -1529,20 +1866,18 @@ def check_subject_supported(subject, text, sections=()):
     sections = set(sections or ())
     m = re.search(r"([A-Za-z][\w &/-]*?) (leads|lags)\b", subject or "")
     if m and "sectors" not in sections:
-        v.append("subject claims %r but no sector line is displayed"
-                 % m.group(0))
+        v.append("subject claims %r but no sector line is displayed" % m.group(0))
     elif m and m.group(1).lower() not in body:
-        v.append("subject claims %r but %r does not appear in the body"
-                 % (m.group(0), m.group(1)))
+        v.append("subject claims %r but %r does not appear in the body" % (m.group(0), m.group(1)))
     if re.search(r"\bflow\b", subject or "") and "flow" not in sections:
         v.append("subject references flow but no flow section is displayed")
     m = re.search(r"(\d+) watchlist change", subject or "")
     if m and ("%s of your" % m.group(1)) not in body:
-        v.append("subject says %s watchlist changes but the body does not "
-                 "state that count" % m.group(1))
+        v.append(
+            "subject says %s watchlist changes but the body does not state that count" % m.group(1)
+        )
     if len(subject or "") > SUBJECT_MAX:
-        v.append("subject is %d chars, over the %d limit"
-                 % (len(subject), SUBJECT_MAX))
+        v.append("subject is %d chars, over the %d limit" % (len(subject), SUBJECT_MAX))
     return v
 
 
@@ -1550,8 +1885,7 @@ def check_preheader(pre, body=""):
     v = []
     pre = pre or ""
     if len(pre) > PREHEADER_MAX:
-        v.append("preheader is %d chars, over the %d limit"
-                 % (len(pre), PREHEADER_MAX))
+        v.append("preheader is %d chars, over the %d limit" % (len(pre), PREHEADER_MAX))
     # ")" closes a parenthetical like "(+3 bp)" and is a complete ending;
     # a dangling separator is not
     if pre and pre[-1] not in ".!?%)" and not pre[-1].isalnum():
@@ -1564,8 +1898,9 @@ def check_preheader(pre, body=""):
         pre_bp = bool(re.search(r"[-+]?\d+\s*bp", pre))
         body_bp = bool(re.search(r"[-+]?\d+\s*bp", body or ""))
         if body_bp and not pre_bp:
-            v.append("preheader quotes the yield change in percent while "
-                     "the body uses basis points")
+            v.append(
+                "preheader quotes the yield change in percent while the body uses basis points"
+            )
     return v
 
 
@@ -1582,13 +1917,11 @@ def check_unsubscribe(html_doc, unsub):
     # substring test would report a mismatch that does not exist
     doc = _unescape(html_doc or "")
     if unsub not in doc:
-        v.append("the unsubscribe URL in the headers does not appear as a "
-                 "visible link in the body")
+        v.append("the unsubscribe URL in the headers does not appear as a visible link in the body")
     # any OTHER href sitting under the word Unsubscribe is a mismatch
-    for href in re.findall(r'href="([^"]+)"[^>]*>\s*Unsubscribe', doc, re.I):
+    for href in re.findall(r'href="([^"]+)"[^>]*>\s*Unsubscribe', doc, re.IGNORECASE):
         if href != unsub:
-            v.append("visible Unsubscribe links to %r, not the signed "
-                     "endpoint" % href)
+            v.append("visible Unsubscribe links to %r, not the signed endpoint" % href)
     return v
 
 
@@ -1600,8 +1933,7 @@ def check_oi_states(watch_flow, market_flow=()):
         for c in group or []:
             st = c.get("oi_state")
             if st == CONF_NO and c.get("oi_delta") is None:
-                v.append("%s marks a contract UNCONFIRMED with no "
-                         "open-interest reading" % tk)
+                v.append("%s marks a contract UNCONFIRMED with no open-interest reading" % tk)
     return v
 
 
@@ -1613,8 +1945,10 @@ def check_plain_text(text, urls=()):
         return ["plain-text alternative is empty"]
     for u in urls:
         if u and u not in t:
-            v.append("plain-text body is missing the %s URL"
-                     % ("unsubscribe" if "unsub" in u else u[:48]))
+            v.append(
+                "plain-text body is missing the %s URL"
+                % ("unsubscribe" if "unsub" in u else u[:48])
+            )
     return v
 
 
@@ -1623,12 +1957,16 @@ def check_document(html_doc):
     clients and silently changes what any validator is looking at."""
     v = []
     d = html_doc or ""
-    for tag, pat in (("<!doctype>", r"<!doctype"), ("<html>", r"<html[\s>]"),
-                     ("<head>", r"<head[\s>]"), ("<body>", r"<body[\s>]")):
-        n = len(re.findall(pat, d, re.I))
+    for tag, pat in (
+        ("<!doctype>", r"<!doctype"),
+        ("<html>", r"<html[\s>]"),
+        ("<head>", r"<head[\s>]"),
+        ("<body>", r"<body[\s>]"),
+    ):
+        n = len(re.findall(pat, d, re.IGNORECASE))
         if n != 1:
             v.append("document contains %d %s (expected exactly 1)" % (n, tag))
-    if d and not re.search(r'<html[^>]*\blang="en"', d, re.I):
+    if d and not re.search(r'<html[^>]*\blang="en"', d, re.IGNORECASE):
         v.append('<html> is missing lang="en"')
     return v
 
@@ -1639,8 +1977,7 @@ def check_flow_labels(watch_flow):
     for tk, group in (watch_flow or {}).items():
         r = classify_flow(group)
         if r["label"] == MIXED_DIR and r["direction"] != MIXED_DIR:
-            v.append("%s labelled MIXED without opposing directional "
-                     "evidence" % tk)
+            v.append("%s labelled MIXED without opposing directional evidence" % tk)
     return v
 
 
@@ -1648,8 +1985,7 @@ def visible_text(html_doc):
     """The words a reader actually sees — markup, styles and the hidden
     preheader removed. Every content check runs against THIS, not the
     markup, so a claim buried in an attribute cannot satisfy one."""
-    t = re.sub(r"(?is)<(script|style|title)[^>]*>.*?</" + chr(92) + "1>",
-               " ", html_doc or "")
+    t = re.sub(r"(?is)<(script|style|title)[^>]*>.*?</" + chr(92) + "1>", " ", html_doc or "")
     t = re.sub(r"(?is)<div[^>]*mso-hide:all.*?</div>", " ", t)
     t = re.sub(r"(?s)<[^>]+>", " ", t)
     return re.sub(r"\s+", " ", _unescape(t))
@@ -1657,6 +1993,7 @@ def visible_text(html_doc):
 
 def _unescape(s):
     import html as _h
+
     return _h.unescape(s)
 
 
@@ -1684,61 +2021,74 @@ def check_model(model):
     for r in wl["records"]:
         codes = r.get("reason_codes") or []
         blob = " ".join(r.get("reasons") or []).lower()
-        if ("FLOW_HQ" in codes or "flow" in blob) \
-                and r["ticker"] not in flow_names:
-            v.append("%s is ranked on options flow but no contract for it "
-                     "appears anywhere in the email" % r["ticker"])
+        if ("FLOW_HQ" in codes or "flow" in blob) and r["ticker"] not in flow_names:
+            v.append(
+                "%s is ranked on options flow but no contract for it "
+                "appears anywhere in the email" % r["ticker"]
+            )
 
     # every contract states a side and a direction
     for sid, sec in secs.items():
         for r in sec.get("records") or []:
-            for c in ([r] if r.get("action") else []) + (
-                    r.get("contracts") or []):
+            for c in ([r] if r.get("action") else []) + (r.get("contracts") or []):
                 if not c.get("action") or c["action"] == "UNSPECIFIED":
-                    v.append("%s contract %s has no buy/sell side"
-                             % (sid, c.get("key")))
+                    v.append("%s contract %s has no buy/sell side" % (sid, c.get("key")))
                 if not c.get("direction"):
-                    v.append("%s contract %s has no inferred direction"
-                             % (sid, c.get("key")))
+                    v.append("%s contract %s has no inferred direction" % (sid, c.get("key")))
 
     # discovery must not repeat market-wide flow verbatim
-    mkt = {c.get("ticker") for c in
-           (secs.get("flow_market") or {}).get("records") or []}
+    mkt = {c.get("ticker") for c in (secs.get("flow_market") or {}).get("records") or []}
     for d in (secs.get("discovery") or {}).get("records") or []:
         if d["ticker"] in mkt:
-            v.append("%s appears in both market-wide flow and discovery with "
-                     "no additional context" % d["ticker"])
+            v.append(
+                "%s appears in both market-wide flow and discovery with "
+                "no additional context" % d["ticker"]
+            )
 
     # a price cell is never blank
     for r in wl["records"]:
         p = r.get("price") or {}
         if not (p.get("text") or "").strip():
             v.append("%s renders an empty price" % r["ticker"])
-        if p.get("value") is None and "unavailable" not in \
-                (p.get("text") or "").lower():
+        if p.get("value") is None and "unavailable" not in (p.get("text") or "").lower():
             v.append("%s has no price and does not say so" % r["ticker"])
         # A basis word sitting immediately after the separator means the
         # timestamp that belongs between them is missing: "· pre-market "
         # is truncated, while "· Jul 21 close" and the explicit no-clock
         # forms ("· prior close", "· pre-market quote") are complete.
-        if re.search(r"·\s*(pre-market|close|detection)\s*$",
-                     p.get("text") or ""):
-            v.append("%s price label ends where its timestamp should be: %r"
-                     % (r["ticker"], p.get("text")))
+        if re.search(r"·\s*(pre-market|close|detection)\s*$", p.get("text") or ""):
+            v.append(
+                "%s price label ends where its timestamp should be: %r"
+                % (r["ticker"], p.get("text"))
+            )
 
     # a status must be traceable to a rule that fired
     for r in wl["records"]:
         if r.get("status") in MATERIAL_STATES and not r.get("reason_codes"):
-            v.append("%s is %s with no materiality rule recorded"
-                     % (r["ticker"], r["status"]))
+            v.append("%s is %s with no materiality rule recorded" % (r["ticker"], r["status"]))
     return v
 
 
-def validate_send(*, market=None, wl=None, news=None, events=None,
-                  watch_flow=None, market_flow=None, html_doc="", text_doc="",
-                  as_of=None, eligible_total=None, subject="", preheader="",
-                  unsub="", sections=(), urls=(), calendar_problems=(),
-                  model=None):
+def validate_send(
+    *,
+    market=None,
+    wl=None,
+    news=None,
+    events=None,
+    watch_flow=None,
+    market_flow=None,
+    html_doc="",
+    text_doc="",
+    as_of=None,
+    eligible_total=None,
+    subject="",
+    preheader="",
+    unsub="",
+    sections=(),
+    urls=(),
+    calendar_problems=(),
+    model=None,
+):
     """Every blocking check in one call. Empty list = safe to send."""
     v = []
     body = visible_text(html_doc)
@@ -1766,4 +2116,4 @@ def validate_send(*, market=None, wl=None, news=None, events=None,
 
 
 if __name__ == "__main__":
-    raise SystemExit(self_test() if "--self-test" in sys.argv else self_test())
+    raise SystemExit(self_test())

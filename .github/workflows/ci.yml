@@ -1,0 +1,55 @@
+name: CI
+
+# Code checks for every pull request and every push to master: Ruff (lint +
+# formatting), Pyrefly (types) and the pytest suite. Changes that only touch
+# docs/ (the website, report PDFs and the bot's "archive reports" commits) are
+# skipped. Tests that need network access or R2 data are left out here; see
+# the `network` and `data` markers in pyproject.toml.
+
+on:
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+  push:
+    branches: [master]
+    paths-ignore:
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same pull request (or branch) cancels the older run.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, types and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (with the dev tools)
+        run: uv sync --locked
+
+      - name: Ruff lint
+        run: uv run ruff check --output-format=github .
+
+      - name: Ruff format
+        run: uv run ruff format --check .
+
+      - name: Pyrefly type check
+        # Blocking: every error kind must stay at zero. The noisy inference
+        # kinds are warnings by configuration (see [tool.pyrefly.errors]).
+        run: uv run pyrefly check
+
+      - name: Tests
+        run: uv run pytest -n auto -m "not network and not data"

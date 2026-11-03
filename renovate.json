@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "group:allNonMajor",
+    "schedule:weekly",
+    ":automergeMinor",
+    ":prConcurrentLimit10",
+    ":semanticPrefixFixDepsChoreOthers"
+  ],
+  "timezone": "America/New_York",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 4am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Python itself (.python-version) is upgraded on purpose, in its own PR, never automatically",
+      "matchDepNames": ["python"],
+      "groupName": "python",
+      "automerge": false
+    }
+  ]
+}

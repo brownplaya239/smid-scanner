@@ -1,0 +1,31 @@
+# Git hooks for this repo (https://lefthook.dev).
+# Installed by `bun install` (the "prepare" script in package.json) or by
+# running `lefthook install`. Jobs run one after another, in this order.
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      # Rules: commitlint.config.js (plain-English version: CONTRIBUTING.md)
+      run: bun x commitlint --edit {1}
+
+pre-commit:
+  jobs:
+    # Lint fixes first, then formatting (a fix can leave code to re-format).
+    - name: ruff check
+      glob: "*.py"
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+    - name: ruff format
+      glob: "*.py"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+
+pre-push:
+  jobs:
+    - name: pytest
+      # = uv run pytest -q -m "not network and not data" (same filter as CI).
+      # The filter goes through PYTEST_ADDOPTS because lefthook on Windows
+      # does not keep a quoted argument with spaces in one piece.
+      run: uv run pytest -q
+      env:
+        PYTEST_ADDOPTS: -m "not network and not data"

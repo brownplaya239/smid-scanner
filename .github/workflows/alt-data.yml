@@ -16,6 +16,11 @@ on:
         type: string
         default: ''
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   altdata:
     runs-on: ubuntu-latest
@@ -26,27 +31,20 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
+
       - name: Pull data from R2
         # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
         # manifest so publish only uploads what this job changed.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 scripts/r2_sync.py pull
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv run scripts/r2_sync.py pull
 
       - name: Run alt-data lookup
         env:
@@ -54,7 +52,7 @@ jobs:
           NIMBLE_API_KEY:    ${{ secrets.NIMBLE_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python alt_data.py --ticker "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}"
+        run: uv run python alt_data.py --ticker "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}"
 
       - name: Publish report to site archive
         env:

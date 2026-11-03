@@ -9,9 +9,10 @@ those values without changing the schedule.
 
 Output: docs/reports/economic_calendar.json
 """
+
+import json
 import os
 import sys
-import json
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -91,17 +92,19 @@ def run():
     raw = []
     for e in root.findall("event"):
         if _text(e, "country") != "USD":
-            continue                                         # US events only
-        raw.append({
-            "date":     _text(e, "date"),                    # MM-DD-YYYY
-            "time":     _text(e, "time"),                    # feed-zone clock
-            "title":    _text(e, "title"),
-            "impact":   _text(e, "impact"),                  # Low/Medium/High/Holiday
-            "forecast": _text(e, "forecast"),
-            "previous": _text(e, "previous"),
-            "actual":   _text(e, "actual"),
-            "url":      _text(e, "url"),
-        })
+            continue  # US events only
+        raw.append(
+            {
+                "date": _text(e, "date"),  # MM-DD-YYYY
+                "time": _text(e, "time"),  # feed-zone clock
+                "title": _text(e, "title"),
+                "impact": _text(e, "impact"),  # Low/Medium/High/Holiday
+                "forecast": _text(e, "forecast"),
+                "previous": _text(e, "previous"),
+                "actual": _text(e, "actual"),
+                "url": _text(e, "url"),
+            }
+        )
     print(f"  {len(raw)} US events this week")
 
     # Re-derive the feed's zone from agency publication times rather than
@@ -122,7 +125,7 @@ def run():
         print(f"  zone not re-derivable ({note}); using declared {src_name}")
 
     overrides = _load_overrides()
-    now_iso = datetime.now(ET_TZ).isoformat(timespec='seconds')
+    now_iso = datetime.now(ET_TZ).isoformat(timespec="seconds")
     events, unconverted = [], 0
     for r in raw:
         dt = BT.aware(r["date"], r["time"], src)
@@ -149,12 +152,10 @@ def run():
             corrected_start = ""
             if vz is not None and ov.get("local_time"):
                 # the venue's own clock is the authority on when it happens
-                vdt = BT.aware(ov.get("date") or r["date"],
-                               ov["local_time"], vz)
+                vdt = BT.aware(ov.get("date") or r["date"], ov["local_time"], vz)
                 if vdt is not None:
                     dt = vdt
-                    corrected_start = BT.to_et(vdt).isoformat(
-                        timespec="minutes")
+                    corrected_start = BT.to_et(vdt).isoformat(timespec="minutes")
                     out["source_time"] = ov["local_time"]
                     out["source_tz"] = ov["venue_tz"]
             out["title"] = ov.get("title") or out["title"]
@@ -177,7 +178,7 @@ def run():
             if ov.get("source_url"):
                 out["source_url"] = ov["source_url"]
 
-        if dt is None:                       # "All Day" / "Tentative"
+        if dt is None:  # "All Day" / "Tentative"
             unconverted += 1
             out["time_et"] = ""
             out["scheduled"] = False
@@ -195,35 +196,39 @@ def run():
         # a vendor category is not an event title. Flag it so nothing
         # downstream prints "President Trump Speaks" as if that were a
         # description of what is scheduled.
-        out["generic_title"] = (BT.is_generic_title(out["title"])
-                                and out["title_authority"] == "vendor")
+        out["generic_title"] = (
+            BT.is_generic_title(out["title"]) and out["title_authority"] == "vendor"
+        )
         # the feed-zone clock is not a displayable value; drop it so no
         # renderer can pick it up and print it as if it were Eastern
         out.pop("time", None)
         events.append(out)
 
     checked, matched, _ = BT.audit_offsets(raw, src)
-    print(f"  {matched}/{checked} recognised releases match their published "
-          f"time; {unconverted} unscheduled")
+    print(
+        f"  {matched}/{checked} recognised releases match their published "
+        f"time; {unconverted} unscheduled"
+    )
     if checked and matched * 2 <= checked:
         raise SystemExit(
             "  ABORT: converted times still disagree with the agency "
             "schedule; refusing to write a calendar the brief would "
-            "render incorrectly")
+            "render incorrectly"
+        )
 
     now = datetime.now(ET_TZ)
     payload = {
-        "updated":     now.isoformat(timespec="seconds"),
-        "tz":          "America/New_York",   # the zone of time_et/date
-        "source_tz":   src_name,             # the zone the feed publishes in
-        "converted":   True,
+        "updated": now.isoformat(timespec="seconds"),
+        "tz": "America/New_York",  # the zone of time_et/date
+        "source_tz": src_name,  # the zone the feed publishes in
+        "converted": True,
         "schedule_check": {"checked": checked, "matched": matched},
-        "events":      events,
+        "events": events,
     }
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
-    print(f"  Wrote economic_calendar.json")
+    print("  Wrote economic_calendar.json")
 
 
 if __name__ == "__main__":

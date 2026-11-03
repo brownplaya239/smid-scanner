@@ -22,6 +22,11 @@ concurrency:
   cancel-in-progress: false
 
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   scorecard:
     runs-on: ubuntu-latest
@@ -33,32 +38,25 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
+
       - name: Pull data from R2
         # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
         # manifest so publish only uploads what this job changed.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 scripts/r2_sync.py pull
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv run scripts/r2_sync.py pull
 
       - name: Build matched scorecard
         env:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
-        run: python uoa_scorecard.py
+        run: uv run python uoa_scorecard.py
 
       - name: Track callout results (option-level)
         # Daily Top 25 callouts: entry at first flag, peak, latest.
@@ -66,12 +64,12 @@ jobs:
         continue-on-error: true
         env:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
-        run: python callout_tracker.py
+        run: uv run python callout_tracker.py
 
       - name: Re-run hypothesis lab with BH correction
         # reads the fresh scorecard's effective-n deflation
         continue-on-error: true
-        run: python hypothesis_lab.py --force
+        run: uv run python hypothesis_lab.py --force
 
       - name: Publish
         env:

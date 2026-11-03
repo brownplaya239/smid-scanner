@@ -32,7 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 REPORTS = os.path.join(_BASE, "docs", "reports")
@@ -40,17 +40,37 @@ HIST_PATH = os.path.join(_BASE, "data", "grade_migrations.json")
 FACTS_PREV = os.path.join(_BASE, "data", "technical_facts_prev.json")
 OUT_PATH = os.path.join(REPORTS, "grade_engine.json")
 
-LADDER = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D",
-          "D-", "E+", "E", "E-", "F+", "F", "F-", "G+", "G"]
+LADDER = [
+    "A+",
+    "A",
+    "A-",
+    "B+",
+    "B",
+    "B-",
+    "C+",
+    "C",
+    "C-",
+    "D+",
+    "D",
+    "D-",
+    "E+",
+    "E",
+    "E-",
+    "F+",
+    "F",
+    "F-",
+    "G+",
+    "G",
+]
 RANK = {g: i for i, g in enumerate(LADDER)}
 LETTERS = ["A", "B", "C", "D", "E", "F", "G"]
 
-RARITY_MIN_DAYS = 20      # logged days before rarity percentages publish
-TRANS_MIN_N     = 30      # matured transitions per bucket before stats
-TRANS_LOG_CAP   = 15      # transitions logged per day for maturation
-HIST_CAP_D      = 250
-HOLD_D          = 5
-MAX_MATURE      = 40
+RARITY_MIN_DAYS = 20  # logged days before rarity percentages publish
+TRANS_MIN_N = 30  # matured transitions per bucket before stats
+TRANS_LOG_CAP = 15  # transitions logged per day for maturation
+HIST_CAP_D = 250
+HOLD_D = 5
+MAX_MATURE = 40
 
 
 def _load(path):
@@ -76,30 +96,35 @@ def _letter(g):
 
 # ── 1. migrations ────────────────────────────────────────────────────────
 
+
 def migrations(runs):
     now, was = _grade_map(runs[-1]), _grade_map(runs[-2])
-    matrix = {}          # "B->A" letter-bucket counts
+    matrix = {}  # "B->A" letter-bucket counts
     moves = []
     for t, g in now.items():
         pg = was.get(t)
         if not pg or pg == g:
             continue
-        step = RANK[pg] - RANK[g]          # + = upgrade
+        step = RANK[pg] - RANK[g]  # + = upgrade
         moves.append({"t": t, "from": pg, "to": g, "step": step})
         key = f"{_letter(pg)}->{_letter(g)}"
         if _letter(pg) != _letter(g):
             matrix[key] = matrix.get(key, 0) + 1
-    ups = sorted([m for m in moves if m["step"] > 0],
-                 key=lambda m: -m["step"])
-    dns = sorted([m for m in moves if m["step"] < 0],
-                 key=lambda m: m["step"])
+    ups = sorted([m for m in moves if m["step"] > 0], key=lambda m: -m["step"])
+    dns = sorted([m for m in moves if m["step"] < 0], key=lambda m: m["step"])
     hist = {}
     for m in moves:
         b = _step_bucket(m["step"])
         hist[b] = hist.get(b, 0) + 1
-    return {"n_up": len(ups), "n_down": len(dns), "matrix": matrix,
-            "top_up": ups[:5], "top_down": dns[:5],
-            "step_hist": hist, "graded_universe": len(now)}
+    return {
+        "n_up": len(ups),
+        "n_down": len(dns),
+        "matrix": matrix,
+        "top_up": ups[:5],
+        "top_down": dns[:5],
+        "step_hist": hist,
+        "graded_universe": len(now),
+    }
 
 
 def _step_bucket(step):
@@ -110,30 +135,36 @@ def _step_bucket(step):
 
 # ── rarity + transition-outcome history ─────────────────────────────────
 
+
 def accrue_history(date, mig):
     hist = _load(HIST_PATH) or {"days": [], "transitions": []}
     days = [d for d in hist.get("days") or [] if d.get("date") != date]
-    days.append({"date": date, "step_hist": mig["step_hist"],
-                 "n_up": mig["n_up"], "n_down": mig["n_down"],
-                 "universe": mig["graded_universe"]})
+    days.append(
+        {
+            "date": date,
+            "step_hist": mig["step_hist"],
+            "n_up": mig["n_up"],
+            "n_down": mig["n_down"],
+            "universe": mig["graded_universe"],
+        }
+    )
     days.sort(key=lambda d: d["date"])
     hist["days"] = days[-HIST_CAP_D:]
     # log today's biggest transitions for +5d maturation
-    trans = [t for t in hist.get("transitions") or []
-             if not (t.get("date") == date)]
+    trans = [t for t in hist.get("transitions") or [] if t.get("date") != date]
     todays = (mig["top_up"] + mig["top_down"])[:TRANS_LOG_CAP]
     for m in todays:
-        trans.append({"date": date, "t": m["t"], "step": m["step"],
-                      "bucket": _step_bucket(m["step"])})
-    hist["transitions"] = trans[-(HIST_CAP_D * TRANS_LOG_CAP):]
+        trans.append(
+            {"date": date, "t": m["t"], "step": m["step"], "bucket": _step_bucket(m["step"])}
+        )
+    hist["transitions"] = trans[-(HIST_CAP_D * TRANS_LOG_CAP) :]
     return hist
 
 
 def rarity(hist, mig):
     days = hist.get("days") or []
     if len(days) < RARITY_MIN_DAYS:
-        return {"status": "accruing", "days": len(days),
-                "activates_at": RARITY_MIN_DAYS}
+        return {"status": "accruing", "days": len(days), "activates_at": RARITY_MIN_DAYS}
     total_moves, bucket_tot = 0, {}
     for d in days:
         for b, n in (d.get("step_hist") or {}).items():
@@ -142,8 +173,7 @@ def rarity(hist, mig):
     out = {}
     for b, n in bucket_tot.items():
         out[b] = round(100.0 * n / total_moves, 1)
-    return {"status": "active", "days": len(days),
-            "pct_of_all_moves": out}
+    return {"status": "active", "days": len(days), "pct_of_all_moves": out}
 
 
 def mature_transitions(hist):
@@ -156,10 +186,17 @@ def mature_transitions(hist):
     if not pending:
         return 0
     import yfinance as yf
+
     tickers = list(pending.keys())[:MAX_MATURE]
-    data = yf.download(tickers, period="4mo", interval="1d",
-                       auto_adjust=True, group_by="ticker",
-                       progress=False, threads=True)
+    data = yf.download(
+        tickers,
+        period="4mo",
+        interval="1d",
+        auto_adjust=True,
+        group_by="ticker",
+        progress=False,
+        threads=True,
+    )
     graded = 0
     for tk in tickers:
         try:
@@ -189,18 +226,20 @@ def transition_stats(hist):
         # downgrades "work" when the name keeps falling
         signed = [(-x if b.startswith("dn") else x) for x in rets]
         if len(signed) < TRANS_MIN_N:
-            out[b] = {"status": "accruing", "n": len(signed),
-                      "activates_at": TRANS_MIN_N}
+            out[b] = {"status": "accruing", "n": len(signed), "activates_at": TRANS_MIN_N}
             continue
-        out[b] = {"status": "active", "n": len(signed),
-                  "hit": round(100 * sum(1 for v in signed if v > 0)
-                               / len(signed)),
-                  "avg": round(sum(signed) / len(signed), 2),
-                  "hold_d": HOLD_D}
+        out[b] = {
+            "status": "active",
+            "n": len(signed),
+            "hit": round(100 * sum(1 for v in signed if v > 0) / len(signed)),
+            "avg": round(sum(signed) / len(signed), 2),
+            "hold_d": HOLD_D,
+        }
     return out
 
 
 # ── 2. persistence ───────────────────────────────────────────────────────
+
 
 def persistence(runs):
     """Average sessions the CURRENT holders of each letter grade have
@@ -215,14 +254,14 @@ def persistence(runs):
             else:
                 break
         streaks.setdefault(_letter(g), []).append(s)
-    return {L: round(sum(v) / len(v), 1)
-            for L, v in streaks.items() if v}, len(runs)
+    return {L: round(sum(v) / len(v), 1) for L, v in streaks.items() if v}, len(runs)
 
 
 # ── 3. factor shifts (tracked names, facts vs yesterday's facts) ───────
 
+
 def factor_shifts():
-    cur = (_load(os.path.join(REPORTS, "technical_facts.json")) or {})
+    cur = _load(os.path.join(REPORTS, "technical_facts.json")) or {}
     prev = _load(FACTS_PREV)
     cf, pf = cur.get("facts") or {}, (prev or {}).get("facts") or {}
     if not cf:
@@ -231,24 +270,31 @@ def factor_shifts():
         return {"status": "baseline", "note": "first run — baseline stored"}
     common = set(cf) & set(pf)
     if len(common) < 10:
-        return {"status": "baseline",
-                "note": f"only {len(common)} overlapping names — thin diff"}
+        return {"status": "baseline", "note": f"only {len(common)} overlapping names — thin diff"}
     sh = {"names": len(common)}
     for span in (20, 50):
-        up = sum(1 for t in common
-                 if cf[t].get(f"ema{span}") == "above"
-                 and pf[t].get(f"ema{span}") == "below")
-        dn = sum(1 for t in common
-                 if cf[t].get(f"ema{span}") == "below"
-                 and pf[t].get(f"ema{span}") == "above")
+        up = sum(
+            1
+            for t in common
+            if cf[t].get(f"ema{span}") == "above" and pf[t].get(f"ema{span}") == "below"
+        )
+        dn = sum(
+            1
+            for t in common
+            if cf[t].get(f"ema{span}") == "below" and pf[t].get(f"ema{span}") == "above"
+        )
         sh[f"ema{span}_cross_up"] = up
         sh[f"ema{span}_cross_down"] = dn
-    vol_exp = sum(1 for t in common
-                  if (cf[t].get("vol_ratio") or 0) >= 1.5
-                  and (pf[t].get("vol_ratio") or 0) < 1.5)
+    vol_exp = sum(
+        1
+        for t in common
+        if (cf[t].get("vol_ratio") or 0) >= 1.5 and (pf[t].get("vol_ratio") or 0) < 1.5
+    )
     sh["vol_expansions"] = vol_exp
-    rs_d = [((cf[t].get("rs") or {}).get("d5") or 0)
-            - ((pf[t].get("rs") or {}).get("d5") or 0) for t in common]
+    rs_d = [
+        ((cf[t].get("rs") or {}).get("d5") or 0) - ((pf[t].get("rs") or {}).get("d5") or 0)
+        for t in common
+    ]
     sh["avg_rs5_shift_pp"] = round(sum(rs_d) / len(rs_d), 1)
     sh["status"] = "active"
     return sh
@@ -264,27 +310,32 @@ def snapshot_facts():
 
 # ── 4. health + learned ─────────────────────────────────────────────────
 
+
 def engine_health():
     so = _load(os.path.join(REPORTS, "setup_outcomes.json")) or {}
     ev = _load(os.path.join(REPORTS, "evening_review.json")) or {}
     rh = _load(os.path.join(REPORTS, "regime_history.json")) or {}
     grades = so.get("grades") or {}
-    active = {g: v for g, v in grades.items()
-              if v.get("status") == "active"}
+    active = {g: v for g, v in grades.items() if v.get("status") == "active"}
     acc = None
     if active:
         n = sum(v["n"] for v in active.values())
         acc = round(sum(v["win_rate"] * v["n"] for v in active.values()) / n)
     return {
-        "accuracy": ({"status": "active", "pct": acc,
-                      "grades": {g: {"win": v["win_rate"], "n": v["n"]}
-                                 for g, v in active.items()}}
-                     if acc is not None else
-                     {"status": "accruing",
-                      "graded": so.get("total_graded", 0),
-                      "activates_at": so.get("min_n", 30),
-                      "note": "per-grade +5-session hit rates publish at "
-                              "n>=30 per grade"}),
+        "accuracy": (
+            {
+                "status": "active",
+                "pct": acc,
+                "grades": {g: {"win": v["win_rate"], "n": v["n"]} for g, v in active.items()},
+            }
+            if acc is not None
+            else {
+                "status": "accruing",
+                "graded": so.get("total_graded", 0),
+                "activates_at": so.get("min_n", 30),
+                "note": "per-grade +5-session hit rates publish at n>=30 per grade",
+            }
+        ),
         "scorecard": ev.get("graded"),
         "record": ev.get("record"),
         "calibration": (ev.get("calibration") or {}).get("status"),
@@ -295,34 +346,42 @@ def engine_health():
 
 def learned():
     ew = _load(os.path.join(REPORTS, "edge_weights.json")) or {}
-    feats = sorted((ew.get("features") or {}).items(),
-                   key=lambda x: -abs(x[1].get("adj") or 0))
-    strongest = [{"f": k, "adj": v["adj"]} for k, v in feats[:5]
-                 if v.get("adj")]
+    feats = sorted((ew.get("features") or {}).items(), key=lambda x: -abs(x[1].get("adj") or 0))
+    strongest = [{"f": k, "adj": v["adj"]} for k, v in feats[:5] if v.get("adj")]
     decay = ew.get("decay") or {}
-    dying = sorted([(k, v) for k, v in decay.items()
-                    if v["delta"] <= -0.05], key=lambda x: x[1]["delta"])
-    rising = sorted([(k, v) for k, v in decay.items()
-                     if v["delta"] >= 0.05], key=lambda x: -x[1]["delta"])
-    fmt = lambda k, v: {"f": k, "prior": round(v["prior_hit"] * 100),
-                        "recent": round(v["recent_hit"] * 100)}
-    return {"weights_version": ew.get("version"),
-            "graded": ew.get("graded"),
-            "strongest": strongest,
-            "dying": [fmt(k, v) for k, v in dying[:3]],
-            "rising": [fmt(k, v) for k, v in rising[:3]],
-            "regime_weights": (ew.get("regimes") or {}).get("status"),
-            "note": ("Adjustments are the UOA outcome-learner's, applied "
-                     "with min-N/shrinkage/clamps. The swing grade formula "
-                     "itself is NOT auto-reweighted — changes to it go "
-                     "through validation, never silent updates.")}
+    dying = sorted(
+        [(k, v) for k, v in decay.items() if v["delta"] <= -0.05], key=lambda x: x[1]["delta"]
+    )
+    rising = sorted(
+        [(k, v) for k, v in decay.items() if v["delta"] >= 0.05], key=lambda x: -x[1]["delta"]
+    )
+    fmt = lambda k, v: {
+        "f": k,
+        "prior": round(v["prior_hit"] * 100),
+        "recent": round(v["recent_hit"] * 100),
+    }
+    return {
+        "weights_version": ew.get("version"),
+        "graded": ew.get("graded"),
+        "strongest": strongest,
+        "dying": [fmt(k, v) for k, v in dying[:3]],
+        "rising": [fmt(k, v) for k, v in rising[:3]],
+        "regime_weights": (ew.get("regimes") or {}).get("status"),
+        "note": (
+            "Adjustments are the UOA outcome-learner's, applied "
+            "with min-N/shrinkage/clamps. The swing grade formula "
+            "itself is NOT auto-reweighted — changes to it go "
+            "through validation, never silent updates."
+        ),
+    }
 
 
 def build():
     # Full report first — persistence needs the deep run history (the
     # light summary keeps only the freshest runs).
-    sw = (_load(os.path.join(REPORTS, "swing_report.json"))
-          or _load(os.path.join(REPORTS, "swing_latest_summary.json")))
+    sw = _load(os.path.join(REPORTS, "swing_report.json")) or _load(
+        os.path.join(REPORTS, "swing_latest_summary.json")
+    )
     runs = (sw or {}).get("runs") or []
     if len(runs) < 2:
         print("  grade engine: need >=2 swing runs — skipping")
@@ -333,7 +392,7 @@ def build():
     matured = mature_transitions(hist)
     pers, window = persistence(runs)
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "session_date": date,
         "migrations": mig,
         "rarity": rarity(hist, mig),
@@ -344,10 +403,12 @@ def build():
         "learned": learned(),
     }
     snapshot_facts()
-    print(f"  grade engine: {mig['n_up']}↑/{mig['n_down']}↓ · "
-          f"{matured} transitions matured · "
-          f"accuracy {payload['health']['accuracy'].get('pct', 'accruing')}"
-          f" · regime {payload['health'].get('regime')}")
+    print(
+        f"  grade engine: {mig['n_up']}↑/{mig['n_down']}↓ · "
+        f"{matured} transitions matured · "
+        f"accuracy {payload['health']['accuracy'].get('pct', 'accruing')}"
+        f" · regime {payload['health'].get('regime')}"
+    )
     return payload, hist
 
 
@@ -371,6 +432,7 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     main()

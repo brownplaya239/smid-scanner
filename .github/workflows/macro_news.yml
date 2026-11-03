@@ -16,6 +16,11 @@ concurrency:
   group: macro-news-relay
   cancel-in-progress: true
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   relay:
     runs-on: ubuntu-latest
@@ -27,15 +32,22 @@ jobs:
         with:
           sparse-checkout: |
             macro_news_relay.py
+            pyproject.toml
+            uv.lock
+            .python-version
           sparse-checkout-cone-mode: false
 
-      - uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
         with:
-          python-version: '3.12'
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
 
       - name: Relay macro headlines
         env:
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python macro_news_relay.py
+        run: uv run python macro_news_relay.py

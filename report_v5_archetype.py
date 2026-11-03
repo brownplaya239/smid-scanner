@@ -26,21 +26,36 @@ ARCHETYPES = (FULL, FULL_THIN, THIN, NEW_LISTING, DATA_HOLD)
 
 # Section vocabulary. Presentation renders sections; validation checks
 # the rendered document against this contract by archetype.
-SECTIONS = ("dashboard", "valuation_table", "argument", "financial_grid",
-            "valuation_detail", "event_path", "technicals",
-            "flow_positioning", "variant_risks", "listing_factsheet",
-            "listing_timeline", "listing_trading", "flash")
+SECTIONS = (
+    "dashboard",
+    "valuation_table",
+    "argument",
+    "financial_grid",
+    "valuation_detail",
+    "event_path",
+    "technicals",
+    "flow_positioning",
+    "variant_risks",
+    "listing_factsheet",
+    "listing_timeline",
+    "listing_trading",
+    "flash",
+)
 
 CONTRACTS = {
     FULL: {
-        "required": ("dashboard", "argument", "financial_grid",
-                     "event_path", "technicals", "variant_risks"),
+        "required": (
+            "dashboard",
+            "argument",
+            "financial_grid",
+            "event_path",
+            "technicals",
+            "variant_risks",
+        ),
         # valuation_table required only when a band survived coverage —
         # the router refines this per name (see decide()).
-        "optional": ("valuation_table", "valuation_detail",
-                     "flow_positioning"),
-        "forbidden": ("listing_factsheet", "listing_timeline",
-                      "listing_trading", "flash"),
+        "optional": ("valuation_table", "valuation_detail", "flow_positioning"),
+        "forbidden": ("listing_factsheet", "listing_timeline", "listing_trading", "flash"),
         "pages": (5, 8),
     },
     # FULL_THIN (§6): financially complete but framework-incomplete —
@@ -49,29 +64,40 @@ CONTRACTS = {
     # NOT_ASSESSED. Same page family as FULL; the label and the
     # framework-coverage display say what has NOT been underwritten.
     FULL_THIN: {
-        "required": ("dashboard", "argument", "financial_grid",
-                     "variant_risks"),
-        "optional": ("valuation_table", "valuation_detail", "event_path",
-                     "technicals", "flow_positioning"),
-        "forbidden": ("listing_factsheet", "listing_timeline",
-                      "listing_trading", "flash"),
+        "required": ("dashboard", "argument", "financial_grid", "variant_risks"),
+        "optional": (
+            "valuation_table",
+            "valuation_detail",
+            "event_path",
+            "technicals",
+            "flow_positioning",
+        ),
+        "forbidden": ("listing_factsheet", "listing_timeline", "listing_trading", "flash"),
         "pages": (4, 8),
     },
     THIN: {
-        "required": ("dashboard", "argument", "financial_grid",
-                     "variant_risks"),
-        "optional": ("valuation_table", "valuation_detail", "event_path",
-                     "technicals"),
-        "forbidden": ("flow_positioning", "listing_factsheet",
-                      "listing_timeline", "listing_trading", "flash"),
+        "required": ("dashboard", "argument", "financial_grid", "variant_risks"),
+        "optional": ("valuation_table", "valuation_detail", "event_path", "technicals"),
+        "forbidden": (
+            "flow_positioning",
+            "listing_factsheet",
+            "listing_timeline",
+            "listing_trading",
+            "flash",
+        ),
         "pages": (3, 5),
     },
     NEW_LISTING: {
-        "required": ("listing_factsheet", "listing_timeline",
-                     "listing_trading"),
+        "required": ("listing_factsheet", "listing_timeline", "listing_trading"),
         "optional": (),
-        "forbidden": ("valuation_table", "argument", "financial_grid",
-                      "valuation_detail", "flow_positioning", "flash"),
+        "forbidden": (
+            "valuation_table",
+            "argument",
+            "financial_grid",
+            "valuation_detail",
+            "flow_positioning",
+            "flash",
+        ),
         "pages": (2, 4),
     },
     DATA_HOLD: {
@@ -83,8 +109,8 @@ CONTRACTS = {
 }
 
 # Thresholds, named so the reasons can cite them.
-MIN_FULL_SESSIONS = 200        # a year of trading before FULL applies
-MIN_FILED_QUARTERS = 4         # a filed year of quarters
+MIN_FULL_SESSIONS = 200  # a year of trading before FULL applies
+MIN_FILED_QUARTERS = 4  # a filed year of quarters
 
 
 def decide(snap, event, multiples=None, has_options=None, override=None):
@@ -104,68 +130,65 @@ def decide(snap, event, multiples=None, has_options=None, override=None):
     #    report ships while a fresh release is unread.
     if (event or {}).get("flash"):
         decision = DATA_HOLD
-        reasons.append("event gate is holding: %s"
-                       % ((event.get("reasons") or ["fresh release "
-                          "not ingested"])[-1]))
+        reasons.append(
+            "event gate is holding: %s"
+            % ((event.get("reasons") or ["fresh release not ingested"])[-1])
+        )
     else:
         sessions = th.get("sessions") or 0
         listed = th.get("listing_date")
         filed_q = _filed_quarters(fu, multiples)
 
-        if listed and not th.get("full_history") \
-                and sessions < MIN_FULL_SESSIONS and filed_q == 0:
+        if listed and not th.get("full_history") and sessions < MIN_FULL_SESSIONS and filed_q == 0:
             decision = NEW_LISTING
-            reasons.append("listed %s with %d sessions and no filed "
-                           "periodic report — a listing fact sheet, not "
-                           "an equity research note, is the honest shape"
-                           % (listed, sessions))
+            reasons.append(
+                "listed %s with %d sessions and no filed "
+                "periodic report — a listing fact sheet, not "
+                "an equity research note, is the honest shape" % (listed, sessions)
+            )
         elif filed_q < MIN_FILED_QUARTERS or sessions < MIN_FULL_SESSIONS:
             decision = THIN
             if filed_q < MIN_FILED_QUARTERS:
-                reasons.append("only %d filed quarter(s) — under the %d a "
-                               "full note needs" % (filed_q,
-                                                    MIN_FILED_QUARTERS))
+                reasons.append(
+                    "only %d filed quarter(s) — under the %d a "
+                    "full note needs" % (filed_q, MIN_FILED_QUARTERS)
+                )
             if sessions < MIN_FULL_SESSIONS:
-                reasons.append("%d trading sessions — under the %d a full "
-                               "technical read needs"
-                               % (sessions, MIN_FULL_SESSIONS))
+                reasons.append(
+                    "%d trading sessions — under the %d a full "
+                    "technical read needs" % (sessions, MIN_FULL_SESSIONS)
+                )
         else:
             decision = FULL
-            reasons.append("%d filed quarters and %d sessions support the "
-                           "full note" % (filed_q, sessions))
+            reasons.append(
+                "%d filed quarters and %d sessions support the full note" % (filed_q, sessions)
+            )
 
     # 2. Per-name contract refinements, with reasons.
-    contract = {k: list(v) if isinstance(v, tuple) else v
-                for k, v in CONTRACTS[decision].items()}
+    contract = {k: list(v) if isinstance(v, tuple) else v for k, v in CONTRACTS[decision].items()}
     if decision in (FULL, THIN):
-        band_ok = any((multiples or {}).get(k, {}).get("available")
-                      for k in ("pe", "ps"))
+        band_ok = any((multiples or {}).get(k, {}).get("available") for k in ("pe", "ps"))
         if band_ok:
             _promote(contract, "valuation_table")
             _promote(contract, "valuation_detail")
-            reasons.append("a multiple band survived coverage — scenario "
-                           "table required")
+            reasons.append("a multiple band survived coverage — scenario table required")
         else:
-            reasons.append("no multiple band survived coverage — "
-                           "valuation withheld, not faked")
+            reasons.append("no multiple band survived coverage — valuation withheld, not faked")
         if decision == FULL and has_options is False:
-            contract["optional"] = [s for s in contract["optional"]
-                                    if s != "flow_positioning"]
+            contract["optional"] = [s for s in contract["optional"] if s != "flow_positioning"]
             contract["forbidden"].append("flow_positioning")
-            reasons.append("no listed options — flow page forbidden "
-                           "rather than empty")
+            reasons.append("no listed options — flow page forbidden rather than empty")
 
-    rec = {"archetype": decision, "reasons": reasons,
-           "contract": contract, "override": None}
+    rec = {"archetype": decision, "reasons": reasons, "contract": contract, "override": None}
 
     # 3. Override: allowed, recorded, WARNed by validation.
     if override and override != decision and override in ARCHETYPES:
         rec["override"] = {"from": decision, "to": override}
         rec["archetype"] = override
-        rec["contract"] = {k: list(v) if isinstance(v, tuple) else v
-                           for k, v in CONTRACTS[override].items()}
-        rec["reasons"].append("OVERRIDDEN to %s by flag — router chose %s"
-                              % (override, decision))
+        rec["contract"] = {
+            k: list(v) if isinstance(v, tuple) else v for k, v in CONTRACTS[override].items()
+        }
+        rec["reasons"].append("OVERRIDDEN to %s by flag — router chose %s" % (override, decision))
     return rec
 
 

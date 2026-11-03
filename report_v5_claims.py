@@ -33,7 +33,7 @@ argument. Generation is pattern-based over admitted facts; no company
 conclusions live in templates and no ticker identity is consulted.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import research_snapshot as rs
 
@@ -58,8 +58,8 @@ MARGIN_OUTLIER = 40.0
 FCF_CONV_STRONG = 20.0
 FCF_CONV_OUTLIER = 60.0
 RSI_STRETCH = 70.0
-STALE_DAYS = 135          # a filed quarter older than this is stale
-                          # evidence for a fundamental claim
+STALE_DAYS = 135  # a filed quarter older than this is stale
+# evidence for a fundamental claim
 
 
 def _fv(x):
@@ -80,42 +80,40 @@ def _freshness(period_end, today):
     except ValueError:
         return {"basis_date": None, "age_days": None, "stale": True}
     age = (today - d).days
-    return {"basis_date": str(period_end)[:10], "age_days": age,
-            "stale": age > STALE_DAYS}
+    return {"basis_date": str(period_end)[:10], "age_days": age, "stale": age > STALE_DAYS}
 
 
 def _gate(cand):
     """-> (published: bool, failed: [reasons]). The publication gate."""
     failed = []
     if len(cand.get("evidence_refs") or []) < 2:
-        failed.append("fewer than 2 admitted evidence references (%d)"
-                      % len(cand.get("evidence_refs") or []))
+        failed.append(
+            "fewer than 2 admitted evidence references (%d)" % len(cand.get("evidence_refs") or [])
+        )
     if not cand.get("mechanism"):
         failed.append("no causal mechanism")
     if cand.get("counterevidence_refs") is None:
-        failed.append("counterevidence neither found nor explicitly "
-                      "declared absent")
-    if not (cand.get("financial_implication")
-            or cand.get("valuation_implication")):
+        failed.append("counterevidence neither found nor explicitly declared absent")
+    if not (cand.get("financial_implication") or cand.get("valuation_implication")):
         failed.append("no financial or valuation implication")
     if not cand.get("breaks_if"):
         failed.append("no measurable invalidation condition")
-    if (cand.get("freshness") or {}).get("stale") \
-            and cand.get("claim_type") != "technical":
-        failed.append("critical evidence is stale (basis %s, %s days old)"
-                      % ((cand.get("freshness") or {}).get("basis_date"),
-                         (cand.get("freshness") or {}).get("age_days")))
-    if cand.get("market_expectation") \
-            and not cand.get("market_expectation_source"):
-        failed.append("expectation language without a sourced market "
-                      "expectation")
+    if (cand.get("freshness") or {}).get("stale") and cand.get("claim_type") != "technical":
+        failed.append(
+            "critical evidence is stale (basis %s, %s days old)"
+            % (
+                (cand.get("freshness") or {}).get("basis_date"),
+                (cand.get("freshness") or {}).get("age_days"),
+            )
+        )
+    if cand.get("market_expectation") and not cand.get("market_expectation_source"):
+        failed.append("expectation language without a sourced market expectation")
     return (not failed), failed
 
 
 def _status(cand, published):
     if not published:
-        return STALE if any("stale" in f for f in cand.get(
-            "_failed", [])) else NOT_ESTABLISHED
+        return STALE if any("stale" in f for f in cand.get("_failed", [])) else NOT_ESTABLISHED
     ce = cand.get("counterevidence_refs") or []
     if not ce:
         return SUPPORTED
@@ -138,30 +136,34 @@ def _lifecycle(cat, today, valuation_mode=None):
     for c in sorted(cands):
         try:
             if datetime.strptime(c, "%Y-%m-%d").date() > today:
-                nxt = {"type": "estimated_date", "date": c,
-                       "source": "data-vendor earnings calendar",
-                       "confidence": "medium"}
+                nxt = {
+                    "type": "estimated_date",
+                    "date": c,
+                    "source": "data-vendor earnings calendar",
+                    "confidence": "medium",
+                }
                 break
         except ValueError:
             continue
     if nxt is None:
-        nxt = {"type": "unscheduled_event", "date": None,
-               "source": "next periodic filing",
-               "confidence": "high",
-               "label": "next filed quarter (date not yet scheduled)"}
+        nxt = {
+            "type": "unscheduled_event",
+            "date": None,
+            "source": "next periodic filing",
+            "confidence": "high",
+            "label": "next filed quarter (date not yet scheduled)",
+        }
     return {
         "next_checkpoint": nxt,
         "reunderwrite_when": [
             "next 10-Q/10-K or earnings release",
             "guidance revision in a filed exhibit",
             "price crossing a %s boundary"
-            % ("scenario" if valuation_mode == "underwritten"
-               else "historical-range"),
+            % ("scenario" if valuation_mode == "underwritten" else "historical-range"),
             "invalidation condition breaching",
             "evidence passing %d days old" % STALE_DAYS,
         ],
-        "maximum_valid_until": (today + timedelta(days=STALE_DAYS)
-                                ).isoformat(),
+        "maximum_valid_until": (today + timedelta(days=STALE_DAYS)).isoformat(),
     }
 
 
@@ -174,7 +176,7 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
     support (a bank graded on generic revenue growth, a REIT or broker
     on industrial cash conversion) are suppressed with the reason
     recorded, never generated and never silently dropped."""
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     fu = snap.get("fundamentals") or {}
     lv = snap.get("levels") or {}
     ex = snap.get("exhibit") or {}
@@ -184,29 +186,37 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
     growth = _fv(fu.get("revenue_growth"))
     margin = _fv(fu.get("net_margin"))
     rev = _fv(fu.get("revenue_q"))
-    fcf = _fv(fu.get("free_cash_flow")) or _fv(
-        fu.get("operating_cash_flow"))
+    fcf = _fv(fu.get("free_cash_flow")) or _fv(fu.get("operating_cash_flow"))
     px = _fv(lv.get("price_used")) or _fv(lv.get("last_close"))
     ma200 = _fv(lv.get("ma200"))
     rsi = _fv(lv.get("rsi14"))
-    q_end = (fu.get("revenue_q") or {}).get("period_end") \
-        if isinstance(fu.get("revenue_q"), dict) else None
+    q_end = (
+        (fu.get("revenue_q") or {}).get("period_end")
+        if isinstance(fu.get("revenue_q"), dict)
+        else None
+    )
     fresh_fund = _freshness(q_end, today)
-    life = _lifecycle(cat, today,
-                      valuation_mode=(scenarios or {}).get("mode"))
+    life = _lifecycle(cat, today, valuation_mode=(scenarios or {}).get("mode"))
 
     # The one sourced market-expectation proxy available pre-phase-C:
     # the dated consensus recommendation. It supports directional
     # expectation framing only — KPI-level expectations wait for the
     # expectations engine.
     rec = est.get("recommendation") or {}
-    consensus_src = ("finnhub /stock/recommendation as of %s"
-                     % rec.get("as_of")) if rec.get("as_of") else None
-    consensus_view = ("consensus %s (%d analysts)"
-                      % (rec.get("band"),
-                         sum(rec.get(k, 0) for k in
-                             ("strong_buy", "buy", "hold", "sell",
-                              "strong_sell")))) if rec else None
+    consensus_src = (
+        ("finnhub /stock/recommendation as of %s" % rec.get("as_of")) if rec.get("as_of") else None
+    )
+    consensus_view = (
+        (
+            "consensus %s (%d analysts)"
+            % (
+                rec.get("band"),
+                sum(rec.get(k, 0) for k in ("strong_buy", "buy", "hold", "sell", "strong_sell")),
+            )
+        )
+        if rec
+        else None
+    )
 
     searched = [
         "filed quarterly revenue / margins / cash flow (SEC XBRL)",
@@ -227,65 +237,63 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
             # Refs are LEDGER IDs, never the prose (§8).
             ce, ce_refs, conflicted = [], [], False
             if margin is not None and margin < 0:
-                ce.append("growth is unprofitable: net margin %.1f%%"
-                          % margin)
+                ce.append("growth is unprofitable: net margin %.1f%%" % margin)
                 ce_refs += _refs(fu.get("net_margin")) or ["CALC-net_margin"]
             g = _guidance_counter(ex)
             if g:
                 ce.append(g)
                 ce_refs.append("EXHIBIT-GUIDANCE")
-            cands.append({
-                "claim_id": "growth-above-bar",
-                "derived_figures": [{
-                    "id": "CALC-claim-growth-bar",
-                    "label": "growth publication bar",
-                    "value": GROWTH_STRONG, "units": "%",
-                    "formula": "policy constant GROWTH_STRONG "
-                               "(v5-claims/2)",
-                    "input_evidence_ids": []}],
-                "claim": "Filed revenue growth of %.1f%% y/y clears the "
-                         "%.0f%% bar for a growth thesis"
-                         % (growth, GROWTH_STRONG),
-                "claim_type": "fundamental",
-                "thesis_role": "core",
-                "direction": "bullish",
-                "thesis_type": COMPOUNDER,
-                "horizon": "3-5y underwriting; quarterly checkpoints",
-                "thesis_horizon": "3-5y",
-                "expected_recognition_window": "2-4 quarters of "
-                                               "sustained prints",
-                "market_expectation": consensus_view,
-                "market_expectation_source": consensus_src,
-                "differentiated_view": None,   # phase C decides gaps
-                "mechanism": "revenue compounding at this rate grows "
-                             "the earnings base faster than the median "
-                             "multiple would de-rate it",
-                "support": ["latest filed quarter revenue growth %.1f%% "
-                            "y/y (SEC XBRL)" % growth],
-                "evidence_refs": _refs(fu.get("revenue_growth"))
-                + _refs(fu.get("revenue_q")),
-                "counterevidence": ce,
-                "counterevidence_refs": ce_refs,
-                "_conflicted": conflicted,
-                "financial_implication": "sustaining >%.0f%% growth "
-                                         "compounds the trailing metric "
-                                         "the valuation range prices"
-                                         % GROWTH_STRONG,
-                "valuation_implication": "the median multiple applies "
-                                         "to a growing metric",
-                "catalyst": life["next_checkpoint"],
-                "breaks_if": "the next filed quarter's y/y growth prints "
-                             "below %.0f%%" % GROWTH_STRONG,
-                "confidence": HIGH if not ce else MEDIUM,
-                "evidence_grade": "OBS",
-                "freshness": fresh_fund,
-            })
+            cands.append(
+                {
+                    "claim_id": "growth-above-bar",
+                    "derived_figures": [
+                        {
+                            "id": "CALC-claim-growth-bar",
+                            "label": "growth publication bar",
+                            "value": GROWTH_STRONG,
+                            "units": "%",
+                            "formula": "policy constant GROWTH_STRONG (v5-claims/2)",
+                            "input_evidence_ids": [],
+                        }
+                    ],
+                    "claim": "Filed revenue growth of %.1f%% y/y clears the "
+                    "%.0f%% bar for a growth thesis" % (growth, GROWTH_STRONG),
+                    "claim_type": "fundamental",
+                    "thesis_role": "core",
+                    "direction": "bullish",
+                    "thesis_type": COMPOUNDER,
+                    "horizon": "3-5y underwriting; quarterly checkpoints",
+                    "thesis_horizon": "3-5y",
+                    "expected_recognition_window": "2-4 quarters of sustained prints",
+                    "market_expectation": consensus_view,
+                    "market_expectation_source": consensus_src,
+                    "differentiated_view": None,  # phase C decides gaps
+                    "mechanism": "revenue compounding at this rate grows "
+                    "the earnings base faster than the median "
+                    "multiple would de-rate it",
+                    "support": [
+                        "latest filed quarter revenue growth %.1f%% y/y (SEC XBRL)" % growth
+                    ],
+                    "evidence_refs": _refs(fu.get("revenue_growth")) + _refs(fu.get("revenue_q")),
+                    "counterevidence": ce,
+                    "counterevidence_refs": ce_refs,
+                    "_conflicted": conflicted,
+                    "financial_implication": "sustaining >%.0f%% growth "
+                    "compounds the trailing metric "
+                    "the valuation range prices" % GROWTH_STRONG,
+                    "valuation_implication": "the median multiple applies to a growing metric",
+                    "catalyst": life["next_checkpoint"],
+                    "breaks_if": "the next filed quarter's y/y growth prints "
+                    "below %.0f%%" % GROWTH_STRONG,
+                    "confidence": HIGH if not ce else MEDIUM,
+                    "evidence_grade": "OBS",
+                    "freshness": fresh_fund,
+                }
+            )
         elif growth < GROWTH_WEAK:
             ce, ce_refs = [], []
-            if margin is not None \
-                    and MARGIN_STRONG <= margin <= MARGIN_OUTLIER:
-                ce.append("profitability holds: net margin %.1f%%"
-                          % margin)
+            if margin is not None and MARGIN_STRONG <= margin <= MARGIN_OUTLIER:
+                ce.append("profitability holds: net margin %.1f%%" % margin)
                 ce_refs += _refs(fu.get("net_margin")) or ["CALC-net_margin"]
             # a one-time net-income gain is NOT counterevidence to a
             # revenue decline; it is noted in accounting quality, not
@@ -294,223 +302,236 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
             if g:
                 ce.append(g)
                 ce_refs.append("EXHIBIT-GUIDANCE")
-            cands.append({
-                "claim_id": "revenue-decline",
-                "claim": "Filed revenue DECLINED %.1f%% y/y — the top "
-                         "line is shrinking" % abs(growth),
-                "claim_type": "fundamental",
-                "thesis_role": "core",
-                "direction": "bearish",
-                "thesis_type": TYPE_NOT_ESTABLISHED,
-                "horizon": "2-4 quarters",
-                "thesis_horizon": "1y",
-                "expected_recognition_window": "next 1-2 prints",
-                "market_expectation": consensus_view,
-                "market_expectation_source": consensus_src,
-                "differentiated_view": None,
-                "mechanism": "a shrinking revenue base compresses the "
-                             "trailing metric the valuation range is "
-                             "priced on",
-                "support": ["latest filed quarter revenue growth %.1f%% "
-                            "y/y (SEC XBRL)" % growth],
-                "evidence_refs": _refs(fu.get("revenue_growth"))
-                + _refs(fu.get("revenue_q")),
-                "counterevidence": ce,
-                "counterevidence_refs": ce_refs,
-                "financial_implication": "each further quarter of "
-                                         "decline lowers the trailing "
-                                         "metric under the range "
-                                         "multiples",
-                "valuation_implication": "cheap-vs-history readings "
-                                         "shrink as the metric falls",
-                "catalyst": life["next_checkpoint"],
-                "breaks_if": "the next filed quarter returns to positive "
-                             "y/y growth",
-                "confidence": HIGH if not ce else MEDIUM,
-                "evidence_grade": "OBS",
-                "freshness": fresh_fund,
-            })
+            cands.append(
+                {
+                    "claim_id": "revenue-decline",
+                    "claim": "Filed revenue DECLINED %.1f%% y/y — the top "
+                    "line is shrinking" % abs(growth),
+                    "claim_type": "fundamental",
+                    "thesis_role": "core",
+                    "direction": "bearish",
+                    "thesis_type": TYPE_NOT_ESTABLISHED,
+                    "horizon": "2-4 quarters",
+                    "thesis_horizon": "1y",
+                    "expected_recognition_window": "next 1-2 prints",
+                    "market_expectation": consensus_view,
+                    "market_expectation_source": consensus_src,
+                    "differentiated_view": None,
+                    "mechanism": "a shrinking revenue base compresses the "
+                    "trailing metric the valuation range is "
+                    "priced on",
+                    "support": [
+                        "latest filed quarter revenue growth %.1f%% y/y (SEC XBRL)" % growth
+                    ],
+                    "evidence_refs": _refs(fu.get("revenue_growth")) + _refs(fu.get("revenue_q")),
+                    "counterevidence": ce,
+                    "counterevidence_refs": ce_refs,
+                    "financial_implication": "each further quarter of "
+                    "decline lowers the trailing "
+                    "metric under the range "
+                    "multiples",
+                    "valuation_implication": "cheap-vs-history readings shrink as the metric falls",
+                    "catalyst": life["next_checkpoint"],
+                    "breaks_if": "the next filed quarter returns to positive y/y growth",
+                    "confidence": HIGH if not ce else MEDIUM,
+                    "evidence_grade": "OBS",
+                    "freshness": fresh_fund,
+                }
+            )
 
     # ── cash generation ──────────────────────────────────────────────
     if fcf is not None and rev:
         conv = 100.0 * fcf / rev
         if conv > FCF_CONV_OUTLIER:
-            searched.append("cash conversion (excluded: %.0f%% of "
-                            "revenue reflects balance-sheet flows, not "
-                            "operating conversion)" % conv)
+            searched.append(
+                "cash conversion (excluded: %.0f%% of "
+                "revenue reflects balance-sheet flows, not "
+                "operating conversion)" % conv
+            )
         elif conv >= FCF_CONV_STRONG:
             ce, ce_refs = [], []
             if growth is not None and growth < GROWTH_WEAK:
-                ce.append("cash conversion on a shrinking revenue base "
-                          "(%.1f%% y/y)" % growth)
-                ce_refs += _refs(fu.get("revenue_growth")) \
-                    or ["CALC-revenue_growth"]
-            cands.append({
-                "claim_id": "cash-conversion",
-                "derived_figures": [{
-                    "id": "CALC-claim-conversion",
-                    "label": "cash conversion of revenue",
-                    "value": round(conv, 4), "units": "%",
-                    "formula": "100 x quarterly cash flow / quarterly "
-                               "revenue",
-                    "input_evidence_ids": ["CALC-free_cash_flow"
-                                           if fu.get("free_cash_flow")
-                                           else "CALC-operating_cash_"
-                                           "flow", "CALC-revenue_q"]},
-                    {"id": "CALC-claim-conversion-bar",
-                     "label": "cash-conversion publication bar",
-                     "value": FCF_CONV_STRONG, "units": "%",
-                     "formula": "policy constant FCF_CONV_STRONG "
-                                "(v5-claims/2)",
-                     "input_evidence_ids": []}],
-                "claim": "Cash conversion of %.0f%% of revenue clears "
-                         "the %.0f%% bar — the model self-funds"
-                         % (conv, FCF_CONV_STRONG),
-                "claim_type": "fundamental",
-                "thesis_role": "supporting",
-                "direction": "bullish",
-                "thesis_type": COMPOUNDER,
-                "horizon": "3-5y underwriting",
-                "thesis_horizon": "3-5y",
-                "expected_recognition_window": "cumulative — no single "
-                                               "print recognises it",
-                "market_expectation": consensus_view,
-                "market_expectation_source": consensus_src,
-                "differentiated_view": None,
-                "mechanism": "internally funded growth avoids dilution "
-                             "and debt, so per-share economics track "
-                             "business economics",
-                "support": ["quarter cash flow $%.0fM on revenue $%.0fM "
-                            "(SEC XBRL, same period)"
-                            % (fcf / 1e6, rev / 1e6)],
-                "evidence_refs": _refs(fu.get("free_cash_flow")
-                                       or fu.get("operating_cash_flow"))
-                + _refs(fu.get("revenue_q")),
-                "counterevidence": ce,
-                "counterevidence_refs": ce_refs,
-                "financial_implication": "FCF accrues to the share "
-                                         "count the trailing metric is "
-                                         "measured over",
-                "valuation_implication": "supports FCF-based cross-"
-                                         "checks of the multiple band",
-                "catalyst": life["next_checkpoint"],
-                "breaks_if": "next quarter's conversion prints below "
-                             "%.0f%%" % (FCF_CONV_STRONG / 2),
-                "confidence": MEDIUM,
-                "evidence_grade": "OBS",
-                "freshness": fresh_fund,
-            })
+                ce.append("cash conversion on a shrinking revenue base (%.1f%% y/y)" % growth)
+                ce_refs += _refs(fu.get("revenue_growth")) or ["CALC-revenue_growth"]
+            cands.append(
+                {
+                    "claim_id": "cash-conversion",
+                    "derived_figures": [
+                        {
+                            "id": "CALC-claim-conversion",
+                            "label": "cash conversion of revenue",
+                            "value": round(conv, 4),
+                            "units": "%",
+                            "formula": "100 x quarterly cash flow / quarterly revenue",
+                            "input_evidence_ids": [
+                                "CALC-free_cash_flow"
+                                if fu.get("free_cash_flow")
+                                else "CALC-operating_cash_flow",
+                                "CALC-revenue_q",
+                            ],
+                        },
+                        {
+                            "id": "CALC-claim-conversion-bar",
+                            "label": "cash-conversion publication bar",
+                            "value": FCF_CONV_STRONG,
+                            "units": "%",
+                            "formula": "policy constant FCF_CONV_STRONG (v5-claims/2)",
+                            "input_evidence_ids": [],
+                        },
+                    ],
+                    "claim": "Cash conversion of %.0f%% of revenue clears "
+                    "the %.0f%% bar — the model self-funds" % (conv, FCF_CONV_STRONG),
+                    "claim_type": "fundamental",
+                    "thesis_role": "supporting",
+                    "direction": "bullish",
+                    "thesis_type": COMPOUNDER,
+                    "horizon": "3-5y underwriting",
+                    "thesis_horizon": "3-5y",
+                    "expected_recognition_window": "cumulative — no single print recognises it",
+                    "market_expectation": consensus_view,
+                    "market_expectation_source": consensus_src,
+                    "differentiated_view": None,
+                    "mechanism": "internally funded growth avoids dilution "
+                    "and debt, so per-share economics track "
+                    "business economics",
+                    "support": [
+                        "quarter cash flow $%.0fM on revenue $%.0fM "
+                        "(SEC XBRL, same period)" % (fcf / 1e6, rev / 1e6)
+                    ],
+                    "evidence_refs": _refs(
+                        fu.get("free_cash_flow") or fu.get("operating_cash_flow")
+                    )
+                    + _refs(fu.get("revenue_q")),
+                    "counterevidence": ce,
+                    "counterevidence_refs": ce_refs,
+                    "financial_implication": "FCF accrues to the share "
+                    "count the trailing metric is "
+                    "measured over",
+                    "valuation_implication": "supports FCF-based cross-checks of the multiple band",
+                    "catalyst": life["next_checkpoint"],
+                    "breaks_if": "next quarter's conversion prints below "
+                    "%.0f%%" % (FCF_CONV_STRONG / 2),
+                    "confidence": MEDIUM,
+                    "evidence_grade": "OBS",
+                    "freshness": fresh_fund,
+                }
+            )
 
     # ── valuation vs own history ─────────────────────────────────────
     sc = scenarios or {}
     if sc.get("available"):
         import report_v5_scenarios as _S5
+
         band = sc.get("band_ref") or {}
         base = _S5.anchor(sc)
         if base and sc.get("spot"):
             cheap = base["price"] > sc["spot"]
-            gap = (100.0 * (1 - sc["spot"] / base["price"]) if cheap
-                   else 100.0 * (sc["spot"] / base["price"] - 1))
+            gap = (
+                100.0 * (1 - sc["spot"] / base["price"])
+                if cheap
+                else 100.0 * (sc["spot"] / base["price"] - 1)
+            )
             if abs(gap) >= 15:
                 ce, ce_refs = [], []
                 if cheap and growth is not None and growth < GROWTH_WEAK:
-                    ce.append("the de-rate tracks shrinking revenue "
-                              "(%.1f%% y/y) — the discount may simply track "
-                              "the decline until growth stabilises"
-                              % growth)
-                    ce_refs += _refs(fu.get("revenue_growth")) \
-                        or ["CALC-revenue_growth"]
-                if not cheap and growth is not None \
-                        and growth >= GROWTH_STRONG:
-                    ce.append("the premium tracks %.1f%% filed growth"
-                              % growth)
-                    ce_refs += _refs(fu.get("revenue_growth")) \
-                        or ["CALC-revenue_growth"]
+                    ce.append(
+                        "the de-rate tracks shrinking revenue "
+                        "(%.1f%% y/y) — the discount may simply track "
+                        "the decline until growth stabilises" % growth
+                    )
+                    ce_refs += _refs(fu.get("revenue_growth")) or ["CALC-revenue_growth"]
+                if not cheap and growth is not None and growth >= GROWTH_STRONG:
+                    ce.append("the premium tracks %.1f%% filed growth" % growth)
+                    ce_refs += _refs(fu.get("revenue_growth")) or ["CALC-revenue_growth"]
                 # v5.8.1: the quoted gap is itself a derived figure the
                 # ledger must store — a claim is reproducible only when
                 # every number it quotes resolves to a record
-                _anchor_id = ("V5-SCENARIO-ANCHOR"
-                              if sc.get("mode") == "underwritten"
-                              else "V5-HISTORICAL-METRIC-ANCHOR")
+                _anchor_id = (
+                    "V5-SCENARIO-ANCHOR"
+                    if sc.get("mode") == "underwritten"
+                    else "V5-HISTORICAL-METRIC-ANCHOR"
+                )
                 _gap_fig = {
                     "id": "CALC-claim-valuation-gap",
-                    "label": "valuation gap vs the median-implied "
-                             "price",
+                    "label": "valuation gap vs the median-implied price",
                     "value": round(abs(gap), 4),
                     "units": "%",
-                    "formula": ("100 x (1 - spot / "
-                                "median_implied_price)" if cheap else
-                                "100 x (spot / median_implied_price "
-                                "- 1)"),
+                    "formula": (
+                        "100 x (1 - spot / median_implied_price)"
+                        if cheap
+                        else "100 x (spot / median_implied_price - 1)"
+                    ),
                     "input_evidence_ids": [_anchor_id],
                     "note": "spot and the median-implied price are "
-                            "quoted verbatim in this claim's support "
-                            "line",
+                    "quoted verbatim in this claim's support "
+                    "line",
                 }
-                cands.append({
-                    "derived_figures": [_gap_fig],
-                    "claim_id": "valuation-vs-history",
-                    "claim": "The stock trades at a %.0f%% %s the "
-                             "price its %s median trailing multiple "
-                             "implies"
-                             % (abs(gap), "discount to" if cheap
-                                else "premium over",
-                                ("available %.1f-year"
-                                 % band["actual_years"])
-                                if band.get("actual_years")
-                                else "available-history"),
-                    "claim_type": "valuation",
-                    "thesis_role": "core",
-                    "direction": "bullish" if cheap else "bearish",
-                    "thesis_type": TYPE_NOT_ESTABLISHED,
-                    "horizon": "re-rating window unknowable; band is "
-                               "descriptive",
-                    "thesis_horizon": "1-3y",
-                    "expected_recognition_window": "not established",
-                    "market_expectation": consensus_view,
-                    "market_expectation_source": consensus_src,
-                    "differentiated_view": None,
-                    "mechanism": "mean reversion toward the name's own "
-                                 "multiple distribution, if the metric "
-                                 "holds",
-                    "support": ["%s-implied price $%.2f vs spot $%.2f "
-                                "— own-history band, filing-date "
-                                "aligned"
-                                % ("median" if sc.get("mode")
-                                   != "underwritten" else "base-case",
-                                   base["price"], sc["spot"])],
-                    "evidence_refs": ["V5-BAND-%s" % (band.get("kind")
-                                                      or "pe"),
-                                      "V5-SCENARIO-ANCHOR"
-                                      if sc.get("mode") == "underwritten"
-                                      else "V5-HISTORICAL-METRIC-"
-                                           "ANCHOR"],
-                    "counterevidence": ce,
-                    "counterevidence_refs": ce_refs,
-                    "financial_implication": "none claimed — this is a "
-                                             "pricing observation, not "
-                                             "an earnings driver",
-                    "valuation_implication": "a %.0f%% gap to the "
-                                             "%s-implied price at an "
-                                             "unchanged metric — "
-                                             "descriptive, not a "
-                                             "return forecast"
-                                             % (abs(100.0 * (
-                                                 base["price"]
-                                                 / sc["spot"] - 1)),
-                                                "median"
-                                                if sc.get("mode")
-                                                != "underwritten"
-                                                else "base-case"),
-                    "catalyst": life["next_checkpoint"],
-                    "breaks_if": "the trailing metric falls enough to "
-                                 "close the gap without the price "
-                                 "moving",
-                    "confidence": MEDIUM,
-                    "evidence_grade": "DER",
-                    "freshness": _freshness(band.get("window_end"),
-                                            today),
-                })
+                cands.append(
+                    {
+                        "derived_figures": [_gap_fig],
+                        "claim_id": "valuation-vs-history",
+                        "claim": "The stock trades at a %.0f%% %s the "
+                        "price its %s median trailing multiple "
+                        "implies"
+                        % (
+                            abs(gap),
+                            "discount to" if cheap else "premium over",
+                            ("available %.1f-year" % band["actual_years"])
+                            if band.get("actual_years")
+                            else "available-history",
+                        ),
+                        "claim_type": "valuation",
+                        "thesis_role": "core",
+                        "direction": "bullish" if cheap else "bearish",
+                        "thesis_type": TYPE_NOT_ESTABLISHED,
+                        "horizon": "re-rating window unknowable; band is descriptive",
+                        "thesis_horizon": "1-3y",
+                        "expected_recognition_window": "not established",
+                        "market_expectation": consensus_view,
+                        "market_expectation_source": consensus_src,
+                        "differentiated_view": None,
+                        "mechanism": "mean reversion toward the name's own "
+                        "multiple distribution, if the metric "
+                        "holds",
+                        "support": [
+                            "%s-implied price $%.2f vs spot $%.2f "
+                            "— own-history band, filing-date "
+                            "aligned"
+                            % (
+                                "median" if sc.get("mode") != "underwritten" else "base-case",
+                                base["price"],
+                                sc["spot"],
+                            )
+                        ],
+                        "evidence_refs": [
+                            "V5-BAND-%s" % (band.get("kind") or "pe"),
+                            "V5-SCENARIO-ANCHOR"
+                            if sc.get("mode") == "underwritten"
+                            else "V5-HISTORICAL-METRIC-ANCHOR",
+                        ],
+                        "counterevidence": ce,
+                        "counterevidence_refs": ce_refs,
+                        "financial_implication": "none claimed — this is a "
+                        "pricing observation, not "
+                        "an earnings driver",
+                        "valuation_implication": "a %.0f%% gap to the "
+                        "%s-implied price at an "
+                        "unchanged metric — "
+                        "descriptive, not a "
+                        "return forecast"
+                        % (
+                            abs(100.0 * (base["price"] / sc["spot"] - 1)),
+                            "median" if sc.get("mode") != "underwritten" else "base-case",
+                        ),
+                        "catalyst": life["next_checkpoint"],
+                        "breaks_if": "the trailing metric falls enough to "
+                        "close the gap without the price "
+                        "moving",
+                        "confidence": MEDIUM,
+                        "evidence_grade": "DER",
+                        "freshness": _freshness(band.get("window_end"), today),
+                    }
+                )
 
     # ── technical regime ─────────────────────────────────────────────
     tac = (view4.get("ratings") or {}).get("tactical") or {}
@@ -520,68 +541,71 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
         if weak or strong:
             ce, ce_refs = [], []
             if strong and rsi is not None and rsi >= RSI_STRETCH:
-                ce.append("RSI %.0f is stretched above %.0f — entry "
-                          "timing risk, not thesis risk"
-                          % (rsi, RSI_STRETCH))
+                ce.append(
+                    "RSI %.0f is stretched above %.0f — entry "
+                    "timing risk, not thesis risk" % (rsi, RSI_STRETCH)
+                )
                 ce_refs += _refs(lv.get("rsi14")) or ["CALC-rsi14"]
-            cands.append({
-                "claim_id": "trend-regime",
-                "claim": "Price is %s all three moving averages — the "
-                         "trend regime is %s"
-                         % ("below" if weak else "above",
-                            "broken" if weak else "intact"),
-                "claim_type": "technical",
-                "thesis_role": "context",
-                "direction": "bearish" if weak else "bullish",
-                "thesis_type": TACTICAL,
-                "horizon": "swing (2-8 weeks)",
-                "thesis_horizon": "2-8w",
-                "expected_recognition_window": "continuous",
-                "market_expectation": None,
-                "market_expectation_source": None,
-                "differentiated_view": None,
-                "mechanism": "trend regimes persist more often than "
-                             "they reverse over the swing window; the "
-                             "read is context for entries, never a "
-                             "fundamental claim",
-                "support": ["price vs 20/50/200-day averages, completed "
-                            "sessions (%s)" % (tac.get("detail") or "")],
-                "evidence_refs": ["CALC-ma20", "CALC-ma50", "CALC-ma200"],
-                "counterevidence": ce,
-                "counterevidence_refs": ce_refs,
-                "financial_implication": "none — tactical context only",
-                "valuation_implication": "affects entry, not value",
-                "catalyst": "daily closes vs the 50-day",
-                "breaks_if": "a daily close %s the 50-day"
-                             % ("above" if weak else "below"),
-                "confidence": MEDIUM,
-                "evidence_grade": "DER",
-                "freshness": {"basis_date": None, "age_days": 0,
-                              "stale": False},
-            })
+            cands.append(
+                {
+                    "claim_id": "trend-regime",
+                    "claim": "Price is %s all three moving averages — the "
+                    "trend regime is %s"
+                    % ("below" if weak else "above", "broken" if weak else "intact"),
+                    "claim_type": "technical",
+                    "thesis_role": "context",
+                    "direction": "bearish" if weak else "bullish",
+                    "thesis_type": TACTICAL,
+                    "horizon": "swing (2-8 weeks)",
+                    "thesis_horizon": "2-8w",
+                    "expected_recognition_window": "continuous",
+                    "market_expectation": None,
+                    "market_expectation_source": None,
+                    "differentiated_view": None,
+                    "mechanism": "trend regimes persist more often than "
+                    "they reverse over the swing window; the "
+                    "read is context for entries, never a "
+                    "fundamental claim",
+                    "support": [
+                        "price vs 20/50/200-day averages, completed "
+                        "sessions (%s)" % (tac.get("detail") or "")
+                    ],
+                    "evidence_refs": ["CALC-ma20", "CALC-ma50", "CALC-ma200"],
+                    "counterevidence": ce,
+                    "counterevidence_refs": ce_refs,
+                    "financial_implication": "none — tactical context only",
+                    "valuation_implication": "affects entry, not value",
+                    "catalyst": "daily closes vs the 50-day",
+                    "breaks_if": "a daily close %s the 50-day" % ("above" if weak else "below"),
+                    "confidence": MEDIUM,
+                    "evidence_grade": "DER",
+                    "freshness": {"basis_date": None, "age_days": 0, "stale": False},
+                }
+            )
 
     # ── sector policy (§2): forbidden claim shapes never reach the
     # gate; the suppression is recorded so the reader sees WHY the
     # section is thinner for this business model ────────────────────
-    pol = ((adapter or {}).get("policy") or {})
+    pol = (adapter or {}).get("policy") or {}
     forbidden = set(pol.get("claims_forbidden") or ())
     policy_suppressed = []
     if forbidden:
         kept = []
         for c in cands:
             if c["claim_id"] in forbidden:
-                policy_suppressed.append({
-                    "claim_id": c["claim_id"],
-                    "reason": "suppressed by the %s adapter: this "
-                              "claim shape does not fit the business "
-                              "model's economics"
-                              % ((adapter or {}).get("label")
-                                 or "sector")})
-                searched.append("%s (suppressed: not economically "
-                                "meaningful for a %s)"
-                                % (c["claim_id"],
-                                   (adapter or {}).get("label")
-                                   or "this model"))
+                policy_suppressed.append(
+                    {
+                        "claim_id": c["claim_id"],
+                        "reason": "suppressed by the %s adapter: this "
+                        "claim shape does not fit the business "
+                        "model's economics" % ((adapter or {}).get("label") or "sector"),
+                    }
+                )
+                searched.append(
+                    "%s (suppressed: not economically "
+                    "meaningful for a %s)"
+                    % (c["claim_id"], (adapter or {}).get("label") or "this model")
+                )
             else:
                 kept.append(c)
         cands = kept
@@ -602,45 +626,55 @@ def build(snap, view4, scenarios=None, estimates=None, adapter=None):
         ok, failed = _gate(c)
         c["_failed"] = failed
         c["status"] = _status(c, ok)
-        c.update({k: life[k] for k in ("next_checkpoint",
-                                       "reunderwrite_when",
-                                       "maximum_valid_until")})
+        c.update(
+            {k: life[k] for k in ("next_checkpoint", "reunderwrite_when", "maximum_valid_until")}
+        )
         c.pop("_conflicted", None)
         if ok:
             published.append(c)
         else:
-            rejected.append({"claim_id": c["claim_id"],
-                             "claim": c["claim"],
-                             "status": c["status"],
-                             "failed_gates": failed})
+            rejected.append(
+                {
+                    "claim_id": c["claim_id"],
+                    "claim": c["claim"],
+                    "status": c["status"],
+                    "failed_gates": failed,
+                }
+            )
     for c in published + rejected:
         c.pop("_failed", None)
 
     note = None
     if not published:
-        note = ("No claim cleared the publication gate. Candidates and "
-                "their failed gates are listed; the filed record was "
-                "searched across: %s." % "; ".join(searched))
-    return {"claims": published[:5], "rejected": rejected,
-            "searched": searched, "note": note,
-            "adapter_key": (adapter or {}).get("key"),
-            "policy_suppressed": policy_suppressed,
-            "schema": "v5-claims/2"}
+        note = (
+            "No claim cleared the publication gate. Candidates and "
+            "their failed gates are listed; the filed record was "
+            "searched across: %s." % "; ".join(searched)
+        )
+    return {
+        "claims": published[:5],
+        "rejected": rejected,
+        "searched": searched,
+        "note": note,
+        "adapter_key": (adapter or {}).get("key"),
+        "policy_suppressed": policy_suppressed,
+        "schema": "v5-claims/2",
+    }
 
 
 def _guidance_counter(ex):
     for k, g in (ex.get("guidance_highlights") or {}).items():
-        if isinstance(g, dict) and g.get("unit") == "%" \
-                and (g.get("high") or 0) < 0:
-            return ("issuer guides %s to %.1f%%..%.1f%%"
-                    % (g.get("label") or k, g["low"], g["high"]))
+        if isinstance(g, dict) and g.get("unit") == "%" and (g.get("high") or 0) < 0:
+            return "issuer guides %s to %.1f%%..%.1f%%" % (g.get("label") or k, g["low"], g["high"])
     return None
 
 
 def _guidance_support(ex):
     for k, g in (ex.get("guidance_highlights") or {}).items():
-        if isinstance(g, dict) and g.get("unit") == "%" \
-                and (g.get("low") or 0) > 0:
-            return ("issuer guides %s positive at %.1f%%..%.1f%%"
-                    % (g.get("label") or k, g["low"], g["high"]))
+        if isinstance(g, dict) and g.get("unit") == "%" and (g.get("low") or 0) > 0:
+            return "issuer guides %s positive at %.1f%%..%.1f%%" % (
+                g.get("label") or k,
+                g["low"],
+                g["high"],
+            )
     return None

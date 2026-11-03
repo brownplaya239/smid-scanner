@@ -45,7 +45,7 @@ import json
 import os
 import sys
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytz
 
@@ -57,14 +57,14 @@ STATE = os.path.join(_BASE, "data", "flow_lifecycle.json")
 OUT = os.path.join(_BASE, "docs", "reports", "flow_lifecycle.json")
 
 CFG = {
-    "open_pct": 50,        # >= this share of flow volume stuck -> OPEN
-    "partial_pct": 15,     # >= this -> PARTIAL, below -> CLOSED
-    "held_frac": 0.80,     # >= this share of peak OI -> HELD
+    "open_pct": 50,  # >= this share of flow volume stuck -> OPEN
+    "partial_pct": 15,  # >= this -> PARTIAL, below -> CLOSED
+    "held_frac": 0.80,  # >= this share of peak OI -> HELD
     "trimmed_frac": 0.30,  # >= this -> TRIMMED, below -> UNWOUND
-    "retain_days": 45,     # drop tracked contracts older than this
+    "retain_days": 45,  # drop tracked contracts older than this
     "publish_window_days": 45,  # lookup window (matches archive depth)
-    "min_stats_n": 30,     # gate for published aggregate stats
-    "max_fetch_tickers": 60,   # per-night chain fetches (API budget)
+    "min_stats_n": 30,  # gate for published aggregate stats
+    "max_fetch_tickers": 60,  # per-night chain fetches (API budget)
 }
 
 
@@ -87,6 +87,7 @@ def key_of(ticker, expiry, typ, strike):
 
 # ── 1. register today's Top-list contracts with their flag baseline ─────
 
+
 def register(state, today):
     """Baseline for a contract flagged today: OI as settled at the PRIOR
     close (uoa_latest.open_interest during the session) + the day's
@@ -94,25 +95,25 @@ def register(state, today):
     verdict needs tomorrow's settlement."""
     top = _load(TOPLIST) or {}
     snap = _load(LATEST) or {}
-    rows = {r.get("contract"): r for r in (snap.get("rows") or [])
-            if r.get("contract")}
+    rows = {r.get("contract"): r for r in (snap.get("rows") or []) if r.get("contract")}
     by_key = {}
     for r in rows.values():
         if r.get("expiry") and r.get("type") and r.get("strike") is not None:
-            by_key[key_of(r["ticker"], r["expiry"], r["type"],
-                          r["strike"])] = r
+            by_key[key_of(r["ticker"], r["expiry"], r["type"], r["strike"])] = r
     added = 0
-    for row in (top.get("rows") or []):
+    for row in top.get("rows") or []:
         k = key_of(row["ticker"], row["expiry"], row["type"], row["strike"])
         src = by_key.get(k)
         if not src:
-            continue          # not in the latest batch — no fresh OI read
+            continue  # not in the latest batch — no fresh OI read
         c = state["contracts"].get(k)
         if c is None:
             state["contracts"][k] = {
                 "occ": src.get("contract"),
-                "ticker": row["ticker"], "type": row["type"],
-                "strike": row["strike"], "expiry": row["expiry"],
+                "ticker": row["ticker"],
+                "type": row["type"],
+                "strike": row["strike"],
+                "expiry": row["expiry"],
                 "flag_date": today,
                 "baseline_oi": src.get("open_interest"),
                 "flow_vol": src.get("volume"),
@@ -128,8 +129,7 @@ def register(state, today):
             # re-flagged on a later day: keep the ORIGINAL baseline (the
             # question is whether the FIRST position stuck), but track
             # the larger cumulative flow and the best rank achieved.
-            c["flow_vol"] = max(c.get("flow_vol") or 0,
-                                src.get("volume") or 0)
+            c["flow_vol"] = max(c.get("flow_vol") or 0, src.get("volume") or 0)
             if row.get("rank") and row["rank"] < (c.get("best_rank") or 999):
                 c["best_rank"] = row["rank"]
     return added
@@ -137,13 +137,14 @@ def register(state, today):
 
 # ── 2. current OI for tracked contracts needing a verdict ───────────────
 
+
 def _needs_oi(c, today):
     if c.get("flag_date") == today:
-        return False                     # settles tonight — nothing to read
+        return False  # settles tonight — nothing to read
     if c.get("expiry") and c["expiry"] < today:
-        return False                     # expired: handled without a fetch
+        return False  # expired: handled without a fetch
     last = (c.get("series") or [{}])[-1].get("date") if c.get("series") else None
-    return last != today                 # already read today?
+    return last != today  # already read today?
 
 
 def fetch_oi(state, today):
@@ -157,7 +158,7 @@ def fetch_oi(state, today):
     for c in need:
         if c["ticker"] not in tickers:
             tickers.append(c["ticker"])
-    tickers = tickers[:CFG["max_fetch_tickers"]]
+    tickers = tickers[: CFG["max_fetch_tickers"]]
     try:
         import polygon_data as pg
     except Exception:
@@ -186,6 +187,7 @@ def fetch_oi(state, today):
 
 
 # ── 3. classify ────────────────────────────────────────────────────────
+
 
 def classify(state, today):
     for c in state["contracts"].values():
@@ -235,14 +237,15 @@ def classify(state, today):
 
 
 def prune(state, today):
-    cut = (datetime.strptime(today, "%Y-%m-%d")
-           - timedelta(days=CFG["retain_days"])).strftime("%Y-%m-%d")
-    for k in [k for k, c in state["contracts"].items()
-              if (c.get("flag_date") or "") < cut]:
+    cut = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=CFG["retain_days"])).strftime(
+        "%Y-%m-%d"
+    )
+    for k in [k for k, c in state["contracts"].items() if (c.get("flag_date") or "") < cut]:
         del state["contracts"][k]
 
 
 # ── 4. publish ─────────────────────────────────────────────────────────
+
 
 def publish(state, today):
     # Covers the live Top list AND the archived sessions the date
@@ -251,58 +254,68 @@ def publish(state, today):
     # whole window ~40% the size of per-key objects:
     #   [status, retained_pct, pct_of_peak, baseline_oi, current_oi,
     #    flag_date]
-    cutoff = (datetime.strptime(today, "%Y-%m-%d")
-              - timedelta(days=CFG["publish_window_days"])
-              ).strftime("%Y-%m-%d")
+    cutoff = (
+        datetime.strptime(today, "%Y-%m-%d") - timedelta(days=CFG["publish_window_days"])
+    ).strftime("%Y-%m-%d")
     lookup = {}
     for k, c in state["contracts"].items():
         if (c.get("flag_date") or "") < cutoff:
             continue
-        lookup[k] = [c.get("status", "PENDING"), c.get("retained_pct"),
-                     c.get("pct_of_peak"), c.get("baseline_oi"),
-                     c.get("current_oi"), c.get("flag_date")]
+        lookup[k] = [
+            c.get("status", "PENDING"),
+            c.get("retained_pct"),
+            c.get("pct_of_peak"),
+            c.get("baseline_oi"),
+            c.get("current_oi"),
+            c.get("flag_date"),
+        ]
     # gated aggregate: how often does flagged flow actually stick?
-    resolved = [c for c in state["contracts"].values()
-                if c.get("first_verdict")]
-    stats = {"status": "accruing", "n": len(resolved),
-             "activates_at": CFG["min_stats_n"]}
+    resolved = [c for c in state["contracts"].values() if c.get("first_verdict")]
+    stats = {"status": "accruing", "n": len(resolved), "activates_at": CFG["min_stats_n"]}
     if len(resolved) >= CFG["min_stats_n"]:
         cnt = Counter(c["first_verdict"] for c in resolved)
         n = len(resolved)
         by_side = {}
-        for s in set(c.get("side") for c in resolved if c.get("side")):
+        for s in {c.get("side") for c in resolved if c.get("side")}:
             sub = [c for c in resolved if c.get("side") == s]
             if len(sub) >= CFG["min_stats_n"]:
                 by_side[s] = round(
-                    100 * sum(1 for c in sub
-                              if c["first_verdict"] == "OPEN") / len(sub))
+                    100 * sum(1 for c in sub if c["first_verdict"] == "OPEN") / len(sub)
+                )
         stats = {
-            "status": "active", "n": n,
+            "status": "active",
+            "n": n,
             "open_pct": round(100 * cnt["OPEN"] / n),
             "partial_pct": round(100 * cnt["PARTIAL"] / n),
             "closed_pct": round(100 * cnt["CLOSED"] / n),
             "open_rate_by_side": by_side,
         }
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "et_date": today,
         "tracked_total": len(state["contracts"]),
-        "encoding": ["status", "retained_pct", "pct_of_peak",
-                     "baseline_oi", "current_oi", "flag_date"],
+        "encoding": [
+            "status",
+            "retained_pct",
+            "pct_of_peak",
+            "baseline_oi",
+            "current_oi",
+            "flag_date",
+        ],
         "contracts": lookup,
         "stats": stats,
-        "thresholds": {k: CFG[k] for k in
-                       ("open_pct", "partial_pct", "held_frac",
-                        "trimmed_frac")},
-        "note": ("Open interest settles OVERNIGHT at the OCC — a "
-                 "contract flagged today gets its verdict tomorrow, so "
-                 "same-day rows read PENDING by construction. OI is NET "
-                 "across ALL participants: a decline means positions in "
-                 "the contract were net reduced and can never be "
-                 "attributed to the specific trader flagged. "
-                 "Exercise/assignment is indistinguishable from a close. "
-                 "Contracts past expiry are marked EXPIRED, never "
-                 "UNWOUND. Educational, not advice."),
+        "thresholds": {k: CFG[k] for k in ("open_pct", "partial_pct", "held_frac", "trimmed_frac")},
+        "note": (
+            "Open interest settles OVERNIGHT at the OCC — a "
+            "contract flagged today gets its verdict tomorrow, so "
+            "same-day rows read PENDING by construction. OI is NET "
+            "across ALL participants: a decline means positions in "
+            "the contract were net reduced and can never be "
+            "attributed to the specific trader flagged. "
+            "Exercise/assignment is indistinguishable from a close. "
+            "Contracts past expiry are marked EXPIRED, never "
+            "UNWOUND. Educational, not advice."
+        ),
     }
     return payload
 
@@ -319,10 +332,18 @@ def self_test():
             fails.append(name)
 
     def mk(**kw):
-        c = {"ticker": "TST", "type": "call", "strike": 100.0,
-             "expiry": "2026-12-18", "flag_date": "2026-07-20",
-             "baseline_oi": 1000, "flow_vol": 10000, "peak_oi": 1000,
-             "series": [], "status": "PENDING"}
+        c = {
+            "ticker": "TST",
+            "type": "call",
+            "strike": 100.0,
+            "expiry": "2026-12-18",
+            "flag_date": "2026-07-20",
+            "baseline_oi": 1000,
+            "flow_vol": 10000,
+            "peak_oi": 1000,
+            "series": [],
+            "status": "PENDING",
+        }
         c.update(kw)
         return c
 
@@ -333,55 +354,60 @@ def self_test():
     chk("1 same-day flag stays PENDING", s["contracts"]["a"]["status"] == "PENDING")
 
     # 2. OI rose by 60% of flow volume -> OPEN
-    s = {"contracts": {"a": mk(series=[{"date": T, "oi": 7000}],
-                               peak_oi=7000)}}
+    s = {"contracts": {"a": mk(series=[{"date": T, "oi": 7000}], peak_oi=7000)}}
     classify(s, T)
     c = s["contracts"]["a"]
     chk("2 retained 60% -> OPEN", c["status"] == "OPEN" and c["retained_pct"] == 60)
 
     # 3. OI rose by 25% -> PARTIAL
-    s = {"contracts": {"a": mk(series=[{"date": T, "oi": 3500}],
-                               peak_oi=3500)}}
+    s = {"contracts": {"a": mk(series=[{"date": T, "oi": 3500}], peak_oi=3500)}}
     classify(s, T)
-    chk("3 retained 25% -> PARTIAL",
-        s["contracts"]["a"]["status"] == "PARTIAL")
+    chk("3 retained 25% -> PARTIAL", s["contracts"]["a"]["status"] == "PARTIAL")
 
     # 4. OI barely moved -> CLOSED (day trade)
-    s = {"contracts": {"a": mk(series=[{"date": T, "oi": 1050}],
-                               peak_oi=1050)}}
+    s = {"contracts": {"a": mk(series=[{"date": T, "oi": 1050}], peak_oi=1050)}}
     classify(s, T)
     chk("4 retained 0.5% -> CLOSED", s["contracts"]["a"]["status"] == "CLOSED")
 
     # 5. opened then decayed to 35% of peak -> TRIMMED
-    s = {"contracts": {"a": mk(series=[{"date": "2026-07-21", "oi": 7000},
-                                       {"date": T, "oi": 2450}],
-                               peak_oi=7000)}}
+    s = {
+        "contracts": {
+            "a": mk(
+                series=[{"date": "2026-07-21", "oi": 7000}, {"date": T, "oi": 2450}], peak_oi=7000
+            )
+        }
+    }
     classify(s, T)
     c = s["contracts"]["a"]
-    chk("5 35% of peak -> TRIMMED",
-        c["status"] == "TRIMMED" and c["first_verdict"] == "OPEN")
+    chk("5 35% of peak -> TRIMMED", c["status"] == "TRIMMED" and c["first_verdict"] == "OPEN")
 
     # 6. opened then back to baseline -> UNWOUND
-    s = {"contracts": {"a": mk(series=[{"date": "2026-07-21", "oi": 7000},
-                                       {"date": T, "oi": 950}],
-                               peak_oi=7000)}}
+    s = {
+        "contracts": {
+            "a": mk(
+                series=[{"date": "2026-07-21", "oi": 7000}, {"date": T, "oi": 950}], peak_oi=7000
+            )
+        }
+    }
     classify(s, T)
-    chk("6 back to baseline -> UNWOUND",
-        s["contracts"]["a"]["status"] == "UNWOUND")
+    chk("6 back to baseline -> UNWOUND", s["contracts"]["a"]["status"] == "UNWOUND")
 
     # 7. THE TRAP: an expired contract's OI necessarily goes to 0 —
     #    must read EXPIRED_*, never UNWOUND
-    s = {"contracts": {"a": mk(expiry="2026-07-17", status="OPEN",
-                               series=[{"date": T, "oi": 0}])}}
+    s = {"contracts": {"a": mk(expiry="2026-07-17", status="OPEN", series=[{"date": T, "oi": 0}])}}
     classify(s, T)
-    chk("7 expired contract is EXPIRED_*, not UNWOUND",
-        s["contracts"]["a"]["status"].startswith("EXPIRED"))
+    chk(
+        "7 expired contract is EXPIRED_*, not UNWOUND",
+        s["contracts"]["a"]["status"].startswith("EXPIRED"),
+    )
 
     # 8. expired before any verdict
     s = {"contracts": {"a": mk(expiry="2026-07-17")}}
     classify(s, T)
-    chk("8 expired w/o verdict -> EXPIRED_UNRESOLVED",
-        s["contracts"]["a"]["status"] == "EXPIRED_UNRESOLVED")
+    chk(
+        "8 expired w/o verdict -> EXPIRED_UNRESOLVED",
+        s["contracts"]["a"]["status"] == "EXPIRED_UNRESOLVED",
+    )
 
     # 9. no OI read yet -> stays PENDING (never guessed)
     s = {"contracts": {"a": mk(series=[])}}
@@ -407,10 +433,17 @@ def main():
     prune(state, today)
     payload = publish(state, today)
     cnt = Counter(c.get("status") for c in state["contracts"].values())
-    print("  flow lifecycle: +%d new · %d OI reads (%d unresolved) · "
-          "tracking %d · %s" %
-          (added, updated, missed, len(state["contracts"]),
-           " ".join("%s=%d" % (k, v) for k, v in sorted(cnt.items()))))
+    print(
+        "  flow lifecycle: +%d new · %d OI reads (%d unresolved) · "
+        "tracking %d · %s"
+        % (
+            added,
+            updated,
+            missed,
+            len(state["contracts"]),
+            " ".join("%s=%d" % (k, v) for k, v in sorted(cnt.items())),
+        )
+    )
     if args.dry_run:
         print(json.dumps(payload["stats"], indent=1))
         return
@@ -419,8 +452,7 @@ def main():
         json.dump(state, f, separators=(",", ":"))
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
-    print("  Wrote flow_lifecycle.json (%d in current top list)"
-          % len(payload["contracts"]))
+    print("  Wrote flow_lifecycle.json (%d in current top list)" % len(payload["contracts"]))
 
 
 if __name__ == "__main__":

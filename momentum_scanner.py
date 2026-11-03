@@ -13,24 +13,22 @@ No Claude analysis — these are pure quantitative screens. Run EOD when the
 daily candle is complete. Publishes clean table PDFs to the site archive.
 """
 
+import csv
+import json
 import os
 import re
 import sys
-import csv
-import json
 import time
-from datetime import datetime, date, timedelta
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date, datetime, timedelta
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-import pandas as pd
 import pytz
-import requests
 import yfinance as yf
-from fpdf import FPDF
 from dotenv import load_dotenv
+from fpdf import FPDF
 
 load_dotenv()
 
@@ -42,19 +40,163 @@ IWM_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IWM_holdings
 # Hardcoded liquid large / mega caps so the universe spans the full market.
 # IWM covers small caps; this covers everything above it.
 LARGE_CAPS = [
-    "AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","AVGO","TSLA","BRK-B",
-    "LLY","JPM","V","XOM","UNH","MA","COST","HD","PG","JNJ","WMT","NFLX","CRM",
-    "BAC","ORCL","MRK","ABBV","CVX","KO","AMD","PEP","ADBE","ACN","LIN","TMO",
-    "MCD","CSCO","ABT","INTC","INTU","TXN","QCOM","WFC","DHR","IBM","GE","NOW",
-    "AMAT","CAT","VZ","AXP","PFE","MS","NEE","SPGI","RTX","UNP","LOW","HON",
-    "GS","ISRG","BKNG","COP","PGR","T","BLK","ELV","C","MU","LRCX","SYK","BSX",
-    "ADI","MDT","VRTX","REGN","TJX","CB","PLD","ADP","MMC","KLAC","CI","SO",
-    "DE","BMY","SCHW","MO","DUK","SBUX","FI","ICE","SHW","ZTS","BX","WM","CME",
-    "GD","EOG","SNPS","CDNS","TT","ITW","NOC","MCK","APH","CL","PH","MSI","PNC",
-    "USB","AON","MAR","CMG","FCX","ECL","EMR","NXPI","ORLY","MMM","PYPL","ROP",
-    "APD","COF","HCA","CARR","AJG","NSC","PCAR","SLB","TFC","WELL","TGT","DKNG",
-    "PLTR","SMCI","COIN","ARM","CRWD","SNOW","DASH","ABNB","UBER","SHOP","PANW",
-    "DDOG","NET","SNDK","WDC","STX","ON","MRVL","ANET","DELL","HPQ","CSX","FTNT",
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "GOOGL",
+    "GOOG",
+    "META",
+    "AVGO",
+    "TSLA",
+    "BRK-B",
+    "LLY",
+    "JPM",
+    "V",
+    "XOM",
+    "UNH",
+    "MA",
+    "COST",
+    "HD",
+    "PG",
+    "JNJ",
+    "WMT",
+    "NFLX",
+    "CRM",
+    "BAC",
+    "ORCL",
+    "MRK",
+    "ABBV",
+    "CVX",
+    "KO",
+    "AMD",
+    "PEP",
+    "ADBE",
+    "ACN",
+    "LIN",
+    "TMO",
+    "MCD",
+    "CSCO",
+    "ABT",
+    "INTC",
+    "INTU",
+    "TXN",
+    "QCOM",
+    "WFC",
+    "DHR",
+    "IBM",
+    "GE",
+    "NOW",
+    "AMAT",
+    "CAT",
+    "VZ",
+    "AXP",
+    "PFE",
+    "MS",
+    "NEE",
+    "SPGI",
+    "RTX",
+    "UNP",
+    "LOW",
+    "HON",
+    "GS",
+    "ISRG",
+    "BKNG",
+    "COP",
+    "PGR",
+    "T",
+    "BLK",
+    "ELV",
+    "C",
+    "MU",
+    "LRCX",
+    "SYK",
+    "BSX",
+    "ADI",
+    "MDT",
+    "VRTX",
+    "REGN",
+    "TJX",
+    "CB",
+    "PLD",
+    "ADP",
+    "MMC",
+    "KLAC",
+    "CI",
+    "SO",
+    "DE",
+    "BMY",
+    "SCHW",
+    "MO",
+    "DUK",
+    "SBUX",
+    "FI",
+    "ICE",
+    "SHW",
+    "ZTS",
+    "BX",
+    "WM",
+    "CME",
+    "GD",
+    "EOG",
+    "SNPS",
+    "CDNS",
+    "TT",
+    "ITW",
+    "NOC",
+    "MCK",
+    "APH",
+    "CL",
+    "PH",
+    "MSI",
+    "PNC",
+    "USB",
+    "AON",
+    "MAR",
+    "CMG",
+    "FCX",
+    "ECL",
+    "EMR",
+    "NXPI",
+    "ORLY",
+    "MMM",
+    "PYPL",
+    "ROP",
+    "APD",
+    "COF",
+    "HCA",
+    "CARR",
+    "AJG",
+    "NSC",
+    "PCAR",
+    "SLB",
+    "TFC",
+    "WELL",
+    "TGT",
+    "DKNG",
+    "PLTR",
+    "SMCI",
+    "COIN",
+    "ARM",
+    "CRWD",
+    "SNOW",
+    "DASH",
+    "ABNB",
+    "UBER",
+    "SHOP",
+    "PANW",
+    "DDOG",
+    "NET",
+    "SNDK",
+    "WDC",
+    "STX",
+    "ON",
+    "MRVL",
+    "ANET",
+    "DELL",
+    "HPQ",
+    "CSX",
+    "FTNT",
     # Recent high-volume listing (added on request). IPO'd 2026-06-12, so it
     # sits outside the dollar-vol auto-universe's ~50-session history window;
     # seeding it here forces UOA + momentum coverage now. QM/Stockbee metrics
@@ -64,6 +206,7 @@ LARGE_CAPS = [
 
 
 # ─── Universe ─────────────────────────────────────────────────────────────────
+
 
 def load_iwm_tickers(top_n=500):
     """Top-N IWM constituents by weight from the holdings CSV."""
@@ -100,6 +243,7 @@ def get_market_universe():
 
 # ─── Data + metrics ───────────────────────────────────────────────────────────
 
+
 def _metrics_from_series(ticker, close, high, low, vol):
     """Compute the momentum metrics from raw daily series — source-agnostic
     (Polygon or yfinance both feed plain lists here)."""
@@ -120,15 +264,15 @@ def _metrics_from_series(ticker, close, high, low, vol):
 
     # Returns
     chg_1mo = (price / float(close[-22]) - 1) * 100 if n >= 22 and close[-22] else 0.0
-    chg_1wk = (price / float(close[-6])  - 1) * 100 if n >= 6  and close[-6]  else 0.0
+    chg_1wk = (price / float(close[-6]) - 1) * 100 if n >= 6 and close[-6] else 0.0
 
     return {
-        "ticker":     ticker,
-        "price":      round(price, 2),
-        "adr_pct":    round(adr_pct, 2),
+        "ticker": ticker,
+        "price": round(price, 2),
+        "adr_pct": round(adr_pct, 2),
         "dollar_vol": dollar_vol,
-        "chg_1mo":    round(chg_1mo, 2),
-        "chg_1wk":    round(chg_1wk, 2),
+        "chg_1mo": round(chg_1mo, 2),
+        "chg_1wk": round(chg_1wk, 2),
     }
 
 
@@ -136,6 +280,7 @@ def _series_via_polygon(tickers, workers=12):
     """Per-ticker daily bars from Polygon, fetched concurrently.
     {ticker: (close[], high[], low[], vol[])}. Polygon Starter has no
     per-minute rate cap, so a thread pool is safe and ~12x faster."""
+
     def _one(t):
         bars = polygon_data.daily_bars(t, days=130)
         if bars and len(bars) >= 25:
@@ -159,12 +304,18 @@ def _series_via_yfinance(tickers):
     """Chunked yf.download fallback. {ticker: (close[], high[], low[], vol[])}."""
     out = {}
     for ci in range(0, len(tickers), 50):
-        chunk = tickers[ci:ci + 50]
+        chunk = tickers[ci : ci + 50]
         for attempt in range(3):
             try:
-                bd = yf.download(chunk, period="130d", interval="1d",
-                                 group_by="ticker", auto_adjust=True,
-                                 threads=True, progress=False)
+                bd = yf.download(
+                    chunk,
+                    period="130d",
+                    interval="1d",
+                    group_by="ticker",
+                    auto_adjust=True,
+                    threads=True,
+                    progress=False,
+                )
                 if bd is not None and not bd.empty:
                     for t in chunk:
                         try:
@@ -225,6 +376,7 @@ def fetch_metrics(tickers):
 
 # ─── Earnings dates ───────────────────────────────────────────────────────────
 
+
 def fetch_earnings_dates(tickers):
     """Next earnings date per ticker via yfinance calendar.
 
@@ -246,9 +398,9 @@ def fetch_earnings_dates(tickers):
             elif not isinstance(ed, date):
                 continue
             out[t] = {
-                "date":  ed,
+                "date": ed,
                 "delta": (ed - today).days,
-                "est":   len(dates) > 1 and dates[-1] != dates[0],
+                "est": len(dates) > 1 and dates[-1] != dates[0],
             }
         except Exception:
             pass
@@ -261,7 +413,7 @@ def _ern_str(info):
     if not info:
         return "--"
     delta = info["delta"]
-    if delta < -10:                       # last report is stale, next not set
+    if delta < -10:  # last report is stale, next not set
         return "--"
     if delta < 0:
         return "Reported"
@@ -270,7 +422,7 @@ def _ern_str(info):
 
 # ─── Screens ──────────────────────────────────────────────────────────────────
 
-MIN_DOLLAR_VOL = 100_000_000   # $100M liquidity floor
+MIN_DOLLAR_VOL = 100_000_000  # $100M liquidity floor
 
 
 def screen_qm_monthly(rows):
@@ -280,17 +432,16 @@ def screen_qm_monthly(rows):
     ranked = sorted(rows, key=lambda r: r["chg_1mo"], reverse=True)
     cutoff = max(15, int(len(ranked) * 0.02))
     top2pct = ranked[:cutoff]
-    screened = [r for r in top2pct
-                if r["adr_pct"] >= 5.0 and r["dollar_vol"] >= MIN_DOLLAR_VOL]
+    screened = [r for r in top2pct if r["adr_pct"] >= 5.0 and r["dollar_vol"] >= MIN_DOLLAR_VOL]
     screened.sort(key=lambda r: r["dollar_vol"], reverse=True)
     return screened
 
 
-STOCKBEE_WEEKLY_THRESHOLD = 15.0    # was 20.0 — relaxed so the tab fills
-                                    # on quiet weeks too. Genuine explosions
-                                    # (>= 20%) still get flagged separately.
-STOCKBEE_NEAR_MISS_GAP   = 5.0     # 10-14.99% becomes "near-miss" only when
-                                    # the main list is empty.
+STOCKBEE_WEEKLY_THRESHOLD = 15.0  # was 20.0 — relaxed so the tab fills
+# on quiet weeks too. Genuine explosions
+# (>= 20%) still get flagged separately.
+STOCKBEE_NEAR_MISS_GAP = 5.0  # 10-14.99% becomes "near-miss" only when
+# the main list is empty.
 
 
 def screen_stockbee_weekly(rows):
@@ -302,25 +453,32 @@ def screen_stockbee_weekly(rows):
                     band, surfaced only by the consumer when screened is
                     empty (rendered as the "Approaching" fallback).
     """
-    main = [r for r in rows
-            if r["chg_1wk"] >= STOCKBEE_WEEKLY_THRESHOLD
-               and r["dollar_vol"] >= MIN_DOLLAR_VOL]
+    main = [
+        r
+        for r in rows
+        if r["chg_1wk"] >= STOCKBEE_WEEKLY_THRESHOLD and r["dollar_vol"] >= MIN_DOLLAR_VOL
+    ]
     main.sort(key=lambda r: r["dollar_vol"], reverse=True)
 
     lo_band = STOCKBEE_WEEKLY_THRESHOLD - STOCKBEE_NEAR_MISS_GAP
-    near = [r for r in rows
-            if lo_band <= r["chg_1wk"] < STOCKBEE_WEEKLY_THRESHOLD
-               and r["dollar_vol"] >= MIN_DOLLAR_VOL]
+    near = [
+        r
+        for r in rows
+        if lo_band <= r["chg_1wk"] < STOCKBEE_WEEKLY_THRESHOLD and r["dollar_vol"] >= MIN_DOLLAR_VOL
+    ]
     near.sort(key=lambda r: r["chg_1wk"], reverse=True)
     return main, near[:5]
 
 
 # ─── PDF ──────────────────────────────────────────────────────────────────────
 
+
 def _dvol(v):
-    if v >= 1e9:  return f"{v/1e9:.1f}B"
-    if v >= 1e6:  return f"{v/1e6:.1f}M"
-    return f"{v/1e3:.0f}K"
+    if v >= 1e9:
+        return f"{v / 1e9:.1f}B"
+    if v >= 1e6:
+        return f"{v / 1e6:.1f}M"
+    return f"{v / 1e3:.0f}K"
 
 
 def _safe(text):
@@ -329,9 +487,15 @@ def _safe(text):
     fallback) crashed both momentum runs on 2026-10-13. Same rule as
     scanner._safe — every string that reaches the PDF goes through here."""
     s = str(text)
-    s = (s.replace("—", "-").replace("–", "-")
-          .replace("‘", "'").replace("’", "'")
-          .replace("“", '"').replace("”", '"').replace("…", "..."))
+    s = (
+        s.replace("—", "-")
+        .replace("–", "-")
+        .replace("‘", "'")
+        .replace("’", "'")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("…", "...")
+    )
     return re.sub(r"[^\x00-\xFF]", "", s)
 
 
@@ -385,13 +549,13 @@ def generate_table_pdf(title, subtitle, blurb_lines, rows, change_label):
     # Table — clear gap below the divider
     ty = blurb_bottom + 7
     cols = [
-        ("#",          10, "C"),
-        ("Symbol",     22, "L"),
+        ("#", 10, "C"),
+        ("Symbol", 22, "L"),
         (change_label, 24, "R"),
-        ("$ Vol",      24, "R"),
-        ("ADR%",       20, "R"),
-        ("Price",      24, "R"),
-        ("Next Ern",   28, "C"),
+        ("$ Vol", 24, "R"),
+        ("ADR%", 20, "R"),
+        ("Price", 24, "R"),
+        ("Next Ern", 28, "C"),
     ]
     # center the table
     tx = 10 + (190 - sum(c[1] for c in cols)) / 2
@@ -407,8 +571,13 @@ def generate_table_pdf(title, subtitle, blurb_lines, rows, change_label):
         pdf.set_x(tx)
         pdf.set_text_color(120, 120, 120)
         pdf.set_font("Helvetica", "I", 9)
-        pdf.cell(sum(c[1] for c in cols), 9,
-                 "No names met the screen criteria today.", border=1, align="C")
+        pdf.cell(
+            sum(c[1] for c in cols),
+            9,
+            "No names met the screen criteria today.",
+            border=1,
+            align="C",
+        )
     else:
         for i, r in enumerate(rows):
             pdf.set_x(tx)
@@ -419,13 +588,13 @@ def generate_table_pdf(title, subtitle, blurb_lines, rows, change_label):
             ern = r.get("_ern", "--")
             ern_rgb = (190, 50, 45) if ern not in ("--", "Reported") else (90, 96, 116)
             vals = [
-                (str(i + 1),                10, "C", (90, 96, 116), ""),
-                (r["ticker"],               22, "L", (15, 20, 50),  "B"),
-                (chg_str,                   24, "R", (22, 130, 60) if chg >= 0 else (190, 50, 45), "B"),
+                (str(i + 1), 10, "C", (90, 96, 116), ""),
+                (r["ticker"], 22, "L", (15, 20, 50), "B"),
+                (chg_str, 24, "R", (22, 130, 60) if chg >= 0 else (190, 50, 45), "B"),
                 (f"${_dvol(r['dollar_vol'])}", 24, "R", (15, 20, 50), ""),
-                (f"{r['adr_pct']:.2f}",     20, "R", (15, 20, 50),  ""),
-                (f"${r['price']:.2f}",      24, "R", (15, 20, 50),  ""),
-                (ern,                       28, "C", ern_rgb,       "B" if ern not in ("--", "Reported") else ""),
+                (f"{r['adr_pct']:.2f}", 20, "R", (15, 20, 50), ""),
+                (f"${r['price']:.2f}", 24, "R", (15, 20, 50), ""),
+                (ern, 28, "C", ern_rgb, "B" if ern not in ("--", "Reported") else ""),
             ]
             for txt, w, align, rgb, style in vals:
                 pdf.set_text_color(*rgb)
@@ -438,18 +607,25 @@ def generate_table_pdf(title, subtitle, blurb_lines, rows, change_label):
     pdf.set_xy(10, 287)
     pdf.set_font("Helvetica", "I", 5.5)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 4, "Not financial advice. Quantitative screen, EOD data. "
-             "For informational purposes only. Do your own due diligence.", align="C")
+    pdf.cell(
+        0,
+        4,
+        "Not financial advice. Quantitative screen, EOD data. "
+        "For informational purposes only. Do your own due diligence.",
+        align="C",
+    )
 
     return bytes(pdf.output())
 
 
 # ─── Output ───────────────────────────────────────────────────────────────────
 
+
 def publish(pdf_bytes, filename):
     """Archive a screen PDF to the GitHub Pages report site."""
     try:
         from report_archive import archive
+
         archive(pdf_bytes, filename)
         print(f"  Archived to site: {filename}")
     except Exception as e:
@@ -458,12 +634,12 @@ def publish(pdf_bytes, filename):
 
 def _shape_row(r, change_field):
     return {
-        "ticker":     r["ticker"],
-        "price":      r.get("price"),
-        "chg":        r.get(change_field),
-        "adr_pct":    r.get("adr_pct"),
+        "ticker": r["ticker"],
+        "price": r.get("price"),
+        "chg": r.get(change_field),
+        "adr_pct": r.get("adr_pct"),
         "dollar_vol": round(r.get("dollar_vol", 0) or 0),
-        "ern":        r.get("_ern", ""),
+        "ern": r.get("_ern", ""),
     }
 
 
@@ -480,7 +656,7 @@ def _session_date():
     d = now.date()
     if now < now.replace(hour=16, minute=30, second=0, microsecond=0):
         d -= timedelta(days=1)
-    while d.weekday() >= 5:                 # walk back over weekends
+    while d.weekday() >= 5:  # walk back over weekends
         d -= timedelta(days=1)
     return d.strftime("%Y-%m-%d")
 
@@ -493,13 +669,17 @@ def emit_screen_json(key, rows, change_field, near_misses=None):
     `near_misses` is an optional list of just-below-threshold rows. The
     dashboard surfaces them only when the main `rows` list is empty
     (rendered as an "Approaching" fallback section)."""
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "docs", "reports", f"momentum_{key}.json")
+    path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "docs", "reports", f"momentum_{key}.json"
+    )
     now = datetime.now(ET)
     out_rows = [_shape_row(r, change_field) for r in rows]
-    run = {"date": _session_date(),
-           "generated": now.isoformat(timespec="seconds"),
-           "count": len(out_rows), "rows": out_rows}
+    run = {
+        "date": _session_date(),
+        "generated": now.isoformat(timespec="seconds"),
+        "count": len(out_rows),
+        "rows": out_rows,
+    }
     if near_misses:
         run["near_misses"] = [_shape_row(r, change_field) for r in near_misses]
     data = {}
@@ -515,8 +695,7 @@ def emit_screen_json(key, rows, change_field, near_misses=None):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"updated": run["generated"], "runs": runs}, f, indent=1)
-        nm_msg = (f" + {len(run.get('near_misses', []))} near-miss"
-                  if near_misses else "")
+        nm_msg = f" + {len(run.get('near_misses', []))} near-miss" if near_misses else ""
         print(f"  Wrote momentum_{key}.json ({len(out_rows)} names{nm_msg})")
     except Exception as e:
         print(f"  momentum_{key}.json write failed: {e}")
@@ -524,10 +703,11 @@ def emit_screen_json(key, rows, change_field, near_misses=None):
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+
 def run():
     now = datetime.now(ET)
     stamp = now.strftime("%Y-%m-%d_%H%M")
-    print(f"\n{'='*54}\nMOMENTUM SCANS  --  {now.strftime('%Y-%m-%d %H:%M ET')}\n{'='*54}")
+    print(f"\n{'=' * 54}\nMOMENTUM SCANS  --  {now.strftime('%Y-%m-%d %H:%M ET')}\n{'=' * 54}")
 
     print("\n[1/3] Building universe...")
     universe = get_market_universe()
@@ -545,9 +725,7 @@ def run():
 
     # Earnings dates for the union of screened names (small list — fast)
     screened_tickers = sorted(
-        {r["ticker"] for r in qm} |
-        {r["ticker"] for r in sb} |
-        {r["ticker"] for r in sb_near}
+        {r["ticker"] for r in qm} | {r["ticker"] for r in sb} | {r["ticker"] for r in sb_near}
     )
     print(f"  Fetching earnings dates for {len(screened_tickers)} screened names...")
     ern_map = fetch_earnings_dates(screened_tickers)
@@ -557,23 +735,33 @@ def run():
     for r in qm:
         r["_chg"] = r["chg_1mo"]
     qm_blurb = [
-        "Qullamaggie's Biggest One-Month Gainers. Of the full liquid universe, the top 2% "
-        "by 1-month price change are taken, then filtered to the names that are both highly "
-        "volatile and highly liquid.",
-        "Membership criteria:  (1) ranks in the top 2% of the market by 1-month % change;  "
-        "(2) ADR% >= 5 (20-day Average Daily Range -- a volatility floor);  "
-        "(3) 20-day average dollar volume >= $100M (a liquidity floor).",
-        "ADR% = average of (daily High / daily Low) over the last 20 sessions, minus 1. "
-        "It measures how much room a stock moves intraday -- Qullamaggie targets high-ADR "
-        "names because they travel far enough to be worth trading. Sorted by dollar volume.",
-        "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
-        "'Reported' = reported within the last 10 days). A move running INTO earnings "
-        "carries binary event risk; a move just AFTER a report is reacting to known news.",
+        (
+            "Qullamaggie's Biggest One-Month Gainers. Of the full liquid universe, the top 2% "
+            "by 1-month price change are taken, then filtered to the names that are both highly "
+            "volatile and highly liquid."
+        ),
+        (
+            "Membership criteria:  (1) ranks in the top 2% of the market by 1-month % change;  "
+            "(2) ADR% >= 5 (20-day Average Daily Range -- a volatility floor);  "
+            "(3) 20-day average dollar volume >= $100M (a liquidity floor)."
+        ),
+        (
+            "ADR% = average of (daily High / daily Low) over the last 20 sessions, minus 1. "
+            "It measures how much room a stock moves intraday -- Qullamaggie targets high-ADR "
+            "names because they travel far enough to be worth trading. Sorted by dollar volume."
+        ),
+        (
+            "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
+            "'Reported' = reported within the last 10 days). A move running INTO earnings "
+            "carries binary event risk; a move just AFTER a report is reacting to known news."
+        ),
     ]
     qm_pdf = generate_table_pdf(
         "QM -- BIGGEST ONE-MONTH GAINERS",
         "Top 2% of the market by 1-month gain  |  ADR% >= 5  |  $100M+ dollar volume",
-        qm_blurb, qm, "1-Mo %",
+        qm_blurb,
+        qm,
+        "1-Mo %",
     )
     publish(qm_pdf, f"qm_monthly_{stamp}.pdf")
     emit_screen_json("qm", qm, "chg_1mo")
@@ -583,27 +771,37 @@ def run():
     for r in sb + sb_near:
         r["_chg"] = r["chg_1wk"]
     sb_blurb = [
-        "Stockbee's '20% Plus in a Week' momentum screen, relaxed to 15% to keep "
-        "the list populated on quieter weeks -- names that have surged 15%+ over the "
-        "last five trading sessions. These are the market's most explosive short-term "
-        "movers, often reacting to earnings, news, or sector rotation.",
-        "Membership criteria:  (1) up 15%+ over the last 5 trading days;  "
-        "(2) 20-day average dollar volume >= $100M (a liquidity floor so only tradeable "
-        "names appear).",
-        "A large list signals a strong, broad momentum environment; a short list signals a "
-        "narrow or risk-off tape. Sorted by dollar volume -- the most liquid movers first.",
-        "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
-        "'Reported' = reported within the last 10 days). A momentum run INTO earnings "
-        "carries binary event risk; a run just AFTER a report is reacting to news.",
+        (
+            "Stockbee's '20% Plus in a Week' momentum screen, relaxed to 15% to keep "
+            "the list populated on quieter weeks -- names that have surged 15%+ over the "
+            "last five trading sessions. These are the market's most explosive short-term "
+            "movers, often reacting to earnings, news, or sector rotation."
+        ),
+        (
+            "Membership criteria:  (1) up 15%+ over the last 5 trading days;  "
+            "(2) 20-day average dollar volume >= $100M (a liquidity floor so only tradeable "
+            "names appear)."
+        ),
+        (
+            "A large list signals a strong, broad momentum environment; a short list signals a "
+            "narrow or risk-off tape. Sorted by dollar volume -- the most liquid movers first."
+        ),
+        (
+            "Next Ern = next scheduled earnings date (* = estimated/unconfirmed window; "
+            "'Reported' = reported within the last 10 days). A momentum run INTO earnings "
+            "carries binary event risk; a run just AFTER a report is reacting to news."
+        ),
     ]
     # On empty-main days, render the near-miss list in the PDF instead so it's
     # never blank. The dashboard handles the equivalent fallback via JSON.
     sb_for_pdf = sb if sb else sb_near
     sb_pdf = generate_table_pdf(
         "STOCKBEE -- 15%+ IN A WEEK",
-        "Up 15%+ over the last 5 trading days  |  $100M+ dollar volume" +
-        ("  |  (Approaching - main list empty)" if not sb else ""),
-        sb_blurb, sb_for_pdf, "1-Wk %",
+        "Up 15%+ over the last 5 trading days  |  $100M+ dollar volume"
+        + ("  |  (Approaching - main list empty)" if not sb else ""),
+        sb_blurb,
+        sb_for_pdf,
+        "1-Wk %",
     )
     publish(sb_pdf, f"stockbee_weekly_{stamp}.pdf")
     emit_screen_json("stockbee", sb, "chg_1wk", near_misses=sb_near)

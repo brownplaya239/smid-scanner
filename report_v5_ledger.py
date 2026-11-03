@@ -18,8 +18,7 @@ import re
 SCHEMA = "v5-ledger/1"
 
 
-_XBRL_RX = re.compile(
-    r"^XBRL-([\d.-]+)-([a-z-]+):([A-Za-z\d]+)-(\d{4}-\d{2}-\d{2})$")
+_XBRL_RX = re.compile(r"^XBRL-([\d.-]+)-([a-z-]+):([A-Za-z\d]+)-(\d{4}-\d{2}-\d{2})$")
 
 
 # §4 (v5.8): every reference family carries a declared kind — a record
@@ -57,20 +56,30 @@ def _record_for(ref, fact, key=None):
     rec = {"kind": _kind_for(ref)}
     m = _XBRL_RX.match(str(ref))
     if m:
-        rec.update({"kind": "xbrl_fact", "accession": m.group(1),
-                    "taxonomy": m.group(2), "concept": m.group(3),
-                    "period_end": m.group(4),
-                    "source_type": "SEC EDGAR companyfacts"})
+        rec.update(
+            {
+                "kind": "xbrl_fact",
+                "accession": m.group(1),
+                "taxonomy": m.group(2),
+                "concept": m.group(3),
+                "period_end": m.group(4),
+                "source_type": "SEC EDGAR companyfacts",
+            }
+        )
     f = fact if isinstance(fact, dict) else {}
-    for src, dst in (("v", "value"), ("unit", "units"),
-                     ("source", "source"), ("source_url", "url"),
-                     ("period_end", "period_end"),
-                     ("period_start", "period_start"),
-                     ("published_at", "accepted_at"),
-                     ("retrieved_at", "retrieved_at"),
-                     ("basis", "calculation"),
-                     ("calc_version", "calc_version"),
-                     ("quality", "quality")):
+    for src, dst in (
+        ("v", "value"),
+        ("unit", "units"),
+        ("source", "source"),
+        ("source_url", "url"),
+        ("period_end", "period_end"),
+        ("period_start", "period_start"),
+        ("published_at", "accepted_at"),
+        ("retrieved_at", "retrieved_at"),
+        ("basis", "calculation"),
+        ("calc_version", "calc_version"),
+        ("quality", "quality"),
+    ):
         if f.get(src) is not None and dst not in rec:
             rec[dst] = f.get(src)
     if key and "metric" not in rec:
@@ -116,8 +125,7 @@ def _walk(obj, found, key=None):
             _walk(v, found, key=key)
 
 
-def build(snap, view5, report_id=None, issuer_cik=None,
-          el_ledger=None):
+def build(snap, view5, report_id=None, issuer_cik=None, el_ledger=None):
     """-> {schema, ids: {id: record}, hash, issuer_cik}
 
     `el_ledger` (v5.8 review fix): the snapshot's evidence ledger,
@@ -132,21 +140,23 @@ def build(snap, view5, report_id=None, issuer_cik=None,
     if el_ledger is not None:
         try:
             _bars = el_ledger._store.get("market_bars") or {}
-            for rid, rec in (el_ledger._store.get(
-                    "technical_calculations") or {}).items():
+            for rid, rec in (el_ledger._store.get("technical_calculations") or {}).items():
                 inputs = rec.get("inputs")
                 if not isinstance(inputs, list):
                     inputs = [inputs] if inputs else []
-                _register(ids, rid, {
-                    "kind": "derived_figure",
-                    "metric": rid[5:] if rid.startswith("CALC-")
-                    else rid,
-                    "calculation": rec.get("formula"),
-                    "input_evidence_ids": [str(x) for x in inputs],
-                    "value": rec.get("output"),
-                    "units": rec.get("unit"),
-                    "note": rec.get("note"),
-                })
+                _register(
+                    ids,
+                    rid,
+                    {
+                        "kind": "derived_figure",
+                        "metric": rid.removeprefix("CALC-"),
+                        "calculation": rec.get("formula"),
+                        "input_evidence_ids": [str(x) for x in inputs],
+                        "value": rec.get("output"),
+                        "units": rec.get("unit"),
+                        "note": rec.get("note"),
+                    },
+                )
                 # §review (v5.8.1): a range input "BAR-a..BAR-b" is only
                 # traversable when its ENDPOINT bars are themselves
                 # registered records — register both with their OHLCV
@@ -156,22 +166,24 @@ def build(snap, view5, report_id=None, issuer_cik=None,
                 for x in inputs:
                     if ".." not in str(x):
                         continue
-                    for bid in (p.strip()
-                                for p in str(x).split("..", 1)):
+                    for bid in (p.strip() for p in str(x).split("..", 1)):
                         b = _bars.get(bid)
                         if b:
-                            _register(ids, bid, {
-                                "kind": "market_bar",
-                                "metric": "daily bar %s"
-                                % b.get("date"),
-                                "value": b.get("close"),
-                                "units": "USD",
-                                "bar": {k: b.get(k) for k in
-                                        ("date", "open", "high",
-                                         "low", "close", "volume")},
-                                "source_type": "licensed market data "
-                                               "(split-adjusted)",
-                            })
+                            _register(
+                                ids,
+                                bid,
+                                {
+                                    "kind": "market_bar",
+                                    "metric": "daily bar %s" % b.get("date"),
+                                    "value": b.get("close"),
+                                    "units": "USD",
+                                    "bar": {
+                                        k: b.get(k)
+                                        for k in ("date", "open", "high", "low", "close", "volume")
+                                    },
+                                    "source_type": "licensed market data (split-adjusted)",
+                                },
+                            )
         except Exception:
             pass
 
@@ -184,66 +196,81 @@ def build(snap, view5, report_id=None, issuer_cik=None,
         for k, f in (snap.get(domain) or {}).items():
             if isinstance(f, dict) and f.get("calc_version"):
                 inputs = list(f.get("evidence_refs") or [])
-                periods = sorted({m.group(1) for m in
-                                  (_date_rx.search(str(r))
-                                   for r in inputs) if m})
-                _register(ids, "CALC-%s" % k, {
-                    "kind": "derived_figure", "metric": k,
-                    "calculation": f.get("basis"),
-                    "calc_version": f.get("calc_version"),
-                    "value": f.get("v"),
-                    "units": f.get("unit"),
-                    "quality": f.get("quality"),
-                    "input_evidence_ids": inputs,
-                    "input_periods": periods,
-                })
+                periods = sorted(
+                    {m.group(1) for m in (_date_rx.search(str(r)) for r in inputs) if m}
+                )
+                _register(
+                    ids,
+                    "CALC-%s" % k,
+                    {
+                        "kind": "derived_figure",
+                        "metric": k,
+                        "calculation": f.get("basis"),
+                        "calc_version": f.get("calc_version"),
+                        "value": f.get("v"),
+                        "units": f.get("unit"),
+                        "quality": f.get("quality"),
+                        "input_evidence_ids": inputs,
+                        "input_periods": periods,
+                    },
+                )
 
     m = view5.get("multiples") or {}
     for kind in ("pe", "ps"):
         b = m.get(kind) or {}
         if b.get("available"):
             integ = (m.get("ttm_integrity") or {}).get(kind) or {}
-            _register(ids, "V5-BAND-%s" % kind, {
-                "kind": "derived_series",
-                "metric": "own-history %s band" % kind,
-                "calculation": b.get("basis"),
-                "concept": integ.get("concept"),
-                "window": [b.get("window_start"), b.get("window_end")],
-                "sessions": b.get("sessions_computable"),
-                # §4 (v5.8): the band is reproducible from this record
-                # — observations, exclusions, percentile method and
-                # the resulting percentiles are all stated
-                "observations_used": b.get("sessions_computable"),
-                "observations_in_window": b.get("sessions_in_window"),
-                "exclusions": {
-                    "negative_trailing_metric":
-                        b.get("excluded_negative_ttm"),
-                    "no_trailing_metric": b.get("excluded_no_ttm")},
-                "percentile_method": "linear interpolation over the "
-                                     "sorted daily trailing multiples "
-                                     "(p25/p50/p75)",
-                "percentiles": {"p25": b.get("p25"), "p50": b.get("p50"),
-                                "p75": b.get("p75"),
-                                "min": b.get("min"),
-                                "max": b.get("max")},
-                "market_data_vendor": m.get("bar_source"),
-                "adjustment_basis": "split-adjusted closes; per-share "
-                                    "facts rebased by filing date",
-            })
+            _register(
+                ids,
+                "V5-BAND-%s" % kind,
+                {
+                    "kind": "derived_series",
+                    "metric": "own-history %s band" % kind,
+                    "calculation": b.get("basis"),
+                    "concept": integ.get("concept"),
+                    "window": [b.get("window_start"), b.get("window_end")],
+                    "sessions": b.get("sessions_computable"),
+                    # §4 (v5.8): the band is reproducible from this record
+                    # — observations, exclusions, percentile method and
+                    # the resulting percentiles are all stated
+                    "observations_used": b.get("sessions_computable"),
+                    "observations_in_window": b.get("sessions_in_window"),
+                    "exclusions": {
+                        "negative_trailing_metric": b.get("excluded_negative_ttm"),
+                        "no_trailing_metric": b.get("excluded_no_ttm"),
+                    },
+                    "percentile_method": "linear interpolation over the "
+                    "sorted daily trailing multiples "
+                    "(p25/p50/p75)",
+                    "percentiles": {
+                        "p25": b.get("p25"),
+                        "p50": b.get("p50"),
+                        "p75": b.get("p75"),
+                        "min": b.get("min"),
+                        "max": b.get("max"),
+                    },
+                    "market_data_vendor": m.get("bar_source"),
+                    "adjustment_basis": "split-adjusted closes; per-share "
+                    "facts rebased by filing date",
+                },
+            )
     sc = view5.get("scenarios") or {}
     # ID vocabulary follows the mode (§2): a historical range registers
     # V5-RANGE-* rows and a metric anchor; only underwritten scenarios
     # register V5-SCENARIO-* rows.
     _under = sc.get("mode") == "underwritten"
     for r in sc.get("rows") or []:
-        _register(ids, "V5-%s-%s" % ("SCENARIO" if _under else "RANGE",
-                                     str(r["leg"]).upper()),
-                       {"kind": "derived_row",
-                        "metric": "%s row (%s)"
-                        % ("forward" if _under else "historical-range",
-                           r.get("label")),
-                        "calculation": "multiple x trailing metric",
-                        "value": r.get("price")})
+        _register(
+            ids,
+            "V5-%s-%s" % ("SCENARIO" if _under else "RANGE", str(r["leg"]).upper()),
+            {
+                "kind": "derived_row",
+                "metric": "%s row (%s)"
+                % ("forward" if _under else "historical-range", r.get("label")),
+                "calculation": "multiple x trailing metric",
+                "value": r.get("price"),
+            },
+        )
     if sc.get("available"):
         # §review (v5.8.1): the anchor stores its INPUT VALUES so a
         # claim's quoted valuation gap recomputes from this record
@@ -251,62 +278,80 @@ def build(snap, view5, report_id=None, issuer_cik=None,
         _anchor_vals = None
         try:
             import report_v5_scenarios as _S5r
+
             _arow = _S5r.anchor(sc)
             if _arow:
                 _anchor_vals = {
                     "value": _arow.get("price"),
                     "input_values": {
-                        "multiple": (_arow.get("multiple")
-                                     or {}).get("value"),
-                        "trailing_metric": (_arow.get("metric")
-                                            or {}).get("value"),
-                        "spot": sc.get("spot")},
+                        "multiple": (_arow.get("multiple") or {}).get("value"),
+                        "trailing_metric": (_arow.get("metric") or {}).get("value"),
+                        "spot": sc.get("spot"),
+                    },
                 }
         except Exception:
             pass
-        _register(ids, "V5-SCENARIO-ANCHOR" if _under
-                       else "V5-HISTORICAL-METRIC-ANCHOR",
-                       dict({"kind": "derived_row",
-                             "metric": "central row of the valuation "
-                                       "table",
-                             "calculation": "median multiple x "
-                                            "trailing metric",
-                             "input_evidence_ids": [
-                                 "V5-BAND-%s"
-                                 % ((sc.get("band_ref") or {}).get(
-                                     "kind") or "pe")]},
-                            **(_anchor_vals or {})))
+        _register(
+            ids,
+            "V5-SCENARIO-ANCHOR" if _under else "V5-HISTORICAL-METRIC-ANCHOR",
+            dict(
+                {
+                    "kind": "derived_row",
+                    "metric": "central row of the valuation table",
+                    "calculation": "median multiple x trailing metric",
+                    "input_evidence_ids": [
+                        "V5-BAND-%s" % ((sc.get("band_ref") or {}).get("kind") or "pe")
+                    ],
+                },
+                **(_anchor_vals or {}),
+            ),
+        )
     ex = snap.get("exhibit") or {}
     if ex.get("disposition") == "ADMITTED":
-        _register(ids, "EXHIBIT-GUIDANCE",
-                       {"kind": "filed_exhibit",
-                        "source_type": "8-K earnings exhibit",
-                        "metric": "issuer guidance"})
+        _register(
+            ids,
+            "EXHIBIT-GUIDANCE",
+            {
+                "kind": "filed_exhibit",
+                "source_type": "8-K earnings exhibit",
+                "metric": "issuer guidance",
+            },
+        )
     for o in (view5.get("adapter") or {}).get("one_time_items") or []:
         for r in o.get("evidence_refs") or []:
-            _register(ids, r, {"kind": "xbrl_fact",
-                               "metric": "one-time item",
-                               "concept": o.get("concept"),
-                               "value": o.get("value"),
-                               "period_end": o.get("period_end"),
-                               "accession": o.get("accession")})
+            _register(
+                ids,
+                r,
+                {
+                    "kind": "xbrl_fact",
+                    "metric": "one-time item",
+                    "concept": o.get("concept"),
+                    "value": o.get("value"),
+                    "period_end": o.get("period_end"),
+                    "accession": o.get("accession"),
+                },
+            )
     # v5.8.1: derived figures quoted inside published claims register
     # as first-class CALC records (value + formula + inputs), so every
     # number a claim quotes resolves to a reproducible record
-    for c in ((view5.get("claims") or {}).get("claims") or []) \
-            + ((view5.get("claims") or {}).get("rejected") or []):
+    for c in ((view5.get("claims") or {}).get("claims") or []) + (
+        (view5.get("claims") or {}).get("rejected") or []
+    ):
         for df in c.get("derived_figures") or []:
             if df.get("id"):
-                _register(ids, df["id"], {
-                    "kind": "derived_figure",
-                    "metric": df.get("label"),
-                    "calculation": df.get("formula"),
-                    "value": df.get("value"),
-                    "units": df.get("units"),
-                    "input_evidence_ids":
-                        list(df.get("input_evidence_ids") or []),
-                    "note": df.get("note"),
-                })
+                _register(
+                    ids,
+                    df["id"],
+                    {
+                        "kind": "derived_figure",
+                        "metric": df.get("label"),
+                        "calculation": df.get("formula"),
+                        "value": df.get("value"),
+                        "units": df.get("units"),
+                        "input_evidence_ids": list(df.get("input_evidence_ids") or []),
+                        "note": df.get("note"),
+                    },
+                )
 
     # §1 (v5.8): classification evidence — the concept-index record
     # that establishes business stage is registered so the stage is
@@ -315,20 +360,21 @@ def build(snap, view5, report_id=None, issuer_cik=None,
     if cls:
         try:
             import report_v5_classify as _CLS
+
             for rid, rec in _CLS.ledger_records(cls).items():
                 _register(ids, rid, rec)
         except Exception:
             pass
 
     if report_id:
-        _register(ids, "STATE-%s" % report_id,
-                       {"kind": "research_state",
-                        "metric": "this research state"})
+        _register(
+            ids, "STATE-%s" % report_id, {"kind": "research_state", "metric": "this research state"}
+        )
     prior = (view5.get("changeset") or {}).get("prior_report_id")
     if prior:
-        _register(ids, "STATE-%s" % prior,
-                       {"kind": "research_state",
-                        "metric": "prior research state"})
+        _register(
+            ids, "STATE-%s" % prior, {"kind": "research_state", "metric": "prior research state"}
+        )
 
     # §4 (v5.8): an XBRL record's filing is addressable — derive the
     # EDGAR archive URL from the accession + issuer CIK when the owning
@@ -339,14 +385,17 @@ def build(snap, view5, report_id=None, issuer_cik=None,
         except ValueError:
             _cik_int = None
         for rec in ids.values():
-            if _cik_int and isinstance(rec, dict) \
-                    and rec.get("kind") == "xbrl_fact" \
-                    and rec.get("accession") \
-                    and not rec.get("url"):
-                rec["url"] = ("https://www.sec.gov/Archives/edgar/data/"
-                              "%d/%s/" % (_cik_int,
-                                          str(rec["accession"]
-                                              ).replace("-", "")))
+            if (
+                _cik_int
+                and isinstance(rec, dict)
+                and rec.get("kind") == "xbrl_fact"
+                and rec.get("accession")
+                and not rec.get("url")
+            ):
+                rec["url"] = "https://www.sec.gov/Archives/edgar/data/%d/%s/" % (
+                    _cik_int,
+                    str(rec["accession"]).replace("-", ""),
+                )
 
     # every record belongs to the intended issuer (§1): the XBRL facts
     # were fetched from this CIK's companyfacts, and the identifier is
@@ -358,8 +407,13 @@ def build(snap, view5, report_id=None, issuer_cik=None,
             rec.setdefault("retrieved_at", retrieved)
 
     digest = hashlib.sha256("\n".join(sorted(ids)).encode()).hexdigest()
-    return {"schema": SCHEMA, "ids": ids, "hash": digest,
-            "issuer_cik": issuer_cik, "count": len(ids)}
+    return {
+        "schema": SCHEMA,
+        "ids": ids,
+        "hash": digest,
+        "issuer_cik": issuer_cik,
+        "count": len(ids),
+    }
 
 
 def unresolved(refs, ledger):
@@ -380,6 +434,8 @@ def irrelevant_counters(claim):
     cannot counter a fundamental or valuation claim."""
     if claim.get("claim_type") not in ("fundamental", "valuation"):
         return []
-    return [r for r in claim.get("counterevidence_refs") or []
-            if isinstance(r, str)
-            and r.startswith(TECHNICAL_REF_PREFIXES)]
+    return [
+        r
+        for r in claim.get("counterevidence_refs") or []
+        if isinstance(r, str) and r.startswith(TECHNICAL_REF_PREFIXES)
+    ]

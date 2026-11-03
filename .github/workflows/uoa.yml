@@ -43,6 +43,11 @@ concurrency:
   group: tickerdesk-data
   cancel-in-progress: false
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   uoa:
     runs-on: ubuntu-latest
@@ -53,34 +58,27 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
+
       - name: Pull data from R2
         # Data lives in Cloudflare R2 since 2026-09-28 (not git). Records a
         # manifest so publish only uploads what this job changed.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 scripts/r2_sync.py pull
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv run scripts/r2_sync.py pull
 
       - name: Run UOA scan + alpha tracker
         env:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
         run: |
-          python uoa_scanner.py;  R1=$?
-          python uoa_alpha.py;    R2=$?
+          uv run python uoa_scanner.py;  R1=$?
+          uv run python uoa_alpha.py;    R2=$?
           echo "scanner exit: $R1  |  alpha exit: $R2"
           if [ $R1 -ne 0 ]; then
             echo "::error::UOA scan failed (exit $R1)"
@@ -92,7 +90,7 @@ jobs:
         # batch (frozen spec v1-2026-07-21; any spec change forks a new
         # version). Append-only; never affects ranking. Non-fatal.
         continue-on-error: true
-        run: python hedge_monitor.py --record
+        run: uv run python hedge_monitor.py --record
 
       - name: AI Trade Desk — validation + engine
         # trade_desk_validation.py re-runs the walk-forward on the frozen
@@ -103,12 +101,12 @@ jobs:
         # engine's honest default) is a success state, not an error.
         continue-on-error: true
         run: |
-          python trade_desk_validation.py
-          python trade_desk_research.py
-          python trade_desk_context.py
-          python earnings_vol_engine.py
-          python fair_move_lab.py
-          python trade_desk.py
+          uv run python trade_desk_validation.py
+          uv run python trade_desk_research.py
+          uv run python trade_desk_context.py
+          uv run python earnings_vol_engine.py
+          uv run python fair_move_lab.py
+          uv run python trade_desk.py
 
       - name: Top 25 daily cumulative ranking
         # Folds this batch into the per-day accumulator and republishes
@@ -116,13 +114,13 @@ jobs:
         # Idempotent per batch timestamp; ET-date keyed daily reset.
         # Non-fatal: the publish step must never block on this pane.
         continue-on-error: true
-        run: python uoa_daily_top.py
+        run: uv run python uoa_daily_top.py
 
       - name: Rotate signal ledger if near GitHub 100MB limit
         # 2026-09-16 outage: the hot ledger crossed 100MB and every
         # publish was rejected (GH001) while jobs stayed green. Rotation
         # moves >45d lines into monthly gzip archives; no-op below 80MB.
-        run: python ledger_rotate.py
+        run: uv run python ledger_rotate.py
 
       - name: Publish UOA data to site
         env:

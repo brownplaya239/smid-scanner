@@ -13,6 +13,11 @@ on:
         type: string
         default: ''
 
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
 jobs:
   lookup:
     runs-on: ubuntu-latest
@@ -23,24 +28,17 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Start R2 manifest
-        # This job reads no data; anything it writes is new (R2 cutover).
-        run: python3 scripts/r2_sync.py init
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
         with:
-          python-version: '3.12'
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --locked --no-dev
+
+      - name: Start R2 manifest
+        # This job reads no data; anything it writes is new (R2 cutover).
+        run: uv run scripts/r2_sync.py init
 
       # Equity Research v4: event-gated 5/6-page core + evidence appendix,
       # Finnhub consensus, issuer-exhibit KPIs, and a validation JSON that
@@ -55,7 +53,7 @@ jobs:
           # code change. Without it the provider fails closed and the
           # rating reads NR.
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-        run: python report_v4_run.py "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}" --for-user --out out_v4_user
+        run: uv run python report_v4_run.py "${{ inputs.ticker }}" --user-id "${{ inputs.user_id }}" --for-user --out out_v4_user
 
       # the brief blocks its own export on any gate failure, so a green
       # step above already means every displayed number reconciled
@@ -66,7 +64,7 @@ jobs:
       # fails the job instead of shipping.
       - name: Assert validation clean and hash-bound
         run: |
-          python - <<'EOF'
+          uv run python - <<'EOF'
           import glob, json, sys
           f = sorted(glob.glob("out_v4_user/*_validation.json"))
           if not f:

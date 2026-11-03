@@ -10,12 +10,11 @@ Output per ticker:
   - cluster_score:  composite signal strength
 """
 
-import os
-import re
 import time
-import requests
 from datetime import datetime, timedelta
 from xml.etree import ElementTree as ET
+
+import requests
 
 # SEC EDGAR requires a User-Agent with contact info
 SEC_HEADERS = {
@@ -48,8 +47,7 @@ def _load_cik_lookup():
     try:
         _throttle()
         resp = requests.get(
-            "https://www.sec.gov/files/company_tickers.json",
-            headers=SEC_HEADERS, timeout=20
+            "https://www.sec.gov/files/company_tickers.json", headers=SEC_HEADERS, timeout=20
         )
         if resp.status_code != 200:
             return _CIK_CACHE
@@ -67,12 +65,12 @@ def _load_cik_lookup():
 
 def _empty_result():
     return {
-        "count":           0,
-        "value_usd":       0,
-        "senior_buys":     0,
+        "count": 0,
+        "value_usd": 0,
+        "senior_buys": 0,
         "unique_insiders": 0,
-        "cluster_score":   0,
-        "summary":         "",
+        "cluster_score": 0,
+        "summary": "",
     }
 
 
@@ -93,8 +91,7 @@ def fetch_insider_activity(ticker, days_back=60, max_filings=15):
     try:
         _throttle()
         resp = requests.get(
-            f"https://data.sec.gov/submissions/CIK{cik}.json",
-            headers=SEC_HEADERS, timeout=15
+            f"https://data.sec.gov/submissions/CIK{cik}.json", headers=SEC_HEADERS, timeout=15
         )
         if resp.status_code != 200:
             return result
@@ -102,9 +99,9 @@ def fetch_insider_activity(ticker, days_back=60, max_filings=15):
     except Exception:
         return result
 
-    forms     = filings.get("form", [])
-    accs      = filings.get("accessionNumber", [])
-    dates     = filings.get("filingDate", [])
+    forms = filings.get("form", [])
+    accs = filings.get("accessionNumber", [])
+    dates = filings.get("filingDate", [])
     primaries = filings.get("primaryDocument", [])
 
     cutoff = datetime.now().date() - timedelta(days=days_back)
@@ -133,7 +130,7 @@ def fetch_insider_activity(ticker, days_back=60, max_filings=15):
 
     for i in form4_indices[:max_filings]:
         acc_clean = accs[i].replace("-", "")
-        primary   = primaries[i]
+        primary = primaries[i]
         # The primaryDocument path includes the xsl wrapper; the raw XML is the basename only
         # e.g. "xslF345X06/form4.xml" → fetch as "form4.xml"
         raw_name = primary.split("/")[-1]
@@ -152,14 +149,28 @@ def fetch_insider_activity(ticker, days_back=60, max_filings=15):
                 continue
 
             # Reporting owner info
-            owner_name = (root.findtext(".//reportingOwner/reportingOwnerId/rptOwnerName") or "").strip()
-            officer_title = (root.findtext(".//reportingOwner/reportingOwnerRelationship/officerTitle") or "").lower()
-            is_officer = root.findtext(".//reportingOwner/reportingOwnerRelationship/isOfficer") == "1"
+            owner_name = (
+                root.findtext(".//reportingOwner/reportingOwnerId/rptOwnerName") or ""
+            ).strip()
+            officer_title = (
+                root.findtext(".//reportingOwner/reportingOwnerRelationship/officerTitle") or ""
+            ).lower()
+            is_officer = (
+                root.findtext(".//reportingOwner/reportingOwnerRelationship/isOfficer") == "1"
+            )
 
-            is_senior = is_officer and any(t in officer_title for t in [
-                "ceo", "cfo", "coo", "chief executive", "chief financial",
-                "chief operating", "president"
-            ])
+            is_senior = is_officer and any(
+                t in officer_title
+                for t in [
+                    "ceo",
+                    "cfo",
+                    "coo",
+                    "chief executive",
+                    "chief financial",
+                    "chief operating",
+                    "president",
+                ]
+            )
 
             # Walk through nonDerivative purchases (code P = open market buy)
             had_buy = False
@@ -169,12 +180,12 @@ def fetch_insider_activity(ticker, days_back=60, max_filings=15):
                     continue
 
                 shares_str = txn.findtext(".//transactionShares/value") or "0"
-                price_str  = txn.findtext(".//transactionPricePerShare/value") or "0"
+                price_str = txn.findtext(".//transactionPricePerShare/value") or "0"
 
                 try:
                     shares = float(shares_str)
-                    price  = float(price_str)
-                except (ValueError, TypeError):
+                    price = float(price_str)
+                except ValueError, TypeError:
                     continue
 
                 if shares > 0 and price > 0:
@@ -198,8 +209,10 @@ def fetch_insider_activity(ticker, days_back=60, max_filings=15):
         # Senior officer multiplier
         cluster_score += senior_count * 3
         # Bonus for material dollar size (>$250K = serious buy)
-        if total_value >= 1_000_000: cluster_score += 5
-        elif total_value >= 250_000: cluster_score += 2
+        if total_value >= 1_000_000:
+            cluster_score += 5
+        elif total_value >= 250_000:
+            cluster_score += 2
 
     # Build human-readable summary
     summary = ""
@@ -210,18 +223,18 @@ def fetch_insider_activity(ticker, days_back=60, max_filings=15):
         if senior_count > 0:
             parts.append(f"{senior_count} C-suite")
         if total_value >= 1_000_000:
-            parts.append(f"${total_value/1e6:.1f}M total")
+            parts.append(f"${total_value / 1e6:.1f}M total")
         elif total_value >= 1_000:
-            parts.append(f"${total_value/1e3:.0f}K total")
+            parts.append(f"${total_value / 1e3:.0f}K total")
         summary = ", ".join(parts) + f" (last {days_back}d)"
 
     return {
-        "count":           buy_count,
-        "value_usd":       int(total_value),
-        "senior_buys":     senior_count,
+        "count": buy_count,
+        "value_usd": int(total_value),
+        "senior_buys": senior_count,
         "unique_insiders": len(unique_insiders),
-        "cluster_score":   cluster_score,
-        "summary":         summary,
+        "cluster_score": cluster_score,
+        "summary": summary,
     }
 
 
@@ -242,8 +255,7 @@ def fetch_insider_transactions_detail(ticker, days_back=365, max_filings=40):
     try:
         _throttle()
         resp = requests.get(
-            f"https://data.sec.gov/submissions/CIK{cik}.json",
-            headers=SEC_HEADERS, timeout=15
+            f"https://data.sec.gov/submissions/CIK{cik}.json", headers=SEC_HEADERS, timeout=15
         )
         if resp.status_code != 200:
             return transactions
@@ -251,9 +263,9 @@ def fetch_insider_transactions_detail(ticker, days_back=365, max_filings=40):
     except Exception:
         return transactions
 
-    forms     = filings.get("form", [])
-    accs      = filings.get("accessionNumber", [])
-    dates     = filings.get("filingDate", [])
+    forms = filings.get("form", [])
+    accs = filings.get("accessionNumber", [])
+    dates = filings.get("filingDate", [])
     primaries = filings.get("primaryDocument", [])
 
     cutoff = datetime.now().date() - timedelta(days=days_back)
@@ -271,14 +283,20 @@ def fetch_insider_transactions_detail(ticker, days_back=365, max_filings=40):
     cik_int = int(cik.lstrip("0")) if cik.lstrip("0") else int(cik)
 
     code_labels = {
-        "P": "Buy",  "S": "Sale",  "M": "Opt Exer",  "A": "Grant",
-        "F": "Tax W/H", "D": "Disposition", "G": "Gift", "C": "Convert",
+        "P": "Buy",
+        "S": "Sale",
+        "M": "Opt Exer",
+        "A": "Grant",
+        "F": "Tax W/H",
+        "D": "Disposition",
+        "G": "Gift",
+        "C": "Convert",
     }
 
     for i in form4_indices[:max_filings]:
         acc_clean = accs[i].replace("-", "")
-        primary   = primaries[i]
-        raw_name  = primary.split("/")[-1]
+        primary = primaries[i]
+        raw_name = primary.split("/")[-1]
         url = f"https://www.sec.gov/Archives/edgar/data/{cik_int}/{acc_clean}/{raw_name}"
 
         try:
@@ -292,9 +310,15 @@ def fetch_insider_transactions_detail(ticker, days_back=365, max_filings=40):
             except ET.ParseError:
                 continue
 
-            owner_name = (root.findtext(".//reportingOwner/reportingOwnerId/rptOwnerName") or "").strip()
-            officer_title = (root.findtext(".//reportingOwner/reportingOwnerRelationship/officerTitle") or "").strip()
-            is_director = root.findtext(".//reportingOwner/reportingOwnerRelationship/isDirector") == "1"
+            owner_name = (
+                root.findtext(".//reportingOwner/reportingOwnerId/rptOwnerName") or ""
+            ).strip()
+            officer_title = (
+                root.findtext(".//reportingOwner/reportingOwnerRelationship/officerTitle") or ""
+            ).strip()
+            is_director = (
+                root.findtext(".//reportingOwner/reportingOwnerRelationship/isDirector") == "1"
+            )
 
             title_disp = officer_title or ("Director" if is_director else "10% Owner")
 
@@ -305,27 +329,29 @@ def fetch_insider_transactions_detail(ticker, days_back=365, max_filings=40):
 
                 txn_date = txn.findtext(".//transactionDate/value") or dates[i]
                 shares_str = txn.findtext(".//transactionShares/value") or "0"
-                price_str  = txn.findtext(".//transactionPricePerShare/value") or "0"
+                price_str = txn.findtext(".//transactionPricePerShare/value") or "0"
 
                 try:
                     shares = float(shares_str)
-                    price  = float(price_str)
-                except (ValueError, TypeError):
+                    price = float(price_str)
+                except ValueError, TypeError:
                     continue
 
                 if shares <= 0:
                     continue
 
-                transactions.append({
-                    "date":       txn_date,
-                    "owner":      owner_name,
-                    "title":      title_disp,
-                    "code":       code,
-                    "code_label": code_labels[code],
-                    "shares":     shares,
-                    "price":      price,
-                    "value":      shares * price,
-                })
+                transactions.append(
+                    {
+                        "date": txn_date,
+                        "owner": owner_name,
+                        "title": title_disp,
+                        "code": code,
+                        "code_label": code_labels[code],
+                        "shares": shares,
+                        "price": price,
+                        "value": shares * price,
+                    }
+                )
 
         except Exception:
             continue
@@ -343,17 +369,17 @@ def enrich_candidates_with_insiders(candidates, days_back=60):
             insider = fetch_insider_activity(c.get("ticker", ""), days_back=days_back)
         except Exception:
             insider = _empty_result()
-        c["insider_count"]     = insider["count"]
-        c["insider_value"]     = insider["value_usd"]
-        c["insider_senior"]    = insider["senior_buys"]
-        c["insider_cluster"]   = insider["cluster_score"]
-        c["insider_summary"]   = insider["summary"]
+        c["insider_count"] = insider["count"]
+        c["insider_value"] = insider["value_usd"]
+        c["insider_senior"] = insider["senior_buys"]
+        c["insider_cluster"] = insider["cluster_score"]
+        c["insider_summary"] = insider["summary"]
     return candidates
 
 
 if __name__ == "__main__":
     # Smoke test
-    import json
+
     for t in ["AAPL", "BKSY", "BE", "TSLA"]:
         r = fetch_insider_activity(t, days_back=90)
         print(f"{t}: {r['summary'] or 'no recent buys'}  (cluster={r['cluster_score']})")

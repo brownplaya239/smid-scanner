@@ -19,7 +19,6 @@ know, because the invented answer looks like a fact.
     python exchange_calendar.py --self-test
 """
 
-import sys
 from datetime import date, datetime, time, timedelta
 
 import brief_time as BT
@@ -28,15 +27,43 @@ import brief_time as BT
 # preceding Friday, a Sunday holiday on the following Monday). Verified
 # against the NYSE/Cboe published schedules for these years only.
 HOLIDAYS = {
-    2025: ["2025-01-01", "2025-01-09", "2025-01-20", "2025-02-17",
-           "2025-04-18", "2025-05-26", "2025-06-19", "2025-07-04",
-           "2025-09-01", "2025-11-27", "2025-12-25"],
-    2026: ["2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03",
-           "2026-05-25", "2026-06-19", "2026-07-03", "2026-09-07",
-           "2026-11-26", "2026-12-25"],
-    2027: ["2027-01-01", "2027-01-18", "2027-02-15", "2027-03-26",
-           "2027-05-31", "2027-06-18", "2027-07-05", "2027-09-06",
-           "2027-11-25", "2027-12-24"],
+    2025: [
+        "2025-01-01",
+        "2025-01-09",
+        "2025-01-20",
+        "2025-02-17",
+        "2025-04-18",
+        "2025-05-26",
+        "2025-06-19",
+        "2025-07-04",
+        "2025-09-01",
+        "2025-11-27",
+        "2025-12-25",
+    ],
+    2026: [
+        "2026-01-01",
+        "2026-01-19",
+        "2026-02-16",
+        "2026-04-03",
+        "2026-05-25",
+        "2026-06-19",
+        "2026-07-03",
+        "2026-09-07",
+        "2026-11-26",
+        "2026-12-25",
+    ],
+    2027: [
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-06-18",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+    ],
 }
 # 13:00 ET equity close (options follow, index options 13:15).
 HALF_DAYS = {
@@ -47,8 +74,20 @@ HALF_DAYS = {
 KNOWN_YEARS = tuple(sorted(HOLIDAYS))
 
 # Products whose options run past the equity close.
-INDEX_ROOTS = ("SPX", "SPXW", "XSP", "NDX", "NDXP", "XND", "RUT", "RUTW",
-               "MRUT", "VIX", "VIXW", "DJX")
+INDEX_ROOTS = (
+    "SPX",
+    "SPXW",
+    "XSP",
+    "NDX",
+    "NDXP",
+    "XND",
+    "RUT",
+    "RUTW",
+    "MRUT",
+    "VIX",
+    "VIXW",
+    "DJX",
+)
 EQUITY_CLOSE = time(16, 0)
 INDEX_CLOSE = time(16, 15)
 HALF_EQUITY_CLOSE = time(13, 0)
@@ -71,7 +110,8 @@ def _require_year(y):
     if y not in HOLIDAYS:
         raise CalendarRangeError(
             "no exchange calendar for %d; known years are %s — extend the "
-            "table rather than inferring" % (y, list(KNOWN_YEARS)))
+            "table rather than inferring" % (y, list(KNOWN_YEARS))
+        )
 
 
 def is_holiday(d):
@@ -142,8 +182,7 @@ def root_of(occ_or_ticker):
     differenced across the adjustment.
     """
     s = str(occ_or_ticker or "").upper()
-    if s.startswith("O:"):
-        s = s[2:]
+    s = s.removeprefix("O:")
     if len(s) > 15 and _OCC_TAIL.search(s[-15:]):
         return s[:-15]
     i = 0
@@ -187,8 +226,7 @@ def session_of(dt, occ_or_ticker=""):
     _require_year(d.year)
     if is_session(d) and et <= session_close_dt(d, occ_or_ticker):
         return d
-    return next_session(d) if not is_session(d) or \
-        et > session_close_dt(d, occ_or_ticker) else d
+    return next_session(d) if not is_session(d) or et > session_close_dt(d, occ_or_ticker) else d
 
 
 def is_frozen(session_date, now_et, occ_or_ticker=""):
@@ -202,8 +240,7 @@ def self_test():
 
     def chk(n, c, d=""):
         ran[0] += 1
-        print(("  PASS  " if c else "  FAIL  ") + n
-              + ("" if c else "  <- %s" % (d,)))
+        print(("  PASS  " if c else "  FAIL  ") + n + ("" if c else "  <- %s" % (d,)))
         if not c:
             fails.append(n)
 
@@ -211,58 +248,89 @@ def self_test():
     chk("Saturday is not a session", not is_session("2026-07-25"))
     chk("Christmas is a holiday", is_holiday("2026-12-25"))
     chk("Good Friday is a holiday", is_holiday("2026-04-03"))
-    chk("July 4 on a Saturday is observed on the Friday",
-        is_holiday("2026-07-03") and not is_session("2026-07-03"))
+    chk(
+        "July 4 on a Saturday is observed on the Friday",
+        is_holiday("2026-07-03") and not is_session("2026-07-03"),
+    )
 
-    chk("Monday's previous session is Friday",
+    chk(
+        "Monday's previous session is Friday",
         previous_session("2026-07-20").isoformat() == "2026-07-17",
-        previous_session("2026-07-20"))
-    chk("the day after Thanksgiving looks back to Wednesday",
+        previous_session("2026-07-20"),
+    )
+    chk(
+        "the day after Thanksgiving looks back to Wednesday",
         previous_session("2026-11-27").isoformat() == "2026-11-25",
-        previous_session("2026-11-27"))
-    chk("the day after Christmas looks back over the holiday",
+        previous_session("2026-11-27"),
+    )
+    chk(
+        "the day after Christmas looks back over the holiday",
         previous_session("2026-12-28").isoformat() == "2026-12-24",
-        previous_session("2026-12-28"))
-    chk("previous session never returns a weekend",
-        all(previous_session(d).weekday() < 5
-            for d in ("2026-07-20", "2026-07-21", "2026-01-04")))
-    chk("next session skips the holiday",
+        previous_session("2026-12-28"),
+    )
+    chk(
+        "previous session never returns a weekend",
+        all(previous_session(d).weekday() < 5 for d in ("2026-07-20", "2026-07-21", "2026-01-04")),
+    )
+    chk(
+        "next session skips the holiday",
         next_session("2026-07-02").isoformat() == "2026-07-06",
-        next_session("2026-07-02"))
-    chk("sessions_between excludes holidays and weekends",
+        next_session("2026-07-02"),
+    )
+    chk(
+        "sessions_between excludes holidays and weekends",
         [d.isoformat() for d in sessions_between("2026-07-17", "2026-07-21")]
         == ["2026-07-17", "2026-07-20", "2026-07-21"],
-        sessions_between("2026-07-17", "2026-07-21"))
+        sessions_between("2026-07-17", "2026-07-21"),
+    )
 
-    chk("equity options close at 16:00",
-        close_time("2026-07-22", "O:TSLA260724C00380000") == time(16, 0))
-    chk("index options close at 16:15",
+    chk(
+        "equity options close at 16:00",
+        close_time("2026-07-22", "O:TSLA260724C00380000") == time(16, 0),
+    )
+    chk(
+        "index options close at 16:15",
         close_time("2026-07-22", "O:SPXW260722P06000000") == time(16, 15),
-        close_time("2026-07-22", "O:SPXW260722P06000000"))
-    chk("half day closes equities at 13:00",
-        close_time("2026-11-27", "O:AAPL261218C00300000") == time(13, 0))
-    chk("half day closes index options at 13:15",
-        close_time("2026-11-27", "O:SPX261218C06000000") == time(13, 15))
-    chk("root parsed from an OCC symbol",
+        close_time("2026-07-22", "O:SPXW260722P06000000"),
+    )
+    chk(
+        "half day closes equities at 13:00",
+        close_time("2026-11-27", "O:AAPL261218C00300000") == time(13, 0),
+    )
+    chk(
+        "half day closes index options at 13:15",
+        close_time("2026-11-27", "O:SPX261218C06000000") == time(13, 15),
+    )
+    chk(
+        "root parsed from an OCC symbol",
         root_of("O:BRK.B260724C00500000") == "BRK.B",
-        root_of("O:BRK.B260724C00500000"))
+        root_of("O:BRK.B260724C00500000"),
+    )
     chk("index product detected", is_index_product("O:SPXW260722P06000000"))
-    chk("equity product not treated as index",
-        not is_index_product("O:TSLA260724C00380000"))
+    chk("equity product not treated as index", not is_index_product("O:TSLA260724C00380000"))
 
     late = datetime(2026, 7, 22, 16, 7, tzinfo=BT.ET)
-    chk("16:07 belongs to the same session for SPX",
-        session_of(late, "O:SPXW260722P06000000").isoformat() == "2026-07-22")
-    chk("16:07 rolls to the next session for an equity option",
+    chk(
+        "16:07 belongs to the same session for SPX",
+        session_of(late, "O:SPXW260722P06000000").isoformat() == "2026-07-22",
+    )
+    chk(
+        "16:07 rolls to the next session for an equity option",
         session_of(late, "O:TSLA260724C00380000").isoformat() == "2026-07-23",
-        session_of(late, "O:TSLA260724C00380000"))
-    chk("an equity aggregate is frozen after 16:00",
-        is_frozen("2026-07-22", datetime(2026, 7, 22, 16, 1, tzinfo=BT.ET),
-                  "O:TSLA260724C00380000"))
-    chk("an index aggregate is NOT frozen at 16:01",
-        not is_frozen("2026-07-22",
-                      datetime(2026, 7, 22, 16, 1, tzinfo=BT.ET),
-                      "O:SPXW260722P06000000"))
+        session_of(late, "O:TSLA260724C00380000"),
+    )
+    chk(
+        "an equity aggregate is frozen after 16:00",
+        is_frozen(
+            "2026-07-22", datetime(2026, 7, 22, 16, 1, tzinfo=BT.ET), "O:TSLA260724C00380000"
+        ),
+    )
+    chk(
+        "an index aggregate is NOT frozen at 16:01",
+        not is_frozen(
+            "2026-07-22", datetime(2026, 7, 22, 16, 1, tzinfo=BT.ET), "O:SPXW260722P06000000"
+        ),
+    )
 
     try:
         is_session("2031-03-04")

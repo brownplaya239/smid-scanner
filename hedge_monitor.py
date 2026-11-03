@@ -33,7 +33,7 @@ import json
 import os
 import sys
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 LATEST = os.path.join(_BASE, "docs", "reports", "uoa_latest.json")
@@ -46,25 +46,30 @@ WORKER = "https://api.tickerdesk.io/"
 FROZEN = {
     "hm_ver": "v1-2026-07-21",
     "cohort": "type==put AND flow_side not seller AND 22<=dte<=60",
-    "adverse_episode": ("SPY close-to-close day return <= -1.0%; "
-                        "adverse dates within 2 trading days of each "
-                        "other merge into ONE episode"),
+    "adverse_episode": (
+        "SPY close-to-close day return <= -1.0%; "
+        "adverse dates within 2 trading days of each "
+        "other merge into ONE episode"
+    ),
     "strength_metric": "cohort premium share of batch total premium",
     "horizons_d": [1, 3, 5],
-    "fill_assumption": ("last trade price per contract, 15-min delayed; "
-                        "spread haircut by liquidity grade on entry+exit: "
-                        "A 0.4 / B 0.7 / C 1.5 / D 2.5 pp of underlying-"
-                        "equivalent; index puts: recorded ATM quote, "
-                        "0.3pp haircut"),
+    "fill_assumption": (
+        "last trade price per contract, 15-min delayed; "
+        "spread haircut by liquidity grade on entry+exit: "
+        "A 0.4 / B 0.7 / C 1.5 / D 2.5 pp of underlying-"
+        "equivalent; index puts: recorded ATM quote, "
+        "0.3pp haircut"
+    ),
     "hedge_budget_usd": 10_000,
     "promotion_gates": {
-        "hedge_sleeve": [">=2 independent adverse episodes observed",
-                          "payoff/carry >= 1.0 executable"],
+        "hedge_sleeve": [
+            ">=2 independent adverse episodes observed",
+            "payoff/carry >= 1.0 executable",
+        ],
         "alpha": "separate conclusion — see uoa_research avoidance gates",
     },
 }
-FROZEN_HASH = hashlib.sha256(
-    json.dumps(FROZEN, sort_keys=True).encode()).hexdigest()
+FROZEN_HASH = hashlib.sha256(json.dumps(FROZEN, sort_keys=True).encode()).hexdigest()
 
 # ── MEASUREMENT SEMANTICS (separate role from the hypothesis) ──────────
 # How quantities are MEASURED: parsing, normalization, quote selection,
@@ -80,119 +85,176 @@ MEASUREMENT = {
     # the label as the hash.
     "meas_ver": "m3-2026-07-21",
     "first_eligible": {
-        "rule": ("the day's ONE independent observation = the first "
-                 "successful stamped record whose batch_generated "
-                 "falls inside the FIXED TARGET WINDOW [15:30, 16:05) "
-                 "ET of that session date. The window exists because "
-                 "signal strength evolves intraday: a 09:31 read and a "
-                 "15:35 read are different measurements, so worker "
-                 "restarts or schedule drift must not move the "
-                 "observation time."),
-        "expected_batch": ("target = the 15:35 ET scheduled scan "
-                           "(uoa.yml cron '35 19 * * 1-5' UTC) with a "
-                           "+30 min tolerance for GitHub cron dispatch "
-                           "delay (observed up to ~20 min on "
-                           "2026-07-21: the 15:35 scan fired 15:52). "
-                           "If the 15:35 scan is skipped or delayed "
-                           "past ~15:55, the 15:55 ET scheduled scan "
-                           "lands in-window instead — both read the "
-                           "SAME day-cumulative fields, and <=30 min "
-                           "of timing variance is within the feed's "
-                           "own resolution (15-min delayed, ~75-min "
-                           "worst-case snapshot cadence). Residual "
-                           "variance is disclosed, not hidden. If the "
-                           "scan schedule itself changes, that is a "
-                           "new meas_ver."),
-        "missed_scan": ("no record inside the window -> the session is "
-                        "MISSING; never backfilled, never substituted "
-                        "with an out-of-window batch"),
-        "late_arrival": ("eligibility is deterministic on "
-                         "batch_generated, never on arrival/append "
-                         "time — a late-appended record with an "
-                         "in-window batch_generated is used on the "
-                         "next evaluation, identically"),
-        "holiday_halfday": ("exchange-closed days fire no batches and "
-                            "are simply absent; EARLY-CLOSE days (1:00 "
-                            "PM ET) have no 15:35 batch and are "
-                            "therefore MISSING by construction — "
-                            "counted as such, never approximated"),
+        "rule": (
+            "the day's ONE independent observation = the first "
+            "successful stamped record whose batch_generated "
+            "falls inside the FIXED TARGET WINDOW [15:30, 16:05) "
+            "ET of that session date. The window exists because "
+            "signal strength evolves intraday: a 09:31 read and a "
+            "15:35 read are different measurements, so worker "
+            "restarts or schedule drift must not move the "
+            "observation time."
+        ),
+        "expected_batch": (
+            "target = the 15:35 ET scheduled scan "
+            "(uoa.yml cron '35 19 * * 1-5' UTC) with a "
+            "+30 min tolerance for GitHub cron dispatch "
+            "delay (observed up to ~20 min on "
+            "2026-07-21: the 15:35 scan fired 15:52). "
+            "If the 15:35 scan is skipped or delayed "
+            "past ~15:55, the 15:55 ET scheduled scan "
+            "lands in-window instead — both read the "
+            "SAME day-cumulative fields, and <=30 min "
+            "of timing variance is within the feed's "
+            "own resolution (15-min delayed, ~75-min "
+            "worst-case snapshot cadence). Residual "
+            "variance is disclosed, not hidden. If the "
+            "scan schedule itself changes, that is a "
+            "new meas_ver."
+        ),
+        "missed_scan": (
+            "no record inside the window -> the session is "
+            "MISSING; never backfilled, never substituted "
+            "with an out-of-window batch"
+        ),
+        "late_arrival": (
+            "eligibility is deterministic on "
+            "batch_generated, never on arrival/append "
+            "time — a late-appended record with an "
+            "in-window batch_generated is used on the "
+            "next evaluation, identically"
+        ),
+        "holiday_halfday": (
+            "exchange-closed days fire no batches and "
+            "are simply absent; EARLY-CLOSE days (1:00 "
+            "PM ET) have no 15:35 batch and are "
+            "therefore MISSING by construction — "
+            "counted as such, never approximated"
+        ),
     },
     # NYSE full-closure holidays used by the exclusion deadline (frozen;
     # extend only via a new meas_ver).
     "nyse_holidays": [
-        "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03",
-        "2026-05-25", "2026-06-19", "2026-07-03", "2026-09-07",
-        "2026-11-26", "2026-12-25",
-        "2027-01-01", "2027-01-18", "2027-02-15", "2027-03-26",
-        "2027-05-31", "2027-06-18", "2027-07-05", "2027-09-06",
-        "2027-11-25", "2027-12-24",
+        "2026-01-01",
+        "2026-01-19",
+        "2026-02-16",
+        "2026-04-03",
+        "2026-05-25",
+        "2026-06-19",
+        "2026-07-03",
+        "2026-09-07",
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-06-18",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
     ],
     "exclusion_governance": {
         "reason_codes": {
-            "MALFORMED_JSON": "objective integrity failure — "
-                              "permitted at ANY time",
+            "MALFORMED_JSON": "objective integrity failure — permitted at ANY time",
             "SCHEMA_VIOLATION": "objective — permitted at any time",
             "PRE_STAMP_ERA": "record predates measurement stamping",
             "PARSER_DEFECT_OBJECTIVE": "documented recording defect",
-            "MEAS_VERSION_SUPERSEDED": "spec forked before this "
-                                       "record's outcome matured",
+            "MEAS_VERSION_SUPERSEDED": "spec forked before this record's outcome matured",
         },
-        "timing": ("a non-objective exclusion is VALID only if recorded "
-                   "BEFORE the earliest evaluated outcome is "
-                   "observable: strictly before 16:00 ET of the NEXT "
-                   "TRADING SESSION after the record's session date "
-                   "(the +1d close), computed on the NYSE calendar "
-                   "above — never calendar-day arithmetic. Once any "
-                   "outcome is observable, discretionary exclusion is "
-                   "impossible within this meas_ver. Objective "
-                   "integrity exclusions (MALFORMED_JSON / "
-                   "SCHEMA_VIOLATION) detected late do NOT silently "
-                   "alter the outcome-known primary pool: the record "
-                   "stays in the primary view and a sensitivity view "
-                   "without it is published alongside. The evaluator "
-                   "ENFORCES all of this: late/unknown exclusions are "
-                   "ignored for the primary pool and flagged."),
-        "required_fields": ["record_ts", "record_hash", "reason_code",
-                            "excluded_at", "by", "evidence"],
-        "disclosure": ("every evaluation publishes exclusion counts by "
-                       "reason code + a sensitivity read including "
-                       "quarantined records where parseable"),
+        "timing": (
+            "a non-objective exclusion is VALID only if recorded "
+            "BEFORE the earliest evaluated outcome is "
+            "observable: strictly before 16:00 ET of the NEXT "
+            "TRADING SESSION after the record's session date "
+            "(the +1d close), computed on the NYSE calendar "
+            "above — never calendar-day arithmetic. Once any "
+            "outcome is observable, discretionary exclusion is "
+            "impossible within this meas_ver. Objective "
+            "integrity exclusions (MALFORMED_JSON / "
+            "SCHEMA_VIOLATION) detected late do NOT silently "
+            "alter the outcome-known primary pool: the record "
+            "stays in the primary view and a sensitivity view "
+            "without it is published alongside. The evaluator "
+            "ENFORCES all of this: late/unknown exclusions are "
+            "ignored for the primary pool and flagged."
+        ),
+        "required_fields": [
+            "record_ts",
+            "record_hash",
+            "reason_code",
+            "excluded_at",
+            "by",
+            "evidence",
+        ],
+        "disclosure": (
+            "every evaluation publishes exclusion counts by "
+            "reason code + a sensitivity read including "
+            "quarantined records where parseable"
+        ),
     },
-    "membership_parse": ("uoa_latest rows: type=='put' AND flow_side not "
-                         "in (put_seller, call_seller) AND 22<=dte<=60"),
+    "membership_parse": (
+        "uoa_latest rows: type=='put' AND flow_side not "
+        "in (put_seller, call_seller) AND 22<=dte<=60"
+    ),
     "strength_calc": "sum(member premium) / sum(all-row premium)",
-    "fill_construction": ("member last_price as logged (15-min delayed); "
-                          "haircuts A0.4/B0.7/C1.5/D2.5 pp applied at "
-                          "evaluation, not recording"),
-    "index_put_selection": ("worker chain0 rows: t=='P', furthest of the "
-                            "<=2 served expiries, nearest strike at/below "
-                            "spot, px=last. PROXY_ONLY: short-dated "
-                            "(endpoint serves nearest 2 expiries) — can "
-                            "NEVER satisfy a duration-matched "
-                            "comparative-efficiency promotion claim. "
-                            "Genuine 22-60 DTE quotes require a new "
-                            "meas_ver."),
-    "daily_aggregation": ("FIRST eligible record per ET session date is "
-                          "THE day's independent observation — fixed "
-                          "ex-ante; the strongest intraday signal is "
-                          "never retrospectively selected"),
+    "fill_construction": (
+        "member last_price as logged (15-min delayed); "
+        "haircuts A0.4/B0.7/C1.5/D2.5 pp applied at "
+        "evaluation, not recording"
+    ),
+    "index_put_selection": (
+        "worker chain0 rows: t=='P', furthest of the "
+        "<=2 served expiries, nearest strike at/below "
+        "spot, px=last. PROXY_ONLY: short-dated "
+        "(endpoint serves nearest 2 expiries) — can "
+        "NEVER satisfy a duration-matched "
+        "comparative-efficiency promotion claim. "
+        "Genuine 22-60 DTE quotes require a new "
+        "meas_ver."
+    ),
+    "daily_aggregation": (
+        "FIRST eligible record per ET session date is "
+        "THE day's independent observation — fixed "
+        "ex-ante; the strongest intraday signal is "
+        "never retrospectively selected"
+    ),
     "market_quotes": "yfinance daily closes; VIX ^VIX; trend = 5d pct",
 }
-MEAS_HASH = hashlib.sha256(
-    json.dumps(MEASUREMENT, sort_keys=True).encode()).hexdigest()
+MEAS_HASH = hashlib.sha256(json.dumps(MEASUREMENT, sort_keys=True).encode()).hexdigest()
 HAIRCUT = {"A": 0.4, "B": 0.7, "C": 1.5, "D": 2.5}
 EXCLUSIONS = os.path.join(_BASE, "data", "hedge_monitor_exclusions.jsonl")
 
-SCHEMA_FIELDS = sorted([
-    "ts", "hm_ver", "frozen_hash", "meas_ver", "measurement_hash",
-    "code_hash", "schema_hash",
-    "batch_generated", "cohort_n", "cohort_premium", "batch_premium",
-    "strength", "members", "spy", "qqq", "vix", "vix_chg",
-    "spy_trend5", "breadth_regime", "batch_putcall_prem",
-    "book_bull_share", "index_put_spy", "index_put_qqq",
-])
-SCHEMA_HASH = hashlib.sha256(
-    ",".join(SCHEMA_FIELDS).encode()).hexdigest()[:16]
+SCHEMA_FIELDS = sorted(
+    [
+        "ts",
+        "hm_ver",
+        "frozen_hash",
+        "meas_ver",
+        "measurement_hash",
+        "code_hash",
+        "schema_hash",
+        "batch_generated",
+        "cohort_n",
+        "cohort_premium",
+        "batch_premium",
+        "strength",
+        "members",
+        "spy",
+        "qqq",
+        "vix",
+        "vix_chg",
+        "spy_trend5",
+        "breadth_regime",
+        "batch_putcall_prem",
+        "book_bull_share",
+        "index_put_spy",
+        "index_put_qqq",
+    ]
+)
+SCHEMA_HASH = hashlib.sha256(",".join(SCHEMA_FIELDS).encode()).hexdigest()[:16]
 
 
 def _code_hash():
@@ -214,25 +276,29 @@ def _load(path):
 def _yf_quotes():
     """SPY/QQQ/VIX point-in-time via yfinance (keyless, already a repo
     dependency). Returns dict or Nones on failure — fail-open."""
-    out = {"spy": None, "qqq": None, "vix": None, "vix_chg": None,
-           "spy_trend5": None}
+    out = {"spy": None, "qqq": None, "vix": None, "vix_chg": None, "spy_trend5": None}
     try:
         import yfinance as yf
-        h = yf.download(["SPY", "QQQ", "^VIX"], period="10d",
-                        interval="1d", auto_adjust=True,
-                        group_by="ticker", progress=False, threads=True)
+
+        h = yf.download(
+            ["SPY", "QQQ", "^VIX"],
+            period="10d",
+            interval="1d",
+            auto_adjust=True,
+            group_by="ticker",
+            progress=False,
+            threads=True,
+        )
         spy = h["SPY"]["Close"].dropna()
         qqq = h["QQQ"]["Close"].dropna()
         vix = h["^VIX"]["Close"].dropna()
         out["spy"] = round(float(spy.iloc[-1]), 2)
         out["qqq"] = round(float(qqq.iloc[-1]), 2)
         if len(spy) >= 6:
-            out["spy_trend5"] = round(
-                100 * (float(spy.iloc[-1]) / float(spy.iloc[-6]) - 1), 2)
+            out["spy_trend5"] = round(100 * (float(spy.iloc[-1]) / float(spy.iloc[-6]) - 1), 2)
         out["vix"] = round(float(vix.iloc[-1]), 2)
         if len(vix) >= 2:
-            out["vix_chg"] = round(float(vix.iloc[-1]) -
-                                   float(vix.iloc[-2]), 2)
+            out["vix_chg"] = round(float(vix.iloc[-1]) - float(vix.iloc[-2]), 2)
     except Exception:
         pass
     return out
@@ -242,8 +308,9 @@ def _index_put(sym):
     """Nearest-expiry ~ATM put from the worker chain snapshot — the
     executable index-hedge quote recorded point-in-time. Fail-open."""
     try:
-        req = urllib.request.Request(WORKER + "?chain0=" + sym,
-                                     headers={"User-Agent": "Mozilla/5.0"})
+        req = urllib.request.Request(
+            WORKER + "?chain0=" + sym, headers={"User-Agent": "Mozilla/5.0"}
+        )
         with urllib.request.urlopen(req, timeout=20) as r:
             d = json.loads(r.read().decode("utf-8"))
         spot = d.get("spot")
@@ -253,7 +320,7 @@ def _index_put(sym):
         expiries = d.get("expiries") or []
         want_e = expiries[-1] if expiries else None
         best = None
-        for c in (d.get("rows") or []):
+        for c in d.get("rows") or []:
             if c.get("t") not in ("P", "put"):
                 continue
             if want_e and c.get("e") != want_e:
@@ -263,9 +330,13 @@ def _index_put(sym):
             if not spot or k is None or not px or k > spot:
                 continue
             if best is None or (spot - k) < (spot - best["strike"]):
-                best = {"strike": k, "px": round(px, 2),
-                        "expiry": c.get("e"), "spot": round(spot, 2),
-                        "label": "PROXY_ONLY"}
+                best = {
+                    "strike": k,
+                    "px": round(px, 2),
+                    "expiry": c.get("e"),
+                    "spot": round(spot, 2),
+                    "label": "PROXY_ONLY",
+                }
         return best
     except Exception:
         return None
@@ -288,34 +359,41 @@ def record():
     members = []
     coh_prem = 0.0
     for r in rows:
-        if (r.get("type") == "put"
-                and r.get("flow_side") not in ("put_seller", "call_seller")
-                and r.get("dte") is not None and 22 <= r["dte"] <= 60):
-            members.append({
-                "ticker": r["ticker"], "strike": r["strike"],
-                "expiry": r["expiry"], "dte": r["dte"],
-                "premium": r.get("premium"),
-                "last_price": r.get("last_price"),
-                "liquidity": r.get("liquidity"),
-                "spot": r.get("spot"),
-            })
+        if (
+            r.get("type") == "put"
+            and r.get("flow_side") not in ("put_seller", "call_seller")
+            and r.get("dte") is not None
+            and 22 <= r["dte"] <= 60
+        ):
+            members.append(
+                {
+                    "ticker": r["ticker"],
+                    "strike": r["strike"],
+                    "expiry": r["expiry"],
+                    "dte": r["dte"],
+                    "premium": r.get("premium"),
+                    "last_price": r.get("last_price"),
+                    "liquidity": r.get("liquidity"),
+                    "spot": r.get("spot"),
+                }
+            )
             coh_prem += r.get("premium") or 0
     batch_prem = sum(r.get("premium") or 0 for r in rows) or 1.0
-    put_prem = sum(r.get("premium") or 0 for r in rows
-                   if r.get("type") == "put")
-    call_prem = sum(r.get("premium") or 0 for r in rows
-                    if r.get("type") == "call")
-    bull = sum(r.get("premium") or 0 for r in rows
-               if (r.get("type") == "call") !=
-               (r.get("flow_side") in ("put_seller", "call_seller")))
+    put_prem = sum(r.get("premium") or 0 for r in rows if r.get("type") == "put")
+    call_prem = sum(r.get("premium") or 0 for r in rows if r.get("type") == "call")
+    bull = sum(
+        r.get("premium") or 0
+        for r in rows
+        if (r.get("type") == "call") != (r.get("flow_side") in ("put_seller", "call_seller"))
+    )
     q = _yf_quotes()
     rec = {
-        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "ts": datetime.now(UTC).isoformat(timespec="seconds"),
         "hm_ver": FROZEN["hm_ver"],
         "frozen_hash": FROZEN_HASH,
         "meas_ver": MEASUREMENT["meas_ver"],
         "measurement_hash": MEAS_HASH,
-        "code_hash": _code_hash(),      # audit trail only — never pools
+        "code_hash": _code_hash(),  # audit trail only — never pools
         "schema_hash": SCHEMA_HASH,
         "batch_generated": snap.get("generated"),
         "cohort_n": len(members),
@@ -323,29 +401,44 @@ def record():
         "batch_premium": round(batch_prem),
         "strength": round(coh_prem / batch_prem, 4),
         "members": members,
-        "spy": q["spy"], "qqq": q["qqq"],
-        "vix": q["vix"], "vix_chg": q["vix_chg"],
+        "spy": q["spy"],
+        "qqq": q["qqq"],
+        "vix": q["vix"],
+        "vix_chg": q["vix_chg"],
         "spy_trend5": q["spy_trend5"],
         "breadth_regime": _regime(),
-        "batch_putcall_prem": round(put_prem / call_prem, 3)
-                              if call_prem else None,
+        "batch_putcall_prem": round(put_prem / call_prem, 3) if call_prem else None,
         "book_bull_share": round(bull / batch_prem, 3),
         "index_put_spy": _index_put("SPY"),
         "index_put_qqq": _index_put("QQQ"),
     }
     os.makedirs(os.path.dirname(LOG), exist_ok=True)
-    with open(LOG, "a", encoding="utf-8") as f:      # APPEND-ONLY
+    with open(LOG, "a", encoding="utf-8") as f:  # APPEND-ONLY
         f.write(json.dumps(rec, separators=(",", ":")) + "\n")
-    print("  hedge monitor: recorded batch %s · cohort n=%d strength=%.3f"
-          % (rec["batch_generated"], rec["cohort_n"], rec["strength"]))
+    print(
+        "  hedge monitor: recorded batch %s · cohort n=%d strength=%.3f"
+        % (rec["batch_generated"], rec["cohort_n"], rec["strength"])
+    )
 
 
 # ── evaluator ──────────────────────────────────────────────────────────
 
 # two-sided t critical values (95%) for tiny df — small-sample correction
-_TCRIT = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45,
-          7: 2.36, 8: 2.31, 9: 2.26, 10: 2.23, 15: 2.13, 20: 2.09,
-          30: 2.04}
+_TCRIT = {
+    1: 12.71,
+    2: 4.30,
+    3: 3.18,
+    4: 2.78,
+    5: 2.57,
+    6: 2.45,
+    7: 2.36,
+    8: 2.31,
+    9: 2.26,
+    10: 2.23,
+    15: 2.13,
+    20: 2.09,
+    30: 2.04,
+}
 
 
 def _tcrit(df):
@@ -363,11 +456,11 @@ def _et_time_ok(iso_ts):
     """batch_generated inside the frozen target window [15:30, 15:45) ET?"""
     try:
         import pytz
+
         dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
         et = dt.astimezone(pytz.timezone("America/New_York"))
         mins = et.hour * 60 + et.minute
-        return (15 * 60 + 30) <= mins < (15 * 60 + 45), \
-            et.strftime("%Y-%m-%d")
+        return (15 * 60 + 30) <= mins < (15 * 60 + 45), et.strftime("%Y-%m-%d")
     except Exception:
         return False, None
 
@@ -376,8 +469,10 @@ def _next_session_close_utc(session_date):
     """16:00 ET close of the NEXT NYSE trading session after
     session_date (str YYYY-MM-DD), as an aware UTC datetime. Uses the
     frozen holiday list — never calendar-day arithmetic."""
-    import pytz
     from datetime import timedelta
+
+    import pytz
+
     hols = set(MEASUREMENT["nyse_holidays"])
     d = datetime.strptime(session_date, "%Y-%m-%d")
     while True:
@@ -386,8 +481,7 @@ def _next_session_close_utc(session_date):
         if d.weekday() < 5 and ds not in hols:
             break
     et = pytz.timezone("America/New_York")
-    return et.localize(d.replace(hour=16, minute=0)).astimezone(
-        timezone.utc)
+    return et.localize(d.replace(hour=16, minute=0)).astimezone(UTC)
 
 
 def evaluate():
@@ -415,23 +509,23 @@ def evaluate():
                     if "pre-measurement-stamp" in (e.get("reason") or ""):
                         valid_excl[rts] = "PRE_STAMP_ERA"
                     else:
-                        invalid_excl.append({"record_ts": rts,
-                                             "code": code,
-                                             "why_ignored": "uncoded"})
+                        invalid_excl.append(
+                            {"record_ts": rts, "code": code, "why_ignored": "uncoded"}
+                        )
                     continue
                 if code not in CODES:
-                    invalid_excl.append({"record_ts": rts, "code": code,
-                                         "why_ignored": "unknown code"})
+                    invalid_excl.append(
+                        {"record_ts": rts, "code": code, "why_ignored": "unknown code"}
+                    )
                     continue
                 # timing vs the EARLIEST evaluated outcome: strictly
                 # before 16:00 ET of the next NYSE session (+1d close)
                 timely = False
                 try:
                     xs = e.get("excluded_at") or ""
-                    xdt = datetime.fromisoformat(
-                        xs if "T" in xs else xs + "T00:00:00+00:00")
+                    xdt = datetime.fromisoformat(xs if "T" in xs else xs + "T00:00:00+00:00")
                     if xdt.tzinfo is None:
-                        xdt = xdt.replace(tzinfo=timezone.utc)
+                        xdt = xdt.replace(tzinfo=UTC)
                     timely = xdt < _next_session_close_utc(rts[:10])
                 except Exception:
                     timely = False
@@ -443,9 +537,13 @@ def evaluate():
                     # honored only in a published sensitivity view.
                     late_objective[rts] = code
                 else:
-                    invalid_excl.append({"record_ts": rts, "code": code,
-                                         "why_ignored": "past +1d close "
-                                         "(earliest outcome observable)"})
+                    invalid_excl.append(
+                        {
+                            "record_ts": rts,
+                            "code": code,
+                            "why_ignored": "past +1d close (earliest outcome observable)",
+                        }
+                    )
     recs, quarantined, n_meas_mismatch, quarantined_recs = [], {}, 0, []
     late_obj_recs = []
     if os.path.exists(LOG):
@@ -461,7 +559,7 @@ def evaluate():
                     quarantined_recs.append(r)
                     continue
                 if r.get("ts") in late_objective:
-                    late_obj_recs.append(r)   # stays in primary pool
+                    late_obj_recs.append(r)  # stays in primary pool
                 # pool ONLY when hypothesis AND measurement semantics
                 # both match — code_hash never gates (audit trail only)
                 if r.get("frozen_hash") != FROZEN_HASH:
@@ -479,13 +577,12 @@ def evaluate():
     dates = sorted(by_date)
     # sensitivity: same per-date read INCLUDING quarantined records
     sens_dates = {}
-    for r in sorted(recs + quarantined_recs,
-                    key=lambda x: x.get("batch_generated") or ""):
+    for r in sorted(recs + quarantined_recs, key=lambda x: x.get("batch_generated") or ""):
         ok, d = _et_time_ok(r.get("batch_generated") or r.get("ts") or "")
         if ok and d and d not in sens_dates:
             sens_dates[d] = r
     payload = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "hm_ver": FROZEN["hm_ver"],
         "frozen_hash": FROZEN_HASH,
         "meas_ver": MEASUREMENT["meas_ver"],
@@ -498,62 +595,83 @@ def evaluate():
         "late_objective_exclusions": {
             "count": len(late_objective),
             "handling": "record retained in the PRIMARY pool; a "
-                        "sensitivity view without it publishes below",
-            "sensitivity_scan_dates_without": None if not late_objective
-                else len(set(d for d in (
-                    _et_time_ok(r.get("batch_generated") or "")[1]
-                    for r in recs
-                    if r.get("ts") not in late_objective) if d)),
+            "sensitivity view without it publishes below",
+            "sensitivity_scan_dates_without": None
+            if not late_objective
+            else len(
+                {
+                    d
+                    for d in (
+                        _et_time_ok(r.get("batch_generated") or "")[1]
+                        for r in recs
+                        if r.get("ts") not in late_objective
+                    )
+                    if d
+                }
+            ),
         },
         "records_measurement_mismatch": n_meas_mismatch,
         "sensitivity_with_quarantined": {
             "scan_dates": len(sens_dates),
-            "mean_strength": round(sum(
-                r.get("strength") or 0 for r in sens_dates.values())
-                / len(sens_dates), 4) if sens_dates else None,
+            "mean_strength": round(
+                sum(r.get("strength") or 0 for r in sens_dates.values()) / len(sens_dates), 4
+            )
+            if sens_dates
+            else None,
             "note": "same first-eligible rule applied over pooled + "
-                    "quarantined records; deeper sensitivity stats "
-                    "publish once the pooled evaluation is active",
+            "quarantined records; deeper sensitivity stats "
+            "publish once the pooled evaluation is active",
         },
-        "proxy_only_caveat": ("recorded index-put quotes are PROXY_ONLY "
-                              "(short-dated) — no duration-matched "
-                              "comparative-efficiency promotion claim "
-                              "can rest on them"),
+        "proxy_only_caveat": (
+            "recorded index-put quotes are PROXY_ONLY "
+            "(short-dated) — no duration-matched "
+            "comparative-efficiency promotion claim "
+            "can rest on them"
+        ),
         "scan_dates": len(dates),
         "conclusions": {
-            "alpha_eligibility": ("SHADOW — governed by uoa_research "
-                                  "avoidance gates (separate conclusion)"),
+            "alpha_eligibility": (
+                "SHADOW — governed by uoa_research avoidance gates (separate conclusion)"
+            ),
             "hedge_efficiency": "ACCRUING",
         },
     }
     if len(dates) < 5:
         payload["status"] = "accruing"
-        payload["note"] = ("Prospective window is %d scan dates old; "
-                          "predictive tests, episode detection, and "
-                          "hedge-implementation comparison publish as "
-                          "they gate in. Nothing promotes before >=2 "
-                          "independent adverse episodes AND "
-                          "payoff/carry >= 1.0 executable." % len(dates))
+        payload["note"] = (
+            "Prospective window is %d scan dates old; "
+            "predictive tests, episode detection, and "
+            "hedge-implementation comparison publish as "
+            "they gate in. Nothing promotes before >=2 "
+            "independent adverse episodes AND "
+            "payoff/carry >= 1.0 executable." % len(dates)
+        )
         _write(payload)
         return
     # SPY daily closes over the window (for episodes + forward returns)
     try:
         import yfinance as yf
-        h = yf.download(["SPY", "QQQ"], period="6mo", interval="1d",
-                        auto_adjust=True, group_by="ticker",
-                        progress=False, threads=True)
-        spy_c = {d.strftime("%Y-%m-%d"): float(v)
-                 for d, v in h["SPY"]["Close"].dropna().items()}
-        qqq_c = {d.strftime("%Y-%m-%d"): float(v)
-                 for d, v in h["QQQ"]["Close"].dropna().items()}
+
+        h = yf.download(
+            ["SPY", "QQQ"],
+            period="6mo",
+            interval="1d",
+            auto_adjust=True,
+            group_by="ticker",
+            progress=False,
+            threads=True,
+        )
+        spy_c = {d.strftime("%Y-%m-%d"): float(v) for d, v in h["SPY"]["Close"].dropna().items()}
+        qqq_c = {d.strftime("%Y-%m-%d"): float(v) for d, v in h["QQQ"]["Close"].dropna().items()}
     except Exception as e:
         payload["status"] = "error_market_data"
         payload["note"] = "SPY/QQQ history unavailable: %s" % type(e).__name__
         _write(payload)
         return
     tdays = sorted(spy_c)
-    ret1 = {tdays[i]: 100 * (spy_c[tdays[i + 1]] / spy_c[tdays[i]] - 1)
-            for i in range(len(tdays) - 1)}
+    ret1 = {
+        tdays[i]: 100 * (spy_c[tdays[i + 1]] / spy_c[tdays[i]] - 1) for i in range(len(tdays) - 1)
+    }
     # 1. adverse episodes (frozen definition), grouped
     adv = [d for d in tdays[:-1] if ret1[d] <= -1.0]
     episodes = []
@@ -566,10 +684,11 @@ def evaluate():
     payload["adverse_episodes"] = {
         "definition": FROZEN["adverse_episode"],
         "observed_in_window": len(in_window),
-        "episodes": [{"dates": ep,
-                      "spy_move": round(sum(ret1[x] for x in ep), 2)}
-                     for ep in in_window],
+        "episodes": [
+            {"dates": ep, "spy_move": round(sum(ret1[x] for x in ep), 2)} for ep in in_window
+        ],
     }
+
     # 2. does strength predict subsequent SPY weakness? (date-level,
     #    non-overlapping for each horizon via stride sampling)
     def fwd(d, h, closes):
@@ -579,6 +698,7 @@ def evaluate():
         if i + h >= len(tdays):
             return None
         return 100 * (closes[tdays[i + h]] / closes[d] - 1)
+
     pred = {}
     for h in FROZEN["horizons_d"]:
         pairs = []
@@ -587,7 +707,7 @@ def evaluate():
             if d not in spy_c:
                 continue
             i = tdays.index(d)
-            if i - last_i < h:      # enforce NON-OVERLAPPING windows
+            if i - last_i < h:  # enforce NON-OVERLAPPING windows
                 continue
             f = fwd(d, h, spy_c)
             if f is None:
@@ -598,36 +718,40 @@ def evaluate():
             pred["h%d" % h] = {"status": "accruing", "n": len(pairs)}
             continue
         pairs.sort(key=lambda x: x[0])
-        lo = [f for _, f in pairs[:len(pairs) // 3]]
-        hi = [f for _, f in pairs[-(len(pairs) // 3):]]
+        lo = [f for _, f in pairs[: len(pairs) // 3]]
+        hi = [f for _, f in pairs[-(len(pairs) // 3) :]]
         n = len(pairs)
         pred["h%d" % h] = {
             "n_nonoverlapping": n,
             "spy_fwd_low_strength": round(_mean(lo), 3),
             "spy_fwd_high_strength": round(_mean(hi), 3),
-            "p_adverse_high_strength": round(
-                sum(1 for f in hi if f <= -1) / len(hi), 2),
+            "p_adverse_high_strength": round(sum(1 for f in hi if f <= -1) / len(hi), 2),
             "small_sample_tcrit": _tcrit(n - 2),
         }
     payload["predictive"] = pred
     payload["incremental_controls"] = {
         "status": "accruing",
-        "plan": ("strength-vs-outcome within strata of {breadth regime, "
-                 "VIX tercile, SPY trend sign, batch put/call} once each "
-                 "stratum holds >=10 non-overlapping dates — controls "
-                 "recorded point-in-time in every record"),
+        "plan": (
+            "strength-vs-outcome within strata of {breadth regime, "
+            "VIX tercile, SPY trend sign, batch put/call} once each "
+            "stratum holds >=10 non-overlapping dates — controls "
+            "recorded point-in-time in every record"
+        ),
     }
     # 4. hedge implementations on executable $ P&L — needs contracts'
     #    subsequent marks; v1 marks index puts via underlying moves at
     #    +5d with the recorded quote (assumption-labeled), cohort via
     #    underlying-equivalent move minus liquidity haircut.
-    impl = {"status": "accruing" if len(in_window) < 2 else "computable",
-            "note": ("$%d premium budget per scan date; cohort fills at "
-                     "recorded delayed last_price minus liq haircut; "
-                     "index puts marked via recorded ATM quote + "
-                     "underlying move (approximation, labeled). Full "
-                     "comparison publishes at >=2 episodes."
-                     % FROZEN["hedge_budget_usd"])}
+    impl = {
+        "status": "accruing" if len(in_window) < 2 else "computable",
+        "note": (
+            "$%d premium budget per scan date; cohort fills at "
+            "recorded delayed last_price minus liq haircut; "
+            "index puts marked via recorded ATM quote + "
+            "underlying move (approximation, labeled). Full "
+            "comparison publishes at >=2 episodes." % FROZEN["hedge_budget_usd"]
+        ),
+    }
     payload["implementations"] = impl
     ge = len(in_window) >= 2
     payload["promotion"] = {
@@ -644,8 +768,10 @@ def _write(payload):
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
-    print("  hedge monitor: wrote hedge_monitor.json (%s · %s scan dates)"
-          % (payload.get("status"), payload.get("scan_dates")))
+    print(
+        "  hedge monitor: wrote hedge_monitor.json (%s · %s scan dates)"
+        % (payload.get("status"), payload.get("scan_dates"))
+    )
 
 
 def main():

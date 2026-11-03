@@ -30,6 +30,7 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 from datetime import datetime
 
@@ -42,9 +43,13 @@ ET = pytz.timezone("America/New_York")
 _BASE = os.path.dirname(os.path.abspath(__file__))
 OUT_PATH = os.path.join(_BASE, "docs", "reports", "whisper_tweet.json")
 
-HDRS = {"User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                       "AppleWebKit/537.36 (KHTML, like Gecko) "
-                       "Chrome/120.0 Safari/537.36")}
+HDRS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0 Safari/537.36"
+    )
+}
 
 # Patterns that identify a Most Anticipated weekly tweet. EW historically
 # uses two phrasings — match either. The accompanying t.co URL is the
@@ -58,8 +63,7 @@ ANTICIPATED_PATTERNS = [
 
 def _fetch_timeline():
     """Pull @eWhispers's recent timeline via syndication (no auth)."""
-    url = ("https://syndication.twitter.com/srv/timeline-profile/"
-           "screen-name/eWhispers")
+    url = "https://syndication.twitter.com/srv/timeline-profile/screen-name/eWhispers"
     req = urllib.request.Request(url, headers=HDRS)
     with urllib.request.urlopen(req, timeout=30) as r:
         return r.read().decode("utf-8")
@@ -85,8 +89,11 @@ def _walk_tweets(o, out, depth=0):
             eid = o.get("entry_id", "")
             # entry_id is like "tweet-1234567890" — extract the numeric id
             m = re.match(r"tweet-(\d+)", eid)
-            tid = m.group(1) if m else (
-                tw.get("id_str") or str(tw.get("id")) if tw.get("id") else None)
+            tid = (
+                m.group(1)
+                if m
+                else (tw.get("id_str") or str(tw.get("id")) if tw.get("id") else None)
+            )
             text = tw.get("text") or tw.get("full_text") or ""
             created = tw.get("created_at") or ""
             if tid and text:
@@ -151,8 +158,7 @@ def fetch_tweet_image(tweet_id):
     """Pull the tweet's media URL via Twitter's public syndication
     tweet-result endpoint. Returns the pbs.twimg.com URL or None."""
     token = _syndication_token(tweet_id)
-    url = (f"https://cdn.syndication.twimg.com/tweet-result?id={tweet_id}"
-           f"&lang=en&token={token}")
+    url = f"https://cdn.syndication.twimg.com/tweet-result?id={tweet_id}&lang=en&token={token}"
     req = urllib.request.Request(url, headers=HDRS)
     with urllib.request.urlopen(req, timeout=30) as r:
         d = json.loads(r.read().decode("utf-8"))
@@ -162,11 +168,11 @@ def fetch_tweet_image(tweet_id):
             return {
                 "image_url": m["media_url_https"],
                 "image_url_large": m["media_url_https"] + "?format=jpg&name=large",
-                "text":      d.get("text", ""),
-                "created":   d.get("created_at", ""),
-                "user":      (d.get("user") or {}).get("screen_name", "eWhispers"),
+                "text": d.get("text", ""),
+                "created": d.get("created_at", ""),
+                "user": (d.get("user") or {}).get("screen_name", "eWhispers"),
                 "favorites": d.get("favorite_count"),
-                "tickers":   _extract_tickers(d.get("text", "")),
+                "tickers": _extract_tickers(d.get("text", "")),
             }
     return None
 
@@ -179,8 +185,7 @@ def _extract_tickers(text):
 
 def _week_of_from_text(text):
     """The tweet's "Week of May 18, 2026" → "2026-05-18"."""
-    m = re.search(r"week of\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})", text or "",
-                  re.IGNORECASE)
+    m = re.search(r"week of\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})", text or "", re.IGNORECASE)
     if not m:
         return None
     try:
@@ -225,18 +230,24 @@ def run():
     try:
         tweet = find_latest_anticipated_tweet()
     except urllib.error.HTTPError as e:
-        print(f"  Twitter syndication returned HTTP {e.code} — "
-              f"keeping prior whisper_tweet.json untouched, exiting 0.")
+        print(
+            f"  Twitter syndication returned HTTP {e.code} — "
+            f"keeping prior whisper_tweet.json untouched, exiting 0."
+        )
         _stamp_attempt(False, f"HTTP {e.code}")
         return
     except Exception as e:
-        print(f"  Timeline fetch failed ({type(e).__name__}: {e}) — "
-              f"keeping prior whisper_tweet.json untouched, exiting 0.")
+        print(
+            f"  Timeline fetch failed ({type(e).__name__}: {e}) — "
+            f"keeping prior whisper_tweet.json untouched, exiting 0."
+        )
         _stamp_attempt(False, type(e).__name__)
         return
     if not tweet:
-        print("  No matching tweet found in current timeline — keeping "
-              "prior whisper_tweet.json untouched.")
+        print(
+            "  No matching tweet found in current timeline — keeping "
+            "prior whisper_tweet.json untouched."
+        )
         _stamp_attempt(False, "no match in timeline")
         return
     print(f"  Found tweet {tweet['id']}  ({tweet['created']})")
@@ -254,25 +265,24 @@ def run():
         return
 
     payload = {
-        "tweet_id":     tweet["id"],
-        "tweet_url":    f"https://x.com/eWhispers/status/{tweet['id']}",
-        "image_url":    media["image_url_large"],
+        "tweet_id": tweet["id"],
+        "tweet_url": f"https://x.com/eWhispers/status/{tweet['id']}",
+        "image_url": media["image_url_large"],
         "image_url_md": media["image_url"],
-        "week_of":      _week_of_from_text(media["text"]),
-        "posted_at":    media["created"],
-        "text":         media["text"],
-        "tickers":      media["tickers"],
-        "favorites":    media["favorites"],
-        "updated":      datetime.now(ET).isoformat(timespec="seconds"),
+        "week_of": _week_of_from_text(media["text"]),
+        "posted_at": media["created"],
+        "text": media["text"],
+        "tickers": media["tickers"],
+        "favorites": media["favorites"],
+        "updated": datetime.now(ET).isoformat(timespec="seconds"),
         "last_attempt": datetime.now(ET).isoformat(timespec="seconds"),
         "last_attempt_ok": True,
-        "source":       "syndication.twitter.com (no auth, public timeline)",
+        "source": "syndication.twitter.com (no auth, public timeline)",
     }
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
-    print(f"  Wrote whisper_tweet.json  week_of={payload['week_of']}  "
-          f"image={media['image_url']}")
+    print(f"  Wrote whisper_tweet.json  week_of={payload['week_of']}  image={media['image_url']}")
 
 
 if __name__ == "__main__":
@@ -281,5 +291,7 @@ if __name__ == "__main__":
     try:
         run()
     except Exception as e:
-        print(f"  Unexpected error ({type(e).__name__}: {e}) — exiting 0 "
-              f"to keep downstream workflow steps running.")
+        print(
+            f"  Unexpected error ({type(e).__name__}: {e}) — exiting 0 "
+            f"to keep downstream workflow steps running."
+        )

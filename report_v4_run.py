@@ -25,7 +25,6 @@ reports pass/fail.
 """
 
 import argparse
-import io
 import json
 import os
 import sys
@@ -44,10 +43,12 @@ def _snapshot(ticker):
     re-rendered against the identical snapshot instead of a three-minute
     refetch — the same contract report_v3_run uses."""
     import research_live as RL
+
     cache = os.environ.get("TD_SNAP_CACHE")
     cpath = os.path.join(cache, "%s.pkl" % ticker) if cache else None
     if cpath and os.path.exists(cpath):
         import pickle
+
         with open(cpath, "rb") as fh:
             snap, alt, recs, prov = pickle.load(fh)
         print("  [cache] snapshot reused from %s" % cpath)
@@ -55,6 +56,7 @@ def _snapshot(ticker):
         snap, alt, recs, prov = RL.build_snapshot(ticker)
         if cpath:
             import pickle
+
             os.makedirs(cache, exist_ok=True)
             try:
                 with open(cpath, "wb") as fh:
@@ -88,6 +90,7 @@ def _chart(ticker, snap, prov, view, want_spy=True):
     spy = None
     if want_spy:
         import research_live as RL
+
         try:
             spy = (RL.fetch_market("SPY") or {}).get("closes")
         except Exception as e:
@@ -96,9 +99,12 @@ def _chart(ticker, snap, prov, view, want_spy=True):
     # sessions to draw — a name weeks past its listing. Omitting the chart
     # is the correct outcome there; crashing on the unpack is not.
     res = C.trading_chart(
-        mk, levels=ann, sma_set=SMA_V4,
+        mk,
+        levels=ann,
+        sma_set=SMA_V4,
         earnings_dates=(view.get("chart") or {}).get("earnings_dates"),
-        spy_closes=spy)
+        spy_closes=spy,
+    )
     if not res:
         print("  too few completed sessions to draw a chart — omitted")
         return None, None
@@ -108,6 +114,7 @@ def _chart(ticker, snap, prov, view, want_spy=True):
 def _artifact_hashes(*paths):
     """sha256 and byte length of each rendered PDF, keyed by basename."""
     import hashlib
+
     out = {}
     for pth in paths:
         try:
@@ -115,7 +122,8 @@ def _artifact_hashes(*paths):
                 blob = fh.read()
             out[os.path.basename(pth)] = {
                 "sha256": hashlib.sha256(blob).hexdigest(),
-                "bytes": len(blob)}
+                "bytes": len(blob),
+            }
         except OSError as e:
             out[os.path.basename(pth)] = {"sha256": None, "error": str(e)}
     return out
@@ -126,8 +134,7 @@ def verify(out_dir):
     in the validation JSON beside them. Prints one line per artifact and
     returns a non-zero exit code on any mismatch or missing record, so a
     stale validation cannot be mistaken for a current one."""
-    vals = [f for f in sorted(os.listdir(out_dir))
-            if f.endswith("_validation.json")]
+    vals = [f for f in sorted(os.listdir(out_dir)) if f.endswith("_validation.json")]
     if not vals:
         print("no validation JSON in %s" % out_dir)
         return 2
@@ -144,15 +151,20 @@ def verify(out_dir):
             got = _artifact_hashes(os.path.join(out_dir, name)).get(name, {})
             ok = got.get("sha256") and got["sha256"] == want.get("sha256")
             bad += 0 if ok else 1
-            print("  %-46s %s" % (name, "matches validation" if ok
-                                  else "MISMATCH — validation is stale for "
-                                       "this PDF"))
+            print(
+                "  %-46s %s"
+                % (
+                    name,
+                    "matches validation" if ok else "MISMATCH — validation is stale for this PDF",
+                )
+            )
         print("  %-46s validated %s" % (v, rec.get("generated_at") or "?"))
     return 1 if bad else 0
 
 
 def run(ticker, out_dir="out_v4", want_spy=True):
     import report_v4_validate as VV
+
     os.makedirs(out_dir, exist_ok=True)
     ticker = ticker.upper().strip()
 
@@ -163,8 +175,10 @@ def run(ticker, out_dir="out_v4", want_spy=True):
     estimates = EP.fetch_estimates(ticker, report_time=snap.get("report_time"))
     peers = EP.fetch_peers(ticker)
     if not estimates.get("configured"):
-        print("  estimates: not configured (%s) — rating/target withheld"
-              % (estimates.get("reason") or "no key"))
+        print(
+            "  estimates: not configured (%s) — rating/target withheld"
+            % (estimates.get("reason") or "no key")
+        )
 
     view = V4.build(snap, estimates=estimates, peers=peers)
     chart_png, chart_meta = _chart(ticker, snap, prov, view, want_spy)
@@ -174,12 +188,9 @@ def run(ticker, out_dir="out_v4", want_spy=True):
     apx_p = os.path.join(out_dir, stem + "_appendix.pdf")
     val_p = os.path.join(out_dir, stem + "_validation.json")
 
-    core = R4.build_core(snap, view, core_p, chart_png=chart_png,
-                         chart_meta=chart_meta)
-    apx = R4.build_appendix(snap, view, apx_p, estimates=estimates,
-                            prov=prov)
-    result = VV.report(view, snap, core, apx, estimates=estimates,
-                       run_mutation=True)
+    core = R4.build_core(snap, view, core_p, chart_png=chart_png, chart_meta=chart_meta)
+    apx = R4.build_appendix(snap, view, apx_p, estimates=estimates, prov=prov)
+    result = VV.report(view, snap, core, apx, estimates=estimates, run_mutation=True)
     # Bind the validation to the exact bytes it validated. Without this a
     # reader comparing file timestamps cannot tell a current validation
     # from one left over beside a newer PDF — and a stale PASS is worse
@@ -189,10 +200,15 @@ def run(ticker, out_dir="out_v4", want_spy=True):
     with open(val_p, "w") as fh:
         json.dump(result, fh, indent=1, default=str, sort_keys=True)
 
-    return {"ticker": ticker, "core": core_p, "appendix": apx_p,
-            "validation": val_p, "result": result,
-            "event_state": (view.get("event") or {}).get("state"),
-            "flash": bool(view.get("flash"))}
+    return {
+        "ticker": ticker,
+        "core": core_p,
+        "appendix": apx_p,
+        "validation": val_p,
+        "result": result,
+        "event_state": (view.get("event") or {}).get("state"),
+        "flash": bool(view.get("flash")),
+    }
 
 
 def run_for_user(ticker, user_id="", out_dir=None):
@@ -203,11 +219,11 @@ def run_for_user(ticker, user_id="", out_dir=None):
     back to the public archive. The validation JSON (with the PDF hashes
     it is bound to) ships beside them so a reader can prove the pair."""
     import datetime as dt
+
     ticker = ticker.upper().strip()
     out_dir = out_dir or "out_v4_user"
     print("=" * 62)
-    print("EQUITY RESEARCH v4: %s (user %s)"
-          % (ticker, user_id or "<public archive>"))
+    print("EQUITY RESEARCH v4: %s (user %s)" % (ticker, user_id or "<public archive>"))
     print("=" * 62)
     res = _print(run(ticker, out_dir))
     if not res["result"]["ok"]:
@@ -215,30 +231,31 @@ def run_for_user(ticker, user_id="", out_dir=None):
         why = ", ".join(res["result"]["blocking_failures"]) or (
             "mutation suite unproven: %s"
             % (mut.get("note") or mut.get("error") or "see validation JSON")
-            if not mut.get("all_checks_proven") else "see validation JSON")
-        raise SystemExit("v4 package failed validation; nothing uploaded: "
-                         + why)
+            if not mut.get("all_checks_proven")
+            else "see validation JSON"
+        )
+        raise SystemExit("v4 package failed validation; nothing uploaded: " + why)
 
-    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d_%H%M")
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y-%m-%d_%H%M")
     # Only the CORE report claims the My Reports row. The appendix and
     # the validation JSON are sidecars under the same filename stem —
     # linking the appendix too inserted a second identical ticker entry
     # whose newer timestamp made the preview open the appendix instead of
     # the report. The worker derives the appendix link from the stem.
-    parts = [(res["core"], "research_%s_%s.pdf" % (ticker, stamp), True),
-             (res["appendix"], "research_%s_%s_appendix.pdf"
-              % (ticker, stamp), False),
-             (res["validation"], "research_%s_%s_validation.json"
-              % (ticker, stamp), False)]
+    parts = [
+        (res["core"], "research_%s_%s.pdf" % (ticker, stamp), True),
+        (res["appendix"], "research_%s_%s_appendix.pdf" % (ticker, stamp), False),
+        (res["validation"], "research_%s_%s_validation.json" % (ticker, stamp), False),
+    ]
     try:
         from report_archive import archive, upload_user_report
+
         for path, name, link in parts:
             with open(path, "rb") as fh:
                 blob = fh.read()
             uploaded = False
             if user_id:
-                uploaded = upload_user_report(blob, name, user_id,
-                                              ticker, "research", link=link)
+                uploaded = upload_user_report(blob, name, user_id, ticker, "research", link=link)
             if not uploaded:
                 archive(blob, name)
                 print("  Archived publicly: %s" % name)
@@ -257,8 +274,7 @@ def _print(res):
     print("  %-11s %s" % ("result", "PASS" if r["ok"] else "PROBLEMS"))
     for c in r["checks"]:
         if c["status"] in ("FAIL", "WARN"):
-            print("     %-6s %-28s %s"
-                  % (c["status"], c["check_id"], c["observed"]))
+            print("     %-6s %-28s %s" % (c["status"], c["check_id"], c["observed"]))
     if r["blocking_failures"]:
         print("     blocking: %s" % ", ".join(r["blocking_failures"]))
     return res
@@ -269,14 +285,19 @@ def main():
     ap.add_argument("ticker", nargs="?")
     ap.add_argument("--out", default="out_v4")
     ap.add_argument("--no-spy", action="store_true")
-    ap.add_argument("--user-id", default="",
-                    help="deliver to this user's private Storage (CI); "
-                         "falls back to the public archive")
-    ap.add_argument("--for-user", action="store_true",
-                    help="run the site lookup path: build, gate, upload")
-    ap.add_argument("--verify", metavar="DIR",
-                    help="re-hash the PDFs in DIR against the validation "
-                         "JSON beside them and exit")
+    ap.add_argument(
+        "--user-id",
+        default="",
+        help="deliver to this user's private Storage (CI); falls back to the public archive",
+    )
+    ap.add_argument(
+        "--for-user", action="store_true", help="run the site lookup path: build, gate, upload"
+    )
+    ap.add_argument(
+        "--verify",
+        metavar="DIR",
+        help="re-hash the PDFs in DIR against the validation JSON beside them and exit",
+    )
     a = ap.parse_args()
     if a.verify:
         return verify(a.verify)

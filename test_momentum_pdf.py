@@ -11,18 +11,28 @@ import momentum_scanner as ms
 
 class PdfText(unittest.TestCase):
     def test_safe_maps_typography_to_latin1(self):
-        self.assertEqual(ms._safe("a — b – c ‘d’ “e” f…"),
-                         'a - b - c \'d\' "e" f...')
-        self.assertEqual(ms._safe("x→y"), "xy")       # dropped, not crash
+        self.assertEqual(ms._safe("a — b – c ‘d’ “e” f…"), "a - b - c 'd' \"e\" f...")
+        self.assertEqual(ms._safe("x→y"), "xy")  # dropped, not crash
 
     def test_pdf_survives_em_dash_everywhere(self):
-        rows = [{"ticker": "AAA", "_chg": 23.4, "dollar_vol": 1.2e8,
-                 "adr_pct": 5.1, "price": 12.34, "_ern": "Oct 20 — est"}]
+        rows = [
+            {
+                "ticker": "AAA",
+                "_chg": 23.4,
+                "dollar_vol": 1.2e8,
+                "adr_pct": 5.1,
+                "price": 12.34,
+                "_ern": "Oct 20 — est",
+            }
+        ]
         for rows_case in ([], rows):
             out = ms.generate_table_pdf(
                 "Title — dash",
                 "Sub  |  (Approaching — main list empty)",
-                ["Blurb — with dash", "plain"], rows_case, "1W")
+                ["Blurb — with dash", "plain"],
+                rows_case,
+                "1W",
+            )
             self.assertTrue(out.startswith(b"%PDF"), "not a PDF")
 
 
