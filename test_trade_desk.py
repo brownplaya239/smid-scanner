@@ -440,9 +440,13 @@ def test_direction_derived_from_flow_side_when_absent():
     derive it (call buyer = bullish, put buyer = bearish, sellers out)."""
     import trade_desk_research  # noqa: F401  (import sanity)
 
+    # _flow_candidates keeps only signals flagged "today" in Eastern time, so
+    # stamp the fixtures in that zone; a UTC stamp is already tomorrow after
+    # 8 PM Eastern and the test would fail every evening.
+    flagged = NOW.astimezone(timezone(timedelta(hours=-4))).isoformat()
     sigs = [
         {
-            "flagged_at": NOW.isoformat(),
+            "flagged_at": flagged,
             "ticker": "AAA",
             "type": "call",
             "flow_side": "call_buyer",
@@ -450,7 +454,7 @@ def test_direction_derived_from_flow_side_when_absent():
             "liquidity": "B",
         },
         {
-            "flagged_at": NOW.isoformat(),
+            "flagged_at": flagged,
             "ticker": "BBB",
             "type": "put",
             "flow_side": "put_buyer",
@@ -458,7 +462,7 @@ def test_direction_derived_from_flow_side_when_absent():
             "liquidity": "B",
         },
         {
-            "flagged_at": NOW.isoformat(),
+            "flagged_at": flagged,
             "ticker": "CCC",
             "type": "call",
             "flow_side": "call_seller",
