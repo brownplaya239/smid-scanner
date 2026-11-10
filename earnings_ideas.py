@@ -15,9 +15,11 @@ Joins what the site already knows about each name reporting in the next
     post_report_drift      the name historically drifts hard in the 5
                            sessions AFTER reporting (|drift| >= 1.5%,
                            n >= 6) — the after-print trade, no binary risk
-    vol_rich / vol_cheap   options implied move vs the name's realized
-                           history (needs a liquid implied read; emitted
-                           only when earnings_edge captured one)
+    vol_rich / vol_cheap   the options-implied move for the report session
+                           alone (implied_event) vs the name's Fair Move =
+                           MEAN |past reaction| (both from earnings_edge, on
+                           the same basis — see earnings_move_math.py);
+                           emitted only from a read taken before the report
     binary_caution         big typical mover + big pre-print run-up —
                            the "size down or sit out" flag
 
@@ -32,10 +34,17 @@ is >=3 sessions old the idea is graded against actual price action
 margin metric `mv` (positive == win by construction):
     momentum_into_print    mv = signed 3-session post-report move in bias dir
     post_report_drift      mv = signed 5-session drift (from day-1 close)
-    vol_rich               mv = implied - |report reaction|
-    vol_cheap              mv = |report reaction| - implied
-Per-type hit rates + EV (mean mv) publish at n>=30 ("accruing" until
-then) and render as track-record chips on the cards.
+    vol_rich               mv = implied_graded - |report reaction|
+    vol_cheap              mv = |report reaction| - implied_graded
+implied_graded is the event-only implied move from the LAST read taken
+before the report (each run refreshes a pending vol idea's read until the
+report), widened by one normal session when the report time is unknown
+(the reaction is then graded close D-1 -> close D+1). Per-type hit rates
++ EV (mean mv) publish at n>=30 ("accruing" until then) and render as
+track-record chips on the cards. A fairly priced straddle still "wins"
+~58-63% of the time, so vol types also publish the fair-pricing baseline
+win rate and the realized/implied ratio (1.00 = fair) next to the win
+rate.
 
 FEEDBACK LOOP (same guardrail contract as the UOA edge-weight loop —
 guardrails sacred: min-N 30 / shrinkage n/(n+30) / clamp ±15pp /
@@ -51,7 +60,9 @@ before it's real.
 import json
 import os
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+
+import earnings_move_math as EM
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
@@ -66,7 +77,35 @@ GRADE_AFTER_SESSIONS = 3
 # AMC ideas against a non-event day. Ideas graded under an older version
 # are regraded (REGRADE_PER_RUN at a time, to stay under Yahoo's limits).
 GRADE_VERSION = 2
+# v3 for the vol types (2026-11 like-for-like fix): graded against the
+# event-only implied move from the last pre-event read (not the raw
+# straddle frozen at first logging, which also priced normal sessions and
+# was sometimes a 1-sigma number). Legacy ideas without a recorded read
+# are reconstructed from their first logged read (basis "reconstructed")
+# or voided when that read cannot be shown to precede the report.
+VOL_TYPES = ("vol_rich", "vol_cheap")
+VOL_GRADE_VERSION = 3
 REGRADE_PER_RUN = 250
+# Fields copied from an earnings_edge row onto a vol idea / log entry.
+READ_FIELDS = (
+    "implied",
+    "implied_src",
+    "implied_expiry",
+    "implied_asof",
+    "nonevent_sessions",
+    "daily_vol",
+    "implied_event",
+    "fair_move",
+    "realized_med",
+    "n_reports",
+)
+
+
+def grade_version(typ):
+    """Current grading version for an idea type."""
+    return VOL_GRADE_VERSION if typ in VOL_TYPES else GRADE_VERSION
+
+
 MIN_MCAP = 1e9  # hard floor — no ideas on sub-$1B names
 SHRINK_K = 30  # shrinkage constant: delta *= n / (n + K)
 CLAMP_PP = 15.0  # max +/- percentage-point adjustment, per cohort AND total
@@ -99,6 +138,28 @@ def _swing_map():
     return out
 
 
+def _read_txt(n):
+    """' (the ±9.8% straddle to 11/14, less 3 normal sessions)' — how the
+    event-only move was derived from the raw option read."""
+    raw, k = n.get("implied"), n.get("nonevent_sessions")
+    if raw is None or k is None:
+        return ""
+    exp = str(n.get("implied_expiry") or "")
+    p = exp.split("-")
+    when = (" to " + str(int(p[1])) + "/" + str(int(p[2]))) if len(p) == 3 else ""
+    what = (
+        "a ±" + str(raw) + "% 1-sigma IV read" + when + ", restated as a straddle"
+        if n.get("implied_src") == "iv_1sigma"
+        else "the ±" + str(raw) + "% straddle" + when
+    )
+    less = (
+        ", no other sessions"
+        if k == 0
+        else ", less " + str(k) + " normal session" + ("" if k == 1 else "s")
+    )
+    return " (" + what + less + ")"
+
+
 def generate(names, swing, facts):
     """Idea cards for names reporting within the horizon."""
     ideas = []
@@ -111,7 +172,9 @@ def generate(names, swing, facts):
         sw = swing.get(t) or {}
         fa = (facts or {}).get(t) or {}
         ev = []  # evidence strings, all sourced
-        implied = n.get("implied")
+        # like-for-like pair: event-only implied vs MEAN |past reaction|
+        implied = n.get("implied_event")
+        fair = n.get("fair_move")
         rmed = n.get("realized_med")
         nrep = n.get("n_reports") or 0
         drift = n.get("drift_5d")
@@ -135,39 +198,59 @@ def generate(names, swing, facts):
                 + str(fl.get("bear", 0))
                 + " bear flow into print"
             )
-        if rmed is not None and nrep >= 4:
-            ev.append("typically moves ±" + str(rmed) + "% (" + str(nrep) + " reports)")
+        if fair is not None and nrep >= 4:
+            ev.append(
+                "averages ±"
+                + str(fair)
+                + "% on reports (median ±"
+                + str(rmed)
+                + "%, "
+                + str(nrep)
+                + " reports)"
+            )
 
         typ = bias = thesis = None
         bull_flow = fl.get("n") and (fl.get("bull", 0) > fl.get("bear", 0))
 
-        if implied is not None and rmed and nrep >= 4:
-            ratio = implied / rmed
+        # a mean that is really one outsized report makes no rich/cheap call
+        if implied is not None and fair and nrep >= 4 and not n.get("fair_move_dominated"):
+            ratio = implied / fair
+            how = _read_txt(n)
             if ratio >= 1.35:
                 typ, bias = "vol_rich", "neutral"
                 thesis = (
                     "Options price a ±"
-                    + str(implied)
-                    + "% move vs a ±"
-                    + str(rmed)
-                    + "% median across "
+                    + str(round(implied, 1))
+                    + "% move for the report itself"
+                    + how
+                    + " vs a ±"
+                    + str(fair)
+                    + "% average reaction across "
                     + str(nrep)
-                    + " past reports ("
-                    + str(round(ratio, 1))
-                    + "× rich) — historically favors defined-risk "
-                    "premium sellers over buyers."
+                    + " past reports (median ±"
+                    + str(rmed)
+                    + "%): "
+                    + str(round(ratio, 2))
+                    + "× rich — premium sellers hold the pricing edge "
+                    "if history repeats."
                 )
             elif ratio <= 0.75:
                 typ, bias = "vol_cheap", "neutral"
                 thesis = (
                     "Options price only ±"
-                    + str(implied)
-                    + "% vs a ±"
-                    + str(rmed)
-                    + "% median move ("
+                    + str(round(implied, 1))
+                    + "% for the report itself"
+                    + how
+                    + " vs a ±"
+                    + str(fair)
+                    + "% average reaction ("
                     + str(nrep)
-                    + " reports) — the move is cheap; "
-                    "long-vol structures historically favored."
+                    + " reports, median ±"
+                    + str(rmed)
+                    + "%): "
+                    + str(round(ratio, 2))
+                    + "× — the move is cheap; long-vol structures hold "
+                    "the pricing edge if history repeats."
                 )
         if typ is None and a_tier and bull_flow and (drift or 0) > 0:
             typ, bias = "momentum_into_print", "bull"
@@ -216,8 +299,10 @@ def generate(names, swing, facts):
                 "bias": bias,
                 "thesis": thesis,
                 "evidence": ev[:5],
-                "implied": implied,
-                "realized_med": rmed,
+                # the read, verbatim from earnings_edge (implied = RAW read,
+                # implied_event = like-for-like; see READ_FIELDS)
+                **{k: n.get(k) for k in READ_FIELDS},
+                "n_reports": nrep or None,
                 "mcap_b": round(cap / 1e9, 1) or None,
                 "grade": grade or None,
                 "rs_rank": rs_rank,
@@ -257,10 +342,12 @@ _CLOSES_CACHE = {}
 
 
 def _closes_around(t, event_date):
-    """Daily closes from ~2 weeks before to ~4 weeks after the event via
+    """Daily closes from ~11 weeks before to ~4 weeks after the event via
     yfinance (a window AROUND the event, so old ideas can be regraded — the
-    old "last 2 months" fetch had no bars for events older than that).
-    Cached per (ticker, event) within a run; None on failure."""
+    old "last 2 months" fetch had no bars for events older than that; the
+    pre-event stretch also feeds the daily volatility a legacy vol idea's
+    read is reconstructed with). Cached per (ticker, event) within a run;
+    None on failure."""
     key = (t, event_date)
     if key in _CLOSES_CACHE:
         return _CLOSES_CACHE[key]
@@ -270,7 +357,7 @@ def _closes_around(t, event_date):
 
         ev = datetime.strptime(event_date, "%Y-%m-%d").date()
         df = yf.Ticker(t).history(
-            start=(ev - timedelta(days=14)).isoformat(),
+            start=(ev - timedelta(days=80)).isoformat(),
             end=(ev + timedelta(days=28)).isoformat(),
             interval="1d",
             auto_adjust=False,
@@ -323,24 +410,75 @@ def _reaction_frame(rows, ev, session):
     return pre_i, day1_i
 
 
-def _grade(idea):
-    """(result, mv) — result win/loss/None(not gradeable yet).
+def _session_of(idea):
+    return idea.get("session") or (idea.get("feat") or {}).get("session")
 
-    mv is a uniform margin metric: the graded move expressed so that
-    mv > 0 == win for every idea type. Storing it makes the learned
-    layer EV-capable (mean mv per cohort), not just hit-rate-capable.
-    Session frames per idea type."""
+
+def _reconstruct_read(idea, rows):
+    """Legacy vol idea (logged before reads were recorded): rebuild its
+    event-only implied move from the FIRST logged read.
+
+    Returns (read_dict, None) or (None, why). Assumptions, stated in the
+    payload: the logged value was a straddle (implied_direct has been the
+    primary read since 2026-07-27); it was priced at the close of the
+    `published` date (the post-close job's UTC date); its expiry was the
+    first weekly within 5 days of the report (implied_direct's window);
+    daily volatility = the 40 sessions up to that close."""
+    raw, pub, ev = idea.get("implied"), idea.get("published"), idea.get("date")
+    session = _session_of(idea)
+    if not raw or raw <= 0 or not pub:
+        return None, "no logged read"
+    try:
+        read = date.fromisoformat(str(pub)[:10])
+    except ValueError:
+        return None, "unreadable logging date"
+    if not EM._is_session(read):
+        read = EM.previous_session(read)
+    if not EM.is_pre_event(read, ev, session):
+        # first logged on/after the report: the read may already reflect
+        # the result (e.g. a tiny post-report straddle flagged "cheap")
+        return None, "first read not provably before the report"
+    exp = EM.assumed_weekly_expiry(ev, session)
+    if exp is None:
+        return None, "no weekly expiry within 5 days of the report"
+    k = EM.nonevent_sessions(read, exp, ev, session)
+    if k is None:
+        return None, "assumed expiry does not cover the report"
+    closes = [c for d, c in rows if d <= read.isoformat()]
+    dv = EM.daily_vol_pct(closes)
+    evm = EM.event_move(raw, "straddle", k, dv)
+    if evm.get("implied_event") is None:
+        return None, evm.get("why") or "no event-only move"
+    return {
+        "implied_event": evm["implied_event"],
+        "daily_vol": dv,
+        "nonevent_sessions": k,
+        "implied_expiry": exp.isoformat(),
+        "implied_asof": read.isoformat(),
+    }, None
+
+
+def _grade_full(idea):
+    """dict of grade fields, or None when not gradeable YET (missing or
+    too few closes — retried next run).
+
+    Always carries result (win/loss, or void for a vol idea whose read
+    cannot be put on the like-for-like basis) and, when graded, mv: a
+    uniform margin metric, the graded move expressed so that mv > 0 ==
+    win for every idea type (EV-capable learned layer). Vol ideas also
+    carry abs_move, implied_graded, frame_sessions and basis
+    (exact = the recorded last pre-event read; reconstructed = legacy)."""
     ev = idea.get("date")
     if not ev:
-        return None, None
+        return None
     rows = _closes_around(idea["t"], ev)
     if not rows:
-        return None, None
+        return None
     # Session-aware: the reaction to an AMC print is the NEXT session.
-    session = idea.get("session") or (idea.get("feat") or {}).get("session")
+    session = _session_of(idea)
     pre_i, day1_i = _reaction_frame(rows, ev, session)
-    if pre_i is None or pre_i + GRADE_AFTER_SESSIONS >= len(rows):
-        return None, None  # not enough post-event sessions
+    if pre_i is None or day1_i is None or pre_i + GRADE_AFTER_SESSIONS >= len(rows):
+        return None  # not enough post-event sessions
     import math as _math
 
     def _fin(x):
@@ -353,22 +491,49 @@ def _grade(idea):
     # ideas are selected on in earnings_edge)
     d5 = _fin(rows[day1_i + 5][1]) if day1_i + 5 < len(rows) else None
     if pre is None or day1 is None:
-        return None, None  # NaN closes (halt/missing bar): not gradeable
+        return None  # NaN closes (halt/missing bar): not gradeable
     move1 = (day1 / pre - 1) * 100
     typ = idea["type"]
     sign = 1 if idea.get("bias") == "bull" else -1
+    out = {}
     mv = None
-    if typ == "vol_rich":
-        mv = (idea.get("implied") or 0) - abs(move1)
-    elif typ == "vol_cheap":
-        mv = abs(move1) - (idea.get("implied") or 0)
+    if typ in VOL_TYPES:
+        if idea.get("implied_event") is not None:
+            out["basis"] = "exact"
+            imp_ev, dv = idea["implied_event"], idea.get("daily_vol")
+        else:
+            rec, why = _reconstruct_read(idea, rows)
+            if rec is None:
+                return {"result": "void", "void_why": why}
+            out["basis"] = "reconstructed"
+            out.update(rec)
+            imp_ev, dv = rec["implied_event"], rec["daily_vol"]
+        frame = day1_i - pre_i  # 1 session, or 2 when the report time is unknown
+        imp = EM.frame_move(imp_ev, dv, frame - 1)
+        if imp is None:
+            return {"result": "void", "void_why": "no daily volatility for a two-session frame"}
+        out.update(
+            abs_move=round(abs(move1), 2),
+            implied_graded=round(imp, 2),
+            frame_sessions=frame,
+        )
+        mv = imp - abs(move1) if typ == "vol_rich" else abs(move1) - imp
     elif typ == "momentum_into_print" and d3 is not None:
         mv = sign * (d3 / pre - 1) * 100
     elif typ == "post_report_drift" and d5 is not None:
         mv = sign * (d5 / day1 - 1) * 100  # drift measured AFTER the print
     if mv is None:
-        return None, None  # binary_caution isn't a trade
-    return ("win" if mv > 0 else "loss"), round(mv, 2)
+        return None  # binary_caution isn't a trade
+    out.update(result="win" if mv > 0 else "loss", mv=round(mv, 2))
+    return out
+
+
+def _grade(idea):
+    """(result, mv) — result win/loss/void/None(not gradeable yet)."""
+    g = _grade_full(idea)
+    if not g:
+        return None, None
+    return g["result"], g.get("mv")
 
 
 # ── feedback loop: graded outcomes → cohort deltas → conf on new ideas ──
@@ -397,27 +562,51 @@ def _learned(entries):
     min-N 30, shrinkage n/(n+SHRINK_K) toward zero, clamp ±CLAMP_PP,
     fail-open (cohort below gate → simply absent → no adjustment)."""
     coh = {}
-    for e in entries:
-        r = e.get("result")
-        if r not in ("win", "loss") or e.get("gv") != GRADE_VERSION:
-            continue
+    for e in _current_grades(entries):
         for k in _cohort_keys(e):
-            coh.setdefault(k, []).append((r == "win", e.get("mv")))
+            coh.setdefault(k, []).append((e["result"] == "win", e.get("mv"), _ratio(e)))
     out = {}
     for k, obs in coh.items():
         n = len(obs)
         if n < MIN_N:
             continue
-        wr = 100.0 * sum(1 for w, _ in obs if w) / n
-        delta = (wr - 50.0) * (n / (n + SHRINK_K))
-        mvs = [m for _, m in obs if m is not None and m == m and abs(m) != float("inf")]
+        wr = 100.0 * sum(1 for w, _, _ in obs if w) / n
+        # Vol ideas are measured against the win rate a FAIRLY priced
+        # straddle would score with this cohort's dispersion (~58-63%),
+        # not 50% — otherwise a fair market reads as an edge.
+        base = 50.0
+        if k.split("|")[0].removeprefix("type:") in VOL_TYPES:
+            fb = EM.fair_win_baseline([r for _, _, r in obs if r is not None])
+            base = fb if fb is not None else 100.0 * EM.NORMAL_FAIR_WIN
+        delta = (wr - base) * (n / (n + SHRINK_K))
+        mvs = [m for _, m, _ in obs if m is not None and m == m and abs(m) != float("inf")]
         out[k] = {
             "n": n,
             "wr": round(wr, 1),
+            "base": round(base, 1),
             "delta": round(max(-CLAMP_PP, min(CLAMP_PP, delta)), 2),
             "ev": round(sum(mvs) / len(mvs), 2) if mvs else None,
         }
     return out
+
+
+def _current_grades(entries):
+    """Win/loss entries graded under their type's CURRENT version — a stale
+    v1 AMC grade measured the day before the report; a v2 vol grade used
+    the raw straddle frozen at first logging."""
+    return [
+        e
+        for e in entries
+        if e.get("result") in ("win", "loss") and e.get("gv") == grade_version(e.get("type"))
+    ]
+
+
+def _ratio(e):
+    """|realized| / implied for a graded vol entry (None otherwise)."""
+    a, imp = e.get("abs_move"), e.get("implied_graded")
+    if a is None or not imp:
+        return None
+    return a / imp
 
 
 def _apply_conf(ideas, learned):
@@ -439,95 +628,203 @@ def _apply_conf(ideas, learned):
         ideas.sort(key=lambda i: (i["days"], -(i.get("conf") or 50)))
 
 
-def main():
-    edge = _load(R("docs", "reports", "earnings_edge.json"), {})
-    facts = _load(R("docs", "reports", "technical_facts.json"), {})
-    facts = facts.get("facts") or facts
-    swing = _swing_map()
-    ideas = generate(edge.get("names") or [], swing, facts)
+def apply_read(entry, row):
+    """Copy an earnings_edge read onto a pending vol log entry when it is a
+    usable like-for-like read taken BEFORE the report. Each nightly run
+    calls this, so a pending idea is graded on the last pre-event close,
+    not on the read that first flagged it (up to ~7 days earlier).
+    Returns True when the entry changed."""
+    if not row or row.get("implied_event") is None or not row.get("implied_asof"):
+        return False
+    session = row.get("session") or _session_of(entry)
+    try:
+        if not EM.is_pre_event(row["implied_asof"], entry["date"], session):
+            return False
+    except ValueError:
+        return False
+    if entry.get("implied_asof") == row["implied_asof"] and entry.get("implied_event") is not None:
+        return False
+    for k in READ_FIELDS:
+        entry[k] = row.get(k)
+    if row.get("session"):
+        entry["session"] = row["session"]
+    entry["reads"] = int(entry.get("reads") or 0) + 1
+    return True
 
-    log = _load(LOG_PATH, {"ideas": []})
-    today = datetime.now(UTC).date().isoformat()
+
+def log_new_ideas(log, ideas, today, edge_rows=None):
+    """Append today's new ideas to the log (once per ticker/date/type).
+    Vol ideas carry their read; returns the number added."""
     seen = {(i.get("t"), i.get("date"), i.get("type")) for i in log["ideas"]}
     added = 0
     for i in ideas:
         key = (i["t"], i["date"], i["type"])
         if key in seen or i["type"] == "binary_caution":
             continue
-        log["ideas"].append(
-            {
-                "t": i["t"],
-                "date": i["date"],
-                "type": i["type"],
-                "bias": i["bias"],
-                "implied": i.get("implied"),
-                "feat": i.get("feat"),
-                "published": today,
-                "result": "pending",
-            }
-        )
+        e = {
+            "t": i["t"],
+            "date": i["date"],
+            "type": i["type"],
+            "bias": i["bias"],
+            "implied": i.get("implied"),
+            "feat": i.get("feat"),
+            "published": today,
+            "result": "pending",
+        }
+        if i["type"] in VOL_TYPES:
+            row = (edge_rows or {}).get(key[:2]) or {k: i.get(k) for k in READ_FIELDS}
+            row = dict(row, session=i.get("session"))
+            if not apply_read(e, row):
+                continue  # no usable pre-report read: nothing honest to grade
+        log["ideas"].append(e)
+        seen.add(key)
         added += 1
+    return added
 
-    # grade matured, ungraded ideas (event >= ~GRADE_AFTER_SESSIONS old),
-    # and regrade ideas graded under an older GRADE_VERSION (capped per run;
-    # a failed regrade keeps the old grade and is retried next run)
-    cutoff = (datetime.now(UTC).date() - timedelta(days=GRADE_AFTER_SESSIONS + 4)).isoformat()
-    graded = regraded = 0
+
+def refresh_pending_reads(log, edge_rows):
+    """Move every pending vol idea onto tonight's read (if still before
+    its report). Returns the number refreshed."""
+    n = 0
+    for e in log["ideas"]:
+        if e.get("type") in VOL_TYPES and e.get("result") == "pending":
+            n += apply_read(e, edge_rows.get((e.get("t"), e.get("date"))))
+    return n
+
+
+def grade_log(log, cutoff):
+    """Grade matured pending ideas (event >= ~GRADE_AFTER_SESSIONS old) and
+    regrade ideas graded under an older version of their type (capped per
+    run; a failed regrade keeps the old grade and is retried next run).
+    Returns (graded, regraded, voided)."""
+    graded = regraded = voided = 0
     for i in log["ideas"]:
         if not (i.get("date") and i["date"] <= cutoff):
             continue
+        gv = grade_version(i.get("type"))
         pending = i.get("result") == "pending"
-        stale = i.get("result") in ("win", "loss") and i.get("gv") != GRADE_VERSION
+        stale = i.get("result") in ("win", "loss") and i.get("gv") != gv
         if not (pending or (stale and regraded < REGRADE_PER_RUN)):
             continue
-        res, mv = _grade(i)
+        g = _grade_full(i)
         if stale:
             regraded += 1
-        if res:
-            i["result"] = res
-            i["gv"] = GRADE_VERSION
-            if mv is not None:
-                i["mv"] = mv
-            else:
-                i.pop("mv", None)
+        if not g:
+            continue
+        if stale:  # keep the superseded grade for the audit trail
+            i["prev_grade"] = {"result": i.get("result"), "mv": i.get("mv"), "gv": i.get("gv")}
+        for k in ("mv", "abs_move", "implied_graded", "frame_sessions", "basis", "void_why"):
+            i.pop(k, None)
+        i.update(g)
+        i["gv"] = gv
+        if g["result"] == "void":
+            voided += 1
+        else:
             graded += 1
-    if regraded:
-        print(f"  regraded {regraded} ideas to grade v{GRADE_VERSION} (session-aware)")
-    log["ideas"] = log["ideas"][-LOG_CAP:]
+    return graded, regraded, voided
 
+
+def type_stats(entries):
+    """Per-type published stats from current-version grades."""
     by_type = {}
-    for i in log["ideas"]:
-        # only current-version grades count — a stale v1 AMC grade measured
-        # the day before the report
-        if i.get("result") in ("win", "loss") and i.get("gv") == GRADE_VERSION:
-            by_type.setdefault(i["type"], []).append(
-                (i["result"] == "win", i.get("mv"), i.get("date"))
-            )
+    for i in _current_grades(entries):
+        by_type.setdefault(i["type"], []).append(i)
     stats = {}
     for k, obs in by_type.items():
         n = len(obs)
-        if n >= MIN_N:
-            pairs = [
-                (d, m) for _, m, d in obs if m is not None and m == m and abs(m) != float("inf")
-            ]
-            mvs = [m for _, m in pairs]
-            ev = sum(mvs) / len(mvs) if mvs else None
-            se = _cluster_se(pairs)
-            stats[k] = {
-                "status": "active",
-                "n": n,
-                "win_rate": round(100 * sum(1 for w, _, _ in obs if w) / n),
-                "ev": (round(ev, 2) if ev is not None else None),
-                # 95% CI clustered by event date (same-day reports share
-                # one market move); gates need its low end above zero
-                "ci95": (
-                    [round(ev - 1.96 * se, 2), round(ev + 1.96 * se, 2)]
-                    if ev is not None and se
-                    else None
-                ),
-            }
-        else:
+        if n < MIN_N:
             stats[k] = {"status": "accruing", "n": n, "activates_at": MIN_N}
+            continue
+        pairs = [
+            (i.get("date"), i["mv"])
+            for i in obs
+            if isinstance(i.get("mv"), (int, float))
+            and i["mv"] == i["mv"]
+            and abs(i["mv"]) != float("inf")
+        ]
+        mvs = [m for _, m in pairs]
+        ev = sum(mvs) / len(mvs) if mvs else None
+        se = _cluster_se(pairs)
+        st = {
+            "status": "active",
+            "n": n,
+            "win_rate": round(100 * sum(1 for i in obs if i["result"] == "win") / n),
+            "ev": (round(ev, 2) if ev is not None else None),
+            # 95% CI clustered by event date (same-day reports share
+            # one market move); gates need its low end above zero
+            "ci95": (
+                [round(ev - 1.96 * se, 2), round(ev + 1.96 * se, 2)]
+                if ev is not None and se
+                else None
+            ),
+        }
+        if k in VOL_TYPES:
+            ratios = [r for r in (_ratio(i) for i in obs) if r is not None]
+            a = sum(i.get("abs_move") or 0 for i in obs)
+            m = sum(i.get("implied_graded") or 0 for i in obs)
+            st.update(
+                # what a FAIRLY priced straddle would have scored on these
+                # events (a vol_rich win rate is measured against this)
+                fair_win_rate=EM.fair_win_baseline(ratios),
+                fair_win_rate_normal=round(100 * EM.NORMAL_FAIR_WIN, 1),
+                fair_win_rate_fat_tail=round(100 * EM.LAPLACE_FAIR_WIN, 1),
+                # average |realized| / average event-only implied (1.00 = fair)
+                realized_over_implied=round(a / m, 3) if m else None,
+                n_exact=sum(1 for i in obs if i.get("basis") == "exact"),
+                n_reconstructed=sum(1 for i in obs if i.get("basis") == "reconstructed"),
+            )
+            if st["fair_win_rate"] is not None:
+                st["win_vs_fair_pp"] = round(st["win_rate"] - st["fair_win_rate"], 1)
+        stats[k] = st
+    for k in VOL_TYPES:
+        nv = sum(1 for i in entries if i.get("type") == k and i.get("result") == "void")
+        if nv:
+            stats.setdefault(k, {"status": "accruing", "n": 0, "activates_at": MIN_N})
+            stats[k]["n_void"] = nv
+    return stats
+
+
+GRADING_NOTE = (
+    "Vol ideas (grade v3) compare like with like: the options-implied move "
+    "for the report session alone (the ATM straddle of the first expiry "
+    "after the report, or a 1-sigma IV read restated as a straddle, with "
+    "the normal sessions to expiry stripped out using recent daily "
+    "volatility) from the LAST read before the report, against the actual "
+    "|reaction| (close before -> close after; reports of unknown time span "
+    "two sessions and the implied move is widened by one normal session). "
+    "A fairly priced straddle still wins ~58-63% of the time, so the "
+    "win rate is shown next to fair_win_rate (what a fair price would "
+    "have scored on these same events) and realized_over_implied (1.00 = "
+    "fair). basis 'reconstructed' = ideas logged before reads were "
+    "recorded, rebuilt from the first logged read (assumed straddle, "
+    "priced at that day's close, first weekly expiry within 5 days of the "
+    "report); ideas whose first read was not provably before the report "
+    "are void and excluded."
+)
+
+
+def main():
+    edge = _load(R("docs", "reports", "earnings_edge.json"), {})
+    facts = _load(R("docs", "reports", "technical_facts.json"), {})
+    facts = facts.get("facts") or facts
+    swing = _swing_map()
+    ideas = generate(edge.get("names") or [], swing, facts)
+    edge_rows = {(r.get("t"), r.get("date")): r for r in edge.get("names") or []}
+
+    log = _load(LOG_PATH, {"ideas": []})
+    today = datetime.now(UTC).date().isoformat()
+    refreshed = refresh_pending_reads(log, edge_rows)
+    added = log_new_ideas(log, ideas, today, edge_rows)
+
+    cutoff = (datetime.now(UTC).date() - timedelta(days=GRADE_AFTER_SESSIONS + 4)).isoformat()
+    graded, regraded, voided = grade_log(log, cutoff)
+    if regraded:
+        print(f"  regraded {regraded} ideas to their current grade version")
+    if voided:
+        print(f"  voided {voided} vol ideas with no provably pre-report read")
+    log["ideas"] = log["ideas"][-LOG_CAP:]
+
+    stats = type_stats(log["ideas"])
 
     # feedback loop: graded cohorts adjust conf on today's ideas
     learned = _learned(log["ideas"])
@@ -538,7 +835,9 @@ def main():
         "count": len(ideas),
         "ideas": ideas,
         "by_type": stats,
-        "total_graded": sum(len(v) for v in by_type.values()),
+        "total_graded": len(_current_grades(log["ideas"])),
+        "reads_refreshed": refreshed,
+        "grading_note": GRADING_NOTE,
         "min_mcap_b": round(MIN_MCAP / 1e9),
         "learned": {
             "status": "active" if learned else "accruing",

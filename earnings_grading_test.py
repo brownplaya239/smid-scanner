@@ -30,7 +30,17 @@ def test_reaction_frame_by_session():
 
 
 def _idea(**kw):
-    base = {"t": "ABC", "date": "2026-10-14", "type": "vol_rich", "implied": 6.0, "bias": "neutral"}
+    # implied_event = the like-for-like (event-only) read recorded before
+    # the report; vol ideas are graded on it (grade v3)
+    base = {
+        "t": "ABC",
+        "date": "2026-10-14",
+        "type": "vol_rich",
+        "implied": 6.5,
+        "implied_event": 6.0,
+        "daily_vol": 1.0,
+        "bias": "neutral",
+    }
     base.update(kw)
     return base
 
