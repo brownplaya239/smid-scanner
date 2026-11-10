@@ -6,7 +6,7 @@ on-demand research reports and the daily brief. Scheduled GitHub Actions
 workflows run the scripts, publish the report PDFs to the site (GitHub Pages,
 served from `docs/`) and keep the data in Cloudflare R2.
 
-`CLAUDE.md` is the detailed guide: report types, schedules, files, credentials
+`AGENTS.md` is the detailed guide (Claude reads it through `CLAUDE.md`, Codex directly): report types, schedules, files, credentials
 and known gotchas. `CONTRIBUTING.md` explains the commit and pull request format.
 
 ## Quick start
@@ -25,7 +25,7 @@ uv run pytest                    # run the tests
 
 `uv run <file>.py` runs any script with the project's Python and packages; no
 need to activate a virtual environment. Most scripts need API keys in `.env`
-(see `CLAUDE.md`, "Credentials").
+(see `AGENTS.md`, "Credentials").
 
 To get the public report data the site shows (no token needed):
 
