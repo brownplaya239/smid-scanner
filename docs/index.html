@@ -19238,12 +19238,29 @@
           "contracts (they overstate the event move)";
         const T_TYP = "Fewer than 4 past reports with usable price history " +
           "— not enough to trust a 'typical move'";
+        // Like-for-like payloads (they carry a "method" block) compare the
+        // options-implied move for the report session alone with the
+        // AVERAGE past reaction; older payloads keep their old columns so
+        // the ratio column always equals implied ÷ typical on screen.
+        const LFL = !!d.method;
+        const IMP_K = LFL ? "implied_event" : "implied";
+        const TYP_K = LFL ? "fair_move" : "realized_med";
         const rows = names.map(function (r) {
-          const imp = r.implied != null
-            ? '<span class="ee-num">±' + r.implied + '%</span>'
-            : '<span class="ee-num" title="' + T_IMP + '">—</span>';
-          const typ = r.realized_med != null
-            ? '<span class="ee-num">±' + r.realized_med + '%</span>'
+          const impTip = LFL && r.implied != null
+            ? (r.implied_src === "iv_1sigma" ? "1-sigma IV read ±" : "Straddle ±") +
+              r.implied + "% to " + (r.implied_expiry || "?") +
+              (r.nonevent_sessions != null ? ", less " + r.nonevent_sessions +
+                " normal session(s)" : "")
+            : "";
+          const imp = r[IMP_K] != null
+            ? '<span class="ee-num"' + (impTip ? ' title="' + esc(impTip) + '"' : '') +
+              '>±' + r[IMP_K] + '%</span>'
+            : '<span class="ee-num" title="' + esc((LFL && r.implied_why) || T_IMP) +
+              '">—</span>';
+          const typ = r[TYP_K] != null
+            ? '<span class="ee-num"' + (LFL && r.realized_med != null
+                ? ' title="median ±' + r.realized_med + '%"' : '') +
+              '>±' + r[TYP_K] + '%</span>'
             : '<span class="ee-num" title="' + T_TYP + '">—</span>';
           const rCls = r.edge_ratio == null ? ""
             : r.edge_ratio >= 1.35 ? "neg" : r.edge_ratio <= 0.85 ? "pos" : "";
@@ -19272,17 +19289,26 @@
         el.innerHTML =
           '<div class="ee-card"><div class="ee-head">Earnings Edge — ' +
           'is the move worth paying for?' +
-          '<span class="ee-sub">typical = median |reaction| last ' +
-          '≤8 reports (BMO/AMC-aware) · implied = front-expiry option ' +
-          'read when one brackets the report — dashes are honest gaps, ' +
-          'hover them · click headers to sort</span></div>' +
+          '<span class="ee-sub">' + (LFL
+            ? 'typical = AVERAGE |reaction| last ≤8 reports (BMO/AMC-aware; ' +
+              'median on hover) · implied = options-priced move for the ' +
+              'report session alone (front-expiry straddle with the normal ' +
+              'days to expiry stripped out; raw read on hover)'
+            : 'typical = median |reaction| last ≤8 reports (BMO/AMC-aware) · ' +
+              'implied = front-expiry option read when one brackets the report') +
+          ' — dashes are honest gaps, hover them · click headers to sort</span></div>' +
           '<div class="ee-scroll">' +
           '<div class="ee-row ee-hdr">' +
             th('Ticker', 't') + th('Date', 'days') + '<span>When</span>' +
             th('Mcap', 'mcap', null, 1) +
-            th('Typical', 'realized_med', 'Median absolute reaction move over the last ≤8 reports', 1) +
-            th('Implied', 'implied', 'Options-priced move from the contract expiring just after the report', 1) +
-            th('Ratio', 'edge_ratio', 'Implied ÷ typical: ≥1.35× rich (long premium overpays) · ≤0.85× cheap', 1) +
+            th('Typical', TYP_K, LFL
+              ? 'Average absolute reaction over the last ≤8 reports (what a straddle prices)'
+              : 'Median absolute reaction move over the last ≤8 reports', 1) +
+            th('Implied', IMP_K, LFL
+              ? 'Options-priced move for the report session alone: the straddle expiring just after the report, less the normal trading days to expiry'
+              : 'Options-priced move from the contract expiring just after the report', 1) +
+            th('Ratio', 'edge_ratio', 'Implied ÷ typical: ≥1.35× rich (long premium overpays) · ≤0.85× cheap' +
+              (LFL ? ' · 1.00 = fairly priced' : ''), 1) +
             th('Drift', 'drift_5d', 'Avg move from reaction close to +5 sessions — continuation vs fade', 1) +
             th('Verdict', 'verdict') + '</div>' +
           rows + '</div></div>';
@@ -19328,8 +19354,15 @@
         const rows = d.ideas.map(function (i) {
           const tm = TYPE_META[i.type] || [i.type, "", ""];
           const s = st[i.type];
+          // vol types: a fairly priced straddle still "wins" ~58-63% of the
+          // time, so the win rate carries that baseline (never read vs 50%)
+          const fair = s && s.fair_win_rate != null
+            ? ' (fair ≈ ' + Math.round(s.fair_win_rate) + '%)' : '';
           const rec = s && s.status === "active"
-            ? '<span class="ei-rec on">' + s.win_rate + '%' +
+            ? '<span class="ei-rec on"' + (fair ? ' title="Win rate a ' +
+                'fairly priced option would have scored on the same ' +
+                'reports — compare with this, not 50%"' : '') + '>' +
+              s.win_rate + '%' + fair +
               (s.ev != null ? ' · EV ' + (s.ev > 0 ? '+' : '') + s.ev + '%' : '') +
               ' · n=' + s.n + '</span>'
             : '<span class="ei-rec">track record ' + ((s && s.n) || 0) +
