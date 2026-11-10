@@ -657,3 +657,37 @@ def test_dry_run_writes_nothing(offline):
     assert not (tmp_path / "uoa_matched_v2.json.gz").exists()
     assert not (tmp_path / "uoa_scorecard.json").exists()
     assert not (tmp_path / "lag.json").exists()
+
+
+def test_units_use_the_days_first_flag_like_the_track_record():
+    base = {"ticker": "ABC", "contract": "O:ABC261120C00100000", "type": "call"}
+    ledger = [
+        # first flag of the day: mixed prints (no direction) ...
+        dict(
+            base,
+            id="a",
+            flagged_at="2026-10-05T15:00:00+00:00",
+            flow_side="mixed",
+            direction="hedge",
+        ),
+        # ... a later re-log reads as a buyer: still the SAME alert, ungraded
+        dict(
+            base,
+            id="b",
+            flagged_at="2026-10-05T18:00:00+00:00",
+            flow_side="call_buyer",
+            direction="bullish",
+        ),
+        # a different contract whose first flag is a buyer counts
+        dict(
+            base,
+            id="c",
+            contract="O:ABC261120C00110000",
+            flagged_at="2026-10-05T16:00:00+00:00",
+            flow_side="call_buyer",
+            direction="bullish",
+        ),
+    ]
+    units, counts = us.build_units(ledger)
+    assert counts["unique_alerts"] == 1
+    assert len(units) == 1 and units[0]["n_alerts"] == 1

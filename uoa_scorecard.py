@@ -266,19 +266,20 @@ def build_units(ledger):
     Rows on a bad price basis (_basis_ok) are dropped. Scan re-logs collapse
     first to one alert per contract per ET day (unique_alerts, earliest flag
     kept), then alerts collapse to the stock-day-direction unit."""
-    directional = [
-        s
-        for s in ledger
-        if s.get("ticker") and s.get("flagged_at") and _dir_sign(s) is not None and _basis_ok(s)
-    ]
+    rows = [s for s in ledger if s.get("ticker") and s.get("flagged_at")]
     # the day's premium on a contract = the largest cumulative premium any scan saw
     prem_day = {}
-    for s in directional:
+    for s in rows:
         k = (s.get("contract") or s.get("id"), _et_date(s.get("flagged_at")))
         p = s.get("premium") or 0
         if p > prem_day.get(k, 0):
             prem_day[k] = p
-    alerts = unique_alerts(directional)
+    # Same unit as the published track record (uoa_alpha): collapse to the
+    # day's FIRST flag per contract, THEN keep directional, basis-ok alerts.
+    # Filtering first would let a contract whose first flag was mixed count
+    # via a later re-log, which the track record never grades.
+    alerts = [a for a in unique_alerts(rows) if _dir_sign(a) is not None and _basis_ok(a)]
+    directional = [s for s in rows if _dir_sign(s) is not None and _basis_ok(s)]
     units = {}
     for a in alerts:
         day = _et_date(a["flagged_at"])
