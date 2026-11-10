@@ -326,6 +326,13 @@ overprice earnings moves — a defined-risk premium-selling edge).
 Qualified Trades tier at ship; note their EV is in vol-points (edge for
 premium sellers), not stock alpha — the card says so.
 
+> **2026-11 correction (§10i):** these vol figures compared the RAW
+> straddle (which also prices the normal days to expiry, and was
+> sometimes a 1-sigma IV number) frozen at first logging with a
+> one-session reaction, and judged the win rate against 50%. Even a
+> fairly priced straddle "wins" ~58–63% on that basis. The record is now
+> regraded like-for-like (grade v3); treat the numbers above as history.
+
 ## 10c. Earnings Volatility Alpha Engine (2026-08, reviewer-corrected)
 
 **The correction, encoded in the gating ladder:** a validated
@@ -377,7 +384,8 @@ iron fly after costs. Full 189-event reconstruction runs in CI.
 ±X% vs Fair Move ±Y% (ticker's own median |earnings move|, analogue
 count shown), Volatility Edge (pp), Richness (%), and stance (SELL VOL
 / BUY VOL). Nothing is a multiplier on a model guess — fair move is the
-ticker's measured history.
+ticker's measured history. *(2026-11: Fair Move is now the MEAN |earnings
+move| and "Market implied" is the event-only implied move — §10i.)*
 
 **Not done yet, deliberately:** cross-strategy R-normalization (waits
 for real trade-level P&L per the review), IV-percentile/skew/term-
@@ -542,6 +550,14 @@ Notable: v1 UNDER-forecasts realized by ~2.0pp on the flagged cohort
 (bias −1.98) — displayed richness runs slightly hot; the lab tracks
 this every run.
 
+> **2026-11 correction (§10i):** "v1_ticker_median" was NOT the Fair
+> Move on the cards. It needed ≥3 earlier events of the same ticker in
+> the idea log; no ticker had more than 4, so ~400 of 401 scored events
+> used the global cohort median. The MAE/bias/edge-sign above (and the
+> site's "under-forecasts by ~1.7pp" tooltip built on them) described
+> that cohort median, not the displayed figure. Lab v2 scores the
+> displayed Fair Move point-in-time.
+
 **Priority order (standing):** 1) accrue nights — the binding
 constraint everywhere; 2) improve Fair Move + attribution; 3) wing-
 cost/ATM-edge decomposition; 4) rejected expressions paper-forward
@@ -598,6 +614,114 @@ deciles, no worst-regime degradation. Nightly rebuild:
 `uoa_scorecard.yml`. Card honesty block lists every modeling
 limitation (meta-snapshot sector/mcap, 4-feature historical matches,
 close-anchoring, modeled costs).
+
+## 10i. Like-for-like implied vs Fair Move (2026-11 accuracy audit)
+
+**What was wrong.** Every vol number compared two different things:
+
+| Side | Before | Problem |
+|---|---|---|
+| implied | ATM straddle of the first expiry up to 5 days after the report, priced the evening it was first logged | includes the normal sessions to expiry, not just the report; frozen up to ~7 days before the event |
+| implied (fallback) | flow scanner's `expected_move_pct` = IV·√(dte/365) | a 1-SIGMA move, ~1.25× a straddle, stored in the same field |
+| Fair Move | median \|reaction\| of the last ≤8 reports | a straddle prices the MEAN \|move\|; \|moves\| are right-skewed, so the median sits below it and options look rich |
+| win rate | implied > \|reaction\| vs 50% | a fairly priced straddle beats the realized move 57.5% (normal) to 63.2% (fat-tailed) of the time |
+
+**What it is now** (`earnings_move_math.py`, one place for the arithmetic):
+
+```
+sigma_total   = straddle / 0.798           (1-sigma fallback: as is)
+sigma_event^2 = sigma_total^2 - k * daily_vol^2
+                  k         = sessions in (read close, expiry] minus the report session
+                  daily_vol = RMS of the last 40 daily log returns, earnings
+                              reaction days (and the day after) left out, each
+                              return clipped at 3 robust SDs (1.4826 x median|r|)
+implied_event = 0.798 * sigma_event        (mean |move| of the report session)
+Fair Move     = MEAN |reaction| over the last <=8 reports (median kept as context)
+edge_ratio    = implied_event / Fair Move  (1.00 = fair; >=1.35 rich, <=0.85 cheap)
+```
+
+Worked example (pinned in `earnings_like_for_like_test.py`): a 10% straddle
+read Monday's close for a Tuesday-morning report expiring Friday covers 4
+sessions, one of them the report, so k = 3; at 2%/day,
+σ_total = 12.53, σ_event² = 157.08 − 12 = 145.08, implied_event = 9.61%.
+A 1-sigma read of 12.53% lands on the same 9.61%. Against a Fair Move of
+8.0% (median 6.0%) that is 1.20× — fairly priced, where the old basis
+(10 ÷ 6) read 1.67× "rich".
+
+The clip matters: INO's window held a +115% catalyst day, which as a raw
+RMS reads ~20%/day and strips the entire straddle; clipped, 8.4%/day.
+When one report moved more than all the others combined
+(`fair_move_dominated`, e.g. CYPH: mean 63.7% vs median 15.4%) no
+rich/cheap call is made — that mean is one event.
+
+**Effect on the published reads of 2026-11-10** (16 names with both a
+straddle and ≥4 reports; Yahoo daily bars for daily_vol, earnings days not
+excluded in this check): the old method called 11 "rich"; like-for-like,
+5 are rich, 2 cheap (QBTS, VG: their means run well above their medians),
+9 fair. Stripping normal days lowered the straddle by a median 17%
+(k = 3 for every name, since those reads were taken the evening before).
+
+**Grading (earnings_ideas grade v3, vol types only).**
+- Each nightly run moves a pending vol idea onto that night's read while
+  it is still before the report (`apply_read`): BMO on D needs a read at
+  or before close D−1, AMC on D at or before close D (4 pm quotes, report
+  after), unknown time the BMO rule. So grading uses the LAST pre-event
+  close, not the first read.
+- A vol idea is only logged from a pre-event read. Before this, a BMO
+  name first seen on the evening of its report was logged with a
+  post-report (tiny) straddle and could "win" as vol_cheap.
+- `mv = implied_graded − |reaction|` (rich) / reverse (cheap), where
+  `implied_graded = implied_event`, widened by one normal session when
+  the report time is unknown (graded close D−1 → close D+1).
+- Legacy ideas (logged without a recorded read) are regraded once:
+  `basis: reconstructed` from the first logged read, assuming it was a
+  straddle (implied_direct has been the primary read since 2026-07-27),
+  priced at the close of the `published` date, expiring on the first
+  weekly within 5 days of the report (Thursday if Friday is a holiday),
+  daily_vol from the 40 sessions up to that close. Ideas whose first read
+  was not provably before the report (published on/after a BMO date, or
+  no weekly in the window) are `void` and excluded; the superseded grade
+  is kept in `prev_grade`. `n_exact` / `n_reconstructed` / `n_void` are
+  published.
+- Published next to every vol win rate: `fair_win_rate` = the win rate a
+  fairly priced straddle would have scored on the same events (share of
+  |realized|/implied ratios below their own mean), the normal (57.5%) and
+  fat-tailed (63.2%) references, `win_vs_fair_pp`, and
+  `realized_over_implied` (average |realized| ÷ average implied, 1.00 =
+  fair). The learned-confidence layer measures vol cohorts against their
+  own fair baseline instead of 50%.
+- `earnings_vol.json` (engine v2) reads `abs_move` / `implied_graded`
+  directly; `vol_rich_large_move` keeps its declared basis (raw straddle
+  ≥ 12%); `vol_rich_extreme_ratio` (raw ÷ median ≥ 2.0, as declared) now
+  evaluates on forward exact events.
+- The option-P&L backtest/exec modules are unchanged: they still place
+  strikes off the raw straddle (`implied`), which stays raw in the log.
+
+**Fair Move Lab v2.** Scores the figure the site displayed, point-in-time:
+`fair_mean` (active, logged with each read from 2026-11; accruing until
+40 graded reports) and `fair_median` (the display until 2026-11; from the
+idea log, or from `data/setup_context.jsonl`'s daily `realized_med`, latest
+row in [D−10, D]). Challengers (market_anchored, cap_shrunk, blend) are
+compared on the same events. Promotion now needs ≥5% lower **RMSE** in
+both halves (a forecast of a MEAN is judged by squared error; absolute
+error rewards a forecast that sits at the median, below the straddle's
+fair value) and no worse edge-sign. Reports of unknown time (two-session
+grading frame) are left out.
+
+**Site.** Trade Desk: one family block per vol type, each showing only
+its own ideas (a vol_cheap idea no longer renders under VOL RICH), status
+from the gate, win rate with the fair-pricing baseline, realized ÷
+implied, signed edges/CIs/wing dollars, "Implied (report)" column with
+the raw straddle and the stripped sessions in the row detail, Fair Move
+tooltip and Track Record rows from lab v2, and a "History" column (Full
+8 / Partial 6–7 / Thin 4–5 reports) in place of a Confidence column that
+needed ≥10 reports and could never leave "Low".
+
+**Not verified locally** (private R2 data): the regraded record itself
+(how many legacy ideas reconstruct vs void, and the resulting win rate /
+EV / CI), the setup_context join, and therefore whether vol_rich stays
+SIGNAL_QUALIFIED. The gate logic is unchanged; it reads whatever the
+like-for-like record says.
 
 ## 11. What would make this product succeed
 

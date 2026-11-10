@@ -30746,94 +30746,154 @@
     }
 
     /* -------- Validated Market Edges (family block + instances) ---- */
+    // Signed number / money: the sign comes from the value, never forced.
+    function sgn(v, dp) {
+      if (v === null || v === undefined || v !== v) return "—";
+      return (+v > 0 ? "+" : "") + num(v, dp);
+    }
+    function sgnMoney(v) {
+      if (v === null || v === undefined || v !== v) return "—";
+      var a = Math.abs(Math.round(v));
+      return (v > 0 ? "+$" : v < 0 ? "-$" : "$") + a;
+    }
+    function sgnCls(v) { return v > 0 ? "pos" : v < 0 ? "neg" : ""; }
+    function ciTxt(ci, unit) {
+      return ci && ci.length === 2
+        ? sgn(ci[0], 2) + " → " + sgn(ci[1], 2) + (unit || "")
+        : "—";
+    }
+    // Fair Move point-in-time record (fair_move_lab v2) in one phrase.
+    function fairMoveRecord() {
+      var f = FML || {};
+      var a = f.active || {}, p = f.previous_display || {};
+      var s = a.status === "scored"
+        ? "scored point-in-time on " + a.n + " reports: bias " +
+          sgn(a.bias, 2) + "pp, RMSE " + num(a.rmse, 2) + "pp, edge-sign " +
+          a.edge_sign_pct + "%"
+        : "its point-in-time record is accruing (" + (a.n || 0) + "/" +
+          (a.activates_at || 40) + " graded reports)";
+      if (p.n) {
+        s += ". The median-based Fair Move shown until Nov 2026, scored " +
+          "point-in-time on " + p.n + " reports, had bias " +
+          sgn(p.bias, 2) + "pp (negative = under-forecast)";
+      }
+      return s + ".";
+    }
     function fairMoveTip() {
-      var lab = ((FML || {}).standings || {}).overall || {};
-      var v1 = lab.v1_ticker_median || {};
-      return "TickerDesk Fair Move v1: the ticker's historical median " +
-        "absolute earnings move. Current validation indicates this " +
-        "simple estimate under-forecasts realized movement by ~" +
-        (v1.bias != null ? Math.abs(v1.bias).toFixed(1) : "2") +
-        "pp in the flagged cohort; challenger models are being " +
-        "evaluated and none has cleared the promotion threshold.";
+      return "TickerDesk Fair Move: the ticker's AVERAGE absolute " +
+        "reaction over its last 8 or fewer reports (the median is " +
+        "shown as context). It is compared with the options-implied " +
+        "move for the report session alone (the straddle with the " +
+        "normal trading days to expiry stripped out), so both sides " +
+        "measure the same thing. Fair Move " + fairMoveRecord();
     }
     var SORT = { key: "edge", dir: -1 };
+    var VOL_META = {
+      vol_rich: ["VOL RICH", "Options-implied moves for the report " +
+        "session have exceeded the actual reactions in this cohort, " +
+        "measured like-for-like (event-only implied vs the reaction, " +
+        "graded on the last read before each report)."],
+      vol_cheap: ["VOL CHEAP", "Options-implied moves for the report " +
+        "session have fallen short of the actual reactions in this " +
+        "cohort, measured like-for-like (event-only implied vs the " +
+        "reaction, graded on the last read before each report)."]
+    };
+    var STATUS_LABEL = { signal_qualified: "SIGNAL_QUALIFIED",
+      trade_qualified: "TRADE_QUALIFIED", qualified: "QUALIFIED",
+      degraded: "EXPERIMENTAL" };
     function edgesHTML(d) {
-      var vol = ((EVOL || {}).types || {}).vol_rich || {};
+      var h = "";
+      ["vol_rich", "vol_cheap"].forEach(function (t) {
+        h += volFamilyHTML(d, t);
+      });
+      return h ? '<div class="atd-sec-h">Validated Market Edges</div>' + h
+        : "";
+    }
+    function volFamilyHTML(d, t) {
+      var vol = ((EVOL || {}).types || {})[t] || {};
       var mr = vol.move_ratio || {};
       var boot = vol.date_cluster_bootstrap || {};
+      // only this family's own ideas render under its header
       var insts = (d.top_ideas || []).filter(function (i) {
-        return (i.construct || {}).vol_edge_pp != null;
+        return (i.evidence || {}).etype === t &&
+          (i.construct || {}).vol_edge_pp != null;
       });
-      if (!vol.n && !insts.length) return "";
-      var h = '<div class="atd-sec-h">Validated Market Edges</div>' +
-        '<div class="atd-fam-block">' +
+      if (!vol.signal_qualified && !insts.length) return "";
+      var gate = (((d.gates || {}).earnings || {}).types || {})[t] || {};
+      var st = STATUS_LABEL[gate.verdict] || "WATCH";
+      var meta = VOL_META[t];
+      var h = '<div class="atd-fam-block">' +
         '<div class="fb-head"><span class="fb-title">Earnings ' +
-        'Volatility · VOL RICH</span>' +
-        '<span class="atd-status s-SIGNAL_QUALIFIED">SIGNAL ' +
-        'QUALIFIED</span></div>' +
-        '<div class="fb-desc">Market-implied earnings moves have ' +
-        'systematically exceeded subsequent realized moves in this ' +
-        'cohort. The forecasting relationship has cleared the signal ' +
-        'gate; no option expression has cleared the trade gate.</div>';
+        'Volatility · ' + meta[0] + '</span>' +
+        '<span class="atd-status s-' + st + '">' +
+        st.replace(/_/g, " ") + '</span></div>' +
+        '<div class="fb-desc">' + (vol.signal_qualified ? meta[1] +
+          ' The forecasting relationship has cleared the signal gate; ' +
+          'no option expression has cleared the trade gate.'
+          : 'The forecasting relationship has not cleared the signal ' +
+            'gate.') + '</div>';
       h += edgeStates([
         ["FORECAST EDGE", vol.signal_qualified ? "VALIDATED"
           : "NOT VALIDATED", !!vol.signal_qualified],
         ["TRADE EDGE", "NOT VALIDATED", false],
         ["EXECUTION", "NOT TRIGGERED", false]]);
       // Four primary family metrics; the rest is one secondary line.
+      // A fairly priced straddle still "wins" ~58-63% of the time, so the
+      // win rate always sits next to that baseline, never next to 50%.
+      var winLbl = t === "vol_rich" ? "Implied &gt; realized"
+        : "Realized &gt; implied";
       h += '<div class="atd-fam-metrics">' +
         fm(vol.n, "Events") +
         fm(boot.nights, "Independent nights") +
-        fm(vol.win != null ? vol.win + "%" : "\u2014",
-           "Implied &gt; realized") +
-        fm(vol.ev_vol_pts != null
-           ? "+" + num(vol.ev_vol_pts, 2) + "pp" : "\u2014",
-           "Avg vol edge") + '</div>';
-      h += '<div class="atd-fam-secondary">Median move ratio ' +
-        num(mr.median, 2) + '\u00d7 \u00b7 ' +
-        (mr.inside_075x != null ? mr.inside_075x : "\u2014") +
-        '% inside 0.75\u00d7 implied \u00b7 95% CI ' +
-        (boot.ci95 ? "+" + num(boot.ci95[0], 2) + " \u2192 +" +
-          num(boot.ci95[1], 2) + "pp" : "\u2014") +
-        ' \u00b7 Trade-qualified expression: NONE' +
-        ladder([["Signal", true], ["Expression", false],
+        fm(vol.win != null ? vol.win + "%" : "—",
+           winLbl + (vol.fair_win != null
+             ? " (fair pricing ≈ " + num(vol.fair_win, 0) + "%)"
+             : "")) +
+        fm(vol.ev_vol_pts != null ? sgn(vol.ev_vol_pts, 2) + "pp"
+           : "—", "Avg vol edge") + '</div>';
+      h += '<div class="atd-fam-secondary">Realized ÷ implied ' +
+        num(mr.mean_ratio, 2) + '× on average (1.00 = fair) ' +
+        '· median ' + num(mr.median, 2) + '× · ' +
+        (mr.inside_075x != null ? mr.inside_075x : "—") +
+        '% inside 0.75× implied · 95% CI ' +
+        ciTxt(boot.ci95, "pp") +
+        ' · Trade-qualified expression: NONE' +
+        ladder([["Signal", !!vol.signal_qualified], ["Expression", false],
           ["Execution", false], ["Forward", false],
           ["Champion", false]]) + '</div>';
-      h += instTableHTML(insts);
-      var lab = (((FML || {}).standings || {}).overall || {})
-        .v1_ticker_median || {};
-      h += '<div class="atd-model-note">Fair Move v1 currently tends ' +
-        'to under-forecast realized movement in this cohort by ~' +
-        (lab.bias != null ? Math.abs(lab.bias).toFixed(1) : "2") +
-        'pp. Rankings use the frozen production model; no challenger ' +
-        'has cleared promotion.</div>';
+      if (insts.length) h += instTableHTML(insts);
+      h += '<div class="atd-model-note">Fair Move = average past ' +
+        'reaction (what a straddle is fairly worth if history repeats); ' +
+        fairMoveRecord() + ' Rankings use the frozen production model; ' +
+        'no challenger has cleared promotion.</div>';
       h += '<div class="atd-pending-block"><span class="pb-h">Trade ' +
-        'expression</span>NOT VALIDATED \u2014 no option structure ' +
-        'is recommended. <span class="k">Forecasting signal PASSED ' +
-        '\u00b7 defined-risk gross strategy FAILED/UNPROVEN \u00b7 ' +
-        'executable validation NOT TRIGGERED \u00b7 forward trade ' +
+        'expression</span>NOT VALIDATED — no option structure ' +
+        'is recommended. <span class="k">Forecasting signal ' +
+        (vol.signal_qualified ? "PASSED" : "NOT PASSED") + ' · ' +
+        'defined-risk gross strategy FAILED/UNPROVEN · ' +
+        'executable validation NOT TRIGGERED · forward trade ' +
         'record NOT STARTED.</span></div>';
       h += '</div>';
       return h;
     }
     function fm(v, k) {
       return '<div class="fm"><div class="fm-v">' +
-        (v == null ? "\u2014" : v) + '</div><div class="fm-k">' + k +
+        (v == null ? "—" : v) + '</div><div class="fm-k">' + k +
         '</div></div>';
     }
     function instTableHTML(insts) {
       var rows = insts.slice();
+      function mfOf(c) {
+        return c.market_fair_ratio != null ? c.market_fair_ratio
+          : (c.implied_move && c.fair_move
+            ? c.implied_move / c.fair_move : null);
+      }
       rows.sort(function (a, b) {
         var ca = a.construct, cb = b.construct;
         if (SORT.key === "ticker")
           return SORT.dir * (a.ticker < b.ticker ? -1 : 1);
-        if (SORT.key === "mf") {
-          var ma = ca.implied_move && ca.fair_move
-            ? ca.implied_move / ca.fair_move : 0;
-          var mb = cb.implied_move && cb.fair_move
-            ? cb.implied_move / cb.fair_move : 0;
-          return SORT.dir * (ma - mb);
-        }
+        if (SORT.key === "mf")
+          return SORT.dir * ((mfOf(ca) || 0) - (mfOf(cb) || 0));
         return SORT.dir * (ca.vol_edge_pp - cb.vol_edge_pp);
       });
       function th(label, key, cls, tip) {
@@ -30841,42 +30901,50 @@
           '" data-atdsort="' + key + '"' +
           (tip ? ' title="' + esc(tip) + '"' : '') + '>' + label +
           (SORT.key === key
-            ? (SORT.dir < 0 ? " \u25bc" : " \u25b2") : "") +
+            ? (SORT.dir < 0 ? " ▼" : " ▲") : "") +
           '</th>';
       }
       var h = '<div class="atd-table-wrap">' +
         '<table class="atd-table atd-table-hero" id="atd-inst-table">' +
         '<tr>' + th("Ticker", "ticker", "") +
         '<th class="secondary">Earnings</th>' +
-        '<th>Implied</th>' +
+        '<th title="' + esc("Options-implied move for the report " +
+          "session alone: the straddle of the first expiry after the " +
+          "report, with the normal trading days to expiry stripped " +
+          "out (hover a row's bars for the raw straddle).") +
+        '">Implied (report)</th>' +
         '<th>Fair Move<span class="atd-info" title="' +
         esc(fairMoveTip()) + '">i</span></th>' +
         th("Edge", "edge", "",
-           "Ranked by current volatility discrepancy (implied minus " +
-           "Fair Move) \u2014 not expected trade return.") +
-        th("Market/Fair", "mf", "secondary") +
+           "Ranked by current volatility discrepancy (event-only " +
+           "implied minus Fair Move) — not expected trade return.") +
+        th("Market/Fair", "mf", "secondary",
+           "Event-only implied ÷ Fair Move (1.00 = fairly priced)") +
         '<th class="secondary">Own Hist.</th>' +
-        '<th class="secondary">Confidence</th></tr>';
+        '<th class="secondary" title="' + esc("How many past reports " +
+          "the Fair Move averages: up to 8 are used. Full = 8, " +
+          "Partial = 6-7, Thin = 4-5. Even 8 reports is a small " +
+          "sample.") + '">History</th></tr>';
       rows.forEach(function (i, idx) {
         var c = i.construct || {};
-        var mf = (c.implied_move && c.fair_move)
-          ? c.implied_move / c.fair_move : null;
-        var conf = c.analogues >= 20 ? "High"
-          : (c.analogues >= 10 ? "Moderate" : "Low");
+        var mf = mfOf(c);
+        var a = c.analogues || 0;
+        var depth = a >= 8 ? "Full" : (a >= 6 ? "Partial" : "Thin");
         h += '<tr data-xp="' + esc(i.ticker) +
           '"><td class="primary">' +
           (idx === 0 && SORT.key === "edge" && SORT.dir < 0
-            ? '<span class="atd-rank1" title="Today\u2019s largest ' +
-              'validated forecast discrepancy \u2014 not the best ' +
+            ? '<span class="atd-rank1" title="Today’s largest ' +
+              'validated forecast discrepancy — not the best ' +
               'trade">#1</span>' : '') +
           esc(i.ticker) + '</td><td class="secondary">' +
-          esc(c.session || "") + '</td><td class="primary">\u00b1' +
-          num(c.implied_move) + '%</td><td class="primary">\u00b1' +
-          num(c.fair_move) + '%</td><td class="primary pos">+' +
-          num(c.vol_edge_pp) + 'pp</td><td class="secondary">' +
-          (mf ? num(mf, 2) + "\u00d7" : "\u2014") + '</td>' +
-          '<td class="secondary">' + (c.analogues || "\u2014") +
-          ' reports</td><td class="secondary">' + conf + '</td></tr>';
+          esc(c.session || "") + '</td><td class="primary">±' +
+          num(c.implied_move) + '%</td><td class="primary">±' +
+          num(c.fair_move) + '%</td><td class="primary ' +
+          sgnCls(c.vol_edge_pp) + '">' + sgn(c.vol_edge_pp) +
+          'pp</td><td class="secondary">' +
+          (mf ? num(mf, 2) + "×" : "—") + '</td>' +
+          '<td class="secondary">' + (a || "—") +
+          ' reports</td><td class="secondary">' + depth + '</td></tr>';
         h += '<tr class="atd-expand" data-xr="' + esc(i.ticker) +
           '" style="display:none"><td colspan="8">' +
           barsHTML(i.ticker, c, mf) + '</td></tr>';
@@ -30891,16 +30959,29 @@
         return '<span class="bar ' + cls + '" style="width:' +
           Math.max(8, Math.round(maxw * v / top)) + 'px"></span>';
       }
+      var raw = c.implied_raw != null
+        ? (c.implied_src === "iv_1sigma"
+            ? "from a ±" + num(c.implied_raw) + "% 1-sigma IV read"
+            : "from the ±" + num(c.implied_raw) + "% straddle") +
+          (c.implied_expiry ? " to " + esc(c.implied_expiry) : "") +
+          (c.nonevent_sessions != null ? ", less " + c.nonevent_sessions +
+            " normal session" + (c.nonevent_sessions === 1 ? "" : "s") +
+            (c.daily_vol != null ? " at " + num(c.daily_vol, 1) +
+              "%/day" : "") : "")
+        : "";
       return '<div class="atd-bars">' +
-        '<div>Market implied &nbsp;<b>' + num(c.implied_move) +
-        '%</b>' + bar("b-imp", c.implied_move || 0) + '</div>' +
-        '<div>TickerDesk Fair &nbsp;<b>' + num(c.fair_move) + '%</b>' +
-        bar("b-fair", c.fair_move || 0) + '</div>' +
-        '<div class="k" style="margin-top:3px">Volatility edge <b>+' +
-        num(c.vol_edge_pp) + 'pp</b> \u00b7 Market/Fair <b>' +
-        (mf ? num(mf, 2) + "\u00d7" : "\u2014") + '</b> &nbsp; ' +
+        '<div>Options-implied, report session &nbsp;<b>' +
+        num(c.implied_move) + '%</b>' + bar("b-imp", c.implied_move || 0) +
+        (raw ? ' <span class="k">' + raw + '</span>' : '') + '</div>' +
+        '<div>TickerDesk Fair Move (avg past reaction) &nbsp;<b>' +
+        num(c.fair_move) + '%</b>' + bar("b-fair", c.fair_move || 0) +
+        (c.realized_median != null ? ' <span class="k">median ' +
+          num(c.realized_median) + '%</span>' : '') + '</div>' +
+        '<div class="k" style="margin-top:3px">Volatility edge <b>' +
+        sgn(c.vol_edge_pp) + 'pp</b> · Market/Fair <b>' +
+        (mf ? num(mf, 2) + "×" : "—") + '</b> &nbsp; ' +
         '<a href="#" data-drill="' + esc(tk) +
-        '">Full ticker view \u2192</a></div></div>';
+        '">Full ticker view →</a></div></div>';
     }
     function row(k, v) {
       return '<div><span class="k">' + k + ':</span> ' +
@@ -31147,24 +31228,49 @@
       var L = d.ledgers || {};
       var f = L.forecast || {}, dir = L.directional || {};
       var h = execHTML(d);
+      var basis = (f.events_exact != null || f.events_reconstructed != null)
+        ? " (" + (f.events_exact || 0) + " graded on the recorded last " +
+          "read, " + (f.events_reconstructed || 0) + " rebuilt from the " +
+          "first logged read)" : "";
       h += '<div class="atd-sec-h">Forecast Track Record ' +
         '<span class="n">earnings volatility · target: ' +
         esc(f.target || "") + '</span></div><div class="atd-rows">' +
-        row("Graded events", f.events) +
+        row("Graded events", (f.events != null ? f.events : "—") +
+            basis) +
         row("Independent nights", f.nights) +
+        // a fairly priced straddle still beats the realized move
+        // ~58-63% of the time: the win rate needs that baseline
         row("Implied &gt; realized",
             f.implied_gt_realized_pct != null
-              ? f.implied_gt_realized_pct + "%" : "—") +
+              ? f.implied_gt_realized_pct + "%" + (f.fair_win_pct != null
+                ? " (fair pricing would score ≈ " +
+                  num(f.fair_win_pct, 0) + "% on the same events)" : "")
+              : "—") +
+        row("Realized ÷ implied", f.realized_over_implied != null
+            ? num(f.realized_over_implied, 2) + "× on average " +
+              "(1.00 = fairly priced)" : "—") +
         row("Avg vol edge", f.avg_vol_edge_pp != null
-            ? "+" + num(f.avg_vol_edge_pp, 2) + "pp" : "—") +
-        row("Night-cluster CI", f.night_ci
-            ? "+" + num(f.night_ci[0], 2) + " → +" +
-              num(f.night_ci[1], 2) + "pp" : "—") +
-        row("Fair Move model", esc(f.fair_move_model || "v1") +
-            " · mean abs. error " + num(f.fair_move_mae, 2) + "pp · bias " +
-            num(f.fair_move_bias, 2) + "pp · edge-sign " +
-            (f.edge_sign_pct != null ? f.edge_sign_pct + "%" : "—")) +
-        '</div>';
+            ? sgn(f.avg_vol_edge_pp, 2) + "pp" : "—") +
+        row("Night-cluster CI", ciTxt(f.night_ci, "pp"));
+      var fmLbl = "average past reaction (mean |move|, last ≤8 reports)";
+      h += row("Fair Move model", f.fair_move_status === "scored"
+        ? fmLbl + " · point-in-time n=" + f.fair_move_n +
+          " · RMSE " + num(f.fair_move_rmse, 2) + "pp · mean " +
+          "abs. error " + num(f.fair_move_mae, 2) + "pp · bias " +
+          sgn(f.fair_move_bias, 2) + "pp · edge-sign " +
+          (f.edge_sign_pct != null ? f.edge_sign_pct + "%" : "—")
+        : fmLbl + " · point-in-time record accruing (" +
+          (f.fair_move_n || 0) + "/" + (f.fair_move_activates_at || 40) +
+          ")");
+      var p = f.previous_fair_move;
+      if (p && p.n) {
+        h += row("Previous Fair Move (median, until Nov 2026)",
+          "point-in-time n=" + p.n + " · RMSE " + num(p.rmse, 2) +
+          "pp · mean abs. error " + num(p.mae, 2) + "pp · bias " +
+          sgn(p.bias, 2) + "pp · edge-sign " +
+          (p.edge_sign_pct != null ? p.edge_sign_pct + "%" : "—"));
+      }
+      h += '</div>';
       // Directional paper record: de-duplicated positions, each family
       // on its own target (never blended), date-clustered CIs.
       var fams = dir.by_family || {};
@@ -31221,7 +31327,7 @@
               (r.tracked != null ? " / " + r.tracked : "") +
               '</td><td>' + (r.status === "accruing" || r.hit == null
                 ? "accruing"
-                : r.hit + "% / " + num(r.avg, 2) + "pp" + (r.ci95
+                : r.hit + "% / " + sgn(r.avg, 2) + "pp" + (r.ci95
                   ? " (" + num(r.ci95[0], 2) + " → " + num(r.ci95[1], 2) +
                     ")" : "")) +
               '</td></tr>';
@@ -31229,7 +31335,6 @@
       }
       return h;
     }
-
     /* =================== RESEARCH view =================== */
     function registryHTML() {
       var reg = (EXEC || {}).expression_registry || {};
@@ -31275,12 +31380,10 @@
       return '<div class="atd-sec-h">Wing Economics ' +
         '<span class="n">(frictionless next-open marks, fees only)' +
         '</span></div><div class="atd-rows">' +
-        row("Straddle gross edge", "+$" + (w.avg_straddle_$ || 0) +
-            "/event") +
-        row("Iron fly gross edge", "+$" + (w.avg_fly_$ || 0) +
-            "/event") +
-        row("Wing drag", "-$" + Math.abs(w.avg_wing_drag_$ || 0) +
-            "/event") +
+        row("Straddle gross edge", sgnMoney(w.avg_straddle_$) + "/event") +
+        row("Iron fly gross edge", sgnMoney(w.avg_fly_$) + "/event") +
+        // drag = fly minus straddle: negative when the wings cost money
+        row("Wing drag", sgnMoney(w.avg_wing_drag_$) + "/event") +
         row("Median wing debit", ((w.wing_ratio || {}).median != null
             ? Math.round(w.wing_ratio.median * 1000) / 10 + "% of " +
               "straddle credit" : "—")) +
@@ -31295,6 +31398,7 @@
       var ch = (EVOL || {}).challengers || {};
       var names = Object.keys(ch);
       var promo = (FML || {}).promotion || {};
+      var defs = (FML || {}).definitions || {};
       var h = '<div class="atd-sec-h">Declared Forward Challengers ' +
         '<span class="n">declared before the observations that could ' +
         'confirm them</span></div><div class="atd-table-wrap">' +
@@ -31310,37 +31414,59 @@
           '</td><td class="k">' + esc(c.definition || "") +
           '</td></tr>';
       });
+      // Fair Move Lab v2 challengers (redeclared 2026-11-10 when the lab
+      // switched to scoring the displayed Fair Move point-in-time)
       Object.keys(promo).forEach(function (n) {
         h += '<tr><td>fair move · ' + esc(n.replace(/_/g, " ")) +
           '</td><td>' + (promo[n].promoted ? "PROMOTED"
             : "CHALLENGER · below threshold") +
-          '</td><td>2026-08-26</td><td class="k">walk-forward Fair ' +
-          'Move forecast challenger</td></tr>';
+          '</td><td>2026-11-10</td><td class="k">' +
+          esc(defs[n] || "point-in-time Fair Move forecast challenger") +
+          '</td></tr>';
       });
       h += '</table></div>';
       return h;
     }
     function fairMoveLabHTML() {
-      var st = ((FML || {}).standings || {}).overall;
-      if (!st) return "";
-      return '<div class="atd-sec-h">Fair Move Lab ' +
-        '<span class="n">walk-forward · promotion needs ≥5% lower mean ' +
-        'absolute error in both halves</span></div>' +
+      var F = FML || {};
+      var st = (F.standings || {}).overall;
+      var head = '<div class="atd-sec-h">Fair Move Lab ' +
+        '<span class="n">point-in-time (the figure shown before each ' +
+        'report) · promotion needs ≥5% lower RMSE in both ' +
+        'halves and no worse edge-sign</span></div>' +
         '<div class="atd-table-wrap"><table class="atd-table">' +
-        '<tr><th>Model</th><th title="Mean absolute error of the ' +
-        'forecast move vs the realized move, in percentage points of ' +
-        'the stock price (not max adverse excursion)">Mean abs. error</th>' +
-        '<th>Bias</th>' +
-        '<th>Edge-sign</th></tr>' +
-        Object.keys(st).map(function (n) {
-          var s = st[n];
-          return '<tr><td>' + esc(n.replace(/_/g, " ")) +
-            (n === ((FML || {}).display_definition || "") ?
-              " <b>· ACTIVE</b>" : "") +
-            '</td><td>' + num(s.mae, 3) + '</td><td>' +
-            num(s.bias, 2) + 'pp</td><td>' + s.edge_sign_pct +
-            '%</td></tr>';
+        '<tr><th>Model</th><th>n</th><th title="Root mean squared ' +
+        'error, in percentage points of the stock price. The Fair Move ' +
+        'forecasts the AVERAGE move (what a straddle prices), and ' +
+        'squared error is the score an average is judged by.">RMSE</th>' +
+        '<th title="Mean absolute error of the forecast move vs the ' +
+        'realized move, in percentage points of the stock price (not ' +
+        'max adverse excursion)">Mean abs. error</th>' +
+        '<th>Bias</th><th>Edge-sign</th></tr>';
+      function line(label, s, tag) {
+        return '<tr><td>' + label + (tag ? " <b>· " + tag + "</b>" : "") +
+          '</td><td>' + (s.n || 0) + '</td><td>' +
+          (s.n ? num(s.rmse, 3) : "—") + '</td><td>' +
+          (s.n ? num(s.mae, 3) : "—") + '</td><td>' +
+          (s.n ? sgn(s.bias, 2) + "pp" : "—") + '</td><td>' +
+          (s.n ? s.edge_sign_pct + "%" : "—") + '</td></tr>';
+      }
+      if (st) {
+        return head + Object.keys(st).map(function (n) {
+          return line(esc(n.replace(/_/g, " ")), st[n],
+            n === (F.display_definition || "") ? "ACTIVE" : "");
         }).join("") + '</table></div>';
+      }
+      if (!F.active && !F.previous_display) return "";
+      var a = F.active || {}, p = F.previous_display || {};
+      return head +
+        line("fair mean (average past reaction)", a, a.status === "scored"
+          ? "ACTIVE" : "ACTIVE · ACCRUING " + (a.n || 0) + "/" +
+            (a.activates_at || 40)) +
+        line("fair median (shown until Nov 2026)", p, "PREVIOUS") +
+        '</table></div><div class="k">Challengers are ranked once ' +
+        (a.activates_at || 40) + ' reports carry every forecast ' +
+        '(currently ' + (F.events_scored || 0) + ').</div>';
     }
     function gatesHTML(g) {
       if (!g) return "";
@@ -31366,8 +31492,9 @@
     function volHTML(v) {
       if (!v || !v.types) return "";
       var h = '<div class="atd-sec-h">Earnings Volatility Anatomy ' +
-        '<span class="n">(signal level — no option priced here)' +
-        '</span></div><div class="atd-perf">';
+        '<span class="n">(signal level — no option priced here; ' +
+        'event-only implied vs the actual reaction, graded on the last ' +
+        'read before each report)</span></div><div class="atd-perf">';
       Object.keys(v.types).forEach(function (t) {
         var b = v.types[t];
         if (b.status === "accruing") {
@@ -31376,12 +31503,18 @@
         }
         var mr = b.move_ratio || {};
         var boot = b.date_cluster_bootstrap || {};
-        h += '<b>' + esc(t) + '</b>: n=' + b.n + ' · EV ' +
-          num(b.ev_vol_pts, 2) + 'pp of stock price · win ' + b.win +
-          '% · night CI ' + JSON.stringify(boot.ci95 || []) + ' on ' +
+        h += '<b>' + esc(t) + '</b>: n=' + b.n +
+          (b.n_reconstructed ? ' (' + b.n_reconstructed +
+            ' rebuilt from first logged read)' : '') + ' · EV ' +
+          sgn(b.ev_vol_pts, 2) + 'pp of stock price · win ' + b.win +
+          '%' + (b.fair_win != null ? ' vs ' + num(b.fair_win, 0) +
+            '% for a fairly priced straddle' : '') +
+          ' · night CI ' + ciTxt(boot.ci95, "pp") + ' on ' +
           (boot.nights || "?") + ' nights' +
           (b.signal_qualified ? ' · <b>signal qualified</b>' : '') +
-          '<br><span class="k">ratio: med ' + num(mr.median, 2) +
+          '<br><span class="k">realized ÷ implied: mean ' +
+          num(mr.mean_ratio, 2) + ' (1.00 = fair) · med ' +
+          num(mr.median, 2) +
           ' · p95 ' + num(mr.p95, 2) + ' · p99 ' + num(mr.p99, 2) +
           ' · inside 0.75×: ' + mr.inside_075x +
           '% · blowthrough &gt;1×: ' + mr.blowthrough_10x +

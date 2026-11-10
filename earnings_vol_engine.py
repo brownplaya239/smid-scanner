@@ -9,10 +9,13 @@ can conceal catastrophic negative skew, and five same-night short-vol
 "wins" can be one giant bet. Before any trade expression is trusted,
 this module measures — from the graded idea log, no API calls:
 
-  1. MOVE RATIO distribution per type: |realized| / implied
-     (reconstructed as 1 - mv/implied) — median, p75/90/95/99, max,
-     and the share of events inside 0.5x / 0.75x / 1.0x implied. This
-     is what tells a condor/fly engine where wings belong.
+  1. MOVE RATIO distribution per type: |realized| / implied, where
+     implied is the like-for-like EVENT-ONLY move the idea was graded
+     on (implied_graded, grade v3 — see earnings_move_math.py) —
+     median, p75/90/95/99, max, and the share of events inside 0.5x /
+     0.75x / 1.0x implied, plus the win rate a FAIRLY priced straddle
+     would have scored on the same events (a vol_rich win rate is
+     compared with that, not with 50%).
   2. EVENT-NIGHT CLUSTERING: events per night, joint-tail nights
      (>=2 blowthroughs same night), and an EVENT-DATE cluster
      bootstrap CI on EV — the honest version of "n=102".
@@ -44,7 +47,8 @@ import random
 from datetime import UTC, datetime
 from statistics import mean, median
 
-from earnings_ideas import GRADE_VERSION
+import earnings_move_math as EM
+from earnings_ideas import VOL_GRADE_VERSION
 from trade_desk_validation import _load, _regime_map
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -52,7 +56,7 @@ R = lambda *p: os.path.join(_BASE, *p)
 LOG_PATH = R("data", "earnings_ideas_log.json")
 OUT_PATH = R("docs", "reports", "earnings_vol.json")
 
-ENGINE_VERSION = "earnings_vol_v1"
+ENGINE_VERSION = "earnings_vol_v2"  # v2: like-for-like (event-only implied) grades
 MIN_N = 30
 COHORT_MIN = 20
 BOOT_ITERS = 4000
@@ -72,28 +76,31 @@ def _load_events():
     out = {"vol_rich": [], "vol_cheap": []}
     for i in d.get("ideas") or []:
         t = i.get("type")
-        # current-version grades only: v1 graded after-close (AMC) reports
-        # on the quiet day BEFORE the print (see earnings_ideas._grade)
+        # current-version grades only (v3): earlier versions graded AMC
+        # reports on the day BEFORE the print (v1) or compared the raw
+        # straddle frozen at first logging with a one-session move (v2)
         if t not in out or i.get("result") not in ("win", "loss"):
             continue
-        if i.get("gv") != GRADE_VERSION:
+        if i.get("gv") != VOL_GRADE_VERSION:
             continue
-        imp, mv = i.get("implied"), i.get("mv")
-        if not imp or mv is None or imp <= 0:
+        imp, mv, absm = i.get("implied_graded"), i.get("mv"), i.get("abs_move")
+        if not imp or mv is None or absm is None or imp <= 0:
             continue
-        # vol_rich:  mv = implied - |reaction|  -> ratio = 1 - mv/implied
-        # vol_cheap: mv = |reaction| - implied  -> ratio = 1 + mv/implied
-        ratio = (1 - mv / imp) if t == "vol_rich" else (1 + mv / imp)
-        if ratio < 0:
-            continue  # malformed grade
         m = meta.get(i.get("t")) or {}
         out[t].append(
             {
                 "ticker": i.get("t"),
                 "date": i.get("date"),
-                "implied": imp,
+                "implied": imp,  # event-only implied the grade used
+                "implied_raw": i.get("implied"),  # raw straddle / 1-sigma read
+                "realized": absm,
                 "mv": mv,
-                "ratio": round(ratio, 3),
+                "ratio": round(absm / imp, 3),
+                "basis": i.get("basis"),
+                "fair_move": i.get("fair_move"),  # logged with the read (exact only)
+                "realized_med": i.get("realized_med"),
+                "n_reports": i.get("n_reports"),
+                "frame_sessions": i.get("frame_sessions"),
                 "feat": i.get("feat") or {},
                 "sector": m.get("sector") or "unknown",
                 "regime": regimes.get(i.get("date"), "unknown"),
@@ -129,8 +136,11 @@ def date_cluster_bootstrap(events, iters=BOOT_ITERS, seed=11):
 def ratio_distribution(events):
     rs = sorted(e["ratio"] for e in events)
     n = len(rs)
+    imp = sum(e["implied"] for e in events)
     return {
         "n": n,
+        # average |realized| / average implied: 1.00 = fairly priced
+        "mean_ratio": round(sum(e["realized"] for e in events) / imp, 3) if imp else None,
         "median": _pct(rs, 50),
         "p75": _pct(rs, 75),
         "p90": _pct(rs, 90),
@@ -163,8 +173,8 @@ def tail_metrics(events):
         "p5_mv": _pct(mvs, 5),
         "es95": round(mean(mvs[:k5]), 2),
         "es99": round(mean(mvs[:k1]), 2),
-        "note": "mv is in vol-points (implied minus |realized| for "
-        "vol_rich) — a SIGNAL-level tail proxy. Real strategy "
+        "note": "mv is in percentage points of the stock price (event-only "
+        "implied minus |realized| for vol_rich) — a SIGNAL-level tail proxy. Real strategy "
         "tails (gap through wings, assignment) need the option "
         "P&L reconstruction and are NOT captured here.",
     }
@@ -194,7 +204,7 @@ def clustering(events):
 
 def decomposition(events):
     def band_imp(e):
-        i = e["implied"]
+        i = e["implied"]  # event-only implied (the graded basis)
         if i >= 12:
             return ">=12%"
         if i >= 8:
@@ -251,12 +261,23 @@ def run(dry=False):
             continue
         mvs = [e["mv"] for e in events]
         boot = date_cluster_bootstrap(events)
+        win = round(100 * sum(1 for y in mvs if y > 0) / len(mvs))
+        fair_win = EM.fair_win_baseline([e["ratio"] for e in events])
         block = {
             "n": len(events),
+            "n_exact": sum(1 for e in events if e.get("basis") == "exact"),
+            "n_reconstructed": sum(1 for e in events if e.get("basis") == "reconstructed"),
             "span": {"from": min(e["date"] for e in events), "to": max(e["date"] for e in events)},
+            # ev_vol_pts keeps its key for compatibility; the unit is pp of
+            # the stock price (event-only implied minus |realized|)
             "ev_vol_pts": round(mean(mvs), 2),
             "med_vol_pts": round(median(mvs), 2),
-            "win": round(100 * sum(1 for y in mvs if y > 0) / len(mvs)),
+            "win": win,
+            # A fairly priced straddle still beats the realized move more
+            # often than not; this is that rate on these same events.
+            "fair_win": fair_win,
+            "fair_win_normal": round(100 * EM.NORMAL_FAIR_WIN, 1),
+            "win_vs_fair_pp": round(win - fair_win, 1) if fair_win is not None else None,
             "date_cluster_bootstrap": boot,
             "move_ratio": ratio_distribution(events),
             "tails": tail_metrics(events),
@@ -286,7 +307,13 @@ def run(dry=False):
     if len(vr) >= MIN_N:
         for name, flt, defn in (
             ("vol_rich_base", lambda e: True, "all vol_rich events"),
-            ("vol_rich_large_move", lambda e: e["implied"] >= 12, "implied move >= 12%"),
+            # declared on the RAW read's size (the straddle as quoted);
+            # kept on that basis so the definition stays frozen
+            (
+                "vol_rich_large_move",
+                lambda e: (e.get("implied_raw") or 0) >= 12,
+                "implied move >= 12% (raw straddle read)",
+            ),
         ):
             pre = [e for e in vr if e["date"] <= CHALLENGER_DECL and flt(e)]
             post = [e for e in vr if e["date"] > CHALLENGER_DECL and flt(e)]
@@ -323,15 +350,37 @@ def run(dry=False):
             "events can confirm it.",
             "forward": {"n": 0, "status": "accruing"},
         }
+        # Declared as raw implied / the Fair Move AS DISPLAYED THEN (the
+        # median). Since 2026-11 the idea log records both with the last
+        # pre-event read, so forward events are evaluated on exactly that
+        # declared basis.
+        xr = [
+            e
+            for e in vr
+            if e["date"] > CHALLENGER_DECL
+            and e.get("basis") == "exact"
+            and e.get("implied_raw")
+            and e.get("realized_med")
+            and e["implied_raw"] / e["realized_med"] >= 2.0
+        ]
         challengers["vol_rich_extreme_ratio"] = {
-            "definition": "implied / TickerDesk Fair Move >= 2.0",
+            "definition": "raw implied / median past reaction (the Fair Move "
+            "shown when declared) >= 2.0",
             "declared": CHALLENGER_DECL,
             "status": "forward_only",
-            "why": "the idea log never captured fair move at selection; "
-            "setup_context.jsonl logs implied + realized_med from "
-            "2026-08-26, so this challenger evaluates on forward "
-            "events only",
-            "forward": {"n": 0, "status": "accruing"},
+            "why": "the idea log did not capture the Fair Move at selection "
+            "before 2026-11; events since then record it with the last "
+            "pre-event read, so this challenger evaluates on those "
+            "forward events only",
+            "forward": (
+                {
+                    "n": len(xr),
+                    "ev": round(mean(e["mv"] for e in xr), 2),
+                    "bootstrap": date_cluster_bootstrap(xr),
+                }
+                if xr
+                else {"n": 0, "status": "accruing"}
+            ),
         }
     result["challengers"] = challengers
 
@@ -462,29 +511,43 @@ def run(dry=False):
             "stands as declared and forward data decides.",
         }
 
-    # Fair-move calibration for the UI: per-type median realized/implied
+    # Fair-move calibration for the UI: per-type realized/implied ratios
     cal = {}
     for t, events in ev.items():
         if len(events) >= MIN_N:
-            cal[t] = {"median_ratio": ratio_distribution(events)["median"], "n": len(events)}
+            rd = ratio_distribution(events)
+            cal[t] = {
+                "median_ratio": rd["median"],
+                "mean_ratio": rd["mean_ratio"],
+                "n": len(events),
+            }
     result["fair_move_calibration"] = {
         "per_type": cal,
-        "definition": "TickerDesk Fair Move = the ticker's own median "
-        "|earnings move| across its reported history "
-        "(earnings_edge realized_med). Volatility Edge = "
-        "implied - fair. Richness = implied/fair - 1. "
-        "The per-type median ratios above are the "
-        "selected-universe calibration context, not a "
-        "multiplier applied to any displayed number.",
+        "definition": "TickerDesk Fair Move = the ticker's own MEAN "
+        "|earnings reaction| over its last <=8 reports (earnings_edge "
+        "fair_move; the median is shown as context). It is compared with "
+        "the EVENT-ONLY implied move (earnings_edge implied_event: the "
+        "straddle restated as the mean |move| of the report session, "
+        "normal sessions to expiry stripped out). Volatility Edge = "
+        "implied_event - fair. Richness = implied_event/fair - 1. "
+        "The per-type ratios above (|realized| / event-only implied; "
+        "1.00 = fairly priced) are calibration context for the "
+        "selected universe, not a multiplier applied to any displayed "
+        "number.",
     }
     result["honesty"] = (
         "Signal-level anatomy only: mv/ratio are underlying-move "
         "quantities from the graded idea log; no option was priced, no "
-        "spread was crossed, no fill was assumed. 'signal_qualified' "
-        "means the forecast relationship (implied vs realized) holds "
-        "with a date-cluster bootstrap CI excluding zero. It is NOT a "
-        "validated trade. trade_qualified stays false until the option "
-        "P&L reconstruction clears costs and tails."
+        "spread was crossed, no fill was assumed. Both sides are on the "
+        "same basis: the event-only implied move from the last read "
+        "before the report vs the actual |reaction| over the same "
+        "session(s). 'signal_qualified' means the forecast relationship "
+        "(implied vs realized) holds with a date-cluster bootstrap CI "
+        "excluding zero; a win rate is compared with fair_win (what a "
+        "fairly priced straddle scores on the same events, ~58-63%), not "
+        "with 50%. It is NOT a validated trade. trade_qualified stays "
+        "false until the option P&L reconstruction clears costs and "
+        "tails."
     )
     if not dry:
         with open(OUT_PATH, "w", encoding="utf-8") as f:

@@ -349,11 +349,14 @@ def family_gates():
                     )
                 else:
                     verdict, note = "watch", "signal CI not yet excluding zero at night level"
+                # a fairly priced straddle still wins ~58-63%: say so
+                fair = st.get("fair_win_rate")
+                fair_txt = f" (fair pricing ≈ {fair:.0f}%)" if fair is not None else ""
                 ern[t] = {
                     "verdict": verdict,
                     "why": (
                         f"measured EV {st['ev']:+.2f} {unit} · "
-                        f"{st.get('win_rate')}% win · "
+                        f"{st.get('win_rate')}% win{fair_txt} · "
                         f"n={st['n']} · {note}"
                     ),
                     "evidence": st,
@@ -675,21 +678,32 @@ def construct(c):
         i = c["idea"]
         out = {
             "expression": "per_thesis",
-            "implied_move": i.get("implied"),
+            # LIKE-FOR-LIKE pair (earnings_move_math): the options-implied
+            # move for the report session alone vs the Fair Move (MEAN
+            # |past reaction|). The raw read stays alongside for audit.
+            "implied_move": i.get("implied_event"),
+            "implied_raw": i.get("implied"),
+            "implied_src": i.get("implied_src"),
+            "implied_expiry": i.get("implied_expiry"),
+            "implied_asof": i.get("implied_asof"),
+            "nonevent_sessions": i.get("nonevent_sessions"),
+            "daily_vol": i.get("daily_vol"),
             "realized_median": i.get("realized_med"),
             "session": i.get("session"),
             "event_date": i.get("date"),
             "option_mark": None,
         }
-        # TickerDesk Fair Move — the ticker's own median |earnings
-        # move| across its reported history. Volatility Edge and
-        # Richness derive from it; the vol stance states WHICH side
-        # the measured edge favors. Displayed only when both legs
-        # exist — never computed from a guess.
-        imp, fair = i.get("implied"), i.get("realized_med")
+        # TickerDesk Fair Move — the ticker's own MEAN |earnings
+        # reaction| over its last <=8 reports (a straddle prices a mean,
+        # so this is what the option is fairly worth if history repeats).
+        # Volatility Edge and Richness derive from it; the vol stance
+        # states WHICH side the measured edge favors. Displayed only when
+        # both legs exist — never computed from a guess.
+        imp, fair = i.get("implied_event"), i.get("fair_move")
         if imp and fair and fair > 0:
             out["fair_move"] = fair
             out["vol_edge_pp"] = round(imp - fair, 1)
+            out["market_fair_ratio"] = round(imp / fair, 2)
             out["richness_pct"] = round(100 * (imp / fair - 1))
             out["analogues"] = i.get("n_reports")
         if c.get("etype") == "vol_rich":
@@ -1140,18 +1154,36 @@ def _ledgers(perf, gates=None, events=None):
     ev = _load(R("docs", "reports", "earnings_vol.json"), {})
     fml = _load(R("docs", "reports", "fair_move_lab.json"), {})
     vr = (ev.get("types") or {}).get("vol_rich") or {}
-    lab = ((fml.get("standings") or {}).get("overall") or {}).get("v1_ticker_median") or {}
+    # Fair Move scored point-in-time as DISPLAYED (fair_move_lab v2):
+    # the active definition, plus the one shown until 2026-11.
+    act = fml.get("active") or {}
+    prev = fml.get("previous_display") or {}
     forecast = {
-        "target": "market implied move - realized move",
+        "target": "event-only implied move - realized report move",
         "events": vr.get("n"),
+        "events_exact": vr.get("n_exact"),
+        "events_reconstructed": vr.get("n_reconstructed"),
         "nights": (vr.get("date_cluster_bootstrap") or {}).get("nights"),
         "implied_gt_realized_pct": vr.get("win"),
+        # what a FAIRLY priced straddle scores on the same events
+        "fair_win_pct": vr.get("fair_win"),
+        "realized_over_implied": (vr.get("move_ratio") or {}).get("mean_ratio"),
         "avg_vol_edge_pp": vr.get("ev_vol_pts"),
         "night_ci": (vr.get("date_cluster_bootstrap") or {}).get("ci95"),
-        "fair_move_model": "v1",
-        "fair_move_mae": lab.get("mae"),
-        "fair_move_bias": lab.get("bias"),
-        "edge_sign_pct": lab.get("edge_sign_pct"),
+        "fair_move_model": act.get("name") or "fair_mean",
+        "fair_move_status": act.get("status") or "accruing",
+        "fair_move_n": act.get("n"),
+        "fair_move_activates_at": act.get("activates_at"),
+        "fair_move_rmse": act.get("rmse"),
+        "fair_move_mae": act.get("mae"),
+        "fair_move_bias": act.get("bias"),
+        "edge_sign_pct": act.get("edge_sign_pct"),
+        "previous_fair_move": {
+            k: prev.get(k)
+            for k in ("name", "status", "n", "rmse", "mae", "bias", "edge_sign_pct", "sources")
+        }
+        if prev
+        else None,
     }
     directional = {
         "target": (
@@ -1430,14 +1462,16 @@ def run(dry=False, do_grade=True):
     if vol_tops:
         rich = max(vol_tops, key=lambda i: i["construct"]["vol_edge_pp"])
         c = rich["construct"]
-        headlines.append(
-            {
-                "h": f"{rich['ticker']} is today's richest earnings-vol setup",
-                "d": f"Market-implied move is {c['implied_move']}% versus "
-                f"TickerDesk Fair Move of {c['fair_move']}%, a "
-                f"+{c['vol_edge_pp']}pp discrepancy.",
-            }
-        )
+        if c["vol_edge_pp"] > 0:
+            headlines.append(
+                {
+                    "h": f"{rich['ticker']} is today's richest earnings-vol setup",
+                    "d": f"Options price a {c['implied_move']}% move for the "
+                    f"report itself versus a TickerDesk Fair Move (average "
+                    f"past reaction) of {c['fair_move']}%, a "
+                    f"{c['vol_edge_pp']:+.1f}pp discrepancy.",
+                }
+            )
     if n_signal_q and not n_trade_q:
         headlines.append(
             {
