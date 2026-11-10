@@ -973,13 +973,22 @@ def trade_score(row, flow):
 
 
 def _load_repeat_map(lookback_days=REPEAT_LOOKBACK_DAYS):
-    """Count recent ledger appearances per contract — repeat flow = a campaign."""
-    from collections import Counter
+    """Repeat flow = a campaign: for each contract, the number of DISTINCT
+    PRIOR trading days (US/Eastern) it was flagged in the lookback window.
 
-    counts = Counter()
+    The ledger gets one row per contract per SCAN, so counting rows (the
+    old behaviour) counted our own ~10 scans a day: a contract flagged at
+    10 AM was a "repeat ×9" by 3 PM, earning up to +15 score points and an
+    automatic "likely open" from nothing but re-scans. Today's rows are
+    excluded — today's activity is already in today's volume."""
+    from collections import defaultdict
+
+    days = defaultdict(set)
     if not os.path.exists(LEDGER_PATH):
-        return counts
-    cutoff = datetime.now(UTC).date().toordinal() - lookback_days
+        return {}
+    et = ZoneInfo("America/New_York")
+    today = datetime.now(et).date()
+    cutoff = today.toordinal() - lookback_days
     try:
         with open(LEDGER_PATH, encoding="utf-8") as f:
             for line in f:
@@ -988,14 +997,15 @@ def _load_repeat_map(lookback_days=REPEAT_LOOKBACK_DAYS):
                     continue
                 try:
                     rec = json.loads(line)
-                    d = datetime.strptime(rec["flagged_at"][:10], "%Y-%m-%d").date()
-                    if d.toordinal() >= cutoff:
-                        counts[rec.get("contract", "")] += 1
+                    ts = datetime.fromisoformat(rec["flagged_at"].replace("Z", "+00:00"))
+                    d = ts.astimezone(et).date()
+                    if cutoff <= d.toordinal() and d < today:
+                        days[rec.get("contract", "")].add(d)
                 except Exception:
                     pass
     except Exception:
         pass
-    return counts
+    return {c: len(ds) for c, ds in days.items()}
 
 
 def _earnings_date(ticker):
@@ -1324,6 +1334,20 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
             if r:
                 rows.append(r)
 
+    # Phantom guard (2026-11 accuracy audit): the snapshot's `day` block
+    # keeps the LAST session's volume / VWAP until a contract trades again,
+    # so a contract nobody touched today re-appeared as today's flow — and
+    # was re-logged to the signal ledger every day. Drop rows with no trades
+    # today, but only when the trade tape is reachable at all (some row has
+    # trades), so a tape outage can't blank the whole scan.
+    def _n_trades(r):
+        return (r.get("flow") or {}).get("trade_count") or 0
+
+    if any(_n_trades(r) for r in rows):
+        stale = sum(1 for r in rows if not _n_trades(r))
+        if stale:
+            print(f"  Dropped {stale} contracts with no trades today (stale snapshot day)")
+        rows = [r for r in rows if _n_trades(r)]
     rows.sort(key=lambda r: r["trade_score"], reverse=True)
     print(f"  {len(rows)} ranked UOA rows  (golden sweeps: {sum(1 for r in rows if r['golden'])})")
     return rows

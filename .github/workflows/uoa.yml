@@ -33,6 +33,14 @@ on:
     - cron: '55 19 * * 1-5'   # ~3:55 PM ET — final before close
 
   workflow_dispatch:           # manual trigger anytime
+    inputs:
+      rebuild_alpha:
+        description: >-
+          One-off: re-score already-frozen flow signals from fresh
+          split-adjusted bars (fixes values frozen before the 2026-11
+          price-basis guard). Slower run.
+        type: boolean
+        default: false
 
 # Shares data files with the other uoa/momentum/scorecard runs
 # (uoa_alpha_cache, oi_lifecycle, the ledger). In R2 overlapping writers
@@ -78,7 +86,7 @@ jobs:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
         run: |
           uv run python uoa_scanner.py;  R1=$?
-          uv run python uoa_alpha.py;    R2=$?
+          uv run python uoa_alpha.py ${{ inputs.rebuild_alpha && '--rebuild' || '' }};    R2=$?
           echo "scanner exit: $R1  |  alpha exit: $R2"
           if [ $R1 -ne 0 ]; then
             echo "::error::UOA scan failed (exit $R1)"

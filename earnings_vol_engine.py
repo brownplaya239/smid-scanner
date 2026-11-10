@@ -44,6 +44,7 @@ import random
 from datetime import UTC, datetime
 from statistics import mean, median
 
+from earnings_ideas import GRADE_VERSION
 from trade_desk_validation import _load, _regime_map
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -71,7 +72,11 @@ def _load_events():
     out = {"vol_rich": [], "vol_cheap": []}
     for i in d.get("ideas") or []:
         t = i.get("type")
-        if t not in out or not i.get("result"):
+        # current-version grades only: v1 graded after-close (AMC) reports
+        # on the quiet day BEFORE the print (see earnings_ideas._grade)
+        if t not in out or i.get("result") not in ("win", "loss"):
+            continue
+        if i.get("gv") != GRADE_VERSION:
             continue
         imp, mv = i.get("implied"), i.get("mv")
         if not imp or mv is None or imp <= 0:

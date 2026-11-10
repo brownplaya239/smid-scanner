@@ -235,11 +235,11 @@ def _flow_callout():
         return None
     return (
         '<div class="stat-row">'
-        "<div><b>" + ST["total"] + "</b>signals tracked</div>"
+        "<div><b>" + ST["total"] + "</b>alerts tracked</div>"
         "<div><b>"
         + ("+" if ST["ev"] >= 0 else "")
         + str(ST["ev"])
-        + "%</b>avg +5d excess vs SPY</div>"
+        + "%</b>avg +5d stock excess vs SPY, direction-adjusted</div>"
         "<div><b>"
         + str(ST.get("win", ""))
         + "%</b>win rate · PF "
@@ -247,6 +247,8 @@ def _flow_callout():
         + "</div></div>"
         '<p style="margin:10px 0 0;font-size:13px;color:#9a9a9a">These '
         "are the honest aggregate numbers — a near-coin-flip baseline. "
+        "They measure the underlying stock (bought puts graded as bearish "
+        "calls), not option P&amp;L. "
         "The edge lives in specific cohorts, and we publish where it "
         "doesn't work too.</p>"
     )
@@ -257,9 +259,9 @@ def _oi_callout():
         return None
     return (
         '<div class="stat-row">'
-        "<div><b>" + str(ST["oi_rate"]) + "%</b>of flagged positions "
-        "confirmed by next-day OI</div>"
-        "<div><b>" + str(ST.get("oi_checked", "")) + "</b>signals OI-checked</div></div>"
+        "<div><b>" + str(ST["oi_rate"]) + "%</b>of alerts confirmed by "
+        "next-day open interest</div>"
+        "<div><b>" + str(ST.get("oi_checked", "")) + "</b>alerts OI-checked</div></div>"
     )
 
 

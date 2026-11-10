@@ -158,7 +158,7 @@ def family_gates():
     bt = _load(R("docs", "reports", "earnings_vol_exec.json"), {})
     ern = {}
     for t, st in by_type.items():
-        unit = "vol-pts" if t.startswith("vol_") else "pp"
+        unit = "pp"  # vol mv is pp of stock price too, not vol points
         if st.get("status") != "active" or st.get("n", 0) < MIN_N:
             ern[t] = {"verdict": "watch", "why": "accruing", "evidence": st}
         elif (st.get("ev") or 0) > 0:
@@ -197,12 +197,16 @@ def family_gates():
                     or None,
                 }
             else:
+                # A bare positive average is not evidence: require the
+                # event-date-clustered 95% CI to sit above zero.
+                ci = st.get("ci95") or []
+                ok = len(ci) == 2 and ci[0] is not None and ci[0] > 0
                 ern[t] = {
-                    "verdict": "qualified",
+                    "verdict": "qualified" if ok else "watch",
                     "why": (
                         f"measured EV {st['ev']:+.2f} {unit} · "
                         f"{st.get('win_rate')}% win · "
-                        f"n={st['n']}"
+                        f"n={st['n']}" + ("" if ok else f" · 95% CI {ci or 'n/a'} includes zero")
                     ),
                     "evidence": st,
                 }

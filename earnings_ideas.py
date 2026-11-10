@@ -60,6 +60,13 @@ OUT_PATH = R("docs", "reports", "earnings_ideas.json")
 MIN_N = 30
 LOG_CAP = 1200
 GRADE_AFTER_SESSIONS = 3
+# v2 (2026-11 accuracy audit): session-aware reaction frame. v1 measured
+# prior close -> event-day close for EVERY idea, which for an after-close
+# (AMC) report is the quiet day BEFORE the print — vol_rich "won" 98.6% of
+# AMC ideas against a non-event day. Ideas graded under an older version
+# are regraded (REGRADE_PER_RUN at a time, to stay under Yahoo's limits).
+GRADE_VERSION = 2
+REGRADE_PER_RUN = 250
 MIN_MCAP = 1e9  # hard floor — no ideas on sub-$1B names
 SHRINK_K = 30  # shrinkage constant: delta *= n / (n + K)
 CLAMP_PP = 15.0  # max +/- percentage-point adjustment, per cohort AND total
@@ -246,18 +253,74 @@ def generate(names, swing, facts):
 # ── learned layer: log + grade + gate ────────────────────────────────────
 
 
+_CLOSES_CACHE = {}
+
+
 def _closes_around(t, event_date):
-    """Daily closes surrounding the event via yfinance; None on failure."""
+    """Daily closes from ~2 weeks before to ~4 weeks after the event via
+    yfinance (a window AROUND the event, so old ideas can be regraded — the
+    old "last 2 months" fetch had no bars for events older than that).
+    Cached per (ticker, event) within a run; None on failure."""
+    key = (t, event_date)
+    if key in _CLOSES_CACHE:
+        return _CLOSES_CACHE[key]
+    rows = None
     try:
         import yfinance as yf
 
-        df = yf.Ticker(t).history(period="2mo", interval="1d", auto_adjust=False)
-        if df is None or df.empty:
-            return None
-        rows = [(idx.date().isoformat(), float(r["Close"])) for idx, r in df.iterrows()]
-        return rows
+        ev = datetime.strptime(event_date, "%Y-%m-%d").date()
+        df = yf.Ticker(t).history(
+            start=(ev - timedelta(days=14)).isoformat(),
+            end=(ev + timedelta(days=28)).isoformat(),
+            interval="1d",
+            auto_adjust=False,
+        )
+        if df is not None and not df.empty:
+            rows = [(idx.date().isoformat(), float(r["Close"])) for idx, r in df.iterrows()]
     except Exception:
+        rows = None
+    _CLOSES_CACHE[key] = rows
+    return rows
+
+
+def _cluster_se(pairs):
+    """Cluster-robust (CR1) standard error of a mean over (cluster, value)
+    pairs; None with < 2 clusters."""
+    n = len(pairs)
+    if n < 2:
         return None
+    mu = sum(v for _, v in pairs) / n
+    resid = {}
+    for k, v in pairs:
+        resid[k] = resid.get(k, 0.0) + (v - mu)
+    g = len(resid)
+    if g < 2:
+        return None
+    return (sum(r * r for r in resid.values()) / (n * n) * g / (g - 1)) ** 0.5
+
+
+def _reaction_frame(rows, ev, session):
+    """(pre_i, day1_i): indexes of the closes that bracket the earnings
+    reaction, or (None, None).
+
+      BMO (before the open) on D : close D-1 -> close D
+      AMC (after the close) on D : close D   -> close D+1
+      unknown session            : close D-1 -> close D+1 (brackets both)
+    An event dated on a non-session day reacts on the next session."""
+    on_i = next((i for i, (d, _) in enumerate(rows) if d >= ev), None)
+    if on_i is None:
+        return None, None
+    on_event_day = rows[on_i][0] == ev
+    s = str(session or "").upper()
+    if not on_event_day or s == "BMO":
+        pre_i, day1_i = on_i - 1, on_i
+    elif s == "AMC":
+        pre_i, day1_i = on_i, on_i + 1
+    else:
+        pre_i, day1_i = on_i - 1, on_i + 1
+    if pre_i < 0 or day1_i >= len(rows):
+        return None, None
+    return pre_i, day1_i
 
 
 def _grade(idea):
@@ -273,13 +336,9 @@ def _grade(idea):
     rows = _closes_around(idea["t"], ev)
     if not rows:
         return None, None
-    # pre = last close strictly BEFORE the event date (AMC: the event-day
-    # close is also pre-report, but the 1-day frame from the prior close
-    # still brackets the reaction — coarse and stated, consistent for all)
-    pre_i = None
-    for i, (d, _) in enumerate(rows):
-        if d < ev:
-            pre_i = i
+    # Session-aware: the reaction to an AMC print is the NEXT session.
+    session = idea.get("session") or (idea.get("feat") or {}).get("session")
+    pre_i, day1_i = _reaction_frame(rows, ev, session)
     if pre_i is None or pre_i + GRADE_AFTER_SESSIONS >= len(rows):
         return None, None  # not enough post-event sessions
     import math as _math
@@ -288,9 +347,11 @@ def _grade(idea):
         return x if isinstance(x, (int, float)) and _math.isfinite(x) and x > 0 else None
 
     pre = _fin(rows[pre_i][1])
-    day1 = _fin(rows[pre_i + 1][1])
+    day1 = _fin(rows[day1_i][1])
     d3 = _fin(rows[pre_i + 3][1]) if pre_i + 3 < len(rows) else None
-    d5 = _fin(rows[pre_i + 5][1]) if pre_i + 5 < len(rows) else None
+    # drift: reaction close -> +5 sessions (the 5-session window the drift
+    # ideas are selected on in earnings_edge)
+    d5 = _fin(rows[day1_i + 5][1]) if day1_i + 5 < len(rows) else None
     if pre is None or day1 is None:
         return None, None  # NaN closes (halt/missing bar): not gradeable
     move1 = (day1 / pre - 1) * 100
@@ -338,7 +399,7 @@ def _learned(entries):
     coh = {}
     for e in entries:
         r = e.get("result")
-        if r not in ("win", "loss"):
+        if r not in ("win", "loss") or e.get("gv") != GRADE_VERSION:
             continue
         for k in _cohort_keys(e):
             coh.setdefault(k, []).append((r == "win", e.get("mv")))
@@ -407,33 +468,63 @@ def main():
         )
         added += 1
 
-    # grade matured, ungraded ideas (event >= ~GRADE_AFTER_SESSIONS old)
+    # grade matured, ungraded ideas (event >= ~GRADE_AFTER_SESSIONS old),
+    # and regrade ideas graded under an older GRADE_VERSION (capped per run;
+    # a failed regrade keeps the old grade and is retried next run)
     cutoff = (datetime.now(UTC).date() - timedelta(days=GRADE_AFTER_SESSIONS + 4)).isoformat()
-    graded = 0
+    graded = regraded = 0
     for i in log["ideas"]:
-        if i.get("result") == "pending" and i.get("date") and i["date"] <= cutoff:
-            res, mv = _grade(i)
-            if res:
-                i["result"] = res
-                if mv is not None:
-                    i["mv"] = mv
-                graded += 1
+        if not (i.get("date") and i["date"] <= cutoff):
+            continue
+        pending = i.get("result") == "pending"
+        stale = i.get("result") in ("win", "loss") and i.get("gv") != GRADE_VERSION
+        if not (pending or (stale and regraded < REGRADE_PER_RUN)):
+            continue
+        res, mv = _grade(i)
+        if stale:
+            regraded += 1
+        if res:
+            i["result"] = res
+            i["gv"] = GRADE_VERSION
+            if mv is not None:
+                i["mv"] = mv
+            else:
+                i.pop("mv", None)
+            graded += 1
+    if regraded:
+        print(f"  regraded {regraded} ideas to grade v{GRADE_VERSION} (session-aware)")
     log["ideas"] = log["ideas"][-LOG_CAP:]
 
     by_type = {}
     for i in log["ideas"]:
-        if i.get("result") in ("win", "loss"):
-            by_type.setdefault(i["type"], []).append((i["result"] == "win", i.get("mv")))
+        # only current-version grades count — a stale v1 AMC grade measured
+        # the day before the report
+        if i.get("result") in ("win", "loss") and i.get("gv") == GRADE_VERSION:
+            by_type.setdefault(i["type"], []).append(
+                (i["result"] == "win", i.get("mv"), i.get("date"))
+            )
     stats = {}
     for k, obs in by_type.items():
         n = len(obs)
         if n >= MIN_N:
-            mvs = [m for _, m in obs if m is not None and m == m and abs(m) != float("inf")]
+            pairs = [
+                (d, m) for _, m, d in obs if m is not None and m == m and abs(m) != float("inf")
+            ]
+            mvs = [m for _, m in pairs]
+            ev = sum(mvs) / len(mvs) if mvs else None
+            se = _cluster_se(pairs)
             stats[k] = {
                 "status": "active",
                 "n": n,
-                "win_rate": round(100 * sum(1 for w, _ in obs if w) / n),
-                "ev": (round(sum(mvs) / len(mvs), 2) if mvs else None),
+                "win_rate": round(100 * sum(1 for w, _, _ in obs if w) / n),
+                "ev": (round(ev, 2) if ev is not None else None),
+                # 95% CI clustered by event date (same-day reports share
+                # one market move); gates need its low end above zero
+                "ci95": (
+                    [round(ev - 1.96 * se, 2), round(ev + 1.96 * se, 2)]
+                    if ev is not None and se
+                    else None
+                ),
             }
         else:
             stats[k] = {"status": "accruing", "n": n, "activates_at": MIN_N}

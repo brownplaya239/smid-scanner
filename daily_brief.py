@@ -1796,15 +1796,15 @@ def _render_carryover(cf, edge=None) -> str:
     oi = (edge or {}).get("oi_confirmation") or {}
     if oi.get("checked"):
         hist_bits.append(
-            f"{oi.get('confirm_rate')}% of {oi['checked']:,} checked signals "
-            f"historically confirm in next-day OI — held positions are the "
-            f"minority worth following"
+            f"{oi.get('confirm_rate')}% of {oi['checked']:,} checked alerts "
+            f"were confirmed by next-day open interest (the position stuck)"
         )
     exc = (edge or {}).get("excursion") or {}
-    if exc.get("n"):
+    if exc.get("n") and exc.get("avg_mfe") is not None and exc.get("avg_mae") is not None:
         hist_bits.append(
-            f"across {exc['n']:,} matured signals the avg best/worst 5-day "
-            f"excursion is +{exc['avg_mfe']:.1f}% / {exc['avg_mae']:.1f}% — "
+            f"across {exc['n']:,} matured alerts the avg best/worst stock "
+            f"move in the flow's direction over 20 sessions was "
+            f"{exc['avg_mfe']:+.1f}% / {exc['avg_mae']:+.1f}% — "
             f"size for the drawdown, not the hope"
         )
     if hist_bits:
