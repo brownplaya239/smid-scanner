@@ -455,15 +455,25 @@ def _liquidity(row):
 def _trade_plan(row):
     """Objective trade-context math (no prescriptive entry/exit levels):
     break-even price, % the stock must move to break even, the option-implied
-    1-sigma expected move over the contract's life, and the catalyst."""
+    1-sigma expected move over the contract's life, and the catalyst.
+
+    Break-even uses ONE documented price: `px`, the day's average traded
+    price (VWAP) — the same price the premium column is computed from, so
+    break-even always equals strike +/- the displayed average price paid.
+    (Polygon's `break_even_price` used a different, undisclosed price and
+    disagreed with strike +/- the displayed price on most rows.)
+
+    be_distance_pct is the move the stock still needs IN THE TRADE'S
+    DIRECTION: calls need the stock to RISE that much, puts need it to
+    FALL that much. Negative = already past break-even."""
     import math
 
     px = row.get("px", 0) or 0
     strike = row.get("strike", 0) or 0
     spot = row.get("spot") or 0
     ctype = row.get("type", "")
-    be = row.get("be_snap")  # Polygon-computed break-even
-    if not be and strike and px:  # fallback: strike +/- premium
+    be = None
+    if strike and px:
         be = round(strike + px, 2) if ctype == "call" else round(strike - px, 2)
     be_dist = None
     if be and spot:
@@ -505,6 +515,7 @@ def screen_snapshot(underlying):
             continue
 
         # price reference for premium: day VWAP, else last trade
+        px_basis = "vwap" if day.get("vwap") else "last_trade"
         px = day.get("vwap") or (c.get("last_trade", {}) or {}).get("price") or 0
         premium = vol * px * 100
         if premium < MIN_PREMIUM:
@@ -541,8 +552,11 @@ def screen_snapshot(underlying):
                 "premium": round(premium),
                 "premium_tier": _premium_tier(premium),
                 "iv": c.get("implied_volatility"),
+                # px = the day's average traded price (VWAP; last trade only
+                # when the snapshot has no VWAP). Premium AND break-even are
+                # both computed from it, so the two always agree.
                 "px": round(px, 2),
-                "be_snap": c.get("break_even_price"),  # Polygon-computed BE
+                "px_basis": px_basis,
                 "_bid": lq.get("bid"),  # populates when the
                 "_ask": lq.get("ask"),  # quotes entitlement lands
             }
@@ -708,13 +722,16 @@ def analyze_flow(row):
     biggest = 0
     biggest_ts_ns = 0
     last_ts_ns = 0
+    last_px = None  # price of the most recent trade (a true last fill)
     for t in trades:
         prem = (t.get("price", 0) or 0) * (t.get("size", 0) or 0) * 100
         ts = t.get("sip_timestamp", 0) or 0
         if prem > biggest:
             biggest = prem
             biggest_ts_ns = ts
-        last_ts_ns = max(last_ts_ns, ts)
+        if ts >= last_ts_ns and t.get("price"):
+            last_ts_ns = ts
+            last_px = t.get("price")
     sweep_prem = sum(s["premium"] for s in sweeps)
     max_sweep_size = max((s["size"] for s in sweeps), default=0)
     max_sweep_prem = max((s["premium"] for s in sweeps), default=0)
@@ -740,8 +757,77 @@ def analyze_flow(row):
         "max_sweep_size": max_sweep_size,
         "side": side,
         "last_print_ts": _ns_to_iso(last_ts_ns),
+        "last_trade_price": round(last_px, 2) if last_px else None,
         "biggest_print_ts": _ns_to_iso(biggest_ts_ns),
     }
+
+
+def spot_from_minute_bars(bars, iso_ts, max_gap_s=120):
+    """Underlying price at a print: the close of the 1-minute bar that
+    contains `iso_ts` (or the bar just before it, at most `max_gap_s`
+    earlier). `bars` are Polygon aggregates sorted by start time `t` (ms).
+    Returns None when no bar is close enough — never a stale guess."""
+    if not bars or not iso_ts:
+        return None
+    try:
+        ts_ms = int(datetime.fromisoformat(iso_ts.replace("Z", "+00:00")).timestamp() * 1000)
+    except ValueError, TypeError:
+        return None
+    import bisect
+
+    starts = [b.get("t") or 0 for b in bars]
+    i = bisect.bisect_right(starts, ts_ms) - 1
+    if i < 0:
+        return None
+    b = bars[i]
+    if ts_ms - starts[i] > max_gap_s * 1000:
+        return None
+    px = b.get("c")
+    return round(px, 2) if px else None
+
+
+def _stock_minute_bars(ticker, day):
+    data = pg._get(
+        f"/v2/aggs/ticker/{ticker}/range/1/minute/{day}/{day}",
+        {"limit": 50000, "adjusted": "true", "sort": "asc"},
+    )
+    return (data or {}).get("results") or []
+
+
+def attach_print_spots(rows, workers=16, fetch=None):
+    """Set row["spot_at_print"] = the underlying's price in the minute the
+    marquee (largest-premium) print hit, from 1-minute stock bars — one
+    request per underlying per day. The scan-time `spot` is NOT used: the
+    big print typically hit well over an hour before the scan, so "move
+    since print" measured from the scan spot was really "since scan".
+    Rows whose bars are unavailable (index roots, outages) keep None and
+    the site labels their move "since scan" instead. Fail-open."""
+    fetch = fetch or _stock_minute_bars
+    et = ZoneInfo("America/New_York")
+    want = {}
+    for r in rows:
+        ts = (r.get("flow") or {}).get("biggest_print_ts")
+        r["spot_at_print"] = None
+        if not ts:
+            continue
+        try:
+            day = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(et).date()
+        except ValueError, TypeError:
+            continue
+        want.setdefault((r["underlying"], day.isoformat()), []).append(r)
+
+    def _get(key):
+        try:
+            return key, fetch(*key)
+        except Exception:
+            return key, []
+
+    with ThreadPoolExecutor(max_workers=max(1, min(workers, 16))) as ex:
+        for key, bars in ex.map(_get, list(want)):
+            bars = sorted(bars, key=lambda b: b.get("t") or 0)
+            for r in want[key]:
+                r["spot_at_print"] = spot_from_minute_bars(bars, r["flow"]["biggest_print_ts"])
+    return sum(1 for r in rows if r.get("spot_at_print") is not None)
 
 
 def is_golden_sweep(row, flow):
@@ -1365,6 +1451,8 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
         if stale:
             print(f"  Dropped {stale} contracts with no trades today (stale snapshot day)")
         rows = [r for r in rows if _n_trades(r)]
+    n_spot = attach_print_spots(rows, workers=workers)
+    print(f"  Underlying price at the marquee print: {n_spot}/{len(rows)} rows")
     rows.sort(key=lambda r: r["trade_score"], reverse=True)
     print(f"  {len(rows)} ranked UOA rows  (golden sweeps: {sum(1 for r in rows if r['golden'])})")
     return rows
@@ -1595,7 +1683,16 @@ def emit_latest(rows):
                     if r.get("_bid") and r.get("_ask")
                     else None
                 ),
+                # last_price is the day's AVERAGE traded price (VWAP; the
+                # last trade only when no VWAP exists — see price_basis),
+                # kept under its old name for existing readers. `vwap` is
+                # the same number under an honest name; last_trade_price is
+                # the true most-recent fill from the trade tape.
                 "last_price": r.get("px"),
+                "vwap": r.get("px") if r.get("px_basis") == "vwap" else None,
+                "price_basis": r.get("px_basis"),
+                "last_trade_price": flow.get("last_trade_price"),
+                "trade_count": flow.get("trade_count"),
                 # OI delta vs end-of-day yesterday. prev_oi is null on the
                 # first run after a new contract appears; the UI shows "—".
                 "prev_oi": r.get("prev_oi"),
@@ -1619,12 +1716,12 @@ def emit_latest(rows):
                 # ISO 8601 UTC. last_print_ts = most recent trade on the
                 # contract; biggest_print_ts = timestamp of the marquee
                 # premium print (most informative for "am I late?" UX).
-                # spot_at_print = the snapshot's underlying spot at scan
-                # time — close-enough proxy for "underlying when the
-                # marquee print hit" since snapshots fire every ~75 min.
+                # spot_at_print = the underlying's price in the minute the
+                # marquee print hit (1-minute stock bars), or null when no
+                # bar was available. `spot` is the scan-time price.
                 "last_print_ts": flow.get("last_print_ts"),
                 "biggest_print_ts": flow.get("biggest_print_ts"),
-                "spot_at_print": r.get("spot"),
+                "spot_at_print": r.get("spot_at_print"),
                 "size_gt_oi": r.get("size_gt_oi", False),
                 "repeat_count": r.get("repeat_count", 0),
                 "earnings_days": r.get("earnings_days"),

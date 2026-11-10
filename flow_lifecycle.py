@@ -31,6 +31,23 @@ ledger never disagree):
     30-80%          TRIMMED
     <  30%          UNWOUND
 
+WHEN AN OI READ COUNTS (2026-11 accuracy audit):
+  * The flag date is the Top list's own ET session date, and the flow
+    volume is that session's volume — frozen; a later re-flag never swaps
+    in another day's volume.
+  * OI is read only on trading sessions. A read on session T shows the
+    OI settled after the previous session, recorded as `asof`. Weekend /
+    holiday runs read nothing (the vendor's number has not moved).
+  * The vendor states no OI date, so an un-updated number is detected by
+    value: a first read EXACTLY equal to the pre-flag baseline is treated
+    as "vendor not updated yet" and retried next session — never turned
+    into a permanent CLOSED 0%.
+  * A first read reflecting a later settlement than the flag day (a retry,
+    or a missed night) is kept but marked late (first_read_lag sessions);
+    the published open/closed rates use on-time reads only. With no usable
+    read within FIRST_READ_MAX_LAG sessions the contract is NO_DATA — no
+    verdict.
+
   data/flow_lifecycle.json          tracking state (repo-committed)
   docs/reports/flow_lifecycle.json  compact lookup for the Top pane
 
@@ -45,9 +62,12 @@ import json
 import os
 import sys
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
 import pytz
+
+import exchange_calendar as EC
 
 ET = pytz.timezone("America/New_York")
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -64,8 +84,12 @@ CFG = {
     "retain_days": 45,  # drop tracked contracts older than this
     "publish_window_days": 45,  # lookup window (matches archive depth)
     "min_stats_n": 30,  # gate for published aggregate stats
-    "max_fetch_tickers": 60,  # per-night chain fetches (API budget)
+    "max_reads": 2500,  # per-night single-contract OI reads (API budget)
+    "read_workers": 8,
+    "first_read_max_lag": 2,  # sessions a first read may trail the flag day
 }
+SCHEMA = 2  # state written by this version (see migrate)
+DERIVED = ("retained_pct", "first_verdict", "current_oi", "pct_of_peak")
 
 
 def _load(p):
@@ -88,17 +112,34 @@ def key_of(ticker, expiry, typ, strike):
 # ── 1. register today's Top-list contracts with their flag baseline ─────
 
 
-def register(state, today):
-    """Baseline for a contract flagged today: OI as settled at the PRIOR
-    close (uoa_latest.open_interest during the session) + the day's
-    cumulative flow volume. Both are point-in-time on the flag date; the
-    verdict needs tomorrow's settlement."""
-    top = _load(TOPLIST) or {}
-    snap = _load(LATEST) or {}
-    rows = {r.get("contract"): r for r in (snap.get("rows") or []) if r.get("contract")}
+def _et_date_of(iso):
+    try:
+        return (
+            datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(ET).strftime("%Y-%m-%d")
+        )
+    except Exception:
+        return None
+
+
+def register(state, top=None, snap=None):
+    """Baseline for the contracts on the Top list's session D: OI as
+    settled at the PRIOR close (uoa_latest.open_interest during D) + D's
+    cumulative flow volume. The flag date is the list's own et_date (not
+    the run date), and the volume is frozen to D — the verdict compares
+    D's settlement to D's flow, never a later day's."""
+    top = top if top is not None else (_load(TOPLIST) or {})
+    snap = snap if snap is not None else (_load(LATEST) or {})
+    flag_date = top.get("et_date")
+    if not flag_date or not EC.is_session(flag_date):
+        return 0
+    if _et_date_of(snap.get("generated") or "") != flag_date:
+        # the batch snapshot is from another session: its OI / volume are
+        # not D's baseline, so register nothing rather than mix days
+        print("  lifecycle: latest batch is not from %s — nothing registered" % flag_date)
+        return 0
     by_key = {}
-    for r in rows.values():
-        if r.get("expiry") and r.get("type") and r.get("strike") is not None:
+    for r in snap.get("rows") or []:
+        if r.get("contract") and r.get("expiry") and r.get("type") and r.get("strike") is not None:
             by_key[key_of(r["ticker"], r["expiry"], r["type"], r["strike"])] = r
     added = 0
     for row in top.get("rows") or []:
@@ -114,7 +155,7 @@ def register(state, today):
                 "type": row["type"],
                 "strike": row["strike"],
                 "expiry": row["expiry"],
-                "flag_date": today,
+                "flag_date": flag_date,
                 "baseline_oi": src.get("open_interest"),
                 "flow_vol": src.get("volume"),
                 "side": row.get("side"),
@@ -126,10 +167,11 @@ def register(state, today):
             }
             added += 1
         else:
-            # re-flagged on a later day: keep the ORIGINAL baseline (the
-            # question is whether the FIRST position stuck), but track
-            # the larger cumulative flow and the best rank achieved.
-            c["flow_vol"] = max(c.get("flow_vol") or 0, src.get("volume") or 0)
+            # Same session re-run: the cumulative volume can only grow.
+            # A LATER day's re-flag keeps the ORIGINAL baseline and volume
+            # (the question is whether the FIRST position stuck).
+            if c.get("flag_date") == flag_date:
+                c["flow_vol"] = max(c.get("flow_vol") or 0, src.get("volume") or 0)
             if row.get("rank") and row["rank"] < (c.get("best_rank") or 999):
                 c["best_rank"] = row["rank"]
     return added
@@ -138,102 +180,188 @@ def register(state, today):
 # ── 2. current OI for tracked contracts needing a verdict ───────────────
 
 
-def _needs_oi(c, today):
-    if c.get("flag_date") == today:
-        return False  # settles tonight — nothing to read
+def _lag(flag_date, asof):
+    """Sessions between the flag session and the settlement a read shows
+    (0 = the read reflects exactly the flag day's trading)."""
+    return len(EC.sessions_between(flag_date, asof)) - 1
+
+
+def _needs_oi(c, today, asof):
+    """today is a session; asof = the settlement its OI reflects."""
+    if c.get("no_data"):
+        return False
     if c.get("expiry") and c["expiry"] < today:
         return False  # expired: handled without a fetch
-    last = (c.get("series") or [{}])[-1].get("date") if c.get("series") else None
-    return last != today  # already read today?
+    fd = c.get("flag_date")
+    if not fd or asof < fd:
+        return False  # the flag day has not settled yet
+    ser = c.get("series") or []
+    if ser:
+        return ser[-1].get("date") != today  # already read today?
+    if today in (c.get("stale_reads") or []):
+        return False
+    return _lag(fd, asof) <= CFG["first_read_max_lag"]
 
 
-def fetch_oi(state, today):
-    """One chain snapshot per unique ticker covers all of its tracked
-    contracts. Budget-capped; CI-only in practice (needs POLYGON_API_KEY
-    — locally this no-ops and the module still runs)."""
-    need = [c for c in state["contracts"].values() if _needs_oi(c, today)]
-    if not need:
-        return 0, 0
-    tickers = []
-    for c in need:
-        if c["ticker"] not in tickers:
-            tickers.append(c["ticker"])
-    tickers = tickers[: CFG["max_fetch_tickers"]]
-    try:
-        import polygon_data as pg
-    except Exception:
-        return 0, len(need)
-    oi_map = {}
-    fetched = 0
-    for t in tickers:
+def _read_contract_oi(c):
+    import polygon_data as pg
+
+    snap = pg.option_contract(c["ticker"], c["occ"])
+    if not snap:
+        return None
+    oi = snap.get("open_interest")
+    if oi is None:
+        oi = (snap.get("details") or {}).get("open_interest")
+    return oi
+
+
+def fetch_oi(state, today, read=None):
+    """Read settled OI for every contract that needs it — one cheap
+    single-contract snapshot each, first reads before follow-ups (their
+    window is short). Only on trading sessions. Returns (updated, stale,
+    missed). CI-only in practice (needs POLYGON_API_KEY)."""
+    if not EC.is_session(today):
+        return 0, 0, 0
+    asof = EC.previous_session(today).isoformat()
+    need = [c for c in state["contracts"].values() if c.get("occ") and _needs_oi(c, today, asof)]
+    need.sort(key=lambda c: (bool(c.get("series")), c.get("flag_date") or ""))
+    need = need[: CFG["max_reads"]]
+    read = read or _read_contract_oi
+
+    def _safe(c):
         try:
-            for con in pg.option_chain(t):
-                ct = (con.get("details") or {}).get("ticker")
-                if ct:
-                    oi_map[ct] = con.get("open_interest") or 0
-            fetched += 1
+            return c, read(c)
         except Exception:
-            continue
-    updated = 0
-    for c in need:
-        oi = oi_map.get(c.get("occ"))
+            return c, None
+
+    with ThreadPoolExecutor(max_workers=CFG["read_workers"]) as ex:
+        results = list(ex.map(_safe, need))
+    updated = stale = missed = 0
+    for c, oi in results:
         if oi is None:
+            missed += 1
             continue
-        c.setdefault("series", []).append({"date": today, "oi": oi})
+        oi = int(oi)
+        first = not c.get("series")
+        if first and oi == c.get("baseline_oi"):
+            # exactly the pre-flag number: the vendor has not applied the
+            # flag day's settlement yet — retry, never a CLOSED verdict
+            c.setdefault("stale_reads", []).append(today)
+            stale += 1
+            continue
+        if first:
+            c["first_read_lag"] = _lag(c["flag_date"], asof)
+        c.setdefault("series", []).append({"date": today, "asof": asof, "oi": oi})
         c["series"] = c["series"][-12:]
         c["peak_oi"] = max(c.get("peak_oi") or 0, oi)
         updated += 1
-    return updated, len(need) - updated
+    # Tonight was the last session whose read could still count as this
+    # contract's first: with nothing usable by now there is no verdict.
+    for c in state["contracts"].values():
+        fd = c.get("flag_date")
+        if (
+            fd
+            and not c.get("series")
+            and not c.get("no_data")
+            and fd <= asof
+            and not (c.get("expiry") and c["expiry"] < today)
+            and _lag(fd, asof) >= CFG["first_read_max_lag"]
+        ):
+            c["no_data"] = True
+    return updated, stale, missed
 
 
 # ── 3. classify ────────────────────────────────────────────────────────
 
 
+def _verdict(c):
+    """Status from the OI series alone (expiry is applied by classify)."""
+    ser = c.get("series") or []
+    if not ser:
+        return "NO_DATA" if c.get("no_data") else "PENDING"
+    base = c.get("baseline_oi")
+    vol = c.get("flow_vol") or 0
+    if base is None or vol <= 0:
+        return "UNKNOWN"
+    first = ser[0]["oi"]
+    retained = round(100.0 * (first - base) / vol)
+    c["retained_pct"] = retained
+    if retained >= CFG["open_pct"]:
+        verdict = "OPEN"
+    elif retained >= CFG["partial_pct"]:
+        verdict = "PARTIAL"
+    else:
+        verdict = "CLOSED"
+    c["first_verdict"] = verdict
+    cur = ser[-1]["oi"]
+    c["current_oi"] = cur
+    if verdict == "CLOSED" or len(ser) == 1:
+        return verdict
+    peak = c.get("peak_oi") or first or 1
+    frac = cur / peak if peak else 0
+    c["pct_of_peak"] = round(100 * frac)
+    if cur <= (base or 0):
+        return "UNWOUND"
+    if frac >= CFG["held_frac"]:
+        return "HELD"
+    if frac >= CFG["trimmed_frac"]:
+        return "TRIMMED"
+    return "UNWOUND"
+
+
 def classify(state, today):
     for c in state["contracts"].values():
+        for k in DERIVED:
+            c.pop(k, None)
+        st = _verdict(c)
         # expiry dominates: OI necessarily decays to 0 at expiration, so
         # an expired contract is never reported as "unwound"
         if c.get("expiry") and c["expiry"] < today:
-            if c.get("status") in ("PENDING", None):
-                c["status"] = "EXPIRED_UNRESOLVED"
-            elif not str(c.get("status", "")).startswith("EXPIRED"):
-                c["status"] = "EXPIRED_" + c["status"]
+            st = (
+                "EXPIRED_UNRESOLVED" if st in ("PENDING", "NO_DATA", "UNKNOWN") else "EXPIRED_" + st
+            )
+        c["status"] = st
+
+
+def migrate(state):
+    """Clean state written before SCHEMA 2 (once): reads taken on
+    non-sessions are dropped; a contract registered by a non-session run
+    is moved to the session its list belonged to; a first read equal to
+    the baseline (vendor not updated) is dropped; a first read that came
+    more than FIRST_READ_MAX_LAG sessions late gives NO_DATA, not a
+    verdict. Flow volume bumped by an old re-flag cannot be recovered."""
+    if state.get("schema") == SCHEMA:
+        return 0
+    fixed = 0
+    for c in state.get("contracts", {}).values():
+        before = json.dumps(c.get("series") or []) + str(c.get("flag_date"))
+        fd = c.get("flag_date")
+        try:
+            if fd and not EC.is_session(fd):
+                fd = c["flag_date"] = EC.previous_session(fd).isoformat()
+            ser = []
+            for p in c.get("series") or []:
+                if not EC.is_session(p["date"]):
+                    continue
+                p.setdefault("asof", EC.previous_session(p["date"]).isoformat())
+                if fd and p["asof"] >= fd:
+                    ser.append(p)
+        except EC.CalendarRangeError:
             continue
-        ser = c.get("series") or []
-        if not ser:
-            c["status"] = "PENDING"
-            continue
-        base = c.get("baseline_oi")
-        vol = c.get("flow_vol") or 0
-        if base is None or vol <= 0:
-            c["status"] = "UNKNOWN"
-            continue
-        first = ser[0]["oi"]
-        retained = round(100.0 * (first - base) / vol)
-        c["retained_pct"] = retained
-        if retained >= CFG["open_pct"]:
-            verdict = "OPEN"
-        elif retained >= CFG["partial_pct"]:
-            verdict = "PARTIAL"
-        else:
-            verdict = "CLOSED"
-        c["first_verdict"] = verdict
-        cur = ser[-1]["oi"]
-        c["current_oi"] = cur
-        if verdict == "CLOSED" or len(ser) == 1:
-            c["status"] = verdict
-            continue
-        peak = c.get("peak_oi") or first or 1
-        frac = cur / peak if peak else 0
-        if cur <= (base or 0):
-            c["status"] = "UNWOUND"
-        elif frac >= CFG["held_frac"]:
-            c["status"] = "HELD"
-        elif frac >= CFG["trimmed_frac"]:
-            c["status"] = "TRIMMED"
-        else:
-            c["status"] = "UNWOUND"
-        c["pct_of_peak"] = round(100 * frac)
+        while ser and ser[0]["oi"] == c.get("baseline_oi"):
+            ser.pop(0)
+        if ser and fd:
+            lag = _lag(fd, ser[0]["asof"])
+            if lag > CFG["first_read_max_lag"]:
+                ser, c["no_data"] = [], True
+            else:
+                c["first_read_lag"] = lag
+        c["series"] = ser
+        c["peak_oi"] = max([c.get("baseline_oi") or 0] + [p["oi"] for p in ser])
+        if json.dumps(ser) + str(c.get("flag_date")) != before:
+            fixed += 1
+    state["schema"] = SCHEMA
+    return fixed
 
 
 def prune(state, today):
@@ -253,7 +381,7 @@ def publish(state, today):
     # those positions actually stuck. Compact array encoding keeps the
     # whole window ~40% the size of per-key objects:
     #   [status, retained_pct, pct_of_peak, baseline_oi, current_oi,
-    #    flag_date]
+    #    flag_date, first_read_lag, stale_reads]
     cutoff = (
         datetime.strptime(today, "%Y-%m-%d") - timedelta(days=CFG["publish_window_days"])
     ).strftime("%Y-%m-%d")
@@ -268,10 +396,28 @@ def publish(state, today):
             c.get("baseline_oi"),
             c.get("current_oi"),
             c.get("flag_date"),
+            c.get("first_read_lag"),
+            len(c.get("stale_reads") or []),
         ]
-    # gated aggregate: how often does flagged flow actually stick?
-    resolved = [c for c in state["contracts"].values() if c.get("first_verdict")]
-    stats = {"status": "accruing", "n": len(resolved), "activates_at": CFG["min_stats_n"]}
+    # gated aggregate: how often does flagged flow actually stick? Only
+    # first reads that show exactly the flag day's settlement count — a
+    # late read also contains later days' trading.
+    resolved = [
+        c
+        for c in state["contracts"].values()
+        if c.get("first_verdict") and c.get("first_read_lag") == 0
+    ]
+    late = sum(
+        1 for c in state["contracts"].values() if c.get("first_verdict") and c.get("first_read_lag")
+    )
+    no_data = sum(1 for c in state["contracts"].values() if c.get("no_data"))
+    stats = {
+        "status": "accruing",
+        "n": len(resolved),
+        "activates_at": CFG["min_stats_n"],
+        "late_excluded": late,
+        "no_data": no_data,
+    }
     if len(resolved) >= CFG["min_stats_n"]:
         cnt = Counter(c["first_verdict"] for c in resolved)
         n = len(resolved)
@@ -289,6 +435,8 @@ def publish(state, today):
             "partial_pct": round(100 * cnt["PARTIAL"] / n),
             "closed_pct": round(100 * cnt["CLOSED"] / n),
             "open_rate_by_side": by_side,
+            "late_excluded": late,
+            "no_data": no_data,
         }
     payload = {
         "generated": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -301,6 +449,8 @@ def publish(state, today):
             "baseline_oi",
             "current_oi",
             "flag_date",
+            "first_read_lag",
+            "stale_reads",
         ],
         "contracts": lookup,
         "stats": stats,
@@ -308,7 +458,12 @@ def publish(state, today):
         "note": (
             "Open interest settles OVERNIGHT at the OCC — a "
             "contract flagged today gets its verdict tomorrow, so "
-            "same-day rows read PENDING by construction. OI is NET "
+            "same-day rows read PENDING by construction. OI is read "
+            "only on trading sessions; a read that still equals the "
+            "pre-flag OI is treated as not-yet-updated and retried, and "
+            "with no usable read within two sessions the contract gets "
+            "no verdict (NO_DATA). Open/closed rates use reads of the "
+            "flag day's own settlement only. OI is NET "
             "across ALL participants: a decline means positions in "
             "the contract were net reduced and can never be "
             "attributed to the specific trader flagged. "
@@ -426,19 +581,25 @@ def main():
     if args.self_test:
         sys.exit(self_test())
     today = _et_today()
-    state = _load(STATE) or {"contracts": {}}
-    added = register(state, today)
-    updated, missed = fetch_oi(state, today)
+    state = _load(STATE) or {"contracts": {}, "schema": SCHEMA}
+    fixed = migrate(state)
+    if fixed:
+        print("  flow lifecycle: migrated %d contracts to schema %d" % (fixed, SCHEMA))
+    added = register(state)
+    if not EC.is_session(today):
+        print("  flow lifecycle: %s is not a trading session — no OI reads" % today)
+    updated, stale, missed = fetch_oi(state, today)
     classify(state, today)
     prune(state, today)
     payload = publish(state, today)
     cnt = Counter(c.get("status") for c in state["contracts"].values())
     print(
-        "  flow lifecycle: +%d new · %d OI reads (%d unresolved) · "
-        "tracking %d · %s"
+        "  flow lifecycle: +%d new · %d OI reads · %d not yet updated by "
+        "the vendor (retry) · %d unread · tracking %d · %s"
         % (
             added,
             updated,
+            stale,
             missed,
             len(state["contracts"]),
             " ".join("%s=%d" % (k, v) for k, v in sorted(cnt.items())),

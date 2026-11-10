@@ -26223,7 +26223,7 @@
     // wires it into a `title=` attribute on each <th>.
     const COLS = [
       { k:"ticker", t:"Ticker", tip:"Underlying stock symbol. Tap to open drilldown." },
-      { k:"tier", t:"Tier", tip:"Quality tier A / B / C / earnings / caution / hedge. A-tier is rare BY DESIGN — top 1-2% of flow each day, only the absolute strongest setups qualify. B = solid directional reads. C = working set; everything that cleared the universe filters but doesn't merit a top label. Earnings / Hedge / Caution call out specific patterns. Combines bullishness, opening likelihood, premium size, and conviction signals." },
+      { k:"tier", t:"Tier", tip:"Conviction tier from the Trade Score: A+ = 90+, A = 76-89, B = 58-75, C = below 58. These are fixed score cutoffs, not a quota, so the share of A/A+ rows changes from day to day (typically a few percent of flagged contracts). The pattern pills in the Why column (Conviction / Confirming / Hedge / Caution / Earnings) are a separate read." },
       { k:"trade_score", t:"Score", tip:"Composite Trade Score 0-100. Premium-weighted: vol/OI, opening likelihood, ask-side aggression, repeat history, conviction tier." },
       { k:"flow_side", t:"Bias", tip:"Estimated side of today's prints: BUY = most contracts traded above the day's average price, SELL = below (no live bid/ask on our data plan, so it is a lean, not proof). Bullish = calls bought or puts sold; bearish = puts bought or calls sold." },
       { k:"opening", t:"Opening", tip:"Opening likelihood: New (likely opening a fresh position, +signal) / Closing (likely closing existing, weaker signal) / Mixed." },
@@ -26232,7 +26232,7 @@
       { k:"expiry", t:"Expiry", tip:"Expiration date. Shorter DTE = more leveraged exposure; longer DTE = thesis bet." },
       { k:"dte", t:"DTE", tip:"Days To Expiration. Days until the contract expires." },
       { k:"pct_otm", t:"%OTM", tip:"Out-of-the-Money percentage — how far the strike is from current spot. Positive = OTM, negative = ITM." },
-      { k:"be_distance_pct", t:"→B/E", tip:"% the underlying must move to reach the break-even (strike + premium for calls; strike - premium for puts)." },
+      { k:"be_distance_pct", t:"→B/E", tip:"How far the stock must move to reach break-even at expiry, shown as the stock's move: calls need it to RISE (▲ +X%), puts need it to FALL (▼ −X%). Break-even = strike + today's average traded price for calls, strike − that price for puts (the price shown in the Avg Price column; a buyer at that price needs this move to break even). A value marked 'past' means the stock is already beyond break-even." },
       { k:"volume", t:"Volume", tip:"Today's traded contract count for this strike+expiry." },
       { k:"vol_oi", t:"Vol/OI", tip:"Today's Volume / Open Interest ratio. >1 = today's volume exceeds total open contracts → unusual activity; ≥3 = strongly unusual." },
       // NEW UW-3: Open Interest delta vs end-of-day yesterday. Single
@@ -26255,9 +26255,9 @@
       // NEW UW-11: Last trade fill price. Useful for users who want to
       // place their own order — they see the actual fill they'd be
       // chasing, not just the aggregate premium.
-      { k:"last_price", t:"Last / Lot", tip:"Per-share quote (small line) over actual per-contract cost (bold). Multiply quote × 100 = $ outlay to buy 1 lot. The most useful 'can I act on this size?' read for retail — tells you if a $5M flagged contract is $4/lot (anyone can play) or $5,000/lot (institutional only)." },
+      { k:"last_price", t:"Avg Price / Lot", tip:"Today's AVERAGE traded price per share (volume-weighted, small line) and that price × 100 = cost of one contract (bold). It is an average, not the last fill — hover a cell for the most recent trade price. Premium and break-even are computed from this same average. Tells you if a $5M flagged contract is $4/lot (anyone can play) or $5,000/lot (institutional only)." },
       { k:"biggest_print_ts", t:"Printed", tip:"How long ago the marquee single-print (largest premium) hit the tape. Top row = MM/DD date; middle = HH:MM:SS ET; bottom = relative ago. Matches Unusual Whales' verification-friendly format." },
-      { k:"delta_since_print", t:"Δ since", tip:"Δ (delta) = % change in the underlying from spot-at-print to current spot. Tells you if the trade already worked (large + move) or you're still in time (small or negative move)." },
+      { k:"delta_since_print", t:"Δ since", tip:"% change in the stock from its price in the minute the marquee print hit to its current (delayed) price. Rows marked 'scan' had no minute bar for the print, so they measure from the scan time instead. Green = the stock moved the flow's way (up for bullish flow, DOWN for bearish/put flow); red = against it; grey = flow with no clear direction. A big favourable move means much of the move may already have happened." },
       // NEW UW-6: Earnings days. Inline rather than a column — folded
       // into the per-row pills below since not every row has earnings.
       { k:"interpretation", t:"Why Actionable / Tags", tip:"Plain-English tier label + visual tag stack: BULLISH/BEARISH/SWEEP/GOLDEN/OPENING/REPEAT/EARNINGS/INDEX. Hover any pill for what it means." },
@@ -26322,6 +26322,56 @@
       if (n >= 1e6) return (n/1e6).toFixed(2)+"M";
       if (n >= 1e3) return (n/1e3).toFixed(0)+"k";
       return String(Math.round(n));
+    }
+    // ── Move since print / break-even helpers (Latest Flow) ──────────
+    // Reference price for "move since print": the stock's price in the
+    // minute the marquee print hit (spot_at_print, from minute bars).
+    // Older payloads / rows without a bar fall back to the scan-time
+    // spot and are labelled "since scan" — never presented as the print.
+    function uoaMoveRef(r) {
+      if (r.spot_at_print != null)
+        return { px: r.spot_at_print, basis: "print" };
+      if (r.spot != null) return { px: r.spot, basis: "scan" };
+      return null;
+    }
+    // Colour by whether the stock moved the FLOW's way: up is good for
+    // bullish flow, down is good for bearish (put-buying) flow; flow with
+    // no direction (income / hedge / mixed) stays neutral.
+    function uoaMoveCls(r, delta) {
+      const fav = r.direction === "bullish" ? delta
+                : r.direction === "bearish" ? -delta : 0;
+      return fav > 0 ? "uoa-delta-up" : fav < 0 ? "uoa-delta-down"
+                                                : "uoa-delta-flat";
+    }
+    function uoaMoveTip(r, ref, cur, delta) {
+      const verdict = r.direction === "bullish"
+          ? (delta > 0 ? "moved the flow's way (bullish flow wants a rise)"
+                       : "moved against the bullish flow")
+        : r.direction === "bearish"
+          ? (delta < 0 ? "moved the flow's way (bearish flow wants a fall)"
+                       : "moved against the bearish flow")
+        : "flow has no clear direction, so this is not a win or loss";
+      return (ref.basis === "print"
+          ? "Stock at the marquee print: $"
+          : "No price for the print minute; stock at scan time: $") +
+        ref.px.toFixed(2) + " · now: $" + cur.toFixed(2) +
+        " (delayed). The stock " + verdict + ".";
+    }
+    // Break-even move as the STOCK's move: calls need a rise (▲ +X%),
+    // puts need a fall (▼ −X%). be_distance_pct is the move still needed
+    // in the trade's direction; negative = already past break-even.
+    function uoaBeHtml(r) {
+      const bd = r.be_distance_pct;
+      if (bd == null) return "&mdash;";
+      const put = r.type === "put";
+      const be = r.break_even != null ? "$" + r.break_even : "break-even";
+      if (bd < 0) {
+        return '<span title="The stock is already ' + Math.abs(bd) + '% ' +
+          (put ? "below" : "above") + ' break-even (' + be + ').">past</span>';
+      }
+      return '<span title="Stock must ' + (put ? "FALL" : "RISE") + ' ' +
+        bd + '% to reach break-even ' + be + ' by expiry.">' +
+        (put ? "▼ −" : "▲ +") + bd + '%</span>';
     }
     function scoreCls(s) { return s>=75 ? "s-hi" : s>=55 ? "s-mid" : "s-lo"; }
     function tierCls(t) {
@@ -26456,6 +26506,13 @@
       }
       return {h: "5", st: (hobj && hobj["5"]) || null};
     }
+    // "Opening Buyers" (Edge card + preset chip): likely-opening rows
+    // whose tape is classified as call or put BUYING. Sellers, mixed and
+    // unclassified rows are not buyers, whatever their volume.
+    function isOpeningBuyer(r) {
+      return r.opening === "likely_open" &&
+        (r.flow_side === "call_buyer" || r.flow_side === "put_buyer");
+    }
     // ── Today's Flow Edge ──────────────────────────────────────────
     // Synthesizes today's full flow into a 7-card summary:
     //   Bullish premium  ·  Bearish premium  ·  Net bias
@@ -26508,11 +26565,12 @@
         // tags on individual rows. Reconciled to match passFilters.
         if (r.golden) goldenCount++;
         if ((r.repeat_count || 0) >= 2) repeatCount++;
-        // `opening` is a string label set by the upstream scoring
-        // (uoa_alpha.py): "likely_open" / "likely_close" / "mixed".
-        // Use it directly instead of the vol/OI heuristic which
-        // double-counted closing-flow rows.
-        if (r.opening === "likely_open") openingCount++;
+        // `opening` is the scanner's label (uoa_scanner._opening):
+        // "likely_open" / "likely_close" / "mixed". Count only likely-
+        // opening rows whose tape is classified as BUYING — the card
+        // says "buyers", so sellers / mixed / unclassified rows don't
+        // belong in it.
+        if (isOpeningBuyer(r)) openingCount++;
         if (r.ticker && watchlist.has(r.ticker)) {
           watchlistTickers.add(r.ticker);
           watchlistPrem += p;
@@ -26540,18 +26598,20 @@
       cards.push('<div class="te-card"><div class="te-label">' +
         'Net Directional</div><div class="te-val ' + biasCls + '">' +
         biasLabel + '</div>' +
-        '<div class="te-sub">' + Math.round(netRatio * 100) +
-        '% call vs ' + Math.round((1 - netRatio) * 100) +
-        '% put (premium-weighted)</div></div>');
+        '<div class="te-sub" title="Share of premium in rows classified as call buying vs put buying. Seller-classified, mixed and unclassified rows are left out.">' +
+        Math.round(netRatio * 100) +
+        '% call-buyer vs ' + Math.round((1 - netRatio) * 100) +
+        '% put-buyer premium (buyer-classified rows only)</div></div>');
       cards.push('<div class="te-card gold"><div class="te-label">' +
         'Golden Sweeps</div><div class="te-val gold">' + goldenCount +
         '</div><div class="te-sub">single sweeps ≥$1M, buy-side lean (est.)</div></div>');
       cards.push('<div class="te-card blue"><div class="te-label">' +
         'Repeat Flow</div><div class="te-val">' + repeatCount +
-        '</div><div class="te-sub">multi-print conviction</div></div>');
-      cards.push('<div class="te-card purple"><div class="te-label">' +
+        '</div><div class="te-sub">contracts also flagged on 2+ earlier days</div></div>');
+      cards.push('<div class="te-card purple" title="Rows the scanner marks likely-opening (volume ≥ 3.5× prior OI, a sweep bigger than OI, or flagged on an earlier day) AND whose tape is classified as call or put buying.">' +
+        '<div class="te-label">' +
         'Opening Buyers</div><div class="te-val">' + openingCount +
-        '</div><div class="te-sub">vol > prior OI (new positions)</div></div>');
+        '</div><div class="te-sub">likely-opening rows classified as buyers</div></div>');
       if (watchlist.size) {
         cards.push('<div class="te-card hover-actionable" ' +
           'data-preset="watchlist" title="Click to filter to watchlist only">' +
@@ -26577,25 +26637,31 @@
     //   caution     — low liquidity / wide spread / questionable
     //   earnings    — earnings within 7 DTE → could be either way
     function classifyTier(r) {
+      // Reads only fields the scanner actually publishes (the earlier
+      // version read liquidity_grade / side / is_golden_sweep /
+      // earnings_within_dte / has_earnings_soon, which never exist, so
+      // A+ Conviction, Caution and Earnings Bet could never fire).
       const prem = r.premium || 0;
-      const voi = r.vol_oi || 0;
-      const dte = r.dte || 0;
-      const liq = r.liquidity_grade || "";
-      const opening = (r.volume || 0) > (r.open_interest || 0) * 0.5;
-      const repeat = (r.repeat_count || 0) >= 2 || r.repeat;
-      const golden = r.is_golden_sweep || r.golden_sweep;
+      const dte = r.dte;
+      const ed = r.earnings_days;
+      const liq = (r.liquidity || "").toUpperCase();
+      const opening = r.opening === "likely_open";
+      const repeat = (r.repeat_count || 0) >= 2;
+      const golden = !!(r.golden || r.is_golden);
       const isCall = r.type === "call";
-      const isPut = r.type === "put";
-      const isBuy = r.side === "ask";
+      const isBuy = r.flow_side === "call_buyer" || r.flow_side === "put_buyer";
       const bull = r.direction === "bullish";
       const bear = r.direction === "bearish";
 
-      // Earnings gamble: anything <7 DTE with earnings flag
-      if (r.earnings_within_dte || (dte <= 7 && r.has_earnings_soon)) {
+      // Earnings gamble: short-dated (≤7 DTE) contract whose company
+      // reports on or before expiry
+      if (dte != null && dte <= 7 && ed != null && ed >= 0 && ed <= dte) {
         return {
           tier: "earnings",
           label: "Earnings Bet",
-          why: "Expires within earnings window — high vol, binary outcome.",
+          why: "Expires within " + dte + " day" + (dte === 1 ? "" : "s") +
+               " and earnings are due in " + ed + " day" + (ed === 1 ? "" : "s") +
+               " — high vol, binary outcome.",
         };
       }
       // Caution: low liquidity grade.
@@ -26608,16 +26674,18 @@
         return {
           tier: "caution",
           label: "Caution",
-          why: "Thin open interest / low day volume — execution risk.",
+          why: "Liquidity grade " + liq + ": open interest under 100 contracts — execution risk.",
         };
       }
-      // A+ Conviction: call buy + opening + (repeat or golden) + premium ≥ $250k
-      if (isBuy && opening && (repeat || golden) && prem >= 250000 && bull) {
+      // A+ Conviction: bullish call buying + likely opening + (flagged on
+      // 2+ earlier days or golden sweep) + premium ≥ $250k
+      if (isCall && isBuy && bull && opening && (repeat || golden) && prem >= 250000) {
         return {
           tier: "conviction",
           label: "A+ Conviction",
-          why: "Aggressive call buy at the ask, opening new position, " +
-               "repeat or golden sweep, $250k+ premium.",
+          why: "Call buying, likely opening a new position, " +
+               (golden ? "golden sweep" : "also flagged on 2+ earlier days") +
+               ", $250k+ premium.",
         };
       }
       // Hedge: very large cap (mcb=Large+) + bear flow on calls is suspicious
@@ -27303,7 +27371,7 @@
       if (ACTIVE_PRESET === "bearish") return r.direction === "bearish";
       if (ACTIVE_PRESET === "golden") return !!r.golden;
       if (ACTIVE_PRESET === "repeat") return (r.repeat_count || 0) >= 2;
-      if (ACTIVE_PRESET === "opening") return r.opening === "likely_open";
+      if (ACTIVE_PRESET === "opening") return isOpeningBuyer(r);
       if (ACTIVE_PRESET === "earnings") {
         return r.earnings_days != null && r.earnings_days >= 0 &&
                r.earnings_days <= 10;
@@ -27342,7 +27410,7 @@
         "bearish":    (r) => r.direction === "bearish",
         "golden":     (r) => !!r.golden,
         "repeat":     (r) => (r.repeat_count || 0) >= 2,
-        "opening":    (r) => r.opening === "likely_open",
+        "opening":    isOpeningBuyer,
         "watchlist":  (r) => wl.has(r.ticker),
         "earnings":   (r) => r.earnings_days != null &&
                               r.earnings_days >= 0 &&
@@ -27561,7 +27629,6 @@
       }
       shownRows = rows.slice(0, 300);
       tb.innerHTML = shownRows.map(function (r, i) {
-        const bem = r.be_distance_pct;
         // Why Actionable — use the JS classifier so users see WHAT
         // KIND of flow this is (Conviction / Confirming / Hedge / etc)
         // not just the source's "what filter matched" string. The
@@ -27619,18 +27686,18 @@
         // hydrateCurrentSpots() (see further down); shows "—" until
         // the bulk-quote fetch resolves, then re-renders fill in.
         const deltaHtml = (function () {
-          if (r.spot_at_print == null) return '<span>&mdash;</span>';
+          const ref = uoaMoveRef(r);
+          if (!ref) return '<span>&mdash;</span>';
           const cur = (window.CURRENT_SPOTS || {})[r.ticker];
           if (cur == null) return '<span class="uoa-delta-pending" ' +
             'title="Live spot loading — re-renders fill in.">&hellip;</span>';
-          const delta = ((cur - r.spot_at_print) / r.spot_at_print) * 100;
-          const cls = delta > 0 ? "uoa-delta-up"
-                    : delta < 0 ? "uoa-delta-down" : "uoa-delta-flat";
+          const delta = ((cur - ref.px) / ref.px) * 100;
           const sign = delta > 0 ? "+" : "";
-          return '<span class="uoa-delta ' + cls + '" ' +
-            'title="Spot at print: $' + r.spot_at_print.toFixed(2) +
-            ' · Current: $' + cur.toFixed(2) + '">' +
-            sign + delta.toFixed(1) + '%</span>';
+          return '<span class="uoa-delta ' + uoaMoveCls(r, delta) + '" ' +
+            'title="' + uoaMoveTip(r, ref, cur, delta) + '">' +
+            sign + delta.toFixed(1) + '%' +
+            (ref.basis === "scan" ? ' <small>scan</small>' : '') +
+            '</span>';
         })();
         // News + Flow confirmation badge — render next to the ticker
         // when news in the last 24h agrees with the UOA direction.
@@ -27715,10 +27782,11 @@
             '% of today\'s total flagged-universe premium.">' +
             p + '% of total</div>';
         })();
-        // ── NEW UW-11: Last fill price + per-lot cost ──────────────
-        // Stacked: per-share quote on top (reference), per-lot cost
-        // below (the actual $ outlay to buy 1 contract). Per-lot is
-        // the most useful "can I act on this?" read for retail.
+        // ── Avg price + per-lot cost ───────────────────────────────
+        // r.last_price is the day's AVERAGE traded price (VWAP; the last
+        // trade only when no VWAP exists — r.price_basis says which),
+        // not a last fill. Shown as such, with the true last trade
+        // (r.last_trade_price) in the tooltip. Per-lot = that × 100.
         const lastPriceHtml = (function () {
           const lp = r.last_price;
           if (lp == null) return '<span class="uoa-last-na">&mdash;</span>';
@@ -27726,11 +27794,19 @@
           const lotStr = lot < 100  ? '$' + lot.toFixed(2)
                        : lot < 10000 ? '$' + Math.round(lot)
                        : '$' + (lot/1000).toFixed(1) + 'k';
-          return '<span class="uoa-last-stack" title="' +
-            'Per-share quote $' + lp.toFixed(2) + ' × 100 = $' +
-            Math.round(lot).toLocaleString() + ' per contract (1 lot). ' +
-            'The actual dollar outlay to buy ONE contract at this price.">' +
-            '<span class="uoa-last-share">$' + lp.toFixed(2) + '/sh</span>' +
+          const isLast = r.price_basis === "last_trade";
+          const tip = (isLast
+              ? 'No day average was available, so this is the last trade price: $'
+              : 'Today\'s average traded price (volume-weighted): $') +
+            lp.toFixed(2) + ' × 100 = $' + Math.round(lot).toLocaleString() +
+            ' per contract (1 lot).' +
+            (r.last_trade_price != null && !isLast
+              ? ' Most recent trade: $' + Number(r.last_trade_price).toFixed(2) + '.'
+              : '') +
+            ' Premium and break-even use this same price.';
+          return '<span class="uoa-last-stack" title="' + tip + '">' +
+            '<span class="uoa-last-share">' + (isLast ? 'last ' : 'avg ') +
+              '$' + lp.toFixed(2) + '/sh</span>' +
             '<span class="uoa-last-lot">' + lotStr + '/lot</span>' +
             '</span>';
         })();
@@ -27754,17 +27830,19 @@
           // doesn't buy the top of a working idea. Needs spot_at_print
           // + a hydrated current spot to compute the realized move.
           (function () {
-            if (r.spot_at_print == null || r.dte == null || r.dte >= 3) return;
+            const ref = uoaMoveRef(r);
+            if (!ref || r.dte == null || r.dte >= 3) return;
             const cur = (window.CURRENT_SPOTS || {})[r.ticker];
             if (cur == null) return;
-            const mv = ((cur - r.spot_at_print) / r.spot_at_print) * 100;
+            const mv = ((cur - ref.px) / ref.px) * 100;
             // Favorable = up for a call/bullish, down for a put/bearish.
             const favorable = (r.direction === "bullish") ? mv
                             : (r.direction === "bearish") ? -mv : 0;
             if (favorable > 5) {
               pills.push('<span class="uoa-pill uoa-pill-chase" title="' +
                 'The underlying already moved ' + favorable.toFixed(1) +
-                '% in this trade\'s favor since the print, and it expires ' +
+                '% in this trade\'s favor since the ' +
+                (ref.basis === "scan" ? 'scan' : 'print') + ', and it expires ' +
                 'in ' + r.dte + ' day' + (r.dte === 1 ? '' : 's') + '. ' +
                 'Premium has inflated and theta is accelerating — chasing ' +
                 'here pays up for a move that mostly already happened.">' +
@@ -27871,7 +27949,7 @@
           '<td>'+r.expiry+'</td>'+
           '<td>'+(r.dte!=null?r.dte+"d":"&mdash;")+'</td>'+
           '<td>'+(r.pct_otm!=null?r.pct_otm+"%":"&mdash;")+'</td>'+
-          '<td>'+(bem!=null?(bem>0?"+":"")+bem+"%":"&mdash;")+'</td>'+
+          '<td>'+uoaBeHtml(r)+'</td>'+
           '<td>'+fmtNum(r.volume)+'</td>'+
           '<td>'+r.vol_oi+'</td>'+
           '<td>'+oiDeltaHtml+'</td>'+
@@ -27954,10 +28032,13 @@
                  "OI has fallen to 30–80% of peak: net positions in this contract were reduced."],
       UNWOUND:  ["UNWOUND", "t25-bear",
                  "OI is back at/below the pre-flag baseline (or <30% of peak): the position is effectively gone."],
+      NO_DATA:  ["NO OI", "t25-dim",
+                 "No verdict: the vendor's open interest never moved off its pre-flag value within two sessions of the flag (usually a data-feed delay, e.g. around a bank holiday), so whether the position stuck can't be read."],
       UNKNOWN:  ["—", "t25-dim", "No usable OI baseline for this contract."],
     };
     // flow_lifecycle publishes a compact array per contract:
-    // [status, retained_pct, pct_of_peak, baseline_oi, current_oi, flag_date]
+    // [status, retained_pct, pct_of_peak, baseline_oi, current_oi,
+    //  flag_date, first_read_lag, stale_reads]
     function t25LifeRec(r) {
       const raw = _t25Life && _t25Life.contracts
         ? _t25Life.contracts[r.ticker + "|" + r.expiry + "|" + r.type +
@@ -27965,7 +28046,8 @@
       if (!raw) return null;
       if (!Array.isArray(raw)) return raw;          // legacy object form
       return { status: raw[0], retained_pct: raw[1], pct_of_peak: raw[2],
-               baseline_oi: raw[3], current_oi: raw[4], flag_date: raw[5] };
+               baseline_oi: raw[3], current_oi: raw[4], flag_date: raw[5],
+               first_read_lag: raw[6], stale_reads: raw[7] };
     }
     function t25LifeCell(r) {
       const rec = t25LifeRec(r);
@@ -27991,12 +28073,22 @@
         label += " " + rec.pct_of_peak + "%";
         tip += " Now at " + rec.pct_of_peak + "% of peak OI.";
       }
+      if (rec.first_read_lag) {
+        tip += " Note: the first usable OI read came " + rec.first_read_lag +
+          " session" + (rec.first_read_lag === 1 ? "" : "s") +
+          " late, so it also includes trading after the flag day.";
+      }
+      if (st === "PENDING" && rec.stale_reads) {
+        tip += " The vendor's OI still showed the pre-flag value on " +
+          rec.stale_reads + " read" + (rec.stale_reads === 1 ? "" : "s") +
+          " (not updated yet) — retrying next session.";
+      }
       tip += " OI is NET across all participants — a decline cannot be attributed to the specific trader flagged.";
       return [label, expired ? "t25-dim" : base[1], tip];
     }
     const T25_KEYS = { "#": "rank", TKR: "ticker", CONTRACT: "expiry",
       DTE: "dte", SIDE: "side", SCORE: "score", PREM: "premium",
-      "LAST FILL": "last_price", WHEN: "last_print_ts",
+      "LAST FILL": "last_trade_price", WHEN: "last_print_ts",
       "V/OI": "vol_oi", "OI CHG": "oi_delta", ACT: "active_batches",
       LIFE: "_life", "LAST SEEN": "last_print_ts", REASON: "reason" };
     const T25_STR = { ticker: 1, expiry: 1, side: 1, reason: 1,
@@ -28053,12 +28145,11 @@
         r._life = LIFE_ORD[st] != null ? LIFE_ORD[st] : -1;
       });
       // 2) ordering: sort that fixed set by the selected column
+      // (no fallback to scan time for last_print_ts: a row with no trade
+      // timestamp sorts with the blanks, not as if it printed at the scan)
       const sk = _t25Sort.k, sd = _t25Sort.d;
       rows = rows.slice().sort(function (a, b) {
-        let va = a[sk], vb = b[sk];
-        if (sk === "last_print_ts") {
-          va = va || a.last_seen || ""; vb = vb || b.last_seen || "";
-        }
+        const va = a[sk], vb = b[sk];
         const nullA = va == null || va === "", nullB = vb == null || vb === "";
         if (nullA && nullB) return a.rank - b.rank;
         if (nullA) return 1;                 // nulls always last
@@ -28139,13 +28230,13 @@
           SIDE: "Estimated trade side: CALL/PUT BUY = ≥55% of today's contracts traded above the day's average price (no live bid/ask on our data plan, so this is a lean, not proof of buying at the ask). CALL/PUT SELL = scanner-classified premium selling (directional read inverts). MIXED = tape doesn't confirm a side.",
           SCORE: "Daily unusual score 0-100 — hover a value for its full component breakdown. 90+ requires 3+ independent strong signals.",
           PREM: "Cumulative premium traded in this contract today (day total from the latest snapshot — never summed across scans)",
-          "LAST FILL": "Price of the most recent trade in this contract (delayed) — a last fill, not an average",
-          WHEN: "How long ago the most recent print hit (vs your clock)",
+          "LAST FILL": "Price of the most recent trade in this contract (delayed) — a last fill, not an average. Blank for sessions archived before this was recorded.",
+          WHEN: "How long ago the most recent trade printed (vs your clock). Blank when the feed gave no trade timestamp — never the scan time.",
           "V/OI": "Today's cumulative volume vs PRIOR-day open interest",
           "OI CHG": "Open interest change: yesterday vs prior day, settled overnight by the OCC. NOT live intraday OI — it cannot move between today's scans.",
-          ACT: "Batches with VERIFIED new activity (volume / premium / print-time increased) out of scans run today. Mere presence in a cumulative snapshot does not count.",
+          ACT: "Scan batches in which this contract had NEW trades (its volume, premium or trade count rose, or a newer trade printed) out of scans run today. Mere presence in a cumulative snapshot does not count.",
           LIFE: "Did the flagged position actually stick? Open interest settles OVERNIGHT, so same-day rows read PENDING and the verdict arrives next session. OPEN/PARTIAL/CLOSED = share of flagged volume retained as new OI; HELD/TRIMMED/UNWOUND = later decay from peak. OI is NET across all participants — a decline can never be pinned on the specific trader flagged, and expiry is never read as an unwind.",
-          "LAST SEEN": "Time of the most recent print (ET, 24h)",
+          "LAST SEEN": "Time of the most recent trade (ET, 24h). Blank when the feed gave no trade timestamp.",
         };
         let g = '<div class="t25-grid">' + HDRS.map(function (x) {
           const k = T25_KEYS[x];
@@ -28198,10 +28289,11 @@
             badgeTip = "First appeared in the latest scan batch";
           } else if ((r.active_batches || 1) >= 2) {
             badge = r.active_batches + " ACT"; badgeCls = "t25-badge-act";
-            badgeTip = "Verified NEW flow (volume/premium/print-time increase) in " +
-              r.active_batches + " of " + nB + " batches today" +
-              (r.unique_prints ? " · ~" + r.unique_prints +
-                " deduped prints (scanner approx — feed has no trade IDs)" : "");
+            badgeTip = "New trades (volume / premium / trade count rose) in " +
+              r.active_batches + " of " + nB + " batches" +
+              (archived ? " that session" : " today") +
+              (r.trade_count ? " · " + Number(r.trade_count).toLocaleString() +
+                " trades on the tape" : "");
           } else {
             badge = "PRST"; badgeCls = "t25-badge-prst";
             badgeTip = "Persisting in " + r.seen_scans + "/" + nB +
@@ -28229,11 +28321,13 @@
               window.escapeHtml(spTip) + '"><b>' + r.score +
               '</b></span>' +
             '<span class="t25-cell">' + fmtT25Money(r.premium) + '</span>' +
+            '<span class="t25-cell t25-hm t25-dim"' +
+              (r.vwap != null ? ' title="Day average traded price $' +
+                Number(r.vwap).toFixed(2) + '"' : '') + '>' +
+              (r.last_trade_price != null
+                ? "$" + Number(r.last_trade_price).toFixed(2) : "—") + '</span>' +
             '<span class="t25-cell t25-hm t25-dim">' +
-              (r.last_price != null
-                ? "$" + Number(r.last_price).toFixed(2) : "—") + '</span>' +
-            '<span class="t25-cell t25-hm t25-dim">' +
-              fmtT25Ago(r.last_print_ts || r.last_seen) + '</span>' +
+              fmtT25Ago(r.last_print_ts) + '</span>' +
             '<span class="t25-cell t25-hm">' +
               (r.vol_oi != null ? r.vol_oi : "—") + '</span>' +
             '<span class="t25-cell t25-hm ' +
@@ -28247,7 +28341,7 @@
             '<span class="t25-cell ' + lf[1] + '" title="' +
               window.escapeHtml(lf[2]) + '">' + lf[0] + '</span>' +
             '<span class="t25-cell t25-dim t25-hm">' +
-              fmtT25Time(r.last_print_ts || r.last_seen) + '</span>' +
+              fmtT25Time(r.last_print_ts) + '</span>' +
             '<span class="t25-cell t25-reason" title="' +
               window.escapeHtml(rTip) + '">' +
               window.escapeHtml(r.reason || "") +
@@ -28328,9 +28422,18 @@
         _t25HoverEl.className = "t25-hovercard";
         document.body.appendChild(_t25HoverEl);
       }
-      const rows = (typeof DATA !== "undefined" && DATA)
+      // Browsing an archived session: the flow numbers must come from
+      // THAT session's list, not today's scan. Company facts (sector,
+      // themes, next earnings) and the price are current and say so.
+      const archived = !!_t25Date;
+      const sessDate = archived && _t25Last ? _t25Last.et_date : null;
+      const scanRows = (typeof DATA !== "undefined" && DATA)
         ? DATA.filter(function (r) { return r.ticker === t; }) : [];
-      const meta = rows[0] || {};
+      const rows = archived
+        ? ((_t25Last && _t25Last.rows) || []).filter(function (r) {
+            return r.ticker === t; })
+        : scanRows;
+      const meta = scanRows[0] || {};
       const spot = (window.CURRENT_SPOTS || {})[t] || meta.spot;
       let callP = 0, putP = 0;
       rows.forEach(function (r) {
@@ -28343,7 +28446,8 @@
       let h = '<div class="t25h-head"><b>' + esc(t) + '</b>' +
         (spot != null ? '<span class="t25h-px">$' +
           Number(spot).toFixed(2) + '</span>' : '') +
-        '<span class="t25h-dim">delayed</span></div>';
+        '<span class="t25h-dim">' + (archived ? 'now · delayed' : 'delayed') +
+        '</span></div>';
       const metaBits = [];
       if (meta.sector) metaBits.push(esc(meta.sector));
       if (meta.cap_bucket) metaBits.push(esc(meta.cap_bucket) + " cap");
@@ -28355,15 +28459,20 @@
       if (meta.earnings_days != null && meta.earnings_days >= 0 &&
           meta.earnings_days <= 7)
         h += '<div class="t25h-line t25h-amber">⚠ Earnings in ' +
-          meta.earnings_days + 'd</div>';
+          meta.earnings_days + 'd' + (archived ? ' from today' : '') + '</div>';
       if (rows.length)
-        h += '<div class="t25h-line">Today: <b>' + rows.length +
-          '</b> flagged contract' + (rows.length === 1 ? '' : 's') +
+        h += '<div class="t25h-line">' +
+          (archived ? esc(sessDate || "") + ' Top list: <b>'
+                    : 'Latest scan: <b>') + rows.length +
+          '</b> ' + (archived ? 'listed' : 'flagged') + ' contract' +
+          (rows.length === 1 ? '' : 's') +
           ' · <span class="t25h-bull">calls ' + fmtT25Money(callP) +
           '</span> · <span class="t25h-bear">puts ' + fmtT25Money(putP) +
           '</span></div>';
       if (mine.length)
-        h += '<div class="t25h-line">In today\'s Top list: ' +
+        h += '<div class="t25h-line">' +
+          (archived ? 'Ranks on ' + esc(sessDate || "") + "'s final list: "
+                    : "In today's Top list: ") +
           mine.map(function (r) { return '#' + r.rank; }).join(', ') +
           '</div>';
       h += '<div class="t25h-foot">Click ticker for full drilldown →</div>';
@@ -30026,9 +30135,13 @@
           " ("+r.vol_oi+"x)")+
         drow("Sweeps / Blocks", (r.sweeps||0)+" / "+(r.blocks||0))+
         drow("%OTM", r.pct_otm!=null?r.pct_otm+"%":"&mdash;")+
-        drow("Break-even", r.break_even!=null?"$"+r.break_even:"&mdash;")+
-        drow("Move to break-even", r.be_distance_pct!=null?
-          (r.be_distance_pct>0?"+":"")+r.be_distance_pct+"%":"&mdash;")+
+        drow("Break-even", r.break_even!=null
+          ? "$"+r.break_even+' <span style="color:var(--muted);font-weight:400">' +
+            'strike ' + (r.type==="put" ? "−" : "+") + ' avg price' +
+            (r.last_price!=null ? ' $'+Number(r.last_price).toFixed(2) : '') +
+            '</span>'
+          : "&mdash;")+
+        drow("Move to break-even", uoaBeHtml(r))+
         drow("Expected move (IV)", r.expected_move_pct!=null?
           "±"+r.expected_move_pct+"%":"&mdash;")+
         drow("Current spot", r.spot!=null?"$"+r.spot:"&mdash;")+
@@ -30067,18 +30180,20 @@
                     : Math.round(mins/(60*24)) + "d ago";
           let line = drow("Marquee print", wall + ' <span style="' +
             'color:var(--muted);font-weight:400">· ' + ago + '</span>');
-          if (r.spot_at_print != null) {
+          const ref = uoaMoveRef(r);
+          if (ref) {
             const cur = (window.CURRENT_SPOTS || {})[r.ticker];
-            let spotLine = "$" + r.spot_at_print.toFixed(2) +
-              ' <span style="color:var(--muted);font-weight:400">at print</span>';
+            let spotLine = "$" + ref.px.toFixed(2) +
+              ' <span style="color:var(--muted);font-weight:400">' +
+              (ref.basis === "print" ? "at print" : "at scan (no print-minute price)") +
+              '</span>';
             if (cur != null) {
-              const delta = ((cur - r.spot_at_print) / r.spot_at_print) * 100;
-              const cls = delta > 0 ? "uoa-delta-up"
-                        : delta < 0 ? "uoa-delta-down" : "uoa-delta-flat";
+              const delta = ((cur - ref.px) / ref.px) * 100;
               const sign = delta > 0 ? "+" : "";
               spotLine += ' &middot; $' + cur.toFixed(2) +
                 ' <span style="color:var(--muted);font-weight:400">now</span>' +
-                ' <span class="uoa-delta ' + cls + '">' +
+                ' <span class="uoa-delta ' + uoaMoveCls(r, delta) + '" title="' +
+                uoaMoveTip(r, ref, cur, delta) + '">' +
                 sign + delta.toFixed(1) + '%</span>';
             }
             line += drow("Underlying", spotLine);
@@ -30122,7 +30237,10 @@
           (r.flow_side||"")+" / "+(r.direction||"")+"\n"+
           "Premium $"+fmtNum(r.premium)+"  |  Vol/OI "+r.vol_oi+"  |  "+(r.opening||"")+"\n"+
           "Break-even $"+(r.break_even!=null?r.break_even:"-")+
-          " ("+(r.be_distance_pct!=null?(r.be_distance_pct>0?"+":"")+r.be_distance_pct+"%":"-")+
+          " ("+(r.be_distance_pct!=null
+            ? (r.be_distance_pct < 0 ? "already past"
+              : "stock must " + (r.type==="put" ? "fall " : "rise ") + r.be_distance_pct+"%")
+            : "-")+
           ")  |  Expected move +/-"+(r.expected_move_pct!=null?r.expected_move_pct+"%":"-")+"\n"+
           (r.why||"");
         navigator.clipboard.writeText(txt).then(function () {
@@ -30274,7 +30392,7 @@
         { k:"liquidity",   label:"Liquidity",        max:10,
           tip:"OI + day volume grade. A = follow-able execution, D = wide / thin." },
         { k:"catalyst",    label:"Catalyst",         max:10,
-          tip:"Earnings within the next 7 trading days." },
+          tip:"10 points when the company reports earnings within the next 10 calendar days (today through day 10), otherwise 0." },
         { k:"directional", label:"Directional",      max:10,
           tip:"Clean buy-side conviction (bullish or bearish) outranks ambiguous flow_side." },
       ];
@@ -31562,10 +31680,14 @@
   })();
 
   /* == Callout Results ============================================
-     reports/callouts.json (callout_tracker.py, nightly): each day's Top
-     25 callouts tracked at the option level from first flag. Every day
+     reports/callouts.json (callout_tracker.py, nightly): every contract
+     that appeared in the published Top 25 during a session, tracked at
+     the option level from the moment it first appeared there. Every day
      shows its winners WITH the day's context line — that line is what
-     makes a big peak credible when the card is shared. */
+     makes a big peak credible when the card is shared. Finished
+     (matured) and still-open callouts are reported separately, callouts
+     with no trade after the callout are counted as excluded, and stale
+     closes (no trade on the latest session) are marked with *. */
   (function setupCallouts() {
     "use strict";
     var loaded = false;
@@ -31588,43 +31710,81 @@
       return '<div class="co-tile"><div class="v">' + v +
         '</div><div class="k">' + k + '</div></div>';
     }
+    function excludedNote(x) {
+      var bits = [];
+      if (x.excluded_no_trade) bits.push(x.excluded_no_trade +
+        " excluded (no trade after the callout)");
+      if (x.pending) bits.push(x.pending + " awaiting data");
+      return bits.length ? " \u00b7 " + bits.join(" \u00b7 ") : "";
+    }
+    function staleMark(n, what) {
+      return n ? ' <span title="' + n + ' of these ' + what +
+        ' did not trade on the latest session, so their last close is ' +
+        'stale">(' + n + ' stale*)</span>' : "";
+    }
     function render(d) {
       var body = document.getElementById("co-body");
       if (!body) return;
       if (!d || !d.days || !d.days.length) {
-        body.innerHTML = '<div class="t25-state">No callout results yet.</div>';
+        body.innerHTML = '<div class="t25-state">No callout results yet. ' +
+          'Tracking now times each callout from the moment the contract ' +
+          'first appeared in the published Top 25; results start after ' +
+          'the first full session under that method.</div>';
         return;
       }
       var r = d.rolling || {};
       var h = '<div class="co-roll">' +
-        tile(r.n || 0, "Callouts tracked (" + (r.days || 0) + "d)") +
+        tile((r.tracked || 0) + ' <small>of ' + (r.n || 0) + '</small>',
+             "Callouts tracked (" + (r.days || 0) + "d)" +
+             (r.excluded_no_trade ? " \u00b7 " + r.excluded_no_trade +
+               " excluded, no trade after callout" : "")) +
         tile(r.hit_100 || 0, "Hit +100% at peak") +
         tile(r.hit_50 || 0, "Hit +50% at peak") +
         tile(pct(r.median_peak_pct), "Median peak") +
-        tile(pct(r.median_last_pct), "Median latest") +
+        tile(pct(r.median_final_pct),
+             "Median final \u00b7 " + (r.matured || 0) + " finished" +
+             staleMark(r.final_stale, "finished callouts")) +
+        tile(pct(r.median_latest_pct),
+             "Median latest \u00b7 " + (r.open || 0) + " still open" +
+             staleMark(r.latest_stale, "open callouts")) +
         '</div>';
       d.days.slice(0, 10).forEach(function (day) {
         h += '<div class="co-day"><div class="co-day-h"><b>' +
           esc(fmtDay(day.date)) + '</b><span class="ctx">Best ' +
-          Math.min(day.top.length, 5) + ' of ' + day.n +
-          ' callouts \u00b7 ' + day.hit_100 + ' hit +100% \u00b7 ' +
-          day.hit_50 + ' hit +50% at peak \u00b7 median peak ' +
-          pct(day.median_peak_pct) + '</span></div>' +
+          Math.min(day.top.length, 5) + ' of ' + (day.tracked || 0) +
+          ' tracked (' + day.n + ' contracts reached the Top 25 that day' +
+          excludedNote(day) + ') \u00b7 ' + day.hit_100 +
+          ' hit +100% \u00b7 ' + day.hit_50 +
+          ' hit +50% at peak \u00b7 median peak ' +
+          pct(day.median_peak_pct) +
+          (day.matured ? ' \u00b7 median final ' + pct(day.median_final_pct) +
+            ' (' + day.matured + ' finished)' : '') +
+          (day.open ? ' \u00b7 median latest ' + pct(day.median_latest_pct) +
+            ' (' + day.open + ' still open)' : '') +
+          '</span></div>' +
           '<div class="co-wrap"><table class="co-tbl"><tr>' +
-          '<th>Contract</th><th>Rank</th><th>Entry</th><th>Peak</th>' +
-          '<th>Peak gain</th><th>Latest</th></tr>' +
+          '<th>Contract</th>' +
+          '<th title="Rank when the contract first entered the Top 25">Rank</th>' +
+          '<th>Entry</th><th>Peak</th>' +
+          '<th>Peak gain</th><th title="Final = close on the last session of the tracking window; Latest = most recent close while still being tracked. * = the option did not trade on the latest session, so the close is stale.">Final / latest</th></tr>' +
           day.top.map(function (t) {
+            var lastTip = (t.matured ? "Final" : "Latest") +
+              (t.last_bar_date ? " close from " + t.last_bar_date : "") +
+              (t.last_stale ? " \u2014 stale: no trade on the latest session" : "");
             return '<tr data-t="' + esc(t.ticker) + '"><td><b>' +
               esc(t.label) + '</b></td><td>#' + t.rank + '</td><td>' +
               money(t.entry) + '</td><td>' + money(t.peak) +
               '</td><td class="up">' + pct(t.peak_pct) + '</td><td class="' +
-              ((t.last_pct || 0) >= 0 ? "up" : "dn") + '">' +
-              pct(t.last_pct) + '</td></tr>';
+              ((t.last_pct || 0) >= 0 ? "up" : "dn") + '" title="' +
+              esc(lastTip) + '">' + pct(t.last_pct) +
+              (t.last_stale ? "*" : "") +
+              ' <small>' + (t.matured ? "final" : "latest") + '</small></td></tr>';
           }).join("") + '</table></div></div>';
       });
-      h += '<div class="co-note">' + esc(d.method || "") + '. Entry is ' +
-        'the contract\u2019s first traded price after TickerDesk flagged ' +
-        'it.</div>';
+      h += '<div class="co-note">' + esc(d.method || "") + '.' +
+        (d.legacy_unpublished ? ' Older results that timed entry from a ' +
+          'contract\u2019s first scan (often well before it reached the ' +
+          'Top 25) have been withdrawn.' : '') + '</div>';
       body.innerHTML = h;
     }
     window.tdLoadCallouts = function () {
