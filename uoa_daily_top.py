@@ -11,35 +11,43 @@ FEED SEMANTICS (verified against uoa_scanner.py / Polygon snapshot API):
     day-cumulative fields — a contract appearing in batch N+1 does NOT
     by itself mean new activity. "Seen in N scans" and "active in N
     batches" are therefore tracked as SEPARATE concepts (see below).
-  * volume, premium, sweeps, blocks, repeat_count are DAY-CUMULATIVE per
+  * volume, premium, trade_count, sweeps, blocks are DAY-CUMULATIVE per
     contract in every snapshot. Cross-batch merge is MAX per field,
     NEVER sum — summing would double-count. Deltas between snapshots
     are the only reliable "new activity" evidence.
-  * FEED LIMITATION: the snapshot feed exposes NO per-trade/print IDs,
-    so print-level dedup is impossible client-side. unique_prints is
-    approximated by the scanner's own deduplicated day print counter
-    (repeat_count, max across batches) and labeled as an approximation.
+  * trade_count is the number of trades on the contract's tape today
+    (the scanner pulls the full day's trade feed).
+  * repeat_count is NOT a print counter: it is the number of EARLIER
+    trading days the contract was flagged. It cannot change within a day,
+    so it is never evidence of new activity (published as repeat_days).
   * open_interest / prev_oi / oi_delta are STATIC intraday (OCC settles
     overnight); oi_delta is yesterday->today. It is a daily fact — it
     cannot change between intraday batches and is never "live OI".
   * bid/ask/mid are null in the delayed feed; execution tendency comes
     from the scanner's ask_pct/bid_pct approximation (side_method:
-    "approx") and spread quality from the liquidity grade.
-  * last_price is the LAST FILL per contract (most recent trade price,
-    delayed) — not an average fill and not a quote mark.
+    "approx") and spread quality from the liquidity grade. A row with no
+    trades (side_method "none") carries ask_pct 0 as a placeholder — it
+    is NOT evidence of a side and earns no side points.
+  * last_trade_price is the true LAST FILL (most recent trade, delayed);
+    vwap is the day's average traded price.
   * Ticker roots are taken verbatim from Polygon contract symbols
     (O:<ROOT>...): no client-side normalization exists that could
     collide roots (e.g. SPCX vs SPXC vs SPX index roots SPX/SPXW).
 
 REPEAT-FLOW SEMANTICS (the audit fix):
   seen_scans      — snapshots containing the contract (presence only).
-  active_batches  — batches with VERIFIED new activity: first sighting,
-                    or any monotonic increase in cumulative volume,
-                    premium, sweep/block/print counters, or a newer
-                    last_print_ts. Unchanged records add NOTHING.
-  unique_prints   — scanner's deduplicated day print count (approx, see
-                    feed limitation above).
+  active_batches  — batches with VERIFIED new trades: first sighting,
+                    or any increase in cumulative volume, premium or
+                    trade count, or a newer last_print_ts. Unchanged
+                    records add NOTHING.
+  trade_count     — trades on the contract's tape today.
   Recurrence scoring and labels use active_batches ONLY.
+
+CALLOUT TIMING: the first batch in which a contract is published inside
+the Top CALLOUT_TOP_N is recorded on the contract (first_top_at = when
+that list was written). Every contract that EVER reached the Top 25 that
+day is published under "callouts", so callout_tracker.py can enter each
+one at the moment the site actually showed it — not at its first scan.
 
 Day boundary: keyed to the ET date of the BATCH's generated timestamp.
 Idempotent per batch timestamp. Reset on new ET date.
@@ -112,6 +120,9 @@ CFG = {
     "per_view": 50,
     "max_rows": 120,
 }
+# The published "Top 25": rank <= this in the cumulative list. A contract's
+# callout moment is the first batch it was published at or above this rank.
+CALLOUT_TOP_N = 25
 
 # Point-in-time fields refreshed from the newest observation of a contract;
 # cumulative fields (below) merge via max().
@@ -120,7 +131,8 @@ LATEST_FIELDS = [
     "pct_otm",
     "is_otm",
     "iv",
-    "last_price",
+    "last_trade_price",
+    "vwap",
     "liquidity",
     "ask_pct",
     "bid_pct",
@@ -145,6 +157,7 @@ LATEST_FIELDS = [
 CUM_FIELDS = [
     "premium",
     "volume",
+    "trade_count",
     "sweeps",
     "blocks",
     "sweep_premium",
@@ -152,9 +165,11 @@ CUM_FIELDS = [
     "biggest_print",
     "trade_score",
 ]
-# Monotonic increase in ANY of these (or a newer last_print_ts) is the
-# verified new-activity evidence that makes a batch "active".
-ACTIVITY_FIELDS = ["volume", "premium", "sweeps", "blocks", "repeat_count"]
+# An increase in ANY of these (or a newer last_print_ts) means new trades
+# printed since the last batch — the evidence that makes a batch "active".
+# repeat_count is deliberately absent: it counts EARLIER days the contract
+# was flagged, so it can move without a single new trade today.
+ACTIVITY_FIELDS = ["volume", "premium", "trade_count"]
 
 
 def _load(path):
@@ -180,8 +195,8 @@ def contract_key(r):
 
 
 def _has_new_activity(c, r):
-    """Verified new-activity test: any cumulative counter increased, or
-    the last print timestamp moved forward. An identical re-listed
+    """Verified new-trade test: volume, premium or trade count increased,
+    or the last print timestamp moved forward. An identical re-listed
     snapshot record fails every test and earns nothing."""
     for f in ACTIVITY_FIELDS:
         if (r.get(f) or 0) > (c.get(f) or 0):
@@ -280,6 +295,21 @@ def eligible(c):
 # ── 3. explainable dailyUnusualScore 0-100 with parts breakdown ─────────
 
 
+def side_evidence_pct(c):
+    """ask_pct only when the tape actually classified trades. A contract
+    with no trades (side_method "none", or a zero trade count) carries
+    ask_pct 0 as a placeholder; reading that as "100% at the bid" handed
+    it full side-conviction points and a strong-signal credit."""
+    ap = c.get("ask_pct")
+    if ap is None:
+        return None
+    if c.get("side_method") == "none" or c.get("trade_count") == 0:
+        return None
+    if ap == 0 and not c.get("bid_pct"):
+        return None  # nothing classified either way
+    return ap
+
+
 def _pctile_fn(vals):
     s = sorted(vals)
     n = max(1, len(s) - 1)
@@ -306,7 +336,11 @@ def score_all(contracts, n_batches):
         parts["premium"] = round(CFG["w_premium"] * p_prem(c["premium"]), 1)
         parts["vol_oi"] = round(CFG["w_voloi"] * p_voloi(c.get("vol_oi") or 0), 1)
         parts["oi_chg"] = round(CFG["w_oi"] * min(1.0, (c.get("oi_delta") or 0) / 2000.0), 1)
-        parts["prints"] = round(CFG["w_prints"] * min(1.0, (c.get("repeat_count") or 0) / 10.0), 1)
+        # repeat_count = earlier trading days this contract was flagged
+        # (named for what it measures; it is not a print count)
+        parts["repeat_days"] = round(
+            CFG["w_prints"] * min(1.0, (c.get("repeat_count") or 0) / 10.0), 1
+        )
         # VERIFIED recurrence only: >=2 active batches, normalized by
         # batches available, capped at w_active (10) — so two scans of
         # unchanged records add 0 and even a full active day adds 10.
@@ -316,7 +350,8 @@ def score_all(contracts, n_batches):
             if (n_batches >= 2 and ab >= 2)
             else 0.0
         )
-        ap = c.get("ask_pct")
+        # no classified trades = no side evidence = no side points
+        ap = side_evidence_pct(c)
         parts["side_conviction"] = (
             round(CFG["w_side"] * (abs(ap - 50) / 50.0), 1) if ap is not None else 0.0
         )
@@ -471,6 +506,55 @@ def top_n(elig, n_batches):
     return out
 
 
+def mark_callouts(acc, ranked, shown_at):
+    """Record the moment each contract first appeared in the published
+    Top CALLOUT_TOP_N. Called once per NEW batch, with `shown_at` = when
+    this list was written (the earliest a reader could have seen it).
+    Only the first entry is kept, so a contract that drops out and comes
+    back is still timed from its first appearance. `ranked` holds the
+    accumulator's own contract dicts, so the marks persist in `acc`."""
+    if not acc.get("batches_seen"):
+        return 0
+    # Marks are only complete if they started at the day's first batch;
+    # a mid-day deploy would otherwise time already-listed contracts late.
+    acc.setdefault("callouts_from_batch", acc["batches_seen"][-1])
+    new = 0
+    for i, c in enumerate(ranked[:CALLOUT_TOP_N], 1):
+        if not c.get("first_top_at"):
+            c["first_top_at"] = shown_at
+            c["first_top_batch"] = acc["batches_seen"][-1]
+            c["first_top_rank"] = i
+            c["first_top_score"] = c.get("daily_score")
+            c["first_top_premium"] = c.get("premium")
+            new += 1
+        c["best_rank"] = min(c.get("best_rank") or i, i)
+    return new
+
+
+def callouts_of(acc):
+    """Every contract that reached the published Top CALLOUT_TOP_N today,
+    whether or not it is still listed — oldest callout first."""
+    out = []
+    for c in (acc.get("contracts") or {}).values():
+        if not c.get("first_top_at"):
+            continue
+        out.append(
+            {
+                "ticker": c["ticker"],
+                "type": c["type"],
+                "strike": c["strike"],
+                "expiry": c["expiry"],
+                "first_top_at": c["first_top_at"],
+                "first_top_rank": c.get("first_top_rank"),
+                "best_rank": c.get("best_rank"),
+                "score": c.get("first_top_score"),
+                "premium": c.get("first_top_premium"),
+            }
+        )
+    out.sort(key=lambda x: (x["first_top_at"], x["first_top_rank"] or 99))
+    return out
+
+
 def build_payload(acc, ranked, n_elig, n_total):
     n_b = len(acc["batches_seen"])
     rows = []
@@ -489,12 +573,14 @@ def build_payload(acc, ranked, n_elig, n_total):
                 "score_parts": c.get("score_parts"),
                 "strong_signals": c.get("strong_signals"),
                 "premium": c.get("premium"),
-                "last_price": c.get("last_price"),
+                "last_trade_price": c.get("last_trade_price"),
+                "vwap": c.get("vwap"),
                 "vol_oi": c.get("vol_oi"),
                 "oi_delta": c.get("oi_delta"),
                 "seen_scans": c.get("seen_scans"),
                 "active_batches": c.get("active_batches"),
-                "unique_prints": c.get("repeat_count"),
+                "trade_count": c.get("trade_count"),
+                "repeat_days": c.get("repeat_count"),
                 "first_seen": c.get("first_seen"),
                 "last_seen": c.get("last_seen"),
                 "last_print_ts": c.get("last_print_ts"),
@@ -515,13 +601,21 @@ def build_payload(acc, ranked, n_elig, n_total):
         "universe_eligible": n_elig,
         "per_view": CFG["per_view"],
         "rows": rows,
+        # every contract that reached the Top CALLOUT_TOP_N today, with the
+        # time it was first published there (callout_tracker's entry time)
+        "callout_top_n": CALLOUT_TOP_N,
+        "callouts": callouts_of(acc),
+        "callouts_complete": bool(
+            acc.get("batches_seen") and acc.get("callouts_from_batch") == acc["batches_seen"][0]
+        ),
         "note": (
             "Cumulative ranking across all of today's scan batches "
             "(delayed data). Contracts dedup by exact identity; "
             "day-cumulative volume/premium merge as max across "
             "batches (never summed). Recurrence credit requires "
-            "VERIFIED new activity between batches, not mere "
-            "presence in cumulative snapshots. Max 2 per ticker; "
+            "new trades between batches (volume, premium or trade "
+            "count rose), not mere presence in cumulative "
+            "snapshots. Max 2 per ticker; "
             "up to " + str(CFG["per_view"]) + " rows per view. "
             "Educational, not advice."
         ),
@@ -605,12 +699,12 @@ def self_test():
     #    guarantee: re-listed cumulative premium is never double-counted.
     check("3 premium not duplicated across scans (max, not sum)", c["premium"] == 1_400_000)
 
-    # 4. Several prints inside ONE batch: prints > 1 but active == 1.
+    # 4. Several trades inside ONE batch: trades > 1 but active == 1.
     acc = {"et_date": None, "batches_seen": [], "contracts": {}}
-    acc, _ = merge_batch(acc, snap(G1, [_fixture_row(repeat_count=6)]))
+    acc, _ = merge_batch(acc, snap(G1, [_fixture_row(trade_count=6)]))
     c = list(acc["contracts"].values())[0]
-    check("4a multi-print single batch: unique prints == 6", c["repeat_count"] == 6)
-    check("4b multi-print single batch: active_batches == 1", c["active_batches"] == 1)
+    check("4a multi-trade single batch: trade_count == 6", c["trade_count"] == 6)
+    check("4b multi-trade single batch: active_batches == 1", c["active_batches"] == 1)
 
     # 5. Cumulative premium snapshot: latest value, never a sum.
     acc = {"et_date": None, "batches_seen": [], "contracts": {}}
@@ -764,6 +858,9 @@ def main():
     n_b = len(acc["batches_seen"])
     elig = score_all(acc["contracts"], n_b)
     ranked = top_n(elig, n_b)
+    if merged and not args.dry_run:
+        # callout moment = when THIS list is written and published
+        mark_callouts(acc, ranked, datetime.now(UTC).isoformat(timespec="seconds"))
     payload = build_payload(acc, ranked, len(elig), len(acc["contracts"]))
 
     print(
@@ -782,7 +879,7 @@ def main():
         for r in payload["rows"][:10]:
             print(
                 "   #%2d %-5s %-9s %8g %s  score=%d prem=$%.1fM "
-                "act=%s/%s prints=%s %s"
+                "act=%s/%s trades=%s %s"
                 % (
                     r["rank"],
                     r["ticker"],
@@ -793,7 +890,7 @@ def main():
                     (r["premium"] or 0) / 1e6,
                     r["active_batches"],
                     r["seen_scans"],
-                    r["unique_prints"],
+                    r["trade_count"],
                     r["reason"],
                 )
             )

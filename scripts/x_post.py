@@ -172,12 +172,16 @@ def callouts_caption(f):
         f"{t['label']}: ${t['entry']:.2f} → ${t['peak']:.2f} ({_pct(t['peak_pct'])})"
         for t in top[:3]
     ]
+    # hit counts are out of callouts with an entry price; "latest" is the
+    # median close of callouts still being tracked (finished ones differ)
+    tracked = day.get("tracked", day["n"])
+    latest = day.get("median_latest_pct", day.get("median_last_pct"))
     tail = [
         "",
         (
-            f"{day['hit_100']} of {day['n']} hit +100% at peak. Median "
-            f"peak {_pct(day['median_peak_pct'])}, median now "
-            f"{_pct(day['median_last_pct'])}."
+            f"{day['hit_100']} of {tracked} hit +100% at peak. Median "
+            f"peak {_pct(day['median_peak_pct'])}, median latest close "
+            f"{_pct(latest)}."
         ),
         f"Every callout, winners and losers: {link('callouts')}",
     ]

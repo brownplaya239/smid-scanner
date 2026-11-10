@@ -64,6 +64,12 @@ def _day_label(d):
     return f"{dt:%a} {dt:%b} {dt.day}"
 
 
+def _tracked(day):
+    """Callouts with an entry price — the base the hit counts are out of
+    (n also counts contracts with no trade after the callout)."""
+    return day.get("tracked", day["n"])
+
+
 def callouts_card(date=None):
     doc = _load("callouts.json")
     days = doc.get("days") or []
@@ -95,7 +101,7 @@ def callouts_card(date=None):
     ax.text(
         60,
         185,
-        f"Best {len(top)} of {day['n']} callouts  ·  "
+        f"Best {len(top)} of {_tracked(day)} callouts  ·  "
         f"{day['hit_100']} hit +100%  ·  {day['hit_50']} hit +50% at peak",
         color=DIM,
         fontsize=16,
@@ -158,7 +164,7 @@ def callouts_card(date=None):
             f"${t['peak']:.2f} ({_pct(t['peak_pct'])})"
             for t in top
         )
-        + f". {day['hit_100']} of {day['n']} callouts hit +100% at peak."
+        + f". {day['hit_100']} of {_tracked(day)} callouts hit +100% at peak."
     )
     return path, alt[:1000], {"day": day, "top": top}
 
@@ -315,7 +321,7 @@ def flow_card():
             _contract(r),
             "Calls" if r["type"] == "call" else "Puts",
             _fmt_money(r.get("premium")),
-            str(r.get("unique_prints") or "—"),
+            f"{r['trade_count']:,}" if r.get("trade_count") else "—",
             f"{r['vol_oi']:.0f}x" if r.get("vol_oi") else "—",
         ]
         for r in calls + puts
@@ -325,7 +331,7 @@ def flow_card():
         ("Contract", 80, "left"),
         ("Type", 560, "left"),
         ("Premium", 830, "right"),
-        ("Prints", 960, "right"),
+        ("Trades", 960, "right"),
         ("Volume vs OI", 1120, "right"),
     ]
 
@@ -880,16 +886,17 @@ def weekly_recap_card(date=None):
     body = [
         [
             _day_label(d["date"]),
-            str(d["n"]),
+            str(_tracked(d)),
             str(d["hit_50"]),
             str(d["hit_100"]),
             _pct(d["median_peak_pct"]),
-            _pct(d["median_last_pct"]),
+            # still-open callouts only — finished ones have a final result
+            _pct(d.get("median_latest_pct", d.get("median_last_pct"))),
             f"{d['top'][0]['label']} {_pct(d['top'][0]['peak_pct'])}" if d.get("top") else "—",
         ]
         for d in wk
     ]
-    n = sum(d["n"] for d in wk)
+    n = sum(_tracked(d) for d in wk)
     h100 = sum(d["hit_100"] for d in wk)
     h50 = sum(d["hit_50"] for d in wk)
     cols = [
@@ -898,7 +905,7 @@ def weekly_recap_card(date=None):
         ("+50%", 420, "right"),
         ("+100%", 510, "right"),
         ("Med. peak", 640, "right"),
-        ("Med. now", 760, "right"),
+        ("Med. open", 760, "right"),
         ("Best", 800, "left"),
     ]
     wk_start = datetime.fromordinal(mon).strftime("%Y-%m-%d")
@@ -906,12 +913,12 @@ def weekly_recap_card(date=None):
         f"weekly_recap_{wk_start}.png",
         "Week of " + _day_label(wk_start),
         "Callouts this week: the full scorecard",
-        "Every Top 25 callout, tracked at the option level from first flag",
+        "Every Top 25 callout, tracked at the option level from when it reached the Top 25",
         cols,
         body,
         f"{n} callouts · {h50} hit +50% · {h100} hit +100% at "
         "peak. Peak = best exit available, not typical; "
-        "now = latest close.",
+        "open = latest close of callouts still being tracked.",
         lambda i, j, v: (GREEN if v.startswith("+") else RED) if j in (4, 5) and v != "—" else None,
     )
     alt = f"Callouts week of {wk_start}: {n} tracked, {h50} hit +50%, {h100} hit +100% at peak"
