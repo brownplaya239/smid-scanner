@@ -82,7 +82,7 @@ from trade_desk_validation import (
     span_weeks,
     spearman,
 )
-from uoa_alpha import _parse_occ, load_ledger
+from uoa_alpha import _et_date, _parse_occ, load_ledger, unique_alerts
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 CACHE_PATH = os.path.join(_BASE, "data", "uoa_alpha_cache.json")
@@ -132,17 +132,29 @@ def build_setups():
     premium-weighted buyer imbalance; outcome from the day's last
     directional print's frozen close-anchored excess (`exc_c` only).
 
+    Built from ALERTS, not ledger rows: the scanner re-logs a contract on
+    every scan with its CUMULATIVE day premium, so summing rows multiplied
+    early-flagged contracts' premium by their re-log count (and could cross
+    the $1M band on re-logs alone) and counted re-logs as "prints". Each
+    contract counts once, at the largest day premium any scan saw.
+
     Returns (setups, meta); meta counts setups left ungraded because
     their frozen outcome predates the close-anchored field."""
     cache = _load(CACHE_PATH, {})
     regimes = _regime_map()
+    ledger = load_ledger()
+    prem_day = {}
+    for s in ledger:
+        k = (s.get("contract") or s.get("id"), _et_date(s.get("flagged_at")))
+        prem_day[k] = max(prem_day.get(k, 0), s.get("premium") or 0)
     days = {}
-    for s in load_ledger():
+    for s in unique_alerts(ledger):
         if s.get("direction") not in ("bullish", "bearish"):
             continue
         if s.get("flow_side") in ("put_seller", "call_seller"):
             continue
-        day = (s.get("flagged_at") or "")[:10]
+        day = _et_date(s.get("flagged_at"))
+        s["premium"] = prem_day.get((s.get("contract") or s.get("id"), day), s.get("premium"))
         tk = s.get("ticker")
         if not day or not tk:
             continue
@@ -197,8 +209,10 @@ def build_setups():
                 for g in pgrp:
                     if g["direction"] != direction:
                         continue
-                    c = cache.get(g.get("id")) or {}
-                    if (c.get("oi") or {}).get("status") == "confirmed":
+                    # only a TRUE next-day read is point-in-time; older
+                    # cached statuses were re-read up to ~5 weeks later
+                    oi = (cache.get(g.get("id")) or {}).get("oi") or {}
+                    if oi.get("status") == "confirmed" and oi.get("basis") == "next_day":
                         prior_confirm = True
 
         # Outcome: last directional print of the day with a frozen

@@ -524,3 +524,18 @@ def test_run_counts_directional_apart_and_skips_prints(tmp_path, monkeypatch):
     assert out["performance"]["tracked"] == 1 and out["performance"]["shadow_tracked"] == 1
     assert out["ledgers"]["executable"]["trade_qualified_strategies"] == 0
     assert "directional setups qualified" in out["abstention_note"]
+
+
+def test_research_setups_count_each_contract_once_at_its_day_premium(monkeypatch):
+    # one contract re-logged by three scans with its CUMULATIVE premium
+    a = _ledger_sig(0, "2026-07-08", ticker="AAA")
+    b = dict(a, id="s0b", flagged_at="2026-07-08T17:00:00+00:00", premium=700_000)
+    c = dict(a, id="s0c", flagged_at="2026-07-08T19:00:00+00:00", premium=900_000)
+    monkeypatch.setattr(tdr, "load_ledger", lambda: [a, b, c])
+    monkeypatch.setattr(tdr, "_load", lambda p, d: {})
+    monkeypatch.setattr(tdr, "_regime_map", dict)
+    setups, _ = tdr.build_setups()
+    assert len(setups) == 1
+    f = setups[0]["feats"]
+    assert f["prem"] == ">=250k"  # $900k day total, not $2.1M summed re-logs
+    assert f["nprints"] == "1"  # one contract, not three scan rows

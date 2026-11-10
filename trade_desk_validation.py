@@ -60,7 +60,7 @@ from datetime import UTC, date, datetime, timedelta
 from statistics import mean, median
 
 from earnings_ideas import _cluster_se
-from uoa_alpha import _dte_bucket, _side_of_signal, load_ledger
+from uoa_alpha import _dte_bucket, _et_date, _side_of_signal, load_ledger, unique_alerts
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 CACHE_PATH = os.path.join(_BASE, "data", "uoa_alpha_cache.json")
@@ -203,12 +203,17 @@ def build_dataset():
     is validated. Outcome = close-anchored +5d excess (`exc_c`); rows
     whose frozen outcome predates that field are dropped, never mixed in.
 
+    One row per ALERT (a contract's first flag of the US/Eastern day, via
+    uoa_alpha.unique_alerts) — the scanner re-logs a contract on every
+    scan, and training on raw rows weighted each contract by its re-log
+    count. Same unit as the published track record.
+
     Returns (rows, meta) — meta counts what was dropped and why."""
     cache = _load(CACHE_PATH, {})
     regimes = _regime_map()
     rows = []
     no_anchor = 0
-    for s in load_ledger():
+    for s in unique_alerts(load_ledger()):
         if s.get("direction") not in ("bullish", "bearish"):
             continue
         if _side_of_signal(s) == "seller":
@@ -225,7 +230,7 @@ def build_dataset():
         signed = exc if s["direction"] == "bullish" else -exc
         rows.append(
             {
-                "date": (s.get("flagged_at") or "")[:10],
+                "date": _et_date(s.get("flagged_at")),
                 "direction": s["direction"],
                 "feats": features_at_flag(s, regimes),
                 "raw_score": s.get("trade_score") or 0,
