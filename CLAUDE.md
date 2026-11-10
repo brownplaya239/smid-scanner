@@ -58,7 +58,7 @@ builders, earlier runs are the breakout scanners.
 | `scripts/publish_reports.sh` | Race-safe commit+push of archived PDFs (used by all workflows) |
 | `IWM_holdings.csv` | iShares Russell 2000 ETF constituents (universe source for IWM mode) |
 | `trade_desk.py` | AI Trade Desk engine — candidates → empirical Alpha Score → measured family gates → append-only idea ledger (`data/trade_desk_log.jsonl`) → forward grading. Abstains unless a family's own record qualifies. |
-| `trade_desk_validation.py` | Walk-forward validation of the Alpha Score on the frozen signal record; emits the qualification verdict the engine's flow gate reads. Runs in `uoa.yml`. |
+| `trade_desk_validation.py` | Walk-forward validation of the Research Rank (Alpha Score) on the frozen signal record, plus the measured regime-conflict cells the engine's filter reads. The flow GATE reads the research registry (`trade_desk_research.py`), not this file. Runs in `uoa.yml`. |
 | `docs_dev/AI_TRADE_DESK.md` | Trade Desk methodology + honest findings (read before touching the desk) |
 | `uoa_scorecard.py` | Matched-control flow scorecard (2026-09 redesign): controls matched on sector/cap/momentum/vol replace the SPY benchmark; cluster-bootstrap effective n; net-of-cost EV; entry-lag ladder; capacity/book-sim/crowding. One row per stock, ET day and direction (v2, 2026-11); stock-cost model tiered by dollar volume. Nightly via `uoa_scorecard.yml`. Assignments freeze in `data/uoa_matched_v2.json.gz` (keyed by ticker-day, controls stored as symbols) — never reassign; the v1 file `data/uoa_matched.json.gz` is an unread archive. |
 | `docs/index.html` | GitHub Pages site — 7 tabs, manifest-driven, inline PDF viewer |
