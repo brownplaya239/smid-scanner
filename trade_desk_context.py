@@ -19,9 +19,10 @@ absent values are null:
 
 Row: date, ticker, rs_rank / rs5 / rs20 / trend / rsi / vol_ratio /
 atr_pct / ema20 / ema50 (technical_facts — surfaced universe only),
-swing_grade (swing summary), sector / mcap / days_to_earnings /
+swing_grade (latest swing run), sector / mcap / days_to_earnings /
 earnings_session (uoa_meta_cache), implied_move / realized_med
-(earnings_edge), market_regime (regime_history).
+(earnings_edge), market_regime (regime_history: the PRIOR session's
+label — today's is only written after the close).
 
     python trade_desk_context.py            # append today's rows
     python trade_desk_context.py --dry-run  # print, don't write
@@ -34,23 +35,30 @@ import json
 import os
 from datetime import UTC, datetime
 
-from trade_desk_validation import _load, _regime_map
+from trade_desk_validation import _load, _regime_map, prior_regime
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
 OUT_PATH = R("data", "setup_context.jsonl")
 
 
+def latest_swing_run(summary):
+    """The newest run in a swing summary. swing_latest_summary.json is
+    {runs: [prior, latest]} — runs[0] is the PRIOR session's grades."""
+    runs = [r for r in (summary or {}).get("runs") or [] if isinstance(r, dict)]
+    if not runs:
+        return {}
+    return max(runs, key=lambda r: r.get("date") or "")
+
+
 def _swing_grades():
     s = _load(R("docs", "reports", "swing_latest_summary.json"), {})
-    runs = s.get("runs") or []
     out = {}
-    if runs:
-        for grade, rows in (runs[0].get("grades") or {}).items():
-            for r in rows or []:
-                t = r.get("t")
-                if t and t not in out:
-                    out[t] = grade
+    for grade, rows in (latest_swing_run(s).get("grades") or {}).items():
+        for r in rows or []:
+            t = r.get("t")
+            if t and t not in out:
+                out[t] = grade
     return out
 
 
@@ -86,8 +94,10 @@ def build_rows(now=None):
     facts = _load(R("docs", "reports", "technical_facts.json"), {}).get("facts") or {}
     meta = _load(R("docs", "reports", "uoa_meta_cache.json"), {})
     grades = _swing_grades()
-    regimes = _regime_map()
-    regime = regimes.get(max(regimes)) if regimes else None
+    # The prior session's label: the one knowable during today's session
+    # (today's own label is written after the close) — the same basis the
+    # Research Rank trains and scores on.
+    regime = prior_regime(_regime_map(), today_s)
 
     rows = []
     for tk in tickers:

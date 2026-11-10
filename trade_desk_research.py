@@ -12,10 +12,12 @@ This module does that properly:
      directional imbalance, golden-sweep share, into-earnings, DTE,
      liquidity, opening share, repeat share, market regime, and
      point-in-time-legal PRIOR-session OI persistence (a T-1 print's
-     next-day OI check is known by T; same-day OI is NOT used).
-     Outcome = direction-signed +5-session close-anchored excess vs SPY
-     (`exc_c`, both legs anchored at the flag-day close — no intraday
-     drift leak; falls back to `excess` for pre-July frozen rows).
+     next-day OI check is known by T; same-day OI is NOT used). Regime
+     is the PRIOR session's label (a day's own label exists only after
+     its close). Outcome = direction-signed +5-session close-anchored
+     excess vs SPY (`exc_c`, both legs anchored at the flag-day close —
+     no intraday drift leak). Setups whose frozen outcome lacks `exc_c`
+     (pre-July rows) are dropped and counted, never mixed in.
 
   2. PURGED, EMBARGOED WALK-FORWARD — expanding-window folds split by
      session date; training rows whose 5-session label window reaches
@@ -42,9 +44,16 @@ This module does that properly:
   7. CHAMPION / CHALLENGER REGISTRY — champion = whatever model is in
      production for the flow family (none qualifies at ship).
      Challengers (setup additive model, tail rules) promote ONLY on
-     predefined OOS criteria: pooled top-bucket avg>0 AND median>0 AND
-     bootstrap CI low >0 AND n>=100 AND positive in >=2/3 folds.
-     No champion beating the bar -> NO CHAMPION -> the desk abstains.
+     predefined OOS criteria, checked for the SAME tail being promoted:
+     pooled tail avg>0 AND median>0 AND bootstrap CI low > the modeled
+     stock round-trip cost AND n>=100 AND positive in >=2/3 folds AND
+     positive holdout. No champion beating the bar -> NO CHAMPION -> the
+     desk abstains. This registry is the flow gate's only authority.
+
+  Tail labels: a "top X%" cut is a percentile of the TRAINING
+  predictions, so the share of validation/holdout setups it actually
+  selects can differ (it drifts with the score distribution). Every
+  tail carries `share_pct`, the share it really selected.
 
 Outputs docs/reports/trade_desk_research.json. trade_desk.py reads the
 registry: a promoted challenger is the ONLY path to a qualified flow
@@ -65,7 +74,14 @@ from datetime import UTC, datetime, timedelta
 from itertools import combinations
 from statistics import mean, median
 
-from trade_desk_validation import _load, _regime_map, spearman
+from trade_desk_validation import (
+    STOCK_RT_COST_PP,
+    _load,
+    _regime_map,
+    prior_regime,
+    span_weeks,
+    spearman,
+)
 from uoa_alpha import _parse_occ, load_ledger
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -83,7 +99,7 @@ TAILS = (20, 10, 5, 2, 1)
 RULE_MIN_TRAIN = 80  # min train setups for a conjunction
 RULE_MIN_OOS = 25
 BOOT_ITERS = 2000
-PROMO = {"min_n": 100, "min_folds_pos": 2}
+PROMO = {"min_n": 100, "min_folds_pos": 2, "ci_low_above": STOCK_RT_COST_PP}
 
 
 # ------------------------------------------------------------ setups
@@ -114,7 +130,10 @@ def _dte_band(d):
 def build_setups():
     """One observation per (ticker, session). Direction from the
     premium-weighted buyer imbalance; outcome from the day's last
-    directional print's frozen close-anchored excess."""
+    directional print's frozen close-anchored excess (`exc_c` only).
+
+    Returns (setups, meta); meta counts setups left ungraded because
+    their frozen outcome predates the close-anchored field."""
     cache = _load(CACHE_PATH, {})
     regimes = _regime_map()
     days = {}
@@ -137,6 +156,7 @@ def build_setups():
         by_ticker[tk].sort()
 
     setups = []
+    no_anchor = 0
     for (tk, day), grp in days.items():
         bull = sum(g.get("premium") or 0 for g in grp if g["direction"] == "bullish")
         bear = sum(g.get("premium") or 0 for g in grp if g["direction"] == "bearish")
@@ -181,8 +201,12 @@ def build_setups():
                     if (c.get("oi") or {}).get("status") == "confirmed":
                         prior_confirm = True
 
-        # Outcome: last directional print of the day with frozen returns.
+        # Outcome: last directional print of the day with a frozen
+        # close-anchored return. The mixed-anchor `excess` field is never
+        # used as a fallback (stock leg at the intraday flag price, SPY
+        # leg at the close).
         y5 = y1 = None
+        mixed_only = False
         for g in sorted(grp, key=lambda x: x.get("flagged_at") or "", reverse=True):
             if g["direction"] != direction:
                 continue
@@ -192,12 +216,15 @@ def build_setups():
             r = c.get("returns") or {}
             r5 = r.get("5") or r.get(5) or {}
             r1 = r.get("1") or r.get(1) or {}
-            e5 = r5.get("exc_c") if r5.get("exc_c") is not None else r5.get("excess")
-            e1 = r1.get("exc_c") if r1.get("exc_c") is not None else r1.get("excess")
+            e5, e1 = r5.get("exc_c"), r1.get("exc_c")
             if e5 is not None:
                 sign = 1 if direction == "bullish" else -1
                 y5, y1 = sign * e5, (sign * e1 if e1 is not None else None)
                 break
+            if r5.get("excess") is not None:
+                mixed_only = True
+        if y5 is None and mixed_only:
+            no_anchor += 1
 
         setups.append(
             {
@@ -221,7 +248,7 @@ def build_setups():
                     "liq": ("AB" if any(l in ("A", "B") for l in liqs) else "C-"),
                     "open": ("high" if tot and opening_prem / tot >= 0.5 else "low"),
                     "repeat": "yes" if repeat else "no",
-                    "regime": regimes.get(day, "unknown"),
+                    "regime": prior_regime(regimes, day),
                     "persist": (
                         "confirmed" if prior_confirm else ("flow" if prior_same else "none")
                     ),
@@ -229,7 +256,7 @@ def build_setups():
             }
         )
     setups.sort(key=lambda s: s["date"])
-    return setups
+    return setups, {"dropped_no_close_anchor": no_anchor}
 
 
 # ------------------------------------------------------ model (additive)
@@ -283,10 +310,16 @@ def tail_table(train_preds, val_scored):
     out["all"] = stats(val_scored)
     for pct in TAILS:
         cut = tp[min(len(tp) - 1, int(len(tp) * (100 - pct) / 100))]
+        sel = [r for r in val_scored if r[0] >= cut]
         out["top" + str(pct)] = dict(
-            stats([r for r in val_scored if r[0] >= cut]), cut=round(cut, 3)
+            stats(sel), cut=round(cut, 3), share_pct=share_pct(len(sel), len(val_scored))
         )
     return out
+
+
+def share_pct(n_sel, n_all):
+    """Share of the evaluated set a train-calibrated cut really selected."""
+    return round(100.0 * n_sel / n_all, 1) if n_all else None
 
 
 def cluster_bootstrap(rows, iters=BOOT_ITERS, seed=7):
@@ -414,14 +447,38 @@ def _purge(train, val_start):
     return [r for r in train if r["date"] <= cutoff]
 
 
+def promoted(tails_pooled, tails_hold, fold_tail_avg):
+    """Predefined promotion check, evaluated per tail: the fold
+    positivity must come from the SAME tail being promoted (it used to
+    read the top-5% fold results for every tail). fold_tail_avg maps
+    "topN" -> [per-fold avg]."""
+    for pct in (5, 2, 1):
+        key = "top" + str(pct)
+        p = tails_pooled.get(key) or {}
+        h = tails_hold.get(key) or {}
+        b = p.get("bootstrap") or {}
+        pos_folds = sum(1 for a in fold_tail_avg.get(key, []) if a is not None and a > 0)
+        if (
+            p.get("n", 0) >= PROMO["min_n"]
+            and p.get("avg", -1) > 0
+            and p.get("med", -1) > 0
+            and (b.get("ci95") or [-1])[0] > PROMO["ci_low_above"]
+            and pos_folds >= PROMO["min_folds_pos"]
+            and h.get("avg", -1) > 0
+        ):
+            return {"promoted": True, "tail_pct": pct, "evidence": {"pooled": p, "holdout": h}}
+    return {"promoted": False}
+
+
 def run(dry=False):
-    setups_all = build_setups()
+    setups_all, meta = build_setups()
     graded = [s for s in setups_all if s["y5"] is not None]
     result = {
         "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "research_version": RESEARCH_VERSION,
         "setups_total": len(setups_all),
         "setups_graded": len(graded),
+        "dropped_no_close_anchor": meta["dropped_no_close_anchor"],
         "collapse": {
             "raw_directional_signals": None,  # filled below
             "note": "one observation per ticker-session; mixed (0.4<bull share<0.6) days excluded",
@@ -443,7 +500,7 @@ def run(dry=False):
     folds_out, pooled, pooled_rules_val = [], [], []
     edge = len(dev) // (N_FOLDS + 1)
     last_model = None
-    fold_tail_avg = []
+    fold_tail_avg = {}  # "topN" -> [per-fold avg], for the promotion check
     for k in range(1, N_FOLDS + 1):
         raw_train = dev[: edge * k]
         val = dev[edge * k : edge * (k + 1)] if k < N_FOLDS else dev[edge * k :]
@@ -467,7 +524,9 @@ def run(dry=False):
                 "tails": tails,
             }
         )
-        fold_tail_avg.append((tails.get("top5") or {}).get("avg"))
+        for pct in TAILS:
+            key = "top" + str(pct)
+            fold_tail_avg.setdefault(key, []).append((tails.get(key) or {}).get("avg"))
         for (p, y), r in zip(scored, val):
             pooled.append((p, y, r["ticker"], r["date"]))
         pooled_rules_val.extend(val)
@@ -478,18 +537,8 @@ def run(dry=False):
     pooled_scored = [(p, y) for p, y, _, _ in pooled]
     pooled_ic = spearman([p for p, _ in pooled_scored], [y for _, y in pooled_scored])
 
-    # tail via per-fold cuts: a row is "top5" if it cleared its fold's cut
-    def pooled_tail(pct):
-        rows = []
-        for f in folds_out:
-            cut = (f["tails"].get("top" + str(pct)) or {}).get("cut")
-            if cut is None:
-                continue
-        # reconstruct: easier — recompute from fold cut inline below
-        return rows
-
-    # simpler + exact: collect during fold loop next time; here compute
-    # pooled tails by re-walking folds
+    # Pooled tails via per-fold cuts: a row is "top5" if it cleared its
+    # own fold's train-calibrated cut (re-walk the folds in order).
     pooled_tails = {}
     for pct in TAILS:
         sel = []
@@ -506,6 +555,7 @@ def run(dry=False):
         pooled_tails["top" + str(pct)] = (
             {
                 "n": len(ys),
+                "share_pct": share_pct(len(ys), len(pooled)),
                 "avg": round(mean(ys), 2),
                 "med": round(median(ys), 2),
                 "hit": round(100 * sum(1 for y in ys if y > 0) / len(ys)),
@@ -514,7 +564,7 @@ def run(dry=False):
                 ),
             }
             if ys
-            else {"n": 0}
+            else {"n": 0, "share_pct": 0.0}
         )
     pooled_tails["all"] = {
         "n": len(pooled_scored),
@@ -534,6 +584,8 @@ def run(dry=False):
         hold_tails["top" + str(pct)] = (
             {
                 "n": len(ys),
+                # the cut is the train top-pct; this is what it really took
+                "share_pct": share_pct(len(ys), len(hpred)),
                 "avg": round(mean(ys), 2),
                 "med": round(median(ys), 2),
                 "hit": round(100 * sum(1 for y in ys if y > 0) / len(ys)),
@@ -542,7 +594,7 @@ def run(dry=False):
                 ),
             }
             if ys
-            else {"n": 0}
+            else {"n": 0, "share_pct": 0.0}
         )
     hys = [y for _, y, _, _ in hpred]
     hold_tails["all"] = {
@@ -595,24 +647,7 @@ def run(dry=False):
     rules = rule_search(rs_train, rs_oos)
 
     # ---------------- champion / challenger registry ----------------
-    def promoted(tails_pooled, tails_hold):
-        for pct in (5, 2, 1):
-            p = tails_pooled.get("top" + str(pct)) or {}
-            h = tails_hold.get("top" + str(pct)) or {}
-            b = p.get("bootstrap") or {}
-            pos_folds = sum(1 for a in fold_tail_avg if a is not None and a > 0)
-            if (
-                p.get("n", 0) >= PROMO["min_n"]
-                and p.get("avg", -1) > 0
-                and p.get("med", -1) > 0
-                and (b.get("ci95") or [-1])[0] > 0
-                and pos_folds >= PROMO["min_folds_pos"]
-                and h.get("avg", -1) > 0
-            ):
-                return {"promoted": True, "tail_pct": pct, "evidence": {"pooled": p, "holdout": h}}
-        return {"promoted": False}
-
-    challenger_verdict = promoted(pooled_tails, hold_tails)
+    challenger_verdict = promoted(pooled_tails, hold_tails, fold_tail_avg)
     registry = {
         "champion": {
             "name": None,
@@ -633,9 +668,11 @@ def run(dry=False):
         "promotion_criteria": {
             "pooled_tail_avg": "> 0",
             "pooled_tail_med": "> 0",
-            "cluster_bootstrap_ci_low": "> 0",
+            "cluster_bootstrap_ci_low": (
+                f"> {PROMO['ci_low_above']} pp (modeled stock round-trip cost)"
+            ),
             "min_n": PROMO["min_n"],
-            "folds_positive": f">= {PROMO['min_folds_pos']}/{N_FOLDS}",
+            "folds_positive": f">= {PROMO['min_folds_pos']}/{N_FOLDS} for the same tail",
             "holdout_avg": "> 0",
         },
     }
@@ -670,14 +707,19 @@ def run(dry=False):
             "ablation": ablation,
             "interactions": rules,
             "registry": registry,
+            "span_weeks": span_weeks(span["from"], span["to"]),
             "honesty": (
                 "Setup-level, close-anchored, purged+embargoed — but still "
-                "one ~9-week live stretch. Ticker-week cluster bootstrap "
-                "corrects overlap optimism only partly (market-wide regime "
-                "is one big cluster). Costs are NOT modeled; underlying "
-                "excess, not option P/L. A promoted challenger here starts "
-                "as PRODUCTION-CANDIDATE; the paper-forward ledger is the "
-                "final referee."
+                f"one ~{span_weeks(span['from'], span['to'])}-week live "
+                f"stretch ({span['from']} to {span['to']}). Ticker-week "
+                "cluster bootstrap corrects overlap optimism only partly "
+                "(market-wide regime is one big cluster). Tail stats are "
+                "gross underlying excess, not option P/L; promotion needs "
+                f"the CI low above a modeled {STOCK_RT_COST_PP} pp stock "
+                "round trip. 'Top X%' cuts come from training predictions — "
+                "share_pct is the share each cut really selected. A promoted "
+                "challenger here starts as PRODUCTION-CANDIDATE; the "
+                "paper-forward ledger is the final referee."
             ),
         }
     )

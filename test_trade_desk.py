@@ -7,8 +7,8 @@ Covers (spec secs 45-48):
     mutates an existing ledger line
   - qualification: no fabricated thresholds — an absent/failed
     validation file must yield abstention, never Top Ideas
-  - hard filters: every rejection carries a reason; measured regime
-    conflict blocks bullish flow in risk_off/mixed
+  - hard filters: every rejection carries a reason; regime conflict
+    blocks only the regime|direction cells the record measured
   - scoring: deterministic, monotone in expected excess, honest None
     when the validation model is unavailable
   - performance: stats gate at MIN_N; calibration buckets accrue
@@ -75,10 +75,15 @@ def test_features_at_flag_has_no_lookahead_fields():
     assert tdv.features_at_flag(s2, {}) == feats
 
 
-def test_regime_lookup_uses_flag_date_not_today():
-    s = _sig(flagged_at="2026-07-07T14:00:00+00:00")
+def test_regime_lookup_uses_prior_session_label():
+    """A day's breadth label is computed after its close, so an intraday
+    flag may only see the PRIOR session's label (2026-11 audit: joining
+    the same day's label was look-ahead)."""
     regimes = {"2026-07-07": "risk_off", "2026-07-08": "risk_on"}
+    s = _sig(flagged_at="2026-07-08T14:00:00+00:00")
     assert tdv.features_at_flag(s, regimes)["regime"] == "risk_off"
+    first = _sig(flagged_at="2026-07-07T14:00:00+00:00")
+    assert tdv.features_at_flag(first, regimes)["regime"] == "unknown"
 
 
 def test_validation_dataset_excludes_sellers_and_nondirectional():
@@ -142,28 +147,47 @@ def test_promoted_champion_qualifies_flow(monkeypatch):
     assert g["evidence"]["pooled"]["n"] == 200
 
 
-def test_negative_measured_family_is_degraded(monkeypatch):
+def _setup_log(ret_fn, n_days=60, per_day=5):
+    """setup_outcomes_log-shaped fixture: distinct tickers every day (no
+    repeats to de-duplicate), A-grade bull rows."""
+    days = []
+    d = datetime(2026, 7, 1).date()
+    for i in range(n_days):
+        while d.weekday() >= 5:
+            d += timedelta(days=1)
+        rows = [
+            {"t": f"T{i}_{j}", "grade": "A", "dir": "bull", "ret": ret_fn(i, j)}
+            for j in range(per_day)
+        ]
+        days.append({"date": d.isoformat(), "rows": rows})
+        d += timedelta(days=1)
+    return {"days": days}
+
+
+def _fake_momentum_log(monkeypatch, log):
     real_load = td._load
 
     def fake(path, default):
-        if path.endswith("scan_outcomes.json"):
-            return {"overall": {"status": "active", "n": 500, "ev": -1.0, "profit_factor": 0.8}}
+        if path.endswith("setup_outcomes_log.json"):
+            return log
         return real_load(path, default)
 
     monkeypatch.setattr(td, "_load", fake)
+
+
+def test_negative_measured_family_is_degraded(monkeypatch):
+    _fake_momentum_log(monkeypatch, _setup_log(lambda i, j: -1.0 + 0.1 * j))
     assert td.family_gates()["momentum"]["verdict"] == "degraded"
 
 
 def test_positive_measured_family_qualifies(monkeypatch):
-    real_load = td._load
-
-    def fake(path, default):
-        if path.endswith("scan_outcomes.json"):
-            return {"overall": {"status": "active", "n": 500, "ev": 0.8, "profit_factor": 1.4}}
-        return real_load(path, default)
-
-    monkeypatch.setattr(td, "_load", fake)
-    assert td.family_gates()["momentum"]["verdict"] == "qualified"
+    """Qualifies only because the date-clustered CI low clears the
+    modeled round trip, not because the mean is positive."""
+    _fake_momentum_log(monkeypatch, _setup_log(lambda i, j: 1.5 + 0.2 * ((i + j) % 3)))
+    g = td.family_gates()["momentum"]
+    assert g["verdict"] == "qualified"
+    assert g["evidence"]["ci95"][0] > td.STOCK_RT_COST_PP
+    assert "not vs SPY" in g["why"]
 
 
 # ---------------------------------------------------------- hard filters
@@ -185,14 +209,18 @@ def _flow_cand(**kw):
     return c
 
 
-def test_regime_conflict_blocks_bullish_flow_in_risk_off():
+def test_regime_conflict_blocks_only_measured_cells():
+    """REGIME_CONFLICT blocks exactly the regime|direction cells the
+    validation record measured as worse than flow overall — no
+    hard-coded regimes (the old cited EVs could not be reproduced)."""
     c = _flow_cand()
-    assert td.hard_filter(c, "risk_off", 90, NOW) == "REGIME_CONFLICT"
-    assert td.hard_filter(c, "mixed", 90, NOW) == "REGIME_CONFLICT"
-    assert td.hard_filter(c, "risk_on", 90, NOW) is None
+    conflicts = frozenset({"risk_on|bullish"})
+    assert td.hard_filter(c, "risk_on", 90, NOW, conflicts) == "REGIME_CONFLICT"
+    assert td.hard_filter(c, "risk_off", 90, NOW, conflicts) is None
+    assert td.hard_filter(c, "risk_on", 90, NOW) is None  # nothing measured
 
 
-def test_bearish_flow_allowed_in_risk_off():
+def test_bearish_flow_not_blocked_by_bullish_cell():
     c = _flow_cand(
         anchor={
             "direction": "bearish",
@@ -202,7 +230,7 @@ def test_bearish_flow_allowed_in_risk_off():
         },
         direction="bearish",
     )
-    assert td.hard_filter(c, "risk_off", 90, NOW) is None
+    assert td.hard_filter(c, "risk_on", 90, NOW, frozenset({"risk_on|bullish"})) is None
 
 
 def test_illiquid_and_small_and_stale_rejected():
@@ -295,36 +323,42 @@ def test_grading_waits_for_maturation(tmp_path, monkeypatch):
     assert all(e["ev"] == "issued" for e in events)
 
 
+def _flow_idea(tk, score=85, status="WATCH", direction="bullish"):
+    return {
+        "family": "flow",
+        "ticker": tk,
+        "direction": direction,
+        "alpha_score": score,
+        "status": status,
+    }
+
+
 def test_performance_gates_below_min_n():
     events = [
         {
             "ev": "issued",
             "id": "flow:AAA:bullish:2026-01-02",
-            "idea": {"family": "flow", "alpha_score": 85, "status": "WATCH"},
+            "idea": _flow_idea("AAA"),
         },
         {"ev": "graded", "id": "flow:AAA:bullish:2026-01-02", "y": 1.5},
     ]
     perf = td.performance(events)
     assert perf["status"] == "accruing"
     assert "overall" not in perf
-    assert perf["score_calibration"]["80-100"]["status"] == "accruing"
+    assert perf["score_calibration"]["80-89"]["status"] == "accruing"
 
 
 def test_performance_publishes_at_min_n():
     events = []
     for i in range(td.MIN_N):
-        iid = f"flow:T{i}:bullish:2026-01-02"
-        events.append(
-            {
-                "ev": "issued",
-                "id": iid,
-                "idea": {"family": "flow", "alpha_score": 85, "status": "WATCH"},
-            }
-        )
+        iid = f"flow:T{i}:bullish:2026-01-0{2 + i % 3}"
+        events.append({"ev": "issued", "id": iid, "idea": _flow_idea(f"T{i}")})
         events.append({"ev": "graded", "id": iid, "y": 1.0 if i % 2 else -0.5})
     perf = td.performance(events)
     assert perf["overall"]["n"] == td.MIN_N
-    assert perf["score_calibration"]["80-100"]["n"] == td.MIN_N
+    assert perf["overall"]["clusters"] == 3  # CI clustered by issue date
+    assert perf["overall"]["ci95"] is not None
+    assert perf["score_calibration"]["80-89"]["n"] == td.MIN_N
 
 
 # ------------------------------------------------------ validation math
@@ -509,18 +543,11 @@ def test_research_bootstrap_flags_thin_clusters():
 
 
 def test_degraded_family_routes_to_experimental_tier(monkeypatch):
-    real_load = td._load
-
-    def fake(path, default):
-        if path.endswith("scan_outcomes.json"):
-            return {"overall": {"status": "active", "n": 500, "ev": -1.0, "profit_factor": 0.8}}
-        return real_load(path, default)
-
-    monkeypatch.setattr(td, "_load", fake)
-    assert td.family_gates()["momentum"]["verdict"] == "degraded"
-    # run()'s tier mapping: degraded -> EXPERIMENTAL (not rejected) is
-    # asserted via the mapping dict used there
-    assert {"qualified": "QUALIFIED", "degraded": "EXPERIMENTAL"}.get("degraded") == "EXPERIMENTAL"
+    _fake_momentum_log(monkeypatch, _setup_log(lambda i, j: -1.0))
+    gates = td.family_gates()
+    assert gates["momentum"]["verdict"] == "degraded"
+    c = {"family": "momentum", "ticker": "AAA", "direction": "bullish"}
+    assert td._tier(c, gates)[0] == "EXPERIMENTAL"
 
 
 def test_expired_preprint_earnings_ideas_rejected(monkeypatch):
@@ -793,9 +820,7 @@ def test_desk_counts_never_conflate_signal_and_trade():
     )
     c = d.get("desk_counts") or {}
     n_sig = sum(1 for i in d.get("top_ideas") or [] if i["status"] == "SIGNAL_QUALIFIED")
-    n_trade = sum(
-        1 for i in d.get("top_ideas") or [] if i["status"] in ("TRADE_QUALIFIED", "QUALIFIED")
-    )
+    n_trade = sum(1 for i in d.get("top_ideas") or [] if i["status"] == "TRADE_QUALIFIED")
     assert c.get("signal_qualified") == n_sig
     assert c.get("trade_qualified") == n_trade
 
