@@ -19,11 +19,15 @@ no parallel systems:
 uoa_scanner.py ──► data/uoa_signals.jsonl        (append-only signal ledger)
 uoa_alpha.py   ──► data/uoa_alpha_cache.json     (frozen matured outcomes)
                ──► docs/reports/uoa_edge.json    (measured edge, IC, deciles)
-earnings_ideas.py / scan_outcomes.py / grade_engine.py / regime loop
+earnings_ideas.py / setup_outcomes.py / grade_engine.py / regime loop
         │
         ▼
-trade_desk_validation.py  walk-forward validation of the Alpha Score
-        │                 → docs/reports/trade_desk_validation.json
+trade_desk_validation.py  walk-forward validation of the Research Rank
+        │                 (Alpha Score v1) + measured regime-conflict
+        │                 cells → docs/reports/trade_desk_validation.json
+trade_desk_research.py    setup-level research; its champion/challenger
+        │                 registry is the flow gate's ONLY authority
+        │                 → docs/reports/trade_desk_research.json
         ▼
 trade_desk.py             candidates → features → hard filters → score →
         │                 family gates → construction → immutable ledger
@@ -50,15 +54,28 @@ Both run in `uoa.yml` after `uoa_alpha.py`, every ~30 min during RTH,
   OI confirmation and forward returns are structurally excluded; a
   permanent regression test (`test_features_at_flag_has_no_lookahead_fields`)
   guards this.
-- **Regime** joins on the *flag date's* label from `regime_history.json`,
-  never today's.
+- **Regime** joins on the *prior session's* label from
+  `regime_history.json` (`trade_desk_validation.prior_regime`), in
+  training AND serving. A day's breadth label is computed after that
+  day's close, so joining the flag day's own label to an intraday flag
+  was look-ahead — and live candidates, which never have today's label,
+  were scored as `regime:unknown` (2026-11 audit). A prior label more
+  than 5 calendar days old reads `unknown`.
+- **Outcomes** are close-anchored (`exc_c`: stock and SPY legs both from
+  the flag-day close). The older `excess` field anchors the stock leg at
+  the intraday flag price but SPY at the close; rows that only carry it
+  are dropped and counted (`dropped_no_close_anchor`), never mixed in.
 - **Trade ideas**: `data/trade_desk_log.jsonl` is an append-only event
   ledger (`issued` / `graded` lines). Issuance freezes the full idea with
-  `as_of`, `data_cutoff`, `engine_version`, `model_version`. Re-runs are
-  idempotent per (family, ticker, direction, day); nothing is ever
-  rewritten (tests: `test_ledger_append_only_and_idempotent`).
+  `as_of`, `data_cutoff`, `engine_version`, `model_version`. Nothing is
+  ever rewritten (tests: `test_ledger_append_only_and_idempotent`).
+  Each line is a *paper position*: earnings ideas get one id per event
+  (type, ticker, direction, report date); other families keep a per-day
+  id but are not re-issued while the same ticker+direction position is
+  inside its 5-session window. Reads apply the same rule, so legacy
+  per-day repeats are de-duplicated without rewriting history.
 
-## 3. Alpha Score v1 — what it is and what the data says
+## 3. Research Rank (Alpha Score v1) — what it is and what the data says
 
 **Definition.** Additive expected-excess model on categorical flag-time
 features (side, regime, into-earnings, DTE bucket, liquidity, cap bucket,
@@ -66,8 +83,21 @@ opening read, signal type, premium band). Per-feature deviations from the
 training-window baseline are shrunk `n/(n+200)` and clamped (±2 pp per
 feature, ±6 pp total) — the house edge-weights contract. The score maps
 expected +5d direction-signed excess vs SPY to its percentile in the
-training distribution: **90 means "top decile of expected edge", not "90%
-win probability."**
+graded historical record (~90k signals by 2026-11), clamped to 0–100:
+**90 means "top decile of expected edge", not "90% win probability" —
+and it is NOT a rank among today's candidates** (the site's tooltip said
+so until the 2026-11 audit; it now prints the measured skill from
+`trade_desk_validation.json`).
+
+**What it is used for.** Sorting the Research Watch table and the
+calibration bands. No gate reads it: the flow family's gate is the
+research registry (§10b). Its `qualification` block is informational.
+
+**Measured skill at the 2026-11 audit** (before the prior-session /
+close-anchor retrain): walk-forward IC **−0.18 / 0.00 / 0.00** by fold,
+**−0.03** on the holdout; the desk's own forward record had the 80–100
+band at **−0.12 pp** (n=459). The retrain fixes the inputs; it is not
+expected to create skill. The live numbers are whatever the JSON says.
 
 **Validation (2026-08, 27,521 graded buyer-initiated signals,
 2026-05-18 → 2026-06-30, 3 expanding folds + 15% untouched holdout):**
@@ -88,34 +118,54 @@ put-buys: −6.1 → +0.9 → +3.3 pp; calls the mirror image). The window is a
 single ~11-week macro stretch; regime effects dominate and the record is
 too short to separate edge from regime.
 
-**Consequence, by design:** the flow family's gate holds at WATCH, the UI
-abstains from Top Ideas, and the paper-forward ledger accrues the record
-that can change the verdict. The validator re-runs every batch in CI; the
-gate flips to `qualified` automatically the day the growing frozen record
-clears it — no human flips a constant.
+**Consequence, by design:** the flow family holds at WATCH and the UI
+abstains from flow Top Ideas. The gate that could change that is the
+setup-level research registry (§10b), re-run every batch in CI — it
+flips to `qualified` automatically the day a challenger clears its
+predefined criteria; no human flips a constant.
 
 ## 4. Strategy family gates (all measured, auto-promoting)
 
-| family | source of truth | state at ship | rule |
-|---|---|---|---|
-| flow | `trade_desk_validation.json` | watch (`no_validated_edge`) | validated cutoff → qualified |
-| earnings/post_report_drift | `earnings_ideas.json` by_type | **degraded** (EV −0.9, n=82) | EV>0 at n≥30 → qualified |
-| earnings/vol_rich, vol_cheap, momentum_into_print | same | watch (accruing, n<30) | same |
-| momentum scans | `scan_outcomes.json` | **degraded** (EV −1.4, PF 0.74, n=737) | EV>0 at n≥30 → qualified |
+| family | source of truth | rule |
+|---|---|---|
+| flow | `trade_desk_research.json` registry | a promoted champion → qualified (criteria in §10b) |
+| earnings directional (post_report_drift, momentum_into_print) | `earnings_ideas.json` by_type (one grade per event) | event-date-clustered 95% CI low > 0.20 pp modeled round trip → qualified; EV − cost ≤ 0 → degraded; else watch |
+| earnings vol_rich / vol_cheap | `earnings_vol.json` + `earnings_vol_exec.json` | night-cluster CI → signal_qualified; only the NBBO study grants trade_qualified |
+| momentum (swing A-tier) | `data/setup_outcomes_log.json` — the same cohort the candidates come from | same CI-above-cost rule, pick-date clusters, repeat picks inside a 5-session window de-duplicated |
+
+Every stock-level gate labels its target: the earnings and momentum
+records are **raw returns, not vs SPY**. A "qualified" directional
+family is a **paper edge** — it counts on its own *Directional
+Qualified* tile, never as *Trade Qualified* (reserved for an executable
+option expression). Without its per-pick log (local runs) the momentum
+gate falls back to the published aggregate and can never qualify.
+
+The momentum gate used to read `scan_outcomes.json` (QM/Stockbee scans)
+while its candidates came from the swing A-tier — a different
+population. Both now come from the swing A-tier.
 
 Degraded families still generate candidates (they freeze into the ledger
-and keep grading — a degraded family can rehabilitate itself) but are
-rejected from display with `STRATEGY_DEGRADED`.
+and keep grading — a degraded family can rehabilitate itself) and
+display in the collapsed Experimental tier (capped per family).
 
 ## 5. Hard filters (every rejection carries a reason)
 
 `BAD_LIQUIDITY` (grade D contract) · `LOW_PREMIUM` (<$250k cluster) ·
 `STALE_DATA` (signal >90 min old, source JSON >48 h old, regime label >5
-days old → unknown) · `REGIME_CONFLICT` (bullish flow in risk_off/mixed —
-measured EV −3.08/−4.52 on n=15,445/5,872, `uoa_edge.by_regime`) ·
-`LOW_ALPHA` (score <70) · `INSUFFICIENT_DATA` · `NOT_DIRECTIONAL`
-(sellers/hedge/income prints) · `STRATEGY_DEGRADED`. Counts publish in
-`trade_desk.json.rejections`.
+days old → unknown) · `REGIME_CONFLICT` · `LOW_ALPHA` (score <70; the
+candidate is still frozen as a paper-only `SHADOW` idea for calibration)
+· `INSUFFICIENT_DATA` · `STRATEGY_DEGRADED`. Counts publish in
+`trade_desk.json.rejections` — candidate-level only. Non-directional
+*prints* (sellers / hedge / income) never become candidates and publish
+separately as `skipped_prints.NOT_DIRECTIONAL`.
+
+`REGIME_CONFLICT` is derived every run from the graded record
+(`trade_desk_validation.json` → `regime_conflict`): a prior-session
+regime × direction cell blocks candidates only when its +5d
+close-anchored excess, 95% CI clustered by flag date, lies wholly below
+the all-flow average (min n 500, min 20 dates). The old rule (bullish
+flow in risk_off/mixed, citing EV −3.08/−4.52) could not be reproduced —
+by 2026-11 `uoa_edge.by_regime` had risk_on as the *worst* regime.
 
 ## 6. Trade construction (v1 scope)
 
@@ -130,13 +180,37 @@ a trade nobody may act on is premature.
 
 ## 7. Grading, performance, calibration
 
-Issued ideas with a bullish/bearish direction grade at +5 sessions,
-close-to-close from the issue day's close (documented conservative fill
-convention — no intraday fill assumed), direction-signed excess vs SPY via
-yfinance. Stats gate at n≥30; the Alpha-Score calibration table (80-100 /
-60-79 / 40-59 / <40 → hit, avg) publishes with per-bucket accrual counts
-from day one. Monotonic calibration is the score's report card; if it
-fails, the score gets fixed, not the display.
+Every candidate that clears its family's filters is frozen (display caps
+are for the page only), one paper position at a time (§2). Grading:
+
+- **flow / momentum**: +5 sessions close-to-close from the issue day's
+  close (documented conservative fill — no intraday fill assumed),
+  direction-signed excess vs SPY via yfinance.
+- **earnings directional types**: graded by the earnings loop's own
+  grader (`earnings_ideas._grade`), so the desk and the gate share ONE
+  definition: post_report_drift = raw signed 5-session return from the
+  **reaction close** (session-aware: BMO day / AMC next day);
+  momentum_into_print = 3 sessions from the close before the report.
+  Drift used to be graded from the issue-day close — before the print —
+  so its window contained the earnings reaction itself (the desk showed
+  +0.64 on n=370 while the gate showed −0.45 on n=459). Those grades are
+  superseded (`gv` < 2) and the events are regraded.
+- **neutral vol ideas** are not "tracked" here — the earnings loop
+  grades them |move| vs implied (Forecast record).
+
+Published per family, each on its own target (never blended), gated at
+n≥30, with a 95% CI clustered by the date the move starts (CR1, the same
+estimator as the earnings gate). "Tracked" counts gradeable directional
+positions only.
+
+**Research Rank calibration** bands are 90–100 / 80–89 / 70–79 / <70.
+The display floor is 70, so the old 40–59 and <40 bands could never fill
+and "60–79" was really 70–79. Sub-floor flow candidates are now frozen
+as paper-only `SHADOW` ideas (never displayed, never in the directional
+record) so the <70 band fills and calibration is testable. Calibration
+is the rank's report card: so far it has NOT been monotonic (at the
+2026-11 audit the top band averaged −0.12 pp) — if it stays flat, the
+rank stays a sort order and the copy says so.
 
 ## 8. Ask TickerDesk (LLM layer)
 
@@ -167,10 +241,13 @@ absent — no execution surface exists.
 
 ## 10. Known limitations (do not hide these)
 
-1. **History is short and one-regime** (11 weeks live flow; regime labels
-   only from 2026-07-06). Everything above re-runs as the record grows.
-2. **Overlapping signals** (same ticker, same day) inflate effective n;
-   ICs are honest but confidence intervals would be optimistic.
+1. **History is short** (11 weeks at ship, ~20 by 2026-11; each JSON
+   publishes its computed `span_weeks`; regime labels only from
+   2026-07-06). Everything above re-runs as the record grows.
+2. **Overlapping signals** (same ticker, same day) inflate effective n
+   in the signal-level validation; ICs are honest but naive confidence
+   intervals would be optimistic. The setup-level research and the idea
+   ledger de-duplicate; the ledger's CIs are date-clustered.
 3. **Underlying-level grading**: +5d stock excess, not option P/L. An
    option-P/L grading loop needs historical option marks (Polygon has
    them; CI-only key) — the top backlog item once a family qualifies.
@@ -216,8 +293,19 @@ precision → interactions → ablation → cluster bootstrap → registry.**
   removal turns it positive. Nothing in the current columns creates edge.
 - **Verdict:** challenger NOT promoted. Champion = **NONE** → desk
   abstains for the flow family. Promotion criteria (predefined, in the
-  JSON): pooled tail avg>0 AND med>0 AND bootstrap CI low>0 AND n≥100
-  AND ≥2/3 folds positive AND holdout avg>0.
+  JSON): pooled tail avg>0 AND med>0 AND bootstrap CI low above the
+  0.20 pp modeled stock round trip AND n≥100 AND ≥2/3 folds positive
+  AND holdout avg>0 — all for the **same tail** being promoted. (Until
+  2026-11 the fold check always read the top-5% folds, even when
+  promoting the top-2% or top-1% tail, and the CI bar was 0, not cost.)
+- **2026-11 input corrections** (same as the Research Rank): regime is
+  the prior session's label; outcomes are `exc_c` only (no fallback to
+  the mixed-anchor `excess`; dropped setups counted).
+- **Tail labels:** a "top X%" cut is a percentile of the TRAINING
+  predictions, so the share it selects out of sample drifts — at the
+  2026-11 audit the holdout "Top 5/10/20%" rows selected only 0.7 /
+  1.2 / 2.5% of setups. Every tail now publishes `share_pct` and the
+  site prints "took X%" beside it.
 
 **Conclusion: the signal inputs need to change.** The hypothesized
 institutional conditionals (flow × relative strength × earnings revisions

@@ -249,10 +249,13 @@ def audit_xref(docs):
         c = td.get("desk_counts") or {}
         top = td.get("top_ideas") or []
         n_sig = sum(1 for i in top if i.get("status") == "SIGNAL_QUALIFIED")
-        n_tr = sum(1 for i in top if i.get("status") in ("TRADE_QUALIFIED", "QUALIFIED"))
+        # "QUALIFIED" is a directional paper edge, counted on its own tile
+        n_tr = sum(1 for i in top if i.get("status") == "TRADE_QUALIFIED")
+        n_dir = sum(1 for i in top if i.get("status") == "QUALIFIED")
         ok = (
             c.get("signal_qualified") == n_sig
             and c.get("trade_qualified") == n_tr
+            and c.get("directional_qualified", 0) == n_dir
             and c.get("research_watch") == len(td.get("watch") or [])
             and c.get("experimental") == len(td.get("experimental") or [])
         )
@@ -260,7 +263,7 @@ def audit_xref(docs):
             "PASS" if ok else "FAIL",
             "XREF",
             "trade_desk counts",
-            f"{c} vs arrays sig={n_sig} tr={n_tr} "
+            f"{c} vs arrays sig={n_sig} tr={n_tr} dir={n_dir} "
             f"watch={len(td.get('watch') or [])} "
             f"exp={len(td.get('experimental') or [])}",
         )

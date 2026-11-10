@@ -30691,12 +30691,29 @@
         esc(reg.replace("_", " ")) + '</span>' +
         '<span class="atd-stat">Data as of <b>' +
         esc(fmtTs(d.generated)) + '</b></span>';
-      // hero is flex-wrap; full-width children flow beneath the chips
+      // hero is flex-wrap; full-width children flow beneath the chips.
+      // A directional paper edge gets its own tile — it is a stock-level
+      // record, never an executable "trade".
+      var edges = c.signal_qualified_edges;
       h += '<div class="atd-tiles" style="flex:1 1 100%">' +
-        tile("Trade Qualified", c.trade_qualified, "t-accent") +
-        tile("Signal Qualified", c.signal_qualified, "t-blue") +
-        tile("Research Watch", c.research_watch, "") +
-        tile("Experimental", c.experimental, "") +
+        tile("Trade Qualified", c.trade_qualified, "t-accent",
+          "Executable option expressions that cleared the execution " +
+          "gate (real fills and costs).") +
+        tile("Directional Qualified", c.directional_qualified || 0, "",
+          "Stock-level paper setups whose family record has a " +
+          "date-clustered 95% confidence interval above the modeled " +
+          "round-trip cost. Not an option trade.") +
+        tile("Signal Qualified", c.signal_qualified, "t-blue",
+          "Today's setups that belong to a validated forecasting edge" +
+          (edges != null ? " (" + edges + " distinct edge" +
+            (edges === 1 ? "" : "s") + ")" : "") +
+          ". No trade expression is validated.") +
+        tile("Research Watch", c.research_watch, "",
+          "Options-flow setups tracked forward; the family has not " +
+          "cleared validation.") +
+        tile("Experimental", c.experimental, "",
+          "Families whose own record is negative or thin, still " +
+          "tracked on paper.") +
         '</div>';
       if (d.abstention && d.abstention_note) {
         h += '<div class="atd-abstain" style="flex:1 1 100%">' +
@@ -30707,9 +30724,10 @@
       }
       return h;
     }
-    function tile(k, v, cls) {
-      return '<div class="atd-tile ' + cls + '"><div class="t-k">' + k +
-        '</div><div class="t-v">' + (v == null ? "—" : v) +
+    function tile(k, v, cls, tip) {
+      return '<div class="atd-tile ' + cls + '"' +
+        (tip ? ' title="' + esc(tip) + '"' : '') + '><div class="t-k">' +
+        k + '</div><div class="t-v">' + (v == null ? "—" : v) +
         '</div></div>';
     }
 
@@ -30890,6 +30908,36 @@
     }
 
     /* -------------- Research Watch (aggregated flow table) --------- */
+    // What the Research Rank is, and its MEASURED skill, from the
+    // published validation + the desk's own calibration record.
+    function rankTip(d) {
+      var v = VAL || {};
+      var ics = (v.folds || []).map(function (f) { return num(f.ic, 2); });
+      var ho = (v.holdout || {}).ic;
+      var t = "Research Rank: the percentile of this setup's " +
+        "model-expected +5-session return vs SPY, measured against " +
+        (v.n_graded ? Number(v.n_graded).toLocaleString("en-US") +
+          " graded historical flow signals" : "the graded flow record") +
+        ". It is not a rank among today's candidates and not a " +
+        "probability.";
+      if (ics.length) {
+        t += " Measured out-of-sample skill (rank correlation between " +
+          "the rank and the realized return; 0 means none): " +
+          ics.join(" / ") + " across walk-forward folds" +
+          (ho != null ? ", " + num(ho, 2) + " on the untouched holdout" : "") +
+          ".";
+      }
+      var cal = (d.performance || {}).score_calibration || {};
+      var live = Object.keys(cal).filter(function (b) {
+        return cal[b].status === "active";
+      });
+      if (live.length) {
+        t += " Desk record by band: " + live.map(function (b) {
+          return b + " avg " + num(cal[b].avg, 2) + "pp (n=" + cal[b].n + ")";
+        }).join("; ") + ".";
+      }
+      return t + " Use it as a sort order, not a forecast.";
+    }
     function watchHTML(d) {
       var flow = (d.watch || []).filter(function (i) {
         return i.family === "flow";
@@ -30917,9 +30965,8 @@
         'setups tracked forward; the family has not cleared ' +
         'production validation</span></div>' +
         '<div class="atd-table-wrap"><table class="atd-table">' +
-        '<tr><th>Research Rank<span class="atd-info" title="Cross-' +
-        'sectional rank within today&#39;s flow candidates; not a ' +
-        'calibrated probability or expected-alpha score.">i</span>' +
+        '<tr><th>Research Rank<span class="atd-info" title="' +
+        esc(rankTip(d)) + '">i</span>' +
         '</th><th>Ticker</th>' +
         '<th>Bias</th><th>Prints</th><th>Premium</th><th>Ref.</th>' +
         '<th>DTE</th><th>Liq</th></tr>';
@@ -30971,7 +31018,9 @@
         exp.map(function (i) {
           return '<tr data-t="' + esc(i.ticker) + '"><td><b>' +
             esc(i.ticker) + '</b></td><td>' + esc(i.family) +
-            '</td><td>' + esc(((i.evidence || {}).etype || "—")
+            '</td><td>' + esc(((i.evidence || {}).etype ||
+              ((i.evidence || {}).grade
+                ? (i.evidence || {}).grade + " grade" : "—"))
               .replace(/_/g, " ")) + '</td><td class="k">' +
             esc(i.gate || "") + '</td></tr>';
         }).join("") + '</table></div></details>';
@@ -31011,30 +31060,93 @@
       STRATEGY_DEGRADED: "Family under rehabilitation",
       INSUFFICIENT_DATA: "Insufficient data" };
     function rejectedHTML(d) {
-      var rej = d.rejections || {};
+      // Candidate-level rejections only. Non-directional PRINTS (sellers,
+      // hedges, income) never become candidates; they are a separate
+      // count (older payloads carried them inside rejections).
+      var rej = {}, skip = (d.skipped_prints || {}).NOT_DIRECTIONAL || 0;
+      Object.keys(d.rejections || {}).forEach(function (k) {
+        if (k === "NOT_DIRECTIONAL") skip += d.rejections[k];
+        else rej[k] = d.rejections[k];
+      });
       var keys = Object.keys(rej);
-      if (!keys.length) return "";
+      if (!keys.length && !skip) return "";
       var total = keys.reduce(function (a, k) { return a + rej[k]; }, 0);
       return '<details class="atd-collapse"><summary>' + total +
-        ' candidates rejected this run</summary><div class="atd-rows">' +
+        ' candidate' + (total === 1 ? '' : 's') + ' rejected this run' +
+        (skip ? ' · ' + skip + ' non-directional prints skipped' : '') +
+        '</summary><div class="atd-rows">' +
         keys.sort(function (a, b) { return rej[b] - rej[a]; })
           .map(function (k) {
             return row(REJ_LABEL[k] || esc(k), rej[k]);
-          }).join("") + '</div></details>';
+          }).join("") +
+        (skip ? '<div class="k" style="margin-top:4px">' + skip +
+          ' individual option prints were sellers, hedges or income ' +
+          'trades — skipped before candidates form, not counted as ' +
+          'rejected candidates.</div>' : '') + '</div></details>';
+    }
+
+    /* -------- executable record (shared by Today + Track Record) ---- */
+    function execHTML(d) {
+      var ex = (d.ledgers || {}).executable || {};
+      return '<div class="atd-sec-h">Executable Trade Track Record' +
+        '</div><div class="atd-rows">' +
+        row("Trade-qualified strategies",
+            ex.trade_qualified_strategies != null
+              ? ex.trade_qualified_strategies : "—") +
+        row("Frozen live trades",
+            ex.frozen_live_trades != null ? ex.frozen_live_trades : "—") +
+        '<div class="k" style="margin-top:4px">' +
+        esc(ex.statement || "") + '</div></div>';
+    }
+
+    /* -------- directional qualified (stock-level paper edges) ------- */
+    var FAM_LABEL = { flow: "Options flow",
+      momentum: "Momentum (swing A-tier)",
+      "earnings:post_report_drift": "Post-report drift",
+      "earnings:momentum_into_print": "Momentum into print" };
+    var ENTRY_LABEL = { issue_close: "issue-day close",
+      reaction_close: "earnings-reaction close",
+      pre_report_close: "close before the report" };
+    function directionalHTML(d) {
+      var q = (d.top_ideas || []).filter(function (i) {
+        return i.status === "QUALIFIED";
+      });
+      if (!q.length) return "";
+      return '<div class="atd-sec-h">Directional Qualified <span ' +
+        'class="n">stock-level paper setups — the family record clears ' +
+        'its cost-adjusted confidence bar; not an executable option ' +
+        'trade</span></div><div class="atd-table-wrap">' +
+        '<table class="atd-table"><tr><th>Ticker</th><th>Family</th>' +
+        '<th>Bias</th><th>Entry</th><th>Why qualified</th></tr>' +
+        q.map(function (i) {
+          var en = i.entry || {};
+          var fam = i.family === "earnings"
+            ? "earnings:" + ((i.evidence || {}).etype || "") : i.family;
+          return '<tr data-t="' + esc(i.ticker) + '"><td><b>' +
+            esc(i.ticker) + '</b></td><td>' +
+            esc(FAM_LABEL[fam] || fam) + '</td><td><span class="' +
+            (i.direction === "bullish" ? "pos" : "neg") + '">' +
+            esc(i.direction) + '</span></td><td>' +
+            esc(ENTRY_LABEL[en.rule] || en.rule || "—") +
+            (en.event_date ? " (" + esc(en.event_date) + ")" : "") +
+            '</td><td class="k">' + esc(i.gate || "") + '</td></tr>';
+        }).join("") + '</table></div>';
     }
 
     /* =================== TRACK RECORD view =================== */
+    function statLine(s) {
+      if (!s || s.status === "accruing" || s.hit == null) {
+        return "accruing — " + ((s || {}).n || 0) + " graded, publishes at n≥30";
+      }
+      return "n=" + s.n + " · hit " + s.hit + "% · avg " + num(s.avg, 2) +
+        "pp · med " + num(s.med, 2) + "pp" + (s.ci95
+          ? " · 95% CI " + num(s.ci95[0], 2) + " → " + num(s.ci95[1], 2) +
+            "pp (" + s.clusters + " dates)" : "");
+    }
     function trackHTML(d) {
       var L = d.ledgers || {};
-      var f = L.forecast || {}, dir = L.directional || {},
-          ex = L.executable || {};
-      var h = '<div class="atd-sec-h">Executable Trade Track Record' +
-        '</div><div class="atd-rows">' +
-        row("Trade-qualified strategies",
-            ex.trade_qualified_strategies || 0) +
-        row("Frozen live trades", ex.frozen_live_trades || 0) +
-        '<div class="k" style="margin-top:4px">' +
-        esc(ex.statement || "") + '</div></div>';
+      var f = L.forecast || {}, dir = L.directional || {};
+      var h = execHTML(d);
       h += '<div class="atd-sec-h">Forecast Track Record ' +
         '<span class="n">earnings volatility · target: ' +
         esc(f.target || "") + '</span></div><div class="atd-rows">' +
@@ -31053,29 +31165,65 @@
             num(f.fair_move_bias, 2) + "pp · edge-sign " +
             (f.edge_sign_pct != null ? f.edge_sign_pct + "%" : "—")) +
         '</div>';
+      // Directional paper record: de-duplicated positions, each family
+      // on its own target (never blended), date-clustered CIs.
+      var fams = dir.by_family || {};
       h += '<div class="atd-sec-h">Directional Research ' +
-        '<span class="n">target: ' + esc(dir.target || "") +
-        '</span></div><div class="atd-rows">' +
-        row("Tracked ideas", dir.tracked) +
+        '<span class="n">paper positions — one per earnings event, and ' +
+        'one per ticker and direction per open 5-session window</span>' +
+        '</div><div class="atd-rows">' +
+        row("Tracked positions", dir.tracked) +
         row("Graded", dir.graded) +
-        (dir.overall
-          ? row("Overall", "n=" + dir.overall.n + " · hit " +
-              dir.overall.hit + "% · avg " + num(dir.overall.avg, 2) +
-              "pp · med " + num(dir.overall.med, 2) + "pp")
-          : row("Status", "accruing — publishes at n≥30")) +
-        '</div>';
+        (dir.duplicates_excluded
+          ? row("Overlapping repeats excluded", dir.duplicates_excluded)
+          : "") +
+        (dir.neutral_frozen
+          ? row("Vol ideas (non-directional)", dir.neutral_frozen +
+              " — graded in the Forecast record, not here") : "") +
+        // older payloads blended every family into "overall" — only a
+        // payload that labels its target gets the flow+momentum row
+        (dir.overall && dir.overall.target
+          ? row("Flow + momentum", statLine(dir.overall)) : "") +
+        Object.keys(fams).map(function (k) {
+          var s = fams[k];
+          return row(esc(FAM_LABEL[k] || k), statLine(s)) +
+            '<div class="k" style="margin:-2px 0 4px 12px">' +
+            esc(s.target || "") + '</div>';
+        }).join("");
+      // The earnings gate grades the SAME drift definition over every
+      // drift idea it has published — a larger sample than the desk's.
+      var dg = ((((d.gates || {}).earnings || {}).types || {})
+        .post_report_drift || {}).evidence || {};
+      if (dg.n) {
+        h += row("Drift — earnings-gate record",
+          "EV " + num(dg.ev, 2) + "pp · " + dg.win_rate + "% win · n=" +
+          dg.n + (dg.ci95 ? " · 95% CI " + num(dg.ci95[0], 2) + " → " +
+            num(dg.ci95[1], 2) + "pp" : "")) +
+          '<div class="k" style="margin:-2px 0 4px 12px">same definition ' +
+          'as the desk row above, measured on every drift idea the ' +
+          'earnings loop has published (the desk only tracks the ones ' +
+          'it showed)</div>';
+      }
+      h += '</div>';
       var cal = (d.performance || {}).score_calibration || {};
       var keys = Object.keys(cal);
       if (keys.length) {
-        h += '<div class="atd-sec-h">Flow Rank calibration ' +
-          '<span class="n">accrues with the directional ledger' +
-          '</span></div><div class="atd-perf"><table>' +
-          '<tr><th>Rank band</th><th>n</th><th>hit / avg</th></tr>' +
+        h += '<div class="atd-sec-h">Research Rank calibration ' +
+          '<span class="n">every scored flow candidate, including ' +
+          'paper-only shadow ideas below the display floor; a useful ' +
+          'rank earns more band by band</span></div>' +
+          '<div class="atd-perf"><table>' +
+          '<tr><th>Rank band</th><th>graded / tracked</th>' +
+          '<th>hit / avg (95% CI)</th></tr>' +
           keys.map(function (b) {
             var r = cal[b];
             return '<tr><td>' + esc(b) + '</td><td>' + (r.n || 0) +
-              '</td><td>' + (r.status === "accruing" ? "accruing"
-                : r.hit + "% / " + num(r.avg, 2) + "pp") +
+              (r.tracked != null ? " / " + r.tracked : "") +
+              '</td><td>' + (r.status === "accruing" || r.hit == null
+                ? "accruing"
+                : r.hit + "% / " + num(r.avg, 2) + "pp" + (r.ci95
+                  ? " (" + num(r.ci95[0], 2) + " → " + num(r.ci95[1], 2) +
+                    ")" : "")) +
               '</td></tr>';
           }).join("") + '</table></div>';
       }
@@ -31209,8 +31357,8 @@
           chip("Earnings · " + t.replace(/_/g, " "), e.verdict, e.why);
         });
       }
-      if (g.momentum) chip("Momentum scans", g.momentum.verdict,
-        g.momentum.why);
+      if (g.momentum) chip(g.momentum.label || "Momentum",
+        g.momentum.verdict, g.momentum.why);
       return '<div class="atd-sec-h">Family Gates — measured, ' +
         'auto-promoting</div><div class="atd-gates">' +
         chips.join("") + '</div>';
@@ -31247,10 +31395,16 @@
       var t = v.pooled_oos.tails || {};
       var ht = (v.holdout || {}).tails || {};
       function cell(x) {
-        if (!x || !x.n) return "<td>—</td>";
+        if (!x || !x.n) {
+          return "<td>—" + (x && x.share_pct != null
+            ? " <span class=\"k\">(took 0%)</span>" : "") + "</td>";
+        }
         var ci = (x.bootstrap || {}).ci95;
-        return "<td>" + num(x.avg, 2) + "pp · " + (x.hit || "—") +
-          "% (n=" + x.n + ")" + (ci ? "<br><span class=\"k\">CI " +
+        return "<td>" + num(x.avg, 2) + "pp · " +
+          (x.hit != null ? x.hit : "—") +
+          "% (n=" + x.n + ")" + (x.share_pct != null
+            ? " <span class=\"k\">· took " + x.share_pct + "%</span>"
+            : "") + (ci ? "<br><span class=\"k\">CI " +
           num(ci[0], 1) + " → " + num(ci[1], 1) + "</span>" : "") +
           "</td>";
       }
@@ -31258,14 +31412,20 @@
         return "<tr><td>" + label + "</td>" + cell(a) + cell(b) +
           "</tr>";
       }
+      var champ = ((v.registry || {}).champion || {}).name;
       var h = '<div class="atd-sec-h">Directional Flow — Setup-Level ' +
         'Walk-Forward <span class="n">(' + (v.setups_graded || 0) +
         ' independent setups · purged+embargoed)</span></div>' +
         '<div class="atd-perf"><table><tr><th>selection</th>' +
         '<th>pooled OOS</th><th>holdout</th></tr>' +
         r2("All", t.all, ht.all) + r2("Top 10%", t.top10, ht.top10) +
-        r2("Top 5%", t.top5, ht.top5) + r2("Top 1%", t.top1, ht.top1) +
-        '</table>Champion: <b>NONE — family abstains</b>';
+        r2("Top 5%", t.top5, ht.top5) + r2("Top 2%", t.top2, ht.top2) +
+        r2("Top 1%", t.top1, ht.top1) +
+        '</table><span class="k">"Top X%" is the cut on training ' +
+        'scores; "took" is the share of setups it actually selected, ' +
+        'which drifts when the score distribution shifts.</span><br>' +
+        'Champion: <b>' + (champ ? esc(champ) : 'NONE — family abstains') +
+        '</b>';
       var ix = v.interactions || {};
       if (ix.tested) {
         var ru = ix.rules || [];
@@ -31483,14 +31643,8 @@
       if (!d) return;
       $("atd-hero").innerHTML = heroHTML(d);
       $("atd-view-today").innerHTML =
-        edgesHTML(d) + watchHTML(d) + changedHTML(d) +
-        '<div class="atd-sec-h">Executable Trade Track Record</div>' +
-        '<div class="atd-rows">' +
-        row("Trade-qualified strategies", 0) +
-        row("Frozen live trades", 0) +
-        '<div class="k">TickerDesk has not yet qualified an ' +
-        'executable strategy.</div></div>' +
-        expHTML(d) + rejectedHTML(d);
+        edgesHTML(d) + directionalHTML(d) + watchHTML(d) +
+        changedHTML(d) + execHTML(d) + expHTML(d) + rejectedHTML(d);
       $("atd-view-track").innerHTML = trackHTML(d);
       $("atd-view-research").innerHTML = researchViewHTML(d);
       $("atd-honesty").textContent = d.honesty || "";
@@ -31498,13 +31652,21 @@
       var mod = $("atd-desk-module");
       if (mod) {
         var c = d.desk_counts || {};
+        // Signal-qualified counts SETUPS (tickers today); they come from
+        // a handful of validated edges — say both, never "N edges".
+        var nsq = c.signal_qualified || 0, nedge = c.signal_qualified_edges;
+        var ndq = c.directional_qualified || 0;
         mod.innerHTML = '<span class="m-title">AI Trade Desk</span>' +
           '<span class="m-sub">' + (c.trade_qualified
             ? c.trade_qualified + ' executable setup' +
               (c.trade_qualified > 1 ? 's' : '') + ' qualify.'
             : 'No executable trade clears the gate — ' +
-              (c.signal_qualified || 0) + ' validated market edge' +
-              ((c.signal_qualified || 0) === 1 ? '' : 's') +
+              nsq + ' signal-qualified setup' + (nsq === 1 ? '' : 's') +
+              (nsq && nedge != null ? ' from ' + nedge +
+                ' validated forecasting edge' + (nedge === 1 ? '' : 's')
+                : '') +
+              (ndq ? ' · ' + ndq + ' directional paper setup' +
+                (ndq === 1 ? '' : 's') : '') +
               ' · ' + (c.research_watch || 0) + ' research setups.') +
           '</span><span class="m-open">Open →</span>';
         mod.style.display = "flex";
