@@ -1458,7 +1458,12 @@ def run(dry=False, do_grade=True):
     # Deterministic headline summaries (templates over facts — the LLM
     # is never in this path).
     headlines = []
-    vol_tops = [i for i in top if (i.get("construct") or {}).get("vol_edge_pp") is not None]
+    vol_tops = [
+        i
+        for i in top
+        if (i.get("evidence") or {}).get("etype") == "vol_rich"
+        and (i.get("construct") or {}).get("vol_edge_pp") is not None
+    ]
     if vol_tops:
         rich = max(vol_tops, key=lambda i: i["construct"]["vol_edge_pp"])
         c = rich["construct"]
