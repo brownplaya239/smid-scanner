@@ -168,7 +168,7 @@ def run_lab(scored=None):
     from uoa_research import EMBARGO_SESSIONS, embargo_split
 
     if scored is None:
-        _, scored = uoa_alpha.compute_edge()
+        _, scored = uoa_alpha.compute_edge(persist=False)
     graded = graded_alerts(scored)
     if len(graded) < MIN_JOINT * 2:
         return {

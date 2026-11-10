@@ -1223,7 +1223,7 @@ def build_payload(rows, drift_rows, sample, spy, capmap):
 
 def run(scored=None):
     if scored is None:
-        _, scored = ua.compute_edge()
+        _, scored = ua.compute_edge(persist=False)
     rows, drift_rows, sample, spy, capmap = build_rows(scored)
     if len(rows) < 1000:
         print("  research: only %d graded alerts — skipping" % len(rows))

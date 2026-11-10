@@ -362,7 +362,8 @@ def test_payload_is_json_and_self_consistent(payload):
 def test_nightly_run_scores_the_full_ledger_via_compute_edge(tmp_path, monkeypatch, ledger):
     calls = []
 
-    def fake_compute_edge(rebuild=False):
+    def fake_compute_edge(rebuild=False, persist=True):
+        assert persist is False  # research must score read-only
         calls.append(rebuild)
         return {}, ledger
 

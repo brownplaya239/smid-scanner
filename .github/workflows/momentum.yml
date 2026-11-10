@@ -163,7 +163,7 @@ jobs:
         run: uv run python dealer_positioning.py
 
       - name: Alpha research engine (attribution, loser model, score2,
-              sizing, stability, interactions)
+              stability, interactions)
         # Nightly OOS research over the joined matured ledger. All
         # walk-forward; nothing auto-applies — outputs are review
         # inputs for the gated learner. Non-fatal.
