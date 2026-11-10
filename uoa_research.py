@@ -1,155 +1,90 @@
 """
-uoa_research.py — nightly alpha-research engine (roadmap items 2,4,5,6,7,8).
+uoa_research.py — nightly alpha-research engine for the options-flow ledger.
 
-Runs once nightly (momentum.yml). Joins the signal ledger with matured
-outcomes and publishes docs/reports/uoa_research.json. Everything is
-OUT-OF-SAMPLE where a claim is made: walk-forward by ISO week, train
-strictly on prior weeks. All sections gated and fail-open; nothing here
-auto-applies to live ranking — survivors are inputs to the (separately
-guard-railed) nightly learner and to human review.
+Runs nightly (momentum.yml). Scores the FULL signal ledger (monthly archives
+plus the hot file) through uoa_alpha.compute_edge(), the same scoring path
+the Options Flow track record uses, and publishes
+docs/reports/uoa_research.json.
 
-Sections (roadmap numbering):
-  #2 attribution   — matched-control benchmark: each day's flagged
-                     UNIVERSE drift (mean +5d excess of unique flagged
-                     underlyings) is the control. flow_alpha = what
-                     direction-following earned NET of that drift.
-                     Separates "picking hot names" (selection) from
-                     "reading the flow's direction" (flow alpha).
-  #4 loser_model   — categorical odds model predicting bottom-quintile
-                     outcomes, walk-forward weekly. Reports the EV of
-                     the book after excluding predicted disasters vs
-                     baseline, OOS only. Dependency-free (naive-Bayes
-                     odds on side/dte/cap/liq/premium/golden).
-  #5 score2        — empirical-Bayes cohort-EV score (shrunken sum of
-                     per-feature EV deltas, K=200). Weekly OOS Spearman
-                     IC vs the ledger score for comparison.
-  #6 sizing        — EV-weighted size hints per score2 quintile:
-                     clamp(shrunken EV / MAE vol proxy), fractional-
-                     Kelly style divisor 4, published as a table.
-  #7 stability     — weekly side EV series, weekly OOS IC series, PSI
-                     (population stability index) of feature mix last
-                     2 ISO weeks vs prior history.
-  #8 interactions  — depth<=3 categorical interaction search, n>=400,
-                     three gates: split-half sign agreement, time-
-                     ordered holdout (last 30%) same-sign, |EV|>=0.3.
-                     Survivors are REVIEW CANDIDATES only.
+Measurement rules (2026-11 accuracy audit, shared with uoa_alpha):
+  • ONE ALERT = a contract's first flag of the US/Eastern day. The scanner
+    re-logs a still-flagged contract on every scan; uoa_alpha.unique_alerts
+    collapses those re-logs.
+  • Graded on the +5-session STOCK excess return vs SPY, signed in the
+    flow's direction, by CLASSIFIED aggressor side only:
+        calls bought (call_buyer) -> bullish book (+excess)
+        puts bought  (put_buyer)  -> bearish book (-excess)
+        premium sold (put_seller / call_seller) -> its own book, graded on
+                     its lean (put sellers bullish, call sellers bearish)
+    Mixed / unknown prints have no classified side: counted, not graded.
+  • Price-basis guard (uoa_alpha._basis_ok) drops split / bad-print rows.
+  • Walk-forward by ISO week with a 5-session EMBARGO: a +5d outcome takes
+    5 sessions to resolve, so training rows flagged in the 5 sessions
+    before a test period are dropped (their outcomes overlap it).
+  • Every verdict string is built from the computed numbers, and says
+    ACCRUING when the sample can't decide yet. Nothing here auto-applies
+    to live ranking.
 
-Sample note: joins whatever per-signal outcomes data/uoa_alpha_cache.json
-retains (the maturation window); published n is always the honest join.
+Sections:
+  sample               n, span, sessions, unclassified / excluded counts
+  attribution          per-book EV split into flagged-universe drift
+                       (selection) and flow alpha, date-clustered 95% CIs
+  loser_model          categorical odds model for bottom-quintile outcomes
+  score2               empirical-Bayes cohort-EV score, weekly OOS IC
+  stability / psi      weekly per-book EV; feature-mix drift (PSI)
+  interactions         depth<=3 categorical interactions, review only
+  avoidance_candidate  the pre-registered puts-bought 22-60 DTE pocket
+  deployment           production status of every finding
 """
 
 from __future__ import annotations
 
 import json
+import math
 import os
+import random
 import sys
 from collections import defaultdict
 from datetime import UTC, datetime
 from itertools import combinations
 
+import uoa_alpha as ua
+
 _BASE = os.path.dirname(os.path.abspath(__file__))
-LEDGER = os.path.join(_BASE, "data", "uoa_signals.jsonl")
-CACHE = os.path.join(_BASE, "data", "uoa_alpha_cache.json")
 OUT = os.path.join(_BASE, "docs", "reports", "uoa_research.json")
+
+HORIZON = 5  # sessions; every EV here is the +5-session stock excess
+EMBARGO_SESSIONS = 5  # = HORIZON: training outcomes must resolve before test
+PREREG_DATE = "2026-07-21"  # avoidance-pocket hypothesis + gates frozen
 
 CFG = {
     "shrink_k": 200,  # EB shrinkage strength (per-feature EV)
     "disaster_q": 0.20,  # bottom quintile = "disaster" label
     "drop_frac": 0.20,  # loser model excludes worst 20% by odds
+    "min_train": 1000,  # walk-forward: rows needed to fit
+    "min_test": 100,  # walk-forward: rows needed to score a week
     "min_cohort_n": 400,  # interaction search gate
     "holdout_frac": 0.30,  # time-ordered holdout share
-    "kelly_div": 4.0,  # fractional-Kelly divisor
-    "size_cap": 2.0,  # max size multiple
+    "pass_week_share": 0.60,  # a model must help in >= 60% of OOS weeks
+}
+
+BOOK_ORDER = ("call_buy", "put_buy", "seller")
+BOOK_LABELS = {
+    "call_buy": "Calls bought (bullish)",
+    "put_buy": "Puts bought (bearish)",
+    "seller": "Premium sold (graded on its lean: put sellers bullish, call sellers bearish)",
 }
 
 
-# ── join ────────────────────────────────────────────────────────────────
+# ── small stats helpers ──────────────────────────────────────────────────
 
 
-def _prem_bucket(p):
-    p = p or 0
-    return "p<250K" if p < 250e3 else "p250K-1M" if p < 1e6 else "p1M-5M" if p < 5e6 else "p>5M"
+def _mean(v):
+    return sum(v) / len(v) if v else None
 
 
-def _dte_bucket(d):
-    if d is None:
-        return "dte?"
-    return "dte0-7" if d <= 7 else "dte8-21" if d <= 21 else "dte22-60" if d <= 60 else "dte>60"
-
-
-def load_rows():
-    """Returns (rows, spy5, capmap). spy5 = per-flag-date SPY +5d forward
-    return, recovered as median(ret - excess) across that date's graded
-    rows (identical by construction of the grading). capmap = best-known
-    cap bucket per ticker from the FULL ledger — used only for the
-    data-quality-ADJUSTED PSI (early-history 'unknown' caps were mostly
-    metadata-cache misses, resolvable retroactively)."""
-    try:
-        cache = json.load(open(CACHE, encoding="utf-8"))
-    except Exception:
-        return [], {}, {}
-    rows = []
-    spy_acc = {}
-    capmap = {}
-    with open(LEDGER, encoding="utf-8") as f:
-        for line in f:
-            try:
-                s = json.loads(line)
-            except Exception:
-                continue
-            cb = s.get("cap_bucket")
-            if cb and cb != "unknown" and s.get("ticker"):
-                capmap[s["ticker"]] = cb
-            c = cache.get(s.get("id"))
-            if not c:
-                continue
-            r5 = (c.get("returns") or {}).get("5")
-            if not r5 or r5.get("excess") is None:
-                continue
-            if r5.get("ret") is not None:
-                spy_acc.setdefault((s.get("flagged_at") or "")[:10], []).append(
-                    r5["ret"] - r5["excess"]
-                )
-            con = s.get("contract", "")
-            typ = s.get("type") or ("put" if len(con) > 9 and con[-9] == "P" else "call")
-            seller = s.get("flow_side") in ("put_seller", "call_seller")
-            side = "seller" if seller else typ + "_buy"
-            bull = (typ == "call") != seller
-            raw = r5["excess"]  # underlying excess (unsigned)
-            mae = (c.get("excursion") or {}).get("mae")
-            ed = s.get("earnings_days")
-            rows.append(
-                {
-                    "date": (s.get("flagged_at") or "")[:10],
-                    "ticker": s.get("ticker"),
-                    "raw": raw,
-                    "exc": raw if bull else -raw,  # direction-signed
-                    "bull": bull,
-                    "score": s.get("raw_score") or s.get("trade_score") or 0,
-                    "mae": abs(mae) if mae is not None else None,
-                    "dte": s.get("dte"),
-                    "sector": s.get("sector") or "?",
-                    "liq": s.get("liquidity") or "C",
-                    "ern": (ed is not None and 0 <= ed <= 7),
-                    "premium": s.get("premium") or 0,
-                    "f": [  # categorical features
-                        "side:" + side,
-                        _dte_bucket(s.get("dte")),
-                        "cap:" + (s.get("cap_bucket") or "unknown"),
-                        "liq:" + (s.get("liquidity") or "C"),
-                        _prem_bucket(s.get("premium")),
-                        "golden"
-                        if ("Sweep" in (s.get("tags") or []) and "Block" in (s.get("tags") or []))
-                        else "non_golden",
-                    ],
-                }
-            )
-    rows.sort(key=lambda r: r["date"])
-    spy5 = {}
-    for d, v in spy_acc.items():
-        sv = sorted(v)
-        spy5[d] = sv[len(sv) // 2]
-    return rows, spy5, capmap
+def _r(v, nd=3):
+    return round(v, nd) if v is not None else None
 
 
 def _week(d):
@@ -157,8 +92,41 @@ def _week(d):
     return "%d-W%02d" % (y, w)
 
 
-def _mean(v):
-    return sum(v) / len(v) if v else None
+def _clustered_ci(pairs):
+    """Date-clustered 95% CI of the mean of (date, value) pairs, or None.
+    Alerts on the same day share that day's market move, so they are not
+    independent trades (uoa_alpha._cluster_se, CR1)."""
+    if len(pairs) < 30:
+        return None
+    se = ua._cluster_se(pairs)
+    if not se:
+        return None
+    m = _mean([v for _, v in pairs])
+    return [round(m - 1.96 * se, 3), round(m + 1.96 * se, 3)]
+
+
+def _ci95(v):
+    """Trade-level (iid) 95% CI — kept for comparison only; it overstates
+    certainty because same-day alerts are correlated."""
+    n = len(v)
+    if n < 30:
+        return None
+    m = _mean(v)
+    var = sum((x - m) ** 2 for x in v) / (n - 1)
+    se = (var / n) ** 0.5
+    return [round(m - 1.96 * se, 3), round(m + 1.96 * se, 3)]
+
+
+def _spans_zero(ci):
+    return ci is None or (ci[0] <= 0 <= ci[1])
+
+
+def _fmt(v, nd=2):
+    return ("%+." + str(nd) + "f") % v if v is not None else "n/a"
+
+
+def _fmt_ci(ci):
+    return "[%+.2f, %+.2f]" % (ci[0], ci[1]) if ci else "n/a"
 
 
 def _spearman(a, b):
@@ -188,44 +156,257 @@ def _spearman(a, b):
     return round(num / (da * db), 4) if da and db else None
 
 
-# ── #2 matched-control attribution ─────────────────────────────────────
+# ── rows ─────────────────────────────────────────────────────────────────
 
 
-def attribution(rows):
-    """Universe drift control: per day, the mean +5d excess of UNIQUE
-    flagged underlyings (direction-free). flow_alpha per trade =
-    sign * (raw - drift): what direction-reading added beyond simply
-    holding that day's flagged universe long."""
-    by_day = defaultdict(dict)
-    for r in rows:
-        by_day[r["date"]].setdefault(r["ticker"], []).append(r["raw"])
-    drift = {d: _mean([_mean(v) for v in tk.values()]) for d, tk in by_day.items()}
-    out = {"universe_drift_ev": round(_mean(list(drift.values())), 3)}
-    for side_pred, name in (
-        (lambda r: r["bull"], "long_book"),
-        (lambda r: not r["bull"], "short_book"),
-    ):
-        sel = [r for r in rows if side_pred(r)]
-        if len(sel) < 30:
+def _prem_bucket(p):
+    p = p or 0
+    return "<250K" if p < 250e3 else "250K-1M" if p < 1e6 else "1M-5M" if p < 5e6 else ">5M"
+
+
+def _dte_bucket(d):
+    if d is None:
+        return "?"
+    return "0-7" if d <= 7 else "8-21" if d <= 21 else "22-60" if d <= 60 else ">60"
+
+
+def is_golden(s):
+    """A golden sweep. The scanner tags it "Golden Sweep" (and then does NOT
+    add the plain "Sweep" tag) and logs signal_type "golden_sweep"."""
+    return "Golden Sweep" in (s.get("tags") or []) or s.get("signal_type") == "golden_sweep"
+
+
+def features(book, s):
+    """Categorical features, every one known at scan time, as dim:value."""
+    return (
+        "side:" + book,
+        "dte:" + _dte_bucket(s.get("dte")),
+        "cap:" + (s.get("cap_bucket") or "unknown"),
+        "liq:" + (s.get("liquidity") or "C"),
+        "prem:" + _prem_bucket(s.get("premium")),
+        "golden:" + ("yes" if is_golden(s) else "no"),
+    )
+
+
+def _dim(f):
+    return f.split(":", 1)[0]
+
+
+def build_rows(scored):
+    """Graded research rows from compute_edge's every-ledger-row list.
+
+    Returns (rows, drift_rows, sample, spy, capmap):
+      rows        one per unique, matured, basis-ok alert with a CLASSIFIED
+                  aggressor side; `exc` is the +5d excess in the book's
+                  direction, `raw` the unsigned stock excess
+      drift_rows  every unique matured basis-ok alert (incl. unclassified)
+                  — the flagged universe whose drift is the control
+      sample      the counts behind the published n
+      spy         {1: {date: SPY 1-session return}, 5: {date: SPY 5-session
+                  return}} recovered as median(ret - excess) per flag date
+      capmap      best-known cap bucket per ticker (for the adjusted PSI)
+    """
+    capmap = {}
+    for s in scored:
+        cb = s.get("cap_bucket")
+        if cb and cb != "unknown" and s.get("ticker"):
+            capmap[s["ticker"]] = cb
+    alerts = ua.unique_alerts(scored)
+    rows, drift_rows = [], []
+    spy_acc = {1: defaultdict(list), 5: defaultdict(list)}
+    basis_excluded = unmatured = unclassified = 0
+    for s in alerts:
+        if not ua._basis_ok(s):
+            basis_excluded += 1
             continue
-        dir_ev = _mean([r["exc"] for r in sel])
-        alpha = _mean([(r["raw"] - drift[r["date"]]) * (1 if r["bull"] else -1) for r in sel])
-        out[name] = {
+        rets = s.get("returns") or {}
+        r5 = rets.get(HORIZON) or rets.get(str(HORIZON)) or {}
+        raw = r5.get("excess")
+        if raw is None:
+            unmatured += 1
+            continue
+        date = ua._et_date(s.get("flagged_at"))
+        for h in (1, 5):
+            rh = rets.get(h) or rets.get(str(h)) or {}
+            if rh.get("ret") is not None and rh.get("excess") is not None:
+                spy_acc[h][date].append(rh["ret"] - rh["excess"])
+        drift_rows.append({"date": date, "ticker": s.get("ticker"), "raw": raw})
+        book = ua._BOOKS.get(s.get("flow_side") or "")
+        if book is None:
+            unclassified += 1
+            continue
+        name, sign = book
+        tags = s.get("tags") or []
+        score = s.get("raw_score")
+        rows.append(
+            {
+                "date": date,
+                "week": _week(date),
+                "at": s.get("flagged_at") or "",
+                "ticker": s.get("ticker"),
+                "book": name,
+                "side": s.get("flow_side"),
+                "sign": sign,
+                "raw": raw,
+                "exc": sign * raw,
+                "score": score if score is not None else (s.get("trade_score") or 0),
+                "dte": s.get("dte"),
+                "sector": s.get("sector") or "?",
+                "liq": s.get("liquidity") or "C",
+                "ern": "Into ERN" in tags,
+                "premium": s.get("premium") or 0,
+                "f": features(name, s),
+            }
+        )
+    rows.sort(key=lambda r: (r["date"], r["at"]))
+    spy = {h: {d: sorted(v)[len(v) // 2] for d, v in acc.items()} for h, acc in spy_acc.items()}
+    by_book = defaultdict(int)
+    for r in rows:
+        by_book[r["book"]] += 1
+    dates = sorted({r["date"] for r in rows})
+    sample = {
+        "ledger_rows": len(scored),
+        "alerts": len(alerts),
+        "graded": len(rows),
+        "by_book": dict(by_book),
+        "unclassified": unclassified,
+        "basis_excluded": basis_excluded,
+        "unmatured": unmatured,
+        "span": [dates[0], dates[-1]] if dates else None,
+        "sessions": len(dates),
+        "weeks": len({_week(d) for d in dates}),
+    }
+    return rows, drift_rows, sample, spy, capmap
+
+
+# ── time splits (with embargo) ───────────────────────────────────────────
+
+
+def walk_forward(rows, min_prior_weeks=2):
+    """Yield (week, train, test) per ISO week. Training uses only rows
+    flagged at least EMBARGO_SESSIONS sessions before the test week's first
+    session: a row flagged later has a +5d outcome that resolves inside the
+    test week, so it would leak the test period's market move."""
+    sessions = sorted({r["date"] for r in rows})
+    pos = {d: i for i, d in enumerate(sessions)}
+    byw = defaultdict(list)
+    for r in rows:
+        byw[r["week"]].append(r)
+    weeks = sorted(byw)
+    for i in range(min_prior_weeks, len(weeks)):
+        test = byw[weeks[i]]
+        k = pos[min(r["date"] for r in test)] - EMBARGO_SESSIONS
+        if k < 1:
+            continue
+        cutoff = sessions[k]
+        yield weeks[i], [r for r in rows if r["date"] < cutoff], test
+
+
+def embargo_split(items, holdout_frac, date_of=lambda r: r["date"]):
+    """Time-ordered (dev, holdout) split at a session boundary, with the
+    EMBARGO_SESSIONS sessions before the holdout dropped from dev. `items`
+    must be sorted by date. Returns (dev, holdout, embargoed_n)."""
+    if not items:
+        return [], [], 0
+    sessions = sorted({date_of(r) for r in items})
+    cut_date = date_of(items[min(len(items) - 1, int(len(items) * (1 - holdout_frac)))])
+    k = sessions.index(cut_date) - EMBARGO_SESSIONS
+    dev_end = sessions[k] if k >= 1 else None
+    hold = [r for r in items if date_of(r) >= cut_date]
+    dev = [r for r in items if dev_end is not None and date_of(r) < dev_end]
+    return dev, hold, len(items) - len(dev) - len(hold)
+
+
+# ── attribution ──────────────────────────────────────────────────────────
+
+
+def universe_drift(drift_rows):
+    """Per flag date, the mean +5d excess of the UNIQUE flagged underlyings
+    (each ticker's alerts averaged first), direction-free."""
+    by_day = defaultdict(lambda: defaultdict(list))
+    for r in drift_rows:
+        by_day[r["date"]][r["ticker"]].append(r["raw"])
+    return {d: _mean([_mean(v) for v in tk.values()]) for d, tk in by_day.items()}
+
+
+def _book_verdict(alpha, ci):
+    if alpha is None:
+        return "accruing"
+    if _spans_zero(ci):
+        return "flow alpha %s%% is not distinguishable from zero (95%% CI %s)" % (
+            _fmt(alpha),
+            _fmt_ci(ci),
+        )
+    if alpha > 0:
+        return (
+            "following this flow's direction added %s%% beyond the day's flagged-universe drift (95%% CI %s)"
+            % (
+                _fmt(alpha),
+                _fmt_ci(ci),
+            )
+        )
+    return (
+        "following this flow's direction lost %s%% vs the day's flagged-universe drift (95%% CI %s)"
+        % (
+            _fmt(alpha),
+            _fmt_ci(ci),
+        )
+    )
+
+
+def attribution(rows, drift_rows):
+    """Split each book's direction-signed EV into the flagged universe's own
+    drift that day (selection) and what reading the flow's direction added
+    beyond it (flow alpha)."""
+    drift = universe_drift(drift_rows)
+    out = {
+        "universe_drift_ev": _r(_mean(list(drift.values()))),
+        "drift_days": len(drift),
+        "books": {},
+    }
+    for book in BOOK_ORDER:
+        sel = [r for r in rows if r["book"] == book]
+        sides = defaultdict(int)
+        for r in sel:
+            sides[r["side"]] += 1
+        if len(sel) < 30:
+            out["books"][book] = {
+                "status": "accruing",
+                "label": BOOK_LABELS[book],
+                "n": len(sel),
+                "sides": dict(sides),
+            }
+            continue
+        dir_pairs = [(r["date"], r["exc"]) for r in sel]
+        alpha_pairs = [(r["date"], r["sign"] * (r["raw"] - drift[r["date"]])) for r in sel]
+        dir_ev = _mean([v for _, v in dir_pairs])
+        alpha = _mean([v for _, v in alpha_pairs])
+        alpha_ci = _clustered_ci(alpha_pairs)
+        out["books"][book] = {
+            "status": "active",
+            "label": BOOK_LABELS[book],
             "n": len(sel),
-            "dir_ev": round(dir_ev, 3),
-            "flow_alpha": round(alpha, 3),
-            "selection_component": round(dir_ev - alpha, 3),
+            "days": len({r["date"] for r in sel}),
+            "sides": dict(sides),
+            "hit": round(100 * sum(1 for r in sel if r["exc"] > 0) / len(sel), 1),
+            "dir_ev": _r(dir_ev),
+            "dir_ev_ci95": _clustered_ci(dir_pairs),
+            "flow_alpha": _r(alpha),
+            "flow_alpha_ci95": alpha_ci,
+            "selection_component": _r(dir_ev - alpha),
+            "verdict": _book_verdict(alpha, alpha_ci),
         }
     out["note"] = (
-        "flow_alpha = EV net of the flagged-universe's own "
-        "drift that day. selection_component = what you'd "
-        "have earned from the universe drift alone with the "
-        "book's direction mix."
+        "Direction-signed +5-session stock excess vs SPY, one row per alert. "
+        "flow_alpha = each alert's return net of that day's flagged-universe "
+        "drift (mean excess of the unique flagged underlyings), signed in the "
+        "book's direction. selection_component = dir_ev - flow_alpha. CIs "
+        "are clustered by flag date."
     )
     return out
 
 
-# ── #4 walk-forward loser model ────────────────────────────────────────
+# ── loser model (walk-forward) ───────────────────────────────────────────
 
 
 def _odds_model(train):
@@ -251,30 +432,39 @@ def _odds_model(train):
     return score
 
 
+def loser_decision(lm):
+    """Plain verdict for the loser model, from its own numbers."""
+    if lm.get("status") != "active":
+        return "ACCRUING — %s" % lm.get("needs", "not enough walk-forward weeks yet")
+    k, n = lm["weeks_improved"], lm["weeks_total"]
+    base, kept = lm["ev_base"], lm["ev_after_exclusion"]
+    facts = (
+        "improved %d/%d OOS weeks; pooled EV %s%% -> %s%% after excluding the predicted worst %d%%"
+        % (
+            k,
+            n,
+            _fmt(base),
+            _fmt(kept),
+            int(CFG["drop_frac"] * 100),
+        )
+    )
+    if kept > base and k >= CFG["pass_week_share"] * n:
+        return "CANDIDATE — " + facts + "; review only, not applied"
+    return "REJECTED — " + facts + "; never applied"
+
+
 def loser_model(rows):
-    weeks = sorted({_week(r["date"]) for r in rows})
-    if len(weeks) < 3:
-        return {
-            "status": "accruing",
-            "weeks": len(weeks),
-            "needs": "3+ ISO weeks of matured outcomes",
-        }
-    byw = defaultdict(list)
-    for r in rows:
-        byw[_week(r["date"])].append(r)
-    base_all, kept_all, per_week = [], [], []
-    for i in range(2, len(weeks)):
-        train = [r for w in weeks[:i] for r in byw[w]]
-        test = byw[weeks[i]]
-        if len(train) < 1000 or len(test) < 100:
+    per_week, base_all, kept_all = [], [], []
+    for week, train, test in walk_forward(rows):
+        if len(train) < CFG["min_train"] or len(test) < CFG["min_test"]:
             continue
         sc = _odds_model(train)
-        ranked = sorted(test, key=lambda r: sc(r), reverse=True)
-        drop_n = int(len(ranked) * CFG["drop_frac"])
-        kept = ranked[drop_n:]
+        ranked = sorted(test, key=sc, reverse=True)
+        kept = ranked[int(len(ranked) * CFG["drop_frac"]) :]
         per_week.append(
             {
-                "week": weeks[i],
+                "week": week,
+                "n_train": len(train),
                 "n": len(test),
                 "ev_base": round(_mean([r["exc"] for r in test]), 3),
                 "ev_kept": round(_mean([r["exc"] for r in kept]), 3),
@@ -283,24 +473,34 @@ def loser_model(rows):
         base_all += [r["exc"] for r in test]
         kept_all += [r["exc"] for r in kept]
     if not per_week:
-        return {"status": "accruing", "weeks": len(weeks)}
-    return {
-        "status": "active",
-        "oos_weeks": per_week,
-        "ev_base": round(_mean(base_all), 3),
-        "ev_after_exclusion": round(_mean(kept_all), 3),
-        "kept_frac": round(1 - CFG["drop_frac"], 2),
-        "weeks_improved": sum(1 for w in per_week if w["ev_kept"] > w["ev_base"]),
-        "weeks_total": len(per_week),
-        "note": (
-            "Categorical odds model trained on prior weeks only; "
-            "excludes the predicted-worst " + str(int(CFG["drop_frac"] * 100)) + "% each OOS week. "
-            "Review-only until it clears more regimes."
-        ),
-    }
+        out = {
+            "status": "accruing",
+            "weeks": len({r["week"] for r in rows}),
+            "needs": "3+ ISO weeks with %d+ training rows (after the %d-session embargo) and %d+ test rows"
+            % (CFG["min_train"], EMBARGO_SESSIONS, CFG["min_test"]),
+        }
+    else:
+        out = {
+            "status": "active",
+            "oos_weeks": per_week,
+            "ev_base": round(_mean(base_all), 3),
+            "ev_after_exclusion": round(_mean(kept_all), 3),
+            "kept_frac": round(1 - CFG["drop_frac"], 2),
+            "weeks_improved": sum(1 for w in per_week if w["ev_kept"] > w["ev_base"]),
+            "weeks_total": len(per_week),
+            "pass_rule": "pooled EV after exclusion > baseline AND improved in >= %d%% of OOS weeks"
+            % int(CFG["pass_week_share"] * 100),
+            "note": (
+                "Categorical odds model trained on prior weeks only (%d-session "
+                "embargo before each test week); excludes the predicted-worst %d%% "
+                "of each OOS week." % (EMBARGO_SESSIONS, int(CFG["drop_frac"] * 100))
+            ),
+        }
+    out["decision"] = loser_decision(out)
+    return out
 
 
-# ── #5 empirical-Bayes score2 + OOS IC comparison ──────────────────────
+# ── empirical-Bayes score2 + OOS IC comparison ───────────────────────────
 
 
 def _eb_deltas(train):
@@ -313,119 +513,112 @@ def _eb_deltas(train):
     return {f: (len(v) / (len(v) + K)) * (_mean(v) - ev_all) for f, v in by_f.items()}, ev_all
 
 
+def score2_decision(s2):
+    if s2.get("status") != "active":
+        return "ACCRUING — not enough walk-forward weeks with a measurable IC yet"
+    ics = [w["ic_score2"] for w in s2["weekly"]]
+    pos = sum(1 for v in ics if v > 0)
+    avg, old = s2["avg_ic_score2"], s2["avg_ic_ledger_score"]
+    facts = "avg OOS IC %+.3f, positive in %d/%d weeks, vs %s for the ledger score" % (
+        avg,
+        pos,
+        len(ics),
+        "%+.3f" % old if old is not None else "n/a",
+    )
+    if avg > 0 and pos >= CFG["pass_week_share"] * len(ics) and (old is None or avg > old):
+        return "CANDIDATE — " + facts + "; not applied to live ranking"
+    return "REJECTED for ranking — " + facts
+
+
 def score2_eval(rows):
-    weeks = sorted({_week(r["date"]) for r in rows})
-    byw = defaultdict(list)
-    for r in rows:
-        byw[_week(r["date"])].append(r)
-    ics, ics_old = [], []
-    for i in range(2, len(weeks)):
-        train = [r for w in weeks[:i] for r in byw[w]]
-        test = byw[weeks[i]]
-        if len(train) < 1000 or len(test) < 100:
+    ics = []
+    for week, train, test in walk_forward(rows):
+        if len(train) < CFG["min_train"] or len(test) < CFG["min_test"]:
             continue
         deltas, _ = _eb_deltas(train)
         s2 = [sum(deltas.get(f, 0.0) for f in r["f"]) for r in test]
         y = [r["exc"] for r in test]
         ic = _spearman(s2, y)
-        ic_old = _spearman([r["score"] for r in test], y)
         if ic is not None:
-            ics.append({"week": weeks[i], "ic_score2": ic, "ic_ledger_score": ic_old})
-            ics_old.append(ic_old)
+            ics.append(
+                {
+                    "week": week,
+                    "n": len(test),
+                    "ic_score2": ic,
+                    "ic_ledger_score": _spearman([r["score"] for r in test], y),
+                }
+            )
     if not ics:
-        return {"status": "accruing"}
-    return {
-        "status": "active",
-        "weekly": ics,
-        "avg_ic_score2": round(_mean([w["ic_score2"] for w in ics]), 4),
-        "avg_ic_ledger_score": round(
-            _mean([w["ic_ledger_score"] for w in ics if w["ic_ledger_score"] is not None]), 4
-        ),
-        "note": (
-            "score2 = shrunken sum of per-feature EV deltas "
-            "(K=" + str(CFG["shrink_k"]) + "), trained on prior "
-            "weeks only. Not yet applied to live ranking."
-        ),
-    }
+        out = {"status": "accruing"}
+    else:
+        old = [w["ic_ledger_score"] for w in ics if w["ic_ledger_score"] is not None]
+        out = {
+            "status": "active",
+            "weekly": ics,
+            "avg_ic_score2": round(_mean([w["ic_score2"] for w in ics]), 4),
+            "avg_ic_ledger_score": round(_mean(old), 4) if old else None,
+            "pass_rule": "avg OOS IC > 0, positive in >= %d%% of weeks, and above the ledger score's"
+            % int(CFG["pass_week_share"] * 100),
+            "note": (
+                "score2 = shrunken sum of per-feature EV deltas (K=%d), trained on "
+                "prior weeks only with a %d-session embargo." % (CFG["shrink_k"], EMBARGO_SESSIONS)
+            ),
+        }
+    out["decision"] = score2_decision(out)
+    return out
 
 
-# ── #6 sizing table ────────────────────────────────────────────────────
+# ── stability + PSI ──────────────────────────────────────────────────────
 
 
-def sizing(rows):
-    """EV-weighted size hints by score2 quintile on the full sample
-    (descriptive, not OOS — sizing consumes the OOS-validated score).
-    size = clamp(EV / (MAE vol proxy) / kelly_div, 0, cap)."""
-    deltas, _ = _eb_deltas(rows)
-    scored = sorted(rows, key=lambda r: sum(deltas.get(f, 0.0) for f in r["f"]))
-    n = len(scored)
-    if n < 500:
-        return {"status": "accruing"}
-    out = []
-    for q in range(5):
-        seg = scored[int(n * q / 5) : int(n * (q + 1) / 5)]
-        ev = _mean([r["exc"] for r in seg])
-        vol = _mean([r["mae"] for r in seg if r["mae"] is not None]) or 5.0
-        size = max(0.0, min(CFG["size_cap"], (ev / vol) * 10 / CFG["kelly_div"]))
-        out.append(
+def _psi(recent, prior, feats=lambda r: r["f"]):
+    """(total, per-feature contributions) population stability index."""
+    fr, fp = defaultdict(int), defaultdict(int)
+    for r in recent:
+        for f in feats(r):
+            fr[f] += 1
+    for r in prior:
+        for f in feats(r):
+            fp[f] += 1
+    total, parts = 0.0, []
+    for f in sorted(set(fr) | set(fp)):
+        a = max(fr[f] / len(recent), 1e-4)
+        b = max(fp[f] / len(prior), 1e-4)
+        c = (a - b) * math.log(a / b)
+        total += c
+        parts.append(
             {
-                "quintile": q + 1,
-                "n": len(seg),
-                "ev": round(ev, 3),
-                "mae_vol": round(vol, 2),
-                "size_x": round(size, 2),
+                "feature": f,
+                "psi": round(c, 4),
+                "share_recent": round(a, 3),
+                "share_prior": round(b, 3),
             }
         )
-    return {
-        "status": "active",
-        "by_quintile": out,
-        "note": (
-            "Fractional-Kelly-style: size ∝ EV / MAE-vol / "
-            + str(CFG["kelly_div"])
-            + ", capped at "
-            + str(CFG["size_cap"])
-            + "x. Quintile 1 (worst) "
-            "sizes to 0 — exclusion via sizing, not deletion."
-        ),
-    }
+    return total, parts
 
 
-# ── #7 stability harness ───────────────────────────────────────────────
+def _recent_prior(rows):
+    weeks = sorted({r["week"] for r in rows})
+    last2 = set(weeks[-2:])
+    return [r for r in rows if r["week"] in last2], [r for r in rows if r["week"] not in last2]
 
 
 def stability(rows):
-    weeks = sorted({_week(r["date"]) for r in rows})
     byw = defaultdict(list)
     for r in rows:
-        byw[_week(r["date"])].append(r)
+        byw[r["week"]].append(r)
     side_ev = []
-    for w in weeks:
+    for w in sorted(byw):
         e = {"week": w, "n": len(byw[w])}
-        for side in ("side:call_buy", "side:put_buy", "side:seller"):
-            v = [r["exc"] for r in byw[w] if side in r["f"]]
+        for book in BOOK_ORDER:
+            v = [r["exc"] for r in byw[w] if r["book"] == book]
             if len(v) >= 30:
-                e[side.split(":")[1]] = round(_mean(v), 2)
+                e[book] = round(_mean(v), 2)
         side_ev.append(e)
-    # PSI: last 2 weeks feature mix vs prior
-    recent = [r for r in rows if _week(r["date"]) in weeks[-2:]]
-    prior = [r for r in rows if _week(r["date"]) not in weeks[-2:]]
+    recent, prior = _recent_prior(rows)
     psi = None
     if len(recent) > 500 and len(prior) > 500:
-        import math
-
-        fr, fp = defaultdict(int), defaultdict(int)
-        for r in recent:
-            for f in r["f"]:
-                fr[f] += 1
-        for r in prior:
-            for f in r["f"]:
-                fp[f] += 1
-        psi = 0.0
-        for f in set(list(fr) + list(fp)):
-            a = max(fr[f] / len(recent), 1e-4)
-            b = max(fp[f] / len(prior), 1e-4)
-            psi += (a - b) * math.log(a / b)
-        psi = round(psi, 4)
+        psi = round(_psi(recent, prior)[0], 4)
     return {
         "weekly_side_ev": side_ev,
         "psi_last2w_vs_prior": psi,
@@ -433,45 +626,83 @@ def stability(rows):
     }
 
 
-# ── #8 guarded interaction search (depth <=3) ─────────────────────────
+def psi_detail(rows, capmap=None):
+    """Per-feature PSI contributions + the deployment gate. Publishes raw PSI
+    and a data-quality-ADJUSTED PSI (unknown caps remapped to the ticker's
+    later-known cap, since early-history 'unknown' caps were metadata-cache
+    misses). The gate keys on the raw number."""
+    recent, prior = _recent_prior(rows)
+    if len(recent) < 500 or len(prior) < 500:
+        return {"status": "accruing", "promotion_blocked": False}
+    total, contribs = _psi(recent, prior)
+    contribs.sort(key=lambda x: -x["psi"])
+    adj_total = None
+    if capmap:
+
+        def fixed(r):
+            return [
+                ("cap:" + capmap.get(r["ticker"], "unknown")) if f == "cap:unknown" else f
+                for f in r["f"]
+            ]
+
+        adj_total = round(_psi(recent, prior, fixed)[0], 4)
+    return {
+        "status": "active",
+        "psi_total": round(total, 4),
+        "psi_adjusted": adj_total,
+        "promotion_blocked": total >= 0.25,
+        "gate": "PSI >= 0.25 BLOCKS automatic challenger promotion (deployment gate, not just an alarm)",
+        "top_contributors": contribs[:6],
+        "ev_before_drift": round(_mean([r["exc"] for r in prior]), 3),
+        "ev_after_drift": round(_mean([r["exc"] for r in recent]), 3),
+    }
+
+
+# ── guarded interaction search (depth <= 3) ──────────────────────────────
 
 
 def interactions(rows):
     n = len(rows)
     if n < 5000:
-        return {"status": "accruing", "n": n}
-    cut = int(n * (1 - CFG["holdout_frac"]))
-    dev, hold = rows[:cut], rows[cut:]
+        return {"status": "accruing", "n": n, "tested": 0, "survivors": []}
+    dev, hold, embargoed = embargo_split(rows, CFG["holdout_frac"])
+    if len(dev) < 1000 or len(hold) < 500:
+        return {"status": "accruing", "n": n, "tested": 0, "survivors": []}
     ev_dev = _mean([r["exc"] for r in dev])
-    # candidate features present
-    feats = sorted({f for r in dev for f in r["f"]})
+    ev_hold = _mean([r["exc"] for r in hold])
+    # feature -> row indices, so a combo's cohort is a set intersection
+    idx_dev, idx_hold = defaultdict(set), defaultdict(set)
+    for i, r in enumerate(dev):
+        for f in r["f"]:
+            idx_dev[f].add(i)
+    for i, r in enumerate(hold):
+        for f in r["f"]:
+            idx_hold[f].add(i)
+    feats = sorted(idx_dev)
     survivors, tested = [], 0
     for depth in (2, 3):
         for combo in combinations(feats, depth):
-            # skip same-dimension combos (side:x + side:y can't co-occur)
-            dims = [c.split(":")[0] if ":" in c else c[:3] for c in combo]
-            if len(set(dims)) != depth:
-                continue
-            sel = [r for r in dev if all(c in r["f"] for c in combo)]
-            if len(sel) < CFG["min_cohort_n"]:
+            if len({_dim(c) for c in combo}) != depth:
+                continue  # side:x + side:y can't co-occur
+            sel_i = set.intersection(*(idx_dev[c] for c in combo))
+            if len(sel_i) < CFG["min_cohort_n"]:
                 continue
             tested += 1
-            ev = _mean([r["exc"] for r in sel])
+            sel = [dev[i]["exc"] for i in sorted(sel_i)]  # time order
+            ev = _mean(sel)
             lift = ev - ev_dev
             if abs(lift) < 0.5:
                 continue
-            # gate 1: split-half sign agreement
+            # gate 1: split-half (by time) sign agreement
             h = len(sel) // 2
-            a, b = _mean([r["exc"] for r in sel[:h]]), _mean([r["exc"] for r in sel[h:]])
+            a, b = _mean(sel[:h]), _mean(sel[h:])
             if a is None or b is None or (a - ev_dev) * (b - ev_dev) <= 0:
                 continue
-            # gate 2: time-ordered holdout same sign, meaningful size
-            hsel = [r["exc"] for r in hold if all(c in r["f"] for c in combo)]
+            # gate 2: embargoed time-ordered holdout, same sign, >= 0.3pp
+            hsel = [hold[i]["exc"] for i in set.intersection(*(idx_hold[c] for c in combo))]
             if len(hsel) < 100:
                 continue
-            hev = _mean(hsel)
-            ev_hold = _mean([r["exc"] for r in hold])
-            hlift = hev - ev_hold
+            hlift = _mean(hsel) - ev_hold
             if hlift * lift <= 0 or abs(hlift) < 0.3:
                 continue
             survivors.append(
@@ -488,259 +719,321 @@ def interactions(rows):
     return {
         "status": "active",
         "tested": tested,
+        "n_dev": len(dev),
+        "n_holdout": len(hold),
+        "embargoed": embargoed,
+        "survivors_total": len(survivors),
         "survivors": survivors[:12],
         "note": (
-            "Depth<=3 categorical interactions, n>="
-            + str(CFG["min_cohort_n"])
-            + ", gates: split-half "
-            "sign agreement + time-ordered holdout same-sign "
-            ">=0.3pp. With " + str(tested) + " tested, some "
-            "survivors will be luck — review candidates only, "
-            "nothing auto-applies."
+            "Depth<=3 categorical interactions with n>=%d in the development "
+            "slice; gates: split-half sign agreement + same-sign lift >=0.3pp "
+            "in the last %d%% of sessions (held out after a %d-session gap). "
+            "With %d combinations tested, some survivors will be luck — review "
+            "candidates only, nothing auto-applies."
+            % (CFG["min_cohort_n"], int(CFG["holdout_frac"] * 100), EMBARGO_SESSIONS, tested)
         ),
     }
 
 
-def _ci95(v):
-    n = len(v)
-    if n < 30:
-        return None
-    m = _mean(v)
-    var = sum((x - m) ** 2 for x in v) / (n - 1)
-    se = (var / n) ** 0.5
-    return [round(m - 1.96 * se, 3), round(m + 1.96 * se, 3)]
+# ── pre-registered avoidance pocket: puts bought, 22-60 DTE ──────────────
 
 
-def _cluster_ci(items, keyfn):
-    """Cluster-robust CI of the mean via equal-weight cluster means."""
-    G = defaultdict(list)
-    for r in items:
-        G[keyfn(r)].append(r["exc"])
-    means = [_mean(v) for v in G.values()]
-    g = len(means)
-    if g < 5:
-        return None
-    cm = _mean(means)
-    var = sum((x - cm) ** 2 for x in means) / (g - 1)
-    se = (var / g) ** 0.5
-    return {
-        "clusters": g,
-        "ev": round(cm, 3),
-        "ci95": [round(cm - 1.96 * se, 3), round(cm + 1.96 * se, 3)],
-    }
+def _in_pocket(r, lo=22, hi=60):
+    return r["book"] == "put_buy" and r["dte"] is not None and lo <= r["dte"] <= hi
 
 
-def hedge_utility(sel, rows, spy5):
-    """Hedge-utility audit (2026-07-21): is the pocket poor alpha,
-    insurance, or both? Dependence-aware CIs (same-day and overlapping
-    5d windows are NOT independent), conditional EV on recovered SPY
-    forward returns, and portfolio variants. LIMITATION carried in the
-    payload: the sample contains essentially ONE adverse market episode
-    — every insurance estimate is a single-event read."""
-    import random
+def adverse_episodes(spy1):
+    """Adverse-market episodes in the sample, hedge_monitor's frozen
+    definition: a session whose SPY close-to-close return is <= -1.0%;
+    adverse sessions within 2 sessions of each other are ONE episode.
+    spy1 maps a flag date to SPY's return over the next session."""
+    sessions = sorted(spy1)
+    day_ret = {sessions[j + 1]: spy1[sessions[j]] for j in range(len(sessions) - 1)}
+    pos = {d: i for i, d in enumerate(sessions)}
+    episodes = []
+    for d in sorted(day_ret):
+        if day_ret[d] > -1.0:
+            continue
+        if episodes and pos[d] - pos[episodes[-1][-1]] <= 2:
+            episodes[-1].append(d)
+        else:
+            episodes.append([d])
+    return episodes
 
-    random.seed(42)
+
+def hedge_utility(sel, rows, spy5, spy1):
+    """Is the pocket poor alpha, insurance, or both? Dependence-aware CIs,
+    EV conditional on SPY's own +5d move, payoff per unit of carry, and
+    daily-portfolio variants."""
+    rnd = random.Random(42)
     out = {}
-    # 1. dependence-aware uncertainty
     out["uncertainty"] = {
         "trade_level_ci95": _ci95([r["exc"] for r in sel]),
-        "clustered_by_date": _cluster_ci(sel, lambda r: r["date"]),
-        "clustered_by_ticker_date": _cluster_ci(sel, lambda r: (r["ticker"], r["date"])),
+        "clustered_by_date": _clustered_ci([(r["date"], r["exc"]) for r in sel]),
+        "clustered_by_ticker_date": _clustered_ci(
+            [((r["ticker"], r["date"]), r["exc"]) for r in sel]
+        ),
     }
     byw = defaultdict(list)
     for r in sel:
-        byw[_week(r["date"])].append(r["exc"])
+        byw[r["week"]].append(r["exc"])
     weeks = list(byw.values())
     if len(weeks) >= 4:
         boots = []
         for _ in range(2000):
-            samp = [weeks[random.randrange(len(weeks))] for _ in range(len(weeks))]
+            samp = [weeks[rnd.randrange(len(weeks))] for _ in range(len(weeks))]
             boots.append(_mean([x for w in samp for x in w]))
         boots.sort()
         out["uncertainty"]["week_block_bootstrap"] = {
             "weeks": len(weeks),
-            "ev": round(_mean(boots), 3),
             "ci95": [
                 round(boots[int(0.025 * len(boots))], 3),
                 round(boots[int(0.975 * len(boots))], 3),
             ],
         }
-    # 2. conditional on SPY forward
-    _sel_ids = {id(r) for r in sel}
-    rest = [r for r in rows if id(r) not in _sel_ids]
+    pocket_ids = {id(r) for r in sel}
+    rest = [r for r in rows if id(r) not in pocket_ids]
 
     def cond(pred):
         v = [r["exc"] for r in sel if r["date"] in spy5 and pred(spy5[r["date"]])]
         b = [r["exc"] for r in rest if r["date"] in spy5 and pred(spy5[r["date"]])]
         if len(v) < 30:
-            return None
+            return {"n": len(v), "status": "accruing"}
         return {
             "n": len(v),
+            "days": len({r["date"] for r in sel if r["date"] in spy5 and pred(spy5[r["date"]])}),
             "pocket_ev": round(_mean(v), 3),
             "rest_ev": round(_mean(b), 3) if len(b) >= 30 else None,
         }
 
+    up, down = cond(lambda s: s >= 0), cond(lambda s: s < 0)
+    episodes = adverse_episodes(spy1)
     out["conditional"] = {
-        "spy5_positive": cond(lambda s: s > 0),
-        "spy5_negative": cond(lambda s: s < 0),
-        "spy5_dd_le_-2": cond(lambda s: s <= -2),
-        "adverse_episodes_in_sample": len({_week(d) for d, s in spy5.items() if s < 0}),
+        "spy5_up_or_flat": up,
+        "spy5_down": down,
+        "spy5_down_2pct_plus": cond(lambda s: s <= -2),
     }
+    out["adverse_episodes"] = {
+        "count": len(episodes),
+        "first_sessions": [ep[0] for ep in episodes],
+        "definition": "SPY session return <= -1.0%; adverse sessions within 2 sessions of each other are one episode",
+    }
+    carry, payoff = up.get("pocket_ev"), down.get("pocket_ev")
+    out["carry_ev"] = carry
+    out["payoff_ev"] = payoff
+    # payoff per unit of carry only means something when the pocket COSTS
+    # money in up/flat markets and PAYS in down markets
+    out["payoff_per_unit_carry"] = (
+        round(payoff / -carry, 2)
+        if carry is not None and payoff is not None and carry < 0 and payoff > 0
+        else None
+    )
 
-    # 3. portfolio variants (daily equal-weight, overlapping 5d units)
     def variant(wfn):
         D = defaultdict(list)
         for r in rows:
             D[r["date"]].append(r["exc"] * wfn(r))
         ser = [_mean(v) for _, v in sorted(D.items())]
+        if len(ser) < 2:
+            return None
         mu = _mean(ser)
         sd = (sum((x - mu) ** 2 for x in ser) / (len(ser) - 1)) ** 0.5
-        cvar = _mean(sorted(ser)[: max(1, len(ser) // 20)])
         return {
-            "total_units": round(sum(ser), 1),
-            "sharpe_daily": round(mu / sd, 3),
-            "cvar5_daily": round(cvar, 2),
+            "avg_daily_ev": round(mu, 3),
+            "sharpe_daily": round(mu / sd, 3) if sd else None,
+            "cvar5_daily": round(_mean(sorted(ser)[: max(1, len(ser) // 20)]), 2),
         }
 
-    pocket_ids = {id(r) for r in sel}
     out["portfolio_variants"] = {
         "pocket_1.0x": variant(lambda r: 1.0),
         "pocket_excluded": variant(lambda r: 0.0 if id(r) in pocket_ids else 1.0),
         "pocket_0.2x": variant(lambda r: 0.2 if id(r) in pocket_ids else 1.0),
     }
-    adverse = [r["exc"] for r in sel if spy5.get(r["date"], 0) < 0]
-    carry = [r["exc"] for r in sel if spy5.get(r["date"], 0) >= 0]
-    if adverse and carry and _mean(carry):
-        out["payoff_per_unit_carry"] = round(abs(_mean(adverse) / _mean(carry)), 2)
     out["premium_observed_musd"] = round(sum(r.get("premium") or 0 for r in sel) / 1e6)
-    out["limitation"] = (
-        "effectively one adverse market episode in "
-        "sample; insurance value is a single-event "
-        "estimate, not a distribution"
-    )
     return out
 
 
-def avoidance_candidate(rows, spy5=None):
-    """Formal report for the medium-dated put-buy pocket. STATUS:
-    VERIFIED HISTORICAL AVOIDANCE CANDIDATE — historical evidence only;
-    NOT yet prospectively confirmed. Preregistered confirmation window:
-    4 unseen ISO weeks after 2026-07-21 with pocket EV < 0 and 95% CI
-    excluding 0; only then may it be promoted to an avoidance rule.
-    Note on costs: EV is measured on the UNDERLYING's excess move, so
-    option spread/slippage does not enter the metric itself; the
-    net-of-costs rows model the additional round-trip haircut a trader
-    executing via the OPTIONS would pay (assumption-labeled)."""
-    sel = [
-        r
-        for r in rows
-        if r.get("dte") is not None and 22 <= r["dte"] <= 60 and "side:put_buy" in r["f"]
-    ]
+def confirmation_window(sel, spy5):
+    """The pre-registered alpha gates, evaluated on pocket alerts flagged
+    AFTER PREREG_DATE (unseen when the hypothesis was frozen)."""
+    win = [r for r in sel if r["date"] > PREREG_DATE]
+    pairs = [(r["date"], r["exc"]) for r in win]
+    ci = _clustered_ci(pairs)
+    ev = _mean([r["exc"] for r in win])
+    dates = {r["date"] for r in win}
+    adverse = sorted(d for d in dates if spy5.get(d) is not None and spy5[d] <= -1.0)
+    gates = {
+        "weeks_ge_4": len({r["week"] for r in win}) >= 4,
+        "dates_ge_15": len(dates) >= 15,
+        "adverse_period": bool(adverse),
+        "clustered_ci_excludes_0": not _spans_zero(ci),
+        "pooled_ev_negative": ev is not None and ev < 0,
+    }
+    return {
+        "since": PREREG_DATE,
+        "n": len(win),
+        "weeks": len({r["week"] for r in win}),
+        "dates": len(dates),
+        "adverse_dates": len(adverse),
+        "ev": _r(ev),
+        "clustered_ci95": ci,
+        "gates": gates,
+    }
+
+
+def alpha_verdict(cw):
+    """Directional-alpha (avoid this pocket) verdict from the window."""
+    g = cw["gates"]
+    if not (g["weeks_ge_4"] and g["dates_ge_15"]) or cw["n"] < 30:
+        return (
+            "ACCRUING",
+            "%d alerts over %d weeks / %d dates since %s; the gate needs >=4 weeks and >=15 dates"
+            % (
+                cw["n"],
+                cw["weeks"],
+                cw["dates"],
+                cw["since"],
+            ),
+        )
+    facts = "EV %s%% (date-clustered 95%% CI %s) over %d alerts, %d dates since %s" % (
+        _fmt(cw["ev"]),
+        _fmt_ci(cw["clustered_ci95"]),
+        cw["n"],
+        cw["dates"],
+        cw["since"],
+    )
+    if not g["pooled_ev_negative"]:
+        return (
+            "NOT CONFIRMED",
+            facts + " — the pocket did not lose money, so there is nothing to avoid",
+        )
+    if not g["clustered_ci_excludes_0"]:
+        return "NOT CONFIRMED", facts + " — negative, but the CI spans zero"
+    if not g["adverse_period"]:
+        return "ACCRUING", facts + " — no adverse-market period (SPY 5d <= -1%) in the window yet"
+    return "CONFIRMED", facts + " — every pre-registered alpha gate passed; still not auto-applied"
+
+
+def hedge_verdict(hu):
+    eps = hu["adverse_episodes"]["count"]
+    carry, payoff, ratio = hu.get("carry_ev"), hu.get("payoff_ev"), hu.get("payoff_per_unit_carry")
+    if carry is None or payoff is None:
+        return "ACCRUING", "not enough pocket alerts in up and down markets yet"
+    facts = (
+        "pocket EV %s%% when SPY's 5-day return was >= 0 and %s%% when it was < 0; %d adverse episode(s) in sample"
+        % (
+            _fmt(carry),
+            _fmt(payoff),
+            eps,
+        )
+    )
+    if payoff <= 0:
+        return "NOT A HEDGE", facts + " — it did not pay in down markets"
+    if carry >= 0:
+        return (
+            "NOT A HEDGE PROFILE",
+            facts + " — it cost nothing in up markets, so payoff per unit of carry is undefined",
+        )
+    if eps < 2:
+        return (
+            "ACCRUING",
+            facts + "; payoff/carry %.2f, but the gate needs >=2 adverse episodes" % ratio,
+        )
+    if ratio is not None and ratio >= 1.0:
+        return (
+            "PASSES IN STOCK TERMS",
+            facts + "; payoff/carry %.2f >= 1.0 before option costs — the cost-inclusive "
+            "test is hedge_monitor's" % ratio,
+        )
+    return "FAILS", facts + "; payoff/carry %.2f < 1.0" % (ratio or 0)
+
+
+def avoidance_candidate(rows, spy, tested):
+    """The puts-bought 22-60 DTE pocket, pre-registered on PREREG_DATE as an
+    avoidance candidate (alpha mandate) and a potential hedge (separate
+    mandate). Every verdict below is computed from tonight's numbers."""
+    spy5, spy1 = spy.get(5, {}), spy.get(1, {})
+    sel = [r for r in rows if _in_pocket(r)]
+    definition = "puts bought (classified put_buyer) AND 22 <= DTE <= 60"
     if len(sel) < 200:
-        return {"status": "accruing", "n": len(sel)}
-    ev = _mean([r["exc"] for r in sel])
-    # weekly
+        return {"status": "accruing", "definition": definition, "n": len(sel)}
     byw = defaultdict(list)
     for r in sel:
-        byw[_week(r["date"])].append(r["exc"])
-    weekly = [{"week": w, "n": len(v), "ev": round(_mean(v), 3)} for w, v in sorted(byw.items())]
-    # split-half + time-ordered holdout
+        byw[r["week"]].append(r["exc"])
     h = len(sel) // 2
-    cut = int(len(sel) * (1 - CFG["holdout_frac"]))
-    # cost haircuts by liquidity (round-trip option execution assumption)
-    HAIRCUT = {"A": 0.4, "B": 0.7, "C": 1.5, "D": 2.5}
+    _, hold, _ = embargo_split(sel, CFG["holdout_frac"])
     by_liq = {}
     for lg in ("A", "B", "C", "D"):
         v = [r["exc"] for r in sel if r["liq"] == lg]
         if len(v) >= 50:
-            by_liq[lg] = {
-                "n": len(v),
-                "ev": round(_mean(v), 3),
-                "ev_net_haircut": round(_mean(v) - HAIRCUT[lg], 3),
-            }
-    # concentration
-    tk = defaultdict(int)
-    sec = defaultdict(int)
+            by_liq[lg] = {"n": len(v), "ev": round(_mean(v), 3)}
+    tk, sec = defaultdict(int), defaultdict(int)
     for r in sel:
         tk[r["ticker"]] += 1
         sec[r["sector"]] += 1
-    top_tk = sorted(tk.items(), key=lambda x: -x[1])[:5]
-    top_sec = sorted(sec.items(), key=lambda x: -x[1])[:3]
-    n_ern = sum(1 for r in sel if r["ern"])
-    # DTE boundary sensitivity
     sens = {}
     for lo, hi in ((8, 21), (15, 45), (22, 60), (30, 75), (45, 90)):
-        v = [
-            r["exc"]
-            for r in rows
-            if r.get("dte") is not None and lo <= r["dte"] <= hi and "side:put_buy" in r["f"]
-        ]
+        v = [r["exc"] for r in rows if _in_pocket(r, lo, hi)]
         if len(v) >= 100:
             sens["dte%d-%d" % (lo, hi)] = {"n": len(v), "ev": round(_mean(v), 3)}
+    hu = hedge_utility(sel, rows, spy5, spy1)
+    cw = confirmation_window(sel, spy5)
+    a_status, a_text = alpha_verdict(cw)
+    h_status, h_text = hedge_verdict(hu)
+    pairs = [(r["date"], r["exc"]) for r in sel]
     return {
         "status": "shadow",
-        "label": (
-            "DUAL-USE: REJECT AS ALPHA / POTENTIAL HEDGE COHORT "
-            "(insurance value single-event, cost-efficiency "
-            "unproven — payoff/carry < 1 in sample)"
-        ),
+        "label": "Alpha (avoid): %s · Hedge: %s" % (a_status, h_status),
         "mandates": {
-            "directional_alpha": (
-                "ALPHA AVOIDANCE CANDIDATE — negative "
-                "EV robust to date/ticker-date "
-                "clustering and week bootstrap; still "
-                "SHADOW pending prospective window"
-            ),
-            "hedge_sleeve": (
-                "POTENTIAL HEDGE COHORT — sign flips "
-                "positive exactly when SPY 5d fwd < 0 "
-                "while the rest of the book bleeds; but "
-                "carry cost exceeded observed payoff and "
-                "the sample holds ~one adverse episode. "
-                "Separate mandate, separate gates — never "
-                "one global exclusion rule for both."
-            ),
+            "directional_alpha": {"status": a_status, "verdict": a_text},
+            "hedge_sleeve": {"status": h_status, "verdict": h_text},
         },
-        "hedge_utility": hedge_utility(sel, rows, spy5 or {}),
-        "definition": "side:put_buy AND 22<=dte<=60",
+        "definition": definition,
+        "definition_note": (
+            "Tightened 2026-11 to classified put buyers; before, every put that "
+            "was not classified as sold (mixed / unknown prints too) was in it."
+        ),
         "n": len(sel),
-        "ev_pooled": round(ev, 3),
-        "ci95": _ci95([r["exc"] for r in sel]),
-        "weekly": weekly,
+        "days": len({r["date"] for r in sel}),
+        "ev_pooled": round(_mean([r["exc"] for r in sel]), 3),
+        "ci95_clustered_by_date": _clustered_ci(pairs),
+        "ci95_trade_level": _ci95([r["exc"] for r in sel]),
+        "weekly": [
+            {"week": w, "n": len(v), "ev": round(_mean(v), 3)} for w, v in sorted(byw.items())
+        ],
         "split_half": [
             round(_mean([r["exc"] for r in sel[:h]]), 3),
             round(_mean([r["exc"] for r in sel[h:]]), 3),
         ],
-        "holdout_last30pct": {
-            "n": len(sel) - cut,
-            "ev": round(_mean([r["exc"] for r in sel[cut:]]), 3),
-        },
-        "by_liquidity_net_costs": by_liq,
-        "cost_assumption": (
-            "underlying-move metric has no execution "
-            "cost; haircuts model option round-trip by "
-            "liq grade (A 0.4 / B 0.7 / C 1.5 / D 2.5 "
-            "pp) — assumptions, not measurements"
+        "holdout_last30pct": {"n": len(hold), "ev": _r(_mean([r["exc"] for r in hold]))},
+        "by_liquidity": by_liq,
+        "units": (
+            "Every EV is the stock's +5-session excess return vs SPY in the "
+            "flow's direction (percent of the stock price). Option spreads and "
+            "premium are in different units and are not netted here."
         ),
         "concentration": {
             "top_tickers": [
-                {"t": t, "n": n2, "share": round(n2 / len(sel), 3)} for t, n2 in top_tk
+                {"t": t, "n": n2, "share": round(n2 / len(sel), 3)}
+                for t, n2 in sorted(tk.items(), key=lambda x: -x[1])[:5]
             ],
-            "top_sectors": [{"s": s2, "share": round(n2 / len(sel), 3)} for s2, n2 in top_sec],
-            "into_earnings_share": round(n_ern / len(sel), 3),
+            "top_sectors": [
+                {"s": s2, "share": round(n2 / len(sel), 3)}
+                for s2, n2 in sorted(sec.items(), key=lambda x: -x[1])[:3]
+            ],
+            "into_earnings_share": round(sum(1 for r in sel if r["ern"]) / len(sel), 3),
         },
         "dte_boundary_sensitivity": sens,
+        "hedge_utility": hu,
+        "confirmation_window": cw,
         "multiple_testing": (
-            "selected from 489 tested interactions; "
-            "Bonferroni-style caution applies — the "
-            "holdout gate mitigates but does not "
-            "eliminate selection. Hence prospective "
-            "confirmation is REQUIRED before any "
-            "production avoidance."
+            "Selected from an interaction search (tonight's search tested %d "
+            "combinations); the holdout gate mitigates but does not remove "
+            "selection bias, hence the pre-registered confirmation window." % tested
         ),
         "preregistered_confirmation": {
-            "frozen": "2026-07-21 (hypothesis + thresholds frozen "
-            "BEFORE observing confirmation-window results)",
+            "frozen": PREREG_DATE
+            + " (hypothesis + thresholds frozen before the window was observed)",
             "alpha_mandate_gates": [
                 ">=4 unseen ISO weeks",
                 ">=15 independent trade DATES in window",
@@ -750,271 +1043,213 @@ def avoidance_candidate(rows, spy5=None):
             ],
             "hedge_mandate_gates": [
                 ">=2 distinct adverse episodes observed (insurance cannot be judged on one event)",
-                "payoff_per_unit_carry >= 1.0 across those episodes",
+                "payoff_per_unit_carry >= 1.0",
                 "evaluated as a separate sleeve, never via the alpha exclusion rule",
             ],
         },
     }
 
 
-def psi_detail(rows, capmap=None):
-    """Per-feature PSI contributions + the deployment gate. Publishes
-    BOTH raw PSI and a data-quality-ADJUSTED PSI: the 2026-07-21
-    investigation found cap:unknown drift was dominantly early-history
-    metadata-cache misses (May 12.1% unknown -> June 1.9%; ~97% of
-    unknown rows resolvable via the ticker's later-known cap; the
-    unresolvable remainder are ETFs, a universe-policy fact). The raw
-    number and its promotion-blocking observation are PRESERVED — the
-    gate keys on raw until adjusted methodology is standing policy."""
-    import math
+# ── deployment status (generated) ────────────────────────────────────────
 
-    weeks = sorted({_week(r["date"]) for r in rows})
-    recent = [r for r in rows if _week(r["date"]) in weeks[-2:]]
-    prior = [r for r in rows if _week(r["date"]) not in weeks[-2:]]
-    if len(recent) < 500 or len(prior) < 500:
-        return {"status": "accruing"}
-    fr, fp = defaultdict(int), defaultdict(int)
-    for r in recent:
-        for f in r["f"]:
-            fr[f] += 1
-    for r in prior:
-        for f in r["f"]:
-            fp[f] += 1
-    contribs = []
-    total = 0.0
-    for f in set(list(fr) + list(fp)):
-        a = max(fr[f] / len(recent), 1e-4)
-        b = max(fp[f] / len(prior), 1e-4)
-        c = (a - b) * math.log(a / b)
-        total += c
-        contribs.append(
-            {
-                "feature": f,
-                "psi": round(c, 4),
-                "share_recent": round(a, 3),
-                "share_prior": round(b, 3),
-            }
+
+def _oos_window(*sections):
+    weeks = sorted(
+        {
+            w["week"]
+            for s in sections
+            for w in (s.get("oos_weeks") or s.get("weekly") or [])
+            if isinstance(w, dict) and "week" in w
+        }
+    )
+    return "%s..%s (%d weeks)" % (weeks[0], weeks[-1], len(weeks)) if weeks else "none yet"
+
+
+def _status_word(decision):
+    """'REJECTED — ...' -> 'REJECTED'."""
+    return decision.split(" ", 1)[0] if decision else "ACCRUING"
+
+
+def deployment_table(payload, generated):
+    """Production status of every finding, built from tonight's sections."""
+    lm, s2 = payload["loser_model"], payload["score2"]
+    psi, ia, av = payload["psi_detail"], payload["interactions"], payload["avoidance_candidate"]
+    sample = payload["sample"]
+    span = sample.get("span") or ["?", "?"]
+    if psi.get("status") == "active":
+        psi_ev = "PSI %.3f now (%s)" % (
+            psi["psi_total"],
+            "promotion blocked" if psi["promotion_blocked"] else "below the 0.25 block",
         )
-    contribs.sort(key=lambda x: -x["psi"])
-    ev_recent = _mean([r["exc"] for r in recent])
-    ev_prior = _mean([r["exc"] for r in prior])
-    # data-quality-adjusted PSI: remap unknown caps via later-known
-    adj_total = None
-    if capmap:
-
-        def fixed(r):
-            out2 = []
-            for f in r["f"]:
-                if f == "cap:unknown":
-                    out2.append("cap:" + capmap.get(r["ticker"], "unknown"))
-                else:
-                    out2.append(f)
-            return out2
-
-        fr2, fp2 = defaultdict(int), defaultdict(int)
-        for r in recent:
-            for f in fixed(r):
-                fr2[f] += 1
-        for r in prior:
-            for f in fixed(r):
-                fp2[f] += 1
-        adj_total = 0.0
-        for f in set(list(fr2) + list(fp2)):
-            a = max(fr2[f] / len(recent), 1e-4)
-            b = max(fp2[f] / len(prior), 1e-4)
-            adj_total += (a - b) * math.log(a / b)
-        adj_total = round(adj_total, 4)
+    else:
+        psi_ev = "accruing"
+    if av.get("status") == "shadow":
+        av_ev = "alpha: %s · hedge: %s" % (
+            av["mandates"]["directional_alpha"]["verdict"],
+            av["mandates"]["hedge_sleeve"]["verdict"],
+        )
+    else:
+        av_ev = "accruing (n=%d)" % av.get("n", 0)
+    rows = [
+        {
+            "finding": "Walk-forward evaluation (weekly, %d-session embargo)" % EMBARGO_SESSIONS,
+            "evidence": "%d graded alerts, %s to %s" % (sample["graded"], span[0], span[1]),
+            "production": "LIVE",
+            "gate": "n/a",
+            "window": _oos_window(lm, s2),
+            "rollback": "remove the momentum.yml step",
+        },
+        {
+            "finding": "Drift monitoring (PSI + per-feature)",
+            "evidence": psi_ev,
+            "production": "LIVE",
+            "gate": "PSI>=0.25 blocks challenger promotion",
+            "window": "last 2 ISO weeks vs prior",
+            "rollback": "n/a (read-only)",
+        },
+        {
+            "finding": "Puts-bought 22-60 DTE pocket",
+            "evidence": av_ev,
+            "production": "SHADOW",
+            "gate": (
+                "alpha: 4 unseen wks + 15 trade dates + adverse period + clustered CI "
+                "excl 0 + EV<0 · hedge: >=2 adverse episodes + payoff/carry >= 1"
+            ),
+            "window": "since " + PREREG_DATE,
+            "rollback": "n/a (not applied)",
+        },
+        {
+            "finding": "score2 ranking",
+            "evidence": s2["decision"],
+            "production": _status_word(s2["decision"]),
+            "gate": s2.get("pass_rule") or "needs walk-forward weeks",
+            "window": _oos_window(s2),
+            "rollback": "n/a (never applied)",
+        },
+        {
+            "finding": "Loser model (categorical odds)",
+            "evidence": lm["decision"],
+            "production": _status_word(lm["decision"]),
+            "gate": lm.get("pass_rule") or "needs walk-forward weeks",
+            "window": _oos_window(lm),
+            "rollback": "n/a (never applied)",
+        },
+        {
+            "finding": "Interaction search (depth <= 3)",
+            "evidence": "%d tested, %d passed both gates"
+            % (ia.get("tested", 0), ia.get("survivors_total", len(ia.get("survivors") or []))),
+            "production": "REVIEW ONLY",
+            "gate": "split-half sign + embargoed holdout",
+            "window": "last %d%% of sessions held out" % int(CFG["holdout_frac"] * 100),
+            "rollback": "n/a (not applied)",
+        },
+        {
+            "finding": "Side-aware learner weights",
+            "evidence": "computed nightly by uoa_alpha, skipped in the live score (uoa_scanner.edge_adjust); not evaluated by this engine",
+            "production": "SHADOW",
+            "gate": ">=4 unseen wks · pooled lift >=+0.15pp · better >=60% wks · PSI<0.25 at promotion",
+            "window": "prospective",
+            "rollback": "side: keys skipped in edge_adjust (current)",
+        },
+        {
+            "finding": "score2-quintile sizing table",
+            "evidence": (
+                "removed 2026-11: it divided a 5-day EV by an unsigned 20-day stock "
+                "drawdown and was not a Kelly fraction"
+            ),
+            "production": "RETIRED",
+            "gate": "n/a",
+            "window": "n/a",
+            "rollback": "n/a",
+        },
+    ]
     return {
-        "psi_total": round(total, 4),
-        "psi_adjusted": adj_total,
-        "cap_unknown_root_cause": (
-            "early-history metadata-cache misses "
-            "(resolvable retroactively ~97%) + "
-            "ETFs with no market cap (policy); "
-            "NOT new listings or normalization "
-            "failures"
-        ),
-        "promotion_blocked": total >= 0.25,
-        "gate": (
-            "PSI >= 0.25 BLOCKS automatic challenger promotion (deployment gate, not just an alarm)"
-        ),
-        "top_contributors": contribs[:6],
-        "ev_before_drift": round(ev_prior, 3),
-        "ev_after_drift": round(ev_recent, 3),
+        "as_of": generated[:10],
+        "rows": rows,
+        "psi_promotion_blocked_now": bool(psi.get("promotion_blocked")),
     }
 
 
-def deployment_table(psi_blocked):
-    """Item 8: explicit production status of every finding. This table
-    is the source of truth the scorecard renders."""
-    return {
-        "as_of": "2026-07-21",
-        "rows": [
-            {
-                "finding": "OOS evaluation framework (walk-forward weekly)",
-                "evidence": "self-validating",
-                "production": "LIVE",
-                "gate": "n/a",
-                "version": "uoa_research v1",
-                "window": "2026-05-18..2026-06-16",
-                "rollback": "remove momentum.yml step",
-            },
-            {
-                "finding": "Drift monitoring (PSI + per-feature)",
-                "evidence": "descriptive",
-                "production": "LIVE",
-                "gate": "PSI>=0.25 blocks challenger promotion",
-                "version": "uoa_research v1",
-                "window": "rolling 2w vs prior",
-                "rollback": "n/a (read-only)",
-            },
-            {
-                "finding": "Disaster-pocket (put_buy dte22-60)",
-                "evidence": (
-                    "dual-use: reject-as-alpha / potential hedge "
-                    "(single adverse episode; payoff/carry < 1)"
-                ),
-                "production": "SHADOW",
-                "gate": (
-                    "alpha: 4 unseen wks + 15 trade dates + adverse "
-                    "period + clustered CI excl 0 · hedge: >=2 "
-                    "adverse episodes + payoff/carry >= 1"
-                ),
-                "version": "uoa_research v1",
-                "window": "same",
-                "rollback": "n/a (not applied)",
-            },
-            {
-                "finding": "score2 ranking",
-                "evidence": "FAILED weekly OOS stability",
-                "production": "REJECTED",
-                "gate": "would need regime-conditioned revalidation",
-                "version": "uoa_research v1",
-                "window": "3 OOS weeks",
-                "rollback": "n/a (never applied)",
-            },
-            {
-                "finding": "score2-quintile sizing table",
-                "evidence": "in-sample descriptive; depends on score2",
-                "production": "SHADOW",
-                "gate": "score2 must pass OOS stability first",
-                "version": "uoa_research v1",
-                "window": "full sample",
-                "rollback": "n/a (not consumed by production)",
-            },
-            {
-                "finding": "Side-aware learner weights",
-                "evidence": "walk-forward 3/5 wks, mechanism-backed",
-                "production": "CHALLENGER/SHADOW",
-                "gate": (
-                    ">=4 unseen wks · pooled lift >=+0.15pp · "
-                    "better >=60% wks · PSI<0.25 at promotion"
-                ),
-                "version": "scanner v5-2026-07 challenger_adj",
-                "window": "prospective from 2026-07-21",
-                "rollback": "side: keys skipped in edge_adjust (current)",
-            },
-            {
-                "finding": "Loser model (categorical odds)",
-                "evidence": "FAILED OOS (1/3 weeks, pooled worse)",
-                "production": "REJECTED",
-                "gate": "n/a",
-                "version": "uoa_research v1",
-                "window": "3 OOS weeks",
-                "rollback": "n/a (never applied)",
-            },
-        ],
-        "psi_promotion_blocked_now": psi_blocked,
-    }
+# ── payload ──────────────────────────────────────────────────────────────
 
 
-def main():
-    rows, spy5, capmap = load_rows()
-    if len(rows) < 1000:
-        print("  research: only %d joined matured rows — skipping" % len(rows))
-        return
-    lm = loser_model(rows)
-    lm["decision"] = "REJECTED — failed OOS (1/3 weeks improved, pooled worse); never applied"
-    s2 = score2_eval(rows)
-    s2["decision"] = (
-        "REJECTED for ranking (weekly OOS IC unstable); retained as SHADOW research only"
-    )
-    sz = sizing(rows)
-    sz["decision"] = (
-        "SHADOW — derived from score2 which failed OOS "
-        "stability; NOT consumed by production; "
-        "counterfactual recorded nightly"
-    )
-    psi = psi_detail(rows, capmap)
+def build_payload(rows, drift_rows, sample, spy, capmap):
+    generated = datetime.now(UTC).isoformat(timespec="seconds")
+    ia = interactions(rows)
     payload = {
-        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
-        "joined_matured_n": len(rows),
-        "span": [rows[0]["date"], rows[-1]["date"]],
-        "attribution": attribution(rows),
-        "loser_model": lm,
-        "score2": s2,
-        "sizing": sz,
+        "generated": generated,
+        "version": 2,
+        "sample": sample,
+        "attribution": attribution(rows, drift_rows),
+        "loser_model": loser_model(rows),
+        "score2": score2_eval(rows),
         "stability": stability(rows),
-        "psi_detail": psi,
-        "avoidance_candidate": avoidance_candidate(rows, spy5),
-        "interactions": interactions(rows),
-        "deployment": deployment_table(psi.get("promotion_blocked", False)),
+        "psi_detail": psi_detail(rows, capmap),
+        "interactions": ia,
+        "avoidance_candidate": avoidance_candidate(rows, spy, ia.get("tested", 0)),
         "pit_safety": {
             "side_feature": (
-                "point-in-time safe: side derives from "
-                "flow_side + contract type, both computed "
-                "at scan time from day-so-far prints "
-                "(ask/bid approximation) and the contract "
-                "symbol — no completed-day volume, later "
-                "prints, revised classifications, future "
-                "OI, or outcomes enter the feature. "
-                "Ledger logs it at flag time."
+                "point-in-time safe: the side is the scanner's aggressor "
+                "classification (flow_side) logged at flag time from the "
+                "day-so-far prints, plus the contract symbol. No later prints, "
+                "future OI or outcomes enter any feature."
             ),
         },
         "regime_conditioning_design": {
             "status": "DESIGN ONLY — not activated",
             "regimes": (
-                "existing regime_history labels (breadth "
-                "58/42 thresholds) — point-in-time observable, "
-                "definitions FROZEN as of 2026-07-06"
+                "existing regime_history labels (breadth 58/42 thresholds) — "
+                "point-in-time observable, definitions FROZEN as of 2026-07-06"
             ),
             "gates": (
-                "min 150 matured/regime AND >=40 labeled days "
-                "(existing machinery); UNKNOWN regime falls back "
-                "to global weights; regime weights shrink toward "
-                "global by n/(n+200); walk-forward evaluation vs "
-                "the unconditioned incumbent required before "
-                "activation"
+                "min 150 matured/regime AND >=40 labeled days; UNKNOWN regime "
+                "falls back to global weights; regime weights shrink toward "
+                "global by n/(n+200); walk-forward evaluation vs the "
+                "unconditioned incumbent required before activation"
             ),
         },
         "note": (
-            "Nightly alpha-research engine. All OOS claims are "
-            "walk-forward (train strictly on prior ISO weeks). "
-            "Joined-n covers the per-signal outcome retention "
-            "window; nothing here auto-applies to live ranking. "
-            "Educational, not advice."
+            "Nightly alpha-research engine over the full ledger. One row per "
+            "alert (a contract's first flag of the ET day); stock excess vs SPY "
+            "at +5 sessions in the flow's direction, classified aggressor sides "
+            "only. OOS claims are walk-forward by ISO week with a 5-session "
+            "embargo. Nothing here auto-applies to live ranking. Educational, "
+            "not advice."
         ),
     }
+    payload["deployment"] = deployment_table(payload, generated)
+    return payload
+
+
+def run(scored=None):
+    if scored is None:
+        _, scored = ua.compute_edge(persist=False)
+    rows, drift_rows, sample, spy, capmap = build_rows(scored)
+    if len(rows) < 1000:
+        print("  research: only %d graded alerts — skipping" % len(rows))
+        return None
+    payload = build_payload(rows, drift_rows, sample, spy, capmap)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
-    a = payload["attribution"].get("long_book") or {}
-    lm = payload["loser_model"]
+    books = payload["attribution"]["books"]
     print(
-        "  research: n=%d · long book dir_ev=%s flow_alpha=%s · "
-        "loser model %s · %d interaction survivors"
-        % (
-            len(rows),
-            a.get("dir_ev"),
-            a.get("flow_alpha"),
-            lm.get("ev_after_exclusion", "accruing"),
-            len(payload["interactions"].get("survivors") or []),
+        "  research: %d graded alerts (%s..%s, %d unclassified) · "
+        % (sample["graded"], sample["span"][0], sample["span"][1], sample["unclassified"])
+        + " · ".join(
+            "%s EV %s alpha %s" % (b, books[b].get("dir_ev"), books[b].get("flow_alpha"))
+            for b in BOOK_ORDER
+            if b in books
         )
     )
+    print("  loser model: " + payload["loser_model"]["decision"])
+    print("  score2: " + payload["score2"]["decision"])
+    print("  pocket: " + payload["avoidance_candidate"].get("label", "accruing"))
     print("  Wrote uoa_research.json")
+    return payload
 
 
 if __name__ == "__main__":
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    main()
+    run()

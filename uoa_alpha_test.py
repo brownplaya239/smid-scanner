@@ -5,6 +5,7 @@ one alert per contract per ET day, direction-adjusted grading, split-safe
 price basis, next-day-only OI confirmation, clustered CIs.
 """
 
+import json
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -283,3 +284,37 @@ def test_compute_edge_end_to_end(tmp_path, monkeypatch):
     assert h5["n"] == 2 and h5["hit_rate"] == 50  # call won, put lost
     assert edge["direction_split"]["unclassified_n"] == 0
     assert "STOCK" in edge["method"]
+
+
+def _old_ledger(today):
+    old = today - timedelta(days=40)
+    while old.weekday() >= 5:
+        old -= timedelta(days=1)
+    return [_sig(id="old1", flagged_at=f"{old.isoformat()}T15:00:00+00:00")]
+
+
+def test_no_freeze_when_bars_fail_and_read_only_writes_nothing(tmp_path, monkeypatch):
+    cache = tmp_path / "cache.json"
+    monkeypatch.setattr(ua, "ALPHA_CACHE_PATH", str(cache))
+    monkeypatch.setattr(ua, "OI_NEXTDAY_PATH", str(tmp_path / "nextday.json"))
+    monkeypatch.setattr(ua, "LIFECYCLE_PATH", str(tmp_path / "life.json"))
+    today = datetime.now(ua.UTC).date()
+    monkeypatch.setattr(ua, "load_ledger", lambda: _old_ledger(today))
+    monkeypatch.setattr(ua.pg, "splits", lambda t, limit=50: [])
+    monkeypatch.setattr(ua, "_oi_now", lambda t: {})
+    # outage: no bars -> the final signal must NOT be frozen empty
+    monkeypatch.setattr(ua, "_bars", lambda t, days=160: {})
+    ua.compute_edge()
+    assert not cache.exists()
+    for f in ("nextday.json", "life.json"):
+        (tmp_path / f).unlink(missing_ok=True)
+    # read-only scoring writes no shared state even when bars load
+    start = today - timedelta(days=45)
+    monkeypatch.setattr(ua, "_bars", lambda t, days=160: _bars([100 + i for i in range(40)], start))
+    ua.compute_edge(persist=False)
+    assert not cache.exists()
+    assert not (tmp_path / "nextday.json").exists()
+    assert not (tmp_path / "life.json").exists()
+    # the flow job (persist=True) does freeze it once bars are there
+    ua.compute_edge()
+    assert "old1" in json.loads(cache.read_text())

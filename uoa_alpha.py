@@ -704,7 +704,7 @@ def _today_et():
     return datetime.strptime(_et_date(datetime.now(UTC).isoformat()), "%Y-%m-%d").date()
 
 
-def compute_edge(rebuild=False):
+def compute_edge(rebuild=False, persist=True):
     """Score the ledger; build aggregates + per-signal scorecards. Signals
     older than FINAL_AGE_DAYS are frozen in uoa_alpha_cache.json — every
     horizon has matured, so they're scored once and never re-fetched. Only
@@ -715,7 +715,13 @@ def compute_edge(rebuild=False):
     fresh split-adjusted bars (fixes values frozen before the price-basis
     guard existed). Their frozen OI reads are kept — history can't be
     re-read. Returns (edge, scored) where `scored` is every ledger row;
-    the published aggregates use unique_alerts(scored)."""
+    the published aggregates use unique_alerts(scored).
+
+    persist=False is for research consumers (uoa_research, hypothesis_lab):
+    score read-only and never write the shared state files (alpha cache,
+    next-day OI store, lifecycle log). Those run in other workflows —
+    sometimes without market-data access — and must not freeze or
+    overwrite what the flow job owns."""
     ledger = load_ledger()
     print(f"  Ledger: {len(ledger)} rows")
     if not ledger:
@@ -743,6 +749,7 @@ def compute_edge(rebuild=False):
             fresh.append(s)
     print(f"  {len(scored)} final (cached), {len(fresh)} to score...")
 
+    no_bars = set()  # fresh signals whose ticker returned no bars
     # forward returns + excursions for the active window — daily bars and
     # split history fetched concurrently, one call each per unique ticker
     if fresh:
@@ -771,6 +778,8 @@ def compute_edge(rebuild=False):
         for s in fresh:
             tk = s.get("ticker", "")
             bars = bar_cache.get(tk, {})
+            if not bars:
+                no_bars.add(s.get("id"))
             sfac = split_factor(
                 split_cache.get(tk), _et_date(s.get("flagged_at")), today.isoformat()
             )
@@ -817,12 +826,17 @@ def compute_edge(rebuild=False):
         )
     keep_from = (today_et - timedelta(days=FINAL_AGE_DAYS + 10)).isoformat()
     nextday = {k: v for k, v in nextday.items() if k.rsplit("|", 1)[-1] >= keep_from}
-    _save_json(OI_NEXTDAY_PATH, nextday)
+    if persist:
+        _save_json(OI_NEXTDAY_PATH, nextday)
 
-    # freeze newly-final signals so future runs skip them entirely
+    # freeze newly-final signals so future runs skip them entirely — but
+    # never one whose bars failed to load (an outage or a missing API key
+    # would otherwise freeze EMPTY returns forever)
     new_final = 0
     for s in scored:
         sid = s.get("id")
+        if not persist or sid in no_bars:
+            continue
         if sid and (rebuild or sid not in cache) and _is_final(s, today):
             cache[sid] = {
                 "returns": s["returns"],
@@ -1005,7 +1019,7 @@ def compute_edge(rebuild=False):
         "ic": _ic_suite(scored),
         "by_regime": _by_regime(scored),
         "calibration": _calibration(scored),
-        "lifecycle": _lifecycle(scored, oi_cache, today_et),
+        "lifecycle": _lifecycle(scored, oi_cache, today_et, persist=persist),
         "excursion": _excursion_avg(scored),
         "by_type": by_type,
         "by_score": by_score,
@@ -1250,7 +1264,7 @@ LIFECYCLE_PATH = os.path.join(_BASE, "data", "oi_lifecycle.json")
 LIFECYCLE_KEEP_DAYS = 30  # alerts tracked this long (calendar days)
 
 
-def _lifecycle(alerts, oi_now, today_et):
+def _lifecycle(alerts, oi_now, today_et, persist=True):
     """Position-lifecycle accrual: each run snapshots whether a young
     alert's contract OI is STILL elevated (OI now - flag-day OI > 15% of the
     flag-day volume) at its current calendar-day offset, using the CURRENT
@@ -1282,7 +1296,8 @@ def _lifecycle(alerts, oi_now, today_et):
     keep_from = (today_et - timedelta(days=LIFECYCLE_KEEP_DAYS)).isoformat()
     # keys are contract|YYYY-MM-DD; legacy id-keyed rows (no '|') drop out
     log = {k: v for k, v in log.items() if "|" in k and k.rsplit("|", 1)[1] >= keep_from}
-    _save_json(LIFECYCLE_PATH, log)
+    if persist:
+        _save_json(LIFECYCLE_PATH, log)
     out = {}
     for off in ("1", "2", "3", "5", "10"):
         vals = [e[off] for e in log.values() if off in e]

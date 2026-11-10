@@ -67,8 +67,11 @@ jobs:
         run: uv run python callout_tracker.py
 
       - name: Re-run hypothesis lab with BH correction
-        # reads the fresh scorecard's effective-n deflation
+        # reads the fresh scorecard's effective-n deflation. Needs the key:
+        # the lab scores the active window from fresh bars (read-only).
         continue-on-error: true
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
         run: uv run python hypothesis_lab.py --force
 
       - name: Publish
