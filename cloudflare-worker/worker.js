@@ -495,6 +495,19 @@ const SOCIAL_SCHEDULE = [
 // The pre-open Daily Brief too: GitHub's 8:47 AM cron has been landing
 // 5-7 hours late (Mon 3:49 PM, Fri 1:32 PM). Sends are idempotent per
 // subscriber per day, so the late GitHub run can't double-send.
+// Intraday UOA scans and the post-close EOD jobs run on the ET clock via
+// the */15 crons (DST-safe). Until 2026-11 they were literal-UTC crons
+// tuned for EDT, so in EST every fire landed an hour early: the first scan
+// at 8:50 AM (pre-open), the last at 2:50 PM (the final trading hour was
+// never scanned) and the "4:40 PM" EOD dispatch at 3:40 PM, before the
+// close.
+const WEEKDAYS = [1, 2, 3, 4, 5];
+const UOA_SLOTS = ["09:45", "10:15", "10:45", "11:15", "11:45", "12:15",
+                   "12:45", "13:15", "13:45", "14:15", "14:45", "15:15",
+                   "15:45"];
+const UOA_MONITOR_SLOTS = ["12:15", "15:45"];
+const EOD_SLOT = "16:45";
+
 const JOB_SCHEDULE = [
   { at: "08:45", days: [1, 2, 3, 4, 5], workflow: "daily_brief.yml" },
   { at: "18:45", days: [1, 2, 3, 4, 5], workflow: "earnings_vol.yml" },
@@ -1744,8 +1757,9 @@ async function fetchLiveUOA(env, ticker, debug) {
  *    3. Walks the chain for that expiry, picks the call+put pair
  *       closest to the underlying spot (ATM).
  *    4. implied_move_pct = (atm_call_mid + atm_put_mid) / spot * 100
- *       — the classic ATM-straddle approximation of 1σ expected move
- *       over the contract's life. Honest math, no IV blends.
+ *       — the classic ATM-straddle "expected move": the market's price
+ *       for the AVERAGE absolute move to expiry (about 0.8 x a 1-sigma
+ *       move), including any non-event days before expiry.
  *    5. iv_pct = avg of the call+put implied vols from the snapshot
  *       (Polygon emits per-contract IV on the snapshot).
  *
@@ -2025,19 +2039,32 @@ async function fetchLiveFlow(env, opts) {
   // Workers runtime (no manual queue needed for ~50 parallel HTTP calls).
   // Per-ticker errors don't fail the whole batch — just contribute zero
   // contracts to the feed.
+  // Polygon returns the chain nearest-expiry first, 250 per page. One
+  // page covered only the first few expiries of a liquid name (the 2026-11
+  // audit found every SPY/QQQ row was 0-3 DTE), so follow next_url for up
+  // to LF_MAX_PAGES pages and report which names were still truncated.
+  const LF_MAX_PAGES = 3;
+  let truncated = 0;
   async function snap(tk) {
-    try {
-      const r = await fetch(
-        "https://api.polygon.io/v3/snapshot/options/" +
-          encodeURIComponent(tk) +
-          "?limit=250&expiration_date.gte=" + today +
-          "&apiKey=" + env.POLYGON_API_KEY,
-        { signal: AbortSignal.timeout(4000) }
-      );
-      if (!r.ok) return [];
-      const j = await r.json();
-      return (j.results || []).map(function (c) { return [tk, c]; });
-    } catch (_) { return []; }
+    const out = [];
+    let url = "https://api.polygon.io/v3/snapshot/options/" +
+      encodeURIComponent(tk) +
+      "?limit=250&expiration_date.gte=" + today +
+      "&apiKey=" + env.POLYGON_API_KEY;
+    for (let page = 0; page < LF_MAX_PAGES && url; page++) {
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
+        if (!r.ok) { url = null; break; }
+        const j = await r.json();
+        for (const c of (j.results || [])) out.push([tk, c]);
+        url = j.next_url
+          ? j.next_url + (j.next_url.indexOf("?") >= 0 ? "&" : "?") +
+            "apiKey=" + env.POLYGON_API_KEY
+          : null;
+      } catch (_) { url = null; break; }
+    }
+    if (url) truncated++;
+    return out;
   }
   // Paced fan-out (≤20 concurrent) instead of all-at-once — avoids the
   // Polygon throttle that was pinning latency at the 8s timeout.
@@ -2058,7 +2085,11 @@ async function fetchLiveFlow(env, opts) {
     // live + batch surfaces are visually consistent.
     if (vol < 200 || oi < 10) continue;
     const last = lt.price || day.close || 0;
-    const premium = vol * last * 100;
+    // Day premium = day volume x the day's VWAP (the average price paid),
+    // matching the batch scanner. volume x LAST price mis-stated it
+    // whenever the last print was away from the day's average.
+    const px = day.vwap || last;
+    const premium = vol * px * 100;
     const voi = oi > 0 ? vol / oi : 0;
     // EITHER threshold passes the contract through. Drops only if both
     // gates fail — i.e., the contract is small-premium AND
@@ -2071,8 +2102,11 @@ async function fetchLiveFlow(env, opts) {
     const sip = lt.sip_timestamp;
     const tradeMs = sip ? Math.round(sip / 1e6) : null;
     if (tradeMs && tradeMs < freshnessCutoff) continue;
-    // Direction inference — combine type + bid/ask context.
+    // Direction inference — combine type + bid/ask context. Without a
+    // quote (always, on Options Starter) the side is UNKNOWN; the value
+    // then only says call vs put, and direction_basis says so.
     let direction = "mixed";
+    let directionBasis = "quote";
     if (lq.bid && lq.ask && (lq.bid + lq.ask) > 0) {
       const mid = (lq.bid + lq.ask) / 2;
       // last price >= mid → ask-side aggression = bull on call, bear on put
@@ -2083,8 +2117,9 @@ async function fetchLiveFlow(env, opts) {
         direction = askSide ? "bearish" : "bullish";
       }
     } else {
-      // No quote — default by contract type (weak signal but better than null)
+      // No quote — only the contract type is known, not who bought.
       direction = (d.contract_type === "call") ? "bullish" : "bearish";
+      directionBasis = "contract_type";
     }
     const dte = (function () {
       const exp = new Date(d.expiration_date + "T16:00:00-04:00");
@@ -2094,9 +2129,10 @@ async function fetchLiveFlow(env, opts) {
     //
     // Tier — what KIND of unusual is this? Order matters: each row
     // gets the strongest tier it qualifies for.
-    //   golden  : premium >= $250K AND vol/oi >= 5 AND dte <= 45
-    //             — textbook UOA: real money + new positioning + near
-    //             enough to act before the catalyst.
+    //   hot     : premium >= $250K AND vol/oi >= 5 AND dte <= 45
+    //             — real money + new positioning + near enough to act.
+    //             (Called "golden" until 2026-11; renamed because this
+    //             feed has no sweep data and it is NOT a Golden Sweep.)
     //   big     : premium >= $1M — classic "mega-cap institutional sweep"
     //             (used to be the only thing the live feed surfaced;
     //             still useful but not the only signal).
@@ -2106,7 +2142,7 @@ async function fetchLiveFlow(env, opts) {
     //   active  : passed the EITHER gate but didn't hit any above. Day
     //             flow worth a glance.
     let tier = "active";
-    if (premium >= 250_000 && voi >= 5 && dte <= 45) tier = "golden";
+    if (premium >= 250_000 && voi >= 5 && dte <= 45) tier = "hot";
     else if (premium >= 1_000_000)                   tier = "big";
     else if (voi >= 5)                                tier = "unusual";
     flows.push({
@@ -2121,10 +2157,12 @@ async function fetchLiveFlow(env, opts) {
       vol_oi:        Math.round(voi * 10) / 10,
       premium:       Math.round(premium),
       last_price:    last,
+      vwap:          day.vwap || null,
       bid:           lq.bid || null,
       ask:           lq.ask || null,
       iv:            c.implied_volatility || null,
       direction:     direction,
+      direction_basis: directionBasis,
       last_trade_ts: tradeMs,
       tier:          tier,
       // Flag types — sweep / golden / earnings-positioned aren't known
@@ -2146,9 +2184,11 @@ async function fetchLiveFlow(env, opts) {
     // client can always disclose the feed's source + delay honestly.
     source:         "polygon_options_starter",
     delay_minutes:  15,
-    price_basis:    "last_trade",
+    price_basis:    "day_vwap",
     universe_size:  tickers.length,
     scanned:        all.length,
+    max_contracts_per_ticker: LF_MAX_PAGES * 250,
+    truncated_tickers: truncated,
     min_premium:    minPrem,
     min_vol_oi:     minVolOi,
     freshness_min:  freshnessMin,
@@ -4763,6 +4803,21 @@ export default {
       const jobs = JOB_SCHEDULE.filter(isDue).map(function (x) {
         return dispatch(x.workflow);
       });
+      const weekday = WEEKDAYS.indexOf(c.dow) >= 0;
+      if (weekday && UOA_SLOTS.indexOf(c.hhmm) >= 0) {
+        jobs.push(dispatch("uoa.yml"), healPublish());
+        // Monitor backstop (2026-09-21): GitHub's scheduler dropped EVERY
+        // cron for a full session, so midday + pre-close fires also
+        // dispatch the freshness monitor (exits green in seconds when
+        // data is fresh).
+        if (UOA_MONITOR_SLOTS.indexOf(c.hhmm) >= 0) {
+          jobs.push(dispatch("uoa_monitor.yml"));
+        }
+      }
+      if (weekday && c.hhmm === EOD_SLOT) {
+        jobs.push(dispatch("scanner.yml"), dispatch("momentum.yml"),
+                  healPublish());
+      }
       if (env.SOCIAL_SCHEDULE === "1") {              // social off switch
         SOCIAL_SCHEDULE.filter(isDue).forEach(function (x) {
           jobs.push(dispatch("social_post.yml",
@@ -4772,26 +4827,8 @@ export default {
       if (jobs.length) ctx.waitUntil(Promise.all(jobs));
       return;
     }
-    const isEod = event.cron === "40 20 * * MON-FRI";
-    // Monitor backstop (2026-09-21): GitHub's scheduler dropped EVERY
-    // cron for a full session — batches were carried by these CF crons,
-    // but the freshness monitor is GitHub-cron-only, so nothing could
-    // page the operator. Midday + pre-close fires now also dispatch the
-    // monitor via the same PAT path, making the PAGING loop independent
-    // of GitHub's scheduler too. The monitor exits green in seconds
-    // when data is fresh, so the extra dispatches are ~free.
-    const alsoMonitor = (event.cron === "20 16 * * MON-FRI" ||
-                         event.cron === "50 19 * * MON-FRI");
-    if (isEod) {
-      ctx.waitUntil(Promise.all([
-        dispatch("scanner.yml"),
-        dispatch("momentum.yml"),
-        healPublish(),
-      ]));
-    } else {
-      const jobs = [dispatch("uoa.yml"), healPublish()];
-      if (alsoMonitor) jobs.push(dispatch("uoa_monitor.yml"));
-      ctx.waitUntil(Promise.all(jobs));
-    }
+    // Every scan/EOD dispatch now runs from the ET-clock branch above;
+    // any other cron is a leftover from the old literal-UTC schedule.
+    console.log("[cron] unrouted cron " + event.cron + " — ignored");
   },
 };

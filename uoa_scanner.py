@@ -23,7 +23,7 @@ import json
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -622,9 +622,12 @@ def classify_trades(trades, snapshot_row):
 def _classify_approx(trades, snapshot_row):
     """Approximate side classification — until the quotes entitlement is live
     we lack the NBBO at each trade's timestamp. Heuristic: split trades by the
-    contract's bid/ask midpoint (fallback: day VWAP). Trades above the mid
-    lean buyer-aggressive, below lean seller-aggressive. Labelled
-    method='approx' so the dashboard flags it as an estimate."""
+    contract's bid/ask midpoint, falling back to the day's VWAP (on our plan
+    the snapshot has no bid/ask, so in practice this is ALWAYS "traded above
+    vs below the day's average price"). Weighted by CONTRACTS, so one large
+    order outweighs a stream of 1-lot fills (2026-11 audit: it used to count
+    trades). Labelled method='approx' so the dashboard flags it as an
+    estimate."""
     bid = snapshot_row.get("_bid") or 0
     ask = snapshot_row.get("_ask") or 0
     mid = (bid + ask) / 2 if (bid and ask) else (snapshot_row.get("px") or 0)
@@ -633,14 +636,15 @@ def _classify_approx(trades, snapshot_row):
     a = b = m = 0
     for t in trades:
         p = t.get("price", 0) or 0
+        w = t.get("size", 0) or 0
         if not p:
-            m += 1
+            m += w
         elif p > mid:
-            a += 1
+            a += w
         elif p < mid:
-            b += 1
+            b += w
         else:
-            m += 1
+            m += w
     n = max(a + b + m, 1)
     return {
         "ask_pct": round(100 * a / n),
@@ -713,6 +717,7 @@ def analyze_flow(row):
         last_ts_ns = max(last_ts_ns, ts)
     sweep_prem = sum(s["premium"] for s in sweeps)
     max_sweep_size = max((s["size"] for s in sweeps), default=0)
+    max_sweep_prem = max((s["premium"] for s in sweeps), default=0)
 
     def _ns_to_iso(ns):
         if not ns:
@@ -729,6 +734,7 @@ def analyze_flow(row):
         "trade_count": len(trades),
         "sweeps": len(sweeps),
         "sweep_premium": round(sweep_prem),
+        "max_sweep_premium": round(max_sweep_prem),
         "blocks": len(blocks),
         "biggest_print": round(biggest),
         "max_sweep_size": max_sweep_size,
@@ -739,16 +745,25 @@ def analyze_flow(row):
 
 
 def is_golden_sweep(row, flow):
-    """Golden Sweep: a sweep on a single stock, >$1M premium, <30 DTE.
-    Ask-side confirmation is added once the quotes entitlement is live."""
-    if flow["sweeps"] < 1:
+    """Golden Sweep: ONE sweep order (one parent order routed across
+    exchanges) of >= $1M premium, <= 30 DTE, on a contract whose tape leans
+    to the BUY side.
+
+    2026-11 accuracy audit: the old rule summed every sweep of the day
+    (dozens of $25K sweeps made a "golden" one) and never checked the side
+    on our data plan — 12 of 30 "golden" rows were seller-classified. The
+    side is still an estimate without live quotes (see _classify_approx)."""
+    if flow.get("sweeps", 0) < 1:
         return False
-    if flow["sweep_premium"] < GOLDEN_PREMIUM:
+    if (flow.get("max_sweep_premium") or 0) < GOLDEN_PREMIUM:
         return False
     if row["dte"] is None or row["dte"] > GOLDEN_MAX_DTE:
         return False
-    side = flow["side"]
-    return not (side["method"] == "precise" and side["ask_pct"] < 60)
+    side = flow.get("side") or {}
+    if side.get("method", "none") == "none":
+        return False
+    need = 60 if side.get("method") == "precise" else 55
+    return (side.get("ask_pct") or 0) >= need
 
 
 # ─── Learned edge adjustment (self-learning feedback loop) ───────────────────
@@ -848,10 +863,12 @@ def edge_adjust(row):
         if row.get("golden")
         else ("sweep" if (row.get("flow") or {}).get("sweeps") else "voloi")
     )
+    # mirrors uoa_alpha._ew_side: mixed / unknown prints are unclassified
+    fs = row.get("flow_side")
     side = (
         "seller"
-        if row.get("flow_side") in ("put_seller", "call_seller")
-        else (row.get("type") or "call") + "_buy"
+        if fs in ("put_seller", "call_seller")
+        else {"call_buyer": "call_buy", "put_buyer": "put_buy"}.get(fs, "unclassified")
     )
     keys = [
         f"type:{sig_type}",
@@ -1353,17 +1370,39 @@ def scan(universe=None, boost=None, large_caps=None, max_underlyings=None, worke
     return rows
 
 
+def in_regular_session(now=None, grace_min=10):
+    """True during the US equity-options regular session (ET), from the
+    9:30 open to the close (+grace_min for the scan that straddles it).
+    Uses the exchange calendar for holidays / half days; outside its known
+    years, falls back to weekdays 9:30-16:00."""
+    from datetime import time
+
+    et = (now or datetime.now(UTC)).astimezone(ZoneInfo("America/New_York"))
+    try:
+        import exchange_calendar as xc
+
+        if not xc.is_session(et.date()):
+            return False
+        close = xc.close_time(et.date())
+    except Exception:
+        if et.weekday() >= 5:
+            return False
+        close = time(16, 0)
+    open_dt = et.replace(hour=9, minute=30, second=0, microsecond=0)
+    close_dt = et.replace(hour=close.hour, minute=close.minute, second=0, microsecond=0)
+    return open_dt <= et <= close_dt + timedelta(minutes=grace_min)
+
+
 def append_ledger(rows, min_score=55):
     """Append high-conviction signals to the ledger so the provable-alpha
     tracker can score their forward returns. One JSON object per line."""
-    # Weekend guard (2026-09-28): options don't trade Sat/Sun, so a
-    # weekend run only re-sees Friday's snapshot. Appending it minted
-    # 17,964 duplicate "Sunday" signals (Jun-Sep) that double-counted
-    # Fridays and graded against mismatched anchors.
-    from uoa_alpha import is_weekend_et
-
-    if is_weekend_et(datetime.now(UTC).isoformat()):
-        print("  Ledger: weekend (ET) — no signals appended")
+    # Session guard. Weekend runs (2026-09-28) only re-saw Friday's
+    # snapshot and minted 17,964 duplicate "Sunday" signals; after-close
+    # runs (2026-11 audit) re-logged the whole day's contracts at
+    # after-hours prices, several times an evening; holidays re-see the
+    # prior session. Only a regular-session scan creates signals.
+    if not in_regular_session():
+        print("  Ledger: outside the regular session (ET) — no signals appended")
         return 0
     os.makedirs(os.path.dirname(LEDGER_PATH), exist_ok=True)
     now = datetime.now(UTC).isoformat(timespec="seconds")

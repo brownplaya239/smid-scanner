@@ -6928,8 +6928,8 @@
         </select>
         <select id="uoa-side">
           <option value="">Any side</option>
-          <option value="ask">Ask (buy)</option>
-          <option value="bid">Bid (sell)</option>
+          <option value="ask">Buy lean (est.)</option>
+          <option value="bid">Sell lean (est.)</option>
         </select>
         <select id="uoa-dte">
           <option value="">Any DTE</option>
@@ -7018,8 +7018,8 @@
           </select>
           <select id="trk-side">
             <option value="">Any side</option>
-            <option value="ask">Ask (buy)</option>
-            <option value="bid">Bid (sell)</option>
+            <option value="ask">Buy lean (est.)</option>
+            <option value="bid">Sell lean (est.)</option>
           </select>
           <select id="trk-dte">
             <option value="">Any DTE</option>
@@ -7082,21 +7082,24 @@
       <div class="uoa-sub" id="sub-liveflow" style="display:none" aria-hidden="true" inert>
         <p class="uoa-subnote">
           <b style="color:var(--gold)">Delayed Feed</b> &mdash; rolling
-          notable options flow across <b>~180 liquid optionables</b>
+          notable options activity across <b>~180 liquid optionables</b>
           (mega-caps PLUS the SMID / high-beta cohort where UOA edge
-          lives, plus your watchlist). A fill surfaces if its premium
+          lives, plus your watchlist). Each row is a contract's
+          <b>running day total</b> (not a single fill): it surfaces if
+          its day premium (volume &times; the day's average price)
           clears <b>Min premium</b> <i>OR</i> its volume / open-interest
-          ratio clears <b>Min vol/OI</b> &mdash; so a $80K bet on a
-          $3B mcap that's 12&times; the existing OI shows up alongside
-          NVDA's $5M sweeps. Each row is tagged
-          <span class="lf-tier lf-tier-golden">🥇 Golden</span>
+          ratio clears <b>Min vol/OI</b>. Up to the 750 nearest-expiry
+          contracts per name are scanned. Each row is tagged
+          <span class="lf-tier lf-tier-golden">⚡ Hot</span>
           <span class="lf-tier lf-tier-big">🔥 Big</span>
           <span class="lf-tier lf-tier-unusual">📈 Unusual</span>
-          or <span class="lf-tier lf-tier-active">· Active</span>.
-          Polled every 60 sec; new fills flash gold for 3 sec.
-          <b>Data delayed 15 minutes</b> (Polygon Options Starter
-          license). True per-print streaming would need a Polygon
-          Advanced upgrade.
+          or <span class="lf-tier lf-tier-active">· Active</span>
+          (Hot is not a Golden Sweep &mdash; this feed has no
+          trade-by-trade data). No live bid/ask on our data plan, so
+          this feed can't tell who bought or sold &mdash; only calls vs
+          puts. Polled every 60 sec; rows whose activity changed flash
+          gold for 3 sec. <b>Data delayed 15 minutes</b> (Polygon
+          Options Starter license).
         </p>
 
         <div class="lf-toolbar" id="lf-toolbar">
@@ -7105,7 +7108,7 @@
             <span id="lf-status-text">Initializing…</span>
           </div>
           <label class="lf-control"
-            title="Either-or threshold with vol/OI: a fill passes if its premium clears this OR its volume/open-interest ratio clears the next selector. Default $100K matches the batch UOA screen.">
+            title="Either-or threshold with vol/OI: a contract passes if its day premium (volume × the day's average price) clears this OR its volume/open-interest ratio clears the next selector. Default $100K matches the batch UOA screen.">
             <span>Min premium</span>
             <select id="lf-min-premium">
               <option value="50000">$50K</option>
@@ -7131,17 +7134,18 @@
             <span>Tier</span>
             <select id="lf-tier">
               <option value="">All</option>
-              <option value="golden">🥇 Golden only</option>
+              <option value="hot">⚡ Hot only</option>
               <option value="big">🔥 Big sweep only</option>
               <option value="unusual">📈 Unusual ratio only</option>
             </select>
           </label>
-          <label class="lf-control">
-            <span>Direction</span>
+          <label class="lf-control"
+            title="Calls vs puts. Without live bid/ask this feed can't tell whether they were bought or sold, so it doesn't claim a bullish/bearish direction.">
+            <span>Type</span>
             <select id="lf-direction">
               <option value="">All</option>
-              <option value="bullish">Bullish only</option>
-              <option value="bearish">Bearish only</option>
+              <option value="call">Calls only</option>
+              <option value="put">Puts only</option>
             </select>
           </label>
           <label class="lf-control lf-checkbox">
@@ -26221,7 +26225,7 @@
       { k:"ticker", t:"Ticker", tip:"Underlying stock symbol. Tap to open drilldown." },
       { k:"tier", t:"Tier", tip:"Quality tier A / B / C / earnings / caution / hedge. A-tier is rare BY DESIGN — top 1-2% of flow each day, only the absolute strongest setups qualify. B = solid directional reads. C = working set; everything that cleared the universe filters but doesn't merit a top label. Earnings / Hedge / Caution call out specific patterns. Combines bullishness, opening likelihood, premium size, and conviction signals." },
       { k:"trade_score", t:"Score", tip:"Composite Trade Score 0-100. Premium-weighted: vol/OI, opening likelihood, ask-side aggression, repeat history, conviction tier." },
-      { k:"flow_side", t:"Bias", tip:"Bullish (call buying or put selling) / Bearish (put buying or call selling) / Mixed. Direction the smart money is leaning." },
+      { k:"flow_side", t:"Bias", tip:"Estimated side of today's prints: BUY = most contracts traded above the day's average price, SELL = below (no live bid/ask on our data plan, so it is a lean, not proof). Bullish = calls bought or puts sold; bearish = puts bought or calls sold." },
       { k:"opening", t:"Opening", tip:"Opening likelihood: New (likely opening a fresh position, +signal) / Closing (likely closing existing, weaker signal) / Mixed." },
       { k:"type", t:"C/P", tip:"Contract type: CALL (right to buy) or PUT (right to sell)." },
       { k:"strike", t:"Strike", tip:"Strike price of the contract." },
@@ -26541,7 +26545,7 @@
         '% put (premium-weighted)</div></div>');
       cards.push('<div class="te-card gold"><div class="te-label">' +
         'Golden Sweeps</div><div class="te-val gold">' + goldenCount +
-        '</div><div class="te-sub">cross-exchange aggressive buys</div></div>');
+        '</div><div class="te-sub">single sweeps ≥$1M, buy-side lean (est.)</div></div>');
       cards.push('<div class="te-card blue"><div class="te-label">' +
         'Repeat Flow</div><div class="te-val">' + repeatCount +
         '</div><div class="te-sub">multi-print conviction</div></div>');
@@ -27748,15 +27752,20 @@
           // Direction — abbreviate to single arrow + text for density.
           if (r.direction === "bullish") pills.push(
             '<span class="uoa-pill uoa-pill-bull" title="' +
-            'Premium-weighted lean is bullish.">▲ Bull</span>');
+            'Bullish lean: calls with most contracts traded above the ' +
+            'day\'s average price (an estimate — no live bid/ask on our ' +
+            'data plan).">▲ Bull</span>');
           else if (r.direction === "bearish") pills.push(
             '<span class="uoa-pill uoa-pill-bear" title="' +
-            'Premium-weighted lean is bearish.">▼ Bear</span>');
+            'Bearish lean: puts with most contracts traded above the ' +
+            'day\'s average price (an estimate — no live bid/ask on our ' +
+            'data plan).">▼ Bear</span>');
           // Execution venue — Golden takes precedence over Sweep
           if (r.is_golden || r.golden) pills.push(
             '<span class="uoa-pill uoa-pill-gold" title="' +
-            'Golden Sweep — cross-exchange aggressive buy ≥$1M premium ' +
-            'with short DTE.">★ Golden</span>');
+            'Golden Sweep — a single order routed across exchanges for ' +
+            '≥$1M premium, ≤30 DTE, on a contract whose prints lean to the ' +
+            'buy side (estimated).">★ Golden</span>');
           else if (r.is_sweep || (r.sweeps || 0) > 0) pills.push(
             '<span class="uoa-pill uoa-pill-sweep" title="' +
             'Sweep — parent order routed across multiple exchanges, ' +
@@ -28087,7 +28096,7 @@
         const HM = { DTE: 1, "LAST FILL": 1, WHEN: 1, "V/OI": 1,
                      "OI CHG": 1, ACT: 1, "LAST SEEN": 1 };
         const TIPS = {
-          SIDE: "Explicit trade-side read: CALL/PUT BUY = ≥55% of prints at/near the ask (aggressive buying). CALL/PUT SELL = scanner-classified premium selling (directional read inverts). MIXED = tape doesn't confirm a side.",
+          SIDE: "Estimated trade side: CALL/PUT BUY = ≥55% of today's contracts traded above the day's average price (no live bid/ask on our data plan, so this is a lean, not proof of buying at the ask). CALL/PUT SELL = scanner-classified premium selling (directional read inverts). MIXED = tape doesn't confirm a side.",
           SCORE: "Daily unusual score 0-100 — hover a value for its full component breakdown. 90+ requires 3+ independent strong signals.",
           PREM: "Cumulative premium traded in this contract today (day total from the latest snapshot — never summed across scans)",
           "LAST FILL": "Price of the most recent trade in this contract (delayed) — a last fill, not an average",
@@ -28109,11 +28118,11 @@
             x + arrow + '</span>';
         }).join("");
         const SIDE_TIPS = {
-          "CALL BUY": "Calls bought aggressively (≥55% of prints at/near the ask) — confirmed bullish bet.",
-          "PUT BUY": "Puts bought aggressively (≥55% of prints at/near the ask) — confirmed bearish bet.",
+          "CALL BUY": "Calls with ≥55% of today's contracts traded above the day's average price — an estimated buy lean, read as bullish.",
+          "PUT BUY": "Puts with ≥55% of today's contracts traded above the day's average price — an estimated buy lean, read as bearish.",
           "CALL SELL": "Calls SOLD for premium (scanner-classified) — income flow, bearish-leaning. The seller profits if the stock stalls.",
           "PUT SELL": "Puts SOLD for premium (scanner-classified) — income flow, bullish-leaning. The seller profits if the stock holds up.",
-          "MIXED": "Prints split between bid and ask — the tape doesn't confirm a side. Lower conviction.",
+          "MIXED": "Contracts split above and below the day's average price — no side can be estimated. Lower conviction.",
         };
         rows.forEach(function (r) {
           const bull = r.bias && r.bias.indexOf("bull") === 0;
@@ -28930,7 +28939,11 @@
         return WORKER_URL + "/?live-flow=1&min_premium=" + minPrem +
           "&min_vol_oi=" + minVolOi + "&limit=120" + extra;
       }
-      function renderFeed(flows) {
+      function renderFeed(flows, meta) {
+        meta = meta || {};
+        // "golden" was renamed "hot" (it was never a Golden Sweep); accept
+        // both while an older worker deploy is still serving.
+        (flows || []).forEach(function (f) { if (f.tier === "golden") f.tier = "hot"; });
         const feed = $("lf-feed");
         const footEl = $("lf-foot");
         if (!feed) return;
@@ -28942,7 +28955,7 @@
         const wlOnly = $("lf-watchlist-only") && $("lf-watchlist-only").checked;
         const wl = (window.tdWatchlist && window.tdWatchlist()) || new Set();
         const filtered = (flows || []).filter(function (f) {
-          if (dir && f.direction !== dir) return false;
+          if (dir && f.type !== dir) return false;
           if (tierFilter && f.tier !== tierFilter) return false;
           if (wlOnly && !wl.has(f.ticker)) return false;
           return true;
@@ -28974,10 +28987,16 @@
           const key = f.contract + "|" + (f.last_trade_ts || 0);
           const firstSeen = seen.get(key) || (seen.set(key, now), now);
           const isFresh = (now - firstSeen) < HIGHLIGHT_MS;
-          const dirCls = f.direction === "bullish" ? "lf-bull"
+          // Side unknown without quotes: show the contract type, no arrow
+          const sideKnown = f.direction_basis !== "contract_type" &&
+            !(f.bid == null && f.ask == null);
+          const dirCls = !sideKnown ? "lf-mixed"
+                       : f.direction === "bullish" ? "lf-bull"
                        : f.direction === "bearish" ? "lf-bear" : "lf-mixed";
-          const dirArrow = f.direction === "bullish" ? "▲"
+          const dirArrow = !sideKnown ? "•"
+                         : f.direction === "bullish" ? "▲"
                          : f.direction === "bearish" ? "▼" : "•";
+          const dirTxt = sideKnown ? (f.direction || "mixed") : "side n/a";
           const watched = wl.has(f.ticker);
           // Per-contract cost = quoted price × 100 (1 contract = 100
           // shares of underlying option exposure). This is the actual
@@ -29005,8 +29024,8 @@
           // floor: a 12× vol/OI fill on a $3B mcap gets "📈 Unusual"
           // even if the premium is only $80K.
           const tierBadge = (function (t) {
-            if (t === "golden")  return '<span class="lf-tier lf-tier-golden"  title="Premium ≥ $250K + vol/OI ≥ 5× + DTE ≤ 45 — textbook UOA">🥇 Golden</span>';
-            if (t === "big")     return '<span class="lf-tier lf-tier-big"     title="Premium ≥ $1M — classic mega-cap institutional sweep">🔥 Big</span>';
+            if (t === "hot")     return '<span class="lf-tier lf-tier-golden"  title="Day premium ≥ $250K + vol/OI ≥ 5× + DTE ≤ 45. Not a Golden Sweep — this feed has no trade-by-trade sweep data.">⚡ Hot</span>';
+            if (t === "big")     return '<span class="lf-tier lf-tier-big"     title="Day premium ≥ $1M (a running day total, not necessarily one order)">🔥 Big</span>';
             if (t === "unusual") return '<span class="lf-tier lf-tier-unusual" title="Vol/OI ≥ 5× — small-cap edge: new positioning vs. existing OI">📈 Unusual</span>';
             return '<span class="lf-tier lf-tier-active" title="Day flow worth a glance">· Active</span>';
           })(f.tier);
@@ -29065,8 +29084,9 @@
             '<span class="lf-prem">' + fmtPrem(f.premium) + '</span>' +
             costHtml +
             '<span class="lf-voi">v/oi ' + f.vol_oi + '</span>' +
-            '<span class="lf-dir ' + dirCls + '">' + dirArrow + ' ' +
-              (f.direction || "mixed") + '</span>' +
+            '<span class="lf-dir ' + dirCls + '"' + (sideKnown ? '' :
+              ' title="No live bid/ask on our data plan — who bought or ' +
+              'sold is unknown"') + '>' + dirArrow + ' ' + dirTxt + '</span>' +
             (f.iv ? '<span class="lf-iv">IV ' +
               Math.round((f.iv || 0) * 100) + '%</span>' : '') +
             '</div>';
@@ -29089,14 +29109,19 @@
             acc[f.tier] = (acc[f.tier] || 0) + 1; return acc;
           }, {});
           const tierStr = [
-            counts.golden  ? "🥇 " + counts.golden  : null,
+            counts.hot     ? "⚡ " + counts.hot     : null,
             counts.big     ? "🔥 " + counts.big     : null,
             counts.unusual ? "📈 " + counts.unusual : null,
           ].filter(Boolean).join(" · ");
           footEl.textContent = filtered.length + " flow" +
             (filtered.length === 1 ? "" : "s") + " shown" +
             (tierStr ? " · " + tierStr : "") +
-            " · universe " + (flows ? flows.length : 0) +
+            " · universe " + (meta.universe_size || "?") + " names" +
+            (meta.scanned ? " / " + meta.scanned.toLocaleString() +
+              " contracts scanned" : "") +
+            (meta.truncated_tickers ? " (" + meta.truncated_tickers +
+              " names capped at " + (meta.max_contracts_per_ticker || 750) +
+              " nearest-expiry contracts)" : "") +
             " · polled " + new Date().toLocaleTimeString();
         }
       }
@@ -29111,7 +29136,7 @@
           const r = await fetch(buildUrl(), { cache: "no-store" });
           if (!r.ok) throw new Error("HTTP " + r.status);
           const d = await r.json();
-          renderFeed(d.flows || []);
+          renderFeed(d.flows || [], d);
           // Honest label: the POLL is fresh (we just fetched) but the
           // upstream Polygon Options Starter data is 15m delayed by
           // license. Never imply the prints themselves are live.

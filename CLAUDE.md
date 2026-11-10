@@ -25,7 +25,11 @@ quantitative screens — no Claude.
 
 ## Schedule (`.github/workflows/`)
 
-All weekdays ET. Workflows auto-handle EDT/EST via dual cron lines.
+All weekdays ET. GitHub cron is literal UTC (no DST): each workflow picks UTC
+times that stay safe in both seasons. The Cloudflare worker is the primary
+scheduler for the flow scans (`uoa.yml`, every 30 min 9:45 AM-3:45 PM ET) and
+the 4:45 PM ET EOD backstop (`scanner.yml` + `momentum.yml`); it runs on the
+ET clock (`UOA_SLOTS` / `EOD_SLOT` in `cloudflare-worker/worker.js`).
 
 | Time ET | Workflow | Runs |
 |---|---|---|
@@ -34,8 +38,8 @@ All weekdays ET. Workflows auto-handle EDT/EST via dual cron lines.
 | 4:30 PM | `momentum.yml` | QM Monthly + Stockbee Weekly |
 | on demand | `ticker-lookup.yml` | Ad-hoc single-ticker lookup (`workflow_dispatch`) |
 
-`scanner.yml` time-routes via UTC: the 4:15 PM window runs setup builders, all
-others run scanners.
+`scanner.yml` routes by the ET clock: runs from 4:00 PM ET on are the setup
+builders, earlier runs are the breakout scanners.
 
 ---
 
