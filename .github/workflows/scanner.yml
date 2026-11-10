@@ -69,16 +69,17 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          HOUR=$(date -u +%H)
-          MIN=$(date -u +%M)
-          TIME_UTC="${HOUR}${MIN}"
+          # Route by the ET wall clock (DST-safe). The old 10-minute UTC
+          # windows missed any delayed run, and the Cloudflare EOD backstop
+          # (4:45 PM ET) always fell outside them, so it re-ran the
+          # breakout scanner after the close instead of the setup builders.
+          TIME_ET=$(TZ=America/New_York date +%H%M)
 
           # Run SMID then IWM SEQUENTIALLY — not parallel.
           # Parallel runs hammer Yahoo Finance from the same runner IP and the
           # heavier IWM scan (500 tickers) gets rate-limited to 0 results.
-          # 4:15 PM ET window (EDT: 2015 UTC, EST: 2115 UTC) → setup builders
-          if [ "$TIME_UTC" -ge "2010" ] && [ "$TIME_UTC" -le "2020" ] || \
-             [ "$TIME_UTC" -ge "2110" ] && [ "$TIME_UTC" -le "2120" ]; then
+          # From 4:00 PM ET on → EOD setup builders; before → breakouts
+          if [ "$((10#$TIME_ET))" -ge 1600 ]; then
             echo "Running setup builders (EOD base scan) — SMID then IWM"
             uv run python setup_builder.py;       R1=$?
             uv run python setup_builder.py --iwm; R2=$?

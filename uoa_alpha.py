@@ -1509,17 +1509,29 @@ def _ew_regime_sets(graded):
 
 
 def _ew_win(s):
-    """Direction-aware +5d excess win, or None if not gradeable. Bullish
-    wins when excess > 0; bearish when excess < 0. Income/hedge structures
-    aren't graded by underlying direction, so they're excluded."""
-    d = s.get("direction")
-    if d not in ("bullish", "bearish"):
-        return None
-    r5 = (s.get("returns") or {}).get(5) or (s.get("returns") or {}).get("5")
-    exc = (r5 or {}).get("excess")
+    """Direction-aware +5d excess win, or None if not gradeable: the stock
+    beat SPY in the flow's direction. Same grading as every published stat
+    (_signed_returns: directional flow only, price-basis guard), so the
+    learner and the track record can't disagree about what a win is."""
+    exc = (((_signed_returns(s) or {}).get(5)) or {}).get("excess")
     if exc is None:
         return None
-    return (exc > 0) if d == "bullish" else (exc < 0)
+    return exc > 0
+
+
+def _ew_side(s):
+    """Learner side feature: seller / call_buy / put_buy / unclassified.
+    Unlike _side_of_signal (kept for the desk's research consumers), prints
+    with no classified aggressor side (mixed / unknown) are NOT folded into
+    a buy book. uoa_scanner.edge_adjust mirrors this exactly."""
+    fs = s.get("flow_side")
+    if fs in ("put_seller", "call_seller"):
+        return "seller"
+    if fs == "call_buyer":
+        return "call_buy"
+    if fs == "put_buyer":
+        return "put_buy"
+    return "unclassified"
 
 
 def _side_of_signal(s):
@@ -1543,7 +1555,7 @@ def _ew_features(s):
     same fields, so the scanner can mirror this exactly."""
     feats = [
         f"type:{s.get('signal_type')}",
-        f"side:{_side_of_signal(s)}",
+        f"side:{_ew_side(s)}",
         f"dte:{_dte_bucket(s.get('dte'))}",
         f"cap:{s.get('cap_bucket') or 'unknown'}",
         f"liq:{s.get('liquidity') or 'C'}",
@@ -1724,7 +1736,9 @@ def _score_deciles(scored):
 
 def _emit_edge_weights(scored):
     """Compute per-feature adjustments from matured directional outcomes and
-    publish the versioned weights file the scanner reads next run."""
+    publish the versioned weights file the scanner reads next run. Pass
+    unique alerts (one per contract per ET day): training on raw ledger
+    rows weighted each contract by how many scans re-logged it."""
     graded = [(s, w) for s in scored for w in [_ew_win(s)] if w is not None]
     if len(graded) < EW_MIN_N * 2:
         print(f"  edge_weights: only {len(graded)} gradeable signals — skipping")
@@ -1816,8 +1830,7 @@ def _emit_edge_weights(scored):
 
 def run(rebuild=False):
     """Compute edge stats + per-signal scorecards; publish both JSON files.
-    Published stats use unique alerts; the learner (_emit_edge_weights)
-    still trains on every ledger row, unchanged."""
+    Published stats AND the learner use unique alerts."""
     edge, scored = compute_edge(rebuild=rebuild)
     alerts = unique_alerts(scored) if scored else []
     os.makedirs(os.path.dirname(EDGE_PATH), exist_ok=True)
@@ -1869,7 +1882,7 @@ def run(rebuild=False):
         json.dump(edge, f, separators=(",", ":"))
     _emit_scored(alerts)
     try:
-        _emit_edge_weights(scored)
+        _emit_edge_weights(alerts)
     except Exception as e:
         print(f"  edge_weights failed (non-fatal): {e}")
     # Nightly model-health report: one small JSON answering "is the
