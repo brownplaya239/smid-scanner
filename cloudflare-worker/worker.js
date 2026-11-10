@@ -1290,6 +1290,181 @@ async function requireUser(request, env) {
   }
 }
 
+/** Promo codes — POST /promo/redeem {code}. Auth-gated.
+ *
+ *  Codes live ONLY in the PROMO_CODES worker secret, as JSON:
+ *    {"SPRING30": {"tier": "premium", "days": 30, "label": "30-day Premium"}}
+ *  This repo is public, so a code table in worker.js or docs/index.html
+ *  hands free plans to anyone who reads the source. That is what the old
+ *  browser-side table did (TEST69 / BETAFNF were in the page source, and
+ *  the browser wrote the plan itself). With no secret set, every code is
+ *  rejected, which is the safe default.
+ *
+ *  The worker writes the plan with the service key. Browsers can no
+ *  longer write plan fields at all (sql/2026-11-10_lock_plans_and_report_usage.sql). */
+const PROMO_TIER_RANK = { free: 0, pro: 1, premium: 2, beta: 3 };
+
+function loadPromoCodes(env) {
+  if (!env.PROMO_CODES) return {};
+  let raw;
+  try { raw = JSON.parse(env.PROMO_CODES); }
+  catch (_) {
+    console.log("PROMO_CODES secret is not valid JSON; no codes active");
+    return {};
+  }
+  const out = {};
+  for (const key of Object.keys(raw || {})) {
+    const v = raw[key] || {};
+    const days = Math.floor(Number(v.days));
+    if (!PROMO_TIER_RANK[v.tier] || !(days >= 1 && days <= 730)) continue;
+    out[String(key).trim().toUpperCase()] =
+      { tier: v.tier, days: days, label: String(v.label || "") };
+  }
+  return out;
+}
+
+async function handlePromoRedeem(request, env, cors) {
+  const fail = function (status, error, code) {
+    return Response.json({ ok: false, error: error, code: code },
+      { status: status, headers: cors });
+  };
+  const user = await requireUser(request, env);
+  if (!user.ok) return fail(user.status, user.error, user.code);
+  if (!env.SUPABASE_SERVICE_KEY) {
+    return fail(503, "Service temporarily unavailable.", "promo_unavailable");
+  }
+  let code = "";
+  try {
+    const body = await request.json();
+    code = String((body && body.code) || "").trim().toUpperCase();
+  } catch (_) {
+    return fail(400, "Invalid request.", "bad_request");
+  }
+  if (!code || code.length > 40) return fail(400, "Enter a code.", "empty");
+  const promo = loadPromoCodes(env)[code];
+  if (!promo) return fail(400, "Invalid promo code.", "invalid");
+
+  const svc = {
+    "apikey": env.SUPABASE_SERVICE_KEY,
+    "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+  };
+  const profUrl = env.SUPABASE_URL.replace(/\/+$/, "") +
+    "/rest/v1/profiles?id=eq." + encodeURIComponent(user.uid);
+  let prof = null;
+  try {
+    const r = await fetch(profUrl +
+      "&select=subscription_tier,subscription_expires_at,promo_code_redeemed",
+      { headers: svc });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    prof = (await r.json())[0] || null;
+  } catch (e) {
+    console.log("promo profile read failed:", e.message);
+    return fail(503, "Couldn't check your account. Try again in a minute.",
+      "promo_unavailable");
+  }
+  if (!prof) {
+    return fail(409, "Your account isn't fully set up yet. Sign out and " +
+      "back in, then try again.", "no_profile");
+  }
+  if (prof.promo_code_redeemed === code) {
+    return fail(409, "You've already redeemed " + code +
+      ". Each code is valid once per account.", "already_redeemed");
+  }
+  const tier = prof.subscription_tier || "free";
+  const expiresMs = prof.subscription_expires_at
+    ? Date.parse(prof.subscription_expires_at) : null;
+  const effective = (expiresMs !== null && expiresMs < Date.now())
+    ? "free" : tier;
+  // A plan with no end date is a paid (Stripe) or hand-granted plan.
+  // Applying a promo would give it an end date, and when that passed the
+  // account would read as Free while the person was still paying.
+  if (effective !== "free" && expiresMs === null) {
+    return fail(409, "Your " + effective.toUpperCase() + " plan is already " +
+      "active. Promo codes are for free accounts and trials.", "plan_active");
+  }
+  if ((PROMO_TIER_RANK[effective] || 0) > PROMO_TIER_RANK[promo.tier]) {
+    return fail(409, "You're already on " + effective.toUpperCase() +
+      ", which is a higher tier than this promo grants. No upgrade applied.",
+      "higher_tier");
+  }
+  const nowIso = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + promo.days * 86400000).toISOString();
+  try {
+    const w = await fetch(profUrl, {
+      method: "PATCH",
+      headers: { ...svc, "Content-Type": "application/json",
+                 "Prefer": "return=minimal" },
+      body: JSON.stringify({
+        subscription_tier: promo.tier,
+        subscription_expires_at: expiresAt,
+        promo_code_redeemed: code,
+        promo_code_redeemed_at: nowIso,
+      }),
+    });
+    if (!w.ok) throw new Error("HTTP " + w.status);
+  } catch (e) {
+    console.log("promo profile write failed:", e.message);
+    return fail(502, "Couldn't apply the code. Try again in a minute.",
+      "promo_write_failed");
+  }
+  console.log("[promo] redeemed code=" + code + " tier=" + promo.tier +
+    " days=" + promo.days);
+  return Response.json({ ok: true, tier: promo.tier, days: promo.days,
+    expires: expiresAt, label: promo.label }, { headers: cors });
+}
+
+/** Report usage ledger. The worker is the only writer of
+ *  report_generations rows: it records each report BEFORE dispatching
+ *  the workflow, so the monthly / lifetime caps count it, and removes
+ *  the row again if the dispatch fails. Browsers used to insert these
+ *  rows themselves, which meant a report could be run without ever
+ *  being counted (skip the insert, or delete the row afterwards).
+ *  Returns the new row id, or null if recording failed (logged; the
+ *  report still runs, matching the fail-open quota lookup above). */
+async function recordReportUsage(env, uid, ticker, reportType) {
+  if (!uid || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) return null;
+  try {
+    const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/report_generations?select=id", {
+      method: "POST",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_KEY,
+        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+      },
+      body: JSON.stringify({ user_id: uid, ticker: ticker,
+        report_type: reportType, status: "queued" }),
+    });
+    if (!r.ok) {
+      console.log("report usage insert failed: HTTP " + r.status);
+      return null;
+    }
+    const rows = await r.json();
+    return (rows && rows[0] && rows[0].id) || null;
+  } catch (e) {
+    console.log("report usage insert failed:", e.message);
+    return null;
+  }
+}
+
+async function forgetReportUsage(env, rowId) {
+  if (!rowId) return;
+  try {
+    await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/report_generations?id=eq." + encodeURIComponent(rowId), {
+      method: "DELETE",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_KEY,
+        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+        "Prefer": "return=minimal",
+      },
+    });
+  } catch (e) {
+    console.log("report usage cleanup failed:", e.message);
+  }
+}
+
 /** Ask TickerDesk — POST /ask-desk {question}. Auth-gated (spends LLM
  *  tokens). The model receives ONLY the published Trade Desk JSONs and
  *  a contract to answer from them: facts must trace to the payload,
@@ -2758,7 +2933,13 @@ async function handleStripeWebhook(request, env, cors) {
   async function updateProfile(userId, patch) {
     if (!userId || !patch) return;
     const body = {};
-    if (patch.tier) body.subscription_tier = patch.tier;
+    if (patch.tier) {
+      body.subscription_tier = patch.tier;
+      // Stripe now owns the plan, so drop any promo end date. Otherwise a
+      // promo user who then paid would read as Free once the old promo
+      // date passed, while still being charged.
+      body.subscription_expires_at = null;
+    }
     if (patch.stripe_customer_id) {
       body.stripe_customer_id = patch.stripe_customer_id;
     }
@@ -3873,6 +4054,9 @@ export default {
     if (urlPath === "/stripe/portal" && request.method === "POST") {
       return handleStripePortal(request, env, cors);
     }
+    if (urlPath === "/promo/redeem" && request.method === "POST") {
+      return handlePromoRedeem(request, env, cors);
+    }
     // Portfolio screenshot OCR — vision extract of tickers/weights.
     if (urlPath === "/portfolio-ocr" && request.method === "POST") {
       return handlePortfolioOCR(request, env, cors);
@@ -4620,6 +4804,12 @@ export default {
       // probe failed — proceed; the workflow handles invalid tickers too
     }
 
+    // Count the report before it runs (see recordReportUsage). Recording
+    // first, not after, means a burst of parallel requests mostly sees
+    // each other's rows instead of all passing the cap check at once.
+    const usageRowId = await recordReportUsage(env, reqUserId, ticker,
+      WORKFLOWS[report] ? report : "adhoc");
+
     // Trigger the GitHub workflow_dispatch — ref is "master" (this repo's branch)
     const ghResp = await fetch(
       `https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`,
@@ -4640,6 +4830,8 @@ export default {
     if (ghResp.ok) {
       return Response.json({ ok: true, ticker }, { headers: cors });
     }
+    // The report never started, so don't charge it against the cap.
+    await forgetReportUsage(env, usageRowId);
     const detail = await ghResp.text();
     let hint = "";
     if (ghResp.status === 404) {

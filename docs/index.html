@@ -8193,21 +8193,10 @@
     }
   }
   // ── Promo code redemption ──────────────────────────────────────
-  // Frontend-validated promo codes that grant time-limited access.
-  // Codes are checked against a hard-coded table here; redemption
-  // writes to public.profiles via Supabase REST so RLS limits the
-  // update to the user's own row (no impersonation risk).
-  //
-  // To add a code: extend PROMO_CODES with { code, tier, days, label }.
-  // To revoke a code mid-flight: remove it from the table and any
-  // future redemption attempt will reject with "Invalid promo code."
-  // Existing redemptions retain their expires_at.
-  const PROMO_CODES = {
-    "TEST69": { tier: "premium", days: 90,
-                label: "90-day Premium trial" },
-    "BETAFNF": { tier: "premium", days: 365,
-                 label: "Friends & Family — full Premium, 1 year" },
-  };
+  // Codes are checked and applied by the worker (POST /promo/redeem).
+  // They live only in the worker's PROMO_CODES secret, never in this
+  // page: the page source is public, and the database no longer lets
+  // a browser change its own plan.
   // Generic Supabase-call timeout wrapper — any `await SUPA.from(...)`
   // or `await SUPA.rpc(...)` should be wrapped with this to avoid the
   // indefinite hang we've seen when the supabase-js client gets stuck.
@@ -8276,81 +8265,43 @@
   window.tdRedeemPromo = async function (rawCode) {
     const code = (rawCode || "").trim().toUpperCase();
     if (!code) return { ok: false, error: "Enter a code." };
-    const promo = PROMO_CODES[code];
-    if (!promo) return { ok: false, error: "Invalid promo code." };
     if (!CURRENT_USER) {
       return { ok: false, error: "Sign in first to redeem a promo code." };
     }
-    // Check current profile state via direct REST
-    let prof = null;
+    let access = null;
     try {
-      const r = await tdSupaRestFetch(
-        "/rest/v1/profiles?id=eq." + encodeURIComponent(CURRENT_USER.id) +
-        "&select=promo_code_redeemed,subscription_tier," +
-        "subscription_expires_at",
-        { method: "GET" }
-      );
-      if (!r.ok) {
-        return { ok: false, error: "Couldn't read your profile (HTTP " +
-          r.status + "). Try signing out and back in." };
+      const { session } = await getSessionSafe();
+      access = session && session.access_token;
+    } catch (_) {}
+    if (!access) {
+      return { ok: false, error: "Sign-in expired. Please sign in again." };
+    }
+    let data = null;
+    try {
+      const resp = await fetch(WORKER_URL + "/promo/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+                   "Authorization": "Bearer " + access },
+        body: JSON.stringify({ code: code }),
+      });
+      data = await resp.json().catch(function () { return null; });
+      if (!resp.ok || !data || !data.ok) {
+        return { ok: false, error: (data && data.error) ||
+          ("Couldn't redeem the code (HTTP " + resp.status + ").") };
       }
-      prof = (r.data && r.data[0]) || null;
     } catch (e) {
-      return { ok: false, error: "Couldn't verify status: " +
+      return { ok: false, error: "Couldn't reach TickerDesk: " +
         (e.message || e) };
     }
-    if (prof && prof.promo_code_redeemed === code) {
-      return { ok: false,
-               error: "You've already redeemed " + code +
-                 ". Each code is valid once per account." };
-    }
-    // Only refuse if the promo would be a STRICT downgrade. Equal-tier
-    // or upgrade promos are always allowed (they extend or upgrade
-    // the existing benefit). Tier rank: free=0, pro=1, premium=2.
-    const TIER_RANK = { free: 0, pro: 1, premium: 2, beta: 3 };
-    const currentRank = TIER_RANK[prof && prof.subscription_tier] || 0;
-    const promoRank = TIER_RANK[promo.tier] || 0;
-    if (currentRank > promoRank) {
-      return { ok: false,
-               error: "You're already on " +
-                 (prof.subscription_tier || "").toUpperCase() +
-                 ", which is a higher tier than this promo grants. " +
-                 "No upgrade applied." };
-    }
-    // Apply the upgrade via direct REST PATCH
-    const expiresAt = new Date(Date.now() + promo.days * 86400000)
-      .toISOString();
-    try {
-      const r = await tdSupaRestFetch(
-        "/rest/v1/profiles?id=eq." + encodeURIComponent(CURRENT_USER.id),
-        { method: "PATCH",
-          headers: { "Prefer": "return=minimal" },
-          body: {
-            subscription_tier: promo.tier,
-            subscription_expires_at: expiresAt,
-            promo_code_redeemed: code,
-            promo_code_redeemed_at: new Date().toISOString(),
-          } }
-      );
-      if (!r.ok) {
-        return { ok: false, error: "Save failed (HTTP " + r.status + "): " +
-          (r.raw || "").slice(0, 140) };
-      }
-      // Best-effort refresh — bounded by its own timeout below
-      try { await refreshPlanState(); } catch (e) {}
-      // Even if refreshPlanState stalls, force the local state so the
-      // UI reflects the upgrade immediately (it'll re-confirm on next
-      // page load via the RPC).
-      CURRENT_USER_PLAN = promo.tier;
-      CURRENT_USER_EXPIRES_AT = expiresAt;
-      return { ok: true,
-               tier: promo.tier,
-               days: promo.days,
-               expires: expiresAt,
-               label: promo.label };
-    } catch (e) {
-      return { ok: false, error: "Save failed: " + (e.message || e) };
-    }
+    // Best-effort refresh; the server already saved the new plan.
+    try { await refreshPlanState(); } catch (e) {}
+    CURRENT_USER_PLAN = data.tier;
+    CURRENT_USER_EXPIRES_AT = data.expires;
+    return { ok: true,
+             tier: data.tier,
+             days: data.days,
+             expires: data.expires,
+             label: data.label || (data.tier.toUpperCase() + " promo") };
   };
 
   window.tdPlan = function () { return CURRENT_USER_PLAN; };
@@ -12996,7 +12947,7 @@
         if (res.ok) {
           status.className = "promo-status ok";
           const dt = new Date(res.expires).toLocaleDateString();
-          status.innerHTML = "✓ " + res.label +
+          status.textContent = "✓ " + res.label +
             " activated. Your " + res.tier.toUpperCase() +
             " access runs until " + dt + ".";
           input.value = "";
@@ -18372,28 +18323,9 @@
       button.disabled = true;
       viewer.className = ""; viewer.innerHTML = "";
       setStatus("working", "Researching <strong>" + ticker + "</strong> &mdash; triggering&hellip;");
-      // Log the generation attempt for credit tracking. BOUNDED: this is
-      // bookkeeping only — the worker re-validates the plan server-side
-      // from the JWT — so a slow or failed log must never block the report.
-      if (SUPA && CURRENT_USER) {
-        try {
-          await Promise.race([
-            SUPA.from("report_generations").insert({
-              user_id: CURRENT_USER.id,
-              ticker: ticker,
-              report_type: cfg.reportType,
-              status: "queued",
-            }),
-            new Promise(function (_, rej) {
-              setTimeout(function () {
-                rej(new Error("supabase insert timed out")); }, 6000);
-            }),
-          ]);
-          if (typeof refreshPlanState === "function") {
-            await refreshPlanState();
-          }
-        } catch (e) { console.warn("Report log failed (non-blocking):", e); }
-      }
+      // Usage is recorded by the worker when it accepts the request (the
+      // browser can no longer write report_generations rows), so there is
+      // nothing to log here. The counter refreshes once the worker says ok.
       // Manifest is only used to diff for the NEW file; a failure here must
       // not abort the run (it was unguarded, so a throw left the button
       // disabled forever with "triggering…" on screen).
@@ -18425,6 +18357,9 @@
         const data = await resp.json();
         if (data.ok) {
           poll(ticker, baseline, Date.now());
+          if (typeof refreshPlanState === "function") {
+            refreshPlanState().catch(function () {});
+          }
         } else if (resp.status === 429 && data.code) {
           // Server-side cap reached. Open pricing modal with the same
           // reason code the client gate would have used so users get
