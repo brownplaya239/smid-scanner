@@ -31166,83 +31166,176 @@
     function scorecardHTML() {
       var s = USC;
       if (!s || !s.pockets) return "";
+      if (s.version !== "uoa_scorecard_v2") {
+        // The v1 file counted re-logged alerts many times and charged
+        // ~10x real stock costs; never render it.
+        return '<div class="atd-sec-h">Flow Scorecard — ' +
+          'matched-control</div><div class="atd-rows"><span class="k">' +
+          'Being rebuilt with corrected counting (one row per stock, day ' +
+          'and direction), realistic stock trading costs and wider ' +
+          'control matching. Numbers return after the next nightly run.' +
+          '</span></div>';
+      }
       var ov = s.pockets.overall || {};
-      var ie = s.pockets.into_earnings || {};
       var hb = s.headline || {};
       var bo = ov.bootstrap || {};
-      function pk(o) {
-        if (!o || !o.n) return "\u2014";
-        var b = o.bootstrap || {};
-        return num(o.avg, 2) + "pp (n=" + o.n +
-          (b.ci95 ? ", CI " + num(b.ci95[0], 2) + "\u2192" +
-            num(b.ci95[1], 2) : "") + ")" +
-          (o.net && o.net.n ? " \u00b7 net " + num(o.net.avg, 2) +
-            "pp" : "");
+      var mt = s.matched || {};
+      var cn = s.counts || {};
+      var ss = s.session_split || {};
+      var costLbl = (s.cost_model || {}).label ||
+        "net of modelled share-trading costs (stock, not option)";
+      function tip(label, text) {
+        return '<span data-tip="1" title="' + esc(text) +
+          '" style="cursor:help;border-bottom:1px dotted currentColor">' +
+          label + '</span>';
       }
-      var h = '<div class="atd-sec-h">Flow Scorecard \u2014 ' +
-        'matched-control <span class="n">(controls: same sector, ' +
-        'cap band, nearest momentum+vol, flow-contaminated names ' +
-        'excluded; week\u00d7sector cluster bootstrap)</span></div>' +
-        '<div class="atd-rows">' +
-        row("Legacy vs SPY (+5d)",
-            hb.legacy_vs_spy_avg_excess_5d != null
-              ? num(hb.legacy_vs_spy_avg_excess_5d, 2) + "pp"
-              : "\u2014") +
-        row("Matched excess (+5d)", pk(ov)) +
-        row("Effective n", (bo.n_eff != null
-            ? bo.n_eff + " (nominal " + ov.n + ", " +
-              bo.clusters + " week\u00d7sector clusters)"
-            : "\u2014")) +
-        row("Into earnings (matched)", pk(ie)) +
-        row("Golden sweeps (matched)",
-            pk(s.pockets.golden_sweeps)) +
-        row("Put buys (matched)", pk(s.pockets.put_buys)) + '</div>';
-      var lag = (s.entry_lag || {}).ladder || {};
-      var order = ["at_signal", "+15m", "+60m", "next_open"];
-      if (lag.at_signal && lag.at_signal.n) {
-        h += '<div class="atd-sec-h">Entry-Lag Ladder ' +
-          '<span class="n">(matched EV to +5d close by entry point ' +
-          '\u2014 sample of ' +
-          ((s.entry_lag || {}).sampled_ticker_days || 0) +
-          ' ticker-days)</span></div>' +
+      function trow(label, text, v) { return row(tip(label, text), v); }
+      function cnt(v) {
+        return v == null ? "—" : Number(v).toLocaleString("en-US");
+      }
+      function pp(v) { return v == null ? "—" : num(v, 2) + "pp"; }
+      function pk(o) {
+        if (!o || !o.n) return "—";
+        var b = o.bootstrap || {};
+        return pp(o.avg) + " (n=" + cnt(o.n) + " stock-days" +
+          (b.ci95 ? ", CI " + num(b.ci95[0], 2) + "→" +
+            num(b.ci95[1], 2) : "") + ")" +
+          (o.net && o.net.n ? " · net " + pp(o.net.avg) : "");
+      }
+      var TIERS = [["sector_3x", "same sector 3×"],
+        ["sector_5x", "same sector 5×"],
+        ["any_sector_3x", "any sector 3×"],
+        ["any_sector_10x", "any sector 10×"]];
+      var bt = mt.by_tier || {};
+      var tierTxt = TIERS.map(function (t) {
+        return t[1] + ": " + cnt(bt[t[0]] || 0);
+      }).join(" · ");
+      var h = '<div class="atd-sec-h">Flow Scorecard — ' +
+        'matched-control <span class="n">(one row per stock, day and ' +
+        'direction, each compared with up to 10 similar stocks that had ' +
+        'no flagged flow that day; week×sector cluster bootstrap)' +
+        '</span></div><div class="atd-rows">' +
+        trow("Sample", "The scanner re-logs every contract on each " +
+          "~30-minute scan and again after the close. Each contract " +
+          "counts once per day, then each stock once per day and " +
+          "direction, because alerts on the same stock and day share one " +
+          "stock return.",
+          cnt(cn.ticker_days) + " stock-days from " +
+          cnt(cn.unique_alerts) + " unique alerts (" +
+          cnt(cn.ledger_directional_rows) + " logged rows)") +
+        trow("Matched coverage", "Share of stock-days paired with at " +
+          "least 5 similar stocks (momentum, volatility, market cap) " +
+          "that had no flagged flow of any kind that day. Same sector " +
+          "first; mega caps with too few clean same-sector peers fall " +
+          "back to any sector within 3x, then 10x, of their market cap.",
+          (mt.coverage_pct != null ? num(mt.coverage_pct, 0) + "%" :
+            "—") + " of " + cnt(mt.units_attempted) + " · " +
+          tierTxt) +
+        trow("vs SPY, same rows (+5d)", "Both numbers use the same " +
+          "stock-days and the same prices: stock return minus benchmark " +
+          "return, in the flow's direction, close to close over 5 " +
+          "sessions. Only the benchmark differs. The gap is what similar " +
+          "stocks did anyway (market beta, momentum, earnings season).",
+          pp(hb.vs_spy_5d) + " vs SPY · " + pp(hb.matched_5d) +
+          " vs matched controls · gap " + pp(hb.benchmark_gap_5d) +
+          " (n=" + cnt(hb.n) + ")") +
+        trow("Matched excess (+5d)", "Average 5-session stock return, in " +
+          "the flow's direction, minus the average of its matched " +
+          "controls. CI is a 95% range from resampling whole " +
+          "week×sector clusters. Net = " + costLbl + ".", pk(ov)) +
+        trow("Effective n", "How many independent observations the " +
+          "sample is worth once signals from the same week and sector " +
+          "are treated as moving together.", (bo.n_eff != null
+            ? cnt(bo.n_eff) + " (nominal " + cnt(ov.n) + ", " +
+              cnt(bo.clusters) + " week×sector clusters)"
+            : "—")) +
+        row("Into earnings (matched)", pk(s.pockets.into_earnings)) +
+        row("Golden sweeps (matched)", pk(s.pockets.golden_sweeps)) +
+        row("Put buys (matched)", pk(s.pockets.put_buys)) +
+        trow("First flagged after the close", "Returns run close to " +
+          "close. A stock first flagged after 4 PM ET is graded from " +
+          "that day's close, which came before the alert, so no one " +
+          "could have traded at it. The two groups are shown apart here.",
+          num(cn.first_flagged_after_close_pct, 0) + "% of stock-days " +
+          "· after close " + pk(ss.after_close) +
+          " · market hours " + pk(ss.regular)) +
+        '</div>';
+      var el = s.entry_lag || {};
+      var lag = el.ladder || {};
+      var RUNGS = [
+        ["logged_snapshot", "Scanner's logged price", "The underlying " +
+          "price saved with the alert. It comes from a snapshot delayed " +
+          "up to ~15 minutes, so it shows the market BEFORE the alert " +
+          "existed: a reference point, not a price anyone could get."],
+        ["+0m", "At the alert", "First one-minute bar at the alert's " +
+          "time."],
+        ["+15m", "15 min later", "First one-minute bar 15 minutes after " +
+          "the alert."],
+        ["+60m", "60 min later", "First one-minute bar 60 minutes after " +
+          "the alert."],
+        ["next_open", "Next day's open", "The next session's official " +
+          "opening price."]];
+      if (el.units) {
+        var win = el.window || {};
+        h += '<div class="atd-sec-h">' + tip("Entry-Lag Ladder",
+          "Same exit (the close 5 sessions later) and same control " +
+          "comparison on every row; only the entry price changes. Every " +
+          "row uses the same stock-days: those first flagged between " +
+          "9:30 AM and 3:00 PM ET (later flags have no 60-minute bar " +
+          "before the close).") +
+          ' <span class="n">(matched EV to the +5d close by entry ' +
+          'point — ' + cnt(el.units) + ' stock-days on ' +
+          cnt(el.ticker_days) + ' ticker-days first flagged 9:30 AM' +
+          '–3:00 PM ET, last ' + (el.window_days || 45) + ' days' +
+          (win.from ? ', ' + esc(win.from) + ' → ' +
+            esc(win.to || "") : '') + ')</span></div>' +
           '<div class="atd-table-wrap"><table class="atd-table">' +
           '<tr><th>Entry</th><th>n</th><th>avg</th><th>med</th>' +
           '<th>hit</th></tr>' +
-          order.map(function (k) {
-            var v = lag[k] || {};
-            return '<tr><td>' + k + '</td><td>' + (v.n || 0) +
-              '</td><td>' + num(v.avg, 2) + 'pp</td><td>' +
-              num(v.med, 2) + 'pp</td><td>' +
-              (v.hit != null ? v.hit + '%' : '\u2014') +
-              '</td></tr>';
+          RUNGS.map(function (r) {
+            var v = lag[r[0]] || {};
+            return '<tr><td>' + tip(r[1], r[2]) + '</td><td>' +
+              cnt(v.n || 0) + '</td><td>' + pp(v.avg) + '</td><td>' +
+              pp(v.med) + '</td><td>' +
+              (v.hit != null ? v.hit + '%' : '—') + '</td></tr>';
           }).join("") + '</table></div>';
       }
       var cr = ((s.crowding || {}).ev_vs_premium_over_adv || {})
         .all || {};
       var ck = Object.keys(cr);
       if (ck.length) {
-        h += '<div class="atd-sec-h">Crowding \u2014 matched EV vs ' +
-          'premium/ADV</div><div class="atd-table-wrap">' +
+        h += '<div class="atd-sec-h">' + tip("Crowding", "Does the edge " +
+          "shrink when the flagged option premium is large next to the " +
+          "stock's normal daily dollar volume (ADV)? Premium = the day's " +
+          "total flagged premium on the stock in that direction.") +
+          ' — matched EV vs premium/ADV</div>' +
+          '<div class="atd-table-wrap">' +
           '<table class="atd-table"><tr><th>Premium/ADV</th>' +
-          '<th>n</th><th>avg</th><th>hit</th></tr>' +
+          '<th>stock-days</th><th>avg</th><th>hit</th></tr>' +
           ck.map(function (b) {
             var v = cr[b];
-            return '<tr><td>' + esc(b) + '</td><td>' + (v.n || 0) +
-              '</td><td>' + num(v.avg, 2) + 'pp</td><td>' +
-              (v.hit != null ? v.hit + '%' : '\u2014') +
+            return '<tr><td>' + esc(b) + '</td><td>' + cnt(v.n || 0) +
+              '</td><td>' + pp(v.avg) + '</td><td>' +
+              (v.hit != null ? v.hit + '%' : '—') +
               '</td></tr>';
           }).join("") + '</table></div>';
       }
       var bs = (s.book_sim || {}).overall || {};
       if (bs.n_days) {
         h += '<div class="atd-rows">' +
-          row("Book sim (net, hold-5d overlap)",
-              "total " + num(bs.total_matched_excess_pp, 1) +
-              "pp \u00b7 maxDD " + num(bs.max_drawdown_pp, 1) +
-              "pp \u00b7 " + bs.longest_underwater_days +
-              "d underwater \u00b7 worst month " +
-              ((bs.worst_month || {}).month || "\u2014") + " " +
-              num((bs.worst_month || {}).pp, 1) + "pp") + '</div>';
+          trow("Book sim (hold-5d overlap)", "Equal weight in every " +
+            "matched stock-day for 5 sessions, " + costLbl + ". Daily " +
+            "P&L is approximated as the 5-day result spread evenly over " +
+            "the hold.",
+            "total " + num(bs.total_matched_excess_pp, 1) + "pp " +
+            esc(costLbl) + (bs.modelled_cost_pp != null
+              ? " (modelled costs " + num(bs.modelled_cost_pp, 1) +
+                "pp)" : "") +
+            " · maxDD " + num(bs.max_drawdown_pp, 1) +
+            "pp · " + bs.longest_underwater_days +
+            "d underwater · worst month " +
+            esc((bs.worst_month || {}).month || "—") + " " +
+            num((bs.worst_month || {}).pp, 1) + "pp") + '</div>';
       }
       if (s.honesty)
         h += '<div class="atd-rows"><span class="k">' +
