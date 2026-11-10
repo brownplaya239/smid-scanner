@@ -26953,25 +26953,39 @@
           .then(function (hl) {
             if (!hl || hl.status !== "active") return;
             const sv = hl.survivors || [];
+            const sgn = function (v) { return (v > 0 ? '+' : '') + v; };
+            // oos_lift_pp = the cohort's average direction-adjusted +5d
+            // stock excess minus the out-of-sample baseline's (not a hit
+            // rate); o.hit / o.avg are the cohort's own OOS numbers.
             const rows = sv.slice(0, 3).map(function (s) {
               const o = s.oos || {};
               const lift = s.oos_lift_pp;
               return '<div style="margin:2px 0">' +
                 window.escapeHtml(s.hypothesis.replace(/tag:/g, "")) +
                 ': <b class="' + (lift > 0 ? 'pos' : 'neg') + '">' +
-                (lift > 0 ? '+' : '') + lift + 'pp hit lift OOS</b> ' +
+                sgn(lift) + 'pp avg vs baseline OOS</b> ' +
                 '<span class="scp-edge-n">(OOS n=' + (o.n || 0).toLocaleString() +
-                ' · ' + o.hit + '% hit · avg ' + (o.avg > 0 ? '+' : '') + o.avg +
-                '%' + (s.bh_pass === false ? ' · fails multiple-testing' : '') +
+                ' · ' + o.hit + '% hit · avg ' + sgn(o.avg) + '%' +
+                (s.bh_pass === false ? ' · fails multiple-testing'
+                  : s.bh_pass === true ? ' · passes multiple-testing' : '') +
                 ')</span></div>';
             }).join("");
             const mt = hl.multiple_testing || {};
+            const smp = hl.sample || {};
             const el3 = document.createElement("div");
             el3.className = "ecard";
             el3.innerHTML = '<div class="et">Hypothesis Lab — weekly survivors</div>' +
               '<div class="ev neutral" style="font-size:12px;line-height:1.5;font-weight:500">' +
               (rows || '<div>0 survivors this week — no new edge found</div>') +
-              '</div><div class="es">' + hl.n_tested + ' pair hypotheses tested; ' +
+              '</div><div class="es">' + hl.n_tested + ' pair hypotheses tested' +
+              // sample line only for the 2026-11 payload (unique alerts)
+              (smp.unit ? ' on ' + (hl.graded || 0).toLocaleString() +
+                ' graded alerts (one per contract per day; calls and puts ' +
+                'bought only; stock move vs SPY over 5 sessions in the ' +
+                'flow\'s direction)' +
+                (smp.oos_from ? '; out-of-sample = alerts from ' + smp.oos_from +
+                  ' on, after a ' + smp.embargo_sessions + '-session gap' : '')
+                : '') + '. ' +
               (hl.graveyard || 0) + ' failed sample/stability/holdout gates. ' +
               (mt.bh_survivors != null ? mt.bh_survivors +
                 ' pass the multiple-testing (BH) check. ' : '') +
@@ -26982,49 +26996,71 @@
           }).catch(function () {});
       } catch (_) {}
       // Alpha Attribution card — the research engine's decomposition of
-      // WHERE the book's EV comes from: universe selection (flagged
-      // names drift up) vs genuine flow-direction alpha. Plus the
-      // current worst verified interaction pocket. Honest by design:
-      // failed OOS experiments (loser model, score2) publish as failed.
+      // WHERE each book's EV comes from: the flagged universe's own drift
+      // that day (selection) vs reading the flow's direction (flow alpha).
+      // Books hold CLASSIFIED aggressor sides only; every number and
+      // status comes from uoa_research.json (v2, 2026-11 audit).
       try {
         fetch("./reports/uoa_research.json", { cache: "no-cache" })
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (rs) {
-            if (!rs || !rs.attribution) return;
-            const at = rs.attribution, lb = at.long_book || {},
-                  sb = at.short_book || {};
+            // older payloads grouped books by contract type — skip them
+            if (!rs || !rs.sample || !rs.attribution || !rs.attribution.books) return;
+            const at = rs.attribution, bk = at.books, smp = rs.sample;
             const sg = function (v) { return (v > 0 ? '+' : '') + v; };
             const pc = function (v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : ''; };
-            const span = rs.span || [];
+            const nf = function (v) { return (v || 0).toLocaleString(); };
+            const spansZero = function (c) { return !!c && c[0] <= 0 && c[1] >= 0; };
+            const NAMES = { call_buy: "Calls bought", put_buy: "Puts bought",
+                            seller: "Premium sold" };
+            const bookLine = function (k) {
+              const b = bk[k];
+              if (!b) return '';
+              if (b.status !== "active") {
+                return NAMES[k] + ': <span class="scp-edge-n">accruing (n=' +
+                  nf(b.n) + ')</span><br>';
+              }
+              const c = b.flow_alpha_ci95;
+              return '<span title="' + window.escapeHtml(b.label || "") + ' · ' +
+                window.escapeHtml(b.verdict || "") + '">' + NAMES[k] +
+                ': <b class="' + pc(b.dir_ev) + '">' + sg(b.dir_ev) + '%</b>' +
+                ' <span class="scp-edge-n">= drift ' + sg(b.selection_component) +
+                ' + flow alpha ' + sg(b.flow_alpha) +
+                (c ? ' [' + sg(c[0]) + ', ' + sg(c[1]) + ']' : '') +
+                (spansZero(c) ? ' (no measurable edge)' : '') +
+                ' · n=' + nf(b.n) + ', ' + b.hit + '% hit</span></span><br>';
+            };
+            const span = smp.span || [];
+            const sel = bk.seller && bk.seller.sides ? bk.seller.sides : {};
             const el4 = document.createElement("div");
             el4.className = "ecard";
-            el4.innerHTML = '<div class="et">Alpha Attribution · +5d ' +
+            el4.innerHTML = '<div class="et">Alpha Attribution · +5 sessions ' +
               '(research engine)</div>' +
               '<div class="ev neutral" style="font-size:12px;line-height:1.7">' +
               'Flagged-universe drift: <b class="' + pc(at.universe_drift_ev) +
-                '">' + sg(at.universe_drift_ev) + '%</b><br>' +
-              (lb.n ? 'Long book: <b class="' + pc(lb.dir_ev) + '">' +
-                sg(lb.dir_ev) + '%</b> <span class="scp-edge-n">= selection ' +
-                sg(lb.selection_component) + ' + flow alpha ' +
-                sg(lb.flow_alpha) + '</span><br>' : '') +
-              (sb.n ? 'Short book: <b class="' + pc(sb.dir_ev) + '">' +
-                sg(sb.dir_ev) + '%</b> <span class="scp-edge-n">= selection ' +
-                sg(sb.selection_component) + ' + flow alpha ' +
-                sg(sb.flow_alpha) + '</span><br>' : '') +
+                '">' + sg(at.universe_drift_ev) + '%</b> ' +
+                '<span class="scp-edge-n">average day</span><br>' +
+              bookLine("call_buy") + bookLine("put_buy") + bookLine("seller") +
               '</div>' +
-              '<div class="es">Stock moves, direction-signed, over ' +
-              (span.length === 2 ? span[0] + ' → ' + span[1] : 'the research window') +
-              (rs.joined_matured_n ? ' (' + rs.joined_matured_n.toLocaleString() +
-                ' ledger rows)' : '') + '. The flagged universe ' +
-              (at.universe_drift_ev > 0 ? 'drifted up' : 'drifted down') +
-              ' over this window; "flow alpha" is each book\'s return net of ' +
-              'that drift. Books group prints by contract type (long = ' +
-              'calls not sold + puts sold, short = puts not sold + calls ' +
-              'sold), so mixed-side prints are included. Nothing ' +
-              'auto-applies without walk-forward survival.</div>';
+              '<div class="es">Stock move vs SPY over the 5 sessions after ' +
+              'the alert, signed in each book\'s direction (a put buyer is ' +
+              'right when the stock falls). One alert per contract per day: ' +
+              nf(smp.graded) + ' graded alerts' +
+              (span.length === 2 ? ', ' + span[0] + ' → ' + span[1] +
+                ' (' + nf(smp.sessions) + ' sessions)' : '') + '. ' +
+              'Books hold only prints with a clear buyer or seller: calls ' +
+              'bought, puts bought, and premium sold (' + nf(sel.put_seller) +
+              ' put sales graded bullish, ' + nf(sel.call_seller) +
+              ' call sales graded bearish). ' + nf(smp.unclassified) +
+              ' alerts with mixed or unclassified prints are left out. ' +
+              '"Drift" is what the day\'s flagged names did on average; ' +
+              '"flow alpha" is what following the flow\'s direction added on ' +
+              'top, with a 95% range clustered by day. Nothing auto-applies.</div>';
             const host4 = $("uoa-edge-deep") || $("uoa-edge");
-            if (host4) host4.appendChild(el4);
-            // Deployment Status card — the audit's source-of-truth table
+            if (!host4) return;
+            host4.appendChild(el4);
+            // Deployment Status card — every row's status and evidence is
+            // generated by the research engine from tonight's numbers
             const dep = rs.deployment;
             if (dep && dep.rows && dep.rows.length) {
               const el5 = document.createElement("div");
@@ -27032,24 +27068,28 @@
               const CLS = { LIVE: "pos", REJECTED: "neg" };
               el5.innerHTML = '<div class="et">Deployment Status · ' +
                 'research findings</div>' +
-                '<div class="ev neutral" style="font-size:11px;line-height:1.7">' +
+                '<div class="ev neutral" style="font-size:11px;line-height:1.6">' +
                 dep.rows.map(function (r2) {
-                  const st = r2.production;
+                  const st = r2.production || "";
                   const cls = CLS[st] || "";
-                  return '<div title="Gate: ' +
-                    window.escapeHtml(r2.gate || "") + ' · Rollback: ' +
+                  return '<div style="margin:0 0 4px" title="Gate: ' +
+                    window.escapeHtml(r2.gate || "") + ' · Window: ' +
+                    window.escapeHtml(r2.window || "") + ' · Rollback: ' +
                     window.escapeHtml(r2.rollback || "") + '">' +
-                    window.escapeHtml(r2.finding).replace(/\(.*\)/, "") +
-                    ' <b class="' + cls + '">' + st + '</b></div>';
+                    window.escapeHtml(r2.finding).replace(/\s*\(.*\)/, "") +
+                    ' <b class="' + cls + '">' + window.escapeHtml(st) + '</b>' +
+                    (r2.evidence ? '<div class="scp-edge-n">' +
+                      window.escapeHtml(r2.evidence) + '</div>' : '') +
+                    '</div>';
                 }).join("") + '</div>' +
                 '<div class="es">' +
                 (dep.psi_promotion_blocked_now
                   ? '⚠ PSI ≥ 0.25 — challenger promotion BLOCKED until feature drift settles. '
                   : '') +
-                'Shadow/challenger findings are recorded nightly and ' +
-                'compared prospectively; promotion requires the listed ' +
-                'gates over unseen weeks. Hover a row for its gate and ' +
-                'rollback target.</div>';
+                'As of ' + window.escapeHtml(dep.as_of || "") + '. Shadow and ' +
+                'challenger findings are never applied to live scores; ' +
+                'promotion requires the listed gates over unseen weeks. ' +
+                'Hover a row for its gate, window and rollback.</div>';
               host4.appendChild(el5);
             }
           }).catch(function () {});
