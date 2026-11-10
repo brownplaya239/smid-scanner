@@ -3,6 +3,30 @@
 One-time setup to power user accounts, watchlists, and trade journal.
 Takes ~5 minutes.
 
+## 2g. (Security, 2026-11-10) Lock plan fields and report usage
+
+Run [`sql/2026-11-10_lock_plans_and_report_usage.sql`](../sql/2026-11-10_lock_plans_and_report_usage.sql)
+in the SQL Editor once the matching worker + site change is live. Until it
+runs, the `pr_own_write` policy below lets any signed-in user set their own
+`subscription_tier`, and `rg_own` lets them delete the `report_generations`
+rows the report caps count. After it runs, only the service role (Stripe
+webhook, `/promo/redeem`, CI) can change plan fields, and the worker records
+each report itself. The script ends with a read-only list of every paid
+account and where its plan came from.
+
+**Promo codes** now live only in the worker secret `PROMO_CODES` (this repo
+and the site are public, so codes can't be in code). Cloudflare dashboard →
+Workers → `smid-scanner-discord-bot` → Settings → Variables and Secrets →
+add a **Secret** named `PROMO_CODES` with JSON like:
+
+```json
+{"FOUNDER30": {"tier": "premium", "days": 30, "label": "30-day Premium"}}
+```
+
+`tier` is `pro`, `premium` or `beta`; `days` is 1–730. No secret means every
+code is rejected. Remove a code from the JSON to retire it; accounts that
+already redeemed it keep their end date.
+
 ## 0c. (Phase 6) Cloudflare Worker secrets for Stripe Checkout
 
 The worker now exposes `/stripe/checkout` (frontend calls this to start
@@ -137,7 +161,7 @@ if the row is null (and back-fills the row when it does).
 ```sql
 -- Add an optional expiry timestamp on the user's subscription_tier.
 -- Promo codes use this to grant time-limited Premium access (e.g.
--- "TEST69" → premium for 90 days). When NULL, the tier is open-ended
+-- a 30-day Premium promo). When NULL, the tier is open-ended
 -- (normal paid subscription). When set + < now(), the client treats
 -- the user as 'free' for entitlement purposes regardless of the tier
 -- value, until a Stripe webhook re-confirms paid status.
@@ -152,8 +176,8 @@ alter table public.profiles
 ```
 
 Run that. Adds 3 nullable columns. Existing users default to NULL
-(no expiry). The promo redemption flow in the frontend looks for these
-columns and refuses to re-redeem the same code.
+(no expiry). The worker's `/promo/redeem` endpoint writes these
+columns and refuses to re-redeem the same code (see section 2g).
 
 ## 2d. (Phase 5) Run this in SQL Editor for Web Push subscriptions
 
