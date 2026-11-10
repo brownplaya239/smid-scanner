@@ -7000,9 +7000,14 @@
       </div><!-- /sub-live -->
 
       <div class="uoa-sub" id="sub-tracked" style="display:none" aria-hidden="true" inert>
-        <p class="uoa-subnote">Every flagged signal, scored as it ages &mdash;
-          next-day OI status (did the position stick?) and realized forward
-          return. Builds up over the days following each scan.</p>
+        <p class="uoa-subnote">Every flagged alert (one row per contract per
+          day &mdash; repeat scans of the same contract are folded in), scored
+          as it ages: next-day OI status (did the position stick?) and the
+          <b>stock's</b> move since the flag &mdash; not the option's P&amp;L.
+          Green / red = the stock moved with / against the flow's direction
+          (bought puts are bearish). MFE / MAE = best / worst stock move in
+          the flow's direction so far; blank for premium selling and mixed
+          prints, which carry no direction.</p>
         <div class="uoa-filters">
           <div class="uoa-filter-row">
           <input type="text" id="trk-q" placeholder="Filter tracked..." autocomplete="off" aria-label="Filter tracked signals by ticker" />
@@ -26432,7 +26437,9 @@
       const sign = stat.avg>0 ? "+" : "";
       return '<div class="ecard"><div class="et">'+label+'</div>'+
         '<div class="ev '+cls+'">'+sign+stat.avg+'%</div>'+
-        '<div class="es">'+stat.hit_rate+'% hit &middot; '+stat.n+' signals'+
+        '<div class="es" title="Stock move after the alert in the flow\'s ' +
+          'direction (bought puts graded bearish), directional alerts only.">' +
+          stat.hit_rate+'% hit &middot; '+stat.n+' alerts'+
         (stat.avg_excess!=null ? ' &middot; '+(stat.avg_excess>0?"+":"")+stat.avg_excess+'% vs SPY' : '')+
         '</div></div>';
     }
@@ -26678,14 +26685,15 @@
       const ro5 = (edge.rich_overall || {})["5"];
       if (ro5 && ro5.status === "active") {
         const evCls = ro5.ev > 0 ? "pos" : "neg";
+        const sgn = function (v) { return (v > 0 ? '+' : '') + v; };
         stats.push('<div class="ecard ecard-wide"><div class="et">' +
-          'Edge Scorecard · +5d excess vs SPY ' +
+          'Edge Scorecard · +5d stock excess vs SPY, direction-adjusted ' +
           '<span class="ecf-badge ecf-' + ro5.confidence + '">' +
           ro5.confidence + ' confidence</span></div>' +
-          '<div class="ev ' + evCls + '">' + (ro5.ev > 0 ? '+' : '') + ro5.ev +
-          '%<span class="ecf-ci"> EV per trade · 95% CI ' +
-          (ro5.ci95[0] > 0 ? '+' : '') + ro5.ci95[0] + '% … ' +
-          (ro5.ci95[1] > 0 ? '+' : '') + ro5.ci95[1] + '%</span></div>' +
+          '<div class="ev ' + evCls + '">' + sgn(ro5.ev) +
+          '%<span class="ecf-ci"> avg per alert' +
+          (ro5.ci95 ? ' · 95% CI ' + sgn(ro5.ci95[0]) + '% … ' +
+            sgn(ro5.ci95[1]) + '%' : '') + '</span></div>' +
           '<div class="ecf-grid">' +
           kv('Win rate', ro5.win_rate + '%') +
           kv('Avg winner', '+' + ro5.avg_win + '%') +
@@ -26693,14 +26701,20 @@
           kv('Profit factor', ro5.profit_factor) +
           kv('Median', (ro5.median > 0 ? '+' : '') + ro5.median + '%') +
           kv('IR / trade', ro5.ir) +
-          kv('P25 … P75', ro5.p25 + '% … +' + ro5.p75 + '%') +
-          kv('Sample', ro5.n.toLocaleString()) +
-          '</div><div class="es">Expected value is the headline — the win ' +
-          'rate alone hides that winners run ~' +
+          kv('P25 … P75', sgn(ro5.p25) + '% … ' + sgn(ro5.p75) + '%') +
+          kv('Sample', ro5.n.toLocaleString() + ' alerts' +
+            (ro5.days ? ' · ' + ro5.days + ' days' : '')) +
+          '</div><div class="es">Measures the <b>stock</b> (vs SPY) over ' +
+          'the 5 sessions after each alert, not the option\'s P&amp;L.' +
+          'Bought puts count as bearish calls (a falling stock is a win); ' +
+          'premium selling and mixed prints have no direction and are not ' +
+          'graded (buyer/seller side is estimated from prices vs the ' +
+          'day\'s average — no live bid/ask on our data plan). One alert ' +
+          'per contract per day. Average winner is ' +
           (ro5.avg_loss ? Math.abs(ro5.avg_win / ro5.avg_loss).toFixed(1) : '?') +
-          '× losers. P90 ' + (ro5.p90 > 0 ? '+' : '') + ro5.p90 +
-          '% — the average carries a fat right tail, so partial profit-taking ' +
-          'beats all-or-nothing exits.</div></div>');
+          '× the average loser; P90 ' + sgn(ro5.p90) + '%. The CI is ' +
+          'clustered by flag date — alerts on the same day share one ' +
+          'market move.</div></div>');
       }
       // ── Rank Quality — does a HIGHER score predict a BETTER outcome? ──
       const icd = edge.ic || {};
@@ -26709,7 +26723,8 @@
         const good = icd.ic_spearman >= 0.05;
         cards.push('<div class="ecard"><div class="et">Rank Quality (IC)</div>' +
           '<div class="ev ' + (good ? 'pos' : 'neg') + '">' + icd.ic_spearman +
-          '</div><div class="es">Spearman IC of raw score vs +5d excess (n=' +
+          '</div><div class="es">Spearman IC of the displayed score (incl. ' +
+          'learned adjustment) vs direction-adjusted +5d excess (n=' +
           (icd.n || 0).toLocaleString() + ')' +
           (icd.ic_90d != null ? ' · 90d ' + icd.ic_90d : '') +
           (icd.ic_30d != null ? ' · 30d ' + icd.ic_30d : ' · 30d accruing') +
@@ -26717,9 +26732,8 @@
             ? ' · decile spread ' + (sd0.top_minus_bottom > 0 ? '+' : '') +
               sd0.top_minus_bottom + 'pp' : '') + '. ' +
           (good ? 'The score ranking carries real signal.'
-                : 'The raw score barely ranks outcomes — the nightly learned ' +
-                  'edge adjustments carry the ranking power. Treat raw score ' +
-                  'as a quality FILTER, not a ranking.') + '</div></div>');
+                : 'The score barely ranks outcomes — treat it as a quality ' +
+                  'FILTER, not a ranking.') + '</div></div>');
       }
       // ── Calibration — do the bands still mean what history says? ──
       const calD = edge.calibration || {};
@@ -26735,8 +26749,9 @@
             return k + ': ' + c.predicted + '% → <b class="' + cls + '">' +
               c.observed + '%</b> (' + (c.drift > 0 ? '+' : '') + c.drift + 'pp)';
           }).join('<br>') + '</div>' +
-          '<div class="es">Win rate the band earned historically (predicted) ' +
-          'vs the last 45 days (observed). Big negative drift = the current ' +
+          '<div class="es">Direction-adjusted +5d win rate vs SPY the band ' +
+          'earned before the last 45 days (left) vs within them (right). ' +
+          'Big negative drift = the current ' +
           'tape pays these signals less than history did — size down until ' +
           'it normalizes.</div></div>');
       }
@@ -26745,7 +26760,7 @@
       // entirely by trade side; published gated (n>=30) by uoa_alpha.
       const ds = edge.direction_split || {};
       const DS_LBL = { call_buy: "Call buying",
-                       put_buy: "Put buying (followed bearishly)",
+                       put_buy: "Put buying (graded bearish)",
                        seller: "Premium selling" };
       const dsKeys = Object.keys(DS_LBL).filter(function (k) { return ds[k]; });
       if (dsKeys.length) {
@@ -26762,34 +26777,46 @@
               '<span class="scp-edge-n">(' + v.n.toLocaleString() +
               ' · ' + v.hit + '% hit)</span>';
           }).join('<br>') + '</div>' +
-          '<div class="es">The graded ledger separates almost entirely by ' +
-          'trade side: bought calls have carried the edge, while ' +
-          'direction-following bought puts has bled — put flow in this ' +
-          'momentum universe is dominantly hedging, not conviction. ' +
-          'Sellers are graded on their income lean. The nightly learner ' +
-          'now sees side as a first-class feature (gated, clamped).</div></div>');
+          '<div class="es">' + (function () {
+            const act = dsKeys.filter(function (k) {
+              return ds[k].status === "active"; });
+            if (act.length < 2) return '';
+            act.sort(function (a, b) { return ds[b].ev - ds[a].ev; });
+            return 'Best book now: <b>' + DS_LBL[act[0]] + '</b>; worst: <b>' +
+              DS_LBL[act[act.length - 1]] + '</b>. ';
+          })() +
+          'Each book is graded on the stock\'s +5d move vs SPY in its own ' +
+          'direction: bought calls bullish, bought puts bearish, sellers on ' +
+          'their lean (put sellers bullish, call sellers bearish). Prints ' +
+          'with no clear buyer/seller side' +
+          (ds.unclassified_n ? ' (' + ds.unclassified_n.toLocaleString() +
+            ' alerts)' : '') + ' are left out. Stock moves, not option ' +
+          'P&amp;L.</div></div>');
       }
       const ovMature = matureHorizons(edge.overall || {});
       const ov = bestHorizon(edge.overall || {});
-      stats.push(edgeCard("Overall +"+ov.h+"d", ov.st));
+      stats.push(edgeCard("Overall +"+ov.h+"d · dir-adj", ov.st));
       const bt = edge.by_type || {};
       if (bt.golden_sweep && bt.golden_sweep.h) {
         const g = bestHorizon(bt.golden_sweep.h);
-        stats.push(edgeCard("Golden Sweeps +"+g.h+"d", g.st));
+        stats.push(edgeCard("Golden Sweeps +"+g.h+"d · dir-adj", g.st));
       }
       if (bt.sweep && bt.sweep.h) {
         const s = bestHorizon(bt.sweep.h);
-        stats.push(edgeCard("Sweeps +"+s.h+"d", s.st));
+        stats.push(edgeCard("Sweeps +"+s.h+"d · dir-adj", s.st));
       }
       const oc = edge.oi_confirmation || {};
-      if (oc.checked > 0) {
+      {
         const ocls = oc.confirm_rate >= 50 ? "pos"
                    : oc.confirm_rate != null ? "neg" : "neutral";
         stats.push('<div class="ecard"><div class="et">Next-Day OI Held</div>'+
           '<div class="ev '+ocls+'">'+
           (oc.confirm_rate!=null?oc.confirm_rate+"%":"&mdash;")+'</div>'+
-          '<div class="es">'+oc.confirmed+' of '+oc.checked+
-          ' positions stuck (OI retained next day)</div></div>');
+          '<div class="es">'+(oc.checked > 0
+            ? oc.confirmed+' of '+oc.checked+' alerts: open interest rose by ' +
+              'more than half the flag-day volume on the next trading day'
+            : 'accruing — read once, on the trading day after each flag') +
+          '</div></div>');
       }
       // Counterfactual card — "took EVERY signal in the cohort, +5d,
       // equal-weight, direction-signed excess vs SPY." The graded ledger
@@ -26811,15 +26838,16 @@
             return '<div style="margin:2px 0">' + LBL[k] + ': <b class="' +
               cls + '">' + (c.avg_exc > 0 ? "+" : "") + c.avg_exc +
               '%/trade</b> <span class="scp-edge-n">(' +
-              c.n.toLocaleString() + ' trades · ' + c.hit + '% hit)</span></div>';
+              c.n.toLocaleString() + ' alerts · ' + c.hit + '% hit)</span></div>';
           }).join("");
           cards.push('<div class="ecard"><div class="et">Counterfactual — ' +
             'if you took them all</div>' +
             '<div class="ev neutral" style="font-size:12px;line-height:1.5;' +
             'font-weight:500">' + rows + '</div>' +
-            '<div class="es">Direction-signed +5d excess vs SPY, ' +
-            'equal-weight, every matured signal counted — no cherry-picked ' +
-            'window.</div></div>');
+            '<div class="es">Direction-signed +5d stock excess vs SPY, ' +
+            'equal-weight, one entry per alert, every matured directional ' +
+            'alert counted — no cherry-picked window. Stock moves, not ' +
+            'option P&amp;L.</div></div>');
         }
       } catch (_) {}
       // Rank audit — the ranking's own report card. If the top decile
@@ -26830,14 +26858,14 @@
           const top = sd.deciles[sd.deciles.length - 1], bot = sd.deciles[0];
           const spread = sd.top_minus_bottom;
           const cls = spread >= 1 ? "pos" : spread <= 0 ? "neg" : "neutral";
-          cards.push('<div class="ecard"><div class="et">Rank Audit — raw score deciles</div>' +
+          cards.push('<div class="ecard"><div class="et">Rank Audit — score deciles</div>' +
             '<div class="ev ' + cls + '">' + (spread > 0 ? "+" : "") + spread + 'pp</div>' +
             '<div class="es">Top decile (score ' + top.score_lo + '–' + top.score_hi +
             ') ' + (top.avg_exc > 0 ? "+" : "") + top.avg_exc + '% vs bottom ' +
             (bot.avg_exc > 0 ? "+" : "") + bot.avg_exc + '% (+5d excess, dir-signed, n=' +
-            sd.n.toLocaleString() + '). ' + sd.monotonic_steps + ' steps monotonic. ' +
-            'Raw score only — the learned edge adjustments are where ' +
-            'ranking power comes from; this audit keeps that claim honest.</div></div>');
+            sd.n.toLocaleString() + ' alerts). ' + sd.monotonic_steps +
+            ' steps monotonic. Uses the score users see (including the ' +
+            'nightly learned adjustment).</div></div>');
         }
       } catch (_) {}
       // Stop×target counterfactual grid — headline finding + best cell.
@@ -26906,8 +26934,9 @@
               (rising ? '<div class="pos" style="font-size:10px;font-weight:800">STRENGTHENING</div>' + rising : '') +
               '</div><div class="es">Per-feature hit rate, last 30 days vs ' +
               'the prior 60; fcst = simple exponential-smoothing ' +
-              'extrapolation (model estimate, not a promise). Fading edges ' +
-              'get demoted by the nightly learner.</div>';
+              'extrapolation (model estimate, not a promise). Display only ' +
+              '— the nightly learner trains on the full sample, not this ' +
+              'window.</div>';
             const host = $("uoa-edge-deep") || $("uoa-edge");
             if (host) host.appendChild(el2);
           }).catch(function () {});
@@ -26921,12 +26950,18 @@
             if (!hl || hl.status !== "active") return;
             const sv = hl.survivors || [];
             const rows = sv.slice(0, 3).map(function (s) {
+              const o = s.oos || {};
+              const lift = s.oos_lift_pp;
               return '<div style="margin:2px 0">' +
                 window.escapeHtml(s.hypothesis.replace(/tag:/g, "")) +
-                ': <b class="pos">+' + s.oos_lift_pp + 'pp OOS</b> ' +
-                '<span class="scp-edge-n">(n=' + s.train.n.toLocaleString() +
-                ' · ' + s.train.hit + '% hit)</span></div>';
+                ': <b class="' + (lift > 0 ? 'pos' : 'neg') + '">' +
+                (lift > 0 ? '+' : '') + lift + 'pp hit lift OOS</b> ' +
+                '<span class="scp-edge-n">(OOS n=' + (o.n || 0).toLocaleString() +
+                ' · ' + o.hit + '% hit · avg ' + (o.avg > 0 ? '+' : '') + o.avg +
+                '%' + (s.bh_pass === false ? ' · fails multiple-testing' : '') +
+                ')</span></div>';
             }).join("");
+            const mt = hl.multiple_testing || {};
             const el3 = document.createElement("div");
             el3.className = "ecard";
             el3.innerHTML = '<div class="et">Hypothesis Lab — weekly survivors</div>' +
@@ -26934,6 +26969,8 @@
               (rows || '<div>0 survivors this week — no new edge found</div>') +
               '</div><div class="es">' + hl.n_tested + ' pair hypotheses tested; ' +
               (hl.graveyard || 0) + ' failed sample/stability/holdout gates. ' +
+              (mt.bh_survivors != null ? mt.bh_survivors +
+                ' pass the multiple-testing (BH) check. ' : '') +
               'Survivors are review candidates — with ' + hl.n_tested +
               ' tested, a few will be luck. Nothing auto-applies.</div>';
             const host3 = $("uoa-edge-deep") || $("uoa-edge");
@@ -26952,35 +26989,34 @@
             if (!rs || !rs.attribution) return;
             const at = rs.attribution, lb = at.long_book || {},
                   sb = at.short_book || {};
-            const iv = ((rs.interactions || {}).survivors || [])[0];
+            const sg = function (v) { return (v > 0 ? '+' : '') + v; };
+            const pc = function (v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : ''; };
+            const span = rs.span || [];
             const el4 = document.createElement("div");
             el4.className = "ecard";
             el4.innerHTML = '<div class="et">Alpha Attribution · +5d ' +
               '(research engine)</div>' +
               '<div class="ev neutral" style="font-size:12px;line-height:1.7">' +
-              'Flagged-universe drift: <b class="pos">+' +
-                at.universe_drift_ev + '%</b><br>' +
-              (lb.n ? 'Long book: <b class="' +
-                (lb.dir_ev > 0 ? 'pos' : 'neg') + '">' +
-                (lb.dir_ev > 0 ? '+' : '') + lb.dir_ev +
-                '%</b> <span class="scp-edge-n">= selection ' +
-                (lb.selection_component > 0 ? '+' : '') +
-                lb.selection_component + ' + flow alpha ' +
-                (lb.flow_alpha > 0 ? '+' : '') + lb.flow_alpha +
-                '</span><br>' : '') +
-              (sb.n ? 'Short (put-follow): <b class="neg">' + sb.dir_ev +
-                '%</b> <span class="scp-edge-n">flow alpha ' +
-                sb.flow_alpha + '</span><br>' : '') +
-              (iv ? '<span class="neg" style="font-size:10px;font-weight:800" ' +
-                'title="Hedge-utility audit: negative EV robust to date/ticker clustering, but sign flips POSITIVE when SPY 5d fwd is negative — rejected as alpha, potentially useful as insurance. Both mandates SHADOW with separate preregistered gates; sample holds ~one adverse episode.">' +
-                'DUAL-USE: REJECT-AS-ALPHA / POTENTIAL HEDGE</span> ' +
-                window.escapeHtml(iv.combo.join(" + ")) +
-                ' <span class="scp-edge-n">(holdout ' + iv.lift_holdout +
-                'pp · unconfirmed)</span>' : '') +
+              'Flagged-universe drift: <b class="' + pc(at.universe_drift_ev) +
+                '">' + sg(at.universe_drift_ev) + '%</b><br>' +
+              (lb.n ? 'Long book: <b class="' + pc(lb.dir_ev) + '">' +
+                sg(lb.dir_ev) + '%</b> <span class="scp-edge-n">= selection ' +
+                sg(lb.selection_component) + ' + flow alpha ' +
+                sg(lb.flow_alpha) + '</span><br>' : '') +
+              (sb.n ? 'Short book: <b class="' + pc(sb.dir_ev) + '">' +
+                sg(sb.dir_ev) + '%</b> <span class="scp-edge-n">= selection ' +
+                sg(sb.selection_component) + ' + flow alpha ' +
+                sg(sb.flow_alpha) + '</span><br>' : '') +
               '</div>' +
-              '<div class="es">Most of the book\'s upside is the flagged ' +
-              'universe itself drifting up (selection), not direction-' +
-              'reading. Failed experiments publish as failed: nothing ' +
+              '<div class="es">Stock moves, direction-signed, over ' +
+              (span.length === 2 ? span[0] + ' → ' + span[1] : 'the research window') +
+              (rs.joined_matured_n ? ' (' + rs.joined_matured_n.toLocaleString() +
+                ' ledger rows)' : '') + '. The flagged universe ' +
+              (at.universe_drift_ev > 0 ? 'drifted up' : 'drifted down') +
+              ' over this window; "flow alpha" is each book\'s return net of ' +
+              'that drift. Books group prints by contract type (long = ' +
+              'calls not sold + puts sold, short = puts not sold + calls ' +
+              'sold), so mixed-side prints are included. Nothing ' +
               'auto-applies without walk-forward survival.</div>';
             const host4 = $("uoa-edge-deep") || $("uoa-edge");
             if (host4) host4.appendChild(el4);
@@ -27059,9 +27095,10 @@
             'font-variant-numeric:tabular-nums">' +
             fpHdr + fpRows + '</div>' +
             '<div class="es"><b>EV by horizon:</b> ' + evLine +
-            '<br>Cells = share of signals per score band that did NOT work ' +
-            'at each hold (hover for matured n). Edge decays with hold ' +
-            'time — favor shorter holds and time-based stops.</div></div>');
+            '<br>Cells = share of directional alerts per score band where ' +
+            'the stock had NOT moved the flow\'s way by each hold (raw ' +
+            'move, hover for matured n). EV = direction-adjusted stock ' +
+            'excess vs SPY.</div></div>');
         }
       } catch (_) {}
       // Explicit maturity card. Tells the user WHICH horizons have
@@ -27111,8 +27148,10 @@
       }
       stats.push('<div class="ecard"><div class="et">Tracked History</div>'+
         '<div class="ev neutral">'+edge.total_signals+'</div>'+
-        '<div class="es">cumulative signals logged &middot; ' +
-        maturedSig + ' matured to +5d<br>' +
+        '<div class="es">unique alerts' +
+        (edge.ledger_rows ? ' (' + edge.ledger_rows.toLocaleString() +
+          ' scan rows)' : '') + ' &middot; ' +
+        maturedSig + ' graded at +5d<br>' +
         '<span style="color:var(--textdim)">' + matStr + '</span>' +
         longCopy + '</div></div>');
       el.innerHTML =
@@ -27428,12 +27467,12 @@
                    : score >= 55 ? "55-64" : null;
         const b = band && cal[band];
         if (!b || b.observed == null) return "";
-        return '<span class="uoa-obs" title="Observed 5-day hit rate of ' +
-          "the " + band + " score band in the LIVE cohort (n=" +
-          (b.n_live || 0).toLocaleString() + "). The band's predicted " +
-          "rate was " + b.predicted + "% — displayed conviction " +
-          "overstates by " + Math.abs(b.drift || 0) + "pp, so trust " +
-          'this number, not the score.">obs ' + b.observed + "%</span>";
+        return '<span class="uoa-obs" title="Last 45 days: in ' +
+          b.observed + "% of the " + band + " band's directional alerts " +
+          "(n=" + (b.n_live || 0).toLocaleString() + ") the stock beat " +
+          "SPY in the flow's direction over 5 sessions (earlier: " +
+          b.predicted + "%). The score is a rank, not a probability — " +
+          'this is the measured rate.">obs ' + b.observed + "%</span>";
       } catch (_e) { window.tdSoftFail("flow:obsHitLabel", _e); return ""; }
     }
     function renderBody() {
@@ -29155,10 +29194,14 @@
     function startLiveFlow() { if (window.__startLiveFlow) window.__startLiveFlow(); }
     function stopLiveFlow()  { if (window.__stopLiveFlow)  window.__stopLiveFlow(); }
 
+    // ret_* = the STOCK's own move since the flag (not the option's P&L);
+    // green/red = moved WITH / AGAINST the flow's direction (put buying is
+    // bearish). MFE/MAE = best / worst stock move in the flow's direction
+    // so far (blank for premium selling / mixed flow — no direction).
     const TRK_COLS = [
       {k:"ticker",t:"Ticker"},{k:"flagged_at",t:"Flagged"},{k:"trade_score",t:"Score"},
       {k:"oi_status",t:"OI Status"},{k:"oi_change",t:"OI Δ"},{k:"retained_pct",t:"Retain%"},
-      {k:"ret_1d",t:"+1d %"},{k:"ret_3d",t:"+3d %"},{k:"ret_5d",t:"+5d %"},
+      {k:"ret_1d",t:"Stock +1d"},{k:"ret_3d",t:"Stock +3d"},{k:"ret_5d",t:"Stock +5d"},
       {k:"mfe",t:"MFE%"},{k:"mae",t:"MAE%"},{k:"signal_type",t:"Type"},
     ];
     let trkSort = "flagged_at", trkDir = -1;
@@ -29262,6 +29305,8 @@
       let rows = SCORED.filter(passTrackedFilters);
       function pct(v) { return v==null ? "&mdash;" : (v>0?"+":"")+v+"%"; }
       function cls(v) { return v==null ? "" : v>0?"perf-pos":v<0?"perf-neg":""; }
+      // stock-move cells: green when the stock moved the flow's way
+      function dcls(v, d) { return (v==null || !d) ? "" : cls(v * d); }
       function avg(a) {
         const x = a.filter(function (v) { return v!=null; });
         return x.length ? Math.round(x.reduce(function (s,v){return s+v;},0)/x.length*10)/10 : null;
@@ -29276,9 +29321,13 @@
         rows.forEach(function (r) {
           const g = by[r.ticker] || (by[r.ticker] = { t:r.ticker, n:0, sc:[],
             oc:0, rp:[], r1:[], r3:[], r5:[], mfe:[], mae:[], st:{} });
+          // grouped rows average the move IN EACH ALERT's direction
+          // (a put buyer's -3% is +3% for the flow), directional only
+          const d = r.dir || 0;
+          const dv = function (v) { return (v==null || !d) ? null : v * d; };
           g.n++; g.sc.push(r.trade_score); g.oc += r.oi_change||0;
-          g.rp.push(r.retained_pct); g.r1.push(r.ret_1d);
-          g.r3.push(r.ret_3d); g.r5.push(r.ret_5d);
+          g.rp.push(r.retained_pct); g.r1.push(dv(r.ret_1d));
+          g.r3.push(dv(r.ret_3d)); g.r5.push(dv(r.ret_5d));
           g.mfe.push(r.mfe); g.mae.push(r.mae);
           g.st[r.oi_status] = (g.st[r.oi_status]||0) + 1;
         });
@@ -29291,7 +29340,7 @@
             .map(function (s){ return g.st[s]+stAbbr[s]; }).join(" ");
           return '<tr>'+
             '<td><strong>'+g.t+'</strong></td>'+
-            '<td>'+g.n+' signals</td>'+
+            '<td>'+g.n+' alerts</td>'+
             '<td><span class="uoa-score '+scoreCls(avg(g.sc)||0)+'">'+(avg(g.sc)||0)+'</span></td>'+
             '<td>'+stsum+'</td>'+
             '<td>'+(g.oc>0?"+":"")+fmtNum(g.oc)+'</td>'+
@@ -29322,9 +29371,9 @@
           '<td>'+stBadge(r.oi_status)+'</td>'+
           '<td>'+(r.oi_change==null?"&mdash;":(r.oi_change>0?"+":"")+fmtNum(r.oi_change))+'</td>'+
           '<td>'+(r.retained_pct==null?"&mdash;":r.retained_pct+"%")+'</td>'+
-          '<td class="'+cls(r.ret_1d)+'">'+pct(r.ret_1d)+'</td>'+
-          '<td class="'+cls(r.ret_3d)+'">'+pct(r.ret_3d)+'</td>'+
-          '<td class="'+cls(r.ret_5d)+'">'+pct(r.ret_5d)+'</td>'+
+          '<td class="'+dcls(r.ret_1d, r.dir)+'">'+pct(r.ret_1d)+'</td>'+
+          '<td class="'+dcls(r.ret_3d, r.dir)+'">'+pct(r.ret_3d)+'</td>'+
+          '<td class="'+dcls(r.ret_5d, r.dir)+'">'+pct(r.ret_5d)+'</td>'+
           '<td class="'+cls(r.mfe)+'">'+pct(r.mfe)+'</td>'+
           '<td class="'+cls(r.mae)+'">'+pct(r.mae)+'</td>'+
           '<td>'+((r.signal_type||"").replace("_"," "))+'</td>'+
@@ -29419,6 +29468,32 @@
       return '<span class="perf-conf ' + cls + '" title="' + ttl + '">' +
         s + '</span>';
     }
+    // by_ticker / by_theme are published in uoa_edge_cohorts.json (split
+    // out of uoa_edge.json to keep the Flow tab light) — fetched lazily the
+    // first time those views open, then merged into EDGE.
+    let _perfCohortsLoading = false;
+    function ensurePerfCohorts(view) {
+      if (view !== "ticker" && view !== "theme") return true;
+      if (EDGE && EDGE["by_" + view]) return true;
+      if (_perfCohortsLoading) return false;
+      _perfCohortsLoading = true;
+      fetch("./reports/uoa_edge_cohorts.json", { cache: "no-cache" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (c) {
+          if (EDGE && c) {
+            EDGE.by_ticker = c.by_ticker || {};
+            EDGE.by_theme = c.by_theme || {};
+          }
+        })
+        .catch(function () {})
+        .then(function () {
+          // never refetch in a loop: a failed load leaves empty cohorts
+          if (EDGE && !EDGE.by_ticker) { EDGE.by_ticker = {}; EDGE.by_theme = {}; }
+          _perfCohortsLoading = false;
+          renderPerf();
+        });
+      return false;
+    }
     function perfCohortRows(view) {
       const map = (EDGE && EDGE["by_" + view]) || {};
       const keys = Object.keys(map);
@@ -29500,29 +29575,49 @@
           '"><span class="pm-tag">' + label + '</span>' +
           '<span class="pm-text">' + text + '</span></div>';
       }
-      // ── Hero: top-of-page summary ──
+      const cohortsReady = ensurePerfCohorts(PERF_VIEW);
+      // ── Hero: top-of-page summary ── (direction-adjusted: a bought put
+      // counts as right when the stock falls; stock moves, not option P&L)
       const ov = (EDGE.overall || {})["1"] || {};
       const ex = EDGE.excursion || {};
       const oc = EDGE.oi_confirmation || {};
       const hero = '<div class="perf-hero">' +
-        '<div class="ph-stat"><span class="ph-l">Signals tracked</span>' +
-          '<b>' + (EDGE.total_signals || 0).toLocaleString() + '</b></div>' +
-        '<div class="ph-stat"><span class="ph-l">+1d hit rate</span>' +
+        '<div class="ph-stat"><span class="ph-l" title="One alert = a ' +
+          'contract\'s first flag of the day; repeat scans of the same' +
+          'contract are folded in.">Alerts tracked</span>' +
+          '<b>' + (EDGE.total_signals || 0).toLocaleString() +
+          (EDGE.ledger_rows ? '<span class="ph-sub">' +
+            EDGE.ledger_rows.toLocaleString() + ' scan rows</span>' : '') +
+          '</b></div>' +
+        '<div class="ph-stat"><span class="ph-l" title="Share of ' +
+          'directional alerts (calls bought / puts bought) where the stock ' +
+          'moved the flow\'s way by the next close. Premium selling and' +
+          'mixed prints are not graded.">+1d hit rate · dir-adj</span>' +
           '<b class="' + (ov.hit_rate >= 50 ? "perf-pos" : "perf-neg") +
           '">' + (ov.hit_rate != null ? ov.hit_rate + "%" : "—") +
           '<span class="ph-sub">n=' + (ov.n || 0).toLocaleString() + '</span></b></div>' +
-        '<div class="ph-stat"><span class="ph-l">+1d excess vs SPY</span>' +
+        '<div class="ph-stat"><span class="ph-l">+1d excess vs SPY · dir-adj</span>' +
           '<b class="' + ((ov.avg_excess || 0) > 0 ? "perf-pos" : "perf-neg") +
           '">' + (ov.avg_excess != null
             ? (ov.avg_excess > 0 ? "+" : "") + ov.avg_excess + "%"
             : "—") + '</b></div>' +
-        '<div class="ph-stat"><span class="ph-l">Avg MFE</span>' +
-          '<b class="perf-pos">' + (ex.avg_mfe != null
-            ? "+" + ex.avg_mfe + "%" : "—") + '</b></div>' +
-        '<div class="ph-stat"><span class="ph-l">Avg MAE</span>' +
-          '<b class="perf-neg">' + (ex.avg_mae != null
-            ? ex.avg_mae + "%" : "—") + '</b></div>' +
-        '<div class="ph-stat"><span class="ph-l">OI confirm rate</span>' +
+        '<div class="ph-stat"><span class="ph-l" title="Max favourable ' +
+          'excursion: the best STOCK move in the flow\'s direction over the' +
+          '20 sessions after the flag (daily highs for bullish flow, lows ' +
+          'for bearish), averaged over alerts whose 20 sessions have ' +
+          'passed. A stock move, not an option return.">Avg MFE · 20d</span>' +
+          '<b class="' + ((ex.avg_mfe || 0) >= 0 ? "perf-pos" : "perf-neg") + '">' +
+          (ex.avg_mfe != null ? (ex.avg_mfe > 0 ? "+" : "") + ex.avg_mfe + "%" : "—") +
+          '</b></div>' +
+        '<div class="ph-stat"><span class="ph-l" title="Max adverse ' +
+          'excursion: the worst STOCK move against the flow\'s direction' +
+          'over the same 20 sessions.">Avg MAE · 20d</span>' +
+          '<b class="' + ((ex.avg_mae || 0) >= 0 ? "perf-pos" : "perf-neg") + '">' +
+          (ex.avg_mae != null ? (ex.avg_mae > 0 ? "+" : "") + ex.avg_mae + "%" : "—") +
+          '</b></div>' +
+        '<div class="ph-stat"><span class="ph-l" title="Share of alerts ' +
+          'whose contract open interest rose by more than half the ' +
+          'flag-day volume, read on the next trading day.">Next-day OI held</span>' +
           '<b>' + (oc.confirm_rate != null ? oc.confirm_rate + "%" : "—") +
           '<span class="ph-sub">' + (oc.confirmed || 0) + " / " +
           (oc.checked || 0) + '</span></b></div>' +
@@ -29578,9 +29673,9 @@
         ["h1_exc", "+1d exc"],
         ["h5_hit", "+5d hit"],
         ["h5_exc", "+5d exc"],
-        ["mfe", "Avg MFE"],
-        ["mae", "Avg MAE"],
-        ["oi_rate", "OI hold"],
+        ["mfe", "MFE 20d"],
+        ["mae", "MAE 20d"],
+        ["oi_rate", "Next-day OI"],
         ["conf", "Alpha conf"],
       ];
       const hdrHtml = headers.map(function (h) {
@@ -29589,7 +29684,10 @@
         return '<th data-sort="' + h[0] + '"' +
           (active ? ' class="perf-sort-on"' : '') + '>' + h[1] + arrow + '</th>';
       }).join("");
-      const rowsHtml = !rows.length
+      const rowsHtml = !cohortsReady
+        ? '<tr><td colspan="10" class="uoa-empty">Loading ' +
+          PERF_LABELS[PERF_VIEW].toLowerCase() + ' cohorts&hellip;</td></tr>'
+        : !rows.length
         ? '<tr><td colspan="10" class="uoa-empty">No cohorts pass these ' +
           'filters. Try lowering the N or confidence threshold.</td></tr>'
         : rows.slice(0, 200).map(function (r) {
@@ -29622,6 +29720,10 @@
       const table = '<div class="perf-card perf-cohort-card">' +
         '<h4>Cohort browser &mdash; sort + filter to find statistically-' +
         'positive signal patterns</h4>' +
+        '<div class="perf-footnote" style="margin:0 0 6px">Hit / excess / ' +
+          'MFE / MAE are the STOCK\'s move in the flow\'s direction' +
+          '(bought puts graded bearish), not option P&amp;L. N counts every ' +
+          'alert; hit rates grade only directional ones.</div>' +
         '<table class="perf-cohort"><thead><tr>' + hdrHtml +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
         (rows.length > 200 ? '<div class="perf-footnote">Showing top 200 of ' +
@@ -29727,29 +29829,29 @@
           html += '<div class="dd-row"><span class="dd-k">Why ' + sc +
             '</span><span class="dd-chips">' + chips.join("") +
             '</span></div>';
-        // cohort expected value with uncertainty + confidence badge
-        if (rich) {
+        // cohort expected value with uncertainty + confidence badge.
+        // Cohort stats grade the STOCK's move in each alert's direction —
+        // they apply to directional flow only and are not option P&L (an
+        // option's payoff is levered and decays), so no Kelly sizing here.
+        const directional = r.direction === "bullish" || r.direction === "bearish";
+        if (rich && !directional) {
+          html += '<div class="dd-row"><span class="dd-k">Score ' + band +
+            ' cohort</span><span class="dd-note">this print has no ' +
+            'directional read (premium selling / mixed), so the ' +
+            'directional cohort stats do not apply</span></div>';
+        } else if (rich) {
           const cls = rich.ev > 0 ? "pos" : "neg";
           html += '<div class="dd-row"><span class="dd-k">Score ' + band +
             ' cohort</span><span><b class="' + cls + '">' +
-            (rich.ev > 0 ? "+" : "") + rich.ev + '% EV</b> / trade ' +
-            '(+5d excess · 95% CI ' + rich.ci95[0] + '…' + rich.ci95[1] +
-            '%) · win ' + rich.win_rate + '% · winners +' + rich.avg_win +
-            '% / losers ' + rich.avg_loss + '% · PF ' + rich.profit_factor +
-            ' · n=' + rich.n.toLocaleString() +
+            (rich.ev > 0 ? "+" : "") + rich.ev + '%</b> avg stock excess ' +
+            'vs SPY in the flow\'s direction, +5d' +
+            (rich.ci95 ? ' (95% CI ' + rich.ci95[0] + '…' + rich.ci95[1] +
+              '%)' : '') + ' · win ' + rich.win_rate + '% · winners +' +
+            rich.avg_win + '% / losers ' + rich.avg_loss + '% · n=' +
+            rich.n.toLocaleString() + ' alerts' +
             ' <span class="dd-badge dd-' + rich.confidence + '">' +
-            rich.confidence + '</span></span></div>';
-          const W = rich.win_rate / 100;
-          const R = rich.avg_win / Math.abs(rich.avg_loss || 1);
-          const k = W - (1 - W) / R;
-          if (isFinite(k))
-            html += '<div class="dd-row"><span class="dd-k">Sizing context' +
-              '</span><span>' + (k > 0
-                ? 'cohort half-Kelly ≈ <b>' + (50 * k).toFixed(1) +
-                  '% of risk budget</b>'
-                : 'cohort EV does not support sizing (half-Kelly ≤ 0)') +
-              ' <i class="dd-note">derived from cohort stats only — ' +
-              'not sizing advice</i></span></div>';
+            rich.confidence + '</span> <i class="dd-note">stock move, ' +
+            'not option P&amp;L</i></span></div>';
         } else if (band) {
           html += '<div class="dd-row"><span class="dd-k">Score ' + band +
             ' cohort</span><span class="dd-note">EV stats accruing — ' +
@@ -29765,12 +29867,13 @@
             if (v != null && st.n >= 100 && (!best || v > best.v))
               best = { h: h, v: v };
           });
-          if (best)
-            html += '<div class="dd-row"><span class="dd-k">Hold guidance' +
-              '</span><span>' + _sparkEV(bk.h) +
-              ' cohort EV peaks at <b>+' + best.h + 'd</b> (' +
-              (best.v > 0 ? "+" : "") + best.v +
-              '%) then decays — time-stop beats hoping</span></div>';
+          if (best && directional)
+            html += '<div class="dd-row"><span class="dd-k">Hold history' +
+              '</span><span>' + _sparkEV(bk.h) + (best.v > 0
+                ? ' cohort stock excess was best at <b>+' + best.h +
+                  'd</b> (+' + best.v + '%)'
+                : ' no hold length had a positive cohort average (best +' +
+                  best.h + 'd: ' + best.v + '%)') + '</span></div>';
         }
         // institutional positioning lifecycle (accrual-gated)
         const lc = E.lifecycle || {};
@@ -29792,9 +29895,10 @@
             const c = E.counterfactuals || {};
             Object.keys(c).forEach(function (k) {
               const e = c[k];
-              if (!cf && /earn/i.test(k) && e && e.avg != null)
-                cf = ' — into-earnings cohort historically ' +
-                  (e.avg > 0 ? '+' : '') + e.avg + '%/trade' +
+              if (!cf && /earn/i.test(k) && e && e.avg_exc != null)
+                cf = ' — into-earnings alerts historically ' +
+                  (e.avg_exc > 0 ? '+' : '') + e.avg_exc +
+                  '% stock excess in the flow\'s direction, +5d' +
                   (e.n ? ' (n=' + e.n.toLocaleString() + ')' : '');
             });
           } catch (_) {}
@@ -30156,7 +30260,7 @@
           '</span></div>'
         : '';
       // Historical edge for this score bucket — uses uoa_edge.json's
-      // by_score breakdown (60-69 / 70-79 / 80-100) so the user can
+      // by_score breakdown (55-64 / 65-79 / 80-100) so the user can
       // calibrate THIS score against how that bucket has performed
       // historically. Single most useful "should I act on this signal"
       // signal we can surface without per-signal backtesting.
@@ -30164,8 +30268,8 @@
       try {
         const sc = r.trade_score || 0;
         const bucket = sc >= 80 ? "80-100"
-                     : sc >= 70 ? "70-79"
-                     : sc >= 60 ? "60-69" : null;
+                     : sc >= 65 ? "65-79"
+                     : sc >= 55 ? "55-64" : null;
         const bs = (window.EDGE && window.EDGE.by_score) || null;
         if (bucket && bs && bs[bucket] && bs[bucket].h) {
           const h = bs[bucket].h;
@@ -30182,7 +30286,7 @@
           if (parts.length) {
             edgeFooter = '<div class="scp-edge">' +
               '<div class="scp-edge-h">Historical edge · score ' +
-                bucket + ' bucket</div>' +
+                bucket + ' bucket · stock move, dir-adj</div>' +
               '<div class="scp-edge-rows">' + parts.join("<br>") + '</div>' +
               '</div>';
           }
@@ -30762,7 +30866,7 @@
             ? "+" + num(f.night_ci[0], 2) + " → +" +
               num(f.night_ci[1], 2) + "pp" : "—") +
         row("Fair Move model", esc(f.fair_move_model || "v1") +
-            " · MAE " + num(f.fair_move_mae, 2) + "pp · bias " +
+            " · mean abs. error " + num(f.fair_move_mae, 2) + "pp · bias " +
             num(f.fair_move_bias, 2) + "pp · edge-sign " +
             (f.edge_sign_pct != null ? f.edge_sign_pct + "%" : "—")) +
         '</div>';
@@ -30889,10 +30993,13 @@
       var st = ((FML || {}).standings || {}).overall;
       if (!st) return "";
       return '<div class="atd-sec-h">Fair Move Lab ' +
-        '<span class="n">walk-forward · promotion needs ≥5% MAE ' +
-        'improvement in both halves</span></div>' +
+        '<span class="n">walk-forward · promotion needs ≥5% lower mean ' +
+        'absolute error in both halves</span></div>' +
         '<div class="atd-table-wrap"><table class="atd-table">' +
-        '<tr><th>Model</th><th>MAE</th><th>Bias</th>' +
+        '<tr><th>Model</th><th title="Mean absolute error of the ' +
+        'forecast move vs the realized move, in percentage points of ' +
+        'the stock price (not max adverse excursion)">Mean abs. error</th>' +
+        '<th>Bias</th>' +
         '<th>Edge-sign</th></tr>' +
         Object.keys(st).map(function (n) {
           var s = st[n];
@@ -30939,7 +31046,7 @@
         var mr = b.move_ratio || {};
         var boot = b.date_cluster_bootstrap || {};
         h += '<b>' + esc(t) + '</b>: n=' + b.n + ' · EV ' +
-          num(b.ev_vol_pts, 2) + ' vol-pts · win ' + b.win +
+          num(b.ev_vol_pts, 2) + 'pp of stock price · win ' + b.win +
           '% · night CI ' + JSON.stringify(boot.ci95 || []) + ' on ' +
           (boot.nights || "?") + ' nights' +
           (b.signal_qualified ? ' · <b>signal qualified</b>' : '') +
@@ -30977,10 +31084,17 @@
         r2("Top 5%", t.top5, ht.top5) + r2("Top 1%", t.top1, ht.top1) +
         '</table>Champion: <b>NONE — family abstains</b>';
       var ix = v.interactions || {};
-      if (ix.tested)
+      if (ix.tested) {
+        var ru = ix.rules || [];
+        var posOos = ru.filter(function (x) {
+          return ((x.oos || {}).avg || 0) > 0; }).length;
         h += '<br><span class="k">Interaction search: ' + ix.tested +
           ' conjunctions, ' + ix.passed_train_gates +
-          ' train survivors, all negative OOS.</span>';
+          ' train survivors' + (ru.length ? ', ' + posOos + ' of ' +
+            ru.length + ' positive out-of-sample' : '') +
+          ' (one OOS window, overlapping rules, no multiple-testing ' +
+          'correction — not promoted).</span>';
+      }
       h += '</div>';
       return h;
     }
