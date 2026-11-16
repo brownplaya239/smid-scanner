@@ -306,6 +306,49 @@ KPI_RX = {
 }
 
 
+# Qualifier words a release puts right before a figure ("approximately
+# $10.9 billion", "More than 120 deals"). Such a figure is a bound or an
+# approximation, never an exact value. Searched for just before the number,
+# inside the same sentence; the qualifier nearest the number wins.
+_QUALIFIER_BOUNDS = (
+    ("approx", r"approximately|approx\.?|about|around|roughly|nearly|almost|circa|~"),
+    ("at_least", r"at\s+least|crossed|surpassed|no\s+less\s+than"),
+    ("over", r"more\s+than|over|exceeding|exceeded|in\s+excess\s+of|upwards\s+of|above"),
+    ("under", r"less\s+than|fewer\s+than|under|below|up\s+to|at\s+most"),
+)
+_QUALIFIER_RX = re.compile(
+    "|".join(
+        r"(?P<%s>(?<![-A-Za-z])(?:%s)(?![-A-Za-z]))" % (bound, rx)
+        for bound, rx in _QUALIFIER_BOUNDS
+    ),
+    re.IGNORECASE,
+)
+_QUALIFIER_WINDOW = 40
+# Between the qualifier and the number: at most two short words or symbols
+# ("approximately $", "were about $"), and no other figure. "Over the
+# quarter, revenue was $5 billion" is not a bound on the $5 billion.
+_QUALIFIER_GAP = re.compile(r"^[^\w\d]*(?:[A-Za-z]+[^\w\d]+){0,2}[^\w\d]*$")
+
+
+def qualifier_before(text, pos):
+    """(bound, phrase) for a qualifier just before text[pos] in the same
+    sentence ("approx", "approximately"), or (None, None) if the figure
+    is stated plainly."""
+    lead = text[max(0, pos - _QUALIFIER_WINDOW) : pos]
+    # cut at the last sentence end (". " ends a sentence; "1.5" does not)
+    ends = list(re.finditer(r"[.!?;:](?=\s)", lead))
+    if ends:
+        lead = lead[ends[-1].end() :]
+    best = None
+    for m in _QUALIFIER_RX.finditer(lead):
+        if _QUALIFIER_GAP.match(lead[m.end() :]):
+            best = m
+    if best is None:
+        return None, None
+    bound = next(k for k, v in best.groupdict().items() if v)
+    return bound, " ".join(best.group(0).split()).lower()
+
+
 def parse_kpis(doc):
     """Operating metrics stated in the release prose: subscription revenue,
     cRPO, RPO, AI ACV, and the $1M-net-new-ACV and $5M-ACV counts. These are
@@ -338,6 +381,17 @@ def parse_kpis(doc):
                 }
         elif kind == "count":
             out[name] = {"value": int(m.group(1)), "raw": " ".join(m.group(0).split())[:160]}
+        if name not in out:
+            continue
+        # "approximately $10.9 billion" is an approximation and "More than
+        # 120 deals" a lower limit, not exact figures. Keep the bound and
+        # the words it came from. "crossed $1 billion" is always a floor.
+        bound, phrase = qualifier_before(t, m.start(1))
+        if kind == "money_floor":
+            bound, phrase = "at_least", "crossed"
+        if bound:
+            out[name]["bound"] = bound
+            out[name]["bound_phrase"] = phrase
     return out
 
 

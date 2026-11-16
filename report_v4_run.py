@@ -32,6 +32,7 @@ import sys
 import estimates_provider as EP
 import report_chart_v3 as C
 import report_v4 as R4
+import report_v4_analyst as AT
 import report_v4_model as V4
 import research_snapshot as rs
 
@@ -183,6 +184,25 @@ def run(ticker, out_dir="out_v4", want_spy=True):
     view = V4.build(snap, estimates=estimates, peers=peers)
     chart_png, chart_meta = _chart(ticker, snap, prov, view, want_spy)
 
+    # The AI-written analyst take, from the validated view only. generate()
+    # never raises; with no key, an API error, a refusal or a draft that
+    # fails its checks twice, the report carries a one-line note instead.
+    if not view.get("flash"):
+        view["analyst_take"] = AT.generate(view, snap)
+        _m = view["analyst_take"].get("meta") or {}
+        print(
+            "  analyst take: %s (%d call(s), %s in / %s out tokens, ~$%.4f%s)%s"
+            % (
+                _m.get("status"),
+                len(_m.get("calls") or []),
+                _m.get("input_tokens"),
+                _m.get("output_tokens"),
+                _m.get("estimated_cost_usd") or 0.0,
+                "" if _m.get("cost_complete", True) else " or more",
+                (" - %s" % _m.get("reason")) if _m.get("reason") else "",
+            )
+        )
+
     stem = "%s_equity_research_v4" % ticker
     core_p = os.path.join(out_dir, stem + ".pdf")
     apx_p = os.path.join(out_dir, stem + "_appendix.pdf")
@@ -191,6 +211,20 @@ def run(ticker, out_dir="out_v4", want_spy=True):
     core = R4.build_core(snap, view, core_p, chart_png=chart_png, chart_meta=chart_meta)
     apx = R4.build_appendix(snap, view, apx_p, estimates=estimates, prov=prov)
     result = VV.report(view, snap, core, apx, estimates=estimates, run_mutation=True)
+    # Belt and braces: if the gate blocks a package that carries the AI
+    # page, rebuild it without the page and re-check. The AI section must
+    # never be the reason a report fails to ship; a non-AI failure still
+    # fails the second pass and blocks as before.
+    if result["blocking_failures"] and (view.get("analyst_take") or {}).get("available"):
+        print(
+            "  gate blocked with the analyst take (%s); retrying without it"
+            % ", ".join(result["blocking_failures"])
+        )
+        meta = dict(view["analyst_take"].get("meta") or {})
+        meta.update(status="gate_rejected", reason=", ".join(result["blocking_failures"]))
+        view["analyst_take"] = {"available": False, "note": AT.UNAVAILABLE_NOTE, "meta": meta}
+        core = R4.build_core(snap, view, core_p, chart_png=chart_png, chart_meta=chart_meta)
+        result = VV.report(view, snap, core, apx, estimates=estimates, run_mutation=True)
     # Bind the validation to the exact bytes it validated. Without this a
     # reader comparing file timestamps cannot tell a current validation
     # from one left over beside a newer PDF — and a stale PASS is worse
