@@ -413,3 +413,17 @@ def test_action_list_shows_a_long_setup_once_and_money_formatted():
     assert segs["Earnings Today"][0] == ["ABUS"]
     urg = segs["⭐ Watchlist Urgencies"]
     assert urg == (["MSFT"], ["Heavy bullish flow ($37.2M)"])
+
+
+def test_oi_confirmed_means_one_thing_everywhere():
+    """Footer, brief, chip, Action List line and glossary all use the same
+    test: at least half the print showed up as new open interest."""
+    src = _html()
+    assert "Whale positions held overnight" not in src
+    assert "whale held overnight" not in src
+    assert "at least half the print showed up as new open interest" in src
+    with open(HTML.replace("index.html", "glossary.html"), encoding="utf-8") as f:
+        gl = f.read()
+    assert 'id="oi-confirmed-board"' in gl and 'id="oi-beyond-print"' in gl
+    assert "at least half of the\n      print&rsquo;s size showed up as new open interest" in gl
+    assert "open interest didn&rsquo;t grow past\n      the print size" in gl

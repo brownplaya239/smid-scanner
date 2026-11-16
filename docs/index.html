@@ -24033,7 +24033,7 @@
           if (v <= 10) return "earnings in " + v + "d — event risk ahead";
           return "";
         case "held":
-          return v ? "next-day OI rose — consistent with positions staying open" : "";
+          return v ? "OI-confirmed — at least half the print showed up as new open interest next morning" : "";
         case "theme":
           return v ? v + " — active theme" : "";
         case "mom":
@@ -25433,7 +25433,7 @@
           'research, not investment advice.">outcome-DB gated · not advice' +
           "</span></h3>" +
           (heldRows
-            ? '<div class="ro-sub">Large flow with a next-day OI increase ' +
+            ? '<div class="ro-sub">Large flow where at least half the print showed up as new open interest the next morning ' +
               "(OI-confirmed" +
               ((carry || {}).session_date
                 ? " · flagged " + esc(carry.session_date) : "") +
