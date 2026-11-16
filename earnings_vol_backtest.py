@@ -883,7 +883,7 @@ def run(limit=None, report_only=False, today=None, time_budget_min=None):
             "status": "capability_unavailable",
             "why": "POLYGON_API_KEY not set (CI-only secret)",
         }
-        json.dump(out, open(OUT_PATH, "w", encoding="utf-8"), indent=1)
+        _write_json(OUT_PATH, out, indent=1)
         print(out["why"])
         return out
     if limit:
@@ -1008,8 +1008,7 @@ def run(limit=None, report_only=False, today=None, time_budget_min=None):
         "daily-granularity proxies for the stated conventions; "
         "intraday marks are a future refinement."
     )
-    with open(OUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=1)
+    _write_json(OUT_PATH, result, indent=1)
     for t, b in result["types"].items():
         print(t, "trade_qualified:", b["trade_qualified"], "| via", b.get("qualifying_strategy"))
         for s, tb in b["strategies"].items():

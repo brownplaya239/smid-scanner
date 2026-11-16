@@ -62,7 +62,10 @@ jobs:
         # V3: entitlement-probed; incremental quote cache means each
         # nightly run only fetches windows for new events. Non-fatal —
         # an entitlement gap publishes an honest status, not a crash.
+        # Bounded so it can never eat the time Publish needs: the job has
+        # 45 minutes, reconstruction stops by ~32, Publish needs a few.
         continue-on-error: true
+        timeout-minutes: 7
         env:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
         run: uv run python earnings_vol_exec.py
