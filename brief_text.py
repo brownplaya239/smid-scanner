@@ -199,6 +199,9 @@ def t_link(sec, site, out):
 
 def t_event(sec, site, out):
     out += [_head(sec["title"]), sec.get("sub") or "", ""]
+    if not sec["records"]:
+        out.append(_wrap(sec.get("empty_line") or ""))
+        return
     for e in sec["records"]:
         # A fixed-width slice silently deleted the end of long event
         # titles; the complete title now wraps onto continuation lines.
@@ -413,6 +416,8 @@ def render_text(model, *, subject=None):
             "reach a human."
         ),
     ]
+    if model["meta"].get("postal_address"):
+        out.append(_wrap(model["meta"]["postal_address"]))
     return "\n".join(l for l in out if l is not None) + "\n"
 
 

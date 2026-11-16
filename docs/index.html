@@ -6623,7 +6623,7 @@
     <!-- Report tabs -->
     <section class="panel" id="panel-breakout">
       <h2 class="tab-title">Breakout Scans</h2>
-      <p class="tab-sub">Intraday breakout scans &mdash; batch runs at 10:00, 11:30 &amp; 3:00 PM ET weekdays.</p>
+      <p class="tab-sub">Intraday breakout scans &mdash; started at 10:00 AM, 11:30 AM &amp; 3:00 PM ET on market days; each report usually posts 10&ndash;20 minutes later.</p>
       <!-- Live ticker table — extracts top breakout candidates from
            today's swing run (A/A+ grades + bull flow if present)
            so users see actionable names without opening every PDF. -->
@@ -7726,19 +7726,23 @@
     </div>
   </div>
 
-  <!-- Beta email capture — collects emails for daily brief + launch list -->
+  <!-- Daily Brief sign-up. POSTs to the worker's /brief/subscribe, which
+       saves the address and sends a confirm-your-email message. -->
   <div class="email-capture">
     <div class="ec-inner">
       <div class="ec-pitch">
         <h3>Get the daily TickerDesk Brief</h3>
-        <p>One email per morning with your watchlist's overnight moves,
-          new A+ trend grades, options flow signals, and earnings within
-          7 days. Free during beta.</p>
+        <p>One free email each market morning, shortly before 9:00 AM ET:
+          the market setup, unusual options flow, top news and the day's
+          calendar. Sign in and add a watchlist to get your own names too.</p>
       </div>
       <form id="ec-form" class="ec-form">
         <input type="email" id="ec-email" placeholder="you@example.com"
                autocomplete="email" required />
-        <button type="submit" id="ec-submit">Join free beta</button>
+        <input type="text" id="ec-website" name="website" tabindex="-1"
+               autocomplete="off" aria-hidden="true"
+               style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" />
+        <button type="submit" id="ec-submit">Get the brief</button>
       </form>
       <div id="ec-status" class="ec-status"></div>
     </div>
@@ -8230,21 +8234,10 @@
     }
   }
   // ── Promo code redemption ──────────────────────────────────────
-  // Frontend-validated promo codes that grant time-limited access.
-  // Codes are checked against a hard-coded table here; redemption
-  // writes to public.profiles via Supabase REST so RLS limits the
-  // update to the user's own row (no impersonation risk).
-  //
-  // To add a code: extend PROMO_CODES with { code, tier, days, label }.
-  // To revoke a code mid-flight: remove it from the table and any
-  // future redemption attempt will reject with "Invalid promo code."
-  // Existing redemptions retain their expires_at.
-  const PROMO_CODES = {
-    "TEST69": { tier: "premium", days: 90,
-                label: "90-day Premium trial" },
-    "BETAFNF": { tier: "premium", days: 365,
-                 label: "Friends & Family — full Premium, 1 year" },
-  };
+  // Codes are checked and applied by the worker (POST /promo/redeem).
+  // They live only in the worker's PROMO_CODES secret, never in this
+  // page: the page source is public, and the database no longer lets
+  // a browser change its own plan.
   // Generic Supabase-call timeout wrapper — any `await SUPA.from(...)`
   // or `await SUPA.rpc(...)` should be wrapped with this to avoid the
   // indefinite hang we've seen when the supabase-js client gets stuck.
@@ -8313,81 +8306,43 @@
   window.tdRedeemPromo = async function (rawCode) {
     const code = (rawCode || "").trim().toUpperCase();
     if (!code) return { ok: false, error: "Enter a code." };
-    const promo = PROMO_CODES[code];
-    if (!promo) return { ok: false, error: "Invalid promo code." };
     if (!CURRENT_USER) {
       return { ok: false, error: "Sign in first to redeem a promo code." };
     }
-    // Check current profile state via direct REST
-    let prof = null;
+    let access = null;
     try {
-      const r = await tdSupaRestFetch(
-        "/rest/v1/profiles?id=eq." + encodeURIComponent(CURRENT_USER.id) +
-        "&select=promo_code_redeemed,subscription_tier," +
-        "subscription_expires_at",
-        { method: "GET" }
-      );
-      if (!r.ok) {
-        return { ok: false, error: "Couldn't read your profile (HTTP " +
-          r.status + "). Try signing out and back in." };
+      const { session } = await getSessionSafe();
+      access = session && session.access_token;
+    } catch (_) {}
+    if (!access) {
+      return { ok: false, error: "Sign-in expired. Please sign in again." };
+    }
+    let data = null;
+    try {
+      const resp = await fetch(WORKER_URL + "/promo/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+                   "Authorization": "Bearer " + access },
+        body: JSON.stringify({ code: code }),
+      });
+      data = await resp.json().catch(function () { return null; });
+      if (!resp.ok || !data || !data.ok) {
+        return { ok: false, error: (data && data.error) ||
+          ("Couldn't redeem the code (HTTP " + resp.status + ").") };
       }
-      prof = (r.data && r.data[0]) || null;
     } catch (e) {
-      return { ok: false, error: "Couldn't verify status: " +
+      return { ok: false, error: "Couldn't reach TickerDesk: " +
         (e.message || e) };
     }
-    if (prof && prof.promo_code_redeemed === code) {
-      return { ok: false,
-               error: "You've already redeemed " + code +
-                 ". Each code is valid once per account." };
-    }
-    // Only refuse if the promo would be a STRICT downgrade. Equal-tier
-    // or upgrade promos are always allowed (they extend or upgrade
-    // the existing benefit). Tier rank: free=0, pro=1, premium=2.
-    const TIER_RANK = { free: 0, pro: 1, premium: 2, beta: 3 };
-    const currentRank = TIER_RANK[prof && prof.subscription_tier] || 0;
-    const promoRank = TIER_RANK[promo.tier] || 0;
-    if (currentRank > promoRank) {
-      return { ok: false,
-               error: "You're already on " +
-                 (prof.subscription_tier || "").toUpperCase() +
-                 ", which is a higher tier than this promo grants. " +
-                 "No upgrade applied." };
-    }
-    // Apply the upgrade via direct REST PATCH
-    const expiresAt = new Date(Date.now() + promo.days * 86400000)
-      .toISOString();
-    try {
-      const r = await tdSupaRestFetch(
-        "/rest/v1/profiles?id=eq." + encodeURIComponent(CURRENT_USER.id),
-        { method: "PATCH",
-          headers: { "Prefer": "return=minimal" },
-          body: {
-            subscription_tier: promo.tier,
-            subscription_expires_at: expiresAt,
-            promo_code_redeemed: code,
-            promo_code_redeemed_at: new Date().toISOString(),
-          } }
-      );
-      if (!r.ok) {
-        return { ok: false, error: "Save failed (HTTP " + r.status + "): " +
-          (r.raw || "").slice(0, 140) };
-      }
-      // Best-effort refresh — bounded by its own timeout below
-      try { await refreshPlanState(); } catch (e) {}
-      // Even if refreshPlanState stalls, force the local state so the
-      // UI reflects the upgrade immediately (it'll re-confirm on next
-      // page load via the RPC).
-      CURRENT_USER_PLAN = promo.tier;
-      CURRENT_USER_EXPIRES_AT = expiresAt;
-      return { ok: true,
-               tier: promo.tier,
-               days: promo.days,
-               expires: expiresAt,
-               label: promo.label };
-    } catch (e) {
-      return { ok: false, error: "Save failed: " + (e.message || e) };
-    }
+    // Best-effort refresh; the server already saved the new plan.
+    try { await refreshPlanState(); } catch (e) {}
+    CURRENT_USER_PLAN = data.tier;
+    CURRENT_USER_EXPIRES_AT = data.expires;
+    return { ok: true,
+             tier: data.tier,
+             days: data.days,
+             expires: data.expires,
+             label: data.label || (data.tier.toUpperCase() + " promo") };
   };
 
   window.tdPlan = function () { return CURRENT_USER_PLAN; };
@@ -12121,10 +12076,14 @@
     }
   })();
 
-  // ── Email capture (footer beta signup) ──
+  // ── Email capture (footer Daily Brief sign-up) ──
+  // Success is shown ONLY when the worker answers 2xx; otherwise the
+  // worker's own error message is shown. (It used to write to Supabase
+  // directly, ignore the result and always say "You're on the list".)
   (function setupEmailCapture() {
     const form = document.getElementById("ec-form");
     const input = document.getElementById("ec-email");
+    const trap = document.getElementById("ec-website");
     const submit = document.getElementById("ec-submit");
     const status = document.getElementById("ec-status");
     if (!form) return;
@@ -12141,25 +12100,36 @@
       submit.disabled = true;
       submit.textContent = "Submitting...";
       try {
-        if (SUPA) {
-          await tdSupaTimeout(
-            SUPA.from("email_signups").upsert(
-              { email: email, source: "footer_beta" },
-              { onConflict: "email" }
-            ),
-            7000, "footer email signup"
-          );
+        const ctl = new AbortController();
+        const timer = setTimeout(function () { ctl.abort(); }, 15000);
+        let resp, data = {};
+        try {
+          resp = await fetch(WORKER_URL + "/brief/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, source: "footer",
+                                   website: trap ? trap.value : "" }),
+            signal: ctl.signal,
+          });
+        } finally { clearTimeout(timer); }
+        try { data = await resp.json(); } catch (_) { data = {}; }
+        if (!resp.ok) {
+          throw new Error(data.error ||
+            ("Sign-up failed (error " + resp.status + "). Please try again."));
         }
         status.className = "ec-status ok";
-        status.innerHTML = "✓ You're on the list. We'll send the first " +
-          "brief tomorrow morning ET.";
+        status.textContent = "✓ " + (data.message ||
+          "Check your inbox to confirm your subscription.");
         input.value = "";
       } catch (e) {
         status.className = "ec-status err";
-        status.textContent = "Signup failed: " + (e.message || e);
+        status.textContent = (e && e.name === "AbortError")
+          ? "Sign-up timed out. Please try again."
+          : (e && e.message && !/fetch/i.test(e.message)) ? e.message
+          : "Couldn't reach TickerDesk. Check your connection and try again.";
       } finally {
         submit.disabled = false;
-        submit.textContent = "Join free beta";
+        submit.textContent = "Get the brief";
       }
     });
   })();
@@ -12394,8 +12364,9 @@
       const schedule = [
         ["Daily Brief", "8:45 AM ET weekdays (worker; GitHub backup 12:47 UTC)"],
         ["UOA scans", "every 30 min, 9:45 AM → 3:45 PM ET (13/day, worker)"],
-        ["Breakout scanners", "scanner.yml GitHub crons 15:07, 15:37, 19:07 UTC (10:07 / 10:37 AM, 2:07 PM ET in winter; an hour later in summer)"],
-        ["Setup Builder + Momentum + Swing", "4:45 PM ET post-close (worker; GitHub backups 21:17 / 21:33 UTC)"],
+        ["Breakout scans", "10:00, 11:30 AM, 3:00 PM ET (worker dispatch; GitHub crons are late backups; Slack alert if missing 45 min later)"],
+        ["Setup Builder + Momentum + Swing", "4:45 PM ET post-close (worker; setup builders once per day; GitHub backups 21:17 / 21:33 UTC)"],
+        ["Economic calendar", "Sun ~10 AM + 7 PM ET, Mon 8:00 AM ET, weekdays with Momentum"],
         ["Earnings vol backtest", "6:45 PM ET (worker)"],
         ["UOA matched scorecard", "7:30 PM ET (worker)"],
         ["Push alerts", "after each UOA + Momentum (workflow_run trigger)"],
@@ -12893,36 +12864,15 @@
           });
           const data = await resp.json();
           if (data.ok && data.url) {
-            // Best-effort intent log — FIRE AND FORGET. Awaiting this
-            // hangs forever in some session states (supabase-js client
-            // gets stuck after auth refresh) and blocks the redirect.
-            // The user's intent is captured by the Stripe checkout
-            // session itself; this row is just telemetry.
-            if (SUPA && CURRENT_USER.email) {
-              try {
-                SUPA.from("email_signups").upsert(
-                  { email: CURRENT_USER.email,
-                    source: "checkout_started_" + plan },
-                  { onConflict: "email" }
-                ).then(function(){}, function(){});
-              } catch (e) {}
-            }
+            // Stripe's checkout session records the intent. (A browser
+            // write to email_signups used to log it too; that table is
+            // service-key only now, so the write was removed.)
             window.location.href = data.url;
           } else {
-            // Stripe not configured yet — fall back to email-capture stub
-            // so the upgrade intent doesn't get lost. Same fire-and-forget
-            // pattern as the success branch to avoid the supabase hang.
+            // Checkout couldn't start. Say so plainly: nothing is
+            // recorded here, so promise nothing.
             console.warn("Stripe checkout error:", data.error);
-            if (SUPA && CURRENT_USER.email) {
-              try {
-                SUPA.from("email_signups").upsert(
-                  { email: CURRENT_USER.email,
-                    source: "upgrade_intent_" + plan },
-                  { onConflict: "email" }
-                ).then(function(){}, function(){});
-              } catch (e) {}
-            }
-            btn.textContent = "Recorded — we'll email you when ready";
+            btn.textContent = "Checkout is unavailable right now. Please try again later.";
             setTimeout(function () {
               btn.disabled = false;
               btn.textContent = orig;
@@ -13046,7 +12996,7 @@
         if (res.ok) {
           status.className = "promo-status ok";
           const dt = new Date(res.expires).toLocaleDateString();
-          status.innerHTML = "✓ " + res.label +
+          status.textContent = "✓ " + res.label +
             " activated. Your " + res.tier.toUpperCase() +
             " access runs until " + dt + ".";
           input.value = "";
@@ -18422,28 +18372,9 @@
       button.disabled = true;
       viewer.className = ""; viewer.innerHTML = "";
       setStatus("working", "Researching <strong>" + ticker + "</strong> &mdash; triggering&hellip;");
-      // Log the generation attempt for credit tracking. BOUNDED: this is
-      // bookkeeping only — the worker re-validates the plan server-side
-      // from the JWT — so a slow or failed log must never block the report.
-      if (SUPA && CURRENT_USER) {
-        try {
-          await Promise.race([
-            SUPA.from("report_generations").insert({
-              user_id: CURRENT_USER.id,
-              ticker: ticker,
-              report_type: cfg.reportType,
-              status: "queued",
-            }),
-            new Promise(function (_, rej) {
-              setTimeout(function () {
-                rej(new Error("supabase insert timed out")); }, 6000);
-            }),
-          ]);
-          if (typeof refreshPlanState === "function") {
-            await refreshPlanState();
-          }
-        } catch (e) { console.warn("Report log failed (non-blocking):", e); }
-      }
+      // Usage is recorded by the worker when it accepts the request (the
+      // browser can no longer write report_generations rows), so there is
+      // nothing to log here. The counter refreshes once the worker says ok.
       // Manifest is only used to diff for the NEW file; a failure here must
       // not abort the run (it was unguarded, so a throw left the button
       // disabled forever with "triggering…" on screen).
@@ -18475,6 +18406,17 @@
         const data = await resp.json();
         if (data.ok) {
           poll(ticker, baseline, Date.now());
+          if (typeof refreshPlanState === "function") {
+            refreshPlanState().catch(function () {});
+          }
+        } else if (data.code === "dispatch_uncertain" ||
+                   data.code === "already_starting") {
+          // GitHub gave no clear answer, or another request (a double
+          // click, a second tab) is already starting this report: it may
+          // be running (and it is counted), so don't present this as a
+          // failure.
+          setStatus("working", data.error);
+          button.disabled = false;
         } else if (resp.status === 429 && data.code) {
           // Server-side cap reached. Open pricing modal with the same
           // reason code the client gate would have used so users get
@@ -19398,6 +19340,43 @@
           "fees for actually trading it have not been tested." : "");
       return { text: text, tip: tip };
     }
+
+    // When an earnings report lands relative to now (Eastern time).
+    // dateISO YYYY-MM-DD, session BMO / AMC / anything else (unknown).
+    // { past: true } once it has happened: any earlier date, BMO from
+    // 9:30 AM ET on its day, AMC from 4:00 PM ET. Otherwise { label }:
+    // "today" (weekdays only, never on a weekend), "tomorrow", or
+    // "in Nd" counted in Eastern calendar days. Pure, for the tests.
+    function earnTiming(dateISO, session, nowMs) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO || "")) return null;
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York", hourCycle: "h23", year: "numeric",
+        month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+      }).formatToParts(new Date(nowMs));
+      const g = function (t) {
+        return (parts.find(function (p) { return p.type === t; }) || {}).value;
+      };
+      const today = g("year") + "-" + g("month") + "-" + g("day");
+      const mins = (parseInt(g("hour"), 10) % 24) * 60 + parseInt(g("minute"), 10);
+      const day = function (iso) { return Date.UTC(+iso.slice(0, 4),
+        +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5; };
+      const gap = day(dateISO) - day(today);
+      const ses = String(session || "").toUpperCase();
+      if (gap < 0) return { past: true };
+      if (gap === 0) {
+        if (ses === "BMO" && mins >= 9 * 60 + 30) return { past: true };
+        if (ses === "AMC" && mins >= 16 * 60) return { past: true };
+        const dow = new Date(day(today) * 864e5).getUTCDay();
+        if (dow === 0 || dow === 6) {
+          // weekend-dated report: name the day rather than say "today"
+          return { past: false, label: ["Sun", "Mon", "Tue", "Wed", "Thu",
+            "Fri", "Sat"][dow] + " " + dateISO.slice(5).replace("-", "/") };
+        }
+        return { past: false, label: "today" };
+      }
+      return { past: false, label: gap === 1 ? "tomorrow" : "in " + gap + "d" };
+    }
+
     // ── Earnings Trade Ideas — the site's signals, synthesized per print ──
     // Rendered from earnings_ideas.json (nightly, after earnings_edge).
     // Every card cites its evidence; every idea type carries its own
@@ -19422,9 +19401,17 @@
       }
       let EXEC = null;
       function render(d) {
-        if (!d || !(d.ideas || []).length) { host.innerHTML = ""; return; }
+        // timing comes from the date + session against the Eastern clock
+        // now, not the file's `days`, which is frozen when it is written
+        // (Friday night's file said "BMO in 2d" all day Monday)
+        const now = Date.now();
+        const live = ((d && d.ideas) || []).map(function (i) {
+          return { i: i, tm: earnTiming(i.date, i.session, now) };
+        }).filter(function (x) { return x.tm && !x.tm.past; });
+        if (!live.length) { host.innerHTML = ""; return; }
         const st = d.by_type || {};
-        const rows = d.ideas.map(function (i) {
+        const rows = live.map(function (x) {
+          const i = x.i;
           const tm = TYPE_META[i.type] || [i.type, "", ""];
           const s = st[i.type];
           // vol types: a fairly priced straddle still "wins" ~58-63% of the
@@ -19453,8 +19440,7 @@
               '(n≥30 each, shrunk & clamped). Ideas re-rank by this within each day.">' +
               'conf ' + i.conf + '</span>'
             : '';
-          const when = i.days === 0 ? "today" : i.days === 1 ? "tomorrow"
-            : "in " + i.days + "d";
+          const when = x.tm.label;
           return '<div class="ei-card">' +
             '<div class="ei-top">' +
               '<span class="ei-tk" data-t="' + esc(i.t) + '">' + esc(i.t) + '</span>' +
@@ -23091,6 +23077,46 @@
         insight(_bkInsight) + hdr + body, null, stamp);
     }
 
+    // Today's events + whether the calendar is from an earlier week. The
+    // live worker feed dates events MM-DD-YYYY; the published file
+    // (economic_calendar.py) writes YYYY-MM-DD. Stale = the newest event
+    // is before this week's Monday (todayISO is the Eastern date).
+    // A live day-only response (the worker's Nasdaq feed: scope "day",
+    // `date` = the day it asked for) fetched for today within 6 hours is
+    // current even when it lists nothing: Nasdaq returns only that day,
+    // so an empty list is a quiet day, weekend or holiday (`live: true`).
+    function econCalStatus(cal, todayISO, nowMs) {
+      const iso = function (d) {
+        const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(d || "");
+        return m ? m[3] + "-" + m[1] + "-" + m[2] : String(d || "").slice(0, 10);
+      };
+      const evs = (cal && cal.events) || [];
+      let newest = "";
+      const todays = evs.filter(function (e) {
+        const d = iso(e.date);
+        if (d > newest) newest = d;
+        return d === todayISO;
+      });
+      const t = new Date(todayISO + "T12:00:00Z");
+      const back = (t.getUTCDay() + 6) % 7;          // days since Monday
+      t.setUTCDate(t.getUTCDate() - back);
+      const monday = t.toISOString().slice(0, 10);
+      const upd = Date.parse((cal && cal.updated) || "");
+      const now = nowMs == null ? Date.now() : nowMs;
+      // a worker deployed before `date`/`scope` existed: Nasdaq-live is
+      // day-only, and its day is the Eastern date it was fetched on
+      const asked = (cal && cal.date) || (isNaN(upd) ? "" :
+        new Date(upd).toLocaleDateString("en-CA",
+          { timeZone: "America/New_York" }));
+      const dayOnly = !!cal && (cal.scope === "day" ||
+        (cal.scope == null && cal.source === "nasdaq-live"));
+      const live = dayOnly && /-live$/.test(cal.source || "") &&
+        asked === todayISO && !isNaN(upd) &&
+        upd <= now + 300e3 && now - upd < 6 * 3600e3;
+      return { todays: todays, newest: newest, live: live,
+               stale: !live && !todays.length && newest < monday };
+    }
+
     function cardCalendar(cal, todayISO) {
       const esc = window.escapeHtml;
       // Live feed (worker ForexFactory proxy) → live stamp so users know
@@ -23111,10 +23137,17 @@
       if (!cal || !cal.events)
         return desk("Today's Economic Calendar", empty("No calendar data yet."),
                     null, stamp);
-      // FF feed uses MM-DD-YYYY; todayISO is YYYY-MM-DD
-      const p = todayISO.split("-");
-      const todayFF = p[1] + "-" + p[2] + "-" + p[0];
-      const todays = cal.events.filter(function (e) { return e.date === todayFF; });
+      const cs = econCalStatus(cal, todayISO);
+      const todays = cs.todays;
+      // A calendar from an earlier week can't say today is quiet: say it
+      // is out of date instead (Mon 2026-11-16 showed "No US releases"
+      // off the previous week's file).
+      if (cs.stale) return desk("Today's Economic Calendar",
+        empty("Economic calendar not updated for this week (latest " +
+              "release listed: " + esc(cs.newest || "none") + "). Check " +
+              "today's US releases elsewhere before trading."),
+        null, { cls: "old", label: "Out of date",
+                full: "The calendar file has no releases for this week." });
       if (!todays.length) return desk("Today's Economic Calendar",
         empty("No US releases scheduled today."), null, stamp);
       const impCls = function (imp) {
@@ -23136,7 +23169,7 @@
             // Every field here is scraped (ForexFactory / Nasdaq) — the
             // title attribute was quote-escaped but the visible text was
             // raw, so an event NAME could inject on every desk load.
-            '<span class="cal-time">' + esc(e.time || "") + '</span>' +
+            '<span class="cal-time">' + esc(e.time || e.time_et || "") + '</span>' +
             '<span class="cal-title" title="' + esc(e.title || "") +
               '">' + esc(e.title || "") + '</span>' +
             '<span class="cal-imp ' + impCls(e.impact) + '" title="' +
@@ -24666,10 +24699,13 @@
         // Live economic calendar via the worker (ForexFactory proxy) so the
         // Actual column fills in through the day; fall back to the static
         // post-close batch if the worker is unreachable.
+        // A fresh live day with no events is kept: it means a quiet day,
+        // and the weekly file can be last week's (econCalStatus).
         cal: fetch(WORKER_URL + "/?econ-calendar=1")
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (d) {
-            return (d && d.events && d.events.length)
+            return (d && d.events && (d.events.length ||
+                    econCalStatus(d, window.tdTodayET()).live))
               ? d : fetchJSON("./reports/economic_calendar.json");
           })
           .catch(function () {

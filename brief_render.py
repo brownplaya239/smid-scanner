@@ -579,6 +579,10 @@ def render_link(sec, site):
 
 
 def render_event(sec, site):
+    if not sec["records"]:
+        return _card(
+            sec["title"], _line(esc(sec.get("empty_line") or ""), SMALL_PX, DIM), sub=sec.get("sub")
+        )
     rows = []
     for e in sec["records"]:
         sc = {"COMPLETED": MUTED, "IN PROGRESS": AMBER, "UNSCHEDULED": MUTED}.get(
@@ -717,6 +721,8 @@ def render(model, *, preheader=None):
     document disagree about what the reader saw."""
     site = model["meta"]["site"]
     unsub = model["meta"]["unsub"]
+    postal = model["meta"].get("postal_address") or ""
+    postal = ("<br>" + esc(postal)) if postal else ""
     if preheader is None:
         preheader = model["meta"].get("preheader") or ""
     body = "".join(
@@ -738,11 +744,11 @@ def render(model, *, preheader=None):
         "not investment advice. Delayed market data.<br>"
         '<a href="%s" style="color:%s">Unsubscribe</a> · '
         '<a href="%s/#settings" style="color:%s">Email settings</a> · '
-        "Reply to this email to reach a human.</td></tr>"
+        "Reply to this email to reach a human.%s</td></tr>"
         # no fallback: an unsubscribe link that is not the subscriber's
         # signed endpoint is worse than a missing one, because it looks
         # like it worked. The send gate blocks when this is empty.
-        % (FONT, MUTED, esc(unsub), MUTED, site, MUTED)
+        % (FONT, MUTED, esc(unsub), MUTED, site, MUTED, postal)
     )
     pre = (
         '<div style="display:none;max-height:0;overflow:hidden;'

@@ -510,7 +510,146 @@ const UOA_SLOTS = ["09:45", "10:15", "10:45", "11:15", "11:45", "12:15",
 const UOA_MONITOR_SLOTS = ["12:15", "15:45"];
 const EOD_SLOT = "16:45";
 
+// Breakout scans (scanner.yml, mode=breakout) on the ET clock. GitHub's
+// own cron for them starts 5-7 hours late, so after 2026-11-09 no
+// breakout scan ran at all. Each dispatch names its slot (slotId()), and
+// scanner.yml skips a slot that has a completion record in R2
+// scan_runs/<date>.json (scan_slot.py), so its late GitHub backstop is a
+// no-op.
+const BREAKOUT_SLOTS = ["10:00", "11:30", "15:00"];
+// How long after a slot to look for its report before alerting Slack.
+const BREAKOUT_ALERT_DELAY_MIN = 45;
+
+// Full-day market closures and 13:00 ET half days. Mirrors HOLIDAYS /
+// HALF_DAYS in exchange_calendar.py (test_scan_slot.py checks they match).
+// A year missing here is treated as all-sessions (weekdays still skip).
+const MARKET_HOLIDAYS = [
+  "2025-01-01", "2025-01-09", "2025-01-20", "2025-02-17", "2025-04-18",
+  "2025-05-26", "2025-06-19", "2025-07-04", "2025-09-01", "2025-11-27",
+  "2025-12-25",
+  "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25",
+  "2026-06-19", "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25",
+  "2027-01-01", "2027-01-18", "2027-02-15", "2027-03-26", "2027-05-31",
+  "2027-06-18", "2027-07-05", "2027-09-06", "2027-11-25", "2027-12-24",
+];
+const MARKET_HALF_DAYS = [
+  "2025-07-03", "2025-11-28", "2025-12-24",
+  "2026-11-27", "2026-12-24",
+  "2027-11-26",
+];
+
+function _hhmmToMin(s) {
+  return parseInt(s.slice(0, 2), 10) * 60 + parseInt(s.slice(3, 5), 10);
+}
+
+// What the breakout schedule wants at this ET quarter hour. `dow` 0=Sun,
+// `date` YYYY-MM-DD, `hhmm` the quarter-hour clock from etClock().
+// Returns { dispatch: bool, check: "HH:MM" slot whose report should
+// exist by now, or null }. Pure, so test_scan_slot.py can run it in Node.
+function breakoutDue(dow, date, hhmm) {
+  const out = { dispatch: false, check: null };
+  if (dow < 1 || dow > 5 || MARKET_HOLIDAYS.indexOf(date) >= 0) return out;
+  // a half day closes at 13:00: the 15:00 slot has no session to scan
+  const closeMin = MARKET_HALF_DAYS.indexOf(date) >= 0 ? 13 * 60 : 16 * 60;
+  const now = _hhmmToMin(hhmm);
+  BREAKOUT_SLOTS.forEach(function (slot) {
+    const m = _hhmmToMin(slot);
+    if (m >= closeMin) return;
+    if (m === now) out.dispatch = true;
+    if (m + BREAKOUT_ALERT_DELAY_MIN === now) out.check = slot;
+  });
+  return out;
+}
+
+// "2026-11-17T10:00ET": the id scan_slot.py keys completion records by.
+function slotId(date, hhmm) {
+  return date + "T" + hhmm + "ET";
+}
+
+// Universes ("smid", "iwm") with no completion record for this slot in
+// the day's R2 scan_runs/<date>.json object (written by scan_slot.py
+// record after each clean scan + publish, including scans that found no
+// candidates and so archived no PDF).
+function missingFromRecord(doc, sid) {
+  const done = (doc && doc.slots && doc.slots[sid]) || {};
+  return ["smid", "iwm"].filter(function (u) { return !done[u]; });
+}
+
+// Fallback when the record can't be read: archived scanner PDFs are named
+// <universe>_scanner_YYYY-MM-DD_HHMM.pdf (ET). Universes with no breakout
+// report stamped at/after `slot` today.
+function missingBreakoutReports(manifest, date, slot) {
+  const since = slot.replace(":", "");
+  const reports = (manifest && manifest.reports) || {};
+  return ["smid-scanner", "iwm-scanner"].filter(function (key) {
+    return !(reports[key] || []).some(function (r) {
+      const m = /_(\d{4}-\d{2}-\d{2})_(\d{4})\.pdf$/.exec((r && r.file) || "");
+      return !!m && m[1] === date && m[2] >= since;
+    });
+  });
+}
+
+function etDateISO(d) {
+  return (d || new Date()).toLocaleDateString("en-CA",
+    { timeZone: "America/New_York" });
+}
+
+// ~45 min after a breakout slot: if the slot's completion record lacks a
+// universe, say so in Slack (SLACK_ALERT_CHANNEL; off when unset). A
+// clean scan with no candidates has a record, so it does not alert.
+async function checkBreakoutReport(env, slot, date) {
+  date = date || etDateISO();
+  const sid = slotId(date, slot);
+  let missing = null, how = "";
+  try {
+    if (!env.DATA) throw new Error("no DATA binding");
+    const o = await env.DATA.get("scan_runs/" + date + ".json");
+    missing = missingFromRecord(o ? await o.json() : null, sid);
+  } catch (e) {
+    console.log("[cron] breakout check: record read failed: " + e.message);
+  }
+  if (missing === null) {
+    // record unreadable: fall back to the report list the Breakout tab
+    // shows (manifest.json is git-only, served by GitHub Pages)
+    how = " (completion record unreadable; checked the report list)";
+    try {
+      const r = await fetch("https://tickerdesk.io/reports/manifest.json?cb=" +
+        Date.now(), { signal: AbortSignal.timeout(10000),
+                      headers: { "User-Agent": "tickerdesk-cron-backstop" } });
+      if (r.ok) {
+        missing = missingBreakoutReports(await r.json(), date, slot)
+          .map(function (k) { return k.split("-")[0]; });
+      }
+    } catch (e) {
+      console.log("[cron] breakout check: manifest read failed: " + e.message);
+    }
+    if (missing === null) {
+      missing = ["smid", "iwm"];
+      how = " (completion record and report list both unreadable)";
+    }
+  }
+  if (!missing.length) {
+    console.log("[cron] breakout " + sid + " completed");
+    return;
+  }
+  const h = parseInt(slot.slice(0, 2), 10);
+  const label = (h > 12 ? h - 12 : h) + slot.slice(2) + (h >= 12 ? " PM" : " AM");
+  const text = ":warning: Breakout scan missing: " +
+    missing.map(function (k) { return k.toUpperCase(); }).join(" and ") +
+    " did not finish the " + label + " ET slot (" + date + ") " +
+    BREAKOUT_ALERT_DELAY_MIN + " minutes later" + how +
+    ". Runs: https://github.com/" + (env.REPO || "brownplaya239/smid-scanner") +
+    "/actions/workflows/scanner.yml";
+  console.log("[cron] " + text);
+  if (!env.SLACK_ALERT_CHANNEL || !env.SLACK_BOT_TOKEN) return;
+  await slackApi(env, "chat.postMessage",
+    { channel: env.SLACK_ALERT_CHANNEL, text: text });
+}
+
 const JOB_SCHEDULE = [
+  // Monday: roll the economic calendar to the new week before the brief
+  // (its weekday refresh only runs at 4:30 PM ET inside Momentum Scans)
+  { at: "08:00", days: [1],             workflow: "economic_calendar.yml" },
   { at: "08:45", days: [1, 2, 3, 4, 5], workflow: "daily_brief.yml" },
   { at: "18:45", days: [1, 2, 3, 4, 5], workflow: "earnings_vol.yml" },
   { at: "19:30", days: [1, 2, 3, 4, 5], workflow: "uoa_scorecard.yml" },
@@ -1287,13 +1426,20 @@ async function requireUser(request, env) {
         "apikey": env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY || "",
       },
     });
-    if (!r.ok) {
+    if (r.status === 400 || r.status === 401 || r.status === 403) {
       return { ok: false, status: 401, code: "auth_expired",
                error: "Sign-in expired. Please sign in again." };
     }
+    if (!r.ok) {
+      // Supabase itself is failing (5xx, 429, ...): not the user's fault,
+      // and not a verified identity either. Fail closed.
+      console.log("requireUser: Supabase auth returned HTTP " + r.status);
+      return { ok: false, status: 503, code: "auth_unavailable",
+               error: "Service temporarily unavailable." };
+    }
     const body = await r.json();
     const uid = body && body.id;
-    if (!uid) {
+    if (typeof uid !== "string" || !/^[0-9a-f-]{36}$/i.test(uid)) {
       return { ok: false, status: 401, code: "auth_invalid",
                error: "Sign-in could not be verified." };
     }
@@ -1302,6 +1448,255 @@ async function requireUser(request, env) {
     console.log("requireUser lookup failed:", e.message);
     return { ok: false, status: 503, code: "auth_unavailable",
              error: "Service temporarily unavailable." };
+  }
+}
+
+/** Promo codes — POST /promo/redeem {code}. Auth-gated.
+ *
+ *  Codes live ONLY in the PROMO_CODES worker secret, as JSON:
+ *    {"SPRING30": {"tier": "premium", "days": 30, "label": "30-day Premium"}}
+ *  This repo is public, so a code table in worker.js or docs/index.html
+ *  hands free plans to anyone who reads the source. That is what the old
+ *  browser-side table did (TEST69 / BETAFNF were in the page source, and
+ *  the browser wrote the plan itself). With no secret set, every code is
+ *  rejected, which is the safe default.
+ *
+ *  The worker checks the code; the database function td_redeem_promo
+ *  (sql/2026-11-10_lock_plans_and_report_usage.sql) applies it in one
+ *  locked step: it creates a Free profile if the account has none, locks
+ *  the row against a simultaneous Stripe update, refuses a code this
+ *  account has EVER used (promo_redemptions, so A, B, A doesn't work),
+ *  refuses while a paid plan is active, and writes the plan. Browsers
+ *  can't write plan fields at all. */
+const PROMO_TIER_RANK = { free: 0, pro: 1, premium: 2, beta: 3 };
+
+function loadPromoCodes(env) {
+  if (!env.PROMO_CODES) return {};
+  let raw;
+  try { raw = JSON.parse(env.PROMO_CODES); }
+  catch (_) {
+    console.log("PROMO_CODES secret is not valid JSON; no codes active");
+    return {};
+  }
+  const out = {};
+  for (const key of Object.keys(raw || {})) {
+    const v = raw[key] || {};
+    const days = Math.floor(Number(v.days));
+    if (!PROMO_TIER_RANK[v.tier] || !(days >= 1 && days <= 730)) continue;
+    out[String(key).trim().toUpperCase()] =
+      { tier: v.tier, days: days, label: String(v.label || "") };
+  }
+  return out;
+}
+
+/** Call a service-role-only Postgres function through PostgREST.
+ *  Returns { ok: true, data } only for HTTP 2xx with a JSON object body
+ *  that has a boolean `ok`; anything else (network error, non-2xx, a
+ *  different shape) is { ok: false, error }. */
+async function callServiceRpc(env, fn, args) {
+  let r;
+  try {
+    r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/rpc/" + fn, {
+      method: "POST",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_KEY,
+        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(args),
+    });
+  } catch (e) {
+    return { ok: false, error: "network: " + String((e && e.message) || e) };
+  }
+  const text = await r.text().catch(function () { return ""; });
+  if (!r.ok) {
+    return { ok: false, error: "HTTP " + r.status + " " + text.slice(0, 200) };
+  }
+  let data = null;
+  try { data = JSON.parse(text); } catch (_) { /* checked below */ }
+  if (!data || typeof data !== "object" || Array.isArray(data) ||
+      typeof data.ok !== "boolean") {
+    return { ok: false, error: "unexpected response: " + text.slice(0, 200) };
+  }
+  return { ok: true, data: data };
+}
+
+async function handlePromoRedeem(request, env, cors) {
+  const fail = function (status, error, code) {
+    return Response.json({ ok: false, error: error, code: code },
+      { status: status, headers: cors });
+  };
+  const user = await requireUser(request, env);
+  if (!user.ok) return fail(user.status, user.error, user.code);
+  if (!env.SUPABASE_SERVICE_KEY) {
+    return fail(503, "Service temporarily unavailable.", "promo_unavailable");
+  }
+  let code = "";
+  try {
+    const body = await request.json();
+    code = String((body && body.code) || "").trim().toUpperCase();
+  } catch (_) {
+    return fail(400, "Invalid request.", "bad_request");
+  }
+  if (!code || code.length > 40) return fail(400, "Enter a code.", "empty");
+  const promo = loadPromoCodes(env)[code];
+  if (!promo) return fail(400, "Invalid promo code.", "invalid");
+
+  const res = await callServiceRpc(env, "td_redeem_promo", {
+    p_user: user.uid, p_code: code, p_tier: promo.tier, p_days: promo.days,
+  });
+  if (!res.ok) {
+    console.log("promo redeem failed:", res.error);
+    return fail(503, "Couldn't apply the code. Try again in a minute.",
+      "promo_unavailable");
+  }
+  const d = res.data;
+  if (!d.ok) {
+    const cur = String(d.tier || "").toUpperCase();
+    if (d.code === "already_redeemed") {
+      return fail(409, "You've already redeemed " + code +
+        ". Each code is valid once per account.", "already_redeemed");
+    }
+    if (d.code === "plan_active") {
+      return fail(409, "Your " + cur + " plan is already active. Promo " +
+        "codes are for free accounts and trials.", "plan_active");
+    }
+    if (d.code === "higher_tier") {
+      return fail(409, "You're already on " + cur + ", which is a higher " +
+        "tier than this promo grants. No upgrade applied.", "higher_tier");
+    }
+    console.log("promo redeem: unexpected result code", d.code);
+    return fail(503, "Couldn't apply the code. Try again in a minute.",
+      "promo_unavailable");
+  }
+  const expiresMs = typeof d.expires === "string" ? Date.parse(d.expires) : NaN;
+  if (!Number.isFinite(expiresMs)) {
+    console.log("promo redeem: result has no valid expires");
+    return fail(503, "Couldn't confirm the code was applied. Refresh the " +
+      "page to check your plan.", "promo_unavailable");
+  }
+  console.log("[promo] redeemed code=" + code + " tier=" + promo.tier +
+    " days=" + promo.days);
+  return Response.json({ ok: true, tier: promo.tier, days: promo.days,
+    expires: new Date(expiresMs).toISOString(), label: promo.label },
+    { headers: cors });
+}
+
+/** Report usage. The worker is the only writer of report_generations
+ *  rows. Before starting a report it calls td_reserve_report, which (in
+ *  the database, under a per-user lock) reads the plan, counts usage
+ *  against the cap and records the report, all in one step. So ten
+ *  requests sent at once can't all pass the check: they queue on the
+ *  lock and each sees the rows the earlier ones added.
+ *  A retry is not charged twice: if this user already has a reservation
+ *  for the same ticker from the last 10 minutes that nobody has claimed
+ *  (dispatch_state still "reserved", e.g. Supabase's reply was lost), the
+ *  function returns that one instead of adding another. Two requests may
+ *  get the same row back; claimReport makes sure only one starts it.
+ *  Returns { ok: true, id, used, cap, tier } for a reservation,
+ *  { ok: false, over: true, code, used, cap, tier } at the cap, or
+ *  { ok: false, error } if no reservation could be made (the caller must
+ *  then NOT start the report). */
+async function reserveReport(env, uid, ticker, reportType) {
+  const res = await callServiceRpc(env, "td_reserve_report", {
+    p_user: uid, p_ticker: ticker, p_report_type: reportType,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  const d = res.data;
+  if (d.ok) {
+    if (typeof d.id !== "string" || !d.id) {
+      return { ok: false, error: "reservation has no id" };
+    }
+    return { ok: true, id: d.id, used: d.used, cap: d.cap, tier: d.tier };
+  }
+  if (d.code === "monthly_cap" || d.code === "lifetime_cap") {
+    return { ok: false, over: true, code: d.code, used: Number(d.used) || 0,
+             cap: Number(d.cap) || 0, tier: String(d.tier || "free") };
+  }
+  return { ok: false, error: "unexpected result code " + d.code };
+}
+
+/** Claim a reservation so that exactly one request starts it.
+ *  td_claim_report flips the row from "reserved" to "dispatching" and
+ *  stamps it with this request's random claim token, but only if it is
+ *  still "reserved", so of two requests holding the same reservation only
+ *  one gets it. Returns { ok: true } for the winner, { ok: false, taken:
+ *  true } if someone else already claimed it, or { ok: false, error } if
+ *  the database couldn't be asked (the caller must not start the report
+ *  in either failure case). */
+async function claimReport(env, rowId, token) {
+  const res = await callServiceRpc(env, "td_claim_report", {
+    p_reservation_id: rowId, p_claim_token: token,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  const d = res.data;
+  if (d.ok) {
+    if (d.id !== rowId) return { ok: false, error: "claim returned a different id" };
+    return { ok: true };
+  }
+  if (d.code === "not_claimable") return { ok: false, taken: true };
+  return { ok: false, error: "unexpected result code " + d.code };
+}
+
+/** The PostgREST filter for "this reservation, and only while this
+ *  request holds its claim". Every write after the claim uses it, so a
+ *  request can never mark or delete a row another request claimed. */
+function claimedRowFilter(env, uid, rowId, token) {
+  return env.SUPABASE_URL.replace(/\/+$/, "") +
+    "/rest/v1/report_generations?id=eq." + encodeURIComponent(rowId) +
+    "&user_id=eq." + encodeURIComponent(uid) +
+    "&claim_token=eq." + encodeURIComponent(token);
+}
+
+/** Undo a reservation when GitHub definitely refused to start the
+ *  report (a 4xx answer), so it isn't charged against the cap. Only
+ *  deletes the row while it is still "dispatching" under this request's
+ *  claim. Best-effort: if it fails, the row stays "dispatching" and
+ *  charged (never handed out again), and the failure is logged. */
+async function releaseReport(env, uid, rowId, token) {
+  try {
+    const r = await fetch(claimedRowFilter(env, uid, rowId, token) +
+      "&dispatch_state=eq.dispatching", {
+      method: "DELETE",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_KEY,
+        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+        "Prefer": "return=minimal",
+      },
+    });
+    if (!r.ok) {
+      console.log("report reservation release failed: HTTP " + r.status);
+    }
+  } catch (e) {
+    console.log("report reservation release failed:", e.message);
+  }
+}
+
+/** Record what happened to a claimed reservation's GitHub start, in
+ *  report_generations.dispatch_state (browsers can't write that column):
+ *    "dispatched"         GitHub accepted it.
+ *    "dispatch_uncertain" no clear answer (network error, timeout, 5xx):
+ *                         the report may be running, so it stays charged.
+ *  Only this request's own claim is updated. Best-effort: if the write
+ *  fails the row stays "dispatching", which is also charged and never
+ *  handed out again, so a failure here can't give anyone a free report. */
+async function markReport(env, uid, rowId, token, state) {
+  try {
+    const r = await fetch(claimedRowFilter(env, uid, rowId, token), {
+      method: "PATCH",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_KEY,
+        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+      },
+      body: JSON.stringify({ dispatch_state: state }),
+    });
+    if (!r.ok) {
+      console.log("report reservation mark " + state + " failed: HTTP " + r.status);
+    }
+  } catch (e) {
+    console.log("report reservation mark " + state + " failed:", e.message);
   }
 }
 
@@ -3137,6 +3532,7 @@ async function handleStripeWebhook(request, env, cors) {
   // so an old event's payload can describe a plan the customer no longer
   // has. Instead, every event re-reads the customer's CURRENT
   // subscriptions from the Stripe API and saves that (syncStripePlan).
+
   const type = evt.type;
   const obj = (evt.data && evt.data.object) || {};
   console.log("Event type: " + type + " · obj id: " + (obj && obj.id));
@@ -3715,7 +4111,7 @@ function _ecTime(t) {
   h = h % 12; if (h === 0) h = 12;
   return h + ":" + mm + ap;
 }
-async function _econFromNasdaq(dateISO) {
+async function _econNasdaqRows(dateISO) {
   const r = await fetch(
     "https://api.nasdaq.com/api/calendar/economicevents?date=" + dateISO,
     { headers: {
@@ -3725,7 +4121,136 @@ async function _econFromNasdaq(dateISO) {
       } });
   if (!r.ok) throw new Error("nasdaq " + r.status);
   const j = await r.json();
-  const rows = (j && j.data && j.data.rows) || [];
+  return (j && j.data && j.data.rows) || [];
+}
+
+// Weekly US releases that land on the same weekday (1=Mon) in a normal
+// week. They tell us which calendar day a Nasdaq response really covers.
+// Holidays move them (a Monday holiday pushes the bill auctions to
+// Tuesday), so samples from holiday weeks are not counted (econDateShift).
+const ECON_WEEKDAY_ANCHORS = [
+  [/^3-month bill auction/i, 1],
+  [/^6-month bill auction/i, 1],
+  [/^redbook/i, 2],
+  [/mba mortgage applications/i, 3],
+  [/crude oil inventories/i, 3],
+  [/initial jobless claims/i, 4],
+  [/natural gas storage/i, 4],
+  [/baker hughes/i, 5],
+];
+
+// Federal holidays the stock market trades through but Treasury auctions
+// and agency releases do not (Columbus Day, Veterans Day). With
+// MARKET_HOLIDAYS they mark the weeks whose release days may move.
+const FEDERAL_ONLY_HOLIDAYS = [
+  "2025-10-13", "2025-11-11",
+  "2026-10-12", "2026-11-11",
+  "2027-10-11", "2027-11-11",
+];
+
+// True when the Mon-Fri week containing `iso` has a market or federal
+// holiday, or `iso` is in a year the tables don't cover.
+function _econHolidayWeek(iso) {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);   // its Monday
+  const year = iso.slice(0, 4);
+  if (!MARKET_HOLIDAYS.some(function (h) { return h.slice(0, 4) === year; }))
+    return true;                                  // unknown year: no trust
+  for (let i = 0; i < 5; i++) {
+    const day = d.toISOString().slice(0, 10);
+    if (MARKET_HOLIDAYS.indexOf(day) >= 0 ||
+        FEDERAL_ONLY_HOLIDAYS.indexOf(day) >= 0) return true;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return false;
+}
+
+function _isoAddDays(iso, n) {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// Nasdaq's ?date=D has, since about 2026-11, returned the US releases of
+// the day BEFORE D (date=2026-11-17 held Monday 11-16's Empire State
+// print; date=2026-11-16 held only Sunday-evening Asia releases), so the
+// desk's live call came back empty. Vote with the fixed-weekday releases:
+// returns the day offset to ADD to the wanted date when querying (1 when
+// Nasdaq lags a day, 0 when it is right), null without clear evidence, or
+// ECON_SHIFT_CONFLICT when the counted anchors disagree with each other.
+// The caller may fall back to older samples on null, never on a conflict:
+// current disagreement beats last week's evidence.
+// `samples` = [{ query: "YYYY-MM-DD", titles: [US event names] }].
+// Rules, so a correctly dated feed is never shifted:
+//   * an anchor is not counted when the queried day's week, or the week
+//     of the day the anchor points to, has a holiday: releases and
+//     auctions move in those weeks (a correct Tuesday bill auction after
+//     a Monday holiday would otherwise vote for a one-day lag);
+//   * every counted anchor must agree (any disagreement -> conflict);
+//   * a nonzero shift needs at least two different anchors behind it.
+const ECON_SHIFT_CONFLICT = "conflict";
+function econDateShift(samples) {
+  const votes = {};
+  (samples || []).forEach(function (sm) {
+    if (_econHolidayWeek(sm.query)) return;
+    const qdow = new Date(sm.query + "T12:00:00Z").getUTCDay();
+    const seen = {};
+    (sm.titles || []).forEach(function (t) {
+      ECON_WEEKDAY_ANCHORS.forEach(function (a, ai) {
+        if (!a[0].test(String(t || "").trim()) || seen[ai]) return;
+        seen[ai] = 1;
+        // the response is for weekday a[1]; query = that day + shift
+        let sh = ((qdow - a[1]) % 7 + 7) % 7;
+        if (sh === 6) sh = -1;
+        if (sh > 1) sh = 99;               // no plausible shift: disagrees
+        else if (_econHolidayWeek(_isoAddDays(sm.query, -sh))) return;
+        votes[sh] = votes[sh] || {};
+        votes[sh][ai] = 1;
+      });
+    });
+  });
+  const keys = Object.keys(votes);
+  if (!keys.length) return null;
+  if (keys.length > 1 || keys[0] === "99") return ECON_SHIFT_CONFLICT;
+  const shift = parseInt(keys[0], 10);
+  const anchors = Object.keys(votes[keys[0]]).length;
+  if (shift !== 0 && anchors < 2) return null;
+  return shift;
+}
+
+function _econUsTitles(rows) {
+  return rows.filter(function (r) {
+    return String(r.country || "").toLowerCase() === "united states";
+  }).map(function (r) { return r.eventName; });
+}
+
+async function _econFromNasdaq(dateISO) {
+  // the offset is learned from the data and kept for 6h; with no
+  // evidence yet, look at the wanted day and the next one. No evidence
+  // there (a holiday week, a thin day): learn it from the same two days
+  // a week earlier, which are usually a normal week. If this week's
+  // anchors DISAGREE, use no shift and do not consult last week: an old
+  // +1 would put Tuesday's releases on Monday.
+  let shift = memGet("econshift", 6 * 3600_000);
+  const got = {};
+  if (shift === null) {
+    const sample = async function (qs, keep) {
+      const res = await Promise.all(qs.map(_econNasdaqRows));
+      if (keep) qs.forEach(function (q, i) { got[q] = res[i]; });
+      return econDateShift(qs.map(function (q, i) {
+        return { query: q, titles: _econUsTitles(res[i]) };
+      }));
+    };
+    shift = await sample([dateISO, _isoAddDays(dateISO, 1)], true);
+    if (shift === null) {
+      shift = await sample([_isoAddDays(dateISO, -7), _isoAddDays(dateISO, -6)],
+                           false).catch(function () { return null; });
+    }
+    if (typeof shift === "number") memPut("econshift", shift);
+    else shift = 0;                     // no evidence, or a conflict
+  }
+  const q = _isoAddDays(dateISO, shift);
+  const rows = got[q] || await _econNasdaqRows(q);
   const p = dateISO.split("-");                    // YYYY-MM-DD
   const ffDate = p[1] + "-" + p[2] + "-" + p[0];   // MM-DD-YYYY (frontend fmt)
   const events = [];
@@ -3740,7 +4265,8 @@ async function _econFromNasdaq(dateISO) {
       impact:   _ecImpact(title),
       forecast: String(row.consensus || "").trim(),
       previous: String(row.previous || "").trim(),
-      actual:   String(row.actual || "").trim(),
+      // Nasdaq fills "no number" (speeches) with a literal &nbsp;
+      actual:   String(row.actual || "").replace(/&nbsp;/g, " ").trim(),
     });
   }
   // Nasdaq lists sub-indices under identical generic names (e.g. "House
@@ -3795,12 +4321,14 @@ async function fetchEconCalendar() {
     // only swapped a correct empty day for FF's 429s on Cloudflare IPs
     // (502 all weekend, found 2026-09-27). FF is for Nasdaq ERRORS only.
     const events = await _econFromNasdaq(etDate);   // has Actual
+    // `date` + `scope`: this is ONE day's list, so an empty one means a
+    // quiet day, not an out-of-date calendar (the site checks both)
     return { updated: new Date().toISOString(), tz: "America/New_York",
-      source: "nasdaq-live", events };
+      source: "nasdaq-live", date: etDate, scope: "day", events };
   } catch (e) { /* Nasdaq unreachable: fall through to FF */ }
   const events = await _econFromFF();               // schedule only, no actuals
   return { updated: new Date().toISOString(), tz: "America/New_York",
-    source: "forexfactory-live", events };
+    source: "forexfactory-live", date: etDate, scope: "week", events };
 }
 
 /** My Reports — GET /my-reports (Bearer JWT). Lists the signed-in user's
@@ -3897,9 +4425,11 @@ async function handleMyReports(request, env, cors) {
 // ── One-click email unsubscribe (RFC 8058) ───────────────────────────
 // The Daily Brief email carries a List-Unsubscribe header + footer link
 // pointing here with ?u=<user_id>&t=<sig>, where sig = first 40 hex of
-// HMAC-SHA256(SUPABASE_SERVICE_KEY, user_id). We recompute the HMAC with
-// the same shared service key and, on match, flip
-// profiles.daily_brief_enabled=false — no login required. Handles both
+// HMAC-SHA256(SUPABASE_SERVICE_KEY, user_id); email-list links carry
+// ?e=<email> signed over "brief-unsub:<email>". We recompute the HMAC with
+// the same shared service key and, on match, call brief_unsubscribe, which
+// stops the brief for that address on the account AND the email list —
+// no login required. Handles both
 // GET (a human clicking the footer link → HTML confirmation) and POST
 // (the mail client's one-click List-Unsubscribe-Post → 200).
 function _timingSafeEq(a, b) {
@@ -3908,65 +4438,395 @@ function _timingSafeEq(a, b) {
   for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return out === 0;
 }
-async function handleUnsubscribe(request, env) {
-  const htmlHdr = { "Content-Type": "text/html; charset=utf-8",
-                    "X-Content-Type-Options": "nosniff" };
-  const page = function (title, msg) {
-    return new Response(
-      '<!doctype html><meta charset="utf-8">' +
-      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<title>' + title + '</title>' +
-      '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,' +
-      'sans-serif;max-width:460px;margin:64px auto;padding:0 20px;text-align:center;">' +
-      '<h2 style="margin:0 0 10px;color:#1a1a1a;">' + title + '</h2>' +
-      '<p style="color:#555;line-height:1.6;">' + msg + '</p>' +
-      '<p style="margin-top:22px;"><a href="https://tickerdesk.io" ' +
-      'style="color:#c8891a;text-decoration:none;font-weight:600;">' +
-      'Return to TickerDesk &rarr;</a></p></div>', { headers: htmlHdr });
+// First 40 hex of HMAC-SHA256(SUPABASE_SERVICE_KEY, msg). daily_brief.py
+// computes the same digest (`_hmac40`), so the two must stay in step.
+async function _hmac40(secret, msg) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(msg));
+  return [...new Uint8Array(sig)]
+    .map(function (b) { return b.toString(16).padStart(2, "0"); })
+    .join("").slice(0, 40);
+}
+const _BRIEF_HTML_HDR = { "Content-Type": "text/html; charset=utf-8",
+                          "X-Content-Type-Options": "nosniff" };
+// Callers pass only fixed strings (never user input) as title / msg.
+function _briefPage(title, msg, status) {
+  return new Response(
+    '<!doctype html><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>' + title + '</title>' +
+    '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,' +
+    'sans-serif;max-width:460px;margin:64px auto;padding:0 20px;text-align:center;">' +
+    '<h2 style="margin:0 0 10px;color:#1a1a1a;">' + title + '</h2>' +
+    '<p style="color:#555;line-height:1.6;">' + msg + '</p>' +
+    '<p style="margin-top:22px;"><a href="https://tickerdesk.io" ' +
+    'style="color:#c8891a;text-decoration:none;font-weight:600;">' +
+    'Return to TickerDesk &rarr;</a></p></div>',
+    { status: status || 200, headers: _BRIEF_HTML_HDR });
+}
+// Service-role call to Supabase REST (bypasses RLS; worker-only key).
+function _svcFetch(env, path, init) {
+  const opt = init || {};
+  return fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/" + path, {
+    method: opt.method || "GET",
+    headers: Object.assign({
+      "apikey": env.SUPABASE_SERVICE_KEY,
+      "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+      "Content-Type": "application/json",
+    }, opt.headers || {}),
+    body: opt.body,
+  });
+}
+
+// The "code" field of a PostgREST / Postgres JSON error body, or "" when
+// the body isn't such an error (HTML error pages, proxies, empty bodies).
+function _pgrstCode(text) {
+  try {
+    const j = JSON.parse(text);
+    return j && typeof j === "object" && typeof j.code === "string" ? j.code : "";
+  } catch (e) {
+    return "";
+  }
+}
+
+// Calls one of the Daily Brief SQL functions (sql/2026-11-16_brief_signups.sql)
+// through PostgREST. Returns the parsed result; throws on any failure so
+// callers never act on a write that didn't happen.
+async function _briefRpc(env, fn, args) {
+  const r = await _svcFetch(env, "rpc/" + fn, {
+    method: "POST", body: JSON.stringify(args) });
+  if (!r.ok) {
+    const raw = await r.text();
+    const err = new Error("rpc " + fn + " " + r.status + " " + raw.slice(0, 200));
+    // Only PostgREST's structured "function not found" error (JSON
+    // code PGRST202, sent when the SQL file hasn't been run yet) counts
+    // as a missing function. Any other failure, including an unrelated
+    // 404 or an error that merely mentions that code, stays a failure.
+    err.missingFn = _pgrstCode(raw) === "PGRST202";
+    throw err;
+  }
+  const txt = await r.text();
+  return txt ? JSON.parse(txt) : null;
+}
+
+// Unsubscribing must work even if this worker is deployed before
+// sql/2026-11-16_brief_signups.sql has been run (unsubscribe is a legal
+// requirement, so it can never depend on rollout order). Without the
+// brief_unsubscribe function, do what the worker did before it existed:
+// switch the account's brief off directly, and mark an email-list row
+// unsubscribed if the table already has that column. Throws on failure.
+async function _unsubscribeDirect(env, uid, em) {
+  const patch = async function (path, body) {
+    const r = await _svcFetch(env, path, { method: "PATCH",
+      headers: { "Prefer": "return=minimal" }, body: JSON.stringify(body) });
+    const text = r.ok ? "" : await r.text();
+    return { ok: r.ok, status: r.status, code: _pgrstCode(text), text: text.slice(0, 200) };
   };
+  if (uid) {
+    const r = await patch("profiles?id=eq." + encodeURIComponent(uid),
+      { daily_brief_enabled: false });
+    if (!r.ok) throw new Error("profiles " + r.status + " " + r.text);
+    return;
+  }
+  const r = await patch("email_signups?email=eq." + encodeURIComponent(em),
+    { unsubscribed_at: new Date().toISOString() });
+  if (r.ok) return;
+  // No unsubscribed_at column yet means the email-list brief can't be
+  // running either (it needs the same SQL), so there is nothing to stop.
+  if (r.code === "PGRST204" || r.code === "42703") {
+    console.warn("[unsubscribe] email_signups has no unsubscribed_at column yet; " +
+      "nothing to stop for a list link");
+    return;
+  }
+  throw new Error("email_signups " + r.status + " " + r.text);
+}
+const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+async function handleUnsubscribe(request, env) {
   const url = new URL(request.url);
-  const uid = url.searchParams.get("u") || "";
+  // Account links carry ?u=<user id>; email-list links carry ?e=<email>.
+  // An account link never uses ?e=: its address is looked up server-side.
+  const uid = (url.searchParams.get("u") || "").trim().toLowerCase();
+  const em = uid ? "" : _normEmail(url.searchParams.get("e") || "");
   const tok = (url.searchParams.get("t") || "").toLowerCase();
-  if (!uid || !tok || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
-    return new Response("Bad request", { status: 400, headers: htmlHdr });
+  if ((!uid && !em) || !tok || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return new Response("Bad request", { status: 400, headers: _BRIEF_HTML_HDR });
   }
   let expected = "";
   try {
-    const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey("raw",
-      enc.encode(env.SUPABASE_SERVICE_KEY),
-      { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-    const sig = await crypto.subtle.sign("HMAC", key, enc.encode(uid));
-    expected = [...new Uint8Array(sig)]
-      .map(function (b) { return b.toString(16).padStart(2, "0"); })
-      .join("").slice(0, 40);
+    // The "brief-unsub:" prefix keeps an email token from ever being
+    // valid as a user-id token (and vice versa).
+    expected = await _hmac40(env.SUPABASE_SERVICE_KEY,
+      uid ? uid : "brief-unsub:" + em);
   } catch (e) {
-    return new Response("Server error", { status: 500, headers: htmlHdr });
+    return new Response("Server error", { status: 500, headers: _BRIEF_HTML_HDR });
   }
-  if (!_timingSafeEq(tok, expected)) {
-    return page("Link expired",
+  if (!_timingSafeEq(tok, expected) || (uid && !_UUID_RE.test(uid))) {
+    return _briefPage("Link expired",
       "This unsubscribe link is invalid or has expired. You can manage " +
       "email preferences from your account on TickerDesk.");
   }
   try {
-    await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/profiles?id=eq." + encodeURIComponent(uid), {
-      method: "PATCH",
-      headers: { "apikey": env.SUPABASE_SERVICE_KEY,
-                 "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                 "Content-Type": "application/json",
-                 "Prefer": "return=minimal" },
-      body: JSON.stringify({ daily_brief_enabled: false }) });
+    // One call stops the brief for the address on both paths: the email
+    // list and any account with that address (see brief_unsubscribe).
+    try {
+      await _briefRpc(env, "brief_unsubscribe",
+        uid ? { p_user_id: uid, p_email: null } : { p_user_id: null, p_email: em });
+    } catch (e) {
+      if (!(e && e.missingFn)) throw e;
+      console.warn("[unsubscribe] brief_unsubscribe missing; using direct update");
+      await _unsubscribeDirect(env, uid, em);
+    }
   } catch (e) {
-    return new Response("Server error", { status: 500, headers: htmlHdr });
+    console.error("[unsubscribe] " + (e && e.message));
+    return new Response("Server error", { status: 500, headers: _BRIEF_HTML_HDR });
   }
   // RFC 8058 one-click POST expects a plain 200 (no body needed).
   if (request.method === "POST") {
-    return new Response("Unsubscribed", { status: 200, headers: htmlHdr });
+    return new Response("Unsubscribed", { status: 200, headers: _BRIEF_HTML_HDR });
   }
-  return page("You're unsubscribed",
-    "You won't receive any more TickerDesk Daily Brief emails. You can turn " +
-    "them back on anytime from your Watchlist settings.");
+  return _briefPage("You're unsubscribed",
+    "You won't receive any more TickerDesk Daily Brief emails at this address. " +
+    "You can sign up again anytime at tickerdesk.io, or turn the brief back " +
+    "on from your Watchlist settings if you have an account.");
+}
+
+// ── Daily Brief email list (no account needed) ───────────────────────
+// POST /brief/subscribe {email, source} asks the database to record the
+// sign-up and claim the right to send ONE double opt-in email
+// (brief_signup_claim: per-address 15-minute cooldown, shared per-network
+// and site-wide limits, all atomic). Only the request that wins the claim
+// sends. The email carries a random one-time token that expires in 7
+// days; the database stores only its SHA-256. GET /brief/confirm?token=…
+// uses it (brief_confirm). daily_brief.py then mails the market-wide
+// brief to confirmed, not-unsubscribed addresses. SQL:
+// sql/2026-11-16_brief_signups.sql.
+const BRIEF_FROM_DEFAULT = "TickerDesk <brief@tickerdesk.io>";
+const BRIEF_ARRIVAL = "shortly before 9:00 AM ET on market days";
+function _normEmail(s) { return String(s || "").trim().toLowerCase(); }
+function _validEmail(e) {
+  if (!e || e.length > 254) return false;
+  const at = e.lastIndexOf("@");
+  if (at < 1 || at > 64) return false;
+  return /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(e.slice(0, at)) &&
+    /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/.test(e.slice(at + 1));
+}
+function _hex(buf) {
+  return [...new Uint8Array(buf)]
+    .map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+}
+async function _sha256Hex(s) {
+  return _hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
+}
+
+// The network a visitor's address belongs to, for the sign-up limits.
+// IPv4: the full address. IPv6: its /64 prefix, because one home or
+// server is normally handed a whole /64 and could otherwise rotate
+// through billions of addresses to dodge a per-address limit. An IPv4
+// address written in IPv6 form (::ffff:1.2.3.4 or 0:0:0:0:0:ffff:102:304)
+// is plain IPv4. Anything that doesn't parse shares one key, "invalid",
+// so odd spellings can't each get a fresh limit.
+const _IP_INVALID = "invalid";
+function _ipv4Octets(s) {
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(s)) return null;
+  const o = s.split(".").map(Number);
+  return o.every(function (x) { return x <= 255; }) ? o : null;
+}
+function _ipNetwork(ip) {
+  const s = String(ip || "").trim().toLowerCase();
+  if (s.indexOf(":") < 0) {
+    const o = _ipv4Octets(s);
+    return o ? o.join(".") : _IP_INVALID;
+  }
+  const halves = s.split("::");
+  if (halves.length > 2) return _IP_INVALID;
+  const split = function (h) { return h ? h.split(":") : []; };
+  const head = split(halves[0]);
+  const tail = split(halves.length === 2 ? halves[1] : "");
+  // a dotted IPv4 may only appear as the very last part
+  const last = halves.length === 2 ? tail : head;
+  let v4 = null;
+  if (last.length && last[last.length - 1].indexOf(".") >= 0) {
+    v4 = _ipv4Octets(last.pop());
+    if (!v4) return _IP_INVALID;
+  }
+  const want = v4 ? 6 : 8;
+  let groups = head;
+  if (halves.length === 2) {
+    const fill = want - head.length - tail.length;
+    if (fill < 1) return _IP_INVALID;
+    groups = head.concat(new Array(fill).fill("0"), tail);
+  }
+  if (groups.length !== want ||
+      !groups.every(function (g) { return /^[0-9a-f]{1,4}$/.test(g); })) {
+    return _IP_INVALID;
+  }
+  const n = groups.map(function (g) { return parseInt(g, 16); });
+  if (v4) n.push(v4[0] * 256 + v4[1], v4[2] * 256 + v4[3]);
+  const zeros5 = n.slice(0, 5).every(function (x) { return x === 0; });
+  // IPv4-mapped (::ffff:a.b.c.d, in dotted or hex form), or the old
+  // IPv4-compatible dotted form (::a.b.c.d)
+  if (zeros5 && (n[5] === 0xffff || (v4 && n[5] === 0))) {
+    return [n[6] >> 8, n[6] & 255, n[7] >> 8, n[7] & 255].join(".");
+  }
+  return n.slice(0, 4).map(function (x) { return x.toString(16); }).join(":") + "::/64";
+}
+
+async function handleBriefSubscribe(request, env, cors) {
+  // The site's forms post JSON from JS. A plain HTML form post (browser
+  // with JS off) gets the same answer as a small HTML page instead.
+  const isForm = /application\/x-www-form-urlencoded/i
+    .test(request.headers.get("Content-Type") || "");
+  const reply = function (status, obj) {
+    if (isForm) {
+      const title = !obj.ok ? "Sign-up didn't go through"
+        : obj.status === "already_subscribed" ? "You're already subscribed"
+        : "Check your inbox";
+      return _briefPage(title, obj.message || obj.error, status);
+    }
+    return new Response(JSON.stringify(obj), { status: status, headers: cors });
+  };
+  const saveFailed = { ok: false,
+    error: "We couldn't save your sign-up. Please try again in a few minutes." };
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return reply(503, { ok: false,
+      error: "Sign-ups are temporarily unavailable. Please try again later." });
+  }
+  let body = {};
+  try {
+    const raw = await request.text();
+    if (raw.length > 4000) throw new Error("too large");
+    body = isForm ? Object.fromEntries(new URLSearchParams(raw))
+                  : (JSON.parse(raw || "{}") || {});
+  } catch (_) {
+    return reply(400, { ok: false, error: "Bad request." });
+  }
+  // Honeypot: a hidden field real visitors never fill in. Bots that do
+  // get a normal-looking success and nothing is saved or sent.
+  if (body.website) {
+    return reply(200, { ok: true, status: "pending",
+      message: "Check your inbox to confirm your subscription." });
+  }
+  const email = _normEmail(body.email);
+  if (!_validEmail(email)) {
+    return reply(400, { ok: false, error: "Please enter a valid email address." });
+  }
+  if (!env.RESEND_API_KEY) {
+    console.error("[brief/subscribe] RESEND_API_KEY not set on the worker");
+    return reply(503, { ok: false,
+      error: "We couldn't send the confirmation email right now. Please try again later." });
+  }
+  const source = String(body.source || "site").toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "").slice(0, 40) || "site";
+
+  // A fresh random token for this attempt. Only its hash is stored.
+  const token = _hex(crypto.getRandomValues(new Uint8Array(32)));
+  let tokenHash = "";
+  let claim = "";
+  try {
+    tokenHash = await _sha256Hex(token);
+    // Raw IPs are never stored: the database sees a keyed hash.
+    const ipHash = await _hmac40(env.SUPABASE_SERVICE_KEY,
+      "brief-ip:" + _ipNetwork(request.headers.get("CF-Connecting-IP") || "?"));
+    claim = await _briefRpc(env, "brief_signup_claim", {
+      p_email: email, p_source: source, p_ip_hash: ipHash, p_token_hash: tokenHash });
+  } catch (e) {
+    console.error("[brief/subscribe] " + (e && e.message));
+    return reply(502, saveFailed);
+  }
+  const pending = { ok: true, status: "pending",
+    message: "Check your inbox to confirm your subscription." };
+  if (claim === "already_subscribed") {
+    return reply(200, { ok: true, status: "already_subscribed",
+      message: "You're already subscribed. The brief arrives " + BRIEF_ARRIVAL + "." });
+  }
+  if (claim === "pending") return reply(200, pending);   // one is already on its way
+  if (claim === "rate_limited") {
+    return reply(429, { ok: false,
+      error: "Too many sign-up attempts. Please try again in a few minutes." });
+  }
+  if (claim === "invalid") {
+    return reply(400, { ok: false, error: "Please enter a valid email address." });
+  }
+  if (claim !== "send") {
+    console.error("[brief/subscribe] unexpected claim result " + JSON.stringify(claim));
+    return reply(502, saveFailed);
+  }
+
+  // This request won the claim: it alone sends the confirmation.
+  const link = new URL(request.url).origin + "/brief/confirm?token=" + token;
+  const text =
+    "Please confirm you want the TickerDesk Daily Brief.\n\n" +
+    "Confirm: " + link + "\n\n" +
+    "This link works once and expires in 7 days. The brief arrives " +
+    BRIEF_ARRIVAL + ". Every email has a one-click unsubscribe link.\n\n" +
+    "If you didn't ask for this, ignore this email and you won't hear " +
+    "from us again.\n\nTickerDesk · tickerdesk.io";
+  const html =
+    '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,' +
+    'sans-serif;max-width:480px;margin:0 auto;padding:24px 16px;color:#1a1a1a;">' +
+    '<h2 style="margin:0 0 12px;">Confirm your Daily Brief subscription</h2>' +
+    '<p style="line-height:1.6;color:#444;">Click below to start getting the ' +
+    'TickerDesk Daily Brief. It arrives ' + BRIEF_ARRIVAL + '.</p>' +
+    '<p style="margin:22px 0;"><a href="' + link + '" style="display:inline-block;' +
+    'padding:12px 24px;background:#c8891a;color:#fff;font-weight:700;' +
+    'text-decoration:none;border-radius:8px;">Confirm subscription</a></p>' +
+    '<p style="font-size:13px;line-height:1.6;color:#777;">This link works once ' +
+    "and expires in 7 days. If you didn't ask for this, ignore this email and " +
+    "you won't hear from us again.</p>" +
+    '<p style="font-size:12px;color:#999;">TickerDesk &middot; tickerdesk.io</p></div>';
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + env.RESEND_API_KEY,
+                 "Content-Type": "application/json",
+                 // a retried request for this claim can never send twice
+                 "Idempotency-Key": "brief-confirm/" + tokenHash.slice(0, 48) },
+      body: JSON.stringify({
+        from: env.FROM_EMAIL || BRIEF_FROM_DEFAULT, to: [email],
+        subject: "Confirm your TickerDesk Daily Brief subscription",
+        html: html, text: text }) });
+    if (!r.ok) throw new Error("resend " + r.status + " " + (await r.text()).slice(0, 200));
+  } catch (e) {
+    console.error("[brief/subscribe] " + (e && e.message));
+    // Free the address so the person can retry now (best effort: if this
+    // fails too, the 15-minute cooldown simply runs out).
+    try {
+      await _briefRpc(env, "brief_signup_release", { p_email: email, p_token_hash: tokenHash });
+    } catch (e2) { console.error("[brief/subscribe] release " + (e2 && e2.message)); }
+    return reply(502, { ok: false,
+      error: "We couldn't send the confirmation email. Please try again in a few minutes." });
+  }
+  return reply(200, pending);
+}
+
+async function handleBriefConfirm(request, env) {
+  const token = (new URL(request.url).searchParams.get("token") || "").toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(token) || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return _briefPage("Link not valid",
+      "This confirmation link is incomplete. Please sign up again at tickerdesk.io.", 400);
+  }
+  let email = null;
+  try {
+    // Atomic and single-use: the token is cleared as it is used.
+    email = await _briefRpc(env, "brief_confirm", { p_token_hash: await _sha256Hex(token) });
+  } catch (e) {
+    console.error("[brief/confirm] " + (e && e.message));
+    return _briefPage("Something went wrong",
+      "We couldn't confirm your subscription just now. Please try the link again in a few minutes.",
+      500);
+  }
+  if (!email) {
+    return _briefPage("Link expired or already used",
+      "This confirmation link has expired, was already used, or was replaced " +
+      "by a newer one. If you already confirmed, you're subscribed. Otherwise, " +
+      "sign up again at tickerdesk.io for a fresh link.", 410);
+  }
+  return _briefPage("You're subscribed",
+    "Thanks for confirming. The TickerDesk Daily Brief arrives " + BRIEF_ARRIVAL +
+    ". Every email has a one-click unsubscribe link.");
 }
 
 // ── Abuse guards (audit item: unauthenticated market-data proxy) ────
@@ -4657,6 +5517,9 @@ export default {
     if (urlPath === "/stripe/portal" && request.method === "POST") {
       return handleStripePortal(request, env, cors);
     }
+    if (urlPath === "/promo/redeem" && request.method === "POST") {
+      return handlePromoRedeem(request, env, cors);
+    }
     // Portfolio screenshot OCR — vision extract of tickers/weights.
     if (urlPath === "/portfolio-ocr" && request.method === "POST") {
       return handlePortfolioOCR(request, env, cors);
@@ -4685,6 +5548,13 @@ export default {
     if (urlPath === "/unsubscribe" &&
         (request.method === "GET" || request.method === "POST")) {
       return handleUnsubscribe(request, env);
+    }
+    // Daily Brief email list: sign-up (double opt-in) + confirm link.
+    if (urlPath === "/brief/subscribe" && request.method === "POST") {
+      return handleBriefSubscribe(request, env, cors);
+    }
+    if (urlPath === "/brief/confirm" && request.method === "GET") {
+      return handleBriefConfirm(request, env);
     }
 
     // GET — market-quote proxy (?quotes=SPY,QQQ,...), daily-candle proxy
@@ -5223,161 +6093,52 @@ export default {
         { status: 500, headers: cors });
     }
 
-    // ── Server-side rate limit (QA-08) ───────────────────────────────
+    // ── Server-side report limit (QA-08) ─────────────────────────────
     // The client pre-flights tdCanGenerateReport() before this call,
     // but a devtools user can disable the button and POST anyway. So
-    // the worker re-validates: identify the user from the Supabase
-    // JWT, look up their tier and 30-day report count, reject if
-    // they're over the cap.
+    // the worker enforces the limit itself, and FAILS CLOSED: a report
+    // (which costs Claude credits) only starts when all three succeed:
+    //   1. the Supabase access token is verified (requireUser),
+    //   2. the plan is read, and
+    //   3. a usage row is reserved under the cap (td_reserve_report does
+    //      2 + 3 in one locked database step; see reserveReport), and
+    //   4. this request wins the claim on that row (td_claim_report), so
+    //      two requests holding the same reservation can't both start it.
+    // Any failure there answers 401 / 409 / 429 / 503 and dispatches
+    // nothing.
     //
-    // SECURITY (2026-08 audit): anonymous POSTs were previously allowed
-    // through — and because the whole quota block below is gated on
-    // `bearer`, dropping the Authorization header skipped EVERY check
-    // and dispatched a GitHub workflow anyway. That made report
-    // generation both free and unlimited for anyone with curl, and let
-    // a capped user bypass their tier by removing one header. A token
-    // is now mandatory: no bearer -> 401 before any dispatch.
+    // SECURITY (2026-08 audit): anonymous POSTs used to skip every check.
+    // SECURITY (2026-11, PR #8): the cap check and the usage write used
+    // to be separate steps with a Yahoo request in between, so parallel
+    // requests could all pass; and a failed lookup counted as zero.
     //
-    // Tier caps mirror PLAN_LIMITS in docs/index.html. Keep in sync.
-    const TIER_REPORT_CAPS_30D = {
-      free: 3, pro: 10, premium: 100, beta: 50,
-    };
-    const TIER_LIFETIME_CAPS = {
-      free: 3, pro: 9999, premium: 9999, beta: 9999,
-    };
+    // Caps live in td_reserve_report (sql/2026-11-10_lock_plans_and_
+    // report_usage.sql) and mirror PLAN_LIMITS in docs/index.html:
+    // free 3 lifetime, pro 10 / premium 100 / beta 50 per 30 days.
     const authHeader = request.headers.get("Authorization") || "";
-    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-    if (!bearer) {
+    if (!authHeader.startsWith("Bearer ") || authHeader.length <= 7) {
       return Response.json(
         { ok: false, error: "Sign in to generate a report.",
           code: "auth_required" },
         { status: 401, headers: cors });
     }
-    // Quota enforcement needs Supabase reachable. If it is not
-    // configured we fail CLOSED rather than dispatching unmetered work.
     if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
       return Response.json(
         { ok: false, error: "Report service temporarily unavailable.",
           code: "quota_unavailable" },
         { status: 503, headers: cors });
     }
-    {
-      try {
-        // 1. Validate the user's access token by asking Supabase who
-        //    it represents. Anon key is enough for /auth/v1/user.
-        const userResp = await fetch(
-          env.SUPABASE_URL + "/auth/v1/user",
-          { headers: {
-              "Authorization": "Bearer " + bearer,
-              "apikey": env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY,
-          }}
-        );
-        if (!userResp.ok) {
-          return Response.json(
-            { ok: false, error: "Sign-in expired. Please sign in again." },
-            { status: 401, headers: cors });
-        }
-        const userBody = await userResp.json();
-        const uid = userBody && userBody.id;
-        if (uid) {
-          reqUserId = uid;   // route the generated report to this user's private storage
-          // 2. Look up the user's effective tier (honors promo expiry
-          //    server-side via the get_user_plan RPC).
-          const planResp = await fetch(
-            env.SUPABASE_URL + "/rest/v1/rpc/get_user_plan",
-            { method: "POST",
-              headers: {
-                "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                "apikey": env.SUPABASE_SERVICE_KEY,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({}),
-            }
-          );
-          // RPC returns a string ("free" / "pro" / "premium" / "beta")
-          // when called with the service role and user_id is implicit
-          // via auth.uid() — but service role has no auth.uid(). So
-          // fall back to reading the profile row directly with service
-          // role and computing the tier inline.
-          let tier = "free";
-          try {
-            const profResp = await fetch(
-              env.SUPABASE_URL + "/rest/v1/profiles?id=eq." +
-                encodeURIComponent(uid) +
-                "&select=subscription_tier,subscription_expires_at",
-              { headers: {
-                  "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                  "apikey": env.SUPABASE_SERVICE_KEY,
-              }}
-            );
-            const profBody = await profResp.json();
-            const row = (profBody || [])[0];
-            if (row) {
-              const expired = row.subscription_expires_at &&
-                new Date(row.subscription_expires_at) < new Date();
-              tier = expired ? "free" : (row.subscription_tier || "free");
-            }
-          } catch (_) {}
-
-          // 3. Count this user's reports in the last 30 days
-          const sinceIso = new Date(Date.now() - 30 * 86400000).toISOString();
-          const countResp = await fetch(
-            env.SUPABASE_URL + "/rest/v1/report_generations" +
-              "?user_id=eq." + encodeURIComponent(uid) +
-              "&created_at=gte." + encodeURIComponent(sinceIso) +
-              "&select=id",
-            { headers: {
-                "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                "apikey": env.SUPABASE_SERVICE_KEY,
-                "Prefer": "count=exact",
-            }}
-          );
-          const contentRange = countResp.headers.get("Content-Range") || "";
-          const count30 = parseInt(contentRange.split("/")[1] || "0", 10) || 0;
-          const cap30 = TIER_REPORT_CAPS_30D[tier] || TIER_REPORT_CAPS_30D.free;
-
-          // 4. Lifetime cap (free tier only — others are effectively unlimited)
-          let lifetime = 0;
-          if (tier === "free") {
-            const lifeResp = await fetch(
-              env.SUPABASE_URL + "/rest/v1/report_generations" +
-                "?user_id=eq." + encodeURIComponent(uid) +
-                "&select=id",
-              { headers: {
-                  "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                  "apikey": env.SUPABASE_SERVICE_KEY,
-                  "Prefer": "count=exact",
-              }}
-            );
-            const lifeRange = lifeResp.headers.get("Content-Range") || "";
-            lifetime = parseInt(lifeRange.split("/")[1] || "0", 10) || 0;
-          }
-          const lifeCap = TIER_LIFETIME_CAPS[tier] || TIER_LIFETIME_CAPS.free;
-
-          if (count30 >= cap30) {
-            return Response.json(
-              { ok: false, error: "Monthly report limit reached for " +
-                tier + " tier (" + count30 + " of " + cap30 +
-                " used). Upgrade to keep researching.",
-                code: "monthly_cap", used: count30, cap: cap30, tier: tier },
-              { status: 429, headers: cors });
-          }
-          if (tier === "free" && lifetime >= lifeCap) {
-            return Response.json(
-              { ok: false, error: "Free-tier lifetime cap reached (" +
-                lifetime + " of " + lifeCap +
-                " reports). Upgrade for more.",
-                code: "lifetime_cap", used: lifetime, cap: lifeCap, tier: tier },
-              { status: 429, headers: cors });
-          }
-        }
-      } catch (e) {
-        // If our rate-limit lookup itself fails, fail-open rather than
-        // blocking legitimate users on a Supabase hiccup. The client
-        // gate already gave best-effort protection.
-        console.log("Rate-limit lookup failed (fail-open):", e.message);
-      }
+    const reqUser = await requireUser(request, env);
+    if (!reqUser.ok) {
+      return Response.json(
+        { ok: false, error: reqUser.status === 401
+            ? "Sign-in expired. Please sign in again."
+            : "Report service temporarily unavailable.",
+          code: reqUser.status === 401 ? reqUser.code : "quota_unavailable" },
+        { status: reqUser.status === 401 ? 401 : 503, headers: cors });
     }
+    // Route the generated report to this user's private storage.
+    reqUserId = reqUser.uid;
 
     // Best-effort fast validity check — reject obviously-invalid tickers
     // instantly, before spending a GitHub Actions run. If the probe itself
@@ -5404,26 +6165,100 @@ export default {
       // probe failed — proceed; the workflow handles invalid tickers too
     }
 
-    // Trigger the GitHub workflow_dispatch — ref is "master" (this repo's branch)
-    const ghResp = await fetch(
-      `https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization":        `Bearer ${env.PAT}`,
-          "Accept":               "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-          "User-Agent":           "smid-scanner-adhoc-web",
-          "Content-Type":         "application/json",
-        },
-        body: JSON.stringify({ ref: "master",
-          inputs: { ticker, user_id: reqUserId } }),
+    // Reserve the report under the user's cap BEFORE starting it (see
+    // reserveReport). No reservation id, no report.
+    const reservation = await reserveReport(env, reqUserId, ticker,
+      WORKFLOWS[report] ? report : "adhoc");
+    if (!reservation.ok) {
+      if (reservation.over) {
+        const msg = reservation.code === "lifetime_cap"
+          ? "Free-tier lifetime cap reached (" + reservation.used + " of " +
+            reservation.cap + " reports). Upgrade for more."
+          : "Monthly report limit reached for " + reservation.tier +
+            " tier (" + reservation.used + " of " + reservation.cap +
+            " used). Upgrade to keep researching.";
+        return Response.json(
+          { ok: false, error: msg, code: reservation.code,
+            used: reservation.used, cap: reservation.cap,
+            tier: reservation.tier },
+          { status: 429, headers: cors });
       }
-    );
+      console.log("report reservation failed (fail-closed):", reservation.error);
+      return Response.json(
+        { ok: false, error: "Report service temporarily unavailable. " +
+            "Try again in a minute.", code: "quota_unavailable" },
+        { status: 503, headers: cors });
+    }
+
+    // Claim the reservation with a fresh random token. Only the winner
+    // asks GitHub; everything written afterwards is scoped to the token.
+    const claimToken = crypto.randomUUID();
+    const claim = await claimReport(env, reservation.id, claimToken);
+    if (!claim.ok) {
+      if (claim.taken) {
+        return Response.json(
+          { ok: false, code: "already_starting",
+            error: "This report is already being started. Check My " +
+              "Reports in a few minutes." },
+          { status: 409, headers: cors });
+      }
+      console.log("report claim failed (fail-closed):", claim.error);
+      return Response.json(
+        { ok: false, error: "Report service temporarily unavailable. " +
+            "Try again in a minute.", code: "quota_unavailable" },
+        { status: 503, headers: cors });
+    }
+
+    // Trigger the GitHub workflow_dispatch — ref is "master" (this repo's branch).
+    // Only a clear refusal (4xx) un-charges the reservation. With no clear
+    // answer (network error, timeout, 5xx) GitHub may already have started
+    // the report, so it stays charged and the user is told to check My
+    // Reports; refunding it would let the report run uncounted and a retry
+    // start a second one.
+    const uncertain = function (why) {
+      console.log("report dispatch uncertain (kept charged): " + why);
+      return markReport(env, reqUserId, reservation.id, claimToken,
+        "dispatch_uncertain")
+        .then(function () {
+          return Response.json(
+            { ok: false, code: "dispatch_uncertain",
+              error: "Your report may still be on its way. Check My Reports " +
+                "in a few minutes before trying again." },
+            { status: 202, headers: cors });
+        });
+    };
+    let ghResp;
+    try {
+      ghResp = await fetch(
+        `https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization":        `Bearer ${env.PAT}`,
+            "Accept":               "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent":           "smid-scanner-adhoc-web",
+            "Content-Type":         "application/json",
+          },
+          body: JSON.stringify({ ref: "master",
+            inputs: { ticker, user_id: reqUserId } }),
+          signal: AbortSignal.timeout(15000),
+        }
+      );
+    } catch (e) {
+      return uncertain(e && e.message || "fetch failed");
+    }
 
     if (ghResp.ok) {
+      await markReport(env, reqUserId, reservation.id, claimToken,
+        "dispatched");
       return Response.json({ ok: true, ticker }, { headers: cors });
     }
+    if (ghResp.status < 400 || ghResp.status >= 500) {
+      return uncertain("GitHub HTTP " + ghResp.status);
+    }
+    // GitHub refused it (4xx), so the report never started: un-charge it.
+    await releaseReport(env, reqUserId, reservation.id, claimToken);
     const detail = await ghResp.text();
     let hint = "";
     if (ghResp.status === 404) {
@@ -5451,9 +6286,10 @@ export default {
   // is belt-and-suspenders. If both fire, the scanner's emit_latest
   // dedups by timestamp so a double-run is harmless.
   //
-  // Cron→workflow map (UTC, see wrangler.toml [triggers]):
-  //   "40 20 * * MON-FRI"  → EOD: scanner.yml + momentum.yml (post-close)
-  //   everything else  → intraday: uoa.yml
+  // Every job runs from the */15 crons on the ET clock (see wrangler.toml
+  // [triggers]): UOA_SLOTS -> uoa.yml, BREAKOUT_SLOTS -> scanner.yml
+  // (mode=breakout, plus a missing-report check 45 min later), EOD_SLOT
+  // -> scanner.yml + momentum.yml, JOB_SCHEDULE, SOCIAL_SCHEDULE.
   async scheduled(event, env, ctx) {
     // News wire poll + stall alert: its own every-minute cron, needs no PAT
     // and runs on weekends too (see newsCronTick).
@@ -5561,9 +6397,18 @@ export default {
           jobs.push(dispatch("uoa_monitor.yml"));
         }
       }
+      const today = etDateISO();
+      const brk = breakoutDue(c.dow, today, c.hhmm);
+      if (brk.dispatch) {
+        jobs.push(dispatch("scanner.yml",
+          { mode: "breakout", slot: slotId(today, c.hhmm) }));
+      }
+      if (brk.check) jobs.push(checkBreakoutReport(env, brk.check, today));
       if (weekday && c.hhmm === EOD_SLOT) {
-        jobs.push(dispatch("scanner.yml"), dispatch("momentum.yml"),
-                  healPublish());
+        // the setup build's slot is <date>T16:00ET (scan_slot.SETUP_FROM)
+        jobs.push(dispatch("scanner.yml",
+                    { mode: "setup", slot: slotId(today, "16:00") }),
+                  dispatch("momentum.yml"), healPublish());
       }
       if (env.SOCIAL_SCHEDULE === "1") {              // social off switch
         SOCIAL_SCHEDULE.filter(isDue).forEach(function (x) {

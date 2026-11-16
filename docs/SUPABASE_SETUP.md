@@ -3,6 +3,50 @@
 One-time setup to power user accounts, watchlists, and trade journal.
 Takes ~5 minutes.
 
+## 2g. (Security, 2026-11-10) Lock plan fields and report usage
+
+Run [`sql/2026-11-10_lock_plans_and_report_usage.sql`](../sql/2026-11-10_lock_plans_and_report_usage.sql)
+in the SQL Editor **before** merging the matching worker + site change, then
+merge right away. It is safe to run first: the live site and worker keep
+working (the old site's own usage logging and old promo box simply stop
+working, which is the point). Until it runs, the `pr_own_write` policy below
+lets any signed-in user set their own `subscription_tier` or delete and
+re-create their profile, and `rg_own` lets them delete the
+`report_generations` rows the report caps count.
+
+After it runs:
+
+- only the service role (Stripe webhook, worker, CI) can change plan fields,
+  and browsers can no longer delete their profile;
+- the worker reserves each report with `td_reserve_report()` before starting
+  it: one locked database step that reads the plan, checks the cap and
+  records the report, so parallel requests can't slip past the cap; then
+  `td_claim_report()` lets exactly one request start each reservation, so a
+  double click or a retry can't start the same report twice;
+- promo codes are applied by `td_redeem_promo()`, which remembers every code
+  each account has used (`promo_redemptions`) and refuses while a paid plan
+  is active.
+
+The script ends with a read-only list of every paid account and where its
+plan came from. After merging, run
+[`sql/2026-11-16_report_usage_duplicates.sql`](../sql/2026-11-16_report_usage_duplicates.sql)
+(read-only): it lists any report counted twice during the switch-over.
+Expected: no rows.
+
+**Promo codes** now live only in the worker secret `PROMO_CODES` (this repo
+and the site are public, so codes can't be in code). Cloudflare dashboard →
+Workers → `smid-scanner-discord-bot` → Settings → Variables and Secrets →
+add a **Secret** named `PROMO_CODES` with JSON like:
+
+```json
+{"FOUNDER30": {"tier": "premium", "days": 30, "label": "30-day Premium"}}
+```
+
+`tier` is `pro`, `premium` or `beta`; `days` is 1–730. No secret means every
+code is rejected. Remove a code from the JSON to retire it; accounts that
+already redeemed it keep their end date. Each account can use each code
+once, ever (recorded in `promo_redemptions`).
+
 ## 0c. (Phase 6) Cloudflare Worker secrets for Stripe Checkout
 
 The worker now exposes `/stripe/checkout` (frontend calls this to start
@@ -137,7 +181,7 @@ if the row is null (and back-fills the row when it does).
 ```sql
 -- Add an optional expiry timestamp on the user's subscription_tier.
 -- Promo codes use this to grant time-limited Premium access (e.g.
--- "TEST69" → premium for 90 days). When NULL, the tier is open-ended
+-- a 30-day Premium promo). When NULL, the tier is open-ended
 -- (normal paid subscription). When set + < now(), the client treats
 -- the user as 'free' for entitlement purposes regardless of the tier
 -- value, until a Stripe webhook re-confirms paid status.
@@ -152,8 +196,8 @@ alter table public.profiles
 ```
 
 Run that. Adds 3 nullable columns. Existing users default to NULL
-(no expiry). The promo redemption flow in the frontend looks for these
-columns and refuses to re-redeem the same code.
+(no expiry). The worker's `/promo/redeem` endpoint writes these
+columns and refuses to re-redeem the same code (see section 2g).
 
 ## 2d. (Phase 5) Run this in SQL Editor for Web Push subscriptions
 
@@ -396,16 +440,20 @@ alter table public.watchlists
   add column if not exists weight numeric default 1
     check (weight >= 0 and weight <= 1000000);
 
--- Email signups for beta + daily brief (collected before account creation)
+-- Daily Brief email sign-ups (no account needed). Written ONLY by the
+-- worker's POST /brief/subscribe with the service key; double opt-in via
+-- GET /brief/confirm. daily_brief.py mails confirmed, not-unsubscribed rows.
+-- The double opt-in columns, the one-time confirmation token, the shared
+-- sign-up limit table, the policy lockdown and the functions the worker
+-- calls (brief_signup_claim / brief_signup_release / brief_confirm /
+-- brief_unsubscribe) come from sql/2026-11-16_brief_signups.sql.
 create table if not exists public.email_signups (
   email text primary key,
-  source text,            -- 'beta', 'daily_brief', 'footer', etc.
+  source text,            -- 'footer', 'lp_<page>', etc.
   created_at timestamptz default now()
 );
 alter table public.email_signups enable row level security;
--- Anyone can INSERT (signup form is public); nobody can SELECT (privacy)
-create policy "es_insert_any" on public.email_signups
-  for insert with check (true);
+-- No policies: the public can neither read nor write this table.
 
 -- Watcher count RPC — returns {ticker, n} for an array of tickers, with
 -- security definer so it can read across ALL rows in watchlists without

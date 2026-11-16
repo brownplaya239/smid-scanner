@@ -2578,15 +2578,20 @@ def _fmt_money(v):
 
 
 def publish_report(pdf_bytes, label="SMID"):
-    """Archive the scan PDF to the GitHub Pages report site."""
+    """Archive the scan PDF to the GitHub Pages report site.
+
+    A failed archive re-raises, so the scan exits non-zero: scanner.yml then
+    does not record the slot as done and a later trigger re-runs it. (A scan
+    with no candidates never gets here and still exits 0.)"""
     now = datetime.now(ET)
     prefix = "iwm" if "IWM" in label else "smid"
     filename = f"{prefix}_scanner_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
         _archive_report(pdf_bytes, filename)
-        print(f"  PDF archived to site: {filename}")
     except Exception as e:
-        print(f"  Archive step failed: {e}")
+        print(f"::error::Archive step failed for {filename}: {e}")
+        raise
+    print(f"  PDF archived to site: {filename}")
 
 
 # ─── Main scan ────────────────────────────────────────────────────────────────

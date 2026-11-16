@@ -44,6 +44,7 @@ docs/cards/
 !/docs/reports/manifest.json
 !/docs/reports/event_overrides.json
 .r2_manifest.json
+.scan_slot_before.json
 
 # ── Toolchain (uv, Ruff, Pyrefly, pytest, Bun/lefthook) ──────────────
 .venv/
