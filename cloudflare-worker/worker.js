@@ -3810,18 +3810,28 @@ function handleShareCard(request) {
 // wrote Benzinga headlines into Supabase news_live, and its newest row is
 // from 2026-07-31: it died without anyone noticing. This cron-driven poller
 // is the backstop: every minute from 4 AM to 8 PM ET on weekdays (every 15
-// minutes otherwise) it pulls the newest headlines from Alpaca's REST news
-// API and upserts them into news_live, deduped on the same article id the
-// ingestor uses, so the two can run side by side. It also prunes rows older
-// than 3 days (the ingestor's other job) and posts to Slack when no new row
-// has landed for 20+ minutes during market hours (at most once an hour).
+// minutes otherwise) it reads Alpaca's REST news API forward from a saved
+// bookmark (R2 NEWS_CURSOR_KEY), page by page, and upserts into news_live,
+// deduped on the same article id the ingestor uses, so the two can run side
+// by side and a burst or an outage never drops headlines. It also prunes
+// rows older than 3 days (the ingestor's other job) and alerts when the
+// newest headline is 20+ minutes old during market hours, at most once an
+// hour (an atomic claim on the ops_alert_throttle row, see
+// sql/2026-11-16_news_alert_throttle.sql).
 // Needs worker secrets ALPACA_KEY + ALPACA_SECRET (poll) and
-// SUPABASE_SERVICE_KEY (write/prune); SLACK_BOT_TOKEN + the
-// SLACK_ALERT_CHANNEL var (alert). Anything missing just skips that part.
+// SUPABASE_SERVICE_KEY (write/prune/throttle); SLACK_BOT_TOKEN + the
+// SLACK_ALERT_CHANNEL var to post the alert (empty = log only). Anything
+// missing just skips that part.
 const NEWS_CRON = "* * * * *";
 const NEWS_STALL_MIN = 20;               // alert threshold, market hours
 const NEWS_ALERT_EVERY_MS = 3600000;     // at most one alert an hour
-const NEWS_ALERT_KEY = "diag/news_wire_alert.json";
+const NEWS_THROTTLE_KEY = "news_stall";  // row in ops_alert_throttle
+const NEWS_CURSOR_KEY = "diag/news_wire_cursor.json";  // R2 poll bookmark
+const NEWS_PAGE_LIMIT = 50;              // Alpaca's max page size
+const NEWS_MAX_PAGES = 6;                // per run: up to 300 headlines
+const NEWS_OVERLAP_MS = 300000;          // re-read 5 min before the bookmark
+const NEWS_FIRST_LOOKBACK_MS = 7200000;  // no bookmark yet: the last 2 h
+const NEWS_KEEP_MS = 3 * 86400000;       // prune window; never read older
 
 // ET weekday (0 = Sun) and minute-of-day for a timestamp.
 function newsEtParts(ms) {
@@ -3854,12 +3864,15 @@ function newsMarketHours(ms) {
   return p.dow >= 1 && p.dow <= 5 && p.min >= 570 && p.min < 960;
 }
 
-// Should the stall alert fire? newestMs = newest news_live insert time
-// (0 if none), lastAlertMs = when the previous alert went out (0 if never).
-function newsStallAlertDue(nowMs, newestMs, lastAlertMs) {
+// Is the wire stalled? newestMs = publish time of the newest headline in
+// news_live (0 if none). Judged on published_at, the same field the site
+// labels use, so a late insert of old stories can't hide a dead wire.
+// Market holidays and early closes are not modelled (the worker has no
+// exchange calendar): Benzinga still publishes on those days, so a false
+// alert is unlikely, and it is capped at one an hour.
+function newsStallAlertDue(nowMs, newestMs) {
   if (!newsMarketHours(nowMs)) return false;
-  if (newestMs && nowMs - newestMs < NEWS_STALL_MIN * 60000) return false;
-  return !(lastAlertMs && nowMs - lastAlertMs < NEWS_ALERT_EVERY_MS);
+  return !(newestMs && nowMs - newestMs < NEWS_STALL_MIN * 60000);
 }
 
 // Text saved as UTF-8 but read back as Windows-1252 turns "Fed’s" into
@@ -3926,32 +3939,120 @@ function newsSupaHeaders(env, extra) {
   }, extra || {});
 }
 
-async function pollAlpacaNews(env) {
-  const start = new Date(Date.now() - 2 * 3600000).toISOString();
-  const r = await fetch("https://data.alpaca.markets/v1beta1/news?limit=50" +
-      "&sort=desc&start=" + encodeURIComponent(start),
-    { headers: { "APCA-API-KEY-ID": String(env.ALPACA_KEY).trim(),
-                 "APCA-API-SECRET-KEY": String(env.ALPACA_SECRET).trim(),
-                 "Accept": "application/json" },
-      signal: AbortSignal.timeout(10000) });
-  if (!r.ok) {
-    console.log("[news] alpaca HTTP " + r.status);
-    return;
+// Where a poll starts reading: a few minutes before the saved bookmark (for
+// stories Alpaca indexes late), never older than the prune window, and the
+// last 2 hours when there is no bookmark yet.
+function newsPollStart(nowMs, cursor) {
+  const saved = cursor ? Date.parse(cursor.published_at || "") : NaN;
+  const start = isNaN(saved) ? nowMs - NEWS_FIRST_LOOKBACK_MS
+    : saved - NEWS_OVERLAP_MS;
+  return Math.max(start, nowMs - NEWS_KEEP_MS);
+}
+
+// The bookmark after a page of rows was saved: the newest published_at seen
+// so far, never in the future (a mis-dated story must not skip real ones).
+function newsCursorAfter(prev, rows, nowMs) {
+  let best = prev ? Date.parse(prev.published_at || "") || 0 : 0;
+  rows.forEach(function (r) {
+    const t = Date.parse(r.published_at || "") || 0;
+    if (t > best) best = t;
+  });
+  best = Math.min(best, nowMs);
+  return { published_at: best ? new Date(best).toISOString() : null,
+           polled_at: new Date(nowMs).toISOString() };
+}
+
+// fetch that retries network errors, 429 and 5xx with backoff
+// (sleepMs, then 2x). Other HTTP errors come straight back to the caller.
+async function newsFetchRetry(url, init, sleepMs) {
+  let last = null;
+  for (let i = 0; i < 3; i++) {
+    if (i) {
+      await new Promise(function (res) {
+        setTimeout(res, sleepMs * Math.pow(2, i - 1));
+      });
+    }
+    try {
+      const r = await fetch(url, Object.assign(
+        { signal: AbortSignal.timeout(10000) }, init));
+      if (r.ok || (r.status !== 429 && r.status < 500)) return r;
+      last = new Error("HTTP " + r.status);
+    } catch (e) { last = e; }
   }
-  const j = await r.json();
-  const rows = ((j && j.news) || []).map(alpacaToNewsRow).filter(Boolean);
-  if (!rows.length) return;
-  const w = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/news_live?on_conflict=id",
-    { method: "POST", body: JSON.stringify(rows),
-      headers: newsSupaHeaders(env,
-        { "Prefer": "resolution=ignore-duplicates,return=minimal" }),
-      signal: AbortSignal.timeout(10000) });
-  if (!w.ok) console.log("[news] upsert HTTP " + w.status);
+  throw last;
+}
+
+async function readNewsCursor(env) {
+  if (!env.DATA) return null;
+  try {
+    const o = await env.DATA.get(NEWS_CURSOR_KEY);
+    return o ? await o.json() : null;
+  } catch (e) {
+    console.log("[news] bookmark read failed: " + ((e && e.message) || e));
+    return null;
+  }
+}
+
+async function writeNewsCursor(env, cursor) {
+  if (!env.DATA) return;
+  try {
+    await env.DATA.put(NEWS_CURSOR_KEY, JSON.stringify(cursor),
+      { httpMetadata: { contentType: "application/json" } });
+  } catch (e) {
+    // next run re-reads from the older bookmark; upserts ignore duplicates
+    console.log("[news] bookmark write failed: " + ((e && e.message) || e));
+  }
+}
+
+// Read Alpaca news oldest-first from the bookmark, up to NEWS_MAX_PAGES
+// pages, upserting each page before moving the bookmark past it. Whatever
+// is left (a burst, or catching up after downtime) is picked up next run.
+// A failure stops the run with the bookmark at the last saved page.
+async function pollAlpacaNews(env, nowMs, sleepMs) {
+  const cursor = await readNewsCursor(env);
+  const start = new Date(newsPollStart(nowMs, cursor)).toISOString();
+  const alpacaHdrs = { "APCA-API-KEY-ID": String(env.ALPACA_KEY).trim(),
+                       "APCA-API-SECRET-KEY": String(env.ALPACA_SECRET).trim(),
+                       "Accept": "application/json" };
+  const upsertUrl = env.SUPABASE_URL.replace(/\/+$/, "") +
+    "/rest/v1/news_live?on_conflict=id";
+  let mark = cursor, token = null, pages = 0, wrote = 0;
+  while (pages < NEWS_MAX_PAGES) {
+    const r = await newsFetchRetry("https://data.alpaca.markets/v1beta1/news" +
+        "?sort=asc&limit=" + NEWS_PAGE_LIMIT +
+        "&start=" + encodeURIComponent(start) +
+        (token ? "&page_token=" + encodeURIComponent(token) : ""),
+      { headers: alpacaHdrs }, sleepMs);
+    if (!r.ok) {
+      console.log("[news] alpaca HTTP " + r.status);
+      break;
+    }
+    const j = await r.json();
+    pages++;
+    const rows = ((j && j.news) || []).map(alpacaToNewsRow).filter(Boolean);
+    if (rows.length) {
+      const w = await newsFetchRetry(upsertUrl,
+        { method: "POST", body: JSON.stringify(rows),
+          headers: newsSupaHeaders(env,
+            { "Prefer": "resolution=ignore-duplicates,return=minimal" }) },
+        sleepMs);
+      if (!w.ok) {
+        console.log("[news] upsert HTTP " + w.status);
+        break;
+      }
+      wrote += rows.length;
+    }
+    // only after the page is safely in news_live
+    mark = newsCursorAfter(mark, rows, nowMs);
+    await writeNewsCursor(env, mark);
+    token = j && j.next_page_token;
+    if (!token) break;
+  }
+  return { pages: pages, wrote: wrote, cursor: mark };
 }
 
 async function pruneNewsLive(env) {
-  const cutoff = new Date(Date.now() - 3 * 86400000).toISOString();
+  const cutoff = new Date(Date.now() - NEWS_KEEP_MS).toISOString();
   const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
       "/rest/v1/news_live?published_at=lt." + encodeURIComponent(cutoff),
     { method: "DELETE",
@@ -3960,44 +4061,80 @@ async function pruneNewsLive(env) {
   if (!r.ok) console.log("[news] prune HTTP " + r.status);
 }
 
+// "May I post the alert?" as ONE conditional UPDATE in Postgres: it only
+// matches while last_alert_at is over an hour old, so when two runs overlap
+// exactly one gets the row back. Any storage problem (table not created
+// yet, network, auth) means no post; the alert was already logged.
+async function claimNewsAlert(env, nowMs) {
+  if (!env.SUPABASE_SERVICE_KEY) {
+    console.log("[news] alert throttle needs SUPABASE_SERVICE_KEY; not posting");
+    return false;
+  }
+  const cutoff = new Date(nowMs - NEWS_ALERT_EVERY_MS).toISOString();
+  try {
+    const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+        "/rest/v1/ops_alert_throttle?key=eq." + NEWS_THROTTLE_KEY +
+        "&last_alert_at=lt." + encodeURIComponent(cutoff),
+      { method: "PATCH",
+        body: JSON.stringify({ last_alert_at: new Date(nowMs).toISOString() }),
+        headers: newsSupaHeaders(env, { "Prefer": "return=representation" }),
+        signal: AbortSignal.timeout(10000) });
+    if (!r.ok) {
+      console.log("[news] alert throttle HTTP " + r.status +
+        " (has sql/2026-11-16_news_alert_throttle.sql been run?); not posting");
+      return false;
+    }
+    const rows = await r.json();
+    return Array.isArray(rows) && rows.length === 1;
+  } catch (e) {
+    console.log("[news] alert throttle failed: " + ((e && e.message) || e) +
+      "; not posting");
+    return false;
+  }
+}
+
+// Returns what it did, for the logs and tests: "closed", "error", "fresh",
+// "log-only", "throttled", "posted" or "post-failed".
 async function checkNewsStall(env, nowMs) {
-  if (!newsMarketHours(nowMs)) return;
-  if (!env.SLACK_BOT_TOKEN || !env.SLACK_ALERT_CHANNEL) return;
+  if (!newsMarketHours(nowMs)) return "closed";
+  const key = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
+  // newest by publish time; ignore mis-dated rows from the future
+  const ceiling = new Date(nowMs + 300000).toISOString();
   const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/news_live?select=created_at&order=created_at.desc&limit=1",
-    { headers: { "apikey": env.SUPABASE_ANON_KEY,
-                 "Authorization": "Bearer " + env.SUPABASE_ANON_KEY },
+      "/rest/v1/news_live?select=published_at&published_at=lte." +
+      encodeURIComponent(ceiling) + "&order=published_at.desc&limit=1",
+    { headers: { "apikey": key, "Authorization": "Bearer " + key },
       signal: AbortSignal.timeout(10000) });
-  if (!r.ok) return;
+  if (!r.ok) {
+    console.log("[news] stall check HTTP " + r.status);
+    return "error";
+  }
   const rows = await r.json();
-  const newestMs = Date.parse((rows && rows[0] && rows[0].created_at) || "") || 0;
-  let lastAlertMs = 0;
-  if (env.DATA) {
-    try {
-      const o = await env.DATA.get(NEWS_ALERT_KEY);
-      if (o) lastAlertMs = Date.parse((await o.json()).at) || 0;
-    } catch (_) {}
-  }
-  if (!newsStallAlertDue(nowMs, newestMs, lastAlertMs)) return;
+  const newestMs = Date.parse((rows && rows[0] && rows[0].published_at) || "") || 0;
+  if (!newsStallAlertDue(nowMs, newestMs)) return "fresh";
   const mins = newestMs ? Math.round((nowMs - newestMs) / 60000) : null;
-  const when = newestMs ? new Date(newestMs).toLocaleString("en-US",
-    { timeZone: "America/New_York", weekday: "short", month: "short",
-      day: "numeric", hour: "numeric", minute: "2-digit" }) + " ET" : "never";
-  const j = await slackApi(env, "chat.postMessage", {
-    channel: env.SLACK_ALERT_CHANNEL,
-    text: ":rotating_light: TickerDesk news wire is silent: no new headline " +
-      "in news_live for " + (mins == null ? "a long time" : mins + " min") +
-      " (newest row " + when + "). The site shows \"Last headline\" " +
-      "instead of \"Live\" until it recovers. Worker Alpaca poll: " +
-      (env.ALPACA_KEY && env.ALPACA_SECRET ? "configured" :
-        "NOT configured (ALPACA_KEY / ALPACA_SECRET missing)") +
-      ". Check the Railway news-ingestor and the worker logs.",
-  });
-  if (j && j.ok && env.DATA) {
-    await env.DATA.put(NEWS_ALERT_KEY,
-      JSON.stringify({ at: new Date(nowMs).toISOString() }),
-      { httpMetadata: { contentType: "application/json" } });
-  }
+  const etFmt = function (ms) {
+    return new Date(ms).toLocaleString("en-US",
+      { timeZone: "America/New_York", weekday: "short", month: "short",
+        day: "numeric", hour: "numeric", minute: "2-digit" }) + " ET";
+  };
+  const cursor = await readNewsCursor(env);
+  const polledMs = cursor ? Date.parse(cursor.polled_at || "") || 0 : 0;
+  const feeder = !(env.ALPACA_KEY && env.ALPACA_SECRET)
+    ? "NOT configured (ALPACA_KEY / ALPACA_SECRET missing)"
+    : polledMs ? "last succeeded " + etFmt(polledMs) : "has not succeeded yet";
+  const text = ":rotating_light: TickerDesk news wire is silent: newest " +
+    "headline in news_live was published " +
+    (mins == null ? "never" : mins + " min ago (" + etFmt(newestMs) + ")") +
+    ". The site shows \"Last headline\" instead of \"Live\" until it " +
+    "recovers. Worker Alpaca poll: " + feeder +
+    ". Check the worker logs and the Railway news-ingestor.";
+  console.log("[news] " + text);
+  if (!env.SLACK_BOT_TOKEN || !env.SLACK_ALERT_CHANNEL) return "log-only";
+  if (!(await claimNewsAlert(env, nowMs))) return "throttled";
+  const j = await slackApi(env, "chat.postMessage",
+    { channel: env.SLACK_ALERT_CHANNEL, text: text });
+  return j && j.ok ? "posted" : "post-failed";
 }
 
 // Called from scheduled() for NEWS_CRON. Each part fails on its own.
@@ -4011,7 +4148,7 @@ async function newsCronTick(env) {
     }
   };
   if (canWrite && env.ALPACA_KEY && env.ALPACA_SECRET && newsPollDue(now)) {
-    await run(function () { return pollAlpacaNews(env); });
+    await run(function () { return pollAlpacaNews(env, now, 500); });
   }
   // after the poll, so headlines it just wrote count as "new"
   await run(function () { return checkNewsStall(env, now); });

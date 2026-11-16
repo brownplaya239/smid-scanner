@@ -81,10 +81,12 @@ SOCIAL_SCHEDULE = "1"
 # #social-review-tickerdesk (comma-separated). Empty = nobody can decide
 # from Slack (GitHub approval still works).
 SLACK_APPROVERS = "U0BU956FT8Q"
-# Slack channel ID for ops alerts (the "news wire is silent" alert). Starts
-# as #social-review-tickerdesk, the channel the bot is already in; point it
-# at a dedicated alerts channel once one exists. Empty = no alert.
-SLACK_ALERT_CHANNEL = "C0C557R06LU"
+# Slack channel ID for ops alerts (the "news wire is silent" alert, and
+# the alerts in other PRs that share this variable). Deliberately empty:
+# alerts are only written to the worker log until a dedicated TickerDesk
+# ops channel exists. Do NOT point it at #social-review-tickerdesk, which
+# lives in a different business's Slack workspace.
+SLACK_ALERT_CHANNEL = ""
 
 # Observability — exact match to what the Cloudflare dashboard
 # currently generates. Cloudflare reformats this section every time
