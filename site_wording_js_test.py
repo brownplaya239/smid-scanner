@@ -336,6 +336,16 @@ BANNED = [
     "lost more often than not",
     "a name near a breakout",
     "looks like protection",
+    "highest-edge",
+    "historically struggle",
+    "late entry",
+    "toward alpha",
+    "edge log",
+    "your edge by setup",
+    "modest edge",
+    "too tight for these names",
+    "buy point",
+    "tail-risk hedging",
 ]
 # Raw-markup patterns for the old LONG/SHORT trade badges.
 BANNED_RAW = [">LONG<", ">SHORT<", '"LONG" : "SHORT"', "▲ LONG", "▼ SHORT"]

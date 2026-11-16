@@ -783,7 +783,7 @@ PAGES = [
             "<h2>What the screen looks for</h2><ul>"
             "<li>A series of contractions — each pullback shallower than the last.</li>"
             "<li>Volume drying up into the apex of the base.</li>"
-            "<li>A definable pivot / buy point with a tight stop.</li>"
+            "<li>A clearly defined pivot level at the top of the base.</li>"
             "</ul>"
             "<p>Each setup gets a quality score so the cleanest bases rise to the top. Refreshed post-close daily.</p>"
         ),

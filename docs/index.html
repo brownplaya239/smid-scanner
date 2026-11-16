@@ -8795,7 +8795,14 @@
       return;
     }
     if (!window.supabase) {
-      // SDK still loading — retry once it lands
+      // SDK still loading — retry once it lands. After ~5 s give up
+      // waiting for auth (blocked or failed script): treat the visitor
+      // as signed out so the page (and the welcome box) can settle.
+      initSupabase._tries = (initSupabase._tries || 0) + 1;
+      if (initSupabase._tries > 25 && !TD_AUTH_READY) {
+        TD_AUTH_READY = true;
+        _emitUser();
+      }
       setTimeout(initSupabase, 200);
       return;
     }
@@ -10938,7 +10945,7 @@
       el.innerHTML = '<div class="tl-setups" title="Your own closed-trade ' +
         'hit rate per system setup, from the [setup:…] tags stamped on ' +
         'logged buys. Small samples — treat as a journal, not a stat, ' +
-        'until n grows.">Your edge by setup: ' +
+        'until n grows.">Your results by setup: ' +
         keys.slice(0, 4).map(function (k) {
           const s = stats[k];
           const pct = Math.round(100 * s.w / s.n);
@@ -10958,7 +10965,7 @@
           '<div style="text-align:left;max-width:520px;margin:0 auto;' +
           'padding:18px 6px;line-height:1.6">' +
           '<div style="font-weight:700;color:var(--text);font-size:13px;' +
-          'margin-bottom:6px">Build your edge log.</div>' +
+          'margin-bottom:6px">Build your trade log.</div>' +
           '<div style="color:var(--textdim);font-size:12px;margin-bottom:10px">' +
           'Log every entry, exit, and signal you acted on. ' +
           'P&amp;L computes vs today\'s price automatically. ' +
@@ -17361,7 +17368,7 @@
         }).join("");
         host.innerHTML = '<div class="zf-card">' +
           '<div class="zf-h">\u26a1 Notable index options activity \u2014 top 5 each</div>' +
-          '<div class="zf-sub">Per symbol, ranked toward <b>alpha</b>: ' +
+          '<div class="zf-sub">Per symbol, ranked by: ' +
           'volume \u00f7 open interest (fresh positioning) \u00d7 OTM bias, ' +
           'with raw size dampened so the big at-the-money hedges don\'t ' +
           'dominate. Hover a row for full stats.</div>' +
@@ -23773,9 +23780,9 @@
           'bullish flow on Bullish card; F/G-tier with bearish flow on ' +
           'Bearish card). ' +
           'Conflict = grade and flow disagree (A-tier with bearish flow, ' +
-          'or G-tier with bullish flow) — often the highest-edge setups. ' +
-          'Hedge = mixed or directional flow on a name with the opposite ' +
-          'trend (likely institutional tail-risk hedging, not directional). ' +
+          'or G-tier with bullish flow). ' +
+          'Hedge = a strongly graded name whose options flow is mixed or ' +
+          'missing (no clean directional lean). ' +
           'Mixed = both directions of flow present without a clean lean.">' +
           'Confluence</span>' +
         '<span class="cr-narr" data-tip="1" title="' +
@@ -23858,7 +23865,7 @@
         case "ext":
           if (v == null) return "";
           if (v >= 12) return "extended +" + Math.round(v) + "% above trend — chase risk";
-          if (v >= 7)  return "+" + Math.round(v) + "% above trend — late entry";
+          if (v >= 7)  return "+" + Math.round(v) + "% above trend — extended";
           return "";
         case "chg":
           if (v == null) return "";
@@ -23922,7 +23929,7 @@
         if (breadthShown >= 58)      { label = "RISK-ON";   cls = "rg-on";
           read = "breadth broad — most stocks rising"; }
         else if (breadthShown <= 42) { label = "RISK-OFF";  cls = "rg-off";
-          read = "breadth weak — most stocks falling; long setups historically struggle"; }
+          read = "breadth weak — most stocks falling"; }
         else                    { label = "MIXED TAPE"; cls = "rg-mixed";
           read = "mixed tape — breadth split, fewer clean trends"; }
         // Shared regime state — the Risk-off Playbook card and momentum
@@ -24024,7 +24031,7 @@
       if (breadth >= 58)      { label = "RISK-ON";   cls = "rg-on";
         read = "breadth broad — most stocks rising"; }
       else if (breadth <= 42) { label = "RISK-OFF";  cls = "rg-off";
-        read = "breadth weak — most stocks falling; long setups historically struggle"; }
+        read = "breadth weak — most stocks falling"; }
       else                    { label = "MIXED TAPE"; cls = "rg-mixed";
         read = "mixed tape — breadth split, fewer clean trends"; }
       el.className = "rg-banner " + cls;
@@ -25280,7 +25287,7 @@
             ? '<div class="ro-sub">Deep downgrades — historical bounce ' +
               "cohort (" + to.hit + "% hit, " +
               (to.avg >= 0 ? "+" : "") + to.avg + "% avg @" +
-              (to.hold_d || 5) + "d, n=" + to.n + " — modest edge)" +
+              (to.hold_d || 5) + "d, n=" + to.n + ")" +
               _asOf((engine || {}).generated, "Graded") + "</div>" +
               dnRows : "") +
           '<div class="ro-foot">Thin by design — in this dataset most ' +
@@ -27305,8 +27312,8 @@
         return {
           tier: "hedge",
           label: "Likely Hedge",
-          why: "Big-cap bear flow at high premium — often institutional " +
-               "tail-risk hedging, not directional.",
+          why: "Big-cap bear flow at high premium; it may be protective " +
+               "hedging rather than a directional bet.",
         };
       }
       // Confirming: directional + opening + decent premium
@@ -27571,8 +27578,8 @@
               '<div style="margin:2px 0">best cell ' + bestK + '% stop/target: <b class="' +
                 (b.avg > 0 ? "pos" : "neg") + '">' + (b.avg > 0 ? "+" : "") + b.avg + '%</b> (' +
                 b.hit + '% hit)</div>' +
-              (tight ? '<div style="margin:2px 0" class="neg">⚠ 5% stops fired ' +
-                tight.stopped_pct + '% of the time — too tight for these names</div>' : '') +
+              (tight ? '<div style="margin:2px 0" class="neg">⚠ a 5% stop was hit ' +
+                tight.stopped_pct + '% of the time in this record</div>' : '') +
               '</div><div class="es">n=' + base.n.toLocaleString() + ' matured signals. ' +
               (g.assumptions || "") + '</div></div>');
           }
