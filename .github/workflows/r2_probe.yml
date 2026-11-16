@@ -31,6 +31,14 @@ on:
         description: "Copy ALPACA_KEY + ALPACA_SECRET from GitHub secrets to the worker (news wire poll)"
         type: boolean
         default: false
+      sync_email_secrets:
+        description: "Copy RESEND_API_KEY + FROM_EMAIL from GitHub secrets to the worker (Daily Brief sign-up confirmations)"
+        type: boolean
+        default: false
+      sync_finnhub_secret:
+        description: "Copy FINNHUB_API_KEY from GitHub secrets to the worker (macro news wire)"
+        type: boolean
+        default: false
 
 env:
   # uv: workflow steps use only the locked runtime packages, never the dev
@@ -117,6 +125,37 @@ jobs:
             fi
             printf '%s' "${!n}" | npx wrangler secret put "$n" --name smid-scanner-discord-bot
           done
+      - name: Sync email secrets to the worker
+        # The worker sends the Daily Brief double opt-in email through
+        # Resend. Same stdin pattern as above: values are masked and never
+        # touch a file or the log.
+        if: ${{ inputs.sync_email_secrets }}
+        working-directory: cloudflare-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+        run: |
+          for n in RESEND_API_KEY FROM_EMAIL; do
+            if [ -z "${!n}" ]; then
+              echo "::error::GitHub secret $n is not set — run: gh secret set $n -R brownplaya239/smid-scanner"
+              exit 1
+            fi
+            printf '%s' "${!n}" | npx wrangler secret put "$n" --name smid-scanner-discord-bot
+          done
+      - name: Sync the Finnhub key to the worker
+        # Only the macro news wire (?news=macro) reads it in the worker.
+        if: ${{ inputs.sync_finnhub_secret }}
+        working-directory: cloudflare-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: |
+          if [ -z "$FINNHUB_API_KEY" ]; then
+            echo "::error::GitHub secret FINNHUB_API_KEY is not set"
+            exit 1
+          fi
+          printf '%s' "$FINNHUB_API_KEY" | npx wrangler secret put FINNHUB_API_KEY --name smid-scanner-discord-bot
       - name: Worker secret names
         # Names/types only — wrangler never prints secret values. (Plain-
         # text vars are deliberately NOT listed: this repo's logs are
