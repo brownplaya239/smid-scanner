@@ -197,6 +197,63 @@
   .email-capture .ec-status.ok  { color:var(--green); }
   .email-capture .ec-status.err { color:var(--red); }
 
+  /* Welcome box for signed-out visitors (top of the Desk) */
+  .tdw { position:relative; margin:0 0 16px; padding:16px 18px 14px;
+    border:1px solid var(--border2); border-radius:10px;
+    background:linear-gradient(135deg, rgba(255,200,0,0.07),
+      rgba(31,179,99,0.04)); }
+  .tdw[hidden] { display:none; }
+  .tdw-x { position:absolute; top:6px; right:8px; background:none; border:0;
+    color:var(--muted); font-size:20px; line-height:1; cursor:pointer;
+    padding:4px 6px; }
+  .tdw-x:hover { color:var(--text); }
+  .tdw-pitch { font-size:15px; color:var(--text); margin:0 28px 8px 0;
+    line-height:1.4; }
+  .tdw-pitch b { color:var(--gold); }
+  .tdw-points { margin:0 0 12px; padding-left:18px; font-size:12.5px;
+    color:var(--textdim); line-height:1.55; }
+  .tdw-points b { color:var(--text); }
+  .tdw-points a, .tdw-note a { color:var(--gold); }
+  .tdw-form { display:flex; gap:6px; max-width:440px; }
+  .tdw-form input { flex:1; min-width:0; background:var(--card);
+    border:1px solid var(--border2); color:var(--text); padding:10px 12px;
+    border-radius:6px; font-family:inherit; font-size:13px; }
+  .tdw-form input:focus { border-color:var(--gold); outline:0; }
+  .tdw-form button, .tdw-btn { background:var(--gold); color:var(--accink);
+    border:0; padding:10px 16px; border-radius:6px; font-family:inherit;
+    font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;
+    text-decoration:none; display:inline-block; }
+  .tdw-btn-ghost { background:transparent; color:var(--gold);
+    border:1px solid var(--gold); }
+  .tdw .ec-status { font-size:11.5px; min-height:16px; margin-top:5px; }
+  .tdw .ec-status.ok  { color:var(--green); }
+  .tdw .ec-status.err { color:var(--red); }
+  .tdw-cta { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .tdw-note { margin:10px 0 0; font-size:11px; color:var(--muted); }
+  @media (max-width:600px) {
+    .tdw { padding:12px 12px 10px; }
+    .tdw-pitch { font-size:13.5px; }
+    .tdw-points { font-size:12px; margin-bottom:10px; padding-left:16px; }
+    .tdw-form { max-width:none; }
+    .tdw-cta .tdw-btn { flex:1 1 0; text-align:center; padding:10px 8px; }
+    .tdw-note { display:none; }
+  }
+  /* "What do these mean?" key on the Desk */
+  .desk-legend { margin:-12px 0 16px; font-size:12px; color:var(--textdim); }
+  .desk-legend summary { cursor:pointer; color:var(--gold); font-size:11.5px;
+    display:inline-block; }
+  .desk-legend dl { margin:8px 0 4px; padding:10px 12px;
+    border:1px solid var(--line); border-radius:8px; background:var(--navy2);
+    display:grid; grid-template-columns:max-content 1fr; gap:6px 14px; }
+  .desk-legend dt { font-weight:700; color:var(--text); }
+  .desk-legend dd { margin:0; line-height:1.45; }
+  .desk-legend p { margin:4px 0 0; }
+  .desk-legend a { color:var(--gold); }
+  @media (max-width:600px) {
+    .desk-legend dl { grid-template-columns:1fr; gap:2px; }
+    .desk-legend dd { margin-bottom:6px; }
+  }
+
   /* Report-credits badge next to the Generate header */
   .report-credits { font-size:11px; font-weight:600; color:var(--gold);
     margin-left:10px; background:rgba(255,200,0,0.1);
@@ -2413,9 +2470,8 @@
     display:flex; flex-direction:column; overflow:hidden;
     transition:border-color .12s ease; }
   .opc:hover { border-color:var(--gold); }
-  /* Header holds ticker + day-% chip + action strip + 2 scores + dir
-     pill — tight gaps and a compact chip so the dir pill never clips
-     ("LONG" was truncating to "LON" at tile width). */
+  /* Header holds ticker + day-% chip + action strip — tight gaps and a
+     compact chip so nothing clips at tile width. */
   .opc-h { display:flex; align-items:center; gap:5px; padding:9px 9px 7px;
     border-bottom:1px solid var(--line); }
   .opc-tk { font-weight:800; font-size:14px; color:var(--text); }
@@ -2426,9 +2482,6 @@
     font-variant-numeric:tabular-nums; }
   .opc-sc i { font-style:normal; font-size:7.5px; letter-spacing:.08em;
     text-transform:uppercase; color:var(--muted); font-weight:700; }
-  .opc-dir { margin-left:auto; font-size:8.5px; font-weight:800;
-    padding:2px 5px; border-radius:4px; letter-spacing:.03em;
-    flex:0 0 auto; }
   .opc-meta { font-size:10px; color:var(--muted); padding:5px 11px 0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     font-variant-numeric:tabular-nums; }
@@ -2767,8 +2820,19 @@
     .mlab-row { grid-template-columns:70px minmax(90px,1fr) 52px 44px 40px 44px 92px;
       font-size:11px; }
   }
-  .opc-d-bull { background:rgba(31,179,99,0.16); color:#7ddfa1; }
-  .opc-d-bear { background:rgba(214,68,68,0.16); color:#f08585; }
+  .opc.opc-bull { border-top:2px solid rgba(31,179,99,0.45); }
+  .opc.opc-bear { border-top:2px solid rgba(214,68,68,0.55); }
+  /* Risk-off notes on the standout-chart cards: shown only while the
+     regime read is RISK-OFF (body.td-riskoff, same switch as the
+     Risk-off playbook). */
+  .opc-ro, .opc-ro-tag { display:none; }
+  .td-riskoff .opc-ro { display:block; margin:0 0 9px; padding:7px 10px;
+    border:1px solid rgba(214,68,68,0.35); border-radius:7px;
+    background:rgba(214,68,68,0.08); font-size:11.5px; line-height:1.4;
+    color:#f0a0a0; }
+  .td-riskoff .opc-ro-tag { display:block; padding:4px 11px; font-size:10px;
+    line-height:1.3; color:#f0a0a0; background:rgba(214,68,68,0.08);
+    border-top:1px solid var(--line); }
   .opc-ev, .opc-risk { list-style:none; margin:0; padding:7px 11px;
     display:flex; flex-direction:column; gap:3px; flex:1; }
   .opc-ev li, .opc-risk li { font-size:10.5px; line-height:1.35;
@@ -6111,6 +6175,42 @@
   <main id="main" tabindex="-1">
     <!-- Today's Desk -->
     <section class="panel active" id="panel-desk">
+      <!-- Welcome for signed-out visitors. Hidden by default; shown by
+           tdWelcomeSync() only when nobody is signed in and the visitor
+           hasn't dismissed it (localStorage td_welcome_dismissed_v1).
+           The email box reuses the footer's Daily Brief sign-up code
+           (tdWireBriefForm, POST /brief/subscribe). -->
+      <div class="tdw" id="td-welcome" hidden>
+        <button class="tdw-x" id="tdw-x" type="button"
+                aria-label="Hide this welcome">&times;</button>
+        <p class="tdw-pitch"><b>TickerDesk:</b> a daily research desk that
+          grades its own signals in public. Free.</p>
+        <ul class="tdw-points">
+          <li><b>The Daily Brief</b> by email, shortly before 9:00 AM ET on
+            market days.</li>
+          <li><b>A research report on any ticker</b> in about a minute.</li>
+          <li><b>Every signal graded</b> against real prices, wins and
+            losses. <a href="/transparency">See the record</a></li>
+        </ul>
+        <form id="tdw-form" class="ec-form tdw-form">
+          <input type="email" id="tdw-email" placeholder="you@example.com"
+                 autocomplete="email" aria-label="Email address for the Daily Brief"
+                 required />
+          <input type="text" id="tdw-website" name="website" tabindex="-1"
+                 autocomplete="off" aria-hidden="true"
+                 style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" />
+          <button type="submit" id="tdw-submit">Get the brief</button>
+        </form>
+        <div id="tdw-status" class="ec-status" role="status"></div>
+        <div class="tdw-cta">
+          <a class="tdw-btn" href="/sample-report">See a sample report</a>
+          <a class="tdw-btn tdw-btn-ghost" href="#adhoc"
+             data-go-tab="adhoc">Research any ticker</a>
+        </div>
+        <p class="tdw-note">Research and education, not investment advice.
+          Our published record shows most signals are close to a coin flip,
+          and we show you that too.</p>
+      </div>
       <h2 class="tab-title">Today&apos;s Desk</h2>
       <!-- AI Trade Desk flagship module — populated by setupTradeDesk
            from trade_desk.json. Shows the HONEST qualified count (zero
@@ -6138,6 +6238,42 @@
           <b style="color:var(--textdim)">flow</b> refresh during the day
           (delayed 15 min)
         </span></p>
+      <!-- Plain-English key for the labels a first-time visitor meets on
+           the Desk. Collapsed by default so it stays out of the way. -->
+      <details class="desk-legend" id="desk-legend">
+        <summary>What do these mean?</summary>
+        <dl>
+          <dt>Grades A+ &hellip; G</dt>
+          <dd>A trend grade from the post-close scan: A+ is the strongest
+            uptrend, G the weakest (20 steps). It describes the chart today,
+            not where the price goes next.</dd>
+          <dt>OPP / CONV</dt>
+          <dd>Conviction (conv) counts how many of our signals agree on a
+            name: trend grade, options flow, momentum lists, themes.
+            Opportunity (opp) is that score minus penalties for being
+            stretched or near earnings. Ranking aids, not probabilities.</dd>
+          <dt>conf / cal %</dt>
+          <dd>conf is our own self-assessed score. cal % is how often past
+            picks in the same conviction band actually went the right way
+            the next day; it appears once 30+ picks are graded.</dd>
+          <dt>HEDGE</dt>
+          <dd>The options flow on the name is mixed or looks like protection
+            on an existing position, so it doesn&rsquo;t confirm the trend
+            either way.</dd>
+          <dt>BOUNCE COHORT</dt>
+          <dd>Names cut 3 or more grade notches in one session. In our
+            record this group has bounced slightly more often than not; the
+            pane shows the measured hit rate and sample size.</dd>
+          <dt>OI CONFIRMED</dt>
+          <dd>Next-morning open interest rose, so the flagged options
+            position was actually opened and held overnight rather than
+            closed the same day.</dd>
+          <dt>Pullback watch / Breakout watch / Weak trend</dt>
+          <dd>One-line descriptions of where a chart stands. They are not
+            instructions to buy or sell.</dd>
+        </dl>
+        <p><a href="/glossary#tickerdesk-labels">Full glossary &rarr;</a></p>
+      </details>
       <!-- Start Here morning-routine strip. Populated by buildStartHere()
            in JS; auto-collapses after 7 sessions or once user dismisses.
            Hidden by default; the JS adds .show only when criteria met. -->
@@ -12026,17 +12162,19 @@
     }
   })();
 
-  // ── Email capture (footer Daily Brief sign-up) ──
+  // ── Daily Brief sign-up forms (footer + signed-out welcome box) ──
   // Success is shown ONLY when the worker answers 2xx; otherwise the
   // worker's own error message is shown. (It used to write to Supabase
   // directly, ignore the result and always say "You're on the list".)
-  (function setupEmailCapture() {
-    const form = document.getElementById("ec-form");
-    const input = document.getElementById("ec-email");
-    const trap = document.getElementById("ec-website");
-    const submit = document.getElementById("ec-submit");
-    const status = document.getElementById("ec-status");
-    if (!form) return;
+  // One function wires every sign-up box so they all behave the same.
+  function tdWireBriefForm(prefix, source) {
+    const form = document.getElementById(prefix + "-form");
+    const input = document.getElementById(prefix + "-email");
+    const trap = document.getElementById(prefix + "-website");
+    const submit = document.getElementById(prefix + "-submit");
+    const status = document.getElementById(prefix + "-status");
+    if (!form || !input || !submit || !status) return;
+    const label = submit.textContent;
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
       const email = (input.value || "").trim().toLowerCase();
@@ -12057,7 +12195,7 @@
           resp = await fetch(WORKER_URL + "/brief/subscribe", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email, source: "footer",
+            body: JSON.stringify({ email: email, source: source,
                                    website: trap ? trap.value : "" }),
             signal: ctl.signal,
           });
@@ -12079,8 +12217,51 @@
           : "Couldn't reach TickerDesk. Check your connection and try again.";
       } finally {
         submit.disabled = false;
-        submit.textContent = "Get the brief";
+        submit.textContent = label;
       }
+    });
+  }
+  tdWireBriefForm("ec", "footer");
+  tdWireBriefForm("tdw", "welcome");
+
+  // ── Welcome box for signed-out visitors (top of the Desk) ──
+  // Shown only when nobody is signed in AND the visitor hasn't dismissed
+  // it. A saved Supabase session key counts as signed in, so a returning
+  // member doesn't see it flash while auth is still loading.
+  const TD_WELCOME_KEY = "td_welcome_dismissed_v1";
+  function tdWelcomeSync(el, user, store) {
+    let dismissed = false, session = false;
+    try {
+      dismissed = store.getItem(TD_WELCOME_KEY) === "1";
+      for (let i = 0; i < store.length; i++) {
+        if (/^sb-.*-auth-token/.test(store.key(i) || "")) session = true;
+      }
+    } catch (_) {}
+    const show = !user && !session && !dismissed;
+    if (el) el.hidden = !show;
+    return show;
+  }
+  function tdWelcomeDismiss(el, store) {
+    try { store.setItem(TD_WELCOME_KEY, "1"); } catch (_) {}
+    if (el) el.hidden = true;
+  }
+  (function setupWelcome() {
+    const el = document.getElementById("td-welcome");
+    if (!el) return;
+    let store = null;
+    try { store = window.localStorage; } catch (_) {}
+    const sync = function () {
+      tdWelcomeSync(el, window.tdUser ? window.tdUser() : null,
+                    store || { getItem: function () { return null; },
+                               length: 0, key: function () { return null; } });
+    };
+    sync();
+    if (typeof onUserChange === "function") onUserChange(sync);
+    // An expired session key is cleared once auth settles; re-check then.
+    setTimeout(sync, 4000);
+    const x = document.getElementById("tdw-x");
+    if (x) x.addEventListener("click", function () {
+      tdWelcomeDismiss(el, store || { setItem: function () {} });
     });
   })();
 
@@ -12704,7 +12885,7 @@
                        "7 days. <b>Free during beta</b>." },
       note:   { title: "Sign in to keep notes",
                 sub:   "Private per-ticker notes + trade journal track every " +
-                       "thesis, entry, and outcome — your personal alpha record." },
+                       "thesis, entry, and outcome — your trade record." },
       report: { title: "Sign in to generate research",
                 sub:   "Free accounts get <b>3 research reports</b> to start. " +
                        "Upgrade to Pro for 10 a month." },
@@ -21445,10 +21626,10 @@
           if (dd != null && dd >= 0) ed = dd;
         }
         let act = "WATCH", cls = "ck-mon";
-        if (ed != null && ed <= 5) { act = "WAIT — ERN"; cls = "ck-ern"; }
-        else if (typeof c.ext === "number" && c.ext >= 8) { act = "EXTENDED — WAIT"; cls = "ck-ern"; }
-        else if (conf >= 3 && (GP[e.grade] || 0) >= 4) { act = "BUY PULLBACK"; cls = "ck-win"; }
-        else if (conf >= 2) { act = "WATCH BREAKOUT"; cls = "ck-sig"; }
+        if (ed != null && ed <= 5) { act = "EARNINGS SOON"; cls = "ck-ern"; }
+        else if (typeof c.ext === "number" && c.ext >= 8) { act = "EXTENDED"; cls = "ck-ern"; }
+        else if (conf >= 3 && (GP[e.grade] || 0) >= 4) { act = "PULLBACK WATCH"; cls = "ck-win"; }
+        else if (conf >= 2) { act = "BREAKOUT WATCH"; cls = "ck-sig"; }
         return { t: t, e: e, c: c, conf: conf, score: score, act: act, cls: cls };
       }).filter(function (x) { return x.conf >= 2; })
         .sort(function (a, b) { return b.score - a.score; })
@@ -22312,8 +22493,8 @@
     // Synthesizes 6 actionable segments from current signal data so the
     // user sees "what to do next" instead of just "what's happening."
     //
-    //   Best Long Setups       — A/A+ grade + bullish flow (confluence)
-    //   Best Short / Avoid     — F/G grade + bearish flow OR conflict
+    //   Strongest Setups       — A/A+ grade + bullish flow (confluence)
+    //   Weakest Setups         — F/G grade + bearish flow OR conflict
     //   Flow + Trend Confirmed — names where flow agrees with trend
     //   Trend / Flow Conflict  — A+ grade with bearish flow (or vice versa)
     //   Earnings Today         — anything reporting today
@@ -22376,7 +22557,7 @@
       const isBullFlow  = d => d === "bullish";
       const isBearFlow  = d => d === "bearish";
 
-      // 1. Best Long Setups: A-tier + bull flow, sorted by premium
+      // 1. Strongest Setups: A-tier + bull flow, sorted by premium
       const longs = [];
       Object.keys(flowByTk).forEach(function (tk) {
         const g = grades[tk];
@@ -22388,7 +22569,7 @@
       });
       longs.sort((a, b) => b.score - a.score);
 
-      // 2. Best Short / Avoid: F/G grade + bear flow OR A+ + bear flow conflict
+      // 2. Weakest Setups: F/G grade + bear flow OR A+ + bear flow conflict
       const shorts = [];
       Object.keys(flowByTk).forEach(function (tk) {
         const g = grades[tk];
@@ -22502,13 +22683,13 @@
       }
 
       const segments = [
-        segment("Best Long Setups", longs, 4,
+        segment("Strongest Setups", longs, 4,
                 "No A-tier + bull flow yet", "var(--green)"),
         segment("Flow + Trend Confirmed", confirmed, 4,
                 "No confluence flagged", "#5fa3ff"),
         segment("Trend / Flow Conflict", conflict, 3,
                 "No conflicts — flow agrees with grades", "#ffc800"),
-        segment("Best Short / Avoid", shorts, 3,
+        segment("Weakest Setups", shorts, 3,
                 "No F-tier + bear flow flagged", "var(--red)"),
         segment("Earnings Today", Array.from(earningsToday).slice(0, 5)
                   .map(tk => ({ tk: tk, grade: grades[tk] })),
@@ -23718,11 +23899,11 @@
         } catch (_) {}
         let label, cls, read;
         if (breadthShown >= 58)      { label = "RISK-ON";   cls = "rg-on";
-          read = "breadth broad — favor longs, buy pullbacks"; }
+          read = "breadth broad — most stocks rising"; }
         else if (breadthShown <= 42) { label = "RISK-OFF";  cls = "rg-off";
-          read = "breadth weak — smaller size, respect stops"; }
+          read = "breadth weak — most stocks falling; long setups historically struggle"; }
         else                    { label = "MIXED TAPE"; cls = "rg-mixed";
-          read = "selective tape — A-grade setups only"; }
+          read = "mixed tape — breadth split, fewer clean trends"; }
         // Shared regime state — the Risk-off Playbook card and momentum
         // caution strips key off this instead of re-deriving breadth.
         window.TD_REGIME = { label: label, breadth: breadthShown,
@@ -23820,11 +24001,11 @@
       const breadth = Math.round(100 * up / n);
       let label, cls, read;
       if (breadth >= 58)      { label = "RISK-ON";   cls = "rg-on";
-        read = "breadth broad — favor longs, buy pullbacks"; }
+        read = "breadth broad — most stocks rising"; }
       else if (breadth <= 42) { label = "RISK-OFF";  cls = "rg-off";
-        read = "breadth weak — smaller size, respect stops"; }
+        read = "breadth weak — most stocks falling; long setups historically struggle"; }
       else                    { label = "MIXED TAPE"; cls = "rg-mixed";
-        read = "selective tape — A-grade setups only"; }
+        read = "mixed tape — breadth split, fewer clean trends"; }
       el.className = "rg-banner " + cls;
       window.TD_REGIME = { label: label, breadth: breadth, src: "live" };
       if (typeof renderRiskOffSlot === "function") renderRiskOffSlot();
@@ -24131,6 +24312,14 @@
       if (!picks.length) return "";
 
       const clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
+      // Risk-off note. CSS shows it only while body.td-riskoff is set
+      // (the same switch as the Risk-off playbook), so the cards never
+      // present names as buys while the playbook says longs mostly lose.
+      const roNote = opcRiskOffNote((window.TD_DATA || {}).stats);
+      const roBanner = '<div class="opc-ro">' + window.escapeHtml(roNote.banner) +
+        '</div>';
+      const roTag = '<div class="opc-ro-tag">' + window.escapeHtml(roNote.tag) +
+        '</div>';
       const cards = picks.map(function (x) {
         const t = x.t, e = x.e, dir = x.dir;
         const sc = scoreCtx(e, dir) || { score: 0, sigs: 0 };
@@ -24159,7 +24348,7 @@
         if (dir === "bull" && e.flow === "bearish")
           rpush("options flow disagrees with the trend");
         if ((card.mcap || 0) > 0 && card.mcap < 500e6)
-          rpush("sub-$500M — size for liquidity");
+          rpush("sub-$500M — thinly traded, wider spreads");
         // Portfolio awareness: warn when this pick moves with names the
         // user already stars (60d daily-return correlation from the fact
         // table, r>=0.70, among tracked names). Adding a fourth NVDA
@@ -24189,14 +24378,16 @@
         const confidence = clamp(Math.round(conviction * 0.55 + opp * 0.35)
           - risk.length * 4 + (held ? 6 : 0), 20, 95);
 
-        // the verb — every card ends in an action
-        let act, actCls = "opc-a-buy";
-        if (dir === "bear") { act = "AVOID LONGS"; actCls = "opc-a-avoid"; }
-        else if (ed != null && ed >= 0 && ed <= 5) { act = "WAIT — EARNINGS"; actCls = "opc-a-wait"; }
-        else if ((card.ext || 0) >= 12 || (card.chg || 0) >= 8) { act = "WATCH PULLBACK"; actCls = "opc-a-watch"; }
-        else if (conviction >= 72) { act = "BUY PULLBACK"; }
-        else if (conviction >= 55) { act = "WATCH BREAKOUT"; actCls = "opc-a-watch"; }
-        else { act = "MONITOR"; actCls = "opc-a-watch"; }
+        // the read — a neutral description of the chart, never an
+        // instruction (the site's own record says these signals are
+        // close to a coin flip, so nothing here should read as advice)
+        let act, actCls = "opc-a-strong";
+        if (dir === "bear") { act = "WEAK TREND"; actCls = "opc-a-avoid"; }
+        else if (ed != null && ed >= 0 && ed <= 5) { act = "EARNINGS SOON"; actCls = "opc-a-wait"; }
+        else if ((card.ext || 0) >= 12 || (card.chg || 0) >= 8) { act = "EXTENDED"; actCls = "opc-a-watch"; }
+        else if (conviction >= 72) { act = "PULLBACK WATCH"; }
+        else if (conviction >= 55) { act = "BREAKOUT WATCH"; actCls = "opc-a-watch"; }
+        else { act = "ON WATCH"; actCls = "opc-a-watch"; }
 
         const esc = window.escapeHtml;
         // meta line: market cap + theme (sector fallback when the name
@@ -24205,42 +24396,67 @@
         const themeOrSec = (e.themes || [])[0] ||
           (card.sec ? card.sec.split("/")[0].trim() : "");
         const metaBits = [mc, themeOrSec].filter(Boolean).join(" · ");
-        // Header = identity row (ticker · day% · actions · direction);
-        // scores share the second line with the meta text — everything
-        // in one header row overflowed the 220px tile and clipped the
-        // direction pill.
-        return '<div class="opc" data-t="' + esc(t) + '" role="button" tabindex="0">' +
+        // Header = identity row (ticker · day% · actions); scores share
+        // the second line with the meta text. Direction is shown by the
+        // card's top border and the bottom read ("WEAK TREND"), not a
+        // LONG/SHORT pill, which read like a trade instruction.
+        return '<div class="opc ' + (dir === "bull" ? "opc-bull" : "opc-bear") +
+          '" data-t="' + esc(t) + '" role="button" tabindex="0">' +
           '<div class="opc-h"><span class="opc-tk">' + esc(t) + '</span>' +
           chgBadge(t) +
           (window.tdActionStripCompact ? window.tdActionStripCompact(t) : "") +
-            '<span class="opc-dir ' + (dir === "bull" ? "opc-d-bull" : "opc-d-bear") + '">' +
-              (dir === "bull" ? "LONG" : "SHORT") + '</span></div>' +
+          '</div>' +
           '<div class="opc-sub">' +
             '<span class="opc-meta2">' + esc(metaBits) + '</span>' +
-            '<span class="opc-sc" title="Opportunity: conviction net of timing/event risk">' +
+            '<span class="opc-sc" title="OPP (opportunity, 30-97): the conviction score ' +
+              'minus penalties for being stretched or near earnings. A ranking aid, ' +
+              'not a probability.">' +
               '<b>' + opp + '</b><i>opp</i></span>' +
-            '<span class="opc-sc" title="Conviction: cross-signal confluence strength">' +
+            '<span class="opc-sc" title="CONV (conviction, 35-96): how many of our signals ' +
+              'agree on this name (trend grade, options flow, momentum lists, themes). ' +
+              'A ranking aid, not a probability.">' +
               '<b>' + conviction + '</b><i>conv</i></span></div>' +
           tdChangeChipsHTML(t) +
           '<ul class="opc-ev">' + evidence.map(function (s) {
             return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>' +
           (risk.length ? '<ul class="opc-risk">' + risk.map(function (s) {
             return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>' : "") +
+          (dir === "bull" ? roTag : "") +
           '<div class="opc-act ' + actCls + '"><b>' + act + '</b>' +
-            '<span title="Self-assessed odds this action is right. When the ' +
-            'outcome tracker has graded ≥30 picks, the calibrated value ' +
-            '(realized next-day win rate of this conviction band) is shown ' +
-            'alongside — reality over self-assessment.">conf ' +
+            '<span title="conf: our own self-assessed score for this read, ' +
+            'not a measured probability. Once 30+ past picks are graded, ' +
+            'cal % shows how often past picks in the same conviction ' +
+            'band actually went the right way the next day: reality over ' +
+            'self-assessment.">conf ' +
             confidence + tdCalibrated(conviction) + '</span></div></div>';
       }).join("");
 
-      const stamp = { cls: "current", label: "Ranked · confluence + learned edge",
-        full: "Top opportunities ranked by cross-signal confluence (trend grade, " +
-              "options flow, momentum lists, themes), adjusted for timing and event " +
-              "risk. Evidence and risks in plain language; every card ends in an " +
-              "action + confidence. 15-min delayed data; not advice." };
-      return desk("Opportunities — what to trade today",
-        '<div class="opc-row">' + cards + '</div>', "desk-card--wide", stamp);
+      const stamp = { cls: "current", label: "Ranked · research, not advice",
+        full: "Today's standout charts, ranked by how many of our signals agree " +
+              "(trend grade, options flow, momentum lists, themes), adjusted for " +
+              "timing and event risk. Evidence and risks in plain language; each " +
+              "card ends with a one-line read of the chart. Our published record " +
+              "shows these signals are close to a coin flip. 15-min delayed data; " +
+              "educational research, not investment advice." };
+      return desk("Today’s standout charts",
+        roBanner + '<div class="opc-row">' + cards + '</div>',
+        "desk-card--wide", stamp);
+    }
+
+    // Wording for the risk-off note on the standout-chart cards. Says
+    // "lose more often than not" only when the outcome record says so.
+    function opcRiskOffNote(st) {
+      const m = deskMomentumRead(st);
+      return {
+        banner: "Risk-off tape: " + (m.loses
+          ? "in our outcome record, long setups like these have lost more " +
+            "often than not in this kind of market"
+          : "long setups are less reliable while most stocks are falling") +
+          (m.aplus ? " (" + m.aplus + ")" : "") +
+          ". Treat these as a research watchlist, not entries.",
+        tag: m.loses ? "Risk-off: historically these lose more often than not"
+                     : "Risk-off: less reliable in this tape",
+      };
     }
 
     function cardTopBullish(ctx, swing, uoa) {
@@ -31127,7 +31343,7 @@
       }).join("") + '</div>';
     }
 
-    /* -------- Validated Market Edges (family block + instances) ---- */
+    /* -------- Research findings ranked by evidence (family block + instances) ---- */
     // Signed number / money: the sign comes from the value, never forced.
     function sgn(v, dp) {
       if (v === null || v === undefined || v !== v) return "—";
@@ -31188,7 +31404,7 @@
       ["vol_rich", "vol_cheap"].forEach(function (t) {
         h += volFamilyHTML(d, t);
       });
-      return h ? '<div class="atd-sec-h">Validated Market Edges</div>' + h
+      return h ? '<div class="atd-sec-h">Research findings ranked by evidence</div>' + h
         : "";
     }
     function volFamilyHTML(d, t) {
