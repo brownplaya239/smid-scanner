@@ -3622,6 +3622,17 @@ function _svcFetch(env, path, init) {
   });
 }
 
+// The "code" field of a PostgREST / Postgres JSON error body, or "" when
+// the body isn't such an error (HTML error pages, proxies, empty bodies).
+function _pgrstCode(text) {
+  try {
+    const j = JSON.parse(text);
+    return j && typeof j === "object" && typeof j.code === "string" ? j.code : "";
+  } catch (e) {
+    return "";
+  }
+}
+
 // Calls one of the Daily Brief SQL functions (sql/2026-11-16_brief_signups.sql)
 // through PostgREST. Returns the parsed result; throws on any failure so
 // callers never act on a write that didn't happen.
@@ -3629,11 +3640,13 @@ async function _briefRpc(env, fn, args) {
   const r = await _svcFetch(env, "rpc/" + fn, {
     method: "POST", body: JSON.stringify(args) });
   if (!r.ok) {
-    const body = (await r.text()).slice(0, 200);
-    const err = new Error("rpc " + fn + " " + r.status + " " + body);
-    // PostgREST answers 404 / PGRST202 when the function doesn't exist
-    // yet (the SQL file hasn't been run); 42883 is Postgres's own code.
-    err.missingFn = r.status === 404 || /PGRST202|42883/.test(body);
+    const raw = await r.text();
+    const err = new Error("rpc " + fn + " " + r.status + " " + raw.slice(0, 200));
+    // Only PostgREST's structured "function not found" error (JSON
+    // code PGRST202, sent when the SQL file hasn't been run yet) counts
+    // as a missing function. Any other failure, including an unrelated
+    // 404 or an error that merely mentions that code, stays a failure.
+    err.missingFn = _pgrstCode(raw) === "PGRST202";
     throw err;
   }
   const txt = await r.text();
@@ -3650,7 +3663,8 @@ async function _unsubscribeDirect(env, uid, em) {
   const patch = async function (path, body) {
     const r = await _svcFetch(env, path, { method: "PATCH",
       headers: { "Prefer": "return=minimal" }, body: JSON.stringify(body) });
-    return { ok: r.ok, status: r.status, text: r.ok ? "" : (await r.text()).slice(0, 200) };
+    const text = r.ok ? "" : await r.text();
+    return { ok: r.ok, status: r.status, code: _pgrstCode(text), text: text.slice(0, 200) };
   };
   if (uid) {
     const r = await patch("profiles?id=eq." + encodeURIComponent(uid),
@@ -3663,7 +3677,7 @@ async function _unsubscribeDirect(env, uid, em) {
   if (r.ok) return;
   // No unsubscribed_at column yet means the email-list brief can't be
   // running either (it needs the same SQL), so there is nothing to stop.
-  if (/PGRST204|42703/.test(r.text)) {
+  if (r.code === "PGRST204" || r.code === "42703") {
     console.warn("[unsubscribe] email_signups has no unsubscribed_at column yet; " +
       "nothing to stop for a list link");
     return;

@@ -349,6 +349,19 @@ globalThis.fetch = async function (url, init) {
       return new Response('{"code":"PGRST202","message":"Could not find the function public.' +
         m[1] + ' in the schema cache"}', { status: 404 });
     }
+    // an unrelated 404 (wrong project URL, proxy page, a missing table
+    // inside the function) must not look like "the function isn't there"
+    if (fail[m[1]] === "other404") {
+      return new Response('{"code":"42P01","message":"relation \\"x\\" does not exist"}',
+        { status: 404 });
+    }
+    if (fail[m[1]] === "html404") {
+      return new Response("<html>404 Not Found</html>", { status: 404 });
+    }
+    if (fail[m[1]] === "mentions") {
+      return new Response('{"code":"P0001","message":"PGRST202 42883 in a message"}',
+        { status: 404 });
+    }
     if (fail[m[1]]) return new Response('{"message":"boom"}', { status: fail[m[1]] });
     const res = rpc[m[1]](JSON.parse(init.body));
     return new Response(JSON.stringify(res), { status: 200 });
@@ -486,6 +499,11 @@ await run("nofn_email_nocol", new Request(unsubEmail),
   { fail: { brief_unsubscribe: "missing", no_unsub_col: true } });
 await run("nofn_patch_fails", new Request(unsubUser),
   { fail: { brief_unsubscribe: "missing", patch: 500 } });
+for (const mode of ["other404", "html404", "mentions"]) {
+  db.profiles.set(UID, true);
+  await run("unsub_" + mode, new Request(unsubUser), { fail: { brief_unsubscribe: mode } });
+  out["unsub_" + mode + "_profile"] = db.profiles.get(UID);
+}
 await run("nofn_signup", post({ email: "early@example.org" }, "9.9.8.1"),
   { fail: { brief_signup_claim: "missing" } });
 await run("nofn_confirm", new Request(link1), { fail: { brief_confirm: "missing" } });
@@ -670,6 +688,18 @@ def test_unsubscribe_works_before_the_sql_is_run(worker_run):
     assert worker_run["nofn_patch_fails"]["status"] == 500
     # other failures never fall back to direct writes
     assert not _calls(worker_run["unsub_fails"], "PATCH")
+
+
+@pytest.mark.parametrize("mode", ["other404", "html404", "mentions"])
+def test_unrelated_404_is_an_error_not_a_fallback(worker_run, mode):
+    # Only PostgREST's structured PGRST202 means "function not there yet".
+    # An unrelated 404, or a body that merely mentions the code, is a
+    # failure: error page, no direct write, and the brief stays on.
+    r = worker_run["unsub_" + mode]
+    assert r["status"] == 500, r["text"]
+    assert "unsubscribed" not in r["text"].lower()
+    assert not _calls(r, "PATCH")
+    assert worker_run["unsub_" + mode + "_profile"] is True
 
 
 def test_signup_and_confirm_fail_closed_before_the_sql_is_run(worker_run):
