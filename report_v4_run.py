@@ -211,12 +211,49 @@ def run(ticker, out_dir="out_v4", want_spy=True):
     }
 
 
+PRIVATE_UPLOAD_ATTEMPTS = 3
+PRIVATE_UPLOAD_RETRY_SECONDS = 5
+
+
+def _deliver(parts, user_id, ticker, attempts=None, wait=None):
+    """Ship the report files. With a user_id the report belongs to that
+    user: it goes to their private Storage only, retried a few times, and
+    if it still fails the job fails. It is NEVER published to the public
+    archive as a fallback (the privacy policy promises requested reports
+    stay private). Without a user_id (a manual/public run) the files go
+    to the public archive as before."""
+    import time
+
+    from report_archive import archive, upload_user_report
+
+    attempts = attempts or PRIVATE_UPLOAD_ATTEMPTS
+    wait = PRIVATE_UPLOAD_RETRY_SECONDS if wait is None else wait
+    for path, name, link in parts:
+        with open(path, "rb") as fh:
+            blob = fh.read()
+        if not user_id:
+            archive(blob, name)
+            print("  Archived publicly: %s" % name)
+            continue
+        for attempt in range(1, attempts + 1):
+            if upload_user_report(blob, name, user_id, ticker, "research", link=link):
+                break
+            if attempt < attempts:
+                print("  Private upload attempt %d/%d failed; retrying" % (attempt, attempts))
+                time.sleep(wait)
+        else:
+            raise SystemExit(
+                "private upload of %s failed after %d attempts; the report was NOT "
+                "published publicly (user-requested reports stay private)" % (name, attempts)
+            )
+
+
 def run_for_user(ticker, user_id="", out_dir=None):
     """CI entry point for a user-requested v4 report — the site's lookup
     path. Same contract research_live.run_for_user honoured for v3:
     build, refuse to ship anything that fails its own validation, then
-    upload core + appendix to the requester's private Storage, falling
-    back to the public archive. The validation JSON (with the PDF hashes
+    upload core + appendix to the requester's private Storage (never the
+    public archive; see _deliver). The validation JSON (with the PDF hashes
     it is bound to) ships beside them so a reader can prove the pair."""
     import datetime as dt
 
@@ -247,20 +284,7 @@ def run_for_user(ticker, user_id="", out_dir=None):
         (res["appendix"], "research_%s_%s_appendix.pdf" % (ticker, stamp), False),
         (res["validation"], "research_%s_%s_validation.json" % (ticker, stamp), False),
     ]
-    try:
-        from report_archive import archive, upload_user_report
-
-        for path, name, link in parts:
-            with open(path, "rb") as fh:
-                blob = fh.read()
-            uploaded = False
-            if user_id:
-                uploaded = upload_user_report(blob, name, user_id, ticker, "research", link=link)
-            if not uploaded:
-                archive(blob, name)
-                print("  Archived publicly: %s" % name)
-    except Exception as e:
-        print("  archive/upload failed: %s" % e)
+    _deliver(parts, user_id, ticker)
     return 0
 
 
@@ -288,7 +312,7 @@ def main():
     ap.add_argument(
         "--user-id",
         default="",
-        help="deliver to this user's private Storage (CI); falls back to the public archive",
+        help="deliver to this user's private Storage only (CI); the job fails if that upload fails",
     )
     ap.add_argument(
         "--for-user", action="store_true", help="run the site lookup path: build, gate, upload"
