@@ -38,6 +38,8 @@
 --     locked step, per user (the worker calls it before starting a report);
 --     a retry after a lost reply reuses the unstarted reservation instead
 --     of charging again (report_generations.dispatch_state);
+--   * td_claim_report() lets exactly one request start each reservation,
+--     so two requests that got the same reservation can't both start it;
 --   * td_redeem_promo() applies a promo code in one locked step, records
 --     every code each account has used (promo_redemptions), and refuses
 --     while a paid plan is active.
@@ -113,12 +115,24 @@ grant update (status) on public.report_generations to authenticated;
 
 -- 4b) dispatch_state: did the worker get this report started? -------------
 -- Written only by the worker (browsers can update `status` alone, above):
---   'reserved'           td_reserve_report made it; GitHub not reached yet
+--   'reserved'           td_reserve_report made it; nobody has claimed it
+--   'dispatching'        one worker request claimed it (td_claim_report)
+--                        and is asking GitHub to start it. Stays this way
+--                        if the worker can't record the outcome: charged,
+--                        and never handed out again.
 --   'dispatched'         GitHub accepted the start
 --   'dispatch_uncertain' no clear answer from GitHub; kept charged
--- Rows from before this script have NULL and are never reused.
+-- Only 'reserved' rows are ever reused. Rows from before this script have
+-- NULL and are never reused.
+-- claim_token / claimed_at: which worker request claimed the row, and when.
+-- The worker records the outcome (or refunds) only WHERE claim_token is its
+-- own, so one request can never mark or delete another request's row.
 alter table public.report_generations
   add column if not exists dispatch_state text;
+alter table public.report_generations
+  add column if not exists claim_token uuid;
+alter table public.report_generations
+  add column if not exists claimed_at timestamptz;
 
 -- 5) Promo history: every code each account has redeemed ----------------------
 -- Only the latest code used to be remembered (profiles.promo_code_redeemed),
@@ -160,13 +174,15 @@ on conflict (user_id, code) do nothing;
 --         {ok:false, code:'monthly_cap'|'lifetime_cap', tier, used, cap}.
 -- Retries are not charged twice: if this user already has a reservation
 -- for the same ticker and report type, made in the last 10 minutes, that
--- the worker never got started (dispatch_state = 'reserved', e.g. this
+-- no request has claimed yet (dispatch_state = 'reserved', e.g. this
 -- function's reply was lost on the way back), that row is returned again
--- ({..., reused:true}) instead of inserting a new one. Once the worker marks
--- a row 'dispatched' (or 'dispatch_uncertain') it is never reused, so a
--- genuine second report for the same ticker is charged as usual.
+-- ({..., reused:true}) instead of inserting a new one. Handing the same row
+-- to two requests is safe: each must then win td_claim_report, and only one
+-- can. A claimed row ('dispatching', 'dispatched', 'dispatch_uncertain') is
+-- never reused, so a genuine second report for the same ticker is charged
+-- as usual.
 -- The worker deletes the row again only if GitHub clearly refuses to start
--- the report (an HTTP 4xx answer).
+-- the report (an HTTP 4xx answer), and only while it still holds the claim.
 create or replace function public.td_reserve_report(
   p_user        uuid,
   p_ticker      text,
@@ -225,6 +241,7 @@ begin
     and ticker = p_ticker
     and report_type = p_report_type
     and dispatch_state = 'reserved'
+    and claim_token is null
     and created_at >= now() - interval '10 minutes'
   order by created_at desc
   limit 1;
@@ -261,6 +278,52 @@ $$;
 revoke all on function public.td_reserve_report(uuid, text, text)
   from public, anon, authenticated;
 grant execute on function public.td_reserve_report(uuid, text, text)
+  to service_role;
+
+-- 6b) td_claim_report: exactly one request may start a reservation ---------
+-- The worker calls this with a fresh random token after td_reserve_report
+-- and before asking GitHub. The UPDATE only matches a row still 'reserved',
+-- and Postgres serialises updates to one row, so of any number of callers
+-- exactly one gets the row back; the rest get {ok:false} and must not
+-- start the report. The worker then records GitHub's answer (dispatched /
+-- dispatch_uncertain) or refunds (delete) only WHERE claim_token is its own
+-- token, so it can never touch a row another request claimed.
+-- Returns {ok:true, id} or {ok:false, code:'not_claimable'}.
+create or replace function public.td_claim_report(
+  p_reservation_id uuid,
+  p_claim_token    uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id uuid;
+begin
+  if p_reservation_id is null or p_claim_token is null then
+    raise exception 'td_claim_report: invalid arguments' using errcode = '22023';
+  end if;
+
+  update public.report_generations
+     set dispatch_state = 'dispatching',
+         claim_token    = p_claim_token,
+         claimed_at     = now()
+   where id = p_reservation_id
+     and dispatch_state = 'reserved'
+     and claim_token is null
+  returning id into v_id;
+
+  if v_id is null then
+    return jsonb_build_object('ok', false, 'code', 'not_claimable');
+  end if;
+  return jsonb_build_object('ok', true, 'id', v_id);
+end;
+$$;
+
+revoke all on function public.td_claim_report(uuid, uuid)
+  from public, anon, authenticated;
+grant execute on function public.td_claim_report(uuid, uuid)
   to service_role;
 
 -- 7) td_redeem_promo: apply a promo code, atomically --------------------------

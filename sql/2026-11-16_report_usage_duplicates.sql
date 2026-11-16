@@ -27,7 +27,9 @@ join public.report_generations earlier
   on  earlier.user_id     = later.user_id
   and earlier.ticker      = later.ticker
   and earlier.report_type = later.report_type
-  and earlier.created_at  <  later.created_at
+  -- "earlier" sorts first: by time, and by id when both have the same
+  -- timestamp (rows written in one transaction share now()).
+  and (earlier.created_at, earlier.id) < (later.created_at, later.id)
   and earlier.created_at  >= later.created_at - interval '2 minutes'
 where later.created_at >= timestamptz '2026-11-01'
 order by later.created_at desc;
@@ -39,5 +41,5 @@ order by later.created_at desc;
 --   and exists (select 1 from public.report_generations l
 --               where l.user_id = r.user_id and l.ticker = r.ticker
 --                 and l.report_type = r.report_type
---                 and l.created_at > r.created_at
+--                 and (l.created_at, l.id) > (r.created_at, r.id)
 --                 and l.created_at <= r.created_at + interval '2 minutes');

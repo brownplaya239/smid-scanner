@@ -20,7 +20,9 @@ After it runs:
   and browsers can no longer delete their profile;
 - the worker reserves each report with `td_reserve_report()` before starting
   it: one locked database step that reads the plan, checks the cap and
-  records the report, so parallel requests can't slip past the cap;
+  records the report, so parallel requests can't slip past the cap; then
+  `td_claim_report()` lets exactly one request start each reservation, so a
+  double click or a retry can't start the same report twice;
 - promo codes are applied by `td_redeem_promo()`, which remembers every code
   each account has used (`promo_redemptions`) and refuses while a paid plan
   is active.

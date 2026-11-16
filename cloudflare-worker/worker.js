@@ -1450,9 +1450,10 @@ async function handlePromoRedeem(request, env, cors) {
  *  requests sent at once can't all pass the check: they queue on the
  *  lock and each sees the rows the earlier ones added.
  *  A retry is not charged twice: if this user already has a reservation
- *  for the same ticker from the last 10 minutes that never reached GitHub
+ *  for the same ticker from the last 10 minutes that nobody has claimed
  *  (dispatch_state still "reserved", e.g. Supabase's reply was lost), the
- *  function returns that one instead of adding another (see markReport).
+ *  function returns that one instead of adding another. Two requests may
+ *  get the same row back; claimReport makes sure only one starts it.
  *  Returns { ok: true, id, used, cap, tier } for a reservation,
  *  { ok: false, over: true, code, used, cap, tier } at the cap, or
  *  { ok: false, error } if no reservation could be made (the caller must
@@ -1476,15 +1477,47 @@ async function reserveReport(env, uid, ticker, reportType) {
   return { ok: false, error: "unexpected result code " + d.code };
 }
 
+/** Claim a reservation so that exactly one request starts it.
+ *  td_claim_report flips the row from "reserved" to "dispatching" and
+ *  stamps it with this request's random claim token, but only if it is
+ *  still "reserved", so of two requests holding the same reservation only
+ *  one gets it. Returns { ok: true } for the winner, { ok: false, taken:
+ *  true } if someone else already claimed it, or { ok: false, error } if
+ *  the database couldn't be asked (the caller must not start the report
+ *  in either failure case). */
+async function claimReport(env, rowId, token) {
+  const res = await callServiceRpc(env, "td_claim_report", {
+    p_reservation_id: rowId, p_claim_token: token,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  const d = res.data;
+  if (d.ok) {
+    if (d.id !== rowId) return { ok: false, error: "claim returned a different id" };
+    return { ok: true };
+  }
+  if (d.code === "not_claimable") return { ok: false, taken: true };
+  return { ok: false, error: "unexpected result code " + d.code };
+}
+
+/** The PostgREST filter for "this reservation, and only while this
+ *  request holds its claim". Every write after the claim uses it, so a
+ *  request can never mark or delete a row another request claimed. */
+function claimedRowFilter(env, uid, rowId, token) {
+  return env.SUPABASE_URL.replace(/\/+$/, "") +
+    "/rest/v1/report_generations?id=eq." + encodeURIComponent(rowId) +
+    "&user_id=eq." + encodeURIComponent(uid) +
+    "&claim_token=eq." + encodeURIComponent(token);
+}
+
 /** Undo a reservation when GitHub definitely refused to start the
- *  report (a 4xx answer), so it isn't charged against the cap.
- *  Best-effort; a failure is logged. */
-async function releaseReport(env, uid, rowId) {
-  if (!rowId) return;
+ *  report (a 4xx answer), so it isn't charged against the cap. Only
+ *  deletes the row while it is still "dispatching" under this request's
+ *  claim. Best-effort: if it fails, the row stays "dispatching" and
+ *  charged (never handed out again), and the failure is logged. */
+async function releaseReport(env, uid, rowId, token) {
   try {
-    const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/report_generations?id=eq." + encodeURIComponent(rowId) +
-      "&user_id=eq." + encodeURIComponent(uid), {
+    const r = await fetch(claimedRowFilter(env, uid, rowId, token) +
+      "&dispatch_state=eq.dispatching", {
       method: "DELETE",
       headers: {
         "apikey": env.SUPABASE_SERVICE_KEY,
@@ -1500,23 +1533,17 @@ async function releaseReport(env, uid, rowId) {
   }
 }
 
-/** Record what happened to a reservation's GitHub start, in
+/** Record what happened to a claimed reservation's GitHub start, in
  *  report_generations.dispatch_state (browsers can't write that column):
- *    "dispatched"         GitHub accepted it. td_reserve_report never
- *                         hands this row out again.
+ *    "dispatched"         GitHub accepted it.
  *    "dispatch_uncertain" no clear answer (network error, timeout, 5xx):
- *                         the report may be running, so it stays charged
- *                         and is never handed out again either.
- *  Only a row still "reserved" (the worker never got as far as GitHub,
- *  e.g. Supabase's reply was lost) is handed back on a retry. Best-effort:
- *  if this write fails the row stays "reserved", and the worst case is
- *  one uncharged repeat of the same ticker within 10 minutes. */
-async function markReport(env, uid, rowId, state) {
-  if (!rowId) return;
+ *                         the report may be running, so it stays charged.
+ *  Only this request's own claim is updated. Best-effort: if the write
+ *  fails the row stays "dispatching", which is also charged and never
+ *  handed out again, so a failure here can't give anyone a free report. */
+async function markReport(env, uid, rowId, token, state) {
   try {
-    const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/report_generations?id=eq." + encodeURIComponent(rowId) +
-      "&user_id=eq." + encodeURIComponent(uid), {
+    const r = await fetch(claimedRowFilter(env, uid, rowId, token), {
       method: "PATCH",
       headers: {
         "apikey": env.SUPABASE_SERVICE_KEY,
@@ -5144,8 +5171,11 @@ export default {
     //   1. the Supabase access token is verified (requireUser),
     //   2. the plan is read, and
     //   3. a usage row is reserved under the cap (td_reserve_report does
-    //      2 + 3 in one locked database step; see reserveReport).
-    // Any failure there answers 401 / 429 / 503 and dispatches nothing.
+    //      2 + 3 in one locked database step; see reserveReport), and
+    //   4. this request wins the claim on that row (td_claim_report), so
+    //      two requests holding the same reservation can't both start it.
+    // Any failure there answers 401 / 409 / 429 / 503 and dispatches
+    // nothing.
     //
     // SECURITY (2026-08 audit): anonymous POSTs used to skip every check.
     // SECURITY (2026-11, PR #8): the cap check and the usage write used
@@ -5230,6 +5260,25 @@ export default {
         { status: 503, headers: cors });
     }
 
+    // Claim the reservation with a fresh random token. Only the winner
+    // asks GitHub; everything written afterwards is scoped to the token.
+    const claimToken = crypto.randomUUID();
+    const claim = await claimReport(env, reservation.id, claimToken);
+    if (!claim.ok) {
+      if (claim.taken) {
+        return Response.json(
+          { ok: false, code: "already_starting",
+            error: "This report is already being started. Check My " +
+              "Reports in a few minutes." },
+          { status: 409, headers: cors });
+      }
+      console.log("report claim failed (fail-closed):", claim.error);
+      return Response.json(
+        { ok: false, error: "Report service temporarily unavailable. " +
+            "Try again in a minute.", code: "quota_unavailable" },
+        { status: 503, headers: cors });
+    }
+
     // Trigger the GitHub workflow_dispatch — ref is "master" (this repo's branch).
     // Only a clear refusal (4xx) un-charges the reservation. With no clear
     // answer (network error, timeout, 5xx) GitHub may already have started
@@ -5238,7 +5287,8 @@ export default {
     // start a second one.
     const uncertain = function (why) {
       console.log("report dispatch uncertain (kept charged): " + why);
-      return markReport(env, reqUserId, reservation.id, "dispatch_uncertain")
+      return markReport(env, reqUserId, reservation.id, claimToken,
+        "dispatch_uncertain")
         .then(function () {
           return Response.json(
             { ok: false, code: "dispatch_uncertain",
@@ -5270,14 +5320,15 @@ export default {
     }
 
     if (ghResp.ok) {
-      await markReport(env, reqUserId, reservation.id, "dispatched");
+      await markReport(env, reqUserId, reservation.id, claimToken,
+        "dispatched");
       return Response.json({ ok: true, ticker }, { headers: cors });
     }
     if (ghResp.status < 400 || ghResp.status >= 500) {
       return uncertain("GitHub HTTP " + ghResp.status);
     }
     // GitHub refused it (4xx), so the report never started: un-charge it.
-    await releaseReport(env, reqUserId, reservation.id);
+    await releaseReport(env, reqUserId, reservation.id, claimToken);
     const detail = await ghResp.text();
     let hint = "";
     if (ghResp.status === 404) {

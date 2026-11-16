@@ -18360,9 +18360,12 @@
           if (typeof refreshPlanState === "function") {
             refreshPlanState().catch(function () {});
           }
-        } else if (data.code === "dispatch_uncertain") {
-          // GitHub gave no clear answer: the report may be running (and
-          // it is counted), so don't present this as a failure.
+        } else if (data.code === "dispatch_uncertain" ||
+                   data.code === "already_starting") {
+          // GitHub gave no clear answer, or another request (a double
+          // click, a second tab) is already starting this report: it may
+          // be running (and it is counted), so don't present this as a
+          // failure.
           setStatus("working", data.error);
           button.disabled = false;
         } else if (resp.status === 429 && data.code) {
