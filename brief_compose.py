@@ -740,12 +740,33 @@ def oi_state(contract, now_et=None):
             state=CONF_PENDING, reason="the open-interest reading predates the confirmation window"
         )
         return info
-    info.update(
-        state=CONF_YES if delta > 0 else CONF_NO,
-        reason=("open interest rose %+d after the print" % delta)
-        if delta > 0
-        else ("open interest did not rise (%+d) after the print" % delta),
-    )
+    # the site's OI-confirmed rule: at least half the print showed up as
+    # new open interest next morning (carryover_flow.oi_confirmed)
+    import carryover_flow as CF
+
+    size = contract.get("volume")
+    ok = CF.oi_confirmed(delta, size)
+    if ok is None:
+        info.update(
+            state=CONF_PENDING,
+            reason="open interest rose %+d but the print size is unknown" % delta,
+        )
+    elif ok:
+        info.update(
+            state=CONF_YES,
+            reason="open interest rose %+d after a %d-contract print: at least half "
+            "the print showed up as new open interest" % (delta, size),
+        )
+    else:
+        info.update(
+            state=CONF_NO,
+            reason=(
+                "open interest rose only %+d after a %d-contract print: less than half "
+                "the print showed up as new open interest" % (delta, size)
+            )
+            if delta > 0
+            else ("open interest did not rise (%+d) after the print" % delta),
+        )
     return info
 
 
@@ -885,18 +906,28 @@ def classify_flow(contracts):
                 else "; the confirmation window is still open"
             )
         elif conf == n:
-            explain += ", each confirmed by a rise in open interest"
+            explain += (
+                "; at least half the print showed up as new open interest next morning"
+                if n == 1
+                else "; for each, at least half the print showed up as new open "
+                "interest next morning"
+            )
         elif conf and fail:
-            explain += "; open interest rose behind %s and fell behind %s" % (
-                _WORDS[conf] if conf < len(_WORDS) else conf,
-                _WORDS[fail] if fail < len(_WORDS) else fail,
+            explain += (
+                "; at least half the print showed up as new open interest next "
+                "morning for %s, less than half for %s"
+                % (
+                    _WORDS[conf] if conf < len(_WORDS) else conf,
+                    _WORDS[fail] if fail < len(_WORDS) else fail,
+                )
             )
         elif conf:
-            explain += "; open interest rose behind %s of them" % (
-                _WORDS[conf] if conf < len(_WORDS) else conf
+            explain += (
+                "; at least half the print showed up as new open interest next "
+                "morning for %s of them" % (_WORDS[conf] if conf < len(_WORDS) else conf)
             )
         elif fail:
-            explain += "; open interest did not rise behind %s" % (
+            explain += "; less than half the print showed up as new open interest for %s" % (
                 "either" if fail == 2 else "it" if fail == 1 else "any of them"
             )
         if pend and pend < n:
@@ -1275,10 +1306,25 @@ def self_test():
     chk("today's print with no OI reading is OI PENDING", pend["state"] == CONF_PENDING, pend)
     chk("pending state names when the test becomes eligible", "ET" in (pend["reason"] or ""), pend)
     done = oi_state(
-        {"printed_at": "2026-07-20T19:44:00Z", "oi_as_of": "2026-07-21T14:00:00Z", "oi_delta": 900},
+        {
+            "printed_at": "2026-07-20T19:44:00Z",
+            "oi_as_of": "2026-07-21T14:00:00Z",
+            "oi_delta": 900,
+            "volume": 1000,
+        },
         now,
     )
-    chk("a real OI rise confirms", done["state"] == CONF_YES, done)
+    chk("an OI rise of at least half the print confirms", done["state"] == CONF_YES, done)
+    thin = oi_state(
+        {
+            "printed_at": "2026-07-20T19:44:00Z",
+            "oi_as_of": "2026-07-21T14:00:00Z",
+            "oi_delta": 400,
+            "volume": 1000,
+        },
+        now,
+    )
+    chk("an OI rise under half the print is UNCONFIRMED", thin["state"] == CONF_NO, thin)
     miss = oi_state(
         {"printed_at": "2026-07-20T19:44:00Z", "oi_as_of": "2026-07-21T14:00:00Z", "oi_delta": -5},
         now,

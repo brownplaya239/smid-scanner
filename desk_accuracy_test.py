@@ -144,3 +144,72 @@ def test_confirmed_count_counts_passed_checks_not_settled_oi(monkeypatch):
     meta = next(c for c in out["contracts"] if c["ticker"] == "META")
     # held ~100% and "beyond the print" is about zero: nobody else joined
     assert meta["held"] is True and meta["net_new_oi"] == -4
+
+
+# Review fixes, round 2 -----------------------------------------------------
+def test_llc_and_lp_names_are_stocks_but_commodity_pools_are_funds():
+    for name in (
+        "Vanguard Natural Resources LLC",
+        "Global X Partners, L.P.",
+        "Invesco Mortgage Holdings L.L.C.",
+        "VanEck Resources LP",
+    ):
+        assert not is_fund("ABCD", name), name
+    assert is_fund("USO", "United States Oil Fund, LP")
+    assert is_fund("UNG", "United States Natural Gas Fund LP")
+
+
+def test_meta_cache_without_security_type_is_refetched():
+    import datetime as dt
+
+    today = dt.date(2026, 11, 16)
+    old = {"fetched": "2026-11-10", "market_cap": 5e9, "name": "X"}
+    assert not swing_report._meta_is_fresh(old, today)  # pre-dates "type"
+    assert swing_report._meta_is_fresh(dict(old, type="CS"), today)
+    assert swing_report._meta_is_fresh(dict(old, type=""), today)  # Polygon had none
+
+
+def test_oi_confirmed_rule_is_half_the_print():
+    f = carryover_flow.oi_confirmed
+    assert f(500, 1000) is True  # exactly half
+    assert f(499, 1000) is False
+    assert f(0, 1000) is False and f(-50, 1000) is False
+    assert f(-50, None) is False  # OI fell: fails whatever the size
+    assert f(900, None) is None  # rose, but the print size is unknown
+    assert f(None, 1000) is None  # no reading yet
+
+
+def test_daily_brief_uses_the_same_oi_rule():
+    import datetime as dt
+
+    import brief_adapters
+    import brief_compose
+    import brief_time
+
+    # OI rose, but by only 1% of the print: the site says not confirmed, so
+    # the brief must too (it used to say CONFIRMED for any rise)
+    thin = brief_adapters._contract({"ticker": "X", "type": "call", "oi_delta": 10, "volume": 1000})
+    assert thin["oi_confirmed"] is False and thin["status"] == "failed"
+    held = brief_adapters._contract(
+        {"ticker": "X", "type": "call", "oi_delta": 600, "volume": 1000}
+    )
+    assert held["oi_confirmed"] is True and held["status"] == "confirmed"
+
+    now = dt.datetime(2026, 7, 22, 9, 0, tzinfo=brief_time.ET)
+    base = {"printed_at": "2026-07-20T19:44:00Z", "oi_as_of": "2026-07-21T14:00:00Z"}
+    st = brief_compose.oi_state(dict(base, oi_delta=10, volume=1000), now)
+    assert st["state"] == brief_compose.CONF_NO
+    st = brief_compose.oi_state(dict(base, oi_delta=600, volume=1000), now)
+    assert st["state"] == brief_compose.CONF_YES
+    assert "at least half the print" in st["reason"]
+
+    flow = brief_compose.classify_flow(
+        [
+            {"side": "call_buy", "status": "confirmed"},
+            {"side": "call_buy", "status": "confirmed"},
+        ]
+    )
+    assert (
+        "at least half the print showed up as new open interest next morning" in (flow["explain"])
+    )
+    assert "rise in open interest" not in flow["explain"]
