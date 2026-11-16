@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="Does options flow actually work? We track every signal we publish (33,235 so far) and grade them against real closes. The honest numbers: averages, win rates, ranges, and what doesn't work." />
+<meta name="description" content="Does options flow actually work? We track every signal we publish (33,247 so far) and grade them against real closes. The honest numbers: averages, win rates, ranges, and what doesn't work." />
 <link rel="icon" href="favicon.png" />
 <link rel="canonical" href="https://tickerdesk.io/transparency" />
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="TickerDesk" />
 <meta property="og:title" content="Does Options Flow Work? Our Self-Graded Numbers — TickerDesk" />
-<meta property="og:description" content="33,235 alerts tracked, graded against real closes. Averages, win rates, 95% ranges, and the cohorts that don't work, published, not hidden." />
+<meta property="og:description" content="33,247 alerts tracked, graded against real closes. Averages, win rates, 95% ranges, and the cohorts that don't work, published, not hidden." />
 <meta property="og:url" content="https://tickerdesk.io/transparency" />
 <meta property="og:image" content="https://tickerdesk.io/og-image.jpg" />
 <title>Does Options Flow Work? Our Self-Graded Numbers — TickerDesk</title>
@@ -58,15 +58,15 @@
   <h1>Does options flow actually work?</h1>
   <p class="sub">Numbers as of November 16, 2026 &middot; rebuilt from the live data every weeknight &middot; the <a href="/#uoa">live Performance dashboard</a> updates more often &middot; every figure is self-graded against real closing prices, never estimated</p>
 
-  <p>Most options-flow products show you the winners. We log <b>every</b> alert our scanner publishes (33,235 so far), wait for real market closes, and grade all of them. Wins, losses, and the cohorts that turned out to be noise. One alert is a contract's first flag of the day; repeat scans of the same contract are folded in. Results measure the underlying stock against SPY, in the flow's direction (a bought put counts as a bet on the stock falling), not option P&amp;L.</p>
+  <p>Most options-flow products show you the winners. We log <b>every</b> alert our scanner publishes (33,247 so far), wait for real market closes, and grade all of them. Wins, losses, and the cohorts that turned out to be noise. One alert is a contract's first flag of the day; repeat scans of the same contract are folded in. Results measure the underlying stock against SPY, in the flow's direction (a bought put counts as a bet on the stock falling), not option P&amp;L.</p>
 
   <h2>The headline, honestly</h2>
-  <div class="stat-grid"><div class="stat"><b>33,235</b><span>alerts tracked since May 18, 2026</span></div><div class="stat"><b>20,402</b><span>matured &amp; graded at the +5-day horizon</span></div><div class="stat"><b>&minus;0.23%</b><span>average +5d excess return vs SPY, in the flow's direction &middot; 95% range &minus;0.51% to +0.05%</span></div><div class="stat"><b>48%</b><span>win rate &middot; winners average +6.99%, losers &minus;6.91% &middot; profit factor 0.94</span></div></div>
+  <div class="stat-grid"><div class="stat"><b>33,247</b><span>alerts tracked since May 18, 2026</span></div><div class="stat"><b>20,402</b><span>matured &amp; graded at the +5-day horizon</span></div><div class="stat"><b>&minus;0.23%</b><span>average +5d excess return vs SPY, in the flow's direction &middot; 95% range &minus;0.50% to +0.05%</span></div><div class="stat"><b>48%</b><span>win rate &middot; winners average +6.99%, losers &minus;6.91% &middot; profit factor 0.94</span></div></div>
   <p><b>Translation: buying every flow signal blindly is a coin flip.</b> The average is not distinguishable from zero. We publish that because it's true, and because it's the honest baseline that makes the cohort numbers below meaningful instead of marketing.</p>
 
   <h2>By cohort</h2>
   <p>The signal isn't "flow good." The question is <i>which</i> flow, and whether the difference is bigger than the noise. Each row is the +5-day stock move vs SPY in the flow's direction, with its 95% range. A range that includes zero means we can't tell the result apart from luck.</p>
-  <table><tr><th>Cohort</th><th>Win rate</th><th>Avg +5d vs SPY</th><th>95% range</th><th>Read</th><th>n</th></tr><tr><td>Golden sweeps ($1M+ buy-side sweeps)</td><td>47%</td><td>&minus;0.48%</td><td>&minus;1.13% to +0.17%</td><td>not distinguishable from zero</td><td>2,468</td></tr><tr><td>Flow into earnings</td><td>48%</td><td>+0.07%</td><td>&minus;0.44% to +0.59%</td><td>not distinguishable from zero</td><td>4,758</td></tr><tr><td>Expiries 15&ndash;90 days out</td><td>49%</td><td>+0.04%</td><td>&minus;0.28% to +0.37%</td><td>not distinguishable from zero</td><td>4,828</td></tr><tr><td>Expiries 3&ndash;12 months out</td><td>49%</td><td>&minus;0.26%</td><td>&minus;0.76% to +0.24%</td><td>not distinguishable from zero</td><td>1,799</td></tr><tr><td>Repeat buyers</td><td>50%</td><td>&minus;0.02%</td><td>&minus;0.66% to +0.62%</td><td>not distinguishable from zero</td><td>1,803</td></tr><tr><td>Top-scored alerts (score 80+)</td><td>49%</td><td>+0.13%</td><td>&minus;1.15% to +1.42%</td><td>not distinguishable from zero</td><td>263</td></tr></table>
+  <table><tr><th>Cohort</th><th>Win rate</th><th>Avg +5d vs SPY</th><th>95% range</th><th>Read</th><th>n</th></tr><tr><td>Golden sweeps ($1M+ buy-side sweeps)</td><td>47%</td><td>&minus;0.48%</td><td>&minus;1.13% to +0.17%</td><td>not distinguishable from zero</td><td>2,468</td></tr><tr><td>Flow into earnings</td><td>48%</td><td>+0.08%</td><td>&minus;0.44% to +0.59%</td><td>not distinguishable from zero</td><td>4,758</td></tr><tr><td>Expiries 15&ndash;90 days out</td><td>49%</td><td>+0.04%</td><td>&minus;0.28% to +0.37%</td><td>not distinguishable from zero</td><td>4,828</td></tr><tr><td>Expiries 3&ndash;12 months out</td><td>49%</td><td>&minus;0.26%</td><td>&minus;0.76% to +0.25%</td><td>not distinguishable from zero</td><td>1,799</td></tr><tr><td>Repeat buyers</td><td>50%</td><td>&minus;0.02%</td><td>&minus;0.66% to +0.62%</td><td>not distinguishable from zero</td><td>1,803</td></tr><tr><td>Top-scored alerts (score 80+)</td><td>49%</td><td>+0.14%</td><td>&minus;1.15% to +1.42%</td><td>not distinguishable from zero</td><td>263</td></tr></table>
 
   <h2>Does the flow itself add anything?</h2>
   <p>Part of any result is simply how the flagged stocks drifted that week. Our research engine splits each book into that drift and the part the flow's direction adds on top:</p>

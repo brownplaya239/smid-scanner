@@ -212,3 +212,93 @@ def test_publish_and_pages_build_regenerate_transparency():
         assert "docs/transparency.html" in f.read()
     with open(os.path.join(ROOT, ".github", "workflows", "pages.yml"), encoding="utf-8") as f:
         assert "landing_pages.py" in f.read()
+
+
+XSS = "<img src=x onerror=alert(1)>"
+
+
+def _poison(obj):
+    """Every number in obj replaced by the injection string."""
+    if isinstance(obj, dict):
+        return {k: _poison(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_poison(v) for v in obj]
+    if isinstance(obj, (int, float)) and not isinstance(obj, bool):
+        return XSS
+    return obj
+
+
+def test_injected_win_rate_never_reaches_the_page(build):
+    edge = json.loads(json.dumps(EDGE))
+    edge["rich_overall"]["5"]["win_rate"] = XSS
+    edge["rich_overall"]["5"]["profit_factor"] = XSS
+    pages = build({**FULL, "uoa_edge.json": edge})
+    t = pages["transparency"]
+    assert "<img" not in t and "onerror" not in t
+    assert "<span>win rate" not in t  # the stat is omitted, not shown broken
+    assert "&minus;0.23%" in t  # the valid numbers still publish
+    assert "<img" not in pages["options-flow-scanner"]
+
+
+def test_every_numeric_field_poisoned_publishes_nothing_unsafe(build):
+    files = {name: _poison(obj) for name, obj in FULL.items()}
+    pages = build(files)
+    for name, html in pages.items():
+        assert "<img" not in html and "onerror" not in html, name
+        assert "None" not in html and not re.search(r"\bnan\b", html, re.IGNORECASE), name
+
+
+def test_non_finite_numbers_are_omitted(build):
+    edge = json.loads(json.dumps(EDGE))
+    edge["rich_overall"]["5"]["win_rate"] = float("inf")
+    edge["total_signals"] = float("nan")
+    t = build({**FULL, "uoa_edge.json": edge})["transparency"]
+    assert "inf%" not in t and "<span>win rate" not in t
+    assert not re.search(r"\bnan\b", t, re.IGNORECASE)
+    assert "33,235" not in t
+
+
+@pytest.mark.parametrize(
+    ("overall", "present", "absent"),
+    [
+        (
+            {"status": "active", "ev": -1.81},
+            ["averaged &minus;1.81%"],
+            ["None", "?", "won", "sessions", "graded"],
+        ),
+        (
+            {"status": "active", "ev": -1.81, "win_rate": 43},
+            ["won 43% of the time with a &minus;1.81% average"],
+            ["None", "sessions", "graded"],
+        ),
+        (
+            {"status": "active", "ev": -1.81, "n": 1484},
+            ["averaged &minus;1.81% (1,484 graded)"],
+            ["None", "sessions"],
+        ),
+        (
+            {"status": "active", "ev": -1.81, "hold_d": 10, "win_rate": "x"},
+            ["averaged &minus;1.81% over the next 10 sessions."],
+            ["None", "x%", "graded"],
+        ),
+    ],
+)
+def test_partial_momentum_record_renders_only_present_clauses(build, overall, present, absent):
+    t = build({**FULL, "scan_outcomes.json": {"overall": overall}})["transparency"]
+    li = re.search(r"Momentum lists fade\.</b>([^<]*)</li>", t).group(1)
+    for s in present:
+        assert s in li, li
+    for s in absent:
+        assert s not in li, li
+
+
+def test_partial_attribution_and_oi_omit_missing_fields(build):
+    research = json.loads(json.dumps(RESEARCH))
+    del research["attribution"]["books"]["put_buy"]["n"]
+    edge = json.loads(json.dumps(EDGE))
+    edge["oi_confirmation"] = {"confirm_rate": 41}
+    pages = build({**FULL, "uoa_research.json": research, "uoa_edge.json": edge})
+    t = pages["transparency"]
+    assert "Puts bought</b>: 54% beat SPY" in t and "(?" not in t
+    for html in pages.values():
+        assert "<b></b>alerts OI-checked" not in html

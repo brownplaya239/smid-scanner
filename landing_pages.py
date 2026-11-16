@@ -14,6 +14,7 @@ callouts track the latest ledger. Pure static output — no client JS.
 
 import itertools
 import json
+import math
 import os
 import re
 import sys
@@ -35,18 +36,25 @@ def _load(path, default=None):
         return {} if default is None else default
 
 
-def _fmt_int(n):
-    try:
-        return f"{int(n):,}"
-    except Exception:
-        return None
-
-
 def _num(v):
-    """v as a float, or None for anything that is not a real number."""
-    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v:
+    """v as a float, or None for anything that is not a finite real number.
+
+    Every published stat goes through this: a string, NaN or infinity in the
+    data means the stat is left out, never pasted into the page."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
         return None
     return float(v)
+
+
+def _fmt_int(n):
+    """'6,951' for a finite number, else None."""
+    v = _num(n)
+    return None if v is None else f"{int(v):,}"
+
+
+def _numtxt(v):
+    """A finite number as plain text ('54', '0.66'), else None."""
+    return None if _num(v) is None else str(v)
 
 
 def _pct(v, dp=2):
@@ -139,29 +147,35 @@ def edge_stat():
     ro = (EDGE.get("rich_overall") or {}).get("5") or {}
     oi = EDGE.get("oi_confirmation") or {}
     out = {}
-    if EDGE.get("total_signals"):
+    # Only finite numbers get in; anything else (a string, NaN, a stray
+    # HTML snippet) drops the stat. Text values are pre-formatted here.
+    if _num(EDGE.get("total_signals")):
         out["total"] = _fmt_int(EDGE["total_signals"])
-    if EDGE.get("matured_5d"):
+    if _num(EDGE.get("matured_5d")):
         out["matured"] = _fmt_int(EDGE["matured_5d"])
     if _num(ro.get("ev")) is not None:
         out["ev"] = ro["ev"]
-    if ro.get("win_rate") is not None:
-        out["win"] = ro["win_rate"]
-    if ro.get("profit_factor") is not None:
-        out["pf"] = ro["profit_factor"]
+    if _numtxt(ro.get("win_rate")) is not None:
+        out["win"] = _numtxt(ro["win_rate"])
+    if _numtxt(ro.get("profit_factor")) is not None:
+        out["pf"] = _numtxt(ro["profit_factor"])
     if _ci_bounds(ro.get("ci95")):
         out["ci"] = ro["ci95"]
-    if oi.get("confirm_rate") is not None:
-        out["oi_rate"] = oi["confirm_rate"]
-    if oi.get("checked"):
+    if _numtxt(oi.get("confirm_rate")) is not None:
+        out["oi_rate"] = _numtxt(oi["confirm_rate"])
+    if _num(oi.get("checked")):
         out["oi_checked"] = _fmt_int(oi["checked"])
     gs = (EDGE.get("by_type") or {}).get("golden_sweep") or {}
     grich = gs.get("rich") or {}
-    if grich.get("status") == "active" and grich.get("n") and _num(grich.get("ev")) is not None:
+    if (
+        grich.get("status") == "active"
+        and _num(grich.get("n"))
+        and _num(grich.get("ev")) is not None
+    ):
         out["gs"] = grich
-    if LEVELS.get("sessions"):
+    if _num(LEVELS.get("sessions")):
         out["lvl_sessions"] = LEVELS["sessions"]
-    if TOP25.get("universe_total"):
+    if _num(TOP25.get("universe_total")):
         out["universe"] = _fmt_int(TOP25["universe_total"])
     asof = _date_of(EDGE.get("generated"))
     if asof:
@@ -352,9 +366,9 @@ def _flow_callout():
         + "</b>avg +5d stock excess vs SPY, direction-adjusted</div>"
         + (
             "<div><b>"
-            + str(ST["win"])
+            + ST["win"]
             + "%</b>win rate"
-            + (" · PF " + str(ST["pf"]) if ST.get("pf") is not None else "")
+            + (" · PF " + ST["pf"] if ST.get("pf") is not None else "")
             + "</div>"
             if ST.get("win") is not None
             else ""
@@ -383,11 +397,15 @@ def _gs_callout():
         "in the sweep's direction</div>"
         + (
             "<div><b>"
-            + str(g["win_rate"])
+            + _numtxt(g.get("win_rate"))
             + "%</b>win rate"
-            + (" · PF " + str(g["profit_factor"]) if g.get("profit_factor") is not None else "")
+            + (
+                " · PF " + _numtxt(g.get("profit_factor"))
+                if _numtxt(g.get("profit_factor")) is not None
+                else ""
+            )
             + "</div>"
-            if g.get("win_rate") is not None
+            if _numtxt(g.get("win_rate")) is not None
             else ""
         )
         + "</div>"
@@ -408,9 +426,14 @@ def _oi_callout():
         return None
     return (
         '<div class="stat-row">'
-        "<div><b>" + str(ST["oi_rate"]) + "%</b>of alerts confirmed by "
+        "<div><b>" + ST["oi_rate"] + "%</b>of alerts confirmed by "
         "next-day open interest</div>"
-        "<div><b>" + str(ST.get("oi_checked", "")) + "</b>alerts OI-checked</div></div>"
+        + (
+            "<div><b>" + ST["oi_checked"] + "</b>alerts OI-checked</div>"
+            if ST.get("oi_checked")
+            else ""
+        )
+        + "</div>"
     )
 
 
@@ -796,16 +819,16 @@ def _signed(v, fmt):
 
 
 def _cohort_row(label, rich):
-    if not rich or rich.get("status") != "active" or not rich.get("n"):
+    if not rich or rich.get("status") != "active" or not _num(rich.get("n")):
         return ""
-    ev = _pct(rich.get("ev"))
-    if ev is None or rich.get("win_rate") is None:
+    ev, win = _pct(rich.get("ev")), _numtxt(rich.get("win_rate"))
+    if ev is None or win is None:
         return ""
     return (
         "<tr><td>"
         + label
         + "</td><td>"
-        + str(rich["win_rate"])
+        + win
         + "%</td><td>"
         + ev
         + "</td><td>"
@@ -842,8 +865,8 @@ def _t_headline():
                 "winners average " + _pct(ro["avg_win"]) + ", losers " + _pct(ro["avg_loss"])
             )
         if ST.get("pf") is not None:
-            bits.append("profit factor " + str(ST["pf"]))
-        tiles.append((str(ST["win"]) + "%", "win rate" + "".join(" &middot; " + b for b in bits)))
+            bits.append("profit factor " + ST["pf"])
+        tiles.append((ST["win"] + "%", "win rate" + "".join(" &middot; " + b for b in bits)))
     if not tiles:
         return ""
     html = (
@@ -906,9 +929,9 @@ def _t_attribution():
         items.append(
             "<li><b>"
             + label
-            + "</b> ("
-            + (_fmt_int(b.get("n")) or "?")
-            + " alerts): "
+            + "</b>"
+            + (" (" + _fmt_int(b.get("n")) + " alerts)" if _fmt_int(b.get("n")) else "")
+            + ": "
             + (str(round(hit)) + "% beat SPY in the flow's direction, " if hit is not None else "")
             + _pct(b["dir_ev"])
             + " average vs SPY. After removing that day's drift of all "
@@ -946,7 +969,7 @@ def _t_doesnt_work():
     items = []
     ic = EDGE.get("ic") or {}
     icv = _num(ic.get("ic_spearman"))
-    if icv is not None and ic.get("n"):
+    if icv is not None and _num(ic.get("n")):
         dec = EDGE.get("score_deciles") or {}
         tmb = _num(dec.get("top_minus_bottom"))
         items.append(
@@ -994,7 +1017,7 @@ def _t_doesnt_work():
             + ".</li>"
         )
     surv = HLAB.get("survivors")
-    if HLAB.get("status") == "active" and HLAB.get("n_tested") and isinstance(surv, list):
+    if HLAB.get("status") == "active" and _num(HLAB.get("n_tested")) and isinstance(surv, list):
         mt = HLAB.get("multiple_testing") or {}
         ran = _date_of(HLAB.get("generated"))
         items.append(
@@ -1005,7 +1028,7 @@ def _t_doesnt_work():
             + " survived"
             + (
                 " and " + _fmt_int(HLAB["graveyard"]) + " are in the graveyard"
-                if HLAB.get("graveyard") is not None
+                if _fmt_int(HLAB.get("graveyard")) is not None
                 else ""
             )
             + "."
@@ -1013,7 +1036,7 @@ def _t_doesnt_work():
                 " After correcting for testing so many, "
                 + _fmt_int(mt["bh_survivors"])
                 + (" still passes." if mt["bh_survivors"] == 1 else " still pass.")
-                if mt.get("bh_survivors") is not None
+                if _fmt_int(mt.get("bh_survivors")) is not None
                 else ""
             )
             + " Survivors are candidates for review, not proven signals."
@@ -1022,19 +1045,24 @@ def _t_doesnt_work():
         )
     ov = SCANS.get("overall") or {}
     if ov.get("status") == "active" and _pct(ov.get("ev")) is not None:
+        # Each clause needs its own source field; a missing one is left out.
+        win, hold, n = (
+            _numtxt(ov.get("win_rate")),
+            _fmt_int(ov.get("hold_d")),
+            _fmt_int(ov.get("n")),
+        )
         items.append(
             "<li><b>"
             + ("Momentum lists fade." if ov["ev"] < 0 else "Momentum lists.")
-            + "</b> Names on the QM Monthly and Stockbee Weekly "
-            "lists won "
-            + str(ov.get("win_rate"))
-            + "% of the time with a "
-            + _pct(ov["ev"])
-            + " average over the next "
-            + str(ov.get("hold_d") or 5)
-            + " sessions ("
-            + (_fmt_int(ov.get("n")) or "?")
-            + " graded).</li>"
+            + "</b> Names on the QM Monthly and Stockbee Weekly lists "
+            + (
+                "won " + win + "% of the time with a " + _pct(ov["ev"]) + " average"
+                if win
+                else "averaged " + _pct(ov["ev"])
+            )
+            + (" over the next " + hold + " sessions" if hold and hold != "0" else "")
+            + (" (" + n + " graded)" if n else "")
+            + ".</li>"
         )
     if not items:
         return ""
@@ -1155,7 +1183,7 @@ def transparency_html():
 </html>
 """.format(
         desc=esc(desc).replace('"', "&quot;"),
-        og=og.replace('"', "&quot;"),
+        og=esc(og).replace('"', "&quot;"),
         site=SITE,
         css=T_CSS,
         sub=sub,
