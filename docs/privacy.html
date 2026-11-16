@@ -100,11 +100,15 @@
 
   <h2>Third parties we use</h2>
   <p>These services process data on our behalf, only to run the features
-  described here.</p>
+  described here. Most of the app's requests go through our Cloudflare
+  worker, but your browser also connects directly to Supabase (sign-in
+  and your saved data), TradingView (the Charts tab) and unpkg (a charting
+  library file), so those services see your IP address too.</p>
   <ul>
     <li><b>Supabase</b> — hosts our database, file storage for your
       private reports, and user authentication. Your account, watchlist,
-      journal, notes and reports live here.</li>
+      journal, notes and reports live here. Your browser connects to it
+      directly, so it sees your IP address.</li>
     <li><b>Stripe</b> — handles checkout, billing and the billing portal.
       Stripe receives your email address, your TickerDesk user ID and your
       payment details. We never see your full card number.</li>
@@ -118,9 +122,19 @@
       ticker and your TickerDesk user ID (not your email) so the PDF can
       be filed to your account.</li>
     <li><b>Cloudflare</b> — provides DNS, CDN, data storage for published
-      reports, and an edge worker that every request from the app passes
-      through. They see your IP address as the requester, as any CDN
-      does.</li>
+      reports, and the edge worker that most of the app's requests pass
+      through (not the direct connections to Supabase, TradingView and
+      unpkg listed here). They see your IP address as the requester, as
+      any CDN does.</li>
+    <li><b>TradingView</b> — the interactive chart on the Charts tab is
+      TradingView's widget, loaded straight from TradingView into your
+      browser. TradingView receives the symbol you chart and your IP
+      address, and its own privacy policy applies to that widget.</li>
+    <li><b>Yahoo Finance</b> — price history for some features. Our
+      worker asks Yahoo for the ticker symbols you look up; Yahoo receives
+      the symbols, not your identity or IP address.</li>
+    <li><b>unpkg</b> — a public file host that serves one charting
+      library to your browser. It sees your IP address, nothing else.</li>
     <li><b>Resend</b> — delivers email (magic-link sign-in and the Daily
       Brief). It receives your email address and the message.</li>
     <li><b>Polygon.io (Massive)</b> — market data (quotes, candles,

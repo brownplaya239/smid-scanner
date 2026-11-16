@@ -485,24 +485,25 @@ PAGES = [
         "slug": "ai-stock-research-reports",
         # WHAT A RESEARCH REPORT IS: the full description for this page.
         # Keep it in step with the Research tab in docs/index.html and
-        # docs/sample-report.html. Source of truth: report_v4.py (the six
-        # _pageN functions + the appendix), run by ticker-lookup.yml.
+        # docs/sample-report.html. Source of truth: report_v4.py (build_core:
+        # the _pageN functions + the appendix), run by ticker-lookup.yml.
         "title": "Stock Research Reports — On-Demand Deep Dives | TickerDesk",
-        "meta": "On-demand stock research reports: a 6-page PDF on any ticker plus an evidence appendix, built from market data and SEC filings and usually ready in about a minute.",
+        "meta": "On-demand stock research reports: normally a 5-6 page PDF on any ticker plus an evidence appendix, built from market data and SEC filings and usually ready in about a minute.",
         "h1": "Stock research reports on any ticker",
-        "sub": "A 6-page equity report plus an evidence appendix, built on demand from market data and SEC filings.",
+        "sub": "Normally a 5-6 page equity report plus an evidence appendix, built on demand from market data and SEC filings.",
         "intro": "<p>Ask for any ticker and TickerDesk builds a structured equity research report from market data and SEC filings. Every figure is traced to its source in an evidence appendix, and a number the sources can't support is shown as unavailable, never guessed. Usually ready in about a minute, delivered as a PDF you can keep.</p>",
         "body": (
             "<h2>What's in a report</h2><ul>"
             "<li>Investment summary: fundamental and tactical ratings, the thesis and key risks.</li>"
             "<li>Business model and competitive position, from cited filings.</li>"
             "<li>The latest quarter and the estimate context.</li>"
-            "<li>Valuation on real inputs, with the formula behind each figure.</li>"
+            "<li>Valuation on real inputs, with the formula behind each figure, when there is enough data for it.</li>"
             "<li>Price chart with moving averages, relative strength vs SPY and key levels.</li>"
             "<li>Catalysts, ranked risks and what to monitor.</li>"
             "<li>An evidence appendix: sources, estimates, Form 4 insider trades, institutional filings, options and sampled social posts.</li>"
             "</ul>"
-            "<p>Free accounts get 3 lifetime reports; Pro 10/month; Premium 100/month. Reports are on-demand only — you ask, it runs. "
+            "<p>If the data needed for a full report is temporarily unavailable, you get a short one-page notice instead. "
+            "Free accounts get 3 lifetime reports; Pro 10/month; Premium 100/month. Reports are on-demand only — you ask, it runs. "
             "<a href='/sample-report'>See a sample</a>.</p>"
         ),
         "faq": [

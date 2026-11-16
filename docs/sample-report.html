@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="See what a TickerDesk research report looks like: a 6-page equity report plus an evidence appendix on any ticker, built from market data and SEC filings, usually ready in about a minute." />
+<meta name="description" content="See what a TickerDesk research report looks like: normally a 5-6 page equity report plus an evidence appendix on any ticker, built from market data and SEC filings, usually ready in about a minute." />
 <link rel="icon" href="favicon.png" />
 <link rel="canonical" href="https://tickerdesk.io/sample-report" />
 <meta property="og:type" content="article" />
@@ -65,10 +65,12 @@
   <!-- WHAT A RESEARCH REPORT IS: the full description for this page. Keep
        it in step with the Research tab in index.html and the
        ai-stock-research-reports page in landing_pages.py. Source of truth:
-       report_v4.py (the six _pageN functions + the appendix). -->
-  <p class="sub">Every TickerDesk report is a 6-page equity research PDF plus
-    an evidence appendix, built on demand from market data and SEC filings.
-    No AI model writes it. Below is a page-by-page walkthrough &mdash; the
+       report_v4.py (build_core: the _pageN functions + the appendix). -->
+  <p class="sub">A TickerDesk report is normally a 5-6 page equity research
+    PDF plus an evidence appendix, built on demand from market data and SEC
+    filings. The valuation page appears when there is enough data for it.
+    If the data needed for a full report is temporarily unavailable, you get
+    a short one-page notice instead. No AI model writes it. Below is a page-by-page walkthrough &mdash; the
     layout is real; the example content is illustrative.</p>
 
   <div class="banner"><b>This is a format sample, not live analysis.</b> Your
@@ -98,7 +100,9 @@
 
     <h3>Page 4 &middot; Valuation</h3>
     <p>Valuation on real inputs only &mdash; for example trailing P/E and
-      enterprise value &mdash; each with the formula it came from.</p>
+      enterprise value &mdash; each with the formula it came from. When the
+      sources don't support any honest valuation figure, this page is left
+      out rather than padded, and the report runs five pages.</p>
 
     <h3>Page 5 &middot; Price and technicals</h3>
     <div class="lvl"><span>Chart with 20/50/200-day averages and volume</span><span>&mdash;</span></div>
@@ -113,7 +117,7 @@
       invalidate the tactical view.</p>
 
     <h3>Appendix &middot; Evidence and methodology</h3>
-    <p>Everything the six pages cite but don't print: the source inventory,
+    <p>Everything the report pages cite but don't print: the source inventory,
       the estimates ledger, the valuation method and derived-figure formulas,
       Form 4 insider transactions, institutional filings, options data,
       evidence that was rejected and why, and a sample of social posts.
