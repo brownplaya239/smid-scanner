@@ -3856,15 +3856,19 @@ function _isoAddDays(iso, n) {
 // print; date=2026-11-16 held only Sunday-evening Asia releases), so the
 // desk's live call came back empty. Vote with the fixed-weekday releases:
 // returns the day offset to ADD to the wanted date when querying (1 when
-// Nasdaq lags a day, 0 when it is right), or null without clear evidence.
+// Nasdaq lags a day, 0 when it is right), null without clear evidence, or
+// ECON_SHIFT_CONFLICT when the counted anchors disagree with each other.
+// The caller may fall back to older samples on null, never on a conflict:
+// current disagreement beats last week's evidence.
 // `samples` = [{ query: "YYYY-MM-DD", titles: [US event names] }].
 // Rules, so a correctly dated feed is never shifted:
 //   * an anchor is not counted when the queried day's week, or the week
 //     of the day the anchor points to, has a holiday: releases and
 //     auctions move in those weeks (a correct Tuesday bill auction after
 //     a Monday holiday would otherwise vote for a one-day lag);
-//   * every counted anchor must agree (any disagreement -> null);
+//   * every counted anchor must agree (any disagreement -> conflict);
 //   * a nonzero shift needs at least two different anchors behind it.
+const ECON_SHIFT_CONFLICT = "conflict";
 function econDateShift(samples) {
   const votes = {};
   (samples || []).forEach(function (sm) {
@@ -3886,7 +3890,8 @@ function econDateShift(samples) {
     });
   });
   const keys = Object.keys(votes);
-  if (keys.length !== 1 || keys[0] === "99") return null;
+  if (!keys.length) return null;
+  if (keys.length > 1 || keys[0] === "99") return ECON_SHIFT_CONFLICT;
   const shift = parseInt(keys[0], 10);
   const anchors = Object.keys(votes[keys[0]]).length;
   if (shift !== 0 && anchors < 2) return null;
@@ -3901,9 +3906,11 @@ function _econUsTitles(rows) {
 
 async function _econFromNasdaq(dateISO) {
   // the offset is learned from the data and kept for 6h; with no
-  // evidence yet, look at the wanted day and the next one. No clear
-  // answer there (a holiday week, a thin day): learn it from the same
-  // two days a week earlier, which are usually a normal week.
+  // evidence yet, look at the wanted day and the next one. No evidence
+  // there (a holiday week, a thin day): learn it from the same two days
+  // a week earlier, which are usually a normal week. If this week's
+  // anchors DISAGREE, use no shift and do not consult last week: an old
+  // +1 would put Tuesday's releases on Monday.
   let shift = memGet("econshift", 6 * 3600_000);
   const got = {};
   if (shift === null) {
@@ -3919,8 +3926,8 @@ async function _econFromNasdaq(dateISO) {
       shift = await sample([_isoAddDays(dateISO, -7), _isoAddDays(dateISO, -6)],
                            false).catch(function () { return null; });
     }
-    if (shift !== null) memPut("econshift", shift);
-    else shift = 0;
+    if (typeof shift === "number") memPut("econshift", shift);
+    else shift = 0;                     // no evidence, or a conflict
   }
   const q = _isoAddDays(dateISO, shift);
   const rows = got[q] || await _econNasdaqRows(q);

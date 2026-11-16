@@ -433,7 +433,7 @@ console.log(JSON.stringify({
   single_anchor: econDateShift([
     { query: "2026-11-17", titles: ["3-Month Bill Auction"] },
   ]),
-  // anchors that disagree: no shift
+  // anchors that disagree: a conflict, not "no evidence"
   disagree: econDateShift([
     { query: "2026-11-19", titles: ["MBA Mortgage Applications",
                                     "Crude Oil Inventories"] },
@@ -475,7 +475,7 @@ console.log(JSON.stringify({
     assert r["no_evidence"] is None
     assert r["correct_tue"] == 0
     assert r["single_anchor"] is None
-    assert r["disagree"] is None
+    assert r["disagree"] == "conflict"
     assert r["columbus_correct"] is None
     assert r["thanksgiving_correct"] is None
     assert r["veterans_week"] is None
@@ -543,6 +543,66 @@ globalThis.fetch = async function (url) {
     # Columbus week, correct feed: the Tuesday bill auctions stay on Tuesday
     assert r["coShift"] == 0
     assert "3-Month Bill Auction" in r["co"]
+
+
+@needs_node
+def test_worker_live_calendar_ignores_history_when_this_week_disagrees():
+    """This week's anchors disagree (Monday's bill auctions answer both
+    date=12-07 and date=12-08), while last week's feed lagged a day. The
+    old code treated the disagreement like "no evidence", learned +1 from
+    last week and showed Tuesday's Redbook as Monday's. Now a conflict
+    means no shift, no history lookup, and nothing cached."""
+    src = _worker()
+    js = (
+        _between(src, "const MARKET_HOLIDAYS", "function _hhmmToMin")
+        + _between(src, "const _EC_HI", "function _ffTag")
+        + """
+let MEM = {};
+function memGet(k) { return k in MEM ? MEM[k] : null; }
+function memPut(k, v) { MEM[k] = v; }
+// what Nasdaq answers for each queried date
+const FEED = {
+  // this week: contradictory
+  "2026-12-07": ["3-Month Bill Auction", "6-Month Bill Auction"],
+  "2026-12-08": ["3-Month Bill Auction", "6-Month Bill Auction", "Redbook"],
+  // last week: a clean one-day lag
+  "2026-11-30": [],
+  "2026-12-01": ["3-Month Bill Auction", "6-Month Bill Auction"],
+};
+const asked = [];
+globalThis.fetch = async function (url) {
+  const q = String(url).split("date=")[1].slice(0, 10);
+  asked.push(q);
+  const rows = (FEED[q] || []).map(function (t) {
+    return { country: "United States", eventName: t, gmt: "15:00" };
+  });
+  return new Response(JSON.stringify({ data: { rows: rows } }));
+};
+(async function () {
+  const ev = await _econFromNasdaq("2026-12-07");
+  console.log(JSON.stringify({
+    vote: econDateShift([
+      { query: "2026-12-07", titles: FEED["2026-12-07"] },
+      { query: "2026-12-08", titles: FEED["2026-12-08"] },
+    ]),
+    history: econDateShift([
+      { query: "2026-11-30", titles: FEED["2026-11-30"] },
+      { query: "2026-12-01", titles: FEED["2026-12-01"] },
+    ]),
+    titles: ev.map(function (e) { return e.title; }),
+    asked: asked, cached: "econshift" in MEM,
+  }));
+})();
+"""
+    )
+    r = _node(js)
+    assert r["vote"] == "conflict"
+    assert r["history"] == 1  # what the old code would have used
+    # unshifted: Monday's own date, so no Tuesday Redbook on Monday
+    assert "Redbook" not in r["titles"]
+    assert "3-Month Bill Auction" in r["titles"]
+    assert sorted(r["asked"]) == ["2026-12-07", "2026-12-08"]  # no history lookup
+    assert r["cached"] is False
 
 
 @needs_node
