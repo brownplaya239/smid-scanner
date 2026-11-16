@@ -3,8 +3,10 @@
 Runs sql/tests/profiles_sql_check.mjs, which loads the script into a
 throwaway in-memory Postgres (PGlite) next to a small copy of our Supabase
 tables and PR #8's plan guard, and checks: re-run safety, the starter
-watchlist repair, the signup trigger (including a failing seed), browser
-access, and td_apply_stripe_state's ordering, promo and lock rules.
+allowlist and repair, the signup trigger (including a failing seed), browser
+access, the per-account Stripe sync lease (taken, refused while live, taken
+over once expired, never released), and td_apply_stripe_state's lease,
+promo and lock rules.
 
 Needs Node and PGlite (`bun install --cwd sql/tests`); skipped otherwise,
 which is the case in CI."""

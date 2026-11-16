@@ -512,21 +512,29 @@ Run [`sql/2026-11-16_profiles_for_every_account.sql`](../sql/2026-11-16_profiles
 in the SQL Editor. It installs the `on_auth_user_created` trigger
 (`public.handle_new_user()`), which gives each new account a
 `public.profiles` row and the starter watchlist (NVDA, MU, AVGO, MRVL,
-AAPL), back-fills a row for every existing account that lacks one, and
-adds the starter watchlist to any account that never got it and whose
-watchlist is empty. It also installs `td_apply_stripe_state()` and two
-billing tables (`stripe_webhook_events`, `stripe_sync_state`), which the
-Stripe webhook needs: run it **before** deploying a worker that calls
-that function. Safe to re-run.
+AAPL), and back-fills a row for every existing account that lacks one.
+Starters are only ever added by the script to accounts on its audited
+`starter_repair_allowlist`: accounts that had no profile when it first
+ran, and later signups whose starter step failed. Accounts that already
+had a profile are left alone, so a watchlist someone emptied stays empty.
+
+It also installs what the Stripe webhook needs: `stripe_customers` (every
+Stripe customer each account has had), `stripe_reconcile_lease` (one
+Stripe sync per account at a time), `stripe_webhook_events` (events
+already saved), and the functions `td_acquire_reconcile_lease()`,
+`td_release_reconcile_lease()` and `td_apply_stripe_state()`. Run it
+**before** deploying a worker that calls them, and once more after. Safe
+to re-run.
 
 Why it matters: the plan (Free / Pro / Premium), the Daily Brief setting
 and the promo fields all live on that row. Until 2026-11-16 this trigger
 had never been installed, so most accounts had no row, and a customer who
 paid stayed on Free. Since then the Stripe webhook creates the row too
-(through `td_apply_stripe_state()`, which reads the plan from Stripe's
-current subscriptions, not the event, and never lets an older Stripe state
-replace a newer one), and the site creates it on sign-in (`ensureProfile()`
-in `docs/index.html`), but the trigger is still the main path.
+(it takes the account's lease, reads the plan from the current
+subscriptions of every Stripe customer the account has had — never from
+the event — and saves it with `td_apply_stripe_state()` before giving the
+lease back), and the site creates it on sign-in (`ensureProfile()` in
+`docs/index.html`), but the trigger is still the main path.
 
 **Check it is installed** (read-only, run any time):
 
