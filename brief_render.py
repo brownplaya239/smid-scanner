@@ -516,7 +516,7 @@ def render_earnings(sec, site):
         )
         iv = ("%.0f%%" % r["iv_pct"]) if r.get("iv_pct") is not None else "n/a"
         real = (
-            ("±%.1f%%" % r["realized_med_pct"]) if r.get("realized_med_pct") is not None else "n/a"
+            ("±%.1f%%" % r["typical_move_pct"]) if r.get("typical_move_pct") is not None else "n/a"
         )
         vcol = {"RICH": RED, "CHEAP": GREEN}.get(r.get("verdict"), MUTED)
         rows.append(
@@ -545,7 +545,7 @@ def render_earnings(sec, site):
             for h, a in (
                 ("", "left"),
                 ("When", "right"),
-                ("Implied", "right"),
+                ("Priced", "right"),
                 ("IV", "right"),
                 ("Typical", "right"),
                 ("Read", "right"),

@@ -54,6 +54,16 @@ class Changed(unittest.TestCase):
                 )
         self.assertEqual(got, ["data/edited.json", "data/new.jsonl"])
 
+    def test_half_written_temp_files_never_upload(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "data"))
+            for fn in ("pnl.json", "pnl.json.tmp", "x.json.r2tmp"):
+                with open(os.path.join(d, "data", fn), "w") as f:
+                    f.write("x")
+            with mock.patch.object(r2_sync, "_BASE", d):
+                got = [os.path.basename(p) for p in r2_sync.data_paths()]
+        self.assertEqual(got, ["pnl.json"])
+
 
 class DeletesAndGitOnly(unittest.TestCase):
     def test_pruned_file_is_deleted_key(self):
@@ -81,6 +91,58 @@ class DeletesAndGitOnly(unittest.TestCase):
             self.assertIsNone(r2_sync.repo_to_key(os.path.join(b, *rel.split("/"))), rel)
         self.assertIsNone(r2_sync.key_to_repo("reports/event_overrides.json"))
         self.assertIsNone(r2_sync.key_to_repo("data/research_state/a.jsonl"))
+
+
+class PullPublic(unittest.TestCase):
+    def test_index_names_skip_git_only_and_paths(self):
+        got = r2_sync.public_names(
+            ["a.json", "manifest.json", "event_overrides.json", "../x.json", "sub/b.json", "", 3]
+        )
+        self.assertEqual(got, ["a.json"])
+
+    def test_pull_public_never_overwrites_manifest(self):
+        bodies = {
+            "index.json": json.dumps(["a.json", "manifest.json"]).encode(),
+            "a.json": b'{"r2": 1}',
+            "manifest.json": b'{"stale": true}',
+        }
+        fetched = []
+
+        class Resp:
+            def __init__(self, body):
+                self.body = body
+
+            def read(self):
+                return self.body
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def fake_open(req, timeout=0):
+            name = req.full_url.rsplit("/", 1)[-1]
+            fetched.append(name)
+            return Resp(bodies[name])
+
+        with tempfile.TemporaryDirectory() as d:
+            rep = os.path.join(d, "docs", "reports")
+            os.makedirs(rep)
+            with open(os.path.join(rep, "manifest.json"), "w") as f:
+                f.write('{"git": true}')
+            with (
+                mock.patch.object(r2_sync, "_BASE", d),
+                mock.patch.object(r2_sync.urllib.request, "urlopen", side_effect=fake_open),
+            ):
+                names, fails = r2_sync.pull_public()
+            with open(os.path.join(rep, "manifest.json")) as f:
+                self.assertEqual(json.load(f), {"git": True})
+            with open(os.path.join(rep, "a.json")) as f:
+                self.assertEqual(json.load(f), {"r2": 1})
+        self.assertEqual(names, ["a.json"])
+        self.assertFalse(fails)
+        self.assertNotIn("manifest.json", fetched)
 
 
 class Commands(unittest.TestCase):

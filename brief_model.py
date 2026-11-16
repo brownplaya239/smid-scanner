@@ -448,6 +448,7 @@ def build(
                 "implied_move_pct": r.get("implied_move_pct"),
                 "iv_pct": r.get("iv_pct"),
                 "iv_level": r.get("iv_level"),
+                "typical_move_pct": r.get("typical_move_pct"),
                 "realized_med_pct": r.get("realized_med_pct"),
                 "n_reports": r.get("n_reports"),
                 "dte": r.get("dte"),
@@ -465,8 +466,9 @@ def build(
                 "title": "Earnings today",
                 "kind": "earnings",
                 "records": erecs,
-                "sub": "%d before the open · %d after the close · implied move "
-                "from the front expiry" % (c.get("bmo") or 0, c.get("amc") or 0),
+                "sub": "%d before the open · %d after the close · priced = the "
+                "report-day move in the front expiry · typical = average "
+                "past reaction" % (c.get("bmo") or 0, c.get("amc") or 0),
                 "note": (earnings or {}).get("note") or "",
             }
         )

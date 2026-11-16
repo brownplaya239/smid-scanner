@@ -93,6 +93,23 @@ def _paginate(path, params=None, max_pages=25):
     return out
 
 
+def paginate_checked(path, params=None, max_pages=25):
+    """Like _paginate, but returns (rows, complete). complete is False when
+    any page request failed, or pages were left after max_pages, so a caller
+    can tell "Polygon has no data" from "the request failed"."""
+    out = []
+    data = _get(path, params)
+    for _ in range(max_pages):
+        if data is None:
+            return out, False
+        out.extend(data.get("results", []) or [])
+        nxt = data.get("next_url")
+        if not nxt:
+            return out, True
+        data = _get(nxt)
+    return out, False
+
+
 # ─── Stocks ───────────────────────────────────────────────────────────────────
 
 
@@ -111,15 +128,21 @@ def daily_bars(ticker, days=120):
     """Daily OHLCV bars for one ticker over roughly the last `days` calendar
     days. Returns a list of bar dicts (oldest first), each {o,h,l,c,v,vw,t},
     or [] on failure."""
+    return daily_bars_checked(ticker, days) or []
+
+
+def daily_bars_checked(ticker, days=120):
+    """daily_bars, but None when the request failed. [] means Polygon
+    answered and has no bars in the window."""
     end = datetime.now(UTC).date()
     start = end - timedelta(days=int(days * 1.6) + 10)  # pad for weekends/holidays
     data = _get(
         f"/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}",
         {"adjusted": "true", "sort": "asc", "limit": 50000},
     )
-    if not data or not data.get("results"):
-        return []
-    return data["results"]
+    if data is None:
+        return None
+    return data.get("results") or []
 
 
 def splits(ticker, limit=20):

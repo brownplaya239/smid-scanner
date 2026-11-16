@@ -318,3 +318,32 @@ def test_no_freeze_when_bars_fail_and_read_only_writes_nothing(tmp_path, monkeyp
     # the flow job (persist=True) does freeze it once bars are there
     ua.compute_edge()
     assert "old1" in json.loads(cache.read_text())
+
+
+def test_trade_book_put_buy_needs_a_classified_buyer():
+    assert ua.trade_book({"type": "put", "flow_side": "put_buyer"}) == "put_buy"
+    assert ua.trade_book({"type": "call", "flow_side": "call_buyer"}) == "call_buy"
+    assert ua.trade_book({"type": "put", "flow_side": "put_seller"}) == "seller"
+    for fs in ("mixed", "unknown", None):
+        assert ua.trade_book({"type": "put", "flow_side": fs}) is None
+
+
+def test_hedge_monitor_cohort_uses_the_put_buy_book():
+    import hedge_monitor as hm
+
+    def row(fs, dte=30, typ="put"):
+        return {"type": typ, "flow_side": fs, "dte": dte}
+
+    assert hm.is_cohort_member(row("put_buyer"))
+    # a put with no clear buyer or seller is not a put buy
+    assert not hm.is_cohort_member(row("mixed"))
+    assert not hm.is_cohort_member(row("unknown"))
+    assert not hm.is_cohort_member(row(None))
+    assert not hm.is_cohort_member(row("put_seller"))
+    assert not hm.is_cohort_member(row("call_buyer", typ="call"))
+    assert not hm.is_cohort_member(row("put_buyer", dte=21))
+    assert not hm.is_cohort_member(row("put_buyer", dte=61))
+    assert not hm.is_cohort_member(row("put_buyer", dte=None))
+    # the definition change forks a new frozen version (evaluation restarts)
+    assert hm.FROZEN["hm_ver"] != "v1-2026-07-21"
+    assert "put_buyer" in hm.FROZEN["cohort"]

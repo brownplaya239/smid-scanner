@@ -496,3 +496,93 @@ def test_construct_uses_the_like_for_like_pair(monkeypatch):
     assert out["fair_move"] == 8.0 and out["realized_median"] == 6.0
     assert out["vol_edge_pp"] == -2.0 and out["market_fair_ratio"] == 0.75
     assert out["vol_stance"] == "BUY VOL" and out["analogues"] == 8
+
+
+# ------------------------------------------ brief / social comparisons
+
+
+def test_priced_vs_typical_uses_event_move_and_mean():
+    row = {"implied": 8.0, "realized_med": 4.0, "implied_event": 6.0, "fair_move": 5.5}
+    c = EM.priced_vs_typical(row)
+    assert c["priced"] == 6.0 and c["typical"] == 5.5 and c["call"] == "fair"
+    assert EM.priced_vs_typical({"implied": 8.0, "realized_med": 4.0}) is None
+    assert EM.priced_vs_typical({**row, "fair_move_dominated": True})["call"] is None
+    assert EM.priced_vs_typical({"implied_event": 7.0, "fair_move": 5.0})["call"] == "rich"
+    assert EM.priced_vs_typical({"implied_event": 4.0, "fair_move": 5.0})["call"] == "cheap"
+    assert ee.RICH_RATIO == EM.RICH_RATIO and ee.CHEAP_RATIO == EM.CHEAP_RATIO
+
+
+def test_brief_pane_matches_the_site_comparison():
+    import brief_earnings as be
+
+    anticipated = {
+        "days": [
+            {
+                "date": "2026-11-18",
+                "bmo": [{"ticker": "AAA", "score": 2}],
+                "amc": [{"ticker": "BBB", "score": 1}],
+            }
+        ]
+    }
+    edge = {
+        "names": [
+            # raw 8 vs median 4 used to read RICH; event 6 vs mean 5.5 is fair
+            {
+                "t": "AAA",
+                "implied": 8.0,
+                "realized_med": 4.0,
+                "implied_event": 6.0,
+                "fair_move": 5.5,
+            },
+            {"t": "BBB", "fair_move": 3.0, "realized_med": 2.5, "daily_vol": 1.0},
+        ]
+    }
+    # BBB: live straddle 5% to the Friday expiry, read at Tuesday's close
+    # for a Wednesday AMC report -> 2 normal days stripped
+    ivs = {"BBB": {"implied_move_pct": 5.0, "expiry": "2026-11-20"}}
+    m = be.build(
+        "2026-11-18",
+        anticipated=anticipated,
+        edge=edge,
+        iv_fetch=lambda t: ivs.get(t, {}),
+        read_date=date(2026, 11, 17),
+    )
+    r = {x["ticker"]: x for x in m["records"]}
+    assert r["AAA"]["verdict"] == "FAIR"
+    assert r["AAA"]["implied_move_pct"] == 6.0 and r["AAA"]["implied_raw_pct"] == 8.0
+    assert r["AAA"]["typical_move_pct"] == 5.5 and r["AAA"]["realized_med_pct"] == 4.0
+    assert "priced move ±6.0% vs typical past move ±5.5%" in r["AAA"]["why"]
+    exp = EM.event_move(5.0, "straddle", 2, 1.0)["implied_event"]
+    assert r["BBB"]["implied_move_pct"] == exp
+    assert r["BBB"]["verdict"] == ("RICH" if exp / 3.0 >= EM.RICH_RATIO else "FAIR")
+    # a read taken after the report gives no report-day priced move
+    late = be.build(
+        "2026-11-18",
+        anticipated=anticipated,
+        edge=edge,
+        iv_fetch=lambda t: ivs.get(t, {}),
+        read_date=date(2026, 11, 19),
+    )
+    b = {x["ticker"]: x for x in late["records"]}["BBB"]
+    assert b["implied_move_pct"] is None and b["verdict"] == ""
+    assert "after the report" in b["why"]
+
+
+def test_every_idea_family_needs_a_pre_report_read():
+    swing = {"XYZ": {"grade": "A"}}
+    flow = {"n": 3, "bull": 3, "bear": 0}
+    mom = ei.generate([_name(drift_5d=2.0, flow_into=flow)], swing, {})
+    assert [i["type"] for i in mom] == ["momentum_into_print"]
+    # read at the close of the BMO report day: the reaction is already in
+    log = {"ideas": []}
+    assert ei.log_new_ideas(log, mom, "2026-11-10", read_date="2026-11-10") == 0
+    # a read from the close before the report is fine
+    assert ei.log_new_ideas(log, mom, "2026-11-09", read_date="2026-11-09") == 1
+    # AMC on D: D's close is still before the report; D+1 is not
+    amc = [dict(mom[0], t="AMC1", session="AMC")]
+    assert ei.log_new_ideas({"ideas": []}, amc, "2026-11-10", read_date="2026-11-10") == 1
+    assert ei.log_new_ideas({"ideas": []}, amc, "2026-11-11", read_date="2026-11-11") == 0
+    # drift ideas too
+    drift = ei.generate([_name(drift_5d=-2.5, n_reports=8)], {}, {})
+    assert [i["type"] for i in drift] == ["post_report_drift"]
+    assert ei.log_new_ideas({"ideas": []}, drift, "2026-11-10", read_date="2026-11-10") == 0

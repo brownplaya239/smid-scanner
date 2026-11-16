@@ -352,7 +352,7 @@ def _prem(p):
 
 def t_earnings(sec, site, out):
     out += [_head(sec["title"]), sec.get("sub") or "", ""]
-    out.append("  %-7s %-5s %9s %8s %9s  %s" % ("", "When", "Implied", "IV", "Typical", "Read"))
+    out.append("  %-7s %-5s %9s %8s %9s  %s" % ("", "When", "Priced", "IV", "Typical", "Read"))
     for r in sec["records"]:
         star = "*" if r.get("on_watchlist") else " "
         imp = (
@@ -360,7 +360,7 @@ def t_earnings(sec, site, out):
         )
         iv = ("%.0f%%" % r["iv_pct"]) if r.get("iv_pct") is not None else "n/a"
         real = (
-            ("±%.1f%%" % r["realized_med_pct"]) if r.get("realized_med_pct") is not None else "n/a"
+            ("±%.1f%%" % r["typical_move_pct"]) if r.get("typical_move_pct") is not None else "n/a"
         )
         out.append(
             "%s %-7s %-5s %9s %8s %9s  %s"

@@ -63,6 +63,8 @@ DAILY_VOL_WINDOW = 40  # daily returns used for sigma_daily (~2 months)
 DAILY_VOL_MIN = 20  # fewer usable returns -> no estimate
 CLIP_SIGMAS = 3.0  # catalyst gaps beyond 3 robust SDs are clipped, not counted
 WEEKLY_WINDOW_DAYS = 5  # earnings_edge only reads an expiry within 5 days of the event
+RICH_RATIO = 1.35  # priced / typical >= this -> options rich
+CHEAP_RATIO = 0.85  # <= this -> options cheap
 
 
 def sigma_total_pct(raw_pct, src):
@@ -171,6 +173,28 @@ def dominated_by_one(abs_moves):
     if len(xs) < 2:
         return False
     return max(xs) > sum(xs) - max(xs)
+
+
+def priced_vs_typical(row):
+    """The site's comparison for one earnings_edge row: the EVENT-ONLY
+    priced move (implied_event) against the typical past move (fair_move,
+    the MEAN |reaction|). Never the raw read against the median.
+
+    Returns {priced, typical, ratio, call} or None when either side is
+    missing. `call` is "rich" / "cheap" / "fair", or None when one report
+    dominates the average (then no rich/cheap call is made)."""
+    if not isinstance(row, dict):
+        return None
+    priced, typical = row.get("implied_event"), row.get("fair_move")
+    if not isinstance(priced, (int, float)) or not isinstance(typical, (int, float)):
+        return None
+    if priced <= 0 or typical <= 0:
+        return None
+    ratio = priced / typical
+    call = None
+    if not row.get("fair_move_dominated"):
+        call = "rich" if ratio >= RICH_RATIO else "cheap" if ratio <= CHEAP_RATIO else "fair"
+    return {"priced": float(priced), "typical": float(typical), "ratio": ratio, "call": call}
 
 
 # ------------------------------------------------------------ calendar

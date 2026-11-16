@@ -186,8 +186,23 @@ def list_keys_local():
     return [repo_to_key(p) for p in data_paths() if repo_to_key(p)]
 
 
+def public_names(names):
+    """The index entries pull-public may write: plain file names that map
+    to docs/reports/ and are not GIT_ONLY."""
+    out = []
+    for n in names or []:
+        if not isinstance(n, str) or not n or "/" in n or "\\" in n or n.startswith("."):
+            continue
+        if key_to_repo("reports/" + n):
+            out.append(n)
+    return out
+
+
 def pull_public():
-    """reports/*.json through the worker's public /reports/ route."""
+    """reports/*.json through the worker's public /reports/ route.
+    Like `pull`, never writes a git-only file (manifest.json is built
+    from the PDFs in git; R2's copy can be stale) or anything outside
+    docs/reports/."""
     base = "https://api.tickerdesk.io/reports/"
     with urllib.request.urlopen(
         urllib.request.Request(
@@ -195,14 +210,16 @@ def pull_public():
         ),
         timeout=60,
     ) as r:
-        names = json.loads(r.read())
+        names = public_names(json.loads(r.read()))
 
     def one(name):
         try:
             req = urllib.request.Request(base + name, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=60) as r:
                 body = r.read()
-            dest = os.path.join(_BASE, "docs", "reports", name)
+            dest = key_to_repo("reports/" + name)
+            if not dest:
+                return name, "skipped"
             with open(dest + ".r2tmp", "wb") as f:
                 f.write(body)
             os.replace(dest + ".r2tmp", dest)
@@ -308,6 +325,8 @@ def data_paths():
     out = sorted(glob.glob(os.path.join(_BASE, "docs", "reports", "*.json")))
     for root, _, files in os.walk(os.path.join(_BASE, "data")):
         for fn in files:
+            if fn.endswith((".tmp", ".r2tmp")):
+                continue  # half-written file from a killed job, never data
             out.append(os.path.join(root, fn))
     return out
 

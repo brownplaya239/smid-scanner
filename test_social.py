@@ -73,10 +73,45 @@ class Captions(unittest.TestCase):
         self.assertIn("not classified", text)
 
     def test_preview_lead_is_observation(self):
-        rich = [{"implied": 6, "realized_med": 3}] * 3
+        rich = [{"implied_event": 6, "fair_move": 3}] * 3
         self.assertIn("bigger-than-usual", x_post._preview_lead(rich))
-        cheap = [{"implied": 2, "realized_med": 4}] * 3
+        cheap = [{"implied_event": 2, "fair_move": 4}] * 3
         self.assertIn("smaller", x_post._preview_lead(cheap))
+
+    def test_preview_compares_event_move_with_mean_not_raw_with_median(self):
+        # Raw straddle 8% vs a 4% median looks 2x rich; the report-day
+        # move (6%) vs the 5.5% average reaction is fairly priced.
+        n = {
+            "t": "AAA",
+            "date": "2026-11-18",
+            "session": "AMC",
+            "implied": 8.0,
+            "realized_med": 4.0,
+            "implied_event": 6.0,
+            "fair_move": 5.5,
+        }
+        self.assertNotIn("bigger-than-usual", x_post._preview_lead([n] * 3))
+        text = x_post.earnings_preview_caption({"names": [n]})
+        self.assertIn("±6.0% priced vs ±5.5% typical", text)
+        self.assertNotIn("8.0", text)
+        f = {"names": [n], "date": "2026-11-18", "body": [["AAA"]]}
+        self.assertEqual(x_post._log_extra("earnings_preview", f)["names"][0]["implied_event"], 6.0)
+
+    def test_preview_review_flag_uses_event_move(self):
+        n = {
+            "t": "AAA",
+            "date": "2099-01-02",
+            "implied": 25.0,
+            "implied_event": 9.0,
+            "fair_move": 8.0,
+        }
+        f = {"names": [n], "date": x_post._now_et().date().isoformat(), "body": [["AAA"]]}
+        with mock.patch.object(x_post, "_log_rows", return_value=[]):
+            _, review = x_post.gate("earnings_preview", f, "t", False)
+            self.assertFalse([r for r in review if "AAA" in r], review)
+            n2 = dict(n, implied_event=24.0)
+            _, review = x_post.gate("earnings_preview", dict(f, names=[n2]), "t", False)
+            self.assertTrue([r for r in review if "AAA priced move" in r], review)
 
 
 class Gate(unittest.TestCase):
@@ -315,6 +350,121 @@ class SlackReview(unittest.TestCase):
         txt = json.dumps(x_post.review_blocks(rec, True))
         self.assertIn("Edited by <@U1>", txt)
         self.assertIn("/280", txt)
+
+
+class EarningsCards(unittest.TestCase):
+    """The earnings cards use the site's comparison: the report-day priced
+    move (implied_event) vs the average past move (fair_move)."""
+
+    EDGE = {
+        "names": [
+            # raw 8 vs median 4 looks rich; event 6 vs mean 5.5 is fair
+            {
+                "t": "AAA",
+                "date": "2099-01-05",
+                "session": "AMC",
+                "implied": 8.0,
+                "realized_med": 4.0,
+                "implied_event": 6.0,
+                "fair_move": 5.5,
+                "n_reports": 8,
+            },
+            {
+                "t": "BBB",
+                "date": "2099-01-05",
+                "session": "BMO",
+                "implied": 5.0,
+                "realized_med": 4.5,
+                "implied_event": 4.0,
+                "fair_move": 2.0,
+                "n_reports": 8,
+            },
+            # one report dominates the average: no rich/cheap call
+            {
+                "t": "CCC",
+                "date": "2099-01-05",
+                "session": "BMO",
+                "implied_event": 9.0,
+                "fair_move": 3.0,
+                "fair_move_dominated": True,
+            },
+            # no event-only read: left off
+            {"t": "DDD", "date": "2099-01-05", "implied": 7.0, "realized_med": 2.0},
+        ]
+    }
+
+    def _cards(self):
+        import social_cards
+
+        return social_cards
+
+    def test_preview_card_ranks_by_event_vs_mean(self):
+        sc = self._cards()
+        seen = {}
+
+        def fake_table(fname, kicker, title, subtitle, cols, rows, footer, colors=None):
+            seen.update(title=title, subtitle=subtitle, rows=rows, cols=cols)
+            return "x.png"
+
+        with (
+            mock.patch.object(sc, "_load", return_value=self.EDGE),
+            mock.patch.object(sc, "table_card", side_effect=fake_table),
+        ):
+            _, alt, meta = sc.earnings_preview_card("2099-01-01")
+        self.assertEqual([r[0] for r in seen["rows"]], ["BBB", "AAA"])
+        self.assertEqual(seen["rows"][0][2:5], ["±4.0%", "±2.0%", "2.0x"])
+        self.assertEqual(seen["rows"][1][2:5], ["±6.0%", "±5.5%", "1.1x"])
+        self.assertIn("average move", seen["subtitle"])
+        self.assertIn("typical past move", alt)
+        self.assertNotIn("_cmp", meta["names"][0])
+
+    def test_receipt_grades_against_event_move_and_skips_legacy(self):
+        import pandas as pd
+
+        sc = self._cards()
+        posted = [
+            {
+                "t": "AAA",
+                "date": "2099-01-05",
+                "session": "BMO",
+                "implied_event": 6.0,
+                "fair_move": 5.5,
+                "implied": 8.0,
+                "realized_med": 4.0,
+            },
+            # legacy preview: raw read only, not graded
+            {
+                "t": "BBB",
+                "date": "2099-01-05",
+                "session": "BMO",
+                "implied": 8.0,
+                "realized_med": 4.0,
+            },
+        ]
+        idx = pd.to_datetime(["2099-01-02", "2099-01-05"])
+        px = pd.DataFrame(
+            {("Close", "AAA"): [100.0, 107.0], ("Close", "BBB"): [50.0, 60.0]}, index=idx
+        )
+        seen = {}
+
+        def fake_table(fname, kicker, title, subtitle, cols, rows, footer, colors=None):
+            seen["rows"] = rows
+            return "x.png"
+
+        fake_yf = mock.MagicMock()
+        fake_yf.download.return_value = px
+        with (
+            mock.patch.object(sc, "_social_log", return_value=[]),
+            mock.patch.object(sc, "_posted_previews", return_value=posted),
+            mock.patch.object(sc, "_load", return_value={"names": []}),
+            mock.patch.object(sc, "table_card", side_effect=fake_table),
+            mock.patch.dict(sys.modules, {"yfinance": fake_yf}),
+        ):
+            _, _, meta = sc.receipt_card()
+        self.assertEqual([r[0] for r in seen["rows"]], ["AAA"])
+        # +7% vs a ±6% report-day priced move (the raw ±8% would say "inside")
+        self.assertEqual(seen["rows"][0][2:6], ["±6.0%", "±5.5%", "+7.0%", "Bigger than priced"])
+        self.assertEqual(meta["beat"], 1)
 
 
 if __name__ == "__main__":
