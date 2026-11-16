@@ -695,20 +695,33 @@ def fetch_list_subscribers(
 
 
 def already_sent_today(user_id: str, brief_date: str, email: str = "") -> bool:
-    params = {
+    """True if this person already got today's brief, however they were
+    subscribed when it went out.
+
+    Checked by account id AND by address. Someone can reach the send loop
+    as an account holder one run and as an email-list subscriber the next
+    (the account lookup failed, or they switched paths mid-day); checking
+    only one kind of record would mail them twice."""
+    base = {
         "select": "id",
         "kind": "eq.daily_brief",
         "brief_date": f"eq.{brief_date}",
         "status": "eq.sent",
         "limit": "1",
     }
-    if user_id:
-        params["user_id"] = f"eq.{user_id}"
-    else:
-        # email-list subscriber: logged with no user id
-        params["user_id"] = "is.null"
-        params["email"] = "eq." + urllib.parse.quote(email.strip().lower(), safe="@")
-    rows = _supabase_get("email_log", params)
+    if user_id and _supabase_get("email_log", {**base, "user_id": f"eq.{user_id}"}):
+        return True
+    raw = (email or "").strip()
+    if not raw:
+        return False
+    # new rows are logged lower-case; older account rows kept the address
+    # exactly as the account had it, so match both spellings
+    quoted = ",".join(
+        '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"' for v in sorted({raw, raw.lower()})
+    )
+    rows = _supabase_get(
+        "email_log", {**base, "email": urllib.parse.quote(f"in.({quoted})", safe="")}
+    )
     return bool(rows)
 
 
@@ -726,7 +739,7 @@ def log_email(
             "email_log",
             {
                 "user_id": user_id or None,  # None = email-list subscriber
-                "email": email,
+                "email": (email or "").strip().lower(),
                 "kind": "daily_brief",
                 "status": status,
                 "subject": subject,
@@ -2182,13 +2195,25 @@ def production_guard(user_id: str, unsub: str, email: str = "") -> list:
     else:
         q = urllib.parse.urlparse(unsub).query
         p = urllib.parse.parse_qs(q)
+        sig = (p.get("t") or [""])[0].strip().lower()
         if uid:
-            if (p.get("u") or [""])[0].strip().lower() in ("demo", "preview", "test", ""):
+            u = (p.get("u") or [""])[0].strip()
+            if u.lower() in ("demo", "preview", "test", ""):
                 v.append("unsubscribe token is signed for a placeholder user")
-        elif (p.get("e") or [""])[0].strip().lower() != em:
-            v.append("unsubscribe token is not signed for this recipient's address")
-        if not (p.get("t") or [""])[0]:
+            elif u.lower() != uid:
+                v.append("unsubscribe link is for a different user")
+            signed_for = u
+        else:
+            e = (p.get("e") or [""])[0].strip().lower()
+            if e != em:
+                v.append("unsubscribe token is not signed for this recipient's address")
+            signed_for = "brief-unsub:" + e
+        if not sig:
             v.append("unsubscribe URL carries no signature")
+        # recompute the signature the worker will check; a link that looks
+        # right but would be rejected must never go out
+        elif not hmac.compare_digest(sig, _hmac40(signed_for)):
+            v.append("unsubscribe signature does not verify")
     return v
 
 
