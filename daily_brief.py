@@ -418,6 +418,10 @@ def load_market_context() -> dict:
         today_ff = _days(now_et)
         tomorrow_ff = _days(now_et + timedelta(days=1))
         evs = cal.get("events") or []
+        # last week's file: say so instead of implying a quiet day
+        import economic_calendar as EC
+
+        ctx["calendar_stale"] = EC.calendar_stale(cal, now_et.date())
         todays = [e for e in evs if e.get("date") in today_ff]
         hi = [e for e in todays if (e.get("impact") or "").lower() in ("high", "medium")]
         # Rank by expected market impact (stars), not calendar order —

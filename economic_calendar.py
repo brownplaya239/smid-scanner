@@ -15,7 +15,7 @@ import os
 import sys
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import brief_time as BT
 
@@ -73,6 +73,31 @@ def _match_override(overrides, raw, out):
         if (o.get("match") or "").lower() in (raw.get("title") or "").lower():
             return o
     return None
+
+
+def _iso(d):
+    """Event date as YYYY-MM-DD; the legacy feed format was MM-DD-YYYY."""
+    d = str(d or "")
+    if len(d) == 10 and d[2] == "-" and d[5] == "-":
+        return "%s-%s-%s" % (d[6:], d[:2], d[3:5])
+    return d[:10]
+
+
+def calendar_stale(cal, today):
+    """True when the calendar has nothing for the week containing `today`
+    (an Eastern date): its newest event is before this week's Monday.
+    Readers then say the calendar is out of date rather than "no US
+    releases today" (Mon 2026-11-16 read the previous week's file).
+    A missing or empty calendar is not stale; it is absent."""
+    evs = (cal or {}).get("events") or []
+    dates = [_iso(e.get("date")) for e in evs if e.get("date")]
+    if not dates:
+        return False
+    monday = today - timedelta(days=today.weekday())
+    try:
+        return date.fromisoformat(max(dates)) < monday
+    except ValueError:
+        return False
 
 
 def _text(el, tag):

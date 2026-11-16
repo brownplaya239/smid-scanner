@@ -510,7 +510,113 @@ const UOA_SLOTS = ["09:45", "10:15", "10:45", "11:15", "11:45", "12:15",
 const UOA_MONITOR_SLOTS = ["12:15", "15:45"];
 const EOD_SLOT = "16:45";
 
+// Breakout scans (scanner.yml, mode=breakout) on the ET clock. GitHub's
+// own cron for them starts 5-7 hours late, so after 2026-11-09 no
+// breakout scan ran at all. scanner.yml skips a slot whose report is
+// already archived (scan_slot.py), so its late GitHub backstop is a no-op.
+const BREAKOUT_SLOTS = ["10:00", "11:30", "15:00"];
+// How long after a slot to look for its report before alerting Slack.
+const BREAKOUT_ALERT_DELAY_MIN = 45;
+
+// Full-day market closures and 13:00 ET half days. Mirrors HOLIDAYS /
+// HALF_DAYS in exchange_calendar.py (test_scan_slot.py checks they match).
+// A year missing here is treated as all-sessions (weekdays still skip).
+const MARKET_HOLIDAYS = [
+  "2025-01-01", "2025-01-09", "2025-01-20", "2025-02-17", "2025-04-18",
+  "2025-05-26", "2025-06-19", "2025-07-04", "2025-09-01", "2025-11-27",
+  "2025-12-25",
+  "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25",
+  "2026-06-19", "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25",
+  "2027-01-01", "2027-01-18", "2027-02-15", "2027-03-26", "2027-05-31",
+  "2027-06-18", "2027-07-05", "2027-09-06", "2027-11-25", "2027-12-24",
+];
+const MARKET_HALF_DAYS = [
+  "2025-07-03", "2025-11-28", "2025-12-24",
+  "2026-11-27", "2026-12-24",
+  "2027-11-26",
+];
+
+function _hhmmToMin(s) {
+  return parseInt(s.slice(0, 2), 10) * 60 + parseInt(s.slice(3, 5), 10);
+}
+
+// What the breakout schedule wants at this ET quarter hour. `dow` 0=Sun,
+// `date` YYYY-MM-DD, `hhmm` the quarter-hour clock from etClock().
+// Returns { dispatch: bool, check: "HH:MM" slot whose report should
+// exist by now, or null }. Pure, so test_scan_slot.py can run it in Node.
+function breakoutDue(dow, date, hhmm) {
+  const out = { dispatch: false, check: null };
+  if (dow < 1 || dow > 5 || MARKET_HOLIDAYS.indexOf(date) >= 0) return out;
+  // a half day closes at 13:00: the 15:00 slot has no session to scan
+  const closeMin = MARKET_HALF_DAYS.indexOf(date) >= 0 ? 13 * 60 : 16 * 60;
+  const now = _hhmmToMin(hhmm);
+  BREAKOUT_SLOTS.forEach(function (slot) {
+    const m = _hhmmToMin(slot);
+    if (m >= closeMin) return;
+    if (m === now) out.dispatch = true;
+    if (m + BREAKOUT_ALERT_DELAY_MIN === now) out.check = slot;
+  });
+  return out;
+}
+
+// Archived scanner PDFs are named <universe>_scanner_YYYY-MM-DD_HHMM.pdf
+// (ET). Universes with no breakout report stamped at/after `slot` today.
+function missingBreakoutReports(manifest, date, slot) {
+  const since = slot.replace(":", "");
+  const reports = (manifest && manifest.reports) || {};
+  return ["smid-scanner", "iwm-scanner"].filter(function (key) {
+    return !(reports[key] || []).some(function (r) {
+      const m = /_(\d{4}-\d{2}-\d{2})_(\d{4})\.pdf$/.exec((r && r.file) || "");
+      return !!m && m[1] === date && m[2] >= since;
+    });
+  });
+}
+
+function etDateISO(d) {
+  return (d || new Date()).toLocaleDateString("en-CA",
+    { timeZone: "America/New_York" });
+}
+
+// ~45 min after a breakout slot: if the archive has no report for it,
+// say so in Slack (SLACK_ALERT_CHANNEL; off when unset).
+async function checkBreakoutReport(env, slot) {
+  const date = etDateISO();
+  let manifest = null;
+  try {
+    // manifest.json is git-only (served by GitHub Pages, not R2): this is
+    // the same list the Breakout tab shows
+    const r = await fetch("https://tickerdesk.io/reports/manifest.json?cb=" +
+      Date.now(), { signal: AbortSignal.timeout(10000),
+                    headers: { "User-Agent": "tickerdesk-cron-backstop" } });
+    if (r.ok) manifest = await r.json();
+  } catch (e) {
+    console.log("[cron] breakout check: manifest read failed: " + e.message);
+  }
+  const missing = manifest ? missingBreakoutReports(manifest, date, slot)
+                           : ["smid-scanner", "iwm-scanner"];
+  if (!missing.length) {
+    console.log("[cron] breakout " + slot + " ET report present");
+    return;
+  }
+  const h = parseInt(slot.slice(0, 2), 10);
+  const label = (h > 12 ? h - 12 : h) + slot.slice(2) + (h >= 12 ? " PM" : " AM");
+  const text = ":warning: Breakout scan missing: no " +
+    missing.map(function (k) { return k.split("-")[0].toUpperCase(); })
+      .join(" or ") + " report for the " + label + " ET slot (" + date +
+    ") " + BREAKOUT_ALERT_DELAY_MIN + " minutes later" +
+    (manifest ? "" : " (manifest unreadable)") +
+    ". Runs: https://github.com/" + (env.REPO || "brownplaya239/smid-scanner") +
+    "/actions/workflows/scanner.yml";
+  console.log("[cron] " + text);
+  if (!env.SLACK_ALERT_CHANNEL || !env.SLACK_BOT_TOKEN) return;
+  await slackApi(env, "chat.postMessage",
+    { channel: env.SLACK_ALERT_CHANNEL, text: text });
+}
+
 const JOB_SCHEDULE = [
+  // Monday: roll the economic calendar to the new week before the brief
+  // (its weekday refresh only runs at 4:30 PM ET inside Momentum Scans)
+  { at: "08:00", days: [1],             workflow: "economic_calendar.yml" },
   { at: "08:45", days: [1, 2, 3, 4, 5], workflow: "daily_brief.yml" },
   { at: "18:45", days: [1, 2, 3, 4, 5], workflow: "earnings_vol.yml" },
   { at: "19:30", days: [1, 2, 3, 4, 5], workflow: "uoa_scorecard.yml" },
@@ -3652,7 +3758,7 @@ function _ecTime(t) {
   h = h % 12; if (h === 0) h = 12;
   return h + ":" + mm + ap;
 }
-async function _econFromNasdaq(dateISO) {
+async function _econNasdaqRows(dateISO) {
   const r = await fetch(
     "https://api.nasdaq.com/api/calendar/economicevents?date=" + dateISO,
     { headers: {
@@ -3662,7 +3768,78 @@ async function _econFromNasdaq(dateISO) {
       } });
   if (!r.ok) throw new Error("nasdaq " + r.status);
   const j = await r.json();
-  const rows = (j && j.data && j.data.rows) || [];
+  return (j && j.data && j.data.rows) || [];
+}
+
+// Weekly US releases that always land on the same weekday (1=Mon). They
+// tell us which calendar day a Nasdaq response really covers.
+const ECON_WEEKDAY_ANCHORS = [
+  [/mba mortgage applications/i, 3],
+  [/crude oil inventories/i, 3],
+  [/initial jobless claims/i, 4],
+  [/baker hughes/i, 5],
+  [/^3-month bill auction/i, 1],
+];
+
+function _isoAddDays(iso, n) {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// Nasdaq's ?date=D has, since about 2026-11, returned the US releases of
+// the day BEFORE D (date=2026-11-17 held Monday 11-16's Empire State
+// print; date=2026-11-16 held only Sunday-evening Asia releases), so the
+// desk's live call came back empty. Vote with the fixed-weekday releases:
+// returns the day offset to ADD to the wanted date when querying (1 when
+// Nasdaq lags a day, 0 when it is right), or null with no evidence.
+// `samples` = [{ query: "YYYY-MM-DD", titles: [US event names] }].
+function econDateShift(samples) {
+  const votes = {};
+  (samples || []).forEach(function (sm) {
+    const qdow = new Date(sm.query + "T12:00:00Z").getUTCDay();
+    const seen = {};
+    (sm.titles || []).forEach(function (t) {
+      ECON_WEEKDAY_ANCHORS.forEach(function (a) {
+        if (!a[0].test(String(t || "").trim()) || seen[a[1]]) return;
+        seen[a[1]] = 1;
+        // the response is for weekday a[1]; query = that day + shift
+        let sh = ((qdow - a[1]) % 7 + 7) % 7;
+        if (sh === 6) sh = -1;
+        if (sh <= 1) votes[sh] = (votes[sh] || 0) + 1;
+      });
+    });
+  });
+  let best = null;
+  Object.keys(votes).forEach(function (k) {
+    if (best === null || votes[k] > votes[best]) best = k;
+  });
+  return best === null ? null : parseInt(best, 10);
+}
+
+function _econUsTitles(rows) {
+  return rows.filter(function (r) {
+    return String(r.country || "").toLowerCase() === "united states";
+  }).map(function (r) { return r.eventName; });
+}
+
+async function _econFromNasdaq(dateISO) {
+  // the offset is learned from the data and kept for 6h; with no
+  // evidence yet, look at the wanted day and the next one
+  let shift = memGet("econshift", 6 * 3600_000);
+  const got = {};
+  if (shift === null) {
+    const qs = [dateISO, _isoAddDays(dateISO, 1)];
+    const res = await Promise.all(qs.map(_econNasdaqRows));
+    qs.forEach(function (q, i) { got[q] = res[i]; });
+    shift = econDateShift(qs.map(function (q) {
+      return { query: q, titles: _econUsTitles(got[q]) };
+    }));
+    if (shift !== null) memPut("econshift", shift);
+    else shift = 0;
+  }
+  const q = _isoAddDays(dateISO, shift);
+  const rows = got[q] || await _econNasdaqRows(q);
   const p = dateISO.split("-");                    // YYYY-MM-DD
   const ffDate = p[1] + "-" + p[2] + "-" + p[0];   // MM-DD-YYYY (frontend fmt)
   const events = [];
@@ -3677,7 +3854,8 @@ async function _econFromNasdaq(dateISO) {
       impact:   _ecImpact(title),
       forecast: String(row.consensus || "").trim(),
       previous: String(row.previous || "").trim(),
-      actual:   String(row.actual || "").trim(),
+      // Nasdaq fills "no number" (speeches) with a literal &nbsp;
+      actual:   String(row.actual || "").replace(/&nbsp;/g, " ").trim(),
     });
   }
   // Nasdaq lists sub-indices under identical generic names (e.g. "House
@@ -5695,9 +5873,10 @@ export default {
   // is belt-and-suspenders. If both fire, the scanner's emit_latest
   // dedups by timestamp so a double-run is harmless.
   //
-  // Cron→workflow map (UTC, see wrangler.toml [triggers]):
-  //   "40 20 * * MON-FRI"  → EOD: scanner.yml + momentum.yml (post-close)
-  //   everything else  → intraday: uoa.yml
+  // Every job runs from the */15 crons on the ET clock (see wrangler.toml
+  // [triggers]): UOA_SLOTS -> uoa.yml, BREAKOUT_SLOTS -> scanner.yml
+  // (mode=breakout, plus a missing-report check 45 min later), EOD_SLOT
+  // -> scanner.yml + momentum.yml, JOB_SCHEDULE, SOCIAL_SCHEDULE.
   async scheduled(event, env, ctx) {
     // News wire poll + stall alert: its own every-minute cron, needs no PAT
     // and runs on weekends too (see newsCronTick).
@@ -5805,6 +5984,11 @@ export default {
           jobs.push(dispatch("uoa_monitor.yml"));
         }
       }
+      const brk = breakoutDue(c.dow, etDateISO(), c.hhmm);
+      if (brk.dispatch) {
+        jobs.push(dispatch("scanner.yml", { mode: "breakout" }));
+      }
+      if (brk.check) jobs.push(checkBreakoutReport(env, brk.check));
       if (weekday && c.hhmm === EOD_SLOT) {
         jobs.push(dispatch("scanner.yml"), dispatch("momentum.yml"),
                   healPublish());

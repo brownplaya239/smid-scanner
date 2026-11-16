@@ -1,0 +1,57 @@
+name: Economic Calendar
+
+# Refreshes ONLY the economic calendar (docs/reports/economic_calendar.json).
+# Weekdays it runs inside Momentum Scans (4:30 PM ET), so nothing rolled
+# the calendar forward over the weekend: on Monday 2026-11-16 the file
+# still covered Nov 9-13 and the Desk, the Daily Brief and the 0DTE
+# engine read last week's releases until Monday evening.
+#
+# The ForexFactory feed's "this week" runs Sunday to Saturday, so the
+# Sunday runs pick up the new week. GitHub's schedule runs hours late,
+# so the Cloudflare worker also dispatches this workflow at 8:00 AM ET
+# on Mondays (JOB_SCHEDULE in cloudflare-worker/worker.js), before the
+# 8:45 AM Daily Brief.
+
+on:
+  schedule:
+    - cron: '13 14 * * 0'    # Sun ~10 AM ET: switch to the new week
+    - cron: '13 23 * * 0'    # Sun ~7 PM ET: final pass before Monday
+  workflow_dispatch:
+
+# Momentum Scans writes the same file — same queue as the other R2 writers.
+concurrency:
+  group: tickerdesk-data
+  cancel-in-progress: false
+
+env:
+  # uv: workflow steps use only the locked runtime packages, never the dev
+  # tools (pytest, Ruff, Pyrefly), even when a step calls `uv run`.
+  UV_NO_DEV: "1"
+
+jobs:
+  calendar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --no-dev
+
+      - name: Start R2 manifest
+        # The calendar reads no R2 data; it only rewrites its own file.
+        run: uv run scripts/r2_sync.py init
+
+      - name: Refresh economic calendar
+        run: uv run python economic_calendar.py
+
+      - name: Publish
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: bash scripts/publish_reports.sh
