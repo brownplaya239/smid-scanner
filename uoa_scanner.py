@@ -290,9 +290,12 @@ _FUND_WORD = re.compile(r"\b(ETFs?|ETNs?|Exchange-Traded)\b")
 # Ltd.", "WisdomTree, Inc.") is a stock unless it also says ETF / ETN.
 _COMPANY_NAME = re.compile(
     r"\b(Inc|Incorporated|Corp|Corporation|Ltd|Limited|plc|N\.?V|S\.?A|AG|SE|"
-    r"Holdings?|Company|Co)\.?\s*$",
+    r"Holdings?|Company|Co|LLC|L\.?L\.?C|LP|L\.?P)\.?\s*$",
     re.IGNORECASE,
 )
+# ...except a commodity pool, which is a fund organised as a partnership
+# ("United States Oil Fund, LP").
+_POOL_NAME = re.compile(r"\bFunds?,?\s+(LLC|L\.?L\.?C|LP|L\.?P)\.?\s*$", re.IGNORECASE)
 
 
 def is_fund(ticker, name=None, sec_type=None):
@@ -313,7 +316,7 @@ def is_fund(ticker, name=None, sec_type=None):
     if not name:
         return False
     name = str(name)
-    if _FUND_WORD.search(name):
+    if _FUND_WORD.search(name) or _POOL_NAME.search(name):
         return True
     if _COMPANY_NAME.search(name):
         return False

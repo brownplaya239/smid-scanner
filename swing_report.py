@@ -140,8 +140,10 @@ def _meta_is_fresh(entry, today):
         return False
     # Schema-upgrade safety: re-fetch legacy entries that pre-date the raw
     # market_cap field so popups can show the actual figure ($X.XB / $X.XT)
-    # instead of a coarse bucket label.
-    return "market_cap" in entry
+    # instead of a coarse bucket label. Same for the security "type" that
+    # is_fund reads: without it a cached fund would pass as a stock for up
+    # to META_REFRESH_DAYS.
+    return "market_cap" in entry and "type" in entry
 
 
 def _fetch_one_meta(ticker):
