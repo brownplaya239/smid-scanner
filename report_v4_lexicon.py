@@ -86,10 +86,20 @@ BEFORE_PLACEHOLDER = (
     r"as\s+little\s+as|as\s+many\s+as|as\s+few\s+as|up\s+to|at\s+least|at\s+most",
     r"more\s+than|less\s+than|fewer\s+than|nearly|almost|mere|merely|only|barely|just",
     r"roughly|some|fully|well|a\s+full|a\s+whopping|whopping|scant|paltry|modest",
+    r"hefty|slim|meagre|meager|measly|tiny|huge|massive|sizable|sizeable",
 )
 BEFORE_PLACEHOLDER_RX = re.compile(
     r"(?<![A-Za-z])(?:%s)(?![A-Za-z])(?=[\s,.:;\"'()\[\]~-]{0,4}\{\{)"
     % "|".join(BEFORE_PLACEHOLDER),
+    re.IGNORECASE,
+)
+# The same, written right AFTER a placeholder: "{{revenue}} or more",
+# "{{revenue}}-plus", "{{revenue}}, give or take" add a bound the filing
+# never stated.
+AFTER_PLACEHOLDER_RX = re.compile(
+    r"(?<=\}\})(?:-(?:plus|ish|odd)|[\s,.:;\"\'()\[\]~]{0,3}(?:or\s+(?:more|less|so|thereabouts|higher|lower|above|below|fewer|greater)"
+    r"|give\s+or\s+take|and\s+(?:up|change|counting|above|more|less)|at\s+(?:least|most)))"
+    r"(?![A-Za-z])",
     re.IGNORECASE,
 )
 DIGIT_RX = re.compile(r"[0-9$%£¥€¼½¾²³¹]")

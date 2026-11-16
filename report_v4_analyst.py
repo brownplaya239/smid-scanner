@@ -990,12 +990,12 @@ def take_problems(take, facts, ticker):
         # A bound or put-down the model wrote itself, right before a
         # placeholder ("over {{revenue}}", "a mere {{cash}}"). The value
         # prints its own bound; any other qualifier is the model's claim.
-        lead = LX.hits(LX.BEFORE_PLACEHOLDER_RX, tpl)
+        lead = LX.hits(LX.BEFORE_PLACEHOLDER_RX, tpl) + LX.hits(LX.AFTER_PLACEHOLDER_RX, tpl)
         if lead:
             probs.append(
                 (
                     "ANALYST_NO_FREE_NUMBERS",
-                    "%s puts its own qualifier before a placeholder (the value prints its own "
+                    "%s puts its own qualifier next to a placeholder (the value prints its own "
                     "bound): %s" % (where, ", ".join(lead)),
                 )
             )

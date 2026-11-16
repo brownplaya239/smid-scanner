@@ -198,3 +198,36 @@ def test_qualifier_right_before_a_placeholder_is_caught(text, want):
 )
 def test_qualifier_words_elsewhere_are_left_alone(text):
     assert not LX.hits(LX.BEFORE_PLACEHOLDER_RX, text), text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Revenue was {{revenue_q}} or more.",
+        "Revenue was {{revenue_q}}-plus.",
+        "Revenue was {{revenue_q}}, give or take.",
+        "Cash was {{cash}} and change.",
+        "Deals reached {{deals}} and counting.",
+        "Revenue was {{revenue_q}} or so.",
+    ],
+)
+def test_qualifier_right_after_a_placeholder_is_caught(text):
+    assert LX.hits(LX.AFTER_PLACEHOLDER_RX, text), text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Revenue was {{revenue_q}} on the quarter.",
+        "Revenue was {{revenue_q}}, and cash was {{cash}}.",
+        "Cash of {{cash}} or debt of {{debt}} are both on file.",
+        "Revenue was {{revenue_q}}; plus, cash was {{cash}}.",
+    ],
+)
+def test_ordinary_words_after_a_placeholder_are_left_alone(text):
+    assert not LX.hits(LX.AFTER_PLACEHOLDER_RX, text), text
+
+
+@pytest.mark.parametrize("word", ["a hefty", "a slim", "a meagre", "a measly"])
+def test_put_downs_before_a_placeholder_are_caught(word):
+    assert LX.hits(LX.BEFORE_PLACEHOLDER_RX, word + " {{cash}}")
