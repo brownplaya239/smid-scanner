@@ -1282,17 +1282,22 @@ def generate_setup_pdf(results, hist_cache=None, macro=None):
 
 
 def publish_setup_pdf(pdf_bytes, label="SMID"):
-    """Archive the Setup Builder PDF to the GitHub Pages report site."""
+    """Archive the Setup Builder PDF to the GitHub Pages report site.
+
+    A failed archive re-raises, so the run exits non-zero and scanner.yml
+    does not record the setup slot as done. (No qualifying bases never gets
+    here and still exits 0.)"""
+    from report_archive import archive
+
     now = datetime.now(ET)
     prefix = "iwm" if "IWM" in label else "smid"
     filename = f"{prefix}_setup_{now.strftime('%Y-%m-%d_%H%M')}.pdf"
     try:
-        from report_archive import archive
-
         archive(pdf_bytes, filename)
-        print(f"  PDF archived to site: {filename}")
     except Exception as e:
-        print(f"  Archive step failed: {e}")
+        print(f"::error::Archive step failed for {filename}: {e}")
+        raise
+    print(f"  PDF archived to site: {filename}")
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
