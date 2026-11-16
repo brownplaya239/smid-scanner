@@ -11,7 +11,10 @@ v2 (reviewer-corrected):
   reconstructions are never modified. Each record carries the full
   audit trail: legs, per-leg entry/exit opens+closes, fills after the
   cost model, gross/fees/slippage/net, max risk, ROR per exit model,
-  night id, sector, fill model, chain source.
+  night id, sector, fill model, chain source. Only reconstructions and
+  PERMANENT skips are cached (dated by `attempted`); an event is tried
+  only once SETTLE_DAYS have passed, and API failures / an unsettled
+  expiry are retried on the next run instead of being cached.
 
   EXIT MODELS — earnings strategies are exit-timing sensitive, so every
   structure is marked at three predeclared exits:
@@ -47,7 +50,8 @@ import json
 import math
 import os
 import random
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from datetime import date as _date
 from statistics import mean, median
 
 import polygon_data as pg
@@ -68,6 +72,14 @@ BASE_EXIT = "next_close"
 CONDOR_GRID = ((0.60, 1.25), (0.75, 1.25), (0.75, 1.50), (0.90, 1.50), (1.00, 1.50))
 FLY_WINGS = (1.25, 1.50)
 STRANGLE_X = 0.5
+# An event is reconstructed only once its data can exist: the exit
+# session and a weekly expiry are behind it (calendar days after the
+# report date). Before that a missing bar means "not yet", not "never".
+SETTLE_DAYS = 10
+# Skips that say nothing permanent about the event: API failures (the
+# fetch helpers swallow errors and return empty) and an expiry that has
+# not settled yet. Never cached, so the next run retries them.
+TRANSIENT_SKIPS = ("error:", "no_underlying_bars", "no_chain", "expiry_pending")
 MIN_N_QUALIFY = 60
 PF_QUALIFY = 1.3
 MAX_DD_R = -5.0
@@ -245,6 +257,9 @@ def reconstruct(e):
         return {"skip": "one_sided_chain"}
     em = e["implied"] / 100.0 * spot
     expiry_spot = (und.get(exp) or {}).get("c")
+    if expiry_spot is None and exp >= max(und):
+        # expiry_hold would value every leg at 0 intrinsic: wait for it
+        return {"skip": "expiry_pending"}
 
     def leg(side, kind, x_mult):
         table = calls if kind == "call" else puts
@@ -568,16 +583,62 @@ def cost_attribution(recons):
     return out
 
 
-def run(limit=None, report_only=False):
+def _key(e):
+    return f"{e['ticker']}|{e['date']}|{e['type']}|{BT_VERSION}"
+
+
+def is_permanent_skip(r):
+    """True for a skip that will never change (the data does not exist
+    for a settled event); False for API failures / not-yet-settled data."""
+    sk = (r or {}).get("skip")
+    return bool(sk) and not str(sk).startswith(TRANSIENT_SKIPS)
+
+
+def _settled(e, today):
+    try:
+        return _date.fromisoformat(str(e["date"])[:10]) + timedelta(days=SETTLE_DAYS) <= today
+    except KeyError, ValueError:
+        return False
+
+
+def plan(cache, events, today):
+    """(todo, n_unsettled). Drops cached skips this version cannot trust
+    — transient ones, and skips stored before attempts were dated (they
+    may have been cached while the event was still pending) — so they
+    are retried. Reconstructed rows are never touched."""
+    for k in [k for k, r in cache.items() if r.get("bt_version") == BT_VERSION and r.get("skip")]:
+        r = cache[k]
+        if not is_permanent_skip(r) or not r.get("attempted"):
+            del cache[k]
+    todo, unsettled = [], 0
+    for e in events:
+        if _key(e) in cache:
+            continue
+        if not _settled(e, today):
+            unsettled += 1
+            continue
+        todo.append(e)
+    return todo, unsettled
+
+
+def store(cache, e, r, today):
+    """Cache a reconstruction or a PERMANENT skip (new keys only). A
+    transient skip is not cached; returns False so the caller can count
+    it as retrying."""
+    if r.get("skip") and not is_permanent_skip(r):
+        return False
+    r["event"] = e
+    r["bt_version"] = BT_VERSION
+    r["attempted"] = today.isoformat()
+    cache[_key(e)] = r
+    return True
+
+
+def run(limit=None, report_only=False, today=None):
+    today = today or datetime.now(UTC).date()
     cache = _load(CACHE_PATH, {}) or {}
     events = _events()
-    todo = (
-        []
-        if report_only
-        else [
-            e for e in events if f"{e['ticker']}|{e['date']}|{e['type']}|{BT_VERSION}" not in cache
-        ]
-    )
+    todo, unsettled = ([], 0) if report_only else plan(cache, events, today)
     if todo and not pg.available():
         out = {
             "generated": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -589,16 +650,19 @@ def run(limit=None, report_only=False):
         return out
     if limit:
         todo = todo[:limit]
-    print(f"events: {len(events)} total, {len(todo)} to reconstruct ({BT_VERSION})")
+    print(
+        f"events: {len(events)} total, {len(todo)} to reconstruct, "
+        f"{unsettled} not settled yet ({BT_VERSION})"
+    )
+    retrying = {}
     for e in todo:
-        key = f"{e['ticker']}|{e['date']}|{e['type']}|{BT_VERSION}"
         try:
             r = reconstruct(e)
         except Exception as ex:
             r = {"skip": "error:" + str(ex)[:80]}
-        r["event"] = e
-        r["bt_version"] = BT_VERSION
-        cache[key] = r  # immutable: new keys only, never edits
+        if not store(cache, e, r, today):
+            reason = str(r["skip"]).split(":")[0]
+            retrying[reason] = retrying.get(reason, 0) + 1
     with open(CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(cache, f, indent=0)
 
@@ -634,6 +698,8 @@ def run(limit=None, report_only=False):
         },
         "reconstructed": len(recons),
         "skipped": skips,
+        "retrying_next_run": retrying,
+        "not_settled": unsettled,
         "types": {},
     }
     for t, strats in strat_names.items():

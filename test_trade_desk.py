@@ -713,6 +713,68 @@ def test_backtest_qualification_requires_every_bar():
     assert bt._qualifies(dict(good, cap_wt_ror=-0.05), open_ok) is False
 
 
+def test_backtest_caches_only_permanent_skips():
+    """A pending or failed reconstruction must be retried, not cached forever."""
+    from datetime import date
+
+    import earnings_vol_backtest as bt
+
+    today = date(2026, 11, 16)
+    old = {"ticker": "AAA", "date": "2026-10-01", "type": "vol_rich"}
+    new = {"ticker": "BBB", "date": "2026-11-12", "type": "vol_rich"}
+    # an event too recent for its exit/expiry bars is not attempted
+    todo, unsettled = bt.plan({}, [old, new], today)
+    assert todo == [old] and unsettled == 1
+    # transient skips are not cached; a permanent one is, with its date
+    for reason in ("error:timeout", "no_underlying_bars", "no_chain", "expiry_pending"):
+        cache = {}
+        assert not bt.store(cache, old, {"skip": reason}, today) and cache == {}
+    cache = {}
+    assert bt.store(cache, old, {"skip": "one_sided_chain"}, today)
+    (row,) = cache.values()
+    assert row["attempted"] == "2026-11-16" and row["bt_version"] == bt.BT_VERSION
+    # the next run does not retry it
+    assert bt.plan(cache, [old], today) == ([], 0)
+    # an undated skip (cached before this fix, maybe while pending) and a
+    # cached transient skip are dropped and retried; reconstructions stay
+    k = bt._key(old)
+    legacy = {
+        k: {"skip": "no_session_bracket", "bt_version": bt.BT_VERSION},
+        "X|2026-09-01|vol_rich|" + bt.BT_VERSION: {
+            "skip": "error:boom",
+            "bt_version": bt.BT_VERSION,
+            "attempted": "2026-09-20",
+        },
+        "Y|2026-09-01|vol_rich|" + bt.BT_VERSION: {"bt_version": bt.BT_VERSION, "spot": 10},
+    }
+    todo, _ = bt.plan(legacy, [old], today)
+    assert todo == [old] and list(legacy) == ["Y|2026-09-01|vol_rich|" + bt.BT_VERSION]
+
+
+def test_backtest_waits_for_expiry_before_expiry_hold():
+    import earnings_vol_backtest as bt
+
+    und = {"2026-11-11": {"o": 10, "c": 10}, "2026-11-12": {"o": 10, "c": 10.5}}
+    chain = [
+        {"expiration_date": "2026-11-20", "contract_type": t, "strike_price": 10, "ticker": t}
+        for t in ("call", "put")
+    ]
+    e = {
+        "ticker": "AAA",
+        "date": "2026-11-11",
+        "session": "AMC",
+        "type": "vol_rich",
+        "implied": 5.0,
+    }
+    orig = (bt._bars, bt._chain_asof)
+    try:
+        bt._bars = lambda tk: und
+        bt._chain_asof = lambda *a: chain
+        assert bt.reconstruct(e) == {"skip": "expiry_pending"}
+    finally:
+        bt._bars, bt._chain_asof = orig
+
+
 def test_backtest_missing_exit_mark_skips_not_fabricates():
     """v1 fabricated $0 for missing exit marks (stale option closes),
     which produced impossible worst_ror < -1 on defined risk. v2 must
