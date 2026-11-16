@@ -2254,8 +2254,7 @@ function simplifyArticle(a) {
  *  uses so every consumer (tape, brief, badges) works unchanged. */
 async function fetchFinnhubMacroNews(env, limit) {
   if (!env.FINNHUB_API_KEY) {
-    return { error: "FINNHUB_API_KEY not configured in worker environment.",
-             articles: [] };
+    return { error: "macro feed unavailable", articles: [] };
   }
   try {
     // Header auth + explicit UA: Finnhub 401s bare fetches from edge
@@ -2274,8 +2273,10 @@ async function fetchFinnhubMacroNews(env, limit) {
       }
     );
     if (!r.ok) {
-      return { error: "finnhub " + r.status, status: r.status,
-               keylen: key.length, articles: [] };
+      // Generic message only: this response is public, so nothing about the
+      // key (not even its length) goes in it. The status stays in the logs.
+      console.log("[news] finnhub macro HTTP " + r.status);
+      return { error: "macro feed unavailable", articles: [] };
     }
     const j = await r.json();
     const lim = Math.min(Math.max(parseInt(limit) || 60, 1), 200);
@@ -2302,9 +2303,8 @@ async function fetchFinnhubMacroNews(env, limit) {
       }).filter(Boolean);
     return { count: articles.length, articles: articles, source: "finnhub" };
   } catch (e) {
-    const msg = e && e.name === "TimeoutError"
-      ? "Finnhub news upstream timeout" : String(e);
-    return { error: msg, articles: [] };
+    console.log("[news] finnhub macro failed: " + ((e && e.name) || e));
+    return { error: "macro feed unavailable", articles: [] };
   }
 }
 
@@ -3805,6 +3805,221 @@ function handleShareCard(request) {
   });
 }
 
+// ── News wire: Alpaca REST poll + stall alert (2026-11-16) ─────────────
+// The Railway websocket ingestor (news-ingestor/) is the only thing that
+// wrote Benzinga headlines into Supabase news_live, and its newest row is
+// from 2026-07-31: it died without anyone noticing. This cron-driven poller
+// is the backstop: every minute from 4 AM to 8 PM ET on weekdays (every 15
+// minutes otherwise) it pulls the newest headlines from Alpaca's REST news
+// API and upserts them into news_live, deduped on the same article id the
+// ingestor uses, so the two can run side by side. It also prunes rows older
+// than 3 days (the ingestor's other job) and posts to Slack when no new row
+// has landed for 20+ minutes during market hours (at most once an hour).
+// Needs worker secrets ALPACA_KEY + ALPACA_SECRET (poll) and
+// SUPABASE_SERVICE_KEY (write/prune); SLACK_BOT_TOKEN + the
+// SLACK_ALERT_CHANNEL var (alert). Anything missing just skips that part.
+const NEWS_CRON = "* * * * *";
+const NEWS_STALL_MIN = 20;               // alert threshold, market hours
+const NEWS_ALERT_EVERY_MS = 3600000;     // at most one alert an hour
+const NEWS_ALERT_KEY = "diag/news_wire_alert.json";
+
+// ET weekday (0 = Sun) and minute-of-day for a timestamp.
+function newsEtParts(ms) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", hour12: false, weekday: "short",
+    hour: "2-digit", minute: "2-digit",
+  }).formatToParts(new Date(ms));
+  const get = function (t) {
+    return (parts.find(function (x) { return x.type === t; }) || {}).value;
+  };
+  let hh = parseInt(get("hour"), 10);
+  if (hh === 24) hh = 0;
+  return {
+    dow: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(get("weekday")),
+    min: hh * 60 + parseInt(get("minute"), 10),
+  };
+}
+
+// Poll every minute 04:00-20:00 ET on weekdays, every 15 minutes otherwise.
+function newsPollDue(ms) {
+  const p = newsEtParts(ms);
+  const busy = p.dow >= 1 && p.dow <= 5 && p.min >= 240 && p.min < 1200;
+  return busy || p.min % 15 === 0;
+}
+
+// Regular session, 09:30-16:00 ET on weekdays (holidays not modelled:
+// Benzinga still publishes on market holidays).
+function newsMarketHours(ms) {
+  const p = newsEtParts(ms);
+  return p.dow >= 1 && p.dow <= 5 && p.min >= 570 && p.min < 960;
+}
+
+// Should the stall alert fire? newestMs = newest news_live insert time
+// (0 if none), lastAlertMs = when the previous alert went out (0 if never).
+function newsStallAlertDue(nowMs, newestMs, lastAlertMs) {
+  if (!newsMarketHours(nowMs)) return false;
+  if (newestMs && nowMs - newestMs < NEWS_STALL_MIN * 60000) return false;
+  return !(lastAlertMs && nowMs - lastAlertMs < NEWS_ALERT_EVERY_MS);
+}
+
+// Text saved as UTF-8 but read back as Windows-1252 turns "Fed’s" into
+// "Fedâ€™s" and "·" into "Â·". Undo it when the whole string round-trips;
+// leave anything else untouched. (Same logic as tdFixMojibake in
+// docs/index.html and fix_mojibake in macro_news_relay.py.)
+const CP1252_BYTE = { 0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84,
+  0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89,
+  0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91,
+  0x2019: 0x92, 0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96,
+  0x2014: 0x97, 0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B,
+  0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F };
+function fixMojibake(s) {
+  s = String(s == null ? "" : s);
+  if (!/[Â-ô][\u0080-¿Œ-™]/.test(s)) return s;
+  const bytes = [];
+  for (const ch of s) {
+    const c = ch.codePointAt(0);
+    if (c < 0x100) bytes.push(c);
+    else if (CP1252_BYTE[c] !== undefined) bytes.push(CP1252_BYTE[c]);
+    else return s;
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true })
+      .decode(new Uint8Array(bytes));
+  } catch (_) { return s; }
+}
+
+// Benzinga text arrives HTML-entity-encoded ("What&#39;s"); &amp; last so
+// nothing is decoded twice. Mirrors decodeEntities in news-ingestor.
+function decodeNewsText(s) {
+  if (!s) return "";
+  return fixMojibake(String(s)
+    .replace(/&#(\d+);/g, function (_, d) { return String.fromCodePoint(+d); })
+    .replace(/&#x([0-9a-fA-F]+);/g,
+      function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&"));
+}
+
+// One Alpaca REST news item -> a news_live row (same shape and id as the
+// websocket ingestor writes, so the two dedupe against each other).
+function alpacaToNewsRow(n) {
+  if (!n || n.id == null) return null;
+  const headline = decodeNewsText(n.headline).slice(0, 500);
+  if (!headline) return null;
+  return {
+    id:           String(n.id),
+    headline:     headline,
+    summary:      decodeNewsText(n.summary).slice(0, 1000),
+    source:       String(n.source || "benzinga").slice(0, 100),
+    url:          String(n.url || "").slice(0, 1000),
+    symbols:      Array.isArray(n.symbols) ? n.symbols.slice(0, 20) : [],
+    published_at: n.created_at || n.updated_at || new Date().toISOString(),
+  };
+}
+
+function newsSupaHeaders(env, extra) {
+  return Object.assign({
+    "apikey": env.SUPABASE_SERVICE_KEY,
+    "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+    "Content-Type": "application/json",
+  }, extra || {});
+}
+
+async function pollAlpacaNews(env) {
+  const start = new Date(Date.now() - 2 * 3600000).toISOString();
+  const r = await fetch("https://data.alpaca.markets/v1beta1/news?limit=50" +
+      "&sort=desc&start=" + encodeURIComponent(start),
+    { headers: { "APCA-API-KEY-ID": String(env.ALPACA_KEY).trim(),
+                 "APCA-API-SECRET-KEY": String(env.ALPACA_SECRET).trim(),
+                 "Accept": "application/json" },
+      signal: AbortSignal.timeout(10000) });
+  if (!r.ok) {
+    console.log("[news] alpaca HTTP " + r.status);
+    return;
+  }
+  const j = await r.json();
+  const rows = ((j && j.news) || []).map(alpacaToNewsRow).filter(Boolean);
+  if (!rows.length) return;
+  const w = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/news_live?on_conflict=id",
+    { method: "POST", body: JSON.stringify(rows),
+      headers: newsSupaHeaders(env,
+        { "Prefer": "resolution=ignore-duplicates,return=minimal" }),
+      signal: AbortSignal.timeout(10000) });
+  if (!w.ok) console.log("[news] upsert HTTP " + w.status);
+}
+
+async function pruneNewsLive(env) {
+  const cutoff = new Date(Date.now() - 3 * 86400000).toISOString();
+  const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/news_live?published_at=lt." + encodeURIComponent(cutoff),
+    { method: "DELETE",
+      headers: newsSupaHeaders(env, { "Prefer": "return=minimal" }),
+      signal: AbortSignal.timeout(10000) });
+  if (!r.ok) console.log("[news] prune HTTP " + r.status);
+}
+
+async function checkNewsStall(env, nowMs) {
+  if (!newsMarketHours(nowMs)) return;
+  if (!env.SLACK_BOT_TOKEN || !env.SLACK_ALERT_CHANNEL) return;
+  const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/news_live?select=created_at&order=created_at.desc&limit=1",
+    { headers: { "apikey": env.SUPABASE_ANON_KEY,
+                 "Authorization": "Bearer " + env.SUPABASE_ANON_KEY },
+      signal: AbortSignal.timeout(10000) });
+  if (!r.ok) return;
+  const rows = await r.json();
+  const newestMs = Date.parse((rows && rows[0] && rows[0].created_at) || "") || 0;
+  let lastAlertMs = 0;
+  if (env.DATA) {
+    try {
+      const o = await env.DATA.get(NEWS_ALERT_KEY);
+      if (o) lastAlertMs = Date.parse((await o.json()).at) || 0;
+    } catch (_) {}
+  }
+  if (!newsStallAlertDue(nowMs, newestMs, lastAlertMs)) return;
+  const mins = newestMs ? Math.round((nowMs - newestMs) / 60000) : null;
+  const when = newestMs ? new Date(newestMs).toLocaleString("en-US",
+    { timeZone: "America/New_York", weekday: "short", month: "short",
+      day: "numeric", hour: "numeric", minute: "2-digit" }) + " ET" : "never";
+  const j = await slackApi(env, "chat.postMessage", {
+    channel: env.SLACK_ALERT_CHANNEL,
+    text: ":rotating_light: TickerDesk news wire is silent: no new headline " +
+      "in news_live for " + (mins == null ? "a long time" : mins + " min") +
+      " (newest row " + when + "). The site shows \"Last headline\" " +
+      "instead of \"Live\" until it recovers. Worker Alpaca poll: " +
+      (env.ALPACA_KEY && env.ALPACA_SECRET ? "configured" :
+        "NOT configured (ALPACA_KEY / ALPACA_SECRET missing)") +
+      ". Check the Railway news-ingestor and the worker logs.",
+  });
+  if (j && j.ok && env.DATA) {
+    await env.DATA.put(NEWS_ALERT_KEY,
+      JSON.stringify({ at: new Date(nowMs).toISOString() }),
+      { httpMetadata: { contentType: "application/json" } });
+  }
+}
+
+// Called from scheduled() for NEWS_CRON. Each part fails on its own.
+async function newsCronTick(env) {
+  const now = Date.now();
+  if (!env.SUPABASE_URL) return;
+  const canWrite = !!env.SUPABASE_SERVICE_KEY;
+  const run = async function (job) {
+    try { await job(); } catch (e) {
+      console.log("[news] " + ((e && e.message) || e));
+    }
+  };
+  if (canWrite && env.ALPACA_KEY && env.ALPACA_SECRET && newsPollDue(now)) {
+    await run(function () { return pollAlpacaNews(env); });
+  }
+  // after the poll, so headlines it just wrote count as "new"
+  await run(function () { return checkNewsStall(env, now); });
+  if (canWrite && newsEtParts(now).min % 60 === 7) {
+    await run(function () { return pruneNewsLive(env); });
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -4722,6 +4937,9 @@ export default {
   //   "40 20 * * MON-FRI"  → EOD: scanner.yml + momentum.yml (post-close)
   //   everything else  → intraday: uoa.yml
   async scheduled(event, env, ctx) {
+    // News wire poll + stall alert: its own every-minute cron, needs no PAT
+    // and runs on weekends too (see newsCronTick).
+    if (event.cron === NEWS_CRON) { ctx.waitUntil(newsCronTick(env)); return; }
     if (!env.PAT) {
       console.log("[cron] env.PAT not set — backstop skipped");
       return;

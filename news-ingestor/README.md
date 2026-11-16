@@ -80,6 +80,21 @@ should pop in at the top with a brief highlight within a second or two of the
 ingestor logging them. (The frontend subscription degrades gracefully: if this
 worker is down, the tape just falls back to the 30-second Polygon poll.)
 
+## Backstop and health check (since 2026-11-16)
+This ingestor died silently on 2026-07-31 and nobody noticed for months. The
+Cloudflare worker now backs it up (`newsCronTick` in
+`cloudflare-worker/worker.js`, cron `* * * * *`):
+- When the worker has `ALPACA_KEY` + `ALPACA_SECRET` secrets, it polls Alpaca's
+  REST news API every minute 4 AM-8 PM ET on weekdays (every 15 min otherwise)
+  and upserts into `news_live` with the same ids, so both can run at once.
+  Copy the keys from GitHub with the `r2_probe.yml` workflow
+  (`sync_news_secrets`), or add them in the Cloudflare dashboard.
+- It prunes rows older than 3 days hourly.
+- It posts to Slack (`SLACK_ALERT_CHANNEL` in `wrangler.toml`) when no new row
+  has landed for 20+ minutes during market hours, at most once an hour.
+- The site shows "Live" only while the newest headline is recent; otherwise
+  "Last headline <when> ET".
+
 ## Notes
 - Retention: the ingestor deletes rows older than 3 days hourly. RLS blocks anon
   writes; only the service role (used here) can insert/delete.
