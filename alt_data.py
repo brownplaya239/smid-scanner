@@ -41,6 +41,7 @@ from fpdf import FPDF
 
 load_dotenv(override=True)
 
+from claude_call import ClaudeNoAnswer, ask_claude
 from nimble_data import gather_alt_data
 
 ET = pytz.timezone("America/New_York")
@@ -369,12 +370,21 @@ def synthesize(alt, scores, persist=None):
     }
     msg = f"{SYNTH_PROMPT}\n\nAlt-data for {alt['ticker']}:\n{json.dumps(payload, indent=1)}"
     print("  Sending alt-data to Claude for synthesis...")
-    resp = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=4000,
-        messages=[{"role": "user", "content": msg}],
-    )
-    raw = resp.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+    # Claude Sonnet 5.5 at "low" effort: this is summarising data already
+    # in the payload into a fixed JSON shape. Thinking counts toward
+    # max_tokens, hence 16K for a ~4K reply.
+    try:
+        raw = ask_claude(
+            client,
+            model="claude-sonnet-5-5",
+            prompt=msg,
+            max_tokens=16000,
+            effort="low",
+        )
+    except ClaudeNoAnswer as e:
+        print(f"  Claude returned no answer ({e}); synthesis left empty")
+        return {}
+    raw = raw.replace("```json", "").replace("```", "").strip()
     try:
         return json.loads(raw)
     except Exception:

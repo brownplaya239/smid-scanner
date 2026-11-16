@@ -31,6 +31,7 @@ import yfinance as yf
 from dotenv import load_dotenv
 from fpdf import FPDF
 
+from claude_call import ClaudeNoAnswer, ask_claude
 from insider_activity import enrich_candidates_with_insiders
 from macro_context import fetch_macro_context
 
@@ -41,6 +42,7 @@ import polygon_data
 IWM_MODE = "--iwm" in sys.argv
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+SETUP_BUILDER_MODEL = "claude-opus-5-5"
 
 if not ANTHROPIC_API_KEY:
     raise OSError("Missing: ANTHROPIC_API_KEY")
@@ -591,18 +593,25 @@ Today is {today}.
 Candidates (all have confirmed vol dry-up + Stage 2 base; some have insider activity in last 60d):
 {json.dumps(setups, indent=2)}"""
 
-    print("  ✅ Sending to Claude (Opus 4.5)...")
-    response = client.messages.create(
-        model="claude-opus-4-5",
-        max_tokens=16000,
-        messages=[{"role": "user", "content": full_prompt}],
-    )
-    usage = getattr(response, "usage", None)
-    if usage:
-        it = getattr(usage, "input_tokens", 0) or 0
-        ot = getattr(usage, "output_tokens", 0) or 0
-        print(f"  Tokens — input:{it}  output:{ot}")
-    raw = response.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+    print("  ✅ Sending to Claude (Opus 5.5)...")
+    # Claude Opus 5.5 always thinks; "high" effort because this is the
+    # once-a-day deep analysis (its default, "medium", is a step lower).
+    # Thinking counts toward max_tokens, so the budget is well above the
+    # ~16K of JSON the reply needs; ask_claude streams it.
+    try:
+        raw = ask_claude(
+            client,
+            model=SETUP_BUILDER_MODEL,
+            prompt=full_prompt,
+            max_tokens=64000,
+            effort="high",
+        )
+    except ClaudeNoAnswer as e:
+        # Refusal (after the server-side fallback also declined) or no
+        # answer text: same result as an unparseable reply — no setups.
+        print(f"  ✗ Claude returned no answer ({e})")
+        return []
+    raw = raw.replace("```json", "").replace("```", "").strip()
     print(f"  Raw response length: {len(raw)} chars")
     try:
         parsed = json.loads(raw)

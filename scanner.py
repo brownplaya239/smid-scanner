@@ -31,6 +31,7 @@ import yfinance as yf
 from dotenv import load_dotenv
 from fpdf import FPDF
 
+from claude_call import ClaudeNoAnswer, ask_claude
 from insider_activity import enrich_candidates_with_insiders, fetch_insider_transactions_detail
 from institutional_data import (
     classify_fund,
@@ -82,6 +83,7 @@ def _archive_report(pdf_bytes, filename):
 
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+SCANNER_MODEL = "claude-sonnet-5-5"
 
 if not ANTHROPIC_API_KEY:
     raise OSError("Missing: ANTHROPIC_API_KEY")
@@ -816,20 +818,29 @@ Today is {today}. Scan type: {scan_type}.
 Candidates (include insider activity from SEC Form 4 last 60d):
 {json.dumps(candidates, indent=2)}"""
 
-    print("  ✅ Sending to Claude (Sonnet 4.5)...")
+    print("  ✅ Sending to Claude (Sonnet 5.5)...")
     # Try Claude. If it auth-fails, rate-limits, or otherwise errors,
     # don't crash the whole scan — fall back to a "no-LLM" result set
     # that returns the candidates with a neutral score so users still
     # get the pre-filter pass and the workflow archives a real run
     # rather than failing entirely.
-    # Model: claude-sonnet-4-5 is the current alias for the latest
-    # Sonnet 4-series (auto-resolves to dated version under the hood).
+    # Model: Claude Sonnet 5.5 at "medium" effort — grading breakouts is
+    # judgment work, but it runs 6x a day on long candidate lists, so the
+    # cheaper levels above it are not worth it. Thinking tokens count
+    # toward max_tokens, hence the larger budget (streamed by ask_claude).
     try:
-        response = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=12000,
-            messages=[{"role": "user", "content": full_prompt}],
+        raw = ask_claude(
+            client,
+            model=SCANNER_MODEL,
+            prompt=full_prompt,
+            max_tokens=32000,
+            effort="medium",
         )
+    except ClaudeNoAnswer as e:
+        # Refusal (after the server-side fallback also declined) or a reply
+        # with no answer text: same degraded-but-published path as errors.
+        print(f"  ✗ Claude returned no answer ({e})")
+        return _fallback_no_llm(candidates, reason=e.reason)
     except anthropic.AuthenticationError as e:
         print(f"  ✗ Claude auth error (HTTP 401): {e}")
         print("  ➜ ANTHROPIC_API_KEY secret is invalid/expired/rotated.")
@@ -848,12 +859,7 @@ Candidates (include insider activity from SEC Form 4 last 60d):
     except Exception as e:
         print(f"  ✗ Unexpected Claude error: {type(e).__name__}: {e}")
         return _fallback_no_llm(candidates, reason="unknown_error")
-    usage = getattr(response, "usage", None)
-    if usage:
-        it = getattr(usage, "input_tokens", 0) or 0
-        ot = getattr(usage, "output_tokens", 0) or 0
-        print(f"  Tokens — input:{it}  output:{ot}")
-    raw = response.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+    raw = raw.replace("```json", "").replace("```", "").strip()
     print(f"  Raw response length: {len(raw)} chars, starts: {raw[:80]!r}")
     try:
         parsed = json.loads(raw)
