@@ -309,7 +309,36 @@ def event_status(ev, now_et, grace_min=30):
     return COMPLETED
 
 
-def load_events(now_et=None):
+def _is_release(ev):
+    """Only a data release publishes an actual (same test as the send gate)."""
+    return bool(ev.get("forecast") or ev.get("previous") or ev.get("anchor_et"))
+
+
+def display_problem(ev, now_et):
+    """Why this event cannot be shown as it stands, or None.
+
+    These used to block the WHOLE brief, including for events on other days
+    that were never going to be displayed, so the redesigned layout went
+    out on about 4 of 35 mornings and readers got the old one instead. An
+    event we cannot vouch for now costs that one line, not the email.
+    `ev` must already carry its `status`.
+    """
+    if ev.get("on_schedule") is False:
+        return "listed at %s but published for %s ET" % (ev.get("time_et"), ev.get("anchor_et"))
+    if ev.get("status") == COMPLETED and _is_release(ev) and ev.get("actual") in (None, "", "-"):
+        # the calendar feed carries no actuals, so a release that is already
+        # out has no number to print and cannot honestly be called complete
+        return "already released, but the feed has no actual to print"
+    problems = event_problems([ev], now_et)
+    return problems[0] if problems else None
+
+
+def load_events(now_et=None, left_out=None):
+    """Today's events that can be shown as they stand.
+
+    Events that fail display_problem() are left out; pass a list as
+    `left_out` to collect {"title", "why"} for each one.
+    """
     now_et = now_et or datetime.now(ET)
     p = os.path.join(REPORTS_DIR, "economic_calendar.json")
     try:
@@ -321,14 +350,22 @@ def load_events(now_et=None):
     # stale file still filters to the right day instead of silently
     # returning nothing
     today = {now_et.strftime("%Y-%m-%d"), now_et.strftime("%m-%d-%Y")}
-    evs = [e for e in (cal.get("events") or []) if e.get("date") in today]
-    for e in evs:
+    evs = []
+    for e in cal.get("events") or []:
+        if e.get("date") not in today:
+            continue
         e["status"] = event_status(e, now_et)
         e["stars"] = event_impact(e)
         when = _ev_time_et(e, now_et)
         e["_when"] = when
         if not e.get("time_et"):
             e["time_et"] = BT.fmt_time(when) if when else ""
+        why = display_problem(e, now_et)
+        if why:
+            if left_out is not None:
+                left_out.append({"title": e.get("title") or "(untitled)", "why": why})
+            continue
+        evs.append(e)
     evs.sort(key=lambda e: (-e["stars"], e["_when"].isoformat() if e.get("_when") else "~"))
     return evs
 
@@ -353,14 +390,28 @@ def calendar_problems(now_et=None):
             )
         ]
     v = []
-    bad = [e for e in evs if e.get("on_schedule") is False]
-    if bad:
+    anchored = [e for e in evs if "on_schedule" in e]
+    bad = [e for e in anchored if e.get("on_schedule") is False]
+    # One release listed a minute off, or moved for a holiday, is that
+    # release's problem, and load_events() leaves it out. Half or more of
+    # them disagreeing means the time conversion itself is wrong, which
+    # makes every time in the email suspect, so that still blocks. (Same
+    # threshold the calendar writer uses to refuse to write the file.)
+    if bad and len(bad) * 2 >= len(anchored):
         v.append(
-            "%d calendar event(s) disagree with their published release "
-            "time, e.g. %s at %s (published %s ET)"
-            % (len(bad), bad[0].get("title"), bad[0].get("time_et"), bad[0].get("anchor_et"))
+            "%d of %d calendar releases disagree with their published "
+            "release time, e.g. %s at %s (published %s ET)"
+            % (
+                len(bad),
+                len(anchored),
+                bad[0].get("title"),
+                bad[0].get("time_et"),
+                bad[0].get("anchor_et"),
+            )
         )
-    return v + event_problems(evs, now_et)
+    # per-event checks apply to what the email will DISPLAY, not to every
+    # event in the week's file
+    return v + event_problems(load_events(now_et), now_et)
 
 
 def event_problems(events, now_et=None):
@@ -428,7 +479,8 @@ def build(now_et=None, with_sectors=True):
         tnx["quote_convention"] = "x10" if raw > 20 else "percent"
     breadth = load_breadth()
     regime = classify_regime(idx, vix, tnx, breadth)
-    events = load_events(now_et)
+    events_left_out = []
+    events = load_events(now_et, left_out=events_left_out)
     actionable = [e for e in events if e["status"] != COMPLETED]
 
     sectors = {}
@@ -476,6 +528,7 @@ def build(now_et=None, with_sectors=True):
         "breadth": breadth,
         "regime": regime,
         "events": events,
+        "events_left_out": events_left_out,
         "top_event": (actionable or events or [None])[0],
         "sectors": sectors,
         "unavailable": [

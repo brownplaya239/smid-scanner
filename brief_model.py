@@ -32,7 +32,10 @@ ACTION_BUY, ACTION_SELL, ACTION_TWO_SIDED, ACTION_UNKNOWN = (
     "BUY",
     "SELL",
     "TWO-SIDED",
-    "UNSPECIFIED",
+    # The scanner tags a print "unknown" when it could not classify the
+    # side at all. Saying so on the row is honest; the old "UNSPECIFIED"
+    # label was treated as a missing field and blocked the whole email.
+    "SIDE UNKNOWN",
 )
 DIR_BULL, DIR_BEAR, DIR_NONE = "bullish", "bearish", "unresolved"
 
