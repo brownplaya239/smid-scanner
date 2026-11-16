@@ -131,6 +131,7 @@ def build(
     as_of="",
     summary_lines=None,
     preview=True,
+    postal_address="",
 ):
     sections = []
     reg_in = market.get("regime") or {}
@@ -547,6 +548,8 @@ def build(
             "regime": regime["label"],
             "site": site,
             "unsub": unsub,
+            # CAN-SPAM: the sender's postal address, shown in the footer
+            "postal_address": postal_address or "",
         },
         "sections": sections,
         "validation": {},

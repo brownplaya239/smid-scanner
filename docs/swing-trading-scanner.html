@@ -51,6 +51,23 @@
   footer { margin-top:44px; padding-top:16px; border-top:1px solid #2b2b2b;
     font-size:12px; color:#7a7a7a; }
   footer a { color:#7a7a7a; }
+  .signup { background:#0e0e0e; border:1px solid #2b2b2b; border-radius:10px;
+    padding:18px 20px; margin:26px 0; }
+  .signup.big { border-color:#ff9e1b; padding:22px; }
+  .signup h2, .signup h3 { margin:0 0 6px; }
+  .signup h3 { font-size:15px; font-weight:700; color:#e8e8e8; }
+  .signup p { margin:0 0 12px; font-size:13.5px; }
+  .bs-form { display:flex; gap:8px; flex-wrap:wrap; position:relative; }
+  .bs-form input[type=email] { flex:1 1 220px; background:#000; color:#e8e8e8;
+    border:1px solid #3a3a3a; border-radius:8px; padding:10px 12px; font-size:14px; }
+  .bs-form input[type=email]:focus { outline:none; border-color:#ff9e1b; }
+  .bs-form button { background:#ff9e1b; color:#000; font-weight:700; border:0;
+    border-radius:8px; padding:10px 20px; font-size:14px; cursor:pointer; }
+  .bs-form button:disabled { opacity:.6; cursor:default; }
+  .bs-hp { position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+  .bs-status { margin-top:8px; font-size:13px; min-height:1em; }
+  .bs-status.ok { color:#3ddc84; }
+  .bs-status.err { color:#ff6b6b; }
 </style>
 </head>
 <body>
@@ -63,6 +80,7 @@
   <p class="sub">Graded momentum setups with a published follow-through record — not a wall of green arrows.</p>
   <p>TickerDesk grades momentum and swing candidates each day and, crucially, tracks how yesterday's grades actually performed. The Momentum Lab shows the running record — including the sessions it got wrong — so the scanner earns trust instead of asserting it.</p>
   
+  
   <h2>What you get</h2><ul><li>Letter-graded swing candidates with relative strength, ADR%, extension and theme tags.</li><li>Cross-confirmation: which names show up in more than one scan.</li><li>An Engine Room self-audit with the running next-day hit rate.</li></ul><p>Grades come from a post-close batch; intraday percentage moves refresh live (15-minute delayed).</p>
   <h2>Frequently asked</h2>
   <div class="faq"><details><summary>How are setups graded?</summary><p>By a systematic momentum model, then tracked against real next-day and multi-day price action. The published record includes losing stretches.</p></details><details><summary>Is this financial advice?</summary><p>No — it's a research tool. Verify with your broker before any trade.</p></details></div>
@@ -70,6 +88,7 @@
   <p class="disc">Every signal referenced is logged and graded against real closes; see the <a href='/transparency'>transparency page</a> for the full self-graded track record.</p>
   <h2>More from TickerDesk</h2>
   <ul class="related"><li><a href="/options-flow-scanner">Options flow scanner</a></li><li><a href="/options-open-interest-confirmation">Open-interest confirmation</a></li><li><a href="/golden-sweeps-scanner">Golden sweeps scanner</a></li><li><a href="/spy-qqq-iwm-levels">SPY / QQQ / IWM key levels</a></li><li><a href="/earnings-options-flow">Earnings options flow</a></li><li><a href="/vcp-screener">VCP screener</a></li><li><a href="/ai-stock-research-reports">Stock research reports</a></li><li><a href="/stock-market-morning-brief">Stock market morning brief</a></li><li><a href="/transparency">Does options flow work? Our self-graded numbers</a></li></ul>
+  <section class="signup"><h3>Get the free TickerDesk Daily Brief</h3><p>One email shortly before 9:00 AM ET on market days. Confirm by email; unsubscribe in one click.</p><form class="bs-form" method="post" action="https://api.tickerdesk.io/brief/subscribe" data-source="lp_swing_trading_scanner"><input type="email" name="email" placeholder="you@example.com" autocomplete="email" required aria-label="Email address" /><input type="hidden" name="source" value="lp_swing_trading_scanner" /><input type="text" name="website" class="bs-hp" tabindex="-1" autocomplete="off" aria-hidden="true" /><button type="submit">Get the brief</button></form><div class="bs-status" role="status" aria-live="polite"></div></section>
   <footer>
     <a href="/">TickerDesk</a> &middot; <a href="/transparency">Transparency</a>
     &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a>
@@ -77,5 +96,45 @@
     15-minute delayed.
   </footer>
 </main>
+<script>
+document.querySelectorAll("form.bs-form").forEach(function (f) {
+  f.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var em = f.querySelector("input[type=email]");
+    var hp = f.querySelector("input[name=website]");
+    var btn = f.querySelector("button");
+    var st = f.parentNode.querySelector(".bs-status");
+    var email = (em.value || "").trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      st.className = "bs-status err";
+      st.textContent = "Please enter a valid email address.";
+      return;
+    }
+    var label = btn.textContent;
+    btn.disabled = true; btn.textContent = "Sending...";
+    st.className = "bs-status"; st.textContent = "";
+    fetch(f.action, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, source: f.getAttribute("data-source"),
+                             website: hp ? hp.value : "" })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        if (!r.ok) throw new Error(d.error ||
+          ("Sign-up failed (error " + r.status + "). Please try again."));
+        st.className = "bs-status ok";
+        st.textContent = "✓ " + (d.message ||
+          "Check your inbox to confirm your subscription.");
+        em.value = "";
+      });
+    }).catch(function (err) {
+      st.className = "bs-status err";
+      st.textContent = (err && err.message && !/fetch/i.test(err.message))
+        ? err.message
+        : "Couldn't reach TickerDesk. Check your connection and try again.";
+    }).then(function () { btn.disabled = false; btn.textContent = label; });
+  });
+});
+</script>
 </body>
 </html>

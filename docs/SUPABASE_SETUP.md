@@ -440,16 +440,20 @@ alter table public.watchlists
   add column if not exists weight numeric default 1
     check (weight >= 0 and weight <= 1000000);
 
--- Email signups for beta + daily brief (collected before account creation)
+-- Daily Brief email sign-ups (no account needed). Written ONLY by the
+-- worker's POST /brief/subscribe with the service key; double opt-in via
+-- GET /brief/confirm. daily_brief.py mails confirmed, not-unsubscribed rows.
+-- The double opt-in columns, the one-time confirmation token, the shared
+-- sign-up limit table, the policy lockdown and the functions the worker
+-- calls (brief_signup_claim / brief_signup_release / brief_confirm /
+-- brief_unsubscribe) come from sql/2026-11-16_brief_signups.sql.
 create table if not exists public.email_signups (
   email text primary key,
-  source text,            -- 'beta', 'daily_brief', 'footer', etc.
+  source text,            -- 'footer', 'lp_<page>', etc.
   created_at timestamptz default now()
 );
 alter table public.email_signups enable row level security;
--- Anyone can INSERT (signup form is public); nobody can SELECT (privacy)
-create policy "es_insert_any" on public.email_signups
-  for insert with check (true);
+-- No policies: the public can neither read nor write this table.
 
 -- Watcher count RPC — returns {ticker, n} for an array of tickers, with
 -- security definer so it can read across ALL rows in watchlists without

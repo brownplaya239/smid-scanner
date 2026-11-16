@@ -386,12 +386,18 @@ def run_checks(check):
         bool(DB.production_guard("demo", unsub)),
         DB.production_guard("demo", unsub),
     )
-    real = "https://api.tickerdesk.io/unsubscribe?u=9f3a&t=" + "a" * 40
+    real = DB.unsub_url("9f3a")
     check(
         "unsubscribe",
         "production guard ACCEPTS a real signed token",
         DB.production_guard("9f3a", real) == [],
         DB.production_guard("9f3a", real),
+    )
+    forged = "https://api.tickerdesk.io/unsubscribe?u=9f3a&t=" + "a" * 40
+    check(
+        "unsubscribe",
+        "production guard REJECTS a token whose signature does not verify",
+        bool(DB.production_guard("9f3a", forged)),
     )
     check(
         "unsubscribe",

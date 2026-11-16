@@ -9,7 +9,9 @@ One page per keyword cluster from the site audit. Each page:
   - is registered in sitemap.xml.
 
 Runs in CI after the report JSONs are refreshed so the live-stat
-callouts track the latest ledger. Pure static output — no client JS.
+callouts track the latest ledger. Static output; the only client JS is the
+small Daily Brief sign-up handler (SIGNUP_JS), and the form still works
+without it (plain POST to the worker, which answers with an HTML page).
 """
 
 import itertools
@@ -223,7 +225,108 @@ CSS = """
   footer { margin-top:44px; padding-top:16px; border-top:1px solid #2b2b2b;
     font-size:12px; color:#7a7a7a; }
   footer a { color:#7a7a7a; }
+  .signup { background:#0e0e0e; border:1px solid #2b2b2b; border-radius:10px;
+    padding:18px 20px; margin:26px 0; }
+  .signup.big { border-color:#ff9e1b; padding:22px; }
+  .signup h2, .signup h3 { margin:0 0 6px; }
+  .signup h3 { font-size:15px; font-weight:700; color:#e8e8e8; }
+  .signup p { margin:0 0 12px; font-size:13.5px; }
+  .bs-form { display:flex; gap:8px; flex-wrap:wrap; position:relative; }
+  .bs-form input[type=email] { flex:1 1 220px; background:#000; color:#e8e8e8;
+    border:1px solid #3a3a3a; border-radius:8px; padding:10px 12px; font-size:14px; }
+  .bs-form input[type=email]:focus { outline:none; border-color:#ff9e1b; }
+  .bs-form button { background:#ff9e1b; color:#000; font-weight:700; border:0;
+    border-radius:8px; padding:10px 20px; font-size:14px; cursor:pointer; }
+  .bs-form button:disabled { opacity:.6; cursor:default; }
+  .bs-hp { position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+  .bs-status { margin-top:8px; font-size:13px; min-height:1em; }
+  .bs-status.ok { color:#3ddc84; }
+  .bs-status.err { color:#ff6b6b; }
 """
+
+# Daily Brief sign-up. Posts to the worker, which saves the address and
+# sends a confirm-your-email message (double opt-in). Success is shown only
+# on a 2xx answer; any other answer shows the worker's own error text.
+SIGNUP_ENDPOINT = "https://api.tickerdesk.io/brief/subscribe"
+BRIEF_ARRIVAL = "shortly before 9:00 AM ET on market days"
+
+SIGNUP_JS = r"""
+document.querySelectorAll("form.bs-form").forEach(function (f) {
+  f.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var em = f.querySelector("input[type=email]");
+    var hp = f.querySelector("input[name=website]");
+    var btn = f.querySelector("button");
+    var st = f.parentNode.querySelector(".bs-status");
+    var email = (em.value || "").trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      st.className = "bs-status err";
+      st.textContent = "Please enter a valid email address.";
+      return;
+    }
+    var label = btn.textContent;
+    btn.disabled = true; btn.textContent = "Sending...";
+    st.className = "bs-status"; st.textContent = "";
+    fetch(f.action, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, source: f.getAttribute("data-source"),
+                             website: hp ? hp.value : "" })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        if (!r.ok) throw new Error(d.error ||
+          ("Sign-up failed (error " + r.status + "). Please try again."));
+        st.className = "bs-status ok";
+        st.textContent = "✓ " + (d.message ||
+          "Check your inbox to confirm your subscription.");
+        em.value = "";
+      });
+    }).catch(function (err) {
+      st.className = "bs-status err";
+      st.textContent = (err && err.message && !/fetch/i.test(err.message))
+        ? err.message
+        : "Couldn't reach TickerDesk. Check your connection and try again.";
+    }).then(function () { btn.disabled = false; btn.textContent = label; });
+  });
+});
+"""
+
+
+def signup_form(source, big=False):
+    """The Daily Brief sign-up block. `big` is the prominent version for the
+    morning-brief page; the compact one sits at the foot of every other page."""
+    if big:
+        head = (
+            "<h2>Get the brief by email</h2>"
+            "<p>Free. It arrives " + BRIEF_ARRIVAL + ": the market setup, unusual "
+            "options flow, top news and the day's calendar. We'll email you a link "
+            "to confirm, and every brief has a one-click unsubscribe.</p>"
+        )
+    else:
+        head = (
+            "<h3>Get the free TickerDesk Daily Brief</h3>"
+            "<p>One email " + BRIEF_ARRIVAL + ". Confirm by email; "
+            "unsubscribe in one click.</p>"
+        )
+    src = esc(source)
+    return (
+        '<section class="signup'
+        + (" big" if big else "")
+        + '">'
+        + head
+        + '<form class="bs-form" method="post" action="'
+        + SIGNUP_ENDPOINT
+        + '" data-source="'
+        + src
+        + '">'
+        '<input type="email" name="email" placeholder="you@example.com" '
+        'autocomplete="email" required aria-label="Email address" />'
+        '<input type="hidden" name="source" value="' + src + '" />'
+        '<input type="text" name="website" class="bs-hp" tabindex="-1" '
+        'autocomplete="off" aria-hidden="true" />'
+        '<button type="submit">Get the brief</button></form>'
+        '<div class="bs-status" role="status" aria-live="polite"></div></section>'
+    )
 
 
 def esc(s):
@@ -273,6 +376,12 @@ def render(page, all_pages):
     if page.get("callout"):
         callout = '<div class="callout">' + page["callout"] + "</div>"
 
+    # Daily Brief sign-up: prominent on the brief's own page (right under
+    # the intro), compact at the foot of every other page.
+    source = "lp_" + slug.replace("-", "_")[:37]
+    signup_top = signup_form(source, big=True) if page.get("signup_top") else ""
+    signup_foot = "" if page.get("signup_top") else signup_form(source)
+
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -301,6 +410,7 @@ def render(page, all_pages):
   <h1>{h1}</h1>
   <p class="sub">{sub}</p>
   {intro}
+  {signup_top}
   {callout}
   {body}
   <h2>Frequently asked</h2>
@@ -309,6 +419,7 @@ def render(page, all_pages):
   <p class="disc">{disc}</p>
   <h2>More from TickerDesk</h2>
   <ul class="related">{related}</ul>
+  {signup_foot}
   <footer>
     <a href="/">TickerDesk</a> &middot; <a href="/transparency">Transparency</a>
     &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a>
@@ -316,6 +427,7 @@ def render(page, all_pages):
     15-minute delayed.
   </footer>
 </main>
+<script>{signup_js}</script>
 </body>
 </html>
 """.format(
@@ -328,6 +440,9 @@ def render(page, all_pages):
         h1=esc(page["h1"]),
         sub=esc(page["sub"]),
         intro=page["intro"],
+        signup_top=signup_top,
+        signup_foot=signup_foot,
+        signup_js=SIGNUP_JS,
         callout=callout,
         body=page["body"],
         faq=faq_html,
@@ -723,10 +838,10 @@ PAGES = [
     {
         "slug": "stock-market-morning-brief",
         "title": "Stock Market Morning Brief — Pre-Market Movers & Catalysts | TickerDesk",
-        "meta": "A daily stock-market morning brief: pre-market movers, overnight news, macro calendar, before-the-open earnings, and the flow and setups that matter — in your inbox by 8:45 ET.",
+        "meta": "A free daily stock-market morning brief: pre-market movers, overnight news, macro calendar, before-the-open earnings, and the flow and setups that matter. Arrives shortly before 9:00 AM ET on market days.",
         "h1": "Your stock market morning brief",
         "sub": "Pre-market movers, overnight news, the macro calendar and the day's setups — before the open.",
-        "intro": "<p>Start the session already briefed. TickerDesk's daily email lands by 8:45 ET on weekdays with the pre-market movers, overnight headlines, the day's macro calendar, before-the-open earnings, and the flow and setups worth watching — a single decision-first read instead of ten open tabs.</p>",
+        "intro": "<p>Start the session already briefed. TickerDesk's daily email arrives shortly before 9:00 AM ET on market days with the pre-market movers, overnight headlines, the day's macro calendar, before-the-open earnings, and the flow and setups worth watching — a single decision-first read instead of ten open tabs.</p>",
         "body": (
             "<h2>What's in the brief</h2><ul>"
             "<li>Pre-market movers and why they're moving.</li>"
@@ -734,15 +849,25 @@ PAGES = [
             "<li>Before-the-open earnings and notable after-close reports.</li>"
             "<li>The top flow, setups and watchlist changes from the desk.</li>"
             "</ul>"
-            "<p>Opt in from any account; one-click unsubscribe in every email.</p>"
+            "<p>Sign up above with just your email for the market-wide brief. "
+            "With a free TickerDesk account you can also turn it on from your "
+            "settings and get your own watchlist names in it. Every email has "
+            "a one-click unsubscribe.</p>"
         ),
         "faq": [
-            ("When does it arrive?", "By 8:45 ET on market weekdays, ahead of the open."),
+            (
+                "When does it arrive?",
+                "Shortly before 9:00 AM ET on market days, ahead of the open.",
+            ),
             (
                 "Is it free?",
-                "Opt in from any tier. You control it from your settings and can unsubscribe in one click.",
+                (
+                    "Yes. Sign up with your email, confirm from the link we send, "
+                    "and unsubscribe in one click whenever you like."
+                ),
             ),
         ],
+        "signup_top": True,
         "cta_href": "/#desk",
         "cta_label": "See today's desk",
     },

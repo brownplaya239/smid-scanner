@@ -3834,9 +3834,11 @@ async function handleMyReports(request, env, cors) {
 // ── One-click email unsubscribe (RFC 8058) ───────────────────────────
 // The Daily Brief email carries a List-Unsubscribe header + footer link
 // pointing here with ?u=<user_id>&t=<sig>, where sig = first 40 hex of
-// HMAC-SHA256(SUPABASE_SERVICE_KEY, user_id). We recompute the HMAC with
-// the same shared service key and, on match, flip
-// profiles.daily_brief_enabled=false — no login required. Handles both
+// HMAC-SHA256(SUPABASE_SERVICE_KEY, user_id); email-list links carry
+// ?e=<email> signed over "brief-unsub:<email>". We recompute the HMAC with
+// the same shared service key and, on match, call brief_unsubscribe, which
+// stops the brief for that address on the account AND the email list —
+// no login required. Handles both
 // GET (a human clicking the footer link → HTML confirmation) and POST
 // (the mail client's one-click List-Unsubscribe-Post → 200).
 function _timingSafeEq(a, b) {
@@ -3845,65 +3847,395 @@ function _timingSafeEq(a, b) {
   for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return out === 0;
 }
-async function handleUnsubscribe(request, env) {
-  const htmlHdr = { "Content-Type": "text/html; charset=utf-8",
-                    "X-Content-Type-Options": "nosniff" };
-  const page = function (title, msg) {
-    return new Response(
-      '<!doctype html><meta charset="utf-8">' +
-      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<title>' + title + '</title>' +
-      '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,' +
-      'sans-serif;max-width:460px;margin:64px auto;padding:0 20px;text-align:center;">' +
-      '<h2 style="margin:0 0 10px;color:#1a1a1a;">' + title + '</h2>' +
-      '<p style="color:#555;line-height:1.6;">' + msg + '</p>' +
-      '<p style="margin-top:22px;"><a href="https://tickerdesk.io" ' +
-      'style="color:#c8891a;text-decoration:none;font-weight:600;">' +
-      'Return to TickerDesk &rarr;</a></p></div>', { headers: htmlHdr });
+// First 40 hex of HMAC-SHA256(SUPABASE_SERVICE_KEY, msg). daily_brief.py
+// computes the same digest (`_hmac40`), so the two must stay in step.
+async function _hmac40(secret, msg) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(msg));
+  return [...new Uint8Array(sig)]
+    .map(function (b) { return b.toString(16).padStart(2, "0"); })
+    .join("").slice(0, 40);
+}
+const _BRIEF_HTML_HDR = { "Content-Type": "text/html; charset=utf-8",
+                          "X-Content-Type-Options": "nosniff" };
+// Callers pass only fixed strings (never user input) as title / msg.
+function _briefPage(title, msg, status) {
+  return new Response(
+    '<!doctype html><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>' + title + '</title>' +
+    '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,' +
+    'sans-serif;max-width:460px;margin:64px auto;padding:0 20px;text-align:center;">' +
+    '<h2 style="margin:0 0 10px;color:#1a1a1a;">' + title + '</h2>' +
+    '<p style="color:#555;line-height:1.6;">' + msg + '</p>' +
+    '<p style="margin-top:22px;"><a href="https://tickerdesk.io" ' +
+    'style="color:#c8891a;text-decoration:none;font-weight:600;">' +
+    'Return to TickerDesk &rarr;</a></p></div>',
+    { status: status || 200, headers: _BRIEF_HTML_HDR });
+}
+// Service-role call to Supabase REST (bypasses RLS; worker-only key).
+function _svcFetch(env, path, init) {
+  const opt = init || {};
+  return fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/" + path, {
+    method: opt.method || "GET",
+    headers: Object.assign({
+      "apikey": env.SUPABASE_SERVICE_KEY,
+      "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+      "Content-Type": "application/json",
+    }, opt.headers || {}),
+    body: opt.body,
+  });
+}
+
+// The "code" field of a PostgREST / Postgres JSON error body, or "" when
+// the body isn't such an error (HTML error pages, proxies, empty bodies).
+function _pgrstCode(text) {
+  try {
+    const j = JSON.parse(text);
+    return j && typeof j === "object" && typeof j.code === "string" ? j.code : "";
+  } catch (e) {
+    return "";
+  }
+}
+
+// Calls one of the Daily Brief SQL functions (sql/2026-11-16_brief_signups.sql)
+// through PostgREST. Returns the parsed result; throws on any failure so
+// callers never act on a write that didn't happen.
+async function _briefRpc(env, fn, args) {
+  const r = await _svcFetch(env, "rpc/" + fn, {
+    method: "POST", body: JSON.stringify(args) });
+  if (!r.ok) {
+    const raw = await r.text();
+    const err = new Error("rpc " + fn + " " + r.status + " " + raw.slice(0, 200));
+    // Only PostgREST's structured "function not found" error (JSON
+    // code PGRST202, sent when the SQL file hasn't been run yet) counts
+    // as a missing function. Any other failure, including an unrelated
+    // 404 or an error that merely mentions that code, stays a failure.
+    err.missingFn = _pgrstCode(raw) === "PGRST202";
+    throw err;
+  }
+  const txt = await r.text();
+  return txt ? JSON.parse(txt) : null;
+}
+
+// Unsubscribing must work even if this worker is deployed before
+// sql/2026-11-16_brief_signups.sql has been run (unsubscribe is a legal
+// requirement, so it can never depend on rollout order). Without the
+// brief_unsubscribe function, do what the worker did before it existed:
+// switch the account's brief off directly, and mark an email-list row
+// unsubscribed if the table already has that column. Throws on failure.
+async function _unsubscribeDirect(env, uid, em) {
+  const patch = async function (path, body) {
+    const r = await _svcFetch(env, path, { method: "PATCH",
+      headers: { "Prefer": "return=minimal" }, body: JSON.stringify(body) });
+    const text = r.ok ? "" : await r.text();
+    return { ok: r.ok, status: r.status, code: _pgrstCode(text), text: text.slice(0, 200) };
   };
+  if (uid) {
+    const r = await patch("profiles?id=eq." + encodeURIComponent(uid),
+      { daily_brief_enabled: false });
+    if (!r.ok) throw new Error("profiles " + r.status + " " + r.text);
+    return;
+  }
+  const r = await patch("email_signups?email=eq." + encodeURIComponent(em),
+    { unsubscribed_at: new Date().toISOString() });
+  if (r.ok) return;
+  // No unsubscribed_at column yet means the email-list brief can't be
+  // running either (it needs the same SQL), so there is nothing to stop.
+  if (r.code === "PGRST204" || r.code === "42703") {
+    console.warn("[unsubscribe] email_signups has no unsubscribed_at column yet; " +
+      "nothing to stop for a list link");
+    return;
+  }
+  throw new Error("email_signups " + r.status + " " + r.text);
+}
+const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+async function handleUnsubscribe(request, env) {
   const url = new URL(request.url);
-  const uid = url.searchParams.get("u") || "";
+  // Account links carry ?u=<user id>; email-list links carry ?e=<email>.
+  // An account link never uses ?e=: its address is looked up server-side.
+  const uid = (url.searchParams.get("u") || "").trim().toLowerCase();
+  const em = uid ? "" : _normEmail(url.searchParams.get("e") || "");
   const tok = (url.searchParams.get("t") || "").toLowerCase();
-  if (!uid || !tok || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
-    return new Response("Bad request", { status: 400, headers: htmlHdr });
+  if ((!uid && !em) || !tok || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return new Response("Bad request", { status: 400, headers: _BRIEF_HTML_HDR });
   }
   let expected = "";
   try {
-    const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey("raw",
-      enc.encode(env.SUPABASE_SERVICE_KEY),
-      { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-    const sig = await crypto.subtle.sign("HMAC", key, enc.encode(uid));
-    expected = [...new Uint8Array(sig)]
-      .map(function (b) { return b.toString(16).padStart(2, "0"); })
-      .join("").slice(0, 40);
+    // The "brief-unsub:" prefix keeps an email token from ever being
+    // valid as a user-id token (and vice versa).
+    expected = await _hmac40(env.SUPABASE_SERVICE_KEY,
+      uid ? uid : "brief-unsub:" + em);
   } catch (e) {
-    return new Response("Server error", { status: 500, headers: htmlHdr });
+    return new Response("Server error", { status: 500, headers: _BRIEF_HTML_HDR });
   }
-  if (!_timingSafeEq(tok, expected)) {
-    return page("Link expired",
+  if (!_timingSafeEq(tok, expected) || (uid && !_UUID_RE.test(uid))) {
+    return _briefPage("Link expired",
       "This unsubscribe link is invalid or has expired. You can manage " +
       "email preferences from your account on TickerDesk.");
   }
   try {
-    await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/profiles?id=eq." + encodeURIComponent(uid), {
-      method: "PATCH",
-      headers: { "apikey": env.SUPABASE_SERVICE_KEY,
-                 "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                 "Content-Type": "application/json",
-                 "Prefer": "return=minimal" },
-      body: JSON.stringify({ daily_brief_enabled: false }) });
+    // One call stops the brief for the address on both paths: the email
+    // list and any account with that address (see brief_unsubscribe).
+    try {
+      await _briefRpc(env, "brief_unsubscribe",
+        uid ? { p_user_id: uid, p_email: null } : { p_user_id: null, p_email: em });
+    } catch (e) {
+      if (!(e && e.missingFn)) throw e;
+      console.warn("[unsubscribe] brief_unsubscribe missing; using direct update");
+      await _unsubscribeDirect(env, uid, em);
+    }
   } catch (e) {
-    return new Response("Server error", { status: 500, headers: htmlHdr });
+    console.error("[unsubscribe] " + (e && e.message));
+    return new Response("Server error", { status: 500, headers: _BRIEF_HTML_HDR });
   }
   // RFC 8058 one-click POST expects a plain 200 (no body needed).
   if (request.method === "POST") {
-    return new Response("Unsubscribed", { status: 200, headers: htmlHdr });
+    return new Response("Unsubscribed", { status: 200, headers: _BRIEF_HTML_HDR });
   }
-  return page("You're unsubscribed",
-    "You won't receive any more TickerDesk Daily Brief emails. You can turn " +
-    "them back on anytime from your Watchlist settings.");
+  return _briefPage("You're unsubscribed",
+    "You won't receive any more TickerDesk Daily Brief emails at this address. " +
+    "You can sign up again anytime at tickerdesk.io, or turn the brief back " +
+    "on from your Watchlist settings if you have an account.");
+}
+
+// ── Daily Brief email list (no account needed) ───────────────────────
+// POST /brief/subscribe {email, source} asks the database to record the
+// sign-up and claim the right to send ONE double opt-in email
+// (brief_signup_claim: per-address 15-minute cooldown, shared per-network
+// and site-wide limits, all atomic). Only the request that wins the claim
+// sends. The email carries a random one-time token that expires in 7
+// days; the database stores only its SHA-256. GET /brief/confirm?token=…
+// uses it (brief_confirm). daily_brief.py then mails the market-wide
+// brief to confirmed, not-unsubscribed addresses. SQL:
+// sql/2026-11-16_brief_signups.sql.
+const BRIEF_FROM_DEFAULT = "TickerDesk <brief@tickerdesk.io>";
+const BRIEF_ARRIVAL = "shortly before 9:00 AM ET on market days";
+function _normEmail(s) { return String(s || "").trim().toLowerCase(); }
+function _validEmail(e) {
+  if (!e || e.length > 254) return false;
+  const at = e.lastIndexOf("@");
+  if (at < 1 || at > 64) return false;
+  return /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(e.slice(0, at)) &&
+    /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/.test(e.slice(at + 1));
+}
+function _hex(buf) {
+  return [...new Uint8Array(buf)]
+    .map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+}
+async function _sha256Hex(s) {
+  return _hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
+}
+
+// The network a visitor's address belongs to, for the sign-up limits.
+// IPv4: the full address. IPv6: its /64 prefix, because one home or
+// server is normally handed a whole /64 and could otherwise rotate
+// through billions of addresses to dodge a per-address limit. An IPv4
+// address written in IPv6 form (::ffff:1.2.3.4 or 0:0:0:0:0:ffff:102:304)
+// is plain IPv4. Anything that doesn't parse shares one key, "invalid",
+// so odd spellings can't each get a fresh limit.
+const _IP_INVALID = "invalid";
+function _ipv4Octets(s) {
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(s)) return null;
+  const o = s.split(".").map(Number);
+  return o.every(function (x) { return x <= 255; }) ? o : null;
+}
+function _ipNetwork(ip) {
+  const s = String(ip || "").trim().toLowerCase();
+  if (s.indexOf(":") < 0) {
+    const o = _ipv4Octets(s);
+    return o ? o.join(".") : _IP_INVALID;
+  }
+  const halves = s.split("::");
+  if (halves.length > 2) return _IP_INVALID;
+  const split = function (h) { return h ? h.split(":") : []; };
+  const head = split(halves[0]);
+  const tail = split(halves.length === 2 ? halves[1] : "");
+  // a dotted IPv4 may only appear as the very last part
+  const last = halves.length === 2 ? tail : head;
+  let v4 = null;
+  if (last.length && last[last.length - 1].indexOf(".") >= 0) {
+    v4 = _ipv4Octets(last.pop());
+    if (!v4) return _IP_INVALID;
+  }
+  const want = v4 ? 6 : 8;
+  let groups = head;
+  if (halves.length === 2) {
+    const fill = want - head.length - tail.length;
+    if (fill < 1) return _IP_INVALID;
+    groups = head.concat(new Array(fill).fill("0"), tail);
+  }
+  if (groups.length !== want ||
+      !groups.every(function (g) { return /^[0-9a-f]{1,4}$/.test(g); })) {
+    return _IP_INVALID;
+  }
+  const n = groups.map(function (g) { return parseInt(g, 16); });
+  if (v4) n.push(v4[0] * 256 + v4[1], v4[2] * 256 + v4[3]);
+  const zeros5 = n.slice(0, 5).every(function (x) { return x === 0; });
+  // IPv4-mapped (::ffff:a.b.c.d, in dotted or hex form), or the old
+  // IPv4-compatible dotted form (::a.b.c.d)
+  if (zeros5 && (n[5] === 0xffff || (v4 && n[5] === 0))) {
+    return [n[6] >> 8, n[6] & 255, n[7] >> 8, n[7] & 255].join(".");
+  }
+  return n.slice(0, 4).map(function (x) { return x.toString(16); }).join(":") + "::/64";
+}
+
+async function handleBriefSubscribe(request, env, cors) {
+  // The site's forms post JSON from JS. A plain HTML form post (browser
+  // with JS off) gets the same answer as a small HTML page instead.
+  const isForm = /application\/x-www-form-urlencoded/i
+    .test(request.headers.get("Content-Type") || "");
+  const reply = function (status, obj) {
+    if (isForm) {
+      const title = !obj.ok ? "Sign-up didn't go through"
+        : obj.status === "already_subscribed" ? "You're already subscribed"
+        : "Check your inbox";
+      return _briefPage(title, obj.message || obj.error, status);
+    }
+    return new Response(JSON.stringify(obj), { status: status, headers: cors });
+  };
+  const saveFailed = { ok: false,
+    error: "We couldn't save your sign-up. Please try again in a few minutes." };
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return reply(503, { ok: false,
+      error: "Sign-ups are temporarily unavailable. Please try again later." });
+  }
+  let body = {};
+  try {
+    const raw = await request.text();
+    if (raw.length > 4000) throw new Error("too large");
+    body = isForm ? Object.fromEntries(new URLSearchParams(raw))
+                  : (JSON.parse(raw || "{}") || {});
+  } catch (_) {
+    return reply(400, { ok: false, error: "Bad request." });
+  }
+  // Honeypot: a hidden field real visitors never fill in. Bots that do
+  // get a normal-looking success and nothing is saved or sent.
+  if (body.website) {
+    return reply(200, { ok: true, status: "pending",
+      message: "Check your inbox to confirm your subscription." });
+  }
+  const email = _normEmail(body.email);
+  if (!_validEmail(email)) {
+    return reply(400, { ok: false, error: "Please enter a valid email address." });
+  }
+  if (!env.RESEND_API_KEY) {
+    console.error("[brief/subscribe] RESEND_API_KEY not set on the worker");
+    return reply(503, { ok: false,
+      error: "We couldn't send the confirmation email right now. Please try again later." });
+  }
+  const source = String(body.source || "site").toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "").slice(0, 40) || "site";
+
+  // A fresh random token for this attempt. Only its hash is stored.
+  const token = _hex(crypto.getRandomValues(new Uint8Array(32)));
+  let tokenHash = "";
+  let claim = "";
+  try {
+    tokenHash = await _sha256Hex(token);
+    // Raw IPs are never stored: the database sees a keyed hash.
+    const ipHash = await _hmac40(env.SUPABASE_SERVICE_KEY,
+      "brief-ip:" + _ipNetwork(request.headers.get("CF-Connecting-IP") || "?"));
+    claim = await _briefRpc(env, "brief_signup_claim", {
+      p_email: email, p_source: source, p_ip_hash: ipHash, p_token_hash: tokenHash });
+  } catch (e) {
+    console.error("[brief/subscribe] " + (e && e.message));
+    return reply(502, saveFailed);
+  }
+  const pending = { ok: true, status: "pending",
+    message: "Check your inbox to confirm your subscription." };
+  if (claim === "already_subscribed") {
+    return reply(200, { ok: true, status: "already_subscribed",
+      message: "You're already subscribed. The brief arrives " + BRIEF_ARRIVAL + "." });
+  }
+  if (claim === "pending") return reply(200, pending);   // one is already on its way
+  if (claim === "rate_limited") {
+    return reply(429, { ok: false,
+      error: "Too many sign-up attempts. Please try again in a few minutes." });
+  }
+  if (claim === "invalid") {
+    return reply(400, { ok: false, error: "Please enter a valid email address." });
+  }
+  if (claim !== "send") {
+    console.error("[brief/subscribe] unexpected claim result " + JSON.stringify(claim));
+    return reply(502, saveFailed);
+  }
+
+  // This request won the claim: it alone sends the confirmation.
+  const link = new URL(request.url).origin + "/brief/confirm?token=" + token;
+  const text =
+    "Please confirm you want the TickerDesk Daily Brief.\n\n" +
+    "Confirm: " + link + "\n\n" +
+    "This link works once and expires in 7 days. The brief arrives " +
+    BRIEF_ARRIVAL + ". Every email has a one-click unsubscribe link.\n\n" +
+    "If you didn't ask for this, ignore this email and you won't hear " +
+    "from us again.\n\nTickerDesk · tickerdesk.io";
+  const html =
+    '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,' +
+    'sans-serif;max-width:480px;margin:0 auto;padding:24px 16px;color:#1a1a1a;">' +
+    '<h2 style="margin:0 0 12px;">Confirm your Daily Brief subscription</h2>' +
+    '<p style="line-height:1.6;color:#444;">Click below to start getting the ' +
+    'TickerDesk Daily Brief. It arrives ' + BRIEF_ARRIVAL + '.</p>' +
+    '<p style="margin:22px 0;"><a href="' + link + '" style="display:inline-block;' +
+    'padding:12px 24px;background:#c8891a;color:#fff;font-weight:700;' +
+    'text-decoration:none;border-radius:8px;">Confirm subscription</a></p>' +
+    '<p style="font-size:13px;line-height:1.6;color:#777;">This link works once ' +
+    "and expires in 7 days. If you didn't ask for this, ignore this email and " +
+    "you won't hear from us again.</p>" +
+    '<p style="font-size:12px;color:#999;">TickerDesk &middot; tickerdesk.io</p></div>';
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + env.RESEND_API_KEY,
+                 "Content-Type": "application/json",
+                 // a retried request for this claim can never send twice
+                 "Idempotency-Key": "brief-confirm/" + tokenHash.slice(0, 48) },
+      body: JSON.stringify({
+        from: env.FROM_EMAIL || BRIEF_FROM_DEFAULT, to: [email],
+        subject: "Confirm your TickerDesk Daily Brief subscription",
+        html: html, text: text }) });
+    if (!r.ok) throw new Error("resend " + r.status + " " + (await r.text()).slice(0, 200));
+  } catch (e) {
+    console.error("[brief/subscribe] " + (e && e.message));
+    // Free the address so the person can retry now (best effort: if this
+    // fails too, the 15-minute cooldown simply runs out).
+    try {
+      await _briefRpc(env, "brief_signup_release", { p_email: email, p_token_hash: tokenHash });
+    } catch (e2) { console.error("[brief/subscribe] release " + (e2 && e2.message)); }
+    return reply(502, { ok: false,
+      error: "We couldn't send the confirmation email. Please try again in a few minutes." });
+  }
+  return reply(200, pending);
+}
+
+async function handleBriefConfirm(request, env) {
+  const token = (new URL(request.url).searchParams.get("token") || "").toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(token) || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return _briefPage("Link not valid",
+      "This confirmation link is incomplete. Please sign up again at tickerdesk.io.", 400);
+  }
+  let email = null;
+  try {
+    // Atomic and single-use: the token is cleared as it is used.
+    email = await _briefRpc(env, "brief_confirm", { p_token_hash: await _sha256Hex(token) });
+  } catch (e) {
+    console.error("[brief/confirm] " + (e && e.message));
+    return _briefPage("Something went wrong",
+      "We couldn't confirm your subscription just now. Please try the link again in a few minutes.",
+      500);
+  }
+  if (!email) {
+    return _briefPage("Link expired or already used",
+      "This confirmation link has expired, was already used, or was replaced " +
+      "by a newer one. If you already confirmed, you're subscribed. Otherwise, " +
+      "sign up again at tickerdesk.io for a fresh link.", 410);
+  }
+  return _briefPage("You're subscribed",
+    "Thanks for confirming. The TickerDesk Daily Brief arrives " + BRIEF_ARRIVAL +
+    ". Every email has a one-click unsubscribe link.");
 }
 
 // ── Abuse guards (audit item: unauthenticated market-data proxy) ────
@@ -4625,6 +4957,13 @@ export default {
     if (urlPath === "/unsubscribe" &&
         (request.method === "GET" || request.method === "POST")) {
       return handleUnsubscribe(request, env);
+    }
+    // Daily Brief email list: sign-up (double opt-in) + confirm link.
+    if (urlPath === "/brief/subscribe" && request.method === "POST") {
+      return handleBriefSubscribe(request, env, cors);
+    }
+    if (urlPath === "/brief/confirm" && request.method === "GET") {
+      return handleBriefConfirm(request, env);
     }
 
     // GET — market-quote proxy (?quotes=SPY,QQQ,...), daily-candle proxy

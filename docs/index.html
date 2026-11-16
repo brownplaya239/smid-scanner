@@ -7726,19 +7726,23 @@
     </div>
   </div>
 
-  <!-- Beta email capture — collects emails for daily brief + launch list -->
+  <!-- Daily Brief sign-up. POSTs to the worker's /brief/subscribe, which
+       saves the address and sends a confirm-your-email message. -->
   <div class="email-capture">
     <div class="ec-inner">
       <div class="ec-pitch">
         <h3>Get the daily TickerDesk Brief</h3>
-        <p>One email per morning with your watchlist's overnight moves,
-          new A+ trend grades, options flow signals, and earnings within
-          7 days. Free during beta.</p>
+        <p>One free email each market morning, shortly before 9:00 AM ET:
+          the market setup, unusual options flow, top news and the day's
+          calendar. Sign in and add a watchlist to get your own names too.</p>
       </div>
       <form id="ec-form" class="ec-form">
         <input type="email" id="ec-email" placeholder="you@example.com"
                autocomplete="email" required />
-        <button type="submit" id="ec-submit">Join free beta</button>
+        <input type="text" id="ec-website" name="website" tabindex="-1"
+               autocomplete="off" aria-hidden="true"
+               style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" />
+        <button type="submit" id="ec-submit">Get the brief</button>
       </form>
       <div id="ec-status" class="ec-status"></div>
     </div>
@@ -12022,10 +12026,14 @@
     }
   })();
 
-  // ── Email capture (footer beta signup) ──
+  // ── Email capture (footer Daily Brief sign-up) ──
+  // Success is shown ONLY when the worker answers 2xx; otherwise the
+  // worker's own error message is shown. (It used to write to Supabase
+  // directly, ignore the result and always say "You're on the list".)
   (function setupEmailCapture() {
     const form = document.getElementById("ec-form");
     const input = document.getElementById("ec-email");
+    const trap = document.getElementById("ec-website");
     const submit = document.getElementById("ec-submit");
     const status = document.getElementById("ec-status");
     if (!form) return;
@@ -12042,25 +12050,36 @@
       submit.disabled = true;
       submit.textContent = "Submitting...";
       try {
-        if (SUPA) {
-          await tdSupaTimeout(
-            SUPA.from("email_signups").upsert(
-              { email: email, source: "footer_beta" },
-              { onConflict: "email" }
-            ),
-            7000, "footer email signup"
-          );
+        const ctl = new AbortController();
+        const timer = setTimeout(function () { ctl.abort(); }, 15000);
+        let resp, data = {};
+        try {
+          resp = await fetch(WORKER_URL + "/brief/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, source: "footer",
+                                   website: trap ? trap.value : "" }),
+            signal: ctl.signal,
+          });
+        } finally { clearTimeout(timer); }
+        try { data = await resp.json(); } catch (_) { data = {}; }
+        if (!resp.ok) {
+          throw new Error(data.error ||
+            ("Sign-up failed (error " + resp.status + "). Please try again."));
         }
         status.className = "ec-status ok";
-        status.innerHTML = "✓ You're on the list. We'll send the first " +
-          "brief tomorrow morning ET.";
+        status.textContent = "✓ " + (data.message ||
+          "Check your inbox to confirm your subscription.");
         input.value = "";
       } catch (e) {
         status.className = "ec-status err";
-        status.textContent = "Signup failed: " + (e.message || e);
+        status.textContent = (e && e.name === "AbortError")
+          ? "Sign-up timed out. Please try again."
+          : (e && e.message && !/fetch/i.test(e.message)) ? e.message
+          : "Couldn't reach TickerDesk. Check your connection and try again.";
       } finally {
         submit.disabled = false;
-        submit.textContent = "Join free beta";
+        submit.textContent = "Get the brief";
       }
     });
   })();
@@ -12794,36 +12813,15 @@
           });
           const data = await resp.json();
           if (data.ok && data.url) {
-            // Best-effort intent log — FIRE AND FORGET. Awaiting this
-            // hangs forever in some session states (supabase-js client
-            // gets stuck after auth refresh) and blocks the redirect.
-            // The user's intent is captured by the Stripe checkout
-            // session itself; this row is just telemetry.
-            if (SUPA && CURRENT_USER.email) {
-              try {
-                SUPA.from("email_signups").upsert(
-                  { email: CURRENT_USER.email,
-                    source: "checkout_started_" + plan },
-                  { onConflict: "email" }
-                ).then(function(){}, function(){});
-              } catch (e) {}
-            }
+            // Stripe's checkout session records the intent. (A browser
+            // write to email_signups used to log it too; that table is
+            // service-key only now, so the write was removed.)
             window.location.href = data.url;
           } else {
-            // Stripe not configured yet — fall back to email-capture stub
-            // so the upgrade intent doesn't get lost. Same fire-and-forget
-            // pattern as the success branch to avoid the supabase hang.
+            // Checkout couldn't start. Say so plainly: nothing is
+            // recorded here, so promise nothing.
             console.warn("Stripe checkout error:", data.error);
-            if (SUPA && CURRENT_USER.email) {
-              try {
-                SUPA.from("email_signups").upsert(
-                  { email: CURRENT_USER.email,
-                    source: "upgrade_intent_" + plan },
-                  { onConflict: "email" }
-                ).then(function(){}, function(){});
-              } catch (e) {}
-            }
-            btn.textContent = "Recorded — we'll email you when ready";
+            btn.textContent = "Checkout is unavailable right now. Please try again later.";
             setTimeout(function () {
               btn.disabled = false;
               btn.textContent = orig;
