@@ -5,7 +5,9 @@ fetch() calls with a fake Supabase (auth + the two database functions
 td_reserve_report / td_redeem_promo), Yahoo and GitHub. Checks that a
 report only starts after the sign-in, plan and usage reservation all
 succeed (any failure refuses instead of letting it through), that a
-report that fails to start is un-charged, and that promo codes go
+report GitHub accepts is marked dispatched, that only a clear GitHub
+refusal (4xx) un-charges it while an unclear outcome keeps it charged
+and marks it dispatch_uncertain, and that promo codes go
 through td_redeem_promo. The SQL side is in
 sql/2026-11-10_lock_plans_and_report_usage.sql. Skipped without Node."""
 
@@ -26,7 +28,7 @@ USER = "3f1c2b8e-1111-4222-8333-444455556666"
 RES_ID = "9a9a9a9a-0000-4000-8000-000000000001"
 
 # FAKES (set per test) is a JS object of handlers: auth, rpc, yahoo, github,
-# del. Each gets the recorded call and returns a Response (or throws).
+# del, patch. Each gets the recorded call and returns a Response (or throws).
 HARNESS = r"""
 import worker from "./worker.mjs";
 
@@ -51,19 +53,22 @@ const DEFAULTS = {
   yahoo: () => json({ chart: { result: [{ timestamp: [1, 2, 3] }] } }),
   github: () => new Response(null, { status: 204 }),
   del: () => new Response(null, { status: 204 }),
+  patch: () => new Response(null, { status: 204 }),
 };
 const H = { ...DEFAULTS, ...FAKES };
 globalThis.fetch = async (url, init = {}) => {
   url = String(url);
   let body = null;
   try { body = init.body ? JSON.parse(init.body) : null; } catch (_) { body = init.body; }
-  const call = { url, method: init.method || "GET", headers: init.headers || {}, body };
+  const call = { url, method: init.method || "GET", headers: init.headers || {}, body,
+                 hasSignal: !!init.signal };
   calls.push(call);
   if (url.endsWith("/auth/v1/user")) return H.auth(call);
   if (url.includes("/rest/v1/rpc/")) return H.rpc(call);
   if (url.includes("finance.yahoo.com")) return H.yahoo(call);
   if (url.startsWith("https://api.github.com/")) return H.github(call);
   if (url.includes("/rest/v1/report_generations") && call.method === "DELETE") return H.del(call);
+  if (url.includes("/rest/v1/report_generations") && call.method === "PATCH") return H.patch(call);
   return new Response("unexpected " + url, { status: 599 });
 };
 
@@ -81,6 +86,10 @@ def _run(fakes_js="{}", path="/", body=None, auth=True, env_extra=None):
     req = {"path": path, "body": body or {"ticker": "NVDA", "report": "adhoc"}, "auth": auth}
     with tempfile.TemporaryDirectory() as d:
         shutil.copy(WORKER, os.path.join(d, "worker.mjs"))
+        # worker.js imports its sibling modules (e.g. ./claude.mjs).
+        for name in os.listdir(os.path.dirname(WORKER)):
+            if name.endswith(".mjs"):
+                shutil.copy(os.path.join(os.path.dirname(WORKER), name), d)
         script = (
             f"const USER = {json.dumps(USER)}; const RES_ID = {json.dumps(RES_ID)};\n"
             f"globalThis.ENV_EXTRA = {json.dumps(env_extra or {})};\n"
@@ -122,11 +131,24 @@ def _kinds(res):
 # ── Reports: the happy path ───────────────────────────────────────────
 
 
+DISPATCHED = ["auth", "yahoo", "rpc:td_reserve_report", "github", "PATCH:report_generations"]
+
+
+def _marked(res, state):
+    """The reservation was PATCHed to dispatch_state=state, scoped to the user."""
+    c = res["calls"][-1]
+    assert c["method"] == "PATCH", c
+    assert "id=eq." + RES_ID in c["url"] and "user_id=eq." + USER in c["url"]
+    assert c["body"] == {"dispatch_state": state}
+    assert c["headers"]["Authorization"] == "Bearer service-key-secret"
+
+
 def test_report_reserves_then_dispatches():
     res = _run()
     assert res["status"] == 200, res
     assert res["json"] == {"ok": True, "ticker": "NVDA"}
-    assert _kinds(res) == ["auth", "yahoo", "rpc:td_reserve_report", "github"]
+    assert _kinds(res) == DISPATCHED
+    _marked(res, "dispatched")
     rpc = res["calls"][2]
     assert rpc["method"] == "POST"
     assert rpc["body"] == {"p_user": USER, "p_ticker": "NVDA", "p_report_type": "adhoc"}
@@ -225,23 +247,15 @@ def test_invalid_ticker_from_yahoo_is_not_reserved():
 def test_yahoo_down_still_reserves_then_dispatches():
     res = _run("{ yahoo: () => { throw new Error('blocked'); } }")
     assert res["status"] == 200
-    assert _kinds(res) == ["auth", "yahoo", "rpc:td_reserve_report", "github"]
+    assert _kinds(res) == DISPATCHED
 
 
-# ── Reports: a failed start is not charged ────────────────────────────
+# ── Reports: only a clear GitHub refusal is un-charged ────────────────
 
 
-@pytest.mark.parametrize(
-    "github",
-    [
-        "() => new Response('bad', { status: 500 })",
-        "() => new Response('nope', { status: 404 })",
-        "() => { throw new Error('ETIMEDOUT'); }",
-    ],
-    ids=["github-500", "github-404", "github-network"],
-)
-def test_failed_dispatch_releases_the_reservation(github):
-    res = _run("{ github: " + github + " }")
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 422])
+def test_github_refusal_releases_the_reservation(status):
+    res = _run("{ github: () => new Response('nope', { status: %d }) }" % status)
     assert res["status"] == 502, res
     assert _kinds(res) == [
         "auth",
@@ -252,6 +266,73 @@ def test_failed_dispatch_releases_the_reservation(github):
     ]
     url = res["calls"][-1]["url"]
     assert "id=eq." + RES_ID in url and "user_id=eq." + USER in url
+
+
+@pytest.mark.parametrize(
+    "github",
+    [
+        "() => new Response('bad', { status: 500 })",
+        "() => new Response('bad gateway', { status: 502 })",
+        "() => new Response('unavailable', { status: 503 })",
+        "() => { throw new Error('ETIMEDOUT'); }",
+        "() => { throw new DOMException('The operation timed out.', 'TimeoutError'); }",
+        "() => new Response(null, { status: 304 })",
+    ],
+    ids=[
+        "github-500",
+        "github-502",
+        "github-503",
+        "github-network",
+        "github-timeout",
+        "github-3xx",
+    ],
+)
+def test_unclear_dispatch_keeps_the_reservation_charged(github):
+    res = _run("{ github: " + github + " }")
+    assert res["status"] == 202, res
+    assert res["json"]["ok"] is False
+    assert res["json"]["code"] == "dispatch_uncertain"
+    assert "My Reports" in res["json"]["error"]
+    assert _kinds(res) == [
+        "auth",
+        "yahoo",
+        "rpc:td_reserve_report",
+        "github",
+        "PATCH:report_generations",
+    ]
+    _marked(res, "dispatch_uncertain")
+
+
+def test_github_dispatch_has_a_timeout():
+    res = _run()
+    gh = [c for c in res["calls"] if c["url"].startswith("https://api.github.com/")]
+    assert gh and gh[0]["hasSignal"] is True
+
+
+@pytest.mark.parametrize(
+    "patch",
+    ["() => new Response('x', { status: 500 })", "() => { throw new Error('down'); }"],
+    ids=["http-500", "network-down"],
+)
+def test_marking_failure_does_not_change_the_answer(patch):
+    ok = _run("{ patch: " + patch + " }")
+    assert ok["status"] == 200, ok
+    assert ok["json"] == {"ok": True, "ticker": "NVDA"}
+    unclear = _run("{ patch: " + patch + ", github: () => { throw new Error('reset'); } }")
+    assert unclear["status"] == 202, unclear
+    assert unclear["json"]["code"] == "dispatch_uncertain"
+    assert "DELETE:report_generations" not in _kinds(unclear)
+
+
+def test_reused_reservation_is_dispatched_normally():
+    fakes = (
+        "{ rpc: () => new Response(JSON.stringify({ ok: true, id: RES_ID, tier: 'free',"
+        " used: 3, cap: 3, reused: true }), { status: 200 }) }"
+    )
+    res = _run(fakes)
+    assert res["status"] == 200, res
+    assert _kinds(res) == DISPATCHED
+    _marked(res, "dispatched")
 
 
 # ── Promo codes ────────────────────────────────────────────────────────

@@ -1449,6 +1449,10 @@ async function handlePromoRedeem(request, env, cors) {
  *  against the cap and records the report, all in one step. So ten
  *  requests sent at once can't all pass the check: they queue on the
  *  lock and each sees the rows the earlier ones added.
+ *  A retry is not charged twice: if this user already has a reservation
+ *  for the same ticker from the last 10 minutes that never reached GitHub
+ *  (dispatch_state still "reserved", e.g. Supabase's reply was lost), the
+ *  function returns that one instead of adding another (see markReport).
  *  Returns { ok: true, id, used, cap, tier } for a reservation,
  *  { ok: false, over: true, code, used, cap, tier } at the cap, or
  *  { ok: false, error } if no reservation could be made (the caller must
@@ -1472,8 +1476,9 @@ async function reserveReport(env, uid, ticker, reportType) {
   return { ok: false, error: "unexpected result code " + d.code };
 }
 
-/** Undo a reservation when the report never started, so it isn't
- *  charged against the cap. Best-effort; a failure is logged. */
+/** Undo a reservation when GitHub definitely refused to start the
+ *  report (a 4xx answer), so it isn't charged against the cap.
+ *  Best-effort; a failure is logged. */
 async function releaseReport(env, uid, rowId) {
   if (!rowId) return;
   try {
@@ -1492,6 +1497,40 @@ async function releaseReport(env, uid, rowId) {
     }
   } catch (e) {
     console.log("report reservation release failed:", e.message);
+  }
+}
+
+/** Record what happened to a reservation's GitHub start, in
+ *  report_generations.dispatch_state (browsers can't write that column):
+ *    "dispatched"         GitHub accepted it. td_reserve_report never
+ *                         hands this row out again.
+ *    "dispatch_uncertain" no clear answer (network error, timeout, 5xx):
+ *                         the report may be running, so it stays charged
+ *                         and is never handed out again either.
+ *  Only a row still "reserved" (the worker never got as far as GitHub,
+ *  e.g. Supabase's reply was lost) is handed back on a retry. Best-effort:
+ *  if this write fails the row stays "reserved", and the worst case is
+ *  one uncharged repeat of the same ticker within 10 minutes. */
+async function markReport(env, uid, rowId, state) {
+  if (!rowId) return;
+  try {
+    const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/report_generations?id=eq." + encodeURIComponent(rowId) +
+      "&user_id=eq." + encodeURIComponent(uid), {
+      method: "PATCH",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_KEY,
+        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+      },
+      body: JSON.stringify({ dispatch_state: state }),
+    });
+    if (!r.ok) {
+      console.log("report reservation mark " + state + " failed: HTTP " + r.status);
+    }
+  } catch (e) {
+    console.log("report reservation mark " + state + " failed:", e.message);
   }
 }
 
@@ -5191,7 +5230,23 @@ export default {
         { status: 503, headers: cors });
     }
 
-    // Trigger the GitHub workflow_dispatch — ref is "master" (this repo's branch)
+    // Trigger the GitHub workflow_dispatch — ref is "master" (this repo's branch).
+    // Only a clear refusal (4xx) un-charges the reservation. With no clear
+    // answer (network error, timeout, 5xx) GitHub may already have started
+    // the report, so it stays charged and the user is told to check My
+    // Reports; refunding it would let the report run uncounted and a retry
+    // start a second one.
+    const uncertain = function (why) {
+      console.log("report dispatch uncertain (kept charged): " + why);
+      return markReport(env, reqUserId, reservation.id, "dispatch_uncertain")
+        .then(function () {
+          return Response.json(
+            { ok: false, code: "dispatch_uncertain",
+              error: "Your report may still be on its way. Check My Reports " +
+                "in a few minutes before trying again." },
+            { status: 202, headers: cors });
+        });
+    };
     let ghResp;
     try {
       ghResp = await fetch(
@@ -5207,21 +5262,21 @@ export default {
           },
           body: JSON.stringify({ ref: "master",
             inputs: { ticker, user_id: reqUserId } }),
+          signal: AbortSignal.timeout(15000),
         }
       );
     } catch (e) {
-      // The report never started, so don't charge it against the cap.
-      await releaseReport(env, reqUserId, reservation.id);
-      return Response.json(
-        { ok: false, error: "Couldn't reach GitHub to start the report. " +
-            "Try again in a minute." },
-        { status: 502, headers: cors });
+      return uncertain(e && e.message || "fetch failed");
     }
 
     if (ghResp.ok) {
+      await markReport(env, reqUserId, reservation.id, "dispatched");
       return Response.json({ ok: true, ticker }, { headers: cors });
     }
-    // The report never started, so don't charge it against the cap.
+    if (ghResp.status < 400 || ghResp.status >= 500) {
+      return uncertain("GitHub HTTP " + ghResp.status);
+    }
+    // GitHub refused it (4xx), so the report never started: un-charge it.
     await releaseReport(env, reqUserId, reservation.id);
     const detail = await ghResp.text();
     let hint = "";

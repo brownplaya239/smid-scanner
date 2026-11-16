@@ -36,6 +36,8 @@
 --   * browsers can read their report rows and update only `status`;
 --   * td_reserve_report() checks the cap and records the report in one
 --     locked step, per user (the worker calls it before starting a report);
+--     a retry after a lost reply reuses the unstarted reservation instead
+--     of charging again (report_generations.dispatch_state);
 --   * td_redeem_promo() applies a promo code in one locked step, records
 --     every code each account has used (promo_redemptions), and refuses
 --     while a paid plan is active.
@@ -109,6 +111,15 @@ revoke insert, update, delete, truncate on public.report_generations from anon, 
 grant select on public.report_generations to authenticated;
 grant update (status) on public.report_generations to authenticated;
 
+-- 4b) dispatch_state: did the worker get this report started? -------------
+-- Written only by the worker (browsers can update `status` alone, above):
+--   'reserved'           td_reserve_report made it; GitHub not reached yet
+--   'dispatched'         GitHub accepted the start
+--   'dispatch_uncertain' no clear answer from GitHub; kept charged
+-- Rows from before this script have NULL and are never reused.
+alter table public.report_generations
+  add column if not exists dispatch_state text;
+
 -- 5) Promo history: every code each account has redeemed ----------------------
 -- Only the latest code used to be remembered (profiles.promo_code_redeemed),
 -- so alternating two codes (A, B, A, ...) extended a promo forever. One row
@@ -147,7 +158,15 @@ on conflict (user_id, code) do nothing;
 --   (the same rule as get_user_plan()). No profile row = Free.
 -- Returns {ok:true, id, tier, used, cap} or
 --         {ok:false, code:'monthly_cap'|'lifetime_cap', tier, used, cap}.
--- The worker deletes the row again if the report fails to start.
+-- Retries are not charged twice: if this user already has a reservation
+-- for the same ticker and report type, made in the last 10 minutes, that
+-- the worker never got started (dispatch_state = 'reserved', e.g. this
+-- function's reply was lost on the way back), that row is returned again
+-- ({..., reused:true}) instead of inserting a new one. Once the worker marks
+-- a row 'dispatched' (or 'dispatch_uncertain') it is never reused, so a
+-- genuine second report for the same ticker is charged as usual.
+-- The worker deletes the row again only if GitHub clearly refuses to start
+-- the report (an HTTP 4xx answer).
 create or replace function public.td_reserve_report(
   p_user        uuid,
   p_ticker      text,
@@ -198,6 +217,22 @@ begin
   from public.report_generations
   where user_id = p_user
     and created_at >= now() - interval '30 days';
+  -- An unstarted reservation for the same report, from a retry: hand it
+  -- back. It is already counted in v_used30, so no cap check is needed.
+  select id into v_id
+  from public.report_generations
+  where user_id = p_user
+    and ticker = p_ticker
+    and report_type = p_report_type
+    and dispatch_state = 'reserved'
+    and created_at >= now() - interval '10 minutes'
+  order by created_at desc
+  limit 1;
+  if v_id is not null then
+    return jsonb_build_object('ok', true, 'id', v_id, 'tier', v_eff,
+      'used', v_used30, 'cap', v_cap30, 'reused', true);
+  end if;
+
   if v_used30 >= v_cap30 then
     return jsonb_build_object('ok', false, 'code', 'monthly_cap',
       'tier', v_eff, 'used', v_used30, 'cap', v_cap30);
@@ -213,8 +248,9 @@ begin
     end if;
   end if;
 
-  insert into public.report_generations (user_id, ticker, report_type, status)
-  values (p_user, p_ticker, p_report_type, 'queued')
+  insert into public.report_generations
+    (user_id, ticker, report_type, status, dispatch_state)
+  values (p_user, p_ticker, p_report_type, 'queued', 'reserved')
   returning id into v_id;
 
   return jsonb_build_object('ok', true, 'id', v_id, 'tier', v_eff,
