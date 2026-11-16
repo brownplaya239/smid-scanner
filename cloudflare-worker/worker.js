@@ -3628,9 +3628,47 @@ function _svcFetch(env, path, init) {
 async function _briefRpc(env, fn, args) {
   const r = await _svcFetch(env, "rpc/" + fn, {
     method: "POST", body: JSON.stringify(args) });
-  if (!r.ok) throw new Error("rpc " + fn + " " + r.status + " " + (await r.text()).slice(0, 200));
+  if (!r.ok) {
+    const body = (await r.text()).slice(0, 200);
+    const err = new Error("rpc " + fn + " " + r.status + " " + body);
+    // PostgREST answers 404 / PGRST202 when the function doesn't exist
+    // yet (the SQL file hasn't been run); 42883 is Postgres's own code.
+    err.missingFn = r.status === 404 || /PGRST202|42883/.test(body);
+    throw err;
+  }
   const txt = await r.text();
   return txt ? JSON.parse(txt) : null;
+}
+
+// Unsubscribing must work even if this worker is deployed before
+// sql/2026-11-16_brief_signups.sql has been run (unsubscribe is a legal
+// requirement, so it can never depend on rollout order). Without the
+// brief_unsubscribe function, do what the worker did before it existed:
+// switch the account's brief off directly, and mark an email-list row
+// unsubscribed if the table already has that column. Throws on failure.
+async function _unsubscribeDirect(env, uid, em) {
+  const patch = async function (path, body) {
+    const r = await _svcFetch(env, path, { method: "PATCH",
+      headers: { "Prefer": "return=minimal" }, body: JSON.stringify(body) });
+    return { ok: r.ok, status: r.status, text: r.ok ? "" : (await r.text()).slice(0, 200) };
+  };
+  if (uid) {
+    const r = await patch("profiles?id=eq." + encodeURIComponent(uid),
+      { daily_brief_enabled: false });
+    if (!r.ok) throw new Error("profiles " + r.status + " " + r.text);
+    return;
+  }
+  const r = await patch("email_signups?email=eq." + encodeURIComponent(em),
+    { unsubscribed_at: new Date().toISOString() });
+  if (r.ok) return;
+  // No unsubscribed_at column yet means the email-list brief can't be
+  // running either (it needs the same SQL), so there is nothing to stop.
+  if (/PGRST204|42703/.test(r.text)) {
+    console.warn("[unsubscribe] email_signups has no unsubscribed_at column yet; " +
+      "nothing to stop for a list link");
+    return;
+  }
+  throw new Error("email_signups " + r.status + " " + r.text);
 }
 const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -3661,8 +3699,14 @@ async function handleUnsubscribe(request, env) {
   try {
     // One call stops the brief for the address on both paths: the email
     // list and any account with that address (see brief_unsubscribe).
-    await _briefRpc(env, "brief_unsubscribe",
-      uid ? { p_user_id: uid, p_email: null } : { p_user_id: null, p_email: em });
+    try {
+      await _briefRpc(env, "brief_unsubscribe",
+        uid ? { p_user_id: uid, p_email: null } : { p_user_id: null, p_email: em });
+    } catch (e) {
+      if (!(e && e.missingFn)) throw e;
+      console.warn("[unsubscribe] brief_unsubscribe missing; using direct update");
+      await _unsubscribeDirect(env, uid, em);
+    }
   } catch (e) {
     console.error("[unsubscribe] " + (e && e.message));
     return new Response("Server error", { status: 500, headers: _BRIEF_HTML_HDR });
@@ -3703,6 +3747,44 @@ function _hex(buf) {
 }
 async function _sha256Hex(s) {
   return _hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
+}
+
+// The network a visitor's address belongs to, for the sign-up limits.
+// IPv4: the full address. IPv6: its /64 prefix, because one home or
+// server is normally handed a whole /64 and could otherwise rotate
+// through billions of addresses to dodge a per-address limit.
+function _ipNetwork(ip) {
+  const s = String(ip || "").trim().toLowerCase();
+  if (s.indexOf(":") < 0) return s || "?";
+  const halves = s.split("::");
+  if (halves.length > 2) return s;
+  const split = function (h) { return h ? h.split(":") : []; };
+  const head = split(halves[0]);
+  const tail = split(halves.length === 2 ? halves[1] : "");
+  const all = head.concat(tail);
+  let v4 = "";
+  if (all.length && all[all.length - 1].indexOf(".") >= 0) {
+    v4 = all[all.length - 1];                       // e.g. ::ffff:1.2.3.4
+    (tail.length ? tail : head).pop();
+  }
+  const want = v4 ? 6 : 8;
+  let groups = head;
+  if (halves.length === 2) {
+    const fill = want - head.length - tail.length;
+    if (fill < 1) return s;
+    groups = head.concat(new Array(fill).fill("0"), tail);
+  }
+  if (groups.length !== want ||
+      !groups.every(function (g) { return /^[0-9a-f]{1,4}$/.test(g); })) {
+    return s;
+  }
+  const n = groups.map(function (g) { return parseInt(g, 16); });
+  // an IPv4 address written in IPv6 form (::ffff:1.2.3.4) is just IPv4
+  if (v4 && n.slice(0, 5).every(function (x) { return x === 0; }) &&
+      (n[5] === 0xffff || n[5] === 0)) {
+    return v4;
+  }
+  return n.slice(0, 4).map(function (x) { return x.toString(16); }).join(":") + "::/64";
 }
 
 async function handleBriefSubscribe(request, env, cors) {
@@ -3760,7 +3842,7 @@ async function handleBriefSubscribe(request, env, cors) {
     tokenHash = await _sha256Hex(token);
     // Raw IPs are never stored: the database sees a keyed hash.
     const ipHash = await _hmac40(env.SUPABASE_SERVICE_KEY,
-      "brief-ip:" + (request.headers.get("CF-Connecting-IP") || "?"));
+      "brief-ip:" + _ipNetwork(request.headers.get("CF-Connecting-IP") || "?"));
     claim = await _briefRpc(env, "brief_signup_claim", {
       p_email: email, p_source: source, p_ip_hash: ipHash, p_token_hash: tokenHash });
   } catch (e) {

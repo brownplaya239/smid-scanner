@@ -51,6 +51,13 @@ create index if not exists brief_signup_attempts_ip_at
   on public.brief_signup_attempts (ip_hash, at);
 create index if not exists brief_signup_attempts_at
   on public.brief_signup_attempts (at);
+-- Only attempts that were actually allowed to send an email count toward
+-- the site-wide limit; repeats for a pending or subscribed address don't.
+-- (Rows from an earlier run of this file default to counting.)
+alter table public.brief_signup_attempts
+  add column if not exists counted_global boolean not null default true;
+create index if not exists brief_signup_attempts_global_at
+  on public.brief_signup_attempts (at) where counted_global;
 alter table public.brief_signup_attempts enable row level security;
 revoke all on table public.brief_signup_attempts from anon, authenticated;
 
@@ -61,8 +68,16 @@ revoke all on table public.brief_signup_attempts from anon, authenticated;
 --   'already_subscribed' confirmed and not unsubscribed; send nothing
 --   'rate_limited'       too many attempts (per network, or site-wide)
 --   'invalid'            bad input
--- Two locks make it safe under any number of simultaneous requests:
--- one per network (the attempt count) and one per address (the claim).
+-- Order matters, so that cheap repeats can't use up the site-wide limit:
+--   1. per-network limit (the worker hashes an IPv4 address, or an IPv6
+--      /64, so rotating addresses inside one network doesn't help);
+--   2. the address's own state: a repeat for an address that is pending
+--      or already subscribed returns here, sends nothing, and takes no
+--      site-wide slot;
+--   3. only then the site-wide limit, counted under one global lock so
+--      simultaneous requests from different networks can't overshoot it.
+-- Locks are always taken in this order (network, address, global), so
+-- they can't deadlock, and all are released when the call ends.
 create or replace function public.brief_signup_claim(
   p_email text, p_source text, p_ip_hash text, p_token_hash text)
 returns text
@@ -71,10 +86,12 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_email text := lower(btrim(coalesce(p_email, '')));
-  v_ip    text := coalesce(nullif(btrim(p_ip_hash), ''), '?');
-  v_row   public.email_signups%rowtype;
-  v_n     int;
+  v_email   text := lower(btrim(coalesce(p_email, '')));
+  v_ip      text := coalesce(nullif(btrim(p_ip_hash), ''), '?');
+  v_row     public.email_signups%rowtype;
+  v_found   boolean;
+  v_attempt bigint;
+  v_n       int;
 begin
   if length(v_email) > 254 or v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' then
     return 'invalid';
@@ -83,35 +100,49 @@ begin
     return 'invalid';
   end if;
 
-  -- Per-network limit: 5 attempts per 10 minutes. Site-wide: 300 per hour.
+  -- 1. Per-network limit: 5 attempts per 10 minutes.
   perform pg_advisory_xact_lock(hashtextextended('brief-ip:' || v_ip, 0));
   delete from public.brief_signup_attempts where at < now() - interval '1 day';
   select count(*) into v_n from public.brief_signup_attempts
    where ip_hash = v_ip and at > now() - interval '10 minutes';
   if v_n >= 5 then return 'rate_limited'; end if;
-  select count(*) into v_n from public.brief_signup_attempts
-   where at > now() - interval '1 hour';
-  if v_n >= 300 then return 'rate_limited'; end if;
-  insert into public.brief_signup_attempts (ip_hash) values (v_ip);
+  insert into public.brief_signup_attempts (ip_hash, counted_global)
+  values (v_ip, false)
+  returning id into v_attempt;
 
-  -- Per-address claim. The lock makes simultaneous requests for one
+  -- 2. The address's state. The lock makes simultaneous requests for one
   -- address take turns, so only the first can see an expired cooldown.
   perform pg_advisory_xact_lock(hashtextextended('brief-email:' || v_email, 0));
-  insert into public.email_signups (email, source)
-  select v_email, left(coalesce(nullif(p_source, ''), 'site'), 40)
-   where not exists (select 1 from public.email_signups where lower(email) = v_email)
-  on conflict do nothing;
   select * into v_row from public.email_signups
    where lower(email) = v_email
    order by (confirmed_at is not null and unsubscribed_at is null) desc, (email = v_email) desc
    limit 1
    for update;
-  if v_row.confirmed_at is not null and v_row.unsubscribed_at is null then
+  v_found := found;
+  if v_found and v_row.confirmed_at is not null and v_row.unsubscribed_at is null then
     return 'already_subscribed';
   end if;
-  if v_row.confirm_sent_at is not null
+  if v_found and v_row.confirm_sent_at is not null
      and v_row.confirm_sent_at > now() - interval '15 minutes' then
     return 'pending';
+  end if;
+
+  -- 3. Site-wide limit: 300 confirmation emails per hour.
+  perform pg_advisory_xact_lock(hashtextextended('brief-global', 0));
+  select count(*) into v_n from public.brief_signup_attempts
+   where counted_global and at > now() - interval '1 hour';
+  if v_n >= 300 then return 'rate_limited'; end if;
+  update public.brief_signup_attempts set counted_global = true where id = v_attempt;
+
+  if not v_found then
+    insert into public.email_signups (email, source)
+    values (v_email, left(coalesce(nullif(p_source, ''), 'site'), 40))
+    on conflict do nothing;
+    select * into v_row from public.email_signups
+     where lower(email) = v_email
+     order by (email = v_email) desc
+     limit 1
+     for update;
   end if;
   update public.email_signups
      set confirm_sent_at    = now(),
