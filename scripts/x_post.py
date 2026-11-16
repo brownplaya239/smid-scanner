@@ -54,6 +54,8 @@ from social_cards import (
     social_log_rows,
 )
 
+import earnings_move_math as EM
+
 EXPECTED = os.environ.get("X_EXPECTED_HANDLE", "tickerdeskio").lower()
 
 # A draft approved this long after it was rendered is not posted: the
@@ -216,7 +218,7 @@ def earnings_week_caption(f):
         [
             "",
             (
-                "Card: what options price vs each stock's usual move, "
+                "Card: priced move vs each stock's typical past move, "
                 f"plus 1M/YTD/1Y. {link('earnings_week')}"
             ),
         ],
@@ -224,14 +226,15 @@ def earnings_week_caption(f):
 
 
 def _preview_lead(names):
-    ratios = [n["implied"] / n["realized_med"] for n in names]
-    rich = sum(1 for r in ratios if r >= 1.3)
-    cheap = sum(1 for r in ratios if r <= 0.85)
-    if rich >= max(2, len(ratios) // 2):
+    # The site's comparison: event-only priced move vs MEAN past move.
+    calls = [c["call"] for c in map(EM.priced_vs_typical, names) if c]
+    rich = calls.count("rich")
+    cheap = calls.count("cheap")
+    if rich >= max(2, len(calls) // 2):
         return "Options are pricing bigger-than-usual earnings moves."
-    if cheap >= max(2, len(ratios) // 2):
-        return "Options are pricing smaller moves than these stocks usually make on earnings."
-    return "What options are pricing into these reports vs how each stock usually moves."
+    if cheap >= max(2, len(calls) // 2):
+        return "Options are pricing smaller moves than these stocks typically make on earnings."
+    return "Priced move vs typical past move for these reports."
 
 
 def earnings_preview_caption(f):
@@ -242,8 +245,9 @@ def earnings_preview_caption(f):
         return f"{dt:%a} {n.get('session') or ''}".strip()
 
     items = [
-        f"${n['t']} ({when(n)}): ±{n['implied']:.1f}% priced vs ±{n['realized_med']:.1f}% usual"
+        f"${n['t']} ({when(n)}): ±{c['priced']:.1f}% priced vs ±{c['typical']:.1f}% typical"
         for n in f["names"]
+        if (c := EM.priced_vs_typical(n))
     ]
     return _fit(
         head,
@@ -356,7 +360,17 @@ def _log_extra(kind, f):
             "names": [
                 {
                     k: n.get(k)
-                    for k in ("t", "date", "session", "implied", "realized_med", "n_reports")
+                    for k in (
+                        "t",
+                        "date",
+                        "session",
+                        "implied",
+                        "implied_event",
+                        "fair_move",
+                        "fair_move_dominated",
+                        "realized_med",
+                        "n_reports",
+                    )
                 }
                 for n in f["names"]
             ]
@@ -470,9 +484,11 @@ def gate(kind, f, text, scheduled):
                 )
     if kind == "earnings_preview":
         for n in f["names"]:
-            if n["implied"] >= 20 or n["implied"] / n["realized_med"] >= 3:
+            c = EM.priced_vs_typical(n)
+            if c and (c["priced"] >= 20 or c["ratio"] >= 3):
                 review.append(
-                    f"{n['t']} implied ±{n['implied']:.1f}% vs ±{n['realized_med']:.1f}% usual"
+                    f"{n['t']} priced move ±{c['priced']:.1f}% vs "
+                    f"±{c['typical']:.1f}% typical past move"
                 )
     if kind == "earnings_receipt":
         for b in f["body"]:

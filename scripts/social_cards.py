@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from datetime import datetime
 
 import matplotlib
@@ -38,6 +39,10 @@ def _plain_text(self, *a, **kw):
 Axes.text = _plain_text
 
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _BASE not in sys.path:
+    sys.path.insert(0, _BASE)
+import earnings_move_math as EM  # noqa: E402  (repo root, after the path insert)
+
 CARDS = os.path.join(_BASE, "docs", "cards")
 
 BG = "#0a0f24"
@@ -386,8 +391,8 @@ def earnings_week_card(limit=12):
                 t,
                 f"{dt:%a} {sess}",
                 f"${pr[0]:,.2f}" if pr[0] else "—",
-                f"±{e['implied']:.1f}%" if e.get("implied") else "—",
-                f"±{e['realized_med']:.1f}%" if e.get("realized_med") else "—",
+                f"±{e['implied_event']:.1f}%" if e.get("implied_event") else "—",
+                f"±{e['fair_move']:.1f}%" if e.get("fair_move") else "—",
                 _p1(pr[1]),
                 _p1(pr[2]),
                 _p1(pr[3]),
@@ -397,7 +402,7 @@ def earnings_week_card(limit=12):
         ("Ticker", 80, "left"),
         ("Reports", 190, "left"),
         ("Price", 450, "right"),
-        ("Implied", 580, "right"),
+        ("Priced", 580, "right"),
         ("Typical", 710, "right"),
         ("1M", 850, "right"),
         ("YTD", 990, "right"),
@@ -407,14 +412,14 @@ def earnings_week_card(limit=12):
         f"earnings_week_{ea.get('week_of')}.png",
         "Week of " + _day_label(ea["week_of"]),
         "Earnings this week",
-        "Implied = options-priced move · Typical = median move on past reports",
+        "Priced = options-priced move for the report day · Typical = average past move",
         cols,
         body,
         "Largest companies reporting, by date. — = no liquid options read yet.",
         _signed({5, 6, 7}),
     )
     alt = "Earnings this week: " + "; ".join(
-        f"{b[0]} {b[1]}, implied {b[3]}, typical {b[4]}" for b in body
+        f"{b[0]} {b[1]}, priced move {b[3]}, typical past move {b[4]}" for b in body
     )
     return path, alt, {"week_of": ea["week_of"], "body": body}
 
@@ -424,7 +429,14 @@ def earnings_week_card(limit=12):
 
 def earnings_preview_card(date=None):
     edge = _load("earnings_edge.json").get("names") or []
-    ok = [r for r in edge if r.get("implied") and r.get("realized_med")]
+    # The site's comparison: event-only priced move vs the MEAN past move.
+    # A row whose average is dominated by one report gets no call, so it
+    # is left off a card that ranks by the ratio.
+    ok = []
+    for r in edge:
+        c = EM.priced_vs_typical(r)
+        if c and c["call"] is not None:
+            ok.append({**r, "_cmp": c})
     # Default: reports from tomorrow on (the preview posts the evening
     # before, so today's reports are already out or moments away).
     from datetime import timedelta
@@ -441,7 +453,7 @@ def earnings_preview_card(date=None):
             break
     day = used[0]
     # Lead with the story: biggest priced-vs-usual gaps first.
-    names = sorted(names, key=lambda r: -(r["implied"] / r["realized_med"]))[:6]
+    names = sorted(names, key=lambda r: -r["_cmp"]["ratio"])[:6]
 
     def when(r):
         dt = datetime.strptime(r["date"], "%Y-%m-%d")
@@ -451,9 +463,9 @@ def earnings_preview_card(date=None):
         [
             r["t"],
             when(r),
-            f"±{r['implied']:.1f}%",
-            f"±{r['realized_med']:.1f}%",
-            f"{r['implied'] / r['realized_med']:.1f}x",
+            f"±{r['_cmp']['priced']:.1f}%",
+            f"±{r['_cmp']['typical']:.1f}%",
+            f"{r['_cmp']['ratio']:.1f}x",
             str(r.get("n_reports") or "—"),
         ]
         for r in names
@@ -461,8 +473,8 @@ def earnings_preview_card(date=None):
     cols = [
         ("Ticker", 80, "left"),
         ("When", 260, "left"),
-        ("Options price", 560, "right"),
-        ("Usually moves", 800, "right"),
+        ("Priced move", 560, "right"),
+        ("Typical move", 800, "right"),
         ("Ratio", 960, "right"),
         ("Reports", 1120, "right"),
     ]
@@ -485,17 +497,19 @@ def earnings_preview_card(date=None):
     path = table_card(
         f"earnings_preview_{day}.png",
         kick,
-        "Earnings: priced vs usual move",
-        f"Options-implied move vs the stock's median move over its last {nrep_txt} reports",
+        "Earnings: priced move vs typical past move",
+        f"Options-priced move for the report day vs the stock's average move "
+        f"over its last {nrep_txt} reports",
         cols,
         body,
         "Ratio above 1 = options price a bigger move than the "
-        "stock usually makes. Not a prediction.",
+        "stock typically makes. Not a prediction.",
         col,
     )
-    alt = "Earnings priced vs usual move: " + "; ".join(
-        f"{b[0]} options price {b[2]}, usually moves {b[3]}" for b in body
+    alt = "Earnings priced move vs typical past move: " + "; ".join(
+        f"{b[0]} priced move {b[2]}, typical past move {b[3]}" for b in body
     )
+    names = [{k: v for k, v in r.items() if k != "_cmp"} for r in names]
     return path, alt, {"date": day, "names": names, "body": body}
 
 
@@ -741,7 +755,7 @@ def _site_previews(since_days=10):
             continue
         for n in names:
             key = (n["t"], n["date"])
-            if key in seen or not (n.get("implied") and n.get("realized_med")):
+            if key in seen or not EM.priced_vs_typical(n):
                 continue
             if day < n["date"]:  # committed before report
                 seen.add(key)
@@ -777,6 +791,10 @@ def receipt_card(source="posted"):
     if moved:
         print("receipt: skipping rescheduled", ", ".join(sorted(moved)))
     pv = [n for n in pv if n["t"] not in moved]
+    # Grade only like-for-like previews: the report-day priced move vs the
+    # one-session reaction. Older previews logged only the raw read (which
+    # covers every day to expiry), so they are not graded on it.
+    pv = [n for n in pv if EM.priced_vs_typical(n)]
     if not pv:
         raise SystemExit("no previewed earnings awaiting a receipt")
     tick = sorted({n["t"] for n in pv})
@@ -808,28 +826,28 @@ def receipt_card(source="posted"):
         rows.append((n, 100 * (z / a - 1)))
     if not rows:
         raise SystemExit("previewed names haven't reported/closed yet")
-    rows.sort(key=lambda x: -abs(x[1]) / x[0]["implied"])
+    rows.sort(key=lambda x: -abs(x[1]) / x[0]["implied_event"])
     rows = rows[:6]
     body = []
     for n, mv in rows:
         dt = datetime.strptime(n["date"], "%Y-%m-%d")
-        verdict = "Bigger than priced" if abs(mv) > n["implied"] else "Inside priced move"
+        verdict = "Bigger than priced" if abs(mv) > n["implied_event"] else "Inside priced move"
         body.append(
             [
                 n["t"],
                 f"{dt:%a} {n.get('session') or ''}".strip(),
-                f"±{n['implied']:.1f}%",
-                f"±{n['realized_med']:.1f}%",
+                f"±{n['implied_event']:.1f}%",
+                f"±{n['fair_move']:.1f}%",
                 f"{mv:+.1f}%",
                 verdict,
             ]
         )
-    beat = sum(1 for n, mv in rows if abs(mv) > n["implied"])
+    beat = sum(1 for n, mv in rows if abs(mv) > n["implied_event"])
     cols = [
         ("Ticker", 80, "left"),
         ("Reported", 250, "left"),
         ("Priced", 480, "right"),
-        ("Usual", 620, "right"),
+        ("Typical", 620, "right"),
         ("Actual", 780, "right"),
         ("", 840, "left"),
     ]

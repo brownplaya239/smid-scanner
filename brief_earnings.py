@@ -12,6 +12,12 @@ Implied move and IV come from the live chain via the public worker; the
 realized history comes from the nightly earnings-edge file. Anything the
 sources do not supply is left blank and labelled, never estimated.
 
+The comparison is the site's (earnings_move_math.py): the priced move is
+the EVENT-ONLY move for the report session (the straddle with the normal
+days before its expiry stripped out), and the typical move is the MEAN
+past reaction. The raw straddle is kept as `implied_raw_pct` and the
+median past move as `realized_med_pct`, for context only.
+
     python brief_earnings.py --self-test
     python brief_earnings.py 2026-07-22        # live pull
 """
@@ -21,6 +27,10 @@ import os
 import sys
 import urllib.parse
 import urllib.request
+from datetime import date
+
+import earnings_edge
+import earnings_move_math as EM
 
 WORKER = "https://api.tickerdesk.io"
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -74,25 +84,35 @@ def fetch_iv(ticker, timeout=15):
         return {}
 
 
-def _verdict(implied, realized):
+def _verdict(cmp):
     """Cheap / rich / fair, stated as the comparison itself so the reader
-    can disagree with it."""
-    if implied is None or not realized:
+    can disagree with it. `cmp` is EM.priced_vs_typical's result."""
+    if not cmp:
         return "", ""
-    ratio = implied / realized
-    if ratio >= 1.3:
-        return "RICH", "options price ±%.1f%% against a ±%.1f%% typical move (%.2f×)" % (
-            implied,
-            realized,
-            ratio,
+    p, t, ratio = cmp["priced"], cmp["typical"], cmp["ratio"]
+    if cmp["call"] is None:
+        return "", (
+            "priced move ±%.1f%% vs typical past move ±%.1f%%; one past report "
+            "dominates the average, so no rich/cheap call" % (p, t)
         )
-    if ratio <= 0.8:
-        return "CHEAP", "options price ±%.1f%% against a ±%.1f%% typical move (%.2f×)" % (
-            implied,
-            realized,
-            ratio,
-        )
-    return "FAIR", "options price ±%.1f%% against a ±%.1f%% typical move" % (implied, realized)
+    label = {"rich": "RICH", "cheap": "CHEAP", "fair": "FAIR"}[cmp["call"]]
+    why = "priced move ±%.1f%% vs typical past move ±%.1f%%" % (p, t)
+    if label != "FAIR":
+        why += " (%.2f×)" % ratio
+    return label, why
+
+
+def _live_event_move(iv, date_iso, session, daily_vol, read_date):
+    """The live straddle restated as the report session's own move, with
+    the same arithmetic the nightly file uses (earnings_edge.edge_read).
+    Returns (implied_event or None, reason when None)."""
+    raw = iv.get("implied_move_pct")
+    if raw is None:
+        return None, None
+    read = earnings_edge.edge_read(
+        raw, "straddle", iv.get("expiry"), read_date, date_iso, session, daily_vol
+    )
+    return read.get("implied_event"), read.get("implied_why")
 
 
 def build(
@@ -103,8 +123,12 @@ def build(
     edge=None,
     iv_fetch=None,
     max_per_session=MAX_PER_SESSION,
+    read_date=None,
 ):
-    """Records for the earnings pane, plus what could not be priced."""
+    """Records for the earnings pane, plus what could not be priced.
+
+    read_date: the session a live chain read belongs to (default: now,
+    via EM.read_session_date)."""
     bmo, amc = schedule(date_iso, anticipated)
     ei = edge_index(edge)
     watch = {t.upper() for t in (watch_tickers or [])}
@@ -123,13 +147,29 @@ def build(
                 continue
             e = ei.get(tk) or {}
             iv = get_iv(tk) or {}
-            implied = iv.get("implied_move_pct")
-            if implied is None:
-                implied = e.get("implied")
-            realized = e.get("realized_med")
-            verdict, why = _verdict(implied, realized)
-            if implied is None:
+            raw = iv.get("implied_move_pct")
+            gap = None
+            if raw is not None:
+                if read_date is None:
+                    read_date = EM.read_session_date()
+                implied, gap = _live_event_move(
+                    iv, date_iso, session, e.get("daily_vol"), read_date
+                )
+            else:
+                # the nightly read, already on the like-for-like basis
+                raw, implied, gap = e.get("implied"), e.get("implied_event"), e.get("implied_why")
+            cmp = EM.priced_vs_typical(
+                {
+                    "implied_event": implied,
+                    "fair_move": e.get("fair_move"),
+                    "fair_move_dominated": e.get("fair_move_dominated"),
+                }
+            )
+            verdict, why = _verdict(cmp)
+            if raw is None:
                 unpriced.append(tk)
+            elif implied is None and gap:
+                why = "no report-day priced move: %s" % gap
             rows.append(
                 {
                     "ticker": tk,
@@ -139,11 +179,13 @@ def build(
                     "analysts": r.get("analysts"),
                     "confirmed": bool(r.get("confirmed")),
                     "implied_move_pct": implied,
+                    "implied_raw_pct": raw,
                     "iv_pct": iv.get("iv_pct"),
                     "iv_level": iv.get("iv_level"),
                     "expiry": iv.get("expiry"),
                     "dte": iv.get("dte"),
-                    "realized_med_pct": realized,
+                    "typical_move_pct": e.get("fair_move"),
+                    "realized_med_pct": e.get("realized_med"),
                     "n_reports": e.get("n_reports"),
                     "drift_5d_pct": e.get("drift_5d"),
                     "verdict": verdict,
@@ -214,9 +256,25 @@ def self_test():
     }
     edge = {
         "names": [
-            {"t": "GEV", "implied": None, "realized_med": 5.1, "n_reports": 8, "drift_5d": 1.2},
-            {"t": "COF", "implied": 6.9, "realized_med": 3.7, "n_reports": 9, "drift_5d": -0.4},
-            {"t": "HAL", "realized_med": 4.0},
+            {
+                "t": "GEV",
+                "implied": None,
+                "fair_move": 5.1,
+                "realized_med": 4.4,
+                "daily_vol": 2.0,
+                "n_reports": 8,
+                "drift_5d": 1.2,
+            },
+            {
+                "t": "COF",
+                "implied": 6.9,
+                "implied_event": 6.0,
+                "fair_move": 3.7,
+                "realized_med": 3.2,
+                "n_reports": 9,
+                "drift_5d": -0.4,
+            },
+            {"t": "HAL", "fair_move": 4.0, "realized_med": 3.5},
         ]
     }
     ivs = {
@@ -235,6 +293,7 @@ def self_test():
         anticipated=anticipated,
         edge=edge,
         iv_fetch=lambda t: ivs.get(t, {}),
+        read_date=date(2026, 7, 21),
     )
     recs = {r["ticker"]: r for r in m["records"]}
 
@@ -249,25 +308,31 @@ def self_test():
         m["records"][0]["ticker"],
     )
     chk("watch-list membership is flagged", recs["GEV"]["on_watchlist"])
-    chk("live IV wins over the nightly implied", recs["GEV"]["implied_move_pct"] == 9.5)
+    chk("live IV wins over the nightly implied", recs["GEV"]["implied_raw_pct"] == 9.5)
+    chk(
+        "the live read is restated as the report-day move (2 normal days stripped)",
+        recs["GEV"]["implied_move_pct"] == 9.23,
+        recs["GEV"]["implied_move_pct"],
+    )
     chk("IV percentage carried", recs["GEV"]["iv_pct"] == 237.1)
     chk(
         "IV level and expiry carried", recs["GEV"]["iv_level"] == "high" and recs["GEV"]["dte"] == 2
     )
-    chk("nightly implied used when the chain is silent", recs["COF"]["implied_move_pct"] == 6.9)
+    chk("nightly implied used when the chain is silent", recs["COF"]["implied_move_pct"] == 6.0)
     chk("rich options are called rich", recs["COF"]["verdict"] == "RICH", recs["COF"])
     chk(
         "the verdict shows its arithmetic",
-        "6.9" in recs["COF"]["why"] and "3.7" in recs["COF"]["why"],
+        "6.0" in recs["COF"]["why"] and "3.7" in recs["COF"]["why"],
         recs["COF"]["why"],
     )
-    chk("GEV implied 9.5 vs 5.1 typical reads rich", recs["GEV"]["verdict"] == "RICH", recs["GEV"])
+    chk("GEV priced 9.2 vs 5.1 typical reads rich", recs["GEV"]["verdict"] == "RICH", recs["GEV"])
     chk(
         "an unpriceable name is disclosed, not estimated",
         recs["HAL"]["implied_move_pct"] is None and "HAL" in m["note"],
         m["note"],
     )
-    chk("realized history carried", recs["COF"]["realized_med_pct"] == 3.7)
+    chk("typical (mean) move carried", recs["COF"]["typical_move_pct"] == 3.7)
+    chk("median kept as context", recs["COF"]["realized_med_pct"] == 3.2)
     chk(
         "session counts reported",
         m["counts"]["bmo"] == 3 and m["counts"]["bmo_shown"] == 3,

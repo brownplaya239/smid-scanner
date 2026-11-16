@@ -55,8 +55,8 @@ OUT_PATH = os.path.join(REPORTS, "earnings_edge.json")
 HORIZON_D = 14  # names reporting within this many days
 MAX_NAMES = 40  # runtime cap (2 yf calls per name)
 MAX_REPORTS = 8  # realized history depth
-RICH_RATIO = 1.35  # implied/realized >= this -> options rich
-CHEAP_RATIO = 0.85  # <= this -> options cheap
+RICH_RATIO = EM.RICH_RATIO  # implied_event / fair_move >= this -> options rich
+CHEAP_RATIO = EM.CHEAP_RATIO  # <= this -> options cheap
 MIN_REPORTS = 4  # minimum history before we trust realized stats
 WORKERS = 8
 
