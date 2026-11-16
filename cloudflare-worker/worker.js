@@ -3578,65 +3578,321 @@ function _timingSafeEq(a, b) {
   for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return out === 0;
 }
+// First 40 hex of HMAC-SHA256(SUPABASE_SERVICE_KEY, msg). daily_brief.py
+// computes the same digest (`_hmac40`), so the two must stay in step.
+async function _hmac40(secret, msg) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(msg));
+  return [...new Uint8Array(sig)]
+    .map(function (b) { return b.toString(16).padStart(2, "0"); })
+    .join("").slice(0, 40);
+}
+const _BRIEF_HTML_HDR = { "Content-Type": "text/html; charset=utf-8",
+                          "X-Content-Type-Options": "nosniff" };
+// Callers pass only fixed strings (never user input) as title / msg.
+function _briefPage(title, msg, status) {
+  return new Response(
+    '<!doctype html><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>' + title + '</title>' +
+    '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,' +
+    'sans-serif;max-width:460px;margin:64px auto;padding:0 20px;text-align:center;">' +
+    '<h2 style="margin:0 0 10px;color:#1a1a1a;">' + title + '</h2>' +
+    '<p style="color:#555;line-height:1.6;">' + msg + '</p>' +
+    '<p style="margin-top:22px;"><a href="https://tickerdesk.io" ' +
+    'style="color:#c8891a;text-decoration:none;font-weight:600;">' +
+    'Return to TickerDesk &rarr;</a></p></div>',
+    { status: status || 200, headers: _BRIEF_HTML_HDR });
+}
+// Service-role call to Supabase REST (bypasses RLS; worker-only key).
+function _svcFetch(env, path, init) {
+  const opt = init || {};
+  return fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/" + path, {
+    method: opt.method || "GET",
+    headers: Object.assign({
+      "apikey": env.SUPABASE_SERVICE_KEY,
+      "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+      "Content-Type": "application/json",
+    }, opt.headers || {}),
+    body: opt.body,
+  });
+}
+
 async function handleUnsubscribe(request, env) {
-  const htmlHdr = { "Content-Type": "text/html; charset=utf-8",
-                    "X-Content-Type-Options": "nosniff" };
-  const page = function (title, msg) {
-    return new Response(
-      '<!doctype html><meta charset="utf-8">' +
-      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<title>' + title + '</title>' +
-      '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,' +
-      'sans-serif;max-width:460px;margin:64px auto;padding:0 20px;text-align:center;">' +
-      '<h2 style="margin:0 0 10px;color:#1a1a1a;">' + title + '</h2>' +
-      '<p style="color:#555;line-height:1.6;">' + msg + '</p>' +
-      '<p style="margin-top:22px;"><a href="https://tickerdesk.io" ' +
-      'style="color:#c8891a;text-decoration:none;font-weight:600;">' +
-      'Return to TickerDesk &rarr;</a></p></div>', { headers: htmlHdr });
-  };
   const url = new URL(request.url);
   const uid = url.searchParams.get("u") || "";
+  // Email-list subscribers (no account) carry ?e=<email> instead of ?u=.
+  const em = _normEmail(url.searchParams.get("e") || "");
   const tok = (url.searchParams.get("t") || "").toLowerCase();
-  if (!uid || !tok || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
-    return new Response("Bad request", { status: 400, headers: htmlHdr });
+  if ((!uid && !em) || !tok || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return new Response("Bad request", { status: 400, headers: _BRIEF_HTML_HDR });
   }
   let expected = "";
   try {
-    const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey("raw",
-      enc.encode(env.SUPABASE_SERVICE_KEY),
-      { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-    const sig = await crypto.subtle.sign("HMAC", key, enc.encode(uid));
-    expected = [...new Uint8Array(sig)]
-      .map(function (b) { return b.toString(16).padStart(2, "0"); })
-      .join("").slice(0, 40);
+    // The "brief-unsub:" prefix keeps an email token from ever being
+    // valid as a user-id token (and vice versa).
+    expected = await _hmac40(env.SUPABASE_SERVICE_KEY,
+      uid ? uid : "brief-unsub:" + em);
   } catch (e) {
-    return new Response("Server error", { status: 500, headers: htmlHdr });
+    return new Response("Server error", { status: 500, headers: _BRIEF_HTML_HDR });
   }
   if (!_timingSafeEq(tok, expected)) {
-    return page("Link expired",
+    return _briefPage("Link expired",
       "This unsubscribe link is invalid or has expired. You can manage " +
       "email preferences from your account on TickerDesk.");
   }
   try {
-    await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/profiles?id=eq." + encodeURIComponent(uid), {
-      method: "PATCH",
-      headers: { "apikey": env.SUPABASE_SERVICE_KEY,
-                 "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                 "Content-Type": "application/json",
-                 "Prefer": "return=minimal" },
-      body: JSON.stringify({ daily_brief_enabled: false }) });
+    const r = uid
+      ? await _svcFetch(env, "profiles?id=eq." + encodeURIComponent(uid), {
+          method: "PATCH", headers: { "Prefer": "return=minimal" },
+          body: JSON.stringify({ daily_brief_enabled: false }) })
+      : await _svcFetch(env, "email_signups?email=eq." + encodeURIComponent(em), {
+          method: "PATCH", headers: { "Prefer": "return=minimal" },
+          body: JSON.stringify({ unsubscribed_at: new Date().toISOString() }) });
+    if (!r.ok) throw new Error("supabase " + r.status);
   } catch (e) {
-    return new Response("Server error", { status: 500, headers: htmlHdr });
+    console.error("[unsubscribe] " + (e && e.message));
+    return new Response("Server error", { status: 500, headers: _BRIEF_HTML_HDR });
   }
   // RFC 8058 one-click POST expects a plain 200 (no body needed).
   if (request.method === "POST") {
-    return new Response("Unsubscribed", { status: 200, headers: htmlHdr });
+    return new Response("Unsubscribed", { status: 200, headers: _BRIEF_HTML_HDR });
   }
-  return page("You're unsubscribed",
-    "You won't receive any more TickerDesk Daily Brief emails. You can turn " +
-    "them back on anytime from your Watchlist settings.");
+  return _briefPage("You're unsubscribed", uid
+    ? "You won't receive any more TickerDesk Daily Brief emails. You can turn " +
+      "them back on anytime from your Watchlist settings."
+    : "You won't receive any more TickerDesk Daily Brief emails. You can " +
+      "sign up again anytime at tickerdesk.io.");
+}
+
+// ── Daily Brief email list (no account needed) ───────────────────────
+// POST /brief/subscribe {email, source} saves the address to
+// public.email_signups (service key; the public has no access to that
+// table) and sends a double opt-in email. GET /brief/confirm?token=…
+// marks it confirmed. daily_brief.py then mails the market-wide brief to
+// confirmed, not-unsubscribed addresses. Table columns come from
+// sql/2026-11-16_brief_signups.sql.
+const BRIEF_FROM_DEFAULT = "TickerDesk <brief@tickerdesk.io>";
+const BRIEF_ARRIVAL = "shortly before 9:00 AM ET on market days";
+// Don't re-send a confirmation to the same address more often than this
+// (stops anyone using the form to flood a stranger's inbox).
+const BRIEF_RESEND_GAP_MS = 15 * 60 * 1000;
+// Per-IP cap on sign-up attempts, same in-memory pattern as rateLimited().
+const SUB_RL_WINDOW_MS = 10 * 60 * 1000;
+const SUB_RL_MAX = 5;
+const SUB_RL_BUCKETS = new Map();
+function subscribeRateLimited(request) {
+  try {
+    const ip = request.headers.get("CF-Connecting-IP") || "?";
+    const now = Date.now();
+    let b = SUB_RL_BUCKETS.get(ip);
+    if (!b || now - b.start >= SUB_RL_WINDOW_MS) {
+      b = { start: now, n: 0 };
+      SUB_RL_BUCKETS.set(ip, b);
+    }
+    b.n++;
+    if (SUB_RL_BUCKETS.size > 5000) {
+      for (const [k, v] of SUB_RL_BUCKETS) {
+        if (now - v.start >= SUB_RL_WINDOW_MS) SUB_RL_BUCKETS.delete(k);
+      }
+    }
+    return b.n > SUB_RL_MAX;
+  } catch (_) { return false; }
+}
+function _normEmail(s) { return String(s || "").trim().toLowerCase(); }
+function _validEmail(e) {
+  if (!e || e.length > 254) return false;
+  const at = e.lastIndexOf("@");
+  if (at < 1 || at > 64) return false;
+  return /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(e.slice(0, at)) &&
+    /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/.test(e.slice(at + 1));
+}
+function _b64url(s) {
+  const bytes = new TextEncoder().encode(s);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function _unb64url(s) {
+  const pad = s.length % 4 ? "=".repeat(4 - (s.length % 4)) : "";
+  const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/") + pad);
+  return new TextDecoder().decode(Uint8Array.from(bin, function (c) {
+    return c.charCodeAt(0); }));
+}
+async function briefConfirmToken(env, email) {
+  return _b64url(email) + "." +
+    await _hmac40(env.SUPABASE_SERVICE_KEY, "brief-confirm:" + email);
+}
+
+async function handleBriefSubscribe(request, env, cors) {
+  // The site's forms post JSON from JS. A plain HTML form post (browser
+  // with JS off) gets the same answer as a small HTML page instead.
+  const isForm = /application\/x-www-form-urlencoded/i
+    .test(request.headers.get("Content-Type") || "");
+  const reply = function (status, obj) {
+    if (isForm) {
+      const title = !obj.ok ? "Sign-up didn't go through"
+        : obj.status === "already_subscribed" ? "You're already subscribed"
+        : "Check your inbox";
+      return _briefPage(title, obj.message || obj.error, status);
+    }
+    return new Response(JSON.stringify(obj), { status: status, headers: cors });
+  };
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return reply(503, { ok: false,
+      error: "Sign-ups are temporarily unavailable. Please try again later." });
+  }
+  let body = {};
+  try {
+    const raw = await request.text();
+    if (raw.length > 4000) throw new Error("too large");
+    body = isForm ? Object.fromEntries(new URLSearchParams(raw))
+                  : (JSON.parse(raw || "{}") || {});
+  } catch (_) {
+    return reply(400, { ok: false, error: "Bad request." });
+  }
+  // Honeypot: a hidden field real visitors never fill in. Bots that do
+  // get a normal-looking success and nothing is saved or sent.
+  if (body.website) {
+    return reply(200, { ok: true, status: "pending",
+      message: "Check your inbox to confirm your subscription." });
+  }
+  const email = _normEmail(body.email);
+  if (!_validEmail(email)) {
+    return reply(400, { ok: false, error: "Please enter a valid email address." });
+  }
+  if (subscribeRateLimited(request)) {
+    return reply(429, { ok: false,
+      error: "Too many sign-up attempts from your network. Please try again in a few minutes." });
+  }
+  const source = String(body.source || "site").toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "").slice(0, 40) || "site";
+
+  // Plain insert. A duplicate address (409) is fine: it may be a
+  // re-subscribe or a second click, handled below.
+  try {
+    const ins = await _svcFetch(env, "email_signups", {
+      method: "POST", headers: { "Prefer": "return=minimal" },
+      body: JSON.stringify({ email: email, source: source }) });
+    if (!ins.ok && ins.status !== 409) {
+      throw new Error("insert " + ins.status + " " + (await ins.text()).slice(0, 200));
+    }
+  } catch (e) {
+    console.error("[brief/subscribe] " + (e && e.message));
+    return reply(502, { ok: false,
+      error: "We couldn't save your sign-up. Please try again in a few minutes." });
+  }
+  let row = null;
+  try {
+    const r = await _svcFetch(env, "email_signups?select=" +
+      "confirmed_at,unsubscribed_at,confirm_sent_at&email=eq." +
+      encodeURIComponent(email) + "&limit=1");
+    if (!r.ok) throw new Error("select " + r.status + " " + (await r.text()).slice(0, 200));
+    row = (await r.json())[0] || null;
+  } catch (e) {
+    console.error("[brief/subscribe] " + (e && e.message));
+    return reply(502, { ok: false,
+      error: "We couldn't save your sign-up. Please try again in a few minutes." });
+  }
+  if (row && row.confirmed_at && !row.unsubscribed_at) {
+    return reply(200, { ok: true, status: "already_subscribed",
+      message: "You're already subscribed. The brief arrives " + BRIEF_ARRIVAL + "." });
+  }
+  const pending = { ok: true, status: "pending",
+    message: "Check your inbox to confirm your subscription." };
+  if (row && row.confirm_sent_at &&
+      Date.now() - Date.parse(row.confirm_sent_at) < BRIEF_RESEND_GAP_MS) {
+    return reply(200, pending);   // a confirmation is already on its way
+  }
+  if (!env.RESEND_API_KEY) {
+    console.error("[brief/subscribe] RESEND_API_KEY not set on the worker");
+    return reply(503, { ok: false,
+      error: "We couldn't send the confirmation email right now. Please try again later." });
+  }
+  const link = new URL(request.url).origin + "/brief/confirm?token=" +
+    encodeURIComponent(await briefConfirmToken(env, email));
+  const text =
+    "Please confirm you want the TickerDesk Daily Brief.\n\n" +
+    "Confirm: " + link + "\n\n" +
+    "The brief arrives " + BRIEF_ARRIVAL + ". Every email has a one-click " +
+    "unsubscribe link.\n\nIf you didn't ask for this, ignore this email " +
+    "and you won't hear from us again.\n\nTickerDesk · tickerdesk.io";
+  const html =
+    '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,' +
+    'sans-serif;max-width:480px;margin:0 auto;padding:24px 16px;color:#1a1a1a;">' +
+    '<h2 style="margin:0 0 12px;">Confirm your Daily Brief subscription</h2>' +
+    '<p style="line-height:1.6;color:#444;">Click below to start getting the ' +
+    'TickerDesk Daily Brief. It arrives ' + BRIEF_ARRIVAL + '.</p>' +
+    '<p style="margin:22px 0;"><a href="' + link + '" style="display:inline-block;' +
+    'padding:12px 24px;background:#c8891a;color:#fff;font-weight:700;' +
+    'text-decoration:none;border-radius:8px;">Confirm subscription</a></p>' +
+    '<p style="font-size:13px;line-height:1.6;color:#777;">If you didn\'t ask ' +
+    "for this, ignore this email and you won't hear from us again.</p>" +
+    '<p style="font-size:12px;color:#999;">TickerDesk &middot; tickerdesk.io</p></div>';
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + env.RESEND_API_KEY,
+                 "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: env.FROM_EMAIL || BRIEF_FROM_DEFAULT, to: [email],
+        subject: "Confirm your TickerDesk Daily Brief subscription",
+        html: html, text: text }) });
+    if (!r.ok) throw new Error("resend " + r.status + " " + (await r.text()).slice(0, 200));
+  } catch (e) {
+    console.error("[brief/subscribe] " + (e && e.message));
+    return reply(502, { ok: false,
+      error: "We couldn't send the confirmation email. Please try again in a few minutes." });
+  }
+  try {
+    await _svcFetch(env, "email_signups?email=eq." + encodeURIComponent(email), {
+      method: "PATCH", headers: { "Prefer": "return=minimal" },
+      body: JSON.stringify({ confirm_sent_at: new Date().toISOString() }) });
+  } catch (_) { /* only throttles re-sends; the email already went */ }
+  return reply(200, pending);
+}
+
+async function handleBriefConfirm(request, env) {
+  const token = new URL(request.url).searchParams.get("token") || "";
+  const dot = token.lastIndexOf(".");
+  if (dot < 1 || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return _briefPage("Link not valid",
+      "This confirmation link is incomplete. Please sign up again at tickerdesk.io.", 400);
+  }
+  let email = "";
+  let ok = false;
+  try {
+    email = _normEmail(_unb64url(token.slice(0, dot)));
+    const expected = await _hmac40(env.SUPABASE_SERVICE_KEY, "brief-confirm:" + email);
+    ok = _validEmail(email) && _timingSafeEq(token.slice(dot + 1).toLowerCase(), expected);
+  } catch (_) { ok = false; }
+  if (!ok) {
+    return _briefPage("Link not valid",
+      "This confirmation link is invalid. Please sign up again at tickerdesk.io.", 400);
+  }
+  let rows = [];
+  try {
+    const r = await _svcFetch(env, "email_signups?email=eq." + encodeURIComponent(email), {
+      method: "PATCH", headers: { "Prefer": "return=representation" },
+      body: JSON.stringify({ confirmed_at: new Date().toISOString(),
+                             unsubscribed_at: null }) });
+    if (!r.ok) throw new Error("supabase " + r.status);
+    rows = await r.json();
+  } catch (e) {
+    console.error("[brief/confirm] " + (e && e.message));
+    return _briefPage("Something went wrong",
+      "We couldn't confirm your subscription just now. Please try the link again in a few minutes.",
+      500);
+  }
+  if (!rows || !rows.length) {
+    return _briefPage("Sign-up not found",
+      "We couldn't find this sign-up. Please sign up again at tickerdesk.io.", 404);
+  }
+  return _briefPage("You're subscribed",
+    "Thanks for confirming. The TickerDesk Daily Brief arrives " + BRIEF_ARRIVAL +
+    ". Every email has a one-click unsubscribe link.");
 }
 
 // ── Abuse guards (audit item: unauthenticated market-data proxy) ────
@@ -4355,6 +4611,13 @@ export default {
     if (urlPath === "/unsubscribe" &&
         (request.method === "GET" || request.method === "POST")) {
       return handleUnsubscribe(request, env);
+    }
+    // Daily Brief email list: sign-up (double opt-in) + confirm link.
+    if (urlPath === "/brief/subscribe" && request.method === "POST") {
+      return handleBriefSubscribe(request, env, cors);
+    }
+    if (urlPath === "/brief/confirm" && request.method === "GET") {
+      return handleBriefConfirm(request, env);
     }
 
     // GET — market-quote proxy (?quotes=SPY,QQQ,...), daily-candle proxy
