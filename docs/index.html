@@ -20021,6 +20021,26 @@
   function tdNewsLegacyJunk(source) {
     return /^google news\b/i.test(tdFixMojibake(source || "").trim());
   }
+  /* Holds the newest headline time seen so far and re-stamps the wire label
+     from it on its own timer, so a quiet wire turns amber even while every
+     fetch is failing (a failed fetch neither clears nor refreshes the cached
+     time). apply(f) receives a tdNewsFreshness result; until the first
+     fetch answers (or fails) it is not called, so "Checking..." stays. */
+  function tdNewsClock(apply, everyMs) {
+    let newest = null, known = false;
+    function tick() {
+      if (known) apply(tdNewsFreshness(newest, Date.now()));
+    }
+    function seen(iso) {
+      known = true;
+      const t = Date.parse(iso || "");
+      if (!isNaN(t) && (!newest || t > Date.parse(newest))) newest = iso;
+      tick();
+    }
+    function failed() { known = true; tick(); }
+    setInterval(tick, everyMs || 30000);
+    return { seen: seen, failed: failed, tick: tick };
+  }
 
   (function setupNews() {
     const list      = document.getElementById("news-general-list");
@@ -20781,6 +20801,9 @@
     setInterval(function () {
       if (tapeActive()) { loadLiveNews(); setLiveStatus(); }
     }, 15000);
+    // Re-judge the freshness label on its own timer from the cached tape,
+    // so it goes amber on time even while every fetch is failing.
+    setInterval(setLiveStatus, 30000);
     // macro wire refreshes on a 60s cadence (worker caches it at 60s)
     setInterval(function () { if (tapeActive()) loadMacroNews(); }, 60000);
 
@@ -21009,16 +21032,15 @@
     // Stamp every wire header from the GENERAL firehose's newest headline
     // (a quiet watchlist is not a stalled wire). "Live" only while it is
     // recent; otherwise "Last headline <when> ET" in the warning style.
-    let lastNewest = null, stampedOnce = false;
-    function stampFreshness() {
-      if (!stampedOnce) return;
-      const f = tdNewsFreshness(lastNewest, Date.now());
+    // The clock re-stamps every 30s on its own, so the label goes amber on
+    // time even when the fetches below keep failing.
+    const wireClock = tdNewsClock(function (f) {
       document.querySelectorAll(".td-news-time").forEach(function (el) {
         el.textContent = f.label;
         const st = el.closest(".md-news-status");
         if (st) st.classList.toggle("stale", !f.live);
       });
-    }
+    }, 30000);
     // Drop rows from the old unfiltered Google News feed and repair
     // garbled text before anything renders.
     function cleanRows(rows) {
@@ -21038,21 +21060,22 @@
       if (!gen.length) return;
       fetch(SUPA_URL + "/rest/v1/news_live?" + NEWS_COLS +
           "&order=published_at.desc&limit=28", { headers: HDRS })
-        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (r) {
+          if (!r.ok) throw new Error("news_live HTTP " + r.status);
+          return r.json();
+        })
         .then(function (rows) {
-          if (!Array.isArray(rows)) return;
+          if (!Array.isArray(rows)) { wireClock.failed(); return; }
           rows = cleanRows(rows);
           lastGen = rows;
           const html = buildHtml(rows, "No live headlines yet.");
           gen.forEach(function (el) { el.innerHTML = html; });
           markSeen(rows);
-          lastNewest = rows.length ? rows[0].published_at : null;
-          stampedOnce = true;
-          stampFreshness();
+          wireClock.seen(rows.length ? rows[0].published_at : null);
           // Resolve any unknown-cap tickers, then re-render so nano-caps drop.
           enrichMcap(rows).then(function (changed) { if (changed) rerenderFromCache(); });
         })
-        .catch(function () {});
+        .catch(function () { wireClock.failed(); });
     }
 
     // Watchlist-filtered feed → My Desk. Uses the text[] `symbols` overlap
@@ -21081,7 +21104,6 @@
           mdEl.innerHTML = buildHtml(rows,
             "No recent headlines for your watchlist tickers.");
           markSeen(rows);
-          stampFreshness();
           enrichMcap(rows).then(function (changed) { if (changed) rerenderFromCache(); });
         })
         .catch(function () {});
