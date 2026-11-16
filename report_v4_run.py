@@ -191,13 +191,15 @@ def run(ticker, out_dir="out_v4", want_spy=True):
         view["analyst_take"] = AT.generate(view, snap)
         _m = view["analyst_take"].get("meta") or {}
         print(
-            "  analyst take: %s (%s attempt(s), %s in / %s out tokens, ~$%.4f)"
+            "  analyst take: %s (%d call(s), %s in / %s out tokens, ~$%.4f%s)%s"
             % (
                 _m.get("status"),
-                len(_m.get("attempts") or []),
+                len(_m.get("calls") or []),
                 _m.get("input_tokens"),
                 _m.get("output_tokens"),
                 _m.get("estimated_cost_usd") or 0.0,
+                "" if _m.get("cost_complete", True) else " or more",
+                (" - %s" % _m.get("reason")) if _m.get("reason") else "",
             )
         )
 

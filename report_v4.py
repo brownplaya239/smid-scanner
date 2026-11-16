@@ -330,48 +330,52 @@ def _page1(snap, view):
 
 def _analyst_page(snap, view):
     """The Analyst take: Claude's summary of this report's own data, drawn
-    only after report_v4_analyst.take_problems() found nothing wrong.
-    Every string passes through para(), i.e. report_v3.safe() and _clean(),
-    and was already normalised to plain latin-1 before it was checked, so
-    the page shows exactly the validated text."""
+    only after report_v4_analyst found nothing wrong with it. Every number,
+    unit and direction word in it was inserted by code from the facts.
+    The page draws exactly report_v4_analyst.page_blocks(), and the gate
+    expects exactly that text on the page."""
     at = view.get("analyst_take") or {}
-    st = [
-        para("Analyst take", "h2"),
-        para(AT.label_for(at), "small"),
-        Spacer(1, 4),
-        para((at.get("summary") or {}).get("text") or "", "body"),
-    ]
-    for key, title in (
-        ("bull_points", "What supports a positive view"),
-        ("bear_points", "What supports a negative view"),
-        ("watch_next", "What to watch next"),
-    ):
-        pts = at.get(key) or []
-        if not pts:
-            continue
-        st.append(para(title, "h2"))
-        for p in pts:
-            # point text, then its evidence ids in small muted type; both
+    st = []
+    for style, text, ids in AT.page_blocks(at):
+        if style == "h2":
+            st.append(para(text, "h2"))
+        elif style == "small":
+            if text == AT.FOOTNOTE:
+                st.append(Spacer(1, 6))
+            st.append(para(text, "small"))
+        else:
+            # the text, then the facts it uses in small muted type; both
             # escaped exactly as para() would
-            ids = ", ".join(p.get("evidence_ids") or [])
             st.append(
                 R.Paragraph(
-                    "&bull; %s <font size='7' color='%s'>[%s]</font>"
-                    % (_clean(safe(p.get("text") or "")), MUTED.hexval(), _clean(safe(ids))),
+                    "%s%s <font size='7' color='%s'>%s</font>"
+                    % (
+                        "&bull; " if style == "point" else "",
+                        _clean(safe(text)),
+                        MUTED.hexval(),
+                        _clean(safe(AT.cite(ids))),
+                    ),
                     ST["body"],
                 )
             )
-    st.append(Spacer(1, 6))
-    st.append(
-        para(
-            "Every number and date above was checked automatically against the "
-            "evidence items it cites (shown in brackets after each point and kept "
-            "in the validation record). The section contains no rating or price target.",
-            "small",
-        )
-    )
+            if style == "summary":
+                st.append(Spacer(1, 2))
     st, _ = _fit_page(st, [], "v4-analyst")
     return st
+
+
+def analyst_page_fits(snap, at):
+    """True when the analyst page lays out on exactly one page. Measured by
+    really laying it out (with the report's own page template and font),
+    because the story-height estimate under-reads paragraphs with inline
+    font changes. The generator calls this before the judge, so a section
+    that would spill onto a second page is shortened or omitted instead of
+    being caught later by the gate."""
+    from report_v3 import _Doc
+
+    doc = _Doc(io.BytesIO(), snap or {}, kind="Equity Research v4")
+    doc.build(_analyst_page(snap, {"analyst_take": at}))
+    return doc.page == 1
 
 
 # ── page 2: business ────────────────────────────────────────────────────
