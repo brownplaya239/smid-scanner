@@ -662,6 +662,10 @@ def _scheduled(now_utc, record=None):
     try:
         worker = os.path.join(d, "worker.mjs")
         shutil.copyfile(WORKER, worker)
+        # worker.js imports its sibling claude.mjs (#24)
+        shutil.copyfile(
+            os.path.join(os.path.dirname(WORKER), "claude.mjs"), os.path.join(d, "claude.mjs")
+        )
         harness = os.path.join(d, "harness.mjs")
         with open(harness, "w", encoding="utf-8") as f:
             f.write(_SCHEDULED_HARNESS)
