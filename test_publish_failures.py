@@ -235,3 +235,48 @@ def test_scanner_workflow_records_only_after_a_successful_publish():
     assert "steps.publish.outcome == 'success'" in cond
     # the record step only marks universes whose scan process exited 0
     assert "SMID_OK" in rec and "IWM_OK" in rec
+
+
+# --- the real write boundary: report_archive.save_report swallows the OSError
+# and returns None; archive() must turn that into an error, not a "done".
+
+
+def _unwritable_reports_dir(monkeypatch, tmp_path):
+    blocker = tmp_path / "not_a_dir"
+    blocker.write_text("a file where the reports folder should be")
+    monkeypatch.setattr(report_archive, "REPORTS_DIR", str(blocker / "reports"))
+    rebuilt = []
+    monkeypatch.setattr(report_archive, "rebuild_manifest", lambda: rebuilt.append(1))
+    return rebuilt
+
+
+def test_archive_raises_when_the_pdf_cannot_be_written(monkeypatch, tmp_path):
+    rebuilt = _unwritable_reports_dir(monkeypatch, tmp_path)
+    with pytest.raises(RuntimeError, match="could not write report PDF"):
+        report_archive.archive(b"%PDF-stub", "smid_scanner_2026-11-17_1000.pdf")
+    assert rebuilt == []  # no manifest entry for a PDF that doesn't exist
+
+
+def test_archive_still_writes_and_rebuilds_when_it_works(monkeypatch, tmp_path):
+    monkeypatch.setattr(report_archive, "REPORTS_DIR", str(tmp_path / "reports"))
+    rebuilt = []
+    monkeypatch.setattr(report_archive, "rebuild_manifest", lambda: rebuilt.append(1))
+    report_archive.archive(b"%PDF-stub", "smid_scanner_2026-11-17_1000.pdf")
+    assert (tmp_path / "reports" / "smid_scanner_2026-11-17_1000.pdf").read_bytes() == b"%PDF-stub"
+    assert rebuilt == [1]
+
+
+def test_breakout_scan_fails_on_a_real_pdf_write_failure(mods, monkeypatch, tmp_path):
+    sc, _ = mods
+    _stub_scanner(monkeypatch, sc, ONE)
+    _unwritable_reports_dir(monkeypatch, tmp_path)
+    with pytest.raises(RuntimeError, match="could not write report PDF"):
+        sc.run_scan()
+
+
+def test_setup_builder_fails_on_a_real_pdf_write_failure(mods, monkeypatch, tmp_path):
+    _, sb = mods
+    _stub_setup(monkeypatch, sb, ONE)
+    _unwritable_reports_dir(monkeypatch, tmp_path)
+    with pytest.raises(RuntimeError, match="could not write report PDF"):
+        sb.run_setup_builder()
