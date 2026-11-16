@@ -282,7 +282,7 @@ PAGES = [
     {
         "slug": "options-flow-scanner",
         "title": "Options Flow Scanner — Unusual Options Activity, Graded | TickerDesk",
-        "meta": "A daily options-flow scanner that flags unusual options activity, sweeps, and repeat buyers — then grades every signal against real closes. See what actually predicts moves.",
+        "meta": "A daily options-flow scanner that flags unusual options activity, sweeps, and repeat buyers — then grades every signal against real closes and publishes what didn't work too.",
         "h1": "Options flow scanner that grades itself",
         "sub": "Unusual options activity, golden sweeps, and repeat-buyer flow — with the one thing most scanners hide: what happened next.",
         "intro": "<p>Most options-flow tools show you a firehose of big trades and leave you to guess which ones matter. TickerDesk scans ~180 liquid optionable names six times a market day (15-minute delayed), flags the unusual activity, and then <b>tracks every flagged signal to a real outcome</b> at +1/+3/+5/+10/+20 days versus SPY.</p>",
@@ -483,29 +483,36 @@ PAGES = [
     },
     {
         "slug": "ai-stock-research-reports",
-        "title": "AI Stock Research Reports — On-Demand Deep Dives | TickerDesk",
-        "meta": "On-demand AI stock research reports: an 8-12 page PDF on any ticker with the bull/bear case, recent options flow, key levels, filings and catalysts — generated in minutes.",
-        "h1": "AI stock research reports on any ticker",
-        "sub": "An 8–12 page deep dive generated on demand — bull/bear case, flow, levels, filings, catalysts.",
-        "intro": "<p>Ask for any ticker and TickerDesk generates a structured research report with Claude: the bull and bear case, recent options flow, key technical levels, a filings and catalyst read, and a clear takeaway. Typically two to three minutes, delivered as a clean PDF you can keep.</p>",
+        # WHAT A RESEARCH REPORT IS: the full description for this page.
+        # Keep it in step with the Research tab in docs/index.html and
+        # docs/sample-report.html. Source of truth: report_v4.py (the six
+        # _pageN functions + the appendix), run by ticker-lookup.yml.
+        "title": "Stock Research Reports — On-Demand Deep Dives | TickerDesk",
+        "meta": "On-demand stock research reports: a 6-page PDF on any ticker plus an evidence appendix, built from market data and SEC filings and usually ready in about a minute.",
+        "h1": "Stock research reports on any ticker",
+        "sub": "A 6-page equity report plus an evidence appendix, built on demand from market data and SEC filings.",
+        "intro": "<p>Ask for any ticker and TickerDesk builds a structured equity research report from market data and SEC filings. Every figure is traced to its source in an evidence appendix, and a number the sources can't support is shown as unavailable, never guessed. Usually ready in about a minute, delivered as a PDF you can keep.</p>",
         "body": (
             "<h2>What's in a report</h2><ul>"
-            "<li>Bull case / bear case, stated plainly.</li>"
-            "<li>Recent unusual options flow and positioning.</li>"
-            "<li>Key support/resistance levels and trend context.</li>"
-            "<li>Recent filings (EDGAR) and the upcoming catalyst calendar.</li>"
-            "<li>A one-line takeaway, not a hedge-everything essay.</li>"
+            "<li>Investment summary: fundamental and tactical ratings, the thesis and key risks.</li>"
+            "<li>Business model and competitive position, from cited filings.</li>"
+            "<li>The latest quarter and the estimate context.</li>"
+            "<li>Valuation on real inputs, with the formula behind each figure.</li>"
+            "<li>Price chart with moving averages, relative strength vs SPY and key levels.</li>"
+            "<li>Catalysts, ranked risks and what to monitor.</li>"
+            "<li>An evidence appendix: sources, estimates, Form 4 insider trades, institutional filings, options and sampled social posts.</li>"
             "</ul>"
-            "<p>Free accounts get 3 lifetime reports; Pro 10/month; Premium 100/month. Reports are on-demand only — you ask, it runs.</p>"
+            "<p>Free accounts get 3 lifetime reports; Pro 10/month; Premium 100/month. Reports are on-demand only — you ask, it runs. "
+            "<a href='/sample-report'>See a sample</a>.</p>"
         ),
         "faq": [
             (
                 "How long does a report take?",
-                "Usually two to three minutes end to end, delivered as a downloadable PDF.",
+                "Usually about a minute end to end, delivered as a downloadable PDF.",
             ),
             (
-                "What model generates them?",
-                "Claude, over current market data, recent filings, news and alt-data at request time.",
+                "Does AI write the report?",
+                "No. The report is built from market data and SEC filings by fixed rules, and every figure is traced to its source in the appendix.",
             ),
         ],
         "cta_href": "/#adhoc",
@@ -549,7 +556,7 @@ LINK_LABELS = {
     "earnings-options-flow": "Earnings options flow",
     "swing-trading-scanner": "Swing trading scanner",
     "vcp-screener": "VCP screener",
-    "ai-stock-research-reports": "AI stock research reports",
+    "ai-stock-research-reports": "Stock research reports",
     "stock-market-morning-brief": "Stock market morning brief",
 }
 for _p in PAGES:

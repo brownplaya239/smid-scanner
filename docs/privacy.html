@@ -40,7 +40,7 @@
   </div>
 
   <h1>Privacy Policy</h1>
-  <div class="sub">Last updated: May 21, 2026</div>
+  <div class="sub">Last updated: November 16, 2026</div>
 
   <p>TickerDesk ("we", "us", "the service") provides a stock research
   dashboard at tickerdesk.io. This policy explains what data we collect
@@ -57,6 +57,16 @@
       watchlist, weights you assign them, and trade journal entries you
       log. All of this is stored only against your account and visible
       only to you.</li>
+    <li><b>Research reports you request</b> — the ticker, when you asked,
+      and the finished PDF, stored privately against your account. We
+      count them to apply your plan's report limit.</li>
+    <li><b>What you send to AI features</b> — a portfolio screenshot you
+      upload for import, or a question you type into the Trade Desk
+      "Ask" box. These are sent to Anthropic to process (see below); we
+      don't keep the screenshot.</li>
+    <li><b>Subscription status</b> — if you pay, your plan, its renewal
+      date and your Stripe customer ID. Your card details stay with
+      Stripe.</li>
     <li><b>Notification subscriptions</b> — if you enable browser push
       notifications or the Daily Brief email, we store the technical
       details needed to deliver them (push endpoint and encryption keys
@@ -71,9 +81,9 @@
     <li>We do not collect or store passwords. Sign-in is exclusively via
       email magic-link or Google OAuth — your credentials live with the
       auth provider, not us.</li>
-    <li>We do not collect bank accounts, credit cards, brokerage
-      credentials, social security numbers, or any payment information.
-      We do not connect to your broker.</li>
+    <li>Payments are handled by Stripe; we never see your full card
+      number. We do not collect bank accounts, brokerage credentials or
+      social security numbers, and we do not connect to your broker.</li>
     <li>We do not track you across the web. There are no third-party
       advertising or analytics scripts on TickerDesk.</li>
   </ul>
@@ -89,18 +99,36 @@
   </ul>
 
   <h2>Third parties we use</h2>
+  <p>These services process data on our behalf, only to run the features
+  described here.</p>
   <ul>
-    <li><b>Supabase</b> — hosts our database and handles user authentication.
-      Your account row and watchlist live here.</li>
-    <li><b>Resend</b> — delivers transactional email (magic-link sign-in
-      and the Daily Brief).</li>
-    <li><b>Polygon.io</b> — provides the market data (quotes, candles,
-      options flow, news) we display. They receive ticker symbols you
-      look up; they do not receive your user identity.</li>
-    <li><b>GitHub Pages</b> — hosts the dashboard static files.</li>
-    <li><b>Cloudflare</b> — provides DNS, CDN, and an edge worker that
-      proxies market data calls. They see your IP address as the
-      requester, as any CDN does.</li>
+    <li><b>Supabase</b> — hosts our database, file storage for your
+      private reports, and user authentication. Your account, watchlist,
+      journal, notes and reports live here.</li>
+    <li><b>Stripe</b> — handles checkout, billing and the billing portal.
+      Stripe receives your email address, your TickerDesk user ID and your
+      payment details. We never see your full card number.</li>
+    <li><b>Anthropic</b> — the AI model behind three features: reading a
+      portfolio screenshot you upload, answering a question you type in
+      the Trade Desk "Ask" box, and summarizing public SEC filings. It
+      receives the screenshot or question you send, not your email or
+      name. Research report PDFs are not written by AI.</li>
+    <li><b>GitHub</b> — hosts the website and runs the jobs that build
+      research reports. When you request a report, GitHub receives the
+      ticker and your TickerDesk user ID (not your email) so the PDF can
+      be filed to your account.</li>
+    <li><b>Cloudflare</b> — provides DNS, CDN, data storage for published
+      reports, and an edge worker that every request from the app passes
+      through. They see your IP address as the requester, as any CDN
+      does.</li>
+    <li><b>Resend</b> — delivers email (magic-link sign-in and the Daily
+      Brief). It receives your email address and the message.</li>
+    <li><b>Polygon.io (Massive)</b> — market data (quotes, candles,
+      options flow, news). They receive the ticker symbols you look up,
+      not your identity.</li>
+    <li><b>Finnhub</b> — market news and analyst estimates. They receive
+      ticker symbols (for example the one you request a report on), not
+      your identity.</li>
     <li><b>Google</b> — only if you choose to sign in with Google.
       Google sees that you signed into TickerDesk.</li>
   </ul>
@@ -130,10 +158,11 @@
   </ul>
 
   <h2>Security</h2>
-  <p>Data in our database is gated by row-level security — even our own
-  worker cannot read your data without your user ID. Connections are
-  encrypted (HTTPS / TLS). We use only services with industry-standard
-  security postures.</p>
+  <p>Data in our database is protected by row-level security, so other
+  users can't read your watchlist, journal, notes or reports. Only
+  TickerDesk's back-end accesses your data, to run the features you use.
+  Connections are encrypted (HTTPS / TLS). We use only services with
+  industry-standard security postures.</p>
 
   <p>That said, no system is perfectly secure. Don't put information in
   TickerDesk that you couldn't tolerate becoming public if we had a
