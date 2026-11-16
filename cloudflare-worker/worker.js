@@ -3901,16 +3901,24 @@ function _econUsTitles(rows) {
 
 async function _econFromNasdaq(dateISO) {
   // the offset is learned from the data and kept for 6h; with no
-  // evidence yet, look at the wanted day and the next one
+  // evidence yet, look at the wanted day and the next one. No clear
+  // answer there (a holiday week, a thin day): learn it from the same
+  // two days a week earlier, which are usually a normal week.
   let shift = memGet("econshift", 6 * 3600_000);
   const got = {};
   if (shift === null) {
-    const qs = [dateISO, _isoAddDays(dateISO, 1)];
-    const res = await Promise.all(qs.map(_econNasdaqRows));
-    qs.forEach(function (q, i) { got[q] = res[i]; });
-    shift = econDateShift(qs.map(function (q) {
-      return { query: q, titles: _econUsTitles(got[q]) };
-    }));
+    const sample = async function (qs, keep) {
+      const res = await Promise.all(qs.map(_econNasdaqRows));
+      if (keep) qs.forEach(function (q, i) { got[q] = res[i]; });
+      return econDateShift(qs.map(function (q, i) {
+        return { query: q, titles: _econUsTitles(res[i]) };
+      }));
+    };
+    shift = await sample([dateISO, _isoAddDays(dateISO, 1)], true);
+    if (shift === null) {
+      shift = await sample([_isoAddDays(dateISO, -7), _isoAddDays(dateISO, -6)],
+                           false).catch(function () { return null; });
+    }
     if (shift !== null) memPut("econshift", shift);
     else shift = 0;
   }

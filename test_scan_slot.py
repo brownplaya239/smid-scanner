@@ -487,6 +487,65 @@ console.log(JSON.stringify({
 
 
 @needs_node
+def test_worker_live_calendar_in_a_holiday_week():
+    """_econFromNasdaq with Nasdaq's feed mocked. In Thanksgiving week the
+    week's own anchors are not trusted, so the offset is learned from the
+    week before; a correctly dated Columbus-week feed stays unshifted."""
+    src = _worker()
+    js = (
+        _between(src, "const MARKET_HOLIDAYS", "function _hhmmToMin")
+        + _between(src, "const _EC_HI", "function _ffTag")
+        + """
+let MEM = {};
+function memGet(k) { return k in MEM ? MEM[k] : null; }
+function memPut(k, v) { MEM[k] = v; }
+// what really happens on each day
+const REAL = {
+  "2026-11-16": ["3-Month Bill Auction", "6-Month Bill Auction"],
+  "2026-11-17": ["Redbook"],
+  "2026-11-23": ["3-Month Bill Auction", "6-Month Bill Auction"],
+  "2026-11-24": ["Redbook", "CB Consumer Confidence"],
+  "2026-10-06": ["Redbook"],
+  "2026-10-07": ["MBA Mortgage Applications", "Crude Oil Inventories"],
+  "2026-10-13": ["3-Month Bill Auction", "6-Month Bill Auction", "Redbook"],
+};
+let LAG = 0;
+const asked = [];
+globalThis.fetch = async function (url) {
+  const q = String(url).split("date=")[1].slice(0, 10);
+  asked.push(q);
+  const d = new Date(q + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - LAG);
+  const rows = (REAL[d.toISOString().slice(0, 10)] || []).map(function (t) {
+    return { country: "United States", eventName: t, gmt: "15:00" };
+  });
+  return new Response(JSON.stringify({ data: { rows: rows } }));
+};
+(async function () {
+  LAG = 1;
+  const tg = await _econFromNasdaq("2026-11-24");
+  const tgShift = MEM.econshift, tgAsked = asked.splice(0);
+  MEM = {}; LAG = 0;
+  const co = await _econFromNasdaq("2026-10-13");
+  console.log(JSON.stringify({
+    tg: tg.map(function (e) { return [e.date, e.title]; }), tgShift, tgAsked,
+    co: co.map(function (e) { return e.title; }), coShift: MEM.econshift,
+  }));
+})();
+"""
+    )
+    r = _node(js)
+    # Thanksgiving week, lagging feed: Tuesday's releases, learned from 11/17-18
+    assert r["tgShift"] == 1
+    assert sorted(r["tgAsked"][:4]) == ["2026-11-17", "2026-11-18", "2026-11-24", "2026-11-25"]
+    assert [t for _, t in r["tg"]] == ["Redbook", "CB Consumer Confidence"]
+    assert {d for d, _ in r["tg"]} == {"11-24-2026"}
+    # Columbus week, correct feed: the Tuesday bill auctions stay on Tuesday
+    assert r["coShift"] == 0
+    assert "3-Month Bill Auction" in r["co"]
+
+
+@needs_node
 def test_site_econ_calendar_status():
     js = _func(_html(), "econCalStatus")
     r = _node(
