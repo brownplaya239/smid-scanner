@@ -19983,8 +19983,22 @@
       min: hh * 60 + parseInt(get("minute"), 10),
     };
   }
+  /* Newest of a list of headline times, ignoring any more than 5 minutes
+     in the future: a mis-dated (e.g. tomorrow-dated) story must not keep
+     the wire "Live". null when nothing usable is left. */
+  const TD_NEWS_FUTURE_SLACK_MS = 300000;
+  function tdNewsNewest(isos, nowMs) {
+    let best = null, bestMs = -Infinity;
+    (isos || []).forEach(function (iso) {
+      const t = Date.parse(iso || "");
+      if (isNaN(t) || t > nowMs + TD_NEWS_FUTURE_SLACK_MS) return;
+      if (t > bestMs) { bestMs = t; best = iso; }
+    });
+    return best;
+  }
   function tdNewsFreshness(newestIso, nowMs) {
-    const t = newestIso ? Date.parse(newestIso) : NaN;
+    let t = newestIso ? Date.parse(newestIso) : NaN;
+    if (t > nowMs + TD_NEWS_FUTURE_SLACK_MS) t = NaN;   // mis-dated
     if (isNaN(t)) return { live: false, label: "No recent headlines" };
     const p = tdNewsEtParts(nowMs);
     const rth = p.dow >= 1 && p.dow <= 5 && p.min >= 570 && p.min < 960;
@@ -20021,20 +20035,24 @@
   function tdNewsLegacyJunk(source) {
     return /^google news\b/i.test(tdFixMojibake(source || "").trim());
   }
-  /* Holds the newest headline time seen so far and re-stamps the wire label
-     from it on its own timer, so a quiet wire turns amber even while every
-     fetch is failing (a failed fetch neither clears nor refreshes the cached
-     time). apply(f) receives a tdNewsFreshness result; until the first
-     fetch answers (or fails) it is not called, so "Checking..." stays. */
+  /* Holds the headline times from the last successful fetch and re-stamps
+     the wire label from them on its own timer, so a quiet wire turns amber
+     even while every fetch is failing (a failed fetch neither clears nor
+     refreshes them). Each successful fetch REPLACES the list, so a bad row
+     that is corrected or removed stops counting, and the newest time is
+     re-picked on every tick (tdNewsNewest skips future-dated rows). apply(f)
+     receives a tdNewsFreshness result; until the first fetch answers (or
+     fails) it is not called, so "Checking..." stays. */
   function tdNewsClock(apply, everyMs) {
-    let newest = null, known = false;
+    let times = [], known = false;
     function tick() {
-      if (known) apply(tdNewsFreshness(newest, Date.now()));
+      if (!known) return;
+      const now = Date.now();
+      apply(tdNewsFreshness(tdNewsNewest(times, now), now));
     }
-    function seen(iso) {
+    function seen(isos) {
       known = true;
-      const t = Date.parse(iso || "");
-      if (!isNaN(t) && (!newest || t > Date.parse(newest))) newest = iso;
+      times = (Array.isArray(isos) ? isos : [isos]).filter(Boolean);
       tick();
     }
     function failed() { known = true; tick(); }
@@ -20745,12 +20763,10 @@
       if (tapeActive()) {
         // Honest freshness: "Live" only while the newest headline on the
         // tape is recent; a stalled wire says when it last moved.
-        let newest = null;
-        (GENERAL || []).forEach(function (a) {
-          if (a.published && (!newest || Date.parse(a.published) > Date.parse(newest)))
-            newest = a.published;
-        });
-        const f = tdNewsFreshness(newest, Date.now());
+        const now = Date.now();
+        const newest = tdNewsNewest((GENERAL || []).map(function (a) {
+          return a.published; }), now);
+        const f = tdNewsFreshness(newest, now);
         liveDot.classList.remove("paused");
         if (liveStatus) liveStatus.classList.toggle("stale", !f.live);
         liveText.textContent = f.label;
@@ -21071,7 +21087,7 @@
           const html = buildHtml(rows, "No live headlines yet.");
           gen.forEach(function (el) { el.innerHTML = html; });
           markSeen(rows);
-          wireClock.seen(rows.length ? rows[0].published_at : null);
+          wireClock.seen(rows.map(function (r) { return r.published_at; }));
           // Resolve any unknown-cap tickers, then re-render so nano-caps drop.
           enrichMcap(rows).then(function (changed) { if (changed) rerenderFromCache(); });
         })
