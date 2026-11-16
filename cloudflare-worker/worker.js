@@ -2565,16 +2565,19 @@ async function handleStripeCheckout(request, env, cors) {
   }
 }
 
-// ── Profile writes from billing (Stripe webhook + portal backfill) ──
-// Every billing write to public.profiles is an UPSERT: it creates the
-// row when it is missing. Before 2026-11-16 these were PATCHes, and the
-// signup trigger that creates profile rows had never been installed, so
-// for most accounts the PATCH matched no row, changed nothing and
-// reported success: a new customer was charged and stayed on Free.
+// ── Profile writes from billing (portal backfill) ─────────────────
+// Every billing write to public.profiles creates the row when it is
+// missing. Before 2026-11-16 these were PATCHes, and the signup trigger
+// that creates profile rows had never been installed, so for most
+// accounts the PATCH matched no row, changed nothing and reported
+// success: a new customer was charged and stayed on Free.
 // (sql/2026-11-16_profiles_for_every_account.sql installs the trigger.)
+// The Stripe webhook's plan writes go through td_apply_stripe_state()
+// instead (see syncStripePlan below); this upsert is only used by the
+// portal to cache stripe_customer_id, never for a plan field.
 //
 // Runs with the service key, so PR #8's guard trigger
-// (td_guard_profile_plan_fields) lets the plan fields through.
+// (td_guard_profile_plan_fields) lets it through.
 // Returns { ok, status, rows, error }. ok means Supabase confirmed a
 // row now holds the values (at least one row came back).
 async function upsertProfileFields(env, userId, fields) {
@@ -2620,6 +2623,171 @@ async function alertOps(env, text) {
   if (!env.SLACK_BOT_TOKEN || !env.SLACK_ALERT_CHANNEL) return;
   await slackApi(env, "chat.postMessage",
     { channel: env.SLACK_ALERT_CHANNEL, text: text });
+}
+
+// ── Stripe → plan sync (webhook) ──────────────────────────────────
+// Subscription statuses that count as paying. `past_due` keeps access
+// while Stripe retries a failed card (its dunning period); Stripe then
+// moves the subscription to canceled/unpaid, which reads as Free.
+// `incomplete` (checkout not paid yet) does NOT count: the follow-up
+// event when it turns `active` sets the plan.
+const STRIPE_PAID_STATUSES = ["active", "trialing", "past_due"];
+const STRIPE_TIER_RANK = { free: 0, pro: 1, premium: 2 };
+
+function stripePlanFromPriceId(env, id) {
+  if (id && id === env.STRIPE_PRO_PRICE_ID) return "pro";
+  if (id && id === env.STRIPE_PREMIUM_PRICE_ID) return "premium";
+  return null;
+}
+
+function supabaseServiceHeaders(env, extra) {
+  return {
+    "apikey": env.SUPABASE_SERVICE_KEY,
+    "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+    ...(extra || {}),
+  };
+}
+
+// True only when stripe_webhook_events already holds this event id. Any
+// error reads as "not seen": processing it again is harmless.
+async function stripeEventAlreadyApplied(env, eventId) {
+  try {
+    const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/stripe_webhook_events?select=event_id&event_id=eq." +
+      encodeURIComponent(eventId), { headers: supabaseServiceHeaders(env) });
+    if (!r.ok) return false;
+    const rows = await r.json();
+    return Array.isArray(rows) && rows.length > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+// The Stripe customer id already cached on the profile (or null).
+async function cachedStripeCustomerId(env, userId) {
+  try {
+    const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/profiles?select=stripe_customer_id&id=eq." +
+      encodeURIComponent(userId), { headers: supabaseServiceHeaders(env) });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    return (rows && rows[0] && rows[0].stripe_customer_id) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Read the customer's current (not canceled) subscriptions from Stripe
+// and work out the plan they pay for right now. Checkout makes a new
+// Stripe customer per purchase, so both the event's customer and the one
+// cached on the profile are checked. Returns {ok, tier, customerId} or
+// {ok:false, error}.
+async function currentStripePlan(env, userId, customerIds) {
+  let best = { tier: "free", customerId: null };
+  let unknownPaid = 0;
+  for (const cus of customerIds) {
+    let r;
+    try {
+      r = await fetch("https://api.stripe.com/v1/subscriptions?limit=100" +
+        "&customer=" + encodeURIComponent(cus), {
+        headers: { "Authorization": "Bearer " + env.STRIPE_SECRET_KEY },
+      });
+    } catch (e) {
+      return { ok: false,
+               error: "Stripe network: " + String((e && e.message) || e) };
+    }
+    if (!r.ok) {
+      const t = await r.text().catch(function () { return ""; });
+      return { ok: false,
+               error: "Stripe HTTP " + r.status + " " + t.slice(0, 200) };
+    }
+    const j = await r.json().catch(function () { return null; });
+    if (!j || !Array.isArray(j.data)) {
+      return { ok: false, error: "Stripe returned no subscription list" };
+    }
+    if (j.has_more) {
+      return { ok: false, error: "Stripe customer " + cus +
+        " has more than 100 subscriptions" };
+    }
+    for (const sub of j.data) {
+      if (STRIPE_PAID_STATUSES.indexOf(sub.status) < 0) continue;
+      // A subscription bought for a different account is not this user's.
+      const owner = sub.metadata && sub.metadata.user_id;
+      if (owner && owner !== userId) continue;
+      let tier = null;
+      for (const it of (sub.items && sub.items.data) || []) {
+        const t = stripePlanFromPriceId(env, it && it.price && it.price.id);
+        if (t && (!tier || STRIPE_TIER_RANK[t] > STRIPE_TIER_RANK[tier])) tier = t;
+      }
+      if (!tier) { unknownPaid++; continue; }
+      if (STRIPE_TIER_RANK[tier] > STRIPE_TIER_RANK[best.tier]) {
+        best = { tier: tier, customerId: cus };
+      }
+    }
+  }
+  if (best.tier === "free" && unknownPaid > 0) {
+    // Paying, but for a price this worker doesn't know: most likely
+    // STRIPE_PRO_PRICE_ID / STRIPE_PREMIUM_PRICE_ID is out of date. Never
+    // downgrade a paying customer; fail so Sum is alerted and Stripe retries.
+    return { ok: false, error: "active subscription with an unknown price " +
+      "id (check STRIPE_PRO_PRICE_ID / STRIPE_PREMIUM_PRICE_ID)" };
+  }
+  return { ok: true, tier: best.tier, customerId: best.customerId };
+}
+
+// syncStripePlan — read the current Stripe state and save it with the
+// td_apply_stripe_state() database function
+// (sql/2026-11-16_profiles_for_every_account.sql). That function creates
+// the profile if it is missing, locks the row, and only writes when this
+// snapshot is newer than the one already saved (stripe_sync_state.state_at),
+// so two webhooks racing can never leave the older state on top.
+//
+// stateAt is taken just BEFORE asking Stripe, so the snapshot that comes
+// back is at least that new. Every Stripe change sends an event that
+// arrives after the change, and its re-read starts later still, so the
+// newest write always reflects the latest change.
+async function syncStripePlan(env, opts) {
+  const userId = opts.userId;
+  const customers = [];
+  if (opts.customerId) customers.push(opts.customerId);
+  const cached = await cachedStripeCustomerId(env, userId);
+  if (cached && customers.indexOf(cached) < 0) customers.push(cached);
+  if (!customers.length) {
+    return { ok: false, error: "event has no Stripe customer id" };
+  }
+  const stateAt = new Date().toISOString();
+  const plan = await currentStripePlan(env, userId, customers);
+  if (!plan.ok) return plan;
+  let r;
+  try {
+    r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/rpc/td_apply_stripe_state", {
+      method: "POST",
+      headers: supabaseServiceHeaders(env,
+        { "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        p_user: userId,
+        p_tier: plan.tier,
+        p_customer: plan.customerId || opts.customerId || null,
+        p_state_at: stateAt,
+        p_event_id: opts.eventId,
+        p_event_type: opts.eventType,
+      }),
+    });
+  } catch (e) {
+    return { ok: false, error: "network: " + String((e && e.message) || e) };
+  }
+  const text = await r.text().catch(function () { return ""; });
+  if (!r.ok) {
+    return { ok: false, error: "HTTP " + r.status + " " + text.slice(0, 200) };
+  }
+  let out = null;
+  try { out = JSON.parse(text); } catch (_) { /* handled below */ }
+  if (!out || typeof out !== "object" || typeof out.applied !== "boolean") {
+    return { ok: false, error: "Supabase returned no result" };
+  }
+  return { ok: true, tier: out.tier || plan.tier, applied: out.applied,
+           reason: out.reason || null };
 }
 
 // ── Stripe Customer Portal ────────────────────────────────────────
@@ -2845,118 +3013,61 @@ async function handleStripeWebhook(request, env, cors) {
   try { evt = JSON.parse(bodyText); }
   catch { return new Response("Invalid JSON", { status: 400 }); }
 
-  // Map plan from price_id on the subscription
-  function planFromPriceId(id) {
-    if (id === env.STRIPE_PRO_PRICE_ID) return "pro";
-    if (id === env.STRIPE_PREMIUM_PRICE_ID) return "premium";
-    return null;
-  }
-  // updateProfile — merges subscription tier and/or the Stripe
-  // customer_id onto public.profiles. Caller passes only the fields it
-  // wants to change; missing fields are left alone so a
-  // subscription.updated event doesn't clobber the cached customer id
-  // that arrived in checkout.session.completed.
-  // It is an UPSERT (upsertProfileFields): a user with no profile row
-  // gets one, instead of the old PATCH silently changing nothing.
-  // A failed write is remembered in `failures`; the handler then alerts
-  // and answers 500 so Stripe retries the event (for up to 3 days).
-  const failures = [];
-  async function updateProfile(userId, patch) {
-    if (!userId || !patch) return;
-    const body = {};
-    if (patch.tier) {
-      body.subscription_tier = patch.tier;
-      // Stripe now owns the plan, so drop any promo end date. Otherwise a
-      // promo user who then paid would read as Free once the old promo
-      // date passed, while still being charged.
-      body.subscription_expires_at = null;
-    }
-    if (patch.stripe_customer_id) {
-      body.stripe_customer_id = patch.stripe_customer_id;
-    }
-    if (Object.keys(body).length === 0) return;
-    const res = await upsertProfileFields(env, userId, body);
-    if (res.ok) {
-      console.log("profile saved · user_id=" + userId +
-        " tier=" + (body.subscription_tier || "(unchanged)"));
-    } else {
-      failures.push({ userId: userId, tier: body.subscription_tier || null,
-                      error: res.error });
-    }
-  }
-
+  // The event only tells us WHO changed (the user id and Stripe customer
+  // id). It does not decide the plan: Stripe can deliver events late, out
+  // of order, and retries an event we answered 500 to for up to 3 days,
+  // so an old event's payload can describe a plan the customer no longer
+  // has. Instead, every event re-reads the customer's CURRENT
+  // subscriptions from the Stripe API and saves that (syncStripePlan).
   const type = evt.type;
-  const obj = evt.data && evt.data.object;
+  const obj = (evt.data && evt.data.object) || {};
   console.log("Event type: " + type + " · obj id: " + (obj && obj.id));
+  let userId = null;
+  let customerId = null;
   if (type === "checkout.session.completed") {
-    const userId = obj.client_reference_id ||
-                   (obj.metadata && obj.metadata.user_id);
-    const plan = obj.metadata && obj.metadata.plan;
-    // obj.customer is the canonical Stripe customer_id created during
-    // this checkout. Cache it on the profile so the Billing Portal
-    // endpoint can look the customer up without a Stripe customers/search.
-    const stripeCustomerId = obj.customer || null;
-    console.log("checkout.session.completed · user_id=" + userId +
-      " plan=" + plan + " stripe_customer_id=" + stripeCustomerId);
-    if (userId) {
-      await updateProfile(userId, {
-        tier: plan || undefined,
-        stripe_customer_id: stripeCustomerId || undefined,
-      });
-    }
+    userId = obj.client_reference_id || (obj.metadata && obj.metadata.user_id);
+    customerId = obj.customer || null;
   } else if (type === "customer.subscription.created" ||
-             type === "customer.subscription.updated") {
-    const userId = obj.metadata && obj.metadata.user_id;
-    const priceId = obj.items && obj.items.data && obj.items.data[0] &&
-                    obj.items.data[0].price && obj.items.data[0].price.id;
-    const plan = planFromPriceId(priceId);
-    const stripeCustomerId = obj.customer || null;
-    // Treat any non-terminal status as paid. Stripe's subscription
-    // lifecycle: incomplete → active → past_due/unpaid → canceled.
-    // For Checkout flows the first `customer.subscription.created`
-    // event arrives with status='incomplete' BEFORE the payment is
-    // fully confirmed (~1 sec later it flips to 'active'). The user
-    // already entered card details and clicked Subscribe — we want
-    // to grant Pro access immediately, not wait for the second event.
-    const liveStatuses = ["active", "trialing", "incomplete",
-                          "incomplete_expired", "past_due"];
-    const active = liveStatuses.indexOf(obj.status) >= 0;
-    console.log("subscription event · user_id=" + userId +
-      " priceId=" + priceId + " plan=" + plan +
-      " status=" + obj.status + " active=" + active +
-      " stripe_customer_id=" + stripeCustomerId);
-    if (userId) {
-      await updateProfile(userId, {
-        tier: active && plan ? plan : "free",
-        stripe_customer_id: stripeCustomerId || undefined,
-      });
-    }
-  } else if (type === "customer.subscription.deleted") {
-    const userId = obj.metadata && obj.metadata.user_id;
-    console.log("subscription.deleted · user_id=" + userId);
-    // Leave stripe_customer_id intact — the customer record still
-    // exists in Stripe (with no active sub) and the user may want to
-    // re-subscribe later. We just downgrade the entitlement.
-    if (userId) await updateProfile(userId, { tier: "free" });
+             type === "customer.subscription.updated" ||
+             type === "customer.subscription.deleted") {
+    userId = obj.metadata && obj.metadata.user_id;
+    customerId = obj.customer || null;
   } else {
     console.log("Ignored event type: " + type);
+    return stripeWebhookReply(cors, 200, { received: true });
   }
-  if (failures.length) {
+  if (!userId) {
+    console.log(type + " has no user_id · nothing to update");
+    return stripeWebhookReply(cors, 200, { received: true });
+  }
+  // Exact duplicate of an event we already applied: nothing to do.
+  if (evt.id && await stripeEventAlreadyApplied(env, evt.id)) {
+    console.log("duplicate event " + evt.id + " · already applied");
+    return stripeWebhookReply(cors, 200, { received: true, duplicate: true });
+  }
+  const res = await syncStripePlan(env, {
+    userId: userId, customerId: customerId,
+    eventId: evt.id || null, eventType: type,
+  });
+  if (!res.ok) {
     // The customer's plan did NOT change in our database. Tell Sum, and
-    // answer 500 so Stripe retries; the retry is safe (same upsert).
-    const f = failures[0];
+    // answer 500 so Stripe retries. A retry is safe: it re-reads the
+    // current Stripe state, so it can never bring back an old plan.
     await alertOps(env, ":rotating_light: Stripe " + type + " (" +
       (evt.id || "no event id") + ") could not update the profile of user " +
-      f.userId + (f.tier ? " to plan " + f.tier : "") + ". " + f.error +
+      userId + ". " + res.error +
       ". Stripe will retry; if this repeats, fix the row in Supabase.");
-    return new Response(JSON.stringify({ received: false,
-      error: "profile update failed" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...cors },
-    });
+    return stripeWebhookReply(cors, 500,
+      { received: false, error: "profile update failed" });
   }
-  return new Response(JSON.stringify({ received: true }), {
-    status: 200,
+  console.log("profile synced · user_id=" + userId + " tier=" + res.tier +
+    " applied=" + res.applied + (res.reason ? " (" + res.reason + ")" : ""));
+  return stripeWebhookReply(cors, 200, { received: true });
+}
+
+function stripeWebhookReply(cors, status, body) {
+  return new Response(JSON.stringify(body), {
+    status: status,
     headers: { "Content-Type": "application/json", ...cors },
   });
 }

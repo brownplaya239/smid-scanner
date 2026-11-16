@@ -1,0 +1,9 @@
+{
+  "name": "smid-scanner-sql-tests",
+  "private": true,
+  "description": "Throwaway in-memory Postgres (PGlite) for checking the sql/ scripts. Install with `bun install --cwd sql/tests`; run via profiles_sql_test.py or `node sql/tests/profiles_sql_check.mjs`.",
+  "type": "module",
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16"
+  }
+}
