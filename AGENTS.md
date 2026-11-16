@@ -204,7 +204,9 @@ Rules worth knowing:
   the relative-volume filter isn't falsely starved.
 - **The publish race.** Multiple workflows finishing seconds apart used to
   collide on `manifest.json`. `scripts/publish_reports.sh` commits first, then
-  rebases with retry, regenerating the manifest on conflict.
+  rebases with retry, regenerating the manifest on conflict. If the push
+  still fails after 5 tries the job fails (the PDFs would otherwise be lost
+  silently), and scanner.yml does not mark the slot done.
 - **fpdf2 is latin-1 only.** All text rendered to PDF must go through `_safe()`
   — it strips/replaces em-dashes, smart quotes, and non-latin-1 chars.
 - **Claude returns only the JSON fields it's asked for.** yfinance fundamentals
