@@ -51,6 +51,41 @@ def test_curated_list_and_security_type_win():
     assert not is_fund("ABCD", "Plain Name Inc", "CS")
 
 
+def test_stock_type_beats_fund_wording():
+    # Polygon says common stock / ADR: the name can't override that
+    assert not is_fund("FCI", "Fund Corp Inc.", "CS")
+    assert not is_fund("ABCD", "Leveraged Growth Fund Holdings ADR", "ADRC")
+    assert is_fund("SPY", "SPDR S&P 500 ETF Trust", "CS")  # curated list still wins
+
+
+ISSUER_FUNDS = {
+    "ASHR": "Xtrackers Harvest CSI 300 China A-Shares",
+    "VT": "Vanguard Total World Stock Index",
+    "KWEB": "KraneShares CSI China Internet",
+    "SMH": "VanEck Semiconductor",
+    "URA": "Global X Uranium",
+    "QQQ": "Invesco QQQ Trust, Series 1",
+    "DBC": "Invesco DB Commodity Index Tracking",
+    "DXJ": "WisdomTree Japan Hedged Equity",
+    "FTXL": "First Trust Nasdaq Semiconductor ETF",
+    "ARKK": "ARK Innovation ETF",
+}
+ISSUER_COMPANIES = {
+    "BLK": "BlackRock, Inc.",
+    "IVZ": "Invesco Ltd.",
+    "WT": "WisdomTree, Inc.",
+    "VNGD": "Vanguard Health Holdings Corp",
+    "GLBX": "Global X Holdings Inc",
+}
+
+
+def test_issuer_names_without_etf_wording():
+    for t, name in ISSUER_FUNDS.items():
+        assert is_fund(t, name), t  # no type from Polygon
+    for t, name in ISSUER_COMPANIES.items():
+        assert not is_fund(t, name), t
+
+
 def _metrics(t):
     return {
         "ticker": t,

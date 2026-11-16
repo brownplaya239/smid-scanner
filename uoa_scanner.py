@@ -276,11 +276,22 @@ EXCLUDE_ETFS = {
 # have it; the issuer / wording pattern catches new leveraged and inverse
 # launches by name ("2x Long MU Daily", "UltraShort Silver", "... ETF").
 FUND_TYPES = {"ETF", "ETN", "ETV", "ETS", "FUND", "SP"}
+STOCK_TYPES = {"CS", "ADRC"}
 _FUND_NAME = re.compile(
     r"\b(ETFs?|ETNs?|ProShares|Direxion|GraniteShares|T-Rex|Tradr|Leverage Shares|"
     r"MicroSectors|iShares|SPDR|MiniShares|Daily Target|UltraShort|UltraPro|Inverse|"
     r"Leveraged|Funds?|Exchange-Traded|Physical (Gold|Silver|Platinum)|"
-    r"[1-5](\.\d+)?[xX])\b"
+    r"Xtrackers|Vanguard|Global X|KraneShares|VanEck|Invesco (QQQ|DB|CurrencyShares)|"
+    r"PowerShares|WisdomTree|[1-5](\.\d+)?[xX])\b"
+)
+# Words that only ever name a fund product, never an operating company.
+_FUND_WORD = re.compile(r"\b(ETFs?|ETNs?|Exchange-Traded)\b")
+# A name ending like an operating company ("BlackRock, Inc.", "Invesco
+# Ltd.", "WisdomTree, Inc.") is a stock unless it also says ETF / ETN.
+_COMPANY_NAME = re.compile(
+    r"\b(Inc|Incorporated|Corp|Corporation|Ltd|Limited|plc|N\.?V|S\.?A|AG|SE|"
+    r"Holdings?|Company|Co)\.?\s*$",
+    re.IGNORECASE,
 )
 
 
@@ -290,12 +301,23 @@ def is_fund(ticker, name=None, sec_type=None):
     Stock-only lists (grade leaderboards, fade candidates, long setups) use
     this so funds like TECL (3x tech) or ZSL (2x short silver) never rank
     next to single stocks. Order: the curated EXCLUDE_ETFS list, then
-    Polygon's security type, then the fund-name pattern."""
+    Polygon's security type (a fund type means fund; CS / ADRC means
+    stock), then the fund-name pattern, which skips company-style names."""
     if ticker in EXCLUDE_ETFS:
         return True
-    if sec_type and str(sec_type).upper() in FUND_TYPES:
+    t = str(sec_type).upper() if sec_type else ""
+    if t in FUND_TYPES:
         return True
-    return bool(name and _FUND_NAME.search(str(name)))
+    if t in STOCK_TYPES:
+        return False
+    if not name:
+        return False
+    name = str(name)
+    if _FUND_WORD.search(name):
+        return True
+    if _COMPANY_NAME.search(name):
+        return False
+    return bool(_FUND_NAME.search(name))
 
 
 # ─── Universe ─────────────────────────────────────────────────────────────────

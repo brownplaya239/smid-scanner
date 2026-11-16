@@ -21840,8 +21840,10 @@
       if (nno == null) return "<span class='ovf-m'>—</span>";
       if (nno > 0)
         return "<span class='ovf-g'>+" + nno.toLocaleString() + "</span>";
-      return "<span class='ovf-m' title='OI did not grow past the print (" +
-        nno.toLocaleString() + " vs the contracts traded)'>none</span>";
+      return "<span class='ovf-m' title='Open interest didn&#39;t grow past " +
+        "the print size (OI change minus contracts traded: " +
+        nno.toLocaleString() + "). See OI Conf % for how much of the " +
+        "print held.'>none</span>";
     }
     // Footer counts. Confirmed = the morning OI check passed (held: at least
     // held_threshold of the print became new open interest). Settled = OI is
@@ -21876,7 +21878,7 @@
         ["Premium", "premium", "Dollar value of the original flagged print."],
         ["Held %", "whale_held", "Estimated share of the whale's print still open overnight (Δ OI ÷ contracts traded, capped 100%)."],
         ["OI Conf %", "oi_confirmed", "Percentage of yesterday's opening trade that appeared in today's open interest (Δ OI ÷ contracts traded)."],
-        ["OI Beyond Print", "net_new_oi", "New open interest on top of the flagged print itself (OI change minus contracts traded). Positive = other traders opened more contracts too. 'none' = OI did not grow past the print — not a sign that OI fell (see OI Conf %)."],
+        ["OI Beyond Print", "net_new_oi", "New open interest on top of the flagged print itself (OI change minus contracts traded). Positive = other traders opened more contracts too. 'none' means open interest didn't grow past the print size; see OI Conf % for how much of the print held."],
         ["Conviction", "conviction", "0–100: whale-held 35% · OI-confirmed 35% · premium 15% · OI-vs-prior 10% · strike relevance 5%."],
         ["Priority", "priority", "Follow-through watch priority: A+/A strong · B watch · Avoid likely closed/scalped · Pending awaiting OI."],
       ];
@@ -21952,7 +21954,8 @@
               "15-min delayed source data." };
       const body = '<div class="ovf-dash">' + ovfDashHTML(co) + '</div>' +
         '<div class="ovf-foot">' + cnt.confirmed + '/' + cnt.total +
-          ' OI-confirmed (≥' + heldPct + '% of the print held overnight)' +
+          ' OI-confirmed (≥' + heldPct + '% of the print was still open ' +
+          'the next morning)' +
           (cnt.settled < cnt.total
             ? ' &middot; ' + (cnt.total - cnt.settled) + ' awaiting OI' : '') +
           ' &middot; conviction = held 35% · OI-conf 35% · premium 15% ' +
@@ -23515,13 +23518,13 @@
       return out;
     }
     // Themes ranked by the prior-close average, strongest first. Themes
-    // without a prior-close figure sort last.
+    // without a prior-close figure are left out: the card splits this list
+    // in half and reverses the bottom half for "Weakest", so an unranked
+    // theme sorted last used to show up as the weakest one.
     function themeRankPrior(all) {
-      return (all || []).slice().sort(function (a, b) {
-        const va = a.chg_prior == null ? -Infinity : a.chg_prior;
-        const vb = b.chg_prior == null ? -Infinity : b.chg_prior;
-        return vb - va;
-      });
+      return (all || []).filter(function (t) {
+        return t && typeof t.chg_prior === "number" && isFinite(t.chg_prior);
+      }).sort(function (a, b) { return b.chg_prior - a.chg_prior; });
     }
     // Stash for the hover popup
     let THEME_ROLLUP = {};
@@ -29659,9 +29662,18 @@
       function esc(s) {
         return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? "" : s);
       }
+      // 1:00 PM ET early closes. Mirrors MARKET_HALF_DAYS in the worker and
+      // HALF_DAYS in exchange_calendar.py (desk_accuracy_js_test checks).
+      function pmbHalfDay(iso) {
+        return ["2025-07-03", "2025-11-28", "2025-12-24",
+                "2026-11-27", "2026-12-24",
+                "2027-11-26"].indexOf(iso) >= 0;
+      }
       function phaseLabel(nowMs) {
         // Pre-market / Intraday / After-hours / Prior close from ET clock.
-        // Regular session is 9:30 AM-4:00 PM ET.
+        // Regular session is 9:30 AM-4:00 PM ET (1:00 PM on half days);
+        // weekends and exchange holidays (tdMarketClosedReason) have no
+        // session, so they read "Prior session", never "today".
         try {
           const now = nowMs == null ? new Date() : new Date(nowMs);
           const hm = now.toLocaleString("en-US", { timeZone: "America/New_York",
@@ -29671,20 +29683,30 @@
             timeZone: "America/New_York", weekday: "short" });
           const wknd = (m === "Sat" || m === "Sun");
           if (wknd) return "Prior session";
+          const closed = (typeof window !== "undefined" &&
+            typeof window.tdMarketClosedReason === "function")
+            ? window.tdMarketClosedReason(now) : null;
+          if (closed) return "Prior session";
+          const iso = now.toLocaleDateString("en-CA",
+            { timeZone: "America/New_York" });
+          const closeMin = pmbHalfDay(iso) ? 13 * 60 : 16 * 60;
           if (mins < 9 * 60 + 30) return "Pre-market";
-          if (mins < 16 * 60) return "Intraday";
+          if (mins < closeMin) return "Intraday";
           if (mins < 20 * 60) return "After-hours";
           return "Prior close";
         } catch (_) { return "Latest"; }
       }
-      // Filings that don't move a stock: passive 13G holders, 13D
-      // amendments, Form 144 sale notices, insider Forms 3/4/5, S-8 plan
-      // shares, shelf/prospectus paperwork, periodic reports, proxies and
-      // exhibits-only 8-Ks. The worker stops sending these; this keeps an
+      // Filings that don't move a stock: passive 13G holders, Form 144
+      // sale notices, insider Forms 3/4/5, S-8 plan shares, S-3 / F-3 shelf
+      // registrations, periodic reports, proxies and exhibits-only or
+      // holder-vote 8-Ks. The worker stops sending these; this keeps an
       // older worker's answer from being shown as the reason for a move.
+      // Priced offerings (424B), S-1 / F-1 registrations, late-filing
+      // notices (NT 10-K/Q), 13D amendments and charter amendments (reverse
+      // splits) are real catalysts and stay.
       function pmbRoutineFiling(r) {
         if (!r || r.catalyst_src !== "edgar" || !r.catalyst) return false;
-        return /^(13G|13D\/A|SC 13G|SCHEDULE 13G|144\b|Insider transaction|[345]\b|Form [345]\b|S-8|S-3|F-3|424B|Prospectus supplement|Shelf registration|Quarterly report|Annual report|Amended (annual|quarterly) report|Definitive proxy|DEF 14A|11-K|8-K · (Financial Statements \/ Exhibits|Submission of Matters to Holder Vote|Bylaw\/Charter Amendment)$)/i
+        return /^(13G|SC 13G|SCHEDULE 13G|144\b|Insider transaction|[345]\b|Form [345]\b|S-8|S-3|F-3|Shelf registration|Quarterly report|Annual report|Amended (annual|quarterly) report|Definitive proxy|DEF 14A|11-K|8-K · (Financial Statements \/ Exhibits|Submission of Matters to Holder Vote)$)/i
           .test(String(r.catalyst).trim());
       }
       function pmbNoCatalyst(phase) {

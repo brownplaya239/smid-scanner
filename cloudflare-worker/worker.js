@@ -3359,13 +3359,16 @@ const PMB_EXCLUDE = new Set([
 // already-human filing headline + the doc URL. Reuses fetchSecFilings
 // (CIK map cached 24h, submissions cached 5 min).
 // Can this filing explain a big one-day move? Only event filings can:
-// 8-K / 6-K current reports (except exhibits-only, holder-vote and bylaw
-// items), a NEW 13D (activist stake), tender offers and merger filings.
-// Routine paperwork never counts: passive 13G / 13G-A holders, 13D
-// amendments, Form 144 sale notices, insider Forms 3/4/5, S-8 plan shares,
-// S-3 / 424B shelf and prospectus filings, 10-Q / 10-K, proxies. Showing
-// "13G/A" as the reason HUBS rose 6% was wrong.
-const ROUTINE_8K_ITEMS = ["9.01", "5.07", "5.03"];
+// 8-K / 6-K current reports (except exhibits-only and holder-vote items),
+// 13D stakes and their amendments (an activist adding or cutting), priced
+// offerings (424B prospectuses, S-1 / F-1 registrations), late-filing
+// notices (NT 10-K / NT 10-Q), tender offers and merger filings. Item 5.03
+// counts: charter amendments include reverse splits.
+// Routine paperwork never counts: passive 13G / 13G-A holders, Form 144
+// sale notices, insider Forms 3/4/5, S-8 plan shares, S-3 / F-3 shelf
+// registrations, 10-Q / 10-K, proxies. Showing "13G/A" as the reason HUBS
+// rose 6% was wrong.
+const ROUTINE_8K_ITEMS = ["9.01", "5.07"];
 function isCatalystFiling(form, items) {
   const f = String(form || "").toUpperCase().trim();
   if (f === "8-K" || f === "8-K/A" || f === "6-K") {
@@ -3374,7 +3377,10 @@ function isCatalystFiling(form, items) {
     if (!it.length) return true;   // items not listed: can't rule it out
     return it.some(function (x) { return ROUTINE_8K_ITEMS.indexOf(x) < 0; });
   }
-  if (is13D(f)) return !/\/A$/.test(f);
+  if (is13D(f)) return true;
+  if (/^424B\d/.test(f)) return true;                   // priced offering
+  if (/^NT 10-[KQ]\b/.test(f)) return true;              // late filer
+  if (/^[SF]-1(\/A)?$/.test(f)) return true;            // registration
   return /^(SC TO-T|SC TO-I|SC 14D9|DEFM14A|PREM14A|425)\b/.test(f);
 }
 async function latest8KCatalyst(ticker) {

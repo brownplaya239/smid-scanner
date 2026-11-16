@@ -105,6 +105,22 @@ def test_theme_rollup_keeps_prior_close_and_today_apart():
     assert r == [["Oil & Gas", 1.5, -2.6], ["Semis", -1.0, 2.0]]
 
 
+def test_themes_without_a_prior_close_are_not_ranked():
+    themes = [
+        {"theme": "A", "chg_prior": 1.0},
+        {"theme": "NoPrior", "chg_prior": None},
+        {"theme": "B", "chg_prior": -2.0},
+        {"theme": "C", "chg_prior": 0.5},
+    ]
+    r = _js(
+        ["themeRankPrior"],
+        "themeRankPrior(T).map(function (t) { return t.theme; })",
+        "const T = " + json.dumps(themes) + ";",
+    )
+    # the card reverses the bottom half for "Weakest": B must lead it
+    assert r == ["A", "C", "B"]
+
+
 def test_theme_card_labels_both_columns():
     src = _html()
     assert "'Prior close</span>'" in src and "'Today</span></div>'" in src
@@ -145,6 +161,12 @@ def test_beyond_print_shows_extra_oi_not_negatives():
     text = [re.sub(r"<[^>]+>", "", c) for c in cells]
     assert text == ["none", "none", "none", "none", "none", "—", "+250"]
     assert "-824" in cells[1]  # the raw figure stays in the tooltip
+    assert "didn&#39;t grow past the print size" in cells[1]
+    assert "OI fell" not in cells[1]
+    src = _html()
+    assert "not a sign that OI fell" not in src
+    assert "'none' means open interest didn't grow past the print size" in src
+    assert "% of the print was still open " in src and "print held overnight" not in src
 
 
 # 6. Market Buzz ----------------------------------------------------------
@@ -153,20 +175,30 @@ def test_routine_filings_are_not_catalysts_on_the_page():
     routine = [
         "13G/A — passive holder position update",
         "13G filed — passive 5%+ holder",
-        "13D/A — activist position update",
         "144",
         "144 · FORM 144",
         "Insider transaction",
         "S-8 · S-8",
-        "Prospectus supplement / shelf takedown",
-        "424B3 · 424B3",
+        "Shelf registration (S-3)",
+        "S-3/A · S-3/A",
         "Quarterly report (10-Q)",
         "8-K · Financial Statements / Exhibits",
+        "8-K · Submission of Matters to Holder Vote",
     ]
     real = [
         "8-K · Earnings Release",
         "8-K · Material Agreement + Financial Statements / Exhibits",
         "13D filed — activist / >5% holder",
+        "13D/A — activist position update",
+        "Prospectus supplement / shelf takedown",
+        "Prospectus supplement",
+        "424B3 · 424B3",
+        "Late filing notice (NT 10-K)",
+        "Late filing notice (NT 10-Q)",
+        "IPO registration (S-1)",
+        "S-1/A · S-1/A",
+        "F-1 · F-1",
+        "8-K · Bylaw/Charter Amendment",
     ]
     rows = [{"catalyst": c, "catalyst_src": "edgar"} for c in routine + real]
     rows.append({"catalyst": "144 analysts upgrade the stock", "catalyst_src": None})
@@ -177,7 +209,7 @@ def test_routine_filings_are_not_catalysts_on_the_page():
 def test_no_catalyst_wording_follows_the_session():
     # Mon Nov 16 2026: 8:00 AM, 1:41 PM, 5:00 PM ET (EST = UTC-5)
     r = _js(
-        ["phaseLabel", "pmbNoCatalyst"],
+        ["pmbHalfDay", "phaseLabel", "pmbNoCatalyst"],
         "[13, 18.683, 22].map(function (h) {"
         " var ms = Date.UTC(2026, 10, 16, 0) + h * 3600000;"
         " return [phaseLabel(ms), pmbNoCatalyst(phaseLabel(ms))]; })"
@@ -187,8 +219,42 @@ def test_no_catalyst_wording_follows_the_session():
     assert r[1] == ["Intraday", "No clear catalyst found (today)"]
     assert r[2] == ["After-hours", "No clear catalyst found (after hours)"]
     assert r[3][0] == "Intraday"  # the regular session opens at 9:30
-    assert _js(["phaseLabel"], "phaseLabel(Date.UTC(2026, 10, 16, 14, 29))") == "Pre-market"
+    assert (
+        _js(["pmbHalfDay", "phaseLabel"], "phaseLabel(Date.UTC(2026, 10, 16, 14, 29))")
+        == "Pre-market"
+    )
     assert "pre-market mover" not in _html()
+
+
+def _closed_reason_src():
+    src = _html()
+    start = src.index("window.tdMarketClosedReason = function")
+    end = src.index("\n  };", start) + len("\n  };")
+    return src[start:end]
+
+
+def test_session_label_knows_holidays_and_half_days():
+    prelude = "var window = {};\n" + _closed_reason_src() + "\n"
+    # Thanksgiving Thu Nov 26 2026, 11:00 AM ET: no session at all
+    # Fri Nov 27 2026 (1:00 PM close): 12:30 PM, 2:00 PM, 8:30 PM ET; Mon 2 PM
+    r = _js(
+        ["pmbHalfDay", "phaseLabel"],
+        "[Date.UTC(2026, 10, 26, 16), Date.UTC(2026, 10, 27, 17, 30),"
+        " Date.UTC(2026, 10, 27, 19), Date.UTC(2026, 10, 28, 1, 30),"
+        " Date.UTC(2026, 10, 30, 19)].map(phaseLabel)",
+        prelude,
+    )
+    assert r == ["Prior session", "Intraday", "After-hours", "Prior close", "Intraday"]
+
+
+def test_site_half_days_match_exchange_calendar():
+    import exchange_calendar
+
+    src = _html()
+    body = src[src.index("function pmbHalfDay(") :]
+    body = body[: body.index("}")]
+    got = sorted(re.findall(r'"(\d{4}-\d{2}-\d{2})"', body))
+    assert got == sorted(d for ds in exchange_calendar.HALF_DAYS.values() for d in ds)
 
 
 def test_worker_only_uses_event_filings_as_catalysts():
@@ -201,13 +267,26 @@ def test_worker_only_uses_event_filings_as_catalysts():
         ("6-K", "", True),
         ("SC 13D", "", True),
         ("SCHEDULE 13D", "", True),
-        ("SC 13D/A", "", False),
+        ("SC 13D/A", "", True),
+        ("8-K", "5.03", True),
+        ("8-K", "5.03,9.01", True),
+        ("424B5", "", True),
+        ("424B4", "", True),
+        ("424B3", "", True),
+        ("NT 10-K", "", True),
+        ("NT 10-Q", "", True),
+        ("S-1", "", True),
+        ("S-1/A", "", True),
+        ("F-1", "", True),
+        ("S-3", "", False),
+        ("SC 13G", "", False),
+        ("3", "", False),
+        ("5", "", False),
         ("SC 13G/A", "", False),
         ("SCHEDULE 13G", "", False),
         ("144", "", False),
         ("4", "", False),
         ("S-8", "", False),
-        ("424B5", "", False),
         ("10-Q", "", False),
         ("SC TO-T", "", True),
         ("DEFM14A", "", True),
