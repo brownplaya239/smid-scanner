@@ -178,6 +178,8 @@ def test_routine_filings_are_not_catalysts_on_the_page():
         "144",
         "144 · FORM 144",
         "Insider transaction",
+        "424B2 · 424B2",
+        "424B8 · 424B8",
         "S-8 · S-8",
         "Shelf registration (S-3)",
         "S-3/A · S-3/A",
@@ -273,6 +275,10 @@ def test_worker_only_uses_event_filings_as_catalysts():
         ("424B5", "", True),
         ("424B4", "", True),
         ("424B3", "", True),
+        ("424B1", "", True),
+        ("424B7", "", True),
+        ("424B2", "", False),
+        ("424B8", "", False),
         ("NT 10-K", "", True),
         ("NT 10-Q", "", True),
         ("S-1", "", True),
@@ -296,11 +302,61 @@ def test_worker_only_uses_event_filings_as_catalysts():
     )
     r = _node(
         WORKER,
-        ["is13D", "isCatalystFiling"],
+        ["is13D", "catalystRank", "isCatalystFiling"],
         "const C = " + json.dumps([[f, i] for f, i, _ in cases]) + ";\n" + body,
-        consts=("ROUTINE_8K_ITEMS",),
+        consts=("ROUTINE_8K_ITEMS", "PMB_SMALL_CAP"),
     )
     assert r == [want for _, _, want in cases]
+
+
+def _pick(filings, cap):
+    return _node(
+        WORKER,
+        ["is13D", "catalystRank", "pickCatalystFiling"],
+        "const F = "
+        + json.dumps(filings)
+        + ";\nconsole.log(JSON.stringify(pickCatalystFiling(F, "
+        + json.dumps(cap)
+        + ', Date.parse("2026-11-16T15:00:00Z"))));',
+        consts=("ROUTINE_8K_ITEMS", "PMB_SMALL_CAP"),
+    )
+
+
+def _filing(form, hour, items=""):
+    return {"form": form, "items": items, "acceptedDate": f"2026-11-16T{hour:02d}:00:00.000Z"}
+
+
+def test_resale_prospectus_counts_only_for_small_caps():
+    cases = [("424B3", 500e6), ("424B3", 300e9), ("424B7", 1.5e9), ("424B7", 5e9), ("424B3", None)]
+    r = _node(
+        WORKER,
+        ["is13D", "catalystRank", "isCatalystFiling"],
+        "const C = " + json.dumps(cases) + ";\nconsole.log(JSON.stringify(C.map(function (c) {"
+        " return isCatalystFiling(c[0], '', c[1]); })));",
+        consts=("ROUTINE_8K_ITEMS", "PMB_SMALL_CAP"),
+    )
+    assert r == [True, False, True, False, True]
+
+
+def test_bank_notes_do_not_hide_the_real_8k():
+    # A big bank: 60 structured-note prospectuses in the last hours, the
+    # real 8-K filed before them. The 8-K is the reason, not a 424B2.
+    notes = [_filing("424B2", 14) for _ in range(60)]
+    filings = notes + [_filing("424B3", 13), _filing("8-K", 12, "8.01")]
+    assert _pick(filings, 600e9)["form"] == "8-K"
+    # only notes and a resale prospectus, big bank: no catalyst at all
+    assert _pick(notes + [_filing("424B3", 13)], 600e9) is None
+    # small cap: an 8-K still beats a newer 424B3, and the 424B3 is used alone
+    assert _pick([_filing("424B3", 14), _filing("8-K", 12, "1.01")], 800e6)["form"] == "8-K"
+    assert _pick([_filing("424B3", 14), _filing("4", 12)], 800e6)["form"] == "424B3"
+    # a priced offering counts whatever the size
+    assert _pick(notes + [_filing("424B5", 13)], 600e9)["form"] == "424B5"
+
+
+def test_catalyst_lookback_reads_past_routine_filings():
+    src = open(WORKER, encoding="utf-8").read()
+    assert "await fetchSecFilings(ticker, 100);" in src
+    assert "latest8KCatalyst(row.ticker, row.market_cap)" in src
 
 
 # 7. earnings today --------------------------------------------------------
@@ -426,6 +482,6 @@ def test_oi_confirmed_means_one_thing_everywhere():
     assert "at least half the print showed up as new open interest" in src
     with open(HTML.replace("index.html", "glossary.html"), encoding="utf-8") as f:
         gl = f.read()
-    assert 'id="oi-confirmed-board"' in gl and 'id="oi-beyond-print"' in gl
+    assert 'id="oi-confirmed"' in gl and 'id="oi-beyond-print"' in gl
     assert "at least half of the\n      print&rsquo;s size showed up as new open interest" in gl
     assert "open interest didn&rsquo;t grow past\n      the print size" in gl

@@ -3361,7 +3361,7 @@ const PMB_EXCLUDE = new Set([
 // Can this filing explain a big one-day move? Only event filings can:
 // 8-K / 6-K current reports (except exhibits-only and holder-vote items),
 // 13D stakes and their amendments (an activist adding or cutting), priced
-// offerings (424B prospectuses, S-1 / F-1 registrations), late-filing
+// offerings (424B1/4/5; 424B3/7 for small caps; S-1 / F-1), late-filing
 // notices (NT 10-K / NT 10-Q), tender offers and merger filings. Item 5.03
 // counts: charter amendments include reverse splits.
 // Routine paperwork never counts: passive 13G / 13G-A holders, Form 144
@@ -3369,33 +3369,59 @@ const PMB_EXCLUDE = new Set([
 // registrations, 10-Q / 10-K, proxies. Showing "13G/A" as the reason HUBS
 // rose 6% was wrong.
 const ROUTINE_8K_ITEMS = ["9.01", "5.07"];
-function isCatalystFiling(form, items) {
+// 424B prospectuses are not all share sales. 424B1 / 424B4 / 424B5 are
+// priced offerings: always a catalyst. 424B3 / 424B7 are resale and
+// shelf-update prospectuses, which matter for a small company but are
+// routine for a big one, so they only count under PMB_SMALL_CAP. 424B2
+// (bank structured notes; a big bank files dozens a day) and 424B8 (a late
+// copy of another prospectus) never count.
+const PMB_SMALL_CAP = 2_000_000_000;
+// 0 = not a catalyst, 1 = weak (counts only if no strong filing is in the
+// window), 2 = strong. marketCap is in $; null/undefined = unknown.
+function catalystRank(form, items, marketCap) {
   const f = String(form || "").toUpperCase().trim();
   if (f === "8-K" || f === "8-K/A" || f === "6-K") {
     const it = String(items || "").split(",").map(function (x) {
       return x.trim(); }).filter(Boolean);
-    if (!it.length) return true;   // items not listed: can't rule it out
-    return it.some(function (x) { return ROUTINE_8K_ITEMS.indexOf(x) < 0; });
+    if (!it.length) return 2;      // items not listed: can't rule it out
+    return it.some(function (x) { return ROUTINE_8K_ITEMS.indexOf(x) < 0; })
+      ? 2 : 0;
   }
-  if (is13D(f)) return true;
-  if (/^424B\d/.test(f)) return true;                   // priced offering
-  if (/^NT 10-[KQ]\b/.test(f)) return true;              // late filer
-  if (/^[SF]-1(\/A)?$/.test(f)) return true;            // registration
-  return /^(SC TO-T|SC TO-I|SC 14D9|DEFM14A|PREM14A|425)\b/.test(f);
+  if (is13D(f)) return 2;
+  if (/^424B[145]$/.test(f)) return 2;                  // priced offering
+  if (/^424B[37]$/.test(f)) {                           // resale / shelf update
+    const big = typeof marketCap === "number" && marketCap >= PMB_SMALL_CAP;
+    return big ? 0 : 1;
+  }
+  if (/^424B/.test(f)) return 0;                        // 424B2 notes, 424B8
+  if (/^NT 10-[KQ]\b/.test(f)) return 2;             // late filer
+  if (/^[SF]-1(\/A)?$/.test(f)) return 2;              // registration
+  return /^(SC TO-T|SC TO-I|SC 14D9|DEFM14A|PREM14A|425)\b/.test(f) ? 2 : 0;
 }
-async function latest8KCatalyst(ticker) {
-  const res = await fetchSecFilings(ticker, 12);
-  const filings = (res && res.filings) || [];
-  if (!filings.length) return null;
-  const now = Date.now();
-  for (const f of filings) {           // EDGAR order = most-recent-first
+function isCatalystFiling(form, items, marketCap) {
+  return catalystRank(form, items, marketCap) > 0;
+}
+// Pick the reason from the last 4 days of filings: the newest strong filing
+// (8-K, 13D, priced offering...) wins over any weak one (424B3 / 424B7).
+// Reads up to 100 filings, so a bank's daily 424B2 notes can't push its
+// real 8-K out of the window.
+function pickCatalystFiling(filings, marketCap, now) {
+  let weak = null;
+  for (const f of filings || []) {     // EDGAR order = most-recent-first
     const d = Date.parse(f.acceptedDate || f.filingDate || "");
     if (isNaN(d)) continue;
     if ((now - d) / 3600000 > 96) break;        // older than 4 days → stop
-    if (!isCatalystFiling(f.form, f.items)) continue;  // routine paperwork
-    return { label: f.headline || (f.form + " filing"), url: f.url };
+    const rank = catalystRank(f.form, f.items, marketCap);
+    if (rank === 2) return f;
+    if (rank === 1 && !weak) weak = f;
   }
-  return null;
+  return weak;
+}
+async function latest8KCatalyst(ticker, marketCap) {
+  const res = await fetchSecFilings(ticker, 100);
+  const f = pickCatalystFiling((res && res.filings) || [], marketCap,
+    Date.now());
+  return f ? { label: f.headline || (f.form + " filing"), url: f.url } : null;
 }
 // Live extended-hours quote for one ticker via Yahoo (includePrePost).
 // Returns the latest pre/post/regular print + the true (split-adjusted)
@@ -3722,7 +3748,7 @@ async function fetchPremarketBuzz(env) {
     .filter(function (r) { return !r.catalyst; }).slice(0, 14);
   await Promise.all(needEdgar.map(async function (row) {
     try {
-      const f = await latest8KCatalyst(row.ticker);
+      const f = await latest8KCatalyst(row.ticker, row.market_cap);
       if (f) {
         row.catalyst = f.label;
         row.catalyst_url = f.url;

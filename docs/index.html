@@ -29702,12 +29702,13 @@
       // registrations, periodic reports, proxies and exhibits-only or
       // holder-vote 8-Ks. The worker stops sending these; this keeps an
       // older worker's answer from being shown as the reason for a move.
+      // 424B2 bank notes and 424B8 late copies are routine too.
       // Priced offerings (424B), S-1 / F-1 registrations, late-filing
       // notices (NT 10-K/Q), 13D amendments and charter amendments (reverse
       // splits) are real catalysts and stay.
       function pmbRoutineFiling(r) {
         if (!r || r.catalyst_src !== "edgar" || !r.catalyst) return false;
-        return /^(13G|SC 13G|SCHEDULE 13G|144\b|Insider transaction|[345]\b|Form [345]\b|S-8|S-3|F-3|Shelf registration|Quarterly report|Annual report|Amended (annual|quarterly) report|Definitive proxy|DEF 14A|11-K|8-K · (Financial Statements \/ Exhibits|Submission of Matters to Holder Vote)$)/i
+        return /^(13G|SC 13G|SCHEDULE 13G|424B[28]\b|144\b|Insider transaction|[345]\b|Form [345]\b|S-8|S-3|F-3|Shelf registration|Quarterly report|Annual report|Amended (annual|quarterly) report|Definitive proxy|DEF 14A|11-K|8-K · (Financial Statements \/ Exhibits|Submission of Matters to Holder Vote)$)/i
           .test(String(r.catalyst).trim());
       }
       function pmbNoCatalyst(phase) {
